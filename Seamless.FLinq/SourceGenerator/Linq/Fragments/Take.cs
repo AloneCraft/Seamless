@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 /*
 Take は source.Take(count) を、返した件数を数える enumerator へ変換する。

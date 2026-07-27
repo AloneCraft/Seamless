@@ -4,14 +4,23 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RootNamespace>Seamless</RootNamespace>
+    <RootNamespace>Seamless.FLinq</RootNamespace>
     <AssemblyName>Seamless.FLinq</AssemblyName>
     <PackageId>Seamless.FLinq</PackageId>
     <Title>Seamless FLinq</Title>
     <Description>Compile-time LINQ rewriting source generator for Seamless.</Description>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-    <NoWarn>$(NoWarn);RS1041;RS2008;CS9107</NoWarn>
+    <!-- NU5128: lib/ を持たない analyzer パッケージでは正常。 -->
+    <NoWarn>$(NoWarn);RS1041;RS2008;CS9107;NU5128</NoWarn>
+    <IsPackable>true</IsPackable>
+    <!-- 生成器は lib/ ではなく analyzers/dotnet/cs/ へ入れる。lib/ に入ると参照アセンブリ扱いになり生成器として動かない。 -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!-- IncludeBuildOutput=false だと snupkg が空になり NU5017 で失敗するため symbols は作らない。 -->
+    <IncludeSymbols>false</IncludeSymbols>
+    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_AddGeneratorToPackage</TargetsForTfmSpecificContentInPackage>
+    <!-- DevelopmentDependency は付けない。付けると利用者側で PrivateAssets=all 扱いになり、
+         下で宣言する Seamless.Linq への依存が流れず、生成コードがコンパイルできなくなる。 -->
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,10 +28,16 @@
     <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" PrivateAssets="all" />
   </ItemGroup>
 
-  <!-- Roslyn アナライザーとして参照プロジェクトを同時に読み込む -->
-  <Target Name="GetDependencyTargetPaths" DependsOnTargets="ResolveReferences">
+  <ItemGroup>
+    <!-- 生成コードが global::Seamless.Linq.* を直接埋め込むため、ランタイムを依存として宣言する。
+         ReferenceOutputAssembly="false" にすると nuspec の dependency ごと消える(実測)ので通常参照にする。
+         この生成器は Seamless.Linq の型を一切使わないので、参照はコンパイル上 inert。 -->
+    <ProjectReference Include="..\Seamless.Linq\Seamless.Linq.csproj" />
+  </ItemGroup>
+
+  <Target Name="_AddGeneratorToPackage">
     <ItemGroup>
-      <TargetPathWithTargetPlatformMoniker Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)'=='ProjectReference'" />
+      <TfmSpecificPackageFile Include="$(TargetPath)" PackagePath="analyzers/dotnet/cs" />
     </ItemGroup>
   </Target>
 </Project>

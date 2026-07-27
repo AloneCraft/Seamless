@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 // 単段パイプラインを Consume へ直接展開する経路。
 internal sealed partial class PipelineEnumerable {

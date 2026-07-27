@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 internal class TakeLast(int 番号,Enumerable source,string takeCount):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>

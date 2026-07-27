@@ -1,9 +1,5 @@
 using Tsavorite.core;
-#if BENCHMARK_PROJECT
-namespace Benchmark.Tsavorite.Collections.Stress;
-#else
-namespace Tsavorite.Collections.Stress;
-#endif
+namespace Shared.Tsavorite.Collections.Stress;
 
 /// <summary>
 /// HashSetの動作を検証する。
@@ -26,7 +22,7 @@ public class SetOperationStressTests {
         string opName,
         int count,
         int repeat,
-        Action<global::Seamless.Tsavorite.Collections.HashSet<int>,global::Seamless.Tsavorite.Collections.HashSet<int>> op) {
+        Action<global::Seamless.Collections.Tsavorite.HashSet<int>,global::Seamless.Collections.Tsavorite.HashSet<int>> op) {
         var temp = CreateTempDir("uintset_"+opName);
         try {
             var keysA = StressScript.SampleKeys(SeedA,count*4,count);
@@ -112,7 +108,7 @@ public class SetOperationStressTests {
         string opName,
         int count,
         int repeat,
-        Action<global::Seamless.Tsavorite.Collections.HashSet<string>,global::Seamless.Tsavorite.Collections.HashSet<string>> op) {
+        Action<global::Seamless.Collections.Tsavorite.HashSet<string>,global::Seamless.Collections.Tsavorite.HashSet<string>> op) {
         var temp = CreateTempDir("strset_"+opName);
         try {
             var rawA = StressScript.SampleKeys(SeedA,count*4,count);

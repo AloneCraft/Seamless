@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 /*
 Prepend は source.Prepend(value) を、追加要素を先に返してから source を列挙する状態機械へ変換する。
 

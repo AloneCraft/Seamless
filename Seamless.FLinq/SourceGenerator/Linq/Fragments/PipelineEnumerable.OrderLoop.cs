@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 // 並べ替え段のバッファ構築とソート。
 internal sealed partial class PipelineEnumerable {

@@ -1,0 +1,5 @@
+namespace Shared.Linq.Optimization.PredicatePushdown;
+public abstract class Persisted<T>(int count = 4_096):global::Common.PersistedBase<T>(count) where T : notnull {
+    [BenchFact, Benchmark] public void Select_selector_Where_predicate() => this.Select_selector_Where_predicate_Impl();
+    [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Select_selector_Where_predicate_Impl() => this.srcCount(4_096).Select(static value => (Value: value,Number: ToInt(value))).Where(static value => (value.Number&1)==0).Consume(this.consumer);
+}

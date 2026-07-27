@@ -1,6 +1,6 @@
 global using Seamless.Collections;
-global using Seamless.Serialization;
-global using Seamless.Tsavorite.Collections;
+global using Seamless.Collections.Tsavorite;
+global using Seamless.TestKit;
 
 global using System;
 global using System.Collections;

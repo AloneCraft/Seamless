@@ -5,7 +5,7 @@ using Test.System.Linq.Intercept;
 namespace Test.Seamless.Tsavorite.Linq.Enumerable;
 
 public sealed class SetFLinqExpansionTests {
-    private static global::Seamless.Tsavorite.Collections.Set<int,Row>? source;
+    private static global::Seamless.Collections.Tsavorite.Set<int,Row>? source;
 
     [Fact, Trait("Category","Unit")]
     public void TsavoriteSetRoot_ExpandsWithoutSeamlessEnumerableFallback() {
@@ -65,12 +65,12 @@ public sealed class SetFLinqExpansionTests {
             .Select(static row => row.Key+row.Value)
             .Sum();
 
-    private static global::Seamless.Tsavorite.Collections.Set<int,Row> Source() =>
+    private static global::Seamless.Collections.Tsavorite.Set<int,Row> Source() =>
         source??throw new InvalidOperationException("Source was not initialized.");
 
     public readonly record struct Row(int Key,int Value):global::Seamless.Collections.IRecord<int>;
 
-    private struct CollectStrategy:global::Seamless.Tsavorite.Collections.ISetIterateStrategy<CollectStrategy,Row> {
+    private struct CollectStrategy:global::Seamless.Collections.Tsavorite.ISetIterateStrategy<CollectStrategy,Row> {
         public List<Row>? Items;
         public static bool Invoke(ref CollectStrategy self,Row item) {
             self.Items!.Add(item);
@@ -78,7 +78,7 @@ public sealed class SetFLinqExpansionTests {
         }
     }
 
-    private struct StopAfterOneStrategy:global::Seamless.Tsavorite.Collections.ISetIterateStrategy<StopAfterOneStrategy,Row> {
+    private struct StopAfterOneStrategy:global::Seamless.Collections.Tsavorite.ISetIterateStrategy<StopAfterOneStrategy,Row> {
         public int Count;
         public static bool Invoke(ref StopAfterOneStrategy self,Row item) {
             self.Count++;
@@ -86,7 +86,7 @@ public sealed class SetFLinqExpansionTests {
         }
     }
 
-    private struct ThrowingStrategy:global::Seamless.Tsavorite.Collections.ISetIterateStrategy<ThrowingStrategy,Row> {
+    private struct ThrowingStrategy:global::Seamless.Collections.Tsavorite.ISetIterateStrategy<ThrowingStrategy,Row> {
         public static bool Invoke(ref ThrowingStrategy self,Row item) => throw new StrategyException();
     }
 

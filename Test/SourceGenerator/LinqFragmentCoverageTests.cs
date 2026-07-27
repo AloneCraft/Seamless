@@ -8,7 +8,7 @@ public sealed class LinqFragmentCoverageTests {
         var assembly = typeof(global::Seamless.FLinq.FLinqIncrementalGenerator).Assembly;
         var fragmentTypeNames = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
         foreach(var type in assembly.GetTypes()) {
-            if(type.Namespace=="Seamless.FLinq.Linq.Fragments") {
+            if(type.Namespace=="Seamless.FLinq") {
                 fragmentTypeNames.Add(type.Name);
             }
         }

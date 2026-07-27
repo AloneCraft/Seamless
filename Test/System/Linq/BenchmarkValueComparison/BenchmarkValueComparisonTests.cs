@@ -8,8 +8,8 @@ public sealed class BenchmarkValueComparisonTests {
     private const int ComparisonIterationCount = 3;
     private const string BenchmarkExecutionModeTypeName = "Common.BenchmarkExecutionMode";
     private const string ElementCountEnvironmentVariable = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
-    private const string BaseTypeNamePrefix = "Seamless.Linq.Shared.Base`1";
-    private const string RangeTypeNamePrefix = "Seamless.Linq.Shared.Range_start_count";
+    private const string BaseTypeNamePrefix = "Shared.Linq.Base`1";
+    private const string RangeTypeNamePrefix = "Shared.Linq.Range_start_count";
 
     [Fact]
     [global::Seamless.FLinq.LinqIntercept(false)]
@@ -49,7 +49,7 @@ public sealed class BenchmarkValueComparisonTests {
     [Fact]
     public void List_zlinq_route_uses_from_list() {
         var assembly = BenchmarkTarget.LoadAssemblyForTest("Benchmark.System.Linq.Enumerable.List.ZLinq");
-        var route = assembly.GetType("Seamless.Linq.Shared.Route",throwOnError: true)!;
+        var route = assembly.GetType("Shared.Linq.Route",throwOnError: true)!;
         var method = route.GetMethods(BindingFlags.Static|BindingFlags.Public|BindingFlags.NonPublic)
             .Single(candidate => candidate.Name=="AsX"&&candidate.GetParameters()[0].ParameterType.IsGenericType&&candidate.GetParameters()[0].ParameterType.GetGenericTypeDefinition()==typeof(List<>));
         var enumeratorType = method.ReturnType.GetGenericArguments()[0];

@@ -15,7 +15,7 @@ review_status: draft
 # Class Diagram
 
 ## 概要
-主要クラス群は、source generator 系、collection runtime 系、benchmark runner 系に分かれる。`Seamless.slnx` では `FLinq`、`Seamless.SourceGenerator`、`Benchmark.Tsavorite.Collections`、`Seamless.Database`、`Benchmark` と複数の test/benchmark project が接続されている（`Seamless.slnx:13`, `Seamless.slnx:26`, `Seamless.slnx:27`, `Seamless.slnx:29`, `Seamless.slnx:30`）。
+主要クラス群は、source generator 系、collection runtime 系、benchmark runner 系に分かれる。`Seamless.slnx` では `FLinq`、`Seamless.Database.Generator`、`Benchmark.Tsavorite.Collections`、`Seamless.Database`、`Benchmark` と複数の test/benchmark project が接続されている（`Seamless.slnx:13`, `Seamless.slnx:26`, `Seamless.slnx:27`, `Seamless.slnx:29`, `Seamless.slnx:30`）。
 
 ```mermaid
 classDiagram

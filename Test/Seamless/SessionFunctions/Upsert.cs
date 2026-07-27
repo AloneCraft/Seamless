@@ -2,7 +2,7 @@ using Garnet.common;
 
 using MemoryPack;
 
-using Seamless.Tsavorite.Stores;
+using Seamless.Collections.Tsavorite;
 
 using Tsavorite.core;
 
@@ -24,16 +24,16 @@ public sealed class Upsert:AddTests<int,string> {
         return (store.Create(),store);
     }
     protected override (global::System.Collections.Generic.IDictionary<int,string> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
-        var store = Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity).Create<int,string>(logDevice,objDevice);
+        var store = Store.Create(MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity).Create<int,string>(logDevice,objDevice);
         return (store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store) =>
         ((CollectionStore<int,string>)store).Store.Log.FlushAndEvict(true);
     protected override TryAddResult TryAdd(global::System.Collections.Generic.IDictionary<int,string> dict,int key,string value) =>
-        ((global::Seamless.Tsavorite.Collections.IDictionary<int,string>)dict).TryAdd(key,value);
+        ((global::Seamless.Collections.Tsavorite.IDictionary<int,string>)dict).TryAdd(key,value);
     protected override void DoUpsert() {
         using var store = Store.Create().Create<int,string>();
-        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
+        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.Upsert<string,MemoryPackSerializer<string>>>(new());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(200));
         // Upsert writerの動作を検証する。
@@ -47,7 +47,7 @@ public sealed class Upsert:AddTests<int,string> {
     }
     protected override void DoInPlaceWriter() {
         using var store = Store.Create().Create<int,string>();
-        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
+        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.Upsert<string,MemoryPackSerializer<string>>>(new());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(200));
         // Upsert writerの動作を検証する。
@@ -81,7 +81,7 @@ public sealed class Upsert:AddTests<int,string> {
     [Fact, Trait("Category","Unit")]
     public void UpsertHeapObject() {
         using var store = Store.Create().Create<int,string>();
-        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
+        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.Upsert<string,MemoryPackSerializer<string>>>(new());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(500));
         // Upsert 経路はこの処理では使用しない。
@@ -96,7 +96,7 @@ public sealed class Upsert:AddTests<int,string> {
         bc.Upsert(key2,(IHeapObject)new DummyHeapObject());
         // Upsert writerの動作を検証する。
         {
-            var f = new global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>();
+            var f = new global::Seamless.Collections.Tsavorite.Upsert<string,MemoryPackSerializer<string>>();
             var lr = default(LogRecord);
             var si = default(RecordSizeInfo);
             string inp = null!;
@@ -113,7 +113,7 @@ public sealed class Upsert:AddTests<int,string> {
             string,//TInput
             bool,
             EqualityEmpty,
-            global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>,
+            global::Seamless.Collections.Tsavorite.Upsert<string,MemoryPackSerializer<string>>,
             StoreFunctions<SpanByteComparer,DefaultRecordTriggers>,
             SpanByteAllocator<
                 StoreFunctions<
@@ -153,7 +153,7 @@ public sealed class Upsert:AddTests<int,string> {
             string,//TInput
             bool,
             EqualityEmpty,
-            global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>
+            global::Seamless.Collections.Tsavorite.Upsert<string,MemoryPackSerializer<string>>
         >(new());
         var addr1 = store.Store.Log.TailAddress;
         session.BasicContext.Upsert(MakeKey(SerInt(600)),SerStr("log"));
@@ -169,7 +169,7 @@ public sealed class Upsert:AddTests<int,string> {
     protected override void DoRMW() {
         using var store = Store.Create().Create<int,string>();
         var key = MakeKey(SerInt(1));
-        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Tsavorite.SessionFunctions.Upsert<string,MemoryPackSerializer<string>>>(new());
+        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.Upsert<string,MemoryPackSerializer<string>>>(new());
         var input0 = "v1";
         var input1 = "v2";
         var bc = session.BasicContext;
@@ -197,9 +197,9 @@ public sealed class Upsert:AddTests<int,string> {
     [Fact, Trait("Category","Unit")]
     public void TryAddAfterFlushReportsExisting_Managed() {
         var folder = this.CreateDiskFolder();
-        using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-        using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-        using var store = Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
+        using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
+        using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
+        using var store = Store.Create(MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();
         dict.Add(0,"target");
         store.Store.Log.FlushAndEvict(true);
@@ -208,9 +208,9 @@ public sealed class Upsert:AddTests<int,string> {
     [Fact, Trait("Category","Unit")]
     public void ReadAfterFlush_Managed() {
         var folder = this.CreateDiskFolder();
-        using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-        using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-        using var store = Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
+        using var LogDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
+        using var ObjDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
+        using var store = Store.Create(MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity).Create<int,string>(LogDevice,ObjDevice);
         using var dict = store.Create();
         dict[0]="target";
         store.Store.Log.FlushAndEvict(true);

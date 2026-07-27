@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 // 段の組み合わせ検証と補助宣言の出力。
 internal static partial class PipelineBuilder {

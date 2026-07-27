@@ -17,7 +17,7 @@ public partial class KindDictionarySize(ITestOutputHelper output) {
     private static long MeasureLogBytes<TDict>(
         Func<long> getTailAddress,
         TDict dict)
-        where TDict : global::Seamless.Tsavorite.Collections.IDictionary<int,int> {
+        where TDict : global::Seamless.Collections.Tsavorite.IDictionary<int,int> {
         var begin = getTailAddress();
         for(var i = 0;i<N;i++) dict.Add(i,i);
         return getTailAddress()-begin;

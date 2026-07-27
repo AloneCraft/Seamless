@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 /*
 ToDictionaryBase は ToDictionary overload 群の direct enumerable fast path と共通設定を持つ基底。

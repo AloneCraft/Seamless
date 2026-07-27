@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 /*
 Scalar は Count/First/ToArray など「シーケンスから単一結果を返す」終端 Fragment の基底。
 

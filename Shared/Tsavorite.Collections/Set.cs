@@ -1,9 +1,5 @@
 using MemoryPack;
-#if BENCHMARK_PROJECT
-namespace Benchmark.Tsavorite.Collections;
-#else
-namespace Tsavorite.Collections;
-#endif
+namespace Shared.Tsavorite.Collections;
 
 [MemoryPackable]
 public partial record struct ManagedSetRecord(int Key,string Name):global::Seamless.Collections.IRecord<int>;
@@ -158,7 +154,7 @@ public class Set {
         keys.Add(3);
 
         using var union = set.Union(keys);
-        Assert.IsType<global::Seamless.Tsavorite.Collections.HashSet<int>>(union);
+        Assert.IsType<global::Seamless.Collections.Tsavorite.HashSet<int>>(union);
         Assert.Equal(3,union.Count);
         Assert.True(union.Contains(1));
         Assert.True(union.Contains(2));
@@ -234,7 +230,7 @@ public class Set {
         keys.Add(3);
 
         using var union = set.Union(keys);
-        Assert.IsType<global::Seamless.Tsavorite.Collections.HashSet<int>>(union);
+        Assert.IsType<global::Seamless.Collections.Tsavorite.HashSet<int>>(union);
         Assert.Equal(3,union.Count);
         Assert.True(union.Contains(1));
         Assert.True(union.Contains(2));

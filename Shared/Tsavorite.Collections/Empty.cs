@@ -1,9 +1,5 @@
-using EqualityEmpty = Seamless.Tsavorite.Collections.EqualityEmpty;
-#if BENCHMARK_PROJECT
-namespace Benchmark.Tsavorite.Collections;
-#else
-namespace Tsavorite.Collections;
-#endif
+using EqualityEmpty = Seamless.Collections.Tsavorite.EqualityEmpty;
+namespace Shared.Tsavorite.Collections;
 
 
 public class TestEqualityEmpty {

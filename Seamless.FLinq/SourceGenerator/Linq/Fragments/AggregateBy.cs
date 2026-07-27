@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 /*
 AggregateBy は key ごとに accumulator を持つ grouping 集約を生成する。
 
@@ -38,13 +38,13 @@ internal class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,func)}";
     public override string GetEnumeratorFields => $$"""
-        private global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>? {{this.lookup}};
-        private global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>.Enumerator {{this.innerEnumerator}};
+        private global::Seamless.Linq.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>? {{this.lookup}};
+        private global::Seamless.Linq.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>.Enumerator {{this.innerEnumerator}};
         """;
     public override string GetTryGetNextBody => $$"""
         if(this.{{this.lookup}} is null){
             if({{this.e}}.TryGetSpan(out var __span)){
-                this.{{this.lookup}}=new global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>({{CapacityExpression("__span.Length")}});
+                this.{{this.lookup}}=new global::Seamless.Linq.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>({{CapacityExpression("__span.Length")}});
                 for(var __i=0;__i<__span.Length;__i++){
                     var {{this.item}}=__span[__i];
                     {{this.KeyType}} {{this.key}}=default!;
@@ -57,9 +57,9 @@ internal class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector
                 }
             }else{
                 if({{this.e}}.TryGetNonEnumeratedCount(out var __count)){
-                    this.{{this.lookup}}=new global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>({{CapacityExpression("__count")}});
+                    this.{{this.lookup}}=new global::Seamless.Linq.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>({{CapacityExpression("__count")}});
                 }else{
-                    this.{{this.lookup}}=new global::Seamless.Linq.Internal.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>();
+                    this.{{this.lookup}}=new global::Seamless.Linq.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>();
                 }
                 while({{this.e}}.TryGetNext(out var __mn0)){
                     var {{this.item}}=__mn0;

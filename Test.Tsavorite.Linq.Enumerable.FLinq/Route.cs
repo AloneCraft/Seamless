@@ -1,14 +1,14 @@
-namespace Test.Tsavorite.Linq.Enumerable {
+namespace Test.Tsavorite.Linq.Enumerable.FLinq {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public sealed class FLinqInt32():global::Seamless.Linq.Shared.Tsavorite<int>(80_000);
+    public sealed class FLinqInt32():global::Shared.Linq.Tsavorite<int>(80_000);
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public sealed class FLinqClassInt32():global::Seamless.Linq.Shared.Tsavorite<global::Common.ClassInt32>(80_000);
+    public sealed class FLinqClassInt32():global::Shared.Linq.Tsavorite<global::Common.ClassInt32>(80_000);
 }
 
-namespace Seamless.Linq.Shared {
+namespace Shared.Linq {
     internal static class Route {
-        public static global::Seamless.Tsavorite.Collections.HashSet<T> AsX<T>(
-            this global::Seamless.Tsavorite.Collections.HashSet<T> source) => source;
+        public static global::Seamless.Collections.Tsavorite.HashSet<T> AsX<T>(
+            this global::Seamless.Collections.Tsavorite.HashSet<T> source) => source;
 
         public static global::System.Collections.Generic.IEnumerable<T> AsX<T>(this global::System.Collections.Generic.IEnumerable<T> source) => source;
     }

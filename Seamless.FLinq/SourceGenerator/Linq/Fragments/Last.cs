@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 /*
 Last は source.Last() を、最後に見た値を保持する Compute に変換する。
 

@@ -7,25 +7,25 @@ namespace Test.Seamless.Database.Database0 {
     ///  <see cref="Test.Seamless.Diagnostics.InterceptorSmokeTests.ListWhere_Interceptor_Smoke"/>
     /// </summary>
     public class Container {
-        public global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Optimize無virtual無(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
-            new global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int>(global::System.Linq.Enumerable.Select(outer,static p => p+p));
-            var x = new global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int>(global::System.Linq.Enumerable.Select(outer,static p => p+p));
+        public global::Seamless.Collections.Tsavorite.EnumerableSource<int> Optimize無virtual無(global::Seamless.Collections.Tsavorite.EnumerableSource<int> outer) {
+            new global::Seamless.Collections.Tsavorite.EnumerableSource<int>(global::System.Linq.Enumerable.Select(outer,static p => p+p));
+            var x = new global::Seamless.Collections.Tsavorite.EnumerableSource<int>(global::System.Linq.Enumerable.Select(outer,static p => p+p));
             return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
-        public virtual global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Optimize無virtual有(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
+        public virtual global::Seamless.Collections.Tsavorite.EnumerableSource<int> Optimize無virtual有(global::Seamless.Collections.Tsavorite.EnumerableSource<int> outer) {
             return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
-        //[Optimize]public global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Optimize有virtual無(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
+        //[Optimize]public global::Seamless.Collections.Tsavorite.EnumerableSource<int> Optimize有virtual無(global::Seamless.Collections.Tsavorite.EnumerableSource<int> outer) {
         //    return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         //}
-        public virtual global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Optimize有virtual有(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
+        public virtual global::Seamless.Collections.Tsavorite.EnumerableSource<int> Optimize有virtual有(global::Seamless.Collections.Tsavorite.EnumerableSource<int> outer) {
             return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
         [Fact]
         public virtual void Call() {
             var x = this.Select_Method(new int[3]);
         }
-        public virtual global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> Select_Method(global::Seamless.Tsavorite.Collections.Generic.IEnumerable<int> outer) {
+        public virtual global::Seamless.Collections.Tsavorite.EnumerableSource<int> Select_Method(global::Seamless.Collections.Tsavorite.EnumerableSource<int> outer) {
             return new(global::System.Linq.Enumerable.Select(outer,static p => p+p));
         }
         public virtual IEnumerable<int> SelectSelect_Method(IEnumerable<int> outer) {

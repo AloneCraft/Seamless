@@ -44,7 +44,7 @@ public sealed class ベンチマーク表示名テスト {
         foreach(var 旧型名 in new[]{
             "ArrayPipeline`1","EnumerablePipeline`1","ListPipeline`1","RangePipeline","PersistedPipeline`1","TsavoritePipeline`1",
         }){
-            Assert.Null(アセンブリ.GetType("Seamless.Linq.Optimization."+旧型名,throwOnError:false));
+            Assert.Null(アセンブリ.GetType("Shared.Linq.Optimization."+旧型名,throwOnError:false));
         }
     }
 
@@ -72,7 +72,7 @@ public sealed class ベンチマーク表示名テスト {
         foreach(var 旧型名 in new[]{
             "ArrayPushdown`1","EnumerablePushdown`1","ListPushdown`1","RangePushdown","PersistedPushdown`1","TsavoritePushdown`1",
         }){
-            Assert.Null(アセンブリ.GetType("Seamless.Linq.Optimization."+旧型名,throwOnError:false));
+            Assert.Null(アセンブリ.GetType("Shared.Linq.Optimization."+旧型名,throwOnError:false));
         }
     }
 
@@ -101,7 +101,7 @@ public sealed class ベンチマーク表示名テスト {
             var 型=アセンブリ.GetType(型完全名,throwOnError:true)
                 ??throw new TypeLoadException(型完全名);
             var 基底型=型.BaseType??throw new TypeLoadException(型完全名+"の基底型");
-            Assert.Equal("Seamless.Linq.Optimization."+最適化名,基底型.Namespace);
+            Assert.Equal("Shared.Linq.Optimization."+最適化名,基底型.Namespace);
             Assert.Equal(期待.ベンチマークパス,ベンチマークパスを取得(アセンブリ,型完全名));
             Assert.Equal(
                 期待.ベンチマークパス+"."+期待.メソッド名,

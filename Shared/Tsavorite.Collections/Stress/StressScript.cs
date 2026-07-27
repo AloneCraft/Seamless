@@ -1,8 +1,4 @@
-#if BENCHMARK_PROJECT
-namespace Benchmark.Tsavorite.Collections.Stress;
-#else
-namespace Tsavorite.Collections.Stress;
-#endif
+namespace Shared.Tsavorite.Collections.Stress;
 
 /// <summary>
 /// Stress テストの動作を検証する。

@@ -1,14 +1,14 @@
-namespace Test.Persisted.Linq.Enumerable {
+namespace Test.Persisted.Linq.Enumerable.Linq {
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public sealed class LinqInt32():global::Seamless.Linq.Shared.Persisted<int>(80_000);
+    public sealed class LinqInt32():global::Shared.Linq.Persisted<int>(80_000);
     [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-    public sealed class LinqClassInt32():global::Seamless.Linq.Shared.Persisted<global::Common.ClassInt32>(80_000);
+    public sealed class LinqClassInt32():global::Shared.Linq.Persisted<global::Common.ClassInt32>(80_000);
 }
 
-namespace Seamless.Linq.Shared {
+namespace Shared.Linq {
     internal static class Route {
-        public static Seamless.Persisted.Collections.Set<T> AsX<T>(
-            this Seamless.Persisted.Collections.Set<T> source) => source;
+        public static Seamless.Collections.Persisted.Set<T> AsX<T>(
+            this Seamless.Collections.Persisted.Set<T> source) => source;
 
         public static global::System.Collections.Generic.IEnumerable<T> AsX<T>(this global::System.Collections.Generic.IEnumerable<T> source) => source;
     }

@@ -1,4 +1,4 @@
-namespace Test.System.Linq.Enumerable;
+namespace Test.System.Linq.Enumerable.FLinq;
 
 public sealed class GenericOptimizationTests {
     [Fact, Trait("Category","Unit")]

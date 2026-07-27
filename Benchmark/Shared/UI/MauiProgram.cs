@@ -1,6 +1,6 @@
 using Microsoft.Maui.LifecycleEvents;
 
-using Seamless.UI.Storage;
+using UI.Storage;
 
 using Syncfusion.Maui.Core.Hosting;
 using Syncfusion.Maui.Toolkit.Hosting;

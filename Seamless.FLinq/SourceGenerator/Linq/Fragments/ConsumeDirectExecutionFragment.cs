@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 internal interface ConsumeDirectExecutionFragment {
     string GetConsumeExecutionStatement(string consumerName);

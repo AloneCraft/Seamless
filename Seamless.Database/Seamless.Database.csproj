@@ -1,31 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>14</LangVersion>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RootNamespace>Seamless</RootNamespace>
+    <RootNamespace>Seamless.Database</RootNamespace>
     <AssemblyName>Seamless.Database</AssemblyName>
     <PackageId>Seamless.Database</PackageId>
+    <IsPackable>true</IsPackable>
     <Title>Seamless Database</Title>
-    <Description>Database schema boilerplate source generator for Seamless.</Description>
-    <IsRoslynComponent>true</IsRoslynComponent>
-    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-    <NoWarn>$(NoWarn);RS1041;RS2008</NoWarn>
+    <Description>Declarative database container runtime (Table/View/TableFunction) backed by Seamless Tsavorite collections.</Description>
   </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" PrivateAssets="all" />
+    <Compile Remove="Artifacts\**" />
+    <Compile Remove="Work\**" />
+    <EmbeddedResource Remove="Artifacts\**" />
+    <EmbeddedResource Remove="Work\**" />
+    <None Remove="Artifacts\**" />
+    <None Remove="Work\**" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" />
+    <ProjectReference Include="..\Seamless.Collections.Tsavorite\Seamless.Collections.Tsavorite.csproj" />
   </ItemGroup>
-
-  <Target Name="GetDependencyTargetPaths" DependsOnTargets="ResolveReferences">
-    <ItemGroup>
-      <TargetPathWithTargetPlatformMoniker Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.ReferenceSourceTarget)'=='ProjectReference'" />
-    </ItemGroup>
-  </Target>
 </Project>

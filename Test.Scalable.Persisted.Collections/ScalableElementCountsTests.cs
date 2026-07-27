@@ -1,6 +1,6 @@
 using Scalable.Collections;
 
-namespace Test.Scalable.Benchmark.Persisted.Collections;
+namespace Test.Scalable.Persisted.Collections;
 
 public sealed class ScalableElementCountsTests {
     [Fact]

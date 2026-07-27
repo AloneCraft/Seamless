@@ -41,7 +41,7 @@ public sealed class MainPage:ContentPage{
         var 手順数入力=new Entry{AutomationId="パラメータスイープ.手順数",WidthRequest=64,Keyboard=Keyboard.Numeric};
         手順数入力.SetBinding(Entry.TextProperty,nameof(パラメータスイープビューモデル.最大スイープ手順数表示));
 
-        var 実行選択=new Picker{AutomationId="パラメータスイープ.前回実行",WidthRequest=260,ItemDisplayBinding=new Binding(nameof(Seamless.UI.Storage.UI実行記録.表示名))};
+        var 実行選択=new Picker{AutomationId="パラメータスイープ.前回実行",WidthRequest=260,ItemDisplayBinding=new Binding(nameof(global::UI.Storage.UI実行記録.表示名))};
         実行選択.SetBinding(Picker.ItemsSourceProperty,nameof(パラメータスイープビューモデル.実行履歴));
         実行選択.SetBinding(Picker.SelectedItemProperty,nameof(パラメータスイープビューモデル.選択前回実行));
 
@@ -77,7 +77,10 @@ public sealed class MainPage:ContentPage{
             RowDefinitions={new RowDefinition{Height=GridLength.Auto},new RowDefinition{Height=GridLength.Star}},Children={ヘッダー,一覧},
         }};
         Grid.SetRow(一覧,1);
-        return new Grid{RowDefinitions={new RowDefinition{Height=GridLength.Auto},new RowDefinition{Height=GridLength.Auto},new RowDefinition{Height=GridLength.Star}},Children={ツールバー,状態行,スクロール}};
+        var ルート=new Grid{RowDefinitions={new RowDefinition{Height=GridLength.Auto},new RowDefinition{Height=GridLength.Auto},new RowDefinition{Height=GridLength.Star}},Children={ツールバー,状態行,スクロール}};
+        Grid.SetRow(状態行,1);
+        Grid.SetRow(スクロール,2);
+        return ルート;
     }
 
     private Grid ヘッダー行を作成(){

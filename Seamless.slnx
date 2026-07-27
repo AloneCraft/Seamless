@@ -28,6 +28,7 @@
     <Project Path="Benchmark/Benchmark.Scalable.Tsavorite.Collections/Benchmark.Scalable.Tsavorite.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj" />
     <Project Path="Benchmark/Benchmark.UI/Benchmark.UI.csproj" />
+    <Project Path="Benchmark/Worker/Worker.csproj" />
   </Folder>
   <Folder Name="/Benchmark/Shared/">
     <Project Path="Benchmark/Shared/UI/UI.shproj" />
@@ -47,9 +48,9 @@
     <Project Path="Shared/Scalable.Collections/Scalable.Collections.shproj" />
     <Project Path="Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.shproj" />
     <Project Path="Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.shproj" />
-    <Project Path="Shared/Seamless.Linq.Enumerable/Seamless.Linq.Enumerable.shproj" />
-    <Project Path="Shared/Seamless.Linq.Optimization/Seamless.Linq.Optimization.shproj" />
-    <Project Path="Shared/Seamless.Linq.Range/Seamless.Linq.Range.shproj" />
+    <Project Path="Shared/Linq.Enumerable/Linq.Enumerable.shproj" />
+    <Project Path="Shared/Linq.Optimization/Linq.Optimization.shproj" />
+    <Project Path="Shared/Linq.Range/Linq.Range.shproj" />
     <Project Path="Shared/Tsavorite.Collections/Tsavorite.Collections.shproj" />
     <Project Path="Shared/UI.Core/UI.Core.shproj" />
     <Project Path="Shared/UI.Storage/UI.Storage.csproj" />
@@ -62,7 +63,7 @@
     <File Path="Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.projitems" />
     <File Path="Shared/Seamless.Linq.Enumerable/Seamless.Linq.Enumerable.projitems" />
     <File Path="Shared/Seamless.Linq.Enumerable/Linq.Enumerable.Benchmark/Program.cs" />
-    <File Path="Shared/Seamless.Linq.Optimization/OptimizationBenchmarks.projitems" />
+    <File Path="Shared/Shared.Linq.Optimization/OptimizationBenchmarks.projitems" />
     <File Path="Shared/Seamless.Linq.Range/Seamless.Linq.Range.projitems" />
     <File Path="Shared/Tsavorite.Collections/Tsavorite.Collections.projitems" />
     <File Path="Shared/UI.Core/UI.Core.projitems" />
@@ -72,14 +73,11 @@
     <File Path="AI_SYNTAX_RULES.md" />
     <File Path="CLAUDE.md" />
     <File Path="copilot-instructions.md" />
-    <File Path="DEEPSEEK.md" />
-    <File Path="TextFile1.txt" />
   </Folder>
   <Folder Name="/SourceGenerator/">
-    <Project Path="Seamless.Database/Seamless.Database.csproj" />
+    <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
     <Project Path="Seamless.FLinq/Seamless.FLinq.csproj" />
     <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
-    <Project Path="Seamless.SourceGenerator/Seamless.SourceGenerator.csproj" />
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="DynamicLinq.Runner/DynamicLinq.Runner.csproj" />
@@ -102,12 +100,12 @@
     <Project Path="Test.Tsavorite/Test.Tsavorite.csproj" />
     <Project Path="Benchmark.UI.UITests/Benchmark.UI.UITests.csproj" />
     <Project Path="Test/Test.csproj" />
+    <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
   </Folder>
-  <Project Path="Seamless.Abstractions/Seamless.Abstractions.csproj" />
   <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
   <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
   <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
+  <Project Path="Seamless.Database/Seamless.Database.csproj" />
   <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
-  <Project Path="Seamless.Serialization/Seamless.Serialization.csproj" />
   <Project Path="Seamless/Seamless.csproj" />
 </Solution>

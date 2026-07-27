@@ -1,8 +1,4 @@
-#if BENCHMARK_PROJECT
-namespace Benchmark.Persisted.Collections;
-#else
-namespace Persisted.Collections;
-#endif
+namespace Shared.Persisted.Collections;
 
 public abstract class ListBase<TStrategy, T>:ListTestBase<TStrategy,T>
     where TStrategy : IListTestStrategy<T>;

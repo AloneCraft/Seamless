@@ -1,5 +1,5 @@
-using Seamless.Tsavorite.Devices;
-using Seamless.Tsavorite.Stores;
+using Seamless.Collections.Tsavorite;
+using Seamless.Collections.Tsavorite;
 
 using Tsavorite.core;
 
@@ -113,7 +113,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
             switch(scenario) {
                 case DeviceScenario.MemoryOnly: {
                     var logBuffer = new byte[MinSegmentSize*2];
-                    var objBuffer = new byte[global::Seamless.Tsavorite.Const.MinObjectLogCapacity];
+                    var objBuffer = new byte[global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity];
                     var token = SaveDictionaryLongLongMemory(checkpointDir,logBuffer,objBuffer,mode,SmallCount);
                     LoadDictionaryLongLongMemory(checkpointDir,logBuffer,objBuffer,token,mode,SmallCount);
                     break;
@@ -133,7 +133,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
                         MinPageSize,
                         MinSegmentSize,
                         MinMemorySize,
-                        global::Seamless.Tsavorite.Const.MinObjectLogCapacity,
+                        global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,
                         preallocateFile: false,
                         flushAndEvict: scenario==DeviceScenario.StorageEvicted,
                         count: SmallCount);
@@ -147,7 +147,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
                         MinPageSize,
                         MinSegmentSize,
                         MinMemorySize,
-                        global::Seamless.Tsavorite.Const.MinObjectLogCapacity,
+                        global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,
                         count: SmallCount);
                     break;
                 }
@@ -159,14 +159,14 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
 
     private static Guid SaveDictionaryLongLongMemory(string checkpointDir,byte[] logBuffer,byte[] objBuffer,CheckpointMode mode,int count) {
         using var logDevice = new MemoryOnlyDevice(MinSegmentSize*2,logBuffer);
-        using var objDevice = new MemoryOnlyDevice(global::Seamless.Tsavorite.Const.MinObjectLogCapacity,objBuffer);
-        var factory = global::Seamless.Tsavorite.Collections.Store.Create(
+        using var objDevice = new MemoryOnlyDevice(global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,objBuffer);
+        var factory = global::Seamless.Collections.Tsavorite.Store.Create(
             IndexSize: MinIndexSize,
             PageSize: MinPageSize,
             SegmentSize: MinSegmentSize,
             MemorySize: MinMemorySize,
             CheckpointDir: checkpointDir,
-            ObjectLogSegmentSize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+            ObjectLogSegmentSize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
         using var store = factory.Create<long,long>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy());
         using(var dict = store.Create()) {
             FillDictionaryLongLong(dict,count);
@@ -176,14 +176,14 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
 
     private static void LoadDictionaryLongLongMemory(string checkpointDir,byte[] logBuffer,byte[] objBuffer,Guid token,CheckpointMode mode,int count) {
         using var logDevice = new MemoryOnlyDevice(MinSegmentSize*2,logBuffer);
-        using var objDevice = new MemoryOnlyDevice(global::Seamless.Tsavorite.Const.MinObjectLogCapacity,objBuffer);
-        var factory = global::Seamless.Tsavorite.Collections.Store.Create(
+        using var objDevice = new MemoryOnlyDevice(global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,objBuffer);
+        var factory = global::Seamless.Collections.Tsavorite.Store.Create(
             IndexSize: MinIndexSize,
             PageSize: MinPageSize,
             SegmentSize: MinSegmentSize,
             MemorySize: MinMemorySize,
             CheckpointDir: checkpointDir,
-            ObjectLogSegmentSize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+            ObjectLogSegmentSize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
         using var store = factory.Create<long,long>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy());
         LoadStore(store,token,mode);
         using var dict = store.Create();
@@ -205,7 +205,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
         int count) {
         using var logDevice = CreateDevice(logPath,preallocateFile,capacity);
         using var objDevice = CreateDevice(objPath,preallocateFile,capacity);
-        var factory = global::Seamless.Tsavorite.Collections.Store.Create(
+        var factory = global::Seamless.Collections.Tsavorite.Store.Create(
             IndexSize: indexSize,
             PageSize: pageSize,
             SegmentSize: segmentSize,
@@ -236,7 +236,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
         int count) {
         using var logDevice = CreateDevice(logPath,preallocateFile: false,capacity);
         using var objDevice = CreateDevice(objPath,preallocateFile: false,capacity);
-        var factory = global::Seamless.Tsavorite.Collections.Store.Create(
+        var factory = global::Seamless.Collections.Tsavorite.Store.Create(
             IndexSize: indexSize,
             PageSize: pageSize,
             SegmentSize: segmentSize,
@@ -264,7 +264,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
         int count) {
         using var logDevice = CreateDevice(logPath,preallocateFile,capacity);
         using var objDevice = CreateDevice(objPath,preallocateFile,capacity);
-        var factory = global::Seamless.Tsavorite.Collections.Store.Create(
+        var factory = global::Seamless.Collections.Tsavorite.Store.Create(
             IndexSize: indexSize,
             PageSize: pageSize,
             SegmentSize: segmentSize,
@@ -295,7 +295,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
         int count) {
         using var logDevice = CreateDevice(logPath,preallocateFile: false,capacity);
         using var objDevice = CreateDevice(objPath,preallocateFile: false,capacity);
-        var factory = global::Seamless.Tsavorite.Collections.Store.Create(
+        var factory = global::Seamless.Collections.Tsavorite.Store.Create(
             IndexSize: indexSize,
             PageSize: pageSize,
             SegmentSize: segmentSize,
@@ -312,14 +312,14 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
         Directory.CreateDirectory(descriptor.StoreDir);
         Directory.CreateDirectory(descriptor.CheckpointDir);
         var logDevice = CreateDevice(descriptor.LogPath,preallocateFile: false,MinMemorySize);
-        var objDevice = CreateDevice(descriptor.ObjectLogPath,preallocateFile: false,global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-        var factory = global::Seamless.Tsavorite.Collections.Store.Create(
+        var objDevice = CreateDevice(descriptor.ObjectLogPath,preallocateFile: false,global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
+        var factory = global::Seamless.Collections.Tsavorite.Store.Create(
             IndexSize: MinIndexSize,
             PageSize: MinPageSize,
             SegmentSize: MinSegmentSize,
             MemorySize: MinMemorySize,
             CheckpointDir: descriptor.CheckpointDir,
-            ObjectLogSegmentSize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+            ObjectLogSegmentSize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
         var store = CreateStore(factory,logDevice,objDevice,index);
         PopulateStore(store,index);
         descriptor.Token=SaveStore(store,mode);
@@ -328,18 +328,18 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
 
     private static StoreHandle CreateRecoveryStore(StoreDescriptor descriptor,int index) {
         var logDevice = CreateDevice(descriptor.LogPath,preallocateFile: false,MinMemorySize);
-        var objDevice = CreateDevice(descriptor.ObjectLogPath,preallocateFile: false,global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-        var factory = global::Seamless.Tsavorite.Collections.Store.Create(
+        var objDevice = CreateDevice(descriptor.ObjectLogPath,preallocateFile: false,global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
+        var factory = global::Seamless.Collections.Tsavorite.Store.Create(
             IndexSize: MinIndexSize,
             PageSize: MinPageSize,
             SegmentSize: MinSegmentSize,
             MemorySize: MinMemorySize,
             CheckpointDir: descriptor.CheckpointDir,
-            ObjectLogSegmentSize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+            ObjectLogSegmentSize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
         return new StoreHandle(CreateStore(factory,logDevice,objDevice,index),logDevice,objDevice);
     }
 
-    private static CollectionStore CreateStore(global::Seamless.Tsavorite.Collections.Store factory,IDevice logDevice,IDevice objDevice,int index) =>
+    private static CollectionStore CreateStore(global::Seamless.Collections.Tsavorite.Store factory,IDevice logDevice,IDevice objDevice,int index) =>
         (index%4) switch {
             0 => factory.Create<long,long>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy()),
             1 => factory.Create<long>(logDevice,objDevice,new BlittableStrategy()),
@@ -399,13 +399,13 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
         }
     }
 
-    private static void FillDictionaryLongLong(global::Seamless.Tsavorite.Collections.IDictionary<long,long> dict,int count) {
+    private static void FillDictionaryLongLong(global::Seamless.Collections.Tsavorite.IDictionary<long,long> dict,int count) {
         for(var i = 0;i<count;i++) {
             dict.Add(i,i);
         }
     }
 
-    private static void AssertDictionaryLongLong(global::Seamless.Tsavorite.Collections.IDictionary<long,long> dict,int count) {
+    private static void AssertDictionaryLongLong(global::Seamless.Collections.Tsavorite.IDictionary<long,long> dict,int count) {
         Assert.Equal(count,dict.Count);
         for(var i = 0;i<count;i++) {
             Assert.True(dict.TryGetValue(i,out var value),$"Key {i} was not found.");
@@ -413,13 +413,13 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
         }
     }
 
-    private static void FillDictionaryLongString(global::Seamless.Tsavorite.Collections.IDictionary<long,string> dict,int count) {
+    private static void FillDictionaryLongString(global::Seamless.Collections.Tsavorite.IDictionary<long,string> dict,int count) {
         for(var i = 0;i<count;i++) {
             dict.Add(i,"value_"+i.ToString(global::System.Globalization.CultureInfo.InvariantCulture));
         }
     }
 
-    private static void AssertDictionaryLongString(global::Seamless.Tsavorite.Collections.IDictionary<long,string> dict,int count) {
+    private static void AssertDictionaryLongString(global::Seamless.Collections.Tsavorite.IDictionary<long,string> dict,int count) {
         Assert.Equal(count,dict.Count);
         for(var i = 0;i<count;i++) {
             Assert.True(dict.TryGetValue(i,out var value),$"Key {i} was not found.");

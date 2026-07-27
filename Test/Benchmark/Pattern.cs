@@ -1,5 +1,5 @@
 #if NET10_0_OR_GREATER && WINDOWS
-using Seamless.UI.Storage;
+using UI.Storage;
 
 using System.Collections.Concurrent;
 
@@ -289,7 +289,7 @@ public sealed class 実行ビューモデル {
         Assert.True(ビューモデル.新規グリッド作成可能か);
     }
 
-    private static void 一時停止した選択実行を初期登録(global::Seamless.UI.Storage.UI実行ストア ストア) {
+    private static void 一時停止した選択実行を初期登録(global::UI.Storage.UI実行ストア ストア) {
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
         var 実行 = ストア.実行を作成(new(
             UI実行アプリ種別.ベンチマーク,
@@ -492,7 +492,7 @@ public sealed class 実行ビューモデル {
         var 左ケース = new global::UI.ベンチマークケース(
             ソースタブ.左プロジェクト,
             ソースタブ.左アセンブリ名,
-            "Seamless.Linq.Shared.Range_start_count+OrderBy_keySelector_chain",
+            "Shared.Linq.Range_start_count+OrderBy_keySelector_chain",
             "ThenBy_keySelector",
             "Range_start_count.OrderBy_keySelector");
         var 行 = new global::UI.ベンチマーク表行(
@@ -1746,7 +1746,7 @@ public sealed class 実行ビューモデル {
         private ビューモデルフィクスチャ(
             global::UI.ViewModels.実行ビューモデル ビューモデル,
             偽実行サービス 実行サービス,
-            global::Seamless.UI.Storage.UI実行ストア ストア,
+            global::UI.Storage.UI実行ストア ストア,
             string ストアパス,
             string ベンチマークルート) {
             this.ビューモデル=ビューモデル;
@@ -1758,12 +1758,12 @@ public sealed class 実行ビューモデル {
 
         public global::UI.ViewModels.実行ビューモデル ビューモデル { get; }
         public 偽実行サービス 実行サービス { get; }
-        public global::Seamless.UI.Storage.UI実行ストア ストア { get; }
+        public global::UI.Storage.UI実行ストア ストア { get; }
 
-        public static async Task<ビューモデルフィクスチャ> 作成Async(global::UI.ベンチマークソースタブ ソースタブ,Action<global::Seamless.UI.Storage.UI実行ストア>? ストア構成処理 = null) {
+        public static async Task<ビューモデルフィクスチャ> 作成Async(global::UI.ベンチマークソースタブ ソースタブ,Action<global::UI.Storage.UI実行ストア>? ストア構成処理 = null) {
             var ケース一覧 = カタログケース一覧を作成();
             var ストアパス = Path.Combine(Path.GetTempPath(),"Seamless-Test-Benchmark-UI-"+Guid.NewGuid().ToString("N")+".db");
-            var ストア = new global::Seamless.UI.Storage.UI実行ストア(ストアパス);
+            var ストア = new global::UI.Storage.UI実行ストア(ストアパス);
             ストア.スキーマを確認();
             ストア構成処理?.Invoke(ストア);
             var 実行サービス = new 偽実行サービス(ケース一覧);

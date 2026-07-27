@@ -12,19 +12,19 @@ public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count))
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcOneCache = [];
     private readonly string rootPath = Path.Combine(AppContext.BaseDirectory,"persisted-benchmark",Guid.NewGuid().ToString("N"));
 
-    protected internal new Seamless.Persisted.Collections.Set<T> src(int scale) =>
+    protected internal new Seamless.Collections.Persisted.Set<T> src(int scale) =>
         this.GetOrCreate(scale,this.srcCache,static length => CreateRange(1,length));
 
-    protected internal new Seamless.Persisted.Collections.Set<T> srcCount(int elementCount) =>
+    protected internal new Seamless.Collections.Persisted.Set<T> srcCount(int elementCount) =>
         this.GetOrCreateByLength(elementCount,this.srcCache,static length => CreateRange(1,length));
 
-    protected internal new Seamless.Persisted.Collections.Set<T> src2(int scale) =>
+    protected internal new Seamless.Collections.Persisted.Set<T> src2(int scale) =>
         this.GetOrCreate(scale,this.src2Cache,static length => CreateRange(length/2+1,length/2));
 
-    protected internal new Seamless.Persisted.Collections.Set<T> src2Count(int elementCount) =>
+    protected internal new Seamless.Collections.Persisted.Set<T> src2Count(int elementCount) =>
         this.GetOrCreateByLength(elementCount,this.src2Cache,static length => CreateRange(length/2+1,length/2));
 
-    protected internal new Seamless.Persisted.Collections.Set<T> srcOne(int scale) =>
+    protected internal new Seamless.Collections.Persisted.Set<T> srcOne(int scale) =>
         this.GetOrCreate(scale,this.srcOneCache,static _ => [FromInt(0)]);
 
     [GlobalCleanup]
@@ -45,7 +45,7 @@ public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count))
 #endif
     }
 
-    private Seamless.Persisted.Collections.Set<T> GetOrCreate(
+    private Seamless.Collections.Persisted.Set<T> GetOrCreate(
         int scale,
         Dictionary<SourceCacheKey,SourceHandle<T>> cache,
         Func<int,T[]> factory) {
@@ -60,7 +60,7 @@ public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count))
         return handle.Set;
     }
 
-    private Seamless.Persisted.Collections.Set<T> GetOrCreateByLength(
+    private Seamless.Collections.Persisted.Set<T> GetOrCreateByLength(
         int length,
         Dictionary<SourceCacheKey,SourceHandle<T>> cache,
         Func<int,T[]> factory) {
@@ -80,7 +80,7 @@ public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count))
         var path = Path.Combine(this.rootPath,Guid.NewGuid().ToString("N"),"items.dat");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         var count = values.TryGetNonEnumeratedCount(out var knownCount) ? knownCount : 80_000;
-        var set = Seamless.Persisted.Collections.Store.CreateSet<TItem>(
+        var set = Seamless.Collections.Persisted.Store.CreateSet<TItem>(
             path,
             InitialCapacity: Math.Max(1,count),
             InitialDataCapacity: Math.Max(4096,count*16));
@@ -124,8 +124,8 @@ public class PersistedBase<T>(int count = 80_000):Base<T>(NormalizeCount(count))
 
     public sealed class SourceHandle<TItem>(
         string path,
-        Seamless.Persisted.Collections.Set<TItem> set):IDisposable {
-        public Seamless.Persisted.Collections.Set<TItem> Set { get; } = set;
+        Seamless.Collections.Persisted.Set<TItem> set):IDisposable {
+        public Seamless.Collections.Persisted.Set<TItem> Set { get; } = set;
 
         public void Dispose() {
             this.Set.Dispose();

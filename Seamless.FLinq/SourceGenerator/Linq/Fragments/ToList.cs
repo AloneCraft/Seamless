@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 // 要素が匿名型（ElementType=="TResult"）のチェーンを materialize する ToList。
 // 匿名型の型名は生成コードに書けないため、Carrier の汎用 ToList へ型推論で委譲し

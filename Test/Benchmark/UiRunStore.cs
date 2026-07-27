@@ -1,4 +1,4 @@
-using Seamless.UI.Storage;
+using UI.Storage;
 
 namespace Test.Benchmark;
 
@@ -6,7 +6,7 @@ public sealed class UI実行ストア{
     [Fact]
     public void スキーマを確認_通常DBを日本語スキーマ版25で実行表とタブ別11表を作成する(){
         var パス=DBパスを作成();
-        new global::Seamless.UI.Storage.UI実行ストア(パス).スキーマを確認();
+        new global::UI.Storage.UI実行ストア(パス).スキーマを確認();
         using var 接続=開く(パス);
         Assert.Equal(25L,スカラー<long>(接続,"PRAGMA user_version;"));
         Assert.Equal(1L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
@@ -32,7 +32,7 @@ public sealed class UI実行ストア{
             コマンド.ExecuteNonQuery();
         }
 
-        var ストア=new global::Seamless.UI.Storage.UI実行ストア(パス);
+        var ストア=new global::UI.Storage.UI実行ストア(パス);
         ストア.スキーマを確認();
 
         using(var 接続=開く(パス)){
@@ -50,14 +50,14 @@ public sealed class UI実行ストア{
     [Fact]
     public void スキーマを確認_版25でも旧3列形状ならバックアップ後に再作成する(){
         var パス=DBパスを作成();
-        new global::Seamless.UI.Storage.UI実行ストア(パス).スキーマを確認();
+        new global::UI.Storage.UI実行ストア(パス).スキーマを確認();
         using(var 接続=開く(パス)){
             using var コマンド=接続.CreateCommand();
             コマンド.CommandText="ALTER TABLE [Array] ADD COLUMN [Enumerable_アセンブリ名] TEXT;";
             コマンド.ExecuteNonQuery();
         }
 
-        new global::Seamless.UI.Storage.UI実行ストア(パス).スキーマを確認();
+        new global::UI.Storage.UI実行ストア(パス).スキーマを確認();
 
         using(var 接続=開く(パス)){
             Assert.Equal(25L,スカラー<long>(接続,"PRAGMA user_version;"));
@@ -72,7 +72,7 @@ public sealed class UI実行ストア{
     }
     [Fact]
     public void 実行設定を保存_要素数と計測時間とCPU一覧を復元する(){
-        var ストア=new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var ストア=new global::UI.Storage.UI実行ストア(DBパスを作成());
         var 実行=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","System.Array",DateTimeOffset.UtcNow));
         ストア.実行設定を保存(実行.実行ID,"Root",[1024,4096],1000,[0,2]);
         ストア.実行状態を設定(実行.実行ID,UI実行状態.一時停止中,"再開待ち");
@@ -89,7 +89,7 @@ public sealed class UI実行ストア{
 
     [Fact]
     public void ベンチマークスナップショット項目を保存_識別情報とシェアを往復する(){
-        var ストア=new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var ストア=new global::UI.Storage.UI実行ストア(DBパスを作成());
         var 実行=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","System.Array",DateTimeOffset.UtcNow));
         var 日時=DateTimeOffset.Parse("2026-07-08T12:34:56+09:00",global::System.Globalization.CultureInfo.InvariantCulture);
         var 左識別=new UIベンチマークスナップショットケース書込("Left.Assembly","Persisted<int>","Persisted<int>.Aggregate_func","Count=100","[{\"名前\":\"Count\",\"値\":\"100\"}]");
@@ -110,7 +110,7 @@ public sealed class UI実行ストア{
     }
     [Fact]
     public void ベンチマークスナップショット項目を保存_型が異なる同名メソッドを別行として維持する(){
-        var ストア=new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var ストア=new global::UI.Storage.UI実行ストア(DBパスを作成());
         var 実行=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","System.Array",DateTimeOffset.UtcNow));
         var 日時=DateTimeOffset.Parse("2026-07-08T12:34:56+09:00",global::System.Globalization.CultureInfo.InvariantCulture);
         var 永続化識別=new UIベンチマークスナップショットケース書込("Benchmark.System.Linq.Enumerable.FLinq","Persisted<int>","Persisted<int>.Aggregate_func","","[]");
@@ -130,7 +130,7 @@ public sealed class UI実行ストア{
     }
     [Fact]
     public void パラメータスイープ_日本語列と英語保存値を往復する(){
-        var ストア=new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成(),UI実行アプリ種別.パラメータスイープ);
+        var ストア=new global::UI.Storage.UI実行ストア(DBパスを作成(),UI実行アプリ種別.パラメータスイープ);
         var 実行=ストア.実行を作成(new(UI実行アプリ種別.パラメータスイープ,"スイープ","Fast","ParameterSweep",DateTimeOffset.UtcNow));
         ストア.パラメータスイープ結果を保存(new(実行.実行ID,"Case","HashSet","Int32","Memory","IndexSize",64,32,16,1024,0.5,4096,4096,"Completed","",12.5,8.25,DateTimeOffset.UtcNow));
         var 結果=Assert.Single(ストア.パラメータスイープ結果一覧を取得(実行.実行ID));
@@ -142,7 +142,7 @@ public sealed class UI実行ストア{
 
     [Fact]
     public void 全記録を削除_関連記録を削除する(){
-        var ストア=new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var ストア=new global::UI.Storage.UI実行ストア(DBパスを作成());
         var 実行=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","System.Array",DateTimeOffset.UtcNow));
         var 日時=DateTimeOffset.Parse("2026-07-08T12:34:56+09:00",global::System.Globalization.CultureInfo.InvariantCulture);
         ストア.ベンチマークスナップショット項目を保存(実行.実行ID,[new("System.Array","int","Any",17,true,

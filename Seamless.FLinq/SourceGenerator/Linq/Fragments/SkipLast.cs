@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 internal class SkipLast(int 番号,Enumerable source,string skipCount):Enumerable(番号) {
     public static bool IsApplicableOverload(IMethodSymbol method) =>

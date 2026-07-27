@@ -14,7 +14,7 @@ public sealed class ProviderContainsTests {
     public void Contains_value() {
         var path = CreatePath();
         try {
-            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
+            using var set = global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 }) {
                 set.Add(value);
             }
@@ -42,7 +42,7 @@ public sealed class ProviderContainsTests {
     public void Contains_value_comparer() {
         var path = CreatePath();
         try {
-            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
+            using var set = global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 }) {
                 set.Add(value);
             }

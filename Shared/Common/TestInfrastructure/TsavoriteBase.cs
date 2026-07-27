@@ -11,19 +11,19 @@ where T : notnull {
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcCache    = [];
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> src2Cache   = [];
     private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcOneCache = [];
-    protected internal new global::Seamless.Tsavorite.Collections.HashSet<T> src(int scale) =>
+    protected internal new global::Seamless.Collections.Tsavorite.HashSet<T> src(int scale) =>
         this.GetOrCreate(scale,this.srcCache,static length => CreateRange(1,length));
 
-    protected internal new global::Seamless.Tsavorite.Collections.HashSet<T> srcCount(int elementCount) =>
+    protected internal new global::Seamless.Collections.Tsavorite.HashSet<T> srcCount(int elementCount) =>
         this.GetOrCreateByLength(elementCount,this.srcCache,static length => CreateRange(1,length));
 
-    protected internal new global::Seamless.Tsavorite.Collections.HashSet<T> src2(int scale) =>
+    protected internal new global::Seamless.Collections.Tsavorite.HashSet<T> src2(int scale) =>
         this.GetOrCreate(scale,this.src2Cache,static length => CreateRange(length/2+1,length/2));
 
-    protected internal new global::Seamless.Tsavorite.Collections.HashSet<T> src2Count(int elementCount) =>
+    protected internal new global::Seamless.Collections.Tsavorite.HashSet<T> src2Count(int elementCount) =>
         this.GetOrCreateByLength(elementCount,this.src2Cache,static length => CreateRange(length/2+1,length/2));
 
-    protected internal new global::Seamless.Tsavorite.Collections.HashSet<T> srcOne(int scale) =>
+    protected internal new global::Seamless.Collections.Tsavorite.HashSet<T> srcOne(int scale) =>
         this.GetOrCreate(scale,this.srcOneCache,static _ => [FromInt(0)]);
 
     [GlobalCleanup]
@@ -43,7 +43,7 @@ where T : notnull {
 #endif
     }
 
-    private global::Seamless.Tsavorite.Collections.HashSet<T> GetOrCreate(
+    private global::Seamless.Collections.Tsavorite.HashSet<T> GetOrCreate(
         int scale,
         Dictionary<SourceCacheKey,SourceHandle<T>> cache,
         Func<int,T[]> factory) {
@@ -59,7 +59,7 @@ where T : notnull {
         return handle.Set;
     }
 
-    private global::Seamless.Tsavorite.Collections.HashSet<T> GetOrCreateByLength(
+    private global::Seamless.Collections.Tsavorite.HashSet<T> GetOrCreateByLength(
         int length,
         Dictionary<SourceCacheKey,SourceHandle<T>> cache,
         Func<int,T[]> factory) {
@@ -93,10 +93,10 @@ where T : notnull {
     [LinqIntercept(false)]
     private static SourceHandle<T> CreateSet(IEnumerable<T> values) {
         var count = values.TryGetNonEnumeratedCount(out var knownCount) ? knownCount : 80_000;
-        var store = Seamless.Tsavorite.Collections.Store.Create(
-            IndexSize: Seamless.Tsavorite.Collections.Store.GetIndexSizeForCapacity(count),
+        var store = Seamless.Collections.Tsavorite.Store.Create(
+            IndexSize: Seamless.Collections.Tsavorite.Store.GetIndexSizeForCapacity(count),
             MemorySize: GetMemorySize(count))
-            .Create<T>(new Seamless.Serialization.MemoryPackSerializerStrategy());
+            .Create<T>(new Seamless.Collections.MemoryPackSerializerStrategy());
         var set = store.Create();
         foreach(var value in values) {
             set.Add(value);
@@ -122,8 +122,8 @@ where T : notnull {
 
     public sealed class SourceHandle<TItem>(
         IDisposable store,
-        global::Seamless.Tsavorite.Collections.HashSet<TItem> set):IDisposable {
-        public global::Seamless.Tsavorite.Collections.HashSet<TItem> Set { get; } = set;
+        global::Seamless.Collections.Tsavorite.HashSet<TItem> set):IDisposable {
+        public global::Seamless.Collections.Tsavorite.HashSet<TItem> Set { get; } = set;
 
         public void Dispose() {
             this.Set.Dispose();

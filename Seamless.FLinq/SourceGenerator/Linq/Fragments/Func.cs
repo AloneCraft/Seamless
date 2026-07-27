@@ -1,7 +1,7 @@
 using Microsoft.CodeAnalysis.CSharp;
 
 using System.Text.RegularExpressions;
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 internal readonly record struct HoistedLocal(string Name,string TypeName,string ExpressionText);
 

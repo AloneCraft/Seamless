@@ -1,7 +1,7 @@
-namespace Test.Persisted.Linq.Enumerable;
+namespace Test.Persisted.Linq.Enumerable.FLinq;
 
 public sealed class ToHashSetPresizeTests {
-    private static global::Seamless.Persisted.Collections.Set<int>? source;
+    private static global::Seamless.Collections.Persisted.Set<int>? source;
     internal static readonly global::Common.Consumer sink = new();
 
     // Benchmark.db の実測(実行ID=7)では Persisted<T>/Tsavorite<T> の ToHashSet が
@@ -16,7 +16,7 @@ public sealed class ToHashSetPresizeTests {
     public void ToHashSet_AllocatesNoMoreThanPresizedIdeal() {
         var path=Path.Combine(Path.GetTempPath(),"Seamless-ToHashSetProbe-"+Guid.NewGuid().ToString("N"),"items.dat");
         try {
-            using var set=global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:4096);
+            using var set=global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:4096);
             const int count=2000;
             for(var i=1;i<=count;i++)
                 set.Add(i);
@@ -57,7 +57,7 @@ public sealed class ToHashSetPresizeTests {
     public void ToHashSet_StructPathAllocatesNoMoreThanPresizedIdeal() {
         var path=Path.Combine(Path.GetTempPath(),"Seamless-ToHashSetStructProbe-"+Guid.NewGuid().ToString("N"),"items.dat");
         try {
-            using var set=global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:4096);
+            using var set=global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:4096);
             const int count=2000;
             for(var i=1;i<=count;i++)
                 set.Add(i);
@@ -94,7 +94,7 @@ public sealed class ToHashSetPresizeTests {
     // 静的フィールドは global:: 付きで完全修飾しないと生成側で解決できない。
     // Benchmark の `.AsX<T>()` は Set<T> を素通しする定義なので、ここでは省いても同じ形になる。
     private static void FLinqToHashSetConsumeImpl()=>
-        Source().ToHashSet().Consume(global::Test.Persisted.Linq.Enumerable.ToHashSetPresizeTests.sink);
+        Source().ToHashSet().Consume(global::Test.Persisted.Linq.Enumerable.FLinq.ToHashSetPresizeTests.sink);
 
     [LinqIntercept(false)]
     private static void PresizedIdealConsumeImpl() {
@@ -115,5 +115,5 @@ public sealed class ToHashSetPresizeTests {
         return result;
     }
 
-    private static global::Seamless.Persisted.Collections.Set<int> Source()=>source??throw new InvalidOperationException("Source was not initialized.");
+    private static global::Seamless.Collections.Persisted.Set<int> Source()=>source??throw new InvalidOperationException("Source was not initialized.");
 }

@@ -1,5 +1,4 @@
 global using Seamless.Linq;
-global using Seamless.Linq.Internal;
 
 global using System;
 global using System.Buffers;

@@ -118,7 +118,7 @@ public static class ベンチマークカタログ{
     }
 
     private static bool Array書き換え型か(Type 型) =>
-        型.Namespace=="Seamless.Linq.Optimization"
+        型.Namespace=="Shared.Linq.Optimization"
         &&型.Name.Split('`')[0]=="Rewrite"
         &&型.DeclaringType?.Name.Split('`')[0]=="Array";
 
@@ -138,7 +138,7 @@ public static class ベンチマークカタログ{
 
     private static Type? 論理基底型を検索(Type 型) {
         for(var 現在 = 型.BaseType;現在 is not null;現在=現在.BaseType) {
-            if(現在.Namespace=="Seamless.Linq.Shared"
+            if(現在.Namespace=="Shared.Linq"
                 &&(現在.Name.StartsWith("Array`",StringComparison.Ordinal)
                     ||現在.Name.StartsWith("IEnumerable`",StringComparison.Ordinal)
                     ||現在.Name.StartsWith("List`",StringComparison.Ordinal)
@@ -147,7 +147,7 @@ public static class ベンチマークカタログ{
                     ||現在.Name=="Range_start_count")) {
                 return 現在;
             }
-            if(現在.Namespace=="Seamless.Linq.Optimization"
+            if(現在.Namespace=="Shared.Linq.Optimization"
                 &&(現在.Name.StartsWith("Array",StringComparison.Ordinal)
                     ||現在.Name.StartsWith("Enumerable",StringComparison.Ordinal)
                     ||現在.Name.StartsWith("List",StringComparison.Ordinal)

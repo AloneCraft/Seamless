@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 /*
 以前の loop 展開版の断片は記録として残すが、実際の実装は Enumerator ベースに統一した。
 */

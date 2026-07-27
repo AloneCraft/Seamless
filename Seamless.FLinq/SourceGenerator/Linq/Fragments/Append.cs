@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 /*
 Append は source.Append(value) を、source を読み切った後に追加要素を返す状態機械へ変換する。

@@ -1,4 +1,4 @@
-using Seamless.UI.Storage;
+using UI.Storage;
 
 using System.Text.Json;
 

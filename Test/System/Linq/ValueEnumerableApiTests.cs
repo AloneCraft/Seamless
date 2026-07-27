@@ -30,9 +30,9 @@ public sealed class ValueEnumerableApiTests {
             .Where(static type => type.IsGenericType)
             .Select(static type => type.GetGenericTypeDefinition())
             .Where(static type =>
-                type==typeof(global::Seamless.Persisted.Collections.Set<>)
-                ||type==typeof(global::Seamless.Tsavorite.Collections.HashSet<>)
-                ||type==typeof(global::Seamless.Tsavorite.Collections.Set<,>))
+                type==typeof(global::Seamless.Collections.Persisted.Set<>)
+                ||type==typeof(global::Seamless.Collections.Tsavorite.HashSet<>)
+                ||type==typeof(global::Seamless.Collections.Tsavorite.Set<,>))
             .ToArray();
 
         Assert.Equal(3,providerSourceDefinitions.Length);
@@ -65,7 +65,7 @@ public sealed class ValueEnumerableApiTests {
     public void ProviderAdapters_ReturnExpectedResults() {
         var persistedPath=CreatePersistedPath();
         try {
-            using(var persisted=global::Seamless.Persisted.Collections.Store.CreateSet<int>(persistedPath,InitialCapacity: 1,InitialDataCapacity: 128)) {
+            using(var persisted=global::Seamless.Collections.Persisted.Store.CreateSet<int>(persistedPath,InitialCapacity: 1,InitialDataCapacity: 128)) {
                 foreach(var value in new[] { 1,2,3,4 })
                     persisted.Add(value);
                 persisted.Compact();

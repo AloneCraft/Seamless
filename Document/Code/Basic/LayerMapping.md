@@ -18,7 +18,7 @@ review_status: draft
 
 | レイヤー | 該当領域 | 説明 |
 |---|---|---|
-| Compile-time tooling | `FLinq`, `Seamless.Database`, `Seamless.SourceGenerator` | Roslyn generator と generated source 生成。 |
+| Compile-time tooling | `FLinq`, `Seamless.Database`, `Seamless.Database.Generator` | Roslyn generator と generated source 生成。 |
 | Runtime domain | `Benchmark.Tsavorite.Collections/Collections`, `Stores`, `SessionFunctions` | collection 操作、store/session、永続/メモリ処理。 |
 | Runtime query support | `Benchmark.Tsavorite.Collections/Linq`, `LinqCounter` | query extension と instrumentation。 |
 | Infrastructure | `Devices`, serializers, checkpoint metadata | device、serialization、recovery metadata。 |
@@ -27,7 +27,7 @@ review_status: draft
 
 ## 依存方向
 
-- generator layer は Roslyn API と shared helper に依存する（`FLinq/FLinq.csproj:14`, `Seamless.Database/Seamless.Database.csproj:14`, `Seamless.SourceGenerator/SourceGenerator/GeneratorHelpers.cs:3`）。
+- generator layer は Roslyn API と shared helper に依存する（`FLinq/FLinq.csproj:14`, `Seamless.Database/Seamless.Database.csproj:14`, `Seamless.Database.Generator/SourceGenerator/GeneratorHelpers.cs:3`）。
 - runtime collection layer は MemoryPack と Garnet/Tsavorite に依存する（`Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj:14`, `Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj:15`）。
 - tool UI は benchmark assemblies と BenchmarkDotNet に依存する（`Benchmark/Benchmark.UI/UI.csproj:33`, `Benchmark/Benchmark.UI/UI.csproj:34`）。
 

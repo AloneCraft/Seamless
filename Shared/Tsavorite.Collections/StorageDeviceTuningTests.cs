@@ -1,8 +1,4 @@
-#if BENCHMARK_PROJECT
-namespace Benchmark.Tsavorite.Collections;
-#else
-namespace Tsavorite.Collections;
-#endif
+namespace Shared.Tsavorite.Collections;
 
 public class StorageDeviceTuningTests {
     [Fact]
@@ -10,11 +6,11 @@ public class StorageDeviceTuningTests {
         var directoryPath = Path.Combine(Environment.CurrentDirectory,nameof(StorageDeviceTuningTests));
         Directory.CreateDirectory(directoryPath);
         try {
-            var tuning = new global::Seamless.Persisted.Collections.StorageTuning(
+            var tuning = new global::Seamless.Collections.StorageTuning(
                 FileAccess.ReadWrite,
-                global::Seamless.Persisted.Collections.StorageAccessPattern.Random,
-                global::Seamless.Persisted.Collections.StorageBufferingMode.Buffered);
-            using var devices = global::Seamless.Tsavorite.Devices.TsavoriteStorageDevices.CreatePair(
+                global::Seamless.Collections.StorageAccessPattern.Random,
+                global::Seamless.Collections.StorageBufferingMode.Buffered);
+            using var devices = global::Seamless.Collections.Tsavorite.TsavoriteStorageDevices.CreatePair(
                 Path.Combine(directoryPath,"log.dat"),
                 Path.Combine(directoryPath,"object-log.dat"),
                 tuning);

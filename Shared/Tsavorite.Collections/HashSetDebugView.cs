@@ -1,5 +1,5 @@
-//using Seamless.Tsavorite.Collections;
-//using Seamless.Tsavorite.Stores;
+//using Seamless.Collections.Tsavorite;
+//using Seamless.Collections.Tsavorite;
 //namespace Benchmark.Tsavorite.Collections;
 
 //public class HashSetDebugView{

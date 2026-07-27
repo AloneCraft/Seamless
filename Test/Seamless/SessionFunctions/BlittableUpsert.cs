@@ -1,4 +1,4 @@
-using Seamless.Tsavorite.Stores;
+using Seamless.Collections.Tsavorite;
 
 using Tsavorite.core;
 
@@ -12,13 +12,13 @@ public sealed class BlittableUpsert:AddTests<int,long> {
         return (store.Create(),store);
     }
     protected override (global::System.Collections.Generic.IDictionary<int,long> Dict,IDisposable Store) CreateDisk(IDevice logDevice,IDevice objDevice) {
-        var store = Store.Create(MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity).Create<int,long>(logDevice,objDevice);
+        var store = Store.Create(MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity).Create<int,long>(logDevice,objDevice);
         return (store.Create(),store);
     }
     protected override void FlushAndEvict(IDisposable store) =>
         ((CollectionStore<int,long>)store).Store.Log.FlushAndEvict(true);
     protected override TryAddResult TryAdd(global::System.Collections.Generic.IDictionary<int,long> dict,int key,long value) =>
-        ((global::Seamless.Tsavorite.Collections.IDictionary<int,long>)dict).TryAdd(key,value);
+        ((global::Seamless.Collections.Tsavorite.IDictionary<int,long>)dict).TryAdd(key,value);
 
     protected override void DoUpsert() {
     }

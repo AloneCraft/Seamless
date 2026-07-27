@@ -4,9 +4,10 @@
     <LangVersion>14</LangVersion>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RootNamespace>Seamless</RootNamespace>
+    <RootNamespace>Seamless.Collections.Persisted</RootNamespace>
     <AssemblyName>Seamless.Collections.Persisted</AssemblyName>
     <PackageId>Seamless.Collections.Persisted</PackageId>
+    <IsPackable>true</IsPackable>
     <Title>Seamless Persisted Collections</Title>
     <Description>File-backed persisted collections for Seamless.</Description>
   </PropertyGroup>
@@ -20,7 +21,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Seamless.Abstractions\Seamless.Abstractions.csproj" />
-    <ProjectReference Include="..\Seamless.Serialization\Seamless.Serialization.csproj" />
+    <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
   </ItemGroup>
 </Project>

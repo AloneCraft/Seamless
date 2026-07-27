@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 /*
 All_predicate は source.All(predicate) を、最初に false になった要素で短絡する Compute にする。
 

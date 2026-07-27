@@ -37,15 +37,14 @@
     <Using Include="Common" />
     <Using Include="BenchmarkDotNet.Attributes" />
     <Using Include="Seamless.Collections" />
-    <Using Include="Seamless.Serialization" />
-    <Using Include="Seamless.Tsavorite.Collections" />
-    <Using Include="Seamless.Tsavorite.Stores" />
+    <Using Include="Seamless.TestKit" />
+    <Using Include="Seamless.Collections.Tsavorite" />
     <Using Include="Xunit" />
     <Using Include="ZLinq" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
-    <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
+    <ProjectReference Include="..\Tests\Seamless.TestKit\Seamless.TestKit.csproj" />
   </ItemGroup>
   <Import Project="..\Shared\Scalable.Tsavorite.Collections\Scalable.Tsavorite.Collections.projitems" Label="Shared" />
 </Project>

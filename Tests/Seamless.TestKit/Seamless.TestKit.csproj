@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Seamless.TestKit</RootNamespace>
+    <AssemblyName>Seamless.TestKit</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Artifacts\**" />
+    <Compile Remove="Work\**" />
+    <EmbeddedResource Remove="Artifacts\**" />
+    <EmbeddedResource Remove="Work\**" />
+    <None Remove="Artifacts\**" />
+    <None Remove="Work\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="MemoryPack" Version="1.*" />
+    <PackageReference Include="Microsoft.Garnet" Version="2.0.1-beta.5" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
+  </ItemGroup>
+</Project>

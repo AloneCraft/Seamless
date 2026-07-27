@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 internal sealed class PersistedSetRoot(
     int 番号,
@@ -8,7 +8,7 @@ internal sealed class PersistedSetRoot(
     :ProviderNativeRootBase(番号,sourceExpression,elementType,enumeratorTypeName,useEnumerableInterface: false) {
     public override string ProviderName => "PersistedSet";
     public override string SourceVariablePrefix => "__persistedIterateSource";
-    public override string StrategyInterfaceTypeName => "global::Seamless.Persisted.Collections.ISetIterateStrategy";
+    public override string StrategyInterfaceTypeName => "global::Seamless.Collections.Persisted.ISetIterateStrategy";
     // Set<T>.Contains は .hindex（mmap ハッシュ索引）で O(1)。native scan の O(n) を回避する。
     public override string? NativeContainsExpression(string valueExpression) =>
         $"({this.SourceExpression}).Contains({valueExpression})";

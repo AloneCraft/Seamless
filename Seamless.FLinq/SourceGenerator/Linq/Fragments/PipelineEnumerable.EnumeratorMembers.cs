@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 // 生成 enumerator struct のメンバーと段の判定。
 internal sealed partial class PipelineEnumerable {

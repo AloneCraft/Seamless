@@ -16,7 +16,7 @@ review_status: draft
 
 ```mermaid
 flowchart LR
-    Shared[Seamless.SourceGenerator]
+    Shared[Seamless.Database.Generator]
     FLinq[FLinq / Tsavorite.SourceGenerator]
     DB[Seamless.Database SourceGenerator]
     Collections[Benchmark.Tsavorite.Collections]
@@ -40,7 +40,7 @@ flowchart LR
 
 | コンポーネント | 役割 | 実装証拠 |
 |---|---|---|
-| `Seamless.SourceGenerator` | generator 共通ヘルパー。 | `Seamless.SourceGenerator/Seamless.SourceGenerator.csproj:3`, `Seamless.SourceGenerator/SourceGenerator/GeneratorHelpers.cs:3` |
+| `Seamless.Database.Generator` | generator 共通ヘルパー。 | `Seamless.Database.Generator/Seamless.Database.Generator.csproj:3`, `Seamless.Database.Generator/SourceGenerator/GeneratorHelpers.cs:3` |
 | `FLinq` | LINQ interceptor source generator。 | `FLinq/FLinq.csproj:8`, `FLinq/FLinq.csproj:14`, `FLinq/FLinq.csproj:19` |
 | `Seamless.Database` | schema source generator。 | `Seamless.Database/Seamless.Database.csproj:8`, `Seamless.Database/Seamless.Database.csproj:14`, `Seamless.Database/Seamless.Database.csproj:19` |
 | `Benchmark.Tsavorite.Collections` | collection runtime と LINQ/counter runtime。 | `Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj:4`, `Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj:14`, `Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj:15` |
@@ -51,7 +51,7 @@ flowchart LR
 
 ### Confirmed
 - solution は source generator、runtime collection、benchmark、test に分割される。
-- `FLinq` と `Seamless.Database` は `Seamless.SourceGenerator` を参照する。
+- `FLinq` と `Seamless.Database` は `Seamless.Database.Generator` を参照する。
 
 ### Inferred
 - confidence: medium。benchmark project は System LINQ / FLinq / ZLinq / Tsavorite LINQ の比較実行を目的とする。

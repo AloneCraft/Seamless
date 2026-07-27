@@ -91,6 +91,40 @@ class A:IDisposable{
 - `Tsavorite` を使う理由は、メモリに収まらないサイズのコレクションを扱うためです。
 - `Iterator`/`Enumerator` では、必要に応じて固定長配列などのチャンク単位でバッファリングし、少しずつ返してください。
 
+## Namespace And File Layout
+
+### 名前空間
+
+- 1 プロジェクト = 1 名前空間です。プロジェクト内の全 `.cs` が `namespace <AssemblyName>;` を宣言してください。
+- csproj の `<RootNamespace>` は `<AssemblyName>` と同じ値にしてください。
+- サブフォルダーは分類専用です。名前空間セグメントを増やさないでください
+  (`.editorconfig` で `IDE0130` を無効化しています)。
+- プロジェクト名の末尾セグメントを第一階層フォルダーとして繰り返さないでください。
+  `Seamless.Collections.Tsavorite/Tsavorite/Stores/` ではなく `Seamless.Collections.Tsavorite/Stores/` です。
+- 出荷パッケージの `Seamless.` 接頭辞は、非出荷アセンブリ (テスト・ベンチマーク・共有) では使わないでください。
+
+例外は次だけです。
+
+- BCL polyfill の `System*` 名前空間。
+- ソースジェネレータが出力する固定名前空間 (`Intercept`)。
+- MAUI の起動規約 (`Platforms/Windows/App.xaml.cs` の `.WinUI` など、`x:Class` と一致させる必要があるもの)。
+- 共有プロジェクト (`.shproj` / `.projitems`)。複数アセンブリへ取り込まれるため 1 対 1 にできません。
+  共有プロジェクト名と同じ単一の名前空間 (`Shared.` 始まり) を持たせ、
+  `#if` による名前空間の切り替えはしないでください。
+- テストプロジェクト。同じテスト対象名のテストクラスをスイートごとに置けるよう、
+  フォルダー階層を名前空間へ反映してかまいません
+  (`Test/System/Linq/Intercept/Chain1/` → `Test.System.Linq.Intercept.Chain1`)。
+  これは「テストクラスはテスト対象クラスと同じ名前にする」という下の Tests 規則を成り立たせるためです。
+
+### ファイル名
+
+- ファイル名は、そのファイルの主要な public 型名と一致させてください。ジェネリックのアリティは付けません。
+- 対等な小さい型をまとめるファイルは、`DatabaseAttributes.cs` のようなグループ名にしてかまいません。
+- partial 分割は `Type.Aspect.cs` にしてください
+  (`FLinqIncrementalGenerator.ProviderFacts.cs`、`PipelineBuilder.Stages.cs`)。
+- ただし演算子ごとに partial 分割する LINQ 実装は、演算子名をファイル名にしてください
+  (`Seamless.Linq/Where.cs` が `partial class Enumerable` の `Where` を持つ形)。
+
 ## File Layout Rules
 
 - `Seamless.FLinq/SourceGenerator/Linq/Fragments` 配下の配置は、役割で分けてください。

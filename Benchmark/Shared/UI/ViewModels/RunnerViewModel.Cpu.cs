@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-using Seamless.UI.Storage;
+using UI.Storage;
 
 using System.Collections.ObjectModel;
 using System.Diagnostics;

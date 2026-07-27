@@ -1,8 +1,4 @@
-#if BENCHMARK_PROJECT
-namespace Benchmark.Tsavorite.Collections.Stress;
-#else
-namespace Tsavorite.Collections.Stress;
-#endif
+namespace Shared.Tsavorite.Collections.Stress;
 
 internal static class StressScale {
     // Scale=1 is the calibrated baseline. Increase for heavier stress runs.

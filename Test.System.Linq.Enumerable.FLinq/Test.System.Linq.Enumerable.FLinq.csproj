@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <LangVersion>preview</LangVersion>
@@ -9,7 +9,7 @@
     <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <RootNamespace>Test.System.Linq.Enumerable</RootNamespace>
+    <RootNamespace>Test.System.Linq.Enumerable.FLinq</RootNamespace>
     <AssemblyName>Test.System.Linq.Enumerable.FLinq</AssemblyName>
     <DefineConstants>$(DefineConstants);BENCH_AS_TEST</DefineConstants>
     <OutputType>Library</OutputType>
@@ -42,7 +42,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
   </ItemGroup>
-  <Import Project="..\Shared\Seamless.Linq.Enumerable\Seamless.Linq.Enumerable.projitems" Label="Shared" />
+  <Import Project="..\Shared\Linq.Enumerable\Linq.Enumerable.projitems" Label="Shared" />
 </Project>
 
 

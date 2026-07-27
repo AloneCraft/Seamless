@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 /*
 Average は source.Average() / Average(selector) を、sum と count を持つ Compute に変換する。

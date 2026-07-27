@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 // 終端演算の種別判定と引数の取り込み。
 internal static partial class PipelineBuilder {

@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 /*
 Zip は複数 source を同時に1件ずつ進め、どれかが尽きた時点で終了する enumerator を生成する。

@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 /*
 Enumerable は遅延評価されるシーケンス Fragment の基底。
 

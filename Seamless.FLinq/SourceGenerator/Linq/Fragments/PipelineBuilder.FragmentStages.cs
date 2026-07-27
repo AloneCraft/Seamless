@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 // 既存 Fragment へ委譲する段の構築。
 internal static partial class PipelineBuilder {

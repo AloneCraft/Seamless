@@ -3,8 +3,9 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
+    <RootNamespace>Seamless.Linq.Analyzers</RootNamespace>
     <AssemblyName>Seamless.Linq.Analyzers</AssemblyName>
-    <PackageId>Seamless.Linq.Analyzers</PackageId>
+    <!-- 単独公開しない。Seamless.Linq の PackAnalyzer ターゲットが analyzers/dotnet/cs へ同梱する。 -->
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <IncludeBuildOutput>false</IncludeBuildOutput>

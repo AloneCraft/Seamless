@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号) {
     protected override Enumerable PrimarySource => source;

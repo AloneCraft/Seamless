@@ -1,8 +1,4 @@
-#if BENCHMARK_PROJECT
-namespace Benchmark.Scalable.Persisted.Collections.List;
-#else
-namespace Scalable.Persisted.Collections.List;
-#endif
+namespace Shared.Scalable.Persisted.Collections.List;
 
 public class ListInt32
     :PersistedListScalable<BlittableListStrategy<Int32ListValueProvider,int>,int>;

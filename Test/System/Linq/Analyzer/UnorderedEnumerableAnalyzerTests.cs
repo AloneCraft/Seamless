@@ -14,8 +14,8 @@ public sealed class UnorderedEnumerableAnalyzerTests {
     public async Task DirectChainAndLocalAreRejected(){
         var diagnostics=await Analyze("""
             class C {
-                int Direct(Seamless.Tsavorite.Collections.HashSet<int> source)=>source.Where(x=>x>0).First();
-                int Local(Seamless.Tsavorite.Collections.HashSet<int> source){var values=source.Where(x=>x>0);return values.Last();}
+                int Direct(Seamless.Collections.Tsavorite.HashSet<int> source)=>source.Where(x=>x>0).First();
+                int Local(Seamless.Collections.Tsavorite.HashSet<int> source){var values=source.Where(x=>x>0);return values.Last();}
             }
             """);
         Assert.Equal(2,diagnostics.Count(diagnostic=>diagnostic.Id=="SEAMLINQ001"));
@@ -25,7 +25,7 @@ public sealed class UnorderedEnumerableAnalyzerTests {
     public async Task ExplicitAsEnumerableOptsIntoOrder(){
         var diagnostics=await Analyze("""
             class C {
-                int M(Seamless.Tsavorite.Collections.HashSet<int> source)=>source.AsEnumerable().First();
+                int M(Seamless.Collections.Tsavorite.HashSet<int> source)=>source.AsEnumerable().First();
             }
             """);
         Assert.DoesNotContain(diagnostics,diagnostic=>diagnostic.Id is "SEAMLINQ001" or "SEAMLINQ002");
@@ -37,7 +37,7 @@ public sealed class UnorderedEnumerableAnalyzerTests {
             class C {
                 [return:UnorderedEnumerable]
                 IEnumerable<int> Pass([UnorderedEnumerable] IEnumerable<int> source)=>source;
-                int M(Seamless.Tsavorite.Collections.HashSet<int> source)=>Pass(source).First();
+                int M(Seamless.Collections.Tsavorite.HashSet<int> source)=>Pass(source).First();
             }
             """);
         Assert.Contains(diagnostics,diagnostic=>diagnostic.Id=="SEAMLINQ001");
@@ -49,7 +49,7 @@ public sealed class UnorderedEnumerableAnalyzerTests {
         var diagnostics=await Analyze("""
             class C {
                 IEnumerable<int> Pass(IEnumerable<int> source)=>source;
-                IEnumerable<int> M(Seamless.Tsavorite.Collections.HashSet<int> source)=>Pass(source);
+                IEnumerable<int> M(Seamless.Collections.Tsavorite.HashSet<int> source)=>Pass(source);
             }
             """);
         Assert.Contains(diagnostics,diagnostic=>diagnostic.Id=="SEAMLINQ002");
@@ -64,7 +64,7 @@ public sealed class UnorderedEnumerableAnalyzerTests {
                 [System.AttributeUsage(System.AttributeTargets.Parameter|System.AttributeTargets.ReturnValue|System.AttributeTargets.Field|System.AttributeTargets.Property)]
                 public sealed class UnorderedEnumerableAttribute:System.Attribute {}
             }
-            namespace Seamless.Tsavorite.Collections {
+            namespace Seamless.Collections.Tsavorite {
                 public sealed class HashSet<T>:System.Collections.Generic.IEnumerable<T> {
                     public System.Collections.Generic.IEnumerator<T> GetEnumerator()=>throw null!;
                     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()=>GetEnumerator();

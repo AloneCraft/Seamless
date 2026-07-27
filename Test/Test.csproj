@@ -93,13 +93,12 @@
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.Range.FLinq\Benchmark.System.Linq.Enumerable.Range.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.Range.ZLinq\Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
     <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" />
-    <ProjectReference Include="..\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
-    <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="..\Seamless.Database.Generator\Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <Analyzer Include="..\Seamless.FLinq\bin\$(Configuration)\net10.0\Seamless.FLinq.dll" />
   </ItemGroup>
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true' or '$(TargetFramework)'!='net10.0-windows'">
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
-    <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
+    <ProjectReference Include="..\Tests\Seamless.TestKit\Seamless.TestKit.csproj" />
   </ItemGroup>
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'=='true' and '$(TargetFramework)'=='net10.0-windows'">
     <Compile Remove="**\*.cs" />

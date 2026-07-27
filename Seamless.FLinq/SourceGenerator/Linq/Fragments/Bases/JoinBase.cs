@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 /*
 JoinBase は Join/GroupJoin/LeftJoin/RightJoin 系の lookup 構築を共有する基底。

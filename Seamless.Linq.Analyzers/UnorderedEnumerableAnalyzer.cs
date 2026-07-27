@@ -221,7 +221,7 @@ public sealed class UnorderedEnumerableAnalyzer:DiagnosticAnalyzer {
             return false;
         }
         var original=(type as INamedTypeSymbol)?.OriginalDefinition.ToDisplayString()??type.ToDisplayString();
-        if(original is "Seamless.Persisted.Collections.Set<T>" or "Seamless.Tsavorite.Collections.HashSet<T>" or "Seamless.Tsavorite.Collections.Set<TKey, TRecord>" or "Seamless.Collections.ISet<T>" or "Seamless.Collections.IUnorderedEnumerable<T>"){
+        if(original is "Seamless.Collections.Persisted.Set<T>" or "Seamless.Collections.Tsavorite.HashSet<T>" or "Seamless.Collections.Tsavorite.Set<TKey, TRecord>" or "Seamless.Collections.ISet<T>" or "Seamless.Collections.IUnorderedEnumerable<T>"){
             return true;
         }
         foreach(var interfaceType in type.AllInterfaces){

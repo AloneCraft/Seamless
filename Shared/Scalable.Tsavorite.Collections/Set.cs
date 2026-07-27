@@ -1,8 +1,4 @@
-#if BENCHMARK_PROJECT
-namespace Benchmark.Scalable.Tsavorite.Collections.Set;
-#else
-namespace Scalable.Tsavorite.Collections.Set;
-#endif
+namespace Shared.Scalable.Tsavorite.Collections.Set;
 
 public class SetInt32
     :TsavoriteSetScalable<MemoryPackHashSetStrategy<Int32HashSetValueProvider,int>,int>;

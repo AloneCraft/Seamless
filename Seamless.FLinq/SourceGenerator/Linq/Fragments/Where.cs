@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 /*
 Where_predicate は source.Where(item => 条件) を「条件に合うまで source を進める」状態機械へ変換する。
 

@@ -508,7 +508,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 return TryCreateTupleShape(oc2.ArgumentList.Arguments.Select(static a => a.Expression).ToArray(),ta,out shape);
             // implicit new()
             if(expression is ImplicitObjectCreationExpressionSyntax io) {
-                var aliases = Enumerable.Range(0,io.ArgumentList.Arguments.Count).Select(static _ => Array.Empty<string>()).ToArray();
+                var aliases = System.Linq.Enumerable.Range(0,io.ArgumentList.Arguments.Count).Select(static _ => Array.Empty<string>()).ToArray();
                 return TryCreateTupleShape(io.ArgumentList.Arguments.Select(static a => a.Expression).ToArray(),aliases,out shape);
             }
             if(IsLiftableLeaf(expression)) { shape=new LeafCarrierShape(expression); return true; }
@@ -528,7 +528,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             return InferName(a.Expression,out var n) ? [n] : [];
         }
         private static bool TryGetTupleTypeAliases(TypeSyntax type,int count,out string[][] aliases) {
-            aliases=Enumerable.Range(0,count).Select(static _ => Array.Empty<string>()).ToArray();
+            aliases=System.Linq.Enumerable.Range(0,count).Select(static _ => Array.Empty<string>()).ToArray();
             type=type switch {
                 QualifiedNameSyntax q => q.Right,
                 AliasQualifiedNameSyntax aq => aq.Name,

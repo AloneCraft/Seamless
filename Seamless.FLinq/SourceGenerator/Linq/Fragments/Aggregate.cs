@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 /*
 Aggregate_func は seed なし Aggregate(func) を、先頭要素を初期 accumulator にして畳み込む scalar へ変換する。
 

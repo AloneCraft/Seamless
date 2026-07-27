@@ -1,10 +1,6 @@
 using System.Runtime.CompilerServices;
 
-#if BENCHMARK_PROJECT
-namespace Benchmark.Persisted.Collections;
-#else
-namespace Persisted.Collections;
-#endif
+namespace Shared.Persisted.Collections;
 
 public abstract class ListTestBase<TStrategy, T>
     where TStrategy : IListTestStrategy<T> {
@@ -115,9 +111,9 @@ public abstract class ListTestBase<TStrategy, T>
     [BenchFact, Benchmark]
     public void CreateTemp_ReturnsDisposablePersistentList() {
         string? path = null;
-        global::Seamless.Persisted.Collections.PersistedList<T>? list = null;
+        global::Seamless.Collections.PersistedList<T>? list = null;
         try {
-            list=global::Seamless.Persisted.Collections.Store.CreateTempList<T>(InitialCapacity: 1);
+            list=global::Seamless.Collections.Persisted.Store.CreateTempList<T>(InitialCapacity: 1);
             path=list.Path;
             list.Add(TStrategy.Elem(1));
             Assert.Equal(1L,list.Count);
@@ -142,18 +138,18 @@ public abstract class ListTestBase<TStrategy, T>
             h.List.Add(TStrategy.Elem(1));
             h.List.Add(TStrategy.Elem(2));
 
-            h.List.SetTuning(new(FileAccess.Write,global::Seamless.Persisted.Collections.StorageAccessPattern.Random));
+            h.List.SetTuning(new(FileAccess.Write,global::Seamless.Collections.StorageAccessPattern.Random));
             h.List.Add(TStrategy.Elem(3));
 
             Assert.Equal(FileAccess.Write,h.List.OptimizationMode);
-            Assert.Equal(global::Seamless.Persisted.Collections.StorageAccessPattern.Random,h.List.AccessPattern);
+            Assert.Equal(global::Seamless.Collections.StorageAccessPattern.Random,h.List.AccessPattern);
             Assert.Equal(new[] { TStrategy.Elem(1),TStrategy.Elem(2),TStrategy.Elem(3) },h.List.ToArray());
 
             h.List.SetOptimizationMode(FileAccess.Read);
-            h.List.SetAccessPattern(global::Seamless.Persisted.Collections.StorageAccessPattern.Sequential);
+            h.List.SetAccessPattern(global::Seamless.Collections.StorageAccessPattern.Sequential);
 
             Assert.Equal(FileAccess.Read,h.List.OptimizationMode);
-            Assert.Equal(global::Seamless.Persisted.Collections.StorageAccessPattern.Sequential,h.List.AccessPattern);
+            Assert.Equal(global::Seamless.Collections.StorageAccessPattern.Sequential,h.List.AccessPattern);
             Assert.Equal(new[] { TStrategy.Elem(1),TStrategy.Elem(2),TStrategy.Elem(3) },h.List.ToArray());
         } finally {
             TryDeleteDirectory(path);
@@ -162,17 +158,17 @@ public abstract class ListTestBase<TStrategy, T>
 
     [BenchFact, Benchmark]
     public void StorageTuning_BufferSizingAndValidation() {
-        var sequential = new global::Seamless.Persisted.Collections.StorageTuning(
+        var sequential = new global::Seamless.Collections.StorageTuning(
             FileAccess.Read,
-            global::Seamless.Persisted.Collections.StorageAccessPattern.Sequential);
-        var random = new global::Seamless.Persisted.Collections.StorageTuning(
+            global::Seamless.Collections.StorageAccessPattern.Sequential);
+        var random = new global::Seamless.Collections.StorageTuning(
             FileAccess.Read,
-            global::Seamless.Persisted.Collections.StorageAccessPattern.Random);
-        var explicitBuffer = new global::Seamless.Persisted.Collections.StorageTuning(
+            global::Seamless.Collections.StorageAccessPattern.Random);
+        var explicitBuffer = new global::Seamless.Collections.StorageTuning(
             FileAccess.Read,
-            global::Seamless.Persisted.Collections.StorageAccessPattern.Sequential,
-            global::Seamless.Persisted.Collections.StorageBufferingMode.Buffered,
-            global::Seamless.Persisted.Collections.StorageBufferSizeStrategy.Explicit,
+            global::Seamless.Collections.StorageAccessPattern.Sequential,
+            global::Seamless.Collections.StorageBufferingMode.Buffered,
+            global::Seamless.Collections.StorageBufferSizeStrategy.Explicit,
             8192);
         var alignment = Math.Max(4096,Environment.SystemPageSize);
 
@@ -181,26 +177,26 @@ public abstract class ListTestBase<TStrategy, T>
         Assert.True(sequentialBufferSize>=64*1024&&sequentialBufferSize<=1024*1024);
         Assert.True(randomBufferSize>=alignment&&randomBufferSize<=64*1024);
         Assert.Equal(8192,explicitBuffer.ResolveBufferSize());
-        Assert.Throws<ArgumentException>(() => new global::Seamless.Persisted.Collections.StorageTuning(
+        Assert.Throws<ArgumentException>(() => new global::Seamless.Collections.StorageTuning(
             FileAccess.Read,
-            bufferSizeStrategy: global::Seamless.Persisted.Collections.StorageBufferSizeStrategy.Auto,
+            bufferSizeStrategy: global::Seamless.Collections.StorageBufferSizeStrategy.Auto,
             bufferSize: 8192));
-        Assert.Throws<NotSupportedException>(() => new global::Seamless.Persisted.Collections.StorageTuning(
+        Assert.Throws<NotSupportedException>(() => new global::Seamless.Collections.StorageTuning(
             FileAccess.Read,
-            bufferingMode: global::Seamless.Persisted.Collections.StorageBufferingMode.Unbuffered).ToFileOptions());
+            bufferingMode: global::Seamless.Collections.StorageBufferingMode.Unbuffered).ToFileOptions());
     }
 
     [BenchFact, Benchmark]
     public void Store_CreateAppendOnly_WithTuning_RoundTrips() {
         var path = CreatePath();
         try {
-            var tuning = new global::Seamless.Persisted.Collections.StorageTuning(
+            var tuning = new global::Seamless.Collections.StorageTuning(
                 FileAccess.ReadWrite,
-                global::Seamless.Persisted.Collections.StorageAccessPattern.Random,
-                global::Seamless.Persisted.Collections.StorageBufferingMode.Buffered,
-                global::Seamless.Persisted.Collections.StorageBufferSizeStrategy.Explicit,
+                global::Seamless.Collections.StorageAccessPattern.Random,
+                global::Seamless.Collections.StorageBufferingMode.Buffered,
+                global::Seamless.Collections.StorageBufferSizeStrategy.Explicit,
                 8192);
-            using var list = global::Seamless.Persisted.Collections.Store.CreateAppendOnlyList<T>(path,InitialDataCapacity: 128,StorageTuning: tuning);
+            using var list = global::Seamless.Collections.Persisted.Store.CreateAppendOnlyList<T>(path,InitialDataCapacity: 128,StorageTuning: tuning);
 
             list.Add(TStrategy.Elem(1));
             list.Add(TStrategy.Elem(2));
@@ -216,10 +212,10 @@ public abstract class ListTestBase<TStrategy, T>
     public void Store_CreateSet_WithTuning_RoundTrips() {
         var path = CreatePath();
         try {
-            var tuning = new global::Seamless.Persisted.Collections.StorageTuning(
+            var tuning = new global::Seamless.Collections.StorageTuning(
                 FileAccess.ReadWrite,
-                global::Seamless.Persisted.Collections.StorageAccessPattern.Random);
-            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<T>(path,InitialCapacity: 1,InitialDataCapacity: 128,StorageTuning: tuning);
+                global::Seamless.Collections.StorageAccessPattern.Random);
+            using var set = global::Seamless.Collections.Persisted.Store.CreateSet<T>(path,InitialCapacity: 1,InitialDataCapacity: 128,StorageTuning: tuning);
 
             set.Add(TStrategy.Elem(1));
             set.Add(TStrategy.Elem(2));
@@ -234,7 +230,7 @@ public abstract class ListTestBase<TStrategy, T>
 
     [BenchFact, Benchmark]
     public void Store_CreateTempSet_DeletesDirectoryOnDispose() {
-        var set = global::Seamless.Persisted.Collections.Store.CreateTempSet<T>(InitialCapacity: 1,InitialDataCapacity: 128);
+        var set = global::Seamless.Collections.Persisted.Store.CreateTempSet<T>(InitialCapacity: 1,InitialDataCapacity: 128);
         var path = set.Path;
         set.Add(TStrategy.Elem(1));
         set.Dispose();
@@ -245,10 +241,10 @@ public abstract class ListTestBase<TStrategy, T>
     public void Set_WithTuning_RoundTrips() {
         var path = CreatePath();
         try {
-            var tuning = new global::Seamless.Persisted.Collections.StorageTuning(
+            var tuning = new global::Seamless.Collections.StorageTuning(
                 FileAccess.ReadWrite,
-                global::Seamless.Persisted.Collections.StorageAccessPattern.Random);
-            using var set = new global::Seamless.Persisted.Collections.Set<T>(path,initialCapacity: 1,initialDataCapacity: 128,tuning);
+                global::Seamless.Collections.StorageAccessPattern.Random);
+            using var set = new global::Seamless.Collections.Persisted.Set<T>(path,initialCapacity: 1,initialDataCapacity: 128,tuning);
 
             set.Add(TStrategy.Elem(1));
             set.Add(TStrategy.Elem(2));

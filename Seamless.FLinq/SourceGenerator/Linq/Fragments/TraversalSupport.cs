@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 internal static class TraversalSupport {
     public static void AppendTraversalLoop(

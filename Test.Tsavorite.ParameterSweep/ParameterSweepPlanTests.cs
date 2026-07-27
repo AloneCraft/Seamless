@@ -1,6 +1,6 @@
 using Benchmark.Tsavorite.ParameterSweep;
 
-namespace Test.Benchmark.Tsavorite.ParameterSweep;
+namespace Test.Tsavorite.ParameterSweep;
 
 public sealed class パラメータスイープ計画テスト {
     [Fact]

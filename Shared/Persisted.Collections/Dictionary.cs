@@ -1,14 +1,10 @@
-#if BENCHMARK_PROJECT
-namespace Benchmark.Persisted.Collections;
-#else
-namespace Persisted.Collections;
-#endif
+namespace Shared.Persisted.Collections;
 
 public sealed class Dictionary {
     [BenchFact, Benchmark]
     public void BlittableDictionary_AddTryGetContains_CompareBcl() {
         var       path    = CreatePath(nameof(this.BlittableDictionary_AddTryGetContains_CompareBcl));
-        using var actual  = new global::Seamless.Persisted.Collections.BlittableDictionary<int,int>(path,initialCapacity: 1,initialDataCapacity: 128);
+        using var actual  = new global::Seamless.Collections.Persisted.BlittableDictionary<int,int>(path,initialCapacity: 1,initialDataCapacity: 128);
         var       expected= new global::System.Collections.Generic.Dictionary<int,int>();
 
         for(var i = 0;i<32;i++) {
@@ -26,7 +22,7 @@ public sealed class Dictionary {
     [BenchFact, Benchmark]
     public void SerializedDictionary_DuplicateKeysCompact_CompareBcl() {
         var       path    = CreatePath(nameof(this.SerializedDictionary_DuplicateKeysCompact_CompareBcl));
-        using var actual  = new global::Seamless.Persisted.Collections.SerializedDictionary<int,ManagedStruct>(path,initialCapacity: 1,initialDataCapacity: 128);
+        using var actual  = new global::Seamless.Collections.Persisted.SerializedDictionary<int,ManagedStruct>(path,initialCapacity: 1,initialDataCapacity: 128);
         var       expected= new global::System.Collections.Generic.Dictionary<int,ManagedStruct>();
 
         for(var i = 0;i<16;i++) {
@@ -49,7 +45,7 @@ public sealed class Dictionary {
     [BenchFact, Benchmark]
     public void BlittableDictionary_KeysValuesAndEnumeration_CompareBcl() {
         var       path    = CreatePath(nameof(this.BlittableDictionary_KeysValuesAndEnumeration_CompareBcl));
-        using var actual  = new global::Seamless.Persisted.Collections.BlittableDictionary<int,int>(path,initialCapacity: 1,initialDataCapacity: 128);
+        using var actual  = new global::Seamless.Collections.Persisted.BlittableDictionary<int,int>(path,initialCapacity: 1,initialDataCapacity: 128);
         var       expected= new global::System.Collections.Generic.Dictionary<int,int>();
 
         for(var i = 0;i<24;i++) {
@@ -65,7 +61,7 @@ public sealed class Dictionary {
     [BenchFact, Benchmark]
     public void Store_CreateDictionary_UnmanagedFacade_CompareBcl() {
         var       path    = CreatePath(nameof(this.Store_CreateDictionary_UnmanagedFacade_CompareBcl));
-        using var actual  = global::Seamless.Persisted.Collections.Store.CreateDictionary<int,int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
+        using var actual  = global::Seamless.Collections.Persisted.Store.CreateDictionary<int,int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
         var       expected= new global::System.Collections.Generic.Dictionary<int,int>();
 
         for(var i = 0;i<24;i++) {
@@ -85,7 +81,7 @@ public sealed class Dictionary {
     [BenchFact, Benchmark]
     public void Store_CreateDictionary_ManagedFacade_CompareBcl() {
         var       path    = CreatePath(nameof(this.Store_CreateDictionary_ManagedFacade_CompareBcl));
-        using var actual  = global::Seamless.Persisted.Collections.Store.CreateDictionary<int,ManagedStruct>(path,InitialCapacity: 1,InitialDataCapacity: 128);
+        using var actual  = global::Seamless.Collections.Persisted.Store.CreateDictionary<int,ManagedStruct>(path,InitialCapacity: 1,InitialDataCapacity: 128);
         var       expected= new global::System.Collections.Generic.Dictionary<int,ManagedStruct>();
 
         for(var i = 0;i<16;i++) {
@@ -99,7 +95,7 @@ public sealed class Dictionary {
 
     [BenchFact, Benchmark]
     public void Store_CreateTempDictionary_DeletesDirectoryOnDispose() {
-        var actual = global::Seamless.Persisted.Collections.Store.CreateTempDictionary<int,int>(InitialCapacity: 1,InitialDataCapacity: 128);
+        var actual = global::Seamless.Collections.Persisted.Store.CreateTempDictionary<int,int>(InitialCapacity: 1,InitialDataCapacity: 128);
         var path = actual.Path;
 
         actual.Add(1,2);

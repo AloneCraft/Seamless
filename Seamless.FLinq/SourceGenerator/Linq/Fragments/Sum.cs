@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 /*
 Sum は source.Sum() / Sum(selector) を checked 加算の Compute に変換する。

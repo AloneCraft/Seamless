@@ -13,9 +13,8 @@
     <PackageReference Include="Microsoft.Garnet" Version="2.0.1-beta.5" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Seamless.Collections\Seamless.Collections.csproj" />
+    <ProjectReference Include="..\..\Tests\Seamless.TestKit\Seamless.TestKit.csproj" />
     <ProjectReference Include="..\..\Seamless.Collections.Persisted\Seamless.Collections.Persisted.csproj" />
     <ProjectReference Include="..\..\Seamless.Collections.Tsavorite\Seamless.Collections.Tsavorite.csproj" />
-    <ProjectReference Include="..\..\Seamless.Serialization\Seamless.Serialization.csproj" />
   </ItemGroup>
 </Project>

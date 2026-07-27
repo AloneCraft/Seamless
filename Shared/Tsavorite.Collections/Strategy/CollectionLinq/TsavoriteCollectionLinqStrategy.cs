@@ -1,17 +1,13 @@
 using Collection.Helper.CollectionLinq;
 using Collection.Strategy.CollectionLinq;
-#if BENCHMARK_PROJECT
-namespace Benchmark.Tsavorite.Collections.Strategy.CollectionLinq;
-#else
-namespace Tsavorite.Collections.Strategy.CollectionLinq;
-#endif
+namespace Shared.Tsavorite.Collections.Strategy.CollectionLinq;
 
 public sealed class TsavoriteDictionaryLinqSource<TKey, TValue>(
     StoreHandle<TKey,TValue> store,
-    global::Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> dictionary):IDisposable
+    global::Seamless.Collections.Tsavorite.IDictionary<TKey,TValue> dictionary):IDisposable
     where TKey : IEquatable<TKey>
     where TValue : IEquatable<TValue> {
-    public global::Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> Dictionary { get; } = dictionary;
+    public global::Seamless.Collections.Tsavorite.IDictionary<TKey,TValue> Dictionary { get; } = dictionary;
 
     public void Dispose() {
         this.Dictionary.Dispose();

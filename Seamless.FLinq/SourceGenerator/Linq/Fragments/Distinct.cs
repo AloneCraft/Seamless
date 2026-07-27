@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 internal class Distinct(int 番号,Enumerable source):Distinct_comparer(番号,source,"null");
 

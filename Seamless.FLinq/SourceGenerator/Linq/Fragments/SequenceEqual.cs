@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 internal class SequenceEqual(int 番号,Enumerable source,Enumerable second,string resultType)
     :SequenceEqual_comparer(番号,source,second,"null",resultType);

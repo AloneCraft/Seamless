@@ -8,13 +8,13 @@ namespace Test.Seamless.Persisted.Linq.Enumerable;
 // 今回の bare Count 向け修正（ProviderIterateTerminalBase.CanCreateFor）が predicate 付きの
 // native iterate 最適化を退行させていないことを確認する。
 public class FLinqPersistedSetCountPredicateTests {
-    private static global::Seamless.Persisted.Collections.Set<int>? source;
+    private static global::Seamless.Collections.Persisted.Set<int>? source;
 
     [Fact, Trait("Category","Unit")]
     public void PersistedSetRoot_Count_predicate_StillUsesNativeIterateTerminal() {
         var path = CreatePath();
         try {
-            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
+            using var set = global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 })
                 set.Add(value);
             set.Compact();
@@ -36,7 +36,7 @@ public class FLinqPersistedSetCountPredicateTests {
     private static int CountEvenImpl() =>
         Source().Count(static value => value%2==0);
 
-    private static global::Seamless.Persisted.Collections.Set<int> Source() =>
+    private static global::Seamless.Collections.Persisted.Set<int> Source() =>
         source??throw new InvalidOperationException("Source was not initialized.");
 
     private static string CreatePath() {

@@ -1,11 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 
 using Tsavorite.core;
-#if BENCHMARK_PROJECT
-namespace Benchmark.Tsavorite.Collections;
-#else
-namespace Tsavorite.Collections;
-#endif
+namespace Shared.Tsavorite.Collections;
 /// <summary>
 /// IDictionaryの動作を検証する。
 public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
@@ -216,8 +212,8 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         {
             // コメント文字化け修正済み
             var folder = this.CreateDiskFolder();
-            using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-            using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+            using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
+            using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
             using var sh = TStrategy.CreateStorageStore(logDevice,objDevice);
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
@@ -371,9 +367,9 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         {
             // コメント文字化け修正済み
             var folder = this.CreateDiskFolder();
-            using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-            using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-            using var sh = TStrategy.CreateStorageStore(logDevice,objDevice,memorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity,mutableFraction: 0);
+            using var logDevice = new ManagedLocalStorageDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
+            using var objDevice = new ManagedLocalStorageDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
+            using var sh = TStrategy.CreateStorageStore(logDevice,objDevice,memorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,mutableFraction: 0);
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
             dict.Add(TStrategy.K(1),TStrategy.V(1));
@@ -381,7 +377,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
         }
         {
             // コメント文字化け修正済み
-            using var sh = TStrategy.CreateMemoryStore(memorySize: global::Seamless.Tsavorite.Const.LogMemorySize,mutableFraction: 0.5);
+            using var sh = TStrategy.CreateMemoryStore(memorySize: global::Seamless.Collections.Tsavorite.Const.LogMemorySize,mutableFraction: 0.5);
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
             Assert.Throws<OutOfMemoryException>((Action)(() => {

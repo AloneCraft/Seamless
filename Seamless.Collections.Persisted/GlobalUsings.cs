@@ -1,4 +1,4 @@
-global using Seamless.Serialization;
+global using Seamless.Collections;
 
 global using System;
 global using System.Buffers;

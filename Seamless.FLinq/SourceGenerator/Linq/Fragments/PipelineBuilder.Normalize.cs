@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 // 隣接する段の併合と打ち消し。
 internal static partial class PipelineBuilder {

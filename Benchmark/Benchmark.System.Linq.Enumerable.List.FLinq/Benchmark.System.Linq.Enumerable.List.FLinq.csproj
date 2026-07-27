@@ -33,6 +33,6 @@
     <ProjectReference Include="..\..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
   </ItemGroup>
-  <Import Project="..\..\Shared\Seamless.Linq.Enumerable\Seamless.Linq.Enumerable.projitems" Label="Shared" />
+  <Import Project="..\..\Shared\Linq.Enumerable\Linq.Enumerable.projitems" Label="Shared" />
 </Project>
 

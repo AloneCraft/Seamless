@@ -1,15 +1,11 @@
-#if BENCHMARK_PROJECT
-namespace Benchmark.Persisted.Collections;
-#else
-namespace Persisted.Collections;
-#endif
+namespace Shared.Persisted.Collections;
 
 public class Set {
     [BenchFact, Benchmark]
     public void ManagedSerializedSet_Distinct_SortsAndDeduplicates() {
         var path = CreatePath("managed-view-set");
         try {
-            using var set = new global::Seamless.Persisted.Collections.SerializedSet<ManagedStruct>(path,initialCapacity: 1,initialDataCapacity: 128);
+            using var set = new global::Seamless.Collections.Persisted.SerializedSet<ManagedStruct>(path,initialCapacity: 1,initialDataCapacity: 128);
             set.Add(new ManagedStruct { Name="bravo" });
             set.Add(new ManagedStruct { Name="alpha" });
             set.Add(new ManagedStruct { Name="alpha" });
@@ -29,7 +25,7 @@ public class Set {
     public void UnmanagedBlittableSet_Distinct_SortsAndDeduplicates() {
         var path = CreatePath("unmanaged-view-set");
         try {
-            using var set = new global::Seamless.Persisted.Collections.BlittableSet<int>(path,initialCapacity: 1,initialDataCapacity: 128);
+            using var set = new global::Seamless.Collections.Persisted.BlittableSet<int>(path,initialCapacity: 1,initialDataCapacity: 128);
             set.Add(5);
             set.Add(3);
             set.Add(5);
@@ -52,7 +48,7 @@ public class Set {
     public void ManagedFacadeSet_UsesSerializedStorageAndReadOnlySetContract() {
         var path = CreatePath("managed-facade-set");
         try {
-            using var set = new global::Seamless.Persisted.Collections.Set<ManagedStruct>(path,initialCapacity: 1,initialDataCapacity: 128);
+            using var set = new global::Seamless.Collections.Persisted.Set<ManagedStruct>(path,initialCapacity: 1,initialDataCapacity: 128);
             set.Add(new ManagedStruct { Name="bravo" });
             set.Add(new ManagedStruct { Name="alpha" });
             set.Add(new ManagedStruct { Name="alpha" });
@@ -75,7 +71,7 @@ public class Set {
     public void UnmanagedFacadeSet_UsesBlittableStorageAndReadOnlySetContract() {
         var path = CreatePath("unmanaged-facade-set");
         try {
-            using var set = new global::Seamless.Persisted.Collections.Set<int>(path,initialCapacity: 1,initialDataCapacity: 128);
+            using var set = new global::Seamless.Collections.Persisted.Set<int>(path,initialCapacity: 1,initialDataCapacity: 128);
             set.Add(5);
             set.Add(3);
             set.Add(5);

@@ -1,5 +1,5 @@
 using Microsoft.Data.Sqlite;
-using Storage = Seamless.UI.Storage;
+using Storage = UI.Storage;
 
 namespace Test.Benchmark;
 

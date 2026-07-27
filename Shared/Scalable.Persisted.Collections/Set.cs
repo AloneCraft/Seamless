@@ -1,8 +1,4 @@
-#if BENCHMARK_PROJECT
-namespace Benchmark.Scalable.Persisted.Collections.Set;
-#else
-namespace Scalable.Persisted.Collections.Set;
-#endif
+namespace Shared.Scalable.Persisted.Collections.Set;
 
 public class SetInt32
     :PersistedSetScalable<Int32HashSetValueProvider,int>;

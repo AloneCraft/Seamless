@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 // 列挙ソースが備える能力。Pipeline はこのフラグを見て、段や終端をどこまで畳めるかを決める。
 // 基底クラスではないので Bases には置かない（AI_SYNTAX_RULES の File Layout Rules）。

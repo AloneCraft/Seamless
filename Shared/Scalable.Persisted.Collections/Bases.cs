@@ -2,17 +2,13 @@ using Scalable.Collections;
 
 using System.Collections.Concurrent;
 
-#if BENCHMARK_PROJECT
-namespace Benchmark.Scalable.Persisted.Collections;
-#else
-namespace Scalable.Persisted.Collections;
-#endif
+namespace Shared.Scalable.Persisted.Collections;
 
 public abstract class PersistedSetScalable<TProvider, T>
     :ScalableBenchmarkBase
     where TProvider : IHashSetValueProvider<T>
     where T : IEquatable<T> {
-    private static readonly ConcurrentDictionary<string,Lazy<global::Seamless.Persisted.Collections.Set<T>>> SharedContainsSets = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string,Lazy<global::Seamless.Collections.Persisted.Set<T>>> SharedContainsSets = new(StringComparer.Ordinal);
 
     [Benchmark, BenchTheory]
     [BenchArguments(65536,1,4096)]
@@ -28,7 +24,7 @@ public abstract class PersistedSetScalable<TProvider, T>
         var values = GetSharedValues<PersistedSetScalable<TProvider,T>,T>(count,static index => TProvider.Create(index));
         var path = ScalablePath.Create<TProvider,T>(nameof(this.Add));
         try {
-            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<T>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
+            using var set = global::Seamless.Collections.Persisted.Store.CreateSet<T>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
             foreach(var value in values) {
                 set.Add(value);
             }
@@ -62,20 +58,20 @@ public abstract class PersistedSetScalable<TProvider, T>
         return found;
     }
 
-    private static global::Seamless.Persisted.Collections.Set<T> GetSharedContainsSet(int count,long initial,long data) {
+    private static global::Seamless.Collections.Persisted.Set<T> GetSharedContainsSet(int count,long initial,long data) {
         var key = count.ToString(System.Globalization.CultureInfo.InvariantCulture)
             +"|"+initial.ToString(System.Globalization.CultureInfo.InvariantCulture)
             +"|"+data.ToString(System.Globalization.CultureInfo.InvariantCulture);
         return SharedContainsSets.GetOrAdd(
             key,
-            _ => new Lazy<global::Seamless.Persisted.Collections.Set<T>>(
+            _ => new Lazy<global::Seamless.Collections.Persisted.Set<T>>(
                 () => CreateContainsSet(count,initial,data),
                 LazyThreadSafetyMode.ExecutionAndPublication)).Value;
     }
 
-    private static global::Seamless.Persisted.Collections.Set<T> CreateContainsSet(int count,long initial,long data) {
+    private static global::Seamless.Collections.Persisted.Set<T> CreateContainsSet(int count,long initial,long data) {
         var path = ScalablePath.Create<TProvider,T>(nameof(Contains));
-        var set = global::Seamless.Persisted.Collections.Store.CreateSet<T>(path,InitialCapacity: initial,InitialDataCapacity: data);
+        var set = global::Seamless.Collections.Persisted.Store.CreateSet<T>(path,InitialCapacity: initial,InitialDataCapacity: data);
         foreach(var value in GetSharedValues<PersistedSetScalable<TProvider,T>,T>(count,static index => TProvider.Create(index))) {
             set.Add(value);
         }
@@ -189,7 +185,7 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider, TKey, TVal
     where TProvider : IDictTestStrategy<TKey,TValue>
     where TKey : unmanaged, IEquatable<TKey>
     where TValue : unmanaged, IEquatable<TValue> {
-    private static readonly ConcurrentDictionary<string,Lazy<global::Seamless.Persisted.Collections.Dictionary<TKey,TValue>>> SharedTryGetValueDictionaries = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string,Lazy<global::Seamless.Collections.Persisted.Dictionary<TKey,TValue>>> SharedTryGetValueDictionaries = new(StringComparer.Ordinal);
 
     [Benchmark, BenchTheory]
     [BenchArguments(65536,1,4096)]
@@ -204,7 +200,7 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider, TKey, TVal
         var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(this.Add));
         try {
-            using var dictionary = global::Seamless.Persisted.Collections.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
+            using var dictionary = global::Seamless.Collections.Persisted.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
             AddRange(dictionary,count);
             Assert.Equal(count,dictionary.Count);
             return dictionary.Count;
@@ -239,7 +235,7 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider, TKey, TVal
         return found;
     }
 
-    private static void AddRange(global::Seamless.Persisted.Collections.Dictionary<TKey,TValue> dictionary,int count) {
+    private static void AddRange(global::Seamless.Collections.Persisted.Dictionary<TKey,TValue> dictionary,int count) {
         foreach(var pair in GetSharedPairs<PersistedBlittableDictionaryScalable<TProvider,TKey,TValue>,TKey,TValue>(
             count,
             static index => TProvider.K(index),
@@ -248,20 +244,20 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider, TKey, TVal
         }
     }
 
-    private static global::Seamless.Persisted.Collections.Dictionary<TKey,TValue> GetSharedTryGetValueDictionary(int count,long initial,long data) {
+    private static global::Seamless.Collections.Persisted.Dictionary<TKey,TValue> GetSharedTryGetValueDictionary(int count,long initial,long data) {
         var key = count.ToString(System.Globalization.CultureInfo.InvariantCulture)
             +"|"+initial.ToString(System.Globalization.CultureInfo.InvariantCulture)
             +"|"+data.ToString(System.Globalization.CultureInfo.InvariantCulture);
         return SharedTryGetValueDictionaries.GetOrAdd(
             key,
-            _ => new Lazy<global::Seamless.Persisted.Collections.Dictionary<TKey,TValue>>(
+            _ => new Lazy<global::Seamless.Collections.Persisted.Dictionary<TKey,TValue>>(
                 () => CreateTryGetValueDictionary(count,initial,data),
                 LazyThreadSafetyMode.ExecutionAndPublication)).Value;
     }
 
-    private static global::Seamless.Persisted.Collections.Dictionary<TKey,TValue> CreateTryGetValueDictionary(int count,long initial,long data) {
+    private static global::Seamless.Collections.Persisted.Dictionary<TKey,TValue> CreateTryGetValueDictionary(int count,long initial,long data) {
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(TryGetValue));
-        var dictionary = global::Seamless.Persisted.Collections.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: initial,InitialDataCapacity: data);
+        var dictionary = global::Seamless.Collections.Persisted.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: initial,InitialDataCapacity: data);
         AddRange(dictionary,count);
         dictionary.Compact();
         ScalablePath.RegisterProcessCleanup(path,dictionary);
@@ -274,7 +270,7 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider, TKey, TVa
     where TProvider : IDictTestStrategy<TKey,TValue>
     where TKey : notnull, IEquatable<TKey>
     where TValue : IEquatable<TValue> {
-    private static readonly ConcurrentDictionary<string,Lazy<global::Seamless.Persisted.Collections.Dictionary<TKey,TValue>>> SharedTryGetValueDictionaries = new(StringComparer.Ordinal);
+    private static readonly ConcurrentDictionary<string,Lazy<global::Seamless.Collections.Persisted.Dictionary<TKey,TValue>>> SharedTryGetValueDictionaries = new(StringComparer.Ordinal);
 
     [Benchmark, BenchTheory]
     [BenchArguments(65536,1,4096)]
@@ -289,7 +285,7 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider, TKey, TVa
         var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(this.Add));
         try {
-            using var dictionary = global::Seamless.Persisted.Collections.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
+            using var dictionary = global::Seamless.Collections.Persisted.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: Initial,InitialDataCapacity: Data);
             AddRange(dictionary,count);
             Assert.Equal(count,dictionary.Count);
             return dictionary.Count;
@@ -324,7 +320,7 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider, TKey, TVa
         return found;
     }
 
-    private static void AddRange(global::Seamless.Persisted.Collections.Dictionary<TKey,TValue> dictionary,int count) {
+    private static void AddRange(global::Seamless.Collections.Persisted.Dictionary<TKey,TValue> dictionary,int count) {
         foreach(var pair in GetSharedPairs<PersistedSerializedDictionaryScalable<TProvider,TKey,TValue>,TKey,TValue>(
             count,
             static index => TProvider.K(index),
@@ -333,20 +329,20 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider, TKey, TVa
         }
     }
 
-    private static global::Seamless.Persisted.Collections.Dictionary<TKey,TValue> GetSharedTryGetValueDictionary(int count,long initial,long data) {
+    private static global::Seamless.Collections.Persisted.Dictionary<TKey,TValue> GetSharedTryGetValueDictionary(int count,long initial,long data) {
         var key = count.ToString(System.Globalization.CultureInfo.InvariantCulture)
             +"|"+initial.ToString(System.Globalization.CultureInfo.InvariantCulture)
             +"|"+data.ToString(System.Globalization.CultureInfo.InvariantCulture);
         return SharedTryGetValueDictionaries.GetOrAdd(
             key,
-            _ => new Lazy<global::Seamless.Persisted.Collections.Dictionary<TKey,TValue>>(
+            _ => new Lazy<global::Seamless.Collections.Persisted.Dictionary<TKey,TValue>>(
                 () => CreateTryGetValueDictionary(count,initial,data),
                 LazyThreadSafetyMode.ExecutionAndPublication)).Value;
     }
 
-    private static global::Seamless.Persisted.Collections.Dictionary<TKey,TValue> CreateTryGetValueDictionary(int count,long initial,long data) {
+    private static global::Seamless.Collections.Persisted.Dictionary<TKey,TValue> CreateTryGetValueDictionary(int count,long initial,long data) {
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(TryGetValue));
-        var dictionary = global::Seamless.Persisted.Collections.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: initial,InitialDataCapacity: data);
+        var dictionary = global::Seamless.Collections.Persisted.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: initial,InitialDataCapacity: data);
         AddRange(dictionary,count);
         dictionary.Compact();
         ScalablePath.RegisterProcessCleanup(path,dictionary);

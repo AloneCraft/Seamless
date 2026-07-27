@@ -1,13 +1,13 @@
-using Seamless.Linq.Shared;
+using Shared.Linq;
 
-namespace Test.Tsavorite.Linq.Enumerable;
+namespace Test.Tsavorite.Linq.Enumerable.IEnumerable.FLinq;
 
 public sealed class IEnumerableRootTests {
-    private static global::Seamless.Tsavorite.Collections.HashSet<int>? source;
+    private static global::Seamless.Collections.Tsavorite.HashSet<int>? source;
 
     [Fact,Trait("Category","Unit")]
     public void TsavoriteHashSetRoute_UsesIEnumerableRootWithoutNativeIterateState() {
-        using var store=global::Seamless.Tsavorite.Collections.Store.Create().CreateHashSet<int>();
+        using var store=global::Seamless.Collections.Tsavorite.Store.Create().CreateHashSet<int>();
         using var set=store.Create();
         foreach(var value in new[]{1,2,3,4})
             set.Add(value);
@@ -26,7 +26,7 @@ public sealed class IEnumerableRootTests {
     [LinqIntercept(true,LinqInstrumentation.Counter)]
     private static int CountEvenImpl()=>Source().AsX().Count(static value=>value%2==0);
 
-    private static global::Seamless.Tsavorite.Collections.HashSet<int> Source()=>source??throw new InvalidOperationException("Source was not initialized.");
+    private static global::Seamless.Collections.Tsavorite.HashSet<int> Source()=>source??throw new InvalidOperationException("Source was not initialized.");
     private static string GeneratedFor(string methodName) {
         var project=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..",".."));
         var root=Path.Combine(project,"obj","Release","net10.0","generated");

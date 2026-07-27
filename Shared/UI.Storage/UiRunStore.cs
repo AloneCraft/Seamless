@@ -1,6 +1,6 @@
 using Microsoft.Data.Sqlite;
 
-namespace Seamless.UI.Storage;
+namespace UI.Storage;
 
 public sealed class UI実行ストア{
     private const int ベンチマークスキーマ版=25;
@@ -401,8 +401,8 @@ public sealed class UI実行ストア{
                 コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';";
                 return (long)(コマンド.ExecuteScalar()??0L)==1L&&BenchmarkTabStorage.想定形状か(接続);
             }
-            コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク','診断カウンター');";
-            if((long)(コマンド.ExecuteScalar()??0L)!=3L){return false;}
+            コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','ベンチマーク');";
+            if((long)(コマンド.ExecuteScalar()??0L)!=2L){return false;}
             コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('要素数一覧','適応閾値ns');";
             if((long)(コマンド.ExecuteScalar()??0L)!=2L){return false;}
             if(this.アプリ種別==UI実行アプリ種別.パラメータスイープ){

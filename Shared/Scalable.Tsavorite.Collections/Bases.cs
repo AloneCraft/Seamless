@@ -1,11 +1,7 @@
 using Scalable.Collections;
 
 using System.Collections.Concurrent;
-#if BENCHMARK_PROJECT
-namespace Benchmark.Scalable.Tsavorite.Collections;
-#else
-namespace Scalable.Tsavorite.Collections;
-#endif
+namespace Shared.Scalable.Tsavorite.Collections;
 
 public abstract class TsavoriteSetScalable<TStrategy, T>
     :ScalableBenchmarkBase
@@ -130,7 +126,7 @@ public abstract class TsavoriteDictionaryScalable<TStrategy, TKey, TValue>
         return found;
     }
 
-    private static void AddRange(global::Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> dictionary,int count) {
+    private static void AddRange(global::Seamless.Collections.Tsavorite.IDictionary<TKey,TValue> dictionary,int count) {
         foreach(var pair in GetSharedPairs<TsavoriteDictionaryScalable<TStrategy,TKey,TValue>,TKey,TValue>(
             count,
             static index => TStrategy.K(index),
@@ -162,8 +158,8 @@ public abstract class TsavoriteDictionaryScalable<TStrategy, TKey, TValue>
 
     private sealed class SharedDictionary(
         StoreHandle<TKey,TValue> store,
-        global::Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> dictionary) {
+        global::Seamless.Collections.Tsavorite.IDictionary<TKey,TValue> dictionary) {
         public StoreHandle<TKey,TValue> Store { get; } = store;
-        public global::Seamless.Tsavorite.Collections.IDictionary<TKey,TValue> Dictionary { get; } = dictionary;
+        public global::Seamless.Collections.Tsavorite.IDictionary<TKey,TValue> Dictionary { get; } = dictionary;
     }
 }

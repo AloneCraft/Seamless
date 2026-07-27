@@ -1,11 +1,12 @@
 using Seamless.Collections;
-using Seamless.Persisted.Collections;
-using Seamless.Tsavorite.Devices;
+using Seamless.Collections.Persisted;
+using Seamless.Collections.Tsavorite;
+using Seamless.TestKit;
 
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
-using ストア型 = Seamless.Tsavorite.Collections.Store;
+using ストア型 = Seamless.Collections.Tsavorite.Store;
 
 namespace Benchmark.Tsavorite.ParameterSweep;
 
@@ -456,7 +457,7 @@ internal abstract class ワークロード基底:IDisposable {
 
     protected ストア型 ストアを作成(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション,out TsavoriteStorageDevicePair? デバイス) {
         var 設定 = ケース.設定;
-        var ストア = Seamless.Tsavorite.Collections.Store.Create(
+        var ストア = Seamless.Collections.Tsavorite.Store.Create(
             IndexSize: 設定.Indexサイズ,
             PageSize: 設定.Pageサイズ,
             SegmentSize: 設定.Segmentサイズ,
@@ -484,7 +485,7 @@ internal abstract class ワークロード基底:IDisposable {
 internal sealed class ハッシュセットワークロード<Tキー>:ワークロード基底, Iパラメータスイープワークロード
     where Tキー : IEquatable<Tキー> {
     private readonly Func<int,Tキー> キーファクトリー;
-    private readonly Seamless.Tsavorite.Stores.HashSetStore<Tキー> ストア;
+    private readonly Seamless.Collections.Tsavorite.HashSetStore<Tキー> ストア;
 
     public ハッシュセットワークロード(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション,Func<int,Tキー> キーファクトリー) : base(ケース,オプション) {
         this.キーファクトリー=キーファクトリー;
@@ -512,7 +513,7 @@ internal sealed class セットワークロード<Tキー, Tレコード>:ワー
     where Tキー : IEquatable<Tキー>
     where Tレコード : IRecord<Tキー> {
     private readonly Func<int,Tレコード> レコードファクトリー;
-    private readonly Seamless.Tsavorite.Stores.SetStore<Tキー,Tレコード> ストア;
+    private readonly Seamless.Collections.Tsavorite.SetStore<Tキー,Tレコード> ストア;
 
     public セットワークロード(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション,Func<int,Tレコード> レコードファクトリー) : base(ケース,オプション) {
         this.レコードファクトリー=レコードファクトリー;
@@ -541,7 +542,7 @@ internal sealed class 辞書ワークロード<Tキー, T値>:ワークロード
     where T値 : IEquatable<T値> {
     private readonly Func<int,Tキー> キーファクトリー;
     private readonly Func<int,T値> 値ファクトリー;
-    private readonly Seamless.Tsavorite.Stores.DictionaryStore<Tキー,T値> ストア;
+    private readonly Seamless.Collections.Tsavorite.DictionaryStore<Tキー,T値> ストア;
 
     public 辞書ワークロード(
         パラメータスイープケース ケース,
@@ -570,7 +571,7 @@ internal sealed class 辞書ワークロード<Tキー, T値>:ワークロード
     }
 }
 
-internal sealed class ハッシュセットワーカー<Tキー>(Seamless.Tsavorite.Collections.HashSet<Tキー> セット,Func<int,Tキー> キーファクトリー):Iパラメータスイープワーカー
+internal sealed class ハッシュセットワーカー<Tキー>(Seamless.Collections.Tsavorite.HashSet<Tキー> セット,Func<int,Tキー> キーファクトリー):Iパラメータスイープワーカー
     where Tキー : IEquatable<Tキー> {
     public void 追加(int 番号) => セット.Add(キーファクトリー(番号));
 
@@ -579,7 +580,7 @@ internal sealed class ハッシュセットワーカー<Tキー>(Seamless.Tsavor
     public void Dispose() => セット.Dispose();
 }
 
-internal sealed class セットワーカー<Tキー, Tレコード>(Seamless.Tsavorite.Collections.Set<Tキー,Tレコード> セット,Func<int,Tレコード> レコードファクトリー):Iパラメータスイープワーカー
+internal sealed class セットワーカー<Tキー, Tレコード>(Seamless.Collections.Tsavorite.Set<Tキー,Tレコード> セット,Func<int,Tレコード> レコードファクトリー):Iパラメータスイープワーカー
     where Tキー : IEquatable<Tキー>
     where Tレコード : IRecord<Tキー> {
     public void 追加(int 番号) => セット.Add(レコードファクトリー(番号));
@@ -589,7 +590,7 @@ internal sealed class セットワーカー<Tキー, Tレコード>(Seamless.Tsa
     public void Dispose() => セット.Dispose();
 }
 
-internal sealed class 辞書ワーカー<Tキー, T値>(Seamless.Tsavorite.Collections.IDictionary<Tキー,T値> 辞書,Func<int,Tキー> キーファクトリー,Func<int,T値> 値ファクトリー):Iパラメータスイープワーカー
+internal sealed class 辞書ワーカー<Tキー, T値>(Seamless.Collections.Tsavorite.IDictionary<Tキー,T値> 辞書,Func<int,Tキー> キーファクトリー,Func<int,T値> 値ファクトリー):Iパラメータスイープワーカー
     where Tキー : IEquatable<Tキー>
     where T値 : IEquatable<T値> {
     public void 追加(int 番号) => 辞書.Add(キーファクトリー(番号),値ファクトリー(番号));

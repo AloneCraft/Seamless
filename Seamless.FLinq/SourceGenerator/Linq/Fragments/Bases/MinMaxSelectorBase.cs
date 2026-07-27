@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 /*
 MinMaxSelectorBase は source.Min(selector) / Max(selector) を selector 結果の最小/最大にする。
 

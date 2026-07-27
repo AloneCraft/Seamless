@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 /*
 Count は Count/LongCount を件数取得 fast path 優先の Compute へ変換する。

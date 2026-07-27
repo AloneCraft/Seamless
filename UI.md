@@ -36,7 +36,7 @@ Benchmark通常UI、Scalable UI、ParameterSweep UIのRun履歴、実行状態�
 - Scalable: `Work/UI/Benchmark.Scalable.db`
 - ParameterSweep: `Work/UI/Benchmark.ParameterSweep.db`
 - fallback: `%LocalApplicationData%/Seamless/Work/UI/<各DB名>`
-- 解決口: `Seamless.UI.Storage.UiRunDatabasePathResolver`
+- 解決口: `UI.Storage.UiRunDatabasePathResolver`
 
 ## 対象アプリ
 

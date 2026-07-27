@@ -28,6 +28,6 @@
     <Using Include="Common" />
     <Using Include="ZLinq" />
   </ItemGroup>
-  <Import Project="..\..\Shared\Seamless.Linq.Enumerable\Seamless.Linq.Enumerable.projitems" Label="Shared" />
+  <Import Project="..\..\Shared\Linq.Enumerable\Linq.Enumerable.projitems" Label="Shared" />
 </Project>
 

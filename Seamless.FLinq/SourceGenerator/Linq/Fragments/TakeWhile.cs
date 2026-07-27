@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 /*
 TakeWhile_predicate は predicate が false になった時点で永続的に終了する enumerator を生成する。

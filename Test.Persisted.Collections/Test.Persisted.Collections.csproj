@@ -35,12 +35,13 @@
     <Using Include="Common" />
     <Using Include="BenchmarkDotNet.Attributes" />
     <Using Include="Seamless.Collections" />
+    <Using Include="Seamless.TestKit" />
     <Using Include="Xunit" />
     <Using Include="ZLinq" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
-    <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
+    <ProjectReference Include="..\Tests\Seamless.TestKit\Seamless.TestKit.csproj" />
   </ItemGroup>
   <Import Project="..\Shared\Persisted.Collections\Persisted.Collections.projitems" Label="Shared" />
 </Project>

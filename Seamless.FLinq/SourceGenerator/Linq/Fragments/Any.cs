@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 /*
 Any は source.Any() を「件数 fast path か MoveNext 1回」で判定する scalar に変換する。
 

@@ -14,7 +14,7 @@ public class IterateLookupCounter {
 
     [Fact, Trait("Category","Unit")]
     public void OnExceptionDoesNotThrow() {
-        var iter = new global::Seamless.Tsavorite.Collections.HashSet<int>.IterateLookupCounter();
+        var iter = new global::Seamless.Collections.Tsavorite.HashSet<int>.IterateLookupCounter();
         iter.OnException(new Exception("test"),0);
     }
 }

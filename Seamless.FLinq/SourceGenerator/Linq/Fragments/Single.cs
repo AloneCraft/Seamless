@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 /*
 Single は source.Single() を、0件/2件以上を検出する Compute に変換する。

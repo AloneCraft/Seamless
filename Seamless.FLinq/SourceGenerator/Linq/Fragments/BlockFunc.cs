@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 // 複数文ブロック本体（=>{ ... } / delegate(){ ... }）を「文」としてインライン展開する FuncFragment。
 // 単一 return / 式本体は従来どおり LambdaFunc（式インライン）で扱い、それ以外のブロックだけここに来る。

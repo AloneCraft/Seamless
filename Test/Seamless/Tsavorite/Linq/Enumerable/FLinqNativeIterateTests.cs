@@ -5,7 +5,7 @@ using Test.System.Linq.Intercept;
 namespace Test.Seamless.Tsavorite.Linq.Enumerable;
 
 public class FLinqNativeIterateTests {
-    private static global::Seamless.Tsavorite.Collections.HashSet<int>? source;
+    private static global::Seamless.Collections.Tsavorite.HashSet<int>? source;
 
     [Fact, Trait("Category","Unit")]
     public void TsavoriteHashSetRoot_UsesNativeIterateTerminalForCount() {
@@ -139,7 +139,7 @@ public class FLinqNativeIterateTests {
     private static Dictionary<int,int> ToDictionaryImpl() =>
         Source().ToDictionary(static value => value,static value => value*2);
 
-    private static global::Seamless.Tsavorite.Collections.HashSet<int> Source() =>
+    private static global::Seamless.Collections.Tsavorite.HashSet<int> Source() =>
         source??throw new InvalidOperationException("Source was not initialized.");
 
     private static void AssertNativeIterateGenerated(string methodName) {

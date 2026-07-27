@@ -1,4 +1,4 @@
-using Seamless.UI.Storage;
+using UI.Storage;
 
 namespace Test.Benchmark;
 
@@ -6,7 +6,7 @@ namespace Test.Benchmark;
 public sealed class ベンチマークUI実行リポジトリ {
     [Fact]
     public async Task 仕様確認01() {
-        var ストア = new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var ストア = new global::UI.Storage.UI実行ストア(DBパスを作成());
         var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
         var 実行ID = await リポジトリ.実行を作成Async(UI実行アプリ種別.ベンチマーク,"Benchmark","Fast",ソースタブ.タブ);
@@ -33,7 +33,7 @@ public sealed class ベンチマークUI実行リポジトリ {
 
     [Fact]
     public async Task 仕様確認02() {
-        var ストア = new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var ストア = new global::UI.Storage.UI実行ストア(DBパスを作成());
         var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System範囲);
         var 実行ID = await リポジトリ.実行を作成Async(UI実行アプリ種別.ベンチマーク,"Benchmark","Fast",ソースタブ.タブ);
@@ -55,7 +55,7 @@ public sealed class ベンチマークUI実行リポジトリ {
 
     [Fact]
     public async Task 仕様確認03() {
-        var ストア = new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var ストア = new global::UI.Storage.UI実行ストア(DBパスを作成());
         var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
         var 実行ID = await リポジトリ.実行を作成Async(UI実行アプリ種別.ベンチマーク,"Benchmark","Fast",ソースタブ.タブ);
@@ -79,7 +79,7 @@ public sealed class ベンチマークUI実行リポジトリ {
 
     [Fact]
     public async Task 結果項目一覧読込は実行型識別情報を保持する() {
-        var ストア = new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成(),UI実行アプリ種別.スケーラブルベンチマーク);
+        var ストア = new global::UI.Storage.UI実行ストア(DBパスを作成(),UI実行アプリ種別.スケーラブルベンチマーク);
         var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.スケーラブルTsavoriteセット);
         var 実行ID = await リポジトリ.実行を作成Async(UI実行アプリ種別.スケーラブルベンチマーク,"Scalable","Fast",ソースタブ.タブ);
@@ -101,7 +101,7 @@ public sealed class ベンチマークUI実行リポジトリ {
 
     [Fact]
     public async Task 仕様確認04() {
-        var ストア = new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var ストア = new global::UI.Storage.UI実行ストア(DBパスを作成());
         var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.System配列);
         var 実行ID = await リポジトリ.実行を作成Async(UI実行アプリ種別.ベンチマーク,"Benchmark","Fast",ソースタブ.タブ);
@@ -127,7 +127,7 @@ public sealed class ベンチマークUI実行リポジトリ {
 
     [Fact]
     public async Task 仕様確認05() {
-        var ストア = new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成(),UI実行アプリ種別.スケーラブルベンチマーク);
+        var ストア = new global::UI.Storage.UI実行ストア(DBパスを作成(),UI実行アプリ種別.スケーラブルベンチマーク);
         var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.スケーラブルTsavoriteセット);
         const string 型完全名 = "Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32";
@@ -162,7 +162,7 @@ public sealed class ベンチマークUI実行リポジトリ {
 
     [Fact]
     public async Task ベンチマークスナップショット項目保存_片側の型完全名が空でも有効な型を共有する() {
-        var ストア = new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var ストア = new global::UI.Storage.UI実行ストア(DBパスを作成());
         var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.最適化パイプライン融合);
         var 実行ID = await リポジトリ.実行を作成Async(UI実行アプリ種別.ベンチマーク,"Benchmark","Fast",ソースタブ.タブ);
@@ -186,7 +186,7 @@ public sealed class ベンチマークUI実行リポジトリ {
 
     [Fact]
     public async Task ベンチマークスナップショット項目一覧読込は不正な行をスキップして残りを返す() {
-        var ストア = new global::Seamless.UI.Storage.UI実行ストア(DBパスを作成());
+        var ストア = new global::UI.Storage.UI実行ストア(DBパスを作成());
         var リポジトリ = new global::UI.ベンチマークUI実行リポジトリ(ストア);
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.最適化パイプライン融合);
         var 実行ID = await リポジトリ.実行を作成Async(UI実行アプリ種別.ベンチマーク,"Benchmark","Fast",ソースタブ.タブ);

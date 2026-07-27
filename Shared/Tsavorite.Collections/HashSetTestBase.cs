@@ -1,8 +1,4 @@
-#if BENCHMARK_PROJECT
-namespace Benchmark.Tsavorite.Collections;
-#else
-namespace Tsavorite.Collections;
-#endif
+namespace Shared.Tsavorite.Collections;
 /// <summary>
 /// HashSetの動作を検証する。
 public abstract class HashSetTestBase<TStrategy, T>
@@ -84,7 +80,7 @@ public abstract class HashSetTestBase<TStrategy, T>
         {
             // コメント文字化け修正済み
             using var h = TStrategy.CreateMemorySet();
-            Assert.Throws<ArgumentNullException>(() => h.Set.ExceptWith((global::Seamless.Tsavorite.Collections.HashSet<T>)null!));
+            Assert.Throws<ArgumentNullException>(() => h.Set.ExceptWith((global::Seamless.Collections.Tsavorite.HashSet<T>)null!));
         }
     }
     [BenchFact]
@@ -105,7 +101,7 @@ public abstract class HashSetTestBase<TStrategy, T>
         {
             // コメント文字化け修正済み
             using var h = TStrategy.CreateMemorySet();
-            Assert.Throws<ArgumentNullException>(() => h.Set.IntersectWith((global::Seamless.Tsavorite.Collections.HashSet<T>)null!));
+            Assert.Throws<ArgumentNullException>(() => h.Set.IntersectWith((global::Seamless.Collections.Tsavorite.HashSet<T>)null!));
         }
     }
     [BenchFact, Benchmark]
@@ -250,7 +246,7 @@ public abstract class HashSetTestBase<TStrategy, T>
         {
             // コメント文字化け修正済み
             using var h = TStrategy.CreateMemorySet();
-            Assert.Throws<ArgumentNullException>(() => h.Set.SymmetricExceptWith((global::Seamless.Tsavorite.Collections.HashSet<T>)null!));
+            Assert.Throws<ArgumentNullException>(() => h.Set.SymmetricExceptWith((global::Seamless.Collections.Tsavorite.HashSet<T>)null!));
         }
     }
     [BenchFact]
@@ -270,7 +266,7 @@ public abstract class HashSetTestBase<TStrategy, T>
         {
             // コメント文字化け修正済み
             using var h = TStrategy.CreateMemorySet();
-            Assert.Throws<ArgumentNullException>(() => h.Set.UnionWith((global::Seamless.Tsavorite.Collections.HashSet<T>)null!));
+            Assert.Throws<ArgumentNullException>(() => h.Set.UnionWith((global::Seamless.Collections.Tsavorite.HashSet<T>)null!));
         }
     }
     [BenchFact, Benchmark]

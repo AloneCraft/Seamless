@@ -7,6 +7,7 @@
     <RootNamespace>Seamless</RootNamespace>
     <AssemblyName>Seamless</AssemblyName>
     <PackageId>Seamless</PackageId>
+    <IsPackable>true</IsPackable>
     <Title>Seamless</Title>
     <Description>Convenience entry package for Seamless runtime, collections, LINQ, and database generation.</Description>
   </PropertyGroup>
@@ -20,21 +21,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Seamless.Abstractions\Seamless.Abstractions.csproj" />
-    <ProjectReference Include="..\Seamless.Serialization\Seamless.Serialization.csproj" />
+    <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
     <ProjectReference Include="..\Seamless.Linq\Seamless.Linq.csproj" />
     <ProjectReference Include="..\Seamless.Collections.Persisted\Seamless.Collections.Persisted.csproj" />
     <ProjectReference Include="..\Seamless.Collections.Tsavorite\Seamless.Collections.Tsavorite.csproj" />
+    <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" />
     <ProjectReference Include="..\Seamless.Linq.Analyzers\Seamless.Linq.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
-    <ProjectReference Include="..\Seamless.SourceGenerator\Seamless.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
-    <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
-    <None Include="..\Seamless.Linq.Analyzers\bin\$(Configuration)\netstandard2.0\Seamless.Linq.Analyzers.dll" Pack="true" PackagePath="analyzers\dotnet\cs" Visible="false" />
+    <ProjectReference Include="..\Seamless.Database.Generator\Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
-
-  <PropertyGroup>
-  </PropertyGroup>
-
-  <ItemGroup>
-  </ItemGroup>
-
 </Project>

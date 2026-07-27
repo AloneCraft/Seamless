@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 /*
 Fragment は「LINQ 呼び出しをどの C# コードへ置き換えるか」を表す最小単位。
 

@@ -45,7 +45,7 @@ canonical_target: Document/Code/Internal/Seamless.DatabaseSourceGeneratorInterna
 evidence_sources:
   - Seamless.Database/Seamless.Database.csproj
   - Seamless.Database/SourceGenerator/GenerateDatabase.cs
-  - Seamless.SourceGenerator/SourceGenerator/GeneratorHelpers.cs
+  - Seamless.Database.Generator/SourceGenerator/GeneratorHelpers.cs
   - Test/Tsavorite/Database/
 confidence: medium
 review_status: draft
@@ -64,7 +64,7 @@ review_status: draft
 | `型対象生成` | 型宣言から symbol を取り、marker/partial などの生成対象判定を行う。 | `Seamless.Database/SourceGenerator/GenerateDatabase.cs:27`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:37`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:47` |
 | `データベースソース構築` | marker namespace を基点に Keys/Records namespace の型を集約し、生成順を安定化する。 | `Seamless.Database/SourceGenerator/GenerateDatabase.cs:52`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:55`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:70`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:79`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:86` |
 | `レコードソース本体追記` | partial struct を unmanaged/managed storage に分け、constructor/property/MemoryPack 実装を生成する。 | `Seamless.Database/SourceGenerator/GenerateDatabase.cs:114`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:124`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:130`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:148`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:161` |
-| `GeneratorHelpers` | symbol 表示形式、namespace 文字列、indent、空行除去などの共通処理を持つ。 | `Seamless.SourceGenerator/SourceGenerator/GeneratorHelpers.cs:3`, `Seamless.SourceGenerator/SourceGenerator/GeneratorHelpers.cs:4`, `Seamless.SourceGenerator/SourceGenerator/GeneratorHelpers.cs:19`, `Seamless.SourceGenerator/SourceGenerator/GeneratorHelpers.cs:28`, `Seamless.SourceGenerator/SourceGenerator/GeneratorHelpers.cs:44` |
+| `GeneratorHelpers` | symbol 表示形式、namespace 文字列、indent、空行除去などの共通処理を持つ。 | `Seamless.Database.Generator/SourceGenerator/GeneratorHelpers.cs:3`, `Seamless.Database.Generator/SourceGenerator/GeneratorHelpers.cs:4`, `Seamless.Database.Generator/SourceGenerator/GeneratorHelpers.cs:19`, `Seamless.Database.Generator/SourceGenerator/GeneratorHelpers.cs:28`, `Seamless.Database.Generator/SourceGenerator/GeneratorHelpers.cs:44` |
 
 ## データ生成規則
 
@@ -89,7 +89,7 @@ review_status: draft
 
 ### Questions
 - 通常設計化時には schema namespace 規約をどのレベルで公開契約にするかを確認する。
-# Source: Shared\Seamless.Linq.Enumerable\Methods1-generic-span-regression.md
+# Source: Shared\Linq.Enumerable\Methods1-generic-span-regression.md
 
 # Methods1 繧ｸ繧ｧ繝阪Μ繝・け蛹悶〒 root 縺・Span 縺ｫ螻暮幕縺輔ｌ縺ｪ縺上↑縺｣縺滉ｻｶ
 

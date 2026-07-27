@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 /*
 First は source.First() を、最初の1要素だけ読む Compute に変換する。

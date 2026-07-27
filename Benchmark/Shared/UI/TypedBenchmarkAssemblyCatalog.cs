@@ -20,33 +20,33 @@ internal static class 型付きベンチマークアセンブリカタログ {
     private static Type[] アンカー型一覧を取得() =>
 #if SCALABLE_BENCHMARK
     [
-        typeof(global::Benchmark.Scalable.Persisted.Collections.Set.SetInt32),
-        typeof(global::Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32),
+        typeof(global::Shared.Scalable.Persisted.Collections.Set.SetInt32),
+        typeof(global::Shared.Scalable.Tsavorite.Collections.Set.SetInt32),
     ];
 #else
     [
-        typeof(global::Benchmark.System.Linq.Enumerable.FLinqInt32),
-        typeof(global::Benchmark.System.Linq.Enumerable.ZLinqInt32),
-        typeof(global::Benchmark.System.Linq.Enumerable.IEnumerable.FLinqInt32),
-        typeof(global::Benchmark.System.Linq.Enumerable.IEnumerable.ZLinqInt32),
+        typeof(global::Benchmark.System.Linq.Enumerable.FLinq.FLinqInt32),
+        typeof(global::Benchmark.System.Linq.Enumerable.ZLinq.ZLinqInt32),
+        typeof(global::Benchmark.System.Linq.Enumerable.IEnumerable.FLinq.FLinqInt32),
+        typeof(global::Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq.ZLinqInt32),
         typeof(global::Benchmark.Optimization.All.Anchor),
         typeof(global::Benchmark.Optimization.NoRewrite.Anchor),
         typeof(global::Benchmark.Optimization.NoPipelineFusion.Anchor),
         typeof(global::Benchmark.Optimization.NoPredicatePushdown.Anchor),
-        typeof(global::Benchmark.System.Linq.Enumerable.Range.FLinqInt32),
-        typeof(global::Benchmark.System.Linq.Enumerable.Range.ZLinqInt32),
-        typeof(global::Benchmark.System.Linq.Enumerable.List.FLinqInt32),
-        typeof(global::Benchmark.System.Linq.Enumerable.List.ZLinqInt32),
-        typeof(global::Benchmark.Persisted.Linq.Enumerable.FLinqInt32),
-        typeof(global::Benchmark.Persisted.Linq.Enumerable.IEnumerableFLinqInt32),
-        typeof(global::Benchmark.Persisted.Linq.Enumerable.LinqInt32),
-        typeof(global::Benchmark.Persisted.Linq.Enumerable.ValueLinqInt32),
-        typeof(global::Benchmark.Tsavorite.Linq.Enumerable.FLinqInt32),
-        typeof(global::Benchmark.Tsavorite.Linq.Enumerable.IEnumerableFLinqInt32),
-        typeof(global::Benchmark.Tsavorite.Linq.Enumerable.LinqInt32),
-        typeof(global::Benchmark.Tsavorite.Linq.Enumerable.ValueLinqInt32),
-        typeof(global::Benchmark.Persisted.Collections.Set),
-        typeof(global::Benchmark.Tsavorite.Collections.Set),
+        typeof(global::Benchmark.System.Linq.Enumerable.Range.FLinq.FLinqInt32),
+        typeof(global::Benchmark.System.Linq.Enumerable.Range.ZLinq.ZLinqInt32),
+        typeof(global::Benchmark.System.Linq.Enumerable.List.FLinq.FLinqInt32),
+        typeof(global::Benchmark.System.Linq.Enumerable.List.ZLinq.ZLinqInt32),
+        typeof(global::Benchmark.Persisted.Linq.Enumerable.FLinq.FLinqInt32),
+        typeof(global::Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq.IEnumerableFLinqInt32),
+        typeof(global::Benchmark.Persisted.Linq.Enumerable.Linq.LinqInt32),
+        typeof(global::Benchmark.Persisted.Linq.Enumerable.ValueLinq.ValueLinqInt32),
+        typeof(global::Benchmark.Tsavorite.Linq.Enumerable.FLinq.FLinqInt32),
+        typeof(global::Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq.IEnumerableFLinqInt32),
+        typeof(global::Benchmark.Tsavorite.Linq.Enumerable.Linq.LinqInt32),
+        typeof(global::Benchmark.Tsavorite.Linq.Enumerable.ValueLinq.ValueLinqInt32),
+        typeof(global::Shared.Persisted.Collections.Set),
+        typeof(global::Shared.Tsavorite.Collections.Set),
     ];
 #endif
 }

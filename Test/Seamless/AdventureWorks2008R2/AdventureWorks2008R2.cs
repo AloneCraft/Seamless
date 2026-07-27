@@ -199,7 +199,7 @@ namespace Test.Seamless.AdventureWorks2008R2 {
 
         [Fact]
         public void StorageMode_PersistsUnderStorageDirectory() {
-            var       directory= global::Seamless.Collections.TestPath.Directory<AdventureWorksTests>("storage");
+            var       directory= global::Seamless.TestKit.TestPath.Directory<AdventureWorksTests>("storage");
             using var database = new AdventureWorks(global::Seamless.Database.DatabaseContainerOptions.OnStorage(directory) with { IndexSize=1L<<12,MemorySize=1L<<24 });
             AdventureWorksFixture.Seed(database);
             var expected = Baseline.ActiveCustomers(database);

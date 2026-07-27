@@ -1,4 +1,4 @@
-namespace Seamless.UI.Storage;
+namespace UI.Storage;
 
 public static class UI実行DBパスリゾルバー{
     public const string ベンチマークDBファイル名="Benchmark.db";

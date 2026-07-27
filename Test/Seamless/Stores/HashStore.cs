@@ -1,4 +1,4 @@
-using Seamless.Tsavorite.Stores;
+using Seamless.Collections.Tsavorite;
 
 namespace Test.Seamless.Stores;
 
@@ -89,27 +89,27 @@ public class StoreTests {
     public void CreateManagedUnmanagedHashSet_ReturnsManagedUnmanagedHashSet() {
         using var store = Store.Create().Create<string>(new MemoryPackSerializerStrategy());
         using var set = store.Create();
-        Assert.IsType<global::Seamless.Tsavorite.Collections.HashSet<string>>(set);
+        Assert.IsType<global::Seamless.Collections.Tsavorite.HashSet<string>>(set);
     }
 
     [Fact, Trait("Category","Unit")]
     public void CreateUnmanagedUnmanagedHashSet_ReturnsUnmanagedUnmanagedHashSet() {
         using var store = Store.Create().Create<int>();
         using var set = store.Create();
-        Assert.IsType<global::Seamless.Tsavorite.Collections.HashSet<int>>(set);
+        Assert.IsType<global::Seamless.Collections.Tsavorite.HashSet<int>>(set);
     }
 
     [Fact, Trait("Category","Unit")]
     public void Create_StorageLimitOptions_PassedToStorageStore() {
-        using var logDevice = new global::Seamless.Tsavorite.Devices.MemoryOnlyDevice(global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
-        using var objectLogDevice = new global::Seamless.Tsavorite.Devices.MemoryOnlyDevice(global::Seamless.Tsavorite.Const.MinObjectLogCapacity);
+        using var logDevice = new global::Seamless.Collections.Tsavorite.MemoryOnlyDevice(global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
+        using var objectLogDevice = new global::Seamless.Collections.Tsavorite.MemoryOnlyDevice(global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
         using var store = Store.Create(
-            MemorySize: global::Seamless.Tsavorite.Const.MinObjectLogCapacity,
+            MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,
             StorageLimitFraction: 0.5,
             StorageReserveBytes: 1024
         ).Create<int,int>(logDevice,objectLogDevice);
 
-        Assert.Equal(global::Seamless.Tsavorite.Const.MinObjectLogCapacity/2,store.StorageOverflowMutableStrategy.LimitBytes);
+        Assert.Equal(global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity/2,store.StorageOverflowMutableStrategy.LimitBytes);
     }
 
     [Fact, Trait("Category","Unit")]

@@ -1,4 +1,4 @@
-using Seamless.Tsavorite;
+using Seamless.Collections.Tsavorite;
 
 namespace Benchmark.Tsavorite.ParameterSweep;
 

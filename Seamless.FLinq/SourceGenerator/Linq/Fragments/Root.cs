@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 /*
 Root 系 Fragment は LINQ チェーンの最初の source を struct enumerator 化する。
@@ -289,7 +289,7 @@ internal sealed class ListRoot(int 番号,string sourceExpression,string element
 // Dispose() は no-op。duck-typing で IDisposable も実装するなら IEnumerator<T> も実装するはずで、
 // その場合は通常の Root パスで処理されるため、ここには到達しない。
 internal sealed class PersistedListRoot(int 番号,string sourceExpression,string elementType):DirectSpanRootBase(番号,sourceExpression,elementType) {
-    protected override string SourceTypeName => $"global::Seamless.Persisted.Collections.PersistedList<{elementType}>";
+    protected override string SourceTypeName => $"global::Seamless.Collections.PersistedList<{elementType}>";
     protected override string IndexTypeName => "long";
     protected override string CountExpression(string sourceName) => $"{sourceName}.Count";
     protected override string RemainingCountExpression(string sourceName,string indexName) => $"checked((int)({sourceName}.Count-({indexName}+1)))";

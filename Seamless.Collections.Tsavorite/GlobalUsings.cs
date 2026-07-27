@@ -1,12 +1,6 @@
 global using Garnet.common;
 
 global using Seamless.Collections;
-global using Seamless.Persisted.Collections;
-global using Seamless.Serialization;
-global using Seamless.Tsavorite;
-global using Seamless.Tsavorite.Collections;
-global using Seamless.Tsavorite.SessionFunctions;
-global using Seamless.Tsavorite.Stores;
 
 global using System;
 global using System.Collections;

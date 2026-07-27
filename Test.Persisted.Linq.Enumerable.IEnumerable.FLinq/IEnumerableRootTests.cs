@@ -1,16 +1,16 @@
-using Seamless.Linq.Shared;
+using Shared.Linq;
 
-namespace Test.Persisted.Linq.Enumerable;
+namespace Test.Persisted.Linq.Enumerable.IEnumerable.FLinq;
 
 public sealed class IEnumerableRootTests {
-    private static global::Seamless.Persisted.Collections.Set<int>? source;
-    private static global::Seamless.Persisted.Collections.Set<ClassInt32>? classSource;
+    private static global::Seamless.Collections.Persisted.Set<int>? source;
+    private static global::Seamless.Collections.Persisted.Set<ClassInt32>? classSource;
 
     [Fact,Trait("Category","Unit")]
     public void PersistedSetRoute_UsesIEnumerableRootWithoutNativeIterateState() {
         var path=Path.Combine(Path.GetTempPath(),"Seamless-IEnumerableRoot-"+Guid.NewGuid().ToString("N"),"items.dat");
         try {
-            using var set=global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:128);
+            using var set=global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:128);
             foreach(var value in new[]{1,2,3,4})
                 set.Add(value);
             set.Compact();
@@ -42,7 +42,7 @@ public sealed class IEnumerableRootTests {
     public void Contains_AllocatesNoMoreThanRawSystemLinq() {
         var path=Path.Combine(Path.GetTempPath(),"Seamless-ContainsProbe-"+Guid.NewGuid().ToString("N"),"items.dat");
         try {
-            using var set=global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:4096);
+            using var set=global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:4096);
             const int count=2000;
             for(var i=1;i<=count;i++)
                 set.Add(i);
@@ -94,7 +94,7 @@ public sealed class IEnumerableRootTests {
         foreach(var compact in new[]{false,true}) {
             var path=Path.Combine(Path.GetTempPath(),"Seamless-CountProbe-"+Guid.NewGuid().ToString("N"),"items.dat");
             try {
-                using var set=global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:4096);
+                using var set=global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:4096);
                 const int count=2000;
                 for(var i=1;i<=count;i++)
                     set.Add(i);
@@ -130,7 +130,7 @@ public sealed class IEnumerableRootTests {
         foreach(var compact in new[]{false,true}) {
             var path=Path.Combine(Path.GetTempPath(),"Seamless-CountProbeClass-"+Guid.NewGuid().ToString("N"),"items.dat");
             try {
-                using var set=global::Seamless.Persisted.Collections.Store.CreateSet<ClassInt32>(path,InitialCapacity:1,InitialDataCapacity:4096);
+                using var set=global::Seamless.Collections.Persisted.Store.CreateSet<ClassInt32>(path,InitialCapacity:1,InitialDataCapacity:4096);
                 const int count=2000;
                 for(var i=1;i<=count;i++)
                     set.Add(new ClassInt32{Value=i});
@@ -172,8 +172,8 @@ public sealed class IEnumerableRootTests {
     [LinqIntercept(false)]
     private static int RawCountClassImpl()=>ClassSource().AsX().Count();
 
-    private static global::Seamless.Persisted.Collections.Set<int> Source()=>source??throw new InvalidOperationException("Source was not initialized.");
-    private static global::Seamless.Persisted.Collections.Set<ClassInt32> ClassSource()=>classSource??throw new InvalidOperationException("classSource was not initialized.");
+    private static global::Seamless.Collections.Persisted.Set<int> Source()=>source??throw new InvalidOperationException("Source was not initialized.");
+    private static global::Seamless.Collections.Persisted.Set<ClassInt32> ClassSource()=>classSource??throw new InvalidOperationException("classSource was not initialized.");
     private static string GeneratedFor(string methodName) {
         var project=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..",".."));
         var root=Path.Combine(project,"obj","Release","net10.0","generated");

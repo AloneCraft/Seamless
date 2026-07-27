@@ -1,0 +1,10 @@
+<Project>
+  <!--
+    README をパッケージへ入れる。Directory.Build.props では書けない:
+    IsPackable の最終値は csproj 本体の評価後にしか確定しないため、
+    props 側の ItemGroup 条件は常に false になる。targets は本体の後に評価される。
+  -->
+  <ItemGroup Condition="'$(IsPackable)'=='true'">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+</Project>

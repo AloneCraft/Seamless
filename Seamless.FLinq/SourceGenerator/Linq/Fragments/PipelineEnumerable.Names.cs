@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 // 生成コード内で使う名前と型の決定。
 internal sealed partial class PipelineEnumerable {

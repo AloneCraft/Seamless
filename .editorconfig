@@ -48,5 +48,10 @@ resharper_align_multiline_switch_expression = false
 resharper_csharp_align_multiline_expression = false
 resharper_indent_anonymous_method_block = false
 
+# 名前空間はプロジェクト名と 1 対 1 で、サブフォルダーは分類専用。
+# フォルダー階層から名前空間を提案する IDE0130 は無効化する。詳細は AI_SYNTAX_RULES.md を参照。
+dotnet_diagnostic.IDE0130.severity = none
+csharp_style_namespace_declarations = file_scoped:warning
+
 [*.md]
 charset = utf-8-bom

@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 /*
 SetBase は Union/Except/Intersect など、要素そのものを key にする二入力集合演算の共通基底。

@@ -4,9 +4,10 @@
     <LangVersion>14</LangVersion>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RootNamespace>Seamless</RootNamespace>
+    <RootNamespace>Seamless.Linq</RootNamespace>
     <AssemblyName>Seamless.Linq</AssemblyName>
     <PackageId>Seamless.Linq</PackageId>
+    <IsPackable>true</IsPackable>
     <Title>Seamless LINQ Runtime</Title>
     <Description>Value-enumerable LINQ runtime used by Seamless and FLinq generated code.</Description>
   </PropertyGroup>
@@ -22,6 +23,12 @@
     <ProjectReference Include="..\Seamless.Collections.Persisted\Seamless.Collections.Persisted.csproj" />
     <ProjectReference Include="..\Seamless.Collections.Tsavorite\Seamless.Collections.Tsavorite.csproj" />
     <ProjectReference Include="..\Seamless.Linq.Analyzers\Seamless.Linq.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
-    <None Include="..\Seamless.Linq.Analyzers\bin\$(Configuration)\netstandard2.0\Seamless.Linq.Analyzers.dll" Pack="true" PackagePath="analyzers\dotnet\cs" Visible="false" />
   </ItemGroup>
+
+  <!-- 参照解決後の @(Analyzer) から実出力を拾う。bin\$(Configuration)\netstandard2.0 のハードコードを避ける。 -->
+  <Target Name="PackAnalyzer" BeforeTargets="_GetPackageFiles" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <None Include="@(Analyzer->WithMetadataValue('ReferenceSourceTarget','ProjectReference'))" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    </ItemGroup>
+  </Target>
 </Project>

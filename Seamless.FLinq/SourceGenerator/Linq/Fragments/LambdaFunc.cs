@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 internal class LambdaFunc:FuncFragment {
     public override bool IsIdentity =>

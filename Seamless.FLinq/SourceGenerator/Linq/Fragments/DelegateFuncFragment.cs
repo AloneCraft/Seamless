@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 internal sealed class DelegateFuncFragment(
     string delegateTypeName,

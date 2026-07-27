@@ -1,8 +1,4 @@
-#if BENCHMARK_PROJECT
-namespace Benchmark.Tsavorite.Collections;
-#else
-namespace Tsavorite.Collections;
-#endif
+namespace Shared.Tsavorite.Collections;
 
 public abstract class BlittableHashSet<TStrategy, T>:HashSetTestBase<TStrategy,T>
     where TStrategy : IHashSetTestStrategy<T>

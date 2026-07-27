@@ -1,7 +1,7 @@
-namespace Test.Tsavorite.Linq.Enumerable;
+namespace Test.Tsavorite.Linq.Enumerable.FLinq;
 
 public sealed class TryGetNonEnumeratedCountTests {
-    private static global::Seamless.Tsavorite.Collections.HashSet<int>? source;
+    private static global::Seamless.Collections.Tsavorite.HashSet<int>? source;
 
     // Benchmark.db の実測(実行ID=7)では Tsavorite<T> の TryGetNonEnumeratedCount(単独呼び出し)が
     // FLinq 対 ValueLinq で 7.9〜15.8x 多く割り当てていた(絶対量は 16KB/33KB 対 2KB と小さい)。
@@ -15,7 +15,7 @@ public sealed class TryGetNonEnumeratedCountTests {
     // ProviderNativeRootBase 用の fast path(NativeCountExpression を直接使う)を追加して解消した。
     [Fact,Trait("Category","Unit")]
     public void TryGetNonEnumeratedCount_AllocatesNoMoreThanRaw() {
-        using var store=global::Seamless.Tsavorite.Collections.Store.Create(MemorySize:1L<<24).CreateHashSet<int>();
+        using var store=global::Seamless.Collections.Tsavorite.Store.Create(MemorySize:1L<<24).CreateHashSet<int>();
         using var set=store.Create();
         const int count=2000;
         for(var i=1;i<=count;i++)
@@ -54,5 +54,5 @@ public sealed class TryGetNonEnumeratedCountTests {
         return (ok,count);
     }
 
-    private static global::Seamless.Tsavorite.Collections.HashSet<int> Source()=>source??throw new InvalidOperationException("Source was not initialized.");
+    private static global::Seamless.Collections.Tsavorite.HashSet<int> Source()=>source??throw new InvalidOperationException("Source was not initialized.");
 }

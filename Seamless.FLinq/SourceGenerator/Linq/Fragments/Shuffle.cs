@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 /// <summary>
 /// System.Linq.Enumerable.Shuffle() 呼び出しをインターセプトし、

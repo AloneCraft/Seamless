@@ -1,7 +1,7 @@
-namespace Test.Persisted.Linq.Enumerable;
+namespace Test.Persisted.Linq.Enumerable.FLinq;
 
 public sealed class ContainsNativeLookupTests {
-    private static global::Seamless.Persisted.Collections.Set<int>? source;
+    private static global::Seamless.Collections.Persisted.Set<int>? source;
 
     // 実 UI での実測(2026-07-26): Persisted<ClassInt32>.Contains_value が FLinq 804.69µs/56.54MB
     // 対 ValueLinq 1.52µs/88B という極端な差を示した。調査の結果2つのことが分かった。
@@ -33,7 +33,7 @@ public sealed class ContainsNativeLookupTests {
     public void Contains_UsesNativeLookup_NotLinearScan() {
         var path=Path.Combine(Path.GetTempPath(),"Seamless-ContainsNativeProbe-"+Guid.NewGuid().ToString("N"),"items.dat");
         try {
-            using var set=global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:4096);
+            using var set=global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:4096);
             const int count=4096;
             for(var i=1;i<=count;i++)
                 set.Add(i);
@@ -54,5 +54,5 @@ public sealed class ContainsNativeLookupTests {
     // FLinq の介入を全く検証できない。.AsEnumerable() は FLinq が根メソッドとして認識するため、
     // これで拡張メソッド解決を強制しつつ ProviderNativeRootBase の認識も維持する。
     private static bool FLinqContainsImpl(int value)=>Source().AsEnumerable().Contains(value);
-    private static global::Seamless.Persisted.Collections.Set<int> Source()=>source??throw new InvalidOperationException("Source was not initialized.");
+    private static global::Seamless.Collections.Persisted.Set<int> Source()=>source??throw new InvalidOperationException("Source was not initialized.");
 }

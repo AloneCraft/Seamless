@@ -5,7 +5,7 @@ using Syncfusion.Maui.Toolkit.TabView;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 
-using Seamless.UI.Storage;
+using UI.Storage;
 using UI.ViewModels;
 
 namespace UI;

@@ -1,7 +1,7 @@
 using Microsoft.Data.Sqlite;
 using System.Text;
 
-namespace Seamless.UI.Storage;
+namespace UI.Storage;
 
 /// <summary>通常Benchmark UIのタブ別テーブル定義。識別子はすべて静的ホワイトリストから取得する。</summary>
 internal static class BenchmarkTabStorage {

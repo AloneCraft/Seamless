@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 // Persisted / Tsavorite の provider を根にする Root の共通基底。
 // PersistedSetRoot / TsavoriteHashSetRoot / TsavoriteSetRoot / ProviderIterateTerminal の

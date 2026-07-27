@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 /*
 CountBy は key ごとの出現数を数え、KeyValuePair<TKey,int> 相当を列挙する Fragment。
 

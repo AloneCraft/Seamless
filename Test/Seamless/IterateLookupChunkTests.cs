@@ -261,7 +261,7 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
     // 各バッチ (ChunkSize 件) 後に EndBatch を返して IterateLookup を中断できる。
     // ----------------------------------------------------------------
     private abstract class ScanIteratorFunctions<T>:IScanIteratorFunctions {
-        public readonly T[] Chunk = new T[global::Seamless.Tsavorite.Const.Chunk_Length];
+        public readonly T[] Chunk = new T[global::Seamless.Collections.Tsavorite.Const.Chunk_Length];
         public int Count;
         private long LastAcceptedAddress;
 
@@ -275,8 +275,8 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
             out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
             var index = Interlocked.Increment(ref this.Count)-1;
-            if(index>=global::Seamless.Tsavorite.Const.Chunk_Length) {
-                Volatile.Write(ref this.Count,global::Seamless.Tsavorite.Const.Chunk_Length);
+            if(index>=global::Seamless.Collections.Tsavorite.Const.Chunk_Length) {
+                Volatile.Write(ref this.Count,global::Seamless.Collections.Tsavorite.Const.Chunk_Length);
                 var lastAcceptedAddress = Volatile.Read(ref this.LastAcceptedAddress);
                 if(recordMetadata.Address==lastAcceptedAddress) {
                     cursorRecordResult=

@@ -5,13 +5,13 @@ using Test.System.Linq.Intercept;
 namespace Test.Seamless.Persisted.Linq.Enumerable;
 
 public class FLinqNativeIterateTests {
-    private static global::Seamless.Persisted.Collections.Set<int>? source;
+    private static global::Seamless.Collections.Persisted.Set<int>? source;
 
     [Fact, Trait("Category","Unit")]
     public void PersistedSetRoot_UsesNativeIterateTerminalForAny() {
         var path = CreatePath();
         try {
-            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
+            using var set = global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 })
                 set.Add(value);
             set.Compact();
@@ -38,7 +38,7 @@ public class FLinqNativeIterateTests {
     public void PersistedSetRoot_UsesNativeIterateTerminalForAllAndExplicitFirstOrDefault() {
         var path = CreatePath();
         try {
-            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
+            using var set = global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 })
                 set.Add(value);
             set.Compact();
@@ -63,7 +63,7 @@ public class FLinqNativeIterateTests {
     public void PersistedSetRoot_UsesNativeLookupForContains() {
         var path = CreatePath();
         try {
-            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
+            using var set = global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 })
                 set.Add(value);
             set.Compact();
@@ -97,7 +97,7 @@ public class FLinqNativeIterateTests {
     public void PersistedSetRoot_UsesNativeIterateTerminalForCastAndOfType() {
         var path = CreatePath();
         try {
-            using var set = global::Seamless.Persisted.Collections.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
+            using var set = global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 })
                 set.Add(value);
             set.Compact();
@@ -163,7 +163,7 @@ public class FLinqNativeIterateTests {
     private static int ExplicitFirstOrDefaultGreaterThanTwoImpl() =>
         Source().AsEnumerable().Where(static value => value>2).FirstOrDefault();
 
-    private static global::Seamless.Persisted.Collections.Set<int> Source() =>
+    private static global::Seamless.Collections.Persisted.Set<int> Source() =>
         source??throw new InvalidOperationException("Source was not initialized.");
 
     // SourceFor はファイル全体を返すため、他メソッド分の生成コードが混ざる。

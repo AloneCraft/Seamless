@@ -19,7 +19,7 @@ review_status: draft
 
 | モジュール | サブモジュール | 責務 |
 |---|---|---|
-| Source generation | `FLinq`, `Seamless.Database`, `Seamless.SourceGenerator` | LINQ interceptor と schema record generation。 |
+| Source generation | `FLinq`, `Seamless.Database`, `Seamless.Database.Generator` | LINQ interceptor と schema record generation。 |
 | Runtime collections | `Benchmark.Tsavorite.Collections/Stores`, `Collections`, `SessionFunctions`, `Linq`, `Devices` | Tsavorite-backed collection、serializer、LINQ extension、counter、device abstraction。 |
 | Benchmark infrastructure | `Common`, `Benchmark workload projects` projects | System LINQ / FLinq / ZLinq / Tsavorite LINQ の比較 workload。 |
 | Benchmark UI/tool | `Benchmark` | CPU affinity 選択、worker process 実行、CSV/HTML report。 |

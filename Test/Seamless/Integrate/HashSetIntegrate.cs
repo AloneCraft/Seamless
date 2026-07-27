@@ -1,4 +1,4 @@
-using Seamless.Tsavorite.Stores;
+using Seamless.Collections.Tsavorite;
 
 using Tsavorite.core;
 

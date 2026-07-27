@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Linq.Fragments;
+namespace Seamless.FLinq;
 
 internal class Except(int 番号,Enumerable source,Enumerable second):Except_comparer(番号,source,second,"null");
 

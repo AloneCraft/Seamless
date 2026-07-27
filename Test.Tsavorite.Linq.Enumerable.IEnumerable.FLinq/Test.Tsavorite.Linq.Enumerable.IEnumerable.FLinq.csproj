@@ -9,7 +9,7 @@
     <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <RootNamespace>Test.Tsavorite.Linq.Enumerable</RootNamespace>
+    <RootNamespace>Test.Tsavorite.Linq.Enumerable.IEnumerable.FLinq</RootNamespace>
     <AssemblyName>Test.Tsavorite.Linq.Enumerable.IEnumerable.FLinq</AssemblyName>
     <DefineConstants>$(DefineConstants);BENCH_AS_TEST;TSAVORITE;IENUMERABLE_ROOT</DefineConstants>
     <OutputType>Library</OutputType>
@@ -37,5 +37,5 @@
     <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
   </ItemGroup>
-  <Import Project="..\Shared\Seamless.Linq.Enumerable\Seamless.Linq.Enumerable.projitems" Label="Shared" />
+  <Import Project="..\Shared\Linq.Enumerable\Linq.Enumerable.projitems" Label="Shared" />
 </Project>

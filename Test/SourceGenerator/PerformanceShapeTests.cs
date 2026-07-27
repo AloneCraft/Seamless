@@ -74,7 +74,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             &&!method.Contains("__countBySeen",StringComparison.Ordinal)
             &&!method.Contains("global::System.Buffers.ArrayPool<bool>.Shared.Rent(1999)",StringComparison.Ordinal)
             &&generated.Contains("TryGetSpan(out var __span)",StringComparison.Ordinal)
-            &&generated.Contains("new global::Seamless.Linq.Internal.DictionarySlim<int,int>",StringComparison.Ordinal)
+            &&generated.Contains("new global::Seamless.Linq.DictionarySlim<int,int>",StringComparison.Ordinal)
             &&generated.Contains("__hashKeys",StringComparison.Ordinal),
             "Modulo selectors must not select a dedicated small-range consume implementation.",
             generated,
@@ -1340,14 +1340,14 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             using System.Linq;
             namespace Sample;
             public static class Route {
-                public static IEnumerable<T> AsX<T>(this global::Seamless.Persisted.Collections.PersistedList<T> source) => source;
+                public static IEnumerable<T> AsX<T>(this global::Seamless.Collections.PersistedList<T> source) => source;
             }
             public class Container {
-                private static int CountList(global::Seamless.Persisted.Collections.PersistedList<int> source) =>
+                private static int CountList(global::Seamless.Collections.PersistedList<int> source) =>
                     source.AsX().Count();
-                private static int[] SelectToArray(global::Seamless.Persisted.Collections.PersistedList<int> source) =>
+                private static int[] SelectToArray(global::Seamless.Collections.PersistedList<int> source) =>
                     source.AsX().Where(static x => x>0).Select(static x => x+1).ToArray();
-                public void Run(global::Seamless.Persisted.Collections.PersistedList<int> source) {
+                public void Run(global::Seamless.Collections.PersistedList<int> source) {
                     _ = CountList(source);
                     _ = SelectToArray(source);
                 }
@@ -1360,7 +1360,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             GeneratedMethod(generated,"SelectToArray"));
 
         GeneratedSourceAssert.True(
-            generated.Contains("global::Seamless.Persisted.Collections.PersistedList<int>",StringComparison.Ordinal)
+            generated.Contains("global::Seamless.Collections.PersistedList<int>",StringComparison.Ordinal)
             &&generated.Contains(".GetSpan();",StringComparison.Ordinal)
             &&generated.Contains("source.AsSpan",StringComparison.Ordinal)
             &&!methods.Contains("global::System.Linq.Enumerable.Count",StringComparison.Ordinal)

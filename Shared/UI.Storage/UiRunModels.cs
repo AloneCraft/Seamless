@@ -1,4 +1,4 @@
-namespace Seamless.UI.Storage;
+namespace UI.Storage;
 
 public enum UI実行アプリ種別{
     ベンチマーク,

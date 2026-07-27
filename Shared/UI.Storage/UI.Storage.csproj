@@ -5,8 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <RootNamespace>Seamless.UI.Storage</RootNamespace>
-    <AssemblyName>Seamless.UI.Storage</AssemblyName>
+    <RootNamespace>UI.Storage</RootNamespace>
+    <AssemblyName>UI.Storage</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
