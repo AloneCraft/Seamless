@@ -49,8 +49,8 @@ public sealed class ワーカーアセンブリ解決 {
         foreach(var タブ in new[] { global::UI.ベンチマークソースタブ.System永続化,global::UI.ベンチマークソースタブ.SystemTsavorite }) {
             var 定義=global::UI.ベンチマークソースタブ一覧.取得(タブ);
             var 型完全名=タブ==global::UI.ベンチマークソースタブ.System永続化
-                ? "Benchmark.Persisted.Linq.Enumerable.IEnumerableFLinqInt32"
-                : "Benchmark.Tsavorite.Linq.Enumerable.IEnumerableFLinqInt32";
+                ? "Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq.IEnumerableFLinqInt32"
+                : "Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq.IEnumerableFLinqInt32";
             yield return new global::UI.ベンチマークジョブ {
                 プロジェクト=定義.左プロジェクト,
                 アセンブリ名=定義.アセンブリ名を取得(定義.左プロジェクト),

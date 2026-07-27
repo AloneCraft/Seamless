@@ -6,7 +6,7 @@ namespace Test.Benchmark;
 public sealed class ベンチマークカタログ引数 {
     [Fact]
     public void 仕様確認01() {
-        var メソッド = メソッドを読み込む("Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32","Add");
+        var メソッド = メソッドを読み込む("Benchmark.Scalable.Tsavorite.Collections","Shared.Scalable.Tsavorite.Collections.Set.SetInt32","Add");
         var 引数一覧 = 引数集合一覧を取得(メソッド).First();
 
         Assert.Equal(
@@ -19,7 +19,7 @@ public sealed class ベンチマークカタログ引数 {
 
     [Fact]
     public void 仕様確認02() {
-        var メソッド = メソッドを読み込む("Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.Set.SetInt32","Add");
+        var メソッド = メソッドを読み込む("Benchmark.Scalable.Persisted.Collections","Shared.Scalable.Persisted.Collections.Set.SetInt32","Add");
         var 引数一覧 = 引数集合一覧を取得(メソッド).First();
 
         Assert.Equal(
@@ -33,10 +33,10 @@ public sealed class ベンチマークカタログ引数 {
     [Fact]
     public void 仕様確認03() {
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.スケーラブルTsavoriteセット);
-        var 引数一覧 = 引数集合一覧を取得(メソッドを読み込む("Benchmark.Scalable.Tsavorite.Collections","Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32","Add")).First();
+        var 引数一覧 = 引数集合一覧を取得(メソッドを読み込む("Benchmark.Scalable.Tsavorite.Collections","Shared.Scalable.Tsavorite.Collections.Set.SetInt32","Add")).First();
         var 行一覧 = global::UI.ベンチマーク比較フォーマッター.比較行を構築(
             [
-                報告行を作成(ソースタブ.左プロジェクト,"Add","Benchmark.Scalable.Tsavorite.Collections.Set.SetInt32",引数一覧),
+                報告行を作成(ソースタブ.左プロジェクト,"Add","Shared.Scalable.Tsavorite.Collections.Set.SetInt32",引数一覧),
             ],
             ソースタブ);
 
@@ -53,10 +53,10 @@ public sealed class ベンチマークカタログ引数 {
     [Fact]
     public void 仕様確認04() {
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.スケーラブル永続化セット);
-        var 引数一覧 = 引数集合一覧を取得(メソッドを読み込む("Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.Set.SetInt32","Add")).First();
+        var 引数一覧 = 引数集合一覧を取得(メソッドを読み込む("Benchmark.Scalable.Persisted.Collections","Shared.Scalable.Persisted.Collections.Set.SetInt32","Add")).First();
         var 行一覧 = global::UI.ベンチマーク比較フォーマッター.比較行を構築(
             [
-                報告行を作成(ソースタブ.左プロジェクト,"Add","Benchmark.Scalable.Persisted.Collections.Set.SetInt32",引数一覧),
+                報告行を作成(ソースタブ.左プロジェクト,"Add","Shared.Scalable.Persisted.Collections.Set.SetInt32",引数一覧),
             ],
             ソースタブ);
 
@@ -75,7 +75,7 @@ public sealed class ベンチマークカタログ引数 {
     [Fact]
     public void 仕様確認05() {
         var ソースタブ = global::UI.ベンチマークソースタブ一覧.取得(global::UI.ベンチマークソースタブ.スケーラブル永続化セット);
-        var 引数一覧 = 引数集合一覧を取得(メソッドを読み込む("Benchmark.Scalable.Persisted.Collections","Benchmark.Scalable.Persisted.Collections.Set.SetInt32","Add")).First();
+        var 引数一覧 = 引数集合一覧を取得(メソッドを読み込む("Benchmark.Scalable.Persisted.Collections","Shared.Scalable.Persisted.Collections.Set.SetInt32","Add")).First();
 
         Assert.Equal("65536",global::UI.スケーラブルベンチマーク名フォーマッター.表示引数値を取得(ソースタブ,引数一覧,global::UI.スケーラブルベンチマーク引数列.Count));
         Assert.Equal(string.Empty,global::UI.スケーラブルベンチマーク名フォーマッター.表示引数値を取得(ソースタブ,引数一覧,global::UI.スケーラブルベンチマーク引数列.Index));
