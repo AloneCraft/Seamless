@@ -850,6 +850,11 @@ public sealed partial class FLinqIncrementalGenerator {
             semanticModel=algebraSemanticModel;
             containingType=algebraContainingType;
         }
+        if(TryPushDownPredicates(statement,semanticModel,containingType,out var pushedStatement,out var pushedSemanticModel,out var pushedContainingType)) {
+            statement=pushedStatement;
+            semanticModel=pushedSemanticModel;
+            containingType=pushedContainingType;
+        }
 
         if(TryRewriteTryGetNonEnumeratedCountStatement(statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) {
             return true;
@@ -1176,6 +1181,11 @@ public sealed partial class FLinqIncrementalGenerator {
             semanticModel=algebraSemanticModel;
             containingType=algebraContainingType;
         }
+        if(TryPushDownPredicates(expression,semanticModel,containingType,out var pushedExpression,out var pushedSemanticModel,out var pushedContainingType)) {
+            expression=pushedExpression;
+            semanticModel=pushedSemanticModel;
+            containingType=pushedContainingType;
+        }
 
         // 括弧を剥がしてクエリ式かどうかを判定する（例: (from v in Source() select v*2)）
         var unwrapped = expression;
@@ -1324,6 +1334,41 @@ public sealed partial class FLinqIncrementalGenerator {
             rewrittenNode=nextNode;
             rewrittenSemanticModel=nextModel;
             rewrittenContainingType=nextType;
+            changed=true;
+        }
+        return changed;
+    }
+
+    /// <summary>
+    /// <see cref="OptimizeVisitor"/> で Where を葉へ押し下げる（Select/SelectMany の carrier 逆解析、
+    /// Join/LeftJoin の片側依存 predicate 移動と AND 連言分割、Distinct/OrderBy/Concat 等の前段挿入）。
+    /// <see cref="OptimizeVisitor"/> は合成ノードに意味論ゲートを掛けられないため 1 パスにつき経路ごと 1 書換しか行わない。
+    /// 取りこぼしを無くすよう、変化が無くなるまで「書換→再束縛」を繰り返す。
+    /// </summary>
+    private static bool TryPushDownPredicates<TSyntax>(
+        TSyntax node,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        out TSyntax pushedNode,
+        out SemanticModel pushedSemanticModel,
+        out INamedTypeSymbol pushedContainingType)
+        where TSyntax : SyntaxNode {
+        pushedNode=node;
+        pushedSemanticModel=semanticModel;
+        pushedContainingType=containingType;
+        var changed = false;
+        for(var iteration = 0;iteration<8;iteration++) {
+            if((LinqOptimizationContext.Current&LinqOptimizations.PredicatePushdown)==0) {
+                break;
+            }
+            var rewritten = OptimizeVisitor.Optimize(pushedNode,pushedSemanticModel);
+            if(!TryRebindRewritten(pushedNode,rewritten,pushedSemanticModel,pushedContainingType,"TsavoritePredicatePushdown",
+                out var nextNode,out var nextModel,out var nextType)) {
+                break;
+            }
+            pushedNode=nextNode;
+            pushedSemanticModel=nextModel;
+            pushedContainingType=nextType;
             changed=true;
         }
         return changed;

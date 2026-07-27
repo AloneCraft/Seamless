@@ -156,7 +156,11 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        expressionText=$"global::System.Linq.Enumerable.{definition.Name}{RenderTypeArgumentList(invokedMethod)}({string.Join(", ",arguments)})";
+        // 匿名型は型引数として書けないため、含む場合は明示型引数を省略し引数から推論させる。
+        var typeArgumentList = invokedMethod.TypeArguments.Any(ContainsAnonymousType)
+            ? string.Empty
+            : RenderTypeArgumentList(invokedMethod);
+        expressionText=$"global::System.Linq.Enumerable.{definition.Name}{typeArgumentList}({string.Join(", ",arguments)})";
         return true;
     }
 
@@ -206,7 +210,7 @@ public sealed partial class FLinqIncrementalGenerator {
             var renderedArgument = RenderCounterOnlyExpression(argument.Expression,semanticModel,containingType,unsafeAccessors);
             var parameter = GetCounterOnlyEnumerableParameter(invokedMethod,definition,targetParameterIndex);
             slots[targetParameterIndex]=parameter.Type.TypeKind==TypeKind.Delegate
-                &&TryWrapCounterOnlyDelegate(parameter.Type,renderedArgument,out var wrappedDelegate)
+                &&TryWrapCounterOnlyDelegate(parameter.Type,argument.Expression,renderedArgument,semanticModel,containingType,unsafeAccessors,out var wrappedDelegate)
                     ? $"{RefKind接頭辞取得(argument.RefKindKeyword.Kind())}{wrappedDelegate}"
                     : $"{RefKind接頭辞取得(argument.RefKindKeyword.Kind())}{renderedArgument}";
         }
@@ -245,13 +249,26 @@ public sealed partial class FLinqIncrementalGenerator {
         return definition.Parameters[slotIndex];
     }
 
-    private static bool TryWrapCounterOnlyDelegate(ITypeSymbol delegateType,string delegateExpression,out string wrappedExpression) {
+    private static bool TryWrapCounterOnlyDelegate(
+        ITypeSymbol delegateType,
+        ExpressionSyntax argumentExpression,
+        string delegateExpression,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        List<string> unsafeAccessors,
+        out string wrappedExpression) {
         wrappedExpression=string.Empty;
         if(delegateType is not INamedTypeSymbol namedDelegate
             ||namedDelegate.DelegateInvokeMethod is not { } invokeMethod
             ||invokeMethod.ReturnsVoid
             ||invokeMethod.Parameters.Any(static parameter => parameter.RefKind!=RefKind.None)) {
             return false;
+        }
+
+        // 匿名型はFunc<...>のキャストとして書けないため、キャスト+Invokeを経由せずラムダ本体を直接埋め込んで型推論に任せる。
+        if(namedDelegate.TypeArguments.Any(ContainsAnonymousType)
+            &&TryWrapCounterOnlyDelegateByInlining(argumentExpression,semanticModel,containingType,unsafeAccessors,out wrappedExpression)) {
+            return true;
         }
 
         var delegateTypeName = namedDelegate.ToDisplayString(完全修飾形式);
@@ -261,6 +278,44 @@ public sealed partial class FLinqIncrementalGenerator {
         wrappedExpression=
             $"(({delegateTypeName})(({string.Join(", ",argumentNames)}) => "+
             $"global::Seamless.Linq.LinqCounterScope.Counter.RecordPhysicalDelegate((({delegateTypeName})({delegateExpression})).Invoke({string.Join(", ",argumentNames)}))))";
+        return true;
+    }
+
+    // 元のラムダの仮引数名をそのまま使い、本体を RecordPhysicalDelegate(...) で包むだけの形にする。
+    // キャストも.Invoke()も経由しないので、引数/戻り値の型(匿名型を含む)を一切書かずに済む。
+    // 式本体の単純ラムダのみ対応。block本体・メソッドグループ・デリゲート変数は非対応で false を返し、
+    // 呼び出し元はその引数を計測なしの素のまま(renderedArgument)で通す。
+    private static bool TryWrapCounterOnlyDelegateByInlining(
+        ExpressionSyntax argumentExpression,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        List<string> unsafeAccessors,
+        out string wrappedExpression) {
+        wrappedExpression=string.Empty;
+        var expression = argumentExpression;
+        while(expression is ParenthesizedExpressionSyntax parenthesized) {
+            expression=parenthesized.Expression;
+        }
+
+        IReadOnlyList<string> parameterNames;
+        ExpressionSyntax body;
+        switch(expression) {
+            case SimpleLambdaExpressionSyntax simple when simple.Body is ExpressionSyntax simpleBody:
+                parameterNames=[simple.Parameter.Identifier.ValueText];
+                body=simpleBody;
+                break;
+            case ParenthesizedLambdaExpressionSyntax parenthesizedLambda when parenthesizedLambda.Body is ExpressionSyntax parenthesizedBody:
+                parameterNames=parenthesizedLambda.ParameterList.Parameters
+                    .Select(static parameter => parameter.Identifier.ValueText)
+                    .ToArray();
+                body=parenthesizedBody;
+                break;
+            default:
+                return false;
+        }
+
+        var renderedBody = RenderCounterOnlyExpression(body,semanticModel,containingType,unsafeAccessors);
+        wrappedExpression=$"(({string.Join(", ",parameterNames)}) => global::Seamless.Linq.LinqCounterScope.Counter.RecordPhysicalDelegate({renderedBody}))";
         return true;
     }
 }

@@ -1,8 +1,12 @@
 namespace Benchmark.Optimization.PredicatePushdown {
     public class ArrayInt32:global::Shared.Linq.Optimization.PredicatePushdown.Array<int>.Select_selector;
     public class ArrayClassInt32:global::Shared.Linq.Optimization.PredicatePushdown.Array<ClassInt32>.Select_selector;
+    public class ArrayInt32Join:global::Shared.Linq.Optimization.PredicatePushdown.Array<int>.Join_inner;
+    public class ArrayClassInt32Join:global::Shared.Linq.Optimization.PredicatePushdown.Array<ClassInt32>.Join_inner;
     public class IEnumerableInt32:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<int>.Select_selector;
     public class IEnumerableClassInt32:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<ClassInt32>.Select_selector;
+    public class IEnumerableInt32Join:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<int>.Join_inner;
+    public class IEnumerableClassInt32Join:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<ClassInt32>.Join_inner;
     public class ListInt32:global::Shared.Linq.Optimization.PredicatePushdown.List<int>;
     public class ListClassInt32:global::Shared.Linq.Optimization.PredicatePushdown.List<ClassInt32>;
     public class Range_start_count:global::Shared.Linq.Optimization.PredicatePushdown.Range;

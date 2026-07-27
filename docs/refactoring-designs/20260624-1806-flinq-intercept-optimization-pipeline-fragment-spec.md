@@ -240,7 +240,7 @@ stateDiagram-v2
 
 ## `Join.Where` の `Where` 葉移動仕様
 
-`Join(... resultSelector).Where(predicate)` は、`predicate` が `resultSelector` の carrier からどの入力へ依存しているかを解析し、片側だけに依存する場合に葉へ移動する。
+`Join(... resultSelector).Where(predicate)` は、`predicate` が `resultSelector` の carrier からどの入力へ依存しているかを解析し、片側だけに依存する場合に葉へ移動する。両側に依存する場合は `predicate` をトップレベル `&&` で連言へ分解し、連言ごとに同じ判定を行う（部分押し下げ）。
 
 ### 依存分類
 
@@ -248,9 +248,15 @@ stateDiagram-v2
 | --- | --- |
 | outer のみ | `outer.Where(pOuter).Join(inner,...)` |
 | inner のみ | `outer.Join(inner.Where(pInner),...)` |
-| outer と inner の両方 | 移動しない |
+| どちらも参照しない | outer 側へ移動する |
+| outer と inner の両方 | 連言へ分解し、片側依存の連言だけ葉へ移動する |
+| 分解しても両側参照が残る連言 | その連言だけ Join 後の `Where` に残す |
 | carrier 逆解析不可 | 移動しない |
-| Anchor を含む | 移動しない |
+| Anchor を含む | 連言分割しない |
+
+`LeftJoin` は inner 側へ移動すると、その key の inner が空になった outer 行が `default` とペアで残り行数が変わるため、outer 側だけ許可する。
+
+連言分割は `a&&b` の短絡を壊し評価回数・評価順を変えるため、`.Anchor` を含む式では行わない。`&`（非短絡）は両辺を必ず評価させる意図的な記法なので分解対象にしない。1 回の書換で Join 後に残る連言が必ず 1 個以上減るので、再訪ループは有限回で停止する。
 
 ```mermaid
 flowchart TD
@@ -258,10 +264,15 @@ flowchart TD
     B --> C[Rename predicate parameter to sentinel]
     C --> D[Expand carrier member access]
     D --> E{Referenced Join parameters}
-    E -->|outer only| F[Push Where to outer source]
+    E -->|outer only or none| F[Push Where to outer source]
     E -->|inner only| G[Push Where to inner source]
-    E -->|both| H[Keep Where after Join]
-    E -->|unknown| H
+    E -->|both| K{Splittable into && conjuncts?}
+    E -->|unknown| H[Keep Where after Join]
+    K -->|no| H
+    K -->|yes| L[Classify each conjunct]
+    L --> F
+    L --> G
+    L --> M[Keep both-side conjuncts after Join]
     F --> I[Build Join with filtered outer]
     G --> J[Build Join with filtered inner]
 ```
@@ -286,10 +297,25 @@ outer.Where(o => o.Enabled)
         (o,i) => new { o,i })
 ```
 
-一方で以下は両側依存なので、`Where` は Join 後に残す。
+一方で以下は両側依存かつ連言へ分解できないので、`Where` は Join 後に残す。
 
 ```csharp
 .Where(x => x.o.Score>x.i.Score)
+```
+
+両側依存でも連言へ分解できる場合は、片側依存の連言だけが葉へ移り、両側参照の連言だけが残る。
+
+```csharp
+outer.Join(inner,o => o.Key,i => i.Key,(o,i) => (o,i))
+    .Where(x => x.o.Id>1&&x.o.Id<x.i.Id&&x.i.Id<13)
+```
+
+は以下へ変換される。
+
+```csharp
+outer.Where(o => o.Id>1)
+    .Join(inner.Where(i => i.Id<13),o => o.Key,i => i.Key,(o,i) => (o,i))
+    .Where(x => x.o.Id<x.i.Id)
 ```
 
 ## lambda 直接式埋め込み仕様
@@ -886,7 +912,7 @@ flowchart TD
 
 すべてを Pipeline stage にできない場合でも、Fragment boundary の前後で nested Enumerator を作らない余地がある。
 
-- `Join.Where` は、片側依存 predicate なら outer/inner source 側へ葉移動する。両側依存なら Join の probe 後に残す。
+- `Join.Where` は、片側依存 predicate なら outer/inner source 側へ葉移動する。両側依存は連言へ分解し、片側依存の連言だけ葉へ移す。分解できない連言だけ Join の probe 後に残す。
 - `Join.Select` は、result selector と後段 selector が安全に連結できる場合だけ Join の `resultSelector` に吸収する。ただし単なる `Select.Select` 式合成を目的にしない。
 - `Join.GroupBy` は、Join の lookup/probe は Fragment boundary として残し、GroupBy の buffer build を後段 Enumerator wrapper にしない。
 - `SelectMany.Where` は、predicate が inner item だけに依存するなら inner collection 側へ移動できる。outer と inner の両方に依存する場合は inner pull 後の yield 直前で評価する。
@@ -961,8 +987,9 @@ flowchart TD
 | --- | --- |
 | `Select` | selector の carrier を展開して source predicate へ戻す |
 | `SelectMany` | outer 依存なら outer source、inner 依存なら collection selector 内へ移動 |
-| `Join` / `LeftJoin` | outer/inner 片側依存なら葉へ移動 |
-| `Distinct`, `OrderBy`, `Reverse` | predicate が要素値だけを使うなら source 前へ移動 |
+| `Join` / `LeftJoin` | outer/inner 片側依存なら葉へ移動。両側依存は連言分割して部分押し下げ。`LeftJoin` は outer 側のみ |
+| `Distinct`, `Reverse` | predicate が要素値だけを使うなら source 前へ移動 |
+| `OrderBy` | source がスパンを出せる先頭 Order のときはソート済みスパン高速パスを守るため移動しない |
 | `Concat`, `Union` | predicate を左右両 source へ複製 |
 | `Except`, `Intersect` | first source 側にだけ安全に移動 |
 
@@ -1260,7 +1287,7 @@ flowchart TD
 この仕様に基づく実装またはレビューでは、少なくとも以下を確認する。
 
 - `Where.Select` が全件 materialize せず streaming loop になる。
-- `Join.Where` は片側依存 predicate だけ葉へ移動し、両側依存は維持する。
+- `Join.Where` は片側依存 predicate を葉へ移動し、両側依存は連言分割して片側依存の連言だけ葉へ移す。分解できない連言は維持する。
 - lambda が直接式として生成コードへ現れる。
 - capture 変数が Enumerator constructor/field 経由で参照される。
 - hoist 値が Enumerator construction 時に 1 回評価される。
