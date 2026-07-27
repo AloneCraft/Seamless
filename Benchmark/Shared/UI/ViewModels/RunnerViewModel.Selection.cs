@@ -129,6 +129,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         private set {
             if(this.SetProperty(ref this.全体ソースタブ進行値,value)) {
                 this.OnPropertyChanged(nameof(this.全体ソース進行概要文字列));
+                this.実行予測を更新();
             }
         }
     }
@@ -783,6 +784,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// 選択実行表示をクリア メソッドを実行し、副作用として内部状態を更新または描画反映します。
     /// </summary>
     private void 選択実行表示をクリア() {
+        this.実行予測をクリア();
         using(this.データグリッド更新バッチを開始()) {
             this.ソースタブ実行中状態をクリア();
             this.全ソースタブ比較表示をクリア();

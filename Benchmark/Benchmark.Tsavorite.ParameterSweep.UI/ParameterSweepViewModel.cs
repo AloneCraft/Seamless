@@ -1,4 +1,5 @@
 using Seamless.UI.Storage;
+using UI;
 
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -9,9 +10,14 @@ namespace Benchmark.Tsavorite.ParameterSweep.UI;
 
 public sealed class パラメータスイープビューモデル:INotifyPropertyChanged{
     private readonly パラメータスイープ実行器 実行器=new();
+    private readonly ベンチマーク実行予測時計 実行予測時計=new();
     private readonly UI実行ストア ストア;
     private UI実行記録? 選択前回実行値;
     private bool 実行中値か;
+    private string 実行予測概要文字列値=string.Empty;
+    private int 実行予測合計件数;
+    private long? 実行予測実行ID;
+    private bool 実行予測表示中か;
     private string 状態表示値="準備完了";
     private string 最大成功Count表示値="65536";
     private string 最大スイープ手順数表示値="8";
@@ -33,6 +39,7 @@ public sealed class パラメータスイープビューモデル:INotifyPropert
         get=>this.選択前回実行値;
         set{
             if(this.選択前回実行値==value){return;}
+            if(!this.実行中か&&this.実行予測実行ID!=value?.実行ID){this.実行予測をクリア();}
             this.選択前回実行値=value;
             this.プロパティ変更時();
             this.前回比較を適用();
@@ -56,6 +63,8 @@ public sealed class パラメータスイープビューモデル:INotifyPropert
         private set{if(this.状態表示値==value){return;}this.状態表示値=value;this.プロパティ変更時();}
     }
 
+    public string 実行予測概要文字列=>this.実行予測概要文字列値;
+
     public string 最大成功Count表示{
         get=>this.最大成功Count表示値;
         set{if(this.最大成功Count表示値==value){return;}this.最大成功Count表示値=value;this.プロパティ変更時();}
@@ -76,21 +85,67 @@ public sealed class パラメータスイープビューモデル:INotifyPropert
         this.選択前回実行=this.実行履歴.FirstOrDefault(項目=>項目.実行ID==選択ID)??this.実行履歴.FirstOrDefault();
     }
 
+    internal void 実行予測を開始(){
+        this.実行予測時計.開始();
+        this.実行予測合計件数=0;
+        this.実行予測実行ID=null;
+        this.実行予測表示中か=true;
+        this.実行予測概要文字列値=ベンチマーク実行予測ロジック.予測なし文字列;
+        this.プロパティ変更時(nameof(this.実行予測概要文字列));
+    }
+
+    internal void 実行予測の合計件数を設定(int 合計件数){
+        this.実行予測合計件数=Math.Max(0,合計件数);
+        this.実行予測を更新();
+    }
+
+    internal void 実行予測を終了(){
+        if(!this.実行予測表示中か){return;}
+        this.実行予測時計.終了();
+        this.実行予測を更新();
+    }
+
+    internal void 実行予測を更新(){
+        if(!this.実行予測表示中か){return;}
+        var 表示=ベンチマーク実行予測ロジック.表示文字列(
+            this.実行予測時計.経過時間,
+            this.行一覧.Count,
+            this.実行予測合計件数,
+            DateTimeOffset.Now);
+        if(this.実行予測概要文字列値==表示){return;}
+        this.実行予測概要文字列値=表示;
+        this.プロパティ変更時(nameof(this.実行予測概要文字列));
+    }
+
+    private void 実行予測をクリア(){
+        this.実行予測時計.クリア();
+        this.実行予測合計件数=0;
+        this.実行予測実行ID=null;
+        this.実行予測表示中か=false;
+        if(this.実行予測概要文字列値==string.Empty){return;}
+        this.実行予測概要文字列値=string.Empty;
+        this.プロパティ変更時(nameof(this.実行予測概要文字列));
+    }
+
     private async Task 実行Async(bool スモークか){
         if(this.実行中か){return;}
+        this.実行予測を開始();
         this.実行中か=true;
         this.行一覧.Clear();
         UI実行記録? 実行=null;
         try{
             var オプション=this.オプションを作成(スモークか);
             var ケース一覧=スモークか ? パラメータスイープ計画.スモークケース一覧を作成(オプション) : パラメータスイープ計画.既定ケース一覧を作成(オプション);
+            this.実行予測の合計件数を設定(ケース一覧.Count);
             実行=this.ストア.実行を作成(new(UI実行アプリ種別.パラメータスイープ,
                 (スモークか ? "スモーク " : "全件 ")+DateTimeOffset.Now.ToString("yyyy/MM/dd HH:mm:ss",CultureInfo.InvariantCulture),
                 スモークか ? "Smoke" : "Full","ParameterSweep",DateTimeOffset.UtcNow));
             this.ストア.実行状態を設定(実行.実行ID,UI実行状態.実行中,"パラメータスイープを開始しました。");
+            this.実行予測実行ID=実行.実行ID;
             var 進捗=new Progress<パラメータスイープ結果>(結果=>{
                 this.結果を保存(実行.実行ID,結果);
                 this.行一覧.Add(new(結果,null));
+                this.実行予測を更新();
                 this.状態表示="実行中 "+this.行一覧.Count+"/"+ケース一覧.Count+" "+結果.ケース名;
             });
             var 結果一覧=await this.実行器.実行Async(ケース一覧,オプション,進捗);
@@ -103,6 +158,7 @@ public sealed class パラメータスイープビューモデル:INotifyPropert
             if(実行 is not null){this.ストア.実行状態を設定(実行.実行ID,UI実行状態.失敗,例外.Message);}
             this.状態表示="失敗: "+例外.Message;
         }finally{
+            this.実行予測を終了();
             this.実行中か=false;
         }
     }

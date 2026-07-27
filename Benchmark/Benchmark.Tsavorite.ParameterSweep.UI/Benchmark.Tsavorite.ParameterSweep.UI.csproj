@@ -22,6 +22,7 @@
     <WindowsPackageType Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">None</WindowsPackageType>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include='..\..\Shared\UI.Core\BenchmarkExecutionForecast.cs' Link='Shared\UI.Core\BenchmarkExecutionForecast.cs' />
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
   </ItemGroup>
   <ItemGroup>

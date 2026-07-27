@@ -101,6 +101,7 @@ public sealed partial class MainPage:ContentPage {
     private SfTabView? ソースタブビュー;
     private int データグリッド更新バッチ深度;
     private IDispatcherTimer? 一時停止中ツールバー点滅タイマー;
+    private IDispatcherTimer? 実行予測更新タイマー;
     private bool 一時停止中ツールバー点灯中か;
     private bool ソースタブビュー選択適用中か;
     private bool データグリッド更新バッチ購読済みか;
@@ -142,6 +143,7 @@ public sealed partial class MainPage:ContentPage {
     }
 
     private void アンロード時(object? 送信元,EventArgs イベント引数) {
+        this.実行予測更新タイマーを停止();
         this.データグリッド更新バッチ購読を解除();
         this.読込警告購読を解除();
         this.全データグリッドビュー更新バッチを終了();
@@ -151,6 +153,8 @@ public sealed partial class MainPage:ContentPage {
         if(this.ビューモデル is null) {
             return;
         }
+
+        this.実行予測更新タイマーを開始();
 
         try {
             this.データグリッド更新バッチを購読();
@@ -728,6 +732,18 @@ public sealed partial class MainPage:ContentPage {
             レイアウト.Add(this.状態アイコンプレビュー項目を作成(文言,画像ソース));
         }
 
+        var 予測 = new Label {
+            FontSize=9,
+            TextColor=Colors.Gray,
+            VerticalTextAlignment=TextAlignment.Center,
+            AutomationId=nameof(実行ビューモデル.実行予測概要文字列),
+            Margin=new Thickness(4,0,0,0),
+        };
+        if(this.ビューモデル is not null) {
+            予測.SetBinding(Label.TextProperty,nameof(実行ビューモデル.実行予測概要文字列));
+        }
+        レイアウト.Add(予測);
+
         return レイアウト;
     }
 
@@ -1046,6 +1062,23 @@ public sealed partial class MainPage:ContentPage {
 
         this.一時停止中ツールバー点灯中か=false;
         this.ツールバーボタン表示状態を適用();
+    }
+
+    private void 実行予測更新タイマーを開始() {
+        if(this.ビューモデル is null) {
+            return;
+        }
+
+        if(this.実行予測更新タイマー is null) {
+            this.実行予測更新タイマー=this.Dispatcher.CreateTimer();
+            this.実行予測更新タイマー.Interval=TimeSpan.FromSeconds(1);
+            this.実行予測更新タイマー.Tick+=(_,_) => this.ビューモデル?.実行予測を更新();
+        }
+        this.実行予測更新タイマー.Start();
+    }
+
+    private void 実行予測更新タイマーを停止() {
+        this.実行予測更新タイマー?.Stop();
     }
 
     private void ツールバーボタン表示状態を適用() {

@@ -2,12 +2,26 @@ namespace Benchmark.Tsavorite.ParameterSweep.UI;
 
 public sealed class MainPage:ContentPage{
     private readonly パラメータスイープビューモデル ビューモデル=new();
+    private IDispatcherTimer? 実行予測更新タイマー;
 
     public MainPage(){
         this.Title="Tsavorite Parameter Sweep";
         this.BindingContext=this.ビューモデル;
         this.BackgroundColor=Color.FromArgb("#F8FAFC");
         this.Content=this.内容を作成();
+        this.実行予測更新タイマーを開始();
+        this.Unloaded+=this.アンロード時;
+    }
+
+    private void アンロード時(object? 送信元,EventArgs イベント引数){
+        this.実行予測更新タイマー?.Stop();
+    }
+
+    private void 実行予測更新タイマーを開始(){
+        this.実行予測更新タイマー=this.Dispatcher.CreateTimer();
+        this.実行予測更新タイマー.Interval=TimeSpan.FromSeconds(1);
+        this.実行予測更新タイマー.Tick+=(_,_)=>this.ビューモデル.実行予測を更新();
+        this.実行予測更新タイマー.Start();
     }
 
     private View 内容を作成(){
@@ -45,6 +59,16 @@ public sealed class MainPage:ContentPage{
 
         var 状態=new Label{AutomationId="パラメータスイープ.状態",FontSize=12,TextColor=Color.FromArgb("#334155"),Padding=new Thickness(10,0,10,8)};
         状態.SetBinding(Label.TextProperty,nameof(パラメータスイープビューモデル.状態表示));
+        var 予測=new Label{
+            FontSize=12,
+            TextColor=Colors.Gray,
+            VerticalTextAlignment=TextAlignment.Center,
+            AutomationId=nameof(パラメータスイープビューモデル.実行予測概要文字列),
+        };
+        予測.SetBinding(Label.TextProperty,nameof(パラメータスイープビューモデル.実行予測概要文字列));
+        var 状態行=new HorizontalStackLayout{Spacing=8,Padding=new Thickness(10,0,10,8)};
+        状態行.Add(状態);
+        状態行.Add(予測);
 
         var ヘッダー=this.ヘッダー行を作成();
         var 一覧=new CollectionView{AutomationId="パラメータスイープ.結果一覧",ItemSizingStrategy=ItemSizingStrategy.MeasureFirstItem,SelectionMode=SelectionMode.None,ItemTemplate=new DataTemplate(結果行を作成)};
@@ -53,7 +77,7 @@ public sealed class MainPage:ContentPage{
             RowDefinitions={new RowDefinition{Height=GridLength.Auto},new RowDefinition{Height=GridLength.Star}},Children={ヘッダー,一覧},
         }};
         Grid.SetRow(一覧,1);
-        return new Grid{RowDefinitions={new RowDefinition{Height=GridLength.Auto},new RowDefinition{Height=GridLength.Auto},new RowDefinition{Height=GridLength.Star}},Children={ツールバー,状態,スクロール}};
+        return new Grid{RowDefinitions={new RowDefinition{Height=GridLength.Auto},new RowDefinition{Height=GridLength.Auto},new RowDefinition{Height=GridLength.Star}},Children={ツールバー,状態行,スクロール}};
     }
 
     private Grid ヘッダー行を作成(){

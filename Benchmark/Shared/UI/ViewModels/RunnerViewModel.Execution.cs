@@ -177,6 +177,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
 
         try {
             this.保留実行終了種別=実行終了種別.一時停止;
+            this.実行予測を一時停止();
             this.実行コマンド状態変更を通知();
             this.キャンセル();
             await this.実行停止を待機Async();
@@ -201,6 +202,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
 
         try {
             this.保留実行終了種別=実行終了種別.停止;
+            this.実行予測をクリア();
             this.実行コマンド状態変更を通知();
             this.キャンセル();
             await this.実行停止を待機Async();
@@ -237,6 +239,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <param name="理由">理由 を指定して実行条件を制御します。</param>
     private void 実行状態を強制リセット(string 理由) {
         起動診断.書き込む(理由);
+        this.実行予測をクリア();
         this.実行キャンセル?.Cancel();
         this.実行キャンセル=null;
         this.保留実行終了種別=実行終了種別.なし;
@@ -435,6 +438,12 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// </summary>
     /// <value>無限テスト実行器を使うか の値を取得/設定します。</value>
     private async Task 実行Async(string? 実行ルート上書き,bool 既存結果を上書きするか,bool 無限テスト実行器を使うか = false) {
+        var 一時停止再開か=this.ベンチマーク一時停止中か&&実行ルート上書き is not null;
+        if(一時停止再開か) {
+            this.実行予測を再開();
+        }else{
+            this.実行予測を新規開始();
+        }
         var 保存DB実行から開始するか = 保存DB実行選択肢か(this.選択実行選択肢);
         if(保存DB実行から開始するか) {
             this.保存DB実行から新規実行用カタログ行を復元();
@@ -446,6 +455,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             ? 全選択値
             : this.成功結果なしベンチマークケースを抽出(全選択値,this.選択要素数一覧を取得()).ToArray();
         if(選択値.Length==0) {
+            this.実行予測をクリア();
             this.状態文字列=全選択値.Length==0
                 ? "ベンチマークが選択されていません"
                 : "計測対象はすべて成功済みです";
@@ -575,6 +585,13 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 }
             }
             this.永続化バッチ処理.即時反映();
+            if(現在実行か) {
+                if(一時停止実行ルートを維持するか) {
+                    this.実行予測を一時停止();
+                }else{
+                    this.実行予測を終了();
+                }
+            }
             if(現在実行か&&!正常完了か&&!一時停止実行ルートを維持するか) {
                 this.実行結果世代=unchecked(this.実行結果世代+1);
             }
