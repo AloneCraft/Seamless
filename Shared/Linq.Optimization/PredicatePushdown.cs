@@ -1,12 +1,48 @@
 namespace Benchmark.Optimization.PredicatePushdown {
+    // Array<T>/IEnumerable<T> は演算子境界でネスト型に分けているため、開いたジェネリックのままでは
+    // BenchmarkCatalog.具象ベンチマーク型か の ContainsGenericParameters: false 条件で列挙されない。
+    // ここに具象を登録しないと「ビルドは通るのに一度も計測されない」ベンチになるので、
+    // ネスト型を足したら必ず対応する具象をここへ追加すること。
     public class ArrayInt32:global::Shared.Linq.Optimization.PredicatePushdown.Array<int>.Select_selector;
     public class ArrayClassInt32:global::Shared.Linq.Optimization.PredicatePushdown.Array<ClassInt32>.Select_selector;
     public class ArrayInt32Join:global::Shared.Linq.Optimization.PredicatePushdown.Array<int>.Join_inner;
     public class ArrayClassInt32Join:global::Shared.Linq.Optimization.PredicatePushdown.Array<ClassInt32>.Join_inner;
+    public class ArrayInt32Union:global::Shared.Linq.Optimization.PredicatePushdown.Array<int>.Union_second;
+    public class ArrayClassInt32Union:global::Shared.Linq.Optimization.PredicatePushdown.Array<ClassInt32>.Union_second;
+    public class ArrayInt32Concat:global::Shared.Linq.Optimization.PredicatePushdown.Array<int>.Concat_second;
+    public class ArrayClassInt32Concat:global::Shared.Linq.Optimization.PredicatePushdown.Array<ClassInt32>.Concat_second;
+    public class ArrayInt32Except:global::Shared.Linq.Optimization.PredicatePushdown.Array<int>.Except_first;
+    public class ArrayClassInt32Except:global::Shared.Linq.Optimization.PredicatePushdown.Array<ClassInt32>.Except_first;
+    public class ArrayInt32Intersect:global::Shared.Linq.Optimization.PredicatePushdown.Array<int>.Intersect_first;
+    public class ArrayClassInt32Intersect:global::Shared.Linq.Optimization.PredicatePushdown.Array<ClassInt32>.Intersect_first;
+    public class ArrayInt32Distinct:global::Shared.Linq.Optimization.PredicatePushdown.Array<int>.Distinct_source;
+    public class ArrayClassInt32Distinct:global::Shared.Linq.Optimization.PredicatePushdown.Array<ClassInt32>.Distinct_source;
+    public class ArrayInt32Reverse:global::Shared.Linq.Optimization.PredicatePushdown.Array<int>.Reverse_source;
+    public class ArrayClassInt32Reverse:global::Shared.Linq.Optimization.PredicatePushdown.Array<ClassInt32>.Reverse_source;
+    public class ArrayInt32Order:global::Shared.Linq.Optimization.PredicatePushdown.Array<int>.Order_source;
+    public class ArrayClassInt32Order:global::Shared.Linq.Optimization.PredicatePushdown.Array<ClassInt32>.Order_source;
+    public class ArrayInt32SkipOrder:global::Shared.Linq.Optimization.PredicatePushdown.Array<int>.Skip_count_Order_source;
+    public class ArrayClassInt32SkipOrder:global::Shared.Linq.Optimization.PredicatePushdown.Array<ClassInt32>.Skip_count_Order_source;
     public class IEnumerableInt32:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<int>.Select_selector;
     public class IEnumerableClassInt32:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<ClassInt32>.Select_selector;
     public class IEnumerableInt32Join:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<int>.Join_inner;
     public class IEnumerableClassInt32Join:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<ClassInt32>.Join_inner;
+    public class IEnumerableInt32Union:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<int>.Union_second;
+    public class IEnumerableClassInt32Union:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<ClassInt32>.Union_second;
+    public class IEnumerableInt32Concat:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<int>.Concat_second;
+    public class IEnumerableClassInt32Concat:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<ClassInt32>.Concat_second;
+    public class IEnumerableInt32Except:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<int>.Except_first;
+    public class IEnumerableClassInt32Except:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<ClassInt32>.Except_first;
+    public class IEnumerableInt32Intersect:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<int>.Intersect_first;
+    public class IEnumerableClassInt32Intersect:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<ClassInt32>.Intersect_first;
+    public class IEnumerableInt32Distinct:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<int>.Distinct_source;
+    public class IEnumerableClassInt32Distinct:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<ClassInt32>.Distinct_source;
+    public class IEnumerableInt32Reverse:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<int>.Reverse_source;
+    public class IEnumerableClassInt32Reverse:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<ClassInt32>.Reverse_source;
+    public class IEnumerableInt32Order:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<int>.Order_source;
+    public class IEnumerableClassInt32Order:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<ClassInt32>.Order_source;
+    public class IEnumerableInt32SkipOrder:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<int>.Skip_count_Order_source;
+    public class IEnumerableClassInt32SkipOrder:global::Shared.Linq.Optimization.PredicatePushdown.IEnumerable<ClassInt32>.Skip_count_Order_source;
     public class ListInt32:global::Shared.Linq.Optimization.PredicatePushdown.List<int>;
     public class ListClassInt32:global::Shared.Linq.Optimization.PredicatePushdown.List<ClassInt32>;
     public class Range_start_count:global::Shared.Linq.Optimization.PredicatePushdown.Range;

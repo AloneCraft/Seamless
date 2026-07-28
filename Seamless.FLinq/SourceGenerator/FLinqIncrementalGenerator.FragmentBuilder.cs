@@ -486,8 +486,16 @@ public sealed partial class FLinqIncrementalGenerator {
                 continue;
             }
 
+            // 引数位置の列挙ソース（Join/GroupJoin/LeftJoin/RightJoin の inner、Concat/Union/Except/
+            // Intersect/*By/Zip/SequenceEqual の second など）も、レシーバ（上の :441）と同じく
+            // 列挙式フラグメント生成 でほどく。単独列挙ソースフラグメント生成 だけを使っていた頃は
+            // second.Where(p) のような LINQ チェーンが不透明な Root に落ち、生成コードへ式テキストが
+            // そのまま埋まって素の System.Linq.Where（boxing＋デリゲート＋interface dispatch）になっていた。
+            // 述語プッシュダウンが inner へ Where を挿す Join がこれを踏んで大きく退行していた。
+            // 列挙式フラグメント生成 は「呼び出し式ならほどき、駄目なら単独列挙ソースフラグメント生成 へ
+            // フォールバック」なので、ユーザーメソッド呼び出しや素の配列・フィールドは従来どおり Root になる。
             if(typeof(Enumerable).IsAssignableFrom(parameter.ParameterType)) {
-                if(!単独列挙ソースフラグメント生成(semanticModel,argumentExpression,containingType,ref uniqueNumber,out var enumerableFragment,out var enumerableStaticMethods,unsafeAccessorCollector)) {
+                if(!列挙式フラグメント生成(semanticModel,argumentExpression,containingType,ref uniqueNumber,out var enumerableFragment,out var enumerableStaticMethods,unsafeAccessorCollector)) {
                     return false;
                 }
 

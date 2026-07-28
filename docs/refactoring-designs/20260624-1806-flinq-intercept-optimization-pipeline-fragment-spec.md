@@ -37,7 +37,10 @@
 | 射影融合の生成形状テスト | `Test/SourceGenerator/ProjectionMergeShapeTests.cs` |
 | 集合演算への Where 分配の意味保存テスト | `Test/System/Linq/Intercept/Optimization/SetOperationPushdown.cs` |
 | 集合演算への Where 分配の生成形状テスト | `Test/SourceGenerator/SetOperationPushdownShapeTests.cs` |
+| 単項演算(Distinct/Reverse/Order)への Where 押し下げの意味保存テスト | `Test/System/Linq/Intercept/Optimization/UnaryPushdown.cs` |
+| 単項演算への Where 押し下げと Order 高速パスガードの生成形状テスト | `Test/SourceGenerator/UnaryPushdownShapeTests.cs` |
 | PipelineEnumerable の二入力(SecondSources)ジェネリック伝播 | `Seamless.FLinq/SourceGenerator/Linq/Fragments/PipelineEnumerable.cs` |
+| 引数位置の列挙ソース(Join の inner / 集合演算の second 等)のフラグメント化 | `Seamless.FLinq/SourceGenerator/FLinqIncrementalGenerator.FragmentBuilder.cs`（`登録済みフラグメント生成を試行` の `Enumerable` パラメータ分岐） |
 
 ## 用語
 

@@ -163,33 +163,23 @@ static ワーカー結果メッセージ ベンチマークを実行(
                     ? (Action)プローブメソッド.CreateDelegate(typeof(Action))
                     : (Action)プローブメソッド.CreateDelegate(typeof(Action),プローブインスタンス)
                 : () => プローブメソッド.Invoke(プローブインスタンス,引数値一覧);
-            プローブ呼出();
-            var 割当前バイト数 = GC.GetAllocatedBytesForCurrentThread();
-            var 反復回数 = 0;
-            var プローブストップウォッチ = Stopwatch.StartNew();
-            while(プローブストップウォッチ.Elapsed.TotalMilliseconds*1_000_000d<較正閾値ナノ秒) {
-                プローブ呼出();
-                反復回数++;
-            }
-
-            プローブストップウォッチ.Stop();
-            var 割当後バイト数 = GC.GetAllocatedBytesForCurrentThread();
-            var プローブ割当バイト数 = Math.Max(0,割当後バイト数-割当前バイト数);
-            var 実測ループ回数 = Math.Max(1,反復回数);
+            var プローブ計測 = 計測を実行(プローブ呼出,true,較正閾値ナノ秒,ループ回数);
+            var 実測ループ回数 = プローブ計測.ループ回数;
             Environment.SetEnvironmentVariable(ループ回数環境変数名,実測ループ回数.ToString(CultureInfo.InvariantCulture));
-            var プローブ平均ナノ秒 = プローブストップウォッチ.Elapsed.TotalMilliseconds*1_000_000d;
+            var プローブ平均ナノ秒 = プローブ計測.中央値ナノ秒;
+            Console.WriteLine("較正計測: "+計測ログを整形(プローブ計測));
             var プローブログ = ログ書込.ToString();
             File.WriteAllText(ログパス,プローブログ,Encoding.UTF8);
             return new ワーカー結果メッセージ(
                 タスク.タスクID,
                 "Completed",
                 ナノ秒を整形(プローブ平均ナノ秒),
-                string.Empty,
-                string.Empty,
+                ナノ秒を整形(プローブ計測.誤差ナノ秒),
+                ナノ秒を整形(プローブ計測.標準偏差ナノ秒),
                 プローブ平均ナノ秒,
-                null,
-                null,
-                プローブ割当バイト数,
+                プローブ計測.誤差ナノ秒,
+                プローブ計測.標準偏差ナノ秒,
+                プローブ計測.割り当てバイト数,
                 0,
                 タスク.成果物フォルダー,
                 プローブログ,
@@ -296,26 +286,10 @@ static ワーカー結果メッセージ 高速ベンチマークを実行(
                 ? (Action)メソッド.CreateDelegate(typeof(Action))
                 : (Action)メソッド.CreateDelegate(typeof(Action),インスタンス)
             : () => メソッド.Invoke(インスタンス,引数値一覧);
-        ベンチマーク呼出();
-        var 割当前バイト数 = GC.GetAllocatedBytesForCurrentThread();
-        int? 実測ループ回数 = null;
-        var ストップウォッチ = Stopwatch.StartNew();
-        if(タスク.開放ループ較正か&&タスク.較正閾値ナノ秒 is { } 較正閾値ナノ秒) {
-            var 反復回数 = 0;
-            while(ストップウォッチ.Elapsed.TotalMilliseconds*1_000_000d<較正閾値ナノ秒) {
-                ベンチマーク呼出();
-                反復回数++;
-            }
-            実測ループ回数=反復回数;
-        } else {
-            for(var 反復番号 = 0;反復番号<ループ回数;反復番号++) {
-                ベンチマーク呼出();
-            }
-        }
-        ストップウォッチ.Stop();
-        var 割当後バイト数 = GC.GetAllocatedBytesForCurrentThread();
-        var 平均ナノ秒 = ストップウォッチ.Elapsed.TotalMilliseconds*1_000_000d;
-        var 割当バイト数 = Math.Max(0,割当後バイト数-割当前バイト数);
+        var 計測 = 計測を実行(ベンチマーク呼出,タスク.開放ループ較正か,タスク.較正閾値ナノ秒,ループ回数);
+        int? 実測ループ回数 = タスク.開放ループ較正か ? 計測.ループ回数 : null;
+        var 平均ナノ秒 = 計測.中央値ナノ秒;
+        var 割当バイト数 = 計測.割り当てバイト数;
         var カウンター = new global::Seamless.Linq.LinqCounter();
         using(var カウンタースコープ = global::Seamless.Linq.LinqCounterScope.Start(カウンター)) {
             ベンチマーク呼出();
@@ -325,18 +299,18 @@ static ワーカー結果メッセージ 高速ベンチマークを実行(
             ログパス,
             "高速ワーカーの直接ベンチマークが完了しました。CPU="
             +(論理CPU>=0 ? 論理CPU.ToString(CultureInfo.InvariantCulture) : "-")
-            +"、経過時間="+ナノ秒を整形(平均ナノ秒)
+            +"、"+計測ログを整形(計測)
             +"、割り当てバイト数="+割当バイト数.ToString(CultureInfo.InvariantCulture),
             Encoding.UTF8);
         return new ワーカー結果メッセージ(
             タスク.タスクID,
             "Completed",
             ナノ秒を整形(平均ナノ秒),
-            string.Empty,
-            string.Empty,
+            ナノ秒を整形(計測.誤差ナノ秒),
+            ナノ秒を整形(計測.標準偏差ナノ秒),
             平均ナノ秒,
-            null,
-            null,
+            計測.誤差ナノ秒,
+            計測.標準偏差ナノ秒,
             割当バイト数,
             0,
             タスク.成果物フォルダー,
@@ -371,6 +345,101 @@ static ワーカー結果メッセージ 高速ベンチマークを実行(
         Console.SetOut(プロトコル出力);
         Console.SetError(プロトコルエラー);
     }
+}
+
+/// <summary>
+/// 左右（最適化有効側／無効側）で完全に同じ形の計測を行う共通ルーチン。
+/// <para>
+/// 較正は「1 サンプルあたりのループ回数」を決めるためだけに使い、その時間は結果に採らない。
+/// 続くサンプリングは左右とも同じループ回数・同じサンプル数・同じコードパスで回す。
+/// </para>
+/// <para>
+/// 内側ループは較正・計測とも 1 反復につき 1 回だけ <see cref="Stopwatch.Elapsed"/> を読む。
+/// 較正側は終了判定に使い、計測側はダミーとして累積するだけだが、こうしないと
+/// 左右で 1 反復あたりの時計読みコストが食い違い、較正側（＝右列）だけが系統的に遅く見える。
+/// </para>
+/// </summary>
+static 計測結果 計測を実行(Action ベンチマーク呼出,bool 開放ループ較正か,double? 較正閾値ナノ秒,int 指定ループ回数) {
+    var 時計 = new Stopwatch();
+    var ダミー累積 = 0d;
+    var ループ回数 = Math.Max(1,指定ループ回数);
+    var 全サンプル数 = 計測設定.破棄サンプル数+計測設定.計測サンプル数;
+
+    if(開放ループ較正か&&較正閾値ナノ秒 is { } 閾値ナノ秒) {
+        // 較正 1 回 + 全サンプルで合計がおおよそ閾値に収まるよう、1 サンプルの目標時間を割り当てる。
+        var 目標ナノ秒 = Math.Max(1d,閾値ナノ秒/(全サンプル数+1));
+        var 反復回数 = 0;
+        時計.Restart();
+        while(時計.Elapsed.TotalMilliseconds*1_000_000d<目標ナノ秒) {
+            ベンチマーク呼出();
+            反復回数++;
+        }
+        時計.Stop();
+        ループ回数=Math.Max(1,反復回数);
+    } else {
+        // 較正しない側は較正パスに相当する空回しを 1 サンプル分だけ行い、事前実行量を揃える。
+        時計.Restart();
+        ダミー累積+=反復ループを回す(ベンチマーク呼出,ループ回数,時計);
+        時計.Stop();
+    }
+
+    var サンプル一覧 = new double[計測設定.計測サンプル数];
+    long? 割り当てバイト数 = null;
+    for(var サンプル番号 = 0;サンプル番号<全サンプル数;サンプル番号++) {
+        // 先頭の 破棄サンプル数 本は時間ベースのウォームアップとして捨てる。左右とも同じ本数・同じ回数を回す。
+        var 計測対象か = サンプル番号>=計測設定.破棄サンプル数;
+        var 割当前バイト数 = GC.GetAllocatedBytesForCurrentThread();
+        時計.Restart();
+        ダミー累積+=反復ループを回す(ベンチマーク呼出,ループ回数,時計);
+        時計.Stop();
+        if(!計測対象か) {
+            continue;
+        }
+        // 割り当てバイト数は「1 サンプル＝ループ回数 反復ぶん」で、時間の単位と揃える。
+        割り当てバイト数??=Math.Max(0,GC.GetAllocatedBytesForCurrentThread()-割当前バイト数);
+        サンプル一覧[サンプル番号-計測設定.破棄サンプル数]=時計.Elapsed.TotalMilliseconds*1_000_000d;
+    }
+
+    var 並び替え済み = サンプル一覧.OrderBy(static 値 => 値).ToArray();
+    var 中央値ナノ秒 = 並び替え済み[並び替え済み.Length/2];
+    var 平均ナノ秒 = サンプル一覧.Average();
+    var 分散 = サンプル一覧.Length<2
+        ? 0d
+        : サンプル一覧.Sum(値 => (値-平均ナノ秒)*(値-平均ナノ秒))/(サンプル一覧.Length-1);
+    var 標準偏差ナノ秒 = Math.Sqrt(分散);
+    return new 計測結果(
+        中央値ナノ秒,
+        標準偏差ナノ秒/Math.Sqrt(サンプル一覧.Length),
+        標準偏差ナノ秒,
+        ループ回数,
+        割り当てバイト数??0,
+        ダミー累積,
+        サンプル一覧);
+}
+
+/// <summary>
+/// 計測の内側ループ。1 反復につき 1 回だけ時計を読む形を左右・較正／計測で共有するためのもの。
+/// 戻り値のダミー累積は JIT に消されないよう呼び出し側でログへ書き出す。
+/// </summary>
+static double 反復ループを回す(Action ベンチマーク呼出,int ループ回数,Stopwatch 時計) {
+    var ダミー累積 = 0d;
+    for(var 反復番号 = 0;反復番号<ループ回数;反復番号++) {
+        ベンチマーク呼出();
+        ダミー累積+=時計.Elapsed.TotalMilliseconds;
+    }
+
+    return ダミー累積;
+}
+
+static string 計測ログを整形(計測結果 計測) {
+    var サンプル = string.Join(", ",計測.サンプル一覧.Select(static 値 => 値.ToString("F0",CultureInfo.InvariantCulture)));
+    return "ループ回数="+計測.ループ回数.ToString(CultureInfo.InvariantCulture)
+        +"、破棄サンプル数="+計測設定.破棄サンプル数.ToString(CultureInfo.InvariantCulture)
+        +"、計測サンプル数="+計測.サンプル一覧.Count.ToString(CultureInfo.InvariantCulture)
+        +"、中央値="+ナノ秒を整形(計測.中央値ナノ秒)
+        +"、標準偏差="+ナノ秒を整形(計測.標準偏差ナノ秒)
+        +"、サンプル(ns)=["+サンプル+"]"
+        +"、ダミー累積="+計測.ダミー累積.ToString("F3",CultureInfo.InvariantCulture);
 }
 
 static Type ベンチマーク型を解決(string アセンブリ名,string 型完全名) {
@@ -605,6 +674,25 @@ internal sealed record ワーカータスクメッセージ(
     double? 較正閾値ナノ秒 = null);
 
 internal sealed record ベンチマーク引数(string 名前,string 値);
+
+/// <summary>
+/// 計測サンプルの本数。左右で必ず同じ値を使うため定数にしている。
+/// 計測サンプル数は中央値が一意に決まるよう奇数にする。
+/// </summary>
+internal static class 計測設定 {
+    public const int 破棄サンプル数 = 2;
+    public const int 計測サンプル数 = 7;
+}
+
+/// <summary>1 サンプル（＝ループ回数 反復）を単位とした計測結果。時間はすべてループ合計ナノ秒。</summary>
+internal sealed record 計測結果(
+    double 中央値ナノ秒,
+    double 誤差ナノ秒,
+    double 標準偏差ナノ秒,
+    int ループ回数,
+    long 割り当てバイト数,
+    double ダミー累積,
+    IReadOnlyList<double> サンプル一覧);
 
 internal static class ベンチマーク引数フォーマッター {
     public static object?[] オブジェクト一覧に変換(IReadOnlyList<ベンチマーク引数> 引数一覧) =>

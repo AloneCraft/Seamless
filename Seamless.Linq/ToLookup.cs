@@ -1,4 +1,4 @@
-#pragma warning disable
+﻿#pragma warning disable
 namespace Seamless.Linq {
     partial class Enumerable {
         public static ILookup<TKey,TSource> ToLookup<TEnumerator, TSource, TKey>(this ValueEnumerable<TEnumerator,TSource> source,Func<TSource,TKey> keySelector)
@@ -90,6 +90,8 @@ namespace Seamless.Linq {
         private readonly bool isDefaultComparer;
         private Grouping<TKey,TElement>[]? buckets;
         private int bucketsLength;
+        // bucketsLength を設定する箇所では必ず同時に更新する（HashSetSlim / DictionarySlim と同じ形）。
+        private int resizeThreshold;
         private Grouping<TKey,TElement>? last;
         private int groupCount;
         private readonly bool poolElements;
@@ -111,10 +113,12 @@ namespace Seamless.Linq {
             if(capacity<=0) {
                 this.buckets   =null;
                 this.bucketsLength=0;
+                this.resizeThreshold=0;
                 return;
             }
             var bucketCapacity = (int)Math.Ceiling((capacity+1)/LoadFactor);
             this.bucketsLength=Math.Max((int)BitOperations.RoundUpToPowerOf2((uint)bucketCapacity),MinimumSize);
+            this.resizeThreshold=(int)(this.bucketsLength*LoadFactor);
             this.buckets         =ArrayPool<Grouping<TKey,TElement>>.Shared.Rent(this.bucketsLength);
             this.buckets.AsSpan(0,this.bucketsLength).Clear();
         }
@@ -123,10 +127,12 @@ namespace Seamless.Linq {
             this.poolElements=poolElements;
         }
 
+        // 【重要】Lookup.GetBucketIndex と必ず同じ式にすること。片方だけ変えると
+        // 構築したバケットと参照するバケットがずれ、GetGroup が静かに取りこぼす。
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetBucketIndex(uint hashCode) {
             Debug.Assert(this.buckets is not null);
-            return (int)(hashCode&(this.bucketsLength-1));
+            return HashBucket.Index(hashCode,this.bucketsLength);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -150,21 +156,23 @@ namespace Seamless.Linq {
             if(this.buckets==null) {
                 this.buckets   =ArrayPool<Grouping<TKey,TElement>>.Shared.Rent(MinimumSize);
                 this.bucketsLength=MinimumSize;
+                this.resizeThreshold=(int)(MinimumSize*LoadFactor);
             }
 
             var     hash  =this.InternalGetHashCode(key);
             var     index =this.GetBucketIndex(hash);
             ref var bucket= ref this.buckets[index];
 
+            // 【重要】負荷率の判定は bucket==null の内側に置いてはいけない。
+            // 連鎖パスでも groupCount は増えるので、内側に置くと「到達可能なバケットが埋まった時点」で
+            // 二度と判定が走らなくなり、テーブルが初期サイズのまま凍結して鎖が線形に伸びる。
+            if(this.groupCount>=this.resizeThreshold) {
+                this.ResizeAndRehash();
+                bucket=ref this.buckets[this.GetBucketIndex(hash)]!;
+            }
+
             if(bucket==null) // new slot
             {
-                if(this.groupCount!=0) {
-                    if((double)this.groupCount/this.bucketsLength>LoadFactor) {
-                        this.ResizeAndRehash();
-                        bucket=ref this.buckets[this.GetBucketIndex(hash)]!;
-                    }
-                }
-
                 bucket=this.poolElements
                     ? new PooledGrouping<TKey,TElement>(key,hash,value)
                     : new Grouping<TKey,TElement>(key,hash,value);
@@ -300,6 +308,7 @@ namespace Seamless.Linq {
             var newBuckets = ArrayPool<Grouping<TKey,TElement>>.Shared.Rent((int)newSize);
             this.buckets   =newBuckets;
             this.bucketsLength=(int)newSize;
+            this.resizeThreshold=(int)(this.bucketsLength*LoadFactor);
 
             var first = group;
             do {
@@ -437,12 +446,14 @@ namespace Seamless.Linq {
             return this.GetEnumerator();
         }
 
+        // 【重要】LookupBuilder.GetBucketIndex と必ず同じ式にすること。片方だけ変えると
+        // 構築したバケットと参照するバケットがずれ、GetGroup が静かに取りこぼす。
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetBucketIndex(uint hashCode) {
             var buckets =this.groups;
             Debug.Assert(buckets is not null);
             var length =this.bucketCount<0 ? -this.bucketCount : this.bucketCount;
-            return (int)(hashCode&(length-1));
+            return HashBucket.Index(hashCode,length);
         }
 
         public void Dispose() {

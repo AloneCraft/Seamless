@@ -1,4 +1,4 @@
-namespace Shared.Linq.Optimization.PredicatePushdown;
+﻿namespace Shared.Linq.Optimization.PredicatePushdown;
 /// <summary>
 /// Array&lt;int&gt;.Select_selector.Where_predicate というベンチマーク名を出すため、
 /// パイプライン演算子の境界（Select_selector / Where_predicate）で型をネストする。
@@ -89,6 +89,61 @@ public abstract class Array<T>where T : notnull {
         [LinqIntercept(true,Optimizations=OptimizationSettings.Value)]
         private void Where_predicate_Impl() => this.srcCount(4_096)
                                                    .Intersect(this.src2Count(4_096))
+                                                   .Where(static value => (ToInt(value)&1)==0)
+                                                   .Consume(this.consumer);
+    }
+    /// <summary>
+    /// Distinct は要素そのものをキーにするため代表選択が述語に影響されず、無条件で押し下げる。
+    /// 押し下げると Distinct のソート済み int スパン直出し高速パスを失うので、その損得をここで計測する。
+    /// </summary>
+    public class Distinct_source(int count=4_096):global::Common.Base<T>(count) {
+        [BenchFact,Benchmark]
+        public void Where_predicate() => this.Where_predicate_Impl();
+        [LinqIntercept(true,Optimizations=OptimizationSettings.Value)]
+        private void Where_predicate_Impl() => this.srcCount(4_096)
+                                                   .Distinct()
+                                                   .Where(static value => (ToInt(value)&1)==0)
+                                                   .Consume(this.consumer);
+    }
+    /// <summary>
+    /// Reverse は要素数を保つので述語評価回数が変わらず、押し下げは原理的に損しない。
+    /// ただし span 逆走査の高速パスは失うため、Order と同型のガードが要るかをここで判断する。
+    /// </summary>
+    public class Reverse_source(int count=4_096):global::Common.Base<T>(count) {
+        [BenchFact,Benchmark]
+        public void Where_predicate() => this.Where_predicate_Impl();
+        [LinqIntercept(true,Optimizations=OptimizationSettings.Value)]
+        private void Where_predicate_Impl() => this.srcCount(4_096)
+                                                   .Reverse()
+                                                   .Where(static value => (ToInt(value)&1)==0)
+                                                   .Consume(this.consumer);
+    }
+    /// <summary>
+    /// Order 系だけは KeepsSortedSpanFastPath が「ソースがコンパイル時にスパンを出せるなら押し下げない」で止める。
+    /// これはそのガードが効く対照で、押し下げが起きない(＝差が出ない)ことが期待値。
+    /// </summary>
+    public class Order_source(int count=4_096):global::Common.Base<T>(count) {
+        [BenchFact,Benchmark]
+        public void Where_predicate() => this.Where_predicate_Impl();
+        [LinqIntercept(true,Optimizations=OptimizationSettings.Value)]
+        private void Where_predicate_Impl() => this.srcCount(4_096)
+                                                   .Order()
+                                                   .Where(static value => (ToInt(value)&1)==0)
+                                                   .Consume(this.consumer);
+    }
+    /// <summary>
+    /// Order のソースが LINQ 呼び出しになるとガードが外れて押し下がる形。
+    /// <br/>上流に恒等 Select を置くのは不可。AlgebraicRewriter が押し下げより前のパスで
+    /// 恒等 Select と AsEnumerable を除去してしまい、ガードが再び効いてしまう。
+    /// <br/>Skip(0) は除去対象でも押し下げ対象でもないので、Order 押し下げだけを単独で計測できる。
+    /// </summary>
+    public class Skip_count_Order_source(int count=4_096):global::Common.Base<T>(count) {
+        [BenchFact,Benchmark]
+        public void Where_predicate() => this.Where_predicate_Impl();
+        [LinqIntercept(true,Optimizations=OptimizationSettings.Value)]
+        private void Where_predicate_Impl() => this.srcCount(4_096)
+                                                   .Skip(0)
+                                                   .Order()
                                                    .Where(static value => (ToInt(value)&1)==0)
                                                    .Consume(this.consumer);
     }

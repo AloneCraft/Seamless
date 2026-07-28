@@ -246,10 +246,12 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
     };
     // 【再追加禁止】Concat への押し下げは実装しない。一度実装して計測したが利得がゼロだった。
     // σ_p(A++B) = σ_p(A)++σ_p(B) は成り立つものの、述語評価回数も通過要素数も変わらないため
-    // 実行時間は原理的に改善しない。一方で述語が両辺へ複製されて生成コードが倍増し、
-    // 第2ソース側は引数位置にあってフラグメント化されないので素の System.Linq.Where
-    // (boxing + デリゲート + interface dispatch)へ落ちる。差し引きで損になる。
+    // 実行時間は原理的に改善しない。一方で述語が両辺へ複製されて生成コードが倍増する。
+    // 差し引きで損になる。
     // Union は残す。ハッシュ集合へ入る要素数が実際に減るので利得がある。
+    // 注: 以前ここに「第2ソースは引数位置なのでフラグメント化されず素の System.Linq.Where へ落ちる」
+    // と書いていたが、FragmentBuilder が引数位置の列挙ソースも 列挙式フラグメント生成 でほどくように
+    // なったため成り立たない。除外の根拠は上の「利得ゼロ」だけである。
     private static readonly HashSet<string> PushWhereThroughBothSourceMethods = new(StringComparer.Ordinal){
         "Union",
     };

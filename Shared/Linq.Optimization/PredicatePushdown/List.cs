@@ -1,4 +1,4 @@
-namespace Shared.Linq.Optimization.PredicatePushdown;
+﻿namespace Shared.Linq.Optimization.PredicatePushdown;
 public abstract class List<T>(int count = 4_096):ListSource<T>(count) where T : notnull {
     // carrier のメンバは識別子など IsLiftableLeaf を満たす式に限る。ToInt(value) のような
     // メソッド呼び出しを入れると LiftPolicy.LeafOnly が shape 構築を拒否し押し下げが発火しない
@@ -24,4 +24,22 @@ public abstract class List<T>(int count = 4_096):ListSource<T>(count) where T : 
     [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Except_first_Where_predicate_Impl() => this.Source().Except(this.src2Count(4_096)).Where(static value => (ToInt(value)&1)==0).Consume(this.consumer);
     [BenchFact, Benchmark] public void Intersect_first_Where_predicate() => this.Intersect_first_Where_predicate_Impl();
     [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Intersect_first_Where_predicate_Impl() => this.Source().Intersect(this.src2Count(4_096)).Where(static value => (ToInt(value)&1)==0).Consume(this.consumer);
+    // Distinct/Reverse は無条件で押し下げる(要素そのものがキー／要素数を保つ)。どちらも span 系の
+    // 高速パスを失うので、Order と同型のガードを足すべきかをこの計測で判断する。
+    // Order 系だけは KeepsSortedSpanFastPath が止める。Order_Where_predicate はガードが効く対照で
+    // 差が出ないことが期待値、Skip_count_Order_Where_predicate は Order のソースが LINQ 呼び出しに
+    // なるためガードが外れて押し下がる形。上流に恒等 Select を置くのは不可。AlgebraicRewriter が
+    // 押し下げより前のパスで恒等 Select と AsEnumerable を除去してしまい、ガードが再び効いてしまう。
+    // Skip(0) は除去対象でも押し下げ対象でもないので、Order 押し下げだけを単独で計測できる。
+    [BenchFact, Benchmark] public void Distinct_Where_predicate() => this.Distinct_Where_predicate_Impl();
+    [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Distinct_Where_predicate_Impl() => this.Source().Distinct().Where(static value => (ToInt(value)&1)==0).Consume(this.consumer);
+    // List<T> にはインスタンスメソッドの Reverse()(戻り値 void)があり拡張メソッドを隠すため、
+    // IEnumerable<T> へキャストして Enumerable.Reverse の reduced extension 形に戻す。
+    // キャストは最適化有効側・無効側の双方に同じだけ乗るので比較は成立する。
+    [BenchFact, Benchmark] public void Reverse_Where_predicate() => this.Reverse_Where_predicate_Impl();
+    [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Reverse_Where_predicate_Impl() => ((global::System.Collections.Generic.IEnumerable<T>)this.Source()).Reverse().Where(static value => (ToInt(value)&1)==0).Consume(this.consumer);
+    [BenchFact, Benchmark] public void Order_Where_predicate() => this.Order_Where_predicate_Impl();
+    [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Order_Where_predicate_Impl() => this.Source().Order().Where(static value => (ToInt(value)&1)==0).Consume(this.consumer);
+    [BenchFact, Benchmark] public void Skip_count_Order_Where_predicate() => this.Skip_count_Order_Where_predicate_Impl();
+    [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Skip_count_Order_Where_predicate_Impl() => this.Source().Skip(0).Order().Where(static value => (ToInt(value)&1)==0).Consume(this.consumer);
 }

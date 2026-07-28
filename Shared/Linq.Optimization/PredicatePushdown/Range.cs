@@ -1,4 +1,4 @@
-namespace Shared.Linq.Optimization.PredicatePushdown;
+﻿namespace Shared.Linq.Optimization.PredicatePushdown;
 public abstract class Range(int count = 4_096):global::Common.Base<int>(count) {
     [BenchFact, Benchmark] public void Select_selector_Where_predicate() => this.Select_selector_Where_predicate_Impl();
     [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Select_selector_Where_predicate_Impl() => global::System.Linq.Enumerable.Range(1,this.EffectiveSourceCount(4_096)).Select(static value => (Value: value,Number: value)).Where(static value => (value.Number&1)==0).Consume(this.consumer);
@@ -21,6 +21,21 @@ public abstract class Range(int count = 4_096):global::Common.Base<int>(count) {
     [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Except_first_Where_predicate_Impl() => global::System.Linq.Enumerable.Range(1,this.EffectiveSourceCount(4_096)).Except(this.SecondRange()).Where(static value => (value&1)==0).Consume(this.consumer);
     [BenchFact, Benchmark] public void Intersect_first_Where_predicate() => this.Intersect_first_Where_predicate_Impl();
     [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Intersect_first_Where_predicate_Impl() => global::System.Linq.Enumerable.Range(1,this.EffectiveSourceCount(4_096)).Intersect(this.SecondRange()).Where(static value => (value&1)==0).Consume(this.consumer);
+    // Distinct/Reverse は無条件で押し下げる(要素そのものがキー／要素数を保つ)。どちらも span 系の
+    // 高速パスを失うので、Order と同型のガードを足すべきかをこの計測で判断する。
+    // Order 系だけは KeepsSortedSpanFastPath が止める。Order_Where_predicate はガードが効く対照で
+    // 差が出ないことが期待値、Skip_count_Order_Where_predicate は Order のソースが LINQ 呼び出しに
+    // なるためガードが外れて押し下がる形。上流に恒等 Select を置くのは不可。AlgebraicRewriter が
+    // 押し下げより前のパスで恒等 Select と AsEnumerable を除去してしまい、ガードが再び効いてしまう。
+    // Skip(0) は除去対象でも押し下げ対象でもないので、Order 押し下げだけを単独で計測できる。
+    [BenchFact, Benchmark] public void Distinct_Where_predicate() => this.Distinct_Where_predicate_Impl();
+    [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Distinct_Where_predicate_Impl() => global::System.Linq.Enumerable.Range(1,this.EffectiveSourceCount(4_096)).Distinct().Where(static value => (value&1)==0).Consume(this.consumer);
+    [BenchFact, Benchmark] public void Reverse_Where_predicate() => this.Reverse_Where_predicate_Impl();
+    [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Reverse_Where_predicate_Impl() => global::System.Linq.Enumerable.Range(1,this.EffectiveSourceCount(4_096)).Reverse().Where(static value => (value&1)==0).Consume(this.consumer);
+    [BenchFact, Benchmark] public void Order_Where_predicate() => this.Order_Where_predicate_Impl();
+    [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Order_Where_predicate_Impl() => global::System.Linq.Enumerable.Range(1,this.EffectiveSourceCount(4_096)).Order().Where(static value => (value&1)==0).Consume(this.consumer);
+    [BenchFact, Benchmark] public void Skip_count_Order_Where_predicate() => this.Skip_count_Order_Where_predicate_Impl();
+    [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Skip_count_Order_Where_predicate_Impl() => global::System.Linq.Enumerable.Range(1,this.EffectiveSourceCount(4_096)).Skip(0).Order().Where(static value => (value&1)==0).Consume(this.consumer);
     // src2Count と同じ「後半だけ重なる第 2 系列」を Range で作る。
     [LinqIntercept(false)] private global::System.Collections.Generic.IEnumerable<int> SecondRange() {
         var length = this.EffectiveSourceCount(4_096);

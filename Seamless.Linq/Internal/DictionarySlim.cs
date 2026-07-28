@@ -1,4 +1,4 @@
-#pragma warning disable 0436
+﻿#pragma warning disable 0436
 namespace Seamless.Linq;
 
 // Lightweight dictionary implementation optimized for performance
@@ -123,9 +123,10 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
         return (uint)((key is null) ? 0 : this.comparer.GetHashCode(key)&0x7FFFFFFF);
     }
 
+    // バケット番号の計算は HashBucket へ集約している（劣化条件の説明もそちら）。
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int GetBucketIndex(uint hashCode) {
-        return (int)(hashCode&(this.bucketsLength-1));
+        return HashBucket.Index(hashCode,this.bucketsLength);
     }
 
     // Since there are no deletions, the order of Entries is completely guaranteed to be in the order of addition.
