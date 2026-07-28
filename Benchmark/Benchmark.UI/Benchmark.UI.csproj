@@ -44,6 +44,7 @@
     <ProjectReference Include="..\Benchmark.Optimization.NoRewrite\Benchmark.Optimization.NoRewrite.csproj" />
     <ProjectReference Include="..\Benchmark.Optimization.NoPipelineFusion\Benchmark.Optimization.NoPipelineFusion.csproj" />
     <ProjectReference Include="..\Benchmark.Optimization.NoPredicatePushdown\Benchmark.Optimization.NoPredicatePushdown.csproj" />
+    <ProjectReference Include="..\Benchmark.Optimization.NoProjectionMerge\Benchmark.Optimization.NoProjectionMerge.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Range.FLinq\Benchmark.System.Linq.Enumerable.Range.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Range.ZLinq\Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.List.FLinq\Benchmark.System.Linq.Enumerable.List.FLinq.csproj" />

@@ -24,6 +24,8 @@
 | intercept 入口と source generation | `Seamless.FLinq/SourceGenerator/interceptor.cs` |
 | 代数的構文変換 | `Seamless.FLinq/SourceGenerator/AlgebraicRewriter.cs` |
 | query lowering / Where 押し下げ | `Seamless.FLinq/SourceGenerator/OptimizeVisitor.cs` |
+| carrier 逆解析（共有） | `Seamless.FLinq/SourceGenerator/CarrierAnalysis.cs` |
+| 射影融合 | `Seamless.FLinq/SourceGenerator/ProjectionMergeVisitor.cs` |
 | Anchor 判定 | `Seamless.FLinq/SourceGenerator/AnchorAnalysis.cs` |
 | 匿名型 record struct registry | `Seamless.FLinq/SourceGenerator/AnonymousStructRecord.cs` |
 | Pipeline IR / stage fusion | `Seamless.FLinq/SourceGenerator/Linq/Fragments/Pipeline.cs` |
@@ -31,6 +33,8 @@
 | buffer 特性 | `FLinq.md` |
 | hoist / Anchor テスト | `Test/System/Linq/Intercept/Optimization/InvariantHoisting.cs` |
 | Join / anonymous / hashing テスト | `Test/System/Linq/Intercept/Optimization/JoinHashing.cs` |
+| 射影融合の意味保存テスト | `Test/System/Linq/Intercept/Optimization/ProjectionMerge.cs`, `JoinSelectFusion.cs` |
+| 射影融合の生成形状テスト | `Test/SourceGenerator/ProjectionMergeShapeTests.cs` |
 
 ## 用語
 
@@ -317,6 +321,64 @@ outer.Where(o => o.Id>1)
     .Join(inner.Where(i => i.Id<13),o => o.Key,i => i.Key,(o,i) => (o,i))
     .Where(x => x.o.Id<x.i.Id)
 ```
+
+
+## `Select` 融合と result selector 吸収の仕様
+
+射影（`Select`）を直下の selector / result selector へ吸収し、中間 carrier の構築を丸ごと消す。
+
+```
+src.Select(f).Select(g)                    -> src.Select(g∘f)
+a.Join(b,ko,ki,(x,y)=>carrier).Select(g)   -> a.Join(b,ko,ki,(x,y)=>g[carrier])
+a.SelectMany(cs,(x,y)=>carrier).Select(g)  -> a.SelectMany(cs,(x,y)=>g[carrier])
+```
+
+対象は `Select` / `Join` / `LeftJoin` / `RightJoin` / `GroupJoin` / `SelectMany`（2 引数形）の result selector。
+`Select` は 1 行 → 1 行なので行数も順序も変えない。したがって述語押し下げで必要だった
+「`LeftJoin` の inner 側へ押すと行数が変わる」種類のガードは射影融合には要らない。
+
+### carrier の Tier 規則
+
+carrier の各メンバ式について、後続 selector `g` の本体での参照回数 `n` を数え、次の規則で引き戻しの可否を決める。
+
+| Tier | 該当する式 | 許可条件 | 理由 |
+| --- | --- | --- | --- |
+| T0 純粋葉 | 識別子 / リテラル / `this` / `base` / `default` / `typeof` | `n` 任意 | 評価が自明に無副作用・無例外。捨ててよく、複製してよい |
+| T1 可搬葉 | メンバアクセス / 要素アクセス / キャスト | `n >= 1` | 複製は許すが `n == 0` は禁止。getter の副作用や NRE / IndexOutOfRange / InvalidCast が消えて意味が変わる |
+| T2 任意式 | メソッド呼び出しを含むその他すべて | `n == 1` かつ carrier 内に高々 1 個 | `n != 1` は評価回数が変わる。2 個以上あると carrier 構築順と読み出し順が食い違い評価順が入れ替わる |
+
+carrier 式または `g` の本体に `.Anchor` を含む場合は融合しない（評価回数・評価順の変更を禁じる契約）。
+
+この規則により、クエリ式 `join` 句の透過 carrier（両メンバとも T0）は常に融合でき、`let` 句の carrier
+（元の range 変数が T0、計算結果が T2 で 1 個）は後続がちょうど 1 回読むときに融合できる。
+
+述語押し下げ側は従来どおり `LiftPolicy.LeafOnly`（carrier メンバを `IsLiftableLeaf` に限る）で動き、挙動は変えていない。
+
+### carrier として認識する形
+
+匿名型 `new{p,q}` / タプル式 `(a,b)` / `ValueTuple`・`Tuple` コンストラクタ /
+**record・record struct の位置引数コンストラクタ** / target-typed `new(..)` / 葉式、およびそれらの入れ子。
+
+record 系は「ctor のパラメータ名列がコンパイラ生成 `Deconstruct` の out パラメータ名列と順序込みで一致する」ことを
+primary constructor の判定に使う。手書き ctor や引数 0 個の record は一致しないので不可へ倒れる。
+target-typed `new(..)` は以前は型を見ずに `Item1..N` 扱いだったが、シンボルで `ValueTuple`/`Tuple`/record を
+判別するようになった（型が判別できない `new(..)` は不可）。
+
+### パスの実行順序
+
+```
+1. query lowering
+2. TryRewriteScalarAlgebra      恒等 Select / 冗長 AsEnumerable を除去して Select を Join に隣接させる
+3. TryPushDownPredicates        Where を葉へ動かし、Join と Select の間から Where を退かす
+4. TryMergeProjections          射影融合
+5. TryRewriteScalarAlgebra      融合結果が恒等 Select になった場合の掃除
+```
+
+**3 → 4 の順序は必須。** `Join(..).Where(..).Select(..)` は Join と Select が隣接していないため、
+先に Where を葉へ退けないと融合が発火しない。クエリ式の `join` 句は必ず透過 carrier + 末尾 `Select` へ
+lowering されるので、この順序でのみ透過 carrier が丸ごと消える。
+
+1 回の書換で構文木中の `Select` 呼び出しがちょうど 1 個減るので、再束縛ループは有限回で停止する。
 
 ## lambda 直接式埋め込み仕様
 

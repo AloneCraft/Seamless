@@ -29,10 +29,17 @@
     <Compile Include="$(MSBuildThisFileDirectory)PredicatePushdown\Persisted.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PredicatePushdown\Range.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PredicatePushdown\Tsavorite.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ProjectionMerge\Array.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ProjectionMerge\IEnumerable.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ProjectionMerge\List.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ProjectionMerge\Persisted.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ProjectionMerge\Range.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ProjectionMerge\Tsavorite.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ListSource.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)EnumerableSource.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)OptimizationSettings.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PredicatePushdown.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ProjectionMerge.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipelineFusion.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Rewrite.cs" />
     <PackageReference Include="ZLinq" Version="1.5.6" />

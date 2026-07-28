@@ -855,6 +855,17 @@ public sealed partial class FLinqIncrementalGenerator {
             semanticModel=pushedSemanticModel;
             containingType=pushedContainingType;
         }
+        if(TryMergeProjections(statement,semanticModel,containingType,out var mergedStatement,out var mergedSemanticModel,out var mergedContainingType)) {
+            statement=mergedStatement;
+            semanticModel=mergedSemanticModel;
+            containingType=mergedContainingType;
+            // 融合結果が恒等 Select になった場合の掃除。無変化なら再コンパイルは起きない。
+            if(TryRewriteScalarAlgebra(statement,semanticModel,containingType,out var tidiedStatement,out var tidiedSemanticModel,out var tidiedContainingType)) {
+                statement=tidiedStatement;
+                semanticModel=tidiedSemanticModel;
+                containingType=tidiedContainingType;
+            }
+        }
 
         if(TryRewriteTryGetNonEnumeratedCountStatement(statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) {
             return true;
@@ -1186,6 +1197,17 @@ public sealed partial class FLinqIncrementalGenerator {
             semanticModel=pushedSemanticModel;
             containingType=pushedContainingType;
         }
+        if(TryMergeProjections(expression,semanticModel,containingType,out var mergedExpression,out var mergedSemanticModel,out var mergedContainingType)) {
+            expression=mergedExpression;
+            semanticModel=mergedSemanticModel;
+            containingType=mergedContainingType;
+            // 融合結果が恒等 Select になった場合の掃除。無変化なら再コンパイルは起きない。
+            if(TryRewriteScalarAlgebra(expression,semanticModel,containingType,out var tidiedExpression,out var tidiedSemanticModel,out var tidiedContainingType)) {
+                expression=tidiedExpression;
+                semanticModel=tidiedSemanticModel;
+                containingType=tidiedContainingType;
+            }
+        }
 
         // 括弧を剥がしてクエリ式かどうかを判定する（例: (from v in Source() select v*2)）
         var unwrapped = expression;
@@ -1369,6 +1391,43 @@ public sealed partial class FLinqIncrementalGenerator {
             pushedNode=nextNode;
             pushedSemanticModel=nextModel;
             pushedContainingType=nextType;
+            changed=true;
+        }
+        return changed;
+    }
+
+    /// <summary>
+    /// <see cref="ProjectionMergeVisitor"/> で射影を直下の selector / result selector へ吸収する
+    /// （Select(f).Select(g)→Select(g∘f)、Join/SelectMany の result selector と後続 Select の融合）。
+    /// 述語プッシュダウンより後に走らせること。Join(..).Where(..).Select(..) は Join と Select が
+    /// 隣接していないため、Where を葉へ退けた後でないと透過 carrier が消えない。
+    /// <see cref="ProjectionMergeVisitor"/> も 1 パスにつき経路ごと 1 書換しか行わないので、
+    /// 変化が無くなるまで「書換→再束縛」を繰り返す。1 書換ごとに Select 呼び出しが 1 個減るので必ず止まる。
+    /// </summary>
+    private static bool TryMergeProjections<TSyntax>(
+        TSyntax node,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        out TSyntax mergedNode,
+        out SemanticModel mergedSemanticModel,
+        out INamedTypeSymbol mergedContainingType)
+        where TSyntax : SyntaxNode {
+        mergedNode=node;
+        mergedSemanticModel=semanticModel;
+        mergedContainingType=containingType;
+        var changed = false;
+        for(var iteration = 0;iteration<8;iteration++) {
+            if((LinqOptimizationContext.Current&LinqOptimizations.ProjectionMerge)==0) {
+                break;
+            }
+            var rewritten = ProjectionMergeVisitor.Merge(mergedNode,mergedSemanticModel);
+            if(!TryRebindRewritten(mergedNode,rewritten,mergedSemanticModel,mergedContainingType,"TsavoriteProjectionMerge",
+                out var nextNode,out var nextModel,out var nextType)) {
+                break;
+            }
+            mergedNode=nextNode;
+            mergedSemanticModel=nextModel;
+            mergedContainingType=nextType;
             changed=true;
         }
         return changed;

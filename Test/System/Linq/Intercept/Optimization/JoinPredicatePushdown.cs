@@ -171,7 +171,8 @@ public sealed class JoinPredicatePushdown:OptimizationTestBase {
             .Select(static x => x.o.Id*100+x.i.Id)
             .ToList();
 
-    // Join の resultSelector が作る carrier の3形（匿名型・タプル・逆解析できない直接値）を横断で検証する。
+    // Join の resultSelector が作る carrier の各形を横断で検証する。
+    // 匿名型・タプル・record struct・record・Tuple は逆解析して押し下げる。
     // 直接値は carrier を持たないため押し下げず素通しする。
     [Fact, Trait("Category","Unit")]
     public static void CarrierShapes() {
@@ -189,12 +190,79 @@ public sealed class JoinPredicatePushdown:OptimizationTestBase {
         AssertSequenceEqual(tuple,TupleCarrierOptimized());
         AssertSequenceEqual(tuple,TupleCarrierNoOptimized());
 
+        // record struct / record の位置引数コンストラクタも carrier として逆解析できる。
+        var recordStruct = Outers().Join(Inners(),static o => o.Key,static i => i.Key,static (o,i) => new PairStruct(o,i))
+            .Where(static x => x.Left.Id>2&&x.Right.Id<13)
+            .Select(static x => x.Left.Id*100+x.Right.Id)
+            .ToList();
+        AssertSequenceEqual(recordStruct,RecordStructCarrierOptimized());
+        AssertSequenceEqual(recordStruct,RecordStructCarrierNoOptimized());
+
+        var recordClass = Outers().Join(Inners(),static o => o.Key,static i => i.Key,static (o,i) => new PairClass(o,i))
+            .Where(static x => x.Left.Id>2&&x.Right.Id<13)
+            .Select(static x => x.Left.Id*100+x.Right.Id)
+            .ToList();
+        AssertSequenceEqual(recordClass,RecordClassCarrierOptimized());
+        AssertSequenceEqual(recordClass,RecordClassCarrierNoOptimized());
+
+        var tupleClass = Outers().Join(Inners(),static o => o.Key,static i => i.Key,static (o,i) => new Tuple<Item,Item>(o,i))
+            .Where(static x => x.Item1.Id>2&&x.Item2.Id<13)
+            .Select(static x => x.Item1.Id*100+x.Item2.Id)
+            .ToList();
+        AssertSequenceEqual(tupleClass,TupleClassCarrierOptimized());
+        AssertSequenceEqual(tupleClass,TupleClassCarrierNoOptimized());
+
         var scalar = Outers().Join(Inners(),static o => o.Key,static i => i.Key,static (o,i) => o.Id*100+i.Id)
             .Where(static v => v>210&&v<400)
             .ToList();
         AssertSequenceEqual(scalar,ScalarCarrierOptimized());
         AssertSequenceEqual(scalar,ScalarCarrierNoOptimized());
     }
+
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static List<int> RecordStructCarrierOptimized() =>
+        Outers().Join(Inners(),static o => o.Key,static i => i.Key,static (o,i) => new PairStruct(o,i))
+            .Where(static x => x.Left.Id>2&&x.Right.Id<13)
+            .Select(static x => x.Left.Id*100+x.Right.Id)
+            .ToList();
+
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static List<int> RecordStructCarrierNoOptimized() =>
+        Outers().Join(Inners(),static o => o.Key,static i => i.Key,static (o,i) => new PairStruct(o,i))
+            .Where(static x => x.Left.Id>2&&x.Right.Id<13)
+            .Select(static x => x.Left.Id*100+x.Right.Id)
+            .ToList();
+
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static List<int> RecordClassCarrierOptimized() =>
+        Outers().Join(Inners(),static o => o.Key,static i => i.Key,static (o,i) => new PairClass(o,i))
+            .Where(static x => x.Left.Id>2&&x.Right.Id<13)
+            .Select(static x => x.Left.Id*100+x.Right.Id)
+            .ToList();
+
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static List<int> RecordClassCarrierNoOptimized() =>
+        Outers().Join(Inners(),static o => o.Key,static i => i.Key,static (o,i) => new PairClass(o,i))
+            .Where(static x => x.Left.Id>2&&x.Right.Id<13)
+            .Select(static x => x.Left.Id*100+x.Right.Id)
+            .ToList();
+
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static List<int> TupleClassCarrierOptimized() =>
+        Outers().Join(Inners(),static o => o.Key,static i => i.Key,static (o,i) => new Tuple<Item,Item>(o,i))
+            .Where(static x => x.Item1.Id>2&&x.Item2.Id<13)
+            .Select(static x => x.Item1.Id*100+x.Item2.Id)
+            .ToList();
+
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static List<int> TupleClassCarrierNoOptimized() =>
+        Outers().Join(Inners(),static o => o.Key,static i => i.Key,static (o,i) => new Tuple<Item,Item>(o,i))
+            .Where(static x => x.Item1.Id>2&&x.Item2.Id<13)
+            .Select(static x => x.Item1.Id*100+x.Item2.Id)
+            .ToList();
+
+    public readonly record struct PairStruct(Item Left,Item Right);
+    public sealed record PairClass(Item Left,Item Right);
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> AnonymousCarrierOptimized() =>

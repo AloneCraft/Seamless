@@ -11,10 +11,12 @@ public sealed class Counter {
         LinqCounterDiagnostics.EmitActual(nameof(SelectSelectSelectWhere_counts_logical_and_physical),scope.Counter);
         Assert.Equal([5,7,9],actual);
         Assert.Equal(5,scope.Counter.PhysicalMoveNext);
-        Assert.Equal(15,scope.Counter.LogicalSelect);
+        // 射影融合(LinqOptimizations.ProjectionMerge)が 3 段の Select を 1 段へ畳むので、
+        // 論理 Select は 3N ではなく N になる。NoOptimized 側は 15 のままで対比が取れる。
+        Assert.Equal(5,scope.Counter.LogicalSelect);
         Assert.Equal(5,scope.Counter.LogicalWhere);
-        Assert.Equal(20,scope.Counter.LogicalOperations);
-        Assert.Equal(20,scope.Counter.LogicalDelegate);
+        Assert.Equal(10,scope.Counter.LogicalOperations);
+        Assert.Equal(10,scope.Counter.LogicalDelegate);
         Assert.Equal(0,scope.Counter.PhysicalDelegate);
     }
 
@@ -86,10 +88,11 @@ public sealed class Counter {
         LinqCounterDiagnostics.EmitActual(nameof(CounterScope_can_share_counter_across_parallel_tasks),scope.Counter);
         Assert.All(tasks,static task => Assert.Equal([5,7,9],task.Result));
         Assert.Equal(20,scope.Counter.PhysicalMoveNext);
-        Assert.Equal(60,scope.Counter.LogicalSelect);
+        // 射影融合で 3 段の Select が 1 段になるため、4 タスク分でも 60 ではなく 20。
+        Assert.Equal(20,scope.Counter.LogicalSelect);
         Assert.Equal(20,scope.Counter.LogicalWhere);
-        Assert.Equal(80,scope.Counter.LogicalOperations);
-        Assert.Equal(80,scope.Counter.LogicalDelegate);
+        Assert.Equal(40,scope.Counter.LogicalOperations);
+        Assert.Equal(40,scope.Counter.LogicalDelegate);
         Assert.Equal(0,scope.Counter.PhysicalDelegate);
     }
 

@@ -33,6 +33,7 @@ internal static class 型付きベンチマークアセンブリカタログ {
         typeof(global::Benchmark.Optimization.NoRewrite.Anchor),
         typeof(global::Benchmark.Optimization.NoPipelineFusion.Anchor),
         typeof(global::Benchmark.Optimization.NoPredicatePushdown.Anchor),
+        typeof(global::Benchmark.Optimization.NoProjectionMerge.Anchor),
         typeof(global::Benchmark.System.Linq.Enumerable.Range.FLinq.FLinqInt32),
         typeof(global::Benchmark.System.Linq.Enumerable.Range.ZLinq.ZLinqInt32),
         typeof(global::Benchmark.System.Linq.Enumerable.List.FLinq.FLinqInt32),

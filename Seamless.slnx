@@ -11,6 +11,7 @@
     <Project Path="Benchmark/Benchmark.Optimization.NoRewrite/Benchmark.Optimization.NoRewrite.csproj" />
     <Project Path="Benchmark/Benchmark.Optimization.NoPipelineFusion/Benchmark.Optimization.NoPipelineFusion.csproj" />
     <Project Path="Benchmark/Benchmark.Optimization.NoPredicatePushdown/Benchmark.Optimization.NoPredicatePushdown.csproj" />
+    <Project Path="Benchmark/Benchmark.Optimization.NoProjectionMerge/Benchmark.Optimization.NoProjectionMerge.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.FLinq/Benchmark.System.Linq.Enumerable.List.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Collections/Benchmark.Persisted.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />

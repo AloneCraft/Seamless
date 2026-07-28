@@ -4,6 +4,7 @@ public enum ベンチマークソースタブ{
     最適化書き換え,
     最適化パイプライン融合,
     最適化述語押し下げ,
+    最適化射影融合,
     System配列,
     SystemIEnumerable,
     System範囲,
@@ -86,6 +87,7 @@ public static class ベンチマークソースタブ一覧{
     public const string 最適化書き換えID="Optimization.Rewrite";
     public const string 最適化パイプライン融合ID="Optimization.PipelineFusion";
     public const string 最適化述語押し下げID="Optimization.PredicatePushdown";
+    public const string 最適化射影融合ID="Optimization.ProjectionMerge";
     public const string System配列ID="System.Array";
     public const string SystemIEnumerableID="System.Collections.Generic.IEnumerable<>";
     public const string System範囲ID="System.Range";
@@ -157,6 +159,7 @@ public static class ベンチマークソースタブ一覧{
         new(ベンチマークソースタブ.最適化書き換え,最適化書き換えID,"書き換え","Optimization.Rewrite.All","全最適化","Benchmark.Optimization.All","Optimization.Rewrite.Disabled","書き換え無効","Benchmark.Optimization.NoRewrite","Benchmark.Optimization.Rewrite.","Benchmark.Optimization.Rewrite."),
         new(ベンチマークソースタブ.最適化パイプライン融合,最適化パイプライン融合ID,"パイプライン融合","Optimization.PipelineFusion.All","全最適化","Benchmark.Optimization.All","Optimization.PipelineFusion.Disabled","パイプライン融合無効","Benchmark.Optimization.NoPipelineFusion","Benchmark.Optimization.PipelineFusion.","Benchmark.Optimization.PipelineFusion."),
         new(ベンチマークソースタブ.最適化述語押し下げ,最適化述語押し下げID,"述語プッシュダウン","Optimization.PredicatePushdown.All","全最適化","Benchmark.Optimization.All","Optimization.PredicatePushdown.Disabled","述語プッシュダウン無効","Benchmark.Optimization.NoPredicatePushdown","Benchmark.Optimization.PredicatePushdown.","Benchmark.Optimization.PredicatePushdown."),
+        new(ベンチマークソースタブ.最適化射影融合,最適化射影融合ID,"射影融合","Optimization.ProjectionMerge.All","全最適化","Benchmark.Optimization.All","Optimization.ProjectionMerge.Disabled","射影融合無効","Benchmark.Optimization.NoProjectionMerge","Benchmark.Optimization.ProjectionMerge.","Benchmark.Optimization.ProjectionMerge."),
         new(
             ベンチマークソースタブ.System配列,
             System配列ID,

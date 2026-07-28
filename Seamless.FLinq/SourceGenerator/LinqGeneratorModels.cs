@@ -6,7 +6,8 @@ internal enum LinqOptimizations {
     Rewrite = 1,
     PipelineFusion = 2,
     PredicatePushdown = 4,
-    All = Rewrite|PipelineFusion|PredicatePushdown,
+    ProjectionMerge = 8,
+    All = Rewrite|PipelineFusion|PredicatePushdown|ProjectionMerge,
 }
 
 internal static class LinqOptimizationContext {

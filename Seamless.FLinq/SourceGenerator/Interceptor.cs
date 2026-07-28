@@ -28,7 +28,8 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
                 Rewrite=1,
                 PipelineFusion=2,
                 PredicatePushdown=4,
-                All=Rewrite|PipelineFusion|PredicatePushdown,
+                ProjectionMerge=8,
+                All=Rewrite|PipelineFusion|PredicatePushdown|ProjectionMerge,
             }
             [global::System.Flags]
             internal enum LinqInstrumentation {

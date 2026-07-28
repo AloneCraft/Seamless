@@ -1,0 +1,21 @@
+namespace Benchmark.Optimization.ProjectionMerge {
+    public class ArrayInt32:global::Shared.Linq.Optimization.ProjectionMerge.Array<int>.Select_selector;
+    public class ArrayClassInt32:global::Shared.Linq.Optimization.ProjectionMerge.Array<ClassInt32>.Select_selector;
+    public class ArrayInt32Join:global::Shared.Linq.Optimization.ProjectionMerge.Array<int>.Join_inner;
+    public class ArrayClassInt32Join:global::Shared.Linq.Optimization.ProjectionMerge.Array<ClassInt32>.Join_inner;
+    public class ArrayInt32SelectMany:global::Shared.Linq.Optimization.ProjectionMerge.Array<int>.SelectMany_collection;
+    public class ArrayClassInt32SelectMany:global::Shared.Linq.Optimization.ProjectionMerge.Array<ClassInt32>.SelectMany_collection;
+    public class IEnumerableInt32:global::Shared.Linq.Optimization.ProjectionMerge.IEnumerable<int>.Select_selector;
+    public class IEnumerableClassInt32:global::Shared.Linq.Optimization.ProjectionMerge.IEnumerable<ClassInt32>.Select_selector;
+    public class IEnumerableInt32Join:global::Shared.Linq.Optimization.ProjectionMerge.IEnumerable<int>.Join_inner;
+    public class IEnumerableClassInt32Join:global::Shared.Linq.Optimization.ProjectionMerge.IEnumerable<ClassInt32>.Join_inner;
+    public class IEnumerableInt32SelectMany:global::Shared.Linq.Optimization.ProjectionMerge.IEnumerable<int>.SelectMany_collection;
+    public class IEnumerableClassInt32SelectMany:global::Shared.Linq.Optimization.ProjectionMerge.IEnumerable<ClassInt32>.SelectMany_collection;
+    public class ListInt32:global::Shared.Linq.Optimization.ProjectionMerge.List<int>;
+    public class ListClassInt32:global::Shared.Linq.Optimization.ProjectionMerge.List<ClassInt32>;
+    public class Range_start_count:global::Shared.Linq.Optimization.ProjectionMerge.Range;
+    public class PersistedInt32:global::Shared.Linq.Optimization.ProjectionMerge.Persisted<int>;
+    public class PersistedClassInt32:global::Shared.Linq.Optimization.ProjectionMerge.Persisted<ClassInt32>;
+    public class TsavoriteInt32:global::Shared.Linq.Optimization.ProjectionMerge.Tsavorite<int>;
+    public class TsavoriteClassInt32:global::Shared.Linq.Optimization.ProjectionMerge.Tsavorite<ClassInt32>;
+}
