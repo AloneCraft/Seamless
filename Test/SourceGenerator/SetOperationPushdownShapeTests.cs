@@ -58,6 +58,20 @@ public sealed class SetOperationPushdownShapeTests(ITestOutputHelper output) {
         }
         """;
 
+    private const string ConcatSample = """
+        using System.Collections.Generic;
+        using System.Linq;
+        using Seamless.FLinq;
+        namespace Sample;
+        public class Container {
+            [LinqIntercept(true,Optimizations=OPTIMIZATIONS)]
+            private static List<int> Filter(int[] outer,int[] inner) =>
+                outer.Concat(inner).Where(static v => v>777).ToList();
+            public void Run(int[] outer,int[] inner) => _ = Filter(outer,inner);
+        }
+        """;
+
+
     [Fact]
     public void UnionDistributesToBothSides() {
         var generated = GeneratedSource(UnionSample.Replace("OPTIMIZATIONS","LinqOptimizations.All",StringComparison.Ordinal));
@@ -105,6 +119,19 @@ public sealed class SetOperationPushdownShapeTests(ITestOutputHelper output) {
         GeneratedSourceAssert.True(
             !IsPredicateBeforeBinaryStage(generated),
             "Disabling PredicatePushdown must keep Where fused after the Except stage, not pushed before it.",
+            generated,
+            output);
+    }
+
+    // Concat は一度押し下げを実装したが、述語評価回数も通過要素数も変わらず利得ゼロだったため除去した。
+    // PredicatePushdown を有効にしても述語が二項 struct より後に留まることを固定する。
+    [Fact]
+    public void ConcatKeepsWhereAfterOperation() {
+        var generated = GeneratedSource(ConcatSample.Replace("OPTIMIZATIONS","LinqOptimizations.Rewrite|LinqOptimizations.PredicatePushdown",StringComparison.Ordinal));
+
+        GeneratedSourceAssert.True(
+            !IsPredicateBeforeBinaryStage(generated),
+            "Concat must not receive a pushed-down Where; distributing it saves no work.",
             generated,
             output);
     }

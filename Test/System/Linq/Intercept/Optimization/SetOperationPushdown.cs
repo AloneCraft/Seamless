@@ -152,4 +152,28 @@ public sealed class SetOperationPushdown:OptimizationTestBase {
         DuplicateKeyItems().UnionBy(SecondDuplicateKeyItems(),static x => x.Key)
             .Where(static x => x.Name=="b")
             .ToList();
+
+    // DistinctBy も UnionBy/ExceptBy/IntersectBy と同じ「キーごとに代表を1つ選ぶ」操作。
+    // Key=1 の代表は素通しなら先頭の (1,1,"a") だが、Where を先に通すと (2,1,"b") が代表になる。
+    // 押し下げていたら Optimized だけ [(2,1,"b")] を返し expected([]) と食い違う。
+    [Fact, Trait("Category","Unit")]
+    public static void DistinctByDuplicateKeyRegression() {
+        var expected = DuplicateKeyItems().DistinctBy(static x => x.Key)
+            .Where(static x => x.Name=="b")
+            .ToList();
+        AssertSequenceEqual(expected,DistinctByDuplicateKeyRegressionOptimized());
+        AssertSequenceEqual(expected,DistinctByDuplicateKeyRegressionNoOptimized());
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static List<Item> DistinctByDuplicateKeyRegressionOptimized() =>
+        DuplicateKeyItems().DistinctBy(static x => x.Key)
+            .Where(static x => x.Name=="b")
+            .ToList();
+
+    [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
+    private static List<Item> DistinctByDuplicateKeyRegressionNoOptimized() =>
+        DuplicateKeyItems().DistinctBy(static x => x.Key)
+            .Where(static x => x.Name=="b")
+            .ToList();
 }

@@ -10,7 +10,9 @@ public abstract class Range(int count = 4_096):global::Common.Base<int>(count) {
     [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Join_inner_Where_bothSides_Impl() => global::System.Linq.Enumerable.Range(1,this.EffectiveSourceCount(4_096)).Join(this.SecondRange(),static outer => outer,static inner => inner,static (outer,inner) => (Outer: outer,Inner: inner)).Where(static pair => (pair.Outer&1)==0&&(pair.Inner&3)==0).Consume(this.consumer);
     [BenchFact, Benchmark] public void Join_inner_Where_constant() => this.Join_inner_Where_constant_Impl();
     [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Join_inner_Where_constant_Impl() => global::System.Linq.Enumerable.Range(1,this.EffectiveSourceCount(4_096)).Join(this.SecondRange(),static outer => outer,static inner => inner,static (outer,inner) => (Outer: outer,Inner: inner)).Where(static pair => global::Common.HoistInvariant.Value()>0&&global::Common.HoistInvariant.Value()<100).Consume(this.consumer);
-    // Union/Concat は要素そのものをキーにするため両辺へ Where を押し下げる。Except/Intersect は第1ソースのみ。
+    // Union は両辺へ、Except/Intersect は第1ソースへ Where を押し下げる。
+    // Concat は一度両辺押し下げを実装したが、述語評価回数も通過要素数も変わらず利得ゼロだったため
+    // 対象外にした。押し下げが効かない対照として計測は残す。
     [BenchFact, Benchmark] public void Union_second_Where_predicate() => this.Union_second_Where_predicate_Impl();
     [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Union_second_Where_predicate_Impl() => global::System.Linq.Enumerable.Range(1,this.EffectiveSourceCount(4_096)).Union(this.SecondRange()).Where(static value => (value&1)==0).Consume(this.consumer);
     [BenchFact, Benchmark] public void Concat_second_Where_predicate() => this.Concat_second_Where_predicate_Impl();

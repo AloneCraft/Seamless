@@ -9,8 +9,8 @@ public abstract class Array<T>where T : notnull {
         public void Where_predicate() => this.Where_predicate_Impl();
         [LinqIntercept(true,Optimizations=OptimizationSettings.Value)]
         private void Where_predicate_Impl() => this.srcCount(4_096)
-                                                   .Select(static value => (Value: value,Number: ToInt(value)))
-                                                   .Where(static value => (value.Number&1)==0)
+                                                   .Select(static value => (Value: value,Number: value))
+                                                   .Where(static value => (ToInt(value.Number)&1)==0)
                                                    .Consume(this.consumer);
     }
     /// <summary>
@@ -48,7 +48,9 @@ public abstract class Array<T>where T : notnull {
                                                   .Consume(this.consumer);
     }
     /// <summary>
-    /// Union/Concat は要素そのものをキーにするため選択の分配則がそのまま成り立ち、両辺へ Where を押し下げる。
+    /// Union は要素そのものをキーにするため選択の分配則が成り立ち、両辺へ Where を押し下げる。
+    /// Concat も分配則自体は成り立つが、述語評価回数も通過要素数も変わらず利得ゼロだったため
+    /// 一度実装したうえで対象外にした。押し下げが効かない対照として計測は残す。
     /// </summary>
     public class Union_second(int count=4_096):global::Common.Base<T>(count) {
         [BenchFact,Benchmark]

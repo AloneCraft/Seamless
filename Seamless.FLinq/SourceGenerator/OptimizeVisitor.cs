@@ -223,22 +223,35 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 ||node.Parent is MemberBindingExpressionSyntax;
         }
     }
+    // Distinct は要素そのものをキーにするため、同じキーの要素は必ず同じ述語結果を持つ。
+    // どれが代表として残っても結果は変わらないので押し下げてよい。
     private static readonly HashSet<string> PushWhereThroughUnaryMethods = new(StringComparer.Ordinal){
-        "Distinct","DistinctBy","Order","OrderBy","OrderDescending","OrderByDescending","Reverse",
+        "Distinct","Order","OrderBy","OrderDescending","OrderByDescending","Reverse",
     };
     private static readonly HashSet<string> OrderMethods = new(StringComparer.Ordinal){
         "Order","OrderBy","OrderDescending","OrderByDescending",
     };
-    // Except/Intersect は要素そのものをキーにするため選択の分配則がそのまま成り立つ。
-    // ExceptBy/IntersectBy(および UnionBy)はキーで代表を1つ選ぶ操作(FIRST_VALUE() OVER
-    // (PARTITION BY key) 相当)を内包しており、同じキーでも値・述語の結果が異なる要素が
-    // 存在しうるため、フィルタを先に通すと代表選択自体が変わり結果が変わりうる。
-    // keySelector の単射性は静的に判定できないため、By系への Where 押し下げは対象外にする。
+    // 【再追加禁止】DistinctBy/ExceptBy/IntersectBy/UnionBy への押し下げは実装しない。
+    // DistinctBy は一度実装していたが不健全だったため除去した(SetOperationPushdown.
+    // DistinctByDuplicateKeyRegression が退行テスト)。By系はキーで代表を1つ選ぶ操作
+    // (FIRST_VALUE() OVER (PARTITION BY key) 相当)を内包しており、同じキーでも値・述語の
+    // 結果が異なる要素が存在しうるため、フィルタを先に通すと代表選択自体が変わり結果が変わる。
+    //   src=[(Key:1,Val:1),(Key:1,Val:2)] に対し
+    //   src.DistinctBy(x=>x.Key).Where(x=>x.Val==2) は 代表(1,1) が述語で落ちて []
+    //   src.Where(x=>x.Val==2).DistinctBy(x=>x.Key) は (1,2) が代表になり [(1,2)]
+    // keySelector の単射性は静的に判定できないため、By系は一律に対象外とする。
+    // Except/Intersect(非By)は要素そのものがキーなので選択の分配則が成り立ち、押し下げてよい。
     private static readonly HashSet<string> PushWhereThroughFirstSourceMethods = new(StringComparer.Ordinal){
         "Except","Intersect",
     };
+    // 【再追加禁止】Concat への押し下げは実装しない。一度実装して計測したが利得がゼロだった。
+    // σ_p(A++B) = σ_p(A)++σ_p(B) は成り立つものの、述語評価回数も通過要素数も変わらないため
+    // 実行時間は原理的に改善しない。一方で述語が両辺へ複製されて生成コードが倍増し、
+    // 第2ソース側は引数位置にあってフラグメント化されないので素の System.Linq.Where
+    // (boxing + デリゲート + interface dispatch)へ落ちる。差し引きで損になる。
+    // Union は残す。ハッシュ集合へ入る要素数が実際に減るので利得がある。
     private static readonly HashSet<string> PushWhereThroughBothSourceMethods = new(StringComparer.Ordinal){
-        "Concat","Union",
+        "Union",
     };
     public static TSyntax RewriteQueriesToExtensionMethods<TSyntax>(TSyntax syntax) where TSyntax : SyntaxNode {
         return new QueryToExtensionMethodRewriter().Visit(syntax) as TSyntax??syntax;
