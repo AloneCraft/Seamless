@@ -35,6 +35,22 @@ internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IR
     public override string? NonEnumeratedCountExpression => this.StagesCountPreserving ? source.NonEnumeratedCountExpression : null;
     public override bool CountPreserving => source.CountPreserving&&this.StagesCountPreserving;
     public override bool CanTryProvideSpan => this.SingleDefaultIfEmpty&&source.CanTryProvideSpan;
+    // SecondSources は stages(PipelineStage の一覧)の中に埋もれているため、Fragment 型フィールドを
+    // 走査するリフレクションベースの伝播(基底実装)からは見えない。ここで明示的に伝播しないと、
+    // 二入力集合演算(Union/Except 等)へ Where が融合されたとき、開いたジェネリック型引数(T)を
+    // 参照する第2ソース側の struct が T/@this を解決できず生成コードが壊れる。
+    public override void PropagateOuterTypeParameters(string[] outerTypeParameters) {
+        base.PropagateOuterTypeParameters(outerTypeParameters);
+        foreach(var second in this.SecondSources) {
+            second.PropagateOuterTypeParameters(outerTypeParameters);
+        }
+    }
+    public override void PropagateContainingTypeName(string? name,string[]? outerTypeParameters = null) {
+        base.PropagateContainingTypeName(name,outerTypeParameters);
+        foreach(var second in this.SecondSources) {
+            second.PropagateContainingTypeName(name,outerTypeParameters);
+        }
+    }
     private void AppendCounterCall(StringBuilder builder,string indent,string methodName) {
         var call = this.CounterCall(methodName);
         if(!string.IsNullOrEmpty(call)) {
@@ -68,7 +84,9 @@ internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IR
             for(var index = 0;index<secondSources.Length;index++) {
                 parameters.Add(SecondTypeParameterName(index));
             }
-            return $"<{string.Join(", ",parameters)}>";
+            // OuterTypeParameters(含有型がジェネリックな場合の T 等)を先頭に付けないと、
+            // ソースが開いたジェネリック型引数のときに struct 本体が参照する T が未解決になる。
+            return this.StructTypeParametersWithOuter(parameters.ToArray());
         }
     }
     protected override string StructTypeConstraints {
@@ -88,7 +106,8 @@ internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IR
             }
             var arguments = new List<string> { source.EnumeratorTypeName };
             arguments.AddRange(secondSources.Select(static second => second.EnumeratorTypeName));
-            return $"{this.Struct}<{string.Join(", ",arguments)}>";
+            // StructTypeParameters と対にして OuterTypeParameters を先頭に付ける(型引数の個数を揃える)。
+            return this.EnumeratorTypeNameWithOuter(arguments.ToArray());
         }
     }
     public override string GetEnumeratorExpression {

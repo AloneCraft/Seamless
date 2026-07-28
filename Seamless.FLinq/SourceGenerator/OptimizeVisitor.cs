@@ -229,8 +229,13 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
     private static readonly HashSet<string> OrderMethods = new(StringComparer.Ordinal){
         "Order","OrderBy","OrderDescending","OrderByDescending",
     };
+    // Except/Intersect は要素そのものをキーにするため選択の分配則がそのまま成り立つ。
+    // ExceptBy/IntersectBy(および UnionBy)はキーで代表を1つ選ぶ操作(FIRST_VALUE() OVER
+    // (PARTITION BY key) 相当)を内包しており、同じキーでも値・述語の結果が異なる要素が
+    // 存在しうるため、フィルタを先に通すと代表選択自体が変わり結果が変わりうる。
+    // keySelector の単射性は静的に判定できないため、By系への Where 押し下げは対象外にする。
     private static readonly HashSet<string> PushWhereThroughFirstSourceMethods = new(StringComparer.Ordinal){
-        "Except","ExceptBy","Intersect","IntersectBy",
+        "Except","Intersect",
     };
     private static readonly HashSet<string> PushWhereThroughBothSourceMethods = new(StringComparer.Ordinal){
         "Concat","Union",

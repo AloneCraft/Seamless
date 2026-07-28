@@ -47,4 +47,47 @@ public abstract class Array<T>where T : notnull {
                                                   .Where(static pair => global::Common.HoistInvariant.Value()>0&&global::Common.HoistInvariant.Value()<100)
                                                   .Consume(this.consumer);
     }
+    /// <summary>
+    /// Union/Concat は要素そのものをキーにするため選択の分配則がそのまま成り立ち、両辺へ Where を押し下げる。
+    /// </summary>
+    public class Union_second(int count=4_096):global::Common.Base<T>(count) {
+        [BenchFact,Benchmark]
+        public void Where_predicate() => this.Where_predicate_Impl();
+        [LinqIntercept(true,Optimizations=OptimizationSettings.Value)]
+        private void Where_predicate_Impl() => this.srcCount(4_096)
+                                                   .Union(this.src2Count(4_096))
+                                                   .Where(static value => (ToInt(value)&1)==0)
+                                                   .Consume(this.consumer);
+    }
+    public class Concat_second(int count=4_096):global::Common.Base<T>(count) {
+        [BenchFact,Benchmark]
+        public void Where_predicate() => this.Where_predicate_Impl();
+        [LinqIntercept(true,Optimizations=OptimizationSettings.Value)]
+        private void Where_predicate_Impl() => this.srcCount(4_096)
+                                                   .Concat(this.src2Count(4_096))
+                                                   .Where(static value => (ToInt(value)&1)==0)
+                                                   .Consume(this.consumer);
+    }
+    /// <summary>
+    /// Except/Intersect も要素そのものをキーにするため安全だが、第1ソースのみへ押し下げる
+    /// (第2ソース側は集合の意味上そもそも押し下げ不可)。
+    /// </summary>
+    public class Except_first(int count=4_096):global::Common.Base<T>(count) {
+        [BenchFact,Benchmark]
+        public void Where_predicate() => this.Where_predicate_Impl();
+        [LinqIntercept(true,Optimizations=OptimizationSettings.Value)]
+        private void Where_predicate_Impl() => this.srcCount(4_096)
+                                                   .Except(this.src2Count(4_096))
+                                                   .Where(static value => (ToInt(value)&1)==0)
+                                                   .Consume(this.consumer);
+    }
+    public class Intersect_first(int count=4_096):global::Common.Base<T>(count) {
+        [BenchFact,Benchmark]
+        public void Where_predicate() => this.Where_predicate_Impl();
+        [LinqIntercept(true,Optimizations=OptimizationSettings.Value)]
+        private void Where_predicate_Impl() => this.srcCount(4_096)
+                                                   .Intersect(this.src2Count(4_096))
+                                                   .Where(static value => (ToInt(value)&1)==0)
+                                                   .Consume(this.consumer);
+    }
 }

@@ -35,6 +35,9 @@
 | Join / anonymous / hashing テスト | `Test/System/Linq/Intercept/Optimization/JoinHashing.cs` |
 | 射影融合の意味保存テスト | `Test/System/Linq/Intercept/Optimization/ProjectionMerge.cs`, `JoinSelectFusion.cs` |
 | 射影融合の生成形状テスト | `Test/SourceGenerator/ProjectionMergeShapeTests.cs` |
+| 集合演算への Where 分配の意味保存テスト | `Test/System/Linq/Intercept/Optimization/SetOperationPushdown.cs` |
+| 集合演算への Where 分配の生成形状テスト | `Test/SourceGenerator/SetOperationPushdownShapeTests.cs` |
+| PipelineEnumerable の二入力(SecondSources)ジェネリック伝播 | `Seamless.FLinq/SourceGenerator/Linq/Fragments/PipelineEnumerable.cs` |
 
 ## 用語
 
@@ -322,6 +325,47 @@ outer.Where(o => o.Id>1)
     .Where(x => x.o.Id<x.i.Id)
 ```
 
+
+## 集合演算(Union/Except/Intersect/Concat)への `Where` 分配仕様
+
+`OptimizeVisitor.PushWhereThroughBothSourceMethods`(Concat/Union)と `PushWhereThroughFirstSourceMethods`(Except/Intersect)が対象。要素そのものを比較キーにする集合演算は、選択の分配則
+
+```
+σ_p(A∪B) = σ_p(A)∪σ_p(B)
+σ_p(A−B) = σ_p(A)−B
+σ_p(A∩B) = σ_p(A)∩B
+```
+
+がそのまま成り立つ。同じ値の要素は必ず同じ `p` の結果を持つため、どちらが「代表」として残るかに依存しない。
+
+| 演算子 | 押し下げ方向 |
+| --- | --- |
+| `Union`/`Concat` | 両辺(`TryPushWhereThroughBothSources`) |
+| `Except`/`Intersect` | 第1ソースのみ(`PushWhereBeforeSource`)。第2ソース側は集合の意味上そもそも押し下げ不可 |
+
+### By系(`UnionBy`/`ExceptBy`/`IntersectBy`)は対象外(意図的)
+
+By系は「キーで代表を1つ選ぶ」操作(`FIRST_VALUE() OVER (PARTITION BY key ORDER BY 出現順)` 相当)を内包する。キーは値そのものではなく射影(`keySelector`)なので、同じキーでも値・述語の結果が異なる要素が存在しうる。フィルタを先に通すと「どの値が代表になるか」自体が変わるため、押し下げ方向(片側・両側いずれも)に関わらず結果が変わりうる。
+
+反例(`IntersectBy`、キー1が両方の要素に重複し、`p` の結果が割れる場合):
+
+```
+A = [(Id:1,Key:1,"a"), (Id:2,Key:1,"b")]、B のキーに 1 を含む、p(x) = x.Name=="b"
+現状:     IntersectBy(A,B,key) = [(Id:1,Key:1,"a")] → Where(p) → []
+押し下げ後: A.Where(p) = [(Id:2,Key:1,"b")] → IntersectBy(..,B,key) = [(Id:2,Key:1,"b")]
+```
+
+両辺へ押し下げても(`UnionBy` で試算)同様に結果が食い違う。唯一の例外は `keySelector` が単射(実質 `x=>x` と等価)な場合で、そのときは By系がそのまま `Union`/`Except`/`Intersect` に退化して安全になるが、単射性は静的に判定できない。したがって `PushWhereThroughFirstSourceMethods` には `Except`/`Intersect` のみを含め、`ExceptBy`/`IntersectBy` は対象から除外する(2026-07-28 に発見・修正した既存バグ。以前は無条件で押し下げており上記の反例で結果が変わっていた)。`UnionBy` も同じ理由で新規実装しない。
+
+### PipelineFusion との相互作用(生成コード形状テストの注意点)
+
+`LinqOptimizations.All`(PipelineFusion 込み)では、Union は「第1ソースの Where を独立した先行段」として残すが、Except は Where を Except 自身の struct 本体へ融合し直すため、生成コードの構造的シグネチャ(struct 宣言順)だけでは Except の ON/OFF を判定できない。`SetOperationPushdownShapeTests.cs` の Except 系テストは、この理由で `PredicatePushdown` の効果を単離して(`LinqOptimizations.Rewrite|LinqOptimizations.PredicatePushdown` 対 `LinqOptimizations.Rewrite`)検証する。
+
+### PipelineEnumerable の SecondSources ジェネリック伝播バグ(2026-07-28 発見・修正)
+
+`PipelineEnumerable`(複数 stage を1つの enumerator へ融合する Fragment)の `SecondSources`(`stages.Select(stage => stage.SecondSource)`)は `stages` フィールドの中に埋もれており、`Fragment.PropagateOuterTypeParameters`/`PropagateContainingTypeName` のリフレクションベースの子伝播(`Fragment` 型の直接フィールドだけを走査)からは不可視だった。そのため、開いたジェネリック型引数(ベンチマーククラスの `T` 等)を持つソースに対して Union/Except 等へ Where が融合されると、第2ソース側の生成 struct が `T` を解決できず `CS0246` になっていた(Union/Except のベンチマーク追加で新規発見)。
+
+`PipelineEnumerable` に `PropagateOuterTypeParameters`/`PropagateContainingTypeName` の override を追加し、`base` 呼び出し後に `this.SecondSources` へも明示的に伝播するよう修正した。あわせて `StructTypeParameters`/`EnumeratorTypeName` が `SecondSources` を含む場合に `OuterTypeParameters` を手動再構築していて `StructTypeParametersWithOuter`/`EnumeratorTypeNameWithOuter`(Join/Concat/Zip/SetBase 等が使う既存ヘルパ)を経由していなかった点も合わせて修正した。
 
 ## `Select` 融合と result selector 吸収の仕様
 
@@ -1052,8 +1096,8 @@ flowchart TD
 | `Join` / `LeftJoin` | outer/inner 片側依存なら葉へ移動。両側依存は連言分割して部分押し下げ。`LeftJoin` は outer 側のみ |
 | `Distinct`, `Reverse` | predicate が要素値だけを使うなら source 前へ移動 |
 | `OrderBy` | source がスパンを出せる先頭 Order のときはソート済みスパン高速パスを守るため移動しない |
-| `Concat`, `Union` | predicate を左右両 source へ複製 |
-| `Except`, `Intersect` | first source 側にだけ安全に移動 |
+| `Concat`, `Union` | predicate を左右両 source へ複製(**実装済み**。詳細は「集合演算への `Where` 分配仕様」節) |
+| `Except`, `Intersect` | first source 側にだけ安全に移動(**実装済み**。`ExceptBy`/`IntersectBy`/`UnionBy` は代表選択の不健全性のため対象外) |
 
 Anchor を含む predicate は複製・順序変更を避ける。
 
