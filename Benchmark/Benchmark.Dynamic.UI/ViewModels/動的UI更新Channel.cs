@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Threading.Channels;
 
-namespace Benchmark.Dynamic;
+namespace Benchmark.Dynamic.UI;
 
 public sealed class 動的UI更新Channel:IAsyncDisposable{
     private readonly Channel<更新項目> channel=Channel.CreateUnbounded<更新項目>(new UnboundedChannelOptions{

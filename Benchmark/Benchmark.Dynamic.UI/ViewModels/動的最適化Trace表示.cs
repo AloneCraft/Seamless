@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Benchmark.Dynamic;
+namespace Benchmark.Dynamic.UI;
 
 public enum 動的最適化Trace表示種別{
     Document,

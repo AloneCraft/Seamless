@@ -6,9 +6,9 @@ namespace Benchmark.Dynamic.Tests;
 public sealed class 動的ソース結果画面モデル {
     [Fact,Trait("Category","Unit")]
     public void 行一覧() {
-        var 共有=new ObservableCollection<global::Benchmark.Dynamic.動的結果行>();
-        var 対象=new global::Benchmark.Dynamic.動的ソース結果画面モデル(SourceTarget.SystemArray,共有);
-        共有.Add(new global::Benchmark.Dynamic.動的結果行 {
+        var 共有=new ObservableCollection<global::Benchmark.Dynamic.UI.動的結果行>();
+        var 対象=new global::Benchmark.Dynamic.UI.動的ソース結果画面モデル(SourceTarget.SystemArray,共有);
+        共有.Add(new global::Benchmark.Dynamic.UI.動的結果行 {
             実行ID="run",
             QueryID="query-array",
             対象=SourceTarget.SystemArray,
@@ -17,7 +17,7 @@ public sealed class 動的ソース結果画面モデル {
             N=1,
             深度=1,
         });
-        共有.Add(new global::Benchmark.Dynamic.動的結果行 {
+        共有.Add(new global::Benchmark.Dynamic.UI.動的結果行 {
             実行ID="run",
             QueryID="query-list",
             対象=SourceTarget.SystemList,

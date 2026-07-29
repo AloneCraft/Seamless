@@ -1,4 +1,5 @@
 using Benchmark.Dynamic.Core;
+using Benchmark.Dynamic.UI;
 
 namespace Benchmark.Dynamic.Tests;
 
@@ -6,7 +7,7 @@ public sealed class 動的ベンチマーク画面モデル {
     [Fact,Trait("Category","Unit")]
     public void Constructor() {
         var 設定=new メモリ設定();
-        var 対象=new global::Benchmark.Dynamic.動的ベンチマーク画面モデル(new 偽実行調停(),設定);
+        var 対象=new global::Benchmark.Dynamic.UI.動的ベンチマーク画面モデル(new 偽実行調停(),設定);
         Assert.Equal(10,対象.Query数);
         Assert.Equal(8,対象.N);
         Assert.Equal(1024,対象.入力要素数);
@@ -34,7 +35,7 @@ public sealed class 動的ベンチマーク画面モデル {
                 削除済みか=true,
             }],
         };
-        var 対象=new global::Benchmark.Dynamic.動的ベンチマーク画面モデル(調停,new メモリ設定());
+        var 対象=new global::Benchmark.Dynamic.UI.動的ベンチマーク画面モデル(調停,new メモリ設定());
         Assert.Equal("run-history",Assert.Single(対象.履歴一覧).実行ID);
         Assert.Equal("run-trash",Assert.Single(対象.ごみ箱一覧).実行ID);
     }
@@ -50,7 +51,7 @@ public sealed class 動的ベンチマーク画面モデル {
             ["Benchmark.Dynamic.選択ソース"]="UnknownSource",
         };
 
-        var 対象=new global::Benchmark.Dynamic.動的ベンチマーク画面モデル(new 偽実行調停(),設定);
+        var 対象=new global::Benchmark.Dynamic.UI.動的ベンチマーク画面モデル(new 偽実行調停(),設定);
 
         Assert.Equal(1,対象.Query数);
         Assert.Equal(64,対象.N);
@@ -62,7 +63,7 @@ public sealed class 動的ベンチマーク画面モデル {
 
     [Fact,Trait("Category","Unit")]
     public void N() {
-        var 対象=new global::Benchmark.Dynamic.動的ベンチマーク画面モデル(new 偽実行調停(),new メモリ設定());
+        var 対象=new global::Benchmark.Dynamic.UI.動的ベンチマーク画面モデル(new 偽実行調停(),new メモリ設定());
         対象.Query数=0;
         Assert.Equal(1,対象.Query数);
         対象.Query数=1001;
@@ -82,7 +83,7 @@ public sealed class 動的ベンチマーク画面モデル {
         var 設定=new メモリ設定 {
             ["Benchmark.Dynamic.選択ソース"]="SystemList,SeamlessTsavorite",
         };
-        var 対象=new global::Benchmark.Dynamic.動的ベンチマーク画面モデル(new 偽実行調停(),設定);
+        var 対象=new global::Benchmark.Dynamic.UI.動的ベンチマーク画面モデル(new 偽実行調停(),設定);
         Assert.Equal(
             [SourceTarget.SystemList,SourceTarget.SeamlessTsavorite],
             対象.ソース選択一覧.Where(項目=>項目.選択済みか).Select(項目=>項目.対象));
@@ -91,7 +92,7 @@ public sealed class 動的ベンチマーク画面モデル {
     [Fact,Trait("Category","Unit")]
     public void 設定復元Seed再生成コマンド() {
         var 調停=new 偽実行調停 {
-            実行条件=new global::Benchmark.Dynamic.動的実行条件Snapshot(
+            実行条件=new global::Benchmark.Dynamic.UI.動的実行条件Snapshot(
                 1,
                 23,
                 12,
@@ -106,7 +107,7 @@ public sealed class 動的ベンチマーク画面モデル {
                 BuiltInOperatorCatalog.OperatorSetVersion,
                 "capability"),
         };
-        var 対象=new global::Benchmark.Dynamic.動的ベンチマーク画面モデル(調停,new メモリ設定());
+        var 対象=new global::Benchmark.Dynamic.UI.動的ベンチマーク画面モデル(調停,new メモリ設定());
         var 履歴=new 動的履歴項目 {
             実行ID="run-settings",
             開始日時=DateTimeOffset.UnixEpoch,
@@ -126,7 +127,7 @@ public sealed class 動的ベンチマーク画面モデル {
         Assert.NotEqual("0x1",対象.Seed文字列);
     }
 
-    private sealed class メモリ設定:Dictionary<string,object>,global::Benchmark.Dynamic.I動的UI設定 {
+    private sealed class メモリ設定:Dictionary<string,object>,global::Benchmark.Dynamic.UI.I動的UI設定 {
         public T 取得<T>(string キー,T 既定値) {
             return this.TryGetValue(キー,out var 値)&&値 is T 型付き?型付き:既定値;
         }
@@ -136,43 +137,43 @@ public sealed class 動的ベンチマーク画面モデル {
         }
     }
 
-    private sealed class 偽実行調停:global::Benchmark.Dynamic.I動的実行調停サービス {
-        public IReadOnlyList<global::Benchmark.Dynamic.動的履歴項目> 履歴{get;init;}=[];
-        public IReadOnlyList<global::Benchmark.Dynamic.動的履歴項目> ごみ箱{get;init;}=[];
-        public global::Benchmark.Dynamic.動的実行条件Snapshot? 実行条件{get;init;}
+    private sealed class 偽実行調停:global::Benchmark.Dynamic.UI.I動的実行調停サービス {
+        public IReadOnlyList<global::Benchmark.Dynamic.UI.動的履歴項目> 履歴{get;init;}=[];
+        public IReadOnlyList<global::Benchmark.Dynamic.UI.動的履歴項目> ごみ箱{get;init;}=[];
+        public global::Benchmark.Dynamic.UI.動的実行条件Snapshot? 実行条件{get;init;}
 
-        public Task<global::Benchmark.Dynamic.動的履歴項目> 実行Async(
-            global::Benchmark.Dynamic.動的実行設定 設定,
-            Action<global::Benchmark.Dynamic.動的結果行> 結果受信時,
-            Action<global::Benchmark.Dynamic.動的実行進捗> 進捗受信時) {
+        public Task<global::Benchmark.Dynamic.UI.動的履歴項目> 実行Async(
+            global::Benchmark.Dynamic.UI.動的実行設定 設定,
+            Action<global::Benchmark.Dynamic.UI.動的結果行> 結果受信時,
+            Action<global::Benchmark.Dynamic.UI.動的実行進捗> 進捗受信時) {
             throw new NotSupportedException();
         }
 
-        public Task<global::Benchmark.Dynamic.動的履歴項目> Runを再実行Async(
+        public Task<global::Benchmark.Dynamic.UI.動的履歴項目> Runを再実行Async(
             string 親実行ID,
-            Action<global::Benchmark.Dynamic.動的結果行> 結果受信時,
-            Action<global::Benchmark.Dynamic.動的実行進捗> 進捗受信時) {
+            Action<global::Benchmark.Dynamic.UI.動的結果行> 結果受信時,
+            Action<global::Benchmark.Dynamic.UI.動的実行進捗> 進捗受信時) {
             throw new NotSupportedException();
         }
 
-        public Task<global::Benchmark.Dynamic.動的履歴項目> Queryを再実行Async(
+        public Task<global::Benchmark.Dynamic.UI.動的履歴項目> Queryを再実行Async(
             string 親QueryID,
-            Action<global::Benchmark.Dynamic.動的結果行> 結果受信時,
-            Action<global::Benchmark.Dynamic.動的実行進捗> 進捗受信時) {
+            Action<global::Benchmark.Dynamic.UI.動的結果行> 結果受信時,
+            Action<global::Benchmark.Dynamic.UI.動的実行進捗> 進捗受信時) {
             throw new NotSupportedException();
         }
 
-        public Task<global::Benchmark.Dynamic.動的履歴項目> 複数Queryを再実行Async(
+        public Task<global::Benchmark.Dynamic.UI.動的履歴項目> 複数Queryを再実行Async(
             IReadOnlyList<string> 親QueryID一覧,
-            Action<global::Benchmark.Dynamic.動的結果行> 結果受信時,
-            Action<global::Benchmark.Dynamic.動的実行進捗> 進捗受信時) {
+            Action<global::Benchmark.Dynamic.UI.動的結果行> 結果受信時,
+            Action<global::Benchmark.Dynamic.UI.動的実行進捗> 進捗受信時) {
             throw new NotSupportedException();
         }
 
-        public Task<global::Benchmark.Dynamic.動的履歴項目> Queryを縮小Async(
+        public Task<global::Benchmark.Dynamic.UI.動的履歴項目> Queryを縮小Async(
             string 親QueryID,
-            Action<global::Benchmark.Dynamic.動的結果行> 結果受信時,
-            Action<global::Benchmark.Dynamic.動的実行進捗> 進捗受信時) {
+            Action<global::Benchmark.Dynamic.UI.動的結果行> 結果受信時,
+            Action<global::Benchmark.Dynamic.UI.動的実行進捗> 進捗受信時) {
             throw new NotSupportedException();
         }
 
@@ -180,11 +181,11 @@ public sealed class 動的ベンチマーク画面モデル {
             return Task.CompletedTask;
         }
 
-        public IReadOnlyList<global::Benchmark.Dynamic.動的履歴項目> 履歴を取得(bool ごみ箱か) {
+        public IReadOnlyList<global::Benchmark.Dynamic.UI.動的履歴項目> 履歴を取得(bool ごみ箱か) {
             return ごみ箱か?this.ごみ箱:this.履歴;
         }
 
-        public global::Benchmark.Dynamic.動的実行条件Snapshot 実行条件を取得(string 実行ID) {
+        public global::Benchmark.Dynamic.UI.動的実行条件Snapshot 実行条件を取得(string 実行ID) {
             return this.実行条件??throw new NotSupportedException();
         }
 

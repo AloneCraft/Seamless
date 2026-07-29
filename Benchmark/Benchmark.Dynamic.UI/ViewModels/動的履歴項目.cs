@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace Benchmark.Dynamic;
+namespace Benchmark.Dynamic.UI;
 
 public sealed class 動的履歴項目:ObservableObject {
     private bool 削除済み状態か;

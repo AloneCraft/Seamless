@@ -1,7 +1,7 @@
 using Benchmark.Dynamic.Core;
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace Benchmark.Dynamic;
+namespace Benchmark.Dynamic.UI;
 
 public sealed class 動的結果行:ObservableObject {
     private bool 選択済み状態か;

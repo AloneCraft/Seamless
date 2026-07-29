@@ -34,7 +34,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
-    <ProjectReference Include="..\Benchmark\Benchmark.Dynamic\Benchmark.Dynamic.csproj" Condition="'$(CoreOnly)'!='true'" />
+    <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.UI\Benchmark.Dynamic.UI.csproj" Condition="'$(CoreOnly)'!='true'" />
     <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Core\Benchmark.Dynamic.Core.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Infrastructure\Benchmark.Dynamic.Infrastructure.csproj" Condition="'$(CoreOnly)'!='true'" />
     <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Worker\Benchmark.Dynamic.Worker.csproj" Condition="'$(CoreOnly)'!='true'" />

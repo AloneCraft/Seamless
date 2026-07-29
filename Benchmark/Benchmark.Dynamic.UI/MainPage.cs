@@ -4,7 +4,7 @@ using Syncfusion.Maui.DataGrid;
 using Syncfusion.Maui.Toolkit.TabView;
 using System.ComponentModel;
 
-namespace Benchmark.Dynamic;
+namespace Benchmark.Dynamic.UI;
 
 public sealed class MainPage:ContentPage {
     private readonly 動的ベンチマーク画面モデル 画面モデル;

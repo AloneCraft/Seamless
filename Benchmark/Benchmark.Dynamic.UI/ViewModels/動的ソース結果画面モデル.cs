@@ -2,7 +2,7 @@ using Benchmark.Dynamic.Core;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 
-namespace Benchmark.Dynamic;
+namespace Benchmark.Dynamic.UI;
 
 public sealed class 動的ソース結果画面モデル {
     private readonly ObservableCollection<動的結果行> 共有結果一覧;

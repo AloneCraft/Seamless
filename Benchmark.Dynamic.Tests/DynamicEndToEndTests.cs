@@ -13,14 +13,14 @@ public sealed class DynamicEndToEndTests{
         var runID="e2e-"+Guid.NewGuid().ToString("N");
         try{
             Assert.True(File.Exists(workerPath),$"Worker was not found: {workerPath}");
-            var rows=new ConcurrentBag<global::Benchmark.Dynamic.動的結果行>();
-            var progress=new ConcurrentBag<global::Benchmark.Dynamic.動的実行進捗>();
-            await using(var service=new global::Benchmark.Dynamic.動的実行調停サービス(
+            var rows=new ConcurrentBag<global::Benchmark.Dynamic.UI.動的結果行>();
+            var progress=new ConcurrentBag<global::Benchmark.Dynamic.UI.動的実行進捗>();
+            await using(var service=new global::Benchmark.Dynamic.UI.動的実行調停サービス(
                 databasePath,
                 workerPath,
                 new WorkerMeasurementProfile("E2E-v1",0,1,0,1))){
                 var history=await service.実行Async(
-                    new global::Benchmark.Dynamic.動的実行設定(
+                    new global::Benchmark.Dynamic.UI.動的実行設定(
                         runID,
                         1,
                         1,
@@ -135,12 +135,12 @@ public sealed class DynamicEndToEndTests{
                 SourceTarget.SystemArray,
                 root);
             QueryIrValidator.ValidateForExecutionAndThrow(query,32);
-            await using(var service=new global::Benchmark.Dynamic.動的実行調停サービス(
+            await using(var service=new global::Benchmark.Dynamic.UI.動的実行調停サービス(
                 databasePath,
                 workerPath,
                 new WorkerMeasurementProfile("Trace-v1",0,1,0,1))){
                 var history=await service.実行Async(
-                    new global::Benchmark.Dynamic.動的実行設定(
+                    new global::Benchmark.Dynamic.UI.動的実行設定(
                         runID,
                         1,
                         3,
@@ -196,12 +196,12 @@ public sealed class DynamicEndToEndTests{
         var runID="cancel-"+Guid.NewGuid().ToString("N");
         try{
             var sourceStarted=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            await using(var service=new global::Benchmark.Dynamic.動的実行調停サービス(
+            await using(var service=new global::Benchmark.Dynamic.UI.動的実行調停サービス(
                 databasePath,
                 workerPath,
                 new WorkerMeasurementProfile("Cancel-v1",2,7,25,1_048_576))){
                 var runTask=service.実行Async(
-                    new global::Benchmark.Dynamic.動的実行設定(
+                    new global::Benchmark.Dynamic.UI.動的実行設定(
                         runID,
                         3,
                         8,
@@ -241,12 +241,12 @@ public sealed class DynamicEndToEndTests{
         var workerPath=Path.Combine(AppContext.BaseDirectory,"Benchmark.Dynamic.Worker.exe");
         var parentRunID="replay-parent-"+Guid.NewGuid().ToString("N");
         try{
-            await using var service=new global::Benchmark.Dynamic.動的実行調停サービス(
+            await using var service=new global::Benchmark.Dynamic.UI.動的実行調停サービス(
                 databasePath,
                 workerPath,
                 new WorkerMeasurementProfile("Replay-v1",0,1,0,1));
             var parentHistory=await service.実行Async(
-                new global::Benchmark.Dynamic.動的実行設定(
+                new global::Benchmark.Dynamic.UI.動的実行設定(
                     parentRunID,
                     1,
                     1,

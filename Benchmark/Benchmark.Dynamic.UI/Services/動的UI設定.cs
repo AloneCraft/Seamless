@@ -1,4 +1,4 @@
-namespace Benchmark.Dynamic;
+namespace Benchmark.Dynamic.UI;
 
 public interface I動的UI設定 {
     T 取得<T>(string キー,T 既定値);

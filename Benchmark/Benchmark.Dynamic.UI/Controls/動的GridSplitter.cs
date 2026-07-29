@@ -1,4 +1,4 @@
-namespace Benchmark.Dynamic;
+namespace Benchmark.Dynamic.UI;
 
 public enum 動的分割方向 {
     垂直,

@@ -12,13 +12,13 @@ public sealed class DynamicWorkerRestartTests{
         var runID="restart-"+Guid.NewGuid().ToString("N");
         var client=new 再起動確認Client();
         try{
-            await using(var service=new global::Benchmark.Dynamic.動的実行調停サービス(
+            await using(var service=new global::Benchmark.Dynamic.UI.動的実行調停サービス(
                 databasePath,
                 typeof(DynamicWorkerRestartTests).Assembly.Location,
                 new WorkerMeasurementProfile("Restart-v1",0,1,0,1),
                 client)){
                 var history=await service.実行Async(
-                    new global::Benchmark.Dynamic.動的実行設定(
+                    new global::Benchmark.Dynamic.UI.動的実行設定(
                         runID,
                         4,
                         1,

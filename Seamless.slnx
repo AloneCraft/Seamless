@@ -29,7 +29,7 @@
     <Project Path="Benchmark/Benchmark.Scalable.Tsavorite.Collections/Benchmark.Scalable.Tsavorite.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj" />
     <Project Path="Benchmark/Benchmark.UI/Benchmark.UI.csproj" />
-    <Project Path="Benchmark/Benchmark.Dynamic/Benchmark.Dynamic.csproj" />
+    <Project Path="Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj" />
     <Project Path="Benchmark/Benchmark.Dynamic.Core/Benchmark.Dynamic.Core.csproj" />
     <Project Path="Benchmark/Benchmark.Dynamic.Infrastructure/Benchmark.Dynamic.Infrastructure.csproj" />
     <Project Path="Benchmark/Benchmark.Dynamic.Worker/Benchmark.Dynamic.Worker.csproj" />

@@ -1,4 +1,4 @@
-namespace Benchmark.Dynamic;
+namespace Benchmark.Dynamic.UI;
 
 public partial class App:Application {
     private readonly MainPage 起動ページ;

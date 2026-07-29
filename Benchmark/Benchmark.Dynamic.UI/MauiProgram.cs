@@ -1,7 +1,7 @@
 using Syncfusion.Maui.Core.Hosting;
 using Syncfusion.Maui.Toolkit.Hosting;
 
-namespace Benchmark.Dynamic;
+namespace Benchmark.Dynamic.UI;
 
 public static class MauiProgram {
     public static MauiApp CreateMauiApp() {

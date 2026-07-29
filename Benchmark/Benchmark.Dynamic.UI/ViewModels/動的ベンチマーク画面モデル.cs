@@ -4,7 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 
-namespace Benchmark.Dynamic;
+namespace Benchmark.Dynamic.UI;
 
 public sealed class 動的ベンチマーク画面モデル:ObservableObject {
     private const string 選択ソース設定キー="Benchmark.Dynamic.選択ソース";

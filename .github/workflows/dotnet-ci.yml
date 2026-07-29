@@ -79,11 +79,11 @@ jobs:
         run: dotnet --info
 
       - name: Restore MAUI workloads
-        run: dotnet workload restore .\Benchmark\Benchmark.Dynamic\Benchmark.Dynamic.csproj
+        run: dotnet workload restore .\Benchmark\Benchmark.Dynamic.UI\Benchmark.Dynamic.UI.csproj
 
       - name: Restore Dynamic projects
         run: |
-          dotnet restore .\Benchmark\Benchmark.Dynamic\Benchmark.Dynamic.csproj
+          dotnet restore .\Benchmark\Benchmark.Dynamic.UI\Benchmark.Dynamic.UI.csproj
           dotnet restore .\Benchmark.Dynamic.Tests\Benchmark.Dynamic.Tests.csproj
           dotnet restore .\Benchmark.Dynamic.UITests\Benchmark.Dynamic.UITests.csproj
           dotnet restore .\Test\Test.csproj
@@ -109,7 +109,7 @@ jobs:
 
       - name: Build Benchmark Dynamic
         run: >
-          dotnet build .\Benchmark\Benchmark.Dynamic\Benchmark.Dynamic.csproj
+          dotnet build .\Benchmark\Benchmark.Dynamic.UI\Benchmark.Dynamic.UI.csproj
           -c Release
           -f net10.0-windows
           --no-restore

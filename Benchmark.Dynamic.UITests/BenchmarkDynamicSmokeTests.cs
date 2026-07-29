@@ -9,7 +9,7 @@ public sealed class BenchmarkDynamicSmokeTests{
         var applicationPath=Environment.GetEnvironmentVariable("BENCHMARK_DYNAMIC_APP_PATH");
         Assert.False(
             string.IsNullOrWhiteSpace(applicationPath),
-            "BENCHMARK_DYNAMIC_APP_PATHにBenchmark.Dynamic.exeの絶対パスを指定してください。");
+            "BENCHMARK_DYNAMIC_APP_PATHにBenchmark.Dynamic.UI.exeの絶対パスを指定してください。");
         Assert.True(File.Exists(applicationPath),$"Application was not found: {applicationPath}");
         var serverText=Environment.GetEnvironmentVariable("BENCHMARK_DYNAMIC_APPIUM_SERVER")
             ??"http://127.0.0.1:4723";
