@@ -162,6 +162,13 @@ public sealed class 動的ベンチマーク画面モデル {
             throw new NotSupportedException();
         }
 
+        public Task<global::Benchmark.Dynamic.動的履歴項目> 複数Queryを再実行Async(
+            IReadOnlyList<string> 親QueryID一覧,
+            Action<global::Benchmark.Dynamic.動的結果行> 結果受信時,
+            Action<global::Benchmark.Dynamic.動的実行進捗> 進捗受信時) {
+            throw new NotSupportedException();
+        }
+
         public Task<global::Benchmark.Dynamic.動的履歴項目> Queryを縮小Async(
             string 親QueryID,
             Action<global::Benchmark.Dynamic.動的結果行> 結果受信時,

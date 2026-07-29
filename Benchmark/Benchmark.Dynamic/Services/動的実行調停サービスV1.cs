@@ -59,6 +59,10 @@ public interface I動的実行調停サービス{
         string 親QueryID,
         Action<動的結果行> 結果受信時,
         Action<動的実行進捗> 進捗受信時);
+    Task<動的履歴項目> 複数Queryを再実行Async(
+        IReadOnlyList<string> 親QueryID一覧,
+        Action<動的結果行> 結果受信時,
+        Action<動的実行進捗> 進捗受信時);
     Task<動的履歴項目> Queryを縮小Async(
         string 親QueryID,
         Action<動的結果行> 結果受信時,
@@ -213,6 +217,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
         var Worker再起動回数=0;
         try{
             while(true){
+                Token.ThrowIfCancellationRequested();
                 var ALC解放失敗後に再起動するか=false;
                 var Session終了か=false;
                 var Session=this.WorkerClient.Start(this.WorkerPath);
@@ -276,7 +281,13 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
                                 string.Empty,
                                 QueryIrJson.ComputeHash(IR),
                                 "Running",
-                                Query開始.ReplayedFromQueryId),
+                                Query開始.ReplayedFromQueryId,
+                                IR.IrSchemaVersion,
+                                IR.ActualOperatorCount,
+                                IR.ActualDepth,
+                                IR.Root.OutputType.ToString(),
+                                IR.Root.OrderSemantics.ToString(),
+                                Query開始.IrGenerationNanoseconds),
                             CancellationToken.None).ConfigureAwait(false);
                         break;
                     }
@@ -519,6 +530,31 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
         var Replay=ReplayQueryを作成(Query,0,Seed);
         return this.実行Async(
             再実行設定を作成(条件,Snapshot.Run.RunID,[Replay]),
+            結果受信時,
+            進捗受信時);
+    }
+
+    public Task<動的履歴項目> 複数Queryを再実行Async(
+        IReadOnlyList<string> 親QueryID一覧,
+        Action<動的結果行> 結果受信時,
+        Action<動的実行進捗> 進捗受信時){
+        ArgumentNullException.ThrowIfNull(親QueryID一覧);
+        if(親QueryID一覧.Count==0){
+            throw new ArgumentException("再実行するQueryを1件以上指定してください。",nameof(親QueryID一覧));
+        }
+        var Snapshot=this.Repository.GetRunSnapshotByQueryID(親QueryID一覧[0])
+            ??throw new KeyNotFoundException($"Queryが見つかりません: {親QueryID一覧[0]}");
+        var 条件=保存条件を読む(Snapshot.Run);
+        var Seed=Seed256.Parse(条件.BaseSeed);
+        var QueryByID=Snapshot.Queries.ToDictionary(static Query=>Query.QueryID);
+        var Replay一覧=親QueryID一覧.Select((QueryID,Index)=>{
+            if(!QueryByID.TryGetValue(QueryID,out var Query)){
+                throw new KeyNotFoundException($"Queryが見つかりません: {QueryID}");
+            }
+            return ReplayQueryを作成(Query,Index,Seed);
+        }).ToArray();
+        return this.実行Async(
+            再実行設定を作成(条件,Snapshot.Run.RunID,Replay一覧),
             結果受信時,
             進捗受信時);
     }
@@ -909,6 +945,17 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
         var QueryHash=QueryIrJson.ComputeHash(IR);
         var ExecutionID=$"{結果.QueryId}-{結果.SourceTarget}-a1";
         var 開始日時=Source開始?.StartedAtUtc??結果.CompletedAtUtc;
+        var CapabilityProfileJSON=JsonSerializer.Serialize(
+            QueryCapabilityProfiles.Get(結果.SourceTarget),
+            DynamicWorkerProtocol.JsonOptions);
+        var FixedPointTermination=結果.Status switch{
+            WorkerExecutionStatus.OptimizationNonConverged=>"NonConverged",
+            _ when Artifact.FixedPointか=>"FixedPoint",
+            _=>"NotAvailable",
+        };
+        var RewriteSummaryJSON=JsonSerializer.Serialize(
+            new{Artifact.RewriteCount,ReachedFixedPoint=Artifact.FixedPointか},
+            DynamicWorkerProtocol.JsonOptions);
         var Query=new DynamicQueryRecord(
             結果.QueryId,
             設定.実行ID,
@@ -919,7 +966,13 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
             結果.SourceText,
             QueryHash,
             結果.Status.ToString(),
-            Query開始.ReplayedFromQueryId);
+            Query開始.ReplayedFromQueryId,
+            IR.IrSchemaVersion,
+            IR.ActualOperatorCount,
+            IR.ActualDepth,
+            IR.Root.OutputType.ToString(),
+            IR.Root.OrderSemantics.ToString(),
+            Query開始.IrGenerationNanoseconds);
         var System計測=計測を取得(Artifact,"System");
         var Execution=new DynamicSourceExecutionRecord(
             ExecutionID,
@@ -934,21 +987,27 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
             CompletedAt:結果.CompletedAtUtc,
             ResultDigest:ResultDigest,
             Error:結果.DiagnosticsJson??string.Empty,
-            Partial:結果.Status==WorkerExecutionStatus.Canceled);
-        IReadOnlyList<DynamicValidationRecord> Validations=結果.Status==WorkerExecutionStatus.Canceled
-            ?[]
-            :[new(
-                Guid.NewGuid().ToString("N"),
-                結果.QueryId,
-                結果.SourceTarget.ToString(),
-                検証.一致か?"Match":"Mismatch",
-                結果.CompletedAtUtc,
-                検証.一致か?ResultDigest:string.Empty,
-                ResultDigest,
-                検証.差分)];
+            Partial:結果.Status==WorkerExecutionStatus.Canceled,
+            CapabilityProfileID:Hashを計算(CapabilityProfileJSON),
+            CapabilityProfileJSON:CapabilityProfileJSON,
+            GeneratedSource:結果.SourceText,
+            SourceHash:Hashを計算(結果.SourceText),
+            SourceEmissionNanoseconds:Artifact.Source生成ナノ秒,
+            SourceTextNanoseconds:Artifact.SourceTextナノ秒,
+            SyntaxTreeNanoseconds:Artifact.SyntaxTreeナノ秒,
+            CompilationNanoseconds:Artifact.Compilationナノ秒,
+            GeneratorNanoseconds:Artifact.Generatorナノ秒,
+            EmitNanoseconds:Artifact.Emitナノ秒,
+            LoadNanoseconds:Artifact.Loadナノ秒,
+            BindNanoseconds:Artifact.Bindナノ秒,
+            RewriteSummaryJSON:RewriteSummaryJSON,
+            FixedPointTermination:FixedPointTermination,
+            AssemblyUnloaded:結果.AssemblyUnloaded);
+        var Validations=検証一覧を作成(ExecutionID,結果);
         var Diagnostics=診断一覧を作成(ExecutionID,結果,ResultDigest);
         var Measurements=計測一覧を作成(ExecutionID,Artifact,開始日時,結果.CompletedAtUtc);
         var OptimizationEvents=最適化Event一覧を作成(
+            ExecutionID,
             結果.QueryId,
             結果.SourceTarget,
             結果.OptimizationTraceJson,
@@ -1107,7 +1166,93 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
         return 一覧;
     }
 
+    private static IReadOnlyList<DynamicValidationRecord> 検証一覧を作成(
+        string ExecutionID,
+        WorkerSourceExecutionCompletedEvent 結果){
+        if(結果.Status==WorkerExecutionStatus.Canceled){
+            return[];
+        }
+        JsonDocument? Document=null;
+        try{
+            if(!string.IsNullOrWhiteSpace(結果.ResultJson)){
+                Document=JsonDocument.Parse(結果.ResultJson);
+            }
+            var Root=Document?.RootElement;
+            var 一覧=new List<DynamicValidationRecord>(4);
+            foreach(var 実装 in new[]{"System","FLinqUnoptimized","FLinq","ZLinq"}){
+                var JSONKey=実装 switch{
+                    "System"=>"system",
+                    "FLinqUnoptimized"=>"fLinqUnoptimized",
+                    "FLinq"=>"fLinq",
+                    "ZLinq"=>"zLinq",
+                    _=>throw new InvalidOperationException($"Unknown implementation kind: {実装}"),
+                };
+                var FullResult=子要素JSON(Root,"results",JSONKey);
+                var ExceptionJSON=子要素JSON(Root,"exceptions",JSONKey);
+                var Status=検証Statusを取得(Root,実装,JSONKey,FullResult,ExceptionJSON);
+                一覧.Add(new(
+                    $"{ExecutionID}-{実装}",
+                    ExecutionID,
+                    実装,
+                    Status,
+                    結果.CompletedAtUtc,
+                    FullResult=="null"?Status:Hashを計算(FullResult),
+                    FullResult,
+                    ExceptionJSON,
+                    有効なJSONへ変換(結果.DiagnosticsJson)));
+            }
+            return 一覧;
+        }finally{
+            Document?.Dispose();
+        }
+    }
+
+    private static string 検証Statusを取得(
+        JsonElement? Root,
+        string 実装,
+        string JSONKey,
+        string FullResult,
+        string ExceptionJSON){
+        if(ExceptionJSON!="null"){
+            return"Exception";
+        }
+        if(実装=="System"){
+            return FullResult=="null"?"NotExecuted":"Success";
+        }
+        if(Root is{ }要素
+            &&要素.TryGetProperty("comparisons",out var Comparisons)
+            &&Comparisons.ValueKind==JsonValueKind.Object
+            &&Comparisons.TryGetProperty(JSONKey,out var Comparison)
+            &&Comparison.TryGetProperty("isMatch",out var IsMatch)
+            &&IsMatch.ValueKind is JsonValueKind.True or JsonValueKind.False){
+            return IsMatch.GetBoolean()?"Match":"Mismatch";
+        }
+        return FullResult=="null"?"NotExecuted":"Uncompared";
+    }
+
+    private static string 子要素JSON(JsonElement? Root,string 親,string 子){
+        return Root is{ }要素
+            &&要素.TryGetProperty(親,out var Parent)
+            &&Parent.ValueKind==JsonValueKind.Object
+            &&Parent.TryGetProperty(子,out var Child)
+                ?Child.GetRawText()
+                :"null";
+    }
+
+    private static string 有効なJSONへ変換(string? JSON){
+        if(string.IsNullOrWhiteSpace(JSON)){
+            return"null";
+        }
+        try{
+            using var _=JsonDocument.Parse(JSON);
+            return JSON;
+        }catch(JsonException){
+            return JsonSerializer.Serialize(JSON,DynamicWorkerProtocol.JsonOptions);
+        }
+    }
+
     private static IReadOnlyList<DynamicOptimizationEventRecord> 最適化Event一覧を作成(
+        string ExecutionID,
         string QueryID,
         SourceTarget 対象,
         string? TraceJSON,
@@ -1128,21 +1273,50 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
                     continue;
                 }
                 foreach(var Event in Events.EnumerateArray()){
-                    var Sequence=Event.GetProperty("Sequence").GetInt32();
+                    var Sequence=checked(結果.Count+1);
                     var Layer=Event.GetProperty("Layer").GetString()??"Unknown";
                     var Phase=Event.GetProperty("Phase").GetString()??string.Empty;
                     var Rule=Event.GetProperty("RuleId").GetString()??string.Empty;
+                    int? Depth=null;
+                    if(Event.TryGetProperty("Depth",out var DepthElement)
+                        &&DepthElement.ValueKind==JsonValueKind.Number){
+                        Depth=DepthElement.GetInt32();
+                    }
+                    int? StageIndex=null;
+                    if(Event.TryGetProperty("StageIndex",out var StageIndexElement)
+                        &&StageIndexElement.ValueKind==JsonValueKind.Number){
+                        StageIndex=StageIndexElement.GetInt32();
+                    }
                     結果.Add(new(
-                        Guid.NewGuid().ToString("N"),
+                        $"{ExecutionID}-trace-{Sequence:D6}",
                         QueryID,
                         対象.ToString(),
                         Sequence,
                         $"{Layer}:{Phase}:{Rule}",
                         Event.GetRawText(),
-                        時刻));
+                        時刻,
+                        ExecutionID:ExecutionID,
+                        Layer:Layer,
+                        Phase:Phase,
+                        RuleID:Rule,
+                        Round:Event.GetProperty("Round").GetInt32(),
+                        Pass:Event.GetProperty("Pass").GetInt32(),
+                        Visit:Event.GetProperty("VisitNumber").GetInt32(),
+                        NodeID:Event.GetProperty("NodeId").GetString()??string.Empty,
+                        NodePath:Event.GetProperty("NodePath").GetString()??string.Empty,
+                        Depth:Depth,
+                        StageIndex:StageIndex,
+                        ParentKind:Event.GetProperty("ParentKind").GetString()??string.Empty,
+                        IsLeft:Event.GetProperty("Left").GetBoolean(),
+                        IsRight:Event.GetProperty("Right").GetBoolean(),
+                        IsInner:Event.GetProperty("Inner").GetBoolean(),
+                        Before:Event.GetProperty("Before").GetString()??string.Empty,
+                        After:Event.GetProperty("After").GetString()??string.Empty,
+                        Changed:Event.GetProperty("Changed").GetBoolean(),
+                        Revisited:Event.GetProperty("Revisited").GetBoolean()));
                 }
             }
-        }catch(JsonException){
+        }catch(Exception 例外) when(例外 is JsonException or InvalidOperationException or KeyNotFoundException){
         }
         return 結果;
     }
@@ -1156,14 +1330,21 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
             var Root=Document.RootElement;
             var Source生成=Root.GetProperty("sourceEmissionNanoseconds").GetInt64();
             var Compilation=Root.GetProperty("compilationTimings");
+            var SourceText=Compilation.GetProperty("sourceTextNanoseconds").GetInt64();
+            var SyntaxTree=Compilation.GetProperty("syntaxTreeNanoseconds").GetInt64();
+            var Compilation時間=Compilation.GetProperty("compilationNanoseconds").GetInt64();
+            var Generator=Compilation.GetProperty("generatorNanoseconds").GetInt64();
+            var Emit=Compilation.GetProperty("emitNanoseconds").GetInt64();
+            var Load=Compilation.GetProperty("loadNanoseconds").GetInt64();
+            var Bind=Compilation.GetProperty("bindNanoseconds").GetInt64();
             var Compile合計=
-                Compilation.GetProperty("sourceTextNanoseconds").GetInt64()+
-                Compilation.GetProperty("syntaxTreeNanoseconds").GetInt64()+
-                Compilation.GetProperty("compilationNanoseconds").GetInt64()+
-                Compilation.GetProperty("generatorNanoseconds").GetInt64()+
-                Compilation.GetProperty("emitNanoseconds").GetInt64()+
-                Compilation.GetProperty("loadNanoseconds").GetInt64()+
-                Compilation.GetProperty("bindNanoseconds").GetInt64();
+                SourceText+
+                SyntaxTree+
+                Compilation時間+
+                Generator+
+                Emit+
+                Load+
+                Bind;
             var RewriteCount=Root.GetProperty("rewriteCount").GetInt32();
             var FixedPoint=Root.GetProperty("reachedFixedPoint").GetBoolean();
             var 計測一覧=new List<計測概要>();
@@ -1200,7 +1381,19 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
                         Sample一覧));
                 }
             }
-            return new(Source生成,Compile合計,RewriteCount,FixedPoint,計測一覧);
+            return new(
+                Source生成,
+                Compile合計,
+                SourceText,
+                SyntaxTree,
+                Compilation時間,
+                Generator,
+                Emit,
+                Load,
+                Bind,
+                RewriteCount,
+                FixedPoint,
+                計測一覧);
         }catch(Exception 例外) when(例外 is JsonException or InvalidOperationException or KeyNotFoundException){
             return 実行Artifact.Empty;
         }
@@ -1354,10 +1547,17 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
     private sealed record 実行Artifact(
         long Source生成ナノ秒,
         long コンパイル合計ナノ秒,
+        long SourceTextナノ秒,
+        long SyntaxTreeナノ秒,
+        long Compilationナノ秒,
+        long Generatorナノ秒,
+        long Emitナノ秒,
+        long Loadナノ秒,
+        long Bindナノ秒,
         int RewriteCount,
         bool FixedPointか,
         IReadOnlyList<計測概要> 計測一覧){
-        public static readonly 実行Artifact Empty=new(0,0,0,false,[]);
+        public static readonly 実行Artifact Empty=new(0,0,0,0,0,0,0,0,0,0,false,[]);
     }
 
     private sealed record 計測概要(

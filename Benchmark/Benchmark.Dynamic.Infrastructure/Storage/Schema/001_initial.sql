@@ -4,7 +4,7 @@ CREATE TABLE "DynamicSchemaInfo"(
 ) STRICT;
 
 INSERT INTO "DynamicSchemaInfo"("version","applied_at")
-VALUES(1,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+VALUES(2,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
 
 CREATE TABLE "DynamicRuns"(
     "run_id" TEXT NOT NULL PRIMARY KEY,
@@ -47,6 +47,12 @@ CREATE TABLE "DynamicQueries"(
     "source_text" TEXT NOT NULL,
     "query_hash" TEXT NOT NULL,
     "status" TEXT NOT NULL,
+    "ir_schema_version" INTEGER NOT NULL DEFAULT 1,
+    "operator_count" INTEGER NOT NULL DEFAULT 0,
+    "depth" INTEGER NOT NULL DEFAULT 0,
+    "result_type" TEXT NOT NULL DEFAULT '',
+    "order_semantics" TEXT NOT NULL DEFAULT '',
+    "ir_generation_ns" INTEGER NOT NULL DEFAULT 0,
     "replayed_from_query_id" TEXT NULL,
     FOREIGN KEY("run_id") REFERENCES "DynamicRuns"("run_id") ON DELETE CASCADE,
     FOREIGN KEY("replayed_from_query_id") REFERENCES "DynamicQueries"("query_id") ON DELETE SET NULL,
@@ -62,6 +68,21 @@ CREATE TABLE "DynamicSourceExecutions"(
     "attempt" INTEGER NOT NULL,
     "execution_order" INTEGER NOT NULL,
     "status" TEXT NOT NULL,
+    "capability_profile_id" TEXT NOT NULL DEFAULT '',
+    "capability_profile_json" TEXT NOT NULL DEFAULT 'null' CHECK(json_valid("capability_profile_json")),
+    "generated_source" TEXT NOT NULL DEFAULT '',
+    "source_hash" TEXT NOT NULL DEFAULT '',
+    "source_emission_ns" INTEGER NOT NULL DEFAULT 0,
+    "source_text_ns" INTEGER NOT NULL DEFAULT 0,
+    "syntax_tree_ns" INTEGER NOT NULL DEFAULT 0,
+    "compilation_ns" INTEGER NOT NULL DEFAULT 0,
+    "generator_ns" INTEGER NOT NULL DEFAULT 0,
+    "emit_ns" INTEGER NOT NULL DEFAULT 0,
+    "load_ns" INTEGER NOT NULL DEFAULT 0,
+    "bind_ns" INTEGER NOT NULL DEFAULT 0,
+    "rewrite_summary_json" TEXT NOT NULL DEFAULT 'null' CHECK(json_valid("rewrite_summary_json")),
+    "fixed_point_termination" TEXT NOT NULL DEFAULT '',
+    "assembly_unloaded" INTEGER NULL CHECK("assembly_unloaded" IN(0,1)),
     "loop_count" INTEGER NOT NULL DEFAULT 0,
     "warmup_count" INTEGER NOT NULL DEFAULT 0,
     "started_at" TEXT NULL,
@@ -77,17 +98,19 @@ CREATE INDEX "index_source_execution_query" ON "DynamicSourceExecutions"("query_
 
 CREATE TABLE "DynamicValidationResults"(
     "validation_id" TEXT NOT NULL PRIMARY KEY,
-    "query_id" TEXT NOT NULL,
-    "source_key" TEXT NOT NULL,
+    "execution_id" TEXT NOT NULL,
+    "implementation_kind" TEXT NOT NULL,
     "status" TEXT NOT NULL,
-    "expected_digest" TEXT NOT NULL DEFAULT '',
-    "actual_digest" TEXT NOT NULL DEFAULT '',
-    "message" TEXT NOT NULL DEFAULT '',
+    "result_summary" TEXT NOT NULL DEFAULT '',
+    "full_result" TEXT NOT NULL CHECK(json_valid("full_result")),
+    "exception_json" TEXT NOT NULL CHECK(json_valid("exception_json")),
+    "symbol_validation_json" TEXT NOT NULL CHECK(json_valid("symbol_validation_json")),
     "validated_at" TEXT NOT NULL,
-    FOREIGN KEY("query_id") REFERENCES "DynamicQueries"("query_id") ON DELETE CASCADE
+    FOREIGN KEY("execution_id") REFERENCES "DynamicSourceExecutions"("execution_id") ON DELETE CASCADE,
+    UNIQUE("execution_id","implementation_kind")
 ) STRICT;
 
-CREATE INDEX "index_validation_query" ON "DynamicValidationResults"("query_id","source_key");
+CREATE INDEX "index_validation_execution" ON "DynamicValidationResults"("execution_id","implementation_kind");
 
 CREATE TABLE "DynamicMeasurements"(
     "measurement_id" TEXT NOT NULL PRIMARY KEY,
@@ -142,15 +165,37 @@ CREATE INDEX "index_diagnostic_execution" ON "DynamicDiagnostics"("execution_id"
 
 CREATE TABLE "DynamicOptimizationEvents"(
     "optimization_event_id" TEXT NOT NULL PRIMARY KEY,
+    "execution_id" TEXT NOT NULL,
     "query_id" TEXT NOT NULL,
     "source_key" TEXT NOT NULL,
     "sequence" INTEGER NOT NULL,
     "kind" TEXT NOT NULL,
+    "layer" TEXT NOT NULL DEFAULT '',
+    "phase" TEXT NOT NULL DEFAULT '',
+    "rule_id" TEXT NOT NULL DEFAULT '',
+    "round" INTEGER NOT NULL DEFAULT 0,
+    "pass" INTEGER NOT NULL DEFAULT 0,
+    "visit" INTEGER NOT NULL DEFAULT 0,
+    "node_id" TEXT NOT NULL DEFAULT '',
+    "node_path" TEXT NOT NULL DEFAULT '',
+    "depth" INTEGER NULL,
+    "stage_index" INTEGER NULL,
+    "parent_kind" TEXT NOT NULL DEFAULT '',
+    "is_left" INTEGER NOT NULL DEFAULT 0 CHECK("is_left" IN(0,1)),
+    "is_right" INTEGER NOT NULL DEFAULT 0 CHECK("is_right" IN(0,1)),
+    "is_inner" INTEGER NOT NULL DEFAULT 0 CHECK("is_inner" IN(0,1)),
+    "before_text" TEXT NOT NULL DEFAULT '',
+    "after_text" TEXT NOT NULL DEFAULT '',
+    "changed" INTEGER NOT NULL DEFAULT 0 CHECK("changed" IN(0,1)),
+    "revisited" INTEGER NOT NULL DEFAULT 0 CHECK("revisited" IN(0,1)),
     "details_json" TEXT NOT NULL CHECK(json_valid("details_json")),
     "recorded_at" TEXT NOT NULL,
+    FOREIGN KEY("execution_id") REFERENCES "DynamicSourceExecutions"("execution_id") ON DELETE CASCADE,
     FOREIGN KEY("query_id") REFERENCES "DynamicQueries"("query_id") ON DELETE CASCADE,
-    UNIQUE("query_id","source_key","sequence")
+    UNIQUE("execution_id","sequence")
 ) STRICT;
+
+CREATE INDEX "index_optimization_execution" ON "DynamicOptimizationEvents"("execution_id","layer","round","sequence");
 
 CREATE TABLE "DynamicRunEvents"(
     "run_event_id" TEXT NOT NULL PRIMARY KEY,
@@ -171,4 +216,4 @@ CREATE TABLE "DynamicRunEvents"(
 
 CREATE INDEX "index_run_event_run" ON "DynamicRunEvents"("run_id","sequence");
 
-PRAGMA user_version=1;
+PRAGMA user_version=2;

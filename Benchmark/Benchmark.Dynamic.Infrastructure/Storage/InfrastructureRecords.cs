@@ -1,7 +1,7 @@
 namespace Benchmark.Dynamic.Infrastructure;
 
 public static class DynamicInfrastructureSchema{
-    public const int CurrentVersion=1;
+    public const int CurrentVersion=2;
     public const int UserTableCount=11;
     public const string DatabaseFileName="Benchmark.Dynamic.db";
 }
@@ -39,7 +39,13 @@ public sealed record DynamicQueryRecord(
     string SourceText,
     string QueryHash,
     string Status,
-    string? ReplayedFromQueryID=null);
+    string? ReplayedFromQueryID=null,
+    int IrSchemaVersion=1,
+    int OperatorCount=0,
+    int Depth=0,
+    string ResultType="",
+    string OrderSemantics="",
+    long IrGenerationNanoseconds=0);
 
 public sealed record DynamicSourceExecutionRecord(
     string ExecutionID,
@@ -54,17 +60,33 @@ public sealed record DynamicSourceExecutionRecord(
     DateTimeOffset? CompletedAt=null,
     string ResultDigest="",
     string Error="",
-    bool Partial=false);
+    bool Partial=false,
+    string CapabilityProfileID="",
+    string CapabilityProfileJSON="null",
+    string GeneratedSource="",
+    string SourceHash="",
+    long SourceEmissionNanoseconds=0,
+    long SourceTextNanoseconds=0,
+    long SyntaxTreeNanoseconds=0,
+    long CompilationNanoseconds=0,
+    long GeneratorNanoseconds=0,
+    long EmitNanoseconds=0,
+    long LoadNanoseconds=0,
+    long BindNanoseconds=0,
+    string RewriteSummaryJSON="null",
+    string FixedPointTermination="",
+    bool? AssemblyUnloaded=null);
 
 public sealed record DynamicValidationRecord(
     string ValidationID,
-    string QueryID,
-    string SourceKey,
+    string ExecutionID,
+    string ImplementationKind,
     string Status,
     DateTimeOffset ValidatedAt,
-    string ExpectedDigest="",
-    string ActualDigest="",
-    string Message="");
+    string ResultSummary="",
+    string FullResult="null",
+    string ExceptionJSON="null",
+    string SymbolValidationJSON="null");
 
 public sealed record DynamicMeasurementRecord(
     string MeasurementID,
@@ -114,7 +136,26 @@ public sealed record DynamicOptimizationEventRecord(
     int Sequence,
     string Kind,
     string DetailsJSON,
-    DateTimeOffset RecordedAt);
+    DateTimeOffset RecordedAt,
+    string ExecutionID="",
+    string Layer="",
+    string Phase="",
+    string RuleID="",
+    int Round=0,
+    int Pass=0,
+    int Visit=0,
+    string NodeID="",
+    string NodePath="",
+    int? Depth=null,
+    int? StageIndex=null,
+    string ParentKind="",
+    bool IsLeft=false,
+    bool IsRight=false,
+    bool IsInner=false,
+    string Before="",
+    string After="",
+    bool Changed=false,
+    bool Revisited=false);
 
 public sealed record DynamicRunEventRecord(
     string RunEventID,

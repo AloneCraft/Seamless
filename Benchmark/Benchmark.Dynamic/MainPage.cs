@@ -153,25 +153,39 @@ public sealed class MainPage:ContentPage {
                 this.画面モデル.選択結果=行;
             }
         };
-        this.列を追加(グリッド,"選択",nameof(動的結果行.選択済みか),55);
+        グリッド.Columns.Add(new DataGridTemplateColumn {
+            HeaderText="選択",
+            MappingName=nameof(動的結果行.選択済みか),
+            Width=55,
+            AllowSorting=false,
+            CellTemplate=new DataTemplate(()=>{
+                var チェック=new CheckBox {
+                    HorizontalOptions=LayoutOptions.Center,
+                    VerticalOptions=LayoutOptions.Center,
+                };
+                チェック.SetBinding(CheckBox.IsCheckedProperty,nameof(動的結果行.選択済みか),BindingMode.TwoWay);
+                return チェック;
+            }),
+        });
         this.列を追加(グリッド,"Status",nameof(動的結果行.状態),105);
-        this.列を追加(グリッド,"Query",nameof(動的結果行.QueryIndex),60);
+        this.列を追加(グリッド,"Query",nameof(動的結果行.QueryIndex),90);
         this.列を追加(グリッド,"短縮式",nameof(動的結果行.短縮式),210);
+        this.列を追加(グリッド,"Query式",nameof(動的結果行.クエリ式),360);
         this.列を追加(グリッド,"N",nameof(動的結果行.N),45);
-        this.列を追加(グリッド,"Depth",nameof(動的結果行.深度),55);
+        this.列を追加(グリッド,"Depth",nameof(動的結果行.深度),85);
         this.列を追加(グリッド,"生成",nameof(動的結果行.生成時間),90);
         this.列を追加(グリッド,"Compile",nameof(動的結果行.コンパイル時間),90);
-        this.列を追加(グリッド,"System ns/op",nameof(動的結果行.System中央値),100);
-        this.列を追加(グリッド,"System alloc",nameof(動的結果行.System割当),100);
-        this.列を追加(グリッド,"FLinq ns/op",nameof(動的結果行.FLinq中央値),100);
-        this.列を追加(グリッド,"FLinq alloc",nameof(動的結果行.FLinq割当),100);
-        this.列を追加(グリッド,"FLinq比",nameof(動的結果行.FLinq比),75);
-        this.列を追加(グリッド,"ZLinq ns/op",nameof(動的結果行.ZLinq中央値),100);
-        this.列を追加(グリッド,"ZLinq alloc",nameof(動的結果行.ZLinq割当),100);
-        this.列を追加(グリッド,"ZLinq比",nameof(動的結果行.ZLinq比),75);
-        this.列を追加(グリッド,"意味一致",nameof(動的結果行.意味一致),75);
-        this.列を追加(グリッド,"Rewrite",nameof(動的結果行.RewriteCount),70);
-        this.列を追加(グリッド,"FixedPoint",nameof(動的結果行.FixedPoint),90);
+        this.列を追加(グリッド,"System ns/op",nameof(動的結果行.System中央値),130);
+        this.列を追加(グリッド,"System alloc",nameof(動的結果行.System割当),130);
+        this.列を追加(グリッド,"FLinq ns/op",nameof(動的結果行.FLinq中央値),130);
+        this.列を追加(グリッド,"FLinq alloc",nameof(動的結果行.FLinq割当),130);
+        this.列を追加(グリッド,"FLinq比",nameof(動的結果行.FLinq比),95);
+        this.列を追加(グリッド,"ZLinq ns/op",nameof(動的結果行.ZLinq中央値),130);
+        this.列を追加(グリッド,"ZLinq alloc",nameof(動的結果行.ZLinq割当),130);
+        this.列を追加(グリッド,"ZLinq比",nameof(動的結果行.ZLinq比),95);
+        this.列を追加(グリッド,"意味一致",nameof(動的結果行.意味一致),100);
+        this.列を追加(グリッド,"Rewrite",nameof(動的結果行.RewriteCount),110);
+        this.列を追加(グリッド,"FixedPoint",nameof(動的結果行.FixedPoint),130);
         return グリッド;
     }
 
@@ -409,6 +423,7 @@ public sealed class MainPage:ContentPage {
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
                 new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Auto),
             },
             Padding=new Thickness(8,2),
         };
@@ -443,6 +458,19 @@ public sealed class MainPage:ContentPage {
         };
         見出し.Add(Query縮小,2,0);
         this.実行中無効化一覧.Add(Query縮小);
+        var 選択Query再実行=new Button {
+            Text="選択を再実行",
+            AutomationId="動的詳細.選択Query再実行",
+            Padding=new Thickness(10,2),
+        };
+        選択Query再実行.Clicked+=(_,_)=>{
+            var 対象一覧=this.画面モデル.結果一覧.Where(static 行=>行.選択済みか).ToList();
+            if(this.画面モデル.選択Query再実行コマンド.CanExecute(対象一覧)) {
+                this.画面モデル.選択Query再実行コマンド.Execute(対象一覧);
+            }
+        };
+        見出し.Add(選択Query再実行,3,0);
+        this.実行中無効化一覧.Add(選択Query再実行);
         var コピー=new Button {
             Text="Sourceをコピー",
             AutomationId="動的詳細.Sourceコピー",
@@ -453,14 +481,14 @@ public sealed class MainPage:ContentPage {
                 await Clipboard.Default.SetTextAsync(Source);
             }
         };
-        見出し.Add(コピー,3,0);
+        見出し.Add(コピー,4,0);
         var 折畳=new Button {
             Text="⌄",
             AutomationId="動的詳細.折畳",
             Command=this.画面モデル.詳細領域折畳コマンド,
             Padding=new Thickness(10,2),
         };
-        見出し.Add(折畳,4,0);
+        見出し.Add(折畳,5,0);
         ルート.Add(見出し,0,0);
 
         var タブ=new SfTabView {
@@ -472,6 +500,7 @@ public sealed class MainPage:ContentPage {
         };
         タブ.Items=[
             this.詳細タブを作成("Summary",nameof(動的結果行.概要)),
+            this.詳細タブを作成("Query",nameof(動的結果行.クエリ式)),
             this.詳細タブを作成("Source",nameof(動的結果行.生成Source)),
             this.詳細タブを作成("IR",nameof(動的結果行.IR)),
             this.詳細タブを作成("Results",nameof(動的結果行.結果)),
@@ -489,7 +518,7 @@ public sealed class MainPage:ContentPage {
         var 編集欄=new Editor {
             IsReadOnly=true,
             FontFamily="Consolas",
-            FontSize=11,
+            FontSize=15,
             AutoSize=EditorAutoSizeOption.Disabled,
             BackgroundColor=Color.FromArgb("#F8FAFC"),
         };
@@ -597,11 +626,25 @@ public sealed class MainPage:ContentPage {
     }
 
     private void 列を追加(SfDataGrid グリッド,string 見出し,string プロパティ,double 幅) {
-        グリッド.Columns.Add(new DataGridTextColumn {
+        グリッド.Columns.Add(new DataGridTemplateColumn {
             HeaderText=見出し,
             MappingName=プロパティ,
             Width=幅,
             AllowSorting=true,
+            CellTemplate=セルテンプレートを作成(プロパティ),
+        });
+    }
+
+    private static DataTemplate セルテンプレートを作成(string プロパティ) {
+        return new DataTemplate(() => {
+            var ラベル=new Label {
+                FontSize=12,
+                LineBreakMode=LineBreakMode.TailTruncation,
+                VerticalTextAlignment=TextAlignment.Center,
+                Padding=new Thickness(4,0),
+            };
+            ラベル.SetBinding(Label.TextProperty,プロパティ);
+            return ラベル;
         });
     }
 

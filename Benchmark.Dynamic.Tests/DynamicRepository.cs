@@ -33,7 +33,13 @@ public sealed class DynamicRepository {
                 "{\"ir\":1}",
                 "source",
                 "hash",
-                "Canceled");
+                "Canceled",
+                IrSchemaVersion:1,
+                OperatorCount:3,
+                Depth:2,
+                ResultType:"Int",
+                OrderSemantics:"TotalOrdered",
+                IrGenerationNanoseconds:123);
             var Execution=new DynamicSourceExecutionRecord(
                 "execution-1",
                 "query-1",
@@ -46,15 +52,32 @@ public sealed class DynamicRepository {
                 StartedAt:現在,
                 CompletedAt:現在,
                 ResultDigest:"digest",
-                Partial:true);
+                Partial:true,
+                CapabilityProfileID:"profile-id",
+                CapabilityProfileJSON:"{\"profileVersion\":14}",
+                GeneratedSource:"internal static class GeneratedQuery {}",
+                SourceHash:"source-hash",
+                SourceEmissionNanoseconds:10,
+                SourceTextNanoseconds:20,
+                SyntaxTreeNanoseconds:30,
+                CompilationNanoseconds:40,
+                GeneratorNanoseconds:50,
+                EmitNanoseconds:60,
+                LoadNanoseconds:70,
+                BindNanoseconds:80,
+                RewriteSummaryJSON:"{\"rewriteCount\":2,\"reachedFixedPoint\":true}",
+                FixedPointTermination:"FixedPoint",
+                AssemblyUnloaded:true);
             var Validation=new DynamicValidationRecord(
                 "validation-1",
-                "query-1",
-                "SystemArray",
-                "Match",
+                "execution-1",
+                "System",
+                "Success",
                 現在,
-                "expected",
-                "actual");
+                "summary",
+                "{\"value\":1}",
+                "null",
+                "[]");
             var Measurement=new DynamicMeasurementRecord(
                 "measurement-1",
                 "execution-1",
@@ -95,7 +118,24 @@ public sealed class DynamicRepository {
                 0,
                 "Rewrite",
                 "{}",
-                現在);
+                現在,
+                ExecutionID:"execution-1",
+                Layer:"Syntax",
+                Phase:"Algebraic",
+                RuleID:"CountComparisonToAny",
+                Round:2,
+                Pass:3,
+                Visit:4,
+                NodeID:"S1:/node[0]",
+                NodePath:"/node[0]",
+                Depth:1,
+                ParentKind:"InvocationExpression",
+                IsLeft:true,
+                IsInner:true,
+                Before:"source.Count()>0",
+                After:"source.Any()",
+                Changed:true,
+                Revisited:true);
             var RunEvent=new DynamicRunEventRecord(
                 "event-1",
                 "run-1",
@@ -124,13 +164,49 @@ public sealed class DynamicRepository {
             Assert.NotNull(Snapshot);
             Assert.Single(Snapshot.Sources);
             Assert.Single(Snapshot.Queries);
+            Assert.Equal(3,Snapshot.Queries[0].OperatorCount);
+            Assert.Equal(2,Snapshot.Queries[0].Depth);
+            Assert.Equal(123,Snapshot.Queries[0].IrGenerationNanoseconds);
             Assert.Single(Snapshot.SourceExecutions);
             Assert.True(Snapshot.SourceExecutions[0].Partial);
+            Assert.Equal("profile-id",Snapshot.SourceExecutions[0].CapabilityProfileID);
+            Assert.Equal("{\"profileVersion\":14}",Snapshot.SourceExecutions[0].CapabilityProfileJSON);
+            Assert.Equal("internal static class GeneratedQuery {}",Snapshot.SourceExecutions[0].GeneratedSource);
+            Assert.Equal("source-hash",Snapshot.SourceExecutions[0].SourceHash);
+            Assert.Equal(10,Snapshot.SourceExecutions[0].SourceEmissionNanoseconds);
+            Assert.Equal(20,Snapshot.SourceExecutions[0].SourceTextNanoseconds);
+            Assert.Equal(30,Snapshot.SourceExecutions[0].SyntaxTreeNanoseconds);
+            Assert.Equal(40,Snapshot.SourceExecutions[0].CompilationNanoseconds);
+            Assert.Equal(50,Snapshot.SourceExecutions[0].GeneratorNanoseconds);
+            Assert.Equal(60,Snapshot.SourceExecutions[0].EmitNanoseconds);
+            Assert.Equal(70,Snapshot.SourceExecutions[0].LoadNanoseconds);
+            Assert.Equal(80,Snapshot.SourceExecutions[0].BindNanoseconds);
+            Assert.Equal("{\"rewriteCount\":2,\"reachedFixedPoint\":true}",Snapshot.SourceExecutions[0].RewriteSummaryJSON);
+            Assert.Equal("FixedPoint",Snapshot.SourceExecutions[0].FixedPointTermination);
+            Assert.True(Snapshot.SourceExecutions[0].AssemblyUnloaded);
             Assert.Single(Snapshot.Validations);
             Assert.Single(Snapshot.Measurements);
             Assert.Single(Snapshot.RawSamples);
             Assert.Single(Snapshot.Diagnostics);
             Assert.Single(Snapshot.OptimizationEvents);
+            Assert.Equal("execution-1",Snapshot.OptimizationEvents[0].ExecutionID);
+            Assert.Equal("Syntax",Snapshot.OptimizationEvents[0].Layer);
+            Assert.Equal("Algebraic",Snapshot.OptimizationEvents[0].Phase);
+            Assert.Equal("CountComparisonToAny",Snapshot.OptimizationEvents[0].RuleID);
+            Assert.Equal(2,Snapshot.OptimizationEvents[0].Round);
+            Assert.Equal(3,Snapshot.OptimizationEvents[0].Pass);
+            Assert.Equal(4,Snapshot.OptimizationEvents[0].Visit);
+            Assert.Equal("S1:/node[0]",Snapshot.OptimizationEvents[0].NodeID);
+            Assert.Equal("/node[0]",Snapshot.OptimizationEvents[0].NodePath);
+            Assert.Equal(1,Snapshot.OptimizationEvents[0].Depth);
+            Assert.Null(Snapshot.OptimizationEvents[0].StageIndex);
+            Assert.True(Snapshot.OptimizationEvents[0].IsLeft);
+            Assert.False(Snapshot.OptimizationEvents[0].IsRight);
+            Assert.True(Snapshot.OptimizationEvents[0].IsInner);
+            Assert.Equal("source.Count()>0",Snapshot.OptimizationEvents[0].Before);
+            Assert.Equal("source.Any()",Snapshot.OptimizationEvents[0].After);
+            Assert.True(Snapshot.OptimizationEvents[0].Changed);
+            Assert.True(Snapshot.OptimizationEvents[0].Revisited);
             Assert.Single(Snapshot.RunEvents);
 
             Assert.True(await Repository.SoftDeleteRunAsync("run-1",現在,"test"));

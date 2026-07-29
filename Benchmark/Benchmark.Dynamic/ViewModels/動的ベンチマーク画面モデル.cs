@@ -79,6 +79,9 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         this.Run再実行コマンド=new AsyncRelayCommand<動的履歴項目>(this.Runを再実行Async,項目=>項目 is not null&&!this.実行中か);
         this.Query再実行コマンド=new AsyncRelayCommand<動的結果行>(this.Queryを再実行Async,行=>行 is not null&&!this.実行中か);
         this.Query縮小コマンド=new AsyncRelayCommand<動的結果行>(this.Queryを縮小Async,行=>行 is not null&&!this.実行中か);
+        this.選択Query再実行コマンド=new AsyncRelayCommand<IReadOnlyList<動的結果行>>(
+            this.選択Queryを再実行Async,
+            一覧=>一覧 is{Count:>0}&&!this.実行中か);
         this.設定復元Seed再生成コマンド=new RelayCommand<動的履歴項目>(this.設定を復元してSeedを再生成,項目=>項目 is not null&&!this.実行中か);
     }
 
@@ -98,6 +101,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
     public IAsyncRelayCommand<動的履歴項目> Run再実行コマンド{get;}
     public IAsyncRelayCommand<動的結果行> Query再実行コマンド{get;}
     public IAsyncRelayCommand<動的結果行> Query縮小コマンド{get;}
+    public IAsyncRelayCommand<IReadOnlyList<動的結果行>> 選択Query再実行コマンド{get;}
     public IRelayCommand<動的履歴項目> 設定復元Seed再生成コマンド{get;}
 
     public int Query数 {
@@ -355,6 +359,16 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
             ?Task.CompletedTask
             :this.再実行Async((結果受信時,進捗受信時)=>
                 this.実行調停.Queryを縮小Async(行.QueryID,結果受信時,進捗受信時));
+    }
+
+    private Task 選択Queryを再実行Async(IReadOnlyList<動的結果行>? 一覧) {
+        return 一覧 is not{Count:>0}
+            ?Task.CompletedTask
+            :this.再実行Async((結果受信時,進捗受信時)=>
+                this.実行調停.複数Queryを再実行Async(
+                    一覧.Select(static 行=>行.QueryID).Distinct().ToArray(),
+                    結果受信時,
+                    進捗受信時));
     }
 
     private async Task 再実行Async(

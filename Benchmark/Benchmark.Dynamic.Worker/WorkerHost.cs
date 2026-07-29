@@ -798,7 +798,7 @@ public sealed class WorkerHost{
                 再開.NonConvergences,
                 再開.ExecutionFailures,
             };
-            if(集計値.Any(static 値=>値<0||値>int.MaxValue)
+            if(集計値.Any(static 値=>値<0)
                 ||再開.FailedSourceExecutions>完了済み.Count
                 ||再開.CompilationFailures+再開.SemanticMismatches+再開.NonConvergences+再開.ExecutionFailures
                     >再開.FailedSourceExecutions){

@@ -344,10 +344,12 @@ public sealed class DynamicRepository{
             """
             INSERT INTO "DynamicQueries"(
                 "query_id","run_id","ordinal","path_key","generation_seed","canonical_ir_json",
-                "source_text","query_hash","status","replayed_from_query_id")
+                "source_text","query_hash","status","replayed_from_query_id","ir_schema_version",
+                "operator_count","depth","result_type","order_semantics","ir_generation_ns")
             VALUES(
                 $query_id,$run_id,$ordinal,$path_key,$generation_seed,$canonical_ir_json,
-                $source_text,$query_hash,$status,$replayed_from_query_id)
+                $source_text,$query_hash,$status,$replayed_from_query_id,$ir_schema_version,
+                $operator_count,$depth,$result_type,$order_semantics,$ir_generation_ns)
             ON CONFLICT("query_id") DO UPDATE SET
                 "run_id"=excluded."run_id",
                 "ordinal"=excluded."ordinal",
@@ -357,7 +359,13 @@ public sealed class DynamicRepository{
                 "source_text"=excluded."source_text",
                 "query_hash"=excluded."query_hash",
                 "status"=excluded."status",
-                "replayed_from_query_id"=excluded."replayed_from_query_id";
+                "replayed_from_query_id"=excluded."replayed_from_query_id",
+                "ir_schema_version"=excluded."ir_schema_version",
+                "operator_count"=excluded."operator_count",
+                "depth"=excluded."depth",
+                "result_type"=excluded."result_type",
+                "order_semantics"=excluded."order_semantics",
+                "ir_generation_ns"=excluded."ir_generation_ns";
             """);
         Add(command,"$query_id",query.QueryID);
         Add(command,"$run_id",query.RunID);
@@ -369,6 +377,12 @@ public sealed class DynamicRepository{
         Add(command,"$query_hash",query.QueryHash);
         Add(command,"$status",query.Status);
         Add(command,"$replayed_from_query_id",query.ReplayedFromQueryID);
+        Add(command,"$ir_schema_version",query.IrSchemaVersion);
+        Add(command,"$operator_count",query.OperatorCount);
+        Add(command,"$depth",query.Depth);
+        Add(command,"$result_type",query.ResultType);
+        Add(command,"$order_semantics",query.OrderSemantics);
+        Add(command,"$ir_generation_ns",query.IrGenerationNanoseconds);
         command.ExecuteNonQuery();
     }
 
@@ -380,10 +394,18 @@ public sealed class DynamicRepository{
             """
             INSERT INTO "DynamicSourceExecutions"(
                 "execution_id","query_id","source_key","attempt","execution_order","status",
-                "loop_count","warmup_count","started_at","completed_at","result_digest","error","partial")
+                "loop_count","warmup_count","started_at","completed_at","result_digest","error","partial",
+                "capability_profile_id","capability_profile_json","generated_source","source_hash",
+                "source_emission_ns","source_text_ns","syntax_tree_ns","compilation_ns","generator_ns",
+                "emit_ns","load_ns","bind_ns","rewrite_summary_json","fixed_point_termination",
+                "assembly_unloaded")
             VALUES(
                 $execution_id,$query_id,$source_key,$attempt,$execution_order,$status,
-                $loop_count,$warmup_count,$started_at,$completed_at,$result_digest,$error,$partial)
+                $loop_count,$warmup_count,$started_at,$completed_at,$result_digest,$error,$partial,
+                $capability_profile_id,$capability_profile_json,$generated_source,$source_hash,
+                $source_emission_ns,$source_text_ns,$syntax_tree_ns,$compilation_ns,$generator_ns,
+                $emit_ns,$load_ns,$bind_ns,$rewrite_summary_json,$fixed_point_termination,
+                $assembly_unloaded)
             ON CONFLICT("execution_id") DO UPDATE SET
                 "query_id"=excluded."query_id",
                 "source_key"=excluded."source_key",
@@ -396,7 +418,22 @@ public sealed class DynamicRepository{
                 "completed_at"=excluded."completed_at",
                 "result_digest"=excluded."result_digest",
                 "error"=excluded."error",
-                "partial"=excluded."partial";
+                "partial"=excluded."partial",
+                "capability_profile_id"=excluded."capability_profile_id",
+                "capability_profile_json"=excluded."capability_profile_json",
+                "generated_source"=excluded."generated_source",
+                "source_hash"=excluded."source_hash",
+                "source_emission_ns"=excluded."source_emission_ns",
+                "source_text_ns"=excluded."source_text_ns",
+                "syntax_tree_ns"=excluded."syntax_tree_ns",
+                "compilation_ns"=excluded."compilation_ns",
+                "generator_ns"=excluded."generator_ns",
+                "emit_ns"=excluded."emit_ns",
+                "load_ns"=excluded."load_ns",
+                "bind_ns"=excluded."bind_ns",
+                "rewrite_summary_json"=excluded."rewrite_summary_json",
+                "fixed_point_termination"=excluded."fixed_point_termination",
+                "assembly_unloaded"=excluded."assembly_unloaded";
             """);
         Add(command,"$execution_id",execution.ExecutionID);
         Add(command,"$query_id",execution.QueryID);
@@ -411,6 +448,21 @@ public sealed class DynamicRepository{
         Add(command,"$result_digest",execution.ResultDigest);
         Add(command,"$error",execution.Error);
         Add(command,"$partial",execution.Partial?1:0);
+        Add(command,"$capability_profile_id",execution.CapabilityProfileID);
+        Add(command,"$capability_profile_json",execution.CapabilityProfileJSON);
+        Add(command,"$generated_source",execution.GeneratedSource);
+        Add(command,"$source_hash",execution.SourceHash);
+        Add(command,"$source_emission_ns",execution.SourceEmissionNanoseconds);
+        Add(command,"$source_text_ns",execution.SourceTextNanoseconds);
+        Add(command,"$syntax_tree_ns",execution.SyntaxTreeNanoseconds);
+        Add(command,"$compilation_ns",execution.CompilationNanoseconds);
+        Add(command,"$generator_ns",execution.GeneratorNanoseconds);
+        Add(command,"$emit_ns",execution.EmitNanoseconds);
+        Add(command,"$load_ns",execution.LoadNanoseconds);
+        Add(command,"$bind_ns",execution.BindNanoseconds);
+        Add(command,"$rewrite_summary_json",execution.RewriteSummaryJSON);
+        Add(command,"$fixed_point_termination",execution.FixedPointTermination);
+        Add(command,"$assembly_unloaded",execution.AssemblyUnloaded is null?null:execution.AssemblyUnloaded.Value?1:0);
         command.ExecuteNonQuery();
     }
 
@@ -421,27 +473,29 @@ public sealed class DynamicRepository{
         using var command=CreateCommand(connection,transaction,
             """
             INSERT INTO "DynamicValidationResults"(
-                "validation_id","query_id","source_key","status","expected_digest",
-                "actual_digest","message","validated_at")
+                "validation_id","execution_id","implementation_kind","status","result_summary",
+                "full_result","exception_json","symbol_validation_json","validated_at")
             VALUES(
-                $validation_id,$query_id,$source_key,$status,$expected_digest,
-                $actual_digest,$message,$validated_at)
+                $validation_id,$execution_id,$implementation_kind,$status,$result_summary,
+                $full_result,$exception_json,$symbol_validation_json,$validated_at)
             ON CONFLICT("validation_id") DO UPDATE SET
-                "query_id"=excluded."query_id",
-                "source_key"=excluded."source_key",
+                "execution_id"=excluded."execution_id",
+                "implementation_kind"=excluded."implementation_kind",
                 "status"=excluded."status",
-                "expected_digest"=excluded."expected_digest",
-                "actual_digest"=excluded."actual_digest",
-                "message"=excluded."message",
+                "result_summary"=excluded."result_summary",
+                "full_result"=excluded."full_result",
+                "exception_json"=excluded."exception_json",
+                "symbol_validation_json"=excluded."symbol_validation_json",
                 "validated_at"=excluded."validated_at";
             """);
         Add(command,"$validation_id",validation.ValidationID);
-        Add(command,"$query_id",validation.QueryID);
-        Add(command,"$source_key",validation.SourceKey);
+        Add(command,"$execution_id",validation.ExecutionID);
+        Add(command,"$implementation_kind",validation.ImplementationKind);
         Add(command,"$status",validation.Status);
-        Add(command,"$expected_digest",validation.ExpectedDigest);
-        Add(command,"$actual_digest",validation.ActualDigest);
-        Add(command,"$message",validation.Message);
+        Add(command,"$result_summary",validation.ResultSummary);
+        Add(command,"$full_result",validation.FullResult);
+        Add(command,"$exception_json",validation.ExceptionJSON);
+        Add(command,"$symbol_validation_json",validation.SymbolValidationJSON);
         Add(command,"$validated_at",Format(validation.ValidatedAt));
         command.ExecuteNonQuery();
     }
@@ -589,24 +643,66 @@ public sealed class DynamicRepository{
         using var command=CreateCommand(connection,transaction,
             """
             INSERT INTO "DynamicOptimizationEvents"(
-                "optimization_event_id","query_id","source_key","sequence","kind",
-                "details_json","recorded_at")
+                "optimization_event_id","execution_id","query_id","source_key","sequence","kind",
+                "layer","phase","rule_id","round","pass","visit","node_id","node_path",
+                "depth","stage_index","parent_kind","is_left","is_right","is_inner",
+                "before_text","after_text","changed","revisited","details_json","recorded_at")
             VALUES(
-                $optimization_event_id,$query_id,$source_key,$sequence,$kind,
-                $details_json,$recorded_at)
+                $optimization_event_id,$execution_id,$query_id,$source_key,$sequence,$kind,
+                $layer,$phase,$rule_id,$round,$pass,$visit,$node_id,$node_path,
+                $depth,$stage_index,$parent_kind,$is_left,$is_right,$is_inner,
+                $before_text,$after_text,$changed,$revisited,$details_json,$recorded_at)
             ON CONFLICT("optimization_event_id") DO UPDATE SET
+                "execution_id"=excluded."execution_id",
                 "query_id"=excluded."query_id",
                 "source_key"=excluded."source_key",
                 "sequence"=excluded."sequence",
                 "kind"=excluded."kind",
+                "layer"=excluded."layer",
+                "phase"=excluded."phase",
+                "rule_id"=excluded."rule_id",
+                "round"=excluded."round",
+                "pass"=excluded."pass",
+                "visit"=excluded."visit",
+                "node_id"=excluded."node_id",
+                "node_path"=excluded."node_path",
+                "depth"=excluded."depth",
+                "stage_index"=excluded."stage_index",
+                "parent_kind"=excluded."parent_kind",
+                "is_left"=excluded."is_left",
+                "is_right"=excluded."is_right",
+                "is_inner"=excluded."is_inner",
+                "before_text"=excluded."before_text",
+                "after_text"=excluded."after_text",
+                "changed"=excluded."changed",
+                "revisited"=excluded."revisited",
                 "details_json"=excluded."details_json",
                 "recorded_at"=excluded."recorded_at";
             """);
         Add(command,"$optimization_event_id",optimizationEvent.OptimizationEventID);
+        Add(command,"$execution_id",optimizationEvent.ExecutionID);
         Add(command,"$query_id",optimizationEvent.QueryID);
         Add(command,"$source_key",optimizationEvent.SourceKey);
         Add(command,"$sequence",optimizationEvent.Sequence);
         Add(command,"$kind",optimizationEvent.Kind);
+        Add(command,"$layer",optimizationEvent.Layer);
+        Add(command,"$phase",optimizationEvent.Phase);
+        Add(command,"$rule_id",optimizationEvent.RuleID);
+        Add(command,"$round",optimizationEvent.Round);
+        Add(command,"$pass",optimizationEvent.Pass);
+        Add(command,"$visit",optimizationEvent.Visit);
+        Add(command,"$node_id",optimizationEvent.NodeID);
+        Add(command,"$node_path",optimizationEvent.NodePath);
+        Add(command,"$depth",optimizationEvent.Depth);
+        Add(command,"$stage_index",optimizationEvent.StageIndex);
+        Add(command,"$parent_kind",optimizationEvent.ParentKind);
+        Add(command,"$is_left",optimizationEvent.IsLeft?1:0);
+        Add(command,"$is_right",optimizationEvent.IsRight?1:0);
+        Add(command,"$is_inner",optimizationEvent.IsInner?1:0);
+        Add(command,"$before_text",optimizationEvent.Before);
+        Add(command,"$after_text",optimizationEvent.After);
+        Add(command,"$changed",optimizationEvent.Changed?1:0);
+        Add(command,"$revisited",optimizationEvent.Revisited?1:0);
         Add(command,"$details_json",optimizationEvent.DetailsJSON);
         Add(command,"$recorded_at",Format(optimizationEvent.RecordedAt));
         command.ExecuteNonQuery();
@@ -706,7 +802,8 @@ public sealed class DynamicRepository{
         command.CommandText=
             """
             SELECT "query_id","run_id","ordinal","path_key","generation_seed",
-                   "canonical_ir_json","source_text","query_hash","status","replayed_from_query_id"
+                   "canonical_ir_json","source_text","query_hash","status","replayed_from_query_id",
+                   "ir_schema_version","operator_count","depth","result_type","order_semantics","ir_generation_ns"
             FROM "DynamicQueries"
             WHERE "run_id"=$run_id
             ORDER BY "ordinal";
@@ -725,7 +822,13 @@ public sealed class DynamicRepository{
                 reader.GetString(6),
                 reader.GetString(7),
                 reader.GetString(8),
-                GetOptionalString(reader,9)));
+                GetOptionalString(reader,9),
+                reader.GetInt32(10),
+                reader.GetInt32(11),
+                reader.GetInt32(12),
+                reader.GetString(13),
+                reader.GetString(14),
+                reader.GetInt64(15)));
         }
         return records;
     }
@@ -738,7 +841,11 @@ public sealed class DynamicRepository{
             """
             SELECT e."execution_id",e."query_id",e."source_key",e."attempt",e."execution_order",
                    e."status",e."loop_count",e."warmup_count",e."started_at",e."completed_at",
-                   e."result_digest",e."error",e."partial"
+                   e."result_digest",e."error",e."partial",e."capability_profile_id",
+                   e."capability_profile_json",e."generated_source",e."source_hash",
+                   e."source_emission_ns",e."source_text_ns",e."syntax_tree_ns",e."compilation_ns",
+                   e."generator_ns",e."emit_ns",e."load_ns",e."bind_ns",e."rewrite_summary_json",
+                   e."fixed_point_termination",e."assembly_unloaded"
             FROM "DynamicSourceExecutions" e
             JOIN "DynamicQueries" q ON q."query_id"=e."query_id"
             WHERE q."run_id"=$run_id
@@ -761,7 +868,22 @@ public sealed class DynamicRepository{
                 ParseOptionalDate(reader,9),
                 reader.GetString(10),
                 reader.GetString(11),
-                reader.GetInt64(12)!=0));
+                reader.GetInt64(12)!=0,
+                reader.GetString(13),
+                reader.GetString(14),
+                reader.GetString(15),
+                reader.GetString(16),
+                reader.GetInt64(17),
+                reader.GetInt64(18),
+                reader.GetInt64(19),
+                reader.GetInt64(20),
+                reader.GetInt64(21),
+                reader.GetInt64(22),
+                reader.GetInt64(23),
+                reader.GetInt64(24),
+                reader.GetString(25),
+                reader.GetString(26),
+                reader.IsDBNull(27)?null:reader.GetInt64(27)!=0));
         }
         return records;
     }
@@ -772,12 +894,14 @@ public sealed class DynamicRepository{
         using var command=connection.CreateCommand();
         command.CommandText=
             """
-            SELECT v."validation_id",v."query_id",v."source_key",v."status",
-                   v."validated_at",v."expected_digest",v."actual_digest",v."message"
+            SELECT v."validation_id",v."execution_id",v."implementation_kind",v."status",
+                   v."validated_at",v."result_summary",v."full_result",v."exception_json",
+                   v."symbol_validation_json"
             FROM "DynamicValidationResults" v
-            JOIN "DynamicQueries" q ON q."query_id"=v."query_id"
+            JOIN "DynamicSourceExecutions" e ON e."execution_id"=v."execution_id"
+            JOIN "DynamicQueries" q ON q."query_id"=e."query_id"
             WHERE q."run_id"=$run_id
-            ORDER BY q."ordinal",v."source_key",v."validated_at";
+            ORDER BY q."ordinal",e."execution_order",v."implementation_kind";
             """;
         Add(command,"$run_id",runID);
         using var reader=command.ExecuteReader();
@@ -791,7 +915,8 @@ public sealed class DynamicRepository{
                 ParseRequiredDate(reader,4),
                 reader.GetString(5),
                 reader.GetString(6),
-                reader.GetString(7)));
+                reader.GetString(7),
+                reader.GetString(8)));
         }
         return records;
     }
@@ -912,7 +1037,11 @@ public sealed class DynamicRepository{
         command.CommandText=
             """
             SELECT o."optimization_event_id",o."query_id",o."source_key",o."sequence",
-                   o."kind",o."details_json",o."recorded_at"
+                   o."kind",o."details_json",o."recorded_at",o."execution_id",o."layer",
+                   o."phase",o."rule_id",o."round",o."pass",o."visit",o."node_id",
+                   o."node_path",o."depth",o."stage_index",o."parent_kind",o."is_left",
+                   o."is_right",o."is_inner",o."before_text",o."after_text",o."changed",
+                   o."revisited"
             FROM "DynamicOptimizationEvents" o
             JOIN "DynamicQueries" q ON q."query_id"=o."query_id"
             WHERE q."run_id"=$run_id
@@ -929,7 +1058,26 @@ public sealed class DynamicRepository{
                 reader.GetInt32(3),
                 reader.GetString(4),
                 reader.GetString(5),
-                ParseRequiredDate(reader,6)));
+                ParseRequiredDate(reader,6),
+                reader.GetString(7),
+                reader.GetString(8),
+                reader.GetString(9),
+                reader.GetString(10),
+                reader.GetInt32(11),
+                reader.GetInt32(12),
+                reader.GetInt32(13),
+                reader.GetString(14),
+                reader.GetString(15),
+                reader.IsDBNull(16)?null:reader.GetInt32(16),
+                reader.IsDBNull(17)?null:reader.GetInt32(17),
+                reader.GetString(18),
+                reader.GetInt64(19)!=0,
+                reader.GetInt64(20)!=0,
+                reader.GetInt64(21)!=0,
+                reader.GetString(22),
+                reader.GetString(23),
+                reader.GetInt64(24)!=0,
+                reader.GetInt64(25)!=0));
         }
         return records;
     }

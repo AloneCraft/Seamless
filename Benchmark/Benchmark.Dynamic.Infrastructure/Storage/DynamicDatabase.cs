@@ -110,7 +110,6 @@ public sealed class DynamicDatabase{
         var builder=new SqliteConnectionStringBuilder{
             DataSource=this.DatabasePath,
             Mode=mode,
-            Cache=SqliteCacheMode.Shared,
             Pooling=true,
             DefaultTimeout=30,
         };

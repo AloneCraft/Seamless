@@ -15,6 +15,20 @@ public sealed class 動的結果行:ObservableObject {
     public required SourceTarget 対象{get;init;}
     public required int QueryIndex{get;init;}
     public required string 短縮式{get;init;}
+    public string クエリ式 {
+        get {
+            if(string.IsNullOrWhiteSpace(this.IR)) {
+                return this.短縮式;
+            }
+            try {
+                return QueryExpressionFormatter.Format(QueryIrJson.Deserialize(this.IR));
+            } catch(Exception 例外) when(例外 is System.Text.Json.JsonException
+                or ArgumentException
+                or QueryIrValidationException) {
+                return this.短縮式;
+            }
+        }
+    }
     public required int N{get;init;}
     public required int 深度{get;init;}
     public string 生成時間{get;set;}="—";
