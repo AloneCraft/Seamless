@@ -10,6 +10,10 @@ internal enum LinqOptimizations {
     All = Rewrite|PipelineFusion|PredicatePushdown|ProjectionMerge,
 }
 
+internal enum LinqConvergenceMode{
+    Legacy,
+    GlobalFixedPoint,
+}
 internal static class LinqOptimizationContext {
     [ThreadStatic] private static LinqOptimizations current;
     [ThreadStatic] private static bool initialized;
@@ -166,6 +170,8 @@ public sealed partial class FLinqIncrementalGenerator {
         public bool IsLocalMethodInterception { get; } = isLocalMethodInterception;
         public bool OptimizeLinq { get; } = optimizeLinq;
         public LinqOptimizations Optimizations => LinqOptimizations判定(this.Method,this.SemanticModel.Compilation);
+        public LinqConvergenceMode ConvergenceMode=>LinqConvergenceMode判定(this.Method,this.SemanticModel.Compilation);
+        public bool EmitOptimizationTrace=>EmitOptimizationTrace判定(this.Method,this.SemanticModel.Compilation);
         public bool CounterInstrumentation { get; } = counterInstrumentation;
         private string SourceElementTypeName {
             get {

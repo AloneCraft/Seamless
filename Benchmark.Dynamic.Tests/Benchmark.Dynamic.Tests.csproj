@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>Benchmark.Dynamic.Tests</RootNamespace>
+    <AssemblyName>Benchmark.Dynamic.Tests</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <UseMaui Condition="'$(CoreOnly)'!='true'">true</UseMaui>
+    <WindowsPackageType>None</WindowsPackageType>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <TargetPlatformVersion>10.0.19041.0</TargetPlatformVersion>
+    <TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" Condition="'$(CoreOnly)'!='true'" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime;build;native;contentfiles;analyzers;buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(CoreOnly)'=='true'">
+    <Compile Remove="**\*.cs" />
+    <Compile Include="Core*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <ProjectReference Include="..\Benchmark\Benchmark.Dynamic\Benchmark.Dynamic.csproj" Condition="'$(CoreOnly)'!='true'" />
+    <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Core\Benchmark.Dynamic.Core.csproj" />
+    <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Infrastructure\Benchmark.Dynamic.Infrastructure.csproj" Condition="'$(CoreOnly)'!='true'" />
+    <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Worker\Benchmark.Dynamic.Worker.csproj" Condition="'$(CoreOnly)'!='true'" />
+  </ItemGroup>
+</Project>

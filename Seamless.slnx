@@ -29,6 +29,10 @@
     <Project Path="Benchmark/Benchmark.Scalable.Tsavorite.Collections/Benchmark.Scalable.Tsavorite.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj" />
     <Project Path="Benchmark/Benchmark.UI/Benchmark.UI.csproj" />
+    <Project Path="Benchmark/Benchmark.Dynamic/Benchmark.Dynamic.csproj" />
+    <Project Path="Benchmark/Benchmark.Dynamic.Core/Benchmark.Dynamic.Core.csproj" />
+    <Project Path="Benchmark/Benchmark.Dynamic.Infrastructure/Benchmark.Dynamic.Infrastructure.csproj" />
+    <Project Path="Benchmark/Benchmark.Dynamic.Worker/Benchmark.Dynamic.Worker.csproj" />
     <Project Path="Benchmark/Worker/Worker.csproj" />
   </Folder>
   <Folder Name="/Benchmark/Shared/">
@@ -100,6 +104,8 @@
     <Project Path="Test.Tsavorite.Linq.Enumerable.ValueLinq/Test.Tsavorite.Linq.Enumerable.ValueLinq.csproj" />
     <Project Path="Test.Tsavorite/Test.Tsavorite.csproj" />
     <Project Path="Benchmark.UI.UITests/Benchmark.UI.UITests.csproj" />
+    <Project Path="Benchmark.Dynamic.Tests/Benchmark.Dynamic.Tests.csproj" />
+    <Project Path="Benchmark.Dynamic.UITests/Benchmark.Dynamic.UITests.csproj" />
     <Project Path="Test/Test.csproj" />
     <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
   </Folder>

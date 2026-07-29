@@ -8,6 +8,8 @@ on:
     branches:
       - master
   workflow_dispatch:
+  schedule:
+    - cron: "23 16 * * *"
 
 concurrency:
   group: dotnet-ci-${{ github.ref }}
@@ -57,4 +59,144 @@ jobs:
         with:
           name: benchmark-test-results
           path: Test/TestResults/**/*.trx
+          if-no-files-found: ignore
+
+  benchmark-dynamic:
+    name: Benchmark Dynamic build and tests
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Show .NET info
+        run: dotnet --info
+
+      - name: Restore MAUI workloads
+        run: dotnet workload restore .\Benchmark\Benchmark.Dynamic\Benchmark.Dynamic.csproj
+
+      - name: Restore Dynamic projects
+        run: |
+          dotnet restore .\Benchmark\Benchmark.Dynamic\Benchmark.Dynamic.csproj
+          dotnet restore .\Benchmark.Dynamic.Tests\Benchmark.Dynamic.Tests.csproj
+          dotnet restore .\Benchmark.Dynamic.UITests\Benchmark.Dynamic.UITests.csproj
+          dotnet restore .\Test\Test.csproj
+
+      - name: Run FLinq fixed-point tests
+        run: >
+          dotnet test .\Test\Test.csproj
+          -c Debug
+          -f net10.0-windows
+          --no-restore
+          -p:UseSharedCompilation=false
+          --filter "FullyQualifiedName~OptimizationFixedPointTests"
+          --logger "trx;LogFileName=benchmark-dynamic-fixedpoint.trx"
+
+      - name: Run Dynamic unit and integration tests
+        run: >
+          dotnet test .\Benchmark.Dynamic.Tests\Benchmark.Dynamic.Tests.csproj
+          -c Debug
+          -f net10.0-windows
+          --no-restore
+          -p:UseSharedCompilation=false
+          --logger "trx;LogFileName=benchmark-dynamic-tests.trx"
+
+      - name: Build Benchmark Dynamic
+        run: >
+          dotnet build .\Benchmark\Benchmark.Dynamic\Benchmark.Dynamic.csproj
+          -c Release
+          -f net10.0-windows
+          --no-restore
+          -p:UseSharedCompilation=false
+          "-p:BaseOutputPath=$env:RUNNER_TEMP\seamless-dynamic-bin\"
+
+      - name: Verify Worker payload
+        shell: pwsh
+        run: |
+          $worker = Get-ChildItem -Path "$env:RUNNER_TEMP\seamless-dynamic-bin" -Recurse -Filter Benchmark.Dynamic.Worker.exe | Select-Object -First 1
+          if ($null -eq $worker) {
+            throw "Benchmark.Dynamic.Worker.exe was not copied into the Release payload."
+          }
+          $required = @(
+            "Benchmark.Dynamic.Worker.exe",
+            "Benchmark.Dynamic.Worker.dll",
+            "Benchmark.Dynamic.Worker.deps.json",
+            "Benchmark.Dynamic.Worker.runtimeconfig.json",
+            "Benchmark.Dynamic.Worker.pdb"
+          )
+          $missing = $required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $worker.DirectoryName $_) -PathType Leaf) }
+          if ($missing.Count -ne 0) {
+            throw "Worker payload is incomplete: $($missing -join ', ')"
+          }
+          $required | ForEach-Object { Join-Path $worker.DirectoryName $_ }
+
+      - name: Build Appium smoke tests
+        run: >
+          dotnet build .\Benchmark.Dynamic.UITests\Benchmark.Dynamic.UITests.csproj
+          -c Debug
+          --no-restore
+          -p:UseSharedCompilation=false
+
+      - name: Upload Dynamic test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-dynamic-test-results
+          path: |
+            Test/TestResults/**/*.trx
+            Benchmark.Dynamic.Tests/TestResults/**/*.trx
+          if-no-files-found: ignore
+
+      - name: Upload Dynamic Release payload
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-dynamic-release
+          path: ${{ runner.temp }}/seamless-dynamic-bin/**
+          if-no-files-found: error
+
+  benchmark-dynamic-random-corpus:
+    name: Benchmark Dynamic 10k random corpus
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      BENCHMARK_DYNAMIC_RANDOM_CORPUS: 10000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore Core-only corpus tests
+        run: >
+          dotnet restore .\Benchmark.Dynamic.Tests\Benchmark.Dynamic.Tests.csproj
+          -p:CoreOnly=true
+
+      - name: Run 10k deterministic corpus
+        run: >
+          dotnet test .\Benchmark.Dynamic.Tests\Benchmark.Dynamic.Tests.csproj
+          -c Debug
+          -f net10.0-windows
+          --no-restore
+          -p:CoreOnly=true
+          -p:UseSharedCompilation=false
+          --filter "Category=Corpus"
+          --logger "trx;LogFileName=benchmark-dynamic-corpus-10k.trx"
+
+      - name: Upload corpus test result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-dynamic-corpus-10k-result
+          path: Benchmark.Dynamic.Tests/TestResults/**/*.trx
           if-no-files-found: ignore

@@ -845,28 +845,17 @@ public sealed partial class FLinqIncrementalGenerator {
             containingType=loweredContainingType;
             builder.AppendLine(クエリLowering確認コメント生成(originalStatementForQueryLowering,loweredStatement));
         }
-        if(TryRewriteScalarAlgebra(statement,semanticModel,containingType,out var algebraStatement,out var algebraSemanticModel,out var algebraContainingType)) {
-            statement=algebraStatement;
-            semanticModel=algebraSemanticModel;
-            containingType=algebraContainingType;
-        }
-        if(TryPushDownPredicates(statement,semanticModel,containingType,out var pushedStatement,out var pushedSemanticModel,out var pushedContainingType)) {
-            statement=pushedStatement;
-            semanticModel=pushedSemanticModel;
-            containingType=pushedContainingType;
-        }
-        if(TryMergeProjections(statement,semanticModel,containingType,out var mergedStatement,out var mergedSemanticModel,out var mergedContainingType)) {
-            statement=mergedStatement;
-            semanticModel=mergedSemanticModel;
-            containingType=mergedContainingType;
-            // 融合結果が恒等 Select になった場合の掃除。無変化なら再コンパイルは起きない。
-            if(TryRewriteScalarAlgebra(statement,semanticModel,containingType,out var tidiedStatement,out var tidiedSemanticModel,out var tidiedContainingType)) {
-                statement=tidiedStatement;
-                semanticModel=tidiedSemanticModel;
-                containingType=tidiedContainingType;
+        if(OptimizationExecutionContext.Current?.ConvergenceMode==LinqConvergenceMode.GlobalFixedPoint){
+            if(TryOptimizeGlobalFixedPoint(statement,semanticModel,containingType,out var optimizedStatement,out var optimizedSemanticModel,out var optimizedContainingType)){
+                statement=optimizedStatement;
+                semanticModel=optimizedSemanticModel;
+                containingType=optimizedContainingType;
             }
+        }else if(TryOptimizeLegacy(statement,semanticModel,containingType,out var optimizedStatement,out var optimizedSemanticModel,out var optimizedContainingType)){
+            statement=optimizedStatement;
+            semanticModel=optimizedSemanticModel;
+            containingType=optimizedContainingType;
         }
-
         if(TryRewriteTryGetNonEnumeratedCountStatement(statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) {
             return true;
         }
@@ -1187,28 +1176,17 @@ public sealed partial class FLinqIncrementalGenerator {
             containingType=loweredContainingType;
             builder.AppendLine(クエリLowering確認コメント生成(originalExpressionForQueryLowering,loweredExpression));
         }
-        if(TryRewriteScalarAlgebra(expression,semanticModel,containingType,out var algebraExpression,out var algebraSemanticModel,out var algebraContainingType)) {
-            expression=algebraExpression;
-            semanticModel=algebraSemanticModel;
-            containingType=algebraContainingType;
-        }
-        if(TryPushDownPredicates(expression,semanticModel,containingType,out var pushedExpression,out var pushedSemanticModel,out var pushedContainingType)) {
-            expression=pushedExpression;
-            semanticModel=pushedSemanticModel;
-            containingType=pushedContainingType;
-        }
-        if(TryMergeProjections(expression,semanticModel,containingType,out var mergedExpression,out var mergedSemanticModel,out var mergedContainingType)) {
-            expression=mergedExpression;
-            semanticModel=mergedSemanticModel;
-            containingType=mergedContainingType;
-            // 融合結果が恒等 Select になった場合の掃除。無変化なら再コンパイルは起きない。
-            if(TryRewriteScalarAlgebra(expression,semanticModel,containingType,out var tidiedExpression,out var tidiedSemanticModel,out var tidiedContainingType)) {
-                expression=tidiedExpression;
-                semanticModel=tidiedSemanticModel;
-                containingType=tidiedContainingType;
+        if(OptimizationExecutionContext.Current?.ConvergenceMode==LinqConvergenceMode.GlobalFixedPoint){
+            if(TryOptimizeGlobalFixedPoint(expression,semanticModel,containingType,out var optimizedExpression,out var optimizedSemanticModel,out var optimizedContainingType)){
+                expression=optimizedExpression;
+                semanticModel=optimizedSemanticModel;
+                containingType=optimizedContainingType;
             }
+        }else if(TryOptimizeLegacy(expression,semanticModel,containingType,out var optimizedExpression,out var optimizedSemanticModel,out var optimizedContainingType)){
+            expression=optimizedExpression;
+            semanticModel=optimizedSemanticModel;
+            containingType=optimizedContainingType;
         }
-
         // 括弧を剥がしてクエリ式かどうかを判定する（例: (from v in Source() select v*2)）
         var unwrapped = expression;
         while(unwrapped is ParenthesizedExpressionSyntax paren) {
@@ -1332,6 +1310,152 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 合成書換（Count()&gt;0→Any() の後の Where(p).Any()→Any(p) 等）を取りこぼさないよう、変化が無くなるまで
     /// 「書換→再束縛」を繰り返す（拡張メソッド形の Enumerable 呼び出しのみが対象なので静的 SystemEnumerable 参照は不変）。
     /// </summary>
+    private static bool TryOptimizeLegacy<TSyntax>(
+        TSyntax node,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        out TSyntax optimizedNode,
+        out SemanticModel optimizedSemanticModel,
+        out INamedTypeSymbol optimizedContainingType)
+        where TSyntax:SyntaxNode{
+        optimizedNode=node;
+        optimizedSemanticModel=semanticModel;
+        optimizedContainingType=containingType;
+        var changed=false;
+        if(TryRewriteScalarAlgebra(optimizedNode,optimizedSemanticModel,optimizedContainingType,out var algebraNode,out var algebraModel,out var algebraType)){
+            optimizedNode=algebraNode;
+            optimizedSemanticModel=algebraModel;
+            optimizedContainingType=algebraType;
+            changed=true;
+        }
+        if(TryPushDownPredicates(optimizedNode,optimizedSemanticModel,optimizedContainingType,out var pushedNode,out var pushedModel,out var pushedType)){
+            optimizedNode=pushedNode;
+            optimizedSemanticModel=pushedModel;
+            optimizedContainingType=pushedType;
+            changed=true;
+        }
+        if(TryMergeProjections(optimizedNode,optimizedSemanticModel,optimizedContainingType,out var mergedNode,out var mergedModel,out var mergedType)){
+            optimizedNode=mergedNode;
+            optimizedSemanticModel=mergedModel;
+            optimizedContainingType=mergedType;
+            changed=true;
+            if(TryRewriteScalarAlgebra(optimizedNode,optimizedSemanticModel,optimizedContainingType,out var tidiedNode,out var tidiedModel,out var tidiedType)){
+                optimizedNode=tidiedNode;
+                optimizedSemanticModel=tidiedModel;
+                optimizedContainingType=tidiedType;
+            }
+        }
+        return changed;
+    }
+    private readonly record struct SyntaxOptimizationState<TSyntax>(
+        TSyntax Node,
+        SemanticModel SemanticModel,
+        INamedTypeSymbol ContainingType)
+        where TSyntax:SyntaxNode;
+
+    private static bool TryOptimizeGlobalFixedPoint<TSyntax>(
+        TSyntax node,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        out TSyntax optimizedNode,
+        out SemanticModel optimizedSemanticModel,
+        out INamedTypeSymbol optimizedContainingType)
+        where TSyntax:SyntaxNode{
+        var initial=new SyntaxOptimizationState<TSyntax>(node,semanticModel,containingType);
+        var trace=OptimizationExecutionContext.Current?.Trace;
+        var runId=trace?.BeginRun(OptimizationLayer.Syntax)??0;
+        var result=FixedPointRunner.Run(
+            initial,
+            (state,round)=>RunGlobalOptimizationRound(state,round,runId,trace),
+            static state=>OptimizationTraceText.Syntax(state.Node.WithoutTrivia()));
+        trace?.EndRun(runId,OptimizationLayer.Syntax,result.RoundCount,result.Termination);
+        optimizedNode=result.State.Node;
+        optimizedSemanticModel=result.State.SemanticModel;
+        optimizedContainingType=result.State.ContainingType;
+        return !SyntaxFactory.AreEquivalent(node,optimizedNode);
+    }
+
+    private static FixedPointRoundResult<SyntaxOptimizationState<TSyntax>> RunGlobalOptimizationRound<TSyntax>(
+        SyntaxOptimizationState<TSyntax> state,
+        int round,
+        int runId,
+        OptimizationTraceCollector? trace)
+        where TSyntax:SyntaxNode{
+        var checkpoint=trace?.Checkpoint??0;
+        var current=state;
+        var changed=false;
+        var completedPasses=0;
+
+        if((LinqOptimizationContext.Current&LinqOptimizations.Rewrite)!=0){
+            completedPasses++;
+            var rewritten=AlgebraicRewriter.Rewrite(current.Node,current.SemanticModel);
+            if(!SyntaxFactory.AreEquivalent(current.Node,rewritten)){
+                if(!TryRebindRewritten(current.Node,rewritten,current.SemanticModel,current.ContainingType,"TsavoriteGlobalAlgebraicRewrite",out var nextNode,out var nextModel,out var nextType)){
+                    trace?.Rollback(checkpoint);
+                    return FixedPointRoundResult<SyntaxOptimizationState<TSyntax>>.RebindFailure(state);
+                }
+                trace?.RecordSyntaxChanges(runId,"AlgebraicRewriter",GetAlgebraicRuleId(current.Node,nextNode),round,1,current.Node,nextNode);
+                current=new(nextNode,nextModel,nextType);
+                changed=true;
+            }
+        }
+
+        if((LinqOptimizationContext.Current&LinqOptimizations.PredicatePushdown)!=0){
+            completedPasses++;
+            var rewritten=OptimizeVisitor.Optimize(current.Node,current.SemanticModel);
+            if(!SyntaxFactory.AreEquivalent(current.Node,rewritten)){
+                if(!TryRebindRewritten(current.Node,rewritten,current.SemanticModel,current.ContainingType,"TsavoriteGlobalPredicatePushdown",out var nextNode,out var nextModel,out var nextType)){
+                    trace?.Rollback(checkpoint);
+                    return FixedPointRoundResult<SyntaxOptimizationState<TSyntax>>.RebindFailure(state);
+                }
+                trace?.RecordSyntaxChanges(runId,"OptimizeVisitor","Optimize.PredicatePushdown",round,2,current.Node,nextNode);
+                current=new(nextNode,nextModel,nextType);
+                changed=true;
+            }
+        }
+
+        if((LinqOptimizationContext.Current&LinqOptimizations.ProjectionMerge)!=0){
+            completedPasses++;
+            var rewritten=ProjectionMergeVisitor.Merge(current.Node,current.SemanticModel);
+            if(!SyntaxFactory.AreEquivalent(current.Node,rewritten)){
+                if(!TryRebindRewritten(current.Node,rewritten,current.SemanticModel,current.ContainingType,"TsavoriteGlobalProjectionMerge",out var nextNode,out var nextModel,out var nextType)){
+                    trace?.Rollback(checkpoint);
+                    return FixedPointRoundResult<SyntaxOptimizationState<TSyntax>>.RebindFailure(state);
+                }
+                trace?.RecordSyntaxChanges(runId,"ProjectionMergeVisitor","Projection.Merge",round,3,current.Node,nextNode);
+                current=new(nextNode,nextModel,nextType);
+                changed=true;
+            }
+        }
+
+        for(var pass=0;pass<completedPasses;pass++){
+            trace?.MarkPass();
+        }
+        if(changed){
+            return FixedPointRoundResult<SyntaxOptimizationState<TSyntax>>.ChangedState(current);
+        }
+        return FixedPointRoundResult<SyntaxOptimizationState<TSyntax>>.Unchanged(current);
+    }
+    private static string GetAlgebraicRuleId(SyntaxNode before,SyntaxNode after){
+        var beforeText=before.ToString();
+        var afterText=after.ToString();
+        if((beforeText.Contains(".Count(",StringComparison.Ordinal)
+                ||beforeText.Contains(".LongCount(",StringComparison.Ordinal))
+            &&afterText.Contains(".Any(",StringComparison.Ordinal)){
+            return "Algebraic.CountComparisonToAny";
+        }
+        if(beforeText.Contains(".Where(",StringComparison.Ordinal)
+            &&afterText.Contains(".Any(",StringComparison.Ordinal)){
+            return "Algebraic.WhereTerminalFusion";
+        }
+        if(beforeText.Contains(".Select(",StringComparison.Ordinal)){
+            return "Algebraic.IdentitySelectRemoval";
+        }
+        if(beforeText.Contains(".Reverse(",StringComparison.Ordinal)){
+            return "Algebraic.Reverse";
+        }
+        return "Algebraic.Rewrite";
+    }
     private static bool TryRewriteScalarAlgebra<TSyntax>(
         TSyntax node,
         SemanticModel semanticModel,

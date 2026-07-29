@@ -19,8 +19,9 @@ public sealed partial class FLinqIncrementalGenerator {
         return i<0 ? string.Empty : 名前空間[..i];
     }
 
-    private static string インターセプターソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics) {
+    private static string インターセプターソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics,out OptimizationTraceDocument[] traceDocuments) {
         var builder = new StringBuilder();
+        var collectedTraceDocuments=new List<OptimizationTraceDocument>();
         builder.AppendLine("#nullable enable annotations");
         builder.AppendLine("#nullable disable warnings");
         builder.AppendLine("#pragma warning disable CS0414, CS0649");
@@ -55,7 +56,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 foreach(var typeGroup in namespaceGroup.GroupBy(
                             static target => target.EnclosingType.ToDisplayString(完全修飾形式),StringComparer.Ordinal)) {
                     var typeTargets = typeGroup.ToImmutableArray();
-                    var typeSource = インターセプター型ソース構築(typeTargets,diagnostics);
+                    var typeSource = インターセプター型ソース構築(typeTargets,diagnostics,collectedTraceDocuments);
                     インデント付き追記(builder,typeSource,"    ");
                 }
                 builder.AppendLine("}");
@@ -66,6 +67,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 builder.AppendLine();
                 builder.Append(holder);
             }
+            traceDocuments=[..collectedTraceDocuments];
             return 属性行を畳む(builder.ToString());
         } finally {
             _anonRegistry=previousRegistry;
@@ -139,7 +141,7 @@ public sealed partial class FLinqIncrementalGenerator {
     ///   <item><description>UnsafeAccessor 宣言はクラス直下に出力し、型スタックを逆順に閉じる。</description></item>
     /// </list>
     /// </summary>
-    private static string インターセプター型ソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics) {
+    private static string インターセプター型ソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics,List<OptimizationTraceDocument> traceDocuments) {
         var builder = new StringBuilder();
         var typeStack = 型スタック取得(targets[0].EnclosingType);
         var interceptorTypeName = string.Join("_",typeStack.Select(static type => SanitizeIdentifier(type.Name)));
@@ -149,6 +151,8 @@ public sealed partial class FLinqIncrementalGenerator {
         var emittedUnsafeAccessors = new HashSet<string>(StringComparer.Ordinal);
         foreach(var target in targets) {
             using var 型パラメータースコープ = InterceptedMethodTypeParameterContext.Enter(target.MethodTypeParameters);
+            using var optimizationExecutionScope=OptimizationExecutionContext.Enter(
+                target.ConvergenceMode,target.EmitOptimizationTrace,target.Method.ToDisplayString());
 
             try {
                 if(target.IsLocalMethodInterception) {
@@ -203,6 +207,10 @@ public sealed partial class FLinqIncrementalGenerator {
                 インデント付き追記(builder,RenderUnsupportedDirectMethodBody(target,ex.Message),"        ");
                 builder.AppendLine("    }");
                 builder.AppendLine();
+            }finally{
+                if(optimizationExecutionScope.CreateDocument() is { } traceDocument){
+                    traceDocuments.Add(traceDocument);
+                }
             }
         }
 

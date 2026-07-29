@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Benchmark.Dynamic.Infrastructure</RootNamespace>
+    <AssemblyName>Benchmark.Dynamic.Infrastructure</AssemblyName>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Benchmark.Dynamic.Core\Benchmark.Dynamic.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Storage\Schema\001_initial.sql"
+                      LogicalName="Benchmark.Dynamic.Infrastructure.Storage.Schema.001_initial.sql" />
+  </ItemGroup>
+</Project>

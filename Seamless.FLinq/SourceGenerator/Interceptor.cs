@@ -31,6 +31,10 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
                 ProjectionMerge=8,
                 All=Rewrite|PipelineFusion|PredicatePushdown|ProjectionMerge,
             }
+            internal enum LinqConvergenceMode {
+                Legacy=0,
+                GlobalFixedPoint=1,
+            }
             [global::System.Flags]
             internal enum LinqInstrumentation {
                 None = 0,
@@ -51,6 +55,8 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
                 public bool Intercept { get; }
                 public LinqInstrumentation Instrumentation { get; set; }
                 public LinqOptimizations Optimizations { get; set; } = LinqOptimizations.All;
+                public LinqConvergenceMode ConvergenceMode { get; set; } = LinqConvergenceMode.Legacy;
+                public bool EmitOptimizationTrace { get; set; }
             }
         }
         """;
@@ -108,9 +114,16 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
 
         context.RegisterSourceOutput(perFileGroups,static (productionContext,group) => {
             var diagnostics = new List<Diagnostic>();
-            var source = インターセプターソース構築(group.Targets,diagnostics);
+            var source = インターセプターソース構築(group.Targets,diagnostics,out var traceDocuments);
+            var hintName=インターセプターHintName取得(group.SourcePath);
             if(source.Length>0) {
-                productionContext.AddSource(インターセプターHintName取得(group.SourcePath),SourceText.From(source,Encoding.UTF8));
+                productionContext.AddSource(hintName,SourceText.From(source,Encoding.UTF8));
+            }
+            if(traceDocuments.Length>0){
+                var traceHintName=hintName.EndsWith(".g.cs",StringComparison.Ordinal)
+                    ?hintName[..^5]+".OptimizationTrace.g.cs"
+                    :hintName+".OptimizationTrace.g.cs";
+                productionContext.AddSource(traceHintName,SourceText.From(OptimizationTraceCollector.RenderSource(traceDocuments),Encoding.UTF8));
             }
             foreach(var diagnostic in diagnostics) {
                 productionContext.ReportDiagnostic(diagnostic);

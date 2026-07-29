@@ -2,7 +2,76 @@ namespace Seamless.FLinq;
 
 // 隣接する段の併合と打ち消し。
 internal static partial class PipelineBuilder {
-    private static List<PipelineStage> NormalizeStages(List<PipelineStage> stages,Func<string,string,string> joinStaticMethods) {
+    private static List<PipelineStage> NormalizeStages(List<PipelineStage> stages,Func<string,string,string> joinStaticMethods){
+        var execution=OptimizationExecutionContext.Current;
+        if(execution?.ConvergenceMode!=LinqConvergenceMode.GlobalFixedPoint
+            ||(LinqOptimizationContext.Current&LinqOptimizations.PipelineFusion)==0){
+            return NormalizeStagesLegacy(stages,joinStaticMethods);
+        }
+        if(stages.Count<=1){
+            return stages;
+        }
+
+        var trace=execution.Trace;
+        var runId=trace?.BeginRun(OptimizationLayer.Pipeline)??0;
+        var result=FixedPointRunner.Run(
+            stages,
+            (state,round)=>RunPipelineNormalizationRound(state,joinStaticMethods,round,runId,trace),
+            static state=>OptimizationTraceText.Pipeline(state));
+        trace?.EndRun(runId,OptimizationLayer.Pipeline,result.RoundCount,result.Termination);
+        return result.State;
+    }
+
+    private static FixedPointRoundResult<List<PipelineStage>> RunPipelineNormalizationRound(
+        List<PipelineStage> stages,
+        Func<string,string,string> joinStaticMethods,
+        int round,
+        int runId,
+        OptimizationTraceCollector? trace){
+        var changed=false;
+        var pass=0;
+        stages=ApplyPipelineRule(stages,MergeDistinctStages,"Pipeline.Distinct",round,++pass,runId,trace,ref changed);
+        stages=ApplyPipelineRule(stages,MergeDistinctByStages,"Pipeline.DistinctBy",round,++pass,runId,trace,ref changed);
+        stages=ApplyPipelineRule(stages,MergeTakeStages,"Pipeline.Take",round,++pass,runId,trace,ref changed);
+        stages=ApplyPipelineRule(stages,MergeSkipStages,"Pipeline.Skip",round,++pass,runId,trace,ref changed);
+        stages=ApplyPipelineRule(stages,CancelReverseStages,"Pipeline.Reverse",round,++pass,runId,trace,ref changed);
+        stages=ApplyPipelineRule(
+            stages,
+            source=>MergeWhereStages(source,joinStaticMethods),
+            "Pipeline.Where",
+            round,
+            ++pass,
+            runId,
+            trace,
+            ref changed);
+        if(changed){
+            return FixedPointRoundResult<List<PipelineStage>>.ChangedState(stages);
+        }
+        return FixedPointRoundResult<List<PipelineStage>>.Unchanged(stages);
+    }
+
+    private static List<PipelineStage> ApplyPipelineRule(
+        List<PipelineStage> stages,
+        Func<List<PipelineStage>,List<PipelineStage>> rule,
+        string ruleId,
+        int round,
+        int pass,
+        int runId,
+        OptimizationTraceCollector? trace,
+        ref bool anyChanged){
+        var beforeText=OptimizationTraceText.Pipeline(stages);
+        var rewritten=rule(stages);
+        var afterText=OptimizationTraceText.Pipeline(rewritten);
+        if(string.Equals(beforeText,afterText,StringComparison.Ordinal)){
+            return rewritten;
+        }
+        var stageIndex=OptimizationTraceText.FirstChangedStageIndex(stages,rewritten);
+        trace?.RecordPipeline(runId,"NormalizeStages",ruleId,round,pass,round*10+pass,stageIndex,beforeText,afterText);
+        trace?.MarkPass();
+        anyChanged=true;
+        return rewritten;
+    }
+    private static List<PipelineStage> NormalizeStagesLegacy(List<PipelineStage> stages,Func<string,string,string> joinStaticMethods) {
         if(stages.Count<=1) {
             return stages;
         }

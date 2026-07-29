@@ -121,6 +121,9 @@
     <Compile Include="Benchmark\BenchmarkRowCompletionLogic.cs" />
     <Compile Include="BenchmarkWorker\BenchmarkFormatting.cs" />
     <Compile Include="System\Linq\BenchmarkValueComparison\BenchmarkValueComparisonTests.cs" />
+    <Compile Include="SourceGenerator\GeneratorTestHelpers.cs" />
+    <Compile Include="SourceGenerator\OptimizationFixedPointTests.cs" />
+    <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.FLinq\Benchmark.System.Linq.Enumerable.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.List.ZLinq\Benchmark.System.Linq.Enumerable.List.ZLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.Range.ZLinq\Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
@@ -145,4 +148,3 @@
   </ItemGroup>
 
 </Project>
-

@@ -318,6 +318,77 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
+    private static LinqConvergenceMode LinqConvergenceMode判定(IMethodSymbol method,Compilation compilation){
+        if(TryGetLinqConvergenceMode(method.GetAttributes(),out var methodMode)){
+            return methodMode;
+        }
+        for(var type=method.ContainingType;type is not null;type=type.ContainingType){
+            if(TryGetLinqConvergenceMode(type.GetAttributes(),out var typeMode)){
+                return typeMode;
+            }
+        }
+        return TryGetLinqConvergenceMode(compilation.Assembly.GetAttributes(),out var assemblyMode)
+            ?assemblyMode
+            :LinqConvergenceMode.Legacy;
+    }
+
+    private static bool TryGetLinqConvergenceMode(ImmutableArray<AttributeData> attributes,out LinqConvergenceMode mode){
+        foreach(var attribute in attributes){
+            if(attribute.AttributeClass?.Name!="LinqInterceptAttribute"){
+                continue;
+            }
+            foreach(var named in attribute.NamedArguments){
+                if(named.Key=="ConvergenceMode"&&TryGetInt32(named.Value.Value,out var value)){
+                    mode=(LinqConvergenceMode)value;
+                    return true;
+                }
+            }
+        }
+        mode=LinqConvergenceMode.Legacy;
+        return false;
+    }
+
+    private static bool EmitOptimizationTrace判定(IMethodSymbol method,Compilation compilation){
+        if(TryGetEmitOptimizationTrace(method.GetAttributes(),out var methodValue)){
+            return methodValue;
+        }
+        for(var type=method.ContainingType;type is not null;type=type.ContainingType){
+            if(TryGetEmitOptimizationTrace(type.GetAttributes(),out var typeValue)){
+                return typeValue;
+            }
+        }
+        return TryGetEmitOptimizationTrace(compilation.Assembly.GetAttributes(),out var assemblyValue)&&assemblyValue;
+    }
+
+    private static bool TryGetEmitOptimizationTrace(ImmutableArray<AttributeData> attributes,out bool value){
+        foreach(var attribute in attributes){
+            if(attribute.AttributeClass?.Name!="LinqInterceptAttribute"){
+                continue;
+            }
+            foreach(var named in attribute.NamedArguments){
+                if(named.Key=="EmitOptimizationTrace"&&named.Value.Value is bool traceValue){
+                    value=traceValue;
+                    return true;
+                }
+            }
+        }
+        value=false;
+        return false;
+    }
+
+    private static bool TryGetInt32(object? value,out int result){
+        switch(value){
+            case int intValue:
+                result=intValue;
+                return true;
+            case long longValue when longValue>=int.MinValue&&longValue<=int.MaxValue:
+                result=(int)longValue;
+                return true;
+            default:
+                result=0;
+                return false;
+        }
+    }
     private static bool TryGetLinqInstrumentation(ImmutableArray<AttributeData> attributes,out bool counterInstrumentation) {
         foreach(var attribute in attributes) {
             if(attribute.AttributeClass?.Name!="LinqInterceptAttribute") {
