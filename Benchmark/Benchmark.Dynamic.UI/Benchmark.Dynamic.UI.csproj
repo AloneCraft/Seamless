@@ -33,6 +33,18 @@
     <ProjectReference Include="..\Benchmark.Dynamic.Infrastructure\Benchmark.Dynamic.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\..\Shared\UI.Core\BenchmarkCpuCoreModels.cs" Link="Shared\UI.Core\BenchmarkCpuCoreModels.cs" />
+    <Compile Include="..\..\Shared\UI.Core\BenchmarkCpuTopologyProvider.cs" Link="Shared\UI.Core\BenchmarkCpuTopologyProvider.cs" />
+    <Compile Include="..\..\Shared\UI.Core\BenchmarkStatusIconLogic.cs" Link="Shared\UI.Core\BenchmarkStatusIconLogic.cs" />
+  </ItemGroup>
+
+  <Import Project="..\..\Shared\UI.Widgets\UI.Widgets.projitems" Label="Shared" />
+
+  <ItemGroup>
+    <MauiImage Include="Resources\Images\*.svg" BaseSize="24,24" />
+  </ItemGroup>
+
   <Target Name="CopyBenchmarkDynamicWorker" AfterTargets="Build" Condition="'$(IsCrossTargetingBuild)'!='true' and '$(TargetDir)'!='' and '$(SkipBenchmarkDynamicWorkerBuild)'!='true'">
     <MSBuild Projects="$(MSBuildProjectDirectory)\..\Benchmark.Dynamic.Worker\Benchmark.Dynamic.Worker.csproj" Targets="Build" Properties="Configuration=$(Configuration);TargetFramework=net10.0" />
     <ItemGroup>

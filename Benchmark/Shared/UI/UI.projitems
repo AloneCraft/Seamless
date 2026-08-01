@@ -6,6 +6,7 @@
     <SharedGUID>{9A75284D-0FA1-40D3-A0D4-81DF6C571B36}</SharedGUID>
   </PropertyGroup>
   <Import Project="$(MSBuildThisFileDirectory)..\..\..\Shared\UI.Core\UI.Core.projitems" />
+  <Import Project="$(MSBuildThisFileDirectory)..\..\..\Shared\UI.Widgets\UI.Widgets.projitems" />
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)**\*.cs" Exclude="$(MSBuildThisFileDirectory)*.cs;$(MSBuildThisFileDirectory)Platforms\**\*.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App.xaml.cs" />

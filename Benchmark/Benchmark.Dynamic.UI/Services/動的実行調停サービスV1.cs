@@ -1,8 +1,11 @@
 using Benchmark.Dynamic.Core;
 using Benchmark.Dynamic.Infrastructure;
+using System.Collections.Concurrent;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using UI;
 
 namespace Benchmark.Dynamic.UI;
 
@@ -28,7 +31,8 @@ public sealed record 動的実行進捗(
     int コンパイル失敗数,
     int 意味不一致数,
     int 非収束数,
-    int 実行例外数);
+    int 実行例外数,
+    int? 論理CPU=null);
 
 public sealed record 動的実行条件Snapshot(
     int SchemaVersion,
@@ -83,25 +87,30 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
     private readonly string WorkerPath;
     private readonly WorkerMeasurementProfile MeasurementProfile;
     private readonly SemaphoreSlim 実行Gate=new(1,1);
+    private readonly ConcurrentDictionary<int,IWorkerProcessSession> WorkerSessions=new();
+    private readonly bool CPU並列実行有効か;
     private CancellationTokenSource? 実行キャンセル;
-    private IWorkerProcessSession? WorkerSession;
+    private const int 縮小SessionKey=-1;
 
     public 動的実行調停サービス():this(
         DynamicDatabasePathResolver.Resolve(ソリューションルートを検索()),
         Workerパスを解決(),
-        new WorkerMeasurementProfile()){
+        new WorkerMeasurementProfile(),
+        CPU並列実行を有効にする:true){
     }
 
     public 動的実行調停サービス(
         string DBパス,
         string Workerパス,
         WorkerMeasurementProfile? 計測プロファイル=null,
-        IWorkerProcessClient? WorkerClient=null){
+        IWorkerProcessClient? WorkerClient=null,
+        bool CPU並列実行を有効にする=false){
         ArgumentException.ThrowIfNullOrWhiteSpace(DBパス);
         ArgumentException.ThrowIfNullOrWhiteSpace(Workerパス);
         this.WorkerPath=Path.GetFullPath(Workerパス);
         this.MeasurementProfile=計測プロファイル??new WorkerMeasurementProfile();
         this.WorkerClient=WorkerClient??new VersionedJsonLineWorkerProcessClient();
+        this.CPU並列実行有効か=CPU並列実行を有効にする;
         this.DB=new DynamicDatabase(Path.GetFullPath(DBパス));
         this.DB.InitializeIfMissing();
         this.Writer=new DynamicSingleWriterQueue(this.DB);
@@ -120,9 +129,10 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
         try{
             return await this.実行CoreAsync(設定,結果受信時,進捗受信時).ConfigureAwait(false);
         }finally{
-            if(this.WorkerSession is not null){
-                await this.WorkerSession.DisposeAsync().ConfigureAwait(false);
-                this.WorkerSession=null;
+            foreach(var Key in this.WorkerSessions.Keys.ToArray()){
+                if(this.WorkerSessions.TryRemove(Key,out var Session)){
+                    await Session.DisposeAsync().ConfigureAwait(false);
+                }
             }
             this.実行キャンセル?.Dispose();
             this.実行キャンセル=null;
@@ -204,233 +214,34 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
                 Queries:予定Query一覧,
                 SourceExecutions:予定実行一覧),
             CancellationToken.None).ConfigureAwait(false);
-        var Query開始一覧=new Dictionary<string,WorkerQueryStartedEvent>(StringComparer.Ordinal);
-        var Source開始一覧=new Dictionary<(string QueryID,SourceTarget 対象),WorkerSourceExecutionStartedEvent>();
-        var 現在QueryIndex=0;
-        var 現在対象=設定.対象一覧[0];
-        var 最新進捗=new WorkerProgressEvent(設定.実行ID,0,checked(設定.Query数*設定.対象一覧.Count),0,0,0,0,false);
-        var 最終状態="Failed";
-        var 致命障害か=false;
-        var 完了済み実行一覧=new HashSet<WorkerCompletedSourceExecution>();
-        var 失敗Source数=0;
-        var RunEventSequence=0;
-        var Worker再起動回数=0;
+        var 共有集計=new パーティション進捗集計(checked(設定.Query数*設定.対象一覧.Count));
         try{
-            while(true){
-                Token.ThrowIfCancellationRequested();
-                var ALC解放失敗後に再起動するか=false;
-                var Session終了か=false;
-                var Session=this.WorkerClient.Start(this.WorkerPath);
-                this.WorkerSession=Session;
-                try{
-                    var ResumeState=完了済み実行一覧.Count==0
-                        ?null
-                        :new WorkerRunResumeState(
-                            完了済み実行一覧.OrderBy(static 実行=>実行.QueryIndex)
-                                .ThenBy(static 実行=>実行.SourceTarget)
-                                .ToArray(),
-                            失敗Source数,
-                            最新進捗.CompilationFailures,
-                            最新進捗.SemanticMismatches,
-                            最新進捗.NonConvergences,
-                            最新進捗.ExecutionFailures);
-                    var RequestID=設定.実行ID;
-                    await Session.SendAsync(
-                        RequestID,
-                        WorkerMessageTypes.StartRun,
-                        new WorkerRunRequest(
-                            設定.実行ID,
-                            設定.Seed,
-                            設定.Query数,
-                            設定.N,
-                            設定.最大深度,
-                            設定.入力要素数,
-                            設定.演算子集合モード,
-                            設定.対象一覧,
-                            計測Profile,
-                            RandomQueryGenerator.GeneratorVersion,
-                            Capability.ProfileVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                            Capability.OperatorSetVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                            設定.再実行Query一覧,
-                            ResumeState:ResumeState),
-                        CancellationToken.None).ConfigureAwait(false);
-                    await foreach(var Envelope in Session.ReadAllAsync(CancellationToken.None).ConfigureAwait(false)){
-                switch(Envelope.MessageType){
-                    case WorkerMessageTypes.WorkerStarted:{
-                        var 開始=DynamicWorkerProtocol.DeserializePayload<WorkerStartedEvent>(Envelope);
-                        Run=Run with{
-                            WorkerVersion=開始.WorkerVersion,
-                            UpdatedAt=DateTimeOffset.UtcNow,
-                        };
-                        await this.Repository.SaveRunAsync(Run,CancellationToken.None).ConfigureAwait(false);
-                        break;
-                    }
-                    case WorkerMessageTypes.QueryStarted:{
-                        var Query開始=DynamicWorkerProtocol.DeserializePayload<WorkerQueryStartedEvent>(Envelope);
-                        Query開始一覧[Query開始.QueryId]=Query開始;
-                        現在QueryIndex=Query開始.QueryIndex;
-                        var IR=QueryIrJson.Deserialize(Query開始.IrJson);
-                        await this.Repository.SaveQueryAsync(
-                            new DynamicQueryRecord(
-                                Query開始.QueryId,
-                                設定.実行ID,
-                                Query開始.QueryIndex,
-                                Query開始.DerivationKind,
-                                unchecked((long)Query開始.QuerySeed.A),
-                                Query開始.IrJson,
-                                string.Empty,
-                                QueryIrJson.ComputeHash(IR),
-                                "Running",
-                                Query開始.ReplayedFromQueryId,
-                                IR.IrSchemaVersion,
-                                IR.ActualOperatorCount,
-                                IR.ActualDepth,
-                                IR.Root.OutputType.ToString(),
-                                IR.Root.OrderSemantics.ToString(),
-                                Query開始.IrGenerationNanoseconds),
-                            CancellationToken.None).ConfigureAwait(false);
-                        break;
-                    }
-                    case WorkerMessageTypes.SourceExecutionStarted:{
-                        var Source開始=DynamicWorkerProtocol.DeserializePayload<WorkerSourceExecutionStartedEvent>(Envelope);
-                        Source開始一覧[(Source開始.QueryId,Source開始.SourceTarget)]=Source開始;
-                        現在QueryIndex=Source開始.QueryIndex;
-                        現在対象=Source開始.SourceTarget;
-                        await this.Repository.SaveSourceExecutionAsync(
-                            new DynamicSourceExecutionRecord(
-                                $"{Source開始.QueryId}-{Source開始.SourceTarget}-a1",
-                                Source開始.QueryId,
-                                Source開始.SourceTarget.ToString(),
-                                1,
-                                checked(Source開始.QueryIndex*設定.対象一覧.Count+Source開始.SourceOrdinal),
-                                "Running",
-                                StartedAt:Source開始.StartedAtUtc),
-                            CancellationToken.None).ConfigureAwait(false);
-                        進捗受信時(進捗へ変換(設定,Source開始.QueryIndex,Source開始.SourceTarget,"実行中",最新進捗));
-                        break;
-                    }
-                    case WorkerMessageTypes.SourceExecutionCompleted:{
-                        var 結果=DynamicWorkerProtocol.DeserializePayload<WorkerSourceExecutionCompletedEvent>(Envelope);
-                        if(!完了済み実行一覧.Add(new(結果.QueryIndex,結果.SourceTarget))){
-                            throw new InvalidDataException(
-                                $"SourceExecutionCompletedが重複しました: QueryIndex={結果.QueryIndex} SourceTarget={結果.SourceTarget}");
-                        }
-                        if(結果.Status!=WorkerExecutionStatus.Succeeded){
-                            失敗Source数++;
-                        }
-                        if(!Query開始一覧.TryGetValue(結果.QueryId,out var Query開始)){
-                            throw new InvalidDataException($"QueryStarted event is missing: {結果.QueryId}");
-                        }
-                        Source開始一覧.TryGetValue((結果.QueryId,結果.SourceTarget),out var Source開始);
-                        await this.Source結果を保存Async(
-                            設定,
-                            Run,
-                            Query開始,
-                            Source開始,
-                            結果,
-                            結果受信時,
-                            CancellationToken.None).ConfigureAwait(false);
-                        break;
-                    }
-                    case WorkerMessageTypes.Progress:{
-                        最新進捗=DynamicWorkerProtocol.DeserializePayload<WorkerProgressEvent>(Envelope);
-                        進捗受信時(進捗へ変換(
-                            設定,
-                            現在QueryIndex,
-                            現在対象,
-                            最新進捗.CancellationRequested?"キャンセル中":"実行中",
-                            最新進捗));
-                        break;
-                    }
-                    case WorkerMessageTypes.Diagnostic:{
-                        var 診断=DynamicWorkerProtocol.DeserializePayload<WorkerDiagnosticEvent>(Envelope);
-                        await this.Repository.SaveRunEventAsync(
-                            new DynamicRunEventRecord(
-                                Guid.NewGuid().ToString("N"),
-                                設定.実行ID,
-                                checked(++RunEventSequence),
-                                診断.Severity,
-                                診断.Stage,
-                                診断.Message,
-                                JsonSerializer.Serialize(診断,DynamicWorkerProtocol.JsonOptions),
-                                DateTimeOffset.UtcNow,
-                                診断.QueryId),
-                            CancellationToken.None).ConfigureAwait(false);
-                        break;
-                    }
-                    case WorkerMessageTypes.RunCompleted:{
-                        _=DynamicWorkerProtocol.DeserializePayload<WorkerRunCompletedEvent>(Envelope);
-                        最終状態="Completed";
-                        Session終了か=true;
-                        await Session.ShutdownAsync($"shutdown-{設定.実行ID}").ConfigureAwait(false);
-                        break;
-                    }
-                    case WorkerMessageTypes.RunCanceled:{
-                        _=DynamicWorkerProtocol.DeserializePayload<WorkerRunCompletedEvent>(Envelope);
-                        最終状態="Canceled";
-                        Session終了か=true;
-                        await Session.ShutdownAsync($"shutdown-{設定.実行ID}").ConfigureAwait(false);
-                        break;
-                    }
-                    case WorkerMessageTypes.Fatal:{
-                        var 致命=DynamicWorkerProtocol.DeserializePayload<WorkerFatalEvent>(Envelope);
-                        ALC解放失敗後に再起動するか=致命.ErrorType==WorkerFatalErrorTypes.AssemblyUnloadFailure
-                            &&完了済み実行一覧.Count<最新進捗.TotalSourceExecutions
-                            &&!Token.IsCancellationRequested;
-                        致命障害か=!ALC解放失敗後に再起動するか;
-                        if(致命障害か){
-                            最終状態="Failed";
-                        }
-                        await this.Repository.SaveRunEventAsync(
-                            new DynamicRunEventRecord(
-                                Guid.NewGuid().ToString("N"),
-                                設定.実行ID,
-                                checked(++RunEventSequence),
-                                ALC解放失敗後に再起動するか?"Warning":"Error",
-                                "Fatal",
-                                致命.Message,
-                                JsonSerializer.Serialize(致命,DynamicWorkerProtocol.JsonOptions),
-                                致命.OccurredAtUtc),
-                            CancellationToken.None).ConfigureAwait(false);
-                        Session終了か=true;
-                        await Session.ShutdownAsync($"fatal-{設定.実行ID}").ConfigureAwait(false);
-                        break;
-                    }
-                }
-                        if(Session終了か){
-                            break;
-                        }
-                    }
-                }finally{
-                    await Session.DisposeAsync().ConfigureAwait(false);
-                    if(ReferenceEquals(this.WorkerSession,Session)){
-                        this.WorkerSession=null;
-                    }
-                }
-                if(!ALC解放失敗後に再起動するか){
-                    break;
-                }
-                Worker再起動回数++;
-                await this.Repository.SaveRunEventAsync(
-                    new DynamicRunEventRecord(
-                        Guid.NewGuid().ToString("N"),
-                        設定.実行ID,
-                        checked(++RunEventSequence),
-                        "Warning",
-                        "WorkerRestart",
-                        "ALC解放失敗が3件連続したため、新しいWorkerで残りのSourceExecutionを継続します。",
-                        JsonSerializer.Serialize(new{
-                            Worker再起動回数,
-                            完了数=完了済み実行一覧.Count,
-                            総数=最新進捗.TotalSourceExecutions,
-                        },DynamicWorkerProtocol.JsonOptions),
-                        DateTimeOffset.UtcNow),
-                    CancellationToken.None).ConfigureAwait(false);
-            }
+            var CPU一覧=this.CPU並列実行有効か&&設定.再実行Query一覧 is null
+                ?CPU一覧を計算する(設定.Query数)
+                :(IReadOnlyList<int?>)[null];
+            var 分割一覧=Query範囲を分割する(設定.Query数,CPU一覧.Count);
+            var パーティションタスク一覧=分割一覧.Select((範囲,番号)=>this.パーティションを実行Async(
+                設定,
+                番号,
+                CPU一覧[番号],
+                範囲.Offset,
+                範囲.Count,
+                Capability,
+                計測Profile,
+                Run,
+                共有集計,
+                結果受信時,
+                進捗受信時,
+                Token)).ToArray();
+            var 結果一覧=await Task.WhenAll(パーティションタスク一覧).ConfigureAwait(false);
+
             var 完了日時=DateTimeOffset.UtcNow;
-            if(Token.IsCancellationRequested&&!致命障害か&&最終状態=="Failed"){
-                最終状態="Canceled";
-            }
+            var 致命障害か=結果一覧.Any(static 結果=>結果.致命障害か);
+            var 最終状態=
+                致命障害か?"Failed":
+                Token.IsCancellationRequested?"Canceled":
+                結果一覧.Any(static 結果=>結果.最終状態=="Failed")?"Failed":
+                "Completed";
             if(最終状態=="Canceled"){
                 await this.キャンセル状態を確定Async(設定.実行ID,完了日時).ConfigureAwait(false);
             }
@@ -477,7 +288,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
                             new DynamicRunEventRecord(
                                 Guid.NewGuid().ToString("N"),
                                 設定.実行ID,
-                                checked(++RunEventSequence),
+                                共有集計.次のRunEventSequenceを取得(),
                             "Error",
                             "Fatal",
                             例外.Message,
@@ -489,12 +300,320 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
         }
     }
 
+    private async Task<(string 最終状態,bool 致命障害か)> パーティションを実行Async(
+        動的実行設定 設定,
+        int SessionKey,
+        int? 論理CPU,
+        int QueryIndexOffset,
+        int QueryCount,
+        QueryCapabilitySet Capability,
+        WorkerMeasurementProfile 計測Profile,
+        DynamicRunRecord Run,
+        パーティション進捗集計 共有集計,
+        Action<動的結果行> 結果受信時,
+        Action<動的実行進捗> 進捗受信時,
+        CancellationToken Token){
+        var Query開始一覧=new Dictionary<string,WorkerQueryStartedEvent>(StringComparer.Ordinal);
+        var Source開始一覧=new Dictionary<(string QueryID,SourceTarget 対象),WorkerSourceExecutionStartedEvent>();
+        var 最新進捗=new WorkerProgressEvent(設定.実行ID,0,checked(QueryCount*設定.対象一覧.Count),0,0,0,0,false);
+        var 最終状態="Failed";
+        var 致命障害か=false;
+        var 完了済み実行一覧=new HashSet<WorkerCompletedSourceExecution>();
+        var 失敗Source数=0;
+        var Worker再起動回数=0;
+        var 起動引数=論理CPU is{} CPU?new[]{"--logical-cpu",CPU.ToString(CultureInfo.InvariantCulture)}:null;
+        while(true){
+            Token.ThrowIfCancellationRequested();
+            var ALC解放失敗後に再起動するか=false;
+            var Session終了か=false;
+            var Session=this.WorkerClient.Start(this.WorkerPath,起動引数);
+            this.WorkerSessions[SessionKey]=Session;
+            try{
+                var ResumeState=完了済み実行一覧.Count==0
+                    ?null
+                    :new WorkerRunResumeState(
+                        完了済み実行一覧.OrderBy(static 実行=>実行.QueryIndex)
+                            .ThenBy(static 実行=>実行.SourceTarget)
+                            .ToArray(),
+                        失敗Source数,
+                        最新進捗.CompilationFailures,
+                        最新進捗.SemanticMismatches,
+                        最新進捗.NonConvergences,
+                        最新進捗.ExecutionFailures);
+                var RequestID=$"{設定.実行ID}-p{SessionKey:D3}";
+                await Session.SendAsync(
+                    RequestID,
+                    WorkerMessageTypes.StartRun,
+                    new WorkerRunRequest(
+                        設定.実行ID,
+                        設定.Seed,
+                        QueryCount,
+                        設定.N,
+                        設定.最大深度,
+                        設定.入力要素数,
+                        設定.演算子集合モード,
+                        設定.対象一覧,
+                        計測Profile,
+                        RandomQueryGenerator.GeneratorVersion,
+                        Capability.ProfileVersion.ToString(CultureInfo.InvariantCulture),
+                        Capability.OperatorSetVersion.ToString(CultureInfo.InvariantCulture),
+                        設定.再実行Query一覧,
+                        ResumeState:ResumeState,
+                        QueryIndexOffset:QueryIndexOffset),
+                    CancellationToken.None).ConfigureAwait(false);
+                await foreach(var Envelope in Session.ReadAllAsync(CancellationToken.None).ConfigureAwait(false)){
+                    switch(Envelope.MessageType){
+                        case WorkerMessageTypes.WorkerStarted:{
+                            var 開始=DynamicWorkerProtocol.DeserializePayload<WorkerStartedEvent>(Envelope);
+                            Run=Run with{
+                                WorkerVersion=開始.WorkerVersion,
+                                UpdatedAt=DateTimeOffset.UtcNow,
+                            };
+                            await this.Repository.SaveRunAsync(Run,CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        }
+                        case WorkerMessageTypes.QueryStarted:{
+                            var Query開始=DynamicWorkerProtocol.DeserializePayload<WorkerQueryStartedEvent>(Envelope);
+                            Query開始一覧[Query開始.QueryId]=Query開始;
+                            var IR=QueryIrJson.Deserialize(Query開始.IrJson);
+                            await this.Repository.SaveQueryAsync(
+                                new DynamicQueryRecord(
+                                    Query開始.QueryId,
+                                    設定.実行ID,
+                                    Query開始.QueryIndex,
+                                    Query開始.DerivationKind,
+                                    unchecked((long)Query開始.QuerySeed.A),
+                                    Query開始.IrJson,
+                                    string.Empty,
+                                    QueryIrJson.ComputeHash(IR),
+                                    "Running",
+                                    Query開始.ReplayedFromQueryId,
+                                    IR.IrSchemaVersion,
+                                    IR.ActualOperatorCount,
+                                    IR.ActualDepth,
+                                    IR.Root.OutputType.ToString(),
+                                    IR.Root.OrderSemantics.ToString(),
+                                    Query開始.IrGenerationNanoseconds),
+                                CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        }
+                        case WorkerMessageTypes.SourceExecutionStarted:{
+                            var Source開始=DynamicWorkerProtocol.DeserializePayload<WorkerSourceExecutionStartedEvent>(Envelope);
+                            Source開始一覧[(Source開始.QueryId,Source開始.SourceTarget)]=Source開始;
+                            await this.Repository.SaveSourceExecutionAsync(
+                                new DynamicSourceExecutionRecord(
+                                    $"{Source開始.QueryId}-{Source開始.SourceTarget}-a1",
+                                    Source開始.QueryId,
+                                    Source開始.SourceTarget.ToString(),
+                                    1,
+                                    checked(Source開始.QueryIndex*設定.対象一覧.Count+Source開始.SourceOrdinal),
+                                    "Running",
+                                    StartedAt:Source開始.StartedAtUtc),
+                                CancellationToken.None).ConfigureAwait(false);
+                            進捗受信時(共有集計.進捗のみ取得(Source開始.QueryIndex,Source開始.SourceTarget,"実行中",論理CPU));
+                            break;
+                        }
+                        case WorkerMessageTypes.SourceExecutionCompleted:{
+                            var 結果=DynamicWorkerProtocol.DeserializePayload<WorkerSourceExecutionCompletedEvent>(Envelope);
+                            if(!完了済み実行一覧.Add(new(結果.QueryIndex,結果.SourceTarget))){
+                                throw new InvalidDataException(
+                                    $"SourceExecutionCompletedが重複しました: QueryIndex={結果.QueryIndex} SourceTarget={結果.SourceTarget}");
+                            }
+                            if(結果.Status!=WorkerExecutionStatus.Succeeded){
+                                失敗Source数++;
+                            }
+                            if(!Query開始一覧.TryGetValue(結果.QueryId,out var Query開始)){
+                                throw new InvalidDataException($"QueryStarted event is missing: {結果.QueryId}");
+                            }
+                            Source開始一覧.TryGetValue((結果.QueryId,結果.SourceTarget),out var Source開始);
+                            await this.Source結果を保存Async(
+                                設定,
+                                Run,
+                                Query開始,
+                                Source開始,
+                                結果,
+                                結果受信時,
+                                CancellationToken.None).ConfigureAwait(false);
+                            進捗受信時(共有集計.完了を記録して進捗を取得(結果.QueryIndex,結果.SourceTarget,"実行中",結果.Status,論理CPU));
+                            break;
+                        }
+                        case WorkerMessageTypes.Progress:{
+                            最新進捗=DynamicWorkerProtocol.DeserializePayload<WorkerProgressEvent>(Envelope);
+                            break;
+                        }
+                        case WorkerMessageTypes.Diagnostic:{
+                            var 診断=DynamicWorkerProtocol.DeserializePayload<WorkerDiagnosticEvent>(Envelope);
+                            await this.Repository.SaveRunEventAsync(
+                                new DynamicRunEventRecord(
+                                    Guid.NewGuid().ToString("N"),
+                                    設定.実行ID,
+                                    共有集計.次のRunEventSequenceを取得(),
+                                    診断.Severity,
+                                    診断.Stage,
+                                    診断.Message,
+                                    JsonSerializer.Serialize(診断,DynamicWorkerProtocol.JsonOptions),
+                                    DateTimeOffset.UtcNow,
+                                    診断.QueryId),
+                                CancellationToken.None).ConfigureAwait(false);
+                            break;
+                        }
+                        case WorkerMessageTypes.RunCompleted:{
+                            _=DynamicWorkerProtocol.DeserializePayload<WorkerRunCompletedEvent>(Envelope);
+                            最終状態="Completed";
+                            Session終了か=true;
+                            await Session.ShutdownAsync($"shutdown-{RequestID}").ConfigureAwait(false);
+                            break;
+                        }
+                        case WorkerMessageTypes.RunCanceled:{
+                            _=DynamicWorkerProtocol.DeserializePayload<WorkerRunCompletedEvent>(Envelope);
+                            最終状態="Canceled";
+                            Session終了か=true;
+                            await Session.ShutdownAsync($"shutdown-{RequestID}").ConfigureAwait(false);
+                            break;
+                        }
+                        case WorkerMessageTypes.Fatal:{
+                            var 致命=DynamicWorkerProtocol.DeserializePayload<WorkerFatalEvent>(Envelope);
+                            ALC解放失敗後に再起動するか=致命.ErrorType==WorkerFatalErrorTypes.AssemblyUnloadFailure
+                                &&完了済み実行一覧.Count<最新進捗.TotalSourceExecutions
+                                &&!Token.IsCancellationRequested;
+                            致命障害か=!ALC解放失敗後に再起動するか;
+                            if(致命障害か){
+                                最終状態="Failed";
+                            }
+                            await this.Repository.SaveRunEventAsync(
+                                new DynamicRunEventRecord(
+                                    Guid.NewGuid().ToString("N"),
+                                    設定.実行ID,
+                                    共有集計.次のRunEventSequenceを取得(),
+                                    ALC解放失敗後に再起動するか?"Warning":"Error",
+                                    "Fatal",
+                                    致命.Message,
+                                    JsonSerializer.Serialize(致命,DynamicWorkerProtocol.JsonOptions),
+                                    致命.OccurredAtUtc),
+                                CancellationToken.None).ConfigureAwait(false);
+                            Session終了か=true;
+                            await Session.ShutdownAsync($"fatal-{RequestID}").ConfigureAwait(false);
+                            break;
+                        }
+                    }
+                    if(Session終了か){
+                        break;
+                    }
+                }
+            }finally{
+                await Session.DisposeAsync().ConfigureAwait(false);
+                this.WorkerSessions.TryRemove(SessionKey,out _);
+            }
+            if(!ALC解放失敗後に再起動するか){
+                break;
+            }
+            Worker再起動回数++;
+            await this.Repository.SaveRunEventAsync(
+                new DynamicRunEventRecord(
+                    Guid.NewGuid().ToString("N"),
+                    設定.実行ID,
+                    共有集計.次のRunEventSequenceを取得(),
+                    "Warning",
+                    "WorkerRestart",
+                    $"ALC解放失敗が3件連続したため、パーティション{SessionKey}(論理CPU={論理CPU})を新しいWorkerで継続します。",
+                    JsonSerializer.Serialize(new{
+                        SessionKey,
+                        論理CPU,
+                        Worker再起動回数,
+                        完了数=完了済み実行一覧.Count,
+                        総数=最新進捗.TotalSourceExecutions,
+                    },DynamicWorkerProtocol.JsonOptions),
+                    DateTimeOffset.UtcNow),
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        return (最終状態,致命障害か);
+    }
+
+    private static IReadOnlyList<int?> CPU一覧を計算する(int Query数){
+        IReadOnlyList<CPUコア情報> トポロジー;
+        try{
+            トポロジー=ベンチマークCPUトポロジープロバイダー.読み込む();
+        }catch{
+            return[null];
+        }
+        var 利用可能CPU一覧=トポロジー
+            .Where(static CPU=>CPU.アフィニティ対応か)
+            .Select(static CPU=>CPU.論理プロセッサインデックス)
+            .Distinct()
+            .Order()
+            .ToArray();
+        if(利用可能CPU一覧.Length<=1||Query数<=1){
+            return[null];
+        }
+        var 分割数=Math.Min(利用可能CPU一覧.Length,Query数);
+        return 利用可能CPU一覧.Take(分割数).Select(static CPU=>(int?)CPU).ToArray();
+    }
+
+    private static IReadOnlyList<(int Offset,int Count)> Query範囲を分割する(int Query数,int 分割数){
+        var 結果=new List<(int,int)>(分割数);
+        var 基本サイズ=Query数/分割数;
+        var 余り=Query数%分割数;
+        var 現在Offset=0;
+        for(var 番号=0;番号<分割数;番号++){
+            var サイズ=基本サイズ+(番号<余り?1:0);
+            if(サイズ>0){
+                結果.Add((現在Offset,サイズ));
+                現在Offset+=サイズ;
+            }
+        }
+        return 結果;
+    }
+
+    private sealed class パーティション進捗集計(int Total){
+        private readonly object ゲート=new();
+        private int 完了数;
+        private int コンパイル失敗数;
+        private int 意味不一致数;
+        private int 非収束数;
+        private int 実行例外数;
+        private int RunEventSequence;
+
+        public int 次のRunEventSequenceを取得(){
+            lock(this.ゲート){
+                return ++this.RunEventSequence;
+            }
+        }
+
+        public 動的実行進捗 完了を記録して進捗を取得(
+            int QueryIndex,SourceTarget 対象,string 段階,WorkerExecutionStatus Status,int? 論理CPU){
+            lock(this.ゲート){
+                this.完了数++;
+                switch(Status){
+                    case WorkerExecutionStatus.CompilationFailed:
+                    case WorkerExecutionStatus.InvocationTargetMismatch:
+                        this.コンパイル失敗数++;
+                        break;
+                    case WorkerExecutionStatus.SemanticMismatch:
+                        this.意味不一致数++;
+                        break;
+                    case WorkerExecutionStatus.OptimizationNonConverged:
+                        this.非収束数++;
+                        break;
+                    case WorkerExecutionStatus.ExecutionFailed:
+                        this.実行例外数++;
+                        break;
+                }
+                return new(QueryIndex,Total,対象,段階,this.完了数,this.コンパイル失敗数,this.意味不一致数,this.非収束数,this.実行例外数,論理CPU);
+            }
+        }
+
+        public 動的実行進捗 進捗のみ取得(int QueryIndex,SourceTarget 対象,string 段階,int? 論理CPU){
+            lock(this.ゲート){
+                return new(QueryIndex,Total,対象,段階,this.完了数,this.コンパイル失敗数,this.意味不一致数,this.非収束数,this.実行例外数,論理CPU);
+            }
+        }
+    }
+
     public async Task キャンセルAsync(){
         this.実行キャンセル?.Cancel();
-        var Session=this.WorkerSession;
-        if(Session is not null&&!Session.HasExited){
-            await Session.CancelAsync("ui-cancel-"+Guid.NewGuid().ToString("N")).ConfigureAwait(false);
-        }
+        var セッション一覧=this.WorkerSessions.Values.Where(static Session=>!Session.HasExited).ToArray();
+        await Task.WhenAll(セッション一覧.Select(
+            Session=>Session.CancelAsync("ui-cancel-"+Guid.NewGuid().ToString("N")))).ConfigureAwait(false);
     }
 
     public Task<動的履歴項目> Runを再実行Async(
@@ -619,9 +738,8 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
                 },
                 Token).ConfigureAwait(false);
         }finally{
-            if(this.WorkerSession is not null){
-                await this.WorkerSession.DisposeAsync().ConfigureAwait(false);
-                this.WorkerSession=null;
+            if(this.WorkerSessions.TryRemove(縮小SessionKey,out var 残存Session)){
+                await 残存Session.DisposeAsync().ConfigureAwait(false);
             }
             this.実行キャンセル?.Dispose();
             this.実行キャンセル=null;
@@ -730,7 +848,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
             BuiltInOperatorCatalog.OperatorSetVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
             [Replay]);
         var Session=this.WorkerClient.Start(this.WorkerPath);
-        this.WorkerSession=Session;
+        this.WorkerSessions[縮小SessionKey]=Session;
         try{
             await Session.SendAsync(
                 RunID,
@@ -748,9 +866,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
             return null;
         }finally{
             await Session.DisposeAsync().ConfigureAwait(false);
-            if(ReferenceEquals(this.WorkerSession,Session)){
-                this.WorkerSession=null;
-            }
+            this.WorkerSessions.TryRemove(縮小SessionKey,out _);
         }
     }
 
@@ -1432,24 +1548,6 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
         }catch(JsonException 例外){
             return new(false,例外.Message);
         }
-    }
-
-    private static 動的実行進捗 進捗へ変換(
-        動的実行設定 設定,
-        int QueryIndex,
-        SourceTarget 対象,
-        string 段階,
-        WorkerProgressEvent 進捗){
-        return new(
-            QueryIndex,
-            設定.Query数,
-            対象,
-            段階,
-            進捗.CompletedSourceExecutions,
-            進捗.CompilationFailures,
-            進捗.SemanticMismatches,
-            進捗.NonConvergences,
-            進捗.ExecutionFailures);
     }
 
     private static 動的履歴項目 履歴を作成(

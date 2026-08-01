@@ -528,7 +528,8 @@ public sealed class WorkerHost{
                 CancellationToken.None).ConfigureAwait(false);
             var Capability=QueryCapabilityProfiles.CreateSet(要求.OperatorSetMode,要求.SourceTargets);
             var Generator=new RandomQueryGenerator();
-            for(var QueryIndex=0;QueryIndex<要求.QueryCount;QueryIndex++){
+            for(var LocalIndex=0;LocalIndex<要求.QueryCount;LocalIndex++){
+                var QueryIndex=要求.QueryIndexOffset+LocalIndex;
                 キャンセルToken.ThrowIfCancellationRequested();
                 var 未完了Source順序=Enumerable.Range(0,要求.SourceTargets.Count)
                     .Where(Source順序=>!完了済み実行.Contains(new(
@@ -748,6 +749,14 @@ public sealed class WorkerHost{
             ||要求.SourceTargets.Distinct().Count()!=要求.SourceTargets.Count){
             throw new ArgumentException("SourceTargets must contain one to eight distinct values.",nameof(要求.SourceTargets));
         }
+        if(要求.QueryIndexOffset<0){
+            throw new ArgumentOutOfRangeException(nameof(要求.QueryIndexOffset));
+        }
+        if(要求.ReplayQueries is not null&&要求.QueryIndexOffset!=0){
+            throw new ArgumentException(
+                "QueryIndexOffset is not supported together with ReplayQueries.",
+                nameof(要求.QueryIndexOffset));
+        }
         if(要求.ReplayQueries is not null){
             if(要求.ReplayQueries.Count!=要求.QueryCount
                 ||!要求.ReplayQueries.Select(static Query=>Query.QueryIndex).Order()
@@ -785,7 +794,8 @@ public sealed class WorkerHost{
                 "ResumeState.CompletedSourceExecutions is required.",
                 nameof(要求.ResumeState));
             if(完了済み.Distinct().Count()!=完了済み.Count
-                ||完了済み.Any(実行=>実行.QueryIndex<0||実行.QueryIndex>=要求.QueryCount
+                ||完了済み.Any(実行=>実行.QueryIndex<要求.QueryIndexOffset
+                    ||実行.QueryIndex>=要求.QueryIndexOffset+要求.QueryCount
                     ||!要求.SourceTargets.Contains(実行.SourceTarget))){
                 throw new ArgumentException(
                     "ResumeState contains an invalid or duplicate QueryIndex and SourceTarget pair.",

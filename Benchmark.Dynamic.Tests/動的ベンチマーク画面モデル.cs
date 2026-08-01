@@ -127,6 +127,69 @@ public sealed class 動的ベンチマーク画面モデル {
         Assert.NotEqual("0x1",対象.Seed文字列);
     }
 
+    [Fact,Trait("Category","Unit")]
+    public void 全選択を切り替える_引数なしは全タブを対象にする() {
+        var 対象=new global::Benchmark.Dynamic.UI.動的ベンチマーク画面モデル(new 偽実行調停(),new メモリ設定());
+        var Array行=結果行を作成(SourceTarget.SystemArray,0);
+        var List行=結果行を作成(SourceTarget.SystemList,0);
+        対象.結果一覧.Add(Array行);
+        対象.結果一覧.Add(List行);
+        Assert.False(対象.全選択済みか);
+
+        対象.全選択を切り替える();
+        Assert.True(Array行.選択済みか);
+        Assert.True(List行.選択済みか);
+        Assert.True(対象.全選択済みか);
+
+        対象.全選択を切り替える();
+        Assert.False(Array行.選択済みか);
+        Assert.False(List行.選択済みか);
+        Assert.False(対象.全選択済みか);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void 全選択を切り替える_対象指定は該当タブのみに影響する() {
+        var 対象=new global::Benchmark.Dynamic.UI.動的ベンチマーク画面モデル(new 偽実行調停(),new メモリ設定());
+        var Array行=結果行を作成(SourceTarget.SystemArray,0);
+        var List行=結果行を作成(SourceTarget.SystemList,0);
+        対象.結果一覧.Add(Array行);
+        対象.結果一覧.Add(List行);
+
+        対象.全選択を切り替える(SourceTarget.SystemArray);
+        Assert.True(Array行.選択済みか);
+        Assert.False(List行.選択済みか);
+        Assert.True(対象.タブ選択状態を取得(SourceTarget.SystemArray));
+        Assert.False(対象.タブ選択状態を取得(SourceTarget.SystemList));
+        Assert.False(対象.全選択済みか);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void 行の選択済みかを直接変更すると全選択済みかへ反映される() {
+        var 対象=new global::Benchmark.Dynamic.UI.動的ベンチマーク画面モデル(new 偽実行調停(),new メモリ設定());
+        var Array行=結果行を作成(SourceTarget.SystemArray,0);
+        var List行=結果行を作成(SourceTarget.SystemList,0);
+        対象.結果一覧.Add(Array行);
+        対象.結果一覧.Add(List行);
+
+        Array行.選択済みか=true;
+        Assert.False(対象.全選択済みか);
+
+        List行.選択済みか=true;
+        Assert.True(対象.全選択済みか);
+    }
+
+    private static global::Benchmark.Dynamic.UI.動的結果行 結果行を作成(SourceTarget 対象,int Query番号) {
+        return new global::Benchmark.Dynamic.UI.動的結果行 {
+            実行ID="run-1",
+            QueryID="run-1/"+対象+"/"+Query番号,
+            対象=対象,
+            QueryIndex=Query番号,
+            短縮式="source",
+            N=8,
+            深度=4,
+        };
+    }
+
     private sealed class メモリ設定:Dictionary<string,object>,global::Benchmark.Dynamic.UI.I動的UI設定 {
         public T 取得<T>(string キー,T 既定値) {
             return this.TryGetValue(キー,out var 値)&&値 is T 型付き?型付き:既定値;

@@ -88,6 +88,62 @@ public sealed class DynamicEndToEndTests{
     }
 
     [Fact,Trait("Category","Integration")]
+    public async Task CPU並列実行を有効にすると全QueryIndexが重複なく完了する(){
+        var temporaryRoot=DynamicDatabase.一時ルートを作成();
+        var databasePath=Path.Combine(temporaryRoot,DynamicInfrastructureSchema.DatabaseFileName);
+        var workerPath=Path.Combine(AppContext.BaseDirectory,"Benchmark.Dynamic.Worker.exe");
+        var runID="cpu-parallel-"+Guid.NewGuid().ToString("N");
+        const int QueryCount=6;
+        try{
+            Assert.True(File.Exists(workerPath),$"Worker was not found: {workerPath}");
+            var rows=new ConcurrentBag<global::Benchmark.Dynamic.UI.動的結果行>();
+            var progress=new ConcurrentBag<global::Benchmark.Dynamic.UI.動的実行進捗>();
+            await using(var service=new global::Benchmark.Dynamic.UI.動的実行調停サービス(
+                databasePath,
+                workerPath,
+                new WorkerMeasurementProfile("CpuParallel-v1",0,1,0,1),
+                CPU並列実行を有効にする:true)){
+                var history=await service.実行Async(
+                    new global::Benchmark.Dynamic.UI.動的実行設定(
+                        runID,
+                        QueryCount,
+                        3,
+                        32,
+                        3,
+                        Seed256.Parse("0xBEEF"),
+                        OperatorSetMode.Common,
+                        [SourceTarget.SystemArray]),
+                    rows.Add,
+                    progress.Add);
+                Assert.Equal("Completed",history.状態);
+            }
+
+            var database=new global::Benchmark.Dynamic.Infrastructure.DynamicDatabase(databasePath);
+            await using var writer=new DynamicSingleWriterQueue(database);
+            var repository=new global::Benchmark.Dynamic.Infrastructure.DynamicRepository(database,writer);
+            var snapshot=repository.GetRunSnapshot(runID);
+            Assert.NotNull(snapshot);
+            Assert.Equal("Completed",snapshot.Run.Status);
+            Assert.Equal(QueryCount,snapshot.Queries.Count);
+            Assert.Equal(
+                Enumerable.Range(0,QueryCount),
+                snapshot.Queries.Select(static query=>query.Ordinal).Order());
+            Assert.Equal(
+                snapshot.Queries.Select(static query=>query.QueryID).OrderBy(static id=>id,StringComparer.Ordinal),
+                snapshot.Queries.Select(static query=>query.QueryID).Distinct().OrderBy(static id=>id,StringComparer.Ordinal));
+            Assert.Equal(QueryCount,snapshot.SourceExecutions.Count);
+            Assert.All(snapshot.SourceExecutions,static execution=>Assert.Equal("Succeeded",execution.Status));
+            Assert.Equal(QueryCount,rows.Count);
+            Assert.All(rows,static row=>Assert.Equal("Succeeded",row.状態));
+            Assert.Equal(
+                Enumerable.Range(0,QueryCount),
+                rows.Select(static row=>row.QueryIndex).Order());
+        }finally{
+            DynamicDatabase.一時ルートを削除(temporaryRoot);
+        }
+    }
+
+    [Fact,Trait("Category","Integration")]
     public async Task 固定IRの最適化Traceを専用列へ保存する(){
         var temporaryRoot=DynamicDatabase.一時ルートを作成();
         var databasePath=Path.Combine(temporaryRoot,DynamicInfrastructureSchema.DatabaseFileName);
@@ -108,18 +164,18 @@ public sealed class DynamicEndToEndTests{
                 QueryValueType.Int,
                 new QueryCardinalityRange(0,32),
                 QueryOrderSemantics.Ordered);
-            var select=new UnaryQueryNode(
+            var innerWhere=new UnaryQueryNode(
                 "n0002",
-                QueryOperatorIds.Select,
+                QueryOperatorIds.Where,
                 where,
-                new SelectOperatorArguments(new QuerySelector(QuerySelectorKind.Identity)),
+                new WhereOperatorArguments(new QueryPredicate(QueryPredicateKind.IsEven)),
                 QueryValueType.Int,
                 new QueryCardinalityRange(0,32),
                 QueryOrderSemantics.Ordered);
             var root=new TerminalQueryNode(
                 "n0003",
                 QueryOperatorIds.Count,
-                select,
+                innerWhere,
                 new TerminalOperatorArguments(QueryTerminalKind.Count),
                 QueryValueType.Int,
                 QueryCardinality.Scalar,

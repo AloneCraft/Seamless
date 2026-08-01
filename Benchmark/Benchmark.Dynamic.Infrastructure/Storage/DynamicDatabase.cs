@@ -40,7 +40,7 @@ public sealed class DynamicDatabase{
             }
 
             using var connection=this.CreateAndOpenConnection(SqliteOpenMode.ReadWriteCreate);
-            ConfigureConnection(connection,true);
+            ConfigureConnection(connection,true,enableWal:true);
             using var transaction=connection.BeginTransaction();
             using var command=connection.CreateCommand();
             command.Transaction=transaction;
@@ -73,7 +73,9 @@ public sealed class DynamicDatabase{
         var connection=this.CreateAndOpenConnection(SqliteOpenMode.ReadWrite);
         try{
             this.VerifyWritableVersion(connection);
-            ConfigureConnection(connection,true);
+            // Do not change journal mode on an existing database. Changing WAL mode
+            // can produce SQLITE_READONLY while readers or sidecar files are present.
+            ConfigureConnection(connection,true,enableWal:false);
             return connection;
         }catch{
             connection.Dispose();
@@ -110,7 +112,8 @@ public sealed class DynamicDatabase{
         var builder=new SqliteConnectionStringBuilder{
             DataSource=this.DatabasePath,
             Mode=mode,
-            Pooling=true,
+            // Keep read-only and read-write handles out of a shared connection pool.
+            Pooling=false,
             DefaultTimeout=30,
         };
         var connection=new SqliteConnection(builder.ToString());
@@ -128,14 +131,18 @@ public sealed class DynamicDatabase{
         }
     }
 
-    private static void ConfigureConnection(SqliteConnection connection,bool writable){
+    private static void ConfigureConnection(SqliteConnection connection,bool writable,bool enableWal=false){
         using(var command=connection.CreateCommand()){
             command.CommandText="PRAGMA busy_timeout=30000;PRAGMA foreign_keys=ON;";
             command.ExecuteNonQuery();
         }
-        if(writable){
+        if(writable&&enableWal){
             using var command=connection.CreateCommand();
             command.CommandText="PRAGMA journal_mode=WAL;PRAGMA synchronous=NORMAL;";
+            command.ExecuteNonQuery();
+        }else if(writable){
+            using var command=connection.CreateCommand();
+            command.CommandText="PRAGMA synchronous=NORMAL;";
             command.ExecuteNonQuery();
         }
     }

@@ -2,6 +2,7 @@ using Benchmark.Dynamic.Core;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.ComponentModel;
 
 namespace Benchmark.Dynamic.UI;
@@ -25,10 +26,9 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
     private int 非収束数状態;
     private int 実行例外数状態;
     private 動的結果行? 選択結果状態;
-    private double 設定領域幅状態;
     private double 詳細領域高さ状態;
-    private bool 設定領域折畳状態か;
     private bool 詳細領域折畳状態か;
+    private bool 全選択済み状態か;
 
     public 動的ベンチマーク画面モデル(I動的実行調停サービス 実行調停,I動的UI設定 UI設定) {
         this.実行調停=実行調停;
@@ -45,7 +45,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         this.ソース選択一覧=作成ソース選択一覧();
         this.ソース画面一覧=this.ソース選択一覧.ToDictionary(
             項目=>項目.対象,
-            項目=>new 動的ソース結果画面モデル(項目.対象,this.結果一覧));
+            項目=>new 動的ソース結果画面モデル(項目.対象,this.結果一覧,this));
         foreach(var 項目 in this.ソース選択一覧) {
             項目.PropertyChanged+=this.ソース選択変更時;
         }
@@ -63,15 +63,14 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         this.演算子集合モード状態=this.UI設定.取得("Benchmark.Dynamic.演算子集合モード","Common")=="Maximum"
             ?OperatorSetMode.Maximum
             :OperatorSetMode.Common;
-        this.設定領域幅状態=Math.Clamp(this.UI設定.取得("Benchmark.Dynamic.設定領域幅",320d),280d,480d);
         this.詳細領域高さ状態=Math.Max(180d,this.UI設定.取得("Benchmark.Dynamic.詳細領域高さ",280d));
-        this.設定領域折畳状態か=this.UI設定.取得("Benchmark.Dynamic.設定領域折畳",false);
         this.詳細領域折畳状態か=this.UI設定.取得("Benchmark.Dynamic.詳細領域折畳",false);
+
+        this.結果一覧.CollectionChanged+=this.結果一覧変更時;
 
         this.実行コマンド=new AsyncRelayCommand(this.実行Async,()=>!this.実行中か);
         this.キャンセルコマンド=new AsyncRelayCommand(this.キャンセルAsync,()=>this.実行中か&&!this.キャンセル要求済みか);
         this.新規Seedコマンド=new RelayCommand(this.新規Seedを作成,()=>!this.実行中か);
-        this.設定領域折畳コマンド=new RelayCommand(this.設定領域を切り替える);
         this.詳細領域折畳コマンド=new RelayCommand(this.詳細領域を切り替える);
         this.ごみ箱へ移動コマンド=new AsyncRelayCommand<動的履歴項目>(this.ごみ箱へ移動Async,項目=>項目 is not null&&!this.実行中か);
         this.復元コマンド=new AsyncRelayCommand<動的履歴項目>(this.復元Async,項目=>項目 is not null&&!this.実行中か);
@@ -93,7 +92,6 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
     public IAsyncRelayCommand 実行コマンド{get;}
     public IAsyncRelayCommand キャンセルコマンド{get;}
     public IRelayCommand 新規Seedコマンド{get;}
-    public IRelayCommand 設定領域折畳コマンド{get;}
     public IRelayCommand 詳細領域折畳コマンド{get;}
     public IAsyncRelayCommand<動的履歴項目> ごみ箱へ移動コマンド{get;}
     public IAsyncRelayCommand<動的履歴項目> 復元コマンド{get;}
@@ -242,31 +240,12 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         set=>this.SetProperty(ref this.選択結果状態,value);
     }
 
-    public double 設定領域幅 {
-        get=>this.設定領域幅状態;
-        set {
-            var 値=Math.Clamp(value,280d,480d);
-            if(this.SetProperty(ref this.設定領域幅状態,値)) {
-                this.UI設定.保存("Benchmark.Dynamic.設定領域幅",値);
-            }
-        }
-    }
-
     public double 詳細領域高さ {
         get=>this.詳細領域高さ状態;
         set {
             var 値=Math.Max(180d,value);
             if(this.SetProperty(ref this.詳細領域高さ状態,値)) {
                 this.UI設定.保存("Benchmark.Dynamic.詳細領域高さ",値);
-            }
-        }
-    }
-
-    public bool 設定領域折畳済みか {
-        get=>this.設定領域折畳状態か;
-        private set {
-            if(this.SetProperty(ref this.設定領域折畳状態か,value)) {
-                this.UI設定.保存("Benchmark.Dynamic.設定領域折畳",value);
             }
         }
     }
@@ -280,6 +259,59 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         }
     }
 
+    public bool 全選択済みか {
+        get=>this.全選択済み状態か;
+        private set=>this.SetProperty(ref this.全選択済み状態か,value);
+    }
+
+    public event EventHandler? 選択状態変更時;
+
+    public bool タブ選択状態を取得(SourceTarget 対象) {
+        var 対象行=this.結果一覧.Where(行=>行.対象==対象).ToArray();
+        return 対象行.Length>0&&対象行.All(行=>行.選択済みか);
+    }
+
+    public void 全選択を切り替える(SourceTarget? 対象=null) {
+        var 対象行=対象 is{} 値
+            ?this.結果一覧.Where(行=>行.対象==値).ToArray()
+            :this.結果一覧.ToArray();
+        if(対象行.Length==0) {
+            return;
+        }
+        var 新値=!対象行.All(行=>行.選択済みか);
+        foreach(var 行 in 対象行) {
+            行.選択済みか=新値;
+        }
+    }
+
+    private void 結果一覧変更時(object? 送信元,NotifyCollectionChangedEventArgs 引数) {
+        if(引数.OldItems is not null) {
+            foreach(動的結果行 行 in 引数.OldItems) {
+                行.PropertyChanged-=this.結果行変更時;
+            }
+        }
+        if(引数.NewItems is not null) {
+            foreach(動的結果行 行 in 引数.NewItems) {
+                行.PropertyChanged+=this.結果行変更時;
+            }
+        }
+        this.選択集計を更新();
+    }
+
+    private void 結果行変更時(object? 送信元,PropertyChangedEventArgs 引数) {
+        if(引数.PropertyName==nameof(動的結果行.選択済みか)) {
+            this.選択集計を更新();
+        }
+    }
+
+    private void 選択集計を更新() {
+        this.全選択済みか=this.結果一覧.Count>0&&this.結果一覧.All(行=>行.選択済みか);
+        this.選択状態変更時?.Invoke(this,EventArgs.Empty);
+    }
+
+    public event Action<int>? CPU活動を検知した;
+    public event Action? CPU活動をクリア;
+
     public void 進捗を適用(動的実行進捗 進捗) {
         this.進捗文字列=$"Query {進捗.QueryIndex+1}/{進捗.Query総数} ・ {進捗.対象} ・ {進捗.段階}";
         this.完了数=進捗.完了数;
@@ -287,6 +319,9 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         this.意味不一致数=進捗.意味不一致数;
         this.非収束数=進捗.非収束数;
         this.実行例外数=進捗.実行例外数;
+        if(進捗.論理CPU is{} CPU) {
+            this.CPU活動を検知した?.Invoke(CPU);
+        }
     }
 
     private async Task 実行Async() {
@@ -303,6 +338,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         this.実行中か=true;
         this.キャンセル要求済みか=false;
         this.進捗文字列="実行を開始しています";
+        this.CPU活動をクリア?.Invoke();
         this.完了数=0;
         this.コンパイル失敗数=0;
         this.意味不一致数=0;
@@ -376,6 +412,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         this.実行中か=true;
         this.キャンセル要求済みか=false;
         this.進捗文字列="再実行を開始しています";
+        this.CPU活動をクリア?.Invoke();
         this.完了数=0;
         this.コンパイル失敗数=0;
         this.意味不一致数=0;
@@ -420,10 +457,6 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         Span<byte> バイト=stackalloc byte[8];
         System.Security.Cryptography.RandomNumberGenerator.Fill(バイト);
         this.Seed文字列="0x"+Convert.ToHexString(バイト);
-    }
-
-    private void 設定領域を切り替える() {
-        this.設定領域折畳済みか=!this.設定領域折畳済みか;
     }
 
     private void 詳細領域を切り替える() {

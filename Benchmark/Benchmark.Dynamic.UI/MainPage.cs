@@ -3,13 +3,13 @@ using Syncfusion.Maui.Core.Internals;
 using Syncfusion.Maui.DataGrid;
 using Syncfusion.Maui.Toolkit.TabView;
 using System.ComponentModel;
+using UI;
 
 namespace Benchmark.Dynamic.UI;
 
 public sealed class MainPage:ContentPage {
     private readonly 動的ベンチマーク画面モデル 画面モデル;
     private readonly Grid ルート;
-    private readonly Grid 設定領域;
     private readonly Grid 詳細領域;
     private readonly List<VisualElement> 設定入力一覧=[];
     private readonly List<VisualElement> 実行中無効化一覧=[];
@@ -21,44 +21,32 @@ public sealed class MainPage:ContentPage {
         this.BackgroundColor=Color.FromArgb("#F4F7FB");
 
         this.ルート=new Grid {
-            ColumnDefinitions={
-                new ColumnDefinition(GridLength.Star),
-                new ColumnDefinition(6),
-                new ColumnDefinition(画面モデル.設定領域幅),
-            },
             RowDefinitions={
+                new RowDefinition(GridLength.Auto),
+                new RowDefinition(GridLength.Auto),
                 new RowDefinition(GridLength.Star),
                 new RowDefinition(6),
                 new RowDefinition(画面モデル.詳細領域高さ),
             },
             RowSpacing=0,
-            ColumnSpacing=0,
             Padding=new Thickness(10),
         };
 
-        var 結果領域=this.結果領域を作成();
-        this.ルート.Add(結果領域,0,0);
-        var 設定分割=new 動的GridSplitter(動的分割方向.垂直,差分=>{
-            if(!this.画面モデル.設定領域折畳済みか) {
-                this.画面モデル.設定領域幅-=差分;
-            }
-        });
-        Grid.SetRowSpan(設定分割,3);
-        this.ルート.Add(設定分割,1,0);
+        this.ルート.Add(this.設定ストリップを作成(),0,0);
+        this.ルート.Add(this.選択進捗ヘッダーを作成(),0,1);
 
-        this.設定領域=this.設定領域を作成();
-        Grid.SetRowSpan(this.設定領域,3);
-        this.ルート.Add(this.設定領域,2,0);
+        var 結果領域=this.結果領域を作成();
+        this.ルート.Add(結果領域,0,2);
 
         var 詳細分割=new 動的GridSplitter(動的分割方向.水平,差分=>{
             if(!this.画面モデル.詳細領域折畳済みか) {
                 this.画面モデル.詳細領域高さ-=差分;
             }
         });
-        this.ルート.Add(詳細分割,0,1);
+        this.ルート.Add(詳細分割,0,3);
 
         this.詳細領域=this.詳細領域を作成();
-        this.ルート.Add(this.詳細領域,0,2);
+        this.ルート.Add(this.詳細領域,0,4);
 
         this.Content=this.ルート;
         this.画面モデル.PropertyChanged+=this.画面モデル変更時;
@@ -121,7 +109,7 @@ public sealed class MainPage:ContentPage {
         foreach(var 対象 in 対象一覧) {
             var 画面=this.画面モデル.ソース画面一覧[対象];
             項目一覧.Add(new SfTabItem {
-                Header=対象.GetSourceKind().ToString(),
+                HeaderContent=this.ソースタブ見出しを作成(画面,対象.GetSourceKind().ToString()),
                 Content=this.結果グリッドを作成(画面),
             });
         }
@@ -130,13 +118,58 @@ public sealed class MainPage:ContentPage {
         return タブ;
     }
 
+    private View ソースタブ見出しを作成(動的ソース結果画面モデル 画面,string ラベル) {
+        var 進行=new ベンチマーク円形進行ビュー {
+            WidthRequest=16,
+            HeightRequest=16,
+            VerticalOptions=LayoutOptions.Center,
+            HorizontalOptions=LayoutOptions.Center,
+        };
+        進行.SetBinding(ベンチマーク円形進行ビュー.進行プロパティ,nameof(動的ソース結果画面モデル.進行割合));
+        進行.SetBinding(ベンチマーク円形進行ビュー.輪郭色プロパティ,nameof(動的ソース結果画面モデル.進行外枠色));
+        進行.SetBinding(IsVisibleProperty,nameof(動的ソース結果画面モデル.進行リング表示中か));
+
+        var 完了アイコン=new Image {
+            WidthRequest=13,
+            HeightRequest=13,
+            InputTransparent=true,
+            VerticalOptions=LayoutOptions.Center,
+            HorizontalOptions=LayoutOptions.Center,
+        };
+        完了アイコン.SetBinding(Image.SourceProperty,new Binding(nameof(動的ソース結果画面モデル.完了アイコンソース),converter: new 画像ファイルソースコンバーター()));
+        完了アイコン.SetBinding(IsVisibleProperty,nameof(動的ソース結果画面モデル.完了アイコン表示中か));
+
+        var スピナー=new ActivityIndicator {
+            WidthRequest=16,
+            HeightRequest=16,
+            Color=Color.FromArgb("#22C55E"),
+        };
+        スピナー.SetBinding(ActivityIndicator.IsRunningProperty,nameof(動的ソース結果画面モデル.実行スピナー表示中か));
+        スピナー.SetBinding(IsVisibleProperty,nameof(動的ソース結果画面モデル.実行スピナー表示中か));
+
+        var 進行ホスト=new Grid {
+            WidthRequest=17,
+            HeightRequest=17,
+            Margin=new Thickness(0,0,3,0),
+            Children={進行,完了アイコン,スピナー},
+        };
+        進行ホスト.SetBinding(IsVisibleProperty,nameof(動的ソース結果画面モデル.進行ありか));
+
+        return new HorizontalStackLayout {
+            Spacing=2,
+            VerticalOptions=LayoutOptions.Center,
+            BindingContext=画面,
+            Children={進行ホスト,new Label {Text=ラベル,VerticalTextAlignment=TextAlignment.Center}},
+        };
+    }
+
     private SfDataGrid 結果グリッドを作成(動的ソース結果画面モデル 画面) {
         var グリッド=new SfDataGrid {
             AutomationId="動的結果.グリッド."+画面.対象,
             AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
             ItemsSource=画面.行一覧,
             RowHeight=30,
-            HeaderRowHeight=34,
+            HeaderRowHeight=36,
             AllowResizingColumns=true,
             SelectionMode=DataGridSelectionMode.Single,
             SelectionUnit=DataGridSelectionUnit.Row,
@@ -157,7 +190,10 @@ public sealed class MainPage:ContentPage {
             HeaderText="選択",
             MappingName=nameof(動的結果行.選択済みか),
             Width=55,
+            MinimumWidth=55,
+            HeaderLineBreakMode=LineBreakMode.NoWrap,
             AllowSorting=false,
+            HeaderTemplate=this.選択列見出しテンプレートを作成(画面.対象),
             CellTemplate=new DataTemplate(()=>{
                 var チェック=new CheckBox {
                     HorizontalOptions=LayoutOptions.Center,
@@ -268,142 +304,133 @@ public sealed class MainPage:ContentPage {
         return レイアウト;
     }
 
-    private Grid 設定領域を作成() {
+    private View 設定ストリップを作成() {
         var ルート=new Grid {
             AutomationId="動的設定.領域",
             BackgroundColor=Colors.White,
             RowDefinitions={
                 new RowDefinition(GridLength.Auto),
-                new RowDefinition(GridLength.Star),
+                new RowDefinition(GridLength.Auto),
             },
-            Padding=new Thickness(10),
-            RowSpacing=8,
+            Padding=new Thickness(8,4),
+            RowSpacing=4,
         };
         AutomationProperties.SetIsInAccessibleTree(ルート,true);
-        var 見出し=new Grid {
-            ColumnDefinitions={
-                new ColumnDefinition(GridLength.Star),
-                new ColumnDefinition(GridLength.Auto),
-            },
-        };
-        見出し.Add(new Label {
-            Text="実行設定",
-            FontSize=18,
-            FontAttributes=FontAttributes.Bold,
-            VerticalTextAlignment=TextAlignment.Center,
-        },0,0);
-        var 折畳=new Button {
-            Text="≡",
-            WidthRequest=38,
-            HeightRequest=34,
-            Padding=0,
-            AutomationId="動的設定.折畳",
-            Command=this.画面モデル.設定領域折畳コマンド,
-        };
-        見出し.Add(折畳,1,0);
-        ルート.Add(見出し,0,0);
 
-        var 内容=new VerticalStackLayout {
-            AutomationId="動的設定.内容",
-            Spacing=10,
-        };
-        内容.Children.Add(new Label {Text="SourceTarget",FontAttributes=FontAttributes.Bold});
+        var Source行=new HorizontalStackLayout {Spacing=12};
+        Source行.Children.Add(new Label {Text="SourceTarget",FontAttributes=FontAttributes.Bold,VerticalTextAlignment=TextAlignment.Center});
         foreach(var 項目 in this.画面モデル.ソース選択一覧) {
             var チェック=new CheckBox {
                 AutomationId="動的設定.Source."+項目.対象,
                 BindingContext=項目,
             };
             チェック.SetBinding(CheckBox.IsCheckedProperty,nameof(動的ソース選択項目.選択済みか),BindingMode.TwoWay);
-            var 行=new HorizontalStackLayout {Spacing=4};
-            行.Children.Add(チェック);
-            行.Children.Add(new Label {Text=項目.表示名,VerticalTextAlignment=TextAlignment.Center});
-            内容.Children.Add(行);
+            var 項目行=new HorizontalStackLayout {Spacing=2};
+            項目行.Children.Add(チェック);
+            項目行.Children.Add(new Label {Text=項目.表示名,VerticalTextAlignment=TextAlignment.Center,FontSize=12});
+            Source行.Children.Add(項目行);
             this.設定入力一覧.Add(チェック);
         }
-        内容.Children.Add(this.整数入力行を作成("Query数",nameof(動的ベンチマーク画面モデル.Query数),1,1000));
-        内容.Children.Add(this.整数入力行を作成("N",nameof(動的ベンチマーク画面モデル.N),1,64));
-        内容.Children.Add(this.整数入力行を作成("入力要素数",nameof(動的ベンチマーク画面モデル.入力要素数),1,100000));
-        内容.Children.Add(this.整数入力行を作成("最大深度",nameof(動的ベンチマーク画面モデル.最大深度),1,32));
+        ルート.Add(Source行,0,0);
 
-        var Seed見出し=new Label {Text="Seed",FontAttributes=FontAttributes.Bold};
-        内容.Children.Add(Seed見出し);
-        var Seed行=new Grid {
-            ColumnDefinitions={
-                new ColumnDefinition(GridLength.Star),
-                new ColumnDefinition(GridLength.Auto),
-            },
-            ColumnSpacing=6,
-        };
+        var 設定行=new HorizontalStackLayout {Spacing=14};
+        設定行.Children.Add(this.整数入力欄を作成("Query数",nameof(動的ベンチマーク画面モデル.Query数)));
+        設定行.Children.Add(this.整数入力欄を作成("N",nameof(動的ベンチマーク画面モデル.N)));
+        設定行.Children.Add(this.整数入力欄を作成("入力要素数",nameof(動的ベンチマーク画面モデル.入力要素数)));
+        設定行.Children.Add(this.整数入力欄を作成("最大深度",nameof(動的ベンチマーク画面モデル.最大深度)));
+
+        var Seed行=new HorizontalStackLayout {Spacing=4};
+        Seed行.Children.Add(new Label {Text="Seed",VerticalTextAlignment=TextAlignment.Center,FontSize=12});
         var Seed入力=new Entry {
             AutomationId="動的設定.Seed",
             FontFamily="Consolas",
             FontSize=12,
+            WidthRequest=180,
         };
         Seed入力.SetBinding(Entry.TextProperty,nameof(動的ベンチマーク画面モデル.Seed文字列),BindingMode.TwoWay);
-        Seed行.Add(Seed入力,0,0);
+        Seed行.Children.Add(Seed入力);
         var Seed生成=new Button {
             Text="新規",
             AutomationId="動的設定.Seed新規",
             Command=this.画面モデル.新規Seedコマンド,
+            Padding=new Thickness(8,2),
         };
-        Seed行.Add(Seed生成,1,0);
-        内容.Children.Add(Seed行);
+        Seed行.Children.Add(Seed生成);
+        設定行.Children.Add(Seed行);
         this.設定入力一覧.Add(Seed入力);
         this.設定入力一覧.Add(Seed生成);
 
-        内容.Children.Add(new Label {Text="Operator Set",FontAttributes=FontAttributes.Bold});
-        var モード行=new HorizontalStackLayout {Spacing=12};
+        var モード行=new HorizontalStackLayout {Spacing=8};
         var Common=new RadioButton {Content="Common",GroupName="動的演算子集合",AutomationId="動的設定.Common"};
         Common.SetBinding(RadioButton.IsCheckedProperty,nameof(動的ベンチマーク画面モデル.Common選択か),BindingMode.TwoWay);
         var Maximum=new RadioButton {Content="Maximum",GroupName="動的演算子集合",AutomationId="動的設定.Maximum"};
         Maximum.SetBinding(RadioButton.IsCheckedProperty,nameof(動的ベンチマーク画面モデル.Maximum選択か),BindingMode.TwoWay);
         モード行.Children.Add(Common);
         モード行.Children.Add(Maximum);
-        内容.Children.Add(モード行);
+        設定行.Children.Add(モード行);
         this.設定入力一覧.Add(Common);
         this.設定入力一覧.Add(Maximum);
 
-        var 実行行=new Grid {
-            ColumnDefinitions={
-                new ColumnDefinition(GridLength.Star),
-                new ColumnDefinition(GridLength.Star),
-            },
-            ColumnSpacing=8,
-        };
         var 実行=new Button {
             Text="実行",
             AutomationId="動的設定.実行",
             Command=this.画面モデル.実行コマンド,
             BackgroundColor=Color.FromArgb("#2563EB"),
             TextColor=Colors.White,
+            Padding=new Thickness(12,2),
         };
-        実行行.Add(実行,0,0);
+        設定行.Children.Add(実行);
         var キャンセル=new Button {
             Text="キャンセル",
             AutomationId="動的設定.キャンセル",
             Command=this.画面モデル.キャンセルコマンド,
+            Padding=new Thickness(12,2),
         };
-        実行行.Add(キャンセル,1,0);
-        内容.Children.Add(実行行);
+        設定行.Children.Add(キャンセル);
+        ルート.Add(設定行,0,1);
 
-        内容.Children.Add(new BoxView {HeightRequest=1,Color=Color.FromArgb("#CBD5E1")});
-        var 進捗=new Label {FontAttributes=FontAttributes.Bold,LineBreakMode=LineBreakMode.WordWrap};
+        return ルート;
+    }
+
+    private View 選択進捗ヘッダーを作成() {
+        var ルート=new Grid {
+            AutomationId="動的結果.選択進捗ヘッダー",
+            BackgroundColor=Colors.White,
+            Padding=new Thickness(8,4),
+            ColumnDefinitions={
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Star),
+            },
+        };
+        AutomationProperties.SetIsInAccessibleTree(ルート,true);
+
+        var 全選択チェック=new CheckBox {
+            InputTransparent=true,
+            AutomationId="動的結果.全選択チェック",
+        };
+        全選択チェック.SetBinding(CheckBox.IsCheckedProperty,nameof(動的ベンチマーク画面モデル.全選択済みか),BindingMode.OneWay);
+        var 全選択ホスト=new Grid {
+            WidthRequest=30,
+            BackgroundColor=Colors.Transparent,
+            AutomationId="動的結果.全選択チェックホスト",
+            Children={全選択チェック},
+        };
+        var 全選択タップ=new TapGestureRecognizer();
+        全選択タップ.Tapped+=(_,_)=>this.画面モデル.全選択を切り替える();
+        全選択ホスト.GestureRecognizers.Add(全選択タップ);
+        ルート.Add(全選択ホスト,0,0);
+
+        var 進捗行=new HorizontalStackLayout {Spacing=16,VerticalOptions=LayoutOptions.Center};
+        var 進捗=new Label {FontAttributes=FontAttributes.Bold,VerticalTextAlignment=TextAlignment.Center};
         進捗.SetBinding(Label.TextProperty,nameof(動的ベンチマーク画面モデル.進捗文字列));
-        内容.Children.Add(進捗);
-        内容.Children.Add(this.進捗数行を作成("完了",nameof(動的ベンチマーク画面モデル.完了数)));
-        内容.Children.Add(this.進捗数行を作成("コンパイル失敗",nameof(動的ベンチマーク画面モデル.コンパイル失敗数)));
-        内容.Children.Add(this.進捗数行を作成("意味不一致",nameof(動的ベンチマーク画面モデル.意味不一致数)));
-        内容.Children.Add(this.進捗数行を作成("非収束",nameof(動的ベンチマーク画面モデル.非収束数)));
-        内容.Children.Add(this.進捗数行を作成("実行例外",nameof(動的ベンチマーク画面モデル.実行例外数)));
+        進捗行.Children.Add(進捗);
+        進捗行.Children.Add(this.進捗数行を作成("完了",nameof(動的ベンチマーク画面モデル.完了数)));
+        進捗行.Children.Add(this.進捗数行を作成("コンパイル失敗",nameof(動的ベンチマーク画面モデル.コンパイル失敗数)));
+        進捗行.Children.Add(this.進捗数行を作成("意味不一致",nameof(動的ベンチマーク画面モデル.意味不一致数)));
+        進捗行.Children.Add(this.進捗数行を作成("非収束",nameof(動的ベンチマーク画面モデル.非収束数)));
+        進捗行.Children.Add(this.進捗数行を作成("実行例外",nameof(動的ベンチマーク画面モデル.実行例外数)));
+        ルート.Add(進捗行,1,0);
 
-        var スクロール=new ScrollView {Content=内容};
-        ルート.Add(スクロール,0,1);
-        ルート.PropertyChanged+=(_,引数)=>{
-            if(引数.PropertyName==nameof(VisualElement.IsVisible)) {
-                スクロール.IsVisible=ルート.IsVisible;
-            }
-        };
-        ルート.Resources.Add("内容",スクロール);
         return ルート;
     }
 
@@ -499,6 +526,7 @@ public sealed class MainPage:ContentPage {
             TabBarBackground=Color.FromArgb("#E2E8F0"),
         };
         タブ.Items=[
+            new SfTabItem {Header="CPU",Content=this.CPUタブを作成()},
             this.詳細タブを作成("Summary",nameof(動的結果行.概要)),
             this.詳細タブを作成("Query",nameof(動的結果行.クエリ式)),
             this.詳細タブを作成("Source",nameof(動的結果行.生成Source)),
@@ -512,6 +540,48 @@ public sealed class MainPage:ContentPage {
         ルート.Add(タブ,0,1);
         ルート.Resources.Add("タブ",タブ);
         return ルート;
+    }
+
+    private View CPUタブを作成() {
+        var 一覧=ベンチマークCPUトポロジープロバイダー.読み込む()
+            .OrderBy(static CPU=>CPU.論理プロセッサインデックス)
+            .Select(static CPU=>new 動的CPU行 {
+                論理プロセッサインデックス=CPU.論理プロセッサインデックス,
+                コア種別=CPU.コア種別,
+                物理コアインデックス=CPU.物理コアインデックス,
+                コアラベル=CPU.コアラベル,
+            })
+            .ToArray();
+        var グリッド=new SfDataGrid {
+            AutomationId="動的CPU.グリッド",
+            AutoGenerateColumnsMode=AutoGenerateColumnsMode.None,
+            ItemsSource=一覧,
+            RowHeight=28,
+            HeaderRowHeight=30,
+            AllowResizingColumns=true,
+            SelectionMode=DataGridSelectionMode.None,
+            GridLinesVisibility=GridLinesVisibility.Both,
+            DefaultColumnWidth=110,
+        };
+        this.列を追加(グリッド,"論理CPU",nameof(動的CPU行.論理プロセッサインデックス),90);
+        this.列を追加(グリッド,"コア種別",nameof(動的CPU行.コア種別),100);
+        this.列を追加(グリッド,"物理コア",nameof(動的CPU行.物理コアインデックス),90);
+        this.列を追加(グリッド,"ラベル",nameof(動的CPU行.コアラベル),160);
+        this.列を追加(グリッド,"状態",nameof(動的CPU行.実行中表示),90);
+        this.画面モデル.CPU活動を検知した+=論理CPU=>{
+            var 行=一覧.FirstOrDefault(行=>行.論理プロセッサインデックス==論理CPU);
+            if(行 is not null) {
+                MainThread.BeginInvokeOnMainThread(()=>行.実行中か=true);
+            }
+        };
+        this.画面モデル.CPU活動をクリア+=()=>{
+            MainThread.BeginInvokeOnMainThread(()=>{
+                foreach(var 行 in 一覧) {
+                    行.実行中か=false;
+                }
+            });
+        };
+        return グリッド;
     }
 
     private SfTabItem 詳細タブを作成(string 見出し,string プロパティ) {
@@ -588,41 +658,54 @@ public sealed class MainPage:ContentPage {
         return new SfTabItem {Header="Optimization Trace",Content=一覧};
     }
 
-    private View 整数入力行を作成(string 見出し,string プロパティ,int 最小値,int 最大値) {
-        var 行=new Grid {
-            ColumnDefinitions={
-                new ColumnDefinition(GridLength.Star),
-                new ColumnDefinition(110),
-            },
-            ColumnSpacing=8,
-        };
-        行.Add(new Label {
-            Text=$"{見出し} ({最小値:N0}–{最大値:N0})",
-            VerticalTextAlignment=TextAlignment.Center,
-        },0,0);
+    private View 整数入力欄を作成(string 見出し,string プロパティ) {
+        var 行=new HorizontalStackLayout {Spacing=4,VerticalOptions=LayoutOptions.Center};
+        行.Children.Add(new Label {Text=見出し,FontSize=12,VerticalTextAlignment=TextAlignment.Center});
         var 入力=new Entry {
             AutomationId="動的設定."+見出し,
             Keyboard=Keyboard.Numeric,
+            WidthRequest=64,
+            FontSize=12,
             HorizontalTextAlignment=TextAlignment.End,
         };
         入力.SetBinding(Entry.TextProperty,new Binding(プロパティ,BindingMode.TwoWay));
-        行.Add(入力,1,0);
+        行.Children.Add(入力);
         this.設定入力一覧.Add(入力);
         return 行;
     }
 
     private View 進捗数行を作成(string 見出し,string プロパティ) {
-        var 行=new Grid {
-            ColumnDefinitions={
-                new ColumnDefinition(GridLength.Star),
-                new ColumnDefinition(GridLength.Auto),
-            },
-        };
-        行.Add(new Label {Text=見出し,FontSize=12},0,0);
-        var 値=new Label {FontSize=12,HorizontalTextAlignment=TextAlignment.End};
+        var 行=new HorizontalStackLayout {Spacing=4,VerticalOptions=LayoutOptions.Center};
+        行.Children.Add(new Label {Text=見出し+":",FontSize=12,VerticalTextAlignment=TextAlignment.Center});
+        var 値=new Label {FontSize=12,FontAttributes=FontAttributes.Bold,VerticalTextAlignment=TextAlignment.Center};
         値.SetBinding(Label.TextProperty,プロパティ);
-        行.Add(値,1,0);
+        行.Children.Add(値);
         return 行;
+    }
+
+    private DataTemplate 選択列見出しテンプレートを作成(SourceTarget 対象) {
+        return new DataTemplate(()=>{
+            var チェック=new CheckBox {
+                InputTransparent=true,
+                AutomationId="動的結果.タブ選択チェック."+対象,
+            };
+            チェック.IsChecked=this.画面モデル.タブ選択状態を取得(対象);
+            EventHandler ハンドラー=(_,_)=>{
+                var 値=this.画面モデル.タブ選択状態を取得(対象);
+                MainThread.BeginInvokeOnMainThread(()=>チェック.IsChecked=値);
+            };
+            this.画面モデル.選択状態変更時+=ハンドラー;
+            チェック.Unloaded+=(_,_)=>this.画面モデル.選択状態変更時-=ハンドラー;
+            var ホスト=new Grid {
+                WidthRequest=28,
+                BackgroundColor=Colors.Transparent,
+                Children={チェック},
+            };
+            var タップ=new TapGestureRecognizer();
+            タップ.Tapped+=(_,_)=>this.画面モデル.全選択を切り替える(対象);
+            ホスト.GestureRecognizers.Add(タップ);
+            return ホスト;
+        });
     }
 
     private void 列を追加(SfDataGrid グリッド,string 見出し,string プロパティ,double 幅) {
@@ -630,6 +713,10 @@ public sealed class MainPage:ContentPage {
             HeaderText=見出し,
             MappingName=プロパティ,
             Width=幅,
+            MinimumWidth=幅,
+            HeaderLineBreakMode=LineBreakMode.NoWrap,
+            LineBreakMode=LineBreakMode.TailTruncation,
+            HeaderPadding=new Thickness(4,0),
             AllowSorting=true,
             CellTemplate=セルテンプレートを作成(プロパティ),
         });
@@ -640,6 +727,7 @@ public sealed class MainPage:ContentPage {
             var ラベル=new Label {
                 FontSize=12,
                 LineBreakMode=LineBreakMode.TailTruncation,
+                MaxLines=1,
                 VerticalTextAlignment=TextAlignment.Center,
                 Padding=new Thickness(4,0),
             };
@@ -649,9 +737,7 @@ public sealed class MainPage:ContentPage {
     }
 
     private void 画面モデル変更時(object? 送信元,PropertyChangedEventArgs 引数) {
-        if(引数.PropertyName is nameof(動的ベンチマーク画面モデル.設定領域幅)
-            or nameof(動的ベンチマーク画面モデル.詳細領域高さ)
-            or nameof(動的ベンチマーク画面モデル.設定領域折畳済みか)
+        if(引数.PropertyName is nameof(動的ベンチマーク画面モデル.詳細領域高さ)
             or nameof(動的ベンチマーク画面モデル.詳細領域折畳済みか)
             or nameof(動的ベンチマーク画面モデル.設定入力可能か)) {
             this.画面状態を適用();
@@ -659,11 +745,7 @@ public sealed class MainPage:ContentPage {
     }
 
     private void 画面状態を適用() {
-        this.ルート.ColumnDefinitions[2].Width=this.画面モデル.設定領域折畳済みか?44:this.画面モデル.設定領域幅;
-        this.ルート.RowDefinitions[2].Height=this.画面モデル.詳細領域折畳済みか?40:this.画面モデル.詳細領域高さ;
-        if(this.設定領域.Resources.TryGetValue("内容",out var 設定内容)&&設定内容 is VisualElement 設定要素) {
-            設定要素.IsVisible=!this.画面モデル.設定領域折畳済みか;
-        }
+        this.ルート.RowDefinitions[4].Height=this.画面モデル.詳細領域折畳済みか?40:this.画面モデル.詳細領域高さ;
         if(this.詳細領域.Resources.TryGetValue("タブ",out var 詳細内容)&&詳細内容 is VisualElement 詳細要素) {
             詳細要素.IsVisible=!this.画面モデル.詳細領域折畳済みか;
         }

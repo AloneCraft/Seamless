@@ -126,6 +126,26 @@ public sealed class DynamicDatabase {
         }
     }
 
+    [Fact,Trait("Category","Integration")]
+    public void ReadConnectionを開いたままWritableConnectionで書き込める() {
+        var 一時ルート=一時ルートを作成();
+        var DBパス=Path.Combine(一時ルート,"Benchmark.Dynamic.db");
+        try {
+            var DB=new global::Benchmark.Dynamic.Infrastructure.DynamicDatabase(DBパス);
+            DB.InitializeIfMissing();
+            using var 読み取り=DB.OpenReadConnection();
+            using var 書き込み=DB.OpenWritableConnection();
+            using var コマンド=書き込み.CreateCommand();
+            コマンド.CommandText="CREATE TABLE IF NOT EXISTS \"_dynamic_write_probe\"(value INTEGER); INSERT INTO \"_dynamic_write_probe\"(value) VALUES(1);";
+            コマンド.ExecuteNonQuery();
+            using var 確認=書き込み.CreateCommand();
+            確認.CommandText="SELECT COUNT(*) FROM \"_dynamic_write_probe\";";
+            Assert.Equal(1,Convert.ToInt32(確認.ExecuteScalar(),System.Globalization.CultureInfo.InvariantCulture));
+        } finally {
+            一時ルートを削除(一時ルート);
+        }
+    }
+
     internal static string 一時ルートを作成() {
         var ルート=Path.Combine(Path.GetTempPath(),"Benchmark.Dynamic.Tests",Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(ルート);

@@ -188,7 +188,8 @@ public sealed record WorkerRunRequest(
     IReadOnlyList<WorkerReplayQuery>? ReplayQueries=null,
     Seed256? FixtureSeedOverride=null,
     int? MeasurementQueryIndexOverride=null,
-    WorkerRunResumeState? ResumeState=null);
+    WorkerRunResumeState? ResumeState=null,
+    int QueryIndexOffset=0);
 
 public enum WorkerExecutionStatus{
     NotStarted,
