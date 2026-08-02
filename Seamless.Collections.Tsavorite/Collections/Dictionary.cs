@@ -122,6 +122,7 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
     }
     public unsafe bool Remove(KeyValuePair<TKey,TValue> item) {
         this.VerifyThreadAffinity();
+        this.InvalidateCountCache();
         var Session = this.Remove_KeyValuePair_ClientSession;
         var Key0 = item.Key;
         var Value0 = item.Value;
@@ -137,6 +138,7 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
     }
     public unsafe bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value) {
         this.VerifyThreadAffinity();
+        this.InvalidateCountCache();
         var Session = this.Remove_TKey_TValue_ClientSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var Input = default(EqualityEmpty);
@@ -213,6 +215,7 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         }
         set {
             this.VerifyThreadAffinity("Item");
+            this.InvalidateCountCache();
             var KeyBytes = TKeySerializer.Serialize(ref key);
             var ValueBytes = TValueSerializer.Serialize(ref value);
             if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))

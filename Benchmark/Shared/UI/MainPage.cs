@@ -993,7 +993,7 @@ public sealed partial class MainPage:ContentPage {
 
         var 結果 = await this.確認ダイアログを表示Async(
             "履歴消去",
-            "DB内の実行履歴をすべて消去します。よろしいですか？",
+            "DB保存済みの実行履歴をすべて消去します。まだDB保存していない実行結果は保持されます。よろしいですか？",
             [
                 new 確認ダイアログ選択肢("全履歴を消去","消去",確認ダイアログボタン種別.危険),
                 new 確認ダイアログ選択肢("キャンセル","キャンセル",確認ダイアログボタン種別.中立),
@@ -1600,9 +1600,10 @@ public sealed partial class MainPage:ContentPage {
         var 下部タブ選択肢一覧 = new[] {
             new タブ見出し選択肢("CPU"),
             new タブ見出し選択肢("ログ"),
-            new タブ見出し選択肢("改善プロンプト"),
+            new タブ見出し選択肢("速度改善プロンプト"),
+            new タブ見出し選択肢("メモリ改善プロンプト"),
         };
-        var 下部内容一覧 = new View[] { this.CPUビューを作成(),this.ログビューを作成(),this.改善プロンプトビューを作成() };
+        var 下部内容一覧 = new View[] { this.CPUビューを作成(),this.ログビューを作成(),this.改善プロンプトビューを作成("速度改善プロンプト",nameof(実行ビューモデル.速度改善プロンプト文字列),nameof(実行ビューモデル.速度改善プロンプトコピーコマンド),nameof(実行ビューモデル.速度改善プロンプトをコピー可能か)),this.改善プロンプトビューを作成("メモリ改善プロンプト",nameof(実行ビューモデル.メモリ改善プロンプト文字列),nameof(実行ビューモデル.メモリ改善プロンプトコピーコマンド),nameof(実行ビューモデル.メモリ改善プロンプトをコピー可能か)) };
         for(var インデックス = 0;インデックス<下部タブ選択肢一覧.Length;インデックス++) {
             var 取得済みインデックス = インデックス;
             下部項目一覧.Add(new SfTabItem {
@@ -1638,7 +1639,8 @@ public sealed partial class MainPage:ContentPage {
 
             this.ビューモデル.選択下段タブ=下部タブビュー.SelectedIndex switch {
                 1 => ベンチマーク下段タブ.ログ,
-                2 => ベンチマーク下段タブ.改善プロンプト,
+                2 => ベンチマーク下段タブ.速度改善プロンプト,
+                3 => ベンチマーク下段タブ.メモリ改善プロンプト,
                 _ => ベンチマーク下段タブ.CPU,
             };
         };
@@ -2758,7 +2760,7 @@ public sealed partial class MainPage:ContentPage {
         };
     }
 
-    private View 改善プロンプトビューを作成() {
+    private View 改善プロンプトビューを作成(string タイトル文字列,string プロンプトプロパティ,string コピーコマンドプロパティ,string コピー可能プロパティ) {
         var コピーボタン = new Button {
             Text="⧉",
             WidthRequest=30,
@@ -2769,13 +2771,13 @@ public sealed partial class MainPage:ContentPage {
             TextColor=Color.FromArgb("#0F172A"),
             BackgroundColor=Color.FromArgb("#E2E8F0"),
         };
-        コピーボタン.SetBinding(Button.CommandProperty,nameof(実行ビューモデル.改善プロンプトコピーコマンド));
-        コピーボタン.SetBinding(IsEnabledProperty,nameof(実行ビューモデル.改善プロンプトをコピー可能か));
+        コピーボタン.SetBinding(Button.CommandProperty,コピーコマンドプロパティ);
+        コピーボタン.SetBinding(IsEnabledProperty,コピー可能プロパティ);
         ToolTipProperties.SetText(コピーボタン,"改善プロンプトをコピー");
         押下フィードバックを設定(コピーボタン);
 
         var タイトル = new Label {
-            Text="改善プロンプト",
+            Text=タイトル文字列,
             FontSize=12,
             FontAttributes=FontAttributes.Bold,
             TextColor=Color.FromArgb("#0F172A"),
@@ -2803,7 +2805,7 @@ public sealed partial class MainPage:ContentPage {
             HorizontalOptions=LayoutOptions.Fill,
             VerticalOptions=LayoutOptions.Fill,
         };
-        プロンプト文.SetBinding(Editor.TextProperty,new Binding(nameof(実行ビューモデル.改善プロンプト文字列),BindingMode.TwoWay));
+        プロンプト文.SetBinding(Editor.TextProperty,new Binding(プロンプトプロパティ,BindingMode.TwoWay));
         var プロンプト境界 = new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,

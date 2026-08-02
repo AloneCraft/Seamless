@@ -1157,7 +1157,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
         var System計測=計測を取得(Artifact,"System");
         var FLinq計測=計測を取得(Artifact,"FLinq");
         var ZLinq計測=計測を取得(Artifact,"ZLinq");
-        return new 動的結果行{
+        var 行=new 動的結果行{
             実行ID=設定.実行ID,
             QueryID=結果.QueryId,
             対象=結果.SourceTarget,
@@ -1165,6 +1165,10 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
             短縮式=IR.Root.OperatorId,
             N=IR.ActualOperatorCount,
             深度=IR.ActualDepth,
+            BaseSeed=設定.Seed.ToString(),
+            QuerySeed=Query開始.QuerySeed.ToString(),
+            入力要素数=設定.入力要素数.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            演算子集合=設定.演算子集合モード.ToString(),
             状態=結果.Status.ToString(),
             生成時間=ナノ秒を表示(Query開始.IrGenerationNanoseconds+Artifact.Source生成ナノ秒),
             コンパイル時間=ナノ秒を表示(Artifact.コンパイル合計ナノ秒),
@@ -1187,6 +1191,9 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
             最適化Trace=結果.OptimizationTraceJson??string.Empty,
             計測詳細=結果.MeasurementsJson??string.Empty,
         };
+        行.速度改善プロンプト=改善プロンプト生成.速度(行);
+        行.メモリ改善プロンプト=改善プロンプト生成.メモリ(行);
+        return 行;
     }
 
     private static IReadOnlyList<DynamicMeasurementBundle> 計測一覧を作成(

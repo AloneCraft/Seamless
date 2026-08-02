@@ -3,6 +3,7 @@ global using Garnet.common;
 global using Seamless.Collections;
 
 global using System;
+global using System.Buffers;
 global using System.Collections;
 global using System.Collections.Generic;
 global using System.Diagnostics;

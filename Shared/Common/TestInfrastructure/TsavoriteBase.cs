@@ -8,14 +8,18 @@ public class TsavoriteBase(int count=80_000):TsavoriteBase<int>(count);
 
 public class TsavoriteBase<T>(int elementCount=80_000):Base<T>(NormalizeCount(elementCount)),IDisposable
 where T : notnull {
-    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcCache    = [];
-    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> src2Cache   = [];
-    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcOneCache = [];
+    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcCache         = [];
+    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> src2Cache        = [];
+    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcOneCache      = [];
+    private readonly Dictionary<SourceCacheKey,SourceHandle<T>> srcMinusPlusCache = [];
     protected internal new global::Seamless.Collections.Tsavorite.HashSet<T> src(int scale) =>
         this.GetOrCreate(scale,this.srcCache,static length => CreateRange(1,length));
 
     protected internal new global::Seamless.Collections.Tsavorite.HashSet<T> srcCount(int elementCount) =>
         this.GetOrCreateByLength(elementCount,this.srcCache,static length => CreateRange(1,length));
+
+    protected internal new global::Seamless.Collections.Tsavorite.HashSet<T> srcMinusPlusCount(int elementCount) =>
+        this.GetOrCreateByLength(elementCount,this.srcMinusPlusCache,static length => CreateMinusPlusRange(length));
 
     protected internal new global::Seamless.Collections.Tsavorite.HashSet<T> src2(int scale) =>
         this.GetOrCreate(scale,this.src2Cache,static length => CreateRange(length/2+1,length/2));
@@ -31,6 +35,7 @@ where T : notnull {
         DisposeAll(this.srcCache);
         DisposeAll(this.src2Cache);
         DisposeAll(this.srcOneCache);
+        DisposeAll(this.srcMinusPlusCache);
     }
 
     public void Dispose() => this.Cleanup();
@@ -86,6 +91,17 @@ where T : notnull {
                 var next = random.Next(index+1);
                 (result[index],result[next])=(result[next],result[index]);
             }
+        }
+        return result;
+    }
+
+    // srcMinusPlusCount(基底の遅延イテレータ版)と同じ -a,+a の交互列を生成する。
+    private static T[] CreateMinusPlusRange(int length) {
+        var result = new T[2*((length+1)/2)];
+        var index = 0;
+        for(var a = 0;a<length;a+=2) {
+            result[index++]=FromInt(-a);
+            result[index++]=FromInt(+a);
         }
         return result;
     }

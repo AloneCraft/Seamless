@@ -64,6 +64,10 @@ internal static class ベンチマーク改善候補ビルダー{
         return 選択一覧;
     }
 
+    public static string 速度プロンプトを構築(IEnumerable<ベンチマーク改善候補>候補一覧)=>プロンプトを構築(候補一覧.Where(static 候補=>候補.時間回帰か));
+
+    public static string メモリプロンプトを構築(IEnumerable<ベンチマーク改善候補>候補一覧)=>プロンプトを構築(候補一覧.Where(static 候補=>候補.メモリ回帰か));
+
     public static string プロンプトを構築(IEnumerable<ベンチマーク改善候補>候補一覧){
         var 選択一覧=候補一覧
             .OrderBy(static 項目=>項目.カテゴリ,StringComparer.OrdinalIgnoreCase)

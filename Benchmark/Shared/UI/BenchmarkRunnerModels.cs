@@ -10,7 +10,8 @@ namespace UI;
 public enum ベンチマーク下段タブ {
     CPU,
     ログ,
-    改善プロンプト,
+    速度改善プロンプト,
+    メモリ改善プロンプト,
 }
 
 public enum ベンチマーク指標種別 {

@@ -13,6 +13,7 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
         this.RenderRangeContainsInline(destVar,destType)
         ??this.RenderDirectSpanContainsInline(destVar,destType)
         ??this.RenderProviderNativeContainsInline(destVar,destType)
+        ??this.RenderGenericCollectionContainsInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,value);
     // Persisted/Tsavorite の根(ProviderNativeRootBase)は mmap ハッシュ索引で Contains が O(1)
     // (PersistedSetRoot.cs 参照: "Set<T>.Contains は .hindex で O(1)。native scan の O(n) を回避する")。
@@ -28,6 +29,46 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
             return null;
         }
         return $"{destType} {destVar}={lookupExpression};";
+    }
+    // 静的型が IEnumerable<T> までしか分からない場合(Root, useEnumerableInterface=true)、
+    // System.Linq.Enumerable.Contains(BCL) は実行時に source is ICollection<T> を判定して
+    // O(1) の collection.Contains(value) を使う。TryGetNonEnumeratedCount/TryGetSpan(Root.cs)は
+    // 既に同じ実行時判定パターンを持つが、Contains の Compute 経路だけ持っておらず常に O(n) の
+    // 手動走査になっていた。BCL と同じ判定をここで追加する。
+    // comparer 指定時は対象外(RenderProviderNativeContainsInline と同じ理由。Contains_comparer は
+    // この分岐を持たない)。中間演算子を挟む場合(source が Root 以外)も対象外
+    // (ICollection<T> の中身が Contains の入力と一致しなくなるため)。
+    private string? RenderGenericCollectionContainsInline(string destVar,string destType) {
+        if(source is not Root { DirectEnumerableExpression: { } enumerableExpression }) {
+            return null;
+        }
+        var sourceVar = $"__genericSource{番号}";
+        var collectionVar = $"__collection{番号}";
+        var enumeratorVar = $"__genericEnum{番号}";
+        var itemVar = $"__genericItem{番号}";
+        // RenderInlineComputation が成功する経路では ComputeMembers(別スコープの Struct0.Compute)は
+        // 生成されないため、else 節のフォールバックもここで直接インライン化する必要がある
+        // (Compute という名前を呼んでも解決できない)。
+        // enumerableExpression(=元の source 式)は副作用や非冪等性があり得るため、
+        // is 判定と else 節の enumerator 構築の両方で使う前に必ず1回だけローカル変数へ評価する。
+        return $$"""
+            {{destType}} {{destVar}};
+            var {{sourceVar}}={{enumerableExpression}};
+            if({{sourceVar}} is global::System.Collections.Generic.ICollection<{{source.ElementType}}> {{collectionVar}}){
+                {{destVar}}={{collectionVar}}.Contains({{value}});
+            }else{
+                var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
+                {{destVar}}=false;
+                using(var {{enumeratorVar}}=new {{source.EnumeratorTypeName}}({{sourceVar}})){
+                    while({{enumeratorVar}}.TryGetNext(out var {{itemVar}})){
+                        if(comparer.Equals({{itemVar}},{{value}})){
+                            {{destVar}}=true;
+                            break;
+                        }
+                    }
+                }
+            }
+            """;
     }
     private string? RenderDirectSpanContainsInline(string destVar,string destType) {
         var span = $"__span{this.result}";

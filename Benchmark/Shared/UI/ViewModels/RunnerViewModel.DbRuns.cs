@@ -298,7 +298,10 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         try {
             this.永続化バッチ処理.即時反映();
             await this.UI実行リポジトリ.保存完了を待機Async();
-            await Task.Run(this.UI実行ストア.全記録を削除);
+            // 未保存UI実行IDは「実行開始時にDBへは作られたが、ユーザーがDB保存ボタンで確定していない」下書き行を指す。
+            // 履歴消去は明示的にDB保存された履歴だけを対象とし、この下書きは消さずに残す。
+            var 保持実行ID = this.未保存UI実行ID;
+            await Task.Run(() => this.UI実行ストア.全記録を削除(保持実行ID));
             this.選択実行読込要求を無効化();
             this.選択実行状態キャッシュ=null;
             this.現在実行セッション.クリア();
@@ -307,8 +310,13 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             this.実行選択肢一覧.Add(新規実行選択肢);
             this.選択実行選択肢を設定(新規実行選択肢,false,false);
             this.新規実行用に全現在実行結果をクリア();
+            this.未保存UI実行ID=null;
+            this.有効UI実行ID=null;
+            this.未保存ベンチマーク結果ありか=false;
+            this.終了状態保存保留ありか=false;
+            this.現在未保存実行ルート=null;
             this.状態文字列="履歴を消去しました";
-            起動診断.書き込む("ベンチマーク実行履歴をクリアしました。");
+            起動診断.書き込む("ベンチマーク実行履歴をクリアしました。 保持実行ID="+(保持実行ID?.ToString()??"なし"));
         } catch(Exception 例外) {
             起動診断.書き込む("ベンチマーク実行履歴のクリアに失敗しました。",例外);
             this.状態文字列="履歴消去失敗 "+例外.Message;

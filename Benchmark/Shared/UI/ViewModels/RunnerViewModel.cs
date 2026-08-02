@@ -268,6 +268,8 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         this.一時停止コマンド=new AsyncRelayCommand(this.一時停止Async,() => this.ベンチマークを停止可能か);
         this.キャンセルコマンド=new RelayCommand(this.キャンセル);
         this.改善プロンプトコピーコマンド=new AsyncRelayCommand(this.改善プロンプトをコピーAsync,() => this.改善プロンプトをコピー可能か);
+        this.速度改善プロンプトコピーコマンド=new AsyncRelayCommand(this.速度改善プロンプトをコピーAsync,() => this.速度改善プロンプトをコピー可能か);
+        this.メモリ改善プロンプトコピーコマンド=new AsyncRelayCommand(this.メモリ改善プロンプトをコピーAsync,() => this.メモリ改善プロンプトをコピー可能か);
         if(起動診断を有効にするか) {
             起動診断.既存ログから初期化();
             this.ログ文字列値=起動診断.ログ文字列を取得();
@@ -1112,6 +1114,8 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         this.現在要素数文字列="-";
         this.ベンチマーク結果表示をクリア();
         this.改善プロンプト文字列=string.Empty;
+        this.速度改善プロンプト文字列=string.Empty;
+        this.メモリ改善プロンプト文字列=string.Empty;
         this.選択実行状態キャッシュ=null;
         this.実行結果強調をクリア();
         this.ソースタブ進行を更新();

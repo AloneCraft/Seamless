@@ -115,7 +115,19 @@ internal static class BenchmarkTabStorage {
         return 結果;
     }
 
-    internal static void 全削除(SqliteConnection 接続,SqliteTransaction トランザクション) { foreach(var 表名 in 表名一覧) 実行(接続,トランザクション,$"DELETE FROM {引用(表名)};"); }
+    internal static void 全削除(SqliteConnection 接続,SqliteTransaction トランザクション,long? 保持実行ID = null) {
+        foreach(var 表名 in 表名一覧) {
+            if(保持実行ID is { } id) {
+                using var コマンド=接続.CreateCommand();
+                コマンド.Transaction=トランザクション;
+                コマンド.CommandText=$"DELETE FROM {引用(表名)} WHERE \"実行ID\"!=$keep;";
+                コマンド.Parameters.AddWithValue("$keep",id);
+                コマンド.ExecuteNonQuery();
+            } else {
+                実行(接続,トランザクション,$"DELETE FROM {引用(表名)};");
+            }
+        }
+    }
 
     private static 定義 取得(string タブID) => 定義一覧.FirstOrDefault(定義=>string.Equals(定義.タブID,タブID,StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidDataException("不明なBenchmarkタブIDです: "+タブID);
     private static IReadOnlyList<(UIベンチマークグリッド側書込 側,UIベンチマークスナップショットケース書込? ケース)> 側一覧を取得(定義 定義,UIベンチマークスナップショット項目書込 項目) =>

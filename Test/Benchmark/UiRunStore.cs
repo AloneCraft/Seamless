@@ -152,6 +152,25 @@ public sealed class UI実行ストア{
         Assert.Empty(ストア.実行一覧を取得());Assert.Empty(ストア.ベンチマークスナップショット項目一覧を取得(実行.実行ID));
     }
 
+    [Fact]
+    public void 全記録を削除_保持実行ID指定時はその実行と関連記録だけ残す(){
+        var ストア=new global::UI.Storage.UI実行ストア(DBパスを作成());
+        var 保持対象=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","System.Array",DateTimeOffset.UtcNow));
+        var 削除対象=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","System.Array",DateTimeOffset.UtcNow));
+        var 日時=DateTimeOffset.Parse("2026-07-08T12:34:56+09:00",global::System.Globalization.CultureInfo.InvariantCulture);
+        ストア.ベンチマークスナップショット項目を保存(保持対象.実行ID,[new("System.Array","int","Any",17,true,
+            new(UI実行状態.完了,string.Empty,日時,20,200,8),new(UI実行状態.完了,string.Empty,日時,10,50,8))]);
+        ストア.ベンチマークスナップショット項目を保存(削除対象.実行ID,[new("System.Array","int","Any",17,true,
+            new(UI実行状態.完了,string.Empty,日時,20,200,8),new(UI実行状態.完了,string.Empty,日時,10,50,8))]);
+
+        ストア.全記録を削除(保持対象.実行ID);
+
+        var 残存実行=Assert.Single(ストア.実行一覧を取得());
+        Assert.Equal(保持対象.実行ID,残存実行.実行ID);
+        Assert.NotEmpty(ストア.ベンチマークスナップショット項目一覧を取得(保持対象.実行ID));
+        Assert.Empty(ストア.ベンチマークスナップショット項目一覧を取得(削除対象.実行ID));
+    }
+
     private static Microsoft.Data.Sqlite.SqliteConnection 開く(string パス){var 接続=new Microsoft.Data.Sqlite.SqliteConnection(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder{DataSource=パス}.ToString());接続.Open();return 接続;}
     private static T値 スカラー<T値>(Microsoft.Data.Sqlite.SqliteConnection 接続,string SQL){using var コマンド=接続.CreateCommand();コマンド.CommandText=SQL;return (T値)コマンド.ExecuteScalar()!;}
     private static string DBパスを作成(){var ルート=Path.Combine(AppContext.BaseDirectory,"UI実行ストア試験",Guid.NewGuid().ToString("N"));Directory.CreateDirectory(ルート);return Path.Combine(ルート,"Benchmark.db");}

@@ -206,6 +206,8 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// </summary>
     /// <value>改善プロンプトコピーコマンド の値を取得/設定します。</value>
     public IAsyncRelayCommand 改善プロンプトコピーコマンド { get; }
+    public IAsyncRelayCommand 速度改善プロンプトコピーコマンド { get; }
+    public IAsyncRelayCommand メモリ改善プロンプトコピーコマンド { get; }
     /// <summary>
     /// 状態文字列 プロパティです。
     /// </summary>
@@ -261,7 +263,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         set {
             if(this.SetProperty(ref this.選択下段タブ値,value)) {
                 this.OnPropertyChanged(nameof(this.ログ下段タブ表示中か));
-                this.OnPropertyChanged(nameof(this.改善プロンプト下段タブ表示中か));
             }
         }
     }
@@ -794,6 +795,8 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             this.現在要素数文字列="-";
             this.ベンチマーク結果表示をクリア();
             this.改善プロンプト文字列=string.Empty;
+        this.速度改善プロンプト文字列=string.Empty;
+        this.メモリ改善プロンプト文字列=string.Empty;
             this.ソースタブ進行を更新();
             this.ツールバーコマンド状態を更新();
         }

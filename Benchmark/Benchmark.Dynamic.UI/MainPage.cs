@@ -534,7 +534,8 @@ public sealed class MainPage:ContentPage {
             this.詳細タブを作成("Results",nameof(動的結果行.結果)),
             this.詳細タブを作成("Diagnostics",nameof(動的結果行.診断)),
             this.最適化Traceタブを作成(),
-            this.詳細タブを作成("Measurements",nameof(動的結果行.計測詳細)),
+            this.改善プロンプトタブを作成("速度改善プロンプト",nameof(動的結果行.速度改善プロンプト),"動的詳細.速度改善プロンプト"),
+            this.改善プロンプトタブを作成("メモリ改善プロンプト",nameof(動的結果行.メモリ改善プロンプト),"動的詳細.メモリ改善プロンプト"),
         ];
         タブ.SelectedIndex=0;
         ルート.Add(タブ,0,1);
@@ -594,6 +595,41 @@ public sealed class MainPage:ContentPage {
         };
         編集欄.SetBinding(Editor.TextProperty,"選択結果."+プロパティ);
         return new SfTabItem {Header=見出し,Content=編集欄};
+    }
+
+    private SfTabItem 改善プロンプトタブを作成(string 見出し,string プロパティ,string AutomationId) {
+        var 編集欄=new Editor {
+            IsReadOnly=true,
+            FontFamily="Consolas",
+            FontSize=13,
+            AutoSize=EditorAutoSizeOption.Disabled,
+            BackgroundColor=Color.FromArgb("#F8FAFC"),
+            Placeholder="Queryを選択してください",
+        };
+        編集欄.SetBinding(Editor.TextProperty,"選択結果."+プロパティ);
+        var コピー=new Button {
+            Text="コピー",
+            AutomationId=AutomationId+".コピー",
+            HorizontalOptions=LayoutOptions.End,
+            Padding=new Thickness(12,2),
+        };
+        コピー.Clicked+=async(_,_)=>{
+            if(!string.IsNullOrWhiteSpace(編集欄.Text)) {
+                await Clipboard.Default.SetTextAsync(編集欄.Text);
+            }
+        };
+        var 内容=new Grid {
+            RowDefinitions={
+                new RowDefinition(GridLength.Star),
+                new RowDefinition(GridLength.Auto),
+            },
+            RowSpacing=4,
+            Padding=new Thickness(6),
+            AutomationId=AutomationId,
+        };
+        内容.Add(編集欄,0,0);
+        内容.Add(コピー,0,1);
+        return new SfTabItem {Header=見出し,Content=内容};
     }
 
     private SfTabItem 最適化Traceタブを作成() {

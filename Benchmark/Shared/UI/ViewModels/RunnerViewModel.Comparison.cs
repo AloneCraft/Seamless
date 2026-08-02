@@ -15,6 +15,8 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// 改善プロンプト文字列値 フィールドです。
     /// </summary>
     private string 改善プロンプト文字列値 = string.Empty;
+    private string 速度改善プロンプト文字列値 = string.Empty;
+    private string メモリ改善プロンプト文字列値 = string.Empty;
 
     /// <summary>
     /// 改善候補概要文字列値 フィールドです。
@@ -107,12 +109,10 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// </summary>
     /// <value>改善プロンプトをコピー可能か の値を取得/設定します。</value>
     public bool 改善プロンプトをコピー可能か => !string.IsNullOrWhiteSpace(this.改善プロンプト文字列);
-
-    /// <summary>
-    /// 改善プロンプト下段タブ表示中か プロパティです。
-    /// </summary>
-    /// <value>改善プロンプト下段タブ表示中か の値を取得/設定します。</value>
-    public bool 改善プロンプト下段タブ表示中か => this.選択下段タブ==ベンチマーク下段タブ.改善プロンプト;
+    public string 速度改善プロンプト文字列 { get=>this.速度改善プロンプト文字列値; private set { if(this.SetProperty(ref this.速度改善プロンプト文字列値,value)){ this.速度改善プロンプトコピーコマンド?.NotifyCanExecuteChanged(); } } }
+    public string メモリ改善プロンプト文字列 { get=>this.メモリ改善プロンプト文字列値; private set { if(this.SetProperty(ref this.メモリ改善プロンプト文字列値,value)){ this.メモリ改善プロンプトコピーコマンド?.NotifyCanExecuteChanged(); } } }
+    public bool 速度改善プロンプトをコピー可能か => !string.IsNullOrWhiteSpace(this.速度改善プロンプト文字列);
+    public bool メモリ改善プロンプトをコピー可能か => !string.IsNullOrWhiteSpace(this.メモリ改善プロンプト文字列);
 
     public string 全体ベンチマークシェア概要文 {
         get => this.全体ベンチマークシェア概要文値;
@@ -488,6 +488,8 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             this.改善候補一覧
                 .Where(static 行 => 行.選択中か)
                 .Select(static 行 => 行.候補));
+        this.速度改善プロンプト文字列=ベンチマーク改善プロンプトビルダー.速度プロンプトを構築(this.改善候補一覧.Where(static 行=>行.選択中か).Select(static 行=>行.候補));
+        this.メモリ改善プロンプト文字列=ベンチマーク改善プロンプトビルダー.メモリプロンプトを構築(this.改善候補一覧.Where(static 行=>行.選択中か).Select(static 行=>行.候補));
     }
 
     /// <summary>
@@ -507,6 +509,18 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <summary>
     /// 改善プロンプトをコピーAsync メソッドを実行し、結果を算出して返却します。
     /// </summary>
+    private async Task 速度改善プロンプトをコピーAsync() {
+        if(string.IsNullOrWhiteSpace(this.速度改善プロンプト文字列)) return;
+        await Microsoft.Maui.ApplicationModel.DataTransfer.Clipboard.Default.SetTextAsync(this.速度改善プロンプト文字列);
+        this.状態文字列="速度改善プロンプトをコピーしました";
+    }
+
+    private async Task メモリ改善プロンプトをコピーAsync() {
+        if(string.IsNullOrWhiteSpace(this.メモリ改善プロンプト文字列)) return;
+        await Microsoft.Maui.ApplicationModel.DataTransfer.Clipboard.Default.SetTextAsync(this.メモリ改善プロンプト文字列);
+        this.状態文字列="メモリ改善プロンプトをコピーしました";
+    }
+
     private async Task 改善プロンプトをコピーAsync() {
         if(string.IsNullOrWhiteSpace(this.改善プロンプト文字列)) {
             return;

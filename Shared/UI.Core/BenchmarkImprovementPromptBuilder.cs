@@ -18,10 +18,17 @@ internal static class ベンチマーク改善プロンプトビルダー{
     public static string プロンプトを構築(進行状態 状態){
         var 候補一覧=ベンチマーク改善候補ビルダー.候補を構築(状態);
         return ベンチマーク改善候補ビルダー.プロンプトを構築(候補一覧);
+
     }
 
     public static string プロンプトを構築(IEnumerable<ベンチマーク改善候補>候補一覧)=>
         ベンチマーク改善候補ビルダー.プロンプトを構築(候補一覧);
+
+    public static string 速度プロンプトを構築(IEnumerable<ベンチマーク改善候補>候補一覧)=>
+        ベンチマーク改善候補ビルダー.速度プロンプトを構築(候補一覧);
+
+    public static string メモリプロンプトを構築(IEnumerable<ベンチマーク改善候補>候補一覧)=>
+        ベンチマーク改善候補ビルダー.メモリプロンプトを構築(候補一覧);
 
     private static double?シェア平均を計算(IEnumerable<シェア値>シェア一覧,out int 対象数,out int 除外数){
         対象数=0;

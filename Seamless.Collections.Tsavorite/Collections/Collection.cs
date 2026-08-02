@@ -40,23 +40,41 @@ public abstract class Collection<
     /// </summary>
     public abstract class IterateLookupIteratorFunctions_List<T>:IScanIteratorFunctions {
         private const int MinimumScanChunkLength = 4096;
-        public readonly T[] Chunk = new T[Math.Max(Const.Chunk_Length,MinimumScanChunkLength)];
+        private static readonly T[] EmptyChunk = [];
+        // 走査バッファは列挙 1 回につき 1 本必要になる。new すると int で 16KB、参照型で 32KB を
+        // 毎 foreach ごとに確保することになり、Tsavorite ベンチマークの割り当ての大半を占めていた。
+        // 列挙子の Dispose で返却する(返却後は EmptyChunk に差し替わるので Accept は書き込まない)。
+        public T[] Chunk = ArrayPool<T>.Shared.Rent(Math.Max(Const.Chunk_Length,MinimumScanChunkLength));
         public int Count;
         private long LastAcceptedAddress;
         public void ResetChunk() {
+            // Dispose 済みの列挙子を Reset() して再利用する経路では返却済みなので、ここで借り直す。
+            // 借り直さないと Accept が常に EndBatch を返し、MoveNext の while(true) が抜けられない。
+            if(ReferenceEquals(this.Chunk,EmptyChunk)) {
+                this.Chunk=ArrayPool<T>.Shared.Rent(Math.Max(Const.Chunk_Length,MinimumScanChunkLength));
+            }
             this.Count=0;
             this.LastAcceptedAddress=0;
         }
-        private protected virtual bool ShouldRead<TSourceLogRecord>(in TSourceLogRecord logRecord)
-            where TSourceLogRecord : ISourceLogRecord => true;
-        private protected abstract T Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord)
-            where TSourceLogRecord : ISourceLogRecord;
-        public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            where TSourceLogRecord : ISourceLogRecord {
-            if(!this.ShouldRead(logRecord)||logRecord.Info.Tombstone) {
-                cursorRecordResult=CursorRecordResult.Skip;
-                return true;
+        public void ReturnChunk() {
+            var rented = this.Chunk;
+            if(ReferenceEquals(rented,EmptyChunk)) {
+                return;
             }
+            this.Chunk=EmptyChunk;
+            this.Count=0;
+            this.LastAcceptedAddress=0;
+            ArrayPool<T>.Shared.Return(rented,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+        }
+        // Reader は 1 レコードにつき 1 回呼ばれる最内ループである。ここから ShouldRead / Deserialize を
+        // ジェネリック仮想メソッドとして呼ぶと、レコードごとにジェネリックディクショナリ探索を伴う
+        // 仮想ディスパッチが 2 回入り、走査時間の 1 割以上を占める。派生 sealed クラス側で Reader を
+        // 実装し、脱シリアライズを静的呼び出し(inline 可能)にするため、共通のチャンク処理だけを
+        // 非仮想の Accept として残す。
+        public abstract bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+            where TSourceLogRecord : ISourceLogRecord;
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private protected bool Accept(T value,RecordMetadata recordMetadata,out CursorRecordResult cursorRecordResult) {
             if(this.Count>=this.Chunk.Length) {
                 if(recordMetadata.Address==this.LastAcceptedAddress) {
                     cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
@@ -66,9 +84,14 @@ public abstract class Collection<
                 return true;
             }
 
-            this.Chunk[this.Count++]=this.Deserialize(logRecord);
+            this.Chunk[this.Count++]=value;
             this.LastAcceptedAddress=recordMetadata.Address;
             cursorRecordResult=CursorRecordResult.Accept;
+            return true;
+        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private protected static bool Skip(out CursorRecordResult cursorRecordResult) {
+            cursorRecordResult=CursorRecordResult.Skip;
             return true;
         }
         public bool OnStart(long beginAddress,long endAddress) => true;
@@ -76,11 +99,6 @@ public abstract class Collection<
         }
         public void OnException(Exception exception,long numberOfRecords) {
         }
-    }
-
-    public abstract class MemoryIterateLookupIteratorFunctions<T>:IterateLookupIteratorFunctions_List<T> {
-        private protected sealed override bool ShouldRead<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
-            typeof(TSourceLogRecord)!=typeof(DiskLogRecord);
     }
     private protected ClientSession<
         FixedSpanByteKey,
@@ -118,6 +136,15 @@ public abstract class Collection<
         TAllocator
     > CollectionStore;
     private protected TsavoriteKV<TStoreFunctions,TAllocator> Store => this.CollectionStore.Store;
+    // 件数は IterateLookup による全走査でしか求まらないため、直近の結果を保持して再走査を避ける。
+    // ICollection<T>.Count は O(1) を期待されており、System.Linq.Enumerable.TryGetNonEnumeratedCount が
+    // これを呼ぶ。キャッシュしないと「列挙しない件数取得」が実際には全走査になり、
+    // ハッシュ構築系 LINQ 演算子(Distinct/Union/ToLookup など)がソースを二重走査してしまう。
+    // 破棄は書き込み側の一点管理にする(InvalidateCountCache を全変更経路から呼ぶ)。
+    private const long UnknownCount = -1;
+    private long cachedCount = UnknownCount;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private protected void InvalidateCountCache() => this.cachedCount=UnknownCount;
     public TryAddResult TryAdd(TKey Key,TValue Value) {
         this.VerifyThreadAffinity();
         return this.PrivateTryAdd(Key,Value);
@@ -155,10 +182,15 @@ public abstract class Collection<
     }
     public long GetLongCount() {
         this.VerifyThreadAffinity();
+        var cached = this.cachedCount;
+        if(cached!=UnknownCount) {
+            return cached;
+        }
         var iterator = new IterateLookupCounter();
         var cursor = 0L;
         this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
         this.ReadSession.BasicContext.CompletePending(wait: true);
+        this.cachedCount=iterator.Counter;
         return iterator.Counter;
     }
     private protected unsafe bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes) {
@@ -237,6 +269,7 @@ public abstract class Collection<
     }
     public void Clear() {
         this.VerifyThreadAffinity();
+        this.InvalidateCountCache();
         this.DisposeAdditionalSessions();
         this.DisposeCoreSessions();
         this.CollectionStore.Store.Reset();
@@ -245,6 +278,7 @@ public abstract class Collection<
     }
     public virtual void Refresh() {
         this.VerifyThreadAffinity();
+        this.InvalidateCountCache();
         // Refresh() performs log truncation/segment deletion, then recreates sessions.
         // Dispose active sessions, reset store, then recreate session objects.
         this.DisposeAdditionalSessions();
@@ -807,6 +841,7 @@ public abstract class Collection<
         ArgumentNullException.ThrowIfNull(other);
         self.VerifyThreadAffinity(nameof(this.IntersectWith));
         other.VerifyThreadAffinity(nameof(this.IntersectWith));
+        self.InvalidateCountCache();
         var ReadSession = self.ReadSession;
         var workListPath = CreateTemporaryWorkListPath("intersect-with");
         try {
@@ -862,6 +897,7 @@ public abstract class Collection<
             EqualityEmpty
         > {
         other.VerifyThreadAffinity(nameof(this.SymmetricExceptWith));
+        this.InvalidateCountCache();
         var strategy = new RmwSessionForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
@@ -894,6 +930,7 @@ public abstract class Collection<
             EqualityEmpty
         > {
         other.VerifyThreadAffinity(nameof(this.ExceptWith));
+        this.InvalidateCountCache();
         var strategy = new DeleteSessionForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
@@ -926,6 +963,7 @@ public abstract class Collection<
             EqualityEmpty
         > {
         other.VerifyThreadAffinity(nameof(this.UnionWith));
+        this.InvalidateCountCache();
         var strategy = new UpsertLogRecordForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
@@ -981,34 +1019,56 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     where TValueSerializer : ISerializer<TValue> {
     public sealed class KeyIterator:IterateLookupIteratorFunctions_List<TKey>, ICreate<KeyIterator> {
         public static KeyIterator Create() => new();
-        private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
-            TKeySerializer.Deserialize(logRecord.Key);
+        public override bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            if(logRecord.Info.Tombstone) {
+                return Skip(out cursorRecordResult);
+            }
+            return this.Accept(TKeySerializer.Deserialize(logRecord.Key),recordMetadata,out cursorRecordResult);
+        }
     }
-    private protected sealed class MemoryKeyIterator:MemoryIterateLookupIteratorFunctions<TKey> {
-        private protected override TKey Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
-            TKeySerializer.Deserialize(logRecord.Key);
+    private protected sealed class MemoryKeyIterator:IterateLookupIteratorFunctions_List<TKey> {
+        public override bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            if(typeof(TSourceLogRecord)==typeof(DiskLogRecord)||logRecord.Info.Tombstone) {
+                return Skip(out cursorRecordResult);
+            }
+            return this.Accept(TKeySerializer.Deserialize(logRecord.Key),recordMetadata,out cursorRecordResult);
+        }
     }
     private protected sealed class ValueIterator:IterateLookupIteratorFunctions_List<TValue>, ICreate<ValueIterator> {
         public static ValueIterator Create() => new();
-        private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
-            TValueSerializer.Deserialize(logRecord.ValueSpan);
-    }
-    private protected sealed class MemoryValueIterator:MemoryIterateLookupIteratorFunctions<TValue> {
-        private protected override TValue Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) =>
-            TValueSerializer.Deserialize(logRecord.ValueSpan);
-    }
-    public sealed class KeyValueIterator:IterateLookupIteratorFunctions_List<KeyValuePair<TKey,TValue>> {
-        private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
-            var Key = TKeySerializer.Deserialize(logRecord.Key);
-            var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
-            return new(Key,Value);
+        public override bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            if(logRecord.Info.Tombstone) {
+                return Skip(out cursorRecordResult);
+            }
+            return this.Accept(TValueSerializer.Deserialize(logRecord.ValueSpan),recordMetadata,out cursorRecordResult);
         }
     }
-    private protected sealed class MemoryKeyValueIterator:MemoryIterateLookupIteratorFunctions<KeyValuePair<TKey,TValue>> {
-        private protected override KeyValuePair<TKey,TValue> Deserialize<TSourceLogRecord>(in TSourceLogRecord logRecord) {
+    private protected sealed class MemoryValueIterator:IterateLookupIteratorFunctions_List<TValue> {
+        public override bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            if(typeof(TSourceLogRecord)==typeof(DiskLogRecord)||logRecord.Info.Tombstone) {
+                return Skip(out cursorRecordResult);
+            }
+            return this.Accept(TValueSerializer.Deserialize(logRecord.ValueSpan),recordMetadata,out cursorRecordResult);
+        }
+    }
+    public sealed class KeyValueIterator:IterateLookupIteratorFunctions_List<KeyValuePair<TKey,TValue>> {
+        public override bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            if(logRecord.Info.Tombstone) {
+                return Skip(out cursorRecordResult);
+            }
             var Key = TKeySerializer.Deserialize(logRecord.Key);
             var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
-            return new(Key,Value);
+            return this.Accept(new(Key,Value),recordMetadata,out cursorRecordResult);
+        }
+    }
+    private protected sealed class MemoryKeyValueIterator:IterateLookupIteratorFunctions_List<KeyValuePair<TKey,TValue>> {
+        public override bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
+            if(typeof(TSourceLogRecord)==typeof(DiskLogRecord)||logRecord.Info.Tombstone) {
+                return Skip(out cursorRecordResult);
+            }
+            var Key = TKeySerializer.Deserialize(logRecord.Key);
+            var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
+            return this.Accept(new(Key,Value),recordMetadata,out cursorRecordResult);
         }
     }
     public struct Enumerator<TIterator, T>:IEnumerator<T>
@@ -1125,6 +1185,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
             this.Index=-1;
             this.Count=0;
             this.CurrentValue=default!;
+            this._iterator.ReturnChunk();
         }
     }
     private protected Collection(CollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
@@ -1157,6 +1218,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     }
     public unsafe bool Remove(TKey key) {
         this.VerifyThreadAffinity();
+        this.InvalidateCountCache();
         var ClientSession = this.ContainsDeleteSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var Input = default(EqualityEmpty);
@@ -1171,6 +1233,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     }
     private protected override unsafe TryAddResult PrivateTryAdd(TKey key,TValue value) {
         this.VerifyThreadAffinity(nameof(this.PrivateTryAdd));
+        this.InvalidateCountCache();
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var serializedValueSize = TValueSerializer.Serialize(ref value).Length;
         if(this.WouldOverflowMutable(KeyBytes.Length,serializedValueSize))
@@ -1191,6 +1254,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
 
     private protected unsafe void PrivateUpsert(TKey key,TValue value) {
         this.VerifyThreadAffinity(nameof(this.PrivateUpsert));
+        this.InvalidateCountCache();
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var ValueBytes = TValueSerializer.Serialize(ref value);
         if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))

@@ -367,13 +367,23 @@ public sealed class UI実行ストア{
         this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText="DELETE FROM \"実行\" WHERE \"実行ID\"=$id;";コマンド.Parameters.AddWithValue("$id",実行ID);コマンド.ExecuteNonQuery();
     }
 
-    public void 全記録を削除(){
+    public void 全記録を削除(long? 保持実行ID = null){
         this.スキーマを確認();
         using var 接続=this.接続を開く();
         using var トランザクション=ロック再試行付きでトランザクションを開始(接続);
-        if(this.アプリ種別==UI実行アプリ種別.ベンチマーク){ BenchmarkTabStorage.全削除(接続,トランザクション); }
-        else { using var コマンド=接続.CreateCommand();コマンド.Transaction=トランザクション;コマンド.CommandText="DELETE FROM \"ベンチマーク\";";コマンド.ExecuteNonQuery(); }
-        using var 実行削除=接続.CreateCommand();実行削除.Transaction=トランザクション;実行削除.CommandText="DELETE FROM \"実行\";";実行削除.ExecuteNonQuery();
+        if(this.アプリ種別==UI実行アプリ種別.ベンチマーク){ BenchmarkTabStorage.全削除(接続,トランザクション,保持実行ID); }
+        else {
+            using var コマンド=接続.CreateCommand();
+            コマンド.Transaction=トランザクション;
+            コマンド.CommandText=保持実行ID is null ? "DELETE FROM \"ベンチマーク\";" : "DELETE FROM \"ベンチマーク\" WHERE \"実行ID\"!=$keep;";
+            if(保持実行ID is { } 除外対象) { コマンド.Parameters.AddWithValue("$keep",除外対象); }
+            コマンド.ExecuteNonQuery();
+        }
+        using var 実行削除=接続.CreateCommand();
+        実行削除.Transaction=トランザクション;
+        実行削除.CommandText=保持実行ID is null ? "DELETE FROM \"実行\";" : "DELETE FROM \"実行\" WHERE \"実行ID\"!=$keep;";
+        if(保持実行ID is { } 除外実行ID) { 実行削除.Parameters.AddWithValue("$keep",除外実行ID); }
+        実行削除.ExecuteNonQuery();
         トランザクション.Commit();
     }
 

@@ -31,6 +31,10 @@ public sealed class 動的結果行:ObservableObject {
     }
     public required int N{get;init;}
     public required int 深度{get;init;}
+    public string BaseSeed{get;set;}="未取得";
+    public string QuerySeed{get;set;}="未取得";
+    public string 入力要素数{get;set;}="未取得";
+    public string 演算子集合{get;set;}="未取得";
     public string 生成時間{get;set;}="—";
     public string コンパイル時間{get;set;}="—";
     public string System中央値{get;set;}="—";
@@ -61,6 +65,8 @@ public sealed class 動的結果行:ObservableObject {
         private set=>this.SetProperty(ref this.最適化Trace表示行一覧,value);
     }
     public string 計測詳細{get;set;}="";
+    public string 速度改善プロンプト{get;set;}="";
+    public string メモリ改善プロンプト{get;set;}="";
 
     public bool 選択済みか {
         get=>this.選択済み状態か;
