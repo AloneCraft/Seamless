@@ -37,7 +37,6 @@ public sealed class HashSetSlim<T>:IDisposable {
         this.buckets.AsSpan().Clear(); // 0-clear.
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public bool Add(T item) {
         var hashCode = this.InternalGetHashCode(item);
         ref var bucket = ref this.buckets[this.GetBucketIndex(hashCode)];
@@ -70,7 +69,6 @@ public sealed class HashSetSlim<T>:IDisposable {
         return true;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public bool Contains(T item) {
         var hashCode = this.InternalGetHashCode(item);
         var index = this.buckets[this.GetBucketIndex(hashCode)]-1;
@@ -85,7 +83,6 @@ public sealed class HashSetSlim<T>:IDisposable {
 
         return false;
     }
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private void Resize() {
         var newSize = BitOperations.RoundUpToPowerOf2((uint)this.entries.Length*2);
         var newEntries = ArrayPool<Entry>.Shared.Rent((int)newSize);
@@ -116,7 +113,6 @@ public sealed class HashSetSlim<T>:IDisposable {
     }
 
     // special use case for Intercept, only call after completely constructed(don't call Add after Remove called).
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public bool Remove(T item) {
         var hashCode = this.InternalGetHashCode(item);
         ref var bucket = ref this.buckets[this.GetBucketIndex(hashCode)];

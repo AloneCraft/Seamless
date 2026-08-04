@@ -84,9 +84,15 @@ internal abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(
     protected override Enumerable PrimarySource => source;
     protected abstract string CollectionElementType { get; }
     protected abstract string CollectionSelectorPrimaryConstructorParameter { get; }
-    protected abstract string CreateInnerEnumeratorExpression { get; }
+    // 内側 sequence 式(まだ .GetEnumerator() を呼ぶ前、IEnumerable<TInner> のまま)。
+    // GetTryGetNextBody 側で一度だけ評価し、実行時に配列かどうか判定して
+    // 配列なら添字アクセス(span相当)、そうでなければ IEnumerator<T> にフォールバックする。
+    protected abstract string CreateInnerSequenceExpression { get; }
     protected virtual string MoveNextOuterPrologue => string.Empty;
     protected abstract string CurrentValueAssignmentFromInner { get; }
+    private string innerArray => $"__ia{番号}";
+    private string innerIndex => $"__ii{番号}";
+    private string innerCount => $"__ic{番号}";
 
     public abstract override string StructMethod { get; }
     public override string GetEnumeratorStruct => $$"""
@@ -94,15 +100,29 @@ internal abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {this.CollectionSelectorPrimaryConstructorParameter}";
-    // innerEnumerator はユーザーの IEnumerable<T> 由来なので IEnumerator<T> のまま。
-    // 生成 struct（{{this.e}}）だけが IValueEnumerator<T> へ移行している。
+    // 内側 sequence は外側 collectionSelector が返す IEnumerable<TInner> 由来で、生成時点では
+    // 具象型が分からない。実行時に配列であれば添字アクセスの速いパスへ、そうでなければ
+    // 従来通り IEnumerator<T>(interface dispatch) にフォールバックする(外側 source の
+    // TryGetSpan と同じ考え方を内側にも適用)。
     public override string GetEnumeratorFields => $$"""
+        private {{this.CollectionElementType}}[]? {{this.innerArray}} = null;
+        private int {{this.innerIndex}};
+        private int {{this.innerCount}};
         private global::System.Collections.Generic.IEnumerator<{{this.CollectionElementType}}>? innerEnumerator = null;
         private {{source.ElementType}} {{this.outerValue}} = default!;
         """;
     public override string GetTryGetNextBody => $$"""
         {{this.Start}}:
-        if(this.innerEnumerator is not null){
+        if(this.{{this.innerArray}} is not null){
+            if(this.{{this.innerIndex}}<this.{{this.innerCount}}){
+                {{this.CounterCall("IncrementLogicalSelectManyInner")}}
+                var {{this.item}} = this.{{this.innerArray}}[this.{{this.innerIndex}}];
+                this.{{this.innerIndex}}++;
+                {{this.CurrentValueAssignmentFromInner}}
+                return true;
+            }
+            this.{{this.innerArray}} = null;
+        }else if(this.innerEnumerator is not null){
             if(this.innerEnumerator.MoveNext()){
                 {{this.CounterCall("IncrementLogicalSelectManyInner")}}
                 var {{this.item}} = this.innerEnumerator.Current;
@@ -119,7 +139,14 @@ internal abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(
         {{this.MoveNextOuterPrologue}}
         {{this.CounterCall("IncrementLogicalSelectManyOuter")}}
         this.{{this.outerValue}} = {{this.outerValue}}Next;
-        this.innerEnumerator = {{this.CreateInnerEnumeratorExpression}};
+        var {{this.temp}} = {{this.CreateInnerSequenceExpression}};
+        if({{this.temp}} is {{this.CollectionElementType}}[] {{this.innerArray}}Local){
+            this.{{this.innerArray}} = {{this.innerArray}}Local;
+            this.{{this.innerIndex}} = 0;
+            this.{{this.innerCount}} = {{this.innerArray}}Local.Length;
+        }else{
+            this.innerEnumerator = {{this.temp}}.GetEnumerator();
+        }
         goto {{this.Start}};
         """;
     protected override string GetEnumeratorDisposeBody => $$"""
@@ -189,12 +216,12 @@ internal class SelectMany_selector(int 番号,Enumerable source,FuncFragment sel
         this.IsHoistable
             ? $"global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}> innerEnumerable0"
             : string.Empty;
-    protected override string CreateInnerEnumeratorExpression =>
+    protected override string CreateInnerSequenceExpression =>
         selector.CanInvokeAsDelegate
-            ? $"{selector.DelegateFieldName}.Invoke({this.outerValue}).GetEnumerator()"
+            ? $"{selector.DelegateFieldName}.Invoke({this.outerValue})"
             : this.IsHoistable
-                ? "innerEnumerable0.GetEnumerator()"
-                : $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue)}).GetEnumerator()";
+                ? "innerEnumerable0"
+                : $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue)})";
     protected override string CurrentValueAssignmentFromInner => $"current = this.{this.currentValue} = {this.item};";
 }
 
@@ -213,8 +240,8 @@ internal class SelectMany_indexSelector(int 番号,Enumerable source,FuncFragmen
         private int {{this.a}} = -1;
         """;
     protected override string MoveNextOuterPrologue => $"this.{this.a}++;";
-    protected override string CreateInnerEnumeratorExpression =>
-        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue,this.a)}).GetEnumerator()";
+    protected override string CreateInnerSequenceExpression =>
+        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue,this.a)})";
     protected override string CurrentValueAssignmentFromInner => $"current = this.{this.currentValue} = {this.item};";
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(selector));
     public override string ElementType => this.CollectionElementType;
@@ -236,8 +263,8 @@ internal class SelectMany_selector_resultSelector(int 番号,Enumerable source,F
         {{base.GetEnumeratorFields}}
         """;
     protected override string CollectionSelectorPrimaryConstructorParameter => string.Empty;
-    protected override string CreateInnerEnumeratorExpression =>
-        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){collectionSelector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue)}).GetEnumerator()";
+    protected override string CreateInnerSequenceExpression =>
+        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){collectionSelector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue)})";
     protected override string CurrentValueAssignmentFromInner =>
         this.FuncAssignCurrent(resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.outerValue,this.item);
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(collectionSelector));
@@ -309,7 +336,7 @@ internal class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerab
         }
         {{this.CounterCall("IncrementLogicalSelectManyOuter")}}
         this.{{this.outerValue}} = __mn50;
-        this.innerEnumerator = {{this.CreateInnerEnumeratorExpression}};
+        this.innerEnumerator = {{this.CreateInnerSequenceExpression}};
         this.{{this.hasValue}} = true;
         goto {{this.Start}};
         """;
@@ -322,7 +349,7 @@ internal class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerab
         """;
 
     // Instantiate the inner struct, substituting outer param name with the outerValue field.
-    protected override string CreateInnerEnumeratorExpression =>
+    protected override string CreateInnerSequenceExpression =>
         System.Text.RegularExpressions.Regex.Replace(
             innerFragment.GetEnumeratorExpression,
             $@"(?<![a-zA-Z0-9_]){System.Text.RegularExpressions.Regex.Escape(outerParamName)}(?![a-zA-Z0-9_])",
@@ -357,8 +384,8 @@ internal class SelectMany_indexSelector_resultSelector(int 番号,Enumerable sou
         """;
     protected override string CollectionSelectorPrimaryConstructorParameter => string.Empty;
     protected override string MoveNextOuterPrologue => $"this.{this.a}++;";
-    protected override string CreateInnerEnumeratorExpression =>
-        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){collectionSelector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue,this.a)}).GetEnumerator()";
+    protected override string CreateInnerSequenceExpression =>
+        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){collectionSelector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue,this.a)})";
     protected override string CurrentValueAssignmentFromInner =>
         this.FuncAssignCurrent(resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.outerValue,this.item);
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(collectionSelector));

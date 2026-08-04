@@ -152,7 +152,6 @@ namespace Seamless.Linq {
             return (uint)((key is null) ? 0 : this.comparer.GetHashCode(key)&0x7FFFFFFF);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void Add(TKey key,TElement value) {
             if(this.buckets==null) {
                 this.buckets   =ArrayPool<Grouping<TKey,TElement>>.Shared.Rent(MinimumSize);
@@ -219,7 +218,7 @@ namespace Seamless.Linq {
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining|MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Grouping<TKey,TElement>? GetGroup(TKey key) {
             if(this.buckets is null) return null;
             var hash =this.InternalGetHashCode(key);
@@ -295,7 +294,6 @@ namespace Seamless.Linq {
 
             return this.last?.NextGroupInAddOrder;
         }
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         private void ResizeAndRehash() {
             Debug.Assert(this.buckets is not null);
             if(this.last is null) return;
@@ -405,7 +403,6 @@ namespace Seamless.Linq {
             return this.GetGroup(key) is not null;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public Grouping<TKey,TElement>? GetGroup(TKey key) {
             if(this.groups is null) return null;
 
@@ -551,7 +548,7 @@ namespace Seamless.Linq {
 
         // mutable in construction, but readonly in public surface
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining|MethodImplOptions.AggressiveOptimization)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public virtual void Add(TElement value) {
             if(this.elements.Length==this.count) {
                 Array.Resize(ref this.elements,checked(this.count*2));
