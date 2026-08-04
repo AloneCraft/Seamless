@@ -169,8 +169,9 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
 
     [LinqIntercept(true)]
     private void Any_Impl() {
+        var source = this.srcCount(ImmediateShortCircuitCount);
         for(var a = 0;a<IterationCount(Any_iterationCount);a++)
-            this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<T>().Any());
+            this.consumer.Consume(source.AsX<T>().Any());
     }
     // [Any_predicate]
     [BenchFact, Benchmark]
@@ -227,8 +228,9 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     [LinqIntercept(true)]
     private void Contains_value_Impl() {
         var value = this.MidpointValue(ImmediateShortCircuitCount);
+        var source = this.srcCount(ImmediateShortCircuitCount);
         for(var i = 0;i<IterationCount(Contains_value_iterationCount);i++) {
-            this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<T>().Contains(Value(value)));
+            this.consumer.Consume(source.AsX<T>().Contains(Value(value)));
         }
     }
     // [Count]
@@ -277,11 +279,14 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     [LinqIntercept(true)]
     private void ElementAt_index_Impl() {
         var index = this.MidpointIndex(ImmediateShortCircuitCount);
+#if !SYSTEM_IENUMERABLE
+        var source = this.srcCount(ImmediateShortCircuitCount);
+#endif
         for(var i = 0;i<IterationCount(ElementAt_index_iterationCount);i++) {
 #if SYSTEM_IENUMERABLE
             this.ElementAt_index_Core(index);
 #else
-            this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<T>().ElementAt(index));
+            this.consumer.Consume(source.AsX<T>().ElementAt(index));
 #endif
         }
     }
@@ -329,8 +334,9 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
 
     [LinqIntercept(true)]
     private void First_Impl() {
+        var source = this.srcCount(ImmediateShortCircuitCount);
         for(var i = 0;i<IterationCount(First_iterationCount);i++) {
-            this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<T>().First());
+            this.consumer.Consume(source.AsX<T>().First());
         }
     }
     // [FirstOrDefault]
@@ -339,8 +345,9 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
 
     [LinqIntercept(true)]
     private void FirstOrDefault_Impl() {
+        var source = this.srcCount(ImmediateShortCircuitCount);
         for(var i = 0;i<IterationCount(FirstOrDefault_iterationCount);i++) {
-            this.consumer.Consume(this.srcCount(ImmediateShortCircuitCount).AsX<T>().FirstOrDefault());
+            this.consumer.Consume(source.AsX<T>().FirstOrDefault());
         }
     }
     // [FirstOrDefault_predicate]
@@ -612,8 +619,9 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
 
     [LinqIntercept(true)]
     private void Single_Impl() {
+        var source = this.srcOne(1);
         for(var i = 0;i<IterationCount(Single_iterationCount);i++) {
-            this.consumer.Consume(this.srcOne(1).Single());
+            this.consumer.Consume(source.Single());
         }
     }
     // [Single_predicate]
@@ -632,8 +640,9 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
 
     [LinqIntercept(true)]
     private void SingleOrDefault_Impl() {
+        var source = this.srcOne(1);
         for(var i = 0;i<IterationCount(SingleOrDefault_iterationCount);i++) {
-            this.consumer.Consume(this.srcOne(1).SingleOrDefault());
+            this.consumer.Consume(source.SingleOrDefault());
         }
     }
     // [SingleOrDefault_predicate]
@@ -764,8 +773,9 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
 
     [LinqIntercept(true)]
     private void TryGetNonEnumeratedCount_Impl() {
+        var source = this.srcCount(ImmediateFullScanCount);
         for(var i = 0;i<IterationCount(TryGetNonEnumeratedCount_iterationCount);i++) {
-            var result = global::System.Linq.Enumerable.TryGetNonEnumeratedCount(this.srcCount(ImmediateFullScanCount),out var count);
+            var result = global::System.Linq.Enumerable.TryGetNonEnumeratedCount(source,out var count);
             ConsumeResult(this.consumer,result,count);
         }
     }

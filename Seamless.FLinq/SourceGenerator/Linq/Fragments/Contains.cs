@@ -138,10 +138,19 @@ internal class Contains_comparer(int 番号,Enumerable source,string value,strin
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderDirectSpanContainsComparerInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,value,comparer);
+    // comparer=="null"(呼び出し側が実質比較子なし。無引数 Contains が MemoryExtensions の
+    // 比較子省略可能な3引数オーバーロードへ解決されて Contains_comparer 側に来るケースを含む)のときは
+    // ContainsSpan(typeof(T) 実行時分岐で既知プリミティブ型なら MemoryExtensions.Contains の
+    // ベクトル化探索へ振る、SequenceEqualSpan と同型)を使う。明示的な comparer があるときは
+    // 従来どおり要素ごとループ。
     private string? RenderDirectSpanContainsComparerInline(string destVar,string destType) {
         var span = $"__span{this.result}";
+        if(comparer=="null") {
+            return this.RenderSpanInline(source,destVar,destType,span,spanName =>
+                $"{destVar}=global::Seamless.Linq.Enumerable.ContainsSpan({spanName},{value});");
+        }
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
-            var __comparer={{comparer}};
+            global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? __comparer={{comparer}};
             __comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
             var __value={{value}};
             {{destVar}}=false;

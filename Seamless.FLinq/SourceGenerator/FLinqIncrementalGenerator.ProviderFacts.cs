@@ -7,15 +7,22 @@ public sealed partial class FLinqIncrementalGenerator {
 
     // Span/ReadOnlySpan への暗黙変換により、T[] レシーバーでは System.Linq.Enumerable ではなく
     // System.MemoryExtensions のオーバーロードへ解決されることがある(例: array.SequenceEqual(array2))。
-    // SequenceEqual は Fragment 側で候補登録済みのため、対象判定でも Enumerable 系と同格に扱う。
-    // Contains は IsSupportedLinqInvocation 側にのみ既存の特例があるため、ここでは踏襲しない
-    // (Enumerable系ゲートまで広げると Contains の別経路にある未検証の生成コードが有効化されてしまう)。
+    // SequenceEqual/Contains は Fragment 側で候補登録済みのため、対象判定でも Enumerable 系と同格に扱う。
+    // 2026-08: Contains.cs の RenderDirectSpanContainsComparerInline にあった
+    // `var __comparer={{comparer}};`(型注釈なしのため comparer=="null" だと CS0815)は
+    // 型注釈を付けて修正済み。当初はゲートをここまで広げただけで実測したところ、値型(int等)の
+    // 無引数 Contains が BCL の MemoryExtensions.Contains(SIMDベクトル化探索)から生成器の素朴な
+    // 要素ごとループへ後退し、実測 7.6〜7.9倍の性能退行を起こすことを確認したためゲートを一旦閉じた。
+    // その後 ContainsSpan<T>(Seamless.Linq/SequenceEqual.cs、SequenceEqualSpan と同型の
+    // typeof(T) 実行時分岐)を追加し、comparer=="null" のときはこれを呼ぶよう
+    // RenderDirectSpanContainsComparerInline を修正したことで、値型は BCL の SIMD Contains へ
+    // 再度乗るようになった。これによりゲートを再度開く。
     private static bool IsSupportedLinqEnumerableMethod(IMethodSymbol method) {
         var definition = method.ReducedFrom??method;
         var containingType = definition.ContainingType.ToDisplayString();
         return containingType==SystemLinqEnumerableTypeName
             ||containingType==SeamlessLinqEnumerableTypeName
-            ||(definition.Name=="SequenceEqual"&&containingType==SystemMemoryExtensionsTypeName);
+            ||((definition.Name=="SequenceEqual"||definition.Name=="Contains")&&containingType==SystemMemoryExtensionsTypeName);
     }
 
     private static bool IsSupportedLinqInvocation(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {

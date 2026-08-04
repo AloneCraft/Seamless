@@ -13,7 +13,7 @@ public sealed class ベンチマークカタログ引数 {
             ["Count","Index","Page","Segment","Memory","Fraction"],
             引数一覧.Select(static 引数 => 引数.名前).ToArray());
         Assert.Equal(
-            ["65536","131072","4096","4096","8388608","1"],
+            ["65536","64","4096","4096","8388608","1"],
             引数一覧.Select(static 引数 => 引数.値).ToArray());
     }
 
@@ -43,7 +43,7 @@ public sealed class ベンチマークカタログ引数 {
         var 行 = Assert.Single(行一覧);
 
         Assert.Equal("65536",global::UI.ベンチマーク引数フォーマッター.値を取得(行.引数一覧,"Count"));
-        Assert.Equal("131072",global::UI.ベンチマーク引数フォーマッター.値を取得(行.引数一覧,"Index"));
+        Assert.Equal("64",global::UI.ベンチマーク引数フォーマッター.値を取得(行.引数一覧,"Index"));
         Assert.Equal("4096",global::UI.ベンチマーク引数フォーマッター.値を取得(行.引数一覧,"Page"));
         Assert.Equal("4096",global::UI.ベンチマーク引数フォーマッター.値を取得(行.引数一覧,"Segment"));
         Assert.Equal("8388608",global::UI.ベンチマーク引数フォーマッター.値を取得(行.引数一覧,"Memory"));

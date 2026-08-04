@@ -293,7 +293,13 @@ public class Base<T> where T : notnull {
     private const int TestDefaultCount = 80_000;
     private static readonly object MissingResult = new();
     private static readonly Lock SourceCacheSync = new();
-    private static readonly Dictionary<SourceCacheKey,T[]> SourceCache = [];
+    // Any()/Contains_value() 等は「1回が速すぎて測れない」ため IterationCount 回のループの内側で
+    // srcCount() を呼び直す(ベンチ対象はそのまま、周辺コストだけ足したい)。そのためこのキャッシュは
+    // ループ本体から毎回引かれる。lock+Dictionary だと毎回モニターの取得/解放コストが乗るため、
+    // 既存キー読み取りをロックフリーにできる ConcurrentDictionary へ変更した(FLinq/ZLinq双方が
+    // 同じ Shared ソースを使うので測定精度に等しく効く。生成元(factory)は副作用なしなので
+    // GetOrAdd が稀に複数回走っても安全)。
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<SourceCacheKey,T[]> SourceCache = new();
     private static readonly Dictionary<SourceCacheKey,List<T>> ListSourceCache = [];
 
     protected internal readonly Consumer consumer = new();
@@ -599,17 +605,8 @@ public class Base<T> where T : notnull {
         return GetOrCreate(new SourceCacheKey(kind,effectiveLength,BenchmarkExecutionMode.ReadRandomSourceSeed()),factory);
     }
 
-    private static T[] GetOrCreate(SourceCacheKey key,Func<int,T[]> factory) {
-        lock(SourceCacheSync) {
-            if(SourceCache.TryGetValue(key,out var values)) {
-                return values;
-            }
-
-            values=factory(key.Length);
-            SourceCache.Add(key,values);
-            return values;
-        }
-    }
+    private static T[] GetOrCreate(SourceCacheKey key,Func<int,T[]> factory) =>
+        SourceCache.GetOrAdd(key,static (k,f) => f(k.Length),factory);
 
     private List<T> GetOrCreateList(int scale,SourceKind kind,Func<int,List<T>> factory) {
         var length = this.CountForComparison(BenchmarkExecutionMode.ScaleElementCount(this.count*scale));

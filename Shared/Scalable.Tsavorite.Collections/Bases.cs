@@ -10,14 +10,33 @@ public abstract class TsavoriteSetScalable<TStrategy, T>
     private static readonly ConcurrentDictionary<string,Lazy<HashSetHandle<T>>> SharedContainsSets = new(StringComparer.Ordinal);
 
     [Benchmark, BenchTheory]
-    [BenchArguments(65536,131072,4096,4096,8388608,1.0)]
-    [BenchArguments(131072,131072,4096,4096,16777216,1.0)]
-    [BenchArguments(262144,131072,4096,4096,33554432,1.0)]
-    [BenchArguments(524288,131072,4096,4096,67108864,1.0)]
-    [BenchArguments(1048576,131072,4096,4096,134217728,1.0)]
-    [BenchArguments(2097152,131072,4096,4096,268435456,1.0)]
-    [BenchArguments(4194304,131072,4096,4096,536870912,1.0)]
-    [BenchArguments(8388608,131072,4096,4096,1073741824,1.0)]
+#if BENCH_AS_TEST
+    [BenchArguments(65536,64,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,64,4096,4096,67108864,1.0)]
+    [BenchArguments(65536,512,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,512,4096,4096,67108864,1.0)]
+#else
+    [BenchArguments(65536,64,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,64,4096,4096,67108864,1.0)]
+    [BenchArguments(65536,512,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,512,4096,4096,67108864,1.0)]
+    [BenchArguments(131072,64,4096,4096,16777216,1.0)]
+    [BenchArguments(131072,64,4096,4096,134217728,1.0)]
+    [BenchArguments(131072,512,4096,4096,16777216,1.0)]
+    [BenchArguments(131072,512,4096,4096,134217728,1.0)]
+    [BenchArguments(262144,64,4096,4096,33554432,1.0)]
+    [BenchArguments(262144,64,4096,4096,268435456,1.0)]
+    [BenchArguments(262144,512,4096,4096,33554432,1.0)]
+    [BenchArguments(262144,512,4096,4096,268435456,1.0)]
+    [BenchArguments(524288,64,4096,4096,67108864,1.0)]
+    [BenchArguments(524288,64,4096,4096,536870912,1.0)]
+    [BenchArguments(524288,512,4096,4096,67108864,1.0)]
+    [BenchArguments(524288,512,4096,4096,536870912,1.0)]
+    [BenchArguments(1048576,64,4096,4096,134217728,1.0)]
+    [BenchArguments(1048576,64,4096,4096,1073741824,1.0)]
+    [BenchArguments(1048576,512,4096,4096,134217728,1.0)]
+    [BenchArguments(1048576,512,4096,4096,1073741824,1.0)]
+#endif
     public long Add(long Count,long Index,long Page,long Segment,long Memory,double Fraction) {
         var count = checked((int)Count);
         var values = GetSharedValues<TsavoriteSetScalable<TStrategy,T>,T>(count,static index => TStrategy.Elem(index));
@@ -30,14 +49,33 @@ public abstract class TsavoriteSetScalable<TStrategy, T>
     }
 
     [Benchmark, BenchTheory]
-    [BenchArguments(65536,131072,4096,4096,8388608,1.0)]
-    [BenchArguments(131072,131072,4096,4096,16777216,1.0)]
-    [BenchArguments(262144,131072,4096,4096,33554432,1.0)]
-    [BenchArguments(524288,131072,4096,4096,67108864,1.0)]
-    [BenchArguments(1048576,131072,4096,4096,134217728,1.0)]
-    [BenchArguments(2097152,131072,4096,4096,268435456,1.0)]
-    [BenchArguments(4194304,131072,4096,4096,536870912,1.0)]
-    [BenchArguments(8388608,131072,4096,4096,1073741824,1.0)]
+#if BENCH_AS_TEST
+    [BenchArguments(65536,64,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,64,4096,4096,67108864,1.0)]
+    [BenchArguments(65536,512,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,512,4096,4096,67108864,1.0)]
+#else
+    [BenchArguments(65536,64,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,64,4096,4096,67108864,1.0)]
+    [BenchArguments(65536,512,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,512,4096,4096,67108864,1.0)]
+    [BenchArguments(131072,64,4096,4096,16777216,1.0)]
+    [BenchArguments(131072,64,4096,4096,134217728,1.0)]
+    [BenchArguments(131072,512,4096,4096,16777216,1.0)]
+    [BenchArguments(131072,512,4096,4096,134217728,1.0)]
+    [BenchArguments(262144,64,4096,4096,33554432,1.0)]
+    [BenchArguments(262144,64,4096,4096,268435456,1.0)]
+    [BenchArguments(262144,512,4096,4096,33554432,1.0)]
+    [BenchArguments(262144,512,4096,4096,268435456,1.0)]
+    [BenchArguments(524288,64,4096,4096,67108864,1.0)]
+    [BenchArguments(524288,64,4096,4096,536870912,1.0)]
+    [BenchArguments(524288,512,4096,4096,67108864,1.0)]
+    [BenchArguments(524288,512,4096,4096,536870912,1.0)]
+    [BenchArguments(1048576,64,4096,4096,134217728,1.0)]
+    [BenchArguments(1048576,64,4096,4096,1073741824,1.0)]
+    [BenchArguments(1048576,512,4096,4096,134217728,1.0)]
+    [BenchArguments(1048576,512,4096,4096,1073741824,1.0)]
+#endif
     public int Contains(long Count,long Index,long Page,long Segment,long Memory,double Fraction) {
         var count = checked((int)Count);
         var values = GetSharedValues<TsavoriteSetScalable<TStrategy,T>,T>(count,static index => TStrategy.Elem(index));
@@ -83,14 +121,33 @@ public abstract class TsavoriteDictionaryScalable<TStrategy, TKey, TValue>
     private static readonly ConcurrentDictionary<string,Lazy<SharedDictionary>> SharedTryGetValueDictionaries = new(StringComparer.Ordinal);
 
     [Benchmark, BenchTheory]
-    [BenchArguments(65536,131072,4096,4096,8388608,1.0)]
-    [BenchArguments(131072,131072,4096,4096,16777216,1.0)]
-    [BenchArguments(262144,131072,4096,4096,33554432,1.0)]
-    [BenchArguments(524288,131072,4096,4096,67108864,1.0)]
-    [BenchArguments(1048576,131072,4096,4096,134217728,1.0)]
-    [BenchArguments(2097152,131072,4096,4096,268435456,1.0)]
-    [BenchArguments(4194304,131072,4096,4096,536870912,1.0)]
-    [BenchArguments(8388608,131072,4096,4096,1073741824,1.0)]
+#if BENCH_AS_TEST
+    [BenchArguments(65536,64,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,64,4096,4096,67108864,1.0)]
+    [BenchArguments(65536,512,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,512,4096,4096,67108864,1.0)]
+#else
+    [BenchArguments(65536,64,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,64,4096,4096,67108864,1.0)]
+    [BenchArguments(65536,512,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,512,4096,4096,67108864,1.0)]
+    [BenchArguments(131072,64,4096,4096,16777216,1.0)]
+    [BenchArguments(131072,64,4096,4096,134217728,1.0)]
+    [BenchArguments(131072,512,4096,4096,16777216,1.0)]
+    [BenchArguments(131072,512,4096,4096,134217728,1.0)]
+    [BenchArguments(262144,64,4096,4096,33554432,1.0)]
+    [BenchArguments(262144,64,4096,4096,268435456,1.0)]
+    [BenchArguments(262144,512,4096,4096,33554432,1.0)]
+    [BenchArguments(262144,512,4096,4096,268435456,1.0)]
+    [BenchArguments(524288,64,4096,4096,67108864,1.0)]
+    [BenchArguments(524288,64,4096,4096,536870912,1.0)]
+    [BenchArguments(524288,512,4096,4096,67108864,1.0)]
+    [BenchArguments(524288,512,4096,4096,536870912,1.0)]
+    [BenchArguments(1048576,64,4096,4096,134217728,1.0)]
+    [BenchArguments(1048576,64,4096,4096,1073741824,1.0)]
+    [BenchArguments(1048576,512,4096,4096,134217728,1.0)]
+    [BenchArguments(1048576,512,4096,4096,1073741824,1.0)]
+#endif
     public long Add(long Count,long Index,long Page,long Segment,long Memory,double Fraction) {
         var count = checked((int)Count);
         using var store = TStrategy.CreateMemoryStore(memorySize: Memory,mutableFraction: Fraction,indexSize: Index,pageSize: Page,segmentSize: Segment);
@@ -101,14 +158,33 @@ public abstract class TsavoriteDictionaryScalable<TStrategy, TKey, TValue>
     }
 
     [Benchmark, BenchTheory]
-    [BenchArguments(65536,131072,4096,4096,8388608,1.0)]
-    [BenchArguments(131072,131072,4096,4096,16777216,1.0)]
-    [BenchArguments(262144,131072,4096,4096,33554432,1.0)]
-    [BenchArguments(524288,131072,4096,4096,67108864,1.0)]
-    [BenchArguments(1048576,131072,4096,4096,134217728,1.0)]
-    [BenchArguments(2097152,131072,4096,4096,268435456,1.0)]
-    [BenchArguments(4194304,131072,4096,4096,536870912,1.0)]
-    [BenchArguments(8388608,131072,4096,4096,1073741824,1.0)]
+#if BENCH_AS_TEST
+    [BenchArguments(65536,64,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,64,4096,4096,67108864,1.0)]
+    [BenchArguments(65536,512,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,512,4096,4096,67108864,1.0)]
+#else
+    [BenchArguments(65536,64,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,64,4096,4096,67108864,1.0)]
+    [BenchArguments(65536,512,4096,4096,8388608,1.0)]
+    [BenchArguments(65536,512,4096,4096,67108864,1.0)]
+    [BenchArguments(131072,64,4096,4096,16777216,1.0)]
+    [BenchArguments(131072,64,4096,4096,134217728,1.0)]
+    [BenchArguments(131072,512,4096,4096,16777216,1.0)]
+    [BenchArguments(131072,512,4096,4096,134217728,1.0)]
+    [BenchArguments(262144,64,4096,4096,33554432,1.0)]
+    [BenchArguments(262144,64,4096,4096,268435456,1.0)]
+    [BenchArguments(262144,512,4096,4096,33554432,1.0)]
+    [BenchArguments(262144,512,4096,4096,268435456,1.0)]
+    [BenchArguments(524288,64,4096,4096,67108864,1.0)]
+    [BenchArguments(524288,64,4096,4096,536870912,1.0)]
+    [BenchArguments(524288,512,4096,4096,67108864,1.0)]
+    [BenchArguments(524288,512,4096,4096,536870912,1.0)]
+    [BenchArguments(1048576,64,4096,4096,134217728,1.0)]
+    [BenchArguments(1048576,64,4096,4096,1073741824,1.0)]
+    [BenchArguments(1048576,512,4096,4096,134217728,1.0)]
+    [BenchArguments(1048576,512,4096,4096,1073741824,1.0)]
+#endif
     public int TryGetValue(long Count,long Index,long Page,long Segment,long Memory,double Fraction) {
         var count = checked((int)Count);
         var pairs = GetSharedPairs<TsavoriteDictionaryScalable<TStrategy,TKey,TValue>,TKey,TValue>(

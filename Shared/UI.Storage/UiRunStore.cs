@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace UI.Storage;
 
 public sealed class UI実行ストア{
-    private const int ベンチマークスキーマ版=25;
+    private const int ベンチマークスキーマ版=26;
     private const int 既存スキーマ版=20;
     private int スキーマ版=>this.アプリ種別==UI実行アプリ種別.ベンチマーク ? ベンチマークスキーマ版 : 既存スキーマ版;
     private readonly string DBパス;
@@ -137,7 +137,7 @@ public sealed class UI実行ストア{
     }
 
     private static void 分析ビューを作成(SqliteConnection 接続,SqliteTransaction トランザクション,UI実行アプリ種別 アプリ種別){
-        if(アプリ種別==UI実行アプリ種別.ベンチマーク){ return; }
+        if(アプリ種別==UI実行アプリ種別.ベンチマーク){ BenchmarkTabStorage.作成ビュー(接続,トランザクション); return; }
         if(アプリ種別==UI実行アプリ種別.スケーラブルベンチマーク){
             非クエリを実行(接続,トランザクション,"""
                 CREATE VIEW "スケーラブル履歴" AS
@@ -388,8 +388,9 @@ public sealed class UI実行ストア{
     }
 
     public IReadOnlyList<IReadOnlyDictionary<string,object?>> 分析ビューを照会(string ビュー名,int 上限 = 1000){
-        if(ビュー名 is not ("スケーラブル履歴" or "スケーラブル前回シェア")){return [];}
-        this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText=$"SELECT * FROM \"{ビュー名}\" ORDER BY \"実行ID\" DESC LIMIT $limit;";コマンド.Parameters.AddWithValue("$limit",上限);using var 読取器=コマンド.ExecuteReader();var 行一覧=new List<IReadOnlyDictionary<string,object?>>();
+        var 比率ビューか=BenchmarkTabStorage.ビュー名一覧.Contains(ビュー名);
+        if(ビュー名 is not ("スケーラブル履歴" or "スケーラブル前回シェア")&&!比率ビューか){return [];}
+        this.スキーマを確認();using var 接続=this.接続を開く();using var コマンド=接続.CreateCommand();コマンド.CommandText=比率ビューか ? $"SELECT * FROM \"{ビュー名}\" LIMIT $limit;" : $"SELECT * FROM \"{ビュー名}\" ORDER BY \"実行ID\" DESC LIMIT $limit;";コマンド.Parameters.AddWithValue("$limit",上限);using var 読取器=コマンド.ExecuteReader();var 行一覧=new List<IReadOnlyDictionary<string,object?>>();
         while(読取器.Read()){var 値一覧=new Dictionary<string,object?>(StringComparer.OrdinalIgnoreCase);for(var 位置=0;位置<読取器.FieldCount;位置++){値一覧[読取器.GetName(位置)]=読取器.IsDBNull(位置) ? null : 読取器.GetValue(位置);}行一覧.Add(値一覧);}return 行一覧;
     }
 

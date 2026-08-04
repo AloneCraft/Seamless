@@ -19,6 +19,7 @@ public struct ValueQueue<T>(int capacity):IDisposable {
 
     public int Count => this.size;
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public void Enqueue(T item) {
         if(this.items.Length==this.size) {
             this.Grow();
@@ -29,6 +30,7 @@ public struct ValueQueue<T>(int capacity):IDisposable {
         this.size++;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public T Dequeue() {
         if(this.size==0) Throw();
 

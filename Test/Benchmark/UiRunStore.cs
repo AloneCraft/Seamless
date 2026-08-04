@@ -4,16 +4,18 @@ namespace Test.Benchmark;
 
 public sealed class UI実行ストア{
     [Fact]
-    public void スキーマを確認_通常DBを日本語スキーマ版25で実行表とタブ別11表を作成する(){
+    public void スキーマを確認_通常DBを日本語スキーマ版26で実行表とタブ別11表と11ビューを作成する(){
         var パス=DBパスを作成();
         new global::UI.Storage.UI実行ストア(パス).スキーマを確認();
         using var 接続=開く(パス);
-        Assert.Equal(25L,スカラー<long>(接続,"PRAGMA user_version;"));
+        Assert.Equal(26L,スカラー<long>(接続,"PRAGMA user_version;"));
         Assert.Equal(1L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
         // 単一の「ベンチマーク」表は版24でタブ別11表へ分割済み。Persisted/Tsavorite は Seamless版・System版の2タブに分かれる。
         Assert.Equal(11L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('書き換え','パイプライン融合','述語プッシュダウン','Array','IEnumerable','Range','List','Persisted(Seamless)','Persisted(System)','Tsavorite(Seamless)','Tsavorite(System)');"));
         Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('Runs','Benchmark','Apps','診断カウンター','ベンチマーク','Persisted','Tsavorite');"));
-        Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
+        // 版26でタブ別11表それぞれに比率View({表名}View)が追加された。
+        Assert.Equal(11L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
+        Assert.Equal(1L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name='ArrayView';"));
         // 識別情報は側ごとに独立した列を持つ。1組を共有していた旧スキーマでは左中央右の型完全名が混線した。
         Assert.Equal(4L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name IN('FLinq_アセンブリ名','FLinq_型完全名','ZLinq_アセンブリ名','ZLinq_型完全名');"));
         Assert.Equal(7L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name IN('引数キー','引数JSON','ZLinq_状態','ZLinq_失敗理由','ZLinq_日時','ZLinq_時間ns','ZLinq_メモリバイト');"));
@@ -36,7 +38,7 @@ public sealed class UI実行ストア{
         ストア.スキーマを確認();
 
         using(var 接続=開く(パス)){
-            Assert.Equal(25L,スカラー<long>(接続,"PRAGMA user_version;"));
+            Assert.Equal(26L,スカラー<long>(接続,"PRAGMA user_version;"));
             Assert.Equal(11L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','パイプライン融合','述語プッシュダウン','Array','IEnumerable','Range','List','Persisted(Seamless)','Persisted(System)','Tsavorite(Seamless)','Tsavorite(System)');"));
             Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Runs';"));
         }
@@ -60,14 +62,14 @@ public sealed class UI実行ストア{
         new global::UI.Storage.UI実行ストア(パス).スキーマを確認();
 
         using(var 接続=開く(パス)){
-            Assert.Equal(25L,スカラー<long>(接続,"PRAGMA user_version;"));
+            Assert.Equal(26L,スカラー<long>(接続,"PRAGMA user_version;"));
             Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name='Enumerable_アセンブリ名';"));
             Assert.Equal(16L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name LIKE 'FLinq_%' OR name LIKE 'ZLinq_%';"));
         }
 
         var バックアップ=Assert.Single(Directory.GetFiles(Path.GetDirectoryName(パス)!,Path.GetFileName(パス)+".*.bak"));
         using var バックアップ接続=開く(バックアップ);
-        Assert.Equal(25L,スカラー<long>(バックアップ接続,"PRAGMA user_version;"));
+        Assert.Equal(26L,スカラー<long>(バックアップ接続,"PRAGMA user_version;"));
         Assert.Equal(1L,スカラー<long>(バックアップ接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name='Enumerable_アセンブリ名';"));
     }
     [Fact]
@@ -169,6 +171,29 @@ public sealed class UI実行ストア{
         Assert.Equal(保持対象.実行ID,残存実行.実行ID);
         Assert.NotEmpty(ストア.ベンチマークスナップショット項目一覧を取得(保持対象.実行ID));
         Assert.Empty(ストア.ベンチマークスナップショット項目一覧を取得(削除対象.実行ID));
+    }
+
+    [Fact]
+    public void ArrayView_最新実行の型ベンチマーク比率を比率降順で返す(){
+        var ストア=new global::UI.Storage.UI実行ストア(DBパスを作成());
+        var 旧実行=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","System.Array",DateTimeOffset.UtcNow));
+        var 日時=DateTimeOffset.Parse("2026-07-08T12:34:56+09:00",global::System.Globalization.CultureInfo.InvariantCulture);
+        ストア.ベンチマークスナップショット項目を保存(旧実行.実行ID,[new("System.Array","OldType","OldBench",0,true,
+            new(UI実行状態.完了,string.Empty,日時,999,200,8),new(UI実行状態.完了,string.Empty,日時,1,50,8))]);
+        var 新実行=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","System.Array",DateTimeOffset.UtcNow));
+        ストア.ベンチマークスナップショット項目を保存(新実行.実行ID,[
+            new("System.Array","Low","LowBench",0,true,new(UI実行状態.完了,string.Empty,日時,6,200,8),new(UI実行状態.完了,string.Empty,日時,94,50,8)),
+            new("System.Array","High","HighBench",0,true,new(UI実行状態.完了,string.Empty,日時,94,200,8),new(UI実行状態.完了,string.Empty,日時,6,50,8)),
+        ]);
+
+        var 行一覧=ストア.分析ビューを照会("ArrayView");
+
+        Assert.Equal(2,行一覧.Count);
+        Assert.DoesNotContain(行一覧,行=>(string?)行["型"]=="OldType");
+        Assert.Equal("High",行一覧[0]["型"]);
+        Assert.Equal(0.94,Assert.IsType<double>(行一覧[0]["比率"]),3);
+        Assert.Equal("Low",行一覧[1]["型"]);
+        Assert.Equal(0.06,Assert.IsType<double>(行一覧[1]["比率"]),3);
     }
 
     private static Microsoft.Data.Sqlite.SqliteConnection 開く(string パス){var 接続=new Microsoft.Data.Sqlite.SqliteConnection(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder{DataSource=パス}.ToString());接続.Open();return 接続;}

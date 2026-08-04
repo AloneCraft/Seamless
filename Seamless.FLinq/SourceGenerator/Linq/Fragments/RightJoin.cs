@@ -42,7 +42,11 @@ internal class RightJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             return key is null;
         }
         private static global::Seamless.Linq.Lookup<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}> BuildOuterLookup(TOuterEnum outer,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(this.outerKey)}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
-            var __lookupBuilder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}>(comparer);
+            var __hasCnt=outer.TryGetNonEnumeratedCount(out var __cnt);
+            if(__hasCnt) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();
+            var __lookupBuilder=__hasCnt
+                ? new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}>(__cnt,comparer)
+                : new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(this.outerKey)}},{{this.outerSource.ElementType}}>(comparer);
             using var {{this.e}}=outer;
             while({{this.e}}.TryGetNext(out var __mn48)){
                 {{this.CounterCall("IncrementLogicalRightJoinOuter")}}

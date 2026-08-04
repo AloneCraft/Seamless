@@ -76,7 +76,11 @@ internal static class GroupBySupport {
         return $$"""
         if(!this.{{builtName}}){
             this.{{builtName}}=true;
-            var __builder=new global::Seamless.Linq.LookupBuilder<{{keyType}}, {{elementType}}>(global::System.Collections.Generic.EqualityComparer<{{keyType}}>.Default);
+            var __hasCnt={{enumeratorName}}.TryGetNonEnumeratedCount(out var __cnt);
+            if(__hasCnt) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();
+            var __builder=__hasCnt
+                ? new global::Seamless.Linq.LookupBuilder<{{keyType}}, {{elementType}}>(__cnt,global::System.Collections.Generic.EqualityComparer<{{keyType}}>.Default)
+                : new global::Seamless.Linq.LookupBuilder<{{keyType}}, {{elementType}}>(global::System.Collections.Generic.EqualityComparer<{{keyType}}>.Default);
             {{IndentBlock(buildLoop,"            ")}}
             this.{{cursorName}}=this.{{firstName}}=__builder.GetRootGroupAndClear();
         }

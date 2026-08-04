@@ -38,7 +38,9 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
     protected string OuterElementType => this.outerSource.ElementType;
     protected string BuildLookupBody(bool skipNullKeyCheck,string logicalInnerCounterMethod) => skipNullKeyCheck ? $$"""
         private static global::Seamless.Linq.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
-            var __lookupBuilder=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(0,comparer,true);
+            var __hasCnt=inner.TryGetNonEnumeratedCount(out var __cnt);
+            if(__hasCnt) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();
+            var __lookupBuilder=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(__hasCnt ? __cnt : 0,comparer,true);
             using var {{this.innerEnumerator}}=inner;
             while({{this.innerEnumerator}}.TryGetNext(out var __mn102)){
                 {{this.CounterCall(logicalInnerCounterMethod)}}
@@ -56,7 +58,9 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
         }
         """ : $$"""
         private static global::Seamless.Linq.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
-            var __lookupBuilder=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(0,comparer,true);
+            var __hasCnt=inner.TryGetNonEnumeratedCount(out var __cnt);
+            if(__hasCnt) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();
+            var __lookupBuilder=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(__hasCnt ? __cnt : 0,comparer,true);
             using var {{this.innerEnumerator}}=inner;
             while({{this.innerEnumerator}}.TryGetNext(out var __mn103)){
                 {{this.CounterCall(logicalInnerCounterMethod)}}

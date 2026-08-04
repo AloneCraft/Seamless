@@ -21,6 +21,7 @@ internal static class BenchmarkTabStorage {
         new("Seamless.Tsavorite.System","Tsavorite(System)",["FLinq","Tsavorite(System)"]),    ];
 
     internal static IReadOnlyList<string> 表名一覧 => 定義一覧.Select(static 定義 => 定義.表名).ToArray();
+    internal static IReadOnlyList<string> ビュー名一覧 => 定義一覧.Select(static 定義 => 定義.表名+"View").ToArray();
 
     internal static void 作成(SqliteConnection 接続,SqliteTransaction トランザクション) {
         foreach(var 定義 in 定義一覧) {
@@ -42,7 +43,30 @@ internal static class BenchmarkTabStorage {
         }
     }
 
+    internal static void 作成ビュー(SqliteConnection 接続,SqliteTransaction トランザクション) {
+        foreach(var 定義 in 定義一覧) {
+            var 表 = 引用(定義.表名);
+            var ビュー = 引用(定義.表名+"View");
+            var 左列 = 引用(識別子(定義.列見出し[0],"時間ns"));
+            var 右列 = 引用(識別子(定義.列見出し[1],"時間ns"));
+            実行(接続,トランザクション,$"""
+                CREATE VIEW {ビュー} AS
+                SELECT "型","ベンチマーク",
+                    CASE WHEN {左列} IS NULL OR {右列} IS NULL OR {左列}<0 OR {右列}<0 THEN NULL
+                         WHEN {左列}=0 AND {右列}=0 THEN 0.0
+                         ELSE CAST({左列} AS REAL)/({左列}+{右列}) END AS "比率"
+                FROM {表}
+                WHERE "実行ID"=(SELECT MAX("実行ID") FROM {表})
+                ORDER BY "比率" DESC;
+                """);
+        }
+    }
+
     internal static bool 想定形状か(SqliteConnection 接続) {
+        using(var ビューコマンド=接続.CreateCommand()) {
+            ビューコマンド.CommandText=$"SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN({string.Join(',',ビュー名一覧.Select(Sql文字列))});";
+            if((long)(ビューコマンド.ExecuteScalar()??0L)!=ビュー名一覧.Count) return false;
+        }
         foreach(var 定義 in 定義一覧) {
             using var コマンド=接続.CreateCommand();
             コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=$name;";

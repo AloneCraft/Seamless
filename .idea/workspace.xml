@@ -2,11 +2,34 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c7260d12-37ac-443f-b541-40f8091022ae" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkSourceTabs.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkSourceTabs.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.local.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/3e31d739-2dde-4de4-a976-b3cea9e1ca7a.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/3e31d739-2dde-4de4-a976-b3cea9e1ca7a.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/dataSources/data_sources_history.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Worker/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Worker/Program.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.Collections.Tsavorite/Collections/HashSet.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Collections.Tsavorite/Collections/HashSet.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/FLinqIncrementalGenerator.ProviderFacts.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/FLinqIncrementalGenerator.ProviderFacts.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Bases/JoinBase.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Bases/JoinBase.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Contains.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/Contains.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/GroupBy.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/GroupBy.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/RightJoin.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/RightJoin.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/SequenceEqual.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq/SourceGenerator/Linq/Fragments/SequenceEqual.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.Linq/HashSetSlim.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/HashSetSlim.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.Linq/Internal/DictionarySlim.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/Internal/DictionarySlim.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.Linq/Max.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/Max.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.Linq/Min.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/Min.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.Linq/SequenceEqual.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/SequenceEqual.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.Linq/ToLookup.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/ToLookup.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.Linq/ValueQueue.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/ValueQueue.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/Common/TestInfrastructure/Base.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Common/TestInfrastructure/Base.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/Linq.Enumerable/Base.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Linq.Enumerable/Base.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/Scalable.Tsavorite.Collections/Bases.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/Scalable.Tsavorite.Collections/Bases.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/ScalableBenchmarkNameFormatter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/ScalableBenchmarkNameFormatter.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/Shared/UI.Storage/BenchmarkTabStorage.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Storage/BenchmarkTabStorage.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkFourSeriesDisplay.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkFourSeriesDisplay.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkSourceTabs.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkSourceTabs.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkTabStorage.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkTabStorage.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Storage/UiRunStore.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Storage/UiRunStore.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkCatalogArgument.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkCatalogArgument.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Benchmark/UiRunStore.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/UiRunStore.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -30,7 +53,7 @@
     &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;sonnet5&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
     &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;G:/GitHub/Seamless&quot;
   },

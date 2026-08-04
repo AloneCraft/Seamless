@@ -197,7 +197,7 @@ static ワーカー結果メッセージ ベンチマークを実行(
         var 概要 = 概要一覧.SingleOrDefault()
             ??throw new InvalidOperationException($"BenchmarkDotNetから概要が返されませんでした: {タスク.型完全名}.{タスク.メソッド名}");
         var 報告一覧 = 概要.Reports
-            .Where(報告 => 引数に一致する報告か(報告.BenchmarkCase,タスク.引数))
+            .Where(報告 => ワーカータスクフィルター.引数に一致するか(報告.BenchmarkCase,タスク.引数))
             .ToArray();
         if(報告一覧.Length!=1) {
             throw new InvalidOperationException($"BenchmarkDotNetから{タスク.型完全名}.{タスク.メソッド名}の引数「{タスク.引数キー}」に対して{報告一覧.Length}件のレポートが返されました。");
@@ -508,16 +508,6 @@ static int ランダムソースシードを作成(ワーカータスクメッ�
     return 安定ハッシュ(実行ルート+"|"+タスク.ソースタブ+"|"+タスク.メソッド名+"|"+タスク.引数キー+"|"+タスク.要素数.ToString(CultureInfo.InvariantCulture)+"|"+タスク.ループ回数.ToString(CultureInfo.InvariantCulture));
 }
 
-static bool 引数に一致する報告か(BenchmarkDotNet.Running.BenchmarkCase ベンチマークケース,ベンチマーク引数[] 引数一覧) {
-    if(引数一覧.Length==0) {
-        return true;
-    }
-    var 表示 = ベンチマークケース.DisplayInfo;
-    return 引数一覧.All(引数 =>
-        表示.Contains(引数.名前,StringComparison.OrdinalIgnoreCase)
-        &&表示.Contains(引数.値,StringComparison.OrdinalIgnoreCase));
-}
-
 static string 実行ルートを推定(string 成果物フォルダー) {
     var ディレクトリ = new DirectoryInfo(成果物フォルダー);
     for(var 階層 = 0;階層<4&&ディレクトリ is not null;階層++) {
@@ -740,15 +730,27 @@ internal sealed class 空ディスポーザブル:IDisposable {
 internal sealed class ワーカータスクフィルター(ワーカータスクメッセージ タスク):IFilter {
     public bool Predicate(BenchmarkDotNet.Running.BenchmarkCase ベンチマークケース) =>
         ベンチマークケース.Descriptor.WorkloadMethod.Name==タスク.メソッド名
-        &&引数に一致する報告か(ベンチマークケース,タスク.引数);
+        &&引数に一致するか(ベンチマークケース,タスク.引数);
 
-    private static bool 引数に一致する報告か(BenchmarkDotNet.Running.BenchmarkCase ベンチマークケース,ベンチマーク引数[] 引数一覧) {
+    /// <summary>
+    /// ベンチマークケースの実引数がタスクの引数と一致するかを判定する。
+    /// DisplayInfo の部分文字列一致にすると、Index=64 が Memory=67108864 の末尾に一致してしまうような
+    /// 誤検出が起きるため、引数名と整形済み値の完全一致で照合する。
+    /// BDN の実行対象を絞るフィルターと、結果レポートの選択の両方が同じ判定を使う。
+    /// </summary>
+    public static bool 引数に一致するか(BenchmarkDotNet.Running.BenchmarkCase ベンチマークケース,ベンチマーク引数[] 引数一覧) {
         if(引数一覧.Length==0) {
             return true;
         }
-        var 表示 = ベンチマークケース.DisplayInfo;
-        return 引数一覧.All(引数 =>
-            表示.Contains(引数.名前,StringComparison.OrdinalIgnoreCase)
-            &&表示.Contains(引数.値,StringComparison.OrdinalIgnoreCase));
+        var 実引数一覧 = ベンチマークケース.Parameters.Items;
+        return 引数一覧.All(引数 => 実引数一覧.Any(実引数 =>
+            string.Equals(実引数.Name,引数.名前,StringComparison.OrdinalIgnoreCase)
+            &&string.Equals(引数値を整形(実引数.Value),引数.値,StringComparison.Ordinal)));
     }
+
+    /// <summary>UI 側の ベンチマークカタログ.引数値を整形 と同じ規則で引数値を文字列化する。</summary>
+    private static string 引数値を整形(object? 値) =>
+        値 is IFormattable 整形可能値
+            ? 整形可能値.ToString(null,CultureInfo.InvariantCulture)
+            : 値?.ToString()??string.Empty;
 }

@@ -33,43 +33,22 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
         return this.RenderComputeInline(destVar,destType,$"{comparer}");
     }
     public override string InlineSupportingMembers => source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
-    // comparer=="null"（呼び出し側が比較子を指定していない）のとき、生成される Compute は
-    // IEqualityComparer<T>? 引数を受け取ってはいても実行時には常に null しか渡らない。
-    // それにも関わらず comparer 経由で .Equals を呼ぶと、JIT は「T が閉じたジェネリック引数だと
-    // わかっている」という情報を活かせず、インターフェース越しの間接呼び出しのままになる
-    // （このコード全体に AggressiveOptimization が付いており tiered PGO を通らないため、
-    // 実行時の投機的 devirtualization にも期待できない）。
-    // comparer を経由せず EqualityComparer<T>.Default.Equals を直接書けば、T は生成時点で
-    // 確定した具象型なので JIT が devirtualize できる。参照型・値型を問わず安全（IEquatable<T>
-    // 未実装でも EqualityComparer<T>.Default は必ずコンパイルできる）。
-    // さらに、要素型が既知のプリミティブ値型なら 2 引数版 MemoryExtensions.SequenceEqual に
-    // 乗せてベクトル化 memcmp を使う（IsKnownEquatableSpanType は OrderLoop の
-    // CanUseDirectDefaultOrderCompare と同じ型名ホワイトリスト方式）。
+    // comparer=="null" かつ両ソースが span を出せるときは Seamless.Linq.Enumerable.SequenceEqualSpan
+    // を呼ぶ。要素型は T のベンチマーク基底クラス等では構文時点で "T" としてしか見えず、
+    // 生成器側の型名ホワイトリストでは int 等の具象呼び出しでもベクトル化 memcmp に振り分けられない。
+    // SequenceEqualSpan 側で typeof(T) による実行時分岐にしているため（Min/Max/Sum と同じ方式）、
+    // 生成器はソース型を知らなくても常にこの1関数を呼べばよい。
     protected override string ComputeMembers => source.CanProvideSpan&&second.CanProvideSpan
         ? (source.ElementType==second.ElementType
             ? (comparer=="null"
-                ? (IsKnownEquatableSpanType(source.ElementType)
-                    ? $$"""
-                        {{AggressiveInliningAttribute}}
-                        private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
-                            source.TryGetSpan(out var __spanL);
-                            second.TryGetSpan(out var __spanR);
-                            return global::System.MemoryExtensions.SequenceEqual(__spanL, __spanR);
-                        }
-                        """
-                    : $$"""
-                        {{AggressiveInliningAttribute}}
-                        private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
-                            source.TryGetSpan(out var __spanL);
-                            second.TryGetSpan(out var __spanR);
-                            if(__spanL.Length!=__spanR.Length) return false;
-                            var __eq=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
-                            for(int __i=0;(uint)__i<(uint)__spanL.Length;__i++){
-                                if(!__eq.Equals(__spanL[__i],__spanR[__i])) return false;
-                            }
-                            return true;
-                        }
-                        """)
+                ? $$"""
+                    {{AggressiveInliningAttribute}}
+                    private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
+                        source.TryGetSpan(out var __spanL);
+                        second.TryGetSpan(out var __spanR);
+                        return global::Seamless.Linq.Enumerable.SequenceEqualSpan(__spanL, __spanR);
+                    }
+                    """
                 : $$"""
                     {{AggressiveInliningAttribute}}
                     private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
@@ -119,18 +98,4 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
                 }
                 """);
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
-
-    private static bool IsKnownEquatableSpanType(string typeName) =>
-        typeName is "byte" or "sbyte"
-            or "short" or "ushort"
-            or "int" or "uint"
-            or "long" or "ulong"
-            or "float" or "double" or "decimal"
-            or "char" or "string" or "bool"
-            or "global::System.Byte" or "global::System.SByte"
-            or "global::System.Int16" or "global::System.UInt16"
-            or "global::System.Int32" or "global::System.UInt32"
-            or "global::System.Int64" or "global::System.UInt64"
-            or "global::System.Single" or "global::System.Double" or "global::System.Decimal"
-            or "global::System.Char" or "global::System.String" or "global::System.Boolean";
 }

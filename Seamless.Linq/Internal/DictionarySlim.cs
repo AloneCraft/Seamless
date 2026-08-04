@@ -43,6 +43,7 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
         this.buckets.AsSpan().Clear(); // 0-clear.
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public ref TValue? GetValueRefOrAddDefault(TKey key,out bool exists) {
         var hashCode = this.InternalGetHashCode(key);
         ref var bucket = ref this.buckets[this.GetBucketIndex(hashCode)];
@@ -77,6 +78,7 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
 
         return ref newEntry.Value;
     }
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     private void Resize() {
         var newSize = BitOperations.RoundUpToPowerOf2((uint)this.entries.Length*2);
         var newEntries = ArrayPool<Entry>.Shared.Rent((int)newSize);
