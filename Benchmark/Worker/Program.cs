@@ -17,6 +17,7 @@ const string 要素数環境変数名 = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
 const string ループ回数環境変数名 = "SEAMLESS_BENCHMARK_LOOP_COUNT";
 const string 準備済み要素数環境変数名 = "SEAMLESS_BENCHMARK_PREPARED_ELEMENT_COUNTS";
 const string ランダムソースシード環境変数名 = "SEAMLESS_BENCHMARK_RANDOM_SOURCE_SEED";
+const double 事前ウォームアップ閾値ナノ秒 = 1_024_000_000.0;
 
 var 論理CPU = 必須整数引数を読む(args,"--logical-cpu");
 var 実行ルート = 必須文字列引数を読む(args,"--run-root");
@@ -186,6 +187,21 @@ static ワーカー結果メッセージ ベンチマークを実行(
                 ランダムシード,
                 結果ダイジェスト,
                 実測ループ回数: 実測ループ回数);
+        }
+
+        // 本物のBenchmarkDotNet測定(InProcessEmitToolchain、Warmup=1/Iteration=1の単発測定)は、
+        // 較正クルードループ(開放ループ較正か=true、生のfor/whileループ)ほどJIT階層昇格の機会を
+        // 得られないことが判明したため、同一メソッドへの較正クルードループを1回挟んで事前に
+        // 温めてから本測定に入る。較正結果自体は使い捨てる(ループ回数はタスク側の値をそのまま使う)。
+        {
+            var ウォームアップメソッド = ベンチマークメソッドを解決(ベンチマーク型,タスク.メソッド名);
+            var ウォームアップインスタンス = ウォームアップメソッド.IsStatic ? null : Activator.CreateInstance(ベンチマーク型);
+            var ウォームアップ呼出= 引数値一覧.Length==0
+                ? ウォームアップメソッド.IsStatic
+                    ? (Action)ウォームアップメソッド.CreateDelegate(typeof(Action))
+                    : (Action)ウォームアップメソッド.CreateDelegate(typeof(Action),ウォームアップインスタンス)
+                : () => ウォームアップメソッド.Invoke(ウォームアップインスタンス,引数値一覧);
+            計測を実行(ウォームアップ呼出,true,事前ウォームアップ閾値ナノ秒,ループ回数);
         }
 
         var 設定 = ManualConfig
