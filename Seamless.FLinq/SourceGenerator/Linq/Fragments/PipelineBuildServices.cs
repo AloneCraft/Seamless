@@ -13,7 +13,9 @@ internal sealed class PipelineBuildServices(
     PipelineElementTypeGetter tryGetEnumerableElementType,
     Func<ITypeSymbol,bool> containsAnonymousType,
     Func<string,string,string> joinStaticMethods,
-    string[] outerTypeParameters) {
+    string[] outerTypeParameters,
+    LinqGenerationConfiguration configuration,
+    OptimizationTraceCollector? trace) {
     public SymbolDisplayFormat FullyQualifiedFormat { get; } = fullyQualifiedFormat;
     public PipelineEnumerableBuilder BuildEnumerable { get; } = buildEnumerable;
     public PipelineFuncBuilder BuildFunc { get; } = buildFunc;
@@ -23,4 +25,6 @@ internal sealed class PipelineBuildServices(
     public Func<ITypeSymbol,bool> ContainsAnonymousType { get; } = containsAnonymousType;
     public Func<string,string,string> JoinStaticMethods { get; } = joinStaticMethods;
     public string[] OuterTypeParameters { get; } = outerTypeParameters;
+    public LinqGenerationConfiguration Configuration { get; } = configuration;
+    public OptimizationTraceCollector? Trace { get; } = trace;
 }

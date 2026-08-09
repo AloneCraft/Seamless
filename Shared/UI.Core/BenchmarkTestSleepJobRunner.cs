@@ -52,6 +52,7 @@ public sealed class ベンチマークテスト待機ジョブ実行器(TimeSpan
             ジョブ.実行項目インデックス);
     }
 
+    [global::Seamless.FLinq.LinqIntercept(false)]
     private static string 成果物フォルダーを作成(string 実行ルート,ベンチマークケース ベンチマーク,ベンチマークソースタブ ソースタブ,int 要素数,int ループ回数){
         var 引数部分="default";
         if(!string.IsNullOrWhiteSpace(ベンチマーク.引数キー)){

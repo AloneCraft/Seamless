@@ -2,17 +2,16 @@ namespace Seamless.FLinq;
 
 // 隣接する段の併合と打ち消し。
 internal static partial class PipelineBuilder {
-    private static List<PipelineStage> NormalizeStages(List<PipelineStage> stages,Func<string,string,string> joinStaticMethods){
-        var execution=OptimizationExecutionContext.Current;
-        if(execution?.ConvergenceMode!=LinqConvergenceMode.GlobalFixedPoint
-            ||(LinqOptimizationContext.Current&LinqOptimizations.PipelineFusion)==0){
+    internal static List<PipelineStage> NormalizeStages(List<PipelineStage> stages,Func<string,string,string> joinStaticMethods,LinqGenerationConfiguration configuration,OptimizationTraceCollector? trace){
+        if(configuration.ConvergenceMode!=LinqConvergenceMode.GlobalFixedPoint
+            ||(configuration.Optimizations&LinqOptimizations.PipelineFusion)==0){
             return NormalizeStagesLegacy(stages,joinStaticMethods);
         }
         if(stages.Count<=1){
             return stages;
         }
 
-        var trace=execution.Trace;
+
         var runId=trace?.BeginRun(OptimizationLayer.Pipeline)??0;
         var result=FixedPointRunner.Run(
             stages,
@@ -71,7 +70,7 @@ internal static partial class PipelineBuilder {
         anyChanged=true;
         return rewritten;
     }
-    private static List<PipelineStage> NormalizeStagesLegacy(List<PipelineStage> stages,Func<string,string,string> joinStaticMethods) {
+    internal static List<PipelineStage> NormalizeStagesLegacy(List<PipelineStage> stages,Func<string,string,string> joinStaticMethods) {
         if(stages.Count<=1) {
             return stages;
         }

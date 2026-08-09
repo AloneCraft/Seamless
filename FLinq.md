@@ -725,3 +725,18 @@ if (ラムダが匿名型を生成する) {
 - **GroupBy も Enumerator 統一の対象**: BufferedSequence として既に Enumerator パスを持っているため、delegate保持モードにすることで interceptor.cs の特殊パスなしで動作する
 - **部分インライン化は第2段階/第3段階**: 内側のLINQまでFragment展開するのは後日の拡張としても、第1段階だけでも匿名型LINQ全体が Enumerator 遅延評価で動作する
 
+
+## 第1段階: Fragmentを維持した責務分離
+
+第1段階では既存の `Fragment`、`PipelineBuilder`、各演算子Variant、closure/enumerator の生成アルゴリズムを保持する。Generator内は次の内部サービスを通る。
+
+1. `LinqConfigurationResolver` が属性・継承設定を対象発見時に解決し、`LinqGenerationConfiguration` として対象モデルに固定する。
+2. `LinqTargetDiscoveryService` と `LinqExpressionAnalyzer` が対象とLINQ式の解析結果を生成する。
+3. 対象メソッドごとの `GenerationState` が識別子、Fragment、UnsafeAccessor、匿名record registry、最適化traceを所有する。ThreadStatic/ambient stateは使用しない。
+4. `LinqOptimizationExecutor` が `PipelineBuilder` のstage正規化を設定・trace付きで実行する。
+5. `LinqFragmentBuilder` が既存の `GenerationPipeline` を介して型付きRegistry Bind、Root、ProviderNative、lambda処理を組み立てる。
+6. `GeneratedSourceRenderer` と出力Coordinatorが入力ファイル単位でソース、診断、traceを集約して `AddSource` する。
+
+`SequenceEqual` は比較子なしVariantを専用Fragmentとして出力する。このVariantは `IEqualityComparer<T>` のfield・constructor引数を持たず、組み込み型は2引数Span比較、その他は `EqualityComparer<T>.Default` を用いる。明示比較子Variantは従来どおり保持する。
+
+第2段階では、Fragment内部に残るclosure、enumerator、文字列組立を独立IRまたは描画契約へ分離する。第1段階ではこの生成形状を意図的に維持する。

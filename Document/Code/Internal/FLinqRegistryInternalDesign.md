@@ -39,3 +39,19 @@ Target DiscoveryがRegistryを参照してCoverageと対象可否を判断する
 ## 互換性
 
 Generatorは`netstandard2.0`で動作する。生成されたinterceptorは`Seamless.Linq net10.0`を使用する。Registry追加時に`Seamless.Linq`の公開APIやFLinqの公開Generator APIを変更しない。
+## 第1段階: Registryの上位に置く生成サービス
+
+Registryは演算子選択の正本のまま維持し、その前後の生成責務を次のinternalサービスに分離する。
+
+| サービス | 入力 | 出力/責務 |
+|---|---|---|
+| `LinqConfigurationResolver` | method symbol, compilation | 属性継承済み不変設定 |
+| `LinqTargetDiscoveryService` | invocation syntax | `Linq傍受対象型` |
+| `LinqExpressionAnalyzer` | target method | lowering対象と外側呼出し解析 |
+| `LinqOptimizationExecutor` | Pipeline stages, configuration, trace | 決定的なstage正規化 |
+| `LinqFragmentBuilder` | `GenerationPipeline` | Registry Bind済みFragmentと補助コード |
+| `GeneratedSourceRenderer` | 入力ファイル内targets | interceptor source、trace文書 |
+
+`GenerationState` と `FragmentBuildContext` は対象メソッド単位で生成される。状態は対象間で共有せず、Registry descriptorの型付きBindへ明示的に渡す。これにより並列生成時も匿名record、採番、trace、識別子、UnsafeAccessor候補が漏洩しない。
+
+第2段階の対象はFragment内部のclosure/enumerator/文字列生成であり、Registry契約・既存Fragmentの意味論を変えずに描画契約またはIRへ移す。

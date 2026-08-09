@@ -74,3 +74,22 @@ flowchart LR
     Pipeline --> Stages[Pipeline stages]
     Native --> Provider[Provider iterate terminal]
 ```
+## FLinq 第1段階の責務分離
+
+```mermaid
+flowchart LR
+    Roslyn[Roslyn SyntaxProvider] --> Discovery[LinqTargetDiscoveryService]
+    Discovery --> Config[LinqConfigurationResolver]
+    Discovery --> Analyzer[LinqExpressionAnalyzer]
+    Config --> State[GenerationState per target]
+    Analyzer --> Builder[LinqFragmentBuilder]
+    State --> Builder
+    Builder --> Registry[OperatorRegistry]
+    Builder --> Pipeline[PipelineBuilder]
+    Pipeline --> Optimizer[LinqOptimizationExecutor]
+    Optimizer --> Pipeline
+    Builder --> Renderer[GeneratedSourceRenderer]
+    State --> Renderer
+    Renderer --> Coordinator[Per-file output coordinator]
+    Coordinator --> AddSource[AddSource]
+```

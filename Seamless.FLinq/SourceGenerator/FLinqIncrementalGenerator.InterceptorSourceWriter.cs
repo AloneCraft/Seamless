@@ -19,7 +19,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return i<0 ? string.Empty : 名前空間.Substring(0,i);
     }
 
-    private static string インターセプターソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics,out OptimizationTraceDocument[] traceDocuments) {
+    internal static string インターセプターソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics,out OptimizationTraceDocument[] traceDocuments) {
         var builder = new StringBuilder();
         var collectedTraceDocuments=new List<OptimizationTraceDocument>();
         builder.AppendLine("#nullable enable annotations");
@@ -27,13 +27,8 @@ public sealed partial class FLinqIncrementalGenerator {
         builder.AppendLine("#pragma warning disable CS0414, CS0649");
         builder.AppendLine("using System.Linq;");
 
-        // このファイルで生成する匿名型→record struct 透過置換のレジストリを用意し、
-        // ネストした静的メソッド群（関数式フラグメント生成 等）から ThreadStatic 経由で参照させる。
-        var anonRegistry = new AnonymousStructRecordRegistry(
-            AnonRecordFileToken(targets.IsDefaultOrEmpty ? string.Empty : targets[0].SourcePath));
-        var previousRegistry = _anonRegistry;
-        _anonRegistry=anonRegistry;
-        try {
+        var anonymousRegistries=new List<AnonymousStructRecordRegistry>();
+
             foreach(var namespaceGroup in targets.GroupBy(static target => インターセプト名前空間取得(target.EnclosingType),
                         StringComparer.Ordinal)) {
                 builder.AppendLine();
@@ -56,22 +51,20 @@ public sealed partial class FLinqIncrementalGenerator {
                 foreach(var typeGroup in namespaceGroup.GroupBy(
                             static target => target.EnclosingType.ToDisplayString(完全修飾形式),StringComparer.Ordinal)) {
                     var typeTargets = typeGroup.ToImmutableArray();
-                    var typeSource = インターセプター型ソース構築(typeTargets,diagnostics,collectedTraceDocuments);
+                    var typeSource = インターセプター型ソース構築(typeTargets,diagnostics,collectedTraceDocuments,anonymousRegistries);
                     インデント付き追記(builder,typeSource,"    ");
                 }
                 builder.AppendLine("}");
             }
-            // 匿名型置換で割り当てた record struct 定義をグローバル名前空間のホルダークラスとして出力する。
-            var holder = anonRegistry.RenderHolder();
-            if(!string.IsNullOrEmpty(holder)) {
-                builder.AppendLine();
-                builder.Append(holder);
+            foreach(var anonymousRegistry in anonymousRegistries) {
+                var holder=anonymousRegistry.RenderHolder();
+                if(!string.IsNullOrEmpty(holder)) {
+                    builder.AppendLine();
+                    builder.Append(holder);
+                }
             }
-            traceDocuments=collectedTraceDocuments.ToArray();
-            return 属性行を畳む(builder.ToString());
-        } finally {
-            _anonRegistry=previousRegistry;
-        }
+        traceDocuments=collectedTraceDocuments.ToArray();
+        return 属性行を畳む(builder.ToString());
     }
 
     private const string MethodImpl属性接頭辞 = "[global::System.Runtime.CompilerServices.MethodImpl(";
@@ -141,7 +134,7 @@ public sealed partial class FLinqIncrementalGenerator {
     ///   <item><description>UnsafeAccessor 宣言はクラス直下に出力し、型スタックを逆順に閉じる。</description></item>
     /// </list>
     /// </summary>
-    private static string インターセプター型ソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics,List<OptimizationTraceDocument> traceDocuments) {
+    private static string インターセプター型ソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics,List<OptimizationTraceDocument> traceDocuments,List<AnonymousStructRecordRegistry> anonymousRegistries) {
         var builder = new StringBuilder();
         var typeStack = 型スタック取得(targets[0].EnclosingType);
         var interceptorTypeName = string.Join("_",typeStack.Select(static type => SanitizeIdentifier(type.Name)));
@@ -150,17 +143,15 @@ public sealed partial class FLinqIncrementalGenerator {
         var emittedMethodNames = new HashSet<string>(StringComparer.Ordinal);
         var emittedUnsafeAccessors = new HashSet<string>(StringComparer.Ordinal);
         foreach(var target in targets) {
-            using var 型パラメータースコープ = InterceptedMethodTypeParameterContext.Enter(target.MethodTypeParameters);
-            using var optimizationExecutionScope=OptimizationExecutionContext.Enter(
-                target.ConvergenceMode,target.EmitOptimizationTrace,target.Method.ToDisplayString());
-
+            var state=new GenerationState(target);
+            var pipeline=new GenerationPipeline(state);
+            var fragmentBuilder=new LinqFragmentBuilder(pipeline);
             try {
                 if(target.IsLocalMethodInterception) {
-                    using var optimizationScope = LinqOptimizationContext.Enter(target.Optimizations);
                     var ローカル静的メソッド群 = string.Empty;
                     var ローカル本体 = string.Empty;
                     var builtLocalMethodBody = target.OptimizeLinq
-                        ? ローカル傍受メソッド本体構築(target,out ローカル静的メソッド群,out ローカル本体,emittedUnsafeAccessors)
+                        ? fragmentBuilder.TryBuild(target,out ローカル静的メソッド群,out ローカル本体,emittedUnsafeAccessors)
                         : TryBuildCounterOnlyLocalMethodBody(target,out ローカル静的メソッド群,out ローカル本体,emittedUnsafeAccessors);
                     if(builtLocalMethodBody) {
                         if(!string.IsNullOrWhiteSpace(ローカル静的メソッド群)) {
@@ -180,7 +171,7 @@ public sealed partial class FLinqIncrementalGenerator {
                     builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining|global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]");
                     builder.AppendLine($"    {target.InterceptsLocationAttributeText}");
                     builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}){target.TypeParameterConstraintClause} {{");
-                    if(未対応Enumerableメソッド一覧取得(target) is { Count:>0 } unsupportedMethods) {
+                    if(GenerationPipeline.未対応Enumerableメソッド一覧取得(target) is { Count:>0 } unsupportedMethods) {
                         var loc1 = target.Method.Locations.FirstOrDefault()??target.Invocation.GetLocation();
                         diagnostics.Add(Diagnostic.Create(展開失敗警告Descriptor,loc1,target.Method.Name));
                         インデント付き追記(builder,RenderUnsupportedLocalMethodBody(unsupportedMethods),"        ");
@@ -208,7 +199,10 @@ public sealed partial class FLinqIncrementalGenerator {
                 builder.AppendLine("    }");
                 builder.AppendLine();
             }finally{
-                if(optimizationExecutionScope.CreateDocument() is { } traceDocument){
+                if(state.AnonymousRegistry is { } anonymousRegistry) {
+                    anonymousRegistries.Add(anonymousRegistry);
+                }
+                if(state.Trace?.CreateDocument() is { } traceDocument){
                     traceDocuments.Add(traceDocument);
                 }
             }

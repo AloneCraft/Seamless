@@ -10,6 +10,7 @@ public sealed partial class FLinqIncrementalGenerator {
         private readonly INamedTypeSymbol containingType;
         private readonly List<string>? unsafeAccessorCollector;
         private readonly IReadOnlyDictionary<string,string>? replacementMap;
+        private readonly GenerationPipeline pipeline;
         private string staticMethods=string.Empty;
 
         internal FragmentFactoryContext(
@@ -21,7 +22,8 @@ public sealed partial class FLinqIncrementalGenerator {
             INamedTypeSymbol containingType,
             int uniqueNumber,
             List<string>? unsafeAccessorCollector,
-            IReadOnlyDictionary<string,string>? replacementMap = null) {
+            IReadOnlyDictionary<string,string>? replacementMap,
+            GenerationPipeline pipeline) {
             this.semanticModel=semanticModel;
             this.invocation=invocation;
             this.sourceExpression=sourceExpression;
@@ -31,11 +33,12 @@ public sealed partial class FLinqIncrementalGenerator {
             this.UniqueNumber=uniqueNumber;
             this.unsafeAccessorCollector=unsafeAccessorCollector;
             this.replacementMap=replacementMap;
+            this.pipeline=pipeline;
         }
 
         internal int UniqueNumber;
         internal string StaticMethods => this.staticMethods;
-        internal string[] OuterTypeParameters => 外側型パラメータ名(this.containingType);
+        internal string[] OuterTypeParameters => this.pipeline.OuterTypeParameters;
 
         internal bool TryBind(IReadOnlyList<FragmentParameter> parameters,out FragmentArguments arguments) {
             arguments=new FragmentArguments(this.UniqueNumber++);
@@ -43,7 +46,7 @@ public sealed partial class FLinqIncrementalGenerator {
             foreach(var parameter in parameters) {
                 switch(parameter.Kind) {
                     case FragmentArgumentKind.Source:
-                        if(!列挙式フラグメント生成(this.semanticModel,this.sourceExpression,this.containingType,ref this.UniqueNumber,out var source,out var sourceMethods,this.unsafeAccessorCollector)) {
+                        if(!this.pipeline.列挙式フラグメント生成(this.semanticModel,this.sourceExpression,this.containingType,ref this.UniqueNumber,out var source,out var sourceMethods,this.unsafeAccessorCollector)) {
                             return false;
                         }
                         arguments.Add(source);
@@ -51,7 +54,7 @@ public sealed partial class FLinqIncrementalGenerator {
                         break;
                     case FragmentArgumentKind.Enumerable:
                         if(!this.TryGetArgument(argumentIndex,out var enumerableExpression)
-                            ||!列挙式フラグメント生成(this.semanticModel,enumerableExpression,this.containingType,ref this.UniqueNumber,out var enumerable,out var enumerableMethods,this.unsafeAccessorCollector)) {
+                            ||!this.pipeline.列挙式フラグメント生成(this.semanticModel,enumerableExpression,this.containingType,ref this.UniqueNumber,out var enumerable,out var enumerableMethods,this.unsafeAccessorCollector)) {
                             return false;
                         }
                         arguments.Add(enumerable);
@@ -65,8 +68,8 @@ public sealed partial class FLinqIncrementalGenerator {
                         var methodParameterIndex=argumentIndex-this.argumentStartIndex;
                         if(methodParameterIndex<0
                             ||methodParameterIndex>=this.method.Parameters.Length
-                            ||!関数式フラグメント生成(functionExpression,this.method.Parameters[methodParameterIndex].Type,ref this.UniqueNumber,out var function,this.semanticModel,this.containingType)
-                            ||!関数フラグメントが利用可能か(function)) {
+                            ||!this.pipeline.関数式フラグメント生成(functionExpression,this.method.Parameters[methodParameterIndex].Type,ref this.UniqueNumber,out var function,this.semanticModel,this.containingType)
+                            ||!this.pipeline.関数フラグメントが利用可能か(function)) {
                             return false;
                         }
                         arguments.Add(function);
@@ -87,7 +90,7 @@ public sealed partial class FLinqIncrementalGenerator {
                         arguments.Add(this.method.ReturnType.ToDisplayString(完全修飾形式));
                         break;
                     case FragmentArgumentKind.ResultElementType:
-                        if(!列挙要素型取得(this.method.ReturnType,out var elementType,out _)) {
+                        if(!this.pipeline.列挙要素型取得(this.method.ReturnType,out var elementType,out _)) {
                             return false;
                         }
                         arguments.Add(elementType.ToDisplayString(完全修飾形式));
@@ -127,6 +130,7 @@ public sealed partial class FLinqIncrementalGenerator {
         private readonly INamedTypeSymbol containingType;
         private readonly List<string>? unsafeAccessorCollector;
         private readonly IReadOnlyDictionary<string,string>? replacementMap;
+        private readonly GenerationPipeline pipeline;
         private readonly FragmentFactoryContext bindingContext;
 
         internal RootFactoryContext(
@@ -136,13 +140,15 @@ public sealed partial class FLinqIncrementalGenerator {
             INamedTypeSymbol containingType,
             int uniqueNumber,
             List<string>? unsafeAccessorCollector,
-            IReadOnlyDictionary<string,string>? replacementMap) {
+            IReadOnlyDictionary<string,string>? replacementMap,
+            GenerationPipeline pipeline) {
             this.semanticModel=semanticModel;
             this.invocation=invocation;
             this.method=method;
             this.containingType=containingType;
             this.unsafeAccessorCollector=unsafeAccessorCollector;
             this.replacementMap=replacementMap;
+            this.pipeline=pipeline;
             this.bindingContext=new FragmentFactoryContext(
                 semanticModel,
                 invocation,
@@ -152,7 +158,8 @@ public sealed partial class FLinqIncrementalGenerator {
                 containingType,
                 uniqueNumber,
                 unsafeAccessorCollector,
-                replacementMap);
+                replacementMap,
+                pipeline);
         }
 
         internal IMethodSymbol Method => this.method;
@@ -163,10 +170,10 @@ public sealed partial class FLinqIncrementalGenerator {
 
         internal bool TryBuildAsEnumerableSource(out Enumerable fragment) {
             fragment=null!;
-            if(!TryGetInvocationArgumentExpression(this.method,this.invocation,0,out var sourceExpression)) {
+            if(!GenerationPipeline.TryGetInvocationArgumentExpression(this.method,this.invocation,0,out var sourceExpression)) {
                 return false;
             }
-            return TryBuildEnumerableRootFromExpressionWithReplacement(
+            return this.pipeline.TryBuildEnumerableRootFromExpressionWithReplacement(
                 this.semanticModel,
                 sourceExpression,
                 this.containingType,

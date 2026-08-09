@@ -13,37 +13,7 @@ namespace Seamless.FLinq;
 // メンバー型の違いはジェネリック型引数で吸収する。これにより匿名型は内部的に常に名指し可能になる。
 public sealed partial class FLinqIncrementalGenerator {
 
-    // ファイル単位で生成中のレジストリ。インターセプターソース構築() の先頭で設定し、finally で解除する。
-    // 各生成ファイルの処理は 1 スレッドで同期的に走るため ThreadStatic で隔離する。
-    [ThreadStatic]
-    private static AnonymousStructRecordRegistry? _anonRegistry;
-
-    // SuspendAnonRegistry を無効化する入れ子カウンタ。
-    // SelectMany インライン化など「内側サブチェーンの匿名型は record struct 置換したい」文脈で、
-    // 再帰先のフォールバック経路が呼ぶ Suspend にレジストリを止めさせないために使う。
-    [ThreadStatic]
-    private static int _anonRegistryPinCount;
-
-    internal static void PinAnonRegistry() => _anonRegistryPinCount++;
-
-    internal static void UnpinAnonRegistry() => _anonRegistryPinCount--;
-
-    // 結果が匿名型のまま外へ逃げる（エスケープする）箇所では record struct 置換を行わないよう、
-    // レジストリを一時的に退避する。単発オペレーション（チェーンの最終結果が匿名型）などで使う。
-    // ピン留め中は退避せずレジストリを維持する（Restore は同じ値を書き戻すだけになる）。
-    internal static object? SuspendAnonRegistry() {
-        var saved = _anonRegistry;
-        if(_anonRegistryPinCount==0) {
-            _anonRegistry=null;
-        }
-        return saved;
-    }
-
-    internal static void RestoreAnonRegistry(object? saved) {
-        _anonRegistry=(AnonymousStructRecordRegistry?)saved;
-    }
-
-    private sealed class AnonymousStructRecordRegistry(string fileToken) {
+    internal sealed class AnonymousStructRecordRegistry(string fileToken) {
         private readonly string _holderName = $"__TsavoriteAnonRecords_{fileToken}";
         // キー（メンバー名を "|" で連結）→ shape 情報
         private readonly Dictionary<string,Shape> _shapes = new(StringComparer.Ordinal);
@@ -59,7 +29,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         /// <summary>型に匿名型が含まれるかを再帰的に判定する。</summary>
-        public static bool ContainsAnonymous(ITypeSymbol type) => ContainsAnonymousType(type);
+        public static bool ContainsAnonymous(ITypeSymbol type) => GenerationPipeline.ContainsAnonymousType(type);
 
         /// <summary>
         /// 型を「匿名型を閉じたジェネリック record struct 型名へ置換した」完全修飾型名へ変換する。
@@ -83,7 +53,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 }
                 return type.ToDisplayString(完全修飾形式);
             }
-            if(type is INamedTypeSymbol named&&named.TypeArguments.Any(ContainsAnonymousType)) {
+            if(type is INamedTypeSymbol named&&named.TypeArguments.Any(GenerationPipeline.ContainsAnonymousType)) {
                 var open = OpenGenericTypeName(named);
                 var args = string.Join(", ",named.TypeArguments.Select(this.ResolveClosedName));
                 return $"{open}<{args}>";
@@ -225,7 +195,7 @@ public sealed partial class FLinqIncrementalGenerator {
     }
 
     // SourcePath からファイル単位で一意な識別子トークンを作る。
-    private static string AnonRecordFileToken(string sourcePath) {
+    internal static string AnonRecordFileToken(string sourcePath) {
         var name = System.IO.Path.GetFileNameWithoutExtension(sourcePath??string.Empty);
         var hash = 安定ハッシュ(sourcePath??string.Empty);
         return $"{SanitizeIdentifier(name)}_{hash:x8}";

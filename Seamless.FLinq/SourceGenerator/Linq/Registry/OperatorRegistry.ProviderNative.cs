@@ -95,7 +95,7 @@ public sealed partial class FLinqIncrementalGenerator {
             fragment=null!;
             return false;
         }
-        return TryCreateBackendNativeIterateFragment(
+        return GenerationPipeline.TryCreateBackendNativeIterateFragment(
             key,
             arguments.Number,
             arguments.GetEnumerable(0),

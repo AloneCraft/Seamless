@@ -316,50 +316,6 @@ internal sealed class OptimizationTraceCollector{
     }
 }
 
-internal static class OptimizationExecutionContext{
-    [ThreadStatic]private static OptimizationExecutionScope? current;
-
-    public static OptimizationExecutionScope? Current=>current;
-
-    public static OptimizationExecutionScope Enter(
-        LinqConvergenceMode convergenceMode,
-        bool emitOptimizationTrace,
-        string methodKey){
-        var scope=new OptimizationExecutionScope(
-            current,
-            convergenceMode,
-            emitOptimizationTrace?new OptimizationTraceCollector(methodKey):null);
-        current=scope;
-        return scope;
-    }
-
-    internal sealed class OptimizationExecutionScope:IDisposable{
-        private readonly OptimizationExecutionScope? previous;
-        private bool disposed;
-
-        public OptimizationExecutionScope(
-            OptimizationExecutionScope? previous,
-            LinqConvergenceMode convergenceMode,
-            OptimizationTraceCollector? trace){
-            this.previous=previous;
-            this.ConvergenceMode=convergenceMode;
-            this.Trace=trace;
-        }
-
-        public LinqConvergenceMode ConvergenceMode{get;}
-        public OptimizationTraceCollector? Trace{get;}
-
-        public OptimizationTraceDocument? CreateDocument()=>this.Trace?.CreateDocument();
-
-        public void Dispose(){
-            if(this.disposed){
-                return;
-            }
-            current=this.previous;
-            this.disposed=true;
-        }
-    }
-}
 internal static class OptimizationTraceText{
     public static string Syntax(SyntaxNode node)=>
         node.NormalizeWhitespace(elasticTrivia:false).ToFullString();

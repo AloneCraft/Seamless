@@ -524,7 +524,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 var methodGroupText = NormalizeExpressionText(identifier.ToString());
                 string replacement;
                 if(semanticModel.GetTypeInfo(identifier).ConvertedType is INamedTypeSymbol delegateType
-                    &&IsInlineDelegateType(delegateType)) {
+                    &&GenerationPipeline.IsInlineDelegateType(delegateType)) {
                     replacement=RenderDelegateCreateExpression(
                         methodGroup,
                         delegateType,
@@ -577,7 +577,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 ||method.MethodKind!=MethodKind.Ordinary
                 ||CanAccessFromGeneratedCode(method)
                 ||semanticModel.GetTypeInfo(memberAccess).ConvertedType is not INamedTypeSymbol delegateType
-                ||!IsInlineDelegateType(delegateType)) {
+                ||!GenerationPipeline.IsInlineDelegateType(delegateType)) {
                 continue;
             }
 

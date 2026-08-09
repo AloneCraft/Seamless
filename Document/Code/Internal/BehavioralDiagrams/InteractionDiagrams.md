@@ -108,3 +108,33 @@ sequenceDiagram
     Profile-->>Builder: typed Fragment
     Builder->>Output: input-file interceptor source
 ```
+## FLinq 第1段階: 対象単位の生成
+
+```mermaid
+sequenceDiagram
+    participant R as Roslyn
+    participant D as TargetDiscoveryService
+    participant C as ConfigurationResolver
+    participant A as ExpressionAnalyzer
+    participant S as GenerationState
+    participant B as FragmentBuilder/Pipeline
+    participant O as OptimizationExecutor
+    participant G as OperatorRegistry
+    participant X as GeneratedSourceRenderer
+
+    R->>D: Invocation syntax
+    D->>C: Resolve(method, compilation)
+    C-->>D: immutable configuration
+    D->>A: Analyze(target method)
+    A-->>D: analysis result
+    D-->>S: target-scoped state
+    S->>B: explicit state/context
+    B->>G: candidates, typed Bind, factory
+    G-->>B: Fragment
+    B->>O: normalize pipeline with configuration/trace
+    O-->>B: normalized stages
+    B-->>X: generated body and supporting members
+    X-->>R: per-file AddSource
+```
+
+closure/enumerator/文字列組立の詳細な描画は第2段階で独立契約へ移す。第1段階では既存Fragmentの評価順、例外、Dispose、Provider順を保持する。

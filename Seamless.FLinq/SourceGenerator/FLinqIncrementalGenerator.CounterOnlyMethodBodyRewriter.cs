@@ -155,7 +155,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         // 匿名型は型引数として書けないため、含む場合は明示型引数を省略し引数から推論させる。
-        var typeArgumentList = invokedMethod.TypeArguments.Any(ContainsAnonymousType)
+        var typeArgumentList = invokedMethod.TypeArguments.Any(GenerationPipeline.ContainsAnonymousType)
             ? string.Empty
             : RenderTypeArgumentList(invokedMethod);
         expressionText=$"global::System.Linq.Enumerable.{definition.Name}{typeArgumentList}({string.Join(", ",arguments)})";
@@ -264,7 +264,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         // 匿名型はFunc<...>のキャストとして書けないため、キャスト+Invokeを経由せずラムダ本体を直接埋め込んで型推論に任せる。
-        if(namedDelegate.TypeArguments.Any(ContainsAnonymousType)
+        if(namedDelegate.TypeArguments.Any(GenerationPipeline.ContainsAnonymousType)
             &&TryWrapCounterOnlyDelegateByInlining(argumentExpression,semanticModel,containingType,unsafeAccessors,out wrappedExpression)) {
             return true;
         }

@@ -8,6 +8,7 @@ using Enumerable = Seamless.FLinq.Enumerable;
 namespace Seamless.FLinq;
 
 public sealed partial class FLinqIncrementalGenerator {
+    internal sealed partial class GenerationPipeline {
 
     // 呼び出し式から対応する Fragment を選び、再生成に必要な静的補助コードも回収する。
     /// <summary>
@@ -18,7 +19,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// source.Any(x=>x > 0) → Where(x=>x > 0) → Any()
     /// source.Join(inner, outerKey, innerKey, result) → Join(...)
     /// </summary>
-    private static bool 呼び出し式からフラグメント生成(
+    private bool 呼び出し式からフラグメント生成(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
         INamedTypeSymbol containingType,
@@ -55,7 +56,7 @@ public sealed partial class FLinqIncrementalGenerator {
             }
         }
 
-        if((LinqOptimizationContext.Current&LinqOptimizations.PipelineFusion)!=0&&PipelineBuilder.TryBuild(
+        if((this.state.Configuration.Optimizations&LinqOptimizations.PipelineFusion)!=0&&PipelineBuilder.TryBuild(
             semanticModel,
             invocation,
             ref uniqueNumber,
@@ -78,7 +79,9 @@ public sealed partial class FLinqIncrementalGenerator {
                 },
                 ContainsAnonymousType,
                 静的メソッドコード連結,
-                外側型パラメータ名(containingType)),
+                外側型パラメータ名(containingType),
+                this.state.Configuration,
+                this.state.Trace),
             unsafeAccessorCollector)) {
             return true;
         }
@@ -111,7 +114,7 @@ public sealed partial class FLinqIncrementalGenerator {
         // ここから先は単発オペレーション等で「結果の匿名型がそのまま外へ逃げる」ケースが多い。
         // それらを record struct へ置換すると呼び出し元が期待する匿名型と型が合わなくなるため、
         // フォールバック経路では匿名型置換を抑止し、従来どおり匿名型を維持する。
-        var anonSuspension = SuspendAnonRegistry();
+        var anonSuspension = this.state.SuspendAnonymousRegistry();
         try {
             if(methodName=="Any") {
                 return Any述語フラグメント生成(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
@@ -119,7 +122,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
             return 登録済みフラグメント生成(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
         } finally {
-            RestoreAnonRegistry(anonSuspension);
+            this.state.RestoreAnonymousRegistry(anonSuspension);
         }
     }
 
@@ -128,7 +131,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// ↓
     /// Where(x=>x > 0) → Any()
     /// </summary>
-    private static bool Any述語フラグメント生成(SemanticModel semanticModel,InvocationExpressionSyntax invocation,INamedTypeSymbol containingType,ref int uniqueNumber,out Fragment fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null)
+    private bool Any述語フラグメント生成(SemanticModel semanticModel,InvocationExpressionSyntax invocation,INamedTypeSymbol containingType,ref int uniqueNumber,out Fragment fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null)
        => Any.TryBuildWithPredicate(
             semanticModel,invocation,containingType,ref uniqueNumber,
             out fragment,out staticMethods,unsafeAccessorCollector,
@@ -162,7 +165,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// Join / GroupJoin
     /// を順に試し、成立したチェーンへ正規化する。
     /// </summary>
-    private static bool 登録済みフラグメント生成(
+    private bool 登録済みフラグメント生成(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
         INamedTypeSymbol containingType,
@@ -196,7 +199,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static bool 呼び出しソース式取得(
+    private bool 呼び出しソース式取得(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
         IMethodSymbol method,
@@ -219,7 +222,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static bool IsEnumerableSourceParameter(ITypeSymbol type) =>
+    private bool IsEnumerableSourceParameter(ITypeSymbol type) =>
         type is INamedTypeSymbol namedType
         &&(IsIEnumerableType(namedType)||IsNonGenericIEnumerableType(namedType));
 
@@ -229,7 +232,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 外側パラメータ名（例: p）を内側 Fragment の GetEnumeratorExpression 内で
     /// outerValue フィールド名に置換し、SelectMany_WithInlinedInner を生成する。
     /// </summary>
-    private static bool SelectManyインライン化を試行(
+    private bool SelectManyインライン化を試行(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
         INamedTypeSymbol containingType,
@@ -239,7 +242,7 @@ public sealed partial class FLinqIncrementalGenerator {
         List<string>? unsafeAccessorCollector = null) {
         // 内側チェーンの構築は再帰的に呼び出し式からフラグメント生成 のフォールバック経路
         // （SuspendAnonRegistry 付き）を通るため、ピン留めして匿名型の record struct 置換を維持する。
-        PinAnonRegistry();
+        this.state.PinAnonymousRegistry();
         try {
             if(!SelectManyBase.TryBuildInlined(
                 semanticModel,invocation,containingType,ref uniqueNumber,
@@ -250,7 +253,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 return false;
             }
         } finally {
-            UnpinAnonRegistry();
+            this.state.UnpinAnonymousRegistry();
         }
         // 結果要素が匿名型でなければ struct インライン化結果をそのまま使う。
         if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method
@@ -263,7 +266,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         // 内側チェーンは record struct 置換で構築済みのため、要素を元の匿名型へ復元する
         // 出口 Select を被せる（トップレベル匿名型 Select と同じ TResult 推論形）。
-        var registry = _anonRegistry;
+        var registry = this.state.AnonymousRegistry;
         if(registry is null||fragment is not Enumerable selectManyFragment) {
             // レジストリ無効時は record struct 置換が行われず TryBuildInlined がここまで
             // 来ないはずだが、保険としてフォールバック経路へ委ねる。
@@ -298,7 +301,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// source generator の生成コードを検証する。
     ///   → Join(outerFragment, innerFragment, outerKeyFragment, innerKeyFragment, resultFragment, comparer)
     /// </summary>
-    private static bool 登録済みフラグメント生成を試行(
+    private bool 登録済みフラグメント生成を試行(
         IOperatorDescriptor candidate,
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
@@ -324,7 +327,9 @@ public sealed partial class FLinqIncrementalGenerator {
             method,
             containingType,
             uniqueNumber,
-            unsafeAccessorCollector);
+            unsafeAccessorCollector,
+            null,
+            this);
         if(!candidate.TryCreate(context,out fragment)) {
             return false;
         }
@@ -334,7 +339,7 @@ public sealed partial class FLinqIncrementalGenerator {
         uniqueNumber=context.UniqueNumber;
         return true;
     }
-    private static bool TryCreateBackendNativeIterateFragment(
+    internal static bool TryCreateBackendNativeIterateFragment(
         OperatorKey key,
         int number,
         Enumerable source,
@@ -391,7 +396,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         if(profile.UsesNativeLookup
             &&profile.TerminalKind==ProviderIterateTerminalKind.Contains
-            &&stages.All(static stage => stage.Kind==PipelineStageKind.AsEnumerable)
+            &&stages.All(stage => stage.Kind==PipelineStageKind.AsEnumerable)
             &&containsComparer is null
             &&containsValue is not null
             &&root is ProviderNativeRootBase nativeRoot
@@ -406,7 +411,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         return false;
     }
-    private static bool 関数フラグメントが利用可能か(FuncFragment funcFragment) {
+    internal bool 関数フラグメントが利用可能か(FuncFragment funcFragment) {
         if(funcFragment.CanGenerateMethod) {
             return true;
         }
@@ -437,7 +442,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// のように、入れ子の LINQ 呼び出しなら再帰的に Fragment チェーンへほどく。
     /// LINQ 呼び出しでなければ Root(sourceExpression) として扱う。
     /// </summary>
-    private static bool 列挙式フラグメント生成(SemanticModel semanticModel,ExpressionSyntax expression,INamedTypeSymbol containingType,ref int uniqueNumber,out Enumerable fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null) {
+    internal bool 列挙式フラグメント生成(SemanticModel semanticModel,ExpressionSyntax expression,INamedTypeSymbol containingType,ref int uniqueNumber,out Enumerable fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null) {
         expression=括弧除去(expression);
         if(expression is InvocationExpressionSyntax invocation
             &&呼び出し式からフラグメント生成(semanticModel,invocation,containingType,ref uniqueNumber,out var nestedFragment,out staticMethods,unsafeAccessorCollector)
@@ -453,7 +458,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 式を包む <see cref="Microsoft.CodeAnalysis.CSharp.Syntax.ParenthesizedExpressionSyntax"/> を再帰的に剥がし、内側の式を返す。
     /// Fragment 生成の前処理として呼ぶことで、<c>(source.Where(…))</c> のような余分な括弧を無視できる。
     /// </summary>
-    private static ExpressionSyntax 括弧除去(ExpressionSyntax expression) {
+    private ExpressionSyntax 括弧除去(ExpressionSyntax expression) {
         while(expression is ParenthesizedExpressionSyntax parenthesized) {
             expression=parenthesized.Expression;
         }
@@ -467,7 +472,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// Root(sourceExpression)
     /// として、メソッドチェーンの起点になる列挙ソースへ正規化する。
     /// </summary>
-    private static bool 単独列挙ソースフラグメント生成(SemanticModel semanticModel,ExpressionSyntax expression,INamedTypeSymbol containingType,ref int uniqueNumber,out Enumerable fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null) {
+    private bool 単独列挙ソースフラグメント生成(SemanticModel semanticModel,ExpressionSyntax expression,INamedTypeSymbol containingType,ref int uniqueNumber,out Enumerable fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null) {
         staticMethods=string.Empty;
         if(TryBuildKnownEnumerableRoot(semanticModel,expression,containingType,ref uniqueNumber,out fragment,unsafeAccessorCollector)) {
             return true;
@@ -509,7 +514,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    private static bool TryHoistInvariantSubexpressions(
+    private bool TryHoistInvariantSubexpressions(
         ExpressionSyntax body,
         IReadOnlyCollection<string> parameterNames,
         SemanticModel semanticModel,
@@ -525,7 +530,7 @@ public sealed partial class FLinqIncrementalGenerator {
         hoistedExpressions=Array.Empty<ExpressionSyntax>();
 
         var parameterSet = new HashSet<string>(parameterNames,StringComparer.Ordinal);
-        var candidates = body.DescendantNodesAndSelf(descendIntoChildren: static node => !IsNestedFunctionBoundary(node))
+        var candidates = body.DescendantNodesAndSelf(descendIntoChildren: node => !IsNestedFunctionBoundary(node))
             .OfType<ExpressionSyntax>()
             .Where(expr => !ReferenceEquals(expr,body))
             .Where(expr => IsMeaningfulHoistCandidate(expr,semanticModel))
@@ -542,8 +547,8 @@ public sealed partial class FLinqIncrementalGenerator {
 
         var selected = new List<(ExpressionSyntax Expression,ITypeSymbol Type)>();
         foreach(var candidate in candidates
-            .OrderByDescending(static pair => pair.Expression.Span.Length)
-            .ThenBy(static pair => pair.Expression.SpanStart)) {
+            .OrderByDescending(pair => pair.Expression.Span.Length)
+            .ThenBy(pair => pair.Expression.SpanStart)) {
             if(selected.Any(existing => SpansOverlap(existing.Expression.Span,candidate.Expression.Span))) {
                 continue;
             }
@@ -553,7 +558,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        selected=selected.OrderBy(static pair => pair.Expression.SpanStart).ToList();
+        selected=selected.OrderBy(pair => pair.Expression.SpanStart).ToList();
         var replacements = new Dictionary<string,string>(StringComparer.Ordinal);
         var locals = new List<HoistedLocal>(selected.Count);
         var accessorCodes = new List<string>();
@@ -579,20 +584,20 @@ public sealed partial class FLinqIncrementalGenerator {
         renderReplacementMap=replacements;
         hoistedLocals=locals.ToArray();
         unsafeAccessorCodes=accessorCodes.ToArray();
-        hoistedExpressions=selected.Select(static pair => pair.Expression).ToArray();
+        hoistedExpressions=selected.Select(pair => pair.Expression).ToArray();
         return true;
     }
 
-    private static bool IsNestedFunctionBoundary(SyntaxNode node) =>
+    private bool IsNestedFunctionBoundary(SyntaxNode node) =>
         node is AnonymousFunctionExpressionSyntax
             or LocalFunctionStatementSyntax;
 
-    private static bool IsInsideAnchorAccess(ExpressionSyntax expression,SemanticModel semanticModel) =>
+    private bool IsInsideAnchorAccess(ExpressionSyntax expression,SemanticModel semanticModel) =>
         expression.Ancestors()
             .OfType<MemberAccessExpressionSyntax>()
             .Any(memberAccess => AnchorAnalysis.IsAnchorAccess(memberAccess,semanticModel));
 
-    private static bool IsMeaningfulHoistCandidate(ExpressionSyntax expression,SemanticModel semanticModel) {
+    private bool IsMeaningfulHoistCandidate(ExpressionSyntax expression,SemanticModel semanticModel) {
         if(expression.Parent is InvocationExpressionSyntax invocation
             &&ReferenceEquals(invocation.Expression,expression)) {
             return false;
@@ -611,7 +616,7 @@ public sealed partial class FLinqIncrementalGenerator {
         var symbolInfo = semanticModel.GetSymbolInfo(expression);
         if(expression is MemberAccessExpressionSyntax
             &&(symbolInfo.Symbol is INamespaceOrTypeSymbol or IMethodSymbol
-                ||symbolInfo.CandidateSymbols.Any(static symbol => symbol is INamespaceOrTypeSymbol or IMethodSymbol))) {
+                ||symbolInfo.CandidateSymbols.Any(symbol => symbol is INamespaceOrTypeSymbol or IMethodSymbol))) {
             return false;
         }
         if(expression is LiteralExpressionSyntax
@@ -622,7 +627,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         if(expression is IdentifierNameSyntax identifier) {
             if(symbolInfo.Symbol is INamespaceOrTypeSymbol or IMethodSymbol
-                ||symbolInfo.CandidateSymbols.Any(static symbol => symbol is INamespaceOrTypeSymbol or IMethodSymbol)) {
+                ||symbolInfo.CandidateSymbols.Any(symbol => symbol is INamespaceOrTypeSymbol or IMethodSymbol)) {
                 return false;
             }
             return symbolInfo.Symbol is IFieldSymbol or IPropertySymbol;
@@ -630,7 +635,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    private static bool IsPredefinedTypeAlias(string text) =>
+    private bool IsPredefinedTypeAlias(string text) =>
         text is "bool"
             or "byte"
             or "sbyte"
@@ -647,9 +652,9 @@ public sealed partial class FLinqIncrementalGenerator {
             or "char"
             or "object";
 
-    private static bool ContainsDisallowedHoistNode(ExpressionSyntax expression) =>
-        expression.DescendantNodesAndSelf(descendIntoChildren: static node => !IsNestedFunctionBoundary(node))
-            .Any(static node => node is AssignmentExpressionSyntax
+    private bool ContainsDisallowedHoistNode(ExpressionSyntax expression) =>
+        expression.DescendantNodesAndSelf(descendIntoChildren: node => !IsNestedFunctionBoundary(node))
+            .Any(node => node is AssignmentExpressionSyntax
                 or AwaitExpressionSyntax
                 or ThrowExpressionSyntax
                 or AnonymousFunctionExpressionSyntax
@@ -658,25 +663,25 @@ public sealed partial class FLinqIncrementalGenerator {
                 or PrefixUnaryExpressionSyntax { RawKind: (int)SyntaxKind.PreIncrementExpression or (int)SyntaxKind.PreDecrementExpression }
                 or PostfixUnaryExpressionSyntax { RawKind: (int)SyntaxKind.PostIncrementExpression or (int)SyntaxKind.PostDecrementExpression });
 
-    private static bool ReferencesAnyLambdaParameter(
+    private bool ReferencesAnyLambdaParameter(
         ExpressionSyntax expression,
         HashSet<string> parameterNames,
         SemanticModel semanticModel) =>
-        expression.DescendantNodesAndSelf(descendIntoChildren: static node => !IsNestedFunctionBoundary(node))
+        expression.DescendantNodesAndSelf(descendIntoChildren: node => !IsNestedFunctionBoundary(node))
             .OfType<IdentifierNameSyntax>()
             .Any(identifier => semanticModel.GetSymbolInfo(identifier).Symbol is IParameterSymbol parameter
                 &&parameterNames.Contains(parameter.Name));
 
-    private static bool IsUsableHoistedType(ITypeSymbol? type) =>
+    private bool IsUsableHoistedType(ITypeSymbol? type) =>
         type is not null
         &&type.SpecialType!=SpecialType.System_Void
         &&type is not IErrorTypeSymbol
         &&!ContainsAnonymousType(type);
 
-    private static bool SpansOverlap(TextSpan left,TextSpan right) =>
+    private bool SpansOverlap(TextSpan left,TextSpan right) =>
         left.Start<right.End&&right.Start<left.End;
 
-    private static bool SymbolReferencedOutsideHoistedExpressions(
+    private bool SymbolReferencedOutsideHoistedExpressions(
         ISymbol symbol,
         ExpressionSyntax body,
         IReadOnlyCollection<ExpressionSyntax> hoistedExpressions,
@@ -687,7 +692,7 @@ public sealed partial class FLinqIncrementalGenerator {
         if(symbol is IParameterSymbol { Name: "this" }) {
             return UsesThisOutsideHoistedExpressions(body,hoistedExpressions,semanticModel);
         }
-        foreach(var identifier in body.DescendantNodesAndSelf(descendIntoChildren: static node => !IsNestedFunctionBoundary(node)).OfType<IdentifierNameSyntax>()) {
+        foreach(var identifier in body.DescendantNodesAndSelf(descendIntoChildren: node => !IsNestedFunctionBoundary(node)).OfType<IdentifierNameSyntax>()) {
             if(IsInsideHoistedExpression(identifier,hoistedExpressions)) {
                 continue;
             }
@@ -698,11 +703,11 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static bool UsesThisOutsideHoistedExpressions(
+    private bool UsesThisOutsideHoistedExpressions(
         ExpressionSyntax body,
         IReadOnlyCollection<ExpressionSyntax> hoistedExpressions,
         SemanticModel semanticModel) {
-        foreach(var node in body.DescendantNodesAndSelf(descendIntoChildren: static node => !IsNestedFunctionBoundary(node))) {
+        foreach(var node in body.DescendantNodesAndSelf(descendIntoChildren: node => !IsNestedFunctionBoundary(node))) {
             if(IsInsideHoistedExpression(node,hoistedExpressions)) {
                 continue;
             }
@@ -723,7 +728,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static bool IsInstanceMember(ISymbol symbol) =>
+    private bool IsInstanceMember(ISymbol symbol) =>
         symbol switch {
             IFieldSymbol field => !field.IsStatic,
             IPropertySymbol property => !property.IsStatic,
@@ -732,7 +737,7 @@ public sealed partial class FLinqIncrementalGenerator {
             _ => false
         };
 
-    private static bool IsInsideHoistedExpression(SyntaxNode node,IReadOnlyCollection<ExpressionSyntax> hoistedExpressions) =>
+    private bool IsInsideHoistedExpression(SyntaxNode node,IReadOnlyCollection<ExpressionSyntax> hoistedExpressions) =>
         hoistedExpressions.Any(expression =>
             node.SpanStart>=expression.SpanStart
             &&node.Span.End<=expression.Span.End);
@@ -758,7 +763,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// この場合 struct 制約 (<c>where TEnum : struct, IEnumerator&lt;T&gt;</c>) に渡せず
     /// <see cref="Linq.Fragments.DuckTypingRoot"/> で直接展開する必要がある。
     /// </summary>
-    private static (string? typeName,bool isDuckTyping) 具象エニュメレータ型名取得(ITypeSymbol? sourceType,ITypeSymbol elementType,bool useEnumerableInterface) {
+    private (string? typeName,bool isDuckTyping) 具象エニュメレータ型名取得(ITypeSymbol? sourceType,ITypeSymbol elementType,bool useEnumerableInterface) {
         if(useEnumerableInterface||sourceType is not INamedTypeSymbol namedSource) {
             return (null,false);
         }
@@ -802,7 +807,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <c>List&lt;T&gt;</c> と判定された場合は <see cref="Linq.Fragments.ListRoot"/> で
     /// <c>CollectionsMarshal.AsSpan</c> ベースの直走査を使える。
     /// </summary>
-    private static bool IsListType(ITypeSymbol? type) =>
+    private bool IsListType(ITypeSymbol? type) =>
         type is INamedTypeSymbol named
         &&named.OriginalDefinition.ToDisplayString()=="System.Collections.Generic.List<T>";
 
@@ -816,7 +821,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// </list>
     /// <c>useEnumerableInterface=false</c> の場合、<see cref="具象エニュメレータ型名取得"/> でさらに具象エニュメレータ型を探す。
     /// </summary>
-    private static bool 列挙要素型取得(ITypeSymbol? type,out ITypeSymbol elementType,out bool useEnumerableInterface) {
+    internal bool 列挙要素型取得(ITypeSymbol? type,out ITypeSymbol elementType,out bool useEnumerableInterface) {
         switch(type) {
             case IArrayTypeSymbol arrayType:
                 elementType=arrayType.ElementType;
@@ -827,7 +832,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 useEnumerableInterface=true;
                 return true;
             case INamedTypeSymbol namedType:
-                var enumerableInterface = namedType.AllInterfaces.FirstOrDefault(static candidate => IsIEnumerableType(candidate)&&candidate.TypeArguments.Length==1);
+                var enumerableInterface = namedType.AllInterfaces.FirstOrDefault(candidate => IsIEnumerableType(candidate)&&candidate.TypeArguments.Length==1);
                 if(enumerableInterface is not null) {
                     elementType=enumerableInterface.TypeArguments[0];
                     useEnumerableInterface=false;
@@ -841,7 +846,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static bool TryCreateDelegateFuncFragment(
+    private bool TryCreateDelegateFuncFragment(
         ExpressionSyntax expression,
         ITypeSymbol delegateType,
         ref int uniqueNumber,
@@ -872,8 +877,8 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         fragment=new DelegateFuncFragment(delegateTypeName,delegateFieldName,delegateConstructorArg) {
             ReturnTypeName=invoke.ReturnType.ToDisplayString(完全修飾形式),
-            ParameterTypeNames=invoke.Parameters.Select(static p => p.Type.ToDisplayString(完全修飾形式)).ToArray(),
-            ParameterNames=invoke.Parameters.Select(static p => p.Name).ToArray(),
+            ParameterTypeNames=invoke.Parameters.Select(p => p.Type.ToDisplayString(完全修飾形式)).ToArray(),
+            ParameterNames=invoke.Parameters.Select(p => p.Name).ToArray(),
             CanGenerateMethod=false,
             CanInlineAssign=false,
             BodyUnsafeAccessorCodes=delegateConstructorAccessorCodes,
@@ -890,7 +895,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 閉包付きラムダならインライン代入だけ許可する。
     /// delegate 変数がラムダ / anonymous delegate 初期化なら、その初期化式へ戻して同じ規則で処理する。
     /// </summary>
-    private static bool 関数式フラグメント生成(
+    internal bool 関数式フラグメント生成(
         ExpressionSyntax expression,
         ITypeSymbol delegateType,
         ref int uniqueNumber,
@@ -947,7 +952,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 var returnTypeSym = funcTypeSym.TypeArguments[funcTypeSym.TypeArguments.Length-1];
                 var returnTypeName = ReplaceAnonymousTypesWithTResult(returnTypeSym);
                 var paramTypeNames = funcTypeSym.TypeArguments.Take(funcTypeSym.TypeArguments.Length-1)
-                    .Select(static t => t.ToDisplayString(完全修飾形式)).ToArray();
+                    .Select(t => t.ToDisplayString(完全修飾形式)).ToArray();
                 var lambdaParamNames = GetLambdaParameters(lambda).ToArray();
                 var anonCapturedLocals = Array.Empty<(string Name,string TypeName)>();
                 var anonBodyAccessorCodes = Array.Empty<string>();
@@ -1151,7 +1156,7 @@ public sealed partial class FLinqIncrementalGenerator {
                     &&semanticModel is not null&&containingType is not null) {
                     var anonReturnTypeName = ReplaceAnonymousTypesWithTResult(anonFuncType.TypeArguments[anonFuncType.TypeArguments.Length-1]);
                     var anonParamTypeNames = anonFuncType.TypeArguments.Take(anonFuncType.TypeArguments.Length-1)
-                        .Select(static t => t.ToDisplayString(完全修飾形式)).ToArray();
+                        .Select(t => t.ToDisplayString(完全修飾形式)).ToArray();
                     var anonParamNames = GetAnonymousMethodParameters(anonymousMethod).ToArray();
                     var anonDelegateTypeName = $"global::System.Func<{string.Join(", ",anonParamTypeNames.Append(anonReturnTypeName))}>";
                     var anonFieldName = $"_anonDel{uniqueNumber++}";
@@ -1241,14 +1246,14 @@ public sealed partial class FLinqIncrementalGenerator {
     /// source generator の生成コードを検証する。
     /// source generator の生成コードを検証する。
     /// </summary>
-    private static bool TryBuildRegistryMappedLambdaFunc(
+    private bool TryBuildRegistryMappedLambdaFunc(
         LambdaExpressionSyntax lambda,
         ITypeSymbol delegateType,
         SemanticModel? semanticModel,
         INamedTypeSymbol? containingType,
         out FuncFragment fragment) {
         fragment=null!;
-        var registry = _anonRegistry;
+        var registry = this.state.AnonymousRegistry;
         if(registry is null||semanticModel is null||containingType is null) {
             return false;
         }
@@ -1334,7 +1339,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <br/>例1: GroupBy key selector <c>p=&gt;p</c> (identity) → <c>(struct_rec p)=&gt;new{p.field,...}</c>
     /// <br/>例2: GroupBy element selector <c>p=&gt;new{{x=p}}</c> → <c>(struct_rec p)=&gt;new{{x=new{{p.field,...}}}}</c>
     /// </summary>
-    private static bool TryBuildAnonExitDelegateFuncFragment(
+    private bool TryBuildAnonExitDelegateFuncFragment(
         LambdaExpressionSyntax lambda,
         ITypeSymbol delegateType,
         ref int uniqueNumber,
@@ -1342,7 +1347,7 @@ public sealed partial class FLinqIncrementalGenerator {
         SemanticModel? semanticModel,
         INamedTypeSymbol? containingType) {
         fragment=null!;
-        var registry = _anonRegistry;
+        var registry = this.state.AnonymousRegistry;
         if(registry is null||semanticModel is null||containingType is null) {
             return false;
         }
@@ -1386,7 +1391,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 .ToArray();
         }
         // 引数を struct record 型で明示したラムダ式を組み立てて、デリゲートとして格納する。
-        var paramDecls = parameters.Zip(paramTypeNames,static (n,t) => $"{t} {n}");
+        var paramDecls = parameters.Zip(paramTypeNames,(n,t) => $"{t} {n}");
         var delegateLambda = $"({string.Join(",",paramDecls)})=>{bodyText}";
         var allTypeNames = paramTypeNames.Append("TResult");
         var delegateTypeName2 = $"global::System.Func<{string.Join(",",allTypeNames)}>";
@@ -1412,7 +1417,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <br/><c>field</c> / <c>this.field</c> / <c>Type.field</c> のいずれの参照形でも対象にする。
     /// <br/>delegate 変数呼び出しを delegate Invoke として残す経路は作らない。
     /// </summary>
-    private static bool TryGetInlineableDelegateVariableInitializer(
+    private bool TryGetInlineableDelegateVariableInitializer(
         ExpressionSyntax expression,
         SemanticModel? semanticModel,
         out ExpressionSyntax initializerExpression) {
@@ -1434,7 +1439,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    private static InvalidOperationException LambdaInlineException(
+    private InvalidOperationException LambdaInlineException(
         LambdaExpressionSyntax lambda,
         SemanticModel? semanticModel,
         string reason,
@@ -1451,7 +1456,7 @@ public sealed partial class FLinqIncrementalGenerator {
     // Sum/ToList/ToArray/ToDictionary など直接実行のみの PipelineTerminal は enumerator 式を作れず
     // GetEnumeratorExpression が NotSupportedException を投げるため、その場合は InlinedScalarFunc 化を諦め、
     // 呼び出し元で生のラムダ本体テキスト（実行時 LINQ-to-objects）として残す（Method 版と同じ挙動）。
-    private static bool ScalarFragmentSupportsInlineEnumeration(Fragment scalarFragment) {
+    private bool ScalarFragmentSupportsInlineEnumeration(Fragment scalarFragment) {
         try {
             _=scalarFragment.GetEnumeratorExpression;
             return true;
@@ -1459,7 +1464,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
     }
-    private static bool TryFindSystemLinqInvocation(
+    private bool TryFindSystemLinqInvocation(
         SyntaxNode node,
         SemanticModel semanticModel,
         out InvocationExpressionSyntax invocation,
@@ -1478,23 +1483,23 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static List<string> 未対応Enumerableメソッド一覧取得(Linq傍受対象型 target) {
+    internal static List<string> 未対応Enumerableメソッド一覧取得(Linq傍受対象型 target) {
         // ローカルメソッド全体を再構成する前に、Fragment クラス自体が存在しない Enumerable メソッド名を列挙する。
         // 「System.Linq.Enumerable を含むメソッドは全部 intercept する」が前提なので、
         // 未対応メソッドは target から落とすのではなく、生成 interceptor から例外で見えるようにする。
         return target.LinqAnalysis.UnsupportedMethods.ToList();
     }
 
-    private static bool Enumerableメソッドがフラグメント対応済みか(string methodName)
+    internal static bool Enumerableメソッドがフラグメント対応済みか(string methodName)
        => methodName=="Any"||methodName=="TryGetNonEnumeratedCount"||IsKnownEnumerableRootMethod(methodName)||OperatorRegistry.IsKnownEnumerableMethodName(methodName);
 
-    private static bool IsKnownEnumerableRootMethod(string methodName) => OperatorRegistry.IsRootMethodName(methodName);
+    internal static bool IsKnownEnumerableRootMethod(string methodName) => OperatorRegistry.IsRootMethodName(methodName);
 
-    private static bool IsKnownEnumerableRootMethod(IMethodSymbol method) =>
+    internal static bool IsKnownEnumerableRootMethod(IMethodSymbol method) =>
         method.ContainingType.ToDisplayString()=="System.Linq.Enumerable"
         &&OperatorRegistry.IsRootMethodName(method.Name);
 
-    private static Enumerable CreateRootEnumerableFragment(string sourceExpression,string elementType,string enumeratorTypeName,bool useEnumerableInterface,int 番号) {
+    private Enumerable CreateRootEnumerableFragment(string sourceExpression,string elementType,string enumeratorTypeName,bool useEnumerableInterface,int 番号) {
         return new Root(
             番号,
             sourceExpression,
@@ -1503,7 +1508,7 @@ public sealed partial class FLinqIncrementalGenerator {
             useEnumerableInterface);
     }
 
-    private static bool TryBuildKnownEnumerableRoot(
+    private bool TryBuildKnownEnumerableRoot(
         SemanticModel semanticModel,
         ExpressionSyntax expression,
         INamedTypeSymbol containingType,
@@ -1540,7 +1545,7 @@ public sealed partial class FLinqIncrementalGenerator {
             replacementMap);
     }
 
-    private static bool TryBuildKnownEnumerableRootFromSystemInvocation(
+    private bool TryBuildKnownEnumerableRootFromSystemInvocation(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
         IMethodSymbol method,
@@ -1562,14 +1567,15 @@ public sealed partial class FLinqIncrementalGenerator {
             containingType,
             uniqueNumber,
             unsafeAccessorCollector,
-            replacementMap);
+            replacementMap,
+            this);
         if(!OperatorRegistry.TryCreateRoot(context,out fragment)) {
             return false;
         }
         uniqueNumber=context.UniqueNumber;
         return true;
     }
-    private static bool TryBuildKnownEnumerableRootFromOrdinaryMethod(
+    private bool TryBuildKnownEnumerableRootFromOrdinaryMethod(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
         IMethodSymbol method,
@@ -1583,7 +1589,7 @@ public sealed partial class FLinqIncrementalGenerator {
         if(definition.MethodKind!=MethodKind.Ordinary
             ||!CanInlineOrdinaryEnumerableRootMethod(definition)
             ||definition.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax methodSyntax
-            ||invocation.ArgumentList.Arguments.Any(static argument => !argument.RefKindKeyword.IsKind(SyntaxKind.None))
+            ||invocation.ArgumentList.Arguments.Any(argument => !argument.RefKindKeyword.IsKind(SyntaxKind.None))
             ||!TryGetSingleExpressionBody(methodSyntax,out var bodyExpression)) {
             return false;
         }
@@ -1669,7 +1675,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static bool CanInlineOrdinaryEnumerableRootMethod(IMethodSymbol method) {
+    private bool CanInlineOrdinaryEnumerableRootMethod(IMethodSymbol method) {
         if(method.IsAbstract) {
             return false;
         }
@@ -1681,7 +1687,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    private static bool TryBuildTransparentParameterEnumerableRoot(
+    private bool TryBuildTransparentParameterEnumerableRoot(
         SemanticModel invocationSemanticModel,
         InvocationExpressionSyntax invocation,
         IMethodSymbol methodDefinition,
@@ -1722,7 +1728,7 @@ public sealed partial class FLinqIncrementalGenerator {
             replacementMap);
     }
 
-    private static bool TryGetInvocationArgumentExpression(
+    internal static bool TryGetInvocationArgumentExpression(
         IMethodSymbol methodDefinition,
         InvocationExpressionSyntax invocation,
         int parameterIndex,
@@ -1766,7 +1772,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static ExpressionSyntax StripParenthesesForRootInlining(ExpressionSyntax expression) {
+    private ExpressionSyntax StripParenthesesForRootInlining(ExpressionSyntax expression) {
         while(expression is ParenthesizedExpressionSyntax parenthesized) {
             expression=parenthesized.Expression;
         }
@@ -1774,7 +1780,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return expression;
     }
 
-    private static bool TryGetEnumerableElementTypeForRootInlining(ITypeSymbol? type,out ITypeSymbol elementType,out bool useEnumerableInterface) {
+    private bool TryGetEnumerableElementTypeForRootInlining(ITypeSymbol? type,out ITypeSymbol elementType,out bool useEnumerableInterface) {
         switch(type) {
             case IArrayTypeSymbol arrayType:
                 elementType=arrayType.ElementType;
@@ -1785,7 +1791,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 useEnumerableInterface=true;
                 return true;
             case INamedTypeSymbol namedType:
-                var enumerableInterface = namedType.AllInterfaces.FirstOrDefault(static candidate => IsIEnumerableType(candidate)&&candidate.TypeArguments.Length==1);
+                var enumerableInterface = namedType.AllInterfaces.FirstOrDefault(candidate => IsIEnumerableType(candidate)&&candidate.TypeArguments.Length==1);
                 if(enumerableInterface is not null) {
                     elementType=enumerableInterface.TypeArguments[0];
                     useEnumerableInterface=false;
@@ -1799,7 +1805,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static (string? typeName,bool isDuckTyping) GetConcreteEnumeratorTypeForRootInlining(ITypeSymbol? sourceType,ITypeSymbol elementType,bool useEnumerableInterface) {
+    private (string? typeName,bool isDuckTyping) GetConcreteEnumeratorTypeForRootInlining(ITypeSymbol? sourceType,ITypeSymbol elementType,bool useEnumerableInterface) {
         if(useEnumerableInterface||sourceType is not INamedTypeSymbol namedSource) {
             return (null,false);
         }
@@ -1827,7 +1833,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return (typeName,isDuckTyping: !implementsIEnumerator);
     }
 
-    private static string RenderExpressionForRootInlining(
+    private string RenderExpressionForRootInlining(
         ExpressionSyntax expression,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -1837,7 +1843,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return ApplyExpressionReplacementMap(text,replacementMap);
     }
 
-    private static bool TryBuildEnumerableRootFromExpressionWithReplacement(
+    internal bool TryBuildEnumerableRootFromExpressionWithReplacement(
         SemanticModel semanticModel,
         ExpressionSyntax expression,
         INamedTypeSymbol containingType,
@@ -1883,7 +1889,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    private static Enumerable CreateSourceRoot(
+    private Enumerable CreateSourceRoot(
         ITypeSymbol? expressionType,
         int number,
         string sourceExpression,
@@ -1916,7 +1922,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return CreateRootEnumerableFragment(sourceExpression,elementTypeName,enumeratorTypeName,useEnumerableInterface,number);
     }
 
-    private static bool TryBuildKnownEnumerableRootFromCollectionExpression(
+    private bool TryBuildKnownEnumerableRootFromCollectionExpression(
         SemanticModel semanticModel,
         CollectionExpressionSyntax collectionExpression,
         IMethodSymbol method,
@@ -1949,7 +1955,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static bool TryGetCollectionExpressionElementType(ITypeSymbol type,out ITypeSymbol elementType) {
+    private bool TryGetCollectionExpressionElementType(ITypeSymbol type,out ITypeSymbol elementType) {
         switch(type) {
             case IArrayTypeSymbol arrayType:
                 elementType=arrayType.ElementType;
@@ -1958,7 +1964,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 elementType=namedType.TypeArguments[0];
                 return true;
             case INamedTypeSymbol namedType:
-                var enumerableInterface = namedType.AllInterfaces.FirstOrDefault(static candidate => IsIEnumerableType(candidate)&&candidate.TypeArguments.Length==1);
+                var enumerableInterface = namedType.AllInterfaces.FirstOrDefault(candidate => IsIEnumerableType(candidate)&&candidate.TypeArguments.Length==1);
                 if(enumerableInterface is not null) {
                     elementType=enumerableInterface.TypeArguments[0];
                     return true;
@@ -1970,7 +1976,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static bool TryGetSingleExpressionBody(MethodDeclarationSyntax methodSyntax,out ExpressionSyntax expression) {
+    private bool TryGetSingleExpressionBody(MethodDeclarationSyntax methodSyntax,out ExpressionSyntax expression) {
         if(methodSyntax.ExpressionBody is { Expression: var expressionBody }) {
             expression=expressionBody;
             return true;
@@ -1987,7 +1993,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static Dictionary<string,string> BuildInlineEnumerableRootReplacementMap(
+    private Dictionary<string,string> BuildInlineEnumerableRootReplacementMap(
         IMethodSymbol method,
         InvocationExpressionSyntax invocation,
         MethodDeclarationSyntax methodSyntax,
@@ -2031,7 +2037,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return replacementMap;
     }
 
-    private static string GetInlineEnumerableRootReceiverText(
+    private string GetInlineEnumerableRootReceiverText(
         InvocationExpressionSyntax invocation,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -2041,28 +2047,28 @@ public sealed partial class FLinqIncrementalGenerator {
             : "@this";
     }
 
-    private static string RenderFieldAccessorCall(IFieldSymbol field,string receiverText,List<string>? unsafeAccessorCollector) {
+    private string RenderFieldAccessorCall(IFieldSymbol field,string receiverText,List<string>? unsafeAccessorCollector) {
         var accessorName = $"__Field_{SanitizeIdentifier(field.ContainingType.Name)}_{SanitizeIdentifier(field.Name)}";
         var targetTypeName = field.ContainingType.ToDisplayString(完全修飾形式);
         var fieldTypeName = field.Type.ToDisplayString(完全修飾形式);
-        var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = \"{field.Name}\")]\nprivate static extern ref {fieldTypeName} {accessorName}({targetTypeName} @this);";
+        var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Field, Name = \"{field.Name}\")]\nprivate extern ref {fieldTypeName} {accessorName}({targetTypeName} @this);";
         unsafeAccessorCollector?.Add(accessorCode);
         return $"{accessorName}({receiverText})";
     }
 
     // ブロックが「単一の値付き return 文だけ」かどうか。これに該当するものは式インライン（LambdaFunc）で扱う。
-    private static bool IsSingleReturnBlock(BlockSyntax block) =>
+    private bool IsSingleReturnBlock(BlockSyntax block) =>
         block.Statements.Count==1&&block.Statements[0] is ReturnStatementSyntax { Expression: not null };
 
     /// <summary><c>delegate(params) {}</c> のパラメータ名リストを返す。引数リストがない場合は空リスト。</summary>
-    private static List<string> GetAnonymousMethodParameters(AnonymousMethodExpressionSyntax anonymousMethod) =>
+    private List<string> GetAnonymousMethodParameters(AnonymousMethodExpressionSyntax anonymousMethod) =>
         anonymousMethod.ParameterList?.Parameters
-            .Select(static parameter => parameter.Identifier.ValueText)
+            .Select(parameter => parameter.Identifier.ValueText)
             .ToList()??new List<string>();
 
     // 複数文ブロック本体（try-catch 含む）を文インライン展開する BlockFunc を構築する。
     // return 文は __Tsavorite_DEST__ への代入 + goto __Tsavorite_LABEL__ へ書き換える。
-    private static bool TryBuildBlockFunc(
+    private bool TryBuildBlockFunc(
         BlockSyntax block,
         IReadOnlyList<string> parameters,
         ITypeSymbol delegateType,
@@ -2182,7 +2188,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 本体が式本体か単一 <c>return</c> 文の場合のみ成功する。
     /// source generator の生成コードを検証する。
     /// </summary>
-    private static bool TryCreateLambdaFuncFragment(LambdaExpressionSyntax lambda,ITypeSymbol delegateType,out LambdaSpec fragment) {
+    private bool TryCreateLambdaFuncFragment(LambdaExpressionSyntax lambda,ITypeSymbol delegateType,out LambdaSpec fragment) {
         fragment=null!;
         if(!TryGetLambdaExpressionBody(lambda,out var body)) {
             return false;
@@ -2216,7 +2222,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <c>delegate(params) { return expr; }</c> の単一 return 本体から <see cref="LambdaSpec"/> を抽出する。
     /// 複数文ブロックや戻り値なし本体は失敗する（<see cref="TryBuildBlockFunc"/> の対象になる）。
     /// </summary>
-    private static bool TryCreateAnonymousMethodFuncFragment(
+    private bool TryCreateAnonymousMethodFuncFragment(
         AnonymousMethodExpressionSyntax anonymousMethod,
         ITypeSymbol delegateType,
         out LambdaSpec fragment,
@@ -2239,7 +2245,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         var parameters = anonymousMethod.ParameterList?.Parameters
-            .Select(static parameter => parameter.Identifier.ValueText)
+            .Select(parameter => parameter.Identifier.ValueText)
             .ToArray()??new string[0];
         var typeArguments = funcType.TypeArguments.Select(typeArgument => typeArgument.ToDisplayString(完全修飾形式)).ToArray();
         var parameterTypeNames = typeArguments.Take(typeArguments.Length-1).ToArray();
@@ -2256,7 +2262,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    private static bool IsInlineDelegateType(INamedTypeSymbol namedType) {
+    internal static bool IsInlineDelegateType(INamedTypeSymbol namedType) {
         // SelectMany では selector が IEnumerable<T> を返すため、
         // 戻り値がシーケンスでも FuncFragment 化できるようにしておく。
         // 実際にどの Fragment で受け入れるかは後段の候補選択側で決まる。
@@ -2265,22 +2271,22 @@ public sealed partial class FLinqIncrementalGenerator {
     }
 
     /// <summary>型が <c>System.Collections.Generic.IEnumerable&lt;T&gt;</c> そのものかを判定する。</summary>
-    private static bool IsIEnumerableType(INamedTypeSymbol namedType)
+    internal static bool IsIEnumerableType(INamedTypeSymbol namedType)
        => namedType.ContainingNamespace.ToDisplayString()=="System.Collections.Generic"
             &&namedType.MetadataName=="IEnumerable`1";
 
     /// <summary>型またはその実装インターフェースに非ジェネリック <c>System.Collections.IEnumerable</c> が含まれるかを判定する。</summary>
-    private static bool IsNonGenericIEnumerableType(ITypeSymbol? type)
+    internal static bool IsNonGenericIEnumerableType(ITypeSymbol? type)
        => type is INamedTypeSymbol namedType
             &&(IsNonGenericIEnumerableType(namedType)
                 ||namedType.AllInterfaces.Any(IsNonGenericIEnumerableType));
 
     /// <summary>型が <c>System.Collections.IEnumerable</c>（非ジェネリック）そのものかを判定する。</summary>
-    private static bool IsNonGenericIEnumerableType(INamedTypeSymbol namedType)
+    internal static bool IsNonGenericIEnumerableType(INamedTypeSymbol namedType)
        => namedType.ContainingNamespace.ToDisplayString()=="System.Collections"
             &&namedType.MetadataName=="IEnumerable";
 
-    private static bool ContainsAnonymousType(ITypeSymbol type) {
+    internal static bool ContainsAnonymousType(ITypeSymbol type) {
         if(type.IsAnonymousType) {
             return true;
         }
@@ -2295,7 +2301,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
     // 匿名型を "TResult" ジェネリック型パラメータに置き換えた型名を返す。
     // 例: TAnon → "TResult", IEnumerable<TAnon> → "global::System.Collections.Generic.IEnumerable<TResult>"
-    private static string ReplaceAnonymousTypesWithTResult(ITypeSymbol type) {
+    private string ReplaceAnonymousTypesWithTResult(ITypeSymbol type) {
         if(type.IsAnonymousType) return "TResult";
         if(type is INamedTypeSymbol named&&named.TypeArguments.Any(ContainsAnonymousType)) {
             var openName = OpenGenericTypeName(named);
@@ -2323,7 +2329,7 @@ public sealed partial class FLinqIncrementalGenerator {
         if(ownParams.IsDefaultOrEmpty) {
             return ContainsTypeParameter(type);
         }
-        var ownNames = new HashSet<string>(ownParams.Select(static p => p.Name),StringComparer.Ordinal);
+        var ownNames = new HashSet<string>(ownParams.Select(p => p.Name),StringComparer.Ordinal);
         return ContainsExternalTypeParameterCore(type,ownNames);
     }
 
@@ -2334,7 +2340,7 @@ public sealed partial class FLinqIncrementalGenerator {
         _ => false,
     };
 
-    private static bool ContainsGeneratedTypeAccessibilityRisk(ITypeSymbol type) {
+    internal static bool ContainsGeneratedTypeAccessibilityRisk(ITypeSymbol type) {
         // 生成クラスから見えない型がどこかに混ざると署名生成時点でコンパイル不能になる。
         return type switch {
             IArrayTypeSymbol arrayType => ContainsGeneratedTypeAccessibilityRisk(arrayType.ElementType),
@@ -2361,7 +2367,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 式本体ラムダ（<c>x =&gt; expr</c>）はそのまま、単一 <c>return</c> 文ブロック（<c>x =&gt; { return expr; }</c>）は
     /// return の式を返す。それ以外は false。
     /// </summary>
-    private static bool TryGetLambdaExpressionBody(LambdaExpressionSyntax lambda,out ExpressionSyntax body) {
+    private bool TryGetLambdaExpressionBody(LambdaExpressionSyntax lambda,out ExpressionSyntax body) {
         body=null!;
         if(lambda.Body is ExpressionSyntax expressionBody) {
             body=expressionBody;
@@ -2379,13 +2385,14 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
     /// <summary>ラムダ式のパラメータ名リストを返す。単純ラムダは 1 要素、括弧ラムダは全パラメータ名。</summary>
-    private static List<string> GetLambdaParameters(LambdaExpressionSyntax lambda) {
+    private List<string> GetLambdaParameters(LambdaExpressionSyntax lambda) {
         if(lambda is SimpleLambdaExpressionSyntax simpleLambda) {
             return new List<string> { simpleLambda.Parameter.Identifier.ValueText };
         }
         if(lambda is ParenthesizedLambdaExpressionSyntax parenthesizedLambda) {
-            return parenthesizedLambda.ParameterList.Parameters.Select(static parameter => parameter.Identifier.ValueText).ToList();
+            return parenthesizedLambda.ParameterList.Parameters.Select(parameter => parameter.Identifier.ValueText).ToList();
         }
         return new List<string>();
     }
+}
 }

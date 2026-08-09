@@ -112,3 +112,37 @@ classDiagram
     RootOperatorDescriptor~TFragment~ --> RootFactoryContext
     IOperatorDescriptor --> OperatorKey
 ```
+## FLinq 第1段階の対象単位状態
+
+```mermaid
+classDiagram
+    class GenerationState {
+      +Target
+      +Configuration
+      +Trace
+      +AnonymousRegistry
+      +UsedIdentifiers
+      +GeneratedFragments
+      +UnsafeAccessorCodes
+    }
+    class FragmentBuildContext {
+      +SemanticModel
+      +ContainingType
+      +UniqueNumber
+    }
+    class LinqConfigurationResolver
+    class LinqTargetDiscoveryService
+    class LinqExpressionAnalyzer
+    class LinqOptimizationExecutor
+    class LinqFragmentBuilder
+    class GeneratedSourceRenderer
+    class GenerationPipeline
+
+    GenerationState --> FragmentBuildContext
+    LinqConfigurationResolver --> GenerationState
+    LinqTargetDiscoveryService --> LinqExpressionAnalyzer
+    LinqFragmentBuilder --> GenerationPipeline
+    LinqFragmentBuilder --> FragmentBuildContext
+    LinqOptimizationExecutor --> GenerationPipeline
+    GeneratedSourceRenderer --> GenerationState
+```

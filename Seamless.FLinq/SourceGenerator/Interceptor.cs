@@ -65,7 +65,7 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
         var discoveryResults = context.SyntaxProvider
             .CreateSyntaxProvider(
                 static (node,_) => node is InvocationExpressionSyntax,
-                static (syntaxContext,cancellationToken) => Linq傍受対象生成(syntaxContext,cancellationToken))
+                static (syntaxContext,cancellationToken) => LinqTargetDiscoveryService.Discover(syntaxContext,cancellationToken))
             .Where(static result => result is not null)
             .Select(static (result,_) => result!);
         var interceptTargets = discoveryResults
@@ -114,7 +114,7 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
 
         context.RegisterSourceOutput(perFileGroups,static (productionContext,group) => {
             var diagnostics = new List<Diagnostic>();
-            var source = インターセプターソース構築(group.Targets,diagnostics,out var traceDocuments);
+            var source = GeneratedSourceRenderer.Render(group.Targets,diagnostics,out var traceDocuments);
             var hintName=インターセプターHintName取得(group.SourcePath);
             if(source.Length>0) {
                 productionContext.AddSource(hintName,SourceText.From(source,Encoding.UTF8));

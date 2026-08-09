@@ -1406,3 +1406,11 @@ flowchart TD
 - buffering stage は stage 特性どおりの buffer を 1 系統だけ持ち、不要な二重 list を作らない。
 - Fragment-backed boundary では Pipeline を flush し、責務を Fragment 側へ渡す。
 
+
+## 2026-08-10 第1段階の責務分離
+
+既存Fragment/Pipeline IRは保持したまま、対象発見時に解決した設定を不変の対象モデルへ保存し、対象メソッド単位の `GenerationState` を生成する。`GenerationState` は匿名record registry、識別子、Fragment、UnsafeAccessor、最適化traceを所有するため、ThreadStaticな最適化・型パラメーター・匿名型registry状態を使用しない。
+
+通常経路は `LinqTargetDiscoveryService` → `LinqExpressionAnalyzer` → `LinqOptimizationExecutor` → `LinqFragmentBuilder` → `GeneratedSourceRenderer` とする。各サービスはinternalであり外部拡張点ではない。出力は引き続き入力ファイル単位であり、Hint名、診断順、Incremental Cacheの分離を維持する。
+
+closure/enumerator/文字列組立の再設計は第2段階とし、本段階では評価順、例外、Dispose、Provider順序を変えない。

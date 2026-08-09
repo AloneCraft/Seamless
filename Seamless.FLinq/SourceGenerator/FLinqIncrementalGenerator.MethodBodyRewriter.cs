@@ -7,15 +7,16 @@ using Enumerable = Seamless.FLinq.Enumerable;
 namespace Seamless.FLinq;
 
 public sealed partial class FLinqIncrementalGenerator {
+    internal sealed partial class GenerationPipeline {
 
     // 傍受メソッドへ移した含有型（例: Base<T>）の型パラメータ名。
     // 生成する補助 struct を <T> でパラメータ化するために Fragment ツリーへ伝播する。
     // 非ジェネリック含有型では空配列。
-    // InterceptedMethodTypeParameterContext が有効なら、含有型の階層に加えて
+    // 対象単位のGenerationStateに型パラメーターがあれば、含有型の階層に加えて
     // 傍受対象メソッド自身の型パラメータ（例: FormatGroupBy<T> の T）も含めた値を優先する。
-    private static string[] 外側型パラメータ名(INamedTypeSymbol containingType) {
-        if(InterceptedMethodTypeParameterContext.Current is { } ambient) {
-            return ambient;
+    private string[] 外側型パラメータ名(INamedTypeSymbol containingType) {
+        if(this.state.Target.MethodTypeParameters.Length>0) {
+            return this.state.Target.MethodTypeParameters;
         }
         var containingTypes = new Stack<INamedTypeSymbol>();
         for(var current = containingType;current is not null;current=current.ContainingType) {
@@ -41,7 +42,7 @@ public sealed partial class FLinqIncrementalGenerator {
     ///   <item><description>Fragment ツリーおよびソース式から UnsafeAccessor 宣言を収集し、クラス直下用の <c>静的メソッド群</c> に追記する。</description></item>
     /// </list>
     /// </summary>
-    private static bool ローカル傍受メソッド本体構築(Linq傍受対象型 対象,out string 静的メソッド群,out string 本体,HashSet<string>? emittedUnsafeAccessors = null) {
+    internal bool TryBuildLocalMethodBody(Linq傍受対象型 対象,out string 静的メソッド群,out string 本体,HashSet<string>? emittedUnsafeAccessors = null) {
         静的メソッド群=string.Empty;
         本体=string.Empty;
 
@@ -71,7 +72,9 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         var セマンティックモデル = 対象.SemanticModel.Compilation.GetSemanticModel(メソッド構文.SyntaxTree);
-        var usedNames = CollectMethodBodyIdentifiers(メソッド構文,対象.Method);
+        var usedNames=this.state.UsedIdentifiers;
+        usedNames.Clear();
+        usedNames.UnionWith(CollectMethodBodyIdentifiers(メソッド構文,対象.Method));
         var sourceUnsafeAccessorCollector = new List<string>();
         var generatedFragments = new List<Fragment>();
         var 本体ビルダー = new StringBuilder();
@@ -131,7 +134,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    private static bool UnsafeAccessorIsReferenced(string accessorCode,string generatedCode) {
+    private bool UnsafeAccessorIsReferenced(string accessorCode,string generatedCode) {
         var match = System.Text.RegularExpressions.Regex.Match(
             accessorCode,
             @"\b(__[A-Za-z0-9_]+)(?:<[^>\r\n]+>)?\s*\(",
@@ -149,7 +152,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// </list>
     /// <see cref="GetUniqueIdentifier"/> で enumerator 変数名・current 変数名の衝突を避ける。
     /// </summary>
-    private static bool フラグメント実行文追加(StringBuilder builder,Fragment fragment,string actualVariableName,string actualTypeName,HashSet<string> usedNames) {
+    private bool フラグメント実行文追加(StringBuilder builder,Fragment fragment,string actualVariableName,string actualTypeName,HashSet<string> usedNames) {
         var suffix = SanitizeIdentifier(actualVariableName);
         var enumeratorName = GetUniqueIdentifier($"e_{suffix}",usedNames);
         var currentName = GetUniqueIdentifier($"c_{suffix}",usedNames);
@@ -193,12 +196,12 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 含まない <see cref="Scalar.InlineSupportingMembers"/> を、そうでなければ従来の <c>GetEnumeratorStruct</c> を返す。
     /// <see cref="フラグメント実行文追加"/> のインライン判定と一致させて補助メンバの過不足を防ぐ。
     /// </summary>
-    private static string スカラー対応補助メンバー取得(Fragment fragment,string varName,string typeName) =>
+    private string スカラー対応補助メンバー取得(Fragment fragment,string varName,string typeName) =>
         fragment is Scalar sc&&sc.RenderInlineComputation(varName,typeName) is not null
             ? sc.InlineSupportingMembers
             : fragment.GetEnumeratorStruct;
 
-    private static void ApplyCounterInstrumentation(Fragment fragment,SemanticModel semanticModel,SyntaxNode node) {
+    private void ApplyCounterInstrumentation(Fragment fragment,SemanticModel semanticModel,SyntaxNode node) {
         if(!IsCounterInstrumentationEnabled(semanticModel,node)) {
             return;
         }
@@ -206,7 +209,7 @@ public sealed partial class FLinqIncrementalGenerator {
         fragment.SetCounterInstrumentation(true);
     }
 
-    private static bool IsCounterInstrumentationEnabled(SemanticModel semanticModel,SyntaxNode node) {
+    private bool IsCounterInstrumentationEnabled(SemanticModel semanticModel,SyntaxNode node) {
         var methodDeclaration = node.AncestorsAndSelf().OfType<MethodDeclarationSyntax>().FirstOrDefault();
         if(methodDeclaration is null
             ||semanticModel.GetDeclaredSymbol(methodDeclaration) is not IMethodSymbol method) {
@@ -233,7 +236,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// Fragment を構築し、消費ループの組み立ては <see cref="Enumerable.GetConsumeExecutionStatement"/> に委譲する。
     /// span 直走査などの最適化は各 Fragment 側に存在する（コード片は Fragment が持つ原則）。
     /// </summary>
-    private static bool 直接Consumeループ文生成(
+    private bool 直接Consumeループ文生成(
         ExpressionStatementSyntax statement,
         InvocationExpressionSyntax linqInvocation,
         SemanticModel semanticModel,
@@ -296,7 +299,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    private static bool 直接Consume式生成(
+    private bool 直接Consume式生成(
         InvocationExpressionSyntax consumeInvocation,
         InvocationExpressionSyntax linqInvocation,
         SemanticModel semanticModel,
@@ -444,7 +447,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static bool IsScalarConsumeMaterializeTerminal(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
+    private bool IsScalarConsumeMaterializeTerminal(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
         if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) {
             return false;
         }
@@ -457,7 +460,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return definition.Name is "ToArray" or "ToList" or "ToHashSet" or "ToDictionary" or "ToLookup";
     }
 
-    private static bool TryGetDirectConsumeConsumerExpression(
+    private bool TryGetDirectConsumeConsumerExpression(
         InvocationExpressionSyntax consumeInvocation,
         InvocationExpressionSyntax linqInvocation,
         out ExpressionSyntax consumerExpression) {
@@ -479,10 +482,10 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static bool SyntaxExpressionMatches(ExpressionSyntax expression,ExpressionSyntax other) =>
+    private bool SyntaxExpressionMatches(ExpressionSyntax expression,ExpressionSyntax other) =>
         NormalizeExpressionText(StripConsumeParentheses(expression).ToString())==NormalizeExpressionText(StripConsumeParentheses(other).ToString());
 
-    private static ExpressionSyntax StripConsumeParentheses(ExpressionSyntax expression) {
+    private ExpressionSyntax StripConsumeParentheses(ExpressionSyntax expression) {
         while(expression is ParenthesizedExpressionSyntax parenthesized) {
             expression=parenthesized.Expression;
         }
@@ -501,7 +504,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// </list>
     /// 1 文でも false を返した時点でメソッド全体の再構成を中止する。
     /// </summary>
-    private static bool 文を生成コードへ変換(
+    private bool 文を生成コードへ変換(
         StatementSyntax statement,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -556,7 +559,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 既に <see cref="BlockSyntax"/> の場合は <see cref="文を生成コードへ変換"/> 自身が <c>{ }</c> を出力するため、
     /// そのまま委譲する（二重 <c>{ }</c> を避ける）。
     /// </summary>
-    private static bool 本体文生成(
+    private bool 本体文生成(
         StatementSyntax statement,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -584,7 +587,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// try ブロック・各 catch ブロック・finally ブロックをそれぞれ <see cref="文を生成コードへ変換"/> で再帰処理する。
     /// catch 宣言・catch フィルター (<c>when</c>) はソーステキストをそのまま出力する。
     /// </summary>
-    private static bool Try文生成(
+    private bool Try文生成(
         TryStatementSyntax statement,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -630,7 +633,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 式の場合は <see cref="RenderExpressionForGeneratedMethod"/> でレンダリングする。
     /// 本体は <see cref="文を生成コードへ変換"/> で再帰処理する。
     /// </summary>
-    private static bool Using文生成(
+    private bool Using文生成(
         UsingStatementSyntax statement,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -658,7 +661,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 本体は <see cref="文を生成コードへ変換"/> で再帰処理する。
     /// 初期化部が変数宣言の場合は <see cref="変数宣言生成"/> で完全修飾する。
     /// </summary>
-    private static bool For文生成(
+    private bool For文生成(
         ForStatementSyntax statement,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -687,7 +690,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 列挙対象式は <see cref="RenderExpressionForGeneratedMethod"/> でレンダリングする。
     /// 本体は <see cref="文を生成コードへ変換"/> で再帰処理する。
     /// </summary>
-    private static bool ForEach文生成(
+    private bool ForEach文生成(
         ForEachStatementSyntax statement,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -713,7 +716,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 条件式を <see cref="RenderExpressionForGeneratedMethod"/> でレンダリングし、
     /// 本体を <see cref="文を生成コードへ変換"/> で再帰処理する。
     /// </summary>
-    private static bool While文生成(
+    private bool While文生成(
         WhileStatementSyntax statement,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -734,7 +737,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <c>do { … } while (cond);</c> 文を生成する。
     /// 本体を <see cref="文を生成コードへ変換"/> で先に再帰処理し、その後に条件式を出力する。
     /// </summary>
-    private static bool Do文生成(
+    private bool Do文生成(
         DoStatementSyntax statement,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -758,7 +761,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 条件式を <see cref="RenderExpressionForGeneratedMethod"/> でレンダリングし、
     /// then 節・else 節をそれぞれ <see cref="文を生成コードへ変換"/> で再帰処理する。
     /// </summary>
-    private static bool If文生成(
+    private bool If文生成(
         IfStatementSyntax statement,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -786,7 +789,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 各 section のラベルはソーステキストをそのまま出力、
     /// 各 section の文は <see cref="文を生成コードへ変換"/> で再帰処理する。
     /// </summary>
-    private static bool Switch文生成(
+    private bool Switch文生成(
         SwitchStatementSyntax statement,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -826,7 +829,7 @@ public sealed partial class FLinqIncrementalGenerator {
     ///   <item><description>匿名型をレシーバーに持つ LINQ 呼び出しは Fragment 化せず System.Linq に委譲するため、置換マップへの登録をスキップして続行する。</description></item>
     /// </list>
     /// </summary>
-    private static bool LINQ呼び出し差し替え文生成(
+    private bool LINQ呼び出し差し替え文生成(
         StatementSyntax statement,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -845,7 +848,7 @@ public sealed partial class FLinqIncrementalGenerator {
             containingType=loweredContainingType;
             builder.AppendLine(クエリLowering確認コメント生成(originalStatementForQueryLowering,loweredStatement));
         }
-        if(OptimizationExecutionContext.Current?.ConvergenceMode==LinqConvergenceMode.GlobalFixedPoint){
+        if(this.state.Configuration.ConvergenceMode==LinqConvergenceMode.GlobalFixedPoint){
             if(TryOptimizeGlobalFixedPoint(statement,semanticModel,containingType,out var optimizedStatement,out var optimizedSemanticModel,out var optimizedContainingType)){
                 statement=optimizedStatement;
                 semanticModel=optimizedSemanticModel;
@@ -937,7 +940,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    private static bool TryRewriteTryGetNonEnumeratedCountStatement(
+    private bool TryRewriteTryGetNonEnumeratedCountStatement(
         StatementSyntax statement,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -1056,7 +1059,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static bool TryPrepareTryGetNonEnumeratedCountSource(
+    private bool TryPrepareTryGetNonEnumeratedCountSource(
         ExpressionSyntax sourceExpression,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -1082,7 +1085,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    private static bool TryGetNonEnumeratedCountInvocation(
+    private bool TryGetNonEnumeratedCountInvocation(
         InvocationExpressionSyntax invocation,
         SemanticModel semanticModel,
         out ExpressionSyntax sourceExpression,
@@ -1123,7 +1126,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static bool TryRenderTryGetNonEnumeratedCountOutArgument(
+    private bool TryRenderTryGetNonEnumeratedCountOutArgument(
         ArgumentSyntax outArgument,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -1143,7 +1146,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    private static string CounterCallForGeneratedMethod(SemanticModel semanticModel,SyntaxNode node,string methodName) =>
+    private string CounterCallForGeneratedMethod(SemanticModel semanticModel,SyntaxNode node,string methodName) =>
         IsCounterInstrumentationEnabled(semanticModel,node)
             ? $"global::Seamless.Linq.LinqCounterScope.Counter.{methodName}();"
             : string.Empty;
@@ -1156,7 +1159,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <br/>Fragment 化結果が匿名型を含む場合は生成コードに不正な型名が埋まるため、
     /// その呼び出しはスナップショットに戻してスキップする（<see cref="LINQ呼び出し差し替え文生成"/> と同じ方針）。
     /// </summary>
-    private static bool LINQ呼び出し差し替え式本体生成(
+    private bool LINQ呼び出し差し替え式本体生成(
         ExpressionSyntax expression,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -1176,7 +1179,7 @@ public sealed partial class FLinqIncrementalGenerator {
             containingType=loweredContainingType;
             builder.AppendLine(クエリLowering確認コメント生成(originalExpressionForQueryLowering,loweredExpression));
         }
-        if(OptimizationExecutionContext.Current?.ConvergenceMode==LinqConvergenceMode.GlobalFixedPoint){
+        if(this.state.Configuration.ConvergenceMode==LinqConvergenceMode.GlobalFixedPoint){
             if(TryOptimizeGlobalFixedPoint(expression,semanticModel,containingType,out var optimizedExpression,out var optimizedSemanticModel,out var optimizedContainingType)){
                 expression=optimizedExpression;
                 semanticModel=optimizedSemanticModel;
@@ -1283,7 +1286,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// </list>
     /// 成功時は呼び出し元が <c>statement</c> / <c>semanticModel</c> / <c>containingType</c> を差し替えて続行する。
     /// </summary>
-    private static bool TryLowerQueriesToExtensionMethods<TSyntax>(
+    private bool TryLowerQueriesToExtensionMethods<TSyntax>(
         TSyntax node,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -1310,7 +1313,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 合成書換（Count()&gt;0→Any() の後の Where(p).Any()→Any(p) 等）を取りこぼさないよう、変化が無くなるまで
     /// 「書換→再束縛」を繰り返す（拡張メソッド形の Enumerable 呼び出しのみが対象なので静的 SystemEnumerable 参照は不変）。
     /// </summary>
-    private static bool TryOptimizeLegacy<TSyntax>(
+    private bool TryOptimizeLegacy<TSyntax>(
         TSyntax node,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -1353,7 +1356,7 @@ public sealed partial class FLinqIncrementalGenerator {
         INamedTypeSymbol ContainingType)
         where TSyntax:SyntaxNode;
 
-    private static bool TryOptimizeGlobalFixedPoint<TSyntax>(
+    private bool TryOptimizeGlobalFixedPoint<TSyntax>(
         TSyntax node,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -1362,7 +1365,7 @@ public sealed partial class FLinqIncrementalGenerator {
         out INamedTypeSymbol optimizedContainingType)
         where TSyntax:SyntaxNode{
         var initial=new SyntaxOptimizationState<TSyntax>(node,semanticModel,containingType);
-        var trace=OptimizationExecutionContext.Current?.Trace;
+        var trace=this.state.Trace;
         var runId=trace?.BeginRun(OptimizationLayer.Syntax)??0;
         var result=FixedPointRunner.Run(
             initial,
@@ -1375,7 +1378,7 @@ public sealed partial class FLinqIncrementalGenerator {
         return !SyntaxFactory.AreEquivalent(node,optimizedNode);
     }
 
-    private static FixedPointRoundResult<SyntaxOptimizationState<TSyntax>> RunGlobalOptimizationRound<TSyntax>(
+    private FixedPointRoundResult<SyntaxOptimizationState<TSyntax>> RunGlobalOptimizationRound<TSyntax>(
         SyntaxOptimizationState<TSyntax> state,
         int round,
         int runId,
@@ -1386,7 +1389,7 @@ public sealed partial class FLinqIncrementalGenerator {
         var changed=false;
         var completedPasses=0;
 
-        if((LinqOptimizationContext.Current&LinqOptimizations.Rewrite)!=0){
+        if((this.state.Configuration.Optimizations&LinqOptimizations.Rewrite)!=0){
             completedPasses++;
             var rewritten=AlgebraicRewriter.Rewrite(current.Node,current.SemanticModel);
             if(!SyntaxFactory.AreEquivalent(current.Node,rewritten)){
@@ -1400,7 +1403,7 @@ public sealed partial class FLinqIncrementalGenerator {
             }
         }
 
-        if((LinqOptimizationContext.Current&LinqOptimizations.PredicatePushdown)!=0){
+        if((this.state.Configuration.Optimizations&LinqOptimizations.PredicatePushdown)!=0){
             completedPasses++;
             var rewritten=OptimizeVisitor.Optimize(current.Node,current.SemanticModel);
             if(!SyntaxFactory.AreEquivalent(current.Node,rewritten)){
@@ -1414,7 +1417,7 @@ public sealed partial class FLinqIncrementalGenerator {
             }
         }
 
-        if((LinqOptimizationContext.Current&LinqOptimizations.ProjectionMerge)!=0){
+        if((this.state.Configuration.Optimizations&LinqOptimizations.ProjectionMerge)!=0){
             completedPasses++;
             var rewritten=ProjectionMergeVisitor.Merge(current.Node,current.SemanticModel);
             if(!SyntaxFactory.AreEquivalent(current.Node,rewritten)){
@@ -1436,7 +1439,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         return FixedPointRoundResult<SyntaxOptimizationState<TSyntax>>.Unchanged(current);
     }
-    private static string GetAlgebraicRuleId(SyntaxNode before,SyntaxNode after){
+    private string GetAlgebraicRuleId(SyntaxNode before,SyntaxNode after){
         var beforeText=before.ToString();
         var afterText=after.ToString();
         if((beforeText.Contains(".Count(",StringComparison.Ordinal)
@@ -1456,7 +1459,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         return "Algebraic.Rewrite";
     }
-    private static bool TryRewriteScalarAlgebra<TSyntax>(
+    private bool TryRewriteScalarAlgebra<TSyntax>(
         TSyntax node,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -1469,7 +1472,7 @@ public sealed partial class FLinqIncrementalGenerator {
         rewrittenContainingType=containingType;
         var changed = false;
         for(var iteration = 0;iteration<8;iteration++) {
-            if((LinqOptimizationContext.Current&LinqOptimizations.Rewrite)==0) {
+            if((this.state.Configuration.Optimizations&LinqOptimizations.Rewrite)==0) {
                 break;
             }
             var rewritten = AlgebraicRewriter.Rewrite(rewrittenNode,rewrittenSemanticModel);
@@ -1491,7 +1494,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <see cref="OptimizeVisitor"/> は合成ノードに意味論ゲートを掛けられないため 1 パスにつき経路ごと 1 書換しか行わない。
     /// 取りこぼしを無くすよう、変化が無くなるまで「書換→再束縛」を繰り返す。
     /// </summary>
-    private static bool TryPushDownPredicates<TSyntax>(
+    private bool TryPushDownPredicates<TSyntax>(
         TSyntax node,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -1504,7 +1507,7 @@ public sealed partial class FLinqIncrementalGenerator {
         pushedContainingType=containingType;
         var changed = false;
         for(var iteration = 0;iteration<8;iteration++) {
-            if((LinqOptimizationContext.Current&LinqOptimizations.PredicatePushdown)==0) {
+            if((this.state.Configuration.Optimizations&LinqOptimizations.PredicatePushdown)==0) {
                 break;
             }
             var rewritten = OptimizeVisitor.Optimize(pushedNode,pushedSemanticModel);
@@ -1528,7 +1531,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <see cref="ProjectionMergeVisitor"/> も 1 パスにつき経路ごと 1 書換しか行わないので、
     /// 変化が無くなるまで「書換→再束縛」を繰り返す。1 書換ごとに Select 呼び出しが 1 個減るので必ず止まる。
     /// </summary>
-    private static bool TryMergeProjections<TSyntax>(
+    private bool TryMergeProjections<TSyntax>(
         TSyntax node,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -1541,7 +1544,7 @@ public sealed partial class FLinqIncrementalGenerator {
         mergedContainingType=containingType;
         var changed = false;
         for(var iteration = 0;iteration<8;iteration++) {
-            if((LinqOptimizationContext.Current&LinqOptimizations.ProjectionMerge)==0) {
+            if((this.state.Configuration.Optimizations&LinqOptimizations.ProjectionMerge)==0) {
                 break;
             }
             var rewritten = ProjectionMergeVisitor.Merge(mergedNode,mergedSemanticModel);
@@ -1561,7 +1564,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 書き換え済みノード <paramref name="rewritten"/> を元ツリーへ差し込み、新 <see cref="Compilation"/> を作って
     /// セマンティックモデルと包含型を取り直す共通処理。<paramref name="node"/> と等価なら false を返し、out は元の値のまま。
     /// </summary>
-    private static bool TryRebindRewritten<TSyntax>(
+    private bool TryRebindRewritten<TSyntax>(
         TSyntax node,
         SyntaxNode rewritten,
         SemanticModel semanticModel,
@@ -1604,12 +1607,12 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    private static string クエリLowering確認コメント生成(SyntaxNode original,SyntaxNode lowered) =>
+    private string クエリLowering確認コメント生成(SyntaxNode original,SyntaxNode lowered) =>
         $"// Tsavorite query lowered: {NormalizeExpressionText(original.ToString())}=>{NormalizeExpressionText(lowered.ToString())}";
 
     // クエリ式を直接 Fragment チェーンへ変換し "return <result>;" を出力する旧フォールバック。
     // 通常は TryLowerQueriesToExtensionMethods でクエリ式を拡張メソッドチェーンへ下げてから既存の LINQ パスで処理する。
-    private static bool クエリ式本体生成(
+    private bool クエリ式本体生成(
         QueryExpressionSyntax queryExpression,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -1740,7 +1743,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <see cref="RenderExpressionForGeneratedMethod"/> と <paramref name="replacementMap"/> で LINQ 一時変数に置換する。
     /// <c>var</c> はそのまま出力する。
     /// </summary>
-    private static string ローカル変数宣言生成(
+    private string ローカル変数宣言生成(
         LocalDeclarationStatementSyntax statement,
         SemanticModel semanticModel,
         INamedTypeSymbol containingType,
@@ -1774,7 +1777,7 @@ public sealed partial class FLinqIncrementalGenerator {
     ///   <item><description>静的呼び出し（<c>ReducedFrom == null</c>）および out/ref パラメータを持つメソッド。</description></item>
     /// </list>
     /// </summary>
-    private static List<InvocationExpressionSyntax> 外側LINQ呼び出し取得(StatementSyntax statement,SemanticModel semanticModel) {
+    private List<InvocationExpressionSyntax> 外側LINQ呼び出し取得(StatementSyntax statement,SemanticModel semanticModel) {
         return statement.DescendantNodes()
             .OfType<InvocationExpressionSyntax>()
             // 拡張メソッド呼び出し、または Range/Repeat/Empty root を対象とし、out/ref パラメータ持ちは除外する
@@ -1813,7 +1816,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// その直下の <c>.Select()</c> が「外側に LINQ なし」と誤判定されて二重生成される。
     /// statement 版は statement が境界なので問題ない。
     /// </summary>
-    private static List<InvocationExpressionSyntax> 外側LINQ呼び出し取得_式(ExpressionSyntax expression,SemanticModel semanticModel) {
+    private List<InvocationExpressionSyntax> 外側LINQ呼び出し取得_式(ExpressionSyntax expression,SemanticModel semanticModel) {
         // expression 自身が最外の LINQ 呼び出しになりうる（例: 式本体=>xxx.Where(...).Select(...).ToArray()）。
         // 祖先走査の境界を expression ではなく expression.Parent にしないと、expression(=.ToArray()) 自身が
         // TakeWhile から抜け落ち、その直下の .Select() が「外側に LINQ なし」と誤判定され __linq1 として
@@ -1851,7 +1854,8 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <c>MemoryExtensions.Contains</c> は <c>Span&lt;T&gt;</c>/<c>ReadOnlySpan&lt;T&gt;</c> の
     /// 拡張メソッドとして LINQ 的に使われるため対象に含める。
     /// </summary>
-    private static bool SystemLinqEnumerable呼び出し判定(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
+    private bool SystemLinqEnumerable呼び出し判定(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
         return IsSupportedLinqInvocation(invocation,semanticModel);
     }
+}
 }
