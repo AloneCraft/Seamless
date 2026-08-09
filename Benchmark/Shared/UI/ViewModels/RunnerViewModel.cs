@@ -270,6 +270,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         this.改善プロンプトコピーコマンド=new AsyncRelayCommand(this.改善プロンプトをコピーAsync,() => this.改善プロンプトをコピー可能か);
         this.速度改善プロンプトコピーコマンド=new AsyncRelayCommand(this.速度改善プロンプトをコピーAsync,() => this.速度改善プロンプトをコピー可能か);
         this.メモリ改善プロンプトコピーコマンド=new AsyncRelayCommand(this.メモリ改善プロンプトをコピーAsync,() => this.メモリ改善プロンプトをコピー可能か);
+        this.ログコピーコマンド=new AsyncRelayCommand(this.ログをコピーAsync,() => this.ログをコピー可能か);
         if(起動診断を有効にするか) {
             起動診断.既存ログから初期化();
             this.ログ文字列値=起動診断.ログ文字列を取得();
@@ -336,8 +337,19 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     /// <value>ログ文字列 の値を取得/設定します。</value>
     public string ログ文字列 {
         get => this.ログ文字列値;
-        private set => this.SetProperty(ref this.ログ文字列値,value);
+        private set {
+            if(this.SetProperty(ref this.ログ文字列値,value)) {
+                this.OnPropertyChanged(nameof(this.ログをコピー可能か));
+                this.ログコピーコマンド?.NotifyCanExecuteChanged();
+            }
+        }
     }
+
+    /// <summary>
+    /// ログをコピー可能か プロパティです。
+    /// </summary>
+    /// <value>ログをコピー可能か の値を取得します。</value>
+    public bool ログをコピー可能か => !string.IsNullOrWhiteSpace(this.ログ文字列);
 
     /// <summary>
     /// 更新中か プロパティです。
@@ -1362,6 +1374,18 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 System.Diagnostics.Debug.WriteLine("終了処理中のためベンチマークUIログ追加を無視しました: "+例外);
             }
         });
+    }
+
+    /// <summary>
+    /// ログをコピーAsync メソッドを実行し、副作用として内部状態を更新または描画反映します。
+    /// </summary>
+    private async Task ログをコピーAsync() {
+        if(string.IsNullOrWhiteSpace(this.ログ文字列)) {
+            return;
+        }
+
+        await Microsoft.Maui.ApplicationModel.DataTransfer.Clipboard.Default.SetTextAsync(this.ログ文字列);
+        this.状態文字列="ログをコピーしました";
     }
 
     // ログ一覧のDataTemplate側でこの接頭辞を検出し、太字／強調色で目立たせる（ログビュー作成を参照）。

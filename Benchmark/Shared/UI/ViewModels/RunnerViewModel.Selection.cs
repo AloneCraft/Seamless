@@ -73,6 +73,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             new("高精度",ベンチマーク実行プロファイル.正確),
             new("バランス",ベンチマーク実行プロファイル.中間),
             new("高速",ベンチマーク実行プロファイル.高速),
+            new("AOT",ベンチマーク実行プロファイル.AOT),
 #if DEBUG
             new("テスト",ベンチマーク実行プロファイル.テスト),
 #endif
@@ -208,6 +209,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     public IAsyncRelayCommand 改善プロンプトコピーコマンド { get; }
     public IAsyncRelayCommand 速度改善プロンプトコピーコマンド { get; }
     public IAsyncRelayCommand メモリ改善プロンプトコピーコマンド { get; }
+    public IAsyncRelayCommand ログコピーコマンド { get; }
     /// <summary>
     /// 状態文字列 プロパティです。
     /// </summary>

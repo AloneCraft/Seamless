@@ -75,5 +75,19 @@
     <Copy SourceFiles="@(_BenchmarkWorkerFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="'@(_BenchmarkWorkerFiles)' != ''" />
   </Target>
 
+  <Target Name="CopyBenchmarkAotWorkerHost" AfterTargets="Build" Condition="'$(IsCrossTargetingBuild)' != 'true' and '$(TargetDir)' != ''">
+    <MSBuild Projects="$(MSBuildProjectDirectory)\..\Worker.Aot\Worker.Aot.csproj" Targets="Build" Properties="Configuration=$(Configuration);TargetFramework=net10.0" />
+
+    <ItemGroup>
+      <_BenchmarkAotWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.exe" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.exe')" />
+      <_BenchmarkAotWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.dll" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.dll')" />
+      <_BenchmarkAotWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.deps.json" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.deps.json')" />
+      <_BenchmarkAotWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.runtimeconfig.json" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.runtimeconfig.json')" />
+      <_BenchmarkAotWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.pdb" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.pdb')" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(_BenchmarkAotWorkerFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="'@(_BenchmarkAotWorkerFiles)' != ''" />
+  </Target>
+
   <Import Project="..\Shared\UI\UI.projitems" Label="Shared" />
 </Project>

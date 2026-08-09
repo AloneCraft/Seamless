@@ -2724,6 +2724,40 @@ public sealed partial class MainPage:ContentPage {
     }
 
     private View ログビューを作成() {
+        var コピーボタン = new Button {
+            Text="⧉",
+            WidthRequest=30,
+            HeightRequest=28,
+            Padding=new Thickness(0),
+            FontSize=14,
+            FontAttributes=FontAttributes.Bold,
+            TextColor=Color.FromArgb("#0F172A"),
+            BackgroundColor=Color.FromArgb("#E2E8F0"),
+        };
+        コピーボタン.SetBinding(Button.CommandProperty,nameof(実行ビューモデル.ログコピーコマンド));
+        コピーボタン.SetBinding(IsEnabledProperty,nameof(実行ビューモデル.ログをコピー可能か));
+        ToolTipProperties.SetText(コピーボタン,"ログをコピー");
+        押下フィードバックを設定(コピーボタン);
+
+        var タイトル = new Label {
+            Text="ログ",
+            FontSize=12,
+            FontAttributes=FontAttributes.Bold,
+            TextColor=Color.FromArgb("#0F172A"),
+            VerticalTextAlignment=TextAlignment.Center,
+            LineBreakMode=LineBreakMode.TailTruncation,
+        };
+        var 見出し = new Grid {
+            ColumnDefinitions= {
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Star },
+            },
+            ColumnSpacing=6,
+            Padding=new Thickness(0,0,0,6),
+        };
+        見出し.Add(コピーボタン,0,0);
+        見出し.Add(タイトル,1,0);
+
         var ログ一覧 = new CollectionView {
             SelectionMode=SelectionMode.None,
             VerticalOptions=LayoutOptions.Fill,
@@ -2751,12 +2785,22 @@ public sealed partial class MainPage:ContentPage {
         };
         ログ一覧.SetBinding(ItemsView.ItemsSourceProperty,nameof(実行ビューモデル.ログ項目一覧));
 
+        var 内容 = new Grid {
+            RowDefinitions= {
+                new RowDefinition { Height = GridLength.Auto },
+                new RowDefinition { Height = GridLength.Star },
+            },
+            RowSpacing=4,
+        };
+        内容.Add(見出し,0,0);
+        内容.Add(ログ一覧,0,1);
+
         return new Border {
             Stroke=Color.FromArgb("#CBD5E1"),
             StrokeThickness=1,
             BackgroundColor=Color.FromArgb("#F8FAFC"),
             Padding=new Thickness(8),
-            Content=ログ一覧,
+            Content=内容,
         };
     }
 
