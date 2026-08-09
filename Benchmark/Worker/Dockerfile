@@ -13,7 +13,7 @@ COPY ["Persisted.Linq.Enumerable.FLinq/Persisted.Linq.Enumerable.FLinq.csproj","
 COPY ["Persisted.Collections/Persisted.Collections.csproj","Persisted.Collections/"]
 COPY ["Tsavorite.Collections/Tsavorite.Collections.csproj","Tsavorite.Collections/"]
 COPY ["Seamless/Seamless.csproj","Seamless/"]
-COPY ["Seamless.FLinq/Seamless.FLinq.csproj","Seamless.FLinq/"]
+COPY ["Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj","Seamless.FLinq.Generator/"]
 COPY ["Seamless.Linq/Seamless.Linq.csproj","Seamless.Linq/"]
 COPY ["Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj","Seamless.Linq.Analyzers/"]
 COPY ["Seamless.Collections/Seamless.Collections.csproj","Seamless.Collections/"]

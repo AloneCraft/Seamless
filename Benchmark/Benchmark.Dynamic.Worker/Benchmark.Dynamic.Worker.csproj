@@ -21,6 +21,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Benchmark.Dynamic.Core\Benchmark.Dynamic.Core.csproj" />
     <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
-    <ProjectReference Include="..\..\Seamless.FLinq\Seamless.FLinq.csproj" SetTargetFramework="TargetFramework=netstandard2.0" />
+    <ProjectReference Include="..\..\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj" SetTargetFramework="TargetFramework=netstandard2.0" />
   </ItemGroup>
 </Project>

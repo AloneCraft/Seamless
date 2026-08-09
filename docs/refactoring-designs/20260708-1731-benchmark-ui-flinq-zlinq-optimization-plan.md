@@ -300,14 +300,14 @@ Benchmark UIで計測・DB保存・Run選択・DB読込中の再入を防ぎ、A
 - `Benchmark/Shared/UI/RunStatePersistence.cs`
 - `Shared/UI.Storage/UiRunStore.cs`
 - `Work/UI/runs.db`
-- `Seamless.FLinq/SourceGenerator/Linq/Fragments/Root.cs`
-- `Seamless.FLinq/SourceGenerator/Linq/Fragments/TraversalSupport.cs`
-- `Seamless.FLinq/SourceGenerator/Linq/Fragments/ToList.cs`
-- `Seamless.FLinq/SourceGenerator/Linq/Fragments/ToHashSet.cs`
-- `Seamless.FLinq/SourceGenerator/Linq/Fragments/ToLookup.cs`
-- `Seamless.FLinq/SourceGenerator/Linq/Fragments/Union.cs`
-- `Seamless.FLinq/SourceGenerator/Linq/Fragments/Aggregate.cs`
-- `Seamless.FLinq/SourceGenerator/Linq/Fragments/Sum.cs`
+- `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Root.cs`
+- `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/TraversalSupport.cs`
+- `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/ToList.cs`
+- `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/ToHashSet.cs`
+- `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/ToLookup.cs`
+- `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Union.cs`
+- `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Aggregate.cs`
+- `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Sum.cs`
 - `Seamless.Linq/Linq/LinqCounter.cs`
 
 ## 完了判定

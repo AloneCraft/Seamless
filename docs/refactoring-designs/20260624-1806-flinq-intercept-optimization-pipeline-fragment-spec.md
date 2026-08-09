@@ -1,4 +1,4 @@
-﻿# FLinq Intercept 最適化コード生成 Pipeline/Fragment 仕様
+# FLinq Intercept 最適化コード生成 Pipeline/Fragment 仕様
 
 ## 目的
 
@@ -21,15 +21,15 @@
 
 | 領域 | ファイル |
 | --- | --- |
-| intercept 入口と source generation | `Seamless.FLinq/SourceGenerator/interceptor.cs` |
-| 代数的構文変換 | `Seamless.FLinq/SourceGenerator/AlgebraicRewriter.cs` |
-| query lowering / Where 押し下げ | `Seamless.FLinq/SourceGenerator/OptimizeVisitor.cs` |
-| carrier 逆解析（共有） | `Seamless.FLinq/SourceGenerator/CarrierAnalysis.cs` |
-| 射影融合 | `Seamless.FLinq/SourceGenerator/ProjectionMergeVisitor.cs` |
-| Anchor 判定 | `Seamless.FLinq/SourceGenerator/AnchorAnalysis.cs` |
-| 匿名型 record struct registry | `Seamless.FLinq/SourceGenerator/AnonymousStructRecord.cs` |
-| Pipeline IR / stage fusion | `Seamless.FLinq/SourceGenerator/Linq/Fragments/Pipeline.cs` |
-| lambda inline / capture / hoist | `Seamless.FLinq/SourceGenerator/Linq/Fragments/Func.cs`, `Fragment.cs`, `LambdaFunc.cs` |
+| intercept 入口と source generation | `Seamless.FLinq.Generator/SourceGenerator/interceptor.cs` |
+| 代数的構文変換 | `Seamless.FLinq.Generator/SourceGenerator/AlgebraicRewriter.cs` |
+| query lowering / Where 押し下げ | `Seamless.FLinq.Generator/SourceGenerator/OptimizeVisitor.cs` |
+| carrier 逆解析（共有） | `Seamless.FLinq.Generator/SourceGenerator/CarrierAnalysis.cs` |
+| 射影融合 | `Seamless.FLinq.Generator/SourceGenerator/ProjectionMergeVisitor.cs` |
+| Anchor 判定 | `Seamless.FLinq.Generator/SourceGenerator/AnchorAnalysis.cs` |
+| 匿名型 record struct registry | `Seamless.FLinq.Generator/SourceGenerator/AnonymousStructRecord.cs` |
+| Pipeline IR / stage fusion | `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Pipeline.cs` |
+| lambda inline / capture / hoist | `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Func.cs`, `Fragment.cs`, `LambdaFunc.cs` |
 | buffer 特性 | `FLinq.md` |
 | hoist / Anchor テスト | `Test/System/Linq/Intercept/Optimization/InvariantHoisting.cs` |
 | Join / anonymous / hashing テスト | `Test/System/Linq/Intercept/Optimization/JoinHashing.cs` |
@@ -39,8 +39,8 @@
 | 集合演算への Where 分配の生成形状テスト | `Test/SourceGenerator/SetOperationPushdownShapeTests.cs` |
 | 単項演算(Distinct/Reverse/Order)への Where 押し下げの意味保存テスト | `Test/System/Linq/Intercept/Optimization/UnaryPushdown.cs` |
 | 単項演算への Where 押し下げと Order 高速パスガードの生成形状テスト | `Test/SourceGenerator/UnaryPushdownShapeTests.cs` |
-| PipelineEnumerable の二入力(SecondSources)ジェネリック伝播 | `Seamless.FLinq/SourceGenerator/Linq/Fragments/PipelineEnumerable.cs` |
-| 引数位置の列挙ソース(Join の inner / 集合演算の second 等)のフラグメント化 | `Seamless.FLinq/SourceGenerator/FLinqIncrementalGenerator.FragmentBuilder.cs`（`登録済みフラグメント生成を試行` の `Enumerable` パラメータ分岐） |
+| PipelineEnumerable の二入力(SecondSources)ジェネリック伝播 | `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/PipelineEnumerable.cs` |
+| 引数位置の列挙ソース(Join の inner / 集合演算の second 等)のフラグメント化 | `Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.FragmentBuilder.cs`（`登録済みフラグメント生成を試行` の `Enumerable` パラメータ分岐） |
 
 ## 用語
 

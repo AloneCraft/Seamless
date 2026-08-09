@@ -83,7 +83,7 @@
   </Folder>
   <Folder Name="/SourceGenerator/">
     <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
-    <Project Path="Seamless.FLinq/Seamless.FLinq.csproj" />
+    <Project Path="Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" />
     <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
   </Folder>
   <Folder Name="/Tests/">

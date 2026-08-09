@@ -111,7 +111,7 @@ FLinq 縺ｯ `[LinqIntercept(true)]` 縺ｮ莉倥＞縺・`_Impl` 繝｡繧ｽ�
 鬮倬溽沿縺ｫ蟾ｮ縺玲崛縺医ｋ縲Ｓoot 縺碁・蛻・繝ｪ繧ｹ繝医↑繧・`ArrayRoot`/`ListRoot` 縺ｫ關ｽ縺｡縲～Span` 繧堤峩謗･襍ｰ譟ｻ縺吶ｋ繧ｳ繝ｼ繝峨↓縺ｪ繧九・
 
 縺ｨ縺薙ｍ縺後√◎繧ゅ◎繧ゅ後◎縺ｮ繝｡繧ｽ繝・ラ繧貞ｍ蜿怜ｯｾ雎｡縺ｫ縺吶ｋ縺九阪ｒ豎ｺ繧√ｋ蜈･蜿｣縺ｮ繧ｲ繝ｼ繝医〒蠑ｾ縺九ｌ縺ｦ縺・ｋ縲・
-[`LinqTargetDiscovery.cs`](../../Seamless.FLinq/SourceGenerator/LinqTargetDiscovery.cs) 縺ｮ驕ｸ蛻･譚｡莉ｶ:
+[`LinqTargetDiscovery.cs`](../../Seamless.FLinq.Generator/SourceGenerator/LinqTargetDiscovery.cs) 縺ｮ驕ｸ蛻･譚｡莉ｶ:
 
 ```csharp
 // LinqTargetDiscovery.cs
@@ -125,7 +125,7 @@ FLinq 縺ｯ `[LinqIntercept(true)]` 縺ｮ莉倥＞縺・`_Impl` 繝｡繧ｽ�
 ### 縺ｪ縺懊％縺ｮ繧ｲ繝ｼ繝医′蟄伜惠縺吶ｋ縺ｮ縺・
 
 逕滓・縺輔ｌ縺溷ｍ蜿励Γ繧ｽ繝・ラ縺ｨ繝倥Ν繝代・ struct 縺ｯ縲∝・繧ｯ繝ｩ繧ｹ縺ｮ荳ｭ縺ｧ縺ｯ縺ｪ縺・*螟門・縺ｮ蛻･縺ｮ髱槭ロ繧ｹ繝磯撕逧・け繝ｩ繧ｹ**縺ｸ蜃ｺ蜉帙＆繧後ｋ
-・・`LinqInterceptorSourceWriter.cs`](../../Seamless.FLinq/SourceGenerator/LinqInterceptorSourceWriter.cs) 縺ｮ
+・・`LinqInterceptorSourceWriter.cs`](../../Seamless.FLinq.Generator/SourceGenerator/LinqInterceptorSourceWriter.cs) 縺ｮ
 `繧､繝ｳ繧ｿ繝ｼ繧ｻ繝励ち繝ｼ蝙九た繝ｼ繧ｹ讒狗ｯ荏・峨ゅ％縺ｮ髱咏噪繧ｯ繝ｩ繧ｹ縺ｯ蜈・け繝ｩ繧ｹ縺ｮ蝙九ヱ繝ｩ繝｡繝ｼ繧ｿ `T` 繧貞ｮ｣險縺励※縺・↑縺・◆繧√・
 繝ｬ繧ｷ繝ｼ繝仙梛 `Methods1<T>` 繧・ｦ∫ｴ蝙・`T` 繧貞錐謖・＠縺ｧ縺阪★縲√◎縺ｮ縺ｾ縺ｾ蜃ｺ蜉帙☆繧九→繧ｳ繝ｳ繝代う繝ｫ荳崎・縺ｫ縺ｪ繧九・
 縺昴ｌ繧帝∩縺代ｋ縺溘ａ縺ｮ菫晏ｮ育噪縺ｪ蜃ｦ鄂ｮ縺後後ず繧ｧ繝阪Μ繝・け蜷ｫ譛牙梛縺ｯ荳ｸ縺斐→髯､螟悶阪〒縺ゅｋ縲・
@@ -133,7 +133,7 @@ FLinq 縺ｯ `[LinqIntercept(true)]` 縺ｮ莉倥＞縺・`_Impl` 繝｡繧ｽ�
 ### 隱､隗｣縺励ｄ縺吶＞轤ｹ
 
 縲瑚ｦ∫ｴ縺・`T` 縺ｫ縺ｪ縺｣縺溘°繧・Span 縺ｫ螻暮幕縺ｧ縺阪↑縺上↑縺｣縺溘阪・**隱､繧・*縲ゅヵ繝ｩ繧ｰ繝｡繝ｳ繝域ｮｵ
-・・`LinqFragmentBuilder.cs`](../../Seamless.FLinq/SourceGenerator/LinqFragmentBuilder.cs) 縺ｮ root 驕ｸ謚橸ｼ峨・縲・
+・・`LinqFragmentBuilder.cs`](../../Seamless.FLinq.Generator/SourceGenerator/LinqFragmentBuilder.cs) 縺ｮ root 驕ｸ謚橸ｼ峨・縲・
 繧ゅ＠蛯榊女縺ｾ縺ｧ蛻ｰ驕斐〒縺阪ｌ縺ｰ `T[]` 繧・`List<T>` 繧ょ撫鬘後↑縺・Span 蛹悶〒縺阪ｋ:
 
 - `T[]` 縺ｯ `IArrayTypeSymbol` 縺ｫ荳閾ｴ 竊・`ArrayRoot`
@@ -191,7 +191,7 @@ public static void OptimizedLinq_Aggregate_func_Impl_...(this global::...Methods
 ```
 
 `List<T>` root 縺ｮ蝣ｴ蜷医・ `ListRoot` 縺・
-[`Root.cs`](../../Seamless.FLinq/SourceGenerator/Linq/Fragments/Root.cs) 縺ｧ
+[`Root.cs`](../../Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Root.cs) 縺ｧ
 `CollectionsMarshal.AsSpan(source)` 繧剃ｽｿ縺・酔蝙九・ Span 繧ｳ繝ｼ繝峨ｒ蜃ｺ縺呻ｼ井ｻｮ諠ｳ蜻ｼ縺ｳ蜃ｺ縺励・繝懊ャ繧ｯ繧ｹ蛹悶↑縺励√う繝ｳ繝・ャ繧ｯ繧ｹ逶ｴ襍ｰ譟ｻ・峨・
 
 ### 繧ｸ繧ｧ繝阪Μ繝・け譎ゑｼ磯≦縺・ｼ・ 逕滓・繧､繝ｳ繧ｿ繝ｼ繧ｻ繝励ち縺後檎┌縺・・
@@ -232,13 +232,13 @@ var result = this.srcCount(N).AsX<T>().Aggregate((acc,x) => Add(acc,x));
 C# 繧､繝ｳ繧ｿ繝ｼ繧ｻ繝励ち縺ｮ蛻ｶ邏・ｸ翫∝ｍ蜿励Γ繧ｽ繝・ラ繧貞庶繧√ｋ髱咏噪繝帙Ν繝繝ｼ繧ｯ繝ｩ繧ｹ閾ｪ菴薙・繧ｸ繧ｧ繝阪Μ繝・け縺ｫ縺ｧ縺阪↑縺・・
 縺昴％縺ｧ**蜷ｫ譛牙梛縺ｮ蝙九ヱ繝ｩ繝｡繝ｼ繧ｿ繧貞ｍ蜿励Γ繧ｽ繝・ラ蛛ｴ縺ｸ遘ｻ縺・*譁ｹ驥昴〒縲：Linq 逕滓・蝎ｨ繧呈ｬ｡縺ｮ縺ｨ縺翫ｊ諡｡蠑ｵ縺励◆・亥ｮ溯｣・ｸ医∩繝ｻ繝薙Ν繝臥｢ｺ隱肴ｸ医∩・・
 
-1. **discovery 繧ｲ繝ｼ繝医・邱ｩ蜥・* 窶・[`LinqTargetDiscovery.cs`](../../Seamless.FLinq/SourceGenerator/LinqTargetDiscovery.cs) 縺ｮ
+1. **discovery 繧ｲ繝ｼ繝医・邱ｩ蜥・* 窶・[`LinqTargetDiscovery.cs`](../../Seamless.FLinq.Generator/SourceGenerator/LinqTargetDiscovery.cs) 縺ｮ
    `ContainingType.IsGenericType` 荳蠕矩勁螟悶ｒ繧・ａ縲√悟梛繝代Λ繝｡繝ｼ繧ｿ縺ｨ蛻ｶ邏・ｒ螳牙・縺ｫ蜀咲樟縺ｧ縺阪ｋ蜊倡ｴ斐ず繧ｧ繝阪Μ繝・け蜷ｫ譛牙梛縲阪°縺､
    縲梧悽菴・LINQ 縺ｫ繝ｩ繝繝繧貞性縺ｾ縺ｪ縺・榊ｴ蜷医↓髯舌ｊ險ｱ蜿ｯ・・蜀咲樟蜿ｯ閭ｽ縺ｪ繧ｸ繧ｧ繝阪Μ繝・け蜷ｫ譛牙梛縺義・峨・
 2. **蜷ｫ譛牙梛縺ｮ蝙九ヱ繝ｩ繝｡繝ｼ繧ｿ・句宛邏・ｒ謐墓拷** 窶・`method.ContainingType.TypeParameters`・亥錐蜑阪→ `notnull`/`class`/`struct`/`new()` 遲峨・蛻ｶ邏・ｼ峨ｒ
    謐墓拷縺・`蝙九ヱ繝ｩ繝｡繝ｼ繧ｿ繝ｼ蛻ｶ邏・ｯ逕滓・` 縺ｧ `where` 遽繧堤函謌舌・
 3. **蛯榊女鄂ｲ蜷阪∈蜿肴丐** 窶・逕滓・繝｡繧ｽ繝・ラ繧・`...<T>(this Methods1<T> @this) where T:notnull` 縺ｮ**繧ｸ繧ｧ繝阪Μ繝・け繝｡繧ｽ繝・ラ**縺ｨ縺励※螳｣險
-   ・医・繝ｫ繝繝ｼ繧ｯ繝ｩ繧ｹ縺ｯ髱槭ず繧ｧ繝阪Μ繝・け縺ｮ縺ｾ縺ｾ縲・`LinqInterceptorSourceWriter.cs`](../../Seamless.FLinq/SourceGenerator/LinqInterceptorSourceWriter.cs)・峨・
+   ・医・繝ｫ繝繝ｼ繧ｯ繝ｩ繧ｹ縺ｯ髱槭ず繧ｧ繝阪Μ繝・け縺ｮ縺ｾ縺ｾ縲・`LinqInterceptorSourceWriter.cs`](../../Seamless.FLinq.Generator/SourceGenerator/LinqInterceptorSourceWriter.cs)・峨・
 4. **繝倥Ν繝代・ struct 縺ｮ `<T>` 蛹・* 窶・`OuterTypeParameters` 繧呈妙迚・ヤ繝ｪ繝ｼ縺ｸ莨晄眺縺暦ｼ・PropagateContainingTypeName`/`PropagateOuterTypeParameters`・峨・
    Root/Scalar/Set/Concat/Zip/ToArray 蜷・妙迚・・ struct 螳｣險縺ｨ `EnumeratorTypeName` 縺ｫ螟門・蝙九ヱ繝ｩ繝｡繝ｼ繧ｿ繧貞燕鄂ｮ縲・
 

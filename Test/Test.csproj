@@ -92,9 +92,9 @@
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.ZLinq\Benchmark.System.Linq.Enumerable.ZLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.Range.FLinq\Benchmark.System.Linq.Enumerable.Range.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.Range.ZLinq\Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
-    <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" SetTargetFramework="TargetFramework=netstandard2.0" />
+    <ProjectReference Include="..\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj" SetTargetFramework="TargetFramework=netstandard2.0" />
     <ProjectReference Include="..\Seamless.Database.Generator\Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
-    <Analyzer Include="..\Seamless.FLinq\bin\$(Configuration)\netstandard2.0\Seamless.FLinq.dll" />
+    <Analyzer Include="..\Seamless.FLinq.Generator\bin\$(Configuration)\netstandard2.0\Seamless.FLinq.Generator.dll" />
   </ItemGroup>
   <ItemGroup Condition="'$(EnableBenchmarkUiViewModelTests)'!='true' or '$(TargetFramework)'!='net10.0-windows'">
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
@@ -123,11 +123,11 @@
     <Compile Include="System\Linq\BenchmarkValueComparison\BenchmarkValueComparisonTests.cs" />
     <Compile Include="SourceGenerator\GeneratorTestHelpers.cs" />
     <Compile Include="SourceGenerator\OptimizationFixedPointTests.cs" />
-    <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" SetTargetFramework="TargetFramework=netstandard2.0" />
+    <ProjectReference Include="..\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj" SetTargetFramework="TargetFramework=netstandard2.0" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.FLinq\Benchmark.System.Linq.Enumerable.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.List.ZLinq\Benchmark.System.Linq.Enumerable.List.ZLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.Range.ZLinq\Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
-    <Analyzer Include="..\Seamless.FLinq\bin\$(Configuration)\netstandard2.0\Seamless.FLinq.dll" />
+    <Analyzer Include="..\Seamless.FLinq.Generator\bin\$(Configuration)\netstandard2.0\Seamless.FLinq.Generator.dll" />
     <ProjectReference Include="..\Shared\UI.Storage\UI.Storage.csproj" />
   </ItemGroup>
   <Import Project="..\Shared\UI.Core\UI.Core.projitems" Label="Shared" Condition="'$(EnableBenchmarkUiViewModelTests)'!='true' or '$(TargetFramework)'!='net10.0-windows'" />

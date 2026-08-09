@@ -1,4 +1,4 @@
-﻿# AI Syntax Rules
+# AI Syntax Rules
 
 このファイルは、GPT/Codex、Claude、DeepSeek などの AI エージェントが Seamless ソリューション全体を編集するときに参照する共通の構文ルールです。
 
@@ -127,7 +127,7 @@ class A:IDisposable{
 
 ## File Layout Rules
 
-- `Seamless.FLinq/SourceGenerator/Linq/Fragments` 配下の配置は、役割で分けてください。
+- `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments` 配下の配置は、役割で分けてください。
 - `Bases` には、`abstract` または `virtual` を持つ共通基底クラスだけを置いてください。
 - `Helpers` には、複数クラスから使う純粋な共通ヘルパーだけを置いてください。
 - 1 つのクラスからしか使われない共通処理は、可能ならそのクラスのファイル内に file-scoped でまとめてください。

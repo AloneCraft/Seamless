@@ -84,7 +84,7 @@ public sealed class DynamicLinqRunnerReport(ITestOutputHelper output) {
     private static string FindRepoRoot(string start) {
         var dir = new DirectoryInfo(start);
         while(dir is not null) {
-            if(File.Exists(Path.Combine(dir.FullName,"Seamless.FLinq","Seamless.FLinq.csproj"))) {
+            if(File.Exists(Path.Combine(dir.FullName,"Seamless.FLinq.Generator","Seamless.FLinq.Generator.csproj"))) {
                 return dir.FullName;
             }
             dir=dir.Parent;

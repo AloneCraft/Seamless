@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>Seamless.FLinq</RootNamespace>
-    <AssemblyName>Seamless.FLinq</AssemblyName>
+    <AssemblyName>Seamless.FLinq.Generator</AssemblyName>
     <PackageId>Seamless.FLinq</PackageId>
     <Title>Seamless FLinq</Title>
     <Description>Compile-time LINQ rewriting source generator for Seamless.</Description>
@@ -19,7 +19,7 @@
     <IncludeContentInPack>false</IncludeContentInPack>
     <!-- IncludeBuildOutput=false だと snupkg が空になり NU5017 で失敗するため symbols は作らない。 -->
     <IncludeSymbols>false</IncludeSymbols>
-    <NuspecFile>Seamless.FLinq.nuspec</NuspecFile>
+    <NuspecFile>Seamless.FLinq.Generator.nuspec</NuspecFile>
     <NuspecProperties>version=$(Version);targetPath=$(TargetPath)</NuspecProperties>
     <!-- DevelopmentDependency は付けない。付けると利用者側で PrivateAssets=all 扱いになり、
          下で宣言する Seamless.Linq への依存が流れず、生成コードがコンパイルできなくなる。 -->

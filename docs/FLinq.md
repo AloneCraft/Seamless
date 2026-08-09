@@ -24,7 +24,7 @@ Generatorアセンブリは `netstandard2.0`、Roslyn依存は `Microsoft.CodeAn
 - `Test/SourceGenerator/LinqFragmentCoverageTests.cs`: 公開API Coverage、Key、Priority、Factory型、Capability契約。
 - `Test/SourceGenerator/IncrementalCacheTests.cs`: 入力ファイル単位のIncremental Cache分離。
 - `Test.System.Linq.Enumerable.FLinq`: ReleaseのBenchmark-as-test。
-- `dotnet pack Seamless.FLinq/Seamless.FLinq.csproj -c Release`: analyzer TFM、依存、重複ランタイムDLLを監査。
+- `dotnet pack Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj -c Release`: analyzer TFM、依存、重複ランタイムDLLを監査。
 ## 第1段階: Fragmentを維持した責務分離
 
 第1段階では既存の `Fragment`、`PipelineBuilder`、各演算子Variant、closure/enumerator の生成アルゴリズムを保持する。Generator内は次の内部サービスを通る。

@@ -55,7 +55,7 @@ public sealed class GenericOptimizationTests {
     [Fact, Trait("Category","Architecture")]
     public void ProductCodeDoesNotDependOnBenchmarkIdentifiers() {
         var root = FindRepositoryRoot();
-        var productFiles = new[] { "Seamless.FLinq","Seamless.Linq" }
+        var productFiles = new[] { "Seamless.FLinq.Generator","Seamless.Linq" }
             .SelectMany(folder => Directory.EnumerateFiles(Path.Combine(root,folder),"*.cs",SearchOption.AllDirectories))
             .Where(static path => !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}",StringComparison.Ordinal)
                 &&!path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}",StringComparison.Ordinal));

@@ -21,9 +21,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
     <!-- Normal reference: compile against Seamless.FLinq attributes used by Shared\DynamicLinq. -->
-    <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" SetTargetFramework="TargetFramework=netstandard2.0" />
+    <ProjectReference Include="..\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj" SetTargetFramework="TargetFramework=netstandard2.0" />
     <!-- Analyzer reference: run the Seamless.FLinq source generator for this executable. -->
-    <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="..\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>
 
   <Import Project="..\Shared\DynamicLinq\DynamicLinq.projitems" Label="Shared" />

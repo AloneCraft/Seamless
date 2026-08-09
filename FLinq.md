@@ -66,7 +66,7 @@ review_status: draft
 
 ### Questions
 - 通常設計書へ反映する場合、interceptor を公開 API として扱うか、内部最適化機構として扱うかを確認する。
-# Source: Seamless.FLinq\SourceGenerator\README.md
+# Source: Seamless.FLinq.Generator\SourceGenerator\README.md
 
 # FLinq SourceGenerator Notes
 
@@ -336,7 +336,7 @@ LINQ 呼び出しを含む文に対しては `LINQ呼び出し差し替え文生
         既知の残routing（thin adapter。コード片は Fragment 側 = Any.cs / SelectManyBase / AnonymousExitToList にある）:
             methodName=="Any"（Any.TryBuildWithPredicate）/ "SelectMany"（SelectManyBase.TryBuildInlined + 匿名型出口 Select）/ "ToList"（AnonymousExitToList）。
             いずれも匿名型レジストリ(Pin/Suspend)に強く結合しているため、registry 一本化する場合は匿名型機構ごと慎重に。
-# Source: Seamless.FLinq\SourceGenerator\Linq\Fragments\PipelineBufferingCharacteristics.md
+# Source: Seamless.FLinq.Generator\SourceGenerator\Linq\Fragments\PipelineBufferingCharacteristics.md
 
 # Pipeline Buffering Characteristics
 
@@ -434,7 +434,7 @@ flowchart TD
 - BinarySet と Order の間に置けるのは streaming/set gate として inline できる stage に限る。
 - `SelectMany`, `Concat` 系、`Reverse`/`TakeLast` など別の全件 buffering stage との複合融合は対象外。
 - equality comparer と order comparer/key が同一と証明できる場合の sort+unique 置換は未実装。これは意味論のリスクがあるため、別最適化として扱う。
-# Source: Seamless.FLinq\SourceGenerator\Linq\Fragments\匿名型LINQのdelegate保持Enumerator化.md
+# Source: Seamless.FLinq.Generator\SourceGenerator\Linq\Fragments\匿名型LINQのdelegate保持Enumerator化.md
 
 # 匿名型LINQのdelegate保持Enumerator化 実装計画
 

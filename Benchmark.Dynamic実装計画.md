@@ -16,7 +16,7 @@
 - ソリューションは `Seamless.slnx`、SDKは.NET 10系。既存MAUIアプリは `net10.0-windows`、Roslynは5.3.0、ZLinqは1.5.6、SQLiteはMicrosoft.Data.Sqlite 10.0.9を使用している。
 - `DynamicLinq.Runner` と `Shared/DynamicLinq/EnumerableComparisonCatalog.cs` は存在するが、固定メソッド名から単一演算子を選ぶCSVランナーである。型付きランダムツリー、Roslyn実行時コンパイル、ALC解放、DB、UIは持たないため、新アプリの実装基盤にはしない。
 - `Test/SourceGenerator/GeneratorTestHelpers.cs` には、`LanguageVersion.Preview`、TPA参照、`FLinqIncrementalGenerator`、`RunGeneratorsAndUpdateCompilation`を使う既存Roslyn試験基盤がある。動的コンパイラはこの構成を実運用向けに発展させる。
-- `Seamless.FLinq.csproj` はRoslyn 5.3.0を参照し、`FLinqIncrementalGenerator` はpublicである。Workerから通常参照してGenerator Driverへ明示登録できる。
+- `Seamless.FLinq.Generator.csproj` はRoslyn 5.3.0を参照し、`FLinqIncrementalGenerator` はpublicである。Workerから通常参照してGenerator Driverへ明示登録できる。
 - 新規共有`.projitems`は作らない。したがって`.shproj`追加義務は発生しない。新規プロジェクトはすべて通常の`.csproj`として `Seamless.slnx` へ登録する。
 - 既存 `Work/UI/Benchmark.db` とそのWAL/SHMは変更しない。
 
@@ -129,7 +129,7 @@
 
 - App → Core、Infrastructure
 - Infrastructure → Core
-- Worker → Core、Seamless、Seamless.FLinq、ZLinq、Roslyn
+- Worker → Core、Seamless、Seamless.FLinq.Generator、ZLinq、Roslyn
 - Tests → App、Core、Infrastructure、Worker
 - WorkerはDBへ直接書き込まない。
 - Appのビルド後targetでWorkerをビルドし、exe／dll／deps／runtimeconfig／pdbを出力先へコピーする。
@@ -716,7 +716,7 @@ DB:
 ### Phase 6：再帰性の決定的検証
 
 - 目的: FLinqの明示Opt-in大域固定点と両層traceを実装する。
-- 対象: Seamless.FLinq、Test、Worker。
+- 対象: Seamless.FLinq.Generator、Test、Worker。
 - 新規: FixedPointRunner、OptimizationTrace。
 - 変更: 3 Visitor、MethodBodyRewriter、Pipeline Normalize、生成属性。
 - 新規型: convergence enum、termination、trace event。
@@ -789,16 +789,16 @@ DB:
 | `Benchmark/Benchmark.Dynamic.Worker/DynamicAssemblyLoadContext.cs` | 新規 | collectible load | DynamicAssemblyLoadContext | 3 | なし |
 | `Benchmark/Benchmark.Dynamic.Worker/SourceFixtureFactory.cs` | 新規 | 8 source fixtures | SourceFixtureFactory | 8 | なし |
 | `Benchmark/Benchmark.Dynamic.Worker/MeasurementEngine.cs` | 新規 | Balanced-v1 | MeasurementEngine | 5 | なし |
-| `Seamless.FLinq/SourceGenerator/Interceptor.cs` | 変更 | 生成属性へOpt-in追加 | LinqConvergenceMode | 6 | 既定不変 |
-| `Seamless.FLinq/SourceGenerator/LinqGeneratorModels.cs` | 変更 | convergence伝搬 | generator models | 6 | 既定不変 |
-| `Seamless.FLinq/SourceGenerator/FLinqIncrementalGenerator.MethodBodyRewriter.cs` | 変更 | 大域固定点 | FixedPointRunner利用 | 6 | Opt-inのみ |
-| `Seamless.FLinq/SourceGenerator/AlgebraicRewriter.cs` | 変更 | rule trace | AlgebraicRewriter | 6 | Opt-in trace |
-| `Seamless.FLinq/SourceGenerator/OptimizeVisitor.cs` | 変更 | rule trace | OptimizeVisitor | 6 | Opt-in trace |
-| `Seamless.FLinq/SourceGenerator/ProjectionMergeVisitor.cs` | 変更 | rule trace | ProjectionMergeVisitor | 6 | Opt-in trace |
-| `Seamless.FLinq/SourceGenerator/Linq/Fragments/PipelineBuilder.Normalize.cs` | 変更 | Pipeline固定点／trace | PipelineBuilder | 6 | Opt-inのみ |
-| `Seamless.FLinq/SourceGenerator/FixedPointRunner.cs` | 新規 | cycle／limit／fixed point | FixedPointRunner | 6 | Opt-inのみ |
-| `Seamless.FLinq/SourceGenerator/OptimizationTrace.cs` | 新規 | trace schema／collector | Trace types | 6 | 通常無効 |
-| `Seamless.FLinq/Properties/AssemblyInfo.cs` | 新規 | Testへのinternal公開 | InternalsVisibleTo | 6 | Test限定 |
+| `Seamless.FLinq.Generator/SourceGenerator/Interceptor.cs` | 変更 | 生成属性へOpt-in追加 | LinqConvergenceMode | 6 | 既定不変 |
+| `Seamless.FLinq.Generator/SourceGenerator/LinqGeneratorModels.cs` | 変更 | convergence伝搬 | generator models | 6 | 既定不変 |
+| `Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.MethodBodyRewriter.cs` | 変更 | 大域固定点 | FixedPointRunner利用 | 6 | Opt-inのみ |
+| `Seamless.FLinq.Generator/SourceGenerator/AlgebraicRewriter.cs` | 変更 | rule trace | AlgebraicRewriter | 6 | Opt-in trace |
+| `Seamless.FLinq.Generator/SourceGenerator/OptimizeVisitor.cs` | 変更 | rule trace | OptimizeVisitor | 6 | Opt-in trace |
+| `Seamless.FLinq.Generator/SourceGenerator/ProjectionMergeVisitor.cs` | 変更 | rule trace | ProjectionMergeVisitor | 6 | Opt-in trace |
+| `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/PipelineBuilder.Normalize.cs` | 変更 | Pipeline固定点／trace | PipelineBuilder | 6 | Opt-inのみ |
+| `Seamless.FLinq.Generator/SourceGenerator/FixedPointRunner.cs` | 新規 | cycle／limit／fixed point | FixedPointRunner | 6 | Opt-inのみ |
+| `Seamless.FLinq.Generator/SourceGenerator/OptimizationTrace.cs` | 新規 | trace schema／collector | Trace types | 6 | 通常無効 |
+| `Seamless.FLinq.Generator/Properties/AssemblyInfo.cs` | 新規 | Testへのinternal公開 | InternalsVisibleTo | 6 | Test限定 |
 | `Test/SourceGenerator/OptimizationFixedPointTests.cs` | 新規 | 決定的FLinq試験 | test fixtures | 0,6 | なし |
 | `Test/SourceGenerator/DynamicRouteShapeTests.cs` | 新規 | provider route確定 | test fixtures | 0,8 | なし |
 | `Benchmark.Dynamic.Tests/Benchmark.Dynamic.Tests.csproj` | 新規 | unit／integration | ― | 1 | なし |
