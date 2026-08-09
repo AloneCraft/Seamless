@@ -3,8 +3,8 @@ namespace Seamless.Collections.Tsavorite;
 using global::System.Diagnostics.CodeAnalysis;
 
 /// <summary>
-/// Collection 用セチE�E��E�ョン関数、EanagedAdd は RMW と Upsert の両方で使われる。RMWではAddセマンチE�E��E�クス�E�E�E�キー既存時は拒否�E�E�E�、E
-/// 冁E�E��E�でシリアライズするため、呼び側で PinnedSpanByte めEGCHandle のピン止めが不要、E
+/// Collection用のセッション関数。ManagedAddはRMWとUpsertの両方で使用され、RMWではAddと同じ意味論でキー既存時の追加を拒否する。
+/// 値はStrategy側でシリアライズするため、呼び出し側でPinnedSpanByteやGCHandleを固定する必要はない。
 /// </summary>
 public readonly struct Upsert<TValue, TStrategy>:
     ISessionFunctions<TValue,bool,EqualityEmpty>,
@@ -13,19 +13,19 @@ public readonly struct Upsert<TValue, TStrategy>:
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static void ThrowReadDeleteEntryPoint() {
-        // Upsert は RMW / Upsert にだけバインドされる。直接 Read / Delete のコールバックには到達しなぁE�E��E�E
+        // UpsertはRMW/Upsertにだけバインドされるため、直接Read/Deleteのコールバックには到達しない。
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static T ThrowReadDeleteEntryPoint<T>() {
-        // Upsert は RMW / Upsert にだけバインドされる。直接 Read / Delete のコールバックには到達しなぁE�E��E�E
+        // UpsertはRMW/Upsertにだけバインドされるため、直接Read/Deleteのコールバックには到達しない。
         throw new NotSupportedException();
     }
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static T ThrowCopyUpdateEntryPoint<T>() {
-        // NeedCopyUpdate が常に false のため、CopyUpdater 系には到達しなぁE�E��E�E
+        // NeedCopyUpdateが常にfalseのため、CopyUpdater系には到達しない。
         throw new NotSupportedException();
     }
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input,ref bool output,ref ReadInfo readInfo)
@@ -110,7 +110,7 @@ public readonly struct Upsert<TValue, TStrategy>:
     }
 
     /// <summary>
-    /// キー未存在時�E新規作�Eする
+    /// キーが存在しない場合は新規作成する。
     /// </summary>
     public bool NeedInitialUpdate<TKey>(TKey key,ref TValue input,ref bool output,ref RMWInfo rmwInfo)
 #if NET10_0_OR_GREATER
@@ -122,7 +122,7 @@ public readonly struct Upsert<TValue, TStrategy>:
     }
 
     public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
-        // TValue を�E部でシリアライズしてログレコードに書き込む
+        // TValueをStrategy側でシリアライズしてログレコードに書き込む。
         return dstLogRecord.TrySetValueSpanAndPrepareOptionals(TStrategy.Serialize(ref input),in sizeInfo);
     }
 
@@ -149,7 +149,7 @@ public readonly struct Upsert<TValue, TStrategy>:
     }
 
     /// <summary>
-    /// キー既存時は InPlaceUpdater=false で更新を拒否�E�E�E�Eutput は default(false) のまま�E�E�E�失敗！E
+    /// キーが存在する場合はInPlaceUpdater=falseで更新を拒否し、outputはdefault(false)のまま失敗を示す。
     /// </summary>
     public bool InPlaceUpdater(ref LogRecord logRecord,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
         return false;

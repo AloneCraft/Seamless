@@ -58,6 +58,7 @@
     <Project Path="Shared/Linq.Range/Linq.Range.shproj" />
     <Project Path="Shared/Tsavorite.Collections/Tsavorite.Collections.shproj" />
     <Project Path="Shared/UI.Core/UI.Core.shproj" />
+    <Project Path="Shared/UI.Widgets/UI.Widgets.shproj" />
     <Project Path="Shared/UI.Storage/UI.Storage.csproj" />
     <File Path="Shared/Collections/Collections.projitems" />
     <File Path="Shared/Common/Common.projitems" />
@@ -66,12 +67,13 @@
     <File Path="Shared/Scalable.Collections/Scalable.Collections.projitems" />
     <File Path="Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.projitems" />
     <File Path="Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.projitems" />
-    <File Path="Shared/Seamless.Linq.Enumerable/Seamless.Linq.Enumerable.projitems" />
-    <File Path="Shared/Seamless.Linq.Enumerable/Linq.Enumerable.Benchmark/Program.cs" />
-    <File Path="Shared/Shared.Linq.Optimization/OptimizationBenchmarks.projitems" />
-    <File Path="Shared/Seamless.Linq.Range/Seamless.Linq.Range.projitems" />
+    <File Path="Shared/Linq.Enumerable/Linq.Enumerable.projitems" />
+    <File Path="Shared/Linq.Enumerable/Linq.Enumerable.Benchmark/Program.cs" />
+    <File Path="Shared/Linq.Optimization/Linq.Optimization.projitems" />
+    <File Path="Shared/Linq.Range/Linq.Range.projitems" />
     <File Path="Shared/Tsavorite.Collections/Tsavorite.Collections.projitems" />
     <File Path="Shared/UI.Core/UI.Core.projitems" />
+    <File Path="Shared/UI.Widgets/UI.Widgets.projitems" />
   </Folder>
   <Folder Name="/solution/">
     <File Path="AGENTS.md" />

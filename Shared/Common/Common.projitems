@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Globals">
     <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
@@ -15,6 +15,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\Categories.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\ConsumerExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\OptimizationSupport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\PersistedConsumerExtensions.cs" Condition="'$(Persisted)'=='true'" />
+    <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\TsavoriteConsumerExtensions.cs" Condition="'$(Tsavorite)'=='true'" />
     <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\PersistedBase.cs" Condition="'$(Persisted)'=='true'" />
     <Compile Include="$(MSBuildThisFileDirectory)TestInfrastructure\TsavoriteBase.cs" Condition="'$(Tsavorite)'=='true'" />
   </ItemGroup>

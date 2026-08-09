@@ -1,15 +1,15 @@
 using Microsoft.CodeAnalysis.CSharp;
 using static Seamless.FLinq.CarrierAnalysis;
 namespace Seamless.FLinq;
-// method-chain 繧堤ｿｻ險ｳ縺励ｄ縺吶＞蠖｢縺ｫ豁｣隕丞喧縺吶ｋ syntax rewriter縲・
-// 蠖ｹ蜑ｲ縺ｯ2縺､縲・
-//   1. QueryToExtensionMethodRewriter: from a in xs where ... select ...竊遅s.Where(a=>...).Select(a=>...)
-//   2. OptimizeVisitor 譛ｬ菴・ Where 繧・carrier 縺ｮ騾・ｧ｣譫舌〒闡峨∈謚ｼ縺嶺ｸ九￡繧・
-// carrier 縺ｮ騾・ｧ｣譫舌◎縺ｮ繧ゅ・縺ｯ CarrierAnalysis 縺梧戟縺､(蟆・ｽｱ陞榊粋 ProjectionMergeVisitor 縺ｨ蜈ｱ譛・縲・
-// 隗｣譫舌〒縺阪↑縺・こ繝ｼ繧ｹ縺ｧ縺ｯ蠑上ｒ螟峨∴縺壹↓霑斐☆(螳牙・蛛ｴ)縲・
+// Query lowering and carrier optimization details.
+// Query lowering and carrier optimization details.
+// Query lowering and carrier optimization details.
+// Query lowering and carrier optimization details.
+// Query lowering and carrier optimization details.
+// Query lowering and carrier optimization details.
 internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
-    // 繧ｯ繧ｨ繝ｪ蠑鞘・諡｡蠑ｵ繝｡繧ｽ繝・ラ繝√ぉ繝ｼ繝ｳ縲・
-    // 蜈・・ SemanticModel 縺ｧ譁ｰ隕上ヮ繝ｼ繝峨ｒ逶ｴ謗･譚溽ｸ帙〒縺阪↑縺・◆繧√（nterceptor 蛛ｴ縺ｧ縺ｯ荳九￡縺滓ｧ区枚譛ｨ繧剃ｸ譎・Compilation 縺ｫ蜈･繧後※縺九ｉ菴ｿ縺・・
+    // Query lowering and carrier optimization details.
+    // Query lowering and carrier optimization details.
     private sealed class QueryToExtensionMethodRewriter:CSharpSyntaxRewriter {
         private int transparentNumber;
         public override SyntaxNode? VisitQueryExpression(QueryExpressionSyntax node) =>
@@ -24,10 +24,10 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             }
             return body.Continuation is null||CanLowerQueryBody(body.Continuation.Body);
         }
-        // 莉･蜑阪・螟壽ｮｵ join / 隍・焚 from / group+邯咏ｶ・/ let / this 繧ｽ繝ｼ繧ｹ繧貞ｰ∝魂縺励※縺・◆縺後・
-        // 蜷・Lower* 縺ｯ state.Bindings 繧偵ヵ繝ｩ繝・ヨ蜀榊ｰ・ｽｱ縺吶ｋ菴懊ｊ縺ｧ蜴溽炊逧・↓螟壽ｮｵ騾｣骼門庄閭ｽ縺ｧ縺ゅｊ縲・
-        // 蛹ｿ蜷榊梛縺ｯ record struct registry 縺ｧ蜷肴欠縺怜庄閭ｽ蛹悶＆繧後ｋ縺溘ａ縲√し繝昴・繝育ｯ遞ｮ蛻･縺ｮ讀懈渊
-        //・・anLowerQueryBody・峨′騾壹ｌ縺ｰ lowering 繧定ｩｦ縺ｿ繧九・
+        // Query lowering and carrier optimization details.
+        // Query lowering and carrier optimization details.
+        // Query lowering and carrier optimization details.
+        // Query lowering and carrier optimization details.
         private static bool CanLowerAdvancedShape(QueryExpressionSyntax query) => true;
         private ExpressionSyntax LowerQueryExpression(QueryExpressionSyntax query) {
             var from = query.FromClause;
@@ -265,19 +265,19 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         this.enumerableType=model.Compilation.GetTypeByMetadataName("System.Linq.Enumerable");
     }
     /// <summary>
-    /// Where 繧・carrier 縺ｮ騾・ｧ｣譫舌〒闡峨∈謚ｼ縺嶺ｸ九￡繧九・ 繝代せ縺ｫ縺､縺咲ｵ瑚ｷｯ縺斐→ 1 譖ｸ謠帙□縺題｡後＞縲・
-    /// 蜷域・繝弱・繝峨↓縺ｯ諢丞袖隲悶ご繝ｼ繝医ｒ謗帙￠繧峨ｌ縺ｪ縺・◆繧∝庶譚溘・蜻ｼ縺ｳ蜃ｺ縺怜・縺ｮ蜀肴據邵帙Ν繝ｼ繝励∈蟋斐・繧九・
+    // Query lowering and carrier optimization details.
+    // Query lowering and carrier optimization details.
     /// </summary>
     public static TSyntax Optimize<TSyntax>(TSyntax node,SemanticModel model) where TSyntax : SyntaxNode {
         return new OptimizeVisitor(model).Visit(node) as TSyntax??node;
     }
-    // 蜈・ヮ繝ｼ繝峨・荳翫〒蜈医↓譖ｸ謠帙ｒ隧ｦ縺励∵・遶九＠縺ｪ縺代ｌ縺ｰ蟄舌∈髯阪ｊ繧・AlgebraicRewriter 縺ｨ蜷後§蠖｢)縲・
+    // Query lowering and carrier optimization details.
     public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
         var optimized = this.TryOptimizeInvocation(node);
         if(optimized is not null) return optimized;
         return base.VisitInvocationExpression(node);
     }
-    // Where逶ｴ荳九・sequence call縺ｮ遞ｮ鬘槭〒謚ｼ縺嶺ｸ九￡謌ｦ逡･繧貞・蟯舌・
+    // Query lowering and carrier optimization details.
     private InvocationExpressionSyntax? TryOptimizeInvocation(InvocationExpressionSyntax invocation) {
         if(!this.TryGetLinqSequenceCall(invocation,out var wc)
             ||wc.MethodName!="Where"||wc.Arguments.Count!=1
@@ -295,15 +295,15 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         if(PushWhereThroughBothSourceMethods.Contains(uc.MethodName)) return TryPushWhereThroughBothSources(uc,wl);
         return null;
     }
-    // Order 縺後ヱ繧､繝励Λ繧､繝ｳ蜈磯ｭ縺ｧ繧ｽ繝ｼ繧ｹ縺後せ繝代Φ繧貞・縺帙ｋ縺ｨ縺阪∫函謌仙勣縺ｯ繧ｽ繝ｼ繝域ｸ医∩繧ｹ繝代Φ鬮倬溘ヱ繧ｹ
-    // (PipelineEnumerable.OrderLoop 縺ｮ CanUseSortedDefaultOrderFastPathCore) 繧帝∈縺ｶ縲・
-    // Where 繧貞燕縺ｸ謖ｿ縺吶→ Order 縺悟・鬆ｭ縺ｧ縺ｪ縺上↑繧翫√ヰ繝・ヵ繧｡+髢捺磁繧､繝ｳ繝・ャ繧ｯ繧ｹ繧ｽ繝ｼ繝医∈關ｽ縺｡縺ｦ
-    // 縲後た繝ｼ繝域ｸ医∩縺ｪ繧我ｸｦ縺ｹ譖ｿ縺医ｒ荳ｸ縺斐→逵∫払縺吶ｋ縲榊愛螳壹ｂ螟ｱ縺・ゅ◎縺ｮ蝣ｴ蜷医□縺第款縺嶺ｸ九￡縺ｪ縺・・
+    // Query lowering and carrier optimization details.
+    // Query lowering and carrier optimization details.
+    // Query lowering and carrier optimization details.
+    // Query lowering and carrier optimization details.
     private bool KeepsSortedSpanFastPath(SequenceCallInfo order) {
         if(order.Source is InvocationExpressionSyntax inv&&this.TryGetLinqSequenceCall(inv,out _)) return false;
         return SourceCanTryProvideSpan(this.model.GetTypeInfo(order.Source).Type);
     }
-    // FragmentBuilder.CreateSourceRoot 縺・span 謠蝉ｾ帛庄閭ｽ縺ｪ Root 繧帝∈縺ｶ蝙九・蜀吶＠縲・
+    // Query lowering and carrier optimization details.
     private static bool SourceCanTryProvideSpan(ITypeSymbol? type) {
         if(type is IArrayTypeSymbol) return true;
         if(type is not INamedTypeSymbol named) return false;
@@ -311,11 +311,11 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         return named.OriginalDefinition.ToDisplayString()
             is "System.Collections.Generic.List<T>" or "Seamless.Collections.PersistedList<T>";
     }
-    // reduced extension 蠖｢縺ｮ System.Linq.Enumerable 蜻ｼ縺ｳ蜃ｺ縺励↓髯舌▲縺ｦ謚ｼ縺嶺ｸ九￡蟇ｾ雎｡縺ｫ縺吶ｋ縲・
-    // 髱咏噪蠖｢ SystemEnumerable.X(...) 縺ｯ intercept 縺輔ｌ縺ｪ縺・盾辣ｧ縺ｪ縺ｮ縺ｧ譖ｸ縺肴鋤縺医↑縺・・
+    // Query lowering and carrier optimization details.
+    // Query lowering and carrier optimization details.
     private bool TryGetLinqSequenceCall(InvocationExpressionSyntax invocation,out SequenceCallInfo call) =>
         CarrierAnalysis.TryGetLinqSequenceCall(invocation,this.model,this.enumerableType,out call);
-    // Select邨先棡carrier縺九ｉpredicate繧呈戟縺｡荳翫￡縺ｦsource蛛ｴ縺ｸ謌ｻ縺吶・
+    // Query lowering and carrier optimization details.
     private InvocationExpressionSyntax? TryPushWhereThroughSelect(SequenceCallInfo sc,LambdaExpressionSyntax wl) {
         if(sc.Arguments.Count<1||sc.Arguments[0].Expression is not LambdaExpressionSyntax sl) return null;
         if(!TryLiftPredicate(wl,sl,out var lb,out var refs)) return null;
@@ -324,7 +324,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         if(refs.Count==1&&!refs.Contains(sp[0])) return null;
         return RebuildCall(sc,CreateSequenceCall(sc.Source,"Where",RecreateLambda(sl,lb)),sc.Arguments.Select(static a => a.Expression));
     }
-    // SelectMany縺ｯouter/inner縺ｩ縺｡繧峨□縺代・萓晏ｭ倥°縺ｧ謚ｼ縺嶺ｸ九￡蜈医ｒ豎ｺ螳壹・
+    // Query lowering and carrier optimization details.
     private InvocationExpressionSyntax? TryPushWhereThroughSelectMany(SequenceCallInfo smc,LambdaExpressionSyntax wl) {
         if(smc.Arguments.Count<2
             ||smc.Arguments[0].Expression is not LambdaExpressionSyntax cs
@@ -340,8 +340,8 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         ra[0]=RecreateLambda(cs,CreateSequenceCall(cb,"Where",RecreateLambdaWithParameter(rp[1],lb)));
         return RebuildCall(smc,smc.Source,ra);
     }
-    // Join/LeftJoin縺ｮresult selector繧帝・ｧ｣譫舌＠縺ｦ迚・・萓晏ｭ湾redicate繧痴ource蛛ｴ縺ｸ謌ｻ縺吶・
-    // LeftJoin縺ｯinner蛛ｴ縺ｸ謚ｼ縺嶺ｸ九￡繧九→inner縺檎ｩｺ縺ｫ縺ｪ縺｣縺溯｡後′default縺ｨ繝壹い縺ｧ谿九ｊ陦梧焚縺悟､峨ｏ繧九◆繧｛uter蛛ｴ縺縺題ｨｱ蜿ｯ縺吶ｋ縲・
+    // Query lowering and carrier optimization details.
+    // Query lowering and carrier optimization details.
     private InvocationExpressionSyntax? TryPushWhereThroughBinaryCarrier(SequenceCallInfo c,LambdaExpressionSyntax wl,int rsi) {
         if(c.Arguments.Count<=rsi||c.Arguments[rsi].Expression is not LambdaExpressionSyntax rs) return null;
         var rp = GetLambdaParameterNames(rs);
@@ -358,9 +358,9 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         return this.TryPushConjunctsThroughBinaryCarrier(c,wl,rs,canPushInner);
     }
     /// <summary>
-    /// predicate 繧・AND 騾｣險縺ｸ蛻・ｧ｣縺励∫援蛛ｴ萓晏ｭ倥・騾｣險縺縺代ｒ闡峨∈謚ｼ縺嶺ｸ九￡繧九ゆｸ｡蛛ｴ蜿ら・繧・・ｧ｣譫舌〒縺阪↑縺・｣險縺ｯ
-    /// Join 蠕後・ Where 縺ｫ谿九☆(驛ｨ蛻・款縺嶺ｸ九￡)縲・ 蝗槭・譖ｸ謠帙〒谿九ｋ騾｣險縺悟ｿ・★ 1 蛟倶ｻ･荳頑ｸ帙ｋ縺ｮ縺ｧ蜀崎ｨｪ縺ｯ譛蛾剞蝗槭〒豁｢縺ｾ繧九・
-    /// 遏ｭ邨｡縺悟｣翫ｌ縺ｦ隧穂ｾ｡蝗樊焚繝ｻ隧穂ｾ｡鬆・′螟峨ｏ繧九◆繧√、nchor 繧貞性繧蠑上〒縺ｯ蛻・牡縺励↑縺・・
+    // Query lowering and carrier optimization details.
+    // Query lowering and carrier optimization details.
+    // Query lowering and carrier optimization details.
     /// </summary>
     private InvocationExpressionSyntax? TryPushConjunctsThroughBinaryCarrier(SequenceCallInfo c,LambdaExpressionSyntax wl,LambdaExpressionSyntax rs,bool canPushInner) {
         var rp = GetLambdaParameterNames(rs);
@@ -396,11 +396,11 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         if(restParts.Count==0) return joined;
         return CreateSequenceCall(joined,"Where",RecreateLambda(wl,CombineConjuncts(restParts)));
     }
-    // Unary邉ｻ/FirstSource邉ｻ: source縺ｮ蜑阪↓Where繧呈諺蜈･縲・
+    // Query lowering and carrier optimization details.
     private static InvocationExpressionSyntax PushWhereBeforeSource(SequenceCallInfo c,LambdaExpressionSyntax wl) {
         return RebuildCall(c,CreateSequenceCall(c.Source,"Where",wl),c.Arguments.Select(static a => a.Expression));
     }
-    // Concat/Union: 蟾ｦ蜿ｳ荳｡source縺ｫWhere繧帝←逕ｨ縲・
+    // Query lowering and carrier optimization details.
     private static InvocationExpressionSyntax TryPushWhereThroughBothSources(SequenceCallInfo c,LambdaExpressionSyntax wl) {
         if(c.Arguments.Count==0) return c.Invocation;
         var ra = c.Arguments.Select(static a => a.Expression).ToArray();
