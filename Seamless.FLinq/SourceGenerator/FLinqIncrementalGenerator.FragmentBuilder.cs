@@ -139,119 +139,18 @@ public sealed partial class FLinqIncrementalGenerator {
                 // 直後に文字列化するため、他の候補生成経路と同様にここで外側型パラメータを確定させる。
                 // 後段の PropagateContainingTypeName 呼び出しでは StructMethod 文字列化に間に合わない。
                 Fragment? built = null;
-                if(extraArgs is [Enumerable sourceFragment]
-                    &&TryCreateBackendNativeIterateFragment(name,variant,n,sourceFragment,null,[n,.. extraArgs],out var nativeFragment)) {
+                if(extraArgs.Length==1&&extraArgs[0] is Enumerable sourceFragment
+                    &&TryCreateBackendNativeIterateFragment(new OperatorKey(name,variant),n,sourceFragment,null,new object?[] { n }.Concat(extraArgs).ToArray(),out var nativeFragment)) {
                     built=nativeFragment;
-                } else if(extraArgs is [Enumerable sourceFragmentWithPredicate,FuncFragment predicateFragment]
-                    &&TryCreateBackendNativeIterateFragment(name,variant,n,sourceFragmentWithPredicate,predicateFragment,[n,.. extraArgs],out var nativePredicateFragment)) {
+                } else if(extraArgs.Length==2&&extraArgs[0] is Enumerable sourceFragmentWithPredicate&&extraArgs[1] is FuncFragment predicateFragment
+                    &&TryCreateBackendNativeIterateFragment(new OperatorKey(name,variant),n,sourceFragmentWithPredicate,predicateFragment,new object?[] { n }.Concat(extraArgs).ToArray(),out var nativePredicateFragment)) {
                     built=nativePredicateFragment;
-                } else if(フラグメント候補選択(name,variant,out var c)) {
-                    built=(Fragment?)c.Constructor.Invoke([n,.. extraArgs]);
+                } else if(OperatorRegistry.TryCreateDirect(name,variant,new FragmentArguments(n,extraArgs),out var directFragment)) {
+                    built=directFragment;
                 }
                 built?.PropagateOuterTypeParameters(外側型パラメータ名(containingType));
                 return built;
             });
-
-    /// <summary>
-    /// アセンブリ内の Fragment 継承クラスをリフレクションで全列挙し、
-    /// 型名の命名規則に基づいて「LINQ メソッド名 → その overload/variant 群」の
-    /// 逆引き辞書を構築する。
-    ///
-    /// 【命名規則】
-    ///   Fragment 継承クラスの型名は "{MethodName}_{VariantName}" の形式。
-    ///   例:
-    ///     Aggregate_func          → MethodName="Aggregate", VariantName="func"
-    ///     Aggregate_seed_func     → MethodName="Aggregate", VariantName="seed_func"
-    ///     Where_indexPredicate    → MethodName="Where",     VariantName="indexPredicate"
-    ///     Join                    → MethodName="Join",      VariantName="" (空文字)
-    ///
-    /// 【除外する型 (helperTypes)】
-    ///   抽象基底クラス Fragment, Scalar, Enumerable, Root は
-    ///   具体 Fragment ではないため候補から除外する。
-    ///
-    /// 【コンストラクタの制約】
-    ///   第1引数は必ず int (一意な識別番号) であること。
-    ///   それ以降の引数が Fragment チェーン構築に使われるパラメータとなる。
-    ///
-    /// 【ソート順】
-    ///   同一メソッド名の候補はパラメータ数の降順で並ぶ。
-    ///   これにより 登録済みフラグメント生成を試行() が
-    ///   より特化した overload (引数が多い) から先に試行できる。
-    ///
-    /// 【利用シーン】
-    ///   この辞書は フラグメント候補一覧 静的フィールドとして保持され、
-    ///   登録済みフラグメント生成() や フラグメント候補選択() から
-    ///   「LINQ メソッド名 → 対応 Fragment 型」の解決に使われる。
-    ///   新しい Fragment 継承クラスを追加するだけで自動的に認識されるため、
-    ///   辞書の手動更新は不要。
-    /// </summary>
-    private static IReadOnlyDictionary<string,ImmutableArray<フラグメント候補>> フラグメント候補一覧構築() {
-        // Fragment 抽象基底クラスの型情報を取得
-        var fragmentType = typeof(Fragment);
-        // 具体 Fragment ではない基底型/補助型を除外リストに追加
-        var helperTypes = new HashSet<Type> {
-            typeof(Fragment),
-            typeof(Scalar),
-            typeof(Enumerable),
-            typeof(Root),
-        };
-
-        // アセンブリ内の全型から Fragment 継承クラスを抽出
-        var candidates = fragmentType.Assembly.GetTypes()
-            .Where(type => !type.IsAbstract                          // 抽象クラスは除外
-                &&fragmentType.IsAssignableFrom(type)               // Fragment を継承している
-                &&!helperTypes.Contains(type))                      // 基底型/補助型を除外
-            .Select(type => {
-                // コンストラクタは1つだけ想定
-                var constructor = type.GetConstructors().SingleOrDefault();
-                if(constructor is null) {
-                    return null;
-                }
-
-                var parameters = constructor.GetParameters();
-                // 第1引数は int (一意識別番号) である必要がある
-                if(parameters.Length==0||parameters[0].ParameterType!=typeof(int)) {
-                    return null;
-                }
-
-                // 型名を '_' で分割して MethodName と VariantName を抽出
-                // 例: "Aggregate_seed_func" → ["Aggregate", "seed", "func"]
-                var parts = type.Name.Split('_');
-                var isApplicableMethod = type.GetMethod(
-                    "IsApplicableOverload",
-                    BindingFlags.Public|BindingFlags.Static,
-                    binder: null,
-                    [typeof(IMethodSymbol)],
-                    null);
-                Func<IMethodSymbol,bool>? isApplicableDelegate = isApplicableMethod is not null
-                    ? method => (bool)isApplicableMethod.Invoke(null,[method])!
-                    : null;
-                return new フラグメント候補 {
-                    FragmentType=type,
-                    Constructor=constructor,
-                    MethodName=parts[0],                              // 例: "Aggregate"
-                    VariantName=parts.Length>1                         // 例: "seed_func"
-                        ? string.Join("_",parts.Skip(1))
-                        : string.Empty,
-                    Parameters=parameters[1..],                       // int 識別番号を除いた実パラメータ
-                    IsApplicableOverload=isApplicableDelegate,
-                };
-            })
-            .Where(static candidate => candidate is not null)
-            .Cast<フラグメント候補>()
-            // パラメータ数の降順 → 型名の昇順でソート
-            // パラメータ数が多い = より特化した overload を先に試行するため
-            .OrderByDescending(static candidate => candidate.Parameters.Length)
-            .ThenBy(static candidate => candidate.FragmentType.Name,StringComparer.Ordinal)
-            // MethodName でグループ化して辞書化
-            .GroupBy(static candidate => candidate.MethodName,StringComparer.Ordinal)
-            .ToDictionary(
-                static group => group.Key,
-                static group => group.ToImmutableArray(),
-                StringComparer.Ordinal);
-
-        return candidates;
-    }
 
     /// <summary>
     /// source.Method(arg1, arg2, ...)
@@ -283,7 +182,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         var methodName = (fragmentMethod.ReducedFrom??fragmentMethod).Name;
-        if(!フラグメント候補一覧.TryGetValue(methodName,out var candidates)) {
+        if(!OperatorRegistry.TryGetCandidates(methodName,out var candidates)) {
             return false;
         }
 
@@ -294,7 +193,6 @@ public sealed partial class FLinqIncrementalGenerator {
                 return true;
             }
         }
-
         return false;
     }
 
@@ -359,7 +257,7 @@ public sealed partial class FLinqIncrementalGenerator {
             ||method.TypeArguments.Length==0) {
             return true;
         }
-        var resultElementType = method.TypeArguments[^1];
+        var resultElementType = method.TypeArguments[method.TypeArguments.Length-1];
         if(!ContainsAnonymousType(resultElementType)) {
             return true;
         }
@@ -379,31 +277,14 @@ public sealed partial class FLinqIncrementalGenerator {
             $"_anonExitDel{uniqueNumber++}",
             $"({recordTypeName} {exitParamName})=>{exitBody}") {
             ReturnTypeName="TResult",
-            ParameterTypeNames= [recordTypeName],
-            ParameterNames= [exitParamName],
+            ParameterTypeNames=new[] { recordTypeName },
+            ParameterNames=new[] { exitParamName },
             CanGenerateMethod=false,
         };
         var exitSelect = new Select_selector(uniqueNumber++,selectManyFragment,exitFragment);
         fragment=exitSelect;
         staticMethods=静的メソッドコード連結(staticMethods,exitSelect.StructMethod);
         return true;
-    }
-
-    private static bool フラグメント候補選択(string methodName,string variantName,out フラグメント候補 candidate) {
-        candidate=null!;
-        if(!フラグメント候補一覧.TryGetValue(methodName,out var candidates)) {
-            return false;
-        }
-
-        foreach(var current in candidates) {
-            if(current.VariantName!=variantName) {
-                continue;
-            }
-            candidate=current;
-            return true;
-        }
-
-        return false;
     }
 
     /// <summary>
@@ -418,7 +299,7 @@ public sealed partial class FLinqIncrementalGenerator {
     ///   → Join(outerFragment, innerFragment, outerKeyFragment, innerKeyFragment, resultFragment, comparer)
     /// </summary>
     private static bool 登録済みフラグメント生成を試行(
-        フラグメント候補 candidate,
+        IOperatorDescriptor candidate,
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
         ExpressionSyntax sourceExpression,
@@ -431,143 +312,38 @@ public sealed partial class FLinqIncrementalGenerator {
         List<string>? unsafeAccessorCollector = null) {
         fragment=null!;
         staticMethods=string.Empty;
-
-        if(!フラグメント候補が使用可能か(candidate,method)) {
+        if(!candidate.IsApplicable(method)) {
             return false;
         }
 
-        var fragmentNumber = uniqueNumber++;
-        var constructorArguments = new List<object?>(candidate.Parameters.Length+1) { fragmentNumber };
-        if(!列挙式フラグメント生成(semanticModel,sourceExpression,containingType,ref uniqueNumber,out var sourceFragment,out var sourceStaticMethods,unsafeAccessorCollector)) {
+        var context = new FragmentFactoryContext(
+            semanticModel,
+            invocation,
+            sourceExpression,
+            argumentStartIndex,
+            method,
+            containingType,
+            uniqueNumber,
+            unsafeAccessorCollector);
+        if(!candidate.TryCreate(context,out fragment)) {
             return false;
         }
 
-        constructorArguments.Add(sourceFragment);
-        staticMethods=sourceStaticMethods;
-        FuncFragment? predicateFragmentForNativeIterate = null;
-
-        var argumentIndex = argumentStartIndex;
-        for(var parameterIndex = 1;parameterIndex<candidate.Parameters.Length;parameterIndex++) {
-            var parameter = candidate.Parameters[parameterIndex];
-            if(parameter.ParameterType==typeof(string)
-                &&TryResolveSyntheticStringArgument(parameter,method,out var syntheticArgument)) {
-                constructorArguments.Add(syntheticArgument);
-                continue;
-            }
-
-            if(argumentIndex>=invocation.ArgumentList.Arguments.Count) {
-                // "comparer" 文字列パラメータは省略可能（= null）。他の string は合成引数か必須引数なので return false。
-                if(parameter.ParameterType==typeof(string)&&parameter.Name=="comparer") {
-                    constructorArguments.Add("null");
-                    continue;
-                }
-                return false;
-            }
-
-            var argumentExpression = invocation.ArgumentList.Arguments[argumentIndex].Expression;
-            if(parameter.ParameterType==typeof(string)) {
-                constructorArguments.Add(RenderExpressionForGeneratedMethod(argumentExpression,semanticModel,containingType,unsafeAccessorCollector));
-                argumentIndex++;
-                continue;
-            }
-
-            if(typeof(FuncFragment).IsAssignableFrom(parameter.ParameterType)) {
-                var methodParameterIndex = argumentIndex-argumentStartIndex;
-                if(methodParameterIndex<0
-                    ||methodParameterIndex>=method.Parameters.Length
-                    ||!関数式フラグメント生成(argumentExpression,method.Parameters[methodParameterIndex].Type,ref uniqueNumber,out var funcFragment,semanticModel,containingType)
-                    ||!関数フラグメントが利用可能か(funcFragment)) {
-                    return false;
-                }
-
-                constructorArguments.Add(funcFragment);
-                predicateFragmentForNativeIterate??=funcFragment;
-                argumentIndex++;
-                continue;
-            }
-
-            // 引数位置の列挙ソース（Join/GroupJoin/LeftJoin/RightJoin の inner、Concat/Union/Except/
-            // Intersect/*By/Zip/SequenceEqual の second など）も、レシーバ（上の :441）と同じく
-            // 列挙式フラグメント生成 でほどく。単独列挙ソースフラグメント生成 だけを使っていた頃は
-            // second.Where(p) のような LINQ チェーンが不透明な Root に落ち、生成コードへ式テキストが
-            // そのまま埋まって素の System.Linq.Where（boxing＋デリゲート＋interface dispatch）になっていた。
-            // 述語プッシュダウンが inner へ Where を挿す Join がこれを踏んで大きく退行していた。
-            // 列挙式フラグメント生成 は「呼び出し式ならほどき、駄目なら単独列挙ソースフラグメント生成 へ
-            // フォールバック」なので、ユーザーメソッド呼び出しや素の配列・フィールドは従来どおり Root になる。
-            if(typeof(Enumerable).IsAssignableFrom(parameter.ParameterType)) {
-                if(!列挙式フラグメント生成(semanticModel,argumentExpression,containingType,ref uniqueNumber,out var enumerableFragment,out var enumerableStaticMethods,unsafeAccessorCollector)) {
-                    return false;
-                }
-
-                constructorArguments.Add(enumerableFragment);
-                staticMethods=静的メソッドコード連結(staticMethods,enumerableStaticMethods);
-                argumentIndex++;
-                continue;
-            }
-
-            return false;
-        }
-
-        if(argumentIndex!=invocation.ArgumentList.Arguments.Count) {
-            return false;
-        }
-
-        if(TryCreateBackendNativeIterateFragment(
-            candidate.MethodName,
-            candidate.VariantName,
-            fragmentNumber,
-            sourceFragment,
-            predicateFragmentForNativeIterate,
-            constructorArguments,
-            out var nativeScanFragment)) {
-            fragment=nativeScanFragment;
-            // StructMethod（InlineArray バッファ等）は今ここで文字列化されるので、外側型パラメータを先に確定させる。
-            fragment.PropagateOuterTypeParameters(外側型パラメータ名(containingType));
-            staticMethods=Fragment.JoinStaticMethods(staticMethods,fragment.StructMethod);
-            return true;
-        }
-
-        if(candidate.Constructor.Invoke(constructorArguments.ToArray()) is not Fragment generatedFragment) {
-            return false;
-        }
-
-        fragment=generatedFragment;
-        // StructMethod（InlineArray バッファ等）は今ここで文字列化されるので、外側型パラメータを先に確定させる。
-        fragment.PropagateOuterTypeParameters(外側型パラメータ名(containingType));
-        staticMethods=静的メソッドコード連結(staticMethods,fragment.StructMethod);
+        context.PropagateOuterTypeParameters(fragment);
+        staticMethods=静的メソッドコード連結(context.StaticMethods,fragment.StructMethod);
+        uniqueNumber=context.UniqueNumber;
         return true;
     }
-
     private static bool TryCreateBackendNativeIterateFragment(
-        string methodName,
-        string variantName,
+        OperatorKey key,
         int number,
         Enumerable source,
         FuncFragment? predicate,
         IReadOnlyList<object?> constructorArguments,
         out Fragment fragment) {
         fragment=null!;
-        if(!IsSupportedBackendNativeIterateVariant(methodName,variantName)) {
-            return false;
-        }
-        if((variantName=="predicate"||methodName=="All")&&predicate is null) {
-            return false;
-        }
-
-        var terminalKind = methodName switch {
-            "ToList" => ProviderIterateTerminalKind.ToList,
-            "ToArray" => ProviderIterateTerminalKind.ToArray,
-            "Any" => ProviderIterateTerminalKind.Any,
-            "Count" => ProviderIterateTerminalKind.Count,
-            "First" => ProviderIterateTerminalKind.First,
-            "ToDictionary" => ProviderIterateTerminalKind.ToDictionary,
-            "Sum" => ProviderIterateTerminalKind.Sum,
-            "All" => ProviderIterateTerminalKind.All,
-            "FirstOrDefault" => ProviderIterateTerminalKind.FirstOrDefault,
-            "Contains" => ProviderIterateTerminalKind.Contains,
-            _ => (ProviderIterateTerminalKind?)null
-        };
-        if(terminalKind is null) {
+        if(!OperatorRegistry.TryGetProviderNativeProfile(key,out var profile)
+            ||(profile.PredicateBinding!=ProviderNativePredicateBinding.None&&predicate is null)) {
             return false;
         }
 
@@ -580,41 +356,41 @@ public sealed partial class FLinqIncrementalGenerator {
             currentElementType=existingPipeline.ElementType;
         }
 
-        var terminalPredicate = methodName=="All" ? predicate : null;
-        if(predicate is not null&&methodName!="All") {
-            if(methodName=="Sum"&&variantName=="selector") {
-                stages.Add(new PipelineStage(PipelineStageKind.Select,predicate,null,currentElementType,predicate.ReturnTypeName));
-                currentElementType=predicate.ReturnTypeName;
-            } else if(methodName is not "ToDictionary") {
-                stages.Add(new PipelineStage(PipelineStageKind.Where,predicate,null,currentElementType,currentElementType));
+        var terminalPredicate = profile.PredicateBinding==ProviderNativePredicateBinding.Terminal ? predicate : null;
+        if(predicate is not null) {
+            switch(profile.PredicateBinding) {
+                case ProviderNativePredicateBinding.Select:
+                    stages.Add(new PipelineStage(PipelineStageKind.Select,predicate,null,currentElementType,predicate.ReturnTypeName));
+                    currentElementType=predicate.ReturnTypeName;
+                    break;
+                case ProviderNativePredicateBinding.Filter:
+                    stages.Add(new PipelineStage(PipelineStageKind.Where,predicate,null,currentElementType,currentElementType));
+                    break;
             }
         }
 
-        var containsValue = TryGetBackendNativeContainsValue(methodName,constructorArguments);
-        var containsComparer = TryGetBackendNativeContainsComparer(methodName,variantName,constructorArguments);
+        var containsValue = profile.ContainsValueIndex>=0&&constructorArguments.Count>profile.ContainsValueIndex
+            ? constructorArguments[profile.ContainsValueIndex] as string
+            : null;
+        var containsComparer = profile.ContainsComparerIndex>=0&&constructorArguments.Count>profile.ContainsComparerIndex
+            ? constructorArguments[profile.ContainsComparerIndex] as string
+            : null;
         var pipeline = new PipelineEnumerable(number,root,stages,currentElementType);
-        if(methodName is "ToList" or "ToArray" or "ToDictionary" or "Sum") {
-            var funcs = constructorArguments.OfType<FuncFragment>().ToArray();
-            var terminalFunc1 = methodName=="ToDictionary" ? funcs.ElementAtOrDefault(0) : null;
-            var terminalFunc2 = methodName=="ToDictionary" ? funcs.ElementAtOrDefault(1) : null;
-            var terminalComparer = TryGetNamedConstructorArgument("comparer",constructorArguments,methodName,variantName);
-            var pipelineKind = methodName switch {
-                "ToList" => PipelineTerminalKind.ToList,
-                "ToArray" => PipelineTerminalKind.ToArray,
-                "ToDictionary" => PipelineTerminalKind.ToDictionary,
-                _ => PipelineTerminalKind.Sum,
-            };
+        if(profile.PipelineTerminalKind is { } pipelineKind) {
+            var funcs = profile.UsesTerminalFunctions ? constructorArguments.OfType<FuncFragment>().ToArray() : Array.Empty<FuncFragment>();
+            var terminalFunc1 = funcs.Length>0 ? funcs[0] : null;
+            var terminalFunc2 = funcs.Length>1 ? funcs[1] : null;
+            var terminalComparer = profile.UsesTrailingComparer&&constructorArguments.Count>=2
+                ? constructorArguments[constructorArguments.Count-2] as string
+                : null;
             if(ProviderIterateTerminal.TryCreate(number,pipeline,pipelineKind,terminalFunc1,terminalFunc2,terminalComparer,out var materializeTerminal)) {
                 fragment=materializeTerminal;
                 return true;
             }
             return false;
         }
-        // provider が O(1) の membership lookup を持つなら、Contains を全走査ではなく直接検索にする。
-        // 要素を変えない AsEnumerable だけは挟まってよい。Where/Select 等が入ると
-        // 比較対象が集合の要素でなくなるため従来の native scan へ落とす。
-        // comparer 指定がある場合も集合自身の等価とは一致しないので落とす。
-        if(terminalKind==ProviderIterateTerminalKind.Contains
+        if(profile.UsesNativeLookup
+            &&profile.TerminalKind==ProviderIterateTerminalKind.Contains
             &&stages.All(static stage => stage.Kind==PipelineStageKind.AsEnumerable)
             &&containsComparer is null
             &&containsValue is not null
@@ -623,72 +399,13 @@ public sealed partial class FLinqIncrementalGenerator {
             fragment=new ProviderNativeLookupTerminal(number,lookupExpression,"bool");
             return true;
         }
-        if(ProviderIterateTerminal.TryCreate(number,pipeline,terminalKind.Value,terminalPredicate,containsValue,containsComparer,out var providerTerminal)) {
+        if(ProviderIterateTerminal.TryCreate(number,pipeline,profile.TerminalKind,terminalPredicate,containsValue,containsComparer,out var providerTerminal)) {
             fragment=providerTerminal;
             return true;
         }
 
         return false;
     }
-
-    private static bool IsSupportedBackendNativeIterateVariant(string methodName,string variantName) =>
-        methodName switch {
-            "ToList" or "ToArray" => variantName=="",
-            "ToDictionary" => variantName is "keySelector" or "keySelector_elementSelector" or "keySelector_comparer" or "keySelector_elementSelector_comparer",
-            "Sum" => variantName is "" or "selector",
-            "Any" or "Count" or "First" => variantName is "" or "predicate",
-            "All" => variantName=="predicate",
-            "FirstOrDefault" => variantName is "" or "predicate",
-            "Contains" => variantName is "" or "comparer",
-            _ => false,
-        };
-
-    private static string? TryGetNamedConstructorArgument(
-        string parameterName,
-        IReadOnlyList<object?> constructorArguments,
-        string methodName,
-        string variantName) {
-        if(parameterName!="comparer"
-            ||methodName!="ToDictionary"
-            ||!variantName.EndsWith("_comparer",StringComparison.Ordinal)
-            ||constructorArguments.Count<2) {
-            return null;
-        }
-        return constructorArguments[^2] as string;
-    }
-
-    private static string? TryGetBackendNativeContainsValue(string methodName,IReadOnlyList<object?> constructorArguments) =>
-        methodName=="Contains"&&constructorArguments.Count>2
-            ? constructorArguments[2] as string
-            : null;
-
-    private static string? TryGetBackendNativeContainsComparer(string methodName,string variantName,IReadOnlyList<object?> constructorArguments) =>
-        methodName=="Contains"&&variantName=="comparer"&&constructorArguments.Count>3
-            ? constructorArguments[3] as string
-            : null;
-
-    private static bool TryResolveSyntheticStringArgument(ParameterInfo parameter,IMethodSymbol method,out string value) {
-        value=string.Empty;
-        if(parameter.Name is not ("resultElementType" or "resultType")) {
-            return false;
-        }
-
-        if(parameter.Name=="resultType") {
-            value=method.ReturnType.ToDisplayString(完全修飾形式);
-            return true;
-        }
-
-        if(!列挙要素型取得(method.ReturnType,out var elementType,out _)) {
-            return false;
-        }
-
-        value=elementType.ToDisplayString(完全修飾形式);
-        return true;
-    }
-
-    private static bool フラグメント候補が使用可能か(フラグメント候補 candidate,IMethodSymbol method)
-       => candidate.IsApplicableOverload?.Invoke(method)??true;
-
     private static bool 関数フラグメントが利用可能か(FuncFragment funcFragment) {
         if(funcFragment.CanGenerateMethod) {
             return true;
@@ -803,8 +520,8 @@ public sealed partial class FLinqIncrementalGenerator {
         out string[] unsafeAccessorCodes,
         out IReadOnlyCollection<ExpressionSyntax> hoistedExpressions) {
         renderReplacementMap=null;
-        hoistedLocals= [];
-        unsafeAccessorCodes= [];
+        hoistedLocals=Array.Empty<HoistedLocal>();
+        unsafeAccessorCodes=Array.Empty<string>();
         hoistedExpressions=Array.Empty<ExpressionSyntax>();
 
         var parameterSet = new HashSet<string>(parameterNames,StringComparer.Ordinal);
@@ -1226,8 +943,8 @@ public sealed partial class FLinqIncrementalGenerator {
             if(semanticModel is not null
                 &&containingType is not null
                 &&delegateType is INamedTypeSymbol { TypeArguments.Length:>0 } funcTypeSym
-                &&ContainsAnonymousType(funcTypeSym.TypeArguments[^1])) {
-                var returnTypeSym = funcTypeSym.TypeArguments[^1];
+                &&ContainsAnonymousType(funcTypeSym.TypeArguments[funcTypeSym.TypeArguments.Length-1])) {
+                var returnTypeSym = funcTypeSym.TypeArguments[funcTypeSym.TypeArguments.Length-1];
                 var returnTypeName = ReplaceAnonymousTypesWithTResult(returnTypeSym);
                 var paramTypeNames = funcTypeSym.TypeArguments.Take(funcTypeSym.TypeArguments.Length-1)
                     .Select(static t => t.ToDisplayString(完全修飾形式)).ToArray();
@@ -1432,7 +1149,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 if(delegateType is INamedTypeSymbol { TypeArguments.Length:>0 } anonFuncType
                     &&anonFuncType.TypeArguments.Any(ContainsAnonymousType)
                     &&semanticModel is not null&&containingType is not null) {
-                    var anonReturnTypeName = ReplaceAnonymousTypesWithTResult(anonFuncType.TypeArguments[^1]);
+                    var anonReturnTypeName = ReplaceAnonymousTypesWithTResult(anonFuncType.TypeArguments[anonFuncType.TypeArguments.Length-1]);
                     var anonParamTypeNames = anonFuncType.TypeArguments.Take(anonFuncType.TypeArguments.Length-1)
                         .Select(static t => t.ToDisplayString(完全修飾形式)).ToArray();
                     var anonParamNames = GetAnonymousMethodParameters(anonymousMethod).ToArray();
@@ -1550,7 +1267,7 @@ public sealed partial class FLinqIncrementalGenerator {
         if(parameters.Count!=paramTypeSyms.Length) {
             return false;
         }
-        var returnTypeSym = funcType.TypeArguments[^1];
+        var returnTypeSym = funcType.TypeArguments[funcType.TypeArguments.Length-1];
 
         var strippedBody = StripParentheses(body);
         if(ContainsAnonymousType(returnTypeSym)&&strippedBody is not AnonymousObjectCreationExpressionSyntax) {
@@ -1635,7 +1352,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
         var paramTypeSyms = funcType.TypeArguments.Take(funcType.TypeArguments.Length-1).ToArray();
-        var returnTypeSym = funcType.TypeArguments[^1];
+        var returnTypeSym = funcType.TypeArguments[funcType.TypeArguments.Length-1];
         // このパスは: 戻り値が匿名型の identity lambda (p=>p) など、
         // TryBuildRegistryMappedLambdaFunc が struct record ファクトリへ変換できなかった場合に限定する。
         if(!ContainsAnonymousType(returnTypeSym)) {
@@ -1769,14 +1486,13 @@ public sealed partial class FLinqIncrementalGenerator {
     }
 
     private static bool Enumerableメソッドがフラグメント対応済みか(string methodName)
-       => methodName=="Any"||methodName=="TryGetNonEnumeratedCount"||IsKnownEnumerableRootMethod(methodName)||フラグメント候補一覧.ContainsKey(methodName);
+       => methodName=="Any"||methodName=="TryGetNonEnumeratedCount"||IsKnownEnumerableRootMethod(methodName)||OperatorRegistry.IsKnownEnumerableMethodName(methodName);
 
-    private static bool IsKnownEnumerableRootMethod(string methodName) =>
-        methodName is "Range" or "Repeat" or "Empty" or "InfiniteSequence" or "Sequence" or "AsEnumerable";
+    private static bool IsKnownEnumerableRootMethod(string methodName) => OperatorRegistry.IsRootMethodName(methodName);
 
     private static bool IsKnownEnumerableRootMethod(IMethodSymbol method) =>
         method.ContainingType.ToDisplayString()=="System.Linq.Enumerable"
-        &&IsKnownEnumerableRootMethod(method.Name);
+        &&OperatorRegistry.IsRootMethodName(method.Name);
 
     private static Enumerable CreateRootEnumerableFragment(string sourceExpression,string elementType,string enumeratorTypeName,bool useEnumerableInterface,int 番号) {
         return new Root(
@@ -1835,77 +1551,24 @@ public sealed partial class FLinqIncrementalGenerator {
         IReadOnlyDictionary<string,string>? replacementMap) {
         fragment=null!;
         if(method.ContainingType.ToDisplayString()!="System.Linq.Enumerable"
-            ||!IsKnownEnumerableRootMethod(method.Name)) {
+            ||!OperatorRegistry.IsRootMethodName(method.Name)) {
             return false;
         }
 
-        if(method.Name=="AsEnumerable"
-            &&method.Parameters.Length==1
-            &&TryGetInvocationArgumentExpression(method,invocation,0,out var sourceExpression)) {
-            return TryBuildEnumerableRootFromExpressionWithReplacement(
-                semanticModel,
-                sourceExpression,
-                containingType,
-                ref uniqueNumber,
-                out fragment,
-                unsafeAccessorCollector,
-                replacementMap);
+        var context = new RootFactoryContext(
+            semanticModel,
+            invocation,
+            method,
+            containingType,
+            uniqueNumber,
+            unsafeAccessorCollector,
+            replacementMap);
+        if(!OperatorRegistry.TryCreateRoot(context,out fragment)) {
+            return false;
         }
-
-        if(method.Name=="Empty"
-            &&invocation.ArgumentList.Arguments.Count==0
-            &&method.TypeArguments.Length==1) {
-            fragment=new EmptyRoot(
-                uniqueNumber++,
-                method.TypeArguments[0].ToDisplayString(完全修飾形式));
-            return true;
-        }
-
-        if(method.Name=="Range") {
-            if(invocation.ArgumentList.Arguments.Count!=2) {
-                return false;
-            }
-            fragment=new RangeRoot(
-                uniqueNumber++,
-                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[0].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
-                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[1].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap));
-            return true;
-        }
-
-        if(method.Name=="Repeat"&&method.TypeArguments.Length==1) {
-            if(invocation.ArgumentList.Arguments.Count!=2) {
-                return false;
-            }
-            fragment=new RepeatRoot(
-                uniqueNumber++,
-                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[0].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
-                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[1].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
-                method.TypeArguments[0].ToDisplayString(完全修飾形式));
-            return true;
-        }
-
-        if(method.Name=="InfiniteSequence"&&invocation.ArgumentList.Arguments.Count==2&&method.TypeArguments.Length==1) {
-            fragment=new InfiniteSequenceRoot(
-                uniqueNumber++,
-                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[0].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
-                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[1].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
-                method.TypeArguments[0].ToDisplayString(完全修飾形式));
-            return true;
-        }
-
-        if(method.Name=="Sequence"&&invocation.ArgumentList.Arguments.Count==3&&method.TypeArguments.Length==1) {
-            fragment=new SequenceRoot(
-                uniqueNumber++,
-                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[0].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
-                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[1].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
-                RenderExpressionForGeneratedMethod(invocation.ArgumentList.Arguments[2].Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
-                method.TypeArguments[0].ToDisplayString(完全修飾形式));
-            return true;
-        }
-
-        return false;
+        uniqueNumber=context.UniqueNumber;
+        return true;
     }
-
     private static bool TryBuildKnownEnumerableRootFromOrdinaryMethod(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
@@ -2273,9 +1936,8 @@ public sealed partial class FLinqIncrementalGenerator {
             return true;
         }
 
-        if(collectionExpression.Elements is [
-            ExpressionElementSyntax { Expression: var elementExpression }
-        ]) {
+        if(collectionExpression.Elements.Count==1
+            &&collectionExpression.Elements[0] is ExpressionElementSyntax { Expression: var elementExpression }) {
             fragment=new RepeatRoot(
                 uniqueNumber++,
                 RenderExpressionForGeneratedMethod(elementExpression,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
@@ -2314,11 +1976,9 @@ public sealed partial class FLinqIncrementalGenerator {
             return true;
         }
 
-        if(methodSyntax.Body is {
-            Statements: [
-                ReturnStatementSyntax { Expression: { } returnExpression }
-            ]
-        }) {
+        if(methodSyntax.Body is { } bodySyntax
+            &&bodySyntax.Statements.Count==1
+            &&bodySyntax.Statements[0] is ReturnStatementSyntax { Expression: { } returnExpression }) {
             expression=returnExpression;
             return true;
         }
@@ -2392,13 +2052,13 @@ public sealed partial class FLinqIncrementalGenerator {
 
     // ブロックが「単一の値付き return 文だけ」かどうか。これに該当するものは式インライン（LambdaFunc）で扱う。
     private static bool IsSingleReturnBlock(BlockSyntax block) =>
-        block.Statements is [ReturnStatementSyntax { Expression: not null }];
+        block.Statements.Count==1&&block.Statements[0] is ReturnStatementSyntax { Expression: not null };
 
     /// <summary><c>delegate(params) {}</c> のパラメータ名リストを返す。引数リストがない場合は空リスト。</summary>
     private static List<string> GetAnonymousMethodParameters(AnonymousMethodExpressionSyntax anonymousMethod) =>
         anonymousMethod.ParameterList?.Parameters
             .Select(static parameter => parameter.Identifier.ValueText)
-            .ToList()?? [];
+            .ToList()??new List<string>();
 
     // 複数文ブロック本体（try-catch 含む）を文インライン展開する BlockFunc を構築する。
     // return 文は __Tsavorite_DEST__ への代入 + goto __Tsavorite_LABEL__ へ書き換える。
@@ -2436,7 +2096,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         var capturedLocals = Array.Empty<(string Name,string TypeName)>();
         if(semanticModel is not null&&block.Statements.Count>0) {
-            var dataFlow = semanticModel.AnalyzeDataFlow(block.Statements[0],block.Statements[^1]);
+            var dataFlow = semanticModel.AnalyzeDataFlow(block.Statements[0],block.Statements[block.Statements.Count-1]);
             if(dataFlow?.Succeeded==true) {
                 var paramSet = new HashSet<string>(parameters,StringComparer.Ordinal);
                 capturedLocals=dataFlow.DataFlowsIn
@@ -2450,7 +2110,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         fragment=new BlockFunc {
-            ReturnTypeName=typeArguments[^1],
+            ReturnTypeName=typeArguments[typeArguments.Length-1],
             ParameterTypeNames=parameterTypeNames,
             ParameterNames=parameters.ToArray(),
             CanGenerateMethod=false,
@@ -2545,7 +2205,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         fragment=new LambdaSpec(
-            typeArguments[^1],
+            typeArguments[typeArguments.Length-1],
             parameterTypeNames,
             parameters.ToArray(),
             NormalizeExpressionText(body.ToString()));
@@ -2564,9 +2224,8 @@ public sealed partial class FLinqIncrementalGenerator {
         fragment=null!;
         body=null!;
 
-        if(anonymousMethod.Block.Statements is not [
-            ReturnStatementSyntax { Expression: { } returnExpression }
-        ]) {
+        if(anonymousMethod.Block.Statements.Count!=1
+            ||anonymousMethod.Block.Statements[0] is not ReturnStatementSyntax { Expression: { } returnExpression }) {
             return false;
         }
 
@@ -2581,7 +2240,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         var parameters = anonymousMethod.ParameterList?.Parameters
             .Select(static parameter => parameter.Identifier.ValueText)
-            .ToArray()?? [];
+            .ToArray()??new string[0];
         var typeArguments = funcType.TypeArguments.Select(typeArgument => typeArgument.ToDisplayString(完全修飾形式)).ToArray();
         var parameterTypeNames = typeArguments.Take(typeArguments.Length-1).ToArray();
         if(parameters.Length!=parameterTypeNames.Length) {
@@ -2590,7 +2249,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         body=returnExpression;
         fragment=new LambdaSpec(
-            typeArguments[^1],
+            typeArguments[typeArguments.Length-1],
             parameterTypeNames,
             parameters,
             NormalizeExpressionText(returnExpression.ToString()));
@@ -2708,25 +2367,25 @@ public sealed partial class FLinqIncrementalGenerator {
             body=expressionBody;
             return true;
         }
-        if(lambda.Body is BlockSyntax {
-            Statements: [
-                ReturnStatementSyntax { Expression: { } returnExpression }
-            ]
-        }) {
-            body=returnExpression;
-            return true;
+        var blockSyntax=lambda.Body as BlockSyntax;
+        if(blockSyntax is not null) {
+            var statements=blockSyntax.Statements.ToArray();
+            if(statements.Length==1
+                &&statements.First() is ReturnStatementSyntax { Expression: { } returnExpression }) {
+                body=returnExpression;
+                return true;
+            }
         }
         return false;
     }
-
     /// <summary>ラムダ式のパラメータ名リストを返す。単純ラムダは 1 要素、括弧ラムダは全パラメータ名。</summary>
     private static List<string> GetLambdaParameters(LambdaExpressionSyntax lambda) {
         if(lambda is SimpleLambdaExpressionSyntax simpleLambda) {
-            return [simpleLambda.Parameter.Identifier.ValueText];
+            return new List<string> { simpleLambda.Parameter.Identifier.ValueText };
         }
         if(lambda is ParenthesizedLambdaExpressionSyntax parenthesizedLambda) {
             return parenthesizedLambda.ParameterList.Parameters.Select(static parameter => parameter.Identifier.ValueText).ToList();
         }
-        return [];
+        return new List<string>();
     }
 }

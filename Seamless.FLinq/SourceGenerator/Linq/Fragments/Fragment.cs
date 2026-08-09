@@ -83,7 +83,7 @@ internal abstract class Fragment(
     // 生成する補助 struct/enumerator を <T> でパラメータ化するために伝播する。
     // 傍受メソッド自体がこの型パラメータを持つジェネリック静的メソッドとして生成されるので、
     // その中で使う struct も同じ型パラメータで単相化する必要がある。
-    public string[] OuterTypeParameters { get; set; } = [];
+    public string[] OuterTypeParameters { get; set; } =Array.Empty<string>();
     public bool CounterInstrumentationEnabled { get; private set; }
 
     // Enumerator struct 内ではメソッドローカルのキャプチャ変数を直接参照できない。
@@ -202,7 +202,7 @@ internal abstract class Fragment(
 
     public virtual void PropagateContainingTypeName(string? name,string[]? outerTypeParameters = null) {
         this.ContainingTypeName=name;
-        this.OuterTypeParameters=outerTypeParameters?? [];
+        this.OuterTypeParameters=outerTypeParameters??new string[0];
         foreach(var field in EnumerateInstanceFields(this.GetType())) {
             if(typeof(Fragment).IsAssignableFrom(field.FieldType)&&field.GetValue(this) is Fragment child) {
                 child.PropagateContainingTypeName(name,outerTypeParameters);
@@ -406,7 +406,7 @@ internal abstract class Fragment(
 
     private static string TrimSingleOuterParentheses(string expression) {
         var trimmed = expression.Trim();
-        if(trimmed.Length<2||trimmed[0]!='('||trimmed[^1]!=')') {
+        if(trimmed.Length<2||trimmed[0]!='('||trimmed[trimmed.Length-1]!=')') {
             return trimmed;
         }
 
@@ -425,7 +425,7 @@ internal abstract class Fragment(
             }
         }
 
-        return depth==0 ? trimmed[1..^1].Trim() : trimmed;
+        return depth==0 ? trimmed.Substring(1,trimmed.Length-2).Trim() : trimmed;
     }
 
     // 述語評価専用ヘルパー。if文の条件式として使う場合に特化。
@@ -486,9 +486,9 @@ internal abstract class Fragment(
             if(c=='<'||c=='(') depth++;
             else if(c=='>'||c==')') depth--;
             else if(c==','&&depth==0) {
-                var seg = paramList[start..i].Trim();
+                var seg = paramList.Substring(start,i-start).Trim();
                 int sp = seg.LastIndexOf(' ');
-                if(sp>=0) yield return (seg[..sp].Trim(),seg[(sp+1)..].Trim());
+                if(sp>=0) yield return (seg.Substring(0,sp).Trim(),seg.Substring(sp+1).Trim());
                 start=i+1;
             }
         }
@@ -674,13 +674,13 @@ internal abstract class Fragment(
     // IEnumerable<T> / T[] の文字列型名から要素型名を取り出す。
     private protected static string SequenceElementTypeName(string sequenceTypeName) {
         if(sequenceTypeName.EndsWith("[]",StringComparison.Ordinal)) {
-            return sequenceTypeName[..^2];
+            return sequenceTypeName.Substring(0,sequenceTypeName.Length-2);
         }
 
         const string enumerablePrefix = "global::System.Collections.Generic.IEnumerable<";
         if(sequenceTypeName.StartsWith(enumerablePrefix,StringComparison.Ordinal)
             &&sequenceTypeName.EndsWith(">",StringComparison.Ordinal)) {
-            return sequenceTypeName[enumerablePrefix.Length..^1];
+            return sequenceTypeName.Substring(enumerablePrefix.Length,sequenceTypeName.Length-enumerablePrefix.Length-1);
         }
 
         throw new InvalidOperationException($"Could not determine sequence element type from '{sequenceTypeName}'.");

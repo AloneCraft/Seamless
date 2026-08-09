@@ -274,10 +274,10 @@ internal abstract class ProviderNativeExecutionBase(
             builder.AppendLine("    return true;");
         } else if(terminalKind==ProviderIterateTerminalKind.ToDictionary) {
             builder.AppendLine($"    {this.DictionaryKeyType} dictionaryKey=default!;");
-            GeneratedCodeWriter.AppendIndented(builder,this.FuncAssignStatic(terminalFunc1!,"ToDictionary","dictionaryKey",[currentName]),"    ");
+            GeneratedCodeWriter.AppendIndented(builder,this.FuncAssignStatic(terminalFunc1!,"ToDictionary","dictionaryKey",new[] { currentName }),"    ");
             if(terminalFunc2 is not null) {
                 builder.AppendLine($"    {this.DictionaryValueType} dictionaryValue=default!;");
-                GeneratedCodeWriter.AppendIndented(builder,this.FuncAssignStatic(terminalFunc2,"ToDictionary","dictionaryValue",[currentName]),"    ");
+                GeneratedCodeWriter.AppendIndented(builder,this.FuncAssignStatic(terminalFunc2,"ToDictionary","dictionaryValue",new[] { currentName }),"    ");
                 builder.AppendLine("    state.Dictionary![dictionaryKey]=dictionaryValue;");
             } else {
                 builder.AppendLine($"    state.Dictionary![dictionaryKey]=({this.DictionaryValueType})(object?){currentName}!;");
@@ -322,9 +322,9 @@ internal abstract class ProviderNativeExecutionBase(
         pipeline.Stages.Select(static stage => stage.Func)
             .Where(static func => func is not null)
             .Select(static func => func!)
-            .Concat(terminalPredicate is null ? [] : [terminalPredicate])
-            .Concat(terminalFunc1 is null ? [] : [terminalFunc1])
-            .Concat(terminalFunc2 is null ? [] : [terminalFunc2]);
+            .Concat(terminalPredicate is null ? global::System.Linq.Enumerable.Empty<FuncFragment>() : new[] { terminalPredicate })
+            .Concat(terminalFunc1 is null ? global::System.Linq.Enumerable.Empty<FuncFragment>() : new[] { terminalFunc1 })
+            .Concat(terminalFunc2 is null ? global::System.Linq.Enumerable.Empty<FuncFragment>() : new[] { terminalFunc2 });
 
     private string DictionaryKeyType => terminalFunc1?.ReturnTypeName??"object";
     private string DictionaryValueType => terminalFunc2?.ReturnTypeName??pipeline.ElementType;

@@ -579,9 +579,9 @@ internal sealed partial class PipelineEnumerable {
     private string SelectManyCollectionExpression(PipelineStage selectManyStage,int selectManyIndex,string currentName) {
         string[] selectorArguments;
         if(selectManyStage.UsesIndex) {
-            selectorArguments= [currentName,$"this.{this.StateName(selectManyIndex)}"];
+            selectorArguments=new[] { currentName,$"this.{this.StateName(selectManyIndex)}" };
         } else {
-            selectorArguments= [currentName];
+            selectorArguments=new[] { currentName };
         }
         return this.FuncInvoke(selectManyStage.Func!,nameof(PipelineStageKind.SelectMany),selectorArguments);
     }
@@ -646,9 +646,9 @@ internal sealed partial class PipelineEnumerable {
         string[] arguments;
         if(stage.UsesIndex) {
             builder.AppendLine($"    this.{this.StateName(index)}++;");
-            arguments= [currentName,$"this.{this.StateName(index)}"];
+            arguments=new[] { currentName,$"this.{this.StateName(index)}" };
         } else {
-            arguments= [currentName];
+            arguments=new[] { currentName };
         }
         this.AppendCounterCall(builder,"    ","IncrementLogicalWhere");
         var (preCode,condExpr)=this.FuncInvokeCondition(stage.Func!,nameof(PipelineStageKind.Where),this.TempName(index),arguments);
@@ -664,9 +664,9 @@ internal sealed partial class PipelineEnumerable {
         string[] arguments;
         if(stage.UsesIndex) {
             builder.AppendLine($"    this.{this.StateName(index)}++;");
-            arguments= [currentName,$"this.{this.StateName(index)}"];
+            arguments=new[] { currentName,$"this.{this.StateName(index)}" };
         } else {
-            arguments= [currentName];
+            arguments=new[] { currentName };
         }
         this.AppendCounterCall(builder,"    ","IncrementLogicalSelect");
         builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,nameof(PipelineStageKind.Select),nextName,arguments),"    "));
@@ -697,9 +697,9 @@ internal sealed partial class PipelineEnumerable {
         string[] arguments;
         if(stage.UsesIndex) {
             builder.AppendLine($"    this.{this.IndexName(index)}++;");
-            arguments= [currentName,$"this.{this.IndexName(index)}"];
+            arguments=new[] { currentName,$"this.{this.IndexName(index)}" };
         } else {
-            arguments= [currentName];
+            arguments=new[] { currentName };
         }
         var (preCode,condExpr)=this.FuncInvokeCondition(stage.Func!,nameof(PipelineStageKind.TakeWhile),this.TempName(index),arguments);
         if(!string.IsNullOrEmpty(preCode)) {
@@ -715,9 +715,9 @@ internal sealed partial class PipelineEnumerable {
         var stateName = this.StateName(index);
         string[] arguments;
         if(stage.UsesIndex) {
-            arguments= [currentName,$"this.{this.IndexName(index)}"];
+            arguments=new[] { currentName,$"this.{this.IndexName(index)}" };
         } else {
-            arguments= [currentName];
+            arguments=new[] { currentName };
         }
         var (preCode,condExpr)=this.FuncInvokeCondition(stage.Func!,nameof(PipelineStageKind.SkipWhile),this.TempName(index),arguments);
         builder.AppendLine($"    if(this.{stateName}) {{");

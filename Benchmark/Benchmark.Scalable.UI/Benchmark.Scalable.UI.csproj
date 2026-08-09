@@ -34,7 +34,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" SetTargetFramework="TargetFramework=net10.0" />
+    <ProjectReference Include="..\..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" SetTargetFramework="TargetFramework=netstandard2.0" />
     <ProjectReference Include="..\..\Shared\UI.Storage\UI.Storage.csproj" />
     <ProjectReference Include="..\Benchmark.Scalable.Persisted.Collections\Benchmark.Scalable.Persisted.Collections.csproj" />
     <ProjectReference Include="..\Benchmark.Scalable.Tsavorite.Collections\Benchmark.Scalable.Tsavorite.Collections.csproj" />

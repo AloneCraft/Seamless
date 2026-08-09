@@ -337,23 +337,23 @@ internal static class CarrierAnalysis {
         var arguments = creation.ArgumentList.Arguments;
         var aliases = new string[arguments.Count][];
         for(var index = 0;index<aliases.Length;index++) {
-            aliases[index]= [];
+            aliases[index]=Array.Empty<string>();
         }
         return TryCreateTupleShape(arguments.Select(static a => a.Expression).ToArray(),aliases,model,policy,out shape);
     }
     private static string[] GetTupleAliases(ArgumentSyntax argument) {
         if(argument.NameColon is not null) {
-            return [argument.NameColon.Name.Identifier.ValueText];
+            return new[] { argument.NameColon.Name.Identifier.ValueText };
         }
         if(InferName(argument.Expression,out var name)) {
-            return [name];
+            return new[] { name };
         }
-        return [];
+        return Array.Empty<string>();
     }
     private static bool TryGetTupleTypeAliases(TypeSyntax type,int count,out string[][] aliases) {
         aliases=new string[count][];
         for(var index = 0;index<count;index++) {
-            aliases[index]= [];
+            aliases[index]=Array.Empty<string>();
         }
         type=type switch {
             QualifiedNameSyntax qualified => qualified.Right,
@@ -361,7 +361,7 @@ internal static class CarrierAnalysis {
             _ => type,
         };
         if(type is TupleTypeSyntax tupleType) {
-            aliases=tupleType.Elements.Select(static e => string.IsNullOrWhiteSpace(e.Identifier.ValueText) ? [] : new[] { e.Identifier.ValueText }).ToArray();
+            aliases=tupleType.Elements.Select(static e => string.IsNullOrWhiteSpace(e.Identifier.ValueText) ? Array.Empty<string>() : new[] { e.Identifier.ValueText }).ToArray();
             return tupleType.Elements.Count==count;
         }
         if(type is GenericNameSyntax generic&&generic.Identifier.ValueText is "ValueTuple" or "Tuple") {
@@ -398,7 +398,7 @@ internal static class CarrierAnalysis {
         public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node) {
             if(string.Equals(node.Identifier.ValueText,rootName,StringComparison.Ordinal)
                 &&!(node.Parent is MemberAccessExpressionSyntax member&&member.Expression==node)
-                &&shape.TryResolve([],out var leaf)) {
+                &&shape.TryResolve(Array.Empty<string>(),out var leaf)) {
                 return this.Replace(leaf,node);
             }
             return base.VisitIdentifierName(node);
@@ -413,7 +413,7 @@ internal static class CarrierAnalysis {
         private bool TryGetPath(ExpressionSyntax expression,out IReadOnlyList<string> path) {
             expression=Strip(expression);
             if(expression is IdentifierNameSyntax identifier&&string.Equals(identifier.Identifier.ValueText,rootName,StringComparison.Ordinal)) {
-                path= [];
+                path=Array.Empty<string>();
                 return true;
             }
             if(expression is MemberAccessExpressionSyntax member&&this.TryGetPath(member.Expression,out var parent)) {
@@ -422,7 +422,7 @@ internal static class CarrierAnalysis {
                 path=parts;
                 return true;
             }
-            path= [];
+            path=Array.Empty<string>();
             return false;
         }
     }
@@ -483,12 +483,12 @@ internal static class CarrierAnalysis {
     }
     internal static IReadOnlyList<string> GetLambdaParameterNames(LambdaExpressionSyntax lambda) {
         if(lambda is SimpleLambdaExpressionSyntax simple) {
-            return [simple.Parameter.Identifier.ValueText];
+            return new[] { simple.Parameter.Identifier.ValueText };
         }
         if(lambda is ParenthesizedLambdaExpressionSyntax parenthesized) {
             return parenthesized.ParameterList.Parameters.Select(static p => p.Identifier.ValueText).ToArray();
         }
-        return [];
+        return Array.Empty<string>();
     }
     // トップレベル && を平坦化。括弧は「&& か」の判定にだけ剥がし、連言自体は元ノードのまま残して優先順位を保つ。
     // &(非短絡)は両辺を必ず評価させる意図的な記法なので対象にしない。

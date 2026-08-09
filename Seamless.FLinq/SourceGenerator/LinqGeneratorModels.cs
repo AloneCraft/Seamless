@@ -67,16 +67,7 @@ public sealed partial class FLinqIncrementalGenerator {
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "外側から内側までの型パラメーターまたはwhere制約を生成コードから参照できないため、明示的に[LinqIntercept(false)]でopt-outしない限りビルドを禁止します.",
-        customTags: [WellKnownDiagnosticTags.NotConfigurable]);
-
-    private sealed class フラグメント候補 {
-        public required Type FragmentType { get; init; }
-        public required ConstructorInfo Constructor { get; init; }
-        public required string MethodName { get; init; }
-        public required string VariantName { get; init; }
-        public required ParameterInfo[] Parameters { get; init; }
-        public Func<IMethodSymbol,bool>? IsApplicableOverload { get; init; }
-    }
+        customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
 
     private static readonly SymbolDisplayFormat 完全修飾形式 = new(
         globalNamespaceStyle: SymbolDisplayGlobalNamespaceStyle.Included,
@@ -90,14 +81,7 @@ public sealed partial class FLinqIncrementalGenerator {
         typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
         genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
-    // Fragments.Fragment を継承した具体型を列挙し、ローカルメソッド再生成にもそのまま使う。
-    // これで Aggregate の overload 個別対応を増やすたびに辞書を手で更新しなくてよい。
-    private static readonly IReadOnlyDictionary<string,ImmutableArray<フラグメント候補>> フラグメント候補一覧 = フラグメント候補一覧構築();
-    private static readonly IReadOnlySet<string> SystemLinqEnumerableMethodNames = typeof(global::System.Linq.Enumerable)
-        .GetMethods(BindingFlags.Public|BindingFlags.Static)
-        .Select(static method => method.Name)
-        .ToHashSet(StringComparer.Ordinal);
-    private static readonly ConditionalWeakTable<Compilation,System.Collections.Concurrent.ConcurrentDictionary<IMethodSymbol,ローカルメソッドLinq解析結果>> ローカルメソッドLinq解析キャッシュ = [];
+    private static readonly ConditionalWeakTable<Compilation,System.Collections.Concurrent.ConcurrentDictionary<IMethodSymbol,ローカルメソッドLinq解析結果>> ローカルメソッドLinq解析キャッシュ = new();
 
     // 匿名型を含む LINQ が検出されたとき、インターセプト元のメソッドに対して発行する警告。
     // 匿名型は生成メソッドの署名に出せないため完全なフラグメント最適化ができず、
@@ -128,6 +112,15 @@ public sealed partial class FLinqIncrementalGenerator {
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         description: "対象メソッド内の LINQ 呼び出しをインライン展開できなかったため、生成されたインターセプターコードは実行時に例外を発生させます。Fragment 未実装のメソッド、または未対応のデリゲートパターンが含まれている可能性があります.");
+    private static readonly DiagnosticDescriptor RegistryConsistencyDescriptor = new(
+        id: "FLINQ006",
+        title: "FLinq Operator Registry 不整合",
+        messageFormat: "{0}",
+        category: "Tsavorite.Performance",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Generator内部のOperator Registryに重複、Priority、Factory型、Coverage、Capabilityの不整合があります.",
+        customTags: new[] { WellKnownDiagnosticTags.NotConfigurable });
     private sealed class ローカルメソッドLinq解析結果(bool hasEnumerableCall,ImmutableArray<string> unsupportedMethods,bool hasAnonymousTypeLinq) {
         public static readonly ローカルメソッドLinq解析結果 Empty = new(false,ImmutableArray<string>.Empty,false);
         public bool HasEnumerableCall { get; } = hasEnumerableCall;
@@ -148,7 +141,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return string.Equals(this.InterceptsLocationAttributeText,other.InterceptsLocationAttributeText,StringComparison.Ordinal);
         }
         public override bool Equals(object? obj) => obj is Linq傍受対象型 other&&this.Equals(other);
-        public override int GetHashCode() => this.InterceptsLocationAttributeText.GetHashCode(StringComparison.Ordinal);
+        public override int GetHashCode() => StringComparer.Ordinal.GetHashCode(this.InterceptsLocationAttributeText);
         private string Identifier { get; } = identifier;
         public string ContainingMethodName { get; } = containingMethodName;
         public string InterceptsLocationAttributeText { get; } = interceptsLocationAttributeText;
@@ -164,7 +157,7 @@ public sealed partial class FLinqIncrementalGenerator {
         // 含有型の型パラメータ＋メソッド自身の型パラメータ（全型パラメーター取得 の結果）。
         // 傍受メソッド本体の再構成中、補助 struct を <T> でパラメータ化するために
         // InterceptedMethodTypeParameterContext 経由でアンビエントに参照される。
-        public string[] MethodTypeParameters { get; } = methodTypeParameterNames?? [];
+        public string[] MethodTypeParameters { get; } = methodTypeParameterNames??Array.Empty<string>();
         // 傍受メソッドに付ける where 制約節（例: " where T : notnull"）。含有型がジェネリックのとき使う。
         public string TypeParameterConstraintClause { get; } = typeParameterConstraintClause??string.Empty;
         public bool IsLocalMethodInterception { get; } = isLocalMethodInterception;
@@ -176,7 +169,7 @@ public sealed partial class FLinqIncrementalGenerator {
         private string SourceElementTypeName {
             get {
                 if(!string.IsNullOrWhiteSpace(this.ExplicitSourceElementTypeName)) {
-                    return this.ExplicitSourceElementTypeName;
+                    return this.ExplicitSourceElementTypeName!;
                 }
                 if(this.Method.TypeArguments.Length>0) {
                     return this.Method.TypeArguments[0].ToDisplayString(完全修飾形式);
@@ -243,7 +236,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return x.InterceptsLocationAttributeText==y.InterceptsLocationAttributeText;
         }
         public int GetHashCode(Linq傍受対象型 obj) {
-            return obj.InterceptsLocationAttributeText.GetHashCode(StringComparison.Ordinal);
+            return StringComparer.Ordinal.GetHashCode(obj.InterceptsLocationAttributeText);
         }
     }
     private sealed class PerFileInterceptGroup(string sourcePath,ImmutableArray<Linq傍受対象型> targets):IEquatable<PerFileInterceptGroup> {
@@ -263,7 +256,7 @@ public sealed partial class FLinqIncrementalGenerator {
         public override int GetHashCode() {
             var hc = StringComparer.Ordinal.GetHashCode(this.SourcePath);
             foreach(var t in this.Targets) {
-                hc=HashCode.Combine(hc,t.GetHashCode());
+                hc=(hc*397)^t.GetHashCode();
             }
             return hc;
         }

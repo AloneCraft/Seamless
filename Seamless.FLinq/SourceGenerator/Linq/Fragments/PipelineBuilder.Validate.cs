@@ -51,7 +51,7 @@ internal static partial class PipelineBuilder {
         var orderIndex = stages.Select(static (stage,index) => (stage,index))
             .Where(static pair => IsPrimaryOrderStage(pair.stage.Kind))
             .Select(static pair => pair.index)
-            .FirstOrDefault(-1);
+            .DefaultIfEmpty(-1).First();
         if(orderIndex<=setIndex) {
             return false;
         }

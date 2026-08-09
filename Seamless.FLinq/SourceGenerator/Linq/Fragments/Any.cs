@@ -51,7 +51,7 @@ internal class Any(int 番号,Enumerable source):Scalar(番号) {
             if(!buildFunc(invocation.ArgumentList.Arguments[argumentStartIndex].Expression,method.Parameters[argumentStartIndex].Type,ref uniqueNumber,out var predicate,semanticModel,containingType))
                 return false;
             var anyVariantName = predicate.ParameterTypeNames.Length>1 ? "indexPredicate" : "predicate";
-            var anyPredicateFragment = createFragment("Any",anyVariantName,uniqueNumber++,[sourceFragment,predicate]);
+            var anyPredicateFragment = createFragment("Any",anyVariantName,uniqueNumber++,new object?[] { sourceFragment,predicate });
             if(anyPredicateFragment is null)
                 return false;
             fragment=anyPredicateFragment;
@@ -60,7 +60,7 @@ internal class Any(int 番号,Enumerable source):Scalar(番号) {
         } else if(invocation.ArgumentList.Arguments.Count!=argumentStartIndex) {
             return false;
         }
-        var anyFragment = createFragment("Any",string.Empty,uniqueNumber++,[sourceFragment]);
+        var anyFragment = createFragment("Any",string.Empty,uniqueNumber++,new object?[] { sourceFragment });
         if(anyFragment is null)
             return false;
         fragment=anyFragment;

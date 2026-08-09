@@ -12,8 +12,8 @@ public sealed partial class FLinqIncrementalGenerator {
     }
     private static string OpenGenericTypeName(INamedTypeSymbol namedType) {
         var definitionName = namedType.OriginalDefinition.ToDisplayString(完全修飾形式);
-        var typeArgumentStart = definitionName.IndexOf('<',StringComparison.Ordinal);
-        return typeArgumentStart<0 ? definitionName : definitionName[..typeArgumentStart];
+        var typeArgumentStart = definitionName.IndexOf("<",StringComparison.Ordinal);
+        return typeArgumentStart<0 ? definitionName : definitionName.Substring(0,typeArgumentStart);
     }
     /// <summary>
     /// 変数宣言部（<c>T x = expr</c>）のテキストを生成する。
@@ -417,7 +417,7 @@ public sealed partial class FLinqIncrementalGenerator {
             }
         }
 
-        var processedInvocations = new HashSet<InvocationExpressionSyntax>(ReferenceEqualityComparer.Instance);
+        var processedInvocations = new HashSet<InvocationExpressionSyntax>(InvocationSyntaxReferenceComparer.Instance);
         var processedInvocationTexts = new HashSet<string>(StringComparer.Ordinal);
         foreach(var invocation in allInvocations) {
             if(processedInvocations.Contains(invocation)) continue;
@@ -780,10 +780,10 @@ public sealed partial class FLinqIncrementalGenerator {
         List<string>? unsafeAccessorCollector,
         IReadOnlyDictionary<string,string>? replacementMap,
         out List<string> actualArguments) {
-        actualArguments= [];
+        actualArguments=new List<string>();
         var parameters = method.Parameters;
         var slots = new string?[parameters.Length];
-        var paramsIndex = parameters.Length>0&&parameters[^1].IsParams ? parameters.Length-1 : -1;
+        var paramsIndex = parameters.Length>0&&parameters[parameters.Length-1].IsParams ? parameters.Length-1 : -1;
 
         // params 展開呼び出し（例: Row(1, a, b, c)）は、固定引数を超える位置引数、または
         // 末尾の単一引数が配列型へ直接変換されない場合に該当する。その場合は末尾をまとめて配列生成式にする。
@@ -792,7 +792,7 @@ public sealed partial class FLinqIncrementalGenerator {
             var isExpandedParamsCall = positionalArgs.Count>parameters.Length
                 ||(positionalArgs.Count==parameters.Length
                     &&!SymbolEqualityComparer.Default.Equals(
-                        semanticModel.GetTypeInfo(positionalArgs[^1].Expression).ConvertedType,
+                        semanticModel.GetTypeInfo(positionalArgs[positionalArgs.Count-1].Expression).ConvertedType,
                         parameters[paramsIndex].Type));
             if(isExpandedParamsCall) {
                 if(positionalArgs.Count<paramsIndex||invocation.ArgumentList.Arguments.Any(a => a.NameColon is not null)) {
@@ -977,11 +977,9 @@ public sealed partial class FLinqIncrementalGenerator {
             expressionText=RenderInlineMethodBodyExpression(expressionBody,definition.Parameters,actualArguments,bodySemanticModel,definition.ContainingType,unsafeAccessorCollector);
             return true;
         }
-        if(methodSyntax.Body is {
-            Statements: [
-                ReturnStatementSyntax { Expression: { } returnExpression }
-            ]
-        }) {
+        if(methodSyntax.Body is { } bodySyntax
+            &&bodySyntax.Statements.Count==1
+            &&bodySyntax.Statements[0] is ReturnStatementSyntax { Expression: { } returnExpression }) {
             expressionText=RenderInlineMethodBodyExpression(returnExpression,definition.Parameters,actualArguments,bodySemanticModel,definition.ContainingType,unsafeAccessorCollector);
             return true;
         }
@@ -1023,7 +1021,7 @@ public sealed partial class FLinqIncrementalGenerator {
             if(targetParameterIndex<=0
                 ||targetParameterIndex>=actualArgumentSlots.Length
                 ||actualArgumentSlots[targetParameterIndex] is not null) {
-                actualArguments= [];
+                actualArguments=new List<string>();
                 return false;
             }
             actualArgumentSlots[targetParameterIndex]=RenderArgumentForGeneratedMethod(argument,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
@@ -1038,7 +1036,7 @@ public sealed partial class FLinqIncrementalGenerator {
             } else if(parameter.HasExplicitDefaultValue) {
                 actualArgumentSlots[i]=RenderConstantValue(parameter.ExplicitDefaultValue);
             } else {
-                actualArguments= [];
+                actualArguments=new List<string>();
                 return false;
             }
         }

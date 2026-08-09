@@ -200,7 +200,7 @@ internal sealed partial class PipelineEnumerable {
             var rangeIndexName = $"__whereRangeIndex{this.result}";
             var rangeArguments = stage.UsesIndex
                 ? new[] { rangeItemName,rangeIndexName }
-                : [rangeItemName];
+                : new[] { rangeItemName };
             var rangeIndexDeclaration = stage.UsesIndex
                 ? $"var {rangeIndexName}=-1;\n"
                 : string.Empty;
@@ -241,7 +241,7 @@ internal sealed partial class PipelineEnumerable {
         var indexName = $"__whereIndex{this.result}";
         var arguments = stage.UsesIndex
             ? new[] { itemName,indexName }
-            : [itemName];
+            : new[] { itemName };
         var indexDeclaration = stage.UsesIndex
             ? $"var {indexName}=-1;\n"
             : string.Empty;
@@ -292,7 +292,7 @@ internal sealed partial class PipelineEnumerable {
             var rangeIndexName = $"__selectRangeIndex{this.result}";
             var rangeArguments = stage.UsesIndex
                 ? new[] { rangeItemName,rangeIndexName }
-                : [rangeItemName];
+                : new[] { rangeItemName };
             var rangeIndexDeclaration = stage.UsesIndex
                 ? $"var {rangeIndexName}=-1;\n"
                 : string.Empty;
@@ -330,7 +330,7 @@ internal sealed partial class PipelineEnumerable {
         var indexName = $"__selectIndex{this.result}";
         var arguments = stage.UsesIndex
             ? new[] { itemName,indexName }
-            : [itemName];
+            : new[] { itemName };
         var indexDeclaration = stage.UsesIndex
             ? $"var {indexName}=-1;\n"
             : string.Empty;
@@ -376,7 +376,7 @@ internal sealed partial class PipelineEnumerable {
             var rangeIndexName = $"__takeWhileRangeIndex{this.result}";
             var rangeArguments = stage.UsesIndex
                 ? new[] { rangeItemName,rangeIndexName }
-                : [rangeItemName];
+                : new[] { rangeItemName };
             var rangeIndexDeclaration = stage.UsesIndex
                 ? $"var {rangeIndexName}=-1;\n"
                 : string.Empty;
@@ -421,7 +421,7 @@ internal sealed partial class PipelineEnumerable {
         var indexName = $"__takeWhileIndex{this.result}";
         var arguments = stage.UsesIndex
             ? new[] { itemName,indexName }
-            : [itemName];
+            : new[] { itemName };
         var indexDeclaration = stage.UsesIndex
             ? $"var {indexName}=-1;\n"
             : string.Empty;
@@ -484,7 +484,7 @@ internal sealed partial class PipelineEnumerable {
         var offsetName = $"__skipWhileOffset{this.result}";
         var arguments = stage.UsesIndex
             ? new[] { itemName,indexName }
-            : [itemName];
+            : new[] { itemName };
         var indexDeclaration = stage.UsesIndex
             ? $"var {indexName}=-1;\n"
             : string.Empty;
@@ -555,7 +555,7 @@ internal sealed partial class PipelineEnumerable {
         var rangeOffsetName = $"__skipWhileRangeOffset{this.result}";
         var rangeArguments = stage.UsesIndex
             ? new[] { rangeItemName,rangeIndexName }
-            : [rangeItemName];
+            : new[] { rangeItemName };
         var rangeIndexDeclaration = stage.UsesIndex
             ? $"var {rangeIndexName}=-1;\n"
             : string.Empty;

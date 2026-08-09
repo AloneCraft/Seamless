@@ -90,9 +90,9 @@ internal static partial class PipelineBuilder {
             if(stage.Kind==PipelineStageKind.Distinct
                 &&!stage.ContainsAnchor
                 &&normalized.Count>0
-                &&normalized[^1].Kind==PipelineStageKind.Distinct
-                &&!normalized[^1].ContainsAnchor
-                &&string.Equals(normalized[^1].Value,stage.Value,StringComparison.Ordinal)) {
+                &&normalized[normalized.Count-1].Kind==PipelineStageKind.Distinct
+                &&!normalized[normalized.Count-1].ContainsAnchor
+                &&string.Equals(normalized[normalized.Count-1].Value,stage.Value,StringComparison.Ordinal)) {
                 // 同じ Distinct の連続は結果集合が変わらないので、生成前に 1 段へ畳む。
                 // ここで runtime の分岐を増やさず、set の再構築も避ける。
                 continue;
@@ -108,11 +108,11 @@ internal static partial class PipelineBuilder {
             if(stage.Kind==PipelineStageKind.DistinctBy
                 &&!stage.ContainsAnchor
                 &&normalized.Count>0
-                &&normalized[^1].Kind==PipelineStageKind.DistinctBy
-                &&!normalized[^1].ContainsAnchor
-                &&string.Equals(normalized[^1].Value,stage.Value,StringComparison.Ordinal)
-                &&normalized[^1].KeyType==stage.KeyType
-                &&normalized[^1].Func is { } leftFunc
+                &&normalized[normalized.Count-1].Kind==PipelineStageKind.DistinctBy
+                &&!normalized[normalized.Count-1].ContainsAnchor
+                &&string.Equals(normalized[normalized.Count-1].Value,stage.Value,StringComparison.Ordinal)
+                &&normalized[normalized.Count-1].KeyType==stage.KeyType
+                &&normalized[normalized.Count-1].Func is { } leftFunc
                 &&stage.Func is { } rightFunc
                 &&DistinctByKeySelectorEquals(leftFunc,rightFunc)) {
                 // 同じ keySelector/comparer の DistinctBy も冪等なので、ここで重ねない。
@@ -152,10 +152,10 @@ internal static partial class PipelineBuilder {
             if(stage.Kind==PipelineStageKind.Take
                 &&!stage.ContainsAnchor
                 &&normalized.Count>0
-                &&normalized[^1].Kind==PipelineStageKind.Take
-                &&!normalized[^1].ContainsAnchor) {
-                var previous = normalized[^1];
-                normalized[^1]=new PipelineStage(
+                &&normalized[normalized.Count-1].Kind==PipelineStageKind.Take
+                &&!normalized[normalized.Count-1].ContainsAnchor) {
+                var previous = normalized[normalized.Count-1];
+                normalized[normalized.Count-1]=new PipelineStage(
                     PipelineStageKind.Take,
                     null,
                     MinCountExpression(previous.Value!,stage.Value!),
@@ -174,10 +174,10 @@ internal static partial class PipelineBuilder {
             if(stage.Kind==PipelineStageKind.Skip
                 &&!stage.ContainsAnchor
                 &&normalized.Count>0
-                &&normalized[^1].Kind==PipelineStageKind.Skip
-                &&!normalized[^1].ContainsAnchor) {
-                var previous = normalized[^1];
-                normalized[^1]=new PipelineStage(
+                &&normalized[normalized.Count-1].Kind==PipelineStageKind.Skip
+                &&!normalized[normalized.Count-1].ContainsAnchor) {
+                var previous = normalized[normalized.Count-1];
+                normalized[normalized.Count-1]=new PipelineStage(
                     PipelineStageKind.Skip,
                     null,
                     AddCountExpression(previous.Value!,stage.Value!),
@@ -195,7 +195,7 @@ internal static partial class PipelineBuilder {
         foreach(var stage in stages) {
             if(stage.Kind==PipelineStageKind.Reverse
                 &&normalized.Count>0
-                &&normalized[^1].Kind==PipelineStageKind.Reverse) {
+                &&normalized[normalized.Count-1].Kind==PipelineStageKind.Reverse) {
                 normalized.RemoveAt(normalized.Count-1);
                 continue;
             }
@@ -210,11 +210,11 @@ internal static partial class PipelineBuilder {
             if(stage.Kind==PipelineStageKind.Where
                 &&!stage.UsesIndex
                 &&normalized.Count>0
-                &&normalized[^1].Kind==PipelineStageKind.Where
-                &&!normalized[^1].UsesIndex
-                &&TryMergeWhereFunc(normalized[^1].Func!,stage.Func!,joinStaticMethods,out var mergedFunc)) {
-                var previous = normalized[^1];
-                normalized[^1]=new PipelineStage(
+                &&normalized[normalized.Count-1].Kind==PipelineStageKind.Where
+                &&!normalized[normalized.Count-1].UsesIndex
+                &&TryMergeWhereFunc(normalized[normalized.Count-1].Func!,stage.Func!,joinStaticMethods,out var mergedFunc)) {
+                var previous = normalized[normalized.Count-1];
+                normalized[normalized.Count-1]=new PipelineStage(
                     PipelineStageKind.Where,
                     mergedFunc,
                     null,

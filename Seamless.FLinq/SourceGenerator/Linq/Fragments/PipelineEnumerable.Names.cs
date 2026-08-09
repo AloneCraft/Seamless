@@ -7,7 +7,7 @@ internal sealed partial class PipelineEnumerable {
         if(string.IsNullOrEmpty(suffix)) {
             yield break;
         }
-        foreach(var part in SplitTopLevelComma(suffix[2..])) {
+        foreach(var part in SplitTopLevelComma(suffix.Substring(2))) {
             yield return part.Trim();
         }
     }
@@ -17,7 +17,7 @@ internal sealed partial class PipelineEnumerable {
         if(string.IsNullOrEmpty(suffix)) {
             yield break;
         }
-        foreach(var part in SplitTopLevelComma(suffix[2..])) {
+        foreach(var part in SplitTopLevelComma(suffix.Substring(2))) {
             yield return part.Trim();
         }
     }
@@ -33,7 +33,7 @@ internal sealed partial class PipelineEnumerable {
         var inVerbatimString = false;
         for(var index = 0;index<=text.Length;index++) {
             if(index==text.Length) {
-                yield return text[start..index];
+                yield return text.Substring(start,index-start);
                 yield break;
             }
 
@@ -106,7 +106,7 @@ internal sealed partial class PipelineEnumerable {
                     angleDepth--;
                     break;
                 case ',' when parenDepth==0&&bracketDepth==0&&braceDepth==0&&angleDepth==0:
-                    yield return text[start..index];
+                    yield return text.Substring(start,index-start);
                     start=index+1;
                     break;
             }

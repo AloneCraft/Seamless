@@ -17,11 +17,9 @@ public sealed partial class FLinqIncrementalGenerator {
             body=target.Method.ReturnsVoid
                 ? $"{expressionText};"
                 : $"return {expressionText};";
-        } else if(methodSyntax.Body is {
-            Statements: [
-                ReturnStatementSyntax { Expression: { } returnExpression }
-            ]
-        }) {
+        } else if(methodSyntax.Body is { } bodySyntax
+            &&bodySyntax.Statements.Count==1
+            &&bodySyntax.Statements[0] is ReturnStatementSyntax { Expression: { } returnExpression }) {
             var expressionText = RenderCounterOnlyExpression(returnExpression,target.SemanticModel,target.EnclosingType,unsafeAccessors);
             body=target.Method.ReturnsVoid
                 ? $"{expressionText};"
@@ -172,7 +170,7 @@ public sealed partial class FLinqIncrementalGenerator {
         INamedTypeSymbol containingType,
         List<string> unsafeAccessors,
         out List<string> arguments) {
-        arguments= [];
+        arguments=new List<string>();
         var slots = new string?[definition.Parameters.Length];
         var nextParameterIndex = 0;
 
@@ -301,7 +299,7 @@ public sealed partial class FLinqIncrementalGenerator {
         ExpressionSyntax body;
         switch(expression) {
             case SimpleLambdaExpressionSyntax simple when simple.Body is ExpressionSyntax simpleBody:
-                parameterNames=[simple.Parameter.Identifier.ValueText];
+                parameterNames=new[] { simple.Parameter.Identifier.ValueText };
                 body=simpleBody;
                 break;
             case ParenthesizedLambdaExpressionSyntax parenthesizedLambda when parenthesizedLambda.Body is ExpressionSyntax parenthesizedBody:

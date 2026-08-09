@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -16,28 +16,21 @@
     <IsPackable>true</IsPackable>
     <!-- 生成器は lib/ ではなく analyzers/dotnet/cs/ へ入れる。lib/ に入ると参照アセンブリ扱いになり生成器として動かない。 -->
     <IncludeBuildOutput>false</IncludeBuildOutput>
+    <IncludeContentInPack>false</IncludeContentInPack>
     <!-- IncludeBuildOutput=false だと snupkg が空になり NU5017 で失敗するため symbols は作らない。 -->
     <IncludeSymbols>false</IncludeSymbols>
-    <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);_AddGeneratorToPackage</TargetsForTfmSpecificContentInPackage>
+    <NuspecFile>Seamless.FLinq.nuspec</NuspecFile>
+    <NuspecProperties>version=$(Version);targetPath=$(TargetPath)</NuspecProperties>
     <!-- DevelopmentDependency は付けない。付けると利用者側で PrivateAssets=all 扱いになり、
          下で宣言する Seamless.Linq への依存が流れず、生成コードがコンパイルできなくなる。 -->
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.6.0" PrivateAssets="all" />
   </ItemGroup>
-
-  <ItemGroup>
-    <!-- 生成コードが global::Seamless.Linq.* を直接埋め込むため、ランタイムを依存として宣言する。
-         ReferenceOutputAssembly="false" にすると nuspec の dependency ごと消える(実測)ので通常参照にする。
-         この生成器は Seamless.Linq の型を一切使わないので、参照はコンパイル上 inert。 -->
-    <ProjectReference Include="..\Seamless.Linq\Seamless.Linq.csproj" />
-  </ItemGroup>
-
-  <Target Name="_AddGeneratorToPackage">
-    <ItemGroup>
-      <TfmSpecificPackageFile Include="$(TargetPath)" PackagePath="analyzers/dotnet/cs" />
-    </ItemGroup>
-  </Target>
-</Project>
+  <Target Name="_SetFLinqNuspecProperties" BeforeTargets="GenerateNuspec">
+    <PropertyGroup>
+      <NuspecProperties>version=$(Version);targetPath=$(TargetPath)</NuspecProperties>
+    </PropertyGroup>
+  </Target></Project>

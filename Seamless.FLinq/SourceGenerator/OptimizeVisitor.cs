@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp;
 using static Seamless.FLinq.CarrierAnalysis;
 namespace Seamless.FLinq;
 // method-chain 繧堤ｿｻ險ｳ縺励ｄ縺吶＞蠖｢縺ｫ豁｣隕丞喧縺吶ｋ syntax rewriter縲・
@@ -103,10 +103,10 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             resultBindings[fromClause.Identifier.ValueText]=SyntaxFactory.IdentifierName(fromClause.Identifier);
             var resultTuple = CreateTransparentTuple(resultBindings);
             var resultSelector = CreateLambda(
-                [
+                new ParameterSyntax[] {
                     CreateParameter(state.ParameterName,state.ParameterType),
                     CreateParameter(fromClause.Identifier.ValueText,fromClause.Type)
-                ],
+                },
                 resultTuple.Expression);
             source=CreateSequenceCall(source,"SelectMany",collectionSelector,resultSelector);
             state=QueryState.FromTransparent(this.FreshTransparentName(),resultTuple.Members);
@@ -128,10 +128,10 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
             resultBindings[resultName]=SyntaxFactory.IdentifierName(resultName);
             var resultTuple = CreateTransparentTuple(resultBindings);
             var resultSelector = CreateLambda(
-                [
+                new ParameterSyntax[] {
                     CreateParameter(state.ParameterName,state.ParameterType),
                     CreateParameter(resultName,joinClause.Into is null ? joinClause.Type : null)
-                ],
+                },
                 resultTuple.Expression);
             source=CreateSequenceCall(source,method,innerSource,outerKey,innerKey,resultSelector);
             state=QueryState.FromTransparent(this.FreshTransparentName(),resultTuple.Members);
@@ -332,10 +332,10 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         if(!TryLiftPredicate(wl,rs,out var lb,out var refs)) return null;
         var rp = GetLambdaParameterNames(rs);
         if(rp.Count!=2) return null;
-        if(refs.Count==0||refs.SetEquals([rp[0]])) {
+        if(refs.Count==0||refs.SetEquals(new[] { rp[0] })) {
             return RebuildCall(smc,CreateSequenceCall(smc.Source,"Where",RecreateLambdaWithParameter(rp[0],lb)),smc.Arguments.Select(static a => a.Expression));
         }
-        if(!refs.SetEquals([rp[1]])||!TryGetLambdaBody(cs,out var cb)) return null;
+        if(!refs.SetEquals(new[] { rp[1] })||!TryGetLambdaBody(cs,out var cb)) return null;
         var ra = smc.Arguments.Select(static a => a.Expression).ToArray();
         ra[0]=RecreateLambda(cs,CreateSequenceCall(cb,"Where",RecreateLambdaWithParameter(rp[1],lb)));
         return RebuildCall(smc,smc.Source,ra);
@@ -348,9 +348,9 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         if(rp.Count!=2) return null;
         var canPushInner = string.Equals(c.MethodName,"Join",StringComparison.Ordinal);
         if(!TryLiftPredicate(wl,rs,out var lb,out var refs)) return this.TryPushConjunctsThroughBinaryCarrier(c,wl,rs,canPushInner);
-        if(refs.Count==0||refs.SetEquals([rp[0]]))
+        if(refs.Count==0||refs.SetEquals(new[] { rp[0] }))
             return RebuildCall(c,CreateSequenceCall(c.Source,"Where",RecreateLambdaWithParameter(rp[0],lb)),c.Arguments.Select(static a => a.Expression));
-        if(canPushInner&&refs.SetEquals([rp[1]])) {
+        if(canPushInner&&refs.SetEquals(new[] { rp[1] })) {
             var ra = c.Arguments.Select(static a => a.Expression).ToArray();
             ra[0]=CreateSequenceCall(ra[0],"Where",RecreateLambdaWithParameter(rp[1],lb));
             return RebuildCall(c,c.Source,ra);
@@ -375,9 +375,9 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         foreach(var part in parts) {
             if(!TryLiftPredicate(RecreateLambda(wl,part),rs,out var lb,out var refs)) {
                 restParts.Add(part);
-            } else if(refs.Count==0||refs.SetEquals([rp[0]])) {
+            } else if(refs.Count==0||refs.SetEquals(new[] { rp[0] })) {
                 outerParts.Add(lb);
-            } else if(canPushInner&&refs.SetEquals([rp[1]])) {
+            } else if(canPushInner&&refs.SetEquals(new[] { rp[1] })) {
                 innerParts.Add(lb);
             } else {
                 restParts.Add(part);

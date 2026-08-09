@@ -58,3 +58,19 @@ flowchart LR
 
 ### Unknown
 - NuGet package として公開される最終単位。
+
+## FLinq Operator Registry
+
+```mermaid
+flowchart LR
+    Discovery[TargetDiscovery] --> Registry[OperatorRegistry]
+    Builder[FragmentBuilder] --> Registry
+    Pipeline[PipelineBuilder] --> Registry
+    Registry --> Descriptors[型付き OperatorDescriptor]
+    Registry --> Roots[Root descriptors]
+    Registry --> Native[ProviderNative profiles]
+    Registry --> Coverage[Coverage / Priority validation]
+    Builder --> Fragments[Fragment factory]
+    Pipeline --> Stages[Pipeline stages]
+    Native --> Provider[Provider iterate terminal]
+```

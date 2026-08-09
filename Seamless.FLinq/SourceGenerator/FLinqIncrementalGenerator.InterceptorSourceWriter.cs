@@ -16,7 +16,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// </summary>
     private static string 親名前空間取得(string 名前空間) {
         var i = 名前空間.LastIndexOf('.');
-        return i<0 ? string.Empty : 名前空間[..i];
+        return i<0 ? string.Empty : 名前空間.Substring(0,i);
     }
 
     private static string インターセプターソース構築(ImmutableArray<Linq傍受対象型> targets,List<Diagnostic> diagnostics,out OptimizationTraceDocument[] traceDocuments) {
@@ -39,7 +39,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 builder.AppendLine();
                 builder.AppendLine($"namespace {namespaceGroup.Key} {{");
                 var originalNamespace = namespaceGroup.Key.StartsWith("Intercept.",StringComparison.Ordinal)
-                    ? namespaceGroup.Key["Intercept.".Length..]
+                    ? namespaceGroup.Key.Substring("Intercept.".Length)
                     : string.Empty;
                 if(!string.IsNullOrWhiteSpace(originalNamespace)) {
                     // 生成コードは Intercept.{originalNamespace} という別名前空間に置かれるため、
@@ -67,7 +67,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 builder.AppendLine();
                 builder.Append(holder);
             }
-            traceDocuments=[..collectedTraceDocuments];
+            traceDocuments=collectedTraceDocuments.ToArray();
             return 属性行を畳む(builder.ToString());
         } finally {
             _anonRegistry=previousRegistry;
@@ -128,7 +128,7 @@ public sealed partial class FLinqIncrementalGenerator {
         while(位置<行.Length&&(行[位置]==' '||行[位置]=='\t')) {
             位置++;
         }
-        return 行[..位置];
+        return 行.Substring(0,位置);
     }
     /// <summary>
     /// 1 つの型に属するインターセプト対象群をまとめて <c>internal static class</c> ブロックへ出力する。

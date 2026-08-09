@@ -13,7 +13,7 @@ internal sealed partial class PipelineEnumerable {
             .ToArray();
         if(binarySetIndex.Length==1) {
             if(orderIndex.Length>0) {
-                return this.BuildBinarySetOrderLoop(enumeratorName,successStatement,endStatement,binarySetIndex[0],orderIndex[^1]);
+                return this.BuildBinarySetOrderLoop(enumeratorName,successStatement,endStatement,binarySetIndex[0],orderIndex[orderIndex.Length-1]);
             }
             return this.BuildBinarySetLoop(enumeratorName,successStatement,endStatement,binarySetIndex[0]);
         }
@@ -59,7 +59,7 @@ internal sealed partial class PipelineEnumerable {
         }
         if(orderIndex.Length>1) {
             // 連続した OrderBy チェーン: 最後の OrderBy が前の順序を完全に置き換える（LINQ の仕様通り）
-            return this.BuildOrderLoop(enumeratorName,successStatement,endStatement,orderIndex[^1]);
+            return this.BuildOrderLoop(enumeratorName,successStatement,endStatement,orderIndex[orderIndex.Length-1]);
         }
         var skipLastIndex = stages.Select(static (stage,index) => (stage,index))
             .Where(static pair => pair.stage.Kind==PipelineStageKind.SkipLast)

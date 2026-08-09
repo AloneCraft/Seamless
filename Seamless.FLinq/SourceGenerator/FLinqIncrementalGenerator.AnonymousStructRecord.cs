@@ -206,7 +206,7 @@ public sealed partial class FLinqIncrementalGenerator {
             => anon.GetMembers().OfType<IPropertySymbol>().ToList();
 
         // ファクトリメソッド名。struct 名（__AnonN_...）と衝突しないよう __NewN_... にする。
-        private static string FactoryName(Shape shape) => "__New"+shape.TypeId["__Anon".Length..];
+        private static string FactoryName(Shape shape) => "__New"+shape.TypeId.Substring("__Anon".Length);
     }
 
     private static ExpressionSyntax StripParentheses(ExpressionSyntax expression) {

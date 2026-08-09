@@ -87,3 +87,24 @@ sequenceDiagram
 
 ### Unknown
 - すべての LINQ fragment の相互作用詳細。
+
+## Registry-driven FLinq interception
+
+```mermaid
+sequenceDiagram
+    participant Roslyn
+    participant Discovery as TargetDiscovery
+    participant Registry as OperatorRegistry
+    participant Builder as FragmentBuilder
+    participant Profile as Provider/Root profile
+    participant Output as Generated source
+
+    Roslyn->>Discovery: Invocation syntax
+    Discovery->>Registry: Coverage and target lookup
+    Discovery->>Builder: intercept target
+    Builder->>Registry: candidates by OperatorKey
+    Registry-->>Builder: Priority-ordered typed descriptors
+    Builder->>Profile: ProviderNative or Root policy
+    Profile-->>Builder: typed Fragment
+    Builder->>Output: input-file interceptor source
+```

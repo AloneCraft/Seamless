@@ -82,8 +82,8 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         }
 
         var expression = this.resultSelector.InlineBody.Trim();
-        while(expression.Length>=2&&expression[0]=='('&&expression[^1]==')') {
-            expression=expression[1..^1].Trim();
+        while(expression.Length>=2&&expression[0]=='('&&expression[expression.Length-1]==')') {
+            expression=expression.Substring(1,expression.Length-2).Trim();
         }
 
         return string.Equals(expression,this.resultSelector.ParameterNames[0],StringComparison.Ordinal);

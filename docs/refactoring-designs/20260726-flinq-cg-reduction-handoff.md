@@ -207,3 +207,12 @@ TRecord が TKey を Tsavorite キーとは別に二重で永続化している�
 
 まず現状確認(§3 の4スイートが §1 の期待値どおりであること)をしてから、
 plan-model-gate に従って作業計画を出してください。
+
+## 2026-08-09: FLinq SourceGenerator Registry中心リファクタリング
+
+- `Seamless.FLinq` Generatorを`netstandard2.0`へ移行し、Roslynを5.6.0へ更新した。
+- 演算子・Variantの探索、型付きFactory、Root、ProviderNative、Pipeline能力を`SourceGenerator/Linq/Registry/`に集約した。
+- ReflectionによるFragment探索、コンストラクタ反射、型名Variant分解、汎用Constructor Binderを通常生成経路から除去した。
+- 公開`System.Linq.Enumerable` APIとのCoverage契約、Priority/Factory/ProviderNative整合性を`FLINQ006`とRegistry単体テストで検証する。
+- FLinqパッケージは`Seamless.Linq`を同一バージョン依存として宣言し、ランタイムDLLを同梱しない。
+- 設計の正本は`docs/FLinq.md`と`Document/Code/Internal/FLinqRegistryInternalDesign.md`、UMLは`Document/Code/Internal`のComponent/Class/Interaction diagramsを参照する。

@@ -31,9 +31,9 @@ internal abstract class FuncFragment {
     // delegate 戻り値型名。
     public string ReturnTypeName = "void";
     // delegate 引数型名一覧。
-    public string[] ParameterTypeNames = [];
+    public string[] ParameterTypeNames=Array.Empty<string>();
     // delegate 引数名一覧。
-    public string[] ParameterNames = [];
+    public string[] ParameterNames=Array.Empty<string>();
     // closure なしで struct 内へ直接式を展開できるかどうか。
     public bool CanGenerateMethod = true;
     // 代入文として展開できるかどうか。
@@ -46,11 +46,11 @@ internal abstract class FuncFragment {
     public string InlineBody = string.Empty;
     // ラムダがキャプチャしているローカル変数・外側パラメータ一覧（ラムダ引数は除く）。
     // struct closure 時に primary ctor へそのまま渡して backing field 化する。
-    public (string Name,string TypeName)[] CapturedLocals = [];
-    public HoistedLocal[] HoistedLocals = [];
+    public (string Name,string TypeName)[] CapturedLocals=Array.Empty<(string Name,string TypeName)>();
+    public HoistedLocal[] HoistedLocals=Array.Empty<HoistedLocal>();
     // ラムダ本体内のフィールド・static メソッドアクセス用に生成した UnsafeAccessor extern 宣言コード。
     // Fragment.CollectAllUnsafeAccessorCodes() で収集して補助クラスに出力される。
-    public string[] BodyUnsafeAccessorCodes = [];
+    public string[] BodyUnsafeAccessorCodes=Array.Empty<string>();
     // ラムダ本体を展開するために必要な補助 struct 群。
     // 例: keySelector 内の Count()/Any() を scalar Fragment として展開する場合。
     public virtual string SupportingMemberSources { get; set; } = string.Empty;

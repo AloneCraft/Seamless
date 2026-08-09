@@ -81,10 +81,10 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
         });
         context.RegisterSourceOutput(discoveryDiagnostics,static (productionContext,diagnostic) =>
             productionContext.ReportDiagnostic(diagnostic));
-
-        // FLINQ001 警告: グローバルな重複除去が必要なため Collect で一括処理（軽量）
         context.RegisterSourceOutput(interceptTargets.Collect(),static (productionContext,interceptTargets) => {
-            if(interceptTargets.IsDefaultOrEmpty) {
+            foreach(var error in OperatorRegistry.ValidationErrors) {
+                productionContext.ReportDiagnostic(Diagnostic.Create(RegistryConsistencyDescriptor,Location.None,error));
+            }            if(interceptTargets.IsDefaultOrEmpty) {
                 return;
             }
             var reportedMethods = new HashSet<string>(StringComparer.Ordinal);
@@ -110,7 +110,7 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
             .SelectMany(static (targets,_) => targets
                 .Distinct(LinqInterceptTargetComparer.Instance)
                 .GroupBy(static t => t.SourcePath,StringComparer.Ordinal)
-                .Select(static g => new PerFileInterceptGroup(g.Key,[.. g])));
+                .Select(static g => new PerFileInterceptGroup(g.Key,g.ToImmutableArray())));
 
         context.RegisterSourceOutput(perFileGroups,static (productionContext,group) => {
             var diagnostics = new List<Diagnostic>();
@@ -121,7 +121,7 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
             }
             if(traceDocuments.Length>0){
                 var traceHintName=hintName.EndsWith(".g.cs",StringComparison.Ordinal)
-                    ?hintName[..^5]+".OptimizationTrace.g.cs"
+                    ?hintName.Substring(0,hintName.Length-5)+".OptimizationTrace.g.cs"
                     :hintName+".OptimizationTrace.g.cs";
                 productionContext.AddSource(traceHintName,SourceText.From(OptimizationTraceCollector.RenderSource(traceDocuments),Encoding.UTF8));
             }

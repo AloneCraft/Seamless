@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TsavoriteTargetFramework Condition="'$(TsavoriteTargetFramework)' == ''">net10.0</TsavoriteTargetFramework>
     <OutputType>Exe</OutputType>
@@ -21,7 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Seamless\Seamless.csproj" />
     <!-- Normal reference: compile against Seamless.FLinq attributes used by Shared\DynamicLinq. -->
-    <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" />
+    <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" SetTargetFramework="TargetFramework=netstandard2.0" />
     <!-- Analyzer reference: run the Seamless.FLinq source generator for this executable. -->
     <ProjectReference Include="..\Seamless.FLinq\Seamless.FLinq.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
   </ItemGroup>

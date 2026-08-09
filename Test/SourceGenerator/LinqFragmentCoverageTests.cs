@@ -1,45 +1,64 @@
+using System.Collections;
 using System.Reflection;
 
+using Seamless.FLinq;
 namespace Test.SourceGenerator;
 
 public sealed class LinqFragmentCoverageTests {
+    private static readonly Assembly GeneratorAssembly=typeof(FLinqIncrementalGenerator).Assembly;
+    private static readonly Type RegistryType=GeneratorAssembly.GetType("Seamless.FLinq.OperatorRegistry",throwOnError:true)!;
+
     [Fact, Trait("Category","Unit")]
-    public void SystemLinqEnumerablePublicMethodsHaveFragmentOrPipelineSupport() {
-        var assembly = typeof(global::Seamless.FLinq.FLinqIncrementalGenerator).Assembly;
-        var fragmentTypeNames = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
-        foreach(var type in assembly.GetTypes()) {
-            if(type.Namespace=="Seamless.FLinq") {
-                fragmentTypeNames.Add(type.Name);
-            }
-        }
-        var supportedByPipeline = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal) {
-            "Order",
-            "OrderDescending",
-            "TryGetNonEnumeratedCount",
-        };
+    public void SystemLinqEnumerablePublicMethodsHaveRegistryCoverage() {
         var methodNames = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
         foreach(var method in typeof(global::System.Linq.Enumerable).GetMethods(BindingFlags.Public|BindingFlags.Static)) {
             if(!method.IsSpecialName) {
                 methodNames.Add(method.Name);
             }
         }
-        var unsupported = new global::System.Collections.Generic.List<string>();
-        foreach(var methodName in methodNames) {
-            if(!HasFragment(fragmentTypeNames,methodName)&&!supportedByPipeline.Contains(methodName)) {
-                unsupported.Add(methodName);
-            }
-        }
-        unsupported.Sort(StringComparer.Ordinal);
+
+        var isKnownMethod=RegistryType.GetMethod("IsKnownEnumerableMethodName",BindingFlags.Static|BindingFlags.NonPublic)!;
+        var unsupported = methodNames
+            .Where(methodName => !(bool)isKnownMethod.Invoke(null,new object?[] { methodName })!)
+            .OrderBy(static methodName => methodName,StringComparer.Ordinal)
+            .ToArray();
 
         Assert.Empty(unsupported);
     }
 
-    private static bool HasFragment(global::System.Collections.Generic.IEnumerable<string> fragmentTypeNames,string methodName) {
-        foreach(var typeName in fragmentTypeNames) {
-            if(typeName==methodName||typeName==methodName+"Root"||typeName.StartsWith(methodName+"_",StringComparison.Ordinal)) {
-                return true;
+    [Fact, Trait("Category","Unit")]
+    public void RegistryContractHasNoDuplicatePriorityFactoryCoverageOrCapabilityErrors() {
+        var validationErrors=(IEnumerable)RegistryType.GetProperty("ValidationErrors",BindingFlags.Static|BindingFlags.NonPublic)!.GetValue(null)!;
+        Assert.Empty(validationErrors.Cast<string>());
+
+        var descriptors=((IEnumerable)RegistryType.GetProperty("Descriptors",BindingFlags.Static|BindingFlags.NonPublic)!.GetValue(null)!).Cast<object>().ToArray();
+        var keys=descriptors.Select(static descriptor => GetPropertyValue(descriptor,"Key")!.ToString()).ToArray();
+        Assert.Equal(descriptors.Length,keys.Distinct(StringComparer.Ordinal).Count());
+        foreach(var group in descriptors.GroupBy(static descriptor => GetPropertyValue(descriptor,"Key")!.GetType().GetProperty("MethodName")!.GetValue(GetPropertyValue(descriptor,"Key"))!.ToString(),StringComparer.Ordinal)) {
+            Assert.Equal(group.Count(),group.Select(static descriptor => (int)GetPropertyValue(descriptor,"Priority")!).Distinct().Count());
+        }
+        foreach(var descriptor in descriptors) {
+            var fragmentType=(Type)GetPropertyValue(descriptor,"FragmentType")!;
+            var argumentsType=(Type)GetPropertyValue(descriptor,"ArgumentsType")!;
+            Assert.True(GeneratorAssembly.GetType("Seamless.FLinq.Fragment",throwOnError:true)!.IsAssignableFrom(fragmentType),GetPropertyValue(descriptor,"Key")!.ToString());
+            Assert.True(GeneratorAssembly.GetType("Seamless.FLinq.FragmentArguments",throwOnError:true)!.IsAssignableFrom(argumentsType),GetPropertyValue(descriptor,"Key")!.ToString());
+            if(GetPropertyValue(descriptor,"Capabilities")!.ToString()!.Contains("ProviderNativeIterate",StringComparison.Ordinal)) {
+                Assert.Equal("Fragment",GetPropertyValue(descriptor,"Coverage")!.ToString());
             }
         }
-        return false;
     }
+
+    [Fact, Trait("Category","Unit")]
+    public void RegistryExplicitlyClassifiesExcludedPublicApis() {
+        var descriptors=((IEnumerable)RegistryType.GetProperty("Descriptors",BindingFlags.Static|BindingFlags.NonPublic)!.GetValue(null)!).Cast<object>();
+        var excluded = descriptors
+            .Where(static descriptor => GetPropertyValue(descriptor,"Coverage")!.ToString()=="Excluded")
+            .Select(static descriptor => GetPropertyValue(descriptor,"Key")!.GetType().GetProperty("MethodName")!.GetValue(GetPropertyValue(descriptor,"Key"))!.ToString())
+            .OrderBy(static methodName => methodName,StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.Equal(new[] { "Order","OrderDescending","TryGetNonEnumeratedCount" },excluded);
+    }
+    private static object? GetPropertyValue(object value,string propertyName) =>
+        value.GetType().GetProperty(propertyName,BindingFlags.Instance|BindingFlags.Public)!.GetValue(value);
 }

@@ -2,7 +2,7 @@ namespace Seamless.FLinq;
 
 internal sealed class InlinedScalarFunc(Fragment scalarFragment):LambdaFunc {
     public Fragment ScalarFragment => scalarFragment;
-    public string[] OuterParameterNames { get; init; } = [];
+    public string[] OuterParameterNames { get; init; } =Array.Empty<string>();
     public string BodyExpression { get; init; } = string.Empty;
     public string ScalarExpression { get; init; } = string.Empty;
     public string ScalarReturnTypeName { get; init; } = string.Empty;

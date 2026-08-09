@@ -82,3 +82,33 @@ classDiagram
 
 ### Unknown
 - 全 fragment class と全 test class の網羅図は未生成。
+
+## FLinq Operator Registry
+
+```mermaid
+classDiagram
+    class OperatorRegistry {
+      +TryGetCandidates(methodName)
+      +TryCreateRoot(context)
+      +TryGetProviderNativeProfile(key)
+      +ValidationErrors
+    }
+    class OperatorKey
+    class IOperatorDescriptor
+    class OperatorDescriptor~TFragment,TArguments~
+    class RootOperatorDescriptor~TFragment~
+    class FragmentFactoryContext
+    class RootFactoryContext
+    class ProviderNativeTerminalProfile
+    class Fragment
+
+    IOperatorDescriptor <|.. OperatorDescriptor~TFragment,TArguments~
+    IOperatorDescriptor <|.. RootOperatorDescriptor~TFragment~
+    Fragment <|-- OperatorDescriptor~TFragment,TArguments~
+    Fragment <|-- RootOperatorDescriptor~TFragment~
+    OperatorRegistry --> IOperatorDescriptor
+    OperatorRegistry --> ProviderNativeTerminalProfile
+    OperatorDescriptor~TFragment,TArguments~ --> FragmentFactoryContext
+    RootOperatorDescriptor~TFragment~ --> RootFactoryContext
+    IOperatorDescriptor --> OperatorKey
+```

@@ -21,7 +21,7 @@ internal static partial class PipelineBuilder {
             return false;
         }
 
-        optimizedSource=primaryOrders[^1].Descending
+        optimizedSource=primaryOrders[primaryOrders.Length-1].Descending
             ? new DescendingRangeRoot(uniqueNumber++,range.StartExpression,range.CountExpression)
             : range;
         return true;
@@ -125,7 +125,7 @@ internal static partial class PipelineBuilder {
         }
 
         range=current switch {
-            RangeRoot currentRange => new RangeExceptRoot(number,currentRange,[second]),
+            RangeRoot currentRange => new RangeExceptRoot(number,currentRange,new[] { second }),
             RangeExceptRoot existing => existing.AddExclusion(number,second),
             _ => null!
         };

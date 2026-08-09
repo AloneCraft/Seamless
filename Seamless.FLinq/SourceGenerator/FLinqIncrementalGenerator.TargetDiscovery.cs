@@ -175,14 +175,14 @@ public sealed partial class FLinqIncrementalGenerator {
             var type = typeStack.Pop();
             foreach(var typeParameter in type.TypeParameters) {
                 if(!型パラメーター追加(typeParameter,builder,names,out failureReason)) {
-                    typeParameters=[];
+                    typeParameters =new();
                     return false;
                 }
             }
         }
         foreach(var typeParameter in method.TypeParameters) {
             if(!型パラメーター追加(typeParameter,builder,names,out failureReason)) {
-                typeParameters=[];
+                typeParameters =new();
                 return false;
             }
         }
@@ -430,7 +430,7 @@ public sealed partial class FLinqIncrementalGenerator {
         var cache = ローカルメソッドLinq解析キャッシュ.GetValue(
             compilation,
             static _ => new System.Collections.Concurrent.ConcurrentDictionary<IMethodSymbol,ローカルメソッドLinq解析結果>(SymbolEqualityComparer.Default));
-        return cache.GetOrAdd(method,static (method,compilation) => ローカルメソッドLinq解析実行(method,compilation),compilation);
+        return cache.GetOrAdd(method,currentMethod => ローカルメソッドLinq解析実行(currentMethod,compilation));
     }
 
     /// <summary>
@@ -460,7 +460,7 @@ public sealed partial class FLinqIncrementalGenerator {
             ? methodSyntax.Body.DescendantNodes().OfType<InvocationExpressionSyntax>()
             : methodSyntax.ExpressionBody is not null
                 ? methodSyntax.ExpressionBody.Expression.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>()
-                : [];
+                : global::System.Linq.Enumerable.Empty<InvocationExpressionSyntax>();
 
         var unsupportedMethods = new HashSet<string>(StringComparer.Ordinal);
         var hasEnumerableCall = false;
@@ -521,7 +521,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 ? methodSyntax.Body.DescendantNodes()
                 : methodSyntax.ExpressionBody is not null
                     ? methodSyntax.ExpressionBody.Expression.DescendantNodesAndSelf()
-                    : [];
+                    : global::System.Linq.Enumerable.Empty<SyntaxNode>();
             if(queryBodyNodes.OfType<QueryExpressionSyntax>().Any()) {
                 hasEnumerableCall=true;
             }
@@ -529,7 +529,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         return new ローカルメソッドLinq解析結果(
             hasEnumerableCall,
-            [.. unsupportedMethods.OrderBy(static methodName => methodName,StringComparer.Ordinal)],
+            unsupportedMethods.OrderBy(static methodName => methodName,StringComparer.Ordinal).ToImmutableArray(),
             hasAnonymousTypeLinq);
     }
 
@@ -538,26 +538,26 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <br/>セマンティック解析より安価なため、解析対象を絞る前処理として <see cref="ローカルメソッドLinq解析実行"/> の冒頭で呼ばれる。
     /// <br/>判定対象: メンバーアクセス（<c>source.Where(…)</c>）・識別子（<c>Where(…)</c>）・
     /// ジェネリックメソッド名（<c>Cast&lt;T&gt;(…)</c>）のいずれかが
-    /// <see cref="SystemLinqEnumerableMethodNames"/> に含まれるか、またはクエリ式が存在するか。
+    /// Registry Coverage に含まれるか、またはクエリ式が存在するか。
     /// </summary>
     private static bool メソッド構文にLinq候補を含むか(MethodDeclarationSyntax methodSyntax) {
         var invocationNodes = methodSyntax.Body is not null
             ? methodSyntax.Body.DescendantNodes().OfType<InvocationExpressionSyntax>()
             : methodSyntax.ExpressionBody is not null
                 ? methodSyntax.ExpressionBody.Expression.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>()
-                : [];
+                : global::System.Linq.Enumerable.Empty<InvocationExpressionSyntax>();
 
         foreach(var invocation in invocationNodes) {
             if(invocation.Expression is MemberAccessExpressionSyntax { Name: { } memberName }
-                &&SystemLinqEnumerableMethodNames.Contains(memberName.Identifier.ValueText)) {
+                &&OperatorRegistry.IsKnownEnumerableMethodName(memberName.Identifier.ValueText)) {
                 return true;
             }
             if(invocation.Expression is IdentifierNameSyntax identifierName
-                &&SystemLinqEnumerableMethodNames.Contains(identifierName.Identifier.ValueText)) {
+                &&OperatorRegistry.IsKnownEnumerableMethodName(identifierName.Identifier.ValueText)) {
                 return true;
             }
             if(invocation.Expression is GenericNameSyntax genericName
-                &&SystemLinqEnumerableMethodNames.Contains(genericName.Identifier.ValueText)) {
+                &&OperatorRegistry.IsKnownEnumerableMethodName(genericName.Identifier.ValueText)) {
                 return true;
             }
         }
@@ -567,7 +567,7 @@ public sealed partial class FLinqIncrementalGenerator {
             ? methodSyntax.Body.DescendantNodes()
             : methodSyntax.ExpressionBody is not null
                 ? methodSyntax.ExpressionBody.Expression.DescendantNodesAndSelf()
-                : [];
+                : global::System.Linq.Enumerable.Empty<SyntaxNode>();
         if(bodyNodesForQuery.OfType<QueryExpressionSyntax>().Any()) {
             return true;
         }

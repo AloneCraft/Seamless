@@ -65,7 +65,7 @@ public sealed partial class FLinqIncrementalGenerator {
             // lambda 内の this. は 関数式フラグメント生成 が capturesThis を検出して @this を struct closure の
             // キャプチャ変数として持ち回るため、fragment struct 内でも @this は定義される。
             式本体式=アロー式;
-            statements= [];
+            statements=global::System.Linq.Enumerable.Empty<StatementSyntax>();
         } else {
             return false;
         }
@@ -951,9 +951,9 @@ public sealed partial class FLinqIncrementalGenerator {
         HashSet<string> usedNames) {
         if(statement is LocalDeclarationStatementSyntax {
             Declaration: {
-                Variables: [VariableDeclaratorSyntax { Initializer.Value: InvocationExpressionSyntax invocation } variable]
+                Variables: { Count: 1 } variables
             }
-        }) {
+        }&&variables[0] is VariableDeclaratorSyntax { Initializer.Value: InvocationExpressionSyntax invocation } variable) {
             if(!TryGetNonEnumeratedCountInvocation(invocation,semanticModel,out var sourceExpression,out var outArgument,out var outTypeName)
                 ||!TryRenderTryGetNonEnumeratedCountOutArgument(outArgument,semanticModel,containingType,unsafeAccessorCollector,outTypeName,out var outDeclaration,out var outTarget)
                 ||!TryPrepareTryGetNonEnumeratedCountSource(sourceExpression,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,out var sourceFragment)) {
@@ -1649,17 +1649,16 @@ public sealed partial class FLinqIncrementalGenerator {
                 clause.Condition,semanticModel,containingType,unsafeAccessorCollector);
             var whereFunc = new LambdaFunc {
                 InlineBody=predBody,
-                ParameterNames= [paramName],
-                ParameterTypeNames= [currentFragment.ElementType],
+                ParameterNames=new[] { paramName },
+                ParameterTypeNames=new[] { currentFragment.ElementType },
                 ReturnTypeName="bool",
                 CanInlineAssign=false,
                 CanGenerateMethod=true,
             };
-            if(!フラグメント候補選択("Where",string.Empty,out var whereCandidate)) {
+            if(!OperatorRegistry.TryCreateDirect("Where",string.Empty,new FragmentArguments(uniqueNumber++,new object?[] { currentFragment,whereFunc }),out var whereDirect)
+                ||whereDirect is not Enumerable whereFragment) {
                 return false;
             }
-            var whereFragment = (Enumerable)whereCandidate.Constructor.Invoke(
-                [uniqueNumber++,currentFragment,whereFunc]);
             ApplyCounterInstrumentation(whereFragment,semanticModel,clause);
             staticMethods=静的メソッドコード連結(staticMethods,whereFragment.GetEnumeratorStruct);
             currentFragment=whereFragment;
@@ -1676,8 +1675,8 @@ public sealed partial class FLinqIncrementalGenerator {
                     .ToDisplayString(完全修飾形式)??"object";
                 var orderFunc = new LambdaFunc {
                     InlineBody=keyBody,
-                    ParameterNames= [paramName],
-                    ParameterTypeNames= [currentFragment.ElementType],
+                    ParameterNames=new[] { paramName },
+                    ParameterTypeNames=new[] { currentFragment.ElementType },
                     ReturnTypeName=keyTypeName,
                     CanInlineAssign=false,
                     CanGenerateMethod=true,
@@ -1686,11 +1685,10 @@ public sealed partial class FLinqIncrementalGenerator {
                 var obMethodName = i==0
                     ? (isDescending ? "OrderByDescending" : "OrderBy")
                     : (isDescending ? "ThenByDescending" : "ThenBy");
-                if(!フラグメント候補選択(obMethodName,string.Empty,out var obCandidate)) {
+                if(!OperatorRegistry.TryCreateDirect(obMethodName,string.Empty,new FragmentArguments(uniqueNumber++,new object?[] { currentFragment,orderFunc }),out var orderByDirect)
+                    ||orderByDirect is not Enumerable obFragment) {
                     return false;
                 }
-                var obFragment = (Enumerable)obCandidate.Constructor.Invoke(
-                    [uniqueNumber++,currentFragment,orderFunc]);
                 ApplyCounterInstrumentation(obFragment,semanticModel,ordering);
                 staticMethods=静的メソッドコード連結(staticMethods,obFragment.GetEnumeratorStruct);
                 currentFragment=obFragment;
@@ -1708,17 +1706,16 @@ public sealed partial class FLinqIncrementalGenerator {
                     .ToDisplayString(完全修飾形式)??"object";
                 var selectFunc = new LambdaFunc {
                     InlineBody=selectorBody,
-                    ParameterNames= [paramName],
-                    ParameterTypeNames= [currentFragment.ElementType],
+                    ParameterNames=new[] { paramName },
+                    ParameterTypeNames=new[] { currentFragment.ElementType },
                     ReturnTypeName=resultTypeName2,
                     CanInlineAssign=true,
                     CanGenerateMethod=true,
                 };
-                if(!フラグメント候補選択("Select",string.Empty,out var selectCandidate)) {
+                if(!OperatorRegistry.TryCreateDirect("Select",string.Empty,new FragmentArguments(uniqueNumber++,new object?[] { currentFragment,selectFunc }),out var selectDirect)
+                    ||selectDirect is not Enumerable selectFrag) {
                     return false;
                 }
-                var selectFrag = (Enumerable)selectCandidate.Constructor.Invoke(
-                    [uniqueNumber++,currentFragment,selectFunc]);
                 ApplyCounterInstrumentation(selectFrag,semanticModel,selectClause);
                 staticMethods=静的メソッドコード連結(staticMethods,selectFrag.GetEnumeratorStruct);
                 currentFragment=selectFrag;

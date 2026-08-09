@@ -270,13 +270,13 @@ internal static partial class PipelineBuilder {
     private static bool TryGetSequenceElementType(string sequenceTypeName,out string elementTypeName) {
         elementTypeName=string.Empty;
         if(sequenceTypeName.EndsWith("[]",StringComparison.Ordinal)) {
-            elementTypeName=sequenceTypeName[..^2];
+            elementTypeName=sequenceTypeName.Substring(0,sequenceTypeName.Length-2);
             return true;
         }
         const string enumerablePrefix = "global::System.Collections.Generic.IEnumerable<";
         if(sequenceTypeName.StartsWith(enumerablePrefix,StringComparison.Ordinal)
             &&sequenceTypeName.EndsWith(">",StringComparison.Ordinal)) {
-            elementTypeName=sequenceTypeName[enumerablePrefix.Length..^1];
+            elementTypeName=sequenceTypeName.Substring(enumerablePrefix.Length,sequenceTypeName.Length-enumerablePrefix.Length-1);
             return true;
         }
         return false;

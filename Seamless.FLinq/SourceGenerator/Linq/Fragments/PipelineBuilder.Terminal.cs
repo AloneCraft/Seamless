@@ -8,7 +8,7 @@ internal static partial class PipelineBuilder {
         out ExpressionSyntax sourceExpression,
         out List<InvocationExpressionSyntax> invocations) {
         sourceExpression=null!;
-        invocations= [];
+        invocations=new List<InvocationExpressionSyntax>();
         ExpressionSyntax current = invocation;
         while(current is InvocationExpressionSyntax currentInvocation
             &&currentInvocation.Expression is MemberAccessExpressionSyntax { Expression: var receiverExpression }) {
