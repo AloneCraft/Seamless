@@ -79,7 +79,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 },
                 ContainsAnonymousType,
                 静的メソッドコード連結,
-                外側型パラメータ名(containingType),
+                this.state.ResolveOuterTypeParameters(containingType),
                 this.state.Configuration,
                 this.state.Trace),
             unsafeAccessorCollector)) {
@@ -146,7 +146,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 } else if(OperatorRegistry.TryCreateDirect(name,variant,new DirectFragmentArguments(n,extraArgs),out var directFragment)) {
                     built=directFragment;
                 }
-                built?.ApplyRenderContext(FragmentRenderContext.ForOuterTypeParameters(外側型パラメータ名(containingType)));
+                built?.ApplyRenderContext(FragmentRenderContext.ForOuterTypeParameters(this.state.ResolveOuterTypeParameters(containingType)));
                 return built;
             });
 
@@ -432,7 +432,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// </summary>
     internal bool 列挙式フラグメント生成(SemanticModel semanticModel,ExpressionSyntax expression,INamedTypeSymbol containingType,ref int uniqueNumber,out Enumerable fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null) {
         expression=括弧除去(expression);
-        var outerTypeParameters=外側型パラメータ名(containingType);
+        var outerTypeParameters=this.state.ResolveOuterTypeParameters(containingType);
         if(expression is InvocationExpressionSyntax invocation
             &&呼び出し式からフラグメント生成(semanticModel,invocation,containingType,ref uniqueNumber,out var nestedFragment,out staticMethods,unsafeAccessorCollector)
             &&nestedFragment is Enumerable enumerableFragment) {

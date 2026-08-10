@@ -21,6 +21,21 @@ internal sealed class GenerationState(FLinqIncrementalGenerator.Linq傍受対象
     public HashSet<string> UsedIdentifiers { get; } = new(StringComparer.Ordinal);
     public List<Fragment> GeneratedFragments { get; } = new();
     public List<string> UnsafeAccessorCodes { get; } = new();
+
+    internal string[] ResolveOuterTypeParameters(INamedTypeSymbol containingType) {
+        if(this.Target.MethodTypeParameters.Length>0) {
+            return this.Target.MethodTypeParameters;
+        }
+        var containingTypes = new Stack<INamedTypeSymbol>();
+        for(var current = containingType;current is not null;current=current.ContainingType) {
+            containingTypes.Push(current);
+        }
+        return containingTypes
+            .SelectMany(static type => type.TypeParameters)
+            .Select(static typeParameter => typeParameter.Name)
+            .ToArray();
+    }
+
     internal int FragmentNumber;
     internal int LinqInvocationCount;
     internal string StaticMethods = string.Empty;

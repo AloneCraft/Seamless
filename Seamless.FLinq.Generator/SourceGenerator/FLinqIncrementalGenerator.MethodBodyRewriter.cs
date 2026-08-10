@@ -9,25 +9,6 @@ namespace Seamless.FLinq;
 public sealed partial class FLinqIncrementalGenerator {
     internal sealed partial class GenerationPipeline {
 
-    // 傍受メソッドへ移した含有型（例: Base<T>）の型パラメータ名。
-    // 生成する補助 struct を <T> でパラメータ化するために Fragment ツリーへ伝播する。
-    // 非ジェネリック含有型では空配列。
-    // 対象単位のGenerationStateに型パラメーターがあれば、含有型の階層に加えて
-    // 傍受対象メソッド自身の型パラメータ（例: FormatGroupBy<T> の T）も含めた値を優先する。
-    private string[] 外側型パラメータ名(INamedTypeSymbol containingType) {
-        if(this.state.Target.MethodTypeParameters.Length>0) {
-            return this.state.Target.MethodTypeParameters;
-        }
-        var containingTypes = new Stack<INamedTypeSymbol>();
-        for(var current = containingType;current is not null;current=current.ContainingType) {
-            containingTypes.Push(current);
-        }
-        return containingTypes
-            .SelectMany(static type => type.TypeParameters)
-            .Select(static typeParameter => typeParameter.Name)
-            .ToArray();
-    }
-
     /// <summary>
     /// インターセプト対象メソッドの本体を丸ごと再構成し、文中の LINQ 呼び出しを Fragment 実行へ差し替える。
     /// <br/>アルゴリズム:
@@ -288,7 +269,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
         if(!methodIsStatic) {
-            fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType).ToImmutableArray()));
+            fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),this.state.ResolveOuterTypeParameters(containingType).ToImmutableArray()));
         }
         ApplyCounterInstrumentation(fragment,semanticModel,linqInvocation);
         generatedFragments.Add(fragment);
@@ -348,7 +329,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
         if(!methodIsStatic) {
-            fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType).ToImmutableArray()));
+            fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),this.state.ResolveOuterTypeParameters(containingType).ToImmutableArray()));
         }
         ApplyCounterInstrumentation(fragment,semanticModel,linqInvocation);
         var isScalarMaterializeTerminal = IsScalarConsumeMaterializeTerminal(linqInvocation,semanticModel);
@@ -916,7 +897,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 return false;
             }
             if(!methodIsStatic) {
-                fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType).ToImmutableArray()));
+                fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),this.state.ResolveOuterTypeParameters(containingType).ToImmutableArray()));
             }
             ApplyCounterInstrumentation(fragment,semanticModel,invocation);
             generatedFragments.Add(fragment);
@@ -1077,7 +1058,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         if(!methodIsStatic) {
-            sourceFragment.ApplyRenderContext(sourceFragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType).ToImmutableArray()));
+            sourceFragment.ApplyRenderContext(sourceFragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),this.state.ResolveOuterTypeParameters(containingType).ToImmutableArray()));
         }
         ApplyCounterInstrumentation(sourceFragment,semanticModel,sourceExpression);
         generatedFragments.Add(sourceFragment);
@@ -1251,7 +1232,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 continue;
             }
             if(!methodIsStatic) {
-                fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType).ToImmutableArray()));
+                fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),this.state.ResolveOuterTypeParameters(containingType).ToImmutableArray()));
             }
             ApplyCounterInstrumentation(fragment,semanticModel,invocation);
             generatedFragments.Add(fragment);
