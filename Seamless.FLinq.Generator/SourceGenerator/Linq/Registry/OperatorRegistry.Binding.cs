@@ -2,12 +2,10 @@ namespace Seamless.FLinq;
 
 public sealed partial class FLinqIncrementalGenerator {
     internal sealed class FragmentFactoryContext {
-        private readonly SemanticModel semanticModel;
         private readonly InvocationExpressionSyntax invocation;
         private readonly ExpressionSyntax sourceExpression;
         private readonly int argumentStartIndex;
         private readonly IMethodSymbol method;
-        private readonly INamedTypeSymbol containingType;
         private readonly List<string>? unsafeAccessorCollector;
         private readonly IReadOnlyDictionary<string,string>? replacementMap;
         private readonly GenerationPipeline pipeline;
@@ -25,12 +23,10 @@ public sealed partial class FLinqIncrementalGenerator {
             List<string>? unsafeAccessorCollector,
             IReadOnlyDictionary<string,string>? replacementMap,
             GenerationPipeline pipeline) {
-            this.semanticModel=semanticModel;
             this.invocation=invocation;
             this.sourceExpression=sourceExpression;
             this.argumentStartIndex=argumentStartIndex;
             this.method=method;
-            this.containingType=containingType;
             this.buildContext=new(pipeline.State,semanticModel,containingType,uniqueNumber);
             this.unsafeAccessorCollector=unsafeAccessorCollector;
             this.replacementMap=replacementMap;
@@ -50,7 +46,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         internal bool TryBuildSource(out Enumerable source) {
             source=null!;
-            if(!this.pipeline.列挙式フラグメント生成(this.semanticModel,this.sourceExpression,this.containingType,ref this.buildContext.UniqueNumber,out source,out var sourceMethods,this.unsafeAccessorCollector)) {
+            if(!this.pipeline.列挙式フラグメント生成(this.buildContext.SemanticModel,this.sourceExpression,this.buildContext.ContainingType,ref this.buildContext.UniqueNumber,out source,out var sourceMethods,this.unsafeAccessorCollector)) {
                 return false;
             }
             this.AppendStaticMethods(sourceMethods);
@@ -60,7 +56,7 @@ public sealed partial class FLinqIncrementalGenerator {
         internal bool TryBuildEnumerableArgument(int relativeIndex,out Enumerable enumerable) {
             enumerable=null!;
             if(!this.TryGetArgument(this.argumentStartIndex+relativeIndex,out var expression)
-                ||!this.pipeline.列挙式フラグメント生成(this.semanticModel,expression,this.containingType,ref this.buildContext.UniqueNumber,out enumerable,out var methods,this.unsafeAccessorCollector)) {
+                ||!this.pipeline.列挙式フラグメント生成(this.buildContext.SemanticModel,expression,this.buildContext.ContainingType,ref this.buildContext.UniqueNumber,out enumerable,out var methods,this.unsafeAccessorCollector)) {
                 return false;
             }
             this.AppendStaticMethods(methods);
@@ -75,7 +71,7 @@ public sealed partial class FLinqIncrementalGenerator {
             var methodParameterIndex=relativeIndex;
             return methodParameterIndex>=0
                 &&methodParameterIndex<this.method.Parameters.Length
-                &&this.pipeline.関数式フラグメント生成(expression,this.method.Parameters[methodParameterIndex].Type,ref this.buildContext.UniqueNumber,out function,this.semanticModel,this.containingType)
+                &&this.pipeline.関数式フラグメント生成(expression,this.method.Parameters[methodParameterIndex].Type,ref this.buildContext.UniqueNumber,out function,this.buildContext.SemanticModel,this.buildContext.ContainingType)
                 &&this.pipeline.関数フラグメントが利用可能か(function);
         }
 
@@ -89,7 +85,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 expression=string.Empty;
                 return false;
             }
-            expression=RenderExpressionForGeneratedMethod(syntax,this.semanticModel,this.containingType,this.unsafeAccessorCollector,this.replacementMap);
+            expression=RenderExpressionForGeneratedMethod(syntax,this.buildContext.SemanticModel,this.buildContext.ContainingType,this.unsafeAccessorCollector,this.replacementMap);
             consumed=true;
             return true;
         }
