@@ -31,7 +31,13 @@ internal sealed class FragmentBuildContext(
     public GenerationState State { get; } = state;
     public SemanticModel SemanticModel { get; } = semanticModel;
     public INamedTypeSymbol ContainingType { get; } = containingType;
-    public int UniqueNumber { get; set; } = uniqueNumber;
+    internal int UniqueNumber = uniqueNumber;
     public LinqGenerationConfiguration Configuration => this.State.Configuration;
     public string[] MethodTypeParameters => this.State.Target.MethodTypeParameters;
+    internal FragmentRenderContext CreateRenderContext(bool counterInstrumentationEnabled = false) =>
+        new(null,this.MethodTypeParameters.ToImmutableArray(),counterInstrumentationEnabled);
+
+    internal void ApplyRenderContext(Fragment fragment,bool counterInstrumentationEnabled = false) {
+        fragment.ApplyRenderContext(this.CreateRenderContext(counterInstrumentationEnabled));
+    }
 }

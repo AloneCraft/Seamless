@@ -11,6 +11,7 @@ public sealed partial class FLinqIncrementalGenerator {
         private readonly List<string>? unsafeAccessorCollector;
         private readonly IReadOnlyDictionary<string,string>? replacementMap;
         private readonly GenerationPipeline pipeline;
+        private readonly FragmentBuildContext buildContext;
         private string staticMethods=string.Empty;
 
         internal FragmentFactoryContext(
@@ -30,22 +31,27 @@ public sealed partial class FLinqIncrementalGenerator {
             this.argumentStartIndex=argumentStartIndex;
             this.method=method;
             this.containingType=containingType;
-            this.UniqueNumber=uniqueNumber;
+            this.buildContext=new(pipeline.State,semanticModel,containingType,uniqueNumber);
             this.unsafeAccessorCollector=unsafeAccessorCollector;
             this.replacementMap=replacementMap;
             this.pipeline=pipeline;
         }
 
-        internal int UniqueNumber;
+        internal int UniqueNumber {
+            get => this.buildContext.UniqueNumber;
+            set => this.buildContext.UniqueNumber=value;
+        }
         internal string StaticMethods => this.staticMethods;
-        internal string[] OuterTypeParameters => this.pipeline.OuterTypeParameters;
+        internal string[] OuterTypeParameters => this.buildContext.MethodTypeParameters;
         internal string ResultType => this.method.ReturnType.ToDisplayString(完全修飾形式);
 
         internal int TakeUniqueNumber() => this.UniqueNumber++;
 
+        internal ref int UniqueNumberReference => ref this.buildContext.UniqueNumber;
+
         internal bool TryBuildSource(out Enumerable source) {
             source=null!;
-            if(!this.pipeline.列挙式フラグメント生成(this.semanticModel,this.sourceExpression,this.containingType,ref this.UniqueNumber,out source,out var sourceMethods,this.unsafeAccessorCollector)) {
+            if(!this.pipeline.列挙式フラグメント生成(this.semanticModel,this.sourceExpression,this.containingType,ref this.buildContext.UniqueNumber,out source,out var sourceMethods,this.unsafeAccessorCollector)) {
                 return false;
             }
             this.AppendStaticMethods(sourceMethods);
@@ -55,7 +61,7 @@ public sealed partial class FLinqIncrementalGenerator {
         internal bool TryBuildEnumerableArgument(int relativeIndex,out Enumerable enumerable) {
             enumerable=null!;
             if(!this.TryGetArgument(this.argumentStartIndex+relativeIndex,out var expression)
-                ||!this.pipeline.列挙式フラグメント生成(this.semanticModel,expression,this.containingType,ref this.UniqueNumber,out enumerable,out var methods,this.unsafeAccessorCollector)) {
+                ||!this.pipeline.列挙式フラグメント生成(this.semanticModel,expression,this.containingType,ref this.buildContext.UniqueNumber,out enumerable,out var methods,this.unsafeAccessorCollector)) {
                 return false;
             }
             this.AppendStaticMethods(methods);
@@ -70,7 +76,7 @@ public sealed partial class FLinqIncrementalGenerator {
             var methodParameterIndex=relativeIndex;
             return methodParameterIndex>=0
                 &&methodParameterIndex<this.method.Parameters.Length
-                &&this.pipeline.関数式フラグメント生成(expression,this.method.Parameters[methodParameterIndex].Type,ref this.UniqueNumber,out function,this.semanticModel,this.containingType)
+                &&this.pipeline.関数式フラグメント生成(expression,this.method.Parameters[methodParameterIndex].Type,ref this.buildContext.UniqueNumber,out function,this.semanticModel,this.containingType)
                 &&this.pipeline.関数フラグメントが利用可能か(function);
         }
 
@@ -105,10 +111,10 @@ public sealed partial class FLinqIncrementalGenerator {
             TryCreateBackendNativeIterateFragment(key,arguments,out fragment);
 
         internal FragmentRenderContext RenderContext =>
-            FragmentRenderContext.ForOuterTypeParameters(this.OuterTypeParameters);
+            this.buildContext.CreateRenderContext();
 
         internal void ApplyRenderContext(Fragment fragment) {
-            fragment.ApplyRenderContext(this.RenderContext);
+            this.buildContext.ApplyRenderContext(fragment);
         }
 
         private bool TryGetArgument(int index,out ExpressionSyntax expression) {
@@ -184,7 +190,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 this.semanticModel,
                 sourceExpression,
                 this.containingType,
-                ref this.bindingContext.UniqueNumber,
+                ref this.bindingContext.UniqueNumberReference,
                 out fragment,
                 this.unsafeAccessorCollector,
                 this.replacementMap);
