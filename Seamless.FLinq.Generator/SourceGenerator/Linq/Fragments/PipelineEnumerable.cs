@@ -139,7 +139,7 @@ internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IR
                 args.Add(this.OrderComparerExpression(stage));
             }
             args.AddRange(this.ClosureArgsWithoutPrefix());
-            return $"new {this.EnumeratorTypeName}({string.Join(", ",args)})";
+            return RenderEnumeratorExpression(this.EnumeratorTypeName,args.ToArray());
         }
     }
 }

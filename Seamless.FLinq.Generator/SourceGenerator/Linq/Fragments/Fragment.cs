@@ -225,6 +225,9 @@ internal abstract class Fragment(
     }
     // Enumerable を直接返す interceptor 用の new Enumerator(...) 式。
     public virtual string GetEnumeratorExpression => throw new NotSupportedException($"{this.GetType().Name} does not support Enumerator mode expression generation.");
+
+    private protected static string RenderEnumeratorExpression(string enumeratorTypeName,params string[] arguments) =>
+        new EnumeratorExpressionRenderModel(enumeratorTypeName,arguments).Render();
     // primary constructor を使う enumerator struct の引数一覧。空なら通常 struct 宣言。
     public virtual string GetEnumeratorPrimaryConstructorParameters => string.Empty;
     // enumerator struct が持つ追加フィールド定義。

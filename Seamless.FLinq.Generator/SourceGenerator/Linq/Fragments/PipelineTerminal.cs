@@ -73,7 +73,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum) {
                 throw new NotSupportedException($"{nameof(PipelineTerminal)} uses direct execution.");
             }
-            return $"new {this.EnumeratorTypeName}({pipeline.GetEnumeratorExpression})";
+            return RenderEnumeratorExpression(this.EnumeratorTypeName,pipeline.GetEnumeratorExpression);
         }
     }
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
