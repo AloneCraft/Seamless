@@ -75,8 +75,10 @@ public sealed partial class FLinqIncrementalGenerator {
         var usedNames=this.state.UsedIdentifiers;
         usedNames.Clear();
         usedNames.UnionWith(CollectMethodBodyIdentifiers(メソッド構文,対象.Method));
-        var sourceUnsafeAccessorCollector = new List<string>();
-        var generatedFragments = new List<Fragment>();
+        var sourceUnsafeAccessorCollector = this.state.UnsafeAccessorCodes;
+        sourceUnsafeAccessorCollector.Clear();
+        var generatedFragments = this.state.GeneratedFragments;
+        generatedFragments.Clear();
         var 本体ビルダー = new StringBuilder();
         var linq呼び出し数 = 0;
         foreach(var 文 in statements) {

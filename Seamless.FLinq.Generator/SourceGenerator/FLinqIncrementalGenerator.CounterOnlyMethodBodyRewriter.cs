@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace Seamless.FLinq;
 
 public sealed partial class FLinqIncrementalGenerator {
-    private static bool TryBuildCounterOnlyLocalMethodBody(Linq傍受対象型 target,out string staticMethods,out string body,HashSet<string>? emittedUnsafeAccessors = null) {
+    private static bool TryBuildCounterOnlyLocalMethodBody(GenerationState state,Linq傍受対象型 target,out string staticMethods,out string body,HashSet<string>? emittedUnsafeAccessors = null) {
         staticMethods=string.Empty;
         body=string.Empty;
 
@@ -11,7 +11,8 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        var unsafeAccessors = new List<string>();
+        var unsafeAccessors = state.UnsafeAccessorCodes;
+        unsafeAccessors.Clear();
         if(methodSyntax.ExpressionBody is { Expression: var expressionBody }) {
             var expressionText = RenderCounterOnlyExpression(expressionBody,target.SemanticModel,target.EnclosingType,unsafeAccessors);
             body=target.Method.ReturnsVoid

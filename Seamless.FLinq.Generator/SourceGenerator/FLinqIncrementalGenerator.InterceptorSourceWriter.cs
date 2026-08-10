@@ -153,7 +153,7 @@ public sealed partial class FLinqIncrementalGenerator {
                     var ローカル本体 = string.Empty;
                     var builtLocalMethodBody = target.OptimizeLinq
                         ? fragmentBuilder.TryBuild(target,out ローカル静的メソッド群,out ローカル本体,state.EmittedUnsafeAccessors)
-                        : TryBuildCounterOnlyLocalMethodBody(target,out ローカル静的メソッド群,out ローカル本体,state.EmittedUnsafeAccessors);
+                        : TryBuildCounterOnlyLocalMethodBody(state,target,out ローカル静的メソッド群,out ローカル本体,state.EmittedUnsafeAccessors);
                     if(builtLocalMethodBody) {
                         if(!string.IsNullOrWhiteSpace(ローカル静的メソッド群)) {
                             インデント付き追記(builder,ローカル静的メソッド群,"    ");
