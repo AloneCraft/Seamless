@@ -322,7 +322,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        context.PropagateOuterTypeParameters(fragment);
+        context.ApplyRenderContext(fragment);
         staticMethods=静的メソッドコード連結(context.StaticMethods,fragment.StructMethod);
         uniqueNumber=context.UniqueNumber;
         return true;

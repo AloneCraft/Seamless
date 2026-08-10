@@ -104,8 +104,11 @@ public sealed partial class FLinqIncrementalGenerator {
         internal bool TryCreateProviderNative(OperatorKey key,IProviderNativeBoundArguments arguments,out Fragment fragment) =>
             TryCreateBackendNativeIterateFragment(key,arguments,out fragment);
 
-        internal void PropagateOuterTypeParameters(Fragment fragment) {
-            fragment.PropagateOuterTypeParameters(this.OuterTypeParameters);
+        internal FragmentRenderContext RenderContext =>
+            FragmentRenderContext.ForOuterTypeParameters(this.OuterTypeParameters);
+
+        internal void ApplyRenderContext(Fragment fragment) {
+            fragment.ApplyRenderContext(this.RenderContext);
         }
 
         private bool TryGetArgument(int index,out ExpressionSyntax expression) {

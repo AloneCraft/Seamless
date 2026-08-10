@@ -6,6 +6,9 @@ namespace Seamless.FLinq;
 internal sealed class FragmentRenderContext {
     internal static FragmentRenderContext Empty { get; } = new(null,ImmutableArray<string>.Empty,false);
 
+    internal static FragmentRenderContext ForOuterTypeParameters(IEnumerable<string> outerTypeParameters) =>
+        new(null,outerTypeParameters.ToImmutableArray(),false);
+
     internal FragmentRenderContext(string? containingTypeName,ImmutableArray<string> outerTypeParameters,bool counterInstrumentationEnabled) {
         this.ContainingTypeName=containingTypeName;
         this.OuterTypeParameters=outerTypeParameters.IsDefault ? ImmutableArray<string>.Empty : outerTypeParameters;

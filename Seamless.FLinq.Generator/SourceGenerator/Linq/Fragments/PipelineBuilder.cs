@@ -97,8 +97,8 @@ internal static partial class PipelineBuilder {
                 return false;
             }
             uniqueNumber=snapshot;
-            fragment.PropagateOuterTypeParameters(services.OuterTypeParameters);
-            fragment.PropagateOuterTypeParameters(services.OuterTypeParameters);
+            services.ApplyRenderContext(fragment);
+            services.ApplyRenderContext(fragment);
         staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
             return true;
         }
@@ -128,8 +128,8 @@ internal static partial class PipelineBuilder {
                 return false;
             }
             uniqueNumber=snapshot;
-            fragment.PropagateOuterTypeParameters(services.OuterTypeParameters);
-            fragment.PropagateOuterTypeParameters(services.OuterTypeParameters);
+            services.ApplyRenderContext(fragment);
+            services.ApplyRenderContext(fragment);
         staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
             return true;
         }
@@ -150,7 +150,7 @@ internal static partial class PipelineBuilder {
             fragment=pipeline;
         }
         uniqueNumber=snapshot;
-        fragment.PropagateOuterTypeParameters(services.OuterTypeParameters);
+        services.ApplyRenderContext(fragment);
         staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
         // 安全網: 匿名型→record struct 置換で取りこぼした生の匿名型表示（<anonymous type: ...>）が
         // 生成コードに残ると不正な C# になるため、その場合はフュージョンを諦めて従来の例外スタブへフォールバックする。

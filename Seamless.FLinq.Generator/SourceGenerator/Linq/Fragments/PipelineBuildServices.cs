@@ -27,4 +27,10 @@ internal sealed class PipelineBuildServices(
     public string[] OuterTypeParameters { get; } = outerTypeParameters;
     public LinqGenerationConfiguration Configuration { get; } = configuration;
     public OptimizationTraceCollector? Trace { get; } = trace;
+    internal FragmentRenderContext RenderContext =>
+        FragmentRenderContext.ForOuterTypeParameters(this.OuterTypeParameters);
+
+    internal void ApplyRenderContext(Fragment fragment) {
+        fragment.ApplyRenderContext(this.RenderContext);
+    }
 }
