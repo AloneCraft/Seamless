@@ -457,21 +457,9 @@ internal abstract class Fragment(
     // 既定本体でも AggressiveInlining を付けないのは、常に false を返すだけの本体は
     // 属性が無くても JIT が確実にインライン化するため。
     private string EnumeratorProbeMember(Func<string> render,string defaultBody,string signature,string compactMember) {
-        var rendered = this.RenderInstanceMember(render);
-        if(NormalizeMemberBody(rendered)==NormalizeMemberBody(defaultBody)) {
-            return $"    {compactMember}";
-        }
-        return $$"""
-                {{AggressiveInliningAttribute}}
-                {{signature}} {
-            {{IndentLines(rendered,"        ")}}
-                }
-            """;
+        var rendered=this.RenderInstanceMember(render);
+        return EnumeratorProbeRenderModel.Render(rendered,defaultBody,signature,compactMember,AggressiveInliningAttribute);
     }
-
-    private static string NormalizeMemberBody(string body) =>
-        body.Replace("\r\n","\n").Trim();
-
     private protected static string IndentLines(string text,string indent) {
         if(string.IsNullOrWhiteSpace(text)) return string.Empty;
 
