@@ -48,7 +48,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         // 以前は識別子ハッシュから開始番号を作っていたため Struct1144748 のような読みにくい名前になっていた。
         // いまはメソッドごとに 0 から連番を振り、必要なら外側で補助クラスに包んで衝突を避ける。
-        var フラグメント番号 = フラグメント番号初期値取得();
+        this.state.FragmentNumber = フラグメント番号初期値取得();
         if(対象.Method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax メソッド構文) {
             return false;
         }
@@ -80,20 +80,20 @@ public sealed partial class FLinqIncrementalGenerator {
         var generatedFragments = this.state.GeneratedFragments;
         generatedFragments.Clear();
         var 本体ビルダー = new StringBuilder();
-        var linq呼び出し数 = 0;
+        this.state.LinqInvocationCount=0;
         foreach(var 文 in statements) {
-            if(!文を生成コードへ変換(文,セマンティックモデル,対象.EnclosingType,ref フラグメント番号,対象.Method.IsStatic,ref 静的メソッド群,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref linq呼び出し数,usedNames)) {
+            if(!文を生成コードへ変換(文,セマンティックモデル,対象.EnclosingType,ref this.state.FragmentNumber,対象.Method.IsStatic,ref 静的メソッド群,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref this.state.LinqInvocationCount,usedNames)) {
                 return false;
             }
         }
 
         if(式本体式 is not null) {
-            if(!LINQ呼び出し差し替え式本体生成(式本体式,セマンティックモデル,対象.EnclosingType,ref フラグメント番号,対象.Method.IsStatic,対象.Method.ReturnsVoid,ref 静的メソッド群,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref linq呼び出し数,usedNames)) {
+            if(!LINQ呼び出し差し替え式本体生成(式本体式,セマンティックモデル,対象.EnclosingType,ref this.state.FragmentNumber,対象.Method.IsStatic,対象.Method.ReturnsVoid,ref 静的メソッド群,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref this.state.LinqInvocationCount,usedNames)) {
                 return false;
             }
         }
 
-        if(linq呼び出し数==0) {
+        if(this.state.LinqInvocationCount==0) {
             return false;
         }
 

@@ -21,6 +21,8 @@ internal sealed class GenerationState(FLinqIncrementalGenerator.Linq傍受対象
     public HashSet<string> UsedIdentifiers { get; } = new(StringComparer.Ordinal);
     public List<Fragment> GeneratedFragments { get; } = new();
     public List<string> UnsafeAccessorCodes { get; } = new();
+    internal int FragmentNumber;
+    internal int LinqInvocationCount;
 }
 
 internal sealed class FragmentBuildContext(
