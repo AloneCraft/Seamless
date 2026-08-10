@@ -514,17 +514,11 @@ internal abstract class Fragment(
             ? $"where TEnum : struct, global::Seamless.Linq.IValueEnumerator<{src.ElementType}>"
             : string.Empty;
 
-    private protected string GetEnumeratorStructDeclaration(string interfaceType) {
-        var tp = this.StructTypeParameters;
-        var tc = string.IsNullOrEmpty(this.StructTypeConstraints) ? "" : $"\n    {this.StructTypeConstraints}";
-        return $"private struct {this.Struct}{tp} : {interfaceType}{tc} {{";
-    }
+    private protected string GetEnumeratorStructDeclaration(string interfaceType) =>
+        EnumeratorDefinitionRenderModel.RenderDeclaration(this.Struct,this.StructTypeParameters,interfaceType,this.StructTypeConstraints);
 
-    private protected string GetGenericEnumeratorStructDeclaration(string typeParameters,string interfaceType) {
-        var tc = string.IsNullOrEmpty(this.StructTypeConstraints) ? "" : $"\n    {this.StructTypeConstraints}";
-        return $"private struct {this.Struct}{typeParameters} : {interfaceType}{tc} {{";
-    }
-
+    private protected string GetGenericEnumeratorStructDeclaration(string typeParameters,string interfaceType) =>
+        EnumeratorDefinitionRenderModel.RenderDeclaration(this.Struct,typeParameters,interfaceType,this.StructTypeConstraints);
     // struct の TryGetNext 内で使う。static ラムダまたはキャプチャ変数付きラムダならインライン展開する。
     private protected string FuncInvokeField(FuncFragment func,string methodName,params string[] arguments) {
         if(func.CanInlineAssign) {

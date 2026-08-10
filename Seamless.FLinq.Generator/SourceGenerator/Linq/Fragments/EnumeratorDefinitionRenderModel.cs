@@ -16,6 +16,11 @@ internal sealed class EnumeratorDefinitionRenderModel(
     string disposeBody,
     string currentType
 ) {
+    internal static string RenderDeclaration(string structName,string typeParameters,string interfaceType,string typeConstraints) {
+        var constraints=string.IsNullOrEmpty(typeConstraints) ? string.Empty : $"\n    {typeConstraints}";
+        return $"private struct {structName}{typeParameters} : {interfaceType}{constraints} {{";
+    }
+
     internal string Render() {
         var ctorParams=ParseCtorParams(constructorParameters).ToArray();
         var ctorParamFields=ctorParams.Length>0
