@@ -27,6 +27,16 @@ SelectManyBase は外側 source と、各外側要素から作る内側 sequence
   - SelectMany_WithInlinedInner は内側 LINQ チェーンを具象 struct enumerator のまま保持する。
 */
 internal abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     internal static bool TryBuildInlined(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
@@ -169,8 +179,18 @@ SelectMany_selector は collection selector だけを持つ標準形。
   - 匿名型など delegate 保持が必要な場合は selectorDelegate.Invoke(outerValue).GetEnumerator() にする。
 */
 internal class SelectMany_selector(int 番号,Enumerable source,FuncFragment selector):SelectManyBase(番号,source) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(selector is { } __visitorChild_selector) {
+            yield return __visitorChild_selector;
+        }
+    }
+
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>>";
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==1&&
         !(method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     private bool UseResultTypeParam => selector.RequiresResultTypeParameter;
@@ -226,7 +246,17 @@ internal class SelectMany_selector(int 番号,Enumerable source,FuncFragment sel
 }
 
 internal class SelectMany_indexSelector(int 番号,Enumerable source,FuncFragment selector):SelectManyBase(番号,source) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(selector is { } __visitorChild_selector) {
+            yield return __visitorChild_selector;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==1&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string StructMethod => this.FuncSupport(selector,nameof(selector));
@@ -248,7 +278,20 @@ internal class SelectMany_indexSelector(int 番号,Enumerable source,FuncFragmen
 }
 
 internal class SelectMany_selector_resultSelector(int 番号,Enumerable source,FuncFragment collectionSelector,FuncFragment resultSelector):SelectManyBase(番号,source) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(collectionSelector is { } __visitorChild_collectionSelector) {
+            yield return __visitorChild_collectionSelector;
+        }
+        if(resultSelector is { } __visitorChild_resultSelector) {
+            yield return __visitorChild_resultSelector;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==2&&
         !(method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     public override string StructMethod => $$"""
@@ -295,8 +338,18 @@ SelectMany_WithInlinedInner は collection selector の内側 LINQ を Fragment 
 */
 internal class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerable innerFragment,string outerParamName)
     :SelectManyBase(番号,source) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(innerFragment is { } __visitorChild_innerFragment) {
+            yield return __visitorChild_innerFragment;
+        }
+    }
 
-    public static bool IsApplicableOverload(IMethodSymbol method) => false;
+
+    public static bool IsApplicableVariant(IMethodSymbol method) => false;
     private string InnerEnumeratorTypeName => innerFragment.EnumeratorTypeName;
 
     public override string StructMethod => string.Empty;
@@ -367,7 +420,20 @@ internal class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerab
 }
 
 internal class SelectMany_indexSelector_resultSelector(int 番号,Enumerable source,FuncFragment collectionSelector,FuncFragment resultSelector):SelectManyBase(番号,source) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(collectionSelector is { } __visitorChild_collectionSelector) {
+            yield return __visitorChild_collectionSelector;
+        }
+        if(resultSelector is { } __visitorChild_resultSelector) {
+            yield return __visitorChild_resultSelector;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==2&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string StructMethod => $$"""

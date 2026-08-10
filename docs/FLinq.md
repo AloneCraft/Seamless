@@ -39,3 +39,7 @@ Generatorアセンブリは `netstandard2.0`、Roslyn依存は `Microsoft.CodeAn
 `SequenceEqual` は比較子なしVariantを専用Fragmentとして出力する。このVariantは `IEqualityComparer<T>` のfield・constructor引数を持たず、組み込み型は2引数Span比較、その他は `EqualityComparer<T>.Default` を用いる。明示比較子Variantは従来どおり保持する。
 
 第2段階では、Fragment内部に残るclosure、enumerator、文字列組立を独立IRまたは描画契約へ分離する。第1段階ではこの生成形状を意図的に維持する。
+
+### Renderer境界
+
+GeneratedSourceRenderModelはCoordinatorからGeneratedSourceRendererへ渡す入力ファイル単位のスナップショットです。Renderer内部の既存文字列生成は第1段階では変更せず、diagnostic集約、trace収集、AddSourceの順序を維持します。FragmentごとのFragmentRenderContextは対象メソッド単位で置換更新され、並列生成間で共有されません。

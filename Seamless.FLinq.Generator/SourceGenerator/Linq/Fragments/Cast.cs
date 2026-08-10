@@ -1,6 +1,16 @@
 namespace Seamless.FLinq;
 
 internal class Cast(int 番号,Enumerable source,string resultElementType):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     private bool IsIdentityType => string.Equals(resultElementType,source.ElementType,StringComparison.Ordinal);
     public override string StructMethod => string.Empty;

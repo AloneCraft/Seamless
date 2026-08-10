@@ -105,6 +105,24 @@ internal static class GroupBySupport {
 }
 
 internal class GroupBy_keySelector(int 番号,Enumerable source,FuncFragment keySelector):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+    }
+
     private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
     private string KeyType => FuncReturnTypeName(keySelector);
     protected override Enumerable PrimarySource => source;
@@ -134,7 +152,28 @@ internal class GroupBy_keySelector_resultSelector(
     FuncFragment keySelector,
     FuncFragment resultSelector)
     :Enumerable(番号) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+        if(resultSelector is { } __visitorChild_resultSelector) {
+            yield return __visitorChild_resultSelector;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==2
         &&method.Parameters[1].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     protected override Enumerable PrimarySource => source;
@@ -184,7 +223,28 @@ internal class GroupBy_keySelector_elementSelector(
     FuncFragment keySelector,
     FuncFragment elementSelector)
     :Enumerable(番号) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+        if(elementSelector is { } __visitorChild_elementSelector) {
+            yield return __visitorChild_elementSelector;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==2
         &&method.Parameters[1].Type is INamedTypeSymbol { TypeArguments.Length: 2 };
     protected override Enumerable PrimarySource => source;
@@ -217,7 +277,31 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
     FuncFragment elementSelector,
     FuncFragment resultSelector)
     :Enumerable(番号) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+        if(elementSelector is { } __visitorChild_elementSelector) {
+            yield return __visitorChild_elementSelector;
+        }
+        if(resultSelector is { } __visitorChild_resultSelector) {
+            yield return __visitorChild_resultSelector;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==3
         &&method.Parameters[2].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     protected override Enumerable PrimarySource => source;

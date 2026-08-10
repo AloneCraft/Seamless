@@ -28,5 +28,8 @@ internal static class GeneratedSourceRenderer {
         ImmutableArray<FLinqIncrementalGenerator.Linq傍受対象型> targets,
         List<Diagnostic> diagnostics,
         out OptimizationTraceDocument[] traceDocuments) =>
-        FLinqIncrementalGenerator.インターセプターソース構築(targets,diagnostics,out traceDocuments);
+        Render(new GeneratedSourceRenderModel(targets,diagnostics),out traceDocuments);
+
+    internal static string Render(GeneratedSourceRenderModel model,out OptimizationTraceDocument[] traceDocuments) =>
+        FLinqIncrementalGenerator.インターセプターソース構築(model.Targets,model.Diagnostics,out traceDocuments);
 }

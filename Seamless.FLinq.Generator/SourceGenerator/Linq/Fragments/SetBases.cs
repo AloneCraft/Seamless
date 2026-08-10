@@ -22,6 +22,19 @@ SetBase は Union/Except/Intersect など、要素そのものを key にする�
   - direct consume では HashSet 初期化と TraversalSupport ループを出し、Enumerator.Current を経由しない。
 */
 internal abstract class SetBase(int 番号,Enumerable source,Enumerable second,string comparer,ISetOperationStrategy operation):Enumerable(番号), ConsumeDirectExecutionFragment {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+        if(second is { } __visitorChild_second) {
+            yield return __visitorChild_second;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     private string Comparer => ComparerExpressionSupport.RenderEqualityComparer(comparer,source.ElementType);
     public override string StructMethod => string.Empty;
@@ -375,6 +388,27 @@ SetByBase は UnionBy/ExceptBy/IntersectBy など、keySelector(item) で集合�
   - non-identity では closure/delegate/hoisted local を constructor と direct consume の両方へ伝播する。
 */
 internal abstract class SetByBase(int 番号,Enumerable source,Enumerable second,FuncFragment keySelector,string comparer,ISetByOperationStrategy operation):Enumerable(番号), ConsumeDirectExecutionFragment {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+        if(second is { } __visitorChild_second) {
+            yield return __visitorChild_second;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     private string Comparer => ComparerExpressionSupport.RenderEqualityComparer(comparer,FuncReturnTypeName(keySelector));
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));

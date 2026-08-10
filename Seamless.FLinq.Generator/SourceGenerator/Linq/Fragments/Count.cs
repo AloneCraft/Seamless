@@ -19,6 +19,16 @@ Count は Count/LongCount を件数取得 fast path 優先の Compute へ変換�
   - LongCount では TryGetNonEnumeratedCount が int なので long へ拡張する。
 */
 internal class Count(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -82,6 +92,24 @@ Count_predicate は predicate が true の件数だけを checked で数える C
     唯一の RenderDirectEnumerableCallInline override である BufferedScalar.cs 参照)。
 */
 internal class Count_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(predicate is { } __visitorChild_predicate) {
+            yield return __visitorChild_predicate;
+        }
+    }
+
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));

@@ -36,6 +36,31 @@ internal abstract class ProviderNativeExecutionBase(
     FuncFragment?               terminalFunc2      =null,
     string?                     terminalComparer   =null)
     :Scalar(number),DirectExecutionFragment {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+            yield return child;
+        }
+        if(pipeline is { } __visitorChild_pipeline) {
+            yield return __visitorChild_pipeline;
+        }
+    }
+
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(terminalPredicate is { } __visitorChild_terminalPredicate) {
+            yield return __visitorChild_terminalPredicate;
+        }
+        if(terminalFunc1 is { } __visitorChild_terminalFunc1) {
+            yield return __visitorChild_terminalFunc1;
+        }
+        if(terminalFunc2 is { } __visitorChild_terminalFunc2) {
+            yield return __visitorChild_terminalFunc2;
+        }
+    }
+
     private readonly   int        number          =number;
     private string StateTypeBaseName => $"{this.Struct}_{providerName}{operationName}State";
     private string StateTypeName => this.OuterTypeParameters.Length==0

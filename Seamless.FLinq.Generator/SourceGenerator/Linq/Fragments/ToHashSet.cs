@@ -19,6 +19,16 @@ ToHashSetBase は ToHashSet overload 群の共通基底。
   - RangeRoot<int> は start+i を直接 Add する inline を生成する。
 */
 internal abstract class ToHashSetBase(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -45,7 +55,7 @@ internal abstract class ToHashSetBase(int 番号,Enumerable source,string result
 }
 
 internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSetBase(番号,source,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==0;
+    public static bool IsApplicableVariant(IMethodSymbol method) => method.Parameters.Length==0;
     public override string GetEnumeratorExpression {
         get {
             if(this.ProviderNativeCountExpression is { } countExpression) {
@@ -172,7 +182,7 @@ internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashS
 }
 
 internal class ToHashSet_comparer(int 番号,Enumerable source,string comparer,string resultType):ToHashSetBase(番号,source,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==1&&method.Parameters[0].Name=="comparer";
     public override string GetEnumeratorExpression {
         get {

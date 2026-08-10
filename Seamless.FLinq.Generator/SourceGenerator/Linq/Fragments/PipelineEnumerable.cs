@@ -26,6 +26,16 @@ PipelineEnumerable は Where/Select/Take/OrderBy など複数 stage を1つの e
   1つの Struct に state field と loop 分岐を集め、CountPreserving な場合は TryCopyTo もまとめて生成する。
 */
 internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyList<PipelineStage> stages,string elementType):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     private bool StagesCountPreserving => stages.All(static stage => stage.Kind is PipelineStageKind.Select or PipelineStageKind.AsEnumerable or PipelineStageKind.Cast);
     private bool SingleDefaultIfEmpty => stages.Count==1&&stages[0].Kind==PipelineStageKind.DefaultIfEmpty;
     protected override Enumerable PrimarySource => source;

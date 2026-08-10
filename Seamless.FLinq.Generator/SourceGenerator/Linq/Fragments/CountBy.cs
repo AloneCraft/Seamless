@@ -16,6 +16,24 @@ CountBy は key ごとの出現数を数え、KeyValuePair<TKey,int> 相当を�
   GroupBy(...).Select(g => (g.Key, g.Count())) より、group の List を作らず count だけを Dictionary に保持する。
 */
 internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+    }
+
     private bool UsesPooledIntMap => IsInt32Type(FuncReturnTypeName(keySelector));
     private string KeySelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(keySelector)}>";
     protected override Enumerable PrimarySource => source;

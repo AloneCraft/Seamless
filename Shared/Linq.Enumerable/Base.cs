@@ -613,6 +613,11 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
 
     [LinqIntercept(true)]
     private void SequenceEqual_second_Impl() => this.consumer.Consume(this.srcCount(StreamShapeCount).AsX<T>().SequenceEqual(this.srcCount(StreamShapeCount).AsX<T>()));
+    [BenchFact, OrderDependentBenchmark]
+    public void SequenceEqual_second_comparer() => ExecuteOrderDependent(() => this.SequenceEqual_second_comparer_Impl());
+
+    [LinqIntercept(true)]
+    private void SequenceEqual_second_comparer_Impl() => this.consumer.Consume(this.srcCount(StreamShapeCount).AsX<T>().SequenceEqual(this.srcCount(StreamShapeCount).AsX<T>(),EqualityComparer<T>.Default));
     // [Single]
     [BenchFact, Benchmark]
     public void Single() => this.Single_Impl();

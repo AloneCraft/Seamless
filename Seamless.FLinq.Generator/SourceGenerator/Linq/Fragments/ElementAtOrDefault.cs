@@ -1,7 +1,17 @@
 namespace Seamless.FLinq;
 
 internal class ElementAtOrDefault(int 番号,Enumerable source,string index,string resultType):BufferedScalar(番号,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==1&&method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
@@ -63,7 +73,17 @@ internal class ElementAtOrDefault(int 番号,Enumerable source,string index,stri
 }
 
 internal class ElementAtOrDefault_index(int 番号,Enumerable source,string index,string resultType):BufferedScalar(番号,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==1
         &&method.Parameters[0].Type is INamedTypeSymbol {
             Name: "Index",

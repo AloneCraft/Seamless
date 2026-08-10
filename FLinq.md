@@ -740,3 +740,13 @@ if (ラムダが匿名型を生成する) {
 `SequenceEqual` は比較子なしVariantを専用Fragmentとして出力する。このVariantは `IEqualityComparer<T>` のfield・constructor引数を持たず、組み込み型は2引数Span比較、その他は `EqualityComparer<T>.Default` を用いる。明示比較子Variantは従来どおり保持する。
 
 第2段階では、Fragment内部に残るclosure、enumerator、文字列組立を独立IRまたは描画契約へ分離する。第1段階ではこの生成形状を意図的に維持する。
+
+## 現行実装: Registryと第1段階責務分離
+
+現在の対象は Seamless.FLinq.Generator です。Generatorはnetstandard2.0、Roslyn依存は5.6.0、生成コードのランタイムはSeamless.Linq net10.0です。公開名前空間と生成属性の契約は維持します。
+
+OperatorRegistryがOperatorKey、Variant、Coverage、Priority、Pipeline capability、ProviderNative、Root、型付きBind/Factoryの正本です。LinqTargetDiscoveryService、LinqExpressionAnalyzer、LinqOptimizationExecutor、LinqFragmentBuilderは既存FragmentとPipelineBuilderを活用しながらRegistryを参照します。GeneratedSourceRenderModelとGeneratedSourceRendererは、入力ファイル単位のtargets・診断・traceを出力Coordinatorへ引き渡します。
+
+Fragmentの子走査は明示Visitorで行い、FragmentRenderContextが含有型、外側型パラメータ、Counter状態を対象単位で保持します。旧来のFragmentフィールド反射走査、ambientなThreadStatic状態、汎用Constructor Binderは生成経路から除外しています。
+
+この段階ではclosure、enumerator、生成文字列のアルゴリズムと出力形状を維持します。これらの密結合を中間表現または描画契約へ分離する作業は第2段階です。

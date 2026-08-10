@@ -90,17 +90,17 @@ internal static partial class OperatorRegistry {
 }
 
 public sealed partial class FLinqIncrementalGenerator {
-    private static bool TryCreateBackendNativeIterateFragment(OperatorKey key,FragmentArguments arguments,out Fragment fragment) {
-        if(arguments.Count==0) {
+    private static bool TryCreateBackendNativeIterateFragment(OperatorKey key,IProviderNativeBoundArguments arguments,out Fragment fragment) {
+        if(arguments.ProviderValues.Count==0) {
             fragment=null!;
             return false;
         }
         return GenerationPipeline.TryCreateBackendNativeIterateFragment(
             key,
             arguments.Number,
-            arguments.GetEnumerable(0),
-            arguments.GetFirstFunction(),
-            new object?[] { arguments.Number }.Concat(arguments.Values).ToArray(),
+            arguments.Source,
+            arguments.FirstFunction,
+            new object?[] { arguments.Number }.Concat(arguments.ProviderValues).ToArray(),
             out fragment);
     }
 }

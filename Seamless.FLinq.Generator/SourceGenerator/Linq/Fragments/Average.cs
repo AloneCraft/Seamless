@@ -23,6 +23,16 @@ Average は source.Average() / Average(selector) を、sum と count を持つ C
   - selector 付きは selector の戻り値型で accumulator 方針を決める。
 */
 internal class Average(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     private bool UseDecimalAccumulator => source.ElementType=="decimal";
     private bool UseDoubleAccumulator =>
         source.ElementType=="int"
@@ -167,6 +177,24 @@ internal class Average(int 番号,Enumerable source,string resultType):BufferedS
 }
 
 internal class Average_selector(int 番号,Enumerable source,FuncFragment selector,string resultType):BufferedScalar(番号,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(selector is { } __visitorChild_selector) {
+            yield return __visitorChild_selector;
+        }
+    }
+
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(selector)}>";
     private bool UseDecimalAccumulator => FuncReturnTypeName(selector)=="decimal";
     private bool UseDoubleAccumulator =>

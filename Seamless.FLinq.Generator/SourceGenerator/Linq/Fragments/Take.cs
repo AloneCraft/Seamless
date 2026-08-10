@@ -21,7 +21,17 @@ Take は source.Take(count) を、返した件数を数える enumerator へ変�
   - 連続 Take は RootSource へ畳み込み、count は Math.Min(previous, current) にする。
 */
 internal class Take(int 番号,Enumerable source,string takeCount):Enumerable(番号) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==1&&method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
     private Enumerable Source => source;
     private string TakeCountExpression => takeCount;

@@ -146,3 +146,13 @@ classDiagram
     LinqOptimizationExecutor --> GenerationPipeline
     GeneratedSourceRenderer --> GenerationState
 ```
+
+## RendererとFragmentコンテキスト
+
+Mermaid class diagram:
+GeneratedSourceRenderer --> GeneratedSourceRenderModel
+GeneratedSourceRenderer --> Fragment
+Fragment --> FragmentRenderContext
+Fragment exposes GetChildFragments() and GetChildFunctions().
+GeneratedSourceRenderModel owns Targets and Diagnostics.
+FragmentRenderContext owns ContainingTypeName, OuterTypeParameters, and CounterInstrumentationEnabled.

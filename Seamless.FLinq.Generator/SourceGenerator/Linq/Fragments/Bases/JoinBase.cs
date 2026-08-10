@@ -25,6 +25,33 @@ JoinBase は Join/GroupJoin/LeftJoin/RightJoin 系の lookup 構築を共有す�
   - resultSelector が匿名型を返す場合は TResult factory か delegate 保持に寄せる。
 */
 internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,FuncFragment outerKeySelector,FuncFragment innerKeySelector,FuncFragment resultSelector,string comparer):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(outer is { } __visitorChild_outer) {
+            yield return __visitorChild_outer;
+        }
+        if(inner is { } __visitorChild_inner) {
+            yield return __visitorChild_inner;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(outerKeySelector is { } __visitorChild_outerKeySelector) {
+            yield return __visitorChild_outerKeySelector;
+        }
+        if(innerKeySelector is { } __visitorChild_innerKeySelector) {
+            yield return __visitorChild_innerKeySelector;
+        }
+        if(resultSelector is { } __visitorChild_resultSelector) {
+            yield return __visitorChild_resultSelector;
+        }
+    }
+
     protected readonly Enumerable outerSource = outer;
     protected readonly Enumerable innerSource = inner;
     protected readonly FuncFragment outerKey = outerKeySelector;

@@ -26,6 +26,24 @@ OrderingBase は OrderBy/ThenBy 系を、全件 buffer + stable sort + buffer en
   - originalIndex を最後に比較し、System.Linq と同じ安定ソートの結果にする。
 */
 internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer,bool descending):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+    }
+
     // チェーン（ThenBy）検出用に一次ソースを公開
     internal FuncFragment OwnKeySelector => keySelector;
     internal string OwnComparer => ComparerExpressionSupport.RenderOrderComparer(comparer,FuncReturnTypeName(keySelector));

@@ -21,6 +21,16 @@ ToDictionaryBase は ToDictionary overload 群の direct enumerable fast path �
   - comparer overload は Dictionary constructor と Compute 引数へ comparer を追加する。
 */
 internal abstract class ToDictionaryBase(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -90,7 +100,17 @@ internal abstract class ToDictionaryBase(int 番号,Enumerable source,string res
 }
 
 internal class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragment keySelector,string resultType):ToDictionaryBase(番号,source,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==1&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
+    // Explicit Fragment child visitor
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) => method.Parameters.Length==1&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
@@ -155,7 +175,20 @@ internal class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragmen
 }
 
 internal class ToDictionary_keySelector_elementSelector(int 番号,Enumerable source,FuncFragment keySelector,FuncFragment elementSelector,string resultType):ToDictionaryBase(番号,source,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==2&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate&&method.Parameters[1].Type.TypeKind==TypeKind.Delegate;
+    // Explicit Fragment child visitor
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+        if(elementSelector is { } __visitorChild_elementSelector) {
+            yield return __visitorChild_elementSelector;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) => method.Parameters.Length==2&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate&&method.Parameters[1].Type.TypeKind==TypeKind.Delegate;
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
@@ -229,7 +262,17 @@ internal class ToDictionary_keySelector_elementSelector(int 番号,Enumerable so
 }
 
 internal class ToDictionary_keySelector_comparer(int 番号,Enumerable source,FuncFragment keySelector,string comparer,string resultType):ToDictionaryBase(番号,source,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==2&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate&&method.Parameters[1].Type.TypeKind!=TypeKind.Delegate&&method.Parameters[1].Name=="comparer";
+    // Explicit Fragment child visitor
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) => method.Parameters.Length==2&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate&&method.Parameters[1].Type.TypeKind!=TypeKind.Delegate&&method.Parameters[1].Name=="comparer";
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer}{this.ClosureArgsSuffix(keySelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
@@ -296,7 +339,20 @@ internal class ToDictionary_keySelector_comparer(int 番号,Enumerable source,Fu
 }
 
 internal class ToDictionary_keySelector_elementSelector_comparer(int 番号,Enumerable source,FuncFragment keySelector,FuncFragment elementSelector,string comparer,string resultType):ToDictionaryBase(番号,source,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==3&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate&&method.Parameters[1].Type.TypeKind==TypeKind.Delegate&&method.Parameters[2].Name=="comparer";
+    // Explicit Fragment child visitor
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+        if(elementSelector is { } __visitorChild_elementSelector) {
+            yield return __visitorChild_elementSelector;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) => method.Parameters.Length==3&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate&&method.Parameters[1].Type.TypeKind==TypeKind.Delegate&&method.Parameters[2].Name=="comparer";
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";

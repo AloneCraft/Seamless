@@ -21,7 +21,17 @@ Last は source.Last() を、最後に見た値を保持する Compute に変換
   - predicate 付き RangeRoot<int> は末尾側から逆向き loop を inline できる。
 */
 internal class Last(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==0;
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) => method.Parameters.Length==0;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -82,7 +92,25 @@ internal class Last(int 番号,Enumerable source,string resultType):BufferedScal
 }
 
 internal class Last_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(predicate is { } __visitorChild_predicate) {
+            yield return __visitorChild_predicate;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length>0&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
     protected override Enumerable PrimarySource => source;

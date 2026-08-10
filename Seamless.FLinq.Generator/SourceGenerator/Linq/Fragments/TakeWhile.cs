@@ -21,7 +21,25 @@ TakeWhile_predicate は predicate が false になった時点で永続的に終
   - index overload は index フィールドを増やし predicate(item, index) を呼ぶ。
 */
 internal class TakeWhile_predicate(int 番号,Enumerable source,FuncFragment predicate):Enumerable(番号) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(predicate is { } __visitorChild_predicate) {
+            yield return __visitorChild_predicate;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         !(method.Parameters.Length>0&&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
@@ -64,7 +82,7 @@ internal class TakeWhile_predicate(int 番号,Enumerable source,FuncFragment pre
 }
 
 internal class TakeWhile_indexPredicate(int id,Enumerable source,FuncFragment predicate):TakeWhile_predicate(id,source,predicate) {
-    public static new bool IsApplicableOverload(IMethodSymbol method) =>
+    public static new bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length>0&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string GetEnumeratorExpression =>

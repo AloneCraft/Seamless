@@ -19,6 +19,16 @@ Append は source.Append(value) を、source を読み切った後に追加要�
   連続 Append は FlattenedElements へ畳み込み、ネストした enumerator を作らず1つの state フィールドで処理する。
 */
 internal class Append(int 番号,Enumerable source,string element):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     private Enumerable Source => source;
     private string ElementExpression => element;
     private Enumerable RootSource => this.Source is Append append ? append.RootSource : this.Source;

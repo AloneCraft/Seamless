@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <package>
   <metadata>
-    <id>Seamless.FLinq</id>
+    <id>Seamless.FLinq.Generator</id>
     <version>$version$</version>
     <title>Seamless FLinq</title>
     <authors>KazuhiroNomura</authors>

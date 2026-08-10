@@ -18,6 +18,27 @@ AggregateBy は key ごとに accumulator を持つ grouping 集約を生成す�
   - resultElementType は返す KeyValuePair 相当の要素型を決める。
 */
 internal class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector,string seed,FuncFragment func,string resultElementType):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+        if(func is { } __visitorChild_func) {
+            yield return __visitorChild_func;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     private string KeyType => FuncReturnTypeName(keySelector);
     private static string CapacityExpression(string sourceCountExpression) =>

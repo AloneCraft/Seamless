@@ -39,70 +39,69 @@ public sealed partial class FLinqIncrementalGenerator {
         internal int UniqueNumber;
         internal string StaticMethods => this.staticMethods;
         internal string[] OuterTypeParameters => this.pipeline.OuterTypeParameters;
+        internal string ResultType => this.method.ReturnType.ToDisplayString(完全修飾形式);
 
-        internal bool TryBind(IReadOnlyList<FragmentParameter> parameters,out FragmentArguments arguments) {
-            arguments=new FragmentArguments(this.UniqueNumber++);
-            var argumentIndex=this.argumentStartIndex;
-            foreach(var parameter in parameters) {
-                switch(parameter.Kind) {
-                    case FragmentArgumentKind.Source:
-                        if(!this.pipeline.列挙式フラグメント生成(this.semanticModel,this.sourceExpression,this.containingType,ref this.UniqueNumber,out var source,out var sourceMethods,this.unsafeAccessorCollector)) {
-                            return false;
-                        }
-                        arguments.Add(source);
-                        this.AppendStaticMethods(sourceMethods);
-                        break;
-                    case FragmentArgumentKind.Enumerable:
-                        if(!this.TryGetArgument(argumentIndex,out var enumerableExpression)
-                            ||!this.pipeline.列挙式フラグメント生成(this.semanticModel,enumerableExpression,this.containingType,ref this.UniqueNumber,out var enumerable,out var enumerableMethods,this.unsafeAccessorCollector)) {
-                            return false;
-                        }
-                        arguments.Add(enumerable);
-                        this.AppendStaticMethods(enumerableMethods);
-                        argumentIndex++;
-                        break;
-                    case FragmentArgumentKind.Function:
-                        if(!this.TryGetArgument(argumentIndex,out var functionExpression)) {
-                            return false;
-                        }
-                        var methodParameterIndex=argumentIndex-this.argumentStartIndex;
-                        if(methodParameterIndex<0
-                            ||methodParameterIndex>=this.method.Parameters.Length
-                            ||!this.pipeline.関数式フラグメント生成(functionExpression,this.method.Parameters[methodParameterIndex].Type,ref this.UniqueNumber,out var function,this.semanticModel,this.containingType)
-                            ||!this.pipeline.関数フラグメントが利用可能か(function)) {
-                            return false;
-                        }
-                        arguments.Add(function);
-                        argumentIndex++;
-                        break;
-                    case FragmentArgumentKind.Expression:
-                        if(!this.TryGetArgument(argumentIndex,out var expression)) {
-                            if(parameter.Name=="comparer") {
-                                arguments.Add("null");
-                                break;
-                            }
-                            return false;
-                        }
-                        arguments.Add(RenderExpressionForGeneratedMethod(expression,this.semanticModel,this.containingType,this.unsafeAccessorCollector,this.replacementMap));
-                        argumentIndex++;
-                        break;
-                    case FragmentArgumentKind.ResultType:
-                        arguments.Add(this.method.ReturnType.ToDisplayString(完全修飾形式));
-                        break;
-                    case FragmentArgumentKind.ResultElementType:
-                        if(!this.pipeline.列挙要素型取得(this.method.ReturnType,out var elementType,out _)) {
-                            return false;
-                        }
-                        arguments.Add(elementType.ToDisplayString(完全修飾形式));
-                        break;
-                    default:
-                        return false;
-                }
+        internal int TakeUniqueNumber() => this.UniqueNumber++;
+
+        internal bool TryBuildSource(out Enumerable source) {
+            source=null!;
+            if(!this.pipeline.列挙式フラグメント生成(this.semanticModel,this.sourceExpression,this.containingType,ref this.UniqueNumber,out source,out var sourceMethods,this.unsafeAccessorCollector)) {
+                return false;
             }
-            return argumentIndex==this.invocation.ArgumentList.Arguments.Count;
+            this.AppendStaticMethods(sourceMethods);
+            return true;
         }
 
-        internal bool TryCreateProviderNative(OperatorKey key,FragmentArguments arguments,out Fragment fragment) =>
+        internal bool TryBuildEnumerableArgument(int relativeIndex,out Enumerable enumerable) {
+            enumerable=null!;
+            if(!this.TryGetArgument(this.argumentStartIndex+relativeIndex,out var expression)
+                ||!this.pipeline.列挙式フラグメント生成(this.semanticModel,expression,this.containingType,ref this.UniqueNumber,out enumerable,out var methods,this.unsafeAccessorCollector)) {
+                return false;
+            }
+            this.AppendStaticMethods(methods);
+            return true;
+        }
+
+        internal bool TryBuildFunctionArgument(int relativeIndex,out FuncFragment function) {
+            function=null!;
+            if(!this.TryGetArgument(this.argumentStartIndex+relativeIndex,out var expression)) {
+                return false;
+            }
+            var methodParameterIndex=relativeIndex;
+            return methodParameterIndex>=0
+                &&methodParameterIndex<this.method.Parameters.Length
+                &&this.pipeline.関数式フラグメント生成(expression,this.method.Parameters[methodParameterIndex].Type,ref this.UniqueNumber,out function,this.semanticModel,this.containingType)
+                &&this.pipeline.関数フラグメントが利用可能か(function);
+        }
+
+        internal bool TryBuildExpressionArgument(int relativeIndex,string? parameterName,out string expression,out bool consumed) {
+            consumed=false;
+            if(!this.TryGetArgument(this.argumentStartIndex+relativeIndex,out var syntax)) {
+                if(string.Equals(parameterName,"comparer",StringComparison.Ordinal)) {
+                    expression="null";
+                    return true;
+                }
+                expression=string.Empty;
+                return false;
+            }
+            expression=RenderExpressionForGeneratedMethod(syntax,this.semanticModel,this.containingType,this.unsafeAccessorCollector,this.replacementMap);
+            consumed=true;
+            return true;
+        }
+
+        internal bool TryGetResultElementType(out string elementType) {
+            elementType=string.Empty;
+            if(!this.pipeline.列挙要素型取得(this.method.ReturnType,out var symbol,out _)) {
+                return false;
+            }
+            elementType=symbol.ToDisplayString(完全修飾形式);
+            return true;
+        }
+
+        internal bool HasExactlyArguments(int relativeArgumentCount) =>
+            this.argumentStartIndex+relativeArgumentCount==this.invocation.ArgumentList.Arguments.Count;
+
+        internal bool TryCreateProviderNative(OperatorKey key,IProviderNativeBoundArguments arguments,out Fragment fragment) =>
             TryCreateBackendNativeIterateFragment(key,arguments,out fragment);
 
         internal void PropagateOuterTypeParameters(Fragment fragment) {
@@ -110,7 +109,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         private bool TryGetArgument(int index,out ExpressionSyntax expression) {
-            if(index>=this.invocation.ArgumentList.Arguments.Count) {
+            if(index<0||index>=this.invocation.ArgumentList.Arguments.Count) {
                 expression=null!;
                 return false;
             }
@@ -164,9 +163,14 @@ public sealed partial class FLinqIncrementalGenerator {
 
         internal IMethodSymbol Method => this.method;
         internal int UniqueNumber => this.bindingContext.UniqueNumber;
-
-        internal bool TryBind(IReadOnlyList<FragmentParameter> parameters,out FragmentArguments arguments) =>
-            this.bindingContext.TryBind(parameters,out arguments);
+        internal int TakeUniqueNumber() => this.bindingContext.TakeUniqueNumber();
+        internal string ResultType => this.bindingContext.ResultType;
+        internal bool TryBuildSource(out Enumerable source) => this.bindingContext.TryBuildSource(out source);
+        internal bool TryBuildEnumerableArgument(int relativeIndex,out Enumerable enumerable) => this.bindingContext.TryBuildEnumerableArgument(relativeIndex,out enumerable);
+        internal bool TryBuildFunctionArgument(int relativeIndex,out FuncFragment function) => this.bindingContext.TryBuildFunctionArgument(relativeIndex,out function);
+        internal bool TryBuildExpressionArgument(int relativeIndex,string? parameterName,out string expression,out bool consumed) => this.bindingContext.TryBuildExpressionArgument(relativeIndex,parameterName,out expression,out consumed);
+        internal bool TryGetResultElementType(out string elementType) => this.bindingContext.TryGetResultElementType(out elementType);
+        internal bool HasExactlyArguments(int relativeArgumentCount) => this.bindingContext.HasExactlyArguments(relativeArgumentCount);
 
         internal bool TryBuildAsEnumerableSource(out Enumerable fragment) {
             fragment=null!;

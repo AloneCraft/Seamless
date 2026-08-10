@@ -77,14 +77,13 @@ internal abstract class Fragment(
     private protected string existing => $"__ex{番号}";
     // 内部列挙用の共通ローカル名。
     private protected string innerEnumerator => $"__ie{番号}";
+    private FragmentRenderContext renderContext=FragmentRenderContext.Empty;
     // struct closure: 含有クラスの完全修飾型名。null なら @this 不使用。
-    public string? ContainingTypeName { get; set; }
-    // 含有型がジェネリック（例: Base<T>）のとき、その型パラメータ名（例: ["T"]）。
-    // 生成する補助 struct/enumerator を <T> でパラメータ化するために伝播する。
-    // 傍受メソッド自体がこの型パラメータを持つジェネリック静的メソッドとして生成されるので、
-    // その中で使う struct も同じ型パラメータで単相化する必要がある。
-    public string[] OuterTypeParameters { get; set; } =Array.Empty<string>();
-    public bool CounterInstrumentationEnabled { get; private set; }
+    public string? ContainingTypeName => this.renderContext.ContainingTypeName;
+    // 含有型がジェネリック（例: Base<T>）のとき、その型パラメータ名。
+    public string[] OuterTypeParameters => this.renderContext.OuterTypeParameters.ToArray();
+    public bool CounterInstrumentationEnabled => this.renderContext.CounterInstrumentationEnabled;
+    internal FragmentRenderContext RenderContext => this.renderContext;
 
     // Enumerator struct 内ではメソッドローカルのキャプチャ変数を直接参照できない。
     // delegate は渡さず、必要なキャプチャ変数だけ primary constructor/static helper に渡して、
@@ -182,46 +181,50 @@ internal abstract class Fragment(
         }
     }
 
-    // ContainingTypeName をこの断片と全子断片に再帰的に伝播する。
+    protected virtual IEnumerable<Fragment> GetChildFragments() => Array.Empty<Fragment>();
+    protected virtual IEnumerable<FuncFragment> GetChildFunctions() => Array.Empty<FuncFragment>();
+    protected static IEnumerable<Fragment> EnumerateChildFragments<T>(IEnumerable<T> children) where T:Fragment {
+        foreach(var child in children) {
+            yield return child;
+        }
+    }
+
+    // ContainingTypeName と外側型パラメータは明示的な子Visitor経由で伝播する。
     // リフレクションで Fragment 型フィールドを走査するため、個別の override は不要。
     // OuterTypeParameters だけを断片ツリー全体へ伝播する。
     // StructMethod（例: ToArray の InlineArray バッファ struct）はフラグメント構築時に文字列化されるため、
     // PropagateContainingTypeName（@this 用、構築後に呼ばれる）より前にこちらで外側型パラメータを確定させる必要がある。
     public virtual void PropagateOuterTypeParameters(string[] outerTypeParameters) {
-        this.OuterTypeParameters=outerTypeParameters;
-        foreach(var field in EnumerateInstanceFields(this.GetType())) {
-            if(typeof(Fragment).IsAssignableFrom(field.FieldType)&&field.GetValue(this) is Fragment child) {
-                child.PropagateOuterTypeParameters(outerTypeParameters);
-            }
-            if(typeof(FuncFragment).IsAssignableFrom(field.FieldType)
-                &&field.GetValue(this) is InlinedScalarFunc inlinedScalarFunc) {
+        this.renderContext=this.renderContext.WithOuterTypeParameters(outerTypeParameters);
+        foreach(var child in this.GetChildFragments()) {
+            child.PropagateOuterTypeParameters(outerTypeParameters);
+        }
+        foreach(var function in this.GetChildFunctions()) {
+            if(function is InlinedScalarFunc inlinedScalarFunc) {
                 inlinedScalarFunc.ScalarFragment.PropagateOuterTypeParameters(outerTypeParameters);
             }
         }
     }
 
     public virtual void PropagateContainingTypeName(string? name,string[]? outerTypeParameters = null) {
-        this.ContainingTypeName=name;
-        this.OuterTypeParameters=outerTypeParameters??new string[0];
-        foreach(var field in EnumerateInstanceFields(this.GetType())) {
-            if(typeof(Fragment).IsAssignableFrom(field.FieldType)&&field.GetValue(this) is Fragment child) {
-                child.PropagateContainingTypeName(name,outerTypeParameters);
-            }
-            if(typeof(FuncFragment).IsAssignableFrom(field.FieldType)
-                &&field.GetValue(this) is InlinedScalarFunc inlinedScalarFunc) {
+        this.renderContext=this.renderContext.WithContainingTypeName(name,(outerTypeParameters??Array.Empty<string>()).ToImmutableArray());
+        foreach(var child in this.GetChildFragments()) {
+            child.PropagateContainingTypeName(name,outerTypeParameters);
+        }
+        foreach(var function in this.GetChildFunctions()) {
+            if(function is InlinedScalarFunc inlinedScalarFunc) {
                 inlinedScalarFunc.ScalarFragment.PropagateContainingTypeName(name,outerTypeParameters);
             }
         }
     }
 
     public virtual void SetCounterInstrumentation(bool enabled) {
-        this.CounterInstrumentationEnabled=enabled;
-        foreach(var field in EnumerateInstanceFields(this.GetType())) {
-            if(typeof(Fragment).IsAssignableFrom(field.FieldType)&&field.GetValue(this) is Fragment child) {
-                child.SetCounterInstrumentation(enabled);
-            }
-            if(typeof(FuncFragment).IsAssignableFrom(field.FieldType)
-                &&field.GetValue(this) is InlinedScalarFunc inlinedScalarFunc) {
+        this.renderContext=this.renderContext.WithCounterInstrumentation(enabled);
+        foreach(var child in this.GetChildFragments()) {
+            child.SetCounterInstrumentation(enabled);
+        }
+        foreach(var function in this.GetChildFunctions()) {
+            if(function is InlinedScalarFunc inlinedScalarFunc) {
                 inlinedScalarFunc.ScalarFragment.SetCounterInstrumentation(enabled);
             }
         }
@@ -243,33 +246,20 @@ internal abstract class Fragment(
             : expression;
 
     // UnsafeAccessor コードを断片ツリー全体から収集する。
-    // リフレクションで FuncFragment / Fragment 型フィールドを再帰的に走査する。
     public IEnumerable<string> CollectAllUnsafeAccessorCodes() {
-        foreach(var field in EnumerateInstanceFields(this.GetType())) {
-            if(typeof(FuncFragment).IsAssignableFrom(field.FieldType)
-                &&field.GetValue(this) is FuncFragment funcFrag) {
-                // ラムダ本体内のフィールド/static メソッドアクセス用 UnsafeAccessor
-                foreach(var code in funcFrag.BodyUnsafeAccessorCodes) {
-                    yield return code;
-                }
-                if(funcFrag is InlinedScalarFunc inlinedScalarFunc) {
-                    foreach(var code in inlinedScalarFunc.ScalarFragment.CollectAllUnsafeAccessorCodes()) {
-                        yield return code;
-                    }
-                }
+        foreach(var function in this.GetChildFunctions()) {
+            foreach(var code in function.BodyUnsafeAccessorCodes) {
+                yield return code;
             }
-            if(typeof(Fragment).IsAssignableFrom(field.FieldType)
-                &&field.GetValue(this) is Fragment child) {
-                foreach(var code in child.CollectAllUnsafeAccessorCodes())
+            if(function is InlinedScalarFunc inlinedScalarFunc) {
+                foreach(var code in inlinedScalarFunc.ScalarFragment.CollectAllUnsafeAccessorCodes()) {
                     yield return code;
+                }
             }
         }
-    }
-
-    private static IEnumerable<FieldInfo> EnumerateInstanceFields(Type type) {
-        for(var current = type;current is not null&&current!=typeof(object);current=current.BaseType) {
-            foreach(var field in current.GetFields(BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public|BindingFlags.DeclaredOnly)) {
-                yield return field;
+        foreach(var child in this.GetChildFragments()) {
+            foreach(var code in child.CollectAllUnsafeAccessorCodes()) {
+                yield return code;
             }
         }
     }

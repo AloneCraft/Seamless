@@ -93,3 +93,13 @@ flowchart LR
     Renderer --> Coordinator[Per-file output coordinator]
     Coordinator --> AddSource[AddSource]
 ```
+
+## Renderer境界
+
+Mermaid component diagram:
+State(GenerationState) --> Model(GeneratedSourceRenderModel)
+Model --> Renderer(GeneratedSourceRenderer)
+Renderer --> Coordinator(Per-file output coordinator)
+Renderer --> Source(AddSource)
+Fragment(Fragment) --> Context(FragmentRenderContext)
+Context --> Renderer

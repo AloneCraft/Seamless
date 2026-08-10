@@ -17,6 +17,19 @@ Concat は source.Concat(second) を、左を読み切ってから右へ切り�
   - Dispose では両方の enumerator を破棄する。
 */
 internal class Concat(int 番号,Enumerable source,Enumerable second):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+        if(second is { } __visitorChild_second) {
+            yield return __visitorChild_second;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     public override string GetEnumerableExpression =>

@@ -138,3 +138,14 @@ sequenceDiagram
 ```
 
 closure/enumerator/文字列組立の詳細な描画は第2段階で独立契約へ移す。第1段階では既存Fragmentの評価順、例外、Dispose、Provider順を保持する。
+
+## GeneratedSourceRenderModelを介したRenderer境界
+
+Mermaid sequence:
+Output Coordinator -> GeneratedSourceRenderModel: targets/diagnosticsを入力ファイル単位で固定
+GeneratedSourceRenderModel -> GeneratedSourceRenderer: Render(model)
+GeneratedSourceRenderer -> Fragment: Fragment構築結果とRenderContextを描画
+Fragment -> GeneratedSourceRenderer: source/trace
+GeneratedSourceRenderer -> AddSource: Hint名を維持してAddSource
+
+Fragmentの子VisitorとRenderContextは対象単位で完結し、並列対象へ状態を渡さない。

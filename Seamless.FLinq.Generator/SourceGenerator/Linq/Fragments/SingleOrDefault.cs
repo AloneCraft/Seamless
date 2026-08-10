@@ -1,7 +1,17 @@
 namespace Seamless.FLinq;
 
 internal class SingleOrDefault(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) => method.Parameters.Length==0;
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) => method.Parameters.Length==0;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
@@ -50,7 +60,17 @@ internal class SingleOrDefault(int 番号,Enumerable source,string resultType):B
 }
 
 internal class SingleOrDefault_defaultValue(int 番号,Enumerable source,string defaultValue,string resultType):BufferedScalar(番号,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==1&&method.Parameters[0].Type.TypeKind!=TypeKind.Delegate;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
@@ -99,7 +119,25 @@ internal class SingleOrDefault_defaultValue(int 番号,Enumerable source,string 
 }
 
 internal class SingleOrDefault_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(predicate is { } __visitorChild_predicate) {
+            yield return __visitorChild_predicate;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length>0&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));

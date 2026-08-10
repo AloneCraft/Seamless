@@ -16,6 +16,16 @@ AnonymousExitToList は匿名型要素の ToList を direct execution だけで�
   匿名型の名前は生成メソッドの戻り値型や補助 struct に書けないため、var と型推論に寄せる。
 */
 internal sealed class AnonymousExitToList(int 番号,Enumerable source):Scalar(番号), DirectExecutionFragment {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => source.GetEnumeratorStruct;
@@ -47,6 +57,16 @@ ToList は source.ToList() を、capacity hint と Span copy を使う Compute �
   - DirectEnumerableExpression が array/list/ICollection なら hybrid inline で余分な enumerator を避ける。
 */
 internal class ToList(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;

@@ -19,6 +19,16 @@ namespace Seamless.FLinq;
 /// - 実装の単一化
 /// </summary>
 internal class Shuffle(int 番号,Enumerable source):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     public override string ElementType => source.ElementType;
     public override string StructMethod => string.Empty;

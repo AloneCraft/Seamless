@@ -1,6 +1,19 @@
 namespace Seamless.FLinq;
 
 internal class SequenceEqual(int number,Enumerable source,Enumerable second,string resultType):BufferedScalar(number,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+        if(second is { } __visitorChild_second) {
+            yield return __visitorChild_second;
+        }
+    }
+
     private static bool IsVectorizedSequenceEqualElementType(string elementType) => elementType is
         "bool" or "byte" or "sbyte" or "short" or "ushort" or "int" or "uint" or "long" or "ulong" or "nint" or "nuint" or "char"
         or "global::System.Boolean" or "global::System.Byte" or "global::System.SByte" or "global::System.Int16" or "global::System.UInt16"
@@ -73,6 +86,19 @@ internal class SequenceEqual(int number,Enumerable source,Enumerable second,stri
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
 }
 internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable second,string comparer,string resultType):BufferedScalar(番号,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+        if(second is { } __visitorChild_second) {
+            yield return __visitorChild_second;
+        }
+    }
+
     public override string StructMethod => string.Empty;
     protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
     protected override string StructTypeConstraints =>

@@ -6,7 +6,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>Seamless.FLinq</RootNamespace>
     <AssemblyName>Seamless.FLinq.Generator</AssemblyName>
-    <PackageId>Seamless.FLinq</PackageId>
+    <PackageId>Seamless.FLinq.Generator</PackageId>
     <Title>Seamless FLinq</Title>
     <Description>Compile-time LINQ rewriting source generator for Seamless.</Description>
     <IsRoslynComponent>true</IsRoslynComponent>

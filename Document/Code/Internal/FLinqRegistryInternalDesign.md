@@ -55,3 +55,11 @@ Registryは演算子選択の正本のまま維持し、その前後の生成責
 `GenerationState` と `FragmentBuildContext` は対象メソッド単位で生成される。状態は対象間で共有せず、Registry descriptorの型付きBindへ明示的に渡す。これにより並列生成時も匿名record、採番、trace、識別子、UnsafeAccessor候補が漏洩しない。
 
 第2段階の対象はFragment内部のclosure/enumerator/文字列生成であり、Registry契約・既存Fragmentの意味論を変えずに描画契約またはIRへ移す。
+
+## Renderer境界と明示Fragment Visitor
+
+Fragmentの子要素はGetChildFragments()とGetChildFunctions()による明示Visitorで収集します。PipelineTerminalとProviderNative終端のPipelineEnumerable、各Fragment Variantのsource・second・lambdaを対象に含め、Fragmentインスタンスのフィールド反射には依存しません。FragmentRenderContextは含有型名、外側型パラメータ、Counter instrumentationをimmutableな値として保持します。
+
+Coordinatorは入力ファイルごとのtarget集合をGeneratedSourceRenderModelへ固定し、GeneratedSourceRendererへ渡します。Rendererは既存のFragment文字列生成を呼び出すだけで、生成ソースの分割、Hint名、診断位置、trace順序を変更しません。
+
+これは第1段階の境界です。closure、enumerator、生成文字列の密結合は第2段階でIRまたは描画契約へ分離します。

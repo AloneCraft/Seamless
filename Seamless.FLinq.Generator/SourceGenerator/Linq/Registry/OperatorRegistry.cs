@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+﻿namespace Seamless.FLinq;
 
 internal enum OperatorCategory {
     Sequence,
@@ -72,27 +72,44 @@ internal readonly struct FragmentParameter {
     public static FragmentParameter Expression(string name) => new(FragmentArgumentKind.Expression,name);
 }
 
-internal class FragmentArguments {
-    private readonly List<object?> values=new();
+/// <summary>
+/// 生成時にBindが返す共通境界です。値をobjectのリストで保持せず、各VariantのArgs型が実データを所有します。
+/// </summary>
+internal abstract class FragmentArguments {
+}
 
-    public FragmentArguments(int number) {
+/// <summary>
+/// MethodBodyRewriterなどの既に構築済みFragmentをRegistryへ渡すための限定された直接呼び出し値です。
+/// 通常のSemanticModelバインドでは使用しません。
+/// </summary>
+internal sealed class DirectFragmentArguments {
+    private readonly IReadOnlyList<object?> values;
+
+    internal DirectFragmentArguments(int number,IReadOnlyList<object?> values) {
         this.Number=number;
+        this.values=values;
     }
 
-    public FragmentArguments(int number,IReadOnlyList<object?> values) {
-        this.Number=number;
-        this.values.AddRange(values);
+    internal int Number { get; }
+    internal int Count => this.values.Count;
+
+    internal bool TryGetEnumerable(int index,out Enumerable value) =>
+        TryGet(index,out value);
+
+    internal bool TryGetFunction(int index,out FuncFragment value) =>
+        TryGet(index,out value);
+
+    internal bool TryGetExpression(int index,out string value) =>
+        TryGet(index,out value);
+
+    private bool TryGet<T>(int index,out T value) {
+        if(index>=0&&index<this.values.Count&&this.values[index] is T typed) {
+            value=typed;
+            return true;
+        }
+        value=default!;
+        return false;
     }
-
-    public int Number { get; }
-    public int Count => this.values.Count;
-    public IReadOnlyList<object?> Values => this.values;
-
-    public void Add(object? value) => this.values.Add(value);
-    public Enumerable GetEnumerable(int index) => (Enumerable)this.values[index]!;
-    public FuncFragment GetFunction(int index) => (FuncFragment)this.values[index]!;
-    public string GetExpression(int index) => (string)this.values[index]!;
-    public FuncFragment? GetFirstFunction() => this.values.OfType<FuncFragment>().FirstOrDefault();
 }
 
 internal interface IOperatorDescriptor {
@@ -103,10 +120,14 @@ internal interface IOperatorDescriptor {
     int Priority { get; }
     Type FragmentType { get; }
     Type ArgumentsType { get; }
+    IReadOnlyList<FragmentParameter> Parameters { get; }
+    PipelineStageKind? PipelineStage { get; }
+    PipelineStageCapability PipelineCapabilities { get; }
+    bool SupportsProviderNativePipeline { get; }
 
     bool IsApplicable(IMethodSymbol method);
     bool TryCreate(FLinqIncrementalGenerator.FragmentFactoryContext context,out Fragment fragment);
-    bool TryCreateDirect(FragmentArguments arguments,out Fragment fragment);
+    bool TryCreateDirect(DirectFragmentArguments arguments,out Fragment fragment);
 }
 
 internal interface IRootOperatorDescriptor:IOperatorDescriptor {
@@ -117,6 +138,7 @@ internal sealed class OperatorDescriptor<TFragment,TArguments>:IOperatorDescript
     where TFragment:Fragment
     where TArguments:FragmentArguments {
     private readonly Func<FLinqIncrementalGenerator.FragmentFactoryContext,TArguments?> bind;
+    private readonly Func<DirectFragmentArguments,TArguments?> directBind;
     private readonly Func<TArguments,TFragment> factory;
     private readonly Func<IMethodSymbol,bool>? isApplicable;
 
@@ -126,7 +148,9 @@ internal sealed class OperatorDescriptor<TFragment,TArguments>:IOperatorDescript
         OperatorCoverageKind coverage,
         OperatorCapability capabilities,
         int priority,
+        IReadOnlyList<FragmentParameter> parameters,
         Func<FLinqIncrementalGenerator.FragmentFactoryContext,TArguments?> bind,
+        Func<DirectFragmentArguments,TArguments?> directBind,
         Func<TArguments,TFragment> factory,
         Func<IMethodSymbol,bool>? isApplicable) {
         this.Key=key;
@@ -134,7 +158,9 @@ internal sealed class OperatorDescriptor<TFragment,TArguments>:IOperatorDescript
         this.Coverage=coverage;
         this.Capabilities=capabilities;
         this.Priority=priority;
+        this.Parameters=parameters;
         this.bind=bind;
+        this.directBind=directBind;
         this.factory=factory;
         this.isApplicable=isApplicable;
     }
@@ -146,6 +172,10 @@ internal sealed class OperatorDescriptor<TFragment,TArguments>:IOperatorDescript
     public int Priority { get; }
     public Type FragmentType => typeof(TFragment);
     public Type ArgumentsType => typeof(TArguments);
+    public IReadOnlyList<FragmentParameter> Parameters { get; }
+    public PipelineStageKind? PipelineStage => OperatorPipelineManifest.TryGet(this.Key.MethodName,out var definition) ? definition.Stage : null;
+    public PipelineStageCapability PipelineCapabilities => OperatorPipelineManifest.TryGet(this.Key.MethodName,out var definition) ? definition.Capabilities : PipelineStageCapability.None;
+    public bool SupportsProviderNativePipeline => OperatorPipelineManifest.TryGet(this.Key.MethodName,out var definition)&&definition.SupportsProviderNative;
 
     public bool IsApplicable(IMethodSymbol method) => this.isApplicable?.Invoke(method)??true;
 
@@ -156,16 +186,18 @@ internal sealed class OperatorDescriptor<TFragment,TArguments>:IOperatorDescript
             return false;
         }
         if((this.Capabilities&OperatorCapability.ProviderNativeIterate)!=0
-            &&context.TryCreateProviderNative(this.Key,arguments,out fragment)) {
+            &&arguments is IProviderNativeBoundArguments providerArguments
+            &&context.TryCreateProviderNative(this.Key,providerArguments,out fragment)) {
             return true;
         }
         fragment=this.factory(arguments);
         return true;
     }
 
-    public bool TryCreateDirect(FragmentArguments arguments,out Fragment fragment) {
+    public bool TryCreateDirect(DirectFragmentArguments arguments,out Fragment fragment) {
         fragment=null!;
-        if(arguments is not TArguments typedArguments) {
+        var typedArguments=this.directBind(arguments);
+        if(typedArguments is null) {
             return false;
         }
         fragment=this.factory(typedArguments);
@@ -173,21 +205,27 @@ internal sealed class OperatorDescriptor<TFragment,TArguments>:IOperatorDescript
     }
 }
 
-internal sealed class RootOperatorDescriptor<TFragment>:IRootOperatorDescriptor
-    where TFragment:Enumerable {
-    private readonly Func<FLinqIncrementalGenerator.RootFactoryContext,FragmentArguments?> bind;
-    private readonly Func<FragmentArguments,TFragment> factory;
+internal sealed class RootOperatorDescriptor<TFragment,TArguments>:IRootOperatorDescriptor
+    where TFragment:Enumerable
+    where TArguments:FragmentArguments {
+    private readonly Func<FLinqIncrementalGenerator.RootFactoryContext,TArguments?> bind;
+    private readonly Func<DirectFragmentArguments,TArguments?> directBind;
+    private readonly Func<TArguments,TFragment> factory;
     private readonly Func<IMethodSymbol,bool>? isApplicable;
 
     public RootOperatorDescriptor(
         OperatorKey key,
         int priority,
-        Func<FLinqIncrementalGenerator.RootFactoryContext,FragmentArguments?> bind,
-        Func<FragmentArguments,TFragment> factory,
+        IReadOnlyList<FragmentParameter> parameters,
+        Func<FLinqIncrementalGenerator.RootFactoryContext,TArguments?> bind,
+        Func<DirectFragmentArguments,TArguments?> directBind,
+        Func<TArguments,TFragment> factory,
         Func<IMethodSymbol,bool>? isApplicable) {
         this.Key=key;
         this.Priority=priority;
+        this.Parameters=parameters;
         this.bind=bind;
+        this.directBind=directBind;
         this.factory=factory;
         this.isApplicable=isApplicable;
     }
@@ -198,7 +236,11 @@ internal sealed class RootOperatorDescriptor<TFragment>:IRootOperatorDescriptor
     public OperatorCapability Capabilities => OperatorCapability.None;
     public int Priority { get; }
     public Type FragmentType => typeof(TFragment);
-    public Type ArgumentsType => typeof(FragmentArguments);
+    public Type ArgumentsType => typeof(TArguments);
+    public IReadOnlyList<FragmentParameter> Parameters { get; }
+    public PipelineStageKind? PipelineStage => null;
+    public PipelineStageCapability PipelineCapabilities => PipelineStageCapability.None;
+    public bool SupportsProviderNativePipeline => false;
 
     public bool IsApplicable(IMethodSymbol method) => this.isApplicable?.Invoke(method)??true;
 
@@ -207,9 +249,9 @@ internal sealed class RootOperatorDescriptor<TFragment>:IRootOperatorDescriptor
         return false;
     }
 
-    public bool TryCreateDirect(FragmentArguments arguments,out Fragment fragment) {
-        fragment=this.factory(arguments);
-        return true;
+    public bool TryCreateDirect(DirectFragmentArguments arguments,out Fragment fragment) {
+        fragment=null!;
+        return false;
     }
 
     public bool TryCreateRoot(FLinqIncrementalGenerator.RootFactoryContext context,out Enumerable fragment) {
@@ -231,6 +273,10 @@ internal sealed class AsEnumerableRootOperatorDescriptor:IRootOperatorDescriptor
     public int Priority => 999;
     public Type FragmentType => typeof(Enumerable);
     public Type ArgumentsType => typeof(FragmentArguments);
+    public IReadOnlyList<FragmentParameter> Parameters { get; } = Array.Empty<FragmentParameter>();
+    public PipelineStageKind? PipelineStage => null;
+    public PipelineStageCapability PipelineCapabilities => PipelineStageCapability.None;
+    public bool SupportsProviderNativePipeline => false;
 
     public bool IsApplicable(IMethodSymbol method) => method.Parameters.Length==1&&method.TypeArguments.Length==1;
 
@@ -239,7 +285,7 @@ internal sealed class AsEnumerableRootOperatorDescriptor:IRootOperatorDescriptor
         return false;
     }
 
-    public bool TryCreateDirect(FragmentArguments arguments,out Fragment fragment) {
+    public bool TryCreateDirect(DirectFragmentArguments arguments,out Fragment fragment) {
         fragment=null!;
         return false;
     }
@@ -247,6 +293,7 @@ internal sealed class AsEnumerableRootOperatorDescriptor:IRootOperatorDescriptor
     public bool TryCreateRoot(FLinqIncrementalGenerator.RootFactoryContext context,out Enumerable fragment) =>
         context.TryBuildAsEnumerableSource(out fragment);
 }
+
 internal static partial class OperatorRegistry {
     private static readonly ImmutableHashSet<string> EnumerableCoverageNames=CreateEnumerableCoverageNames();
     private static readonly ImmutableArray<IOperatorDescriptor> descriptors=CreateDescriptors();
@@ -272,13 +319,15 @@ internal static partial class OperatorRegistry {
     private static readonly Lazy<ImmutableDictionary<OperatorKey,ProviderNativeTerminalProfile>> providerNativeProfiles=
         new(CreateProviderNativeProfiles);
     private static readonly ImmutableArray<string> validationErrors=Validate(descriptors,EnumerableCoverageNames);
+    private static readonly ImmutableArray<OperatorCoverageManifestEntry> coverageManifest=OperatorCoverageManifest.Create(EnumerableCoverageNames);
 
     internal static ImmutableArray<IOperatorDescriptor> Descriptors => descriptors;
     internal static ImmutableArray<string> ValidationErrors => validationErrors;
+    internal static ImmutableArray<OperatorCoverageManifestEntry> CoverageManifest => coverageManifest;
 
     internal static bool TryGetCandidates(string methodName,out ImmutableArray<IOperatorDescriptor> candidates) => descriptorsByMethod.TryGetValue(methodName,out candidates);
 
-    internal static bool TryCreateDirect(string methodName,string variantName,FragmentArguments arguments,out Fragment fragment) {
+    internal static bool TryCreateDirect(string methodName,string variantName,DirectFragmentArguments arguments,out Fragment fragment) {
         fragment=null!;
         return descriptorsByKey.TryGetValue(new OperatorKey(methodName,variantName),out var descriptor)
             &&descriptor.TryCreateDirect(arguments,out fragment);
@@ -309,63 +358,89 @@ internal static partial class OperatorRegistry {
         providerNativeProfiles.Value.TryGetValue(key,out profile);
 
     internal static ImmutableArray<string> ValidateForTesting(IEnumerable<IOperatorDescriptor> candidateDescriptors,IEnumerable<string> coverageNames) =>
-        Validate(candidateDescriptors.ToImmutableArray(),coverageNames.ToImmutableHashSet(StringComparer.Ordinal));
+        Validate(candidateDescriptors.ToImmutableArray(),coverageNames.ToImmutableArray());
 
-    private static IOperatorDescriptor Create<TFragment>(
+    private static IOperatorDescriptor Create<TFragment,TArguments>(
         string methodName,
         string variantName,
         OperatorCategory category,
         OperatorCoverageKind coverage,
         OperatorCapability capabilities,
         int priority,
+        Func<FLinqIncrementalGenerator.FragmentFactoryContext,TArguments?> bind,
+        Func<DirectFragmentArguments,TArguments?> directBind,
         FragmentParameter[] parameters,
-        Func<FragmentArguments,TFragment> factory,
+        Func<TArguments,TFragment> factory,
         Func<IMethodSymbol,bool>? isApplicable = null)
-        where TFragment:Fragment {
-        return new OperatorDescriptor<TFragment,FragmentArguments>(
-            new OperatorKey(methodName,variantName),
+        where TFragment:Fragment
+        where TArguments:FragmentArguments {
+        var key=new OperatorKey(methodName,variantName);
+        return new OperatorDescriptor<TFragment,TArguments>(
+            key,
             category,
             coverage,
             capabilities,
             priority,
-            context => context.TryBind(parameters,out var arguments) ? arguments : null,
+            parameters,
+            bind,
+            directBind,
             factory,
             isApplicable);
     }
 
-    private static IOperatorDescriptor CoverageOnly(string methodName,OperatorCoverageKind coverage) => new CoverageOnlyOperatorDescriptor(new OperatorKey(methodName,string.Empty),coverage);
+    private static IOperatorDescriptor CoverageOnly(string methodName,OperatorCoverageKind coverage) =>
+        new CoverageOnlyOperatorDescriptor(new OperatorKey(methodName,string.Empty),coverage);
 
     private static IRootOperatorDescriptor CreateAsEnumerableRoot() => new AsEnumerableRootOperatorDescriptor();
 
-    private static IRootOperatorDescriptor CreateRoot<TFragment>(
+    private static IRootOperatorDescriptor CreateRoot<TFragment,TArguments>(
         string methodName,
         int priority,
+        Func<FLinqIncrementalGenerator.RootFactoryContext,TArguments?> bind,
+        Func<DirectFragmentArguments,TArguments?> directBind,
         FragmentParameter[] parameters,
-        Func<FragmentArguments,TFragment> factory,
+        Func<TArguments,TFragment> factory,
         Func<IMethodSymbol,bool>? isApplicable = null)
-        where TFragment:Enumerable {
-        return new RootOperatorDescriptor<TFragment>(
+        where TFragment:Enumerable
+        where TArguments:FragmentArguments {
+        return new RootOperatorDescriptor<TFragment,TArguments>(
             new OperatorKey(methodName,"root"),
             priority,
-            context => context.TryBind(parameters,out var arguments) ? arguments : null,
+            parameters,
+            bind,
+            directBind,
             factory,
             isApplicable);
     }
 
     private static ImmutableArray<string> Validate(ImmutableArray<IOperatorDescriptor> candidateDescriptors,IEnumerable<string> coverageNames) {
+        var coverageArray=coverageNames.ToArray();
+        var manifest=OperatorCoverageManifest.Create(coverageArray);
         var errors=ImmutableArray.CreateBuilder<string>();
         foreach(var group in candidateDescriptors.GroupBy(static descriptor => descriptor.Key)) {
             if(group.Count()!=1) {
                 errors.Add("Duplicate OperatorKey: "+group.Key);
             }
         }
-        foreach(var methodName in coverageNames) {
+        foreach(var methodName in coverageArray) {
             if(!candidateDescriptors.Any(descriptor => descriptor.Key.MethodName==methodName)) {
                 errors.Add("Unregistered public LINQ API: "+methodName);
             }
         }
-        foreach(var coverageName in coverageNames.GroupBy(static name => name,StringComparer.Ordinal).Where(static group => group.Count()!=1)) {
+        foreach(var coverageName in coverageArray.GroupBy(static name => name,StringComparer.Ordinal).Where(static group => group.Count()!=1)) {
             errors.Add("Duplicate public LINQ API coverage: "+coverageName.Key);
+        }
+        foreach(var entry in manifest) {
+            if(entry.ExceptionCoverage==OperatorExceptionCoverage.ExplicitlyExcluded) {
+                continue;
+            }
+            var methodDescriptors=candidateDescriptors.Where(descriptor => descriptor.Key.MethodName==entry.MethodName).ToArray();
+            if(entry.HasRootVariant&&!methodDescriptors.OfType<IRootOperatorDescriptor>().Any()) {
+                errors.Add("Missing root coverage: "+entry.MethodName);
+            }
+            if(OperatorPipelineManifest.TryGet(entry.MethodName,out var pipelineDefinition)&&!methodDescriptors.Any(descriptor => descriptor.PipelineStage==pipelineDefinition.Stage)) {
+                errors.Add("Missing pipeline coverage: "+entry.MethodName);
+            }
         }
         foreach(var group in candidateDescriptors.GroupBy(static descriptor => descriptor.Key.MethodName,StringComparer.Ordinal)) {
             var priorities=new HashSet<int>();
@@ -383,6 +458,9 @@ internal static partial class OperatorRegistry {
                 }
                 if(descriptor.Category==OperatorCategory.Root&&descriptor.Coverage!=OperatorCoverageKind.Root) {
                     errors.Add("Root category/coverage mismatch: "+descriptor.Key);
+                }
+                if(descriptor.Category!=OperatorCategory.CoverageOnly&&descriptor.Parameters.Count==0&&descriptor.Coverage!=OperatorCoverageKind.Excluded&&!(descriptor.Category==OperatorCategory.Root&&descriptor.Key.MethodName=="AsEnumerable")) {
+                    errors.Add("Missing declarative parameters: "+descriptor.Key);
                 }
             }
         }
@@ -414,6 +492,10 @@ internal static partial class OperatorRegistry {
         public int Priority => -1;
         public Type FragmentType => typeof(Fragment);
         public Type ArgumentsType => typeof(FragmentArguments);
+        public IReadOnlyList<FragmentParameter> Parameters { get; } = Array.Empty<FragmentParameter>();
+        public PipelineStageKind? PipelineStage => null;
+        public PipelineStageCapability PipelineCapabilities => PipelineStageCapability.None;
+        public bool SupportsProviderNativePipeline => false;
         public bool IsApplicable(IMethodSymbol method) => false;
 
         public bool TryCreate(FLinqIncrementalGenerator.FragmentFactoryContext context,out Fragment fragment) {
@@ -421,7 +503,7 @@ internal static partial class OperatorRegistry {
             return false;
         }
 
-        public bool TryCreateDirect(FragmentArguments arguments,out Fragment fragment) {
+        public bool TryCreateDirect(DirectFragmentArguments arguments,out Fragment fragment) {
             fragment=null!;
             return false;
         }

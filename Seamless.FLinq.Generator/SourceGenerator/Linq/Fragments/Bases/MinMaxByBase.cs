@@ -24,6 +24,24 @@ MinMaxByBase は source.MinBy(keySelector) / MaxBy(keySelector) を、最良 key
   - direction により > 0 / < 0 を切り替える。
 */
 internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment keySelector,string resultType,string direction):BufferedScalar(番号,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     protected override string StructSources => source.GetEnumeratorStruct;

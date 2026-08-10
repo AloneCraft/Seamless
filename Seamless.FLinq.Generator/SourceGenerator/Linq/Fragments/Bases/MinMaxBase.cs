@@ -2,6 +2,16 @@ namespace Seamless.FLinq;
 
 /// <summary>Shared scalar implementation for Min and Max without a selector.</summary>
 internal abstract class MinMaxBase(int number,Enumerable source,string resultType,string direction):BufferedScalar(number,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;

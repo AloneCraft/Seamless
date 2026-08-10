@@ -1,7 +1,17 @@
 namespace Seamless.FLinq;
 
 internal class Contains(int 番号,Enumerable source,string value,string resultType):BufferedScalar(番号,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==1;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
@@ -127,7 +137,17 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
 }
 
 internal class Contains_comparer(int 番号,Enumerable source,string value,string comparer,string resultType):BufferedScalar(番号,resultType) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==2;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;

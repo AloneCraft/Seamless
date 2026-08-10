@@ -21,6 +21,16 @@ Reverse は source.Reverse() を、初回に逆順で読める状態を作って
   - 連続 Reverse は偶数回なら RootSource そのものへ畳み込む。
 */
 internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     private Enumerable Source => source;
     private Enumerable RootSource => this.Source is Reverse reverse ? reverse.RootSource : this.Source;
     private bool IsIdentity => this.Source is Reverse reverse&&!reverse.IsIdentity;

@@ -59,6 +59,27 @@ public sealed class LinqFragmentCoverageTests {
 
         Assert.Equal(new[] { "Order","OrderDescending","TryGetNonEnumeratedCount" },excluded);
     }
+    [Fact, Trait("Category","Unit")]
+    public void CoverageManifestDeclaresExceptionAndShapeForEveryPublicEnumerableMethod() {
+        var manifest=(IEnumerable)RegistryType.GetProperty("CoverageManifest",BindingFlags.Static|BindingFlags.NonPublic)!.GetValue(null)!;
+        var entries=manifest.Cast<object>().ToArray();
+        var methodProperty=entries[0].GetType().GetProperty("MethodName",BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic)!;
+        var exceptionProperty=entries[0].GetType().GetProperty("ExceptionCoverage",BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic)!;
+        var names=entries.Select(entry => (string)methodProperty.GetValue(entry)!).ToArray();
+        Assert.Equal(names.Length,names.Distinct(StringComparer.Ordinal).Count());
+        var excluded=new global::System.Collections.Generic.HashSet<string>(new[] { "Order","OrderDescending","TryGetNonEnumeratedCount" },StringComparer.Ordinal);
+        var publicNames=typeof(global::System.Linq.Enumerable).GetMethods(BindingFlags.Public|BindingFlags.Static)
+            .Where(static method => !method.IsSpecialName).Select(static method => method.Name).ToHashSet(StringComparer.Ordinal);
+        foreach(var publicName in publicNames) {
+            Assert.Contains(publicName,names);
+        }
+        foreach(var entry in entries) {
+            var name=(string)methodProperty.GetValue(entry)!;
+            var exception=exceptionProperty.GetValue(entry)!.ToString();
+            Assert.Equal(excluded.Contains(name) ? "ExplicitlyExcluded" : "StandardLinq",exception);
+        }
+    }
+
     private static object? GetPropertyValue(object value,string propertyName) =>
         value.GetType().GetProperty(propertyName,BindingFlags.Instance|BindingFlags.Public)!.GetValue(value);
 }

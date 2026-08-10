@@ -19,6 +19,24 @@ MinMaxSelectorBase は source.Min(selector) / Max(selector) を selector 結果�
   - direction により comparer.Compare(value, result) > 0 / < 0 を切り替える。
 */
 internal abstract class MinMaxSelectorBase(int 番号,Enumerable source,FuncFragment selector,string resultType,string direction):BufferedScalar(番号,resultType) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(selector is { } __visitorChild_selector) {
+            yield return __visitorChild_selector;
+        }
+    }
+
     private string SelectorFuncType => $"global::System.Func<{source.ElementType}, {FuncReturnTypeName(selector)}>";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(selector,nameof(selector));

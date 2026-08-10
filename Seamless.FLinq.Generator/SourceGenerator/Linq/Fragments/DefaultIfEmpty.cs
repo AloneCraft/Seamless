@@ -29,6 +29,16 @@ DefaultIfEmptyBase は source が空なら defaultValue を1件だけ返す enum
   - 連続 DefaultIfEmpty は最内の defaultValue だけが意味を持つため RootSource へ畳み込む。
 */
 internal abstract class DefaultIfEmptyBase(int 番号,Enumerable source):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     private Enumerable Source => source;
     // 自身が表す既定値の式。最内でない場合は EffectiveDefaultValue 経由で無視される。
     protected abstract string OwnDefaultValue { get; }

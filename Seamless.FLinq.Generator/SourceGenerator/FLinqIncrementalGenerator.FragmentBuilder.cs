@@ -114,16 +114,11 @@ public sealed partial class FLinqIncrementalGenerator {
         // ここから先は単発オペレーション等で「結果の匿名型がそのまま外へ逃げる」ケースが多い。
         // それらを record struct へ置換すると呼び出し元が期待する匿名型と型が合わなくなるため、
         // フォールバック経路では匿名型置換を抑止し、従来どおり匿名型を維持する。
-        var anonSuspension = this.state.SuspendAnonymousRegistry();
-        try {
             if(methodName=="Any") {
                 return Any述語フラグメント生成(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
             }
 
             return 登録済みフラグメント生成(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
-        } finally {
-            this.state.RestoreAnonymousRegistry(anonSuspension);
-        }
     }
 
     /// <summary>
@@ -148,7 +143,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 } else if(extraArgs.Length==2&&extraArgs[0] is Enumerable sourceFragmentWithPredicate&&extraArgs[1] is FuncFragment predicateFragment
                     &&TryCreateBackendNativeIterateFragment(new OperatorKey(name,variant),n,sourceFragmentWithPredicate,predicateFragment,new object?[] { n }.Concat(extraArgs).ToArray(),out var nativePredicateFragment)) {
                     built=nativePredicateFragment;
-                } else if(OperatorRegistry.TryCreateDirect(name,variant,new FragmentArguments(n,extraArgs),out var directFragment)) {
+                } else if(OperatorRegistry.TryCreateDirect(name,variant,new DirectFragmentArguments(n,extraArgs),out var directFragment)) {
                     built=directFragment;
                 }
                 built?.PropagateOuterTypeParameters(外側型パラメータ名(containingType));
@@ -240,10 +235,6 @@ public sealed partial class FLinqIncrementalGenerator {
         out Fragment fragment,
         out string staticMethods,
         List<string>? unsafeAccessorCollector = null) {
-        // 内側チェーンの構築は再帰的に呼び出し式からフラグメント生成 のフォールバック経路
-        // （SuspendAnonRegistry 付き）を通るため、ピン留めして匿名型の record struct 置換を維持する。
-        this.state.PinAnonymousRegistry();
-        try {
             if(!SelectManyBase.TryBuildInlined(
                 semanticModel,invocation,containingType,ref uniqueNumber,
                 out fragment,out staticMethods,unsafeAccessorCollector,
@@ -252,9 +243,6 @@ public sealed partial class FLinqIncrementalGenerator {
                 GetLambdaParameters)) {
                 return false;
             }
-        } finally {
-            this.state.UnpinAnonymousRegistry();
-        }
         // 結果要素が匿名型でなければ struct インライン化結果をそのまま使う。
         if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method
             ||method.TypeArguments.Length==0) {
@@ -444,14 +432,20 @@ public sealed partial class FLinqIncrementalGenerator {
     /// </summary>
     internal bool 列挙式フラグメント生成(SemanticModel semanticModel,ExpressionSyntax expression,INamedTypeSymbol containingType,ref int uniqueNumber,out Enumerable fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null) {
         expression=括弧除去(expression);
+        var outerTypeParameters=外側型パラメータ名(containingType);
         if(expression is InvocationExpressionSyntax invocation
             &&呼び出し式からフラグメント生成(semanticModel,invocation,containingType,ref uniqueNumber,out var nestedFragment,out staticMethods,unsafeAccessorCollector)
             &&nestedFragment is Enumerable enumerableFragment) {
+            enumerableFragment.PropagateOuterTypeParameters(outerTypeParameters);
             fragment=enumerableFragment;
             return true;
         }
 
-        return 単独列挙ソースフラグメント生成(semanticModel,expression,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
+        var built=単独列挙ソースフラグメント生成(semanticModel,expression,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
+        if(built) {
+            fragment.PropagateOuterTypeParameters(outerTypeParameters);
+        }
+        return built;
     }
 
     /// <summary>

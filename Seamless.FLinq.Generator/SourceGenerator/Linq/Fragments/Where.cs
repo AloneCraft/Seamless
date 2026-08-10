@@ -22,7 +22,25 @@ constructor 引数:
   - Where_indexPredicate は index をフィールドで増やし、predicate(item, index) を呼ぶ。
 */
 internal class Where_predicate(int 番号,Enumerable source,FuncFragment predicate):Enumerable(番号) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(predicate is { } __visitorChild_predicate) {
+            yield return __visitorChild_predicate;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         !(method.Parameters.Length>0&&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
@@ -84,7 +102,20 @@ Where_WithInlinedScalarPredicate は predicate 本体が LINQ scalar を返す�
 */
 internal class Where_WithInlinedScalarPredicate(int 番号,Enumerable source,Fragment scalarFrag,string outerParamName)
     :Enumerable(番号) {
-    public static bool IsApplicableOverload(IMethodSymbol method) => false;
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+        if(scalarFrag is { } __visitorChild_scalarFrag) {
+            yield return __visitorChild_scalarFrag;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) => false;
     public override string ElementType => source.ElementType;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
@@ -170,7 +201,7 @@ Where_indexPredicate は source.Where((item, index) => 条件) 用。
   index フィールドを -1 で持ち、source から要素を1つ読むたびに checked なしで増やして predicate に渡す。
 */
 internal class Where_indexPredicate(int 番号,Enumerable source,FuncFragment predicate):Where_predicate(番号,source,predicate) {
-    public static new bool IsApplicableOverload(IMethodSymbol method) =>
+    public static new bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length>0&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string GetEnumeratorExpression =>

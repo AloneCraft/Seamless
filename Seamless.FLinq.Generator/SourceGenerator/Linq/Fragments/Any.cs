@@ -15,6 +15,16 @@ Any は source.Any() を「件数 fast path か MoveNext 1回」で判定する 
   - Any(indexPredicate) は index を増やしながら predicate(item, index) を評価する。
 */
 internal class Any(int 番号,Enumerable source):Scalar(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     internal static bool TryBuildWithPredicate(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
@@ -130,6 +140,24 @@ Any_predicate は source.Any(predicate) を、最初に true になった要素�
 source が span を確実に返せる場合は foreach(span) を生成し、それ以外は MoveNext loop にする。
 */
 internal class Any_predicate(int 番号,Enumerable source,FuncFragment predicate):BufferedScalar(番号,"bool") {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(predicate is { } __visitorChild_predicate) {
+            yield return __visitorChild_predicate;
+        }
+    }
+
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, bool>";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
@@ -180,6 +208,24 @@ internal class Any_predicate(int 番号,Enumerable source,FuncFragment predicate
 }
 
 internal class Any_indexPredicate(int 番号,Enumerable source,FuncFragment predicate):BufferedScalar(番号,"bool") {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(predicate is { } __visitorChild_predicate) {
+            yield return __visitorChild_predicate;
+        }
+    }
+
     private string PredicateFuncType => $"global::System.Func<{source.ElementType}, int, bool>";
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));

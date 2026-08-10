@@ -25,6 +25,16 @@ DistinctBase は source.Distinct(comparer) を HashSet で既出判定する enu
   span/while ループを使い、current フィールド更新を省いて consumer.Consume(value) へ直接渡す。
 */
 internal abstract class DistinctBase(int 番号,Enumerable source,string comparer):Enumerable(番号), ConsumeDirectExecutionFragment {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     private string Comparer => ComparerExpressionSupport.RenderEqualityComparer(comparer,source.ElementType);
     public override string StructMethod => string.Empty;
@@ -149,6 +159,24 @@ DistinctByBase は keySelector(item) の結果を HashSet に入れ、初めて�
   - key の範囲が小さい int と分かる場合、HashSet ではなく bool[] seen を使う direct consume を生成する。
 */
 internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer):Enumerable(番号), ConsumeDirectExecutionFragment {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(keySelector is { } __visitorChild_keySelector) {
+            yield return __visitorChild_keySelector;
+        }
+    }
+
     protected override Enumerable PrimarySource => source;
     private FuncFragment KeySelector => keySelector;
     private string Comparer => ComparerExpressionSupport.RenderEqualityComparer(comparer,FuncReturnTypeName(keySelector));

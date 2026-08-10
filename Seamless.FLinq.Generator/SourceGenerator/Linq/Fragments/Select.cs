@@ -23,7 +23,25 @@ constructor 引数:
   - Select_indexSelector は index フィールドを増やして selector(item, index) を呼ぶ。
 */
 internal class Select_selector(int 番号,Enumerable source,FuncFragment selector):Enumerable(番号) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(selector is { } __visitorChild_selector) {
+            yield return __visitorChild_selector;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         !(method.Parameters.Length>0&&
           method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     protected override Enumerable PrimarySource => source;
@@ -121,7 +139,20 @@ Select_WithInlinedScalar は selector 本体が LINQ scalar を返すとき、�
 */
 internal class Select_WithInlinedScalar(int 番号,Enumerable source,Fragment scalarFrag,string outerParamName,string elementType)
     :Enumerable(番号) {
-    public static bool IsApplicableOverload(IMethodSymbol method) => false;
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+        if(scalarFrag is { } __visitorChild_scalarFrag) {
+            yield return __visitorChild_scalarFrag;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) => false;
     public override string ElementType => elementType;
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
@@ -215,7 +246,25 @@ Select_indexSelector は source.Select((item, index) => 値) 用。
   index を Enumerator フィールドとして保持し、各要素の selector 呼び出しに追加引数として渡す。
 */
 internal class Select_indexSelector(int 番号,Enumerable source,FuncFragment selector):Enumerable(番号) {
-    public static bool IsApplicableOverload(IMethodSymbol method) =>
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(selector is { } __visitorChild_selector) {
+            yield return __visitorChild_selector;
+        }
+    }
+
+    public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length>0&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     protected override Enumerable PrimarySource => source;

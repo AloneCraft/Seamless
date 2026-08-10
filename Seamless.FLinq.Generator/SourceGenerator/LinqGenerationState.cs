@@ -17,31 +17,10 @@ internal sealed class GenerationState(FLinqIncrementalGenerator.Linq傍受対象
         : null;
     public FLinqIncrementalGenerator.AnonymousStructRecordRegistry? AnonymousRegistry { get; private set; } = new(
         FLinqIncrementalGenerator.AnonRecordFileToken(target.SourcePath)+"_"+target.MethodName);
-    private int AnonymousRegistryPinCount { get; set; }
     public HashSet<string> EmittedUnsafeAccessors { get; } = new(StringComparer.Ordinal);
     public HashSet<string> UsedIdentifiers { get; } = new(StringComparer.Ordinal);
     public List<Fragment> GeneratedFragments { get; } = new();
     public List<string> UnsafeAccessorCodes { get; } = new();
-
-    public void PinAnonymousRegistry() {
-        this.AnonymousRegistryPinCount++;
-    }
-
-    public void UnpinAnonymousRegistry() {
-        this.AnonymousRegistryPinCount--;
-    }
-
-    public FLinqIncrementalGenerator.AnonymousStructRecordRegistry? SuspendAnonymousRegistry() {
-        var saved=this.AnonymousRegistry;
-        if(this.AnonymousRegistryPinCount==0) {
-            this.AnonymousRegistry=null;
-        }
-        return saved;
-    }
-
-    public void RestoreAnonymousRegistry(FLinqIncrementalGenerator.AnonymousStructRecordRegistry? saved) {
-        this.AnonymousRegistry=saved;
-    }
 }
 
 internal sealed class FragmentBuildContext(

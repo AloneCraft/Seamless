@@ -1658,7 +1658,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 CanInlineAssign=false,
                 CanGenerateMethod=true,
             };
-            if(!OperatorRegistry.TryCreateDirect("Where",string.Empty,new FragmentArguments(uniqueNumber++,new object?[] { currentFragment,whereFunc }),out var whereDirect)
+            if(!OperatorRegistry.TryCreateDirect("Where",string.Empty,new DirectFragmentArguments(uniqueNumber++,new object?[] { currentFragment,whereFunc }),out var whereDirect)
                 ||whereDirect is not Enumerable whereFragment) {
                 return false;
             }
@@ -1688,7 +1688,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 var obMethodName = i==0
                     ? (isDescending ? "OrderByDescending" : "OrderBy")
                     : (isDescending ? "ThenByDescending" : "ThenBy");
-                if(!OperatorRegistry.TryCreateDirect(obMethodName,string.Empty,new FragmentArguments(uniqueNumber++,new object?[] { currentFragment,orderFunc }),out var orderByDirect)
+                if(!OperatorRegistry.TryCreateDirect(obMethodName,string.Empty,new DirectFragmentArguments(uniqueNumber++,new object?[] { currentFragment,orderFunc }),out var orderByDirect)
                     ||orderByDirect is not Enumerable obFragment) {
                     return false;
                 }
@@ -1715,7 +1715,7 @@ public sealed partial class FLinqIncrementalGenerator {
                     CanInlineAssign=true,
                     CanGenerateMethod=true,
                 };
-                if(!OperatorRegistry.TryCreateDirect("Select",string.Empty,new FragmentArguments(uniqueNumber++,new object?[] { currentFragment,selectFunc }),out var selectDirect)
+                if(!OperatorRegistry.TryCreateDirect("Select",string.Empty,new DirectFragmentArguments(uniqueNumber++,new object?[] { currentFragment,selectFunc }),out var selectDirect)
                     ||selectDirect is not Enumerable selectFrag) {
                     return false;
                 }

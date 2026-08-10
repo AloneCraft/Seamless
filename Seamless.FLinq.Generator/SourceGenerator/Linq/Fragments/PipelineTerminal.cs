@@ -19,6 +19,28 @@ PipelineTerminal は PipelineEnumerable の終端を scalar/direct execution と
   - ToDictionary は func1 を keySelector、func2 を elementSelector として扱い、comparerValue を constructor に渡す。
 */
 internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,PipelineTerminalKind terminalKind,FuncFragment? func1 = null,FuncFragment? func2 = null,string? comparerValue = null):Scalar(番号), DirectExecutionFragment {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+            yield return child;
+        }
+        if(pipeline is { } __visitorChild_pipeline) {
+            yield return __visitorChild_pipeline;
+        }
+    }
+
+    protected override IEnumerable<FuncFragment> GetChildFunctions() {
+        foreach(var function in base.GetChildFunctions()) {
+                yield return function;
+        }
+        if(func1 is { } __visitorChild_func1) {
+            yield return __visitorChild_func1;
+        }
+        if(func2 is { } __visitorChild_func2) {
+            yield return __visitorChild_func2;
+        }
+    }
+
     protected override Enumerable PrimarySource => pipeline;
     private string ResultType {
         get {

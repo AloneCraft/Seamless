@@ -15,6 +15,16 @@ Prepend は source.Prepend(value) を、追加要素を先に返してから sou
   連続 Prepend は先頭側から FlattenedElements に畳み込み、source の enumerator は1つだけ保持する。
 */
 internal class Prepend(int 番号,Enumerable source,string element):Enumerable(番号) {
+    // Explicit Fragment child visitor
+    protected override IEnumerable<Fragment> GetChildFragments() {
+        foreach(var child in base.GetChildFragments()) {
+                yield return child;
+        }
+        if(source is { } __visitorChild_source) {
+            yield return __visitorChild_source;
+        }
+    }
+
     private Enumerable Source => source;
     private string ElementExpression => element;
     private Enumerable RootSource => this.Source is Prepend prepend ? prepend.RootSource : this.Source;
