@@ -138,12 +138,6 @@ internal abstract class Fragment(
         }
     }
 
-    public virtual void PropagateContainingTypeName(string? name,string[]? outerTypeParameters = null) {
-        this.ApplyRenderContext(this.renderContext.WithContainingTypeName(
-            name,
-            (outerTypeParameters??Array.Empty<string>()).ToImmutableArray()));
-    }
-
     private protected string CounterCall(string methodName) =>
         this.CounterInstrumentationEnabled
             ? $"global::Seamless.Linq.LinqCounterScope.Counter.{methodName}();"

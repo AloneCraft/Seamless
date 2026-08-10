@@ -284,7 +284,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
         if(!methodIsStatic) {
-            fragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType));
+            fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType).ToImmutableArray()));
         }
         ApplyCounterInstrumentation(fragment,semanticModel,linqInvocation);
         generatedFragments.Add(fragment);
@@ -344,7 +344,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
         if(!methodIsStatic) {
-            fragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType));
+            fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType).ToImmutableArray()));
         }
         ApplyCounterInstrumentation(fragment,semanticModel,linqInvocation);
         var isScalarMaterializeTerminal = IsScalarConsumeMaterializeTerminal(linqInvocation,semanticModel);
@@ -912,7 +912,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 return false;
             }
             if(!methodIsStatic) {
-                fragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType));
+                fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType).ToImmutableArray()));
             }
             ApplyCounterInstrumentation(fragment,semanticModel,invocation);
             generatedFragments.Add(fragment);
@@ -1073,7 +1073,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         if(!methodIsStatic) {
-            sourceFragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType));
+            sourceFragment.ApplyRenderContext(sourceFragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType).ToImmutableArray()));
         }
         ApplyCounterInstrumentation(sourceFragment,semanticModel,sourceExpression);
         generatedFragments.Add(sourceFragment);
@@ -1247,7 +1247,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 continue;
             }
             if(!methodIsStatic) {
-                fragment.PropagateContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType));
+                fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),外側型パラメータ名(containingType).ToImmutableArray()));
             }
             ApplyCounterInstrumentation(fragment,semanticModel,invocation);
             generatedFragments.Add(fragment);
