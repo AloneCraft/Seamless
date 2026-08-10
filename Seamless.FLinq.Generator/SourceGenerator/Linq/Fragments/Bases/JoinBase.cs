@@ -30,10 +30,10 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
         foreach(var child in base.GetChildFragments()) {
                 yield return child;
         }
-        if(outer is { } __visitorChild_outer) {
+        if(this.outerSource is { } __visitorChild_outer) {
             yield return __visitorChild_outer;
         }
-        if(inner is { } __visitorChild_inner) {
+        if(this.innerSource is { } __visitorChild_inner) {
             yield return __visitorChild_inner;
         }
     }
@@ -41,13 +41,13 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
         foreach(var function in base.GetChildFunctions()) {
                 yield return function;
         }
-        if(outerKeySelector is { } __visitorChild_outerKeySelector) {
+        if(this.outerKey is { } __visitorChild_outerKeySelector) {
             yield return __visitorChild_outerKeySelector;
         }
-        if(innerKeySelector is { } __visitorChild_innerKeySelector) {
+        if(this.innerKey is { } __visitorChild_innerKeySelector) {
             yield return __visitorChild_innerKeySelector;
         }
-        if(resultSelector is { } __visitorChild_resultSelector) {
+        if(this.resultSelector is { } __visitorChild_resultSelector) {
             yield return __visitorChild_resultSelector;
         }
     }

@@ -91,95 +91,25 @@ internal abstract class Fragment(
     private protected bool NeedsStructClosure(FuncFragment func) => func.CapturedLocals.Length>0;
 
     private protected string ClosurePrimaryCtorSuffix(params FuncFragment[] funcs) =>
-        ClosureParameterSuffix(funcs);
+        ClosureRenderSupport.PrimaryConstructorSuffix(funcs);
 
     private protected string ClosureMethodParameterSuffix(params FuncFragment[] funcs) =>
-        ClosureParameterSuffix(funcs);
+        ClosureRenderSupport.MethodParameterSuffix(funcs);
 
-    private protected string ClosureArgsSuffix(params FuncFragment[] funcs) {
-        var captures = DistinctCapturedLocals(funcs).ToArray();
-        var hoistedLocals = DistinctHoistedLocals(funcs).ToArray();
-        var delegates = DistinctDelegateFuncs(funcs).ToArray();
-        var parts = captures.Select(static c => c.Name)
-            .Concat(hoistedLocals.Select(static h => h.ExpressionText))
-            .Concat(delegates.Select(static f => f.DelegateConstructorArg!));
-        var joined = string.Join(", ",parts);
-        return string.IsNullOrEmpty(joined) ? string.Empty : ", "+joined;
-    }
+    private protected string ClosureArgsSuffix(params FuncFragment[] funcs) =>
+        ClosureRenderSupport.ArgumentsSuffix(funcs);
 
-    private protected string ClosureFields(params FuncFragment[] funcs) {
-        var delegates = DistinctDelegateFuncs(funcs).ToArray();
-        if(delegates.Length==0) { return string.Empty; }
-        return string.Join("\n    ",delegates.Select(
-            static f => $"private {f.DelegateTypeName} {f.DelegateFieldName}={f.DelegateFieldName};"));
-    }
+    private protected string ClosureFields(params FuncFragment[] funcs) =>
+        ClosureRenderSupport.Fields(funcs);
 
-    private protected string ClosureArgsSuffixForCtorBody(params FuncFragment[] funcs) {
-        var captures = DistinctCapturedLocals(funcs).ToArray();
-        var hoistedLocals = DistinctHoistedLocals(funcs).ToArray();
-        var delegates = DistinctDelegateFuncs(funcs).ToArray();
-        var parts = captures.Select(static c => $"this.{c.Name}")
-            .Concat(hoistedLocals.Select(static h => $"this.{h.Name}"))
-            .Concat(delegates.Select(static f => $"this.{f.DelegateFieldName}"));
-        var joined = string.Join(", ",parts);
-        return string.IsNullOrEmpty(joined) ? string.Empty : ", "+joined;
-    }
+    private protected string ClosureArgsSuffixForCtorBody(params FuncFragment[] funcs) =>
+        ClosureRenderSupport.ArgumentsSuffixForConstructorBody(funcs);
 
-    private static string ClosureParameterSuffix(params FuncFragment[] funcs) {
-        var captures = DistinctCapturedLocals(funcs).ToArray();
-        var hoistedLocals = DistinctHoistedLocals(funcs).ToArray();
-        var delegates = DistinctDelegateFuncs(funcs).ToArray();
-        var parts = captures.Select(static c => $"{c.TypeName} {c.Name}")
-            .Concat(hoistedLocals.Select(static h => $"{h.TypeName} {h.Name}"))
-            .Concat(delegates.Select(static f => $"{f.DelegateTypeName} {f.DelegateFieldName}"));
-        var joined = string.Join(", ",parts);
-        return string.IsNullOrEmpty(joined) ? string.Empty : ", "+joined;
-    }
+    private protected string HoistedLocalDeclarations(params FuncFragment[] funcs) =>
+        ClosureRenderSupport.HoistedLocalDeclarations(funcs);
 
-    private static IEnumerable<(string Name,string TypeName)> DistinctCapturedLocals(params FuncFragment[] funcs) {
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach(var func in funcs) {
-            foreach(var capture in func.CapturedLocals) {
-                if(names.Add(capture.Name)) {
-                    yield return capture;
-                }
-            }
-        }
-    }
-
-    private static IEnumerable<HoistedLocal> DistinctHoistedLocals(params FuncFragment[] funcs) {
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach(var func in funcs) {
-            foreach(var hoistedLocal in func.HoistedLocals) {
-                if(names.Add(hoistedLocal.Name)) {
-                    yield return hoistedLocal;
-                }
-            }
-        }
-    }
-
-    private protected string HoistedLocalDeclarations(params FuncFragment[] funcs) {
-        var hoistedLocals = DistinctHoistedLocals(funcs).ToArray();
-        return hoistedLocals.Length==0
-            ? string.Empty
-            : string.Join("\n",hoistedLocals.Select(static h => $"{h.TypeName} {h.Name}={h.ExpressionText};"));
-    }
-
-    private protected string StaticDelegateLocalDeclarations(params FuncFragment[] funcs) {
-        var delegates = DistinctDelegateFuncs(funcs).ToArray();
-        return delegates.Length==0
-            ? string.Empty
-            : string.Join("\n",delegates.Select(static f => $"{f.DelegateTypeName} {f.DelegateFieldName}={f.DelegateConstructorArg};"));
-    }
-
-    private static IEnumerable<FuncFragment> DistinctDelegateFuncs(params FuncFragment[] funcs) {
-        var fieldNames = new HashSet<string>(StringComparer.Ordinal);
-        foreach(var func in funcs) {
-            if(func.CanInvokeAsDelegate&&func.DelegateFieldName is { } name&&fieldNames.Add(name)) {
-                yield return func;
-            }
-        }
-    }
+    private protected string StaticDelegateLocalDeclarations(params FuncFragment[] funcs) =>
+        ClosureRenderSupport.StaticDelegateLocalDeclarations(funcs);
 
     protected virtual IEnumerable<Fragment> GetChildFragments() => Array.Empty<Fragment>();
     protected virtual IEnumerable<FuncFragment> GetChildFunctions() => Array.Empty<FuncFragment>();
@@ -699,16 +629,8 @@ internal abstract class Fragment(
 
     // ファクトリメソッド本体のコンストラクタ呼び出し引数サフィックス。
     // ClosureArgsSuffix と異なり、DelegateConstructorArg（ラムダ式）ではなく DelegateFieldName（フィールド名）を使う。
-    private protected string ClosureArgsSuffixForFactory(params FuncFragment[] funcs) {
-        var captures = DistinctCapturedLocals(funcs).ToArray();
-        var hoistedLocals = DistinctHoistedLocals(funcs).ToArray();
-        var delegates = DistinctDelegateFuncs(funcs).ToArray();
-        var parts = captures.Select(static c => c.Name)
-            .Concat(hoistedLocals.Select(static h => h.Name))
-            .Concat(delegates.Select(static f => f.DelegateFieldName!));
-        var joined = string.Join(", ",parts);
-        return string.IsNullOrEmpty(joined) ? string.Empty : ", "+joined;
-    }
+    private protected string ClosureArgsSuffixForFactory(params FuncFragment[] funcs) =>
+        ClosureRenderSupport.ArgumentsSuffixForFactory(funcs);
 
     private protected static InvalidOperationException LambdaInlineUnsupported(FuncFragment func,string methodName) =>
         new($"ラムダ式をインライン展開できませんでした。'{methodName}' をデリゲート Invoke 呼び出しへ逃がすことは許可されていません。Body: '{func.InlineBody}'");

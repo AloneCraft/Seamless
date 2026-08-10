@@ -31,3 +31,9 @@ Registryの重複、Priority、Factory型、Coverage、Capability、ProviderNati
 ## 第2段階
 
 closure、enumerator、生成文字列の密結合を、Fragmentの意味論を維持した中間表現または描画契約へ移す。第1段階ではこの再設計を行わない。
+
+## 第2段階の初期実装
+
+closure情報の収集とenumerator/Factory向け文字列変換を ClosureRenderSupport へ分離した。Fragment は既存の保護メソッドを維持し、同じ文字列を返す委譲境界になっている。
+
+次の段階では、GetEnumeratorStruct、GetEnumeratorExpression、Dispose本体、direct-consume本文を EnumeratorRenderModel と描画契約へ移す。
