@@ -409,64 +409,32 @@ internal abstract class Fragment(
     protected virtual string GetCurrentPropertyDeclaration(string currentType) =>
         $"public {currentType} Current {{ get; private set; }} = {this.GetCurrentPropertyDefaultExpression};";
 
-    private protected static IEnumerable<(string TypeExpr,string Name)> ParseCtorParams(string paramList) {
-        if(string.IsNullOrWhiteSpace(paramList)) yield break;
-        int depth = 0, start = 0;
-        for(int i = 0;i<=paramList.Length;i++) {
-            char c = i<paramList.Length ? paramList[i] : ',';
-            if(c=='<'||c=='(') depth++;
-            else if(c=='>'||c==')') depth--;
-            else if(c==','&&depth==0) {
-                var seg = paramList.Substring(start,i-start).Trim();
-                int sp = seg.LastIndexOf(' ');
-                if(sp>=0) yield return (seg.Substring(0,sp).Trim(),seg.Substring(sp+1).Trim());
-                start=i+1;
-            }
-        }
-    }
-
     private protected string DefineEnumeratorStructCore(string currentType,string disposeBody) {
-        var ctorParams = ParseCtorParams(this.GetEnumeratorPrimaryConstructorParameters).ToArray();
-        var ctorParamFields = ctorParams.Length>0
-            ? string.Join("\n",ctorParams.Select(static p => $"private {p.TypeExpr} {p.Name};"))
-            : string.Empty;
-        string ctorDecl = string.Empty;
-        if(ctorParams.Length>0) {
-            var assignments = string.Join("\n    ",ctorParams.Select(static p => $"this.{p.Name} = {p.Name};"));
-            var extraBody = this.GetEnumeratorConstructor;
-            var ctorBody = string.IsNullOrWhiteSpace(extraBody)
-                ? "    "+assignments
-                : "    "+assignments+"\n    "+IndentLines(extraBody.Trim(),"    ");
-            ctorDecl=$"public {this.Struct}({this.GetEnumeratorPrimaryConstructorParameters}) {{\n{ctorBody}\n}}";
-        }
-
-        var tryGetNextBody = IndentLines(this.RenderInstanceMember(() => this.GetTryGetNextBody),"        ");
-        var dispose = IndentLines(disposeBody,"        ");
-        var fieldsFromParams = IndentLines(ctorParamFields,"    ");
-        var fields = IndentLines(this.GetEnumeratorFields,"    ");
-        var ctor = IndentLines(ctorDecl,"    ");
-        var currentPropDecl = this.GetCurrentPropertyDeclaration(currentType);
-        var nonEnumeratedCount = this.EnumeratorProbeMember(
+        var tryGetNextBody=IndentLines(this.RenderInstanceMember(() => this.GetTryGetNextBody),"        ");
+        var dispose=IndentLines(disposeBody,"        ");
+        var currentPropDecl=this.GetCurrentPropertyDeclaration(currentType);
+        var nonEnumeratedCount=this.EnumeratorProbeMember(
             () => this.GetTryGetNonEnumeratedCountBody,
             DefaultTryGetNonEnumeratedCountBody,
             "public bool TryGetNonEnumeratedCount(out int count)",
             "public bool TryGetNonEnumeratedCount(out int count) { count = 0; return false; }");
-        var getSpan = this.EnumeratorProbeMember(
+        var getSpan=this.EnumeratorProbeMember(
             () => this.GetTryGetSpanBody,
             DefaultTryGetSpanBody,
             $"public bool TryGetSpan(out global::System.ReadOnlySpan<{currentType}> span)",
             $"public bool TryGetSpan(out global::System.ReadOnlySpan<{currentType}> span) {{ span = default; return false; }}");
-        var copyTo = this.EnumeratorProbeMember(
+        var copyTo=this.EnumeratorProbeMember(
             () => this.GetTryCopyToBody,
             DefaultTryCopyToBody,
             $"public bool TryCopyTo(scoped global::System.Span<{currentType}> destination,global::System.Index __offset)",
             $"public bool TryCopyTo(scoped global::System.Span<{currentType}> destination,global::System.Index __offset) => false;");
 
-        return new EnumeratorRenderModel(
+        return new EnumeratorDefinitionRenderModel(
             this.GetEnumeratorStructDeclaration($"global::Seamless.Linq.IValueEnumerator<{currentType}>"),
-            fieldsFromParams,
-            fields,
-            ctor,
+            this.Struct,
+            this.GetEnumeratorPrimaryConstructorParameters,
+            this.GetEnumeratorConstructor,
+            this.GetEnumeratorFields,
             currentPropDecl,
             nonEnumeratedCount,
             getSpan,
