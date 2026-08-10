@@ -53,7 +53,10 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
             return null;
         }
         var sourceVar = $"__genericSource{番号}";
+        var arrayVar = $"__genericArray{番号}";
+        var listVar = $"__genericList{番号}";
         var collectionVar = $"__collection{番号}";
+        var readOnlySetVar = $"__readOnlySet{番号}";
         var enumeratorVar = $"__genericEnum{番号}";
         var itemVar = $"__genericItem{番号}";
         // RenderInlineComputation が成功する経路では ComputeMembers(別スコープの Struct0.Compute)は
@@ -61,11 +64,25 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
         // (Compute という名前を呼んでも解決できない)。
         // enumerableExpression(=元の source 式)は副作用や非冪等性があり得るため、
         // is 判定と else 節の enumerator 構築の両方で使う前に必ず1回だけローカル変数へ評価する。
+        // 静的型が IEnumerable<T> までしか分からなくても、実行時に T[]/List<T> なら
+        // ContainsSpan(SIMD対応)へ振る。これを ICollection<T> より先に判定しないと、
+        // List<T> は ICollection<T> を実装するため非ベクトル化の List<T>.Contains(内部は
+        // 単純スカラーループ)に流れてしまい、配列/List直参照時と同じ高速化を取りこぼす
+        // (実測: List<int> 4096要素で ContainsSpan 経由に対し約8倍遅い)。
+        // ICollection<T> を実装しない読み取り専用集合(例: Seamless.Collections.Persisted.Set<T> は
+        // Seamless.Collections.ISet<T> 経由で System.Collections.Generic.IReadOnlySet<T> のみを実装し、
+        // O(1) の Contains(T) を持つ)を取りこぼさないよう、ICollection<T> の次に判定する。
         return $$"""
             {{destType}} {{destVar}};
             var {{sourceVar}}={{enumerableExpression}};
-            if({{sourceVar}} is global::System.Collections.Generic.ICollection<{{source.ElementType}}> {{collectionVar}}){
+            if({{sourceVar}} is {{source.ElementType}}[] {{arrayVar}}){
+                {{destVar}}=global::Seamless.Linq.Enumerable.ContainsSpan(global::System.MemoryExtensions.AsSpan({{arrayVar}}),{{value}});
+            }else if({{sourceVar}} is global::System.Collections.Generic.List<{{source.ElementType}}> {{listVar}}){
+                {{destVar}}=global::Seamless.Linq.Enumerable.ContainsSpan(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{listVar}}),{{value}});
+            }else if({{sourceVar}} is global::System.Collections.Generic.ICollection<{{source.ElementType}}> {{collectionVar}}){
                 {{destVar}}={{collectionVar}}.Contains({{value}});
+            }else if({{sourceVar}} is global::System.Collections.Generic.IReadOnlySet<{{source.ElementType}}> {{readOnlySetVar}}){
+                {{destVar}}={{readOnlySetVar}}.Contains({{value}});
             }else{
                 var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
                 {{destVar}}=false;
@@ -82,17 +99,8 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
     }
     private string? RenderDirectSpanContainsInline(string destVar,string destType) {
         var span = $"__span{this.result}";
-        return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
-            var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
-            var __value={{value}};
-            {{destVar}}=false;
-            foreach(var item in {{spanName}}){
-                if(comparer.Equals(item,__value)){
-                    {{destVar}}=true;
-                    break;
-                }
-            }
-            """);
+        return this.RenderSpanInline(source,destVar,destType,span,spanName =>
+            $"{destVar}=global::Seamless.Linq.Enumerable.ContainsSpan({spanName},{value});");
     }
     private string? RenderRangeContainsInline(string destVar,string destType) {
         if(source is not RangeRoot range||source.ElementType!="int") {
@@ -111,28 +119,23 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
             }
             """;
     }
-    protected override string ComputeMembers => source.CanProvideSpan
-        ? $$"""
-            {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value){
-                var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
-                source.TryGetSpan(out var __span);
-                foreach(var item in __span){
-                    if(comparer.Equals(item,value)) return true;
-                }
-                return false;
+    // TryGetSpan は静的に CanProvideSpan=false な source(型消去された IEnumerable<T> 等)でも
+    // 実行時に T[]/List<T> なら成功する(Root.cs の GetEnumerableInterfaceStruct 参照)。
+    // ArrayRoot/ListRoot 等 CanProvideSpan=true な source では TryGetSpan は常に true を返す
+    // 実装なので、JIT がこの分岐を定数畳み込みでき、追加コストは生じない。
+    protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
+        private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value){
+            if(source.TryGetSpan(out var __span)){
+                return global::Seamless.Linq.Enumerable.ContainsSpan(__span,value);
             }
-            """
-        : $$"""
-            {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value){
-                var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
-                while(source.TryGetNext(out var __mn16)){
-                    if(comparer.Equals(__mn16,value)) return true;
-                }
-                return false;
+            var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
+            while(source.TryGetNext(out var __mn16)){
+                if(comparer.Equals(__mn16,value)) return true;
             }
-            """;
+            return false;
+        }
+        """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
@@ -182,27 +185,21 @@ internal class Contains_comparer(int 番号,Enumerable source,string value,strin
             }
             """);
     }
-    protected override string ComputeMembers => source.CanProvideSpan
-        ? $$"""
-            {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
-                comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
-                source.TryGetSpan(out var __span);
+    protected override string ComputeMembers => $$"""
+        {{AggressiveInliningAttribute}}
+        private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
+            comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
+            if(source.TryGetSpan(out var __span)){
                 foreach(var item in __span){
                     if(comparer.Equals(item,value)) return true;
                 }
                 return false;
             }
-            """
-        : $$"""
-            {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
-                comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
-                while(source.TryGetNext(out var __mn17)){
-                    if(comparer.Equals(__mn17,value)) return true;
-                }
-                return false;
+            while(source.TryGetNext(out var __mn17)){
+                if(comparer.Equals(__mn17,value)) return true;
             }
-            """;
+            return false;
+        }
+        """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
