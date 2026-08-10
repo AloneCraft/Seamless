@@ -44,6 +44,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// </summary>
     internal bool TryBuildLocalMethodBody(Linq傍受対象型 対象,out string 静的メソッド群,out string 本体,HashSet<string>? emittedUnsafeAccessors = null) {
         静的メソッド群=string.Empty;
+        this.state.StaticMethods=string.Empty;
         本体=string.Empty;
 
         // 以前は識別子ハッシュから開始番号を作っていたため Struct1144748 のような読みにくい名前になっていた。
@@ -82,13 +83,13 @@ public sealed partial class FLinqIncrementalGenerator {
         var 本体ビルダー = new StringBuilder();
         this.state.LinqInvocationCount=0;
         foreach(var 文 in statements) {
-            if(!文を生成コードへ変換(文,セマンティックモデル,対象.EnclosingType,ref this.state.FragmentNumber,対象.Method.IsStatic,ref 静的メソッド群,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref this.state.LinqInvocationCount,usedNames)) {
+            if(!文を生成コードへ変換(文,セマンティックモデル,対象.EnclosingType,ref this.state.FragmentNumber,対象.Method.IsStatic,ref this.state.StaticMethods,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref this.state.LinqInvocationCount,usedNames)) {
                 return false;
             }
         }
 
         if(式本体式 is not null) {
-            if(!LINQ呼び出し差し替え式本体生成(式本体式,セマンティックモデル,対象.EnclosingType,ref this.state.FragmentNumber,対象.Method.IsStatic,対象.Method.ReturnsVoid,ref 静的メソッド群,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref this.state.LinqInvocationCount,usedNames)) {
+            if(!LINQ呼び出し差し替え式本体生成(式本体式,セマンティックモデル,対象.EnclosingType,ref this.state.FragmentNumber,対象.Method.IsStatic,対象.Method.ReturnsVoid,ref this.state.StaticMethods,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref this.state.LinqInvocationCount,usedNames)) {
                 return false;
             }
         }
@@ -105,7 +106,7 @@ public sealed partial class FLinqIncrementalGenerator {
         // 安全網: 匿名型→record struct 置換で取りこぼした生の匿名型表示が残ると不正な C# になるため、
         // その場合はインライン展開を諦めて呼び出し元の例外スタブ生成へフォールバックする。
         if(本体.IndexOf("<anonymous type",StringComparison.Ordinal)>=0
-            ||静的メソッド群.IndexOf("<anonymous type",StringComparison.Ordinal)>=0) {
+            ||this.state.StaticMethods.IndexOf("<anonymous type",StringComparison.Ordinal)>=0) {
             return false;
         }
 
@@ -117,12 +118,12 @@ public sealed partial class FLinqIncrementalGenerator {
                 System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         }
 
-        補助メンバーをメソッド専用クラスへ退避(対象.MethodName,ref 静的メソッド群,ref 本体);
+        補助メンバーをメソッド専用クラスへ退避(対象.MethodName,ref this.state.StaticMethods,ref 本体);
 
         // フラグメントツリーおよびソース式から UnsafeAccessor 宣言を収集し、補助クラスの外（クラス直下）に追記する。
         // これにより、インターセプタメソッド本体から短い名前で直接参照できる。
         // emittedUnsafeAccessors が渡された場合はクラスレベルで重複しないようフィルタする。
-        var generatedCodeWithoutAccessors = 静的メソッド群+"\n"+本体;
+        var generatedCodeWithoutAccessors = this.state.StaticMethods+"\n"+本体;
         var unsafeAccessorCodes = generatedFragments
             .SelectMany(static fragment => fragment.CollectAllUnsafeAccessorCodes())
             .Concat(sourceUnsafeAccessorCollector)
@@ -130,9 +131,10 @@ public sealed partial class FLinqIncrementalGenerator {
             .Where(code => emittedUnsafeAccessors?.Add(code)??true)
             .ToList();
         if(unsafeAccessorCodes.Count>0) {
-            静的メソッド群=静的メソッド群+"\n"+string.Join("\n",unsafeAccessorCodes);
+            this.state.StaticMethods=this.state.StaticMethods+"\n"+string.Join("\n",unsafeAccessorCodes);
         }
 
+        静的メソッド群=this.state.StaticMethods;
         return true;
     }
 

@@ -23,6 +23,7 @@ internal sealed class GenerationState(FLinqIncrementalGenerator.Linq傍受対象
     public List<string> UnsafeAccessorCodes { get; } = new();
     internal int FragmentNumber;
     internal int LinqInvocationCount;
+    internal string StaticMethods = string.Empty;
 }
 
 internal sealed class FragmentBuildContext(
