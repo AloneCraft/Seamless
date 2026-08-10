@@ -144,6 +144,7 @@ public sealed partial class FLinqIncrementalGenerator {
         var emittedUnsafeAccessors = new HashSet<string>(StringComparer.Ordinal);
         foreach(var target in targets) {
             var state=new GenerationState(target);
+            state.EmittedUnsafeAccessors.UnionWith(emittedUnsafeAccessors);
             var pipeline=new GenerationPipeline(state);
             var fragmentBuilder=new LinqFragmentBuilder(pipeline);
             try {
@@ -151,8 +152,8 @@ public sealed partial class FLinqIncrementalGenerator {
                     var ローカル静的メソッド群 = string.Empty;
                     var ローカル本体 = string.Empty;
                     var builtLocalMethodBody = target.OptimizeLinq
-                        ? fragmentBuilder.TryBuild(target,out ローカル静的メソッド群,out ローカル本体,emittedUnsafeAccessors)
-                        : TryBuildCounterOnlyLocalMethodBody(target,out ローカル静的メソッド群,out ローカル本体,emittedUnsafeAccessors);
+                        ? fragmentBuilder.TryBuild(target,out ローカル静的メソッド群,out ローカル本体,state.EmittedUnsafeAccessors)
+                        : TryBuildCounterOnlyLocalMethodBody(target,out ローカル静的メソッド群,out ローカル本体,state.EmittedUnsafeAccessors);
                     if(builtLocalMethodBody) {
                         if(!string.IsNullOrWhiteSpace(ローカル静的メソッド群)) {
                             インデント付き追記(builder,ローカル静的メソッド群,"    ");
@@ -199,6 +200,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 builder.AppendLine("    }");
                 builder.AppendLine();
             }finally{
+                emittedUnsafeAccessors.UnionWith(state.EmittedUnsafeAccessors);
                 if(state.AnonymousRegistry is { } anonymousRegistry) {
                     anonymousRegistries.Add(anonymousRegistry);
                 }
