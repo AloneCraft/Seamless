@@ -19,7 +19,7 @@ internal class Index(int 番号,Enumerable source):Enumerable(番号) {
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string GetEnumeratorFields => $"private int {this.a}=0;";
     public override string GetTryGetNextBody => $$"""

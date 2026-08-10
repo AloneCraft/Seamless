@@ -29,7 +29,7 @@ internal class OfType(int 番号,Enumerable source,string resultElementType):Enu
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string GetEnumeratorFields => string.Empty;
     protected override string GetTryGetNonEnumeratedCountBody => this.IsIdentityType

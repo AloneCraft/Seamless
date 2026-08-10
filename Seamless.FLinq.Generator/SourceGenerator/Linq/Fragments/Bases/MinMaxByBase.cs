@@ -45,7 +45,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector)})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
     protected override string ComputeExpression => $"Compute({this.e}{this.ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) {

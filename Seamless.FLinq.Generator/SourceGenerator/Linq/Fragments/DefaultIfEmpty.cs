@@ -51,7 +51,7 @@ internal abstract class DefaultIfEmptyBase(int 番号,Enumerable source):Enumera
         {{this.RootSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression}, {this.EffectiveDefaultValue})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,this.RootSource.GetEnumeratorExpression,this.EffectiveDefaultValue);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {this.RootSource.ElementType} defaultValue";
     public override string GetEnumeratorFields => $$"""
         private bool {{this.hasValue}};

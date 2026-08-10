@@ -134,7 +134,7 @@ internal class GroupBy_keySelector(int 番号,Enumerable source,FuncFragment key
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorFields =>
@@ -202,7 +202,7 @@ internal class GroupBy_keySelector_resultSelector(
     public override string GetEnumeratorExpression =>
         this.UseResultTypeParam
             ? throw new NotSupportedException($"{this.GetType().Name} does not support direct GetEnumeratorExpression for anonymous result type; use GetEnumerableExpression.")
-            : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector,resultSelector)})";
+            : RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,resultSelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,resultSelector)}";
     public override string GetEnumeratorFields =>
@@ -258,7 +258,7 @@ internal class GroupBy_keySelector_elementSelector(
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,elementSelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
     public override string GetEnumeratorFields =>
@@ -331,7 +331,7 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
     public override string GetEnumeratorExpression =>
         this.UseResultTypeParam
             ? throw new NotSupportedException($"{this.GetType().Name} does not support direct GetEnumeratorExpression for anonymous result type; use GetEnumerableExpression.")
-            : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector,elementSelector,resultSelector)})";
+            : RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,elementSelector,resultSelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector,resultSelector)}";
     public override string GetEnumeratorFields =>

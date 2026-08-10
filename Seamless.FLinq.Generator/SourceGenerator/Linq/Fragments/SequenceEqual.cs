@@ -25,7 +25,7 @@ internal class SequenceEqual(int number,Enumerable source,Enumerable second,stri
         $"where TEnum1 : struct, global::Seamless.Linq.IValueEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::Seamless.Linq.IValueEnumerator<{second.ElementType}>";
     public override string EnumeratorTypeName => this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
     protected override string StructSources => source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,second.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => "TEnum1 source,TEnum2 second";
     protected override string ComputeExpression => "Compute(source, second)";
     public override string? RenderInlineComputation(string destVar,string destType) {
@@ -105,7 +105,7 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
         $"where TEnum1 : struct, global::Seamless.Linq.IValueEnumerator<{source.ElementType}>\n    where TEnum2 : struct, global::Seamless.Linq.IValueEnumerator<{second.ElementType}>";
     public override string EnumeratorTypeName => this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
     protected override string StructSources => source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression}, {comparer})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,second.GetEnumeratorExpression,comparer);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string ComputeExpression => "Compute(source, second, comparer)";
     public override string? RenderInlineComputation(string destVar,string destType) {

@@ -10,14 +10,23 @@ internal static class ClosureRenderSupport {
         ParameterSuffix(funcs);
 
     internal static string ArgumentsSuffix(params FuncFragment[] funcs) {
-        var captures=DistinctCapturedLocals(funcs).ToArray();
-        var hoistedLocals=DistinctHoistedLocals(funcs).ToArray();
-        var delegates=DistinctDelegateFuncs(funcs).ToArray();
-        var parts=captures.Select(static capture => capture.Name)
-            .Concat(hoistedLocals.Select(static hoistedLocal => hoistedLocal.ExpressionText))
-            .Concat(delegates.Select(static func => func.DelegateConstructorArg!));
-        var joined=string.Join(", ",parts);
+        var joined=string.Join(", ",ArgumentExpressions(funcs));
         return string.IsNullOrEmpty(joined) ? string.Empty : ", "+joined;
+    }
+
+    internal static IEnumerable<string> ArgumentExpressions(params FuncFragment[] funcs) {
+        var captures=DistinctCapturedLocals(funcs);
+        var hoistedLocals=DistinctHoistedLocals(funcs);
+        var delegates=DistinctDelegateFuncs(funcs);
+        foreach(var capture in captures) {
+            yield return capture.Name;
+        }
+        foreach(var hoistedLocal in hoistedLocals) {
+            yield return hoistedLocal.ExpressionText;
+        }
+        foreach(var func in delegates) {
+            yield return func.DelegateConstructorArg!;
+        }
     }
 
     internal static string Fields(params FuncFragment[] funcs) {

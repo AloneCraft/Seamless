@@ -18,7 +18,7 @@ internal class Cast(int 番号,Enumerable source,string resultElementType):Enume
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override bool CanProvideSpan => this.IsIdentityType&&source.CanProvideSpan;
     public override bool CanTryProvideSpan => this.IsIdentityType&&source.CanTryProvideSpan;

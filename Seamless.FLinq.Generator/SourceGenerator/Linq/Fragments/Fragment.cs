@@ -228,6 +228,14 @@ internal abstract class Fragment(
 
     private protected static string RenderEnumeratorExpression(string enumeratorTypeName,params string[] arguments) =>
         new EnumeratorExpressionRenderModel(enumeratorTypeName,arguments).Render();
+
+    private protected static string RenderEnumeratorExpressionSeparated(string enumeratorTypeName,string separator,params string[] arguments) =>
+        new EnumeratorExpressionRenderModel(enumeratorTypeName,arguments,separator).Render();
+
+    private protected string RenderEnumeratorExpressionWithClosure(string enumeratorTypeName,FuncFragment[] funcs,params string[] arguments) =>
+        new EnumeratorExpressionRenderModel(
+            enumeratorTypeName,
+            arguments.Concat(ClosureRenderSupport.ArgumentExpressions(funcs)).ToArray()).Render();
     // primary constructor を使う enumerator struct の引数一覧。空なら通常 struct 宣言。
     public virtual string GetEnumeratorPrimaryConstructorParameters => string.Empty;
     // enumerator struct が持つ追加フィールド定義。

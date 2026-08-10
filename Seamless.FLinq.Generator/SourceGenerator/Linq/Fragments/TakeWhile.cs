@@ -51,7 +51,7 @@ internal class TakeWhile_predicate(int 番号,Enumerable source,FuncFragment pre
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { predicate },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => "private bool done = false;";
@@ -86,7 +86,7 @@ internal class TakeWhile_indexPredicate(int id,Enumerable source,FuncFragment pr
         method.Parameters.Length>0&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { predicate },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => $$"""

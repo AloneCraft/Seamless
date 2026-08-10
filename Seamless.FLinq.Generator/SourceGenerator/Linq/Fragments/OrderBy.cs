@@ -76,8 +76,8 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
 
     public override string GetEnumeratorExpression =>
         this.PrimaryOrdering is { } po
-            ? $"new {this.EnumeratorTypeName}({this.UnorderedSource.GetEnumeratorExpression}, {this.OwnComparer}, {po.OwnComparer}{this.ClosureArgsSuffix(keySelector,po.OwnKeySelector)})"
-            : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {this.OwnComparer}{this.ClosureArgsSuffix(keySelector)})";
+            ? RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,po.OwnKeySelector },this.UnorderedSource.GetEnumeratorExpression,this.OwnComparer,po.OwnComparer)
+            : RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression,this.OwnComparer);
 
     public override string GetEnumeratorPrimaryConstructorParameters =>
         this.PrimaryOrdering is { } po

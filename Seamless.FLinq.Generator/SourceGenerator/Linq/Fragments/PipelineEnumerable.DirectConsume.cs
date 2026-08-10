@@ -49,14 +49,13 @@ internal sealed partial class PipelineEnumerable {
         }
 
         var spanName = $"__appendSpan{this.result}";
+    var directSpanSetup = new DirectConsumeSourceRenderModel(sourceName,source.GetEnumeratorExpression,spanName,directSpanExpression).RenderSetup();
         var itemName = $"__appendItem{this.result}";
         var appendValue = $"{consumerName}.Consume({value});";
         var before = stage.Kind==PipelineStageKind.Prepend ? appendValue+"\n" : string.Empty;
         var after = stage.Kind==PipelineStageKind.Append ? "\n"+appendValue : string.Empty;
         return $$"""
-            using var {{sourceName}}={{source.GetEnumeratorExpression}};
-            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
-            var {{spanName}}={{directSpanExpression}};
+            {{directSpanSetup}}
             {{before}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++){
                 var {{itemName}}={{spanName}}[__i{{this.result}}];
                 {{consumerName}}.Consume({{itemName}});
@@ -100,11 +99,10 @@ internal sealed partial class PipelineEnumerable {
         }
 
         var spanName = $"__defaultSpan{this.result}";
+    var directSpanSetup = new DirectConsumeSourceRenderModel(sourceName,source.GetEnumeratorExpression,spanName,directSpanExpression).RenderSetup();
         var itemName = $"__defaultItem{this.result}";
         return $$"""
-            using var {{sourceName}}={{source.GetEnumeratorExpression}};
-            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
-            var {{spanName}}={{directSpanExpression}};
+            {{directSpanSetup}}
             if({{spanName}}.Length==0){
                 {{consumerName}}.Consume({{defaultValue}});
             }else{
@@ -237,6 +235,7 @@ internal sealed partial class PipelineEnumerable {
         }
 
         var spanName = $"__whereSpan{this.result}";
+    var directSpanSetup = new DirectConsumeSourceRenderModel(sourceName,source.GetEnumeratorExpression,spanName,directSpanExpression).RenderSetup();
         var itemName = $"__whereItem{this.result}";
         var indexName = $"__whereIndex{this.result}";
         var arguments = stage.UsesIndex
@@ -259,9 +258,7 @@ internal sealed partial class PipelineEnumerable {
 
         return $$"""
             {{localDeclarations}}
-            using var {{sourceName}}={{source.GetEnumeratorExpression}};
-            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
-            var {{spanName}}={{directSpanExpression}};
+            {{directSpanSetup}}
             {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++){
                 var {{itemName}}={{spanName}}[__i{{this.result}}];
                 {{indexIncrement}}{{predicateCheck}} {
@@ -325,6 +322,7 @@ internal sealed partial class PipelineEnumerable {
         }
 
         var spanName = $"__selectSpan{this.result}";
+    var directSpanSetup = new DirectConsumeSourceRenderModel(sourceName,source.GetEnumeratorExpression,spanName,directSpanExpression).RenderSetup();
         var itemName = $"__selectItem{this.result}";
         var selectedName = $"__selectSelected{this.result}";
         var indexName = $"__selectIndex{this.result}";
@@ -344,9 +342,7 @@ internal sealed partial class PipelineEnumerable {
 
         return $$"""
             {{localDeclarations}}
-            using var {{sourceName}}={{source.GetEnumeratorExpression}};
-            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
-            var {{spanName}}={{directSpanExpression}};
+            {{directSpanSetup}}
             {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++){
                 var {{itemName}}={{spanName}}[__i{{this.result}}];
                 {{indexIncrement}}{{stage.OutputType}} {{selectedName}}=default!;
@@ -417,6 +413,7 @@ internal sealed partial class PipelineEnumerable {
         }
 
         var spanName = $"__takeWhileSpan{this.result}";
+    var directSpanSetup = new DirectConsumeSourceRenderModel(sourceName,source.GetEnumeratorExpression,spanName,directSpanExpression).RenderSetup();
         var itemName = $"__takeWhileItem{this.result}";
         var indexName = $"__takeWhileIndex{this.result}";
         var arguments = stage.UsesIndex
@@ -442,9 +439,7 @@ internal sealed partial class PipelineEnumerable {
 
         return $$"""
             {{localDeclarationBlock}}
-            using var {{sourceName}}={{source.GetEnumeratorExpression}};
-            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
-            var {{spanName}}={{directSpanExpression}};
+            {{directSpanSetup}}
             {{indexDeclaration}}for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++){
                 var {{itemName}}={{spanName}}[__i{{this.result}}];
                 {{indexIncrement}}{{predicateCheck}} {
@@ -479,6 +474,7 @@ internal sealed partial class PipelineEnumerable {
         }
 
         var spanName = $"__skipWhileSpan{this.result}";
+    var directSpanSetup = new DirectConsumeSourceRenderModel(sourceName,source.GetEnumeratorExpression,spanName,directSpanExpression).RenderSetup();
         var itemName = $"__skipWhileItem{this.result}";
         var indexName = $"__skipWhileIndex{this.result}";
         var offsetName = $"__skipWhileOffset{this.result}";
@@ -527,9 +523,7 @@ internal sealed partial class PipelineEnumerable {
 
         return $$"""
             {{localDeclarationBlock}}
-            using var {{sourceName}}={{source.GetEnumeratorExpression}};
-            global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
-            var {{spanName}}={{directSpanExpression}};
+            {{directSpanSetup}}
             var {{offsetName}}=0;
             {{indexDeclaration}}for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++){
                 var {{itemName}}={{spanName}}[{{offsetName}}];

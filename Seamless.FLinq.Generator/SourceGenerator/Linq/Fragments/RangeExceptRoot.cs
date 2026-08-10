@@ -12,7 +12,7 @@ internal sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<
                 args.Add(exclusion.StartExpression);
                 args.Add(exclusion.CountExpression);
             }
-            return $"new {this.EnumeratorTypeName}({string.Join(", ",args)})";
+            return RenderEnumeratorExpression(this.EnumeratorTypeName,args.ToArray());
         }
     }
     public override string GetEnumeratorPrimaryConstructorParameters {

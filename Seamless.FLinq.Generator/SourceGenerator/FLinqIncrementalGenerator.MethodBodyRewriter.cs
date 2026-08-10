@@ -185,9 +185,8 @@ public sealed partial class FLinqIncrementalGenerator {
         } catch(NotSupportedException) {
             return false;
         }
-        builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
-        builder.AppendLine($"using var {enumeratorName}={scalarEnumeratorExpression};");
-        builder.AppendLine($"{enumeratorName}.TryGetNext(out {actualVariableName});");
+        builder.AppendLine(new ScalarExecutionRenderModel(actualTypeName,actualVariableName,enumeratorName,scalarEnumeratorExpression).RenderRead());
+
         return true;
     }
 
@@ -406,9 +405,8 @@ public sealed partial class FLinqIncrementalGenerator {
                 builder.AppendLine(scalarInlineComputation);
             } else {
                 var scalarEnumeratorName = GetUniqueIdentifier($"e_{SanitizeIdentifier(tempName)}",usedNames);
-                builder.AppendLine($"{scalarResultTypeName} {tempName}=default!;");
-                builder.AppendLine($"using var {scalarEnumeratorName}={scalarConsumeEnumeratorExpression!};");
-                builder.AppendLine($"{scalarEnumeratorName}.TryGetNext(out {tempName});");
+                builder.AppendLine(new ScalarExecutionRenderModel(scalarResultTypeName,tempName,scalarEnumeratorName,scalarConsumeEnumeratorExpression!).RenderRead());
+
             }
             builder.AppendLine($"{consumerName}.Consume({tempName});");
             return true;
@@ -431,9 +429,8 @@ public sealed partial class FLinqIncrementalGenerator {
                 ??"object";
 
             var scalarEnumeratorName = GetUniqueIdentifier($"e_{SanitizeIdentifier(tempName)}",usedNames);
-            builder.AppendLine($"{resultTypeName} {tempName}=default!;");
-            builder.AppendLine($"using var {scalarEnumeratorName}={materializeEnumeratorExpression!};");
-            builder.AppendLine($"{scalarEnumeratorName}.TryGetNext(out {tempName});");
+            builder.AppendLine(new ScalarExecutionRenderModel(resultTypeName,tempName,scalarEnumeratorName,materializeEnumeratorExpression!).RenderRead());
+
             builder.AppendLine($"foreach(var __item in {tempName}) {{");
             builder.AppendLine($"    {consumerName}.Consume(__item);");
             builder.AppendLine("}");

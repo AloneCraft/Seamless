@@ -222,8 +222,8 @@ internal class SelectMany_selector(int 番号,Enumerable source,FuncFragment sel
             : this.IsHoistable ? selector.SupportingMemberSources : this.FuncSupport(selector,nameof(selector));
     public override string GetEnumeratorExpression =>
         this.IsHoistable
-            ? $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {selector.RenderInlineExpression("__unused__")})"
-            : $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})";
+            ? RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,selector.RenderInlineExpression("__unused__"))
+            : RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { selector },source.GetEnumeratorExpression);
     public override string GetEnumerableExpression =>
         this.UseResultTypeParam
             ? $"{this.FactoryMethodName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})"
@@ -261,7 +261,7 @@ internal class SelectMany_indexSelector(int 番号,Enumerable source,FuncFragmen
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string StructMethod => this.FuncSupport(selector,nameof(selector));
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { selector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(selector)}";
     protected override string CollectionSelectorPrimaryConstructorParameter => string.Empty;
@@ -299,7 +299,7 @@ internal class SelectMany_selector_resultSelector(int 番号,Enumerable source,F
         {{this.FuncSupport(resultSelector,nameof(resultSelector))}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(collectionSelector,resultSelector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { collectionSelector,resultSelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(collectionSelector,resultSelector)}";
     public override string GetEnumeratorFields => $$"""
@@ -416,7 +416,7 @@ internal class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerab
 
     // GetEnumeratorExpression: outer struct takes only the outer source enumerator
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+        RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
 }
 
 internal class SelectMany_indexSelector_resultSelector(int 番号,Enumerable source,FuncFragment collectionSelector,FuncFragment resultSelector):SelectManyBase(番号,source) {
@@ -441,7 +441,7 @@ internal class SelectMany_indexSelector_resultSelector(int 番号,Enumerable sou
         {{this.FuncSupport(resultSelector,nameof(resultSelector))}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(collectionSelector,resultSelector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { collectionSelector,resultSelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(collectionSelector,resultSelector)}";
     public override string GetEnumeratorFields => $$"""

@@ -52,7 +52,7 @@ internal class Prepend(int 番号,Enumerable source,string element):Enumerable(�
         {{this.RootSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression}{this.EnumeratorElementArguments})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,new[] { this.RootSource.GetEnumeratorExpression }.Concat(this.FlattenedElements).ToArray());
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}{this.EnumeratorElementParameters}";
     public override string GetEnumeratorFields => $$"""
         private byte {{this.state}};

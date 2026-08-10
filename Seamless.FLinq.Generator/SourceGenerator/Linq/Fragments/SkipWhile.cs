@@ -50,7 +50,7 @@ internal class SkipWhile_predicate(int 番号,Enumerable source,FuncFragment pre
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { predicate },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => "private bool skipping = true;";
@@ -168,7 +168,7 @@ internal class SkipWhile_indexPredicate(int 番号,Enumerable source,FuncFragmen
         method.Parameters.Length>0&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { predicate },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => $$"""

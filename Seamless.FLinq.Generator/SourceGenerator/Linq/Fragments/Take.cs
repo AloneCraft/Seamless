@@ -45,7 +45,7 @@ internal class Take(int 番号,Enumerable source,string takeCount):Enumerable(�
         {{this.RootSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression}, {this.EffectiveTakeCount})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,this.RootSource.GetEnumeratorExpression,this.EffectiveTakeCount);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int count";
     public override string GetEnumeratorFields => $$"""
         private int {{this.a}} = 0;

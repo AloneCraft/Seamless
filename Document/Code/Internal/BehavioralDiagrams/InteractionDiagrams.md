@@ -149,3 +149,17 @@ Fragment -> GeneratedSourceRenderer: source/trace
 GeneratedSourceRenderer -> AddSource: Hint名を維持してAddSource
 
 Fragmentの子VisitorとRenderContextは対象単位で完結し、並列対象へ状態を渡さない。
+
+## 第2段階初期実装の描画境界
+
+```mermaid
+sequenceDiagram
+    Fragment->>EnumeratorExpressionRenderModel: enumerator typeとordered arguments
+    EnumeratorExpressionRenderModel-->>Fragment: new Enumerator(...)
+    PipelineEnumerable->>DirectConsumeSourceRenderModel: source/ span準備情報
+    DirectConsumeSourceRenderModel-->>PipelineEnumerable: using + direct span setup
+    GenerationPipeline->>ScalarExecutionRenderModel: result/ enumerator情報
+    ScalarExecutionRenderModel-->>GenerationPipeline: result初期化 + using + TryGetNext
+```
+
+これらは既存の評価順、例外、Dispose、Counter instrumentationを保持する描画境界であり、closure・enumerator本体のIR化は次の段階に残す。

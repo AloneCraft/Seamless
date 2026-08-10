@@ -58,7 +58,7 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
         method.Parameters.Length==1&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
     protected override string ComputeExpression =>
@@ -117,7 +117,7 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
         &&method.Parameters[1].Type.TypeKind==TypeKind.Delegate;
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,elementSelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
     protected override string ComputeExpression =>
@@ -178,7 +178,7 @@ internal class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFr
         &&method.Parameters[1].Name=="comparer";
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer}{this.ClosureArgsSuffix(keySelector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression,comparer);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}, global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
     protected override string ComputeExpression =>
@@ -238,7 +238,7 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
         &&method.Parameters[2].Name=="comparer";
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,elementSelector },source.GetEnumeratorExpression,comparer);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}, global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
     protected override string ComputeExpression =>

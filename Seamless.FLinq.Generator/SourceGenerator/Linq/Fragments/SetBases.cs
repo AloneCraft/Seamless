@@ -47,7 +47,7 @@ internal abstract class SetBase(int 番号,Enumerable source,Enumerable second,s
         {{second.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{second.GetEnumeratorExpression},{this.Comparer})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpressionSeparated(this.EnumeratorTypeName,",",source.GetEnumeratorExpression,second.GetEnumeratorExpression,this.Comparer);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source,TEnum2 second,global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     public override string GetEnumeratorFields => operation.PreloadSecondFirst ? $$"""
             private readonly global::Seamless.Linq.HashSetSlim<{{source.ElementType}}> {{this.lookup}};
@@ -421,7 +421,7 @@ internal abstract class SetByBase(int 番号,Enumerable source,Enumerable second
         {{second.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{second.GetEnumeratorExpression},{this.Comparer}{this.ClosureArgsSuffix(keySelector)})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression,second.GetEnumeratorExpression,this.Comparer);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source,TEnum2 second,global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorFields => $$"""
         private readonly global::Seamless.Linq.HashSetSlim<{{FuncReturnTypeName(keySelector)}}> {{this.lookup}};

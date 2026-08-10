@@ -112,7 +112,7 @@ internal class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragmen
 
     public static bool IsApplicableVariant(IMethodSymbol method) => method.Parameters.Length==1&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate;
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector)})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
     protected override string ComputeExpression => $"Compute({this.e}{this.ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
@@ -190,7 +190,7 @@ internal class ToDictionary_keySelector_elementSelector(int 番号,Enumerable so
 
     public static bool IsApplicableVariant(IMethodSymbol method) => method.Parameters.Length==2&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate&&method.Parameters[1].Type.TypeKind==TypeKind.Delegate;
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,elementSelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
     protected override string ComputeExpression => $"Compute({this.e}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
@@ -274,7 +274,7 @@ internal class ToDictionary_keySelector_comparer(int 番号,Enumerable source,Fu
 
     public static bool IsApplicableVariant(IMethodSymbol method) => method.Parameters.Length==2&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate&&method.Parameters[1].Type.TypeKind!=TypeKind.Delegate&&method.Parameters[1].Name=="comparer";
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer}{this.ClosureArgsSuffix(keySelector)})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression,comparer);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
     protected override string ComputeExpression => $"Compute({this.e}, comparer{this.ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
@@ -354,7 +354,7 @@ internal class ToDictionary_keySelector_elementSelector_comparer(int 番号,Enum
 
     public static bool IsApplicableVariant(IMethodSymbol method) => method.Parameters.Length==3&&method.Parameters[0].Type.TypeKind==TypeKind.Delegate&&method.Parameters[1].Type.TypeKind==TypeKind.Delegate&&method.Parameters[2].Name=="comparer";
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {comparer}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,elementSelector },source.GetEnumeratorExpression,comparer);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
     protected override string ComputeExpression => $"Compute({this.e}, comparer{this.ClosureArgsSuffix(keySelector,elementSelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>

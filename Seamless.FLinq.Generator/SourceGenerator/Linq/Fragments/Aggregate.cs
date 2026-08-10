@@ -58,7 +58,7 @@ internal class Aggregate_func(int 番号,Enumerable source,FuncFragment func):Sc
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(func,nameof(func));
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(func)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { func },source.GetEnumeratorExpression);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{this.DefineScalarEnumeratorStruct(source.ElementType)}}
@@ -141,7 +141,7 @@ internal class Aggregate_seed_func(int 番号,Enumerable source,string seed,Func
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => this.FuncSupport(func,nameof(func));
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(func)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { func },source.GetEnumeratorExpression);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{this.DefineScalarEnumeratorStruct(FuncParameterTypeName(func,0))}}
@@ -233,7 +233,7 @@ internal class Aggregate_seed_func_resultSelector(int 番号,Enumerable source,s
         {{this.FuncSupport(resultSelector,nameof(resultSelector))}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(func,resultSelector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { func,resultSelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorStruct => $$"""
         {{source.GetEnumeratorStruct}}
         {{this.DefineScalarEnumeratorStruct(FuncReturnTypeName(resultSelector))}}

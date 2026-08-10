@@ -57,7 +57,7 @@ internal abstract class DirectSpanRootBase(
     public override string? NonEnumeratedCountExpression => this.CountExpression(this.SourceExpression);
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.SourceExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,this.SourceExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"{this.SourceTypeName} source";
     public override string GetEnumeratorFields => $"private {this.IndexTypeName} {this.e}=-1;";
     public override string GetTryGetNextBody => $$"""
@@ -130,10 +130,10 @@ internal class Root(int 番号,string sourceExpression,string elementType,string
     public override string GetEnumeratorExpression {
         get {
             if(useEnumerableInterface) {
-                return $"new {this.EnumeratorTypeName}(((global::System.Collections.Generic.IEnumerable<{elementType}>)({sourceExpression})))";
+                return RenderEnumeratorExpression(this.EnumeratorTypeName,$"((global::System.Collections.Generic.IEnumerable<{elementType}>)({sourceExpression}))");
             }
             var sourceExpr = sourceExpression;
-            return $"new {this.EnumeratorTypeName}({sourceExpr}.GetEnumerator())";
+            return RenderEnumeratorExpression(this.EnumeratorTypeName,$"{sourceExpr}.GetEnumerator()");
         }
     }
     // TEnum でパラメータ化された struct を手動で出力する（where 制約が struct 宣言の opening brace より前に来る必要があるため）。
@@ -299,7 +299,7 @@ internal sealed class PersistedListRoot(int 番号,string sourceExpression,strin
 internal class DuckTypingRoot(int 番号,string sourceExpression,string elementType,string concreteEnumeratorType):Enumerable(番号) {
     public override string StructMethod => string.Empty;
     public override string EnumeratorTypeName => this.Struct;
-    public override string GetEnumeratorExpression => $"new {this.Struct}({sourceExpression}.GetEnumerator())";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.Struct,sourceExpression+".GetEnumerator()");
     public override string GetEnumeratorPrimaryConstructorParameters => $"{concreteEnumeratorType} {this.e}";
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
@@ -356,7 +356,7 @@ internal sealed class RangeRoot(int 番号,string startExpression,string countEx
     public override string StructMethod => string.Empty;
     public override string EnumeratorTypeName => this.Struct;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Range({startExpression}, {countExpression})";
-    public override string GetEnumeratorExpression => $"new {this.Struct}({startExpression}, {countExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.Struct,startExpression,countExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => "int start, int count";
     public override string GetEnumeratorFields => $"private int {this.e} = -1;";
     public override string GetTryGetNextBody => $$"""
@@ -412,7 +412,7 @@ internal sealed class DescendingRangeRoot(int 番号,string startExpression,stri
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Range({startExpression}, {countExpression}).Reverse()";
-    public override string GetEnumeratorExpression => $"new {this.Struct}({startExpression}, {countExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.Struct,startExpression,countExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => "int start, int count";
     public override string GetEnumeratorFields => $"private int {this.e} = -1;";
     public override string GetTryGetNextBody => $$"""
@@ -478,7 +478,7 @@ internal sealed class EmptyRoot(int 番号,string elementType):Enumerable(番号
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Empty<{elementType}>()";
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}()";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName);
     public override string GetEnumeratorPrimaryConstructorParameters => string.Empty;
     public override string GetEnumeratorFields => string.Empty;
     public override string GetTryGetNextBody => $$"""
@@ -533,7 +533,7 @@ internal sealed class RepeatRoot(int 番号,string valueExpression,string countE
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Repeat<{elementType}>({valueExpression}, {countExpression})";
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({valueExpression}, {countExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,valueExpression,countExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"{elementType} value, int count";
     public override string GetEnumeratorFields => $"private int {this.e} = -1;";
     public override string GetTryGetNextBody => $$"""
@@ -587,7 +587,7 @@ internal sealed class RepeatRoot(int 番号,string valueExpression,string countE
 internal sealed class InfiniteSequenceRoot(int 番号,string startExpression,string stepExpression,string elementType):Enumerable(番号) {
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.InfiniteSequence<{elementType}>({startExpression}, {stepExpression})";
-    public override string GetEnumeratorExpression => $"new {this.Struct}({startExpression}, {stepExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.Struct,startExpression,stepExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"{elementType} start, {elementType} step";
     public override string GetEnumeratorConstructor => $"ValidateNotNull(start, nameof(start));\nValidateNotNull(step, nameof(step));";
     public override string GetEnumeratorFields => $$"""
@@ -631,7 +631,7 @@ SequenceRoot は start/end/step で表せる数列を生成する root。
 internal sealed class SequenceRoot(int 番号,string startExpression,string endInclusiveExpression,string stepExpression,string elementType):Enumerable(番号) {
     public override string StructMethod => string.Empty;
     public override string? DirectEnumerableExpression => $"global::System.Linq.Enumerable.Sequence<{elementType}>({startExpression}, {endInclusiveExpression}, {stepExpression})";
-    public override string GetEnumeratorExpression => $"new {this.Struct}({startExpression}, {endInclusiveExpression}, {stepExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.Struct,startExpression,endInclusiveExpression,stepExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"{elementType} start, {elementType} endInclusive, {elementType} step";
     public override string GetEnumeratorConstructor => $$"""
         Validate<{{elementType}}>(start, endInclusive, step);
@@ -736,7 +736,7 @@ internal sealed class SequenceRoot(int 番号,string startExpression,string endI
 // Cast<T> の source は System.Collections.IEnumerable なので、generic Root とは別に object として流す。
 internal class NonGenericRoot(int 番号,string sourceExpression):Enumerable(番号) {
     public override string StructMethod => string.Empty;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({sourceExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,sourceExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => "global::System.Collections.IEnumerable source";
     public override string GetEnumeratorConstructor => $"this.{this.e} = source.GetEnumerator();";
     public override string GetEnumeratorFields => $"private global::System.Collections.IEnumerator {this.e};";

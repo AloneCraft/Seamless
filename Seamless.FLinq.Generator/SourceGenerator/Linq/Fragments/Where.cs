@@ -52,7 +52,7 @@ internal class Where_predicate(int 番号,Enumerable source,FuncFragment predica
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { predicate },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => string.Empty;
@@ -141,7 +141,7 @@ internal class Where_WithInlinedScalarPredicate(int 番号,Enumerable source,Fra
         return false;
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
 
     internal static bool TryBuild(
         SemanticModel semanticModel,
@@ -205,7 +205,7 @@ internal class Where_indexPredicate(int 番号,Enumerable source,FuncFragment pr
         method.Parameters.Length>0&&
         method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 };
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { predicate },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     public override string GetEnumeratorFields => $$"""

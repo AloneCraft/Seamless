@@ -42,7 +42,7 @@ internal abstract class MinMaxSelectorBase(int 番号,Enumerable source,FuncFrag
     public override string StructMethod => this.FuncSupport(selector,nameof(selector));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { selector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(selector)}";
     protected override string ComputeExpression =>

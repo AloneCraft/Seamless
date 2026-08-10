@@ -79,7 +79,7 @@ internal class Any(int 番号,Enumerable source):Scalar(番号) {
     }
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
@@ -163,7 +163,7 @@ internal class Any_predicate(int 番号,Enumerable source,FuncFragment predicate
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { predicate },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
@@ -231,7 +231,7 @@ internal class Any_indexPredicate(int 番号,Enumerable source,FuncFragment pred
     public override string StructMethod => this.FuncSupport(predicate,nameof(predicate));
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(predicate)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { predicate },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>

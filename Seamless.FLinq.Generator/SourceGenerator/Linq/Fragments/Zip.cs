@@ -42,7 +42,7 @@ internal class Zip(int 番号,Enumerable source,Enumerable second):Enumerable(�
         {{second.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,second.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second";
     public override string GetTryGetNextBody => $$"""
         if(source.TryGetNext(out var __mn94)&&second.TryGetNext(out var __mn95)){
@@ -84,7 +84,7 @@ internal class Zip3(int 番号,Enumerable source,Enumerable second,Enumerable th
         {{third.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression}, {third.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,second.GetEnumeratorExpression,third.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second, TEnum3 third";
     public override string GetTryGetNextBody => $$"""
         if(source.TryGetNext(out var __mn96)&&second.TryGetNext(out var __mn97)&&third.TryGetNext(out var __mn98)){
@@ -143,7 +143,7 @@ internal class Zip_resultSelector(int 番号,Enumerable source,Enumerable second
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression}{this.ClosureArgsSuffix(resultSelector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { resultSelector },source.GetEnumeratorExpression,second.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum1 source, TEnum2 second{this.ClosurePrimaryCtorSuffix(resultSelector)}";
     public override string GetTryGetNextBody => $$"""

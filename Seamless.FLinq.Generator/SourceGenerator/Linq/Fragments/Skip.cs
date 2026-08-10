@@ -46,7 +46,7 @@ internal class Skip(int 番号,Enumerable source,string skipCount):Enumerable(�
         {{this.RootSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression}, {this.EffectiveSkipCount})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,this.RootSource.GetEnumeratorExpression,this.EffectiveSkipCount);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int count";
     public override string GetEnumeratorFields => $$"""
         private bool skipped = false;

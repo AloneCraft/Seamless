@@ -17,7 +17,7 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {size})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,size);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int size";
     public override string GetEnumeratorFields => source.CanTryProvideSpan
         ? $$"""

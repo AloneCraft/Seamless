@@ -36,7 +36,7 @@ internal class Shuffle(int 番号,Enumerable source):Enumerable(番号) {
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum source";
     public override string GetEnumeratorFields => $$"""
         private global::Seamless.Linq.Shuffle<TEnum, {{source.ElementType}}> {{this.e}};

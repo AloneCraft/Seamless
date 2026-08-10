@@ -25,7 +25,7 @@ internal class SkipLast(int 番号,Enumerable source,string skipCount):Enumerabl
         {{this.RootSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression}, {this.EffectiveSkipCount})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,this.RootSource.GetEnumeratorExpression,this.EffectiveSkipCount);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int count";
     // 直近 N 件のスライディングウィンドウは ArrayPool ベースの ValueQueue で持つ。
     // GC ヒープの Queue<T> だと要素数+1 の配列を毎回確保していた（ClassInt32・N=1024 で 8,216B）。

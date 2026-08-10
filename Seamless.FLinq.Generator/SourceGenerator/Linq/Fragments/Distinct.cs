@@ -43,7 +43,7 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{this.Comparer})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpressionSeparated(this.EnumeratorTypeName,",",source.GetEnumeratorExpression,this.Comparer);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     public override string GetEnumeratorConstructor => $"this.{this.lookup}=CreateLookup({this.e},comparer);";
     public override string GetEnumeratorFields => $$"""
@@ -186,7 +186,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{this.Comparer}{this.ClosureArgsSuffix(keySelector)})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression,this.Comparer);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorConstructor => $"this.{this.lookup}=CreateLookup({this.e},comparer);";
     public override string GetEnumeratorFields => $$"""

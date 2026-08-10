@@ -55,7 +55,7 @@ internal class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector,func)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,func },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,func)}";
     public override string GetEnumeratorFields => $$"""

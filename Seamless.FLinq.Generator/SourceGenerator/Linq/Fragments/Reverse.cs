@@ -51,7 +51,7 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
         : base.EnumeratorTypeName;
     public override string GetEnumeratorExpression => this.IsIdentity
         ? this.RootSource.GetEnumeratorExpression
-        : $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression})";
+        : RenderEnumeratorExpression(this.EnumeratorTypeName,this.RootSource.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string GetEnumeratorFields => $$"""
         private int {{this.a}}=int.MinValue;

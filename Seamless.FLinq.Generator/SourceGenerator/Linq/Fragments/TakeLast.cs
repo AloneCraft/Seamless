@@ -25,7 +25,7 @@ internal class TakeLast(int 番号,Enumerable source,string takeCount):Enumerabl
         {{this.RootSource.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({this.RootSource.GetEnumeratorExpression}, {this.EffectiveTakeCount})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,this.RootSource.GetEnumeratorExpression,this.EffectiveTakeCount);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int count";
     // 末尾 N 件のバッファは ArrayPool ベースの ValueQueue で持つ。
     // GC ヒープの Queue<T> だと要素数分の配列を毎回確保していた（ClassInt32・N=1024 で 8,216B）。

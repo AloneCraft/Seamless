@@ -137,6 +137,9 @@ classDiagram
     class LinqFragmentBuilder
     class GeneratedSourceRenderer
     class GenerationPipeline
+    class EnumeratorExpressionRenderModel
+    class DirectConsumeSourceRenderModel
+    class ScalarExecutionRenderModel
 
     GenerationState --> FragmentBuildContext
     LinqConfigurationResolver --> GenerationState
@@ -145,6 +148,9 @@ classDiagram
     LinqFragmentBuilder --> FragmentBuildContext
     LinqOptimizationExecutor --> GenerationPipeline
     GeneratedSourceRenderer --> GenerationState
+    Fragment --> EnumeratorExpressionRenderModel
+    PipelineEnumerable --> DirectConsumeSourceRenderModel
+    GenerationPipeline --> ScalarExecutionRenderModel
 ```
 
 ## RendererとFragmentコンテキスト

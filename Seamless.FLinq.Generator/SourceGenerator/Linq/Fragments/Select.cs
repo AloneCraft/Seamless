@@ -70,7 +70,7 @@ internal class Select_selector(int 番号,Enumerable source,FuncFragment selecto
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { selector },source.GetEnumeratorExpression);
     public override string GetEnumerableExpression =>
         this.UseResultTypeParam
             ? $"{this.FactoryMethodName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})"
@@ -180,7 +180,7 @@ internal class Select_WithInlinedScalar(int 番号,Enumerable source,Fragment sc
         return false;
         """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
 
     internal static bool TryBuild(
         SemanticModel semanticModel,
@@ -290,7 +290,7 @@ internal class Select_indexSelector(int 番号,Enumerable source,FuncFragment se
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { selector },source.GetEnumeratorExpression);
     public override string GetEnumerableExpression =>
         this.UseResultTypeParam
             ? $"{this.FactoryMethodName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})"

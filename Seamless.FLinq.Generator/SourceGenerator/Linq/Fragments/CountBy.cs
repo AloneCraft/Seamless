@@ -46,7 +46,7 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
         {{base.GetEnumeratorStruct}}
         """;
     public override string GetEnumeratorExpression =>
-        $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(keySelector)})";
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
     public override string GetEnumeratorFields => this.UsesPooledIntMap ? this.PooledIntMapFields : $$"""

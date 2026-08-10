@@ -16,7 +16,7 @@ internal class ElementAt(int 番号,Enumerable source,string index,string result
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,index);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int index";
     protected override string ComputeExpression => $"Compute({this.e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
@@ -95,7 +95,7 @@ internal class ElementAt_index(int 番号,Enumerable source,string index,string 
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {index})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,index);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, global::System.Index index";
     protected override string ComputeExpression => $"Compute({this.e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>

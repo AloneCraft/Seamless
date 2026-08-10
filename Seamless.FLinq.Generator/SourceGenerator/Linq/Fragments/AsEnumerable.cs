@@ -17,7 +17,7 @@ internal class AsEnumerable(int 番号,Enumerable source):Enumerable(番号) {
         {{source.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     public override string? DirectEnumerableExpression => source.DirectEnumerableExpression;
     public override bool CanProvideSpan => source.CanProvideSpan;

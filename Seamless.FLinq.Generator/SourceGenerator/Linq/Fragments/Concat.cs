@@ -43,7 +43,7 @@ internal class Concat(int 番号,Enumerable source,Enumerable second):Enumerable
         {{second.GetEnumeratorStruct}}
         {{base.GetEnumeratorStruct}}
         """;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {second.GetEnumeratorExpression})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,second.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second";
     public override string GetEnumeratorFields => $$"""
         private bool {{this.hasValue}};

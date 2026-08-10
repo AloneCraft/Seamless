@@ -59,9 +59,9 @@ internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashS
     public override string GetEnumeratorExpression {
         get {
             if(this.ProviderNativeCountExpression is { } countExpression) {
-                return $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{countExpression})";
+                return RenderEnumeratorExpressionSeparated(this.EnumeratorTypeName,",",source.GetEnumeratorExpression,countExpression);
             }
-            return $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression})";
+            return RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
         }
     }
     public override string GetEnumeratorPrimaryConstructorParameters {
@@ -187,9 +187,9 @@ internal class ToHashSet_comparer(int 番号,Enumerable source,string comparer,s
     public override string GetEnumeratorExpression {
         get {
             if(this.ProviderNativeCountExpression is { } countExpression) {
-                return $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{comparer},{countExpression})";
+                return RenderEnumeratorExpressionSeparated(this.EnumeratorTypeName,",",source.GetEnumeratorExpression,comparer,countExpression);
             }
-            return $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression},{comparer})";
+            return RenderEnumeratorExpressionSeparated(this.EnumeratorTypeName,",",source.GetEnumeratorExpression,comparer);
         }
     }
     public override string GetEnumeratorPrimaryConstructorParameters {

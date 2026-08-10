@@ -16,7 +16,7 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {value})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,value);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {source.ElementType} value";
     protected override string ComputeExpression => $"Compute({this.e}, value)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
@@ -152,7 +152,7 @@ internal class Contains_comparer(int 番号,Enumerable source,string value,strin
     protected override Enumerable PrimarySource => source;
     public override string StructMethod => string.Empty;
     protected override string StructSources => source.GetEnumeratorStruct;
-    public override string GetEnumeratorExpression => $"new {this.EnumeratorTypeName}({source.GetEnumeratorExpression}, {value}, {comparer})";
+    public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,value,comparer);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {source.ElementType} value, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string ComputeExpression => $"Compute({this.e}, value, comparer)";
     public override string? RenderInlineComputation(string destVar,string destType) =>

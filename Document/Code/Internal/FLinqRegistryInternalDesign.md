@@ -54,7 +54,7 @@ Registryは演算子選択の正本のまま維持し、その前後の生成責
 
 `GenerationState` と `FragmentBuildContext` は対象メソッド単位で生成される。状態は対象間で共有せず、Registry descriptorの型付きBindへ明示的に渡す。これにより並列生成時も匿名record、採番、trace、識別子、UnsafeAccessor候補が漏洩しない。
 
-第2段階の対象はFragment内部のclosure/enumerator/文字列生成であり、Registry契約・既存Fragmentの意味論を変えずに描画契約またはIRへ移す。
+第2段階の対象はFragment内部のclosure/enumerator/文字列生成であり、Registry契約・既存Fragmentの意味論を変えずに描画契約またはIRへ移す。初期実装としてEnumeratorExpressionRenderModel、DirectConsumeSourceRenderModel、ScalarExecutionRenderModelを導入し、式構築・direct-consume span準備・スカラーEnumerator実行の境界を分離した。
 
 ## Renderer境界と明示Fragment Visitor
 
