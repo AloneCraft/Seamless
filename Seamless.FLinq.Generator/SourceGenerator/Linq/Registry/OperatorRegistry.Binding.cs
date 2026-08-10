@@ -42,7 +42,6 @@ public sealed partial class FLinqIncrementalGenerator {
             set => this.buildContext.UniqueNumber=value;
         }
         internal string StaticMethods => this.staticMethods;
-        internal string[] OuterTypeParameters => this.buildContext.MethodTypeParameters;
         internal string ResultType => this.method.ReturnType.ToDisplayString(完全修飾形式);
 
         internal int TakeUniqueNumber() => this.UniqueNumber++;

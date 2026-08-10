@@ -9,6 +9,5 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         internal GenerationState State => this.state;
-        internal string[] OuterTypeParameters => this.state.Target.MethodTypeParameters;
     }
 }
