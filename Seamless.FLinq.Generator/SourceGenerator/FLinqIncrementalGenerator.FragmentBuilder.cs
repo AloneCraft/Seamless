@@ -146,7 +146,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 } else if(OperatorRegistry.TryCreateDirect(name,variant,new DirectFragmentArguments(n,extraArgs),out var directFragment)) {
                     built=directFragment;
                 }
-                built?.PropagateOuterTypeParameters(外側型パラメータ名(containingType));
+                built?.ApplyRenderContext(FragmentRenderContext.ForOuterTypeParameters(外側型パラメータ名(containingType)));
                 return built;
             });
 
@@ -436,14 +436,14 @@ public sealed partial class FLinqIncrementalGenerator {
         if(expression is InvocationExpressionSyntax invocation
             &&呼び出し式からフラグメント生成(semanticModel,invocation,containingType,ref uniqueNumber,out var nestedFragment,out staticMethods,unsafeAccessorCollector)
             &&nestedFragment is Enumerable enumerableFragment) {
-            enumerableFragment.PropagateOuterTypeParameters(outerTypeParameters);
+            enumerableFragment.ApplyRenderContext(FragmentRenderContext.ForOuterTypeParameters(outerTypeParameters));
             fragment=enumerableFragment;
             return true;
         }
 
         var built=単独列挙ソースフラグメント生成(semanticModel,expression,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
         if(built) {
-            fragment.PropagateOuterTypeParameters(outerTypeParameters);
+            fragment.ApplyRenderContext(FragmentRenderContext.ForOuterTypeParameters(outerTypeParameters));
         }
         return built;
     }

@@ -138,10 +138,6 @@ internal abstract class Fragment(
         }
     }
 
-    public virtual void PropagateOuterTypeParameters(string[] outerTypeParameters) {
-        this.ApplyRenderContext(this.renderContext.WithOuterTypeParameters(outerTypeParameters));
-    }
-
     public virtual void PropagateContainingTypeName(string? name,string[]? outerTypeParameters = null) {
         this.ApplyRenderContext(this.renderContext.WithContainingTypeName(
             name,

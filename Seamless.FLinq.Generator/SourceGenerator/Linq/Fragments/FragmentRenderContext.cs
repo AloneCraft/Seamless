@@ -22,9 +22,6 @@ internal sealed class FragmentRenderContext {
     internal FragmentRenderContext WithContainingTypeName(string? name,ImmutableArray<string> outerTypeParameters) =>
         new(name,outerTypeParameters,this.CounterInstrumentationEnabled);
 
-    internal FragmentRenderContext WithOuterTypeParameters(IEnumerable<string> outerTypeParameters) =>
-        new(this.ContainingTypeName,outerTypeParameters.ToImmutableArray(),this.CounterInstrumentationEnabled);
-
     internal FragmentRenderContext WithCounterInstrumentation(bool enabled) =>
         new(this.ContainingTypeName,this.OuterTypeParameters,enabled);
 }
