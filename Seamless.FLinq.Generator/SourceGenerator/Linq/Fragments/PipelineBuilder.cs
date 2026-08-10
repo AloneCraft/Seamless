@@ -98,7 +98,6 @@ internal static partial class PipelineBuilder {
             }
             uniqueNumber=snapshot;
             services.ApplyRenderContext(fragment);
-            services.ApplyRenderContext(fragment);
         staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
             return true;
         }
@@ -128,7 +127,6 @@ internal static partial class PipelineBuilder {
                 return false;
             }
             uniqueNumber=snapshot;
-            services.ApplyRenderContext(fragment);
             services.ApplyRenderContext(fragment);
         staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
             return true;
