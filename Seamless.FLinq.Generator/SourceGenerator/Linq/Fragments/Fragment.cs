@@ -448,28 +448,21 @@ internal abstract class Fragment(
         var copyTo = this.EnumeratorProbeMember(
             () => this.GetTryCopyToBody,
             DefaultTryCopyToBody,
-            $"public bool TryCopyTo(scoped global::System.Span<{currentType}> destination, global::System.Index __offset)",
-            $"public bool TryCopyTo(scoped global::System.Span<{currentType}> destination, global::System.Index __offset) => false;");
+            $"public bool TryCopyTo(scoped global::System.Span<{currentType}> destination,global::System.Index __offset)",
+            $"public bool TryCopyTo(scoped global::System.Span<{currentType}> destination,global::System.Index __offset) => false;");
 
-        return $$"""
-            {{this.GetEnumeratorStructDeclaration($"global::Seamless.Linq.IValueEnumerator<{currentType}>")}}
-            {{fieldsFromParams}}
-            {{fields}}
-            {{ctor}}
-                {{currentPropDecl}}
-            {{nonEnumeratedCount}}
-            {{getSpan}}
-            {{copyTo}}
-                {{AggressiveInliningAttribute}}
-                public bool TryGetNext(out {{currentType}} current){
-            {{tryGetNextBody}}
-                }
-                {{AggressiveInliningAttribute}}
-                public void Dispose(){
-            {{dispose}}
-                }
-            }
-            """;
+        return new EnumeratorRenderModel(
+            this.GetEnumeratorStructDeclaration($"global::Seamless.Linq.IValueEnumerator<{currentType}>"),
+            fieldsFromParams,
+            fields,
+            ctor,
+            currentPropDecl,
+            nonEnumeratedCount,
+            getSpan,
+            copyTo,
+            tryGetNextBody,
+            dispose,
+            currentType).Render();
     }
 
     // TryGetNonEnumeratedCount/TryGetSpan/TryCopyTo の出力。
