@@ -63,3 +63,18 @@ Fragmentの子要素はGetChildFragments()とGetChildFunctions()による明示V
 Coordinatorは入力ファイルごとのtarget集合をGeneratedSourceRenderModelへ固定し、GeneratedSourceRendererへ渡します。Rendererは既存のFragment文字列生成を呼び出すだけで、生成ソースの分割、Hint名、診断位置、trace順序を変更しません。
 
 これは第1段階の境界です。closure、enumerator、生成文字列の密結合は第2段階でIRまたは描画契約へ分離します。
+## 第2段階: Render契約の責務境界
+
+RegistryはFragmentの選択・Bind・Factoryの正本として維持し、FragmentからRendererへ渡す情報をRenderPlanへ集約する。
+
+| Render契約 | 所有する不変条件 |
+|---|---|
+| `ClosureRenderPlan` | capture/hoisted/delegateの順序、重複除去、constructor/factory引数一致 |
+| `EnumeratorRenderPlan` | struct、field、Current、constructor、TryGetNext、probe、Disposeの描画順 |
+| `DirectConsumeRenderPlan` | direct span、TryGetSpan、TryGetNext fallback、Dispose順 |
+| `GeneratedCodeBlock` | Leaf、入れ子ブロック、インデント、改行、順序 |
+| `MethodBodyRenderPlan` | scalar using/TryGetNext、consumer、Consume、materializeの順序 |
+
+既存のFragmentプロパティとraw文字列は最下層Leafへの互換アダプターとして段階的に残す。Fragmentは意味論と最適化結果を決め、RenderPlanは順序と構造を保持し、最終文字列描画を担当する。これによりclosure・enumerator・生成文字列の密結合を、評価順とDispose契約を変えずに分離できる。
+
+対象メソッドごとの`GenerationState`、`FragmentBuildContext`、RenderPlanは共有しない。並列生成時の採番、匿名構造体、UnsafeAccessor、traceの漏洩を禁止する。第3段階では`TypedArguments`と`TypedBindings`の重複だけを型付きFactory契約を維持したまま整理し、reflection、Assembly.GetTypes、汎用Binderは再導入しない。

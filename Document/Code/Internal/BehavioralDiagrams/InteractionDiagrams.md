@@ -163,3 +163,26 @@ sequenceDiagram
 ```
 
 これらは既存の評価順、例外、Dispose、Counter instrumentationを保持する描画境界であり、closure・enumerator本体のIR化は次の段階に残す。
+
+## 第2段階 Render契約の相互作用
+
+```mermaid
+sequenceDiagram
+    participant F as Fragment
+    participant C as ClosureRenderPlan
+    participant E as EnumeratorRenderPlan
+    participant D as DirectConsumeRenderPlan
+    participant M as MethodBodyRenderPlan
+    participant R as GeneratedSourceRenderer
+
+    F->>C: capture/hoisted/delegateを渡す
+    C-->>F: ordered closure arguments and fields
+    F->>E: enumerator member blocksを渡す
+    E-->>R: ordered struct source
+    F->>D: span capability and source enumerator
+    D-->>R: direct span/TryGetSpan/TryGetNext plan
+    M-->>R: scalar and consumer statement blocks
+    R-->>R: input-file grouping, diagnostics, trace, HintName
+```
+
+各Planは対象メソッドの状態だけを参照し、別対象の採番・closure・Dispose情報を共有しない。第3段階のRegistry整理はこの描画契約の後に独立して実施する。

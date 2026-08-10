@@ -1,7 +1,7 @@
 namespace Seamless.FLinq;
 
-// Renders the default direct-consume path shared by Enumerable fragments.
-// Operator-specific fast paths remain in their owning fragments.
+// Compatibility adapter for the former direct-consume model.
+// The ordering and fallback behavior are owned by DirectConsumeRenderPlan.
 internal sealed class EnumerableConsumeRenderModel(
     int number,
     string enumeratorExpression,
@@ -11,19 +11,13 @@ internal sealed class EnumerableConsumeRenderModel(
     bool canProvideSpan,
     string? directSpanExpression) {
     internal string Render() {
-        var builder = new StringBuilder();
-        var enumeratorName = $"__ce{number}";
-        var valueName = $"__cv{number}";
-        builder.AppendLine($"using var {enumeratorName}={enumeratorExpression};");
-        TraversalSupport.AppendTraversalLoop(
-            builder,
-            enumeratorName,
+        return new DirectConsumeRenderPlan(
+            number,
+            enumeratorExpression,
             elementType,
-            valueName,
-            $"{consumerName}.Consume({valueName});",
+            consumerName,
             canTryProvideSpan,
             canProvideSpan,
-            directSpanExpression);
-        return builder.ToString().TrimEnd();
+            directSpanExpression).Render();
     }
 }

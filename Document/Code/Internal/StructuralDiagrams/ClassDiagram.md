@@ -162,3 +162,25 @@ Fragment --> FragmentRenderContext
 Fragment exposes GetChildFragments() and GetChildFunctions().
 GeneratedSourceRenderModel owns Targets and Diagnostics.
 FragmentRenderContext owns ContainingTypeName, OuterTypeParameters, and CounterInstrumentationEnabled.
+## 第2段階のRender契約クラス
+
+```mermaid
+classDiagram
+    class ClosureRenderPlan
+    class EnumeratorRenderPlan
+    class DirectConsumeRenderPlan
+    class GeneratedCodeBlock
+    class MethodBodyRenderPlan
+    class GeneratedSourceRenderModel
+    class GeneratedSourceRenderResult
+    class GeneratedSourceRenderer
+
+    Fragment --> ClosureRenderPlan
+    Fragment --> EnumeratorRenderPlan
+    DirectConsumeRenderPlan --> EnumeratorTraversalRenderModel
+    EnumeratorRenderPlan --> GeneratedCodeBlock
+    ClosureRenderPlan --> GeneratedCodeBlock
+    MethodBodyRenderPlan --> GeneratedCodeBlock
+    GeneratedSourceRenderer --> GeneratedSourceRenderModel
+    GeneratedSourceRenderer --> GeneratedSourceRenderResult
+```

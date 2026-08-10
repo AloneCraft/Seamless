@@ -103,3 +103,20 @@ Renderer --> Coordinator(Per-file output coordinator)
 Renderer --> Source(AddSource)
 Fragment(Fragment) --> Context(FragmentRenderContext)
 Context --> Renderer
+## 第2段階のRender層
+
+```mermaid
+flowchart LR
+    Registry[OperatorRegistry] --> FragmentBuilder[LinqFragmentBuilder]
+    FragmentBuilder --> Fragment[Existing Fragment]
+    Fragment --> Closure[ClosureRenderPlan]
+    Fragment --> Enumerator[EnumeratorRenderPlan]
+    Fragment --> Direct[DirectConsumeRenderPlan]
+    Rewriter[MethodBodyRewriter] --> MethodBody[MethodBodyRenderPlan]
+    Closure --> Block[GeneratedCodeBlock]
+    Enumerator --> Block
+    Direct --> Block
+    MethodBody --> Block
+    Block --> Renderer[GeneratedSourceRenderer]
+    Renderer --> Result[GeneratedSourceRenderResult]
+```

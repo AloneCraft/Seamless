@@ -24,12 +24,6 @@ internal sealed class LinqFragmentBuilder(FLinqIncrementalGenerator.GenerationPi
 }
 
 internal static class GeneratedSourceRenderer {
-    internal static string Render(
-        ImmutableArray<FLinqIncrementalGenerator.Linq傍受対象型> targets,
-        List<Diagnostic> diagnostics,
-        out OptimizationTraceDocument[] traceDocuments) =>
-        Render(new GeneratedSourceRenderModel(targets,diagnostics),out traceDocuments);
-
-    internal static string Render(GeneratedSourceRenderModel model,out OptimizationTraceDocument[] traceDocuments) =>
-        FLinqIncrementalGenerator.インターセプターソース構築(model.Targets,model.Diagnostics,out traceDocuments);
+    internal static GeneratedSourceRenderResult Render(GeneratedSourceRenderModel model) =>
+        GeneratedSourceRenderCoordinator.Render(model);
 }

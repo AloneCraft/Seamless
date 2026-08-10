@@ -1,118 +1,37 @@
 namespace Seamless.FLinq;
 
-// closure の収集と、enumerator/Factory の引数・フィールド文字列への変換を Fragment 本体から分離する。
-// 出力文字列の形式は既存 Fragment と同じであり、この型は第2段階の中間表現化に向けた境界だけを提供する。
+// closure の収集と、enumerator/Factory の引数・フィールド文字列への変換を ClosureRenderPlan へ集約する。
+// 出力文字列の形式は既存 Fragment と同じであり、この型は互換アダプターとして残す。
 internal static class ClosureRenderSupport {
-    internal static string PrimaryConstructorSuffix(params FuncFragment[] funcs) =>
-        ParameterSuffix(funcs);
+    internal static ClosureRenderPlan CreatePlan(params FuncFragment[] funcs) =>
+        ClosureRenderPlan.Create(funcs);
+
+    internal static string PrimaryConstructorSuffix(params FuncFragment[] funcs) {
+        var value=CreatePlan(funcs).PrimaryConstructorParameters();
+        return value.Length==0 ? string.Empty : ", "+value;
+    }
 
     internal static string MethodParameterSuffix(params FuncFragment[] funcs) =>
-        ParameterSuffix(funcs);
+        CreatePlan(funcs).MethodParameterSuffix();
 
-    internal static string ArgumentsSuffix(params FuncFragment[] funcs) {
-        var joined=string.Join(", ",ArgumentExpressions(funcs));
-        return string.IsNullOrEmpty(joined) ? string.Empty : ", "+joined;
-    }
+    internal static string ArgumentsSuffix(params FuncFragment[] funcs) =>
+        CreatePlan(funcs).ArgumentsSuffix();
 
-    internal static IEnumerable<string> ArgumentExpressions(params FuncFragment[] funcs) {
-        var captures=DistinctCapturedLocals(funcs);
-        var hoistedLocals=DistinctHoistedLocals(funcs);
-        var delegates=DistinctDelegateFuncs(funcs);
-        foreach(var capture in captures) {
-            yield return capture.Name;
-        }
-        foreach(var hoistedLocal in hoistedLocals) {
-            yield return hoistedLocal.ExpressionText;
-        }
-        foreach(var func in delegates) {
-            yield return func.DelegateConstructorArg!;
-        }
-    }
+    internal static IEnumerable<string> ArgumentExpressions(params FuncFragment[] funcs) =>
+        CreatePlan(funcs).ArgumentExpressions();
 
-    internal static string Fields(params FuncFragment[] funcs) {
-        var delegates=DistinctDelegateFuncs(funcs).ToArray();
-        if(delegates.Length==0) {
-            return string.Empty;
-        }
-        return string.Join("\n    ",delegates.Select(
-            static func => $"private {func.DelegateTypeName} {func.DelegateFieldName}={func.DelegateFieldName};"));
-    }
+    internal static string Fields(params FuncFragment[] funcs) =>
+        CreatePlan(funcs).Fields().Render();
 
-    internal static string ArgumentsSuffixForConstructorBody(params FuncFragment[] funcs) {
-        var captures=DistinctCapturedLocals(funcs).ToArray();
-        var hoistedLocals=DistinctHoistedLocals(funcs).ToArray();
-        var delegates=DistinctDelegateFuncs(funcs).ToArray();
-        var parts=captures.Select(static capture => $"this.{capture.Name}")
-            .Concat(hoistedLocals.Select(static hoistedLocal => $"this.{hoistedLocal.Name}"))
-            .Concat(delegates.Select(static func => $"this.{func.DelegateFieldName}"));
-        var joined=string.Join(", ",parts);
-        return string.IsNullOrEmpty(joined) ? string.Empty : ", "+joined;
-    }
+    internal static string ArgumentsSuffixForConstructorBody(params FuncFragment[] funcs) =>
+        CreatePlan(funcs).ConstructorBodyArguments();
 
-    internal static string HoistedLocalDeclarations(params FuncFragment[] funcs) {
-        var hoistedLocals=DistinctHoistedLocals(funcs).ToArray();
-        return hoistedLocals.Length==0
-            ? string.Empty
-            : string.Join("\n",hoistedLocals.Select(static hoistedLocal => $"{hoistedLocal.TypeName} {hoistedLocal.Name}={hoistedLocal.ExpressionText};"));
-    }
+    internal static string HoistedLocalDeclarations(params FuncFragment[] funcs) =>
+        CreatePlan(funcs).HoistedLocalDeclarations().Render();
 
-    internal static string StaticDelegateLocalDeclarations(params FuncFragment[] funcs) {
-        var delegates=DistinctDelegateFuncs(funcs).ToArray();
-        return delegates.Length==0
-            ? string.Empty
-            : string.Join("\n",delegates.Select(static func => $"{func.DelegateTypeName} {func.DelegateFieldName}={func.DelegateConstructorArg};"));
-    }
+    internal static string StaticDelegateLocalDeclarations(params FuncFragment[] funcs) =>
+        CreatePlan(funcs).StaticDelegateLocalDeclarations().Render();
 
-    internal static string ArgumentsSuffixForFactory(params FuncFragment[] funcs) {
-        var captures=DistinctCapturedLocals(funcs).ToArray();
-        var hoistedLocals=DistinctHoistedLocals(funcs).ToArray();
-        var delegates=DistinctDelegateFuncs(funcs).ToArray();
-        var parts=captures.Select(static capture => capture.Name)
-            .Concat(hoistedLocals.Select(static hoistedLocal => hoistedLocal.Name))
-            .Concat(delegates.Select(static func => func.DelegateFieldName!));
-        var joined=string.Join(", ",parts);
-        return string.IsNullOrEmpty(joined) ? string.Empty : ", "+joined;
-    }
-
-    private static string ParameterSuffix(params FuncFragment[] funcs) {
-        var captures=DistinctCapturedLocals(funcs).ToArray();
-        var hoistedLocals=DistinctHoistedLocals(funcs).ToArray();
-        var delegates=DistinctDelegateFuncs(funcs).ToArray();
-        var parts=captures.Select(static capture => $"{capture.TypeName} {capture.Name}")
-            .Concat(hoistedLocals.Select(static hoistedLocal => $"{hoistedLocal.TypeName} {hoistedLocal.Name}"))
-            .Concat(delegates.Select(static func => $"{func.DelegateTypeName} {func.DelegateFieldName}"));
-        var joined=string.Join(", ",parts);
-        return string.IsNullOrEmpty(joined) ? string.Empty : ", "+joined;
-    }
-
-    private static IEnumerable<(string Name,string TypeName)> DistinctCapturedLocals(params FuncFragment[] funcs) {
-        var names=new HashSet<string>(StringComparer.Ordinal);
-        foreach(var func in funcs) {
-            foreach(var capture in func.CapturedLocals) {
-                if(names.Add(capture.Name)) {
-                    yield return capture;
-                }
-            }
-        }
-    }
-
-    private static IEnumerable<HoistedLocal> DistinctHoistedLocals(params FuncFragment[] funcs) {
-        var names=new HashSet<string>(StringComparer.Ordinal);
-        foreach(var func in funcs) {
-            foreach(var hoistedLocal in func.HoistedLocals) {
-                if(names.Add(hoistedLocal.Name)) {
-                    yield return hoistedLocal;
-                }
-            }
-        }
-    }
-
-    private static IEnumerable<FuncFragment> DistinctDelegateFuncs(params FuncFragment[] funcs) {
-        var fieldNames=new HashSet<string>(StringComparer.Ordinal);
-        foreach(var func in funcs) {
-            if(func.CanInvokeAsDelegate&&func.DelegateFieldName is { } name&&fieldNames.Add(name)) {
-                yield return func;
-            }
-        }
-    }
+    internal static string ArgumentsSuffixForFactory(params FuncFragment[] funcs) =>
+        CreatePlan(funcs).FactoryArguments();
 }

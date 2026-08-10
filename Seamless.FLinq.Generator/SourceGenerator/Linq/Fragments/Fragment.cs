@@ -407,7 +407,7 @@ internal abstract class Fragment(
             $"public bool TryCopyTo(scoped global::System.Span<{currentType}> destination,global::System.Index __offset)",
             $"public bool TryCopyTo(scoped global::System.Span<{currentType}> destination,global::System.Index __offset) => false;");
 
-        return new EnumeratorDefinitionRenderModel(
+        return EnumeratorRenderPlan.Create(
             this.GetEnumeratorStructDeclaration($"global::Seamless.Linq.IValueEnumerator<{currentType}>"),
             this.Struct,
             this.GetEnumeratorPrimaryConstructorParameters,

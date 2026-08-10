@@ -113,8 +113,9 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
                 .Select(static g => new PerFileInterceptGroup(g.Key,g.ToImmutableArray())));
 
         context.RegisterSourceOutput(perFileGroups,static (productionContext,group) => {
-            var diagnostics = new List<Diagnostic>();
-            var source = GeneratedSourceRenderer.Render(group.Targets,diagnostics,out var traceDocuments);
+            var renderResult = GeneratedSourceRenderer.Render(new GeneratedSourceRenderModel(group.Targets));
+            var source = renderResult.Source;
+            var traceDocuments = renderResult.TraceDocuments;
             var hintName=インターセプターHintName取得(group.SourcePath);
             if(source.Length>0) {
                 productionContext.AddSource(hintName,SourceText.From(source,Encoding.UTF8));
@@ -125,7 +126,7 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
                     :hintName+".OptimizationTrace.g.cs";
                 productionContext.AddSource(traceHintName,SourceText.From(OptimizationTraceCollector.RenderSource(traceDocuments),Encoding.UTF8));
             }
-            foreach(var diagnostic in diagnostics) {
+            foreach(var diagnostic in renderResult.Diagnostics) {
                 productionContext.ReportDiagnostic(diagnostic);
             }
         });

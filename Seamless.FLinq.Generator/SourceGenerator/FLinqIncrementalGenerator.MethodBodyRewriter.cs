@@ -142,14 +142,15 @@ public sealed partial class FLinqIncrementalGenerator {
         var enumeratorName = GetUniqueIdentifier($"e_{suffix}",usedNames);
         var currentName = GetUniqueIdentifier($"c_{suffix}",usedNames);
 
+
         if(fragment is DirectExecutionFragment directExecutionFragment) {
-            builder.AppendLine(directExecutionFragment.GetDirectExecutionStatement(actualVariableName,actualTypeName));
+            MethodBodyRenderPlan.Statement(directExecutionFragment.GetDirectExecutionStatement(actualVariableName,actualTypeName)).AppendTo(builder);
             return true;
         }
 
         if(fragment is Enumerable enumerableFragment) {
             try {
-                builder.AppendLine($"var {actualVariableName}={enumerableFragment.GetEnumerableExpression};");
+                MethodBodyRenderPlan.Statement($"var {actualVariableName}={enumerableFragment.GetEnumerableExpression};").AppendTo(builder);
             } catch(NotSupportedException) {
                 return false;
             }
@@ -160,7 +161,7 @@ public sealed partial class FLinqIncrementalGenerator {
         // RenderInlineComputation が非 null を返すなら Struct{番号}+TryGetNext を丸ごと省く。
         if(fragment is Scalar scalarFragment
             &&scalarFragment.RenderInlineComputation(actualVariableName,actualTypeName) is { } inlineComputation) {
-            builder.AppendLine(inlineComputation);
+            MethodBodyRenderPlan.Statement(inlineComputation).AppendTo(builder);
             return true;
         }
 
@@ -170,7 +171,7 @@ public sealed partial class FLinqIncrementalGenerator {
         } catch(NotSupportedException) {
             return false;
         }
-        builder.AppendLine(new ScalarExecutionRenderModel(actualTypeName,actualVariableName,enumeratorName,scalarEnumeratorExpression).RenderRead());
+        MethodBodyRenderPlan.ScalarRead(actualTypeName,actualVariableName,enumeratorName,scalarEnumeratorExpression).AppendTo(builder);
 
         return true;
     }
@@ -277,9 +278,9 @@ public sealed partial class FLinqIncrementalGenerator {
         staticMethods=静的メソッドコード連結(staticMethods,fragment.GetEnumeratorStruct);
 
         var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
-        builder.AppendLine($"var {consumerName}={RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)};");
+        MethodBodyRenderPlan.ConsumerAssignment(consumerName,RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)).AppendTo(builder);
         // 演算子別の Consume 展開は Fragment（Enumerable.GetConsumeExecutionStatement）が担う。
-        builder.AppendLine(enumerableFragment.GetConsumeExecutionStatement(consumerName));
+        MethodBodyRenderPlan.Statement(enumerableFragment.GetConsumeExecutionStatement(consumerName)).AppendTo(builder);
         return true;
     }
 
@@ -377,23 +378,23 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
-        builder.AppendLine($"var {consumerName}={RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)};");
+        MethodBodyRenderPlan.ConsumerAssignment(consumerName,RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)).AppendTo(builder);
         if(fragment is Enumerable enumerableFragment) {
-            builder.AppendLine(enumerableFragment.GetConsumeExecutionStatement(consumerName));
+            MethodBodyRenderPlan.Statement(enumerableFragment.GetConsumeExecutionStatement(consumerName)).AppendTo(builder);
             return true;
         }
 
         if(fragment is Scalar&&!isScalarMaterializeTerminal) {
             if(fragment is DirectExecutionFragment directExecutionFragment) {
-                builder.AppendLine(directExecutionFragment.GetDirectExecutionStatement(tempName,scalarResultTypeName));
+                MethodBodyRenderPlan.Statement(directExecutionFragment.GetDirectExecutionStatement(tempName,scalarResultTypeName)).AppendTo(builder);
             } else if(scalarInlineComputation is not null) {
-                builder.AppendLine(scalarInlineComputation);
+                MethodBodyRenderPlan.Statement(scalarInlineComputation).AppendTo(builder);
             } else {
                 var scalarEnumeratorName = GetUniqueIdentifier($"e_{SanitizeIdentifier(tempName)}",usedNames);
-                builder.AppendLine(new ScalarExecutionRenderModel(scalarResultTypeName,tempName,scalarEnumeratorName,scalarConsumeEnumeratorExpression!).RenderRead());
+                MethodBodyRenderPlan.ScalarRead(scalarResultTypeName,tempName,scalarEnumeratorName,scalarConsumeEnumeratorExpression!).AppendTo(builder);
 
             }
-            builder.AppendLine($"{consumerName}.Consume({tempName});");
+            MethodBodyRenderPlan.Consume(consumerName,tempName).AppendTo(builder);
             return true;
         }
 
@@ -414,7 +415,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 ??"object";
 
             var scalarEnumeratorName = GetUniqueIdentifier($"e_{SanitizeIdentifier(tempName)}",usedNames);
-            builder.AppendLine(new ScalarExecutionRenderModel(resultTypeName,tempName,scalarEnumeratorName,materializeEnumeratorExpression!).RenderRead());
+            MethodBodyRenderPlan.ScalarRead(resultTypeName,tempName,scalarEnumeratorName,materializeEnumeratorExpression!).AppendTo(builder);
 
             builder.AppendLine($"foreach(var __item in {tempName}) {{");
             builder.AppendLine($"    {consumerName}.Consume(__item);");

@@ -354,49 +354,22 @@ internal abstract class ProviderNativeExecutionBase(
     private string DictionaryKeyType => terminalFunc1?.ReturnTypeName??"object";
     private string DictionaryValueType => terminalFunc2?.ReturnTypeName??pipeline.ElementType;
 
-    private IEnumerable<(string Name,string TypeName)> CapturedLocals() {
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach(var func in this.Funcs()) {
-            foreach(var capture in func.CapturedLocals) {
-                if(names.Add(capture.Name)) {
-                    yield return capture;
-                }
-            }
-        }
+    private ClosureRenderPlan ClosurePlan() => ClosureRenderPlan.Create(this.Funcs().ToArray());
+
+    private IEnumerable<(string Name,string TypeName)> CapturedLocals() => this.ClosurePlan().Captures;
+
+    private IEnumerable<HoistedLocal> HoistedLocals() => this.ClosurePlan().HoistedLocals;
+
+    private IEnumerable<FuncFragment> DelegateFuncs() => this.ClosurePlan().Delegates;
+
+    private IEnumerable<(string Name,string TypeName)> ClosureParameters() {
+        var plan=this.ClosurePlan();
+        return plan.Captures
+            .Concat(plan.HoistedLocals.Select(static hoistedLocal => (hoistedLocal.Name,hoistedLocal.TypeName)))
+            .Concat(plan.Delegates.Select(static func => (func.DelegateFieldName!,func.DelegateTypeName!)));
     }
 
-    private IEnumerable<HoistedLocal> HoistedLocals() {
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach(var func in this.Funcs()) {
-            foreach(var hoistedLocal in func.HoistedLocals) {
-                if(names.Add(hoistedLocal.Name)) {
-                    yield return hoistedLocal;
-                }
-            }
-        }
-    }
-
-    private IEnumerable<FuncFragment> DelegateFuncs() {
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach(var func in this.Funcs()) {
-            if(func.CanInvokeAsDelegate&&func.DelegateFieldName is { } name&&names.Add(name)) {
-                yield return func;
-            }
-        }
-    }
-
-    private IEnumerable<(string Name,string TypeName)> ClosureParameters() =>
-        this.CapturedLocals()
-            .Concat(this.HoistedLocals().Select(static hoistedLocal => (hoistedLocal.Name,hoistedLocal.TypeName)))
-            .Concat(this.DelegateFuncs().Select(static func => (func.DelegateFieldName!,func.DelegateTypeName!)));
-
-    private string ClosureArgumentList() {
-        var args = this.CapturedLocals().Select(static capture => capture.Name)
-            .Concat(this.HoistedLocals().Select(static hoistedLocal => hoistedLocal.ExpressionText))
-            .Concat(this.DelegateFuncs().Select(static func => func.DelegateConstructorArg!))
-            .ToArray();
-        return string.Join(", ",args);
-    }
+    private string ClosureArgumentList() => string.Join(", ",this.ClosurePlan().ArgumentExpressions());
 
     private string IndexFieldName(int index) => $"Index{index}";
 }

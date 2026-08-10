@@ -6,14 +6,14 @@ internal sealed class EnumeratorDefinitionRenderModel(
     string structDeclaration,
     string structName,
     string constructorParameters,
-    string constructorExtraBody,
-    string fields,
-    string currentPropertyDeclaration,
-    string nonEnumeratedCount,
-    string getSpan,
-    string copyTo,
-    string tryGetNextBody,
-    string disposeBody,
+    GeneratedCodeBlock constructorExtraBody,
+    GeneratedCodeBlock fields,
+    GeneratedCodeBlock currentPropertyDeclaration,
+    GeneratedCodeBlock nonEnumeratedCount,
+    GeneratedCodeBlock getSpan,
+    GeneratedCodeBlock copyTo,
+    GeneratedCodeBlock tryGetNextBody,
+    GeneratedCodeBlock disposeBody,
     string currentType
 ) {
     internal static string RenderDeclaration(string structName,string typeParameters,string interfaceType,string typeConstraints) {
@@ -31,14 +31,14 @@ internal sealed class EnumeratorDefinitionRenderModel(
         return new EnumeratorRenderModel(
             structDeclaration,
             GeneratedTextFormatting.IndentLines(ctorParamFields,"    "),
-            GeneratedTextFormatting.IndentLines(fields,"    "),
+            GeneratedTextFormatting.IndentLines(fields.Render(),"    "),
             GeneratedTextFormatting.IndentLines(ctorDecl,"    "),
-            currentPropertyDeclaration,
-            nonEnumeratedCount,
-            getSpan,
-            copyTo,
-            tryGetNextBody,
-            disposeBody,
+            currentPropertyDeclaration.Render(),
+            nonEnumeratedCount.Render(),
+            getSpan.Render(),
+            copyTo.Render(),
+            tryGetNextBody.Render(),
+            disposeBody.Render(),
             currentType).Render();
     }
 
@@ -48,9 +48,10 @@ internal sealed class EnumeratorDefinitionRenderModel(
         }
 
         var assignments=string.Join("\n    ",ctorParams.Select(static p => $"this.{p.Name} = {p.Name};"));
-        var ctorBody=string.IsNullOrWhiteSpace(constructorExtraBody)
+        var extraBody=constructorExtraBody.Render();
+        var ctorBody=string.IsNullOrWhiteSpace(extraBody)
             ? "    "+assignments
-            : "    "+assignments+"\n    "+GeneratedTextFormatting.IndentLines(constructorExtraBody.Trim(),"    ");
+            : "    "+assignments+"\n    "+GeneratedTextFormatting.IndentLines(extraBody.Trim(),"    ");
         return $"public {structName}({constructorParameters}) {{\n{ctorBody}\n}}";
     }
 
@@ -69,5 +70,4 @@ internal sealed class EnumeratorDefinitionRenderModel(
             }
         }
     }
-
 }

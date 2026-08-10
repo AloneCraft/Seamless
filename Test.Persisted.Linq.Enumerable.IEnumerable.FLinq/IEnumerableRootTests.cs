@@ -81,6 +81,34 @@ public sealed class IEnumerableRootTests {
     [LinqIntercept(false)]
     private static bool RawContainsImpl(int value)=>Source().AsX().Contains(value);
 
+    // Seamless.Collections.Persisted.Set<T> は System.Collections.Generic.ICollection<T> を
+    // 実装しないため(Seamless.Collections.ISet<T> 経由で BCL の IReadOnlySet<T> のみ実装)、
+    // 型消去された IEnumerable<T> ソースに対する Contains の汎用コレクション判定
+    // (RenderGenericCollectionContainsInline)は ICollection<T> の次に IReadOnlySet<T> も
+    // 判定しないと、O(1) の Set<T>.Contains(T) へ到達できず O(n) の手動走査へ落ちる。
+    // このテストは生成コードに IReadOnlySet 判定が実際に出力されていることを確認する。
+    [Fact,Trait("Category","Unit")]
+    public void Contains_UsesIReadOnlySetFastPath() {
+        var path=Path.Combine(Path.GetTempPath(),"Seamless-ContainsReadOnlySetProbe-"+Guid.NewGuid().ToString("N"),"items.dat");
+        try {
+            using var set=global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:4096);
+            const int count=64;
+            for(var i=1;i<=count;i++)
+                set.Add(i);
+            source=set;
+
+            Assert.True(FLinqContainsImpl(count/2));
+            Assert.False(FLinqContainsImpl(count+1));
+            var generated=GeneratedFor(nameof(FLinqContainsImpl));
+            Assert.Contains("IReadOnlySet",generated,StringComparison.Ordinal);
+        } finally {
+            source=null;
+            var directory=Path.GetDirectoryName(path);
+            if(!string.IsNullOrWhiteSpace(directory)&&Directory.Exists(directory))
+                Directory.Delete(directory,recursive:true);
+        }
+    }
+
     // Benchmark.db の実測(実行ID=7)では Persisted<int>/<ClassInt32> の Count() が 39〜4780x という
     // 異常値を示した。生成コードは TryGetNext(out _) 経由で値を捨てるにもかかわらず必ず Current を読んでいた
     // (Persisted の Current は list[index] 経由で GetItem を呼び、参照型は逆シリアライズで実コストがある)。
