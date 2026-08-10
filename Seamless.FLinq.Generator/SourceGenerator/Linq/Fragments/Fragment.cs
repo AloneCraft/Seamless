@@ -144,9 +144,6 @@ internal abstract class Fragment(
             (outerTypeParameters??Array.Empty<string>()).ToImmutableArray()));
     }
 
-    public virtual void SetCounterInstrumentation(bool enabled) {
-        this.ApplyRenderContext(this.renderContext.WithCounterInstrumentation(enabled));
-    }
     private protected string CounterCall(string methodName) =>
         this.CounterInstrumentationEnabled
             ? $"global::Seamless.Linq.LinqCounterScope.Counter.{methodName}();"

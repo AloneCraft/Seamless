@@ -205,7 +205,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return;
         }
 
-        fragment.SetCounterInstrumentation(true);
+        fragment.ApplyRenderContext(fragment.RenderContext.WithCounterInstrumentation(true));
     }
 
     private bool IsCounterInstrumentationEnabled(SemanticModel semanticModel,SyntaxNode node) {
