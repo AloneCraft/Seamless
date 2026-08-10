@@ -33,6 +33,8 @@ public sealed partial class FLinqIncrementalGenerator {
             this.pipeline=pipeline;
         }
 
+        internal SemanticModel SemanticModel => this.buildContext.SemanticModel;
+        internal INamedTypeSymbol ContainingType => this.buildContext.ContainingType;
         internal int UniqueNumber {
             get => this.buildContext.UniqueNumber;
             set => this.buildContext.UniqueNumber=value;
@@ -127,10 +129,8 @@ public sealed partial class FLinqIncrementalGenerator {
     }
 
     internal sealed class RootFactoryContext {
-        private readonly SemanticModel semanticModel;
         private readonly InvocationExpressionSyntax invocation;
         private readonly IMethodSymbol method;
-        private readonly INamedTypeSymbol containingType;
         private readonly List<string>? unsafeAccessorCollector;
         private readonly IReadOnlyDictionary<string,string>? replacementMap;
         private readonly GenerationPipeline pipeline;
@@ -145,10 +145,8 @@ public sealed partial class FLinqIncrementalGenerator {
             List<string>? unsafeAccessorCollector,
             IReadOnlyDictionary<string,string>? replacementMap,
             GenerationPipeline pipeline) {
-            this.semanticModel=semanticModel;
             this.invocation=invocation;
             this.method=method;
-            this.containingType=containingType;
             this.unsafeAccessorCollector=unsafeAccessorCollector;
             this.replacementMap=replacementMap;
             this.pipeline=pipeline;
@@ -182,9 +180,9 @@ public sealed partial class FLinqIncrementalGenerator {
                 return false;
             }
             return this.pipeline.TryBuildEnumerableRootFromExpressionWithReplacement(
-                this.semanticModel,
+                this.bindingContext.SemanticModel,
                 sourceExpression,
-                this.containingType,
+                this.bindingContext.ContainingType,
                 ref this.bindingContext.UniqueNumberReference,
                 out fragment,
                 this.unsafeAccessorCollector,
