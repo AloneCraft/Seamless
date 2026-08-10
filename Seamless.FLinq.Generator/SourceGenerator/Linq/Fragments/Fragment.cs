@@ -124,42 +124,33 @@ internal abstract class Fragment(
     // OuterTypeParameters だけを断片ツリー全体へ伝播する。
     // StructMethod（例: ToArray の InlineArray バッファ struct）はフラグメント構築時に文字列化されるため、
     // PropagateContainingTypeName（@this 用、構築後に呼ばれる）より前にこちらで外側型パラメータを確定させる必要がある。
-    public virtual void PropagateOuterTypeParameters(string[] outerTypeParameters) {
-        this.renderContext=this.renderContext.WithOuterTypeParameters(outerTypeParameters);
+    // Applies one immutable context snapshot to this fragment tree.
+    // The tree is owned by one GenerationState, so no context is shared between targets.
+    internal virtual void ApplyRenderContext(FragmentRenderContext context) {
+        this.renderContext=context;
         foreach(var child in this.GetChildFragments()) {
-            child.PropagateOuterTypeParameters(outerTypeParameters);
+            child.ApplyRenderContext(context);
         }
         foreach(var function in this.GetChildFunctions()) {
             if(function is InlinedScalarFunc inlinedScalarFunc) {
-                inlinedScalarFunc.ScalarFragment.PropagateOuterTypeParameters(outerTypeParameters);
+                inlinedScalarFunc.ScalarFragment.ApplyRenderContext(context);
             }
         }
+    }
+
+    public virtual void PropagateOuterTypeParameters(string[] outerTypeParameters) {
+        this.ApplyRenderContext(this.renderContext.WithOuterTypeParameters(outerTypeParameters));
     }
 
     public virtual void PropagateContainingTypeName(string? name,string[]? outerTypeParameters = null) {
-        this.renderContext=this.renderContext.WithContainingTypeName(name,(outerTypeParameters??Array.Empty<string>()).ToImmutableArray());
-        foreach(var child in this.GetChildFragments()) {
-            child.PropagateContainingTypeName(name,outerTypeParameters);
-        }
-        foreach(var function in this.GetChildFunctions()) {
-            if(function is InlinedScalarFunc inlinedScalarFunc) {
-                inlinedScalarFunc.ScalarFragment.PropagateContainingTypeName(name,outerTypeParameters);
-            }
-        }
+        this.ApplyRenderContext(this.renderContext.WithContainingTypeName(
+            name,
+            (outerTypeParameters??Array.Empty<string>()).ToImmutableArray()));
     }
 
     public virtual void SetCounterInstrumentation(bool enabled) {
-        this.renderContext=this.renderContext.WithCounterInstrumentation(enabled);
-        foreach(var child in this.GetChildFragments()) {
-            child.SetCounterInstrumentation(enabled);
-        }
-        foreach(var function in this.GetChildFunctions()) {
-            if(function is InlinedScalarFunc inlinedScalarFunc) {
-                inlinedScalarFunc.ScalarFragment.SetCounterInstrumentation(enabled);
-            }
-        }
+        this.ApplyRenderContext(this.renderContext.WithCounterInstrumentation(enabled));
     }
-
     private protected string CounterCall(string methodName) =>
         this.CounterInstrumentationEnabled
             ? $"global::Seamless.Linq.LinqCounterScope.Counter.{methodName}();"

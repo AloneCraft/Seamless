@@ -49,18 +49,13 @@ internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IR
     // 走査するリフレクションベースの伝播(基底実装)からは見えない。ここで明示的に伝播しないと、
     // 二入力集合演算(Union/Except 等)へ Where が融合されたとき、開いたジェネリック型引数(T)を
     // 参照する第2ソース側の struct が T/@this を解決できず生成コードが壊れる。
-    public override void PropagateOuterTypeParameters(string[] outerTypeParameters) {
-        base.PropagateOuterTypeParameters(outerTypeParameters);
+    internal override void ApplyRenderContext(FragmentRenderContext context) {
+        base.ApplyRenderContext(context);
         foreach(var second in this.SecondSources) {
-            second.PropagateOuterTypeParameters(outerTypeParameters);
+            second.ApplyRenderContext(context);
         }
     }
-    public override void PropagateContainingTypeName(string? name,string[]? outerTypeParameters = null) {
-        base.PropagateContainingTypeName(name,outerTypeParameters);
-        foreach(var second in this.SecondSources) {
-            second.PropagateContainingTypeName(name,outerTypeParameters);
-        }
-    }
+
     private void AppendCounterCall(StringBuilder builder,string indent,string methodName) {
         var call = this.CounterCall(methodName);
         if(!string.IsNullOrEmpty(call)) {
