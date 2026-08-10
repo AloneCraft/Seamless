@@ -460,25 +460,8 @@ internal abstract class Fragment(
         var rendered=this.RenderInstanceMember(render);
         return EnumeratorProbeRenderModel.Render(rendered,defaultBody,signature,compactMember,AggressiveInliningAttribute);
     }
-    private protected static string IndentLines(string text,string indent) {
-        if(string.IsNullOrWhiteSpace(text)) return string.Empty;
-
-        var lines = text.Replace("\r\n","\n").Split('\n');
-        var result = new StringBuilder();
-
-        for(int i = 0;i<lines.Length;i++) {
-            var line = lines[i];
-            if(!string.IsNullOrWhiteSpace(line)) {
-                result.Append(indent).Append(line);
-            }
-            if(i<lines.Length-1) {
-                result.AppendLine();
-            }
-        }
-
-        return result.ToString();
-    }
-
+    private protected static string IndentLines(string text,string indent) =>
+        GeneratedTextFormatting.IndentLines(text,indent);
     // 単一上流源を持つ断片はこれをオーバーライドする。
     // 設定すると StructTypeParameters/StructTypeConstraints/EnumeratorTypeName が自動導出される。
     protected virtual Enumerable? PrimarySource => null;

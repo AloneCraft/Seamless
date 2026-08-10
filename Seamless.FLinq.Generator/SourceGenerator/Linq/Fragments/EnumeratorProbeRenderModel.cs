@@ -11,7 +11,7 @@ internal static class EnumeratorProbeRenderModel {
         return $$"""
                 {{aggressiveInliningAttribute}}
                 {{signature}} {
-            {{IndentLines(renderedBody,"        ")}}
+            {{GeneratedTextFormatting.IndentLines(renderedBody,"        ")}}
                 }
             """;
     }
@@ -19,16 +19,4 @@ internal static class EnumeratorProbeRenderModel {
     private static string Normalize(string body) =>
         body.Replace("\r\n","\n").Trim();
 
-    private static string IndentLines(string text,string indent) {
-        if(string.IsNullOrWhiteSpace(text)) return string.Empty;
-
-        var lines=text.Replace("\r\n","\n").Split('\n');
-        var result=new StringBuilder();
-        for(var i=0;i<lines.Length;i++) {
-            var line=lines[i];
-            if(!string.IsNullOrWhiteSpace(line)) result.Append(indent).Append(line);
-            if(i<lines.Length-1) result.AppendLine();
-        }
-        return result.ToString();
-    }
 }

@@ -30,9 +30,9 @@ internal sealed class EnumeratorDefinitionRenderModel(
 
         return new EnumeratorRenderModel(
             structDeclaration,
-            IndentLines(ctorParamFields,"    "),
-            IndentLines(fields,"    "),
-            IndentLines(ctorDecl,"    "),
+            GeneratedTextFormatting.IndentLines(ctorParamFields,"    "),
+            GeneratedTextFormatting.IndentLines(fields,"    "),
+            GeneratedTextFormatting.IndentLines(ctorDecl,"    "),
             currentPropertyDeclaration,
             nonEnumeratedCount,
             getSpan,
@@ -50,7 +50,7 @@ internal sealed class EnumeratorDefinitionRenderModel(
         var assignments=string.Join("\n    ",ctorParams.Select(static p => $"this.{p.Name} = {p.Name};"));
         var ctorBody=string.IsNullOrWhiteSpace(constructorExtraBody)
             ? "    "+assignments
-            : "    "+assignments+"\n    "+IndentLines(constructorExtraBody.Trim(),"    ");
+            : "    "+assignments+"\n    "+GeneratedTextFormatting.IndentLines(constructorExtraBody.Trim(),"    ");
         return $"public {structName}({constructorParameters}) {{\n{ctorBody}\n}}";
     }
 
@@ -70,15 +70,4 @@ internal sealed class EnumeratorDefinitionRenderModel(
         }
     }
 
-    private static string IndentLines(string text,string indent) {
-        if(string.IsNullOrWhiteSpace(text)) return string.Empty;
-        var lines=text.Replace("\r\n","\n").Split('\n');
-        var result=new StringBuilder();
-        for(var i=0;i<lines.Length;i++) {
-            var line=lines[i];
-            if(!string.IsNullOrWhiteSpace(line)) result.Append(indent).Append(line);
-            if(i<lines.Length-1) result.AppendLine();
-        }
-        return result.ToString();
-    }
 }
