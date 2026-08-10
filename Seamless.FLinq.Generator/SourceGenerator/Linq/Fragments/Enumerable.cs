@@ -56,20 +56,13 @@ internal abstract class Enumerable(int 番号):Fragment(番号), ConsumeDirectEx
     // TraversalSupport.AppendTraversalLoop が span 可能ソース（ArrayRoot/ListRoot）では TryGetSpan→for(span)、
     // それ以外は while(TryGetNext) を生成するため span fast path は維持される。
     // span 直走査やキー集合の事前構築など演算子固有の最適化が必要な断片は本メソッドを override する（例: Distinct/Set 系）。
-    public virtual string GetConsumeExecutionStatement(string consumerName) {
-        var builder = new StringBuilder();
-        var enumeratorName = $"__ce{番号}";
-        var valueName = $"__cv{番号}";
-        builder.AppendLine($"using var {enumeratorName}={this.GetEnumeratorExpression};");
-        TraversalSupport.AppendTraversalLoop(
-            builder,
-            enumeratorName,
+    public virtual string GetConsumeExecutionStatement(string consumerName) =>
+        new EnumerableConsumeRenderModel(
+            番号,
+            this.GetEnumeratorExpression,
             this.ElementType,
-            valueName,
-            $"{consumerName}.Consume({valueName});",
+            consumerName,
             this.CanTryProvideSpan,
             this.CanProvideSpan,
-            this.GetDirectSpanExpression(enumeratorName));
-        return builder.ToString().TrimEnd();
-    }
+            this.GetDirectSpanExpression($"__ce{番号}")).Render();
 }
