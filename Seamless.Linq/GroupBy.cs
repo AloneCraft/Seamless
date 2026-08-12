@@ -88,12 +88,12 @@ namespace Seamless.Linq {
 
             if(this.source.TryGetSpan(out var span)) {
                 foreach(var item in span) {
-                    lookupBuilder.Add(keySelector(item),item);
+                    lookupBuilder.AddUnpooled(keySelector(item),item);
                 }
             } else {
                 using(this.source) {
                     while(this.source.TryGetNext(out var item)) {
-                        lookupBuilder.Add(keySelector(item),item);
+                        lookupBuilder.AddUnpooled(keySelector(item),item);
                     }
                 }
             }
@@ -154,12 +154,12 @@ namespace Seamless.Linq {
 
             if(this.source.TryGetSpan(out var span)) {
                 foreach(var item in span) {
-                    lookupBuilder.Add(keySelector(item),elementSelector(item));
+                    lookupBuilder.AddUnpooled(keySelector(item),elementSelector(item));
                 }
             } else {
                 using(this.source) {
                     while(this.source.TryGetNext(out var item)) {
-                        lookupBuilder.Add(keySelector(item),elementSelector(item));
+                        lookupBuilder.AddUnpooled(keySelector(item),elementSelector(item));
                     }
                 }
             }
@@ -220,12 +220,12 @@ namespace Seamless.Linq {
 
             if(this.source.TryGetSpan(out var span)) {
                 foreach(var item in span) {
-                    lookupBuilder.Add(keySelector(item),item);
+                    lookupBuilder.AddUnpooled(keySelector(item),item);
                 }
             } else {
                 using(this.source) {
                     while(this.source.TryGetNext(out var item)) {
-                        lookupBuilder.Add(keySelector(item),item);
+                        lookupBuilder.AddUnpooled(keySelector(item),item);
                     }
                 }
             }
@@ -286,12 +286,12 @@ namespace Seamless.Linq {
 
             if(this.source.TryGetSpan(out var span)) {
                 foreach(var item in span) {
-                    lookupBuilder.Add(keySelector(item),elementSelector(item));
+                    lookupBuilder.AddUnpooled(keySelector(item),elementSelector(item));
                 }
             } else {
                 using(this.source) {
                     while(this.source.TryGetNext(out var item)) {
-                        lookupBuilder.Add(keySelector(item),elementSelector(item));
+                        lookupBuilder.AddUnpooled(keySelector(item),elementSelector(item));
                     }
                 }
             }

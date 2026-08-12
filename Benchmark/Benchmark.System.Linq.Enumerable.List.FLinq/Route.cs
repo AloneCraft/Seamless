@@ -7,7 +7,7 @@ namespace Benchmark.System.Linq.Enumerable.List.FLinq {
 
 namespace Shared.Linq {
     internal static class Route {
-        public static global::System.Collections.Generic.IEnumerable<T> AsX<T>(this global::System.Collections.Generic.List<T> source) => source;
+        public static global::System.Collections.Generic.List<T> AsX<T>(this global::System.Collections.Generic.List<T> source) => source;
 
         public static global::System.Collections.Generic.IEnumerable<T> AsX<T>(this global::System.Collections.Generic.IEnumerable<T> source) => source;
     }

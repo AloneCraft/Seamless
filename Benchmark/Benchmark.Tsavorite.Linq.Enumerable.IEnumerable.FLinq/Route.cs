@@ -8,7 +8,7 @@ namespace Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq {
 namespace Shared.Linq {
     internal static class Route {
         public static global::System.Collections.Generic.IEnumerable<T> AsX<T>(
-            this global::Seamless.Collections.Tsavorite.HashSet<T> source) { global::System.Collections.Generic.IEnumerable<T> result=source; return result; }
+            this global::Seamless.Collections.Tsavorite.HashSet<T> source) => source;
 
         public static global::System.Collections.Generic.IEnumerable<T> AsX<T>(this global::System.Collections.Generic.IEnumerable<T> source) { global::System.Collections.Generic.IEnumerable<T> result=source; return result; }
     }

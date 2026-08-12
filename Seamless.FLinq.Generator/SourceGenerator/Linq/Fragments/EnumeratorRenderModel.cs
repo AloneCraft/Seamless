@@ -14,7 +14,7 @@ internal sealed class EnumeratorRenderModel(
     string tryGetNextBody,
     string disposeBody,
     string currentType) {
-    private const string AggressiveInliningAttribute = "[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining|global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]";
+    private const string AggressiveInliningAttribute = "[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]";
 
     internal string Render() => $$"""
         {{structDeclaration}}

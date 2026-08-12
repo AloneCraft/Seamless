@@ -59,6 +59,7 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
         var readOnlySetVar = $"__readOnlySet{番号}";
         var enumeratorVar = $"__genericEnum{番号}";
         var itemVar = $"__genericItem{番号}";
+        var targetVar = $"__genericValue{番号}";
         // RenderInlineComputation が成功する経路では ComputeMembers(別スコープの Struct0.Compute)は
         // 生成されないため、else 節のフォールバックもここで直接インライン化する必要がある
         // (Compute という名前を呼んでも解決できない)。
@@ -75,20 +76,23 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
         return $$"""
             {{destType}} {{destVar}};
             var {{sourceVar}}={{enumerableExpression}};
+            var {{targetVar}}={{value}};
+            global::System.ArgumentNullException.ThrowIfNull({{sourceVar}});
             if({{sourceVar}} is {{source.ElementType}}[] {{arrayVar}}){
-                {{destVar}}=global::Seamless.Linq.Enumerable.ContainsSpan(global::System.MemoryExtensions.AsSpan({{arrayVar}}),{{value}});
+                {{destVar}}=global::Seamless.Linq.Enumerable.ContainsSpan(global::System.MemoryExtensions.AsSpan({{arrayVar}}),{{targetVar}});
             }else if({{sourceVar}} is global::System.Collections.Generic.List<{{source.ElementType}}> {{listVar}}){
-                {{destVar}}=global::Seamless.Linq.Enumerable.ContainsSpan(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{listVar}}),{{value}});
+                {{destVar}}=global::Seamless.Linq.Enumerable.ContainsSpan(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{listVar}}),{{targetVar}});
             }else if({{sourceVar}} is global::System.Collections.Generic.ICollection<{{source.ElementType}}> {{collectionVar}}){
-                {{destVar}}={{collectionVar}}.Contains({{value}});
+                {{destVar}}={{collectionVar}}.Contains({{targetVar}});
             }else if({{sourceVar}} is global::System.Collections.Generic.IReadOnlySet<{{source.ElementType}}> {{readOnlySetVar}}){
-                {{destVar}}={{readOnlySetVar}}.Contains({{value}});
+                {{destVar}}={{readOnlySetVar}}.Contains({{targetVar}});
             }else{
                 var comparer=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
                 {{destVar}}=false;
-                using(var {{enumeratorVar}}=new {{source.EnumeratorTypeName}}({{sourceVar}})){
-                    while({{enumeratorVar}}.TryGetNext(out var {{itemVar}})){
-                        if(comparer.Equals({{itemVar}},{{value}})){
+                using(global::System.Collections.Generic.IEnumerator<{{source.ElementType}}> {{enumeratorVar}}={{sourceVar}}.GetEnumerator()){
+                    while({{enumeratorVar}}.MoveNext()){
+                        var {{itemVar}}={{enumeratorVar}}.Current;
+                        if(comparer.Equals({{itemVar}},{{targetVar}})){
                             {{destVar}}=true;
                             break;
                         }

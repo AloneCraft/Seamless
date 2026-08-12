@@ -481,6 +481,16 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         await this.更新Async();
     }
 
+    private static bool 全行自動選択か() =>
+        string.Equals(
+            Environment.GetEnvironmentVariable("SEAMLESS_BENCHMARK_SELECT_ALL"),
+            "1",
+            StringComparison.OrdinalIgnoreCase)
+        ||string.Equals(
+            Environment.GetEnvironmentVariable("SEAMLESS_BENCHMARK_SELECT_ALL"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// 更新Async メソッドを実行し、結果を算出して返却します。
     /// </summary>
@@ -518,6 +528,10 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         } finally {
             this.更新中か=false;
             this.保留ソースタブ選択を適用();
+            if(全行自動選択か()) {
+                // 補助ハーネス専用。通常起動では新規グリッドの未選択契約を維持する。
+                this.全ベンチマーク選択を設定(true);
+            }
         }
     }
 

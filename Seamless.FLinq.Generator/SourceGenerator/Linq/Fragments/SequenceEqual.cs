@@ -19,6 +19,10 @@ internal class SequenceEqual(int number,Enumerable source,Enumerable second,stri
         or "global::System.Boolean" or "global::System.Byte" or "global::System.SByte" or "global::System.Int16" or "global::System.UInt16"
         or "global::System.Int32" or "global::System.UInt32" or "global::System.Int64" or "global::System.UInt64" or "global::System.IntPtr" or "global::System.UIntPtr" or "global::System.Char";
 
+    private string SpanEqualityExpression => source.ElementType==second.ElementType&&source.CanProvideSpan&&second.CanProvideSpan
+        ? "global::System.MemoryExtensions.SequenceEqual(__spanL,__spanR)"
+        : "global::Seamless.Linq.Enumerable.SequenceEqualSpan(__spanL,__spanR)";
+
     public override string StructMethod => string.Empty;
     protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
     protected override string StructTypeConstraints =>
@@ -28,6 +32,21 @@ internal class SequenceEqual(int number,Enumerable source,Enumerable second,stri
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,second.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => "TEnum1 source,TEnum2 second";
     protected override string ComputeExpression => "Compute(source, second)";
+    private bool CanInlineCompute {
+        get {
+            if(source is RangeRoot&&second is RangeRoot) {
+                return false;
+            }
+            try {
+                _=source.GetEnumeratorExpression;
+                _=second.GetEnumeratorExpression;
+                return true;
+            } catch(NotSupportedException) {
+                return false;
+            }
+        }
+    }
+
     public override string? RenderInlineComputation(string destVar,string destType) {
         if(source is RangeRoot leftRange
             &&second is RangeRoot rightRange
@@ -44,9 +63,33 @@ internal class SequenceEqual(int number,Enumerable source,Enumerable second,stri
                 }
                 """;
         }
-        return null;
+
+        if(!this.CanInlineCompute) {
+            return null;
+        }
+
+        var sourceExpression=source.GetEnumeratorExpression;
+        var secondExpression=second.GetEnumeratorExpression;
+        var sourceVariable=$"__sl{number}";
+        var secondVariable=$"__sr{number}";
+        var scalarType=this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{sourceVariable}}={{sourceExpression}})
+            using(var {{secondVariable}}={{secondExpression}}){
+                {{destVar}}={{scalarType}}.Compute({{sourceVariable}},{{secondVariable}});
+            }
+            """;
     }
-    public override string InlineSupportingMembers => source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
+    public override string InlineSupportingMembers => this.CanInlineCompute
+        ? $$"""
+            {{this.StructSources}}
+            private struct {{this.Struct}}{{this.StructTypeParameters}}
+                {{this.StructTypeConstraints}} {
+            {{IndentLines(this.ComputeMembers.Replace("private static","internal static"),"    ")}}
+            }
+            """
+        : source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
     // TryGetSpan は静的に CanProvideSpan=false な source(型消去された IEnumerable<T> 等)でも
     // 実行時に T[]/List<T> なら成功する(Root.cs の GetEnumerableInterfaceStruct 参照)。
     // 以前は source.CanProvideSpan&&second.CanProvideSpan という静的判定だけで span 経路の
@@ -76,14 +119,10 @@ internal class SequenceEqual(int number,Enumerable source,Enumerable second,stri
         : $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(TEnum1 source,TEnum2 second){
-                var __eq=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
                 if(source.TryGetSpan(out var __spanL)&&second.TryGetSpan(out var __spanR)){
-                    if(__spanL.Length!=__spanR.Length) return false;
-                    for(int __i=0;(uint)__i<(uint)__spanL.Length;__i++){
-                        if(!__eq.Equals(__spanL[__i],({{source.ElementType}})(object)__spanR[__i]!)) return false;
-                    }
-                    return true;
+                    return {{this.SpanEqualityExpression}};
                 }
+                var __eq=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
                 while(true){
                     var hasLeft=source.TryGetNext(out var __mn51);
                     var hasRight=second.TryGetNext(out var __mn52);
@@ -109,6 +148,10 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
         }
     }
 
+    private string SpanEqualityExpression => source.ElementType==second.ElementType&&source.CanProvideSpan&&second.CanProvideSpan
+        ? "global::System.MemoryExtensions.SequenceEqual(__spanL,__spanR)"
+        : "global::Seamless.Linq.Enumerable.SequenceEqualSpan(__spanL,__spanR)";
+
     public override string StructMethod => string.Empty;
     protected override string StructTypeParameters => this.StructTypeParametersWithOuter("TEnum1","TEnum2");
     protected override string StructTypeConstraints =>
@@ -118,8 +161,22 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,second.GetEnumeratorExpression,comparer);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
     protected override string ComputeExpression => "Compute(source, second, comparer)";
+    private bool CanInlineCompute {
+        get {
+            if(source is RangeRoot&&second is RangeRoot) {
+                return false;
+            }
+            try {
+                _=source.GetEnumeratorExpression;
+                _=second.GetEnumeratorExpression;
+                return true;
+            } catch(NotSupportedException) {
+                return false;
+            }
+        }
+    }
     public override string? RenderInlineComputation(string destVar,string destType) {
-        if(comparer=="null"
+        if(ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)
             &&source is RangeRoot leftRange
             &&second is RangeRoot rightRange
             &&source.ElementType=="int"
@@ -135,10 +192,34 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
                 }
                 """;
         }
-        return this.RenderComputeInline(destVar,destType,$"{comparer}");
+
+        if(!this.CanInlineCompute) {
+            return null;
+        }
+
+        var sourceExpression=source.GetEnumeratorExpression;
+        var secondExpression=second.GetEnumeratorExpression;
+        var sourceVariable=$"__sl{番号}";
+        var secondVariable=$"__sr{番号}";
+        var scalarType=this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{sourceVariable}}={{sourceExpression}})
+            using(var {{secondVariable}}={{secondExpression}}){
+                {{destVar}}={{scalarType}}.Compute({{sourceVariable}},{{secondVariable}},{{comparer}});
+            }
+            """;
     }
-    public override string InlineSupportingMembers => source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
-    // comparer=="null" かつ両ソースが span を出せるときは Seamless.Linq.Enumerable.SequenceEqualSpan
+    public override string InlineSupportingMembers => this.CanInlineCompute
+        ? $$"""
+            {{this.StructSources}}
+            private struct {{this.Struct}}{{this.StructTypeParameters}}
+                {{this.StructTypeConstraints}} {
+            {{IndentLines(this.ComputeMembers.Replace("private static","internal static"),"    ")}}
+            }
+            """
+        : source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
+    // comparer が null または EqualityComparer<T>.Default で、両ソースが span を出せるときは Seamless.Linq.Enumerable.SequenceEqualSpan
     // を呼ぶ。要素型は T のベンチマーク基底クラス等では構文時点で "T" としてしか見えず、
     // 生成器側の型名ホワイトリストでは int 等の具象呼び出しでもベクトル化 memcmp に振り分けられない。
     // SequenceEqualSpan 側で typeof(T) による実行時分岐にしているため（Min/Max/Sum と同じ方式）、
@@ -153,12 +234,12 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
     // 静的に CanProvideSpan=true な source(ArrayRoot/ListRoot 等)では TryGetSpan は常に
     // true を返す実装なので、JIT がこの分岐を定数畳み込みでき、追加コストは生じない。
     protected override string ComputeMembers => source.ElementType==second.ElementType
-        ? (comparer=="null"
+        ? (ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)
             ? $$"""
                 {{AggressiveInliningAttribute}}
                 private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
                     if(source.TryGetSpan(out var __spanL)&&second.TryGetSpan(out var __spanR)){
-                        return global::Seamless.Linq.Enumerable.SequenceEqualSpan(__spanL, __spanR);
+                        return {{this.SpanEqualityExpression}};
                     }
                     var __eq=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
                     while(true){

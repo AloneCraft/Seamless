@@ -7,6 +7,7 @@ internal static partial class PipelineBuilder {
             ||(configuration.Optimizations&LinqOptimizations.PipelineFusion)==0){
             return NormalizeStagesLegacy(stages,joinStaticMethods);
         }
+        stages=RemoveTransparentAsEnumerableStages(stages);
         if(stages.Count<=1){
             return stages;
         }
@@ -71,6 +72,7 @@ internal static partial class PipelineBuilder {
         return rewritten;
     }
     internal static List<PipelineStage> NormalizeStagesLegacy(List<PipelineStage> stages,Func<string,string,string> joinStaticMethods) {
+        stages=RemoveTransparentAsEnumerableStages(stages);
         if(stages.Count<=1) {
             return stages;
         }
@@ -81,6 +83,12 @@ internal static partial class PipelineBuilder {
         stages=CancelReverseStages(stages);
         stages=MergeWhereStages(stages,joinStaticMethods);
         return stages;
+    }
+
+    private static List<PipelineStage> RemoveTransparentAsEnumerableStages(List<PipelineStage> stages) {
+        // Enumerable.AsEnumerable は参照・列挙・Dispose の意味を変えない透過演算子である。
+        // stage として残すと空 PipelineEnumerable が生成され、既知sourceの能力情報も失われる。
+        return stages.Where(static stage => stage.Kind!=PipelineStageKind.AsEnumerable).ToList();
     }
 
     private static List<PipelineStage> MergeDistinctStages(List<PipelineStage> stages) {

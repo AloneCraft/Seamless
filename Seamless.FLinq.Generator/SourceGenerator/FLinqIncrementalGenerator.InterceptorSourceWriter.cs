@@ -159,7 +159,7 @@ public sealed partial class FLinqIncrementalGenerator {
                             インデント付き追記(builder,ローカル静的メソッド群,"    ");
                         }
                         インターセプターXmlコメント追加(builder,target);
-                        builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining|global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]");
+                        builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
                         builder.AppendLine($"    {target.InterceptsLocationAttributeText}");
                         builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}){target.TypeParameterConstraintClause} {{");
                         インデント付き追記(builder,ローカル本体,"        ");
@@ -169,7 +169,7 @@ public sealed partial class FLinqIncrementalGenerator {
                     }
 
                     インターセプターXmlコメント追加(builder,target);
-                    builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining|global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]");
+                    builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
                     builder.AppendLine($"    {target.InterceptsLocationAttributeText}");
                     builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}){target.TypeParameterConstraintClause} {{");
                     if(GenerationPipeline.未対応Enumerableメソッド一覧取得(target) is { Count:>0 } unsupportedMethods) {
@@ -193,7 +193,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 var locEx = target.Method.Locations.FirstOrDefault()??target.Invocation.GetLocation();
                 diagnostics.Add(Diagnostic.Create(展開失敗警告Descriptor,locEx,target.Method.Name));
                 インターセプターXmlコメント追加(builder,target);
-                builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining|global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]");
+                builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
                 builder.AppendLine($"    {target.InterceptsLocationAttributeText}");
                 builder.AppendLine($"    public static {target.ReturnTypeName} {target.MethodName}{target.MethodTypeParameterList}({target.InterceptorParameterList}){target.TypeParameterConstraintClause} {{");
                 インデント付き追記(builder,RenderUnsupportedDirectMethodBody(target,ex.Message),"        ");

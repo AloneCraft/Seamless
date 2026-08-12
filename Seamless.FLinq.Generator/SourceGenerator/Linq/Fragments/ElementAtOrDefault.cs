@@ -22,6 +22,7 @@ internal class ElementAtOrDefault(int 番号,Enumerable source,string index,stri
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeElementAtOrDefaultInline(destVar,destType)
         ??this.RenderDirectSpanElementAtOrDefaultInline(destVar,destType)
+        ??this.RenderDirectEnumerableElementAtOrDefaultInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,index);
     private string? RenderDirectSpanElementAtOrDefaultInline(string destVar,string destType) {
         var span = $"__span{this.result}";
@@ -29,6 +30,35 @@ internal class ElementAtOrDefault(int 番号,Enumerable source,string index,stri
             var __idx={{index}};
             {{destVar}}=(uint)__idx<(uint){{spanName}}.Length ? {{spanName}}[__idx] : default!;
             """);
+    }
+    private string? RenderDirectEnumerableElementAtOrDefaultInline(string destVar,string destType) {
+        if(source is not Root { DirectEnumerableExpression: { } sourceExpression }) {
+            return null;
+        }
+        var sourceVar=$"__elementAtOrDefaultSource{番号}";
+        var indexVar=$"__elementAtOrDefaultIndex{番号}";
+        var currentIndexVar=$"__elementAtOrDefaultCurrentIndex{番号}";
+        var enumeratorVar=$"__elementAtOrDefaultEnumerator{番号}";
+        return $$"""
+            {{destType}} {{destVar}}=default!;
+            {
+                var {{sourceVar}}={{sourceExpression}};
+                var {{indexVar}}={{index}};
+                global::System.ArgumentNullException.ThrowIfNull({{sourceVar}});
+                if({{indexVar}}>=0){
+                    var {{currentIndexVar}}=0;
+                    using(var {{enumeratorVar}}={{sourceVar}}.GetEnumerator()){
+                        while({{enumeratorVar}}.MoveNext()){
+                            if({{currentIndexVar}}=={{indexVar}}){
+                                {{destVar}}={{enumeratorVar}}.Current;
+                                break;
+                            }
+                            {{currentIndexVar}}++;
+                        }
+                    }
+                }
+            }
+            """;
     }
     private string? RenderRangeElementAtOrDefaultInline(string destVar,string destType) {
         if(source is not RangeRoot range||source.ElementType!="int") {

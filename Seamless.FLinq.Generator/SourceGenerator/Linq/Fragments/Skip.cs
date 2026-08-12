@@ -70,9 +70,23 @@ internal class Skip(int 番号,Enumerable source,string skipCount):Enumerable(�
     public override string ElementType => this.Source.ElementType;
     public override string GetConsumeExecutionStatement(string consumerName) {
         var sourceName = $"__skipSource{番号}";
+
+
         var spanExpression = this.RootSource.GetDirectSpanExpression(sourceName);
         if(spanExpression is null) {
-            return base.GetConsumeExecutionStatement(consumerName);
+            var skipCountName = $"{sourceName}Count";
+            var skipItemName = $"{sourceName}Item";
+            return $$"""
+                using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};
+                global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+                var {{skipCountName}}=global::System.Math.Max(0,{{this.EffectiveSkipCount}});
+                while({{skipCountName}}>0&&{{sourceName}}.TryGetNext(out _)){
+                    {{skipCountName}}--;
+                }
+                while({{sourceName}}.TryGetNext(out var {{skipItemName}})){
+                    {{consumerName}}.Consume({{skipItemName}});
+                }
+                """;
         }
         return $$"""
             using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};

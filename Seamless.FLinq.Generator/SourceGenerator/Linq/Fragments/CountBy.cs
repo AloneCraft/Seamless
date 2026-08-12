@@ -190,7 +190,7 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
     private string PooledIntMapTryGetNextBody => $$"""
         if(this.__hashKeys is null){
             if({{this.e}}.TryGetNonEnumeratedCount(out var __count)){
-                this.InitializePooledMap(__count);
+                this.InitializePooledMap(global::System.Math.Min(__count,1024));
             }else{
                 this.InitializePooledMap(0);
             }

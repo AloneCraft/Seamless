@@ -474,11 +474,10 @@ public sealed partial class FLinqIncrementalGenerator {
             return ローカルメソッドLinq解析結果.Empty;
         }
 
-        if(!メソッド構文にLinq候補を含むか(methodSyntax)) {
+        var semanticModel = compilation.GetSemanticModel(methodSyntax.SyntaxTree);
+        if(!メソッド構文にLinq候補を含むか(methodSyntax,semanticModel)) {
             return ローカルメソッドLinq解析結果.Empty;
         }
-
-        var semanticModel = compilation.GetSemanticModel(methodSyntax.SyntaxTree);
         // 通常の block-bodied method と expression-bodied method の両方を見る。
         var invocationNodes = methodSyntax.Body is not null
             ? methodSyntax.Body.DescendantNodes().OfType<InvocationExpressionSyntax>()
@@ -499,6 +498,14 @@ public sealed partial class FLinqIncrementalGenerator {
             // 「System.Linq.Enumerable を呼んでいるか」だけを見る。
             // これにより Cast/Append など未対応 or 一部未構築のケースも intercept され、
             // 後段で明示的な例外へ落とせる。
+            if(invocation.Expression is MemberAccessExpressionSyntax consumeMember
+                &&consumeMember.Name.Identifier.ValueText=="Consume"
+                &&invocation.ArgumentList.Arguments.Count==1
+                &&(consumeMember.Expression is InvocationExpressionSyntax
+                    ||invocation.ArgumentList.Arguments[0].Expression is InvocationExpressionSyntax)) {
+                hasEnumerableCall=true;
+                continue;
+            }
             if(!SystemLinqEnumerableメソッド判定(definition)) {
                 continue;
             }
@@ -557,14 +564,26 @@ public sealed partial class FLinqIncrementalGenerator {
             hasAnonymousTypeLinq);
     }
 
+    /// <summary>Consume の receiver または引数が列挙式呼び出しかを構文だけで判定する。</summary>
+    private static bool Consume列挙式候補判定(InvocationExpressionSyntax invocation) {
+        if(invocation.Expression is not MemberAccessExpressionSyntax consumeMember
+            ||consumeMember.Name.Identifier.ValueText!="Consume"
+            ||invocation.ArgumentList.Arguments.Count!=1) {
+            return false;
+        }
+
+        return consumeMember.Expression is InvocationExpressionSyntax
+            ||invocation.ArgumentList.Arguments[0].Expression is InvocationExpressionSyntax;
+    }
+
     /// <summary>
     /// セマンティックモデルを使わず構文だけで「メソッド本体内に System.Linq.Enumerable のメソッド名が出現するか」を判定する。
     /// <br/>セマンティック解析より安価なため、解析対象を絞る前処理として <see cref="ローカルメソッドLinq解析実行"/> の冒頭で呼ばれる。
     /// <br/>判定対象: メンバーアクセス（<c>source.Where(…)</c>）・識別子（<c>Where(…)</c>）・
     /// ジェネリックメソッド名（<c>Cast&lt;T&gt;(…)</c>）のいずれかが
-    /// Registry Coverage に含まれるか、またはクエリ式が存在するか。
+    /// Registry Coverage に含まれるか、Consume の列挙式候補、またはクエリ式が存在するか。
     /// </summary>
-    private static bool メソッド構文にLinq候補を含むか(MethodDeclarationSyntax methodSyntax) {
+    private static bool メソッド構文にLinq候補を含むか(MethodDeclarationSyntax methodSyntax,SemanticModel semanticModel) {
         var invocationNodes = methodSyntax.Body is not null
             ? methodSyntax.Body.DescendantNodes().OfType<InvocationExpressionSyntax>()
             : methodSyntax.ExpressionBody is not null
@@ -574,31 +593,55 @@ public sealed partial class FLinqIncrementalGenerator {
         foreach(var invocation in invocationNodes) {
             if(invocation.Expression is MemberAccessExpressionSyntax { Name: { } memberName }
                 &&OperatorRegistry.IsKnownEnumerableMethodName(memberName.Identifier.ValueText)) {
+                if(semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol memberMethod
+                    &&!SystemLinqEnumerableメソッド判定(memberMethod.ReducedFrom??memberMethod)) {
+                    // provider の instance Contains などを LINQ 候補へ誤分類しない。
+                    continue;
+                }
                 return true;
             }
             if(invocation.Expression is IdentifierNameSyntax identifierName
                 &&OperatorRegistry.IsKnownEnumerableMethodName(identifierName.Identifier.ValueText)) {
+                if(semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol identifierMethod
+                    &&!SystemLinqEnumerableメソッド判定(identifierMethod.ReducedFrom??identifierMethod)) {
+                    continue;
+                }
                 return true;
             }
             if(invocation.Expression is GenericNameSyntax genericName
                 &&OperatorRegistry.IsKnownEnumerableMethodName(genericName.Identifier.ValueText)) {
+                if(semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol genericMethod
+                    &&!SystemLinqEnumerableメソッド判定(genericMethod.ReducedFrom??genericMethod)) {
+                    continue;
+                }
                 return true;
             }
+            if(!Consume列挙式候補判定(invocation)) {
+                continue;
+            }
+
+            var sourceInvocation = invocation.Expression is MemberAccessExpressionSyntax { Expression: InvocationExpressionSyntax receiverInvocation }
+                ? receiverInvocation
+                : invocation.ArgumentList.Arguments[0].Expression as InvocationExpressionSyntax;
+            if(sourceInvocation is not null
+                &&semanticModel.GetSymbolInfo(sourceInvocation).Symbol is IMethodSymbol sourceMethod) {
+                var sourceDefinition=sourceMethod.ReducedFrom??sourceMethod;
+                if(OperatorRegistry.IsKnownEnumerableMethodName(sourceDefinition.Name)
+                    &&!SystemLinqEnumerableメソッド判定(sourceDefinition)) {
+                    continue;
+                }
+            }
+
+            return true;
         }
 
-        // クエリ式（from ... select/where/orderby 等）も System.Linq.Enumerable 呼び出しに相当するため対象とする
         IEnumerable<SyntaxNode> bodyNodesForQuery = methodSyntax.Body is not null
             ? methodSyntax.Body.DescendantNodes()
             : methodSyntax.ExpressionBody is not null
                 ? methodSyntax.ExpressionBody.Expression.DescendantNodesAndSelf()
                 : global::System.Linq.Enumerable.Empty<SyntaxNode>();
-        if(bodyNodesForQuery.OfType<QueryExpressionSyntax>().Any()) {
-            return true;
-        }
-
-        return false;
+        return bodyNodesForQuery.OfType<QueryExpressionSyntax>().Any();
     }
-
     /// <summary>
     /// インターセプト対象の選定用。Fragment 化できるかどうかは問わず、
     /// メソッドの所属型が <c>System.Linq.Enumerable</c> であるかだけを判定する。

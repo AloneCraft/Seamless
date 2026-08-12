@@ -56,8 +56,15 @@ namespace Seamless.Linq {
         // 型分岐は実行時（呼び出し側で T が具象化された後）の typeof(T) 比較に任せる」
         // 方式に揃える。
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool SequenceEqualSpan<TSource>(ReadOnlySpan<TSource> spanL,ReadOnlySpan<TSource> spanR) {
             if(spanL.Length!=spanR.Length) return false;
+            if(spanL.Length==0) return true;
+            if(global::System.Runtime.CompilerServices.Unsafe.AreSame(
+                ref global::System.Runtime.InteropServices.MemoryMarshal.GetReference(spanL),
+                ref global::System.Runtime.InteropServices.MemoryMarshal.GetReference(spanR))) {
+                return true;
+            }
             if(typeof(TSource)==typeof(byte)) return UnsafeSpanBitCast<TSource,byte>(spanL).SequenceEqual(UnsafeSpanBitCast<TSource,byte>(spanR));
             if(typeof(TSource)==typeof(sbyte)) return UnsafeSpanBitCast<TSource,sbyte>(spanL).SequenceEqual(UnsafeSpanBitCast<TSource,sbyte>(spanR));
             if(typeof(TSource)==typeof(short)) return UnsafeSpanBitCast<TSource,short>(spanL).SequenceEqual(UnsafeSpanBitCast<TSource,short>(spanR));

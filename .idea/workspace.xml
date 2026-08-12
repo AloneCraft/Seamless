@@ -1,7 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="c7260d12-37ac-443f-b541-40f8091022ae" name="Changes" comment="" />
+    <list default="true" id="c7260d12-37ac-443f-b541-40f8091022ae" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.GeneratedCodeRendering.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.GeneratedCodeRendering.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.InterceptorSourceWriter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.InterceptorSourceWriter.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/EnumeratorRenderModel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/EnumeratorRenderModel.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Fragment.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Fragment.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/GroupBy.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/GroupBy.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/SequenceEqual.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/SequenceEqual.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/ToLookup.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/ToLookup.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.Linq/GroupBy.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/GroupBy.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.Linq/SequenceEqual.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/SequenceEqual.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.Linq/ToLookup.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/ToLookup.cs" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -24,7 +35,7 @@
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "速度改善していなかったので改善",
+    "git-widget-placeholder": "演算子レジストリ中心リファクタリング",
     "ignore.virus.scanning.warn.message": "true",
     "last_opened_file_path": "G:/GitHub/Seamless"
   },

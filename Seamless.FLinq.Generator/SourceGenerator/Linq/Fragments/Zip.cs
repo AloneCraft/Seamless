@@ -44,7 +44,24 @@ internal class Zip(int 番号,Enumerable source,Enumerable second):Enumerable(�
         """;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,second.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second";
-    public override string GetTryGetNextBody => $$"""
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        return $$"""
+            using var __zipSource={{source.GetEnumeratorExpression}};
+            using var __zipSecond={{second.GetEnumeratorExpression}};
+            if(__zipSource.TryGetSpan(out var __zipSourceSpan)&&__zipSecond.TryGetSpan(out var __zipSecondSpan)){
+                global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
+                var __zipLength=global::System.Math.Min(__zipSourceSpan.Length,__zipSecondSpan.Length);
+                for(var __zipIndex=0;__zipIndex<__zipLength;__zipIndex++){
+                    {{consumerName}}.Consume((__zipSourceSpan[__zipIndex],__zipSecondSpan[__zipIndex]));
+                }
+            }else{
+                global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+                while(__zipSource.TryGetNext(out var __zipFirst)&&__zipSecond.TryGetNext(out var __zipSecondValue)){
+                    {{consumerName}}.Consume((__zipFirst,__zipSecondValue));
+                }
+            }
+            """;
+    }    public override string GetTryGetNextBody => $$"""
         if(source.TryGetNext(out var __mn94)&&second.TryGetNext(out var __mn95)){
             current=this.{{this.currentValue}}=(__mn94,__mn95);
             return true;

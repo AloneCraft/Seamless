@@ -246,13 +246,24 @@ public sealed partial class FLinqIncrementalGenerator {
         if(!TryGetDirectConsumeConsumerExpression(consumeInvocation,linqInvocation,out var consumerExpression)) {
             return false;
         }
+        if(semanticModel.GetSymbolInfo(linqInvocation).Symbol is IMethodSymbol sourceMethod
+            &&sourceMethod.ContainingType.Name=="UnorderedGuard") {
+            return false;
+        }
 
         var snapshot = uniqueNumber;
         var linqInvocationCountSnapshot = linqInvocationCount;
         var staticMethodsSnapshot = staticMethods;
         var builderLengthSnapshot = builder.Length;
         var tempName = GetUniqueIdentifier($"__linq{linqInvocationCount++}",usedNames);
-        if(!呼び出し式からフラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector)) {
+        var fragmentBuilt=呼び出し式からフラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector);
+        if(!fragmentBuilt
+            &&TryBuildKnownEnumerableRoot(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var ordinaryRootFragment,unsafeAccessorCollector)) {
+            fragment=ordinaryRootFragment;
+            invocationStaticMethods=string.Empty;
+            fragmentBuilt=true;
+        }
+        if(!fragmentBuilt) {
             if(!列挙式フラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var enumerableFragmentFallback,out invocationStaticMethods,unsafeAccessorCollector)) {
                 uniqueNumber=snapshot;
                 linqInvocationCount=linqInvocationCountSnapshot;
@@ -306,13 +317,24 @@ public sealed partial class FLinqIncrementalGenerator {
         if(!TryGetDirectConsumeConsumerExpression(consumeInvocation,linqInvocation,out var consumerExpression)) {
             return false;
         }
+        if(semanticModel.GetSymbolInfo(linqInvocation).Symbol is IMethodSymbol sourceMethod
+            &&sourceMethod.ContainingType.Name=="UnorderedGuard") {
+            return false;
+        }
 
         var snapshot = uniqueNumber;
         var linqInvocationCountSnapshot = linqInvocationCount;
         var staticMethodsSnapshot = staticMethods;
         var builderLengthSnapshot = builder.Length;
         var tempName = GetUniqueIdentifier($"__linq{linqInvocationCount++}",usedNames);
-        if(!呼び出し式からフラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector)) {
+        var fragmentBuilt=呼び出し式からフラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector);
+        if(!fragmentBuilt
+            &&TryBuildKnownEnumerableRoot(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var ordinaryRootFragment,unsafeAccessorCollector)) {
+            fragment=ordinaryRootFragment;
+            invocationStaticMethods=string.Empty;
+            fragmentBuilt=true;
+        }
+        if(!fragmentBuilt) {
             if(!列挙式フラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var enumerableFragmentFallback,out invocationStaticMethods,unsafeAccessorCollector)) {
                 uniqueNumber=snapshot;
                 linqInvocationCount=linqInvocationCountSnapshot;
@@ -468,6 +490,28 @@ public sealed partial class FLinqIncrementalGenerator {
     private bool SyntaxExpressionMatches(ExpressionSyntax expression,ExpressionSyntax other) =>
         NormalizeExpressionText(StripConsumeParentheses(expression).ToString())==NormalizeExpressionText(StripConsumeParentheses(other).ToString());
 
+    private bool TryGetConsumeSourceInvocation(
+        InvocationExpressionSyntax consumeExpression,
+        out InvocationExpressionSyntax sourceInvocation) {
+        sourceInvocation=null!;
+        if(consumeExpression.Expression is not MemberAccessExpressionSyntax consumeMember
+            ||consumeMember.Name.Identifier.ValueText!="Consume") {
+            return false;
+        }
+
+        if(StripConsumeParentheses(consumeMember.Expression) is InvocationExpressionSyntax receiverInvocation) {
+            sourceInvocation=receiverInvocation;
+            return true;
+        }
+
+        if(consumeExpression.ArgumentList.Arguments.Count==1
+            &&StripConsumeParentheses(consumeExpression.ArgumentList.Arguments[0].Expression) is InvocationExpressionSyntax argumentInvocation) {
+            sourceInvocation=argumentInvocation;
+            return true;
+        }
+
+        return false;
+    }
     private ExpressionSyntax StripConsumeParentheses(ExpressionSyntax expression) {
         while(expression is ParenthesizedExpressionSyntax parenthesized) {
             expression=parenthesized.Expression;
@@ -843,6 +887,25 @@ public sealed partial class FLinqIncrementalGenerator {
             containingType=optimizedContainingType;
         }
         if(TryRewriteTryGetNonEnumeratedCountStatement(statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) {
+            return true;
+        }
+
+        if(statement is ExpressionStatementSyntax consumeStatement
+            &&consumeStatement.Expression is InvocationExpressionSyntax bareConsumeExpression
+            &&TryGetConsumeSourceInvocation(bareConsumeExpression,out var consumeSourceInvocation)
+            &&直接Consumeループ文生成(
+                consumeStatement,
+                consumeSourceInvocation,
+                semanticModel,
+                containingType,
+                ref uniqueNumber,
+                methodIsStatic,
+                ref staticMethods,
+                unsafeAccessorCollector,
+                generatedFragments,
+                builder,
+                ref linqInvocationCount,
+                usedNames)) {
             return true;
         }
 
@@ -1766,7 +1829,7 @@ public sealed partial class FLinqIncrementalGenerator {
             // 拡張メソッド呼び出し、または Range/Repeat/Empty root を対象とし、out/ref パラメータ持ちは除外する
             .Where(invocation => SystemLinqEnumerable呼び出し判定(invocation,semanticModel)
                 &&semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol method
-                &&(method.ReducedFrom is not null||IsKnownEnumerableRootMethod(method))
+                &&(method.ReducedFrom is not null||IsKnownEnumerableRootMethod(method)||IsStaticSystemEnumerableLowerable(method))
                 &&!(method.ReducedFrom??method).Parameters.Any(static p => p.RefKind!=RefKind.None))
             .Where(invocation => !invocation.Ancestors()
                 .TakeWhile(ancestor => ancestor!=statement)
@@ -1809,7 +1872,7 @@ public sealed partial class FLinqIncrementalGenerator {
             .OfType<InvocationExpressionSyntax>()
             .Where(invocation => SystemLinqEnumerable呼び出し判定(invocation,semanticModel)
                 &&semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol method
-                &&(method.ReducedFrom is not null||IsKnownEnumerableRootMethod(method))
+                &&(method.ReducedFrom is not null||IsKnownEnumerableRootMethod(method)||IsStaticSystemEnumerableLowerable(method))
                 &&!(method.ReducedFrom??method).Parameters.Any(static p => p.RefKind!=RefKind.None))
             .Where(invocation => !invocation.Ancestors()
                 .TakeWhile(ancestor => ancestor!=boundary)
@@ -1837,6 +1900,13 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <c>MemoryExtensions.Contains</c> は <c>Span&lt;T&gt;</c>/<c>ReadOnlySpan&lt;T&gt;</c> の
     /// 拡張メソッドとして LINQ 的に使われるため対象に含める。
     /// </summary>
+    private static bool IsStaticSystemEnumerableLowerable(IMethodSymbol method) =>
+        method.ReducedFrom is null
+        &&((method.Name=="Contains"&&method.Parameters.Length is 2 or 3)
+            ||(method.Name=="Reverse"&&method.Parameters.Length==1))
+        &&method.ContainingType.Name=="Enumerable"
+        &&method.ContainingNamespace.ToDisplayString()=="System.Linq";
+
     private bool SystemLinqEnumerable呼び出し判定(InvocationExpressionSyntax invocation,SemanticModel semanticModel) {
         return IsSupportedLinqInvocation(invocation,semanticModel);
     }

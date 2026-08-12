@@ -87,6 +87,7 @@ internal abstract class ProviderNativeExecutionBase(
             // （Set.Count 等の O(1) プロパティ）で答えられる。native iterate は全要素を
             // materialize してしまうため、既に O(1) 経路がある場合はそちらへ譲る。
             ProviderIterateTerminalKind.Count => pipeline.NonEnumeratedCountExpression is null,
+            ProviderIterateTerminalKind.Any => pipeline.Stages.Any(static stage => stage.Kind is PipelineStageKind.Where or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile),
             _ => true,
         }
         &&pipeline.Stages.All(static stage => PipelineStageCapabilityTable.SupportsProviderNativeIterate(stage.Kind))

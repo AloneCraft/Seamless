@@ -424,7 +424,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             generated.Contains("global::System.Buffers.ArrayPool<int>.Shared.Rent",StringComparison.Ordinal)
             &&generated.Contains("global::System.Buffers.ArrayPool<int>.Shared.Return",StringComparison.Ordinal)
             &&!generated.Contains("new global::System.Collections.Generic.List<int>",StringComparison.Ordinal),
-            "Reverse().Consume(...) over a span-incapable source (IEnumerable<T>) — the exact shape benchmarks use — "
+            "Reverse().Consume(...) over a span-incapable source (IEnumerable<T>) 鬩包ｽｯ繝ｻ・ｶ驛｢譎｢・ｽ・ｻthe exact shape benchmarks use 鬩包ｽｯ繝ｻ・ｶ驛｢譎｢・ｽ・ｻ"
             +"must buffer via pooled array, not List<T>.",
             generated,
             output);
@@ -463,6 +463,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             generated,
             output);
     }
+
 
     [Fact]
     public void SumOverIntArrayUsesSimdSumSpan() {
@@ -566,6 +567,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
                 }
             }
             public class Container{
+                private static void RangeConsume(Consumer<int>consumer)=>
+                    Enumerable.Range(1,4096).Consume(consumer);
                 private static void AppendRange(Consumer<int>consumer)=>
                     Enumerable.Range(1,4096).Append(0).Consume(consumer);
                 private static void PrependRange(Consumer<int>consumer)=>
@@ -583,6 +586,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
                 private static void DefaultIfEmptyRange(Consumer<int>consumer)=>
                     Enumerable.Range(1,4096).DefaultIfEmpty(0).Consume(consumer);
                 public void Run(Consumer<int>consumer){
+                    RangeConsume(consumer);
                     AppendRange(consumer);
                     PrependRange(consumer);
                     ConcatRange(consumer);
@@ -597,7 +601,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         var generated = GeneratedSource(source);
         foreach(var methodName in new[] {
-            "AppendRange","PrependRange","ConcatRange","WhereRange","DefaultIfEmptyRange",
+            "RangeConsume","AppendRange","PrependRange","ConcatRange","WhereRange","DefaultIfEmptyRange",
             "TakeWhileIndexRange","SkipWhileRange","SkipWhileIndexRange"
         }) {
             var method = GeneratedMethod(generated,methodName);
@@ -1180,9 +1184,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             output);
     }
 
-    // 末尾ウィンドウ系は駆動方法で経路が分かれる。`.Consume(...)` のように後段が LINQ 終端でない形は
-    // 単独フラグメント（SkipLast.cs / TakeLast.cs）、`.Count()` のように LINQ 終端が続く形は
-    // 融合パイプライン段になる。どちらも GC ヒープの Queue<T> を使ってはならない。
+    // 鬮ｫ・ｴ陝ｷ・｢繝ｻ・ｽ繝ｻ・ｫ鬮ｯ譏ｴ繝ｻ繝ｻ・ｽ繝ｻ・ｾ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｦ鬩幢ｽ｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・｣鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩幢ｽ｢隴取得・ｽ・ｳ繝ｻ・ｨ驍ｵ・ｺ騾趣ｽｯ繝ｻ蟲ｨ繝ｻ繝ｻ・ｻ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ鬯ｯ・ｯ繝ｻ・ｧ驛｢譎｢・ｽ・ｻ鬮ｯ謔滂ｽ､螂・ｽｽ・ｭ郢晢ｽｻ繝ｻ・ｽ繝ｻ・ｹ鬮ｮ蜿悶・繝ｻ・ｼ隴・搨ﾂ陝ｶ譏ｴ笙髴托ｽｹ陞滂ｽｲ繝ｻ・ｽ繝ｻ・ｷ郢晢ｽｻ繝ｻ・ｯ鬩搾ｽｵ繝ｻ・ｺ髫ｰ逍ｲ・ｺ蛟･繝ｻ鬩搾ｽｵ繝ｻ・ｺ髣包ｽｵ隴趣ｽ｢繝ｻ・ｽ隶呵ｶ｣・ｽ・ｹ繝ｻ・ｧ髣包ｽｵ隰ｨ魑ｴﾂ郢晢ｽｻ繝ｻ・｡.Consume(...)` 鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢繝ｻ・ｧ髯具ｽｹ繝ｻ・ｻ驕ｶ蛹・ｽｽ・ｧ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬮ｯ貅ｷ・｢髮｣・ｽ・｢繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｮ郢晢ｽｻ繝ｻ・ｵ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻLINQ 鬯ｩ謳ｾ・ｽ・ｨ驛｢・ｧ闔ｨ螟ｲ・ｽ・ｽ繝ｻ・ｫ郢晢ｽｻ繝ｻ・ｯ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｧ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩搾ｽｵ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ郢晢ｽｻ繝ｻ・ｽ郢晢ｽｻ繝ｻ・｢鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ
+    // 鬮ｯ・ｷ鬮ｮ繝ｻﾂ繝ｻ・｡髯晢ｽｲ繝ｻ・｡鬩幢ｽ｢隴弱・・ｽ・ｼ鬩･繝ｻ・ｸ・ｷ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・ｰ鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・｡鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬩幢ｽ｢隴寂握縺狗ｹ晢ｽｻ繝ｻ・ｼ驛｢譎｢・ｽ・ｻkipLast.cs / TakeLast.cs驛｢譎｢・ｽ・ｻ髯晢ｽｲ繝ｻ・ｨ繝ｻ縺､ﾂ郢晢ｽｻ郢晢ｽｻCount()` 鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｮ鬩幢ｽ｢繝ｻ・ｧ髯具ｽｹ繝ｻ・ｻ驕ｶ蛹・ｽｽ・ｧ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ LINQ 鬯ｩ謳ｾ・ｽ・ｨ驛｢・ｧ闔ｨ螟ｲ・ｽ・ｽ繝ｻ・ｫ郢晢ｽｻ繝ｻ・ｯ鬩搾ｽｵ繝ｻ・ｺ髫ｶ蜻ｵ・ｶ・｣繝ｻ・ｽ繝ｻ・ｶ髯橸ｽ｢繝ｻ・ｹ郢晢ｽｻ繝ｻ・･鬮ｯ貅ｷ遘√・・ｽ繝ｻ・｢鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ
+    // 鬯ｮ・ｯ隶灘･・ｽｽ・ｦ鬯倩ｲｻ・ｽ・ｲ霑｢證ｦ・ｽ・ｹ隴乗・・ｽ・ｻ繝ｻ・｣驍ｵ・ｺ郢晢ｽｻ繝ｻ・ｹ隴惹ｸ橸ｽｹ・ｲ繝ｻ荳ｻ・ｸ・ｷ繝ｻ・ｹ繝ｻ・ｧ郢晢ｽｻ繝ｻ・､鬩幢ｽ｢隴趣ｽ｢繝ｻ・ｽ繝ｻ・ｳ鬮ｫ・ｹ繝ｻ・ｿ郢晢ｽｻ繝ｻ・ｵ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｫ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩幢ｽ｢繝ｻ・ｧ髣包ｽｵ隰ｨ魑ｴﾂ驛｢・ｧ郢晢ｽｻ郢晢ｽｻ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｡鬩幢ｽ｢繝ｻ・ｧ髯晢ｽｲ繝ｻ・ｨ郢晢ｽｻ郢晢ｽｻGC 鬩幢ｽ｢隴惹ｸ翫・驛｢譎｢・ｽ・ｻ鬩幢ｽ｢隴惹ｸ橸ｽｹ・ｲ驛｢譎｢・ｽ・ｻ Queue<T> 鬩幢ｽ｢繝ｻ・ｧ髯ｷ莉｣繝ｻ繝ｻ・ｽ繝ｻ・ｽ郢晢ｽｻ繝ｻ・ｿ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・｣鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｦ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｯ鬩搾ｽｵ繝ｻ・ｺ郢晢ｽｻ繝ｻ・ｪ鬩幢ｽ｢繝ｻ・ｧ髯晢ｽｲ繝ｻ・ｨ驕ｶ莨√・繝ｻ・ｸ繝ｻ・ｺ驛｢譎｢・ｽ・ｻ繝ｻ縺､ﾂ驛｢譎｢・ｽ・ｻ
     [Fact]
     public void LastWindowOperatorsUsePooledBuffers() {
         const string source = """
@@ -1333,6 +1337,111 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             output);
     }
 
+    [Fact]
+    public void AsEnumerableTerminalKeepsDirectArrayCountShape() {
+        const string source = """
+            using System.Linq;
+            namespace Sample;
+            public sealed class Container {
+                private static int CountViaAsEnumerable(int[] source) => source.AsEnumerable().Count();
+                public void Run(int[] source) => _ = CountViaAsEnumerable(source);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var method = GeneratedMethod(generated,"CountViaAsEnumerable");
+
+        GeneratedSourceAssert.True(
+            method.Contains("source.Length",StringComparison.Ordinal)
+            &&!method.Contains(".Compute(__s",StringComparison.Ordinal)
+            &&!method.Contains("TryGetNext",StringComparison.Ordinal),
+            "A transparent AsEnumerable before Count must keep the direct array count path instead of creating an empty pipeline enumerator.",
+            generated,
+            output);
+    }
+    [Fact]
+    public void StaticIEnumerableConsumeUsesDirectInterfaceLoop() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public static class Route {
+                public static IEnumerable<T> AsX<T>(this IEnumerable<T> source) => source;
+            }
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumerExtensions {
+                public static void Consume<T>(this IEnumerable<T> source,Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public sealed class Container {
+                private readonly Consumer<int> consumer = new();
+                private void Direct(IEnumerable<int> source) => source.AsX().Consume(this.consumer);
+                public void Run(IEnumerable<int> source) => this.Direct(source);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var method = GeneratedMethod(generated,"Direct");
+
+        GeneratedSourceAssert.True(
+            method.Contains(".GetEnumerator()",StringComparison.Ordinal)
+            &&method.Contains(".MoveNext()",StringComparison.Ordinal)
+            &&method.Contains(".Current",StringComparison.Ordinal)
+            &&method.Contains("using var __interfaceEnumerator",StringComparison.Ordinal)
+            &&!method.Contains("TryGetSpan",StringComparison.Ordinal)
+            &&!method.Contains("IValueEnumerator",StringComparison.Ordinal),
+            "A statically IEnumerable<T> Consume terminal should lower directly to one IEnumerator<T> loop without runtime span recovery or a value-enumerator wrapper.",
+            generated,
+            output);
+    }
+    [Fact]
+    public void StaticIEnumerableDefaultIfEmptyConsumeUsesDirectInterfaceLoop() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public static class Route {
+                public static IEnumerable<T> AsX<T>(this IEnumerable<T> source) => source;
+            }
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumerExtensions {
+                public static void Consume<T>(this IEnumerable<T> source,Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public sealed class Container {
+                private readonly Consumer<int> consumer = new();
+                private void Direct(IEnumerable<int> source) => source.AsX().DefaultIfEmpty(0).Consume(this.consumer);
+                public void Run(IEnumerable<int> source) => this.Direct(source);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var method = GeneratedMethod(generated,"Direct");
+
+        GeneratedSourceAssert.True(
+            method.Contains(".GetEnumerator()",StringComparison.Ordinal)
+            &&method.Contains(".MoveNext()",StringComparison.Ordinal)
+            &&method.Contains(".Current",StringComparison.Ordinal)
+            &&method.Contains("if(__defaultIfEmptyEnumerator",StringComparison.Ordinal)
+            &&method.Contains("__defaultIfEmptyValue",StringComparison.Ordinal)
+            &&!method.Contains("IValueEnumerator",StringComparison.Ordinal)
+            &&!method.Contains("TryGetNext",StringComparison.Ordinal),
+            "A statically IEnumerable<T> DefaultIfEmpty Consume terminal should preserve the empty fallback while lowering the non-empty path to one direct IEnumerator<T> loop.",
+            generated,
+            output);
+    }
     [Fact]
     public void PersistedListAsXUsesPersistedListRoot() {
         const string source = """

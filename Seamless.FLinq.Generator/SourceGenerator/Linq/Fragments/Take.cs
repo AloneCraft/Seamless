@@ -69,7 +69,17 @@ internal class Take(int 番号,Enumerable source,string takeCount):Enumerable(�
         var sourceName = $"__takeSource{番号}";
         var spanExpression = this.RootSource.GetDirectSpanExpression(sourceName);
         if(spanExpression is null) {
-            return base.GetConsumeExecutionStatement(consumerName);
+            var takeCountName = $"{sourceName}Count";
+            var takeItemName = $"{sourceName}Item";
+            return $$"""
+                using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};
+                global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+                var {{takeCountName}}=global::System.Math.Max(0,{{this.EffectiveTakeCount}});
+                while({{takeCountName}}>0&&{{sourceName}}.TryGetNext(out var {{takeItemName}})){
+                    {{consumerName}}.Consume({{takeItemName}});
+                    {{takeCountName}}--;
+                }
+                """;
         }
         return $$"""
             using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};

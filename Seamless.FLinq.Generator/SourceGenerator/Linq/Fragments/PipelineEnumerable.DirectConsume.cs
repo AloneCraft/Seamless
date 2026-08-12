@@ -92,6 +92,24 @@ internal sealed partial class PipelineEnumerable {
                 """;
         }
 
+        if(source is Root { DirectEnumerableExpression: { } directEnumerable }) {
+            return $$"""
+                {
+                    var __defaultIfEmptySource={{directEnumerable}};
+                    var __defaultIfEmptyValue={{defaultValue}};
+                    global::System.ArgumentNullException.ThrowIfNull(__defaultIfEmptySource);
+                    using(var __defaultIfEmptyEnumerator=__defaultIfEmptySource.GetEnumerator()){
+                        if(__defaultIfEmptyEnumerator.MoveNext()){
+                            do{
+                                {{consumerName}}.Consume(__defaultIfEmptyEnumerator.Current);
+                            }while(__defaultIfEmptyEnumerator.MoveNext());
+                        }else{
+                            {{consumerName}}.Consume(__defaultIfEmptyValue);
+                        }
+                    }
+                }
+                """;
+        }
         var sourceName = $"__defaultSource{this.result}";
         var directSpanExpression = source.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is null) {

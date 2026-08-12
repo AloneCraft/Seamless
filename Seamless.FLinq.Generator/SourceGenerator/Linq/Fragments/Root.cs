@@ -136,6 +136,28 @@ internal class Root(int 番号,string sourceExpression,string elementType,string
             return RenderEnumeratorExpression(this.EnumeratorTypeName,$"{sourceExpr}.GetEnumerator()");
         }
     }
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        if(!useEnumerableInterface) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+
+        // 静的 IEnumerable<T> 経路は型回復を試みない。終端 Consume では値列挙子の
+        // ラッパーを生成せず、契約どおりの IEnumerator<T> を直接 1 回だけ取得して走査する。
+        var sourceName=$"__interfaceSource{番号}";
+        var enumeratorName=$"__interfaceEnumerator{番号}";
+        var itemName=$"__interfaceItem{番号}";
+        return $$"""
+            {
+                var {{sourceName}}=((global::System.Collections.Generic.IEnumerable<{{elementType}}>)({{this.SourceExpression}}));
+                using var {{enumeratorName}}={{sourceName}}.GetEnumerator();
+                while({{enumeratorName}}.MoveNext()){
+                    var {{itemName}}={{enumeratorName}}.Current;
+                    {{consumerName}}.Consume({{itemName}});
+                }
+            }
+            """;
+    }
+
     // TEnum でパラメータ化された struct を手動で出力する（where 制約が struct 宣言の opening brace より前に来る必要があるため）。
     public override string GetEnumeratorStruct => useEnumerableInterface
         ? this.GetEnumerableInterfaceStruct()

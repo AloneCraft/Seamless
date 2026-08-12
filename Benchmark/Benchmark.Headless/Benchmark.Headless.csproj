@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Benchmark.UI\Benchmark.UI.csproj" />
+  </ItemGroup>
+  <Target Name="CopyBenchmarkWorkerHost" AfterTargets="Build">
+    <MSBuild Projects="$(MSBuildProjectDirectory)\..\Worker\Worker.csproj" Targets="Build" Properties="Configuration=$(Configuration);TargetFramework=net10.0" />
+    <ItemGroup>
+      <_WorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_WorkerFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+  </Target></Project>

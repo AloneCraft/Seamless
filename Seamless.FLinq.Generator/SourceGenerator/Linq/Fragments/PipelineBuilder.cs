@@ -132,6 +132,18 @@ internal static partial class PipelineBuilder {
             return true;
         }
 
+        if(stages.Count==0) {
+            // AsEnumerable などの透過stageが正規化で消えた場合は、terminalを持っていても
+            // PipelineEnumerable を作らない。通常のFragment経路がsource能力をそのまま使う。
+            if(terminalKind is not null) {
+                return false;
+            }
+            fragment=sourceFragment;
+            uniqueNumber=snapshot;
+            services.ApplyRenderContext(fragment);
+            staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
+            return true;
+        }
         var pipeline = new PipelineEnumerable(snapshot++,sourceFragment,stages.ToArray(),currentElementType);
         AddUnsafeAccessors(stages,unsafeAccessorCollector);
         if(terminalKind is { } terminal) {

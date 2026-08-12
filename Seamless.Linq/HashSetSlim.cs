@@ -1,4 +1,4 @@
-﻿#pragma warning disable 0436
+#pragma warning disable 0436
 namespace Seamless.Linq;
 
 // Most of the time we use class instead of struct because objects are kept in the heap.
@@ -37,6 +37,7 @@ public sealed class HashSetSlim<T>:IDisposable {
         this.buckets.AsSpan().Clear(); // 0-clear.
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Add(T item) {
         var hashCode = this.InternalGetHashCode(item);
         ref var bucket = ref this.buckets[this.GetBucketIndex(hashCode)];

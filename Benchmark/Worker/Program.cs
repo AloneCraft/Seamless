@@ -43,12 +43,24 @@ while(await Console.In.ReadLineAsync() is { } 行) {
             continue;
         }
 
-        if(string.Equals(タスク.コマンド,"shutdown",StringComparison.OrdinalIgnoreCase)) {
+        var command = タスク.Command??タスク.コマンド;
+        if(string.Equals(command,"shutdown",StringComparison.OrdinalIgnoreCase)) {
             await Task.WhenAll(高速タスク一覧.ToArray());
             return 0;
         }
 
-        if(string.Equals(タスク.コマンド,"fast-run",StringComparison.OrdinalIgnoreCase)) {
+        if(string.Equals(command,"paired-fast-run",StringComparison.OrdinalIgnoreCase)||string.Equals(command,"profile-paired",StringComparison.OrdinalIgnoreCase)) {
+            var result = 演算子対比較を実行(タスク,タスク.割り当て論理CPU??論理CPU);
+            await プロトコル書込ゲート.WaitAsync();
+            try {
+                await プロトコル出力.WriteLineAsync(JsonSerializer.Serialize(result));
+                await プロトコル出力.FlushAsync();
+            } finally {
+                プロトコル書込ゲート.Release();
+            }
+            continue;
+        }
+        if(string.Equals(command,"fast-run",StringComparison.OrdinalIgnoreCase)) {
             var 高速タスク = タスク;
             高速タスク一覧.Add(Task.Run(async () => {
                 ワーカー結果メッセージ 結果;
@@ -278,6 +290,96 @@ static ワーカー結果メッセージ ベンチマークを実行(
     }
 }
 
+static 演算子対比較結果 演算子対比較を実行(ワーカータスクメッセージ タスク,int 論理CPU) {
+    var pair = タスク.Pair??throw new InvalidOperationException("paired-fast-run requires Pair.");
+    if(!string.IsNullOrWhiteSpace(タスク.成果物フォルダー)) {
+        Directory.CreateDirectory(タスク.成果物フォルダー);
+    }
+    スレッドアフィニティを適用(論理CPU);
+    var fLinqType = ベンチマーク型を解決(pair.FLinq.AssemblyName,pair.FLinq.TypeName);
+    var baselineType = ベンチマーク型を解決(pair.Baseline.AssemblyName,pair.Baseline.TypeName);
+    using var fLinqElementCount = 要素数スコープを開始(fLinqType.Assembly,pair.ElementCount,pair.ElementScale);
+    using var baselineElementCount = 要素数スコープを開始(baselineType.Assembly,pair.ElementCount,pair.ElementScale);
+    using var fLinqRandom = ランダムソースシードスコープを開始(fLinqType.Assembly,pair.RandomSeed);
+    using var baselineRandom = ランダムソースシードスコープを開始(baselineType.Assembly,pair.RandomSeed);
+    var fLinqAction = 演算子呼出を作成(fLinqType,pair.FLinq,out var fLinqInstance);
+    var baselineAction = 演算子呼出を作成(baselineType,pair.Baseline,out var baselineInstance);
+    using var fLinqDisposable = fLinqInstance as IDisposable;
+    using var baselineDisposable = baselineInstance as IDisposable;
+
+    for(var index = 0;index<16;index++) {
+        fLinqAction();
+        baselineAction();
+    }
+
+    var calibration = Math.Max(演算子試行を実行(fLinqAction,1).ナノ秒,演算子試行を実行(baselineAction,1).ナノ秒);
+    var loopCount = (int)Math.Clamp(10_000_000d/Math.Max(1d,calibration),1d,100_000d);
+    var fLinqSamples = new List<演算子試行結果>(9);
+    var baselineSamples = new List<演算子試行結果>(9);
+    for(var index = 0;index<9;index++) {
+        if((index&1)==0) {
+            fLinqSamples.Add(演算子試行を実行(fLinqAction,loopCount));
+            baselineSamples.Add(演算子試行を実行(baselineAction,loopCount));
+        } else {
+            baselineSamples.Add(演算子試行を実行(baselineAction,loopCount));
+            fLinqSamples.Add(演算子試行を実行(fLinqAction,loopCount));
+        }
+    }
+
+    return new 演算子対比較結果("paired-result",loopCount,演算子計測を要約(fLinqSamples,loopCount),演算子計測を要約(baselineSamples,loopCount));
+}
+
+static Action 演算子呼出を作成(Type ベンチマーク型,演算子ベンチマーク要求 要求,out object? インスタンス) {
+    var 引数 = 要求.Arguments.Select(演算子引数を解析).ToArray();
+    var メソッド = ベンチマークメソッドを解決(ベンチマーク型,要求.MethodName);
+    インスタンス=メソッド.IsStatic ? null : Activator.CreateInstance(ベンチマーク型);
+    if(引数.Length==0) {
+        return メソッド.IsStatic
+            ? (Action)メソッド.CreateDelegate(typeof(Action))
+            : (Action)メソッド.CreateDelegate(typeof(Action),インスタンス);
+    }
+    var 呼出対象 = インスタンス;
+    return () => メソッド.Invoke(呼出対象,引数);
+}
+
+static object 演算子引数を解析(string 値) {
+    if(long.TryParse(値,NumberStyles.Integer,CultureInfo.InvariantCulture,out var 整数値)) {
+        return 整数値;
+    }
+    if(double.TryParse(値,NumberStyles.Float,CultureInfo.InvariantCulture,out var 浮動小数値)) {
+        return 浮動小数値;
+    }
+    return 値;
+}
+
+static 演算子試行結果 演算子試行を実行(Action 呼出,int ループ回数) {
+    var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+    var gc0Before = GC.CollectionCount(0);
+    var gc1Before = GC.CollectionCount(1);
+    var gc2Before = GC.CollectionCount(2);
+    var stopwatch = Stopwatch.StartNew();
+    for(var index = 0;index<ループ回数;index++) {
+        呼出();
+    }
+    stopwatch.Stop();
+    return new 演算子試行結果(
+        stopwatch.Elapsed.TotalMilliseconds*1_000_000d,
+        Math.Max(0,GC.GetAllocatedBytesForCurrentThread()-allocatedBefore),
+        GC.CollectionCount(0)-gc0Before,
+        GC.CollectionCount(1)-gc1Before,
+        GC.CollectionCount(2)-gc2Before);
+}
+
+static 演算子計測結果 演算子計測を要約(IReadOnlyList<演算子試行結果> samples,int ループ回数) {
+    var orderedNanoseconds = samples.Select(sample => sample.ナノ秒/ループ回数).Order().ToArray();
+    var orderedAllocations = samples.Select(sample => sample.割当バイト数/(double)ループ回数).Order().ToArray();
+    return new 演算子計測結果(
+        orderedNanoseconds[orderedNanoseconds.Length/2],
+        orderedAllocations[orderedAllocations.Length/2],
+        samples.Sum(static sample => sample.Gen0),
+        samples.Sum(static sample => sample.Gen1),
+        samples.Sum(static sample => sample.Gen2));
+}
 static ワーカー結果メッセージ 高速ベンチマークを実行(
     ワーカータスクメッセージ タスク,
     int 論理CPU,
@@ -302,7 +404,9 @@ static ワーカー結果メッセージ 高速ベンチマークを実行(
                 ? (Action)メソッド.CreateDelegate(typeof(Action))
                 : (Action)メソッド.CreateDelegate(typeof(Action),インスタンス)
             : () => メソッド.Invoke(インスタンス,引数値一覧);
-        var 計測 = 計測を実行(ベンチマーク呼出,タスク.開放ループ較正か,タスク.較正閾値ナノ秒,ループ回数);
+        if(!タスク.開放ループ較正か) {
+            直接ウォームアップを実行(ベンチマーク呼出,タスク.較正閾値ナノ秒??300_000_000d);
+        }        var 計測 = 計測を実行(ベンチマーク呼出,タスク.開放ループ較正か,タスク.較正閾値ナノ秒,ループ回数);
         int? 実測ループ回数 = タスク.開放ループ較正か ? 計測.ループ回数 : null;
         var 平均ナノ秒 = 計測.中央値ナノ秒;
         var 割当バイト数 = 計測.割り当てバイト数;
@@ -375,6 +479,12 @@ static ワーカー結果メッセージ 高速ベンチマークを実行(
 /// 左右で 1 反復あたりの時計読みコストが食い違い、較正側（＝右列）だけが系統的に遅く見える。
 /// </para>
 /// </summary>
+static void 直接ウォームアップを実行(Action ベンチマーク呼出,double 目標時間ナノ秒) {
+    var stopwatch = Stopwatch.StartNew();
+    do {
+        ベンチマーク呼出();
+    } while(stopwatch.Elapsed.TotalMilliseconds*1_000_000d<目標時間ナノ秒);
+}
 static 計測結果 計測を実行(Action ベンチマーク呼出,bool 開放ループ較正か,double? 較正閾値ナノ秒,int 指定ループ回数) {
     var 時計 = new Stopwatch();
     var ダミー累積 = 0d;
@@ -401,16 +511,23 @@ static 計測結果 計測を実行(Action ベンチマーク呼出,bool 開放�
 
     var サンプル一覧 = new double[計測設定.計測サンプル数];
     long? 割り当てバイト数 = null;
+    var __gcCollections = new int[3];
     for(var サンプル番号 = 0;サンプル番号<全サンプル数;サンプル番号++) {
         // 先頭の 破棄サンプル数 本は時間ベースのウォームアップとして捨てる。左右とも同じ本数・同じ回数を回す。
         var 計測対象か = サンプル番号>=計測設定.破棄サンプル数;
         var 割当前バイト数 = GC.GetAllocatedBytesForCurrentThread();
+        var __gc0Before=GC.CollectionCount(0);
+        var __gc1Before=GC.CollectionCount(1);
+        var __gc2Before=GC.CollectionCount(2);
         時計.Restart();
         ダミー累積+=反復ループを回す(ベンチマーク呼出,ループ回数,時計);
         時計.Stop();
         if(!計測対象か) {
             continue;
         }
+        __gcCollections[0]+=GC.CollectionCount(0)-__gc0Before;
+        __gcCollections[1]+=GC.CollectionCount(1)-__gc1Before;
+        __gcCollections[2]+=GC.CollectionCount(2)-__gc2Before;
         // 割り当てバイト数は「1 サンプル＝ループ回数 反復ぶん」で、時間の単位と揃える。
         割り当てバイト数??=Math.Max(0,GC.GetAllocatedBytesForCurrentThread()-割当前バイト数);
         サンプル一覧[サンプル番号-計測設定.破棄サンプル数]=時計.Elapsed.TotalMilliseconds*1_000_000d;
@@ -430,7 +547,8 @@ static 計測結果 計測を実行(Action ベンチマーク呼出,bool 開放�
         ループ回数,
         割り当てバイト数??0,
         ダミー累積,
-        サンプル一覧);
+        サンプル一覧,
+        __gcCollections);
 }
 
 /// <summary>
@@ -455,6 +573,7 @@ static string 計測ログを整形(計測結果 計測) {
         +"、中央値="+ナノ秒を整形(計測.中央値ナノ秒)
         +"、標準偏差="+ナノ秒を整形(計測.標準偏差ナノ秒)
         +"、サンプル(ns)=["+サンプル+"]"
+        +"、GC(Gen0/Gen1/Gen2)="+string.Join("/",計測.GC収集回数一覧.Select(static 回数 => 回数.ToString(CultureInfo.InvariantCulture)))
         +"、ダミー累積="+計測.ダミー累積.ToString("F3",CultureInfo.InvariantCulture);
 }
 
@@ -677,8 +796,43 @@ internal sealed record ワーカータスクメッセージ(
     string 成果物フォルダー,
     int? 割り当て論理CPU = null,
     bool 開放ループ較正か = false,
-    double? 較正閾値ナノ秒 = null);
+    double? 較正閾値ナノ秒 = null) {
+    public string? Command { get; init; }
+    public 演算子対比較要求? Pair { get; init; }
+}
 
+internal sealed record 演算子対比較要求(
+    演算子ベンチマーク要求 FLinq,
+    演算子ベンチマーク要求 Baseline,
+    int ElementCount,
+    string ElementScale,
+    int RandomSeed);
+
+internal sealed record 演算子ベンチマーク要求(
+    string AssemblyName,
+    string TypeName,
+    string MethodName,
+    string[] Arguments);
+
+internal sealed record 演算子試行結果(
+    double ナノ秒,
+    long 割当バイト数,
+    int Gen0,
+    int Gen1,
+    int Gen2);
+
+internal sealed record 演算子計測結果(
+    double 中央値ナノ秒,
+    double 割当バイト数,
+    int Gen0,
+    int Gen1,
+    int Gen2);
+
+internal sealed record 演算子対比較結果(
+    string Kind,
+    int LoopCount,
+    演算子計測結果 FLinq,
+    演算子計測結果 Baseline);
 internal sealed record ベンチマーク引数(string 名前,string 値);
 
 /// <summary>
@@ -698,7 +852,8 @@ internal sealed record 計測結果(
     int ループ回数,
     long 割り当てバイト数,
     double ダミー累積,
-    IReadOnlyList<double> サンプル一覧);
+    IReadOnlyList<double> サンプル一覧,
+    IReadOnlyList<int> GC収集回数一覧);
 
 internal static class ベンチマーク引数フォーマッター {
     public static object?[] オブジェクト一覧に変換(IReadOnlyList<ベンチマーク引数> 引数一覧) =>

@@ -1,4 +1,4 @@
-﻿#pragma warning disable
+#pragma warning disable
 namespace Seamless.Linq {
     partial class Enumerable {
         public static ILookup<TKey,TSource> ToLookup<TEnumerator, TSource, TKey>(this ValueEnumerable<TEnumerator,TSource> source,Func<TSource,TKey> keySelector)
@@ -14,11 +14,11 @@ namespace Seamless.Linq {
             using(var enumerator = source.Enumerator) {
                 if(enumerator.TryGetSpan(out var span)) {
                     foreach(var item in span) {
-                        lookupBuilder.Add(keySelector(item),item);
+                        lookupBuilder.AddUnpooled(keySelector(item),item);
                     }
                 } else {
                     while(enumerator.TryGetNext(out var item)) {
-                        lookupBuilder.Add(keySelector(item),item);
+                        lookupBuilder.AddUnpooled(keySelector(item),item);
                     }
                 }
 
@@ -40,11 +40,11 @@ namespace Seamless.Linq {
             using(var enumerator = source.Enumerator) {
                 if(enumerator.TryGetSpan(out var span)) {
                     foreach(var item in span) {
-                        lookupBuilder.Add(keySelector(item),elementSelector(item));
+                        lookupBuilder.AddUnpooled(keySelector(item),elementSelector(item));
                     }
                 } else {
                     while(enumerator.TryGetNext(out var item)) {
-                        lookupBuilder.Add(keySelector(item),elementSelector(item));
+                        lookupBuilder.AddUnpooled(keySelector(item),elementSelector(item));
                     }
                 }
 
@@ -64,14 +64,14 @@ namespace Seamless.Linq {
                 foreach(var item in span) {
                     var key = keySelector(item);
                     if(key is not null) {
-                        lookupBuilder.Add(key,item);
+                        lookupBuilder.AddUnpooled(key,item);
                     }
                 }
             } else {
                 while(source.TryGetNext(out var item)) {
                     var key = keySelector(item);
                     if(key is not null) {
-                        lookupBuilder.Add(key,item);
+                        lookupBuilder.AddUnpooled(key,item);
                     }
                 }
             }
@@ -132,7 +132,7 @@ namespace Seamless.Linq {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetBucketIndex(uint hashCode) {
             Debug.Assert(this.buckets is not null);
-            return HashBucket.Index(hashCode,this.bucketsLength);
+            return (int)(hashCode&(uint)(this.bucketsLength-1));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -159,53 +159,51 @@ namespace Seamless.Linq {
                 this.resizeThreshold=(int)(MinimumSize*LoadFactor);
             }
 
-            var     hash  =this.InternalGetHashCode(key);
-            var     index =this.GetBucketIndex(hash);
-            ref var bucket= ref this.buckets[index];
+            var hash=this.InternalGetHashCode(key);
+            while(true) {
+                var index=this.GetBucketIndex(hash);
+                ref var bucket=ref this.buckets![index];
 
-            // 【重要】負荷率の判定は bucket==null の内側に置いてはいけない。
-            // 連鎖パスでも groupCount は増えるので、内側に置くと「到達可能なバケットが埋まった時点」で
-            // 二度と判定が走らなくなり、テーブルが初期サイズのまま凍結して鎖が線形に伸びる。
-            if(this.groupCount>=this.resizeThreshold) {
-                this.ResizeAndRehash();
-                bucket=ref this.buckets[this.GetBucketIndex(hash)]!;
-            }
+                if(bucket==null) {
+                    if(this.groupCount>=this.resizeThreshold) {
+                        this.ResizeAndRehash();
+                        continue;
+                    }
 
-            if(bucket==null) // new slot
-            {
-                bucket=this.poolElements
-                    ? new PooledGrouping<TKey,TElement>(key,hash,value)
-                    : new Grouping<TKey,TElement>(key,hash,value);
-                this.groupCount++;
-                if(this.last!=null) {
-                    bucket.NextGroupInAddOrder=this.last.NextGroupInAddOrder;
-                    this.last.NextGroupInAddOrder=bucket;
-                } else {
-                    bucket.NextGroupInAddOrder=bucket;
+                    bucket=new Grouping<TKey,TElement>(key,hash,value,this.poolElements);
+                    this.groupCount++;
+                    if(this.last!=null) {
+                        bucket.NextGroupInAddOrder=this.last.NextGroupInAddOrder;
+                        this.last.NextGroupInAddOrder=bucket;
+                    } else {
+                        bucket.NextGroupInAddOrder=bucket;
+                    }
+                    this.last=bucket;
+                    return;
                 }
-                this.last=bucket;
-            } else {
+
                 if(this.KeyEquals(bucket.Key,key)) {
-                    bucket.Add(value);
-                    return; // added existing group
+                    bucket.AddCore(value);
+                    return;
                 }
 
-                // conflict, try next chain
-                var previous = bucket;
-                var next = bucket.NextGroupInSameHashCode;
+                var previous=bucket;
+                var next=bucket.NextGroupInSameHashCode;
                 while(next!=null) {
                     if(this.KeyEquals(next.Key,key)) {
-                        next.Add(value);
-                        return; // added existing group
+                        next.AddCore(value);
+                        return;
                     }
                     previous=next;
                     next=next.NextGroupInSameHashCode;
                 }
 
-                // create new and chain
-                var newGroup =this.poolElements
-                    ? new PooledGrouping<TKey,TElement>(key,hash,value)
-                    : new Grouping<TKey,TElement>(key,hash,value);
+                if(this.groupCount>=this.resizeThreshold) {
+                    this.ResizeAndRehash();
+                    continue;
+                }
+
+                var newGroup=new Grouping<TKey,TElement>(key,hash,value,this.poolElements);
                 previous.NextGroupInSameHashCode=newGroup;
                 this.groupCount++;
                 if(this.last!=null) {
@@ -215,9 +213,71 @@ namespace Seamless.Linq {
                     newGroup.NextGroupInAddOrder=newGroup;
                 }
                 this.last=newGroup;
+                return;
             }
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void AddUnpooled(TKey key,TElement value) {
+            if(this.buckets==null) {
+                this.buckets=ArrayPool<Grouping<TKey,TElement>>.Shared.Rent(MinimumSize);
+                this.bucketsLength=MinimumSize;
+                this.resizeThreshold=(int)(MinimumSize*LoadFactor);
+            }
 
+            var hash=this.InternalGetHashCode(key);
+        retry:
+            var index=this.GetBucketIndex(hash);
+            ref var bucket=ref this.buckets![index];
+            if(bucket==null) {
+                if(this.groupCount>=this.resizeThreshold) {
+                    this.ResizeAndRehash();
+                    goto retry;
+                }
+
+                bucket=new Grouping<TKey,TElement>(key,hash,value);
+                this.groupCount++;
+                if(this.last!=null) {
+                    bucket.NextGroupInAddOrder=this.last.NextGroupInAddOrder;
+                    this.last.NextGroupInAddOrder=bucket;
+                } else {
+                    bucket.NextGroupInAddOrder=bucket;
+                }
+                this.last=bucket;
+                return;
+            }
+
+            if(this.KeyEquals(bucket.Key,key)) {
+                bucket.AddUnpooledCore(value);
+                return;
+            }
+
+            var previous=bucket;
+            var next=bucket.NextGroupInSameHashCode;
+            while(next!=null) {
+                if(this.KeyEquals(next.Key,key)) {
+                    next.AddUnpooledCore(value);
+                    return;
+                }
+                previous=next;
+                next=next.NextGroupInSameHashCode;
+            }
+
+            if(this.groupCount>=this.resizeThreshold) {
+                this.ResizeAndRehash();
+                goto retry;
+            }
+
+            var newGroup=new Grouping<TKey,TElement>(key,hash,value);
+            previous.NextGroupInSameHashCode=newGroup;
+            this.groupCount++;
+            if(this.last!=null) {
+                newGroup.NextGroupInAddOrder=this.last.NextGroupInAddOrder;
+                this.last.NextGroupInAddOrder=newGroup;
+            } else {
+                newGroup.NextGroupInAddOrder=newGroup;
+            }
+            this.last=newGroup;
+        }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Grouping<TKey,TElement>? GetGroup(TKey key) {
             if(this.buckets is null) return null;
@@ -453,7 +513,7 @@ namespace Seamless.Linq {
             var buckets =this.groups;
             Debug.Assert(buckets is not null);
             var length =this.bucketCount<0 ? -this.bucketCount : this.bucketCount;
-            return HashBucket.Index(hashCode,length);
+            return (int)(hashCode&(uint)(length-1));
         }
 
         public void Dispose() {
@@ -525,6 +585,8 @@ namespace Seamless.Linq {
         private readonly uint hashCode;
         protected TElement[] elements;
         protected int count;
+        private readonly bool poolElements;
+        private TElement firstElement;
 
         public Grouping<TKey,TElement>? NextGroupInAddOrder;
         public Grouping<TKey,TElement>? NextGroupInSameHashCode;
@@ -534,30 +596,69 @@ namespace Seamless.Linq {
             this.hashCode=hashCode;
             this.elements=[value];
             this.count      =1;
+            this.poolElements=false;
+            this.firstElement=default!;
         }
 
-        protected Grouping(TKey key,uint hashCode) {
+        internal Grouping(TKey key,uint hashCode,TElement value,bool poolElements) {
             this.key     =key;
             this.hashCode=hashCode;
-            this.elements   =[];
+            this.poolElements=poolElements;
+            this.firstElement=value;
+            this.elements   =poolElements ? [] : [value];
+            this.count      =1;
         }
 
         public         TKey Key      => this.key;
         public         uint HashCode => this.hashCode;
-        public virtual int  Count    => this.count;
+        public virtual  int  Count    => this.count;
 
         // mutable in construction, but readonly in public surface
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public virtual void Add(TElement value) {
+        public virtual void Add(TElement value) => this.AddCore(value);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void AddCore(TElement value) {
+            if(this.elements.Length==this.count) {
+                if(this.poolElements&&this.elements.Length>=8) {
+                    var next=ArrayPool<TElement>.Shared.Rent(checked(this.count*2));
+                    this.elements.AsSpan(0,this.count).CopyTo(next);
+                    if(this.elements.Length>=16) {
+                        ArrayPool<TElement>.Shared.Return(this.elements,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TElement>());
+                    }
+                    this.elements=next;
+                } else {
+                    Array.Resize(ref this.elements,checked(this.count*2));
+                }
+            } else if(this.poolElements&&this.count==1&&this.elements.Length==0) {
+                this.elements   =new TElement[2];
+                this.elements[0]=this.firstElement;
+                this.elements[1]=value;
+                this.count=2;
+                return;
+            }
+            this.elements[this.count]=value;
+            this.count++;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void AddUnpooledCore(TElement value) {
             if(this.elements.Length==this.count) {
                 Array.Resize(ref this.elements,checked(this.count*2));
             }
             this.elements[this.count]=value;
             this.count++;
         }
-
-        internal virtual void DisposePooledElements() {
+        internal void DisposePooledElements() {
+            if(!this.poolElements||this.elements.Length<16) {
+                return;
+            }
+            var pooledElements=this.elements;
+            this.elements=[];
+            this.firstElement=default!;
+            this.count=0;
+            ArrayPool<TElement>.Shared.Return(pooledElements,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TElement>());
         }
 
         // we needs IList implementation for System.Linq internal optimization usage
@@ -569,7 +670,15 @@ namespace Seamless.Linq {
             set => throw new NotSupportedException();
         }
 
-        protected virtual TElement GetElement(int index) => this.elements.AsSpan(0,this.count)[index];
+        protected virtual TElement GetElement(int index) {
+            if(this.poolElements&&this.elements.Length==0) {
+                if((uint)index>=1u) {
+                    throw new ArgumentOutOfRangeException(nameof(index));
+                }
+                return this.firstElement;
+            }
+            return this.elements.AsSpan(0,this.count)[index];
+        }
 
         IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 
@@ -580,6 +689,9 @@ namespace Seamless.Linq {
         }
 
         public virtual int IndexOf(TElement item) {
+            if(this.poolElements&&this.elements.Length==0) {
+                return EqualityComparer<TElement>.Default.Equals(this.firstElement,item) ? 0 : -1;
+            }
             return Array.IndexOf(this.elements,item,0,this.count);
         }
 
@@ -604,76 +716,15 @@ namespace Seamless.Linq {
         }
 
         public virtual void CopyTo(TElement[] array,int arrayIndex) {
+            if(this.poolElements&&this.elements.Length==0) {
+                array[arrayIndex]=this.firstElement;
+                return;
+            }
             this.elements.AsSpan(0,this.count).CopyTo(array.AsSpan(arrayIndex));
         }
 
         public bool Remove(TElement item) {
             throw new NotSupportedException();
-        }
-    }
-
-    internal sealed class PooledGrouping<TKey, TElement>:Grouping<TKey,TElement> {
-        private TElement firstElement;
-
-        public PooledGrouping(TKey key,uint hashCode,TElement value) : base(key,hashCode) {
-            this.firstElement=value;
-            this.count          =1;
-        }
-
-        public override void Add(TElement value) {
-            if(this.count==1&&this.elements.Length==0) {
-                this.elements   =new TElement[2];
-                this.elements[0]=this.firstElement;
-                this.elements[1]=value;
-                this.count         =2;
-                return;
-            }
-            if(this.elements.Length==this.count) {
-                if(this.elements.Length>=8) {
-                    var next = ArrayPool<TElement>.Shared.Rent(checked(this.count*2));
-                    this.elements.AsSpan(0,this.count).CopyTo(next);
-                    if(this.elements.Length>=16) {
-                        ArrayPool<TElement>.Shared.Return(this.elements,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TElement>());
-                    }
-                    this.elements=next;
-                } else {
-                    Array.Resize(ref this.elements,checked(this.count*2));
-                }
-            }
-            this.elements[this.count++]=value;
-        }
-
-        protected override TElement GetElement(int index) {
-            if((uint)index>=(uint)this.count) {
-                throw new ArgumentOutOfRangeException(nameof(index));
-            }
-            return this.elements.Length==0 ? this.firstElement : this.elements[index];
-        }
-
-        public override int IndexOf(TElement item) {
-            if(this.elements.Length==0) {
-                return EqualityComparer<TElement>.Default.Equals(this.firstElement,item) ? 0 : -1;
-            }
-            return base.IndexOf(item);
-        }
-
-        public override void CopyTo(TElement[] array,int arrayIndex) {
-            if(this.elements.Length==0) {
-                array[arrayIndex]=this.firstElement;
-            } else {
-                base.CopyTo(array,arrayIndex);
-            }
-        }
-
-        internal override void DisposePooledElements() {
-            if(this.elements.Length<16) {
-                return;
-            }
-            var pooledElements =this.elements;
-            this.elements    =[];
-            this.firstElement=default!;
-            this.count          =0;
-            ArrayPool<TElement>.Shared.Return(pooledElements,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<TElement>());
         }
     }
 

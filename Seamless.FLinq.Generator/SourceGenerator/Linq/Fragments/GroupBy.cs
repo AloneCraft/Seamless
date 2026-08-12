@@ -54,7 +54,7 @@ internal static class GroupBySupport {
                 {{keyType}} {{keyName}}=default!;
                 {{IndentBlock(keyAssignCode,"                ")}}
                 {{IndentBlock(elementAssignCode,"                ")}}
-                __builder.Add({{keyName}},{{elementName}});
+                __builder.AddUnpooled({{keyName}},{{elementName}});
             }
             """;
         var addLoopWhile = $$"""
@@ -63,7 +63,7 @@ internal static class GroupBySupport {
                 {{keyType}} {{keyName}}=default!;
                 {{IndentBlock(keyAssignCode,"                ")}}
                 {{IndentBlock(elementAssignCode,"                ")}}
-                __builder.Add({{keyName}},{{elementName}});
+                __builder.AddUnpooled({{keyName}},{{elementName}});
             }
             """;
         var buildLoop = canTryProvideSpan ? $$"""
@@ -79,7 +79,7 @@ internal static class GroupBySupport {
             var __hasCnt={{enumeratorName}}.TryGetNonEnumeratedCount(out var __cnt);
             if(__hasCnt) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();
             var __builder=__hasCnt
-                ? new global::Seamless.Linq.LookupBuilder<{{keyType}}, {{elementType}}>(__cnt,global::System.Collections.Generic.EqualityComparer<{{keyType}}>.Default)
+                ? new global::Seamless.Linq.LookupBuilder<{{keyType}}, {{elementType}}>(global::System.Math.Min(__cnt,1024),global::System.Collections.Generic.EqualityComparer<{{keyType}}>.Default)
                 : new global::Seamless.Linq.LookupBuilder<{{keyType}}, {{elementType}}>(global::System.Collections.Generic.EqualityComparer<{{keyType}}>.Default);
             {{IndentBlock(buildLoop,"            ")}}
             this.{{cursorName}}=this.{{firstName}}=__builder.GetRootGroupAndClear();

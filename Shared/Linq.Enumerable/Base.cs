@@ -225,12 +225,16 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     [BenchFact, Benchmark]
     public void Contains_value() => this.Contains_value_Impl();
 
-    [LinqIntercept(true)]
+[LinqIntercept(true)]
     private void Contains_value_Impl() {
         var value = this.MidpointValue(ImmediateShortCircuitCount);
         var source = this.srcCount(ImmediateShortCircuitCount);
         for(var i = 0;i<IterationCount(Contains_value_iterationCount);i++) {
+#if FLINQ_LIST_DIRECT
+            this.consumer.Consume(global::System.Linq.Enumerable.Contains(source.AsX<T>(),Value(value)));
+#else
             this.consumer.Consume(source.AsX<T>().Contains(Value(value)));
+#endif
         }
     }
     // [Count]
@@ -567,8 +571,13 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     [BenchmarkCategory(Categories.Linq)]
     public void Reverse() => ExecuteOrderDependent(() => this.Reverse_Impl());
 
+#if FLINQ_LIST_DIRECT
+    [LinqIntercept(true)]
+    private void Reverse_Impl() => global::System.Linq.Enumerable.Reverse(this.srcCount(StreamShapeCount).AsX<T>()).Consume(this.consumer);
+#else
     [LinqIntercept(true)]
     private void Reverse_Impl() => this.srcCount(StreamShapeCount).AsX<T>().Reverse().Consume(this.consumer);
+#endif
     // [Select_indexSelector]
     [BenchFact, OrderDependentBenchmark]
     [BenchmarkCategory(Categories.Linq)]

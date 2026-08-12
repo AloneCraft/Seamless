@@ -82,13 +82,41 @@ internal sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<
             builder.AppendLine($"    var __excludedCount{番号}_{exclusionIndex}={exclusion.CountExpression};");
             builder.AppendLine($"    var __excludedEnd{番号}_{exclusionIndex}=(long)__excludedStart{番号}_{exclusionIndex} + __excludedCount{番号}_{exclusionIndex};");
         }
-        builder.AppendLine($"    for(var {index}=0;{index}<{count};{index}++) {{");
-        builder.AppendLine($"        var {value}={start} + {index};");
-        for(var exclusionIndex = 0;exclusionIndex<exclusions.Count;exclusionIndex++) {
-            builder.AppendLine($"        if((long){value} >= __excludedStart{番号}_{exclusionIndex} && (long){value} < __excludedEnd{番号}_{exclusionIndex}) continue;");
+        if(exclusions.Count==1) {
+            var excludedStart = $"__excludedStart{番号}_0";
+            var excludedCount = $"__excludedCount{番号}_0";
+            var excludedEnd = $"__excludedEnd{番号}_0";
+            var sourceStartLong = $"__sourceStartLong{番号}";
+            var prefixEnd = $"__prefixEnd{番号}";
+            var suffixStart = $"__suffixStart{番号}";
+            var prefixIndex = $"__prefixIndex{番号}";
+            var suffixIndex = $"__suffixIndex{番号}";
+            builder.AppendLine($"    if({excludedCount}>0){{");
+            builder.AppendLine($"        var {sourceStartLong}=(long){start};");
+            builder.AppendLine($"        var {prefixEnd}=global::System.Math.Min((long){count},global::System.Math.Max(0L,(long){excludedStart}-{sourceStartLong}));");
+            builder.AppendLine($"        for(var {prefixIndex}=0;(long){prefixIndex}<{prefixEnd};{prefixIndex}++){{");
+            builder.AppendLine($"            {consumerName}.Consume({start} + {prefixIndex});");
+            builder.AppendLine("        }");
+            builder.AppendLine($"        var {suffixStart}=global::System.Math.Max(0L,global::System.Math.Min((long){count},{excludedEnd}-{sourceStartLong}));");
+            builder.AppendLine($"        for(var {suffixIndex}=(int){suffixStart};{suffixIndex}<{count};{suffixIndex}++){{");
+            builder.AppendLine($"            {consumerName}.Consume({start} + {suffixIndex});");
+            builder.AppendLine("        }");
+            builder.AppendLine("    }else{");
+            builder.AppendLine($"        for(var {index}=0;{index}<{count};{index}++){{");
+            builder.AppendLine($"            var {value}={start} + {index};");
+            builder.AppendLine($"            if((long){value} >= {excludedStart} && (long){value} < {excludedEnd}) continue;");
+            builder.AppendLine($"            {consumerName}.Consume({value});");
+            builder.AppendLine("        }");
+            builder.AppendLine("    }");
+        } else {
+            builder.AppendLine($"    for(var {index}=0;{index}<{count};{index}++){{");
+            builder.AppendLine($"        var {value}={start} + {index};");
+            for(var exclusionIndex = 0;exclusionIndex<exclusions.Count;exclusionIndex++) {
+                builder.AppendLine($"        if((long){value} >= __excludedStart{番号}_{exclusionIndex} && (long){value} < __excludedEnd{番号}_{exclusionIndex}) continue;");
+            }
+            builder.AppendLine($"        {consumerName}.Consume({value});");
+            builder.AppendLine("    }");
         }
-        builder.AppendLine($"        {consumerName}.Consume({value});");
-        builder.AppendLine("    }");
         builder.AppendLine("}");
         return builder.ToString().TrimEnd();
     }

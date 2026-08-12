@@ -50,6 +50,18 @@ public sealed partial class FLinqIncrementalGenerator {
             return true;
         }
 
+        if(TryBuildStaticSystemEnumerableCall(
+            semanticModel,
+            invocation,
+            method,
+            containingType,
+            ref uniqueNumber,
+            out fragment,
+            out staticMethods,
+            unsafeAccessorCollector)) {
+            return true;
+        }
+
         if(invocation.Expression is not MemberAccessExpressionSyntax { Expression: var sourceExpression }) {
             if(methodName=="Any"&&method.Parameters.Length==0) {
                 return false;
@@ -119,6 +131,69 @@ public sealed partial class FLinqIncrementalGenerator {
             }
 
             return 登録済みフラグメント生成(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out staticMethods,unsafeAccessorCollector);
+    }
+
+    /// <summary>
+    /// Connects static System.Linq.Enumerable.Contains(source, value[, comparer]) and
+    /// Reverse(source) to their existing fragments. Unknown IEnumerable<T> keeps the
+    /// fragment fallback; source roots with direct span capability retain it.
+    /// </summary>
+    private bool TryBuildStaticSystemEnumerableCall(
+        SemanticModel semanticModel,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        out Fragment fragment,
+        out string staticMethods,
+        List<string>? unsafeAccessorCollector) {
+        fragment=null!;
+        staticMethods=string.Empty;
+        if(method.ReducedFrom is not null
+            ||method.ContainingType.Name!="Enumerable"
+            ||method.ContainingNamespace.ToDisplayString()!="System.Linq"
+            ||(method.Name=="Contains"&&invocation.ArgumentList.Arguments.Count is not (2 or 3))
+            ||(method.Name=="Reverse"&&invocation.ArgumentList.Arguments.Count!=1)
+            ||method.Name is not ("Contains" or "Reverse")) {
+            return false;
+        }
+
+        var snapshot=uniqueNumber;
+        if(!列挙式フラグメント生成(
+                semanticModel,
+                invocation.ArgumentList.Arguments[0].Expression,
+                containingType,
+                ref uniqueNumber,
+                out var source,
+                out staticMethods,
+                unsafeAccessorCollector)) {
+            uniqueNumber=snapshot;
+            staticMethods=string.Empty;
+            return false;
+        }
+
+        if(method.Name=="Reverse") {
+            fragment=new Reverse(uniqueNumber++,source);
+            return true;
+        }
+
+        var value=RenderExpressionForGeneratedMethod(
+            invocation.ArgumentList.Arguments[1].Expression,
+            semanticModel,
+            containingType,
+            unsafeAccessorCollector);
+        if(invocation.ArgumentList.Arguments.Count==2) {
+            fragment=new Contains(uniqueNumber++,source,value,"bool");
+            return true;
+        }
+
+        var comparer=RenderExpressionForGeneratedMethod(
+            invocation.ArgumentList.Arguments[2].Expression,
+            semanticModel,
+            containingType,
+            unsafeAccessorCollector);
+        fragment=new Contains_comparer(uniqueNumber++,source,value,comparer,"bool");
+        return true;
     }
 
     /// <summary>
@@ -1580,6 +1655,9 @@ public sealed partial class FLinqIncrementalGenerator {
         IReadOnlyDictionary<string,string>? outerReplacementMap = null) {
         fragment=null!;
         var definition = method.ReducedFrom??method;
+        if(definition.ContainingType.Name=="UnorderedGuard") {
+            return false;
+        }
         if(definition.MethodKind!=MethodKind.Ordinary
             ||!CanInlineOrdinaryEnumerableRootMethod(definition)
             ||definition.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax methodSyntax

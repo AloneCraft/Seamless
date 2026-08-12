@@ -167,7 +167,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 正規表現で前行を確認し、既に属性がある場合は重複を避ける。
     /// </summary>
     private static string 補助Struct関数へAggressiveInlining付与(string source) {
-        const string attribute = "[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining|global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]";
+        const string attribute = "[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]";
         return System.Text.RegularExpressions.Regex.Replace(
             source,
             @"(?m)^(?<indent>\s*)private static (?<declaration>.+\b(?:Compute|Build)\s*\()",

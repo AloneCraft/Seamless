@@ -14,6 +14,7 @@ internal sealed class PipelineStage(
     bool usesIndex = false,
     bool descending = false,
     bool innerIsArray = false,
+    bool innerIsList = false,
     bool containsAnchor = false) {
     public PipelineStageKind Kind { get; } = kind;
     public FuncFragment? Func { get; } = func;
@@ -27,6 +28,7 @@ internal sealed class PipelineStage(
     // SelectMany の collection selector が配列 (T[]) を返す場合、IEnumerator<T> を介さず
     // インデックスベースで直接走査する specialize パスを使う。
     public bool InnerIsArray { get; } = innerIsArray;
+    public bool InnerIsList { get; } = innerIsList;
     public string? KeyType { get; } = keyType;
     public bool UsesIndex { get; } = usesIndex;
     public bool Descending { get; } = descending;

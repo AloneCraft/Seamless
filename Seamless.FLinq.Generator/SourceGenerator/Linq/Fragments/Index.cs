@@ -35,7 +35,16 @@ internal class Index(int 番号,Enumerable source):Enumerable(番号) {
         var sourceName = $"__indexSource{番号}";
         var directSpanExpression = source.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is null) {
-            return base.GetConsumeExecutionStatement(consumerName);
+            var indexValueName = $"{sourceName}Value";
+            var indexItemName = $"{sourceName}Item";
+            return $$"""
+                using var {{sourceName}}={{source.GetEnumeratorExpression}};
+                global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+                var {{indexValueName}}=0;
+                while({{sourceName}}.TryGetNext(out var {{indexItemName}})){
+                    {{consumerName}}.Consume(({{indexValueName}}++,{{indexItemName}}));
+                }
+                """;
         }
         var spanName = $"__indexSpan{番号}";
         return $$"""
