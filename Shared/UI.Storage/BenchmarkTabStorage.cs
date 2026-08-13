@@ -115,10 +115,11 @@ internal static class BenchmarkTabStorage {
         }
     }
 
-    internal static IReadOnlyList<UIベンチマークスナップショット項目記録> 読込(SqliteConnection 接続,long 実行ID) {
+    internal static IReadOnlyList<UIベンチマークスナップショット項目記録> 読込(SqliteConnection 接続,long 実行ID,SqliteTransaction? トランザクション = null) {
         var 結果=new List<UIベンチマークスナップショット項目記録>();
         foreach(var 定義 in 定義一覧) {
             using var コマンド=接続.CreateCommand();
+            コマンド.Transaction=トランザクション;
             var 列名=new List<string>{"実行ID","型","ベンチマーク","CPU番号","行チェック","引数キー","引数JSON"};
             foreach(var 見出し in 定義.列見出し) 列名.AddRange([$"{見出し}_アセンブリ名",$"{見出し}_型完全名",$"{見出し}_状態",$"{見出し}_失敗理由",$"{見出し}_日時",$"{見出し}_時間ns",$"{見出し}_メモリバイト",$"{見出し}_ループ回数"]);
             コマンド.CommandText=$"SELECT {string.Join(',',列名.Select(引用))} FROM {引用(定義.表名)} WHERE \"実行ID\"=$id ORDER BY \"型\",\"ベンチマーク\",\"引数キー\";";

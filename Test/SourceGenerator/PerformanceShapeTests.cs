@@ -577,6 +577,10 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
                     Enumerable.Range(1,4096).Concat(Enumerable.Range(1,16)).Consume(consumer);
                 private static void WhereRange(Consumer<int>consumer)=>
                     Enumerable.Range(1,4096).Where(static x=>(x&1)==0).Consume(consumer);
+                private static void TakeRange(Consumer<int>consumer)=>
+                    Enumerable.Range(1,4096).Take(3072).Consume(consumer);
+                private static void SkipRange(Consumer<int>consumer)=>
+                    Enumerable.Range(1,4096).Skip(1024).Consume(consumer);
                 private static void TakeWhileIndexRange(Consumer<int>consumer)=>
                     Enumerable.Range(1,4096).TakeWhile(static (x,i)=>i<2048).Consume(consumer);
                 private static void SkipWhileRange(Consumer<int>consumer)=>
@@ -591,6 +595,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
                     PrependRange(consumer);
                     ConcatRange(consumer);
                     WhereRange(consumer);
+                    TakeRange(consumer);
+                    SkipRange(consumer);
                     TakeWhileIndexRange(consumer);
                     SkipWhileRange(consumer);
                     SkipWhileIndexRange(consumer);
@@ -602,7 +608,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
         foreach(var methodName in new[] {
             "RangeConsume","AppendRange","PrependRange","ConcatRange","WhereRange","DefaultIfEmptyRange",
-            "TakeWhileIndexRange","SkipWhileRange","SkipWhileIndexRange"
+            "TakeRange","SkipRange","TakeWhileIndexRange","SkipWhileRange","SkipWhileIndexRange"
         }) {
             var method = GeneratedMethod(generated,methodName);
             GeneratedSourceAssert.True(
@@ -613,6 +619,84 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
                 generated,
                 output);
         }
+
+        foreach(var methodName in new[] {
+            "WhereRange","TakeRange","SkipRange","SkipWhileRange","SkipWhileIndexRange",
+        }) {
+            var method = GeneratedMethod(generated,methodName);
+            GeneratedSourceAssert.True(
+                method.Contains("new global::System.ArgumentOutOfRangeException(\"count\")",StringComparison.Ordinal)
+                &&!method.Contains("global::System.Linq.Enumerable.Range(",StringComparison.Ordinal),
+                $"{methodName} must preserve Enumerable.Range argument validation while retaining "
+                +"its allocation-free direct loop.",
+                generated,
+                output);
+        }
+
+        var skipWhileMethod = GeneratedMethod(generated,"SkipWhileRange");
+        var firstLoop = skipWhileMethod.IndexOf("for(",StringComparison.Ordinal);
+        var secondLoop = skipWhileMethod.IndexOf("for(",firstLoop+1,StringComparison.Ordinal);
+        var thirdLoop = skipWhileMethod.IndexOf("for(",secondLoop+1,StringComparison.Ordinal);
+        GeneratedSourceAssert.True(
+            firstLoop>=0
+            &&secondLoop>firstLoop
+            &&thirdLoop<0
+            &&!skipWhileMethod.Contains("RangeIndex",StringComparison.Ordinal),
+            "SkipWhile(predicate) over a Range source must use exactly two direct loops: "
+            +"one predicate scan followed by one unguarded consume loop, without index state.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void RangeSumAndSelectUseUninstrumentedDirectIndexLoops() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T>{
+                public void Consume(T item){
+                }
+            }
+            public static class ConsumeSupport{
+                public static void Consume<T>(this IEnumerable<T>source,Consumer<T>consumer){
+                    foreach(var item in source){
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public class Container{
+                private static int SumRange(int start,int count)=>
+                    Enumerable.Range(start,count).Sum();
+                private static void SelectRange(int start,int count,Consumer<int>consumer)=>
+                    Enumerable.Range(start,count).Select(static value=>value*2).Consume(consumer);
+                public void Run(int start,int count,Consumer<int>consumer){
+                    _=SumRange(start,count);
+                    SelectRange(start,count,consumer);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var sumMethod = GeneratedMethod(generated,"SumRange");
+        var selectMethod = GeneratedMethod(generated,"SelectRange");
+
+        GeneratedSourceAssert.True(
+            sumMethod.Contains("checked",StringComparison.Ordinal)
+            &&sumMethod.Contains("for(",StringComparison.Ordinal)
+            &&sumMethod.Contains("new global::System.ArgumentOutOfRangeException(\"count\")",StringComparison.Ordinal)
+            &&!sumMethod.Contains("TryGetNext",StringComparison.Ordinal)
+            &&!sumMethod.Contains(".Compute(",StringComparison.Ordinal)
+            &&!sumMethod.Contains("global::System.Linq.Enumerable.Range(",StringComparison.Ordinal)
+            &&selectMethod.Contains("for(",StringComparison.Ordinal)
+            &&selectMethod.Contains("+__i",StringComparison.Ordinal)
+            &&selectMethod.Contains("new global::System.ArgumentOutOfRangeException(\"count\")",StringComparison.Ordinal)
+            &&!selectMethod.Contains("TryGetNext",StringComparison.Ordinal)
+            &&!selectMethod.Contains("global::System.Linq.Enumerable.Range(",StringComparison.Ordinal)
+            &&!selectMethod.Contains("LinqCounterScope",StringComparison.Ordinal),
+            "Uninstrumented Range Sum/Select should lower to start+index loops without an enumerator wrapper or runtime diagnostics lookup.",
+            generated,
+            output);
     }
 
     [Fact]
@@ -1127,6 +1211,47 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void ArrayToListConsumeMaterializesInlineWithoutScalarEnumerator() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumeSupport {
+                public static void Consume<T>(this IEnumerable<T> source,Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+                public static T[] AsX<T>(this T[] source) => source;
+            }
+            public sealed class Container<T> where T:notnull {
+                protected internal readonly Consumer<T> consumer=new();
+                protected internal T[] Source() => global::System.Array.Empty<T>();
+                private void Materialize() =>
+                    this.Source().AsX<T>().ToList().Consume(this.consumer);
+                public void Run() => this.Materialize();
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var method = GeneratedMethod(generated,"Materialize");
+
+        GeneratedSourceAssert.True(
+            method.Contains("global::System.Runtime.InteropServices.CollectionsMarshal.SetCount",StringComparison.Ordinal)
+            &&method.Contains(".CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan",StringComparison.Ordinal)
+            &&method.Contains("foreach(var __item",StringComparison.Ordinal)
+            &&!method.Contains("TryGetNext",StringComparison.Ordinal)
+            &&!method.Contains("using var e_",StringComparison.Ordinal),
+            "Array ToList consumed immediately should bulk-copy its span in the interceptor body without a one-element scalar enumerator wrapper.",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void EnumerableMaterializeKeepsRuntimeFallback() {
         const string source = """
             using System.Collections.Generic;
@@ -1401,6 +1526,52 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             output);
     }
     [Fact]
+    public void StaticIEnumerableConcatConsumeUsesTwoDirectInterfaceLoops() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumerExtensions {
+                public static void Consume<T>(this IEnumerable<T> source,Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+                public static IEnumerable<T> AsX<T>(this IEnumerable<T> source) => source;
+            }
+            public sealed class Container<T> where T:notnull {
+                protected internal readonly Consumer<T> consumer=new();
+                protected internal IEnumerable<T> First() => global::System.Array.Empty<T>();
+                protected internal IEnumerable<T> Second() => global::System.Array.Empty<T>();
+                private void Direct() =>
+                    this.First().AsX<T>().Concat(this.Second().AsX<T>()).Consume(this.consumer);
+                public void Run() => this.Direct();
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var method = GeneratedMethod(generated,"Direct");
+        var getEnumeratorCount = method.Split(".GetEnumerator()",StringSplitOptions.None).Length-1;
+        var moveNextCount = method.Split(".MoveNext()",StringSplitOptions.None).Length-1;
+
+        GeneratedSourceAssert.True(
+            getEnumeratorCount==2
+            &&moveNextCount==2
+            &&method.Contains("global::System.ArgumentNullException.ThrowIfNull",StringComparison.Ordinal)
+            &&method.Contains(".Current",StringComparison.Ordinal)
+            &&!method.Contains("TryGetSpan",StringComparison.Ordinal)
+            &&!method.Contains("TryGetNext",StringComparison.Ordinal)
+            &&!method.Contains("IValueEnumerator",StringComparison.Ordinal),
+            "Concat over two statically IEnumerable<T> sources should enumerate each source directly and dispose each IEnumerator<T> without value-enumerator wrappers or span probes.",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void StaticIEnumerableDefaultIfEmptyConsumeUsesDirectInterfaceLoop() {
         const string source = """
             using System.Collections.Generic;
@@ -1439,6 +1610,49 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             &&!method.Contains("IValueEnumerator",StringComparison.Ordinal)
             &&!method.Contains("TryGetNext",StringComparison.Ordinal),
             "A statically IEnumerable<T> DefaultIfEmpty Consume terminal should preserve the empty fallback while lowering the non-empty path to one direct IEnumerator<T> loop.",
+            generated,
+            output);
+    }
+
+    [Fact]
+    public void IdentitySelectManyConsumeUsesDirectNestedInterfaceLoops() {
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public static class Route {
+                public static IEnumerable<T> AsX<T>(this IEnumerable<T> source) => source;
+            }
+            public sealed class Consumer<T> {
+                public void Consume(T item) {
+                }
+            }
+            public static class ConsumerExtensions {
+                public static void Consume<T>(this IEnumerable<T> source,Consumer<T> consumer) {
+                    foreach(var item in source) {
+                        consumer.Consume(item);
+                    }
+                }
+            }
+            public sealed class Container {
+                private readonly Consumer<int> consumer = new();
+                private void Direct(IEnumerable<IEnumerable<int>> source) =>
+                    source.AsX().SelectMany(static item => item).Consume(this.consumer);
+                public void Run(IEnumerable<IEnumerable<int>> source) => this.Direct(source);
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var method = GeneratedMethod(generated,"Direct");
+
+        GeneratedSourceAssert.True(
+            method.Contains("__selectManyOuterEnumerator",StringComparison.Ordinal)
+            &&method.Contains("__selectManyInnerEnumerator",StringComparison.Ordinal)
+            &&method.Contains("using(var __selectManyOuterEnumerator",StringComparison.Ordinal)
+            &&method.Contains("using(var __selectManyInnerEnumerator",StringComparison.Ordinal)
+            &&!method.Contains("IValueEnumerator",StringComparison.Ordinal)
+            &&!method.Contains("TryGetNext",StringComparison.Ordinal),
+            "An identity SelectMany Consume terminal should enumerate the outer and inner IEnumerable values directly with deterministic disposal.",
             generated,
             output);
     }

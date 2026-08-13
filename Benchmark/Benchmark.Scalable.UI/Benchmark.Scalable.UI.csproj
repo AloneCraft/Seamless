@@ -34,6 +34,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Aot.Protocol\Aot.Protocol.csproj" />
     <ProjectReference Include="..\..\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" SetTargetFramework="TargetFramework=netstandard2.0" />
     <ProjectReference Include="..\..\Shared\UI.Storage\UI.Storage.csproj" />
     <ProjectReference Include="..\Benchmark.Scalable.Persisted.Collections\Benchmark.Scalable.Persisted.Collections.csproj" />

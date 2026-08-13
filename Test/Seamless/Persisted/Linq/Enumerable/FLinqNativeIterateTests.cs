@@ -19,15 +19,7 @@ public class FLinqNativeIterateTests {
             source=set;
             Assert.True(AnyGreaterThanThreeImpl());
 
-            var generated = GeneratedInterceptorAssert.SourceFor<FLinqNativeIterateTests>(nameof(AnyGreaterThanThreeImpl));
-            Assert.Contains("PersistedSetIterateState",generated);
-            Assert.Contains("ISetIterateStrategy",generated);
-            Assert.Contains(".Iterate(ref __PersistedSetIterateState",generated);
-            Assert.DoesNotContain("PersistedSetScanUnsafe",generated);
-            Assert.DoesNotContain("Seamless.Linq.Enumerable",generated);
-            Assert.DoesNotContain("MemoryExtensions.AsSpan",generated);
-            Assert.DoesNotContain("CollectionsMarshal.AsSpan",generated);
-            Assert.DoesNotContain(".GetSpan();",generated);
+            AssertNativeIterateGenerated(nameof(AnyGreaterThanThreeImpl));
         } finally {
             source=null;
             TryDeleteDirectory(path);
@@ -181,12 +173,14 @@ public class FLinqNativeIterateTests {
     }
 
     private static void AssertNativeIterateGenerated(string methodName) {
-        var generated = GeneratedInterceptorAssert.SourceFor<FLinqNativeIterateTests>(methodName);
-        Assert.Contains("PersistedSetIterateState",generated);
-        Assert.Contains("ISetIterateStrategy",generated);
-        Assert.Contains(".Iterate(ref __PersistedSetIterateState",generated);
-        Assert.DoesNotContain("PersistedSetScanUnsafe",generated);
-        Assert.DoesNotContain("Seamless.Linq.Enumerable",generated);
+        var body = InterceptorBody(methodName);
+        Assert.Contains("PersistedSetIterateState",body);
+        Assert.Contains(".Iterate(ref __PersistedSetIterateState",body);
+        Assert.DoesNotContain("PersistedSetScanUnsafe",body);
+        Assert.DoesNotContain("Seamless.Linq.Enumerable",body);
+        Assert.DoesNotContain("MemoryExtensions.AsSpan",body);
+        Assert.DoesNotContain("CollectionsMarshal.AsSpan",body);
+        Assert.DoesNotContain(".GetSpan();",body);
     }
 
     private static string CreatePath() {

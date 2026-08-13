@@ -373,6 +373,15 @@ RangeRoot は Enumerable.Range(start, count) を collection なしで生成す�
 internal sealed class RangeRoot(int 番号,string startExpression,string countExpression):Enumerable(番号) {
     internal string StartExpression => startExpression;
     internal string CountExpression => countExpression;
+    internal string PreparedStartName => $"__rangeStart{番号}";
+    internal string PreparedCountName => $"__rangeCount{番号}";
+    internal string RenderArgumentPreparation(string startName,string countName) => $$"""
+        var {{startName}}={{startExpression}};
+        var {{countName}}={{countExpression}};
+        if({{countName}}<0||(long){{startName}}+{{countName}}-1>int.MaxValue){
+            throw new global::System.ArgumentOutOfRangeException("count");
+        }
+        """;
     public override string? NonEnumeratedCountExpression => countExpression;
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
@@ -420,10 +429,9 @@ internal sealed class RangeRoot(int 番号,string startExpression,string countEx
         """;
     public override string GetConsumeExecutionStatement(string consumerName) => $$"""
         {
-            var __start{{番号}}={{startExpression}};
-            var __count{{番号}}={{countExpression}};
-            for(var __i{{番号}}=0;__i{{番号}}<__count{{番号}};__i{{番号}}++){
-                {{consumerName}}.Consume(__start{{番号}} + __i{{番号}});
+            {{this.RenderArgumentPreparation(this.PreparedStartName,this.PreparedCountName)}}
+            for(var __i{{番号}}=0;__i{{番号}}<{{this.PreparedCountName}};__i{{番号}}++){
+                {{consumerName}}.Consume({{this.PreparedStartName}} + __i{{番号}});
             }
         }
         """;

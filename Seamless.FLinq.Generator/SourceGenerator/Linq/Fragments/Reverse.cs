@@ -113,6 +113,10 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
             {{PooledBufferSupport.Dispose(this.RootSource.ElementType,this.group)}}
             """;
     public override string ElementType => this.RootSource.ElementType;
+    public override string GetConsumePreparationStatement() =>
+        this.IsIdentity
+            ? this.RootSource.GetConsumePreparationStatement()
+            : base.GetConsumePreparationStatement();
     public override string GetConsumeExecutionStatement(string consumerName) {
         if(this.IsIdentity) {
             return this.RootSource.GetConsumeExecutionStatement(consumerName);

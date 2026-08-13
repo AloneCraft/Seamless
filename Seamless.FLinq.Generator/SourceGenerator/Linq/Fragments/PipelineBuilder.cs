@@ -101,8 +101,7 @@ internal static partial class PipelineBuilder {
         staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
             return true;
         }
-        var allowSingleStage = invocations.Count==1
-            &&stages.Count==1
+        var allowSingleStage = stages.Count==1
             &&stages[0].Kind is PipelineStageKind.Where
                 or PipelineStageKind.Select
                 or PipelineStageKind.Append

@@ -49,6 +49,9 @@ internal abstract class Enumerable(int 番号):Fragment(番号), ConsumeDirectEx
     protected virtual string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
     // enumerable 系は要素型を Current とする enumerator struct を共通生成する。
     public override string GetEnumeratorStruct => this.DefineEnumeratorStructCore(this.ElementType,this.GetEnumeratorDisposeBody);
+    // Consume 引数の評価前に source 式を1回だけ評価する必要がある直接実行経路で override する。
+    public virtual string GetConsumePreparationStatement() => string.Empty;
+
 
     // expr.Consume(consumer) 文に対する直接実行コード片。
     // この enumerable を列挙し各要素を consumer へ渡す。各 LINQ 演算子の意味は自分の enumerator が表現するため、

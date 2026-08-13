@@ -7,6 +7,21 @@ using System.Text.Json;
 namespace UI;
 
 public sealed class ベンチマークワーカークライアント:Iベンチマークジョブ実行器 {
+    private readonly int ベンチマーク反復回数;
+    private readonly double ウォームアップ目標ナノ秒;
+
+    public ベンチマークワーカークライアント(int ベンチマーク反復回数 = 1,double ウォームアップ目標ナノ秒 = 300_000_000d) {
+        if(ベンチマーク反復回数<=0) {
+            throw new ArgumentOutOfRangeException(nameof(ベンチマーク反復回数));
+        }
+        if(!double.IsFinite(ウォームアップ目標ナノ秒)||ウォームアップ目標ナノ秒<=0d) {
+            throw new ArgumentOutOfRangeException(nameof(ウォームアップ目標ナノ秒));
+        }
+
+        this.ベンチマーク反復回数=ベンチマーク反復回数;
+        this.ウォームアップ目標ナノ秒=ウォームアップ目標ナノ秒;
+    }
+
     public Task<ベンチマークジョブ実行結果> 実行Async(
         ベンチマークジョブ ジョブ,
         string 実行ルート,
@@ -59,7 +74,11 @@ public sealed class ベンチマークワーカークライアント:Iベンチ�
                 throw new InvalidOperationException($"ベンチマークワーカーが準備完了になりませんでした。最初の出力: {準備応答}");
             }
 
-            return new ベンチマークワーカーセッション(プロセス,実行ルート);
+            return new ベンチマークワーカーセッション(
+                プロセス,
+                実行ルート,
+                this.ベンチマーク反復回数,
+                this.ウォームアップ目標ナノ秒);
         } catch {
             プロセスを終了(プロセス);
             プロセス.Dispose();
@@ -158,15 +177,20 @@ public sealed class ベンチマーク高速ワーカーセッション:IAsyncDi
     private readonly ConcurrentDictionary<string,TaskCompletionSource<ワーカー結果メッセージ>> 保留一覧 = new(StringComparer.OrdinalIgnoreCase);
     private readonly CancellationTokenSource 終了ソース = new();
     private readonly Task 読取ループ;
+    private readonly double ウォームアップ目標ナノ秒;
     private bool 終了済みか;
 
-    internal ベンチマーク高速ワーカーセッション(Process プロセス,string 実行ルート) {
+    internal ベンチマーク高速ワーカーセッション(Process プロセス,string 実行ルート,double ウォームアップ目標ナノ秒) {
         this.プロセス=プロセス;
         this.実行ルート=実行ルート;
+        this.ウォームアップ目標ナノ秒=ウォームアップ目標ナノ秒;
         this.読取ループ=Task.Run(this.読取ループAsync);
     }
 
-    public static async Task<ベンチマーク高速ワーカーセッション> 開始Async(string 実行ルート,CancellationToken キャンセルトークン) {
+    public static async Task<ベンチマーク高速ワーカーセッション> 開始Async(
+        string 実行ルート,
+        double ウォームアップ目標ナノ秒,
+        CancellationToken キャンセルトークン) {
         var ワーカーパス = ベンチマークワーカークライアント.ワーカーパスを解決();
         var プロセス = ベンチマークワーカークライアント.ワーカーを開始(ワーカーパス,実行ルート,-1);
         System.Diagnostics.Debug.WriteLine($"[ワーカー] 高速ワーカー開始 PID={プロセス.Id} パス={ワーカーパス}");
@@ -178,7 +202,7 @@ public sealed class ベンチマーク高速ワーカーセッション:IAsyncDi
                 throw new InvalidOperationException($"ベンチマーク高速ワーカーが準備完了になりませんでした。最初の出力: {準備応答}");
             }
 
-            return new ベンチマーク高速ワーカーセッション(プロセス,実行ルート);
+            return new ベンチマーク高速ワーカーセッション(プロセス,実行ルート,ウォームアップ目標ナノ秒);
         } catch {
             ベンチマークワーカークライアント.プロセスを終了(プロセス);
             プロセス.Dispose();
@@ -216,7 +240,8 @@ public sealed class ベンチマーク高速ワーカーセッション:IAsyncDi
             成果物フォルダー,
             論理CPU,
             ジョブ.開放ループ較正か,
-            ジョブ.較正閾値ナノ秒);
+            ジョブ.較正閾値ナノ秒,
+            ウォームアップ目標ナノ秒: this.ウォームアップ目標ナノ秒);
         using var 登録 = キャンセルトークン.Register(() => {
             this.終了();
             完了ソース.TrySetCanceled(キャンセルトークン);
@@ -236,7 +261,7 @@ public sealed class ベンチマーク高速ワーカーセッション:IAsyncDi
                 ベンチマーク.メソッド名,
                 ベンチマーク.型完全名,
                 ジョブ.要素数,
-                結果.状態,
+                結果.アフィニティ適用成功か ? 結果.状態 : "Failed",
                 結果.平均,
                 結果.誤差,
                 結果.標準偏差,
@@ -246,14 +271,15 @@ public sealed class ベンチマーク高速ワーカーセッション:IAsyncDi
                 結果.割り当てバイト数,
                 結果.終了コード,
                 結果.成果物フォルダー,
-                結果.ログ,
+                結果.アフィニティ適用成功か ? 結果.ログ : "Workerがアフィニティ適用成功を確認できませんでした。\n"+結果.ログ,
                 結果.ランダムシード,
                 結果.結果ダイジェスト,
                 ベンチマーク.引数キー,
                 ベンチマーク.引数一覧,
                 結果.実測ループ回数??ループ回数,
                 ジョブ.実行項目インデックス,
-                結果.診断カウンター);
+                結果.診断カウンター,
+                結果.アフィニティ適用成功か);
         } catch {
             this.保留一覧.TryRemove(タスクID,out _);
             throw;
@@ -360,11 +386,19 @@ public sealed class ベンチマーク高速ワーカーセッション:IAsyncDi
 public sealed class ベンチマークワーカーセッション:IAsyncDisposable {
     private readonly Process プロセス;
     private readonly string 実行ルート;
+    private readonly int ベンチマーク反復回数;
+    private readonly double ウォームアップ目標ナノ秒;
     private bool 終了済みか;
 
-    internal ベンチマークワーカーセッション(Process プロセス,string 実行ルート) {
+    internal ベンチマークワーカーセッション(
+        Process プロセス,
+        string 実行ルート,
+        int ベンチマーク反復回数,
+        double ウォームアップ目標ナノ秒) {
         this.プロセス=プロセス;
         this.実行ルート=実行ルート;
+        this.ベンチマーク反復回数=ベンチマーク反復回数;
+        this.ウォームアップ目標ナノ秒=ウォームアップ目標ナノ秒;
     }
 
     public async Task<ベンチマークジョブ実行結果> 実行Async(
@@ -397,7 +431,9 @@ public sealed class ベンチマークワーカーセッション:IAsyncDisposab
             要素倍率,
             成果物フォルダー,
             開放ループ較正か: 開放ループ較正か,
-            較正閾値ナノ秒: 較正閾値ナノ秒);
+            較正閾値ナノ秒: 較正閾値ナノ秒,
+            ベンチマーク反復回数: this.ベンチマーク反復回数,
+            ウォームアップ目標ナノ秒: this.ウォームアップ目標ナノ秒);
 
         try {
             System.Diagnostics.Debug.WriteLine($"[ワーカー] 実行Async送信 PID={this.プロセス.Id} メソッド={ベンチマーク.メソッド名} 要素数={要素数}");
@@ -414,7 +450,7 @@ public sealed class ベンチマークワーカーセッション:IAsyncDisposab
                 ベンチマーク.メソッド名,
                 ベンチマーク.型完全名,
                 要素数,
-                結果.状態,
+                結果.アフィニティ適用成功か ? 結果.状態 : "Failed",
                 結果.平均,
                 結果.誤差,
                 結果.標準偏差,
@@ -424,13 +460,14 @@ public sealed class ベンチマークワーカーセッション:IAsyncDisposab
                 結果.割り当てバイト数,
                 結果.終了コード,
                 結果.成果物フォルダー,
-                結果.ログ,
+                結果.アフィニティ適用成功か ? 結果.ログ : "Workerがアフィニティ適用成功を確認できませんでした。\n"+結果.ログ,
                 結果.ランダムシード,
                 結果.結果ダイジェスト,
                 ベンチマーク.引数キー,
                 ベンチマーク.引数一覧,
                 結果.実測ループ回数??ループ回数,
-                診断カウンター値一覧: 結果.診断カウンター);
+                診断カウンター値一覧: 結果.診断カウンター,
+                アフィニティ適用成功か: 結果.アフィニティ適用成功か);
         } catch(OperationCanceledException) {
             this.終了();
             throw;
@@ -494,7 +531,9 @@ internal sealed record ワーカータスクメッセージ(
     string 成果物フォルダー,
     int? 割り当て論理CPU = null,
     bool 開放ループ較正か = false,
-    double? 較正閾値ナノ秒 = null);
+    double? 較正閾値ナノ秒 = null,
+    int ベンチマーク反復回数 = 1,
+    double ウォームアップ目標ナノ秒 = 300_000_000d);
 
 internal sealed record ワーカー結果メッセージ(
     string タスクID,
@@ -512,4 +551,5 @@ internal sealed record ワーカー結果メッセージ(
     int? ランダムシード = null,
     string 結果ダイジェスト = "",
     IReadOnlyList<ベンチマーク診断カウンター>? 診断カウンター = null,
-    int? 実測ループ回数 = null);
+    int? 実測ループ回数 = null,
+    bool アフィニティ適用成功か = false);

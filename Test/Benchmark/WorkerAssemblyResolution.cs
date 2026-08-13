@@ -29,7 +29,7 @@ public sealed class ワーカーアセンブリ解決 {
         var プロセス=global::UI.ベンチマークワーカークライアント.ワーカーを開始(Workerパス,実行ルート,0);
         try {
             Assert.Equal("ready",await プロセス.StandardOutput.ReadLineAsync());
-            await using var セッション=new global::UI.ベンチマーク高速ワーカーセッション(プロセス,実行ルート);
+            await using var セッション=new global::UI.ベンチマーク高速ワーカーセッション(プロセス,実行ルート,300_000_000d);
             foreach(var ケース in 代表ケース一覧を取得()) {
                 var 結果=await セッション.実行Async(ケース,0,CancellationToken.None).WaitAsync(TimeSpan.FromMinutes(1));
                 Assert.True(string.Equals("Completed",結果.状態,StringComparison.Ordinal),"状態="+結果.状態+" ログ="+結果.ログ);

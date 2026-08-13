@@ -243,7 +243,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        if(!TryGetDirectConsumeConsumerExpression(consumeInvocation,linqInvocation,out var consumerExpression)) {
+        if(!TryGetDirectConsumeConsumerExpression(consumeInvocation,linqInvocation,out var consumerExpression,out var linqIsConsumeReceiver)) {
             return false;
         }
         if(semanticModel.GetSymbolInfo(linqInvocation).Symbol is IMethodSymbol sourceMethod
@@ -289,7 +289,11 @@ public sealed partial class FLinqIncrementalGenerator {
         staticMethods=静的メソッドコード連結(staticMethods,fragment.GetEnumeratorStruct);
 
         var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
-        MethodBodyRenderPlan.ConsumerAssignment(consumerName,RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)).AppendTo(builder);
+        AppendConsumeSetup(
+            builder,
+            MethodBodyRenderPlan.Statement(enumerableFragment.GetConsumePreparationStatement()),
+            MethodBodyRenderPlan.ConsumerAssignment(consumerName,RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)),
+            linqIsConsumeReceiver);
         // 演算子別の Consume 展開は Fragment（Enumerable.GetConsumeExecutionStatement）が担う。
         MethodBodyRenderPlan.Statement(enumerableFragment.GetConsumeExecutionStatement(consumerName)).AppendTo(builder);
         return true;
@@ -314,7 +318,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        if(!TryGetDirectConsumeConsumerExpression(consumeInvocation,linqInvocation,out var consumerExpression)) {
+        if(!TryGetDirectConsumeConsumerExpression(consumeInvocation,linqInvocation,out var consumerExpression,out var linqIsConsumeReceiver)) {
             return false;
         }
         if(semanticModel.GetSymbolInfo(linqInvocation).Symbol is IMethodSymbol sourceMethod
@@ -360,6 +364,8 @@ public sealed partial class FLinqIncrementalGenerator {
         string? scalarInlineComputation = null;
         string? scalarConsumeEnumeratorExpression = null;
         string? materializeEnumeratorExpression = null;
+        string? materializeInlineComputation = null;
+        string? materializeResultTypeName = null;
         if(fragment is Scalar scalarPreflight&&!isScalarMaterializeTerminal) {
             var scalarResultTypeInfo = semanticModel.GetTypeInfo(linqInvocation);
             scalarResultTypeName=(scalarResultTypeInfo.Type??scalarResultTypeInfo.ConvertedType)?.ToDisplayString(完全修飾形式)
@@ -380,68 +386,88 @@ public sealed partial class FLinqIncrementalGenerator {
             }
         }
         if(fragment is Scalar&&isScalarMaterializeTerminal&&fragment is not DirectExecutionFragment) {
-            try {
-                materializeEnumeratorExpression=fragment.GetEnumeratorExpression;
-            } catch(NotSupportedException) {
-                uniqueNumber=snapshot;
-                linqInvocationCount=linqInvocationCountSnapshot;
-                staticMethods=staticMethodsSnapshot;
-                builder.Length=builderLengthSnapshot;
-                return false;
+            var materializeResultTypeInfo=semanticModel.GetTypeInfo(linqInvocation);
+            materializeResultTypeName=(materializeResultTypeInfo.Type??materializeResultTypeInfo.ConvertedType)?.ToDisplayString(完全修飾形式)
+                ??"object";
+            if(fragment is ToList { CanInlineMaterializeConsume: true } toList) {
+                materializeInlineComputation=toList.RenderInlineComputation(tempName,materializeResultTypeName);
+            }
+            if(materializeInlineComputation is null) {
+                try {
+                    materializeEnumeratorExpression=fragment.GetEnumeratorExpression;
+                } catch(NotSupportedException) {
+                    uniqueNumber=snapshot;
+                    linqInvocationCount=linqInvocationCountSnapshot;
+                    staticMethods=staticMethodsSnapshot;
+                    builder.Length=builderLengthSnapshot;
+                    return false;
+                }
             }
         }
 
         generatedFragments.Add(fragment);
         staticMethods=静的メソッドコード連結(staticMethods,invocationStaticMethods);
-        if(fragment is Scalar&&!isScalarMaterializeTerminal) {
+        if(materializeInlineComputation is not null) {
+            staticMethods=静的メソッドコード連結(staticMethods,((Scalar)fragment).InlineSupportingMembers);
+        } else if(fragment is Scalar&&!isScalarMaterializeTerminal) {
             staticMethods=静的メソッドコード連結(staticMethods,スカラー対応補助メンバー取得(fragment,tempName,scalarResultTypeName));
         } else {
             staticMethods=静的メソッドコード連結(staticMethods,fragment.GetEnumeratorStruct);
         }
 
         var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
-        MethodBodyRenderPlan.ConsumerAssignment(consumerName,RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector)).AppendTo(builder);
+        var consumerAssignment=MethodBodyRenderPlan.ConsumerAssignment(
+            consumerName,
+            RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector));
         if(fragment is Enumerable enumerableFragment) {
+            AppendConsumeSetup(
+                builder,
+                MethodBodyRenderPlan.Statement(enumerableFragment.GetConsumePreparationStatement()),
+                consumerAssignment,
+                linqIsConsumeReceiver);
             MethodBodyRenderPlan.Statement(enumerableFragment.GetConsumeExecutionStatement(consumerName)).AppendTo(builder);
             return true;
         }
 
         if(fragment is Scalar&&!isScalarMaterializeTerminal) {
+            MethodBodyRenderPlan scalarEvaluation;
             if(fragment is DirectExecutionFragment directExecutionFragment) {
-                MethodBodyRenderPlan.Statement(directExecutionFragment.GetDirectExecutionStatement(tempName,scalarResultTypeName)).AppendTo(builder);
+                scalarEvaluation=MethodBodyRenderPlan.Statement(directExecutionFragment.GetDirectExecutionStatement(tempName,scalarResultTypeName));
             } else if(scalarInlineComputation is not null) {
-                MethodBodyRenderPlan.Statement(scalarInlineComputation).AppendTo(builder);
+                scalarEvaluation=MethodBodyRenderPlan.Statement(scalarInlineComputation);
             } else {
                 var scalarEnumeratorName = GetUniqueIdentifier($"e_{SanitizeIdentifier(tempName)}",usedNames);
-                MethodBodyRenderPlan.ScalarRead(scalarResultTypeName,tempName,scalarEnumeratorName,scalarConsumeEnumeratorExpression!).AppendTo(builder);
-
+                scalarEvaluation=MethodBodyRenderPlan.ScalarRead(scalarResultTypeName,tempName,scalarEnumeratorName,scalarConsumeEnumeratorExpression!);
             }
+            AppendConsumeSetup(builder,scalarEvaluation,consumerAssignment,linqIsConsumeReceiver);
             MethodBodyRenderPlan.Consume(consumerName,tempName).AppendTo(builder);
             return true;
         }
 
         if(fragment is Scalar&&isScalarMaterializeTerminal&&fragment is DirectExecutionFragment materializeDirectExecutionFragment) {
             var resultTypeInfo = semanticModel.GetTypeInfo(linqInvocation);
-            var resultTypeName = (resultTypeInfo.Type??resultTypeInfo.ConvertedType)?.ToDisplayString()
+            var resultTypeName = (resultTypeInfo.Type??resultTypeInfo.ConvertedType)?.ToDisplayString(完全修飾形式)
                 ??"object";
-            builder.AppendLine(materializeDirectExecutionFragment.GetDirectExecutionStatement(tempName,resultTypeName));
-            builder.AppendLine($"foreach(var __item in {tempName}) {{");
-            builder.AppendLine($"    {consumerName}.Consume(__item);");
-            builder.AppendLine("}");
+            AppendConsumeSetup(
+                builder,
+                MethodBodyRenderPlan.Statement(materializeDirectExecutionFragment.GetDirectExecutionStatement(tempName,resultTypeName)),
+                consumerAssignment,
+                linqIsConsumeReceiver);
+            MethodBodyRenderPlan.MaterializeLoop(tempName,consumerName).AppendTo(builder);
             return true;
         }
 
         if(fragment is Scalar&&isScalarMaterializeTerminal) {
-            var resultTypeInfo = semanticModel.GetTypeInfo(linqInvocation);
-            var resultTypeName = (resultTypeInfo.Type??resultTypeInfo.ConvertedType)?.ToDisplayString()
-                ??"object";
+            MethodBodyRenderPlan materializeEvaluation;
+            if(materializeInlineComputation is not null) {
+                materializeEvaluation=MethodBodyRenderPlan.Statement(materializeInlineComputation);
+            } else {
+                var scalarEnumeratorName = GetUniqueIdentifier($"e_{SanitizeIdentifier(tempName)}",usedNames);
+                materializeEvaluation=MethodBodyRenderPlan.ScalarRead(materializeResultTypeName!,tempName,scalarEnumeratorName,materializeEnumeratorExpression!);
+            }
 
-            var scalarEnumeratorName = GetUniqueIdentifier($"e_{SanitizeIdentifier(tempName)}",usedNames);
-            MethodBodyRenderPlan.ScalarRead(resultTypeName,tempName,scalarEnumeratorName,materializeEnumeratorExpression!).AppendTo(builder);
-
-            builder.AppendLine($"foreach(var __item in {tempName}) {{");
-            builder.AppendLine($"    {consumerName}.Consume(__item);");
-            builder.AppendLine("}");
+            AppendConsumeSetup(builder,materializeEvaluation,consumerAssignment,linqIsConsumeReceiver);
+            MethodBodyRenderPlan.MaterializeLoop(tempName,consumerName).AppendTo(builder);
             return true;
         }
 
@@ -468,8 +494,10 @@ public sealed partial class FLinqIncrementalGenerator {
     private bool TryGetDirectConsumeConsumerExpression(
         InvocationExpressionSyntax consumeInvocation,
         InvocationExpressionSyntax linqInvocation,
-        out ExpressionSyntax consumerExpression) {
+        out ExpressionSyntax consumerExpression,
+        out bool linqIsConsumeReceiver) {
         consumerExpression=null!;
+        linqIsConsumeReceiver=false;
         if(consumeInvocation.Expression is not MemberAccessExpressionSyntax memberAccess
             ||memberAccess.Name.Identifier.ValueText!="Consume"
             ||consumeInvocation.ArgumentList.Arguments.Count!=1) {
@@ -478,13 +506,26 @@ public sealed partial class FLinqIncrementalGenerator {
 
         if(SyntaxExpressionMatches(memberAccess.Expression,linqInvocation)) {
             consumerExpression=consumeInvocation.ArgumentList.Arguments[0].Expression;
+            linqIsConsumeReceiver=true;
             return true;
         }
         if(SyntaxExpressionMatches(consumeInvocation.ArgumentList.Arguments[0].Expression,linqInvocation)) {
             consumerExpression=memberAccess.Expression;
+            linqIsConsumeReceiver=false;
             return true;
         }
         return false;
+    }
+
+    private static void AppendConsumeSetup(
+        StringBuilder builder,
+        MethodBodyRenderPlan linqEvaluation,
+        MethodBodyRenderPlan consumerEvaluation,
+        bool linqIsConsumeReceiver) {
+        MethodBodyRenderPlan.Sequence(
+            linqIsConsumeReceiver?linqEvaluation:consumerEvaluation,
+            linqIsConsumeReceiver?consumerEvaluation:linqEvaluation)
+            .AppendTo(builder);
     }
 
     private bool SyntaxExpressionMatches(ExpressionSyntax expression,ExpressionSyntax other) =>
@@ -492,6 +533,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
     private bool TryGetConsumeSourceInvocation(
         InvocationExpressionSyntax consumeExpression,
+        SemanticModel semanticModel,
         out InvocationExpressionSyntax sourceInvocation) {
         sourceInvocation=null!;
         if(consumeExpression.Expression is not MemberAccessExpressionSyntax consumeMember
@@ -499,18 +541,52 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        if(StripConsumeParentheses(consumeMember.Expression) is InvocationExpressionSyntax receiverInvocation) {
+        var receiverInvocation=StripConsumeParentheses(consumeMember.Expression) as InvocationExpressionSyntax;
+        var argumentInvocation=consumeExpression.ArgumentList.Arguments.Count==1
+            ? StripConsumeParentheses(consumeExpression.ArgumentList.Arguments[0].Expression) as InvocationExpressionSyntax
+            : null;
+
+        // A System LINQ invocation is unambiguous even when the other side is a factory call.
+        if(receiverInvocation is not null&&IsSupportedLinqInvocation(receiverInvocation,semanticModel)) {
             sourceInvocation=receiverInvocation;
             return true;
         }
-
-        if(consumeExpression.ArgumentList.Arguments.Count==1
-            &&StripConsumeParentheses(consumeExpression.ArgumentList.Arguments[0].Expression) is InvocationExpressionSyntax argumentInvocation) {
+        if(argumentInvocation is not null&&IsSupportedLinqInvocation(argumentInvocation,semanticModel)) {
             sourceInvocation=argumentInvocation;
             return true;
         }
 
-        return false;
+        // Preserve the existing single-invocation behavior. Ordinary transparent wrapper
+        // methods (for example RangeX.Create) are recognized later by the root builder.
+        if(receiverInvocation is null) {
+            if(argumentInvocation is null) {
+                return false;
+            }
+            sourceInvocation=argumentInvocation;
+            return true;
+        }
+        if(argumentInvocation is null) {
+            sourceInvocation=receiverInvocation;
+            return true;
+        }
+
+        // Both Consume operands are calls. Select the one whose static result is enumerable;
+        // this distinguishes an ordinary LINQ wrapper from a consumer factory without
+        // assuming that the wrapper itself is declared in System.Linq.Enumerable.
+        var receiverIsEnumerable=this.IsEnumerableConsumeSourceInvocation(receiverInvocation,semanticModel);
+        var argumentIsEnumerable=this.IsEnumerableConsumeSourceInvocation(argumentInvocation,semanticModel);
+        if(receiverIsEnumerable==argumentIsEnumerable) {
+            return false;
+        }
+        sourceInvocation=receiverIsEnumerable?receiverInvocation:argumentInvocation;
+        return true;
+    }
+
+    private bool IsEnumerableConsumeSourceInvocation(
+        InvocationExpressionSyntax invocation,
+        SemanticModel semanticModel) {
+        var typeInfo=semanticModel.GetTypeInfo(invocation);
+        return this.列挙要素型取得(typeInfo.Type??typeInfo.ConvertedType,out _,out _);
     }
     private ExpressionSyntax StripConsumeParentheses(ExpressionSyntax expression) {
         while(expression is ParenthesizedExpressionSyntax parenthesized) {
@@ -892,7 +968,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
         if(statement is ExpressionStatementSyntax consumeStatement
             &&consumeStatement.Expression is InvocationExpressionSyntax bareConsumeExpression
-            &&TryGetConsumeSourceInvocation(bareConsumeExpression,out var consumeSourceInvocation)
+            &&TryGetConsumeSourceInvocation(bareConsumeExpression,semanticModel,out var consumeSourceInvocation)
             &&直接Consumeループ文生成(
                 consumeStatement,
                 consumeSourceInvocation,
@@ -1252,15 +1328,8 @@ public sealed partial class FLinqIncrementalGenerator {
         if(methodReturnsVoid
             &&expression is InvocationExpressionSyntax consumeExpression
             &&consumeExpression.Expression is MemberAccessExpressionSyntax consumeMember
-            &&consumeMember.Name.Identifier.ValueText=="Consume") {
-            InvocationExpressionSyntax? consumeSourceInvocation = null;
-            if(括弧除去(consumeMember.Expression) is InvocationExpressionSyntax targetInvocation) {
-                consumeSourceInvocation=targetInvocation;
-            } else if(consumeExpression.ArgumentList.Arguments.Count==1
-                &&括弧除去(consumeExpression.ArgumentList.Arguments[0].Expression) is InvocationExpressionSyntax argumentInvocation) {
-                consumeSourceInvocation=argumentInvocation;
-            }
-
+            &&consumeMember.Name.Identifier.ValueText=="Consume"
+            &&TryGetConsumeSourceInvocation(consumeExpression,semanticModel,out var consumeSourceInvocation)) {
             if(consumeSourceInvocation is not null
                 &&直接Consume式生成(
                     consumeExpression,

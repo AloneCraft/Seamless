@@ -51,6 +51,15 @@ internal static class 起動診断 {
     public static void メインスレッドで呼び出し開始(string 状況,Action 処理) {
         パンくずを追加("UIディスパッチをキューへ追加: "+状況);
         try {
+        var currentDispatcher=Application.Current?.Dispatcher;
+        if(currentDispatcher is null) {
+            System.Diagnostics.Debug.WriteLine("UI dispatcher is unavailable.");
+            return;
+        }
+        if(currentDispatcher.IsDispatchRequired) {
+            _=currentDispatcher.Dispatch(\u51e6\u7406);
+            return;
+        }
             if(MainThread.IsMainThread) {
                 UI処理を実行(状況,処理);
                 return;

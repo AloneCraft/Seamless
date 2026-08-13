@@ -73,10 +73,43 @@ internal class ToList(int 番号,Enumerable source,string resultType):BufferedSc
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
+    internal bool CanInlineMaterializeConsume => source is ArrayRoot;
+    public override string InlineSupportingMembers {
+        get {
+            if(source is RangeRoot or ArrayRoot) {
+                return string.Empty;
+            }
+            return source.GetDirectSpanExpression("__source") is not null
+                ? source.GetEnumeratorStruct
+                : base.InlineSupportingMembers;
+        }
+    }
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderRangeToListInline(destVar,destType)
+        this.RenderArrayToListInline(destVar,destType)
+        ??this.RenderRangeToListInline(destVar,destType)
         ??this.RenderDirectSpanToListInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
+    private string? RenderArrayToListInline(string destVar,string destType) {
+        if(source is not ArrayRoot { DirectArrayExpression: { } arrayExpression }) {
+            return null;
+        }
+
+        var sourceName=$"__array{this.result}";
+        var span=$"__span{this.result}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{sourceName}}={{arrayExpression}};
+                global::System.ArgumentNullException.ThrowIfNull({{sourceName}},"source");
+                {{this.CounterCall("IncrementDirectSpanUsed")}}
+                var {{span}}=global::System.MemoryExtensions.AsSpan({{sourceName}});
+                {{destVar}}=new({{span}}.Length);
+                global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{span}}.Length);
+                {{this.CounterCall("IncrementFastCopyUsed")}}
+                {{span}}.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}}));
+            }
+            """;
+    }
     private string? RenderDirectSpanToListInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""

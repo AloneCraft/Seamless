@@ -84,7 +84,9 @@ internal abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(
         // registry-mapped できないラムダ形（本体ルートが匿名生成式でない等）の安全網として残している。
         if(innerFrag.ElementType=="TResult")
             return false;
-        var smFrag = new SelectMany_WithInlinedInner(smNumber,outerSource,innerFrag,outerParamName);
+        var identitySelector=lambdaBody is IdentifierNameSyntax identityIdentifier
+            &&identityIdentifier.Identifier.ValueText==outerParamName;
+        var smFrag = new SelectMany_WithInlinedInner(smNumber,outerSource,innerFrag,outerParamName,identitySelector);
         fragment=smFrag;
         uniqueNumber=snapshot;
         staticMethods=JoinStaticMethods(outerSourceStaticMethods,innerStaticMethods);
@@ -336,7 +338,7 @@ SelectMany_WithInlinedInner は collection selector の内側 LINQ を Fragment 
 設計意図:
   innerEnumerator を IEnumerator<T>? にせず具象 struct 型で持つことで、interface dispatch と delegate 呼び出しを避ける。
 */
-internal class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerable innerFragment,string outerParamName)
+internal class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerable innerFragment,string outerParamName,bool identitySelector = false)
     :SelectManyBase(番号,source) {
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
@@ -417,6 +419,46 @@ internal class SelectMany_WithInlinedInner(int 番号,Enumerable source,Enumerab
     // GetEnumeratorExpression: outer struct takes only the outer source enumerator
     public override string GetEnumeratorExpression =>
         RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
+    private string? ConsumeOuterEnumerableExpression => identitySelector?source.DirectEnumerableExpression:null;
+    private string ConsumeOuterSourceName => $"__selectManyOuterSource{番号}";
+
+    public override string GetConsumePreparationStatement() {
+        if(this.ConsumeOuterEnumerableExpression is not { } outerEnumerableExpression) {
+            return base.GetConsumePreparationStatement();
+        }
+
+        return $$"""
+            var {{this.ConsumeOuterSourceName}}={{outerEnumerableExpression}};
+            global::System.ArgumentNullException.ThrowIfNull({{this.ConsumeOuterSourceName}},"source");
+            """;
+    }
+
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.ConsumeOuterEnumerableExpression is null) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+
+        var outerEnumeratorName=$"__selectManyOuterEnumerator{番号}";
+        var innerSourceName=$"__selectManyInnerSource{番号}";
+        var innerEnumeratorName=$"__selectManyInnerEnumerator{番号}";
+        return $$"""
+            {
+                {{this.CounterCall("IncrementEnumerationLoopUsed")}}
+                using(var {{outerEnumeratorName}}={{this.ConsumeOuterSourceName}}.GetEnumerator()){
+                    while({{outerEnumeratorName}}.MoveNext()){
+                        {{this.CounterCall("IncrementLogicalSelectManyOuter")}}
+                        global::System.Collections.Generic.IEnumerable<{{innerFragment.ElementType}}> {{innerSourceName}}={{outerEnumeratorName}}.Current;
+                        using(var {{innerEnumeratorName}}={{innerSourceName}}.GetEnumerator()){
+                            while({{innerEnumeratorName}}.MoveNext()){
+                                {{this.CounterCall("IncrementLogicalSelectManyInner")}}
+                                {{consumerName}}.Consume({{innerEnumeratorName}}.Current);
+                            }
+                        }
+                    }
+                }
+            }
+            """;
+    }
 }
 
 internal class SelectMany_indexSelector_resultSelector(int 番号,Enumerable source,FuncFragment collectionSelector,FuncFragment resultSelector):SelectManyBase(番号,source) {

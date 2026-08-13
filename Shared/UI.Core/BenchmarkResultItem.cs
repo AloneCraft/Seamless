@@ -70,6 +70,7 @@ public sealed class ベンチマーク結果項目{
         this.成果物フォルダー=ジョブ.成果物フォルダー;
         this.終了コード=ジョブ.終了コード;
         this.割り当て論理CPU=ジョブ.割り当て論理CPU;
+        this.アフィニティ適用成功か=ジョブ.アフィニティ適用成功か;
         this.開始日時=ジョブ.開始日時;
         this.失敗理由=ジョブ.失敗理由;
         this.実行項目インデックス=ジョブ.実行項目インデックス;
@@ -227,6 +228,7 @@ public sealed class ベンチマーク結果項目{
     public string 成果物フォルダー{get;}
     public int?終了コード{get;}
     public int?割り当て論理CPU{get;}
+    public bool アフィニティ適用成功か{get;}
     public DateTimeOffset?開始日時{get;}
     public string 失敗理由{get;}
     public bool 実行内測定か{get;set;}

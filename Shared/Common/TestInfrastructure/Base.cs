@@ -57,6 +57,7 @@ public static class BenchmarkExecutionMode {
     private const string ElementCountKey = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
     private const string PreparedElementCountsKey = "SEAMLESS_BENCHMARK_PREPARED_ELEMENT_COUNTS";
     private const string RandomSourceSeedKey = "SEAMLESS_BENCHMARK_RANDOM_SOURCE_SEED";
+    private const string RequiredAffinityCpuKey = "SEAMLESS_BENCHMARK_REQUIRED_AFFINITY_CPU";
     private static readonly AsyncLocal<int?> ComparisonElementLimit = new();
     private static readonly AsyncLocal<int?> ElementCountOverride = new();
     private static readonly AsyncLocal<double?> ElementScaleOverride = new();
@@ -88,6 +89,29 @@ public static class BenchmarkExecutionMode {
     }
 
     public static void DisableComparisonMode() => ComparisonElementLimit.Value=null;
+
+    internal static void ValidateRequiredAffinity() {
+        var text=Environment.GetEnvironmentVariable(RequiredAffinityCpuKey);
+        if(string.IsNullOrWhiteSpace(text)) {
+            return;
+        }
+        if(!OperatingSystem.IsWindows()) {
+            throw new PlatformNotSupportedException("Required benchmark affinity is supported only on Windows.");
+        }
+        if(!int.TryParse(text,System.Globalization.NumberStyles.Integer,System.Globalization.CultureInfo.InvariantCulture,out var logicalCpu)
+            ||logicalCpu<0
+            ||logicalCpu>=IntPtr.Size*8) {
+            throw new InvalidDataException("Invalid required benchmark affinity CPU: "+text);
+        }
+        using var process=System.Diagnostics.Process.GetCurrentProcess();
+        var actual=unchecked((ulong)process.ProcessorAffinity.ToInt64());
+        var expected=1UL<<logicalCpu;
+        if(actual!=expected) {
+            throw new InvalidOperationException(
+                "Benchmark process affinity mismatch. expected="+expected.ToString("X",System.Globalization.CultureInfo.InvariantCulture)
+                +" actual="+actual.ToString("X",System.Globalization.CultureInfo.InvariantCulture));
+        }
+    }
 
     public static IDisposable UseElementCount(int elementCount,string? elementScale) {
         var previousCount = ElementCountOverride.Value;
@@ -311,6 +335,7 @@ public class Base<T> where T : notnull {
 
     [GlobalSetup]
     public void PrepareBenchmarkSources() {
+        BenchmarkExecutionMode.ValidateRequiredAffinity();
 #if SYSTEM_IENUMERABLE
         return;
 #else

@@ -18,7 +18,7 @@ public sealed class ベンチマーク高速ワーカーセッション {
         })??throw new InvalidOperationException("EOF再現ワーカーを開始できませんでした。");
         try {
             Assert.Equal("ready",(await プロセス.StandardOutput.ReadLineAsync())?.Trim());
-            await using var セッション=new global::UI.ベンチマーク高速ワーカーセッション(プロセス,実行ルート);
+            await using var セッション=new global::UI.ベンチマーク高速ワーカーセッション(プロセス,実行ルート,300_000_000d);
             var ジョブ=new global::UI.ベンチマークジョブ {
                 プロジェクト="System.Range.ZLinq",
                 アセンブリ名="Benchmark.System.Linq.Enumerable.Range.ZLinq",

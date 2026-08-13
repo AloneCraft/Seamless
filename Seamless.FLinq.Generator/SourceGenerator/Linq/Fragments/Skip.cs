@@ -36,10 +36,11 @@ internal class Skip(int 番号,Enumerable source,string skipCount):Enumerable(�
         method.Parameters.Length==1&&method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
     private Enumerable Source => source;
     private string SkipCountExpression => skipCount;
+    private string NormalizedSkipCountExpression => $"global::System.Math.Max(0,{this.SkipCountExpression})";
     private Enumerable RootSource => this.Source is Skip skip ? skip.RootSource : this.Source;
     private string EffectiveSkipCount => this.Source is Skip skip
-        ? $"(int)global::System.Math.Min(int.MaxValue,(long)({skip.EffectiveSkipCount})+({this.SkipCountExpression}))"
-        : this.SkipCountExpression;
+        ? $"(int)global::System.Math.Min(int.MaxValue,(long)({skip.EffectiveSkipCount})+({this.NormalizedSkipCountExpression}))"
+        : this.NormalizedSkipCountExpression;
     protected override Enumerable PrimarySource => this.RootSource;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""
@@ -68,7 +69,20 @@ internal class Skip(int 番号,Enumerable source,string skipCount):Enumerable(�
         return false;
         """;
     public override string ElementType => this.Source.ElementType;
+    public override string GetConsumePreparationStatement() {
+        if(this.RootSource is not RangeRoot range) {
+            return base.GetConsumePreparationStatement();
+        }
+        return $$"""
+            {{range.RenderArgumentPreparation(range.PreparedStartName,range.PreparedCountName)}}
+            var {{this.PreparedRangeSkipCountName}}=global::System.Math.Clamp({{this.EffectiveSkipCount}},0,{{range.PreparedCountName}});
+            """;
+    }
+    private string PreparedRangeSkipCountName => $"__skipRangeSkipCount{番号}";
     public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.RootSource is RangeRoot range) {
+            return this.RenderRangeConsume(consumerName,range);
+        }
         var sourceName = $"__skipSource{番号}";
 
 
@@ -94,6 +108,16 @@ internal class Skip(int 番号,Enumerable source,string skipCount):Enumerable(�
             var __skipCount{{番号}}=global::System.Math.Clamp({{this.EffectiveSkipCount}},0,__skipSpan{{番号}}.Length);
             for(var __skipIndex{{番号}}=__skipCount{{番号}};__skipIndex{{番号}}<__skipSpan{{番号}}.Length;__skipIndex{{番号}}++){
                 {{consumerName}}.Consume(__skipSpan{{番号}}[__skipIndex{{番号}}]);
+            }
+            """;
+    }
+
+    private string RenderRangeConsume(string consumerName,RangeRoot range) {
+        var rangeOffsetName = $"__skipRangeOffset{番号}";
+        return $$"""
+            {{this.CounterCall("IncrementEnumerationLoopUsed")}}
+            for(var {{rangeOffsetName}}={{this.PreparedRangeSkipCountName}};{{rangeOffsetName}}<{{range.PreparedCountName}};{{rangeOffsetName}}++){
+                {{consumerName}}.Consume({{range.PreparedStartName}}+{{rangeOffsetName}});
             }
             """;
     }

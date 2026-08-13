@@ -41,6 +41,10 @@ internal class Cast(int 番号,Enumerable source,string resultElementType):Enume
         return false;
         """;
     public override string ElementType => resultElementType;
+    public override string GetConsumePreparationStatement() =>
+        this.IsIdentityType
+            ? source.GetConsumePreparationStatement()
+            : base.GetConsumePreparationStatement();
     public override string GetConsumeExecutionStatement(string consumerName) =>
         this.IsIdentityType
             ? source.GetConsumeExecutionStatement(consumerName)

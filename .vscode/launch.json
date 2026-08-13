@@ -30,6 +30,21 @@
             "stopAtEntry": false
         },
         {
+            "name": "Benchmark.UI AOT",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-benchmark-ui-aot-release",
+            "program": "${workspaceFolder}/Benchmark/Benchmark.UI/bin/Release/net10.0-windows/win-x64/Benchmark.UI.exe",
+            "args": [],
+            "env": {
+                "DOTNET_MODIFIABLE_ASSEMBLIES": "debug",
+                "SEAMLESS_BENCHMARK_EXECUTION_PROFILE": "AOT"
+            },
+            "cwd": "${workspaceFolder}/Benchmark/Benchmark.UI/bin/Release/net10.0-windows/win-x64",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },
+        {
             "name": "Benchmark.Scalable.UI Debug",
             "type": "coreclr",
             "request": "launch",

@@ -17,7 +17,6 @@ const string 要素数環境変数名 = "SEAMLESS_BENCHMARK_ELEMENT_COUNT";
 const string ループ回数環境変数名 = "SEAMLESS_BENCHMARK_LOOP_COUNT";
 const string 準備済み要素数環境変数名 = "SEAMLESS_BENCHMARK_PREPARED_ELEMENT_COUNTS";
 const string ランダムソースシード環境変数名 = "SEAMLESS_BENCHMARK_RANDOM_SOURCE_SEED";
-const double 事前ウォームアップ閾値ナノ秒 = 1_024_000_000.0;
 
 var 論理CPU = 必須整数引数を読む(args,"--logical-cpu");
 var 実行ルート = 必須文字列引数を読む(args,"--run-root");
@@ -147,7 +146,7 @@ static ワーカー結果メッセージ ベンチマークを実行(
     Console.SetOut(ログ書込);
     Console.SetError(ログ書込);
     try {
-        アフィニティを適用(論理CPU);
+        var アフィニティ適用成功か = アフィニティを適用(論理CPU);
         var ランダムシード = ランダムソースシードを作成(タスク);
         var ループ回数 = Math.Max(1,タスク.ループ回数);
         Environment.SetEnvironmentVariable(要素倍率環境変数名,string.IsNullOrWhiteSpace(タスク.要素倍率) ? "1" : タスク.要素倍率);
@@ -166,58 +165,66 @@ static ワーカー結果メッセージ ベンチマークを実行(
         using var ランダムソーススコープ = ランダムソースシードスコープを開始(ベンチマーク型.Assembly,ランダムシード);
         var 引数値一覧 = ベンチマーク引数フォーマッター.オブジェクト一覧に変換(タスク.引数);
         var 結果ダイジェスト = ベンチマーク結果ダイジェストを取得(ベンチマーク型,タスク.メソッド名,引数値一覧);
-        if(タスク.開放ループ較正か&&タスク.較正閾値ナノ秒 is { } 較正閾値ナノ秒) {
-            // 較正ケースはBenchmarkDotNetを介さず、開放ループの実測値をそのまま結果として返す(高速プロファイルと同じ計測方式)。
-            // ウォームアップ・統計処理・外れ値除去の厳密さは失うが、固定コスト(Reflection.Emitラップ・エンジン起動)を1回分節約できる。
+        if(タスク.開放ループ較正か) {
+            var 較正閾値ナノ秒 = タスク.較正閾値ナノ秒
+                ??throw new InvalidOperationException("開放ループ較正には較正閾値ナノ秒が必要です。");
+            // 開放ループはLoopCountを決める一時プローブであり、その時間・誤差・割当量を最終統計として返さない。
             var プローブメソッド = ベンチマークメソッドを解決(ベンチマーク型,タスク.メソッド名);
             var プローブインスタンス = プローブメソッド.IsStatic ? null : Activator.CreateInstance(ベンチマーク型);
+            using var プローブ破棄 = プローブインスタンス as IDisposable;
             var プローブ呼出 = 引数値一覧.Length==0
                 ? プローブメソッド.IsStatic
                     ? (Action)プローブメソッド.CreateDelegate(typeof(Action))
                     : (Action)プローブメソッド.CreateDelegate(typeof(Action),プローブインスタンス)
                 : () => プローブメソッド.Invoke(プローブインスタンス,引数値一覧);
-            var プローブ計測 = 計測を実行(プローブ呼出,true,較正閾値ナノ秒,ループ回数);
+            var プローブ計測 = ベンチマークワーカーランタイム.ループ回数を較正(プローブ呼出,較正閾値ナノ秒,ループ回数);
             var 実測ループ回数 = プローブ計測.ループ回数;
             Environment.SetEnvironmentVariable(ループ回数環境変数名,実測ループ回数.ToString(CultureInfo.InvariantCulture));
-            var プローブ平均ナノ秒 = プローブ計測.中央値ナノ秒;
-            Console.WriteLine("較正計測: "+計測ログを整形(プローブ計測));
+            Console.WriteLine("較正プローブ: "+較正ログを整形(プローブ計測));
             var プローブログ = ログ書込.ToString();
             File.WriteAllText(ログパス,プローブログ,Encoding.UTF8);
             return new ワーカー結果メッセージ(
                 タスク.タスクID,
                 "Completed",
-                ナノ秒を整形(プローブ平均ナノ秒),
-                ナノ秒を整形(プローブ計測.誤差ナノ秒),
-                ナノ秒を整形(プローブ計測.標準偏差ナノ秒),
-                プローブ平均ナノ秒,
-                プローブ計測.誤差ナノ秒,
-                プローブ計測.標準偏差ナノ秒,
-                プローブ計測.割り当てバイト数,
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                null,
+                null,
+                null,
+                null,
                 0,
                 タスク.成果物フォルダー,
                 プローブログ,
                 ランダムシード,
                 結果ダイジェスト,
-                実測ループ回数: 実測ループ回数);
+                実測ループ回数: 実測ループ回数,
+                アフィニティ適用成功か: アフィニティ適用成功か);
         }
 
-        // 本物のBenchmarkDotNet測定(InProcessEmitToolchain、Warmup=1/Iteration=1の単発測定)は、
-        // 較正クルードループ(開放ループ較正か=true、生のfor/whileループ)ほどJIT階層昇格の機会を
-        // 得られないことが判明したため、同一メソッドへの較正クルードループを1回挟んで事前に
-        // 温めてから本測定に入る。較正結果自体は使い捨てる(ループ回数はタスク側の値をそのまま使う)。
+        // 本測定へ冷間初期化を混入させない。初回呼出は時間外で行い、その後の時間ベース
+        // ウォームアップも結果へ採用しない(本測定のLoopCountはタスク側の確定値を使う)。
         {
             var ウォームアップメソッド = ベンチマークメソッドを解決(ベンチマーク型,タスク.メソッド名);
             var ウォームアップインスタンス = ウォームアップメソッド.IsStatic ? null : Activator.CreateInstance(ベンチマーク型);
+            using var ウォームアップ破棄 = ウォームアップインスタンス as IDisposable;
             var ウォームアップ呼出= 引数値一覧.Length==0
                 ? ウォームアップメソッド.IsStatic
                     ? (Action)ウォームアップメソッド.CreateDelegate(typeof(Action))
                     : (Action)ウォームアップメソッド.CreateDelegate(typeof(Action),ウォームアップインスタンス)
                 : () => ウォームアップメソッド.Invoke(ウォームアップインスタンス,引数値一覧);
-            計測を実行(ウォームアップ呼出,true,事前ウォームアップ閾値ナノ秒,ループ回数);
+            ウォームアップ呼出();
+            直接ウォームアップを実行(
+                ウォームアップ呼出,
+                ベンチマークワーカーランタイム.ウォームアップ目標ナノ秒を正規化(
+                    タスク.ウォームアップ目標ナノ秒));
         }
 
         var 設定 = ManualConfig
-            .Create(ベンチマークワーカーランタイム.設定を作成(タスク.成果物フォルダー,ループ回数))
+            .Create(ベンチマークワーカーランタイム.設定を作成(
+                タスク.成果物フォルダー,
+                ループ回数,
+                タスク.ベンチマーク反復回数))
             .AddFilter(new ワーカータスクフィルター(タスク));
         var 概要一覧 = BenchmarkSwitcher
             .FromTypes([ベンチマーク型])
@@ -232,7 +239,7 @@ static ワーカー結果メッセージ ベンチマークを実行(
         }
         var 報告 = 報告一覧[0];
         var 統計 = 報告?.ResultStatistics;
-        var 割当バイト数 = 割当バイト数を取得(報告);
+        var 割当計測 = 割当計測を取得(報告);
         var ログ = ログ書込.ToString();
         File.WriteAllText(ログパス,ログ,Encoding.UTF8);
         if(!ベンチマークワーカーランタイム.使用可能な統計か(統計?.Mean)) {
@@ -255,15 +262,18 @@ static ワーカー結果メッセージ ベンチマークを実行(
                 結果ダイジェスト);
         }
 
-        // ワーカーの戻り値はループ合計で揃える契約（開放ループ較正の経路も合計を返す）。下流の
+        // 本測定の戻り値はループ合計で揃える契約。下流の
         // ベンチマーク結果項目が ÷ループ回数 して per-op へ正規化する。
         // 時間統計は BDN が InvocationCount(=ループ回数) で割った per-op 値なので、ここで掛け戻す。
-        // 割当バイト数は GcStats.GetTotalOperations が 1 反復×ループ回数 のため既にループ合計であり、
-        // 掛けてはならない（掛けると二重計上になり、UI のメモリ列だけ N 倍で表示される）。
+        // GcStatsの総割当量を実際のTotalOperationsで一操作へ直し、LoopCountを掛けて
+        // 一バッチへ正規化する。IterationCountはMemoryDiagnoserの総操作数を増やすとは限らない。
         var 合計平均 = 統計?.Mean*ループ回数;
         var 合計誤差 = 統計?.StandardError*ループ回数;
         var 合計標準偏差 = 統計?.StandardDeviation*ループ回数;
-        long? 合計割当バイト数 = 割当バイト数;
+        var 合計割当バイト数 = ベンチマークワーカーランタイム.一バッチ割当バイト数を正規化(
+            割当計測.総割当バイト数,
+            割当計測.総操作回数,
+            ループ回数);
         return new ワーカー結果メッセージ(
             タスク.タスクID,
             "Completed",
@@ -278,7 +288,8 @@ static ワーカー結果メッセージ ベンチマークを実行(
             タスク.成果物フォルダー,
             ログ,
             ランダムシード,
-            結果ダイジェスト);
+            結果ダイジェスト,
+            アフィニティ適用成功か: アフィニティ適用成功か);
     } finally {
         Environment.SetEnvironmentVariable(要素倍率環境変数名,前回要素倍率);
         Environment.SetEnvironmentVariable(要素数環境変数名,前回要素数);
@@ -389,7 +400,7 @@ static ワーカー結果メッセージ 高速ベンチマークを実行(
     var ログパス = Path.Combine(タスク.成果物フォルダー,"fast-worker.log");
     object? インスタンス = null;
     try {
-        スレッドアフィニティを適用(論理CPU);
+        var アフィニティ適用成功か = スレッドアフィニティを適用(論理CPU);
         var ベンチマーク型 = ベンチマーク型を解決(タスク.アセンブリ名,タスク.型完全名);
         var メソッド = ベンチマークメソッドを解決(ベンチマーク型,タスク.メソッド名);
         var ランダムシード = ランダムソースシードを作成(タスク);
@@ -404,10 +415,41 @@ static ワーカー結果メッセージ 高速ベンチマークを実行(
                 ? (Action)メソッド.CreateDelegate(typeof(Action))
                 : (Action)メソッド.CreateDelegate(typeof(Action),インスタンス)
             : () => メソッド.Invoke(インスタンス,引数値一覧);
-        if(!タスク.開放ループ較正か) {
-            直接ウォームアップを実行(ベンチマーク呼出,タスク.較正閾値ナノ秒??300_000_000d);
-        }        var 計測 = 計測を実行(ベンチマーク呼出,タスク.開放ループ較正か,タスク.較正閾値ナノ秒,ループ回数);
-        int? 実測ループ回数 = タスク.開放ループ較正か ? 計測.ループ回数 : null;
+        if(タスク.開放ループ較正か) {
+            var 較正閾値ナノ秒 = タスク.較正閾値ナノ秒
+                ??throw new InvalidOperationException("開放ループ較正には較正閾値ナノ秒が必要です。");
+            var 較正結果 = ベンチマークワーカーランタイム.ループ回数を較正(ベンチマーク呼出,較正閾値ナノ秒,ループ回数);
+            File.WriteAllText(
+                ログパス,
+                "高速ワーカーの較正プローブが完了しました。CPU="
+                +(論理CPU>=0 ? 論理CPU.ToString(CultureInfo.InvariantCulture) : "-")
+                +"、"+較正ログを整形(較正結果),
+                Encoding.UTF8);
+            return new ワーカー結果メッセージ(
+                タスク.タスクID,
+                "Completed",
+                string.Empty,
+                string.Empty,
+                string.Empty,
+                null,
+                null,
+                null,
+                null,
+                0,
+                タスク.成果物フォルダー,
+                string.Empty,
+                ランダムシード,
+                結果ダイジェスト,
+                実測ループ回数: 較正結果.ループ回数,
+                アフィニティ適用成功か: アフィニティ適用成功か);
+        }
+
+        ベンチマーク呼出();
+        直接ウォームアップを実行(
+            ベンチマーク呼出,
+            ベンチマークワーカーランタイム.ウォームアップ目標ナノ秒を正規化(
+                タスク.ウォームアップ目標ナノ秒));
+        var 計測 = 計測を実行(ベンチマーク呼出,ループ回数);
         var 平均ナノ秒 = 計測.中央値ナノ秒;
         var 割当バイト数 = 計測.割り当てバイト数;
         var カウンター = new global::Seamless.Linq.LinqCounter();
@@ -438,7 +480,7 @@ static ワーカー結果メッセージ 高速ベンチマークを実行(
             ランダムシード,
             結果ダイジェスト,
             診断カウンター,
-            実測ループ回数);
+            アフィニティ適用成功か: アフィニティ適用成功か);
     } catch(Exception 例外) when(例外 is not OperationCanceledException) {
         var 実例外 = 例外 is TargetInvocationException { InnerException: { } 内部例外 } ? 内部例外 : 例外;
         Directory.CreateDirectory(タスク.成果物フォルダー);
@@ -467,47 +509,20 @@ static ワーカー結果メッセージ 高速ベンチマークを実行(
     }
 }
 
-/// <summary>
-/// 左右（最適化有効側／無効側）で完全に同じ形の計測を行う共通ルーチン。
-/// <para>
-/// 較正は「1 サンプルあたりのループ回数」を決めるためだけに使い、その時間は結果に採らない。
-/// 続くサンプリングは左右とも同じループ回数・同じサンプル数・同じコードパスで回す。
-/// </para>
-/// <para>
-/// 内側ループは較正・計測とも 1 反復につき 1 回だけ <see cref="Stopwatch.Elapsed"/> を読む。
-/// 較正側は終了判定に使い、計測側はダミーとして累積するだけだが、こうしないと
-/// 左右で 1 反復あたりの時計読みコストが食い違い、較正側（＝右列）だけが系統的に遅く見える。
-/// </para>
-/// </summary>
+/// <summary>時間外の初回呼出後、指定時間だけ同一プロセスで直接ウォームアップする。</summary>
 static void 直接ウォームアップを実行(Action ベンチマーク呼出,double 目標時間ナノ秒) {
     var stopwatch = Stopwatch.StartNew();
     do {
         ベンチマーク呼出();
     } while(stopwatch.Elapsed.TotalMilliseconds*1_000_000d<目標時間ナノ秒);
 }
-static 計測結果 計測を実行(Action ベンチマーク呼出,bool 開放ループ較正か,double? 較正閾値ナノ秒,int 指定ループ回数) {
+
+/// <summary>破棄2サンプルと実測7サンプルを同一LoopCountで取得する直接測定。</summary>
+static 計測結果 計測を実行(Action ベンチマーク呼出,int 指定ループ回数) {
     var 時計 = new Stopwatch();
     var ダミー累積 = 0d;
     var ループ回数 = Math.Max(1,指定ループ回数);
     var 全サンプル数 = 計測設定.破棄サンプル数+計測設定.計測サンプル数;
-
-    if(開放ループ較正か&&較正閾値ナノ秒 is { } 閾値ナノ秒) {
-        // 較正 1 回 + 全サンプルで合計がおおよそ閾値に収まるよう、1 サンプルの目標時間を割り当てる。
-        var 目標ナノ秒 = Math.Max(1d,閾値ナノ秒/(全サンプル数+1));
-        var 反復回数 = 0;
-        時計.Restart();
-        while(時計.Elapsed.TotalMilliseconds*1_000_000d<目標ナノ秒) {
-            ベンチマーク呼出();
-            反復回数++;
-        }
-        時計.Stop();
-        ループ回数=Math.Max(1,反復回数);
-    } else {
-        // 較正しない側は較正パスに相当する空回しを 1 サンプル分だけ行い、事前実行量を揃える。
-        時計.Restart();
-        ダミー累積+=反復ループを回す(ベンチマーク呼出,ループ回数,時計);
-        時計.Stop();
-    }
 
     var サンプル一覧 = new double[計測設定.計測サンプル数];
     long? 割り当てバイト数 = null;
@@ -520,8 +535,9 @@ static 計測結果 計測を実行(Action ベンチマーク呼出,bool 開放�
         var __gc1Before=GC.CollectionCount(1);
         var __gc2Before=GC.CollectionCount(2);
         時計.Restart();
-        ダミー累積+=反復ループを回す(ベンチマーク呼出,ループ回数,時計);
+        バッチを実行(ベンチマーク呼出,ループ回数);
         時計.Stop();
+        ダミー累積+=時計.Elapsed.TotalMilliseconds;
         if(!計測対象か) {
             continue;
         }
@@ -551,19 +567,17 @@ static 計測結果 計測を実行(Action ベンチマーク呼出,bool 開放�
         __gcCollections);
 }
 
-/// <summary>
-/// 計測の内側ループ。1 反復につき 1 回だけ時計を読む形を左右・較正／計測で共有するためのもの。
-/// 戻り値のダミー累積は JIT に消されないよう呼び出し側でログへ書き出す。
-/// </summary>
-static double 反復ループを回す(Action ベンチマーク呼出,int ループ回数,Stopwatch 時計) {
-    var ダミー累積 = 0d;
+/// <summary>Stopwatch読取を含まない、1バッチ分の反復。</summary>
+static void バッチを実行(Action ベンチマーク呼出,int ループ回数) {
     for(var 反復番号 = 0;反復番号<ループ回数;反復番号++) {
         ベンチマーク呼出();
-        ダミー累積+=時計.Elapsed.TotalMilliseconds;
     }
-
-    return ダミー累積;
 }
+
+static string 較正ログを整形(較正結果 較正) =>
+    "ループ回数="+較正.ループ回数.ToString(CultureInfo.InvariantCulture)
+    +"、バッチ時間="+ナノ秒を整形(較正.バッチナノ秒)
+    +"、ウォームアップ時間="+ナノ秒を整形(較正.ウォームアップ目標ナノ秒);
 
 static string 計測ログを整形(計測結果 計測) {
     var サンプル = string.Join(", ",計測.サンプル一覧.Select(static 値 => 値.ToString("F0",CultureInfo.InvariantCulture)));
@@ -634,8 +648,14 @@ static string ベンチマーク結果ダイジェストを取得(Type ベンチ
         types: [typeof(string),typeof(bool),typeof(object[])],
         modifiers: null)
         ??throw new MissingMethodException(ベンチマーク型.FullName,"CaptureBenchmarkMethodResult");
-    return メソッド.Invoke(インスタンス,[メソッド名,false,引数一覧]) as string
-        ??throw new InvalidOperationException("ベンチマーク結果ダイジェストが空でした。");
+    try {
+        return メソッド.Invoke(インスタンス,[メソッド名,false,引数一覧]) as string
+            ??throw new InvalidOperationException("ベンチマーク結果ダイジェストが空でした。");
+    } finally {
+        if(インスタンス is IDisposable 破棄対象) {
+            破棄対象.Dispose();
+        }
+    }
 }
 
 static int ランダムソースシードを作成(ワーカータスクメッセージ タスク) {
@@ -689,29 +709,31 @@ static IReadOnlyList<ベンチマーク診断カウンター> 診断カウンタ
     new("HashCapacityHintUsed",カウンター.HashCapacityHintUsed),
 ];
 
-static long? 割当バイト数を取得(object? 報告) {
+static BDN割当計測 割当計測を取得(object? 報告) {
     var GC統計 = 報告?.GetType().GetProperty("GcStats")?.GetValue(報告);
     if(GC統計 is null) {
-        return null;
+        return new(null,null);
     }
 
+    var 総操作回数 = 非負整数に変換(GC統計.GetType().GetProperty("TotalOperations")?.GetValue(GC統計));
     var 合計取得メソッド = GC統計.GetType().GetMethod("GetTotalAllocatedBytes",new[] { typeof(bool) });
     var クォンタム込合計 = 非負整数に変換(合計取得メソッド?.Invoke(GC統計,new object[] { false }));
     var クォンタム除外合計 = 非負整数に変換(合計取得メソッド?.Invoke(GC統計,new object[] { true }));
     var 割当バイト数 = 非負整数に変換(GC統計.GetType().GetProperty("AllocatedBytes")?.GetValue(GC統計));
     foreach(var 値 in new[] { クォンタム込合計,割当バイト数,クォンタム除外合計 }) {
         if(値 is >0) {
-            return 値;
+            return new(値,総操作回数);
         }
     }
 
-    return クォンタム込合計>=0
+    var 総割当バイト数 = クォンタム込合計>=0
         ? クォンタム込合計
         : 割当バイト数>=0
             ? 割当バイト数
             : クォンタム除外合計>=0
                 ? クォンタム除外合計
                 : null;
+    return new(総割当バイト数,総操作回数);
 }
 
 static long? 非負整数に変換(object? 値) =>
@@ -740,38 +762,66 @@ static string 必須文字列引数を読む(string[] 引数一覧,string 名前
     throw new ArgumentException($"必須引数がありません: {名前}");
 }
 
-static void アフィニティを適用(int 論理CPU) {
-    if(論理CPU<0||論理CPU>=Environment.ProcessorCount||論理CPU>=63) {
-        return;
+static bool アフィニティを適用(int 論理CPU) {
+    if(論理CPU==-1) {
+        return false;
     }
 
-    var マスク = 1L<<論理CPU;
+    var マスク = ベンチマークワーカーランタイム.アフィニティマスクを作成(
+        論理CPU,
+        Environment.ProcessorCount,
+        IntPtr.Size*8);
     if(OperatingSystem.IsWindows()) {
-        try {
-            Process.GetCurrentProcess().ProcessorAffinity=new IntPtr(マスク);
-        } catch(PlatformNotSupportedException) {
-        } catch(InvalidOperationException) {
-        } catch(System.ComponentModel.Win32Exception) {
-        }
+        Windowsプロセスアフィニティマスクを適用(マスク);
+        スレッドアフィニティマスクを適用(論理CPU,マスク);
+        return true;
+    }
+    if(OperatingSystem.IsLinux()) {
+        Linuxプロセスアフィニティマスクを適用(マスク);
+        return true;
+    }
 
-        SetThreadAffinityMask(GetCurrentThread(),new UIntPtr((ulong)マスク));
-    } else if(OperatingSystem.IsLinux()) {
-        try {
-            Process.GetCurrentProcess().ProcessorAffinity=new IntPtr(マスク);
-        } catch(PlatformNotSupportedException) {
-        } catch(InvalidOperationException) {
-        } catch(System.ComponentModel.Win32Exception) {
-        }
+    throw new PlatformNotSupportedException();
+}
+
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
+static void Windowsプロセスアフィニティマスクを適用(ulong マスク) => プロセスアフィニティマスクを適用(マスク);
+
+[System.Runtime.Versioning.SupportedOSPlatform("linux")]
+static void Linuxプロセスアフィニティマスクを適用(ulong マスク) => プロセスアフィニティマスクを適用(マスク);
+
+[System.Runtime.Versioning.SupportedOSPlatform("windows")]
+[System.Runtime.Versioning.SupportedOSPlatform("linux")]
+static void プロセスアフィニティマスクを適用(ulong マスク) {
+    using var プロセス = Process.GetCurrentProcess();
+    プロセス.ProcessorAffinity=new IntPtr(checked((long)マスク));
+    if(unchecked((ulong)プロセス.ProcessorAffinity.ToInt64())!=マスク) {
+        throw new InvalidOperationException(nameof(Process.ProcessorAffinity));
     }
 }
 
-static void スレッドアフィニティを適用(int 論理CPU) {
-    if(論理CPU<0||論理CPU>=Environment.ProcessorCount||論理CPU>=63||!OperatingSystem.IsWindows()) {
-        return;
+static bool スレッドアフィニティを適用(int 論理CPU) {
+    if(論理CPU==-1) {
+        return false;
+    }
+    if(!OperatingSystem.IsWindows()) {
+        throw new PlatformNotSupportedException();
     }
 
-    var マスク = 1UL<<論理CPU;
-    SetThreadAffinityMask(GetCurrentThread(),new UIntPtr(マスク));
+    var マスク = ベンチマークワーカーランタイム.アフィニティマスクを作成(
+        論理CPU,
+        Environment.ProcessorCount,
+        IntPtr.Size*8);
+    スレッドアフィニティマスクを適用(論理CPU,マスク);
+    return true;
+}
+
+static void スレッドアフィニティマスクを適用(int 論理CPU,ulong マスク) {
+    var 以前のマスク = SetThreadAffinityMask(GetCurrentThread(),new UIntPtr(マスク));
+    ベンチマークワーカーランタイム.スレッドアフィニティ適用結果を検証(
+        以前のマスク.ToUInt64(),
+        論理CPU,
+        Marshal.GetLastPInvokeError());
 }
 
 [DllImport("kernel32.dll")]
@@ -796,7 +846,9 @@ internal sealed record ワーカータスクメッセージ(
     string 成果物フォルダー,
     int? 割り当て論理CPU = null,
     bool 開放ループ較正か = false,
-    double? 較正閾値ナノ秒 = null) {
+    double? 較正閾値ナノ秒 = null,
+    int ベンチマーク反復回数 = 1,
+    double ウォームアップ目標ナノ秒 = 300_000_000d) {
     public string? Command { get; init; }
     public 演算子対比較要求? Pair { get; init; }
 }
@@ -844,6 +896,8 @@ internal static class 計測設定 {
     public const int 計測サンプル数 = 7;
 }
 
+internal sealed record BDN割当計測(long? 総割当バイト数,long? 総操作回数);
+
 /// <summary>1 サンプル（＝ループ回数 反復）を単位とした計測結果。時間はすべてループ合計ナノ秒。</summary>
 internal sealed record 計測結果(
     double 中央値ナノ秒,
@@ -890,7 +944,8 @@ internal sealed record ワーカー結果メッセージ(
     int? ランダムシード,
     string 結果ダイジェスト,
     IReadOnlyList<ベンチマーク診断カウンター>? 診断カウンター = null,
-    int? 実測ループ回数 = null);
+    int? 実測ループ回数 = null,
+    bool アフィニティ適用成功か = false);
 internal sealed class 空ディスポーザブル:IDisposable {
     public static 空ディスポーザブル インスタンス { get; } = new();
 

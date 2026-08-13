@@ -39,9 +39,28 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute({this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderDirectSpanSumInline(destVar,destType)
+        this.RenderRangeSumInline(destVar,destType)
+        ??this.RenderDirectSpanSumInline(destVar,destType)
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum")
         ??this.RenderComputeInline(destVar,destType);
+    private string? RenderRangeSumInline(string destVar,string destType) {
+        if(source is not RangeRoot range) {
+            return null;
+        }
+
+        var startName = $"__sumRangeStart{this.result}";
+        var countName = $"__sumRangeCount{this.result}";
+        var indexName = $"__sumRangeIndex{this.result}";
+        return $$"""
+            {{range.RenderArgumentPreparation(startName,countName)}}
+            {{destType}} {{destVar}}=default!;
+            checked{
+                for(var {{indexName}}=0;{{indexName}}<{{countName}};{{indexName}}++){
+                    {{destVar}}+={{startName}}+{{indexName}};
+                }
+            }
+            """;
+    }
     // resultType==source.ElementType のときだけ SumSpan(INumber<T> 制約)へ委譲できる。
     // float は SumSpan 内部が checked スカラーループへ落ちて System.Linq の
     // 「double で蓄積してから float へ戻す」仕様と数値的に一致しなくなるため除外する。

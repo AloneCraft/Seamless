@@ -52,6 +52,10 @@ internal class OfType(int 番号,Enumerable source,string resultElementType):Enu
         return false;
         """;
     public override string ElementType => resultElementType;
+    public override string GetConsumePreparationStatement() =>
+        this.IsIdentityType
+            ? source.GetConsumePreparationStatement()
+            : base.GetConsumePreparationStatement();
     public override string GetConsumeExecutionStatement(string consumerName) {
         if(this.IsIdentityType) {
             return source.GetConsumeExecutionStatement(consumerName);

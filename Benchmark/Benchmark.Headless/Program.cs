@@ -1,7 +1,17 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Benchmark.Headless;
 using UI;
 using UI.Storage;
+
+if(args.Contains("--aot-gate",StringComparer.OrdinalIgnoreCase)) {
+    Environment.ExitCode=await AotGateRunner.実行Async(args,CancellationToken.None);
+    return;
+}
+if(args.Contains("--performance-gate",StringComparer.OrdinalIgnoreCase)) {
+    Environment.ExitCode=await PerformanceGateRunner.実行Async(args,CancellationToken.None);
+    return;
+}
 
 var cancellationToken = CancellationToken.None;
 var catalog = ベンチマークカタログ.読み込む();

@@ -4,11 +4,44 @@
 
 - 指定する測定時間は、1回あたりの表示時間ではなく、最終1バッチの合計実測時間である。
 - LoopCountは比較行ごとに管理し、右列だけを校正対象とする。
-- 右列が指定時間未満なら継続完了を表示してLoopCountを2倍にし、右列だけを再測定する。
+- 校正は状態、進行通知、UI、DBへ現れない一時プローブであり、校正時間、割当量、統計値を本測定値として再利用しない。
+- 初回初期化を計測時間外で1回実行し、同一Workerプロセス内で300ms以上かつ最大1.024秒のウォームアップ後、LoopCountを2倍にしながら1バッチが指定時間以上となるまで一時プローブを繰り返す。
+- 一時プローブでLoopCountを決定した後、右列を選択プロファイル本来の測定エンジンで本測定する。本測定の合計平均が指定時間未満ならLoopCountを2倍にし、古い右列結果を破棄して右列だけを再測定する。
 - 右列が指定時間以上になったLoopCountを比較行の最終LoopCountとする。
 - 左列（3列比較では左列に続けて中央列）は最終LoopCountで一度だけ測定する。左列・中央列の合計時間が指定時間未満でも、成功なら完全完了である。
-- 全列の最終LoopCountは同一でなければならない。失敗・例外・タイムアウトは完全完了に含めない。
+- 全列の最終LoopCount、論理CPU、測定エンジンは同一でなければならない。失敗・例外・タイムアウト、キャンセルは完全完了に含めない。
 - 右列が`int.MaxValue`でも指定時間未満なら、理由付き失敗にする。
+
+## 測定プロファイル
+
+- `正確`は左右ともBenchmarkDotNetを使い、LaunchCount 1、WarmupCount 1、IterationCount 7とする。DBへ保存する時間は7反復のMeanである。
+- `中間`は左右ともBenchmarkDotNetを使い、LaunchCount 1、WarmupCount 1、IterationCount 1とする。
+- `高速`は左右とも直接測定を使い、破棄2サンプル後の実測7サンプル中央値とする。
+- `AOT`はバージョン付きJSON契約を介して、完全publishされた専用Workerを使う。NativeAOT / .NET 10、LaunchCount 1、WarmupCount 1、IterationCount 7、IterationTime 100ms、MemoryDiagnoser、選択論理CPUへのAffinityに固定する。
+- BenchmarkDotNetの総割当量は実際の操作回数で正規化する。Worker戻り値は1バッチ単位、UI・DB・性能ゲートへはLoopCount除算後の1操作単位とする。IterationCountを1から7へ増やしても表示割当量を7倍にしない。
+
+## NativeAOT測定
+
+- AOT要求はアセンブリ、完全型名、メソッド、引数キー、型付き引数、論理CPU、成果物パスを明示する。同一アセンブリ・型の選択ケースだけを1グループとし、BenchmarkDotNetフィルターで未選択ケースをcompile・実行しない。
+- Workerは`--preflight --output <dir>`と`--request <request.json>`を提供する。全要求ケースが成功した場合だけ終了コード0を返し、欠落・重複、統計欠落、非有限値、非NativeAOT、CPUまたはアフィニティ不一致は理由付き失敗にする。
+- stdout、stderr、BenchmarkDotNetログ、完全JSONレポートは成果物へ保持する。失敗応答は、linker、Visual C++、MSBuildなど最初の実行可能な診断とログパスを含む。
+- preflightは.NET 10 SDK、NativeAOT pack、Visual Studio C++ x64 toolset、Windows SDK、`link.exe`を確認し、小さなNativeAOT probeをReleaseでpublishして実際に起動する。SDKは検出した10.xの完全バージョンへ固定し、自動インストールまたは別SDKへの暗黙フォールバックを行わない。
+- UIは開始時の選択を固定し、型グループを1つずつ直列実行する。完了応答は原子的な`completed.json`へ保存し、契約、ケース集合、設定、CPU、Worker、Benchmark DLL、SDK、C++ toolsetの指紋が完全一致する同じ実行ルートでだけ再利用する。失敗または破損した成果物は再測定する。
+- グループのタイムアウトは`max(30分, 10分+ケース数×1分)`かつ最大4時間とする。キャンセル・タイムアウト時は子プロセスツリーを停止し、既に完了した別グループの成果物は維持する。
+- `SEAMLESS_BENCHMARK_EXECUTION_PROFILE=AOT`は、そのUIプロセスだけでAOTを初期選択する。未指定は高速、不正値は起動診断へ表示し、設定へ永続化しない。VS CodeとVisual Studioの`Benchmark.UI AOT`プロファイルはUIを表示するだけで、測定を自動開始しない。
+- Windows版Benchmark.UIのビルドは、AOT Workerを常にReleaseのframework-dependent完全publishとして`AOTWorker/`へ隔離配置する。ルート直下の旧Workerは使用しない。
+- `Benchmark.Headless --aot-gate smoke|full`はRelease専用のローカルゲートである。`smoke`は各標準タブの左右1ケース、`full`は全標準タブの全ケースをN=4096で直列実行し、実DBを読み書きしない。通常CIは実時間AOTを実行せず、契約・選択・解析・IDE構成の決定論的テストだけを実行する。
+
+## Run 249性能ゲート
+
+- `Benchmark.Headless --performance-gate <manifest.json>`はRelease専用のローカル性能ゲートであり、通常CIでは実時間測定を実行しない。
+- マニフェストは11ペアをタブID、左右の完全型名、メソッド名、引数キーで厳密に識別する。対象IDまたは解決ペアの重複、ケース欠落、複数一致、Run 249のFLinq割当上限不一致は測定前に失敗する。
+- 条件はN=4096、最終バッチ目標1.024秒、5回直列に固定する。CPUはトポロジーで識別した最初のPコア物理コアの主論理スレッドを使い、そのスレッドがアフィニティ非対応なら次のPコアを探す。対応Pコアがなければ代替せず失敗する。
+- 1～4回目の成果物は各回の集計後に削除する。5回目の既存BenchmarkDotNet成果物は合否調査のため保持し、独自統計レポートファイルは作らない。不合格時もDBは変更しない。
+- 各対象は5回の`FLinq時間/基準時間`中央値が1.00以下、5回目の左シェアが0.50以下、全回で左右の結果ダイジェスト、論理CPU、LoopCountが一致し、FLinq割当量が基準以下かつRun 249上限以下のときだけ合格する。
+- 合格時も既定ではDBを変更しない。`--retire-run-on-pass 249`を明示した場合だけ、Benchmark UI、別Headless、Workerの停止を確認し、SQLite Online Backup APIで日時付き一貫バックアップを作成した後、5回目の11件を新しい正確Runへ保存してRun 249を退役する。
+- Run 249の退役前に、11表の子行が承認済みの合計1,348件（書き換え11、パイプライン融合11、述語プッシュダウン143、Array 194、IEnumerable 194、Range 81、List 194、Persisted(Seamless) 130、Persisted(System) 130、Tsavorite(Seamless) 130、Tsavorite(System) 130）と一致することを、読取専用の事前検査と削除直前のトランザクション内の両方で表別に検証する。合計だけが一致しても表別内訳が異なれば退役しない。
+- 保存後は新Run 11件の再読込、`foreign_key_check`、`integrity_check`、Run 249と全タブ子行の残存0件、新Run存在を同一更新単位で確認する。新Run作成後・Run 249退役直前の`sqlite_sequence`を記録し、退役によって値が変化しないことを完全一致で確認する。失敗時は明示バックアップから復元する。
 
 ## 表示と集計
 
@@ -38,7 +71,7 @@
 - 通常版の履歴識別子はタブ・型・ベンチマーク、Scalable版はこれらに全引数軸を加える。SQLで識別子を完全一致させ、1行・1指標につき新しい順で最大1000点を取得後に時系列順へ戻す。全タブ取得後の絞り込み、別行・別タブ・欠落引数によるフォールバックは禁止する。
 - 通常DBは未使用の分析ビューを作成しない。
 - Scalable DBの正規ビューは`Scalable履歴`と`Scalable前回シェア`で、シェア列は`今回時間シェア`、`前回時間シェア`、`今回メモリシェア`、`前回メモリシェア`である。
-- 通常DBのスキーマ版は24、Scalable DBは20。既存計測行は変更せず、旧比率ビューや基準シェアビューとの互換契約は持たない。版不一致は自動移行・自動削除せず、アプリ終了確認と明示バックアップ後の直接更新を要求する。
+- 通常DBのスキーマ版は26、Scalable DBは20。既存計測行は変更せず、旧比率ビューや基準シェアビューとの互換契約は持たない。版不一致は自動移行・自動削除せず、アプリ終了確認と明示バックアップ後の直接更新を要求する。
 - 通常DBは単一の`ベンチマーク`表を持たず、`実行`表とタブ別の11表（`書き換え`、`パイプライン融合`、`述語プッシュダウン`、`Array`、`IEnumerable`、`Range`、`List`、`Persisted(Seamless)`、`Persisted(System)`、`Tsavorite(Seamless)`、`Tsavorite(System)`）で構成する。各タブ表の計測列はタブ定義の列見出しから導出し、識別情報（アセンブリ名・型完全名）は側ごとに独立した列で保持する。
 
 ## 回帰履歴

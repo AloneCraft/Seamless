@@ -244,7 +244,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         this.ベンチマークソート列選択肢を更新();
         this.ベンチマークソート規則を既定へ戻す(false);
         this.実行プロファイル一覧=実行プロファイル一覧を作成();
-        this.選択実行プロファイル値=this.実行プロファイル一覧.First(static 項目 => 項目.プロファイル==ベンチマーク実行プロファイル.高速);
+        this.選択実行プロファイル値=this.実行プロファイル一覧.First(項目 => 項目.プロファイル==ベンチマーク起動実行プロファイル.解決(Environment.GetEnvironmentVariable(ベンチマーク起動実行プロファイル.環境変数名)));
         var 初期実行選択肢 = 新規実行選択肢を作成(this.選択実行プロファイル値.プロファイル);
         this.実行選択肢一覧.Add(初期実行選択肢);
         this.選択実行選択肢値=初期実行選択肢;

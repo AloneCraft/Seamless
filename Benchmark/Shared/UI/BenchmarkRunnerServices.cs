@@ -45,7 +45,11 @@ public interface Iベンチマークワーカープロセスサービス:Iベン
 }
 
 public sealed class ベンチマークワーカープロセスサービス:Iベンチマークワーカープロセスサービス {
-    private readonly ベンチマークワーカークライアント クライアント = new();
+    private readonly ベンチマークワーカークライアント クライアント;
+
+    public ベンチマークワーカープロセスサービス(double ウォームアップ目標ナノ秒 = 1_024_000_000d) {
+        this.クライアント=new(7,ウォームアップ目標ナノ秒);
+    }
 
     public Task<ベンチマークジョブ実行結果> 実行Async(ベンチマークジョブ ジョブ,string 実行ルート,int 論理CPU,TimeSpan タイムアウト,CancellationToken キャンセルトークン) =>
         this.クライアント.実行Async(ジョブ,実行ルート,論理CPU,タイムアウト,キャンセルトークン);
@@ -53,9 +57,13 @@ public sealed class ベンチマークワーカープロセスサービス:Iベ�
 }
 
 public sealed class ベンチマーク永続ワーカープロセスサービス:Iベンチマークジョブ実行器, Iベンチマーク動的CPUセット実行器, IAsyncDisposable {
-    private readonly ベンチマークワーカークライアント クライアント = new();
+    private readonly ベンチマークワーカークライアント クライアント;
     private readonly ConcurrentDictionary<int,ベンチマークワーカーセッション> セッション一覧 = new();
     private readonly ConcurrentDictionary<int,int> 実行中ジョブ数一覧 = new();
+
+    public ベンチマーク永続ワーカープロセスサービス(double ウォームアップ目標ナノ秒 = 300_000_000d) {
+        this.クライアント=new(1,ウォームアップ目標ナノ秒);
+    }
 
     public async Task<ベンチマークジョブ実行結果> 実行Async(
         ベンチマークジョブ ジョブ,
@@ -134,6 +142,15 @@ public sealed class ベンチマーク高速ワーカープロセスサービス
     private readonly SemaphoreSlim セッションゲート = new(1,1);
     private ベンチマーク高速ワーカーセッション? セッション;
     private string 実行ルート = string.Empty;
+    private readonly double ウォームアップ目標ナノ秒;
+
+    public ベンチマーク高速ワーカープロセスサービス(double ウォームアップ目標ナノ秒 = 300_000_000d) {
+        if(!double.IsFinite(ウォームアップ目標ナノ秒)||ウォームアップ目標ナノ秒<=0d) {
+            throw new ArgumentOutOfRangeException(nameof(ウォームアップ目標ナノ秒));
+        }
+
+        this.ウォームアップ目標ナノ秒=ウォームアップ目標ナノ秒;
+    }
 
     public async Task<ベンチマークジョブ実行結果> 実行Async(
         ベンチマークジョブ ジョブ,
@@ -185,7 +202,10 @@ public sealed class ベンチマーク高速ワーカープロセスサービス
             }
 
             this.実行ルート=実行ルート;
-            this.セッション=await ベンチマーク高速ワーカーセッション.開始Async(実行ルート,キャンセルトークン);
+            this.セッション=await ベンチマーク高速ワーカーセッション.開始Async(
+                実行ルート,
+                this.ウォームアップ目標ナノ秒,
+                キャンセルトークン);
             return this.セッション;
         } finally {
             this.セッションゲート.Release();
@@ -205,7 +225,7 @@ public sealed class ベンチマーク高速ワーカープロセスサービス
     }
 }
 
-public sealed class ベンチマークAOTワーカープロセスサービス:Iベンチマークジョブ実行器, IAsyncDisposable {
+internal sealed class 旧ベンチマークAOTワーカープロセスサービス:Iベンチマークジョブ実行器, IAsyncDisposable {
     // NativeAotToolchainによるILCビルドは1つの(アセンブリ,型)ペアにつき数十秒〜10分かかる。
     // 呼び出し元の`要求.ジョブタイムアウト`は全プロファイル共通で60分固定であり(BenchmarkRunnerServices.cs
     // の実行Async内`TimeSpan.FromMinutes(60)`)、型単位バッチビルドの待受にもそのまま流用できる長さがある。
@@ -459,7 +479,7 @@ public sealed class ベンチマーク実行サービス(Iベンチマークワ�
         CancellationToken キャンセルトークン) {
         var オーケストレーションルート = ソリューションルートを検索()??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Seamless");
         var ベンチマークルート = Path.Combine(オーケストレーションルート,"Work",ベンチマークアプリプロファイル.作業ルート名,ベンチマーク実行プロファイル名.フォルダー名に変換(実行プロファイル));
-        var ジョブ実行器 = this.ジョブ実行器を作成(実行プロファイル,適応しきい値,実行オプション);
+        var ジョブ実行器 = this.ジョブ実行器を作成(実行プロファイル,適応しきい値,実行オプション,ベンチマーク一覧);
         var オーケストレーター = new ベンチマークオーケストレーター(
             new ベンチマーク状態マネージャー(ベンチマークルート),
             ジョブ実行器);
@@ -492,13 +512,17 @@ public sealed class ベンチマーク実行サービス(Iベンチマークワ�
 
     }
 
-    private Iベンチマークジョブ実行器 ジョブ実行器を作成(ベンチマーク実行プロファイル 実行プロファイル,TimeSpan テスト待機時間,ベンチマーク実行オプション? 実行オプション) =>
+    private Iベンチマークジョブ実行器 ジョブ実行器を作成(
+        ベンチマーク実行プロファイル 実行プロファイル,
+        TimeSpan 適応しきい値,
+        ベンチマーク実行オプション? 実行オプション,
+        IReadOnlyList<ベンチマークケース> ベンチマーク一覧) =>
         実行プロファイル switch {
             ベンチマーク実行プロファイル.正確 => ワーカーサービス,
-            ベンチマーク実行プロファイル.中間 => new ベンチマーク永続ワーカープロセスサービス(),
-            ベンチマーク実行プロファイル.高速 => new ベンチマーク高速ワーカープロセスサービス(),
-            ベンチマーク実行プロファイル.テスト => new ベンチマークテスト待機ジョブ実行器(テスト待機時間,実行オプション?.無限テスト実行器を使うか==true),
-            ベンチマーク実行プロファイル.AOT => new ベンチマークAOTワーカープロセスサービス(),
+            ベンチマーク実行プロファイル.中間 => new ベンチマーク永続ワーカープロセスサービス(適応しきい値.TotalMilliseconds*1_000_000d),
+            ベンチマーク実行プロファイル.高速 => new ベンチマーク高速ワーカープロセスサービス(適応しきい値.TotalMilliseconds*1_000_000d),
+            ベンチマーク実行プロファイル.テスト => new ベンチマークテスト待機ジョブ実行器(適応しきい値,実行オプション?.無限テスト実行器を使うか==true),
+            ベンチマーク実行プロファイル.AOT => new ベンチマークAOTワーカープロセスサービス(ベンチマーク一覧),
             _ => ワーカーサービス,
         };
 

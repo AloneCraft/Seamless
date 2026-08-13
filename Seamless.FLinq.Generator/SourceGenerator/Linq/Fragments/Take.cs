@@ -65,7 +65,20 @@ internal class Take(int 番号,Enumerable source,string takeCount):Enumerable(�
         return false;
         """;
     public override string ElementType => this.Source.ElementType;
+    public override string GetConsumePreparationStatement() {
+        if(this.RootSource is not RangeRoot range) {
+            return base.GetConsumePreparationStatement();
+        }
+        return $$"""
+            {{range.RenderArgumentPreparation(range.PreparedStartName,range.PreparedCountName)}}
+            var {{this.PreparedRangeTakeCountName}}=global::System.Math.Clamp({{this.EffectiveTakeCount}},0,{{range.PreparedCountName}});
+            """;
+    }
+    private string PreparedRangeTakeCountName => $"__takeRangeTakeCount{番号}";
     public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.RootSource is RangeRoot range) {
+            return this.RenderRangeConsume(consumerName,range);
+        }
         var sourceName = $"__takeSource{番号}";
         var spanExpression = this.RootSource.GetDirectSpanExpression(sourceName);
         if(spanExpression is null) {
@@ -87,6 +100,16 @@ internal class Take(int 番号,Enumerable source,string takeCount):Enumerable(�
             var __takeCount{{番号}}=global::System.Math.Clamp({{this.EffectiveTakeCount}},0,__takeSpan{{番号}}.Length);
             for(var __takeIndex{{番号}}=0;__takeIndex{{番号}}<__takeCount{{番号}};__takeIndex{{番号}}++){
                 {{consumerName}}.Consume(__takeSpan{{番号}}[__takeIndex{{番号}}]);
+            }
+            """;
+    }
+
+    private string RenderRangeConsume(string consumerName,RangeRoot range) {
+        var rangeOffsetName = $"__takeRangeOffset{番号}";
+        return $$"""
+            {{this.CounterCall("IncrementEnumerationLoopUsed")}}
+            for(var {{rangeOffsetName}}=0;{{rangeOffsetName}}<{{this.PreparedRangeTakeCountName}};{{rangeOffsetName}}++){
+                {{consumerName}}.Consume({{range.PreparedStartName}}+{{rangeOffsetName}});
             }
             """;
     }

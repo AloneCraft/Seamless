@@ -34,6 +34,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Aot.Protocol\Aot.Protocol.csproj" />
     <ProjectReference Include="..\..\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" SetTargetFramework="TargetFramework=netstandard2.0" />
     <ProjectReference Include="..\..\Shared\UI.Storage\UI.Storage.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.FLinq\Benchmark.System.Linq.Enumerable.FLinq.csproj" />
@@ -75,18 +76,18 @@
     <Copy SourceFiles="@(_BenchmarkWorkerFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="'@(_BenchmarkWorkerFiles)' != ''" />
   </Target>
 
-  <Target Name="CopyBenchmarkAotWorkerHost" AfterTargets="Build" Condition="'$(IsCrossTargetingBuild)' != 'true' and '$(TargetDir)' != ''">
-    <MSBuild Projects="$(MSBuildProjectDirectory)\..\Worker.Aot\Worker.Aot.csproj" Targets="Build" Properties="Configuration=$(Configuration);TargetFramework=net10.0" />
-
+  <Target Name="PublishBenchmarkAotWorkerHost" AfterTargets="Build" Condition="'$(IsCrossTargetingBuild)' != 'true' and '$(DesignTimeBuild)' != 'true' and '$(TargetDir)' != '' and $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+    <PropertyGroup>
+      <_BenchmarkAotWorkerPublishDir>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(BaseIntermediateOutputPath)aot-worker-publish\'))</_BenchmarkAotWorkerPublishDir>
+      <_BenchmarkAotWorkerTargetDir>$(TargetDir)AOTWorker\</_BenchmarkAotWorkerTargetDir>
+    </PropertyGroup>
+    <RemoveDir Directories="$(_BenchmarkAotWorkerPublishDir)" />
+    <MSBuild Projects="$(MSBuildProjectDirectory)\..\Worker.Aot\Worker.Aot.csproj" Targets="Restore;Publish" RemoveProperties="TargetFramework;TargetFrameworks;RuntimeIdentifier" Properties="Configuration=Release;SelfContained=false;PublishDir=$(_BenchmarkAotWorkerPublishDir)" />
     <ItemGroup>
-      <_BenchmarkAotWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.exe" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.exe')" />
-      <_BenchmarkAotWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.dll" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.dll')" />
-      <_BenchmarkAotWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.deps.json" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.deps.json')" />
-      <_BenchmarkAotWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.runtimeconfig.json" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.runtimeconfig.json')" />
-      <_BenchmarkAotWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.pdb" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker.Aot\bin\$(Configuration)\net10.0\Worker.Aot.pdb')" />
+      <_BenchmarkAotWorkerPublishedFiles Include="$(_BenchmarkAotWorkerPublishDir)**\*" />
     </ItemGroup>
-
-    <Copy SourceFiles="@(_BenchmarkAotWorkerFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="'@(_BenchmarkAotWorkerFiles)' != ''" />
+    <RemoveDir Directories="$(_BenchmarkAotWorkerTargetDir)" />
+    <Copy SourceFiles="@(_BenchmarkAotWorkerPublishedFiles)" DestinationFiles="@(_BenchmarkAotWorkerPublishedFiles->'$(_BenchmarkAotWorkerTargetDir)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="false" />
   </Target>
 
   <Import Project="..\Shared\UI\UI.projitems" Label="Shared" />

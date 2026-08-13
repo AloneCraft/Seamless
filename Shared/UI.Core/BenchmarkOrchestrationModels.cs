@@ -125,6 +125,7 @@ public sealed class ベンチマークジョブ{
     public List<int>準備済み要素数一覧{get;set;}=[];
     public ジョブ状態 状態{get;set;}=ジョブ状態.保留;
     public int?割り当て論理CPU{get;set;}
+    public bool アフィニティ適用成功か{get;set;}
     public string 平均{get;set;}=string.Empty;
     public string 誤差{get;set;}=string.Empty;
     public string 標準偏差{get;set;}=string.Empty;
@@ -260,7 +261,8 @@ public sealed record ベンチマークジョブ実行結果(
     IReadOnlyList<ベンチマーク引数>?引数値一覧=null,
     int ループ回数=0,
     int 実行項目インデックス=-1,
-    IReadOnlyList<ベンチマーク診断カウンター>?診断カウンター値一覧=null){
+    IReadOnlyList<ベンチマーク診断カウンター>?診断カウンター値一覧=null,
+    bool アフィニティ適用成功か=false){
     public IReadOnlyList<ベンチマーク引数>引数一覧{get;}=引数値一覧??[];
     public IReadOnlyList<ベンチマーク診断カウンター>診断カウンター一覧{get;}=診断カウンター値一覧??[];
 }

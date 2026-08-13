@@ -65,22 +65,40 @@ internal class Concat(int 番号,Enumerable source,Enumerable second):Enumerable
         """;
     public override string ElementType => source.ElementType;
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
+    public override string GetConsumePreparationStatement() {
+        if(source is RangeRoot leftRange&&second is RangeRoot rightRange) {
+            return $$"""
+                {{leftRange.RenderArgumentPreparation(this.RangeLeftStartName,this.RangeLeftCountName)}}
+                {{rightRange.RenderArgumentPreparation(this.RangeRightStartName,this.RangeRightCountName)}}
+                """;
+        }
+        if(source.DirectEnumerableExpression is not { } directSource
+            ||second.DirectEnumerableExpression is not { } directSecond) {
+            return string.Empty;
+        }
+        return $$"""
+            var {{this.DirectSourceName}}={{directSource}};
+            var {{this.DirectSecondName}}={{directSecond}};
+            global::System.ArgumentNullException.ThrowIfNull({{this.DirectSourceName}},"first");
+            global::System.ArgumentNullException.ThrowIfNull({{this.DirectSecondName}},"second");
+            """;
+    }
     public override string GetConsumeExecutionStatement(string consumerName) {
         if(source is RangeRoot leftRange&&second is RangeRoot rightRange) {
             return $$"""
                 {
-                    var __leftStart{{番号}}={{leftRange.StartExpression}};
-                    var __leftCount{{番号}}={{leftRange.CountExpression}};
-                    for(var __i{{番号}}=0;__i{{番号}}<__leftCount{{番号}};__i{{番号}}++){
-                        {{consumerName}}.Consume(__leftStart{{番号}}+__i{{番号}});
+                    for(var __i{{番号}}=0;__i{{番号}}<{{this.RangeLeftCountName}};__i{{番号}}++){
+                        {{consumerName}}.Consume({{this.RangeLeftStartName}}+__i{{番号}});
                     }
-                    var __rightStart{{番号}}={{rightRange.StartExpression}};
-                    var __rightCount{{番号}}={{rightRange.CountExpression}};
-                    for(var __i{{番号}}=0;__i{{番号}}<__rightCount{{番号}};__i{{番号}}++){
-                        {{consumerName}}.Consume(__rightStart{{番号}}+__i{{番号}});
+                    for(var __i{{番号}}=0;__i{{番号}}<{{this.RangeRightCountName}};__i{{番号}}++){
+                        {{consumerName}}.Consume({{this.RangeRightStartName}}+__i{{番号}});
                     }
                 }
                 """;
+        }
+        if(source.DirectEnumerableExpression is { } directSource
+            &&second.DirectEnumerableExpression is { } directSecond) {
+            return this.RenderDirectEnumerableConsume(consumerName);
         }
         var sourceName = $"__concatSrc{番号}";
         var secondName = $"__concatSec{番号}";
@@ -109,5 +127,55 @@ internal class Concat(int 番号,Enumerable source,Enumerable second):Enumerable
             second.CanProvideSpan,
             second.GetDirectSpanExpression(secondName));
         return builder.ToString().TrimEnd();
+    }
+
+    private string DirectSourceName => $"__concatFirstEnumerable{this.result}";
+    private string DirectSecondName => $"__concatSecondEnumerable{this.result}";
+    private string RangeLeftStartName => $"__concatLeftStart{this.result}";
+    private string RangeLeftCountName => $"__concatLeftCount{this.result}";
+    private string RangeRightStartName => $"__concatRightStart{this.result}";
+    private string RangeRightCountName => $"__concatRightCount{this.result}";
+
+    private string RenderDirectEnumerableConsume(string consumerName) {
+        var suffix=this.result;
+        var sourceName=this.DirectSourceName;
+        var secondName=this.DirectSecondName;
+        var sourceEnumeratorName=$"__concatFirstEnumerator{suffix}";
+        var secondEnumeratorName=$"__concatSecondEnumerator{suffix}";
+        var sourceValueName=$"__concatFirstValue{suffix}";
+        var secondValueName=$"__concatSecondValue{suffix}";
+        var secondConsumeStatement=source.ElementType==second.ElementType
+            ? $"{consumerName}.Consume({secondValueName});"
+            : $"{consumerName}.Consume(({source.ElementType})(object?){secondValueName}!);";
+        return $$"""
+            {
+                var {{sourceEnumeratorName}}={{sourceName}}.GetEnumerator();
+                try {
+                    {{this.CounterCall("IncrementEnumerationLoopUsed")}}
+                    while({{sourceEnumeratorName}}.MoveNext()){
+                        var {{sourceValueName}}={{sourceEnumeratorName}}.Current;
+                        {{consumerName}}.Consume({{sourceValueName}});
+                    }
+                } finally {
+                    {{sourceEnumeratorName}}.Dispose();
+                }
+                global::System.Collections.Generic.IEnumerator<{{second.ElementType}}> {{secondEnumeratorName}};
+                try {
+                    {{secondEnumeratorName}}={{secondName}}.GetEnumerator();
+                } catch {
+                    {{sourceEnumeratorName}}.Dispose();
+                    throw;
+                }
+                {
+                    using({{secondEnumeratorName}}){
+                    {{this.CounterCall("IncrementEnumerationLoopUsed")}}
+                    while({{secondEnumeratorName}}.MoveNext()){
+                        var {{secondValueName}}={{secondEnumeratorName}}.Current;
+                        {{secondConsumeStatement}}
+                    }
+                    }
+                }
+            }
+            """;
     }
 }
