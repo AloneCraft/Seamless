@@ -2,9 +2,9 @@ using Microsoft.CodeAnalysis.CSharp;
 
 using Seamless.FLinq;
 
-using Enumerable = Seamless.FLinq.Enumerable;
+using Enumerable = Seamless.FLinq.Generator.Enumerable;
 
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 public sealed partial class FLinqIncrementalGenerator {
     internal sealed partial class GenerationPipeline {

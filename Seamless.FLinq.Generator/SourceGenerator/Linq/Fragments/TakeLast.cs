@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal class TakeLast(int 番号,Enumerable source,string takeCount):Enumerable(番号) {
     // Explicit Fragment child visitor

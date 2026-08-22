@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 Skip は source.Skip(count) を、初回 TryGetNext で count 件だけ読み捨てる enumerator へ変換する。

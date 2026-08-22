@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal static class LinqExpressionAnalyzer {
     internal static FLinqIncrementalGenerator.ローカルメソッドLinq解析結果 Analyze(IMethodSymbol method,Compilation compilation) =>

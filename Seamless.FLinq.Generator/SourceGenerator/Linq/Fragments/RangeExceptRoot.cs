@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<RangeRoot> exclusions):Enumerable(番号) {
     internal RangeRoot SourceRange => source;

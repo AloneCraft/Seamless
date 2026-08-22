@@ -12,25 +12,19 @@
 - 全列の最終LoopCount、論理CPU、測定エンジンは同一でなければならない。失敗・例外・タイムアウト、キャンセルは完全完了に含めない。
 - 右列が`int.MaxValue`でも指定時間未満なら、理由付き失敗にする。
 
+## 最適化判断の一般化要件
+
+- ソース生成器・ライブラリへ最適化を追加する場合、発火条件はLINQ式の構文形状（source種別、段数、演算子種別、識別子の同一性など）で判定し、特定のBenchmark型・メソッド名・要素数・データ内容を検出して分岐してはならない。
+- 変更していないFragment・演算に対応するベンチマーク行の比率が同時に大きく動いた場合、実装差ではなく計測パイプライン側の変更（校正方式、ウォームアップ、測定エンジンの左右非対称性）を原因として疑うこと。
+- 自作の簡易計測ハーネス（Stopwatch直書き等）で改善を確認しても、本番と同じ測定エンジン・同じTieredPGO設定の実測（`Work/UI/Benchmark.db`、またはRealBenchでの対称な再測定）で必ず裏取りする。`[MethodImpl(AggressiveOptimization)]`等JIT階層化に影響する変更はファイル単位ではなくメソッド単位で裏取りする。
+- 過去の実例として、自作ハーネスが`TieredPGO=false`だったために`AggressiveOptimization`追加が改善に見えたが、本番(`TieredPGO=true`)では脱仮想化の恩恵を失い最大16倍悪化したケースがある。また、右列（較正ケース）が本物の測定エンジンを経由せず較正クルードループの値をそのまま結果として保存していたため、FLinq/ZLinqの比率に測定方式由来の非対称性が混入していたケースもある（現在はLoopCount校正の節の通り修正済み）。
+
 ## 測定プロファイル
 
 - `正確`は左右ともBenchmarkDotNetを使い、LaunchCount 1、WarmupCount 1、IterationCount 7とする。DBへ保存する時間は7反復のMeanである。
 - `中間`は左右ともBenchmarkDotNetを使い、LaunchCount 1、WarmupCount 1、IterationCount 1とする。
 - `高速`は左右とも直接測定を使い、破棄2サンプル後の実測7サンプル中央値とする。
-- `AOT`はバージョン付きJSON契約を介して、完全publishされた専用Workerを使う。NativeAOT / .NET 10、LaunchCount 1、WarmupCount 1、IterationCount 7、IterationTime 100ms、MemoryDiagnoser、選択論理CPUへのAffinityに固定する。
 - BenchmarkDotNetの総割当量は実際の操作回数で正規化する。Worker戻り値は1バッチ単位、UI・DB・性能ゲートへはLoopCount除算後の1操作単位とする。IterationCountを1から7へ増やしても表示割当量を7倍にしない。
-
-## NativeAOT測定
-
-- AOT要求はアセンブリ、完全型名、メソッド、引数キー、型付き引数、論理CPU、成果物パスを明示する。同一アセンブリ・型の選択ケースだけを1グループとし、BenchmarkDotNetフィルターで未選択ケースをcompile・実行しない。
-- Workerは`--preflight --output <dir>`と`--request <request.json>`を提供する。全要求ケースが成功した場合だけ終了コード0を返し、欠落・重複、統計欠落、非有限値、非NativeAOT、CPUまたはアフィニティ不一致は理由付き失敗にする。
-- stdout、stderr、BenchmarkDotNetログ、完全JSONレポートは成果物へ保持する。失敗応答は、linker、Visual C++、MSBuildなど最初の実行可能な診断とログパスを含む。
-- preflightは.NET 10 SDK、NativeAOT pack、Visual Studio C++ x64 toolset、Windows SDK、`link.exe`を確認し、小さなNativeAOT probeをReleaseでpublishして実際に起動する。SDKは検出した10.xの完全バージョンへ固定し、自動インストールまたは別SDKへの暗黙フォールバックを行わない。
-- UIは開始時の選択を固定し、型グループを1つずつ直列実行する。完了応答は原子的な`completed.json`へ保存し、契約、ケース集合、設定、CPU、Worker、Benchmark DLL、SDK、C++ toolsetの指紋が完全一致する同じ実行ルートでだけ再利用する。失敗または破損した成果物は再測定する。
-- グループのタイムアウトは`max(30分, 10分+ケース数×1分)`かつ最大4時間とする。キャンセル・タイムアウト時は子プロセスツリーを停止し、既に完了した別グループの成果物は維持する。
-- `SEAMLESS_BENCHMARK_EXECUTION_PROFILE=AOT`は、そのUIプロセスだけでAOTを初期選択する。未指定は高速、不正値は起動診断へ表示し、設定へ永続化しない。VS CodeとVisual Studioの`Benchmark.UI AOT`プロファイルはUIを表示するだけで、測定を自動開始しない。
-- Windows版Benchmark.UIのビルドは、AOT Workerを常にReleaseのframework-dependent完全publishとして`AOTWorker/`へ隔離配置する。ルート直下の旧Workerは使用しない。
-- `Benchmark.Headless --aot-gate smoke|full`はRelease専用のローカルゲートである。`smoke`は各標準タブの左右1ケース、`full`は全標準タブの全ケースをN=4096で直列実行し、実DBを読み書きしない。通常CIは実時間AOTを実行せず、契約・選択・解析・IDE構成の決定論的テストだけを実行する。
 
 ## Run 249性能ゲート
 
@@ -76,4 +70,4 @@
 
 ## 回帰履歴
 
-以前は左右とも指定時間へ到達することを完全完了条件にしていた。また、表の1回あたり時間を見て最終バッチ時間と混同しやすく、`Any`がLoopCount 524288でFLinq 34.8ms、ZLinq 43.2msの表示でも処理が完了する問題があった。その後、左列のみで校正する方式に変更し、最終バッチ合計時間と共有LoopCountを明示表示するようにした。現在は右列を校正対象とし、決定したLoopCountで左列・中央列を測定する。
+以前は左右とも指定時間へ到達することを完全完了条件にしていた。また、表の1回あたり時間を見て最終バッチ時間と混同しやすく、`Any`がLoopCount 524288でFLinq 34.8ms、ZLinq 43.2msの表示でも処理が完了する問題があった。その後、左列のみで校正する方式に変更し、最終バッチ合計時間と共有LoopCountを明示表示するようにした。現在は右列を校正対象とし、決定したLoopCountで左列・中央列を測定する。また、右列の較正クルードループ値をそのまま本測定結果としてDBへ保存していた時期があり、FLinq/ZLinqの比率に測定方式由来の非対称性が混入していた。現在は較正を状態・進行通知・UI・DBへ現れない使い捨てプローブとし、決定したLoopCountで右列も選択プロファイル本来の測定エンジンにより本測定してから結果を保存する。

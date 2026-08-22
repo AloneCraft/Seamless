@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // 中間段の追加。
 internal static partial class PipelineBuilder {

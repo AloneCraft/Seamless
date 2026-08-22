@@ -1,5 +1,5 @@
 using Microsoft.CodeAnalysis.CSharp;
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 // selector / result selector が作る carrier の逆解析。
 // carrier とは「データを保持するだけの形」= 匿名型 / タプル式 / ValueTuple / Tuple /
 // record / record struct の位置引数コンストラクタ、およびそれらの入れ子。

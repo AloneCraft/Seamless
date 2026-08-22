@@ -83,7 +83,6 @@ public enum ベンチマーク実行プロファイル{
     中間,
     高速,
     テスト,
-    AOT,
 }
 
 internal static class ベンチマーク実行プロファイル名{
@@ -93,7 +92,6 @@ internal static class ベンチマーク実行プロファイル名{
             ベンチマーク実行プロファイル.中間=>"Intermediate",
             ベンチマーク実行プロファイル.高速=>"Fast",
             ベンチマーク実行プロファイル.テスト=>"Test",
-            ベンチマーク実行プロファイル.AOT=>"AOT",
             _=>throw new ArgumentOutOfRangeException(nameof(プロファイル),プロファイル,null),
         };
     }
@@ -103,7 +101,6 @@ internal static class ベンチマーク実行プロファイル名{
             ベンチマーク実行プロファイル.高速=>"GC.GetAllocatedBytesForCurrentThread",
             ベンチマーク実行プロファイル.テスト=>"Thread.Sleep テスト実行器",
             ベンチマーク実行プロファイル.正確 or ベンチマーク実行プロファイル.中間=>"BenchmarkDotNet MemoryDiagnoser",
-            ベンチマーク実行プロファイル.AOT=>"BenchmarkDotNet MemoryDiagnoser(NativeAOT)",
             _=>"不明",
         };
     }
@@ -315,3 +312,5 @@ internal static class ベンチマーク引数フォーマッター{
         return 値;
     }
 }
+
+public sealed record ベンチマーク実行報告(string? 実行ルート);

@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal class ElementAt(int 番号,Enumerable source,string index,string resultType):BufferedScalar(番号,resultType) {
     // Explicit Fragment child visitor

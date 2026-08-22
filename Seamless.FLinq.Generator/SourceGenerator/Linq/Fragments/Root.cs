@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 Root 系 Fragment は LINQ チェーンの最初の source を struct enumerator 化する。

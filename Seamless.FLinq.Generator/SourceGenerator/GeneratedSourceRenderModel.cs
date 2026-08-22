@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /// <summary>
 /// CoordinatorがRendererへ渡す、1ファイル分の生成対象の不変スナップショットです。

@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 Concat は source.Concat(second) を、左を読み切ってから右へ切り替える2入力 enumerator にする。

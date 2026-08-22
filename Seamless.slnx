@@ -28,9 +28,6 @@
     <Project Path="Benchmark/Benchmark.Scalable.Persisted.Collections/Benchmark.Scalable.Persisted.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.Tsavorite.Collections/Benchmark.Scalable.Tsavorite.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj" />
-    <Project Path="Benchmark/Aot.Protocol/Aot.Protocol.csproj" />
-    <Project Path="Benchmark/Aot.Probe/Aot.Probe.csproj" />
-    <Project Path="Benchmark/Worker.Aot/Worker.Aot.csproj" />
     <Project Path="Benchmark/Benchmark.UI/Benchmark.UI.csproj" />
     <Project Path="Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj" />
     <Project Path="Benchmark/Benchmark.Dynamic.Core/Benchmark.Dynamic.Core.csproj" />

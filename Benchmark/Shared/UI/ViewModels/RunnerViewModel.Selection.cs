@@ -73,7 +73,6 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             new("高精度",ベンチマーク実行プロファイル.正確),
             new("バランス",ベンチマーク実行プロファイル.中間),
             new("高速",ベンチマーク実行プロファイル.高速),
-            new("AOT",ベンチマーク実行プロファイル.AOT),
 #if DEBUG
             new("テスト",ベンチマーク実行プロファイル.テスト),
 #endif

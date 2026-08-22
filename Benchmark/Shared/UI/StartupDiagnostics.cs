@@ -8,6 +8,8 @@ internal static class 起動診断 {
     private static readonly List<Action<string>> 購読者一覧 = [];
     private static readonly StringBuilder ログバッファ = new();
     private static readonly Queue<string> パンくず一覧 = new();
+    private static IDispatcher? 登録済みディスパッチャー;
+    private static bool ディスパッチ失敗を記録済みか;
     private static readonly string[] Syncfusionアセンブリ名一覧 = [
         "Syncfusion.Licensing",
         "Syncfusion.Maui.Core",
@@ -48,28 +50,51 @@ internal static class 起動診断 {
         }
     }
 
+    public static void ディスパッチャーを登録(IDispatcher? ディスパッチャー) {
+        lock(排他) {
+            登録済みディスパッチャー=ディスパッチャー;
+            ディスパッチ失敗を記録済みか=false;
+        }
+        パンくずを追加(ディスパッチャー is null ? "UIディスパッチャー登録失敗" : "UIディスパッチャー登録完了");
+    }
+
     public static void メインスレッドで呼び出し開始(string 状況,Action 処理) {
+        _=メインスレッドで呼び出しを試行(状況,処理);
+    }
+
+    public static bool メインスレッドで呼び出しを試行(string 状況,Action 処理) {
         パンくずを追加("UIディスパッチをキューへ追加: "+状況);
+        IDispatcher? ディスパッチャー;
+        lock(排他) {
+            ディスパッチャー=登録済みディスパッチャー;
+        }
+        if(ディスパッチャー is null) {
+            ディスパッチ失敗を一度だけ記録("UIディスパッチャーが登録されていません: "+状況,null);
+            return false;
+        }
+
         try {
-        var currentDispatcher=Application.Current?.Dispatcher;
-        if(currentDispatcher is null) {
-            System.Diagnostics.Debug.WriteLine("UI dispatcher is unavailable.");
-            return;
-        }
-        if(currentDispatcher.IsDispatchRequired) {
-            _=currentDispatcher.Dispatch(\u51e6\u7406);
-            return;
-        }
-            if(MainThread.IsMainThread) {
-                UI処理を実行(状況,処理);
-                return;
+            if(ディスパッチャー.IsDispatchRequired) {
+                return ディスパッチャー.Dispatch(() => UI処理を実行(状況,処理));
             }
 
-            MainThread.BeginInvokeOnMainThread(() => UI処理を実行(状況,処理));
+            UI処理を実行(状況,処理);
+            return true;
         } catch(Exception 例外) {
-            購読通知せず書き込む("UIディスパッチの予約に失敗しました: "+状況,例外);
-            購読通知せずクラッシュ状況を書き込む("UIディスパッチの予約に失敗しました: "+状況);
+            ディスパッチ失敗を一度だけ記録("UIディスパッチの予約に失敗しました: "+状況,例外);
+            return false;
         }
+    }
+
+    private static void ディスパッチ失敗を一度だけ記録(string メッセージ,Exception? 例外) {
+        lock(排他) {
+            if(ディスパッチ失敗を記録済みか) {
+                return;
+            }
+            ディスパッチ失敗を記録済みか=true;
+        }
+        購読通知せず書き込む(メッセージ,例外);
+        購読通知せずクラッシュ状況を書き込む(メッセージ);
     }
 
     public static void UI処理を実行(string 状況,Action 処理) {

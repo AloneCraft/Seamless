@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // Renders optional enumerator probe members after Fragment has resolved their semantic body.
 // The compact default form and the inlined full form intentionally preserve the existing output shape.

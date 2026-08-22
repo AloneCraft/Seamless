@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // Scalar FragmentをEnumerator経路で実行するときの結果変数・using・TryGetNextを構造化する。
 // 実行順序とDispose順序は既存MethodBodyRewriterの3行構成をそのまま保持する。

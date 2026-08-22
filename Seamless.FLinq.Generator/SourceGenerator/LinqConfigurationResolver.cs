@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal static class LinqConfigurationResolver {
     public static LinqGenerationConfiguration Resolve(IMethodSymbol method,Compilation compilation) {

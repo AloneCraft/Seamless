@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal static class NetStandardJson {
     public static string Serialize(object? value) {

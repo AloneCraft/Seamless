@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /// <summary>
 /// FuncFragment群から抽出したclosureの順序付き描画情報です。

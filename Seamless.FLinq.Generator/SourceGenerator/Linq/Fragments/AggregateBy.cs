@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 /*
 AggregateBy は key ごとに accumulator を持つ grouping 集約を生成する。
 

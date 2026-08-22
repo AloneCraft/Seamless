@@ -1,4 +1,4 @@
-﻿namespace Seamless.FLinq;
+﻿namespace Seamless.FLinq.Generator;
 
 internal enum OperatorCategory {
     Sequence,

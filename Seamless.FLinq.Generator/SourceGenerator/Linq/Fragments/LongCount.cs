@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal class LongCount(int 番号,Enumerable source,string resultType):Count(番号,source,resultType);
 

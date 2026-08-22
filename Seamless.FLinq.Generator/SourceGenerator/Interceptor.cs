@@ -1,6 +1,6 @@
 // #define Tsavorite_ENUMERATOR_MODE  // コメントを外すと常に Enumerator struct 方式になる（フラットループ無効化）
 using Microsoft.CodeAnalysis.Text;
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 [Generator]
 public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {

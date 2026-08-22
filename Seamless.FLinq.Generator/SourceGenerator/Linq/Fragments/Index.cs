@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal class Index(int 番号,Enumerable source):Enumerable(番号) {
     // Explicit Fragment child visitor

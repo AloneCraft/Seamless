@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 /*
 Prepend は source.Prepend(value) を、追加要素を先に返してから source を列挙する状態機械へ変換する。
 

@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 ProviderNativeLookupTerminal は provider が O(1) の membership lookup を持つときの Contains 終端。

@@ -17,8 +17,11 @@ public partial class App:Application {
         }
     }
 
-    protected override Window CreateWindow(IActivationState? 有効化状態) =>
-        new(this.起動ページ??起動診断.エラーページを作成("ベンチマークの起動に失敗しました",new InvalidOperationException("起動ページが初期化されていません。")));
+    protected override Window CreateWindow(IActivationState? 有効化状態) {
+        var ウィンドウ=new Window(this.起動ページ??起動診断.エラーページを作成("ベンチマークの起動に失敗しました",new InvalidOperationException("起動ページが初期化されていません。")));
+        起動診断.ディスパッチャーを登録(ウィンドウ.Dispatcher);
+        return ウィンドウ;
+    }
 
     public async Task<bool> 終了を要求Async() {
         if(this.終了確認状態か||this.終了処理中か) {

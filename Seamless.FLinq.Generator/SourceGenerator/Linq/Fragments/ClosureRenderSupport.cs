@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // closure の収集と、enumerator/Factory の引数・フィールド文字列への変換を ClosureRenderPlan へ集約する。
 // 出力文字列の形式は既存 Fragment と同じであり、この型は互換アダプターとして残す。

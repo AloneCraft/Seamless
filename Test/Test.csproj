@@ -68,7 +68,6 @@
   </ItemGroup>
   <ItemGroup>
     <Using Include="Xunit" />
-    <ProjectReference Include="..\Benchmark\Aot.Protocol\Aot.Protocol.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.Optimization.All\Benchmark.Optimization.All.csproj" />
     <ProjectReference Include="..\Seamless.Linq.Analyzers\Seamless.Linq.Analyzers.csproj" PrivateAssets="all" />
   </ItemGroup>

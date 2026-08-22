@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // direct-consumeの列挙ループを構造化した入力から描画する。
 // span fast path、TryGetSpan fallback、TryGetNext loopの順序は既存TraversalSupportと同じ。

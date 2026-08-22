@@ -166,7 +166,7 @@ public sealed class DynamicQueryCompiler {
 
             開始=Stopwatch.GetTimestamp();
             GeneratorDriver Driver=CSharpGeneratorDriver.Create(
-                [new global::Seamless.FLinq.FLinqIncrementalGenerator().AsSourceGenerator()],
+                [new global::Seamless.FLinq.Generator.FLinqIncrementalGenerator().AsSourceGenerator()],
                 parseOptions:解析設定,
                 driverOptions:new GeneratorDriverOptions(
                     IncrementalGeneratorOutputKind.None,

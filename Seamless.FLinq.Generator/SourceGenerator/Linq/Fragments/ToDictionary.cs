@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 ToDictionaryBase は ToDictionary overload 群の direct enumerable fast path と共通設定を持つ基底。

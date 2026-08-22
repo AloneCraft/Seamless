@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // 段を畳んだループ本体の構築。
 internal sealed partial class PipelineEnumerable {

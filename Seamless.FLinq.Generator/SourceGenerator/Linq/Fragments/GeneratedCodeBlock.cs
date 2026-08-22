@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /// <summary>
 /// 生成コードを意味のある順序で合成するための最小単位です。

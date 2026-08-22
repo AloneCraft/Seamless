@@ -1,12 +1,12 @@
 using System.Collections;
 using System.Reflection;
 
-using Seamless.FLinq;
+using Seamless.FLinq.Generator;
 namespace Test.SourceGenerator;
 
 public sealed class LinqFragmentCoverageTests {
     private static readonly Assembly GeneratorAssembly=typeof(FLinqIncrementalGenerator).Assembly;
-    private static readonly Type RegistryType=GeneratorAssembly.GetType("Seamless.FLinq.OperatorRegistry",throwOnError:true)!;
+    private static readonly Type RegistryType=GeneratorAssembly.GetType("Seamless.FLinq.Generator.OperatorRegistry",throwOnError:true)!;
 
     [Fact, Trait("Category","Unit")]
     public void SystemLinqEnumerablePublicMethodsHaveRegistryCoverage() {

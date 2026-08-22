@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // Range ソース同士の段を畳む最適化。
 internal static partial class PipelineBuilder {

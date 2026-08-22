@@ -1,6 +1,6 @@
 using Microsoft.CodeAnalysis.CSharp;
-using static Seamless.FLinq.CarrierAnalysis;
-namespace Seamless.FLinq;
+using static Seamless.FLinq.Generator.CarrierAnalysis;
+namespace Seamless.FLinq.Generator;
 // Query lowering and carrier optimization details.
 // Query lowering and carrier optimization details.
 // Query lowering and carrier optimization details.

@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // Compatibility adapter for the former direct-consume model.
 // The ordering and fallback behavior are owned by DirectConsumeRenderPlan.

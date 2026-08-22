@@ -2,16 +2,23 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="c7260d12-37ac-443f-b541-40f8091022ae" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.GeneratedCodeRendering.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.GeneratedCodeRendering.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.InterceptorSourceWriter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.InterceptorSourceWriter.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/EnumeratorRenderModel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/EnumeratorRenderModel.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Fragment.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Fragment.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/GroupBy.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/GroupBy.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/SequenceEqual.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/SequenceEqual.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/ToLookup.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/ToLookup.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.Linq/GroupBy.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/GroupBy.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.Linq/SequenceEqual.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/SequenceEqual.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Seamless.Linq/ToLookup.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.Linq/ToLookup.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.vscode/tasks.json" beforeDir="false" afterPath="$PROJECT_DIR$/.vscode/tasks.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Benchmark.Headless/Benchmark.Headless.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Benchmark.Headless/Benchmark.Headless.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Benchmark.UI/Benchmark.UI.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Benchmark.UI/Benchmark.UI.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/App.xaml.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/App.xaml.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerServices.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkRunnerServices.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkUiPlatformServices.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/BenchmarkUiPlatformServices.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/Services/BenchmarkAotRunnerService.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/Services/BenchmarkAotRunnerService.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/StartupDiagnostics.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/StartupDiagnostics.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/ViewModels/RunnerViewModel.DbRuns.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/ViewModels/RunnerViewModel.DbRuns.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Shared/UI/ViewModels/RunnerViewModel.Execution.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Shared/UI/ViewModels/RunnerViewModel.Execution.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Benchmark/Worker.Aot/AotWorkerApplication.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Benchmark/Worker.Aot/AotWorkerApplication.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Document/UI/BenchmarkMeasurementSpecification.md" beforeDir="false" afterPath="$PROJECT_DIR$/Document/UI/BenchmarkMeasurementSpecification.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Seamless.slnx" beforeDir="false" afterPath="$PROJECT_DIR$/Seamless.slnx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkOrchestrator.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Shared/UI.Core/BenchmarkOrchestrator.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Benchmark/BenchmarkAotPublishContract.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Benchmark/BenchmarkAotPublishContract.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/BenchmarkWorker/BenchmarkOrchestrator.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Test/BenchmarkWorker/BenchmarkOrchestrator.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Test/Test.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Test/Test.csproj" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -35,7 +42,7 @@
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
-    "git-widget-placeholder": "演算子レジストリ中心リファクタリング",
+    "git-widget-placeholder": "FLinqベンチマーク最適化",
     "ignore.virus.scanning.warn.message": "true",
     "last_opened_file_path": "G:/GitHub/Seamless"
   },

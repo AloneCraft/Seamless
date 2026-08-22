@@ -2187,4 +2187,3 @@ public enum CPU選択状態 {
     チェック済み,
 }
 
-public sealed record ベンチマーク実行報告(string? 実行ルート);

@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 Take は source.Take(count) を、返した件数を数える enumerator へ変換する。

@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 PipelineEnumerable は Where/Select/Take/OrderBy など複数 stage を1つの enumerator 状態機械へ畳む。

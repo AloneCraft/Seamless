@@ -3,13 +3,6 @@
     "Benchmark": {
       "commandName": "Project",
       "nativeDebugging": false
-    },
-    "Benchmark.UI AOT": {
-      "commandName": "Project",
-      "nativeDebugging": false,
-      "environmentVariables": {
-        "SEAMLESS_BENCHMARK_EXECUTION_PROFILE": "AOT"
-      }
     }
   }
 }

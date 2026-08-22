@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 TsavoriteHashSetRoot keeps the original HashSet expression available for provider-native

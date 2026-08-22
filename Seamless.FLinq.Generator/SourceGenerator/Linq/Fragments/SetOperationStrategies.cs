@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal interface ISetOperationStrategy {
     bool PreloadSecondFirst { get; }

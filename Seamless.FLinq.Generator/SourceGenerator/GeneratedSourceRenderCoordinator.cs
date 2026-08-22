@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /// <summary>
 /// 入力ファイル単位のRender入力を、診断・trace付きのRenderer結果へ変換するCoordinatorです。

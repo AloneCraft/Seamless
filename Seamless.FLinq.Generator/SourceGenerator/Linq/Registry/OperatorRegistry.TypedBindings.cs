@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal static partial class OperatorRegistry {
     private static Aggregate_seed_func_resultSelectorArguments? BindAggregate_seed_func_resultSelector(FLinqIncrementalGenerator.FragmentFactoryContext context) {

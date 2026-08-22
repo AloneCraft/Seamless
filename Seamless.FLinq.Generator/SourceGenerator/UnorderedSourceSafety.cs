@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal static class UnorderedSourceSafety {
     public static bool IsUnorderedSourceType(ITypeSymbol? type) {

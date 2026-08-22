@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 /*
 All_predicate は source.All(predicate) を、最初に false になった要素で短絡する Compute にする。
 

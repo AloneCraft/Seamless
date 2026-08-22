@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 public sealed partial class FLinqIncrementalGenerator {
     // UnsafeAccessor extern メソッドに必要な型パラメータ列と where 制約節を求める。

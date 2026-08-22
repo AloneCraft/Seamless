@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 MinMaxByBase は source.MinBy(keySelector) / MaxBy(keySelector) を、最良 key を持つ元要素へ変換する。

@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // 並べ替え段のバッファ構築とソート。
 internal sealed partial class PipelineEnumerable {

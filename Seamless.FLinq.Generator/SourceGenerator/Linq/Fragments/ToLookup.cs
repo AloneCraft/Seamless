@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 ToLookupBase は ToLookup overload 群の Lookup/Grouping 実装と Compute 生成の共通基底。

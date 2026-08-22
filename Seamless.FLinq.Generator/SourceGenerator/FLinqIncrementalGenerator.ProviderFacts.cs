@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 public sealed partial class FLinqIncrementalGenerator {
     private const string SystemLinqEnumerableTypeName = "System.Linq.Enumerable";

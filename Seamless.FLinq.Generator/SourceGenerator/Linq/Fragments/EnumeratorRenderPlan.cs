@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /// <summary>
 /// Enumerator structの意味的な構成を保持し、既存のEnumeratorRenderModelへ描画を委譲します。

@@ -1,6 +1,6 @@
 using System.Reflection;
 
-using Seamless.FLinq;
+using Seamless.FLinq.Generator;
 
 namespace Test.SourceGenerator;
 

@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // direct-consume経路の順序を明示するRender契約です。
 // span、TryGetSpan、TryGetNextの選択は既存TraversalSupportの判定を維持します。

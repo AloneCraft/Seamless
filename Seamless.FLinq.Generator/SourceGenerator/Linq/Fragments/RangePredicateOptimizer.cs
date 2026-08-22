@@ -1,5 +1,5 @@
 using Microsoft.CodeAnalysis.CSharp;
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal static class RangePredicateOptimizer {
     public static string RenderAny(RangeRoot range,int number,string destVar,string destType) {

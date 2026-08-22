@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal delegate bool PipelineEnumerableBuilder(ExpressionSyntax expression,ref int uniqueNumber,out Enumerable fragment,out string staticMethods);
 internal delegate bool PipelineFuncBuilder(ExpressionSyntax expression,ITypeSymbol delegateType,ref int uniqueNumber,out FuncFragment func);

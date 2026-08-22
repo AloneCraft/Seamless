@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 PipelineTerminal は PipelineEnumerable の終端を scalar/direct execution として出す。

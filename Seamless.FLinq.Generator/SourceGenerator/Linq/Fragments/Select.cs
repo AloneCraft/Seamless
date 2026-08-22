@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 /*
 Select_selector は source.Select(item => 値) を「source から1件読み、selector の結果を Current に入れる」
 enumerator へ変換する。

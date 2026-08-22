@@ -155,12 +155,14 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         if(新規選択を強制するか) {
             this.新規選択用に復元実行再開状態をクリア();
         } else {
-            this.最新再開可能実行の自動一時停止を試みる(実行一覧);
+            var 停止済み実行ID = this.最新再開可能実行の自動一時停止を試みる(実行一覧);
+            実行一覧 = 停止済み実行ID is { } 停止ID
+                ? 実行一覧.Select(実行 => 実行.実行ID==停止ID ? 実行 with { 状態=UI実行状態.停止済み,更新日時=DateTimeOffset.UtcNow } : 実行).ToArray()
+                : 実行一覧;
         }
         var 選択肢一覧 = 実行一覧.Select(this.実行選択肢を作成).ToArray();
         var 選択値UI実行ID = 優先UI実行ID??this.選択実行選択肢?.UI実行ID;
-        var 自動一時停止中実行 = 実行一覧.FirstOrDefault(実行 => 実行.状態 is UI実行状態.実行中 or UI実行状態.待機中 or UI実行状態.一時停止中
-            &&this.未完了選択測定があるか(実行.実行ID));
+        var 自動一時停止中実行 = (UI実行記録?)null;
         this.実行選択肢一覧.Clear();
         this.実行選択肢一覧.Add(新規実行選択肢を作成(this.選択実行プロファイル.プロファイル));
         foreach(var 選択肢 in 選択肢一覧) {
@@ -192,7 +194,10 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 .Where(実行 => this.未保存UI実行ID!=実行.実行ID)
                 .ToArray();
         },キャンセルトークン);
-        this.最新再開可能実行の自動一時停止を試みる(実行一覧);
+        var 停止済み実行ID = this.最新再開可能実行の自動一時停止を試みる(実行一覧);
+        if(停止済み実行ID is { } 停止ID) {
+            実行一覧=実行一覧.Select(実行 => 実行.実行ID==停止ID ? 実行 with { 状態=UI実行状態.停止済み,更新日時=DateTimeOffset.UtcNow } : 実行).ToArray();
+        }
         var 選択肢一覧 = 実行一覧.Select(this.実行選択肢を作成).ToArray();
         var 現在選択 = this.選択実行選択肢;
         this.実行選択肢一覧.Clear();
@@ -213,24 +218,22 @@ public sealed partial class 実行ビューモデル:ObservableObject {
         }
     }
 
-    private void 最新再開可能実行の自動一時停止を試みる(IReadOnlyList<UI実行記録> 実行一覧) {
+    private long? 最新再開可能実行の自動一時停止を試みる(IReadOnlyList<UI実行記録> 実行一覧) {
         var 最新 = 実行一覧.FirstOrDefault();
         if(最新 is null||最新.状態 is not (UI実行状態.実行中 or UI実行状態.待機中 or UI実行状態.一時停止中)) {
-            return;
+            return null;
+        }
+
+        if(this.ベンチマーク実行有効か&&this.有効UI実行ID==最新.実行ID) {
+            return null;
         }
 
         if(!this.未完了選択測定があるか(最新.実行ID)) {
-            return;
+            return null;
         }
 
-        if(最新.状態!=UI実行状態.一時停止中) {
-            this.UI実行ストア.実行状態を設定(最新.実行ID,UI実行状態.一時停止中,"DBから未完了のベンチマーク実行を復元しました。");
-        }
-
-        if(this.UI実行ストア.実行設定を取得(最新.実行ID) is { } 設定&&!string.IsNullOrWhiteSpace(設定.実行ルート)) {
-            this.有効UI実行ID=最新.実行ID;
-            this.有効実行ルートを設定(設定.実行ルート);
-        }
+        this.UI実行ストア.実行状態を設定(最新.実行ID,UI実行状態.停止済み,"前回のベンチマーク実行はUI終了時に中断されました。再開は行いません。");
+        return 最新.実行ID;
     }
 
     /// <summary>

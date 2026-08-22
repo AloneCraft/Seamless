@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 ToHashSetBase は ToHashSet overload 群の共通基底。

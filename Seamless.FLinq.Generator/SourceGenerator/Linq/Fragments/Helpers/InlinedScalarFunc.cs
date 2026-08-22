@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal sealed class InlinedScalarFunc(Fragment scalarFragment):LambdaFunc {
     public Fragment ScalarFragment => scalarFragment;

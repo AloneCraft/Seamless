@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // 段ごとのループ本体（GroupBy/Reverse/SelectMany/集合演算など）。
 internal sealed partial class PipelineEnumerable {

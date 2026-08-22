@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal static partial class OperatorRegistry {
     private static ImmutableHashSet<string> CreateEnumerableCoverageNames() => ImmutableHashSet.Create(StringComparer.Ordinal,

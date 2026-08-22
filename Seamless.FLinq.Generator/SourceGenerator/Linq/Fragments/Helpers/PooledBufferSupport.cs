@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 「全件バッファしてから先頭から返す」実装（PipelineEnumerable の融合 Reverse/TakeLast/TakeRange、

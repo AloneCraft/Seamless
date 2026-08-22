@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /// <summary>
 /// Fragmentの生成時に共有する描画情報です。生成対象ごとに値を固定し、Fragment間で可変な状態を共有しません。

@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // Keeps enumerator struct field and constructor composition outside Fragment.
 // Fragment still owns semantic rendering for TryGetNext, probe members, and Dispose.

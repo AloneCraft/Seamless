@@ -1,7 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
-using Seamless.FLinq;
+using Seamless.FLinq.Generator;
 
 using System.Collections.Immutable;
 

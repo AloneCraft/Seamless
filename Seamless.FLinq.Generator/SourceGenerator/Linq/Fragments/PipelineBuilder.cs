@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal static partial class PipelineBuilder {
     public static bool TryBuild(

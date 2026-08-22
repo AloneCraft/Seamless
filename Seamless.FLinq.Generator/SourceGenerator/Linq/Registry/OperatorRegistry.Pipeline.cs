@@ -1,4 +1,4 @@
-﻿namespace Seamless.FLinq;
+﻿namespace Seamless.FLinq.Generator;
 
 internal readonly struct OperatorPipelineDefinition {
     internal OperatorPipelineDefinition(PipelineStageKind stage,PipelineStageCapability capabilities,bool supportsProviderNative) {

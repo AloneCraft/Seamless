@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal sealed class InvocationSyntaxReferenceComparer:IEqualityComparer<InvocationExpressionSyntax> {
     public static InvocationSyntaxReferenceComparer Instance { get; } = new();

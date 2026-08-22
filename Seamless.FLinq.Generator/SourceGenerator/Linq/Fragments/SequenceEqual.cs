@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal class SequenceEqual(int number,Enumerable source,Enumerable second,string resultType):BufferedScalar(number,resultType) {
     // Explicit Fragment child visitor

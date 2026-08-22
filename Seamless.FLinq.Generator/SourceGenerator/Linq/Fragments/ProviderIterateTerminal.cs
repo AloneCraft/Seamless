@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // ここに置いてある ProviderIterateTerminalKind / ProviderNativeExecutionBase は
 // このファイルの ProviderIterateTerminal 専用で、他に消費者がいない。

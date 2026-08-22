@@ -23,24 +23,6 @@ public sealed class ベンチマークカタログサービス:Iベンチマー�
     }
 }
 
-public interface ICPUトポロジーサービス {
-    IReadOnlyList<CPU選択項目> 読み込む();
-}
-
-public sealed class CPUトポロジーサービス:ICPUトポロジーサービス {
-    public IReadOnlyList<CPU選択項目> 読み込む() {
-        return ベンチマークCPUトポロジープロバイダー.読み込む()
-            .OrderBy(static CPU => CPU.論理プロセッサインデックス)
-            .Select((CPU,番号) => new CPU選択項目(
-                CPU.論理プロセッサインデックス,
-                CPU.コア種別,
-                CPU.物理コアインデックス,
-                CPU.種別内コアインデックス,
-                番号==0))
-            .ToArray();
-    }
-}
-
 public interface Iベンチマークワーカープロセスサービス:Iベンチマークジョブ実行器 {
 }
 
@@ -225,173 +207,6 @@ public sealed class ベンチマーク高速ワーカープロセスサービス
     }
 }
 
-internal sealed class 旧ベンチマークAOTワーカープロセスサービス:Iベンチマークジョブ実行器, IAsyncDisposable {
-    // NativeAotToolchainによるILCビルドは1つの(アセンブリ,型)ペアにつき数十秒〜10分かかる。
-    // 呼び出し元の`要求.ジョブタイムアウト`は全プロファイル共通で60分固定であり(BenchmarkRunnerServices.cs
-    // の実行Async内`TimeSpan.FromMinutes(60)`)、型単位バッチビルドの待受にもそのまま流用できる長さがある。
-    private readonly SemaphoreSlim ビルドゲート = new(1,1);
-    private readonly ConcurrentDictionary<string,Lazy<Task<IReadOnlyDictionary<(string メソッド名,string 引数キー),Aot結果JSON解析器.Aotベンチマーク結果>>>> 型別結果キャッシュ = new(StringComparer.Ordinal);
-
-    public async Task<ベンチマークジョブ実行結果> 実行Async(
-        ベンチマークジョブ ジョブ,
-        string 実行ルート,
-        int 論理CPU,
-        TimeSpan タイムアウト,
-        CancellationToken キャンセルトークン) {
-        var 型別結果 = await this.型別結果を取得Async(ジョブ.アセンブリ名,ジョブ.型完全名,実行ルート,タイムアウト,キャンセルトークン);
-        var キー = (ジョブ.メソッド名,ジョブ.引数キー);
-        if(!型別結果.TryGetValue(キー,out var 結果)) {
-            return new ベンチマークジョブ実行結果(
-                ジョブ.プロジェクト,
-                ジョブ.メソッド名,
-                ジョブ.型完全名,
-                ジョブ.要素数,
-                "Failed",
-                string.Empty,
-                string.Empty,
-                string.Empty,
-                null,
-                null,
-                null,
-                null,
-                1,
-                string.Empty,
-                $"AOT測定結果に{ジョブ.型完全名}.{ジョブ.メソッド名}(引数キー=\"{ジョブ.引数キー}\")が見つかりませんでした。",
-                引数キー:ジョブ.引数キー,
-                引数値一覧:ジョブ.引数一覧,
-                ループ回数:1,
-                実行項目インデックス:ジョブ.実行項目インデックス);
-        }
-
-        return new ベンチマークジョブ実行結果(
-            ジョブ.プロジェクト,
-            ジョブ.メソッド名,
-            ジョブ.型完全名,
-            ジョブ.要素数,
-            "Completed",
-            ナノ秒を整形(結果.平均ナノ秒),
-            ナノ秒を整形(結果.誤差ナノ秒),
-            ナノ秒を整形(結果.標準偏差ナノ秒),
-            結果.平均ナノ秒,
-            結果.誤差ナノ秒,
-            結果.標準偏差ナノ秒,
-            結果.割り当てバイト数,
-            0,
-            実行ルート,
-            string.Empty,
-            引数キー:ジョブ.引数キー,
-            引数値一覧:ジョブ.引数一覧,
-            ループ回数:1,
-            実行項目インデックス:ジョブ.実行項目インデックス);
-    }
-
-    public async ValueTask DisposeAsync() {
-        await this.ビルドゲート.WaitAsync();
-        this.ビルドゲート.Release();
-        this.ビルドゲート.Dispose();
-    }
-
-    private Task<IReadOnlyDictionary<(string,string),Aot結果JSON解析器.Aotベンチマーク結果>> 型別結果を取得Async(
-        string アセンブリ名,string 型完全名,string 実行ルート,TimeSpan タイムアウト,CancellationToken キャンセルトークン) {
-        var キャッシュキー = アセンブリ名+"|"+型完全名;
-        var 遅延タスク = this.型別結果キャッシュ.GetOrAdd(
-            キャッシュキー,
-            _ => new Lazy<Task<IReadOnlyDictionary<(string,string),Aot結果JSON解析器.Aotベンチマーク結果>>>(
-                () => this.型を測定Async(アセンブリ名,型完全名,実行ルート,タイムアウト,キャンセルトークン),
-                LazyThreadSafetyMode.ExecutionAndPublication));
-        return this.失敗時にキャッシュから除去Async(キャッシュキー,遅延タスク.Value);
-    }
-
-    private async Task<IReadOnlyDictionary<(string,string),Aot結果JSON解析器.Aotベンチマーク結果>> 失敗時にキャッシュから除去Async(
-        string キャッシュキー,Task<IReadOnlyDictionary<(string,string),Aot結果JSON解析器.Aotベンチマーク結果>> タスク) {
-        try {
-            return await タスク;
-        } catch {
-            this.型別結果キャッシュ.TryRemove(キャッシュキー,out _);
-            throw;
-        }
-    }
-
-    private async Task<IReadOnlyDictionary<(string,string),Aot結果JSON解析器.Aotベンチマーク結果>> 型を測定Async(
-        string アセンブリ名,string 型完全名,string 実行ルート,TimeSpan タイムアウト,CancellationToken キャンセルトークン) {
-        await this.ビルドゲート.WaitAsync(キャンセルトークン);
-        try {
-            var 出力ディレクトリ = Path.Combine(実行ルート,"AOT",ベンチマークワーカークライアント.パス部分を無害化(アセンブリ名+"."+型完全名));
-            Directory.CreateDirectory(出力ディレクトリ);
-            var ワーカーパス = AOTワーカーパスを解決();
-            var 開始情報 = new ProcessStartInfo {
-                FileName=ワーカーパス,
-                UseShellExecute=false,
-                RedirectStandardOutput=true,
-                RedirectStandardError=true,
-                StandardOutputEncoding=Encoding.UTF8,
-                StandardErrorEncoding=Encoding.UTF8,
-                CreateNoWindow=true,
-            };
-            開始情報.ArgumentList.Add(アセンブリ名);
-            開始情報.ArgumentList.Add(型完全名);
-            開始情報.ArgumentList.Add(出力ディレクトリ);
-
-            using var プロセス = Process.Start(開始情報)??throw new InvalidOperationException("AOTワーカーを開始できませんでした。");
-            _=標準ストリームを破棄Async(プロセス.StandardOutput);
-            _=標準ストリームを破棄Async(プロセス.StandardError);
-
-            using var タイムアウトソース = new CancellationTokenSource(タイムアウト);
-            using var 連結ソース = CancellationTokenSource.CreateLinkedTokenSource(キャンセルトークン,タイムアウトソース.Token);
-            try {
-                await プロセス.WaitForExitAsync(連結ソース.Token);
-            } catch(OperationCanceledException) {
-                try {
-                    プロセス.Kill(true);
-                } catch {
-                }
-                if(タイムアウトソース.IsCancellationRequested&&!キャンセルトークン.IsCancellationRequested) {
-                    throw new TimeoutException($"AOTビルドが型 {アセンブリ名}.{型完全名} に対して {タイムアウト} 後にタイムアウトしました。");
-                }
-                throw;
-            }
-
-            if(プロセス.ExitCode!=0) {
-                throw new InvalidOperationException($"AOTワーカーが型 {アセンブリ名}.{型完全名} の測定に失敗しました(終了コード={プロセス.ExitCode})。");
-            }
-
-            var 結果JSONパス = Path.Combine(出力ディレクトリ,"results",型完全名+"-report-full.json");
-            if(!File.Exists(結果JSONパス)) {
-                throw new FileNotFoundException($"AOT測定結果JSONが見つかりません: {結果JSONパス}");
-            }
-
-            var 解析結果一覧 = Aot結果JSON解析器.解析(結果JSONパス);
-            return 解析結果一覧.ToDictionary(static 結果 => (結果.メソッド名,結果.引数キー));
-        } finally {
-            this.ビルドゲート.Release();
-        }
-    }
-
-    private static async Task 標準ストリームを破棄Async(StreamReader ストリーム) {
-        try {
-            while(await ストリーム.ReadLineAsync() is { }) {
-            }
-        } catch {
-        }
-    }
-
-    private static string AOTワーカーパスを解決() {
-        var 基底ディレクトリ = AppContext.BaseDirectory;
-        var EXEパス = Path.Combine(基底ディレクトリ,"Worker.Aot.exe");
-        if(File.Exists(EXEパス)) {
-            return EXEパス;
-        }
-
-        throw new FileNotFoundException("アプリケーション出力ディレクトリにAOTワーカー実行ファイルが見つかりません。",EXEパス);
-    }
-
-    private static string ナノ秒を整形(double? 値) {
-        return 値 is { } 数値&&double.IsFinite(数値)
-            ? 数値.ToString("N3",CultureInfo.InvariantCulture)+" ns"
-            : string.Empty;
-    }
-}
-
 public interface Iベンチマーク結果サービス {
     報告行 報告行に変換(ベンチマーク結果項目 項目);
 }
@@ -522,7 +337,6 @@ public sealed class ベンチマーク実行サービス(Iベンチマークワ�
             ベンチマーク実行プロファイル.中間 => new ベンチマーク永続ワーカープロセスサービス(適応しきい値.TotalMilliseconds*1_000_000d),
             ベンチマーク実行プロファイル.高速 => new ベンチマーク高速ワーカープロセスサービス(適応しきい値.TotalMilliseconds*1_000_000d),
             ベンチマーク実行プロファイル.テスト => new ベンチマークテスト待機ジョブ実行器(適応しきい値,実行オプション?.無限テスト実行器を使うか==true),
-            ベンチマーク実行プロファイル.AOT => new ベンチマークAOTワーカープロセスサービス(ベンチマーク一覧),
             _ => ワーカーサービス,
         };
 

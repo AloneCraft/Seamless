@@ -1,6 +1,6 @@
 using Microsoft.CodeAnalysis.CSharp;
-using static Seamless.FLinq.CarrierAnalysis;
-namespace Seamless.FLinq;
+using static Seamless.FLinq.Generator.CarrierAnalysis;
+namespace Seamless.FLinq.Generator;
 // 射影(Select)を直下の selector / result selector へ吸収して段を 1 つ減らす syntax rewriter。
 //
 //   src.Select(f).Select(g)                           -> src.Select(g∘f)

@@ -1,5 +1,5 @@
 using Microsoft.CodeAnalysis.CSharp;
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 // §1「構文結合・アルゴリズムレベルの最適化（置換パターン）」を実装する構文 rewriter。
 // interceptor.cs の query lowering 直後（生成パイプライン前段）で intercept 対象メソッド本体へ適用し、
 // 書換後に再束縛してから既存の Fragment/Pipeline 生成へ渡す。匿名型の往復は行わない（registry 機構を温存）。

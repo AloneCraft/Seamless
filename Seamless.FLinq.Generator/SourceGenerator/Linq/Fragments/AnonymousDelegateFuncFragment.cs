@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // 匿名型を返すラムダを Enumerator のデリゲートフィールドとして保持するための FuncFragment。
 // 匿名型の型名はコード上に書けないため CanInlineAssign=false、デリゲート経由で呼び出す。

@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // Enumeratorの意味論を持つFragmentと、C#メンバー文字列の最終合成を分離する。
 // 各入力文字列は従来と同じ順序・インデントで組み立てられる。

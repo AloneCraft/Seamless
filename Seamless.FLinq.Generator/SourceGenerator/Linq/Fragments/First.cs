@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 First は source.First() を、最初の1要素だけ読む Compute に変換する。

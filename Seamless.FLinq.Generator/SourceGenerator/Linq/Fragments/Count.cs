@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 Count は Count/LongCount を件数取得 fast path 優先の Compute へ変換する。

@@ -1,4 +1,4 @@
-using Seamless.FLinq;
+using Seamless.FLinq.Generator;
 
 using System.Text.RegularExpressions;
 

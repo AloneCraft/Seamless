@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 ToArray は source.ToArray() を、件数/Span/InlineArray/ArrayPool の順で最短コピーする Compute に変換する。

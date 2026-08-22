@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 Reverse は source.Reverse() を、初回に逆順で読める状態を作ってから末尾から返す enumerator へ変換する。

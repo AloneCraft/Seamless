@@ -12,6 +12,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)App.xaml.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AppShell.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)BenchmarkAppProfile.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BenchmarkCpuTopologyService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)BenchmarkPipeline.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)BenchmarkRunnerModels.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)BenchmarkRunnerServices.cs" />

@@ -35,7 +35,7 @@ public sealed class MetadataReferenceProvider {
             typeof(global::Seamless.Linq.GeneratedCodeHelpers).Assembly,
             typeof(global::Seamless.Collections.Persisted.Store).Assembly,
             typeof(global::Seamless.Collections.Tsavorite.Store).Assembly,
-            typeof(global::Seamless.FLinq.FLinqIncrementalGenerator).Assembly,
+            typeof(global::Seamless.FLinq.Generator.FLinqIncrementalGenerator).Assembly,
         };
         try {
             必須アセンブリ.Add(Assembly.Load(new AssemblyName("ZLinq")));

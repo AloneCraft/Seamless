@@ -63,21 +63,6 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build-benchmark-ui-aot-release",
-            "command": "dotnet",
-            "type": "process",
-            "args": [
-                "build",
-                "${workspaceFolder}/Benchmark/Benchmark.UI/Benchmark.UI.csproj",
-                "-c",
-                "Release",
-                "-m:1",
-                "/property:GenerateFullPaths=true",
-                "/consoleloggerparameters:NoSummary"
-            ],
-            "problemMatcher": "$msCompile"
-        },
-        {
             "label": "build-benchmark-scalable-ui-debug",
             "command": "dotnet",
             "type": "process",

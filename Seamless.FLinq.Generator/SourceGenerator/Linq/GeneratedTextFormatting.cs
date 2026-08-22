@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // Shared formatting primitives used by internal generated-source render models.
 internal static class GeneratedTextFormatting {

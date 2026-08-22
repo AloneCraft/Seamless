@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal class Union(int 番号,Enumerable source,Enumerable second):Union_comparer(番号,source,second,"null");
 

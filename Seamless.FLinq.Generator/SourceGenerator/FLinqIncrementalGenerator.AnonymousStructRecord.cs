@@ -1,5 +1,5 @@
 using Microsoft.CodeAnalysis.CSharp;
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 // 匿名型を「名指し可能なジェネリック record struct」へ透過置換するためのレジストリ。
 //

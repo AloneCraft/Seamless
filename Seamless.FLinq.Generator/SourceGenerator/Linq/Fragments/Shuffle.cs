@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /// <summary>
 /// System.Linq.Enumerable.Shuffle() 呼び出しをインターセプトし、

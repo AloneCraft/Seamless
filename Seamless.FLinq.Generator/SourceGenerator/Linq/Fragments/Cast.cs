@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 internal class Cast(int 番号,Enumerable source,string resultElementType):Enumerable(番号) {
     // Explicit Fragment child visitor

@@ -1,5 +1,5 @@
 using Microsoft.CodeAnalysis.CSharp;
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 public sealed partial class FLinqIncrementalGenerator {
     private static bool TryBuildCounterOnlyLocalMethodBody(GenerationState state,Linq傍受対象型 target,out string staticMethods,out string body,HashSet<string>? emittedUnsafeAccessors = null) {

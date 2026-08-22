@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /// <summary>
 /// MethodBodyRewriter が生成する、順序が意味を持つ文のまとまりです。

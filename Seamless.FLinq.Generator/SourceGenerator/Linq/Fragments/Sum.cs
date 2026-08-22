@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 
 /*
 Sum は source.Sum() / Sum(selector) を checked 加算の Compute に変換する。

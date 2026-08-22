@@ -4,7 +4,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RootNamespace>Seamless.FLinq</RootNamespace>
+    <RootNamespace>Seamless.FLinq.Generator</RootNamespace>
     <AssemblyName>Seamless.FLinq.Generator</AssemblyName>
     <PackageId>Seamless.FLinq.Generator</PackageId>
     <Title>Seamless FLinq</Title>

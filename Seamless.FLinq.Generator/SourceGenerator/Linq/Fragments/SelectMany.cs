@@ -1,4 +1,4 @@
-namespace Seamless.FLinq;
+namespace Seamless.FLinq.Generator;
 /*
 以前の loop 展開版の断片は記録として残すが、実際の実装は Enumerator ベースに統一した。
 */
