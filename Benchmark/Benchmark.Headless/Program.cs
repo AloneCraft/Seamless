@@ -11,6 +11,20 @@ if(args.Contains("--performance-gate",StringComparer.OrdinalIgnoreCase)) {
 
 var cancellationToken = CancellationToken.None;
 var catalog = ベンチマークカタログ.読み込む();
+if(args.Contains("--list-json",StringComparer.OrdinalIgnoreCase)) {
+    var listed=new List<object>();
+    foreach(var source in ベンチマークソースタブ一覧.標準全て) {
+        var cases=catalog.Where(item=>ベンチマークソースタブ一覧.プロジェクトとアセンブリから取得を試みる(item.プロジェクト,item.アセンブリ名)?.タブ==source.タブ).ToArray();
+        foreach(var group in cases.GroupBy(item=>(Type:TypeKey(item.型完全名),item.メソッド名,item.引数キー))) {
+            var left=group.SingleOrDefault(item=>string.Equals(item.プロジェクト,source.プロジェクト順[0],StringComparison.OrdinalIgnoreCase));
+            var right=group.SingleOrDefault(item=>string.Equals(item.プロジェクト,source.プロジェクト順[1],StringComparison.OrdinalIgnoreCase));
+            if(left is null||right is null){continue;}
+            listed.Add(new{Tab=source.ID,Type=group.Key.Type,Method=group.Key.メソッド名,Arguments=group.Key.引数キー});
+        }
+    }
+    Console.WriteLine(JsonSerializer.Serialize(listed));
+    return;
+}
 var tabArgument = args.SkipWhile(static value => !string.Equals(value,"--run-tab",StringComparison.OrdinalIgnoreCase)).Skip(1).FirstOrDefault();
 var methodArgument = args.SkipWhile(static value => !string.Equals(value,"--method",StringComparison.OrdinalIgnoreCase)).Skip(1).FirstOrDefault();
 var typeArgument = args.SkipWhile(static value => !string.Equals(value,"--type",StringComparison.OrdinalIgnoreCase)).Skip(1).FirstOrDefault();
@@ -53,7 +67,16 @@ if(uiFastRun) {
 }
 if(args.Contains("--operator-harness",StringComparer.OrdinalIgnoreCase)) {
     if(measurements.Count!=1) throw new ArgumentException("--operator-harness requires exactly one pair.");
-    Console.WriteLine(JsonSerializer.Serialize(new { measurements[0].値.FLinqNanoseconds,measurements[0].値.FLinqAllocation,measurements[0].値.BaselineNanoseconds,measurements[0].値.BaselineAllocation }));
+    Console.WriteLine(JsonSerializer.Serialize(new {
+        measurements[0].値.FLinqNanoseconds,
+        measurements[0].値.FLinqAllocation,
+        measurements[0].値.BaselineNanoseconds,
+        measurements[0].値.BaselineAllocation,
+        measurements[0].値.FLinqSamples,
+        measurements[0].値.FLinqAllocationSamples,
+        measurements[0].値.BaselineSamples,
+        measurements[0].値.BaselineAllocationSamples,
+    }));
     return;
 }
 if(!args.Contains("--paired-db-run",StringComparer.OrdinalIgnoreCase)) throw new ArgumentException("Use --paired-db-run to save the same-worker paired measurements to Benchmark.db.");
@@ -103,10 +126,18 @@ static async Task<IReadOnlyList<ペア測定>> UI高速ペア測定を実行Asyn
             &&string.Equals(result.型完全名,pair.Baseline.型完全名,StringComparison.Ordinal)
             &&string.Equals(result.メソッド,pair.Baseline.メソッド名,StringComparison.Ordinal)
             &&string.Equals(result.引数キー,pair.Baseline.引数キー,StringComparison.Ordinal));
-        return new ペア測定(pair.FLinq,pair.Baseline,(f.平均ナノ秒??double.NaN,f.割り当てバイト数値??0,b.平均ナノ秒??double.NaN,b.割り当てバイト数値??0));
+        var fTime=f.平均ナノ秒??double.NaN;
+        var fAllocation=f.割り当てバイト数値??0;
+        var bTime=b.平均ナノ秒??double.NaN;
+        var bAllocation=b.割り当てバイト数値??0;
+        return new ペア測定(pair.FLinq,pair.Baseline,(fTime,fAllocation,bTime,bAllocation,[fTime],[fAllocation],[bTime],[bAllocation]));
     }).ToArray();
 }
-sealed record ペア測定(ベンチマークケース FLinq,ベンチマークケース Baseline,(double FLinqNanoseconds,double FLinqAllocation,double BaselineNanoseconds,double BaselineAllocation) 値);
+sealed record ペア測定(
+    ベンチマークケース FLinq,
+    ベンチマークケース Baseline,
+    (double FLinqNanoseconds,double FLinqAllocation,double BaselineNanoseconds,double BaselineAllocation,
+        double[] FLinqSamples,long[] FLinqAllocationSamples,double[] BaselineSamples,long[] BaselineAllocationSamples) 値);
 
 sealed class ペア計測セッション: IAsyncDisposable {
     private readonly Process worker;
@@ -117,9 +148,25 @@ sealed class ペア計測セッション: IAsyncDisposable {
         if(!process.Start()||!string.Equals(await process.StandardOutput.ReadLineAsync(token),"ready",StringComparison.Ordinal)) throw new InvalidOperationException("Paired Worker could not be started.");
         return new ペア計測セッション(process);
     }
-    public async Task<(double FLinqNanoseconds,double FLinqAllocation,double BaselineNanoseconds,double BaselineAllocation)> 計測Async(ベンチマークケース f,ベンチマークケース b,CancellationToken token) {
+    public async Task<(double FLinqNanoseconds,double FLinqAllocation,double BaselineNanoseconds,double BaselineAllocation,
+        double[] FLinqSamples,long[] FLinqAllocationSamples,double[] BaselineSamples,long[] BaselineAllocationSamples)> 計測Async(ベンチマークケース f,ベンチマークケース b,CancellationToken token) {
         var request=new { Command="paired-fast-run",Pair=new { FLinq=new { AssemblyName=f.アセンブリ名,TypeName=f.型完全名,MethodName=f.メソッド名,Arguments=f.引数一覧.Select(static x=>x.値).ToArray() },Baseline=new { AssemblyName=b.アセンブリ名,TypeName=b.型完全名,MethodName=b.メソッド名,Arguments=b.引数一覧.Select(static x=>x.値).ToArray() },ElementCount=4096,ElementScale="1",RandomSeed=1 } };
-        await this.worker.StandardInput.WriteLineAsync(JsonSerializer.Serialize(request)); await this.worker.StandardInput.FlushAsync(); using var json=JsonDocument.Parse(await this.worker.StandardOutput.ReadLineAsync(token)??throw new InvalidOperationException("Worker ended.")); var fl=json.RootElement.GetProperty("FLinq"); var bl=json.RootElement.GetProperty("Baseline"); return(fl.GetProperty("中央値ナノ秒").GetDouble(),fl.GetProperty("割当バイト数").GetDouble(),bl.GetProperty("中央値ナノ秒").GetDouble(),bl.GetProperty("割当バイト数").GetDouble());
+        await this.worker.StandardInput.WriteLineAsync(JsonSerializer.Serialize(request));
+        await this.worker.StandardInput.FlushAsync();
+        using var json=JsonDocument.Parse(await this.worker.StandardOutput.ReadLineAsync(token)??throw new InvalidOperationException("Worker ended."));
+        var fl=json.RootElement.GetProperty("FLinq");
+        var bl=json.RootElement.GetProperty("Baseline");
+        return(
+            fl.GetProperty("中央値ナノ秒").GetDouble(),
+            fl.GetProperty("割当バイト数").GetDouble(),
+            bl.GetProperty("中央値ナノ秒").GetDouble(),
+            bl.GetProperty("割当バイト数").GetDouble(),
+            ReadDoubleSamples(fl,"ナノ秒サンプル"),
+            ReadLongSamples(fl,"割当バイトサンプル"),
+            ReadDoubleSamples(bl,"ナノ秒サンプル"),
+            ReadLongSamples(bl,"割当バイトサンプル"));
     }
+    private static double[] ReadDoubleSamples(JsonElement value,string name)=>value.GetProperty(name).EnumerateArray().Select(static sample=>sample.GetDouble()).ToArray();
+    private static long[] ReadLongSamples(JsonElement value,string name)=>value.GetProperty(name).EnumerateArray().Select(static sample=>sample.GetInt64()).ToArray();
     public async ValueTask DisposeAsync() { if(!this.worker.HasExited) { await this.worker.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { Command="shutdown" })); await this.worker.StandardInput.FlushAsync(); await this.worker.WaitForExitAsync(); } this.worker.Dispose(); }
 }

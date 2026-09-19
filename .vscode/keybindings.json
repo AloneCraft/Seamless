@@ -14,5 +14,13 @@
       "task": "test-release-diagnostics"
     },
     "when": "workbenchState == 'focused'"
+  },
+  {
+    "key": "ctrl+alt+t",
+    "command": "workbench.view.extension.test"
+  },
+  {
+    "key": "ctrl+shift+alt+t",
+    "command": "workbench.view.extension.test"
   }
 ]

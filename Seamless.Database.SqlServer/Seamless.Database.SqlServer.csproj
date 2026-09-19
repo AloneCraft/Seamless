@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Seamless.Database.SqlServer</RootNamespace>
+    <AssemblyName>Seamless.Database.SqlServer</AssemblyName>
+    <PackageId>Seamless.Database.SqlServer</PackageId>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
+    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.102.0" />
+    <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" />
+    <ProjectReference Include="..\Seamless.Database.Rdbms\Seamless.Database.Rdbms.csproj" />
+  </ItemGroup>
+</Project>

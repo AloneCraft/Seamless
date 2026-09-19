@@ -389,7 +389,12 @@ static 演算子計測結果 演算子計測を要約(IReadOnlyList<演算子試
         orderedAllocations[orderedAllocations.Length/2],
         samples.Sum(static sample => sample.Gen0),
         samples.Sum(static sample => sample.Gen1),
-        samples.Sum(static sample => sample.Gen2));
+        samples.Sum(static sample => sample.Gen2),
+        samples.Select(sample=>sample.ナノ秒/ループ回数).ToArray(),
+        samples.Select(sample=>checked((long)Math.Round(sample.割当バイト数/(double)ループ回数,MidpointRounding.AwayFromZero))).ToArray(),
+        samples.Select(static sample=>sample.Gen0).ToArray(),
+        samples.Select(static sample=>sample.Gen1).ToArray(),
+        samples.Select(static sample=>sample.Gen2).ToArray());
 }
 static ワーカー結果メッセージ 高速ベンチマークを実行(
     ワーカータスクメッセージ タスク,
@@ -480,7 +485,9 @@ static ワーカー結果メッセージ 高速ベンチマークを実行(
             ランダムシード,
             結果ダイジェスト,
             診断カウンター,
-            アフィニティ適用成功か: アフィニティ適用成功か);
+            アフィニティ適用成功か: アフィニティ適用成功か,
+            サンプル一覧: 計測.サンプル一覧,
+            GC収集回数一覧: 計測.GC収集回数一覧);
     } catch(Exception 例外) when(例外 is not OperationCanceledException) {
         var 実例外 = 例外 is TargetInvocationException { InnerException: { } 内部例外 } ? 内部例外 : 例外;
         Directory.CreateDirectory(タスク.成果物フォルダー);
@@ -878,7 +885,12 @@ internal sealed record 演算子計測結果(
     double 割当バイト数,
     int Gen0,
     int Gen1,
-    int Gen2);
+    int Gen2,
+    double[] ナノ秒サンプル,
+    long[] 割当バイトサンプル,
+    int[] Gen0サンプル,
+    int[] Gen1サンプル,
+    int[] Gen2サンプル);
 
 internal sealed record 演算子対比較結果(
     string Kind,
@@ -945,7 +957,9 @@ internal sealed record ワーカー結果メッセージ(
     string 結果ダイジェスト,
     IReadOnlyList<ベンチマーク診断カウンター>? 診断カウンター = null,
     int? 実測ループ回数 = null,
-    bool アフィニティ適用成功か = false);
+    bool アフィニティ適用成功か = false,
+    IReadOnlyList<double>? サンプル一覧 = null,
+    IReadOnlyList<int>? GC収集回数一覧 = null);
 internal sealed class 空ディスポーザブル:IDisposable {
     public static 空ディスポーザブル インスタンス { get; } = new();
 

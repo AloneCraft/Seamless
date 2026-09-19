@@ -99,6 +99,16 @@ public class StoreTests {
         Assert.IsType<global::Seamless.Collections.Tsavorite.HashSet<int>>(set);
     }
 
+    [Fact,Trait("Category","Unit")]
+    public void HashSetAdd_AddsOnceAndRejectsDuplicate() {
+        using var store=Store.Create().Create<int>();
+        using var set=store.Create();
+
+        Assert.True(set.Add(42));
+        Assert.False(set.Add(42));
+        Assert.Equal(1,set.Count);
+    }
+
     [Fact, Trait("Category","Unit")]
     public void Create_StorageLimitOptions_PassedToStorageStore() {
         using var logDevice = new global::Seamless.Collections.Tsavorite.MemoryOnlyDevice(global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);

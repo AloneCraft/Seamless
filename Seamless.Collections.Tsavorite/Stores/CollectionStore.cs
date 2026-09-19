@@ -171,11 +171,12 @@ public abstract partial class CollectionStore<
         this.AssertCheckpointDir();
         this.ThrowIfCheckpointInProgress();
         try {
+            var recoveryEntryCount=this.GetRecoveryEntryCount();
             var (success,token)=await this.Store.TakeFullCheckpointAsync(CheckpointType,ct);
             await this.Store.CompleteCheckpointAsync(ct);
             if(success) {
                 this.CheckpointFailed=false;
-                this.WriteRecoveryIndexMetadata(token);
+                this.WriteRecoveryIndexMetadata(token,recoveryEntryCount);
                 return token;
             }
             throw new InvalidOperationException($"{nameof(this.Save)}Checkpoint failed.");
@@ -193,11 +194,12 @@ public abstract partial class CollectionStore<
         this.AssertCheckpointDir();
         this.ThrowIfCheckpointInProgress();
         try {
+            var recoveryEntryCount=this.GetRecoveryEntryCount();
             var (success,token)=await this.Store.TakeHybridLogCheckpointAsync(CheckpointType,cancellationToken: ct);
             await this.Store.CompleteCheckpointAsync(ct);
             if(success) {
                 this.CheckpointFailed=false;
-                this.WriteRecoveryIndexMetadata(token);
+                this.WriteRecoveryIndexMetadata(token,recoveryEntryCount);
                 return token;
             }
             throw new InvalidOperationException($"{nameof(this.SaveLogOnly)}Checkpoint failed.");
@@ -218,8 +220,8 @@ public abstract partial class CollectionStore<
         Volatile.Write(ref this.CheckpointInProgress,0);
     }
 
-    private void WriteRecoveryIndexMetadata(Guid token) {
-        global::Seamless.Collections.Tsavorite.Store.WriteRecoveryIndexMetadata(this.Settings.CheckpointDir!,token,this.GetRecoveryEntryCount());
+    private void WriteRecoveryIndexMetadata(Guid token,long recoveryEntryCount) {
+        global::Seamless.Collections.Tsavorite.Store.WriteRecoveryIndexMetadata(this.Settings.CheckpointDir!,token,recoveryEntryCount);
     }
 
     public Guid SaveLogOnly(CheckpointType CheckpointType = CheckpointType.Snapshot) => this.SaveLogOnlyAsync(CheckpointType).GetAwaiter().GetResult();

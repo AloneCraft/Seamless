@@ -1,44 +1,24 @@
----
-phase: code-basic-reverse
-reverse_document: true
-canonical_target: Document/Code/Basic/ModuleBreakdown.md
-evidence_sources:
-  - Seamless.slnx
-  - Reverse/Code/Internal/
-  - Reverse/Code/External/
-derived_from:
-  - Reverse/Code/Internal/
-  - Reverse/Code/External/
-confidence: medium
-review_status: draft
----
-
 # Module Breakdown
 
-## モジュール分割
+この文書は現在の実装責務を示す。移行途中の仮説や旧プロジェクト名は正本に含めない。
 
-| モジュール | サブモジュール | 責務 |
+| モジュール | プロジェクト | 責務 |
 |---|---|---|
-| Source generation | `FLinq`, `Seamless.Database`, `Seamless.Database.Generator` | LINQ interceptor と schema record generation。 |
-| Runtime collections | `Benchmark.Tsavorite.Collections/Stores`, `Collections`, `SessionFunctions`, `Linq`, `Devices` | Tsavorite-backed collection、serializer、LINQ extension、counter、device abstraction。 |
-| Benchmark infrastructure | `Common`, `Benchmark workload projects` projects | System LINQ / FLinq / ZLinq / Tsavorite LINQ の比較 workload。 |
-| Benchmark UI/tool | `Benchmark` | CPU affinity 選択、worker process 実行、CSV/HTML report。 |
-| Tests | `Test`, `Test.System.*`, `Test.Tsavorite.*` | source generator、collection、LINQ、benchmark route の検証。 |
+| 実行契約 | `Seamless.Execution` | 実行スコープ、共有資源予算、Codec、一時資源所有、キャンセル、残骸回収 |
+| コレクション契約 | `Seamless.Collections` | 共通インターフェース、Serializer契約、データ構造 |
+| 永続コレクション | `Seamless.Collections.Persisted` | ファイル列、スコープ所有の保存列・バイト索引 |
+| Tsavoriteコレクション | `Seamless.Collections.Tsavorite` | ログ／索引／deviceを使うSet・Dictionary実装 |
+| クエリ実行 | `Seamless.Linq` | 逐次演算、外部ソート、退避可能GroupBy・Join・集合演算 |
+| コンパイル時最適化 | `Seamless.FLinq.Generator` | System.Linq呼び出しの解析、Fragment最適化、interceptor生成 |
+| DBランタイム | `Seamless.Database` | テーブル、read session、transaction、共有予算、WAL、復旧、materialized view |
+| RDBMS契約 | `Seamless.Database.Rdbms` | カタログと関係代数モデル |
+| SQL Server | `Seamless.Database.SqlServer` | カタログ解析、型変換、routine解析、逐次取り込み |
+| DBツール | `Seamless.Database.Tool` | 生成、staging検証、manifest、バックアップ付き公開 |
+| 検証ドメイン | `Verification.Core` | 計画、run、case、測定、診断、比較条件と判定 |
+| 検証インフラ | `Verification.Infrastructure` | Git影響解析、Worker実行、SQLite、成果物、replay／resume／shrink |
+| 検証入口 | `Verification.Cli`, `Verification.UI` | 共通Workspaceを使うCLIとWindows MAUIアプリ |
+| 既存検証アダプター | `Benchmark.*.Headless`, `Benchmark.Dynamic.Worker`, `Benchmark.Worker` | 分離プロセスでの測定・容量探索・動的クエリ検証 |
 
-## モジュール根拠
+配布用ランタイムパッケージはVerification、UI、検証DB、テストassemblyを参照しない。`Verification.Infrastructure` は既存Worker群へ依存してよいが、逆方向の依存は作らない。
 
-- solution に source generator、runtime、benchmark、test project が明示されている（`Seamless.slnx:13`, `Seamless.slnx:26`, `Seamless.slnx:28`, `Seamless.slnx:29`, `Seamless.slnx:30`）。
-- `FLinq` と `Seamless.Database` は Roslyn component である（`FLinq/FLinq.csproj:8`, `Seamless.Database/Seamless.Database.csproj:8`）。
-- `Benchmark.Tsavorite.Collections` は MemoryPack と Microsoft.Garnet に依存する（`Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj:14`, `Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj:15`）。
-- MAUI runner は benchmark projects を参照する（`Benchmark/Benchmark.UI/UI.csproj:34`, `Benchmark/Benchmark.UI/UI.csproj:41`）。
-
-## Review Gate: Code Basic
-
-### Confirmed
-- 実装単位は project と top-level folder で明確に分かれる。
-
-### Inferred
-- confidence: medium。source generator と runtime collection は相互補完関係にあるが、別配布単位として扱われる可能性がある。
-
-### Unknown
-- パッケージ公開時の最終 module/package 境界。
+`Shared/UI.Core/BenchmarkPerformanceGate.cs` は旧UI互換であり、新しい比較契約ではない。新しい比較の正本は `Verification.Core.VerificationComparison` である。

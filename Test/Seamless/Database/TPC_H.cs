@@ -1,6 +1,6 @@
-using System.Globalization;
+﻿using System.Globalization;
 
-using DatabaseObjectKind = Seamless.Database.DatabaseObjectKind;
+using DatabaseObjectKind = Seamless.Database.System.DatabaseObjectKind;
 
 // ReSharper disable InconsistentNaming
 // ReSharper disable UnusedType.Global
@@ -12,10 +12,9 @@ namespace Test.Seamless.Database.TPC_H {
     internal static partial class DatabaseGenerator;
 
     // 宣言的データベースコンテナ。Table 実体は DatabaseContainer 基底が Tsavorite ストアとして生成し、
-    // [Table] 属性は SQL Server 互換名の補助にだけ使う。
+    // Table/View/TableFunction はC#の戻り値型とメンバー名から推論する。
     // クエリ本体(Q01..Q22 と *Query メソッド)は通常の C# メソッドとして書き、呼び出し箇所で FLinq が展開する。
     [global::Seamless.FLinq.LinqIntercept(false)]
-    [global::Seamless.Database.Database("TPCH")]
     public sealed partial class Container(global::Seamless.Database.DatabaseContainerOptions? options)
         :global::Seamless.Database.DatabaseContainer(options??DefaultOptions()) {
         public Container() : this(null) {
@@ -26,21 +25,13 @@ namespace Test.Seamless.Database.TPC_H {
                 MemorySize=1L<<24,
             };
 
-        [global::Seamless.Database.Table("region")]
         public global::Seamless.Database.Table<Records.region> regions => this.Table<Records.region>();
-        [global::Seamless.Database.Table("nation")]
         public global::Seamless.Database.Table<Records.nation> nations => this.Table<Records.nation>();
-        [global::Seamless.Database.Table("supplier")]
         public global::Seamless.Database.Table<Records.supplier> suppliers => this.Table<Records.supplier>();
-        [global::Seamless.Database.Table("customer")]
         public global::Seamless.Database.Table<Records.customer> customers => this.Table<Records.customer>();
-        [global::Seamless.Database.Table("part")]
         public global::Seamless.Database.Table<Records.part> parts => this.Table<Records.part>();
-        [global::Seamless.Database.Table("partsupp")]
         public global::Seamless.Database.Table<Records.partsupp> partsupps => this.Table<Records.partsupp>();
-        [global::Seamless.Database.Table("orders")]
         public global::Seamless.Database.Table<Records.orders> orders => this.Table<Records.orders>();
-        [global::Seamless.Database.Table("lineitem")]
         public global::Seamless.Database.Table<Records.lineitem> lineitems => this.Table<Records.lineitem>();
 
         public static string Row(int query,params object?[] values) =>
@@ -442,7 +433,6 @@ namespace Test.Seamless.Database.TPC_H {
         public IEnumerable<string> NationNamesQuery() =>
             this.nations.OrderBy(nation => nation.n_name).Select(nation => nation.n_name);
 
-        [global::Seamless.Database.View("tpch.vNationNames")]
         public global::Seamless.Database.View<string> NationNames() {
             return this.View(() => this.NationNamesQuery());
         }
@@ -451,13 +441,11 @@ namespace Test.Seamless.Database.TPC_H {
         public IEnumerable<int> OrdersByCustomerQuery(int customerKey) =>
             this.orders.Where(order => order.o_custkey==customerKey).OrderBy(orderKey => orderKey.o_orderkey).Select(order => order.o_orderkey);
 
-        [global::Seamless.Database.Function("tpch.fnOrdersByCustomer")]
         public global::Seamless.Database.TableFunction<int> OrdersByCustomer(int customerKey) {
             return this.TableFunction(() => this.OrdersByCustomerQuery(customerKey));
         }
 
         [global::Seamless.FLinq.LinqIntercept(true)]
-        [global::Seamless.Database.Function("tpch.fnTotalAccountBalance")]
         public decimal TotalAccountBalance() =>
             this.customers.Sum(customer => customer.c_acctbal);
     }
@@ -812,7 +800,6 @@ namespace Test.Seamless.Database.TPC_H {
             var expected = Baseline.NationNames(this.Container);
             var view = this.Container.NationNames();
             Assert.Equal("NationNames",view.Name);
-            Assert.Equal("tpch.vNationNames",view.SqlName);
             Assert.Equal(expected,view.ToArray());
             Assert.Same(view,this.Container.NationNames());
         }
@@ -822,7 +809,6 @@ namespace Test.Seamless.Database.TPC_H {
             var expected = Baseline.OrdersByCustomer(this.Container,1);
             var function = this.Container.OrdersByCustomer(1);
             Assert.Equal("OrdersByCustomer",function.Name);
-            Assert.Equal("tpch.fnOrdersByCustomer",function.SqlName);
             Assert.Equal(expected,function.ToArray());
         }
 
@@ -833,13 +819,15 @@ namespace Test.Seamless.Database.TPC_H {
 
         [Fact]
         public void DatabaseMetadata_FromGenerator() {
-            Assert.Equal("TPCH",this.Container.DatabaseName);
+            Assert.Equal("Container",this.Container.DatabaseName);
             var objects = this.Container.DatabaseObjects;
-            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.Table, MemberName: "lineitems", SqlName: "lineitem" });
-            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.View, MemberName: "NationNames", SqlName: "tpch.vNationNames" });
-            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.TableFunction, MemberName: "OrdersByCustomer", SqlName: "tpch.fnOrdersByCustomer" });
-            Assert.Contains(objects,declaration => declaration is { Kind: DatabaseObjectKind.ScalarFunction, MemberName: "TotalAccountBalance", SqlName: "tpch.fnTotalAccountBalance" });
+            Assert.Equal(DatabaseObjectKind.Table,objects[new("lineitems")].Kind);
+            Assert.Equal(DatabaseObjectKind.View,objects[new("NationNames")].Kind);
+            Assert.Equal(DatabaseObjectKind.TableFunction,objects[new("OrdersByCustomer")].Kind);
+            Assert.DoesNotContain(objects,declaration => declaration.Key.Name=="TotalAccountBalance");
             Assert.Equal(8,objects.Count(declaration => declaration.Kind==DatabaseObjectKind.Table));
+            Assert.Equal(11,objects.Count);
+            Assert.Equal(DatabaseObjectKind.SystemTable,objects[new("DatabaseObjects")].Kind);
         }
 
         [Fact]
@@ -860,8 +848,8 @@ namespace Test.Seamless.Database.TPC_H {
         }
 
         private sealed class RegionImportSource:global::Seamless.Database.IDatabaseImportSource {
-            public IEnumerable<TRecord> ReadTable<TRecord>(string sqlName) {
-                if(typeof(TRecord)==typeof(Records.region)) {
+            public IEnumerable<TRecord> ReadTable<TRecord>(global::Seamless.Database.System.Keys.DatabaseObject key) {
+                if(key.Name=="regions"&&typeof(TRecord)==typeof(Records.region)) {
                     return (IEnumerable<TRecord>)(object)new[] { new Records.region(90,"TESTREGION","import"),new Records.region(91,"TESTREGION2","import") };
                 }
                 return [];

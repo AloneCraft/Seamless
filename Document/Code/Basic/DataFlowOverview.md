@@ -1,48 +1,51 @@
----
-phase: code-basic-reverse
-reverse_document: true
-canonical_target: Document/Code/Basic/DataFlowOverview.md
-evidence_sources:
-  - Reverse/Code/Internal/
-  - Reverse/Code/External/
-derived_from:
-  - Reverse/Code/Internal/
-  - Reverse/Code/External/
-confidence: medium
-review_status: draft
----
-
 # Data Flow Overview
 
-## データフロー
+## スコープ付きクエリ
 
-### Compile-time LINQ 変換
-`C# source` -> `Roslyn syntax provider` -> `intercept target` -> `optimizer/fragment` -> `generated source` -> `compiled interceptor`
+```mermaid
+flowchart LR
+    A[入力 IEnumerable] --> B[ExecutionScope.Query]
+    B --> C[ScopedQuery 演算子]
+    C --> D{管理メモリ内か}
+    D -->|はい| E[チャンク・メモリ索引]
+    D -->|いいえ| F[一時ファイル・バイト索引]
+    E --> G[遅延結果]
+    F --> G
+    G --> H[逐次列挙または ToStorage]
+```
 
-根拠: `FLinq/SourceGenerator/interceptor.cs:57`, `FLinq/SourceGenerator/LinqTargetDiscovery.cs:22`, `FLinq/SourceGenerator/OptimizeVisitor.cs:294`, `FLinq/SourceGenerator/interceptor.cs:102`。
+すべての予約は一つの `ResourceBudget` へ集約する。比較子省略時のキーは決定的Codecのバイト列である。外部ソートは元位置を保持し、GroupBy／Joinは入力順契約を維持する。
 
-### Runtime collection 操作
-`HashStore settings` -> `Store` -> `Collection` -> `SessionFunction` -> `Tsavorite log/device` -> `Enumerator/LINQ`
+## DB commitと復旧
 
-根拠: `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:38`, `Benchmark.Tsavorite.Collections/Stores/HashStore.cs:146`, `Benchmark.Tsavorite.Collections/Collections/Collection.Tsavorite.cs:131`, `Benchmark.Tsavorite.Collections/Collections/Collection.Tsavorite.cs:256`, `Benchmark.Tsavorite.Collections/Linq/Enumerable.cs:8`。
+```mermaid
+sequenceDiagram
+    participant C as Caller
+    participant T as Transaction overlay
+    participant W as WAL
+    participant S as Tsavorite store
+    C->>T: Add/Remove/Clear
+    T->>W: begin + operations + commit + flush
+    T->>S: committed changesを反映
+    C->>S: Disposeでcheckpoint
+    S->>W: 全対象checkpoint確認後にSHA archive
+```
 
-### Schema generation
-`partial schema type` -> `DatabaseSchemaGenerator` -> `unmanaged/managed property split` -> `MemoryPackable generated record`
+起動時はcommit済みWALだけを冪等に再生する。未commit、切断末尾、未openテーブルを含むactive WALを成功済みとして消去しない。
 
-根拠: `Seamless.Database/SourceGenerator/GenerateDatabase.cs:11`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:114`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:124`, `Seamless.Database/SourceGenerator/GenerateDatabase.cs:170`。
+## 変更後の検証
 
-### Benchmark execution
-`UI selection` -> `run queue` -> `worker task JSON` -> `BenchmarkDotNet run` -> `worker result JSON` -> `CSV/HTML report`
+```mermaid
+flowchart LR
+    A[Git差分・未追跡・共有ソース] --> B[Project依存解析]
+    B --> C[VerificationPlan]
+    C --> D[共通Runner]
+    D --> E[dotnet / Benchmark / Scalable / Sweep / Dynamic adapter]
+    E --> F[生測定・診断・途中状態]
+    F --> G[(Verification.db)]
+    F --> H[ハッシュ付きArtifacts]
+    G --> I[固定baselineとの比較]
+    I --> J[replay / resume / shrink]
+```
 
-根拠: `Benchmark/MainPage.xaml.cs:541`, `Benchmark/MainPage.xaml.cs:752`, `Benchmark/Shared/UI/BenchmarkWorkerClient.cs:39`, `Benchmark/Shared/UI/BenchmarkWorkerClient.cs:90`, `Benchmark/MainPage.xaml.cs:1153`。
-
-## Review Gate: Code Basic
-
-### Confirmed
-- compile-time、runtime、tool-time の 3 系統のデータフローがある。
-
-### Inferred
-- confidence: medium。benchmark flow は generator/runtime の性能検証を支える補助フローである。
-
-### Unknown
-- external storage device を使う場合の詳細な data durability flow。
+CLIとMAUIは同じ `VerificationWorkspace` を使う。計画時のソース指紋、ケース入力、意味論、Codec、測定方法、環境、CPU、構成を保存し、比較条件が違う結果を性能判定へ混ぜない。

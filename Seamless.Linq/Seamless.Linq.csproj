@@ -20,6 +20,7 @@
     <None Remove="Work\**" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Seamless.Execution\Seamless.Execution.csproj" />
     <ProjectReference Include="..\Seamless.Collections.Persisted\Seamless.Collections.Persisted.csproj" />
     <ProjectReference Include="..\Seamless.Collections.Tsavorite\Seamless.Collections.Tsavorite.csproj" />
     <ProjectReference Include="..\Seamless.Linq.Analyzers\Seamless.Linq.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />

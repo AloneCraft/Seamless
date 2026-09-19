@@ -95,10 +95,11 @@ class A:IDisposable{
 
 ### 名前空間
 
-- 1 プロジェクト = 1 名前空間です。プロジェクト内の全 `.cs` が `namespace <AssemblyName>;` を宣言してください。
+- 原則として、プロジェクトのルート名前空間は `<AssemblyName>` としてください。
 - csproj の `<RootNamespace>` は `<AssemblyName>` と同じ値にしてください。
-- サブフォルダーは分類専用です。名前空間セグメントを増やさないでください
-  (`.editorconfig` で `IDE0130` を無効化しています)。
+- 公開APIや安定した論理階層を表す場合は、フォルダー階層と一致するサブ名前空間を使用できます。
+- 分類専用のサブフォルダーは名前空間セグメントを増やす必要はありません(`.editorconfig` で `IDE0130` を無効化しています)。
+- この規約変更だけを理由に既存コードを一括移行しないでください。
 - プロジェクト名の末尾セグメントを第一階層フォルダーとして繰り返さないでください。
   `Seamless.Collections.Tsavorite/Tsavorite/Stores/` ではなく `Seamless.Collections.Tsavorite/Stores/` です。
 - 出荷パッケージの `Seamless.` 接頭辞は、非出荷アセンブリ (テスト・ベンチマーク・共有) では使わないでください。
@@ -119,11 +120,20 @@ class A:IDisposable{
 ### ファイル名
 
 - ファイル名は、そのファイルの主要な public 型名と一致させてください。ジェネリックのアリティは付けません。
-- 対等な小さい型をまとめるファイルは、`DatabaseAttributes.cs` のようなグループ名にしてかまいません。
+- 対等な小さい型をまとめるファイルは、`DatabaseSystemTypes.cs` のようなグループ名にしてかまいません。
 - partial 分割は `Type.Aspect.cs` にしてください
   (`FLinqIncrementalGenerator.ProviderFacts.cs`、`PipelineBuilder.Stages.cs`)。
 - ただし演算子ごとに partial 分割する LINQ 実装は、演算子名をファイル名にしてください
   (`Seamless.Linq/Where.cs` が `partial class Enumerable` の `Where` を持つ形)。
+
+## Project And Solution Registration
+
+- 新しい `.csproj`/`.shproj` を作成または追加するときは、同じ変更の中で必ずソリューションファイル(`Seamless.slnx`)にも登録してください。登録を後回しにしないでください。
+- `.slnx` へは、既存の `<Folder>` 分類規約(例: テストプロジェクトは `/Tests/` フォルダ配下)に従って `<Project Path="..."/>` を追加してください。
+- プロジェクト追加後は、リポジトリ全体の `*.csproj`/`*.shproj` を列挙し、`Seamless.slnx` 内の `<Project Path>` と突合して差分ゼロであることを確認してください。
+- ルート直下の `Benchmark.UI.slnx` などの軽量ソリューションは `Update-FocusedSolutions.ps1` が `Seamless.slnx` から生成します。手で編集しないでください。`ProjectReference`・csproj 内の `<MSBuild Projects>`・`.projitems` の `Import` を変更したとき、または `Seamless.slnx` を変更したときは、スクリプトを再実行し、生成された `*.slnx` も同じ変更に含めてください。新しい exe 用の軽量ソリューションは、スクリプト先頭の `$Solutions` に起点を追加して作ってください。
+- 新規プロジェクトの `.csproj`/`.shproj` とその配下のソースファイルは、作業の完了条件として `git add` で必ずステージしてください。`git status` で未追跡(`??`)のまま放置しないでください。
+- Visual Studio でプロジェクトが読み込まれない、または Solution Explorer 上でフォルダの中身が空に見える場合、多くは (a) `Seamless.slnx` への未登録、(b) `.gitignore` パターンが新規フォルダ名へ意図せず一致、のいずれかが原因です。プロジェクト作成後はこの両方を確認してください。
 
 ## File Layout Rules
 

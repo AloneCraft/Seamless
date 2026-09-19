@@ -1,4 +1,4 @@
-// AdventureWorks2008R2 の宣言的データベース定義。
+﻿// AdventureWorks2008R2 の宣言的データベース定義。
 // 本物のバックアップ取り込みは IDatabaseImportSource 経由で後日行うため、
 // 現時点ではリポジトリ内のサンプルデータだけで動作する実働サブセットを宣言する。
 // Table 実体は Tsavorite ストアで、DatabaseContainerOptions によりメモリ/ストレージを切り替える。
@@ -9,7 +9,6 @@ namespace Test.Seamless.AdventureWorks2008R2 {
     // 宣言的コンテナ。プロパティ/メソッドが宣言の主形式で、属性は SQL Server 互換名の補助。
     // FLinq は「LINQ を含む通常メソッドの呼び出し箇所」を展開するため、
     // View/TableFunction の LINQ 本体は *Query メソッドに置き、ラムダからそれを呼ぶ。
-    [global::Seamless.Database.Database("AdventureWorks2008R2")]
     public sealed partial class AdventureWorks(global::Seamless.Database.DatabaseContainerOptions? options)
         :global::Seamless.Database.DatabaseContainer(
             options??(global::Seamless.Database.DatabaseContainerOptions.InMemory with {
@@ -17,15 +16,10 @@ namespace Test.Seamless.AdventureWorks2008R2 {
             })) {
         public AdventureWorks() : this(null) {
         }
-        [global::Seamless.Database.Table("Sales.Customer")]
         public global::Seamless.Database.Table<Records.Customer> Customers => this.Table<Records.Customer>();
-        [global::Seamless.Database.Table("Sales.SalesOrderHeader")]
         public global::Seamless.Database.Table<Records.SalesOrderHeader> SalesOrderHeaders => this.Table<Records.SalesOrderHeader>();
-        [global::Seamless.Database.Table("Sales.Store")]
         public global::Seamless.Database.Table<Records.Store> Stores => this.Table<Records.Store>();
-        [global::Seamless.Database.Table("Person.StateProvince")]
         public global::Seamless.Database.Table<Records.StateProvince> StateProvinces => this.Table<Records.StateProvince>();
-        [global::Seamless.Database.Table("Person.CountryRegion")]
         public global::Seamless.Database.Table<Records.CountryRegion> CountryRegions => this.Table<Records.CountryRegion>();
 
         // Sales.vActiveCustomer 相当: Store を持つ顧客だけを射影する。
@@ -35,7 +29,6 @@ namespace Test.Seamless.AdventureWorks2008R2 {
                 .OrderBy(customer => customer.CustomerId)
                 .Select(customer => new Records.ActiveCustomer(customer.CustomerId,customer.StoreId!.Value));
 
-        [global::Seamless.Database.View("Sales.vActiveCustomer")]
         public global::Seamless.Database.View<Records.ActiveCustomer> ActiveCustomers() {
             return this.View(() => this.ActiveCustomersQuery());
         }
@@ -46,7 +39,6 @@ namespace Test.Seamless.AdventureWorks2008R2 {
                 .Join(this.CountryRegions,state => state.CountryRegionCode,region => region.CountryRegionCode,(state,region) => new Records.StateProvinceCountryRegion(state.StateProvinceId,state.Name,region.CountryRegionCode,region.Name))
                 .OrderBy(row => row.StateProvinceId);
 
-        [global::Seamless.Database.View("Person.vStateProvinceCountryRegion")]
         public global::Seamless.Database.View<Records.StateProvinceCountryRegion> StateProvinceCountryRegions() {
             return this.View(() => this.StateProvinceCountryRegionsQuery());
         }
@@ -58,13 +50,11 @@ namespace Test.Seamless.AdventureWorks2008R2 {
                 .OrderBy(order => order.SalesOrderId)
                 .Select(order => new Records.SalesOrderSummary(order.SalesOrderId,order.TotalDue));
 
-        [global::Seamless.Database.Function("dbo.ufnOrdersByCustomer")]
         public global::Seamless.Database.TableFunction<Records.SalesOrderSummary> OrdersByCustomer(int customerId) {
             return this.TableFunction(() => this.OrdersByCustomerQuery(customerId));
         }
 
         // dbo.ufnCustomerTotalDue 相当: スカラー関数。
-        [global::Seamless.Database.Function("dbo.ufnCustomerTotalDue")]
         public decimal CustomerTotalDue(int customerId) =>
             this.SalesOrderHeaders
                 .Where(order => order.CustomerId==customerId)
@@ -155,7 +145,6 @@ namespace Test.Seamless.AdventureWorks2008R2 {
             var expected = Baseline.ActiveCustomers(this.Database);
             var view = this.Database.ActiveCustomers();
             Assert.Equal("ActiveCustomers",view.Name);
-            Assert.Equal("Sales.vActiveCustomer",view.SqlName);
             Assert.Equal(expected,view.Select(row => (row.CustomerId,row.StoreId)).ToArray());
             Assert.Same(view,this.Database.ActiveCustomers());
         }
@@ -164,7 +153,7 @@ namespace Test.Seamless.AdventureWorks2008R2 {
         public void StateProvinceCountryRegions_View_MatchesBaseline() {
             var expected = Baseline.StateProvinceCountryRegions(this.Database);
             var view = this.Database.StateProvinceCountryRegions();
-            Assert.Equal("Person.vStateProvinceCountryRegion",view.SqlName);
+            Assert.Equal("StateProvinceCountryRegions",view.Name);
             Assert.Equal(expected,view.Select(row => (row.StateProvinceId,row.StateProvinceName,row.CountryRegionCode,row.CountryRegionName)).ToArray());
         }
 
@@ -172,7 +161,7 @@ namespace Test.Seamless.AdventureWorks2008R2 {
         public void OrdersByCustomer_TableFunction_MatchesBaseline() {
             var expected = Baseline.OrdersByCustomer(this.Database,1);
             var function = this.Database.OrdersByCustomer(1);
-            Assert.Equal("dbo.ufnOrdersByCustomer",function.SqlName);
+            Assert.Equal("OrdersByCustomer",function.Name);
             Assert.Equal(expected,function.Select(row => (row.SalesOrderId,row.TotalDue)).ToArray());
             {
                 //一致しない顧客IDは空列挙になる
@@ -188,13 +177,16 @@ namespace Test.Seamless.AdventureWorks2008R2 {
 
         [Fact]
         public void DatabaseMetadata_FromGenerator() {
-            Assert.Equal("AdventureWorks2008R2",this.Database.DatabaseName);
+            Assert.Equal("AdventureWorks",this.Database.DatabaseName);
             var objects = this.Database.DatabaseObjects;
-            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.Table, MemberName: "Customers", SqlName: "Sales.Customer" });
-            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.View, MemberName: "ActiveCustomers", SqlName: "Sales.vActiveCustomer" });
-            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.TableFunction, MemberName: "OrdersByCustomer", SqlName: "dbo.ufnOrdersByCustomer" });
-            Assert.Contains(objects,declaration => declaration is { Kind: global::Seamless.Database.DatabaseObjectKind.ScalarFunction, MemberName: "CustomerTotalDue", SqlName: "dbo.ufnCustomerTotalDue" });
-            Assert.Equal(5,objects.Count(declaration => declaration.Kind==global::Seamless.Database.DatabaseObjectKind.Table));
+            Assert.Equal(global::Seamless.Database.System.DatabaseObjectKind.Table,objects[new("Customers")].Kind);
+            Assert.Equal(typeof(Records.Customer),objects[new("Customers")].RecordType);
+            Assert.Equal(global::Seamless.Database.System.DatabaseObjectKind.View,objects[new("ActiveCustomers")].Kind);
+            Assert.Equal(global::Seamless.Database.System.DatabaseObjectKind.TableFunction,objects[new("OrdersByCustomer")].Kind);
+            Assert.DoesNotContain(objects,declaration => declaration.Key.Name=="CustomerTotalDue");
+            Assert.Equal(5,objects.Count(declaration => declaration.Kind==global::Seamless.Database.System.DatabaseObjectKind.Table));
+            Assert.Equal(9,objects.Count);
+            Assert.Equal(global::Seamless.Database.System.DatabaseObjectKind.SystemTable,objects[new("DatabaseObjects")].Kind);
         }
 
         [Fact]
@@ -204,7 +196,7 @@ namespace Test.Seamless.AdventureWorks2008R2 {
             AdventureWorksFixture.Seed(database);
             var expected = Baseline.ActiveCustomers(database);
             Assert.Equal(expected,database.ActiveCustomers().Select(row => (row.CustomerId,row.StoreId)).ToArray());
-            Assert.True(Directory.Exists(Path.Combine(directory,"Sales.Customer")));
+            Assert.True(Directory.Exists(Path.Combine(directory,"Customers")));
         }
 
         [Fact]
@@ -220,8 +212,8 @@ namespace Test.Seamless.AdventureWorks2008R2 {
         }
 
         private sealed class SampleImportSource:global::Seamless.Database.IDatabaseImportSource {
-            public IEnumerable<TRecord> ReadTable<TRecord>(string sqlName) {
-                if(sqlName=="Sales.Customer") {
+            public IEnumerable<TRecord> ReadTable<TRecord>(global::Seamless.Database.System.Keys.DatabaseObject key) {
+                if(key.Name=="Customers") {
                     return (IEnumerable<TRecord>)(object)new[] {
                         new Records.Customer(21,null,10,1,"AW00000021"),
                         new Records.Customer(22,102,null,2,"AW00000022"),

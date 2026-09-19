@@ -12,18 +12,18 @@
 - `Table<TRecord>`: **Tsavorite `HashSet<TRecord>` の派生**。FLinq の型判定
   (`TryMatchGenericNamedType`) は基底型チェーンを辿るため、Table は自動的に Tsavorite ルートとして展開される。
 - `DatabaseContainerOptions`: `StorageMode=Memory/Storage` と Index/Page/Segment/Memory サイズ。
-  Storage は `StorageDirectory\{SqlName}\log|obj` のテーブル別デバイス。
-- 属性 `[Database]` `[Table]` `[View]` `[Function]`: SQL Server 互換名の補助のみ。
-- `IDatabaseImportSource`: 将来の AdventureWorks2008R2 本物バックアップ取り込み拡張点。
+  Storage は `StorageDirectory\{C#メンバー名}\log|obj` のテーブル別デバイス。
+- `SystemTable<TKey,TRecord>`: 行列挙と主キー探索を提供する読み取り専用システムテーブル。
+- `IDatabaseImportSource`: C#メンバー名の `System.Keys.DatabaseObject` を取込キーとする拡張点。
   外部 SQL Server・ネットワーク・本物バックアップには依存しない。
 
-### Source Generator (Seamless.Database/SourceGenerator/GenerateContainer.cs)
+### Source Generator (Seamless.Database.Generator/DatabaseContainerGenerator.cs)
 
-`DatabaseContainer` 派生の partial クラスから生成:
-- `DatabaseName` override([Database] があるとき)
-- `DatabaseObjects`(Kind/MemberName/SqlName/RecordTypeName の静的メタデータ)
+同じ名前空間の `DatabaseGenerator` マーカーを起点に、`DatabaseContainer` 派生の partial クラスから生成:
+- C#メンバー名を主キーとする静的 `SystemTable` の `DatabaseObjects`
+- 戻り値型からの `Table` / `View` / `TableFunction` 推論
 - `EnsureTablesCreated()`(全テーブル実体化 = スキーマ作成に相当する設計時操作)
-- `ImportTables(IDatabaseImportSource)`(SQL 名で全テーブルへ行投入)
+- `ImportTables(IDatabaseImportSource)`(C#メンバー名のキーで全テーブルへ行投入)
 
 既存の Keys/Records partial struct 補完(DatabaseSchemaGenerator)は維持。
 
@@ -47,7 +47,7 @@ GetEnumerator を探していたため、`Table<T>:HashSet<T>` のような派�
 
 ## 2. テスト整理
 
-- `Test/Seamless/Database/TPC_H.cs`: Container を宣言コンテナ化(8 テーブル + [Table] 属性 +
+- `Test/Seamless/Database/TPC_H.cs`: Container を宣言コンテナ化(8 テーブル + 型推論 +
   View/TableFunction/スカラー関数 + Q01..Q22 維持)。Q テスト 44 件 + 新規 5 件すべて成功。
 - `Test/Seamless/AdventureWorks2008R2/AdventureWorks2008R2.cs`: 旧スケルトン(約 90 個の宣言のみ構造体)を
   廃棄し、プロンプトの宣言 API イメージどおりの実働サブセット

@@ -1,0 +1,11 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Seamless.Database.Rdbms</RootNamespace>
+    <AssemblyName>Seamless.Database.Rdbms</AssemblyName>
+    <PackageId>Seamless.Database.Rdbms</PackageId>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+</Project>

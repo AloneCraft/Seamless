@@ -22,5 +22,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
+    <ProjectReference Include="..\Seamless.Execution\Seamless.Execution.csproj" />
   </ItemGroup>
 </Project>

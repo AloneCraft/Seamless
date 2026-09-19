@@ -11,10 +11,16 @@ public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<
     private readonly IDisposable? ownedStore;
     public bool IsReadOnly => false;
     public bool Add(TKey item) {
-        if(this.Contains(item))
-            return false;
-        this.PrivateUpsert(item,EqualityEmpty.Default);
-        return true;
+        var result=this.PrivateTryAdd(item,EqualityEmpty.Default);
+        switch(result) {
+            case TryAddResult.Success:
+                return true;
+            case TryAddResult.KeyAlreadyExists:
+                return false;
+            default:
+                Debug.Assert(result==TryAddResult.LogFull);
+                throw this.ThrowLogFull();
+        }
     }
     void ICollection<TKey>.Add(TKey item) => this.Add(item);
     public void CopyTo(TKey[] array,int arrayIndex) {

@@ -12,5 +12,7 @@
   },
   "dotnet.defaultSolution": "Seamless.slnx",
   "dotnet.unitTests.runSettingsPath": "test.runsettings",
-  "dotnet.testWindow.enableNextTest": false
+  "dotnet.testWindow.enableNextTest": true,
+  "dotnet.testWindow.disableAutoDiscovery": false,
+  "workbench.sideBar.location": "left"
 }

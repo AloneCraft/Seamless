@@ -552,4 +552,6 @@ internal sealed record ワーカー結果メッセージ(
     string 結果ダイジェスト = "",
     IReadOnlyList<ベンチマーク診断カウンター>? 診断カウンター = null,
     int? 実測ループ回数 = null,
-    bool アフィニティ適用成功か = false);
+    bool アフィニティ適用成功か = false,
+    IReadOnlyList<double>? サンプル一覧 = null,
+    IReadOnlyList<int>? GC収集回数一覧 = null);

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Seamless.Execution</RootNamespace>
+    <AssemblyName>Seamless.Execution</AssemblyName>
+    <IsPackable>true</IsPackable>
+    <Description>Execution scopes, shared resource budgets and deterministic codecs for Seamless.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Seamless.Collections/Seamless.Collections.csproj" />
+  </ItemGroup>
+</Project>

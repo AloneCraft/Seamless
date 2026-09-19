@@ -1,0 +1,71 @@
+<Solution>
+  <Folder Name="/Benchmark/">
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.FLinq/Benchmark.System.Linq.Enumerable.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.ZLinq/Benchmark.System.Linq.Enumerable.ZLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Range.FLinq/Benchmark.System.Linq.Enumerable.Range.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.ZLinq/Benchmark.System.Linq.Enumerable.List.ZLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Range.ZLinq/Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.IEnumerable.FLinq/Benchmark.System.Linq.Enumerable.IEnumerable.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq/Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.Optimization.All/Benchmark.Optimization.All.csproj" />
+    <Project Path="Benchmark/Benchmark.Optimization.NoRewrite/Benchmark.Optimization.NoRewrite.csproj" />
+    <Project Path="Benchmark/Benchmark.Optimization.NoPipelineFusion/Benchmark.Optimization.NoPipelineFusion.csproj" />
+    <Project Path="Benchmark/Benchmark.Optimization.NoPredicatePushdown/Benchmark.Optimization.NoPredicatePushdown.csproj" />
+    <Project Path="Benchmark/Benchmark.Optimization.NoProjectionMerge/Benchmark.Optimization.NoProjectionMerge.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.FLinq/Benchmark.System.Linq.Enumerable.List.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.Persisted.Collections/Benchmark.Persisted.Collections.csproj" />
+    <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.Linq/Benchmark.Persisted.Linq.Enumerable.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.ValueLinq/Benchmark.Persisted.Linq.Enumerable.ValueLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj" />
+    <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.FLinq/Benchmark.Tsavorite.Linq.Enumerable.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq/Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.Linq/Benchmark.Tsavorite.Linq.Enumerable.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.ValueLinq/Benchmark.Tsavorite.Linq.Enumerable.ValueLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.Scalable.Persisted.Collections/Benchmark.Scalable.Persisted.Collections.csproj" />
+    <Project Path="Benchmark/Benchmark.Scalable.Tsavorite.Collections/Benchmark.Scalable.Tsavorite.Collections.csproj" />
+    <Project Path="Benchmark/Benchmark.Headless/Benchmark.Headless.csproj" />
+    <Project Path="Benchmark/Worker/Worker.csproj" />
+  </Folder>
+  <Folder Name="/Shared/">
+    <Project Path="Shared/Collections/Collections.shproj" />
+    <Project Path="Shared/Common/Common.shproj" />
+    <Project Path="Shared/Persisted.Collections/Persisted.Collections.shproj" />
+    <Project Path="Shared/Scalable.Collections/Scalable.Collections.shproj" />
+    <Project Path="Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.shproj" />
+    <Project Path="Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.shproj" />
+    <Project Path="Shared/Linq.Enumerable/Linq.Enumerable.shproj" />
+    <Project Path="Shared/Linq.Optimization/Linq.Optimization.shproj" />
+    <Project Path="Shared/Linq.Range/Linq.Range.shproj" />
+    <Project Path="Shared/Tsavorite.Collections/Tsavorite.Collections.shproj" />
+    <Project Path="Shared/UI.Core/UI.Core.shproj" />
+    <Project Path="Shared/UI.Storage/UI.Storage.csproj" />
+    <File Path="Shared/Collections/Collections.projitems" />
+    <File Path="Shared/Common/Common.projitems" />
+    <File Path="Shared/Persisted.Collections/Persisted.Collections.projitems" />
+    <File Path="Shared/Scalable.Collections/Scalable.Collections.projitems" />
+    <File Path="Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.projitems" />
+    <File Path="Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.projitems" />
+    <File Path="Shared/Linq.Enumerable/Linq.Enumerable.projitems" />
+    <File Path="Shared/Linq.Optimization/Linq.Optimization.projitems" />
+    <File Path="Shared/Linq.Range/Linq.Range.projitems" />
+    <File Path="Shared/Tsavorite.Collections/Tsavorite.Collections.projitems" />
+    <File Path="Shared/UI.Core/UI.Core.projitems" />
+  </Folder>
+  <Folder Name="/SourceGenerator/">
+    <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
+    <Project Path="Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" />
+    <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
+  </Folder>
+  <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
+  <Project Path="Seamless.Execution/Seamless.Execution.csproj" />
+  <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
+  <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
+  <Project Path="Seamless.Database/Seamless.Database.csproj" />
+  <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
+  <Project Path="Seamless/Seamless.csproj" />
+</Solution>

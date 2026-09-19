@@ -1,4 +1,10 @@
 <Solution>
+  <Folder Name="/Verification/">
+    <Project Path="Verification.Cli/Verification.Cli.csproj" />
+    <Project Path="Verification.Infrastructure/Verification.Infrastructure.csproj" />
+    <Project Path="Verification.Core/Verification.Core.csproj" />
+    <Project Path="Verification.UI/Verification.UI.csproj" />
+  </Folder>
   <Folder Name="/Benchmark/">
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.FLinq/Benchmark.System.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.ZLinq/Benchmark.System.Linq.Enumerable.ZLinq.csproj" />
@@ -24,8 +30,10 @@
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.Linq/Benchmark.Tsavorite.Linq.Enumerable.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.ValueLinq/Benchmark.Tsavorite.Linq.Enumerable.ValueLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep/Benchmark.Tsavorite.ParameterSweep.csproj" />
+    <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Tsavorite.ParameterSweep.UI.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.Persisted.Collections/Benchmark.Scalable.Persisted.Collections.csproj" />
+    <Project Path="Benchmark/Benchmark.Scalable.Headless/Benchmark.Scalable.Headless.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.Tsavorite.Collections/Benchmark.Scalable.Tsavorite.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj" />
     <Project Path="Benchmark/Benchmark.UI/Benchmark.UI.csproj" />
@@ -88,6 +96,8 @@
     <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="Execution.Tests/Execution.Tests.csproj" />
+    <Project Path="Verification.Tests/Verification.Tests.csproj" />
     <Project Path="DynamicLinq.Runner/DynamicLinq.Runner.csproj" />
     <Project Path="Test.Persisted.Collections/Test.Persisted.Collections.csproj" />
     <Project Path="Test.Persisted.Linq.Enumerable.FLinq/Test.Persisted.Linq.Enumerable.FLinq.csproj" />
@@ -114,9 +124,13 @@
     <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
   </Folder>
   <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
+  <Project Path="Seamless.Execution/Seamless.Execution.csproj" />
   <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
   <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
   <Project Path="Seamless.Database/Seamless.Database.csproj" />
+  <Project Path="Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj" />
+  <Project Path="Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
+  <Project Path="Seamless.Database.Tool/Seamless.Database.Tool.csproj" />
   <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
   <Project Path="Seamless/Seamless.csproj" />
 </Solution>

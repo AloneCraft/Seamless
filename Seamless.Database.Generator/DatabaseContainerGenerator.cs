@@ -1,75 +1,92 @@
-using static Seamless.Database.Generator.GeneratorHelpers;
+﻿using static Seamless.Database.Generator.GeneratorHelpers;
 
 namespace Seamless.Database.Generator;
 
-/// <summary>
-/// DatabaseContainer 派生の partial クラス宣言から、
-/// スキーマメタデータ(DatabaseObjects/DatabaseName)、全テーブル実体化(EnsureTablesCreated)、
-/// 取り込み配線(ImportTables)を生成する。
-/// 宣言の主形式は普通の C# プロパティ/メソッドで、[Database]/[Table]/[View]/[Function] 属性は
-/// SQL Server 互換名を補う補助としてだけ使う。
-/// </summary>
 [Generator]
 public sealed class DatabaseContainerGenerator:IIncrementalGenerator {
     private const string DatabaseNamespace = "Seamless.Database";
     private const string ContainerBaseFullName = "Seamless.Database.DatabaseContainer";
+    private const string SchemaBaseFullName = "Seamless.Database.DatabaseSchema";
+    private const string ReservedCatalogName = "DatabaseObjects";
+
+    private static readonly DiagnosticDescriptor DuplicateName = new(
+        id: "SDB001",
+        title: "Duplicate database object name",
+        messageFormat: "Database object name '{0}' is duplicated",
+        category: "Seamless.Database.Generator",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+    private static readonly DiagnosticDescriptor ReservedName = new(
+        id: "SDB002",
+        title: "Reserved database object name",
+        messageFormat: "Database object name '{0}' is reserved for the system catalog",
+        category: "Seamless.Database.Generator",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 
     public void Initialize(IncrementalGeneratorInitializationContext context) {
-        var containers = context.SyntaxProvider
+        var types = context.SyntaxProvider
             .CreateSyntaxProvider(
-                static (node,_) => node is ClassDeclarationSyntax { BaseList: not null } declaration&&declaration.Modifiers.Any(SyntaxKind.PartialKeyword),
-                static (syntaxContext,_) => コンテナ対象生成(syntaxContext))
+                static (node,_) => node is TypeDeclarationSyntax,
+                static (syntaxContext,_) => CreateTypeTarget(syntaxContext))
             .Where(static target => target is not null)
             .Select(static (target,_) => target!);
 
-        context.RegisterSourceOutput(containers.Collect(),static (productionContext,targets) => {
-            if(targets.IsDefaultOrEmpty) {
-                return;
-            }
-            var emitted = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
-            foreach(var target in targets) {
-                if(!emitted.Add(target.HintName)) {
-                    continue;
-                }
-                productionContext.AddSource(target.HintName,SourceText.From(target.Source,Encoding.UTF8));
-            }
-        });
+        context.RegisterSourceOutput(types.Collect(),static (productionContext,targets) =>
+            Generate(productionContext,targets));
     }
 
-    private sealed class コンテナ対象型(string hintName,string source) {
-        public string HintName { get; } = hintName;
-        public string Source { get; } = source;
-    }
-
-    private sealed class オブジェクト宣言(string kind,string memberName,string sqlName,string recordTypeName,bool isTable) {
-        public string Kind { get; } = kind;
-        public string MemberName { get; } = memberName;
-        public string SqlName { get; } = sqlName;
-        public string RecordTypeName { get; } = recordTypeName;
-        public bool IsTable { get; } = isTable;
-    }
-
-    private static コンテナ対象型? コンテナ対象生成(GeneratorSyntaxContext context) {
-        var declaration = (ClassDeclarationSyntax)context.Node;
+    private static TypeTarget? CreateTypeTarget(GeneratorSyntaxContext context) {
+        var declaration = (TypeDeclarationSyntax)context.Node;
         if(context.SemanticModel.GetDeclaredSymbol(declaration) is not INamedTypeSymbol symbol) {
             return null;
         }
-        if(symbol.IsGenericType||symbol.ContainingType is not null) {
-            return null;
-        }
-        if(!コンテナ基底判定(symbol)) {
-            return null;
-        }
-
-        var databaseName = 属性名取得(symbol.GetAttributes(),"DatabaseAttribute");
-        var declarations = オブジェクト宣言収集(symbol);
-        var source = コンテナソース構築(symbol,databaseName,declarations);
-        var hintName = $"{symbol.ToDisplayString()}.Container.g.cs";
-        return new コンテナ対象型(hintName,source);
+        return new(symbol,declaration.Modifiers.Any(SyntaxKind.PartialKeyword));
     }
 
-    private static bool コンテナ基底判定(INamedTypeSymbol symbol) {
-        for(var baseType = symbol.BaseType;baseType is not null;baseType=baseType.BaseType) {
+    private static void Generate(SourceProductionContext context,ImmutableArray<TypeTarget> targets) {
+        if(targets.IsDefaultOrEmpty) {
+            return;
+        }
+
+        var uniqueTypes = targets
+            .GroupBy(static target => target.Symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),StringComparer.Ordinal)
+            .Select(static group => new TypeTarget(group.First().Symbol,group.Any(static target => target.IsPartial)))
+            .ToArray();
+        var markerNamespaces = new HashSet<string>(
+            uniqueTypes
+                .Where(static target => target.Symbol.Name=="DatabaseGenerator")
+                .Select(static target => NamespaceName(target.Symbol.ContainingNamespace)),
+            StringComparer.Ordinal);
+        if(markerNamespaces.Count==0) {
+            return;
+        }
+
+        foreach(var target in uniqueTypes
+            .Where(static target => IsContainer(target))
+            .OrderBy(static target => target.Symbol.ToDisplayString(),StringComparer.Ordinal)) {
+            var namespaceName = NamespaceName(target.Symbol.ContainingNamespace);
+            if(!markerNamespaces.Contains(namespaceName)) {
+                continue;
+            }
+
+            var declarations = CollectObjects(target.Symbol);
+            var hasErrors = ReportDiagnostics(context,declarations);
+            if(hasErrors) {
+                continue;
+            }
+
+            var source = BuildSource(target.Symbol,declarations);
+            context.AddSource($"{target.Symbol.ToDisplayString()}.Container.g.cs",SourceText.From(source,Encoding.UTF8));
+        }
+    }
+
+    private static bool IsContainer(TypeTarget target) {
+        var symbol = target.Symbol;
+        if(!target.IsPartial||symbol.TypeKind!=TypeKind.Class||symbol.IsGenericType||symbol.ContainingType is not null) {
+            return false;
+        }
+        for(var baseType=symbol.BaseType;baseType is not null;baseType=baseType.BaseType) {
             if(baseType.ToDisplayString()==ContainerBaseFullName) {
                 return true;
             }
@@ -77,106 +94,174 @@ public sealed class DatabaseContainerGenerator:IIncrementalGenerator {
         return false;
     }
 
-    private static string? 属性名取得(ImmutableArray<AttributeData> attributes,string attributeMetadataName) {
-        foreach(var attribute in attributes) {
-            var attributeClass = attribute.AttributeClass;
-            if(attributeClass is null) {
-                continue;
-            }
-            if(attributeClass.Name!=attributeMetadataName) {
-                continue;
-            }
-            if(attributeClass.ContainingNamespace.ToDisplayString()!=DatabaseNamespace) {
-                continue;
-            }
-            if(attribute.ConstructorArguments.Length>0&&attribute.ConstructorArguments[0].Value is string name) {
-                return name;
-            }
-        }
-        return null;
+    private static ImmutableArray<ObjectDeclaration> CollectObjects(INamedTypeSymbol symbol) {
+        var builder = ImmutableArray.CreateBuilder<ObjectDeclaration>();
+        CollectObjects(symbol,string.Empty,builder,new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default));
+        return builder
+            .OrderBy(static declaration => declaration.Name,StringComparer.Ordinal)
+            .ThenBy(static declaration => declaration.Kind,StringComparer.Ordinal)
+            .ToImmutableArray();
     }
 
-    private static ImmutableArray<オブジェクト宣言> オブジェクト宣言収集(INamedTypeSymbol symbol) {
-        var builder = ImmutableArray.CreateBuilder<オブジェクト宣言>();
+    private static void CollectObjects(
+        INamedTypeSymbol symbol,
+        string prefix,
+        ImmutableArray<ObjectDeclaration>.Builder builder,
+        HashSet<INamedTypeSymbol> visited) {
+        if(!visited.Add(symbol)) {
+            return;
+        }
         foreach(var member in symbol.GetMembers()) {
             if(member.IsStatic||member.IsImplicitlyDeclared) {
                 continue;
             }
+
+            var path=prefix.Length==0?member.Name:$"{prefix}.{member.Name}";
             switch(member) {
-                case IPropertySymbol property: {
-                    if(データベース型一致(property.Type,"Table",out var tableRecord)) {
-                        var sqlName = 属性名取得(property.GetAttributes(),"TableAttribute")??property.Name;
-                        builder.Add(new("Table",property.Name,sqlName,tableRecord,isTable: true));
-                    } else if(データベース型一致(property.Type,"View",out var viewRecord)) {
-                        var sqlName = 属性名取得(property.GetAttributes(),"ViewAttribute")??property.Name;
-                        builder.Add(new("View",property.Name,sqlName,viewRecord,isTable: false));
-                    }
+                case IPropertySymbol property when TryGetKeyedTableRecordType(property.Type,out var keyedTableRecord):
+                    builder.Add(CreateObject("Table",path,keyedTableRecord,"Table",property));
                     break;
-                }
-                case IMethodSymbol { MethodKind: MethodKind.Ordinary } method: {
-                    if(データベース型一致(method.ReturnType,"View",out var viewRecord)) {
-                        var sqlName = 属性名取得(method.GetAttributes(),"ViewAttribute")??method.Name;
-                        builder.Add(new("View",method.Name,sqlName,viewRecord,isTable: false));
-                    } else if(データベース型一致(method.ReturnType,"TableFunction",out var functionRecord)) {
-                        var sqlName = 属性名取得(method.GetAttributes(),"FunctionAttribute")??method.Name;
-                        builder.Add(new("TableFunction",method.Name,sqlName,functionRecord,isTable: false));
-                    } else if(属性名取得(method.GetAttributes(),"FunctionAttribute") is string scalarSqlName) {
-                        builder.Add(new("ScalarFunction",method.Name,scalarSqlName,method.ReturnType.ToDisplayString(完全修飾形式),isTable: false));
-                    }
+                case IPropertySymbol property when TryGetRecordType(property.Type,"Table",out var tableRecord):
+                    builder.Add(CreateObject("Table",path,tableRecord,"Table",property));
                     break;
-                }
+                case IPropertySymbol property when TryGetMaterializedRecordType(property.Type,out var materializedRecord):
+                    builder.Add(CreateObject("View",path,materializedRecord,"MaterializedView",property));
+                    break;
+                case IPropertySymbol property when TryGetRecordType(property.Type,"View",out var viewRecord):
+                    builder.Add(CreateObject("View",path,viewRecord,null,property));
+                    break;
+                case IMethodSymbol { MethodKind: MethodKind.Ordinary } method
+                    when TryGetRecordType(method.ReturnType,"View",out var viewRecord):
+                    builder.Add(CreateObject("View",path,viewRecord,null,method));
+                    break;
+                case IMethodSymbol { MethodKind: MethodKind.Ordinary } method
+                    when TryGetRecordType(method.ReturnType,"TableFunction",out var functionRecord):
+                    builder.Add(CreateObject("TableFunction",path,functionRecord,null,method));
+                    break;
+                case IMethodSymbol { MethodKind:MethodKind.Ordinary } method
+                    when TryGetRecordType(method.ReturnType,"ScalarFunction",out var scalarResult):
+                    builder.Add(CreateObject("ScalarFunction",path,scalarResult,null,method));
+                    break;
+                case IMethodSymbol { MethodKind:MethodKind.Ordinary } method
+                    when TryGetRecordType(method.ReturnType,"StoredProcedure",out var procedureResult):
+                    builder.Add(CreateObject("StoredProcedure",path,procedureResult,null,method));
+                    break;
+                case IPropertySymbol property when property.Type is INamedTypeSymbol schema&&IsSchema(schema):
+                    CollectObjects(schema,path,builder,visited);
+                    break;
             }
         }
-        return builder.ToImmutable();
+        visited.Remove(symbol);
     }
 
-    private static bool データベース型一致(ITypeSymbol type,string genericName,out string recordTypeName) {
+    private static bool IsSchema(INamedTypeSymbol symbol) {
+        for(var current=symbol;current is not null;current=current.BaseType) {
+            if(current.ToDisplayString()==SchemaBaseFullName) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static ObjectDeclaration CreateObject(
+        string kind,string name,ITypeSymbol recordType,string? importKind,ISymbol member) {
+        var location = member.Locations.FirstOrDefault(static location => location.IsInSource)??Location.None;
+        var typeName = recordType
+            .WithNullableAnnotation(NullableAnnotation.None)
+            .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        return new(kind,name,typeName,importKind,location);
+    }
+
+    private static bool TryGetMaterializedRecordType(ITypeSymbol type,out ITypeSymbol recordType) {
+        if(type is INamedTypeSymbol { IsGenericType: true } named
+            &&named.OriginalDefinition.Name=="MaterializedView"
+            &&named.OriginalDefinition.ContainingNamespace.ToDisplayString()==DatabaseNamespace
+            &&named.TypeArguments.Length==2) {
+            recordType=named.TypeArguments[1];
+            return true;
+        }
+        recordType=type;
+        return false;
+    }
+
+    private static bool TryGetKeyedTableRecordType(ITypeSymbol type,out ITypeSymbol recordType) {
+        if(type is INamedTypeSymbol { IsGenericType:true } named
+            &&named.OriginalDefinition.Name=="Table"
+            &&named.OriginalDefinition.ContainingNamespace.ToDisplayString()==DatabaseNamespace
+            &&named.TypeArguments.Length==2) {
+            recordType=named.TypeArguments[1];
+            return true;
+        }
+        recordType=type;
+        return false;
+    }
+
+    private static bool TryGetRecordType(ITypeSymbol type,string genericName,out ITypeSymbol recordType) {
         if(type is INamedTypeSymbol { IsGenericType: true } named
             &&named.OriginalDefinition.Name==genericName
             &&named.OriginalDefinition.ContainingNamespace.ToDisplayString()==DatabaseNamespace
             &&named.TypeArguments.Length==1) {
-            recordTypeName=named.TypeArguments[0].ToDisplayString(完全修飾形式);
+            recordType=named.TypeArguments[0];
             return true;
         }
-        recordTypeName=string.Empty;
+        recordType=type;
         return false;
     }
 
-    private static string コンテナソース構築(INamedTypeSymbol symbol,string? databaseName,ImmutableArray<オブジェクト宣言> declarations) {
+    private static bool ReportDiagnostics(SourceProductionContext context,ImmutableArray<ObjectDeclaration> declarations) {
+        var hasErrors = false;
+        foreach(var declaration in declarations.Where(static declaration => declaration.Name==ReservedCatalogName)) {
+            context.ReportDiagnostic(Diagnostic.Create(ReservedName,declaration.Location,declaration.Name));
+            hasErrors=true;
+        }
+        foreach(var group in declarations.GroupBy(static declaration => declaration.Name,StringComparer.Ordinal).Where(static group => group.Count()>1)) {
+            foreach(var declaration in group) {
+                context.ReportDiagnostic(Diagnostic.Create(DuplicateName,declaration.Location,declaration.Name));
+            }
+            hasErrors=true;
+        }
+        return hasErrors;
+    }
+
+    private static string BuildSource(INamedTypeSymbol symbol,ImmutableArray<ObjectDeclaration> declarations) {
         var builder = new StringBuilder();
         builder.AppendLine("// <auto-generated/>");
         builder.AppendLine("#nullable enable");
-        var namespaceName = 名前空間テキスト取得(symbol.ContainingNamespace);
+        var namespaceName = NamespaceName(symbol.ContainingNamespace);
         var indent = string.Empty;
         if(namespaceName.Length>0) {
             builder.AppendLine($"namespace {namespaceName} {{");
             indent="    ";
         }
 
-        builder.AppendLine($"{indent}partial class {symbol.Name} {{");
-        builder.AppendLine($"{indent}    private static readonly global::Seamless.Database.DatabaseObjectDeclaration[] GeneratedDatabaseObjects = [");
+        var className = Identifier(symbol.Name);
+        builder.AppendLine($"{indent}partial class {className} {{");
+        builder.AppendLine($"{indent}    private static readonly global::Seamless.Database.System.SystemTable<global::Seamless.Database.System.Keys.DatabaseObject,global::Seamless.Database.System.Records.DatabaseObject> GeneratedDatabaseObjects=");
+        builder.AppendLine($"{indent}        CreateSystemTable<global::Seamless.Database.System.Keys.DatabaseObject,global::Seamless.Database.System.Records.DatabaseObject>(");
+        builder.AppendLine($"{indent}            [");
+        builder.AppendLine($"{indent}                new(new(\"DatabaseObjects\"),global::Seamless.Database.System.DatabaseObjectKind.SystemTable,typeof(global::Seamless.Database.System.Records.DatabaseObject)),");
         foreach(var declaration in declarations) {
-            builder.AppendLine($"{indent}        new(global::Seamless.Database.DatabaseObjectKind.{declaration.Kind},\"{declaration.MemberName}\",\"{declaration.SqlName}\",\"{declaration.RecordTypeName.Replace("\"","\\\"")}\"),");
+            builder.AppendLine($"{indent}                new(new({Literal(declaration.Name)}),global::Seamless.Database.System.DatabaseObjectKind.{declaration.Kind},typeof({declaration.RecordTypeName})),");
         }
-        builder.AppendLine($"{indent}    ];");
-        if(databaseName is not null) {
-            builder.AppendLine($"{indent}    public override string DatabaseName=>\"{databaseName}\";");
-        }
-        builder.AppendLine($"{indent}    public override global::System.Collections.Generic.IReadOnlyList<global::Seamless.Database.DatabaseObjectDeclaration> DatabaseObjects=>GeneratedDatabaseObjects;");
+        builder.AppendLine($"{indent}            ],");
+        builder.AppendLine($"{indent}            static record=>record.Key);");
+        builder.AppendLine($"{indent}    public override global::Seamless.Database.System.SystemTable<global::Seamless.Database.System.Keys.DatabaseObject,global::Seamless.Database.System.Records.DatabaseObject> DatabaseObjects=>GeneratedDatabaseObjects;");
 
-        var tables = declarations.Where(static declaration => declaration.IsTable).ToImmutableArray();
-        builder.AppendLine($"{indent}    /// <summary>全テーブル実体を生成する。スキーマ作成に相当する設計時操作。</summary>");
+        var tables = declarations.Where(static declaration => declaration.ImportKind is not null).ToImmutableArray();
         builder.AppendLine($"{indent}    public void EnsureTablesCreated() {{");
         foreach(var table in tables) {
-            builder.AppendLine($"{indent}        _=this.{table.MemberName};");
+            builder.AppendLine($"{indent}        _=this.{MemberAccess(table.Name)};");
         }
         builder.AppendLine($"{indent}    }}");
 
-        builder.AppendLine($"{indent}    /// <summary>取り込み元(将来の AdventureWorks2008R2 本物バックアップ等)から全テーブルへ行を投入する。</summary>");
         builder.AppendLine($"{indent}    public void ImportTables(global::Seamless.Database.IDatabaseImportSource source) {{");
         foreach(var table in tables) {
-            builder.AppendLine($"{indent}        foreach(var row in source.ReadTable<{table.RecordTypeName}>(\"{table.SqlName}\")) {{");
-            builder.AppendLine($"{indent}            this.{table.MemberName}.Add(row);");
+            builder.AppendLine($"{indent}        foreach(var row in source.ReadTable<{table.RecordTypeName}>(new global::Seamless.Database.System.Keys.DatabaseObject({Literal(table.Name)}))) {{");
+            if(table.ImportKind=="Table") {
+                builder.AppendLine($"{indent}            _=this.{MemberAccess(table.Name)}.Add(row);");
+            } else {
+                builder.AppendLine($"{indent}            _=AddMaterializedViewRow(this.{MemberAccess(table.Name)},row);");
+            }
             builder.AppendLine($"{indent}        }}");
         }
         builder.AppendLine($"{indent}    }}");
@@ -186,5 +271,31 @@ public sealed class DatabaseContainerGenerator:IIncrementalGenerator {
             builder.AppendLine("}");
         }
         return builder.ToString();
+    }
+
+    private static string NamespaceName(INamespaceSymbol symbol)=>
+        symbol.IsGlobalNamespace ? string.Empty : symbol.ToDisplayString();
+
+    private static string Identifier(string name)=>
+        SyntaxFacts.GetKeywordKind(name)==SyntaxKind.None ? name : $"@{name}";
+
+    private static string MemberAccess(string path)=>
+        string.Join(".",path.Split('.').Select(Identifier));
+
+    private static string Literal(string value)=>
+        Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(value,quote: true);
+
+    private sealed class TypeTarget(INamedTypeSymbol symbol,bool isPartial) {
+        public INamedTypeSymbol Symbol { get; }=symbol;
+        public bool IsPartial { get; }=isPartial;
+    }
+
+    private sealed class ObjectDeclaration(
+        string kind,string name,string recordTypeName,string? importKind,Location location) {
+        public string Kind { get; }=kind;
+        public string Name { get; }=name;
+        public string RecordTypeName { get; }=recordTypeName;
+        public string? ImportKind { get; }=importKind;
+        public Location Location { get; }=location;
     }
 }

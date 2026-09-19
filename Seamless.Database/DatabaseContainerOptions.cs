@@ -17,6 +17,17 @@ public sealed record DatabaseContainerOptions {
     public long PageSize { get; init; } = Const.PageSize;
     public long SegmentSize { get; init; } = Const.SegmentSize;
     public long MemorySize { get; init; } = Const.LogMemorySize;
+    /// <summary>Optional per-relation Tsavorite sizes keyed by the full database object name.</summary>
+    public IReadOnlyDictionary<string,DatabaseTableStorageOptions> TableStorage { get; init; }=
+        new Dictionary<string,DatabaseTableStorageOptions>(StringComparer.Ordinal);
+    /// <summary>DBが管理する変更集合、シリアライズ、一時索引の共有メモリ上限。</summary>
+    public long ManagedMemoryLimitBytes { get; init; } = 256L<<20;
+    /// <summary>DBが管理する変更集合と一時索引の共有一時ストレージ上限。</summary>
+    public long TemporaryStorageLimitBytes { get; init; } = 16L<<30;
+    /// <summary>一時資源の配置先。未指定ならDBの保存先またはOS一時領域を使う。</summary>
+    public string? TemporaryDirectory { get; init; }
+    /// <summary>トランザクションのインメモリ変更量の上限。超過時はTsavorite一時ストアへ退避する。</summary>
+    public long TransactionMemoryLimit { get; init; } = 64L<<20;
 
     /// <summary>メモリ範囲内運用の既定オプション。</summary>
     public static DatabaseContainerOptions InMemory { get; } = new();
@@ -26,4 +37,12 @@ public sealed record DatabaseContainerOptions {
         StorageMode=DatabaseStorageMode.Storage,
         StorageDirectory=storageDirectory,
     };
+}
+
+/// <summary>Storage sizing for one table or materialized view.</summary>
+public sealed record DatabaseTableStorageOptions {
+    public long IndexSize { get; init; }
+    public long PageSize { get; init; }
+    public long SegmentSize { get; init; }
+    public long MemorySize { get; init; }
 }

@@ -1,43 +1,34 @@
----
-phase: code-basic-reverse
-reverse_document: true
-canonical_target: Document/Code/Basic/LayerMapping.md
-evidence_sources:
-  - Reverse/Code/Internal/
-  - Reverse/Code/External/
-derived_from:
-  - Reverse/Code/Internal/
-  - Reverse/Code/External/
-confidence: medium
-review_status: draft
----
-
 # Layer Mapping
 
-## レイヤー配置
+依存方向は上から下ではなく、次の矢印だけを許す。
 
-| レイヤー | 該当領域 | 説明 |
-|---|---|---|
-| Compile-time tooling | `FLinq`, `Seamless.Database`, `Seamless.Database.Generator` | Roslyn generator と generated source 生成。 |
-| Runtime domain | `Benchmark.Tsavorite.Collections/Collections`, `Stores`, `SessionFunctions` | collection 操作、store/session、永続/メモリ処理。 |
-| Runtime query support | `Benchmark.Tsavorite.Collections/Linq`, `LinqCounter` | query extension と instrumentation。 |
-| Infrastructure | `Devices`, serializers, checkpoint metadata | device、serialization、recovery metadata。 |
-| Test/benchmark | `Test*`, `Common`, `Benchmark workload projects` | correctness と performance 比較。 |
-| Tool UI | `Benchmark` | benchmark 実行の操作面と report。 |
+```mermaid
+flowchart TD
+    UI[Verification.UI / Verification.Cli] --> VI[Verification.Infrastructure]
+    VI --> VC[Verification.Core]
+    VI --> W[Headless / Worker adapters]
+    DBT[Database.Tool] --> SQL[Database.SqlServer]
+    SQL --> RDBMS[Database.Rdbms]
+    SQL --> DB[Seamless.Database]
+    DB --> LINQ[Seamless.Linq]
+    DB --> TS[Collections.Tsavorite]
+    LINQ --> P[Collections.Persisted]
+    LINQ --> TS
+    LINQ --> EX[Seamless.Execution]
+    P --> EX
+    DB --> EX
+    EX --> C[Seamless.Collections]
+    TS --> C
+    FL[FLinq.Generator] -. generated code .-> LINQ
+```
 
-## 依存方向
+## ガードレール
 
-- generator layer は Roslyn API と shared helper に依存する（`FLinq/FLinq.csproj:14`, `Seamless.Database/Seamless.Database.csproj:14`, `Seamless.Database.Generator/SourceGenerator/GeneratorHelpers.cs:3`）。
-- runtime collection layer は MemoryPack と Garnet/Tsavorite に依存する（`Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj:14`, `Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj:15`）。
-- tool UI は benchmark assemblies と BenchmarkDotNet に依存する（`Benchmark/Benchmark.UI/UI.csproj:33`, `Benchmark/Benchmark.UI/UI.csproj:34`）。
-
-## Review Gate: Code Basic
-
-### Confirmed
-- compile-time tooling と runtime library は明確に別レイヤーである。
-
-### Inferred
-- confidence: medium。`Benchmark/UI` は production runtime ではなく validation/measurement layer に置くのが自然である。
-
-### Unknown
-- CI 上の benchmark/test layer の正式運用。
+- `Seamless.Execution` はUI、Verification、Database、具体的な永続ストアへ依存しない。
+- `Seamless.Linq` はDB状態やUI状態を持たない。
+- Persisted／Tsavoriteは検証計画やLINQ実行方針を持たない。
+- FLinqが最適化するスコープ外のSystem.Linqは.NET意味論を維持する。
+- Verificationの型をBenchmark UI固有のViewModelへ依存させない。
+- ランタイム配布パッケージにVerification UI、SQLite結果DB、テストassemblyを含めない。
+- DBの保存形式変更は明示バックアップと明示初期化で行い、起動時の自動削除・自動移行を追加しない。
+- 共有ソースを追加・移動するときは `.projitems`、同じ場所の `.shproj`、`Seamless.slnx` を同時に更新する。

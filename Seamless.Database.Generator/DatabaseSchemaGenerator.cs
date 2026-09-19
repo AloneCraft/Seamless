@@ -1,296 +1,212 @@
-using static Seamless.Database.Generator.GeneratorHelpers;
-
-namespace Seamless.Database.Generator;
+﻿namespace Seamless.Database.Generator;
 
 [Generator]
 public sealed class DatabaseSchemaGenerator:IIncrementalGenerator {
+    private static readonly SymbolDisplayFormat FullTypeFormat=new(
+        globalNamespaceStyle:SymbolDisplayGlobalNamespaceStyle.Included,
+        typeQualificationStyle:SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+        genericsOptions:SymbolDisplayGenericsOptions.IncludeTypeParameters,
+        miscellaneousOptions:SymbolDisplayMiscellaneousOptions.ExpandNullable
+            |SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier
+            |SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
+
     public void Initialize(IncrementalGeneratorInitializationContext context) {
-        var typeTargets = context.SyntaxProvider
+        var targets=context.SyntaxProvider
             .CreateSyntaxProvider(
-                static (node,_) => node is TypeDeclarationSyntax,
-                static (syntaxContext,_) => 型対象生成(syntaxContext))
-            .Where(static target => target is not null)
-            .Select(static (target,_) => target!);
+                static (node,_)=>node is TypeDeclarationSyntax,
+                static (syntaxContext,_)=>CreateTarget(syntaxContext))
+            .Where(static target=>target is not null)
+            .Select(static (target,_)=>target!);
 
-        context.RegisterSourceOutput(typeTargets.Collect(),static (productionContext,typeTargets) => {
-            if(!typeTargets.IsDefaultOrEmpty) {
-                var databaseSource = データベースソース構築(typeTargets);
-                if(databaseSource.Length>0) {
-                    productionContext.AddSource("Seamless.FLinq.Schema.g.cs",SourceText.From(空行除去(databaseSource),Encoding.UTF8));
-                }
-            }
-        });
+        context.RegisterSourceOutput(targets.Collect(),static (productionContext,collected)=>Generate(productionContext,collected));
     }
 
-    private static 型対象型? 型対象生成(GeneratorSyntaxContext context) {
-        if(context.Node is not TypeDeclarationSyntax declaration) {
+    private static TypeTarget? CreateTarget(GeneratorSyntaxContext context) {
+        var declaration=(TypeDeclarationSyntax)context.Node;
+        if(context.SemanticModel.GetDeclaredSymbol(declaration) is not INamedTypeSymbol symbol) {
             return null;
         }
-
-        var symbol = context.SemanticModel.GetDeclaredSymbol(declaration);
-        if(symbol is null) {
-            return null;
-        }
-
-        var isMarker = symbol.Name=="DatabaseGenerator";
-        var isPartial = declaration.Modifiers.Any(SyntaxKind.PartialKeyword);
-        var isContainerCandidate = symbol.TypeKind==TypeKind.Class;
-        if(!isMarker&&!isPartial&&!isContainerCandidate) {
-            return null;
-        }
-
-        return new 型対象型(symbol,isPartial);
+        return new(symbol,declaration.Modifiers.Any(SyntaxKind.PartialKeyword));
     }
 
-    private sealed class 型対象型(INamedTypeSymbol symbol,bool isPartial) {
-        public INamedTypeSymbol Symbol { get; } = symbol;
-        public bool IsPartial { get; } = isPartial;
-    }
-
-    private static string データベースソース構築(ImmutableArray<型対象型> typeTargets) {
-        var builder = new StringBuilder();
-        var rootNamespaces = typeTargets
-            .Where(static target => target.Symbol.Name=="DatabaseGenerator")
-            .Select(static target => 名前空間テキスト取得(target.Symbol.ContainingNamespace))
+    private static void Generate(SourceProductionContext context,ImmutableArray<TypeTarget> targets) {
+        if(targets.IsDefaultOrEmpty) {
+            return;
+        }
+        var uniqueTargets=targets
+            .GroupBy(static target=>target.Symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),StringComparer.Ordinal)
+            .Select(static group=>new TypeTarget(group.First().Symbol,group.Any(static target=>target.IsPartial)))
+            .ToArray();
+        var markerNamespaces=uniqueTargets
+            .Where(static target=>target.Symbol.Name=="DatabaseGenerator")
+            .Select(static target=>NamespaceName(target.Symbol.ContainingNamespace))
             .Distinct(StringComparer.Ordinal)
             .ToArray();
-        if(rootNamespaces.Length==0) {
-            return string.Empty;
-        }
-        builder.AppendLine("#pragma warning disable CS0164, CS8601, CS8981");
-
-        foreach(var rootNamespace in rootNamespaces) {
-            var keys = typeTargets
-                .Where(target => target.IsPartial
-                    &&target.Symbol.TypeKind==TypeKind.Struct
-                    &&名前空間一致判定(target.Symbol.ContainingNamespace.ToDisplayString(),rootNamespace,"Keys"))
-                .Select(target => target.Symbol)
-                .GroupBy(static symbol => symbol.ToDisplayString(完全修飾形式),StringComparer.Ordinal)
-                .Select(static group => group.First())
-                .OrderBy(static symbol => symbol.Name,StringComparer.Ordinal)
-                .ToArray();
-            var types = typeTargets
-                .Where(target => target.IsPartial
-                    &&target.Symbol.TypeKind==TypeKind.Struct
-                    &&名前空間一致判定(target.Symbol.ContainingNamespace.ToDisplayString(),rootNamespace,"Records"))
-                .Select(target => target.Symbol)
-                .GroupBy(static symbol => symbol.ToDisplayString(完全修飾形式),StringComparer.Ordinal)
-                .Select(static group => group.First())
-                .OrderBy(static symbol => symbol.Name,StringComparer.Ordinal)
-                .ToArray();
-            var keysNamespace = string.IsNullOrEmpty(rootNamespace)
-                ? "Keys"
-                : $"{rootNamespace}.Keys";
-            var recordsNamespace = string.IsNullOrEmpty(rootNamespace)
-                ? "Records"
-                : $"{rootNamespace}.Records";
-
-            if(keys.Length>0) {
-                builder.AppendLine($"// Generated: schema key records declared under {keysNamespace}.");
-                builder.AppendLine($"namespace {keysNamespace} {{");
-                foreach(var key in keys) {
-                    レコードソース本体追記(builder,key,"    ");
-                }
-                builder.AppendLine("}");
-                builder.AppendLine();
-            }
-
-            if(types.Length>0) {
-                builder.AppendLine($"// Generated: schema row/value records declared under {recordsNamespace}.");
-                builder.AppendLine($"namespace {recordsNamespace} {{");
-                foreach(var type in types) {
-                    レコードソース本体追記(builder,type,"    ");
-                }
-                builder.AppendLine("}");
-                builder.AppendLine();
-            }
-        }
-
-        return builder.ToString();
-    }
-
-    // Key / Record の partial struct を、MemoryPack で保存できる完全な schema record にする。
-    // unmanaged フィールドは _u、managed フィールドは _m に寄せ、backend から扱いやすい形へ整える。
-    private static void レコードソース本体追記(StringBuilder builder,INamedTypeSymbol symbol,string indent) {
-        var properties = 生成対象プロパティ取得(symbol);
-        if(properties.Length==0) {
+        if(markerNamespaces.Length==0) {
             return;
         }
 
-        var symbolTypeName = symbol.ToDisplayString(完全修飾形式);
-
-        var unmanagedProperties = properties.Where(static property => property.Type.IsUnmanagedType).ToImmutableArray();
-        var managedProperties = properties.Where(static property => !property.Type.IsUnmanagedType).ToImmutableArray();
-
-        var innerBuilder = new StringBuilder();
-        {
-            var indentedBuilder = innerBuilder;
-            indentedBuilder.AppendLine($"// Generated: completed schema record for {symbolTypeName}. unmanaged data lives in _u and managed data lives in _m.");
-            indentedBuilder.AppendLine($"partial struct {symbol.Name}:global::MemoryPack.IMemoryPackable<{symbolTypeName}> {{");
-            indentedBuilder.AppendLine($"    public {symbol.Name}({string.Join(", ",properties.Select(static property => $"{property.Type.ToDisplayString(完全修飾形式)} {パラメーター名取得(property)}"))}) {{");
-            if(unmanagedProperties.Length>0) {
-                indentedBuilder.AppendLine($"        this._u=new({string.Join(", ",unmanagedProperties.Select(static property => パラメーター名取得(property)))});");
-            } else {
-                indentedBuilder.AppendLine("        this._u=new();");
-            }
-            if(managedProperties.Length>0) {
-                indentedBuilder.AppendLine($"        this._m=new({string.Join(", ",managedProperties.Select(static property => パラメーター名取得(property)))});");
-            } else {
-                indentedBuilder.AppendLine("        this._m=new();");
-            }
-            indentedBuilder.AppendLine("    }");
-            indentedBuilder.AppendLine();
-            非管理レコードソース追記(indentedBuilder,unmanagedProperties);
-            indentedBuilder.AppendLine("    private _U _u;");
-            indentedBuilder.AppendLine();
-            管理レコードソース追記(indentedBuilder,managedProperties);
-            indentedBuilder.AppendLine("    private _M _m;");
-            indentedBuilder.AppendLine();
-            foreach(var property in properties) {
-                indentedBuilder.AppendLine($"    public partial {property.Type.ToDisplayString(完全修飾形式)} {property.Name} => this.{格納先名取得(property)}.{property.Name};");
-            }
-            indentedBuilder.AppendLine();
-            indentedBuilder.AppendLine($"    static {symbol.Name}() {{");
-            indentedBuilder.AppendLine($"        global::MemoryPack.MemoryPackFormatterProvider.Register<{symbolTypeName}>();");
-            indentedBuilder.AppendLine("    }");
-            indentedBuilder.AppendLine();
-            indentedBuilder.AppendLine("    static void global::MemoryPack.IMemoryPackFormatterRegister.RegisterFormatter() {");
-            indentedBuilder.AppendLine($"        if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<{symbolTypeName}>()) {{");
-            indentedBuilder.AppendLine($"            global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.MemoryPackableFormatter<{symbolTypeName}>());");
-            indentedBuilder.AppendLine("        }");
-            indentedBuilder.AppendLine($"        if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<{symbolTypeName}[]>()) {{");
-            indentedBuilder.AppendLine($"            global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.ArrayFormatter<{symbolTypeName}>());");
-            indentedBuilder.AppendLine("        }");
-            indentedBuilder.AppendLine("    }");
-            indentedBuilder.AppendLine();
-            indentedBuilder.AppendLine($"    static void global::MemoryPack.IMemoryPackable<{symbolTypeName}>.Serialize<TBufferWriter>(ref global::MemoryPack.MemoryPackWriter<TBufferWriter> writer,scoped ref {symbolTypeName} value) {{");
-            indentedBuilder.AppendLine("        writer.WriteUnmanaged(value._u);");
-            indentedBuilder.AppendLine("        writer.WritePackable(value._m);");
-            indentedBuilder.AppendLine("    }");
-            indentedBuilder.AppendLine();
-            indentedBuilder.AppendLine($"    static void global::MemoryPack.IMemoryPackable<{symbolTypeName}>.Deserialize(ref global::MemoryPack.MemoryPackReader reader,scoped ref {symbolTypeName} value) {{");
-            indentedBuilder.AppendLine("        reader.ReadUnmanaged(out value._u);");
-            indentedBuilder.AppendLine("        reader.ReadPackable(ref value._m);");
-            indentedBuilder.AppendLine("    }");
-            indentedBuilder.AppendLine("}");
+        var records=uniqueTargets
+            .Where(static target=>target.IsPartial
+                &&target.Symbol.TypeKind==TypeKind.Struct
+                &&target.Symbol.Arity==0
+                &&target.Symbol.ContainingType is null)
+            .Where(target=>markerNamespaces.Any(root=>IsSchemaNamespace(
+                NamespaceName(target.Symbol.ContainingNamespace),root)))
+            .Select(static target=>target.Symbol)
+            .OrderBy(static symbol=>NamespaceName(symbol.ContainingNamespace),StringComparer.Ordinal)
+            .ThenBy(static symbol=>symbol.Name,StringComparer.Ordinal)
+            .ToArray();
+        if(records.Length==0) {
+            return;
         }
-        インデント付き追記(builder,innerBuilder.ToString(),indent);
-        builder.AppendLine();
+
+        var builder=new StringBuilder();
+        builder.AppendLine("// <auto-generated/>");
+        builder.AppendLine("#nullable enable");
+        builder.AppendLine("#pragma warning disable CS0164, CS8601, CS8981");
+        foreach(var namespaceGroup in records.GroupBy(static symbol=>NamespaceName(symbol.ContainingNamespace),StringComparer.Ordinal)) {
+            builder.AppendLine($"namespace {namespaceGroup.Key} {{");
+            foreach(var symbol in namespaceGroup) {
+                AppendRecord(builder,symbol,"    ");
+            }
+            builder.AppendLine("}");
+        }
+        context.AddSource("Seamless.Database.Schema.g.cs",SourceText.From(builder.ToString(),Encoding.UTF8));
     }
 
-    private static ImmutableArray<IPropertySymbol> 生成対象プロパティ取得(INamedTypeSymbol symbol) {
-        var builder = ImmutableArray.CreateBuilder<IPropertySymbol>();
+    private static void AppendRecord(StringBuilder builder,INamedTypeSymbol symbol,string indent) {
+        var properties=GetProperties(symbol);
+        if(properties.Length==0) {
+            return;
+        }
+        var typeName=symbol.ToDisplayString(FullTypeFormat);
+        builder.AppendLine($"{indent}partial struct {symbol.Name}:global::MemoryPack.IMemoryPackable<{typeName}> {{");
+        builder.Append($"{indent}    public {symbol.Name}(");
+        for(var index=0;index<properties.Length;index++) {
+            if(index>0) {
+                builder.Append(',');
+            }
+            builder.Append($"{TypeName(properties[index].Type)} value{index}");
+        }
+        builder.AppendLine(") {");
+        for(var index=0;index<properties.Length;index++) {
+            builder.AppendLine($"{indent}        this._value{index}=value{index};");
+        }
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine();
+        for(var index=0;index<properties.Length;index++) {
+            builder.AppendLine($"{indent}    private {TypeName(properties[index].Type)} _value{index};");
+            builder.AppendLine($"{indent}    public partial {TypeName(properties[index].Type)} {properties[index].Name} {{ get=>this._value{index}; }}");
+        }
+        builder.AppendLine();
+        builder.AppendLine($"{indent}    static {symbol.Name}() {{");
+        builder.AppendLine($"{indent}        global::MemoryPack.MemoryPackFormatterProvider.Register<{typeName}>();");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine();
+        builder.AppendLine($"{indent}    static void global::MemoryPack.IMemoryPackFormatterRegister.RegisterFormatter() {{");
+        builder.AppendLine($"{indent}        if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<{typeName}>()) {{");
+        builder.AppendLine($"{indent}            global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.MemoryPackableFormatter<{typeName}>());");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}        if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<{typeName}[]>()) {{");
+        builder.AppendLine($"{indent}            global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.ArrayFormatter<{typeName}>());");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine();
+        builder.AppendLine($"{indent}    static void global::MemoryPack.IMemoryPackable<{typeName}>.Serialize<TBufferWriter>(ref global::MemoryPack.MemoryPackWriter<TBufferWriter> writer,scoped ref {typeName} value) {{");
+        for(var index=0;index<properties.Length;index++) {
+            builder.AppendLine($"{indent}        {Serialize(properties[index],index)}");
+        }
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine();
+        builder.AppendLine($"{indent}    static void global::MemoryPack.IMemoryPackable<{typeName}>.Deserialize(ref global::MemoryPack.MemoryPackReader reader,scoped ref {typeName} value) {{");
+        for(var index=0;index<properties.Length;index++) {
+            builder.AppendLine($"{indent}        {Deserialize(properties[index],index)}");
+        }
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}}}");
+    }
+
+    private static ImmutableArray<IPropertySymbol> GetProperties(INamedTypeSymbol symbol) {
+        var builder=ImmutableArray.CreateBuilder<IPropertySymbol>();
         foreach(var property in symbol.GetMembers().OfType<IPropertySymbol>()) {
-            if(プロパティ生成対象判定(property)) {
+            if(IsPartialDefinition(property)) {
                 builder.Add(property);
             }
         }
         return builder.ToImmutable();
     }
 
-    private static bool プロパティ生成対象判定(IPropertySymbol property) {
-        foreach(var syntaxReference in property.DeclaringSyntaxReferences) {
-            if(syntaxReference.GetSyntax() is not PropertyDeclarationSyntax syntax) {
+    private static bool IsPartialDefinition(IPropertySymbol property) {
+        foreach(var reference in property.DeclaringSyntaxReferences) {
+            if(reference.GetSyntax() is not PropertyDeclarationSyntax syntax
+                ||!syntax.Modifiers.Any(SyntaxKind.PartialKeyword)
+                ||syntax.ExpressionBody is not null
+                ||syntax.AccessorList?.Accessors.Count!=1) {
                 continue;
             }
-            if(!syntax.Modifiers.Any(SyntaxKind.PartialKeyword)) {
-                continue;
+            var accessor=syntax.AccessorList.Accessors[0];
+            if(accessor.IsKind(SyntaxKind.GetAccessorDeclaration)
+                &&accessor.Body is null
+                &&accessor.ExpressionBody is null) {
+                return true;
             }
-            if(syntax.ExpressionBody is not null) {
-                continue;
-            }
-            if(syntax.AccessorList is null||syntax.AccessorList.Accessors.Count!=1) {
-                continue;
-            }
-            var accessor = syntax.AccessorList.Accessors[0];
-            if(accessor.Kind()!=SyntaxKind.GetAccessorDeclaration) {
-                continue;
-            }
-            if(accessor.Body is not null||accessor.ExpressionBody is not null) {
-                continue;
-            }
-            return true;
         }
         return false;
     }
 
-    private static string パラメーター名取得(IPropertySymbol property) {
-        return パラメーター名取得(property.Name);
-    }
-
-    private static string パラメーター名取得(string name) {
-        if(string.IsNullOrEmpty(name)) {
-            return "value";
+    private static string Serialize(IPropertySymbol property,int index) {
+        if(TryGetNullableValueType(property.Type,out _)) {
+            return $"writer.WriteUnmanaged(value._value{index}.HasValue); if(value._value{index}.HasValue) {{ var item=value._value{index}.GetValueOrDefault(); writer.WriteUnmanaged(item); }}";
         }
-        if(name.Length==1) {
-            return char.ToLowerInvariant(name[0]).ToString();
-        }
-        return char.ToLowerInvariant(name[0])+name[1..];
-    }
-
-    private static bool 名前空間一致判定(string candidateNamespace,string rootNamespace,string childNamespace) {
-        return string.Equals(candidateNamespace,$"{rootNamespace}.{childNamespace}",StringComparison.OrdinalIgnoreCase);
-    }
-
-    // unmanaged フィールドは record struct にまとめて一括シリアライズしやすくする。
-    private static void 非管理レコードソース追記(StringBuilder builder,ImmutableArray<IPropertySymbol> unmanagedProperties) {
-        if(unmanagedProperties.Length>0) {
-            builder.AppendLine($"    private readonly record struct _U({string.Join(", ",unmanagedProperties.Select(static property => $"{property.Type.ToDisplayString(完全修飾形式)} {property.Name}"))});");
-            return;
-        }
-
-        builder.AppendLine("    private struct _U {");
-        builder.AppendLine("    }");
-    }
-
-    // managed フィールドは MemoryPackable な _M 側へ寄せ、型別の serialize / deserialize 文をここで組み立てる。
-    private static void 管理レコードソース追記(StringBuilder builder,ImmutableArray<IPropertySymbol> managedProperties) {
-        builder.AppendLine("    private struct _M:global::MemoryPack.IMemoryPackable<_M> {");
-        foreach(var property in managedProperties) {
-            builder.AppendLine($"        public {property.Type.ToDisplayString(完全修飾形式)} {property.Name};");
-        }
-        if(managedProperties.Length>0) {
-            builder.AppendLine();
-            builder.AppendLine($"        public _M({string.Join(", ",managedProperties.Select(static property => $"{property.Type.ToDisplayString(完全修飾形式)} {パラメーター名取得(property)}"))}) {{");
-            foreach(var property in managedProperties) {
-                builder.AppendLine($"            this.{property.Name}={パラメーター名取得(property)};");
-            }
-            builder.AppendLine("        }");
-            builder.AppendLine();
-        }
-        builder.AppendLine("        static void global::MemoryPack.IMemoryPackFormatterRegister.RegisterFormatter() {");
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        static void global::MemoryPack.IMemoryPackable<_M>.Serialize<TBufferWriter>(ref global::MemoryPack.MemoryPackWriter<TBufferWriter> writer,scoped ref _M value) {");
-        foreach(var property in managedProperties) {
-            builder.AppendLine($"            {管理シリアライズ文構築(property)}");
-        }
-        builder.AppendLine("        }");
-        builder.AppendLine();
-        builder.AppendLine("        static void global::MemoryPack.IMemoryPackable<_M>.Deserialize(ref global::MemoryPack.MemoryPackReader reader,scoped ref _M value) {");
-        foreach(var property in managedProperties) {
-            builder.AppendLine($"            {管理デシリアライズ文構築(property)}");
-        }
-        builder.AppendLine("        }");
-        builder.AppendLine("    }");
-    }
-
-    private static string 管理シリアライズ文構築(IPropertySymbol property) {
-        var propertyAccess = $"value.{property.Name}";
         if(property.Type.SpecialType==SpecialType.System_String) {
-            return $"writer.WriteString({propertyAccess});";
+            return $"writer.WriteString(value._value{index});";
         }
-        return $"writer.WritePackable({propertyAccess});";
+        if(property.Type is IArrayTypeSymbol) {
+            return $"writer.WriteArray(value._value{index});";
+        }
+        if(property.Type.IsUnmanagedType) {
+            return $"writer.WriteUnmanaged(value._value{index});";
+        }
+        return $"writer.WritePackable(value._value{index});";
     }
 
-    private static string 管理デシリアライズ文構築(IPropertySymbol property) {
+    private static string Deserialize(IPropertySymbol property,int index) {
+        if(TryGetNullableValueType(property.Type,out var underlyingType)) {
+            return $"reader.ReadUnmanaged(out bool hasValue{index}); if(hasValue{index}) {{ reader.ReadUnmanaged(out {TypeName(underlyingType)} item{index}); value._value{index}=item{index}; }} else {{ value._value{index}=null; }}";
+        }
         if(property.Type.SpecialType==SpecialType.System_String) {
-            return $"value.{property.Name}=reader.ReadString()!;";
+            return $"value._value{index}=reader.ReadString()!;";
         }
-        return $"reader.ReadPackable(ref value.{property.Name});";
+        if(property.Type is IArrayTypeSymbol) {
+            return $"reader.ReadArray(ref value._value{index});";
+        }
+        if(property.Type.IsUnmanagedType) {
+            return $"reader.ReadUnmanaged(out value._value{index});";
+        }
+        return $"reader.ReadPackable(ref value._value{index});";
     }
 
-    private static string 格納先名取得(IPropertySymbol property) {
-        return property.Type.IsUnmanagedType ? "_u" : "_m";
+    private static bool TryGetNullableValueType(ITypeSymbol type,out ITypeSymbol underlyingType) {
+        if(type is INamedTypeSymbol { IsGenericType:true } named
+            &&named.OriginalDefinition.SpecialType==SpecialType.System_Nullable_T) {
+            underlyingType=named.TypeArguments[0];
+            return true;
+        }
+        underlyingType=type;
+        return false;
     }
+
+    private static string TypeName(ITypeSymbol type)=>type.ToDisplayString(FullTypeFormat);
+
+    private static bool IsSchemaNamespace(string candidate,string root) {
+        var keys=root.Length==0?"Keys":$"{root}.Keys";
+        var records=root.Length==0?"Records":$"{root}.Records";
+        return candidate==keys
+            ||candidate==records;
+    }
+
+    private static string NamespaceName(INamespaceSymbol symbol)=>symbol.IsGlobalNamespace?string.Empty:symbol.ToDisplayString();
+
+    private sealed record TypeTarget(INamedTypeSymbol Symbol,bool IsPartial);
 }

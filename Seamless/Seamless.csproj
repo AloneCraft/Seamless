@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Seamless.Execution\Seamless.Execution.csproj" />
     <ProjectReference Include="..\Seamless.Collections\Seamless.Collections.csproj" />
     <ProjectReference Include="..\Seamless.Linq\Seamless.Linq.csproj" />
     <ProjectReference Include="..\Seamless.Collections.Persisted\Seamless.Collections.Persisted.csproj" />
