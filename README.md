@@ -9,8 +9,8 @@
 | パッケージ | 依存 | 用途 |
 |---|---|---|
 | `Seamless.Collections` | MemoryPack | コレクション契約 (`ISet` / `IRecord`)、シリアライザ、メモリマップドリスト基盤 |
-| `Seamless.Collections.Persisted` | ↑ | ファイル backed の `Set` / `Dictionary` / `AppendOnlyList` |
-| `Seamless.Collections.Tsavorite` | ↑基盤 + Microsoft.Garnet | Tsavorite backed の `HashSet` / `Dictionary` / `Set` |
+| `Seamless.Collections.Persisted` | ↑ + Seamless.Execution | ファイル backed の `Set` / `Dictionary` / `AppendOnlyList` |
+| `Seamless.Collections.Tsavorite` | ↑基盤 + Seamless.Execution + Microsoft.Garnet | Tsavorite backed の `HashSet` / `Dictionary` / `Set` |
 | `Seamless.Linq` | Collections.Persisted / .Tsavorite | value-enumerable な LINQ ランタイム |
 | `Seamless.Database` | Collections.Tsavorite | 宣言的データベースコンテナ (`Table` / `View` / `TableFunction`) |
 | `Seamless` | 上記すべて | まとめて入れるファサード |
@@ -28,7 +28,35 @@
 
 ## 使い方
 
-### ファイル backed のコレクション
+### 共通ストアから作る（推奨）
+
+保存場所・寿命・メモリとディスクの上限は `Seamless.Execution.Store` が持ち、コレクションは各ライブラリの拡張メソッドでストアから作ります。デバイス、保存フォルダ、索引の大きさはストアの種類と上限から自動で決まります。
+
+```csharp
+using Seamless.Collections.Tsavorite;   // CreateTsavorite / CreateTsavoriteHashSet
+using Seamless.Collections.Persisted;   // CreatePersistedSet / CreatePersistedList / CreatePersistedDictionary
+
+// 一時: Store.CreateTemporary()   破棄でフォルダごと削除。メモリ上限を超えた分はディスクへ退避
+// 永続: Store.Open(path)          Save() した時点だけが確定し、開き直すとその時点へ戻る
+// メモリ: Store.CreateMemory()     ディスクを使わない。上限を超えると ResourceLimitException
+using var store = Seamless.Execution.Store.Open(@"C:\data\app", new() { MemoryBytes = 1L << 30, DiskBytes = 64L << 30 });
+
+using var orders = store.CreateTsavoriteHashSet<long>("orders", expectedCount: 10_000_000); // データ本体
+using (var set = orders.Create()) {        // 操作用オブジェクト（スレッドごとに作る）
+    set.Add(1);
+}
+var ids = store.CreatePersistedSet<long>("ids");   // Persisted は内部の作業用。件数は呼び出し側が管理する
+ids.Add(2);
+
+store.Save();                               // Tsavorite と Persisted をまとめて確定
+```
+
+- Tsavorite の件数はデータ本体が管理します。`Create()` の操作用オブジェクトは追加・削除のたびに件数を増減し、並列処理用の `CreateUncounted()` は増減しないので、集計した差分を `ApplyCountDelta` で反映します。
+- 索引は件数に応じて自動で拡張します。ただし複数の操作用オブジェクトが同時に生きている間は拡張しないので、並列で大量に入れる場合は `expectedCount` を渡してください。
+- 等価判定はシリアライズ後のバイト列の一致です。
+- Persisted はファイルを使うため、メモリストアでは作れません。
+
+### ファイル backed のコレクション（旧 API）
 
 ```csharp
 using Seamless.Collections.Persisted;
@@ -49,7 +77,7 @@ dict.Add(7, "seven");
 <PackageReference Include="MemoryPack" Version="1.*" />
 ```
 
-### Tsavorite backed のコレクション
+### Tsavorite backed のコレクション（旧 API）
 
 ```csharp
 using Seamless.Collections.Tsavorite;

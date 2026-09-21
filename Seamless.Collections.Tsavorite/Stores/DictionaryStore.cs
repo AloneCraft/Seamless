@@ -23,6 +23,11 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
         this.valueUsesMemoryPackSerializer=valueUsesMemoryPackSerializer;
     }
 
+    internal DictionaryStore(TsavoriteLayout layout) : base(layout) {
+        this.keyUsesMemoryPackSerializer=RuntimeHelpers.IsReferenceOrContainsReferences<TKey>();
+        this.valueUsesMemoryPackSerializer=RuntimeHelpers.IsReferenceOrContainsReferences<TValue>();
+    }
+
     public IDictionary<TKey,TValue> Create() {
         if(this.keyUsesMemoryPackSerializer) {
             if(this.valueUsesMemoryPackSerializer) {
@@ -46,6 +51,16 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
             typeof(Dictionary<,,,>),
             typeof(BlittableSerializer<>),
             typeof(BlittableSerializer<>));
+    }
+
+    /// <summary>
+    /// 件数を保持しない操作用オブジェクト。1 つの処理の中で並列化するときに使う。
+    /// 増減は呼び出し側で集計し、最後に ApplyCountDelta で反映する。
+    /// </summary>
+    public IDictionary<TKey,TValue> CreateUncounted() {
+        var dictionary = this.Create();
+        ((IUncountableAccessor)dictionary).DisableCounting();
+        return dictionary;
     }
 
     private protected override long GetRecoveryEntryCount() {

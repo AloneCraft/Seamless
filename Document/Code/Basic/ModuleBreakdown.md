@@ -4,10 +4,10 @@
 
 | モジュール | プロジェクト | 責務 |
 |---|---|---|
-| 実行契約 | `Seamless.Execution` | 実行スコープ、共有資源予算、Codec、一時資源所有、キャンセル、残骸回収 |
+| 実行契約 | `Seamless.Execution` | 実行スコープ、共有資源予算、Codec、一時資源所有、キャンセル、残骸回収、共通ストア（`Store`：一時・永続・メモリの寿命、メモリとディスクの上限、明示保存と復元、エンジンの子資源登録） |
 | コレクション契約 | `Seamless.Collections` | 共通インターフェース、Serializer契約、データ構造 |
-| 永続コレクション | `Seamless.Collections.Persisted` | ファイル列、スコープ所有の保存列・バイト索引 |
-| Tsavoriteコレクション | `Seamless.Collections.Tsavorite` | ログ／索引／deviceを使うSet・Dictionary実装 |
+| 永続コレクション | `Seamless.Collections.Persisted` | ファイル列、スコープ所有の保存列・バイト索引、共通ストアからの作成（`CreatePersisted*`：ディスク上限の確認、保存時点への復元） |
+| Tsavoriteコレクション | `Seamless.Collections.Tsavorite` | ログ／索引／deviceを使うSet・Dictionary実装、共通ストアからの作成（`CreateTsavorite*`：デバイス自動選択、上限、件数管理、索引の自動拡張、保存と復元） |
 | クエリ実行 | `Seamless.Linq` | 逐次演算、外部ソート、退避可能GroupBy・Join・集合演算 |
 | コンパイル時最適化 | `Seamless.FLinq.Generator` | System.Linq呼び出しの解析、Fragment最適化、interceptor生成 |
 | DBランタイム | `Seamless.Database` | テーブル、read session、transaction、共有予算、WAL、復旧、materialized view |

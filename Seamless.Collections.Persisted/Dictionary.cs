@@ -48,10 +48,14 @@ where TKey : notnull {
     internal void SetDisposeAction(Action? action) =>
         this.dictionary.SetDisposeAction(action);
 
+    // 実体はどちらも SerializedList 派生なので、保存・復元・予算の口を持つ。
+    internal IPersistedCommittable Committable => (IPersistedCommittable)this.dictionary;
+
     private static IPersistedDictionary<TKey,TValue> CreateCore(string path,long initialCapacity,long initialDataCapacity,StorageTuning? tuning) {
+        // キーと値の両方が固定長なら、AutoSerializer は BlittableDictionary と同じ生バイトを書く(リフレクション不要)。
+        // どちらかが参照を含むときは、従来どおり両方とも MemoryPack にしてファイル形式を変えない。
         if(!RuntimeHelpers.IsReferenceOrContainsReferences<TKey>()&&!RuntimeHelpers.IsReferenceOrContainsReferences<TValue>()) {
-            var type = typeof(BlittableDictionary<,>).MakeGenericType(typeof(TKey),typeof(TValue));
-            return (IPersistedDictionary<TKey,TValue>)Activator.CreateInstance(type,path,initialCapacity,initialDataCapacity,tuning)!;
+            return new SerializedDictionary<TKey,TValue,AutoSerializer<TKey>,AutoSerializer<TValue>>(path,initialCapacity,initialDataCapacity,tuning);
         }
 
         return new SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(path,initialCapacity,initialDataCapacity,tuning);
@@ -194,13 +198,18 @@ public class SerializedDictionary<TKey, TValue, TKeySerializer, TValueSerializer
     IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.EnumerateLatest().GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => this.EnumerateLatest().GetEnumerator();
 
+    // 同じキーを後から Add すると後勝ちで、古いレコードもファイルに残る。全件を辞書に載せる代わりに、
+    // レコードを順に読み、キー索引が指す最新のオフセットと一致するレコードだけを返す(メモリに全件を持たない)。
     private IEnumerable<KeyValuePair<TKey,TValue>> EnumerateLatest() {
-        var latest = new global::System.Collections.Generic.Dictionary<TKey,TValue>();
-        foreach(var entry in (IEnumerable<Entry>)this) {
-            latest[entry.Key]=entry.Value;
-        }
-        foreach(var pair in latest) {
-            yield return pair;
+        // Count(int) は相異キー数を返すよう隠しているので、レコード数は基底の long Count から読む。
+        var count = ((PersistedList<Entry>)this).Count;
+        for(var index = 0L;index<count;index++) {
+            var recordOffset = this.GetRecordOffset(index);
+            var payload = this.ReadRecordPayload(recordOffset);
+            if(this.TryLookupKey(this.ExtractKeyBytes(payload),out var latestOffset)&&latestOffset==recordOffset) {
+                var entry = EntrySerializer.Deserialize(payload);
+                yield return new(entry.Key,entry.Value);
+            }
         }
     }
 

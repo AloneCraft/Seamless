@@ -1,5 +1,10 @@
 namespace Seamless.Collections.Tsavorite;
 
+/// <summary>データ本体の件数を増減しない操作用オブジェクト(CreateUncounted)にするための内部の口。</summary>
+internal interface IUncountableAccessor {
+    void DisableCounting();
+}
+
 [DebuggerDisplay("EntryCount={EntryCount}")]
 public abstract class Collection<
     TKey,
@@ -11,7 +16,7 @@ public abstract class Collection<
     TContainsDeleteFunctions,
     TStoreFunctions,
     TAllocator
->:IDisposable where TReadFunctions : struct, ISessionFunctions<
+>:IDisposable, IUncountableAccessor where TReadFunctions : struct, ISessionFunctions<
         EqualityEmpty,
         TReadOutput,
         EqualityEmpty
@@ -182,8 +187,12 @@ public abstract class Collection<
     }
     public long GetLongCount() {
         this.VerifyThreadAffinity();
+        if(this.CollectionStore.TryGetManagedCount(out var managed)) {
+            return managed;
+        }
+        // 共通ストアから作ったデータ本体では、操作用オブジェクトごとの記憶は他の操作用オブジェクトの書き込みで古くなるので使わない。
         var cached = this.cachedCount;
-        if(cached!=UnknownCount) {
+        if(cached!=UnknownCount&&!this.CollectionStore.TracksCount) {
             return cached;
         }
         var iterator = new IterateLookupCounter();
@@ -191,8 +200,27 @@ public abstract class Collection<
         this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
         this.ReadSession.BasicContext.CompletePending(wait: true);
         this.cachedCount=iterator.Counter;
+        // 共通ストアから作ったデータ本体では、数え直した件数を管理件数として戻す。
+        this.CollectionStore.SetManagedCount(iterator.Counter);
         return iterator.Counter;
     }
+    // false の操作用オブジェクト(CreateUncounted)は、データ本体の件数を増減しない。増減は呼び出し側が ApplyCountDelta で反映する。
+    private bool countsIntoStore = true;
+    void IUncountableAccessor.DisableCounting() => this.countsIntoStore=false;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private protected void OnInserted() {
+        if(this.countsIntoStore) {
+            this.CollectionStore.AddManagedCount(1);
+        }
+    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private protected void OnRemoved() {
+        if(this.countsIntoStore) {
+            this.CollectionStore.AddManagedCount(-1);
+        }
+    }
+    // 挿入か上書きか分からない書き込みや、一括の集合演算のあと。次の件数取得で数え直す。
+    private protected void OnCountUnknown() => this.CollectionStore.InvalidateManagedCount();
     private protected unsafe bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes) {
         var Session = this.ContainsDeleteSession;
         var Output = false;
@@ -215,6 +243,7 @@ public abstract class Collection<
     ) {
         this.CollectionStore=CollectionStore;
         this.RecreateCoreSessions();
+        CollectionStore.OnAccessorCreated();
     }
     private void RecreateCoreSessions() {
         var Store = this.CollectionStore.Store;
@@ -273,6 +302,8 @@ public abstract class Collection<
         this.DisposeAdditionalSessions();
         this.DisposeCoreSessions();
         this.CollectionStore.Store.Reset();
+        this.CollectionStore.ResetCapacity();
+        this.CollectionStore.SetManagedCount(0);
         this.RecreateCoreSessions();
         this.RecreateAdditionalSessions();
     }
@@ -379,16 +410,9 @@ public abstract class Collection<
             // has already been consumed; do not turn that cleanup bug into an Add/Read failure.
         }
     }
-    private protected static string CreateTemporaryWorkListPath(string operationName) {
-        var directoryPath = Path.Combine(
-            Path.GetTempPath(),
-            "Tsavorite",
-            "worklists",
-            operationName,
-            Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(directoryPath);
-        return Path.Combine(directoryPath,"items.dat");
-    }
+    // 作業リストの置き場所と、そのディスク予約。共通ストアから作った場合はストアのフォルダと上限に従う。
+    private protected string CreateWorkListPath(string operationName) => this.CollectionStore.CreateWorkListPath(operationName);
+    private protected CollectionStore<TKey,TValue,TStoreFunctions,TAllocator>.WorkListQuota? CreateWorkListQuota() => this.CollectionStore.CreateWorkListQuota();
     private protected static void DeleteTemporaryWorkListPath(string path) {
         var directoryPath = Path.GetDirectoryName(path);
         if(string.IsNullOrEmpty(directoryPath))
@@ -585,6 +609,7 @@ public abstract class Collection<
     private protected bool WouldOverflowMutable(int KeyLength,int ValueLength) {
         Debug.Assert(this.LogMemorySize>=8192);
         var Log = this.CollectionStore.Store.Log;
+        this.CollectionStore.EnsureCapacity(Log.TailAddress,KeyLength,ValueLength);
         return this.CollectionStore.OverflowMutableStrategyKind switch {
             OverflowMutableStrategyKind.Memory => MemoryOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
             OverflowMutableStrategyKind.Storage => this.CollectionStore.StorageOverflowMutableStrategy.WouldOverflowMutable(Log.TailAddress,KeyLength,ValueLength),
@@ -609,6 +634,7 @@ public abstract class Collection<
         } else {
         }
         this.disposed=true;
+        this.CollectionStore.OnAccessorDisposed();
     }
     ~Collection() => this.Dispose(false);
     [global::System.Diagnostics.Conditional("DEBUG")]
@@ -842,10 +868,14 @@ public abstract class Collection<
         self.VerifyThreadAffinity(nameof(this.IntersectWith));
         other.VerifyThreadAffinity(nameof(this.IntersectWith));
         self.InvalidateCountCache();
+        self.OnCountUnknown();
         var ReadSession = self.ReadSession;
-        var workListPath = CreateTemporaryWorkListPath("intersect-with");
+        var workListPath = self.CollectionStore.CreateWorkListPath("intersect-with");
+        using var quota = self.CollectionStore.CreateWorkListQuota();
         try {
             using var keysToExpire = new SerializedList<byte[],RawByteArraySerializer>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+            keysToExpire.StorageQuota=quota;
+            quota?.EnsureTotalBytes(((IPersistedCommittable)keysToExpire).StorageBytes);
             var Iterator = new IterateLookupIntersectWith<TCollection>(other,keysToExpire);
             // IntersectWith first collects keys to expire, then tombstones them with RMW.
             // This keeps the scan separate from the delete phase and avoids advancing TailAddress early.
@@ -898,6 +928,7 @@ public abstract class Collection<
         > {
         other.VerifyThreadAffinity(nameof(this.SymmetricExceptWith));
         this.InvalidateCountCache();
+        this.OnCountUnknown();
         var strategy = new RmwSessionForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
@@ -931,6 +962,7 @@ public abstract class Collection<
         > {
         other.VerifyThreadAffinity(nameof(this.ExceptWith));
         this.InvalidateCountCache();
+        this.OnCountUnknown();
         var strategy = new DeleteSessionForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
@@ -964,6 +996,7 @@ public abstract class Collection<
         > {
         other.VerifyThreadAffinity(nameof(this.UnionWith));
         this.InvalidateCountCache();
+        this.OnCountUnknown();
         var strategy = new UpsertLogRecordForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
@@ -1229,6 +1262,9 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
             Status=Pending(ClientSession,Status,ref Output);
         }
         Debug.Assert(Status.IsCompleted);
+        if(Output) {
+            this.OnRemoved();
+        }
         return Output;
     }
     private protected override unsafe TryAddResult PrivateTryAdd(TKey key,TValue value) {
@@ -1247,14 +1283,17 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
             Status=Pending(ClientSession,Status,ref Output);
         }
         Debug.Assert(Status.IsCompleted);
-        if(Output)
+        if(Output) {
+            this.OnInserted();
             return TryAddResult.Success;
+        }
         return TryAddResult.KeyAlreadyExists;
     }
 
     private protected unsafe void PrivateUpsert(TKey key,TValue value) {
         this.VerifyThreadAffinity(nameof(this.PrivateUpsert));
         this.InvalidateCountCache();
+        this.OnCountUnknown();
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var ValueBytes = TValueSerializer.Serialize(ref value);
         if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))

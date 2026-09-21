@@ -1,0 +1,25 @@
+namespace Seamless.Execution;
+/// <summary>ストアの寿命の種類。</summary>
+public enum StoreKind{
+    /// <summary>一時フォルダを使い、破棄で全削除する。</summary>
+    Temporary,
+    /// <summary>指定フォルダを使い、<see cref="Store.Save"/> した状態を次回も開き直せる。</summary>
+    Persistent,
+    /// <summary>ディスクを使わない。上限を超えたら例外にする。</summary>
+    Memory,
+}
+/// <summary>ストア全体が使ってよいメモリとディスクの上限。既定値は <see cref="ExecutionOptions"/> と同じ。</summary>
+public sealed record StoreLimits{
+    public long MemoryBytes{get;init;}=256L*1024*1024;
+    public long DiskBytes{get;init;}=16L*1024*1024*1024;
+}
+/// <summary>
+/// ストアに登録するエンジン側の子資源(Tsavorite や Persisted のデータ本体)。
+/// ストアは保存時に <see cref="Save"/> が返した状態文字列を保存番号ごとに記録し、復元時に <see cref="Load"/> へ渡す。
+/// 状態文字列の中身はエンジンが決める。
+/// </summary>
+public interface IStoreComponent:IDisposable{
+    string Name{get;}
+    string Save();
+    void Load(string state);
+}

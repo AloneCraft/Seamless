@@ -2,6 +2,28 @@ using System.IO.MemoryMappedFiles;
 
 namespace Seamless.Collections;
 
+/// <summary>
+/// 共通ストア(Seamless.Execution.Store)のディスク予算へつなぐ口。Seamless.Collections は Execution を参照できないため、
+/// Persisted 側がこの口を実装して渡す。ファイルを伸ばす前に、伸ばした後の合計バイト数で呼ばれる。上限を超えるなら例外を投げる。
+/// </summary>
+internal interface IPersistedStorageQuota {
+    void EnsureTotalBytes(long totalBytes);
+}
+
+/// <summary>保存(Commit)した時点の状態。復元(RollbackTo)でこの状態へ戻す。</summary>
+internal readonly record struct PersistedCommitState(long Count,long DataLength);
+
+/// <summary>共通ストアの子資源として、保存・復元・ディスク予算の確認を受けるための内部の口。</summary>
+internal interface IPersistedCommittable {
+    IPersistedStorageQuota? StorageQuota { get; set; }
+    /// <summary>現在確保しているファイルの合計バイト数。</summary>
+    long StorageBytes { get; }
+    /// <summary>ここまでの内容をディスクへ確実に書き出し、復元に使う状態を返す。</summary>
+    PersistedCommitState Commit();
+    /// <summary>Commit した状態へ戻す。それ以降に追加した要素は捨てる。</summary>
+    void RollbackTo(PersistedCommitState state);
+}
+
 public enum StorageAccessPattern {
     Auto,
     Sequential,
@@ -98,7 +120,7 @@ public readonly record struct StorageTuning {
     }
 }
 
-public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
+public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable, IPersistedCommittable {
     private Action? disposeAction;
     public string Path { get; }
     public long Count { get; protected set; }
@@ -216,6 +238,16 @@ public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable {
 
     internal void SetDisposeAction(Action? action) =>
         this.disposeAction=action;
+
+    // 共通ストアから作ったときだけ設定される。null なら予算の確認はしない。
+    internal IPersistedStorageQuota? StorageQuota { get; set; }
+    IPersistedStorageQuota? IPersistedCommittable.StorageQuota { get => this.StorageQuota; set => this.StorageQuota=value; }
+    long IPersistedCommittable.StorageBytes => this.StorageBytes;
+    PersistedCommitState IPersistedCommittable.Commit() => this.Commit();
+    void IPersistedCommittable.RollbackTo(PersistedCommitState state) => this.RollbackTo(state);
+    internal virtual long StorageBytes => throw new NotSupportedException();
+    internal virtual PersistedCommitState Commit() => throw new NotSupportedException();
+    internal virtual void RollbackTo(PersistedCommitState state) => throw new NotSupportedException();
 
     protected void ThrowIfDisposed() {
         ObjectDisposedException.ThrowIf(this.IsDisposed,this);

@@ -1,0 +1,279 @@
+using Seamless.Execution;
+using StoreType=Seamless.Execution.Store;
+namespace Execution.Tests;
+public sealed class Store{
+    private static string NewRoot(){
+        var root=Path.Combine(Path.GetTempPath(),"seamless-store-tests",Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        return root;
+    }
+    [Fact]public void CreateTemporary(){
+        var root=NewRoot();
+        try{
+            {
+                //一時ストアは指定ルートの下に専用フォルダを作り、破棄で全削除する
+                var store=StoreType.CreateTemporary(temporaryDirectory:root);
+                Assert.Equal(StoreKind.Temporary,store.Kind);
+                var directory=store.DirectoryPath!;
+                Assert.StartsWith(root,directory);
+                Assert.True(Directory.Exists(directory));
+                File.WriteAllText(Path.Combine(store.GetComponentDirectory("a"),"x.dat"),"x");
+                store.Dispose();
+                Assert.False(Directory.Exists(directory));
+            }
+            {
+                //上限を省略すると ExecutionOptions と同じ既定値
+                using var store=StoreType.CreateTemporary(temporaryDirectory:root);
+                var defaults=new ExecutionOptions();
+                Assert.Equal(defaults.MemoryLimitBytes,store.Limits.MemoryBytes);
+                Assert.Equal(defaults.TemporaryStorageLimitBytes,store.Limits.DiskBytes);
+            }
+            {
+                //異常終了で残った一時ストア(子フォルダを含む)は RecoverAbandoned で回収できる。使用中のものは回収しない
+                var abandoned=Path.Combine(root,"store-"+Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(Path.Combine(abandoned,"data","orders","checkpoints"));
+                File.WriteAllText(Path.Combine(abandoned,"data","orders","checkpoints","c.bin"),"c");
+                File.WriteAllText(Path.Combine(abandoned,"owner.json"),global::System.Text.Json.JsonSerializer.Serialize(new{Format="seamless-store-v1",Id=Path.GetFileName(abandoned)}));
+                File.WriteAllText(Path.Combine(abandoned,"owner.lock"),string.Empty);
+                using var live=StoreType.CreateTemporary(temporaryDirectory:root);
+                var recovered=TemporaryResourceRecovery.RecoverAbandoned(root);
+                Assert.Equal([abandoned],recovered);
+                Assert.False(Directory.Exists(abandoned));
+                Assert.True(Directory.Exists(live.DirectoryPath));
+            }
+        }finally{Directory.Delete(root,true);}
+    }
+    [Fact]public void Open(){
+        var root=NewRoot();
+        try{
+            var directory=Path.Combine(root,"app");
+            {
+                //永続ストアはフォルダが無ければ作り、破棄してもフォルダは残る
+                var store=StoreType.Open(directory);
+                Assert.Equal(StoreKind.Persistent,store.Kind);
+                Assert.Equal(Path.GetFullPath(directory),store.DirectoryPath);
+                store.Dispose();
+                Assert.True(Directory.Exists(directory));
+            }
+            {
+                //開いている間は同じフォルダを二重に開けない
+                using var first=StoreType.Open(directory);
+                Assert.Throws<IOException>(()=>StoreType.Open(directory));
+            }
+            {
+                //破棄後は開き直せる
+                using var again=StoreType.Open(directory);
+                Assert.Equal(StoreKind.Persistent,again.Kind);
+            }
+        }finally{Directory.Delete(root,true);}
+    }
+    [Fact]public void CreateMemory(){
+        using var store=StoreType.CreateMemory(new(){MemoryBytes=1024,DiskBytes=0});
+        {
+            //メモリストアはフォルダを持たない
+            Assert.Equal(StoreKind.Memory,store.Kind);
+            Assert.Null(store.DirectoryPath);
+            Assert.Throws<InvalidOperationException>(()=>store.GetComponentDirectory("a"));
+        }
+        {
+            //メモリストアは保存できない
+            Assert.Throws<NotSupportedException>(()=>store.Save());
+        }
+    }
+    [Fact]public void Budget(){
+        using var store=StoreType.CreateMemory(new(){MemoryBytes=1000,DiskBytes=10});
+        {
+            //予算の上限はストアの上限と同じ
+            Assert.Equal(1000,store.Budget.MemoryLimitBytes);
+            Assert.Equal(10,store.Budget.TemporaryStorageLimitBytes);
+        }
+        {
+            //上限を超える予約は ResourceLimitException
+            using var reserved=store.Budget.ReserveMemory(700);
+            Assert.Throws<ResourceLimitException>(()=>store.Budget.ReserveMemory(400));
+            Assert.Throws<ResourceLimitException>(()=>store.Budget.ReserveTemporaryStorage(11));
+        }
+    }
+    [Fact]public void GetComponentDirectory(){
+        var root=NewRoot();
+        try{
+            using var store=StoreType.CreateTemporary(temporaryDirectory:root);
+            {
+                //子資源のフォルダはストアのフォルダの下に作られ、同じ名前なら同じ場所
+                var a=store.GetComponentDirectory("orders");
+                Assert.True(Directory.Exists(a));
+                Assert.StartsWith(store.DirectoryPath!,a);
+                Assert.Equal(a,store.GetComponentDirectory("orders"));
+                Assert.NotEqual(a,store.GetComponentDirectory("items"));
+            }
+            {
+                //パスとして危険な名前は拒否する
+                Assert.Throws<ArgumentException>(()=>store.GetComponentDirectory(".."));
+                Assert.Throws<ArgumentException>(()=>store.GetComponentDirectory("a/b"));
+                Assert.Throws<ArgumentException>(()=>store.GetComponentDirectory(""));
+            }
+        }finally{Directory.Delete(root,true);}
+    }
+    [Fact]public void Register(){
+        var root=NewRoot();
+        try{
+            var store=StoreType.CreateTemporary(temporaryDirectory:root);
+            var a=store.Register(new RecordingComponent("a"));
+            {
+                //同じ名前の二重登録は拒否する
+                Assert.Throws<ArgumentException>(()=>store.Register(new RecordingComponent("a")));
+            }
+            {
+                //ストアの破棄で登録済みの子資源も破棄される。保存はしない
+                store.Dispose();
+                Assert.True(a.Disposed);
+                Assert.Equal(0,a.SaveCount);
+            }
+            {
+                //破棄後の登録は ObjectDisposedException
+                Assert.Throws<ObjectDisposedException>(()=>store.Register(new RecordingComponent("b")));
+            }
+        }finally{Directory.Delete(root,true);}
+    }
+    [Fact]public void Unregister(){
+        var root=NewRoot();
+        try{
+            using var store=StoreType.CreateTemporary(temporaryDirectory:root);
+            var a=store.Register(new RecordingComponent("a"));
+            var b=store.Register(new RecordingComponent("b"));
+            {
+                //登録を外した子資源は以後の保存に含まれず、破棄もされない
+                Assert.True(store.Unregister(a));
+                Assert.False(store.Unregister(a));
+                store.Save();
+                Assert.Equal(0,a.SaveCount);
+                Assert.Equal(1,b.SaveCount);
+                store.Dispose();
+                Assert.False(a.Disposed);
+                Assert.True(b.Disposed);
+            }
+            {
+                //外した名前は再び登録できる
+                using var other=StoreType.CreateTemporary(temporaryDirectory:root);
+                var first=other.Register(new RecordingComponent("x"));
+                other.Unregister(first);
+                other.Register(new RecordingComponent("x"));
+            }
+        }finally{Directory.Delete(root,true);}
+    }
+    [Fact]public void TryGetSavedState(){
+        var root=NewRoot();
+        try{
+            var directory=Path.Combine(root,"app");
+            using(var store=StoreType.Open(directory)){
+                //保存前は状態が無い
+                Assert.False(store.TryGetSavedState("a",out _));
+                store.Register(new RecordingComponent("a"){State="a1"});
+                store.Save();
+            }
+            {
+                //開き直すと、登録前でも現在の保存番号の状態を読める
+                using var store=StoreType.Open(directory);
+                Assert.True(store.TryGetSavedState("a",out var state));
+                Assert.Equal("a1",state);
+                Assert.False(store.TryGetSavedState("b",out _));
+            }
+        }finally{Directory.Delete(root,true);}
+    }
+    [Fact]public void Save(){
+        var root=NewRoot();
+        try{
+            var directory=Path.Combine(root,"app");
+            Guid first,second;
+            {
+                //保存は全子資源の状態を記録し、保存番号を返す
+                using var store=StoreType.Open(directory);
+                var a=store.Register(new RecordingComponent("a"){State="a1"});
+                var b=store.Register(new RecordingComponent("b"){State="b1"});
+                first=store.Save();
+                Assert.Equal(1,a.SaveCount);
+                Assert.Equal(1,b.SaveCount);
+                Assert.Equal(first,store.CurrentCheckpoint);
+                a.State="a2";
+                second=store.Save();
+                Assert.NotEqual(first,second);
+                Assert.Equal([first,second],store.Checkpoints);
+            }
+            {
+                //開き直すと最新の保存状態が、あとから登録した子資源へ渡される
+                using var store=StoreType.Open(directory);
+                Assert.Equal(second,store.CurrentCheckpoint);
+                var a=store.Register(new RecordingComponent("a"));
+                var b=store.Register(new RecordingComponent("b"));
+                var c=store.Register(new RecordingComponent("c"));
+                Assert.Equal(["a2"],a.Loaded);
+                Assert.Equal(["b1"],b.Loaded);
+                Assert.Empty(c.Loaded);
+            }
+            {
+                //保存しないまま破棄した変更は確定しない(保存番号は増えない)
+                using(var store=StoreType.Open(directory)){
+                    store.Register(new RecordingComponent("a"){State="a3"});
+                }
+                using var reopened=StoreType.Open(directory);
+                Assert.Equal([first,second],reopened.Checkpoints);
+            }
+        }finally{Directory.Delete(root,true);}
+    }
+    [Fact]public void Load(){
+        var root=NewRoot();
+        try{
+            var directory=Path.Combine(root,"app");
+            using var store=StoreType.Open(directory);
+            var a=store.Register(new RecordingComponent("a"){State="a1"});
+            var first=store.Save();
+            a.State="a2";
+            var second=store.Save();
+            {
+                //番号を指定すると、その時点の状態を登録済みの子資源へ渡す
+                store.Load(first);
+                Assert.Equal(["a1"],a.Loaded);
+                Assert.Equal(first,store.CurrentCheckpoint);
+            }
+            {
+                //番号を省略すると最新
+                store.Load();
+                Assert.Equal(["a1","a2"],a.Loaded);
+                Assert.Equal(second,store.CurrentCheckpoint);
+            }
+            {
+                //存在しない番号は ArgumentException
+                Assert.Throws<ArgumentException>(()=>store.Load(Guid.NewGuid()));
+            }
+        }finally{Directory.Delete(root,true);}
+    }
+    [Fact]public void Dispose(){
+        var root=NewRoot();
+        try{
+            var store=StoreType.CreateTemporary(temporaryDirectory:root);
+            store.Register(new RecordingComponent("a"));
+            {
+                //二重の破棄は何もしない
+                store.Dispose();
+                store.Dispose();
+            }
+            {
+                //破棄後の保存は ObjectDisposedException
+                Assert.Throws<ObjectDisposedException>(()=>store.Save());
+            }
+        }finally{Directory.Delete(root,true);}
+    }
+}
+file sealed class RecordingComponent(string name):IStoreComponent{
+    public string Name{get;}=name;
+    public string State{get;set;}=string.Empty;
+    public int SaveCount{get;private set;}
+    public List<string> Loaded{get;}=[];
+    public bool Disposed{get;private set;}
+    public string Save(){
+        this.SaveCount++;
+        return this.State;
+    }
+    public void Load(string state)=>this.Loaded.Add(state);
+    public void Dispose()=>this.Disposed=true;
+}

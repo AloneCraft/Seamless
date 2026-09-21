@@ -2,11 +2,36 @@ namespace Seamless.Collections.Tsavorite;
 
 /// <summary>
 /// Tsavorite のハッシュセット実装。
-/// <see cref="System.Collections.Generic.ISet{T}"/> を実装し、
-/// Tsavorite 永続ストア上で高速な追加・削除・検索を行うコレクションです。
+/// <see cref="System.Collections.Generic.ISet{T}"/>・<see cref="IReadOnlySet{T}"/>・<see cref="Seamless.Collections.ISet{T}"/> を実装し、
+/// Tsavorite 永続ストア上で高速な追加・削除・検索を行うコレクションです。等価判定はシリアライズ後のバイト列の一致です。
 /// </summary>
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
-public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<TKey>,MemoryPackSerializer<EqualityEmpty>>, IHashSet<TKey> {
+public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<TKey>,MemoryPackSerializer<EqualityEmpty>>, IHashSet<TKey>, global::System.Collections.Generic.ISet<TKey> {
+    // 関係演算は自分自身を全件メモリに載せず、逐次走査と Contains で求める(other が集合でなければ other だけを集合にする)。
+    public bool IsProperSubsetOf(IEnumerable<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        return SetRelationHelpers.IsProperSubsetOf(this,other);
+    }
+    public bool IsProperSupersetOf(IEnumerable<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        return SetRelationHelpers.IsProperSupersetOf(this,other);
+    }
+    public bool IsSubsetOf(IEnumerable<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        return SetRelationHelpers.IsSubsetOf(this,other);
+    }
+    public bool IsSupersetOf(IEnumerable<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        return SetRelationHelpers.IsSupersetOf(this,other);
+    }
+    public bool Overlaps(IEnumerable<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        return SetRelationHelpers.Overlaps(this,other);
+    }
+    public bool SetEquals(IEnumerable<TKey> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        return SetRelationHelpers.SetEquals(this,other);
+    }
     //private readonly byte[] EmptyBytes;
     private readonly IDisposable? ownedStore;
     public bool IsReadOnly => false;
@@ -79,9 +104,12 @@ public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<
 
     public void IntersectWith(global::System.Collections.Generic.ISet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
-        var workListPath = CreateTemporaryWorkListPath("hashset-intersect-ienumerable");
+        var workListPath = this.CreateWorkListPath("hashset-intersect-ienumerable");
+        using var quota = this.CreateWorkListQuota();
         try {
             using var keysToRemove = new SerializedList<TKey,AutoSerializer<TKey>>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+            keysToRemove.StorageQuota=quota;
+            quota?.EnsureTotalBytes(((IPersistedCommittable)keysToRemove).StorageBytes);
             foreach(var item in this) {
                 if(!other.Contains(item))
                     keysToRemove.Add(item);

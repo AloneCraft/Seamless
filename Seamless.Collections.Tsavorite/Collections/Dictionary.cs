@@ -134,6 +134,9 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
             Status=Session.BasicContext.RMW(FixedKey,ref Value0,ref Output);
             Pending(Session,Status,ref Output);
         }
+        if(Output) {
+            this.OnRemoved();
+        }
         return Output;
     }
     public unsafe bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value) {
@@ -150,6 +153,7 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
             Status=Pending(Session,Status,ref Output);
         }
         if(!Status.NotFound) {
+            this.OnRemoved();
             value=Output;
             return true;
         }
@@ -216,6 +220,8 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         set {
             this.VerifyThreadAffinity("Item");
             this.InvalidateCountCache();
+            // Upsert は挿入か上書きかを返さないので、件数は次の取得時に数え直す。
+            this.OnCountUnknown();
             var KeyBytes = TKeySerializer.Serialize(ref key);
             var ValueBytes = TValueSerializer.Serialize(ref value);
             if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))

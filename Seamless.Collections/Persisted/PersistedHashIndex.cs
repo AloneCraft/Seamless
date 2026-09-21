@@ -24,6 +24,12 @@ internal sealed class PersistedHashIndex:IDisposable {
     private long entryCount;
 
     public long EntryCount => this.entryCount;
+    public long FileLength => this.stream.Length;
+    // 共通ストアの保存(Commit)で呼ぶ。mmap の変更をファイルへ書き、さらにファイルをディスクへ書き切る。
+    public void FlushToDisk() {
+        this.accessor.Flush();
+        this.stream.Flush(flushToDisk: true);
+    }
     public long ListCountAtFlush { get; private set; }
 
     public PersistedHashIndex(string path,StorageTuning tuning,long expectedEntries) {

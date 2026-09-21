@@ -77,7 +77,12 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
             this.keyIndex.Upsert(ByteRange.Hash(key),recordOffset,this,key);
         }
         this.keyIndex.SetListCount(this.Count);
+        this.keyIndexStale=false;
     }
+
+    // 末尾削除(Remove)などで件数が減ると、ハッシュ索引に消えたレコードが残る(索引に削除は無い)。
+    // その場合は古いとだけ記録し、次の検索でまとめて作り直す(BUG-0003)。
+    private bool keyIndexStale;
 
     // データオフセットのレコードキーと probe のキーバイト列を deserialize なしで透過比較する(技法 d)。
     bool IPersistedKeyMatcher.KeyEqualsAt(long dataOffset,ReadOnlySpan<byte> probeKeyBytes) {
@@ -90,6 +95,9 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
         if(this.keyIndex is null) {
             recordOffset=-1;
             return false;
+        }
+        if(this.keyIndexStale) {
+            this.RebuildKeyIndex();
         }
         return this.keyIndex.TryGetOffset(ByteRange.Hash(keyBytes),this,keyBytes,out recordOffset);
     }
@@ -146,11 +154,17 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
             writeIndex++;
         }
 
+        // 重複を除くだけなら、索引が指すオフセットのレコードは同じキーのまま残るので索引は有効。
+        // 件数が減っても古いとは扱わない(それ以前の Remove で古くなっていた場合はその状態を保つ)。
+        var wasStale = this.keyIndexStale;
         this.Count=writeIndex;
         this.OnCountChanged();
+        this.keyIndexStale=wasStale;
         this.indexAccessor.Flush();
         // データオフセットは不変なので索引は有効。件数だけ整合させる。
-        this.keyIndex?.SetListCount(this.Count);
+        if(!wasStale) {
+            this.keyIndex?.SetListCount(this.Count);
+        }
     }
 
     private void LoadState() {
@@ -200,6 +214,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
         this.OnCountChanged();
         this.InitializeIndexRange(0,this.Capacity);
         this.keyIndex?.Clear(); // データ全書き換えでオフセットが変わるため索引を作り直す。
+        this.keyIndexStale=false; // 以降の Add で索引を作り直すので、古いものとして扱わない。
         foreach(var item in materialized) {
             this.Add(item);
         }
@@ -238,7 +253,36 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
         this.RemapData(newCapacity);
     }
 
+    internal override long StorageBytes => this.indexStream.Length+this.dataStream.Length+(this.keyIndex?.FileLength??0);
+
+    internal override PersistedCommitState Commit() {
+        this.ThrowIfDisposed();
+        if(this.keyIndexStale) {
+            this.RebuildKeyIndex();
+        }
+        this.keyIndex?.SetListCount(this.Count);
+        this.indexAccessor.Flush();
+        this.dataAccessor.Flush();
+        this.keyIndex?.FlushToDisk();
+        this.indexStream.Flush(flushToDisk: true);
+        this.dataStream.Flush(flushToDisk: true);
+        return new(this.Count,this.DataLength);
+    }
+
+    internal override void RollbackTo(PersistedCommitState state) {
+        this.ThrowIfDisposed();
+        if(state.Count<0||state.Count>this.Count||state.DataLength<0||state.DataLength>this.DataCapacity)
+            throw new InvalidDataException("The saved state does not match the list files.");
+        this.Count=state.Count;
+        this.DataLength=state.DataLength;
+        this.OnCountChanged();
+        if(this.keyIndex is not null) {
+            this.RebuildKeyIndex();
+        }
+    }
+
     private void RemapIndex(long newCapacity) {
+        this.StorageQuota?.EnsureTotalBytes(this.GetIndexFileLength(newCapacity)+this.dataStream.Length+(this.keyIndex?.FileLength??0));
         var oldCapacity = this.Capacity;
         this.indexAccessor.Flush();
         this.indexAccessor.Dispose();
@@ -252,6 +296,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
     }
 
     private void RemapData(long newCapacity) {
+        this.StorageQuota?.EnsureTotalBytes(this.indexStream.Length+this.GetDataFileLength(newCapacity)+(this.keyIndex?.FileLength??0));
         this.dataAccessor.Flush();
         this.dataAccessor.Dispose();
         this.dataMappedFile.Dispose();
@@ -341,13 +386,21 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
     protected override void OnCountChanged() {
         if(this.Count<this.persistedCount) {
             this.InitializeIndexRange(this.Count,this.persistedCount);
+            if(this.keyIndex is not null) {
+                this.keyIndexStale=true;
+            }
         }
         this.persistedCount=this.Count;
     }
 
     protected override void DisposeCore() {
         if(this.keyIndex is not null) {
-            this.keyIndex.SetListCount(this.Count);
+            // 古い索引のまま閉じるときは、開き直したときに必ず作り直されるよう件数を一致させない値を書く。
+            if(this.keyIndexStale) {
+                this.keyIndex.SetListCount(-1);
+            } else {
+                this.keyIndex.SetListCount(this.Count);
+            }
             this.keyIndex.Dispose();
             this.keyIndex=null;
         }
@@ -368,6 +421,13 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
 
     // データオフセットのレコード payload(TSerializer が扱うバイト列)を読む。索引 lookup 後の値抽出に使う。
     protected byte[] ReadRecordPayload(long recordOffset) => this.ReadRecord(recordOffset);
+
+    // index 番目のレコードのデータオフセット。索引が指す最新レコードかどうかの判定(逐次走査)に使う。
+    protected long GetRecordOffset(long index) {
+        if((ulong)index>=(ulong)this.Count)
+            throw new ArgumentOutOfRangeException(nameof(index));
+        return this.ReadIndexUnchecked(index);
+    }
 
     private byte[] ReadRecord(long recordOffset) {
         var length = this.ReadRecordLength(recordOffset);
@@ -532,11 +592,29 @@ public sealed class BlittableList<T>:PersistedList<T>
         this.stream.Dispose();
     }
 
+    internal override long StorageBytes => this.stream.Length;
+
+    internal override PersistedCommitState Commit() {
+        this.ThrowIfDisposed();
+        this.accessor.Flush();
+        this.stream.Flush(flushToDisk: true);
+        return new(this.Count,this.Count*Unsafe.SizeOf<T>());
+    }
+
+    internal override void RollbackTo(PersistedCommitState state) {
+        this.ThrowIfDisposed();
+        if(state.Count<0||state.Count>this.Count)
+            throw new InvalidDataException("The saved state does not match the list file.");
+        this.Count=state.Count;
+        this.OnCountChanged();
+    }
+
     private void EnsureCapacity(long minimumCapacity) {
         if(minimumCapacity<=this.Capacity)
             return;
         var elementSize = Unsafe.SizeOf<T>();
         var newCapacity = this.AlignCapacity(Math.Max(this.Capacity*2,minimumCapacity),elementSize);
+        this.StorageQuota?.EnsureTotalBytes(this.GetFileLength(newCapacity,elementSize));
         this.accessor.Flush();
         this.accessor.Dispose();
         this.mappedFile.Dispose();

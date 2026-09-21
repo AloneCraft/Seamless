@@ -6,12 +6,14 @@ public interface ISetIterateStrategy<TSelf, T>
 }
 
 public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
-    private readonly PersistedList<T> list;
+    // AutoSerializer は固定長の型を BlittableSerializer と同じ生バイトで、それ以外を MemoryPack で書くので、
+    // 型ごとにリフレクションで作り分けなくても従来(BlittableSet / MemoryPack の SerializedSet)と同じファイル形式になる。
+    private readonly SerializedSet<T,AutoSerializer<T>> list;
     private readonly IReadOnlySet<T> set;
 
     public Set(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null) {
-        this.list=CreateCore(path,initialCapacity,initialDataCapacity,tuning);
-        this.set=(IReadOnlySet<T>)this.list;
+        this.list=new SerializedSet<T,AutoSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning);
+        this.set=this.list;
     }
 
     public string Path => this.list.Path;
@@ -22,7 +24,7 @@ public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
     public void Add(T item) => this.list.Add(item);
 
     public Set<T> Compact() {
-        this.list.GetType().GetMethod(nameof(this.Compact),Type.EmptyTypes)!.Invoke(this.list,null);
+        this.list.Compact();
         return this;
     }
 
@@ -40,20 +42,14 @@ public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
     internal void SetDisposeAction(Action? action) =>
         this.list.SetDisposeAction(action);
 
+    internal IPersistedCommittable Committable => this.list;
+
     public void Iterate<TStrategy>(ref TStrategy strategy)
         where TStrategy : struct, ISetIterateStrategy<TStrategy,T> {
         foreach(var item in this) {
             if(!TStrategy.Invoke(ref strategy,item))
                 break;
         }
-    }
-
-    private static PersistedList<T> CreateCore(string path,long initialCapacity,long initialDataCapacity,StorageTuning? tuning) {
-        if(RuntimeHelpers.IsReferenceOrContainsReferences<T>())
-            return new SerializedSet<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning);
-
-        var type = typeof(BlittableSet<>).MakeGenericType(typeof(T));
-        return (PersistedList<T>)Activator.CreateInstance(type,path,initialCapacity,initialDataCapacity,tuning)!;
     }
 }
 
@@ -85,12 +81,81 @@ where TSerializer : ISerializer<T> {
         return this.TryLookupKey(key,out _);
     }
 
-    public bool IsProperSubsetOf(IEnumerable<T> other) => new global::System.Collections.Generic.HashSet<T>(this).IsProperSubsetOf(other);
-    public bool IsProperSupersetOf(IEnumerable<T> other) => new global::System.Collections.Generic.HashSet<T>(this).IsProperSupersetOf(other);
-    public bool IsSubsetOf(IEnumerable<T> other) => new global::System.Collections.Generic.HashSet<T>(this).IsSubsetOf(other);
-    public bool IsSupersetOf(IEnumerable<T> other) => new global::System.Collections.Generic.HashSet<T>(this).IsSupersetOf(other);
-    public bool Overlaps(IEnumerable<T> other) => new global::System.Collections.Generic.HashSet<T>(this).Overlaps(other);
-    public bool SetEquals(IEnumerable<T> other) => new global::System.Collections.Generic.HashSet<T>(this).SetEquals(other);
+    // 関係演算は自分自身を全件メモリに載せず、キー索引の Contains と逐次走査で求める。
+    // Compact するまで重複を含みうるので、件数による近道は使わない。other が集合でなければ BCL と同じく other だけを集合にする。
+    public bool IsProperSubsetOf(IEnumerable<T> other) {
+        var otherSet = AsReadOnlySet(other);
+        if(!this.IsSubsetOfSet(otherSet)) {
+            return false;
+        }
+        foreach(var item in otherSet) {
+            if(!this.Contains(item)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    public bool IsProperSupersetOf(IEnumerable<T> other) {
+        var otherSet = AsReadOnlySet(other);
+        foreach(var item in otherSet) {
+            if(!this.Contains(item)) {
+                return false;
+            }
+        }
+        foreach(var item in this) {
+            if(!otherSet.Contains(item)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    public bool IsSubsetOf(IEnumerable<T> other) => this.IsSubsetOfSet(AsReadOnlySet(other));
+    public bool IsSupersetOf(IEnumerable<T> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        foreach(var item in other) {
+            if(!this.Contains(item)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    public bool Overlaps(IEnumerable<T> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        foreach(var item in other) {
+            if(this.Contains(item)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    public bool SetEquals(IEnumerable<T> other) {
+        var otherSet = AsReadOnlySet(other);
+        if(!this.IsSubsetOfSet(otherSet)) {
+            return false;
+        }
+        foreach(var item in otherSet) {
+            if(!this.Contains(item)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    private bool IsSubsetOfSet(IReadOnlySet<T> otherSet) {
+        foreach(var item in this) {
+            if(!otherSet.Contains(item)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    private static IReadOnlySet<T> AsReadOnlySet(IEnumerable<T> other) {
+        ArgumentNullException.ThrowIfNull(other);
+        if(other is IReadOnlySet<T> set) {
+            return set;
+        } else {
+            return new global::System.Collections.Generic.HashSet<T>(other);
+        }
+    }
 }
 
 public sealed class BlittableSet<T>(
