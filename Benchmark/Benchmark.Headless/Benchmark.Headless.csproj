@@ -58,12 +58,30 @@
     <ProjectReference Include="..\Benchmark.Persisted.Collections\Benchmark.Persisted.Collections.csproj" />
     <ProjectReference Include="..\Benchmark.Tsavorite.Collections\Benchmark.Tsavorite.Collections.csproj" />
   </ItemGroup>
+  <!--
+    Worker は子プロセスとして起動する実行ファイル。正式な依存(アセンブリとしては参照しない)にして、
+    復元とビルドの順序を同じグラフで扱い、VS でも変更を検知できるようにする(BUG-0009)。RID を付けずに標準の出力先へビルドする。
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Worker\Worker.csproj" ReferenceOutputAssembly="false" OutputItemType="BenchmarkWorkerOutput" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained" />
+  </ItemGroup>
+  <!-- VS の高速な最新判定に、コピーした Worker とその元ファイルを知らせる。 -->
+  <ItemGroup>
+    <UpToDateCheckBuilt Include="$(TargetDir)Worker.dll" Original="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.dll" />
+    <UpToDateCheckBuilt Include="$(TargetDir)Worker.exe" Original="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.exe" />
+    <UpToDateCheckBuilt Include="$(TargetDir)Worker.deps.json" Original="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.deps.json" />
+    <UpToDateCheckBuilt Include="$(TargetDir)Worker.runtimeconfig.json" Original="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.runtimeconfig.json" />
+  </ItemGroup>
+  <!-- Worker の出力(参照が返す実際の出力先)から、起動に必要なファイルを出力フォルダへコピーする。 -->
   <Target Name="CopyBenchmarkWorkerHost" AfterTargets="Build">
-    <MSBuild Projects="$(MSBuildProjectDirectory)\..\Worker\Worker.csproj" Targets="Build" Properties="Configuration=$(Configuration);TargetFramework=net10.0" />
+    <PropertyGroup>
+      <_BenchmarkWorkerDirectory>@(BenchmarkWorkerOutput->'%(RootDir)%(Directory)')</_BenchmarkWorkerDirectory>
+    </PropertyGroup>
+    <Error Condition="'$(_BenchmarkWorkerDirectory)' == ''" Text="Worker の出力先を解決できませんでした。Worker.csproj への ProjectReference を確認してください。" />
     <ItemGroup>
-      <_WorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.*" />
+      <_WorkerFiles Include="$(_BenchmarkWorkerDirectory)Worker.exe;$(_BenchmarkWorkerDirectory)Worker.dll;$(_BenchmarkWorkerDirectory)Worker.deps.json;$(_BenchmarkWorkerDirectory)Worker.runtimeconfig.json;$(_BenchmarkWorkerDirectory)Worker.pdb" />
     </ItemGroup>
-    <Copy SourceFiles="@(_WorkerFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_WorkerFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="Exists('%(FullPath)')" />
   </Target>
   <Import Project="..\..\Shared\UI.Core\UI.Core.projitems" Label="Shared" />
 </Project>

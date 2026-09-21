@@ -61,18 +61,35 @@
     <ProjectReference Include="..\Benchmark.Tsavorite.Collections\Benchmark.Tsavorite.Collections.csproj" />
   </ItemGroup>
 
+  <!--
+    Worker は UI が子プロセスとして起動する実行ファイル(出力フォルダの Worker.exe を起動する)。
+    以前は Build 後の独自ターゲットで MSBuild タスクから Worker をビルドしていたため、VS がこの依存を知らず、
+    高速な最新判定で UI のビルドを省くと古い Worker のまま起動していた(BUG-0009)。
+    正式な依存(アセンブリとしては参照しない)にして、VS が Worker を先にビルドし、復元とビルドの順序も同じグラフで扱うようにする。
+    Worker は RID を付けず、フレームワーク依存の標準の出力先へビルドする。
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Worker\Worker.csproj" ReferenceOutputAssembly="false" OutputItemType="BenchmarkWorkerOutput" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained" />
+  </ItemGroup>
+
+  <!-- VS の高速な最新判定に、出力フォルダへコピーした Worker とその元ファイルを知らせる。Worker が新しくなると UI のビルド(=コピー)が走る。 -->
+  <ItemGroup Condition="'$(TargetFramework)' != ''">
+    <UpToDateCheckBuilt Include="$(TargetDir)Worker.dll" Original="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.dll" />
+    <UpToDateCheckBuilt Include="$(TargetDir)Worker.exe" Original="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.exe" />
+    <UpToDateCheckBuilt Include="$(TargetDir)Worker.deps.json" Original="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.deps.json" />
+    <UpToDateCheckBuilt Include="$(TargetDir)Worker.runtimeconfig.json" Original="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.runtimeconfig.json" />
+  </ItemGroup>
+
+  <!-- Worker の出力(参照が返す実際の出力先)から、起動に必要なファイルを UI の出力フォルダへコピーする。 -->
   <Target Name="CopyBenchmarkWorkerHost" AfterTargets="Build" Condition="'$(IsCrossTargetingBuild)' != 'true' and '$(TargetDir)' != ''">
-    <MSBuild Projects="$(MSBuildProjectDirectory)\..\Worker\Worker.csproj" Targets="Build" RemoveProperties="RuntimeIdentifier;BuildProjectReferences" Properties="Configuration=$(Configuration);TargetFramework=net10.0;BuildProjectReferences=true" />
-
+    <PropertyGroup>
+      <_BenchmarkWorkerDirectory>@(BenchmarkWorkerOutput->'%(RootDir)%(Directory)')</_BenchmarkWorkerDirectory>
+    </PropertyGroup>
+    <Error Condition="'$(_BenchmarkWorkerDirectory)' == ''" Text="Worker の出力先を解決できませんでした。Worker.csproj への ProjectReference を確認してください。" />
     <ItemGroup>
-      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.exe" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.exe')" />
-      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.dll" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.dll')" />
-      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.deps.json" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.deps.json')" />
-      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.runtimeconfig.json" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.runtimeconfig.json')" />
-      <_BenchmarkWorkerFiles Include="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.pdb" Condition="Exists('$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.pdb')" />
+      <_BenchmarkWorkerFiles Include="$(_BenchmarkWorkerDirectory)Worker.exe;$(_BenchmarkWorkerDirectory)Worker.dll;$(_BenchmarkWorkerDirectory)Worker.deps.json;$(_BenchmarkWorkerDirectory)Worker.runtimeconfig.json;$(_BenchmarkWorkerDirectory)Worker.pdb" />
     </ItemGroup>
-
-    <Copy SourceFiles="@(_BenchmarkWorkerFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="'@(_BenchmarkWorkerFiles)' != ''" />
+    <Copy SourceFiles="@(_BenchmarkWorkerFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="Exists('%(FullPath)')" />
   </Target>
 
   <Import Project="..\Shared\UI\UI.projitems" Label="Shared" />
