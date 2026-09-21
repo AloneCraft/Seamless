@@ -66,6 +66,9 @@ Work/UI/*
 !Work/UI/runs.db
 !Work/UI/run.db
 
+# テストが生成する作業フォルダ(生成バックアップ・統合テストの出力)
+Test/Work/
+
 # .NET Core
 project.lock.json
 project.fragment.lock.json
