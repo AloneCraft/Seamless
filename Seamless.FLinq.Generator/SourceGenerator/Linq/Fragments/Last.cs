@@ -37,7 +37,7 @@ internal class Last(int 番号,Enumerable source,string resultType):BufferedScal
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    protected override string ComputeExpression => $"Compute({this.e})";
+    protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeLastInline(destVar,destType)
         ??this.RenderDirectSpanLastInline(destVar,destType)
@@ -69,7 +69,7 @@ internal class Last(int 番号,Enumerable source,string resultType):BufferedScal
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source){
+            private static {{resultType}} Compute(ref TEnum source){
                 source.TryGetSpan(out var __span);
                 if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                 return __span[__span.Length-1];
@@ -77,7 +77,7 @@ internal class Last(int 番号,Enumerable source,string resultType):BufferedScal
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source){
+            private static {{resultType}} Compute(ref TEnum source){
                 var found=false;
                 {{resultType}} result=default!;
                 while(source.TryGetNext(out var __mn39)){
@@ -121,9 +121,9 @@ internal class Last_predicate(int 番号,Enumerable source,FuncFragment predicat
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+        $"Compute(ref {this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorConstructor =>
-        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
+        $"this.Current = Compute(ref this.{this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeLastPredicateInline(destVar,destType)
         ??(TryRenderDirectLambda(predicate) is { } lambda
@@ -163,7 +163,7 @@ internal class Last_predicate(int 番号,Enumerable source,FuncFragment predicat
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+            private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 var found=false;
                 {{resultType}} result=default!;
                 source.TryGetSpan(out var __span);
@@ -178,7 +178,7 @@ internal class Last_predicate(int 番号,Enumerable source,FuncFragment predicat
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+            private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 var found=false;
                 {{resultType}} result=default!;
                 while(source.TryGetNext(out var __mn40)){

@@ -801,7 +801,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         GeneratedSourceAssert.True(
             compact.Contains(".Length)!=0",StringComparison.Ordinal)
             &&compact.Contains("=(long)(src.Length);",StringComparison.Ordinal)
-            &&compact.Contains(".Compute(__s",StringComparison.Ordinal)
+            &&compact.Contains(".Compute(ref__s",StringComparison.Ordinal)
             &&!generated.Contains("global::Seamless.Linq.IValueEnumerator<bool>",StringComparison.Ordinal)
             &&!generated.Contains("global::Seamless.Linq.IValueEnumerator<long>",StringComparison.Ordinal),
             "Scalar terminals should use source facts or static Compute inline without scalar enumerator structs.",
@@ -837,7 +837,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains(".Compute(__s",StringComparison.Ordinal)
+            generated.Contains(".Compute(ref __s",StringComparison.Ordinal)
             &&generated.Contains("var count = 0;",StringComparison.Ordinal)
             &&!generated.Contains("long count = 0;",StringComparison.Ordinal)
             &&!generated.Contains("global::Seamless.Linq.IValueEnumerator<long>",StringComparison.Ordinal),
@@ -1478,7 +1478,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             method.Contains("source.Length",StringComparison.Ordinal)
-            &&!method.Contains(".Compute(__s",StringComparison.Ordinal)
+            &&!method.Contains(".Compute(ref __s",StringComparison.Ordinal)
             &&!method.Contains("TryGetNext",StringComparison.Ordinal),
             "A transparent AsEnumerable before Count must keep the direct array count path instead of creating an empty pipeline enumerator.",
             generated,

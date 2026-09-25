@@ -17,7 +17,7 @@ internal class SingleOrDefault(int 番号,Enumerable source,string resultType):B
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    protected override string ComputeExpression => $"Compute({this.e})";
+    protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderSingleOrDefault(range,番号,destVar,destType)
@@ -40,7 +40,7 @@ internal class SingleOrDefault(int 番号,Enumerable source,string resultType):B
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source){
+            private static {{resultType}} Compute(ref TEnum source){
                 source.TryGetSpan(out var __span);
                 if(__span.Length==0) return default!;
                 if(__span.Length>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
@@ -49,7 +49,7 @@ internal class SingleOrDefault(int 番号,Enumerable source,string resultType):B
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source){
+            private static {{resultType}} Compute(ref TEnum source){
                 if(!source.TryGetNext(out var __mn56)) return default!;
                 {{resultType}} value = __mn56;
                 if(source.TryGetNext(out _)) throw new global::System.InvalidOperationException("Sequence contains more than one element");
@@ -77,7 +77,7 @@ internal class SingleOrDefault_defaultValue(int 番号,Enumerable source,string 
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,defaultValue);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {resultType} defaultValue";
-    protected override string ComputeExpression => $"Compute({this.e}, defaultValue)";
+    protected override string ComputeExpression => $"Compute(ref {this.e}, defaultValue)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderSingleOrDefault(range,番号,destVar,destType,defaultValue)
@@ -99,7 +99,7 @@ internal class SingleOrDefault_defaultValue(int 番号,Enumerable source,string 
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue){
+            private static {{resultType}} Compute(ref TEnum source, {{resultType}} defaultValue){
                 source.TryGetSpan(out var __span);
                 if(__span.Length==0) return defaultValue;
                 if(__span.Length>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
@@ -108,7 +108,7 @@ internal class SingleOrDefault_defaultValue(int 番号,Enumerable source,string 
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, {{resultType}} defaultValue){
+            private static {{resultType}} Compute(ref TEnum source, {{resultType}} defaultValue){
                 if(!source.TryGetNext(out var __mn58)) return defaultValue;
                 {{resultType}} value = __mn58;
                 if(source.TryGetNext(out _)) throw new global::System.InvalidOperationException("Sequence contains more than one element");
@@ -147,9 +147,9 @@ internal class SingleOrDefault_predicate(int 番号,Enumerable source,FuncFragme
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+        $"Compute(ref {this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorConstructor =>
-        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
+        $"this.Current = Compute(ref this.{this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderSingleOrDefault(range,predicate,番号,destVar,destType)
@@ -162,7 +162,7 @@ internal class SingleOrDefault_predicate(int 番号,Enumerable source,FuncFragme
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+            private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 {{resultType}} value = default!;
                 bool found = false;
                 source.TryGetSpan(out var __span);
@@ -180,7 +180,7 @@ internal class SingleOrDefault_predicate(int 番号,Enumerable source,FuncFragme
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+            private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 {{resultType}} value = default!;
                 bool found = false;
                 while(source.TryGetNext(out var __mn60)){

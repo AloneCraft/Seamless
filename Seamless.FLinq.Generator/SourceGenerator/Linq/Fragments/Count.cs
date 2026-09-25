@@ -34,7 +34,7 @@ internal class Count(int 番号,Enumerable source,string resultType):BufferedSca
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    protected override string ComputeExpression => $"Compute({this.e})";
+    protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) {
         if(source is RangeRoot range) {
             return $"{destType} {destVar}=({destType})({range.CountExpression});";
@@ -51,14 +51,14 @@ internal class Count(int 番号,Enumerable source,string resultType):BufferedSca
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source){
+            private static {{resultType}} Compute(ref TEnum source){
                 source.TryGetSpan(out var __span);
                 return ({{resultType}})__span.Length;
             }
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source){
+            private static {{resultType}} Compute(ref TEnum source){
                 if(source.TryGetNonEnumeratedCount(out var __count)){
                     return ({{resultType}})__count;
                 }
@@ -119,9 +119,9 @@ internal class Count_predicate(int 番号,Enumerable source,FuncFragment predica
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+        $"Compute(ref {this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorConstructor =>
-        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
+        $"this.Current = Compute(ref this.{this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) {
         var methodName = resultType is "long" or "global::System.Int64" ? "LongCount" : "Count";
         return source is RangeRoot range
@@ -136,7 +136,7 @@ internal class Count_predicate(int 番号,Enumerable source,FuncFragment predica
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+            private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 source.TryGetSpan(out var __span);
                 var count = 0;
                 for(var __i = 0; __i < __span.Length; __i++){
@@ -150,7 +150,7 @@ internal class Count_predicate(int 番号,Enumerable source,FuncFragment predica
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+            private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 {{resultType}} count = 0;
                 checked{
                     while(source.TryGetNext(out var __mn19)){

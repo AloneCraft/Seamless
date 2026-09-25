@@ -72,7 +72,7 @@ internal class ToList(int 番号,Enumerable source,string resultType):BufferedSc
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    protected override string ComputeExpression => $"Compute({this.e})";
+    protected override string ComputeExpression => $"Compute(ref {this.e})";
     internal bool CanInlineMaterializeConsume => source is ArrayRoot;
     public override string InlineSupportingMembers {
         get {
@@ -146,7 +146,7 @@ internal class ToList(int 番号,Enumerable source,string resultType):BufferedSc
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source){
+        private static {{resultType}} Compute(ref TEnum source){
             source.TryGetSpan(out var __sourceSpan);
             var __result=new global::System.Collections.Generic.List<{{source.ElementType}}>(__sourceSpan.Length);
             global::System.Runtime.InteropServices.CollectionsMarshal.SetCount(__result,__sourceSpan.Length);
@@ -159,7 +159,7 @@ internal class ToList(int 番号,Enumerable source,string resultType):BufferedSc
         """
         : $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source){
+        private static {{resultType}} Compute(ref TEnum source){
             // using ではなく try-finally なのは、遅経路のヘルパーへ enumerator を ref で渡すため。
             // using ローカルは読み取り専用で ref に渡せず、値渡しにするとコンストラクタで
             // プール配列を借りる enumerator（OrderBy 等）で二重 Return になる。

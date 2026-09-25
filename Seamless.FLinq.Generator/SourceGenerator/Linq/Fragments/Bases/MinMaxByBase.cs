@@ -47,7 +47,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
-    protected override string ComputeExpression => $"Compute({this.e}{this.ClosureArgsSuffix(keySelector)})";
+    protected override string ComputeExpression => $"Compute(ref {this.e}{this.ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) {
         var methodName = direction=="greater" ? "MaxBy" : "MinBy";
         return this.RenderComputeInline(destVar,destType)
@@ -62,7 +62,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
     private string CompareOp => direction=="greater" ? ">" : "<";
     private string BuildSpanCompute() => $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
+        private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
             var comparer=global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
             source.TryGetSpan(out var __span);
             if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
@@ -83,7 +83,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
         """;
     private string BuildTrySpanCompute() => $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
+        private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
             if(source.TryGetSpan(out var __span)){
                 var comparer=global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
                 if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
@@ -124,7 +124,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
         """;
     private string BuildEnumeratorCompute() => $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
+        private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
             var comparer=global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
             if(!source.TryGetNext(out var __mn106)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
             {{resultType}} bestElement=__mn106;

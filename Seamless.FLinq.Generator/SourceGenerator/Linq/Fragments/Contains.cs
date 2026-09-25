@@ -18,7 +18,7 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,value);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {source.ElementType} value";
-    protected override string ComputeExpression => $"Compute({this.e}, value)";
+    protected override string ComputeExpression => $"Compute(ref {this.e}, value)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeContainsInline(destVar,destType)
         ??this.RenderDirectSpanContainsInline(destVar,destType)
@@ -129,7 +129,7 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
     // 実装なので、JIT がこの分岐を定数畳み込みでき、追加コストは生じない。
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value){
+        private static {{resultType}} Compute(ref TEnum source, {{source.ElementType}} value){
             if(source.TryGetSpan(out var __span)){
                 return global::Seamless.Linq.Enumerable.ContainsSpan(__span,value);
             }
@@ -161,7 +161,7 @@ internal class Contains_comparer(int 番号,Enumerable source,string value,strin
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,value,comparer);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, {source.ElementType} value, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
-    protected override string ComputeExpression => $"Compute({this.e}, value, comparer)";
+    protected override string ComputeExpression => $"Compute(ref {this.e}, value, comparer)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderDirectSpanContainsComparerInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,value,comparer);
@@ -191,7 +191,7 @@ internal class Contains_comparer(int 番号,Enumerable source,string value,strin
     }
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source, {{source.ElementType}} value, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
+        private static {{resultType}} Compute(ref TEnum source, {{source.ElementType}} value, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
             comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
             if(source.TryGetSpan(out var __span)){
                 foreach(var item in __span){

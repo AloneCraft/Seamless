@@ -62,11 +62,11 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}{this.ClosureArgsSuffix(keySelector)})";
+        $"Compute(ref {this.e}{this.ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => $$"""
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
+            private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
@@ -121,11 +121,11 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
+        $"Compute(ref {this.e}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => $$"""
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
+            private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
@@ -182,11 +182,11 @@ internal class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFr
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}, global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}, comparer{this.ClosureArgsSuffix(keySelector)})";
+        $"Compute(ref {this.e}, comparer{this.ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType,$"{comparer}{this.ClosureArgsSuffix(keySelector)}");
     protected override string ComputeMembers => $$"""
-            private static {{resultType}} Compute(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector)}}){
+            private static {{resultType}} Compute(ref TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector)}}){
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}
@@ -242,11 +242,11 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}, global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}, comparer{this.ClosureArgsSuffix(keySelector,elementSelector)})";
+        $"Compute(ref {this.e}, comparer{this.ClosureArgsSuffix(keySelector,elementSelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType,$"{comparer}{this.ClosureArgsSuffix(keySelector,elementSelector)}");
     protected override string ComputeMembers => $$"""
-            private static {{resultType}} Compute(TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
+            private static {{resultType}} Compute(ref TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
                 var __hasSpan=source.TryGetSpan(out var __span);
                 var __capacity=__hasSpan
                     ? {{CapacityExpression(keySelector,"__span.Length")}}

@@ -43,9 +43,9 @@ internal class All_predicate(int 番号,Enumerable source,FuncFragment predicate
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+        $"Compute(ref {this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorConstructor =>
-        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
+        $"this.Current = Compute(ref this.{this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderAll(range,predicate,番号,destVar,destType)
@@ -65,7 +65,7 @@ internal class All_predicate(int 番号,Enumerable source,FuncFragment predicate
             return source.CanTryProvideSpan
                 ? $$"""
                     {{AggressiveInliningAttribute}}
-                    private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+                    private static bool Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                         if(source.TryGetSpan(out var __span)){
                             foreach(var {{this.item}} in __span){
                                 {{predicateCheck}} return false;
@@ -81,7 +81,7 @@ internal class All_predicate(int 番号,Enumerable source,FuncFragment predicate
                     """
                 : $$"""
                     {{AggressiveInliningAttribute}}
-                    private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+                    private static bool Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                         while(source.TryGetNext(out var __mn2)){
                             var {{this.item}}=__mn2;
                             {{predicateCheck}} return false;

@@ -37,7 +37,7 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    protected override string ComputeExpression => $"Compute({this.e})";
+    protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeSumInline(destVar,destType)
         ??this.RenderDirectSpanSumInline(destVar,destType)
@@ -83,14 +83,14 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
         ? (this.CanUseSumSpan
             ? $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum source){
+                private static {{resultType}} Compute(ref TEnum source){
                     source.TryGetSpan(out var __span);
                     return global::Seamless.Linq.Enumerable.SumSpan<{{resultType}}>(__span);
                 }
                 """
             : $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum source){
+                private static {{resultType}} Compute(ref TEnum source){
                     {{resultType}} sum = default!;
                     checked{
                         source.TryGetSpan(out var __span);
@@ -103,7 +103,7 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
         ? (this.CanUseSumSpan
             ? $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum source){
+                private static {{resultType}} Compute(ref TEnum source){
                     if(source.TryGetSpan(out var __span)){
                         return global::Seamless.Linq.Enumerable.SumSpan<{{resultType}}>(__span);
                     }
@@ -116,7 +116,7 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
                 """
             : $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum source){
+                private static {{resultType}} Compute(ref TEnum source){
                     {{resultType}} sum = default!;
                     checked{
                         if(source.TryGetSpan(out var __span)){
@@ -130,7 +130,7 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
                 """)
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source){
+            private static {{resultType}} Compute(ref TEnum source){
                 {{resultType}} sum = default!;
                 checked{
                     while(source.TryGetNext(out var __mn72)) sum+=__mn72;
@@ -182,7 +182,7 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(selector)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}{this.ClosureArgsSuffix(selector)})";
+        $"Compute(ref {this.e}{this.ClosureArgsSuffix(selector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType)
         ??(TryRenderDirectLambda(selector) is { } lambda
@@ -191,7 +191,7 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
+            private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
                 {{resultType}} sum = default!;
                 checked{
                     source.TryGetSpan(out var __span);
@@ -208,7 +208,7 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
         : source.CanTryProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
+            private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
                 {{resultType}} sum = default!;
                 checked{
                     if(source.TryGetSpan(out var __span)){
@@ -232,7 +232,7 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
+            private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
                 {{resultType}} sum = default!;
                 checked{
                     while(source.TryGetNext(out var __mn74)){

@@ -114,7 +114,7 @@ internal class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragmen
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
-    protected override string ComputeExpression => $"Compute({this.e}{this.ClosureArgsSuffix(keySelector)})";
+    protected override string ComputeExpression => $"Compute(ref {this.e}{this.ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeIdentityToDictionaryInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
@@ -145,7 +145,7 @@ internal class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragmen
     }
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
+        private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
             {{resultType}} result;
             var __hasSpan=source.TryGetSpan(out var __span);
             if(__hasSpan){
@@ -192,7 +192,7 @@ internal class ToDictionary_keySelector_elementSelector(int 番号,Enumerable so
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,elementSelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
-    protected override string ComputeExpression => $"Compute({this.e}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
+    protected override string ComputeExpression => $"Compute(ref {this.e}{this.ClosureArgsSuffix(keySelector,elementSelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeIdentityToDictionaryInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
@@ -228,7 +228,7 @@ internal class ToDictionary_keySelector_elementSelector(int 番号,Enumerable so
     }
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
+        private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
             {{resultType}} result;
             var __hasSpan=source.TryGetSpan(out var __span);
             if(__hasSpan){
@@ -276,7 +276,7 @@ internal class ToDictionary_keySelector_comparer(int 番号,Enumerable source,Fu
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression,comparer);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector)}";
-    protected override string ComputeExpression => $"Compute({this.e}, comparer{this.ClosureArgsSuffix(keySelector)})";
+    protected override string ComputeExpression => $"Compute(ref {this.e}, comparer{this.ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeIdentityToDictionaryInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,$"{comparer}{this.ClosureArgsSuffix(keySelector)}");
@@ -309,7 +309,7 @@ internal class ToDictionary_keySelector_comparer(int 番号,Enumerable source,Fu
     }
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector)}}){
+        private static {{resultType}} Compute(ref TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector)}}){
             {{resultType}} result;
             var __hasSpan=source.TryGetSpan(out var __span);
             if(__hasSpan){
@@ -356,12 +356,12 @@ internal class ToDictionary_keySelector_elementSelector_comparer(int 番号,Enum
     public override string StructMethod => this.FuncSupport(keySelector,nameof(keySelector));
     public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,elementSelector },source.GetEnumeratorExpression,comparer);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector)}";
-    protected override string ComputeExpression => $"Compute({this.e}, comparer{this.ClosureArgsSuffix(keySelector,elementSelector)})";
+    protected override string ComputeExpression => $"Compute(ref {this.e}, comparer{this.ClosureArgsSuffix(keySelector,elementSelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderComputeInline(destVar,destType,$"{comparer}{this.ClosureArgsSuffix(keySelector,elementSelector)}");
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
+        private static {{resultType}} Compute(ref TEnum source,global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
             {{resultType}} result;
             var __hasSpan=source.TryGetSpan(out var __span);
             if(__hasSpan){

@@ -18,7 +18,7 @@ internal class ElementAt(int 番号,Enumerable source,string index,string result
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,index);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int index";
-    protected override string ComputeExpression => $"Compute({this.e}, index)";
+    protected override string ComputeExpression => $"Compute(ref {this.e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeElementAtInline(destVar,destType)
         ??this.RenderDirectSpanElementAtInline(destVar,destType)
@@ -53,7 +53,7 @@ internal class ElementAt(int 番号,Enumerable source,string index,string result
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, int index){
+            private static {{resultType}} Compute(ref TEnum source, int index){
                 if(index<0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
                 source.TryGetSpan(out var __span);
                 if((uint)index>=(uint)__span.Length) throw new global::System.ArgumentOutOfRangeException(nameof(index));
@@ -62,7 +62,7 @@ internal class ElementAt(int 番号,Enumerable source,string index,string result
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source, int index){
+            private static {{resultType}} Compute(ref TEnum source, int index){
                 if(index<0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
                 var currentIndex=0;
                 while(source.TryGetNext(out var __mn24)){
@@ -97,7 +97,7 @@ internal class ElementAt_index(int 番号,Enumerable source,string index,string 
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,index);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, global::System.Index index";
-    protected override string ComputeExpression => $"Compute({this.e}, index)";
+    protected override string ComputeExpression => $"Compute(ref {this.e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeElementAtIndexInline(destVar,destType)
         ??this.RenderDirectSpanElementAtIndexInline(destVar,destType)
@@ -131,7 +131,7 @@ internal class ElementAt_index(int 番号,Enumerable source,string index,string 
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source,global::System.Index index){
+            private static {{resultType}} Compute(ref TEnum source,global::System.Index index){
                 source.TryGetSpan(out var __span);
                 var idx=index.GetOffset(__span.Length);
                 if((uint)idx>=(uint)__span.Length) throw new global::System.ArgumentOutOfRangeException(nameof(index));
@@ -140,7 +140,7 @@ internal class ElementAt_index(int 番号,Enumerable source,string index,string 
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum source,global::System.Index index){
+            private static {{resultType}} Compute(ref TEnum source,global::System.Index index){
                 if(!index.IsFromEnd){
                     var idx=index.Value;
                     var currentIndex=0;

@@ -46,7 +46,7 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    protected override string ComputeExpression => $"Compute({this.e})";
+    protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeToArrayInline(destVar,destType)
         ??this.RenderDirectSpanToArrayInline(destVar,destType)
@@ -87,7 +87,7 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source){
+        private static {{resultType}} Compute(ref TEnum source){
             global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
             source.TryGetSpan(out var __sourceSpan);
             global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
@@ -102,7 +102,7 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
         """
         : $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source){
+        private static {{resultType}} Compute(ref TEnum source){
             using var enumerator = source;
             if(enumerator.TryGetNonEnumeratedCount(out var __count)){
                 if(__count==0){

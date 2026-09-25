@@ -31,7 +31,8 @@ internal class SequenceEqual(int number,Enumerable source,Enumerable second,stri
     protected override string StructSources => source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,second.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => "TEnum1 source,TEnum2 second";
-    protected override string ComputeExpression => "Compute(source, second)";
+    // 列挙子はフィールドそのものを参照で渡し、Dispose で破棄される実体と列挙した実体を一致させる。
+    protected override string ComputeExpression => "Compute(ref this.source, ref this.second)";
     private bool CanInlineCompute {
         get {
             if(source is RangeRoot&&second is RangeRoot) {
@@ -75,9 +76,18 @@ internal class SequenceEqual(int number,Enumerable source,Enumerable second,stri
         var scalarType=this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
         return $$"""
             {{destType}} {{destVar}};
-            using(var {{sourceVariable}}={{sourceExpression}})
-            using(var {{secondVariable}}={{secondExpression}}){
-                {{destVar}}={{scalarType}}.Compute({{sourceVariable}},{{secondVariable}});
+            {
+                var {{sourceVariable}}={{sourceExpression}};
+                try{
+                    var {{secondVariable}}={{secondExpression}};
+                    try{
+                        {{destVar}}={{scalarType}}.Compute(ref {{sourceVariable}},ref {{secondVariable}});
+                    }finally{
+                        {{secondVariable}}.Dispose();
+                    }
+                }finally{
+                    {{sourceVariable}}.Dispose();
+                }
             }
             """;
     }
@@ -102,7 +112,7 @@ internal class SequenceEqual(int number,Enumerable source,Enumerable second,stri
     protected override string ComputeMembers => source.ElementType==second.ElementType&&IsVectorizedSequenceEqualElementType(source.ElementType)
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum1 source,TEnum2 second){
+            private static {{resultType}} Compute(ref TEnum1 source,ref TEnum2 second){
                 if(source.TryGetSpan(out var __spanL)&&second.TryGetSpan(out var __spanR)){
                     return global::System.MemoryExtensions.SequenceEqual(__spanL, __spanR);
                 }
@@ -118,7 +128,7 @@ internal class SequenceEqual(int number,Enumerable source,Enumerable second,stri
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum1 source,TEnum2 second){
+            private static {{resultType}} Compute(ref TEnum1 source,ref TEnum2 second){
                 if(source.TryGetSpan(out var __spanL)&&second.TryGetSpan(out var __spanR)){
                     return {{this.SpanEqualityExpression}};
                 }
@@ -160,7 +170,8 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
     protected override string StructSources => source.GetEnumeratorStruct+"\n"+second.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,second.GetEnumeratorExpression,comparer);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>? comparer";
-    protected override string ComputeExpression => "Compute(source, second, comparer)";
+    // 列挙子はフィールドそのものを参照で渡し、Dispose で破棄される実体と列挙した実体を一致させる。
+    protected override string ComputeExpression => "Compute(ref this.source, ref this.second, comparer)";
     private bool CanInlineCompute {
         get {
             if(source is RangeRoot&&second is RangeRoot) {
@@ -204,9 +215,18 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
         var scalarType=this.EnumeratorTypeNameWithOuter(source.EnumeratorTypeName,second.EnumeratorTypeName);
         return $$"""
             {{destType}} {{destVar}};
-            using(var {{sourceVariable}}={{sourceExpression}})
-            using(var {{secondVariable}}={{secondExpression}}){
-                {{destVar}}={{scalarType}}.Compute({{sourceVariable}},{{secondVariable}},{{comparer}});
+            {
+                var {{sourceVariable}}={{sourceExpression}};
+                try{
+                    var {{secondVariable}}={{secondExpression}};
+                    try{
+                        {{destVar}}={{scalarType}}.Compute(ref {{sourceVariable}},ref {{secondVariable}},{{comparer}});
+                    }finally{
+                        {{secondVariable}}.Dispose();
+                    }
+                }finally{
+                    {{sourceVariable}}.Dispose();
+                }
             }
             """;
     }
@@ -237,7 +257,7 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
         ? (ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)
             ? $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
+                private static {{resultType}} Compute(ref TEnum1 source, ref TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
                     if(source.TryGetSpan(out var __spanL)&&second.TryGetSpan(out var __spanR)){
                         return {{this.SpanEqualityExpression}};
                     }
@@ -256,7 +276,7 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
             // 委譲32.7µs対して手書き12.4µs)。下の要素型不一致分岐と同じ手書きループに揃える。
             : $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
+                private static {{resultType}} Compute(ref TEnum1 source, ref TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
                     comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
                     if(source.TryGetSpan(out var __spanL)&&second.TryGetSpan(out var __spanR)){
                         if(__spanL.Length!=__spanR.Length) return false;
@@ -276,7 +296,7 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
                 """)
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static {{resultType}} Compute(TEnum1 source, TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
+            private static {{resultType}} Compute(ref TEnum1 source, ref TEnum2 second, global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
                 comparer??=global::System.Collections.Generic.EqualityComparer<{{source.ElementType}}>.Default;
                 if(source.TryGetSpan(out var __spanL)&&second.TryGetSpan(out var __spanR)){
                     if(__spanL.Length!=__spanR.Length) return false;

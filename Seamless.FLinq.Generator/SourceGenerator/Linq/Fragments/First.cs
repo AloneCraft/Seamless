@@ -35,7 +35,7 @@ internal class First(int 番号,Enumerable source,string resultType):BufferedSca
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    protected override string ComputeExpression => $"Compute({this.e})";
+    protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderFirst(range,番号,destVar,destType)
@@ -60,7 +60,7 @@ internal class First(int 番号,Enumerable source,string resultType):BufferedSca
     }
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source){
+        private static {{resultType}} Compute(ref TEnum source){
             if(source.TryGetNext(out var __mn30)) return __mn30;
             throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
         }
@@ -98,16 +98,16 @@ internal class First_predicate(int 番号,Enumerable source,FuncFragment predica
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+        $"Compute(ref {this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorConstructor =>
-        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
+        $"this.Current = Compute(ref this.{this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         TryRenderDirectLambda(predicate) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"First",lambda)
             : this.RenderComputeInline(destVar,destType);
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
-        private static {{resultType}} Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+        private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
             while(source.TryGetNext(out var __mn31)){
                 var {{this.item}} = __mn31;
                 bool {{this.temp}} = default!;

@@ -17,10 +17,10 @@ internal abstract class MinMaxBase(int number,Enumerable source,string resultTyp
     protected override string StructSources => source.GetEnumeratorStruct;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    protected override string ComputeExpression => $"Compute({this.e})";
+    protected override string ComputeExpression => $"Compute(ref {this.e})";
     protected override string ComputeMembers => direction=="greater"
-        ? $"private static {resultType} Compute(TEnum source) => global::Seamless.Linq.Enumerable.Max(new global::Seamless.Linq.ValueEnumerable<TEnum, {source.ElementType}>(source));"
-        : $"private static {resultType} Compute(TEnum source) => global::Seamless.Linq.Enumerable.Min(new global::Seamless.Linq.ValueEnumerable<TEnum, {source.ElementType}>(source));";
+        ? $"private static {resultType} Compute(ref TEnum source) => global::Seamless.Linq.Enumerable.Max(new global::Seamless.Linq.ValueEnumerable<TEnum, {source.ElementType}>(source));"
+        : $"private static {resultType} Compute(ref TEnum source) => global::Seamless.Linq.Enumerable.Min(new global::Seamless.Linq.ValueEnumerable<TEnum, {source.ElementType}>(source));";
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 
     public override string? RenderInlineComputation(string destVar,string destType) {

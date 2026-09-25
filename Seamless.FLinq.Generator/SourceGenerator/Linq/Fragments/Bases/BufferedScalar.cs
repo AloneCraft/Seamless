@@ -11,7 +11,7 @@ BufferedScalar は「Compute で先に結果を作り、TryGetNext はその結�
       public TResult Current { get; private set; }
       private bool yielded;
       public GeneratedScalar(TSourceEnumerator source) {
-          Current = Compute(source);
+          Current = Compute(ref this.source); // 列挙子は参照で渡し、Dispose で破棄する実体と一致させる
       }
       public bool TryGetNext(out TResult current) {
           if(yielded) return false;
@@ -44,7 +44,8 @@ internal abstract class BufferedScalar(int 番号,string resultType):Scalar(番�
         private bool {{this.yielded}} = false;
         {{this.ComputeMembers}}
         """;
-    public override string GetEnumeratorConstructor => $"this.Current = {this.ComputeExpression};";
+    // Compute は列挙子を参照で受け取る。引数のコピーではなく、Dispose で破棄されるフィールドそのものを渡す。
+    public override string GetEnumeratorConstructor => $"this.Current = {this.ComputeExpression.Replace($"ref {this.e}",$"ref this.{this.e}")};";
     public override string GetTryGetNextBody => $$"""
         if(this.{{this.yielded}}){
             current=default!;
@@ -65,8 +66,10 @@ internal abstract class BufferedScalar(int 番号,string resultType):Scalar(番�
         }
         """;
 
-    // ComputeExpression（= Compute(this.e{closure})）を「ソース列挙子をその場で作り Compute へ渡す」
+    // ComputeExpression（= Compute(ref this.e{closure})）を「ソース列挙子をその場で作り Compute へ渡す」
     // インライン文へ変換する共通ヘルパー。Compute(...) 形を持つ単一ソース集約のみが opt-in する。
+    // 列挙子は Compute へ参照で渡し、Compute が進めた実体そのものを破棄する。using の変数は読み取り専用で
+    // 参照渡しできないため try/finally で書く。値渡しにすると内側の列挙子を作ったコピーが破棄されない。
     protected string? RenderComputeInline(string destVar,string destType) {
         if(this.PrimarySource is not { } src) return null;
         string srcExpr;
@@ -75,12 +78,7 @@ internal abstract class BufferedScalar(int 番号,string resultType):Scalar(番�
         var call = this.ComputeExpression
             .Replace("Compute(",$"{this.EnumeratorTypeNameWithOuter(src.EnumeratorTypeName)}.Compute(")
             .Replace(this.e,srcVar);
-        return $$"""
-            {{destType}} {{destVar}};
-            using(var {{srcVar}}={{srcExpr}}){
-                {{destVar}}={{call}};
-            }
-            """;
+        return RenderOwnedEnumeratorComputation(destVar,destType,srcVar,srcExpr,call);
     }
 
     protected string? RenderComputeInline(string destVar,string destType,params string[] extraArguments) {
@@ -89,12 +87,20 @@ internal abstract class BufferedScalar(int 番号,string resultType):Scalar(番�
         try { srcExpr=src.GetEnumeratorExpression; } catch(NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
         var extra = extraArguments.Length==0 ? string.Empty : ", "+string.Join(", ",extraArguments);
-        return $$"""
-            {{destType}} {{destVar}};
-            using(var {{srcVar}}={{srcExpr}}){
-                {{destVar}}={{this.EnumeratorTypeNameWithOuter(src.EnumeratorTypeName)}}.Compute({{srcVar}}{{extra}});
-            }
-            """;
+        var call = $"{this.EnumeratorTypeNameWithOuter(src.EnumeratorTypeName)}.Compute(ref {srcVar}{extra})";
+        return RenderOwnedEnumeratorComputation(destVar,destType,srcVar,srcExpr,call);
     }
+
+    private static string RenderOwnedEnumeratorComputation(string destVar,string destType,string srcVar,string srcExpr,string call) => $$"""
+        {{destType}} {{destVar}};
+        {
+            var {{srcVar}}={{srcExpr}};
+            try{
+                {{destVar}}={{call}};
+            }finally{
+                {{srcVar}}.Dispose();
+            }
+        }
+        """;
 
 }

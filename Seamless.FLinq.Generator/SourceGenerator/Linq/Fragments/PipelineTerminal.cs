@@ -77,12 +77,12 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
     }
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
-    public override string GetEnumeratorConstructor => $"this.Current = Compute({this.e});";
+    public override string GetEnumeratorConstructor => $"this.Current = Compute(ref this.{this.e});";
     public override string GetEnumeratorFields => $$"""
         public {{this.ResultType}} Current { get; private set; }
         private bool {{this.yielded}} = false;
         {{AggressiveInliningAttribute}}
-        private static {{this.ResultType}} Compute(TEnum source){
+        private static {{this.ResultType}} Compute(ref TEnum source){
             {{this.ComputeBody}}
         }
         """;

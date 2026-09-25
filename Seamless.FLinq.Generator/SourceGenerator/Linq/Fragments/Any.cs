@@ -167,9 +167,9 @@ internal class Any_predicate(int 番号,Enumerable source,FuncFragment predicate
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+        $"Compute(ref {this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorConstructor =>
-        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
+        $"this.Current = Compute(ref this.{this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
             ? RangePredicateOptimizer.RenderAny(range,predicate,番号,destVar,destType)
@@ -182,7 +182,7 @@ internal class Any_predicate(int 番号,Enumerable source,FuncFragment predicate
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
-            private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+            private static bool Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 source.TryGetSpan(out var __span);
                 foreach(var {{this.item}} in __span){
                     bool {{this.temp}}=default!;
@@ -194,7 +194,7 @@ internal class Any_predicate(int 番号,Enumerable source,FuncFragment predicate
             """
         : $$"""
             {{AggressiveInliningAttribute}}
-            private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+            private static bool Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 while(source.TryGetNext(out var __mn4)){
                     var {{this.item}}=__mn4;
                     bool {{this.temp}}=default!;
@@ -235,12 +235,12 @@ internal class Any_indexPredicate(int 番号,Enumerable source,FuncFragment pred
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(predicate)}";
     protected override string ComputeExpression =>
-        $"Compute({this.e}{this.ClosureArgsSuffix(predicate)})";
+        $"Compute(ref {this.e}{this.ClosureArgsSuffix(predicate)})";
     public override string GetEnumeratorConstructor =>
-        $"this.Current = Compute({this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
+        $"this.Current = Compute(ref this.{this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     protected override string ComputeMembers => $$"""
         {{AggressiveInliningAttribute}}
-        private static bool Compute(TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+        private static bool Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
             var {{this.a}}=0;
             while(source.TryGetNext(out var __mn5)){
                 var {{this.item}}=__mn5;

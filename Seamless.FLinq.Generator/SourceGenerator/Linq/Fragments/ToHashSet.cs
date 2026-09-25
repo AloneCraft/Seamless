@@ -75,9 +75,9 @@ internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashS
     protected override string ComputeExpression {
         get {
             if(this.ProviderNativeCountExpression is not null) {
-                return $"Compute({this.e},{this.PresetCountName})";
+                return $"Compute(ref {this.e},{this.PresetCountName})";
             }
-            return $"Compute({this.e})";
+            return $"Compute(ref {this.e})";
         }
     }
     public override string? RenderInlineComputation(string destVar,string destType) =>
@@ -153,7 +153,7 @@ internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashS
             if(this.ProviderNativeCountExpression is not null) {
                 return $$"""
                     {{AggressiveInliningAttribute}}
-                    private static {{resultType}} Compute(TEnum source,int {{this.PresetCountName}}){
+                    private static {{resultType}} Compute(ref TEnum source,int {{this.PresetCountName}}){
                         var result=new global::System.Collections.Generic.HashSet<{{source.ElementType}}>({{this.PresetCountName}});
                         while(source.TryGetNext(out var __mn86)) result.Add(__mn86);
                         return result;
@@ -162,7 +162,7 @@ internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashS
             }
             return $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum source){
+                private static {{resultType}} Compute(ref TEnum source){
                     global::System.Collections.Generic.HashSet<{{source.ElementType}}> result;
                     if(source.TryGetNonEnumeratedCount(out var __count)){
                         result=new(__count);
@@ -203,9 +203,9 @@ internal class ToHashSet_comparer(int 番号,Enumerable source,string comparer,s
     protected override string ComputeExpression {
         get {
             if(this.ProviderNativeCountExpression is not null) {
-                return $"Compute({this.e},comparer,{this.PresetCountName})";
+                return $"Compute(ref {this.e},comparer,{this.PresetCountName})";
             }
-            return $"Compute({this.e},comparer)";
+            return $"Compute(ref {this.e},comparer)";
         }
     }
     public override string? RenderInlineComputation(string destVar,string destType) =>
@@ -282,7 +282,7 @@ internal class ToHashSet_comparer(int 番号,Enumerable source,string comparer,s
             if(this.ProviderNativeCountExpression is not null) {
                 return $$"""
                     {{AggressiveInliningAttribute}}
-                    private static {{resultType}} Compute(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer,int {{this.PresetCountName}}){
+                    private static {{resultType}} Compute(ref TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer,int {{this.PresetCountName}}){
                         var result=new global::System.Collections.Generic.HashSet<{{source.ElementType}}>({{this.PresetCountName}},comparer);
                         while(source.TryGetNext(out var __mn87)) result.Add(__mn87);
                         return result;
@@ -291,7 +291,7 @@ internal class ToHashSet_comparer(int 番号,Enumerable source,string comparer,s
             }
             return $$"""
                 {{AggressiveInliningAttribute}}
-                private static {{resultType}} Compute(TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
+                private static {{resultType}} Compute(ref TEnum source,global::System.Collections.Generic.IEqualityComparer<{{source.ElementType}}>? comparer){
                     global::System.Collections.Generic.HashSet<{{source.ElementType}}> result;
                     if(source.TryGetNonEnumeratedCount(out var __count)){
                         result=new(__count,comparer);

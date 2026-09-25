@@ -8,8 +8,11 @@ Scalar は Count/First/ToArray など「シーケンスから単一結果を返�
 
 生成されるコード例:
   Result result;
-  using(var sourceEnumerator = source.GetEnumerator()) {
-      result = Compute(sourceEnumerator);
+  var sourceEnumerator = source.GetEnumerator();
+  try {
+      result = Compute(ref sourceEnumerator); // 値渡しにするとコピー側の内側列挙子が破棄されない
+  } finally {
+      sourceEnumerator.Dispose();
   }
 
 主な分岐:
