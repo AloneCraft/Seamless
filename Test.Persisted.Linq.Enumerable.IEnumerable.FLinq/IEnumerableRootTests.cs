@@ -203,8 +203,11 @@ public sealed class IEnumerableRootTests {
     private static global::Seamless.Collections.Persisted.Set<int> Source()=>source??throw new InvalidOperationException("Source was not initialized.");
     private static global::Seamless.Collections.Persisted.Set<ClassInt32> ClassSource()=>classSource??throw new InvalidOperationException("classSource was not initialized.");
     private static string GeneratedFor(string methodName) {
-        var project=Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,"..","..",".."));
-        var root=Path.Combine(project,"obj","Release","net10.0","generated");
+        // 出力先 bin/<構成>/<TFM>/ から、実行中の構成と TFM の obj/<構成>/<TFM>/generated を求める(構成を固定しない)。
+        var output=new DirectoryInfo(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory));
+        var configuration=output.Parent!;
+        var project=configuration.Parent!.Parent!.FullName;
+        var root=Path.Combine(project,"obj",configuration.Name,output.Name,"generated");
         foreach(var file in Directory.EnumerateFiles(root,"*.g.cs",SearchOption.AllDirectories)) {
             var source=File.ReadAllText(file);
             if(source.Contains("class IEnumerableRootTests",StringComparison.Ordinal)

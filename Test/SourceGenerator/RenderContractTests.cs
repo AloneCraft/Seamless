@@ -109,7 +109,7 @@ public sealed class RenderContractTests {
         Assert.True(tryGetNextIndex>usingIndex);
     }
     private Type GetGeneratorType(string name) =>
-        GeneratorAssembly.GetType("Seamless.FLinq."+name,throwOnError:true)!;
+        GeneratorAssembly.GetType("Seamless.FLinq.Generator."+name,throwOnError:true)!;
 
     private static object CreateInternal(Type type,params object?[] arguments) =>
         Activator.CreateInstance(

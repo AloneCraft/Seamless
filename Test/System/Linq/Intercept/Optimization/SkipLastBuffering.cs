@@ -6,6 +6,7 @@ namespace Test.System.Linq.Intercept.Optimization;
 //
 // 計測は必ず「直接呼び出しの前後を GC カウンタで挟む」方式で書くこと。対象を Func<T>/delegate で
 // ラップして共通ヘルパー経由で呼ぶと割当が計測から消える（再現性を確認済みの現象）。
+[Collection("AllocationMeasurement")]
 public sealed class SkipLastBuffering:OptimizationTestBase {
     internal const int ElementCount = 4096;
     internal const int SkipCount = 1024;

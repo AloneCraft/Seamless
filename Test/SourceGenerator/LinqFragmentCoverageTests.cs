@@ -40,8 +40,8 @@ public sealed class LinqFragmentCoverageTests {
         foreach(var descriptor in descriptors) {
             var fragmentType=(Type)GetPropertyValue(descriptor,"FragmentType")!;
             var argumentsType=(Type)GetPropertyValue(descriptor,"ArgumentsType")!;
-            Assert.True(GeneratorAssembly.GetType("Seamless.FLinq.Fragment",throwOnError:true)!.IsAssignableFrom(fragmentType),GetPropertyValue(descriptor,"Key")!.ToString());
-            Assert.True(GeneratorAssembly.GetType("Seamless.FLinq.FragmentArguments",throwOnError:true)!.IsAssignableFrom(argumentsType),GetPropertyValue(descriptor,"Key")!.ToString());
+            Assert.True(GeneratorAssembly.GetType("Seamless.FLinq.Generator.Fragment",throwOnError:true)!.IsAssignableFrom(fragmentType),GetPropertyValue(descriptor,"Key")!.ToString());
+            Assert.True(GeneratorAssembly.GetType("Seamless.FLinq.Generator.FragmentArguments",throwOnError:true)!.IsAssignableFrom(argumentsType),GetPropertyValue(descriptor,"Key")!.ToString());
             if(GetPropertyValue(descriptor,"Capabilities")!.ToString()!.Contains("ProviderNativeIterate",StringComparison.Ordinal)) {
                 Assert.Equal("Fragment",GetPropertyValue(descriptor,"Coverage")!.ToString());
             }

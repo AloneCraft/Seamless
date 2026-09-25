@@ -600,12 +600,13 @@ public sealed class ベンチマークオーケストレーター {
         var CPU一覧 = new[] { 0 };
         var 開始通知 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var 解放通知 = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var 観測 = new List<int>();
+        // 行は CPU ごとに並行して走るため、記録の順番は負荷で入れ替わる。どの行がどの CPU で測られたかを確かめる。
+        var 観測 = new List<(string メソッド,int CPU)>();
         var 排他 = new object();
         var 実行器 = new 遅延偽実行器(async (ジョブ,CPU) => {
             if(!ジョブ.開放ループ較正か) {
                 lock(排他) {
-                    観測.Add(CPU);
+                    観測.Add((ジョブ.メソッド名,CPU));
                 }
             }
 
@@ -634,7 +635,7 @@ public sealed class ベンチマークオーケストレーター {
         解放通知.SetResult();
         await 実行処理;
 
-        Assert.Equal([0,1],観測);
+        Assert.Equal([("A",0),("B",1)],観測.OrderBy(static 項目=>項目.メソッド,StringComparer.Ordinal).ToArray());
     }
 
     [Fact]

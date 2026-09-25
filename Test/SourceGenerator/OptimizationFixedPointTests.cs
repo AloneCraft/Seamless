@@ -92,7 +92,7 @@ public sealed partial class OptimizationFixedPointTests{
     [Fact]
     public void FixedPointRunnerStopsDeterministically(){
         const string probeSource="""
-            using Seamless.FLinq;
+            using Seamless.FLinq.Generator;
             public static class Probe{
                 private static FixedPointRoundResult<int> Next(int state,int round){
                     _=round;
