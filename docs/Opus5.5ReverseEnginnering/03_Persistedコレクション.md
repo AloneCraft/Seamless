@@ -41,7 +41,7 @@ store.Save();
 | メモリ上限のない Contains | 要素のバイト列をキーにした mmap 上のハッシュ索引 | 実装済み | `Seamless.Collections/Persisted/PersistedHashIndex.cs:4-10` |
 | ゼロコピー参照 | 固定長の要素を `AsSpan` で直接読む | 実装済み | 【記録】承認済み計画 §1「Persisted」 |
 | 集合演算・列挙の逐次化 | 集合演算・列挙・Keys・Values を全件メモリに載せない | 実装済み | 【記録】STAGE-4b |
-| Set/Dictionary のリフレクション除去 | ファイル形式は互換のまま `AutoSerializer` で作り分け | 実装済み | `Set.cs:9-17`、【記録】STAGE-4c |
+| Set/Dictionary のリフレクション除去 | レコード本体の形式を維持して `AutoSerializer` で作り分け | 実装済み | `Set.cs:9-17`、【記録】STAGE-4c |
 | スコープ所有の一時資源 | `ScopedByteIndex`・`ScopedStoredSequence`（`ExecutionScope` が所有） | 実装済み | `ScopedByteIndex.cs`、`ScopedStoredSequence.cs` |
 | AppendOnlyList のストア対応 | `CreatePersistedAppendOnlyList` | **未実装**（段階4残り） | `StoreExtensions.cs` に無い。旧 `Store.CreateAppendOnlyList`（`Store.cs:28-32`）だけ |
 | 辞書の Compact の逐次化 | 現在は `System.Collections.Generic.Dictionary` に全件を集めてから書き直す | **未実装**（段階4残り） | `Dictionary.cs:185-193` |
@@ -110,7 +110,7 @@ store.Save();
 
 - 旧静的 API（`Store.CreateSet(path)`、`Store.CreateTemp*`）の用途は、一時用途を一時ストアへ、パス指定を永続ストアへ置き換える。
 - 置き換えは Tsavorite の移行と同じ区切り（DB → LINQ → テスト・ベンチ）で行う。
-- ファイル形式は現状互換のまま（STAGE-4c）。形式を変える場合は保存済みデータの変換をしない（決定11）。
+- レコード本体の形式は維持する。2026-09-26の利用者決定により `.hindex` は新形式のみ受け付け、旧形式を拒否する。保存済みデータの自動変換はしない（決定11）。
 
 ## 9. ロールバック条件
 

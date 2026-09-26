@@ -4,6 +4,14 @@ using PersistedExtensions=global::Seamless.Collections.Persisted.StoreExtensions
 namespace Test.Seamless.Persisted;
 /// <summary>共通ストアから Persisted のコレクションを作る拡張メソッドの仕様。</summary>
 public class StoreExtensions{
+    private static IEnumerable<StorageTuning> StorageModes {
+        get {
+            yield return new(FileAccess.ReadWrite,StorageAccessPattern.Random,StorageBufferingMode.Buffered);
+            if(OperatingSystem.IsWindows()) {
+                yield return new(FileAccess.ReadWrite,StorageAccessPattern.Sequential,StorageBufferingMode.Unbuffered);
+            }
+        }
+    }
     private static string NewRoot(){
         var root=Path.Combine(Path.GetTempPath(),"seamless-persisted-store-tests",Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -12,6 +20,22 @@ public class StoreExtensions{
     [Fact,Trait("Category","Unit")]public void CreatePersistedSet(){
         var root=NewRoot();
         try{
+            {
+                //指定した読み書き方式で追加・保存・開き直しができる
+                foreach(var tuning in StorageModes){
+                    var directory=Path.Combine(root,tuning.AccessPattern+"-"+tuning.BufferingMode);
+                    using(var store=CommonStore.Open(directory)){
+                        var set=PersistedExtensions.CreatePersistedSet<long>(store,"ids",tuning:tuning);
+                        set.Add(1);set.Add(2);
+                        store.Save();
+                    }
+                    using(var store=CommonStore.Open(directory)){
+                        var set=PersistedExtensions.CreatePersistedSet<long>(store,"ids",tuning:tuning);
+                        Assert.True(set.Contains(1));Assert.True(set.Contains(2));
+                        Assert.Equal(2,set.GetLongCount());
+                    }
+                }
+            }
             {
                 //一時ストア: ストアのフォルダの中に作られ、破棄でフォルダごと消える
                 var store=CommonStore.CreateTemporary(temporaryDirectory:root);
@@ -98,6 +122,16 @@ public class StoreExtensions{
     [Fact,Trait("Category","Unit")]public void CreatePersistedList(){
         var root=NewRoot();
         try{
+            foreach(var tuning in StorageModes){
+                using var temporary=CommonStore.CreateTemporary(temporaryDirectory:root);
+                var list=PersistedExtensions.CreatePersistedList<long>(temporary,"values",tuning:tuning);
+                Assert.Equal(tuning,list.Tuning);
+                list.Add(42);
+                var token=temporary.Save();
+                list.Add(99);
+                temporary.Load(token);
+                Assert.Equal(1,list.Count);Assert.Equal(42,list[0]);
+            }
             //固定長の要素でも、保存した時点へ開き直せる
             var directory=Path.Combine(root,"list");
             using(var store=CommonStore.Open(directory)){
@@ -118,6 +152,19 @@ public class StoreExtensions{
     [Fact,Trait("Category","Unit")]public void CreatePersistedDictionary(){
         var root=NewRoot();
         try{
+            foreach(var tuning in StorageModes){
+                var tunedDirectory=Path.Combine(root,tuning.AccessPattern+"-"+tuning.BufferingMode);
+                using(var store=CommonStore.Open(tunedDirectory)){
+                    var dictionary=PersistedExtensions.CreatePersistedDictionary<string,int>(store,"names",tuning:tuning);
+                    dictionary.Add("one",1);dictionary.Add("two",2);
+                    store.Save();
+                }
+                using(var store=CommonStore.Open(tunedDirectory)){
+                    var dictionary=PersistedExtensions.CreatePersistedDictionary<string,int>(store,"names",tuning:tuning);
+                    Assert.Equal(1,dictionary["one"]);Assert.Equal(2,dictionary["two"]);
+                    Assert.Equal(2,dictionary.Count);
+                }
+            }
             //辞書も、保存した時点へ開き直せる
             var directory=Path.Combine(root,"dictionary");
             using(var store=CommonStore.Open(directory)){

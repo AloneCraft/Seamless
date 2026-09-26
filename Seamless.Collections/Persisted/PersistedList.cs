@@ -33,6 +33,7 @@ public enum StorageAccessPattern {
 public enum StorageBufferingMode {
     Auto,
     Buffered,
+    /// <summary>OS のファイルキャッシュを使わない。Persisted では Windows の整列した直接 I/O を使用する。</summary>
     Unbuffered,
 }
 
@@ -109,14 +110,19 @@ public readonly record struct StorageTuning {
         };
     }
 
+    /// <summary>Windows の Unbuffered は FILE_FLAG_NO_BUFFERING を含む。使用側がバッファ・位置・サイズを整列する必要がある。</summary>
     public FileOptions ToFileOptions() {
-        if(this.BufferingMode==StorageBufferingMode.Unbuffered)
-            throw new NotSupportedException("Unbuffered Persisted FileStream access is not supported by this backend.");
-        return this.AccessPattern switch {
+        PersistedFile.ValidateTuning(this);
+        var options=this.AccessPattern switch {
             StorageAccessPattern.Sequential => FileOptions.SequentialScan,
             StorageAccessPattern.Random => FileOptions.RandomAccess,
             _ => FileOptions.None,
         };
+        if(this.BufferingMode==StorageBufferingMode.Unbuffered) {
+            // FILE_FLAG_NO_BUFFERING。呼び出し側にはアドレス・長さ・バッファの整列が必要。
+            options|=(FileOptions)0x20000000;
+        }
+        return options;
     }
 }
 
@@ -339,6 +345,12 @@ internal static class MemoryMappedListTuning {
             &&(currentTuning.AccessPattern!=nextTuning.AccessPattern
                 ||currentTuning.BufferingMode!=nextTuning.BufferingMode
                 ||currentTuning.ResolveBufferSize()!=nextTuning.ResolveBufferSize());
+    }
+
+    public static void ApplyTuning(Stream stream,PersistedFileAccessor accessor,StorageTuning tuning) {
+        if(accessor.MappedAccessor is { } mapped) {
+            ApplyTuning((FileStream)stream,mapped,tuning);
+        }
     }
 
     public static void ApplyTuning(FileStream stream,MemoryMappedViewAccessor accessor,StorageTuning tuning) {

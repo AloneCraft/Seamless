@@ -5,6 +5,53 @@ namespace Test.Seamless.Stores;
 /// </summary>
 
 public class CollectionStore {
+    [Fact,Trait("Category","Unit")]
+    public void GetStatistics(){
+        var tuning=new TsavoriteTuning{IndexSize=4096,PageSize=4096,SegmentSize=65536,LogMemorySize=65536,AutoGrowIndex=false};
+        {
+            using var owner=global::Seamless.Execution.Store.CreateMemory();
+            using var data=owner.CreateTsavoriteHashSet<long>("ids",tuning with{LogMemorySize=1L<<20});
+            using var set=data.Create();
+            var before=data.GetStatistics();
+            for(long i=0;i<10_000;i++){set.Add(i);}
+            var statistics=data.GetStatistics();
+            Assert.Equal(64,statistics.IndexSize);
+            Assert.Equal(4096,statistics.IndexBytes);
+            Assert.InRange(statistics.EntryCount,1,data.GetLongCount());
+            Assert.True(statistics.OverflowBucketCount>before.OverflowBucketCount);
+            Assert.True(statistics.OverflowBucketAllocations>before.OverflowBucketAllocations);
+            Assert.True(statistics.HighWaterAllocatedPageCount>0);
+            Assert.Equal(0,statistics.DiskLogBytes);
+            Assert.True(statistics.MemoryLogBytes>0);
+            Assert.Equal(statistics.TailAddress-statistics.HeadAddress,statistics.MemoryLogBytes);
+            var previousTail=statistics.TailAddress;
+            set.Add(10_000);
+            Assert.True(data.GetStatistics().TailAddress>previousTail);
+            Assert.Equal(previousTail,statistics.TailAddress);
+        }
+        {
+            using var owner=global::Seamless.Execution.Store.CreateTemporary();
+            using var data=owner.CreateTsavoriteHashSet<long>("ids",tuning);
+            using var set=data.Create();
+            for(long i=0;i<20_000;i++){set.Add(i);}
+            var statistics=data.GetStatistics();
+            Assert.True(statistics.DiskLogBytes>0);
+            Assert.True(statistics.MemoryLogBytes>0);
+            Assert.Equal(statistics.HeadAddress-statistics.BeginAddress,statistics.DiskLogBytes);
+            Assert.Equal(statistics.TailAddress-statistics.HeadAddress,statistics.MemoryLogBytes);
+            Assert.True(statistics.ReadOnlyAddress>=statistics.HeadAddress);
+            Assert.True(set.Contains(0));
+            Assert.True(set.Contains(19_999));
+        }
+    }
+    [Fact,Trait("Category","Unit")]
+    public void DumpIndexDistribution(){
+        using var owner=global::Seamless.Execution.Store.CreateMemory();
+        using var data=owner.CreateTsavoriteHashSet<int>("ids");
+        using var set=data.Create();
+        set.Add(1);
+        Assert.False(string.IsNullOrWhiteSpace(data.DumpIndexDistribution()));
+    }
     private static string CreateFolder() => TestPath.Directory<CollectionStore>();
     private const long TestMemorySize = global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity;
     // CollectionStoreの境界条件を検証する。

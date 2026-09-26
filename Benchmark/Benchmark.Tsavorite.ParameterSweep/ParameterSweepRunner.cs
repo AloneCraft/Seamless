@@ -1,12 +1,12 @@
 using Seamless.Collections;
-using Seamless.Collections.Persisted;
 using Seamless.Collections.Tsavorite;
+using Seamless.Execution;
 using Seamless.TestKit;
 
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
-using ストア型 = Seamless.Collections.Tsavorite.Store;
+using 共通ストア型 = Seamless.Execution.Store;
 
 namespace Benchmark.Tsavorite.ParameterSweep;
 
@@ -57,12 +57,8 @@ public sealed class パラメータスイープ実行器 {
             パラメータスイープ設定バリデーター.検証(ケース.設定);
             using var ワークロード = パラメータスイープワークロードファクトリー.作成(ケース,オプション);
             return this.ワークロードを実行(実行ID,計測日時,ケース,ワークロード,オプション,キャンセルトークン);
-        } catch(Exception 例外) when(例外 is ArgumentException or NotSupportedException) {
-            return 失敗結果を作成(実行ID,計測日時,ケース,パラメータスイープ失敗種別.無効な構成,例外);
-        } catch(OutOfMemoryException 例外) {
-            return 失敗結果を作成(実行ID,計測日時,ケース,メモリ不足を分類(例外),例外);
         } catch(Exception 例外) {
-            return 失敗結果を作成(実行ID,計測日時,ケース,パラメータスイープ失敗種別.例外,例外);
+            return 失敗結果を作成(実行ID,計測日時,ケース,失敗を分類(例外),例外);
         }
     }
 
@@ -74,16 +70,16 @@ public sealed class パラメータスイープ実行器 {
         パラメータスイープ実行オプション オプション,
         CancellationToken キャンセルトークン) {
         var CPU番号一覧 = オプション.論理CPU一覧.Count==0 ? [null] : オプション.論理CPU一覧.Select(static CPU => (int?)CPU).ToArray();
-        var ワーカー一覧 = CPU番号一覧.Select((CPU,番号) => new パラメータスイープワーカー実行(番号,CPU,ワークロード.ワーカーを作成())).ToArray();
+        var ワーカー一覧 = CPU番号一覧.Select((CPU,番号) => new パラメータスイープワーカー実行(番号,CPU,ワークロード.ワーカーを作成)).ToArray();
         foreach(var ワーカー in ワーカー一覧) {
             ワーカー.ワーカー数=ワーカー一覧.Length;
         }
         using var 連結キャンセルソース = CancellationTokenSource.CreateLinkedTokenSource(キャンセルトークン);
-        var 追加開始 = new ManualResetEventSlim(false);
-        var 追加完了 = new CountdownEvent(ワーカー一覧.Length);
-        var 検索開始 = new ManualResetEventSlim(false);
-        var 検索完了 = new CountdownEvent(ワーカー一覧.Length);
-        var 準備完了 = new CountdownEvent(ワーカー一覧.Length);
+        using var 追加開始 = new ManualResetEventSlim(false);
+        using var 追加完了 = new CountdownEvent(ワーカー一覧.Length);
+        using var 検索開始 = new ManualResetEventSlim(false);
+        using var 検索完了 = new CountdownEvent(ワーカー一覧.Length);
+        using var 準備完了 = new CountdownEvent(ワーカー一覧.Length);
         var 失敗一覧 = new ConcurrentQueue<パラメータスイープワーカー失敗>();
         var ケースストップウォッチ = Stopwatch.StartNew();
         var スレッド一覧 = ワーカー一覧.Select(ワーカー => this.ワーカースレッドを作成(
@@ -97,21 +93,32 @@ public sealed class パラメータスイープ実行器 {
             検索開始,
             検索完了,
             失敗一覧)).ToArray();
-        foreach(var スレッド in スレッド一覧) {
-            スレッド.Start();
+        var 開始済みスレッド数 = 0;
+        var 追加ストップウォッチ = new Stopwatch();
+        var 検索ストップウォッチ = new Stopwatch();
+        try {
+            foreach(var スレッド in スレッド一覧) {
+                スレッド.Start();
+                開始済みスレッド数++;
+            }
+            準備完了.Wait(CancellationToken.None);
+            追加ストップウォッチ.Start();
+            追加開始.Set();
+            追加完了.Wait(CancellationToken.None);
+            追加ストップウォッチ.Stop();
+            検索ストップウォッチ.Start();
+            検索開始.Set();
+            検索完了.Wait(CancellationToken.None);
+            検索ストップウォッチ.Stop();
+        } finally {
+            連結キャンセルソース.Cancel();
+            追加開始.Set();
+            検索開始.Set();
+            for(var 番号 = 0;番号<開始済みスレッド数;番号++) {
+                スレッド一覧[番号].Join();
+            }
         }
-        準備完了.Wait(CancellationToken.None);
-        var 追加ストップウォッチ = Stopwatch.StartNew();
-        追加開始.Set();
-        追加完了.Wait(CancellationToken.None);
-        追加ストップウォッチ.Stop();
-        var 検索ストップウォッチ = Stopwatch.StartNew();
-        検索開始.Set();
-        検索完了.Wait(CancellationToken.None);
-        検索ストップウォッチ.Stop();
-        foreach(var スレッド in スレッド一覧) {
-            スレッド.Join();
-        }
+        var 統計 = ワークロード.統計を取得();
         var ワーカー指標一覧 = ワーカー一覧.Select(ワーカー => ワーカー.指標を作成()).ToArray();
         var 先頭失敗 = 失敗一覧.TryPeek(out var 失敗) ? 失敗 : null;
         var 追加Count = ワーカー指標一覧.Sum(static 指標 => 指標.追加操作Count);
@@ -126,7 +133,7 @@ public sealed class パラメータスイープ実行器 {
             計測日時,
             ケース,
             追加Count,
-            ワークロード.エントリCount,
+            統計.EntryCount,
             失敗種別,
             失敗メッセージ,
             追加ストップウォッチ.Elapsed.TotalMilliseconds,
@@ -134,6 +141,10 @@ public sealed class パラメータスイープ実行器 {
             ワーカー指標一覧=ワーカー指標一覧,
             CPUセットキー=string.Join(",",CPU番号一覧.Where(static CPU => CPU is not null).Select(static CPU => CPU!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture))),
             並行数=ワーカー一覧.Length,
+            索引バケット数=統計.IndexSize,
+            溢れバケット数=統計.OverflowBucketCount,
+            メモリログバイト数=統計.MemoryLogBytes,
+            ディスクログバイト数=統計.DiskLogBytes,
         };
     }
 
@@ -148,25 +159,34 @@ public sealed class パラメータスイープ実行器 {
         ManualResetEventSlim 検索開始,
         CountdownEvent 検索完了,
         ConcurrentQueue<パラメータスイープワーカー失敗> 失敗一覧) => new(() => {
+            var 準備通知済みか = false;
+            var 追加通知済みか = false;
             try {
                 パラメータスイープCPUアフィニティ.現在のスレッドへの適用を試みる(ワーカー.論理CPU);
+                ワーカー.初期化();
                 準備完了.Signal();
+                準備通知済みか=true;
                 追加開始.Wait();
                 this.追加フェーズを実行(ワーカー,オプション,ケースストップウォッチ,キャンセルソース,失敗一覧);
                 追加完了.Signal();
+                追加通知済みか=true;
                 検索開始.Wait();
                 this.検索フェーズを実行(ワーカー,オプション,ケースストップウォッチ,キャンセルソース,失敗一覧);
             } catch(Exception 例外) {
                 this.失敗を記録(ワーカー,失敗を分類(例外),例外.Message,キャンセルソース,失敗一覧);
-                if(準備完了.CurrentCount>0) {
+            } finally {
+                if(!準備通知済みか) {
                     準備完了.Signal();
                 }
-                if(追加完了.CurrentCount>0) {
+                if(!追加通知済みか) {
                     追加完了.Signal();
                 }
-            } finally {
                 検索完了.Signal();
-                ワーカー.Dispose();
+                try {
+                    ワーカー.Dispose();
+                } catch(Exception 例外) {
+                    this.失敗を記録(ワーカー,失敗を分類(例外),例外.Message,キャンセルソース,失敗一覧);
+                }
             }
         }) {
             IsBackground=true,
@@ -308,6 +328,8 @@ public sealed class パラメータスイープ実行器 {
     }
 
     private static パラメータスイープ失敗種別 失敗を分類(Exception 例外) => 例外 switch {
+        ResourceLimitException { Kind: ResourceLimitKind.Memory } => パラメータスイープ失敗種別.メモリ上限超過,
+        ResourceLimitException { Kind: ResourceLimitKind.TemporaryStorage } => パラメータスイープ失敗種別.ディスク上限超過,
         TimeoutException => パラメータスイープ失敗種別.タイムアウト,
         OutOfMemoryException メモリ不足例外 => メモリ不足を分類(メモリ不足例外),
         ArgumentException or NotSupportedException => パラメータスイープ失敗種別.無効な構成,
@@ -318,10 +340,11 @@ public sealed class パラメータスイープ実行器 {
 
     private sealed record パラメータスイープワーカー失敗(パラメータスイープ失敗種別 種別,string メッセージ);
 
-    private sealed class パラメータスイープワーカー実行(int 番号,int? 論理CPU,Iパラメータスイープワーカー ワークロード):IDisposable {
+    private sealed class パラメータスイープワーカー実行(int 番号,int? 論理CPU,Func<Iパラメータスイープワーカー> ファクトリー):IDisposable {
+        private Iパラメータスイープワーカー? ワーカー;
         public int 番号 { get; } = 番号;
         public int? 論理CPU { get; } = 論理CPU;
-        public Iパラメータスイープワーカー ワークロード { get; } = ワークロード;
+        public Iパラメータスイープワーカー ワークロード => this.ワーカー??throw new InvalidOperationException("ワーカーが初期化されていません。");
         public int ワーカー数 { get; set; }
         public long 追加操作Count { get; set; }
         public double 追加経過ミリ秒 { get; set; }
@@ -339,7 +362,9 @@ public sealed class パラメータスイープ実行器 {
             this.失敗種別,
             this.失敗メッセージ);
 
-        public void Dispose() => this.ワークロード.Dispose();
+        public void 初期化() => this.ワーカー=ファクトリー();
+
+        public void Dispose() => this.ワーカー?.Dispose();
     }
 }
 
@@ -358,10 +383,7 @@ internal static class パラメータスイープ設定バリデーター {
         if(設定.Pageサイズ>設定.Segmentサイズ) {
             throw new ArgumentOutOfRangeException(nameof(設定.Segmentサイズ));
         }
-        if(設定.Memoryサイズ<2*設定.Pageサイズ) {
-            throw new ArgumentOutOfRangeException(nameof(設定.Memoryサイズ));
-        }
-        if(double.IsNaN(設定.可変Fraction)||設定.可変Fraction<0||設定.可変Fraction>1) {
+        if(double.IsNaN(設定.可変Fraction)||設定.可変Fraction<=0||設定.可変Fraction>1) {
             throw new ArgumentOutOfRangeException(nameof(設定.可変Fraction));
         }
     }
@@ -374,7 +396,7 @@ internal static class パラメータスイープ設定バリデーター {
 }
 
 internal interface Iパラメータスイープワークロード:IDisposable {
-    long エントリCount { get; }
+    TsavoriteStatistics 統計を取得();
     Iパラメータスイープワーカー ワーカーを作成();
 }
 
@@ -423,63 +445,39 @@ internal static class パラメータスイープワークロードファクト�
 }
 
 internal abstract class ワークロード基底:IDisposable {
-    private readonly string? ストレージディレクトリ;
-    protected IDisposable? 破棄対象 { get; set; }
-    private bool 破棄済みか;
+    protected 共通ストア型 共通ストア { get; }
+    protected TsavoriteTuning チューニング { get; }
 
     protected ワークロード基底(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション) {
-        if(ケース.バックエンド==パラメータスイープバックエンド.ストレージ) {
-            var ルート = オプション.作業ディレクトリ??Path.Combine(Path.GetTempPath(),"Seamless","TsavoriteParameterSweep");
-            this.ストレージディレクトリ=Path.Combine(ルート,Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(this.ストレージディレクトリ);
-        }
-    }
-
-    public abstract long エントリCount { get; }
-
-    public void Dispose() {
-        if(this.破棄済みか) {
-            return;
-        }
-        this.破棄済みか=true;
-        this.中核を破棄();
-        this.破棄対象?.Dispose();
-        if(this.ストレージディレクトリ is not null&&Directory.Exists(this.ストレージディレクトリ)) {
-            try {
-                Directory.Delete(this.ストレージディレクトリ,true);
-            } catch(IOException) {
-            } catch(UnauthorizedAccessException) {
-            }
-        }
-    }
-
-    protected abstract void 中核を破棄();
-
-    protected ストア型 ストアを作成(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション,out TsavoriteStorageDevicePair? デバイス) {
         var 設定 = ケース.設定;
-        var ストア = Seamless.Collections.Tsavorite.Store.Create(
-            IndexSize: 設定.Indexサイズ,
-            PageSize: 設定.Pageサイズ,
-            SegmentSize: 設定.Segmentサイズ,
-            MemorySize: 設定.Memoryサイズ,
-            MutableFraction: 設定.可変Fraction);
-        if(ケース.バックエンド==パラメータスイープバックエンド.メモリ) {
-            デバイス=null;
-            return ストア;
+        var 上限 = new StoreLimits {
+            MemoryBytes=checked(設定.Indexサイズ+設定.Memoryサイズ+2*設定.Pageサイズ),
+        };
+        if(オプション.ストレージデバイス容量>0) {
+            上限=上限 with { DiskBytes=オプション.ストレージデバイス容量 };
         }
-        var ディレクトリ = this.ストレージディレクトリ??throw new InvalidOperationException("ストレージディレクトリが初期化されていません。");
-        var チューニング = new StorageTuning(
-            FileAccess.ReadWrite,
-            StorageAccessPattern.Sequential,
-            StorageBufferingMode.Buffered);
-        デバイス=TsavoriteStorageDevices.CreatePair(
-            Path.Combine(ディレクトリ,"log.data"),
-            Path.Combine(ディレクトリ,"objectlog.data"),
-            チューニング,
-            deleteOnClose: true,
-            capacity: オプション.ストレージデバイス容量);
-        return ストア;
+        this.チューニング=new TsavoriteTuning {
+            IndexSize=設定.Indexサイズ,
+            PageSize=設定.Pageサイズ,
+            SegmentSize=設定.Segmentサイズ,
+            LogMemorySize=設定.Memoryサイズ,
+            MutableFraction=設定.可変Fraction,
+            AutoGrowIndex=false,
+        };
+        if(ケース.バックエンド==パラメータスイープバックエンド.メモリ) {
+            this.共通ストア=共通ストア型.CreateMemory(上限);
+        } else {
+            this.チューニング=this.チューニング with {
+                Storage=new StorageTuning(FileAccess.ReadWrite,StorageAccessPattern.Sequential,StorageBufferingMode.Buffered),
+            };
+            var ルート = オプション.作業ディレクトリ??Path.Combine(Path.GetTempPath(),"Seamless","TsavoriteParameterSweep");
+            this.共通ストア=共通ストア型.CreateTemporary(上限,ルート);
+        }
     }
+
+    public abstract TsavoriteStatistics 統計を取得();
+
+    public void Dispose() => this.共通ストア.Dispose();
 }
 
 internal sealed class ハッシュセットワークロード<Tキー>:ワークロード基底, Iパラメータスイープワークロード
@@ -489,24 +487,17 @@ internal sealed class ハッシュセットワークロード<Tキー>:ワーク
 
     public ハッシュセットワークロード(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション,Func<int,Tキー> キーファクトリー) : base(ケース,オプション) {
         this.キーファクトリー=キーファクトリー;
-        var ストアファクトリー = this.ストアを作成(ケース,オプション,out var デバイス);
         try {
-            this.ストア=ケース.バックエンド==パラメータスイープバックエンド.ストレージ
-                ? ストアファクトリー.Create<Tキー>(デバイス!.Value.LogDevice,デバイス.Value.ObjectLogDevice)
-                : ストアファクトリー.Create<Tキー>();
-            this.破棄対象=this.ストア;
+            this.ストア=this.共通ストア.CreateTsavoriteHashSet<Tキー>("items",this.チューニング);
         } catch {
-            デバイス?.Dispose();
+            this.Dispose();
             throw;
         }
     }
 
-    public override long エントリCount => this.ストア.Store.EntryCount;
+    public override TsavoriteStatistics 統計を取得() => this.ストア.GetStatistics();
 
     public Iパラメータスイープワーカー ワーカーを作成() => new ハッシュセットワーカー<Tキー>(this.ストア.Create(),this.キーファクトリー);
-
-    protected override void 中核を破棄() {
-    }
 }
 
 internal sealed class セットワークロード<Tキー, Tレコード>:ワークロード基底, Iパラメータスイープワークロード
@@ -517,24 +508,17 @@ internal sealed class セットワークロード<Tキー, Tレコード>:ワー
 
     public セットワークロード(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション,Func<int,Tレコード> レコードファクトリー) : base(ケース,オプション) {
         this.レコードファクトリー=レコードファクトリー;
-        var ストアファクトリー = this.ストアを作成(ケース,オプション,out var デバイス);
         try {
-            this.ストア=ケース.バックエンド==パラメータスイープバックエンド.ストレージ
-                ? ストアファクトリー.CreateSet<Tキー,Tレコード>(デバイス!.Value.LogDevice,デバイス.Value.ObjectLogDevice)
-                : ストアファクトリー.CreateSet<Tキー,Tレコード>();
-            this.破棄対象=this.ストア;
+            this.ストア=this.共通ストア.CreateTsavoriteSet<Tキー,Tレコード>("items",this.チューニング);
         } catch {
-            デバイス?.Dispose();
+            this.Dispose();
             throw;
         }
     }
 
-    public override long エントリCount => this.ストア.Store.EntryCount;
+    public override TsavoriteStatistics 統計を取得() => this.ストア.GetStatistics();
 
     public Iパラメータスイープワーカー ワーカーを作成() => new セットワーカー<Tキー,Tレコード>(this.ストア.Create(),this.レコードファクトリー);
-
-    protected override void 中核を破棄() {
-    }
 }
 
 internal sealed class 辞書ワークロード<Tキー, T値>:ワークロード基底, Iパラメータスイープワークロード
@@ -551,24 +535,17 @@ internal sealed class 辞書ワークロード<Tキー, T値>:ワークロード
         Func<int,T値> 値ファクトリー) : base(ケース,オプション) {
         this.キーファクトリー=キーファクトリー;
         this.値ファクトリー=値ファクトリー;
-        var ストアファクトリー = this.ストアを作成(ケース,オプション,out var デバイス);
         try {
-            this.ストア=ケース.バックエンド==パラメータスイープバックエンド.ストレージ
-                ? ストアファクトリー.Create<Tキー,T値>(デバイス!.Value.LogDevice,デバイス.Value.ObjectLogDevice)
-                : ストアファクトリー.Create<Tキー,T値>();
-            this.破棄対象=this.ストア;
+            this.ストア=this.共通ストア.CreateTsavorite<Tキー,T値>("items",this.チューニング);
         } catch {
-            デバイス?.Dispose();
+            this.Dispose();
             throw;
         }
     }
 
-    public override long エントリCount => this.ストア.Store.EntryCount;
+    public override TsavoriteStatistics 統計を取得() => this.ストア.GetStatistics();
 
     public Iパラメータスイープワーカー ワーカーを作成() => new 辞書ワーカー<Tキー,T値>(this.ストア.Create(),this.キーファクトリー,this.値ファクトリー);
-
-    protected override void 中核を破棄() {
-    }
 }
 
 internal sealed class ハッシュセットワーカー<Tキー>(Seamless.Collections.Tsavorite.HashSet<Tキー> セット,Func<int,Tキー> キーファクトリー):Iパラメータスイープワーカー

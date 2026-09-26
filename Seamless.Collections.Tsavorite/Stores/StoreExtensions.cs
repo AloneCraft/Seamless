@@ -7,16 +7,17 @@ namespace Seamless.Collections.Tsavorite;
 public static class StoreExtensions{
     /// <summary>Tsavorite の辞書のデータ本体を作る。<paramref name="expectedCount"/> を渡すと、その件数に合う索引の大きさで始める。</summary>
     public static DictionaryStore<TKey,TValue> CreateTsavorite<TKey,TValue>(this global::Seamless.Execution.Store store,string name,long expectedCount=0)=>
-        CreateTsavorite<TKey,TValue>(store,name,expectedCount,TsavoriteTuning.Default);
+        CreateTsavorite<TKey,TValue>(store,name,TsavoriteTuning.Default,expectedCount);
     /// <summary>Tsavorite のハッシュセットのデータ本体を作る。<paramref name="expectedCount"/> を渡すと、その件数に合う索引の大きさで始める。</summary>
     public static HashSetStore<T> CreateTsavoriteHashSet<T>(this global::Seamless.Execution.Store store,string name,long expectedCount=0)=>
-        CreateTsavoriteHashSet<T>(store,name,expectedCount,TsavoriteTuning.Default);
+        CreateTsavoriteHashSet<T>(store,name,TsavoriteTuning.Default,expectedCount);
     /// <summary>キーを持つレコードの集合(<see cref="Set{TKey,TRecord}"/>)のデータ本体を作る。</summary>
     public static SetStore<TKey,TRecord> CreateTsavoriteSet<TKey,TRecord>(this global::Seamless.Execution.Store store,string name,long expectedCount=0)
         where TRecord:IRecord<TKey>{
-        return CreateTsavoriteSet<TKey,TRecord>(store,name,expectedCount,TsavoriteTuning.Default);
+        return CreateTsavoriteSet<TKey,TRecord>(store,name,TsavoriteTuning.Default,expectedCount);
     }
-    internal static SetStore<TKey,TRecord> CreateTsavoriteSet<TKey,TRecord>(this global::Seamless.Execution.Store store,string name,long expectedCount,TsavoriteTuning tuning)
+    /// <summary>指定した詳細設定で、キーを持つレコードの集合のデータ本体を作る。</summary>
+    public static SetStore<TKey,TRecord> CreateTsavoriteSet<TKey,TRecord>(this global::Seamless.Execution.Store store,string name,TsavoriteTuning tuning,long expectedCount=0)
         where TRecord:IRecord<TKey>{
         var layout=TsavoriteLayout.Resolve(store,name,expectedCount,tuning);
         SetStore<TKey,TRecord>? data=null;
@@ -32,7 +33,8 @@ public static class StoreExtensions{
             throw;
         }
     }
-    internal static DictionaryStore<TKey,TValue> CreateTsavorite<TKey,TValue>(this global::Seamless.Execution.Store store,string name,long expectedCount,TsavoriteTuning tuning){
+    /// <summary>指定した詳細設定で、Tsavorite の辞書のデータ本体を作る。</summary>
+    public static DictionaryStore<TKey,TValue> CreateTsavorite<TKey,TValue>(this global::Seamless.Execution.Store store,string name,TsavoriteTuning tuning,long expectedCount=0){
         var layout=TsavoriteLayout.Resolve(store,name,expectedCount,tuning);
         DictionaryStore<TKey,TValue>? data=null;
         try{
@@ -47,7 +49,8 @@ public static class StoreExtensions{
             throw;
         }
     }
-    internal static HashSetStore<T> CreateTsavoriteHashSet<T>(this global::Seamless.Execution.Store store,string name,long expectedCount,TsavoriteTuning tuning){
+    /// <summary>指定した詳細設定で、Tsavorite のハッシュセットのデータ本体を作る。</summary>
+    public static HashSetStore<T> CreateTsavoriteHashSet<T>(this global::Seamless.Execution.Store store,string name,TsavoriteTuning tuning,long expectedCount=0){
         var layout=TsavoriteLayout.Resolve(store,name,expectedCount,tuning);
         HashSetStore<T>? data=null;
         try{

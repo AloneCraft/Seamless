@@ -8,7 +8,7 @@
 
 | パッケージ | 依存 | 用途 |
 |---|---|---|
-| `Seamless.Collections` | MemoryPack | コレクション契約 (`ISet` / `IRecord`)、シリアライザ、メモリマップドリスト基盤 |
+| `Seamless.Collections` | MemoryPack | コレクション契約 (`ISet` / `IRecord`)、シリアライザ、Persisted リストのファイル入出力基盤 |
 | `Seamless.Collections.Persisted` | ↑ + Seamless.Execution | ファイル backed の `Set` / `Dictionary` / `AppendOnlyList` |
 | `Seamless.Collections.Tsavorite` | ↑基盤 + Seamless.Execution + Microsoft.Garnet | Tsavorite backed の `HashSet` / `Dictionary` / `Set` |
 | `Seamless.Linq` | Collections.Persisted / .Tsavorite | value-enumerable な LINQ ランタイム |
@@ -30,7 +30,7 @@
 
 ### 共通ストアから作る（推奨）
 
-保存場所・寿命・メモリとディスクの上限は `Seamless.Execution.Store` が持ち、コレクションは各ライブラリの拡張メソッドでストアから作ります。デバイス、保存フォルダ、索引の大きさはストアの種類と上限から自動で決まります。
+保存場所・寿命・メモリとディスクの上限は `Seamless.Execution.Store` が持ち、コレクションは各ライブラリの拡張メソッドでストアから作ります。デバイスと保存フォルダはストアが管理します。索引などの大きさは既定でストアの種類と上限から自動で決まり、必要な場合は `TsavoriteTuning` で指定できます。
 
 ```csharp
 using Seamless.Collections.Tsavorite;   // CreateTsavorite / CreateTsavoriteHashSet
@@ -55,6 +55,53 @@ store.Save();                               // Tsavorite と Persisted をまと
 - 索引は件数に応じて自動で拡張します。ただし複数の操作用オブジェクトが同時に生きている間は拡張しないので、並列で大量に入れる場合は `expectedCount` を渡してください。
 - 等価判定はシリアライズ後のバイト列の一致です。
 - Persisted はファイルを使うため、メモリストアでは作れません。
+
+### 詳細設定と観測
+
+`CreateTsavorite`・`CreateTsavoriteHashSet`・`CreateTsavoriteSet` は `(name, TsavoriteTuning tuning, long expectedCount = 0)` を受け取ります。大きさはバイト単位の正の2の累乗です。`IndexSize` は64バイト以上、`PageSize` は4096バイト〜1 GiB、`SegmentSize` はページ以上、`LogMemorySize` はページ2つ分以上、`MutableFraction` は0より大きく1以下にします。
+
+```csharp
+using Seamless.Collections;
+using Seamless.Collections.Tsavorite;
+using Seamless.Collections.Persisted;
+
+using var store = Seamless.Execution.Store.CreateTemporary();
+using var data = store.CreateTsavoriteHashSet<long>("measured", new TsavoriteTuning {
+    IndexSize = 4096,
+    PageSize = 4096,
+    SegmentSize = 1L << 20,
+    LogMemorySize = 65536,
+    AutoGrowIndex = false,
+    Storage = new(FileAccess.ReadWrite, StorageAccessPattern.Random, StorageBufferingMode.Buffered)
+});
+using (var set = data.Create()) {
+    for (long i = 0; i < 1000; i++) { set.Add(i); }
+}
+var statistics = data.GetStatistics();
+Console.WriteLine($"buckets={statistics.IndexSize}, overflow={statistics.OverflowBucketCount}");
+Console.WriteLine($"memory log={statistics.MemoryLogBytes}, disk log={statistics.DiskLogBytes}");
+// 必要な場合だけ呼ぶ。索引全体の分布を文字列にする。
+Console.WriteLine(data.DumpIndexDistribution());
+
+// Persisted の Unbuffered は Windows の直接 I/O。Buffered / Unbuffered 間で Save/Load の契約と保存形式は同じ。
+var list = store.CreatePersistedList<long>("cold", tuning: new StorageTuning(
+    FileAccess.ReadWrite, StorageAccessPattern.Sequential, StorageBufferingMode.Unbuffered));
+list.Add(42);
+store.Save();
+```
+
+- `AutoGrowIndex` の既定値は `true`。`false` では索引を固定し、保存済み索引と明示指定の大きさが違う場合は `InvalidOperationException` で拒否します。省略時の自動決定と、複数アクセサ時の拡張禁止は維持します。
+- `Storage` の既定値は `null` で、従来のデバイスを使います。Tsavorite が反映する項目は `AccessPattern` と `BufferingMode` です。メモリストアへ `Storage` は指定できません。
+- 統計の `IndexSize` は64バイトのバケット数、`IndexBytes` はそのバイト数です。`EntryCount` は索引の使用枠数で、コレクション件数ではありません。`OverflowBucketCount` は初期予約を含み、`OverflowBucketAllocations` は初期予約を除く割当数です。
+- `MemoryLogBytes = TailAddress - HeadAddress`、`DiskLogBytes = HeadAddress - BeginAddress` は論理ログの範囲を表します。ファイルの確保容量やオブジェクトログを含む物理ディスク使用量ではありません。並行書込み中の統計項目間の整合性は保証しません。
+- `GetStatistics()` の `EntryCount` と `DumpIndexDistribution()` は索引全体と溢れバケットを走査するため、高頻度の監視には向きません。
+- Persisted の `Set`・`List`・`Dictionary` は末尾の `tuning` 引数で設定できます。Buffered はメモリマップ、Unbuffered は Windows の `FILE_FLAG_NO_BUFFERING` と整列バッファによる直接 I/O を使います。データ・位置索引・ハッシュ索引・AppendOnly は両 I/O 方式で同じ保存形式を使い、方式を変えて開き直せます。非WindowsのPersisted Unbufferedは `PlatformNotSupportedException` で拒否します。
+
+### クエリ内部の作業コレクション
+
+`CreatePersistedSortedSet` / `CreatePersistedSortedDictionary` / `CreatePersistedSortedList` は一括追加後に `CompleteAdding()` で確定します。確定前のキー検索は例外となり、確定後は比較順の列挙と二分探索を使います。`SortedList` は JOIN 等に必要な重複行を保持します。
+
+`CreatePersistedHashSet` / `CreatePersistedHashDictionary` は追加中にも検索でき、クエリの等価規則を指定できます。両方式とも共通 Store が寿命・予算・保存世代を所有します。既存 API のバイト等価性は維持します。ファイル上のハッシュ索引 `.hindex` は新形式を使い、旧形式の索引は読み込まず明確に拒否します。この拒否を理由とする自動移行や削除は行いません。API 対応、状態、比較器、保存互換性と利用例は [クエリ一時作業コレクション](docs/クエリ一時作業コレクション.md) を参照してください。
 
 ### ファイル backed のコレクション（旧 API）
 

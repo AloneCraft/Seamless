@@ -125,9 +125,6 @@ public static class パラメータスイープ計画 {
         if(オプション.ケース別タイムアウト<=TimeSpan.Zero) {
             throw new ArgumentOutOfRangeException(nameof(オプション.ケース別タイムアウト));
         }
-        if(オプション.ストレージデバイス容量<最小Segmentサイズ*2) {
-            throw new ArgumentOutOfRangeException(nameof(オプション.ストレージデバイス容量));
-        }
         if(オプション.論理CPU一覧.Any(static CPU => CPU<0)) {
             throw new ArgumentOutOfRangeException(nameof(オプション.論理CPU一覧));
         }

@@ -5,7 +5,7 @@ public class AppendOnlyList<T>(string path,long initialDataCapacity=4096,Storage
 
 public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
     where TSerializer : ISerializer<T> {
-    private readonly FileStream stream;
+    private readonly Stream stream;
     private readonly StorageTuning tuning;
     private Action? disposeAction;
     private bool disposed;
@@ -27,13 +27,18 @@ public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
         }
 
         this.Path=path;
-        this.stream=this.OpenStream(FileAccess.ReadWrite,FileShare.Read);
-        if(this.stream.Length==0) {
-            this.stream.SetLength(initialDataCapacity);
-            this.stream.SetLength(0);
+        try {
+            this.stream=this.OpenStream(FileAccess.ReadWrite,FileShare.Read);
+            if(this.stream.Length==0) {
+                this.stream.SetLength(initialDataCapacity);
+                this.stream.SetLength(0);
+            }
+            this.Count=this.LoadCount();
+            this.stream.Position=this.stream.Length;
+        } catch {
+            this.stream?.Dispose();
+            throw;
         }
-        this.Count=this.LoadCount();
-        this.stream.Position=this.stream.Length;
     }
 
     public long GetLongCount() => this.Count;
@@ -78,8 +83,11 @@ public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
         }
         this.disposed=true;
         try {
-            this.stream.Flush();
-            this.stream.Dispose();
+            try {
+                this.stream.Flush();
+            } finally {
+                this.stream.Dispose();
+            }
         } finally {
             this.disposeAction?.Invoke();
         }
@@ -110,12 +118,11 @@ public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
         ObjectDisposedException.ThrowIf(this.disposed,this);
     }
 
-    private FileStream OpenStream(FileAccess access,FileShare share) =>
-        new(
+    private Stream OpenStream(FileAccess access,FileShare share) =>
+        PersistedFile.Open(
             this.Path,
+            this.tuning,
             access==FileAccess.Read ? FileMode.Open : FileMode.OpenOrCreate,
             access,
-            share,
-            this.tuning.ResolveBufferSize(),
-            MemoryMappedListTuning.GetFileOptions(this.tuning));
+            share);
 }

@@ -55,12 +55,35 @@ public sealed class VerificationProfiles{
             追加経過ミリ秒=2.5d,
             検索平均ナノ秒=(double?)42d,
             失敗メッセージ=string.Empty,
+            索引バケット数=64L,
+            溢れバケット数=20L,
+            メモリログバイト数=8192L,
+            ディスクログバイト数=(long?)null,
         });
         var result=ParameterSweepVerificationAdapter.Parse(cases[0],json,2048);
         Assert.Equal(CaseStatus.Passed,result.Status);
         Assert.Equal(128,result.Metrics!["maximum-count"]);
+        Assert.Equal(64,result.Metrics["index-buckets"]);
+        Assert.Equal(20,result.Metrics["overflow-buckets"]);
+        Assert.Equal(8192,result.Metrics["memory-log-bytes"]);
+        Assert.False(result.Metrics.ContainsKey("disk-log-bytes"));
+        var legacy=System.Text.Json.Nodes.JsonNode.Parse(json)!.AsObject();
+        foreach(var property in new[]{"索引バケット数","溢れバケット数","メモリログバイト数","ディスクログバイト数"}){
+            legacy.Remove(property);
+        }
+        Assert.Equal(CaseStatus.Passed,ParameterSweepVerificationAdapter.Parse(cases[0],legacy.ToJsonString(),2048).Status);
         Assert.Equal(2,result.Measurements!.Length);
         Assert.Equal(2048,result.PeakPrivateBytes);
+        foreach(var failure in new[]{0,1,2,3,4,5,6,7,8,-1}){
+            var payload=System.Text.Json.Nodes.JsonNode.Parse(json)!;
+            payload["失敗種別"]=failure;
+            var classified=ParameterSweepVerificationAdapter.Parse(cases[0],payload.ToJsonString(),2048);
+            if(failure is 0 or 1 or 2 or 3 or 6 or 7){
+                Assert.Equal(CaseStatus.Passed,classified.Status);
+            }else{
+                Assert.Equal(CaseStatus.Failed,classified.Status);
+            }
+        }
     }
     [Fact]public void Scalable_EnumeratesQuickAndFullCasesAndKeepsRawSamples(){
         var conditions=Infrastructure.VerificationProfiles.EnvironmentConditions();

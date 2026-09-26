@@ -7,19 +7,19 @@ namespace Seamless.Collections.Persisted;
 /// 永続ストアでは <see cref="global::Seamless.Execution.Store.Save"/> した時点だけが確定し、開き直すとその時点へ戻る。
 /// Persisted は書き込みを 1 スレッドで行う前提で、件数は呼び出し側が管理する(決定9)。メモリストアでは使えない。
 /// </summary>
-public static class StoreExtensions{
-    public static Set<T> CreatePersistedSet<T>(this global::Seamless.Execution.Store store,string name,long initialCapacity=16,long initialDataCapacity=4096){
+public static partial class StoreExtensions{
+    public static Set<T> CreatePersistedSet<T>(this global::Seamless.Execution.Store store,string name,long initialCapacity=16,long initialDataCapacity=4096,StorageTuning? tuning=null){
         var directory=PrepareDirectory(store,name);
-        return Attach(store,name,()=>new Set<T>(Path.Combine(directory,"items.dat"),initialCapacity,initialDataCapacity),static set=>set.Committable,static (set,action)=>set.SetDisposeAction(action));
+        return Attach(store,name,()=>new Set<T>(Path.Combine(directory,"items.dat"),initialCapacity,initialDataCapacity,tuning),static set=>set.Committable,static (set,action)=>set.SetDisposeAction(action));
     }
-    public static PersistedList<T> CreatePersistedList<T>(this global::Seamless.Execution.Store store,string name,long initialCapacity=16,long initialDataCapacity=4096){
+    public static PersistedList<T> CreatePersistedList<T>(this global::Seamless.Execution.Store store,string name,long initialCapacity=16,long initialDataCapacity=4096,StorageTuning? tuning=null){
         var directory=PrepareDirectory(store,name);
-        return Attach(store,name,()=>Store.CreateList<T>(Path.Combine(directory,"items.dat"),initialCapacity,initialDataCapacity),static list=>list,static (list,action)=>list.SetDisposeAction(action));
+        return Attach(store,name,()=>Store.CreateList<T>(Path.Combine(directory,"items.dat"),initialCapacity,initialDataCapacity,tuning),static list=>list,static (list,action)=>list.SetDisposeAction(action));
     }
-    public static Dictionary<TKey,TValue> CreatePersistedDictionary<TKey,TValue>(this global::Seamless.Execution.Store store,string name,long initialCapacity=16,long initialDataCapacity=4096)
+    public static Dictionary<TKey,TValue> CreatePersistedDictionary<TKey,TValue>(this global::Seamless.Execution.Store store,string name,long initialCapacity=16,long initialDataCapacity=4096,StorageTuning? tuning=null)
         where TKey:notnull{
         var directory=PrepareDirectory(store,name);
-        return Attach(store,name,()=>new Dictionary<TKey,TValue>(Path.Combine(directory,"items.dat"),initialCapacity,initialDataCapacity),static dictionary=>dictionary.Committable,static (dictionary,action)=>dictionary.SetDisposeAction(action));
+        return Attach(store,name,()=>new Dictionary<TKey,TValue>(Path.Combine(directory,"items.dat"),initialCapacity,initialDataCapacity,tuning),static dictionary=>dictionary.Committable,static (dictionary,action)=>dictionary.SetDisposeAction(action));
     }
     private static string PrepareDirectory(global::Seamless.Execution.Store store,string name){
         ArgumentNullException.ThrowIfNull(store);

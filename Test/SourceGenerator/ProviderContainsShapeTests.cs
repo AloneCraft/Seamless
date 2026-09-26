@@ -190,6 +190,33 @@ public sealed class ProviderContainsShapeTests {
             &&!generated.Contains("OptimizedLinq_ContainsValue",StringComparison.Ordinal),
             "Provider AsX<T>.Contains must remain a native provider lookup and must not create an interceptor forwarder.",generated,null);
     }
+    [Fact]
+    public void WorkCollectionsUseEnumerableFallbackWithoutLegacyProviderDispatch(){
+        foreach(var typeName in new[]{"SortedSet","HashSet","SortedList"}){
+            var source=$$"""
+                using System.Linq;
+                using Seamless.FLinq;
+                namespace Sample;
+                public sealed class Consumer { public void Consume(bool value) { } }
+                public sealed class Container {
+                    private readonly Consumer consumer = new();
+                    [LinqIntercept(true)] private void ContainsValues(global::Seamless.Collections.Persisted.Work.{{typeName}}<int> source,int value) {
+                        this.consumer.Consume(global::System.Linq.Enumerable.Contains(source,value));
+                    }
+                    public void Run(global::Seamless.Collections.Persisted.Work.{{typeName}}<int> source,int value) => this.ContainsValues(source,value);
+                }
+                """;
+            // Generate は生成後の compilation diagnostics も検証する。
+            var generated=Generate(source);
+            GeneratedSourceAssert.True(
+                generated.Contains("IEnumerator<int>",StringComparison.Ordinal)
+                &&generated.Contains(".GetEnumerator()",StringComparison.Ordinal)
+                &&generated.Contains(".MoveNext()",StringComparison.Ordinal)
+                &&!generated.Contains("global::Seamless.Collections.PersistedList<int>.Enumerator",StringComparison.Ordinal)
+                &&!generated.Contains("UnsupportedLinqExpansion",StringComparison.Ordinal),
+                $"Work.{typeName}<T> must compile through IEnumerable enumeration instead of a legacy provider or direct span root.",generated,null);
+        }
+    }
     private static string Generate(string source) {
         var compilation=GeneratorTestHelpers.CreateCompilation([("Container.cs",source)]);
         GeneratorDriver driver=GeneratorTestHelpers.CreateDriver();

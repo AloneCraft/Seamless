@@ -91,6 +91,8 @@ public sealed class MainPage:ContentPage{
         ヘッダーを追加(グリッド,"可変率",9);ヘッダーを追加(グリッド,"最大Count",10);ヘッダーを追加(グリッド,"失敗種別",11);
         ヘッダーを追加(グリッド,"追加時間",12);ヘッダーを追加(グリッド,"検索時間",13);ヘッダーを追加(グリッド,"Count差分",14);
         ヘッダーを追加(グリッド,"追加時間シェア",15);ヘッダーを追加(グリッド,"検索時間シェア",16);ヘッダーを追加(グリッド,"失敗変更",17);
+        ヘッダーを追加(グリッド,"索引バケット数",18);ヘッダーを追加(グリッド,"溢れバケット数",19);
+        ヘッダーを追加(グリッド,"メモリログバイト数",20);ヘッダーを追加(グリッド,"ディスクログバイト数",21);
         return グリッド;
     }
 
@@ -107,6 +109,8 @@ public sealed class MainPage:ContentPage{
         シェアバインドを追加(グリッド,nameof(パラメータスイープ比較表示行.追加時間シェア表示),nameof(パラメータスイープ比較表示行.今回追加時間ゲージ幅),nameof(パラメータスイープ比較表示行.前回追加時間ゲージ幅),15);
         シェアバインドを追加(グリッド,nameof(パラメータスイープ比較表示行.検索時間シェア表示),nameof(パラメータスイープ比較表示行.今回検索時間ゲージ幅),nameof(パラメータスイープ比較表示行.前回検索時間ゲージ幅),16);
         バインドを追加(グリッド,nameof(パラメータスイープ比較表示行.失敗種別変更表示),17);
+        バインドを追加(グリッド,nameof(パラメータスイープ比較表示行.索引バケット数),18);バインドを追加(グリッド,nameof(パラメータスイープ比較表示行.溢れバケット数),19);
+        バインドを追加(グリッド,nameof(パラメータスイープ比較表示行.メモリログバイト数),20);バインドを追加(グリッド,nameof(パラメータスイープ比較表示行.ディスクログバイト数),21);
         return グリッド;
     }
 
@@ -115,6 +119,7 @@ public sealed class MainPage:ContentPage{
         new ColumnDefinition{Width=70},new ColumnDefinition{Width=70},new ColumnDefinition{Width=76},new ColumnDefinition{Width=78},new ColumnDefinition{Width=64},
         new ColumnDefinition{Width=96},new ColumnDefinition{Width=110},new ColumnDefinition{Width=86},new ColumnDefinition{Width=86},new ColumnDefinition{Width=86},
         new ColumnDefinition{Width=108},new ColumnDefinition{Width=108},new ColumnDefinition{Width=88},
+        new ColumnDefinition{Width=120},new ColumnDefinition{Width=120},new ColumnDefinition{Width=150},new ColumnDefinition{Width=160},
     }};
 
     private static Label ラベルを作成(string 文字列)=>new(){Text=文字列,VerticalOptions=LayoutOptions.Center,FontSize=12,TextColor=Color.FromArgb("#334155")};

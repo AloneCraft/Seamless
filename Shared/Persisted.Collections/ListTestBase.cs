@@ -134,23 +134,44 @@ public abstract class ListTestBase<TStrategy, T>
     public void SetTuning_AfterConstruction_PreservesValues() {
         var path = CreatePath();
         try {
-            using var h = TStrategy.CreateList(path,initialCapacity: 1);
-            h.List.Add(TStrategy.Elem(1));
-            h.List.Add(TStrategy.Elem(2));
+            var expectedCount = 3;
+            using(var h = TStrategy.CreateList(path,initialCapacity: 1)) {
+                h.List.Add(TStrategy.Elem(1));
+                h.List.Add(TStrategy.Elem(2));
+                h.List.SetTuning(new(FileAccess.Write,global::Seamless.Collections.StorageAccessPattern.Random));
+                h.List.Add(TStrategy.Elem(3));
 
-            h.List.SetTuning(new(FileAccess.Write,global::Seamless.Collections.StorageAccessPattern.Random));
-            h.List.Add(TStrategy.Elem(3));
+                Assert.Equal(FileAccess.Write,h.List.OptimizationMode);
+                Assert.Equal(global::Seamless.Collections.StorageAccessPattern.Random,h.List.AccessPattern);
+                Assert.Equal(new[] { TStrategy.Elem(1),TStrategy.Elem(2),TStrategy.Elem(3) },h.List.ToArray());
 
-            Assert.Equal(FileAccess.Write,h.List.OptimizationMode);
-            Assert.Equal(global::Seamless.Collections.StorageAccessPattern.Random,h.List.AccessPattern);
-            Assert.Equal(new[] { TStrategy.Elem(1),TStrategy.Elem(2),TStrategy.Elem(3) },h.List.ToArray());
+                h.List.SetOptimizationMode(FileAccess.Read);
+                h.List.SetAccessPattern(global::Seamless.Collections.StorageAccessPattern.Sequential);
+                Assert.Equal(FileAccess.Read,h.List.OptimizationMode);
+                Assert.Equal(global::Seamless.Collections.StorageAccessPattern.Sequential,h.List.AccessPattern);
 
-            h.List.SetOptimizationMode(FileAccess.Read);
-            h.List.SetAccessPattern(global::Seamless.Collections.StorageAccessPattern.Sequential);
-
-            Assert.Equal(FileAccess.Read,h.List.OptimizationMode);
-            Assert.Equal(global::Seamless.Collections.StorageAccessPattern.Sequential,h.List.AccessPattern);
-            Assert.Equal(new[] { TStrategy.Elem(1),TStrategy.Elem(2),TStrategy.Elem(3) },h.List.ToArray());
+                if(OperatingSystem.IsWindows()) {
+                    //固定長と可変長の両方で容量を拡張し、途中の方式変更でも既存要素を保持する。
+                    h.List.SetBufferingMode(global::Seamless.Collections.StorageBufferingMode.Unbuffered);
+                    Assert.Equal(global::Seamless.Collections.StorageBufferingMode.Unbuffered,h.List.BufferingMode);
+                    for(var index = 4;index<=1100;index++) {
+                        h.List.Add(TStrategy.Elem(index));
+                    }
+                    expectedCount=1100;
+                    Assert.Equal(TStrategy.Elem(1),h.List[0]);
+                    Assert.Equal(TStrategy.Elem(1100),h.List[1099]);
+                    h.List.SetBufferingMode(global::Seamless.Collections.StorageBufferingMode.Buffered);
+                    Assert.Equal(global::Seamless.Collections.StorageBufferingMode.Buffered,h.List.BufferingMode);
+                } else {
+                    var previousTuning = h.List.Tuning;
+                    Assert.Throws<PlatformNotSupportedException>(() => h.List.SetBufferingMode(global::Seamless.Collections.StorageBufferingMode.Unbuffered));
+                    Assert.Equal(previousTuning,h.List.Tuning);
+                }
+                Assert.Equal(Enumerable.Range(1,expectedCount).Select(static index => TStrategy.Elem(index)),h.List.ToArray());
+            }
+            using var reopened = TStrategy.CreateList(path);
+            Assert.Equal(expectedCount,reopened.List.Count);
+            Assert.Equal(Enumerable.Range(1,expectedCount).Select(static index => TStrategy.Elem(index)),reopened.List.ToArray());
         } finally {
             TryDeleteDirectory(path);
         }
@@ -181,28 +202,49 @@ public abstract class ListTestBase<TStrategy, T>
             FileAccess.Read,
             bufferSizeStrategy: global::Seamless.Collections.StorageBufferSizeStrategy.Auto,
             bufferSize: 8192));
-        Assert.Throws<NotSupportedException>(() => new global::Seamless.Collections.StorageTuning(
+        var unbuffered = new global::Seamless.Collections.StorageTuning(
             FileAccess.Read,
-            bufferingMode: global::Seamless.Collections.StorageBufferingMode.Unbuffered).ToFileOptions());
+            bufferingMode: global::Seamless.Collections.StorageBufferingMode.Unbuffered);
+        if(OperatingSystem.IsWindows()) {
+            Assert.Equal((FileOptions)0x20000000,unbuffered.ToFileOptions()&(FileOptions)0x20000000);
+        } else {
+            Assert.Throws<PlatformNotSupportedException>(() => unbuffered.ToFileOptions());
+        }
     }
 
     [BenchFact, Benchmark]
     public void Store_CreateAppendOnly_WithTuning_RoundTrips() {
         var path = CreatePath();
         try {
-            var tuning = new global::Seamless.Collections.StorageTuning(
-                FileAccess.ReadWrite,
-                global::Seamless.Collections.StorageAccessPattern.Random,
-                global::Seamless.Collections.StorageBufferingMode.Buffered,
-                global::Seamless.Collections.StorageBufferSizeStrategy.Explicit,
-                8192);
-            using var list = global::Seamless.Collections.Persisted.Store.CreateAppendOnlyList<T>(path,InitialDataCapacity: 128,StorageTuning: tuning);
-
-            list.Add(TStrategy.Elem(1));
-            list.Add(TStrategy.Elem(2));
-
-            Assert.Equal(tuning,list.Tuning);
-            Assert.Equal(new[] { TStrategy.Elem(1),TStrategy.Elem(2) },list.ToArray());
+            foreach(var mode in new[] { global::Seamless.Collections.StorageBufferingMode.Buffered,global::Seamless.Collections.StorageBufferingMode.Unbuffered }) {
+                var tuning = new global::Seamless.Collections.StorageTuning(
+                    FileAccess.ReadWrite,
+                    global::Seamless.Collections.StorageAccessPattern.Random,
+                    mode,
+                    global::Seamless.Collections.StorageBufferSizeStrategy.Explicit,
+                    8192);
+                var tunedPath = path+"."+mode;
+                if(mode==global::Seamless.Collections.StorageBufferingMode.Unbuffered&&!OperatingSystem.IsWindows()) {
+                    Assert.Throws<PlatformNotSupportedException>(() => global::Seamless.Collections.Persisted.Store.CreateAppendOnlyList<T>(tunedPath,InitialDataCapacity: 128,StorageTuning: tuning));
+                    continue;
+                }
+                using(var list = global::Seamless.Collections.Persisted.Store.CreateAppendOnlyList<T>(tunedPath,InitialDataCapacity: 128,StorageTuning: tuning)) {
+                    for(var index = 1;index<=129;index++) {
+                        list.Add(TStrategy.Elem(index));
+                    }
+                    Assert.Equal(tuning,list.Tuning);
+                    Assert.Equal(Enumerable.Range(1,129).Select(static index => TStrategy.Elem(index)),list.ToArray());
+                }
+                //整列IOの余白を要素と誤認せず、方式を変えて開いても同じ末尾へ追記できる。
+                using(var reopened = global::Seamless.Collections.Persisted.Store.CreateAppendOnlyList<T>(tunedPath)) {
+                    Assert.Equal(129,reopened.Count);
+                    reopened.Add(TStrategy.Elem(130));
+                    Assert.Equal(Enumerable.Range(1,130).Select(static index => TStrategy.Elem(index)),reopened.ToArray());
+                }
+                using var tunedReopen = global::Seamless.Collections.Persisted.Store.CreateAppendOnlyList<T>(tunedPath,StorageTuning: tuning);
+                Assert.Equal(130,tunedReopen.Count);
+                Assert.Equal(Enumerable.Range(1,130).Select(static index => TStrategy.Elem(index)),tunedReopen.ToArray());
+            }
         } finally {
             TryDeleteDirectory(path);
         }
@@ -212,17 +254,40 @@ public abstract class ListTestBase<TStrategy, T>
     public void Store_CreateSet_WithTuning_RoundTrips() {
         var path = CreatePath();
         try {
-            var tuning = new global::Seamless.Collections.StorageTuning(
-                FileAccess.ReadWrite,
-                global::Seamless.Collections.StorageAccessPattern.Random);
-            using var set = global::Seamless.Collections.Persisted.Store.CreateSet<T>(path,InitialCapacity: 1,InitialDataCapacity: 128,StorageTuning: tuning);
-
-            set.Add(TStrategy.Elem(1));
-            set.Add(TStrategy.Elem(2));
-            set.Compact();
-
-            Assert.True(set.Contains(TStrategy.Elem(1)));
-            Assert.True(set.Contains(TStrategy.Elem(2)));
+            foreach(var mode in new[] { global::Seamless.Collections.StorageBufferingMode.Buffered,global::Seamless.Collections.StorageBufferingMode.Unbuffered }) {
+                var tuning = new global::Seamless.Collections.StorageTuning(FileAccess.ReadWrite,global::Seamless.Collections.StorageAccessPattern.Random,mode);
+                var tunedPath = path+"."+mode;
+                try {
+                    if(mode==global::Seamless.Collections.StorageBufferingMode.Unbuffered&&!OperatingSystem.IsWindows()) {
+                        Assert.Throws<PlatformNotSupportedException>(() => global::Seamless.Collections.Persisted.Store.CreateSet<T>(tunedPath,InitialCapacity: 1,InitialDataCapacity: 128,StorageTuning: tuning));
+                        continue;
+                    }
+                    using(var set = global::Seamless.Collections.Persisted.Store.CreateSet<T>(tunedPath,InitialCapacity: 1,InitialDataCapacity: 128,StorageTuning: tuning)) {
+                        //初期のハッシュ索引を超えて成長させ、一時ファイル経由の再ハッシュも通す。
+                        for(var index = 1;index<=48;index++) {
+                            set.Add(TStrategy.Elem(index));
+                        }
+                        set.Add(TStrategy.Elem(1));
+                        set.Compact();
+                        Assert.Equal(48,set.GetLongCount());
+                        for(var index = 1;index<=48;index++) {
+                            Assert.True(set.Contains(TStrategy.Elem(index)));
+                        }
+                        Assert.False(set.Contains(TStrategy.Elem(49)));
+                    }
+                    using(var reopened = global::Seamless.Collections.Persisted.Store.CreateSet<T>(tunedPath,StorageTuning: tuning)) {
+                        Assert.Equal(48,reopened.GetLongCount());
+                        Assert.True(reopened.Contains(TStrategy.Elem(1)));
+                        Assert.True(reopened.Contains(TStrategy.Elem(48)));
+                        Assert.False(reopened.Contains(TStrategy.Elem(49)));
+                    }
+                    using var bufferedReopen = global::Seamless.Collections.Persisted.Store.CreateSet<T>(tunedPath);
+                    Assert.Equal(48,bufferedReopen.GetLongCount());
+                    Assert.True(bufferedReopen.Contains(TStrategy.Elem(48)));
+                } catch(Exception error) {
+                    throw new InvalidOperationException($"Persisted set round trip failed: mode={mode}, fullPath={Path.GetFullPath(tunedPath)}, HResult=0x{error.HResult:X8}.",error);
+                }
+            }
         } finally {
             TryDeleteDirectory(path);
         }
@@ -252,6 +317,38 @@ public abstract class ListTestBase<TStrategy, T>
 
             Assert.True(set.Contains(TStrategy.Elem(1)));
             Assert.True(set.Contains(TStrategy.Elem(2)));
+
+            var switchPath = path+".switch";
+            using(var switched = new global::Seamless.Collections.Persisted.SerializedSet<T,global::Seamless.Collections.AutoSerializer<T>>(switchPath,initialCapacity: 1,initialDataCapacity: 128,tuning)) {
+                switched.Add(TStrategy.Elem(1));
+                switched.Add(TStrategy.Elem(2));
+                if(OperatingSystem.IsWindows()) {
+                    switched.SetBufferingMode(global::Seamless.Collections.StorageBufferingMode.Unbuffered);
+                    for(var index = 3;index<=48;index++) {
+                        switched.Add(TStrategy.Elem(index));
+                    }
+                    Assert.True(switched.Contains(TStrategy.Elem(1)));
+                    Assert.True(switched.Contains(TStrategy.Elem(48)));
+                    Assert.True(switched.Remove());
+                    Assert.False(switched.Contains(TStrategy.Elem(48)));
+                    switched.SetBufferingMode(global::Seamless.Collections.StorageBufferingMode.Buffered);
+                    Assert.True(switched.Contains(TStrategy.Elem(47)));
+                    Assert.False(switched.Contains(TStrategy.Elem(48)));
+                } else {
+                    var previousTuning = switched.Tuning;
+                    Assert.Throws<PlatformNotSupportedException>(() => switched.SetBufferingMode(global::Seamless.Collections.StorageBufferingMode.Unbuffered));
+                    Assert.Equal(previousTuning,switched.Tuning);
+                    Assert.True(switched.Contains(TStrategy.Elem(2)));
+                }
+            }
+            using var reopened = new global::Seamless.Collections.Persisted.SerializedSet<T,global::Seamless.Collections.AutoSerializer<T>>(switchPath);
+            Assert.True(reopened.Contains(TStrategy.Elem(1)));
+            Assert.True(reopened.Contains(TStrategy.Elem(2)));
+            if(OperatingSystem.IsWindows()) {
+                Assert.Equal(47,reopened.Count);
+                Assert.True(reopened.Contains(TStrategy.Elem(47)));
+                Assert.False(reopened.Contains(TStrategy.Elem(48)));
+            }
         } finally {
             TryDeleteDirectory(path);
         }

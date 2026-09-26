@@ -53,7 +53,7 @@ where TKey : notnull {
 
     private static IPersistedDictionary<TKey,TValue> CreateCore(string path,long initialCapacity,long initialDataCapacity,StorageTuning? tuning) {
         // キーと値の両方が固定長なら、AutoSerializer は BlittableDictionary と同じ生バイトを書く(リフレクション不要)。
-        // どちらかが参照を含むときは、従来どおり両方とも MemoryPack にしてファイル形式を変えない。
+        // どちらかが参照を含むときは、従来どおり両方とも MemoryPack にしてレコード本体の形式を変えない。
         if(!RuntimeHelpers.IsReferenceOrContainsReferences<TKey>()&&!RuntimeHelpers.IsReferenceOrContainsReferences<TValue>()) {
             return new SerializedDictionary<TKey,TValue,AutoSerializer<TKey>,AutoSerializer<TValue>>(path,initialCapacity,initialDataCapacity,tuning);
         }
@@ -96,7 +96,9 @@ public class SerializedDictionary<TKey, TValue, TKeySerializer, TValueSerializer
     public readonly record struct Entry(TKey Key,TValue Value);
 
     public readonly struct EntrySerializer:ISerializer<Entry> {
-        public static ReadOnlySpan<byte> Serialize(ref Entry value) {
+        public static ReadOnlySpan<byte> Serialize(ref Entry value)=>SerializeOwned(ref value);
+
+        internal static byte[] SerializeOwned(ref Entry value){
             var key = value.Key;
             var item = value.Value;
             // key/value のバイト列は別々のローカルを指す(または MemoryPack の新規配列)ため

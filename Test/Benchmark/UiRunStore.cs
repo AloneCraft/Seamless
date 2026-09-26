@@ -132,14 +132,53 @@ public sealed class UI実行ストア{
     }
     [Fact]
     public void パラメータスイープ_日本語列と英語保存値を往復する(){
-        var ストア=new global::UI.Storage.UI実行ストア(DBパスを作成(),UI実行アプリ種別.パラメータスイープ);
-        var 実行=ストア.実行を作成(new(UI実行アプリ種別.パラメータスイープ,"スイープ","Fast","ParameterSweep",DateTimeOffset.UtcNow));
-        ストア.パラメータスイープ結果を保存(new(実行.実行ID,"Case","HashSet","Int32","Memory","IndexSize",64,32,16,1024,0.5,4096,4096,"Completed","",12.5,8.25,DateTimeOffset.UtcNow));
-        var 結果=Assert.Single(ストア.パラメータスイープ結果一覧を取得(実行.実行ID));
-        Assert.Equal("Completed",結果.失敗種別);Assert.Equal(4096,結果.最大成功Count);
-        using var 接続=開く(ストア.データベースパス);
-        Assert.Equal(11L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('コレクション','ジェネリック','バックエンド','スイープ','Indexサイズ','Pageサイズ','Segmentサイズ','Memoryサイズ','可変Fraction','最大成功Count','エントリCount');"));
-        Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
+        var パス=DBパスを作成();
+        var ストア=new global::UI.Storage.UI実行ストア(パス,UI実行アプリ種別.パラメータスイープ);
+        var 日時=DateTimeOffset.Parse("2026-09-25T12:34:56+09:00",global::System.Globalization.CultureInfo.InvariantCulture);
+        var 実行=ストア.実行を作成(new(UI実行アプリ種別.パラメータスイープ,"スイープ","Fast","ParameterSweep",日時));
+        // 各列に異なる値を入れ、32 bit を超える値とゼロも null と区別して往復する。
+        var 観測あり=new UIパラメータスイープ結果(実行.実行ID,"Case","HashSet","Int32","Memory","IndexSize",64,32,16,1024,0.5,4096,4096,"Completed","",12.5,8.25,日時,4294967296,17,8589934599,0);
+        // 末尾引数の省略は既存の呼び出しと同じ。新しい4項目は null で保存する。
+        var 観測なし=new UIパラメータスイープ結果(実行.実行ID,"NoStatistics","HashSet","Int32","Memory","IndexSize",64,32,16,1024,0.5,0,0,"InvalidConfiguration","invalid",0,null,日時);
+        ストア.パラメータスイープ結果を保存(観測あり);
+        ストア.パラメータスイープ結果を保存(観測なし);
+
+        var 再開ストア=new global::UI.Storage.UI実行ストア(パス,UI実行アプリ種別.パラメータスイープ);
+        var 結果一覧=再開ストア.パラメータスイープ結果一覧を取得(実行.実行ID);
+        Assert.Equal(2,結果一覧.Count);
+        Assert.Equal(観測あり,結果一覧[0]);
+        Assert.Equal(観測なし,結果一覧[1]);
+        Assert.Equal("Completed",結果一覧[0].失敗種別);
+        Assert.Equal(4096,結果一覧[0].最大成功Count);
+        using(var 接続=開く(パス)){
+            Assert.Equal(21L,スカラー<long>(接続,"PRAGMA user_version;"));
+            Assert.Equal(15L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('コレクション','ジェネリック','バックエンド','スイープ','Indexサイズ','Pageサイズ','Segmentサイズ','Memoryサイズ','可変Fraction','最大成功Count','エントリCount','索引バケット数','溢れバケット数','メモリログバイト数','ディスクログバイト数');"));
+            Assert.Equal(4L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('索引バケット数','溢れバケット数','メモリログバイト数','ディスクログバイト数') AND type='INTEGER' AND [notnull]=0;"));
+            Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
+            // このテスト専用DBを旧版20の形に戻す。実データの自動移行を要求しない。
+            using var コマンド=接続.CreateCommand();
+            コマンド.CommandText="""
+                ALTER TABLE "ベンチマーク" DROP COLUMN "索引バケット数";
+                ALTER TABLE "ベンチマーク" DROP COLUMN "溢れバケット数";
+                ALTER TABLE "ベンチマーク" DROP COLUMN "メモリログバイト数";
+                ALTER TABLE "ベンチマーク" DROP COLUMN "ディスクログバイト数";
+                PRAGMA user_version=20;
+                """;
+            コマンド.ExecuteNonQuery();
+        }
+        var 旧版ストア=new global::UI.Storage.UI実行ストア(パス,UI実行アプリ種別.パラメータスイープ);
+        Assert.Throws<InvalidOperationException>(()=>旧版ストア.スキーマを確認());
+        using(var 接続=開く(パス)){
+            Assert.Equal(20L,スカラー<long>(接続,"PRAGMA user_version;"));
+            Assert.Equal(2L,スカラー<long>(接続,"SELECT COUNT(*) FROM [ベンチマーク];"));
+            Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('索引バケット数','溢れバケット数','メモリログバイト数','ディスクログバイト数');"));
+            // 版番号だけを変えても、観測列が欠けた形状は拒否する。
+            using var コマンド=接続.CreateCommand();
+            コマンド.CommandText="PRAGMA user_version=21;";
+            コマンド.ExecuteNonQuery();
+        }
+        Assert.Throws<InvalidOperationException>(()=>new global::UI.Storage.UI実行ストア(パス,UI実行アプリ種別.パラメータスイープ).スキーマを確認());
+        Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(パス)!,Path.GetFileName(パス)+".*.bak"));
     }
 
     [Fact]

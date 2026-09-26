@@ -40,7 +40,7 @@ store.Save();
 |---|---|---|---|
 | ストアから作る | `CreateTsavorite<K,V>`（辞書）・`CreateTsavoriteHashSet<T>`・`CreateTsavoriteSet<K,R>` | 実装済み | `Stores/StoreExtensions.cs:9-18` |
 | 配置の自動決定 | デバイス、保存フォルダ、索引・ログの大きさをストアの種類・上限・予想件数から決める | 実装済み | `Stores/TsavoriteLayout.cs:44-60` |
-| 詳細設定の非公開化 | ページ・セグメント・索引などは `internal` の `TsavoriteTuning`。テストとベンチだけが使う | 実装済み | `Stores/TsavoriteTuning.cs:1-15` |
+| 詳細設定の公開 | ページ・セグメント・索引・自動拡張・ストレージ方式は公開 `TsavoriteTuning` で指定する。省略時の自動決定を維持 | 実装済み（2026-09-25 の追加承認） | `Stores/TsavoriteTuning.cs`、`Stores/StoreExtensions.cs` |
 | 件数の管理 | データ本体が件数を持つ。`Create()` は増減する版、`CreateUncounted()` は増減しない版、`ApplyCountDelta` で差分反映 | 実装済み | `Stores/CollectionStore.cs:190-240`、`HashSetStore.cs:21-26`、`DictionaryStore.cs:31-64` |
 | 索引の自動拡張 | ログの伸びから件数を推定し、混んでいれば索引を倍にする。拡張分は予算から先に予約 | 実装済み | `Stores/CollectionStore.cs:311-337` |
 | 保存と復元 | ストアの `Save()` で確定。保存時にログを flush（EXP-0002） | 実装済み | `Test/Seamless/Stores/StoreExtensions.cs:121-175`、【記録】EXP-0002 |
@@ -121,7 +121,7 @@ store.Save();
 - 旧 API（`Tsavorite.Store.Create(...)` → `.Create<T>(logDevice,objDevice)`）を使う箇所は、【確認】2026-09-25 時点で **49 ファイル**（`Test` 27、`Shared` 11、ライブラリ自身 3、`Tests` 2、`Benchmark` 2、`Seamless.Database` 1、その他 3）。新 API の利用はテスト 8 ファイルだけ。
 - 【記録】2026-09-19 時点の棚卸し：旧 `Store.Create(` 249 か所、デバイス直渡し 90、番号指定の保存・復元 92、型名 57。
 - 移行順は DB → LINQ → テスト・ベンチ。改名（段階3b）と型引数・比較子・`TryAdd`（段階3d）は同じ作業で行う。
-- 最小サイズを使うテストは `TsavoriteTuning`（`internal`）へ移す。
+- 最小サイズを使うテストは 公開 `TsavoriteTuning`へ移す。
 
 ## 9. ロールバック条件
 

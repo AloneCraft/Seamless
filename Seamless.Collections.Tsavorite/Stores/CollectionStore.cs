@@ -309,6 +309,9 @@ public abstract partial class CollectionStore<
     /// 予約できなければ拡張しない(正しさは変わらず、性能だけが落ちる)。
     /// </summary>
     private void GrowIndexIfCrowded(TsavoriteLayout layout,int payloadBytes) {
+        if(!layout.AutoGrowIndex) {
+            return;
+        }
         this.lastPayloadBytes=payloadBytes;
         // Tsavorite 2.0.1-beta.5 の GrowIndexAsync は、他のセッションの操作と並行すると
         // StateMachineDriver 内で IndexOutOfRangeException を起こして停止する(EXP-0004)。
@@ -532,6 +535,39 @@ public abstract partial class CollectionStore<
             return (Log.BeginAddress,Log.HeadAddress,Log.ReadOnlyAddress,Log.TailAddress);
         }
     }
+
+    /// <summary>
+    /// 索引とログの観測値を返す。取得した時点の値であり、並行して書き込んでいる間は項目どうしが整合しない。
+    /// EntryCount は索引の使用中の枠の数であり、コレクションの件数ではない。
+    /// EntryCount の取得で索引全体と溢れバケットを走査するため、高頻度の監視には向かない。
+    /// </summary>
+    public TsavoriteStatistics GetStatistics() {
+        var indexSize = this.Store.IndexSize;
+        var log = this.Store.Log;
+        var beginAddress = log.BeginAddress;
+        var headAddress = log.HeadAddress;
+        var readOnlyAddress = log.ReadOnlyAddress;
+        var tailAddress = log.TailAddress;
+        return new(
+            indexSize,
+            checked(indexSize*64),
+            this.Store.EntryCount,
+            this.Store.OverflowBucketCount,
+            this.Store.OverflowBucketAllocations,
+            beginAddress,
+            headAddress,
+            readOnlyAddress,
+            tailAddress,
+            tailAddress-headAddress,
+            headAddress-beginAddress,
+            this.Store.HighWaterAllocatedPageCount);
+    }
+
+    /// <summary>
+    /// 索引のバケットの分布を文字列で返す。索引全体を走査する高コストな操作。
+    /// 取得した時点の値であり、並行して書き込んでいる間の整合性は保証しない。
+    /// </summary>
+    public string DumpIndexDistribution() => this.Store.DumpDistribution();
 
     public void CompactWithLookup() {
         var store = this.Store;

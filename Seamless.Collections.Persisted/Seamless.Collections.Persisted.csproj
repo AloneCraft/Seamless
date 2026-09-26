@@ -14,6 +14,7 @@
   <ItemGroup>
     <Compile Remove="Artifacts\**" />
     <Compile Remove="Work\**" />
+    <Compile Include="Work\*.cs" />
     <EmbeddedResource Remove="Artifacts\**" />
     <EmbeddedResource Remove="Work\**" />
     <None Remove="Artifacts\**" />

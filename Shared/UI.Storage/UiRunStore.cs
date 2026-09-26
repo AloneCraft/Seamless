@@ -4,8 +4,14 @@ namespace UI.Storage;
 
 public sealed class UI実行ストア{
     private const int ベンチマークスキーマ版=26;
-    private const int 既存スキーマ版=20;
-    private int スキーマ版=>this.アプリ種別==UI実行アプリ種別.ベンチマーク ? ベンチマークスキーマ版 : 既存スキーマ版;
+    private const int スケーラブルスキーマ版=20;
+    private const int パラメータスイープスキーマ版=21;
+    private int スキーマ版=>this.アプリ種別 switch{
+        UI実行アプリ種別.ベンチマーク=>ベンチマークスキーマ版,
+        UI実行アプリ種別.スケーラブルベンチマーク=>スケーラブルスキーマ版,
+        UI実行アプリ種別.パラメータスイープ=>パラメータスイープスキーマ版,
+        _=>throw new InvalidOperationException("対応しないUI実行アプリ種別です。"),
+    };
     private readonly string DBパス;
     private readonly UI実行アプリ種別 アプリ種別;
     private readonly Lock スキーマロック=new();
@@ -129,6 +135,8 @@ public sealed class UI実行ストア{
                 "可変Fraction" REAL NOT NULL,"最大成功Count" INTEGER NOT NULL,"エントリCount" INTEGER NOT NULL,
                 "失敗種別" TEXT NOT NULL,"失敗理由" TEXT NOT NULL,
                 "追加時間ms" REAL NOT NULL,"検索時間ns" REAL NULL,"測定日時" TEXT NOT NULL,
+                "索引バケット数" INTEGER NULL,"溢れバケット数" INTEGER NULL,
+                "メモリログバイト数" INTEGER NULL,"ディスクログバイト数" INTEGER NULL,
                 PRIMARY KEY("実行ID","ケース名"),
                 FOREIGN KEY("実行ID") REFERENCES "実行"("実行ID") ON DELETE CASCADE
             );
@@ -311,8 +319,8 @@ public sealed class UI実行ストア{
         using var 接続=this.接続を開く();
         using var コマンド=接続.CreateCommand();
         コマンド.CommandText="""
-            INSERT OR REPLACE INTO "ベンチマーク"("実行ID","ケース名","コレクション","ジェネリック","バックエンド","スイープ","Indexサイズ","Pageサイズ","Segmentサイズ","Memoryサイズ","可変Fraction","最大成功Count","エントリCount","失敗種別","失敗理由","追加時間ms","検索時間ns","測定日時")
-            VALUES($id,$case,$collection,$generic,$backend,$sweep,$index,$page,$segment,$memory,$fraction,$max,$entries,$failure,$reason,$add,$lookup,$at);
+            INSERT OR REPLACE INTO "ベンチマーク"("実行ID","ケース名","コレクション","ジェネリック","バックエンド","スイープ","Indexサイズ","Pageサイズ","Segmentサイズ","Memoryサイズ","可変Fraction","最大成功Count","エントリCount","失敗種別","失敗理由","追加時間ms","検索時間ns","測定日時","索引バケット数","溢れバケット数","メモリログバイト数","ディスクログバイト数")
+            VALUES($id,$case,$collection,$generic,$backend,$sweep,$index,$page,$segment,$memory,$fraction,$max,$entries,$failure,$reason,$add,$lookup,$at,$indexBuckets,$overflowBuckets,$memoryLogBytes,$diskLogBytes);
             """;
         コマンド.Parameters.AddWithValue("$id",結果.実行ID);コマンド.Parameters.AddWithValue("$case",結果.ケース名);
         コマンド.Parameters.AddWithValue("$collection",結果.コレクション);コマンド.Parameters.AddWithValue("$generic",結果.ジェネリック名);
@@ -323,6 +331,8 @@ public sealed class UI実行ストア{
         コマンド.Parameters.AddWithValue("$entries",結果.エントリCount);コマンド.Parameters.AddWithValue("$failure",結果.失敗種別);
         コマンド.Parameters.AddWithValue("$reason",結果.失敗理由);コマンド.Parameters.AddWithValue("$add",結果.追加経過ミリ秒);
         コマンド.Parameters.AddWithValue("$lookup",DB値へ(結果.検索平均ナノ秒));コマンド.Parameters.AddWithValue("$at",日時を文字列へ(結果.計測日時));
+        コマンド.Parameters.AddWithValue("$indexBuckets",DB値へ(結果.索引バケット数));コマンド.Parameters.AddWithValue("$overflowBuckets",DB値へ(結果.溢れバケット数));
+        コマンド.Parameters.AddWithValue("$memoryLogBytes",DB値へ(結果.メモリログバイト数));コマンド.Parameters.AddWithValue("$diskLogBytes",DB値へ(結果.ディスクログバイト数));
         コマンド.ExecuteNonQuery();
     }
 
@@ -333,12 +343,12 @@ public sealed class UI実行ストア{
         this.スキーマを確認();
         using var 接続=this.接続を開く();
         using var コマンド=接続.CreateCommand();
-        コマンド.CommandText="SELECT \"実行ID\",\"ケース名\",\"コレクション\",\"ジェネリック\",\"バックエンド\",\"スイープ\",\"Indexサイズ\",\"Pageサイズ\",\"Segmentサイズ\",\"Memoryサイズ\",\"可変Fraction\",\"最大成功Count\",\"エントリCount\",\"失敗種別\",\"失敗理由\",\"追加時間ms\",\"検索時間ns\",\"測定日時\" FROM \"ベンチマーク\" WHERE \"実行ID\"=$id ORDER BY \"ケース名\";";
+        コマンド.CommandText="SELECT \"実行ID\",\"ケース名\",\"コレクション\",\"ジェネリック\",\"バックエンド\",\"スイープ\",\"Indexサイズ\",\"Pageサイズ\",\"Segmentサイズ\",\"Memoryサイズ\",\"可変Fraction\",\"最大成功Count\",\"エントリCount\",\"失敗種別\",\"失敗理由\",\"追加時間ms\",\"検索時間ns\",\"測定日時\",\"索引バケット数\",\"溢れバケット数\",\"メモリログバイト数\",\"ディスクログバイト数\" FROM \"ベンチマーク\" WHERE \"実行ID\"=$id ORDER BY \"ケース名\";";
         コマンド.Parameters.AddWithValue("$id",実行ID);
         using var 読取器=コマンド.ExecuteReader();
         var 結果一覧=new List<UIパラメータスイープ結果>();
         while(読取器.Read()){
-            結果一覧.Add(new(読取器.GetInt64(0),読取器.GetString(1),読取器.GetString(2),読取器.GetString(3),読取器.GetString(4),読取器.GetString(5),読取器.GetInt64(6),読取器.GetInt64(7),読取器.GetInt64(8),読取器.GetInt64(9),読取器.GetDouble(10),読取器.GetInt64(11),読取器.GetInt64(12),読取器.GetString(13),読取器.GetString(14),読取器.GetDouble(15),読取器.IsDBNull(16) ? null : 読取器.GetDouble(16),文字列を日時へ(読取器.GetString(17))));
+            結果一覧.Add(new(読取器.GetInt64(0),読取器.GetString(1),読取器.GetString(2),読取器.GetString(3),読取器.GetString(4),読取器.GetString(5),読取器.GetInt64(6),読取器.GetInt64(7),読取器.GetInt64(8),読取器.GetInt64(9),読取器.GetDouble(10),読取器.GetInt64(11),読取器.GetInt64(12),読取器.GetString(13),読取器.GetString(14),読取器.GetDouble(15),読取器.IsDBNull(16) ? null : 読取器.GetDouble(16),文字列を日時へ(読取器.GetString(17)),空値許容長整数を読む(読取器,18),空値許容長整数を読む(読取器,19),空値許容長整数を読む(読取器,20),空値許容長整数を読む(読取器,21)));
         }
         return 結果一覧;
     }
@@ -417,8 +427,8 @@ public sealed class UI実行ストア{
             コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('実行') WHERE name IN('要素数一覧','適応閾値ns');";
             if((long)(コマンド.ExecuteScalar()??0L)!=2L){return false;}
             if(this.アプリ種別==UI実行アプリ種別.パラメータスイープ){
-                コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('コレクション','ジェネリック','バックエンド','スイープ','Indexサイズ','Pageサイズ','Segmentサイズ','Memoryサイズ','可変Fraction','最大成功Count','エントリCount');";
-                return (long)(コマンド.ExecuteScalar()??0L)==11L;
+                コマンド.CommandText="SELECT COUNT(*) FROM pragma_table_info('ベンチマーク') WHERE name IN('コレクション','ジェネリック','バックエンド','スイープ','Indexサイズ','Pageサイズ','Segmentサイズ','Memoryサイズ','可変Fraction','最大成功Count','エントリCount','索引バケット数','溢れバケット数','メモリログバイト数','ディスクログバイト数');";
+                return (long)(コマンド.ExecuteScalar()??0L)==15L;
             }
             コマンド.CommandText="SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name IN('スケーラブル履歴','スケーラブル前回シェア');";
             return (long)(コマンド.ExecuteScalar()??0L)==2L;

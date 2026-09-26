@@ -50,7 +50,11 @@ public sealed record UIパラメータスイープ結果(
     string 失敗理由,
     double 追加経過ミリ秒,
     double? 検索平均ナノ秒,
-    DateTimeOffset 計測日時);
+    DateTimeOffset 計測日時,
+    long? 索引バケット数=null,
+    long? 溢れバケット数=null,
+    long? メモリログバイト数=null,
+    long? ディスクログバイト数=null);
 
 public sealed record UIベンチマークグリッド側書込(
     UI実行状態 状態,

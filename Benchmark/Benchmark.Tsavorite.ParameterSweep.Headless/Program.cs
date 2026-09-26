@@ -14,7 +14,9 @@ Console.WriteLine(json);
 if(result.失敗種別 is パラメータスイープ失敗種別.完了
     or パラメータスイープ失敗種別.ログ満杯
     or パラメータスイープ失敗種別.メモリ不足
-    or パラメータスイープ失敗種別.タイムアウト){return 0;}
+    or パラメータスイープ失敗種別.タイムアウト
+    or パラメータスイープ失敗種別.メモリ上限超過
+    or パラメータスイープ失敗種別.ディスク上限超過){return 0;}
 return 1;
 
 static string Required(string[] arguments,string name){

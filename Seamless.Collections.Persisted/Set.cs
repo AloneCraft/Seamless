@@ -7,7 +7,7 @@ public interface ISetIterateStrategy<TSelf, T>
 
 public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
     // AutoSerializer は固定長の型を BlittableSerializer と同じ生バイトで、それ以外を MemoryPack で書くので、
-    // 型ごとにリフレクションで作り分けなくても従来(BlittableSet / MemoryPack の SerializedSet)と同じファイル形式になる。
+    // 型ごとにリフレクションで作り分けなくても従来(BlittableSet / MemoryPack の SerializedSet)と同じレコード本体の形式になる。
     private readonly SerializedSet<T,AutoSerializer<T>> list;
     private readonly IReadOnlySet<T> set;
 
@@ -68,7 +68,7 @@ public class SerializedSet<T,TSerializer>(
     StorageTuning? tuning             =null)
     :SerializedList<T,TSerializer>(path,initialCapacity,initialDataCapacity,tuning),IReadOnlySet<T>
 where TSerializer : ISerializer<T> {
-    // 要素の serialize バイト列をキーとする mmap ハッシュ索引を維持し、Contains を O(1) 化する。
+    // 要素の serialize バイト列をキーとするファイル上のハッシュ索引を維持し、Contains を O(1) 化する。
     protected override bool UsesKeyIndex => true;
 
     public SerializedSet<T,TSerializer> Compact() {

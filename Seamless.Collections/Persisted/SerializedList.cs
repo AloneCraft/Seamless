@@ -1,18 +1,16 @@
-using System.IO.MemoryMappedFiles;
 namespace Seamless.Collections;
 
 public class SerializedList<T>(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null):SerializedList<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning);
 public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatcher where TSerializer : ISerializer<T> {
     private const long UnusedIndex = -1;
-    // Set/Dictionary が override して true にすると、レコードキー→データオフセットの mmap ハッシュ索引を維持する。
+    // Set/Dictionary が override して true にすると、レコードキー→データオフセットのディスク上のハッシュ索引を維持する。
     // これにより Contains/TryGetValue が O(n) 走査から O(1) 索引 lookup になる(技法 c/d)。
     private PersistedHashIndex? keyIndex;
-    private FileStream indexStream = null!;
-    private MemoryMappedFile indexMappedFile = null!;
-    private MemoryMappedViewAccessor indexAccessor = null!;
-    private FileStream dataStream = null!;
-    private MemoryMappedFile dataMappedFile = null!;
-    private MemoryMappedViewAccessor dataAccessor = null!;
+    private readonly IPersistedKeyPolicy? keyPolicy;
+    private Stream indexStream = null!;
+    private PersistedFileAccessor indexAccessor = null!;
+    private Stream dataStream = null!;
+    private PersistedFileAccessor dataAccessor = null!;
     private long persistedCount;
     private StorageTuning tuning;
 
@@ -21,7 +19,13 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
     public long DataCapacity { get; private set; }
     public override StorageTuning Tuning => this.tuning;
 
-    public SerializedList(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null) : base(path) {
+    public SerializedList(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null)
+        :this(path,initialCapacity,initialDataCapacity,tuning,null,null){
+    }
+
+    internal SerializedList(string path,long initialCapacity,long initialDataCapacity,StorageTuning? tuning,IPersistedKeyPolicy? keyPolicy,IPersistedStorageQuota? quota):base(path){
+        this.keyPolicy=keyPolicy;
+        this.StorageQuota=quota;
         if(initialCapacity<1)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity));
         if(initialDataCapacity<1)
@@ -29,28 +33,38 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
 
         this.tuning=tuning??StorageTuning.Default;
         this.IndexPath=path+".index";
-        this.indexStream=this.OpenStream(this.IndexPath);
-        this.dataStream=this.OpenStream(this.Path);
+        try {
+            this.indexStream=this.OpenStream(this.IndexPath);
+            this.dataStream=this.OpenStream(this.Path);
 
-        if(this.indexStream.Length==0&&this.dataStream.Length==0) {
-            this.Count=0;
-            this.Capacity=this.AlignIndexCapacity(initialCapacity);
-            this.DataLength=0;
-            this.DataCapacity=this.AlignDataCapacity(initialDataCapacity);
-            this.indexStream.SetLength(this.GetIndexFileLength(this.Capacity));
-            this.dataStream.SetLength(this.GetDataFileLength(this.DataCapacity));
-            this.CreateMappings();
-            this.InitializeIndexRange(0,this.Capacity);
-            this.persistedCount=0;
-        } else {
-            if(this.indexStream.Length==0||this.dataStream.Length==0)
-                throw new InvalidDataException("List companion files are incomplete.");
-            this.CreateMappings();
-            this.LoadState();
+            if(this.indexStream.Length==0&&this.dataStream.Length==0) {
+                this.Count=0;
+                this.Capacity=this.AlignIndexCapacity(initialCapacity);
+                this.DataLength=0;
+                this.DataCapacity=this.AlignDataCapacity(initialDataCapacity);
+                this.StorageQuota?.EnsureTotalBytes(checked(this.GetIndexFileLength(this.Capacity)+this.GetDataFileLength(this.DataCapacity)));
+                this.indexStream.SetLength(this.GetIndexFileLength(this.Capacity));
+                this.dataStream.SetLength(this.GetDataFileLength(this.DataCapacity));
+                this.CreateMappings();
+                this.InitializeIndexRange(0,this.Capacity);
+                this.persistedCount=0;
+            } else {
+                if(this.indexStream.Length==0||this.dataStream.Length==0)
+                    throw new InvalidDataException("List companion files are incomplete.");
+                this.CreateMappings();
+                this.LoadState();
+            }
+
+            this.ApplyTuning();
+            this.InitializeKeyIndex();
+        } catch {
+            this.keyIndex?.Dispose();
+            this.indexAccessor?.Dispose();
+            this.dataAccessor?.Dispose();
+            this.indexStream?.Dispose();
+            this.dataStream?.Dispose();
+            throw;
         }
-
-        this.ApplyTuning();
-        this.InitializeKeyIndex();
     }
 
     // Set/Dictionary が override する。ExtractKeyBytes は payload からキーバイト範囲を切り出す(既定=payload 全体)。
@@ -62,8 +76,12 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
     private void InitializeKeyIndex() {
         if(!this.UsesKeyIndex)
             return;
-        this.keyIndex=new PersistedHashIndex(this.HashIndexPath,this.Tuning,this.Count);
-        if(this.keyIndex.ListCountAtFlush==this.Count)
+        var expectedEntries=this.Count;
+        if(this.keyPolicy is not null){
+            expectedEntries=0;
+        }
+        this.keyIndex=new PersistedHashIndex(this.HashIndexPath,this.Tuning,expectedEntries,this.ReserveHashStorage);
+        if(this.keyPolicy is null&&this.keyIndex.ListCountAtFlush==this.Count)
             return; // 索引はデータと整合(高速 open)。不一致なら再構築。
         this.RebuildKeyIndex();
     }
@@ -72,9 +90,10 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
         this.keyIndex!.Clear();
         for(var index = 0L;index<this.Count;index++) {
             var recordOffset = this.ReadIndexUnchecked(index);
+            using var memory=this.keyPolicy?.ReserveRead(checked(128+2L*this.ReadRecordLength(recordOffset)));
             var payload = this.ReadRecord(recordOffset);
             var key = this.ExtractKeyBytes(payload);
-            this.keyIndex.Upsert(ByteRange.Hash(key),recordOffset,this,key);
+            this.keyIndex.Upsert(this.HashKey(key),recordOffset,this,key);
         }
         this.keyIndex.SetListCount(this.Count);
         this.keyIndexStale=false;
@@ -86,7 +105,11 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
 
     // データオフセットのレコードキーと probe のキーバイト列を deserialize なしで透過比較する(技法 d)。
     bool IPersistedKeyMatcher.KeyEqualsAt(long dataOffset,ReadOnlySpan<byte> probeKeyBytes) {
+        using var memory=this.keyPolicy?.ReserveRead(checked(128+2L*this.ReadRecordLength(dataOffset)));
         var payload = this.ReadRecord(dataOffset);
+        if(this.keyPolicy is not null){
+            return this.keyPolicy.Equals(this.ExtractKeyBytes(payload),probeKeyBytes);
+        }
         return ByteRange.Equals(this.ExtractKeyBytes(payload),probeKeyBytes);
     }
 
@@ -99,7 +122,18 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
         if(this.keyIndexStale) {
             this.RebuildKeyIndex();
         }
-        return this.keyIndex.TryGetOffset(ByteRange.Hash(keyBytes),this,keyBytes,out recordOffset);
+        return this.keyIndex.TryGetOffset(this.HashKey(keyBytes),this,keyBytes,out recordOffset);
+    }
+
+    private ulong HashKey(ReadOnlySpan<byte> key){
+        if(this.keyPolicy is not null){
+            return this.keyPolicy.Hash(key);
+        }
+        return ByteRange.Hash(key);
+    }
+
+    private void ReserveHashStorage(long hashBytes){
+        this.StorageQuota?.EnsureTotalBytes(checked(this.indexStream.Length+this.dataStream.Length+hashBytes));
     }
 
     protected long KeyIndexEntryCount => this.keyIndex?.EntryCount??0;
@@ -108,6 +142,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
         if(this.tuning.Equals(tuning))
             return;
 
+        PersistedFile.ValidateTuning(tuning);
         var requiresReopen = MemoryMappedListTuning.RequiresReopen(this.tuning,tuning);
         this.tuning=tuning;
         if(requiresReopen) {
@@ -184,20 +219,16 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
     }
 
     private void CreateMappings() {
-        this.indexMappedFile=MemoryMappedFile.CreateFromFile(this.indexStream,null,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
-        this.indexAccessor=this.indexMappedFile.CreateViewAccessor(0,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite);
-        this.dataMappedFile=MemoryMappedFile.CreateFromFile(this.dataStream,null,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
-        this.dataAccessor=this.dataMappedFile.CreateViewAccessor(0,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite);
+        this.indexAccessor=new PersistedFileAccessor(this.indexStream);
+        this.dataAccessor=new PersistedFileAccessor(this.dataStream);
     }
 
     private void ReopenMappings() {
         this.indexAccessor.Flush();
         this.dataAccessor.Flush();
         this.indexAccessor.Dispose();
-        this.indexMappedFile.Dispose();
         this.indexStream.Dispose();
         this.dataAccessor.Dispose();
-        this.dataMappedFile.Dispose();
         this.dataStream.Dispose();
         this.indexStream=this.OpenStream(this.IndexPath);
         this.dataStream=this.OpenStream(this.Path);
@@ -226,16 +257,20 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
         var recordOffset = this.DataLength;
         var recordLength = checked(sizeof(int)+(long)bytes.Length);
         this.EnsureDataCapacity(recordOffset+recordLength);
+        PersistedHashIndex.PreparedUpsert prepared=default;
+        if(this.keyIndex is not null){
+            var key=this.ExtractKeyBytes(bytes);
+            prepared=this.keyIndex.PrepareUpsert(this.HashKey(key),this,key);
+        }
         this.WriteRecord(recordOffset,bytes);
         this.WriteIndexUnchecked(this.Count,recordOffset);
         this.Count++;
         this.DataLength=recordOffset+recordLength;
         this.OnCountChanged();
         if(this.keyIndex is not null) {
-            var key = this.ExtractKeyBytes(bytes);
-            // entryCount は Upsert が都度 header へ書く。listCount は reopen 検証専用のため
+            // entryCount は公開時に header へ書く。listCount は reopen 検証専用のため
             // 毎 Add では書かず Dispose/Rewrite/DuplicateRemoval 時にだけ確定する(書込みオーバーヘッド削減)。
-            this.keyIndex.Upsert(ByteRange.Hash(key),recordOffset,this,key);
+            this.keyIndex.PublishPrepared(prepared,recordOffset);
         }
     }
 
@@ -264,8 +299,8 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
         this.indexAccessor.Flush();
         this.dataAccessor.Flush();
         this.keyIndex?.FlushToDisk();
-        this.indexStream.Flush(flushToDisk: true);
-        this.dataStream.Flush(flushToDisk: true);
+        PersistedFile.FlushToDisk(this.indexStream);
+        PersistedFile.FlushToDisk(this.dataStream);
         return new(this.Count,this.DataLength);
     }
 
@@ -286,11 +321,9 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
         var oldCapacity = this.Capacity;
         this.indexAccessor.Flush();
         this.indexAccessor.Dispose();
-        this.indexMappedFile.Dispose();
         this.Capacity=newCapacity;
         this.indexStream.SetLength(this.GetIndexFileLength(newCapacity));
-        this.indexMappedFile=MemoryMappedFile.CreateFromFile(this.indexStream,null,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
-        this.indexAccessor=this.indexMappedFile.CreateViewAccessor(0,this.indexStream.Length,MemoryMappedFileAccess.ReadWrite);
+        this.indexAccessor=new PersistedFileAccessor(this.indexStream);
         this.InitializeIndexRange(oldCapacity,newCapacity);
         this.ApplyTuning();
     }
@@ -299,11 +332,9 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
         this.StorageQuota?.EnsureTotalBytes(this.indexStream.Length+this.GetDataFileLength(newCapacity)+(this.keyIndex?.FileLength??0));
         this.dataAccessor.Flush();
         this.dataAccessor.Dispose();
-        this.dataMappedFile.Dispose();
         this.DataCapacity=newCapacity;
         this.dataStream.SetLength(this.GetDataFileLength(newCapacity));
-        this.dataMappedFile=MemoryMappedFile.CreateFromFile(this.dataStream,null,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
-        this.dataAccessor=this.dataMappedFile.CreateViewAccessor(0,this.dataStream.Length,MemoryMappedFileAccess.ReadWrite);
+        this.dataAccessor=new PersistedFileAccessor(this.dataStream);
         this.ApplyTuning();
     }
 
@@ -394,24 +425,27 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
     }
 
     protected override void DisposeCore() {
-        if(this.keyIndex is not null) {
-            // 古い索引のまま閉じるときは、開き直したときに必ず作り直されるよう件数を一致させない値を書く。
-            if(this.keyIndexStale) {
-                this.keyIndex.SetListCount(-1);
-            } else {
-                this.keyIndex.SetListCount(this.Count);
+        try {
+            if(this.keyIndex is not null) {
+                try {
+                    // 古い索引は、開き直したときに再構築されるよう件数の不一致を記録する。
+                    if(this.keyIndexStale) {
+                        this.keyIndex.SetListCount(-1);
+                    } else {
+                        this.keyIndex.SetListCount(this.Count);
+                    }
+                } finally {
+                    this.keyIndex.Dispose();
+                    this.keyIndex=null;
+                }
             }
-            this.keyIndex.Dispose();
-            this.keyIndex=null;
+        } finally {
+            try {
+                PersistedFile.Dispose(this.indexStream,this.indexAccessor);
+            } finally {
+                PersistedFile.Dispose(this.dataStream,this.dataAccessor);
+            }
         }
-        this.indexAccessor.Flush();
-        this.dataAccessor.Flush();
-        this.indexAccessor.Dispose();
-        this.indexMappedFile.Dispose();
-        this.indexStream.Dispose();
-        this.dataAccessor.Dispose();
-        this.dataMappedFile.Dispose();
-        this.dataStream.Dispose();
     }
 
     private T DeserializeAt(long recordOffset) {
@@ -421,12 +455,18 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
 
     // データオフセットのレコード payload(TSerializer が扱うバイト列)を読む。索引 lookup 後の値抽出に使う。
     protected byte[] ReadRecordPayload(long recordOffset) => this.ReadRecord(recordOffset);
+    protected int GetRecordByteLength(long recordOffset)=>this.ReadRecordLength(recordOffset);
 
     // index 番目のレコードのデータオフセット。索引が指す最新レコードかどうかの判定(逐次走査)に使う。
     protected long GetRecordOffset(long index) {
         if((ulong)index>=(ulong)this.Count)
             throw new ArgumentOutOfRangeException(nameof(index));
         return this.ReadIndexUnchecked(index);
+    }
+
+    internal int GetSerializedByteLength(long index){
+        this.ThrowIfDisposed();
+        return this.ReadRecordLength(this.GetRecordOffset(index));
     }
 
     private byte[] ReadRecord(long recordOffset) {
@@ -466,13 +506,14 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
     private long AlignIndexCapacity(long capacity) => MemoryMappedListTuning.AlignElementCapacity(capacity,sizeof(long));
     private long AlignDataCapacity(long capacity) => MemoryMappedListTuning.AlignBytes(capacity);
 
-    private FileStream OpenStream(string path) {
-        return new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,this.Tuning.ResolveBufferSize(),MemoryMappedListTuning.GetFileOptions(this.Tuning));
+    private Stream OpenStream(string path) {
+        return PersistedFile.Open(path,this.Tuning);
     }
 
     private void ApplyTuning() {
         MemoryMappedListTuning.ApplyTuning(this.indexStream,this.indexAccessor,this.Tuning);
         MemoryMappedListTuning.ApplyTuning(this.dataStream,this.dataAccessor,this.Tuning);
+        this.keyIndex?.SetTuning(this.Tuning);
     }
 
     private long ReadIndexUnchecked(long index) => this.indexAccessor.ReadInt64(this.GetIndexOffset(index));
@@ -521,9 +562,8 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
 public sealed class BlittableList<T>:PersistedList<T>
     where T : unmanaged {
     private const long HeaderLength = sizeof(long);
-    private FileStream stream = null!;
-    private MemoryMappedFile mappedFile = null!;
-    private MemoryMappedViewAccessor accessor = null!;
+    private Stream stream = null!;
+    private PersistedFileAccessor accessor = null!;
     private StorageTuning tuning;
 
     public override StorageTuning Tuning => this.tuning;
@@ -532,27 +572,33 @@ public sealed class BlittableList<T>:PersistedList<T>
         if(initialCapacity<1)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity));
         this.tuning=tuning??StorageTuning.Default;
-        this.stream=this.OpenStream(this.Path);
-        var elementSize = Unsafe.SizeOf<T>();
-        var initializeHeader = this.stream.Length==0;
-        if(this.stream.Length==0) {
-            this.Count=0;
-            this.Capacity=this.AlignCapacity(initialCapacity,elementSize);
-            this.stream.SetLength(this.GetFileLength(this.Capacity,elementSize));
-        } else {
-            if(this.stream.Length<HeaderLength||(this.stream.Length-HeaderLength)%elementSize!=0)
-                throw new InvalidDataException("The fixed list file length is invalid.");
-            this.Capacity=(this.stream.Length-HeaderLength)/elementSize;
+        try {
+            this.stream=this.OpenStream(this.Path);
+            var elementSize = Unsafe.SizeOf<T>();
+            var initializeHeader = this.stream.Length==0;
+            if(this.stream.Length==0) {
+                this.Count=0;
+                this.Capacity=this.AlignCapacity(initialCapacity,elementSize);
+                this.stream.SetLength(this.GetFileLength(this.Capacity,elementSize));
+            } else {
+                if(this.stream.Length<HeaderLength||(this.stream.Length-HeaderLength)%elementSize!=0)
+                    throw new InvalidDataException("The fixed list file length is invalid.");
+                this.Capacity=(this.stream.Length-HeaderLength)/elementSize;
+            }
+            this.CreateMapping();
+            if(initializeHeader)
+                this.WriteCount();
+            else {
+                this.Count=this.LoadCount();
+                if(this.Count<0||this.Count>this.Capacity)
+                    throw new InvalidDataException("The fixed list count is invalid.");
+            }
+            this.ApplyTuning();
+        } catch {
+            this.accessor?.Dispose();
+            this.stream?.Dispose();
+            throw;
         }
-        this.CreateMapping();
-        if(initializeHeader)
-            this.WriteCount();
-        else {
-            this.Count=this.LoadCount();
-            if(this.Count<0||this.Count>this.Capacity)
-                throw new InvalidDataException("The fixed list count is invalid.");
-        }
-        this.ApplyTuning();
     }
 
     public override void Add(T item) {
@@ -567,6 +613,7 @@ public sealed class BlittableList<T>:PersistedList<T>
         this.ThrowIfDisposed();
         if(this.tuning.Equals(tuning))
             return;
+        PersistedFile.ValidateTuning(tuning);
         var requiresReopen = MemoryMappedListTuning.RequiresReopen(this.tuning,tuning);
         this.tuning=tuning;
         if(requiresReopen) {
@@ -585,19 +632,14 @@ public sealed class BlittableList<T>:PersistedList<T>
         this.WriteCount();
     }
 
-    protected override void DisposeCore() {
-        this.accessor.Flush();
-        this.accessor.Dispose();
-        this.mappedFile.Dispose();
-        this.stream.Dispose();
-    }
+    protected override void DisposeCore() => PersistedFile.Dispose(this.stream,this.accessor);
 
     internal override long StorageBytes => this.stream.Length;
 
     internal override PersistedCommitState Commit() {
         this.ThrowIfDisposed();
         this.accessor.Flush();
-        this.stream.Flush(flushToDisk: true);
+        PersistedFile.FlushToDisk(this.stream);
         return new(this.Count,this.Count*Unsafe.SizeOf<T>());
     }
 
@@ -617,7 +659,6 @@ public sealed class BlittableList<T>:PersistedList<T>
         this.StorageQuota?.EnsureTotalBytes(this.GetFileLength(newCapacity,elementSize));
         this.accessor.Flush();
         this.accessor.Dispose();
-        this.mappedFile.Dispose();
         this.Capacity=newCapacity;
         this.stream.SetLength(this.GetFileLength(newCapacity,elementSize));
         this.CreateMapping();
@@ -625,22 +666,20 @@ public sealed class BlittableList<T>:PersistedList<T>
     }
 
     private void CreateMapping() {
-        this.mappedFile=MemoryMappedFile.CreateFromFile(this.stream,null,this.stream.Length,MemoryMappedFileAccess.ReadWrite,HandleInheritability.None,leaveOpen: true);
-        this.accessor=this.mappedFile.CreateViewAccessor(0,this.stream.Length,MemoryMappedFileAccess.ReadWrite);
+        this.accessor=new PersistedFileAccessor(this.stream);
     }
 
     private void ReopenMapping() {
         this.accessor.Flush();
         this.accessor.Dispose();
-        this.mappedFile.Dispose();
         this.stream.Dispose();
         this.stream=this.OpenStream(this.Path);
         this.CreateMapping();
         this.ApplyTuning();
     }
 
-    private FileStream OpenStream(string path) =>
-        new(path,FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.Read,this.Tuning.ResolveBufferSize(),MemoryMappedListTuning.GetFileOptions(this.Tuning));
+    private Stream OpenStream(string path) =>
+        PersistedFile.Open(path,this.Tuning);
 
     private void ApplyTuning() =>
         MemoryMappedListTuning.ApplyTuning(this.stream,this.accessor,this.Tuning);

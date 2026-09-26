@@ -76,7 +76,7 @@ public sealed class ParameterSweepVerificationAdapter:IVerificationAdapter{
             return new(item.Id,CaseStatus.Failed,item.Conditions,[],null,null,"Parameter sweep returned invalid measurements.",peak);
         }
         var status=CaseStatus.Passed;
-        if(failure>=4){status=CaseStatus.Failed;}
+        if(failure is not(0 or 1 or 2 or 3 or 6 or 7)){status=CaseStatus.Failed;}
         var measurements=new List<RawMeasurement>();
         if(maxCount>0){measurements.Add(new("sweep-add",0,checked((long)Math.Round(addMilliseconds*1_000_000d,MidpointRounding.AwayFromZero)),maxCount,0));}
         if(searchNanoseconds is { } search&&double.IsFinite(search)&&search>=0){measurements.Add(new("sweep-search",0,checked((long)Math.Round(search,MidpointRounding.AwayFromZero)),1,0));}
@@ -85,6 +85,16 @@ public sealed class ParameterSweepVerificationAdapter:IVerificationAdapter{
             ["entry-count"]=entries,
             ["failure-kind"]=failure,
         };
+        foreach(var (property,metric) in new[]{
+            ("索引バケット数","index-buckets"),("溢れバケット数","overflow-buckets"),
+            ("メモリログバイト数","memory-log-bytes"),("ディスクログバイト数","disk-log-bytes")}){
+            if(root.TryGetProperty(property,out var observation)&&observation.ValueKind!=JsonValueKind.Null){
+                if(observation.ValueKind!=JsonValueKind.Number||!observation.TryGetInt64(out var value)||value<0){
+                    return new(item.Id,CaseStatus.Failed,item.Conditions,[],null,null,"Parameter sweep returned invalid observation: "+property,peak);
+                }
+                metrics[metric]=value;
+            }
+        }
         if(maxCount>0){metrics["add-nanoseconds-per-operation"]=addMilliseconds*1_000_000d/maxCount;}
         if(searchNanoseconds is { } searchValue){metrics["search-nanoseconds-per-operation"]=searchValue;}
         var message=root.GetProperty("失敗メッセージ").GetString()??string.Empty;

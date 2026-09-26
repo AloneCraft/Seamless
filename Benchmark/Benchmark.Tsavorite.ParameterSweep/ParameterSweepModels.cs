@@ -31,6 +31,8 @@ public enum パラメータスイープ失敗種別 {
     タイムアウト,
     無効な構成,
     例外,
+    メモリ上限超過,
+    ディスク上限超過,
 }
 
 public readonly record struct パラメータスイープ設定(
@@ -66,7 +68,11 @@ public sealed record パラメータスイープ結果(
     パラメータスイープ失敗種別 失敗種別,
     string 失敗メッセージ,
     double 追加経過ミリ秒,
-    double? 検索平均ナノ秒) {
+    double? 検索平均ナノ秒,
+    long? 索引バケット数 = null,
+    long? 溢れバケット数 = null,
+    long? メモリログバイト数 = null,
+    long? ディスクログバイト数 = null) {
     public IReadOnlyList<パラメータスイープワーカー指標> ワーカー指標一覧 { get; init; } = [];
     public string CPUセットキー { get; init; } = string.Empty;
     public int 並行数 { get; init; } = 1;

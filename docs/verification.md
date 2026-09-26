@@ -70,3 +70,24 @@ Dynamicのreplayは保存された `replay-request.json` のSHA-256を照合し�
 通常CIは `Verification.Tests`、`Execution.Tests`、DBの重要回帰、CLI／MAUIのReleaseビルドを実行します。`.github/workflows/verification.yml` の `workflow_dispatch` または夜間実行では `full` 計画を起動できます。
 
 厳密な性能基準は、CPUと測定条件が固定された環境で作成してください。ホストが異なるrunは比較不可になるため、一般のホステッドCI結果を固定性能基準へ流用しません。
+
+## Tsavorite の低層設定と観測
+
+容量探索と Scalable の Tsavorite コレクションは、共通 `Seamless.Execution.Store` と公開 `TsavoriteTuning` を使用します。Index / Page / Segment / Memory / Fraction はベンチ引数をそのまま渡し、`AutoGrowIndex=false` で索引を固定します。メモリ予算は索引＋ログメモリ＋ページ2つ分、容量探索のディスク予算は正の指定値を使い、非正値なら `StoreLimits` の既定値を使います。
+
+旧 API で測った結果と、この経路の結果は直接比較できません。メモリストアのデバイス、予算確認、操作用オブジェクトの所有が変わっています。Scalable の検索用キャッシュも、インスタンスが所有するスレッド別キャッシュになり、計測中に再利用して終了時に破棄します。新旧の結果を比較基準として混在させず、移行後の実行から基準を作成してください。現在の測定方式識別子だけでは、この移行前後を自動識別しません。
+
+容量探索は全ワーカーの終了後に統計を1回取得し、既存の `エントリCount` と次の4項目を同じ統計から保存します。
+
+| 結果・DB列 | 意味 |
+|---|---|
+| `索引バケット数` | 64バイトの索引バケット数。設定の Index バイト数とは単位が異なる |
+| `溢れバケット数` | 初期予約を含む溢れバケット数。追加前からの増加が衝突・混雑の観測になる |
+| `メモリログバイト数` | TailAddress − HeadAddress |
+| `ディスクログバイト数` | HeadAddress − BeginAddress。物理ファイルの確保量やオブジェクトログを含む総量ではない |
+
+初期化前の失敗など、統計を取得できなかった場合は4項目が null になり、画面は `-` と表示します。`GetStatistics` は EntryCount のために全索引を走査するので、計測ループ内では呼びません。Headless の `result.json` と標準出力にも4項目が入り、検証結果には `index-buckets` / `overflow-buckets` / `memory-log-bytes` / `disk-log-bytes` として取得済みの値を記録します。
+
+失敗種別の末尾に `メモリ上限超過`（6）と `ディスク上限超過`（7）を追加しました。従来の数値0〜5は維持します。これらは容量探索で得られる境界結果として、ログ満杯やタイムアウトと同じく Headless の終了コード0、Verification の Passed に分類します。UI の保存値は `MemoryLimitExceeded` / `DiskLimitExceeded` です。
+
+`Work/UI/Benchmark.ParameterSweep.db` のスキーマ版は21です。通常ベンチマークは26、Scalableは20を維持します。4列は nullable INTEGER で、値がない既存行を読み込めます。既存の容量探索DBは起動時に自動移行せず、日時付きバックアップ後に4列追加と `PRAGMA user_version=21` を直接適用します。DBが存在しない場合は、最初の明示的な利用時に新版の形で作成します。

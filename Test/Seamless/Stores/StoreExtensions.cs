@@ -56,6 +56,50 @@ public class StoreExtensions{
         var root=NewRoot();
         try{
             {
+                //固定した索引は混雑しても拡張せず、要素はすべて読み取れる
+                using var store=CommonStore.CreateMemory();
+                using var data=store.CreateTsavoriteHashSet<long>("fixed",Small with{AutoGrowIndex=false,LogMemorySize=null});
+                using var set=data.Create();
+                var initialOverflowBuckets=data.Store.OverflowBucketCount;
+                for(long i=0;i<10_000;i++){
+                    Assert.True(set.Add(i));
+                }
+                Assert.Equal(64,data.Store.IndexSize);
+                Assert.True(data.Store.OverflowBucketCount>initialOverflowBuckets);
+                for(long i=0;i<10_000;i++){
+                    Assert.True(set.Contains(i));
+                }
+            }
+            {
+                //不正な設定は資源を予約する前に拒否する
+                using var store=CommonStore.CreateMemory();
+                TsavoriteTuning[] invalid=[Small with{IndexSize=65},Small with{PageSize=4097},Small with{SegmentSize=8193},Small with{LogMemorySize=65537},Small with{SegmentSize=2048},Small with{MutableFraction=0},Small with{MutableFraction=-1},Small with{MutableFraction=1.01},Small with{MutableFraction=double.NaN},Small with{Storage=new()}];
+                foreach(var tuning in invalid){
+                    Assert.Throws<ArgumentException>(()=>store.CreateTsavoriteHashSet<long>("invalid",tuning));
+                    Assert.Equal(0,store.Budget.MemoryBytes);
+                }
+                Assert.Throws<ResourceLimitException>(()=>store.CreateTsavoriteHashSet<long>("too-small",Small with{LogMemorySize=4096}));
+            }
+            {
+                //保存済みの索引と異なる固定指定は、小さくても大きくても拒否する
+                var directory=Path.Combine(root,"fixed-index");
+                using(var store=CommonStore.Open(directory)){
+                    var data=store.CreateTsavoriteHashSet<long>("ids",Small with{AutoGrowIndex=false});
+                    using(var set=data.Create()){
+                        set.Add(123);
+                    }
+                    store.Save();
+                }
+                using(var store=CommonStore.Open(directory)){
+                    foreach(var index in new long[]{2048,8192}){
+                        Assert.Throws<InvalidOperationException>(()=>store.CreateTsavoriteHashSet<long>("ids",Small with{AutoGrowIndex=false,IndexSize=index}));
+                    }
+                    using var data=store.CreateTsavoriteHashSet<long>("ids",Small with{AutoGrowIndex=false});
+                    using var set=data.Create();
+                    Assert.True(set.Contains(123));
+                }
+            }
+            {
                 //メモリストア: データ本体はストアの子資源になり、予算に索引とログの分が計上される
                 using var store=CommonStore.CreateMemory();
                 var before=store.Budget.MemoryBytes;
@@ -74,7 +118,7 @@ public class StoreExtensions{
             {
                 //メモリストア: 上限を超える追加は ResourceLimitException。それまでに入れた要素は消えない
                 using var store=CommonStore.CreateMemory(new(){MemoryBytes=1L<<20,DiskBytes=0});
-                using var data=store.CreateTsavoriteHashSet<long>("ids",0,Small with{LogMemorySize=null});
+                using var data=store.CreateTsavoriteHashSet<long>("ids",Small with{LogMemorySize=null});
                 using var set=data.Create();
                 long added=0;
                 Assert.Throws<ResourceLimitException>(()=>{
@@ -91,7 +135,7 @@ public class StoreExtensions{
                 //一時ストア: メモリ上のログを超えた分はディスクへ退避し、すべて読める。破棄でフォルダごと消える
                 var store=CommonStore.CreateTemporary(temporaryDirectory:root);
                 var directory=store.DirectoryPath!;
-                using(var data=store.CreateTsavoriteHashSet<long>("ids",0,Small)){
+                using(var data=store.CreateTsavoriteHashSet<long>("ids",Small)){
                     using var set=data.Create();
                     for(long i=0;i<50_000;i++){
                         set.Add(i);
@@ -108,7 +152,7 @@ public class StoreExtensions{
             {
                 //一時ストア: ディスクの上限を超える追加は ResourceLimitException
                 using var store=CommonStore.CreateTemporary(new(){MemoryBytes=1L<<24,DiskBytes=1L<<18},root);
-                using var data=store.CreateTsavoriteHashSet<long>("ids",0,Small);
+                using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
                 using var set=data.Create();
                 var error=Assert.Throws<ResourceLimitException>(()=>{
                     for(long i=0;i<100_000_000;i++){
@@ -122,7 +166,7 @@ public class StoreExtensions{
                 var directory=Path.Combine(root,"set");
                 using(var store=CommonStore.Open(directory)){
                     Assert.Equal(StoreKind.Persistent,store.Kind);
-                    using var data=store.CreateTsavoriteHashSet<long>("ids",0,Small);
+                    using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
                     using(var set=data.Create()){
                         for(long i=0;i<20_000;i++){
                             set.Add(i);
@@ -136,7 +180,7 @@ public class StoreExtensions{
                     }
                 }
                 using(var store=CommonStore.Open(directory)){
-                    using var data=store.CreateTsavoriteHashSet<long>("ids",0,Small);
+                    using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
                     using var set=data.Create();
                     Assert.Equal(20_000,set.GetLongCount());
                     Assert.True(set.Contains(19_999));
@@ -147,7 +191,7 @@ public class StoreExtensions{
                 //操作用オブジェクトが残っている間は復元できない
                 var directory=Path.Combine(root,"busy");
                 using var store=CommonStore.Open(directory);
-                using var data=store.CreateTsavoriteHashSet<long>("ids",0,Small);
+                using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
                 using(var set=data.Create()){
                     set.Add(1);
                 }
@@ -158,7 +202,7 @@ public class StoreExtensions{
             {
                 //索引は件数に応じて自動で拡張され、拡張分のメモリも予算に計上される
                 using var store=CommonStore.CreateMemory();
-                using var data=store.CreateTsavoriteHashSet<long>("ids",0,Small with{LogMemorySize=null});
+                using var data=store.CreateTsavoriteHashSet<long>("ids",Small with{LogMemorySize=null});
                 Assert.Equal(64,data.Store.IndexSize);
                 using(var set=data.Create()){
                     for(long i=0;i<60_000;i++){
@@ -176,7 +220,7 @@ public class StoreExtensions{
                 var directory=Path.Combine(root,"grown");
                 long grownIndexSize;
                 using(var store=CommonStore.Open(directory)){
-                    using var data=store.CreateTsavoriteHashSet<long>("ids",0,Small);
+                    using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
                     using(var set=data.Create()){
                         for(long i=0;i<30_000;i++){
                             set.Add(i);
@@ -187,10 +231,45 @@ public class StoreExtensions{
                     store.Save();
                 }
                 using(var store=CommonStore.Open(directory)){
-                    using var data=store.CreateTsavoriteHashSet<long>("ids",0,Small);
+                    using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
                     Assert.Equal(grownIndexSize,data.Store.IndexSize);
                     using var set=data.Create();
                     Assert.True(set.Contains(29_999));
+                }
+            }
+            {
+                //Random/Unbuffered の指定で一時ストアの保存・復元と永続ストアの開き直しができる
+                StorageTuning[] modes=[new(FileAccess.ReadWrite,StorageAccessPattern.Random,StorageBufferingMode.Buffered),new(FileAccess.ReadWrite,StorageAccessPattern.Sequential,StorageBufferingMode.Unbuffered)];
+                foreach(var mode in modes){
+                    var tuning=Small with{Storage=mode};
+                    using(var temporary=CommonStore.CreateTemporary(temporaryDirectory:root)){
+                        var data=temporary.CreateTsavoriteHashSet<long>("ids",tuning);
+                        using(var set=data.Create()){
+                            for(long i=0;i<4000;i++){set.Add(i);}
+                        }
+                        var checkpoint=temporary.Save();
+                        temporary.Load(checkpoint);
+                        using var restored=data.Create();
+                        Assert.True(restored.Contains(3999));
+                    }
+                    var directory=Path.Combine(root,mode.AccessPattern+"-"+mode.BufferingMode);
+                    using(var persistent=CommonStore.Open(directory)){
+                        var data=persistent.CreateTsavorite<int,string>("names",tuning,expectedCount:10);
+                        var records=persistent.CreateTsavoriteSet<int,Score>("records",tuning);
+                        using(var dictionary=data.Create()){
+                            dictionary.Add(7,"seven");
+                        }
+                        using(var set=records.Create()){
+                            set.Add(new(7,70));
+                        }
+                        persistent.Save();
+                    }
+                    using(var persistent=CommonStore.Open(directory)){
+                        using var dictionary=persistent.CreateTsavorite<int,string>("names",tuning).Create();
+                        using var records=persistent.CreateTsavoriteSet<int,Score>("records",tuning).Create();
+                        Assert.Equal("seven",dictionary[7]);
+                        Assert.True(records.ContainsKey(7));
+                    }
                 }
             }
             {

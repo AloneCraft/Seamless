@@ -196,13 +196,15 @@ public sealed class パラメータスイープビューモデル:INotifyPropert
     private void 結果を保存(long 実行ID,パラメータスイープ結果 結果){
         this.ストア.パラメータスイープ結果を保存(new(実行ID,結果.ケース名,コレクションを保存値へ(結果.コレクション),結果.ジェネリック名,バックエンドを保存値へ(結果.バックエンド),スイープを保存値へ(結果.スイープ軸),
             結果.Indexサイズ,結果.Pageサイズ,結果.Segmentサイズ,結果.Memoryサイズ,結果.可変Fraction,結果.最大成功Count,結果.エントリCount,
-            失敗種別を保存値へ(結果.失敗種別),結果.失敗メッセージ,結果.追加経過ミリ秒,結果.検索平均ナノ秒,結果.計測日時));
+            失敗種別を保存値へ(結果.失敗種別),結果.失敗メッセージ,結果.追加経過ミリ秒,結果.検索平均ナノ秒,結果.計測日時,
+            結果.索引バケット数,結果.溢れバケット数,結果.メモリログバイト数,結果.ディスクログバイト数));
     }
 
     private IReadOnlyList<パラメータスイープ結果> 結果を読み込む(UI実行記録 実行)=>this.ストア.パラメータスイープ結果一覧を取得(実行.実行ID).Select(項目=>new パラメータスイープ結果(
         項目.実行ID.ToString(CultureInfo.InvariantCulture),項目.計測日時,項目.ケース名,保存値をコレクションへ(項目.コレクション),項目.ジェネリック名,保存値をバックエンドへ(項目.バックエンド),
         保存値をスイープへ(項目.スイープ),項目.Indexサイズ,項目.Pageサイズ,項目.Segmentサイズ,項目.Memoryサイズ,項目.可変Fraction,
-        項目.最大成功Count,項目.エントリCount,保存値を失敗種別へ(項目.失敗種別),項目.失敗理由,項目.追加経過ミリ秒,項目.検索平均ナノ秒)).ToArray();
+        項目.最大成功Count,項目.エントリCount,保存値を失敗種別へ(項目.失敗種別),項目.失敗理由,項目.追加経過ミリ秒,項目.検索平均ナノ秒,
+        項目.索引バケット数,項目.溢れバケット数,項目.メモリログバイト数,項目.ディスクログバイト数)).ToArray();
 
     private static string コレクションを保存値へ(パラメータスイープコレクション種別 値)=>値 switch{パラメータスイープコレクション種別.ハッシュセット=>"HashSet",パラメータスイープコレクション種別.セット=>"Set",パラメータスイープコレクション種別.辞書=>"Dictionary",_=>throw new ArgumentOutOfRangeException(nameof(値),値,null)};
     private static パラメータスイープコレクション種別 保存値をコレクションへ(string 値)=>値 switch{"HashSet"=>パラメータスイープコレクション種別.ハッシュセット,"Set"=>パラメータスイープコレクション種別.セット,"Dictionary"=>パラメータスイープコレクション種別.辞書,_=>throw new InvalidDataException("不明なコレクションです: "+値)};
@@ -210,8 +212,8 @@ public sealed class パラメータスイープビューモデル:INotifyPropert
     private static パラメータスイープバックエンド 保存値をバックエンドへ(string 値)=>値 switch{"Memory"=>パラメータスイープバックエンド.メモリ,"Storage"=>パラメータスイープバックエンド.ストレージ,_=>throw new InvalidDataException("不明なバックエンドです: "+値)};
     private static string スイープを保存値へ(パラメータスイープ軸 値)=>値 switch{パラメータスイープ軸.Indexサイズ=>"IndexSize",パラメータスイープ軸.Pageサイズ=>"PageSize",パラメータスイープ軸.Segmentサイズ=>"SegmentSize",パラメータスイープ軸.Memoryサイズ=>"MemorySize",_=>throw new ArgumentOutOfRangeException(nameof(値),値,null)};
     private static パラメータスイープ軸 保存値をスイープへ(string 値)=>値 switch{"IndexSize"=>パラメータスイープ軸.Indexサイズ,"PageSize"=>パラメータスイープ軸.Pageサイズ,"SegmentSize"=>パラメータスイープ軸.Segmentサイズ,"MemorySize"=>パラメータスイープ軸.Memoryサイズ,_=>throw new InvalidDataException("不明なスイープです: "+値)};
-    private static string 失敗種別を保存値へ(パラメータスイープ失敗種別 値)=>値 switch{パラメータスイープ失敗種別.完了=>"Completed",パラメータスイープ失敗種別.ログ満杯=>"LogFull",パラメータスイープ失敗種別.メモリ不足=>"OutOfMemory",パラメータスイープ失敗種別.タイムアウト=>"Timeout",パラメータスイープ失敗種別.無効な構成=>"InvalidConfiguration",パラメータスイープ失敗種別.例外=>"Exception",_=>throw new ArgumentOutOfRangeException(nameof(値),値,null)};
-    private static パラメータスイープ失敗種別 保存値を失敗種別へ(string 値)=>値 switch{"Completed"=>パラメータスイープ失敗種別.完了,"LogFull"=>パラメータスイープ失敗種別.ログ満杯,"OutOfMemory"=>パラメータスイープ失敗種別.メモリ不足,"Timeout"=>パラメータスイープ失敗種別.タイムアウト,"InvalidConfiguration"=>パラメータスイープ失敗種別.無効な構成,"Exception"=>パラメータスイープ失敗種別.例外,_=>throw new InvalidDataException("不明な失敗種別です: "+値)};
+    private static string 失敗種別を保存値へ(パラメータスイープ失敗種別 値)=>値 switch{パラメータスイープ失敗種別.完了=>"Completed",パラメータスイープ失敗種別.ログ満杯=>"LogFull",パラメータスイープ失敗種別.メモリ不足=>"OutOfMemory",パラメータスイープ失敗種別.タイムアウト=>"Timeout",パラメータスイープ失敗種別.無効な構成=>"InvalidConfiguration",パラメータスイープ失敗種別.例外=>"Exception",パラメータスイープ失敗種別.メモリ上限超過=>"MemoryLimitExceeded",パラメータスイープ失敗種別.ディスク上限超過=>"DiskLimitExceeded",_=>throw new ArgumentOutOfRangeException(nameof(値),値,null)};
+    private static パラメータスイープ失敗種別 保存値を失敗種別へ(string 値)=>値 switch{"Completed"=>パラメータスイープ失敗種別.完了,"LogFull"=>パラメータスイープ失敗種別.ログ満杯,"OutOfMemory"=>パラメータスイープ失敗種別.メモリ不足,"Timeout"=>パラメータスイープ失敗種別.タイムアウト,"InvalidConfiguration"=>パラメータスイープ失敗種別.無効な構成,"Exception"=>パラメータスイープ失敗種別.例外,"MemoryLimitExceeded"=>パラメータスイープ失敗種別.メモリ上限超過,"DiskLimitExceeded"=>パラメータスイープ失敗種別.ディスク上限超過,_=>throw new InvalidDataException("不明な失敗種別です: "+値)};
 }
 
 public sealed class パラメータスイープ比較表示行(パラメータスイープ結果 今回,パラメータスイープ比較行? 比較){
@@ -228,6 +230,10 @@ public sealed class パラメータスイープ比較表示行(パラメータ�
     public string Memoryサイズ=>パラメータスイープフォーマッター.サイズを整形(this.今回.Memoryサイズ);
     public string 可変Fraction=>this.今回.可変Fraction.ToString("0.###",CultureInfo.InvariantCulture);
     public string 最大成功Count=>this.今回.最大成功Count.ToString("N0",CultureInfo.InvariantCulture);
+    public string 索引バケット数=>this.今回.索引バケット数?.ToString("N0",CultureInfo.InvariantCulture)??"-";
+    public string 溢れバケット数=>this.今回.溢れバケット数?.ToString("N0",CultureInfo.InvariantCulture)??"-";
+    public string メモリログバイト数=>this.今回.メモリログバイト数?.ToString("N0",CultureInfo.InvariantCulture)??"-";
+    public string ディスクログバイト数=>this.今回.ディスクログバイト数?.ToString("N0",CultureInfo.InvariantCulture)??"-";
     public string 失敗種別=>this.今回.失敗種別.ToString();
     public string 追加経過=>this.今回.追加経過ミリ秒.ToString("0.###",CultureInfo.InvariantCulture)+" ms";
     public string 検索平均=>this.今回.検索平均ナノ秒?.ToString("0.###",CultureInfo.InvariantCulture)+" ns"??"-";

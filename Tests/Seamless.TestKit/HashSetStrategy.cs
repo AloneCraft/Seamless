@@ -37,6 +37,9 @@ public readonly struct ManagedClassHashSetValueProvider:IHashSetValueProvider<Ma
 public interface IHashSetTestStrategy<T>
     where T : IEquatable<T> {
     static abstract T Elem(int i);
+    /// <summary>共通ストアと公開設定で作る。旧 API の正しさのテストとは独立した生成経路。</summary>
+    static virtual TunedHashSetHandle<T> CreateTunedSet(TsavoriteTuning tuning,global::Seamless.Execution.StoreLimits limits)=>
+        TunedHashSetHandle<T>.Create(tuning,limits);
     static abstract HashSetHandle<T> CreateMemorySet(
         long memorySize = global::Seamless.Collections.Tsavorite.Const.LogMemorySize,
         double mutableFraction = 1.0,

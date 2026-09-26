@@ -36,6 +36,9 @@ public interface IDictTestStrategy<TKey, TValue>
     static abstract TValue V(int i);
     /// <summary>どの V(i) とも一致しない値。値不一致テスト用。</summary>
     static abstract TValue VWrong();
+    /// <summary>共通ストアと公開設定で作る。アクセサは NewDict を呼んだスレッドで使う。</summary>
+    static virtual TunedDictionaryHandle<TKey,TValue> CreateTunedStore(TsavoriteTuning tuning,global::Seamless.Execution.StoreLimits limits)=>
+        TunedDictionaryHandle<TKey,TValue>.Create(tuning,limits);
     static abstract StoreHandle<TKey,TValue> CreateMemoryStore(
         long memorySize = global::Seamless.Collections.Tsavorite.Const.LogMemorySize,
         double mutableFraction = 1.0,

@@ -18,6 +18,7 @@ internal sealed class TsavoriteLayout:IDisposable{
         this.PageSize=tuning.PageSize;
         this.SegmentSize=tuning.SegmentSize;
         this.MutableFraction=tuning.MutableFraction;
+        this.AutoGrowIndex=tuning.AutoGrowIndex;
         this.LogMemorySize=logMemorySize;
         this.LogDevice=logDevice;
         this.ObjectLogDevice=objectLogDevice;
@@ -33,6 +34,7 @@ internal sealed class TsavoriteLayout:IDisposable{
     public long PageSize{get;}
     public long SegmentSize{get;}
     public double MutableFraction{get;}
+    public bool AutoGrowIndex{get;}
     public long LogMemorySize{get;}
     public IDevice LogDevice{get;}
     public IDevice ObjectLogDevice{get;}
@@ -45,12 +47,16 @@ internal sealed class TsavoriteLayout:IDisposable{
         ArgumentNullException.ThrowIfNull(store);
         ArgumentOutOfRangeException.ThrowIfNegative(expectedCount);
         ArgumentNullException.ThrowIfNull(tuning);
+        tuning.Validate(store.Kind);
         TsavoriteSavedState? saved=null;
         if(store.TryGetSavedState(name,out var state)){
             saved=TsavoriteSavedState.Parse(state);
         }
         long indexSize;
         if(tuning.IndexSize is long explicitIndexSize){
+            if(!tuning.AutoGrowIndex&&saved is not null&&saved.IndexSize!=explicitIndexSize){
+                throw new InvalidOperationException("The saved index size differs from the explicitly configured fixed index size.");
+            }
             indexSize=explicitIndexSize;
         }else{
             indexSize=GetIndexSize(expectedCount);
@@ -97,8 +103,13 @@ internal sealed class TsavoriteLayout:IDisposable{
                     Directory.Delete(workLists,true);
                 }
                 checkpointDirectory=Path.Combine(directory,"checkpoints");
-                logDevice=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(directory,"hlog"));
-                objectLogDevice=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(directory,"obj"));
+                if(tuning.Storage is StorageTuning storage){
+                    logDevice=TsavoriteStorageDevices.Create(Path.Combine(directory,"hlog"),storage);
+                    objectLogDevice=TsavoriteStorageDevices.Create(Path.Combine(directory,"obj"),storage);
+                }else{
+                    logDevice=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(directory,"hlog"));
+                    objectLogDevice=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(directory,"obj"));
+                }
             }
             return new(store,name,store.Kind,indexSize,tuning,logMemorySize,logDevice,objectLogDevice,checkpointDirectory,memory,disk);
         }catch{
