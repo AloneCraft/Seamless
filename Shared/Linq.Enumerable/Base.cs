@@ -743,8 +743,15 @@ public abstract class Base<T>:global::Common.Base<T> where T : notnull {
     [BenchFact, Benchmark]
     public void ToArray() => this.ToArray_Impl();
 
+#if FLINQ_LIST_DIRECT
+    // List<T>.ToArray() インスタンスメソッドが拡張メソッドより優先され、FLinqの傍受を素通りしてしまうため、
+    // Contains/Reverse と同じく System.Linq.Enumerable 側を明示して呼ぶ。
+    [LinqIntercept(true)]
+    private void ToArray_Impl() => global::System.Linq.Enumerable.ToArray(this.srcCount(MaterializeLinearCount).AsX<T>()).Consume(this.consumer);
+#else
     [LinqIntercept(true)]
     private void ToArray_Impl() => this.srcCount(MaterializeLinearCount).AsX<T>().ToArray().Consume(this.consumer);
+#endif
     // [ToDictionary_elementSelector]
     [BenchFact, Benchmark]
     public void ToDictionary_elementSelector() => this.ToDictionary_elementSelector_Impl();

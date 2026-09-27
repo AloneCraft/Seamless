@@ -62,7 +62,9 @@ internal abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(
         if(selectorArg is not LambdaExpressionSyntax lambda) return false;
         if(!tryGetLambdaBody(lambda,out var lambdaBody)) return false;
         var outerParams = getLambdaParameters(lambda);
-        if(outerParams.Count!=1) return false;
+        // 添字付き selector((x,i) => ...) も引数は1個なのでここまで来る。本体が添字を参照していれば
+        // 下のデータフロー検査が outerParamName 以外の引数として弾くため、ここでは2引数まで許す。
+        if(outerParams.Count is not (1 or 2)) return false;
         var outerParamName = outerParams[0];
         var dataFlow = semanticModel.AnalyzeDataFlow(lambdaBody);
         if(dataFlow?.Succeeded==true
