@@ -235,16 +235,16 @@ public class IterateLookupChunkTests(ITestOutputHelper output) {
             return new() { KeySize=key.KeyBytes.Length,ValueSize=inputLogRecord.ValueSpan.Length,ValueIsObject=inputLogRecord.DataHeader.ValueIsObject };
         }
 
-        public void BeforeConsistentReadCallback(long hash) {
+        public void PreSingleKeyConsistentRead(long hash) {
         }
 
-        public void AfterConsistentReadKeyCallback() {
+        public void PostSingleKeyConsistentReadCallback() {
         }
 
-        public void BeforeConsistentReadKeyBatchCallback(ReadOnlySpan<PinnedSpanByte> parameters) {
+        public void PreBatchKeyConsistentReadCallback(ReadOnlySpan<PinnedSpanByte> parameters) {
         }
 
-        public bool AfterConsistentReadKeyBatchCallback(int keyCount) => true;
+        public bool PostBatchKeyConsistentReadCallback(int keyCount) => true;
 
         public void ConvertOutputToHeap(ref int input,ref int output) {
         }

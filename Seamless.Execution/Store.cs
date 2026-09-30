@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 namespace Seamless.Execution;
 /// <summary>
@@ -162,10 +163,18 @@ public sealed class Store:IDisposable{
             foreach(var component in this.components){
                 states.Add(component.Name,component.Save());
             }
+            // 一時ストアは破棄で全削除され、開き直せないので、ディスクへの確実な書き出しは永続ストアだけで行う。
+            var durable=this.Kind==StoreKind.Persistent;
+            if(durable){
+                // 確定点はマニフェストなので、指す先のデータを先に確実にする。全子資源を保存し終えてからまとめて書き出す。
+                foreach(var component in this.components){
+                    component.Flush();
+                }
+            }
             var checkpoint=new Checkpoint(Guid.NewGuid(),DateTimeOffset.UtcNow,states);
             this.checkpoints.Add(checkpoint);
             try{
-                WriteManifest(this.directoryPath,this.checkpoints);
+                WriteManifest(this.directoryPath,this.checkpoints,durable);
             }catch{
                 this.checkpoints.RemoveAt(this.checkpoints.Count-1);
                 throw;
@@ -184,17 +193,32 @@ public sealed class Store:IDisposable{
             this.LoadCore(this.checkpoints[^1]);
         }
     }
-    /// <summary>指定した保存番号の状態を、登録済みの子資源へ渡す。その保存に含まれない子資源には何もしない。</summary>
+    /// <summary>
+    /// 指定した保存番号の状態を、登録済みの子資源へ渡す。その保存に含まれない子資源には何もしない。
+    /// 子資源の復元は、それより新しい保存のデータを切り詰めたり巻き戻したりして無効にするので、新しい保存は記録(マニフェスト)から外す。
+    /// 外した保存番号では、以後 <see cref="Load(Guid)"/> できない。
+    /// </summary>
     public void Load(Guid token){
         lock(this.gate){
             ObjectDisposedException.ThrowIf(this.disposed,this);
-            foreach(var checkpoint in this.checkpoints){
-                if(checkpoint.Token==token){
-                    this.LoadCore(checkpoint);
-                    return;
+            var index=this.checkpoints.FindIndex(checkpoint=>checkpoint.Token==token);
+            if(index<0){
+                throw new ArgumentException($"Checkpoint '{token}' does not exist.",nameof(token));
+            }
+            var newer=this.checkpoints.GetRange(index+1,this.checkpoints.Count-index-1);
+            if(newer.Count>0){
+                // 子資源を戻す前に外す。戻す途中で落ちても、開き直せば指定した保存へ戻る(逆順だと、無効な新しい保存を指したまま残る)。
+                this.checkpoints.RemoveRange(index+1,newer.Count);
+                if(this.directoryPath is not null){
+                    try{
+                        WriteManifest(this.directoryPath,this.checkpoints,this.Kind==StoreKind.Persistent);
+                    }catch{
+                        this.checkpoints.AddRange(newer);
+                        throw;
+                    }
                 }
             }
-            throw new ArgumentException($"Checkpoint '{token}' does not exist.",nameof(token));
+            this.LoadCore(this.checkpoints[index]);
         }
     }
     private void LoadCore(Checkpoint checkpoint){
@@ -228,7 +252,7 @@ public sealed class Store:IDisposable{
             }
             if(this.Kind==StoreKind.Temporary&&this.directoryPath is not null){
                 try{
-                    Directory.Delete(this.directoryPath,true);
+                    OwnedDirectory.Delete(this.directoryPath);
                 }catch(Exception error){
                     (errors??=[]).Add(error);
                 }
@@ -255,10 +279,17 @@ public sealed class Store:IDisposable{
         }
         return manifest.Checkpoints;
     }
-    private static void WriteManifest(string directory,List<Checkpoint> checkpoints){
+    private static void WriteManifest(string directory,List<Checkpoint> checkpoints,bool durable){
         var path=Path.Combine(directory,ManifestFileName);
         var temporary=path+".tmp";
-        File.WriteAllText(temporary,JsonSerializer.Serialize(new Manifest(FormatName,checkpoints)));
+        var bytes=new UTF8Encoding(false).GetBytes(JsonSerializer.Serialize(new Manifest(FormatName,checkpoints)));
+        using(var stream=new FileStream(temporary,FileMode.Create,FileAccess.Write,FileShare.None)){
+            stream.Write(bytes);
+            if(durable){
+                // 名前を変えたマニフェストの中身が、電源断のあとに空で見えないようにする。
+                stream.Flush(true);
+            }
+        }
         File.Move(temporary,path,overwrite:true);
     }
     private sealed record Checkpoint(Guid Token,DateTimeOffset CreatedAt,Dictionary<string,string> Components);

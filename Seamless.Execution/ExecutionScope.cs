@@ -74,7 +74,7 @@ public sealed class ExecutionScope:IDisposable,IAsyncDisposable{
                 try{resource.Dispose();}catch(Exception error){(errors??=[]).Add(error);}
             }
             try{this.ownerLock?.Dispose();}catch(Exception error){(errors??=[]).Add(error);}
-            try{if(this.directory is not null){Directory.Delete(this.directory,true);}}catch(Exception error){(errors??=[]).Add(error);}
+            try{if(this.directory is not null){OwnedDirectory.Delete(this.directory);}}catch(Exception error){(errors??=[]).Add(error);}
             if(errors is not null){throw new AggregateException("Execution scope cleanup failed.",errors);}
         }
     }

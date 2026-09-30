@@ -25,10 +25,26 @@ where TKey : notnull {
     public void Add(TKey key,TValue value) =>
         this.dictionary.Add(key,value);
 
-    public Dictionary<TKey,TValue> Compact() {
+    /// <summary>
+    /// 同じキーの最新の値だけを残してキー順に並べ直し(ファイルをその場で書き換える)、そのまま保存する。
+    /// 共通ストアから作った辞書ではストア全体を <see cref="global::Seamless.Execution.Store.Save"/> する(保存番号が 1 つ増える)。
+    /// 単独で作った辞書ではこの辞書だけをコミットする。
+    /// 書き換えは保存済みの内容を壊すので、書き換えたあと保存の前に閉じると保存した状態へ戻せない。それを起こさないよう、必ず保存までを 1 回で行う。
+    /// この辞書の、書き換え前の保存(古い保存番号)は使えなくなる。
+    /// </summary>
+    public Dictionary<TKey,TValue> CompactSave() {
         this.dictionary.Compact();
+        if(this.saveAction is { } save) {
+            save();
+        } else {
+            this.Committable.Commit();
+        }
         return this;
     }
+
+    // 共通ストアに接続されたとき、ストア全体の保存を呼ぶ口が入る。
+    private Action? saveAction;
+    internal void SetSaveAction(Action? action) => this.saveAction=action;
 
     public bool ContainsKey(TKey key) =>
         this.dictionary.ContainsKey(key);

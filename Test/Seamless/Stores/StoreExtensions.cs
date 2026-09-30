@@ -309,5 +309,105 @@ public class StoreExtensions{
             }
         }finally{Directory.Delete(root,true);}
     }
+    [Fact,Trait("Category","Unit")]public void Save_RandomOperations_ReopenRestoresSavedState(){
+        //追加・上書き・削除・保存・開き直し・追い出しをランダムに繰り返し、標準の辞書(モデル)と照合する。開き直すと、最後に保存した時点へ戻る。
+        //各シードは、修正前に失敗していたもの。(1) 保存後の書き出しが末尾を含むセクターを書き直し、その間に更新・削除で無効化された古いレコードが復元で見えなくなる(欠落)。
+        //(2) 削除した最新の墓標が無効化され、ログデバイス上の古い有効なレコードだけが復元で見える(復活)。
+        foreach(var seed in new[]{1105,1107,1143,1586,1606,1613,1998,2063,2066,2373,2424}){
+            var failure=RunSaveModel(seed);
+            Assert.True(failure is null,$"seed={seed}: {failure}");
+        }
+    }
+    private static string? RunSaveModel(int seed){
+        const long Page=4096;
+        var rng=new Random(seed);
+        var memoryPages=1<<rng.Next(2,6);
+        var keySpace=rng.Next(20,3000);
+        var tuning=new TsavoriteTuning{PageSize=Page,SegmentSize=1L<<20,LogMemorySize=memoryPages*Page};
+        var root=NewRoot();
+        var model=new Dictionary<long,long>();
+        var saved=new Dictionary<long,long>();
+        CommonStore? store=null;
+        DictionaryStore<long,long>? data=null;
+        void Open(){
+            store=CommonStore.Open(root);
+            data=store.CreateTsavorite<long,long>("d",tuning);
+        }
+        void Close(){
+            data?.Dispose();
+            store?.Dispose();
+            data=null;
+            store=null;
+        }
+        string? Verify(string when){
+            using var accessor=data!.Create();
+            var missing=0;
+            foreach(var pair in model){
+                if(!accessor.TryGetValue(pair.Key,out var value)||value!=pair.Value){
+                    missing++;
+                }
+            }
+            var extra=0;
+            for(long key=0;key<keySpace;key++){
+                if(!model.ContainsKey(key)&&accessor.ContainsKey(key)){
+                    extra++;
+                }
+            }
+            var count=data.GetLongCount();
+            return missing==0&&extra==0&&count==model.Count ? null : $"{when}: 欠落または値違い={missing} 余分={extra} 件数={count}(モデル{model.Count})";
+        }
+        try{
+            Open();
+            for(var operation=0;operation<100;operation++){
+                var kind=rng.Next(100);
+                if(kind<55){
+                    using var accessor=data!.Create();
+                    var burst=rng.Next(1,40);
+                    for(var i=0;i<burst;i++){
+                        var key=(long)rng.Next(keySpace);
+                        var value=rng.NextInt64();
+                        accessor[key]=value;
+                        model[key]=value;
+                    }
+                }else if(kind<75){
+                    using var accessor=data!.Create();
+                    var burst=rng.Next(1,30);
+                    for(var i=0;i<burst;i++){
+                        var key=(long)rng.Next(keySpace);
+                        accessor.Remove(key);
+                        model.Remove(key);
+                    }
+                }else if(kind<85){
+                    store!.Save();
+                    saved=new Dictionary<long,long>(model);
+                }else if(kind<89){
+                    //(検証だけ。古い保存への Load は、より新しい保存を無効にするので使わない)
+                    var problem=Verify($"操作{operation} 途中確認");
+                    if(problem is not null){
+                        return problem;
+                    }
+                }else if(kind<94){
+                    Close();
+                    Open();
+                    model=new Dictionary<long,long>(saved);
+                    var problem=Verify($"操作{operation} 開き直し");
+                    if(problem is not null){
+                        return problem;
+                    }
+                }else if(kind<97){
+                    data!.Store.Log.FlushAndEvict(true);
+                }else{
+                    var problem=Verify($"操作{operation} 途中確認");
+                    if(problem is not null){
+                        return problem;
+                    }
+                }
+            }
+            return Verify("最終");
+        }finally{
+            Close();
+            Directory.Delete(root,true);
+        }
+    }
 }
 file readonly record struct Score(int Key,long Value):global::Seamless.Collections.IRecord<int>;

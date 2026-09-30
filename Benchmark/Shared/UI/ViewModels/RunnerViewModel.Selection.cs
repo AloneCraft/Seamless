@@ -397,7 +397,7 @@ public sealed partial class 実行ビューモデル:ObservableObject {
 
             if(this.SetProperty(ref this.選択実行プロファイル値,value)) {
                 this.新規実行用の新規実行選択肢を選択(false);
-                _=this.選択プロファイルの実行一覧を更新Async();
+                this.プロファイル実行一覧更新=Task.WhenAll(this.プロファイル実行一覧更新,this.選択プロファイルの実行一覧を更新Async());
             }
         }
     }

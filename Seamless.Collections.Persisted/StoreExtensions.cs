@@ -10,16 +10,16 @@ namespace Seamless.Collections.Persisted;
 public static partial class StoreExtensions{
     public static Set<T> CreatePersistedSet<T>(this global::Seamless.Execution.Store store,string name,long initialCapacity=16,long initialDataCapacity=4096,StorageTuning? tuning=null){
         var directory=PrepareDirectory(store,name);
-        return Attach(store,name,()=>new Set<T>(Path.Combine(directory,"items.dat"),initialCapacity,initialDataCapacity,tuning),static set=>set.Committable,static (set,action)=>set.SetDisposeAction(action));
+        return Attach(store,name,()=>new Set<T>(Path.Combine(directory,"items.dat"),initialCapacity,initialDataCapacity,tuning),static set=>set.Committable,static (set,action)=>set.SetDisposeAction(action),static (set,action)=>set.SetSaveAction(action));
     }
     public static PersistedList<T> CreatePersistedList<T>(this global::Seamless.Execution.Store store,string name,long initialCapacity=16,long initialDataCapacity=4096,StorageTuning? tuning=null){
         var directory=PrepareDirectory(store,name);
-        return Attach(store,name,()=>Store.CreateList<T>(Path.Combine(directory,"items.dat"),initialCapacity,initialDataCapacity,tuning),static list=>list,static (list,action)=>list.SetDisposeAction(action));
+        return Attach(store,name,()=>Store.CreateList<T>(Path.Combine(directory,"items.dat"),initialCapacity,initialDataCapacity,tuning),static list=>list,static (list,action)=>list.SetDisposeAction(action),static (list,action)=>{});
     }
     public static Dictionary<TKey,TValue> CreatePersistedDictionary<TKey,TValue>(this global::Seamless.Execution.Store store,string name,long initialCapacity=16,long initialDataCapacity=4096,StorageTuning? tuning=null)
         where TKey:notnull{
         var directory=PrepareDirectory(store,name);
-        return Attach(store,name,()=>new Dictionary<TKey,TValue>(Path.Combine(directory,"items.dat"),initialCapacity,initialDataCapacity,tuning),static dictionary=>dictionary.Committable,static (dictionary,action)=>dictionary.SetDisposeAction(action));
+        return Attach(store,name,()=>new Dictionary<TKey,TValue>(Path.Combine(directory,"items.dat"),initialCapacity,initialDataCapacity,tuning),static dictionary=>dictionary.Committable,static (dictionary,action)=>dictionary.SetDisposeAction(action),static (dictionary,action)=>dictionary.SetSaveAction(action));
     }
     private static string PrepareDirectory(global::Seamless.Execution.Store store,string name){
         ArgumentNullException.ThrowIfNull(store);
@@ -38,7 +38,7 @@ public static partial class StoreExtensions{
         }
         return directory;
     }
-    private static TCollection Attach<TCollection>(global::Seamless.Execution.Store store,string name,Func<TCollection> create,Func<TCollection,IPersistedCommittable> committable,Action<TCollection,Action?> setDisposeAction)
+    private static TCollection Attach<TCollection>(global::Seamless.Execution.Store store,string name,Func<TCollection> create,Func<TCollection,IPersistedCommittable> committable,Action<TCollection,Action?> setDisposeAction,Action<TCollection,Action?> setSaveAction)
         where TCollection:IDisposable{
         var disk=store.Budget.ReserveTemporaryStorage(0);
         TCollection? collection=default;
@@ -46,6 +46,7 @@ public static partial class StoreExtensions{
             collection=create();
             var component=new PersistedComponent(store,name,collection,committable(collection),disk);
             setDisposeAction(collection,component.Released);
+            setSaveAction(collection,component.SaveStore);
             component.Attach();
             component.EnsureTotalBytes(committable(collection).StorageBytes);
             store.Register(component);
@@ -61,6 +62,12 @@ public static partial class StoreExtensions{
 internal sealed class PersistedComponent(global::Seamless.Execution.Store owner,string name,IDisposable collection,IPersistedCommittable committable,ResourceReservation disk):IStoreComponent,IPersistedStorageQuota{
     public string Name=>name;
     public string Save()=>JsonSerializer.Serialize(committable.Commit());
+    // CompactSave が、書き換えたファイルの状態をストアの保存として確定するために呼ぶ。
+    internal void SaveStore(){
+        owner.Save();
+    }
+    // Commit が既にディスクへ確実に書き出しているので、ここですることは無い。
+    public void Flush(){}
     public void Load(string state){
         committable.RollbackTo(JsonSerializer.Deserialize<PersistedCommitState>(state));
     }

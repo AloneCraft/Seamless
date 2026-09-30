@@ -59,10 +59,22 @@ public sealed partial class 実行ビューモデル:ObservableObject {
     private long? 読込済み改善選択実行ID;
 
     /// <summary>
+    /// 選択プロファイルの変更で始めた実行一覧の再読込 フィールドです。投げっぱなしにせず、完了を待てるように保持する。
+    /// </summary>
+    private Task プロファイル実行一覧更新 = Task.CompletedTask;
+
+    /// <summary>
     /// 実行選択肢一覧 プロパティです。
     /// </summary>
     /// <value>実行選択肢一覧 の値を取得/設定します。</value>
     public ObservableCollection<ベンチマーク実行選択肢> 実行選択肢一覧 { get; } = [];
+
+    /// <summary>
+    /// 選択プロファイルの変更で始めた実行一覧の再読込が終わるまで待ちます。
+    /// 再読込の後半(一覧の入れ替えと、復元した再開状態の破棄)は、UI スレッドを持たない呼び出し元では別スレッドで動く。
+    /// その完了を待たずに続けて操作すると、一覧の読み取りや実行・一時停止の状態と競合する。
+    /// </summary>
+    public Task プロファイル実行一覧更新を待機Async() => this.プロファイル実行一覧更新;
 
     /// <summary>
     /// 実行履歴読込中か プロパティです。

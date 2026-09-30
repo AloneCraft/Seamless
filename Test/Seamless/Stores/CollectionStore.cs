@@ -171,4 +171,96 @@ public class CollectionStore {
         GC.WaitForPendingFinalizers();
         using var store = Store.Create().Create<int,string>();
     }
+    [Fact, Trait("Category","Unit")]
+    public void GetFlushTargets() {
+        var root = Path.Combine(Path.GetTempPath(),"flush-targets-"+Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try {
+            var logPath = Path.Combine(root,"log");
+            // 名前が似ているだけの別のファイルは、書き出す対象に含めない。
+            File.WriteAllText(logPath+".bak","x");
+            File.WriteAllText(logPath+"ger.0","x");
+            using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
+            using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath+"_obj");
+            using var store = Store.Create(CheckpointDir: Path.Combine(root,"checkpoint")).Create<int,int>(logDevice,objDevice);
+            using var set = store.Create();
+            set[1]=11;
+            // メモリ上のログをデバイスへ書き出し、ログのセグメントのファイルを作る。
+            store.Store.Log.FlushAndEvict(true);
+            var first = store.Save();
+            set[2]=22;
+            var second = store.Save();
+            {
+                // 指定した保存番号のチェックポイントのファイル・索引サイズのメタデータ・ログのセグメントが対象。別の保存番号は含めない。
+                var names = store.GetFlushTargets([second]).Select(path => Path.GetRelativePath(root,path)).ToList();
+                Assert.Contains(Path.Combine("checkpoint","cpr-checkpoints",second.ToString(),"info.dat.0"),names);
+                Assert.Contains(Path.Combine("checkpoint","index-checkpoints",second.ToString(),"ht.dat.0"),names);
+                Assert.Contains(Path.Combine("checkpoint",".Tsavorite",$"{second:N}.index-size.json"),names);
+                Assert.Contains("log.0",names);
+                Assert.DoesNotContain(names,name => name.Contains(first.ToString())||name.Contains($"{first:N}"));
+                Assert.DoesNotContain("log.bak",names);
+                Assert.DoesNotContain("logger.0",names);
+            }
+            {
+                // 保存番号を渡さなければ、ログのデバイスのファイルだけ。
+                var names = store.GetFlushTargets([]).Select(path => Path.GetRelativePath(root,path)).ToList();
+                Assert.Contains("log.0",names);
+                Assert.DoesNotContain(names,name => name.StartsWith("checkpoint"));
+            }
+        } finally {
+            Directory.Delete(root,true);
+        }
+    }
+    [Fact, Trait("Category","Unit")]
+    public void ThrowIfRecoveredTailCollidesWithHead() {
+        var root = Path.Combine(Path.GetTempPath(),"collide-"+Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try {
+            var logPath = Path.Combine(root,"log");
+            var checkpointDir = Path.Combine(root,"checkpoint");
+            Guid token;
+            {
+                using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
+                using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath+"_obj");
+                using var store = Store.Create(MemorySize: 65536,PageSize: 4096,SegmentSize: 1<<20,CheckpointDir: checkpointDir).Create<long>(logDevice,objDevice);
+                using var set = store.Create();
+                // ログの末尾がページ境界ちょうどで、16 ページのバッファが満杯になるまで追加して、チェックポイントを取る。
+                long count = 0;
+                while(store.Store.Log.TailAddress%4096!=0||store.Store.Log.TailAddress<65536) {
+                    set.Add(count++);
+                }
+                var (success,checkpointToken) = store.Store.TakeFullCheckpointAsync(global::Tsavorite.core.CheckpointType.Snapshot).AsTask().GetAwaiter().GetResult();
+                store.Store.CompleteCheckpointAsync().AsTask().GetAwaiter().GetResult();
+                Assert.True(success);
+                token=checkpointToken;
+                store.Store.Log.Flush(true);
+            }
+            {
+                using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath);
+                using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(logPath+"_obj");
+                using var store = Store.Create(MemorySize: 65536,PageSize: 4096,SegmentSize: 1<<20,CheckpointDir: checkpointDir).Create<long>(logDevice,objDevice);
+                {
+                    // 追跡つきの復元(Load)なら、衝突は起きず、例外にもならない。
+                    store.Load(token);
+                    store.ThrowIfRecoveredTailCollidesWithHead();
+                }
+                {
+                    // 【カナリア】Garnet の素の復元(追跡なし)は、末尾ページのスロットが先頭ページのスロットと重なる(Garnet 2.0.1-beta.6 以降、2.1.8 でも確認)。
+                    // 検知が例外にすることを確かめる。このケースが失敗する(重ならなくなった)のは、Garnet が直った合図。
+                    // CollectionStore.RecoverWithSizeTrackerAsync と ThrowIfRecoveredTailCollidesWithHead を外してよいか、
+                    // 境界の件数の掃引とメモリを縮めた開き直し(docs の不変条件15)で確かめて、外す。
+                    store.Store.RecoverAsync(Guid.Empty,token).AsTask().GetAwaiter().GetResult();
+                    var collided = false;
+                    try {
+                        store.ThrowIfRecoveredTailCollidesWithHead();
+                    } catch(InvalidDataException) {
+                        collided=true;
+                    }
+                    Assert.True(collided,"Garnet の素の復元が、末尾ページと先頭ページの衝突を起こさなくなった。RecoverWithSizeTrackerAsync を外せるか確かめること。");
+                }
+            }
+        } finally {
+            Directory.Delete(root,true);
+        }
+    }
 }

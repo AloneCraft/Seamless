@@ -14,7 +14,7 @@ public class FLinqNativeIterateTests {
             using var set = global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 })
                 set.Add(value);
-            set.Compact();
+            set.CompactSave();
 
             source=set;
             Assert.True(AnyGreaterThanThreeImpl());
@@ -33,7 +33,7 @@ public class FLinqNativeIterateTests {
             using var set = global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 })
                 set.Add(value);
-            set.Compact();
+            set.CompactSave();
 
             source=set;
             Assert.True(AllLessThanFiveImpl());
@@ -58,7 +58,7 @@ public class FLinqNativeIterateTests {
             using var set = global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 })
                 set.Add(value);
-            set.Compact();
+            set.CompactSave();
 
             source=set;
             {
@@ -92,7 +92,7 @@ public class FLinqNativeIterateTests {
             using var set = global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 })
                 set.Add(value);
-            set.Compact();
+            set.CompactSave();
 
             source=set;
             {

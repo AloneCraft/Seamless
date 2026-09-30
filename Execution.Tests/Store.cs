@@ -218,6 +218,41 @@ public sealed class Store{
                 using var reopened=StoreType.Open(directory);
                 Assert.Equal([first,second],reopened.Checkpoints);
             }
+            {
+                //永続ストアは全子資源の保存が終わってから、マニフェストを書く前に、全子資源を確実に書き出す
+                var events=new List<string>();
+                using var store=StoreType.Open(Path.Combine(root,"ordered"));
+                var manifest=Path.Combine(store.DirectoryPath!,"store.json");
+                store.Register(new RecordingComponent("a"){OnSave=()=>events.Add("save a"),OnFlush=()=>events.Add("flush a manifest="+File.Exists(manifest))});
+                store.Register(new RecordingComponent("b"){OnSave=()=>events.Add("save b"),OnFlush=()=>events.Add("flush b manifest="+File.Exists(manifest))});
+                store.Save();
+                Assert.Equal(["save a","save b","flush a manifest=False","flush b manifest=False"],events);
+                Assert.True(File.Exists(manifest));
+            }
+            {
+                //一時ストアは開き直せないので、確実な書き出しはしない
+                using var store=StoreType.CreateTemporary(temporaryDirectory:root);
+                var a=store.Register(new RecordingComponent("a"));
+                store.Save();
+                Assert.Equal(1,a.SaveCount);
+                Assert.Equal(0,a.FlushCount);
+            }
+            {
+                //書き出しに失敗したら保存も失敗し、マニフェストは書かれず保存番号も増えない。直せば保存できる
+                using var store=StoreType.Open(Path.Combine(root,"failing"));
+                var failing=true;
+                store.Register(new RecordingComponent("a"){OnFlush=()=>{
+                    if(failing){
+                        throw new IOException("disk full");
+                    }
+                }});
+                Assert.Throws<IOException>(()=>store.Save());
+                Assert.Empty(store.Checkpoints);
+                Assert.False(File.Exists(Path.Combine(store.DirectoryPath!,"store.json")));
+                failing=false;
+                var token=store.Save();
+                Assert.Equal([token],store.Checkpoints);
+            }
         }finally{Directory.Delete(root,true);}
     }
     [Fact]public void Load(){
@@ -236,14 +271,26 @@ public sealed class Store{
                 Assert.Equal(first,store.CurrentCheckpoint);
             }
             {
-                //番号を省略すると最新
+                //古い保存を読むと、それより新しい保存は記録から外れる(子資源の復元でデータが無効になるため)
+                Assert.Equal([first],store.Checkpoints);
+                Assert.Throws<ArgumentException>(()=>store.Load(second));
+            }
+            {
+                //番号を省略すると最新(いま残っている最新)
                 store.Load();
-                Assert.Equal(["a1","a2"],a.Loaded);
-                Assert.Equal(second,store.CurrentCheckpoint);
+                Assert.Equal(["a1","a1"],a.Loaded);
+                Assert.Equal(first,store.CurrentCheckpoint);
             }
             {
                 //存在しない番号は ArgumentException
                 Assert.Throws<ArgumentException>(()=>store.Load(Guid.NewGuid()));
+            }
+            {
+                //外した結果は開き直しても保存されている: 最新の保存へ戻ると、外した新しい保存へは戻らない
+                store.Dispose();
+                using var reopened=StoreType.Open(directory);
+                Assert.Equal([first],reopened.Checkpoints);
+                Assert.Equal(first,reopened.CurrentCheckpoint);
             }
         }finally{Directory.Delete(root,true);}
     }
@@ -268,11 +315,20 @@ file sealed class RecordingComponent(string name):IStoreComponent{
     public string Name{get;}=name;
     public string State{get;set;}=string.Empty;
     public int SaveCount{get;private set;}
+    public int FlushCount{get;private set;}
+    // Save / Flush が呼ばれた時点の様子を記録するために、テストが渡す処理。
+    public Action? OnSave{get;init;}
+    public Action? OnFlush{get;init;}
     public List<string> Loaded{get;}=[];
     public bool Disposed{get;private set;}
     public string Save(){
         this.SaveCount++;
+        this.OnSave?.Invoke();
         return this.State;
+    }
+    public void Flush(){
+        this.FlushCount++;
+        this.OnFlush?.Invoke();
     }
     public void Load(string state)=>this.Loaded.Add(state);
     public void Dispose()=>this.Disposed=true;

@@ -64,4 +64,36 @@ public sealed class ExecutionScope{
             Assert.True(Directory.Exists(invalid));
         }finally{Directory.Delete(root,true);}
     }
+    [Fact]public void RecoverAbandoned_ConcurrentWithScopeDisposal_DoesNotFailEitherSide(){
+        //スコープの破棄(所有者ロックを手放してからフォルダを削除する)と、同じルートへの RecoverAbandoned が競合しても、
+        //破棄の側が owner.json / owner.lock の共有違反で失敗せず、回収の側も例外を投げない
+        var root=Path.Combine(Path.GetTempPath(),"seamless-execution-race-tests",Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try{
+            var options=new ExecutionOptions{TemporaryDirectory=root};
+            var errors=new global::System.Collections.Concurrent.ConcurrentQueue<Exception>();
+            var stop=false;
+            var makers=Enumerable.Range(0,3).Select(_=>new Thread(()=>{
+                while(!Volatile.Read(ref stop)){
+                    try{
+                        var scope=new Scope(options);
+                        scope.CreateTemporaryFile();
+                        scope.Dispose();
+                    }catch(Exception error){errors.Enqueue(error);}
+                }
+            })).ToArray();
+            var recoverer=new Thread(()=>{
+                while(!Volatile.Read(ref stop)){
+                    try{TemporaryResourceRecovery.RecoverAbandoned(root);}catch(Exception error){errors.Enqueue(error);}
+                }
+            });
+            foreach(var maker in makers){maker.Start();}
+            recoverer.Start();
+            Thread.Sleep(3000);
+            Volatile.Write(ref stop,true);
+            foreach(var maker in makers){maker.Join();}
+            recoverer.Join();
+            Assert.True(errors.IsEmpty,errors.FirstOrDefault()?.ToString());
+        }finally{Directory.Delete(root,true);}
+    }
 }

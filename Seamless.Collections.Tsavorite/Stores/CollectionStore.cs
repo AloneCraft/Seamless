@@ -102,6 +102,10 @@ public abstract partial class CollectionStore<
     internal OverflowMutableStrategyKind OverflowMutableStrategyKind { get; }
     internal StorageOverflowMutableStrategy StorageOverflowMutableStrategy { get; }
     private bool Disposed;
+    // Tsavorite は自前で渡された管理を破棄しないので、Dispose で破棄する。CheckpointDir が無いときは null。
+    private readonly DeviceLogCommitCheckpointManager? checkpointManager;
+    // 保存(Save)したが、まだ Flush していないチェックポイントの番号。
+    private readonly global::System.Collections.Generic.HashSet<Guid> unflushedTokens = [];
     private int CheckpointInProgress;
     private bool CheckpointFailed;
     private bool UsesStorageDevice => this.Settings is not null&&(this.Settings.LogDevice is not MemoryOnlyDevice||this.Settings.ObjectLogDevice is not MemoryOnlyDevice);
@@ -155,6 +159,7 @@ public abstract partial class CollectionStore<
             if(objectLogSegmentSize>ObjectLogDevice.Capacity)
                 throw new ArgumentOutOfRangeException(nameof(ObjectLogSegmentSize),$"{nameof(ObjectLogSegmentSize)} must be <= ObjectLogDevice.Capacity.");
         }
+        this.checkpointManager=CreateCheckpointManager(CheckpointDir);
         this.Settings=new() {
             IndexSize=IndexSize,
             LogMemorySize=MemorySize,
@@ -166,11 +171,31 @@ public abstract partial class CollectionStore<
             ObjectLogDevice=ObjectLogDevice,
             ObjectLogSegmentSize=objectLogSegmentSize,
             CheckpointDir=CheckpointDir,
+            CheckpointManager=this.checkpointManager,
+            // 削除した最新の墓標を、連鎖から外して無効化させない(既定は無効化する)。無効化されると、メモリ上では古いレコードも無効なので削除は見えるが、
+            // ログデバイス上の古いレコードは有効なまま残り、ログを走査する復元で削除したキーが復活する。墓標を有効なまま残せば、復元でも削除が見える。
+            RevivificationSettings=global::Tsavorite.core.RevivificationSettings.InChainOnly,
         };
         this.Store=new TsavoriteKV<TStoreFunctions,TAllocator>(
             this.Settings,
             StoreFunctions,
             allocatorFactory
+        );
+    }
+
+    /// <summary>
+    /// チェックポイントの書き込みをバッファ付きにする。Tsavorite 既定のバッファなし書き込みは長さがセクター
+    /// (通常 512 バイト)の倍数でないと Win32 エラー 87 で失敗するが、索引は 64 バイトから始まり、主索引の書き込み長は
+    /// 索引と同じ長さになる。2.0.1-beta.5 ではこの失敗が黙って捨てられ主索引が保存されていなかった(2.1.8 は例外にする)。
+    /// </summary>
+    private static DeviceLogCommitCheckpointManager? CreateCheckpointManager(string? checkpointDir) {
+        if(string.IsNullOrEmpty(checkpointDir)) {
+            return null;
+        }
+        return new DeviceLogCommitCheckpointManager(
+            new LocalStorageNamedDeviceFactoryCreator(disableFileBuffering: false),
+            new DefaultCheckpointNamingScheme(new DirectoryInfo(checkpointDir).FullName),
+            removeOutdated: false
         );
     }
 
@@ -313,8 +338,8 @@ public abstract partial class CollectionStore<
             return;
         }
         this.lastPayloadBytes=payloadBytes;
-        // Tsavorite 2.0.1-beta.5 の GrowIndexAsync は、他のセッションの操作と並行すると
-        // StateMachineDriver 内で IndexOutOfRangeException を起こして停止する(EXP-0004)。
+        // Tsavorite の GrowIndexAsync は、他のセッションの操作と並行すると
+        // StateMachineDriver 内で IndexOutOfRangeException を起こして停止する(EXP-0004。2.0.1-beta.5 と 2.1.8 で確認)。
         // 他の操作用オブジェクトが生きている間は拡張しない(正しさは変わらず、性能だけが落ちる)。
         if(Volatile.Read(ref this.accessorCount)>1) {
             return;
@@ -409,8 +434,10 @@ public abstract partial class CollectionStore<
     string global::Seamless.Execution.IStoreComponent.Save() {
         var token = this.TakeFullCheckpointAsync(CheckpointType.Snapshot,writeRecoveryIndexMetadata: false,default).GetAwaiter().GetResult();
         // checkpoint だけでは、復元に必要なログのページがまだデバイスへ書き終わっていないことがある(EXP-0002)。
-        // 保存が戻った時点で復元できるよう、ログ末尾まで書き出しを待つ(メモリ上のレコードは残る)。
-        this.Store.Log.Flush(wait: true);
+        // 保存が戻った時点で復元できるよう、ログを書き出す。ただし末尾(セクターの途中)まで書くと、次の書き出しが末尾を含むセクターを頭から書き直し、
+        // その間に更新・削除で無効化された古いレコードが書き込まれて、この保存の復元で見えなくなる。セクター境界までに限れば、末尾を含む
+        // セクターはスナップショット(保存時点の不変のコピー)に残る。
+        this.FlushLogToSectorBoundary();
         long? count = null;
         if(this.TryGetManagedCount(out var managed)) {
             count=managed;
@@ -461,6 +488,7 @@ public abstract partial class CollectionStore<
                 if(writeRecoveryIndexMetadata) {
                     this.WriteRecoveryIndexMetadata(token,recoveryEntryCount);
                 }
+                this.MarkUnflushed(token);
                 return token;
             }
             throw new InvalidOperationException($"{nameof(this.Save)}Checkpoint failed.");
@@ -484,6 +512,7 @@ public abstract partial class CollectionStore<
             if(success) {
                 this.CheckpointFailed=false;
                 this.WriteRecoveryIndexMetadata(token,recoveryEntryCount);
+                this.MarkUnflushed(token);
                 return token;
             }
             throw new InvalidOperationException($"{nameof(this.SaveLogOnly)}Checkpoint failed.");
@@ -510,9 +539,136 @@ public abstract partial class CollectionStore<
 
     public Guid SaveLogOnly(CheckpointType CheckpointType = CheckpointType.Snapshot) => this.SaveLogOnlyAsync(CheckpointType).GetAwaiter().GetResult();
 
+    /// <summary>
+    /// 復元した結果、末尾ページのスロットが先頭ページのスロットと重なっていたら例外にする。この状態では先頭側のページの内容が消えているので、
+    /// 黙って欠落させない。<see cref="RecoverWithSizeTrackerAsync"/> で防いでいるので通常は起きない。防ぎきれなくなった(Garnet の内部が変わった)ときの安全網。
+    /// 【記録】2026-09-30 の 600 試行(保存時・開き直し時のメモリと件数をランダムに振った)で、追跡なしの復元では実際の欠落とこの条件が完全に一致した(見逃し 0・誤検知 0)。
+    /// </summary>
+    internal void ThrowIfRecoveredTailCollidesWithHead() {
+        var log = this.Store.Log;
+        var pageSize = this.Settings.PageSize;
+        if(log.TailAddress/pageSize-log.HeadAddress/pageSize>=log.BufferSize) {
+            throw new InvalidDataException("Recovery lost log pages: the recovered log tail page shares its memory slot with the head page. Reopen with the original LogMemorySize or larger, or load an earlier checkpoint.");
+        }
+    }
+
+    /// <summary>
+    /// 復元の間だけ LogSizeTracker を付けて復元する。Garnet 2.0.1-beta.6 以降(2.1.8 でも確認)の復元は、LogSizeTracker が無いと復元中にページを追い出さず
+    /// (<c>TrimLogPages</c> が何もしない)、バッファに収まらないページの内容を失う。次の 2 つの場合に起きる。
+    /// (1) 保存時にログの末尾がページ境界ちょうどで、バッファが満杯だった(復元後の末尾ページのスロットが先頭ページのスロットと同じで、先頭ページが消える)。
+    /// (2) 保存時より小さいメモリで開き直した(HeadAddress が進まず、上書きされたページが「メモリ上にある」ままになる)。
+    /// 追跡は開始せず(背景の追い出しは動かさない)、復元が追い出しを判断するためだけに使い、終わったら外す。目標は復元の判断に使われないので、メモリ量(下限 4 ページ)とする。
+    /// 2.0.1-beta.5 は追跡が無くても正しく復元した。これで、既に境界で保存済みのチェックポイントも復元できる。
+    /// 【記録】2026-09-30 の実験：追跡ありの復元は、境界の件数の掃引・メモリを縮めた開き直しのランダム 600 試行・管理型の辞書・FoldOver・SaveLogOnly で欠落 0、
+    /// 強制終了ハーネス、および 2.1.8 で境界保存され欠落していた元のチェックポイントの復元でも欠落 0。
+    /// </summary>
+    private async ValueTask RecoverWithSizeTrackerAsync(Guid? token,CancellationToken ct) {
+        var tracker = new LogSizeTracker<TStoreFunctions,TAllocator>(this.Store.Log,Math.Max(this.Settings.LogMemorySize,4*this.Settings.PageSize),0,0,null!);
+        this.Store.Log.SetLogSizeTracker(tracker);
+        try {
+            if(token is Guid checkpointToken) {
+                await this.Store.RecoverAsync(Guid.Empty,checkpointToken,cancellationToken: ct);
+            } else {
+                await this.Store.RecoverAsync(cancellationToken: ct);
+            }
+        } finally {
+            this.Store.Log.SetLogSizeTracker(null!);
+        }
+    }
+
+    private void FlushLogToSectorBoundary() {
+        var log = this.Store.Log;
+        var sectorSize = Math.Max(512L,this.Settings.LogDevice.SectorSize);
+        var alignedTail = log.TailAddress/sectorSize*sectorSize;
+        if(alignedTail>log.FlushedUntilAddress) {
+            log.ShiftReadOnlyAddress(alignedTail,true);
+        }
+    }
+
+    private void MarkUnflushed(Guid token) {
+        lock(this.unflushedTokens) {
+            this.unflushedTokens.Add(token);
+        }
+    }
+
+    /// <summary>
+    /// 保存(Save)したチェックポイントと、ログのデバイスのファイルを、電源断でも残るようディスクへ確実に書き出す。
+    /// Save は書き込みを終えるだけで、OS のキャッシュに残っていてもよい。Save を続けて呼んだあとに 1 回呼べば、まとめて書き出せる。
+    /// 共通ストアの永続ストアは、保存のたびにマニフェストを書く前に自分で呼ぶ。
+    /// </summary>
+    public void Flush() {
+        ObjectDisposedException.ThrowIf(this.Disposed,this);
+        Guid[] tokens;
+        lock(this.unflushedTokens) {
+            tokens=[..this.unflushedTokens];
+        }
+        foreach(var path in this.GetFlushTargets(tokens)) {
+            FlushFile(path);
+        }
+        lock(this.unflushedTokens) {
+            this.unflushedTokens.ExceptWith(tokens);
+        }
+    }
+
+    /// <summary>Flush が書き出すファイルの一覧。指定した保存番号のチェックポイントと、ログとオブジェクトログのデバイスのファイル。</summary>
+    internal List<string> GetFlushTargets(IReadOnlyCollection<Guid> tokens) {
+        var targets = new List<string>();
+        var checkpointDir = this.Settings.CheckpointDir;
+        if(!string.IsNullOrEmpty(checkpointDir)&&Directory.Exists(checkpointDir)) {
+            foreach(var token in tokens) {
+                // チェックポイントの種類ごとのフォルダ(index-checkpoints など)の下に、保存番号の名前のフォルダができる。
+                foreach(var kindDirectory in Directory.EnumerateDirectories(checkpointDir)) {
+                    var tokenDirectory = Path.Combine(kindDirectory,token.ToString());
+                    if(Directory.Exists(tokenDirectory)) {
+                        targets.AddRange(Directory.EnumerateFiles(tokenDirectory,"*",SearchOption.AllDirectories));
+                    }
+                }
+                foreach(var path in global::Seamless.Collections.Tsavorite.Store.EnumerateCheckpointIndexMetadataPaths(checkpointDir,token)) {
+                    if(File.Exists(path)) {
+                        targets.Add(path);
+                    }
+                }
+            }
+        }
+        AddDeviceFiles(targets,this.Settings.LogDevice);
+        AddDeviceFiles(targets,this.Settings.ObjectLogDevice);
+        return targets;
+    }
+
+    private static void AddDeviceFiles(List<string> targets,IDevice device) {
+        var name = device.FileName;
+        if(device is MemoryOnlyDevice||string.IsNullOrEmpty(name)) {
+            return;
+        }
+        var path = Path.GetFullPath(name);
+        var directory = Path.GetDirectoryName(path);
+        if(directory is null||!Directory.Exists(directory)) {
+            return;
+        }
+        var fileName = Path.GetFileName(path);
+        // セグメントのファイルは「名前.番号」(番号を付けないデバイスは「名前」だけ)。同じ接頭辞の別のファイル(名前_obj.0 など)は含めない。
+        foreach(var file in Directory.EnumerateFiles(directory,fileName+"*")) {
+            var suffix = Path.GetFileName(file).AsSpan(fileName.Length);
+            if(suffix.IsEmpty||(suffix[0]=='.'&&suffix.Length>1&&suffix[1..].IndexOfAnyExceptInRange('0','9')<0)) {
+                targets.Add(file);
+            }
+        }
+    }
+
+    private static void FlushFile(string path) {
+        try {
+            // デバイスが開いているのと同じファイルなので、読み書きと削除の共有を許して開く(一時ファイルは閉じると削除されるので削除も許す)。
+            using var handle = File.OpenHandle(path,FileMode.Open,FileAccess.Write,FileShare.ReadWrite|FileShare.Delete);
+            RandomAccess.FlushToDisk(handle);
+        } catch(FileNotFoundException) {
+        } catch(DirectoryNotFoundException) {
+        }
+    }
+
     public async ValueTask LoadAsync(CancellationToken ct = default) {
         this.AssertCheckpointDir();
-        await this.Store.RecoverAsync(cancellationToken: ct);
+        await this.RecoverWithSizeTrackerAsync(null,ct);
+        this.ThrowIfRecoveredTailCollidesWithHead();
         this.CheckpointFailed=false;
     }
 
@@ -520,7 +676,8 @@ public abstract partial class CollectionStore<
 
     public async ValueTask LoadAsync(Guid token,CancellationToken ct = default) {
         this.AssertCheckpointDir();
-        await this.Store.RecoverAsync(Guid.Empty,token,cancellationToken: ct);
+        await this.RecoverWithSizeTrackerAsync(token,ct);
+        this.ThrowIfRecoveredTailCollidesWithHead();
         this.CheckpointFailed=false;
     }
 
@@ -604,6 +761,7 @@ public abstract partial class CollectionStore<
             }
         }
         this.Store?.Dispose();
+        this.checkpointManager?.Dispose();
         this.Settings?.Dispose();
         if(disposing&&this.layout is not null) {
             this.layout.Owner.Unregister(this);

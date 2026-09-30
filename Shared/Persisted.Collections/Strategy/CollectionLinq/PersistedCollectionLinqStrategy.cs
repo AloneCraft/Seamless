@@ -70,7 +70,7 @@ public readonly struct PersistedSetCollectionLinqStrategy<TProvider, TElement>
         for(var index = 0;index<count;index++) {
             set.Add(TProvider.Create(start+index));
         }
-        set.Compact();
+        set.CompactSave();
         return new PersistedSetLinqSource<TElement>(path,set);
     }
 }
@@ -152,7 +152,7 @@ public readonly struct PersistedBlittableDictionaryCollectionLinqStrategy<TProvi
         var path = PersistedCollectionLinqPaths.CreatePath<PersistedBlittableDictionaryCollectionLinqStrategy<TProvider,TKey,TValue>,KeyValuePair<TKey,TValue>>(tag);
         var dictionary = global::Seamless.Collections.Persisted.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: 1,InitialDataCapacity: 4096);
         Populate(dictionary,start,count);
-        dictionary.Compact();
+        dictionary.CompactSave();
         return new PersistedDictionaryLinqSource<TKey,TValue>(path,dictionary,dictionary);
     }
 
@@ -203,7 +203,7 @@ public readonly struct PersistedSerializedDictionaryCollectionLinqStrategy<TProv
         var path = PersistedCollectionLinqPaths.CreatePath<PersistedSerializedDictionaryCollectionLinqStrategy<TProvider,TKey,TValue>,KeyValuePair<TKey,TValue>>(tag);
         var dictionary = global::Seamless.Collections.Persisted.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: 1,InitialDataCapacity: 4096);
         Populate(dictionary,start,count);
-        dictionary.Compact();
+        dictionary.CompactSave();
         return new PersistedDictionaryLinqSource<TKey,TValue>(path,dictionary,dictionary);
     }
 

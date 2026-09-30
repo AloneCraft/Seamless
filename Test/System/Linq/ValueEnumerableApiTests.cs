@@ -68,7 +68,7 @@ public sealed class ValueEnumerableApiTests {
             using(var persisted=global::Seamless.Collections.Persisted.Store.CreateSet<int>(persistedPath,InitialCapacity: 1,InitialDataCapacity: 128)) {
                 foreach(var value in new[] { 1,2,3,4 })
                     persisted.Add(value);
-                persisted.Compact();
+                persisted.CompactSave();
                 Assert.Equal(2,persisted.AsValueEnumerable().Where(static value => (value&1)==0).Count());
                 Assert.True(persisted.AsValueEnumerable().Contains(3));
                 Assert.True(persisted.AsValueEnumerable().Contains(3,EqualityComparer<int>.Default));

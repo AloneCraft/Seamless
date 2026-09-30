@@ -23,10 +23,26 @@ public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
 
     public void Add(T item) => this.list.Add(item);
 
-    public Set<T> Compact() {
+    /// <summary>
+    /// 重複を除いて並べ替え(ファイルをその場で書き換える)、そのまま保存する。
+    /// 共通ストアから作った集合ではストア全体を <see cref="global::Seamless.Execution.Store.Save"/> する(保存番号が 1 つ増える)。
+    /// 単独で作った集合ではこの集合だけをコミットする。
+    /// 書き換えは保存済みの内容を壊すので、書き換えたあと保存の前に閉じると保存した状態へ戻せない。それを起こさないよう、必ず保存までを 1 回で行う。
+    /// この集合の、書き換え前の保存(古い保存番号)は使えなくなる。
+    /// </summary>
+    public Set<T> CompactSave() {
         this.list.Compact();
+        if(this.saveAction is { } save) {
+            save();
+        } else {
+            this.list.Commit();
+        }
         return this;
     }
+
+    // 共通ストアに接続されたとき、ストア全体の保存を呼ぶ口が入る。
+    private Action? saveAction;
+    internal void SetSaveAction(Action? action) => this.saveAction=action;
 
     public bool Contains(T item) => this.set.Contains(item);
     public bool IsProperSubsetOf(IEnumerable<T> other) => this.set.IsProperSubsetOf(other);

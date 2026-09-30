@@ -60,7 +60,6 @@ public static class TsavoriteStorageDevices {
             recoverDevice: recoverDevice,
             disableFileBuffering: disableFileBuffering,
             readOnly: readOnly,
-            ioBackend: NativeStorageDevice.IoBackend.Default,
             numCompletionThreads: numCompletionThreads);
     }
 }

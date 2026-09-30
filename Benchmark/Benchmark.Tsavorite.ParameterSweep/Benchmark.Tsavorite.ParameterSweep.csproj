@@ -10,7 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.*" />
-    <PackageReference Include="Microsoft.Garnet" Version="2.0.1-beta.5" />
+    <PackageReference Include="Microsoft.Garnet" Version="2.1.8" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Tests\Seamless.TestKit\Seamless.TestKit.csproj" />

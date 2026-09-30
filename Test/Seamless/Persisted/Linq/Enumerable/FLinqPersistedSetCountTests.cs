@@ -17,7 +17,7 @@ public class FLinqPersistedSetCountTests {
             using var set = global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity: 1,InitialDataCapacity: 128);
             foreach(var value in new[] { 1,2,3,4 })
                 set.Add(value);
-            set.Compact();
+            set.CompactSave();
 
             source=set;
             Assert.Equal(4,CountImpl());

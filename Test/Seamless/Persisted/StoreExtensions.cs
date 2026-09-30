@@ -182,4 +182,64 @@ public class StoreExtensions{
             }
         }finally{Directory.Delete(root,true);}
     }
+    [Fact,Trait("Category","Unit")]public void CompactSave(){
+        //重複を除く書き換えは保存済みの内容を壊す。CompactSave は書き換えと保存を 1 回で行うので、あとで保存せずに閉じても開き直せる
+        var root=NewRoot();
+        try{
+            {
+                var directory=Path.Combine(root,"set");
+                using(var store=CommonStore.Open(directory)){
+                    var set=PersistedExtensions.CreatePersistedSet<long>(store,"ids");
+                    for(long i=0;i<50;i++){
+                        set.Add(i);
+                        set.Add(i);
+                    }
+                    store.Save();
+                    for(long i=50;i<80;i++){
+                        set.Add(i);
+                        set.Add(i);
+                    }
+                    var saved=store.Checkpoints.Count;
+                    Assert.Same(set,set.CompactSave());
+                    //ストア全体の保存が 1 回増え、重複が除かれている
+                    Assert.Equal(saved+1,store.Checkpoints.Count);
+                    Assert.Equal(80,set.GetLongCount());
+                    //ここで閉じる(改めて Save しない)
+                }
+                using(var store=CommonStore.Open(directory)){
+                    var set=PersistedExtensions.CreatePersistedSet<long>(store,"ids");
+                    Assert.Equal(80,set.GetLongCount());
+                    Assert.True(set.Contains(0));
+                    Assert.True(set.Contains(79));
+                }
+            }
+            {
+                var directory=Path.Combine(root,"dictionary");
+                using(var store=CommonStore.Open(directory)){
+                    var dictionary=PersistedExtensions.CreatePersistedDictionary<string,int>(store,"names");
+                    dictionary.Add("a",1);
+                    store.Save();
+                    dictionary.Add("a",10);
+                    dictionary.Add("b",2);
+                    dictionary.CompactSave();
+                }
+                using(var store=CommonStore.Open(directory)){
+                    var dictionary=PersistedExtensions.CreatePersistedDictionary<string,int>(store,"names");
+                    Assert.Equal(2,dictionary.Count);
+                    Assert.Equal(10,dictionary["a"]);
+                    Assert.Equal(2,dictionary["b"]);
+                }
+            }
+            {
+                //単独で作った集合では、共通ストアは無いので、その集合だけをコミットする
+                var path=Path.Combine(root,"standalone.dat");
+                using var set=new global::Seamless.Collections.Persisted.Set<long>(path);
+                set.Add(3);
+                set.Add(3);
+                set.Add(4);
+                Assert.Same(set,set.CompactSave());
+                Assert.Equal(2,set.GetLongCount());
+            }
+        }finally{Directory.Delete(root,true);}
+    }
 }

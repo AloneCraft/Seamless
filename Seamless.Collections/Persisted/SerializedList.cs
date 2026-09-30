@@ -522,19 +522,18 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
         this.indexAccessor.Write(this.GetIndexOffset(index),recordOffset);
     }
 
+    // 保存(Commit)済みの部分は連続している。保存後に追記した未確定の部分は、強制終了でファイルへ書き戻された順序が歯抜けになりうるので、
+    // 最初の未使用エントリまでを数える。それより先の有効に見えるエントリは未確定なので、RollbackTo が保存済みの件数へ戻すときに捨てる。
+    // 保存済みの部分に歯抜けがあれば、数えた件数が保存済みの件数より少なくなり、RollbackTo が拒否する。
     private long LoadCount() {
         var count = 0L;
-        var foundUnused = false;
         for(var index = 0L;index<this.Capacity;index++) {
             var recordOffset = this.ReadIndexUnchecked(index);
             if(recordOffset==UnusedIndex) {
-                foundUnused=true;
-                continue;
+                break;
             }
             if(recordOffset<0)
                 throw new InvalidDataException("The managed list index file contains an invalid offset.");
-            if(foundUnused)
-                throw new InvalidDataException("The managed list index file contains a gap between live entries.");
             count++;
         }
         return count;
@@ -544,8 +543,15 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
         var dataLength = 0L;
         for(var index = 0L;index<this.Count;index++) {
             var recordOffset = this.ReadIndexUnchecked(index);
-            var recordLength = this.ReadRecordLength(recordOffset,this.DataCapacity);
-            var recordEnd = checked(recordOffset+sizeof(int)+(long)recordLength);
+            long recordEnd;
+            try {
+                var recordLength = this.ReadRecordLength(recordOffset,this.DataCapacity);
+                recordEnd=checked(recordOffset+sizeof(int)+(long)recordLength);
+            } catch(InvalidDataException) {
+                // 保存後に追記した未確定の記録は、強制終了で壊れうる。壊れた記録から先は未確定として数えない(保存済みの部分なら RollbackTo が拒否する)。
+                this.Count=index;
+                break;
+            }
             if(recordEnd>dataLength)
                 dataLength=recordEnd;
         }

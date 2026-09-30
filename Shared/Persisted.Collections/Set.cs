@@ -53,7 +53,7 @@ public class Set {
             set.Add(new ManagedStruct { Name="alpha" });
             set.Add(new ManagedStruct { Name="alpha" });
 
-            set.Compact();
+            set.CompactSave();
 
             global::Seamless.Collections.ISet<ManagedStruct> contract = set;
             Assert.Equal(2,contract.Count);
@@ -78,7 +78,7 @@ public class Set {
             set.Add(1);
             set.Add(3);
 
-            set.Compact();
+            set.CompactSave();
 
             global::Seamless.Collections.ISet<int> contract = set;
             Assert.Equal(3,contract.Count);

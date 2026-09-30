@@ -303,7 +303,7 @@ public class StoreCheckpoint {
             if(this.ShouldFail) {
                 // Complete the callback with an error code to simulate device failure.
                 const uint ERROR_CODE = 0xFFFFFFFF;
-                callback(ERROR_CODE,numBytesToWrite,callbackContext);
+                callback(ERROR_CODE,numBytesToWrite,callbackContext,null);
                 return;
             }
 
@@ -317,7 +317,7 @@ public class StoreCheckpoint {
         public override void ReadAsync(int segmentId,ulong sourceAddress,IntPtr destinationAddress,uint readLength,DeviceIOCompletionCallback callback,object callbackContext) {
             if(this.ShouldFail) {
                 const uint ERROR_CODE = 0xFFFFFFFF;
-                callback(ERROR_CODE,readLength,callbackContext);
+                callback(ERROR_CODE,readLength,callbackContext,null);
                 return;
             }
 
@@ -381,5 +381,123 @@ public class StoreCheckpoint {
             Assert.Equal("two",dict[2]);
             Assert.False(dict.ContainsKey(99));
         }
+    }
+    [BenchFact, Benchmark]
+    public void Flush_AfterSave_DataPersistsAndRestores() {
+        var folder = CreateFolder();
+        var checkpointDir = folder+"_checkpoint";
+        Guid token;
+        {
+            using var logDevice = Devices.CreateLogDevice(folder);
+            using var objDevice = Devices.CreateLogDevice(folder+"_obj");
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,int>(logDevice,objDevice);
+            using var set = store.Create();
+            set[1]=11;
+            set[2]=22;
+            // 保存する前は書き出すチェックポイントが無い(ログのデバイスのファイルだけ)。失敗しない。
+            store.Flush();
+            token=store.Save();
+            // デバイスが開いたままでも書き出せる。書き出したあとに続けて呼んでも失敗しない。
+            store.Flush();
+            store.Flush();
+        }
+        {
+            using var logDevice = Devices.CreateLogDevice(folder);
+            using var objDevice = Devices.CreateLogDevice(folder+"_obj");
+            using var store = Store.Create(CheckpointDir: checkpointDir).Create<int,int>(logDevice,objDevice);
+            store.Load(token);
+            using var set = store.Create();
+            Assert.True(set.Contains(1));
+            Assert.True(set.Contains(2));
+            Assert.False(set.Contains(99));
+        }
+    }
+    // ログの末尾がページの境界ちょうどで、メモリのバッファが満杯になるまで 1 件ずつ追加する。
+    // Garnet 2.0.1-beta.6 以降(2.1.8 でも確認)の素の復元は、この状態で保存したチェックポイントで先頭ページの内容を失う(CollectionStore.RecoverWithSizeTrackerAsync で防ぐ)。
+    private static long AddUntilTailAtPageBoundaryWithFullBuffer(HashSetStore<long> store,global::Seamless.Collections.Tsavorite.HashSet<long> set) {
+        const long pageSize = 4096;
+        const long memorySize = 65536;
+        long count = 0;
+        while(true) {
+            set.Add(count++);
+            var tail = store.Store.Log.TailAddress;
+            if(tail%pageSize==0&&tail>=memorySize) {
+                return count;
+            }
+            Assert.True(count<100_000,"ログの末尾がページ境界に来なかった");
+        }
+    }
+    [BenchFact, Benchmark]
+    public void Save_TailAtPageBoundary_DataPersistsAndRestores() {
+        var folder = CreateFolder();
+        var checkpointDir = folder+"_checkpoint";
+        long count;
+        Guid token;
+        {
+            using var logDevice = Devices.CreateLogDevice(folder);
+            using var objDevice = Devices.CreateLogDevice(folder+"_obj");
+            using var store = Store.Create(MemorySize: 65536,PageSize: 4096,SegmentSize: 1<<20,CheckpointDir: checkpointDir).Create<long>(logDevice,objDevice);
+            using var set = store.Create();
+            count=AddUntilTailAtPageBoundaryWithFullBuffer(store,set);
+            token=store.Save();
+        }
+        {
+            using var logDevice = Devices.CreateLogDevice(folder);
+            using var objDevice = Devices.CreateLogDevice(folder+"_obj");
+            using var store = Store.Create(MemorySize: 65536,PageSize: 4096,SegmentSize: 1<<20,CheckpointDir: checkpointDir).Create<long>(logDevice,objDevice);
+            store.Load(token);
+            using var set = store.Create();
+            var missing = Enumerable.Range(0,(int)count).Count(i => !set.Contains(i));
+            Assert.Equal(0,missing);
+        }
+    }
+    [BenchFact, Benchmark]
+    public void Load_ReopenedWithSmallerMemory_DataPersistsAndRestores() {
+        var folder = CreateFolder();
+        var checkpointDir = folder+"_checkpoint";
+        Guid token;
+        {
+            using var logDevice = Devices.CreateLogDevice(folder);
+            using var objDevice = Devices.CreateLogDevice(folder+"_obj");
+            using var store = Store.Create(MemorySize: 65536,PageSize: 4096,SegmentSize: 1<<20,CheckpointDir: checkpointDir).Create<long>(logDevice,objDevice);
+            using var set = store.Create();
+            // 16 ページのバッファが満杯になるまで追加して保存する(境界は避ける)。
+            for(long i = 0;i<2100;i++) {
+                set.Add(i);
+            }
+            token=store.Save();
+        }
+        {
+            // 保存時の半分のメモリで開き直しても、すべて復元できる。Garnet 2.1.8 の素の復元は 8 ページ分の内容を失う(2.0.1-beta.5 は失わない)。
+            using var logDevice = Devices.CreateLogDevice(folder);
+            using var objDevice = Devices.CreateLogDevice(folder+"_obj");
+            using var store = Store.Create(MemorySize: 32768,PageSize: 4096,SegmentSize: 1<<20,CheckpointDir: checkpointDir).Create<long>(logDevice,objDevice);
+            store.Load(token);
+            using var set = store.Create();
+            Assert.Equal(0,Enumerable.Range(0,2100).Count(i => !set.Contains(i)));
+        }
+        {
+            // 同じメモリで開き直せば、すべて復元できる。
+            using var logDevice = Devices.CreateLogDevice(folder);
+            using var objDevice = Devices.CreateLogDevice(folder+"_obj");
+            using var store = Store.Create(MemorySize: 65536,PageSize: 4096,SegmentSize: 1<<20,CheckpointDir: checkpointDir).Create<long>(logDevice,objDevice);
+            store.Load(token);
+            using var set = store.Create();
+            Assert.Equal(0,Enumerable.Range(0,2100).Count(i => !set.Contains(i)));
+        }
+    }
+    [BenchFact]
+    public void Flush_MemoryStore_DoesNothing() {
+        using var store = Store.Create().Create<int>();
+        using var set = store.Create();
+        set.Add(1);
+        // ディスクを使わないストアには書き出すものが無い。
+        store.Flush();
+    }
+    [BenchFact]
+    public void Flush_Disposed_ThrowsObjectDisposedException() {
+        var store = Store.Create().Create<int>();
+        store.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => store.Flush());
     }
 }

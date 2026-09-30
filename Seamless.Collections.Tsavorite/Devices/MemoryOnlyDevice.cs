@@ -15,7 +15,7 @@ public sealed class MemoryOnlyDevice(long Capacity,byte[]? BackingBuffer = null)
             throw new IOException(nameof(destinationAddress));
         }
         Marshal.Copy(this.buffer,checked((int)sourceAddress),destinationAddress,checked((int)readLength));
-        callback?.Invoke(0,readLength,context);
+        callback?.Invoke(0,readLength,context,null);
     }
     public override void Dispose() {
         this.disposed=true;
@@ -37,7 +37,7 @@ public sealed class MemoryOnlyDevice(long Capacity,byte[]? BackingBuffer = null)
             throw new OutOfMemoryException(nameof(sourceAddress));
         }
         Marshal.Copy(sourceAddress,this.buffer,checked((int)destinationAddress),checked((int)numBytesToWrite));
-        callback?.Invoke(0,numBytesToWrite,context);
+        callback?.Invoke(0,numBytesToWrite,context,null);
     }
     /// <summary>
     /// HandCapacity を超える書き込み要求があった場合に呼び出される。セグメントに属するページをすべて解放し、確保量を減算する。

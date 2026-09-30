@@ -80,6 +80,8 @@ internal sealed class HashStore<T,TSerializer>:IStoreComponent where TSerializer
         var snapshot=this.snapshots.Capture([this.Records.Path,this.Records.IndexPath]);
         return JsonSerializer.Serialize(new Saved(Format,this.kind,this.comparerId,snapshot,state));
     }
+    // Save(Commit とスナップショットの書き出し)が既にディスクへ確実に書き出しているので、ここですることは無い。
+    public void Flush(){}
     public void Load(string state){
         ObjectDisposedException.ThrowIf(this.disposed,this);
         var saved=this.Validate(state);

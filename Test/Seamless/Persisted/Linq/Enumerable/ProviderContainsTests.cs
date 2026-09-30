@@ -18,7 +18,7 @@ public sealed class ProviderContainsTests {
             foreach(var value in new[] { 1,2,3,4 }) {
                 set.Add(value);
             }
-            set.Compact();
+            set.CompactSave();
 
             {
                 //根が provider のとき、集合自身の O(1) lookup で存在を返すテスト
@@ -46,7 +46,7 @@ public sealed class ProviderContainsTests {
             foreach(var value in new[] { 1,2,3,4 }) {
                 set.Add(value);
             }
-            set.Compact();
+            set.CompactSave();
 
             {
                 //comparer 指定時は集合自身の等価ではなく comparer が使われるテスト

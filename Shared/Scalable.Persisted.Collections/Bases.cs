@@ -75,7 +75,7 @@ public abstract class PersistedSetScalable<TProvider, T>
         foreach(var value in GetSharedValues<PersistedSetScalable<TProvider,T>,T>(count,static index => TProvider.Create(index))) {
             set.Add(value);
         }
-        set.Compact();
+        set.CompactSave();
         ScalablePath.RegisterProcessCleanup(path,set);
         return set;
     }
@@ -259,7 +259,7 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider, TKey, TVal
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(TryGetValue));
         var dictionary = global::Seamless.Collections.Persisted.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: initial,InitialDataCapacity: data);
         AddRange(dictionary,count);
-        dictionary.Compact();
+        dictionary.CompactSave();
         ScalablePath.RegisterProcessCleanup(path,dictionary);
         return dictionary;
     }
@@ -344,7 +344,7 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider, TKey, TVa
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(TryGetValue));
         var dictionary = global::Seamless.Collections.Persisted.Store.CreateDictionary<TKey,TValue>(path,InitialCapacity: initial,InitialDataCapacity: data);
         AddRange(dictionary,count);
-        dictionary.Compact();
+        dictionary.CompactSave();
         ScalablePath.RegisterProcessCleanup(path,dictionary);
         return dictionary;
     }

@@ -225,6 +225,8 @@ internal sealed class SortedWorkData<T,TKey>:IStoreComponent,IPersistedStorageQu
         var snapshot=this.snapshots.Capture([this.records.Path,this.records.IndexPath,this.index.Path]);
         return JsonSerializer.Serialize(new SavedState("sorted-work-v1",this.kind,typeof(T).AssemblyQualifiedName!,this.comparisonId,snapshot,state,this.ready,this.count));
     }
+    // Save(Commit と索引・スナップショットの書き出し)が既にディスクへ確実に書き出しているので、ここですることは無い。
+    public void Flush(){}
     public void Load(string state){
         this.Check();
         var saved=this.Parse(state);

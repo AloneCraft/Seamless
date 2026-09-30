@@ -13,7 +13,7 @@ public sealed class IEnumerableRootTests {
             using var set=global::Seamless.Collections.Persisted.Store.CreateSet<int>(path,InitialCapacity:1,InitialDataCapacity:128);
             foreach(var value in new[]{1,2,3,4})
                 set.Add(value);
-            set.Compact();
+            set.CompactSave();
             source=set;
 
             Assert.Equal(2,CountEvenImpl());
@@ -46,7 +46,7 @@ public sealed class IEnumerableRootTests {
             const int count=2000;
             for(var i=1;i<=count;i++)
                 set.Add(i);
-            set.Compact();
+            set.CompactSave();
             source=set;
 
             for(var i=0;i<5;i++) {
@@ -127,7 +127,7 @@ public sealed class IEnumerableRootTests {
                 for(var i=1;i<=count;i++)
                     set.Add(i);
                 if(compact)
-                    set.Compact();
+                    set.CompactSave();
                 source=set;
 
                 for(var i=0;i<5;i++) {
@@ -163,7 +163,7 @@ public sealed class IEnumerableRootTests {
                 for(var i=1;i<=count;i++)
                     set.Add(new ClassInt32{Value=i});
                 if(compact)
-                    set.Compact();
+                    set.CompactSave();
                 classSource=set;
 
                 for(var i=0;i<5;i++) {

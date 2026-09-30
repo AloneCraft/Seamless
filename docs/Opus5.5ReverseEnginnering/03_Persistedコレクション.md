@@ -29,8 +29,7 @@ Persisted は「LINQ と DB の一時退避・中間結果を置く、内部の�
 ```csharp
 var ids=store.CreatePersistedSet<long>("ids");
 ids.Add(2);          // 追記。重複はここでは除かない
-ids.Compact();       // 並べ替えて重複を除く。ここから正確な件数を得る
-store.Save();
+ids.CompactSave();   // 並べ替えて重複を除き、そのまま保存する(ストア全体の Save が1回入る)。ここから正確な件数を得る
 ```
 
 | 機能 | 内容 | 状態 | 根拠 |
@@ -55,11 +54,13 @@ store.Save();
 3. **保存されていない状態は確定していない。** 保存済み状態が無い名前でストアから作ると、前回の書きかけのファイルを消して新しく始める（`StoreExtensions.cs:30-38`）。
 4. **保存後の追加は、開き直すと捨てられる。索引も保存時点へ戻る**（`Test/Seamless/Persisted/StoreExtensions.cs:30`）。
 5. **ディスク上限を超えてファイルを伸ばすと `ResourceLimitException`。それまでの要素は読める**（同 `:52`）。
-6. **Set の `Add` は追記だけで重複を除かない。`Count`/`GetLongCount()` は `Compact()` 前は重複を含む追記件数である**（`Set.cs:20-24`）。正確な件数が必要なときは `Compact()` の後で求める（決定9）。
+6. **Set の `Add` は追記だけで重複を除かない。`Count`/`GetLongCount()` は `CompactSave()` 前は重複を含む追記件数である**（`Set.cs:20-24`）。正確な件数が必要なときは `CompactSave()` の後で求める（決定9）。
 7. **`Contains` は保存済みのバイト列の一致で判定する**（`Set.cs:79` 以降、`SerializedSet` の索引）。
 8. **書き込みは1スレッド。内部ロックは持たない**（決定9）。
 9. **Tsavorite と同じストアに作り、1回の `Save()` でまとめて確定できる**（`Test/Seamless/Persisted/StoreExtensions.cs:71`）。
 10. **スコープ所有の資源（`ScopedByteIndex`・`ScopedStoredSequence`）は `ExecutionScope` が所有し、スコープ破棄後は使えない**（`docs/execution-and-database.md`「ExecutionScope」）。
+11. **`Save()`（`Commit()` とスナップショットの書き出し）が既にディスクへ確実に書き出すので、`IStoreComponent.Flush()` は何もしない。** 共通ストアが全子資源の `Flush()` をまとめて呼ぶ（`docs/Opus5.5ReverseEnginnering/01`）恩恵は、Persisted にはまだ無い（`Commit()` を「書き込み」と「強制書き出し」に分けていない）。
+12. **可変長リストの索引・データファイルは、保存後に追記した未確定の部分が壊れていても開ける。** 強制終了では、保存(`Commit`)後に追記した部分の書き戻しの順序が歯抜けになりうるので、構築時は最初の未使用エントリまでを数え(`LoadCount`)、壊れた記録から先は未確定として数えない(`LoadDataLength`)。保存済みの状態へ戻す `RollbackTo` が、数えた件数が保存済みの件数より少なければ拒否する(保存済みの部分の破損は検出される)。【記録】2026-09-30 の強制終了ハーネス(Persisted の辞書を含む)で、開く時点の `InvalidDataException("...gap between live entries")` を確認して直した(単体テスト `PersistedList.RollbackTo`)。保存(コミット)状態を持たない `AppendOnlyList` は、末尾が壊れていれば例外のまま。
 
 ## 2. 禁止事項
 

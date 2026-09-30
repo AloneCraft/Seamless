@@ -21,5 +21,12 @@ public sealed record StoreLimits{
 public interface IStoreComponent:IDisposable{
     string Name{get;}
     string Save();
+    /// <summary>
+    /// <see cref="Save"/> が書いた内容を、電源断でも残るようディスクへ確実に書き出す。
+    /// ストアは永続ストアの保存で、全子資源の <see cref="Save"/> が終わってからマニフェストを書く前に 1 回呼ぶ
+    /// (マニフェストが指す先のデータを先に確実にするため。全子資源の書き出しがまとまり、OS の書き出しも並行して進む)。
+    /// <see cref="Save"/> の中で既に確実に書き出している子資源は何もしなくてよい。
+    /// </summary>
+    void Flush();
     void Load(string state);
 }

@@ -268,7 +268,7 @@ public abstract class ListTestBase<TStrategy, T>
                             set.Add(TStrategy.Elem(index));
                         }
                         set.Add(TStrategy.Elem(1));
-                        set.Compact();
+                        set.CompactSave();
                         Assert.Equal(48,set.GetLongCount());
                         for(var index = 1;index<=48;index++) {
                             Assert.True(set.Contains(TStrategy.Elem(index)));
@@ -313,7 +313,7 @@ public abstract class ListTestBase<TStrategy, T>
 
             set.Add(TStrategy.Elem(1));
             set.Add(TStrategy.Elem(2));
-            set.Compact();
+            set.CompactSave();
 
             Assert.True(set.Contains(TStrategy.Elem(1)));
             Assert.True(set.Contains(TStrategy.Elem(2)));

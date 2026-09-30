@@ -124,7 +124,7 @@ public readonly struct Store {
         return false;
     }
 
-    private static IEnumerable<string> EnumerateCheckpointIndexMetadataPaths(string checkpointDir,Guid? token) {
+    internal static IEnumerable<string> EnumerateCheckpointIndexMetadataPaths(string checkpointDir,Guid? token) {
         if(token is Guid checkpointToken) {
             yield return GetCheckpointIndexMetadataPath(checkpointDir,checkpointToken);
         }

@@ -243,13 +243,13 @@ public readonly struct Upsert<TValue, TStrategy>:
         return new() { KeySize=key.KeyBytes.Length,ValueSize=inputLogRecord.DataHeader.ValueIsObject ? ObjectIdMap.ObjectIdSize : inputLogRecord.ValueSpan.Length,ValueIsObject=inputLogRecord.DataHeader.ValueIsObject };
     }
 
-    public void BeforeConsistentReadCallback(long hash) {
+    public void PreSingleKeyConsistentRead(long hash) {
     }
-    public void AfterConsistentReadKeyCallback() {
+    public void PostSingleKeyConsistentReadCallback() {
     }
-    public void BeforeConsistentReadKeyBatchCallback(ReadOnlySpan<PinnedSpanByte> parameters) {
+    public void PreBatchKeyConsistentReadCallback(ReadOnlySpan<PinnedSpanByte> parameters) {
     }
-    public bool AfterConsistentReadKeyBatchCallback(int keyCount) {
+    public bool PostBatchKeyConsistentReadCallback(int keyCount) {
         return true;
     }
     public void ConvertOutputToHeap(ref TValue input,ref bool output) {

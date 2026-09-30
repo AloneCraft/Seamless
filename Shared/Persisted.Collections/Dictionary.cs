@@ -69,7 +69,7 @@ public sealed class Dictionary {
             expected[i%8]=i;
         }
 
-        actual.Compact();
+        actual.CompactSave();
 
         Assert.Equal(expected.Count,actual.Count);
         Assert.True(actual.ContainsKey(3));

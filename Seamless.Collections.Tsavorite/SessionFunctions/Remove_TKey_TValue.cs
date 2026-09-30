@@ -205,13 +205,13 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
         // Upsert 経路はこの処理では使用しない。
         throw new NotSupportedException();
     }
-    public void BeforeConsistentReadCallback(long hash) {
+    public void PreSingleKeyConsistentRead(long hash) {
     }
-    public void AfterConsistentReadKeyCallback() {
+    public void PostSingleKeyConsistentReadCallback() {
     }
-    public void BeforeConsistentReadKeyBatchCallback(ReadOnlySpan<PinnedSpanByte> parameters) {
+    public void PreBatchKeyConsistentReadCallback(ReadOnlySpan<PinnedSpanByte> parameters) {
     }
-    public bool AfterConsistentReadKeyBatchCallback(int keyCount) {
+    public bool PostBatchKeyConsistentReadCallback(int keyCount) {
         return true;
     }
     public void ConvertOutputToHeap(ref EqualityEmpty input,ref TValue output) {

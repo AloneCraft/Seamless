@@ -34,6 +34,98 @@ public class PersistedList{
         }
     }
 
+    [Fact,Trait("Category","Unit")]public void RollbackTo(){
+        var directory=Path.Combine(Path.GetTempPath(),"seamless-rollback-persisted-"+Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try{
+            foreach(var mode in new[]{StorageBufferingMode.Buffered,StorageBufferingMode.Unbuffered}){
+                if(mode==StorageBufferingMode.Unbuffered&&!OperatingSystem.IsWindows()){
+                    continue;
+                }
+                var tuning=new StorageTuning(FileAccess.ReadWrite,StorageAccessPattern.Random,mode);
+                {
+                    //強制終了で、保存(Commit)後に追記した未確定部分の索引が歯抜けになっても開ける。保存済みの状態へ戻せて、その後の追記も正しい
+                    var path=Path.Combine(directory,mode+".gap.dat");
+                    PersistedCommitState state;
+                    using(var list=new global::Seamless.Collections.SerializedList<string>(path,tuning:tuning)){
+                        for(var i=0;i<10;i++){
+                            list.Add("committed-"+i);
+                        }
+                        state=list.Commit();
+                        for(var i=10;i<20;i++){
+                            list.Add("uncommitted-"+i);
+                        }
+                    }
+                    TearIndexEntry(path+".index",15);
+                    using(var reopened=new global::Seamless.Collections.SerializedList<string>(path,tuning:tuning)){
+                        reopened.RollbackTo(state);
+                        Assert.Equal(10,reopened.Count);
+                        for(var i=0;i<10;i++){
+                            Assert.Equal("committed-"+i,reopened[i]);
+                        }
+                        reopened.Add("after");
+                        Assert.Equal(11,reopened.Count);
+                        Assert.Equal("after",reopened[10]);
+                    }
+                }
+                {
+                    //保存後に追記した未確定の記録の長さが壊れていても(強制終了で本体が書き戻される前後が食い違う)、開けて、保存済みの状態へ戻せる
+                    var path=Path.Combine(directory,mode+".torn-record.dat");
+                    PersistedCommitState state;
+                    using(var list=new global::Seamless.Collections.SerializedList<string>(path,tuning:tuning)){
+                        for(var i=0;i<10;i++){
+                            list.Add("committed-"+i);
+                        }
+                        state=list.Commit();
+                        for(var i=10;i<20;i++){
+                            list.Add("uncommitted-"+i);
+                        }
+                    }
+                    TearRecordLength(path,path+".index",13);
+                    using var reopened=new global::Seamless.Collections.SerializedList<string>(path,tuning:tuning);
+                    reopened.RollbackTo(state);
+                    Assert.Equal(10,reopened.Count);
+                    Assert.Equal("committed-9",reopened[9]);
+                }
+                {
+                    //歯抜けが保存済みの部分にあるときは、保存済みの状態へ戻せないので RollbackTo が拒否する
+                    var path=Path.Combine(directory,mode+".committed-gap.dat");
+                    PersistedCommitState state;
+                    using(var list=new global::Seamless.Collections.SerializedList<string>(path,tuning:tuning)){
+                        for(var i=0;i<10;i++){
+                            list.Add("committed-"+i);
+                        }
+                        state=list.Commit();
+                    }
+                    TearIndexEntry(path+".index",5);
+                    using var reopened=new global::Seamless.Collections.SerializedList<string>(path,tuning:tuning);
+                    Assert.Throws<InvalidDataException>(()=>reopened.RollbackTo(state));
+                }
+            }
+        }finally{
+            Directory.Delete(directory,true);
+        }
+    }
+    //entry 番目の記録の長さを、ファイルの範囲を超える値に書き換える。
+    private static void TearRecordLength(string dataPath,string indexPath,int entry){
+        long recordOffset;
+        using(var index=File.Open(indexPath,FileMode.Open,FileAccess.Read,FileShare.None)){
+            index.Position=(long)entry*sizeof(long);
+            var bytes=new byte[sizeof(long)];
+            index.ReadExactly(bytes);
+            recordOffset=BitConverter.ToInt64(bytes);
+        }
+        using var data=File.Open(dataPath,FileMode.Open,FileAccess.ReadWrite,FileShare.None);
+        data.Position=recordOffset;
+        data.Write(BitConverter.GetBytes(int.MaxValue));
+    }
+    //索引ファイルの entry 番目を未使用(-1)にして、前後に有効なエントリがある歯抜けにする。
+    private static void TearIndexEntry(string indexPath,int entry){
+        using var stream=File.Open(indexPath,FileMode.Open,FileAccess.ReadWrite,FileShare.None);
+        stream.Position=(long)entry*sizeof(long);
+        stream.Write(BitConverter.GetBytes(-1L));
+    }
+
     [Fact,Trait("Category","Unit")]public void Remove(){
         var directory=Path.Combine(Path.GetTempPath(),"seamless-persistedlist-tests",Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
