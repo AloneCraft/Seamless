@@ -25,7 +25,7 @@ OrderingBase は OrderBy/ThenBy 系を、全件 buffer + stable sort + buffer en
   - source が既に OrderingBase の場合、一次 key と二次 key を SortItem に同居させる。
   - originalIndex を最後に比較し、System.Linq と同じ安定ソートの結果にする。
 */
-internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer,bool descending):Enumerable(番号) {
+internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer,bool descending,bool isThenBy = false):Enumerable(番号) {
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -50,13 +50,25 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
     internal bool OwnDescending => descending;
     internal Enumerable OwnSource => source;
 
-    // source が OrderingBase の場合、その一次ソートを取得
-    private OrderingBase? PrimaryOrdering => source as OrderingBase;
-    // ソート前の元データソース（OrderingBase チェーンを遡る）
+    internal bool OwnIsThenBy => isThenBy;
+
+    // ThenBy のとき、直前の順序段(OrderBy/ThenBy)を取得する。一次キーと二次キーを 1 回の並べ替えにまとめるための情報。
+    // OrderBy が OrderBy の後に来るのは ThenBy ではない: 後の OrderBy が主キーで、前の順序は「キーが等しいときの並び」として
+    // 残る(LINQ は安定ソート)。これを ThenBy と同じにまとめると主キーと副キーが逆になるので、通常のソースとして並べ替える。
+    private OrderingBase? PrimaryOrdering => isThenBy ? source as OrderingBase : null;
+    // ソート前の元データソース。ThenBy は、遡った先の最初の OrderBy(主キー)の入力までを 1 回の並べ替えにまとめる。
     private Enumerable UnorderedSource {
         get {
+            if(!isThenBy) {
+                return source;
+            }
             Enumerable s = source;
-            while(s is OrderingBase oo) s=oo.OwnSource;
+            while(s is OrderingBase oo) {
+                s=oo.OwnSource;
+                if(!oo.OwnIsThenBy) {
+                    break;
+                }
+            }
             return s;
         }
     }

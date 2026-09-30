@@ -103,7 +103,11 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
         : $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(ref TEnum source){
-            using var enumerator = source;
+            // Compute は列挙子を破棄しない。Count など他の終端と同じく、参照で渡された本体を持ち主
+            // (呼び出し元の finally、または終端 enumerator の Dispose)が 1 回だけ破棄する。
+            // ここで複製を作って破棄すると、コンストラクタでプール配列を借りる enumerator（OrderBy 等）が
+            // 呼び出し元の Dispose と二重 Return になり、後続の無関係なクエリのデータが壊れる。
+            ref var enumerator = ref source;
             if(enumerator.TryGetNonEnumeratedCount(out var __count)){
                 if(__count==0){
                     return global::System.Array.Empty<{{source.ElementType}}>();
@@ -175,5 +179,5 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
             }
         }
         """;
-    protected override string GetEnumeratorDisposeBody => string.Empty;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }

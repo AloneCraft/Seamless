@@ -83,20 +83,22 @@ internal abstract class SetBase(int 番号,Enumerable source,Enumerable second,s
             current=default!;
             return false;
             """ : $$"""
-            while(source.TryGetNext(out var {{this.item}})){
-                if(this.{{this.lookup}}.{{operation.SourceAcceptMethod}}({{this.item}})){
-                    current=this.{{this.currentValue}}={{this.item}};
-                    return true;
-                }
-            }
+            // yielded は「source を使い切った」旗。second は次の呼び出しでも続きから読むので、旗は second の走査に入る前に
+            // 立ててはいけない(立てると、最初の未出要素を返した次の呼び出しで second の残りが読まれず、その後の要素が欠落する)。
             if(!this.{{this.yielded}}){
-                this.{{this.yielded}}=true;
-                while(second.TryGetNext(out var {{this.item}})){
-                    var value=({{source.ElementType}})(object?){{this.item}}!;
-                    if(this.{{this.lookup}}.Add(value)){
-                        current=this.{{this.currentValue}}=value;
+                while(source.TryGetNext(out var {{this.item}})){
+                    if(this.{{this.lookup}}.{{operation.SourceAcceptMethod}}({{this.item}})){
+                        current=this.{{this.currentValue}}={{this.item}};
                         return true;
                     }
+                }
+                this.{{this.yielded}}=true;
+            }
+            while(second.TryGetNext(out var {{this.item}})){
+                var value=({{source.ElementType}})(object?){{this.item}}!;
+                if(this.{{this.lookup}}.Add(value)){
+                    current=this.{{this.currentValue}}=value;
+                    return true;
                 }
             }
             current=default!;
@@ -452,24 +454,26 @@ internal abstract class SetByBase(int 番号,Enumerable source,Enumerable second
             current=default!;
             return false;
             """ : $$"""
-            while(source.TryGetNext(out var {{this.item}})){
-                {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),this.key,this.item)}}
-                if(this.{{this.lookup}}.{{operation.SourceAcceptMethod}}({{this.key}})){
-                    current=this.{{this.currentValue}}={{this.item}};
-                    return true;
-                }
-            }
+            // state は「source を使い切った」旗。second の走査に入る前に立てると、最初の未出要素を返した次の呼び出しで
+            // second の残りが読まれず欠落する。
             if(this.{{this.state}}==0){
-                this.{{this.state}}=1;
-                while(second.TryGetNext(out var {{this.temp}})){
-                    var {{this.item}}=({{source.ElementType}})(object?){{this.temp}}!;
+                while(source.TryGetNext(out var {{this.item}})){
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    if(this.{{this.lookup}}.Add({{this.key}})){
+                    if(this.{{this.lookup}}.{{operation.SourceAcceptMethod}}({{this.key}})){
                         current=this.{{this.currentValue}}={{this.item}};
                         return true;
                     }
+                }
+                this.{{this.state}}=1;
+            }
+            while(second.TryGetNext(out var {{this.temp}})){
+                var {{this.item}}=({{source.ElementType}})(object?){{this.temp}}!;
+                {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+                {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),this.key,this.item)}}
+                if(this.{{this.lookup}}.Add({{this.key}})){
+                    current=this.{{this.currentValue}}={{this.item}};
+                    return true;
                 }
             }
             current=default!;
@@ -489,19 +493,19 @@ internal abstract class SetByBase(int 番号,Enumerable source,Enumerable second
             current=default!;
             return false;
             """ : $$"""
-            while(source.TryGetNext(out var {{this.item}})){
-                if(this.{{this.lookup}}.{{operation.SourceAcceptMethod}}({{this.item}})){
-                    current=this.{{this.currentValue}}={{this.item}};
-                    return true;
-                }
-            }
             if(this.{{this.state}}==0){
-                this.{{this.state}}=1;
-                while(second.TryGetNext(out var {{this.temp}})){
-                    if(this.{{this.lookup}}.Add({{this.temp}})){
-                        current=this.{{this.currentValue}}={{this.temp}};
+                while(source.TryGetNext(out var {{this.item}})){
+                    if(this.{{this.lookup}}.{{operation.SourceAcceptMethod}}({{this.item}})){
+                        current=this.{{this.currentValue}}={{this.item}};
                         return true;
                     }
+                }
+                this.{{this.state}}=1;
+            }
+            while(second.TryGetNext(out var {{this.temp}})){
+                if(this.{{this.lookup}}.Add({{this.temp}})){
+                    current=this.{{this.currentValue}}={{this.temp}};
+                    return true;
                 }
             }
             current=default!;

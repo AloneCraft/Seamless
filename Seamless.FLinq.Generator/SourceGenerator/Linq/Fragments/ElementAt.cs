@@ -45,7 +45,7 @@ internal class ElementAt(int 番号,Enumerable source,string index,string result
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
                 var {{idx}}={{index}};
-                if((uint){{idx}}>=(uint){{count}}) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                if((uint){{idx}}>=(uint){{count}}) throw new global::System.ArgumentOutOfRangeException("index");
                 {{destVar}}={{start}} + {{idx}};
             }
             """;
@@ -123,7 +123,7 @@ internal class ElementAt_index(int 番号,Enumerable source,string index,string 
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
                 var {{idx}}=({{index}}).GetOffset({{count}});
-                if((uint){{idx}}>=(uint){{count}}) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                if((uint){{idx}}>=(uint){{count}}) throw new global::System.ArgumentOutOfRangeException("index");
                 {{destVar}}={{start}} + {{idx}};
             }
             """;

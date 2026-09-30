@@ -694,6 +694,11 @@ public sealed partial class FLinqIncrementalGenerator {
             or BaseExpressionSyntax) {
             return false;
         }
+        // -2 のような定数式(単項マイナス+リテラルなど)は巻き上げても得が無い。しかも Range の述語の閉形式などは、比較の相手を
+        // 巻き上げ前の式として読み直すので、定義していない __hoistN を参照する不正なコードになる(CS0103)。
+        if(semanticModel.GetConstantValue(expression).HasValue) {
+            return false;
+        }
         if(expression is IdentifierNameSyntax identifier) {
             if(symbolInfo.Symbol is INamespaceOrTypeSymbol or IMethodSymbol
                 ||symbolInfo.CandidateSymbols.Any(symbol => symbol is INamespaceOrTypeSymbol or IMethodSymbol)) {

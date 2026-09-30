@@ -1030,6 +1030,27 @@ flowchart TD
 
 `Join.GroupBy` のように Fragment-backed stage を含む chain は、現状では boundary で一度 Pipeline を flush し、次の Fragment または buffering stage へ渡す。
 
+#### GroupBy の後ろの順序段(OrderBy/ThenBy)と、順序段を含む連鎖の不変条件
+
+`GroupBy` のループ(`BuildGroupByLoop`)は、グループを溜めた直後に後続の順序段でグループ列をソートしてから残りの段を流す。融合できるのは次の形だけで、それ以外は `ValidateStageCombination` が拒否し、その連鎖は最適化しない(System.Linq のまま。呼び出し単位では Fragment ごとに展開される)。
+
+- 順序段は `GroupBy` より後ろにあり、`OrderBy` は 1 つで、その直後に `ThenBy` が続いてよい。`GroupBy` の間から順序段までに置けるのは `Where`(位置を使わないもの)だけ。`Select`/`Take`/`Skip`/`TakeWhile` などを挟むと、順序段のキー選択子が別の型・別の並びの値に適用される。
+- `GroupBy` より前に順序段があると、グループ内の要素順とグループの出現順が変わるので融合しない。
+- グループのソートは安定にする。キーが等しいグループは出現順のままにする(System.Linq の `OrderBy` は安定ソート)。`List<T>.Sort` は不安定なのでインデックスで整列する。
+- `OrderBy` を重ねた連鎖(`OrderBy(a).OrderBy(b)`)は Pipeline では融合しない。後の `OrderBy` が主キーで、前の順序は「キーが等しいときの並び」として残るので、後の `OrderBy` だけで並べると結果が変わる。Fragment 経路(`OrderingBase`)でも、直前の順序段と 1 回の並べ替えにまとめるのは `ThenBy` だけ(`isThenBy`)。`OrderBy` の後の `OrderBy` は、前の並べ替え結果を通常のソースとして安定ソートする(`ThenBy` と同じにまとめると主キーと副キーが逆になる)。
+
+終端(`ToList`/`ToArray`)の `Compute(ref TEnum source)` は列挙子を破棄しない。参照で渡された本体を持ち主(呼び出し元の `try/finally`、または終端 enumerator の `Dispose`)が 1 回だけ破棄する。`Compute` の中で列挙子の複製を作って破棄すると、コンストラクタでプール配列を借りる列挙子(OrderBy 等)は呼び出し元の `Dispose` との二重 Return になり、`ArrayPool` が同じ配列を 2 回貸し出して後続の無関係なクエリのデータが壊れる。回帰テストは `Test/System/Linq/Intercept/GroupByOrder.cs`、`ScalarTerminalDisposeSemantics.cs`。
+
+そのほかの不変条件(2026-09-30 の差分ファズで確認して固定。回帰テストは `Test/System/Linq/Intercept/` の同名テスト):
+
+- **件数の引数の序数**は Take/Skip/SkipLast/TakeLast の4種を同じ順に数える(`CountOrdinal`)。Take/Skip だけを数えると、TakeLast/SkipLast の後ろの Take/Skip が前の段の件数を読む。
+- **`TryGetSpan`/`TryCopyTo`/`TryGetNonEnumeratedCount` の答えは列挙の途中で変えない**(特に「span を出す/出さない」)。消費側(Reverse など)は最初の判定で経路を決め、あとから引き直さない。pipeline 版 `DefaultIfEmpty` は要素または既定値を 1 つ返したあとは span を出さない。
+- **列挙子は使い切ったあとも `TryGetNext`/`MoveNext` が false を返し続ける**。`Chunk` の列挙子は「source を使い切った」旗を持ち、端数の最後のチャンクを返したあとに source を読み直さない。Tsavorite の `Collection.Enumerator` は使い切ったら `Count` も 0 に戻す(戻さないと最後のチャンクを読み直して無限ループになる)。
+- **終端の意味を System.Linq に合わせる**: `ToDictionary` は重複キーで `ArgumentException`(インデクサ代入で黙って上書きしない)、`Take(Range)` は範囲が件数を超えても例外にせず `[0, 件数]` へ切り詰める(`GeneratedCodeHelpers.GetClampedOffsetAndLength`)。
+- **生成コードは呼び出し元のメソッドの中でそのまま書ける**: 呼び出し元に無い名前(`nameof(index)`、巻き上げていない `__hoistN`)や、値型に対する常に真/偽のパターン(`x is not int y`)、段をまたいで同じ名前の局所変数(`UnionBy` の second 側の key と次の段の key)を出さない。定数式は巻き上げない。
+
+`Union`/`UnionBy` の列挙子(`SetBases.cs`)は、`first` を使い切ったことを旗にし、`second` は使い切るまで毎回続きから読む。旗を `second` の走査に入る前に立てると、最初の未出要素を返した次の呼び出しで `second` の残りが読まれず欠落する(単独の融合ループにならない連鎖 = `Max`/`Average`/`Prepend`/`Append` などが続く場合に起きた)。回帰テストは `Test/System/Linq/Intercept/UnionSecondSource.cs`。
+
 ```mermaid
 flowchart LR
     A[outer.Where/Select Pipeline] --> B[flush as PipelineEnumerable]

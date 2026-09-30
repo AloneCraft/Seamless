@@ -78,8 +78,13 @@ internal abstract class BufferedScalar(int 番号,string resultType):Scalar(番�
         var call = this.ComputeExpression
             .Replace("Compute(",$"{this.EnumeratorTypeNameWithOuter(src.EnumeratorTypeName)}.Compute(")
             .Replace(this.e,srcVar);
-        return RenderOwnedEnumeratorComputation(destVar,destType,srcVar,srcExpr,call);
+        return RenderOwnedEnumeratorComputation(destVar,destType,srcVar,srcExpr,call,this.ComputeOwnsEnumerator);
     }
+
+    // true の終端は、Compute が渡された列挙子の複製を自分で破棄する(値渡しで受けたライブラリ関数が using で破棄する)。
+    // その場合に呼び出し元や終端 enumerator の Dispose でも本体を破棄すると、コンストラクタでプール配列を借りる列挙子(OrderBy 等)は
+    // 複製と本体が同じ配列を指すので二重 Return になり、後続の無関係なクエリのデータが壊れる。所有者は 1 人にする。
+    protected virtual bool ComputeOwnsEnumerator => false;
 
     protected string? RenderComputeInline(string destVar,string destType,params string[] extraArguments) {
         if(this.PrimarySource is not { } src) return null;
@@ -88,10 +93,16 @@ internal abstract class BufferedScalar(int 番号,string resultType):Scalar(番�
         var srcVar = $"__s{番号}";
         var extra = extraArguments.Length==0 ? string.Empty : ", "+string.Join(", ",extraArguments);
         var call = $"{this.EnumeratorTypeNameWithOuter(src.EnumeratorTypeName)}.Compute(ref {srcVar}{extra})";
-        return RenderOwnedEnumeratorComputation(destVar,destType,srcVar,srcExpr,call);
+        return RenderOwnedEnumeratorComputation(destVar,destType,srcVar,srcExpr,call,this.ComputeOwnsEnumerator);
     }
 
-    private static string RenderOwnedEnumeratorComputation(string destVar,string destType,string srcVar,string srcExpr,string call) => $$"""
+    private static string RenderOwnedEnumeratorComputation(string destVar,string destType,string srcVar,string srcExpr,string call,bool computeOwnsEnumerator) => computeOwnsEnumerator ? $$"""
+        {{destType}} {{destVar}};
+        {
+            var {{srcVar}}={{srcExpr}};
+            {{destVar}}={{call}};
+        }
+        """ : $$"""
         {{destType}} {{destVar}};
         {
             var {{srcVar}}={{srcExpr}};

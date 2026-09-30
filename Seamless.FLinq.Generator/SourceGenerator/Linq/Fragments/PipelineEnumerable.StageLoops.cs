@@ -43,57 +43,58 @@ internal sealed partial class PipelineEnumerable {
             builder.AppendLine($"        {this.GroupItemsName(groupByIndex)}.Add({resultName});");
             builder.AppendLine("    }");
         }
-        // GroupBy バッファ収集後、後続に OrderBy/ThenBy があればソートして融合する
+        // GroupBy バッファ収集後、後続に OrderBy/ThenBy があればソートして融合する。
+        // 順序段の並びと間に置ける段は PipelineBuilder.CanFuseGroupByThenOrder が保証する(順序段は GroupBy より後で連続し、間は Where だけ。OrderBy は 1 つ)。
         var orderAfterGroup = -1;
         for(var checkIdx = groupByIndex+1;checkIdx<stages.Count;checkIdx++) {
             if(stages[checkIdx].Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending) {
                 orderAfterGroup=checkIdx;
-                break;
             }
         }
         if(orderAfterGroup>=0) {
-            var primaryOrder = stages[orderAfterGroup];
-            var thenByIdx = orderAfterGroup+1<stages.Count
-                &&stages[orderAfterGroup+1].Kind is PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending
-                ? (int?)(orderAfterGroup+1) : null;
-            var primaryCmpLocal = this.OrderComparerLocalName(orderAfterGroup);
-            builder.AppendLine($"    var {primaryCmpLocal}={this.OrderComparerName(this.OrderComparerOrdinal(orderAfterGroup))} ?? global::System.Collections.Generic.Comparer<{ComparerKeyType(primaryOrder)}>.Default;");
-            if(thenByIdx.HasValue) {
-                var thenStage = stages[thenByIdx.Value];
-                var secondaryCmpLocal = this.OrderComparerLocalName(thenByIdx.Value);
-                builder.AppendLine($"    var {secondaryCmpLocal}={this.OrderComparerName(this.OrderComparerOrdinal(thenByIdx.Value))} ?? global::System.Collections.Generic.Comparer<{ComparerKeyType(thenStage)}>.Default;");
+            var keyStageIndexes = new List<int> { orderAfterGroup };
+            for(var thenIdx = orderAfterGroup+1;thenIdx<stages.Count&&stages[thenIdx].Kind is PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending;thenIdx++) {
+                keyStageIndexes.Add(thenIdx);
             }
-            builder.AppendLine($"    {this.GroupItemsName(groupByIndex)}.Sort((left,right) => {{");
-            var leftPrimKey = $"__lpk{orderAfterGroup}";
-            var rightPrimKey = $"__rpk{orderAfterGroup}";
-            builder.AppendLine($"        {ComparerKeyType(primaryOrder)} {leftPrimKey}=default!;");
-            if(primaryOrder.Func is null) {
-                builder.AppendLine($"        {leftPrimKey}=left;");
-            } else {
-                builder.AppendLine(IndentBlock(this.FuncAssign(primaryOrder.Func,primaryOrder.Kind.ToString(),leftPrimKey,"left"),"        "));
+            foreach(var keyStageIndex in keyStageIndexes) {
+                var keyStage = stages[keyStageIndex];
+                builder.AppendLine($"    var {this.OrderComparerLocalName(keyStageIndex)}={this.OrderComparerName(this.OrderComparerOrdinal(keyStageIndex))} ?? global::System.Collections.Generic.Comparer<{ComparerKeyType(keyStage)}>.Default;");
             }
-            builder.AppendLine($"        {ComparerKeyType(primaryOrder)} {rightPrimKey}=default!;");
-            if(primaryOrder.Func is null) {
-                builder.AppendLine($"        {rightPrimKey}=right;");
-            } else {
-                builder.AppendLine(IndentBlock(this.FuncAssign(primaryOrder.Func,primaryOrder.Kind.ToString(),rightPrimKey,"right"),"        "));
+            // List.Sort は不安定なので、キーが等しいグループは出現順(元の位置)で並べる。LINQ の OrderBy は安定ソート。
+            var groupItems = this.GroupItemsName(groupByIndex);
+            builder.AppendLine($"    var __gsrc={groupItems};");
+            builder.AppendLine("    var __gidx=new int[__gsrc.Count];");
+            builder.AppendLine("    for(var __gi=0;__gi<__gidx.Length;__gi++) __gidx[__gi]=__gi;");
+            builder.AppendLine("    global::System.Array.Sort(__gidx,(__ga,__gb) => {");
+            builder.AppendLine("        var left=__gsrc[__ga];");
+            builder.AppendLine("        var right=__gsrc[__gb];");
+            for(var keyOrdinal = 0;keyOrdinal<keyStageIndexes.Count;keyOrdinal++) {
+                var keyStageIndex = keyStageIndexes[keyOrdinal];
+                var keyStage = stages[keyStageIndex];
+                var keyCmpLocal = this.OrderComparerLocalName(keyStageIndex);
+                var leftKey = $"__lk{keyStageIndex}";
+                var rightKey = $"__rk{keyStageIndex}";
+                var cmpName = keyOrdinal==0 ? "__gcmp" : $"__gcmp{keyOrdinal+1}";
+                builder.AppendLine($"        {ComparerKeyType(keyStage)} {leftKey}=default!;");
+                if(keyStage.Func is null) {
+                    builder.AppendLine($"        {leftKey}=left;");
+                } else {
+                    builder.AppendLine(IndentBlock(this.FuncAssign(keyStage.Func,keyStage.Kind.ToString(),leftKey,"left"),"        "));
+                }
+                builder.AppendLine($"        {ComparerKeyType(keyStage)} {rightKey}=default!;");
+                if(keyStage.Func is null) {
+                    builder.AppendLine($"        {rightKey}=right;");
+                } else {
+                    builder.AppendLine(IndentBlock(this.FuncAssign(keyStage.Func,keyStage.Kind.ToString(),rightKey,"right"),"        "));
+                }
+                builder.AppendLine($"        var {cmpName}={keyCmpLocal}.Compare({leftKey},{rightKey});");
+                builder.AppendLine($"        if({cmpName}!=0) return {this.OrderCompareExpression(keyStage,cmpName)};");
             }
-            builder.AppendLine($"        var __gcmp={primaryCmpLocal}.Compare({leftPrimKey},{rightPrimKey});");
-            builder.AppendLine($"        if(__gcmp!=0) return {this.OrderCompareExpression(primaryOrder,"__gcmp")};");
-            if(thenByIdx.HasValue) {
-                var thenStage = stages[thenByIdx.Value];
-                var secondaryCmpLocal = this.OrderComparerLocalName(thenByIdx.Value);
-                var leftSecKey = $"__lsk{thenByIdx.Value}";
-                var rightSecKey = $"__rsk{thenByIdx.Value}";
-                builder.AppendLine($"        {ComparerKeyType(thenStage)} {leftSecKey}=default!;");
-                builder.AppendLine(IndentBlock(this.FuncAssign(thenStage.Func!,thenStage.Kind.ToString(),leftSecKey,"left"),"        "));
-                builder.AppendLine($"        {ComparerKeyType(thenStage)} {rightSecKey}=default!;");
-                builder.AppendLine(IndentBlock(this.FuncAssign(thenStage.Func!,thenStage.Kind.ToString(),rightSecKey,"right"),"        "));
-                builder.AppendLine($"        var __gcmp2={secondaryCmpLocal}.Compare({leftSecKey},{rightSecKey});");
-                builder.AppendLine($"        if(__gcmp2!=0) return {this.OrderCompareExpression(thenStage,"__gcmp2")};");
-            }
-            builder.AppendLine("        return 0;");
+            builder.AppendLine("        return __ga.CompareTo(__gb);");
             builder.AppendLine("    });");
+            builder.AppendLine($"    var __gsorted=new global::System.Collections.Generic.List<{this.GroupValueType(groupByIndex,stage)}>(__gsrc.Count);");
+            builder.AppendLine("    foreach(var __gi in __gidx) __gsorted.Add(__gsrc[__gi]);");
+            builder.AppendLine($"    {groupItems}=__gsorted;");
         }
         builder.AppendLine($"    this.{this.GroupItemsName(groupByIndex)}={this.GroupItemsName(groupByIndex)};");
         builder.AppendLine($"    this.{this.StateName(groupByIndex)}=0;");
@@ -235,7 +236,8 @@ internal sealed partial class PipelineEnumerable {
         }
         builder.AppendLine(IndentBlock(PooledBufferSupport.Add(elementType,fieldName,countField,currentName,suffix),"            "));
         builder.AppendLine("        }");
-        builder.AppendLine($"        var ({rangeOffLocal},{rangeLenLocal})={rangeParamName}.GetOffsetAndLength({countField});");
+        // Range.GetOffsetAndLength は範囲が件数を超えると例外だが、System.Linq の Take(Range) は [0, 件数] へ切り詰める。
+        builder.AppendLine($"        var ({rangeOffLocal},{rangeLenLocal})=global::Seamless.Linq.GeneratedCodeHelpers.GetClampedOffsetAndLength({rangeParamName},{countField});");
         builder.AppendLine(IndentBlock(PooledBufferSupport.Commit(fieldName,countField),"        "));
         builder.AppendLine($"        this.{this.StateName(takeRangeIndex)}={rangeOffLocal};");
         builder.AppendLine($"        this.{this.StateEndName(takeRangeIndex)}={rangeOffLocal}+{rangeLenLocal};");
@@ -338,7 +340,7 @@ internal sealed partial class PipelineEnumerable {
         builder.AppendLine($"            {secondCurrentName}=({stage.OutputType})(object?){secondCurrentName}!;");
         var secondKeyName = secondCurrentName;
         if(stage.Kind==PipelineStageKind.UnionBy) {
-            secondKeyName=this.KeyName(unionIndex+1);
+            secondKeyName=this.KeyName(unionIndex)+"_second"; // KeyName(unionIndex+1) は次の段(DistinctBy など)の key 変数と同じ名前になり、重複定義(CS0128)になる
             builder.AppendLine($"            {ComparerKeyType(stage)} {secondKeyName}=default!;");
             builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,nameof(PipelineStageKind.UnionBy),secondKeyName,secondCurrentName),"            "));
         }
@@ -457,7 +459,7 @@ internal sealed partial class PipelineEnumerable {
         builder.AppendLine($"        {secondCurrentName}=({stages[unionIndex].OutputType})(object?){secondCurrentName}!;");
         var secondKeyName = secondCurrentName;
         if(stages[unionIndex].Kind==PipelineStageKind.UnionBy) {
-            secondKeyName=this.KeyName(unionIndex+1);
+            secondKeyName=this.KeyName(unionIndex)+"_second"; // KeyName(unionIndex+1) は次の段(DistinctBy など)の key 変数と同じ名前になり、重複定義(CS0128)になる
             builder.AppendLine($"        {ComparerKeyType(stages[unionIndex])} {secondKeyName}=default!;");
             builder.AppendLine(IndentBlock(this.FuncAssign(stages[unionIndex].Func!,nameof(PipelineStageKind.UnionBy),secondKeyName,secondCurrentName),"        "));
         }
@@ -740,7 +742,10 @@ internal sealed partial class PipelineEnumerable {
 
     private string AppendOfType(StringBuilder builder,PipelineStage stage,string currentName,int index) {
         var nextName = this.ItemName(index+1);
-        builder.AppendLine($"    if({currentName} is not {stage.OutputType} {nextName}) continue;");
+        // 入力の要素型と同じ型で OfType すると、値型では `x is not int y` が「絶対に一致しない」パターンとして CS8518 になる。
+        // object 経由で判定すれば、値型は常に一致(JIT が箱化を消す)、参照型は null だけが落ちる。
+        var subject = stage.InputType==stage.OutputType ? $"(object?){currentName}" : currentName;
+        builder.AppendLine($"    if({subject} is not {stage.OutputType} {nextName}) continue;");
         return nextName;
     }
 

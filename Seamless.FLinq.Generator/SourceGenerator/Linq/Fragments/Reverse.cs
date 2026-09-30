@@ -79,7 +79,10 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
                 }
             }
             if(this.{{this.a}}>=0){
-                if({{this.e}}.TryGetSpan(out var __span)){
+                // span 経路かバッファ経路かは最初の判定で決まっている(バッファ経路なら group が入っている)。ここで TryGetSpan を
+                // 引き直してはいけない: DefaultIfEmpty のように、要素を返したあとで答えが変わる source があり、空の span を読んで例外になる。
+                if(this.{{this.group}} is null){
+                    {{this.e}}.TryGetSpan(out var __span);
                     current=this.{{this.currentValue}}=__span[this.{{this.a}}--];
                 }else{
                     current=this.{{this.currentValue}}=this.{{this.group}}![this.{{this.a}}--];

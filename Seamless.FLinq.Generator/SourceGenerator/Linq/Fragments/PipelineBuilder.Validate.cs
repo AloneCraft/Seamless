@@ -25,12 +25,16 @@ internal static partial class PipelineBuilder {
         if(concatLikeStageCount>0&&(selectManyStageCount>0||binarySetStageCount>0)) return false;
         if(orderStageCount>0&&(selectManyStageCount>0||concatLikeStageCount>0)) return false;
         if(binarySetStageCount>0&&orderStageCount>0&&!CanFuseBinarySetThenOrder(stages)) return false;
+        if(groupByStageCount>0&&orderStageCount>0&&!CanFuseGroupByThenOrder(stages)) return false;
         if(orderStageCount>0) {
             var orderIndexes = stages.Select(static (stage,index) => (stage,index))
                 .Where(static pair => IsOrderStage(pair.stage.Kind))
                 .Select(static pair => pair.index)
                 .ToArray();
             if(stages[orderIndexes[0]].Kind is PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending) return false;
+            // OrderBy を重ねると、後の OrderBy が主キーで、前の順序は「キーが等しいときの並び」として残る(LINQ は安定ソート)。
+            // 後の OrderBy だけで並べると、キーが等しい要素の順が変わるので最適化しない。
+            if(stages.Count(static stage => IsPrimaryOrderStage(stage.Kind))>1) return false;
             for(var i = 1;i<orderIndexes.Length;i++) {
                 if(orderIndexes[i]!=orderIndexes[i-1]+1) return false;
             }
@@ -57,6 +61,34 @@ internal static partial class PipelineBuilder {
         }
         for(var index = setIndex+1;index<orderIndex;index++) {
             if(!CanRunBetweenBinarySetAndOrder(stages[index].Kind)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // GroupBy のループは、グループを溜めた直後に後続の順序段でソートしてから残りの段を流す。
+    // そのため、順序段が GroupBy より前にあるとその順序(グループ内の要素順)が失われ、間に要素や順序を変える段があると
+    // 順序段のキー選択子が別の型・別の並びの値に適用されてしまう。融合できる形だけを通し、他は最適化しない。
+    private static bool CanFuseGroupByThenOrder(IReadOnlyList<PipelineStage> stages) {
+        var groupIndex = stages.Select(static (stage,index) => (stage,index))
+            .Where(static pair => pair.stage.Kind==PipelineStageKind.GroupBy)
+            .Select(static pair => pair.index)
+            .Single();
+        if(stages.Take(groupIndex).Any(static stage => IsOrderStage(stage.Kind))) {
+            return false;
+        }
+        var orderIndex = stages.Select(static (stage,index) => (stage,index))
+            .Where(static pair => IsPrimaryOrderStage(pair.stage.Kind))
+            .Select(static pair => pair.index)
+            .DefaultIfEmpty(-1).First();
+        if(orderIndex<=groupIndex) {
+            return false;
+        }
+        for(var index = groupIndex+1;index<orderIndex;index++) {
+            var stage = stages[index];
+            // ソートを Where より前に行うので、Where が位置(index)を使うと結果が変わる。
+            if(!(stage.Kind==PipelineStageKind.Where&&!stage.UsesIndex||stage.Kind==PipelineStageKind.AsEnumerable)) {
                 return false;
             }
         }

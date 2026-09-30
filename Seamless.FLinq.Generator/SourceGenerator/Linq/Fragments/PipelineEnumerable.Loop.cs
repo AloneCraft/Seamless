@@ -58,7 +58,7 @@ internal sealed partial class PipelineEnumerable {
             return this.BuildOrderLoop(enumeratorName,successStatement,endStatement,orderIndex[0]);
         }
         if(orderIndex.Length>1) {
-            // 連続した OrderBy チェーン: 最後の OrderBy が前の順序を完全に置き換える（LINQ の仕様通り）
+            // 複数の OrderBy(後の OrderBy が主キー、前の順序はキーが等しいときの並び)は PipelineBuilder の検証で拒否済みで、通常ここには来ない。
             return this.BuildOrderLoop(enumeratorName,successStatement,endStatement,orderIndex[orderIndex.Length-1]);
         }
         var skipLastIndex = stages.Select(static (stage,index) => (stage,index))

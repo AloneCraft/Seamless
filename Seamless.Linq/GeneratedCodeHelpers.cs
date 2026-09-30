@@ -2,6 +2,16 @@ namespace Seamless.Linq;
 
 public static class GeneratedCodeHelpers {
     /// <summary>
+    /// System.Linq の Take(Range) と同じ意味で、範囲が件数を超えても例外にせず [0, count] へ切り詰めた開始位置と長さを返す。
+    /// <see cref="Range.GetOffsetAndLength(int)"/> は範囲が件数を超えると ArgumentOutOfRangeException になる。
+    /// </summary>
+    public static (int Offset, int Length) GetClampedOffsetAndLength(Range range, int count) {
+        var start = range.Start.IsFromEnd ? Math.Max(0, count - range.Start.Value) : Math.Min(range.Start.Value, count);
+        var end = range.End.IsFromEnd ? Math.Max(0, count - range.End.Value) : Math.Min(range.End.Value, count);
+        return (start, Math.Max(0, end - start));
+    }
+
+    /// <summary>
     /// 生成インターセプターが展開に失敗したときの明示例外。
     /// 静かなフォールバック経路を作らない方針のため、構築時に実行時診断カウンタも加算する。
     /// </summary>

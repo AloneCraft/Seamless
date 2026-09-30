@@ -169,8 +169,10 @@ internal sealed partial class PipelineEnumerable {
         stages.Skip(index+1).Any(static stage => stage.Kind is PipelineStageKind.Take or PipelineStageKind.TakeWhile);
     private bool StagesBetweenNeedEndLabel(int startIndex,int endIndex) =>
         stages.Skip(startIndex+1).Take(endIndex-startIndex-1).Any(static stage => stage.Kind is PipelineStageKind.Take or PipelineStageKind.TakeWhile);
+    // 件数の引数(コンストラクタの int __cntN)は CountStages() の順に並ぶので、序数も同じ種類(Take/Skip/SkipLast/TakeLast)を数える。
+    // Take/Skip だけを数えると、TakeLast/SkipLast の後ろの Take/Skip が前の段の件数を読んでしまう(TakeLast(6).Take(2) が 6 件返る)。
     private int CountOrdinal(int stageIndex) =>
-        stages.Take(stageIndex).Count(static stage => stage.Kind==PipelineStageKind.Take||stage.Kind==PipelineStageKind.Skip);
+        stages.Take(stageIndex).Count(static stage => stage.Kind is PipelineStageKind.Take or PipelineStageKind.Skip or PipelineStageKind.SkipLast or PipelineStageKind.TakeLast);
     private int ComparerOrdinal(int stageIndex) =>
         stages.Take(stageIndex).Count(static stage => stage.Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy or PipelineStageKind.Union or PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.UnionBy or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy or PipelineStageKind.GroupBy);
     private int OrderComparerOrdinal(int stageIndex) =>

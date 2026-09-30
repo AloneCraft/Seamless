@@ -19,13 +19,17 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
         """;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,size);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int size";
+    // yielded は「source を使い切った」旗。端数の最後のチャンクを返したあとの呼び出しで source をもう一度読まないために使う
+    // (Tsavorite の列挙子のように、使い切ったあとの MoveNext で最初から読み直すものがあり、チャンクが無限に出続ける)。
     public override string GetEnumeratorFields => source.CanTryProvideSpan
         ? $$"""
             private int {{this.a}};
             private {{source.ElementType}}[]? {{this.group}};
+            private bool {{this.yielded}};
             """
         : $$"""
             private {{source.ElementType}}[]? {{this.group}};
+            private bool {{this.yielded}};
             """;
     public override string GetTryGetNextBody => source.CanTryProvideSpan
         ? $$"""
@@ -40,6 +44,10 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
                 current=default!;
                 return false;
             }
+            if(this.{{this.yielded}}){
+                current=default!;
+                return false;
+            }
             var __i=0;
             if(this.{{this.group}} is null) this.{{this.group}}=new {{source.ElementType}}[size];
             while({{this.e}}.TryGetNext(out var __mn14)){
@@ -50,6 +58,7 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
                     return true;
                 }
             }
+            this.{{this.yielded}}=true;
             if(__i>0){
                 var __last=new {{source.ElementType}}[__i];
                 global::System.Array.Copy(this.{{this.group}},__last,__i);
@@ -62,6 +71,10 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
             """
         : $$"""
             if(size<=0) throw new global::System.ArgumentOutOfRangeException(nameof(size));
+            if(this.{{this.yielded}}){
+                current=default!;
+                return false;
+            }
             var __i=0;
             if(this.{{this.group}} is null) this.{{this.group}}=new {{source.ElementType}}[size];
             while({{this.e}}.TryGetNext(out var __mn15)){
@@ -72,6 +85,7 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
                     return true;
                 }
             }
+            this.{{this.yielded}}=true;
             if(__i>0){
                 var __last=new {{source.ElementType}}[__i];
                 global::System.Array.Copy(this.{{this.group}},__last,__i);

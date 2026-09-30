@@ -381,9 +381,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(func2Code is not null) {
                 builder.AppendLine($"    {valType} {valName}=default!;");
                 AppendIndented(builder,this.FuncAssign(func2Code,"ToDictionary",valName,itemName),"    ");
-                builder.AppendLine($"    {actualVariableName}[{keyName}]={valName};");
+                builder.AppendLine($"    {actualVariableName}.Add({keyName},{valName});");
             } else {
-                builder.AppendLine($"    {actualVariableName}[{keyName}]=({valType})(object?){itemName}!;");
+                builder.AppendLine($"    {actualVariableName}.Add({keyName},({valType})(object?){itemName}!);");
             }
             builder.AppendLine("}");
             return builder.ToString().TrimEnd();

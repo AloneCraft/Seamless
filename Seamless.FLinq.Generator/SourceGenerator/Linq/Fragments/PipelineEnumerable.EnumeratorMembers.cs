@@ -27,13 +27,12 @@ internal sealed partial class PipelineEnumerable {
     public override string GetEnumeratorFields {
         get {
             var builder = new StringBuilder();
-            var countIndex = 0;
             for(var index = 0;index<stages.Count;index++) {
                 var stage = stages[index];
                 if(stage.Kind is PipelineStageKind.Where or PipelineStageKind.Select&&stage.UsesIndex) {
                     builder.AppendLine($"private int {this.StateName(index)} = -1;");
                 } else if(stage.Kind==PipelineStageKind.Take||stage.Kind==PipelineStageKind.Skip) {
-                    var countName = this.CountName(countIndex++);
+                    var countName = this.CountName(this.CountOrdinal(index));
                     builder.AppendLine($"private int {countName}Value;");
                     builder.AppendLine($"private int {this.StateName(index)} = 0;");
                 } else if(stage.Kind==PipelineStageKind.SelectMany) {
@@ -107,11 +106,10 @@ internal sealed partial class PipelineEnumerable {
     public override string GetEnumeratorConstructor {
         get {
             var builder = new StringBuilder();
-            var countIndex = 0;
             for(var index = 0;index<stages.Count;index++) {
                 var stage = stages[index];
                 if(stage.Kind==PipelineStageKind.Take||stage.Kind==PipelineStageKind.Skip) {
-                    var countName = this.CountName(countIndex++);
+                    var countName = this.CountName(this.CountOrdinal(index));
                     builder.AppendLine($"this.{countName}Value = global::System.Math.Max(0, {countName});");
                 } else if(stage.Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy) {
                     builder.AppendLine($"this.{this.SetName(index)} = new({this.ComparerName(this.ComparerOrdinal(index))});");
@@ -149,9 +147,12 @@ internal sealed partial class PipelineEnumerable {
     protected override string GetTryGetSpanBody {
         get {
             if(this.SingleDefaultIfEmpty) {
+                // 要素(または既定値)を 1 つ返したあとは span を出さない。TryGetSpan の答えが途中で変わると、最初の判定で「span 経路でない」と
+                // 決めた消費側(Reverse など)が、あとから引き直して空の span を読み、例外になる。false なら消費側は TryGetNext に戻る。
                 return $$"""
                     if(this.{{this.StateName(0)}}){
-                        return this.{{this.e}}.TryGetSpan(out span);
+                        span=default;
+                        return false;
                     }
                     if(this.{{this.e}}.TryGetSpan(out span)&&span.Length!=0){
                         return true;
@@ -168,7 +169,7 @@ internal sealed partial class PipelineEnumerable {
             if(this.SingleDefaultIfEmpty) {
                 return $$"""
                     if(this.{{this.StateName(0)}}){
-                        return this.{{this.e}}.TryCopyTo(destination,__offset);
+                        return false;
                     }
                     if(this.{{this.e}}.TryGetSpan(out var __span)&&__span.Length!=0){
                         var __spanStart=__offset.GetOffset(__span.Length);

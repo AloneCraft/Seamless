@@ -160,12 +160,13 @@ internal class ToList(int 番号,Enumerable source,string resultType):BufferedSc
         : $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(ref TEnum source){
-            // using ではなく try-finally なのは、遅経路のヘルパーへ enumerator を ref で渡すため。
-            // using ローカルは読み取り専用で ref に渡せず、値渡しにするとコンストラクタで
-            // プール配列を借りる enumerator（OrderBy 等）で二重 Return になる。
-            var enumerator = source;
+            // Compute は列挙子を破棄しない。Count など他の終端と同じく、参照で渡された本体を持ち主
+            // (呼び出し元の finally、または終端 enumerator の Dispose)が 1 回だけ破棄する。
+            // ここで複製を作って破棄すると、コンストラクタでプール配列を借りる enumerator（OrderBy 等）が
+            // 呼び出し元の Dispose と二重 Return になり、後続の無関係なクエリのデータが壊れる。
+            ref var enumerator = ref source;
             global::System.Collections.Generic.List<{{source.ElementType}}> __result;
-            try {
+            {
                 if(enumerator.TryGetNonEnumeratedCount(out var __count)){
                     __result=new global::System.Collections.Generic.List<{{source.ElementType}}>(__count);
                     global::System.Runtime.InteropServices.CollectionsMarshal.SetCount(__result,__count);
@@ -194,10 +195,7 @@ internal class ToList(int 番号,Enumerable source,string resultType):BufferedSc
                 global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
                 return global::Seamless.Linq.GeneratedCodeHelpers.ToListFromValueEnumerator<TEnum,{{source.ElementType}}>(ref enumerator);
             }
-            finally {
-                enumerator.Dispose();
-            }
         }
         """;
-    protected override string GetEnumeratorDisposeBody => string.Empty;
+    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }

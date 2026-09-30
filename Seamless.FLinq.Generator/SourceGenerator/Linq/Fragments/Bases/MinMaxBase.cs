@@ -21,7 +21,10 @@ internal abstract class MinMaxBase(int number,Enumerable source,string resultTyp
     protected override string ComputeMembers => direction=="greater"
         ? $"private static {resultType} Compute(ref TEnum source) => global::Seamless.Linq.Enumerable.Max(new global::Seamless.Linq.ValueEnumerable<TEnum, {source.ElementType}>(source));"
         : $"private static {resultType} Compute(ref TEnum source) => global::Seamless.Linq.Enumerable.Min(new global::Seamless.Linq.ValueEnumerable<TEnum, {source.ElementType}>(source));";
-    protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+    // Compute はライブラリの Max/Min へ列挙子の複製を値渡しし、ライブラリが using でその複製を破棄する。所有者はそこだけにする
+    // (BufferedScalar.ComputeOwnsEnumerator)。呼び出し元や終端 enumerator がさらに本体を Dispose すると二重 Return になる。
+    protected override bool ComputeOwnsEnumerator => true;
+    protected override string GetEnumeratorDisposeBody => string.Empty;
 
     public override string? RenderInlineComputation(string destVar,string destType) {
         if(source is RangeRoot range&&source.ElementType=="int") {

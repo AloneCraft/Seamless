@@ -304,9 +304,9 @@ internal abstract class ProviderNativeExecutionBase(
             if(terminalFunc2 is not null) {
                 builder.AppendLine($"    {this.DictionaryValueType} dictionaryValue=default!;");
                 GeneratedCodeWriter.AppendIndented(builder,this.FuncAssignStatic(terminalFunc2,"ToDictionary","dictionaryValue",new[] { currentName }),"    ");
-                builder.AppendLine("    state.Dictionary![dictionaryKey]=dictionaryValue;");
+                builder.AppendLine("    state.Dictionary!.Add(dictionaryKey,dictionaryValue);");
             } else {
-                builder.AppendLine($"    state.Dictionary![dictionaryKey]=({this.DictionaryValueType})(object?){currentName}!;");
+                builder.AppendLine($"    state.Dictionary!.Add(dictionaryKey,({this.DictionaryValueType})(object?){currentName}!);");
             }
             builder.AppendLine("    return true;");
         } else if(terminalKind==ProviderIterateTerminalKind.Sum) {

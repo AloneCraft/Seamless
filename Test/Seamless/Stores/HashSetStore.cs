@@ -106,4 +106,21 @@ public class HashSetStore{
             }
         }
     }
+    [Fact,Trait("Category","Unit")]public void Enumerator_AfterTheEnd_KeepsReturningFalse(){
+        //使い切ったあとの MoveNext は false を返し続ける(IEnumerator の約束)。以前は最後のチャンクを読み直し、終わりを確かめずに何度も呼ぶ利用者が無限に回った
+        using var store=CommonStore.CreateMemory();
+        using var data=store.CreateTsavoriteHashSet<long>("ids");
+        using var set=data.Create();
+        set.Add(3);
+        set.Add(5);
+        using var enumerator=set.GetEnumerator();
+        var seen=0;
+        while(enumerator.MoveNext()){
+            seen++;
+        }
+        Assert.Equal(2,seen);
+        for(var repeat=0;repeat<3;repeat++){
+            Assert.False(enumerator.MoveNext());
+        }
+    }
 }

@@ -1177,7 +1177,10 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
             }
 
             if(this.Done) {
+                // 使い切ったあとも false を返し続ける(IEnumerator の約束)。Count を残したまま Index=-1 に戻すと、次の MoveNext が
+                // 最後のチャンクの先頭から読み直してしまい、終わりを確かめずに何度も呼ぶ利用者(FLinq の Chunk など)が無限に回る。
                 this.Index=-1;
+                this.Count=0;
                 this.CurrentValue=default!;
                 return false;
             }

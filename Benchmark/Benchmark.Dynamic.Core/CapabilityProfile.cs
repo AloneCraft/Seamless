@@ -151,19 +151,6 @@ public static class QueryCapabilityProfiles{
                     verification=CapabilityVerification.RuntimeVerified;
                     limitation="ZLinq 1.5.6 OrderBy materialization throws because its comparer reports inconsistent results on the deterministic integer fixture.";
                 }
-                if(sourceKind==SourceKind.Range
-                    &&descriptor.OperatorId==QueryOperatorIds.ElementAt
-                    &&path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized){
-                    supported=false;
-                    verification=CapabilityVerification.RuntimeVerified;
-                    limitation="FLinq range ElementAt generation references an undefined index local (CS0103).";
-                }
-                if(descriptor.OperatorId==QueryOperatorIds.UnionByIdentity
-                    &&path==ExecutionPath.FLinqNoOptimizations){
-                    supported=false;
-                    verification=CapabilityVerification.RuntimeVerified;
-                    limitation="FLinq no-optimization UnionBy returns an incomplete union for the deterministic two-source fixture.";
-                }
                 if(isProvider&&descriptor.RequiresDeterministicOrder){
                     supported=false;
                     verification=CapabilityVerification.ApiShapeOnly;

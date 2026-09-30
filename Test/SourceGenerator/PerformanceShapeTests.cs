@@ -1279,6 +1279,39 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void MinMaxCompute_OwnsTheEnumeratorCopy_CallerDoesNotDisposeAgain() {
+        // Min/Max(セレクター無し)の Compute は、列挙子の複製をライブラリ関数へ値渡しし、ライブラリが using でその複製を破棄する。
+        // 呼び出し元がさらに本体を Dispose すると、コンストラクタでプール配列を借りる列挙子(OrderBy 等)は二重 Return になり、
+        // ArrayPool が同じ配列を 2 回貸し出して後続の無関係なクエリのデータが壊れる(2026-09-30 の差分ファズで確認)。所有者は 1 人にする。
+        const string source = """
+            using System.Collections.Generic;
+            using System.Linq;
+            namespace Sample;
+            public class Container {
+                private static int MinAfterOrder(List<int> src) => src.OrderBy(static x => x%5).Prepend(1).Min();
+                private static int MaxAfterOrder(List<int> src) => src.OrderBy(static x => x%5).ThenBy(static x => x).Max();
+                public void Run(List<int> src) {
+                    _ = MinAfterOrder(src);
+                    _ = MaxAfterOrder(src);
+                }
+            }
+            """;
+
+        var generated = GeneratedSource(source);
+        var min = GeneratedMethod(generated,"MinAfterOrder");
+        var max = GeneratedMethod(generated,"MaxAfterOrder");
+
+        GeneratedSourceAssert.True(
+            min.Contains(".Compute(",StringComparison.Ordinal)
+            &&!min.Contains(".Dispose();",StringComparison.Ordinal)
+            &&max.Contains(".Compute(",StringComparison.Ordinal)
+            &&!max.Contains(".Dispose();",StringComparison.Ordinal),
+            "Min/Max の Compute が列挙子の複製を破棄するので、呼び出し元は本体を Dispose してはいけない(二重 Return)。",
+            generated,
+            output);
+    }
+
+    [Fact]
     public void EnumerableToListUsesSegmentedBufferHelper() {
         const string source = """
             using System.Collections.Generic;
@@ -1295,11 +1328,16 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             """;
 
         var generated = GeneratedSource(source);
+        var plain = GeneratedMethod(generated,"ToListFallback");
         var fused = GeneratedMethod(generated,"WhereToListFallback");
 
+        // 列挙子の破棄は呼び出し元の try-finally だけが行う。Compute が複製を破棄すると、コンストラクタでプール配列を借りる
+        // 列挙子(OrderBy 等)で呼び出し元の Dispose と二重 Return になる(ScalarTerminalDisposeSemantics / GroupByOrder が実行で確認する)。
         GeneratedSourceAssert.True(
             generated.Contains("global::Seamless.Linq.GeneratedCodeHelpers.ToListFromValueEnumerator<TEnum,int>(ref enumerator)",StringComparison.Ordinal)
-            &&generated.Contains("enumerator.Dispose();",StringComparison.Ordinal)
+            &&!generated.Contains("enumerator.Dispose();",StringComparison.Ordinal)
+            &&plain.Contains("finally{",StringComparison.Ordinal)
+            &&plain.Contains(".Dispose();",StringComparison.Ordinal)
             &&fused.Contains("global::Seamless.Linq.GeneratedCodeHelpers.ToListFromValueEnumerator<",StringComparison.Ordinal)
             &&fused.Contains("(ref ",StringComparison.Ordinal)
             &&!generated.Contains("__result=new global::System.Collections.Generic.List<int>();",StringComparison.Ordinal)
