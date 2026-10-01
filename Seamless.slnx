@@ -42,6 +42,7 @@
     <Project Path="Benchmark/Benchmark.Dynamic.Infrastructure/Benchmark.Dynamic.Infrastructure.csproj" />
     <Project Path="Benchmark/Benchmark.Dynamic.Worker/Benchmark.Dynamic.Worker.csproj" />
     <Project Path="Benchmark/Benchmark.Headless/Benchmark.Headless.csproj" />
+    <Project Path="Benchmark/Benchmark.Audit/Benchmark.Audit.csproj" />
     <Project Path="Benchmark/Worker/Worker.csproj" />
   </Folder>
   <Folder Name="/Benchmark/Shared/">
@@ -126,6 +127,7 @@
     <Project Path="Benchmark.Dynamic.UITests/Benchmark.Dynamic.UITests.csproj" />
     <Project Path="Test/Test.csproj" />
     <Project Path="Benchmark/Benchmark.Headless.Tests/Benchmark.Headless.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.Audit.Tests/Benchmark.Audit.Tests.csproj" />
     <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
     <Project Path="Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj" />
   </Folder>
