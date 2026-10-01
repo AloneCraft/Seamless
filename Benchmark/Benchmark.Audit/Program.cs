@@ -10,10 +10,14 @@ using Benchmark.Audit;
 if(args.Length>0&&args[0]=="noise") {
     return Noise(args);
 }
+if(args.Length>0&&args[0]=="ildiff") {
+    return IlDiff(args);
+}
 if(args.Length==0||(args[0]!="audit"&&args[0]!="compare")) {
     Console.Error.WriteLine("使い方: Benchmark.Audit audit <アセンブリ.dll>... [--json <出力.json>] [--md <出力.md>]");
     Console.Error.WriteLine("        Benchmark.Audit compare --flinq <アセンブリ.dll>... --ideal <アセンブリ.dll>... [--json <出力.json>] [--md <出力.md>]");
     Console.Error.WriteLine("        Benchmark.Audit noise --first <1回目.jsonl>... --second <2回目.jsonl>... [--json <出力.json>] [--md <出力.md>]");
+    Console.Error.WriteLine("        Benchmark.Audit ildiff --before <修正前のアセンブリ>... --after <修正後のアセンブリ>...");
     return 2;
 }
 var command = args[0];
@@ -96,6 +100,52 @@ static int Noise(string[] arguments) {
     foreach(var group in rows.GroupBy(static row => row.Class).OrderBy(static group => group.Key)) {
         Console.Error.WriteLine($"{group.Key}: {group.Count()}");
     }
+    return 0;
+}
+
+// 修正の前後で、置き換え後の IL(辿った補助メソッドを含む)が変わったベンチの行を列挙する。
+// 変わらなかった行の計測差は純粋なぶれなので、前後比較の判定から外せる。
+static int IlDiff(string[] arguments) {
+    var before = new List<string>();
+    var after = new List<string>();
+    var target = before;
+    for(var index = 1;index<arguments.Length;index++) {
+        if(arguments[index]=="--before") {
+            target=before;
+        } else if(arguments[index]=="--after") {
+            target=after;
+        } else {
+            target.Add(arguments[index]);
+        }
+    }
+    Dictionary<string,string> Fingerprints(IEnumerable<string> paths) {
+        using var catalog = new MetadataCatalog();
+        var auditor = new IlAuditor(catalog);
+        var result = new Dictionary<string,string>(StringComparer.Ordinal);
+        foreach(var path in paths) {
+            foreach(var row in auditor.Audit(catalog.Load(path))) {
+                result[row.Assembly+"|"+row.DeclaringType+"|"+row.Method]=row.IlFingerprint;
+            }
+        }
+        return result;
+    }
+    var old = Fingerprints(before);
+    var current = Fingerprints(after);
+    var changed = 0;
+    foreach(var (key,fingerprint) in current.OrderBy(static pair => pair.Key,StringComparer.Ordinal)) {
+        if(!old.TryGetValue(key,out var previous)) {
+            Console.WriteLine("追加\t"+key);
+            changed++;
+        } else if(previous!=fingerprint) {
+            Console.WriteLine("変更\t"+key);
+            changed++;
+        }
+    }
+    foreach(var key in old.Keys.Where(key => !current.ContainsKey(key)).Order(StringComparer.Ordinal)) {
+        Console.WriteLine("削除\t"+key);
+        changed++;
+    }
+    Console.Error.WriteLine($"rows={current.Count} changed={changed}");
     return 0;
 }
 

@@ -108,6 +108,64 @@ internal static class IlReader {
         return instructions;
     }
 
+    /// <summary>
+    /// 本体の命令列の指紋。メタデータトークンはビルドごとに番号が変わるので、参照先の名前(tokenName)で置き換える。
+    /// 即値・分岐先・局所変数番号はそのまま含める。
+    /// </summary>
+    public static string Fingerprint(MethodBodyBlock body,Func<int,string> tokenName) {
+        var reader = body.GetILReader();
+        var builder = new System.Text.StringBuilder();
+        builder.Append("max=").Append(body.MaxStack).Append(';');
+        while(reader.RemainingBytes>0) {
+            short value = reader.ReadByte();
+            if(value==0xFE) {
+                value=(short)(0xFE00|reader.ReadByte());
+            }
+            var code = opCodes[value];
+            builder.Append(code.Name);
+            switch(code.OperandType) {
+                case OperandType.InlineNone:
+                    break;
+                case OperandType.ShortInlineBrTarget:
+                case OperandType.ShortInlineI:
+                case OperandType.ShortInlineVar:
+                    builder.Append(' ').Append(reader.ReadSByte());
+                    break;
+                case OperandType.InlineVar:
+                    builder.Append(' ').Append(reader.ReadInt16());
+                    break;
+                case OperandType.InlineBrTarget:
+                case OperandType.InlineI:
+                case OperandType.ShortInlineR:
+                    builder.Append(' ').Append(reader.ReadInt32());
+                    break;
+                case OperandType.InlineI8:
+                case OperandType.InlineR:
+                    builder.Append(' ').Append(reader.ReadInt64());
+                    break;
+                case OperandType.InlineSwitch: {
+                    var count = reader.ReadInt32();
+                    for(var index = 0;index<count;index++) {
+                        builder.Append(' ').Append(reader.ReadInt32());
+                    }
+                    break;
+                }
+                case OperandType.InlineString:
+                case OperandType.InlineField:
+                case OperandType.InlineMethod:
+                case OperandType.InlineSig:
+                case OperandType.InlineTok:
+                case OperandType.InlineType:
+                    builder.Append(' ').Append(tokenName(reader.ReadInt32()));
+                    break;
+                default:
+                    throw new InvalidDataException($"未対応のオペランド種別 {code.OperandType}");
+            }
+            builder.Append(';');
+        }
+        return builder.ToString();
+    }
+
     /// <summary>後方分岐(分岐先が自分以前)をループ区間とみなす。</summary>
     public static IReadOnlyList<IlLoop> FindLoops(IReadOnlyList<IlInstruction> instructions) {
         var loops = new List<IlLoop>();

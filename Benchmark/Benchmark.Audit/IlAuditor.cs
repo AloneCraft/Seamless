@@ -42,7 +42,8 @@ internal sealed record AuditRow(
     IReadOnlyList<string> LibraryCalls,
     IReadOnlyList<string> InterfaceCallTargets,
     int HelperTypes,
-    int UnusedHelperTypes);
+    int UnusedHelperTypes,
+    string IlFingerprint = "");
 
 /// <summary>メソッド参照(呼び出し先)の解決結果。</summary>
 internal readonly record struct MethodTarget(string DeclaringTypeFullName,string Name,ResolvedType? DeclaringType,MethodDefinitionHandle LocalDefinition) {
@@ -160,7 +161,8 @@ internal sealed class IlAuditor(MetadataCatalog catalog) {
             metrics.LibraryCalls.Order(StringComparer.Ordinal).ToArray(),
             metrics.InterfaceCallTargets.Order(StringComparer.Ordinal).ToArray(),
             helperTypes.Count,
-            unused);
+            unused,
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(metrics.Fingerprint.ToString()))));
     }
 
     private sealed class Metrics {
@@ -183,6 +185,8 @@ internal sealed class IlAuditor(MetadataCatalog catalog) {
         public HashSet<string> InterfaceCallTargets { get; } = new(StringComparer.Ordinal);
         public HashSet<TypeDefinitionHandle> ReferencedTypes { get; } = [];
         public HashSet<(MethodDefinitionHandle,bool)> Visited { get; } = [];
+        /// <summary>辿ったメソッドの命令列を辿った順に連ねたもの。修正の前後で生成コードが変わった行を見分けるのに使う。</summary>
+        public System.Text.StringBuilder Fingerprint { get; } = new();
     }
 
     /// <summary>
@@ -208,6 +212,8 @@ internal sealed class IlAuditor(MetadataCatalog catalog) {
         }
         var instructions = IlReader.Decode(body);
         var loops = IlReader.FindLoops(instructions);
+        metrics.Fingerprint.Append(MetadataNames.TypeDefinitionFullName(reader,definition.GetDeclaringType())).Append("::").Append(reader.GetString(definition.Name))
+            .Append('{').Append(IlReader.Fingerprint(body,token => this.TokenName(assembly,token))).Append('}');
         metrics.IlSize+=body.Size;
         metrics.LoopCount+=loops.Count;
         stack.Add(handle);
@@ -376,6 +382,38 @@ internal sealed class IlAuditor(MetadataCatalog catalog) {
             }
         }
         return helpers;
+    }
+
+    /// <summary>トークンの参照先を、ビルドに依らない名前で表す(指紋用)。</summary>
+    private string TokenName(LoadedAssembly assembly,int token) {
+        var reader = assembly.Reader;
+        if((token>>24)==0x70) {
+            return "\""+reader.GetUserString(MetadataTokens.UserStringHandle(token&0xFFFFFF))+"\"";
+        }
+        var handle = MetadataTokens.EntityHandle(token);
+        switch(handle.Kind) {
+            case HandleKind.MethodDefinition:
+            case HandleKind.MethodSpecification:
+                return this.ResolveMethod(assembly,handle).DisplayName;
+            case HandleKind.MemberReference: {
+                var reference = reader.GetMemberReference((MemberReferenceHandle)handle);
+                if(reference.GetKind()==MemberReferenceKind.Method) {
+                    return this.ResolveMethod(assembly,handle).DisplayName;
+                }
+                return DeclaringName(reader,reference.Parent,catalog.Resolve(assembly,reference.Parent))+"::"+reader.GetString(reference.Name);
+            }
+            case HandleKind.FieldDefinition: {
+                var field = reader.GetFieldDefinition((FieldDefinitionHandle)handle);
+                return MetadataNames.TypeDefinitionFullName(reader,field.GetDeclaringType())+"::"+reader.GetString(field.Name);
+            }
+            case HandleKind.TypeDefinition:
+                return MetadataNames.TypeDefinitionFullName(reader,(TypeDefinitionHandle)handle);
+            case HandleKind.TypeReference:
+                return MetadataNames.TypeReferenceFullName(reader,(TypeReferenceHandle)handle);
+            default:
+                // 型の具体化(TypeSpec)や呼び出しシグネチャは中身の比較を省く(参照先の名前ほど変わりにくい)。
+                return handle.Kind.ToString();
+        }
     }
 
     public MethodTarget ResolveMethod(LoadedAssembly assembly,EntityHandle handle) {
