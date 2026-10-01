@@ -36,6 +36,7 @@ public sealed partial class MainPage:ContentPage {
     // ベンチマークのペア停止回数列の幅
     private const double 時間シェア = 72;
     private const double メモリシェア = 72;
+    private const double 理想比列幅 = 72;
     // ベンチマークスクロールバーのサイズ
     private const double ベンチマークスクロールバー寸法 = 32;
     // CPUチェックボックスの幅
@@ -1827,13 +1828,27 @@ public sealed partial class MainPage:ContentPage {
             static 行=>行.メモリシェアゲージ,
             ベンチマークグリッドソート列.メモリシェア,
             "メモリシェア");
-        var 左マッピング一覧=this.プロジェクト列とシェアを追加(
-            グリッド,nameof(ベンチマーク表行.左セル),nameof(ベンチマーク表行.左時間文字色),nameof(ベンチマーク表行.左メモリ文字色),
-            ベンチマークグリッドソート列.左日時,ベンチマークグリッドソート列.左時間,時間シェア指定,
-            ベンチマークグリッドソート列.左割り当て,メモリシェア指定);
+        IReadOnlyList<string> 左マッピング一覧;
+        if(ソースタブ.理想ありか) {
+            // 理想列のあるタブは、割合の帯の代わりに理想を基準にした2つの倍率を理想グループの末尾に並べる。
+            左マッピング一覧=this.プロジェクト列を追加(グリッド,nameof(ベンチマーク表行.左セル),nameof(ベンチマーク表行.左時間文字色),nameof(ベンチマーク表行.左メモリ文字色),ベンチマークグリッドソート列.左日時,ベンチマークグリッドソート列.左時間,ベンチマークグリッドソート列.左割り当て);
+        } else {
+            左マッピング一覧=this.プロジェクト列とシェアを追加(
+                グリッド,nameof(ベンチマーク表行.左セル),nameof(ベンチマーク表行.左時間文字色),nameof(ベンチマーク表行.左メモリ文字色),
+                ベンチマークグリッドソート列.左日時,ベンチマークグリッドソート列.左時間,時間シェア指定,
+                ベンチマークグリッドソート列.左割り当て,メモリシェア指定);
+        }
         var 右マッピング一覧 = this.プロジェクト列を追加(グリッド,nameof(ベンチマーク表行.右セル),nameof(ベンチマーク表行.右時間文字色),nameof(ベンチマーク表行.右メモリ文字色),ベンチマークグリッドソート列.右日時,ベンチマークグリッドソート列.右時間,ベンチマークグリッドソート列.右割り当て);
         this.ベンチマークプロジェクト選択グループを追加(プロジェクト見出し行,this.ベンチマークプロジェクト選択グループを取得("左",左見出し),左マッピング一覧,ソースタブ);
         this.ベンチマークプロジェクト選択グループを追加(プロジェクト見出し行,this.ベンチマークプロジェクト選択グループを取得("右",右見出し),右マッピング一覧,ソースタブ);
+        if(ソースタブ.理想ありか) {
+            var 理想マッピング一覧 = this.プロジェクト列を追加(グリッド,nameof(ベンチマーク表行.理想セル),nameof(ベンチマーク表行.理想指標文字色),nameof(ベンチマーク表行.理想指標文字色),ベンチマークグリッドソート列.理想日時,ベンチマークグリッドソート列.理想時間,ベンチマークグリッドソート列.理想割り当て)
+                .Concat([nameof(ベンチマーク表行.左理想比表示),nameof(ベンチマーク表行.右理想比表示)])
+                .ToArray();
+            グリッド.Columns.Add(this.テキスト列を作成(ソースタブ.左見出し+"÷理想",nameof(ベンチマーク表行.左理想比表示),ベンチマークグリッドソート列.左理想比,理想比列幅,TextAlignment.End,文字色プロパティ: nameof(ベンチマーク表行.左理想比文字色)));
+            グリッド.Columns.Add(this.テキスト列を作成(ソースタブ.右見出し+"÷理想",nameof(ベンチマーク表行.右理想比表示),ベンチマークグリッドソート列.右理想比,理想比列幅,TextAlignment.End,文字色プロパティ: nameof(ベンチマーク表行.右理想比文字色)));
+            this.ベンチマークプロジェクト選択グループを追加(プロジェクト見出し行,this.ベンチマークプロジェクト選択グループを取得("理想",ソースタブ.理想見出し),理想マッピング一覧,ソースタブ);
+        }
     }
     private void ベンチマークグリッドセルダブルタップ時(object? 送信元,DataGridCellDoubleTappedEventArgs イベント引数) {
         if(送信元 is not SfDataGrid グリッド||イベント引数.Column is null||イベント引数.RowData is not null) {
@@ -1896,6 +1911,8 @@ public sealed partial class MainPage:ContentPage {
             nameof(ベンチマーク表行.左割り当て文字列) => 行.左割り当て文字列,
             nameof(ベンチマーク表行.右時間文字列) => 行.右時間文字列,
             nameof(ベンチマーク表行.右割り当て文字列) => 行.右割り当て文字列,
+            nameof(ベンチマーク表行.左理想比表示) => 行.左理想比表示,
+            nameof(ベンチマーク表行.右理想比表示) => 行.右理想比表示,
             "左セル確認" => 行.左セル.実行文字列,
             "右セル確認" => 行.右セル.実行文字列,
             _ => string.Empty,
@@ -2534,7 +2551,7 @@ public sealed partial class MainPage:ContentPage {
         this.チェック選択操作状態一覧.Remove(グリッド);
     }
 
-    private DataGridTemplateColumn テキスト列を作成(string 見出し,string プロパティ,ベンチマークグリッドソート列 ソート列,double 幅,TextAlignment 配置,Color? 背景色 = null) {
+    private DataGridTemplateColumn テキスト列を作成(string 見出し,string プロパティ,ベンチマークグリッドソート列 ソート列,double 幅,TextAlignment 配置,Color? 背景色 = null,string? 文字色プロパティ = null) {
         var 解決済み背景色 = 背景色??Color.FromArgb("#F1F5F9");
         return new DataGridTemplateColumn {
             MappingName=プロパティ,
@@ -2560,6 +2577,9 @@ public sealed partial class MainPage:ContentPage {
                 };
                 ラベル.SetBinding(Label.TextProperty,プロパティ);
                 ラベル.SetBinding(ToolTipProperties.TextProperty,プロパティ);
+                if(文字色プロパティ is not null) {
+                    ラベル.SetBinding(Label.TextColorProperty,文字色プロパティ);
+                }
                 if(プロパティ==nameof(ベンチマーク表行.ベンチマーク型文字列)
                     ||プロパティ==nameof(ベンチマーク表行.ベンチマークメソッド文字列)) {
                     ラベル.SetBinding(Label.TextDecorationsProperty,nameof(ベンチマーク表行.ベンチマーク識別文字装飾));

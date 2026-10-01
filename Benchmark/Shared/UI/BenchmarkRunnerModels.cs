@@ -41,6 +41,11 @@ public enum ベンチマークグリッドソート列 {
     右日時,
     右時間,
     右割り当て,
+    理想日時,
+    理想時間,
+    理想割り当て,
+    左理想比,
+    右理想比,
 }
 
 public sealed class ベンチマークソート規則(ベンチマークグリッドソート列 列,bool 降順か値=false):ObservableObject {
@@ -91,6 +96,11 @@ public sealed class ベンチマークソート規則(ベンチマークグリ�
             ベンチマークグリッドソート列.右日時 => "右 日時",
             ベンチマークグリッドソート列.右時間 => "右 時間",
             ベンチマークグリッドソート列.右割り当て => "右 メモリ",
+            ベンチマークグリッドソート列.理想日時 => "理想 日時",
+            ベンチマークグリッドソート列.理想時間 => "理想 時間",
+            ベンチマークグリッドソート列.理想割り当て => "理想 メモリ",
+            ベンチマークグリッドソート列.左理想比 => "左÷理想",
+            ベンチマークグリッドソート列.右理想比 => "右÷理想",
             _ => 列.ToString(),
         };
 }
@@ -1171,6 +1181,9 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.選択チェック状態値=this.選択中か値;
         this.左セル=this.セルを作成(ソースタブ.左プロジェクト);
         this.右セル=this.セルを作成(ソースタブ.右プロジェクト);
+        if(ソースタブ.理想ありか) {
+            this.理想セル=this.セルを作成(ソースタブ.理想プロジェクト);
+        }
         foreach(var セル in this.プロジェクトセル一覧) {
             セル.UI選択変更時+=this.セルUI選択変更時;
             セル.PropertyChanged+=this.セルプロパティ変更時;
@@ -1256,6 +1269,8 @@ public sealed class ベンチマーク表行:ObservableObject {
     public IReadOnlyDictionary<string,ベンチマークケース> プロジェクト別ケース { get; }
     public ベンチマークプロジェクトセル 左セル { get; }
     public ベンチマークプロジェクトセル 右セル { get; }
+    /// <summary>手書き理想版のセル。理想列の無いタブでは null。</summary>
+    public ベンチマークプロジェクトセル? 理想セル { get; }
     internal ベンチマークグリッドスナップショット項目? 読込済みスナップショット { get; set; }
     internal int グリッド表示インデックス { get; set; } = -1;
     public string Count引数 => this.引数値を取得(スケーラブルベンチマーク引数列.Count);
@@ -1289,6 +1304,8 @@ public sealed class ベンチマーク表行:ObservableObject {
     public bool 右UI選択中か => this.右セル.UI選択中か;
     public bool 左部分UI選択中か => this.左セル.UI選択中か&&!this.UI選択中か;
     public bool 右部分UI選択中か => this.右セル.UI選択中か&&!this.UI選択中か;
+    public bool 理想UI選択中か => this.理想セル?.UI選択中か==true;
+    public bool 理想部分UI選択中か => this.理想UI選択中か&&!this.UI選択中か;
 
     public bool? 選択チェック状態 {
         get => this.選択チェック状態値;
@@ -1377,6 +1394,36 @@ public sealed class ベンチマーク表行:ObservableObject {
         private set => this.SetProperty(ref this.右割り当て文字列値,value);
     }
     public Color 右メモリ文字色 => 比較指標文字色を取得(this.右セル.測定値.割り当てバイト数,this.左セル.測定値.割り当てバイト数);
+    /// <summary>理想列は比較の基準なので色分けしない。</summary>
+    public Color 理想指標文字色 => 既定指標文字色;
+    public string 理想時間文字列 => this.理想セル is { } セル ? 時間を整形(セル.測定値) : string.Empty;
+    public string 理想割り当て文字列 => this.理想セル is { } セル ? 割り当てを整形(セル.測定値) : string.Empty;
+    /// <summary>左(FLinq/全最適化)÷理想 の時間倍率。</summary>
+    public 理想比 左理想比 => this.理想比を取得(this.左セル);
+    /// <summary>右(ZLinq/最適化無効)÷理想 の時間倍率。</summary>
+    public 理想比 右理想比 => this.理想比を取得(this.右セル);
+    public string 左理想比表示 => this.理想セル is null ? string.Empty : this.左理想比.表示文字列;
+    public string 右理想比表示 => this.理想セル is null ? string.Empty : this.右理想比.表示文字列;
+    public Color 左理想比文字色 => 理想比文字色を取得(this.左理想比);
+    public Color 右理想比文字色 => 理想比文字色を取得(this.右理想比);
+
+    private 理想比 理想比を取得(ベンチマークプロジェクトセル 対象) {
+        if(this.理想セル is not { } 理想) {
+            return 理想比.欠測;
+        }
+        return 理想比.時間から作成(対象.測定値,理想.測定値);
+    }
+
+    // 理想に届いている(1.00 以下)なら青、理想より遅ければ赤。差が無いか欠測なら既定色。
+    private static Color 理想比文字色を取得(理想比 比) {
+        if(比.倍率 is not { } 倍率) {
+            return 既定指標文字色;
+        }
+        if(倍率<=1) {
+            return 高性能指標文字色;
+        }
+        return 低性能指標文字色;
+    }
 
     public IReadOnlyList<ベンチマークケース> 実行ケースを取得() {
         // 保存Runスナップショットの型列は表示値であり、worker実行用の完全型名ではない。
@@ -1396,6 +1443,9 @@ public sealed class ベンチマーク表行:ObservableObject {
         get {
             yield return this.左セル;
             yield return this.右セル;
+            if(this.理想セル is { } 理想) {
+                yield return 理想;
+            }
         }
     }
 
@@ -1409,6 +1459,8 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.OnPropertyChanged(nameof(this.右UI選択中か));
         this.OnPropertyChanged(nameof(this.左部分UI選択中か));
         this.OnPropertyChanged(nameof(this.右部分UI選択中か));
+        this.OnPropertyChanged(nameof(this.理想UI選択中か));
+        this.OnPropertyChanged(nameof(this.理想部分UI選択中か));
     }
 
     public void 最終完了状態を設定(bool 最終完了か) {
@@ -1572,6 +1624,9 @@ public sealed class ベンチマーク表行:ObservableObject {
         var 右 = 値.プロジェクトを取得(this.ソースタブ.右プロジェクト);
         this.左セル.測定値を適用(左,維持表示を保持するか);
         this.右セル.測定値を適用(右,維持表示を保持するか);
+        if(this.理想セル is { } 理想セル) {
+            理想セル.測定値を適用(値.プロジェクトを取得(this.ソースタブ.理想プロジェクト),維持表示を保持するか);
+        }
         this.左時間文字列=時間を整形(this.左セル.測定値);
         this.左割り当て文字列=割り当てを整形(this.左セル.測定値);
         this.右時間文字列=時間を整形(this.右セル.測定値);
@@ -1602,6 +1657,11 @@ public sealed class ベンチマーク表行:ObservableObject {
             ベンチマークグリッドソート列.右日時 => ベンチマークソート値.日時から作成(this.右セル.最新表示日時),
             ベンチマークグリッドソート列.右時間 => ベンチマークソート値.指標から作成(this.右セル.測定値,ベンチマーク指標種別.時間),
             ベンチマークグリッドソート列.右割り当て => ベンチマークソート値.指標から作成(this.右セル.測定値,ベンチマーク指標種別.割り当て),
+            ベンチマークグリッドソート列.理想日時 => ベンチマークソート値.日時から作成(this.理想セル?.最新表示日時),
+            ベンチマークグリッドソート列.理想時間 => ベンチマークソート値.指標から作成(this.理想セル?.測定値??プロジェクト測定値.欠測,ベンチマーク指標種別.時間),
+            ベンチマークグリッドソート列.理想割り当て => ベンチマークソート値.指標から作成(this.理想セル?.測定値??プロジェクト測定値.欠測,ベンチマーク指標種別.割り当て),
+            ベンチマークグリッドソート列.左理想比 => ベンチマークソート値.数値から作成(this.左理想比.倍率),
+            ベンチマークグリッドソート列.右理想比 => ベンチマークソート値.数値から作成(this.右理想比.倍率),
             _ => ベンチマークソート値.欠測,
         };
     }
@@ -1645,6 +1705,14 @@ public sealed class ベンチマーク表行:ObservableObject {
         this.比較指標文字色を更新();
         this.OnPropertyChanged(nameof(this.時間シェアゲージ));
         this.OnPropertyChanged(nameof(this.メモリシェアゲージ));
+        if(this.理想セル is not null) {
+            this.OnPropertyChanged(nameof(this.理想時間文字列));
+            this.OnPropertyChanged(nameof(this.理想割り当て文字列));
+            this.OnPropertyChanged(nameof(this.左理想比表示));
+            this.OnPropertyChanged(nameof(this.右理想比表示));
+            this.OnPropertyChanged(nameof(this.左理想比文字色));
+            this.OnPropertyChanged(nameof(this.右理想比文字色));
+        }
     }
 
     private シェア値 表示時間シェアを取得() => this.表示時間シェアを取得("左");

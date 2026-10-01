@@ -58,6 +58,22 @@ dotnet exec Benchmark/Benchmark.Headless/bin/Release/net10.0-windows10.0.19041/w
 
 同じビルドを2回測り、`Benchmark.Audit noise --first <1回目>... --second <2回目>... --md Work/ideal/noise.md` で行ごとの理想比 g=ln(FLinq/理想) とぶれ e を求めて分類する。e は比の周回間の差 |g1−g2| と、FLinq・理想それぞれの周回内のばらつき((四分位範囲/中央値)/2)の大きい方。実装ごとの所要時間は周回(プロセス)ごとに中央値で11%動くが、3者に共通の分が比で打ち消され、比の差は中央値5%に収まる。2回とも g&gt;e の行が改善対象で、3%未満は記録のみ、2回とも g&lt;-e の行は理想版の見直し対象。
 
+## UI と DB(Benchmark.db 版27)
+
+- 最適化4タブとメモリ上4タブは「左・右・理想」の3列になる。理想列は常に最後に置き、ループ回数は列の並びに関係なく右(ZLinq/最適化無効)で決める。
+- この8タブでは割合の帯の代わりに「左÷理想」「右÷理想」の時間倍率を出す(1.00x 以下は青、それより遅いと赤、欠測は「—」)。Persisted/Tsavorite の4タブは2列と割合の帯のまま。
+- 結果確認(OK/NG)は、理想列の結果があれば3列のダイジェストがすべて一致したときだけ OK。
+- DB は版27で、8タブの表の末尾に `理想_*` の8列があり、射影融合の表が加わった。比率ビューには `<左>÷理想` と `<右>÷理想` の列がある。
+- UI は版や形状の合わない DB をバックアップして作り直すので、版26の DB を残すには新しい UI を起動する前に移行する。移行後に古いビルドの UI を起動すると逆に作り直されるので起動しない。
+
+```
+python docs/db-migrations/20261002-benchmark-db-v27.py            # Work/UI/Benchmark.db を移行(Work/UI/backup/ へ複製してから)
+dotnet exec <Benchmark.Headless.dll> --verify-db-schema            # 版と形状の一致だけを調べる(DB は変えない)
+dotnet exec <Benchmark.Headless.dll> --import-jsonl Work/ideal/baseline-1/*.jsonl   # --multi-run の結果を1つの実行として保存
+```
+
+`--import-jsonl` は FLinq→左、比較相手→右、理想→理想の列へ入れ、ダイジェストが一致しなかった行は3列とも失敗として残す。同じ行を2回含めると後の行で上書きされるので、1回の取り込みには1周ぶんだけを渡す。
+
 ## 結果の誤り(理想版との比較で発見)
 
 - 複合連鎖 `srcCount().Order().Where(p)`(配列・List 起点): ソースが最初から昇順のとき、並べ替えを省く高速経路が後続の `Where` を適用せず全件を流す。高速経路に入れないときはソース式を2回評価する。シャッフルされたソースでは正しい。

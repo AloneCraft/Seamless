@@ -153,6 +153,8 @@ public sealed partial class 実行ビューモデル:ObservableObject {
             .Where(static 項目 => 項目.軸数>0)
             .GroupBy(項目 => this.結果行キーを作成(項目)+"|"+項目.軸数.ToString(System.Globalization.CultureInfo.InvariantCulture),StringComparer.OrdinalIgnoreCase);
         foreach(var グループ in 結果一覧) {
+            // 列ごとの最新結果のうちダイジェストのあるものを突き合わせる。理想列があれば3列すべてが一致して OK。
+            // 左右の両方がそろうまでは判定しない(理想列だけ欠けている間は左右で判定する)。
             var 左 = グループ.LastOrDefault(項目 => string.Equals(項目.プロジェクト,ソースタブ.左プロジェクト,StringComparison.OrdinalIgnoreCase));
             var 右 = グループ.LastOrDefault(項目 => string.Equals(項目.プロジェクト,ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase));
             if(左 is null||右 is null
@@ -161,9 +163,21 @@ public sealed partial class 実行ビューモデル:ObservableObject {
                 continue;
             }
 
-            var 確認文字列 = string.Equals(左.結果ダイジェスト,右.結果ダイジェスト,StringComparison.Ordinal) ? "OK" : "NG";
-            this.結果確認を適用(左,確認文字列);
-            this.結果確認を適用(右,確認文字列);
+            var 対象一覧 = new List<ベンチマーク結果項目> { 左,右 };
+            if(ソースタブ.理想ありか
+                &&グループ.LastOrDefault(項目 => string.Equals(項目.プロジェクト,ソースタブ.理想プロジェクト,StringComparison.OrdinalIgnoreCase)) is { } 理想
+                &&!string.IsNullOrWhiteSpace(理想.結果ダイジェスト)) {
+                対象一覧.Add(理想);
+            }
+            var 確認文字列 = "OK";
+            foreach(var 項目 in 対象一覧) {
+                if(!string.Equals(項目.結果ダイジェスト,左.結果ダイジェスト,StringComparison.Ordinal)) {
+                    確認文字列="NG";
+                }
+            }
+            foreach(var 項目 in 対象一覧) {
+                this.結果確認を適用(項目,確認文字列);
+            }
         }
     }
 
