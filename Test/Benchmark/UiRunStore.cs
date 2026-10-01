@@ -4,18 +4,24 @@ namespace Test.Benchmark;
 
 public sealed class UI実行ストア{
     [Fact]
-    public void スキーマを確認_通常DBを日本語スキーマ版26で実行表とタブ別11表と11ビューを作成する(){
+    public void スキーマを確認_通常DBを日本語スキーマ版27で実行表とタブ別12表と12ビューを作成する(){
         var パス=DBパスを作成();
         new global::UI.Storage.UI実行ストア(パス).スキーマを確認();
         using var 接続=開く(パス);
-        Assert.Equal(26L,スカラー<long>(接続,"PRAGMA user_version;"));
+        Assert.Equal(27L,スカラー<long>(接続,"PRAGMA user_version;"));
         Assert.Equal(1L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='実行';"));
-        // 単一の「ベンチマーク」表は版24でタブ別11表へ分割済み。Persisted/Tsavorite は Seamless版・System版の2タブに分かれる。
-        Assert.Equal(11L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('書き換え','パイプライン融合','述語プッシュダウン','Array','IEnumerable','Range','List','Persisted(Seamless)','Persisted(System)','Tsavorite(Seamless)','Tsavorite(System)');"));
+        // 単一の「ベンチマーク」表は版24でタブ別表へ分割済み。Persisted/Tsavorite は Seamless版・System版の2タブに分かれる。
+        // 射影融合の表は版27で追加した。
+        Assert.Equal(12L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('書き換え','パイプライン融合','述語プッシュダウン','射影融合','Array','IEnumerable','Range','List','Persisted(Seamless)','Persisted(System)','Tsavorite(Seamless)','Tsavorite(System)');"));
         Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('Runs','Benchmark','Apps','診断カウンター','ベンチマーク','Persisted','Tsavorite');"));
-        // 版26でタブ別11表それぞれに比率View({表名}View)が追加された。
-        Assert.Equal(11L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
+        // タブ別表それぞれに比率View({表名}View)がある。
+        Assert.Equal(12L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='view';"));
         Assert.Equal(1L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='view' AND name='ArrayView';"));
+        // 版27で理想版のあるタブは末尾に理想列を持ち、保存層のタブは2列のまま。
+        Assert.Equal(8L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name LIKE '理想_%';"));
+        Assert.Equal("理想_ループ回数",スカラー<string>(接続,"SELECT name FROM pragma_table_info('Array') ORDER BY cid DESC LIMIT 1;"));
+        Assert.Equal(8L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('射影融合') WHERE name LIKE '理想_%';"));
+        Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Persisted(Seamless)') WHERE name LIKE '理想_%';"));
         // 識別情報は側ごとに独立した列を持つ。1組を共有していた旧スキーマでは左中央右の型完全名が混線した。
         Assert.Equal(4L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name IN('FLinq_アセンブリ名','FLinq_型完全名','ZLinq_アセンブリ名','ZLinq_型完全名');"));
         Assert.Equal(7L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name IN('引数キー','引数JSON','ZLinq_状態','ZLinq_失敗理由','ZLinq_日時','ZLinq_時間ns','ZLinq_メモリバイト');"));
@@ -38,7 +44,7 @@ public sealed class UI実行ストア{
         ストア.スキーマを確認();
 
         using(var 接続=開く(パス)){
-            Assert.Equal(26L,スカラー<long>(接続,"PRAGMA user_version;"));
+            Assert.Equal(27L,スカラー<long>(接続,"PRAGMA user_version;"));
             Assert.Equal(11L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN('実行','パイプライン融合','述語プッシュダウン','Array','IEnumerable','Range','List','Persisted(Seamless)','Persisted(System)','Tsavorite(Seamless)','Tsavorite(System)');"));
             Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='Runs';"));
         }
@@ -62,14 +68,14 @@ public sealed class UI実行ストア{
         new global::UI.Storage.UI実行ストア(パス).スキーマを確認();
 
         using(var 接続=開く(パス)){
-            Assert.Equal(26L,スカラー<long>(接続,"PRAGMA user_version;"));
+            Assert.Equal(27L,スカラー<long>(接続,"PRAGMA user_version;"));
             Assert.Equal(0L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name='Enumerable_アセンブリ名';"));
             Assert.Equal(16L,スカラー<long>(接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name LIKE 'FLinq_%' OR name LIKE 'ZLinq_%';"));
         }
 
         var バックアップ=Assert.Single(Directory.GetFiles(Path.GetDirectoryName(パス)!,Path.GetFileName(パス)+".*.bak"));
         using var バックアップ接続=開く(バックアップ);
-        Assert.Equal(26L,スカラー<long>(バックアップ接続,"PRAGMA user_version;"));
+        Assert.Equal(27L,スカラー<long>(バックアップ接続,"PRAGMA user_version;"));
         Assert.Equal(1L,スカラー<long>(バックアップ接続,"SELECT COUNT(*) FROM pragma_table_info('Array') WHERE name='Enumerable_アセンブリ名';"));
     }
     [Fact]
@@ -110,6 +116,107 @@ public sealed class UI実行ストア{
         Assert.Equal(左識別,項目.左ケース);
         Assert.Equal(右識別,項目.右ケース);
     }
+    [Fact]
+    public void ベンチマークスナップショット項目を保存_理想側を往復し理想比をビューで返す(){
+        var ストア=new global::UI.Storage.UI実行ストア(DBパスを作成());
+        var 実行=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","System.Array",DateTimeOffset.UtcNow));
+        var 日時=DateTimeOffset.Parse("2026-10-02T12:34:56+09:00",global::System.Globalization.CultureInfo.InvariantCulture);
+        var 理想識別=new UIベンチマークスナップショットケース書込("Benchmark.System.Linq.Enumerable.Ideal","Benchmark.System.Linq.Enumerable.Ideal.IdealInt32","Where_predicate","","[]");
+        ストア.ベンチマークスナップショット項目を保存(実行.実行ID,[
+            new("System.Array","Array<int>","Where_predicate",14,true,new(UI実行状態.完了,string.Empty,日時,30,0,8),new(UI実行状態.完了,string.Empty,日時,60,0,8),null,null,new(UI実行状態.完了,string.Empty,日時,20,0,8),理想識別),
+            // 理想側を渡さない行は、理想列が待機中として保存される。
+            new("System.Array","Array<ClassInt32>","Where_predicate",14,true,new(UI実行状態.完了,string.Empty,日時,30,0,8),new(UI実行状態.完了,string.Empty,日時,60,0,8)),
+        ]);
+
+        var 項目一覧=ストア.ベンチマークスナップショット項目一覧を取得(実行.実行ID);
+        var 理想あり=Assert.Single(項目一覧,項目=>項目.型名=="Array<int>");
+        Assert.Equal(20,理想あり.理想!.平均ナノ秒);
+        Assert.Equal(8,理想あり.理想.ループ回数);
+        Assert.Equal(理想識別,理想あり.理想ケース);
+        var 理想なし=Assert.Single(項目一覧,項目=>項目.型名=="Array<ClassInt32>");
+        Assert.Equal(UI実行状態.待機中,理想なし.理想!.状態);
+        Assert.Null(理想なし.理想.平均ナノ秒);
+        Assert.Null(理想なし.理想ケース);
+
+        var ビュー=ストア.分析ビューを照会("ArrayView");
+        var 行=Assert.Single(ビュー,行=>(string?)行["型"]=="Array<int>");
+        Assert.Equal(1.5,Assert.IsType<double>(行["FLinq÷理想"]),6);
+        Assert.Equal(3.0,Assert.IsType<double>(行["ZLinq÷理想"]),6);
+        Assert.Null(Assert.Single(ビュー,行=>(string?)行["型"]=="Array<ClassInt32>")["FLinq÷理想"]);
+    }
+
+    [Fact]
+    public void 移行スクリプト_版26のDBを版27へ移しデータを残す(){
+        var パス=DBパスを作成();
+        var ストア=new global::UI.Storage.UI実行ストア(パス);
+        var 実行=ストア.実行を作成(new(UI実行アプリ種別.ベンチマーク,"表示","Fast","System.Array",DateTimeOffset.UtcNow));
+        var 日時=DateTimeOffset.Parse("2026-09-19T12:34:56+09:00",global::System.Globalization.CultureInfo.InvariantCulture);
+        ストア.ベンチマークスナップショット項目を保存(実行.実行ID,[
+            new("System.Array","Array<int>","Where_predicate",14,true,new(UI実行状態.完了,string.Empty,日時,30,0,8),new(UI実行状態.完了,string.Empty,日時,60,0,8)),
+        ]);
+        版26の形状へ戻す(パス);
+        Assert.False(new global::UI.Storage.UI実行ストア(パス).既存スキーマが一致するか());
+
+        var 出力=Pythonを実行(移行スクリプトのパス(),パス);
+
+        Assert.True(new global::UI.Storage.UI実行ストア(パス).既存スキーマが一致するか(),出力);
+        var 項目=Assert.Single(new global::UI.Storage.UI実行ストア(パス).ベンチマークスナップショット項目一覧を取得(実行.実行ID));
+        Assert.Equal(30,項目.左.平均ナノ秒);
+        Assert.Equal(60,項目.右.平均ナノ秒);
+        Assert.Equal(UI実行状態.待機中,項目.理想!.状態);
+        Assert.Single(Directory.GetFiles(Path.Combine(Path.GetDirectoryName(パス)!,"backup"),"Benchmark.v26.*.db"));
+        // 2回目は移行済みとして形状だけを確かめる。
+        Pythonを実行(移行スクリプトのパス(),パス);
+        Assert.True(new global::UI.Storage.UI実行ストア(パス).既存スキーマが一致するか());
+    }
+
+    // 版27の DB から、理想列・射影融合の表・理想比のビュー列を取り除いて版26の形状にする。
+    private static void 版26の形状へ戻す(string パス){
+        using var 接続=開く(パス);
+        string[] 理想あり表=["書き換え","パイプライン融合","述語プッシュダウン","Array","IEnumerable","Range","List"];
+        string[] 左見出し=["全最適化","全最適化","全最適化","FLinq","FLinq","FLinq","FLinq"];
+        string[] 右見出し=["書き換え無効","パイプライン融合無効","述語プッシュダウン無効","ZLinq","ZLinq","ZLinq","ZLinq"];
+        string[] 列接尾辞=["アセンブリ名","型完全名","状態","失敗理由","日時","時間ns","メモリバイト","ループ回数"];
+        var SQL=new global::System.Text.StringBuilder();
+        foreach(var 名前 in (string[])[..理想あり表,"射影融合"]){
+            SQL.Append($"DROP VIEW [{名前}View];");
+        }
+        SQL.Append("DROP TABLE [射影融合];");
+        foreach(var 表 in 理想あり表){
+            foreach(var 接尾辞 in 列接尾辞){
+                SQL.Append($"ALTER TABLE [{表}] DROP COLUMN [理想_{接尾辞}];");
+            }
+        }
+        for(var i=0;i<理想あり表.Length;i++){
+            SQL.Append($"CREATE VIEW [{理想あり表[i]}View] AS SELECT [型],[ベンチマーク],CAST([{左見出し[i]}_時間ns] AS REAL)/([{左見出し[i]}_時間ns]+[{右見出し[i]}_時間ns]) AS [比率] FROM [{理想あり表[i]}];");
+        }
+        SQL.Append("PRAGMA user_version=26;");
+        using var コマンド=接続.CreateCommand();
+        コマンド.CommandText=SQL.ToString();
+        コマンド.ExecuteNonQuery();
+    }
+
+    private static string 移行スクリプトのパス(){
+        var ディレクトリ=new DirectoryInfo(AppContext.BaseDirectory);
+        while(ディレクトリ is not null&&!File.Exists(Path.Combine(ディレクトリ.FullName,"Seamless.slnx"))){
+            ディレクトリ=ディレクトリ.Parent;
+        }
+        Assert.NotNull(ディレクトリ);
+        return Path.Combine(ディレクトリ.FullName,"docs","db-migrations","20261002-benchmark-db-v27.py");
+    }
+
+    private static string Pythonを実行(string スクリプト,string DBパス){
+        var 開始=new global::System.Diagnostics.ProcessStartInfo("python"){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
+        開始.ArgumentList.Add(スクリプト);
+        開始.ArgumentList.Add(DBパス);
+        開始.Environment["PYTHONIOENCODING"]="utf-8";
+        using var プロセス=global::System.Diagnostics.Process.Start(開始)!;
+        var 出力=プロセス.StandardOutput.ReadToEnd()+プロセス.StandardError.ReadToEnd();
+        プロセス.WaitForExit();
+        Assert.True(プロセス.ExitCode==0,出力);
+        return 出力;
+    }
+
     [Fact]
     public void ベンチマークスナップショット項目を保存_型が異なる同名メソッドを別行として維持する(){
         var ストア=new global::UI.Storage.UI実行ストア(DBパスを作成());

@@ -6,15 +6,18 @@ namespace UI.Storage;
 /// <summary>通常Benchmark UIのタブ別テーブル定義。識別子はすべて静的ホワイトリストから取得する。</summary>
 internal static class BenchmarkTabStorage {
     private sealed record 定義(string タブID,string 表名,IReadOnlyList<string> 列見出し);
+    private const string 理想見出し="理想";
 
     private static readonly 定義[] 定義一覧 = [
-        new("Optimization.Rewrite","書き換え",["全最適化","書き換え無効"]),
-        new("Optimization.PipelineFusion","パイプライン融合",["全最適化","パイプライン融合無効"]),
-        new("Optimization.PredicatePushdown","述語プッシュダウン",["全最適化","述語プッシュダウン無効"]),
-        new("System.Array","Array",["FLinq","ZLinq"]),
-        new("System.Collections.Generic.IEnumerable<>","IEnumerable",["FLinq","ZLinq"]),
-        new("System.Range","Range",["FLinq","ZLinq"]),
-        new("System.List","List",["FLinq","ZLinq"]),
+        // 3列目の「理想」は手書き理想版。既存 DB は列を末尾に足すだけで移行できる(docs/db-migrations)。
+        new("Optimization.Rewrite","書き換え",["全最適化","書き換え無効",理想見出し]),
+        new("Optimization.PipelineFusion","パイプライン融合",["全最適化","パイプライン融合無効",理想見出し]),
+        new("Optimization.PredicatePushdown","述語プッシュダウン",["全最適化","述語プッシュダウン無効",理想見出し]),
+        new("Optimization.ProjectionMerge","射影融合",["全最適化","射影融合無効",理想見出し]),
+        new("System.Array","Array",["FLinq","ZLinq",理想見出し]),
+        new("System.Collections.Generic.IEnumerable<>","IEnumerable",["FLinq","ZLinq",理想見出し]),
+        new("System.Range","Range",["FLinq","ZLinq",理想見出し]),
+        new("System.List","List",["FLinq","ZLinq",理想見出し]),
         new("Seamless.Persisted.Seamless","Persisted(Seamless)",["FLinq","Persisted(Seamless)"]),
         new("Seamless.Persisted.System","Persisted(System)",["FLinq","Persisted(System)"]),
         new("Seamless.Tsavorite.Seamless","Tsavorite(Seamless)",["FLinq","Tsavorite(Seamless)"]),
@@ -49,18 +52,26 @@ internal static class BenchmarkTabStorage {
             var ビュー = 引用(定義.表名+"View");
             var 左列 = 引用(識別子(定義.列見出し[0],"時間ns"));
             var 右列 = 引用(識別子(定義.列見出し[1],"時間ns"));
+            var 理想比列 = string.Empty;
+            if(定義.列見出し.Count>2) {
+                var 理想列 = 引用(識別子(定義.列見出し[2],"時間ns"));
+                理想比列=$",{理想比(左列,理想列)} AS {引用(定義.列見出し[0]+"÷理想")},{理想比(右列,理想列)} AS {引用(定義.列見出し[1]+"÷理想")}";
+            }
             実行(接続,トランザクション,$"""
                 CREATE VIEW {ビュー} AS
                 SELECT "型","ベンチマーク",
                     CASE WHEN {左列} IS NULL OR {右列} IS NULL OR {左列}<0 OR {右列}<0 THEN NULL
                          WHEN {左列}=0 AND {右列}=0 THEN 0.0
-                         ELSE CAST({左列} AS REAL)/({左列}+{右列}) END AS "比率"
+                         ELSE CAST({左列} AS REAL)/({左列}+{右列}) END AS "比率"{理想比列}
                 FROM {表}
                 WHERE "実行ID"=(SELECT MAX("実行ID") FROM {表})
                 ORDER BY "比率" DESC;
                 """);
         }
     }
+
+    private static string 理想比(string 対象列,string 理想列) =>
+        $"CASE WHEN {対象列} IS NULL OR {理想列} IS NULL OR {対象列}<0 OR {理想列}<=0 THEN NULL ELSE CAST({対象列} AS REAL)/{理想列} END";
 
     internal static bool 想定形状か(SqliteConnection 接続) {
         using(var ビューコマンド=接続.CreateCommand()) {
@@ -134,7 +145,9 @@ internal static class BenchmarkTabStorage {
                     側一覧.Add((側,ケース)); 位置+=8;
                 }
                 var 左=側一覧[0]; var 右=側一覧[1];
-                結果.Add(new(読取器.GetInt64(0),定義.タブID,読取器.GetString(1),ベンチマーク,読取器.IsDBNull(3)?null:読取器.GetInt32(3),読取器.GetInt32(4)!=0,左.側,右.側,左.ケース,右.ケース));
+                UIベンチマークグリッド側記録? 理想側=null; UIベンチマークスナップショットケース書込? 理想ケース=null;
+                if(側一覧.Count>2) { 理想側=側一覧[2].側; 理想ケース=側一覧[2].ケース; }
+                結果.Add(new(読取器.GetInt64(0),定義.タブID,読取器.GetString(1),ベンチマーク,読取器.IsDBNull(3)?null:読取器.GetInt32(3),読取器.GetInt32(4)!=0,左.側,右.側,左.ケース,右.ケース,理想側,理想ケース));
             }
         }
         return 結果;
@@ -155,8 +168,12 @@ internal static class BenchmarkTabStorage {
     }
 
     private static 定義 取得(string タブID) => 定義一覧.FirstOrDefault(定義=>string.Equals(定義.タブID,タブID,StringComparison.OrdinalIgnoreCase)) ?? throw new InvalidDataException("不明なBenchmarkタブIDです: "+タブID);
-    private static IReadOnlyList<(UIベンチマークグリッド側書込 側,UIベンチマークスナップショットケース書込? ケース)> 側一覧を取得(定義 定義,UIベンチマークスナップショット項目書込 項目) =>
-        [(項目.左,項目.左ケース),(項目.右,項目.右ケース)];
+    private static IReadOnlyList<(UIベンチマークグリッド側書込 側,UIベンチマークスナップショットケース書込? ケース)> 側一覧を取得(定義 定義,UIベンチマークスナップショット項目書込 項目) {
+        if(定義.列見出し.Count>2) {
+            return [(項目.左,項目.左ケース),(項目.右,項目.右ケース),(項目.理想??待機側(),項目.理想ケース)];
+        }
+        return [(項目.左,項目.左ケース),(項目.右,項目.右ケース)];
+    }
     private static UIベンチマークグリッド側書込 待機側()=>new(UI実行状態.待機中,string.Empty,null,null,null);
     private static string 識別子(string 見出し,string 接尾辞)=>$"{見出し}_{接尾辞}";
     private static string 引用(string 識別子)=>"\""+識別子.Replace("\"","\"\"")+"\"";

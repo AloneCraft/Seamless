@@ -9,8 +9,17 @@ if(args.Contains("--performance-gate",StringComparer.OrdinalIgnoreCase)) {
     return;
 }
 
+if(args.Contains("--verify-db-schema",StringComparer.OrdinalIgnoreCase)) {
+    Environment.ExitCode=計測結果取込.スキーマを検査(args);
+    return;
+}
+
 var cancellationToken = CancellationToken.None;
 var catalog = ベンチマークカタログ.読み込む();
+if(args.Contains("--import-jsonl",StringComparer.OrdinalIgnoreCase)) {
+    Environment.ExitCode=計測結果取込.取り込む(args,catalog);
+    return;
+}
 if(args.Contains("--list-json",StringComparer.OrdinalIgnoreCase)) {
     var listed=new List<object>();
     foreach(var source in ベンチマークソースタブ一覧.標準全て) {
@@ -257,15 +266,13 @@ static class 複数実装計測 {
         Arguments=ケース.引数一覧.Select(static 引数 => 引数.値).ToArray(),
     };
 
-    /// <summary>タブごとの手書き理想版のアセンブリ(S6 でタブ定義の理想列へ移す)。</summary>
-    public static string? 理想アセンブリ名(string タブID) => タブID switch {
-        ベンチマークソースタブ一覧.System配列ID => "Benchmark.System.Linq.Enumerable.Ideal",
-        ベンチマークソースタブ一覧.SystemリストID => "Benchmark.System.Linq.Enumerable.List.Ideal",
-        ベンチマークソースタブ一覧.SystemIEnumerableID => "Benchmark.System.Linq.Enumerable.IEnumerable.Ideal",
-        ベンチマークソースタブ一覧.System範囲ID => "Benchmark.System.Linq.Enumerable.Range.Ideal",
-        ベンチマークソースタブ一覧.最適化書き換えID or ベンチマークソースタブ一覧.最適化パイプライン融合ID or ベンチマークソースタブ一覧.最適化述語押し下げID or ベンチマークソースタブ一覧.最適化射影融合ID => "Benchmark.Optimization.Ideal",
-        _ => null,
-    };
+    /// <summary>タブごとの手書き理想版のアセンブリ。タブ定義の理想列から取る(理想列の無いタブは null)。</summary>
+    public static string? 理想アセンブリ名(string タブID) {
+        if(ベンチマークソースタブ一覧.IDから取得を試みる(タブID) is { 理想ありか: true } タブ) {
+            return タブ.理想アセンブリ名;
+        }
+        return null;
+    }
 
     /// <summary>
     /// 理想版の具象型名。単一演算子は FLinq の型名の FLinq を Ideal に置き換える(例 ….List.FLinq.FLinqInt32 → ….List.Ideal.IdealInt32)。

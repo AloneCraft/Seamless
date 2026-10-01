@@ -38,14 +38,25 @@ public sealed record ベンチマークソースタブ定義(
     string 右アセンブリ名,
     string 左型接頭辞="",
     string 右型接頭辞="",
+    string 理想プロジェクト="",
+    string 理想見出し="",
+    string 理想アセンブリ名="",
+    string 理想型接頭辞="",
     IReadOnlyList<比較ペア定義>?比較ペア定義一覧=null){
+    // 理想列は DB の列を末尾に足すだけで移行できるよう、常に最後に置く。
     public IReadOnlyList<ベンチマーク比較列定義>列一覧{get;}=
         new ベンチマーク比較列定義[]{
             new("左",左プロジェクト,左見出し,左アセンブリ名,左型接頭辞),
             new("右",右プロジェクト,右見出し,右アセンブリ名,右型接頭辞),
+            new("理想",理想プロジェクト,理想見出し,理想アセンブリ名,理想型接頭辞),
         }.Where(static 列=>!string.IsNullOrWhiteSpace(列.プロジェクト)).ToArray();
     public IReadOnlyList<string>プロジェクト順{get;}=
-        new[]{左プロジェクト,右プロジェクト}.Where(static プロジェクト=>!string.IsNullOrWhiteSpace(プロジェクト)).ToArray();
+        new[]{左プロジェクト,右プロジェクト,理想プロジェクト}.Where(static プロジェクト=>!string.IsNullOrWhiteSpace(プロジェクト)).ToArray();
+
+    public bool 理想ありか=>!string.IsNullOrWhiteSpace(this.理想プロジェクト);
+
+    /// <summary>ループ回数を決める列。列の並びに依存させず、常に右(ZLinq/最適化無効)で較正する。</summary>
+    public string 較正プロジェクト=>this.右プロジェクト;
     public 比較ペア選択肢 ペア=>new(
         this.ID,
         this.表示名,
@@ -101,6 +112,8 @@ public static class ベンチマークソースタブ一覧{
     public const string スケーラブル永続化辞書ID="Scalable.Persisted.Dictionary";
     public const string スケーラブルTsavorite辞書ID="Scalable.Tsavorite.Dictionary";
     public const string スケーラブル永続化リストID="Scalable.Persisted.List";
+    private const string 理想見出し="理想";
+    private const string 最適化理想アセンブリ名="Benchmark.Optimization.Ideal";
 
     public static IReadOnlyList<ベンチマークソースタブ定義>スケーラブル全て{get;}=[
         new(
@@ -156,10 +169,10 @@ public static class ベンチマークソースタブ一覧{
     ];
 
     public static IReadOnlyList<ベンチマークソースタブ定義>標準全て{get;}=[
-        new(ベンチマークソースタブ.最適化書き換え,最適化書き換えID,"書き換え","Optimization.Rewrite.All","全最適化","Benchmark.Optimization.All","Optimization.Rewrite.Disabled","書き換え無効","Benchmark.Optimization.NoRewrite","Benchmark.Optimization.Rewrite.","Benchmark.Optimization.Rewrite."),
-        new(ベンチマークソースタブ.最適化パイプライン融合,最適化パイプライン融合ID,"パイプライン融合","Optimization.PipelineFusion.All","全最適化","Benchmark.Optimization.All","Optimization.PipelineFusion.Disabled","パイプライン融合無効","Benchmark.Optimization.NoPipelineFusion","Benchmark.Optimization.PipelineFusion.","Benchmark.Optimization.PipelineFusion."),
-        new(ベンチマークソースタブ.最適化述語押し下げ,最適化述語押し下げID,"述語プッシュダウン","Optimization.PredicatePushdown.All","全最適化","Benchmark.Optimization.All","Optimization.PredicatePushdown.Disabled","述語プッシュダウン無効","Benchmark.Optimization.NoPredicatePushdown","Benchmark.Optimization.PredicatePushdown.","Benchmark.Optimization.PredicatePushdown."),
-        new(ベンチマークソースタブ.最適化射影融合,最適化射影融合ID,"射影融合","Optimization.ProjectionMerge.All","全最適化","Benchmark.Optimization.All","Optimization.ProjectionMerge.Disabled","射影融合無効","Benchmark.Optimization.NoProjectionMerge","Benchmark.Optimization.ProjectionMerge.","Benchmark.Optimization.ProjectionMerge."),
+        new(ベンチマークソースタブ.最適化書き換え,最適化書き換えID,"書き換え","Optimization.Rewrite.All","全最適化","Benchmark.Optimization.All","Optimization.Rewrite.Disabled","書き換え無効","Benchmark.Optimization.NoRewrite","Benchmark.Optimization.Rewrite.","Benchmark.Optimization.Rewrite.","Optimization.Rewrite.Ideal",理想見出し,最適化理想アセンブリ名,"Benchmark.Optimization.Rewrite."),
+        new(ベンチマークソースタブ.最適化パイプライン融合,最適化パイプライン融合ID,"パイプライン融合","Optimization.PipelineFusion.All","全最適化","Benchmark.Optimization.All","Optimization.PipelineFusion.Disabled","パイプライン融合無効","Benchmark.Optimization.NoPipelineFusion","Benchmark.Optimization.PipelineFusion.","Benchmark.Optimization.PipelineFusion.","Optimization.PipelineFusion.Ideal",理想見出し,最適化理想アセンブリ名,"Benchmark.Optimization.PipelineFusion."),
+        new(ベンチマークソースタブ.最適化述語押し下げ,最適化述語押し下げID,"述語プッシュダウン","Optimization.PredicatePushdown.All","全最適化","Benchmark.Optimization.All","Optimization.PredicatePushdown.Disabled","述語プッシュダウン無効","Benchmark.Optimization.NoPredicatePushdown","Benchmark.Optimization.PredicatePushdown.","Benchmark.Optimization.PredicatePushdown.","Optimization.PredicatePushdown.Ideal",理想見出し,最適化理想アセンブリ名,"Benchmark.Optimization.PredicatePushdown."),
+        new(ベンチマークソースタブ.最適化射影融合,最適化射影融合ID,"射影融合","Optimization.ProjectionMerge.All","全最適化","Benchmark.Optimization.All","Optimization.ProjectionMerge.Disabled","射影融合無効","Benchmark.Optimization.NoProjectionMerge","Benchmark.Optimization.ProjectionMerge.","Benchmark.Optimization.ProjectionMerge.","Optimization.ProjectionMerge.Ideal",理想見出し,最適化理想アセンブリ名,"Benchmark.Optimization.ProjectionMerge."),
         new(
             ベンチマークソースタブ.System配列,
             System配列ID,
@@ -169,7 +182,10 @@ public static class ベンチマークソースタブ一覧{
             "Benchmark.System.Linq.Enumerable.FLinq",
             "System.Array.ZLinq",
             "ZLinq",
-            "Benchmark.System.Linq.Enumerable.ZLinq"),
+            "Benchmark.System.Linq.Enumerable.ZLinq",
+            理想プロジェクト:"System.Array.Ideal",
+            理想見出し:理想見出し,
+            理想アセンブリ名:"Benchmark.System.Linq.Enumerable.Ideal"),
         new(
             ベンチマークソースタブ.SystemIEnumerable,
             SystemIEnumerableID,
@@ -179,7 +195,10 @@ public static class ベンチマークソースタブ一覧{
             "Benchmark.System.Linq.Enumerable.IEnumerable.FLinq",
             "System.IEnumerable.ZLinq",
             "ZLinq",
-            "Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq"),
+            "Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq",
+            理想プロジェクト:"System.IEnumerable.Ideal",
+            理想見出し:理想見出し,
+            理想アセンブリ名:"Benchmark.System.Linq.Enumerable.IEnumerable.Ideal"),
         new(
             ベンチマークソースタブ.System範囲,
             System範囲ID,
@@ -189,7 +208,10 @@ public static class ベンチマークソースタブ一覧{
             "Benchmark.System.Linq.Enumerable.Range.FLinq",
             "System.Range.ZLinq",
             "ZLinq",
-            "Benchmark.System.Linq.Enumerable.Range.ZLinq"),
+            "Benchmark.System.Linq.Enumerable.Range.ZLinq",
+            理想プロジェクト:"System.Range.Ideal",
+            理想見出し:理想見出し,
+            理想アセンブリ名:"Benchmark.System.Linq.Enumerable.Range.Ideal"),
         new(
             ベンチマークソースタブ.Systemリスト,
             SystemリストID,
@@ -199,7 +221,10 @@ public static class ベンチマークソースタブ一覧{
             "Benchmark.System.Linq.Enumerable.List.FLinq",
             "System.List.ZLinq",
             "ZLinq",
-            "Benchmark.System.Linq.Enumerable.List.ZLinq"),
+            "Benchmark.System.Linq.Enumerable.List.ZLinq",
+            理想プロジェクト:"System.List.Ideal",
+            理想見出し:理想見出し,
+            理想アセンブリ名:"Benchmark.System.Linq.Enumerable.List.Ideal"),
         new(
             ベンチマークソースタブ.Seamless永続化,
             Seamless永続化ID,

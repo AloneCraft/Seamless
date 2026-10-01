@@ -107,7 +107,7 @@ public sealed class IdealBase {
             var ideal = BenchmarkDigests.Load("Benchmark.Optimization.Ideal");
             var mismatches = new List<string>();
             var compared = 0;
-            foreach(var idealType in ideal.GetTypes().Where(static type => type.IsClass&&!type.IsAbstract&&type.Namespace?.StartsWith("Benchmark.Optimization.",StringComparison.Ordinal)==true)) {
+            foreach(var idealType in ideal.GetTypes().Where(static type => type.IsClass&&!type.IsAbstract&&type.Namespace?.StartsWith("Benchmark.Optimization.",StringComparison.Ordinal)==true&&BenchmarkDigests.BenchmarkMethods(type).Count>0)) {
                 var allType = all.GetType(idealType.FullName!,throwOnError: false);
                 if(allType is null) {
                     mismatches.Add(idealType.FullName+" が全最適化版にありません");

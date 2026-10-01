@@ -94,11 +94,17 @@ internal static class ベンチマーク比較フォーマッター{
         IReadOnlyList<ベンチマーク引数>?引数一覧=null){
         var 左=測定値一覧.GetValueOrDefault(ソースタブ.左プロジェクト);
         var 右=測定値一覧.GetValueOrDefault(ソースタブ.右プロジェクト);
+        var 理想=プロジェクト測定値.欠測;
+        if(ソースタブ.理想ありか){
+            理想=測定値一覧.GetValueOrDefault(ソースタブ.理想プロジェクト);
+        }
         var 行=new ベンチマーク比較行(
             ベンチマーク,
             ソースタブ,
             左,
-            右);
+            右){
+            理想=理想,
+        };
         var 比較一覧=ソースタブ.比較ペア一覧
             .Select(ペア=>シェア比較を作成(行,ペア))
             .ToArray();
@@ -194,6 +200,10 @@ internal static class ベンチマーク比較フォーマッター{
 
         if(string.Equals(プロジェクト,ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase)){
             return ソースタブ.右プロジェクト;
+        }
+
+        if(ソースタブ.理想ありか&&string.Equals(プロジェクト,ソースタブ.理想プロジェクト,StringComparison.OrdinalIgnoreCase)){
+            return ソースタブ.理想プロジェクト;
         }
 
         return プロジェクト;
@@ -304,6 +314,31 @@ public readonly record struct シェア値(
     }
 }
 
+/// <summary>
+/// 手書き理想版を基準にした時間の倍率(対象÷理想)。1.00 なら理想と同じ、大きいほど理想より遅い。
+/// どちらかが欠測なら「—」を表示する。
+/// </summary>
+public readonly record struct 理想比(double?倍率,string 表示文字列){
+    public static readonly 理想比 欠測=new(null,"—");
+
+    public bool 欠測か=>this.倍率 is null;
+
+    public static 理想比 時間から作成(プロジェクト測定値 対象,プロジェクト測定値 理想){
+        if(!対象.測定値ありか||!理想.測定値ありか||対象.時間ナノ秒 is not { } 対象値||理想.時間ナノ秒 is not { } 理想値){
+            return 欠測;
+        }
+        return 値から作成(対象値,理想値);
+    }
+
+    public static 理想比 値から作成(double 対象値,double 理想値){
+        if(!double.IsFinite(対象値)||!double.IsFinite(理想値)||対象値<0||理想値<=0){
+            return 欠測;
+        }
+        var 倍率=対象値/理想値;
+        return new 理想比(倍率,倍率.ToString("0.00",CultureInfo.InvariantCulture)+"x");
+    }
+}
+
 public readonly record struct ベンチマークシェアゲージ状態(double 左割合,double 右割合,bool 色付きバーがあるか){
     public static ベンチマークシェアゲージ状態 シェアから作成(シェア値 シェア){
         if(シェア.欠測か||シェア.左シェア is not { } 左||シェア.右シェア is not { } 右||左+右<=0){
@@ -331,6 +366,10 @@ public readonly record struct ベンチマーク比較行(
     public IReadOnlyList<ベンチマーク引数>引数一覧{get;init;}=[];
     public シェア比較 左右シェア{get;init;}
     public IReadOnlyList<シェア比較>比較一覧{get;init;}=[];
+    /// <summary>手書き理想版の測定値。理想列の無いタブでは常に欠測。</summary>
+    public プロジェクト測定値 理想{get;init;}=プロジェクト測定値.欠測;
+    public 理想比 左理想比=>理想比.時間から作成(this.左,this.理想);
+    public 理想比 右理想比=>理想比.時間から作成(this.右,this.理想);
 
     public プロジェクト測定値 プロジェクトを取得(string プロジェクト){
         if(this.ソースタブ is null){
@@ -343,6 +382,10 @@ public readonly record struct ベンチマーク比較行(
 
         if(string.Equals(プロジェクト,this.ソースタブ.右プロジェクト,StringComparison.OrdinalIgnoreCase)){
             return this.右;
+        }
+
+        if(this.ソースタブ.理想ありか&&string.Equals(プロジェクト,this.ソースタブ.理想プロジェクト,StringComparison.OrdinalIgnoreCase)){
+            return this.理想;
         }
 
         return プロジェクト測定値.欠測;

@@ -163,8 +163,11 @@ internal sealed class ベンチマークオーケストレーター(
         }
 
         var ウォームアップ済みケース一覧 = new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
-        var 較正ケース = 行.ケース一覧[^1];
-        var 同期ケース一覧 = 行.ケース一覧.Take(行.ケース一覧.Count-1).ToArray();
+        // 較正役は列の並びではなく定義で決める(理想列を末尾に足しても ZLinq/最適化無効 のまま)。
+        // 較正役が選ばれていない行だけ、従来どおり最後の列で較正する。
+        var 較正プロジェクト = ベンチマークソースタブ一覧.取得(行.ソースタブ).較正プロジェクト;
+        var 較正ケース = 行.ケース一覧.FirstOrDefault(ケース => string.Equals(ケース.プロジェクト,較正プロジェクト,StringComparison.OrdinalIgnoreCase))??行.ケース一覧[^1];
+        var 同期ケース一覧 = 行.ケース一覧.Where(ケース => !ReferenceEquals(ケース,較正ケース)).ToArray();
 
         if(要求.実行プロファイル is ベンチマーク実行プロファイル.高速 or ベンチマーク実行プロファイル.正確 or ベンチマーク実行プロファイル.中間) {
             await this.開放ループ較正で行を実行Async(状態,行,較正ケース,同期ケース一覧,論理CPU,要求,ウォームアップ済みケース一覧,進行通知,状態変更時,キャンセルトークン);

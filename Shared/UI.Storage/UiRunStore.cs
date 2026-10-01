@@ -3,7 +3,7 @@ using Microsoft.Data.Sqlite;
 namespace UI.Storage;
 
 public sealed class UI実行ストア{
-    private const int ベンチマークスキーマ版=26;
+    private const int ベンチマークスキーマ版=27;
     private const int スケーラブルスキーマ版=20;
     private const int パラメータスイープスキーマ版=21;
     private int スキーマ版=>this.アプリ種別 switch{
@@ -24,6 +24,9 @@ public sealed class UI実行ストア{
     }
 
     public string データベースパス=>this.DBパス;
+
+    /// <summary>DB を作り直さずに、版と形状が現行と一致するかだけを調べる(移行の確認用)。</summary>
+    public bool 既存スキーマが一致するか()=>File.Exists(this.DBパス)&&this.保存済みスキーマ版を読む()==スキーマ版&&this.想定スキーマ形状か();
 
     public void スキーマを確認(){
         lock(this.スキーマロック){

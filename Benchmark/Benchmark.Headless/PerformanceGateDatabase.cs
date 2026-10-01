@@ -10,7 +10,7 @@ namespace Benchmark.Headless;
 internal sealed record PerformanceGateSaveResult(long 新実行ID,string バックアップパス);
 
 internal static class PerformanceGateDatabase{
-    private const int 必須スキーマ版=26;
+    private const int 必須スキーマ版=27;
     private static readonly IReadOnlyDictionary<string,string>表名一覧=new Dictionary<string,string>(StringComparer.Ordinal){
         [ベンチマークソースタブ一覧.System配列ID]="Array",
         [ベンチマークソースタブ一覧.SystemIEnumerableID]="IEnumerable",
@@ -20,13 +20,15 @@ internal static class PerformanceGateDatabase{
         [ベンチマークソースタブ一覧.System永続化ID]="Persisted(System)",
     };
     private static readonly string[]全タブ表名一覧=[
-        "書き換え","パイプライン融合","述語プッシュダウン","Array","IEnumerable","Range","List",
+        "書き換え","パイプライン融合","述語プッシュダウン","射影融合","Array","IEnumerable","Range","List",
         "Persisted(Seamless)","Persisted(System)","Tsavorite(Seamless)","Tsavorite(System)",
     ];
     private static readonly IReadOnlyDictionary<string,long>Run249期待行数一覧=new Dictionary<string,long>(StringComparer.Ordinal){
         ["書き換え"]=11,
         ["パイプライン融合"]=11,
         ["述語プッシュダウン"]=143,
+        // 射影融合の表は版27で追加したので Run 249 には行が無い。
+        ["射影融合"]=0,
         ["Array"]=194,
         ["IEnumerable"]=194,
         ["Range"]=81,
@@ -37,13 +39,14 @@ internal static class PerformanceGateDatabase{
         ["Tsavorite(System)"]=130,
     };
     private static readonly IReadOnlyDictionary<string,string[]>全タブ列見出し一覧=new Dictionary<string,string[]>(StringComparer.Ordinal){
-        ["書き換え"]=["全最適化","書き換え無効"],
-        ["パイプライン融合"]=["全最適化","パイプライン融合無効"],
-        ["述語プッシュダウン"]=["全最適化","述語プッシュダウン無効"],
-        ["Array"]=["FLinq","ZLinq"],
-        ["IEnumerable"]=["FLinq","ZLinq"],
-        ["Range"]=["FLinq","ZLinq"],
-        ["List"]=["FLinq","ZLinq"],
+        ["書き換え"]=["全最適化","書き換え無効","理想"],
+        ["パイプライン融合"]=["全最適化","パイプライン融合無効","理想"],
+        ["述語プッシュダウン"]=["全最適化","述語プッシュダウン無効","理想"],
+        ["射影融合"]=["全最適化","射影融合無効","理想"],
+        ["Array"]=["FLinq","ZLinq","理想"],
+        ["IEnumerable"]=["FLinq","ZLinq","理想"],
+        ["Range"]=["FLinq","ZLinq","理想"],
+        ["List"]=["FLinq","ZLinq","理想"],
         ["Persisted(Seamless)"]=["FLinq","Persisted(Seamless)"],
         ["Persisted(System)"]=["FLinq","Persisted(System)"],
         ["Tsavorite(Seamless)"]=["FLinq","Tsavorite(Seamless)"],
@@ -66,7 +69,7 @@ internal static class PerformanceGateDatabase{
         ベンチマーク性能ゲートマニフェスト マニフェスト,
         bool 形状も検証するか){
         if(スカラー長整数(接続,"PRAGMA user_version;",トランザクション)!=必須スキーマ版){
-            throw new InvalidDataException("Benchmark.dbのスキーマ版が26ではありません。");
+            throw new InvalidDataException("Benchmark.dbのスキーマ版が27ではありません。");
         }
         if(形状も検証するか){
             DB形状を検証(接続);
@@ -635,7 +638,7 @@ internal static class PerformanceGateDatabase{
             "実行ID","表示名","状態","実行プロファイル","タブ名","更新日時","実行ルート","要素数一覧","計測時間ns","論理CPU一覧",
         ];
         if(!表列一覧を読む(接続,"実行").SequenceEqual(実行必須列,StringComparer.Ordinal)){
-            throw new InvalidDataException("Benchmark.dbの実行表形状が現行版26と一致しません。");
+            throw new InvalidDataException("Benchmark.dbの実行表形状が現行版27と一致しません。");
         }
         foreach(var 定義 in 全タブ列見出し一覧){
             using(var ビュー確認=接続.CreateCommand()){
@@ -653,7 +656,7 @@ internal static class PerformanceGateDatabase{
                 ]);
             }
             if(!表列一覧を読む(接続,定義.Key).SequenceEqual(必須列,StringComparer.Ordinal)){
-                throw new InvalidDataException("Benchmark.dbのタブ表形状が現行版26と一致しません。表="+定義.Key);
+                throw new InvalidDataException("Benchmark.dbのタブ表形状が現行版27と一致しません。表="+定義.Key);
             }
         }
     }
