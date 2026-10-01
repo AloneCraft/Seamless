@@ -12,6 +12,7 @@ internal static class BenchmarkDigests {
         new("Array","Benchmark.System.Linq.Enumerable.FLinq","Benchmark.System.Linq.Enumerable.ZLinq","Benchmark.System.Linq.Enumerable.Ideal",["Int32","ClassInt32"]),
         new("List","Benchmark.System.Linq.Enumerable.List.FLinq","Benchmark.System.Linq.Enumerable.List.ZLinq","Benchmark.System.Linq.Enumerable.List.Ideal",["Int32","ClassInt32"]),
         new("IEnumerable","Benchmark.System.Linq.Enumerable.IEnumerable.FLinq","Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq","Benchmark.System.Linq.Enumerable.IEnumerable.Ideal",["Int32","ClassInt32"]),
+        new("Range","Benchmark.System.Linq.Enumerable.Range.FLinq","Benchmark.System.Linq.Enumerable.Range.ZLinq","Benchmark.System.Linq.Enumerable.Range.Ideal",["Int32"]),
     ];
 
     public static Assembly Load(string assemblyName) {
@@ -129,6 +130,10 @@ public sealed class IdealBase {
                     .Order(StringComparer.Ordinal)
                     .ToArray();
             Assert.Equal(Literals(original),Literals(copy));
+            //Range 版の定数も Shared/Linq.Range/Range_start_count.cs と同じであること
+            var rangeOriginal = BenchmarkDigests.Load("Benchmark.System.Linq.Enumerable.Range.FLinq").GetType("Shared.Linq.Range_start_count",throwOnError: true)!;
+            var rangeCopy = BenchmarkDigests.Load("Benchmark.System.Linq.Enumerable.Range.Ideal").GetType("Shared.Linq.IdealRange.Range_start_count",throwOnError: true)!;
+            Assert.Equal(Literals(rangeOriginal),Literals(rangeCopy));
         }
     }
 }

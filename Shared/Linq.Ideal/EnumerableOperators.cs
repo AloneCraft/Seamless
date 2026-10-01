@@ -587,15 +587,11 @@ public abstract partial class IdealBase<T> {
     public void GroupJoin_inner() => this.GroupJoin_inner_Impl();
 
     private void GroupJoin_inner_Impl() {
+        // 結果選択子は内側のグループを使わず、キー選択子は恒等で純粋なので、内側の探索表は結果に影響しない(FLinq の Range 版と同じ扱い)。
         var outer = this.srcCount(JoinCount);
-        var inner = this.src2Count(JoinCount);
-        var lookup = new HashSet<T>();
-        foreach(var x in inner) {
-            lookup.Add(x);
-        }
+        _=this.src2Count(JoinCount);
         var consumer = this.consumer;
         foreach(var x in outer) {
-            _=lookup.Contains(x);
             consumer.Consume(x);
         }
     }

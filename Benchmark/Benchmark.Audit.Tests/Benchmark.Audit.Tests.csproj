@@ -37,5 +37,7 @@
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.List.Ideal\Benchmark.System.Linq.Enumerable.List.Ideal.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq\Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.IEnumerable.Ideal\Benchmark.System.Linq.Enumerable.IEnumerable.Ideal.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Range.ZLinq\Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Range.Ideal\Benchmark.System.Linq.Enumerable.Range.Ideal.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

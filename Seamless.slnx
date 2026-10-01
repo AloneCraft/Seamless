@@ -46,6 +46,7 @@
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Ideal/Benchmark.System.Linq.Enumerable.Ideal.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.Ideal/Benchmark.System.Linq.Enumerable.List.Ideal.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.IEnumerable.Ideal/Benchmark.System.Linq.Enumerable.IEnumerable.Ideal.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Range.Ideal/Benchmark.System.Linq.Enumerable.Range.Ideal.csproj" />
     <Project Path="Benchmark/Worker/Worker.csproj" />
   </Folder>
   <Folder Name="/Benchmark/Shared/">
