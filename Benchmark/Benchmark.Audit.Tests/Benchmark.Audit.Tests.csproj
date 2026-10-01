@@ -23,6 +23,8 @@
   <ItemGroup>
     <Using Include="Xunit" />
     <ProjectReference Include="..\Benchmark.Audit\Benchmark.Audit.csproj" />
+    <!-- FLinq のベンチ本体が呼ぶ Seamless とその依存パッケージ(MemoryPack など)を出力へ置く。 -->
+    <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
   </ItemGroup>
   <!-- 監査対象のベンチ本体。先にビルドさせるだけで、出力は参照しない(同名の型が衝突するため)。各出力フォルダーから読む。 -->
   <ItemGroup>
@@ -39,5 +41,6 @@
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.IEnumerable.Ideal\Benchmark.System.Linq.Enumerable.IEnumerable.Ideal.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Range.ZLinq\Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Range.Ideal\Benchmark.System.Linq.Enumerable.Range.Ideal.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Benchmark.Optimization.Ideal\Benchmark.Optimization.Ideal.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

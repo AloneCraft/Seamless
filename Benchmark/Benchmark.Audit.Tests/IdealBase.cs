@@ -50,7 +50,7 @@ internal static class BenchmarkDigests {
             try {
                 return (string)capture.Invoke(instance,[method,false,Array.Empty<object?>()])!;
             } catch(TargetInvocationException exception) when(exception.InnerException is not null) {
-                return "例外:"+exception.InnerException.GetType().Name;
+                return "例外:"+exception.InnerException.GetType().Name+":"+exception.InnerException.Message;
             }
         } finally {
             (instance as IDisposable)?.Dispose();
@@ -100,14 +100,57 @@ public sealed class IdealBase {
     }
 
     [Fact,Trait("Category","Unit")]
+    public void OptimizationDigest() {
+        {
+            //複合連鎖の理想版の結果が、同じ型名の全最適化版(FLinq)と一致すること(シードなし・シード1)
+            var all = BenchmarkDigests.Load("Benchmark.Optimization.All");
+            var ideal = BenchmarkDigests.Load("Benchmark.Optimization.Ideal");
+            var mismatches = new List<string>();
+            var compared = 0;
+            foreach(var idealType in ideal.GetTypes().Where(static type => type.IsClass&&!type.IsAbstract&&type.Namespace?.StartsWith("Benchmark.Optimization.",StringComparison.Ordinal)==true)) {
+                var allType = all.GetType(idealType.FullName!,throwOnError: false);
+                if(allType is null) {
+                    mismatches.Add(idealType.FullName+" が全最適化版にありません");
+                    continue;
+                }
+                var methods = BenchmarkDigests.BenchmarkMethods(idealType);
+                if(!methods.SequenceEqual(BenchmarkDigests.BenchmarkMethods(allType))) {
+                    mismatches.Add(idealType.FullName+" のベンチが全最適化版と対応していません");
+                    continue;
+                }
+                foreach(var method in methods) {
+                    var known = KnownExceptions.All.Any(item => item.Invariant==AuditInvariant.結果不一致&&item.DeclaringType==idealType.FullName&&item.Method==method);
+                    var differs = false;
+                    foreach(int? seed in new int?[] { null,1 }) {
+                        var expected = BenchmarkDigests.Digest(allType,method,seed);
+                        var actual = BenchmarkDigests.Digest(idealType,method,seed);
+                        compared++;
+                        if(expected!=actual) {
+                            differs=true;
+                            if(!known) {
+                                mismatches.Add(idealType.FullName+"."+method+" seed="+seed+"\n  All="+expected+"\n  Ideal="+actual);
+                            }
+                        }
+                    }
+                    if(known&&!differs) {
+                        mismatches.Add(idealType.FullName+"."+method+" は一致するようになりました。KnownExceptions から消してください");
+                    }
+                }
+            }
+            Assert.True(compared>=150,"比較した行が少なすぎます: "+compared);
+            Assert.True(mismatches.Count==0,"複合連鎖の理想版の結果が全最適化版と異なります:\n"+string.Join("\n",mismatches));
+        }
+    }
+
+    [Fact,Trait("Category","Unit")]
     public void NoLinqCalls() {
         {
             //理想版の本体(Shared.Linq.Ideal)が System.Linq・ZLinq・Seamless の LINQ 実装を呼ばないこと
             using var catalog = new Target.MetadataCatalog();
             var auditor = new Target.IlAuditor(catalog);
             var calls = new List<string>();
-            foreach(var tab in BenchmarkDigests.Tabs) {
-                var assembly = catalog.Load(AuditedBenchmarks.BenchmarkAssemblyPath(tab.IdealAssembly));
+            foreach(var name in BenchmarkDigests.Tabs.Select(static tab => tab.IdealAssembly).Append("Benchmark.Optimization.Ideal")) {
+                var assembly = catalog.Load(AuditedBenchmarks.BenchmarkAssemblyPath(name));
                 calls.AddRange(auditor.FindCalls(
                     assembly,
                     static ns => ns.StartsWith("Shared.Linq.Ideal",StringComparison.Ordinal),

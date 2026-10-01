@@ -30,6 +30,15 @@ dotnet Benchmark/Benchmark.Audit/bin/Release/net10.0/Benchmark.Audit.dll audit <
 
 既知の違反は `KnownExceptions.cs` に理由付きで載せる。直したら必ず消す(違反していない項目が残るとテストが失敗する)。
 
+## 手書きの理想ループ版
+
+- `Benchmark.System.Linq.Enumerable.Ideal`(配列)・`.List.Ideal`・`.IEnumerable.Ideal`・`.Range.Ideal`・`Benchmark.Optimization.Ideal`(複合連鎖)。書き方は `理想版の記述規則.md`。
+- `Benchmark.Audit.Tests` で、結果ダイジェストが比較相手(単一演算子は ZLinq、複合連鎖は全最適化版)と一致すること、LINQ 実装を呼ばないこと、定数の写しがずれていないことを検査する。
+
+## 結果の誤り(理想版との比較で発見)
+
+- 複合連鎖 `srcCount().Order().Where(p)`(配列・List 起点): ソースが最初から昇順のとき、並べ替えを省く高速経路が後続の `Where` を適用せず全件を流す。高速経路に入れないときはソース式を2回評価する。シャッフルされたソースでは正しい。
+
 ## 2026-10-02 時点の監査結果(メモリ上4種)
 
 Array/List/IEnumerable は各97本、Range は81本、複合連鎖はメモリ上の行が120本。置き換え済みは 449/452(複合連鎖を含む)。
