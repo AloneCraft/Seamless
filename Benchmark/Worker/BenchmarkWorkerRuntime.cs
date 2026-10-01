@@ -214,6 +214,72 @@ public static class ベンチマークワーカーランタイム {
         }
     }
 
+    /// <summary>
+    /// 複数の実装を交互に温める。各実装を呼出バーストの時間だけ呼んでは眠るのを順に繰り返し、
+    /// 全実装の呼出速度が安定し、JITのコンパイル数が静穏になるまで待つ(上限は実装数×上限時間)。
+    /// 1つずつ温めないのは、実装間で共有されるBCLのジェネリック(HashSet&lt;int&gt; など)の昇格の順番を偏らせないため。
+    /// 判定は ウォームアップを実行 と同じ(最小時間・コンパイル数の静穏・呼出速度のドリフト)。
+    /// </summary>
+    public static JIT待機結果[] 交互ウォームアップを実行(IReadOnlyList<Action> 呼出一覧) {
+        var 件数 = 呼出一覧.Count;
+        var 上限ミリ秒 = 最適化待機上限ミリ秒*Math.Max(1,件数);
+        var 時計 = Stopwatch.StartNew();
+        var 呼出回数 = new long[件数];
+        var 速度一覧 = new List<double>[件数];
+        var 直近速度 = new Queue<double>[件数];
+        for(var 番号 = 0;番号<件数;番号++) {
+            速度一覧[番号]=[];
+            直近速度[番号]=new Queue<double>();
+        }
+        var 最後のコンパイル数 = JitInfo.GetCompiledMethodCount(false);
+        var 最後にコンパイルが増えたミリ秒 = 0d;
+        while(true) {
+            for(var 番号 = 0;番号<件数;番号++) {
+                var 呼出 = 呼出一覧[番号];
+                var バースト = Stopwatch.StartNew();
+                var バースト呼出回数 = 0L;
+                do {
+                    呼出();
+                    バースト呼出回数++;
+                } while(バースト.Elapsed.TotalMilliseconds<呼出バーストミリ秒);
+                呼出回数[番号]+=バースト呼出回数;
+                var 速度 = バースト.Elapsed.TotalMilliseconds*1_000_000d/バースト呼出回数;
+                速度一覧[番号].Add(速度);
+                直近速度[番号].Enqueue(速度);
+                while(直近速度[番号].Count>安定窓サイクル数) {
+                    直近速度[番号].Dequeue();
+                }
+                Thread.Sleep(1);
+            }
+
+            var 経過ミリ秒 = 時計.Elapsed.TotalMilliseconds;
+            var コンパイル数 = JitInfo.GetCompiledMethodCount(false);
+            if(コンパイル数!=最後のコンパイル数) {
+                最後のコンパイル数=コンパイル数;
+                最後にコンパイルが増えたミリ秒=経過ミリ秒;
+            }
+            var 全て安定か = true;
+            for(var 番号 = 0;番号<件数;番号++) {
+                if(!速度が安定しているか(直近速度[番号].ToArray(),安定窓サイクル数)) {
+                    全て安定か=false;
+                }
+            }
+            JIT待機状態? 終了状態 = null;
+            if(最適化待機を終了できるか(経過ミリ秒,経過ミリ秒-最後にコンパイルが増えたミリ秒,全て安定か)) {
+                終了状態=JIT待機状態.安定;
+            } else if(経過ミリ秒>=上限ミリ秒) {
+                終了状態=JIT待機状態.時間切れ;
+            }
+            if(終了状態 is { } 状態) {
+                var 結果一覧 = new JIT待機結果[件数];
+                for(var 番号 = 0;番号<件数;番号++) {
+                    結果一覧[番号]=待機結果を作成(状態,経過ミリ秒,呼出回数[番号],速度一覧[番号],直近速度[番号]);
+                }
+                return 結果一覧;
+            }
+        }
+    }
+
     private static JIT待機結果 待機結果を作成(JIT待機状態 状態,double 経過ミリ秒,long 呼出回数,List<double> 速度一覧,Queue<double> 直近速度) {
         var 初期 = 中央値(速度一覧.Take(初期速度サイクル数).ToArray());
         var 最終 = 中央値(直近速度.ToArray());

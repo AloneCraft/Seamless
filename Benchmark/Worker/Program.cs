@@ -59,6 +59,17 @@ while(await Console.In.ReadLineAsync() is { } 行) {
             }
             continue;
         }
+        if(string.Equals(command,"multi-fast-run",StringComparison.OrdinalIgnoreCase)) {
+            var result = 複数実装比較を実行(タスク,タスク.割り当て論理CPU??論理CPU);
+            await プロトコル書込ゲート.WaitAsync();
+            try {
+                await プロトコル出力.WriteLineAsync(JsonSerializer.Serialize(result));
+                await プロトコル出力.FlushAsync();
+            } finally {
+                プロトコル書込ゲート.Release();
+            }
+            continue;
+        }
         if(string.Equals(command,"fast-run",StringComparison.OrdinalIgnoreCase)) {
             var 高速タスク = タスク;
             高速タスク一覧.Add(Task.Run(async () => {
@@ -340,6 +351,83 @@ static 演算子対比較結果 演算子対比較を実行(ワーカータス�
 
     return new 演算子対比較結果("paired-result",loopCount,演算子計測を要約(fLinqSamples,loopCount),演算子計測を要約(baselineSamples,loopCount));
 }
+
+/// <summary>
+/// N 実装(FLinq・比較相手・手書き理想など)を同じプロセスで交互に計測する。
+/// 先に結果ダイジェストを照合し(異なれば計測しない)、JIT最適化待機を交互に済ませてから、
+/// 較正役の実装だけでループ回数を決め、ラウンドごとに順番を回転させて計測する(各実装が各位置に均等に入る)。
+/// </summary>
+static 複数実装比較結果 複数実装比較を実行(ワーカータスクメッセージ タスク,int 論理CPU) {
+    var 要求 = タスク.Multi??throw new InvalidOperationException("multi-fast-run requires Multi.");
+    if(!string.IsNullOrWhiteSpace(タスク.成果物フォルダー)) {
+        Directory.CreateDirectory(タスク.成果物フォルダー);
+    }
+    スレッドアフィニティを適用(論理CPU);
+    var 実装一覧 = 要求.Implementations;
+    var 型一覧 = 実装一覧.Select(static 実装 => ベンチマーク型を解決(実装.AssemblyName,実装.TypeName)).ToArray();
+    var スコープ一覧 = new List<IDisposable>();
+    try {
+        foreach(var アセンブリ in 型一覧.Select(static 型 => 型.Assembly).Distinct()) {
+            スコープ一覧.Add(要素数スコープを開始(アセンブリ,要求.ElementCount,要求.ElementScale));
+            if(要求.RandomSeed is { } シード) {
+                スコープ一覧.Add(ランダムソースシードスコープを開始(アセンブリ,シード));
+            }
+        }
+        var ダイジェスト一覧 = new string[実装一覧.Length];
+        for(var 番号 = 0;番号<実装一覧.Length;番号++) {
+            try {
+                ダイジェスト一覧[番号]=ベンチマーク結果ダイジェストを取得(型一覧[番号],実装一覧[番号].MethodName,実装一覧[番号].Arguments.Select(演算子引数を解析).ToArray());
+            } catch(Exception 例外) {
+                ダイジェスト一覧[番号]="例外:"+例外.GetType().Name+":"+例外.Message;
+            }
+        }
+        var ダイジェスト一致か = ダイジェスト一覧.All(ダイジェスト => ダイジェスト==ダイジェスト一覧[0]);
+        if(!ダイジェスト一致か) {
+            return new 複数実装比較結果("multi-result",0,要求.CalibrationKey,false,
+                実装一覧.Select((実装,番号) => new 複数実装計測結果(実装.Key,実装.AssemblyName,実装.TypeName,実装.MethodName,ダイジェスト一覧[番号],string.Empty,0,0,null)).ToArray());
+        }
+
+        var インスタンス一覧 = new object?[実装一覧.Length];
+        var 呼出一覧 = new Action[実装一覧.Length];
+        for(var 番号 = 0;番号<実装一覧.Length;番号++) {
+            呼出一覧[番号]=演算子呼出を作成(型一覧[番号],ToPairRequest(実装一覧[番号]),out var インスタンス);
+            インスタンス一覧[番号]=インスタンス;
+        }
+        try {
+            var 待機一覧 = ベンチマークワーカーランタイム.交互ウォームアップを実行(呼出一覧);
+            var 較正番号 = Array.FindIndex(実装一覧,実装 => 実装.Key==要求.CalibrationKey);
+            if(較正番号<0) {
+                較正番号=実装一覧.Length-1;
+            }
+            const int 較正呼出回数 = 16;
+            var 一回ナノ秒 = 演算子試行を実行(呼出一覧[較正番号],較正呼出回数).ナノ秒/較正呼出回数;
+            var ループ回数 = (int)Math.Clamp(要求.TargetSampleNs/Math.Max(1d,一回ナノ秒),1d,100_000d);
+            var サンプル一覧 = 実装一覧.Select(_ => new List<演算子試行結果>(要求.Rounds)).ToArray();
+            for(var ラウンド = 0;ラウンド<要求.Rounds;ラウンド++) {
+                for(var 位置 = 0;位置<実装一覧.Length;位置++) {
+                    var 番号 = (位置+ラウンド)%実装一覧.Length;
+                    サンプル一覧[番号].Add(演算子試行を実行(呼出一覧[番号],ループ回数));
+                }
+            }
+            return new 複数実装比較結果("multi-result",ループ回数,要求.CalibrationKey,true,
+                実装一覧.Select((実装,番号) => new 複数実装計測結果(
+                    実装.Key,実装.AssemblyName,実装.TypeName,実装.MethodName,ダイジェスト一覧[番号],
+                    待機一覧[番号].状態.ToString(),待機一覧[番号].待機ミリ秒,待機一覧[番号].呼出回数,
+                    演算子計測を要約(サンプル一覧[番号],ループ回数))).ToArray());
+        } finally {
+            foreach(var インスタンス in インスタンス一覧) {
+                (インスタンス as IDisposable)?.Dispose();
+            }
+        }
+    } finally {
+        for(var 番号 = スコープ一覧.Count-1;番号>=0;番号--) {
+            スコープ一覧[番号].Dispose();
+        }
+    }
+}
+
+static 演算子ベンチマーク要求 ToPairRequest(複数実装ベンチマーク要求 要求) =>
+    new(要求.AssemblyName,要求.TypeName,要求.MethodName,要求.Arguments);
 
 static Action 演算子呼出を作成(Type ベンチマーク型,演算子ベンチマーク要求 要求,out object? インスタンス) {
     var 引数 = 要求.Arguments.Select(演算子引数を解析).ToArray();
@@ -858,7 +946,43 @@ internal sealed record ワーカータスクメッセージ(
     double ウォームアップ目標ナノ秒 = 300_000_000d) {
     public string? Command { get; init; }
     public 演算子対比較要求? Pair { get; init; }
+    public 複数実装比較要求? Multi { get; init; }
 }
+
+/// <summary>multi-fast-run の要求。Implementations の Key で実装を区別し、CalibrationKey の実装でループ回数を決める。</summary>
+internal sealed record 複数実装比較要求(
+    複数実装ベンチマーク要求[] Implementations,
+    string CalibrationKey,
+    int ElementCount,
+    string ElementScale,
+    int? RandomSeed,
+    int Rounds = 9,
+    double TargetSampleNs = 10_000_000d);
+
+internal sealed record 複数実装ベンチマーク要求(
+    string Key,
+    string AssemblyName,
+    string TypeName,
+    string MethodName,
+    string[] Arguments);
+
+internal sealed record 複数実装計測結果(
+    string Key,
+    string AssemblyName,
+    string TypeName,
+    string MethodName,
+    string Digest,
+    string WarmupState,
+    double WarmupMilliseconds,
+    long WarmupCalls,
+    演算子計測結果? Measurement);
+
+internal sealed record 複数実装比較結果(
+    string Kind,
+    int LoopCount,
+    string CalibrationKey,
+    bool DigestMatched,
+    複数実装計測結果[] Implementations);
 
 internal sealed record 演算子対比較要求(
     演算子ベンチマーク要求 FLinq,

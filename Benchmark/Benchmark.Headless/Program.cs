@@ -53,6 +53,11 @@ if(args.Contains("--dry-run",StringComparer.OrdinalIgnoreCase)) {
     return;
 }
 
+if(args.Contains("--multi-run",StringComparer.OrdinalIgnoreCase)) {
+    Environment.ExitCode=await 複数実装計測.実行Async(definition,pairArray,args,cancellationToken);
+    return;
+}
+
 var root = Path.Combine(Directory.GetCurrentDirectory(),"artifacts","paired-db",definition.ID.Replace(".","_").Replace("<","_").Replace(">","_"),DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss"));
 Directory.CreateDirectory(root);
 var measurements = new List<ペア測定>();
@@ -169,4 +174,155 @@ sealed class ペア計測セッション: IAsyncDisposable {
     private static double[] ReadDoubleSamples(JsonElement value,string name)=>value.GetProperty(name).EnumerateArray().Select(static sample=>sample.GetDouble()).ToArray();
     private static long[] ReadLongSamples(JsonElement value,string name)=>value.GetProperty(name).EnumerateArray().Select(static sample=>sample.GetInt64()).ToArray();
     public async ValueTask DisposeAsync() { if(!this.worker.HasExited) { await this.worker.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { Command="shutdown" })); await this.worker.StandardInput.FlushAsync(); await this.worker.WaitForExitAsync(); } this.worker.Dispose(); }
+}
+
+/// <summary>
+/// --multi-run: FLinq・比較相手(較正役)・手書き理想の3者を、JIT最適化待機つきで同じ Worker で交互に計測し、
+/// 1行1ケースの JSONL へ書く。Worker は型ごとに起動し直す(3アセンブリぶんのソースキャッシュを溜め続けないため)。
+/// 引数: --logical-cpu &lt;n&gt;(既定 14)、--out &lt;jsonl&gt;(必須)、--seed &lt;n&gt;(既定 1、none でシードなし)、--rounds &lt;n&gt;(既定 9)。
+/// </summary>
+static class 複数実装計測 {
+    public static async Task<int> 実行Async(ベンチマークソースタブ定義 タブ,IReadOnlyList<(ベンチマークケース FLinq,ベンチマークケース Baseline)> 組一覧,string[] 引数,CancellationToken キャンセル) {
+        var 出力パス = 引数値(引数,"--out")??throw new ArgumentException("--multi-run requires --out <jsonl>.");
+        var 論理CPU = int.Parse(引数値(引数,"--logical-cpu")??"14",System.Globalization.CultureInfo.InvariantCulture);
+        var シード文字列 = 引数値(引数,"--seed")??"1";
+        int? シード = null;
+        if(!string.Equals(シード文字列,"none",StringComparison.OrdinalIgnoreCase)) {
+            シード=int.Parse(シード文字列,System.Globalization.CultureInfo.InvariantCulture);
+        }
+        var ラウンド数 = int.Parse(引数値(引数,"--rounds")??"9",System.Globalization.CultureInfo.InvariantCulture);
+        var 理想アセンブリ = 理想アセンブリ名(タブ.ID)??throw new ArgumentException("理想版の無いタブです: "+タブ.ID);
+        var ディレクトリ = Path.GetDirectoryName(Path.GetFullPath(出力パス));
+        if(ディレクトリ is not null) {
+            Directory.CreateDirectory(ディレクトリ);
+        }
+        var 実行ルート = Path.Combine(Path.GetTempPath(),"seamless-multi-run");
+        Directory.CreateDirectory(実行ルート);
+        var 件数 = 0;
+        await using var 書込 = new StreamWriter(出力パス,append: true,new System.Text.UTF8Encoding(false));
+        foreach(var 型グループ in 組一覧.Where(組 => 理想型名(タブ,組.FLinq.型完全名) is not null).GroupBy(static 組 => 組.FLinq.型完全名)) {
+            await using var Worker = await Workerを起動Async(論理CPU,実行ルート,キャンセル);
+            foreach(var 組 in 型グループ) {
+                var 理想型 = 理想型名(タブ,組.FLinq.型完全名)!;
+                var 要求 = new {
+                    Command="multi-fast-run",
+                    Multi=new {
+                        Implementations=new[] {
+                            実装要求("FLinq",組.FLinq.アセンブリ名,組.FLinq.型完全名,組.FLinq),
+                            実装要求("Baseline",組.Baseline.アセンブリ名,組.Baseline.型完全名,組.Baseline),
+                            実装要求("Ideal",理想アセンブリ,理想型,組.FLinq),
+                        },
+                        CalibrationKey="Baseline",
+                        ElementCount=4096,
+                        ElementScale="1",
+                        RandomSeed=シード,
+                        Rounds=ラウンド数,
+                        TargetSampleNs=10_000_000d,
+                    },
+                };
+                var 応答 = await Worker.送受信Async(JsonSerializer.Serialize(要求),キャンセル);
+                using var 結果 = JsonDocument.Parse(応答);
+                using var バッファ = new MemoryStream();
+                using(var 書き手 = new Utf8JsonWriter(バッファ)) {
+                    書き手.WriteStartObject();
+                    書き手.WriteString("Tab",タブ.ID);
+                    書き手.WriteString("Type",組.FLinq.型完全名);
+                    書き手.WriteString("Method",組.FLinq.メソッド名);
+                    書き手.WriteString("ArgumentKey",組.FLinq.引数キー);
+                    if(シード is { } 値) {
+                        書き手.WriteNumber("Seed",値);
+                    } else {
+                        書き手.WriteNull("Seed");
+                    }
+                    書き手.WriteNumber("LogicalCpu",論理CPU);
+                    書き手.WritePropertyName("Result");
+                    結果.RootElement.WriteTo(書き手);
+                    書き手.WriteEndObject();
+                }
+                await 書込.WriteLineAsync(System.Text.Encoding.UTF8.GetString(バッファ.ToArray()));
+                await 書込.FlushAsync(キャンセル);
+                件数++;
+                Console.Error.WriteLine($"multi-run {タブ.ID} {件数}: {組.FLinq.型完全名} {組.FLinq.メソッド名}");
+            }
+        }
+        Console.WriteLine($"multi-run tab={タブ.ID} rows={件数} out={出力パス}");
+        return 0;
+    }
+
+    private static object 実装要求(string キー,string アセンブリ,string 型,ベンチマークケース ケース) => new {
+        Key=キー,
+        AssemblyName=アセンブリ,
+        TypeName=型,
+        MethodName=ケース.メソッド名,
+        Arguments=ケース.引数一覧.Select(static 引数 => 引数.値).ToArray(),
+    };
+
+    /// <summary>タブごとの手書き理想版のアセンブリ(S6 でタブ定義の理想列へ移す)。</summary>
+    public static string? 理想アセンブリ名(string タブID) => タブID switch {
+        ベンチマークソースタブ一覧.System配列ID => "Benchmark.System.Linq.Enumerable.Ideal",
+        ベンチマークソースタブ一覧.SystemリストID => "Benchmark.System.Linq.Enumerable.List.Ideal",
+        ベンチマークソースタブ一覧.SystemIEnumerableID => "Benchmark.System.Linq.Enumerable.IEnumerable.Ideal",
+        ベンチマークソースタブ一覧.System範囲ID => "Benchmark.System.Linq.Enumerable.Range.Ideal",
+        ベンチマークソースタブ一覧.最適化書き換えID or ベンチマークソースタブ一覧.最適化パイプライン融合ID or ベンチマークソースタブ一覧.最適化述語押し下げID or ベンチマークソースタブ一覧.最適化射影融合ID => "Benchmark.Optimization.Ideal",
+        _ => null,
+    };
+
+    /// <summary>
+    /// 理想版の具象型名。単一演算子は FLinq の型名の FLinq を Ideal に置き換える(例 ….List.FLinq.FLinqInt32 → ….List.Ideal.IdealInt32)。
+    /// 複合連鎖は型名が同じ(アセンブリだけ違う)。保存層(Persisted/Tsavorite)には理想版が無いので null。
+    /// </summary>
+    public static string? 理想型名(ベンチマークソースタブ定義 タブ,string FLinq型名) {
+        if(FLinq型名.Contains("Persisted",StringComparison.Ordinal)||FLinq型名.Contains("Tsavorite",StringComparison.Ordinal)) {
+            return null;
+        }
+        if(タブ.ID.StartsWith("Optimization.",StringComparison.Ordinal)) {
+            return FLinq型名;
+        }
+        var 区切り = FLinq型名.LastIndexOf('.');
+        var 名前空間 = FLinq型名[..区切り];
+        var 型 = FLinq型名[(区切り+1)..];
+        if(!名前空間.EndsWith(".FLinq",StringComparison.Ordinal)||!型.StartsWith("FLinq",StringComparison.Ordinal)) {
+            return null;
+        }
+        return 名前空間[..^".FLinq".Length]+".Ideal.Ideal"+型["FLinq".Length..];
+    }
+
+    private static string? 引数値(string[] 引数,string 名前) =>
+        引数.SkipWhile(値 => !string.Equals(値,名前,StringComparison.OrdinalIgnoreCase)).Skip(1).FirstOrDefault();
+
+    private static async Task<Workerセッション> Workerを起動Async(int 論理CPU,string 実行ルート,CancellationToken キャンセル) {
+        var プロセス = new Process { StartInfo=new ProcessStartInfo("dotnet") { UseShellExecute=false,RedirectStandardInput=true,RedirectStandardOutput=true,RedirectStandardError=true,CreateNoWindow=true } };
+        プロセス.StartInfo.ArgumentList.Add("exec");
+        プロセス.StartInfo.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory,"Worker.dll"));
+        プロセス.StartInfo.ArgumentList.Add("--logical-cpu");
+        プロセス.StartInfo.ArgumentList.Add(論理CPU.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        プロセス.StartInfo.ArgumentList.Add("--run-root");
+        プロセス.StartInfo.ArgumentList.Add(実行ルート);
+        if(!プロセス.Start()) {
+            throw new InvalidOperationException("Worker を起動できませんでした。");
+        }
+        プロセス.ErrorDataReceived+=static (_,_) => { };
+        プロセス.BeginErrorReadLine();
+        if(!string.Equals(await プロセス.StandardOutput.ReadLineAsync(キャンセル),"ready",StringComparison.Ordinal)) {
+            throw new InvalidOperationException("Worker が ready を返しませんでした。");
+        }
+        return new Workerセッション(プロセス);
+    }
+
+    private sealed class Workerセッション(Process プロセス):IAsyncDisposable {
+        public async Task<string> 送受信Async(string 行,CancellationToken キャンセル) {
+            await プロセス.StandardInput.WriteLineAsync(行);
+            await プロセス.StandardInput.FlushAsync(キャンセル);
+            return await プロセス.StandardOutput.ReadLineAsync(キャンセル)??throw new InvalidOperationException("Worker が終了しました。");
+        }
+
+        public async ValueTask DisposeAsync() {
+            if(!プロセス.HasExited) {
+                await プロセス.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { Command="shutdown" }));
+                await プロセス.StandardInput.FlushAsync();
+                await プロセス.WaitForExitAsync();
+            }
+            プロセス.Dispose();
+        }
+    }
 }

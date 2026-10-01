@@ -29,6 +29,11 @@
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Range.ZLinq\Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.List.FLinq\Benchmark.System.Linq.Enumerable.List.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.List.ZLinq\Benchmark.System.Linq.Enumerable.List.ZLinq.csproj" />
+    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Ideal\Benchmark.System.Linq.Enumerable.Ideal.csproj" />
+    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.List.Ideal\Benchmark.System.Linq.Enumerable.List.Ideal.csproj" />
+    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.IEnumerable.Ideal\Benchmark.System.Linq.Enumerable.IEnumerable.Ideal.csproj" />
+    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Range.Ideal\Benchmark.System.Linq.Enumerable.Range.Ideal.csproj" />
+    <ProjectReference Include="..\Benchmark.Optimization.Ideal\Benchmark.Optimization.Ideal.csproj" />
     <ProjectReference Include="..\Benchmark.Persisted.Collections\Benchmark.Persisted.Collections.csproj" />
     <ProjectReference Include="..\Benchmark.Persisted.Linq.Enumerable.FLinq\Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq\Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq.csproj" />
