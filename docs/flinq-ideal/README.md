@@ -28,6 +28,14 @@ dotnet Benchmark/Benchmark.Audit/bin/Release/net10.0/Benchmark.Audit.dll audit <
 - 置き換え後に、要素を列挙する System.Linq/ZLinq を呼ばないこと(件数確認の `TryGetNonEnumeratedCount` は System.Linq 自身も行う O(1) の確認なので許す)
 - 展開不可で例外を投げるだけの置き換えメソッドが無いこと
 
+理想版との比較(`compare`)は、FLinq と理想版の同じ行を突き合わせ、ループ内のインターフェース呼び出し・デリゲート呼び出し・割り当て・ボックス化・計数器・未使用補助型を並べた表を出す(理想版は `X_Impl` から同じアセンブリの Shared.Linq 配下を辿って数える)。
+
+```
+dotnet Benchmark/Benchmark.Audit/bin/Release/net10.0/Benchmark.Audit.dll compare --flinq <FLinq のベンチ本体.dll>... --ideal <理想版.dll>... --md Work/audit/compare.md
+```
+
+配列・List・Range 起点では、ループ内のインターフェース呼び出し・デリゲート呼び出し・ボックス化が理想版以下であることもテストする。IEnumerable 起点は実行時の型判定で span 経路と列挙子経路を両方持つため、静的な数では比べず計測で判断する。
+
 既知の違反は `KnownExceptions.cs` に理由付きで載せる。直したら必ず消す(違反していない項目が残るとテストが失敗する)。
 
 ## 手書きの理想ループ版
@@ -56,6 +64,6 @@ Array/List/IEnumerable は各97本、Range は81本、複合連鎖はメモリ�
 
 そのほかの形(理想版との比較は理想版の作成後に行う):
 
-- 配列・List・Range 起点で最内ループにインターフェース呼び出しがあるのは SelectMany 系(内側が IEnumerable)と ToLookup 系。
+- 配列・List・Range 起点で最内ループにインターフェース呼び出しがあるのは SelectMany 系(内側が IEnumerable。理想版も同じ)と ToLookup 系。ToLookup は結果を ILookup 型で受けて foreach するため、理想版より多い。
 - ループ内の割り当ては AggregateBy と Chunk。ボックス化はループ内ゼロ。
 - 計数器の呼び出しは置き換え済みの約半数の行にあり、うち25行はループ内。

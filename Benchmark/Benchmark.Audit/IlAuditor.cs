@@ -58,6 +58,12 @@ internal sealed class IlAuditor(MetadataCatalog catalog) {
     private const int DiscoveryDepth = 4;
     private const int TraversalDepth = 12;
 
+    /// <summary>
+    /// 手書きの理想ループ版を数えるとき true。置き換えメソッドの代わりに `X_Impl` 本体を入口にし、
+    /// 同じアセンブリの Shared.Linq 配下(理想版の本体と補助)を辿る。ベンチの枠(Common)は辿らない。
+    /// </summary>
+    public bool Handwritten { get; init; }
+
     public IReadOnlyList<AuditRow> Audit(LoadedAssembly assembly) {
         var rows = new List<AuditRow>();
         var reader = assembly.Reader;
@@ -104,6 +110,12 @@ internal sealed class IlAuditor(MetadataCatalog catalog) {
                     }
                     continue;
                 }
+                if(target.Name==implName&&this.Handwritten) {
+                    if(!entries.Contains(target.LocalDefinition)) {
+                        entries.Add(target.LocalDefinition);
+                    }
+                    continue;
+                }
                 if(target.Name==implName) {
                     implCalled=true;
                     externalLinqInImpl.AddRange(this.ExternalLinqCalls(assembly,target.LocalDefinition));
@@ -126,7 +138,7 @@ internal sealed class IlAuditor(MetadataCatalog catalog) {
             MetadataNames.TypeDefinitionFullName(reader,typeHandle),
             methodName,
             Classify(assembly,reader,typeHandle),
-            entries.Count>0,
+            entries.Count>0&&!this.Handwritten,
             implCalled,
             entries.Select(entry => reader.GetString(reader.GetMethodDefinition(entry).Name)).ToArray(),
             metrics.IlSize,
@@ -240,7 +252,7 @@ internal sealed class IlAuditor(MetadataCatalog catalog) {
                 continue;
             }
             this.CountCall(target,instruction,inLoop,metrics);
-            if(target.IsLocal&&this.IsInterceptMethod(assembly,target.LocalDefinition)) {
+            if(target.IsLocal&&this.IsTraversable(assembly,target.LocalDefinition)) {
                 this.Traverse(assembly,target.LocalDefinition,inLoop,depth+1,metrics,stack);
             }
         }
@@ -335,6 +347,14 @@ internal sealed class IlAuditor(MetadataCatalog catalog) {
 
     private static bool IsMethodOperand(short code) =>
         code==IlReader.Call||code==IlReader.Callvirt||code==IlReader.Newobj||code==IlReader.Ldftn||code==IlReader.Ldvirtftn;
+
+    private bool IsTraversable(LoadedAssembly assembly,MethodDefinitionHandle handle) {
+        if(!this.Handwritten) {
+            return this.IsInterceptMethod(assembly,handle);
+        }
+        var declaring = assembly.Reader.GetMethodDefinition(handle).GetDeclaringType();
+        return MetadataNames.OutermostNamespace(assembly.Reader,declaring).StartsWith("Shared.Linq",StringComparison.Ordinal);
+    }
 
     private bool IsInterceptMethod(LoadedAssembly assembly,MethodDefinitionHandle handle) {
         var declaring = assembly.Reader.GetMethodDefinition(handle).GetDeclaringType();

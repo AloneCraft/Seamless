@@ -4,42 +4,69 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Benchmark.Audit;
 
-// 使い方: Benchmark.Audit audit <アセンブリ>... [--json <出力>] [--md <出力>]
-if(args.Length==0||args[0]!="audit") {
+// 使い方:
+//   Benchmark.Audit audit <アセンブリ>... [--json <出力>] [--md <出力>]
+//   Benchmark.Audit compare --flinq <FLinq のアセンブリ>... --ideal <理想版のアセンブリ>... [--json <出力>] [--md <出力>]
+if(args.Length==0||(args[0]!="audit"&&args[0]!="compare")) {
     Console.Error.WriteLine("使い方: Benchmark.Audit audit <アセンブリ.dll>... [--json <出力.json>] [--md <出力.md>]");
+    Console.Error.WriteLine("        Benchmark.Audit compare --flinq <アセンブリ.dll>... --ideal <アセンブリ.dll>... [--json <出力.json>] [--md <出力.md>]");
     return 2;
 }
-var assemblies = new List<string>();
+var command = args[0];
+var flinqAssemblies = new List<string>();
+var idealAssemblies = new List<string>();
 string? jsonPath = null;
 string? markdownPath = null;
+var target = flinqAssemblies;
 for(var index = 1;index<args.Length;index++) {
     if(args[index]=="--json") {
         jsonPath=args[++index];
     } else if(args[index]=="--md") {
         markdownPath=args[++index];
+    } else if(args[index]=="--flinq") {
+        target=flinqAssemblies;
+    } else if(args[index]=="--ideal") {
+        target=idealAssemblies;
     } else {
-        assemblies.Add(args[index]);
+        target.Add(args[index]);
     }
 }
 using var catalog = new MetadataCatalog();
-var auditor = new IlAuditor(catalog);
-var rows = new List<AuditRow>();
-foreach(var path in assemblies) {
-    rows.AddRange(auditor.Audit(catalog.Load(path)));
-}
 var options = new JsonSerializerOptions {
     WriteIndented=true,
     Encoder=JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     Converters={ new JsonStringEnumConverter() },
 };
-var json = JsonSerializer.Serialize(rows,options);
-if(jsonPath is null) {
-    Console.WriteLine(json);
-} else {
-    File.WriteAllText(jsonPath,json,new UTF8Encoding(false));
+var generated = new IlAuditor(catalog);
+var rows = new List<AuditRow>();
+foreach(var path in flinqAssemblies) {
+    rows.AddRange(generated.Audit(catalog.Load(path)));
 }
+if(command=="audit") {
+    Write(jsonPath,JsonSerializer.Serialize(rows,options));
+    if(markdownPath is not null) {
+        File.WriteAllText(markdownPath,AuditReport.ToMarkdown(rows),new UTF8Encoding(false));
+    }
+    Console.Error.WriteLine($"rows={rows.Count} intercepted={rows.Count(static row => row.Intercepted)} implDirect={rows.Count(static row => row.ImplCalledDirectly)}");
+    return 0;
+}
+var handwritten = new IlAuditor(catalog) { Handwritten=true };
+var idealRows = new List<AuditRow>();
+foreach(var path in idealAssemblies) {
+    idealRows.AddRange(handwritten.Audit(catalog.Load(path)));
+}
+var comparison = AuditComparison.Compare(rows,idealRows);
+Write(jsonPath,JsonSerializer.Serialize(comparison,options));
 if(markdownPath is not null) {
-    File.WriteAllText(markdownPath,AuditReport.ToMarkdown(rows),new UTF8Encoding(false));
+    File.WriteAllText(markdownPath,AuditComparison.ToMarkdown(comparison),new UTF8Encoding(false));
 }
-Console.Error.WriteLine($"rows={rows.Count} intercepted={rows.Count(static row => row.Intercepted)} implDirect={rows.Count(static row => row.ImplCalledDirectly)}");
+Console.Error.WriteLine($"flinq={rows.Count} ideal={idealRows.Count} matched={comparison.Count} worse={comparison.Count(static row => row.WorseThanIdeal.Count>0)}");
 return 0;
+
+static void Write(string? path,string json) {
+    if(path is null) {
+        Console.WriteLine(json);
+    } else {
+        File.WriteAllText(path,json,new UTF8Encoding(false));
+    }
+}

@@ -85,6 +85,30 @@ public sealed class IlAuditor(AuditedBenchmarks benchmarks):IClassFixture<Audite
         }
     }
 
+    [Fact,Trait("Category","Unit")]
+    public void CompareWithIdeal() {
+        {
+            //配列・List・Range 起点で、ループ内のインターフェース呼び出し・デリゲート呼び出し・ボックス化が理想版以下であること。
+            //IEnumerable 起点は実行時の型判定で span 経路と列挙子経路を両方持つため、静的な数では比べない。
+            using var catalog = new Target.MetadataCatalog();
+            var handwritten = new Target.IlAuditor(catalog) { Handwritten=true };
+            var ideal = new List<Target.AuditRow>();
+            foreach(var name in new[] { "Benchmark.System.Linq.Enumerable.Ideal","Benchmark.System.Linq.Enumerable.List.Ideal","Benchmark.System.Linq.Enumerable.IEnumerable.Ideal","Benchmark.System.Linq.Enumerable.Range.Ideal","Benchmark.Optimization.Ideal" }) {
+                ideal.AddRange(handwritten.Audit(catalog.Load(AuditedBenchmarks.BenchmarkAssemblyPath(name))));
+            }
+            var comparison = Target.AuditComparison.Compare(benchmarks.MemoryRows,ideal);
+            Assert.Equal(benchmarks.MemoryRows.Count,comparison.Count);
+            var violations = comparison
+                .Where(static row => row.Source is Target.SourceKind.Array or Target.SourceKind.List or Target.SourceKind.Range)
+                .Where(static row => row.FLinq.InterfaceCallsInLoop>row.Ideal.InterfaceCallsInLoop
+                    ||row.FLinq.DelegateInvokesInLoop>row.Ideal.DelegateInvokesInLoop
+                    ||row.FLinq.BoxesInLoop>row.Ideal.BoxesInLoop)
+                .Select(static row => row.FLinq)
+                .ToArray();
+            AssertOnlyKnown(AuditInvariant.理想形との差,violations);
+        }
+    }
+
     private static void AssertOnlyKnown(AuditInvariant invariant,IReadOnlyList<Target.AuditRow> violations) {
         var known = KnownExceptions.All.Where(item => item.Invariant==invariant).ToArray();
         var unexpected = violations
