@@ -59,12 +59,25 @@ dlldata.c
 BenchmarkDotNet.Artifacts/
 Artifacts/
 test_output.txt
-Work/*
-!Work/
-!Work/UI/
-Work/UI/*
-!Work/UI/runs.db
-!Work/UI/run.db
+
+# 実行時に生成されるデータ(DB・計測結果・ログ・作業フォルダ)は git で管理しない
+/Work/
+*.db
+*.db-wal
+*.db-shm
+*.db.*.bak
+*.sqlite
+*.jsonl
+*.dtp
+*.nettrace
+*.etl
+*.diagsession
+test-output*/
+test-artifacts/
+test-rerun-*/
+.codex-*.patch
+chat.json
+.idea/dataSources/
 
 # テストが生成する作業フォルダ(生成バックアップ・統合テストの出力)
 Test/Work/
