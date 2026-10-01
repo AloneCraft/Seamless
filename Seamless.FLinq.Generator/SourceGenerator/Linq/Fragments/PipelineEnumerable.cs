@@ -115,26 +115,27 @@ internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IR
             return this.EnumeratorTypeNameWithOuter(arguments.ToArray());
         }
     }
-    public override string GetEnumeratorExpression {
-        get {
-            var args = new List<string> { source.GetEnumeratorExpression };
-            foreach(var second in this.SecondSources) {
-                args.Add(second.GetEnumeratorExpression);
-            }
-            foreach(var stage in this.CountStages()) {
-                args.Add(stage.Value!);
-            }
-            foreach(var stage in this.RangeStages()) {
-                args.Add(stage.Value!);
-            }
-            foreach(var stage in this.ComparerStages()) {
-                args.Add(this.EqualityComparerExpression(stage));
-            }
-            foreach(var stage in this.OrderComparerStages()) {
-                args.Add(this.OrderComparerExpression(stage));
-            }
-            args.AddRange(this.ClosureArgsWithoutPrefix());
-            return RenderEnumeratorExpression(this.EnumeratorTypeName,args.ToArray());
+    public override string GetEnumeratorExpression => this.GetEnumeratorExpressionWithSource(source.GetEnumeratorExpression);
+
+    // ソースの列挙子だけを差し替えた列挙子式。取得済みのソース列挙子を引き継いで、ソース式を2回評価しないために使う。
+    private string GetEnumeratorExpressionWithSource(string sourceEnumeratorExpression) {
+        var args = new List<string> { sourceEnumeratorExpression };
+        foreach(var second in this.SecondSources) {
+            args.Add(second.GetEnumeratorExpression);
         }
+        foreach(var stage in this.CountStages()) {
+            args.Add(stage.Value!);
+        }
+        foreach(var stage in this.RangeStages()) {
+            args.Add(stage.Value!);
+        }
+        foreach(var stage in this.ComparerStages()) {
+            args.Add(this.EqualityComparerExpression(stage));
+        }
+        foreach(var stage in this.OrderComparerStages()) {
+            args.Add(this.OrderComparerExpression(stage));
+        }
+        args.AddRange(this.ClosureArgsWithoutPrefix());
+        return RenderEnumeratorExpression(this.EnumeratorTypeName,args.ToArray());
     }
 }

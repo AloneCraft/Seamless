@@ -623,7 +623,9 @@ internal sealed partial class PipelineEnumerable {
 
     private string? RenderPureOrderingDirectConsume(string consumerName) {
         var directOrderStages = this.OrderStages(0).ToArray();
-        if(directOrderStages.Length>0) {
+        // 並べ替えの段だけから成るときに限る。後ろに Where/Select などが続くと、この直接ループはそれらを適用できない
+        // (2026-10-02 まで適用せずに全件を流していた)。後続の段は一般経路の昇順高速経路が正しく扱う。
+        if(directOrderStages.Length>0&&directOrderStages.Length==stages.Count) {
             var primaryOrder = directOrderStages[0];
             if(this.CanUseSortedDefaultOrderDirectConsumeFastPath(0,primaryOrder,directOrderStages)) {
                 var sourceName = $"__orderedSource{番号}";
@@ -631,6 +633,7 @@ internal sealed partial class PipelineEnumerable {
                 var spanName = $"__orderedSpan{番号}";
                 var sortedName = $"__orderedSorted{番号}";
                 var handledName = $"__orderedHandled{番号}";
+                var transferredName = $"__orderedTransferred{番号}";
                 var directItemName = $"__orderedItem{番号}";
                 var directConsumeLoop = primaryOrder.Descending
                     ? $$"""
@@ -654,26 +657,36 @@ internal sealed partial class PipelineEnumerable {
                                 {{consumerName}}.Consume({{directItemName}});
                             }
                         """;
+                // 昇順でないときは、取得済みのソース列挙子を並べ替えの列挙子へ引き渡す(ソース式を2回評価しない)。
+                // 引き渡した後の破棄は並べ替えの列挙子が受け持つ。
                 return $$"""
                     var {{handledName}}=false;
-                    using var {{sourceName}}={{source.GetEnumeratorExpression}};
-                    if({{sourceName}}.TryGetSpan(out var {{spanName}})){
-                        var {{sortedName}}=true;
-                        for(var __i=1;__i<{{spanName}}.Length;__i++){
-                            if({{this.SortedOrderOutOfOrderExpression(primaryOrder,spanName,"__i")}}){
-                                {{sortedName}}=false;
-                                break;
+                    var {{transferredName}}=false;
+                    var {{sourceName}}={{source.GetEnumeratorExpression}};
+                    try{
+                        if({{sourceName}}.TryGetSpan(out var {{spanName}})){
+                            var {{sortedName}}=true;
+                            for(var __i=1;__i<{{spanName}}.Length;__i++){
+                                if({{this.SortedOrderOutOfOrderExpression(primaryOrder,spanName,"__i")}}){
+                                    {{sortedName}}=false;
+                                    break;
+                                }
+                            }
+                            if({{sortedName}}){
+                    {{directConsumeLoop}}
+                                {{handledName}}=true;
                             }
                         }
-                        if({{sortedName}}){
-                    {{directConsumeLoop}}
-                            {{handledName}}=true;
+                        if(!{{handledName}}){
+                            {{transferredName}}=true;
+                            using var {{fallbackName}}={{this.GetEnumeratorExpressionWithSource(sourceName)}};
+                            while({{fallbackName}}.TryGetNext(out var {{directItemName}})){
+                                {{consumerName}}.Consume({{directItemName}});
+                            }
                         }
-                    }
-                    if(!{{handledName}}){
-                        using var {{fallbackName}}={{this.GetEnumeratorExpression}};
-                        while({{fallbackName}}.TryGetNext(out var {{directItemName}})){
-                            {{consumerName}}.Consume({{directItemName}});
+                    }finally{
+                        if(!{{transferredName}}){
+                            {{sourceName}}.Dispose();
                         }
                     }
                     """;

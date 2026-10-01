@@ -58,6 +58,13 @@ dotnet exec Benchmark/Benchmark.Headless/bin/Release/net10.0-windows10.0.19041/w
 
 同じビルドを2回測り、`Benchmark.Audit noise --first <1回目>... --second <2回目>... --md Work/ideal/noise.md` で行ごとの理想比 g=ln(FLinq/理想) とぶれ e を求めて分類する。e は比の周回間の差 |g1−g2| と、FLinq・理想それぞれの周回内のばらつき((四分位範囲/中央値)/2)の大きい方。実装ごとの所要時間は周回(プロセス)ごとに中央値で11%動くが、3者に共通の分が比で打ち消され、比の差は中央値5%に収まる。2回とも g&gt;e の行が改善対象で、3%未満は記録のみ、2回とも g&lt;-e の行は理想版の見直し対象。
 
+## 生成器の修正の前後比較
+
+1. 修正前の Headless 出力(`Benchmark/Benchmark.Headless/bin/Release/.../win-x64`)を `Work/ab/before-<名前>` へ複製してから生成器を直し、作り直した出力を `Work/ab/after-<名前>` へ複製する。
+2. `Benchmark.Audit ildiff --before <修正前の FLinq/Optimization.All の dll>... --after <修正後の同じ dll>...` で、置き換え後の IL(辿った補助メソッドを含む。トークンは参照先の名前に置き換えて比べる)が変わったベンチを列挙する。
+3. 変わった行を含むタブを、修正前と修正後で交互に `--multi-run` で測る(`Work/ab/run_ab.sh`)。理想版は前後で同じなので物差しにし、行ごとに g=ln(FLinq/理想) の変化を見る。
+4. **IL が変わらなかった行の変化はすべてぶれ**なので、その分布(2026-10-02 の測定では2周ずつで中央値6%・90パーセンタイル21%)より大きい変化だけを効果とみなす。2周ずつでは3%の改善は判定できないので、効果を主張するには周回を増やす。
+
 ## UI と DB(Benchmark.db 版27)
 
 - 最適化4タブとメモリ上4タブは「左・右・理想」の3列になる。理想列は常に最後に置き、ループ回数は列の並びに関係なく右(ZLinq/最適化無効)で決める。
@@ -76,7 +83,10 @@ dotnet exec <Benchmark.Headless.dll> --import-jsonl Work/ideal/baseline-1/*.json
 
 ## 結果の誤り(理想版との比較で発見)
 
-- 複合連鎖 `srcCount().Order().Where(p)`(配列・List 起点): ソースが最初から昇順のとき、並べ替えを省く高速経路が後続の `Where` を適用せず全件を流す。高速経路に入れないときはソース式を2回評価する。シャッフルされたソースでは正しい。
+- (修正済み 2026-10-02)`src.Order().Where(p).Consume(c)` など、配列・List 起点で並べ替えの後ろに段が続く連鎖: ソースが最初から昇順のとき、並べ替えを省く直接経路が後続の `Where`/`Select` を適用せず全件を流していた。昇順でないときはソース式を2回評価していた。直接経路を並べ替えだけの連鎖に限り、昇順でないときは取得済みのソース列挙子を並べ替えの列挙子へ引き渡すよう直した。回帰テストは `Test/SourceGenerator/SortedOrderDirectConsumeTests.cs`。
+- (未修正)ソースを返す補助メソッドに `[LinqIntercept(false)]` が無く、その本体が生成コードへ展開されるとき、本体中の静的フィールドへの修飾なし参照(`SourceCalls++`)が CS0103、型名で修飾しても CS0117 になる例があった(上のテストを作る途中で発見。補助メソッドに `[LinqIntercept(false)]` を付けると起きない)。
+
+テストの書き方の注意: FLinq は `[LinqIntercept(true)]` のメソッドの**呼び出し箇所**を本体展開版へ差し替える。反射でそのメソッドを直接呼ぶと差し替わらず、`static class` の中でも差し替わらない。生成コードを実行して確かめるテストは、公開の入口メソッドから属性付きメソッドを呼び、差し替えが生成されたこと(`InterceptsLocationAttribute(1,` の数)も確かめる。
 
 ## 2026-10-02 時点の監査結果(メモリ上4種)
 
