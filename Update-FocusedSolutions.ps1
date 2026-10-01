@@ -12,6 +12,7 @@ $Solutions = [ordered]@{
     'Verification.slnx'                        = @('Verification.Cli/Verification.Cli.csproj', 'Verification.UI/Verification.UI.csproj')
     'DynamicLinq.Runner.slnx'                  = @('DynamicLinq.Runner/DynamicLinq.Runner.csproj')
     'Seamless.Database.Tool.slnx'              = @('Seamless.Database.Tool/Seamless.Database.Tool.csproj')
+    'Sample.NetShop.slnx'                      = @('Samples/Sample.NetShop/Sample.NetShop.csproj', 'Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj')
 }
 
 $Root = $PSScriptRoot

@@ -54,6 +54,11 @@
     <File Path="Collection.md" />
     <File Path="Database.md" />
   </Folder>
+  <Folder Name="/Samples/">
+    <Project Path="Samples/Sample.NetShop.Core/Sample.NetShop.Core.csproj" />
+    <Project Path="Samples/Sample.NetShop/Sample.NetShop.csproj" />
+    <File Path="Samples/Sample.NetShop/README.md" />
+  </Folder>
   <Folder Name="/Shared/">
     <Project Path="Shared/Collections/Collections.shproj" />
     <Project Path="Shared/Common/Common.shproj" />
@@ -122,6 +127,7 @@
     <Project Path="Test/Test.csproj" />
     <Project Path="Benchmark/Benchmark.Headless.Tests/Benchmark.Headless.Tests.csproj" />
     <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
+    <Project Path="Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj" />
   </Folder>
   <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
   <Project Path="Seamless.Execution/Seamless.Execution.csproj" />

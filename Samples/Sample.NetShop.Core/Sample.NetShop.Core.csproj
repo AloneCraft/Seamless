@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Sample.NetShop.Core</RootNamespace>
+    <AssemblyName>Sample.NetShop.Core</AssemblyName>
+    <!-- FLinq は System.Linq の呼び出しを Intercept 名前空間のインターセプタへ置き換える。 -->
+    <Features>InterceptorsPreview</Features>
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Intercept</InterceptorsNamespaces>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sample.NetShop.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- ランタイム一式(Execution / Collections / Linq / Database)。 -->
+    <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
+    <!-- アナライザー参照は推移しないので、使う生成器は利用側で直接参照する。 -->
+    <ProjectReference Include="..\..\Seamless.Database.Generator\Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+    <ProjectReference Include="..\..\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+</Project>
