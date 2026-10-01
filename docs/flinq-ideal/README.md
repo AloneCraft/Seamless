@@ -56,7 +56,7 @@ dotnet Benchmark/Benchmark.Audit/bin/Release/net10.0/Benchmark.Audit.dll compare
 dotnet exec Benchmark/Benchmark.Headless/bin/Release/net10.0-windows10.0.19041/win-x64/Benchmark.Headless.dll --run-tab System.Array --multi-run --out Work/ideal/run1.jsonl [--type Int32] [--method Where_predicate] [--seed 1|none] [--logical-cpu 14]
 ```
 
-同じビルドを2回測り、`Benchmark.Audit noise --first <1回目>... --second <2回目>... --md Work/ideal/noise.md` で行ごとのぶれ e と理想比 g=ln(FLinq/理想) を求めて分類する。2回とも g&gt;e の行が改善対象で、3%未満は記録のみ、2回とも g&lt;-e の行は理想版の見直し対象。
+同じビルドを2回測り、`Benchmark.Audit noise --first <1回目>... --second <2回目>... --md Work/ideal/noise.md` で行ごとの理想比 g=ln(FLinq/理想) とぶれ e を求めて分類する。e は比の周回間の差 |g1−g2| と、FLinq・理想それぞれの周回内のばらつき((四分位範囲/中央値)/2)の大きい方。実装ごとの所要時間は周回(プロセス)ごとに中央値で11%動くが、3者に共通の分が比で打ち消され、比の差は中央値5%に収まる。2回とも g&gt;e の行が改善対象で、3%未満は記録のみ、2回とも g&lt;-e の行は理想版の見直し対象。
 
 ## 結果の誤り(理想版との比較で発見)
 

@@ -107,16 +107,16 @@ internal static class MeasurementAnalysis {
             return new GapRow(a.Key,a.Tab,a.Type,a.Method,0,0,0,0,0,0,GapClass.判定不能,"ダイジェスト不一致または欠測");
         }
         var timedOut = keys.Any(key => a.Implementations[key].WarmupState!="安定"||b.Implementations[key].WarmupState!="安定");
-        var noise = 0d;
-        foreach(var key in keys) {
-            var x = a.Implementations[key];
-            var y = b.Implementations[key];
-            noise=Math.Max(noise,Math.Abs(Math.Log(x.MedianNanoseconds/y.MedianNanoseconds)));
-            noise=Math.Max(noise,WithinRunSpread(x.Samples));
-            noise=Math.Max(noise,WithinRunSpread(y.Samples));
-        }
         var gap1 = Math.Log(a.Implementations["FLinq"].MedianNanoseconds/a.Implementations["Ideal"].MedianNanoseconds);
         var gap2 = Math.Log(b.Implementations["FLinq"].MedianNanoseconds/b.Implementations["Ideal"].MedianNanoseconds);
+        // 判定するのは比なので、ぶれも比の周回間の差で測る。プロセスごとの速さの変動は3者に共通にかかる分が比で打ち消され、
+        // 実装ごとの周回間の差(2026-10-02 のベースラインで中央値11%)より比の差(同5%)のほうが小さい。
+        // 周回内のばらつきは比較する2つ(FLinq・理想)のものを下限にする。
+        var noise = Math.Abs(gap1-gap2);
+        foreach(var key in (string[])["FLinq","Ideal"]) {
+            noise=Math.Max(noise,WithinRunSpread(a.Implementations[key].Samples));
+            noise=Math.Max(noise,WithinRunSpread(b.Implementations[key].Samples));
+        }
         var flinq = Math.Sqrt(a.Implementations["FLinq"].MedianNanoseconds*b.Implementations["FLinq"].MedianNanoseconds);
         var ideal = Math.Sqrt(a.Implementations["Ideal"].MedianNanoseconds*b.Implementations["Ideal"].MedianNanoseconds);
         var baseline = Math.Sqrt(a.Implementations["Baseline"].MedianNanoseconds*b.Implementations["Baseline"].MedianNanoseconds);
