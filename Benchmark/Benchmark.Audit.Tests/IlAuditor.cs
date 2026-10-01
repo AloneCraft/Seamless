@@ -29,7 +29,7 @@ public sealed class AuditedBenchmarks:IDisposable {
     internal IReadOnlyList<Target.AuditRow> MemoryRows { get; }
 
     /// <summary>テストと同じ構成(Debug/Release)でビルドされたベンチ本体の出力を、リポジトリのルートから探す。</summary>
-    private static string BenchmarkAssemblyPath(string name) {
+    internal static string BenchmarkAssemblyPath(string name) {
         var baseDirectory = AppContext.BaseDirectory;
         var configuration = "Debug";
         if(baseDirectory.Contains(Path.DirectorySeparatorChar+"Release"+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)) {

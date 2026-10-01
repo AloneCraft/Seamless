@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildThisFileDirectory)..\Common\Common.projitems" />
+  <PropertyGroup Label="Globals">
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>{DEE0401E-4760-46DB-9446-C6D85F4176D6}</SharedGUID>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)IdealBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IdealBase.Helpers.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IdealCollections.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IdealSources.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SpanOperators.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)EnumerableOperators.cs" />
+  </ItemGroup>
+</Project>

@@ -12,6 +12,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
+    <!-- ベンチ本体を読み込んで結果ダイジェストを取るため、ベンチ本体が使うパッケージを出力へ置く。 -->
+    <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageReference Include="ZLinq" Version="1.5.6" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -28,5 +31,11 @@
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.IEnumerable.FLinq\Benchmark.System.Linq.Enumerable.IEnumerable.FLinq.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Range.FLinq\Benchmark.System.Linq.Enumerable.Range.FLinq.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Benchmark.Optimization.All\Benchmark.Optimization.All.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.ZLinq\Benchmark.System.Linq.Enumerable.ZLinq.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.List.ZLinq\Benchmark.System.Linq.Enumerable.List.ZLinq.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Ideal\Benchmark.System.Linq.Enumerable.Ideal.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.List.Ideal\Benchmark.System.Linq.Enumerable.List.Ideal.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq\Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.IEnumerable.Ideal\Benchmark.System.Linq.Enumerable.IEnumerable.Ideal.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

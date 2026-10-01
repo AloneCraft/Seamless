@@ -306,6 +306,33 @@ internal sealed class IlAuditor(MetadataCatalog catalog) {
     private static bool IsExternalLinq(string declaringTypeFullName) =>
         declaringTypeFullName=="System.Linq.Enumerable"||declaringTypeFullName.StartsWith("ZLinq.",StringComparison.Ordinal);
 
+    /// <summary>名前空間が条件に合う型の全メソッド本体から、呼び出し先が条件に合う呼び出しを「呼び出し元 -> 呼び出し先」で列挙する。</summary>
+    public IReadOnlyList<string> FindCalls(LoadedAssembly assembly,Func<string,bool> callerNamespace,Func<string,bool> calleeType) {
+        var reader = assembly.Reader;
+        var found = new List<string>();
+        foreach(var typeHandle in reader.TypeDefinitions) {
+            if(!callerNamespace(MetadataNames.OutermostNamespace(reader,typeHandle))) {
+                continue;
+            }
+            foreach(var methodHandle in reader.GetTypeDefinition(typeHandle).GetMethods()) {
+                var body = assembly.GetMethodBody(methodHandle);
+                if(body is null) {
+                    continue;
+                }
+                foreach(var instruction in IlReader.Decode(body)) {
+                    if(!IsMethodOperand(instruction.Code)) {
+                        continue;
+                    }
+                    var target = this.ResolveMethod(assembly,MetadataTokens.EntityHandle(instruction.Token));
+                    if(calleeType(target.DeclaringTypeFullName)) {
+                        found.Add(MetadataNames.TypeDefinitionFullName(reader,typeHandle)+"::"+reader.GetString(reader.GetMethodDefinition(methodHandle).Name)+" -> "+target.DisplayName);
+                    }
+                }
+            }
+        }
+        return found;
+    }
+
     private static bool IsMethodOperand(short code) =>
         code==IlReader.Call||code==IlReader.Callvirt||code==IlReader.Newobj||code==IlReader.Ldftn||code==IlReader.Ldvirtftn;
 
