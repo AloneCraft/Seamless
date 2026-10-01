@@ -26,6 +26,11 @@
     <Project Path="Benchmark/Benchmark.Scalable.Persisted.Collections/Benchmark.Scalable.Persisted.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.Tsavorite.Collections/Benchmark.Scalable.Tsavorite.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Headless/Benchmark.Headless.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Ideal/Benchmark.System.Linq.Enumerable.Ideal.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.Ideal/Benchmark.System.Linq.Enumerable.List.Ideal.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.IEnumerable.Ideal/Benchmark.System.Linq.Enumerable.IEnumerable.Ideal.csproj" />
+    <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Range.Ideal/Benchmark.System.Linq.Enumerable.Range.Ideal.csproj" />
+    <Project Path="Benchmark/Benchmark.Optimization.Ideal/Benchmark.Optimization.Ideal.csproj" />
     <Project Path="Benchmark/Worker/Worker.csproj" />
   </Folder>
   <Folder Name="/Shared/">
@@ -36,6 +41,7 @@
     <Project Path="Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.shproj" />
     <Project Path="Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.shproj" />
     <Project Path="Shared/Linq.Enumerable/Linq.Enumerable.shproj" />
+    <Project Path="Shared/Linq.Ideal/Linq.Ideal.shproj" />
     <Project Path="Shared/Linq.Optimization/Linq.Optimization.shproj" />
     <Project Path="Shared/Linq.Range/Linq.Range.shproj" />
     <Project Path="Shared/Tsavorite.Collections/Tsavorite.Collections.shproj" />
@@ -48,6 +54,7 @@
     <File Path="Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.projitems" />
     <File Path="Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.projitems" />
     <File Path="Shared/Linq.Enumerable/Linq.Enumerable.projitems" />
+    <File Path="Shared/Linq.Ideal/Linq.Ideal.projitems" />
     <File Path="Shared/Linq.Optimization/Linq.Optimization.projitems" />
     <File Path="Shared/Linq.Range/Linq.Range.projitems" />
     <File Path="Shared/Tsavorite.Collections/Tsavorite.Collections.projitems" />
