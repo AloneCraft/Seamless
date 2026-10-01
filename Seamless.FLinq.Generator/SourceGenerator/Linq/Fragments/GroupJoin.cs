@@ -30,17 +30,53 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
     public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { this.outerKey,this.innerKey,this.resultSelector },this.outerSource.GetEnumeratorExpression,this.innerSource.GetEnumeratorExpression,this.comparerExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TOuterEnum {this.e},TInnerEnum {this.innerEnumerator},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(this.innerKey)}>? comparer{this.ClosurePrimaryCtorSuffix(this.outerKey,this.innerKey,this.resultSelector)}";
     public override string GetEnumerableExpression => this.UseResultTypeParam ? $"{this.FactoryMethodName}({this.outerSource.GetEnumeratorExpression},{this.innerSource.GetEnumeratorExpression},{this.comparerExpression}{this.ClosureArgsSuffix(this.outerKey,this.innerKey,this.resultSelector)})" : base.GetEnumerableExpression;
-    public override string GetEnumeratorConstructor => $"this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});";
+    public override string GetEnumeratorConstructor => this.CanSkipLookup()
+        ? $"DrainInner(this.{this.innerEnumerator});"
+        : $"this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});";
     public override string GetEnumeratorFields => $$"""
-        private global::Seamless.Linq.Lookup<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}> {{this.lookup}};
+        private global::Seamless.Linq.Lookup<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}>? {{this.lookup}};
         private int {{this.state}};
-        {{this.BuildLookupBody(false,"IncrementLogicalGroupJoinInner")}}
+        {{this.LookupMembers()}}
         """;
+    private string LookupMembers() {
+        if(!this.CanSkipLookup()) {
+            return this.BuildLookupBody(false,"IncrementLogicalGroupJoinInner");
+        }
+        if(!this.InnerEnumerationIsObservable()) {
+            return $$"""
+                private static void DrainInner(TInnerEnum inner){
+                    inner.Dispose();
+                }
+                """;
+        }
+        return $$"""
+            private static void DrainInner(TInnerEnum inner){
+                using var {{this.innerEnumerator}}=inner;
+                while({{this.innerEnumerator}}.TryGetNext(out _)){
+                    {{this.CounterCall("IncrementLogicalGroupJoinInner")}}
+                }
+            }
+            """;
+    }
     public override string GetConsumeExecutionStatement(string consumerName) =>
         this.CanBypassLookupForConsume()
             ? this.outerSource.GetConsumeExecutionStatement(consumerName)
             : base.GetConsumeExecutionStatement(consumerName);
-    public override string GetTryGetNextBody => $$"""
+    public override string GetTryGetNextBody => this.CanSkipLookup() ? $$"""
+        if({{this.state}}==1){
+            current=default!;
+            return false;
+        }
+        if({{this.e}}.TryGetNext(out var __mn36)){
+            {{this.CounterCall("IncrementLogicalGroupJoinOuter")}}
+            this.{{this.currentValue}}=__mn36;
+            current=__mn36;
+            return true;
+        }
+        {{this.state}}=1;
+        current=default!;
+        return false;
+        """ : $$"""
         if({{this.state}}==1){
             current=default!;
             return false;
@@ -51,7 +87,7 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
             {{this.FuncAssignIndented("    ",this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
             {{this.CounterCall("IncrementHashProbe")}}
-            if({{this.lookup}}.GetGroup({{this.key}}) is { } {{this.group}}){
+            if({{this.lookup}}!.GetGroup({{this.key}}) is { } {{this.group}}){
                 {{this.FuncAssignCurrentIndented("        ",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,this.group)}}
             }else{
                 {{this.FuncAssignCurrentIndented("        ",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,$"(global::System.Collections.Generic.IEnumerable<{this.innerSource.ElementType}>)global::System.Array.Empty<{this.innerSource.ElementType}>()")}}
@@ -63,7 +99,20 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         current=default!;
         return false;
         """;
-    protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose(); {this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"{this.lookup}?.Dispose(); {this.e}.Dispose();";
+
+    // 結果選択子が内側のグループを使わず、キー選択子が恒等で比較子も既定なら、探索表の中身は結果に現れない。
+    // そのときは探索表を作らず、内側は列挙だけする(列挙の副作用と例外は残す)。ソース式の評価と列挙子の構築は
+    // 通常と同じ順・同じ時点で行う。
+    private bool CanSkipLookup() =>
+        this.comparerExpression=="null"
+        &&this.outerKey.IsIdentity
+        &&this.innerKey.IsIdentity
+        &&this.ResultSelectorReturnsOuter();
+
+    // 配列・List・Range・Repeat の列挙は副作用も例外も無いので、内側の列挙そのものも省ける。
+    private bool InnerEnumerationIsObservable() =>
+        this.innerSource is not (ArrayRoot or ListRoot or RangeRoot or RepeatRoot);
 
     private bool CanBypassLookupForConsume() =>
         this.comparerExpression=="null"

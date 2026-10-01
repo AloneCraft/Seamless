@@ -1,8 +1,4 @@
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-
 using Seamless.FLinq;
-using Seamless.FLinq.Generator;
 
 namespace Test.SourceGenerator;
 
@@ -100,52 +96,15 @@ public sealed class SortedOrderDirectConsumeTests {
     }
 
     private static (string Result,int SourceCalls) Run(string method,int[] values) {
-        var compilation = GenerateExecutable(Source);
-        using var pe = new MemoryStream();
-        var emit = compilation.Emit(pe);
-        Assert.True(emit.Success,string.Join(Environment.NewLine,emit.Diagnostics));
-        pe.Position=0;
-        var loadContext = new global::System.Runtime.Loader.AssemblyLoadContext("SortedOrderDirectConsume",isCollectible: true);
-        try {
-            var container = loadContext.LoadFromStream(pe).GetType("Sample.Container")!;
+        var (compilation,_) = ExecutableGeneration.Generate(Source,"SortedOrderDirectConsumeProbe",5);
+        return ExecutableGeneration.Run(compilation,"Sample.Container",container => {
             var probe = container.GetMethod("Run"+method)!;
             var consumerType = probe.GetParameters()[1].ParameterType;
             var consumer = Activator.CreateInstance(consumerType)!;
             probe.Invoke(null,[values,consumer]);
             var items = (global::System.Collections.IEnumerable)consumerType.GetField("Items")!.GetValue(consumer)!;
-            var result = string.Join(",",items.Cast<object>());
             var calls = (int)container.GetField("SourceCalls")!.GetValue(null)!;
-            return (result,calls);
-        } finally {
-            loadContext.Unload();
-        }
-    }
-
-    private static CSharpCompilation GenerateExecutable(string source) {
-        var parseOptions = new CSharpParseOptions(LanguageVersion.Preview)
-            .WithFeatures([
-                new("InterceptorsPreview","true"),
-                new("InterceptorsNamespaces","Intercept"),
-                new("InterceptorsPreviewNamespaces","Intercept"),
-            ]);
-        var compilation = GeneratorTestHelpers.CreateCompilation([("Container.cs",source)])
-            .WithAssemblyName("SortedOrderDirectConsumeProbe");
-        var originalTree = compilation.SyntaxTrees.Single();
-        var executableTree = CSharpSyntaxTree.ParseText(source,parseOptions,path: "Container.cs");
-        compilation=compilation.ReplaceSyntaxTree(originalTree,executableTree);
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(
-            [new FLinqIncrementalGenerator().AsSourceGenerator()],
-            parseOptions: parseOptions,
-            driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None,trackIncrementalGeneratorSteps: false));
-        driver=driver.RunGeneratorsAndUpdateCompilation(compilation,out var outputCompilation,out var generatorDiagnostics);
-        var errors = generatorDiagnostics
-            .Concat(outputCompilation.GetDiagnostics())
-            .Where(static diagnostic => diagnostic.Severity==DiagnosticSeverity.Error)
-            .ToArray();
-        Assert.Empty(errors);
-        // static class の中や反射で直接呼んだメソッドは差し替わらず、テストが空振りする。差し替えが生成されたことを確かめる。
-        var generated = string.Concat(outputCompilation.SyntaxTrees.Select(static tree => tree.ToString()));
-        Assert.True(generated.Split("InterceptsLocationAttribute(1,").Length-1>=5,"Order 系の呼び出しが傍受されていません。");
-        return (CSharpCompilation)outputCompilation;
+            return (string.Join(",",items.Cast<object>()),calls);
+        });
     }
 }

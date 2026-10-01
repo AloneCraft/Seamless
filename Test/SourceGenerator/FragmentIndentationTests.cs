@@ -32,9 +32,10 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
             private IEnumerable<int> srcCount(int count) => Enumerable.Range(1, count);
             private IEnumerable<int> src2Count(int count) => Enumerable.Range(1, count);
 
+            // 結果選択子が内側のグループを使わない形は探索表自体を省くので、探索表を作る形で字下げを確かめる。
             [LinqIntercept(true)]
             private void GroupJoin_inner_Impl() =>
-                this.srcCount(3).AsX<int>().GroupJoin(this.src2Count(3), x => x, x => x, (outer, inner) => outer, EqualityComparer<int>.Default).Consume(this.consumer);
+                this.srcCount(3).AsX<int>().GroupJoin(this.src2Count(3), x => x, x => x, (outer, inner) => outer+inner.Count(), EqualityComparer<int>.Default).Consume(this.consumer);
 
             public void Run() => this.GroupJoin_inner_Impl();
         }
@@ -49,7 +50,7 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
             lines,
             @"^\s*__k\d+=__ov\d+;$",
             @"^\s*var __ov\d+=",
-            @"^\s*if\((?:this\.)?__lk\d+\.GetGroup");
+            @"^\s*if\((?:this\.)?__lk\d+!?\.GetGroup");
 
         this.AssertAssignmentAligned(
             lines,

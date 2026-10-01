@@ -1517,3 +1517,11 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - Cause analysis: `AsX<T>` is inlined/normalized by a fragment-building route distinct from the simple test route. The aggregate source did not expose DirectEnumerableExpression at the scalar lowering point. Broadening PipelineEnumerable capability forwarding alone did not alter the emitted method. The exact fragment handoff must be traced before retrying; adding a runtime branch or a wider unwrapping rule without that evidence risks changing non-transparent chains.
 - Reversion and verification: removed the Aggregate and PipelineEnumerable experiment; no public API changed. `dotnet test Test/Test.csproj -c Release --no-restore --filter FullyQualifiedName~ProviderContainsShapeTests` passed 8/8 on net10.0 (net10.0-windows had no matching tests). The restored test set covers provider native Contains, array span Contains, comparer preservation, List Reverse, static IEnumerable direct Contains/one-time value evaluation, and ElementAtOrDefault direct loop.
 - Decision: rejected/held. No before/after median exists because the real generated shape did not change. Keep as a failed-hypothesis record with the code-shape comparison; revisit only after instrumenting or exposing the actual `AsX<T>` fragment handoff.
+## 2026-10-02 GroupJoin: 結果が内側のグループを使わないときに探索表を作らない(採用)
+
+- 対象: `GroupJoin_inner`(`src.GroupJoin(src2,x=>x,x=>x,(outer,inner)=>outer)`)の Array/List/IEnumerable と Persisted/Tsavorite(ildiff で IL が変わったのはこの5行だけ)。
+- 形: 比較子が既定、両キー選択子が恒等、結果選択子が外側をそのまま返すとき、探索表(LookupBuilder)を作らない。内側は配列・List・Range・Repeat なら列挙も省き、それ以外は列挙だけする(副作用と例外を残す)。ソース式の評価順と列挙子の構築時点は変えない。Range 同士の既存の迂回経路はそのまま。
+- 物差し: 手書き理想版(内側の探索表を作らず外側を流す)。測定は `--multi-run` を修正前後交互に2周ずつ、理想比 FLinq÷理想 の変化で判定。
+- 結果(FLinq÷理想、前→後): Array Int32 9.56→1.85、Array ClassInt32 19.65→5.35、List Int32 9.28→1.55、List ClassInt32 21.40→5.00、IEnumerable Int32 8.84→1.94、IEnumerable ClassInt32 8.06→4.27。IL が変わらない対照の Join_inner の変化は0.80〜1.31倍で、改善はこれを大きく超える。
+- 採否: 採用。改善は3%を大きく超え、IL が変わった行に悪化は無い。
+- 残り: ClassInt32 で理想比4〜5倍が残る。IEnumerable タブの ClassInt32 行全般の遅さ(参照型の共有ジェネリックコード仮説)と同じ原因か別途確かめる。
