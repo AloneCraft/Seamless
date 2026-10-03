@@ -201,7 +201,9 @@ internal sealed partial class PipelineEnumerable {
             builder.AppendLine($"    while({this.SecondEnumeratorName(this.SecondOrdinal(concatIndex))}.TryGetNext(out var {this.ItemName(concatIndex+1)})) {{");
             this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
             var secondName = this.ItemName(concatIndex+1);
-            builder.AppendLine($"        {secondName}=({stage.OutputType})(object?){secondName}!;");
+            if(stage.SecondSource?.ElementType!=stage.OutputType) {
+                builder.AppendLine($"        {secondName}=({stage.OutputType})(object?){secondName}!;");
+            }
             var currentName = secondName;
             for(var index = concatIndex+1;index<stages.Count;index++) {
                 currentName=this.AppendStage(builder,stages[index],currentName,index,breakStatement);

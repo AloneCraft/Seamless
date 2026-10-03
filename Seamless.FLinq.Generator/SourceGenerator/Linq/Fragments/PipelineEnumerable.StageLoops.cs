@@ -337,7 +337,7 @@ internal sealed partial class PipelineEnumerable {
         builder.AppendLine($"        while({this.SecondEnumeratorName(this.SecondOrdinal(unionIndex))}.TryGetNext(out var {this.ItemName(unionIndex+1)})) {{");
         this.AppendCounterCall(builder,"            ","IncrementPhysicalMoveNext");
         var secondCurrentName = this.ItemName(unionIndex+1);
-        builder.AppendLine($"            {secondCurrentName}=({stage.OutputType})(object?){secondCurrentName}!;");
+        builder.AppendLine($"            {(stage.SecondSource?.ElementType==stage.OutputType ? string.Empty : $"{secondCurrentName}=({stage.OutputType})(object?){secondCurrentName}!;")}");
         var secondKeyName = secondCurrentName;
         if(stage.Kind==PipelineStageKind.UnionBy) {
             secondKeyName=this.KeyName(unionIndex)+"_second"; // KeyName(unionIndex+1) は次の段(DistinctBy など)の key 変数と同じ名前になり、重複定義(CS0128)になる
@@ -353,7 +353,7 @@ internal sealed partial class PipelineEnumerable {
         var stage = stages[setIndex];
         builder.AppendLine($"        while({this.SecondEnumeratorName(this.SecondOrdinal(setIndex))}.TryGetNext(out var {this.ItemName(setIndex+1)})) {{");
         this.AppendCounterCall(builder,"            ","IncrementPhysicalMoveNext");
-        builder.AppendLine($"            this.{this.SecondSetName(setIndex)}.Add(({ComparerKeyType(stage)})(object?){this.ItemName(setIndex+1)}!);");
+        builder.AppendLine($"            this.{this.SecondSetName(setIndex)}.Add({this.SecondValueAs(stage,ComparerKeyType(stage),this.ItemName(setIndex+1))});");
         builder.AppendLine("        }");
         builder.AppendLine($"        while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
         this.AppendCounterCall(builder,"            ","IncrementPhysicalMoveNext");
@@ -367,14 +367,23 @@ internal sealed partial class PipelineEnumerable {
             builder.AppendLine($"            {ComparerKeyType(stage)} {setKeyName}=default!;");
             builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,stage.Kind.ToString(),setKeyName,currentName),"            "));
         }
-        if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
-            builder.AppendLine($"            if(this.{this.SecondSetName(setIndex)}.Contains({setKeyName}) || !this.{this.SetName(setIndex)}.Add({setKeyName})) continue;");
-        } else {
-            builder.AppendLine($"            if(!this.{this.SecondSetName(setIndex)}.Contains({setKeyName}) || !this.{this.SetName(setIndex)}.Add({setKeyName})) continue;");
-        }
+        builder.AppendLine($"            {this.SingleSetCheck(stage,setIndex,setKeyName)}");
         this.AppendBinarySetOrderTail(builder,setIndex,orderIndex,currentName,breakStatement,"            ");
         builder.AppendLine("        }");
     }
+
+    // Except は第2ソースの集合へ足せたもの(第2ソースに無く、まだ出していない)だけ、Intersect は第2ソースの集合から
+    // 取り除けたもの(第2ソースにあり、まだ出していない)だけを流す。集合1つで重複除きも兼ねる(System.Linq と同じ)。
+    private string SingleSetCheck(PipelineStage stage,int setIndex,string keyName) =>
+        stage.Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy
+            ? $"if(!this.{this.SecondSetName(setIndex)}.Add({keyName})) continue;"
+            : $"if(!this.{this.SecondSetName(setIndex)}.Remove({keyName})) continue;";
+
+    // 第2ソースの値を集合のキーの型として渡す。型が同じなら変換しない(参照型の共有ジェネリックコードでは object 経由の変換が型検査の呼び出しになる)。
+    private string SecondValueAs(PipelineStage stage,string targetType,string valueName) =>
+        stage.SecondSource?.ElementType==targetType
+            ? valueName
+            : $"({targetType})(object?){valueName}!";
 
     private void AppendBinarySetOrderTail(StringBuilder builder,int setIndex,int orderIndex,string currentName,string breakStatement,string indent) {
         for(var index = setIndex+1;index<orderIndex;index++) {
@@ -393,7 +402,7 @@ internal sealed partial class PipelineEnumerable {
         builder.AppendLine($"if(!this.{this.StateName(setIndex)}) {{");
         builder.AppendLine($"    while({this.SecondEnumeratorName(this.SecondOrdinal(setIndex))}.TryGetNext(out var {this.ItemName(setIndex+1)})) {{");
         this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
-        builder.AppendLine($"        this.{this.SecondSetName(setIndex)}.Add(({ComparerKeyType(stage)})(object?){this.ItemName(setIndex+1)}!);");
+        builder.AppendLine($"        this.{this.SecondSetName(setIndex)}.Add({this.SecondValueAs(stage,ComparerKeyType(stage),this.ItemName(setIndex+1))});");
         builder.AppendLine("    }");
         builder.AppendLine($"    this.{this.StateName(setIndex)}=true;");
         builder.AppendLine("}");
@@ -409,11 +418,7 @@ internal sealed partial class PipelineEnumerable {
             builder.AppendLine($"    {ComparerKeyType(stage)} {setKeyName}=default!;");
             builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,stage.Kind.ToString(),setKeyName,currentName),"    "));
         }
-        if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
-            builder.AppendLine($"    if(this.{this.SecondSetName(setIndex)}.Contains({setKeyName}) || !this.{this.SetName(setIndex)}.Add({setKeyName})) continue;");
-        } else {
-            builder.AppendLine($"    if(!this.{this.SecondSetName(setIndex)}.Contains({setKeyName}) || !this.{this.SetName(setIndex)}.Add({setKeyName})) continue;");
-        }
+        builder.AppendLine($"    {this.SingleSetCheck(stage,setIndex,setKeyName)}");
         for(var index = setIndex+1;index<stages.Count;index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
         }
@@ -456,7 +461,7 @@ internal sealed partial class PipelineEnumerable {
         builder.AppendLine($"    while({this.SecondEnumeratorName(this.SecondOrdinal(unionIndex))}.TryGetNext(out var {this.ItemName(unionIndex+1)})) {{");
         this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
         var secondCurrentName = this.ItemName(unionIndex+1);
-        builder.AppendLine($"        {secondCurrentName}=({stages[unionIndex].OutputType})(object?){secondCurrentName}!;");
+        builder.AppendLine($"        {(stages[unionIndex].SecondSource?.ElementType==stages[unionIndex].OutputType ? string.Empty : $"{secondCurrentName}=({stages[unionIndex].OutputType})(object?){secondCurrentName}!;")}");
         var secondKeyName = secondCurrentName;
         if(stages[unionIndex].Kind==PipelineStageKind.UnionBy) {
             secondKeyName=this.KeyName(unionIndex)+"_second"; // KeyName(unionIndex+1) は次の段(DistinctBy など)の key 変数と同じ名前になり、重複定義(CS0128)になる
