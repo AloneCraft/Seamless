@@ -30,8 +30,32 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
     public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { this.outerKey,this.innerKey,this.resultSelector },this.outerSource.GetEnumeratorExpression,this.innerSource.GetEnumeratorExpression,this.comparerExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TOuterEnum {this.e},TInnerEnum {this.innerEnumerator},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(this.innerKey)}>? comparer{this.ClosurePrimaryCtorSuffix(this.outerKey,this.innerKey,this.resultSelector)}";
     public override string GetEnumerableExpression => this.UseResultTypeParam ? $"{this.FactoryMethodName}({this.outerSource.GetEnumeratorExpression},{this.innerSource.GetEnumeratorExpression},{this.comparerExpression}{this.ClosureArgsSuffix(this.outerKey,this.innerKey,this.resultSelector)})" : base.GetEnumerableExpression;
-    public override string GetEnumeratorConstructor => $"this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});";
-    public override string GetEnumeratorFields => $$"""
+    public override string GetEnumeratorConstructor => this.ProbesInnerRange()
+        ? $$"""
+            // 内側は Range で恒等キーなので、探索表を作らず区間 [始点,始点+個数) で一致を判定する(各キーに一致する内側は自身1つ)。
+            this.{{this.innerEnumerator}}.TryGetNonEnumeratedCount(out var __innerCount);
+            this.{{this.innerLow}}=__innerCount>0&&this.{{this.innerEnumerator}}.TryGetNext(out var __innerFirst) ? __innerFirst : 0L;
+            this.{{this.innerHigh}}=this.{{this.innerLow}}+__innerCount;
+            """
+        : $"this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});";
+    private string innerLow => $"__innerLow{番号}";
+    private string innerHigh => $"__innerHigh{番号}";
+    // 内側が .Anchor の無い Range そのもので、両キーが int(内側は恒等)・比較子が既定なら、内側の要素はキーと等しく一意。
+    // 外側のキーが区間に入るかだけで一致が決まるので、内側を列挙せず探索表も作らない(FLinq の契約: Range の列挙は観測されない)。
+    private bool ProbesInnerRange() =>
+        this.comparerExpression=="null"
+        &&this.innerSource is RangeRoot
+        &&!this.innerSource.TreeContainsAnchor()
+        &&this.innerKey.IsIdentity
+        &&!this.innerKey.ContainsAnchor
+        &&FuncReturnTypeName(this.outerKey)=="int"
+        &&FuncReturnTypeName(this.innerKey)=="int";
+    public override string GetEnumeratorFields => this.ProbesInnerRange()
+        ? $$"""
+            private long {{this.innerLow}};
+            private long {{this.innerHigh}};
+            """
+        : $$"""
         private global::Seamless.Linq.Lookup<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}> {{this.lookup}};
         private global::Seamless.Linq.Grouping<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}>? {{this.group}};
         private int {{this.groupIndex}};
@@ -42,7 +66,22 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         }
         {{this.BuildLookupBody(true,"IncrementLogicalJoinInner")}}
         """;
-    public override string GetTryGetNextBody => $$"""
+    public override string GetTryGetNextBody => this.ProbesInnerRange()
+        ? $$"""
+        while({{this.e}}.TryGetNext(out var __mn38)){
+            {{this.CounterCall("IncrementLogicalJoinOuter")}}
+            var {{this.outerValue}}=__mn38;
+            int {{this.key}}=default!;
+            {{this.FuncAssignIndented("    ",this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
+            if({{this.key}}>=this.{{this.innerLow}}&&{{this.key}}<this.{{this.innerHigh}}){
+                {{this.FuncAssignCurrentIndented("        ",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,this.key)}}
+                return true;
+            }
+        }
+        current=default!;
+        return false;
+        """
+        : $$"""
         {{this.Start}}:
         if({{this.state}}==1&&{{this.group}} is not null){
             if({{this.groupIndex}}<{{this.group}}.Count){
@@ -133,5 +172,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             }
             """;
     }
-    protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose(); {this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => this.ProbesInnerRange()
+        ? $"{this.e}.Dispose(); {this.innerEnumerator}.Dispose();"
+        : $"{this.lookup}.Dispose(); {this.e}.Dispose();";
 }

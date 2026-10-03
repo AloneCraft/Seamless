@@ -1580,3 +1580,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - `OrderBy(x => x)`・`OrderByDescending(x => x)` は、キーを計算しない Order()/OrderDescending() と同じ経路にする(Array/List/IEnumerable の Int32 で理想比 2.6〜3倍だった。Order() は1.1倍)。
 - どちらもラムダに `.Anchor` があれば従来どおり。テストは `PipelineNoOpNormalizationTests`(Repeat の個数が2の形・型変換を含む)。
 - 結果: 次の取り直しで記録する。
+
+## 2026-10-03 内側が Range で恒等キーの Join は区間で一致を判定する(採用)
+
+- 内側が `.Anchor` の無い Range で、内側のキーが恒等(int)・比較子が既定なら、内側の要素はキーと等しく一意なので、探索表を作らず外側のキーが [始点,始点+個数) に入るかで判定し、一致ごとに結果選択子(外側, キー)を1件流す。内側は列挙しない(Range の列挙は観測されない)。System.Range タブの Join_inner(理想比45倍)。
+- テスト: `JoinInnerRangeProbeTests`(重なり・離れ・空・負の値・int の端・外側の重複・外側のキーが恒等でない形、内側のキーが恒等でない形は従来の探索表)。
+- 結果: 次の取り直しで記録する。
