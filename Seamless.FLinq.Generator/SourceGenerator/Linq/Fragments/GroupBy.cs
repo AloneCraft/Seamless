@@ -202,6 +202,13 @@ internal class GroupBy_keySelector(int 番号,Enumerable source,FuncFragment key
         return true;
         """;
     public override string ElementType => $"global::System.Linq.IGrouping<{this.KeyType}, {source.ElementType}>";
+    // Range の x%C のキーは、剰余類からグループを直接作る(RangeModuloDistinctRoot.RenderGroupsConsume)。
+    public override string GetConsumeExecutionStatement(string consumerName) =>
+        source is RangeRoot range
+            &&!source.TreeContainsAnchor()
+            &&RangeModuloOrderRoot.TryGetModulus(keySelector,out var modulus)
+            ? RangeModuloDistinctRoot.RenderGroupsConsume(range,modulus,番号,consumerName,this.ElementType,"int",string.Empty,static (destination,value) => $"{destination}={value};")
+            : base.GetConsumeExecutionStatement(consumerName);
 }
 
 internal class GroupBy_keySelector_resultSelector(
@@ -264,6 +271,20 @@ internal class GroupBy_keySelector_resultSelector(
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,resultSelector)}";
     private bool IgnoresGroup => GroupBySupport.CanStreamDistinctKeys(source,resultSelector,keySelector);
+    // 結果がグループを使わず Range の x%C のキーなら、キーの初出の値だけを流して結果を作る(集合を使わない)。
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        if(!this.IgnoresGroup
+            ||source is not RangeRoot range
+            ||!RangeModuloOrderRoot.TryGetModulus(keySelector,out var modulus)) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        var resultName = $"__result{番号}";
+        return RangeModuloDistinctRoot.RenderFirstOccurrencesConsume(range,modulus,番号,this.HoistedLocalDeclarations(resultSelector),value => $$"""
+            {{this.ElementType}} {{resultName}}=default!;
+            {{this.FuncAssignIndented("",resultSelector,nameof(resultSelector),resultName,$"(int)({value}%{modulus})")}}
+            {{consumerName}}.Consume({{resultName}});
+            """);
+    }
     public override string GetEnumeratorFields => this.IgnoresGroup
         ? GroupBySupport.DistinctKeyFields(this.KeyType,this.lookup)
         : GroupBySupport.Fields(this.KeyType,source.ElementType,this.group,this.lookup,this.hasValue);
@@ -330,6 +351,19 @@ internal class GroupBy_keySelector_elementSelector(
         return true;
         """;
     public override string ElementType => $"global::System.Linq.IGrouping<{this.KeyType}, {this.ElemType}>";
+    // Range の x%C のキーは、剰余類からグループを直接作る(RangeModuloDistinctRoot.RenderGroupsConsume)。要素選択子はその場に展開する。
+    public override string GetConsumeExecutionStatement(string consumerName) =>
+        source is RangeRoot range
+            &&!source.TreeContainsAnchor()
+            &&!elementSelector.ContainsAnchor
+            &&!elementSelector.CanInvokeAsDelegate
+            &&!elementSelector.RequiresStatementInlining
+            &&elementSelector.CanInlineAssign
+            &&RangeModuloOrderRoot.TryGetModulus(keySelector,out var modulus)
+            ? RangeModuloDistinctRoot.RenderGroupsConsume(range,modulus,番号,consumerName,this.ElementType,this.ElemType,
+                this.HoistedLocalDeclarations(elementSelector),
+                (destination,value) => this.FuncAssign(elementSelector,nameof(elementSelector),destination,value))
+            : base.GetConsumeExecutionStatement(consumerName);
 }
 
 internal class GroupBy_keySelector_elementSelector_resultSelector(

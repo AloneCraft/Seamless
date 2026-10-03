@@ -83,28 +83,93 @@ internal sealed class RangeModuloDistinctRoot(int 番号,RangeRoot range,int mod
         }
         """;
 
-    public override string GetConsumeExecutionStatement(string consumerName) {
-        var start = $"__start{番号}";
-        var count = $"__count{番号}";
-        var end = $"__end{番号}";
-        var negativeEnd = $"__negativeEnd{番号}";
-        var positiveStart = $"__positiveStart{番号}";
-        var positiveEnd = $"__positiveEnd{番号}";
-        var skipZero = $"__skipZero{番号}";
-        var value = $"__value{番号}";
+    public override string GetConsumeExecutionStatement(string consumerName) =>
+        RenderFirstOccurrencesConsume(range,modulus,番号,string.Empty,value => $"{consumerName}.Consume((int){value});");
+
+    // キー x%C の初出の値を順に流す(DistinctBy と、結果がグループを使わない GroupBy が使う)。renderConsume は long の値の式から文を作る。
+    public static string RenderFirstOccurrencesConsume(RangeRoot range,int modulus,int number,string localDeclarations,Func<string,string> renderConsume) {
+        var root = new RangeModuloDistinctRoot(number,range,modulus);
+        var start = $"__start{number}";
+        var count = $"__count{number}";
+        var end = $"__end{number}";
+        var negativeEnd = $"__negativeEnd{number}";
+        var positiveStart = $"__positiveStart{number}";
+        var positiveEnd = $"__positiveEnd{number}";
+        var skipZero = $"__skipZero{number}";
+        var value = $"__value{number}";
+        var consume = GroupBySupport.IndentBlock(renderConsume(value),"        ").TrimStart();
         return $$"""
             {
+                {{localDeclarations}}
                 {{GroupBySupport.IndentBlock(range.RenderArgumentPreparation(start,count),"    ").TrimStart()}}
                 var {{end}}=(long){{start}}+{{count}};
-                {{GroupBySupport.IndentBlock(this.Intervals(start,end,negativeEnd,positiveStart,positiveEnd,skipZero),"    ").TrimStart()}}
+                {{GroupBySupport.IndentBlock(root.Intervals(start,end,negativeEnd,positiveStart,positiveEnd,skipZero),"    ").TrimStart()}}
                 for(var {{value}}=(long){{start}};{{value}}<{{negativeEnd}};{{value}}++){
-                    {{consumerName}}.Consume((int){{value}});
+                    {{consume}}
                 }
                 for(var {{value}}={{positiveStart}};{{value}}<{{positiveEnd}};{{value}}++){
                     if({{skipZero}}&&{{value}}%{{modulus}}==0){
                         continue;
                     }
-                    {{consumerName}}.Consume((int){{value}});
+                    {{consume}}
+                }
+            }
+            """;
+    }
+
+    /*
+    Range の GroupBy(x => x%C[,要素選択子]) を Consume へ流す。start≧0 なら、キーの初出は start から先頭 min(count,C) 個で、
+    値 x のグループの要素は x から C 刻みの (end-1-x)/C+1 個なので、ハッシュを使わずにグループごとの配列を直接作る。
+    負の値を含むときは、Range の引数を1回だけ評価したうえで辞書で分ける。elementAssign は「先 = 要素選択子(値)」の文。
+    */
+    public static string RenderGroupsConsume(RangeRoot range,int modulus,int number,string consumerName,string groupingType,string elementType,string localDeclarations,Func<string,string,string> elementAssign) {
+        var start = $"__start{number}";
+        var count = $"__count{number}";
+        var end = $"__end{number}";
+        var value = $"__value{number}";
+        var size = $"__size{number}";
+        var elements = $"__elements{number}";
+        var index = $"__index{number}";
+        var element = $"__element{number}";
+        var map = $"__groups{number}";
+        var order = $"__order{number}";
+        var key = $"__key{number}";
+        var list = $"__list{number}";
+        return $$"""
+            {
+                {{localDeclarations}}
+                {{GroupBySupport.IndentBlock(range.RenderArgumentPreparation(start,count),"    ").TrimStart()}}
+                var {{end}}=(long){{start}}+{{count}};
+                if({{start}}>=0){
+                    var __length{{number}}=global::System.Math.Min({{count}},{{modulus}});
+                    for(var {{value}}=(long){{start}};{{value}}<(long){{start}}+__length{{number}};{{value}}++){
+                        var {{size}}=(int)(({{end}}-1-{{value}})/{{modulus}}+1);
+                        var {{elements}}=new {{elementType}}[{{size}}];
+                        for(var {{index}}=0;{{index}}<{{size}};{{index}}++){
+                            {{elementType}} {{element}}=default!;
+                            {{GroupBySupport.IndentBlock(elementAssign(element,$"(int)({value}+(long){index}*{modulus})"),"                            ").TrimStart()}}
+                            {{elements}}[{{index}}]={{element}};
+                        }
+                        {{consumerName}}.Consume(({{groupingType}})new global::Seamless.Linq.Grouping<int,{{elementType}}>((int)({{value}}%{{modulus}}),{{elements}},{{size}}));
+                    }
+                }else{
+                    var {{map}}=new global::System.Collections.Generic.Dictionary<int,global::System.Collections.Generic.List<{{elementType}}>>();
+                    var {{order}}=new global::System.Collections.Generic.List<int>();
+                    for(var {{value}}=(long){{start}};{{value}}<{{end}};{{value}}++){
+                        var {{key}}=(int)({{value}}%{{modulus}});
+                        if(!{{map}}.TryGetValue({{key}},out var {{list}})){
+                            {{list}}=new global::System.Collections.Generic.List<{{elementType}}>();
+                            {{map}}.Add({{key}},{{list}});
+                            {{order}}.Add({{key}});
+                        }
+                        {{elementType}} {{element}}=default!;
+                        {{GroupBySupport.IndentBlock(elementAssign(element,$"(int){value}"),"                        ").TrimStart()}}
+                        {{list}}.Add({{element}});
+                    }
+                    foreach(var {{key}} in {{order}}){
+                        var {{list}}={{map}}[{{key}}];
+                        {{consumerName}}.Consume(({{groupingType}})new global::Seamless.Linq.Grouping<int,{{elementType}}>({{key}},{{list}}.ToArray(),{{list}}.Count));
+                    }
                 }
             }
             """;

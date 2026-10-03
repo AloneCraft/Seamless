@@ -1616,3 +1616,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 実体化の結果を流すだけの形(`IStreamingMaterializeConsume`)として書き換え側に入れ、列が Consume の受け手で消費側の式が評価順を観測できる形なら従来どおり作ってから流す(ToArray/ToList の省略と同じ条件)。恒等でないキーの辞書は作る(重複キーの例外が流す前に起きる)。
 - テスト: `StreamingMaterializeConsumeTests`。
 - 結果: 次の取り直しで記録する。
+
+## 2026-10-04 Range の GroupBy(x%C) を剰余類から直接作る(採用)
+
+- start≧0 なら、キーの初出は start から先頭 min(count,C) 個で、値 x のグループは x から C 刻みの (end-1-x)/C+1 個なので、ハッシュを使わずグループごとの配列を作る(Seamless.Linq の `Grouping` に、詰め終えた配列から作るコンストラクタを足した)。負の値を含むときは引数を1回だけ評価して辞書で分ける。結果がグループを使わない GroupBy は、キーの初出の値だけを流して結果を作る(集合を使わない)。System.Range タブの GroupBy_keySelector・GroupBy_elementSelector(6倍)・GroupBy_resultSelector(24倍)。
+- テスト: `RangeModuloGroupByTests`(負の値・int の端・空・不正な引数、要素選択子の型変換、グループを使わない結果選択子)。
+- 結果: 次の取り直しで記録する。

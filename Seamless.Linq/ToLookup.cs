@@ -600,6 +600,20 @@ namespace Seamless.Linq {
             this.firstElement=default!;
         }
 
+        // 要素を詰め終えた配列からグループを作る(生成コードが要素数の分かるグループを直接組み立てるときに使う)。
+        // 配列はこのグループが持つので、呼び出し側は以後書き換えない。
+        public Grouping(TKey key,TElement[] elements,int count) {
+            if((uint)count>(uint)elements.Length) {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+            this.key     =key;
+            this.hashCode=0;
+            this.elements=elements;
+            this.count   =count;
+            this.poolElements=false;
+            this.firstElement=default!;
+        }
+
         internal Grouping(TKey key,uint hashCode,TElement value,bool poolElements) {
             this.key     =key;
             this.hashCode=hashCode;
