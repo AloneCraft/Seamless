@@ -230,11 +230,20 @@ internal static partial class PipelineBuilder {
         }
         var usesIndex = typeArgumentLength==3;
         if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,method.Parameters[0].Type,ref uniqueNumber,out var collectionSelector)
-            ||!services.CanUseFunc(collectionSelector)
-            ||collectionSelector.RequiresStatementInlining) {
+            ||!services.CanUseFunc(collectionSelector)) {
             return false;
         }
         if(!TryGetSequenceElementType(collectionSelector.ReturnTypeName,out var innerElementType)) {
+            return false;
+        }
+        // Repeat(e,1) の判定は、ラムダの中の LINQ のために文として展開が必要と判定される前に行う(本体は使わず e だけを使う)。
+        if(!usesIndex
+            &&TryCreateSingleRepeatSelect(semanticModel,invocation,method,services,ref uniqueNumber,collectionSelector,innerElementType,out var singleSelect,out var singleOutputType)) {
+            stages.Add(new PipelineStage(PipelineStageKind.Select,singleSelect,null,currentElementType,singleOutputType));
+            currentElementType=singleOutputType;
+            return true;
+        }
+        if(collectionSelector.RequiresStatementInlining) {
             return false;
         }
         var innerIsArray = invocation.ArgumentList.Arguments[0].Expression is LambdaExpressionSyntax { Body: ExpressionSyntax collectionSelectorBodyExpr }
@@ -253,12 +262,6 @@ internal static partial class PipelineBuilder {
             outputType=resultSelector.ReturnTypeName;
         }
 
-        if(!usesIndex
-            &&TryCreateSingleRepeatSelect(semanticModel,invocation.ArgumentList.Arguments[0].Expression,collectionSelector,resultSelector,innerElementType,outputType) is { } singleSelect) {
-            stages.Add(new PipelineStage(PipelineStageKind.Select,singleSelect,null,currentElementType,outputType));
-            currentElementType=outputType;
-            return true;
-        }
         stages.Add(new PipelineStage(
             PipelineStageKind.SelectMany,
             collectionSelector,
@@ -276,53 +279,75 @@ internal static partial class PipelineBuilder {
 
     // SelectMany(x => Enumerable.Repeat(e,1)[,(x,y) => r]) は、要素ごとにちょうど1つを流すので Select(x => e) / Select(x => r(x,e)) と同じ。
     // FLinq の契約(.Anchor の無い式は純粋)で e は1回評価すればよい。結果選択子の中で y を何度使っても e は同じ値になる。
-    private static LambdaFunc? TryCreateSingleRepeatSelect(
+    // e は、ラムダの引数・定数・演算子・型変換だけの式に限る(そのまま生成コードに書ける形)。
+    private static bool TryCreateSingleRepeatSelect(
         SemanticModel semanticModel,
-        ExpressionSyntax collectionSelectorExpression,
+        InvocationExpressionSyntax invocation,
+        IMethodSymbol method,
+        PipelineBuildServices services,
+        ref int uniqueNumber,
         FuncFragment collectionSelector,
-        FuncFragment? resultSelector,
         string innerElementType,
-        string outputType) {
-        if(collectionSelectorExpression is not LambdaExpressionSyntax { Body: InvocationExpressionSyntax repeatInvocation }
+        out LambdaFunc select,
+        out string outputType) {
+        select=null!;
+        outputType=innerElementType;
+        if(invocation.ArgumentList.Arguments[0].Expression is not LambdaExpressionSyntax { Body: InvocationExpressionSyntax repeatInvocation } lambda
             ||semanticModel.GetSymbolInfo(repeatInvocation).Symbol is not IMethodSymbol { Name: "Repeat" } repeat
             ||repeat.ContainingType?.ToDisplayString()!="System.Linq.Enumerable"
             ||repeatInvocation.ArgumentList.Arguments.Count!=2
             ||semanticModel.GetConstantValue(repeatInvocation.ArgumentList.Arguments[1].Expression) is not { HasValue: true,Value: 1 }
             ||collectionSelector.ContainsAnchor
-            ||collectionSelector.CanInvokeAsDelegate
-            ||!collectionSelector.CanInlineAssign
-            ||collectionSelector.ParameterNames.Length!=1
-            ||resultSelector is { ContainsAnchor: true }
-            ||resultSelector is { CanInvokeAsDelegate: true }
-            ||resultSelector is { CanInlineAssign: false }
-            ||resultSelector is { RequiresStatementInlining: true }) {
-            return null;
-        }
-        // 展開済みの本体(this. の補い・巻き上げを反映した形)から Repeat の第1引数を取り出す。
-        if(SyntaxFactory.ParseExpression(collectionSelector.InlineBody) is not InvocationExpressionSyntax { ArgumentList.Arguments.Count: 2 } renderedRepeat) {
-            return null;
+            ||collectionSelector.ParameterNames.Length!=1) {
+            return false;
         }
         var parameter = collectionSelector.ParameterNames[0];
-        var element = $"(({innerElementType})({renderedRepeat.ArgumentList.Arguments[0].Expression}))";
+        var elementExpression = repeatInvocation.ArgumentList.Arguments[0].Expression;
+        if(!IsParameterOnlyExpression(elementExpression,parameter)) {
+            return false;
+        }
+        var element = $"(({innerElementType})({elementExpression}))";
+        FuncFragment? resultSelector = null;
+        if(invocation.ArgumentList.Arguments.Count==2) {
+            if(method.Parameters[1].Type is not INamedTypeSymbol { TypeArguments.Length: 3 }
+                ||!services.BuildFunc(invocation.ArgumentList.Arguments[1].Expression,method.Parameters[1].Type,ref uniqueNumber,out resultSelector)
+                ||!services.CanUseFunc(resultSelector)
+                ||resultSelector.ContainsAnchor
+                ||resultSelector.CanInvokeAsDelegate
+                ||!resultSelector.CanInlineAssign
+                ||resultSelector.RequiresStatementInlining) {
+                return false;
+            }
+            outputType=resultSelector.ReturnTypeName;
+        }
         string body;
         try {
             body=resultSelector is null ? element : resultSelector.RenderInlineExpression(parameter,element);
         } catch(InvalidOperationException) {
-            return null;
+            return false;
         }
-        return new LambdaFunc {
+        select=new LambdaFunc {
             ReturnTypeName=outputType,
             ParameterTypeNames=collectionSelector.ParameterTypeNames.ToArray(),
             ParameterNames=[parameter],
-            CanGenerateMethod=collectionSelector.CanGenerateMethod&&(resultSelector?.CanGenerateMethod??true),
+            CanGenerateMethod=resultSelector?.CanGenerateMethod??true,
             CanInlineAssign=true,
             InlineBody=body,
-            CapturedLocals=collectionSelector.CapturedLocals.Concat(resultSelector?.CapturedLocals??[]).Distinct().ToArray(),
-            HoistedLocals=collectionSelector.HoistedLocals.Concat(resultSelector?.HoistedLocals??[]).Distinct().ToArray(),
-            BodyUnsafeAccessorCodes=collectionSelector.BodyUnsafeAccessorCodes.Concat(resultSelector?.BodyUnsafeAccessorCodes??[]).Distinct().ToArray(),
-            SupportingMemberSources=collectionSelector.SupportingMemberSources+(resultSelector?.SupportingMemberSources??string.Empty),
+            CapturedLocals=resultSelector?.CapturedLocals??[],
+            HoistedLocals=resultSelector?.HoistedLocals??[],
+            BodyUnsafeAccessorCodes=resultSelector?.BodyUnsafeAccessorCodes??[],
+            SupportingMemberSources=resultSelector?.SupportingMemberSources??string.Empty,
         };
+        return true;
     }
+
+    private static bool IsParameterOnlyExpression(ExpressionSyntax expression,string parameter) =>
+        expression.DescendantNodesAndSelf().All(node => node switch {
+            IdentifierNameSyntax identifier => identifier.Identifier.ValueText==parameter,
+            PredefinedTypeSyntax or LiteralExpressionSyntax or ParenthesizedExpressionSyntax or CastExpressionSyntax
+                or BinaryExpressionSyntax or PrefixUnaryExpressionSyntax => true,
+            _ => false,
+        });
 
     private static bool TryGetSequenceElementType(string sequenceTypeName,out string elementTypeName) {
         elementTypeName=string.Empty;

@@ -1622,3 +1622,8 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - start≧0 なら、キーの初出は start から先頭 min(count,C) 個で、値 x のグループは x から C 刻みの (end-1-x)/C+1 個なので、ハッシュを使わずグループごとの配列を作る(Seamless.Linq の `Grouping` に、詰め終えた配列から作るコンストラクタを足した)。負の値を含むときは引数を1回だけ評価して辞書で分ける。結果がグループを使わない GroupBy は、キーの初出の値だけを流して結果を作る(集合を使わない)。System.Range タブの GroupBy_keySelector・GroupBy_elementSelector(6倍)・GroupBy_resultSelector(24倍)。
 - テスト: `RangeModuloGroupByTests`(負の値・int の端・空・不正な引数、要素選択子の型変換、グループを使わない結果選択子)。
 - 結果: 次の取り直しで記録する。
+
+## 2026-10-04 SelectMany(x => Repeat(e,1)) の判定を、ラムダの中の LINQ で打ち切られる前に行う(採用)
+
+- 2026-10-03 の Repeat(e,1)→Select の書き換えは、コレクション選択子がラムダの中に LINQ(Repeat)を含むため「文として展開が必要」と判定され、判定に届く前に段の追加が打ち切られていて、射影融合タブの SelectMany 行(9倍前後)に効いていなかった。判定を前に移し、e はラムダの引数・定数・演算子・型変換だけの式に限って構文から取り出す。
+- テスト: `PipelineNoOpNormalizationTests` の RepeatResult/RepeatOnly(結果は同じ)。効果は次の取り直しで確かめる。
