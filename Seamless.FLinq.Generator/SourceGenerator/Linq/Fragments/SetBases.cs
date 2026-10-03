@@ -106,7 +106,55 @@ internal abstract class SetBase(int 番号,Enumerable source,Enumerable second,s
             """;
     public override string ElementType => source.ElementType;
     protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose();\nsource.Dispose();\nsecond.Dispose();";
+    // ソース・第2ソースが根と Where の並びで、どちらかに Where があるなら、集合演算と Where の列挙子の構造体を回さずに、
+    // 差し替えメソッドの中で根を直接回して述語をその場に展開する(Join と同じ理由)。
+    private string? RenderFilteredRootsConsume(string consumerName) {
+        if(!TryPeelWheres(source,out var sourceRoot,out var sourcePredicates)
+            ||!TryPeelWheres(second,out var secondRoot,out var secondPredicates)
+            ||sourcePredicates.Length+secondPredicates.Length==0) {
+            return null;
+        }
+        string sourceExpression;
+        string secondExpression;
+        try {
+            sourceExpression=sourceRoot.GetEnumeratorExpression;
+            secondExpression=secondRoot.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var sourceName = $"__setSourceRoot{番号}";
+        var secondName = $"__setSecondRoot{番号}";
+        var setName = $"__set{番号}";
+        var valueName = $"__setValue{番号}";
+        var secondValueName = $"__setSecondValue{番号}";
+        var functions = sourcePredicates.Concat(secondPredicates).ToArray();
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(functions),
+            this.StaticDelegateLocalDeclarations(functions),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var builder = new StringBuilder();
+        if(!string.IsNullOrEmpty(localDeclarations)) {
+            builder.AppendLine(localDeclarations);
+        }
+        builder.AppendLine($"using var {sourceName}={sourceExpression};");
+        builder.AppendLine($"using var {secondName}={secondExpression};");
+        var secondValue = this.SecondValueExpression(secondValueName);
+        if(!operation.PreloadSecondFirst) {
+            this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+            builder.AppendLine(this.RenderRootLoop(sourceRoot,sourcePredicates,sourceName,valueName,$"if({setName}.Add({valueName})){{\n    {consumerName}.Consume({valueName});\n}}"));
+            builder.AppendLine(this.RenderRootLoop(secondRoot,secondPredicates,secondName,secondValueName,$"if({setName}.Add({secondValue})){{\n    {consumerName}.Consume({secondValue});\n}}"));
+        } else {
+            TraversalSupport.AppendHashSetInitialization(builder,setName,source.ElementType,secondName,this.Comparer);
+            builder.AppendLine(this.RenderRootLoop(secondRoot,secondPredicates,secondName,secondValueName,$"{setName}.Add({secondValue});"));
+            builder.AppendLine(this.RenderRootLoop(sourceRoot,sourcePredicates,sourceName,valueName,$"if({setName}.{operation.SourceAcceptMethod}({valueName})){{\n    {consumerName}.Consume({valueName});\n}}"));
+        }
+        return builder.ToString().TrimEnd();
+    }
+
     public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.RenderFilteredRootsConsume(consumerName) is { } filteredConsume) {
+            return filteredConsume;
+        }
         var sourceName = $"__src{番号}";
         var secondName = $"__sec{番号}";
         var setName = $"__set{番号}";

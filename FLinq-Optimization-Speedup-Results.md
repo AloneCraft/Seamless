@@ -1740,3 +1740,8 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: 段の並び(Where の後の Except/Intersect など)は、第2ソースの集合の Contains と、出したものを覚える別の集合への Add の2回の表引きをしていた(System.Linq と理想版は、Except は第2ソースの集合への Add、Intersect は第2ソースの集合からの Remove の1回)。第2ソースの値を集合へ足すときやUnion/Concat の第2ソースの値に、型が同じでも `(T)(object?)x` の変換を書いており、参照型の共有ジェネリックコードでは要素ごとの型検査の呼び出しになっていた(押し下げタブの Intersect_first_Where で理想の2.1〜2.7倍)。
 - 修正: Except は `if(!set.Add(k)) continue;`、Intersect は `if(!set.Remove(k)) continue;` にして集合を1つにする(By 形も同じ)。第2ソースの要素の型が同じなら変換を書かない。
 - テスト: `SetOperationWhereConsumeTests`(参照型と int、Where の前後、両側の Where、List、IntersectBy/ExceptBy、重複)。
+
+## 2026-10-04 集合演算のソースが根と Where の並びなら、根を直接回す(採用候補)
+
+- 原因: 集合演算(断片)のソース・第2ソースが Where の列挙子の構造体だと、差し替えメソッド→Where の構造体→根の構造体の入れ子になる(参照型の共有ジェネリックコードで内側がインライン化されない)。
+- 修正: どちらかに Where があり、両方が「根(配列・List、または IEnumerable)の上に添字の無い Where が0個以上」の形なら、根を直接回して述語をその場に展開する(Join と同じ補助 `TryPeelWheres`・`RenderRootLoop` を Fragment へ移して共有)。
