@@ -5,8 +5,9 @@ using Microsoft.CodeAnalysis;
 using Seamless.FLinq;
 namespace Test.SourceGenerator;
 
-// 単項演算(Distinct/Reverse/Order 系)の前への Where 移動が生成コードへ実際に現れることと、
-// Order 系のガード(KeepsSortedSpanFastPath)が効く側・効かない側の両方を固定する。
+// 単項演算(Distinct/Reverse/Order 系)の前への Where 移動が生成コードへ実際に現れることを固定する。
+// Order 系は、ソースが span を出せても押し下げ、並べ替えの段が溜めた値が既に並んでいるかを確かめる
+// (2026-10-04 まではソースの span の昇順高速経路を守るため押し下げなかった。並んでいないソースでは全件を並べ替えていた)。
 // 意味保存テストは押し下げが起きなくても緑になるため、形状はここで押さえる。
 [LinqIntercept(false)]
 public sealed partial class UnaryPushdownShapeTests(ITestOutputHelper output) {
@@ -34,7 +35,7 @@ public sealed partial class UnaryPushdownShapeTests(ITestOutputHelper output) {
         }
         """;
 
-    // ソースが配列なので KeepsSortedSpanFastPath が押し下げを止める。
+    // ソースが配列でも押し下げる。
     private const string OrderOnArraySource = """
         using System.Collections.Generic;
         using System.Linq;
@@ -47,7 +48,7 @@ public sealed partial class UnaryPushdownShapeTests(ITestOutputHelper output) {
         }
         """;
 
-    // Order のソースが LINQ 呼び出しなのでガードが外れて押し下がる。Skip(0) は AlgebraicRewriter の
+    // Order のソースが LINQ 呼び出しでも押し下がる。Skip(0) は AlgebraicRewriter の
     // 除去対象(恒等 Select / AsEnumerable)ではないので上流ステージとして残る。
     private const string OrderAfterLinqCallSource = """
         using System.Collections.Generic;
@@ -86,13 +87,16 @@ public sealed partial class UnaryPushdownShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
-    public void OrderOnArrayKeepsSortedSpanFastPath() {
-        var enabled = Normalize(GeneratedSource(WithPushdown(OrderOnArraySource)));
-        var disabled = Normalize(GeneratedSource(WithoutPushdown(OrderOnArraySource)));
+    public void OrderOnArrayIsPushedAndChecksBufferedValuesSorted() {
+        var enabled = GeneratedSource(WithPushdown(OrderOnArraySource));
+        var disabled = GeneratedSource(WithoutPushdown(OrderOnArraySource));
 
         GeneratedSourceAssert.True(
-            enabled==disabled,
-            "KeepsSortedSpanFastPath must block the pushdown when Order sits directly on a span-capable source.",
+            // 押し下げると並べ替えの段は Where の後になり、ソースの span の昇順高速経路ではなく溜めた値の確認を使う。
+            PredicatePrecedes(enabled,"Array.Sort(")&&enabled.Contains("__orderBufferedSorted",StringComparison.Ordinal)
+            &&!enabled.Contains("__orderSpan",StringComparison.Ordinal)
+            &&disabled.Contains("__orderSpan",StringComparison.Ordinal),
+            "Order on a span-capable source must still take the pushed predicate and skip the sort when the buffered values are already ordered.",
             enabled,
             output);
     }

@@ -109,6 +109,25 @@ internal sealed partial class PipelineEnumerable {
         var countLocal = this.OrderCountLocalName(orderIndex);
         var valueName = this.OrderValueForKeysLocalName(orderIndex);
         builder.AppendLine($"        if({countLocal}>0){{");
+        var checksSorted = this.CanCheckBufferedValuesSorted(orderIndex,orderStages);
+        if(checksSorted) {
+            // 溜めた値が既に並べ替え後の順(昇順なら非減少、降順なら非増加)なら、元の順がそのまま安定な並べ替えの結果なので並べ替えない。
+            // 並んでいなければ最初の逆転で抜けるので、並べ替える場合の追加の手間はわずか。
+            var sortedName = $"__orderBufferedSorted{orderIndex}";
+            var checkIndexName = $"__orderCheckIndex{orderIndex}";
+            builder.AppendLine($"            var {sortedName}=true;");
+            builder.AppendLine($"            for(var {checkIndexName}=1;{checkIndexName}<{countLocal};{checkIndexName}++){{");
+            builder.AppendLine($"                if({this.BufferedOutOfOrderExpression(orderStages[0],valuesLocal,checkIndexName)}){{");
+            builder.AppendLine($"                    {sortedName}=false;");
+            builder.AppendLine("                    break;");
+            builder.AppendLine("                }");
+            builder.AppendLine("            }");
+            builder.AppendLine($"            if({sortedName}){{");
+            builder.AppendLine($"                for(var {checkIndexName}=0;{checkIndexName}<{countLocal};{checkIndexName}++){{");
+            builder.AppendLine($"                    {indexesLocal}[{checkIndexName}]={checkIndexName};");
+            builder.AppendLine("                }");
+            builder.AppendLine("            }else{");
+        }
         if(this.CanUseDirectValueOrderSort(orderStages)) {
             var valueType = stages[orderIndex].InputType;
             builder.AppendLine($"            var __orderType{orderIndex}=typeof({valueType});");
@@ -154,7 +173,30 @@ internal sealed partial class PipelineEnumerable {
         if(this.CanUseDirectValueOrderSort(orderStages)) {
             builder.AppendLine("            }");
         }
+        if(checksSorted) {
+            builder.AppendLine("            }");
+        }
         builder.AppendLine("        }");
+    }
+
+    // 恒等キー・既定の比較子の1段の並べ替えで、ソースの span を見る昇順高速経路を使わないとき(前に段があるなど)は、
+    // 溜めた値が既に並んでいるかを並べ替えの前に確かめる。Where を並べ替えの前へ押し下げても、並んだソースでは並べ替えを省ける。
+    private bool CanCheckBufferedValuesSorted(int orderIndex,IReadOnlyList<PipelineStage> orderStages) =>
+        orderStages.Count==1
+        &&(orderStages[0].Func is null||orderStages[0].Func!.IsIdentity)
+        &&string.Equals(orderStages[0].InputType,ComparerKeyType(orderStages[0]),StringComparison.Ordinal)
+        &&orderStages[0].Value is { } comparer
+        &&ComparerExpressionSupport.IsDefaultOrderComparer(comparer,ComparerKeyType(orderStages[0]))
+        &&!this.CanUseSortedDefaultOrderFastPath(orderIndex,orderStages[0],orderStages);
+
+    // 溜めた値の index 番目が直前と並べ替え後の順で逆転しているか(等しいときは逆転ではない)。
+    private string BufferedOutOfOrderExpression(PipelineStage stage,string valuesName,string indexName) {
+        var (later,earlier) = stage.Descending
+            ? ($"{valuesName}[{indexName}-1]",$"{valuesName}[{indexName}]")
+            : ($"{valuesName}[{indexName}]",$"{valuesName}[{indexName}-1]");
+        return IsInt32Type(stage.InputType)
+            ? $"{later}<{earlier}"
+            : $"global::System.Collections.Generic.Comparer<{stage.InputType}>.Default.Compare({later},{earlier})<0";
     }
 
     private bool CanUseDirectValueOrderSort(IReadOnlyList<PipelineStage> orderStages) =>

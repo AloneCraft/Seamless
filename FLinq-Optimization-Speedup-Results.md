@@ -1668,3 +1668,10 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - テスト作成中に見つけた既存の制限(未修正): ToLookup などの比較子の式は生成コードへそのまま写されるので、using の無い型名(`StringComparer`)は解決できない。文字列を `sink.Consume(x)` へ渡すと文字の列として流す形に読まれる。展開する本体の中の、修飾の無い静的メソッドの呼び出しや、ラムダの中の `is ICollection<T> c` は生成コードでコンパイルできない。
 - テスト: `ContiguousLookupBuilderTests`(順・null キー・比較子・区間のグループの IndexOf/CopyTo/Add・探索・伸長)、`ContiguousLookupGenerationTests`(参照型と int、配列と IEnumerable、null キー、内側の重複、比較子、空、Join の後の Where)。
 - 結果: 次の取り直しで記録する。
+
+## 2026-10-04 並べ替えの前へも Where を押し下げ、溜めた値が既に並んでいれば並べ替えを省く(採用候補)
+
+- 原因: 押し下げは「ソースが span を出せる先頭の Order」の前へは Where を移さなかった(ソースが既に昇順なら並べ替えを省く span の高速経路を守るため)。ソースが並んでいない(計測の既定はシード1でシャッフル)と、全件を並べ替えてから半分を捨てていた(押し下げタブの Order_Where で理想の2〜2.5倍)。
+- 修正: 並べ替えの前へも常に押し下げる。恒等キー・既定の比較子の1段の並べ替えで span の高速経路を使わないときは、溜めた値が既に並べ替え後の順(昇順なら非減少、降順なら非増加)かを確かめ、そうなら元の順のまま流す(安定な並べ替えの結果と同じ。並んでいなければ最初の逆転で抜ける)。並んだソースでも並べ替えを省ける。
+- テスト: `UnaryPushdownShapeTests`(配列の Order の前へ押し下げ、溜めた値の確認を出す)、`UnaryPushdown`(比較で等しく区別できる要素が元の順のまま。既に昇順・既に降順・並んでいない × Order・OrderDescending・OrderBy(恒等))。
+- 結果: 次の取り直しで記録する。

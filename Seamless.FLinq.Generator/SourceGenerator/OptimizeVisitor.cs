@@ -228,9 +228,6 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
     private static readonly HashSet<string> PushWhereThroughUnaryMethods = new(StringComparer.Ordinal){
         "Distinct","Order","OrderBy","OrderDescending","OrderByDescending","Reverse",
     };
-    private static readonly HashSet<string> OrderMethods = new(StringComparer.Ordinal){
-        "Order","OrderBy","OrderDescending","OrderByDescending",
-    };
     // 【再追加禁止】DistinctBy/ExceptBy/IntersectBy/UnionBy への押し下げは実装しない。
     // DistinctBy は一度実装していたが不健全だったため除去した(SetOperationPushdown.
     // DistinctByDuplicateKeyRegression が退行テスト)。By系はキーで代表を1つ選ぶ操作
@@ -288,28 +285,12 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         if(uc.MethodName=="Select") return this.TryPushWhereThroughSelect(uc,wl);
         if(uc.MethodName=="SelectMany") return this.TryPushWhereThroughSelectMany(uc,wl);
         if(uc.MethodName is "Join" or "LeftJoin") return this.TryPushWhereThroughBinaryCarrier(uc,wl,3);
+        // 並べ替えの前へも押し下げる(並べ替える要素が減る)。ソースが既に並んでいるときは、並べ替えの段が溜めた値を確かめて並べ替えを省く。
         if(PushWhereThroughUnaryMethods.Contains(uc.MethodName)||PushWhereThroughFirstSourceMethods.Contains(uc.MethodName)) {
-            if(OrderMethods.Contains(uc.MethodName)&&this.KeepsSortedSpanFastPath(uc)) return null;
             return PushWhereBeforeSource(uc,wl);
         }
         if(PushWhereThroughBothSourceMethods.Contains(uc.MethodName)) return TryPushWhereThroughBothSources(uc,wl);
         return null;
-    }
-    // Query lowering and carrier optimization details.
-    // Query lowering and carrier optimization details.
-    // Query lowering and carrier optimization details.
-    // Query lowering and carrier optimization details.
-    private bool KeepsSortedSpanFastPath(SequenceCallInfo order) {
-        if(order.Source is InvocationExpressionSyntax inv&&this.TryGetLinqSequenceCall(inv,out _)) return false;
-        return SourceCanTryProvideSpan(this.model.GetTypeInfo(order.Source).Type);
-    }
-    // Query lowering and carrier optimization details.
-    private static bool SourceCanTryProvideSpan(ITypeSymbol? type) {
-        if(type is IArrayTypeSymbol) return true;
-        if(type is not INamedTypeSymbol named) return false;
-        if(named.TypeKind==TypeKind.Interface) return true;
-        return named.OriginalDefinition.ToDisplayString()
-            is "System.Collections.Generic.List<T>" or "Seamless.Collections.PersistedList<T>";
     }
     // Query lowering and carrier optimization details.
     // Query lowering and carrier optimization details.

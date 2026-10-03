@@ -256,8 +256,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             using System.Linq;
             namespace Sample;
             public class Container {
+                // 添字つきの Where は並べ替えの前へ押し下げない(添字が変わる)ので、並べ替えの後に残る。
                 private static List<int> OrderThenFilterMapTake(int[] src) =>
-                    src.OrderBy(static x => x).Where(static x => x>1).Select(static x => x*2).Take(3).ToList();
+                    src.OrderBy(static x => x).Where(static (x,i) => x>1).Select(static x => x*2).Take(3).ToList();
                 public void Run(int[] src) => _ = OrderThenFilterMapTake(src);
             }
             """;

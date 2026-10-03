@@ -38,7 +38,7 @@
 | 集合演算への Where 分配の意味保存テスト | `Test/System/Linq/Intercept/Optimization/SetOperationPushdown.cs` |
 | 集合演算への Where 分配の生成形状テスト | `Test/SourceGenerator/SetOperationPushdownShapeTests.cs` |
 | 単項演算(Distinct/Reverse/Order)への Where 押し下げの意味保存テスト | `Test/System/Linq/Intercept/Optimization/UnaryPushdown.cs` |
-| 単項演算への Where 押し下げと Order 高速パスガードの生成形状テスト | `Test/SourceGenerator/UnaryPushdownShapeTests.cs` |
+| 単項演算への Where 押し下げ(Order も含む)の生成形状テスト | `Test/SourceGenerator/UnaryPushdownShapeTests.cs` |
 | PipelineEnumerable の二入力(SecondSources)ジェネリック伝播 | `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/PipelineEnumerable.cs` |
 | 引数位置の列挙ソース(Join の inner / 集合演算の second 等)のフラグメント化 | `Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.FragmentBuilder.cs`（`登録済みフラグメント生成を試行` の `Enumerable` パラメータ分岐） |
 
@@ -1122,7 +1122,7 @@ flowchart TD
 | `SelectMany` | outer 依存なら outer source、inner 依存なら collection selector 内へ移動 |
 | `Join` / `LeftJoin` | outer/inner 片側依存なら葉へ移動。両側依存は連言分割して部分押し下げ。`LeftJoin` は outer 側のみ |
 | `Distinct`, `Reverse` | predicate が要素値だけを使うなら source 前へ移動 |
-| `OrderBy` | source がスパンを出せる先頭 Order のときはソート済みスパン高速パスを守るため移動しない |
+| `OrderBy` | predicate が要素値だけを使うなら source 前へ移動(並べ替える要素が減る)。source が既に並んでいるときは、並べ替えの段が溜めた値を確かめて並べ替えを省く(2026-10-04 まではソート済みスパン高速パスを守るため移動しなかった) |
 | `Concat`, `Union` | predicate を左右両 source へ複製(**実装済み**。詳細は「集合演算への `Where` 分配仕様」節) |
 | `Except`, `Intersect` | first source 側にだけ安全に移動(**実装済み**。`ExceptBy`/`IntersectBy`/`UnionBy` は代表選択の不健全性のため対象外) |
 
