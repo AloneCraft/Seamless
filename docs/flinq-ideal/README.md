@@ -106,7 +106,7 @@ Array/List/IEnumerable は各97本、Range は81本、複合連鎖はメモリ�
 
 - List の `ToArray`: `List<T>.ToArray` との衝突回避で、ベンチ定義が静的形 `Enumerable.ToArray(src)` になっている。生成器は静的形を(Contains/Reverse 以外)不透明な入口として扱うため、System.Linq の ToArray を呼んでから回す。
 - IEnumerable の `Single_predicate`: `[LinqIntercept(false)]` の `srcOne` のコレクション式 `[FromInt(0)]` が、呼び出し元へ展開されるときに `Enumerable.Repeat(…,1)` へ書き換わる。
-- 射影融合の `SelectMany_collection` 系4行: ラムダ内の `Enumerable.Repeat(x,1)` が、外側の要素ごとに System.Linq の反復子を作る。
+- 射影融合の `SelectMany_collection` 系4行: ラムダ内の `Enumerable.Repeat(x,1)` が、外側の要素ごとに System.Linq の反復子を作る(2026-10-04 解消: Repeat(e,1) の SelectMany を Select にする)。
 
 そのほかの形(理想版との比較は理想版の作成後に行う):
 

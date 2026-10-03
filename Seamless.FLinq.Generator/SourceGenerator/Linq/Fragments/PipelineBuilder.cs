@@ -25,7 +25,9 @@ internal static partial class PipelineBuilder {
                 return false;
             }
             var n0 = (m0.ReducedFrom??m0).Name;
-            if(n0 is not ("Where" or "Select" or "Append" or "Prepend" or "DefaultIfEmpty" or "Order" or "OrderDescending" or "OrderBy" or "OrderByDescending" or "Distinct" or "DistinctBy" or "Union" or "Except" or "Intersect" or "UnionBy" or "ExceptBy" or "IntersectBy")) {
+            // SelectMany(x => Enumerable.Repeat(e,1)[,…]) は Select と同じなので単段でも受ける(射影融合で後ろの Select が結果選択子へ畳まれた形を含む)。
+            if(n0 is not ("Where" or "Select" or "Append" or "Prepend" or "DefaultIfEmpty" or "Order" or "OrderDescending" or "OrderBy" or "OrderByDescending" or "Distinct" or "DistinctBy" or "Union" or "Except" or "Intersect" or "UnionBy" or "ExceptBy" or "IntersectBy")
+                &&!(n0=="SelectMany"&&IsSingleRepeatSelectMany(semanticModel,invocations[0]))) {
                 return false;
             }
         }
@@ -181,6 +183,14 @@ internal static partial class PipelineBuilder {
         }
         return true;
     }
+
+    private static bool IsSingleRepeatSelectMany(SemanticModel semanticModel,InvocationExpressionSyntax invocation) =>
+        invocation.ArgumentList.Arguments.Count is 1 or 2
+        &&invocation.ArgumentList.Arguments[0].Expression is LambdaExpressionSyntax { Body: InvocationExpressionSyntax repeatInvocation }
+        &&semanticModel.GetSymbolInfo(repeatInvocation).Symbol is IMethodSymbol { Name: "Repeat" } repeat
+        &&repeat.ContainingType?.ToDisplayString()=="System.Linq.Enumerable"
+        &&repeatInvocation.ArgumentList.Arguments.Count==2
+        &&semanticModel.GetConstantValue(repeatInvocation.ArgumentList.Arguments[1].Expression) is { HasValue: true,Value: 1 };
 
     private static bool TryCreateOptimizedFragment(
         Enumerable optimizedSource,

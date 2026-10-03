@@ -41,12 +41,5 @@ public static class KnownExceptions {
         new(AuditInvariant.理想形との差,List,Base,"ToLookup_keySelector","結果の ILookup をインターフェース型の変数で受けて foreach するため、グループごとにインターフェース呼び出しになる"),
         new(AuditInvariant.理想形との差,Range,RangeType,"ToLookup_elementSelector","同上(Range)"),
         new(AuditInvariant.理想形との差,Range,RangeType,"ToLookup_keySelector","同上(Range)"),
-        new(AuditInvariant.理想形との差,Optimization,"Shared.Linq.Optimization.ProjectionMerge.Array`1+SelectMany_collection","Select_member","ラムダ内 Enumerable.Repeat(x,1) の反復子をインターフェース越しに列挙する"),
-        new(AuditInvariant.理想形との差,Optimization,"Shared.Linq.Optimization.ProjectionMerge.List`1","SelectMany_collection_Select_member","同上(List)"),
-        new(AuditInvariant.理想形との差,Optimization,"Shared.Linq.Optimization.ProjectionMerge.Range","SelectMany_collection_Select_member","同上(Range)"),
-        new(AuditInvariant.外部LINQ,Optimization,"Shared.Linq.Optimization.ProjectionMerge.List`1","SelectMany_collection_Select_member","SelectMany のラムダ内 Enumerable.Repeat(x,1) が要素ごとに System.Linq の反復子を作る"),
-        new(AuditInvariant.外部LINQ,Optimization,"Shared.Linq.Optimization.ProjectionMerge.Range","SelectMany_collection_Select_member","同上(Range)"),
-        new(AuditInvariant.外部LINQ,Optimization,"Shared.Linq.Optimization.ProjectionMerge.Array`1+SelectMany_collection","Select_member","同上(Array)"),
-        new(AuditInvariant.外部LINQ,Optimization,"Shared.Linq.Optimization.ProjectionMerge.IEnumerable`1+SelectMany_collection","Select_member","同上(IEnumerable)"),
     ];
 }
