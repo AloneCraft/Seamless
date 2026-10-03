@@ -54,6 +54,9 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine($"private bool {this.StateName(index)} = false;");
                 } else if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy) {
                     builder.AppendLine($"private global::Seamless.Linq.HashSetSlim<{ComparerKeyType(stage)}> {this.SecondSetName(index)};");
+                    if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
+                        builder.AppendLine($"private global::Seamless.Linq.HashSetSlim<{ComparerKeyType(stage)}> {this.SetName(index)};");
+                    }
                     builder.AppendLine($"private bool {this.StateName(index)} = false;");
                 } else if(stage.Kind is PipelineStageKind.Concat or PipelineStageKind.Append or PipelineStageKind.Prepend) {
                     builder.AppendLine($"private int {this.StateName(index)} = 0;");
@@ -116,6 +119,9 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine($"this.{this.SetName(index)} = new({this.ComparerName(this.ComparerOrdinal(index))});");
                 } else if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy) {
                     builder.AppendLine($"this.{this.SecondSetName(index)} = new({this.ComparerName(this.ComparerOrdinal(index))});");
+                    if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
+                        builder.AppendLine($"this.{this.SetName(index)} = new({this.ComparerName(this.ComparerOrdinal(index))});");
+                    }
                 }
             }
             return builder.ToString().TrimEnd();
@@ -244,6 +250,9 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine($"this.{this.SetName(index)}.Dispose();");
                 } else if(stages[index].Kind is PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy) {
                     builder.AppendLine($"this.{this.SecondSetName(index)}.Dispose();");
+                    if(stages[index].Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
+                        builder.AppendLine($"this.{this.SetName(index)}.Dispose();");
+                    }
                 } else if(stages[index].Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending) {
                     builder.AppendLine($"if(this.{this.OrderValuesName(index)} is not null && this.{this.OrderValuesName(index)}.Length!=0) {{");
                     builder.AppendLine($"    global::System.Buffers.ArrayPool<{stages[index].InputType}>.Shared.Return(this.{this.OrderValuesName(index)},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{stages[index].InputType}>());");

@@ -1785,3 +1785,8 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: List タブのベンチは List を IEnumerable として渡すので、span を末尾から回す経路(配列・List の根だけ)に乗らなかった(押し下げタブの ListClassInt32 Reverse_Where で理想の2.2倍)。
 - 修正: IEnumerable の根なら、実行時に span を出せれば末尾から回し、出せなければ全件を借りた配列へ溜めてから末尾から回す(述語の評価の回数は同じで、順が逆になる。.Anchor があれば使わない)。
 - テスト: `SpanReverseConsumeTests` に List を IEnumerable で渡す形と遅延の列を追加。
+
+## 2026-10-04 段の並びの Except は集合2つに戻し、値が一意な Range の後の Except/Intersect は第2ソースの集合を引くだけにする(採用)
+
+- 9回目の取り直しで、Except を第2ソースの集合1つ(Add)にした形は遅くなった(ListInt32 Except_first_Where 1.35→1.81、Range 1.72→2.16。出していない要素はすべて大きい第2ソースの集合へ足すことになる)。Except は元の「第2ソースの集合に無く、出したものの集合へ足せたもの」に戻す。Intersect の Remove(集合1つ)は速くなったので残す(ListInt32 Intersect_first_Where 1.88→1.12)。
+- .Anchor の無い Range の後に添字の無い Where だけが並ぶなら値は一意なので、重複除きをせず第2ソースの集合の Contains だけで判定する。

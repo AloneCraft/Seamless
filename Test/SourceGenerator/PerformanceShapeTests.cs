@@ -1099,7 +1099,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
-    public void BinarySetOrderFusionUsesSingleHashSetSlim() {
+    public void BinarySetOrderFusionUsesHashSetSlimContains() {
         const string source = """
             using System.Collections.Generic;
             using System.Linq;
@@ -1114,10 +1114,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            // Except は第2ソースの集合1つへ足せたものだけを流す(Contains と別の集合への Add の2回の表引きをしない)。
+            // Except は第2ソースの集合に無く、出したものの集合へ足せたものだけを流す。
             generated.Contains("global::Seamless.Linq.HashSetSlim<int>",StringComparison.Ordinal)
-            &&global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"if\(!this\.__set2[_\w]*\.Add\(")
-            &&!global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"__set2[_\w]*\.Contains\(")
+            &&generated.Contains(".Contains(",StringComparison.Ordinal)
             &&generated.Contains(".Dispose();",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal),
             "Binary set followed by Order/ThenBy should use HashSetSlim fields and Contains in the fused pipeline.",

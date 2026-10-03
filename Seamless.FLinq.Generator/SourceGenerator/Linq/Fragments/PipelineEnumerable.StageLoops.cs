@@ -372,12 +372,26 @@ internal sealed partial class PipelineEnumerable {
         builder.AppendLine("        }");
     }
 
-    // Except は第2ソースの集合へ足せたもの(第2ソースに無く、まだ出していない)だけ、Intersect は第2ソースの集合から
-    // 取り除けたもの(第2ソースにあり、まだ出していない)だけを流す。集合1つで重複除きも兼ねる(System.Linq と同じ)。
-    private string SingleSetCheck(PipelineStage stage,int setIndex,string keyName) =>
-        stage.Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy
-            ? $"if(!this.{this.SecondSetName(setIndex)}.Add({keyName})) continue;"
-            : $"if(!this.{this.SecondSetName(setIndex)}.Remove({keyName})) continue;";
+    // 集合演算の段より前の値が一意(.Anchor の無い Range の後に添字の無い Where だけ)なら、重複除きは要らないので第2ソースの集合を
+    // 引くだけにする。そうでなければ、Intersect は第2ソースの集合から取り除けたもの(第2ソースにあり、まだ出していない)だけを流す
+    // (集合1つ。System.Linq と同じ)。Except は第2ソースの集合に無く、出したものの集合へ足せたものだけを流す
+    // (第2ソースの集合へ足して重複除きを兼ねる形は、大きい集合へ足すことになり遅かった)。
+    private string SingleSetCheck(PipelineStage stage,int setIndex,string keyName) {
+        var secondSet = $"this.{this.SecondSetName(setIndex)}";
+        if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.Intersect&&this.ValuesUniqueBefore(setIndex)) {
+            return stage.Kind==PipelineStageKind.Except
+                ? $"if({secondSet}.Contains({keyName})) continue;"
+                : $"if(!{secondSet}.Contains({keyName})) continue;";
+        }
+        return stage.Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy
+            ? $"if({secondSet}.Contains({keyName}) || !this.{this.SetName(setIndex)}.Add({keyName})) continue;"
+            : $"if(!{secondSet}.Remove({keyName})) continue;";
+    }
+
+    private bool ValuesUniqueBefore(int stageIndex) =>
+        source is RangeRoot or DescendingRangeRoot
+        &&!source.TreeContainsAnchor()
+        &&stages.Take(stageIndex).All(static stage => stage.Kind==PipelineStageKind.Where&&!stage.UsesIndex);
 
     // 第2ソースの値を集合のキーの型として渡す。型が同じなら変換しない(参照型の共有ジェネリックコードでは object 経由の変換が型検査の呼び出しになる)。
     private string SecondValueAs(PipelineStage stage,string targetType,string valueName) =>
