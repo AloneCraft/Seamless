@@ -1774,3 +1774,8 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 修正: start≧0 の形は、全グループの要素を1本の配列へグループ順に並べ、グループはその区間を指す(`Grouping` に区間を指す公開の構築子を足した。区間のグループは要素を足せない)。
 - テスト: 既存の `RangeModuloGroupByTests`(負の値・int の端・空・不正な引数・要素選択子・ToLookup)。
 
+## 2026-10-04 スカラー終端のローカル関数でも、IEnumerable の根は列挙子で直接回す(採用候補)
+
+- 原因: IEnumerable の Min/Max/Aggregate/LongCount などのスカラー終端は、差し替えメソッドの中のローカル関数(Compute)で根の構造体の TryGetNext を要素ごとに呼んでいた(Current と添字の保存。ClassInt32 の Min で理想の1.6倍など)。
+- 修正: ローカル関数では列挙子が具体の構造体の型なので、IEnumerable の根なら Compute の中の最後まで回すループ(`while(source.TryGetNext(out … x)){`)を、`GetRemainingEnumerator()` の MoveNext/Current を直接呼ぶ形に書き換える(続きから回るので、ループの前の TryGetNext とも整合する)。
+- IL 監査: 配列・List の Sum の理想形との差が解消したので許可リストから外した。

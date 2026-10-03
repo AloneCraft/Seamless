@@ -65,10 +65,27 @@ internal abstract class BufferedScalar(int 番号,string resultType):Scalar(番�
     // まま残り、インライン化されない。ローカル関数なら呼び出し元と同じ型文脈でインライン化される
     // (2026-10-02 の実験で参照型の Count(predicate) が約2.6倍速い。値型では差が無い)。
     private string LocalComputeFunction(Enumerable source) =>
-        global::System.Text.RegularExpressions.Regex.Replace(
+        DrainRemainingEnumerator(source,global::System.Text.RegularExpressions.Regex.Replace(
             this.ComputeMembers.Replace("private static ","static ").Replace(" Compute(",$" {this.LocalComputeName}("),
             @"\bTEnum\b",
-            source.EnumeratorTypeName);
+            source.EnumeratorTypeName));
+
+    // ローカル関数では列挙子が具体の構造体の型なので、IEnumerable の根なら、最後まで回すループ(while(source.TryGetNext(out … x)){)を
+    // 列挙子を局所変数に取って MoveNext/Current を直接呼ぶ形にする(Fragment.DrainParts と同じ理由)。続きから回るので、
+    // ループの前に TryGetNext を呼んでいても同じ要素の並びになる。
+    private static string DrainRemainingEnumerator(Enumerable source,string compute) {
+        if(!source.ProvidesRemainingEnumerator) {
+            return compute;
+        }
+        var number = 0;
+        return global::System.Text.RegularExpressions.Regex.Replace(
+            compute,
+            @"while\(source\.TryGetNext\(out (?:var|[^()]+?) (?<item>\w+)\)\)\{",
+            match => {
+                var rest = $"__rest_source{number++}";
+                return $"var {rest}=source.GetRemainingEnumerator();\nwhile({rest}.MoveNext()){{\nvar {match.Groups["item"].Value}={rest}.Current;";
+            });
+    }
 
     private string LocalComputeName => $"__compute{番号}";
 
