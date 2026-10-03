@@ -51,6 +51,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Consume() => this.Consume_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Consume_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -59,6 +60,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Aggregate_func() => this.Aggregate_func_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Aggregate_func_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -67,6 +69,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void All_predicate() => this.All_predicate_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void All_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -76,6 +79,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Any_predicate() => this.Any_predicate_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Any_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -85,6 +89,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Append_element() => this.Append_element_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Append_element_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -94,6 +99,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Average() => this.Average_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Average_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -105,6 +111,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Chunk_size() => this.Chunk_size_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Chunk_size_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -120,6 +127,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Concat_second() => this.Concat_second_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Concat_second_Impl() {
         var length = this.CountFor(ElementCount);
         Check(1,length);
@@ -130,6 +138,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Contains_value() => this.Contains_value_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Contains_value_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -138,6 +147,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Count() => this.Count_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Count_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -146,6 +156,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Count_predicate() => this.Count_predicate_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Count_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -155,6 +166,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void CountBy_keySelector() => this.CountBy_keySelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void CountBy_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -167,6 +179,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void DefaultIfEmpty() => this.DefaultIfEmpty_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void DefaultIfEmpty_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -179,6 +192,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Distinct() => this.Distinct_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Distinct_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -187,6 +201,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void DistinctBy_keySelector() => this.DistinctBy_keySelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void DistinctBy_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -196,6 +211,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void ElementAt_index() => this.ElementAt_index_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ElementAt_index_Impl() {
         var count = this.CountFor(ElementCount);
         var index = count/2;
@@ -208,6 +224,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Except_second() => this.Except_second_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Except_second_Impl() {
         var length = this.CountFor(ElementCount);
         Check(1,length);
@@ -228,6 +245,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void First_predicate() => this.First_predicate_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void First_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -240,6 +258,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void GroupBy_keySelector() => this.GroupBy_keySelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void GroupBy_keySelector_Impl() => this.ConsumeGroups(1);
 
     /// <summary>
@@ -263,6 +282,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Index() => this.Index_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Index_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -273,6 +293,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Intersect_second() => this.Intersect_second_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Intersect_second_Impl() {
         var length = this.CountFor(ElementCount);
         Check(1,length);
@@ -282,6 +303,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Join_inner() => this.Join_inner_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Join_inner_Impl() {
         var length = this.CountFor(ElementCount);
         Check(1,length);
@@ -296,6 +318,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Last_predicate() => this.Last_predicate_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Last_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -308,6 +331,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Max() => this.Max_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Max_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -319,6 +343,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Min() => this.Min_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Min_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -330,6 +355,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void OrderBy_keySelector() => this.OrderBy_keySelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void OrderBy_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -343,6 +369,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Prepend_element() => this.Prepend_element_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Prepend_element_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -352,6 +379,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Reverse() => this.Reverse_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Reverse_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -362,6 +390,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Select_selector() => this.Select_selector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Select_selector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -372,6 +401,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void SequenceEqual_second() => this.SequenceEqual_second_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SequenceEqual_second_Impl() {
         var length = this.CountFor(ElementCount);
         Check(1,length);
@@ -382,6 +412,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Skip_count() => this.Skip_count_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Skip_count_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -390,6 +421,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void SkipWhile_predicate() => this.SkipWhile_predicate_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SkipWhile_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -399,6 +431,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Sum() => this.Sum_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Sum_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -408,6 +441,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Take_count() => this.Take_count_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Take_count_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -416,6 +450,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void TakeWhile_predicate() => this.TakeWhile_predicate_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void TakeWhile_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -424,6 +459,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void ToArray() => this.ToArray_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ToArray_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -432,6 +468,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void ToDictionary_keySelector() => this.ToDictionary_keySelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ToDictionary_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -443,6 +480,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void ToHashSet() => this.ToHashSet_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ToHashSet_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -451,6 +489,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void ToList() => this.ToList_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ToList_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -459,6 +498,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Union_second() => this.Union_second_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Union_second_Impl() {
         var length = this.CountFor(ElementCount);
         Check(1,length);
@@ -481,6 +521,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Where_predicate() => this.Where_predicate_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Where_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -491,6 +532,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Zip_second() => this.Zip_second_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Zip_second_Impl() {
         var length = this.CountFor(ElementCount);
         Check(1,length);
@@ -502,6 +544,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Aggregate_seed_func_resultSelector() => this.Aggregate_seed_func_resultSelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Aggregate_seed_func_resultSelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -510,6 +553,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Any() => this.Any_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Any_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -518,6 +562,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Average_selector() => this.Average_selector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Average_selector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -538,6 +583,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Cast() => this.Cast_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Cast_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -546,6 +592,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void ElementAtOrDefault_index() => this.ElementAtOrDefault_index_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ElementAtOrDefault_index_Impl() {
         var length = this.CountFor(ElementCount);
         Check(1,length);
@@ -559,6 +606,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void ExceptBy_keySelector() => this.ExceptBy_keySelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ExceptBy_keySelector_Impl() {
         var length = this.CountFor(ElementCount);
         Check(1,length);
@@ -568,6 +616,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void First() => this.First_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void First_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -579,6 +628,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void FirstOrDefault() => this.FirstOrDefault_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void FirstOrDefault_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -591,6 +641,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void FirstOrDefault_predicate() => this.FirstOrDefault_predicate_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void FirstOrDefault_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -603,10 +654,12 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void GroupBy_elementSelector() => this.GroupBy_elementSelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void GroupBy_elementSelector_Impl() => this.ConsumeGroups(2);
 
     [BenchFact,Benchmark]
     public void GroupBy_resultSelector() => this.GroupBy_resultSelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void GroupBy_resultSelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -617,6 +670,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void GroupJoin_inner() => this.GroupJoin_inner_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void GroupJoin_inner_Impl() {
         var length = this.CountFor(ElementCount);
         Check(1,length);
@@ -626,6 +680,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void IntersectBy_keySelector() => this.IntersectBy_keySelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void IntersectBy_keySelector_Impl() {
         var length = this.CountFor(ElementCount);
         Check(1,length);
@@ -635,6 +690,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Last() => this.Last_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Last_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -646,6 +702,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void LastOrDefault() => this.LastOrDefault_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void LastOrDefault_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -654,6 +711,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void LongCount() => this.LongCount_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void LongCount_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -662,6 +720,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void LongCount_predicate() => this.LongCount_predicate_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void LongCount_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -670,6 +729,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Max_selector() => this.Max_selector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Max_selector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -693,6 +753,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void MaxBy_keySelector() => this.MaxBy_keySelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void MaxBy_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -705,6 +766,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Min_selector() => this.Min_selector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Min_selector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -728,6 +790,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void MinBy_keySelector() => this.MinBy_keySelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void MinBy_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -744,6 +807,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void OfType() => this.OfType_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void OfType_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -752,6 +816,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Order() => this.Order_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Order_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -760,6 +825,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void OrderByDescending_keySelector() => this.OrderByDescending_keySelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void OrderByDescending_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -773,6 +839,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void OrderDescending() => this.OrderDescending_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void OrderDescending_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -783,6 +850,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Select_indexSelector() => this.Select_indexSelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Select_indexSelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -793,6 +861,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void SkipLast_count() => this.SkipLast_count_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SkipLast_count_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -801,6 +870,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void SkipWhile_indexPredicate() => this.SkipWhile_indexPredicate_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SkipWhile_indexPredicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -809,6 +879,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Sum_selector() => this.Sum_selector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Sum_selector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -817,6 +888,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void TakeLast_count() => this.TakeLast_count_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void TakeLast_count_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -825,6 +897,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void TakeWhile_indexPredicate() => this.TakeWhile_indexPredicate_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void TakeWhile_indexPredicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -833,6 +906,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void ToDictionary_elementSelector() => this.ToDictionary_elementSelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ToDictionary_elementSelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -843,14 +917,17 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void ToLookup_keySelector() => this.ToLookup_keySelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ToLookup_keySelector_Impl() => this.ConsumeGroups(1);
 
     [BenchFact,Benchmark]
     public void ToLookup_elementSelector() => this.ToLookup_elementSelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ToLookup_elementSelector_Impl() => this.ConsumeGroups(2);
 
     [BenchFact,Benchmark]
     public void UnionBy_keySelector() => this.UnionBy_keySelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void UnionBy_keySelector_Impl() {
         var length = this.CountFor(ElementCount);
         Check(1,length);
@@ -860,6 +937,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Where_indexPredicate() => this.Where_indexPredicate_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Where_indexPredicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -871,6 +949,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void Zip_tuple() => this.Zip_tuple_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Zip_tuple_Impl() {
         var length = this.CountFor(ElementCount);
         Check(1,length);
@@ -882,6 +961,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void ThenBy_keySelector() => this.ThenBy_keySelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ThenBy_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
@@ -895,6 +975,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
 
     [BenchFact,Benchmark]
     public void ThenByDescending_keySelector() => this.ThenByDescending_keySelector_Impl();
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ThenByDescending_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);

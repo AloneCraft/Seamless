@@ -79,7 +79,7 @@ internal static class IdealOptimization {
             for(var index = 0;index<values.Length;index++) {
                 items[index]=new global::Shared.Linq.Ideal.Indexed<T>(values[index],index);
             }
-            items.Sort(new global::Shared.Linq.Ideal.AscendingStable<T>());
+            items.Sort(new global::Shared.Linq.Ideal.AscendingStable<T>(Comparer<T>.Default));
             foreach(var item in items) {
                 consumer.Consume(item.Value);
             }

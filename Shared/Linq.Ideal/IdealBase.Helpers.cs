@@ -14,8 +14,9 @@ public abstract partial class IdealBase<T> {
         if(typeof(T)==typeof(int)) {
             return AsInt32(span).Contains(Unsafe.As<T,int>(ref value));
         }
+        var comparer = EqualityComparer<T>.Default;
         foreach(var item in span) {
-            if(EqualityComparer<T>.Default.Equals(item,value)) {
+            if(comparer.Equals(item,value)) {
                 return true;
             }
         }
@@ -49,9 +50,10 @@ public abstract partial class IdealBase<T> {
             }
             value=span[0];
         }
+        var comparer = Comparer<T>.Default;
         for(index++;index<span.Length;index++) {
             var item = span[index];
-            if(item is not null&&Comparer<T>.Default.Compare(item,value)<0) {
+            if(item is not null&&comparer.Compare(item,value)<0) {
                 value=item;
             }
         }
@@ -85,9 +87,10 @@ public abstract partial class IdealBase<T> {
             }
             value=span[0];
         }
+        var comparer = Comparer<T>.Default;
         for(index++;index<span.Length;index++) {
             var item = span[index];
-            if(item is not null&&Comparer<T>.Default.Compare(item,value)>0) {
+            if(item is not null&&comparer.Compare(item,value)>0) {
                 value=item;
             }
         }
@@ -123,9 +126,9 @@ public abstract partial class IdealBase<T> {
                 items[index]=new Indexed<T>(span[index],index);
             }
             if(descending) {
-                items.Sort(new DescendingStable<T>());
+                items.Sort(new DescendingStable<T>(Comparer<T>.Default));
             } else {
-                items.Sort(new AscendingStable<T>());
+                items.Sort(new AscendingStable<T>(Comparer<T>.Default));
             }
             foreach(var item in items) {
                 consumer.Consume(item.Value);

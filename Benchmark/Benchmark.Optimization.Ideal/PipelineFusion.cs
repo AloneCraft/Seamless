@@ -14,6 +14,7 @@ namespace Shared.Linq.Optimization.PipelineFusion {
         public class Where_predicate(int count = 4_096):global::Common.Base<T>(count) {
             [BenchFact,Benchmark]
             public void Select_selector() => this.Select_selector_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Select_selector_Impl() {
                 var consumer = this.consumer;
                 foreach(var value in this.srcCount(4_096)) {
@@ -29,6 +30,7 @@ namespace Shared.Linq.Optimization.PipelineFusion {
         public class Where_predicate(int count = 4_096):ListSource<T>(count) {
             [BenchFact,Benchmark]
             public void Select_selector() => this.Select_selector_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Select_selector_Impl() {
                 var consumer = this.consumer;
                 foreach(var value in global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(this.Source())) {
@@ -44,6 +46,7 @@ namespace Shared.Linq.Optimization.PipelineFusion {
         public class Where_predicate(int count = 4_096):EnumerableSource<T>(count) {
             [BenchFact,Benchmark]
             public void Select_selector() => this.Select_selector_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Select_selector_Impl() {
                 var consumer = this.consumer;
                 foreach(var value in this.Source()) {
@@ -59,6 +62,7 @@ namespace Shared.Linq.Optimization.PipelineFusion {
         public class Where_predicate(int count = 4_096):global::Common.Base<int>(count) {
             [BenchFact,Benchmark]
             public void Select_selector() => this.Select_selector_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Select_selector_Impl() {
                 var length = this.EffectiveSourceCount(4_096);
                 if(length<0) {

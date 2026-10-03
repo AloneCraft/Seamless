@@ -118,24 +118,29 @@ namespace Shared.Linq.Optimization.ProjectionMerge {
         public class Select_selector(int count = 4_096):global::Common.Base<T>(count) {
             [BenchFact,Benchmark]
             public void Select_member() => this.Select_member_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Select_member_Impl() => Projection<T>.SelectMember(this.consumer,this.srcCount(4_096));
             [BenchFact,Benchmark]
             public void Select_computed() => this.Select_computed_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Select_computed_Impl() => Projection<T>.SelectComputed(this.consumer,this.srcCount(4_096));
         }
 
         public class Join_inner(int count = 4_096):global::Common.Base<T>(count) {
             [BenchFact,Benchmark]
             public void Select_outerMember() => this.Select_outerMember_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Select_outerMember_Impl() => Projection<T>.JoinOuterMember(this.consumer,this.srcCount(4_096),this.src2Count(4_096));
             [BenchFact,Benchmark]
             public void Select_bothMembers() => this.Select_bothMembers_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Select_bothMembers_Impl() => Projection<T>.JoinBothMembers(this.consumer,this.srcCount(4_096),this.src2Count(4_096));
         }
 
         public class SelectMany_collection(int count = 4_096):global::Common.Base<T>(count) {
             [BenchFact,Benchmark]
             public void Select_member() => this.Select_member_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Select_member_Impl() => Projection<T>.SelectManyMember(this.consumer,this.srcCount(4_096));
         }
     }
@@ -144,24 +149,29 @@ namespace Shared.Linq.Optimization.ProjectionMerge {
         public class Select_selector(int count = 4_096):EnumerableSource<T>(count) {
             [BenchFact,Benchmark]
             public void Select_member() => this.Select_member_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Select_member_Impl() => Projection<T>.SelectMember(this.consumer,this.Source());
             [BenchFact,Benchmark]
             public void Select_computed() => this.Select_computed_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Select_computed_Impl() => Projection<T>.SelectComputed(this.consumer,this.Source());
         }
 
         public class Join_inner(int count = 4_096):EnumerableSource<T>(count) {
             [BenchFact,Benchmark]
             public void Select_outerMember() => this.Select_outerMember_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Select_outerMember_Impl() => Projection<T>.JoinOuterMember(this.consumer,this.Source(),this.src2Count(4_096));
             [BenchFact,Benchmark]
             public void Select_bothMembers() => this.Select_bothMembers_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Select_bothMembers_Impl() => Projection<T>.JoinBothMembers(this.consumer,this.Source(),this.src2Count(4_096));
         }
 
         public class SelectMany_collection(int count = 4_096):EnumerableSource<T>(count) {
             [BenchFact,Benchmark]
             public void Select_member() => this.Select_member_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Select_member_Impl() => Projection<T>.SelectManyMember(this.consumer,this.Source());
         }
     }
@@ -171,18 +181,23 @@ namespace Shared.Linq.Optimization.ProjectionMerge {
 
         [BenchFact,Benchmark]
         public void Select_selector_Select_member() => this.Select_selector_Select_member_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Select_selector_Select_member_Impl() => Projection<T>.SelectMember(this.consumer,this.Span());
         [BenchFact,Benchmark]
         public void Select_selector_Select_computed() => this.Select_selector_Select_computed_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Select_selector_Select_computed_Impl() => Projection<T>.SelectComputed(this.consumer,this.Span());
         [BenchFact,Benchmark]
         public void Join_inner_Select_outerMember() => this.Join_inner_Select_outerMember_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Join_inner_Select_outerMember_Impl() => Projection<T>.JoinOuterMember(this.consumer,this.Span(),this.src2Count(4_096));
         [BenchFact,Benchmark]
         public void Join_inner_Select_bothMembers() => this.Join_inner_Select_bothMembers_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Join_inner_Select_bothMembers_Impl() => Projection<T>.JoinBothMembers(this.consumer,this.Span(),this.src2Count(4_096));
         [BenchFact,Benchmark]
         public void SelectMany_collection_Select_member() => this.SelectMany_collection_Select_member_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void SelectMany_collection_Select_member_Impl() => Projection<T>.SelectManyMember(this.consumer,this.Span());
     }
 
@@ -198,6 +213,7 @@ namespace Shared.Linq.Optimization.ProjectionMerge {
 
         [BenchFact,Benchmark]
         public void Select_selector_Select_member() => this.Select_selector_Select_member_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Select_selector_Select_member_Impl() {
             var length = this.Length();
             for(var value = 1;value<=length;value++) {
@@ -207,6 +223,7 @@ namespace Shared.Linq.Optimization.ProjectionMerge {
 
         [BenchFact,Benchmark]
         public void Select_selector_Select_computed() => this.Select_selector_Select_computed_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Select_selector_Select_computed_Impl() {
             var length = this.Length();
             var invariant = global::Common.HoistInvariant.Value();
@@ -217,6 +234,7 @@ namespace Shared.Linq.Optimization.ProjectionMerge {
 
         [BenchFact,Benchmark]
         public void Join_inner_Select_outerMember() => this.Join_inner_Select_outerMember_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Join_inner_Select_outerMember_Impl() {
             var length = this.Length();
             var to = Math.Min(1L+length,length/2+1L+length/2);
@@ -227,6 +245,7 @@ namespace Shared.Linq.Optimization.ProjectionMerge {
 
         [BenchFact,Benchmark]
         public void Join_inner_Select_bothMembers() => this.Join_inner_Select_bothMembers_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Join_inner_Select_bothMembers_Impl() {
             var length = this.Length();
             var to = Math.Min(1L+length,length/2+1L+length/2);
@@ -237,6 +256,7 @@ namespace Shared.Linq.Optimization.ProjectionMerge {
 
         [BenchFact,Benchmark]
         public void SelectMany_collection_Select_member() => this.SelectMany_collection_Select_member_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void SelectMany_collection_Select_member_Impl() {
             var length = this.Length();
             for(var value = 1;value<=length;value++) {

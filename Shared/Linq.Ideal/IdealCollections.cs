@@ -122,10 +122,10 @@ internal sealed class PooledBuffer<TItem>(int capacity):IDisposable {
 /// <summary>値と元の位置。安定ソートのための組。</summary>
 internal readonly record struct Indexed<T>(T Value,int Index);
 
-/// <summary>昇順の安定比較(同値は元の位置の順)。</summary>
-internal readonly struct AscendingStable<T>:IComparer<Indexed<T>> {
+/// <summary>昇順の安定比較(同値は元の位置の順)。比較子は並べ替えの前に一度だけ取り出して渡す。</summary>
+internal readonly struct AscendingStable<T>(Comparer<T> comparer):IComparer<Indexed<T>> {
     public int Compare(Indexed<T> left,Indexed<T> right) {
-        var result = Comparer<T>.Default.Compare(left.Value,right.Value);
+        var result = comparer.Compare(left.Value,right.Value);
         if(result!=0) {
             return result;
         }
@@ -133,10 +133,10 @@ internal readonly struct AscendingStable<T>:IComparer<Indexed<T>> {
     }
 }
 
-/// <summary>降順の安定比較(同値は元の位置の順)。</summary>
-internal readonly struct DescendingStable<T>:IComparer<Indexed<T>> {
+/// <summary>降順の安定比較(同値は元の位置の順)。比較子は並べ替えの前に一度だけ取り出して渡す。</summary>
+internal readonly struct DescendingStable<T>(Comparer<T> comparer):IComparer<Indexed<T>> {
     public int Compare(Indexed<T> left,Indexed<T> right) {
-        var result = Comparer<T>.Default.Compare(right.Value,left.Value);
+        var result = comparer.Compare(right.Value,left.Value);
         if(result!=0) {
             return result;
         }
@@ -146,56 +146,61 @@ internal readonly struct DescendingStable<T>:IComparer<Indexed<T>> {
 
 /// <summary>int 列のベクトル化した最小・最大。</summary>
 internal static class IdealInt32 {
+    // ベクトルの最小・最大。参照を進めて読み、端数は末尾の1ベクトルを重ねて読む(要素数がベクトル幅の倍数でなくても正しい)。
     public static int Min(ReadOnlySpan<int> span) {
-        ref var first = ref MemoryMarshal.GetReference(span);
-        var index = 0;
-        var result = span[0];
-        if(Vector.IsHardwareAccelerated&&span.Length>=Vector<int>.Count*2) {
-            var best = Vector.LoadUnsafe(ref first);
-            index=Vector<int>.Count;
-            var last = span.Length-Vector<int>.Count;
-            for(;index<=last;index+=Vector<int>.Count) {
-                best=Vector.Min(best,Vector.LoadUnsafe(ref first,(nuint)index));
+        if(Vector.IsHardwareAccelerated&&span.Length>=Vector<int>.Count) {
+            ref var current = ref MemoryMarshal.GetReference(span);
+            ref var to = ref Unsafe.Add(ref current,span.Length-Vector<int>.Count);
+            var best = Vector.LoadUnsafe(ref current);
+            current=ref Unsafe.Add(ref current,Vector<int>.Count);
+            while(Unsafe.IsAddressLessThan(ref current,ref to)) {
+                best=Vector.Min(Vector.LoadUnsafe(ref current),best);
+                current=ref Unsafe.Add(ref current,Vector<int>.Count);
             }
-            result=best[0];
+            best=Vector.Min(Vector.LoadUnsafe(ref to),best);
+            var result = best[0];
             for(var lane = 1;lane<Vector<int>.Count;lane++) {
                 if(best[lane]<result) {
                     result=best[lane];
                 }
             }
+            return result;
         }
-        for(;index<span.Length;index++) {
-            if(Unsafe.Add(ref first,index)<result) {
-                result=Unsafe.Add(ref first,index);
+        var scalar = span[0];
+        for(var index = 1;index<span.Length;index++) {
+            if(span[index]<scalar) {
+                scalar=span[index];
             }
         }
-        return result;
+        return scalar;
     }
 
     public static int Max(ReadOnlySpan<int> span) {
-        ref var first = ref MemoryMarshal.GetReference(span);
-        var index = 0;
-        var result = span[0];
-        if(Vector.IsHardwareAccelerated&&span.Length>=Vector<int>.Count*2) {
-            var best = Vector.LoadUnsafe(ref first);
-            index=Vector<int>.Count;
-            var last = span.Length-Vector<int>.Count;
-            for(;index<=last;index+=Vector<int>.Count) {
-                best=Vector.Max(best,Vector.LoadUnsafe(ref first,(nuint)index));
+        if(Vector.IsHardwareAccelerated&&span.Length>=Vector<int>.Count) {
+            ref var current = ref MemoryMarshal.GetReference(span);
+            ref var to = ref Unsafe.Add(ref current,span.Length-Vector<int>.Count);
+            var best = Vector.LoadUnsafe(ref current);
+            current=ref Unsafe.Add(ref current,Vector<int>.Count);
+            while(Unsafe.IsAddressLessThan(ref current,ref to)) {
+                best=Vector.Max(Vector.LoadUnsafe(ref current),best);
+                current=ref Unsafe.Add(ref current,Vector<int>.Count);
             }
-            result=best[0];
+            best=Vector.Max(Vector.LoadUnsafe(ref to),best);
+            var result = best[0];
             for(var lane = 1;lane<Vector<int>.Count;lane++) {
                 if(best[lane]>result) {
                     result=best[lane];
                 }
             }
+            return result;
         }
-        for(;index<span.Length;index++) {
-            if(Unsafe.Add(ref first,index)>result) {
-                result=Unsafe.Add(ref first,index);
+        var scalar = span[0];
+        for(var index = 1;index<span.Length;index++) {
+            if(span[index]>scalar) {
+                scalar=span[index];
             }
         }
-        return result;
+        return scalar;
     }
 }
 

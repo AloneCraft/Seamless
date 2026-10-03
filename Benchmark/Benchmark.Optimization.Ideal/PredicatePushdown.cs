@@ -332,69 +332,82 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
         public class Select_selector(int count = 4_096):global::Common.Base<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.SelectWhere(this.consumer,this.srcCount(4_096));
         }
 
         public class Join_inner(int count = 4_096):global::Common.Base<T>(count) {
             [BenchFact,Benchmark]
             public void Where_outerOnly() => this.Where_outerOnly_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_outerOnly_Impl() => Pushdown<T>.JoinOuterOnly(this.consumer,this.srcCount(4_096),this.src2Count(4_096));
             [BenchFact,Benchmark]
             public void Where_innerOnly() => this.Where_innerOnly_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_innerOnly_Impl() => Pushdown<T>.JoinInnerOnly(this.consumer,this.srcCount(4_096),this.src2Count(4_096));
             [BenchFact,Benchmark]
             public void Where_bothSides() => this.Where_bothSides_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_bothSides_Impl() => Pushdown<T>.JoinBothSides(this.consumer,this.srcCount(4_096),this.src2Count(4_096));
             [BenchFact,Benchmark]
             public void Where_constant() => this.Where_constant_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_constant_Impl() => Pushdown<T>.JoinConstant(this.consumer,this.srcCount(4_096),this.src2Count(4_096));
         }
 
         public class Union_second(int count = 4_096):global::Common.Base<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.UnionWhere(this.consumer,this.srcCount(4_096),this.src2Count(4_096));
         }
 
         public class Concat_second(int count = 4_096):global::Common.Base<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.ConcatWhere(this.consumer,this.srcCount(4_096),this.src2Count(4_096));
         }
 
         public class Except_first(int count = 4_096):global::Common.Base<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.ExceptWhere(this.consumer,this.srcCount(4_096),this.src2Count(4_096));
         }
 
         public class Intersect_first(int count = 4_096):global::Common.Base<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.IntersectWhere(this.consumer,this.srcCount(4_096),this.src2Count(4_096));
         }
 
         public class Distinct_source(int count = 4_096):global::Common.Base<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.DistinctWhere(this.consumer,this.srcCount(4_096));
         }
 
         public class Reverse_source(int count = 4_096):global::Common.Base<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.ReverseWhere(this.consumer,this.srcCount(4_096));
         }
 
         public class Order_source(int count = 4_096):global::Common.Base<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.OrderWhere(this.consumer,this.srcCount(4_096));
         }
 
         public class Skip_count_Order_source(int count = 4_096):global::Common.Base<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.OrderWhere(this.consumer,this.srcCount(4_096));
         }
     }
@@ -403,69 +416,82 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
         public class Select_selector(int count = 4_096):EnumerableSource<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.SelectWhere(this.consumer,this.Source());
         }
 
         public class Join_inner(int count = 4_096):EnumerableSource<T>(count) {
             [BenchFact,Benchmark]
             public void Where_outerOnly() => this.Where_outerOnly_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_outerOnly_Impl() => Pushdown<T>.JoinOuterOnly(this.consumer,this.Source(),this.src2Count(4_096));
             [BenchFact,Benchmark]
             public void Where_innerOnly() => this.Where_innerOnly_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_innerOnly_Impl() => Pushdown<T>.JoinInnerOnly(this.consumer,this.Source(),this.src2Count(4_096));
             [BenchFact,Benchmark]
             public void Where_bothSides() => this.Where_bothSides_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_bothSides_Impl() => Pushdown<T>.JoinBothSides(this.consumer,this.Source(),this.src2Count(4_096));
             [BenchFact,Benchmark]
             public void Where_constant() => this.Where_constant_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_constant_Impl() => Pushdown<T>.JoinConstant(this.consumer,this.Source(),this.src2Count(4_096));
         }
 
         public class Union_second(int count = 4_096):EnumerableSource<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.UnionWhere(this.consumer,this.Source(),this.src2Count(4_096));
         }
 
         public class Concat_second(int count = 4_096):EnumerableSource<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.ConcatWhere(this.consumer,this.Source(),this.src2Count(4_096));
         }
 
         public class Except_first(int count = 4_096):EnumerableSource<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.ExceptWhere(this.consumer,this.Source(),this.src2Count(4_096));
         }
 
         public class Intersect_first(int count = 4_096):EnumerableSource<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.IntersectWhere(this.consumer,this.Source(),this.src2Count(4_096));
         }
 
         public class Distinct_source(int count = 4_096):EnumerableSource<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.DistinctWhere(this.consumer,this.Source());
         }
 
         public class Reverse_source(int count = 4_096):EnumerableSource<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.ReverseWhere(this.consumer,this.Source());
         }
 
         public class Order_source(int count = 4_096):EnumerableSource<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.OrderWhere(this.consumer,this.Source());
         }
 
         public class Skip_count_Order_source(int count = 4_096):EnumerableSource<T>(count) {
             [BenchFact,Benchmark]
             public void Where_predicate() => this.Where_predicate_Impl();
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
             private void Where_predicate_Impl() => Pushdown<T>.OrderWhere(this.consumer,this.Source());
         }
     }
@@ -475,42 +501,55 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
 
         [BenchFact,Benchmark]
         public void Select_selector_Where_predicate() => this.Select_selector_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Select_selector_Where_predicate_Impl() => Pushdown<T>.SelectWhere(this.consumer,this.Span());
         [BenchFact,Benchmark]
         public void Join_inner_Where_outerOnly() => this.Join_inner_Where_outerOnly_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Join_inner_Where_outerOnly_Impl() => Pushdown<T>.JoinOuterOnly(this.consumer,this.Span(),this.src2Count(4_096));
         [BenchFact,Benchmark]
         public void Join_inner_Where_innerOnly() => this.Join_inner_Where_innerOnly_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Join_inner_Where_innerOnly_Impl() => Pushdown<T>.JoinInnerOnly(this.consumer,this.Span(),this.src2Count(4_096));
         [BenchFact,Benchmark]
         public void Join_inner_Where_bothSides() => this.Join_inner_Where_bothSides_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Join_inner_Where_bothSides_Impl() => Pushdown<T>.JoinBothSides(this.consumer,this.Span(),this.src2Count(4_096));
         [BenchFact,Benchmark]
         public void Join_inner_Where_constant() => this.Join_inner_Where_constant_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Join_inner_Where_constant_Impl() => Pushdown<T>.JoinConstant(this.consumer,this.Span(),this.src2Count(4_096));
         [BenchFact,Benchmark]
         public void Union_second_Where_predicate() => this.Union_second_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Union_second_Where_predicate_Impl() => Pushdown<T>.UnionWhere(this.consumer,this.Span(),this.src2Count(4_096));
         [BenchFact,Benchmark]
         public void Concat_second_Where_predicate() => this.Concat_second_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Concat_second_Where_predicate_Impl() => Pushdown<T>.ConcatWhere(this.consumer,this.Span(),this.src2Count(4_096));
         [BenchFact,Benchmark]
         public void Except_first_Where_predicate() => this.Except_first_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Except_first_Where_predicate_Impl() => Pushdown<T>.ExceptWhere(this.consumer,this.Span(),this.src2Count(4_096));
         [BenchFact,Benchmark]
         public void Intersect_first_Where_predicate() => this.Intersect_first_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Intersect_first_Where_predicate_Impl() => Pushdown<T>.IntersectWhere(this.consumer,this.Span(),this.src2Count(4_096));
         [BenchFact,Benchmark]
         public void Distinct_Where_predicate() => this.Distinct_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Distinct_Where_predicate_Impl() => Pushdown<T>.DistinctWhere(this.consumer,this.Span());
         [BenchFact,Benchmark]
         public void Reverse_Where_predicate() => this.Reverse_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Reverse_Where_predicate_Impl() => Pushdown<T>.ReverseWhere(this.consumer,this.Span());
         [BenchFact,Benchmark]
         public void Order_Where_predicate() => this.Order_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Order_Where_predicate_Impl() => Pushdown<T>.OrderWhere(this.consumer,this.Span());
         [BenchFact,Benchmark]
         public void Skip_count_Order_Where_predicate() => this.Skip_count_Order_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Skip_count_Order_Where_predicate_Impl() => Pushdown<T>.OrderWhere(this.consumer,this.Span());
     }
 
@@ -533,6 +572,7 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
 
         [BenchFact,Benchmark]
         public void Select_selector_Where_predicate() => this.Select_selector_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Select_selector_Where_predicate_Impl() {
             var length = this.Length();
             for(var value = 2;value<=length;value+=2) {
@@ -564,15 +604,19 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
 
         [BenchFact,Benchmark]
         public void Join_inner_Where_outerOnly() => this.Join_inner_Where_outerOnly_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Join_inner_Where_outerOnly_Impl() => this.JoinIntersection(1);
         [BenchFact,Benchmark]
         public void Join_inner_Where_innerOnly() => this.Join_inner_Where_innerOnly_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Join_inner_Where_innerOnly_Impl() => this.JoinIntersection(1);
         [BenchFact,Benchmark]
         public void Join_inner_Where_bothSides() => this.Join_inner_Where_bothSides_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Join_inner_Where_bothSides_Impl() => this.JoinIntersection(2);
         [BenchFact,Benchmark]
         public void Join_inner_Where_constant() => this.Join_inner_Where_constant_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Join_inner_Where_constant_Impl() {
             if(!(global::Common.HoistInvariant.Value()>0&&global::Common.HoistInvariant.Value()<100)) {
                 this.Length();
@@ -583,6 +627,7 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
 
         [BenchFact,Benchmark]
         public void Union_second_Where_predicate() => this.Union_second_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Union_second_Where_predicate_Impl() {
             var length = this.Length();
             ConsumeEven(this.consumer,1,1L+length);
@@ -591,6 +636,7 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
 
         [BenchFact,Benchmark]
         public void Concat_second_Where_predicate() => this.Concat_second_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Concat_second_Where_predicate_Impl() {
             var length = this.Length();
             ConsumeEven(this.consumer,1,1L+length);
@@ -599,6 +645,7 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
 
         [BenchFact,Benchmark]
         public void Except_first_Where_predicate() => this.Except_first_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Except_first_Where_predicate_Impl() {
             var length = this.Length();
             var secondStart = length/2+1L;
@@ -613,6 +660,7 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
 
         [BenchFact,Benchmark]
         public void Intersect_first_Where_predicate() => this.Intersect_first_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Intersect_first_Where_predicate_Impl() {
             var length = this.Length();
             ConsumeEven(this.consumer,Math.Max(1L,length/2+1L),Math.Min(1L+length,length/2+1L+length/2));
@@ -620,10 +668,12 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
 
         [BenchFact,Benchmark]
         public void Distinct_Where_predicate() => this.Distinct_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Distinct_Where_predicate_Impl() => ConsumeEven(this.consumer,1,1L+this.Length());
 
         [BenchFact,Benchmark]
         public void Reverse_Where_predicate() => this.Reverse_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Reverse_Where_predicate_Impl() {
             var length = this.Length();
             for(var value = length-(length&1);value>=2;value-=2) {
@@ -633,10 +683,12 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
 
         [BenchFact,Benchmark]
         public void Order_Where_predicate() => this.Order_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Order_Where_predicate_Impl() => ConsumeEven(this.consumer,1,1L+this.Length());
 
         [BenchFact,Benchmark]
         public void Skip_count_Order_Where_predicate() => this.Skip_count_Order_Where_predicate_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Skip_count_Order_Where_predicate_Impl() => ConsumeEven(this.consumer,1,1L+this.Length());
     }
 }

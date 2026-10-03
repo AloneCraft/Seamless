@@ -51,6 +51,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Aggregate_func() => this.Aggregate_func_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Aggregate_func_Impl() {
         var source = this.srcCount(ImmediateFullScanCount);
         if(typeof(T)==typeof(string)) {
@@ -84,6 +85,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Aggregate_seed_func() => this.Aggregate_seed_func_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Aggregate_seed_func_Impl() {
         var accumulate = 0L;
         foreach(var x in this.srcCount(ImmediateFullScanCount)) {
@@ -96,6 +98,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Aggregate_seed_func_resultSelector() => this.Aggregate_seed_func_resultSelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Aggregate_seed_func_resultSelector_Impl() {
         var accumulate = 0L;
         foreach(var x in this.srcCount(ImmediateFullScanCount)) {
@@ -108,6 +111,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void AggregateBy_keySelector() => this.AggregateBy_keySelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void AggregateBy_keySelector_Impl() {
         var map = new Dictionary<int,int>();
         foreach(var x in this.srcCount(GroupingCount)) {
@@ -124,6 +128,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void All_predicate() => this.All_predicate_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void All_predicate_Impl() {
         var result = true;
         foreach(var x in this.srcCount(ImmediatePredicateScanCount)) {
@@ -139,9 +144,11 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Any() => this.Any_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Any_Impl() {
         var source = this.srcCount(ImmediateShortCircuitCount);
-        for(var a = 0;a<IterationCount(Any_iterationCount);a++) {
+        var iterations = IterationCount(Any_iterationCount);
+        for(var a = 0;a<iterations;a++) {
             using var enumerator = source.GetEnumerator();
             this.consumer.Consume(enumerator.MoveNext());
         }
@@ -151,6 +158,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Any_predicate() => this.Any_predicate_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Any_predicate_Impl() {
         var value = this.MidpointValue(ImmediatePredicateScanCount);
         var result = false;
@@ -167,6 +175,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Append_element() => ExecuteOrderDependent(() => this.Append_element_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Append_element_Impl() {
         var source = this.srcCount(StreamShapeCount);
         var element = Value(0);
@@ -181,6 +190,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Average() => this.Average_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Average_Impl() {
         var sum = 0d;
         var count = 0L;
@@ -198,6 +208,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Average_selector() => this.Average_selector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Average_selector_Impl() {
         var sum = 0d;
         var count = 0L;
@@ -215,6 +226,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Cast() => this.Cast_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Cast_Impl() {
         var consumer = this.consumer;
         foreach(var x in this.srcCount(StreamOneToOneCount)) {
@@ -226,6 +238,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Chunk_size() => ExecuteOrderDependent(() => this.Chunk_size_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Chunk_size_Impl() {
         var consumer = this.consumer;
         T[]? chunk = null;
@@ -248,6 +261,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Concat_second() => ExecuteOrderDependent(() => this.Concat_second_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Concat_second_Impl() {
         var first = this.srcCount(StreamShapeCount);
         var second = this.src2Count(StreamShapeCount);
@@ -264,14 +278,17 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Contains_value() => this.Contains_value_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Contains_value_Impl() {
         var value = this.MidpointValue(ImmediateShortCircuitCount);
         var source = this.srcCount(ImmediateShortCircuitCount);
-        for(var i = 0;i<IterationCount(Contains_value_iterationCount);i++) {
+        var comparer = EqualityComparer<T>.Default;
+        var iterations = IterationCount(Contains_value_iterationCount);
+        for(var i = 0;i<iterations;i++) {
             var target = Value(value);
             var result = false;
             foreach(var x in source) {
-                if(EqualityComparer<T>.Default.Equals(x,target)) {
+                if(comparer.Equals(x,target)) {
                     result=true;
                     break;
                 }
@@ -284,6 +301,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Count() => this.Count_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Count_Impl() {
         var count = 0;
         foreach(var _ in this.srcCount(ImmediateFullScanCount)) {
@@ -296,6 +314,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Count_predicate() => this.Count_predicate_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Count_predicate_Impl() {
         var count = 0;
         foreach(var x in this.srcCount(ImmediatePredicateScanCount)) {
@@ -310,6 +329,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void CountBy_keySelector() => this.CountBy_keySelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void CountBy_keySelector_Impl() {
         var map = new Dictionary<int,int>();
         foreach(var x in this.srcCount(GroupingCount)) {
@@ -326,6 +346,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void DefaultIfEmpty() => this.DefaultIfEmpty_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void DefaultIfEmpty_Impl() {
         var source = this.srcCount(StreamShapeCount);
         var defaultValue = Value(0);
@@ -344,6 +365,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Distinct() => this.Distinct_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Distinct_Impl() {
         var set = new HashSet<T>();
         var consumer = this.consumer;
@@ -358,6 +380,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void DistinctBy_keySelector() => this.DistinctBy_keySelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void DistinctBy_keySelector_Impl() {
         var set = new HashSet<int>();
         var consumer = this.consumer;
@@ -372,9 +395,11 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void ElementAt_index() => ExecuteOrderDependent(() => this.ElementAt_index_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ElementAt_index_Impl() {
         var index = this.MidpointIndex(ImmediateShortCircuitCount);
-        for(var i = 0;i<IterationCount(ElementAt_index_iterationCount);i++) {
+        var iterations = IterationCount(ElementAt_index_iterationCount);
+        for(var i = 0;i<iterations;i++) {
             var position = 0;
             var found = false;
             T result = default!;
@@ -399,6 +424,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void ElementAtOrDefault_index() => ExecuteOrderDependent(() => this.ElementAtOrDefault_index_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ElementAtOrDefault_index_Impl() {
         var index = this.MidpointIndex(ImmediateShortCircuitCount);
         T result = default!;
@@ -419,15 +445,16 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Empty() => this.Empty_Impl();
 
+    // ループの本体は空で、反復回数の計算は純粋なので、ループごと省く。
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Empty_Impl() {
-        for(var i = 0;i<IterationCount(Empty_iterationCount);i++) {
-        }
     }
 
     // [Except_second]
     [BenchFact,Benchmark]
     public void Except_second() => this.Except_second_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Except_second_Impl() {
         var first = this.srcCount(SetCount);
         var second = this.src2Count(SetCount);
@@ -447,6 +474,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void ExceptBy_keySelector() => this.ExceptBy_keySelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ExceptBy_keySelector_Impl() {
         var first = this.srcCount(SetCount);
         var second = this.src2Count(SetCount);
@@ -466,9 +494,11 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void First() => ExecuteOrderDependent(() => this.First_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void First_Impl() {
         var source = this.srcCount(ImmediateShortCircuitCount);
-        for(var i = 0;i<IterationCount(First_iterationCount);i++) {
+        var iterations = IterationCount(First_iterationCount);
+        for(var i = 0;i<iterations;i++) {
             using var enumerator = source.GetEnumerator();
             if(!enumerator.MoveNext()) {
                 throw IdealErrors.NoElements();
@@ -481,9 +511,11 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void FirstOrDefault() => ExecuteOrderDependent(() => this.FirstOrDefault_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void FirstOrDefault_Impl() {
         var source = this.srcCount(ImmediateShortCircuitCount);
-        for(var i = 0;i<IterationCount(FirstOrDefault_iterationCount);i++) {
+        var iterations = IterationCount(FirstOrDefault_iterationCount);
+        for(var i = 0;i<iterations;i++) {
             using var enumerator = source.GetEnumerator();
             if(enumerator.MoveNext()) {
                 this.consumer.Consume(enumerator.Current);
@@ -497,6 +529,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void FirstOrDefault_predicate() => ExecuteOrderDependent(() => this.FirstOrDefault_predicate_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void FirstOrDefault_predicate_Impl() {
         var value = this.MidpointValue(ImmediatePredicateScanCount);
         T result = default!;
@@ -513,6 +546,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void GroupBy_elementSelector() => this.GroupBy_elementSelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void GroupBy_elementSelector_Impl() {
         using var source = Buffer(this.srcCount(GroupingCount));
         var span = source.Span;
@@ -534,6 +568,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void GroupBy_elementSelector_resultSelector() => this.GroupBy_elementSelector_resultSelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void GroupBy_elementSelector_resultSelector_Impl() {
         var keys = new HashSet<int>();
         var consumer = this.consumer;
@@ -549,6 +584,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void GroupBy_keySelector() => this.GroupBy_keySelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void GroupBy_keySelector_Impl() {
         using var source = Buffer(this.srcCount(GroupingCount));
         var span = source.Span;
@@ -570,6 +606,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void GroupBy_resultSelector() => this.GroupBy_resultSelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void GroupBy_resultSelector_Impl() {
         var keys = new HashSet<int>();
         var consumer = this.consumer;
@@ -585,6 +622,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void GroupJoin_inner() => this.GroupJoin_inner_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void GroupJoin_inner_Impl() {
         // 結果選択子は内側のグループを使わず、キー選択子は恒等で純粋なので、内側の探索表は結果に影響しない(FLinq の Range 版と同じ扱い)。
         var outer = this.srcCount(JoinCount);
@@ -599,6 +637,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Index() => ExecuteOrderDependent(() => this.Index_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Index_Impl() {
         var consumer = this.consumer;
         var index = 0;
@@ -612,6 +651,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Intersect_second() => this.Intersect_second_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Intersect_second_Impl() {
         var first = this.srcCount(SetCount);
         var second = this.src2Count(SetCount);
@@ -631,6 +671,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void IntersectBy_keySelector() => this.IntersectBy_keySelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void IntersectBy_keySelector_Impl() {
         var first = this.srcCount(SetCount);
         var second = this.src2Count(SetCount);
@@ -650,6 +691,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void InvariantHoisting() => this.InvariantHoisting_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void InvariantHoisting_Impl() {
         var source = this.srcCount(StreamOneToOneCount);
         var invariant = global::Common.HoistInvariant.Value();
@@ -663,6 +705,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Join_inner() => this.Join_inner_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Join_inner_Impl() {
         var outer = this.srcCount(JoinCount);
         var inner = this.src2Count(JoinCount);
@@ -685,6 +728,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Join_innerKey_Hoisting() => this.Join_innerKey_Hoisting_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Join_innerKey_Hoisting_Impl() {
         var outer = this.srcCount(JoinCount);
         var invariant = global::Common.HoistInvariant.Value();
@@ -713,6 +757,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Join_outerKey_Hoisting() => this.Join_outerKey_Hoisting_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Join_outerKey_Hoisting_Impl() {
         var outer = this.srcCount(JoinCount);
         var invariant = global::Common.HoistInvariant.Value();
@@ -741,6 +786,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Join_resultSelector_Hoisting() => this.Join_resultSelector_Hoisting_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Join_resultSelector_Hoisting_Impl() {
         var outer = this.srcCount(JoinCount);
         var invariant = global::Common.HoistInvariant.Value();
@@ -769,6 +815,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Last() => ExecuteOrderDependent(() => this.Last_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Last_Impl() {
         var found = false;
         T result = default!;
@@ -786,6 +833,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void LastOrDefault() => ExecuteOrderDependent(() => this.LastOrDefault_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void LastOrDefault_Impl() {
         T result = default!;
         foreach(var x in this.srcCount(ImmediateFullScanCount)) {
@@ -798,6 +846,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void LastOrDefault_predicate() => ExecuteOrderDependent(() => this.LastOrDefault_predicate_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void LastOrDefault_predicate_Impl() {
         var value = this.MidpointValue(ImmediatePredicateScanCount);
         T result = default!;
@@ -813,6 +862,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void LongCount() => this.LongCount_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void LongCount_Impl() {
         if(global::Common.BenchmarkExecutionMode.IsElementCountScoped) {
             this.consumer.Consume((long)this.EffectiveSourceCount(ImmediateFullScanCount));
@@ -829,6 +879,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void LongCount_predicate() => this.LongCount_predicate_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void LongCount_predicate_Impl() {
         var count = 0L;
         foreach(var x in this.srcCount(ImmediatePredicateScanCount)) {
@@ -843,6 +894,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Max() => this.Max_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Max_Impl() {
         using var source = Buffer(this.srcCount(ImmediateFullScanCount));
         this.consumer.Consume(SpanMax(source.Span));
@@ -852,6 +904,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Max_selector() => this.Max_selector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Max_selector_Impl() {
         using var enumerator = this.srcCount(ImmediateFullScanCount).GetEnumerator();
         if(!enumerator.MoveNext()) {
@@ -871,6 +924,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void MaxBy_keySelector() => this.MaxBy_keySelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void MaxBy_keySelector_Impl() {
         using var enumerator = this.srcCount(ImmediateFullScanCount).GetEnumerator();
         if(!enumerator.MoveNext()) {
@@ -897,6 +951,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Min() => this.Min_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Min_Impl() {
         using var source = Buffer(this.srcCount(ImmediateFullScanCount));
         this.consumer.Consume(SpanMin(source.Span));
@@ -906,6 +961,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Min_selector() => this.Min_selector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Min_selector_Impl() {
         using var enumerator = this.srcCount(ImmediateFullScanCount).GetEnumerator();
         if(!enumerator.MoveNext()) {
@@ -925,6 +981,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void MinBy_keySelector() => this.MinBy_keySelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void MinBy_keySelector_Impl() {
         using var enumerator = this.srcCount(ImmediateFullScanCount).GetEnumerator();
         if(!enumerator.MoveNext()) {
@@ -951,6 +1008,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void OfType() => this.OfType_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void OfType_Impl() {
         var consumer = this.consumer;
         foreach(var x in this.srcCount(StreamOneToOneCount)) {
@@ -964,6 +1022,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Order() => ExecuteOrderDependent(() => this.Order_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Order_Impl() {
         using var source = Buffer(this.srcCount(SortCount));
         ConsumeSorted(source.Span,false,this.consumer);
@@ -973,6 +1032,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void OrderBy_keySelector() => ExecuteOrderDependent(() => this.OrderBy_keySelector_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void OrderBy_keySelector_Impl() {
         using var source = Buffer(this.srcCount(SortCount));
         ConsumeSorted(source.Span,false,this.consumer);
@@ -982,6 +1042,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void OrderByDescending_keySelector() => ExecuteOrderDependent(() => this.OrderByDescending_keySelector_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void OrderByDescending_keySelector_Impl() {
         using var source = Buffer(this.srcCount(SortCount));
         ConsumeSorted(source.Span,true,this.consumer);
@@ -991,6 +1052,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void OrderDescending() => ExecuteOrderDependent(() => this.OrderDescending_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void OrderDescending_Impl() {
         using var source = Buffer(this.srcCount(SortCount));
         ConsumeSorted(source.Span,true,this.consumer);
@@ -1000,6 +1062,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Prepend_element() => ExecuteOrderDependent(() => this.Prepend_element_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Prepend_element_Impl() {
         var source = this.srcCount(StreamShapeCount);
         var element = Value(0);
@@ -1014,6 +1077,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Repeat() => this.Repeat_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Repeat_Impl() {
         var element = Value(7);
         var count = this.EffectiveSourceCount(GeneratedCount);
@@ -1030,6 +1094,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Reverse() => ExecuteOrderDependent(() => this.Reverse_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Reverse_Impl() {
         using var source = Buffer(this.srcCount(StreamShapeCount));
         var span = source.Span;
@@ -1043,6 +1108,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Select_indexSelector() => ExecuteOrderDependent(() => this.Select_indexSelector_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Select_indexSelector_Impl() {
         var consumer = this.consumer;
         var index = 0;
@@ -1056,6 +1122,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Select_selector() => this.Select_selector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Select_selector_Impl() {
         var consumer = this.consumer;
         foreach(var x in this.srcCount(StreamOneToOneCount)) {
@@ -1067,6 +1134,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void SelectMany_indexSelector() => this.SelectMany_indexSelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SelectMany_indexSelector_Impl() {
         var consumer = this.consumer;
         foreach(var x in this.srcNestedCount(NestedCount)) {
@@ -1080,6 +1148,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void SelectMany_indexSelector_resultSelector() => this.SelectMany_indexSelector_resultSelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SelectMany_indexSelector_resultSelector_Impl() {
         var consumer = this.consumer;
         foreach(var x in this.srcNestedCount(NestedCount)) {
@@ -1093,6 +1162,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void SelectMany_resultSelector() => this.SelectMany_resultSelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SelectMany_resultSelector_Impl() {
         var consumer = this.consumer;
         foreach(var x in this.srcNestedCount(NestedCount)) {
@@ -1106,6 +1176,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void SelectMany_selector() => this.SelectMany_selector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SelectMany_selector_Impl() {
         var consumer = this.consumer;
         foreach(var x in this.srcNestedCount(NestedCount)) {
@@ -1120,20 +1191,24 @@ public abstract partial class IdealBase<T> {
     public void SequenceEqual_second() => ExecuteOrderDependent(() => this.SequenceEqual_second_Impl());
 
     // 同じ純粋なソース式同士なので等しい(.Anchor が無いので比べない)。
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SequenceEqual_second_Impl() => this.consumer.Consume(true);
 
     [BenchFact,Benchmark]
     public void SequenceEqual_second_comparer() => ExecuteOrderDependent(() => this.SequenceEqual_second_comparer_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SequenceEqual_second_comparer_Impl() => this.consumer.Consume(true);
 
     // [Single]
     [BenchFact,Benchmark]
     public void Single() => this.Single_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Single_Impl() {
         var source = this.srcOne(1);
-        for(var i = 0;i<IterationCount(Single_iterationCount);i++) {
+        var iterations = IterationCount(Single_iterationCount);
+        for(var i = 0;i<iterations;i++) {
             this.consumer.Consume(SingleOrThrow(source));
         }
     }
@@ -1142,6 +1217,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Single_predicate() => this.Single_predicate_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Single_predicate_Impl() {
         _=SinglePredicate(this.srcOne(1),0);
         this.consumer.Consume(SinglePredicate(this.srcCount(ImmediatePredicateScanCount),1));
@@ -1151,9 +1227,11 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void SingleOrDefault() => this.SingleOrDefault_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SingleOrDefault_Impl() {
         var source = this.srcOne(1);
-        for(var i = 0;i<IterationCount(SingleOrDefault_iterationCount);i++) {
+        var iterations = IterationCount(SingleOrDefault_iterationCount);
+        for(var i = 0;i<iterations;i++) {
             using var enumerator = source.GetEnumerator();
             if(!enumerator.MoveNext()) {
                 this.consumer.Consume(default(T));
@@ -1171,6 +1249,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void SingleOrDefault_predicate() => this.SingleOrDefault_predicate_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SingleOrDefault_predicate_Impl() {
         T result = default!;
         var found = false;
@@ -1190,6 +1269,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Skip_count() => ExecuteOrderDependent(() => this.Skip_count_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Skip_count_Impl() {
         var source = this.srcCount(StreamPartitionCount);
         var count = this.QuarterCount(StreamPartitionCount);
@@ -1207,6 +1287,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void SkipLast_count() => ExecuteOrderDependent(() => this.SkipLast_count_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SkipLast_count_Impl() {
         var source = this.srcCount(StreamPartitionCount);
         var count = this.QuarterCount(StreamPartitionCount);
@@ -1243,6 +1324,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void SkipWhile_indexPredicate() => ExecuteOrderDependent(() => this.SkipWhile_indexPredicate_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SkipWhile_indexPredicate_Impl() {
         var takeUntil = this.QuarterCount(StreamFilterCount);
         var consumer = this.consumer;
@@ -1264,6 +1346,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void SkipWhile_predicate() => ExecuteOrderDependent(() => this.SkipWhile_predicate_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void SkipWhile_predicate_Impl() {
         var source = this.srcCount(StreamFilterCount);
         var bound = this.QuarterCount(StreamFilterCount)+1;
@@ -1284,6 +1367,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Sum() => this.Sum_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Sum_Impl() {
         var sum = 0;
         foreach(var x in this.srcMinusPlusCount(ImmediateFullScanCount)) {
@@ -1296,6 +1380,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Sum_selector() => this.Sum_selector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Sum_selector_Impl() {
         var sum = 0L;
         foreach(var x in this.srcCount(ImmediateFullScanCount)) {
@@ -1308,6 +1393,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Take_count() => ExecuteOrderDependent(() => this.Take_count_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Take_count_Impl() {
         var source = this.srcCount(StreamPartitionCount);
         var count = this.ThreeQuarterCount(StreamPartitionCount);
@@ -1329,6 +1415,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void TakeLast_count() => ExecuteOrderDependent(() => this.TakeLast_count_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void TakeLast_count_Impl() {
         var source = this.srcCount(StreamPartitionCount);
         var count = this.QuarterCount(StreamPartitionCount);
@@ -1367,6 +1454,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void TakeWhile_indexPredicate() => ExecuteOrderDependent(() => this.TakeWhile_indexPredicate_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void TakeWhile_indexPredicate_Impl() {
         var takeUntil = this.ThreeQuarterCount(StreamFilterCount);
         var consumer = this.consumer;
@@ -1384,6 +1472,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void TakeWhile_predicate() => ExecuteOrderDependent(() => this.TakeWhile_predicate_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void TakeWhile_predicate_Impl() {
         var source = this.srcCount(StreamFilterCount);
         var bound = this.ThreeQuarterCount(StreamFilterCount)+1;
@@ -1400,6 +1489,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void ToArray() => this.ToArray_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ToArray_Impl() {
         var consumer = this.consumer;
         foreach(var x in this.srcCount(MaterializeLinearCount)) {
@@ -1411,6 +1501,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void ToDictionary_elementSelector() => this.ToDictionary_elementSelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ToDictionary_elementSelector_Impl() {
         var dictionary = new Dictionary<T,int>();
         foreach(var x in this.srcCount(MaterializeHashCount)) {
@@ -1426,6 +1517,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void ToDictionary_keySelector() => this.ToDictionary_keySelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ToDictionary_keySelector_Impl() {
         var dictionary = new Dictionary<T,T>();
         foreach(var x in this.srcCount(MaterializeHashCount)) {
@@ -1441,6 +1533,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void ToHashSet() => this.ToHashSet_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ToHashSet_Impl() {
         var set = new HashSet<T>();
         var consumer = this.consumer;
@@ -1455,6 +1548,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void ToList() => this.ToList_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ToList_Impl() {
         var consumer = this.consumer;
         foreach(var x in this.srcCount(MaterializeLinearCount)) {
@@ -1466,6 +1560,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void ToLookup_elementSelector() => this.ToLookup_elementSelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ToLookup_elementSelector_Impl() {
         using var source = Buffer(this.srcCount(MaterializeLookupCount));
         var span = source.Span;
@@ -1487,6 +1582,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void ToLookup_keySelector() => this.ToLookup_keySelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void ToLookup_keySelector_Impl() {
         using var source = Buffer(this.srcCount(MaterializeLookupCount));
         var span = source.Span;
@@ -1508,9 +1604,11 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void TryGetNonEnumeratedCount() => this.TryGetNonEnumeratedCount_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void TryGetNonEnumeratedCount_Impl() {
         var source = this.srcCount(ImmediateFullScanCount);
-        for(var i = 0;i<IterationCount(TryGetNonEnumeratedCount_iterationCount);i++) {
+        var iterations = IterationCount(TryGetNonEnumeratedCount_iterationCount);
+        for(var i = 0;i<iterations;i++) {
             if(source is ICollection<T> collection) {
                 ConsumeResult(this.consumer,true,collection.Count);
             } else if(source is global::System.Collections.ICollection nonGeneric) {
@@ -1525,6 +1623,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Union_second() => this.Union_second_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Union_second_Impl() {
         var first = this.srcCount(SetCount);
         var second = this.src2Count(SetCount);
@@ -1546,6 +1645,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void UnionBy_keySelector() => this.UnionBy_keySelector_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void UnionBy_keySelector_Impl() {
         var first = this.srcCount(SetCount);
         var second = this.src2Count(SetCount);
@@ -1567,6 +1667,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Where_indexPredicate() => ExecuteOrderDependent(() => this.Where_indexPredicate_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Where_indexPredicate_Impl() {
         var consumer = this.consumer;
         var index = 0;
@@ -1582,6 +1683,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Where_predicate() => this.Where_predicate_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Where_predicate_Impl() {
         var consumer = this.consumer;
         foreach(var x in this.srcCount(StreamFilterCount)) {
@@ -1595,6 +1697,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Where_SourceShape() => this.Where_SourceShape_Impl();
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Where_SourceShape_Impl() {
         var consumer = this.consumer;
         foreach(var x in this.srcCount(SourceShapeCount)) {
@@ -1608,6 +1711,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Zip_second() => ExecuteOrderDependent(() => this.Zip_second_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Zip_second_Impl() {
         using var first = this.srcCount(StreamShapeCount).GetEnumerator();
         using var second = this.src2Count(StreamShapeCount).GetEnumerator();
@@ -1621,6 +1725,7 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Zip_tuple() => ExecuteOrderDependent(() => this.Zip_tuple_Impl());
 
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Zip_tuple_Impl() {
         using var first = this.srcCount(StreamShapeCount).GetEnumerator();
         using var second = this.src2Count(StreamShapeCount).GetEnumerator();

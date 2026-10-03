@@ -13,6 +13,7 @@ namespace Shared.Linq.Optimization.Rewrite {
     public abstract class Array<T>(int count = 4_096):global::Common.Base<T>(count) where T : notnull {
         [BenchFact,Benchmark]
         public void Where_predicate_Count() => this.Where_predicate_Count_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Where_predicate_Count_Impl() {
             var result = 0;
             foreach(var value in this.srcCount(4_096)) {
@@ -27,6 +28,7 @@ namespace Shared.Linq.Optimization.Rewrite {
     public abstract class IEnumerable<T>(int count = 4_096):EnumerableSource<T>(count) where T : notnull {
         [BenchFact,Benchmark]
         public void Where_predicate_Count() => this.Where_predicate_Count_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Where_predicate_Count_Impl() {
             var result = 0;
             foreach(var value in this.Source()) {
@@ -41,6 +43,7 @@ namespace Shared.Linq.Optimization.Rewrite {
     public abstract class List<T>(int count = 4_096):ListSource<T>(count) where T : notnull {
         [BenchFact,Benchmark]
         public void Where_predicate_Count() => this.Where_predicate_Count_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Where_predicate_Count_Impl() {
             var result = 0;
             foreach(var value in global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(this.Source())) {
@@ -55,6 +58,7 @@ namespace Shared.Linq.Optimization.Rewrite {
     public abstract class Range(int count = 4_096):global::Common.Base<int>(count) {
         [BenchFact,Benchmark]
         public void Where_predicate_Count() => this.Where_predicate_Count_Impl();
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Where_predicate_Count_Impl() {
             var length = this.EffectiveSourceCount(4_096);
             if(length<0) {
