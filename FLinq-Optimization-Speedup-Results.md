@@ -1701,16 +1701,18 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: 押し下げタブの Range の Union_second_Where(理想の9倍)は、Range.Where(p).Union(second.Where(p)) の段の並びで、Range の部分の値もすべて集合へ入れていた。
 - 修正: 昇順の Range の後に添字の無い Where だけが並び、最後が Union(既定の比較子・int)のとき、Range の部分の値は一意なので集合を使わずに流す(述語が1つで偶奇なら2刻み)。第2ソースの値 v は「区間に入り、Range の部分の述語をすべて通るか」で Range の部分に出たかが決まるので、それ以外だけを集合で重複除きする(述語は .Anchor が無く純粋)。第2ソースの式は従来どおり Range の引数の検査の後、Range を流す前に評価する。
 - テスト: `RangeUnionConsumeTests`(偶奇・3の倍数・2つの Where・Where なし・遅延の第2ソース、負の値・空・不正な件数・int の端)。
+- 結果(baseline7→8、理想比): 押し下げタブの Range の Union_second_Where 9.41→3.00(まだ3倍。理想版は第2ソースの偶数だけを集合に入れる)。
 
 ## 2026-10-04 結果選択子が内側の要素を使わない Join は、キーごとの件数だけを数える(採用候補)
 
 - 原因: `Join(inner,ok,ik,(a,b) => a)` でも内側の要素を探索表に溜めていた(Join_inner で理想の1.8〜3倍。理想版はキーごとの件数だけを Dictionary で数える)。
 - 修正: 結果選択子が展開できる式で第2引数が本体に現れないなら、内側はキーごとの件数だけを数え(Dictionary と CollectionsMarshal.GetValueRefOrAddDefault)、外側のキーの件数だけ結果を流す。内側の列挙とキー選択子の評価の回数・順は変わらない。配列の直接 Consume と列挙子の構造体の両方。
 - テスト: `ContiguousLookupGenerationTests` に、配列・IEnumerable・null キーの3形を追加。
+- 結果(baseline7→8、理想比): Join_inner は List の ClassInt32 2.27→1.31、IEnumerable の ClassInt32 1.43→1.22、Int32 1.33→1.15・1.20→0.99。
 
 ## 2026-10-04 IEnumerable の根を最後まで回すときは、列挙子を局所変数に取って直接回す(採用候補)
 
 - 原因: 差し替えメソッドが IEnumerable の根を最後まで回すとき、根の構造体の TryGetNext(遅延の GetEnumerator・`Current` と添字の保存)を要素ごとに呼んでいた。実験(Work/exp/ienumroot。時間で区切った温めと交互計測)では int の要素で理想版(foreach)の1.45倍、列挙子を局所変数に取って MoveNext/Current を直接呼ぶと1.04倍(参照型では差は1割程度)。IEnumerable の Zip(2つの根)で理想の1.5〜2.5倍。
 - 修正: IEnumerable の根の構造体に `GetRemainingEnumerator()`(続きから回る列挙子。破棄は根の Dispose が受け持つ)を足し、最後まで回すループ(直接 Consume の各経路・集合演算/重複除き/連結の走査・Zip・Aggregate など)は `var e=root.GetRemainingEnumerator(); while(e.MoveNext()){ var x=e.Current; …}` にする。span を出せる場合の分岐はそのまま。
 - テスト: 既存の `NonSpanRootDirectConsumeTests`・`ZipResultSelectorConsumeTests` などで結果が同じ。`NonSpanRootDirectConsumeTests` に直接回す形の確認を、`PerformanceShapeTests.EnumerableRuntimeSpanPathKeepsFallback` を新しい形に合わせた。
-- 結果: 次の取り直しで記録する。
+- 結果(baseline7→8、理想比): IEnumerable の Zip_tuple は ClassInt32 2.54→0.90・Int32 2.13→0.98、Zip_second は ClassInt32 1.50→0.79・Int32 1.51→0.96、TakeLast(Int32) 1.21→0.95、SkipLast(Int32) 1.31→0.99、射影融合の IEnumerableInt32 Select_member 1.73→1.13。IEnumerable タブ全体 1.093→1.021。
