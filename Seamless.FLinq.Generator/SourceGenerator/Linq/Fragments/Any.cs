@@ -172,7 +172,7 @@ internal class Any_predicate(int 番号,Enumerable source,FuncFragment predicate
         $"this.Current = Compute(ref this.{this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         source is RangeRoot range
-            ? RangePredicateOptimizer.RenderAny(range,predicate,番号,destVar,destType)
+            ? (predicate.ContainsAnchor ? null : RangePredicateOptimizer.RenderAny(range,predicate,番号,destVar,destType)) // .Anchor を含む述語は評価の回数を変えてはいけないので、範囲の形から答えを出す近道を使わない。
                 ??(TryRenderDirectLambda(predicate) is { } rangeLambda
                     ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any",rangeLambda)??this.RenderComputeInline(destVar,destType)
                     : this.RenderComputeInline(destVar,destType))

@@ -42,7 +42,9 @@ internal class Count(int 番号,Enumerable source,string resultType):BufferedSca
         if(source is RepeatRoot repeat) {
             return $"{destType} {destVar}=({destType})({repeat.CountExpression});";
         }
-        if(source.NonEnumeratedCountExpression is { } countExpression) {
+        // 列挙せずに件数を出すと選択子の評価が省かれる。System.Linq の Count は Select の選択子を評価するので、
+        // .Anchor を含む連鎖ではこの近道を使わない(Any は System.Linq も評価しないので近道のままでよい)。
+        if(source.NonEnumeratedCountExpression is { } countExpression&&!source.TreeContainsAnchor()) {
             return $"{destType} {destVar}=({destType})({countExpression});";
         }
         return this.RenderDirectEnumerableCountInline(source,destVar,destType)
@@ -125,7 +127,7 @@ internal class Count_predicate(int 番号,Enumerable source,FuncFragment predica
     public override string? RenderInlineComputation(string destVar,string destType) {
         var methodName = resultType is "long" or "global::System.Int64" ? "LongCount" : "Count";
         return source is RangeRoot range
-            ? RangePredicateOptimizer.RenderCount(range,predicate,番号,destVar,destType)
+            ? (predicate.ContainsAnchor ? null : RangePredicateOptimizer.RenderCount(range,predicate,番号,destVar,destType)) // .Anchor を含む述語は評価の回数を変えてはいけないので、範囲の形から答えを出す近道を使わない。
                 ??(TryRenderDirectLambda(predicate) is { } rangeLambda
                     ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,rangeLambda)??this.RenderComputeInline(destVar,destType)
                     : this.RenderComputeInline(destVar,destType))

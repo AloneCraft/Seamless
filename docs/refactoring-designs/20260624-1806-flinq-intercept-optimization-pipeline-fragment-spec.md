@@ -634,6 +634,9 @@ Anchor は「最適化全停止」ではなく「評価回数・評価順を変�
 | `Take` / `Skip` merge | 可能 | 該当 stage は merge しない |
 | `Reverse.Reverse` cancel | 可能 | Anchor 付き stage を cancel しない仕様へ寄せる |
 | `OrderBy` direct consume | 可能 | 評価順変更を伴う場合は禁止 |
+| Range の述語を範囲の形から解く(All/Any/Count の偶奇・比較) | 可能 | 述語に Anchor があれば要素ごとに評価する |
+| 列挙せずに件数を出す(`Select(f).Count()` など) | 可能 | Anchor 付きの段があれば列挙して評価する |
+| `GroupJoin` の探索表・内側の列挙の省略(結果が内側を使わない形) | 可能(内側を列挙もしない) | 内側のソース式に Anchor があれば内側を1回列挙する |
 
 現在の `PipelineStage.ContainsAnchor` は、stage の `FuncFragment`、second/third func、value text から Anchor を集約する。
 

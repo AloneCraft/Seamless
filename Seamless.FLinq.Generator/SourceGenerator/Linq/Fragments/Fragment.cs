@@ -112,6 +112,15 @@ internal abstract class Fragment(
         ClosureRenderSupport.StaticDelegateLocalDeclarations(funcs);
 
     protected virtual IEnumerable<Fragment> GetChildFragments() => Array.Empty<Fragment>();
+
+    // ソース式に .Anchor を書いた root か。.Anchor は生成コードでは消える(恒等)ので、root を作るときに構文から記録する。
+    internal bool SourceContainsAnchor { get; set; }
+
+    // この断片の木(子の断片とラムダ)のどこかに .Anchor があるか。評価の回数を変える変換をしてよいかの判定に使う。
+    internal bool TreeContainsAnchor() =>
+        this.SourceContainsAnchor
+        ||this.GetChildFunctions().Any(static function => function.ContainsAnchor)
+        ||this.GetChildFragments().Any(static child => child.TreeContainsAnchor());
     protected virtual IEnumerable<FuncFragment> GetChildFunctions() => Array.Empty<FuncFragment>();
     protected static IEnumerable<Fragment> EnumerateChildFragments<T>(IEnumerable<T> children) where T:Fragment {
         foreach(var child in children) {

@@ -102,17 +102,16 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
     protected override string GetEnumeratorDisposeBody => $"{this.lookup}?.Dispose(); {this.e}.Dispose();";
 
     // 結果選択子が内側のグループを使わず、キー選択子が恒等で比較子も既定なら、探索表の中身は結果に現れない。
-    // そのときは探索表を作らず、内側は列挙だけする(列挙の副作用と例外は残す)。ソース式の評価と列挙子の構築は
-    // 通常と同じ順・同じ時点で行う。
+    // そのときは探索表を作らない。ソース式の評価と列挙子の構築は通常と同じ順・同じ時点で行う。
     private bool CanSkipLookup() =>
         this.comparerExpression=="null"
         &&this.outerKey.IsIdentity
         &&this.innerKey.IsIdentity
         &&this.ResultSelectorReturnsOuter();
 
-    // 配列・List・Range・Repeat の列挙は副作用も例外も無いので、内側の列挙そのものも省ける。
-    private bool InnerEnumerationIsObservable() =>
-        this.innerSource is not (ArrayRoot or ListRoot or RangeRoot or RepeatRoot);
+    // FLinq の契約では .Anchor の無いソースは列挙に副作用も例外も無いとみなすので、内側の列挙そのものも省く。
+    // 内側のソース式に .Anchor があるときだけ、列挙の副作用と例外を残すために列挙する。
+    private bool InnerEnumerationIsObservable() => this.innerSource.TreeContainsAnchor();
 
     private bool CanBypassLookupForConsume() =>
         this.comparerExpression=="null"

@@ -552,7 +552,9 @@ public sealed partial class FLinqIncrementalGenerator {
             if(IsNonGenericIEnumerableType(expressionType)) {
                 fragment=new NonGenericRoot(
                     uniqueNumber++,
-                    RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,unsafeAccessorCollector));
+                    RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,unsafeAccessorCollector)) {
+                    SourceContainsAnchor=AnchorAnalysis.ContainsAnchor(expression,semanticModel),
+                };
                 return true;
             }
 
@@ -580,6 +582,7 @@ public sealed partial class FLinqIncrementalGenerator {
             concreteEnumeratorTypeName,
             isDuckTyping,
             effectiveUseEnumerableInterface);
+        fragment.SourceContainsAnchor=AnchorAnalysis.ContainsAnchor(expression,semanticModel);
         return true;
     }
 
@@ -1940,7 +1943,9 @@ public sealed partial class FLinqIncrementalGenerator {
             if(IsNonGenericIEnumerableType(expressionType)) {
                 fragment=new NonGenericRoot(
                     uniqueNumber++,
-                    RenderExpressionForRootInlining(expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap));
+                    RenderExpressionForRootInlining(expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap)) {
+                    SourceContainsAnchor=AnchorAnalysis.ContainsAnchor(expression,semanticModel),
+                };
                 return true;
             }
 
@@ -1963,6 +1968,7 @@ public sealed partial class FLinqIncrementalGenerator {
             concreteEnumeratorTypeName,
             isDuckTyping,
             effectiveUseEnumerableInterface);
+        fragment.SourceContainsAnchor=AnchorAnalysis.ContainsAnchor(expression,semanticModel);
         return true;
     }
 
