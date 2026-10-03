@@ -342,7 +342,8 @@ internal sealed partial class PipelineEnumerable {
             return null;
         }
         var sourceName = $"__reverseSource{this.result}";
-        if(source.GetDirectSpanExpression(sourceName) is not { } spanExpression) {
+        var spanExpression = source.GetDirectSpanExpression(sourceName);
+        if(spanExpression is null&&!source.ProvidesRemainingEnumerator) {
             return null;
         }
         string sourceExpression;
@@ -368,13 +369,54 @@ internal sealed partial class PipelineEnumerable {
         }
         body.AppendLine($"    {consumerName}.Consume({currentName});");
         var loopBody = IndentLines(body.ToString().TrimEnd(),"    ");
+        if(spanExpression is not null) {
+            return $$"""
+                {{localDeclarations}}
+                using var {{sourceName}}={{sourceExpression}};
+                var {{spanName}}={{spanExpression}};
+                for(var {{indexName}}={{spanName}}.Length-1;{{indexName}}>=0;{{indexName}}--){
+                    var {{itemName}}={{spanName}}[{{indexName}}];
+                {{loopBody}}
+                }
+                """;
+        }
+        // IEnumerable の根: 実行時に span を出せれば末尾から回し、出せなければ全件を借りた配列へ溜めてから末尾から回す
+        // (段を通る前の要素を溜めるので、述語の評価の回数は同じで順だけが逆になる)。
+        var elementType = source.ElementType;
+        var bufferName = $"__reverseBuffer{this.result}";
+        var filledName = $"__reverseFilled{this.result}";
+        var nextName = $"__reverseNext{this.result}";
+        var drainItemName = $"__reverseDrained{this.result}";
         return $$"""
             {{localDeclarations}}
             using var {{sourceName}}={{sourceExpression}};
-            var {{spanName}}={{spanExpression}};
-            for(var {{indexName}}={{spanName}}.Length-1;{{indexName}}>=0;{{indexName}}--){
-                var {{itemName}}={{spanName}}[{{indexName}}];
-            {{loopBody}}
+            if({{sourceName}}.TryGetSpan(out var {{spanName}})){
+                for(var {{indexName}}={{spanName}}.Length-1;{{indexName}}>=0;{{indexName}}--){
+                    var {{itemName}}={{spanName}}[{{indexName}}];
+                {{IndentLines(loopBody,"    ")}}
+                }
+            }else{
+                var {{bufferName}}=global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Rent(16);
+                var {{filledName}}=0;
+                try{
+                    {{IndentLines(DrainLoopHead(source,sourceName,drainItemName),"        ").TrimStart()}}
+                        if({{filledName}}=={{bufferName}}.Length){
+                            var {{nextName}}=global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Rent({{bufferName}}.Length*2);
+                            global::System.MemoryExtensions.AsSpan({{bufferName}},0,{{filledName}}).CopyTo({{nextName}});
+                            if(global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{elementType}}>()) global::System.MemoryExtensions.AsSpan({{bufferName}},0,{{filledName}}).Clear();
+                            global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Return({{bufferName}});
+                            {{bufferName}}={{nextName}};
+                        }
+                        {{bufferName}}[{{filledName}}++]={{drainItemName}};
+                    }
+                    for(var {{indexName}}={{filledName}}-1;{{indexName}}>=0;{{indexName}}--){
+                        var {{itemName}}={{bufferName}}[{{indexName}}];
+                    {{IndentLines(loopBody,"        ")}}
+                    }
+                }finally{
+                    if(global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{elementType}}>()) global::System.MemoryExtensions.AsSpan({{bufferName}},0,{{filledName}}).Clear();
+                    global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Return({{bufferName}});
+                }
             }
             """;
     }

@@ -1779,3 +1779,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: IEnumerable の Min/Max/Aggregate/LongCount などのスカラー終端は、差し替えメソッドの中のローカル関数(Compute)で根の構造体の TryGetNext を要素ごとに呼んでいた(Current と添字の保存。ClassInt32 の Min で理想の1.6倍など)。
 - 修正: ローカル関数では列挙子が具体の構造体の型なので、IEnumerable の根なら Compute の中の最後まで回すループ(`while(source.TryGetNext(out … x)){`)を、`GetRemainingEnumerator()` の MoveNext/Current を直接呼ぶ形に書き換える(続きから回るので、ループの前の TryGetNext とも整合する)。
 - IL 監査: 配列・List の Sum の理想形との差が解消したので許可リストから外した。
+
+## 2026-10-04 IEnumerable の根の Reverse と Where/Select の並びも末尾から回す(採用候補)
+
+- 原因: List タブのベンチは List を IEnumerable として渡すので、span を末尾から回す経路(配列・List の根だけ)に乗らなかった(押し下げタブの ListClassInt32 Reverse_Where で理想の2.2倍)。
+- 修正: IEnumerable の根なら、実行時に span を出せれば末尾から回し、出せなければ全件を借りた配列へ溜めてから末尾から回す(述語の評価の回数は同じで、順が逆になる。.Anchor があれば使わない)。
+- テスト: `SpanReverseConsumeTests` に List を IEnumerable で渡す形と遅延の列を追加。

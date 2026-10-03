@@ -25,12 +25,19 @@ public sealed class SpanReverseConsumeTests {
         public abstract class Holder<T> where T : notnull {
             public abstract T[] Array();
             public List<T> List() => new(this.Array());
+            public IEnumerable<T> AsEnumerable() => this.List();
+            public IEnumerable<T> Lazy() {
+                foreach(var value in this.Array()) {
+                    yield return value;
+                }
+            }
             public static int N(T value) => value is Item item ? item.Value : (int)(object)value;
             public string RunFLinq() {
                 var results = new List<string>();
                 foreach(var action in new Action<Sink>[] {
                     sink => this.ReverseWhere(sink),sink => this.WhereReverse(sink),sink => this.SelectReverseWhere(sink),
                     sink => this.ListReverseSelect(sink),sink => this.ReverseOnlyList(sink),sink => this.EmptyReverseWhere(sink),
+                    sink => this.EnumerableListReverseWhere(sink),sink => this.LazyWhereReverse(sink),
                 }) {
                     var sink = new Sink();
                     action(sink);
@@ -46,12 +53,17 @@ public sealed class SpanReverseConsumeTests {
                 this.List().AsEnumerable().Reverse().Select(x => N(x)+100).Cast<object>(),
                 this.List().Where(x => N(x)!=5).Reverse().Cast<object>(),
                 System.Array.Empty<T>().Reverse().Where(x => N(x)>0).Cast<object>(),
+                this.AsEnumerable().Reverse().Where(x => N(x)%3!=0).Cast<object>(),
+                this.Lazy().Where(x => N(x)>2).Reverse().Select(x => N(x)*10).Cast<object>(),
             }.Select(values => string.Join(",",values)));
             [LinqIntercept(true)] private void ReverseWhere(Sink sink) => sink.Consume(this.Array().Reverse().Where(x => N(x)%3!=0));
             [LinqIntercept(true)] private void WhereReverse(Sink sink) => sink.Consume(this.Array().Where(x => N(x)>2).Reverse());
             [LinqIntercept(true)] private void SelectReverseWhere(Sink sink) => sink.Consume(this.Array().Select(x => N(x)*2).Reverse().Where(x => x%4==0));
             [LinqIntercept(true)] private void ListReverseSelect(Sink sink) => sink.Consume(Enumerable.Reverse(this.List()).Select(x => N(x)+100));
             [LinqIntercept(true)] private void ReverseOnlyList(Sink sink) => sink.Consume(this.List().Where(x => N(x)!=5).Reverse());
+            // IEnumerable の根: 実行時に span を出せれば末尾から、出せなければ溜めてから末尾から回す。
+            [LinqIntercept(true)] private void EnumerableListReverseWhere(Sink sink) => sink.Consume(this.AsEnumerable().Reverse().Where(x => N(x)%3!=0));
+            [LinqIntercept(true)] private void LazyWhereReverse(Sink sink) => sink.Consume(this.Lazy().Where(x => N(x)>2).Reverse().Select(x => N(x)*10));
             [LinqIntercept(true)] private void EmptyReverseWhere(Sink sink) => sink.Consume(System.Array.Empty<T>().Reverse().Where(x => N(x)>0));
         }
         public sealed class ItemHolder:Holder<Item> {
@@ -68,11 +80,12 @@ public sealed class SpanReverseConsumeTests {
 
     [Fact]
     public void Spanを末尾から回して段をその場に展開する() {
-        var (compilation,generated) = ExecutableGeneration.Generate(Source,"SpanReverseConsumeProbe",6);
+        var (compilation,generated) = ExecutableGeneration.Generate(Source,"SpanReverseConsumeProbe",8);
         var (actual,expected) = ExecutableGeneration.Run(compilation,"Sample.Probe",probe => (
             (string)probe.GetMethod("RunFLinq")!.Invoke(null,null)!,
             (string)probe.GetMethod("RunLinq")!.Invoke(null,null)!));
         Assert.Equal(expected.Split('|','#'),actual.Split('|','#'));
         Assert.Contains("__reverseSpan",generated);
+        Assert.Contains("__reverseBuffer",generated);
     }
 }
