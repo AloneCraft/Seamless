@@ -36,7 +36,79 @@ internal sealed partial class PipelineEnumerable {
         ??this.RenderSingleSelectDirectConsume(consumerName)
         ??this.RenderSingleWhereDirectConsume(consumerName)
         ??this.RenderPureOrderingDirectConsume(consumerName)
+        ??this.RenderStatelessChainDirectConsume(consumerName)
         ??base.GetConsumeExecutionStatement(consumerName);
+
+    // 状態を持たない段(添字を使わない Select/Where)だけが2段以上並ぶとき、span(または Range)を差し替えメソッドの中で直接回し、
+    // 段の式をその場に展開する。列挙子の構造体の TryGetNext を入れ子に呼ぶ形は、参照型の要素の共有ジェネリックコードで
+    // 内側の呼び出しがインライン化されず遅い(Work/exp/nestedconsume: 入れ子 14.8µs、直接 4.3µs)。
+    private string? RenderStatelessChainDirectConsume(string consumerName) {
+        if(stages.Count<2
+            ||stages.Any(static stage => stage.Kind is not (PipelineStageKind.Select or PipelineStageKind.Where)
+                ||stage.UsesIndex
+                ||stage.Func is not { } function
+                ||function.RequiresStatementInlining
+                ||function.CanInvokeAsDelegate
+                ||!function.CanInlineAssign)) {
+            return null;
+        }
+        var functions = stages.Select(static stage => stage.Func!).ToArray();
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(functions),
+            this.StaticDelegateLocalDeclarations(functions),
+        }.Where(static value => !string.IsNullOrWhiteSpace(value)));
+        var itemName = this.ItemName(0);
+        var body = new StringBuilder();
+        var currentName = itemName;
+        for(var index = 0;index<stages.Count;index++) {
+            currentName=this.AppendStage(body,stages[index],currentName,index);
+        }
+        body.AppendLine($"    {consumerName}.Consume({currentName});");
+        var loopBody = IndentLines(body.ToString().TrimEnd(),"    ");
+        if(source is RangeRoot range) {
+            var start = $"__chainStart{this.result}";
+            var count = $"__chainCount{this.result}";
+            return $$"""
+                {{localDeclarations}}
+                {{range.RenderArgumentPreparation(start,count)}}
+                {{this.CounterCall("IncrementEnumerationLoopUsed")}}
+                for(var __i{{this.result}}=0;__i{{this.result}}<{{count}};__i{{this.result}}++){
+                    var {{itemName}}={{start}}+__i{{this.result}};
+                {{loopBody}}
+                }
+                """;
+        }
+        var sourceName = $"__chainSource{this.result}";
+        var directSpanExpression = source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is null) {
+            // span の無い根は、根の列挙子だけを差し替えメソッドから回す(入れ子は1段で、内側はインライン化される)。
+            string sourceEnumeratorExpression;
+            try {
+                sourceEnumeratorExpression=source.GetEnumeratorExpression;
+            } catch(NotSupportedException) {
+                return null;
+            }
+            return $$"""
+                {{localDeclarations}}
+                using var {{sourceName}}={{sourceEnumeratorExpression}};
+                {{this.CounterCall("IncrementEnumerationLoopUsed")}}
+                while({{sourceName}}.TryGetNext(out var {{itemName}})){
+                {{loopBody}}
+                }
+                """;
+        }
+        var spanName = $"__chainSpan{this.result}";
+        var directSpanSetup = new DirectConsumeSourceRenderModel(sourceName,source.GetEnumeratorExpression,spanName,directSpanExpression).RenderSetup();
+        return $$"""
+            {{localDeclarations}}
+            {{directSpanSetup}}
+            {{this.CounterCall("IncrementEnumerationLoopUsed")}}
+            for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++){
+                var {{itemName}}={{spanName}}[__i{{this.result}}];
+            {{loopBody}}
+            }
+            """;
+    }
 
     private string? RenderSingleAppendOrPrependDirectConsume(string consumerName) {
         if(stages.Count!=1) {
