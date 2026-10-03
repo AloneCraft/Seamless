@@ -56,15 +56,21 @@ internal abstract class BufferedScalar(int 番号,string resultType):Scalar(番�
         return true;
         """;
 
-    // インライン化時は Struct{番号}（単一要素 enumerator）を生成せず、static Compute だけを保持する
-    // 軽量 struct を出す。外側の型（補助クラス）から Compute を呼ぶため private→internal へ昇格する。
-    public override string InlineSupportingMembers => $$"""
-        {{this.StructSources}}
-        private struct {{this.Struct}}{{this.StructTypeParametersWithOuter("TEnum")}}
-            {{this.StructTypeConstraints}} {
-        {{IndentLines(this.ComputeMembers.Replace("private static","internal static"),"    ")}}
-        }
-        """;
+    // インライン化時は Struct{番号}（単一要素 enumerator）を生成しない。Compute は呼び出し地点のローカル関数にする
+    // (LocalComputeFunction)ので、ソースの列挙子だけを出す。
+    public override string InlineSupportingMembers => this.StructSources;
+
+    // Compute を差し替えメソッド内のローカル関数として出す。ジェネリック構造体の static Compute を経由すると、
+    // 参照型の T(共有ジェネリックコード)では Compute の中の列挙子の呼び出しが実行時の型引き当てつきの間接呼び出しの
+    // まま残り、インライン化されない。ローカル関数なら呼び出し元と同じ型文脈でインライン化される
+    // (2026-10-02 の実験で参照型の Count(predicate) が約2.6倍速い。値型では差が無い)。
+    private string LocalComputeFunction(Enumerable source) =>
+        global::System.Text.RegularExpressions.Regex.Replace(
+            this.ComputeMembers.Replace("private static ","static ").Replace(" Compute(",$" {this.LocalComputeName}("),
+            @"\bTEnum\b",
+            source.EnumeratorTypeName);
+
+    private string LocalComputeName => $"__compute{番号}";
 
     // ComputeExpression（= Compute(ref this.e{closure})）を「ソース列挙子をその場で作り Compute へ渡す」
     // インライン文へ変換する共通ヘルパー。Compute(...) 形を持つ単一ソース集約のみが opt-in する。
@@ -76,9 +82,9 @@ internal abstract class BufferedScalar(int 番号,string resultType):Scalar(番�
         try { srcExpr=src.GetEnumeratorExpression; } catch(NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
         var call = this.ComputeExpression
-            .Replace("Compute(",$"{this.EnumeratorTypeNameWithOuter(src.EnumeratorTypeName)}.Compute(")
+            .Replace("Compute(",$"{this.LocalComputeName}(")
             .Replace(this.e,srcVar);
-        return RenderOwnedEnumeratorComputation(destVar,destType,srcVar,srcExpr,call,this.ComputeOwnsEnumerator);
+        return RenderOwnedEnumeratorComputation(destVar,destType,srcVar,srcExpr,call,this.ComputeOwnsEnumerator,this.LocalComputeFunction(src));
     }
 
     // true の終端は、Compute が渡された列挙子の複製を自分で破棄する(値渡しで受けたライブラリ関数が using で破棄する)。
@@ -92,15 +98,16 @@ internal abstract class BufferedScalar(int 番号,string resultType):Scalar(番�
         try { srcExpr=src.GetEnumeratorExpression; } catch(NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
         var extra = extraArguments.Length==0 ? string.Empty : ", "+string.Join(", ",extraArguments);
-        var call = $"{this.EnumeratorTypeNameWithOuter(src.EnumeratorTypeName)}.Compute(ref {srcVar}{extra})";
-        return RenderOwnedEnumeratorComputation(destVar,destType,srcVar,srcExpr,call,this.ComputeOwnsEnumerator);
+        var call = $"{this.LocalComputeName}(ref {srcVar}{extra})";
+        return RenderOwnedEnumeratorComputation(destVar,destType,srcVar,srcExpr,call,this.ComputeOwnsEnumerator,this.LocalComputeFunction(src));
     }
 
-    private static string RenderOwnedEnumeratorComputation(string destVar,string destType,string srcVar,string srcExpr,string call,bool computeOwnsEnumerator) => computeOwnsEnumerator ? $$"""
+    private static string RenderOwnedEnumeratorComputation(string destVar,string destType,string srcVar,string srcExpr,string call,bool computeOwnsEnumerator,string localFunction) => computeOwnsEnumerator ? $$"""
         {{destType}} {{destVar}};
         {
             var {{srcVar}}={{srcExpr}};
             {{destVar}}={{call}};
+        {{IndentLines(localFunction,"    ")}}
         }
         """ : $$"""
         {{destType}} {{destVar}};
@@ -111,6 +118,7 @@ internal abstract class BufferedScalar(int 番号,string resultType):Scalar(番�
             }finally{
                 {{srcVar}}.Dispose();
             }
+        {{IndentLines(localFunction,"    ")}}
         }
         """;
 

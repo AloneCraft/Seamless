@@ -483,7 +483,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("global::Seamless.Linq.Enumerable.SumSpan<int>(__span)",StringComparison.Ordinal)
+            generated.Contains("global::Seamless.Linq.Enumerable.SumSpan<int>(__span",StringComparison.Ordinal)
             &&!generated.Contains("global::Seamless.Linq.Enumerable.SumSpan<float>",StringComparison.Ordinal),
             "Sum() over int should use the SIMD SumSpan helper; float must keep the scalar checked loop "
             +"(SumSpan's fallback path does not reproduce System.Linq's double-accumulation semantics for float).",
@@ -801,7 +801,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         GeneratedSourceAssert.True(
             compact.Contains(".Length)!=0",StringComparison.Ordinal)
             &&compact.Contains("=(long)(src.Length);",StringComparison.Ordinal)
-            &&compact.Contains(".Compute(ref__s",StringComparison.Ordinal)
+            &&compact.Contains("=__compute",StringComparison.Ordinal)&&compact.Contains("(ref__s",StringComparison.Ordinal)
             &&!generated.Contains("global::Seamless.Linq.IValueEnumerator<bool>",StringComparison.Ordinal)
             &&!generated.Contains("global::Seamless.Linq.IValueEnumerator<long>",StringComparison.Ordinal),
             "Scalar terminals should use source facts or static Compute inline without scalar enumerator structs.",
@@ -837,7 +837,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains(".Compute(ref __s",StringComparison.Ordinal)
+            generated.Contains("__compute",StringComparison.Ordinal)&&generated.Contains("(ref __s",StringComparison.Ordinal)
             &&generated.Contains("var count = 0;",StringComparison.Ordinal)
             &&!generated.Contains("long count = 0;",StringComparison.Ordinal)
             &&!generated.Contains("global::Seamless.Linq.IValueEnumerator<long>",StringComparison.Ordinal),
@@ -1271,7 +1271,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("TryGetNonEnumeratedCount(out var __count",StringComparison.Ordinal)
-            &&generated.Contains("TryCopyTo(global::System.MemoryExtensions.AsSpan(__result)",StringComparison.Ordinal)
+            &&generated.Contains("global::Seamless.Linq.GeneratedCodeHelpers.ToArrayFromEnumerable<int>(",StringComparison.Ordinal)
             &&generated.Contains("TryGetSpan(out var __sourceSpan",StringComparison.Ordinal),
             "IEnumerable<T> materialization should keep runtime count/copy/span fallback paths.",
             generated,
@@ -1302,9 +1302,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var max = GeneratedMethod(generated,"MaxAfterOrder");
 
         GeneratedSourceAssert.True(
-            min.Contains(".Compute(",StringComparison.Ordinal)
+            min.Contains("__compute",StringComparison.Ordinal)
             &&!min.Contains(".Dispose();",StringComparison.Ordinal)
-            &&max.Contains(".Compute(",StringComparison.Ordinal)
+            &&max.Contains("__compute",StringComparison.Ordinal)
             &&!max.Contains(".Dispose();",StringComparison.Ordinal),
             "Min/Max の Compute が列挙子の複製を破棄するので、呼び出し元は本体を Dispose してはいけない(二重 Return)。",
             generated,
@@ -1334,7 +1334,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         // 列挙子の破棄は呼び出し元の try-finally だけが行う。Compute が複製を破棄すると、コンストラクタでプール配列を借りる
         // 列挙子(OrderBy 等)で呼び出し元の Dispose と二重 Return になる(ScalarTerminalDisposeSemantics / GroupByOrder が実行で確認する)。
         GeneratedSourceAssert.True(
-            generated.Contains("global::Seamless.Linq.GeneratedCodeHelpers.ToListFromValueEnumerator<TEnum,int>(ref enumerator)",StringComparison.Ordinal)
+            global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"global::Seamless\.Linq\.GeneratedCodeHelpers\.ToListFromValueEnumerator<\w+,int>\(ref enumerator\)")
             &&!generated.Contains("enumerator.Dispose();",StringComparison.Ordinal)
             &&plain.Contains("finally{",StringComparison.Ordinal)
             &&plain.Contains(".Dispose();",StringComparison.Ordinal)
@@ -1516,7 +1516,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             method.Contains("source.Length",StringComparison.Ordinal)
-            &&!method.Contains(".Compute(ref __s",StringComparison.Ordinal)
+            &&!method.Contains("__compute",StringComparison.Ordinal)
             &&!method.Contains("TryGetNext",StringComparison.Ordinal),
             "A transparent AsEnumerable before Count must keep the direct array count path instead of creating an empty pipeline enumerator.",
             generated,

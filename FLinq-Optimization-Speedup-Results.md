@@ -1525,3 +1525,12 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 結果(FLinq÷理想、前→後): Array Int32 9.56→1.85、Array ClassInt32 19.65→5.35、List Int32 9.28→1.55、List ClassInt32 21.40→5.00、IEnumerable Int32 8.84→1.94、IEnumerable ClassInt32 8.06→4.27。IL が変わらない対照の Join_inner の変化は0.80〜1.31倍で、改善はこれを大きく超える。
 - 採否: 採用。改善は3%を大きく超え、IL が変わった行に悪化は無い。
 - 残り: ClassInt32 で理想比4〜5倍が残る。IEnumerable タブの ClassInt32 行全般の遅さ(参照型の共有ジェネリックコード仮説)と同じ原因か別途確かめる。
+
+## 2026-10-03 スカラー終端の Compute を差し替えメソッド内のローカル関数にする(採用)
+
+- 原因: スカラー終端(Count/Sum/Average/Min/Max/MinBy/MaxBy/Single/Last など、`BufferedScalar.RenderComputeInline` を通る23演算子)は、`private struct Struct<TEnum>{ static Compute(ref TEnum source) }` を経由していた。参照型の T(共有ジェネリックコード)では、インライン化された Compute の中の `TryGetNext` が実行時辞書を引いた間接呼び出し(`call rax`)のまま残り、反復子の `MoveNext` も脱仮想化されない(`DOTNET_JitDisasm` で確認)。値型の T では専用コードになるので差が無い。
+- 実験(`Work/exp/sharedgeneric`、git 管理外): 参照型で、現行形 27〜28µs、差し替えメソッド内のローカル関数 10.5µs、本体に直接ループ 10.5µs、foreach 6〜7µs。int ではどれも同程度。非ジェネリックな静的クラスのジェネリックメソッドにしても現行形と同じく遅い。
+- 修正: Compute をローカル関数 `__compute{番号}` として呼び出し地点のブロックに出し、`TEnum` を具体的な列挙子型に置き換える。インライン化のときの補助構造体(Compute だけを持つ)は出さない。
+- 結果(FLinq÷理想、修正前後を交互に2周、ildiff で IL が変わった124行): 幾何平均 0.904倍、ClassInt32 は 0.803倍。IEnumerable の ClassInt32 は LastOrDefault 3.64→1.31、Last 3.08→1.24、Average 2.73→1.16、Sum_selector 2.47→1.13 など 12行が 2.3〜3.6倍 → 1.1〜1.3倍。IL が変わらない539行の変化は中央値4.3%・90パーセンタイル15.4%。2周でこれを超えて悪化した6行は、4周ずつで測り直すと悪化なし(3行は改善)。
+- 形状テスト6件は、旧形(`Struct.Compute(`・`TEnum`)と、使われない補助構造体の中の文字列に依存していたので、新しい形(`__compute`)と実際の経路で検査するよう直した。IL 監査は構造体の中まで辿れるようになり、Array/List の `Sum`(ソースが yield の反復子)でループ内のインターフェース呼び出しが見えるようになった(TryGetNext 内の遅延 GetEnumerator を含む。許可リストに理由つきで記録)。
+- 採否: 採用。
