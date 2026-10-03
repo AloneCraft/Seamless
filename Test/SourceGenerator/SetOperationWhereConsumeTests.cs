@@ -4,7 +4,7 @@ namespace Test.SourceGenerator;
 
 /// <summary>
 /// Where と集合演算(Union/Except/Intersect と By 形)の組み合わせを Consume へ流したとき、結果(順・重複除き)が System.Linq と同じこと。
-/// Except は第2ソースの集合へ足せたものだけ、Intersect は第2ソースの集合から取り除けたものだけを流す(集合1つ)。
+/// Intersect は第2ソースの集合から取り除けたものだけを流す(集合1つ)。Except は第2ソースの集合に無く、出したものの集合へ足せたものだけを流す。
 /// 根と Where の並びは、集合演算と Where の列挙子の構造体を回さずに根を直接回す。
 /// </summary>
 [LinqIntercept(false)]
@@ -36,7 +36,7 @@ public sealed class SetOperationWhereConsumeTests {
                 foreach(var action in new Action<Sink>[] {
                     sink => this.IntersectWhere(sink),sink => this.ExceptWhere(sink),sink => this.UnionWhere(sink),
                     sink => this.WhereIntersectWhere(sink),sink => this.ListExceptWhere(sink),sink => this.IntersectByWhere(sink),
-                    sink => this.ExceptByWhere(sink),
+                    sink => this.ExceptByWhere(sink),sink => this.ArrayToHashSet(sink),sink => this.WhereToHashSet(sink),
                 }) {
                     var sink = new Sink();
                     action(sink);
@@ -53,6 +53,8 @@ public sealed class SetOperationWhereConsumeTests {
                 this.FirstList().Except(this.Second()).Where(x => N(x)%3!=0).Cast<object>(),
                 this.First().IntersectBy(this.Second().Select(x => N(x)%4),x => N(x)%4).Where(x => N(x)>1).Cast<object>(),
                 this.First().ExceptBy(this.Second().Select(x => N(x)%4),x => N(x)%4).Where(x => N(x)>0).Cast<object>(),
+                this.First().ToHashSet().Cast<object>(),
+                this.Second().Where(x => N(x)>2).ToHashSet().Cast<object>(),
             }.Select(values => string.Join(",",values)));
             [LinqIntercept(true)] private void IntersectWhere(Sink sink) => sink.Consume(this.First().Intersect(this.Second()).Where(x => N(x)%2==1));
             [LinqIntercept(true)] private void ExceptWhere(Sink sink) => sink.Consume(this.First().Except(this.Second()).Where(x => N(x)>1));
@@ -60,6 +62,9 @@ public sealed class SetOperationWhereConsumeTests {
             [LinqIntercept(true)] private void WhereIntersectWhere(Sink sink) => sink.Consume(this.First().Where(x => N(x)<9).Intersect(this.Second().Where(x => N(x)>1)));
             [LinqIntercept(true)] private void ListExceptWhere(Sink sink) => sink.Consume(this.FirstList().Except(this.Second()).Where(x => N(x)%3!=0));
             [LinqIntercept(true)] private void IntersectByWhere(Sink sink) => sink.Consume(this.First().IntersectBy(this.Second().Select(x => N(x)%4),x => N(x)%4).Where(x => N(x)>1));
+            // ToHashSet().Consume は集合へ足せた(初出の)要素をその場で流すのと同じ(足すだけの集合の列挙順は追加順)。
+            [LinqIntercept(true)] private void ArrayToHashSet(Sink sink) => sink.Consume(this.First().ToHashSet());
+            [LinqIntercept(true)] private void WhereToHashSet(Sink sink) => sink.Consume(this.Second().Where(x => N(x)>2).ToHashSet());
             [LinqIntercept(true)] private void ExceptByWhere(Sink sink) => sink.Consume(this.First().ExceptBy(this.Second().Select(x => N(x)%4),x => N(x)%4).Where(x => N(x)>0));
         }
         public sealed class ItemHolder:Holder<Item> {
@@ -86,12 +91,13 @@ public sealed class SetOperationWhereConsumeTests {
 
     [Fact]
     public void 集合演算とWhereの組み合わせがSystemLinqと同じ() {
-        var (compilation,generated) = ExecutableGeneration.Generate(Source,"SetOperationWhereConsumeProbe",7);
+        var (compilation,generated) = ExecutableGeneration.Generate(Source,"SetOperationWhereConsumeProbe",9);
         var (actual,expected) = ExecutableGeneration.Run(compilation,"Sample.Probe",probe => (
             (string)probe.GetMethod("RunFLinq")!.Invoke(null,null)!,
             (string)probe.GetMethod("RunLinq")!.Invoke(null,null)!));
         Assert.Equal(expected.Split('|','#'),actual.Split('|','#'));
-        // Except/Intersect は第2ソースの集合1つで判定する(第2ソースの集合の Contains と別の集合への Add の2回の表引きをしない)。
-        Assert.DoesNotContain(".Contains(__it",generated);
+        // Intersect は第2ソースの集合から取り除けたものだけを流す(集合1つ)。
+        Assert.Contains(".Remove(__it",generated);
+        Assert.Contains("__hashSetRoot",generated);
     }
 }

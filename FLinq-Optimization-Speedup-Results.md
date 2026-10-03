@@ -1756,3 +1756,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 
 - 原因: 押し下げで Join の両側に付く Where は Where の断片ではなく段の並び(PipelineEnumerable)で作られるため、`TryPeelWheres` が剥がせず、Join・集合演算の「根を直接回す」経路が押し下げタブの行で使われていなかった(生成コードを書き出して確認)。
 - 修正: 段がすべて添字の無い Where の段の並びも、根と述語に分ける。
+## 2026-10-04 ToHashSet().Consume は集合へ足せた要素をその場で流す(採用候補)
+
+- 原因: 配列・List・IEnumerable の `ToHashSet().Consume` は、集合を作る列挙子の構造体(根の構造体の入れ子)で集合を作ってから、集合をインターフェース越しに列挙していた(ClassInt32 で理想の1.5倍)。
+- 修正: 足すだけで作った HashSet の列挙順は追加順なので、集合へ足せた(初出の)要素をその場で流すのと同じ。ソースが根と Where の並びなら根を直接回す(Range は従来どおり集合を作らない)。
+- テスト: `SetOperationWhereConsumeTests` に配列(重複あり)と、Where の付いた遅延の列の ToHashSet を追加。
+

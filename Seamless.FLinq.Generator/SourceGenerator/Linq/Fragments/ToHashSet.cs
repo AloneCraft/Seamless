@@ -64,9 +64,11 @@ internal interface IStreamingMaterializeConsume {
 
 internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSetBase(番号,source,resultType),IStreamingMaterializeConsume {
     // Range の値は一意なので、ToHashSet().Consume は Range をそのまま流すのと同じ(集合の列挙順は追加順)。
+    // それ以外も、足すだけで作った集合の列挙順は追加順なので、集合へ足せた(初出の)要素をその場で流すのと同じ。
+    // ソースが根と Where の並びなら根を直接回す(集合を作る列挙子の構造体→根の構造体の入れ子を回さない)。
     public string? RenderStreamingConsume(string consumerName) {
         if(source is not RangeRoot range||source.ElementType!="int") {
-            return null;
+            return this.RenderDistinctStreamingConsume(consumerName);
         }
         var start = $"__start{番号}";
         var count = $"__count{番号}";
@@ -76,6 +78,35 @@ internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashS
                 for(var __i{{番号}}=0;__i{{番号}}<{{count}};__i{{番号}}++){
                     {{consumerName}}.Consume({{start}}+__i{{番号}});
                 }
+            }
+            """;
+    }
+
+    private string? RenderDistinctStreamingConsume(string consumerName) {
+        if(source.TreeContainsAnchor()||!TryPeelWheres(source,out var root,out var predicates)) {
+            return null;
+        }
+        string rootExpression;
+        try {
+            rootExpression=root.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var rootName = $"__hashSetRoot{番号}";
+        var itemName = $"__hashSetItem{番号}";
+        var setName = $"__hashSet{番号}";
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(predicates),
+            this.StaticDelegateLocalDeclarations(predicates),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        return $$"""
+            {
+                {{localDeclarations}}
+                using var {{rootName}}={{rootExpression}};
+                var {{setName}}={{rootName}}.TryGetNonEnumeratedCount(out var {{setName}}Count)
+                    ? new global::System.Collections.Generic.HashSet<{{source.ElementType}}>({{setName}}Count)
+                    : new global::System.Collections.Generic.HashSet<{{source.ElementType}}>();
+                {{IndentGeneratedStatement(this.RenderRootLoop(root,predicates,rootName,itemName,$"if({setName}.Add({itemName})){{\n    {consumerName}.Consume({itemName});\n}}"),"    ").TrimStart()}}
             }
             """;
     }
