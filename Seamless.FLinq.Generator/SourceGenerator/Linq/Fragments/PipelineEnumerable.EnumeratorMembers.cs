@@ -118,7 +118,9 @@ internal sealed partial class PipelineEnumerable {
                 } else if(stage.Kind is PipelineStageKind.Union or PipelineStageKind.UnionBy) {
                     builder.AppendLine($"this.{this.SetName(index)} = new({this.ComparerName(this.ComparerOrdinal(index))});");
                 } else if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy) {
-                    builder.AppendLine($"this.{this.SecondSetName(index)} = new({this.ComparerName(this.ComparerOrdinal(index))});");
+                    // 第2ソースの件数が列挙せずに分かれば、集合を最初からその大きさで作る(足しながら広げ直さない)。
+                    var secondCount = $"__secondCount{this.item}_{index}";
+                    builder.AppendLine($"this.{this.SecondSetName(index)} = new(this.{this.SecondEnumeratorName(this.SecondOrdinal(index))}.TryGetNonEnumeratedCount(out var {secondCount})?{secondCount}:0,{this.ComparerName(this.ComparerOrdinal(index))});");
                     if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
                         builder.AppendLine($"this.{this.SetName(index)} = new({this.ComparerName(this.ComparerOrdinal(index))});");
                     }

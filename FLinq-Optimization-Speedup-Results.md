@@ -1790,3 +1790,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 
 - 9回目の取り直しで、Except を第2ソースの集合1つ(Add)にした形は遅くなった(ListInt32 Except_first_Where 1.35→1.81、Range 1.72→2.16。出していない要素はすべて大きい第2ソースの集合へ足すことになる)。Except は元の「第2ソースの集合に無く、出したものの集合へ足せたもの」に戻す。Intersect の Remove(集合1つ)は速くなったので残す(ListInt32 Intersect_first_Where 1.88→1.12)。
 - .Anchor の無い Range の後に添字の無い Where だけが並ぶなら値は一意なので、重複除きをせず第2ソースの集合の Contains だけで判定する。
+
+## 2026-10-04 段の並びの Except/Intersect は、第2ソースの集合を件数どおりの大きさで作る(採用)
+
+- 原因: 第2ソースの集合を最小の大きさで作り、足しながら何度も広げ直していた。理想版は最初から件数分の大きさで作る。
+- 変更: 第2ソースの列挙子が列挙せずに件数を出せれば、その件数で集合を作る(`PipelineEnumerable.EnumeratorMembers.cs`)。
+- 計測(押し下げ・Range・List の3タブ、性能コア1個で2周、10回目と比較): Except/Intersect を含む18行の幾何平均 1.038/1.020 → 0.886/0.901。押し下げタブ全体 1.089/1.065 → 1.005/1.039。Range の Except_first_Where 1.55→0.90、ListInt32 Except_first_Where 1.9→1.14〜1.53。List タブは変化なし、Range タブ全体は 1.015/0.994 → 1.038/1.017(2周の間の差と同じ程度)。
