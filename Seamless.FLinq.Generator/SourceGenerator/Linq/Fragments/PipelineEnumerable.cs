@@ -36,6 +36,10 @@ internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IR
         }
     }
 
+    // 段の並びの根と段(Fragment.TryPeelWheres が Where だけの段の並びを根と述語に分けるのに使う)。
+    internal Enumerable PipelineSource => source;
+    internal IReadOnlyList<PipelineStage> PipelineStages => stages;
+
     private bool StagesCountPreserving => stages.All(static stage => stage.Kind is PipelineStageKind.Select or PipelineStageKind.AsEnumerable or PipelineStageKind.Cast);
     private bool SingleDefaultIfEmpty => stages.Count==1&&stages[0].Kind==PipelineStageKind.DefaultIfEmpty;
     protected override Enumerable PrimarySource => source;

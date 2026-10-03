@@ -525,14 +525,26 @@ internal abstract class Fragment(
     // 差し替えメソッドの中で根を直接回して述語をその場に展開するのに使う(構造体→Where の構造体→根の構造体の入れ子は、
     // 参照型の共有ジェネリックコードで内側がインライン化されない)。評価の順は Where の構造体を回すときと同じ。
     internal static bool TryPeelWheres(Enumerable fragment,out Enumerable root,out FuncFragment[] predicates) {
+        // 内側(根に近い方)から順に並ぶよう、外側から剥がした述語の塊を先頭へ足していく。
         var collected = new List<FuncFragment>();
         var current = fragment;
-        while(current.GetType()==typeof(Where_predicate)) {
-            var where = (Where_predicate)current;
-            collected.Add(where.Predicate);
-            current=where.Source;
+        while(true) {
+            if(current.GetType()==typeof(Where_predicate)) {
+                var where = (Where_predicate)current;
+                collected.Insert(0,where.Predicate);
+                current=where.Source;
+                continue;
+            }
+            // 段の並び(押し下げで作られた Where など)も、添字の無い Where だけなら同じ。
+            if(current is PipelineEnumerable pipeline
+                &&pipeline.PipelineStages.Count>0
+                &&pipeline.PipelineStages.All(static stage => stage.Kind==PipelineStageKind.Where&&!stage.UsesIndex&&stage.Func is not null)) {
+                collected.InsertRange(0,pipeline.PipelineStages.Select(static stage => stage.Func!));
+                current=pipeline.PipelineSource;
+                continue;
+            }
+            break;
         }
-        collected.Reverse();
         root=current;
         predicates=collected.ToArray();
         return current.ProvidesRemainingEnumerator||current is ArrayRoot or ListRoot;
