@@ -75,6 +75,10 @@ public sealed class JoinInnerRangeProbeTests {
     [InlineData(-5,10,-2,3)]
     [InlineData(1,4096,2049,2048)]
     [InlineData(int.MaxValue-3,4,int.MaxValue-1,2)]
+    [InlineData(1,-1,1,5)]
+    [InlineData(1,5,1,-1)]
+    [InlineData(int.MaxValue,2,1,5)]
+    [InlineData(10,5,1,3)]
     public void System_Linqと同じ結果を返す(int start,int count,int innerStart,int innerCount) {
         var (compilation,_) = ExecutableGeneration.Generate(Source,"JoinInnerRangeProbe",5);
         var (actual,expected) = ExecutableGeneration.Run(compilation,"Sample.Probe",probe => (
@@ -89,5 +93,7 @@ public sealed class JoinInnerRangeProbeTests {
         // 区間判定は4つ(x%3 のキーは従来の探索表)。
         Assert.Equal(4,global::System.Text.RegularExpressions.Regex.Matches(generated,@"private long __innerLow\d+;").Count);
         Assert.Contains("BuildLookup(",generated);
+        // 外側も恒等キーの Range なら、Consume は2つの区間の重なりだけを回す。
+        Assert.Contains("__joinOverlapLow",generated);
     }
 }

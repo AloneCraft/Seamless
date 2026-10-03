@@ -1687,3 +1687,8 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: 待ち行列(ValueQueue)へ入れて溢れたら取り出す形で、要素ごとに Enqueue/Dequeue の境界判定と添字の折り返しが2回ずつあった(IEnumerable の TakeLast_count で理想の2.4倍、SkipLast_count で1.9倍)。
 - 修正: 理想版と同じく、満ちたら最も古い位置へ上書きする環状の配列(ArrayPool)にする。配列は件数の見込みが立つまで倍々に借り直す。SkipLast(0) はそのまま流す。
 - テスト: `NonSpanRootDirectConsumeTests` に件数 0・3・1500・2400・3000(2500件の列。初めの1024を超えて伸びる場合を含む)の TakeLast/SkipLast を追加。
+
+## 2026-10-04 Range 同士の恒等キーの Join は区間の重なりだけを回す(採用候補)
+
+- 外側も .Anchor の無い Range で外側のキーが恒等なら、一致するのは2つの区間の重なりの値だけで、内側の要素も外側の要素と等しい。外側を全部回して区間の内外を調べず、重なりだけを回す(引数の検査は両方の Range について行う)。System.Range の Join_inner(理想の2.2倍)。
+- テスト: `JoinInnerRangeProbeTests` に不正な件数(両側)・int の端・重ならない区間を追加し、重なりの経路が出ることを確かめる。

@@ -130,6 +130,9 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         goto {{this.Start}};
         """;
     public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.RenderRangeOverlapConsume(consumerName) is { } overlapConsume) {
+            return overlapConsume;
+        }
         if(this.UseResultTypeParam
             ||this.outerSource.DirectArrayExpression is not { } outerArrayExpression
             ||this.innerSource.DirectArrayExpression is not { } innerArrayExpression) {
@@ -188,6 +191,45 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             }
             } finally {
                 {{lookupBuilderName}}.Dispose();
+            }
+            """;
+    }
+    // 外側も .Anchor の無い Range で外側のキーが恒等なら、一致するのは2つの区間の重なりの値だけで、内側の要素も外側の要素と等しい。
+    // 外側を全部回して区間の内外を調べず、重なりだけを回す(引数の検査は両方の Range について行う)。
+    private string? RenderRangeOverlapConsume(string consumerName) {
+        if(this.UseResultTypeParam
+            ||!this.ProbesInnerRange()
+            ||this.outerSource is not RangeRoot outerRange
+            ||this.innerSource is not RangeRoot innerRange
+            ||this.outerSource.TreeContainsAnchor()
+            ||!this.outerKey.IsIdentity
+            ||this.outerKey.ContainsAnchor
+            ||this.resultSelector.ContainsAnchor) {
+            return null;
+        }
+        var outerStart = $"__joinOuterStart{番号}";
+        var outerCount = $"__joinOuterCount{番号}";
+        var innerStart = $"__joinInnerStart{番号}";
+        var innerCount = $"__joinInnerCount{番号}";
+        var low = $"__joinOverlapLow{番号}";
+        var high = $"__joinOverlapHigh{番号}";
+        var value = $"__joinOverlapValue{番号}";
+        var itemName = $"__joinOverlapItem{番号}";
+        var resultName = $"__joinOverlapResult{番号}";
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(this.resultSelector),
+            this.StaticDelegateLocalDeclarations(this.resultSelector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var assign = $"{this.ElementType} {resultName}=default!;\n{this.FuncAssignStatic(this.resultSelector,nameof(this.resultSelector),resultName,itemName,itemName)}\n{consumerName}.Consume({resultName});";
+        return $$"""
+            {{localDeclarations}}
+            {{outerRange.RenderArgumentPreparation(outerStart,outerCount)}}
+            {{innerRange.RenderArgumentPreparation(innerStart,innerCount)}}
+            var {{low}}=global::System.Math.Max((long){{outerStart}},(long){{innerStart}});
+            var {{high}}=global::System.Math.Min((long){{outerStart}}+{{outerCount}},(long){{innerStart}}+{{innerCount}});
+            for(var {{value}}={{low}};{{value}}<{{high}};{{value}}++){
+                var {{itemName}}=(int){{value}};
+                {{IndentGeneratedStatement(assign,"    ")}}
             }
             """;
     }
