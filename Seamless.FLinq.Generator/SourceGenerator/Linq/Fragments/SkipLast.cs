@@ -17,7 +17,7 @@ internal class SkipLast(int 番号,Enumerable source,string skipCount):Enumerabl
     private string SkipCountExpression => skipCount;
     private Enumerable RootSource => this.Source is SkipLast skipLast ? skipLast.RootSource : this.Source;
     private string EffectiveSkipCount => this.Source is SkipLast skipLast
-        ? $"(int)global::System.Math.Min(int.MaxValue,(long)({skipLast.EffectiveSkipCount})+({this.SkipCountExpression}))"
+        ? $"(int)global::System.Math.Min(int.MaxValue,(long)global::System.Math.Max(0,{skipLast.EffectiveSkipCount})+global::System.Math.Max(0,{this.SkipCountExpression}))"
         : this.SkipCountExpression;
     protected override Enumerable PrimarySource => this.RootSource;
     public override string StructMethod => string.Empty;
@@ -110,6 +110,21 @@ internal class SkipLast(int 番号,Enumerable source,string skipCount):Enumerabl
             """;
     public override string ElementType => this.RootSource.ElementType;
     public override string GetConsumeExecutionStatement(string consumerName) {
+        // Range の SkipLast は先頭からの短い Range(待ち行列は要らない)。評価順は Range の引数、捨てる件数の順。
+        if(this.RootSource is RangeRoot range) {
+            var start = $"__skipLastStart{番号}";
+            var count = $"__skipLastRangeCount{番号}";
+            var keep = $"__skipLastKeep{番号}";
+            return $$"""
+                {
+                    {{GroupBySupport.IndentBlock(range.RenderArgumentPreparation(start,count),"    ").TrimStart()}}
+                    var {{keep}}={{count}}-global::System.Math.Clamp({{this.EffectiveSkipCount}},0,{{count}});
+                    for(var __skipLastIndex{{番号}}=0;__skipLastIndex{{番号}}<{{keep}};__skipLastIndex{{番号}}++){
+                        {{consumerName}}.Consume({{start}}+__skipLastIndex{{番号}});
+                    }
+                }
+                """;
+        }
         var sourceName = $"__skipLastSource{番号}";
         var spanExpression = this.RootSource.GetDirectSpanExpression(sourceName);
         if(spanExpression is null) {

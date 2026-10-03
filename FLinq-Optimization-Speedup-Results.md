@@ -1586,3 +1586,10 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 内側が `.Anchor` の無い Range で、内側のキーが恒等(int)・比較子が既定なら、内側の要素はキーと等しく一意なので、探索表を作らず外側のキーが [始点,始点+個数) に入るかで判定し、一致ごとに結果選択子(外側, キー)を1件流す。内側は列挙しない(Range の列挙は観測されない)。System.Range タブの Join_inner(理想比45倍)。
 - テスト: `JoinInnerRangeProbeTests`(重なり・離れ・空・負の値・int の端・外側の重複・外側のキーが恒等でない形、内側のキーが恒等でない形は従来の探索表)。
 - 結果: 次の取り直しで記録する。
+
+## 2026-10-03 Range の SkipLast を短い Range として流す・SkipLast を重ねたときの負の件数を直す(採用)
+
+- Range の SkipLast を Consume へ流すとき、待ち行列を使わず先頭からの count-k 個を流す(System.Range タブの SkipLast_count、理想比12倍)。
+- 既存の不具合: `SkipLast(a).SkipLast(b)` の捨てる件数を a+b としていたため、a が負(何も捨てない)のとき b の分まで打ち消していた。各件数を0以上にしてから足す。
+- テスト: `RangeSkipLastTests`(負の件数・件数超え・空・int の端・不正な引数、重ねた形)。
+- 結果: 次の取り直しで記録する。
