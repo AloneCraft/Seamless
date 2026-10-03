@@ -617,6 +617,14 @@ namespace Seamless.Linq {
             this.firstElement=default!;
         }
 
+        // 共有配列の区間 elements[start..start+count) を指すグループ(生成コードが1本の配列へ並べたグループを組み立てるときに使う)。
+        // 配列は書き換えない前提で、要素は足せない。
+        public Grouping(TKey key,TElement[] elements,int start,int count) : this(key,0,elements,start,count) {
+            if((uint)start>(uint)elements.Length||(uint)count>(uint)(elements.Length-start)) {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+        }
+
         // 共有配列の区間 elements[start..start+count) を指すグループ。配列は書き換えない前提で、要素は足せない。
         internal Grouping(TKey key,uint hashCode,TElement[] elements,int start,int count) {
             this.key     =key;

@@ -1768,3 +1768,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 修正: 根(と Where)を差し替えメソッドの中で直接回して塊を作る。塊の配列は size が 1024 以下ならその大きさで、それより大きい size は 1024 から倍々に伸ばす(巨大な size で先に確保しない)。最後の塊は残りの件数の長さ(System.Linq と同じ)。
 - テスト: `NonSpanRootDirectConsumeTests` に Chunk(3)・Chunk(1500)(伸ばす場合)・Where の後の Chunk を追加。
 
+## 2026-10-04 Range の x%C の GroupBy・ToLookup のグループを1本の配列の区間にする(採用候補)
+
+- 原因: Range の GroupBy/ToLookup(x%C) の数式の形は、グループごとに要素の配列を作っていた(C 個の配列。System.Range の GroupBy/ToLookup で理想の1.5倍。理想版は1本の配列へ並べてグループは区間を指す)。
+- 修正: start≧0 の形は、全グループの要素を1本の配列へグループ順に並べ、グループはその区間を指す(`Grouping` に区間を指す公開の構築子を足した。区間のグループは要素を足せない)。
+- テスト: 既存の `RangeModuloGroupByTests`(負の値・int の端・空・不正な引数・要素選択子・ToLookup)。
+

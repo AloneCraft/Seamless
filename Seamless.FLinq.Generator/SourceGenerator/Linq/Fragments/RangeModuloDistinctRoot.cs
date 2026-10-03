@@ -141,16 +141,19 @@ internal sealed class RangeModuloDistinctRoot(int 番号,RangeRoot range,int mod
                 {{GroupBySupport.IndentBlock(range.RenderArgumentPreparation(start,count),"    ").TrimStart()}}
                 var {{end}}=(long){{start}}+{{count}};
                 if({{start}}>=0){
+                    // 全グループの要素を1本の配列へグループ順に並べ、グループはその区間を指す(グループごとに配列を作らない)。
                     var __length{{number}}=global::System.Math.Min({{count}},{{modulus}});
+                    var {{elements}}=new {{elementType}}[{{count}}];
+                    var __position{{number}}=0;
                     for(var {{value}}=(long){{start}};{{value}}<(long){{start}}+__length{{number}};{{value}}++){
                         var {{size}}=(int)(({{end}}-1-{{value}})/{{modulus}}+1);
-                        var {{elements}}=new {{elementType}}[{{size}}];
+                        var __groupStart{{number}}=__position{{number}};
                         for(var {{index}}=0;{{index}}<{{size}};{{index}}++){
                             {{elementType}} {{element}}=default!;
                             {{GroupBySupport.IndentBlock(elementAssign(element,$"(int)({value}+(long){index}*{modulus})"),"                            ").TrimStart()}}
-                            {{elements}}[{{index}}]={{element}};
+                            {{elements}}[__position{{number}}++]={{element}};
                         }
-                        {{consumerName}}.Consume(({{groupingType}})new global::Seamless.Linq.Grouping<int,{{elementType}}>((int)({{value}}%{{modulus}}),{{elements}},{{size}}));
+                        {{consumerName}}.Consume(({{groupingType}})new global::Seamless.Linq.Grouping<int,{{elementType}}>((int)({{value}}%{{modulus}}),{{elements}},__groupStart{{number}},{{size}}));
                     }
                 }else{
                     var {{map}}=new global::System.Collections.Generic.Dictionary<int,global::System.Collections.Generic.List<{{elementType}}>>();
