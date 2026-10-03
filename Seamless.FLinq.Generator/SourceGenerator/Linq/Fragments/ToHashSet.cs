@@ -54,7 +54,32 @@ internal abstract class ToHashSetBase(int 番号,Enumerable source,string result
     protected string PresetCountName => $"__presetCount{番号}";
 }
 
-internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSetBase(番号,source,resultType) {
+/// <summary>
+/// Consume へ流すだけの実体化(ToHashSet・ToDictionary など)を、作らずに要素を直接流せる場合の文を返す。
+/// 作った集合・辞書を流すのと要素と順が同じで、例外(重複キーなど)の前に流すことも起きない場合だけ文を返す。
+/// </summary>
+internal interface IStreamingMaterializeConsume {
+    string? RenderStreamingConsume(string consumerName);
+}
+
+internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashSetBase(番号,source,resultType),IStreamingMaterializeConsume {
+    // Range の値は一意なので、ToHashSet().Consume は Range をそのまま流すのと同じ(集合の列挙順は追加順)。
+    public string? RenderStreamingConsume(string consumerName) {
+        if(source is not RangeRoot range||source.ElementType!="int") {
+            return null;
+        }
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        return $$"""
+            {
+                {{range.RenderArgumentPreparation(start,count)}}
+                for(var __i{{番号}}=0;__i{{番号}}<{{count}};__i{{番号}}++){
+                    {{consumerName}}.Consume({{start}}+__i{{番号}});
+                }
+            }
+            """;
+    }
+
     public static bool IsApplicableVariant(IMethodSymbol method) => method.Parameters.Length==0;
     public override string GetEnumeratorExpression {
         get {
@@ -115,8 +140,7 @@ internal class ToHashSet(int 番号,Enumerable source,string resultType):ToHashS
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 {{destVar}}=new({{count}});
                 for(var {{index}}=0;{{index}}<{{count}};{{index}}++){
                     var {{value}}={{start}} + {{index}};
@@ -266,8 +290,7 @@ internal class ToHashSet_comparer(int 番号,Enumerable source,string comparer,s
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 var {{comparerVar}}={{comparer}};
                 {{destVar}}=new({{count}},{{comparerVar}});
                 for(var {{index}}=0;{{index}}<{{count}};{{index}}++){

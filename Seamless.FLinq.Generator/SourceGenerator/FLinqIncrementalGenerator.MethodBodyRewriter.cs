@@ -497,6 +497,17 @@ public sealed partial class FLinqIncrementalGenerator {
             return true;
         }
 
+        // Consume へ流すだけの実体化で、作らずに要素を流しても同じになる形(Range の ToHashSet・恒等キーの ToDictionary)。
+        // 列が受け手のときは、ソース式の評価が消費側の式より後になるので、消費側の式が評価順の観測できない形のときだけ。
+        if(fragment is Scalar&&isScalarMaterializeTerminal
+            &&fragment is IStreamingMaterializeConsume streamingMaterialize
+            &&(!linqIsConsumeReceiver||IsEvaluationOrderFree(consumerExpression))
+            &&streamingMaterialize.RenderStreamingConsume(consumerName) is { } streamingConsume) {
+            AppendConsumeSetup(builder,MethodBodyRenderPlan.Statement(string.Empty),consumerAssignment,linqIsConsumeReceiver);
+            MethodBodyRenderPlan.Statement(streamingConsume).AppendTo(builder);
+            return true;
+        }
+
         if(fragment is Scalar&&isScalarMaterializeTerminal&&fragment is DirectExecutionFragment materializeDirectExecutionFragment) {
             var resultTypeInfo = semanticModel.GetTypeInfo(linqInvocation);
             var resultTypeName = (resultTypeInfo.Type??resultTypeInfo.ConvertedType)?.ToDisplayString(完全修飾形式)

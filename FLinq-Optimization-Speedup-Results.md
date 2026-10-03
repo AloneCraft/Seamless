@@ -1609,3 +1609,10 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 既存の不具合(未修正): Append/Prepend の値の式がインスタンスのメンバー(`this.X()`)を使うと、段をまとめる経路の列挙子の構造体の中で `@this` が見えずコンパイルできない。
 - テスト: `NonSpanRootDirectConsumeTests`(ジェネリックなクラスの yield ソースで11演算子が System.Linq と同じで、汎用の入れ子の Consume が残らない)、`RangeArgumentValidationTests`(26演算子で不正な引数・int の端・空・通常を System.Linq と突き合わせ)。
 - 結果: 次の取り直しで記録する。
+
+## 2026-10-04 Range の ToHashSet・恒等キーの ToDictionary を Consume へ流すだけなら作らない(採用)
+
+- Range の値は一意なので、`ToHashSet().Consume` は Range をそのまま流すのと同じ(集合の列挙順は追加順)、恒等キーの `ToDictionary` は重複キーの例外が起きず (x,x)・(x,要素選択子(x)) を順に流すのと同じ。System.Range タブの ToHashSet(理想比11倍)・ToDictionary 2行(8〜9倍)。
+- 実体化の結果を流すだけの形(`IStreamingMaterializeConsume`)として書き換え側に入れ、列が Consume の受け手で消費側の式が評価順を観測できる形なら従来どおり作ってから流す(ToArray/ToList の省略と同じ条件)。恒等でないキーの辞書は作る(重複キーの例外が流す前に起きる)。
+- テスト: `StreamingMaterializeConsumeTests`。
+- 結果: 次の取り直しで記録する。

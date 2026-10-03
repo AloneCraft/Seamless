@@ -99,7 +99,29 @@ internal abstract class ToDictionaryBase(int 番号,Enumerable source,string res
     }
 }
 
-internal class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragment keySelector,string resultType):ToDictionaryBase(番号,source,resultType) {
+internal class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragment keySelector,string resultType):ToDictionaryBase(番号,source,resultType),IStreamingMaterializeConsume {
+    // Range の値は一意なので、恒等キーなら重複キーの例外は起きず、ToDictionary(x => x).Consume は (x,x) を順に流すのと同じ。
+    public string? RenderStreamingConsume(string consumerName) {
+        if(source is not RangeRoot range
+            ||source.ElementType!="int"
+            ||!keySelector.IsIdentity
+            ||keySelector.ContainsAnchor
+            ||FuncReturnTypeName(keySelector)!=source.ElementType) {
+            return null;
+        }
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        return $$"""
+            {
+                {{range.RenderArgumentPreparation(start,count)}}
+                for(var __i{{番号}}=0;__i{{番号}}<{{count}};__i{{番号}}++){
+                    var __value{{番号}}={{start}}+__i{{番号}};
+                    {{consumerName}}.Consume(new global::System.Collections.Generic.KeyValuePair<int,int>(__value{{番号}},__value{{番号}}));
+                }
+            }
+            """;
+    }
+
     // Explicit Fragment child visitor
     protected override IEnumerable<FuncFragment> GetChildFunctions() {
         foreach(var function in base.GetChildFunctions()) {
@@ -133,8 +155,7 @@ internal class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragmen
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 {{destVar}}=new({{count}});
                 for(var {{index}}=0;{{index}}<{{count}};{{index}}++){
                     var {{value}}={{start}} + {{index}};
@@ -174,7 +195,38 @@ internal class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragmen
         """;
 }
 
-internal class ToDictionary_keySelector_elementSelector(int 番号,Enumerable source,FuncFragment keySelector,FuncFragment elementSelector,string resultType):ToDictionaryBase(番号,source,resultType) {
+internal class ToDictionary_keySelector_elementSelector(int 番号,Enumerable source,FuncFragment keySelector,FuncFragment elementSelector,string resultType):ToDictionaryBase(番号,source,resultType),IStreamingMaterializeConsume {
+    // Range の値は一意なので、恒等キーなら重複キーの例外は起きず、(x, 要素選択子(x)) を順に流すのと同じ。
+    public string? RenderStreamingConsume(string consumerName) {
+        if(source is not RangeRoot range
+            ||source.ElementType!="int"
+            ||!keySelector.IsIdentity
+            ||keySelector.ContainsAnchor
+            ||FuncReturnTypeName(keySelector)!=source.ElementType
+            ||elementSelector.CanInvokeAsDelegate
+            ||!elementSelector.CanInlineAssign
+            ||elementSelector.RequiresStatementInlining) {
+            return null;
+        }
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var value = $"__value{番号}";
+        var element = $"__element{番号}";
+        var elementType = FuncReturnTypeName(elementSelector);
+        return $$"""
+            {
+                {{this.HoistedLocalDeclarations(elementSelector)}}
+                {{range.RenderArgumentPreparation(start,count)}}
+                for(var __i{{番号}}=0;__i{{番号}}<{{count}};__i{{番号}}++){
+                    var {{value}}={{start}}+__i{{番号}};
+                    {{elementType}} {{element}}=default!;
+                    {{this.FuncAssignIndented("",elementSelector,nameof(elementSelector),element,value)}}
+                    {{consumerName}}.Consume(new global::System.Collections.Generic.KeyValuePair<int,{{elementType}}>({{value}},{{element}}));
+                }
+            }
+            """;
+    }
+
     // Explicit Fragment child visitor
     protected override IEnumerable<FuncFragment> GetChildFunctions() {
         foreach(var function in base.GetChildFunctions()) {
@@ -214,8 +266,7 @@ internal class ToDictionary_keySelector_elementSelector(int 番号,Enumerable so
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 {{destVar}}=new({{count}});
                 for(var {{index}}=0;{{index}}<{{count}};{{index}}++){
                     var {{value}}={{start}} + {{index}};
@@ -296,8 +347,7 @@ internal class ToDictionary_keySelector_comparer(int 番号,Enumerable source,Fu
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 var {{comparerVar}}={{comparer}};
                 {{destVar}}=new({{count}},{{comparerVar}});
                 for(var {{index}}=0;{{index}}<{{count}};{{index}}++){
