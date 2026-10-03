@@ -33,15 +33,17 @@ public sealed class RangeModuloGroupByTests {
                 return string.Join(" ",sink.Values);
             }
             public static string RunFLinq(int s,int c) => string.Join("|",
-                C(sink => F.Keys7(s,c,sink)),C(sink => F.Elements7(s,c,sink)),C(sink => F.Keys1000(s,c,sink)),C(sink => F.Widen7(s,c,sink)),C(sink => F.Result7(s,c,sink)));
+                C(sink => F.Keys7(s,c,sink)),C(sink => F.Elements7(s,c,sink)),C(sink => F.Keys1000(s,c,sink)),C(sink => F.Widen7(s,c,sink)),C(sink => F.Result7(s,c,sink)),C(sink => F.Lookup7(s,c,sink)),C(sink => F.LookupElements7(s,c,sink)));
             public static string RunLinq(int s,int c) => string.Join("|",
-                C(sink => L.Keys7(s,c,sink)),C(sink => L.Elements7(s,c,sink)),C(sink => L.Keys1000(s,c,sink)),C(sink => L.Widen7(s,c,sink)),C(sink => L.Result7(s,c,sink)));
+                C(sink => L.Keys7(s,c,sink)),C(sink => L.Elements7(s,c,sink)),C(sink => L.Keys1000(s,c,sink)),C(sink => L.Widen7(s,c,sink)),C(sink => L.Result7(s,c,sink)),C(sink => L.Lookup7(s,c,sink)),C(sink => L.LookupElements7(s,c,sink)));
             public sealed class F {
                 [LinqIntercept(true)] public static void Keys7(int s,int c,Sink sink) => sink.Consume(Enumerable.Range(s,c).GroupBy(x => x%7));
                 [LinqIntercept(true)] public static void Elements7(int s,int c,Sink sink) => sink.Consume(Enumerable.Range(s,c).GroupBy(x => x%7,x => x*2));
                 [LinqIntercept(true)] public static void Keys1000(int s,int c,Sink sink) => sink.Consume(Enumerable.Range(s,c).GroupBy(x => x%1000));
                 [LinqIntercept(true)] public static void Widen7(int s,int c,Sink sink) => sink.Consume(Enumerable.Range(s,c).GroupBy(x => x%7,x => (long)x));
                 [LinqIntercept(true)] public static void Result7(int s,int c,Sink sink) => sink.Consume(Enumerable.Range(s,c).GroupBy(x => x%7,(key,g) => key*10+1));
+                [LinqIntercept(true)] public static void Lookup7(int s,int c,Sink sink) => sink.Consume(Enumerable.Range(s,c).ToLookup(x => x%7));
+                [LinqIntercept(true)] public static void LookupElements7(int s,int c,Sink sink) => sink.Consume(Enumerable.Range(s,c).ToLookup(x => x%7,x => x*2));
             }
             [LinqIntercept(false)]
             public sealed class L {
@@ -50,6 +52,8 @@ public sealed class RangeModuloGroupByTests {
                 public static void Keys1000(int s,int c,Sink sink) { foreach(var v in Enumerable.Range(s,c).GroupBy(x => x%1000)) sink.Consume(v); }
                 public static void Widen7(int s,int c,Sink sink) { foreach(var v in Enumerable.Range(s,c).GroupBy(x => x%7,x => (long)x)) sink.Consume(v); }
                 public static void Result7(int s,int c,Sink sink) { foreach(var v in Enumerable.Range(s,c).GroupBy(x => x%7,(key,g) => key*10+1)) sink.Consume(v); }
+                public static void Lookup7(int s,int c,Sink sink) { foreach(var v in Enumerable.Range(s,c).ToLookup(x => x%7)) sink.Consume(v); }
+                public static void LookupElements7(int s,int c,Sink sink) { foreach(var v in Enumerable.Range(s,c).ToLookup(x => x%7,x => x*2)) sink.Consume(v); }
             }
         }
         """;
@@ -65,8 +69,8 @@ public sealed class RangeModuloGroupByTests {
     [InlineData(int.MinValue,10)]
     [InlineData(1,-1)]
     public void System_Linqと同じグループを返す(int start,int count) {
-        var (compilation,generated) = ExecutableGeneration.Generate(Source,"RangeModuloGroupByProbe",5);
-        Assert.Equal(4,global::System.Text.RegularExpressions.Regex.Matches(generated,@"new global::Seamless\.Linq\.Grouping<int,\w+>\(\(int\)\(").Count);
+        var (compilation,generated) = ExecutableGeneration.Generate(Source,"RangeModuloGroupByProbe",7);
+        Assert.Equal(6,global::System.Text.RegularExpressions.Regex.Matches(generated,@"new global::Seamless\.Linq\.Grouping<int,\w+>\(\(int\)\(").Count);
         var (actual,expected) = ExecutableGeneration.Run(compilation,"Sample.Probe",probe => (
             (string)probe.GetMethod("RunFLinq")!.Invoke(null,[start,count])!,
             (string)probe.GetMethod("RunLinq")!.Invoke(null,[start,count])!));

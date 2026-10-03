@@ -305,6 +305,29 @@ internal static class RangePredicateOptimizer {
         return false;
     }
 
+    // 述語が x の偶奇(添字つきなら添字の偶奇)だけを見る形か。onIndex は添字(第2引数)の偶奇を見るとき true。
+    public static bool TryExtractParity(FuncFragment predicate,bool onIndex,out bool wantEven) {
+        wantEven=false;
+        if(!onIndex) {
+            return TryExtractParity(predicate,out wantEven);
+        }
+        if(!CanInspect(predicate)
+            ||predicate.ParameterNames.Length!=2
+            ||TryParseExpression(predicate.InlineBody) is not BinaryExpressionSyntax binary
+            ||binary.Kind() is not (SyntaxKind.EqualsExpression or SyntaxKind.NotEqualsExpression)
+            ||ContainsParameter(binary,predicate.ParameterNames[0])) {
+            return false;
+        }
+        var indexName = predicate.ParameterNames[1];
+        if(TryExtractBitAndOne(binary.Left,indexName)&&TryGetSmallInteger(binary.Right,out var right)) {
+            return TryMapParity(binary.Kind(),right,out wantEven);
+        }
+        if(TryExtractBitAndOne(binary.Right,indexName)&&TryGetSmallInteger(binary.Left,out var left)) {
+            return TryMapParity(binary.Kind(),left,out wantEven);
+        }
+        return false;
+    }
+
     private static bool TryExtractParity(FuncFragment predicate,out bool wantEven) {
         wantEven=false;
         if(!CanInspect(predicate)

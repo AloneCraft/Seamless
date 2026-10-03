@@ -1628,3 +1628,23 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 2026-10-03 の Repeat(e,1)→Select の書き換えは、コレクション選択子がラムダの中に LINQ(Repeat)を含むため「文として展開が必要」と判定され、判定に届く前に段の追加が打ち切られていて、射影融合タブの SelectMany 行(9倍前後)に効いていなかった。判定を前に移し、e はラムダの引数・定数・演算子・型変換だけの式に限って構文から取り出す。
 - テスト: `PipelineNoOpNormalizationTests` の RepeatResult/RepeatOnly(結果は同じ)。効果は次の取り直しで確かめる。
 - 追記(同日): 射影融合の書き換えが先に `SelectMany(...).Select(...)` を SelectMany 1つ(結果選択子に合成)にしていたため、段をまとめる経路の「単段では受けない」判定で弾かれ、SelectMany 専用の経路(内側を列挙子で回す)になっていた。Repeat(e,1) の SelectMany は単段でも段をまとめる経路で受け、span の直接ループの Select になる。IL 監査の既知例外(外部LINQ・理想形との差、各3〜4行)が解消したので許可リストから外した。
+
+## 2026-10-04 段をまとめた列の Consume を、列挙子の構造体を作らずに差し替えメソッドの中へ展開する(採用)
+
+- 入れ子の列挙子の構造体の問題(2026-10-03・04 の節)の一般形。状態を持つ段(重複除き・集合演算・連結・逆順・Skip/Take・並べ替えなど)を含む段の並びは、これまで「段をまとめた構造体→根の構造体」の2段の入れ子を差し替えメソッドから TryGetNext で回していた。構造体のコンストラクタ引数とフィールドを局所変数、TryGetNext の本体を局所関数(AggressiveInlining)にして差し替えメソッドの中に展開し、局所関数から根と第2ソースの列挙子を直接呼ぶ(入れ子は1段)。Dispose は try/finally で同じものを呼ぶ。
+- 対象外: Range(要素が int で問題が起きず、Range 専用の経路がある)、巻き上げた値やデリゲートを持つ関数、フィールドが単純な宣言でないもの(入れ子の型の宣言など)、構造体の型引数(TEnum など)を本体が使うもの。
+- テスト: `FlattenedPipelineConsumeTests`(ジェネリックなクラスの参照型の要素で10種類の段の並びが System.Linq と同じで、汎用の入れ子の Consume が残らない)。
+- 結果: 次の取り直しで記録する(Int32 の行が遅くならないことも確かめる)。
+
+## 2026-10-04 Range の先頭の Where(値・添字の偶奇)を2刻みで回す(採用)
+
+- 昇順・降順の Range の先頭の Where が `(x&1)==0` などの値の偶奇、または `(x,i) => (i&1)==0` などの添字の偶奇だけを見るとき、述語を評価せずに最初に通る値から2刻みで回し、続く Select/Where(添字なし)はその場に展開する。Range の先頭の何もしない段の除去(Order・Skip(0)・Reverse)と組み合わさる。System.Range の Where_predicate・Where_indexPredicate、押し下げタブの Range の Order/Skip/Reverse の後の Where、融合タブの Range の Where→Select。
+- テスト: `RangeParityWhereTests`(昇順・降順、値・添字の偶奇、負の値・int の端・空・不正な引数)。
+- 結果: 次の取り直しで記録する。
+
+## 2026-10-04 Range の ToLookup(x%C[,要素選択子]).Consume を剰余類のグループとして流す(採用)
+
+- 索引のグループの列挙順はキーの初出順なので、GroupBy(x%C) と同じく剰余類から直接グループを作って流す(実体化の結果を流すだけの形 `IStreamingMaterializeConsume`)。System.Range の ToLookup 2行(約5倍)。
+- テスト: `RangeModuloGroupByTests` に ToLookup の2形を追加。
+- 結果: 次の取り直しで記録する。
+- 補足(同日): 段をまとめた Consume の展開で、バッファを作る段(Reverse など)の「フィールドと同じ名前の局所変数を宣言して最後に this.フィールド へ移す」形は、this. を外すと自分自身への代入になって結果が空になった(テストで検出)。本体で同じ名前の局所変数を宣言するフィールドだけ外側の局所変数の名前を付け替える。並べ替えの段は比較子の型をフィールドに持つので展開しない。Range の先頭の段の除去では、Reverse を添字の無い Where/Select の後ろからでも降順の Range へ移せるようにした(押し下げで Where が Reverse の前に来るため)。IL 監査: List の Reverse_Where(ベンチが IEnumerable へキャスト)の差が見えるようになったので許可リストへ、Range の ToLookup の差は解消したので許可リストから外した。

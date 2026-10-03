@@ -28,7 +28,8 @@ internal sealed partial class PipelineEnumerable {
     }
 
     public override string GetConsumeExecutionStatement(string consumerName) =>
-        this.RenderSingleTakeWhileDirectConsume(consumerName)
+        this.RenderRangeParityConsume(consumerName)
+        ??this.RenderSingleTakeWhileDirectConsume(consumerName)
         ??this.RenderSingleSkipWhileDirectConsume(consumerName)
         ??this.RenderSingleConcatDirectConsume(consumerName)
         ??this.RenderSingleAppendOrPrependDirectConsume(consumerName)
@@ -37,7 +38,183 @@ internal sealed partial class PipelineEnumerable {
         ??this.RenderSingleWhereDirectConsume(consumerName)
         ??this.RenderPureOrderingDirectConsume(consumerName)
         ??this.RenderStatelessChainDirectConsume(consumerName)
+        ??this.RenderFlattenedConsume(consumerName)
         ??base.GetConsumeExecutionStatement(consumerName);
+
+    // 段をまとめた列挙子の構造体を作らずに Consume する。構造体のコンストラクタ引数とフィールドを局所変数、
+    // TryGetNext の本体を局所関数にして差し替えメソッドの中に展開し、局所関数から根(と第2ソース)の列挙子を直接呼ぶ。
+    // 構造体→根の構造体の入れ子の TryGetNext は、参照型の要素の共有ジェネリックコードで内側がインライン化されず遅い
+    // (Work/exp/nestedconsume: 入れ子 14.8µs、1段 4.05µs)。Range は要素が int で入れ子の問題が起きないので対象にしない。
+    // フィールドが単純な宣言だけで、構造体の型引数(TEnum など)を本体が使わないときだけ展開する。
+    private string? RenderFlattenedConsume(string consumerName) {
+        // 巻き上げた値・デリゲートのフィールドを持つ関数は、構造体のフィールドの作り方が別なので対象にしない。
+        if(source is RangeRoot
+            ||this.Funcs.Any(static function => function.HoistedLocals.Length!=0||function.CanInvokeAsDelegate)) {
+            return null;
+        }
+        string sourceExpression;
+        string fields;
+        string constructor;
+        string body;
+        string dispose;
+        string elementType;
+        try {
+            sourceExpression=source.GetEnumeratorExpression;
+            fields=this.GetEnumeratorFields;
+            constructor=this.GetEnumeratorConstructor;
+            body=this.GetTryGetNextBody;
+            dispose=this.GetEnumeratorDisposeBody;
+            elementType=this.ElementType;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(elementType.Contains("TResult")
+            ||StructTypeParameterReference.IsMatch(fields+constructor+body+dispose)) {
+            return null;
+        }
+        var parameters = EnumeratorDefinitionRenderModel.ParseCtorParams(this.GetEnumeratorPrimaryConstructorParameters).ToArray();
+        var arguments = this.EnumeratorArguments(sourceExpression);
+        if(parameters.Length!=arguments.Count) {
+            return null;
+        }
+        // バッファを作る段などは「フィールドと同じ名前の局所変数を宣言して、最後に this.フィールド へ移す」形を使う。
+        // this. を外すと同じ名前になるので、本体で同じ名前の局所変数を宣言するフィールドだけ、外側の局所変数の名前を付け替える。
+        var allText = constructor+"\n"+body+"\n"+dispose;
+        string Rename(string name) => global::System.Text.RegularExpressions.Regex.IsMatch(allText,$@"\bvar\s+{name}\b") ? name+"__field" : name;
+        var renamedNames = new List<string>();
+        var locals = new StringBuilder();
+        for(var index = 0;index<parameters.Length;index++) {
+            var (typeExpression,name) = parameters[index];
+            var localName = Rename(name);
+            if(localName!=name) {
+                renamedNames.Add(name);
+            }
+            locals.AppendLine(StructTypeParameterReference.IsMatch(typeExpression)
+                ? $"var {localName}={arguments[index]};"
+                : $"{typeExpression} {localName}={arguments[index]};");
+        }
+        foreach(var line in fields.Replace("\r\n","\n").Split('\n').Select(static line => line.Trim()).Where(static line => line.Length!=0)) {
+            var match = SimpleFieldDeclaration.Match(line);
+            if(!match.Success) {
+                return null;
+            }
+            var name = match.Groups["name"].Value;
+            var localName = Rename(name);
+            if(localName!=name) {
+                renamedNames.Add(name);
+            }
+            var initializer = match.Groups["init"].Success ? match.Groups["init"].Value : "default!";
+            locals.AppendLine($"{match.Groups["type"].Value} {localName}={initializer};");
+        }
+        // 付け替えたフィールドは、this. 付きの参照だけが外側の局所変数を指す(this. の無い参照は内側の同名の局所変数)。
+        foreach(var name in renamedNames) {
+            var qualified = new global::System.Text.RegularExpressions.Regex($@"(?<![@\w.])this\.{name}\b");
+            constructor=qualified.Replace(constructor,name+"__field");
+            body=qualified.Replace(body,name+"__field");
+            dispose=qualified.Replace(dispose,name+"__field");
+        }
+        var nextName = $"__next{this.result}";
+        var itemName = $"__flatItem{this.result}";
+        var flatBody = StripThis(body);
+        // 構造体の Current プロパティへの代入は局所変数で受ける(読まないなら宣言しない)。
+        var currentDeclaration = flatBody.Contains("Current=") ? $"{elementType} Current=default!;" : string.Empty;
+        return $$"""
+            {
+                {{IndentLines(locals.ToString().TrimEnd(),"    ").TrimStart()}}
+                {{currentDeclaration}}
+                {{IndentLines(StripThis(constructor),"    ").TrimStart()}}
+                try{
+                    while({{nextName}}(out var {{itemName}})){
+                        {{consumerName}}.Consume({{itemName}});
+                    }
+                }finally{
+                    {{IndentLines(StripThis(dispose),"        ").TrimStart()}}
+                }
+                [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+                bool {{nextName}}(out {{elementType}} current){
+                    {{IndentLines(flatBody,"        ").TrimStart()}}
+                }
+            }
+            """;
+    }
+
+    private static readonly global::System.Text.RegularExpressions.Regex StructTypeParameterReference =
+        new(@"\b(TEnum|TSecond\d*|TResult)\b",global::System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+    private static readonly global::System.Text.RegularExpressions.Regex SimpleFieldDeclaration =
+        new(@"^private\s+(?:readonly\s+)?(?<type>[^=;{}]+?)\s+(?<name>[A-Za-z_]\w*)(?:\s*=\s*(?<init>[^;{}]+))?;$",global::System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+    private static readonly global::System.Text.RegularExpressions.Regex ThisMemberAccess =
+        new(@"(?<![@\w.])this\.",global::System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+    private static string StripThis(string text) => ThisMemberAccess.Replace(text,string.Empty);
+
+    // Range(昇順・降順)の先頭の Where が値か添字の偶奇だけを見るとき、述語を評価せずに2刻みで回し、続く Select/Where(添字なし)はその場に展開する。
+    // FLinq の契約(.Anchor の無い述語は純粋)で、述語の評価を省いてよい。
+    private string? RenderRangeParityConsume(string consumerName) {
+        if(source is not (RangeRoot or DescendingRangeRoot)
+            ||source.TreeContainsAnchor()
+            ||stages.Count<1
+            ||stages[0] is not { Kind: PipelineStageKind.Where,Func: { } predicate } first
+            ||predicate.ContainsAnchor
+            ||!RangePredicateOptimizer.TryExtractParity(predicate,first.UsesIndex,out var wantEven)
+            ||stages.Skip(1).Any(static stage => stage.Kind is not (PipelineStageKind.Select or PipelineStageKind.Where)
+                ||stage.UsesIndex
+                ||stage.Func is not { } function
+                ||function.RequiresStatementInlining
+                ||function.CanInvokeAsDelegate
+                ||!function.CanInlineAssign)) {
+            return null;
+        }
+        var descending = source is DescendingRangeRoot;
+        var (startExpression,countExpression) = source switch {
+            RangeRoot ascendingRange => (ascendingRange.StartExpression,ascendingRange.CountExpression),
+            DescendingRangeRoot descendingRange => (descendingRange.StartExpression,descendingRange.CountExpression),
+            _ => throw new InvalidOperationException(),
+        };
+        var prepare = new RangeRoot(0,startExpression,countExpression);
+        var start = $"__parityStart{this.result}";
+        var count = $"__parityCount{this.result}";
+        var end = $"__parityEnd{this.result}";
+        var value = $"__parityValue{this.result}";
+        var itemName = this.ItemName(0);
+        var functions = stages.Skip(1).Select(static stage => stage.Func!).ToArray();
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(functions),
+            this.StaticDelegateLocalDeclarations(functions),
+        }.Where(static text => !string.IsNullOrWhiteSpace(text)));
+        var body = new StringBuilder();
+        var currentName = itemName;
+        for(var index = 1;index<stages.Count;index++) {
+            currentName=this.AppendStage(body,stages[index],currentName,index);
+        }
+        body.AppendLine($"    {consumerName}.Consume({currentName});");
+        var loopBody = IndentLines(body.ToString().TrimEnd(),"    ");
+        // 最初に通る値: 値の偶奇なら端の値の偶奇で、添字の偶奇なら端から数えた位置(端の値は添字 0)で決まる。
+        var wanted = wantEven ? "0" : "1";
+        string firstValue;
+        string loop;
+        if(!descending) {
+            firstValue=first.UsesIndex
+                ? $"(long){start}+{wanted}"
+                : $"(long){start}+((((long){start}&1)=={wanted}) ? 0 : 1)";
+            loop=$"for(var {value}={firstValue};{value}<{end};{value}+=2)";
+        } else {
+            firstValue=first.UsesIndex
+                ? $"{end}-1-{wanted}"
+                : $"{end}-1-((((({end}-1)&1)=={wanted})) ? 0 : 1)";
+            loop=$"for(var {value}={firstValue};{value}>=(long){start};{value}-=2)";
+        }
+        return $$"""
+            {
+                {{localDeclarations}}
+                {{IndentLines(prepare.RenderArgumentPreparation(start,count),"    ").TrimStart()}}
+                var {{end}}=(long){{start}}+{{count}};
+                {{loop}}{
+                    var {{itemName}}=(int){{value}};
+                {{loopBody}}
+                }
+            }
+            """;
+    }
 
     // Select/Where だけが並ぶとき(1段で span・Range の根は既存の単段の経路が受ける)、span・Range・根の列挙子を
     // 差し替えメソッドの中で直接回し、段の式をその場に展開する。添字を使う段は差し替えメソッドの中の局所変数で数える。

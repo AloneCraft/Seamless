@@ -39,7 +39,6 @@ public static class KnownExceptions {
         new(AuditInvariant.理想形との差,Array,Base,"ToLookup_keySelector","結果の ILookup をインターフェース型の変数で受けて foreach するため、グループごとにインターフェース呼び出しになる"),
         new(AuditInvariant.理想形との差,List,Base,"ToLookup_elementSelector","結果の ILookup をインターフェース型の変数で受けて foreach するため、グループごとにインターフェース呼び出しになる"),
         new(AuditInvariant.理想形との差,List,Base,"ToLookup_keySelector","結果の ILookup をインターフェース型の変数で受けて foreach するため、グループごとにインターフェース呼び出しになる"),
-        new(AuditInvariant.理想形との差,Range,RangeType,"ToLookup_elementSelector","同上(Range)"),
-        new(AuditInvariant.理想形との差,Range,RangeType,"ToLookup_keySelector","同上(Range)"),
+        new(AuditInvariant.理想形との差,Optimization,"Shared.Linq.Optimization.PredicatePushdown.List`1","Reverse_Where_predicate","ベンチが List を IEnumerable<T> へキャストしてから Reverse するので、FLinq は IEnumerable の根として列挙子で溜める(理想版はキャスト前の List の span を使う)。段をまとめた Consume を差し替えメソッドへ展開したので、監査が辿る範囲に入った"),
     ];
 }

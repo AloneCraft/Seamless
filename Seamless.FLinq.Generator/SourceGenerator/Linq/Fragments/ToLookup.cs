@@ -43,7 +43,15 @@ internal abstract class ToLookupBase(int 番号,Enumerable source,string resultT
         $"global::System.Math.Min({sourceCountExpression},1024)";
 }
 
-internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment keySelector,string resultType):ToLookupBase(番号,source,resultType) {
+internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment keySelector,string resultType):ToLookupBase(番号,source,resultType),IStreamingMaterializeConsume {
+    // Range の ToLookup(x%C).Consume は、索引のグループの列挙順(キーの初出順)に剰余類のグループを流すのと同じ(GroupBy と同じ形)。
+    public string? RenderStreamingConsume(string consumerName) =>
+        source is RangeRoot range
+            &&!source.TreeContainsAnchor()
+            &&RangeModuloOrderRoot.TryGetModulus(keySelector,out var modulus)
+            ? RangeModuloDistinctRoot.RenderGroupsConsume(range,modulus,番号,consumerName,"global::System.Linq.IGrouping<int, int>","int",string.Empty,static (destination,value) => $"{destination}={value};")
+            : null;
+
     // Explicit Fragment child visitor
     protected override IEnumerable<FuncFragment> GetChildFunctions() {
         foreach(var function in base.GetChildFunctions()) {
@@ -97,7 +105,24 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
             """;
 }
 
-internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source,FuncFragment keySelector,FuncFragment elementSelector,string resultType):ToLookupBase(番号,source,resultType) {
+internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source,FuncFragment keySelector,FuncFragment elementSelector,string resultType):ToLookupBase(番号,source,resultType),IStreamingMaterializeConsume {
+    // Range の ToLookup(x%C,要素選択子).Consume は、剰余類のグループを流すのと同じ(GroupBy と同じ形)。
+    public string? RenderStreamingConsume(string consumerName) {
+        if(source is not RangeRoot range
+            ||source.TreeContainsAnchor()
+            ||elementSelector.ContainsAnchor
+            ||elementSelector.CanInvokeAsDelegate
+            ||elementSelector.RequiresStatementInlining
+            ||!elementSelector.CanInlineAssign
+            ||!RangeModuloOrderRoot.TryGetModulus(keySelector,out var modulus)) {
+            return null;
+        }
+        var elementType = FuncReturnTypeName(elementSelector);
+        return RangeModuloDistinctRoot.RenderGroupsConsume(range,modulus,番号,consumerName,$"global::System.Linq.IGrouping<int, {elementType}>",elementType,
+            this.HoistedLocalDeclarations(elementSelector),
+            (destination,value) => this.FuncAssign(elementSelector,nameof(elementSelector),destination,value));
+    }
+
     // Explicit Fragment child visitor
     protected override IEnumerable<FuncFragment> GetChildFunctions() {
         foreach(var function in base.GetChildFunctions()) {

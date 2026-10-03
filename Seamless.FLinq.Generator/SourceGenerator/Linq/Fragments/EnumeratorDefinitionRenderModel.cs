@@ -55,7 +55,7 @@ internal sealed class EnumeratorDefinitionRenderModel(
         return $"public {structName}({constructorParameters}) {{\n{ctorBody}\n}}";
     }
 
-    private static IEnumerable<(string TypeExpr,string Name)> ParseCtorParams(string paramList) {
+    internal static IEnumerable<(string TypeExpr,string Name)> ParseCtorParams(string paramList) {
         if(string.IsNullOrWhiteSpace(paramList)) yield break;
         int depth=0,start=0;
         for(var i=0;i<=paramList.Length;i++) {

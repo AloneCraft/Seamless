@@ -114,7 +114,9 @@ internal static partial class PipelineBuilder {
                 changed=true;
                 continue;
             }
-            if(stage.Kind==PipelineStageKind.Reverse&&atHead) {
+            // Reverse は、それまでに残した段が添字を使わない Where/Select だけなら、それらと入れ替えられる(要素ごとの判定と写像は順に依らない)。
+            if(stage.Kind==PipelineStageKind.Reverse
+                &&result.All(static kept => kept.Kind is PipelineStageKind.Where or PipelineStageKind.Select&&!kept.UsesIndex)) {
                 descending=!descending;
                 order=-order;
                 changed=true;

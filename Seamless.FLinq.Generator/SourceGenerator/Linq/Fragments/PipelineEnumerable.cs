@@ -118,7 +118,11 @@ internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IR
     public override string GetEnumeratorExpression => this.GetEnumeratorExpressionWithSource(source.GetEnumeratorExpression);
 
     // ソースの列挙子だけを差し替えた列挙子式。取得済みのソース列挙子を引き継いで、ソース式を2回評価しないために使う。
-    private string GetEnumeratorExpressionWithSource(string sourceEnumeratorExpression) {
+    private string GetEnumeratorExpressionWithSource(string sourceEnumeratorExpression) =>
+        RenderEnumeratorExpression(this.EnumeratorTypeName,this.EnumeratorArguments(sourceEnumeratorExpression).ToArray());
+
+    // 列挙子の構造体のコンストラクタへ渡す引数(GetEnumeratorPrimaryConstructorParameters と同じ順)。
+    private List<string> EnumeratorArguments(string sourceEnumeratorExpression) {
         var args = new List<string> { sourceEnumeratorExpression };
         foreach(var second in this.SecondSources) {
             args.Add(second.GetEnumeratorExpression);
@@ -136,6 +140,6 @@ internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IR
             args.Add(this.OrderComparerExpression(stage));
         }
         args.AddRange(this.ClosureArgsWithoutPrefix());
-        return RenderEnumeratorExpression(this.EnumeratorTypeName,args.ToArray());
+        return args;
     }
 }
