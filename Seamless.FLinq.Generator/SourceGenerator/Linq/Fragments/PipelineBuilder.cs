@@ -82,6 +82,7 @@ internal static partial class PipelineBuilder {
         }
 
         stages=LinqOptimizationExecutor.NormalizePipeline(stages,services.JoinStaticMethods,services.Configuration,services.Trace);
+        stages=StreamGroupByKeysWhenResultIgnoresGroup(sourceFragment,stages);
         if(TryOptimizeRangeSetStages(sourceFragment,stages,ref snapshot,out var optimizedSetSource)) {
             AddUnsafeAccessors(stages,unsafeAccessorCollector);
             if(!TryCreateOptimizedFragment(

@@ -546,4 +546,44 @@ internal static partial class PipelineBuilder {
         currentElementType=outputType;
         return true;
     }
+
+    // 結果選択子がグループを使わない GroupBy は、キー選択子の Select・Distinct・キーから結果を作る Select の3段に置き換える。
+    // グループを作らず、要素選択子も評価しない(FLinq の契約。.Anchor の条件は GroupBySupport.CanStreamDistinctKeys と同じで、
+    // 逐次流すと後段が途中で止めたときに前段とソースの評価が減るので、前段かソースに .Anchor があれば置き換えない)。
+    private static List<PipelineStage> StreamGroupByKeysWhenResultIgnoresGroup(Enumerable source,List<PipelineStage> stages) {
+        var index = stages.FindIndex(static stage => stage.Kind==PipelineStageKind.GroupBy);
+        if(index<0) {
+            return stages;
+        }
+        var stage = stages[index];
+        if(stage.ThirdFunc is not LambdaFunc resultSelector
+            ||stage.Func is null
+            ||stage.KeyType is not { } keyType
+            ||stage.ContainsAnchor
+            ||stages.Take(index).Any(static previous => previous.ContainsAnchor)
+            ||source.TreeContainsAnchor()
+            ||!GroupBySupport.ResultIgnoresGroup(resultSelector)) {
+            return stages;
+        }
+        // 本体はグループの引数を参照しないので、キーの引数だけを持つ関数として使える。
+        var resultFromKey = new LambdaFunc {
+            ReturnTypeName=resultSelector.ReturnTypeName,
+            ParameterTypeNames=[resultSelector.ParameterTypeNames[0]],
+            ParameterNames=[resultSelector.ParameterNames[0]],
+            CanGenerateMethod=resultSelector.CanGenerateMethod,
+            CanInlineAssign=true,
+            InlineBody=resultSelector.InlineBody,
+            CapturedLocals=resultSelector.CapturedLocals,
+            HoistedLocals=resultSelector.HoistedLocals,
+            BodyUnsafeAccessorCodes=resultSelector.BodyUnsafeAccessorCodes,
+            SupportingMemberSources=resultSelector.SupportingMemberSources,
+        };
+        var rewritten = new List<PipelineStage>(stages.Count+2);
+        rewritten.AddRange(stages.Take(index));
+        rewritten.Add(new PipelineStage(PipelineStageKind.Select,stage.Func,null,stage.InputType,keyType));
+        rewritten.Add(new PipelineStage(PipelineStageKind.Distinct,null,stage.Value,keyType,keyType,keyType: keyType));
+        rewritten.Add(new PipelineStage(PipelineStageKind.Select,resultFromKey,null,keyType,stage.OutputType));
+        rewritten.AddRange(stages.Skip(index+1));
+        return rewritten;
+    }
 }

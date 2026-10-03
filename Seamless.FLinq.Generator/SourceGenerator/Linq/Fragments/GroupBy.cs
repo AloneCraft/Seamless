@@ -1,3 +1,4 @@
+using Microsoft.CodeAnalysis.CSharp;
 namespace Seamless.FLinq.Generator;
 
 /*
@@ -97,6 +98,63 @@ internal static class GroupBySupport {
         }
         """;
     }
+
+    // 結果選択子が、その場に展開できる式で、グループ(第2引数)を参照しないか。
+    // 参照しなければ、結果はキーの初出順にキーだけから作ったものなので、グループを作らずにキーの重複を除けばよい。
+    // 展開するときはキーだけを渡す(グループの引数は本体に現れないので置き換える先が無い)。
+    public static bool ResultIgnoresGroup(FuncFragment resultSelector) {
+        if(resultSelector.RequiresStatementInlining
+            ||resultSelector.CanInvokeAsDelegate
+            ||!resultSelector.CanInlineAssign
+            ||resultSelector.ParameterNames.Length!=2) {
+            return false;
+        }
+        var body = SyntaxFactory.ParseExpression(resultSelector.InlineBody);
+        if(body.ContainsDiagnostics) {
+            return false;
+        }
+        var groupName = resultSelector.ParameterNames[1];
+        return !body.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>().Any(identifier => identifier.Identifier.ValueText==groupName);
+    }
+
+    // グループを作らずキーの重複だけを除いて結果を逐次流してよいか(FLinq の契約: .Anchor の無い要素選択子は評価しなくてよい)。
+    // 逐次流すと、後段が途中で止めたときにソースとキー選択子の評価が減るので、それらと結果選択子に .Anchor があれば使わない。
+    public static bool CanStreamDistinctKeys(Enumerable source,FuncFragment resultSelector,params FuncFragment[] otherFunctions) =>
+        !resultSelector.ContainsAnchor
+        &&!otherFunctions.Any(static function => function.ContainsAnchor)
+        &&!source.TreeContainsAnchor()
+        &&ResultIgnoresGroup(resultSelector);
+
+    public static string DistinctKeyFields(string keyType,string seenName) =>
+        $"private global::System.Collections.Generic.HashSet<{keyType}>? {seenName};";
+
+    // キーの初出のときだけ結果を1つ流す。resultAssignCode は current を設定する文。
+    public static string AdvanceDistinctKey(
+        string enumeratorName,
+        string keyType,
+        string keyAssignCode,
+        string resultAssignCode,
+        string itemName,
+        string keyName,
+        string seenName) => $$"""
+        if(this.{{seenName}} is null){
+            var __hasCnt={{enumeratorName}}.TryGetNonEnumeratedCount(out var __cnt);
+            this.{{seenName}}=__hasCnt
+                ? new global::System.Collections.Generic.HashSet<{{keyType}}>(global::System.Math.Min(__cnt,1024))
+                : new global::System.Collections.Generic.HashSet<{{keyType}}>();
+        }
+        while({{enumeratorName}}.TryGetNext(out var __mn35)){
+            var {{itemName}}=__mn35;
+            {{keyType}} {{keyName}}=default!;
+            {{IndentBlock(keyAssignCode,"            ").TrimStart()}}
+            if(this.{{seenName}}.Add({{keyName}})){
+                {{IndentBlock(resultAssignCode,"                ").TrimStart()}}
+                return true;
+            }
+        }
+        current=default!;
+        return false;
+        """;
 
     public static string IndentBlock(string text,string indent) {
         return string.Join("\n",text.Replace("\r\n","\n").Split('\n').Select(line => line.Length==0 ? line : indent+line));
@@ -205,9 +263,13 @@ internal class GroupBy_keySelector_resultSelector(
             : RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,resultSelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,resultSelector)}";
-    public override string GetEnumeratorFields =>
-        GroupBySupport.Fields(this.KeyType,source.ElementType,this.group,this.lookup,this.hasValue);
-    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanTryProvideSpan,this.KeyType,source.ElementType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),"",this.item,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
+    private bool IgnoresGroup => GroupBySupport.CanStreamDistinctKeys(source,resultSelector,keySelector);
+    public override string GetEnumeratorFields => this.IgnoresGroup
+        ? GroupBySupport.DistinctKeyFields(this.KeyType,this.lookup)
+        : GroupBySupport.Fields(this.KeyType,source.ElementType,this.group,this.lookup,this.hasValue);
+    public override string GetTryGetNextBody => this.IgnoresGroup
+        ? GroupBySupport.AdvanceDistinctKey(this.e,this.KeyType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),this.FuncAssignCurrentIndented("",resultSelector,nameof(resultSelector),this.currentValue,this.key),this.item,this.key,this.lookup)
+        : GroupBySupport.BuildAndAdvance(this.e,source.CanTryProvideSpan,this.KeyType,source.ElementType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),"",this.item,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
         {{this.FuncAssignCurrentIndented("",resultSelector,nameof(resultSelector),this.currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{source.ElementType}>)__cur")}}
         return true;
         """;
@@ -334,9 +396,13 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
             : RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,elementSelector,resultSelector },source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector,resultSelector)}";
-    public override string GetEnumeratorFields =>
-        GroupBySupport.Fields(this.KeyType,this.ElemType,this.group,this.lookup,this.hasValue);
-    public override string GetTryGetNextBody => GroupBySupport.BuildAndAdvance(this.e,source.CanTryProvideSpan,this.KeyType,this.ElemType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),$"{this.ElemType} {this.a}=default!;\n{this.FuncAssign(elementSelector,nameof(elementSelector),this.a,this.item)}",this.a,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
+    private bool IgnoresGroup => GroupBySupport.CanStreamDistinctKeys(source,resultSelector,keySelector,elementSelector);
+    public override string GetEnumeratorFields => this.IgnoresGroup
+        ? GroupBySupport.DistinctKeyFields(this.KeyType,this.lookup)
+        : GroupBySupport.Fields(this.KeyType,this.ElemType,this.group,this.lookup,this.hasValue);
+    public override string GetTryGetNextBody => this.IgnoresGroup
+        ? GroupBySupport.AdvanceDistinctKey(this.e,this.KeyType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),this.FuncAssignCurrentIndented("",resultSelector,nameof(resultSelector),this.currentValue,this.key),this.item,this.key,this.lookup)
+        : GroupBySupport.BuildAndAdvance(this.e,source.CanTryProvideSpan,this.KeyType,this.ElemType,this.FuncAssign(keySelector,nameof(keySelector),this.key,this.item),$"{this.ElemType} {this.a}=default!;\n{this.FuncAssign(elementSelector,nameof(elementSelector),this.a,this.item)}",this.a,this.group,this.lookup,this.hasValue,this.item,this.key)+$$"""
         {{this.FuncAssignCurrentIndented("",resultSelector,nameof(resultSelector),this.currentValue,"__cur.Key",$"(global::System.Collections.Generic.IEnumerable<{this.ElemType}>)__cur")}}
         return true;
         """;

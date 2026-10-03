@@ -1541,3 +1541,11 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 形: 両辺が同じ種類の根で、ソース式の文字列が同じで、どちらの木にも `.Anchor` が無く、比較子が無いか既定のとき、`bool r=true;` にする。FLinq の契約では `.Anchor` の無いソース式は純粋で決定的なので同じ列を返し、既定の比較は反射的なので、要素を比べなくても等しい(ソース式も評価しない)。既定でない比較子(反射的とは限らない)、違う式、`.Anchor` 付きは従来どおり比べる。理想版(2026-10-02 書き直し)と同じ前提。
 - テスト: `Test/SourceGenerator/SameSourceSequenceEqualTests.cs`(同じ式・既定比較子は評価0回で true、違う式・`.Anchor`・反射的でない比較子は2回評価して比べる)。
 - 結果: 次の前後比較(GroupBy の変更とまとめて計測し、行で切り分ける)で記録する。
+
+## 2026-10-03 結果がグループを使わない GroupBy をキーの重複除きにする(採用)
+
+- 対象: `GroupBy_resultSelector`(`(key,g)=>key`)・`GroupBy_elementSelector_resultSelector` の Array/List/IEnumerable と Range。ほかに同じ形の GroupBy 全般。
+- 形: 結果選択子がその場に展開できる式で、グループの引数を参照しないとき(構文で判定)、グループを作らずにキーの重複だけを除き、キーの初出で結果を1つ流す。要素選択子は評価しない。後ろに段が続く GroupBy(段をまとめる経路)は「キー選択子の Select・Distinct・キーから結果を作る Select」の3段に置き換え、単独の GroupBy(演算子ごとの経路)は HashSet でキーの初出を判定する列挙子にする。結果の順(キーの初出順)と値は System.Linq と同じ。
+- `.Anchor` の扱い: 要素選択子・キー選択子・結果選択子・比較子・前段・ソースのどれかに `.Anchor` があれば従来どおり全件を読んでグループを作る(逐次流すと、後段が途中で止めたときにソースとキー選択子の評価が減るため)。
+- テスト: `Test/SourceGenerator/GroupByResultIgnoresGroupTests.cs`(両経路で、要素選択子を評価しない・First や1件目で止める Consume は最初のキーで止まる・`.Anchor` 付きとグループを使う結果選択子は全件評価)。
+- 結果: 次の前後比較で記録する。
