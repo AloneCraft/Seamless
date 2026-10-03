@@ -115,8 +115,8 @@ public abstract class IEnumerable<T>where T : notnull {
                                                    .Consume(this.consumer);
     }
     /// <summary>
-    /// Order 系だけは KeepsSortedSpanFastPath が「ソースがコンパイル時にスパンを出せるなら押し下げない」で止める。
-    /// これはそのガードが効く対照で、押し下げが起きない(＝差が出ない)ことが期待値。
+    /// Order 系の前への押し下げ。2026-10-04 までは、ソースがコンパイル時にスパンを出せるときは昇順の span 高速経路を守るため
+    /// 押し下げず、この行はその対照だった。今は押し下げ、並べ替えの段が溜めた値が既に並んでいるかを確かめる。
     /// </summary>
     public class Order_source(int count=4_096):EnumerableSource<T>(count) {
         [BenchFact,Benchmark]

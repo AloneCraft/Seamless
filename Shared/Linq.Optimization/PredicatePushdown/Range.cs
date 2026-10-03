@@ -23,10 +23,9 @@ public abstract class Range(int count = 4_096):global::Common.Base<int>(count) {
     [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Intersect_first_Where_predicate_Impl() => global::System.Linq.Enumerable.Range(1,this.EffectiveSourceCount(4_096)).Intersect(this.SecondRange()).Where(static value => (value&1)==0).Consume(this.consumer);
     // Distinct/Reverse は無条件で押し下げる(要素そのものがキー／要素数を保つ)。どちらも span 系の
     // 高速パスを失うので、Order と同型のガードを足すべきかをこの計測で判断する。
-    // Order 系だけは KeepsSortedSpanFastPath が止める。Order_Where_predicate はガードが効く対照で
-    // 差が出ないことが期待値、Skip_count_Order_Where_predicate は Order のソースが LINQ 呼び出しに
-    // なるためガードが外れて押し下がる形。上流に恒等 Select を置くのは不可。AlgebraicRewriter が
-    // 押し下げより前のパスで恒等 Select と AsEnumerable を除去してしまい、ガードが再び効いてしまう。
+    // Order 系の前へも押し下げる(2026-10-04 までは、ソースがコンパイル時にスパンを出せるときは昇順の span 高速経路を
+    // 守るため押し下げず、Order_Where_predicate はその対照だった)。今は押し下げ、並べ替えの段が溜めた値が既に並んでいるかを
+    // 確かめる。Skip_count_Order_Where_predicate は Order のソースが LINQ 呼び出しになる形。
     // Skip(0) は除去対象でも押し下げ対象でもないので、Order 押し下げだけを単独で計測できる。
     [BenchFact, Benchmark] public void Distinct_Where_predicate() => this.Distinct_Where_predicate_Impl();
     [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void Distinct_Where_predicate_Impl() => global::System.Linq.Enumerable.Range(1,this.EffectiveSourceCount(4_096)).Distinct().Where(static value => (value&1)==0).Consume(this.consumer);

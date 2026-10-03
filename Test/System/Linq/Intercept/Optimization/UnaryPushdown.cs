@@ -45,18 +45,18 @@ public sealed class UnaryPushdown:OptimizationTestBase {
 
     // ソースが配列でも押し下げる。押し下げの有無に関わらず結果は同じであることを固定する。
     [Fact, Trait("Category","Unit")]
-    public static void OrderKeepsSortedSpanFastPath() {
+    public static void OrderOnArrayIsPushed() {
         var expected = Values().Order().Where(static v => v%2==0).ToList();
-        AssertSequenceEqual(expected,OrderKeepsSortedSpanFastPathOptimized());
-        AssertSequenceEqual(expected,OrderKeepsSortedSpanFastPathNoOptimized());
+        AssertSequenceEqual(expected,OrderOnArrayIsPushedOptimized());
+        AssertSequenceEqual(expected,OrderOnArrayIsPushedNoOptimized());
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
-    private static List<int> OrderKeepsSortedSpanFastPathOptimized() =>
+    private static List<int> OrderOnArrayIsPushedOptimized() =>
         Values().Order().Where(static v => v%2==0).ToList();
 
     [global::Seamless.FLinq.LinqIntercept(false,global::Seamless.FLinq.LinqInstrumentation.Counter)]
-    private static List<int> OrderKeepsSortedSpanFastPathNoOptimized() =>
+    private static List<int> OrderOnArrayIsPushedNoOptimized() =>
         Values().Order().Where(static v => v%2==0).ToList();
 
     // Order のソースが LINQ 呼び出しでも押し下がる。Skip(0) は AlgebraicRewriter の
