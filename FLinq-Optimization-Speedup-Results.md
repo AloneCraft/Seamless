@@ -1655,3 +1655,16 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: 生成器は `LinqCounterScope.IncrementDirectSpanUsed()` などを条件なしに差し替えメソッドへ置いている(68か所)。これらは AggressiveInlining で、中の `AsyncLocal<T>.Value`(スレッドの実行文脈の表引き)ごと呼び出し元へ展開されていた。JIT の機械語(DOTNET_JitDisasm)で、配列の Append_element(Int32)の差し替え側だけ要素ごとの `Consumer.Consume<int>` がインライン化されず呼び出しのまま残っていた(理想版はインライン化されて内側の BenchmarkDotNet の Consume だけを呼ぶ)。展開された表引きでインライン化の予算を使い切ったのが原因と見ている(理想版の4倍の時間。List の Index・Range の融合の行も同じ形の候補)。
 - 修正: `LinqCounterScope.Start` が開いている範囲の数を静的なフィールドで数え、Increment* はまずそれだけを見る(0 なら何もしない)。AsyncLocal を引く処理は NoInlining の別メソッドへ分けた。範囲が開いているときの数え方は変わらない(別のスレッドで範囲が開いていても、そのスレッドの AsyncLocal は空なので数え間違えない)。
 - 結果: 次の取り直しで記録する(機械語でも Consume がインライン化されたかを確かめる)。
+
+## 2026-10-04 GroupBy・ToLookup・Join の探索表を、グループ番号を振ってから1本の配列へ並べて作る(採用候補)
+
+- 原因: LookupBuilder はキーごとに Grouping を作り、要素を足すたびにグループの配列を 1→2→4… と作り直していた。4096件・1000グループ(x%1000)ではグループあたり約4回の割り当てとコピーになり、理想版(キー→グループ番号の表、件数を数えてから1本の配列へ並べる)の約2倍かかっていた(Array/List/IEnumerable の GroupBy・ToLookup・Join と、押し下げ・射影融合タブの Join で 1.6〜3倍)。
+- 修正: `Seamless.Linq.ContiguousLookupBuilder<TKey,TElement>` を追加。キー→グループ番号は Dictionary(既定の比較子は値型で脱仮想化)、null キーは別に1グループ。要素とグループ番号は ArrayPool の作業領域に溜め、最後にグループの末尾から逆順に詰めて1本の配列へ安定に並べる。グループ(`Grouping`)はその配列の区間を指す(区間のグループは要素を足せない)。
+  - GroupBy(4形すべて)は初回に全グループを作って追加順の循環リストで流す(従来と同じ形)。
+  - ToLookup は索引(バケット)をグループ数から作る。`ToLookup(...).Consume` は索引を作らずにグループを流す(全件を積んでから流すのは同じなので、選択子の評価の回数と順は変わらない)。
+  - Join は内側を並べた借り物の配列と、キー→範囲で一致を回す(グループの仮想呼び出し `grouping[k]` も無くなる)。配列の直接 Consume と列挙子の構造体の両方。
+- 注意: 1つのグループを持ち続けると結果の配列全体が生き残る(System.Linq はグループごとに配列を持つ)。
+- 既存の不具合の修正: `Grouping` の添字が範囲外のとき、span の IndexOutOfRangeException ではなく ArgumentOutOfRangeException を投げる(IList の約束。System.Linq と同じ)。
+- テスト作成中に見つけた既存の制限(未修正): ToLookup などの比較子の式は生成コードへそのまま写されるので、using の無い型名(`StringComparer`)は解決できない。文字列を `sink.Consume(x)` へ渡すと文字の列として流す形に読まれる。展開する本体の中の、修飾の無い静的メソッドの呼び出しや、ラムダの中の `is ICollection<T> c` は生成コードでコンパイルできない。
+- テスト: `ContiguousLookupBuilderTests`(順・null キー・比較子・区間のグループの IndexOf/CopyTo/Add・探索・伸長)、`ContiguousLookupGenerationTests`(参照型と int、配列と IEnumerable、null キー、内側の重複、比較子、空、Join の後の Where)。
+- 結果: 次の取り直しで記録する。

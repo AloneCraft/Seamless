@@ -41,16 +41,77 @@ internal abstract class ToLookupBase(int 番号,Enumerable source,string resultT
 
     protected static string CapacityExpression(FuncFragment keySelector,string sourceCountExpression) =>
         $"global::System.Math.Min({sourceCountExpression},1024)";
+
+    // ToLookup(...).Consume は索引のグループをキーの初出順に流すだけなので、キーで引く表を作らず、GroupBy と同じくグループを作って流す。
+    // 全件を積んでから流すのは索引を作る場合と同じなので、選択子の評価の回数と順は変わらない。
+    private protected string? RenderGroupsStreamingConsume(string consumerName,Enumerable lookupSource,FuncFragment keySelector,FuncFragment? elementSelector) {
+        string sourceExpression;
+        try {
+            sourceExpression=lookupSource.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var keyType = FuncReturnTypeName(keySelector);
+        var elementType = elementSelector is null ? lookupSource.ElementType : FuncReturnTypeName(elementSelector);
+        var functions = elementSelector is null ? new[] { keySelector } : new[] { keySelector,elementSelector };
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(functions),
+            this.StaticDelegateLocalDeclarations(functions),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var sourceName = $"__lookupSource{番号}";
+        var spanName = $"__lookupSpan{番号}";
+        var hasSpanName = $"__lookupHasSpan{番号}";
+        var countName = $"__lookupCount{番号}";
+        var rawCountName = $"__lookupRawCount{番号}";
+        var builderName = $"__lookupBuilder{番号}";
+        var indexName = $"__lookupIndex{番号}";
+        var itemName = $"__lookupItem{番号}";
+        var keyName = $"__lookupKey{番号}";
+        var elementName = $"__lookupElement{番号}";
+        var firstName = $"__lookupFirst{番号}";
+        var groupName = $"__lookupGroup{番号}";
+        var addedElement = elementSelector is null ? itemName : elementName;
+        var elementAssign = elementSelector is null
+            ? string.Empty
+            : $"{elementType} {elementName}=default!;\n{this.FuncAssignStatic(elementSelector,nameof(elementSelector),elementName,itemName)}\n";
+        var add = $"{keyType} {keyName}=default!;\n{this.FuncAssignStatic(keySelector,nameof(keySelector),keyName,itemName)}\n{elementAssign}{builderName}.Add({keyName},{addedElement});";
+        return $$"""
+            {{localDeclarations}}
+            using var {{sourceName}}={{sourceExpression}};
+            var {{hasSpanName}}={{sourceName}}.TryGetSpan(out var {{spanName}});
+            var {{countName}}={{hasSpanName}} ? {{spanName}}.Length : {{sourceName}}.TryGetNonEnumeratedCount(out var {{rawCountName}}) ? {{rawCountName}} : 0;
+            var {{builderName}}=new global::Seamless.Linq.ContiguousLookupBuilder<{{keyType}},{{elementType}}>({{countName}},{{CapacityExpression(keySelector,countName)}},null);
+            if({{hasSpanName}}){
+                for(var {{indexName}}=0;{{indexName}}<{{spanName}}.Length;{{indexName}}++){
+                    var {{itemName}}={{spanName}}[{{indexName}}];
+                    {{IndentGeneratedStatement(add,"            ")}}
+                }
+            }else{
+                while({{sourceName}}.TryGetNext(out var {{itemName}})){
+                    {{IndentGeneratedStatement(add,"            ")}}
+                }
+            }
+            var {{firstName}}={{builderName}}.GetRootGroupAndClear();
+            if({{firstName}} is not null){
+                var {{groupName}}={{firstName}};
+                do{
+                    {{consumerName}}.Consume((global::System.Linq.IGrouping<{{keyType}},{{elementType}}>){{groupName}});
+                    {{groupName}}={{groupName}}.NextGroupInAddOrder!;
+                }while({{groupName}}!={{firstName}});
+            }
+            """;
+    }
 }
 
 internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment keySelector,string resultType):ToLookupBase(番号,source,resultType),IStreamingMaterializeConsume {
     // Range の ToLookup(x%C).Consume は、索引のグループの列挙順(キーの初出順)に剰余類のグループを流すのと同じ(GroupBy と同じ形)。
+    // それ以外も、索引を作らずにグループを作って流す。
     public string? RenderStreamingConsume(string consumerName) =>
         source is RangeRoot range
             &&!source.TreeContainsAnchor()
             &&RangeModuloOrderRoot.TryGetModulus(keySelector,out var modulus)
             ? RangeModuloDistinctRoot.RenderGroupsConsume(range,modulus,番号,consumerName,"global::System.Linq.IGrouping<int, int>","int",string.Empty,static (destination,value) => $"{destination}={value};")
-            : null;
+            : this.RenderGroupsStreamingConsume(consumerName,source,keySelector,null);
 
     // Explicit Fragment child visitor
     protected override IEnumerable<FuncFragment> GetChildFunctions() {
@@ -76,24 +137,22 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
     protected override string ComputeMembers => $$"""
             private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
                 var __hasSpan=source.TryGetSpan(out var __span);
-                var __capacity=__hasSpan
-                    ? {{CapacityExpression(keySelector,"__span.Length")}}
-                    : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
-                var builder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{source.ElementType}}>(__capacity,null);
+                var __elementCount=__hasSpan ? __span.Length : source.TryGetNonEnumeratedCount(out var __count) ? __count : 0;
+                var builder=new global::Seamless.Linq.ContiguousLookupBuilder<{{FuncReturnTypeName(keySelector)}},{{source.ElementType}}>(__elementCount,{{CapacityExpression(keySelector,"__elementCount")}},null);
                 try {
                 if(__hasSpan){
                     for(var __i=0;__i<__span.Length;__i++){
                         var {{this.item}} = __span[__i];
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                        builder.AddUnpooled({{this.key}},{{this.item}});
+                        builder.Add({{this.key}},{{this.item}});
                     }
                 }else{
                     while(source.TryGetNext(out var __mn90)){
                         var {{this.item}} = __mn90;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                        builder.AddUnpooled({{this.key}},{{this.item}});
+                        builder.Add({{this.key}},{{this.item}});
                     }
                 }
                 return builder.BuildAndClear();
@@ -107,6 +166,7 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
 
 internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source,FuncFragment keySelector,FuncFragment elementSelector,string resultType):ToLookupBase(番号,source,resultType),IStreamingMaterializeConsume {
     // Range の ToLookup(x%C,要素選択子).Consume は、剰余類のグループを流すのと同じ(GroupBy と同じ形)。
+    // それ以外も、索引を作らずにグループを作って流す。
     public string? RenderStreamingConsume(string consumerName) {
         if(source is not RangeRoot range
             ||source.TreeContainsAnchor()
@@ -115,7 +175,7 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
             ||elementSelector.RequiresStatementInlining
             ||!elementSelector.CanInlineAssign
             ||!RangeModuloOrderRoot.TryGetModulus(keySelector,out var modulus)) {
-            return null;
+            return this.RenderGroupsStreamingConsume(consumerName,source,keySelector,elementSelector);
         }
         var elementType = FuncReturnTypeName(elementSelector);
         return RangeModuloDistinctRoot.RenderGroupsConsume(range,modulus,番号,consumerName,$"global::System.Linq.IGrouping<int, {elementType}>",elementType,
@@ -152,10 +212,8 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
     protected override string ComputeMembers => $$"""
             private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
                 var __hasSpan=source.TryGetSpan(out var __span);
-                var __capacity=__hasSpan
-                    ? {{CapacityExpression(keySelector,"__span.Length")}}
-                    : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
-                var builder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{FuncReturnTypeName(elementSelector)}}>(__capacity,null);
+                var __elementCount=__hasSpan ? __span.Length : source.TryGetNonEnumeratedCount(out var __count) ? __count : 0;
+                var builder=new global::Seamless.Linq.ContiguousLookupBuilder<{{FuncReturnTypeName(keySelector)}},{{FuncReturnTypeName(elementSelector)}}>(__elementCount,{{CapacityExpression(keySelector,"__elementCount")}},null);
                 try {
                 if(__hasSpan){
                     for(var __i=0;__i<__span.Length;__i++){
@@ -164,7 +222,7 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
                         {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
-                        builder.AddUnpooled({{this.key}},{{this.temp}});
+                        builder.Add({{this.key}},{{this.temp}});
                     }
                 }else{
                     while(source.TryGetNext(out var __mn91)){
@@ -173,7 +231,7 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
                         {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
-                        builder.AddUnpooled({{this.key}},{{this.temp}});
+                        builder.Add({{this.key}},{{this.temp}});
                     }
                 }
                 return builder.BuildAndClear();
@@ -213,24 +271,22 @@ internal class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFr
     protected override string ComputeMembers => $$"""
             private static {{resultType}} Compute(ref TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector)}}){
                 var __hasSpan=source.TryGetSpan(out var __span);
-                var __capacity=__hasSpan
-                    ? {{CapacityExpression(keySelector,"__span.Length")}}
-                    : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
-                var builder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{source.ElementType}}>(__capacity,comparer);
+                var __elementCount=__hasSpan ? __span.Length : source.TryGetNonEnumeratedCount(out var __count) ? __count : 0;
+                var builder=new global::Seamless.Linq.ContiguousLookupBuilder<{{FuncReturnTypeName(keySelector)}},{{source.ElementType}}>(__elementCount,{{CapacityExpression(keySelector,"__elementCount")}},comparer);
                 try {
                 if(__hasSpan){
                     for(var __i=0;__i<__span.Length;__i++){
                         var {{this.item}} = __span[__i];
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                        builder.AddUnpooled({{this.key}},{{this.item}});
+                        builder.Add({{this.key}},{{this.item}});
                     }
                 }else{
                     while(source.TryGetNext(out var __mn92)){
                         var {{this.item}} = __mn92;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                        builder.AddUnpooled({{this.key}},{{this.item}});
+                        builder.Add({{this.key}},{{this.item}});
                     }
                 }
                 return builder.BuildAndClear();
@@ -273,10 +329,8 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
     protected override string ComputeMembers => $$"""
             private static {{resultType}} Compute(ref TEnum source, global::System.Collections.Generic.IEqualityComparer<{{FuncReturnTypeName(keySelector)}}>? comparer{{this.ClosureMethodParameterSuffix(keySelector,elementSelector)}}){
                 var __hasSpan=source.TryGetSpan(out var __span);
-                var __capacity=__hasSpan
-                    ? {{CapacityExpression(keySelector,"__span.Length")}}
-                    : source.TryGetNonEnumeratedCount(out var __count) ? {{CapacityExpression(keySelector,"__count")}} : 0;
-                var builder=new global::Seamless.Linq.LookupBuilder<{{FuncReturnTypeName(keySelector)}},{{FuncReturnTypeName(elementSelector)}}>(__capacity,comparer);
+                var __elementCount=__hasSpan ? __span.Length : source.TryGetNonEnumeratedCount(out var __count) ? __count : 0;
+                var builder=new global::Seamless.Linq.ContiguousLookupBuilder<{{FuncReturnTypeName(keySelector)}},{{FuncReturnTypeName(elementSelector)}}>(__elementCount,{{CapacityExpression(keySelector,"__elementCount")}},comparer);
                 try {
                 if(__hasSpan){
                     for(var __i=0;__i<__span.Length;__i++){
@@ -285,7 +339,7 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
                         {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
-                        builder.AddUnpooled({{this.key}},{{this.temp}});
+                        builder.Add({{this.key}},{{this.temp}});
                     }
                 }else{
                     while(source.TryGetNext(out var __mn93)){
@@ -294,7 +348,7 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
                         {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
                         {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
-                        builder.AddUnpooled({{this.key}},{{this.temp}});
+                        builder.Add({{this.key}},{{this.temp}});
                     }
                 }
                 return builder.BuildAndClear();

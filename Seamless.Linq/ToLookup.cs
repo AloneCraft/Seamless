@@ -587,6 +587,9 @@ namespace Seamless.Linq {
         protected int count;
         private readonly bool poolElements;
         private TElement firstElement;
+        // 要素は elements[start..start+count)。共有配列の区間を指すグループ(ContiguousLookupBuilder が作る)は要素を足せない。
+        private readonly int start;
+        private readonly bool segment;
 
         public Grouping<TKey,TElement>? NextGroupInAddOrder;
         public Grouping<TKey,TElement>? NextGroupInSameHashCode;
@@ -614,6 +617,18 @@ namespace Seamless.Linq {
             this.firstElement=default!;
         }
 
+        // 共有配列の区間 elements[start..start+count) を指すグループ。配列は書き換えない前提で、要素は足せない。
+        internal Grouping(TKey key,uint hashCode,TElement[] elements,int start,int count) {
+            this.key     =key;
+            this.hashCode=hashCode;
+            this.elements=elements;
+            this.start   =start;
+            this.count   =count;
+            this.poolElements=false;
+            this.segment =true;
+            this.firstElement=default!;
+        }
+
         internal Grouping(TKey key,uint hashCode,TElement value,bool poolElements) {
             this.key     =key;
             this.hashCode=hashCode;
@@ -630,7 +645,12 @@ namespace Seamless.Linq {
         // mutable in construction, but readonly in public surface
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public virtual void Add(TElement value) => this.AddCore(value);
+        public virtual void Add(TElement value) {
+            if(this.segment) {
+                throw new NotSupportedException();
+            }
+            this.AddCore(value);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void AddCore(TElement value) {
@@ -691,7 +711,10 @@ namespace Seamless.Linq {
                 }
                 return this.firstElement;
             }
-            return this.elements.AsSpan(0,this.count)[index];
+            if((uint)index>=(uint)this.count) {
+                throw new ArgumentOutOfRangeException(nameof(index));
+            }
+            return this.elements[this.start+index];
         }
 
         IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
@@ -706,7 +729,8 @@ namespace Seamless.Linq {
             if(this.poolElements&&this.elements.Length==0) {
                 return EqualityComparer<TElement>.Default.Equals(this.firstElement,item) ? 0 : -1;
             }
-            return Array.IndexOf(this.elements,item,0,this.count);
+            var index = Array.IndexOf(this.elements,item,this.start,this.count);
+            return index<0 ? -1 : index-this.start;
         }
 
         public void Insert(int index,TElement item) {
@@ -734,7 +758,7 @@ namespace Seamless.Linq {
                 array[arrayIndex]=this.firstElement;
                 return;
             }
-            this.elements.AsSpan(0,this.count).CopyTo(array.AsSpan(arrayIndex));
+            this.elements.AsSpan(this.start,this.count).CopyTo(array.AsSpan(arrayIndex));
         }
 
         public bool Remove(TElement item) {

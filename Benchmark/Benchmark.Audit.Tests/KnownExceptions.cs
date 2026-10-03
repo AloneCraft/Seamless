@@ -35,10 +35,6 @@ public static class KnownExceptions {
         new(AuditInvariant.外部LINQ,IEnumerable,Base,"Single_predicate","[LinqIntercept(false)] の srcOne のコレクション式 [FromInt(0)] が展開時に Enumerable.Repeat(…,1) へ書き換わる"),
         new(AuditInvariant.理想形との差,Array,Base,"Sum","ソースが yield の反復子(srcMinusPlusCount)で、列挙子構造体の TryGetNext 内の遅延 GetEnumerator もループ内のインターフェース呼び出しとして数える(実行は初回だけ)。Compute をローカル関数にして監査が構造体の中まで辿れるようになり見えた"),
         new(AuditInvariant.理想形との差,List,Base,"Sum","同上(List)"),
-        new(AuditInvariant.理想形との差,Array,Base,"ToLookup_elementSelector","結果の ILookup をインターフェース型の変数で受けて foreach するため、グループごとにインターフェース呼び出しになる"),
-        new(AuditInvariant.理想形との差,Array,Base,"ToLookup_keySelector","結果の ILookup をインターフェース型の変数で受けて foreach するため、グループごとにインターフェース呼び出しになる"),
-        new(AuditInvariant.理想形との差,List,Base,"ToLookup_elementSelector","結果の ILookup をインターフェース型の変数で受けて foreach するため、グループごとにインターフェース呼び出しになる"),
-        new(AuditInvariant.理想形との差,List,Base,"ToLookup_keySelector","結果の ILookup をインターフェース型の変数で受けて foreach するため、グループごとにインターフェース呼び出しになる"),
         new(AuditInvariant.理想形との差,Optimization,"Shared.Linq.Optimization.PredicatePushdown.List`1","Reverse_Where_predicate","ベンチが List を IEnumerable<T> へキャストしてから Reverse するので、FLinq は IEnumerable の根として列挙子で溜める(理想版はキャスト前の List の span を使う)。段をまとめた Consume を差し替えメソッドへ展開したので、監査が辿る範囲に入った"),
     ];
 }

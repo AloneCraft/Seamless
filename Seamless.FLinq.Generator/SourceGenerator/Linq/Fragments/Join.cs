@@ -37,7 +37,9 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             this.{{this.innerLow}}=__innerCount>0&&this.{{this.innerEnumerator}}.TryGetNext(out var __innerFirst) ? __innerFirst : 0L;
             this.{{this.innerHigh}}=this.{{this.innerLow}}+__innerCount;
             """
-        : $"this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});";
+        : $"this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});\nthis.{this.arranged}=this.{this.lookup}.Arranged;";
+    private string arranged => $"__ar{番号}";
+    private string groupEnd => $"__ge{番号}";
     private string innerLow => $"__innerLow{番号}";
     private string innerHigh => $"__innerHigh{番号}";
     // 内側が .Anchor の無い Range そのもので、両キーが int(内側は恒等)・比較子が既定なら、内側の要素はキーと等しく一意。
@@ -56,15 +58,39 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             private long {{this.innerHigh}};
             """
         : $$"""
-        private global::Seamless.Linq.Lookup<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}> {{this.lookup}};
-        private global::Seamless.Linq.Grouping<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}>? {{this.group}};
+        private global::Seamless.Linq.ContiguousLookupBuilder<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}> {{this.lookup}};
+        private {{this.innerSource.ElementType}}[] {{this.arranged}};
         private int {{this.groupIndex}};
-        private int {{this.state}};
+        private int {{this.groupEnd}};
         private {{this.outerSource.ElementType}} {{this.outerValue}};
         private static bool IsNullKey<TKey>(TKey key){
             return key is null;
         }
-        {{this.BuildLookupBody(true,"IncrementLogicalJoinInner")}}
+        {{this.BuildContiguousLookupBody()}}
+        """;
+    // 内側の探索表: キーへ初出順のグループ番号を振ってから、内側の要素を1本の配列へグループ順に並べる(グループごとに伸びる配列を作らない)。
+    // null キーの内側は結合しない(System.Linq と同じ)。
+    private string BuildContiguousLookupBody() => $$"""
+        private static global::Seamless.Linq.ContiguousLookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
+            var __hasCnt=inner.TryGetNonEnumeratedCount(out var __cnt);
+            if(__hasCnt) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();
+            var __lookupBuilder=new global::Seamless.Linq.ContiguousLookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(__hasCnt ? __cnt : 0,__hasCnt ? __cnt : 0,comparer);
+            using var {{this.innerEnumerator}}=inner;
+            while({{this.innerEnumerator}}.TryGetNext(out var __mn102)){
+                {{this.CounterCall("IncrementLogicalJoinInner")}}
+                var {{this.item}}=__mn102;
+                {{this.InnerKeyType}} {{this.key}}=default!;
+                {{this.FuncAssignStaticIndented("        ",this.innerKey,nameof(this.innerKey),this.key,this.item)}}
+                if(IsNullKey({{this.key}})){
+                    continue;
+                }
+                {{this.CounterCall("IncrementHashBuild")}}
+                {{this.CounterCall("IncrementBufferAdd")}}
+                __lookupBuilder.Add({{this.key}},{{this.item}});
+            }
+            __lookupBuilder.PrepareProbe();
+            return __lookupBuilder;
+        }
         """;
     public override string GetTryGetNextBody => this.ProbesInnerRange()
         ? $$"""
@@ -83,14 +109,10 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         """
         : $$"""
         {{this.Start}}:
-        if({{this.state}}==1&&{{this.group}} is not null){
-            if({{this.groupIndex}}<{{this.group}}.Count){
-                var {{this.item}}={{this.group}}[{{this.groupIndex}}++];
-                {{this.FuncAssignCurrentIndented("        ",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,this.item)}}
-                return true;
-            }
-            {{this.group}}=null;
-            {{this.state}}=0;
+        if({{this.groupIndex}}<{{this.groupEnd}}){
+            var {{this.item}}={{this.arranged}}[{{this.groupIndex}}++];
+            {{this.FuncAssignCurrentIndented("    ",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,this.item)}}
+            return true;
         }
         if(!{{this.e}}.TryGetNext(out var __mn38)){
             current=default!;
@@ -104,12 +126,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             goto {{this.Start}};
         }
         {{this.CounterCall("IncrementHashProbe")}}
-        {{this.group}}={{this.lookup}}.GetGroup({{this.key}});
-        if({{this.group}} is null){
-            goto {{this.Start}};
-        }
-        {{this.groupIndex}}=0;
-        {{this.state}}=1;
+        {{this.lookup}}.TryGetRange({{this.key}},out {{this.groupIndex}},out {{this.groupEnd}});
         goto {{this.Start}};
         """;
     public override string GetConsumeExecutionStatement(string consumerName) {
@@ -122,6 +139,8 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         var outerArrayName = $"__joinOuterArray{番号}";
         var innerArrayName = $"__joinInnerArray{番号}";
         var lookupBuilderName = $"__joinLookupBuilder{番号}";
+        var arrangedName = $"__joinArranged{番号}";
+        var groupEndName = $"__joinGroupEnd{番号}";
         var outerIndexName = $"__joinOuterIndex{番号}";
         var innerIndexName = $"__joinInnerIndex{番号}";
         var groupIndexName = $"__joinGroupIndex{番号}";
@@ -129,7 +148,6 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         var innerItemName = $"__joinInnerItem{番号}";
         var innerKeyName = $"__joinInnerKey{番号}";
         var outerKeyName = $"__joinOuterKey{番号}";
-        var groupName = $"__joinGroup{番号}";
         var resultName = $"__joinResult{番号}";
         var hasKeyName = $"__joinHasKey{番号}";
         var localDeclarations = string.Join("\n",new[]{
@@ -142,7 +160,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             {{localDeclarationBlock}}
             static bool {{hasKeyName}}<TKey>(TKey key) => key is not null;
             var {{innerArrayName}}={{innerArrayExpression}};
-            var {{lookupBuilderName}}=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>({{innerArrayName}}.Length,{{this.comparerExpression}},true);
+            var {{lookupBuilderName}}=new global::Seamless.Linq.ContiguousLookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>({{innerArrayName}}.Length,{{innerArrayName}}.Length,{{this.comparerExpression}});
             try {
             for(var {{innerIndexName}}=0;{{innerIndexName}}<{{innerArrayName}}.Length;{{innerIndexName}}++){
                 var {{innerItemName}}={{innerArrayName}}[{{innerIndexName}}];
@@ -152,16 +170,17 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
                     {{lookupBuilderName}}.Add({{innerKeyName}},{{innerItemName}});
                 }
             }
+            {{lookupBuilderName}}.PrepareProbe();
+            var {{arrangedName}}={{lookupBuilderName}}.Arranged;
             var {{outerArrayName}}={{outerArrayExpression}};
             for(var {{outerIndexName}}=0;{{outerIndexName}}<{{outerArrayName}}.Length;{{outerIndexName}}++){
                 var {{outerItemName}}={{outerArrayName}}[{{outerIndexName}}];
                 {{this.InnerKeyType}} {{outerKeyName}}=default!;
                 {{this.FuncAssignStaticIndented("    ",this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}}
                 if(!{{hasKeyName}}({{outerKeyName}})) continue;
-                var {{groupName}}={{lookupBuilderName}}.GetGroup({{outerKeyName}});
-                if({{groupName}} is null) continue;
-                for(var {{groupIndexName}}=0;{{groupIndexName}}<{{groupName}}.Count;{{groupIndexName}}++){
-                    var {{innerItemName}}={{groupName}}[{{groupIndexName}}];
+                if(!{{lookupBuilderName}}.TryGetRange({{outerKeyName}},out var {{groupIndexName}},out var {{groupEndName}})) continue;
+                for(;{{groupIndexName}}<{{groupEndName}};{{groupIndexName}}++){
+                    var {{innerItemName}}={{arrangedName}}[{{groupIndexName}}];
                     {{this.ElementType}} {{resultName}}=default!;
                     {{this.FuncAssignStaticIndented("        ",this.resultSelector,nameof(this.resultSelector),resultName,outerItemName,innerItemName)}}
                     {{consumerName}}.Consume({{resultName}});

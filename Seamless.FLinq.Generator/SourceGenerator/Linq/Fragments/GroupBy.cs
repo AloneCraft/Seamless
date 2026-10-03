@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis.CSharp;
 namespace Seamless.FLinq.Generator;
 
 /*
-GroupBySupport は GroupBy 系 Fragment が共有する「全件を LookupBuilder に積んで、追加順 group を返す」
+GroupBySupport は GroupBy 系 Fragment が共有する「全件を ContiguousLookupBuilder に積んで、追加順 group を返す」
 コード片を組み立てる。
 
 入力例:
@@ -33,8 +33,9 @@ internal static class GroupBySupport {
         private bool {{builtName}};
         """;
 
-    // 初回 TryGetNext で Carrier の LookupBuilder により全グループを構築し、
-    // add-order の循環連結リストの先頭(cursor/first)を確定する。
+    // 初回 TryGetNext で全グループを構築し、add-order の循環連結リストの先頭(cursor/first)を確定する。
+    // キーへ初出順のグループ番号を振ってから要素を1本の配列へ並べる(ContiguousLookupBuilder)。
+    // グループごとに伸びる配列を持つ LookupBuilder より割り当てとコピーが少ない(小さなグループが多いと数倍の差)。
     // 続けて cursor を 1 つ進め、ローカル __cur に取り出す。末尾(first へ戻る)で cursor を null 化。
     public static string BuildAndAdvance(
         string enumeratorName,
@@ -55,7 +56,7 @@ internal static class GroupBySupport {
                 {{keyType}} {{keyName}}=default!;
                 {{IndentBlock(keyAssignCode,"                ")}}
                 {{IndentBlock(elementAssignCode,"                ")}}
-                __builder.AddUnpooled({{keyName}},{{elementName}});
+                __builder.Add({{keyName}},{{elementName}});
             }
             """;
         var addLoopWhile = $$"""
@@ -64,7 +65,7 @@ internal static class GroupBySupport {
                 {{keyType}} {{keyName}}=default!;
                 {{IndentBlock(keyAssignCode,"                ")}}
                 {{IndentBlock(elementAssignCode,"                ")}}
-                __builder.AddUnpooled({{keyName}},{{elementName}});
+                __builder.Add({{keyName}},{{elementName}});
             }
             """;
         var buildLoop = canTryProvideSpan ? $$"""
@@ -79,9 +80,7 @@ internal static class GroupBySupport {
             this.{{builtName}}=true;
             var __hasCnt={{enumeratorName}}.TryGetNonEnumeratedCount(out var __cnt);
             if(__hasCnt) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();
-            var __builder=__hasCnt
-                ? new global::Seamless.Linq.LookupBuilder<{{keyType}}, {{elementType}}>(global::System.Math.Min(__cnt,1024),global::System.Collections.Generic.EqualityComparer<{{keyType}}>.Default)
-                : new global::Seamless.Linq.LookupBuilder<{{keyType}}, {{elementType}}>(global::System.Collections.Generic.EqualityComparer<{{keyType}}>.Default);
+            var __builder=new global::Seamless.Linq.ContiguousLookupBuilder<{{keyType}}, {{elementType}}>(__hasCnt ? __cnt : 0,__hasCnt ? global::System.Math.Min(__cnt,1024) : 0,global::System.Collections.Generic.EqualityComparer<{{keyType}}>.Default);
             {{IndentBlock(buildLoop,"            ")}}
             this.{{cursorName}}=this.{{firstName}}=__builder.GetRootGroupAndClear();
         }

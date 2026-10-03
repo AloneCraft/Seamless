@@ -31,8 +31,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         GeneratedSourceAssert.True(
             !generated.Contains("global::System.Math.Min(__span.Length,1999)",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Math.Min(__count,1999)",StringComparison.Ordinal)
-            &&generated.Contains("var __capacity=__hasSpan",StringComparison.Ordinal)
-            &&generated.Contains("new global::Seamless.Linq.LookupBuilder<int,int>(__capacity,null)",StringComparison.Ordinal)
+            &&generated.Contains("var __elementCount=__hasSpan ? __span.Length",StringComparison.Ordinal)
+            &&generated.Contains("new global::Seamless.Linq.ContiguousLookupBuilder<int,int>(__elementCount,global::System.Math.Min(__elementCount,1024),null)",StringComparison.Ordinal)
             &&generated.Contains("DictionarySlim<int,int>(global::System.Math.Min(__span.Length,1024))",StringComparison.Ordinal)
             &&generated.Contains("DictionarySlim<int,int>(global::System.Math.Min(__count,1024))",StringComparison.Ordinal),
             "Modulo key selectors must use the same input-derived capacity as general selectors.",
