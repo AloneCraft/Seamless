@@ -1534,3 +1534,10 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 結果(FLinq÷理想、修正前後を交互に2周、ildiff で IL が変わった124行): 幾何平均 0.904倍、ClassInt32 は 0.803倍。IEnumerable の ClassInt32 は LastOrDefault 3.64→1.31、Last 3.08→1.24、Average 2.73→1.16、Sum_selector 2.47→1.13 など 12行が 2.3〜3.6倍 → 1.1〜1.3倍。IL が変わらない539行の変化は中央値4.3%・90パーセンタイル15.4%。2周でこれを超えて悪化した6行は、4周ずつで測り直すと悪化なし(3行は改善)。
 - 形状テスト6件は、旧形(`Struct.Compute(`・`TEnum`)と、使われない補助構造体の中の文字列に依存していたので、新しい形(`__compute`)と実際の経路で検査するよう直した。IL 監査は構造体の中まで辿れるようになり、Array/List の `Sum`(ソースが yield の反復子)でループ内のインターフェース呼び出しが見えるようになった(TryGetNext 内の遅延 GetEnumerator を含む。許可リストに理由つきで記録)。
 - 採否: 採用。
+
+## 2026-10-03 同じソース式どうしの SequenceEqual を比べずに true にする(採用)
+
+- 対象: `SequenceEqual_second`・`SequenceEqual_second_comparer`(既定の比較子)の Array/List/IEnumerable(`this.srcCount(n).AsX<T>().SequenceEqual(this.srcCount(n).AsX<T>())`)。Range 同士は既存の区間比較のまま。
+- 形: 両辺が同じ種類の根で、ソース式の文字列が同じで、どちらの木にも `.Anchor` が無く、比較子が無いか既定のとき、`bool r=true;` にする。FLinq の契約では `.Anchor` の無いソース式は純粋で決定的なので同じ列を返し、既定の比較は反射的なので、要素を比べなくても等しい(ソース式も評価しない)。既定でない比較子(反射的とは限らない)、違う式、`.Anchor` 付きは従来どおり比べる。理想版(2026-10-02 書き直し)と同じ前提。
+- テスト: `Test/SourceGenerator/SameSourceSequenceEqualTests.cs`(同じ式・既定比較子は評価0回で true、違う式・`.Anchor`・反射的でない比較子は2回評価して比べる)。
+- 結果: 次の前後比較(GroupBy の変更とまとめて計測し、行で切り分ける)で記録する。

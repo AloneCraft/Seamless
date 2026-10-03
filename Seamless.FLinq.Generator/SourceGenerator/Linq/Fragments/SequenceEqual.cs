@@ -49,6 +49,9 @@ internal class SequenceEqual(int number,Enumerable source,Enumerable second,stri
     }
 
     public override string? RenderInlineComputation(string destVar,string destType) {
+        if(SameSourceSequenceEqual.Render(source,second,destVar,destType) is { } sameSource) {
+            return sameSource;
+        }
         if(source is RangeRoot leftRange
             &&second is RangeRoot rightRange
             &&source.ElementType=="int"
@@ -188,6 +191,10 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
     }
     public override string? RenderInlineComputation(string destVar,string destType) {
         if(ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)
+            &&SameSourceSequenceEqual.Render(source,second,destVar,destType) is { } sameSource) {
+            return sameSource;
+        }
+        if(ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)
             &&source is RangeRoot leftRange
             &&second is RangeRoot rightRange
             &&source.ElementType=="int"
@@ -315,4 +322,23 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
             }
             """;
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
+}
+
+/// <summary>
+/// 同じソース式の根どうしの SequenceEqual。FLinq の契約では .Anchor の無いソースは純粋で決定的なので同じ列になり、
+/// 既定の(反射的な)比較では要素を比べずに等しい。ソース式は評価しない(副作用なしとみなす)。
+/// </summary>
+internal static class SameSourceSequenceEqual {
+    public static string? Render(Enumerable source,Enumerable second,string destVar,string destType) {
+        if(source is not SourceRootBase left
+            ||second is not SourceRootBase right
+            ||left.GetType()!=right.GetType()
+            ||source.ElementType!=second.ElementType
+            ||left.SourceExpression!=right.SourceExpression
+            ||source.TreeContainsAnchor()
+            ||second.TreeContainsAnchor()) {
+            return null;
+        }
+        return $"{destType} {destVar}=true;";
+    }
 }
