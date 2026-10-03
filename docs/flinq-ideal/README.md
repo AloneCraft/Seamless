@@ -41,6 +41,7 @@ dotnet Benchmark/Benchmark.Audit/bin/Release/net10.0/Benchmark.Audit.dll compare
 ## 手書きの理想ループ版
 
 - `Benchmark.System.Linq.Enumerable.Ideal`(配列)・`.List.Ideal`・`.IEnumerable.Ideal`・`.Range.Ideal`・`Benchmark.Optimization.Ideal`(複合連鎖)。書き方は `理想版の記述規則.md`。
+- 前提は FLinq の `.Anchor` 契約と同じ(2026-10-02 改訂): `.Anchor` の無い式は副作用・例外なしとみなし、評価の省略・並べ替え・数式化(Range の偶数の個数、和の公式、`x%1000` の並びなど)をしてよい。`.Anchor` を書いた式だけ System.Linq と同じ回数で評価する。
 - `Benchmark.Audit.Tests` で、結果ダイジェストが比較相手(単一演算子は ZLinq、複合連鎖は全最適化版)と一致すること、LINQ 実装を呼ばないこと、定数の写しがずれていないことを検査する。
 
 ## 3者計測(FLinq・比較相手・理想)

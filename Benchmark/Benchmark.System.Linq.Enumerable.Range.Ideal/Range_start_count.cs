@@ -6,7 +6,9 @@ namespace Shared.Linq.IdealRange;
 
 /// <summary>
 /// Range 起点(Enumerable.Range(1,n))の手書き理想ループ版。Shared/Linq.Range/Range_start_count.cs と同じメソッド名・同じ枠。
-/// 範囲の個数・端・添字、値が一意で昇順であることは使ってよい(集合演算・等値結合は区間の計算)。値の集計は要素を回して求める。
+/// 範囲の個数・端・添字、値が一意で昇順であることを使う。ラムダは .Anchor が無いので純粋とみなし、
+/// 結果が範囲の形から決まるもの(偶奇の個数、比較の境界、和、単調な選択子の端、x%1000 の並びとグループ)は数式で求める。
+/// n は実行時の個数(CountFor)なので、数式は n によらず成り立つ形にする(桁あふれし得る n では要素を回す)。
 /// </summary>
 public abstract class Range_start_count(int count):global::Common.Base<int>(count) {
     private const int ElementCount = 4_096;
@@ -17,6 +19,28 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
         if(count<0||(long)start+count-1>int.MaxValue) {
             throw new ArgumentOutOfRangeException(nameof(count));
         }
+    }
+
+    /// <summary>1..n の和。n は int なので long で桁あふれしない。</summary>
+    private static long TriangularSum(int count) => (long)count*(count+1)/2;
+
+    /// <summary>x%1000 の値 key を持つ 1..n の要素の最小値(無ければ n を超える)。</summary>
+    private static int FirstWithKey(int key) => key==0 ? 1000 : key;
+
+    /// <summary>1..n に現れる x%1000 の key の個数。初出順は 1,2,…,999、0。</summary>
+    private static int KeyCount(int count) {
+        if(count>=1000) {
+            return 1000;
+        }
+        return count;
+    }
+
+    /// <summary>初出順で ordinal 番目の key(0 始まり)。反復子を使わず添字で回すための補助。</summary>
+    private static int KeyAt(int ordinal) {
+        if(ordinal<999) {
+            return ordinal+1;
+        }
+        return 0;
     }
 
     private static void ConsumeInterval(global::Common.Consumer consumer,long from,long to) {
@@ -38,11 +62,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void Aggregate_func_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var accumulate = 0L;
-        for(var x = 1;x<=count;x++) {
-            accumulate+=x;
-        }
-        this.consumer.Consume(accumulate);
+        this.consumer.Consume(TriangularSum(count));
     }
 
     [BenchFact,Benchmark]
@@ -50,14 +70,8 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void All_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var result = true;
-        for(var x = 1;x<=count;x++) {
-            if(!(x>0)) {
-                result=false;
-                break;
-            }
-        }
-        this.consumer.Consume(result);
+        // 始点が 1 なので x>0 はすべての要素で真(空でも真)。
+        this.consumer.Consume(true);
     }
 
     [BenchFact,Benchmark]
@@ -65,14 +79,8 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void Any_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var result = false;
-        for(var x = 1;x<=count;x++) {
-            if(x>=2_048) {
-                result=true;
-                break;
-            }
-        }
-        this.consumer.Consume(result);
+        // 最大値 n が 2048 以上なら真。
+        this.consumer.Consume(count>=2_048);
     }
 
     [BenchFact,Benchmark]
@@ -92,11 +100,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
         if(count==0) {
             throw IdealErrors.NoElements();
         }
-        var sum = 0L;
-        for(var x = 1;x<=count;x++) {
-            sum=checked(sum+x);
-        }
-        this.consumer.Consume((double)sum/count);
+        this.consumer.Consume((double)TriangularSum(count)/count);
     }
 
     [BenchFact,Benchmark]
@@ -145,13 +149,8 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void Count_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var result = 0;
-        for(var x = 1;x<=count;x++) {
-            if((x&1)==0) {
-                result=checked(result+1);
-            }
-        }
-        this.consumer.Consume(result);
+        // 1..n の偶数は n/2 個。
+        this.consumer.Consume(count/2);
     }
 
     [BenchFact,Benchmark]
@@ -159,13 +158,10 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void CountBy_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var map = new Dictionary<int,int>(count);
-        for(var x = 1;x<=count;x++) {
-            ref var value = ref CollectionsMarshal.GetValueRefOrAddDefault(map,x%1000,out _);
-            value=checked(value+1);
-        }
-        foreach(var pair in map) {
-            this.consumer.Consume(pair);
+        // x%1000 が key の要素は key(0 は 1000)から 1000 刻み。初出順は 1..999、0。
+        for(var ordinal = 0;ordinal<KeyCount(count);ordinal++) {
+            var key = KeyAt(ordinal);
+            this.consumer.Consume(new KeyValuePair<int,int>(key,(count-FirstWithKey(key))/1000+1));
         }
     }
 
@@ -194,12 +190,8 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void DistinctBy_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var keys = new HashSet<int>(count);
-        for(var x = 1;x<=count;x++) {
-            if(keys.Add(x%1000)) {
-                this.consumer.Consume(x);
-            }
-        }
+        // 各 key の最初の要素は 1..1000 で、その順に初めて現れる。
+        ConsumeInterval(this.consumer,1,1L+Math.Min(count,1000));
     }
 
     [BenchFact,Benchmark]
@@ -239,33 +231,33 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void First_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        for(var x = 1;x<=count;x++) {
-            if(x>=1) {
-                this.consumer.Consume(x);
-                return;
-            }
+        // 始点 1 が x>=1 を満たす。
+        if(count==0) {
+            throw IdealErrors.NoMatch();
         }
-        throw IdealErrors.NoMatch();
+        this.consumer.Consume(1);
     }
 
     [BenchFact,Benchmark]
     public void GroupBy_keySelector() => this.GroupBy_keySelector_Impl();
     private void GroupBy_keySelector_Impl() => this.ConsumeGroups(1);
 
-    /// <summary>キー x%1000 でグループ化する。要素は x*multiplier(要素選択子なしは 1、x => x*2 は 2)。</summary>
+    /// <summary>
+    /// キー x%1000 でグループ化する。要素は x*multiplier(要素選択子なしは 1、x => x*2 は 2)。
+    /// グループの初出順は 1..999、0 で、各グループの要素は key(0 は 1000)から 1000 刻み。ハッシュを使わずに並べる。
+    /// </summary>
     private void ConsumeGroups(int multiplier) {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        using var groups = new PooledGroups<int,int>(count);
-        for(var index = 0;index<count;index++) {
-            var x = 1+index;
-            groups.Keys[index]=x%1000;
-            groups.Elements[index]=x*multiplier;
-        }
         var sorted = new int[count];
-        groups.Group(count,sorted);
-        for(var group = 0;group<groups.GroupCount;group++) {
-            this.consumer.Consume(new IdealGrouping<int,int>(groups.Distinct[group],sorted,groups.Starts[group],groups.Counts[group]));
+        var position = 0;
+        for(var ordinal = 0;ordinal<KeyCount(count);ordinal++) {
+            var key = KeyAt(ordinal);
+            var start = position;
+            for(var x = FirstWithKey(key);x<=count;x+=1000) {
+                sorted[position++]=x*multiplier;
+            }
+            this.consumer.Consume(new IdealGrouping<int,int>(key,sorted,start,position-start));
         }
     }
 
@@ -307,15 +299,11 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void Last_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        // System.Linq は添字で引ける列なら末尾から述語を評価する。
-        for(var index = count-1;index>=0;index--) {
-            var x = 1+index;
-            if(x>=1) {
-                this.consumer.Consume(x);
-                return;
-            }
+        // 終点 n が x>=1 を満たす。
+        if(count==0) {
+            throw IdealErrors.NoMatch();
         }
-        throw IdealErrors.NoMatch();
+        this.consumer.Consume(count);
     }
 
     [BenchFact,Benchmark]
@@ -345,18 +333,11 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void OrderBy_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var buffer = ArrayPool<long>.Shared.Rent(count);
-        try {
-            var composite = buffer.AsSpan(0,count);
-            for(var index = 0;index<count;index++) {
-                composite[index]=((long)((1+index)%1000)<<32)|(uint)index;
+        // key 0..999 の昇順に、同じ key の要素を元の順(昇順)で流す。安定ソートと同じ並び。
+        for(var key = 0;key<1000;key++) {
+            for(var x = FirstWithKey(key);x<=count;x+=1000) {
+                this.consumer.Consume(x);
             }
-            composite.Sort();
-            foreach(var item in composite) {
-                this.consumer.Consume(1+(int)(uint)item);
-            }
-        } finally {
-            ArrayPool<long>.Shared.Return(buffer);
         }
     }
 
@@ -412,11 +393,8 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void SkipWhile_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var x = 1;
-        while(x<=count&&x<1_024) {
-            x++;
-        }
-        ConsumeInterval(this.consumer,x,1L+count);
+        // x<1024 は 1..1023 で真なので、1024 から流す。
+        ConsumeInterval(this.consumer,Math.Min(1_024,1L+count),1L+count);
     }
 
     [BenchFact,Benchmark]
@@ -424,11 +402,8 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void Sum_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var sum = 0;
-        for(var x = 1;x<=count;x++) {
-            sum=checked(sum+x);
-        }
-        this.consumer.Consume(sum);
+        // int の合計は桁あふれで例外になる(System.Linq と同じ)。
+        this.consumer.Consume(checked((int)TriangularSum(count)));
     }
 
     [BenchFact,Benchmark]
@@ -444,12 +419,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void TakeWhile_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        for(var x = 1;x<=count;x++) {
-            if(!(x<=3_072)) {
-                break;
-            }
-            this.consumer.Consume(x);
-        }
+        ConsumeInterval(this.consumer,1,1L+Math.Min(count,3_072));
     }
 
     [BenchFact,Benchmark]
@@ -514,10 +484,8 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void Where_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        for(var x = 1;x<=count;x++) {
-            if((x&1)==0) {
-                this.consumer.Consume(x);
-            }
+        for(var x = 2;x<=count;x+=2) {
+            this.consumer.Consume(x);
         }
     }
 
@@ -537,11 +505,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void Aggregate_seed_func_resultSelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var accumulate = 0L;
-        for(var x = 1;x<=count;x++) {
-            accumulate+=x;
-        }
-        this.consumer.Consume((double)accumulate/1_000_000);
+        this.consumer.Consume((double)TriangularSum(count)/1_000_000);
     }
 
     [BenchFact,Benchmark]
@@ -559,6 +523,11 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
         Check(1,count);
         if(count==0) {
             throw IdealErrors.NoElements();
+        }
+        // double の逐次加算は 2^53 未満の整数の間は正確なので、和の公式と同じ値になる。
+        if(TriangularSum(count)<(1L<<53)) {
+            this.consumer.Consume((double)TriangularSum(count)/count);
+            return;
         }
         var sum = 0d;
         for(var x = 1;x<=count;x++) {
@@ -625,14 +594,11 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void FirstOrDefault_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var result = 0;
-        for(var x = 1;x<=count;x++) {
-            if(x>=1) {
-                result=x;
-                break;
-            }
+        if(count==0) {
+            this.consumer.Consume(0);
+        } else {
+            this.consumer.Consume(1);
         }
-        this.consumer.Consume(result);
     }
 
     [BenchFact,Benchmark]
@@ -644,12 +610,8 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void GroupBy_resultSelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var keys = new HashSet<int>(count);
-        for(var x = 1;x<=count;x++) {
-            var key = x%1000;
-            if(keys.Add(key)) {
-                this.consumer.Consume(key);
-            }
+        for(var ordinal = 0;ordinal<KeyCount(count);ordinal++) {
+            this.consumer.Consume(KeyAt(ordinal));
         }
     }
 
@@ -703,13 +665,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void LongCount_predicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var result = 0L;
-        for(var x = 1;x<=count;x++) {
-            if((x&1)==0) {
-                result=checked(result+1);
-            }
-        }
-        this.consumer.Consume(result);
+        this.consumer.Consume((long)(count/2));
     }
 
     [BenchFact,Benchmark]
@@ -719,6 +675,11 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
         Check(1,count);
         if(count==0) {
             throw IdealErrors.NoElements();
+        }
+        // x*2 は桁あふれしない範囲で単調増加なので、最大は終点の値。
+        if(count<=int.MaxValue/2) {
+            this.consumer.Consume(count*2);
+            return;
         }
         var result = 1*2;
         for(var x = 2;x<=count;x++) {
@@ -738,16 +699,8 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
         if(count==0) {
             throw IdealErrors.NoElements();
         }
-        var result = 1;
-        var key = 1%1000;
-        for(var x = 2;x<=count;x++) {
-            var nextKey = x%1000;
-            if(nextKey>key) {
-                key=nextKey;
-                result=x;
-            }
-        }
-        this.consumer.Consume(result);
+        // key x%1000 の最大は 999(n<999 なら n)で、最初に現れる要素を返す。
+        this.consumer.Consume(Math.Min(count,999));
     }
 
     [BenchFact,Benchmark]
@@ -757,6 +710,11 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
         Check(1,count);
         if(count==0) {
             throw IdealErrors.NoElements();
+        }
+        // x*2 は桁あふれしない範囲で単調増加なので、最小は始点の値。
+        if(count<=int.MaxValue/2) {
+            this.consumer.Consume(1*2);
+            return;
         }
         var result = 1*2;
         for(var x = 2;x<=count;x++) {
@@ -776,16 +734,12 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
         if(count==0) {
             throw IdealErrors.NoElements();
         }
-        var result = 1;
-        var key = 1%1000;
-        for(var x = 2;x<=count;x++) {
-            var nextKey = x%1000;
-            if(nextKey<key) {
-                key=nextKey;
-                result=x;
-            }
+        // key x%1000 の最小は 0(x=1000)、n<1000 なら 1(x=1)。最初に現れる要素を返す。
+        if(count>=1000) {
+            this.consumer.Consume(1000);
+        } else {
+            this.consumer.Consume(1);
         }
-        this.consumer.Consume(result);
     }
 
     [BenchFact,Benchmark]
@@ -809,18 +763,11 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void OrderByDescending_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var buffer = ArrayPool<long>.Shared.Rent(count);
-        try {
-            var composite = buffer.AsSpan(0,count);
-            for(var index = 0;index<count;index++) {
-                composite[index]=((long)~((1+index)%1000)<<32)|(uint)index;
+        // key 999..0 の降順に、同じ key の要素を元の順(昇順)で流す。安定ソートと同じ並び。
+        for(var key = 999;key>=0;key--) {
+            for(var x = FirstWithKey(key);x<=count;x+=1000) {
+                this.consumer.Consume(x);
             }
-            composite.Sort();
-            foreach(var item in composite) {
-                this.consumer.Consume(1+(int)(uint)item);
-            }
-        } finally {
-            ArrayPool<long>.Shared.Return(buffer);
         }
     }
 
@@ -857,11 +804,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void SkipWhile_indexPredicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var index = 0;
-        while(index<count&&index<1_024) {
-            index++;
-        }
-        ConsumeInterval(this.consumer,1+index,1L+count);
+        ConsumeInterval(this.consumer,1+Math.Min(count,1_024),1L+count);
     }
 
     [BenchFact,Benchmark]
@@ -869,11 +812,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void Sum_selector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var sum = 0L;
-        for(var x = 1;x<=count;x++) {
-            sum=checked(sum+(long)x);
-        }
-        this.consumer.Consume(sum);
+        this.consumer.Consume(TriangularSum(count));
     }
 
     [BenchFact,Benchmark]
@@ -889,12 +828,7 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void TakeWhile_indexPredicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        for(var index = 0;index<count;index++) {
-            if(!(index<3_072)) {
-                break;
-            }
-            this.consumer.Consume(1+index);
-        }
+        ConsumeInterval(this.consumer,1,1L+Math.Min(count,3_072));
     }
 
     [BenchFact,Benchmark]
@@ -929,10 +863,9 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void Where_indexPredicate_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        for(var index = 0;index<count;index++) {
-            if((index&1)==0) {
-                this.consumer.Consume(1+index);
-            }
+        // 添字が偶数の要素は 1,3,5,…。
+        for(var x = 1;x<=count;x+=2) {
+            this.consumer.Consume(x);
         }
     }
 
@@ -952,19 +885,11 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void ThenBy_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var buffer = ArrayPool<long>.Shared.Rent(count);
-        try {
-            var composite = buffer.AsSpan(0,count);
-            for(var index = 0;index<count;index++) {
-                var x = 1+index;
-                composite[index]=((long)(x%1000)<<32)|((uint)x^0x8000_0000u);
+        // 同じ key の中は x の昇順で、それは元の順と同じ。
+        for(var key = 0;key<1000;key++) {
+            for(var x = FirstWithKey(key);x<=count;x+=1000) {
+                this.consumer.Consume(x);
             }
-            composite.Sort();
-            foreach(var item in composite) {
-                this.consumer.Consume((int)((uint)item^0x8000_0000u));
-            }
-        } finally {
-            ArrayPool<long>.Shared.Return(buffer);
         }
     }
 
@@ -973,19 +898,15 @@ public abstract class Range_start_count(int count):global::Common.Base<int>(coun
     private void ThenByDescending_keySelector_Impl() {
         var count = this.CountFor(ElementCount);
         Check(1,count);
-        var buffer = ArrayPool<long>.Shared.Rent(count);
-        try {
-            var composite = buffer.AsSpan(0,count);
-            for(var index = 0;index<count;index++) {
-                var x = 1+index;
-                composite[index]=((long)(x%1000)<<32)|((uint)~x^0x8000_0000u);
+        // 同じ key の中は x の降順。
+        for(var key = 0;key<1000;key++) {
+            var first = FirstWithKey(key);
+            if(first>count) {
+                continue;
             }
-            composite.Sort();
-            foreach(var item in composite) {
-                this.consumer.Consume(~(int)((uint)item^0x8000_0000u));
+            for(var x = first+(count-first)/1000*1000;x>=first;x-=1000) {
+                this.consumer.Consume(x);
             }
-        } finally {
-            ArrayPool<long>.Shared.Return(buffer);
         }
     }
 }

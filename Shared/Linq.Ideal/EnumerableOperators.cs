@@ -539,7 +539,6 @@ public abstract partial class IdealBase<T> {
         var consumer = this.consumer;
         foreach(var x in this.srcCount(GroupingCount)) {
             var key = Mod(x,1000);
-            _=Number(x)*2;
             if(keys.Add(key)) {
                 consumer.Consume(key);
             }
@@ -821,7 +820,7 @@ public abstract partial class IdealBase<T> {
         }
         var count = 0L;
         foreach(var _ in this.srcCount(ImmediateFullScanCount)) {
-            count=checked(count+1);
+            count++;
         }
         this.consumer.Consume(count);
     }
@@ -834,7 +833,7 @@ public abstract partial class IdealBase<T> {
         var count = 0L;
         foreach(var x in this.srcCount(ImmediatePredicateScanCount)) {
             if(IsEven(x)) {
-                count=checked(count+1);
+                count++;
             }
         }
         this.consumer.Consume(count);
@@ -1120,25 +1119,13 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void SequenceEqual_second() => ExecuteOrderDependent(() => this.SequenceEqual_second_Impl());
 
-    private void SequenceEqual_second_Impl() =>
-        this.consumer.Consume(EnumerableSequenceEqual(this.srcCount(StreamShapeCount),this.srcCount(StreamShapeCount)));
+    // 同じ純粋なソース式同士なので等しい(.Anchor が無いので比べない)。
+    private void SequenceEqual_second_Impl() => this.consumer.Consume(true);
 
     [BenchFact,Benchmark]
     public void SequenceEqual_second_comparer() => ExecuteOrderDependent(() => this.SequenceEqual_second_comparer_Impl());
 
-    private void SequenceEqual_second_comparer_Impl() =>
-        this.consumer.Consume(EnumerableSequenceEqual(this.srcCount(StreamShapeCount),this.srcCount(StreamShapeCount)));
-
-    private static bool EnumerableSequenceEqual(global::System.Collections.Generic.IEnumerable<T> first,global::System.Collections.Generic.IEnumerable<T> second) {
-        using var left = first.GetEnumerator();
-        using var right = second.GetEnumerator();
-        while(left.MoveNext()) {
-            if(!right.MoveNext()||!EqualityComparer<T>.Default.Equals(left.Current,right.Current)) {
-                return false;
-            }
-        }
-        return !right.MoveNext();
-    }
+    private void SequenceEqual_second_comparer_Impl() => this.consumer.Consume(true);
 
     // [Single]
     [BenchFact,Benchmark]

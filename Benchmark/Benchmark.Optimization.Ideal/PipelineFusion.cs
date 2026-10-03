@@ -65,10 +65,9 @@ namespace Shared.Linq.Optimization.PipelineFusion {
                     throw new ArgumentOutOfRangeException("count");
                 }
                 var consumer = this.consumer;
-                for(var value = 1;value<=length;value++) {
-                    if((value&1)==0) {
-                        consumer.Consume(value*2);
-                    }
+                // 偶数だけを 2 刻みで回す(述語は純粋なので評価しない)。
+                for(var value = 2;value<=length;value+=2) {
+                    consumer.Consume(value*2);
                 }
             }
         }

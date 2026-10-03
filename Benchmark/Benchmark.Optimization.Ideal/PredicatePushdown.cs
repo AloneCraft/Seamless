@@ -524,11 +524,10 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
             return length;
         }
 
+        /// <summary>[from,to) の偶数を昇順に流す。述語 (v&amp;1)==0 は純粋なので、最初の偶数から 2 刻みで回す。</summary>
         private static void ConsumeEven(Consumer consumer,long from,long to) {
-            for(var value = from;value<to;value++) {
-                if((value&1)==0) {
-                    consumer.Consume((int)value);
-                }
+            for(var value = from+(from&1);value<to;value+=2) {
+                consumer.Consume((int)value);
             }
         }
 
@@ -536,26 +535,30 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
         public void Select_selector_Where_predicate() => this.Select_selector_Where_predicate_Impl();
         private void Select_selector_Where_predicate_Impl() {
             var length = this.Length();
-            for(var value = 1;value<=length;value++) {
-                if((value&1)==0) {
-                    this.consumer.Consume((Value: value,Number: value));
-                }
+            for(var value = 2;value<=length;value+=2) {
+                this.consumer.Consume((Value: value,Number: value));
             }
         }
 
-        /// <summary>恒等キーの結合は、外側の順に区間の共通部分だけが1件ずつ一致する。</summary>
+        /// <summary>
+        /// 恒等キーの結合は、外側の順に区間の共通部分だけが1件ずつ一致する。述語は純粋なので評価せず、
+        /// kind 1(偶数かつ 16 超)は下限を 18 へ繰り込んで 2 刻み、kind 2(4 の倍数)は 4 刻みで回す。
+        /// </summary>
         private void JoinIntersection(int kind) {
             var length = this.Length();
             var from = Math.Max(1L,length/2+1L);
             var to = Math.Min(1L+length,length/2+1L+length/2);
-            for(var value = (int)from;value<to;value++) {
-                if(kind==1&&!((value&1)==0&&value>16)) {
-                    continue;
-                }
-                if(kind==2&&!((value&1)==0&&(value&3)==0)) {
-                    continue;
-                }
-                this.consumer.Consume((Outer: value,Inner: value));
+            var step = 1L;
+            if(kind==1) {
+                from=Math.Max(from,18L);
+                from+=from&1;
+                step=2;
+            } else if(kind==2) {
+                from=(from+3)&~3L;
+                step=4;
+            }
+            for(var value = from;value<to;value+=step) {
+                this.consumer.Consume((Outer: (int)value,Inner: (int)value));
             }
         }
 
@@ -622,10 +625,9 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
         [BenchFact,Benchmark]
         public void Reverse_Where_predicate() => this.Reverse_Where_predicate_Impl();
         private void Reverse_Where_predicate_Impl() {
-            for(var value = this.Length();value>=1;value--) {
-                if((value&1)==0) {
-                    this.consumer.Consume(value);
-                }
+            var length = this.Length();
+            for(var value = length-(length&1);value>=2;value-=2) {
+                this.consumer.Consume(value);
             }
         }
 

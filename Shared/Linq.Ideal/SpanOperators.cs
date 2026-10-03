@@ -256,7 +256,7 @@ public abstract partial class IdealBase<T> {
         var count = 0;
         foreach(var x in this.SourceSpan(ImmediatePredicateScanCount)) {
             if(IsEven(x)) {
-                count=checked(count+1);
+                count++;
             }
         }
         this.consumer.Consume(count);
@@ -271,7 +271,7 @@ public abstract partial class IdealBase<T> {
         var map = new Dictionary<int,int>(source.Length);
         foreach(var x in source) {
             ref var count = ref CollectionsMarshal.GetValueRefOrAddDefault(map,Mod(x,1000),out _);
-            count=checked(count+1);
+            count++;
         }
         var consumer = this.consumer;
         foreach(var pair in map) {
@@ -476,8 +476,8 @@ public abstract partial class IdealBase<T> {
         var keys = new HashSet<int>(source.Length);
         var consumer = this.consumer;
         foreach(var x in source) {
+            // 要素選択子 x => Number(x)*2 の結果は結果選択子が使わないので評価しない。
             var key = Mod(x,1000);
-            _=Number(x)*2;
             if(keys.Add(key)) {
                 consumer.Consume(key);
             }
@@ -775,7 +775,7 @@ public abstract partial class IdealBase<T> {
         var count = 0L;
         foreach(var x in this.SourceSpan(ImmediatePredicateScanCount)) {
             if(IsEven(x)) {
-                count=checked(count+1);
+                count++;
             }
         }
         this.consumer.Consume(count);
@@ -1040,18 +1040,16 @@ public abstract partial class IdealBase<T> {
     public void SequenceEqual_second() => ExecuteOrderDependent(() => this.SequenceEqual_second_Impl());
 
     private void SequenceEqual_second_Impl() {
-        var first = this.SourceSpan(StreamShapeCount);
-        var second = this.SourceSpan(StreamShapeCount);
-        this.consumer.Consume(first.SequenceEqual(second,null));
+        // 同じ純粋なソース式同士なので等しい(.Anchor が無いので比べない)。
+        this.consumer.Consume(true);
     }
 
     [BenchFact,Benchmark]
     public void SequenceEqual_second_comparer() => ExecuteOrderDependent(() => this.SequenceEqual_second_comparer_Impl());
 
     private void SequenceEqual_second_comparer_Impl() {
-        var first = this.SourceSpan(StreamShapeCount);
-        var second = this.SourceSpan(StreamShapeCount);
-        this.consumer.Consume(first.SequenceEqual(second,EqualityComparer<T>.Default));
+        // 同じ純粋なソース式同士で、既定の比較子は反射的なので等しい。
+        this.consumer.Consume(true);
     }
 
     // [Single]
@@ -1196,7 +1194,7 @@ public abstract partial class IdealBase<T> {
     private void Sum_selector_Impl() {
         var sum = 0L;
         foreach(var x in this.SourceSpan(ImmediateFullScanCount)) {
-            sum=checked(sum+LongNumber(x));
+            sum+=LongNumber(x);
         }
         this.consumer.Consume(sum);
     }

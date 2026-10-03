@@ -8,7 +8,7 @@ namespace Benchmark.Optimization.Rewrite {
     public class Range_start_count:global::Shared.Linq.Optimization.Rewrite.Range;
 }
 
-// Where(p).Count() の理想版。述語を満たす件数を1回の走査で数える。
+// Where(p).Count() の理想版。述語を満たす件数を1回の走査で数える(配列・List は長さが int に収まるので件数は桁あふれしない)。Range は境界から求める。
 namespace Shared.Linq.Optimization.Rewrite {
     public abstract class Array<T>(int count = 4_096):global::Common.Base<T>(count) where T : notnull {
         [BenchFact,Benchmark]
@@ -17,7 +17,7 @@ namespace Shared.Linq.Optimization.Rewrite {
             var result = 0;
             foreach(var value in this.srcCount(4_096)) {
                 if(ToInt(value)>2_048) {
-                    result=checked(result+1);
+                    result++;
                 }
             }
             this.consumer.Consume(result);
@@ -45,7 +45,7 @@ namespace Shared.Linq.Optimization.Rewrite {
             var result = 0;
             foreach(var value in global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(this.Source())) {
                 if(ToInt(value)>2_048) {
-                    result=checked(result+1);
+                    result++;
                 }
             }
             this.consumer.Consume(result);
@@ -60,13 +60,8 @@ namespace Shared.Linq.Optimization.Rewrite {
             if(length<0) {
                 throw new ArgumentOutOfRangeException("count");
             }
-            var result = 0;
-            for(var value = 1;value<=length;value++) {
-                if(value>2_048) {
-                    result=checked(result+1);
-                }
-            }
-            this.consumer.Consume(result);
+            // 1..n のうち 2048 を超える値は n-2048 個(負なら 0)。
+            this.consumer.Consume(Math.Max(0,length-2_048));
         }
     }
 }
