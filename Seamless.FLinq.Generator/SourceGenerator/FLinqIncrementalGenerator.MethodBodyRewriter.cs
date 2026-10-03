@@ -325,7 +325,60 @@ public sealed partial class FLinqIncrementalGenerator {
             &&sourceMethod.ContainingType.Name=="UnorderedGuard") {
             return false;
         }
+        if(TryGetElidableMaterializeSource(linqInvocation,semanticModel,out var materializeSource)
+            &&(!linqIsConsumeReceiver||IsEvaluationOrderFree(consumerExpression))
+            &&直接Consume本体生成(consumerExpression,linqIsConsumeReceiver,materializeSource,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) {
+            return true;
+        }
+        return 直接Consume本体生成(consumerExpression,linqIsConsumeReceiver,linqInvocation,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
+    }
 
+    // Consume へ渡すだけの ToArray()/ToList() は、作った配列・List を流しても元の列を流しても要素と順が同じ。
+    // FLinq の契約(.Anchor の無い式は副作用・例外なし)では途中の評価の順も観測されないので、作らずに元の列を直接流す。
+    // 途中で例外を投げ得る演算子(Cast)を含む列は、例外の前に Consume が呼ばれる回数が変わるので省かない。
+    // 列が Consume の受け手のときは、System.Linq では列(ソース式)を作り終えてから消費側の式を評価する。直接流すと
+    // ソース式の評価が消費側の式より後になるので、消費側の式が評価順の観測できない形(変数・フィールド)のときだけ省く。
+    private bool TryGetElidableMaterializeSource(InvocationExpressionSyntax invocation,SemanticModel semanticModel,out InvocationExpressionSyntax source) {
+        source=null!;
+        if(invocation.ArgumentList.Arguments.Count!=0
+            ||invocation.Expression is not MemberAccessExpressionSyntax memberAccess
+            ||StripConsumeParentheses(memberAccess.Expression) is not InvocationExpressionSyntax receiver
+            ||semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method
+            ||(method.ReducedFrom??method) is not { Name: "ToArray" or "ToList" } definition
+            ||!IsSupportedLinqEnumerableMethod(definition)
+            ||AnchorAnalysis.ContainsAnchor(receiver,semanticModel)
+            ||receiver.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>().Any(static call => call.Expression is MemberAccessExpressionSyntax { Name.Identifier.ValueText: "Cast" })) {
+            return false;
+        }
+        source=receiver;
+        return true;
+    }
+
+    private static bool IsEvaluationOrderFree(ExpressionSyntax expression) {
+        while(expression is ParenthesizedExpressionSyntax parenthesized) {
+            expression=parenthesized.Expression;
+        }
+        return expression switch {
+            IdentifierNameSyntax or ThisExpressionSyntax => true,
+            MemberAccessExpressionSyntax { Expression: var receiver } memberAccess when memberAccess.IsKind(SyntaxKind.SimpleMemberAccessExpression) => IsEvaluationOrderFree(receiver),
+            _ => false,
+        };
+    }
+
+    private bool 直接Consume本体生成(
+        ExpressionSyntax consumerExpression,
+        bool linqIsConsumeReceiver,
+        InvocationExpressionSyntax linqInvocation,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        bool methodIsStatic,
+        ref string staticMethods,
+        List<string> unsafeAccessorCollector,
+        List<Fragment> generatedFragments,
+        StringBuilder builder,
+        ref int linqInvocationCount,
+        HashSet<string> usedNames) {
         var snapshot = uniqueNumber;
         var linqInvocationCountSnapshot = linqInvocationCount;
         var staticMethodsSnapshot = staticMethods;

@@ -1212,7 +1212,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
-    public void ArrayToListConsumeMaterializesInlineWithoutScalarEnumerator() {
+    public void ArrayToListConsumeStreamsSourceWithoutMaterializing() {
         const string source = """
             using System.Collections.Generic;
             using System.Linq;
@@ -1241,13 +1241,14 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
         var method = GeneratedMethod(generated,"Materialize");
 
+        // Consume へ流すだけの ToList は作らずに、元の配列を直接流す(MaterializeConsumeElisionTests で意味を確かめる)。
         GeneratedSourceAssert.True(
-            method.Contains("global::System.Runtime.InteropServices.CollectionsMarshal.SetCount",StringComparison.Ordinal)
-            &&method.Contains(".CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan",StringComparison.Ordinal)
-            &&method.Contains("foreach(var __item",StringComparison.Ordinal)
+            !method.Contains("CollectionsMarshal",StringComparison.Ordinal)
+            &&!method.Contains("new global::System.Collections.Generic.List",StringComparison.Ordinal)
+            &&method.Contains(".Consume(",StringComparison.Ordinal)
             &&!method.Contains("TryGetNext",StringComparison.Ordinal)
             &&!method.Contains("using var e_",StringComparison.Ordinal),
-            "Array ToList consumed immediately should bulk-copy its span in the interceptor body without a one-element scalar enumerator wrapper.",
+            "Array ToList consumed immediately should stream the source array without materializing a List or wrapping it in an enumerator.",
             generated,
             output);
     }

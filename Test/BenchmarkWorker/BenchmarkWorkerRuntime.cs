@@ -218,8 +218,8 @@ public sealed class BenchmarkWorkerRuntime {
 
     [Fact]
     public async Task 一バッチ割当バイト数_実Workerの反復一と七で同じ値を返す() {
-        var 反復一の割当バイト数=await ToList割当バイト数を測定Async(1);
-        var 反復七の割当バイト数=await ToList割当バイト数を測定Async(7);
+        var 反復一の割当バイト数=await ToHashSet割当バイト数を測定Async(1);
+        var 反復七の割当バイト数=await ToHashSet割当バイト数を測定Async(7);
 
         Assert.True(反復一の割当バイト数>0);
         Assert.Equal(反復一の割当バイト数,反復七の割当バイト数);
@@ -233,7 +233,7 @@ public sealed class BenchmarkWorkerRuntime {
         return Convert.ToInt32(値,global::System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    private static async Task<long> ToList割当バイト数を測定Async(int ベンチマーク反復回数) {
+    private static async Task<long> ToHashSet割当バイト数を測定Async(int ベンチマーク反復回数) {
         var 実行ルート=Path.Combine(
             Path.GetTempPath(),
             "Seamless-Test-WorkerAllocation-"+ベンチマーク反復回数+"-"+Guid.NewGuid().ToString("N"));
@@ -261,7 +261,8 @@ public sealed class BenchmarkWorkerRuntime {
                 タスクID="allocation-iteration-"+ベンチマーク反復回数,
                 アセンブリ名="Benchmark.System.Linq.Enumerable.FLinq",
                 型完全名="Benchmark.System.Linq.Enumerable.FLinq.FLinqClassInt32",
-                メソッド名="ToList",
+                // 割り当てのあるベンチ。ToList/ToArray は Consume へ流すだけなら作らない(割り当て0)ので使わない。
+                メソッド名="ToHashSet",
                 引数キー=string.Empty,
                 引数=global::System.Array.Empty<object>(),
                 ソースタブ=4,

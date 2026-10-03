@@ -1557,3 +1557,10 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 共通部分: `Fragments/RangeArithmeticOptimizer.cs`。
 - テスト: `Test/SourceGenerator/RangeArithmeticClosedFormTests.cs`(空・桁あふれ(最後の和と途中の和)・1次式の端が int を外れる・double が丸める大きさ・1次式でない選択子を System.Linq と突き合わせ、数式になった数を生成コードで確認)。形状テスト `RangeSumUsesClosedFormAndSelectUsesUninstrumentedDirectIndexLoop` を新しい形に更新。
 - 結果: 次の取り直し(baseline3)で記録する。
+
+## 2026-10-03 Consume へ流すだけの ToArray()/ToList() を作らない(採用)
+
+- 対象: `src.ToArray().Consume(consumer)`・`src.ToList().Consume(consumer)`(Array/List/IEnumerable/Range の ToArray・ToList。理想比 1.2〜6倍)。
+- 形: 作った配列・List を流しても元の列を流しても要素と順は同じ。FLinq の契約(`.Anchor` の無い式は副作用・例外なし)では途中の評価の順も観測されないので、作らずに元の列を直接流す。ただし、列に `.Anchor` がある・途中で例外を投げ得る Cast を含む・列が Consume の受け手で消費側の式が評価順の観測できる形(呼び出しなど)のときは従来どおり作ってから流す(System.Linq では列を作り終えてから消費側の式を評価するため。既存テスト `ArrayToListConsumeEvaluatesConsumerOnlyAfterMaterialization` がこの順を検査している)。
+- テスト: `Test/SourceGenerator/MaterializeConsumeElisionTests.cs`(1件目で止める Consume で、省いた形は元の列を1件分だけ評価し、`.Anchor`・Cast は全件評価する)。形状テストを `ArrayToListConsumeStreamsSourceWithoutMaterializing` に更新。実 Worker の割り当て測定テストは、割り当てが0になった ToList から ToHashSet に替えた。
+- 結果: 次の取り直し(baseline3)で記録する。
