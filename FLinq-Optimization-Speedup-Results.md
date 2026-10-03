@@ -1654,7 +1654,7 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 
 - 原因: 生成器は `LinqCounterScope.IncrementDirectSpanUsed()` などを条件なしに差し替えメソッドへ置いている(68か所)。これらは AggressiveInlining で、中の `AsyncLocal<T>.Value`(スレッドの実行文脈の表引き)ごと呼び出し元へ展開されていた。JIT の機械語(DOTNET_JitDisasm)で、配列の Append_element(Int32)の差し替え側だけ要素ごとの `Consumer.Consume<int>` がインライン化されず呼び出しのまま残っていた(理想版はインライン化されて内側の BenchmarkDotNet の Consume だけを呼ぶ)。展開された表引きでインライン化の予算を使い切ったのが原因と見ている(理想版の4倍の時間。List の Index・Range の融合の行も同じ形の候補)。
 - 修正: `LinqCounterScope.Start` が開いている範囲の数を静的なフィールドで数え、Increment* はまずそれだけを見る(0 なら何もしない)。AsyncLocal を引く処理は NoInlining の別メソッドへ分けた。範囲が開いているときの数え方は変わらない(別のスレッドで範囲が開いていても、そのスレッドの AsyncLocal は空なので数え間違えない)。
-- 結果: 次の取り直しで記録する(機械語でも Consume がインライン化されたかを確かめる)。
+- 結果(baseline6→7、理想比): List の Index(Int32) 3.43→1.17。機械語でも配列の Append の差し替え側で `Common.Consumer.Consume<int>` がインライン化された(理想版と同じ形)。ただし配列の Append(Int32)は 3.2倍のまま(ループの機械語は理想版と同じ。原因は未解明)。
 
 ## 2026-10-04 GroupBy・ToLookup・Join の探索表を、グループ番号を振ってから1本の配列へ並べて作る(採用候補)
 
@@ -1667,28 +1667,31 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 既存の不具合の修正: `Grouping` の添字が範囲外のとき、span の IndexOutOfRangeException ではなく ArgumentOutOfRangeException を投げる(IList の約束。System.Linq と同じ)。
 - テスト作成中に見つけた既存の制限(未修正): ToLookup などの比較子の式は生成コードへそのまま写されるので、using の無い型名(`StringComparer`)は解決できない。文字列を `sink.Consume(x)` へ渡すと文字の列として流す形に読まれる。展開する本体の中の、修飾の無い静的メソッドの呼び出しや、ラムダの中の `is ICollection<T> c` は生成コードでコンパイルできない。
 - テスト: `ContiguousLookupBuilderTests`(順・null キー・比較子・区間のグループの IndexOf/CopyTo/Add・探索・伸長)、`ContiguousLookupGenerationTests`(参照型と int、配列と IEnumerable、null キー、内側の重複、比較子、空、Join の後の Where)。
-- 結果: 次の取り直しで記録する。
+- 結果(baseline6→7、理想比): GroupBy_keySelector は Array/List/IEnumerable の Int32 が 1.69〜1.81→1.07〜1.13、ClassInt32 が 1.74〜1.78→1.13〜1.45。ToLookup_keySelector 1.64〜1.75→1.06〜1.20(配列の Int32 は 1.97→1.46 で周回差が大きい)。Join_innerKey_Hoisting 1.23〜1.74→1.04〜1.47。
 
 ## 2026-10-04 並べ替えの前へも Where を押し下げ、溜めた値が既に並んでいれば並べ替えを省く(採用候補)
 
 - 原因: 押し下げは「ソースが span を出せる先頭の Order」の前へは Where を移さなかった(ソースが既に昇順なら並べ替えを省く span の高速経路を守るため)。ソースが並んでいない(計測の既定はシード1でシャッフル)と、全件を並べ替えてから半分を捨てていた(押し下げタブの Order_Where で理想の2〜2.5倍)。
 - 修正: 並べ替えの前へも常に押し下げる。恒等キー・既定の比較子の1段の並べ替えで span の高速経路を使わないときは、溜めた値が既に並べ替え後の順(昇順なら非減少、降順なら非増加)かを確かめ、そうなら元の順のまま流す(安定な並べ替えの結果と同じ。並んでいなければ最初の逆転で抜ける)。並んだソースでも並べ替えを省ける。
 - テスト: `UnaryPushdownShapeTests`(配列の Order の前へ押し下げ、溜めた値の確認を出す)、`UnaryPushdown`(比較で等しく区別できる要素が元の順のまま。既に昇順・既に降順・並んでいない × Order・OrderDescending・OrderBy(恒等))。
-- 結果: 次の取り直しで記録する。
+- 結果(baseline6→7、理想比): 押し下げタブの Order_Where の12行が 1.84〜2.40→0.95〜1.11(Skip を挟む行は変わらず)。
 
 ## 2026-10-04 Zip(second,resultSelector).Consume を両方の根から直接回す(採用候補)
 
 - 原因: 結果選択子つきの Zip には直接 Consume が無く、Zip の列挙子の構造体から2つの根の構造体を呼ぶ入れ子を回していた(参照型の共有ジェネリックコードで内側がインライン化されない。Zip_second の ClassInt32 で理想の2〜2.4倍)。
 - 修正: 両方が span を出せれば短い方の長さまで添字で回し、そうでなければ first を先に進めて尽きたら second を進めない(System.Linq と同じ)。
 - テスト: `ZipResultSelectorConsumeTests`(参照型と int、span の有無、長さの違い、捕捉した引数、second を進めた回数)。
+- 結果(baseline6→7、理想比): Zip_second の ClassInt32 は Array 2.11→1.07、List 2.09→0.97、IEnumerable 2.22→1.50。IEnumerable の Int32 は 1.17→1.51 と悪化(2つの IEnumerable の根を差し替えメソッドから回す形。要調査)。
 
 ## 2026-10-04 span の無い根の TakeLast・SkipLast を環状の配列で回す(採用候補)
 
 - 原因: 待ち行列(ValueQueue)へ入れて溢れたら取り出す形で、要素ごとに Enqueue/Dequeue の境界判定と添字の折り返しが2回ずつあった(IEnumerable の TakeLast_count で理想の2.4倍、SkipLast_count で1.9倍)。
 - 修正: 理想版と同じく、満ちたら最も古い位置へ上書きする環状の配列(ArrayPool)にする。配列は件数の見込みが立つまで倍々に借り直す。SkipLast(0) はそのまま流す。
 - テスト: `NonSpanRootDirectConsumeTests` に件数 0・3・1500・2400・3000(2500件の列。初めの1024を超えて伸びる場合を含む)の TakeLast/SkipLast を追加。
+- 結果(baseline6→7、理想比): IEnumerable の Int32 の TakeLast 2.48→1.21、SkipLast 2.00→1.31。ClassInt32 の SkipLast は 1.21→1.80(周回差 1.06 で判定できない。1周目は 3.05)。
 
 ## 2026-10-04 Range 同士の恒等キーの Join は区間の重なりだけを回す(採用候補)
 
 - 外側も .Anchor の無い Range で外側のキーが恒等なら、一致するのは2つの区間の重なりの値だけで、内側の要素も外側の要素と等しい。外側を全部回して区間の内外を調べず、重なりだけを回す(引数の検査は両方の Range について行う)。System.Range の Join_inner(理想の2.2倍)。
 - テスト: `JoinInnerRangeProbeTests` に不正な件数(両側)・int の端・重ならない区間を追加し、重なりの経路が出ることを確かめる。
+- 結果(baseline6→7、理想比): System.Range の Join_inner 2.10→0.96。
