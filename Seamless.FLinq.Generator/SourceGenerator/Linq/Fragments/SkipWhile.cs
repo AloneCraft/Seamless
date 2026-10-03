@@ -102,7 +102,7 @@ internal class SkipWhile_predicate(int 番号,Enumerable source,FuncFragment pre
         var sourceName = $"__skipWhileSource{番号}";
         var directSpanExpression = source.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is null) {
-            return base.GetConsumeExecutionStatement(consumerName);
+            return this.RenderEnumeratorConsume(consumerName,sourceName,usesIndex: false) ?? base.GetConsumeExecutionStatement(consumerName);
         }
         var spanName = $"__skipWhileSpan{番号}";
         var offsetName = $"__skipWhileOffset{番号}";
@@ -134,6 +134,44 @@ internal class SkipWhile_predicate(int 番号,Enumerable source,FuncFragment pre
             }
             for(;{{offsetName}}<{{spanName}}.Length;{{offsetName}}++){
                 var {{itemName}}={{spanName}}[{{offsetName}}];
+                {{consumerName}}.Consume({{itemName}});
+            }
+            """;
+    }
+
+    // span の無い根は、根の列挙子を差し替えメソッドから回す。SkipWhile の列挙子の構造体から根の構造体を呼ぶ入れ子は、
+    // 参照型の共有ジェネリックコードで内側がインライン化されない。添字は飛ばしている間だけ数える(述語の評価の前に進める)。
+    private protected string? RenderEnumeratorConsume(string consumerName,string sourceName,bool usesIndex) {
+        string sourceExpression;
+        try {
+            sourceExpression=source.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var itemName = $"__skipWhileItem{番号}";
+        var indexName = $"__skipWhileIndex{番号}";
+        var skippingName = $"__skipWhileSkipping{番号}";
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(predicate),
+            this.StaticDelegateLocalDeclarations(predicate),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var (preCode,condExpr)=usesIndex
+            ? this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,itemName,indexName)
+            : this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,itemName);
+        return $$"""
+            {{localDeclarations}}
+            using var {{sourceName}}={{sourceExpression}};
+            var {{skippingName}}=true;
+            var {{indexName}}=-1;
+            while({{sourceName}}.TryGetNext(out var {{itemName}})){
+                if({{skippingName}}){
+                    {{indexName}}++;
+                    {{preCode}}
+                    if({{WrapConditionExpression(condExpr)}}) {
+                        continue;
+                    }
+                    {{skippingName}}=false;
+                }
                 {{consumerName}}.Consume({{itemName}});
             }
             """;
@@ -223,7 +261,7 @@ internal class SkipWhile_indexPredicate(int 番号,Enumerable source,FuncFragmen
         var sourceName = $"__skipWhileSource{番号}";
         var directSpanExpression = source.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is null) {
-            return base.GetConsumeExecutionStatement(consumerName);
+            return this.RenderEnumeratorConsume(consumerName,sourceName,usesIndex: true) ?? base.GetConsumeExecutionStatement(consumerName);
         }
         var spanName = $"__skipWhileSpan{番号}";
         var offsetName = $"__skipWhileOffset{番号}";

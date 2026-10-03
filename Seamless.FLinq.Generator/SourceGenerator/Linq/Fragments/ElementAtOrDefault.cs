@@ -70,8 +70,7 @@ internal class ElementAtOrDefault(int 番号,Enumerable source,string index,stri
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 var {{idx}}={{index}};
                 {{destVar}}=(uint){{idx}}<(uint){{count}} ? {{start}} + {{idx}} : default!;
             }
@@ -146,8 +145,7 @@ internal class ElementAtOrDefault_index(int 番号,Enumerable source,string inde
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 var {{idx}}=({{index}}).GetOffset({{count}});
                 {{destVar}}=(uint){{idx}}<(uint){{count}} ? {{start}} + {{idx}} : default!;
             }

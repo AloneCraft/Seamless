@@ -128,7 +128,28 @@ internal class SkipLast(int 番号,Enumerable source,string skipCount):Enumerabl
         var sourceName = $"__skipLastSource{番号}";
         var spanExpression = this.RootSource.GetDirectSpanExpression(sourceName);
         if(spanExpression is null) {
-            return base.GetConsumeExecutionStatement(consumerName);
+            // span の無い根は、根の列挙子を差し替えメソッドから回し、捨てる件数を超えた分を待ち行列から流す。
+            // SkipLast の列挙子の構造体から根の構造体を呼ぶ入れ子は、参照型の共有ジェネリックコードで内側がインライン化されない。
+            string rootExpression;
+            try {
+                rootExpression=this.RootSource.GetEnumeratorExpression;
+            } catch(NotSupportedException) {
+                return base.GetConsumeExecutionStatement(consumerName);
+            }
+            var queue = $"__skipLastQueue{番号}";
+            var skip = $"__skipLastCount{番号}";
+            var item = $"__skipLastItem{番号}";
+            return $$"""
+                using var {{sourceName}}={{rootExpression}};
+                var {{skip}}=global::System.Math.Max(0,{{this.EffectiveSkipCount}});
+                using var {{queue}}=new global::Seamless.Linq.ValueQueue<{{this.ElementType}}>((int)global::System.Math.Min((long){{skip}}+1,1024));
+                while({{sourceName}}.TryGetNext(out var {{item}})){
+                    {{queue}}.Enqueue({{item}});
+                    if({{queue}}.Count>{{skip}}){
+                        {{consumerName}}.Consume({{queue}}.Dequeue());
+                    }
+                }
+                """;
         }
         return $$"""
             using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};

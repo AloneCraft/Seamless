@@ -37,7 +37,14 @@ internal class Count(int 番号,Enumerable source,string resultType):BufferedSca
     protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) {
         if(source is RangeRoot range) {
-            return $"{destType} {destVar}=({destType})({range.CountExpression});";
+            // Range の個数。Enumerable.Range と同じ引数検査をしてから個数を返す。
+            return $$"""
+                {{destType}} {{destVar}};
+                {
+                    {{range.RenderArgumentPreparation($"__countStart{番号}",$"__countCount{番号}")}}
+                    {{destVar}}=({{destType}})__countCount{{番号}};
+                }
+                """;
         }
         if(source is RepeatRoot repeat) {
             return $"{destType} {destVar}=({destType})({repeat.CountExpression});";

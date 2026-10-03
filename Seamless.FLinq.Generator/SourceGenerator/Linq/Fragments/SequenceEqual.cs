@@ -59,10 +59,8 @@ internal class SequenceEqual(int number,Enumerable source,Enumerable second,stri
             return $$"""
                 {{destType}} {{destVar}};
                 {
-                    var __startL{{number}}={{leftRange.StartExpression}};
-                    var __countL{{number}}={{leftRange.CountExpression}};
-                    var __startR{{number}}={{rightRange.StartExpression}};
-                    var __countR{{number}}={{rightRange.CountExpression}};
+                    {{leftRange.RenderArgumentPreparation($"__startL{number}",$"__countL{number}")}}
+                    {{rightRange.RenderArgumentPreparation($"__startR{number}",$"__countR{number}")}}
                     {{destVar}}=__startL{{number}}==__startR{{number}} && __countL{{number}}==__countR{{number}};
                 }
                 """;
@@ -202,10 +200,8 @@ internal class SequenceEqual_comparer(int 番号,Enumerable source,Enumerable se
             return $$"""
                 {{destType}} {{destVar}};
                 {
-                    var __startL{{番号}}={{leftRange.StartExpression}};
-                    var __countL{{番号}}={{leftRange.CountExpression}};
-                    var __startR{{番号}}={{rightRange.StartExpression}};
-                    var __countR{{番号}}={{rightRange.CountExpression}};
+                    {{leftRange.RenderArgumentPreparation($"__startL{番号}",$"__countL{番号}")}}
+                    {{rightRange.RenderArgumentPreparation($"__startR{番号}",$"__countR{番号}")}}
                     {{destVar}}=__startL{{番号}}==__startR{{番号}} && __countL{{番号}}==__countR{{番号}};
                 }
                 """;

@@ -142,14 +142,45 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
             // span を返せない root だからと List へ全件溜めると、要素数ぶんのヒープ確保が丸ごと無駄になる。
             return $$"""
                 {
-                    var __reverseStart{{番号}}={{range.StartExpression}};
-                    var __reverseCount{{番号}}={{range.CountExpression}};
+                    {{GroupBySupport.IndentBlock(range.RenderArgumentPreparation($"__reverseStart{番号}",$"__reverseCount{番号}"),"    ").TrimStart()}}
                     for(var __i{{番号}}=__reverseCount{{番号}}-1;__i{{番号}}>=0;__i{{番号}}--){
                         {{consumerName}}.Consume(__reverseStart{{番号}} + __i{{番号}});
                     }
                 }
                 """;
         }
-        return base.GetConsumeExecutionStatement(consumerName);
+        // span の無い根は、根の列挙子を差し替えメソッドから回して借りた配列へ溜め、後ろから流す。
+        // Reverse の列挙子の構造体から根の構造体を呼ぶ入れ子は、参照型の共有ジェネリックコードで内側がインライン化されない。
+        string rootExpression;
+        try {
+            rootExpression=this.RootSource.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        var elementType = this.RootSource.ElementType;
+        var buffer = $"__reverseBuffer{番号}";
+        var count = $"__reverseCount{番号}";
+        var item = $"__reverseItem{番号}";
+        return $$"""
+            using var {{sourceName}}={{rootExpression}};
+            var {{buffer}}=global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Rent({{sourceName}}.TryGetNonEnumeratedCount(out var __reverseKnown{{番号}})&&__reverseKnown{{番号}}>16 ? __reverseKnown{{番号}} : 16);
+            var {{count}}=0;
+            try{
+                while({{sourceName}}.TryGetNext(out var {{item}})){
+                    if({{count}}=={{buffer}}.Length){
+                        var __reverseGrown{{番号}}=global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Rent({{buffer}}.Length*2);
+                        global::System.Array.Copy({{buffer}},__reverseGrown{{番号}},{{count}});
+                        global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Return({{buffer}},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{elementType}}>());
+                        {{buffer}}=__reverseGrown{{番号}};
+                    }
+                    {{buffer}}[{{count}}++]={{item}};
+                }
+                for(var __i{{番号}}={{count}}-1;__i{{番号}}>=0;__i{{番号}}--){
+                    {{consumerName}}.Consume({{buffer}}[__i{{番号}}]);
+                }
+            }finally{
+                global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Return({{buffer}},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{elementType}}>());
+            }
+            """;
     }
 }

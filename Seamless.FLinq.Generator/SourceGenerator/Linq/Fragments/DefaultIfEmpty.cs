@@ -129,8 +129,7 @@ internal abstract class DefaultIfEmptyBase(int 番号,Enumerable source):Enumera
         }
         return $$"""
             {
-                var __start{{番号}}={{range.StartExpression}};
-                var __count{{番号}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation($"__start{番号}",$"__count{番号}")}}
                 if(__count{{番号}}==0){
                     {{consumerName}}.Consume({{this.EffectiveDefaultValue}});
                 }else{

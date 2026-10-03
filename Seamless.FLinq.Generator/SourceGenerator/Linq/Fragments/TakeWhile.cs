@@ -209,8 +209,7 @@ internal class TakeWhile_indexPredicate(int id,Enumerable source,FuncFragment pr
 
         return $$"""
             {{localDeclarationBlock}}
-            var {{rangeStartName}}={{range.StartExpression}};
-            var {{rangeCountName}}={{range.CountExpression}};
+            {{range.RenderArgumentPreparation(rangeStartName,rangeCountName)}}
             global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
             var {{rangeIndexName}}=-1;
             for(var __i{{id}}=0;__i{{id}}<{{rangeCountName}};__i{{id}}++){

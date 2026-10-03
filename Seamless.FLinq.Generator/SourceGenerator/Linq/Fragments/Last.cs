@@ -59,8 +59,7 @@ internal class Last(int 番号,Enumerable source,string resultType):BufferedScal
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 if({{count}}==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                 {{destVar}}={{start}} + {{count}} - 1;
             }
@@ -143,8 +142,7 @@ internal class Last_predicate(int 番号,Enumerable source,FuncFragment predicat
         return $$"""
             {{destType}} {{destVar}}=default!;
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 var {{found}}=false;
                 for(var {{index}}={{count}}-1;{{index}}>=0;{{index}}--){
                     var {{this.item}}={{start}} + {{index}};

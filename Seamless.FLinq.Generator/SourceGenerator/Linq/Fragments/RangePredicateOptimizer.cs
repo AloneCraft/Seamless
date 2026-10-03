@@ -3,11 +3,12 @@ namespace Seamless.FLinq.Generator;
 
 internal static class RangePredicateOptimizer {
     public static string RenderAny(RangeRoot range,int number,string destVar,string destType) {
+        var start = $"__start{number}";
         var count = $"__count{number}";
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 {{destVar}}={{count}}!=0;
             }
             """;
@@ -30,8 +31,7 @@ internal static class RangePredicateOptimizer {
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 if({{count}}==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                 {{destVar}}={{start}};
             }
@@ -44,8 +44,7 @@ internal static class RangePredicateOptimizer {
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 if({{count}}==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                 if({{count}}>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
                 {{destVar}}=({{destType}}){{start}};
@@ -59,8 +58,7 @@ internal static class RangePredicateOptimizer {
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 if({{count}}>1) throw new global::System.InvalidOperationException("Sequence contains more than one element");
                 {{destVar}}={{count}}==0 ? {{defaultValue}} : ({{destType}}){{start}};
             }
@@ -109,8 +107,7 @@ internal static class RangePredicateOptimizer {
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 var {{last}}=(long){{start}} + {{count}} - 1L;
                 {{comparison.HoistedDeclarations}}
                 var {{value}}=(long)({{comparison.ValueExpression}});
@@ -133,8 +130,7 @@ internal static class RangePredicateOptimizer {
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 var {{last}}=(long){{start}} + {{count}} - 1L;
                 {{comparison.HoistedDeclarations}}
                 var {{value}}=(long)({{comparison.ValueExpression}});
@@ -152,8 +148,7 @@ internal static class RangePredicateOptimizer {
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 if({{count}}==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                 {{destVar}}=({{destType}})(int)({{value}});
             }
@@ -172,8 +167,7 @@ internal static class RangePredicateOptimizer {
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 var {{last}}=(long){{start}} + {{count}} - 1L;
                 {{comparison.HoistedDeclarations}}
                 var {{value}}=(long)({{comparison.ValueExpression}});
@@ -191,8 +185,7 @@ internal static class RangePredicateOptimizer {
             return $$"""
                 {{destType}} {{destVar}};
                 {
-                    var {{start}}={{range.StartExpression}};
-                    var {{count}}={{range.CountExpression}};
+                    {{range.RenderArgumentPreparation(start,count)}}
                     var {{last}}=(long){{start}} + {{count}} - 1L;
                     {{comparison.HoistedDeclarations}}
                     var {{value}}=(long)({{comparison.ValueExpression}});
@@ -208,8 +201,7 @@ internal static class RangePredicateOptimizer {
             return $$"""
                 {{destType}} {{destVar}};
                 {
-                    var {{start}}={{range.StartExpression}};
-                    var {{count}}={{range.CountExpression}};
+                    {{range.RenderArgumentPreparation(start,count)}}
                     {{destVar}}={{count}}>1 || ({{count}}==1 && ({{start}} & 1)=={{parity}});
                 }
                 """;
@@ -227,8 +219,7 @@ internal static class RangePredicateOptimizer {
             return $$"""
                 {{destType}} {{destVar}};
                 {
-                    var {{start}}={{range.StartExpression}};
-                    var {{count}}={{range.CountExpression}};
+                    {{range.RenderArgumentPreparation(start,count)}}
                     var {{matched}}={{count}} / 2;
                     if(({{count}} & 1)!=0 && ({{start}} & 1)=={{parity}}) {{matched}}++;
                     {{destVar}}=({{destType}}){{matched}};
@@ -245,8 +236,7 @@ internal static class RangePredicateOptimizer {
             return $$"""
                 {{destType}} {{destVar}};
                 {
-                    var {{start}}={{range.StartExpression}};
-                    var {{count}}={{range.CountExpression}};
+                    {{range.RenderArgumentPreparation(start,count)}}
                     var {{last}}=(long){{start}} + {{count}} - 1L;
                     {{comparison.HoistedDeclarations}}
                     var {{value}}=(long)({{comparison.ValueExpression}});

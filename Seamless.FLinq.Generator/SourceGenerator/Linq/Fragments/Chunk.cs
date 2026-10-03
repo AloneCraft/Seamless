@@ -141,8 +141,7 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
             {
                 var {{chunkSize}}={{size}};
                 if({{chunkSize}}<=0) throw new global::System.ArgumentOutOfRangeException("size");
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 for(var {{offset}}=0;{{offset}}<{{count}};){
                     var {{length}}=global::System.Math.Min({{chunkSize}},{{count}}-{{offset}});
                     var {{chunk}}=new int[{{length}}];

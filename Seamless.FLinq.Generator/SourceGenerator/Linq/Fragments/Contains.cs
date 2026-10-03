@@ -116,8 +116,7 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 var {{target}}={{value}};
                 {{destVar}}=(uint)({{target}} - {{start}}) < (uint){{count}};
             }

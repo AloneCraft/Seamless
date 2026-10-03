@@ -38,8 +38,7 @@ internal class LastOrDefault(int 番号,Enumerable source,string resultType):Buf
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 {{destVar}}={{count}}>0 ? {{start}} + {{count}} - 1 : default!;
             }
             """;
@@ -101,8 +100,7 @@ internal class LastOrDefault_defaultValue(int 番号,Enumerable source,string de
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 {{destVar}}={{count}}>0 ? {{start}} + {{count}} - 1 : {{defaultValue}};
             }
             """;
@@ -176,8 +174,7 @@ internal class LastOrDefault_predicate(int 番号,Enumerable source,FuncFragment
         return $$"""
             {{destType}} {{destVar}}=default!;
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 for(var {{index}}={{count}}-1;{{index}}>=0;{{index}}--){
                     var {{this.item}}={{start}} + {{index}};
                     bool {{this.temp}}=default!;

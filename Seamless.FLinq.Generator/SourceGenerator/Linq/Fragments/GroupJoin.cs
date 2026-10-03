@@ -61,7 +61,48 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
     public override string GetConsumeExecutionStatement(string consumerName) =>
         this.CanBypassLookupForConsume()
             ? this.outerSource.GetConsumeExecutionStatement(consumerName)
-            : base.GetConsumeExecutionStatement(consumerName);
+            : this.CanSkipLookup()
+                ? this.RenderSkipLookupConsume(consumerName)
+                : base.GetConsumeExecutionStatement(consumerName);
+
+    // 探索表を省く形(結果が外側そのもの)の Consume は、外側を差し替えメソッドから直接回す(span があれば span)。
+    // GroupJoin の列挙子の構造体から外側の構造体を呼ぶ入れ子は、参照型の共有ジェネリックコードで内側がインライン化されない。
+    // 評価順は列挙子を作るときと同じく外側、内側の順。内側は .Anchor があるときだけ列挙する。
+    private string RenderSkipLookupConsume(string consumerName) {
+        string outerExpression;
+        string innerExpression;
+        try {
+            outerExpression=this.outerSource.GetEnumeratorExpression;
+            innerExpression=this.innerSource.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        var outerName = $"__groupJoinOuter{番号}";
+        var innerName = $"__groupJoinInner{番号}";
+        var itemName = $"__groupJoinItem{番号}";
+        var drain = this.InnerEnumerationIsObservable()
+            ? $"while({innerName}.TryGetNext(out _)){{}}"
+            : string.Empty;
+        var spanExpression = this.outerSource.GetDirectSpanExpression(outerName);
+        var loop = spanExpression is null
+            ? $$"""
+                while({{outerName}}.TryGetNext(out var {{itemName}})){
+                    {{consumerName}}.Consume({{itemName}});
+                }
+                """
+            : $$"""
+                var __groupJoinSpan{{番号}}={{spanExpression}};
+                for(var __i{{番号}}=0;__i{{番号}}<__groupJoinSpan{{番号}}.Length;__i{{番号}}++){
+                    {{consumerName}}.Consume(__groupJoinSpan{{番号}}[__i{{番号}}]);
+                }
+                """;
+        return $$"""
+            using var {{outerName}}={{outerExpression}};
+            using var {{innerName}}={{innerExpression}};
+            {{drain}}
+            {{loop}}
+            """;
+    }
     public override string GetTryGetNextBody => this.CanSkipLookup() ? $$"""
         if({{this.state}}==1){
             current=default!;

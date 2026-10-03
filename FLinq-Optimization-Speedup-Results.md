@@ -1600,3 +1600,12 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 修正: 添字を使わない Select/Where だけが2段以上並ぶ列を Consume へ流すとき、span のある根は span を、Range は始点と個数を、それ以外は根の列挙子だけを差し替えメソッドの中で回し、段の式をその場に展開する(単段は既存の経路)。
 - テスト: `StatelessChainDirectConsumeTests`(ジェネリックなクラスの中の差し替えで、配列・Range の2〜3段の並びが直接のループになり、結果が同じ)。
 - 結果: 次の取り直しで記録する。
+
+## 2026-10-04 span の無い根の単段演算子を差し替えメソッドから直接回す・Range の引数検査を数式の経路にも入れる(採用)
+
+- 入れ子の列挙子の構造体を回す形が参照型の共有ジェネリックコードで遅い問題(2026-10-03 の「状態を持たない段の並び」の節)の続き。span の無い根(yield の IEnumerable など)でも、根の列挙子だけを差し替えメソッドから回し、演算子の処理をその場に書く: 1段の Select/Where(添字つきは差し替えメソッドの局所変数で数える)、SkipLast・TakeLast(待ち行列)、Reverse(借りた配列)、Append/Prepend、TakeWhile、SkipWhile(添字つきを含む)、探索表を省く GroupJoin(外側を直接流し、span があれば span)。
+- 段の並びの直接展開から Range を外した: Range は要素が int で入れ子の問題が起きず、Where(偶奇) を2刻みにするなどの Range 専用の経路がある(押し下げ前の融合タブの Range の Select_selector が 1.83→5.94倍に悪化していた)。
+- 既存の不具合: `Enumerable.Range` の引数検査(count<0・上端あふれの ArgumentOutOfRangeException)が、数式で求める多くの経路(Count・Any・First/FirstOrDefault・Last/LastOrDefault・ElementAt(OrDefault)・Contains・ToArray・ToList・ToHashSet・ToDictionary・SequenceEqual・Chunk・TakeWhile・TakeLast・Reverse・DefaultIfEmpty・Concat・述語の近道)で抜けていた(例: `Range(1,-1).Count()` が -1)。開始と個数の式を読む箇所を、検査つきの準備コード(`RangeRoot.RenderArgumentPreparation`)に揃えた。
+- 既存の不具合(未修正): Append/Prepend の値の式がインスタンスのメンバー(`this.X()`)を使うと、段をまとめる経路の列挙子の構造体の中で `@this` が見えずコンパイルできない。
+- テスト: `NonSpanRootDirectConsumeTests`(ジェネリックなクラスの yield ソースで11演算子が System.Linq と同じで、汎用の入れ子の Consume が残らない)、`RangeArgumentValidationTests`(26演算子で不正な引数・int の端・空・通常を System.Linq と突き合わせ)。
+- 結果: 次の取り直しで記録する。

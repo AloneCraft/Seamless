@@ -75,8 +75,7 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 {{destVar}}=new int[{{count}}];
                 for(var {{index}}=0;{{index}}<{{count}};{{index}}++){
                     {{destVar}}[{{index}}]={{start}} + {{index}};

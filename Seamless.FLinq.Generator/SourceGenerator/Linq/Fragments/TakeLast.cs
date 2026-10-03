@@ -120,7 +120,33 @@ internal class TakeLast(int 番号,Enumerable source,string takeCount):Enumerabl
                 """;
         }
         if(this.RootSource is not RangeRoot range||this.RootSource.ElementType!="int") {
-            return base.GetConsumeExecutionStatement(consumerName);
+            // span の無い根は、根の列挙子を差し替えメソッドから回し、直近の件数だけを待ち行列に残してから流す。
+            // TakeLast の列挙子の構造体から根の構造体を呼ぶ入れ子は、参照型の共有ジェネリックコードで内側がインライン化されない。
+            string rootExpression;
+            try {
+                rootExpression=this.RootSource.GetEnumeratorExpression;
+            } catch(NotSupportedException) {
+                return base.GetConsumeExecutionStatement(consumerName);
+            }
+            var queue = $"__takeLastQueue{番号}";
+            var takeCount = $"__takeLastCount{番号}";
+            var item = $"__takeLastItem{番号}";
+            return $$"""
+                using var {{sourceName}}={{rootExpression}};
+                var {{takeCount}}=global::System.Math.Max(0,{{this.EffectiveTakeCount}});
+                if({{takeCount}}>0){
+                    using var {{queue}}=new global::Seamless.Linq.ValueQueue<{{this.ElementType}}>(global::System.Math.Min({{takeCount}},1024));
+                    while({{sourceName}}.TryGetNext(out var {{item}})){
+                        if({{queue}}.Count=={{takeCount}}){
+                            {{queue}}.Dequeue();
+                        }
+                        {{queue}}.Enqueue({{item}});
+                    }
+                    while({{queue}}.Count>0){
+                        {{consumerName}}.Consume({{queue}}.Dequeue());
+                    }
+                }
+                """;
         }
 
         var start = $"__start{番号}";
@@ -131,8 +157,7 @@ internal class TakeLast(int 番号,Enumerable source,string takeCount):Enumerabl
         var index = $"__i{番号}";
         return $$"""
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{GroupBySupport.IndentBlock(range.RenderArgumentPreparation(start,count),"    ").TrimStart()}}
                 var {{take}}={{this.EffectiveTakeCount}};
                 var {{actual}}=global::System.Math.Min({{count}},global::System.Math.Max(0,{{take}}));
                 var {{skip}}={{count}} - {{actual}};

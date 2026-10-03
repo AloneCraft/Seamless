@@ -4,7 +4,7 @@ namespace Test.SourceGenerator;
 
 /// <summary>
 /// 添字を使わない Select/Where だけが2段以上並ぶ列を Consume へ流すとき、列挙子の構造体を入れ子に呼ばず、
-/// 差し替えメソッドの中で span(または Range)を直接回すこと。参照型の要素の共有ジェネリックコードでも内側がインライン化される形にする。
+/// 差し替えメソッドの中で span(または根の列挙子)を直接回すこと。Range は Range 専用の経路のまま。参照型の要素の共有ジェネリックコードでも内側がインライン化される形にする。
 /// </summary>
 [LinqIntercept(false)]
 public sealed class StatelessChainDirectConsumeTests {
@@ -57,7 +57,7 @@ public sealed class StatelessChainDirectConsumeTests {
         var (compilation,generated) = ExecutableGeneration.Generate(Source,"StatelessChainDirectConsumeProbe",3);
         var actual = ExecutableGeneration.Run(compilation,"Sample.Probe",probe => (string)probe.GetMethod("Run")!.Invoke(null,null)!);
         Assert.Equal("20,40,60,102,103,104,105,3,9,15",actual);
-        Assert.Equal(3,global::System.Text.RegularExpressions.Regex.Matches(generated,@"for\(var __i\w+=0;__i\w+<__chain(Span\w+\.Length|Count\w+);").Count);
-        Assert.DoesNotContain("while(__ce",generated);
+        // 配列の2つは直接のループ。Range は Range 専用の最適化(偶奇の刻みなど)を使う既存の経路のまま。
+        Assert.Equal(2,global::System.Text.RegularExpressions.Regex.Matches(generated,@"for\(var __i\w+=0;__i\w+<__chain(Span\w+\.Length|Count\w+);").Count);
     }
 }

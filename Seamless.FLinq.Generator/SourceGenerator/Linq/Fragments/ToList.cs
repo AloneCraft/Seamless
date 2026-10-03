@@ -131,8 +131,7 @@ internal class ToList(int 番号,Enumerable source,string resultType):BufferedSc
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{start}}={{range.StartExpression}};
-                var {{count}}={{range.CountExpression}};
+                {{range.RenderArgumentPreparation(start,count)}}
                 {{destVar}}=new({{count}});
                 global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{count}});
                 var {{span}}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}});
