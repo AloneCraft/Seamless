@@ -405,7 +405,14 @@ internal sealed class RangeRoot(int 番号,string startExpression,string countEx
             private int start;
             private int count;
             private int {{this.e}} = -1;
-            public {{this.Struct}}(int start,int count) { this.start = start; this.count = count; }
+            public {{this.Struct}}(int start,int count) {
+                // Enumerable.Range と同じ引数検査。列挙子を作る時点(Range を呼んだ時点)で例外にする。
+                if(count<0||(long)start+count-1>int.MaxValue){
+                    throw new global::System.ArgumentOutOfRangeException("count");
+                }
+                this.start = start;
+                this.count = count;
+            }
             public int Current{get;private set;}=default!;
             {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count){
@@ -438,6 +445,8 @@ internal sealed class RangeRoot(int 番号,string startExpression,string countEx
 }
 
 internal sealed class DescendingRangeRoot(int 番号,string startExpression,string countExpression):Enumerable(番号) {
+    internal string StartExpression => startExpression;
+    internal string CountExpression => countExpression;
     public override string? NonEnumeratedCountExpression => countExpression;
     public override bool CountPreserving => true;
     public override string StructMethod => string.Empty;
@@ -460,7 +469,14 @@ internal sealed class DescendingRangeRoot(int 番号,string startExpression,stri
             private int start;
             private int count;
             private int {{this.e}} = -1;
-            public {{this.Struct}}(int start,int count) { this.start = start; this.count = count; }
+            public {{this.Struct}}(int start,int count) {
+                // Enumerable.Range と同じ引数検査。列挙子を作る時点(Range を呼んだ時点)で例外にする。
+                if(count<0||(long)start+count-1>int.MaxValue){
+                    throw new global::System.ArgumentOutOfRangeException("count");
+                }
+                this.start = start;
+                this.count = count;
+            }
             public int Current{get;private set;}=default!;
             {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count){
@@ -486,6 +502,9 @@ internal sealed class DescendingRangeRoot(int 番号,string startExpression,stri
         {
             var __start{{番号}}={{startExpression}};
             var __count{{番号}}={{countExpression}};
+            if(__count{{番号}}<0||(long)__start{{番号}}+__count{{番号}}-1>int.MaxValue){
+                throw new global::System.ArgumentOutOfRangeException("count");
+            }
             for(var __i{{番号}}=__count{{番号}}-1;__i{{番号}}>=0;__i{{番号}}--){
                 {{consumerName}}.Consume(__start{{番号}} + __i{{番号}});
             }

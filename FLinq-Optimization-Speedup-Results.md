@@ -1564,3 +1564,12 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 形: 作った配列・List を流しても元の列を流しても要素と順は同じ。FLinq の契約(`.Anchor` の無い式は副作用・例外なし)では途中の評価の順も観測されないので、作らずに元の列を直接流す。ただし、列に `.Anchor` がある・途中で例外を投げ得る Cast を含む・列が Consume の受け手で消費側の式が評価順の観測できる形(呼び出しなど)のときは従来どおり作ってから流す(System.Linq では列を作り終えてから消費側の式を評価するため。既存テスト `ArrayToListConsumeEvaluatesConsumerOnlyAfterMaterialization` がこの順を検査している)。
 - テスト: `Test/SourceGenerator/MaterializeConsumeElisionTests.cs`(1件目で止める Consume で、省いた形は元の列を1件分だけ評価し、`.Anchor`・Cast は全件評価する)。形状テストを `ArrayToListConsumeStreamsSourceWithoutMaterializing` に更新。実 Worker の割り当て測定テストは、割り当てが0になった ToList から ToHashSet に替えた。
 - 結果: 次の取り直し(baseline3)で記録する。
+
+## 2026-10-03 Range の構造(一意・昇順・x%C の周期)を使う(採用)
+
+- Range の x%C(C は正の定数)のキー: OrderBy/OrderByDescending(続く恒等の ThenBy/ThenByDescending を含む)は並べ替えずに剰余類ごとに C 刻みで回す根(`RangeModuloOrderRoot`)、DistinctBy は各符号の区間の先頭 C 個を流す根(`RangeModuloDistinctRoot`)、MaxBy/MinBy は start≧0 なら先頭 min(count,C) 個から式で、負を含むときは各符号の先頭 C 個だけを調べる、CountBy は start≧0 なら値 x のキーの個数 (end-1-x)/C+1 を流す。C# の剰余が負になること(キーが -(C-1)..C-1)を扱い、初出順と安定な順は System.Linq と同じ。
+- Range の先頭の何もしない段: 一意性を保つ段の後の Distinct、既に並んでいる順の恒等キーの並べ替え(と続く ThenBy)、Skip(0) を除き、先頭の Reverse・逆順の恒等の並べ替えは降順の Range にする(押し下げで Where が前に来ても除ける)。段が残らなければソースをそのまま使う。
+- Range の引数検査: `Enumerable.Range` の count<0・上端あふれの ArgumentOutOfRangeException が、列挙子の構造体を通る経路と降順 Range の Consume で出ていなかった(例: `Range(1,-1).OrderBy(…).ThenBy(…).ToList()` が空を返した)。構造体のコンストラクタと降順 Range の Consume で検査する。
+- `.Anchor` のある段・キー選択子・ソースは対象外。
+- テスト: `RangeModuloOrderTests`・`RangeModuloKeyTests`・`PipelineNoOpNormalizationTests`(負の値・0 をまたぐ区間・int の端・空・不正な引数を System.Linq と突き合わせ)。形状テストを `RangeModuloOrderByConsumeWalksResidueClasses` に更新。
+- 結果: 次の取り直しで記録する。

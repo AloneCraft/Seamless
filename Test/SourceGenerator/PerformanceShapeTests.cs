@@ -317,7 +317,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
-    public void RangeOrderByConsumeExpandsInsteadOfDelegatingToSystemLinq() {
+    public void RangeModuloOrderByConsumeWalksResidueClasses() {
         const string source = """
             using System.Collections.Generic;
             using System.Linq;
@@ -347,13 +347,14 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         var generated = GeneratedSource(source);
 
+        // x%C のキーの並べ替えは、並べ替えずに剰余類ごとに C 刻みで回す(RangeModuloOrderTests で意味を確かめる)。
         GeneratedSourceAssert.True(
             !generated.Contains("global::System.Linq.Enumerable.OrderBy(",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Linq.Enumerable.ThenBy(",StringComparison.Ordinal)
-            &&generated.Contains("__orderValues",StringComparison.Ordinal)
-            &&generated.Contains("__orderIndexes",StringComparison.Ordinal)
-            &&generated.Contains("global::System.Buffers.ArrayPool<int>.Shared.Rent",StringComparison.Ordinal),
-            "Keyed ordering over a Range source must expand into the pooled order loop instead of delegating back to System.Linq.",
+            &&generated.Contains("__residue",StringComparison.Ordinal)
+            &&!generated.Contains("__orderValues",StringComparison.Ordinal)
+            &&!generated.Contains("global::System.Buffers.ArrayPool<int>.Shared.Rent",StringComparison.Ordinal),
+            "Modulo-keyed ordering over a Range source must walk the residue classes instead of sorting or delegating back to System.Linq.",
             generated,
             output);
     }

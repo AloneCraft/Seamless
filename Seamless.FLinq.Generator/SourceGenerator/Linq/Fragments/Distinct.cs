@@ -216,6 +216,13 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
             &&this.CanMergeWith(previous)) {
             return previous.GetConsumeExecutionStatement(consumerName);
         }
+        // Range の x%C のキーは各符号の区間の先頭 C 個で初めて現れる(RangeModuloDistinctRoot)。Consume の文は列挙子の構造体を使わない。
+        if(source is RangeRoot range
+            &&comparer=="null"
+            &&!source.TreeContainsAnchor()
+            &&RangeModuloOrderRoot.TryGetModulus(keySelector,out var modulus)) {
+            return new RangeModuloDistinctRoot(番号,range,modulus).GetConsumeExecutionStatement(consumerName);
+        }
         var sourceName = $"__src{番号}";
         var keyName = $"__key{番号}";
         var builder = new StringBuilder();

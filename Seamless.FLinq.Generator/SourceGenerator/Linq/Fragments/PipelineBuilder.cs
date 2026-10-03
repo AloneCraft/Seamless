@@ -83,6 +83,15 @@ internal static partial class PipelineBuilder {
 
         stages=LinqOptimizationExecutor.NormalizePipeline(stages,services.JoinStaticMethods,services.Configuration,services.Trace);
         stages=StreamGroupByKeysWhenResultIgnoresGroup(sourceFragment,stages);
+        stages=StripRangeNoOpPrefix(ref sourceFragment,stages,ref snapshot);
+        if(stages.Count==0&&terminalKind is null) {
+            // 何もしない段を除いて段が残らなければ、ソース(降順の Range を含む)をそのまま使う。
+            fragment=sourceFragment;
+            uniqueNumber=snapshot;
+            services.ApplyRenderContext(fragment);
+            staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
+            return true;
+        }
         if(TryOptimizeRangeSetStages(sourceFragment,stages,ref snapshot,out var optimizedSetSource)) {
             AddUnsafeAccessors(stages,unsafeAccessorCollector);
             if(!TryCreateOptimizedFragment(
@@ -112,7 +121,9 @@ internal static partial class PipelineBuilder {
             return false;
         }
 
-        if(TryOptimizeOrderedRange(sourceFragment,stages,ref snapshot,out var optimizedSource)) {
+        if(TryOptimizeOrderedRange(sourceFragment,stages,ref snapshot,out var optimizedSource)
+            ||TryOptimizeModuloOrderedRange(sourceFragment,stages,ref snapshot,out optimizedSource)
+            ||TryOptimizeModuloDistinctRange(sourceFragment,stages,ref snapshot,out optimizedSource)) {
             AddUnsafeAccessors(stages,unsafeAccessorCollector);
             if(!TryCreateOptimizedFragment(
                 optimizedSource,

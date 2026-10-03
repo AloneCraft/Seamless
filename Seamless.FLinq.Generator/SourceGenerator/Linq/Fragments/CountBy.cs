@@ -95,6 +95,49 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
             """
         : base.GetEnumeratorDisposeBody;
     public override string ElementType => $"global::System.Collections.Generic.KeyValuePair<{FuncReturnTypeName(keySelector)}, global::System.Int32>";
+
+    // Range の CountBy(x => x%C) を Consume へ流すとき、start≧0 ならキーは start から先頭 min(count,C) 個で初めて現れ、
+    // 値 x のキーの個数は [x,end) で x と合同な値の個数 (end-1-x)/C+1 になる。数え上げも辞書も要らない。
+    // 負の値を含むとき(キーが負になる)は、Range の引数を1回だけ評価したうえで辞書で数える。
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        if(source is not RangeRoot range||!RangeModuloOrderRoot.TryGetModulus(keySelector,out var modulus)) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        var start = $"__start{番号}";
+        var count = $"__count{番号}";
+        var end = $"__end{番号}";
+        var value = $"__value{番号}";
+        var counts = $"__counts{番号}";
+        var order = $"__order{番号}";
+        var key = $"__key{番号}";
+        return $$"""
+            {
+                {{GroupBySupport.IndentBlock(range.RenderArgumentPreparation(start,count),"    ").TrimStart()}}
+                if({{start}}>=0){
+                    var {{end}}=(long){{start}}+{{count}};
+                    var __length{{番号}}=global::System.Math.Min({{count}},{{modulus}});
+                    for(var {{value}}=(long){{start}};{{value}}<(long){{start}}+__length{{番号}};{{value}}++){
+                        {{consumerName}}.Consume(new global::System.Collections.Generic.KeyValuePair<int,int>((int)({{value}}%{{modulus}}),(int)(({{end}}-1-{{value}})/{{modulus}}+1)));
+                    }
+                }else{
+                    var {{counts}}=new global::System.Collections.Generic.Dictionary<int,int>();
+                    var {{order}}=new global::System.Collections.Generic.List<int>();
+                    for(var {{value}}=(long){{start}};{{value}}<(long){{start}}+{{count}};{{value}}++){
+                        var {{key}}=(int)({{value}}%{{modulus}});
+                        if({{counts}}.TryGetValue({{key}},out var __seen{{番号}})){
+                            {{counts}}[{{key}}]=__seen{{番号}}+1;
+                        }else{
+                            {{counts}}[{{key}}]=1;
+                            {{order}}.Add({{key}});
+                        }
+                    }
+                    foreach(var {{key}} in {{order}}){
+                        {{consumerName}}.Consume(new global::System.Collections.Generic.KeyValuePair<int,int>({{key}},{{counts}}[{{key}}]));
+                    }
+                }
+            }
+            """;
+    }
     private string PooledIntMapFields => $$"""
         private int[]? __hashKeys;
         private int[]? __hashCounts;

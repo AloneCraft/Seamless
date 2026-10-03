@@ -49,6 +49,12 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector)}";
     protected override string ComputeExpression => $"Compute(ref {this.e}{this.ClosureArgsSuffix(keySelector)})";
     public override string? RenderInlineComputation(string destVar,string destType) {
+        // Range の x%C のキーは周期 C で繰り返すので、最初に現れる極値は先頭 C 個の中で決まる(RangeModuloDistinctRoot.RenderExtremeBy)。
+        if(source is RangeRoot range
+            &&resultType=="int"
+            &&RangeModuloOrderRoot.TryGetModulus(keySelector,out var modulus)) {
+            return RangeModuloDistinctRoot.RenderExtremeBy(range,modulus,番号,destVar,destType,direction=="greater");
+        }
         var methodName = direction=="greater" ? "MaxBy" : "MinBy";
         return this.RenderComputeInline(destVar,destType)
             ??(TryRenderDirectLambda(keySelector) is { } lambda
