@@ -1722,3 +1722,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: 押し下げで Reverse().Where(p) は Where(p).Reverse() になり、通った要素を配列へ溜めてから逆順に流していた(押し下げタブの Reverse_Where で理想の1.6〜2.6倍。理想版は配列・List を末尾から回して述語を評価する)。
 - 修正: span を出せる根(配列・List)の後に、添字の無い Where/Select と Reverse が1つだけ並ぶとき、Reverse は要素ごとの段と入れ替えられる(Where/Select は順を保つ)ので、span を末尾から回して段をその場に展開する。述語・選択子を評価する順が逆になるので、.Anchor があれば使わない。
 - テスト: `SpanReverseConsumeTests`(参照型と int、Reverse の前後の Where/Select、List、空)。
+
+## 2026-10-04 Join の外側・内側が根と Where の並びなら、根を直接回す(採用候補)
+
+- 原因: 押し下げで Join の両側に Where が付くと、Join の列挙子の構造体→Where の構造体→根の構造体の入れ子になり、参照型の共有ジェネリックコードで内側がインライン化されなかった(押し下げタブの Join の ClassInt32 で理想の1.5〜2.4倍)。
+- 修正: 外側・内側が「根(配列・List、または IEnumerable)の上に添字の無い Where が0個以上」の形なら、差し替えメソッドの中で内側の根を回して探索表(または件数)を作り、外側の根を回して述語・キー・結果選択子をその場に展開する。評価の順は従来と同じ(外側・内側のソース式、内側を最後まで、外側の順)。
+- テスト: `ContiguousLookupGenerationTests` に押し下げで両側に Where が付く形(配列と IEnumerable、List)を追加。

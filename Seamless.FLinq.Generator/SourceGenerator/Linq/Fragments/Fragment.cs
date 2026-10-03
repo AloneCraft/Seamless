@@ -521,6 +521,49 @@ internal abstract class Fragment(
             ? ($"var __rest_{enumeratorName}={enumeratorName}.GetRemainingEnumerator();\n",$"__rest_{enumeratorName}.MoveNext()",$"\nvar {itemName}=__rest_{enumeratorName}.Current;")
             : (string.Empty,$"{enumeratorName}.TryGetNext(out var {itemName})",string.Empty);
 
+    // 列が「根(span を出せる配列・List、または IEnumerable)の上に添字の無い Where が0個以上並ぶ」形なら、根と述語(内側から順)に分ける。
+    // 差し替えメソッドの中で根を直接回して述語をその場に展開するのに使う(構造体→Where の構造体→根の構造体の入れ子は、
+    // 参照型の共有ジェネリックコードで内側がインライン化されない)。評価の順は Where の構造体を回すときと同じ。
+    internal static bool TryPeelWheres(Enumerable fragment,out Enumerable root,out FuncFragment[] predicates) {
+        var collected = new List<FuncFragment>();
+        var current = fragment;
+        while(current.GetType()==typeof(Where_predicate)) {
+            var where = (Where_predicate)current;
+            collected.Add(where.Predicate);
+            current=where.Source;
+        }
+        collected.Reverse();
+        root=current;
+        predicates=collected.ToArray();
+        return current.ProvidesRemainingEnumerator||current is ArrayRoot or ListRoot;
+    }
+
+    private protected string RenderRootLoop(Enumerable root,FuncFragment[] predicates,string enumeratorName,string itemName,string body) {
+        var checks = new StringBuilder();
+        for(var index = 0;index<predicates.Length;index++) {
+            var (preCode,condition) = this.FuncInvokeConditionStatic(predicates[index],"predicate",$"{itemName}Keep{index}",itemName);
+            if(!string.IsNullOrEmpty(preCode)) {
+                checks.AppendLine(preCode);
+            }
+            checks.AppendLine($"if(!{WrapConditionExpression(condition)}) continue;");
+        }
+        var inner = checks.ToString()+body;
+        if(root.GetDirectSpanExpression(enumeratorName) is { } spanExpression) {
+            return $$"""
+                var {{enumeratorName}}Span={{spanExpression}};
+                for(var {{enumeratorName}}Index=0;{{enumeratorName}}Index<{{enumeratorName}}Span.Length;{{enumeratorName}}Index++){
+                    var {{itemName}}={{enumeratorName}}Span[{{enumeratorName}}Index];
+                {{IndentGeneratedStatement(inner,"    ")}}
+                }
+                """;
+        }
+        return $$"""
+            {{DrainLoopHead(root,enumeratorName,itemName)}}
+            {{IndentGeneratedStatement(inner,"    ")}}
+            }
+            """;
+    }
+
     internal static string DrainLoopHead(Enumerable root,string enumeratorName,string itemName) {
         var (preamble,condition,declaration) = DrainParts(root,enumeratorName,itemName);
         return $"{preamble}while({condition}){{{declaration}";

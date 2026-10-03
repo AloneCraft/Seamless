@@ -198,6 +198,9 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         if(this.RenderRangeOverlapConsume(consumerName) is { } overlapConsume) {
             return overlapConsume;
         }
+        if(this.RenderFilteredRootsConsume(consumerName) is { } filteredConsume) {
+            return filteredConsume;
+        }
         if(this.UseResultTypeParam
             ||this.outerSource.DirectArrayExpression is not { } outerArrayExpression
             ||this.innerSource.DirectArrayExpression is not { } innerArrayExpression) {
@@ -262,6 +265,76 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             }
             """;
     }
+    // 外側・内側が「根(span を出せる配列・List、または IEnumerable)の上に添字の無い Where が0個以上並ぶ」形なら、
+    // Join の列挙子の構造体や Where の構造体を作らずに、差し替えメソッドの中で根を直接回して述語をその場に展開する
+    // (構造体→Where の構造体→根の構造体の入れ子は、参照型の共有ジェネリックコードで内側がインライン化されない)。
+    // 評価の順は従来と同じ(外側・内側のソース式、内側を最後まで、外側の順)。
+    private string? RenderFilteredRootsConsume(string consumerName) {
+        if(this.UseResultTypeParam
+            ||this.ProbesInnerRange()
+            ||!TryPeelWheres(this.outerSource,out var outerRoot,out var outerPredicates)
+            ||!TryPeelWheres(this.innerSource,out var innerRoot,out var innerPredicates)) {
+            return null;
+        }
+        string outerExpression;
+        string innerExpression;
+        try {
+            outerExpression=outerRoot.GetEnumeratorExpression;
+            innerExpression=innerRoot.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var outerName = $"__joinOuterRoot{番号}";
+        var innerName = $"__joinInnerRoot{番号}";
+        var outerItemName = $"__joinOuterItem{番号}";
+        var innerItemName = $"__joinInnerItem{番号}";
+        var innerKeyName = $"__joinInnerKey{番号}";
+        var outerKeyName = $"__joinOuterKey{番号}";
+        var builderName = $"__joinLookup{番号}";
+        var arrangedName = $"__joinArranged{番号}";
+        var startName = $"__joinStart{番号}";
+        var endName = $"__joinEnd{番号}";
+        var countName = $"__joinCapacity{番号}";
+        var resultName = $"__joinResult{番号}";
+        var hasKeyName = $"__joinHasKey{番号}";
+        var functions = outerPredicates.Concat(innerPredicates).Concat(new[] { this.outerKey,this.innerKey,this.resultSelector }).ToArray();
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(functions),
+            this.StaticDelegateLocalDeclarations(functions),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var countsOnly = this.CountsOnly();
+        var innerAdd = countsOnly
+            ? $"global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({builderName},{innerKeyName},out _)++;"
+            : $"{builderName}.Add({innerKeyName},{innerItemName});";
+        var innerBody = $"{this.InnerKeyType} {innerKeyName}=default!;\n{this.FuncAssignStatic(this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}\nif({hasKeyName}({innerKeyName})){{\n    {innerAdd}\n}}";
+        var matchedInner = countsOnly ? $"default({this.InnerElementType})!" : $"{arrangedName}[{startName}]";
+        var emit = $"{this.ElementType} {resultName}=default!;\n{this.FuncAssignStatic(this.resultSelector,nameof(this.resultSelector),resultName,outerItemName,matchedInner)}\n{consumerName}.Consume({resultName});";
+        var probe = countsOnly
+            ? $"if(!{builderName}.TryGetValue({outerKeyName},out var {endName})) continue;\nfor(var {startName}=0;{startName}<{endName};{startName}++){{\n{IndentGeneratedStatement(emit,"    ")}\n}}"
+            : $"if(!{builderName}.TryGetRange({outerKeyName},out var {startName},out var {endName})) continue;\nfor(;{startName}<{endName};{startName}++){{\n{IndentGeneratedStatement(emit,"    ")}\n}}";
+        var outerBody = $"{this.InnerKeyType} {outerKeyName}=default!;\n{this.FuncAssignStatic(this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}\nif(!{hasKeyName}({outerKeyName})) continue;\n{probe}";
+        var builderDeclaration = countsOnly
+            ? $"var {builderName}=new {this.CountsType}({countName},{this.comparerExpression});"
+            : $"var {builderName}=new global::Seamless.Linq.ContiguousLookupBuilder<{this.InnerKeyType},{this.InnerElementType}>({countName},{countName},{this.comparerExpression});";
+        var prepare = countsOnly ? string.Empty : $"{builderName}.PrepareProbe();\nvar {arrangedName}={builderName}.Arranged;";
+        var dispose = countsOnly ? string.Empty : $"{builderName}.Dispose();";
+        return $$"""
+            {{localDeclarations}}
+            static bool {{hasKeyName}}<TKey>(TKey key) => key is not null;
+            using var {{outerName}}={{outerExpression}};
+            using var {{innerName}}={{innerExpression}};
+            var {{countName}}={{innerName}}.TryGetNonEnumeratedCount(out var {{countName}}Value) ? {{countName}}Value : 0;
+            {{builderDeclaration}}
+            try {
+            {{this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody)}}
+            {{prepare}}
+            {{this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,outerBody)}}
+            } finally {
+                {{dispose}}
+            }
+            """;
+    }
+
     private string RenderCountsOnlyArrayConsume(string consumerName,string outerArrayExpression,string innerArrayExpression) {
         var outerArrayName = $"__joinOuterArray{番号}";
         var innerArrayName = $"__joinInnerArray{番号}";

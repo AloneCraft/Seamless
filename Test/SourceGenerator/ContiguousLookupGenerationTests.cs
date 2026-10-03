@@ -61,6 +61,7 @@ public sealed class ContiguousLookupGenerationTests {
                     sink => sink.Values.Add(this.ToLookupIndex()),sink => sink.Values.Add(this.ToLookupComparer()),sink => this.JoinArrays(sink),sink => this.JoinEnumerable(sink),
                     sink => this.JoinNullKeys(sink),sink => this.JoinWhere(sink),sink => this.JoinEmpty(sink),
                     sink => this.JoinOuterOnlyArrays(sink),sink => this.JoinOuterOnlyEnumerable(sink),sink => this.JoinOuterOnlyNullKeys(sink),
+                    sink => this.JoinPushdownBoth(sink),sink => this.JoinPushdownList(sink),
                 }) {
                     var sink = new Sink();
                     action(sink);
@@ -91,6 +92,8 @@ public sealed class ContiguousLookupGenerationTests {
                     this.First().Join(this.First(),x => N(x)%4,y => N(y)%4,(a,b) => N(a)).Cast<object?>(),
                     this.Second().Join(this.Second(),x => N(x)%3,y => N(y)%3,(a,b) => a).Cast<object?>(),
                     this.First().Join(this.Second(),x => S(x),y => S(y),(a,b) => N(a)*2).Cast<object?>(),
+                    this.First().Join(this.Second(),x => N(x)%3,y => N(y)%3,(a,b) => (A: a,B: b)).Where(p => N(p.A)%2==0&&N(p.B)>3).Cast<object?>(),
+                    new List<T>(this.First()).Join(this.First(),x => N(x)%4,y => N(y)%4,(a,b) => (A: a,B: b)).Where(p => N(p.B)!=5).Cast<object?>(),
                 }.Select(values => string.Join(",",values.Select(Sink.Format))));
             }
             [LinqIntercept(true)] private void GroupByKey(Sink sink) => sink.Consume(this.First().GroupBy(x => N(x)%3));
@@ -121,6 +124,9 @@ public sealed class ContiguousLookupGenerationTests {
             [LinqIntercept(true)] private void JoinOuterOnlyArrays(Sink sink) => sink.Consume(this.First().Join(this.First(),x => N(x)%4,y => N(y)%4,(a,b) => N(a)));
             [LinqIntercept(true)] private void JoinOuterOnlyEnumerable(Sink sink) => sink.Consume(this.Second().Join(this.Second(),x => N(x)%3,y => N(y)%3,(a,b) => a));
             [LinqIntercept(true)] private void JoinOuterOnlyNullKeys(Sink sink) => sink.Consume(this.First().Join(this.Second(),x => S(x),y => S(y),(a,b) => N(a)*2));
+            // 押し下げで両側に Where が付く形(外側は配列、内側は IEnumerable)と、List の外側。
+            [LinqIntercept(true)] private void JoinPushdownBoth(Sink sink) => sink.Consume(this.First().Join(this.Second(),x => N(x)%3,y => N(y)%3,(a,b) => (A: a,B: b)).Where(p => N(p.A)%2==0&&N(p.B)>3));
+            [LinqIntercept(true)] private void JoinPushdownList(Sink sink) => sink.Consume(new List<T>(this.First()).Join(this.First(),x => N(x)%4,y => N(y)%4,(a,b) => (A: a,B: b)).Where(p => N(p.B)!=5));
             [LinqIntercept(true)] private void JoinEmpty(Sink sink) => sink.Consume(this.First().Join(Array.Empty<T>(),x => N(x),y => N(y),(a,b) => N(a)));
             [LinqIntercept(false)]
             public static string Join(IEnumerable<T> values) {
@@ -163,7 +169,7 @@ public sealed class ContiguousLookupGenerationTests {
 
     [Fact]
     public void 探索表を1本の配列で作っても結果はSystemLinqと同じ() {
-        var (compilation,generated) = ExecutableGeneration.Generate(Source,"ContiguousLookupProbe",18);
+        var (compilation,generated) = ExecutableGeneration.Generate(Source,"ContiguousLookupProbe",20);
         var (actual,expected) = ExecutableGeneration.Run(compilation,"Sample.Probe",probe => (
             (string)probe.GetMethod("RunFLinq")!.Invoke(null,null)!,
             (string)probe.GetMethod("RunLinq")!.Invoke(null,null)!));
@@ -171,8 +177,9 @@ public sealed class ContiguousLookupGenerationTests {
         // GroupBy・ToLookup・Join はグループごとに伸びる配列を持つ LookupBuilder を使わない。
         Assert.Contains("ContiguousLookupBuilder<",generated);
         Assert.DoesNotContain("LookupBuilder<",generated.Replace("ContiguousLookupBuilder<",""));
-        // 結果選択子が内側の要素を使わない Join は、キーごとの件数だけを数える(配列の直接 Consume と列挙子の構造体の両方)。
-        Assert.Contains("__joinCounts",generated);
-        Assert.Contains("BuildCounts(",generated);
+        // 結果選択子が内側の要素を使わない Join は、キーごとの件数だけを数える。
+        Assert.Contains("CollectionsMarshal.GetValueRefOrAddDefault(__joinLookup",generated);
+        // 外側・内側が根(と Where)なら、Join の列挙子の構造体を回さずに根を直接回す。
+        Assert.Contains("__joinOuterRoot",generated);
     }
 }
