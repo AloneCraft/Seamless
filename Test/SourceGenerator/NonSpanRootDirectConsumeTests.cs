@@ -21,7 +21,18 @@ public sealed class NonSpanRootDirectConsumeTests {
         }
         public sealed class Sink {
             public readonly List<string> Values = new();
-            public void Consume<T>(T value) => this.Values.Add(value!.ToString()!);
+            public void Consume<T>(T value) => this.Values.Add(Format(value));
+            // 塊(配列)は要素を並べて書く(Chunk の結果を比べるため)。
+            public static string Format(object? value) {
+                if(value is string||value is not System.Collections.IEnumerable elements) {
+                    return value!.ToString()!;
+                }
+                var parts = new List<string>();
+                foreach(var element in elements) {
+                    parts.Add(element!.ToString()!);
+                }
+                return "["+string.Join(" ",parts)+"]";
+            }
         }
         public abstract class Holder<T> where T : notnull {
             public abstract IEnumerable<T> Source();
@@ -39,6 +50,7 @@ public sealed class NonSpanRootDirectConsumeTests {
                     sink => this.TakeWhile(sink),sink => this.SkipWhileIndex(sink),sink => this.GroupJoin(sink),
                     sink => { foreach(var n in Counts) { this.SkipLastN(sink,n); sink.Consume("/"); } },
                     sink => { foreach(var n in Counts) { this.TakeLastN(sink,n); sink.Consume("/"); } },
+                    sink => this.ChunkSmall(sink),sink => this.ChunkLarge(sink),sink => this.WhereChunk(sink),
                 }) {
                     var sink = new Sink();
                     action(sink);
@@ -63,7 +75,10 @@ public sealed class NonSpanRootDirectConsumeTests {
                     source.GroupJoin(this.Source(),x => x,x => x,(o,g) => o).Cast<object>(),
                     Counts.SelectMany(n => this.Long().SkipLast(n).Cast<object>().Append("/")),
                     Counts.SelectMany(n => this.Long().TakeLast(n).Cast<object>().Append("/")),
-                }.Select(values => string.Join(",",values)));
+                    source.Chunk(3).Cast<object>(),
+                    this.Long().Chunk(1500).Cast<object>(),
+                    this.Long().Where(x => N(x)%7==0).Chunk(50).Cast<object>(),
+                }.Select(values => string.Join(",",values.Select(Sink.Format))));
             }
             [LinqIntercept(true)] private void Where(Sink sink) => sink.Consume(this.Source().Where(x => N(x)%2==0));
             [LinqIntercept(true)] private void WhereIndex(Sink sink) => sink.Consume(this.Source().Where((x,i) => i%3!=0));
@@ -77,6 +92,9 @@ public sealed class NonSpanRootDirectConsumeTests {
             [LinqIntercept(true)] private void SkipWhileIndex(Sink sink) => sink.Consume(this.Source().SkipWhile((x,i) => i<2));
             [LinqIntercept(true)] private void SkipLastN(Sink sink,int n) => sink.Consume(this.Long().SkipLast(n));
             [LinqIntercept(true)] private void TakeLastN(Sink sink,int n) => sink.Consume(this.Long().TakeLast(n));
+            [LinqIntercept(true)] private void ChunkSmall(Sink sink) => sink.Consume(this.Source().Chunk(3));
+            [LinqIntercept(true)] private void ChunkLarge(Sink sink) => sink.Consume(this.Long().Chunk(1500));
+            [LinqIntercept(true)] private void WhereChunk(Sink sink) => sink.Consume(this.Long().Where(x => N(x)%7==0).Chunk(50));
             [LinqIntercept(true)] private void GroupJoin(Sink sink) => sink.Consume(this.Source().GroupJoin(this.Source(),x => x,x => x,(o,g) => o));
         }
         public sealed class ItemHolder:Holder<Item> {
@@ -100,7 +118,7 @@ public sealed class NonSpanRootDirectConsumeTests {
 
     [Fact]
     public void 根の列挙子を差し替えメソッドから直接回す() {
-        var (compilation,generated) = ExecutableGeneration.Generate(Source,"NonSpanRootDirectConsumeProbe",13);
+        var (compilation,generated) = ExecutableGeneration.Generate(Source,"NonSpanRootDirectConsumeProbe",16);
         var (actual,expected) = ExecutableGeneration.Run(compilation,"Sample.Probe",probe => (
             (string)probe.GetMethod("RunFLinq")!.Invoke(null,null)!,
             (string)probe.GetMethod("RunLinq")!.Invoke(null,null)!));

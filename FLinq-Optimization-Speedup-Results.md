@@ -1762,3 +1762,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 修正: 足すだけで作った HashSet の列挙順は追加順なので、集合へ足せた(初出の)要素をその場で流すのと同じ。ソースが根と Where の並びなら根を直接回す(Range は従来どおり集合を作らない)。
 - テスト: `SetOperationWhereConsumeTests` に配列(重複あり)と、Where の付いた遅延の列の ToHashSet を追加。
 
+## 2026-10-04 span の無い根の Chunk は、根を直接回して塊を作る(採用候補)
+
+- 原因: IEnumerable の Chunk は Chunk の列挙子の構造体→根の構造体の入れ子を回していた(ClassInt32 で理想の2.1倍)。
+- 修正: 根(と Where)を差し替えメソッドの中で直接回して塊を作る。塊の配列は size が 1024 以下ならその大きさで、それより大きい size は 1024 から倍々に伸ばす(巨大な size で先に確保しない)。最後の塊は残りの件数の長さ(System.Linq と同じ)。
+- テスト: `NonSpanRootDirectConsumeTests` に Chunk(3)・Chunk(1500)(伸ばす場合)・Where の後の Chunk を追加。
+

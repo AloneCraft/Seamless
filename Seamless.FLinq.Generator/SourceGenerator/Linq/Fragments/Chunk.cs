@@ -100,7 +100,58 @@ internal class Chunk(int 番号,Enumerable source,string size):Enumerable(番号
     public override string GetConsumeExecutionStatement(string consumerName) =>
         this.RenderRangeChunkConsume(consumerName)
         ??this.RenderDirectSpanChunkConsume(consumerName)
+        ??this.RenderRootChunkConsume(consumerName)
         ??base.GetConsumeExecutionStatement(consumerName);
+    // span の無い根(と Where)は、Chunk の列挙子の構造体→根の構造体の入れ子を回さず、差し替えメソッドの中で根を直接回して塊を作る。
+    // 塊の配列は大きさが size 以下なら size で、それより大きい size は 1024 から倍々に伸ばす(巨大な size で先に確保しない)。
+    // 最後の塊は残りの件数の配列にする(System.Linq と同じ長さ)。
+    private string? RenderRootChunkConsume(string consumerName) {
+        if(!TryPeelWheres(source,out var root,out var predicates)) {
+            return null;
+        }
+        string rootExpression;
+        try {
+            rootExpression=root.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var rootName = $"__chunkRoot{番号}";
+        var itemName = $"__chunkItem{番号}";
+        var chunkSize = $"__chunkSize{番号}";
+        var chunk = $"__chunk{番号}";
+        var filled = $"__chunkFilled{番号}";
+        var elementType = source.ElementType;
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(predicates),
+            this.StaticDelegateLocalDeclarations(predicates),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var body = $$"""
+            if({{chunk}} is null){
+                {{chunk}}=new {{elementType}}[global::System.Math.Min({{chunkSize}},1024)];
+            }else if({{filled}}=={{chunk}}.Length){
+                global::System.Array.Resize(ref {{chunk}},(int)global::System.Math.Min((long){{chunk}}.Length*2,{{chunkSize}}));
+            }
+            {{chunk}}[{{filled}}++]={{itemName}};
+            if({{filled}}=={{chunkSize}}){
+                {{consumerName}}.Consume({{chunk}});
+                {{chunk}}=null;
+                {{filled}}=0;
+            }
+            """;
+        return $$"""
+            {{localDeclarations}}
+            using var {{rootName}}={{rootExpression}};
+            var {{chunkSize}}={{size}};
+            if({{chunkSize}}<=0) throw new global::System.ArgumentOutOfRangeException("size");
+            {{elementType}}[]? {{chunk}}=null;
+            var {{filled}}=0;
+            {{this.RenderRootLoop(root,predicates,rootName,itemName,body)}}
+            if({{chunk}} is not null){
+                global::System.Array.Resize(ref {{chunk}},{{filled}});
+                {{consumerName}}.Consume({{chunk}});
+            }
+            """;
+    }
     private string? RenderDirectSpanChunkConsume(string consumerName) {
         var sourceName = $"__chunkSource{番号}";
         var directSpanExpression = source.GetDirectSpanExpression(sourceName);
