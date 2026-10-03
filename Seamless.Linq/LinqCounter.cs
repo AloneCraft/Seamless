@@ -185,31 +185,87 @@ public static class LinqCounterScope {
     public static LinqCounter Counter => CurrentCounter.Value??GlobalCounter;
     public static LinqCounter? Current => CurrentCounter.Value;
 
-    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    public static void IncrementDirectSpanUsed() => CurrentCounter.Value?.IncrementDirectSpanUsed();
+    // 開いている計数の範囲(Start)の数。差し替えたコードの中に無条件に置かれる Increment* は、まずこれだけを見る。
+    // AsyncLocal を引く処理はインライン化しない: 大きいので差し替えメソッドのインライン化の予算を使い切り、
+    // 要素ごとの Consume などがインライン化されずに呼び出しのまま残っていた(配列の Append で理想の3倍)。
+    // 別のスレッドで範囲が開いていても、そのスレッドの AsyncLocal は空なので数え間違えない。
+    private static int activeScopes;
 
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    public static void IncrementTryGetSpanCalled() => CurrentCounter.Value?.IncrementTryGetSpanCalled();
+    public static void IncrementDirectSpanUsed() {
+        if(activeScopes!=0) {
+            IncrementDirectSpanUsedSlow();
+        }
+    }
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void IncrementDirectSpanUsedSlow() => CurrentCounter.Value?.IncrementDirectSpanUsed();
 
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    public static void IncrementTryGetSpanSucceeded() => CurrentCounter.Value?.IncrementTryGetSpanSucceeded();
+    public static void IncrementTryGetSpanCalled() {
+        if(activeScopes!=0) {
+            IncrementTryGetSpanCalledSlow();
+        }
+    }
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void IncrementTryGetSpanCalledSlow() => CurrentCounter.Value?.IncrementTryGetSpanCalled();
 
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    public static void IncrementTryGetSpanFailed() => CurrentCounter.Value?.IncrementTryGetSpanFailed();
+    public static void IncrementTryGetSpanSucceeded() {
+        if(activeScopes!=0) {
+            IncrementTryGetSpanSucceededSlow();
+        }
+    }
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void IncrementTryGetSpanSucceededSlow() => CurrentCounter.Value?.IncrementTryGetSpanSucceeded();
 
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    public static void IncrementEnumerationLoopUsed() => CurrentCounter.Value?.IncrementEnumerationLoopUsed();
+    public static void IncrementTryGetSpanFailed() {
+        if(activeScopes!=0) {
+            IncrementTryGetSpanFailedSlow();
+        }
+    }
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void IncrementTryGetSpanFailedSlow() => CurrentCounter.Value?.IncrementTryGetSpanFailed();
 
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    public static void IncrementFastCopyUsed() => CurrentCounter.Value?.IncrementFastCopyUsed();
+    public static void IncrementEnumerationLoopUsed() {
+        if(activeScopes!=0) {
+            IncrementEnumerationLoopUsedSlow();
+        }
+    }
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void IncrementEnumerationLoopUsedSlow() => CurrentCounter.Value?.IncrementEnumerationLoopUsed();
 
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    public static void IncrementHashCapacityHintUsed() => CurrentCounter.Value?.IncrementHashCapacityHintUsed();
+    public static void IncrementFastCopyUsed() {
+        if(activeScopes!=0) {
+            IncrementFastCopyUsedSlow();
+        }
+    }
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void IncrementFastCopyUsedSlow() => CurrentCounter.Value?.IncrementFastCopyUsed();
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    public static void IncrementHashCapacityHintUsed() {
+        if(activeScopes!=0) {
+            IncrementHashCapacityHintUsedSlow();
+        }
+    }
+
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void IncrementHashCapacityHintUsedSlow() => CurrentCounter.Value?.IncrementHashCapacityHintUsed();
 
     public static Scope Start(LinqCounter? counter = null) {
         var previous = CurrentCounter.Value;
         var active = counter??new LinqCounter();
         CurrentCounter.Value=active;
+        Interlocked.Increment(ref activeScopes);
         return new Scope(previous,active);
     }
 
@@ -217,6 +273,7 @@ public static class LinqCounterScope {
         public           LinqCounter  Counter { get; }=counter;
         public void Dispose() {
             CurrentCounter.Value=previous;
+            Interlocked.Decrement(ref activeScopes);
         }
     }
 }

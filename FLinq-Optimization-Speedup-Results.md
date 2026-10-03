@@ -1649,3 +1649,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - テスト: `RangeModuloGroupByTests` に ToLookup の2形を追加。
 - 結果(baseline5→6、理想比): ToLookup_keySelector 3.20→1.58、ToLookup_elementSelector 3.55→1.35。
 - 補足(同日): 段をまとめた Consume の展開で、バッファを作る段(Reverse など)の「フィールドと同じ名前の局所変数を宣言して最後に this.フィールド へ移す」形は、this. を外すと自分自身への代入になって結果が空になった(テストで検出)。本体で同じ名前の局所変数を宣言するフィールドだけ外側の局所変数の名前を付け替える。並べ替えの段は比較子の型をフィールドに持つので展開しない。Range の先頭の段の除去では、Reverse を添字の無い Where/Select の後ろからでも降順の Range へ移せるようにした(押し下げで Where が Reverse の前に来るため)。IL 監査: List の Reverse_Where(ベンチが IEnumerable へキャスト)の差が見えるようになったので許可リストへ、Range の ToLookup の差は解消したので許可リストから外した。
+
+## 2026-10-04 差し替えたコードの計数の呼び出しを、範囲が開いているときだけ AsyncLocal を引く形にする(採用候補)
+
+- 原因: 生成器は `LinqCounterScope.IncrementDirectSpanUsed()` などを条件なしに差し替えメソッドへ置いている(68か所)。これらは AggressiveInlining で、中の `AsyncLocal<T>.Value`(スレッドの実行文脈の表引き)ごと呼び出し元へ展開されていた。JIT の機械語(DOTNET_JitDisasm)で、配列の Append_element(Int32)の差し替え側だけ要素ごとの `Consumer.Consume<int>` がインライン化されず呼び出しのまま残っていた(理想版はインライン化されて内側の BenchmarkDotNet の Consume だけを呼ぶ)。展開された表引きでインライン化の予算を使い切ったのが原因と見ている(理想版の4倍の時間。List の Index・Range の融合の行も同じ形の候補)。
+- 修正: `LinqCounterScope.Start` が開いている範囲の数を静的なフィールドで数え、Increment* はまずそれだけを見る(0 なら何もしない)。AsyncLocal を引く処理は NoInlining の別メソッドへ分けた。範囲が開いているときの数え方は変わらない(別のスレッドで範囲が開いていても、そのスレッドの AsyncLocal は空なので数え間違えない)。
+- 結果: 次の取り直しで記録する(機械語でも Consume がインライン化されたかを確かめる)。
