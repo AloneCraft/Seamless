@@ -62,6 +62,7 @@ public sealed class ContiguousLookupGenerationTests {
                     sink => this.JoinNullKeys(sink),sink => this.JoinWhere(sink),sink => this.JoinEmpty(sink),
                     sink => this.JoinOuterOnlyArrays(sink),sink => this.JoinOuterOnlyEnumerable(sink),sink => this.JoinOuterOnlyNullKeys(sink),
                     sink => this.JoinPushdownBoth(sink),sink => this.JoinPushdownList(sink),
+                    sink => this.GroupByKeyOnlyNull(sink),sink => this.GroupByKeyOnlyEnumerable(sink),
                 }) {
                     var sink = new Sink();
                     action(sink);
@@ -94,6 +95,8 @@ public sealed class ContiguousLookupGenerationTests {
                     this.First().Join(this.Second(),x => S(x),y => S(y),(a,b) => N(a)*2).Cast<object?>(),
                     this.First().Join(this.Second(),x => N(x)%3,y => N(y)%3,(a,b) => (A: a,B: b)).Where(p => N(p.A)%2==0&&N(p.B)>3).Cast<object?>(),
                     new List<T>(this.First()).Join(this.First(),x => N(x)%4,y => N(y)%4,(a,b) => (A: a,B: b)).Where(p => N(p.B)!=5).Cast<object?>(),
+                    this.First().GroupBy(x => S(x),(k,g) => k??"none").Cast<object?>(),
+                    this.Second().GroupBy(x => N(x)%2,x => N(x)*3,(k,g) => k*7).Cast<object?>(),
                 }.Select(values => string.Join(",",values.Select(Sink.Format))));
             }
             [LinqIntercept(true)] private void GroupByKey(Sink sink) => sink.Consume(this.First().GroupBy(x => N(x)%3));
@@ -127,6 +130,9 @@ public sealed class ContiguousLookupGenerationTests {
             // 押し下げで両側に Where が付く形(外側は配列、内側は IEnumerable)と、List の外側。
             [LinqIntercept(true)] private void JoinPushdownBoth(Sink sink) => sink.Consume(this.First().Join(this.Second(),x => N(x)%3,y => N(y)%3,(a,b) => (A: a,B: b)).Where(p => N(p.A)%2==0&&N(p.B)>3));
             [LinqIntercept(true)] private void JoinPushdownList(Sink sink) => sink.Consume(new List<T>(this.First()).Join(this.First(),x => N(x)%4,y => N(y)%4,(a,b) => (A: a,B: b)).Where(p => N(p.B)!=5));
+            // 結果がグループを使わない GroupBy(キーの初出だけ流す)。null キーと、IEnumerable の要素選択子つき。
+            [LinqIntercept(true)] private void GroupByKeyOnlyNull(Sink sink) => sink.Consume(this.First().GroupBy(x => S(x),(k,g) => k??"none"));
+            [LinqIntercept(true)] private void GroupByKeyOnlyEnumerable(Sink sink) => sink.Consume(this.Second().GroupBy(x => N(x)%2,x => N(x)*3,(k,g) => k*7));
             [LinqIntercept(true)] private void JoinEmpty(Sink sink) => sink.Consume(this.First().Join(Array.Empty<T>(),x => N(x),y => N(y),(a,b) => N(a)));
             [LinqIntercept(false)]
             public static string Join(IEnumerable<T> values) {
@@ -169,7 +175,7 @@ public sealed class ContiguousLookupGenerationTests {
 
     [Fact]
     public void 探索表を1本の配列で作っても結果はSystemLinqと同じ() {
-        var (compilation,generated) = ExecutableGeneration.Generate(Source,"ContiguousLookupProbe",20);
+        var (compilation,generated) = ExecutableGeneration.Generate(Source,"ContiguousLookupProbe",22);
         var (actual,expected) = ExecutableGeneration.Run(compilation,"Sample.Probe",probe => (
             (string)probe.GetMethod("RunFLinq")!.Invoke(null,null)!,
             (string)probe.GetMethod("RunLinq")!.Invoke(null,null)!));
@@ -181,5 +187,7 @@ public sealed class ContiguousLookupGenerationTests {
         Assert.Contains("CollectionsMarshal.GetValueRefOrAddDefault(__joinLookup",generated);
         // 外側・内側が根(と Where)なら、Join の列挙子の構造体を回さずに根を直接回す。
         Assert.Contains("__joinOuterRoot",generated);
+        // 結果がグループを使わない GroupBy は、根を直接回してキーの初出だけ流す。
+        Assert.Contains("__groupKeysSeen",generated);
     }
 }

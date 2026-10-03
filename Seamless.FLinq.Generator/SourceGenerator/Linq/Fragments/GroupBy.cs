@@ -124,6 +124,53 @@ internal static class GroupBySupport {
         &&!source.TreeContainsAnchor()
         &&ResultIgnoresGroup(resultSelector);
 
+    // 結果がグループを使わないとき、ソースが根(span を出せる配列・List、または IEnumerable)なら、GroupBy の列挙子の構造体を
+    // 作らずに差し替えメソッドの中で根を直接回し、キーの初出のときだけ結果を流す(GroupBy の構造体→根の構造体の入れ子は、
+    // 参照型の共有ジェネリックコードで内側がインライン化されない)。
+    public static string? RenderDistinctKeyConsume(
+        Enumerable source,
+        int number,
+        string keyType,
+        string localDeclarations,
+        Func<string,string,string> keyAssign,
+        Func<string,string> resultEmit) {
+        if(!(source.ProvidesRemainingEnumerator||source is ArrayRoot or ListRoot)) {
+            return null;
+        }
+        string sourceExpression;
+        try {
+            sourceExpression=source.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var sourceName = $"__groupKeysSource{number}";
+        var itemName = $"__groupKeysItem{number}";
+        var keyName = $"__groupKeysKey{number}";
+        var seenName = $"__groupKeysSeen{number}";
+        var body = $"{keyType} {keyName}=default!;\n{keyAssign(keyName,itemName)}\nif({seenName}.Add({keyName})){{\n{IndentBlock(resultEmit(keyName),"    ")}\n}}";
+        var loop = source.GetDirectSpanExpression(sourceName) is { } spanExpression
+            ? $$"""
+                var {{sourceName}}Span={{spanExpression}};
+                for(var {{sourceName}}Index=0;{{sourceName}}Index<{{sourceName}}Span.Length;{{sourceName}}Index++){
+                    var {{itemName}}={{sourceName}}Span[{{sourceName}}Index];
+                {{IndentBlock(body,"    ")}}
+                }
+                """
+            : $$"""
+                {{Fragment.DrainLoopHead(source,sourceName,itemName)}}
+                {{IndentBlock(body,"    ")}}
+                }
+                """;
+        return $$"""
+            {{localDeclarations}}
+            using var {{sourceName}}={{sourceExpression}};
+            var {{seenName}}={{sourceName}}.TryGetNonEnumeratedCount(out var {{seenName}}Count)
+                ? new global::System.Collections.Generic.HashSet<{{keyType}}>(global::System.Math.Min({{seenName}}Count,1024))
+                : new global::System.Collections.Generic.HashSet<{{keyType}}>();
+            {{loop}}
+            """;
+    }
+
     public static string DistinctKeyFields(string keyType,string seenName) =>
         $"private global::System.Collections.Generic.HashSet<{keyType}>? {seenName};";
 
@@ -272,6 +319,16 @@ internal class GroupBy_keySelector_resultSelector(
     private bool IgnoresGroup => GroupBySupport.CanStreamDistinctKeys(source,resultSelector,keySelector);
     // 結果がグループを使わず Range の x%C のキーなら、キーの初出の値だけを流して結果を作る(集合を使わない)。
     public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.IgnoresGroup&&!this.UseResultTypeParam&&source is not RangeRoot) {
+            var distinctResultName = $"__result{番号}";
+            var distinctConsume = GroupBySupport.RenderDistinctKeyConsume(source,番号,this.KeyType,
+                string.Join("\n",new[]{ this.HoistedLocalDeclarations(keySelector,resultSelector),this.StaticDelegateLocalDeclarations(keySelector,resultSelector) }.Where(static text => !string.IsNullOrEmpty(text))),
+                (destination,item) => this.FuncAssignStatic(keySelector,nameof(keySelector),destination,item),
+                key => $"{this.ElementType} {distinctResultName}=default!;\n{this.FuncAssignStatic(resultSelector,nameof(resultSelector),distinctResultName,key)}\n{consumerName}.Consume({distinctResultName});");
+            if(distinctConsume is not null) {
+                return distinctConsume;
+            }
+        }
         if(!this.IgnoresGroup
             ||source is not RangeRoot range
             ||!RangeModuloOrderRoot.TryGetModulus(keySelector,out var modulus)) {
@@ -430,6 +487,20 @@ internal class GroupBy_keySelector_elementSelector_resultSelector(
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,elementSelector,resultSelector)}";
     private bool IgnoresGroup => GroupBySupport.CanStreamDistinctKeys(source,resultSelector,keySelector,elementSelector);
+    // 結果がグループを使わず、ソースが根なら、根を直接回してキーの初出だけ結果を流す(要素選択子は評価しない)。
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.IgnoresGroup&&!this.UseResultTypeParam&&source is not RangeRoot) {
+            var resultName = $"__result{番号}";
+            var distinctConsume = GroupBySupport.RenderDistinctKeyConsume(source,番号,this.KeyType,
+                string.Join("\n",new[]{ this.HoistedLocalDeclarations(keySelector,resultSelector),this.StaticDelegateLocalDeclarations(keySelector,resultSelector) }.Where(static text => !string.IsNullOrEmpty(text))),
+                (destination,item) => this.FuncAssignStatic(keySelector,nameof(keySelector),destination,item),
+                key => $"{this.ElementType} {resultName}=default!;\n{this.FuncAssignStatic(resultSelector,nameof(resultSelector),resultName,key)}\n{consumerName}.Consume({resultName});");
+            if(distinctConsume is not null) {
+                return distinctConsume;
+            }
+        }
+        return base.GetConsumeExecutionStatement(consumerName);
+    }
     public override string GetEnumeratorFields => this.IgnoresGroup
         ? GroupBySupport.DistinctKeyFields(this.KeyType,this.lookup)
         : GroupBySupport.Fields(this.KeyType,this.ElemType,this.group,this.lookup,this.hasValue);

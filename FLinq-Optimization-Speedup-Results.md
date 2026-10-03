@@ -1728,3 +1728,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: 押し下げで Join の両側に Where が付くと、Join の列挙子の構造体→Where の構造体→根の構造体の入れ子になり、参照型の共有ジェネリックコードで内側がインライン化されなかった(押し下げタブの Join の ClassInt32 で理想の1.5〜2.4倍)。
 - 修正: 外側・内側が「根(配列・List、または IEnumerable)の上に添字の無い Where が0個以上」の形なら、差し替えメソッドの中で内側の根を回して探索表(または件数)を作り、外側の根を回して述語・キー・結果選択子をその場に展開する。評価の順は従来と同じ(外側・内側のソース式、内側を最後まで、外側の順)。
 - テスト: `ContiguousLookupGenerationTests` に押し下げで両側に Where が付く形(配列と IEnumerable、List)を追加。
+
+## 2026-10-04 結果がグループを使わない GroupBy は、根を直接回してキーの初出だけ流す(採用候補)
+
+- 原因: `GroupBy(k,(key,g) => key)` などはキーの重複除きとして逐次流していたが、GroupBy の列挙子の構造体から根の構造体を呼ぶ入れ子で、参照型の共有ジェネリックコードで内側がインライン化されなかった(GroupBy_resultSelector・GroupBy_elementSelector_resultSelector の ClassInt32 で理想の1.6〜2.0倍)。
+- 修正: ソースが根(配列・List、または IEnumerable)なら、差し替えメソッドの中で根を直接回し、キーの初出のときだけ結果を流す(要素選択子は評価しない。従来の逐次の形と同じ契約)。
+- テスト: 既存の `GroupByResultIgnoresGroupTests`(キー選択子・要素選択子の評価回数)と、`ContiguousLookupGenerationTests` に null キー・IEnumerable の要素選択子つきを追加。
