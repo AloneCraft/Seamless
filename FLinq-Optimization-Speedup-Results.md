@@ -1701,3 +1701,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: 押し下げタブの Range の Union_second_Where(理想の9倍)は、Range.Where(p).Union(second.Where(p)) の段の並びで、Range の部分の値もすべて集合へ入れていた。
 - 修正: 昇順の Range の後に添字の無い Where だけが並び、最後が Union(既定の比較子・int)のとき、Range の部分の値は一意なので集合を使わずに流す(述語が1つで偶奇なら2刻み)。第2ソースの値 v は「区間に入り、Range の部分の述語をすべて通るか」で Range の部分に出たかが決まるので、それ以外だけを集合で重複除きする(述語は .Anchor が無く純粋)。第2ソースの式は従来どおり Range の引数の検査の後、Range を流す前に評価する。
 - テスト: `RangeUnionConsumeTests`(偶奇・3の倍数・2つの Where・Where なし・遅延の第2ソース、負の値・空・不正な件数・int の端)。
+
+## 2026-10-04 結果選択子が内側の要素を使わない Join は、キーごとの件数だけを数える(採用候補)
+
+- 原因: `Join(inner,ok,ik,(a,b) => a)` でも内側の要素を探索表に溜めていた(Join_inner で理想の1.8〜3倍。理想版はキーごとの件数だけを Dictionary で数える)。
+- 修正: 結果選択子が展開できる式で第2引数が本体に現れないなら、内側はキーごとの件数だけを数え(Dictionary と CollectionsMarshal.GetValueRefOrAddDefault)、外側のキーの件数だけ結果を流す。内側の列挙とキー選択子の評価の回数・順は変わらない。配列の直接 Consume と列挙子の構造体の両方。
+- テスト: `ContiguousLookupGenerationTests` に、配列・IEnumerable・null キーの3形を追加。

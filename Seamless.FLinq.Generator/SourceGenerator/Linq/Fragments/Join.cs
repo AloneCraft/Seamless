@@ -30,7 +30,9 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
     public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { this.outerKey,this.innerKey,this.resultSelector },this.outerSource.GetEnumeratorExpression,this.innerSource.GetEnumeratorExpression,this.comparerExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TOuterEnum {this.e},TInnerEnum {this.innerEnumerator},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(this.innerKey)}>? comparer{this.ClosurePrimaryCtorSuffix(this.outerKey,this.innerKey,this.resultSelector)}";
     public override string GetEnumerableExpression => this.UseResultTypeParam ? $"{this.FactoryMethodName}({this.outerSource.GetEnumeratorExpression},{this.innerSource.GetEnumeratorExpression},{this.comparerExpression}{this.ClosureArgsSuffix(this.outerKey,this.innerKey,this.resultSelector)})" : base.GetEnumerableExpression;
-    public override string GetEnumeratorConstructor => this.ProbesInnerRange()
+    public override string GetEnumeratorConstructor => this.CountsOnly()
+        ? $"this.{this.lookup}=BuildCounts(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});"
+        : this.ProbesInnerRange()
         ? $$"""
             // 内側は Range で恒等キーなので、探索表を作らず区間 [始点,始点+個数) で一致を判定する(各キーに一致する内側は自身1つ)。
             this.{{this.innerEnumerator}}.TryGetNonEnumeratedCount(out var __innerCount);
@@ -52,7 +54,47 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         &&!this.innerKey.ContainsAnchor
         &&FuncReturnTypeName(this.outerKey)=="int"
         &&FuncReturnTypeName(this.innerKey)=="int";
-    public override string GetEnumeratorFields => this.ProbesInnerRange()
+    // 結果選択子が内側の要素を使わない(第2引数が本体に現れない)なら、一致の件数だけが結果を決める。
+    // 内側の要素を溜めず、キーごとの件数だけを数える(内側の列挙・キー選択子の評価の回数と順は変わらない)。
+    private bool CountsOnly() =>
+        !this.UseResultTypeParam
+        &&!this.ProbesInnerRange()
+        &&this.resultSelector.CanInlineAssign
+        &&!this.resultSelector.CanInvokeAsDelegate
+        &&!this.resultSelector.RequiresStatementInlining
+        &&GroupBySupport.ResultIgnoresGroup(this.resultSelector);
+    private string CountsType => $"global::System.Collections.Generic.Dictionary<{this.InnerKeyType},int>";
+    private string BuildCountsBody() => $$"""
+        private static {{this.CountsType}} BuildCounts(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
+            var __hasCnt=inner.TryGetNonEnumeratedCount(out var __cnt);
+            if(__hasCnt) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();
+            var __counts=new {{this.CountsType}}(__hasCnt ? __cnt : 0,comparer);
+            using var {{this.innerEnumerator}}=inner;
+            while({{this.innerEnumerator}}.TryGetNext(out var __mn102)){
+                {{this.CounterCall("IncrementLogicalJoinInner")}}
+                var {{this.item}}=__mn102;
+                {{this.InnerKeyType}} {{this.key}}=default!;
+                {{this.FuncAssignStaticIndented("        ",this.innerKey,nameof(this.innerKey),this.key,this.item)}}
+                if(IsNullKey({{this.key}})){
+                    continue;
+                }
+                {{this.CounterCall("IncrementHashBuild")}}
+                global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(__counts,{{this.key}},out _)++;
+            }
+            return __counts;
+        }
+        """;
+    public override string GetEnumeratorFields => this.CountsOnly()
+        ? $$"""
+            private {{this.CountsType}} {{this.lookup}};
+            private int {{this.groupIndex}};
+            private {{this.outerSource.ElementType}} {{this.outerValue}};
+            private static bool IsNullKey<TKey>(TKey key){
+                return key is null;
+            }
+            {{this.BuildCountsBody()}}
+            """
+        : this.ProbesInnerRange()
         ? $$"""
             private long {{this.innerLow}};
             private long {{this.innerHigh}};
@@ -92,7 +134,30 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             return __lookupBuilder;
         }
         """;
-    public override string GetTryGetNextBody => this.ProbesInnerRange()
+    public override string GetTryGetNextBody => this.CountsOnly()
+        ? $$"""
+        {{this.Start}}:
+        if({{this.groupIndex}}>0){
+            {{this.groupIndex}}--;
+            {{this.FuncAssignCurrentIndented("    ",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,$"default({this.InnerElementType})!")}}
+            return true;
+        }
+        if(!{{this.e}}.TryGetNext(out var __mn38)){
+            current=default!;
+            return false;
+        }
+        {{this.CounterCall("IncrementLogicalJoinOuter")}}
+        {{this.outerValue}}=__mn38;
+        {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
+        {{this.FuncAssignIndented("",this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
+        if(IsNullKey({{this.key}})){
+            goto {{this.Start}};
+        }
+        {{this.CounterCall("IncrementHashProbe")}}
+        {{this.lookup}}.TryGetValue({{this.key}},out {{this.groupIndex}});
+        goto {{this.Start}};
+        """
+        : this.ProbesInnerRange()
         ? $$"""
         while({{this.e}}.TryGetNext(out var __mn38)){
             {{this.CounterCall("IncrementLogicalJoinOuter")}}
@@ -139,6 +204,9 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             return base.GetConsumeExecutionStatement(consumerName);
         }
 
+        if(this.CountsOnly()) {
+            return this.RenderCountsOnlyArrayConsume(consumerName,outerArrayExpression,innerArrayExpression);
+        }
         var outerArrayName = $"__joinOuterArray{番号}";
         var innerArrayName = $"__joinInnerArray{番号}";
         var lookupBuilderName = $"__joinLookupBuilder{番号}";
@@ -194,6 +262,52 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             }
             """;
     }
+    private string RenderCountsOnlyArrayConsume(string consumerName,string outerArrayExpression,string innerArrayExpression) {
+        var outerArrayName = $"__joinOuterArray{番号}";
+        var innerArrayName = $"__joinInnerArray{番号}";
+        var countsName = $"__joinCounts{番号}";
+        var outerIndexName = $"__joinOuterIndex{番号}";
+        var innerIndexName = $"__joinInnerIndex{番号}";
+        var matchName = $"__joinMatch{番号}";
+        var matchCountName = $"__joinMatchCount{番号}";
+        var outerItemName = $"__joinOuterItem{番号}";
+        var innerItemName = $"__joinInnerItem{番号}";
+        var innerKeyName = $"__joinInnerKey{番号}";
+        var outerKeyName = $"__joinOuterKey{番号}";
+        var resultName = $"__joinResult{番号}";
+        var hasKeyName = $"__joinHasKey{番号}";
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(this.outerKey,this.innerKey,this.resultSelector),
+            this.StaticDelegateLocalDeclarations(this.outerKey,this.innerKey,this.resultSelector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        return $$"""
+            {{localDeclarations}}
+            static bool {{hasKeyName}}<TKey>(TKey key) => key is not null;
+            var {{innerArrayName}}={{innerArrayExpression}};
+            var {{countsName}}=new {{this.CountsType}}({{innerArrayName}}.Length,{{this.comparerExpression}});
+            for(var {{innerIndexName}}=0;{{innerIndexName}}<{{innerArrayName}}.Length;{{innerIndexName}}++){
+                var {{innerItemName}}={{innerArrayName}}[{{innerIndexName}}];
+                {{this.InnerKeyType}} {{innerKeyName}}=default!;
+                {{this.FuncAssignStaticIndented("    ",this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
+                if({{hasKeyName}}({{innerKeyName}})){
+                    global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({{countsName}},{{innerKeyName}},out _)++;
+                }
+            }
+            var {{outerArrayName}}={{outerArrayExpression}};
+            for(var {{outerIndexName}}=0;{{outerIndexName}}<{{outerArrayName}}.Length;{{outerIndexName}}++){
+                var {{outerItemName}}={{outerArrayName}}[{{outerIndexName}}];
+                {{this.InnerKeyType}} {{outerKeyName}}=default!;
+                {{this.FuncAssignStaticIndented("    ",this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}}
+                if(!{{hasKeyName}}({{outerKeyName}})||!{{countsName}}.TryGetValue({{outerKeyName}},out var {{matchCountName}})) continue;
+                for(var {{matchName}}=0;{{matchName}}<{{matchCountName}};{{matchName}}++){
+                    {{this.ElementType}} {{resultName}}=default!;
+                    {{this.FuncAssignStaticIndented("        ",this.resultSelector,nameof(this.resultSelector),resultName,outerItemName,$"default({this.InnerElementType})!")}}
+                    {{consumerName}}.Consume({{resultName}});
+                }
+            }
+            """;
+    }
+
     // 外側も .Anchor の無い Range で外側のキーが恒等なら、一致するのは2つの区間の重なりの値だけで、内側の要素も外側の要素と等しい。
     // 外側を全部回して区間の内外を調べず、重なりだけを回す(引数の検査は両方の Range について行う)。
     private string? RenderRangeOverlapConsume(string consumerName) {
@@ -233,7 +347,9 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             }
             """;
     }
-    protected override string GetEnumeratorDisposeBody => this.ProbesInnerRange()
+    protected override string GetEnumeratorDisposeBody => this.CountsOnly()
+        ? $"{this.e}.Dispose();"
+        : this.ProbesInnerRange()
         ? $"{this.e}.Dispose(); {this.innerEnumerator}.Dispose();"
         : $"{this.lookup}.Dispose(); {this.e}.Dispose();";
 }
