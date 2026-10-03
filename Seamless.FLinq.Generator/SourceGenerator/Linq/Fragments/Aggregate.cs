@@ -38,6 +38,10 @@ internal class Aggregate_func(int 番号,Enumerable source,FuncFragment func):Sc
 
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType) {
+        // Range の (a,x)=>a+x は要素の和(和の公式)。
+        if(source is RangeRoot range&&func.ReturnTypeName=="int"&&RangeArithmeticOptimizer.IsAccumulatorPlusElement(func)) {
+            return RangeArithmeticOptimizer.RenderSeedlessSum(range,番号,destVar,destType);
+        }
         string srcExpr;
         try { srcExpr=source.GetEnumeratorExpression; } catch(NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
@@ -120,6 +124,14 @@ internal class Aggregate_seed_func(int 番号,Enumerable source,string seed,Func
 
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType) {
+        // Range の (a,x)=>a+x は seed と要素の和(和の公式)。
+        if(source is RangeRoot range&&RangeArithmeticOptimizer.IsAccumulatorPlusElement(func)) {
+            return $$"""
+                {{destType}} {{destVar}};
+                {{RangeArithmeticOptimizer.RenderSeededSum(range,番号,this.result,func.ReturnTypeName,seed)}}
+                {{destVar}}={{this.result}};
+                """;
+        }
         string srcExpr;
         try { srcExpr=source.GetEnumeratorExpression; } catch(NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
@@ -206,13 +218,22 @@ internal class Aggregate_seed_func_resultSelector(int 番号,Enumerable source,s
 
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
     public override string? RenderInlineComputation(string destVar,string destType) {
+        var resultSelectorVar = $"__aggResultSelector{番号}";
+        var resultSelectorSetup = this.DelegateLocal(resultSelector,resultSelectorVar);
+        // Range の (a,x)=>a+x は seed と要素の和(和の公式)に結果選択子を1回適用する。
+        if(source is RangeRoot range&&resultSelectorSetup is not null&&RangeArithmeticOptimizer.IsAccumulatorPlusElement(func)) {
+            return $$"""
+                {{destType}} {{destVar}};
+                {{resultSelectorSetup}}
+                {{RangeArithmeticOptimizer.RenderSeededSum(range,番号,this.result,func.ReturnTypeName,seed)}}
+                {{this.FuncAssignInlineIndented("",resultSelector,nameof(resultSelector),resultSelectorVar,destVar,this.result)}}
+                """;
+        }
         string srcExpr;
         try { srcExpr=source.GetEnumeratorExpression; } catch(NotSupportedException) { return null; }
         var srcVar = $"__s{番号}";
         var funcVar = $"__aggFunc{番号}";
-        var resultSelectorVar = $"__aggResultSelector{番号}";
         var funcSetup = this.DelegateLocal(func,funcVar);
-        var resultSelectorSetup = this.DelegateLocal(resultSelector,resultSelectorVar);
         if(funcSetup is null||resultSelectorSetup is null) return null;
         var fold = AggregateLoopSupport.RenderSeededFold(source,srcVar,this.result,"__item",
             (indent,itemName) => this.FuncAssignInlineIndented(indent,func,nameof(func),funcVar,this.result,this.result,itemName));

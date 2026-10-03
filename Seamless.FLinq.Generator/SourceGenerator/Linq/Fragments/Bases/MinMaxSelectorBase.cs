@@ -48,6 +48,14 @@ internal abstract class MinMaxSelectorBase(int 番号,Enumerable source,FuncFrag
     protected override string ComputeExpression =>
         $"Compute(ref {this.e}{this.ClosureArgsSuffix(selector)})";
     public override string? RenderInlineComputation(string destVar,string destType) {
+        // Range の1次式の選択子は単調なので、最大・最小は端の値(両端が int に収まるとき)。
+        if(source is RangeRoot range
+            &&resultType is "int" or "long" or "double"
+            &&RangeArithmeticOptimizer.TryParseLinear(selector,out var linear)
+            &&(linear.Conversion??"int")==resultType) {
+            return RangeArithmeticOptimizer.RenderLinearMinMax(range,linear,番号,destVar,destType,resultType,direction=="greater",
+                (destination,argument) => this.FuncAssign(selector,nameof(selector),destination,argument));
+        }
         var methodName = direction=="greater" ? "Max" : "Min";
         return this.RenderComputeInline(destVar,destType)
             ??(TryRenderDirectLambda(selector) is { } lambda

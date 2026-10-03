@@ -1549,3 +1549,11 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - `.Anchor` の扱い: 要素選択子・キー選択子・結果選択子・比較子・前段・ソースのどれかに `.Anchor` があれば従来どおり全件を読んでグループを作る(逐次流すと、後段が途中で止めたときにソースとキー選択子の評価が減るため)。
 - テスト: `Test/SourceGenerator/GroupByResultIgnoresGroupTests.cs`(両経路で、要素選択子を評価しない・First や1件目で止める Consume は最初のキーで止まる・`.Anchor` 付きとグループを使う結果選択子は全件評価)。
 - 結果: 次の前後比較で記録する。
+
+## 2026-10-03 Range の集計を和の公式と単調性で求める(採用)
+
+- 対象: Range の `Sum`・`Sum(x => (long)x / (double)x / x)`・`Average`・`Average(x => (long)x / (double)x / x)`・`Min/Max(1次式の選択子)`・`Aggregate(seed,(a,x)=>a+x[,結果選択子])`・`Aggregate((a,x)=>a+x)`。ベンチでは System.Range タブの Sum・Sum_selector・Average・Average_selector・Max_selector・Min_selector・Aggregate_func・Aggregate_seed_func_resultSelector(理想比 12〜19倍)。
+- 形: 和は count*start+count*(count-1)/2(long に収まる)。int の Sum は checked の逐次加算と同じく、途中の和の最小(負の要素を足し終えたところ)か最後の和が int を外れたら OverflowException。double の逐次加算は途中の和が 2^53 以下の整数なら丸めないので和の公式と同じ値で、超えるときは数え上げる。選択子は構文で x の1次式(x*k+b)か (long)x・(double)x だけを認め、Min/Max は両端の値が int に収まれば端の値、収まらなければ数え上げる。Aggregate の a+x は int・long の2の補数の加算が結合的なので seed+和と同じ。空の例外・Range の引数検査は System.Linq と同じ。選択子・畳み込み関数に `.Anchor` があれば従来どおり。
+- 共通部分: `Fragments/RangeArithmeticOptimizer.cs`。
+- テスト: `Test/SourceGenerator/RangeArithmeticClosedFormTests.cs`(空・桁あふれ(最後の和と途中の和)・1次式の端が int を外れる・double が丸める大きさ・1次式でない選択子を System.Linq と突き合わせ、数式になった数を生成コードで確認)。形状テスト `RangeSumUsesClosedFormAndSelectUsesUninstrumentedDirectIndexLoop` を新しい形に更新。
+- 結果: 次の取り直し(baseline3)で記録する。

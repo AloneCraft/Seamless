@@ -46,7 +46,10 @@ internal class Average(int 番号,Enumerable source,string resultType):BufferedS
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderDirectSpanAverageInline(destVar,destType)
+        (source is RangeRoot range&&resultType=="double"
+            ? RangeArithmeticOptimizer.RenderAverage(range,番号,destVar,destType,doubleElements: false)
+            : null)
+        ??this.RenderDirectSpanAverageInline(destVar,destType)
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Average")
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanAverageInline(string destVar,string destType) {
@@ -212,10 +215,24 @@ internal class Average_selector(int 番号,Enumerable source,FuncFragment select
     protected override string ComputeExpression =>
         $"Compute(ref {this.e}{this.ClosureArgsSuffix(selector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderComputeInline(destVar,destType)
+        this.RenderRangeAverageInline(destVar,destType)
+        ??this.RenderComputeInline(destVar,destType)
         ??(TryRenderDirectLambda(selector) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Average",lambda)
             : null);
+    // Range の x・(long)x の平均は long の和(正確)、(double)x の平均は double の逐次加算と同じ値を和の公式で求める。
+    private string? RenderRangeAverageInline(string destVar,string destType) {
+        if(source is not RangeRoot range
+            ||resultType!="double"
+            ||!RangeArithmeticOptimizer.TryParseLinear(selector,out var linear)) {
+            return null;
+        }
+        return linear switch {
+            { Conversion: "long" } or { Conversion: null,Scale: 1,Offset: 0 } => RangeArithmeticOptimizer.RenderAverage(range,番号,destVar,destType,doubleElements: false),
+            { Conversion: "double" } => RangeArithmeticOptimizer.RenderAverage(range,番号,destVar,destType,doubleElements: true),
+            _ => null,
+        };
+    }
     protected override string ComputeMembers => this.BuildComputeMembers();
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 

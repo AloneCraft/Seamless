@@ -43,24 +43,11 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
         ??this.RenderDirectSpanSumInline(destVar,destType)
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum")
         ??this.RenderComputeInline(destVar,destType);
-    private string? RenderRangeSumInline(string destVar,string destType) {
-        if(source is not RangeRoot range) {
-            return null;
-        }
-
-        var startName = $"__sumRangeStart{this.result}";
-        var countName = $"__sumRangeCount{this.result}";
-        var indexName = $"__sumRangeIndex{this.result}";
-        return $$"""
-            {{range.RenderArgumentPreparation(startName,countName)}}
-            {{destType}} {{destVar}}=default!;
-            checked{
-                for(var {{indexName}}=0;{{indexName}}<{{countName}};{{indexName}}++){
-                    {{destVar}}+={{startName}}+{{indexName}};
-                }
-            }
-            """;
-    }
+    // Range の和は和の公式で求める(checked の逐次加算と同じ桁あふれの判定つき)。
+    private string? RenderRangeSumInline(string destVar,string destType) =>
+        source is RangeRoot range&&resultType=="int"
+            ? RangeArithmeticOptimizer.RenderInt32Sum(range,番号,destVar,destType)
+            : null;
     // resultType==source.ElementType のときだけ SumSpan(INumber<T> 制約)へ委譲できる。
     // float は SumSpan 内部が checked スカラーループへ落ちて System.Linq の
     // 「double で蓄積してから float へ戻す」仕様と数値的に一致しなくなるため除外する。
@@ -184,10 +171,23 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
     protected override string ComputeExpression =>
         $"Compute(ref {this.e}{this.ClosureArgsSuffix(selector)})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderComputeInline(destVar,destType)
+        this.RenderRangeSumInline(destVar,destType)
+        ??this.RenderComputeInline(destVar,destType)
         ??(TryRenderDirectLambda(selector) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum",lambda)
             : null);
+    // Range の x・(long)x・(double)x の和は和の公式で求める。
+    private string? RenderRangeSumInline(string destVar,string destType) {
+        if(source is not RangeRoot range||!RangeArithmeticOptimizer.TryParseLinear(selector,out var linear)) {
+            return null;
+        }
+        return (linear.Conversion,resultType) switch {
+            ("long","long") => RangeArithmeticOptimizer.RenderInt64Sum(range,番号,destVar,destType),
+            ("double","double") => RangeArithmeticOptimizer.RenderDoubleSum(range,番号,destVar,destType),
+            (null,"int") when linear is { Scale: 1,Offset: 0 } => RangeArithmeticOptimizer.RenderInt32Sum(range,番号,destVar,destType),
+            _ => null,
+        };
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}

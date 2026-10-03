@@ -649,7 +649,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     [Fact]
-    public void RangeSumAndSelectUseUninstrumentedDirectIndexLoops() {
+    public void RangeSumUsesClosedFormAndSelectUsesUninstrumentedDirectIndexLoop() {
         const string source = """
             using System.Collections.Generic;
             using System.Linq;
@@ -682,8 +682,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var selectMethod = GeneratedMethod(generated,"SelectRange");
 
         GeneratedSourceAssert.True(
-            sumMethod.Contains("checked",StringComparison.Ordinal)
-            &&sumMethod.Contains("for(",StringComparison.Ordinal)
+            // Sum は和の公式(数え上げない)。桁あふれと引数の例外は System.Linq と揃える。
+            sumMethod.Contains("new global::System.OverflowException()",StringComparison.Ordinal)
+            &&!sumMethod.Contains("for(",StringComparison.Ordinal)
             &&sumMethod.Contains("new global::System.ArgumentOutOfRangeException(\"count\")",StringComparison.Ordinal)
             &&!sumMethod.Contains("TryGetNext",StringComparison.Ordinal)
             &&!sumMethod.Contains(".Compute(",StringComparison.Ordinal)
@@ -694,7 +695,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             &&!selectMethod.Contains("TryGetNext",StringComparison.Ordinal)
             &&!selectMethod.Contains("global::System.Linq.Enumerable.Range(",StringComparison.Ordinal)
             &&!selectMethod.Contains("LinqCounterScope",StringComparison.Ordinal),
-            "Uninstrumented Range Sum/Select should lower to start+index loops without an enumerator wrapper or runtime diagnostics lookup.",
+            "Range Sum should use the closed form and Range Select should lower to a start+index loop, both without an enumerator wrapper or runtime diagnostics lookup.",
             generated,
             output);
     }
