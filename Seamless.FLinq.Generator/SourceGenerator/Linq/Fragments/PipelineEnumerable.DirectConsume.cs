@@ -30,6 +30,7 @@ internal sealed partial class PipelineEnumerable {
     public override string GetConsumeExecutionStatement(string consumerName) =>
         this.RenderRangeParityConsume(consumerName)
         ??this.RenderRangeUnionConsume(consumerName)
+        ??this.RenderSpanReverseConsume(consumerName)
         ??this.RenderSingleTakeWhileDirectConsume(consumerName)
         ??this.RenderSingleSkipWhileDirectConsume(consumerName)
         ??this.RenderSingleConcatDirectConsume(consumerName)
@@ -213,6 +214,60 @@ internal sealed partial class PipelineEnumerable {
                     var {{itemName}}=(int){{value}};
                 {{loopBody}}
                 }
+            }
+            """;
+    }
+
+    // span を出せる根の後に添字の無い Where/Select と Reverse が1つだけ並ぶとき、Reverse は要素ごとの段と入れ替えられる
+    // (Where/Select は順を保つ)ので、span を末尾から回して段をその場に展開する(要素を溜めない)。
+    // 述語・選択子を評価する順が逆になるので、.Anchor があれば使わない。
+    private string? RenderSpanReverseConsume(string consumerName) {
+        if(stages.Count(static stage => stage.Kind==PipelineStageKind.Reverse)!=1
+            ||source.TreeContainsAnchor()
+            ||stages.Any(static stage => stage.Kind!=PipelineStageKind.Reverse
+                &&(stage.Kind is not (PipelineStageKind.Select or PipelineStageKind.Where)
+                    ||stage.UsesIndex
+                    ||stage.Func is not { } function
+                    ||function.ContainsAnchor
+                    ||function.RequiresStatementInlining
+                    ||function.CanInvokeAsDelegate
+                    ||!function.CanInlineAssign))) {
+            return null;
+        }
+        var sourceName = $"__reverseSource{this.result}";
+        if(source.GetDirectSpanExpression(sourceName) is not { } spanExpression) {
+            return null;
+        }
+        string sourceExpression;
+        try {
+            sourceExpression=source.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var spanName = $"__reverseSpan{this.result}";
+        var indexName = $"__reverseIndex{this.result}";
+        var itemName = this.ItemName(0);
+        var functions = stages.Where(static stage => stage.Func is not null).Select(static stage => stage.Func!).ToArray();
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(functions),
+            this.StaticDelegateLocalDeclarations(functions),
+        }.Where(static text => !string.IsNullOrWhiteSpace(text)));
+        var body = new StringBuilder();
+        var currentName = itemName;
+        for(var index = 0;index<stages.Count;index++) {
+            if(stages[index].Kind!=PipelineStageKind.Reverse) {
+                currentName=this.AppendStage(body,stages[index],currentName,index);
+            }
+        }
+        body.AppendLine($"    {consumerName}.Consume({currentName});");
+        var loopBody = IndentLines(body.ToString().TrimEnd(),"    ");
+        return $$"""
+            {{localDeclarations}}
+            using var {{sourceName}}={{sourceExpression}};
+            var {{spanName}}={{spanExpression}};
+            for(var {{indexName}}={{spanName}}.Length-1;{{indexName}}>=0;{{indexName}}--){
+                var {{itemName}}={{spanName}}[{{indexName}}];
+            {{loopBody}}
             }
             """;
     }

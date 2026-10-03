@@ -1716,3 +1716,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 修正: IEnumerable の根の構造体に `GetRemainingEnumerator()`(続きから回る列挙子。破棄は根の Dispose が受け持つ)を足し、最後まで回すループ(直接 Consume の各経路・集合演算/重複除き/連結の走査・Zip・Aggregate など)は `var e=root.GetRemainingEnumerator(); while(e.MoveNext()){ var x=e.Current; …}` にする。span を出せる場合の分岐はそのまま。
 - テスト: 既存の `NonSpanRootDirectConsumeTests`・`ZipResultSelectorConsumeTests` などで結果が同じ。`NonSpanRootDirectConsumeTests` に直接回す形の確認を、`PerformanceShapeTests.EnumerableRuntimeSpanPathKeepsFallback` を新しい形に合わせた。
 - 結果(baseline7→8、理想比): IEnumerable の Zip_tuple は ClassInt32 2.54→0.90・Int32 2.13→0.98、Zip_second は ClassInt32 1.50→0.79・Int32 1.51→0.96、TakeLast(Int32) 1.21→0.95、SkipLast(Int32) 1.31→0.99、射影融合の IEnumerableInt32 Select_member 1.73→1.13。IEnumerable タブ全体 1.093→1.021。
+
+## 2026-10-04 span を出せる根の Reverse と Where/Select の並びは、span を末尾から回す(採用候補)
+
+- 原因: 押し下げで Reverse().Where(p) は Where(p).Reverse() になり、通った要素を配列へ溜めてから逆順に流していた(押し下げタブの Reverse_Where で理想の1.6〜2.6倍。理想版は配列・List を末尾から回して述語を評価する)。
+- 修正: span を出せる根(配列・List)の後に、添字の無い Where/Select と Reverse が1つだけ並ぶとき、Reverse は要素ごとの段と入れ替えられる(Where/Select は順を保つ)ので、span を末尾から回して段をその場に展開する。述語・選択子を評価する順が逆になるので、.Anchor があれば使わない。
+- テスト: `SpanReverseConsumeTests`(参照型と int、Reverse の前後の Where/Select、List、空)。
