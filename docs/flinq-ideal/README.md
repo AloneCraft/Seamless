@@ -59,6 +59,8 @@ dotnet exec Benchmark/Benchmark.Headless/bin/Release/net10.0-windows10.0.19041/w
 
 同じビルドを2回測り、`Benchmark.Audit noise --first <1回目>... --second <2回目>... --md Work/ideal/noise.md` で行ごとの理想比 g=ln(FLinq/理想) とぶれ e を求めて分類する。e は比の周回間の差 |g1−g2| と、FLinq・理想それぞれの周回内のばらつき((四分位範囲/中央値)/2)の大きい方。実装ごとの所要時間は周回(プロセス)ごとに中央値で11%動くが、3者に共通の分が比で打ち消され、比の差は中央値5%に収まる。2回とも g&gt;e の行が改善対象で、3%未満は記録のみ、2回とも g&lt;-e の行は理想版の見直し対象。
 
+結果の要約: [baseline-20261002.md](baseline-20261002.md)(初回)、[baseline-20261003.md](baseline-20261003.md)(`.Anchor` 契約に合わせた理想版と修正後の取り直し。全803行の FLinq÷理想 の幾何平均 1.597→1.296)。
+
 ## 生成器の修正の前後比較
 
 1. 修正前の Headless 出力(`Benchmark/Benchmark.Headless/bin/Release/.../win-x64`)を `Work/ab/before-<名前>` へ複製してから生成器を直し、作り直した出力を `Work/ab/after-<名前>` へ複製する。
