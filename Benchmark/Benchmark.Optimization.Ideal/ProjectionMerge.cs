@@ -201,7 +201,7 @@ namespace Shared.Linq.Optimization.ProjectionMerge {
         private void SelectMany_collection_Select_member_Impl() => Projection<T>.SelectManyMember(this.consumer,this.Span());
     }
 
-    /// <summary>Range 起点。第2ソースは Range(length/2+1,length/2)。恒等キーの結合は区間の共通部分になる。</summary>
+    /// <summary>Range 起点。結合の第2ソースは補助メソッドの戻り値で中身が分からないので、1回列挙して探索表にまとめる。</summary>
     public abstract class Range(int count = 4_096):global::Common.Base<int>(count) {
         private int Length() {
             var length = this.EffectiveSourceCount(4_096);
@@ -235,22 +235,32 @@ namespace Shared.Linq.Optimization.ProjectionMerge {
         [BenchFact,Benchmark]
         public void Join_inner_Select_outerMember() => this.Join_inner_Select_outerMember_Impl();
         [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-        private void Join_inner_Select_outerMember_Impl() {
-            var length = this.Length();
-            var to = Math.Min(1L+length,length/2+1L+length/2);
-            for(var value = (int)Math.Max(1L,length/2+1L);value<to;value++) {
-                this.consumer.Consume(value);
-            }
-        }
+        private void Join_inner_Select_outerMember_Impl() => this.JoinOpaqueInner(bothMembers: false);
 
         [BenchFact,Benchmark]
         public void Join_inner_Select_bothMembers() => this.Join_inner_Select_bothMembers_Impl();
         [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-        private void Join_inner_Select_bothMembers_Impl() {
+        private void Join_inner_Select_bothMembers_Impl() => this.JoinOpaqueInner(bothMembers: true);
+
+        /// <summary>恒等キーの結合の結果から外側(bothMembers なら外側+内側)だけを流す。組は作らない。</summary>
+        private void JoinOpaqueInner(bool bothMembers) {
             var length = this.Length();
-            var to = Math.Min(1L+length,length/2+1L+length/2);
-            for(var value = (int)Math.Max(1L,length/2+1L);value<to;value++) {
-                this.consumer.Consume(value+value);
+            var buffer = OpaqueSecondRange.Collect(OpaqueSecondRange.Create(this.EffectiveSourceCount(4_096)),out var count);
+            try {
+                using var lookup = new IdentityLookup<int>(count);
+                for(var index = 0;index<count;index++) {
+                    lookup.Add(buffer[index]);
+                }
+                lookup.Build();
+                for(var value = 1;value<=length;value++) {
+                    if(lookup.TryGet(value,out var start,out var matches)) {
+                        for(var index = start;index<start+matches;index++) {
+                            this.consumer.Consume(bothMembers ? value+lookup[index] : value);
+                        }
+                    }
+                }
+            } finally {
+                global::System.Buffers.ArrayPool<int>.Shared.Return(buffer);
             }
         }
 

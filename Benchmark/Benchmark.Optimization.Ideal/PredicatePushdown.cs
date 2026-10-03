@@ -71,7 +71,7 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
         }
 
         /// <summary>内側を(述語を通るものだけ)恒等キーでまとめる。kind: 0=述語なし、1=偶数かつ16超、2=4の倍数。</summary>
-        private static IdentityLookup<T> BuildInner(ReadOnlySpan<T> inner,int kind) {
+        internal static IdentityLookup<T> BuildInner(ReadOnlySpan<T> inner,int kind) {
             var lookup = new IdentityLookup<T>(inner.Length);
             foreach(var value in inner) {
                 if(kind==1) {
@@ -89,7 +89,7 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
             return lookup;
         }
 
-        private static void Probe(Consumer consumer,IdentityLookup<T> lookup,T outer) {
+        internal static void Probe(Consumer consumer,IdentityLookup<T> lookup,T outer) {
             if(lookup.TryGet(outer,out var start,out var length)) {
                 for(var index = start;index<start+length;index++) {
                     consumer.Consume((Outer: outer,Inner: lookup[index]));
@@ -581,39 +581,40 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
         }
 
         /// <summary>
-        /// 恒等キーの結合は、外側の順に区間の共通部分だけが1件ずつ一致する。述語は純粋なので評価せず、
-        /// kind 1(偶数かつ 16 超)は下限を 18 へ繰り込んで 2 刻み、kind 2(4 の倍数)は 4 刻みで回す。
+        /// 恒等キーの結合。第2ソース(補助メソッドの戻り値)は中身が分からないので1回列挙して、述語を通るものだけ探索表にまとめる。
+        /// 外側は Range なので、述語は純粋とみなして kind 1(偶数かつ 16 超)は 18 から2刻み、kind 2(4 の倍数)は 4 から4刻みで探す
+        /// (恒等キーの int の結合では外側と内側の値が等しいので、どちらの側の述語も値の条件になる)。
         /// </summary>
-        private void JoinIntersection(int kind) {
+        private void JoinOpaqueInner(int kind) {
             var length = this.Length();
-            var from = Math.Max(1L,length/2+1L);
-            var to = Math.Min(1L+length,length/2+1L+length/2);
-            var step = 1L;
-            if(kind==1) {
-                from=Math.Max(from,18L);
-                from+=from&1;
-                step=2;
-            } else if(kind==2) {
-                from=(from+3)&~3L;
-                step=4;
-            }
-            for(var value = from;value<to;value+=step) {
-                this.consumer.Consume((Outer: (int)value,Inner: (int)value));
+            var buffer = OpaqueSecondRange.Collect(OpaqueSecondRange.Create(this.EffectiveSourceCount(4_096)),out var count);
+            try {
+                using var lookup = Pushdown<int>.BuildInner(buffer.AsSpan(0,count),kind);
+                var (from,step) = kind switch {
+                    1 => (18L,2L),
+                    2 => (4L,4L),
+                    _ => (1L,1L),
+                };
+                for(var value = from;value<=length;value+=step) {
+                    Pushdown<int>.Probe(this.consumer,lookup,(int)value);
+                }
+            } finally {
+                global::System.Buffers.ArrayPool<int>.Shared.Return(buffer);
             }
         }
 
         [BenchFact,Benchmark]
         public void Join_inner_Where_outerOnly() => this.Join_inner_Where_outerOnly_Impl();
         [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-        private void Join_inner_Where_outerOnly_Impl() => this.JoinIntersection(1);
+        private void Join_inner_Where_outerOnly_Impl() => this.JoinOpaqueInner(1);
         [BenchFact,Benchmark]
         public void Join_inner_Where_innerOnly() => this.Join_inner_Where_innerOnly_Impl();
         [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-        private void Join_inner_Where_innerOnly_Impl() => this.JoinIntersection(1);
+        private void Join_inner_Where_innerOnly_Impl() => this.JoinOpaqueInner(1);
         [BenchFact,Benchmark]
         public void Join_inner_Where_bothSides() => this.Join_inner_Where_bothSides_Impl();
         [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-        private void Join_inner_Where_bothSides_Impl() => this.JoinIntersection(2);
+        private void Join_inner_Where_bothSides_Impl() => this.JoinOpaqueInner(2);
         [BenchFact,Benchmark]
         public void Join_inner_Where_constant() => this.Join_inner_Where_constant_Impl();
         [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
@@ -622,16 +623,23 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
                 this.Length();
                 return;
             }
-            this.JoinIntersection(0);
+            this.JoinOpaqueInner(0);
         }
 
+        // 和集合: 先頭の Range は一意なので偶数をそのまま流し、第2ソースは Range に無い偶数を初出だけ流す。
         [BenchFact,Benchmark]
         public void Union_second_Where_predicate() => this.Union_second_Where_predicate_Impl();
         [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Union_second_Where_predicate_Impl() {
             var length = this.Length();
+            var second = OpaqueSecondRange.Create(this.EffectiveSourceCount(4_096));
             ConsumeEven(this.consumer,1,1L+length);
-            ConsumeEven(this.consumer,Math.Max(length/2+1L,1L+length),length/2+1L+length/2);
+            var seen = new global::System.Collections.Generic.HashSet<int>();
+            foreach(var value in second) {
+                if((value&1)==0&&(value<1||value>length)&&seen.Add(value)) {
+                    this.consumer.Consume(value);
+                }
+            }
         }
 
         [BenchFact,Benchmark]
@@ -639,23 +647,27 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
         [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Concat_second_Where_predicate_Impl() {
             var length = this.Length();
+            var second = OpaqueSecondRange.Create(this.EffectiveSourceCount(4_096));
             ConsumeEven(this.consumer,1,1L+length);
-            ConsumeEven(this.consumer,length/2+1L,length/2+1L+length/2);
+            foreach(var value in second) {
+                if((value&1)==0) {
+                    this.consumer.Consume(value);
+                }
+            }
         }
 
+        // 差集合・積集合: 第2ソースの偶数だけを集合にし、Range の偶数を順に引く(Range は一意なので重複除きは要らない)。
         [BenchFact,Benchmark]
         public void Except_first_Where_predicate() => this.Except_first_Where_predicate_Impl();
         [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Except_first_Where_predicate_Impl() {
             var length = this.Length();
-            var secondStart = length/2+1L;
-            var secondEnd = secondStart+length/2;
-            if(length/2<=0) {
-                ConsumeEven(this.consumer,1,1L+length);
-                return;
+            var excluded = EvenSet(OpaqueSecondRange.Create(this.EffectiveSourceCount(4_096)));
+            for(var value = 2;value<=length;value+=2) {
+                if(!excluded.Contains(value)) {
+                    this.consumer.Consume(value);
+                }
             }
-            ConsumeEven(this.consumer,1,Math.Min(1L+length,Math.Max(1L,secondStart)));
-            ConsumeEven(this.consumer,Math.Max(1L,secondEnd),1L+length);
         }
 
         [BenchFact,Benchmark]
@@ -663,7 +675,22 @@ namespace Shared.Linq.Optimization.PredicatePushdown {
         [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void Intersect_first_Where_predicate_Impl() {
             var length = this.Length();
-            ConsumeEven(this.consumer,Math.Max(1L,length/2+1L),Math.Min(1L+length,length/2+1L+length/2));
+            var included = EvenSet(OpaqueSecondRange.Create(this.EffectiveSourceCount(4_096)));
+            for(var value = 2;value<=length;value+=2) {
+                if(included.Contains(value)) {
+                    this.consumer.Consume(value);
+                }
+            }
+        }
+
+        private static global::System.Collections.Generic.HashSet<int> EvenSet(global::System.Collections.Generic.IEnumerable<int> source) {
+            var set = new global::System.Collections.Generic.HashSet<int>();
+            foreach(var value in source) {
+                if((value&1)==0) {
+                    set.Add(value);
+                }
+            }
+            return set;
         }
 
         [BenchFact,Benchmark]
