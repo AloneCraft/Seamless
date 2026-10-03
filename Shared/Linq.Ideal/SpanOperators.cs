@@ -384,9 +384,11 @@ public abstract partial class IdealBase<T> {
     [BenchFact,Benchmark]
     public void Empty() => this.Empty_Impl();
 
-    // ループの本体は空で、反復回数の計算は純粋なので、ループごと省く。
+    // Empty<T>() は何も流さないので本体は空。反復のループはベンチの枠(FLinq も書き換えない文)なので同じに残す。
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private void Empty_Impl() {
+        for(var i = 0;i<IterationCount(Empty_iterationCount);i++) {
+        }
     }
 
     // [Except_second]
