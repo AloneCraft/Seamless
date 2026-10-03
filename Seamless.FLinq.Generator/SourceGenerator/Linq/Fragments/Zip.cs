@@ -163,6 +163,53 @@ internal class Zip_resultSelector(int 番号,Enumerable source,Enumerable second
         RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { resultSelector },source.GetEnumeratorExpression,second.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum1 source, TEnum2 second{this.ClosurePrimaryCtorSuffix(resultSelector)}";
+    // Consume は Zip の列挙子の構造体を作らず、差し替えメソッドで両方の根を直接回す
+    // (Zip→根の構造体の入れ子の呼び出しは、参照型の共有ジェネリックコードでインライン化されない)。
+    // 両方が span を出せれば短い方の長さまで添字で回す。そうでなければ System.Linq と同じく先に first を進め、尽きたら second は進めない。
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        string sourceExpression;
+        string secondExpression;
+        try {
+            sourceExpression=source.GetEnumeratorExpression;
+            secondExpression=second.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(resultSelector),
+            this.StaticDelegateLocalDeclarations(resultSelector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var sourceName = $"__zipSource{番号}";
+        var secondName = $"__zipSecond{番号}";
+        var sourceSpanName = $"__zipSourceSpan{番号}";
+        var secondSpanName = $"__zipSecondSpan{番号}";
+        var lengthName = $"__zipLength{番号}";
+        var indexName = $"__zipIndex{番号}";
+        var firstName = $"__zipFirst{番号}";
+        var secondValueName = $"__zipSecondValue{番号}";
+        var resultName = $"__zipResult{番号}";
+        var resultType = FuncReturnTypeName(resultSelector);
+        var assign = $"{resultType} {resultName}=default!;\n{this.FuncAssignStatic(resultSelector,nameof(resultSelector),resultName,firstName,secondValueName)}\n{consumerName}.Consume({resultName});";
+        return $$"""
+            {{localDeclarations}}
+            using var {{sourceName}}={{sourceExpression}};
+            using var {{secondName}}={{secondExpression}};
+            if({{sourceName}}.TryGetSpan(out var {{sourceSpanName}})&&{{secondName}}.TryGetSpan(out var {{secondSpanName}})){
+                global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
+                var {{lengthName}}=global::System.Math.Min({{sourceSpanName}}.Length,{{secondSpanName}}.Length);
+                for(var {{indexName}}=0;{{indexName}}<{{lengthName}};{{indexName}}++){
+                    var {{firstName}}={{sourceSpanName}}[{{indexName}}];
+                    var {{secondValueName}}={{secondSpanName}}[{{indexName}}];
+                    {{IndentGeneratedStatement(assign,"            ")}}
+                }
+            }else{
+                global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+                while({{sourceName}}.TryGetNext(out var {{firstName}})&&{{secondName}}.TryGetNext(out var {{secondValueName}})){
+                    {{IndentGeneratedStatement(assign,"            ")}}
+                }
+            }
+            """;
+    }
     public override string GetTryGetNextBody => $$"""
         if(source.TryGetNext(out var __mn99)&&second.TryGetNext(out var __mn100)){
             var {{this.item}}=__mn99;

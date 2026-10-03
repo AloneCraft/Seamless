@@ -1675,3 +1675,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 修正: 並べ替えの前へも常に押し下げる。恒等キー・既定の比較子の1段の並べ替えで span の高速経路を使わないときは、溜めた値が既に並べ替え後の順(昇順なら非減少、降順なら非増加)かを確かめ、そうなら元の順のまま流す(安定な並べ替えの結果と同じ。並んでいなければ最初の逆転で抜ける)。並んだソースでも並べ替えを省ける。
 - テスト: `UnaryPushdownShapeTests`(配列の Order の前へ押し下げ、溜めた値の確認を出す)、`UnaryPushdown`(比較で等しく区別できる要素が元の順のまま。既に昇順・既に降順・並んでいない × Order・OrderDescending・OrderBy(恒等))。
 - 結果: 次の取り直しで記録する。
+
+## 2026-10-04 Zip(second,resultSelector).Consume を両方の根から直接回す(採用候補)
+
+- 原因: 結果選択子つきの Zip には直接 Consume が無く、Zip の列挙子の構造体から2つの根の構造体を呼ぶ入れ子を回していた(参照型の共有ジェネリックコードで内側がインライン化されない。Zip_second の ClassInt32 で理想の2〜2.4倍)。
+- 修正: 両方が span を出せれば短い方の長さまで添字で回し、そうでなければ first を先に進めて尽きたら second を進めない(System.Linq と同じ)。
+- テスト: `ZipResultSelectorConsumeTests`(参照型と int、span の有無、長さの違い、捕捉した引数、second を進めた回数)。
