@@ -112,6 +112,7 @@ internal static class RangePredicateOptimizer {
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
                 var {{last}}=(long){{start}} + {{count}} - 1L;
+                {{comparison.HoistedDeclarations}}
                 var {{value}}=(long)({{comparison.ValueExpression}});
                 if(!({{count}}>0 && {{value}}>=(long){{start}} && {{value}}<={{last}})) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
                 {{destVar}}=({{destType}})(int){{value}};
@@ -135,6 +136,7 @@ internal static class RangePredicateOptimizer {
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
                 var {{last}}=(long){{start}} + {{count}} - 1L;
+                {{comparison.HoistedDeclarations}}
                 var {{value}}=(long)({{comparison.ValueExpression}});
                 {{destVar}}={{count}}>0 && {{value}}>=(long){{start}} && {{value}}<={{last}} ? ({{destType}})(int){{value}} : {{defaultValue}};
             }
@@ -173,6 +175,7 @@ internal static class RangePredicateOptimizer {
                 var {{start}}={{range.StartExpression}};
                 var {{count}}={{range.CountExpression}};
                 var {{last}}=(long){{start}} + {{count}} - 1L;
+                {{comparison.HoistedDeclarations}}
                 var {{value}}=(long)({{comparison.ValueExpression}});
                 {{destVar}}={{AllCondition(comparison.Operator,start,count,last,value)}};
             }
@@ -191,6 +194,7 @@ internal static class RangePredicateOptimizer {
                     var {{start}}={{range.StartExpression}};
                     var {{count}}={{range.CountExpression}};
                     var {{last}}=(long){{start}} + {{count}} - 1L;
+                    {{comparison.HoistedDeclarations}}
                     var {{value}}=(long)({{comparison.ValueExpression}});
                     {{destVar}}={{AnyCondition(comparison.Operator,start,count,last,value)}};
                 }
@@ -244,6 +248,7 @@ internal static class RangePredicateOptimizer {
                     var {{start}}={{range.StartExpression}};
                     var {{count}}={{range.CountExpression}};
                     var {{last}}=(long){{start}} + {{count}} - 1L;
+                    {{comparison.HoistedDeclarations}}
                     var {{value}}=(long)({{comparison.ValueExpression}});
                     long {{matched}}={{CountExpression(comparison.Operator,start,count,last,value)}};
                     {{destVar}}=({{destType}}){{matched}};
@@ -298,12 +303,12 @@ internal static class RangePredicateOptimizer {
 
         var parameterName = predicate.ParameterNames[0];
         if(IsParameter(binary.Left,parameterName)&&!ContainsParameter(binary.Right,parameterName)) {
-            comparison=new RangeComparison(op,binary.Right.ToString());
+            comparison=new RangeComparison(op,binary.Right.ToString(),ClosureRenderSupport.HoistedLocalDeclarations(predicate));
             return true;
         }
 
         if(IsParameter(binary.Right,parameterName)&&!ContainsParameter(binary.Left,parameterName)) {
-            comparison=new RangeComparison(Invert(op),binary.Left.ToString());
+            comparison=new RangeComparison(Invert(op),binary.Left.ToString(),ClosureRenderSupport.HoistedLocalDeclarations(predicate));
             return true;
         }
 
@@ -420,7 +425,8 @@ internal static class RangePredicateOptimizer {
             _ => throw new InvalidOperationException()
         };
 
-    private readonly record struct RangeComparison(ComparisonOperator Operator,string ValueExpression);
+    // HoistedDeclarations: 比較の値がループの外へ巻き上げた変数(__hoist*)を参照するときの宣言。値の式より前に出す。
+    private readonly record struct RangeComparison(ComparisonOperator Operator,string ValueExpression,string HoistedDeclarations);
 
     private enum ComparisonOperator {
         GreaterThan,

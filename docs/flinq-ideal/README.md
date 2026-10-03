@@ -85,6 +85,7 @@ dotnet exec <Benchmark.Headless.dll> --import-jsonl Work/ideal/baseline-1/*.json
 ## 結果の誤り(理想版との比較で発見)
 
 - (修正済み 2026-10-02)`src.Order().Where(p).Consume(c)` など、配列・List 起点で並べ替えの後ろに段が続く連鎖: ソースが最初から昇順のとき、並べ替えを省く直接経路が後続の `Where`/`Select` を適用せず全件を流していた。昇順でないときはソース式を2回評価していた。直接経路を並べ替えだけの連鎖に限り、昇順でないときは取得済みのソース列挙子を並べ替えの列挙子へ引き渡すよう直した。回帰テストは `Test/SourceGenerator/SortedOrderDirectConsumeTests.cs`。
+- (修正済み 2026-10-03)`Enumerable.Range(1,n).Count(x => x>=F())` のように、Range の比較述語の右辺に巻き上げ対象の呼び出しがあると、範囲の形から件数・真偽を出す近道(`RangePredicateOptimizer`)が巻き上げた変数 `__hoist*` を参照するのに宣言を出さず、生成コードがコンパイルできなかった。近道の5か所で巻き上げの宣言を値の式の前に出すよう直した。回帰テストは `Test/SourceGenerator/AnchorShortcutTests.cs`。
 - (未修正)ソースを返す補助メソッドに `[LinqIntercept(false)]` が無く、その本体が生成コードへ展開されるとき、本体中の静的フィールドへの修飾なし参照(`SourceCalls++`)が CS0103、型名で修飾しても CS0117 になる例があった(上のテストを作る途中で発見。補助メソッドに `[LinqIntercept(false)]` を付けると起きない)。
 
 テストの書き方の注意: FLinq は `[LinqIntercept(true)]` のメソッドの**呼び出し箇所**を本体展開版へ差し替える。反射でそのメソッドを直接呼ぶと差し替わらず、`static class` の中でも差し替わらない。生成コードを実行して確かめるテストは、公開の入口メソッドから属性付きメソッドを呼び、差し替えが生成されたこと(`InterceptsLocationAttribute(1,` の数)も確かめる。
