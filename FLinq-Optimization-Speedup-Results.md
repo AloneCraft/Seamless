@@ -1695,3 +1695,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 外側も .Anchor の無い Range で外側のキーが恒等なら、一致するのは2つの区間の重なりの値だけで、内側の要素も外側の要素と等しい。外側を全部回して区間の内外を調べず、重なりだけを回す(引数の検査は両方の Range について行う)。System.Range の Join_inner(理想の2.2倍)。
 - テスト: `JoinInnerRangeProbeTests` に不正な件数(両側)・int の端・重ならない区間を追加し、重なりの経路が出ることを確かめる。
 - 結果(baseline6→7、理想比): System.Range の Join_inner 2.10→0.96。
+
+## 2026-10-04 Range の Where の後の Union は、Range の部分を集合に入れずに流す(採用候補)
+
+- 原因: 押し下げタブの Range の Union_second_Where(理想の9倍)は、Range.Where(p).Union(second.Where(p)) の段の並びで、Range の部分の値もすべて集合へ入れていた。
+- 修正: 昇順の Range の後に添字の無い Where だけが並び、最後が Union(既定の比較子・int)のとき、Range の部分の値は一意なので集合を使わずに流す(述語が1つで偶奇なら2刻み)。第2ソースの値 v は「区間に入り、Range の部分の述語をすべて通るか」で Range の部分に出たかが決まるので、それ以外だけを集合で重複除きする(述語は .Anchor が無く純粋)。第2ソースの式は従来どおり Range の引数の検査の後、Range を流す前に評価する。
+- テスト: `RangeUnionConsumeTests`(偶奇・3の倍数・2つの Where・Where なし・遅延の第2ソース、負の値・空・不正な件数・int の端)。

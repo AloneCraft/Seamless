@@ -29,6 +29,7 @@ internal sealed partial class PipelineEnumerable {
 
     public override string GetConsumeExecutionStatement(string consumerName) =>
         this.RenderRangeParityConsume(consumerName)
+        ??this.RenderRangeUnionConsume(consumerName)
         ??this.RenderSingleTakeWhileDirectConsume(consumerName)
         ??this.RenderSingleSkipWhileDirectConsume(consumerName)
         ??this.RenderSingleConcatDirectConsume(consumerName)
@@ -211,6 +212,92 @@ internal sealed partial class PipelineEnumerable {
                 {{loop}}{
                     var {{itemName}}=(int){{value}};
                 {{loopBody}}
+                }
+            }
+            """;
+    }
+
+    // 昇順の Range の後に添字の無い Where だけが並び、最後が Union(既定の比較子)のとき、Range の部分の値は一意で、
+    // 第2ソースの値 v が Range の部分に出たかは「v が区間に入り、同じ述語をすべて通るか」で決まる(述語は .Anchor が無く純粋)。
+    // Range の部分は集合を使わずに流し(述語が1つで偶奇なら2刻み)、第2ソースの値だけを集合で重複除きする。
+    // 第2ソースの式は従来どおり Range の引数の検査の後、Range を流す前に評価する。
+    private string? RenderRangeUnionConsume(string consumerName) {
+        if(source is not RangeRoot range
+            ||source.TreeContainsAnchor()
+            ||stages.Count<1
+            ||stages[stages.Count-1] is not { Kind: PipelineStageKind.Union,SecondSource: { } secondSource } union
+            ||union.ContainsAnchor
+            ||union.Value!="null"
+            ||source.ElementType!="int"
+            ||secondSource.ElementType!="int"
+            ||secondSource.TreeContainsAnchor()) {
+            return null;
+        }
+        var wheres = stages.Take(stages.Count-1).ToArray();
+        if(wheres.Any(static stage => stage.Kind!=PipelineStageKind.Where
+            ||stage.UsesIndex
+            ||stage.Func is not { } predicate
+            ||predicate.ContainsAnchor
+            ||predicate.RequiresStatementInlining
+            ||predicate.CanInvokeAsDelegate
+            ||!predicate.CanInlineAssign)) {
+            return null;
+        }
+        string secondExpression;
+        try {
+            secondExpression=secondSource.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var start = $"__unionStart{this.result}";
+        var count = $"__unionCount{this.result}";
+        var end = $"__unionEnd{this.result}";
+        var value = $"__unionValue{this.result}";
+        var itemName = $"__unionItem{this.result}";
+        var secondName = $"__unionSecond{this.result}";
+        var secondItemName = $"__unionSecondItem{this.result}";
+        var seenName = $"__unionSeen{this.result}";
+        var functions = wheres.Select(static stage => stage.Func!).ToArray();
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(functions),
+            this.StaticDelegateLocalDeclarations(functions),
+        }.Where(static text => !string.IsNullOrWhiteSpace(text)));
+        string PassesAll(string item) => functions.Length==0
+            ? "true"
+            : string.Join("&&",functions.Select(function => "("+function.RenderInlineExpression(item)+")"));
+        string firstLoop;
+        if(functions.Length==1&&RangePredicateOptimizer.TryExtractParity(functions[0],false,out var wantEven)) {
+            var wanted = wantEven ? "0" : "1";
+            firstLoop=$$"""
+                for(var {{value}}=(long){{start}}+((((long){{start}}&1)=={{wanted}}) ? 0 : 1);{{value}}<{{end}};{{value}}+=2){
+                    {{consumerName}}.Consume((int){{value}});
+                }
+                """;
+        } else {
+            firstLoop=$$"""
+                for(var {{value}}=(long){{start}};{{value}}<{{end}};{{value}}++){
+                    var {{itemName}}=(int){{value}};
+                    if({{PassesAll(itemName)}}){
+                        {{consumerName}}.Consume({{itemName}});
+                    }
+                }
+                """;
+        }
+        return $$"""
+            {
+                {{localDeclarations}}
+                {{IndentLines(range.RenderArgumentPreparation(start,count),"    ").TrimStart()}}
+                var {{end}}=(long){{start}}+{{count}};
+                using var {{secondName}}={{secondExpression}};
+                {{IndentLines(firstLoop,"    ").TrimStart()}}
+                var {{seenName}}=new global::System.Collections.Generic.HashSet<int>();
+                while({{secondName}}.TryGetNext(out var {{secondItemName}})){
+                    if({{secondItemName}}>={{start}}&&{{secondItemName}}<{{end}}&&{{PassesAll(secondItemName)}}){
+                        continue;
+                    }
+                    if({{seenName}}.Add({{secondItemName}})){
+                        {{consumerName}}.Consume({{secondItemName}});
+                    }
                 }
             }
             """;
