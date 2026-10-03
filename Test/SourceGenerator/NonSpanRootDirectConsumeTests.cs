@@ -25,6 +25,9 @@ public sealed class NonSpanRootDirectConsumeTests {
         }
         public abstract class Holder<T> where T : notnull {
             public abstract IEnumerable<T> Source();
+            // 環状の配列の初めの大きさ(1024)を超えて伸びる場合を含めるための長い列。
+            public abstract IEnumerable<T> Long();
+            public static readonly int[] Counts = [0,3,1500,2400,3000];
             // Append/Prepend の値はインスタンスのメンバーを使わない(既存の不具合: 構造体の中で @this が見えずコンパイルできない)。
             public static T Extra() => (T)(object)new Item(99);
             public static int N(T value) => value is Item item ? item.Value : (int)(object)value;
@@ -34,6 +37,8 @@ public sealed class NonSpanRootDirectConsumeTests {
                     sink => this.Where(sink),sink => this.WhereIndex(sink),sink => this.SelectIndex(sink),sink => this.SkipLast(sink),
                     sink => this.TakeLast(sink),sink => this.Reverse(sink),sink => this.Append(sink),sink => this.Prepend(sink),
                     sink => this.TakeWhile(sink),sink => this.SkipWhileIndex(sink),sink => this.GroupJoin(sink),
+                    sink => { foreach(var n in Counts) { this.SkipLastN(sink,n); sink.Consume("/"); } },
+                    sink => { foreach(var n in Counts) { this.TakeLastN(sink,n); sink.Consume("/"); } },
                 }) {
                     var sink = new Sink();
                     action(sink);
@@ -56,6 +61,8 @@ public sealed class NonSpanRootDirectConsumeTests {
                     source.TakeWhile(x => N(x)<4).Cast<object>(),
                     source.SkipWhile((x,i) => i<2).Cast<object>(),
                     source.GroupJoin(this.Source(),x => x,x => x,(o,g) => o).Cast<object>(),
+                    Counts.SelectMany(n => this.Long().SkipLast(n).Cast<object>().Append("/")),
+                    Counts.SelectMany(n => this.Long().TakeLast(n).Cast<object>().Append("/")),
                 }.Select(values => string.Join(",",values)));
             }
             [LinqIntercept(true)] private void Where(Sink sink) => sink.Consume(this.Source().Where(x => N(x)%2==0));
@@ -68,6 +75,8 @@ public sealed class NonSpanRootDirectConsumeTests {
             [LinqIntercept(true)] private void Prepend(Sink sink) => sink.Consume(this.Source().Prepend(Extra()));
             [LinqIntercept(true)] private void TakeWhile(Sink sink) => sink.Consume(this.Source().TakeWhile(x => N(x)<4));
             [LinqIntercept(true)] private void SkipWhileIndex(Sink sink) => sink.Consume(this.Source().SkipWhile((x,i) => i<2));
+            [LinqIntercept(true)] private void SkipLastN(Sink sink,int n) => sink.Consume(this.Long().SkipLast(n));
+            [LinqIntercept(true)] private void TakeLastN(Sink sink,int n) => sink.Consume(this.Long().TakeLast(n));
             [LinqIntercept(true)] private void GroupJoin(Sink sink) => sink.Consume(this.Source().GroupJoin(this.Source(),x => x,x => x,(o,g) => o));
         }
         public sealed class ItemHolder:Holder<Item> {
@@ -75,6 +84,11 @@ public sealed class NonSpanRootDirectConsumeTests {
             public override IEnumerable<Item> Source() {
                 foreach(var item in this.items) {
                     yield return item;
+                }
+            }
+            public override IEnumerable<Item> Long() {
+                for(var value = 0;value<2500;value++) {
+                    yield return new Item(value);
                 }
             }
         }
@@ -86,7 +100,7 @@ public sealed class NonSpanRootDirectConsumeTests {
 
     [Fact]
     public void 根の列挙子を差し替えメソッドから直接回す() {
-        var (compilation,generated) = ExecutableGeneration.Generate(Source,"NonSpanRootDirectConsumeProbe",11);
+        var (compilation,generated) = ExecutableGeneration.Generate(Source,"NonSpanRootDirectConsumeProbe",13);
         var (actual,expected) = ExecutableGeneration.Run(compilation,"Sample.Probe",probe => (
             (string)probe.GetMethod("RunFLinq")!.Invoke(null,null)!,
             (string)probe.GetMethod("RunLinq")!.Invoke(null,null)!));

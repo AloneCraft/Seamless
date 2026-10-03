@@ -1681,3 +1681,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: 結果選択子つきの Zip には直接 Consume が無く、Zip の列挙子の構造体から2つの根の構造体を呼ぶ入れ子を回していた(参照型の共有ジェネリックコードで内側がインライン化されない。Zip_second の ClassInt32 で理想の2〜2.4倍)。
 - 修正: 両方が span を出せれば短い方の長さまで添字で回し、そうでなければ first を先に進めて尽きたら second を進めない(System.Linq と同じ)。
 - テスト: `ZipResultSelectorConsumeTests`(参照型と int、span の有無、長さの違い、捕捉した引数、second を進めた回数)。
+
+## 2026-10-04 span の無い根の TakeLast・SkipLast を環状の配列で回す(採用候補)
+
+- 原因: 待ち行列(ValueQueue)へ入れて溢れたら取り出す形で、要素ごとに Enqueue/Dequeue の境界判定と添字の折り返しが2回ずつあった(IEnumerable の TakeLast_count で理想の2.4倍、SkipLast_count で1.9倍)。
+- 修正: 理想版と同じく、満ちたら最も古い位置へ上書きする環状の配列(ArrayPool)にする。配列は件数の見込みが立つまで倍々に借り直す。SkipLast(0) はそのまま流す。
+- テスト: `NonSpanRootDirectConsumeTests` に件数 0・3・1500・2400・3000(2500件の列。初めの1024を超えて伸びる場合を含む)の TakeLast/SkipLast を追加。

@@ -128,25 +128,53 @@ internal class SkipLast(int 番号,Enumerable source,string skipCount):Enumerabl
         var sourceName = $"__skipLastSource{番号}";
         var spanExpression = this.RootSource.GetDirectSpanExpression(sourceName);
         if(spanExpression is null) {
-            // span の無い根は、根の列挙子を差し替えメソッドから回し、捨てる件数を超えた分を待ち行列から流す。
+            // span の無い根は、根の列挙子を差し替えメソッドから回し、直近の捨てる件数だけを環状の配列に残して、溢れた最も古いものから流す。
             // SkipLast の列挙子の構造体から根の構造体を呼ぶ入れ子は、参照型の共有ジェネリックコードで内側がインライン化されない。
+            // 配列は件数の見込みが立つまで倍々に借り直す。
             string rootExpression;
             try {
                 rootExpression=this.RootSource.GetEnumeratorExpression;
             } catch(NotSupportedException) {
                 return base.GetConsumeExecutionStatement(consumerName);
             }
-            var queue = $"__skipLastQueue{番号}";
+            var ring = $"__skipLastRing{番号}";
+            var next = $"__skipLastNext{番号}";
+            var filled = $"__skipLastFilled{番号}";
+            var head = $"__skipLastHead{番号}";
             var skip = $"__skipLastCount{番号}";
             var item = $"__skipLastItem{番号}";
+            var elementType = this.ElementType;
             return $$"""
                 using var {{sourceName}}={{rootExpression}};
                 var {{skip}}=global::System.Math.Max(0,{{this.EffectiveSkipCount}});
-                using var {{queue}}=new global::Seamless.Linq.ValueQueue<{{this.ElementType}}>((int)global::System.Math.Min((long){{skip}}+1,1024));
-                while({{sourceName}}.TryGetNext(out var {{item}})){
-                    {{queue}}.Enqueue({{item}});
-                    if({{queue}}.Count>{{skip}}){
-                        {{consumerName}}.Consume({{queue}}.Dequeue());
+                if({{skip}}==0){
+                    while({{sourceName}}.TryGetNext(out var {{item}})){
+                        {{consumerName}}.Consume({{item}});
+                    }
+                }else{
+                    var {{ring}}=global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Rent(global::System.Math.Min({{skip}},1024));
+                    var {{filled}}=0;
+                    var {{head}}=0;
+                    try{
+                        while({{sourceName}}.TryGetNext(out var {{item}})){
+                            if({{filled}}<{{skip}}){
+                                if({{filled}}=={{ring}}.Length){
+                                    var {{next}}=global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Rent((int)global::System.Math.Min((long){{ring}}.Length*2,{{skip}}));
+                                    global::System.MemoryExtensions.AsSpan({{ring}},0,{{filled}}).CopyTo({{next}});
+                                    if(global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{elementType}}>()) global::System.MemoryExtensions.AsSpan({{ring}},0,{{filled}}).Clear();
+                                    global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Return({{ring}});
+                                    {{ring}}={{next}};
+                                }
+                                {{ring}}[{{filled}}++]={{item}};
+                                continue;
+                            }
+                            {{consumerName}}.Consume({{ring}}[{{head}}]);
+                            {{ring}}[{{head}}]={{item}};
+                            if(++{{head}}=={{skip}}) {{head}}=0;
+                        }
+                    }finally{
+                        if(global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{elementType}}>()) global::System.MemoryExtensions.AsSpan({{ring}},0,{{filled}}).Clear();
+                        global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Return({{ring}});
                     }
                 }
                 """;

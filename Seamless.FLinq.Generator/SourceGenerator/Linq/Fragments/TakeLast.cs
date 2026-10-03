@@ -120,30 +120,55 @@ internal class TakeLast(int 番号,Enumerable source,string takeCount):Enumerabl
                 """;
         }
         if(this.RootSource is not RangeRoot range||this.RootSource.ElementType!="int") {
-            // span の無い根は、根の列挙子を差し替えメソッドから回し、直近の件数だけを待ち行列に残してから流す。
+            // span の無い根は、根の列挙子を差し替えメソッドから回し、直近の件数だけを環状の配列に残してから流す。
             // TakeLast の列挙子の構造体から根の構造体を呼ぶ入れ子は、参照型の共有ジェネリックコードで内側がインライン化されない。
+            // 待ち行列(取り出してから入れる)ではなく、満ちたら最も古い位置へ上書きする。配列は件数の見込みが立つまで倍々に借り直す。
             string rootExpression;
             try {
                 rootExpression=this.RootSource.GetEnumeratorExpression;
             } catch(NotSupportedException) {
                 return base.GetConsumeExecutionStatement(consumerName);
             }
-            var queue = $"__takeLastQueue{番号}";
+            var ring = $"__takeLastRing{番号}";
+            var next = $"__takeLastNext{番号}";
+            var filled = $"__takeLastFilled{番号}";
+            var head = $"__takeLastHead{番号}";
+            var offset = $"__takeLastOffset{番号}";
+            var position = $"__takeLastPosition{番号}";
             var takeCount = $"__takeLastCount{番号}";
             var item = $"__takeLastItem{番号}";
+            var elementType = this.ElementType;
             return $$"""
                 using var {{sourceName}}={{rootExpression}};
                 var {{takeCount}}=global::System.Math.Max(0,{{this.EffectiveTakeCount}});
                 if({{takeCount}}>0){
-                    using var {{queue}}=new global::Seamless.Linq.ValueQueue<{{this.ElementType}}>(global::System.Math.Min({{takeCount}},1024));
-                    while({{sourceName}}.TryGetNext(out var {{item}})){
-                        if({{queue}}.Count=={{takeCount}}){
-                            {{queue}}.Dequeue();
+                    var {{ring}}=global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Rent(global::System.Math.Min({{takeCount}},1024));
+                    var {{filled}}=0;
+                    var {{head}}=0;
+                    try{
+                        while({{sourceName}}.TryGetNext(out var {{item}})){
+                            if({{filled}}<{{takeCount}}){
+                                if({{filled}}=={{ring}}.Length){
+                                    var {{next}}=global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Rent((int)global::System.Math.Min((long){{ring}}.Length*2,{{takeCount}}));
+                                    global::System.MemoryExtensions.AsSpan({{ring}},0,{{filled}}).CopyTo({{next}});
+                                    if(global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{elementType}}>()) global::System.MemoryExtensions.AsSpan({{ring}},0,{{filled}}).Clear();
+                                    global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Return({{ring}});
+                                    {{ring}}={{next}};
+                                }
+                                {{ring}}[{{filled}}++]={{item}};
+                                continue;
+                            }
+                            {{ring}}[{{head}}]={{item}};
+                            if(++{{head}}=={{takeCount}}) {{head}}=0;
                         }
-                        {{queue}}.Enqueue({{item}});
-                    }
-                    while({{queue}}.Count>0){
-                        {{consumerName}}.Consume({{queue}}.Dequeue());
+                        for(var {{offset}}=0;{{offset}}<{{filled}};{{offset}}++){
+                            var {{position}}={{head}}+{{offset}};
+                            if({{position}}>={{filled}}) {{position}}-={{filled}};
+                            {{consumerName}}.Consume({{ring}}[{{position}}]);
+                        }
+                    }finally{
+                        if(global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{elementType}}>()) global::System.MemoryExtensions.AsSpan({{ring}},0,{{filled}}).Clear();
+                        global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Return({{ring}});
                     }
                 }
                 """;
