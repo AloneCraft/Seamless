@@ -291,7 +291,7 @@ internal sealed partial class PipelineEnumerable {
                 using var {{secondName}}={{secondExpression}};
                 {{IndentLines(firstLoop,"    ").TrimStart()}}
                 var {{seenName}}=new global::System.Collections.Generic.HashSet<int>();
-                while({{secondName}}.TryGetNext(out var {{secondItemName}})){
+                {{DrainLoopHead(secondSource,secondName,secondItemName)}}
                     if({{secondItemName}}>={{start}}&&{{secondItemName}}<{{end}}&&{{PassesAll(secondItemName)}}){
                         continue;
                     }
@@ -367,7 +367,7 @@ internal sealed partial class PipelineEnumerable {
                 {{localDeclarations}}
                 using var {{sourceName}}={{sourceEnumeratorExpression}};
                 {{this.CounterCall("IncrementEnumerationLoopUsed")}}
-                while({{sourceName}}.TryGetNext(out var {{itemName}})){
+                {{DrainLoopHead(source,sourceName,itemName)}}
                 {{loopBody}}
                 }
                 """;
@@ -429,7 +429,7 @@ internal sealed partial class PipelineEnumerable {
             }
             return $$"""
                 using var {{sourceName}}={{rootExpression}};
-                {{before}}while({{sourceName}}.TryGetNext(out var {{itemName}})){
+                {{before}}{{DrainLoopHead(source,sourceName,itemName)}}
                     {{consumerName}}.Consume({{itemName}});
                 }{{after}}
                 """;
@@ -822,7 +822,7 @@ internal sealed partial class PipelineEnumerable {
             return $$"""
                 {{localDeclarationBlock}}
                 using var {{sourceName}}={{rootExpression}};
-                {{indexDeclaration}}while({{sourceName}}.TryGetNext(out var {{itemName}})){
+                {{indexDeclaration}}{{DrainLoopHead(source,sourceName,itemName)}}
                     {{indexIncrement}}{{predicateCheck}} {
                         break;
                     }
@@ -901,7 +901,7 @@ internal sealed partial class PipelineEnumerable {
                 {{localDeclarationBlock}}
                 using var {{sourceName}}={{rootExpression}};
                 var {{skippingLocal}}=true;
-                {{indexDeclaration}}while({{sourceName}}.TryGetNext(out var {{itemName}})){
+                {{indexDeclaration}}{{DrainLoopHead(source,sourceName,itemName)}}
                     {{indexIncrement}}if({{skippingLocal}}){
                         {{predicateCheck}} {
                             {{skippingLocal}}=false;

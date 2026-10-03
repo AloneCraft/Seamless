@@ -129,22 +129,22 @@ internal abstract class SetBase(int 番号,Enumerable source,Enumerable second,s
                 if({{setName}}.Add(value)){
                     {{consumerName}}.Consume(value);
                 }
-                """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
+                """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName),source.ProvidesRemainingEnumerator);
             TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
                 if({{setName}}.Add({{this.SecondValueExpression("value")}})){
                     {{consumerName}}.Consume({{this.SecondValueExpression("value")}});
                 }
-                """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName));
+                """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName),second.ProvidesRemainingEnumerator);
             return builder.ToString().TrimEnd();
         }
         TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
             {{setName}}.Add({{this.SecondValueExpression("value")}});
-            """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName));
+            """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName),second.ProvidesRemainingEnumerator);
         TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
             if({{setName}}.{{operation.SourceAcceptMethod}}(value)){
                 {{consumerName}}.Consume(value);
             }
-            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
+            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName),source.ProvidesRemainingEnumerator);
         return builder.ToString().TrimEnd();
     }
     private string SecondValueExpression(string valueName) {
@@ -538,23 +538,23 @@ internal abstract class SetByBase(int 番号,Enumerable source,Enumerable second
                     if({{setName}}.Add(value)){
                         {{consumerName}}.Consume(value);
                     }
-                    """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
+                    """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName),source.ProvidesRemainingEnumerator);
                 TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
                     if({{setName}}.Add(value)){
                         {{consumerName}}.Consume(value);
                     }
-                    """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName));
+                    """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName),second.ProvidesRemainingEnumerator);
                 return builder.ToString().TrimEnd();
             }
             TraversalSupport.AppendTraversalLoop(builder,secondName,second.ElementType,"value",$$"""
                 {{setName}}.Add(value);
-                """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName));
+                """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(secondName),second.ProvidesRemainingEnumerator);
             TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
                 if(!{{setName}}.{{operation.SourceAcceptMethod}}(value)){
                     continue;
                 }
                 {{consumerName}}.Consume(value);
-            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName));
+            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName),source.ProvidesRemainingEnumerator);
             return builder.ToString().TrimEnd();
         }
         if(!operation.PreloadSecondFirst) {
@@ -590,7 +590,7 @@ internal abstract class SetByBase(int 番号,Enumerable source,Enumerable second
             {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
             {{this.FuncAssignIndented("",keySelector,nameof(keySelector),this.key,"value")}}
             {{setName}}.Add({{this.key}});
-            """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(enumeratorName));
+            """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(enumeratorName),second.ProvidesRemainingEnumerator);
     }
     private void AppendSetByConsumeLoop(StringBuilder builder,string enumeratorName,string consumerName,string setName,string operationMethod) {
         TraversalSupport.AppendTraversalLoop(builder,enumeratorName,source.ElementType,"value",$$"""
@@ -600,7 +600,7 @@ internal abstract class SetByBase(int 番号,Enumerable source,Enumerable second
                 continue;
             }
             {{consumerName}}.Consume(value);
-            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(enumeratorName));
+            """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(enumeratorName),source.ProvidesRemainingEnumerator);
     }
     private string SecondKeyExpression(string valueName) {
         if(FuncReturnTypeName(keySelector)==second.ElementType) {

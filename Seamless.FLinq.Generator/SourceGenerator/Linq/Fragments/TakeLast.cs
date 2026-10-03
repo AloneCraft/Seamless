@@ -146,7 +146,7 @@ internal class TakeLast(int 番号,Enumerable source,string takeCount):Enumerabl
                     var {{filled}}=0;
                     var {{head}}=0;
                     try{
-                        while({{sourceName}}.TryGetNext(out var {{item}})){
+                        {{DrainLoopHead(this.RootSource,sourceName,item)}}
                             if({{filled}}<{{takeCount}}){
                                 if({{filled}}=={{ring}}.Length){
                                     var {{next}}=global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Rent((int)global::System.Math.Min((long){{ring}}.Length*2,{{takeCount}}));

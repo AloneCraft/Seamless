@@ -118,6 +118,7 @@ internal class Root(int 番号,string sourceExpression,string elementType,string
     public override SourceCapability Capabilities => SourceCapability.ChunkStreaming;
     public override bool CanProvideSpan => false;
     public override bool CanTryProvideSpan => useEnumerableInterface;
+    internal override bool ProvidesRemainingEnumerator => useEnumerableInterface;
     public override string StructMethod => string.Empty;
     // 型引数を埋め込んだ完全な struct 名（呼び出し側では具象型引数を持つ）。
     // 含有型がジェネリック（OuterTypeParameters 有り）なら外側型パラメータを先頭に付ける。
@@ -227,6 +228,9 @@ internal class Root(int 番号,string sourceExpression,string elementType,string
                 span.Slice(start).CopyTo(destination);
                 return true;
             }
+            // 差し替えメソッドが最後まで回すときに、列挙子を局所変数に取って直接回すための入口(続きから回る。破棄は Dispose が受け持つ)。
+            {{AggressiveInliningAttribute}}
+            public global::System.Collections.Generic.IEnumerator<{{elementType}}> GetRemainingEnumerator() => this.{{this.e}} ??= source.GetEnumerator();
             {{AggressiveInliningAttribute}}
             public bool TryGetNext(out {{elementType}} current){
                 this.{{this.e}} ??= source.GetEnumerator();

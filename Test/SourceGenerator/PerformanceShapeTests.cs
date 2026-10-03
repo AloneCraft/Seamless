@@ -1053,7 +1053,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         GeneratedSourceAssert.True(
             generated.Contains("if(__src0.TryGetSpan(out var __distinctSpan",StringComparison.Ordinal)
             &&generated.Contains("}else{",StringComparison.Ordinal)
-            &&generated.Contains("while(__src0.TryGetNext",StringComparison.Ordinal),
+            // span が無いときは、IEnumerable の根の列挙子を局所変数に取って直接回す。
+            &&generated.Contains("var __rest___src0=__src0.GetRemainingEnumerator();",StringComparison.Ordinal)
+            &&generated.Contains("while(__rest___src0.MoveNext())",StringComparison.Ordinal),
             "IEnumerable<T> roots only have runtime span probing, so the fallback branch must remain.",
             generated,
             output);

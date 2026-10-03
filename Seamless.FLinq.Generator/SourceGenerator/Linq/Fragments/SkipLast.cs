@@ -148,7 +148,7 @@ internal class SkipLast(int 番号,Enumerable source,string skipCount):Enumerabl
                 using var {{sourceName}}={{rootExpression}};
                 var {{skip}}=global::System.Math.Max(0,{{this.EffectiveSkipCount}});
                 if({{skip}}==0){
-                    while({{sourceName}}.TryGetNext(out var {{item}})){
+                    {{DrainLoopHead(this.RootSource,sourceName,item)}}
                         {{consumerName}}.Consume({{item}});
                     }
                 }else{
@@ -156,7 +156,7 @@ internal class SkipLast(int 番号,Enumerable source,string skipCount):Enumerabl
                     var {{filled}}=0;
                     var {{head}}=0;
                     try{
-                        while({{sourceName}}.TryGetNext(out var {{item}})){
+                        {{DrainLoopHead(this.RootSource,sourceName,item)}}
                             if({{filled}}<{{skip}}){
                                 if({{filled}}=={{ring}}.Length){
                                     var {{next}}=global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Rent((int)global::System.Math.Min((long){{ring}}.Length*2,{{skip}}));

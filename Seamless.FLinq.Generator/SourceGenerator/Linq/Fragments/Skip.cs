@@ -97,7 +97,7 @@ internal class Skip(int 番号,Enumerable source,string skipCount):Enumerable(�
                 while({{skipCountName}}>0&&{{sourceName}}.TryGetNext(out _)){
                     {{skipCountName}}--;
                 }
-                while({{sourceName}}.TryGetNext(out var {{skipItemName}})){
+                {{DrainLoopHead(this.RootSource,sourceName,skipItemName)}}
                     {{consumerName}}.Consume({{skipItemName}});
                 }
                 """;

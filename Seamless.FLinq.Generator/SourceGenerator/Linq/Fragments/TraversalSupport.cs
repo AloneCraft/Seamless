@@ -9,7 +9,8 @@ internal static class TraversalSupport {
         string statement,
         bool canTryProvideSpan,
         bool canProvideSpan = false,
-        string? directSpanExpression = null) =>
+        string? directSpanExpression = null,
+        bool providesRemainingEnumerator = false) =>
         new EnumeratorTraversalRenderModel(
             enumeratorName,
             elementType,
@@ -17,7 +18,8 @@ internal static class TraversalSupport {
             statement,
             canTryProvideSpan,
             canProvideSpan,
-            directSpanExpression).AppendTo(builder);
+            directSpanExpression,
+            providesRemainingEnumerator).AppendTo(builder);
     public static void AppendHashSetInitialization(StringBuilder builder,string setName,string elementType,string enumeratorName,string comparer,string? capacityHint = null) {
         var countName = $"__count_{setName}";
         if(capacityHint is not null) {

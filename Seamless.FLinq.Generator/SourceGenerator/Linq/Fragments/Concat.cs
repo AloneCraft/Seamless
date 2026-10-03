@@ -116,7 +116,7 @@ internal class Concat(int 番号,Enumerable source,Enumerable second):Enumerable
             $"{consumerName}.Consume(value);",
             source.CanTryProvideSpan,
             source.CanProvideSpan,
-            source.GetDirectSpanExpression(sourceName));
+            source.GetDirectSpanExpression(sourceName),source.ProvidesRemainingEnumerator);
         TraversalSupport.AppendTraversalLoop(
             builder,
             secondName,
@@ -125,7 +125,7 @@ internal class Concat(int 番号,Enumerable source,Enumerable second):Enumerable
             secondConsumeStatement,
             second.CanTryProvideSpan,
             second.CanProvideSpan,
-            second.GetDirectSpanExpression(secondName));
+            second.GetDirectSpanExpression(secondName),second.ProvidesRemainingEnumerator);
         return builder.ToString().TrimEnd();
     }
 

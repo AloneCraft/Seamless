@@ -163,7 +163,7 @@ internal class SkipWhile_predicate(int 番号,Enumerable source,FuncFragment pre
             using var {{sourceName}}={{sourceExpression}};
             var {{skippingName}}=true;
             var {{indexName}}=-1;
-            while({{sourceName}}.TryGetNext(out var {{itemName}})){
+            {{DrainLoopHead(source,sourceName,itemName)}}
                 if({{skippingName}}){
                     {{indexName}}++;
                     {{preCode}}

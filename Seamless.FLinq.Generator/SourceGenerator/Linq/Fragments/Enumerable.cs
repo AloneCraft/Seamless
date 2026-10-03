@@ -23,6 +23,8 @@ Enumerable は遅延評価されるシーケンス Fragment の基底。
   - Distinct/Set 系のように事前 HashSet 構築が必要な Fragment は direct consume を override する。
 */
 internal abstract class Enumerable(int 番号):Fragment(番号), ConsumeDirectExecutionFragment {
+    // 根の構造体が GetRemainingEnumerator()(続きから回る IEnumerator<T>)を持つか。IEnumerable の根だけが持つ。
+    internal virtual bool ProvidesRemainingEnumerator => false;
     // この enumerable 断片が流す要素型。
     public abstract string ElementType { get; }
     // 生成コード内で IEnumerable<T> として再評価できる元ソース式。

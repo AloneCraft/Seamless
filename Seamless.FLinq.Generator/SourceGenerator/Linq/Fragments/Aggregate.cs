@@ -378,14 +378,14 @@ file static class AggregateLoopSupport {
                 {{IndentLines(renderAssign("            ",itemName),"        ")}}
                     }
                 }else{
-                    while({{sourceName}}.TryGetNext(out var {{itemName}})){
+                    {{Fragment.DrainLoopHead(source,sourceName,itemName)}}
                 {{IndentLines(renderAssign("        ",itemName),"        ")}}
                     }
                 }
                 """;
         }
         return $$"""
-            while({{sourceName}}.TryGetNext(out var {{itemName}})){
+            {{Fragment.DrainLoopHead(source,sourceName,itemName)}}
             {{IndentLines(renderAssign("    ",itemName),"    ")}}
             }
             """;

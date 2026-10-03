@@ -87,7 +87,7 @@ internal abstract class ToLookupBase(int 番号,Enumerable source,string resultT
                     {{IndentGeneratedStatement(add,"            ")}}
                 }
             }else{
-                while({{sourceName}}.TryGetNext(out var {{itemName}})){
+                {{DrainLoopHead(lookupSource,sourceName,itemName)}}
                     {{IndentGeneratedStatement(add,"            ")}}
                 }
             }

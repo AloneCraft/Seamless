@@ -41,7 +41,7 @@ internal class Index(int 番号,Enumerable source):Enumerable(番号) {
                 using var {{sourceName}}={{source.GetEnumeratorExpression}};
                 global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
                 var {{indexValueName}}=0;
-                while({{sourceName}}.TryGetNext(out var {{indexItemName}})){
+                {{DrainLoopHead(source,sourceName,indexItemName)}}
                     {{consumerName}}.Consume(({{indexValueName}}++,{{indexItemName}}));
                 }
                 """;

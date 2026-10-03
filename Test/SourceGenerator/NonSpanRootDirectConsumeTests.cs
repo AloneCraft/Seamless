@@ -107,5 +107,7 @@ public sealed class NonSpanRootDirectConsumeTests {
         Assert.Equal(expected.Split('|'),actual.Split('|'));
         // 演算子の列挙子の構造体を回す汎用の Consume(using var __ce… / while(__ce…)は残らない。
         Assert.DoesNotContain("while(__ce",generated);
+        // IEnumerable の根は列挙子を局所変数に取って直接回す(根の構造体の TryGetNext を要素ごとに呼ばない)。
+        Assert.Contains(".GetRemainingEnumerator();",generated);
     }
 }

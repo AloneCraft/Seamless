@@ -9,7 +9,8 @@ internal sealed class EnumeratorTraversalRenderModel(
     string statement,
     bool canTryProvideSpan,
     bool canProvideSpan,
-    string? directSpanExpression) {
+    string? directSpanExpression,
+    bool providesRemainingEnumerator = false) {
     internal void AppendTo(StringBuilder builder) {
         var spanName=$"__sp_{enumeratorName}";
         if(directSpanExpression is not null) {
@@ -27,7 +28,7 @@ internal sealed class EnumeratorTraversalRenderModel(
         }
         if(!canTryProvideSpan) {
             builder.AppendLine("global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();");
-            builder.AppendLine($"while({enumeratorName}.TryGetNext(out {elementType} {valueName})){{");
+            this.AppendDrainHead(builder,"");
             builder.AppendLine(TraversalSupport.IndentBlock(statement,"    "));
             builder.AppendLine("}");
             return;
@@ -39,10 +40,21 @@ internal sealed class EnumeratorTraversalRenderModel(
         builder.AppendLine("}else{");
         builder.AppendLine("    global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanFailed();");
         builder.AppendLine("    global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();");
-        builder.AppendLine($"    while({enumeratorName}.TryGetNext(out {elementType} {valueName})){{");
+        this.AppendDrainHead(builder,"    ");
         builder.AppendLine(TraversalSupport.IndentBlock(statement,"        "));
         builder.AppendLine("    }");
         builder.AppendLine("}");
+    }
+
+    // IEnumerable の根は列挙子を局所変数に取って MoveNext/Current を直接回す(Fragment.DrainParts と同じ理由)。
+    private void AppendDrainHead(StringBuilder builder,string indent) {
+        if(providesRemainingEnumerator) {
+            builder.AppendLine($"{indent}var __rest_{enumeratorName}={enumeratorName}.GetRemainingEnumerator();");
+            builder.AppendLine($"{indent}while(__rest_{enumeratorName}.MoveNext()){{");
+            builder.AppendLine($"{indent}    {elementType} {valueName}=__rest_{enumeratorName}.Current;");
+            return;
+        }
+        builder.AppendLine($"{indent}while({enumeratorName}.TryGetNext(out {elementType} {valueName})){{");
     }
 
     private void AppendSpanLoop(StringBuilder builder,string spanName,string valueName,string body,string indent = "") {

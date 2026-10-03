@@ -166,7 +166,7 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
             var {{buffer}}=global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Rent({{sourceName}}.TryGetNonEnumeratedCount(out var __reverseKnown{{番号}})&&__reverseKnown{{番号}}>16 ? __reverseKnown{{番号}} : 16);
             var {{count}}=0;
             try{
-                while({{sourceName}}.TryGetNext(out var {{item}})){
+                {{DrainLoopHead(this.RootSource,sourceName,item)}}
                     if({{count}}=={{buffer}}.Length){
                         var __reverseGrown{{番号}}=global::System.Buffers.ArrayPool<{{elementType}}>.Shared.Rent({{buffer}}.Length*2);
                         global::System.Array.Copy({{buffer}},__reverseGrown{{番号}},{{count}});

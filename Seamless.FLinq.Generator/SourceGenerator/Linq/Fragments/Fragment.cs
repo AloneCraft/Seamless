@@ -512,6 +512,20 @@ internal abstract class Fragment(
     private protected string FuncAssignStaticIndented(string indent,FuncFragment func,string methodName,string destination,params string[] arguments) =>
         IndentGeneratedStatement(this.FuncAssignStatic(func,methodName,destination,arguments),indent);
 
+    // 根の列挙子を最後まで回すループの頭(while 文の開き括弧と、要素を受ける局所変数の宣言まで)。
+    // IEnumerable の根は列挙子を局所変数に取って MoveNext/Current を直接呼ぶ。根の構造体の TryGetNext は
+    // 遅延の GetEnumerator・Current と添字の保存を要素ごとに行うので、int の要素で理想版の約1.4倍かかっていた(Work/exp/ienumroot)。
+    // 列挙子は根の構造体が持ったままなので、破棄は根の Dispose が受け持つ。
+    internal static (string Preamble,string Condition,string Declaration) DrainParts(Enumerable root,string enumeratorName,string itemName) =>
+        root.ProvidesRemainingEnumerator
+            ? ($"var __rest_{enumeratorName}={enumeratorName}.GetRemainingEnumerator();\n",$"__rest_{enumeratorName}.MoveNext()",$"\nvar {itemName}=__rest_{enumeratorName}.Current;")
+            : (string.Empty,$"{enumeratorName}.TryGetNext(out var {itemName})",string.Empty);
+
+    internal static string DrainLoopHead(Enumerable root,string enumeratorName,string itemName) {
+        var (preamble,condition,declaration) = DrainParts(root,enumeratorName,itemName);
+        return $"{preamble}while({condition}){{{declaration}";
+    }
+
     private protected static string IndentGeneratedStatement(string text,string indent) =>
         IndentLines(text.Trim(),indent);
 

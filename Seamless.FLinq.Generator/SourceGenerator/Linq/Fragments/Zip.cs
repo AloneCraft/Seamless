@@ -19,6 +19,9 @@ Zip は複数 source を同時に1件ずつ進め、どれかが尽きた時点�
   - resultSelector 付きは tuple ではなく resultSelector(v, v) を Current に入れる。
 */
 internal class Zip(int 番号,Enumerable source,Enumerable second):Enumerable(番号) {
+    // 2つの根を同時に進めるループの頭。first を先に進め、尽きたら second は進めない(System.Linq と同じ)。
+    private protected string ZipDrainHead(Enumerable first,Enumerable secondSource,string firstName,string secondName,string firstItem,string secondItem) =>
+        ZipDrainSupport.Head(first,secondSource,firstName,secondName,firstItem,secondItem);
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -56,7 +59,7 @@ internal class Zip(int 番号,Enumerable source,Enumerable second):Enumerable(�
                 }
             }else{
                 global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
-                while(__zipSource.TryGetNext(out var __zipFirst)&&__zipSecond.TryGetNext(out var __zipSecondValue)){
+                {{this.ZipDrainHead(source,second,"__zipSource","__zipSecond","__zipFirst","__zipSecondValue")}}
                     {{consumerName}}.Consume((__zipFirst,__zipSecondValue));
                 }
             }
@@ -127,6 +130,8 @@ Zip_resultSelector は Zip(second, resultSelector) 用。2つの Current を sel
 selector は通常の FuncFragment と同じく、inline/delegate/closure 付きの各経路を取る。
 */
 internal class Zip_resultSelector(int 番号,Enumerable source,Enumerable second,FuncFragment resultSelector):Enumerable(番号) {
+    private string ZipDrainHead(Enumerable first,Enumerable secondSource,string firstName,string secondName,string firstItem,string secondItem) =>
+        ZipDrainSupport.Head(first,secondSource,firstName,secondName,firstItem,secondItem);
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -204,7 +209,7 @@ internal class Zip_resultSelector(int 番号,Enumerable source,Enumerable second
                 }
             }else{
                 global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
-                while({{sourceName}}.TryGetNext(out var {{firstName}})&&{{secondName}}.TryGetNext(out var {{secondValueName}})){
+                {{this.ZipDrainHead(source,second,sourceName,secondName,firstName,secondValueName)}}
                     {{IndentGeneratedStatement(assign,"            ")}}
                 }
             }
@@ -222,4 +227,12 @@ internal class Zip_resultSelector(int 番号,Enumerable source,Enumerable second
         """;
     public override string ElementType => FuncReturnTypeName(resultSelector);
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
+}
+
+internal static class ZipDrainSupport {
+    public static string Head(Enumerable first,Enumerable second,string firstName,string secondName,string firstItem,string secondItem) {
+        var (firstPreamble,firstCondition,firstDeclaration) = Fragment.DrainParts(first,firstName,firstItem);
+        var (secondPreamble,secondCondition,secondDeclaration) = Fragment.DrainParts(second,secondName,secondItem);
+        return $"{firstPreamble}{secondPreamble}while({firstCondition}&&{secondCondition}){{{firstDeclaration}{secondDeclaration}";
+    }
 }

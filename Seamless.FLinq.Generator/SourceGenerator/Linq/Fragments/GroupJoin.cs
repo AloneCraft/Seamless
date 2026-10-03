@@ -86,7 +86,7 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         var spanExpression = this.outerSource.GetDirectSpanExpression(outerName);
         var loop = spanExpression is null
             ? $$"""
-                while({{outerName}}.TryGetNext(out var {{itemName}})){
+                {{DrainLoopHead(this.outerSource,outerName,itemName)}}
                     {{consumerName}}.Consume({{itemName}});
                 }
                 """
