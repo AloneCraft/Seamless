@@ -1,3 +1,4 @@
+using Microsoft.CodeAnalysis.CSharp;
 namespace Seamless.FLinq.Generator;
 
 // 中間段の追加。
@@ -252,6 +253,12 @@ internal static partial class PipelineBuilder {
             outputType=resultSelector.ReturnTypeName;
         }
 
+        if(!usesIndex
+            &&TryCreateSingleRepeatSelect(semanticModel,invocation.ArgumentList.Arguments[0].Expression,collectionSelector,resultSelector,innerElementType,outputType) is { } singleSelect) {
+            stages.Add(new PipelineStage(PipelineStageKind.Select,singleSelect,null,currentElementType,outputType));
+            currentElementType=outputType;
+            return true;
+        }
         stages.Add(new PipelineStage(
             PipelineStageKind.SelectMany,
             collectionSelector,
@@ -265,6 +272,56 @@ internal static partial class PipelineBuilder {
             innerIsArray: innerIsArray));
         currentElementType=outputType;
         return true;
+    }
+
+    // SelectMany(x => Enumerable.Repeat(e,1)[,(x,y) => r]) は、要素ごとにちょうど1つを流すので Select(x => e) / Select(x => r(x,e)) と同じ。
+    // FLinq の契約(.Anchor の無い式は純粋)で e は1回評価すればよい。結果選択子の中で y を何度使っても e は同じ値になる。
+    private static LambdaFunc? TryCreateSingleRepeatSelect(
+        SemanticModel semanticModel,
+        ExpressionSyntax collectionSelectorExpression,
+        FuncFragment collectionSelector,
+        FuncFragment? resultSelector,
+        string innerElementType,
+        string outputType) {
+        if(collectionSelectorExpression is not LambdaExpressionSyntax { Body: InvocationExpressionSyntax repeatInvocation }
+            ||semanticModel.GetSymbolInfo(repeatInvocation).Symbol is not IMethodSymbol { Name: "Repeat" } repeat
+            ||repeat.ContainingType?.ToDisplayString()!="System.Linq.Enumerable"
+            ||repeatInvocation.ArgumentList.Arguments.Count!=2
+            ||semanticModel.GetConstantValue(repeatInvocation.ArgumentList.Arguments[1].Expression) is not { HasValue: true,Value: 1 }
+            ||collectionSelector.ContainsAnchor
+            ||collectionSelector.CanInvokeAsDelegate
+            ||!collectionSelector.CanInlineAssign
+            ||collectionSelector.ParameterNames.Length!=1
+            ||resultSelector is { ContainsAnchor: true }
+            ||resultSelector is { CanInvokeAsDelegate: true }
+            ||resultSelector is { CanInlineAssign: false }
+            ||resultSelector is { RequiresStatementInlining: true }) {
+            return null;
+        }
+        // 展開済みの本体(this. の補い・巻き上げを反映した形)から Repeat の第1引数を取り出す。
+        if(SyntaxFactory.ParseExpression(collectionSelector.InlineBody) is not InvocationExpressionSyntax { ArgumentList.Arguments.Count: 2 } renderedRepeat) {
+            return null;
+        }
+        var parameter = collectionSelector.ParameterNames[0];
+        var element = $"(({innerElementType})({renderedRepeat.ArgumentList.Arguments[0].Expression}))";
+        string body;
+        try {
+            body=resultSelector is null ? element : resultSelector.RenderInlineExpression(parameter,element);
+        } catch(InvalidOperationException) {
+            return null;
+        }
+        return new LambdaFunc {
+            ReturnTypeName=outputType,
+            ParameterTypeNames=collectionSelector.ParameterTypeNames.ToArray(),
+            ParameterNames=[parameter],
+            CanGenerateMethod=collectionSelector.CanGenerateMethod&&(resultSelector?.CanGenerateMethod??true),
+            CanInlineAssign=true,
+            InlineBody=body,
+            CapturedLocals=collectionSelector.CapturedLocals.Concat(resultSelector?.CapturedLocals??[]).Distinct().ToArray(),
+            HoistedLocals=collectionSelector.HoistedLocals.Concat(resultSelector?.HoistedLocals??[]).Distinct().ToArray(),
+            BodyUnsafeAccessorCodes=collectionSelector.BodyUnsafeAccessorCodes.Concat(resultSelector?.BodyUnsafeAccessorCodes??[]).Distinct().ToArray(),
+            SupportingMemberSources=collectionSelector.SupportingMemberSources+(resultSelector?.SupportingMemberSources??string.Empty),
+        };
     }
 
     private static bool TryGetSequenceElementType(string sequenceTypeName,out string elementTypeName) {
@@ -480,6 +537,13 @@ internal static partial class PipelineBuilder {
             containsAnchor=AnchorAnalysis.ContainsAnchor(comparerExpression,null);
         }
         var descending = kind is PipelineStageKind.OrderByDescending or PipelineStageKind.ThenByDescending;
+        // 恒等のキー選択子(x => x)は Order()/OrderDescending() と同じ(キーを計算しない経路)にする。.Anchor 付きは評価を残す。
+        if(keySelector.IsIdentity
+            &&!keySelector.ContainsAnchor
+            &&keySelector.ReturnTypeName==currentElementType) {
+            stages.Add(new PipelineStage(kind,null,comparer,currentElementType,currentElementType,keyType: currentElementType,descending: descending,containsAnchor: containsAnchor));
+            return true;
+        }
         stages.Add(new PipelineStage(kind,keySelector,comparer,currentElementType,currentElementType,keyType: keySelector.ReturnTypeName,descending: descending,containsAnchor: containsAnchor));
         return true;
     }

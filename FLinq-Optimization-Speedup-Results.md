@@ -1573,3 +1573,10 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - `.Anchor` のある段・キー選択子・ソースは対象外。
 - テスト: `RangeModuloOrderTests`・`RangeModuloKeyTests`・`PipelineNoOpNormalizationTests`(負の値・0 をまたぐ区間・int の端・空・不正な引数を System.Linq と突き合わせ)。形状テストを `RangeModuloOrderByConsumeWalksResidueClasses` に更新。
 - 結果: 次の取り直しで記録する。
+
+## 2026-10-03 SelectMany(x => Enumerable.Repeat(e,1)) を Select に、OrderBy(x => x) を Order() にする(採用)
+
+- `SelectMany(x => Enumerable.Repeat(e,1)[,(x,y) => r])` は要素ごとにちょうど1つを流すので `Select(x => e)` / `Select(x => r(x,e))` と同じ(Repeat の個数が定数1のときだけ。e は契約上純粋なので1回の評価でよい)。射影融合タブの SelectMany_collection_Select_member(理想比5〜19倍)。
+- `OrderBy(x => x)`・`OrderByDescending(x => x)` は、キーを計算しない Order()/OrderDescending() と同じ経路にする(Array/List/IEnumerable の Int32 で理想比 2.6〜3倍だった。Order() は1.1倍)。
+- どちらもラムダに `.Anchor` があれば従来どおり。テストは `PipelineNoOpNormalizationTests`(Repeat の個数が2の形・型変換を含む)。
+- 結果: 次の取り直しで記録する。
