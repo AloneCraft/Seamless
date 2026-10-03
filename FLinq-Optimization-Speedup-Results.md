@@ -1745,3 +1745,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 
 - 原因: 集合演算(断片)のソース・第2ソースが Where の列挙子の構造体だと、差し替えメソッド→Where の構造体→根の構造体の入れ子になる(参照型の共有ジェネリックコードで内側がインライン化されない)。
 - 修正: どちらかに Where があり、両方が「根(配列・List、または IEnumerable)の上に添字の無い Where が0個以上」の形なら、根を直接回して述語をその場に展開する(Join と同じ補助 `TryPeelWheres`・`RenderRootLoop` を Fragment へ移して共有)。
+
+## 2026-10-04 先頭が Concat で後ろに Where/Select が並ぶ形と、Range の Union の第2ソースは、根を直接回す(採用候補)
+
+- 原因: 押し下げタブの Range の Concat_second_Where(理想の3.0倍)は、Concat と Where の段の並びを列挙子の構造体で回していた(Concat への押し下げは利得が無いので書き換えない方針)。Range の Union_second_Where(3.0倍)は、Range の部分は集合に入れずに流すようになったが、第2ソース(Where の付いた IEnumerable)は Where の構造体→根の構造体を回していた。
+- 修正: 先頭が Concat で後ろに添字の無い Where/Select だけが並ぶとき、段は要素ごとなので、第1ソース・第2ソースの根(Range・span を出せる根・IEnumerable。第2ソースは Where を剥がした根)をそれぞれ差し替えメソッドの中で直接回して段をその場に展開する。Range の部分で段が偶奇の Where 1つなら2刻み。Range の Union の第2ソースも根と述語に分けて直接回す。評価の順は従来と同じ(第1・第2ソースの式、第1ソースの要素、第2ソースの要素)。
+- テスト: `ConcatThenStatelessConsumeTests`(Range+偶奇、Select の後の Where、配列+Where の付いた遅延の第2ソース、Where の付いた遅延の第1ソース+Range、負の値・空・不正な件数・int の端)。

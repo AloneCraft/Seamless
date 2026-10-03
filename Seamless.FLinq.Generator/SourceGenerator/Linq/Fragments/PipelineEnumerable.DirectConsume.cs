@@ -31,6 +31,7 @@ internal sealed partial class PipelineEnumerable {
         this.RenderRangeParityConsume(consumerName)
         ??this.RenderRangeUnionConsume(consumerName)
         ??this.RenderSpanReverseConsume(consumerName)
+        ??this.RenderConcatThenStatelessConsume(consumerName)
         ??this.RenderSingleTakeWhileDirectConsume(consumerName)
         ??this.RenderSingleSkipWhileDirectConsume(consumerName)
         ??this.RenderSingleConcatDirectConsume(consumerName)
@@ -218,6 +219,112 @@ internal sealed partial class PipelineEnumerable {
             """;
     }
 
+    // 先頭が Concat で、後ろに添字の無い Where/Select だけが並ぶとき、段は要素ごとなので「第1ソースに段を適用して流し、
+    // 続けて第2ソースに段を適用して流す」と同じ。それぞれの根(Range・span を出せる根・IEnumerable、第2ソースは Where を
+    // 剥がした根)を差し替えメソッドの中で直接回して段をその場に展開する。Range の部分で段が偶奇の Where 1つなら2刻み。
+    // 評価の順は従来と同じ(第1ソース・第2ソースの式、第1ソースの要素、第2ソースの要素)。偶奇の2刻みは述語を評価しないので .Anchor があれば使わない。
+    private string? RenderConcatThenStatelessConsume(string consumerName) {
+        if(stages.Count<2
+            ||stages[0] is not { Kind: PipelineStageKind.Concat,SecondSource: { } secondSource } concat
+            ||concat.ContainsAnchor
+            ||source.TreeContainsAnchor()
+            ||secondSource.TreeContainsAnchor()
+            ||secondSource.ElementType!=source.ElementType
+            ||stages.Skip(1).Any(static stage => stage.Kind is not (PipelineStageKind.Select or PipelineStageKind.Where)
+                ||stage.UsesIndex
+                ||stage.Func is not { } function
+                ||function.ContainsAnchor
+                ||function.RequiresStatementInlining
+                ||function.CanInvokeAsDelegate
+                ||!function.CanInlineAssign)) {
+            return null;
+        }
+        Enumerable firstRoot;
+        FuncFragment[] firstPredicates;
+        if(source is RangeRoot) {
+            firstRoot=source;
+            firstPredicates=System.Array.Empty<FuncFragment>();
+        } else if(!TryPeelWheres(source,out firstRoot,out firstPredicates)) {
+            return null;
+        }
+        if(!TryPeelWheres(secondSource,out var secondRoot,out var secondPredicates)) {
+            return null;
+        }
+        string firstExpression;
+        string secondExpression;
+        try {
+            firstExpression=firstRoot is RangeRoot ? string.Empty : firstRoot.GetEnumeratorExpression;
+            secondExpression=secondRoot.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var firstName = $"__concatFirstRoot{this.result}";
+        var secondName = $"__concatSecondRoot{this.result}";
+        var firstItemName = $"__concatFirstItem{this.result}";
+        var secondItemName = $"__concatSecondItem{this.result}";
+        var functions = stages.Skip(1).Select(static stage => stage.Func!).Concat(firstPredicates).Concat(secondPredicates).ToArray();
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(functions),
+            this.StaticDelegateLocalDeclarations(functions),
+        }.Where(static text => !string.IsNullOrWhiteSpace(text)));
+        string StagesBody(string itemName) {
+            var body = new StringBuilder();
+            body.AppendLine($"    var {this.ItemName(1)}={itemName};");
+            var currentName = this.ItemName(1);
+            for(var index = 1;index<stages.Count;index++) {
+                currentName=this.AppendStage(body,stages[index],currentName,index);
+            }
+            body.AppendLine($"    {consumerName}.Consume({currentName});");
+            return "{\n"+body.ToString().TrimEnd()+"\n}";
+        }
+        string firstLoop;
+        if(firstRoot is RangeRoot range) {
+            var start = $"__concatStart{this.result}";
+            var count = $"__concatCount{this.result}";
+            var end = $"__concatEnd{this.result}";
+            var value = $"__concatValue{this.result}";
+            var prepare = range.RenderArgumentPreparation(start,count);
+            if(stages.Count==2&&stages[1].Kind==PipelineStageKind.Where&&RangePredicateOptimizer.TryExtractParity(stages[1].Func!,false,out var wantEven)) {
+                var wanted = wantEven ? "0" : "1";
+                firstLoop=$$"""
+                    {{prepare}}
+                    var {{end}}=(long){{start}}+{{count}};
+                    for(var {{value}}=(long){{start}}+((((long){{start}}&1)=={{wanted}}) ? 0 : 1);{{value}}<{{end}};{{value}}+=2){
+                        {{consumerName}}.Consume((int){{value}});
+                    }
+                    """;
+            } else {
+                firstLoop=$$"""
+                    {{prepare}}
+                    var {{end}}=(long){{start}}+{{count}};
+                    for(var {{value}}=(long){{start}};{{value}}<{{end}};{{value}}++){
+                        var {{firstItemName}}=(int){{value}};
+                    {{IndentLines(StagesBody(firstItemName),"    ")}}
+                    }
+                    """;
+            }
+        } else {
+            firstLoop=$"using var {firstName}={firstExpression};\n"+this.RenderRootLoop(firstRoot,firstPredicates,firstName,firstItemName,StagesBody(firstItemName));
+        }
+        // 第1ソースが Range のときも、第2ソースの式は第1ソースの引数の検査の後、要素を流す前に評価する(従来の構造体の作成と同じ順)。
+        var secondDeclaration = $"using var {secondName}={secondExpression};";
+        string body;
+        if(firstRoot is RangeRoot) {
+            var split = firstLoop.IndexOf("var __concatEnd",StringComparison.Ordinal);
+            body=firstLoop.Substring(0,split)+secondDeclaration+"\n"+firstLoop.Substring(split);
+        } else {
+            var split = firstLoop.IndexOf('\n');
+            body=firstLoop.Substring(0,split+1)+secondDeclaration+"\n"+firstLoop.Substring(split+1);
+        }
+        return $$"""
+            {
+                {{localDeclarations}}
+                {{IndentLines(body,"    ").TrimStart()}}
+                {{IndentLines(this.RenderRootLoop(secondRoot,secondPredicates,secondName,secondItemName,StagesBody(secondItemName)),"    ").TrimStart()}}
+            }
+            """;
+    }
+
     // span を出せる根の後に添字の無い Where/Select と Reverse が1つだけ並ぶとき、Reverse は要素ごとの段と入れ替えられる
     // (Where/Select は順を保つ)ので、span を末尾から回して段をその場に展開する(要素を溜めない)。
     // 述語・選択子を評価する順が逆になるので、.Anchor があれば使わない。
@@ -298,9 +405,14 @@ internal sealed partial class PipelineEnumerable {
             ||!predicate.CanInlineAssign)) {
             return null;
         }
+        // 第2ソースが根と Where の並びなら根を直接回す(Where の構造体→根の構造体を回さない)。そうでなければ第2ソースの列挙子を回す。
+        if(!TryPeelWheres(secondSource,out var secondRoot,out var secondPredicates)) {
+            secondRoot=secondSource;
+            secondPredicates=System.Array.Empty<FuncFragment>();
+        }
         string secondExpression;
         try {
-            secondExpression=secondSource.GetEnumeratorExpression;
+            secondExpression=secondRoot.GetEnumeratorExpression;
         } catch(NotSupportedException) {
             return null;
         }
@@ -314,12 +426,13 @@ internal sealed partial class PipelineEnumerable {
         var seenName = $"__unionSeen{this.result}";
         var functions = wheres.Select(static stage => stage.Func!).ToArray();
         var localDeclarations = string.Join("\n",new[]{
-            this.HoistedLocalDeclarations(functions),
-            this.StaticDelegateLocalDeclarations(functions),
+            this.HoistedLocalDeclarations(functions.Concat(secondPredicates).ToArray()),
+            this.StaticDelegateLocalDeclarations(functions.Concat(secondPredicates).ToArray()),
         }.Where(static text => !string.IsNullOrWhiteSpace(text)));
         string PassesAll(string item) => functions.Length==0
             ? "true"
             : string.Join("&&",functions.Select(function => "("+function.RenderInlineExpression(item)+")"));
+        var secondBody = $"if({secondItemName}>={start}&&{secondItemName}<{end}&&{PassesAll(secondItemName)}) continue;\nif({seenName}.Add({secondItemName})){{\n    {consumerName}.Consume({secondItemName});\n}}";
         string firstLoop;
         if(functions.Length==1&&RangePredicateOptimizer.TryExtractParity(functions[0],false,out var wantEven)) {
             var wanted = wantEven ? "0" : "1";
@@ -346,14 +459,7 @@ internal sealed partial class PipelineEnumerable {
                 using var {{secondName}}={{secondExpression}};
                 {{IndentLines(firstLoop,"    ").TrimStart()}}
                 var {{seenName}}=new global::System.Collections.Generic.HashSet<int>();
-                {{DrainLoopHead(secondSource,secondName,secondItemName)}}
-                    if({{secondItemName}}>={{start}}&&{{secondItemName}}<{{end}}&&{{PassesAll(secondItemName)}}){
-                        continue;
-                    }
-                    if({{seenName}}.Add({{secondItemName}})){
-                        {{consumerName}}.Consume({{secondItemName}});
-                    }
-                }
+                {{IndentLines(this.RenderRootLoop(secondRoot,secondPredicates,secondName,secondItemName,secondBody),"    ").TrimStart()}}
             }
             """;
     }
