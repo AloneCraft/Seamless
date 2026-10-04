@@ -129,7 +129,13 @@ internal sealed partial class PipelineEnumerable {
                     var secondCount = $"__secondCount{this.item}_{index}";
                     builder.AppendLine($"this.{this.SecondSetName(index)} = new(this.{this.SecondEnumeratorName(this.SecondOrdinal(index))}.TryGetNonEnumeratedCount(out var {secondCount})?{secondCount}:0,{this.ComparerName(this.ComparerOrdinal(index))});");
                     if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
-                        builder.AppendLine($"this.{this.SetName(index)} = new({this.ComparerName(this.ComparerOrdinal(index))});");
+                        // 出したものの集合は第1ソースの要素が入るので、前の段が Where/Select だけなら根の件数で作る
+                        // (Take などで途中で止まる並びでは根の件数が集合へ入る数より桁違いに大きくなり得る)。
+                        var outputCount = $"__exceptOutputCount{this.item}_{index}";
+                        var outputCapacity = stages.Take(index).All(static before => before.Kind is PipelineStageKind.Where or PipelineStageKind.Select)
+                            ? $"this.{this.e}.TryGetNonEnumeratedCount(out var {outputCount})?{outputCount}:0"
+                            : "0";
+                        builder.AppendLine($"this.{this.SetName(index)} = new({outputCapacity},{this.ComparerName(this.ComparerOrdinal(index))});");
                     }
                 }
             }

@@ -1885,3 +1885,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: Min/Max(selector) と同じく、span のループの中で毎回「最初の要素か」を判定し(`__first||Compare`)、整数のキーも `Comparer<T>.Default.Compare` で比べていた。
 - 変更: `Bases/MinMaxByBase.cs` の span ループを `__span[0]` で初期化して添字1から回す形にし、キーが整数型なら演算子で比べる(浮動小数点数と参照型は Compare のまま)。
 - 計測(Array・List・IEnumerable の3タブ、性能コア1個で2周、直前の4回と比較): MinBy/MaxBy の12行の幾何平均 1.051〜1.093 → 1.043/0.993。タブ全体は Array 0.938〜0.952 → 0.952/0.962、List 0.931〜0.958 → 0.941/0.945、IEnumerable 0.950〜1.004 → 0.986/0.978(いずれもぶれの範囲)。
+
+## 2026-10-04 段の並びの Except は、出したものの集合も第1ソースの件数で作る(採用)
+
+- 原因: 段の並びの Except は第2ソースの集合と「出したものの集合」の2つを持ち、959d22ea で第2ソースの集合だけ件数どおりに作ったが、出したものの集合は最小の大きさから広げ直していた。
+- 変更: 出したものの集合を、前の段が Where/Select だけなら根の件数で作る(Take などで途中で止まる並びでは 0)(`PipelineEnumerable.EnumeratorMembers.cs`)。
+- 計測(押し下げ・Range の2タブ、性能コア1個で2周、12回目と比較): ListInt32 Except_first_Where 1.90/1.82 → 0.65/0.72、Except を含む9行の幾何平均 1.070/1.098 → 0.834/0.847。タブ全体は押し下げ 1.033/1.055 → 0.985/0.998、Range 1.008/0.994 → 1.002/1.007。
