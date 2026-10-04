@@ -45,6 +45,7 @@ public sealed class MaterializeConsumeElisionTests {
             public static string RunReceiver(bool stop) => new Sink(stop).Drain(static sink => Receiver(sink));
             public static string RunAnchored(bool stop) => new Sink(stop).Drain(static sink => Anchored(sink));
             public static string RunCast(bool stop) => new Sink(stop).Drain(static sink => Cast(sink));
+            public static string RunStaticCall(bool stop) => new Sink(stop).Drain(static sink => StaticCall(sink));
 
             [LinqIntercept(true)]
             private static void Array(Sink sink) => sink.Consume(Values.Select(x => Mark(x)*10).ToArray());
@@ -56,6 +57,9 @@ public sealed class MaterializeConsumeElisionTests {
             private static void Anchored(Sink sink) => sink.Consume(Values.Select(x => Mark(x).Anchor*10).ToArray());
             [LinqIntercept(true)]
             private static void Cast(Sink sink) => sink.Consume(Values.Select(x => (object)Mark(x)).Cast<int>().ToArray());
+            // 静的呼び出しの形(List<T>.ToArray を避けるために書く形)も同じく作らない。
+            [LinqIntercept(true)]
+            private static void StaticCall(Sink sink) => System.Linq.Enumerable.ToArray(Values.Select(x => Mark(x)-1)).Consume(sink);
         }
         public static class SinkExtensions {
             public static void Consume<T>(this IEnumerable<T> source,Sink sink) {
@@ -73,15 +77,17 @@ public sealed class MaterializeConsumeElisionTests {
     [InlineData("Receiver",false,"2,3,4,5,6,7,8",7)]
     [InlineData("Anchored",false,"10,20,30,40,50,60,70",7)]
     [InlineData("Cast",false,"1,2,3,4,5,6,7",7)]
+    [InlineData("StaticCall",false,"0,1,2,3,4,5,6",7)]
     // 1件目で止めると、作らずに流す形は元の列を1件分だけ評価する。
     [InlineData("Array",true,"10",1)]
     [InlineData("List",true,"1",1)]
     [InlineData("Receiver",true,"2",1)]
+    [InlineData("StaticCall",true,"0",1)]
     // .Anchor 付きと Cast を含む列は作ってから流す(全件評価してから1件目で止まる)。
     [InlineData("Anchored",true,"10",7)]
     [InlineData("Cast",true,"1",7)]
     public void 流すだけのToArrayとToListは作らない(string method,bool stop,string expected,int calls) {
-        var (compilation,_) = ExecutableGeneration.Generate(Source,"MaterializeConsumeElisionProbe",5);
+        var (compilation,_) = ExecutableGeneration.Generate(Source,"MaterializeConsumeElisionProbe",6);
         var (actual,actualCalls) = ExecutableGeneration.Run(compilation,"Sample.Container",container => {
             var result = (string)container.GetMethod("Run"+method)!.Invoke(null,[stop])!;
             return (result,(int)container.GetField("Calls")!.GetValue(null)!);

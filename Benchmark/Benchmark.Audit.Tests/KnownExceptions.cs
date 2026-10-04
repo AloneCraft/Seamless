@@ -31,7 +31,6 @@ public static class KnownExceptions {
         new(AuditInvariant.置き換え漏れ,Array,Base,"ElementAtOrDefault_index","配列の ElementAtOrDefault(int) が傍受されず System.Linq のまま(原因未調査)"),
         new(AuditInvariant.置き換え漏れ,List,Base,"ElementAtOrDefault_index","List の ElementAtOrDefault(int) が傍受されず System.Linq のまま(原因未調査)"),
         new(AuditInvariant.置き換え漏れ,IEnumerable,Base,"ElementAt_index","ベンチ定義が [LinqIntercept(false)] の ElementAt_index_Core を経由しており、FLinq 列が System.Linq を測っている"),
-        new(AuditInvariant.外部LINQ,List,Base,"ToArray","List の ToArray を List<T>.ToArray との衝突回避で静的形 Enumerable.ToArray(src) に書いたため、生成器が不透明な入口として System.Linq の ToArray を呼ぶ"),
         new(AuditInvariant.外部LINQ,IEnumerable,Base,"Single_predicate","[LinqIntercept(false)] の srcOne のコレクション式 [FromInt(0)] が展開時に Enumerable.Repeat(…,1) へ書き換わる"),
         new(AuditInvariant.理想形との差,Optimization,"Shared.Linq.Optimization.PredicatePushdown.List`1","Reverse_Where_predicate","ベンチが List を IEnumerable<T> へキャストしてから Reverse するので、FLinq は IEnumerable の根として列挙子で溜める(理想版はキャスト前の List の span を使う)。段をまとめた Consume を差し替えメソッドへ展開したので、監査が辿る範囲に入った"),
     ];

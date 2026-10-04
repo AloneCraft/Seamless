@@ -1808,3 +1808,15 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: 剰余類を回す Consume が、キー(1000個)ごとに 64 ビットの剰余を2回計算していた。1キーあたりの要素は約4個なので、この計算が目立つ(推測)。理想版は最初の値を直接求める。
 - 変更: 同じキーの中が昇順の形(OrderBy・OrderByDescending・ThenBy)は、前のキーの最初の値に ±1 して区間へ折り返す。区間が変わるキー(最初・0・±1)だけ剰余で求める(`RangeModuloOrderRoot.cs`)。ThenByDescending は従来どおり。形状テスト `RangeModuloOrderTests` を新しい形に合わせた。
 - 計測(Range タブ、性能コア1個で2周、10回目・11回目と比較): OrderByDescending 1.52〜1.57 → 1.15/1.17、OrderBy 1.46〜1.63 → 1.54/1.31、ThenBy 1.56〜1.72 → 1.46/1.29、ThenByDescending(変更なし)1.22〜1.35 → 1.30/1.26。タブ全体 0.994〜1.038 → 1.021/1.008(ぶれの範囲)。
+
+## 2026-10-04 Min/Max(selector) の span ループは最初の要素で初期化し、残りだけを比べる(採用)
+
+- 原因: span のループの中で毎回「最初の要素か」を判定していた(`__first||Compare`)。理想版は最初の要素で初期化して残りを比べる。
+- 変更: `Bases/MinMaxSelectorBase.cs` の span 分岐を、`__span[0]` で初期化して添字1から回す形にした。比べ方(`Comparer<T>.Default`)は変えない。
+- 計測(Array・List・IEnumerable の3タブ、性能コア1個で2周、10回目・12回目と比較): List ClassInt32 Min_selector 1.21〜1.82 → 1.24/1.03、ListInt32 Min_selector 0.82〜1.32 → 1.29/0.89(ぶれが大きい)。タブ全体は変わらないか、わずかに改善(List 0.951〜0.968 → 0.941/0.947)。
+
+## 2026-10-04 Consume へ渡すだけの静的呼び出し Enumerable.ToArray(x) も作らずに流す(採用)
+
+- 原因: 流すだけの ToArray/ToList を省く処理が拡張メソッドの形 `x.ToArray()` だけを見ており、List<T>.ToArray との衝突を避けて書いた静的形 `Enumerable.ToArray(x)` では System.Linq の ToArray で複製を作ってから流していた。理想版は元の List をそのまま流す。
+- 変更: `TryGetElidableMaterializeSource` が静的呼び出しの形(引数1つ)も受ける。`MaterializeConsumeElisionTests` に静的形を追加し、IL 監査の既知例外(List の ToArray が外部 LINQ を呼ぶ)を消した。
+- 計測(同上): List ClassInt32 ToArray 1.47〜1.59 → 1.04/0.97、ListInt32 ToArray 1.07〜1.27 → 1.05/0.95。

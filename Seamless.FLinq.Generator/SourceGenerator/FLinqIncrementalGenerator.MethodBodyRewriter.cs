@@ -340,9 +340,14 @@ public sealed partial class FLinqIncrementalGenerator {
     // ソース式の評価が消費側の式より後になるので、消費側の式が評価順の観測できない形(変数・フィールド)のときだけ省く。
     private bool TryGetElidableMaterializeSource(InvocationExpressionSyntax invocation,SemanticModel semanticModel,out InvocationExpressionSyntax source) {
         source=null!;
-        if(invocation.ArgumentList.Arguments.Count!=0
-            ||invocation.Expression is not MemberAccessExpressionSyntax memberAccess
-            ||StripConsumeParentheses(memberAccess.Expression) is not InvocationExpressionSyntax receiver
+        // 拡張メソッドの形 x.ToArray() と、静的呼び出しの形 Enumerable.ToArray(x)(List<T>.ToArray を避けるために書く)の両方。
+        var receiverExpression = invocation.ArgumentList.Arguments.Count switch {
+            0 when invocation.Expression is MemberAccessExpressionSyntax memberAccess => memberAccess.Expression,
+            1 when semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol { IsStatic: true, ReducedFrom: null } => invocation.ArgumentList.Arguments[0].Expression,
+            _ => null,
+        };
+        if(receiverExpression is null
+            ||StripConsumeParentheses(receiverExpression) is not InvocationExpressionSyntax receiver
             ||semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method
             ||(method.ReducedFrom??method) is not { Name: "ToArray" or "ToList" } definition
             ||!IsSupportedLinqEnumerableMethod(definition)
