@@ -1837,3 +1837,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: Union の集合を最小の大きさで作り、足しながら広げ直していた。理想版は両方の件数の和で作る。
 - 変更: 列挙せずに件数が分かる分(第1ソースは前の段が Where/Select だけのときに限る。Take などで途中で止まる並びでは根の件数が桁違いに大きくなり得るため)の和で集合を作る(`PipelineEnumerable.EnumeratorMembers.cs`)。
 - 計測(押し下げ・Array・Range の3タブ、性能コア1個で2周、11回目と比較): Union を含む13行の幾何平均 0.847/0.890 → 0.807/0.831。タブ全体は押し下げ 1.061/1.014 → 1.055/1.000、Array 0.964/0.964 → 0.956/0.964、Range 0.993/0.996 → 0.993/0.987。
+
+## 2026-10-04 単独の Except/ExceptBy は集合を両方のソースの件数の和で作る(採用)
+
+- 原因: 第2ソースを先に集合へ入れる形で、集合を第2ソースの件数で作っていた。Except は第1ソースの要素も同じ集合へ足すので広げ直しが起きる。理想版は両方の件数の和で作る。
+- 変更: `SetBases.cs` で、第1ソースを足す演算(SourceAcceptMethod が Add)は両方の件数の和で作る初期化(`AppendBinaryHashSetInitialization`)を使う。Intersect(Remove)は従来どおり第2ソースの件数。
+- 計測(Array・List・IEnumerable の3タブ、性能コア1個で2周、11回目と比較): Except/ExceptBy の12行の幾何平均 0.772/0.775 → 0.675/0.671。タブ全体は Array 0.964/0.964 → 0.952/0.963、IEnumerable 0.994/0.991 → 0.966/0.978、List 0.938/0.945 → 0.946/0.944。

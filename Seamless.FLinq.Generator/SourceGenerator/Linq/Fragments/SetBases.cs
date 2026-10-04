@@ -144,7 +144,12 @@ internal abstract class SetBase(int 番号,Enumerable source,Enumerable second,s
             builder.AppendLine(this.RenderRootLoop(sourceRoot,sourcePredicates,sourceName,valueName,$"if({setName}.Add({valueName})){{\n    {consumerName}.Consume({valueName});\n}}"));
             builder.AppendLine(this.RenderRootLoop(secondRoot,secondPredicates,secondName,secondValueName,$"if({setName}.Add({secondValue})){{\n    {consumerName}.Consume({secondValue});\n}}"));
         } else {
-            TraversalSupport.AppendHashSetInitialization(builder,setName,source.ElementType,secondName,this.Comparer);
+            if(operation.SourceAcceptMethod=="Add") {
+                // Except は第1ソースの要素も集合へ足すので、両方の件数の和で作る(足しながら広げ直さない)。
+                this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+            } else {
+                TraversalSupport.AppendHashSetInitialization(builder,setName,source.ElementType,secondName,this.Comparer);
+            }
             builder.AppendLine(this.RenderRootLoop(secondRoot,secondPredicates,secondName,secondValueName,$"{setName}.Add({secondValue});"));
             builder.AppendLine(this.RenderRootLoop(sourceRoot,sourcePredicates,sourceName,valueName,$"if({setName}.{operation.SourceAcceptMethod}({valueName})){{\n    {consumerName}.Consume({valueName});\n}}"));
         }
@@ -170,7 +175,12 @@ internal abstract class SetBase(int 番号,Enumerable source,Enumerable second,s
         if(!operation.PreloadSecondFirst) {
             this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
         } else {
-            TraversalSupport.AppendHashSetInitialization(builder,setName,source.ElementType,secondName,this.Comparer);
+            if(operation.SourceAcceptMethod=="Add") {
+                // Except は第1ソースの要素も集合へ足すので、両方の件数の和で作る(足しながら広げ直さない)。
+                this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+            } else {
+                TraversalSupport.AppendHashSetInitialization(builder,setName,source.ElementType,secondName,this.Comparer);
+            }
         }
         if(!operation.PreloadSecondFirst) {
             TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
@@ -579,7 +589,12 @@ internal abstract class SetByBase(int 番号,Enumerable source,Enumerable second
             if(!operation.PreloadSecondFirst) {
                 this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
             } else {
+                if(operation.SourceAcceptMethod=="Add") {
+                // ExceptBy は第1ソースのキーも集合へ足すので、両方の件数の和で作る(足しながら広げ直さない)。
+                this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+            } else {
                 TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
+            }
             }
             if(!operation.PreloadSecondFirst) {
                 TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
@@ -608,7 +623,12 @@ internal abstract class SetByBase(int 番号,Enumerable source,Enumerable second
         if(!operation.PreloadSecondFirst) {
             this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
         } else {
-            TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
+            if(operation.SourceAcceptMethod=="Add") {
+                // ExceptBy は第1ソースのキーも集合へ足すので、両方の件数の和で作る(足しながら広げ直さない)。
+                this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+            } else {
+                TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
+            }
         }
         this.AppendSetByCollectLoop(builder,secondName,setName);
         this.AppendSetByConsumeLoop(builder,sourceName,consumerName,setName,operation.SourceAcceptMethod);
