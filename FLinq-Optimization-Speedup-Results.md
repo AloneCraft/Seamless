@@ -1873,3 +1873,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: AggregateBy の列挙子の構造体→根の構造体の入れ子を回していた。参照型の共有ジェネリックコードでは内側がインライン化されない。
 - 変更: `AggregateBy.cs` に、根(配列・List・IEnumerable)を差し替えメソッドの中で直接回して DictionarySlim で集計し、追加順に流す Consume を足した(表は列挙子と同じ DictionarySlim)。
 - 計測(Array・List・IEnumerable の3タブ、性能コア1個で2周、11回目と比較): AggregateBy は IEnumerable ClassInt32 1.29/1.34 → 0.78/0.70、IEnumerable Int32 0.87/0.91 → 0.73/0.74、Array ClassInt32 1.00/0.84 → 0.74/0.75。タブ全体は Array 0.964 → 0.938/0.952、IEnumerable 0.994/0.991 → 0.979/0.965、List 0.938/0.945 → 0.947/0.931。
+
+## 2026-10-04 Min/Max(selector) は結果が整数型なら比較演算子で比べる(採用)
+
+- 原因: 選択子の結果を `Comparer<int>.Default.Compare(value,result)<0` で比べていた。脱仮想化されても int の CompareTo は三方向の比較で分岐が2つになり、理想版の `value<result` より遅い(推測。Array ClassInt32 Min_selector が4回とも 1.32〜1.35)。
+- 変更: `Bases/MinMaxSelectorBase.cs` で、結果が整数型(int・long など)なら演算子で比べる。浮動小数点数は NaN の扱いが違うので Compare のまま。
+- 計測(Array・List・IEnumerable の3タブ、性能コア1個で2周、さらに IEnumerable を2周): Array ClassInt32 Min_selector 1.32〜1.35 → 0.97/1.00。1回目の IEnumerable Int32 Min/Max 1.11〜1.39 は取り直すと 0.98〜1.12 で、変更前(0.79〜1.11)と同じ範囲のぶれだった。タブ全体は Array 0.938/0.952 → 0.948/0.946、List 0.947/0.931 → 0.958/0.946、IEnumerable 0.979/0.965 → 0.959/0.987(取り直し)。

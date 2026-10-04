@@ -62,7 +62,12 @@ internal abstract class MinMaxSelectorBase(int 番号,Enumerable source,FuncFrag
                 ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,lambda)
                 : null);
     }
-    private string CompareCond => direction=="greater" ? "comparer.Compare(value,result)>0" : "comparer.Compare(value,result)<0";
+    // 整数型は Comparer<T>.Default.Compare と比較演算子の結果が同じなので、演算子で比べる(Compare は三方向の比較で分岐が2つになる)。
+    // 浮動小数点数は NaN の扱いが Compare と演算子で違うので Compare のまま。
+    private bool IsIntegralResult => resultType is "int" or "long" or "short" or "byte" or "sbyte" or "ushort" or "uint" or "ulong" or "char" or "nint" or "nuint";
+    private string CompareCond => this.IsIntegralResult
+        ? direction=="greater" ? "value>result" : "value<result"
+        : direction=="greater" ? "comparer.Compare(value,result)>0" : "comparer.Compare(value,result)<0";
     protected override string ComputeMembers => source.CanTryProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
