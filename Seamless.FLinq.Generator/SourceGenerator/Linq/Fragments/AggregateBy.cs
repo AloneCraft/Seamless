@@ -105,4 +105,71 @@ internal class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector
     public override string ElementType => resultElementType;
     protected override string GetEnumeratorDisposeBody => $"this.{this.lookup}?.Dispose(); {this.e}.Dispose();";
 
+    // ソースが根(配列・List、または IEnumerable)なら、AggregateBy の列挙子の構造体を作らずに差し替えメソッドの中で根を直接回して
+    // 集計し、追加順に流す(列挙子の構造体→根の構造体の入れ子は、参照型の共有ジェネリックコードで内側がインライン化されない)。
+    // 全件を集計してから流すのは列挙子と同じなので、選択子の評価の回数と順は変わらない。
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        if(!(source.ProvidesRemainingEnumerator||source is ArrayRoot or ListRoot)) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        string sourceExpression;
+        try {
+            sourceExpression=source.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        var valueType = FuncReturnTypeName(func);
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(keySelector,func),
+            this.StaticDelegateLocalDeclarations(keySelector,func),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var sourceName = $"__aggregateBySource{番号}";
+        var countName = $"__aggregateByCount{番号}";
+        var mapName = $"__aggregateByMap{番号}";
+        var itemName = $"__aggregateByItem{番号}";
+        var keyName = $"__aggregateByKey{番号}";
+        var valueName = $"__aggregateByValue{番号}";
+        var add = $"{this.KeyType} {keyName}=default!;\n{this.FuncAssignStatic(keySelector,nameof(keySelector),keyName,itemName)}\n"
+            +$"ref var {valueName}=ref {mapName}.GetValueRefOrAddDefault({keyName},out var {valueName}Exists);\n"
+            +$"if(!{valueName}Exists){{\n    {valueName}={seed};\n}}\n"
+            +this.FuncAssignStatic(func,nameof(func),valueName,valueName,itemName);
+        var loop = source.GetDirectSpanExpression(sourceName) is { } spanExpression
+            ? $$"""
+                var {{sourceName}}Span={{spanExpression}};
+                var {{mapName}}=new global::Seamless.Linq.DictionarySlim<{{this.KeyType}},{{valueType}}>({{CapacityExpression($"{sourceName}Span.Length")}});
+                for(var {{sourceName}}Index=0;{{sourceName}}Index<{{sourceName}}Span.Length;{{sourceName}}Index++){
+                    var {{itemName}}={{sourceName}}Span[{{sourceName}}Index];
+                {{GroupBySupport.IndentBlock(add,"    ")}}
+                }
+                """
+            : $$"""
+                var {{sourceName}}HasSpan={{sourceName}}.TryGetSpan(out var {{sourceName}}Span);
+                var {{countName}}={{sourceName}}HasSpan ? {{sourceName}}Span.Length : {{sourceName}}.TryGetNonEnumeratedCount(out var {{countName}}Raw) ? {{countName}}Raw : 0;
+                var {{mapName}}=new global::Seamless.Linq.DictionarySlim<{{this.KeyType}},{{valueType}}>({{CapacityExpression(countName)}});
+                if({{sourceName}}HasSpan){
+                    for(var {{sourceName}}Index=0;{{sourceName}}Index<{{sourceName}}Span.Length;{{sourceName}}Index++){
+                        var {{itemName}}={{sourceName}}Span[{{sourceName}}Index];
+                    {{GroupBySupport.IndentBlock(add,"        ")}}
+                    }
+                }else{
+                    {{DrainLoopHead(source,sourceName,itemName)}}
+                    {{GroupBySupport.IndentBlock(add,"        ")}}
+                    }
+                }
+                """;
+        return $$"""
+            {{localDeclarations}}
+            using var {{sourceName}}={{sourceExpression}};
+            {{loop}}
+            try{
+                var {{mapName}}Enumerator={{mapName}}.GetEnumerator();
+                while({{mapName}}Enumerator.TryGetNext(out var {{mapName}}Entry)){
+                    {{consumerName}}.Consume(new {{resultElementType}}({{mapName}}Entry.Key,{{mapName}}Entry.Value));
+                }
+            }finally{
+                {{mapName}}.Dispose();
+            }
+            """;
+    }
+
 }

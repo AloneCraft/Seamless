@@ -1867,3 +1867,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: CountBy の列挙子の構造体→根の構造体の入れ子を回していた。参照型の共有ジェネリックコードでは内側がインライン化されない。
 - 変更: `CountBy.cs` に、根(配列・List・IEnumerable)を差し替えメソッドの中で直接回して Dictionary で数え、追加順に流す形を足した。最初は常にこの形にしたが、int のキーの専用の表(UsesPooledIntMap)より Dictionary が遅く、Int32 の行が悪化した(Array 0.61〜0.65 → 0.87〜0.94)。そこで専用の表を使う形では `RuntimeHelpers.IsReferenceOrContainsReferences<T>()` で分け、要素が参照型のときだけ新しい形にした(型ごとに JIT が定数に畳む)。
 - 計測(Array・List・IEnumerable の3タブ、性能コア1個で2周、11回目と比較): CountBy ClassInt32 は Array 1.18/1.32 → 1.01/1.01、IEnumerable 1.23/1.32 → 0.93/0.92、List 0.93/1.12 → 0.90/0.93。Int32 は変わらない(Array 0.61/0.65 → 0.65/0.67)。タブ全体は Array 0.964 → 0.953/0.962、IEnumerable 0.994/0.991 → 0.975/0.978、List 0.938/0.945 → 0.945/0.952。
+
+## 2026-10-04 AggregateBy は根を直接回して集計する(採用)
+
+- 原因: AggregateBy の列挙子の構造体→根の構造体の入れ子を回していた。参照型の共有ジェネリックコードでは内側がインライン化されない。
+- 変更: `AggregateBy.cs` に、根(配列・List・IEnumerable)を差し替えメソッドの中で直接回して DictionarySlim で集計し、追加順に流す Consume を足した(表は列挙子と同じ DictionarySlim)。
+- 計測(Array・List・IEnumerable の3タブ、性能コア1個で2周、11回目と比較): AggregateBy は IEnumerable ClassInt32 1.29/1.34 → 0.78/0.70、IEnumerable Int32 0.87/0.91 → 0.73/0.74、Array ClassInt32 1.00/0.84 → 0.74/0.75。タブ全体は Array 0.964 → 0.938/0.952、IEnumerable 0.994/0.991 → 0.979/0.965、List 0.938/0.945 → 0.947/0.931。
