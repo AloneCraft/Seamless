@@ -254,7 +254,74 @@ internal class GroupBy_keySelector(int 番号,Enumerable source,FuncFragment key
             &&!source.TreeContainsAnchor()
             &&RangeModuloOrderRoot.TryGetModulus(keySelector,out var modulus)
             ? RangeModuloDistinctRoot.RenderGroupsConsume(range,modulus,番号,consumerName,this.ElementType,"int",string.Empty,static (destination,value) => $"{destination}={value};")
-            : base.GetConsumeExecutionStatement(consumerName);
+            : this.RenderRootGroupsConsume(consumerName)??base.GetConsumeExecutionStatement(consumerName);
+
+    // ソースが根(配列・List、または IEnumerable)なら、GroupBy の列挙子の構造体を作らずに差し替えメソッドの中で根を直接回して
+    // グループを作り、キーの初出順に流す(GroupBy の構造体→根の構造体の入れ子は、参照型の共有ジェネリックコードで内側がインライン化されない)。
+    // 全件を積んでから流すのは列挙子と同じなので、キー選択子の評価の回数と順は変わらない。
+    private string? RenderRootGroupsConsume(string consumerName) {
+        if(!(source.ProvidesRemainingEnumerator||source is ArrayRoot or ListRoot)) {
+            return null;
+        }
+        string sourceExpression;
+        try {
+            sourceExpression=source.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var keyType = this.KeyType;
+        var elementType = source.ElementType;
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(keySelector),
+            this.StaticDelegateLocalDeclarations(keySelector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var sourceName = $"__groupSource{番号}";
+        var countName = $"__groupCount{番号}";
+        var builderName = $"__groupBuilder{番号}";
+        var itemName = $"__groupItem{番号}";
+        var keyName = $"__groupKey{番号}";
+        var firstName = $"__groupFirst{番号}";
+        var groupName = $"__group{番号}";
+        var add = $"{keyType} {keyName}=default!;\n{this.FuncAssignStatic(keySelector,nameof(keySelector),keyName,itemName)}\n{builderName}.Add({keyName},{itemName});";
+        var loop = source.GetDirectSpanExpression(sourceName) is { } spanExpression
+            ? $$"""
+                var {{sourceName}}Span={{spanExpression}};
+                var {{countName}}={{sourceName}}Span.Length;
+                var {{builderName}}=new global::Seamless.Linq.ContiguousLookupBuilder<{{keyType}},{{elementType}}>({{countName}},global::System.Math.Min({{countName}},1024),null);
+                for(var {{sourceName}}Index=0;{{sourceName}}Index<{{sourceName}}Span.Length;{{sourceName}}Index++){
+                    var {{itemName}}={{sourceName}}Span[{{sourceName}}Index];
+                {{GroupBySupport.IndentBlock(add,"    ")}}
+                }
+                """
+            : $$"""
+                var {{sourceName}}HasSpan={{sourceName}}.TryGetSpan(out var {{sourceName}}Span);
+                var {{countName}}={{sourceName}}HasSpan ? {{sourceName}}Span.Length : {{sourceName}}.TryGetNonEnumeratedCount(out var {{countName}}Raw) ? {{countName}}Raw : 0;
+                var {{builderName}}=new global::Seamless.Linq.ContiguousLookupBuilder<{{keyType}},{{elementType}}>({{countName}},global::System.Math.Min({{countName}},1024),null);
+                if({{sourceName}}HasSpan){
+                    for(var {{sourceName}}Index=0;{{sourceName}}Index<{{sourceName}}Span.Length;{{sourceName}}Index++){
+                        var {{itemName}}={{sourceName}}Span[{{sourceName}}Index];
+                    {{GroupBySupport.IndentBlock(add,"        ")}}
+                    }
+                }else{
+                    {{DrainLoopHead(source,sourceName,itemName)}}
+                    {{GroupBySupport.IndentBlock(add,"        ")}}
+                    }
+                }
+                """;
+        return $$"""
+            {{localDeclarations}}
+            using var {{sourceName}}={{sourceExpression}};
+            {{loop}}
+            var {{firstName}}={{builderName}}.GetRootGroupAndClear();
+            if({{firstName}} is not null){
+                var {{groupName}}={{firstName}};
+                do{
+                    {{consumerName}}.Consume(({{this.ElementType}}){{groupName}});
+                    {{groupName}}={{groupName}}.NextGroupInAddOrder!;
+                }while({{groupName}}!={{firstName}});
+            }
+            """;
+    }
 }
 
 internal class GroupBy_keySelector_resultSelector(
