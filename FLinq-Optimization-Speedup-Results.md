@@ -1820,3 +1820,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: 流すだけの ToArray/ToList を省く処理が拡張メソッドの形 `x.ToArray()` だけを見ており、List<T>.ToArray との衝突を避けて書いた静的形 `Enumerable.ToArray(x)` では System.Linq の ToArray で複製を作ってから流していた。理想版は元の List をそのまま流す。
 - 変更: `TryGetElidableMaterializeSource` が静的呼び出しの形(引数1つ)も受ける。`MaterializeConsumeElisionTests` に静的形を追加し、IL 監査の既知例外(List の ToArray が外部 LINQ を呼ぶ)を消した。
 - 計測(同上): List ClassInt32 ToArray 1.47〜1.59 → 1.04/0.97、ListInt32 ToArray 1.07〜1.27 → 1.05/0.95。
+
+## 2026-10-04 (不採用) IEnumerable の根のスカラー終端で、1件目の取得と「もう1件あるか」も列挙子の MoveNext/Current にする
+
+- 試したこと: `BufferedScalar.DrainRemainingEnumerator` の書き換えを、`if(!source.TryGetNext(out var x)) throw/return …;` と `source.TryGetNext(out _)` にも広げた(Single・SingleOrDefault・First・Min など)。
+- 計測(IEnumerable タブ、性能コア1個で2周): Single 1.10〜1.48 → 1.26〜1.42、SingleOrDefault 1.04〜1.49 → 1.12〜1.43、タブ全体 0.964〜0.987 → 0.968/0.977。ぶれの範囲で改善が無いので戻した。
+- 考察(推測): 1件しか無い列で、差の大部分は列挙子の作成と Dispose・try/finally の固定費で、TryGetNext の呼び出し1〜2回では差が出ない。
