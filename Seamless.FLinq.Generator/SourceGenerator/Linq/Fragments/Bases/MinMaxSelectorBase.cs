@@ -71,14 +71,16 @@ internal abstract class MinMaxSelectorBase(int 番号,Enumerable source,FuncFrag
                 {{resultType}} result=default!;
                 if(source.TryGetSpan(out var __span)){
                     if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                    var __first=true;
-                    foreach(var {{this.item}} in __span){
+                    // 最初の要素で初期化し、残りだけを比べる(ループの中で「最初か」を判定しない)。
+                    {
+                        var {{this.item}}=__span[0];
+                        {{this.FuncAssignIndented("            ",selector,nameof(selector),"result",this.item)}}
+                    }
+                    for(var __index=1;__index<__span.Length;__index++){
+                        var {{this.item}}=__span[__index];
                         {{resultType}} value=default!;
                         {{this.FuncAssignIndented("            ",selector,nameof(selector),"value",this.item)}}
-                        if(__first||{{this.CompareCond}}){
-                            __first=false;
-                            result=value;
-                        }
+                        if({{this.CompareCond}}) result=value;
                     }
                 }else{
                     {{source.ElementType}} {{this.item}};
