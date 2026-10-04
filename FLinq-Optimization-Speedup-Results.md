@@ -1826,3 +1826,8 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 試したこと: `BufferedScalar.DrainRemainingEnumerator` の書き換えを、`if(!source.TryGetNext(out var x)) throw/return …;` と `source.TryGetNext(out _)` にも広げた(Single・SingleOrDefault・First・Min など)。
 - 計測(IEnumerable タブ、性能コア1個で2周): Single 1.10〜1.48 → 1.26〜1.42、SingleOrDefault 1.04〜1.49 → 1.12〜1.43、タブ全体 0.964〜0.987 → 0.968/0.977。ぶれの範囲で改善が無いので戻した。
 - 考察(推測): 1件しか無い列で、差の大部分は列挙子の作成と Dispose・try/finally の固定費で、TryGetNext の呼び出し1〜2回では差が出ない。
+
+## 2026-10-04 (直さない) Array ClassInt32 Join_inner の 1.4〜1.8 倍は計測の二極化
+
+- 生成コード(差し替えメソッドで内側の件数表 Dictionary<T,int> を作り、外側の span を回して件数分流す)は理想版と同じ形。
+- 計測の回によって FLinq も理想版も「速い状態(約40〜50µs)」と「遅い状態(約80〜170µs)」を行き来し、比は 0.52〜1.81 に散る(8〜14回目)。コードの差ではないので直さない。
