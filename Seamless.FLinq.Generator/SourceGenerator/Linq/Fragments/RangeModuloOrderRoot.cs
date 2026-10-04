@@ -135,13 +135,53 @@ internal sealed class RangeModuloOrderRoot(
         var valueLoop = descendingWithinKey
             ? $"for(var {value}={first};{value}>={lo};{value}-={modulus})"
             : $"for(var {value}={first};{value}<{hi};{value}+={modulus})";
+        // 同じキーの中が昇順なら、隣のキーの最初の値は前のキーの最初の値の ±1 を区間 [lo,lo+C) へ折り返したものになる。
+        // キーごとの剰余の計算を避け、区間が変わるキー(最初・0・±1)だけ剰余で求める。
+        var bounds = this.KeyBounds(key,start,end,lo,hi,first);
+        if(!descendingWithinKey) {
+            var previous = $"__previousFirst{番号}";
+            var started = $"__started{番号}";
+            var boundary = descendingKeys ? $"{key}==0||{key}==-1" : $"{key}==0||{key}==1";
+            var step = descendingKeys
+                ? $"{first}={previous}-1;\nif({first}<{lo}) {first}+={modulus};"
+                : $"{first}={previous}+1;\nif({first}>={lo}+{modulus}) {first}-={modulus};";
+            var fullFirst = $"{lo}+((((long)({key}<0 ? (long){key}+{modulus} : (long){key})-{lo})%{modulus}+{modulus})%{modulus})";
+            bounds = $$"""
+                var {{lo}}={{key}}>0 ? global::System.Math.Max((long){{start}},1L) : (long){{start}};
+                var {{hi}}={{key}}<0 ? global::System.Math.Min({{end}},0L) : {{end}};
+                long {{first}};
+                if(!{{started}}||{{boundary}}){
+                    {{first}}={{fullFirst}};
+                    {{started}}=true;
+                }else{
+                    {{IndentBlock(step,"    ")}}
+                }
+                {{previous}}={{first}};
+                """;
+            return $$"""
+                {
+                    {{IndentBlock(range.RenderArgumentPreparation(start,count),"    ")}}
+                    var {{end}}=(long){{start}}+{{count}};
+                    if({{count}}>0){
+                        var {{previous}}=0L;
+                        var {{started}}=false;
+                        {{keyLoop}}{
+                            {{IndentBlock(bounds,"            ")}}
+                            {{valueLoop}}{
+                                {{consumerName}}.Consume((int){{value}});
+                            }
+                        }
+                    }
+                }
+                """;
+        }
         return $$"""
             {
                 {{IndentBlock(range.RenderArgumentPreparation(start,count),"    ")}}
                 var {{end}}=(long){{start}}+{{count}};
                 if({{count}}>0){
                     {{keyLoop}}{
-                        {{IndentBlock(this.KeyBounds(key,start,end,lo,hi,first),"            ")}}
+                        {{IndentBlock(bounds,"            ")}}
                         {{valueLoop}}{
                             {{consumerName}}.Consume((int){{value}});
                         }

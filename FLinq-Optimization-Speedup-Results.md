@@ -1802,3 +1802,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: GroupBy の列挙子の構造体→根の構造体の入れ子を回していた。参照型の共有ジェネリックコードでは内側がインライン化されず、IEnumerable の ClassInt32 で理想の1.6〜2倍だった。
 - 変更: `GroupBy_keySelector` の Consume で、根を差し替えメソッドの中で直接回し(IEnumerable は実行時に span を出せれば span、出せなければ残りの列挙子)、`ContiguousLookupBuilder` で作ったグループを初出順に流す(`GroupBy.cs` の `RenderRootGroupsConsume`)。
 - 計測(Array・List・IEnumerable の3タブ、性能コア1個で2周、10回目と比較): IEnumerable ClassInt32 GroupBy_keySelector 1.62/2.00 → 0.91/1.00。タブ全体の幾何平均は Array 0.964/0.975 → 0.944/0.977、IEnumerable 0.987/0.983 → 0.968/0.964、List 0.958/0.951 → 0.959/0.968(ぶれの範囲)。
+
+## 2026-10-04 Range の x%C の並べ替えで、キーごとの剰余を前のキーからの ±1 に置き換える(採用)
+
+- 原因: 剰余類を回す Consume が、キー(1000個)ごとに 64 ビットの剰余を2回計算していた。1キーあたりの要素は約4個なので、この計算が目立つ(推測)。理想版は最初の値を直接求める。
+- 変更: 同じキーの中が昇順の形(OrderBy・OrderByDescending・ThenBy)は、前のキーの最初の値に ±1 して区間へ折り返す。区間が変わるキー(最初・0・±1)だけ剰余で求める(`RangeModuloOrderRoot.cs`)。ThenByDescending は従来どおり。形状テスト `RangeModuloOrderTests` を新しい形に合わせた。
+- 計測(Range タブ、性能コア1個で2周、10回目・11回目と比較): OrderByDescending 1.52〜1.57 → 1.15/1.17、OrderBy 1.46〜1.63 → 1.54/1.31、ThenBy 1.56〜1.72 → 1.46/1.29、ThenByDescending(変更なし)1.22〜1.35 → 1.30/1.26。タブ全体 0.994〜1.038 → 1.021/1.008(ぶれの範囲)。
