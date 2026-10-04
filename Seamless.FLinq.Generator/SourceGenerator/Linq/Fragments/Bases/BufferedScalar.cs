@@ -78,6 +78,22 @@ internal abstract class BufferedScalar(int 番号,string resultType):Scalar(番�
             return compute;
         }
         var number = 0;
+        // 波かっこの無い1文のループ(while(source.TryGetNext(out var x)) result=x; など)も同じ形にする。
+        compute=global::System.Text.RegularExpressions.Regex.Replace(
+            compute,
+            @"while\(source\.TryGetNext\(out (?:var|[^()]+?) (?<item>\w+)\)\) (?<body>[^{\n][^\n]*;)",
+            match => {
+                var rest = $"__rest_source{number++}";
+                return $"var {rest}=source.GetRemainingEnumerator();\nwhile({rest}.MoveNext()){{\nvar {match.Groups["item"].Value}={rest}.Current;\n{match.Groups["body"].Value}\n}}";
+            });
+        // 要素を使わないループ(while(source.TryGetNext(out _)) count++; など)は MoveNext だけを回す。
+        compute=global::System.Text.RegularExpressions.Regex.Replace(
+            compute,
+            @"while\(source\.TryGetNext\(out _\)\) (?<body>[^{\n][^\n]*;)",
+            match => {
+                var rest = $"__rest_source{number++}";
+                return $"var {rest}=source.GetRemainingEnumerator();\nwhile({rest}.MoveNext()){{\n{match.Groups["body"].Value}\n}}";
+            });
         return global::System.Text.RegularExpressions.Regex.Replace(
             compute,
             @"while\(source\.TryGetNext\(out (?:var|[^()]+?) (?<item>\w+)\)\)\{",

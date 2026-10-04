@@ -1849,3 +1849,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 試したこと: `RangeModuloDistinctRoot.RenderGroupsConsume` の内側のループで、要素の値を `(int)(value+(long)index*C)` ではなく int に C ずつ足して求めた(理想版と同じ形)。
 - 計測(Range タブ、性能コア1個で2周、11回目と比較): GroupBy/ToLookup の5行 1.312/1.278 → 1.301/1.247(約2%)。採否の基準(3%以上)に届かないので戻した。
 - 残る差は、グループの型(Seamless.Linq.Grouping。ILookup 用の欄を持つ)が理想版の最小のグループより重いことと考えられる(推測)。
+
+## 2026-10-04 スカラー終端のローカル関数で、波かっこの無い1文のループも IEnumerable の根の列挙子で直接回す(採用)
+
+- 原因: IEnumerable の根で最後まで回すループを列挙子の MoveNext/Current にする置き換え(`BufferedScalar.DrainRemainingEnumerator`)が `while(source.TryGetNext(out … x)){` の形だけを拾い、`while(source.TryGetNext(out var x)) result=x;`(LastOrDefault・Sum)や `while(source.TryGetNext(out _)) count++;`(Count)の1文の形を素通りしていた。参照型の共有ジェネリックコードでは構造体の TryGetNext がインライン化されない。
+- 変更: 1文の形と、要素を使わない `out _` の形も同じ置き換えにした。
+- 計測(IEnumerable タブ、性能コア1個で2周、11回目と比較): ClassInt32 LastOrDefault 1.41/1.35 → 1.00/0.98、Int32 LastOrDefault 1.26/1.22 → 1.03/1.04。タブ全体 0.994/0.991 → 0.982/0.981。
