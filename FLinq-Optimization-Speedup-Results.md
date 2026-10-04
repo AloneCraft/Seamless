@@ -1897,3 +1897,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: 段の並びの Distinct の集合を最小の大きさで作り、足しながら広げ直していた。
 - 変更: 前の段が Where/Select だけなら根の件数で作る(途中で止まる並びでは 0)(`PipelineEnumerable.EnumeratorMembers.cs`)。
 - 計測(押し下げ・Array の2タブ、性能コア1個で2周、12回目と比較): Distinct を含む11行の幾何平均 0.864/0.891 → 0.743/0.844。タブ全体は押し下げ 1.033/1.055 → 1.007/0.987、Array 0.954/0.949 → 0.961/0.956(ぶれの範囲)。
+
+## 2026-10-04 span の Skip と List の SkipLast は、切り出した span を 0 から長さまで回す(採用)
+
+- 原因(推測): Skip は途中の添字から `span.Length` まで、SkipLast は 0 から別の変数(長さ−件数)まで回していて、List Int32 では添字の範囲の検査が残っていたと考えられる(List Int32 Skip 1.32/1.40、SkipLast 1.41/1.35)。理想版は切り出した span を foreach で回す。
+- 変更: `Skip.cs` は `span.Slice(件数)` を 0 から長さまで回す。`SkipLast.cs` は根が List のときだけ `span.Slice(0,長さ−件数)` を回す。SkipLast を全部の根で切り出す形にすると Array Int32 が遅くなった(1.01〜1.06 → 1.10〜1.42、取り直しても同じ)ので、List 以外は元の形のまま。
+- 計測(List・Array の2タブ、性能コア1個で2周、12回目と比較。計測中にメモリの見張りが計測プロセスを30秒止めたが、外れた値は無かった): List Int32 Skip 1.32/1.40 → 0.88/0.99、SkipLast 1.41/1.35 → 0.99/1.02。Array Int32 SkipLast 1.06/1.01 → 0.96/0.97。タブ全体は List 0.942/0.958 → 0.948/0.939、Array 0.954/0.949 → 0.934/0.957。

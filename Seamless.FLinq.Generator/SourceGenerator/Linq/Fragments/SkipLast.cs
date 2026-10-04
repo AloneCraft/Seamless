@@ -179,13 +179,26 @@ internal class SkipLast(int 番号,Enumerable source,string skipCount):Enumerabl
                 }
                 """;
         }
+        if(this.RootSource is not ListRoot) {
+            // 配列などは、切り出す形にすると Array Int32 で遅くなった(1.01〜1.06 → 1.10〜1.42)ので、元の長さまで回す形のまま。
+            return $$"""
+                using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};
+                var __skipLastSpan{{番号}}={{spanExpression}};
+                var __skipLastCount{{番号}}=global::System.Math.Clamp({{this.EffectiveSkipCount}},0,__skipLastSpan{{番号}}.Length);
+                var __skipLastLength{{番号}}=__skipLastSpan{{番号}}.Length-__skipLastCount{{番号}};
+                for(var __skipLastIndex{{番号}}=0;__skipLastIndex{{番号}}<__skipLastLength{{番号}};__skipLastIndex{{番号}}++){
+                    {{consumerName}}.Consume(__skipLastSpan{{番号}}[__skipLastIndex{{番号}}]);
+                }
+                """;
+        }
         return $$"""
             using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};
             var __skipLastSpan{{番号}}={{spanExpression}};
             var __skipLastCount{{番号}}=global::System.Math.Clamp({{this.EffectiveSkipCount}},0,__skipLastSpan{{番号}}.Length);
-            var __skipLastLength{{番号}}=__skipLastSpan{{番号}}.Length-__skipLastCount{{番号}};
-            for(var __skipLastIndex{{番号}}=0;__skipLastIndex{{番号}}<__skipLastLength{{番号}};__skipLastIndex{{番号}}++){
-                {{consumerName}}.Consume(__skipLastSpan{{番号}}[__skipLastIndex{{番号}}]);
+            // List は切り出した span を 0 から長さまで回す(添字の範囲の検査を JIT が消せる形。List Int32 で 1.35〜1.41 → 0.86〜0.87)。
+            var __skipLastKept{{番号}}=__skipLastSpan{{番号}}.Slice(0,__skipLastSpan{{番号}}.Length-__skipLastCount{{番号}});
+            for(var __skipLastIndex{{番号}}=0;__skipLastIndex{{番号}}<__skipLastKept{{番号}}.Length;__skipLastIndex{{番号}}++){
+                {{consumerName}}.Consume(__skipLastKept{{番号}}[__skipLastIndex{{番号}}]);
             }
             """;
     }

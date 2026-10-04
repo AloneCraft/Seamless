@@ -106,8 +106,10 @@ internal class Skip(int 番号,Enumerable source,string skipCount):Enumerable(�
             using var {{sourceName}}={{this.RootSource.GetEnumeratorExpression}};
             var __skipSpan{{番号}}={{spanExpression}};
             var __skipCount{{番号}}=global::System.Math.Clamp({{this.EffectiveSkipCount}},0,__skipSpan{{番号}}.Length);
-            for(var __skipIndex{{番号}}=__skipCount{{番号}};__skipIndex{{番号}}<__skipSpan{{番号}}.Length;__skipIndex{{番号}}++){
-                {{consumerName}}.Consume(__skipSpan{{番号}}[__skipIndex{{番号}}]);
+            // 切り出した span を 0 から長さまで回す(添字の範囲の検査を JIT が消せる形)。
+            var __skipRest{{番号}}=__skipSpan{{番号}}.Slice(__skipCount{{番号}});
+            for(var __skipIndex{{番号}}=0;__skipIndex{{番号}}<__skipRest{{番号}}.Length;__skipIndex{{番号}}++){
+                {{consumerName}}.Consume(__skipRest{{番号}}[__skipIndex{{番号}}]);
             }
             """;
     }
