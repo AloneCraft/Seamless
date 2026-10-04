@@ -1903,3 +1903,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因(推測): Skip は途中の添字から `span.Length` まで、SkipLast は 0 から別の変数(長さ−件数)まで回していて、List Int32 では添字の範囲の検査が残っていたと考えられる(List Int32 Skip 1.32/1.40、SkipLast 1.41/1.35)。理想版は切り出した span を foreach で回す。
 - 変更: `Skip.cs` は `span.Slice(件数)` を 0 から長さまで回す。`SkipLast.cs` は根が List のときだけ `span.Slice(0,長さ−件数)` を回す。SkipLast を全部の根で切り出す形にすると Array Int32 が遅くなった(1.01〜1.06 → 1.10〜1.42、取り直しても同じ)ので、List 以外は元の形のまま。
 - 計測(List・Array の2タブ、性能コア1個で2周、12回目と比較。計測中にメモリの見張りが計測プロセスを30秒止めたが、外れた値は無かった): List Int32 Skip 1.32/1.40 → 0.88/0.99、SkipLast 1.41/1.35 → 0.99/1.02。Array Int32 SkipLast 1.06/1.01 → 0.96/0.97。タブ全体は List 0.942/0.958 → 0.948/0.939、Array 0.954/0.949 → 0.934/0.957。
+
+## 2026-10-04 IEnumerable の根の Min/Max(選択子なし)は、span が無ければ差し替えメソッドの中で回す(採用)
+
+- 原因: Min/Max(選択子なし)はライブラリの `Seamless.Linq.Enumerable.Min/Max(ValueEnumerable<TEnum,T>)` へ列挙子の構造体を値渡ししていた。参照型の共有ジェネリックコードでは、ライブラリの中の構造体の TryGetNext がインライン化されない。
+- 変更: `Bases/MinMaxBase.cs` で、IEnumerable の根(ProvidesRemainingEnumerator)なら Compute を自前のループにする。span が取れればライブラリの `MinSpan/MaxSpan`(SIMD を含む)、取れなければ `while(source.TryGetNext(…)){`(ローカル関数では列挙子の MoveNext/Current に置き換わる)で回す。比べ方は System.Linq と同じ(null を取り得る型は null を飛ばし、全部 null か空なら null、値型は空なら例外)。null の判定は `(object?)x is null`(具体の値型でもコンパイルでき、JIT が消す)。列挙子を値渡ししなくなったので、破棄は呼び出し元が行う(ComputeOwnsEnumerator=false)。
+- 計測(IEnumerable タブ、性能コア1個で2周、13回目と比較): ClassInt32 Max 1.78/1.61 → 0.48/0.45、ClassInt32 Min 1.54/1.39 → 0.57/0.45、Int32 Max 1.04/1.05 → 0.53/0.53、Int32 Min 1.09/1.06 → 0.54/0.57(理想版は全件を溜めてから回すので、それより速い)。タブ全体 1.000/0.975 → 0.929/0.961。
