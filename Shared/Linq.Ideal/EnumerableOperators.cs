@@ -897,10 +897,7 @@ public abstract partial class IdealBase<T> {
     public void Max() => this.Max_Impl();
 
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    private void Max_Impl() {
-        using var source = Buffer(this.srcCount(ImmediateFullScanCount));
-        this.consumer.Consume(SpanMax(source.Span));
-    }
+    private void Max_Impl() => this.consumer.Consume(EnumerableMinMax(this.srcCount(ImmediateFullScanCount),true));
 
     // [Max_selector]
     [BenchFact,Benchmark]
@@ -954,10 +951,7 @@ public abstract partial class IdealBase<T> {
     public void Min() => this.Min_Impl();
 
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
-    private void Min_Impl() {
-        using var source = Buffer(this.srcCount(ImmediateFullScanCount));
-        this.consumer.Consume(SpanMin(source.Span));
-    }
+    private void Min_Impl() => this.consumer.Consume(EnumerableMinMax(this.srcCount(ImmediateFullScanCount),false));
 
     // [Min_selector]
     [BenchFact,Benchmark]

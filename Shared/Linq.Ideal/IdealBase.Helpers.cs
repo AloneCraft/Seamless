@@ -60,6 +60,36 @@ public abstract partial class IdealBase<T> {
         return value!;
     }
 
+    /// <summary>
+    /// System.Linq の Min/Max と同じ意味で、IEnumerable を溜めずに1回回す(greater が true なら Max)。
+    /// 参照型は null を飛ばし、全部 null か空なら既定値。値型は空なら例外。
+    /// </summary>
+    private static T EnumerableMinMax(global::System.Collections.Generic.IEnumerable<T> source,bool greater) {
+        using var enumerator = source.GetEnumerator();
+        T value = default!;
+        if(default(T) is null) {
+            do {
+                if(!enumerator.MoveNext()) {
+                    return default!;
+                }
+                value=enumerator.Current;
+            } while(value is null);
+        } else {
+            if(!enumerator.MoveNext()) {
+                throw IdealErrors.NoElements();
+            }
+            value=enumerator.Current;
+        }
+        var comparer = Comparer<T>.Default;
+        while(enumerator.MoveNext()) {
+            var item = enumerator.Current;
+            if(item is not null&&(greater ? comparer.Compare(item,value)>0 : comparer.Compare(item,value)<0)) {
+                value=item;
+            }
+        }
+        return value!;
+    }
+
     /// <summary>System.Linq の Max と同じ意味。</summary>
     private static T SpanMax(ReadOnlySpan<T> span) {
         if(typeof(T)==typeof(int)) {

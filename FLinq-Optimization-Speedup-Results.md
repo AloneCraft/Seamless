@@ -1909,3 +1909,8 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: Min/Max(選択子なし)はライブラリの `Seamless.Linq.Enumerable.Min/Max(ValueEnumerable<TEnum,T>)` へ列挙子の構造体を値渡ししていた。参照型の共有ジェネリックコードでは、ライブラリの中の構造体の TryGetNext がインライン化されない。
 - 変更: `Bases/MinMaxBase.cs` で、IEnumerable の根(ProvidesRemainingEnumerator)なら Compute を自前のループにする。span が取れればライブラリの `MinSpan/MaxSpan`(SIMD を含む)、取れなければ `while(source.TryGetNext(…)){`(ローカル関数では列挙子の MoveNext/Current に置き換わる)で回す。比べ方は System.Linq と同じ(null を取り得る型は null を飛ばし、全部 null か空なら null、値型は空なら例外)。null の判定は `(object?)x is null`(具体の値型でもコンパイルでき、JIT が消す)。列挙子を値渡ししなくなったので、破棄は呼び出し元が行う(ComputeOwnsEnumerator=false)。
 - 計測(IEnumerable タブ、性能コア1個で2周、13回目と比較): ClassInt32 Max 1.78/1.61 → 0.48/0.45、ClassInt32 Min 1.54/1.39 → 0.57/0.45、Int32 Max 1.04/1.05 → 0.53/0.53、Int32 Min 1.09/1.06 → 0.54/0.57(理想版は全件を溜めてから回すので、それより速い)。タブ全体 1.000/0.975 → 0.929/0.961。
+
+## 2026-10-04 理想版の訂正: IEnumerable の Min/Max(選択子なし)は溜めずに1回回す
+
+- 782ed476 の後、FLinq が理想版の約半分の時間になった(理想版が全件を借りた配列へ溜めてから span で回していた)。計画の規則(理想版が FLinq より確実に遅い行は理想版を直す)に従い、`Shared/Linq.Ideal/IdealBase.Helpers.cs` に `EnumerableMinMax`(System.Linq と同じ意味で列挙子を1回回す)を足し、`EnumerableOperators.cs` の Min_Impl/Max_Impl をそれで書き直した。3者のダイジェスト一致(Benchmark.Audit.Tests)を確認。
+- 計測(IEnumerable タブ、2周): FLinq÷理想 ClassInt32 Max 0.48/0.45 → 0.98/1.00、Min 0.57/0.45 → 0.67/0.65、Int32 Max 0.53/0.53 → 0.88/0.90、Min 0.54/0.57 → 0.98/0.90。
