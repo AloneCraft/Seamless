@@ -1843,3 +1843,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: 第2ソースを先に集合へ入れる形で、集合を第2ソースの件数で作っていた。Except は第1ソースの要素も同じ集合へ足すので広げ直しが起きる。理想版は両方の件数の和で作る。
 - 変更: `SetBases.cs` で、第1ソースを足す演算(SourceAcceptMethod が Add)は両方の件数の和で作る初期化(`AppendBinaryHashSetInitialization`)を使う。Intersect(Remove)は従来どおり第2ソースの件数。
 - 計測(Array・List・IEnumerable の3タブ、性能コア1個で2周、11回目と比較): Except/ExceptBy の12行の幾何平均 0.772/0.775 → 0.675/0.671。タブ全体は Array 0.964/0.964 → 0.952/0.963、IEnumerable 0.994/0.991 → 0.966/0.978、List 0.938/0.945 → 0.946/0.944。
+
+## 2026-10-04 (不採用) Range の x%C の GroupBy/ToLookup で、要素の値を int で C ずつ足して求める
+
+- 試したこと: `RangeModuloDistinctRoot.RenderGroupsConsume` の内側のループで、要素の値を `(int)(value+(long)index*C)` ではなく int に C ずつ足して求めた(理想版と同じ形)。
+- 計測(Range タブ、性能コア1個で2周、11回目と比較): GroupBy/ToLookup の5行 1.312/1.278 → 1.301/1.247(約2%)。採否の基準(3%以上)に届かないので戻した。
+- 残る差は、グループの型(Seamless.Linq.Grouping。ILookup 用の欄を持つ)が理想版の最小のグループより重いことと考えられる(推測)。
