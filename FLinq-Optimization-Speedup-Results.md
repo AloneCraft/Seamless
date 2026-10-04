@@ -1879,3 +1879,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: 選択子の結果を `Comparer<int>.Default.Compare(value,result)<0` で比べていた。脱仮想化されても int の CompareTo は三方向の比較で分岐が2つになり、理想版の `value<result` より遅い(推測。Array ClassInt32 Min_selector が4回とも 1.32〜1.35)。
 - 変更: `Bases/MinMaxSelectorBase.cs` で、結果が整数型(int・long など)なら演算子で比べる。浮動小数点数は NaN の扱いが違うので Compare のまま。
 - 計測(Array・List・IEnumerable の3タブ、性能コア1個で2周、さらに IEnumerable を2周): Array ClassInt32 Min_selector 1.32〜1.35 → 0.97/1.00。1回目の IEnumerable Int32 Min/Max 1.11〜1.39 は取り直すと 0.98〜1.12 で、変更前(0.79〜1.11)と同じ範囲のぶれだった。タブ全体は Array 0.938/0.952 → 0.948/0.946、List 0.947/0.931 → 0.958/0.946、IEnumerable 0.979/0.965 → 0.959/0.987(取り直し)。
+
+## 2026-10-04 MinBy/MaxBy の span ループは最初の要素で初期化し、整数のキーは比較演算子で比べる(採用)
+
+- 原因: Min/Max(selector) と同じく、span のループの中で毎回「最初の要素か」を判定し(`__first||Compare`)、整数のキーも `Comparer<T>.Default.Compare` で比べていた。
+- 変更: `Bases/MinMaxByBase.cs` の span ループを `__span[0]` で初期化して添字1から回す形にし、キーが整数型なら演算子で比べる(浮動小数点数と参照型は Compare のまま)。
+- 計測(Array・List・IEnumerable の3タブ、性能コア1個で2周、直前の4回と比較): MinBy/MaxBy の12行の幾何平均 1.051〜1.093 → 1.043/0.993。タブ全体は Array 0.938〜0.952 → 0.952/0.962、List 0.931〜0.958 → 0.941/0.945、IEnumerable 0.950〜1.004 → 0.986/0.978(いずれもぶれの範囲)。

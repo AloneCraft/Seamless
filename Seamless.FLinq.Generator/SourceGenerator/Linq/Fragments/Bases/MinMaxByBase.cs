@@ -66,20 +66,27 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
         : this.BuildEnumeratorCompute();
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
     private string CompareOp => direction=="greater" ? ">" : "<";
+    // キーが整数型なら Comparer<T>.Default.Compare と演算子の結果が同じなので、演算子で比べる(Compare は三方向の比較で分岐が2つになる)。
+    // 浮動小数点数は NaN の扱いが違い、参照型は null の扱いがあるので Compare のまま。
+    private bool IsIntegralKey => FuncReturnTypeName(keySelector) is "int" or "long" or "short" or "byte" or "sbyte" or "ushort" or "uint" or "ulong" or "char" or "nint" or "nuint";
+    private string Better(string key,string best) => this.IsIntegralKey
+        ? $"{key}{this.CompareOp}{best}"
+        : $"comparer.Compare({key},{best}){this.CompareOp}0";
     private string BuildSpanCompute() => $$"""
         {{AggressiveInliningAttribute}}
         private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
             var comparer=global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
             source.TryGetSpan(out var __span);
             if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-            {{resultType}} bestElement=default!;
+            // 最初の要素で初期化し、残りだけを比べる(ループの中で「最初か」を判定しない)。
+            {{resultType}} bestElement=__span[0];
             {{FuncReturnTypeName(keySelector)}} bestKey=default!;
-            var __first=true;
-            foreach(var {{this.item}} in __span){
+            {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
+            for(var __index=1;__index<__span.Length;__index++){
+                var {{this.item}}=__span[__index];
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                 {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
-                if(__first||comparer.Compare({{this.key}},bestKey){{this.CompareOp}}0){
-                    __first=false;
+                if({{this.Better(this.key,"bestKey")}}){
                     bestElement={{this.item}};
                     bestKey={{this.key}};
                 }
@@ -93,14 +100,15 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
             if(source.TryGetSpan(out var __span)){
                 var comparer=global::System.Collections.Generic.Comparer<{{FuncReturnTypeName(keySelector)}}>.Default;
                 if(__span.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
-                {{resultType}} bestElement=default!;
+                // 最初の要素で初期化し、残りだけを比べる(ループの中で「最初か」を判定しない)。
+                {{resultType}} bestElement=__span[0];
                 {{FuncReturnTypeName(keySelector)}} bestKey=default!;
-                var __first=true;
-                foreach(var {{this.item}} in __span){
+                {{this.FuncAssignIndented("                ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
+                for(var __index=1;__index<__span.Length;__index++){
+                    var {{this.item}}=__span[__index];
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                     {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    if(__first||comparer.Compare({{this.key}},bestKey){{this.CompareOp}}0){
-                        __first=false;
+                    if({{this.Better(this.key,"bestKey")}}){
                         bestElement={{this.item}};
                         bestKey={{this.key}};
                     }
@@ -120,7 +128,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
                 var {{this.item}}=__mn105;
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                 {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
-                if(comparer.Compare({{this.key}},bestKey){{this.CompareOp}}0){
+                if({{this.Better(this.key,"bestKey")}}){
                     bestElement={{this.item}};
                     bestKey={{this.key}};
                 }
@@ -140,7 +148,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
                 var {{this.item}}=__mn107;
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
                 {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
-                if(comparer.Compare({{this.key}},bestKey){{this.CompareOp}}0){
+                if({{this.Better(this.key,"bestKey")}}){
                     bestElement={{this.item}};
                     bestKey={{this.key}};
                 }
