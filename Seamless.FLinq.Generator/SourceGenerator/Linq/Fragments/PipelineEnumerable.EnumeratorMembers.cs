@@ -116,7 +116,14 @@ internal sealed partial class PipelineEnumerable {
                 } else if(stage.Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy) {
                     builder.AppendLine($"this.{this.SetName(index)} = new({this.ComparerName(this.ComparerOrdinal(index))});");
                 } else if(stage.Kind is PipelineStageKind.Union or PipelineStageKind.UnionBy) {
-                    builder.AppendLine($"this.{this.SetName(index)} = new({this.ComparerName(this.ComparerOrdinal(index))});");
+                    // 両方のソースの件数が列挙せずに分かる分だけ、集合を最初からその大きさで作る(足しながら広げ直さない)。
+                    var firstCount = $"__unionFirstCount{this.item}_{index}";
+                    var secondCount = $"__unionSecondCount{this.item}_{index}";
+                    // 前の段が Where/Select だけのときに限る(Take などで途中で止まる並びでは根の件数が集合へ入る数より桁違いに大きくなり得る)。
+                    var firstCountExpression = stages.Take(index).All(static before => before.Kind is PipelineStageKind.Where or PipelineStageKind.Select)
+                        ? $"(this.{this.e}.TryGetNonEnumeratedCount(out var {firstCount})?{firstCount}:0)"
+                        : "0";
+                    builder.AppendLine($"this.{this.SetName(index)} = new({firstCountExpression}+(this.{this.SecondEnumeratorName(this.SecondOrdinal(index))}.TryGetNonEnumeratedCount(out var {secondCount})?{secondCount}:0),{this.ComparerName(this.ComparerOrdinal(index))});");
                 } else if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy) {
                     // 第2ソースの件数が列挙せずに分かれば、集合を最初からその大きさで作る(足しながら広げ直さない)。
                     var secondCount = $"__secondCount{this.item}_{index}";
