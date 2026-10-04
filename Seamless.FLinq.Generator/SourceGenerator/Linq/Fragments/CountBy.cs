@@ -96,12 +96,83 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
         : base.GetEnumeratorDisposeBody;
     public override string ElementType => $"global::System.Collections.Generic.KeyValuePair<{FuncReturnTypeName(keySelector)}, global::System.Int32>";
 
+    // ソースが根(配列・List、または IEnumerable)なら、CountBy の列挙子の構造体を作らずに差し替えメソッドの中で根を直接回して
+    // 辞書で数え、追加順(削除しない Dictionary の列挙順)に流す(列挙子の構造体→根の構造体の入れ子は、参照型の共有ジェネリックコードで
+    // 内側がインライン化されない)。全件を数えてから流すのは列挙子と同じなので、キー選択子の評価の回数と順は変わらない。
+    private string? RenderRootCountsConsume(string consumerName) {
+        if(!(source.ProvidesRemainingEnumerator||source is ArrayRoot or ListRoot)) {
+            return null;
+        }
+        string sourceExpression;
+        try {
+            sourceExpression=source.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var keyType = FuncReturnTypeName(keySelector);
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(keySelector),
+            this.StaticDelegateLocalDeclarations(keySelector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var sourceName = $"__countBySource{番号}";
+        var countName = $"__countByCount{番号}";
+        var mapName = $"__countByMap{番号}";
+        var itemName = $"__countByItem{番号}";
+        var keyName = $"__countByKey{番号}";
+        var add = $"{keyType} {keyName}=default!;\n{this.FuncAssignStatic(keySelector,nameof(keySelector),keyName,itemName)}\nglobal::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({mapName},{keyName},out _)++;";
+        var loop = source.GetDirectSpanExpression(sourceName) is { } spanExpression
+            ? $$"""
+                var {{sourceName}}Span={{spanExpression}};
+                var {{mapName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},int>({{CapacityExpression($"{sourceName}Span.Length")}});
+                for(var {{sourceName}}Index=0;{{sourceName}}Index<{{sourceName}}Span.Length;{{sourceName}}Index++){
+                    var {{itemName}}={{sourceName}}Span[{{sourceName}}Index];
+                {{GroupBySupport.IndentBlock(add,"    ")}}
+                }
+                """
+            : $$"""
+                var {{sourceName}}HasSpan={{sourceName}}.TryGetSpan(out var {{sourceName}}Span);
+                var {{countName}}={{sourceName}}HasSpan ? {{sourceName}}Span.Length : {{sourceName}}.TryGetNonEnumeratedCount(out var {{countName}}Raw) ? {{countName}}Raw : 0;
+                var {{mapName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},int>({{CapacityExpression(countName)}});
+                if({{sourceName}}HasSpan){
+                    for(var {{sourceName}}Index=0;{{sourceName}}Index<{{sourceName}}Span.Length;{{sourceName}}Index++){
+                        var {{itemName}}={{sourceName}}Span[{{sourceName}}Index];
+                    {{GroupBySupport.IndentBlock(add,"        ")}}
+                    }
+                }else{
+                    {{DrainLoopHead(source,sourceName,itemName)}}
+                    {{GroupBySupport.IndentBlock(add,"        ")}}
+                    }
+                }
+                """;
+        return $$"""
+            {{localDeclarations}}
+            using var {{sourceName}}={{sourceExpression}};
+            {{loop}}
+            foreach(var {{mapName}}Entry in {{mapName}}){
+                {{consumerName}}.Consume(new global::System.Collections.Generic.KeyValuePair<{{keyType}},global::System.Int32>({{mapName}}Entry.Key,{{mapName}}Entry.Value));
+            }
+            """;
+    }
+
     // Range の CountBy(x => x%C) を Consume へ流すとき、start≧0 ならキーは start から先頭 min(count,C) 個で初めて現れ、
     // 値 x のキーの個数は [x,end) で x と合同な値の個数 (end-1-x)/C+1 になる。数え上げも辞書も要らない。
     // 負の値を含むとき(キーが負になる)は、Range の引数を1回だけ評価したうえで辞書で数える。
     public override string GetConsumeExecutionStatement(string consumerName) {
         if(source is not RangeRoot range||!RangeModuloOrderRoot.TryGetModulus(keySelector,out var modulus)) {
-            return base.GetConsumeExecutionStatement(consumerName);
+            if(this.RenderRootCountsConsume(consumerName) is not { } rootCounts) {
+                return base.GetConsumeExecutionStatement(consumerName);
+            }
+            // int のキーの専用の表(UsesPooledIntMap)は Dictionary より速いが、列挙子の構造体の入れ子は参照型の要素では
+            // インライン化されない。要素が参照型(を含む)ときだけ根を直接回す形にする(判定は型ごとに JIT が定数に畳む)。
+            return this.UsesPooledIntMap
+                ? $$"""
+                    if(global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{source.ElementType}}>()){
+                    {{GroupBySupport.IndentBlock(rootCounts,"    ")}}
+                    }else{
+                    {{GroupBySupport.IndentBlock(base.GetConsumeExecutionStatement(consumerName),"    ")}}
+                    }
+                    """
+                : rootCounts;
         }
         var start = $"__start{番号}";
         var count = $"__count{番号}";

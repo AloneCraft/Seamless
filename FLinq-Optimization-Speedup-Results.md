@@ -1861,3 +1861,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: 要素選択子のある GroupBy は、GroupBy の列挙子の構造体→根の構造体の入れ子を回していた(keySelector だけの形は 8d14222c で直した)。
 - 変更: 根を直接回してグループを流す処理を `GroupBySupport.RenderRootGroupsConsume` にまとめ、要素選択子の形でも使う。クエリ構文の `group row by row.Key` もこの形になるので、`InterceptorLanguageShapeTests` の判定を新しい形も受けるようにした。
 - 計測(Array・List・IEnumerable の3タブ、性能コア1個で2周、11回目と比較): IEnumerable ClassInt32 GroupBy_elementSelector 1.41/1.30 → 1.08/1.03、Array ClassInt32 1.19/1.19 → 1.06/1.03。タブ全体は IEnumerable 0.994/0.991 → 0.943/0.976、Array・List は変わらない(ListInt32 1.12/1.02 → 1.15/1.23 はぶれの範囲)。
+
+## 2026-10-04 CountBy は、要素が参照型のとき根を直接回して数える(採用)
+
+- 原因: CountBy の列挙子の構造体→根の構造体の入れ子を回していた。参照型の共有ジェネリックコードでは内側がインライン化されない。
+- 変更: `CountBy.cs` に、根(配列・List・IEnumerable)を差し替えメソッドの中で直接回して Dictionary で数え、追加順に流す形を足した。最初は常にこの形にしたが、int のキーの専用の表(UsesPooledIntMap)より Dictionary が遅く、Int32 の行が悪化した(Array 0.61〜0.65 → 0.87〜0.94)。そこで専用の表を使う形では `RuntimeHelpers.IsReferenceOrContainsReferences<T>()` で分け、要素が参照型のときだけ新しい形にした(型ごとに JIT が定数に畳む)。
+- 計測(Array・List・IEnumerable の3タブ、性能コア1個で2周、11回目と比較): CountBy ClassInt32 は Array 1.18/1.32 → 1.01/1.01、IEnumerable 1.23/1.32 → 0.93/0.92、List 0.93/1.12 → 0.90/0.93。Int32 は変わらない(Array 0.61/0.65 → 0.65/0.67)。タブ全体は Array 0.964 → 0.953/0.962、IEnumerable 0.994/0.991 → 0.975/0.978、List 0.938/0.945 → 0.945/0.952。
