@@ -1855,3 +1855,9 @@ Cross-table latest saved snapshots still contain above-1.02 rows: Array 47/194, 
 - 原因: IEnumerable の根で最後まで回すループを列挙子の MoveNext/Current にする置き換え(`BufferedScalar.DrainRemainingEnumerator`)が `while(source.TryGetNext(out … x)){` の形だけを拾い、`while(source.TryGetNext(out var x)) result=x;`(LastOrDefault・Sum)や `while(source.TryGetNext(out _)) count++;`(Count)の1文の形を素通りしていた。参照型の共有ジェネリックコードでは構造体の TryGetNext がインライン化されない。
 - 変更: 1文の形と、要素を使わない `out _` の形も同じ置き換えにした。
 - 計測(IEnumerable タブ、性能コア1個で2周、11回目と比較): ClassInt32 LastOrDefault 1.41/1.35 → 1.00/0.98、Int32 LastOrDefault 1.26/1.22 → 1.03/1.04。タブ全体 0.994/0.991 → 0.982/0.981。
+
+## 2026-10-04 GroupBy(keySelector, elementSelector) も根を直接回してグループを流す(採用)
+
+- 原因: 要素選択子のある GroupBy は、GroupBy の列挙子の構造体→根の構造体の入れ子を回していた(keySelector だけの形は 8d14222c で直した)。
+- 変更: 根を直接回してグループを流す処理を `GroupBySupport.RenderRootGroupsConsume` にまとめ、要素選択子の形でも使う。クエリ構文の `group row by row.Key` もこの形になるので、`InterceptorLanguageShapeTests` の判定を新しい形も受けるようにした。
+- 計測(Array・List・IEnumerable の3タブ、性能コア1個で2周、11回目と比較): IEnumerable ClassInt32 GroupBy_elementSelector 1.41/1.30 → 1.08/1.03、Array ClassInt32 1.19/1.19 → 1.06/1.03。タブ全体は IEnumerable 0.994/0.991 → 0.943/0.976、Array・List は変わらない(ListInt32 1.12/1.02 → 1.15/1.23 はぶれの範囲)。

@@ -224,7 +224,9 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output) {
         GeneratedSourceAssert.True(
             !result.GeneratedSource.Contains("LinqInterceptorFailure",StringComparison.Ordinal)
             &&result.GeneratedSource.Contains("Tsavorite query lowered",StringComparison.Ordinal)
-            &&result.GeneratedSource.Contains(".Consume(__cv",StringComparison.Ordinal),
+            // 列挙子のループで流す形(__cv)か、根を直接回してグループを流す形(__groupBuilder)。
+            &&(result.GeneratedSource.Contains(".Consume(__cv",StringComparison.Ordinal)
+                ||result.GeneratedSource.Contains("__groupBuilder",StringComparison.Ordinal)),
             "Query-lowered GroupBy followed by Consume should expand to direct item consumption.",
             result.GeneratedSource,
             output);
