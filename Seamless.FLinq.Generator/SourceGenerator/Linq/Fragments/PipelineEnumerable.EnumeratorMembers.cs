@@ -114,7 +114,12 @@ internal sealed partial class PipelineEnumerable {
                     var countName = this.CountName(this.CountOrdinal(index));
                     builder.AppendLine($"this.{countName}Value = global::System.Math.Max(0, {countName});");
                 } else if(stage.Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy) {
-                    builder.AppendLine($"this.{this.SetName(index)} = new({this.ComparerName(this.ComparerOrdinal(index))});");
+                    // 前の段が Where/Select だけなら、集合を根の件数で作る(足しながら広げ直さない。途中で止まる並びでは 0)。
+                    var distinctCount = $"__distinctCount{this.item}_{index}";
+                    var distinctCapacity = stages.Take(index).All(static before => before.Kind is PipelineStageKind.Where or PipelineStageKind.Select)
+                        ? $"this.{this.e}.TryGetNonEnumeratedCount(out var {distinctCount})?{distinctCount}:0"
+                        : "0";
+                    builder.AppendLine($"this.{this.SetName(index)} = new({distinctCapacity},{this.ComparerName(this.ComparerOrdinal(index))});");
                 } else if(stage.Kind is PipelineStageKind.Union or PipelineStageKind.UnionBy) {
                     // 両方のソースの件数が列挙せずに分かる分だけ、集合を最初からその大きさで作る(足しながら広げ直さない)。
                     var firstCount = $"__unionFirstCount{this.item}_{index}";
