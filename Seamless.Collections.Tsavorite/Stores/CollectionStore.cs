@@ -213,17 +213,14 @@ public abstract partial class CollectionStore<
         this.SetManagedCount(0);
     }
 
-    // 件数の管理(決定8)。共通ストアから作ったデータ本体だけが使い、旧 API では従来どおり走査で数える。
-    // 件数を管理する操作用オブジェクトは追加・削除のたびに増減し、挿入か上書きか分からない操作や一括の集合演算のあとは
-    // 「不明」にして、次に件数を求めるときに全走査で数え直す。
+    // 件数の管理(決定8)。旧 API で作ったデータ本体も含め、件数はデータ本体が 1 つだけ持つ(操作用オブジェクトごとには持たない)。
+    // 操作用オブジェクトは追加・削除・新規の代入のたびに増減し、一括の集合演算や読み込みのあとは
+    // 「不明」にして、次に件数を求めるときに全走査で数え直す。作った直後の空のデータ本体は 0 件で分かっている。
     private long managedCount;
-    private int managedCountKnown;
-
-    /// <summary>件数をデータ本体で管理しているか(共通ストアから作ったか)。</summary>
-    internal bool TracksCount => this.layout is not null;
+    private int managedCountKnown = 1;
 
     internal bool TryGetManagedCount(out long count) {
-        if(this.layout is not null&&Volatile.Read(ref this.managedCountKnown)==1) {
+        if(Volatile.Read(ref this.managedCountKnown)==1) {
             count=Interlocked.Read(ref this.managedCount);
             return true;
         }
@@ -231,16 +228,9 @@ public abstract partial class CollectionStore<
         return false;
     }
 
-    internal void AddManagedCount(long delta) {
-        if(this.layout is not null) {
-            Interlocked.Add(ref this.managedCount,delta);
-        }
-    }
+    internal void AddManagedCount(long delta) => Interlocked.Add(ref this.managedCount,delta);
 
     internal void SetManagedCount(long count) {
-        if(this.layout is null) {
-            return;
-        }
         Interlocked.Exchange(ref this.managedCount,count);
         Volatile.Write(ref this.managedCountKnown,1);
     }
@@ -258,14 +248,27 @@ public abstract partial class CollectionStore<
     }
 
     /// <summary>データ本体の件数。管理している件数が分かっていればそれを返し、不明なら全走査で数え直す。</summary>
-    public long GetLongCount() {
+    public long GetLongCount() => this.CountCore(owners: 0);
+
+    /// <summary>操作用オブジェクトから件数を求める。分かっていればそれを、不明なら全走査で数える。</summary>
+    internal long GetLongCountFromAccessor() => this.CountCore(owners: 1);
+
+    // 全走査で数えた結果を件数として残すのは、生きている操作用オブジェクトが呼び出し元(owners 個)だけのとき。
+    // 他の操作用オブジェクトがあると、書き込みと件数の増減の間に走査が入り、その書き込みを二重に数えるおそれがある。
+    // 関所の中で数えるので、その間に新しい操作用オブジェクトは作られない。
+    private long CountCore(int owners) {
         if(this.TryGetManagedCount(out var count)) {
             return count;
         }
         this.storeGate.Wait();
         try {
-            count=this.GetRecoveryEntryCount();
-            this.SetManagedCount(count);
+            if(this.TryGetManagedCount(out count)) {
+                return count;
+            }
+            count=this.ScanLiveRecordCount();
+            if(Volatile.Read(ref this.accessorCount)<=owners) {
+                this.SetManagedCount(count);
+            }
             return count;
         } finally {
             this.storeGate.Release();
@@ -283,34 +286,11 @@ public abstract partial class CollectionStore<
     /// <summary>削除の印を除いたレコードの数を、一時的なセッションで全走査して数える。</summary>
     private long ScanLiveRecordCount() {
         using var session = this.Store.NewSession<FixedSpanByteKey,EqualityEmpty,bool,EqualityEmpty,ContainsDelete>(new());
-        var counter = new LiveRecordCounter();
+        var counter = new IterateLookupCounter();
         var cursor = 0L;
         session.IterateLookup(ref counter,ref cursor,resetCursor: false);
         session.BasicContext.CompletePending(wait: true);
         return counter.Count;
-    }
-
-    // 構造体にすると Tsavorite の走査の中でコピーされ、数えた結果が戻らない(クラスにする)。
-    private sealed class LiveRecordCounter:IScanIteratorFunctions {
-        public long Count;
-        public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            where TSourceLogRecord : ISourceLogRecord {
-            if(logRecord.Info.Tombstone) {
-                cursorRecordResult=CursorRecordResult.Skip;
-            } else {
-                cursorRecordResult=CursorRecordResult.Accept;
-                this.Count++;
-            }
-            return true;
-        }
-        public bool OnStart(long beginAddress,long endAddress) {
-            this.Count=0;
-            return true;
-        }
-        public void OnStop(bool completed,long numberOfRecords) {
-        }
-        public void OnException(Exception exception,long numberOfRecords) {
-        }
     }
 
     // 索引の自動拡張の目安。1 バケット(実効 7 件)あたり平均 4 件を超えたら倍にする(EXP-0003)。
@@ -474,24 +454,21 @@ public abstract partial class CollectionStore<
     /// </summary>
     internal void OnAccessorCreated() {
         ObjectDisposedException.ThrowIf(this.Disposed,this);
-        var count = Interlocked.Increment(ref this.accessorCount);
-        if(this.layout is null) {
-            return;
-        }
+        // 拡張・保存・件数の走査の途中に新しい操作用オブジェクトが操作を始めないよう、関所を通してから使わせる。
+        this.storeGate.Wait();
         try {
-            // 拡張中に新しい操作用オブジェクトが操作を始めないよう、拡張と同じ関所を通してから使わせる。
-            this.storeGate.Wait();
+            var count = Interlocked.Increment(ref this.accessorCount);
             try {
                 // 他に操作用オブジェクトが無いとき(=並行する操作が無いとき)に、並列中に見送った索引の拡張を取り戻す。
-                if(count==1&&this.lastPayloadBytes>0) {
+                if(this.layout is not null&&count==1&&this.lastPayloadBytes>0) {
                     this.GrowIndexIfCrowded(this.layout,this.lastPayloadBytes);
                 }
-            } finally {
-                this.storeGate.Release();
+            } catch {
+                Interlocked.Decrement(ref this.accessorCount);
+                throw;
             }
-        } catch {
-            Interlocked.Decrement(ref this.accessorCount);
-            throw;
+        } finally {
+            this.storeGate.Release();
         }
     }
 
@@ -525,8 +502,10 @@ public abstract partial class CollectionStore<
         // その間に更新・削除で無効化された古いレコードが書き込まれて、この保存の復元で見えなくなる。セクター境界までに限れば、末尾を含む
         // セクターはスナップショット(保存時点の不変のコピー)に残る。
         this.FlushLogToSectorBoundary();
+        // 件数は、操作用オブジェクトが無い(=保存の間に書き込みが無い)ときだけ記録する。あれば開き直したあとに数え直す。
+        // 書き込みと件数の増減の間に保存が入ると、保存した中身と件数がずれるため。関所の中なので新しい操作用オブジェクトは作られない。
         long? count = null;
-        if(this.TryGetManagedCount(out var managed)) {
+        if(Volatile.Read(ref this.accessorCount)==0&&this.TryGetManagedCount(out var managed)) {
             count=managed;
         }
         return new TsavoriteSavedState(token,this.Store.IndexSize*64,count).Serialize();
@@ -800,6 +779,8 @@ public abstract partial class CollectionStore<
         await this.RecoverWithSizeTrackerAsync(token,ct);
         this.ThrowIfRecoveredTailCollidesWithHead();
         this.CheckpointFailed=false;
+        // 復元した中身の件数は分からない(共通ストアの読み込みは、保存した件数があればこのあと戻す)。
+        this.InvalidateManagedCount();
     }
 
     public void Load(Guid token) {
@@ -913,4 +894,28 @@ public abstract partial class CollectionStore<
     }
 
     ~CollectionStore() => this.Dispose(false);
+}
+
+/// <summary>削除の印を除いたレコードを数える走査関数。データ本体の件数の数え直しに使う。</summary>
+// 構造体にすると Tsavorite の走査の中でコピーされ、数えた結果が戻らない(クラスにする)。
+internal sealed class IterateLookupCounter:IScanIteratorFunctions {
+    public long Count;
+    public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+        where TSourceLogRecord : ISourceLogRecord {
+        if(logRecord.Info.Tombstone) {
+            cursorRecordResult=CursorRecordResult.Skip;
+        } else {
+            cursorRecordResult=CursorRecordResult.Accept;
+            this.Count++;
+        }
+        return true;
+    }
+    public bool OnStart(long beginAddress,long endAddress) {
+        this.Count=0;
+        return true;
+    }
+    public void OnStop(bool completed,long numberOfRecords) {
+    }
+    public void OnException(Exception exception,long numberOfRecords) {
+    }
 }

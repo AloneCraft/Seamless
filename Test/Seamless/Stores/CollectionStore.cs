@@ -122,6 +122,112 @@ public class CollectionStore {
         }
     }
     [Fact,Trait("Category","Unit")]
+    public void TryGetManagedCount(){
+        {
+            //辞書の代入は、新規か上書きかを見分けて件数を保つ(数え直しにしない)
+            using var owner=global::Seamless.Execution.Store.CreateMemory();
+            using var data=owner.CreateTsavorite<int,string>("names");
+            using var dictionary=data.Create();
+            for(var i=0;i<100;i++){
+                dictionary[i]="a";
+            }
+            dictionary[0]="b";
+            //値が伸びる上書き
+            dictionary[1]=new string('x',1000);
+            Assert.True(data.TryGetManagedCount(out var count));
+            Assert.Equal(100,count);
+            Assert.Equal("b",dictionary[0]);
+            Assert.Equal(1000,dictionary[1].Length);
+        }
+        {
+            //読み取り専用の領域とディスク上のレコードへの代入も、上書きとして数える
+            using var owner=global::Seamless.Execution.Store.CreateTemporary();
+            using var data=owner.CreateTsavorite<int,string>("names",new TsavoriteTuning{PageSize=4096,LogMemorySize=1L<<14});
+            using var dictionary=data.Create();
+            for(var i=0;i<2000;i++){
+                dictionary[i]="v"+i;
+            }
+            Assert.True(data.GetStatistics().DiskLogBytes>0);
+            data.Store.Log.ShiftReadOnlyAddress(data.Store.Log.TailAddress,true);
+            for(var i=0;i<2000;i+=7){
+                dictionary[i]="w"+i;
+            }
+            dictionary[5000]="new";
+            Assert.True(data.TryGetManagedCount(out var count));
+            Assert.Equal(2001,count);
+            Assert.Equal("w0",dictionary[0]);
+            Assert.Equal("v1",dictionary[1]);
+            Assert.Equal("new",dictionary[5000]);
+        }
+        {
+            //旧 API で作ったデータ本体も、件数を管理する
+            using var legacy=Store.Create(MemorySize:1L<<20).Create<long>();
+            using var set=legacy.Create();
+            for(long i=0;i<100;i++){
+                set.Add(i);
+            }
+            set.Remove(5);
+            Assert.True(legacy.TryGetManagedCount(out var count));
+            Assert.Equal(99,count);
+        }
+        {
+            //旧 API の読み込みは件数を「不明」に戻し、次に数え直す
+            var root=Path.Combine(Path.GetTempPath(),"managed-count-"+Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try{
+                var logPath=Path.Combine(root,"log");
+                var checkpointDir=Path.Combine(root,"checkpoint");
+                Guid token;
+                {
+                    using var logDevice=global::Tsavorite.core.Devices.CreateLogDevice(logPath);
+                    using var objDevice=global::Tsavorite.core.Devices.CreateLogDevice(logPath+"_obj");
+                    using var store=Store.Create(CheckpointDir:checkpointDir).Create<int,int>(logDevice,objDevice);
+                    using(var dictionary=store.Create()){
+                        for(var i=0;i<10;i++){
+                            dictionary.Add(i,i);
+                        }
+                    }
+                    token=store.Save();
+                }
+                {
+                    using var logDevice=global::Tsavorite.core.Devices.CreateLogDevice(logPath);
+                    using var objDevice=global::Tsavorite.core.Devices.CreateLogDevice(logPath+"_obj");
+                    using var store=Store.Create(CheckpointDir:checkpointDir).Create<int,int>(logDevice,objDevice);
+                    store.Load(token);
+                    Assert.False(store.TryGetManagedCount(out _));
+                    Assert.Equal(10,store.GetLongCount());
+                }
+            }finally{
+                Directory.Delete(root,true);
+            }
+        }
+        {
+            //操作用オブジェクトを開いたまま保存すると、件数は記録しない(開き直したあとに数え直す)
+            var root=Path.Combine(Path.GetTempPath(),"managed-count-"+Guid.NewGuid().ToString("N"));
+            try{
+                using(var owner=global::Seamless.Execution.Store.Open(root)){
+                    using var data=owner.CreateTsavoriteHashSet<long>("ids");
+                    using var set=data.Create();
+                    for(long i=0;i<50;i++){
+                        set.Add(i);
+                    }
+                    owner.Save();
+                }
+                using(var owner=global::Seamless.Execution.Store.Open(root)){
+                    using var data=owner.CreateTsavoriteHashSet<long>("ids");
+                    Assert.False(data.TryGetManagedCount(out _));
+                    Assert.Equal(50,data.GetLongCount());
+                    Assert.True(data.TryGetManagedCount(out var count));
+                    Assert.Equal(50,count);
+                }
+            }finally{
+                if(Directory.Exists(root)){
+                    Directory.Delete(root,true);
+                }
+            }
+        }
+    }
+    [Fact,Trait("Category","Unit")]
     public void DumpIndexDistribution(){
         using var owner=global::Seamless.Execution.Store.CreateMemory();
         using var data=owner.CreateTsavoriteHashSet<int>("ids");

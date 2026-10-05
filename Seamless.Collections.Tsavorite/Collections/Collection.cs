@@ -141,15 +141,6 @@ public abstract class Collection<
         TAllocator
     > CollectionStore;
     private protected TsavoriteKV<TStoreFunctions,TAllocator> Store => this.CollectionStore.Store;
-    // 件数は IterateLookup による全走査でしか求まらないため、直近の結果を保持して再走査を避ける。
-    // ICollection<T>.Count は O(1) を期待されており、System.Linq.Enumerable.TryGetNonEnumeratedCount が
-    // これを呼ぶ。キャッシュしないと「列挙しない件数取得」が実際には全走査になり、
-    // ハッシュ構築系 LINQ 演算子(Distinct/Union/ToLookup など)がソースを二重走査してしまう。
-    // 破棄は書き込み側の一点管理にする(InvalidateCountCache を全変更経路から呼ぶ)。
-    private const long UnknownCount = -1;
-    private long cachedCount = UnknownCount;
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private protected void InvalidateCountCache() => this.cachedCount=UnknownCount;
     public TryAddResult TryAdd(TKey Key,TValue Value) {
         this.VerifyThreadAffinity();
         return this.PrivateTryAdd(Key,Value);
@@ -164,45 +155,13 @@ public abstract class Collection<
         }
         Debug.Assert(Result==TryAddResult.Success);
     }
-    internal sealed class IterateLookupCounter:IScanIteratorFunctions {
-        public long Counter;
-        public bool Reader<TSourceLogRecord>(in TSourceLogRecord sourceLogRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
-            where TSourceLogRecord : ISourceLogRecord {
-            if(sourceLogRecord.Info.Tombstone) {
-                cursorRecordResult=CursorRecordResult.Skip;
-            } else {
-                cursorRecordResult=CursorRecordResult.Accept;
-                this.Counter++;
-            }
-            return true;
-        }
-        public bool OnStart(long beginAddress,long endAddress) {
-            this.Counter=0;
-            return true;
-        }
-        public void OnException(Exception exception,long numberOfRecords) {
-        }
-        public void OnStop(bool completed,long numberOfRecords) {
-        }
-    }
+    /// <summary>
+    /// 件数。データ本体が管理している件数を返す(O(1))。一括の集合演算や読み込みのあとで不明なら、全走査で数え直す。
+    /// ICollection{T}.Count は O(1) を期待されており、System.Linq の TryGetNonEnumeratedCount も呼ぶので、書き込みのたびに数え直さない。
+    /// </summary>
     public long GetLongCount() {
         this.VerifyThreadAffinity();
-        if(this.CollectionStore.TryGetManagedCount(out var managed)) {
-            return managed;
-        }
-        // 共通ストアから作ったデータ本体では、操作用オブジェクトごとの記憶は他の操作用オブジェクトの書き込みで古くなるので使わない。
-        var cached = this.cachedCount;
-        if(cached!=UnknownCount&&!this.CollectionStore.TracksCount) {
-            return cached;
-        }
-        var iterator = new IterateLookupCounter();
-        var cursor = 0L;
-        this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
-        this.ReadSession.BasicContext.CompletePending(wait: true);
-        this.cachedCount=iterator.Counter;
-        // 共通ストアから作ったデータ本体では、数え直した件数を管理件数として戻す。
-        this.CollectionStore.SetManagedCount(iterator.Counter);
-        return iterator.Counter;
+        return this.CollectionStore.GetLongCountFromAccessor();
     }
     // false の操作用オブジェクト(CreateUncounted)は、データ本体の件数を増減しない。増減は呼び出し側が ApplyCountDelta で反映する。
     private bool countsIntoStore = true;
@@ -331,7 +290,6 @@ public abstract class Collection<
     }
     public void Clear() {
         this.VerifyThreadAffinity();
-        this.InvalidateCountCache();
         this.DisposeAdditionalSessions();
         this.DisposeCoreSessions();
         this.CollectionStore.Store.Reset();
@@ -342,7 +300,6 @@ public abstract class Collection<
     }
     public virtual void Refresh() {
         this.VerifyThreadAffinity();
-        this.InvalidateCountCache();
         // Refresh() performs log truncation/segment deletion, then recreates sessions.
         // Dispose active sessions, reset store, then recreate session objects.
         this.DisposeAdditionalSessions();
@@ -904,7 +861,6 @@ public abstract class Collection<
         ArgumentNullException.ThrowIfNull(other);
         self.VerifyThreadAffinity(nameof(this.IntersectWith));
         other.VerifyThreadAffinity(nameof(this.IntersectWith));
-        self.InvalidateCountCache();
         self.OnCountUnknown();
         var ReadSession = self.ReadSession;
         var workListPath = self.CollectionStore.CreateWorkListPath("intersect-with");
@@ -964,7 +920,6 @@ public abstract class Collection<
             EqualityEmpty
         > {
         other.VerifyThreadAffinity(nameof(this.SymmetricExceptWith));
-        this.InvalidateCountCache();
         this.OnCountUnknown();
         var strategy = new RmwSessionForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
@@ -998,7 +953,6 @@ public abstract class Collection<
             EqualityEmpty
         > {
         other.VerifyThreadAffinity(nameof(this.ExceptWith));
-        this.InvalidateCountCache();
         this.OnCountUnknown();
         var strategy = new DeleteSessionForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
@@ -1032,7 +986,6 @@ public abstract class Collection<
             EqualityEmpty
         > {
         other.VerifyThreadAffinity(nameof(this.UnionWith));
-        this.InvalidateCountCache();
         this.OnCountUnknown();
         var strategy = new UpsertLogRecordForEachStrategy<TSessionFunctions>(Session);
         ForEach(other,ref strategy);
@@ -1291,7 +1244,6 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     }
     public unsafe bool Remove(TKey key) {
         this.VerifyThreadAffinity();
-        this.InvalidateCountCache();
         var ClientSession = this.ContainsDeleteSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var Input = default(EqualityEmpty);
@@ -1309,7 +1261,6 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     }
     private protected override unsafe TryAddResult PrivateTryAdd(TKey key,TValue value) {
         this.VerifyThreadAffinity(nameof(this.PrivateTryAdd));
-        this.InvalidateCountCache();
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var serializedValueSize = TValueSerializer.Serialize(ref value).Length;
         if(this.WouldOverflowMutable(KeyBytes.Length,serializedValueSize))
@@ -1332,7 +1283,6 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
 
     private protected unsafe void PrivateUpsert(TKey key,TValue value) {
         this.VerifyThreadAffinity(nameof(this.PrivateUpsert));
-        this.InvalidateCountCache();
         this.OnCountUnknown();
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var ValueBytes = TValueSerializer.Serialize(ref value);

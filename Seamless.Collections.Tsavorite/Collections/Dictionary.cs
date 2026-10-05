@@ -90,6 +90,16 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         SpanByteStoreFunctions,//TStoreFunctions
         SpanByteStoreAllocator//TAllocator
     > Remove_KeyValuePair_ClientSession { get; set; } = null!;
+    // 代入用のセッション。セッションの数には上限があるので、代入を使う辞書だけが最初の代入で作る。
+    private ClientSession<
+        FixedSpanByteKey,//TKey
+        TValue,//TInput
+        bool,//TOutput
+        EqualityEmpty,//TContext
+        SetValue<TValue,TValueSerializer>,//TFunctions
+        SpanByteStoreFunctions,//TStoreFunctions
+        SpanByteStoreAllocator//TAllocator
+    >? SetValue_ClientSession;
     internal Dictionary(CollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
         try {
             this.CreateAdditionalSessions();
@@ -101,6 +111,11 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
     private protected override void DisposeAdditionalSessions() {
         CompletePendingAndDispose(this.Remove_TKey_TValue_ClientSession);
         CompletePendingAndDispose(this.Remove_KeyValuePair_ClientSession);
+        var setValue = this.SetValue_ClientSession;
+        this.SetValue_ClientSession=null;
+        if(setValue is not null) {
+            CompletePendingAndDispose(setValue);
+        }
     }
     private protected override void RecreateAdditionalSessions() {
         this.CreateAdditionalSessions();
@@ -124,7 +139,6 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
     }
     public unsafe bool Remove(KeyValuePair<TKey,TValue> item) {
         this.VerifyThreadAffinity();
-        this.InvalidateCountCache();
         var Session = this.Remove_KeyValuePair_ClientSession;
         var Key0 = item.Key;
         var Value0 = item.Value;
@@ -143,7 +157,6 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
     }
     public unsafe bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value) {
         this.VerifyThreadAffinity();
-        this.InvalidateCountCache();
         var Session = this.Remove_TKey_TValue_ClientSession;
         var KeyBytes = TKeySerializer.Serialize(ref key);
         var Input = default(EqualityEmpty);
@@ -221,23 +234,31 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         }
         set {
             this.VerifyThreadAffinity("Item");
-            this.InvalidateCountCache();
-            // Upsert は挿入か上書きかを返さないので、件数は次の取得時に数え直す。
-            this.OnCountUnknown();
             var KeyBytes = TKeySerializer.Serialize(ref key);
-            var ValueBytes = TValueSerializer.Serialize(ref value);
-            if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
+            var ValueLength = TValueSerializer.Serialize(ref value).Length;
+            if(this.WouldOverflowMutable(KeyBytes.Length,ValueLength))
                 throw this.ThrowLogFull();
-            var ClientSession = this.Add_ClientSession;
+            // Upsert は挿入か上書きかを返さないので、RMW で書いて新規かどうかを受け取り、件数を保つ。
+            var ClientSession = this.SetValue_ClientSession??=this.Store.NewSession<
+                FixedSpanByteKey,//TKey
+                TValue,//TInput
+                bool,//TOutput
+                EqualityEmpty,//TContext
+                SetValue<TValue,TValueSerializer>//TFunctions
+            >(new());
+            var Output = false;
             Status Status;
             unsafe {
                 fixed(byte* _ = KeyBytes) {
                     var FixedKey = (FixedSpanByteKey)KeyBytes;
-                    var Value = ValueBytes;
-                    Status=ClientSession.BasicContext.Upsert(FixedKey,Value);
+                    Status=ClientSession.BasicContext.RMW(FixedKey,ref value,ref Output);
+                    Status=Pending(ClientSession,Status,ref Output);
                 }
             }
-            Pending(ClientSession,Status);
+            Debug.Assert(Status.IsCompleted);
+            if(Output) {
+                this.OnInserted();
+            }
         }
     }
 }
