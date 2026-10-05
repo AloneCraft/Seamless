@@ -133,13 +133,15 @@ public class LightEpochLimitTests {
     [Fact]
     public void kTableSize_128Threads_AllSucceed() {
         using var store = Store.Create().Create<int,int>();
+        // スレッドごとの操作用オブジェクトは、並列区間のマルチ用で作る。
+        using var region = store.BeginParallel();
         const int ThreadCount = 128;
         var errors = new global::System.Collections.Concurrent.ConcurrentBag<Exception>();
         var barrier = new Barrier(ThreadCount);
         var threads = Enumerable.Range(0,ThreadCount).Select(i => new Thread(() => {
             try {
                 barrier.SignalAndWait();
-                using var dict = store.Create();
+                using var dict = region.Create();
                 dict.Add(i,i);
             } catch(Exception ex) {
                 errors.Add(ex);
@@ -162,10 +164,12 @@ public class LightEpochLimitTests {
     [Fact]
     public void SessionCount_25Dicts_AllSucceed() {
         using var store = Store.Create().Create<int,int>();
+        // 同時に複数の操作用オブジェクトを持つので、並列区間のマルチ用で作る。
+        using var region = store.BeginParallel();
         var dicts = new List<IDisposable>();
         try {
             for(var i = 0;i<25;i++) {
-                dicts.Add(store.Create());
+                dicts.Add(region.Create());
             }
             Assert.Equal(25,dicts.Count);
         } finally {
@@ -181,10 +185,11 @@ public class LightEpochLimitTests {
         // LightEpoch の取得と解放を検証する。
         // LightEpoch の取得と解放を検証する。
         using var store = Store.Create().Create<int,int>();
+        using var region = store.BeginParallel();
         var dicts = new List<IDisposable>();
         try {
             for(var i = 0;i<26;i++) {
-                dicts.Add(store.Create());
+                dicts.Add(region.Create());
             }
             Assert.Equal(26,dicts.Count);
         } finally {
@@ -200,10 +205,11 @@ public class LightEpochLimitTests {
         using var store = Store.Create().Create<int,int>();
         // LightEpoch の取得と解放を検証する。
         for(var round = 0;round<2;round++) {
+            using var region = store.BeginParallel();
             var dicts = new List<IDisposable>();
             try {
                 for(var i = 0;i<25;i++) {
-                    dicts.Add(store.Create());
+                    dicts.Add(region.Create());
                 }
                 Assert.Equal(25,dicts.Count);
             } finally {

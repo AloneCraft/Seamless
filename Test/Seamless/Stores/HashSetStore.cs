@@ -4,36 +4,39 @@ namespace Test.Seamless.Stores;
 public class HashSetStore{
     [Fact,Trait("Category","Unit")]public void Create(){
         {
-            //件数を管理する操作用オブジェクトを複数スレッドで使っても、データ本体の件数は正確
+            //シングル用で追加・重複した追加・無い要素の削除をしても、データ本体の件数は正確
             using var store=CommonStore.CreateMemory();
             using var data=store.CreateTsavoriteHashSet<long>("ids");
-            Parallel.For(0,4,thread=>{
-                using var set=data.Create();
-                for(long i=0;i<10_000;i++){
-                    set.Add(thread*10_000L+i);
+            using(var set=data.Create()){
+                for(long i=0;i<40_000;i++){
+                    set.Add(i);
                 }
-                //重複した追加と、無い要素の削除は件数を変えない
-                set.Add(thread*10_000L);
+                set.Add(0);
                 set.Remove(-1);
-            });
+            }
             Assert.Equal(40_000,data.GetLongCount());
             using var reader=data.Create();
             Assert.Equal(40_000,reader.GetLongCount());
             Assert.Equal(40_000,reader.Count);
         }
         {
-            //削除と全削除で件数が変わり、別の操作用オブジェクトからも同じ件数が見える
+            //削除と全削除で件数が変わり、あとで作った操作用オブジェクトからも同じ件数が見える
             using var store=CommonStore.CreateMemory();
             using var data=store.CreateTsavoriteHashSet<long>("ids");
-            using var first=data.Create();
-            using var second=data.Create();
-            for(long i=0;i<100;i++){
-                first.Add(i);
+            using(var first=data.Create()){
+                for(long i=0;i<100;i++){
+                    first.Add(i);
+                }
             }
-            Assert.True(second.Remove(5));
-            Assert.Equal(99,first.GetLongCount());
-            second.Clear();
-            Assert.Equal(0,first.GetLongCount());
+            using(var second=data.Create()){
+                Assert.True(second.Remove(5));
+                Assert.Equal(99,second.GetLongCount());
+            }
+            Assert.Equal(99,data.GetLongCount());
+            using(var third=data.Create()){
+                third.Clear();
+            }
+            Assert.Equal(0,data.GetLongCount());
         }
     }
     [Fact,Trait("Category","Unit")]public void CreateUncounted(){
@@ -66,7 +69,7 @@ public class HashSetStore{
         var root=Path.Combine(Path.GetTempPath(),"seamless-hashsetstore-tests",Guid.NewGuid().ToString("N"));
         try{
             {
-                //挿入か上書きか分からない書き込み(辞書の代入)のあとは、全走査で数え直して正確な件数を返す
+                //辞書の代入(新規と上書き)のあとも、件数は正確
                 using var store=CommonStore.CreateMemory();
                 using var data=store.CreateTsavorite<int,string>("names");
                 using var dictionary=data.Create();

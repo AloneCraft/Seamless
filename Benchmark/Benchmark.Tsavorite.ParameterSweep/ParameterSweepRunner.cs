@@ -70,6 +70,10 @@ public sealed class パラメータスイープ実行器 {
         パラメータスイープ実行オプション オプション,
         CancellationToken キャンセルトークン) {
         var CPU番号一覧 = オプション.論理CPU一覧.Count==0 ? [null] : オプション.論理CPU一覧.Select(static CPU => (int?)CPU).ToArray();
+        // 複数スレッドで同じデータ本体を使うときは、並列区間のマルチ用で作る(1 スレッドならシングル用のまま計測する)。
+        if(CPU番号一覧.Length>1) {
+            ワークロード.並列区間を開く();
+        }
         var ワーカー一覧 = CPU番号一覧.Select((CPU,番号) => new パラメータスイープワーカー実行(番号,CPU,ワークロード.ワーカーを作成)).ToArray();
         foreach(var ワーカー in ワーカー一覧) {
             ワーカー.ワーカー数=ワーカー一覧.Length;
@@ -397,6 +401,8 @@ internal static class パラメータスイープ設定バリデーター {
 
 internal interface Iパラメータスイープワークロード:IDisposable {
     TsavoriteStatistics 統計を取得();
+    /// <summary>複数スレッドで使う前に 1 回呼ぶ。以後の <see cref="ワーカーを作成"/> はマルチ用になる。区間はワークロードの破棄で閉じる。</summary>
+    void 並列区間を開く();
     Iパラメータスイープワーカー ワーカーを作成();
 }
 
@@ -477,7 +483,16 @@ internal abstract class ワークロード基底:IDisposable {
 
     public abstract TsavoriteStatistics 統計を取得();
 
-    public void Dispose() => this.共通ストア.Dispose();
+    // 開いた並列区間。データ本体より先に閉じる。
+    protected IDisposable? 並列区間 { get; set; }
+
+    public void Dispose() {
+        try {
+            this.並列区間?.Dispose();
+        } finally {
+            this.共通ストア.Dispose();
+        }
+    }
 }
 
 internal sealed class ハッシュセットワークロード<Tキー>:ワークロード基底, Iパラメータスイープワークロード
@@ -497,7 +512,16 @@ internal sealed class ハッシュセットワークロード<Tキー>:ワーク
 
     public override TsavoriteStatistics 統計を取得() => this.ストア.GetStatistics();
 
-    public Iパラメータスイープワーカー ワーカーを作成() => new ハッシュセットワーカー<Tキー>(this.ストア.Create(),this.キーファクトリー);
+    private ParallelRegion<ParallelHashSet<Tキー>>? 区間;
+
+    public void 並列区間を開く() => this.並列区間=this.区間=this.ストア.BeginParallel();
+
+    public Iパラメータスイープワーカー ワーカーを作成() {
+        if(this.区間 is { } 区間) {
+            return new 並列ハッシュセットワーカー<Tキー>(区間.Create(),this.キーファクトリー);
+        }
+        return new ハッシュセットワーカー<Tキー>(this.ストア.Create(),this.キーファクトリー);
+    }
 }
 
 internal sealed class セットワークロード<Tキー, Tレコード>:ワークロード基底, Iパラメータスイープワークロード
@@ -518,7 +542,16 @@ internal sealed class セットワークロード<Tキー, Tレコード>:ワー
 
     public override TsavoriteStatistics 統計を取得() => this.ストア.GetStatistics();
 
-    public Iパラメータスイープワーカー ワーカーを作成() => new セットワーカー<Tキー,Tレコード>(this.ストア.Create(),this.レコードファクトリー);
+    private ParallelRegion<ParallelSet<Tキー,Tレコード>>? 区間;
+
+    public void 並列区間を開く() => this.並列区間=this.区間=this.ストア.BeginParallel();
+
+    public Iパラメータスイープワーカー ワーカーを作成() {
+        if(this.区間 is { } 区間) {
+            return new 並列セットワーカー<Tキー,Tレコード>(区間.Create(),this.レコードファクトリー);
+        }
+        return new セットワーカー<Tキー,Tレコード>(this.ストア.Create(),this.レコードファクトリー);
+    }
 }
 
 internal sealed class 辞書ワークロード<Tキー, T値>:ワークロード基底, Iパラメータスイープワークロード
@@ -545,7 +578,16 @@ internal sealed class 辞書ワークロード<Tキー, T値>:ワークロード
 
     public override TsavoriteStatistics 統計を取得() => this.ストア.GetStatistics();
 
-    public Iパラメータスイープワーカー ワーカーを作成() => new 辞書ワーカー<Tキー,T値>(this.ストア.Create(),this.キーファクトリー,this.値ファクトリー);
+    private ParallelRegion<IParallelDictionary<Tキー,T値>>? 区間;
+
+    public void 並列区間を開く() => this.並列区間=this.区間=this.ストア.BeginParallel();
+
+    public Iパラメータスイープワーカー ワーカーを作成() {
+        if(this.区間 is { } 区間) {
+            return new 並列辞書ワーカー<Tキー,T値>(区間.Create(),this.キーファクトリー,this.値ファクトリー);
+        }
+        return new 辞書ワーカー<Tキー,T値>(this.ストア.Create(),this.キーファクトリー,this.値ファクトリー);
+    }
 }
 
 internal sealed class ハッシュセットワーカー<Tキー>(Seamless.Collections.Tsavorite.HashSet<Tキー> セット,Func<int,Tキー> キーファクトリー):Iパラメータスイープワーカー
@@ -568,6 +610,35 @@ internal sealed class セットワーカー<Tキー, Tレコード>(Seamless.Col
 }
 
 internal sealed class 辞書ワーカー<Tキー, T値>(Seamless.Collections.Tsavorite.IDictionary<Tキー,T値> 辞書,Func<int,Tキー> キーファクトリー,Func<int,T値> 値ファクトリー):Iパラメータスイープワーカー
+    where Tキー : IEquatable<Tキー>
+    where T値 : IEquatable<T値> {
+    public void 追加(int 番号) => 辞書.Add(キーファクトリー(番号),値ファクトリー(番号));
+
+    public bool 検索で見つかるか(int 番号) => 辞書.TryGetValue(キーファクトリー(番号),out _);
+
+    public void Dispose() => 辞書.Dispose();
+}
+
+internal sealed class 並列ハッシュセットワーカー<Tキー>(ParallelHashSet<Tキー> セット,Func<int,Tキー> キーファクトリー):Iパラメータスイープワーカー
+    where Tキー : IEquatable<Tキー> {
+    public void 追加(int 番号) => セット.Add(キーファクトリー(番号));
+
+    public bool 検索で見つかるか(int 番号) => セット.Contains(キーファクトリー(番号));
+
+    public void Dispose() => セット.Dispose();
+}
+
+internal sealed class 並列セットワーカー<Tキー, Tレコード>(ParallelSet<Tキー,Tレコード> セット,Func<int,Tレコード> レコードファクトリー):Iパラメータスイープワーカー
+    where Tキー : IEquatable<Tキー>
+    where Tレコード : IRecord<Tキー> {
+    public void 追加(int 番号) => セット.Add(レコードファクトリー(番号));
+
+    public bool 検索で見つかるか(int 番号) => セット.ContainsKey(レコードファクトリー(番号).Key);
+
+    public void Dispose() => セット.Dispose();
+}
+
+internal sealed class 並列辞書ワーカー<Tキー, T値>(IParallelDictionary<Tキー,T値> 辞書,Func<int,Tキー> キーファクトリー,Func<int,T値> 値ファクトリー):Iパラメータスイープワーカー
     where Tキー : IEquatable<Tキー>
     where T値 : IEquatable<T値> {
     public void 追加(int 番号) => 辞書.Add(キーファクトリー(番号),値ファクトリー(番号));

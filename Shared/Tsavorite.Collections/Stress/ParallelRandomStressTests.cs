@@ -3,8 +3,8 @@ namespace Shared.Tsavorite.Collections.Stress;
 
 /// <summary>
 /// マルチスレッド Stress テスト。
-/// 1 つの Store を共有し、スレッドごとに store.Create() で独立したコレクションハンドル
-/// (独立 ClientSession) を取得する。各スレッドは互いに素なキー分割で操作することで
+/// 1 つの Store を共有し、並列区間(store.BeginParallel)の中でスレッドごとに region.Create() で
+/// マルチ用のコレクションハンドル(独立 ClientSession)を取得する。各スレッドは互いに素なキー分割で操作することで
 /// 最終状態の決定論を保証する。
 /// </summary>
 public class ParallelRandomStressTests {
@@ -60,11 +60,13 @@ public class ParallelRandomStressTests {
                 using(var dict = store.Create()) {
                     dict.Clear();
                 }
-                Parallel.For(0,ThreadCount,t => {
-                    using var dict = store.Create();
-                    foreach(var k in partitions[t])
-                        dict.Add(k,k*2);
-                });
+                using(var region = store.BeginParallel()) {
+                    Parallel.For(0,ThreadCount,t => {
+                        using var dict = region.Create();
+                        foreach(var k in partitions[t])
+                            dict.Add(k,k*2);
+                    });
+                }
                 // 全体ハッシュは単一ハンドル経由で列挙して得る。
                 using(var dict = store.Create()) {
                     StressReferenceAssert.DictionaryEquals(keys,expected,key => {
@@ -72,13 +74,15 @@ public class ParallelRandomStressTests {
                         return (found,value);
                     });
                 }
-                Parallel.For(0,ThreadCount,t => {
-                    using var dict = store.Create();
-                    foreach(var k in partitions[t]) {
-                        if(keyToRemove[k])
-                            dict.Remove(k);
-                    }
-                });
+                using(var region = store.BeginParallel()) {
+                    Parallel.For(0,ThreadCount,t => {
+                        using var dict = region.Create();
+                        foreach(var k in partitions[t]) {
+                            if(keyToRemove[k])
+                                dict.Remove(k);
+                        }
+                    });
+                }
                 using(var dict = store.Create()) {
                     StressReferenceAssert.DictionaryEquals(keys,expectedAfterRemove,key => {
                         var found = dict.TryGetValue(key,out var value);
@@ -126,23 +130,27 @@ public class ParallelRandomStressTests {
                 using(var dict = store.Create()) {
                     dict.Clear();
                 }
-                Parallel.For(0,ThreadCount,t => {
-                    using var dict = store.Create();
-                    foreach(var k in partitions[t])
-                        dict.Add(k,keyToValue[k]);
-                });
+                using(var region = store.BeginParallel()) {
+                    Parallel.For(0,ThreadCount,t => {
+                        using var dict = region.Create();
+                        foreach(var k in partitions[t])
+                            dict.Add(k,keyToValue[k]);
+                    });
+                }
                 using(var dict = store.Create()) {
                     StressReferenceAssert.DictionaryEquals(keys,expected,key => {
                         var found = dict.TryGetValue(key,out var value);
                         return (found,value??string.Empty);
                     });
                 }
-                Parallel.For(0,ThreadCount,t => {
-                    using var dict = store.Create();
-                    foreach(var k in partitions[t])
-                        if(keyToRemove[k])
-                            dict.Remove(k);
-                });
+                using(var region = store.BeginParallel()) {
+                    Parallel.For(0,ThreadCount,t => {
+                        using var dict = region.Create();
+                        foreach(var k in partitions[t])
+                            if(keyToRemove[k])
+                                dict.Remove(k);
+                    });
+                }
                 using(var dict = store.Create()) {
                     StressReferenceAssert.DictionaryEquals(keys,expectedAfterRemove,key => {
                         var found = dict.TryGetValue(key,out var value);
@@ -181,16 +189,20 @@ public class ParallelRandomStressTests {
                 using(var set = store.Create()) {
                     set.Clear();
                 }
-                Parallel.For(0,ThreadCount,t => {
-                    using var set = store.Create();
-                    foreach(var k in partitions[t]) set.Add(k);
-                });
+                using(var region = store.BeginParallel()) {
+                    Parallel.For(0,ThreadCount,t => {
+                        using var set = region.Create();
+                        foreach(var k in partitions[t]) set.Add(k);
+                    });
+                }
                 using(var set = store.Create()) StressReferenceAssert.SetEquals(keys,expected,key => set.Contains(key));
-                Parallel.For(0,ThreadCount,t => {
-                    using var set = store.Create();
-                    foreach(var k in partitions[t])
-                        if(keyToRemove[k]) set.Remove(k);
-                });
+                using(var region = store.BeginParallel()) {
+                    Parallel.For(0,ThreadCount,t => {
+                        using var set = region.Create();
+                        foreach(var k in partitions[t])
+                            if(keyToRemove[k]) set.Remove(k);
+                    });
+                }
                 using(var set = store.Create()) StressReferenceAssert.SetEquals(keys,expectedAfterRemove,key => set.Contains(key));
             }
         } finally {
@@ -226,16 +238,20 @@ public class ParallelRandomStressTests {
                 using(var set = store.Create()) {
                     set.Clear();
                 }
-                Parallel.For(0,ThreadCount,t => {
-                    using var set = store.Create();
-                    foreach(var k in partitions[t]) set.Add(k);
-                });
+                using(var region = store.BeginParallel()) {
+                    Parallel.For(0,ThreadCount,t => {
+                        using var set = region.Create();
+                        foreach(var k in partitions[t]) set.Add(k);
+                    });
+                }
                 using(var set = store.Create()) StressReferenceAssert.SetEquals(keys,expected,key => set.Contains(key));
-                Parallel.For(0,ThreadCount,t => {
-                    using var set = store.Create();
-                    foreach(var k in partitions[t])
-                        if(keyToRemove[k]) set.Remove(k);
-                });
+                using(var region = store.BeginParallel()) {
+                    Parallel.For(0,ThreadCount,t => {
+                        using var set = region.Create();
+                        foreach(var k in partitions[t])
+                            if(keyToRemove[k]) set.Remove(k);
+                    });
+                }
                 using(var set = store.Create()) StressReferenceAssert.SetEquals(keys,expectedAfterRemove,key => set.Contains(key));
             }
         } finally {
