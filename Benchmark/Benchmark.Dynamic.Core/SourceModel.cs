@@ -171,8 +171,9 @@ public static class SourceTargetFacts{
 
     public static CountCost GetCountCost(this SourceTarget target){
         return target.GetSourceKind() switch{
-            SourceKind.Tsavorite=>CountCost.LinearScan,
-            SourceKind.Array or SourceKind.List or SourceKind.Persisted=>CountCost.Constant,
+            // 源は Tsavorite のシングル用(Create())で、件数をデータ本体が管理するので O(1)。
+            // 件数を持たないマルチ用(BeginParallel の区間)は ScanCount で全走査になるが、この源には使わない。
+            SourceKind.Array or SourceKind.List or SourceKind.Persisted or SourceKind.Tsavorite=>CountCost.Constant,
             _=>CountCost.Unknown,
         };
     }

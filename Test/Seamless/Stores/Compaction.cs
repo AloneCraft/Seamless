@@ -237,6 +237,52 @@ public class Compaction{
             }
         }finally{Directory.Delete(root,true);}
     }
+    [Fact,Trait("Category","Unit")]public void Compact_Persistent_CrashAfterManifestBeforeTruncation(){
+        var root=NewRoot();
+        try{
+            //マニフェストを書いたあと、古いファイルを消す前に強制終了した状態。保存の確定の通知(古いファイルを消す前)で、その時点のフォルダを複製して開き直す
+            var directory=Path.Combine(root,"store");
+            var snapshot=Path.Combine(root,"snapshot");
+            using(var store=CommonStore.Open(directory)){
+                //登録順に通知されるので、データ本体より先に登録して、データ本体が古いファイルを消す前に複製する
+                store.Register(new SnapshotOnCommit(()=>{
+                    if(Directory.Exists(snapshot)){
+                        Directory.Delete(snapshot,true);
+                    }
+                    CopyDirectory(directory,snapshot);
+                }));
+                using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
+                AddRange(data,0,Count);
+                store.Save();
+                RemoveRange(data,0,Count*9/10);
+                data.Compact();
+                store.Save();
+                //通常の保存は、確定の通知でファイルを消す
+                Assert.True(File.Exists(Path.Combine(snapshot,"data","ids","hlog.0")));
+                Assert.False(File.Exists(Path.Combine(LogDirectory(directory,"ids"),"hlog.0")));
+            }
+            using(var store=CommonStore.Open(snapshot)){
+                Assert.Single(store.Checkpoints);
+                using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
+                AssertContents(data,Count*9/10,Count,Count);
+            }
+        }finally{Directory.Delete(root,true);}
+    }
+    // 開いたままのファイルも複製する(デバイスは読み書きの共有で開いている)。排他ロックのファイルは複製しない。
+    private static void CopyDirectory(string source,string destination){
+        Directory.CreateDirectory(destination);
+        foreach(var file in Directory.GetFiles(source)){
+            if(Path.GetFileName(file)=="store.lock"){
+                continue;
+            }
+            using var input=new FileStream(file,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete);
+            using var output=new FileStream(Path.Combine(destination,Path.GetFileName(file)),FileMode.Create,FileAccess.Write);
+            input.CopyTo(output);
+        }
+        foreach(var directory in Directory.GetDirectories(source)){
+            CopyDirectory(directory,Path.Combine(destination,Path.GetFileName(directory)));
+        }
+    }
     [Fact,Trait("Category","Unit")]public void Save_KeepsOlderSavesWithoutCompaction(){
         var root=NewRoot();
         try{
@@ -304,4 +350,13 @@ public class Compaction{
         store.Save();
         AssertContents(data,Count*9/10,Count,Count);
     }
+}
+// 保存の確定の通知で、テストが渡した処理を呼ぶだけの子資源。
+file sealed class SnapshotOnCommit(Action onCommit):IStoreComponent{
+    public string Name=>"snapshot-spy";
+    public string Save()=>string.Empty;
+    public void Flush(){}
+    public void Load(string state){}
+    public void SaveCommitted()=>onCommit();
+    public void Dispose(){}
 }

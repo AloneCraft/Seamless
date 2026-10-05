@@ -51,8 +51,8 @@
 | 制限・差異 | 許容理由 / 解除条件 |
 |---|---|
 | Persisted は Memory Store で作成不可 | ファイルが必要な現在の契約。利用を要求するなら別の寿命/予算設計が必要 |
-| Tsavorite 辞書上書き等で Count の再計算 O(n) | 正確さを優先した現在の制約。高速化は正確性と並列性の証明後 |
-| 複数 accessor の生存中は index growth を保留 | 現在の並列操作制約。expectedCount 等の既存手段を維持。制約解除を無検証で行わない |
+| マルチ用(並列区間)は件数を持たない(`ScanCount()` が毎回全件を数える) | 件数の管理を排他命令なしにして、シングル用の Count を O(1) にするための設計(2026-10-06)。区間を閉じると件数は次に数え直す |
+| 並列区間の中では index growth を保留 | Tsavorite の制約(EXP-0004)。`BeginParallel(見込み件数)` で区間を開くときに先に広げ、閉じたときに混んでいれば広げる |
 | accessor の thread affinity は契約であり、DEBUG 警告と全構成の強制拒否は異なる | 現行実装は利用側のスレッドごとの作成を要求する。Release でも自動防止すると宣言しない |
 | scope 付き byte equality と通常 .NET equality の差 | 別 Semantics の意図した差。+0/-0 等を無理に一致させない |
 | FLinq Registry の明示 Excluded と unordered 制限 | 未対応境界/安全境界の仕様。全対応を完了条件にしない |
