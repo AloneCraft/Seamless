@@ -1,9 +1,7 @@
 namespace Seamless.Collections.Tsavorite;
 
 /// <summary>
-/// Dictionaryの動作を検証する。
-/// Dictionaryの動作を検証する。
-/// Dictionaryの動作を検証する。
+/// Tsavorite の辞書のシングル用の操作用オブジェクト(データ本体に同時に 1 つだけ)。件数はデータ本体が管理し O(1)。
 /// </summary>
 [DebuggerTypeProxy(typeof(DictionaryDebugView<,,,>))]
 public partial class Dictionary<
@@ -16,10 +14,17 @@ public partial class Dictionary<
         TKey,
         TValue,
         TKeySerializer,
-        TValueSerializer
+        TValueSerializer,
+        ExclusiveAccess
     >,
     IDictionary<TKey,TValue> where TKeySerializer : ISerializer<TKey>
     where TValueSerializer : ISerializer<TValue> {
+    /// <summary>件数(O(1))。データ本体が管理している件数を返す。</summary>
+    public int Count => checked((int)this.GetLongCountCore());
+    /// <summary>件数(O(1))。データ本体が管理している件数を返す。</summary>
+    public long GetLongCount() => this.GetLongCountCore();
+    /// <summary>全件を削除する。</summary>
+    public void Clear() => this.ClearCore();
     public bool IsReadOnly => false;
     public void Add(KeyValuePair<TKey,TValue> item) => this.Add(item.Key,item.Value);
     bool ICollection<KeyValuePair<TKey,TValue>>.Contains(KeyValuePair<TKey,TValue> item) {

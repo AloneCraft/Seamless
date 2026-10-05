@@ -126,7 +126,7 @@ public class Set {
         Assert.Equal(bravo,intersected);
 
         using var except = set.Except(other);
-        Assert.Equal(1,except.Count);
+        Assert.Equal(1L,except.GetLongCount());
         Assert.True(except.TryGetValue(1,out var excepted));
         Assert.Equal(alpha,excepted);
 

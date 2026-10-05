@@ -5,6 +5,10 @@ internal interface IUncountableAccessor {
     void DisableCounting();
 }
 
+/// <summary>
+/// 操作用オブジェクトの共通基底。<typeparamref name="TMode"/> はシングル用(<see cref="ExclusiveAccess"/>)か
+/// マルチ用(<see cref="ParallelAccess"/>)かを表す構造体で、件数の管理と索引の拡大の有無を JIT が型ごとに決める(操作ごとの判定はしない)。
+/// </summary>
 [DebuggerDisplay("EntryCount={EntryCount}")]
 public abstract class Collection<
     TKey,
@@ -15,7 +19,8 @@ public abstract class Collection<
     TAddFunctions,
     TContainsDeleteFunctions,
     TStoreFunctions,
-    TAllocator
+    TAllocator,
+    TMode
 >:IDisposable, IUncountableAccessor where TReadFunctions : struct, ISessionFunctions<
         EqualityEmpty,
         TReadOutput,
@@ -37,7 +42,8 @@ public abstract class Collection<
     where TStoreFunctions : IStoreFunctions
     where TAllocator : IAllocator<
         TStoreFunctions
-    > {
+    >
+    where TMode : struct, IAccessMode {
     /// <summary>
     /// IScanIteratorFunctions 実装です。
     /// IterateLookup から読んだレコードをデシリアライズしてチャンクへ格納します。
@@ -158,28 +164,34 @@ public abstract class Collection<
     /// <summary>
     /// 件数。データ本体が管理している件数を返す(O(1))。一括の集合演算や読み込みのあとで不明なら、全走査で数え直す。
     /// ICollection{T}.Count は O(1) を期待されており、System.Linq の TryGetNonEnumeratedCount も呼ぶので、書き込みのたびに数え直さない。
+    /// 件数の窓口はシングル用の型だけが公開する(マルチ用は毎回数える ScanCount)。
     /// </summary>
-    public long GetLongCount() {
-        this.VerifyThreadAffinity();
+    private protected long GetLongCountCore() {
+        this.VerifyThreadAffinity(nameof(this.GetLongCountCore));
         return this.CollectionStore.GetLongCountFromAccessor();
     }
     // false の操作用オブジェクト(CreateUncounted)は、データ本体の件数を増減しない。増減は呼び出し側が ApplyCountDelta で反映する。
     private bool countsIntoStore = true;
     void IUncountableAccessor.DisableCounting() => this.countsIntoStore=false;
+    // 件数を管理するのはシングル用だけ。TMode は構造体なので、マルチ用ではこの判定ごと JIT が消す。
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private protected void OnInserted() {
-        if(this.countsIntoStore) {
+        if(TMode.IsExclusive&&this.countsIntoStore) {
             this.CollectionStore.AddManagedCount(1);
         }
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private protected void OnRemoved() {
-        if(this.countsIntoStore) {
+        if(TMode.IsExclusive&&this.countsIntoStore) {
             this.CollectionStore.AddManagedCount(-1);
         }
     }
     // 挿入か上書きか分からない書き込みや、一括の集合演算のあと。次の件数取得で数え直す。
-    private protected void OnCountUnknown() => this.CollectionStore.InvalidateManagedCount();
+    private protected void OnCountUnknown() {
+        if(TMode.IsExclusive) {
+            this.CollectionStore.InvalidateManagedCount();
+        }
+    }
     private protected unsafe bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes) {
         var Session = this.ContainsDeleteSession;
         var Output = false;
@@ -288,8 +300,9 @@ public abstract class Collection<
         session.BasicContext.CompletePending(wait: true);
         session.Dispose();
     }
-    public void Clear() {
-        this.VerifyThreadAffinity();
+    // 全削除。ログを捨てるので、他の操作用オブジェクトが無いシングル用の型だけが公開する。
+    private protected void ClearCore() {
+        this.VerifyThreadAffinity(nameof(this.ClearCore));
         this.DisposeAdditionalSessions();
         this.DisposeCoreSessions();
         this.CollectionStore.Store.Reset();
@@ -449,7 +462,8 @@ public abstract class Collection<
             TAddFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
-            TAllocator
+            TAllocator,
+            TMode
         >
         where TStrategy : struct, IIterateLookupForEachStrategy<TStrategy> {
         ArgumentNullException.ThrowIfNull(collection);
@@ -606,7 +620,6 @@ public abstract class Collection<
             _ => throw new UnreachableException(),
         };
     }
-    public int Count => checked((int)this.GetLongCount());
     public long EntryCount => this.CollectionStore.Store.EntryCount;
     private protected abstract Status Read(TKey Key,out TValue Output);
     public abstract bool IsDisposed { get; }
@@ -652,7 +665,8 @@ public abstract class Collection<
             TAddFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
-            TAllocator
+            TAllocator,
+            TMode
         > {
         public bool IsSubset = true;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
@@ -687,7 +701,8 @@ public abstract class Collection<
             TAddFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
-            TAllocator
+            TAllocator,
+            TMode
         > {
         public bool FoundOverlap = false;
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
@@ -722,7 +737,8 @@ public abstract class Collection<
             TAddFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
-            TAllocator
+            TAllocator,
+            TMode
         > {
         ArgumentNullException.ThrowIfNull(other);
         self.VerifyThreadAffinity(nameof(IsSubsetOfSet));
@@ -744,7 +760,8 @@ public abstract class Collection<
             TAddFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
-            TAllocator
+            TAllocator,
+            TMode
         > {
         ArgumentNullException.ThrowIfNull(Other);
         return IsSubsetOfSet(Other,Self);
@@ -759,10 +776,11 @@ public abstract class Collection<
             TAddFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
-            TAllocator
+            TAllocator,
+            TMode
         > {
         ArgumentNullException.ThrowIfNull(Other);
-        if(Self.GetLongCount()>=Other.GetLongCount()) {
+        if(Self.GetLongCountCore()>=Other.GetLongCountCore()) {
             return false;
         }
         return IsSubsetOfSet(Self,Other);
@@ -777,10 +795,11 @@ public abstract class Collection<
             TAddFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
-            TAllocator
+            TAllocator,
+            TMode
         > {
         ArgumentNullException.ThrowIfNull(Other);
-        if(Self.GetLongCount()<=Other.GetLongCount()) {
+        if(Self.GetLongCountCore()<=Other.GetLongCountCore()) {
             return false;
         }
         return IsSupersetOfSet(Self,Other);
@@ -795,7 +814,8 @@ public abstract class Collection<
             TAddFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
-            TAllocator
+            TAllocator,
+            TMode
         > {
         ArgumentNullException.ThrowIfNull(other);
         self.VerifyThreadAffinity(nameof(OverlapsSet));
@@ -817,12 +837,13 @@ public abstract class Collection<
             TAddFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
-            TAllocator
+            TAllocator,
+            TMode
         > {
         ArgumentNullException.ThrowIfNull(Other);
         Self.VerifyThreadAffinity(nameof(SetEqualsSet));
         Other.VerifyThreadAffinity(nameof(SetEqualsSet));
-        if(Self.GetLongCount()!=Other.GetLongCount()) {
+        if(Self.GetLongCountCore()!=Other.GetLongCountCore()) {
             return false;
         }
         return IsSubsetOfSet(Self,Other);
@@ -856,7 +877,8 @@ public abstract class Collection<
             TAddFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
-            TAllocator
+            TAllocator,
+            TMode
         > {
         ArgumentNullException.ThrowIfNull(other);
         self.VerifyThreadAffinity(nameof(this.IntersectWith));
@@ -912,7 +934,8 @@ public abstract class Collection<
             TAddFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
-            TAllocator
+            TAllocator,
+            TMode
         >
         where TSessionFunctions : struct, ISessionFunctions<
             EqualityEmpty,
@@ -945,7 +968,8 @@ public abstract class Collection<
             TAddFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
-            TAllocator
+            TAllocator,
+            TMode
         >
         where TSessionFunctions : struct, ISessionFunctions<
             EqualityEmpty,
@@ -978,7 +1002,8 @@ public abstract class Collection<
             TAddFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
-            TAllocator
+            TAllocator,
+            TMode
         >
         where TSessionFunctions : struct, ISessionFunctions<
             TAddInput,
@@ -1004,7 +1029,8 @@ public abstract class Collection<
             TAddFunctions,
             TContainsDeleteFunctions,
             TStoreFunctions,
-            TAllocator
+            TAllocator,
+            TMode
         > {
         public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
@@ -1028,7 +1054,7 @@ public abstract class Collection<
 
 
 
-public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>:Collection<
+public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer, TMode>:Collection<
     TKey,//TKey
     TValue,//TValue
     TValue,//TReadOutput
@@ -1037,9 +1063,11 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
     Upsert<TValue,TValueSerializer>,//TAddFunctions
     ContainsDelete,//TDeleteFunctions
     SpanByteStoreFunctions,//TStoreFunctions
-    SpanByteStoreAllocator//TAllocator
+    SpanByteStoreAllocator,//TAllocator
+    TMode
 > where TKeySerializer : ISerializer<TKey>
-    where TValueSerializer : ISerializer<TValue> {
+    where TValueSerializer : ISerializer<TValue>
+    where TMode : struct, IAccessMode {
     public sealed class KeyIterator:IterateLookupIteratorFunctions_List<TKey>, ICreate<KeyIterator> {
         public static KeyIterator Create() => new();
         public override bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
@@ -1105,7 +1133,8 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
             Upsert<TValue,TValueSerializer>,
             ContainsDelete,
             SpanByteStoreFunctions,
-            SpanByteStoreAllocator
+            SpanByteStoreAllocator,
+            TMode
         > CollectionInstance;
         private long Cursor;
         private int Index = -1;
@@ -1143,7 +1172,8 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer>
             Upsert<TValue,TValueSerializer>,
             ContainsDelete,
             SpanByteStoreFunctions,
-            SpanByteStoreAllocator
+            SpanByteStoreAllocator,
+            TMode
         > collection) {
             this.CollectionInstance=collection;
             this._session=session;

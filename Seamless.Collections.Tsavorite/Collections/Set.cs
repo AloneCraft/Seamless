@@ -5,8 +5,14 @@ public interface ISetIterateStrategy<TSelf,in TRecord>
     static abstract bool Invoke(ref TSelf self,TRecord item);
 }
 
-public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>>, ISet<TKey,TRecord>, IMemoryCollection<TRecord>
+public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>,ExclusiveAccess>, ISet<TKey,TRecord>, IMemoryCollection<TRecord>
     where TRecord : IRecord<TKey> {
+    /// <summary>件数(O(1))。データ本体が管理している件数を返す。</summary>
+    public int Count => checked((int)this.GetLongCountCore());
+    /// <summary>件数(O(1))。データ本体が管理している件数を返す。</summary>
+    public long GetLongCount() => this.GetLongCountCore();
+    /// <summary>全件を削除する。</summary>
+    public void Clear() => this.ClearCore();
     private readonly IDisposable? ownedStore;
     internal Set(CollectionStore<TKey,TRecord> collectionStore,IDisposable? ownedStore = null) : base(collectionStore) {
         // 構築に成功してから受け取る(失敗したときは呼び出し側が破棄する)。

@@ -106,7 +106,7 @@ public class StoreTests {
 
         Assert.True(set.Add(42));
         Assert.False(set.Add(42));
-        Assert.Equal(1,set.Count);
+        Assert.Equal(1L,set.GetLongCount());
     }
 
     [Fact, Trait("Category","Unit")]

@@ -6,7 +6,13 @@ namespace Seamless.Collections.Tsavorite;
 /// Tsavorite 永続ストア上で高速な追加・削除・検索を行うコレクションです。等価判定はシリアライズ後のバイト列の一致です。
 /// </summary>
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
-public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<TKey>,MemoryPackSerializer<EqualityEmpty>>, IHashSet<TKey>, global::System.Collections.Generic.ISet<TKey> {
+public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<TKey>,MemoryPackSerializer<EqualityEmpty>,ExclusiveAccess>, IHashSet<TKey>, global::System.Collections.Generic.ISet<TKey> {
+    /// <summary>件数(O(1))。データ本体が管理している件数を返す。</summary>
+    public int Count => checked((int)this.GetLongCountCore());
+    /// <summary>件数(O(1))。データ本体が管理している件数を返す。</summary>
+    public long GetLongCount() => this.GetLongCountCore();
+    /// <summary>全件を削除する。</summary>
+    public void Clear() => this.ClearCore();
     // 関係演算は自分自身を全件メモリに載せず、逐次走査と Contains で求める(other が集合でなければ other だけを集合にする)。
     public bool IsProperSubsetOf(IEnumerable<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
