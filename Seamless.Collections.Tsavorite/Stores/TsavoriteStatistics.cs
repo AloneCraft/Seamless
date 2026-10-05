@@ -12,6 +12,8 @@ namespace Seamless.Collections.Tsavorite;
 /// <param name="MemoryLogBytes">メモリ上のログのバイト数。TailAddress から HeadAddress を引いた値。</param>
 /// <param name="DiskLogBytes">ディスク上のログのバイト数。HeadAddress から BeginAddress を引いた値。</param>
 /// <param name="HighWaterAllocatedPageCount">メモリ上のログに確保したページ数の最大値。</param>
+/// <param name="Count">データ本体の件数。分かっていないとき(並列区間の中など)は null。数え直すための全走査はしない。</param>
+/// <param name="LogBytes">先頭から末尾までのログの大きさ。上書きや削除で無駄が増え、詰め直しで小さくなる。無駄の量は <see cref="CollectionStore{TKey,TValue,TStoreFunctions,TAllocator}.MeasureLogUsage"/>。</param>
 public sealed record TsavoriteStatistics(
     long IndexSize,
     long IndexBytes,
@@ -24,4 +26,24 @@ public sealed record TsavoriteStatistics(
     long TailAddress,
     long MemoryLogBytes,
     long DiskLogBytes,
-    long HighWaterAllocatedPageCount);
+    long HighWaterAllocatedPageCount,
+    long? Count,
+    long LogBytes);
+
+/// <summary>ログの使われ方。全走査して、生きているレコードの大きさと、上書き・削除・詰め直しの残りで無駄になっている大きさを測った値。</summary>
+/// <param name="LiveRecords">削除の印を除いた、生きているレコードの数(コレクションの件数と同じ)。</param>
+/// <param name="LiveBytes">生きているレコードが使っている大きさ。</param>
+/// <param name="LogBytes">先頭から末尾までのログの大きさ。</param>
+public readonly record struct TsavoriteLogUsage(long LiveRecords,long LiveBytes,long LogBytes) {
+    /// <summary>無駄になっている大きさ。詰め直し(<see cref="CollectionStore{TKey,TValue,TStoreFunctions,TAllocator}.Compact"/>)で空きへ戻せる。</summary>
+    public long WasteBytes => Math.Max(0,this.LogBytes-this.LiveBytes);
+    /// <summary>ログに占める無駄の割合(0〜1)。ログが空なら 0。</summary>
+    public double WasteFraction {
+        get {
+            if(this.LogBytes<=0) {
+                return 0;
+            }
+            return (double)this.WasteBytes/this.LogBytes;
+        }
+    }
+}

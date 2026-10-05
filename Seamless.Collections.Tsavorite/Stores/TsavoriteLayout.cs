@@ -10,7 +10,7 @@ internal sealed class TsavoriteLayout:IDisposable{
     /// <summary>集合演算の作業リストを置くフォルダ名(データ本体のフォルダの中)。</summary>
     internal const string WorkListDirectoryName="worklists";
     private const long MinimumIndexSize=1L<<16;
-    private TsavoriteLayout(global::Seamless.Execution.Store owner,string name,StoreKind kind,long indexSize,TsavoriteTuning tuning,long logMemorySize,IDevice logDevice,IDevice objectLogDevice,string? checkpointDirectory,ResourceReservation memory,ResourceReservation? disk){
+    private TsavoriteLayout(global::Seamless.Execution.Store owner,string name,StoreKind kind,long indexSize,TsavoriteTuning tuning,long logMemorySize,IDevice logDevice,DeferredTruncationDevice? deferredLogDevice,IDevice objectLogDevice,string? checkpointDirectory,ResourceReservation memory,ResourceReservation? disk){
         this.Owner=owner;
         this.Name=name;
         this.Kind=kind;
@@ -21,6 +21,7 @@ internal sealed class TsavoriteLayout:IDisposable{
         this.AutoGrowIndex=tuning.AutoGrowIndex;
         this.LogMemorySize=logMemorySize;
         this.LogDevice=logDevice;
+        this.DeferredLogDevice=deferredLogDevice;
         this.ObjectLogDevice=objectLogDevice;
         this.CheckpointDirectory=checkpointDirectory;
         this.Memory=memory;
@@ -37,6 +38,8 @@ internal sealed class TsavoriteLayout:IDisposable{
     public bool AutoGrowIndex{get;}
     public long LogMemorySize{get;}
     public IDevice LogDevice{get;}
+    /// <summary>ログのデバイスを包んで、ファイルの切り捨てを保存が確定するまで保留する。メモリ種では null。<see cref="LogDevice"/> はこれ自身。</summary>
+    public DeferredTruncationDevice? DeferredLogDevice{get;}
     public IDevice ObjectLogDevice{get;}
     public string? CheckpointDirectory{get;}
     /// <summary>メモリの予約。索引 + メモリ上のログ。</summary>
@@ -79,6 +82,7 @@ internal sealed class TsavoriteLayout:IDisposable{
         var memory=store.Budget.ReserveMemory(indexSize);
         ResourceReservation? disk=null;
         IDevice? logDevice=null;
+        DeferredTruncationDevice? deferredLogDevice=null;
         IDevice? objectLogDevice=null;
         try{
             string? checkpointDirectory=null;
@@ -103,15 +107,18 @@ internal sealed class TsavoriteLayout:IDisposable{
                     Directory.Delete(workLists,true);
                 }
                 checkpointDirectory=Path.Combine(directory,"checkpoints");
+                // SpanByte のレコードは値をログに直接持つのでオブジェクトログは使わない。切り捨てを保留するのはログのデバイスだけ。
                 if(tuning.Storage is StorageTuning storage){
-                    logDevice=TsavoriteStorageDevices.Create(Path.Combine(directory,"hlog"),storage);
+                    deferredLogDevice=new(TsavoriteStorageDevices.Create(Path.Combine(directory,"hlog"),storage));
+                    logDevice=deferredLogDevice;
                     objectLogDevice=TsavoriteStorageDevices.Create(Path.Combine(directory,"obj"),storage);
                 }else{
-                    logDevice=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(directory,"hlog"));
+                    deferredLogDevice=new(global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(directory,"hlog")));
+                    logDevice=deferredLogDevice;
                     objectLogDevice=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(directory,"obj"));
                 }
             }
-            return new(store,name,store.Kind,indexSize,tuning,logMemorySize,logDevice,objectLogDevice,checkpointDirectory,memory,disk);
+            return new(store,name,store.Kind,indexSize,tuning,logMemorySize,logDevice,deferredLogDevice,objectLogDevice,checkpointDirectory,memory,disk);
         }catch{
             objectLogDevice?.Dispose();
             logDevice?.Dispose();

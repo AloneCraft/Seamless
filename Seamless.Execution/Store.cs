@@ -172,14 +172,28 @@ public sealed class Store:IDisposable{
                 }
             }
             var checkpoint=new Checkpoint(Guid.NewGuid(),DateTimeOffset.UtcNow,states);
-            this.checkpoints.Add(checkpoint);
-            try{
-                WriteManifest(this.directoryPath,this.checkpoints,durable);
-            }catch{
-                this.checkpoints.RemoveAt(this.checkpoints.Count-1);
-                throw;
+            // 詰め直しなどで前の保存のデータが要らなくなった(消える)子資源があれば、前の保存は記録に残さない。
+            // 残すと、記録は戻れるように見えるのに、実際にはデータが無い。
+            var dropOlder=false;
+            foreach(var component in this.components){
+                if(component.InvalidatesOlderSaves){
+                    dropOlder=true;
+                }
             }
+            List<Checkpoint> next;
+            if(dropOlder){
+                next=[checkpoint];
+            }else{
+                next=[..this.checkpoints,checkpoint];
+            }
+            // 書けなければ、記録も子資源の状態も変えずに例外にする(後始末は確定してからにする)。
+            WriteManifest(this.directoryPath,next,durable);
+            this.checkpoints.Clear();
+            this.checkpoints.AddRange(next);
             this.current=checkpoint;
+            foreach(var component in this.components){
+                component.SaveCommitted();
+            }
             return checkpoint.Token;
         }
     }
@@ -204,6 +218,13 @@ public sealed class Store:IDisposable{
             var index=this.checkpoints.FindIndex(checkpoint=>checkpoint.Token==token);
             if(index<0){
                 throw new ArgumentException($"Checkpoint '{token}' does not exist.",nameof(token));
+            }
+            // 読み込めない保存へ戻して新しい保存だけを失うことがないよう、記録を変える前に、全子資源が読み込めるか確かめる。
+            var target=this.checkpoints[index];
+            foreach(var component in this.components){
+                if(target.Components.TryGetValue(component.Name,out var targetState)){
+                    component.ValidateLoad(targetState);
+                }
             }
             var newer=this.checkpoints.GetRange(index+1,this.checkpoints.Count-index-1);
             if(newer.Count>0){

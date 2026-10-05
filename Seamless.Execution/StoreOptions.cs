@@ -29,4 +29,19 @@ public interface IStoreComponent:IDisposable{
     /// </summary>
     void Flush();
     void Load(string state);
+    /// <summary>
+    /// 直前の <see cref="Save"/> が、これより前の保存へ戻れなくなる変更(ログの先頭を進める詰め直しなど)を含んでいたら true。
+    /// ストアは <see cref="Save"/> の直後に全子資源へ問い合わせ、1 つでも true なら、新しい保存だけを残したマニフェストを書く(戻れない保存を記録に残さない)。
+    /// </summary>
+    bool InvalidatesOlderSaves=>false;
+    /// <summary>
+    /// <see cref="Save"/> の内容を指すマニフェストを書き終えたあとに呼ぶ。マニフェストが確定する前には消せない後始末
+    /// (不要になったファイルの削除など)をここで行う。失敗しても保存は確定済みなので、例外にせず次の機会にやり直すこと。
+    /// </summary>
+    void SaveCommitted(){}
+    /// <summary>
+    /// <see cref="Load(string)"/> できるかを、何も変えずに確かめる。できなければ例外。
+    /// ストアは保存番号を指定した読み込みで、新しい保存を記録から外す前に呼ぶ(読み込めない保存へ戻して、新しい保存だけを失わないため)。
+    /// </summary>
+    void ValidateLoad(string state){}
 }

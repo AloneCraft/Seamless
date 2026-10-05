@@ -255,6 +255,93 @@ public sealed class Store{
             }
         }finally{Directory.Delete(root,true);}
     }
+    [Fact]public void Save_DropsOlderSaves(){
+        var root=NewRoot();
+        try{
+            var directory=Path.Combine(root,"app");
+            using var store=StoreType.Open(directory);
+            var manifest=Path.Combine(directory,"store.json");
+            string? manifestAtCommit=null;
+            var a=store.Register(new RecordingComponent("a"){State="a1",OnSaveCommitted=()=>manifestAtCommit=File.ReadAllText(manifest)});
+            var b=store.Register(new RecordingComponent("b"){State="b1"});
+            var first=store.Save();
+            {
+                //保存が確定する(マニフェストが書かれる)前には、確定の通知は呼ばれない。確定した保存の通知は 1 回ずつ
+                Assert.Equal(1,a.SaveCommittedCount);
+                Assert.Equal(1,b.SaveCommittedCount);
+                Assert.Contains(first.ToString(),manifestAtCommit);
+            }
+            {
+                //どれか 1 つの子資源が前の保存へ戻れなくなる変更をしていたら、新しい保存だけを残す(記録を、確定の通知より先に書き換える)
+                b.InvalidatesOlderSaves=true;
+                var second=store.Save();
+                Assert.Equal([second],store.Checkpoints);
+                Assert.DoesNotContain(first.ToString(),manifestAtCommit);
+                Assert.Contains(second.ToString(),manifestAtCommit);
+                Assert.Throws<ArgumentException>(()=>store.Load(first));
+                Assert.Equal(2,a.SaveCommittedCount);
+                Assert.Equal(2,b.SaveCommittedCount);
+                //外した結果は開き直しても保たれる
+                store.Dispose();
+                using var reopened=StoreType.Open(directory);
+                Assert.Equal([second],reopened.Checkpoints);
+            }
+        }finally{Directory.Delete(root,true);}
+    }
+    [Fact]public void Save_KeepsOlderSavesUnlessInvalidated(){
+        var root=NewRoot();
+        try{
+            //前の保存へ戻れなくなる変更が無ければ、保存を重ねて記録を増やす。外す必要が無くなったら、また増える
+            using var store=StoreType.Open(Path.Combine(root,"app"));
+            var a=store.Register(new RecordingComponent("a"));
+            var first=store.Save();
+            a.InvalidatesOlderSaves=true;
+            var second=store.Save();
+            a.InvalidatesOlderSaves=false;
+            var third=store.Save();
+            Assert.Equal([second,third],store.Checkpoints);
+            Assert.NotEqual(first,second);
+        }finally{Directory.Delete(root,true);}
+    }
+    [Fact]public void Save_FailureCommitsNothing(){
+        var root=NewRoot();
+        try{
+            //書き出しに失敗した保存は、前の保存を外さず、確定の通知もしない
+            using var store=StoreType.Open(Path.Combine(root,"app"));
+            var failing=false;
+            var a=store.Register(new RecordingComponent("a"){OnFlush=()=>{
+                if(failing){
+                    throw new IOException("disk full");
+                }
+            }});
+            var first=store.Save();
+            a.InvalidatesOlderSaves=true;
+            failing=true;
+            Assert.Throws<IOException>(()=>store.Save());
+            Assert.Equal([first],store.Checkpoints);
+            Assert.Equal(1,a.SaveCommittedCount);
+        }finally{Directory.Delete(root,true);}
+    }
+    [Fact]public void Load_ValidatesBeforeDroppingNewerSaves(){
+        var root=NewRoot();
+        try{
+            //戻り先の保存が読み込めないと分かったときは、新しい保存を記録から外さず、子資源へも渡さない
+            var directory=Path.Combine(root,"app");
+            using var store=StoreType.Open(directory);
+            var a=store.Register(new RecordingComponent("a"){State="a1"});
+            var first=store.Save();
+            a.State="a2";
+            var second=store.Save();
+            a.RejectedState="a1";
+            Assert.Throws<InvalidOperationException>(()=>store.Load(first));
+            Assert.Equal([first,second],store.Checkpoints);
+            Assert.Equal(second,store.CurrentCheckpoint);
+            Assert.Empty(a.Loaded);
+            store.Dispose();
+            using var reopened=StoreType.Open(directory);
+            Assert.Equal([first,second],reopened.Checkpoints);
+        }finally{Directory.Delete(root,true);}
+    }
     [Fact]public void Load(){
         var root=NewRoot();
         try{
@@ -319,6 +406,13 @@ file sealed class RecordingComponent(string name):IStoreComponent{
     // Save / Flush が呼ばれた時点の様子を記録するために、テストが渡す処理。
     public Action? OnSave{get;init;}
     public Action? OnFlush{get;init;}
+    // 保存が確定した通知(SaveCommitted)の時点の様子を記録するために、テストが渡す処理。
+    public Action? OnSaveCommitted{get;init;}
+    public int SaveCommittedCount{get;private set;}
+    // 前の保存へ戻れなくなる変更をしたことにする。
+    public bool InvalidatesOlderSaves{get;set;}
+    // この状態は読み込めないことにする(ValidateLoad が例外にする)。
+    public string? RejectedState{get;set;}
     public List<string> Loaded{get;}=[];
     public bool Disposed{get;private set;}
     public string Save(){
@@ -331,5 +425,14 @@ file sealed class RecordingComponent(string name):IStoreComponent{
         this.OnFlush?.Invoke();
     }
     public void Load(string state)=>this.Loaded.Add(state);
+    public void SaveCommitted(){
+        this.SaveCommittedCount++;
+        this.OnSaveCommitted?.Invoke();
+    }
+    public void ValidateLoad(string state){
+        if(state==this.RejectedState){
+            throw new InvalidOperationException("The state cannot be loaded.");
+        }
+    }
     public void Dispose()=>this.Disposed=true;
 }

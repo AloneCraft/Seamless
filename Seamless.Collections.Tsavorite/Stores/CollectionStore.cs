@@ -99,6 +99,15 @@ public abstract partial class CollectionStore<
     private TsavoriteLayout? layout;
     // 予算を予約済みのログ末尾アドレス。旧 API では long.MaxValue にして確認を 1 回の比較で済ませる。
     private long reservedTailAddress = long.MaxValue;
+    // ディスク上のログの先頭(ここより前のセグメントは物理的に消えている)。切り捨ては保存が確定するまで保留するので、論理的な先頭(Log.BeginAddress)より小さい。
+    // ディスクの予約はこの位置から数える(詰め直しで先頭を進めても、保存が確定するまでファイルは残っているため)。
+    private long diskBaseAddress;
+    // ログの先頭を進めた(詰め直し・全削除)ので、前の保存へは戻れなくなる。次の保存で、前の保存を記録から外させる。
+    private bool olderSavesInvalid;
+    private long invalidationSerial;
+    // 保存した(チェックポイントを取った)が、マニフェストがまだ確定していない状態。確定の通知(SaveCommitted)で後始末をする。
+    private SaveCommit? pendingCommit;
+    private sealed record SaveCommit(long BeginAddress,bool InvalidatesOlder,long Serial);
     private int accessorCount;
     public long LogMemorySize { get; }
     public double MutableFraction { get; }
@@ -213,6 +222,7 @@ public abstract partial class CollectionStore<
         this.layout=layout;
         this.indexBytes=layout.IndexSize;
         this.reservedTailAddress=0;
+        this.diskBaseAddress=this.Store.Log.BeginAddress;
         this.SetManagedCount(0);
     }
 
@@ -278,13 +288,32 @@ public abstract partial class CollectionStore<
     }
 
     /// <summary>削除の印を除いたレコードの数を、一時的なセッションで全走査して数える。</summary>
-    private long ScanLiveRecordCount() {
+    private long ScanLiveRecordCount() => this.ScanLiveRecords().Count;
+
+    private IterateLookupCounter ScanLiveRecords() {
         using var session = this.Store.NewSession<FixedSpanByteKey,EqualityEmpty,bool,EqualityEmpty,ContainsDelete>(new());
         var counter = new IterateLookupCounter();
         var cursor = 0L;
         session.IterateLookup(ref counter,ref cursor,resetCursor: false);
         session.BasicContext.CompletePending(wait: true);
-        return counter.Count;
+        return counter;
+    }
+
+    /// <summary>
+    /// ログの使われ方を、全走査して測る。生きているレコードの大きさと無駄の量が分かるので、詰め直し(<see cref="Compact"/>)をするかの判断に使う。
+    /// 件数に応じた時間がかかるので、高頻度の監視には向かない。取得した時点の値であり、並行して書き込んでいる間は整合しない。
+    /// </summary>
+    public TsavoriteLogUsage MeasureLogUsage() {
+        ObjectDisposedException.ThrowIf(this.Disposed,this);
+        this.storeGate.Wait();
+        try {
+            var log = this.Store.Log;
+            var logBytes = log.TailAddress-log.BeginAddress;
+            var live = this.ScanLiveRecords();
+            return new(live.Count,live.LiveBytes,logBytes);
+        } finally {
+            this.storeGate.Release();
+        }
     }
 
     // 索引の自動拡張の目安。1 バケット(実効 7 件)あたり平均 4 件を超えたら倍にする(EXP-0003)。
@@ -342,7 +371,7 @@ public abstract partial class CollectionStore<
         layout.Memory.Resize(Math.Max(previousMemoryBytes,memoryBytes));
         if(layout.Disk is not null) {
             try {
-                layout.Disk.Resize(Math.Max(layout.Disk.Bytes,logBytes));
+                layout.Disk.Resize(Math.Max(layout.Disk.Bytes,target-this.diskBaseAddress));
             } catch {
                 layout.Memory.Resize(previousMemoryBytes);
                 throw;
@@ -470,6 +499,9 @@ public abstract partial class CollectionStore<
             layout.Memory.Resize(this.indexBytes);
             layout.Disk?.Resize(0);
             this.reservedTailAddress=0;
+            // ログを作り直したので、ファイルは(保留なしで)消えている。前の保存のデータも無くなった。
+            this.diskBaseAddress=this.Store.Log.BeginAddress;
+            this.MarkOlderSavesInvalid();
         } finally {
             this.storeGate.Release();
         }
@@ -592,7 +624,59 @@ public abstract partial class CollectionStore<
         if(Volatile.Read(ref this.accessorCount)==0&&this.TryGetManagedCount(out var managed)) {
             count=managed;
         }
+        // この保存が必要とするログの先頭と、前の保存を外す必要があるか。関所の中で、チェックポイントを取った直後なので、先頭はチェックポイントのものと同じ。
+        this.pendingCommit=new(this.Store.Log.BeginAddress,this.olderSavesInvalid,this.invalidationSerial);
         return new TsavoriteSavedState(token,this.Store.IndexSize*64,count).Serialize();
+    }
+
+    bool global::Seamless.Execution.IStoreComponent.InvalidatesOlderSaves => this.pendingCommit is { InvalidatesOlder: true };
+
+    void global::Seamless.Execution.IStoreComponent.SaveCommitted() {
+        this.storeGate.Wait();
+        try {
+            this.CommitSaveCore();
+        } finally {
+            this.storeGate.Release();
+        }
+    }
+
+    // 保存が確定した(マニフェストが書けた)あとの後始末。保留していたファイルの切り捨てを、この保存が必要とする先頭より前だけ実行し、ディスクの予約を物理的な大きさへ戻す。
+    // 消せなくても保存は確定済みなので例外にしない(保留のまま残り、次の保存の確定でやり直す)。
+    private void CommitSaveCore() {
+        var commit = this.pendingCommit;
+        if(commit is null) {
+            return;
+        }
+        this.pendingCommit=null;
+        if(commit.InvalidatesOlder&&this.invalidationSerial==commit.Serial) {
+            this.olderSavesInvalid=false;
+        }
+        var truncation = this.layout?.DeferredLogDevice;
+        if(truncation is null) {
+            return;
+        }
+        if(truncation.Release(commit.BeginAddress)&&!truncation.HasPending) {
+            this.diskBaseAddress=Math.Max(this.diskBaseAddress,commit.BeginAddress);
+            this.ShrinkReservationCore();
+        }
+    }
+
+    void global::Seamless.Execution.IStoreComponent.ValidateLoad(string state) {
+        this.AssertCheckpointDir();
+        var saved = TsavoriteSavedState.Parse(state);
+        // Tsavorite は保存番号のフォルダの中身から復元する。フォルダが無ければ読み込めない。
+        var checkpointDir = this.Settings.CheckpointDir!;
+        foreach(var kindDirectory in new[] { "cpr-checkpoints","index-checkpoints" }) {
+            if(!Directory.Exists(Path.Combine(checkpointDir,kindDirectory,saved.Token.ToString()))) {
+                throw new InvalidOperationException($"The checkpoint '{saved.Token}' of '{this.layout?.Name}' cannot be loaded: its {kindDirectory} folder does not exist.");
+            }
+        }
+    }
+
+    // 前の保存へは戻れなくなる変更をした印を付ける(関所の中で呼ぶ)。
+    private void MarkOlderSavesInvalid() {
+        this.olderSavesInvalid=true;
+        this.invalidationSerial++;
     }
 
     void global::Seamless.Execution.IStoreComponent.Load(string state) {
@@ -631,7 +715,9 @@ public abstract partial class CollectionStore<
         try {
             await this.storeGate.WaitAsync(ct);
             try {
-                return await this.TakeFullCheckpointCoreAsync(CheckpointType,writeRecoveryIndexMetadata: true,ct);
+                var directToken = await this.TakeFullCheckpointCoreAsync(CheckpointType,writeRecoveryIndexMetadata: true,ct);
+                this.CommitDirectSaveCore();
+                return directToken;
             } finally {
                 this.storeGate.Release();
             }
@@ -682,6 +768,7 @@ public abstract partial class CollectionStore<
                     this.CheckpointFailed=false;
                     this.WriteRecoveryIndexMetadata(token,recoveryEntryCount);
                     this.MarkUnflushed(token);
+                    this.CommitDirectSaveCore();
                     return token;
                 }
                 throw new InvalidOperationException($"{nameof(this.SaveLogOnly)}Checkpoint failed.");
@@ -865,6 +952,11 @@ public abstract partial class CollectionStore<
         await this.RecoverWithSizeTrackerAsync(token,ct);
         this.ThrowIfRecoveredTailCollidesWithHead();
         this.CheckpointFailed=false;
+        // ログを保存した状態へ戻したので、保留していた切り捨ては、戻した先が必要とするファイルを消してしまう。捨てる。
+        this.layout?.DeferredLogDevice?.DiscardPending();
+        this.pendingCommit=null;
+        this.olderSavesInvalid=false;
+        this.diskBaseAddress=this.Store.Log.BeginAddress;
         // 復元した中身の件数は分からない(共通ストアの読み込みは、保存した件数があればこのあと戻す)。
         this.InvalidateManagedCount();
     }
@@ -896,6 +988,10 @@ public abstract partial class CollectionStore<
             var headAddress = log.HeadAddress;
             var readOnlyAddress = log.ReadOnlyAddress;
             var tailAddress = log.TailAddress;
+            long? count = null;
+            if(this.TryGetManagedCount(out var managedCount)) {
+                count=managedCount;
+            }
             return new(
                 indexSize,
                 checked(indexSize*64),
@@ -908,7 +1004,9 @@ public abstract partial class CollectionStore<
                 tailAddress,
                 tailAddress-headAddress,
                 headAddress-beginAddress,
-                this.Store.HighWaterAllocatedPageCount);
+                this.Store.HighWaterAllocatedPageCount,
+                count,
+                tailAddress-beginAddress);
         } finally {
             this.storeGate.Release();
         }
@@ -927,6 +1025,7 @@ public abstract partial class CollectionStore<
         }
     }
 
+    /// <summary>旧 API。先頭のセグメント 1 つ分だけを詰める。全体を詰めるときは <see cref="Compact"/> を使う。</summary>
     public void CompactWithLookup() {
         this.storeGate.Wait();
         try {
@@ -934,6 +1033,117 @@ public abstract partial class CollectionStore<
         } finally {
             this.storeGate.Release();
         }
+    }
+
+    /// <summary>
+    /// 詰め直す。生きているレコードをログの末尾へ少しずつ移し、先頭を進めて、削除や上書きで無駄になった領域を空きへ戻す。
+    /// 件数と中身は変わらない。操作用オブジェクトも並列区間も無いときだけ呼べる(あれば <see cref="InvalidOperationException"/>)。
+    /// 空きが足りなければ、データを移す前に <see cref="global::Seamless.Execution.ResourceLimitException"/> になる。
+    /// 永続・一時ストアでは、ディスク上のファイルは次の共通ストアの保存が確定するまで消えない。保存すると、これより前の保存は記録から外れ、戻れなくなる。
+    /// </summary>
+    public CompactionResult Compact() {
+        ObjectDisposedException.ThrowIf(this.Disposed,this);
+        this.storeGate.Wait();
+        try {
+            return this.CompactCore();
+        } finally {
+            this.storeGate.Release();
+        }
+    }
+
+    // 関所の中で呼ぶ。
+    private CompactionResult CompactCore() {
+        if(Volatile.Read(ref this.accessorCount)!=0)
+            throw new InvalidOperationException("Dispose the collections created by Create() before compacting.");
+        if(this.parallelRegion is not null)
+            throw new InvalidOperationException("Dispose the parallel region and the collections created from it before compacting.");
+        var log = this.Store.Log;
+        var beginBefore = log.BeginAddress;
+        var tailBefore = log.TailAddress;
+        // いまあるログを書き換えさせないよう、全体を読み取り専用にして、移す範囲をここまでに決める(移した写しは範囲の外)。
+        log.ShiftReadOnlyAddress(tailBefore,true);
+        var target = log.SafeReadOnlyAddress;
+        var pageSize = this.Settings.PageSize;
+        var chunkBytes = this.GetCompactionChunkBytes();
+        var cursor = log.BeginAddress;
+        while(cursor<target) {
+            var iterationBytes = chunkBytes;
+            if(this.OverflowMutableStrategyKind==OverflowMutableStrategyKind.Memory) {
+                // メモリ種はメモリ上のログが全部で、退避先は捨てる。写しを書くために新しいページを開くと、先頭のページが追い出される。
+                // 先頭の側のページはまだ読み終えていないので、追い出されると生きているレコードを失う(EXP: 満杯のログで 123 件が消えた)。
+                // 写しが開くページの数だけ空きがあるときだけ進め、足りなければ何も移さずに例外にする(余裕として 2 ページ残す)。
+                var usedPages = log.TailAddress/pageSize-log.BeginAddress/pageSize+1;
+                var freePages = log.BufferSize-usedPages-2;
+                if(freePages<1) {
+                    throw new global::Seamless.Execution.ResourceLimitException(global::Seamless.Execution.ResourceLimitKind.Memory,checked((usedPages+3)*pageSize),checked(log.BufferSize*pageSize));
+                }
+                iterationBytes=Math.Min(iterationBytes,freePages*pageSize);
+            }
+            // 1 区切りは、ページ(レコードがまたがない境界)の倍数にそろえる。移した写しは末尾に書かれるので、その分の予算の空きも先に確かめる。
+            var until = Math.Min(target,cursor/pageSize*pageSize+iterationBytes);
+            try {
+                this.GrowReservationCore(log.TailAddress+(until-cursor)+MemoryOverflowMutableStrategy.GetRequiredBytes(0,0),0);
+            } catch(global::Seamless.Execution.ResourceLimitException) when(chunkBytes>pageSize) {
+                // 空きが 1 区切りに足りないので、区切りを半分にして続ける(1 ページでも足りなければ、そのまま例外)。
+                chunkBytes/=2;
+                continue;
+            }
+            var done = log.Compact<TKey,TValue,EqualityEmpty>(until,CompactionType.Lookup);
+            if(done<=cursor) {
+                break;
+            }
+            cursor=done;
+            this.ShrinkReservationCore();
+        }
+        if(log.BeginAddress>beginBefore) {
+            // 先頭を進めたので、前の保存のデータは(次の保存の確定後に)消える。
+            this.MarkOlderSavesInvalid();
+        }
+        this.ShrinkReservationCore();
+        return new(beginBefore,log.BeginAddress,tailBefore,log.TailAddress);
+    }
+
+    // 1 区切りの大きさ。メモリ上のログの 1/16(最大 16MB)を、ページの倍数にそろえる。大きいほど呼び出しが少なく、小さいほど必要な空きが少ない。
+    private long GetCompactionChunkBytes() {
+        var pageSize = this.Settings.PageSize;
+        var chunk = Math.Min(16L<<20,this.LogMemorySize/16);
+        chunk=chunk/pageSize*pageSize;
+        return Math.Max(pageSize,chunk);
+    }
+
+    // 詰め直しのあとなど、実際に使っている大きさへ予算の予約を戻す。メモリは論理的な先頭から、ディスクは物理的な先頭(保留中のファイルを含む)から数える。
+    private void ShrinkReservationCore() {
+        var layout = this.layout;
+        if(layout is null) {
+            return;
+        }
+        var pageSize = this.Settings.PageSize;
+        var log = this.Store.Log;
+        var requiredTail = log.TailAddress+MemoryOverflowMutableStrategy.GetRequiredBytes(0,0);
+        var target = checked((requiredTail+pageSize-1)/pageSize*pageSize);
+        var logBytes = target-log.BeginAddress;
+        long memoryBytes;
+        if(layout.Disk is null) {
+            memoryBytes=checked(this.indexBytes+logBytes);
+        } else {
+            memoryBytes=checked(this.indexBytes+Math.Min(logBytes,this.LogMemorySize));
+        }
+        layout.Memory.Resize(memoryBytes);
+        layout.Disk?.Resize(Math.Max(0,target-this.diskBaseAddress));
+        this.reservedTailAddress=target;
+    }
+
+    // 共通ストアを通さない直接の保存(SaveAsync など)は、マニフェストが無く、保存が戻った時点で確定している。保留していた切り捨てをここで実行する。
+    private void CommitDirectSaveCore() {
+        var truncation = this.layout?.DeferredLogDevice;
+        if(truncation is null) {
+            return;
+        }
+        if(truncation.Release(this.Store.Log.BeginAddress)&&!truncation.HasPending) {
+            this.diskBaseAddress=Math.Max(this.diskBaseAddress,this.Store.Log.BeginAddress);
+            this.ShrinkReservationCore();
+        }
+        this.olderSavesInvalid=false;
     }
 
     private void CompactWithLookupCore() {
@@ -954,6 +1164,9 @@ public abstract partial class CollectionStore<
             CompactionType.Lookup
         );
         store.Log.ShiftBeginAddress(untilAddress,true,true);
+        if(store.Log.BeginAddress>beginAddress) {
+            this.MarkOlderSavesInvalid();
+        }
     }
 
     public void Dispose() {
@@ -986,6 +1199,8 @@ public abstract partial class CollectionStore<
 // 構造体にすると Tsavorite の走査の中でコピーされ、数えた結果が戻らない(クラスにする)。
 internal sealed class IterateLookupCounter:IScanIteratorFunctions {
     public long Count;
+    /// <summary>生きているレコードがログで使っている大きさ(レコードの確保サイズの合計)。</summary>
+    public long LiveBytes;
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
         where TSourceLogRecord : ISourceLogRecord {
         if(logRecord.Info.Tombstone) {
@@ -993,11 +1208,13 @@ internal sealed class IterateLookupCounter:IScanIteratorFunctions {
         } else {
             cursorRecordResult=CursorRecordResult.Accept;
             this.Count++;
+            this.LiveBytes+=logRecord.AllocatedSize;
         }
         return true;
     }
     public bool OnStart(long beginAddress,long endAddress) {
         this.Count=0;
+        this.LiveBytes=0;
         return true;
     }
     public void OnStop(bool completed,long numberOfRecords) {
