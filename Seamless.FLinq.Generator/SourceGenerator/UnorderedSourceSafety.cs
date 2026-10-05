@@ -6,7 +6,7 @@ internal static class UnorderedSourceSafety {
         var definition=named.OriginalDefinition;
         var ns=definition.ContainingNamespace.ToDisplayString();
         return ns switch {
-            "Seamless.Collections.Tsavorite" => definition.MetadataName is "HashSet`1" or "Set`1" or "Set`2",
+            "Seamless.Collections.Tsavorite" => definition.MetadataName is "HashSet`1" or "Set`1" or "Set`2" or "ParallelHashSet`1" or "ParallelSet`2",
             "Seamless.Collections.Persisted" => definition.MetadataName=="Set`1",
             "Seamless.Collections" => definition.MetadataName is "ISet`1" or "IUnorderedEnumerable`1",
             _ => false,

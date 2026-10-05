@@ -55,6 +55,17 @@ namespace Seamless.Linq {
             return innerCollection.Contains(value);
         }
 
+        public static Boolean Contains<TSource>(this ValueEnumerable<TsavoriteParallelHashSetEnumerator<TSource>,TSource> source,TSource value) {
+            var innerCollection = source.Enumerator.GetSource();
+            return innerCollection.Contains(value);
+        }
+
+        public static Boolean Contains<TKey, TRecord>(this ValueEnumerable<TsavoriteParallelSetEnumerator<TKey,TRecord>,TRecord> source,TRecord value)
+            where TRecord : global::Seamless.Collections.IRecord<TKey> {
+            var innerCollection = source.Enumerator.GetSource();
+            return innerCollection.Contains(value);
+        }
+
         public static Boolean Contains<TEnumerator, TSource>(this ValueEnumerable<TEnumerator,TSource> source,TSource value)
     where TEnumerator : struct, IValueEnumerator<TSource> {
             return ContainsCore(ref source,value);

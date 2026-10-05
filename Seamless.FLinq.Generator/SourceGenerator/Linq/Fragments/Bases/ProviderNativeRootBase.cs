@@ -11,9 +11,20 @@ internal abstract class ProviderNativeRootBase(
     string elementType,
     string enumeratorTypeName,
     bool useEnumerableInterface):Root(number,sourceExpression,elementType,enumeratorTypeName,useEnumerableInterface) {
-    public override SourceCapability Capabilities =>
-        SourceCapability.KnownCount|SourceCapability.ChunkStreaming|SourceCapability.NativeIterate|SourceCapability.Unordered;
-    public virtual string NativeCountExpression => $"{this.SourceExpression}.Count";
+    public override SourceCapability Capabilities {
+        get {
+            var capabilities = SourceCapability.ChunkStreaming|SourceCapability.NativeIterate|SourceCapability.Unordered;
+            if(this.NativeCountExpression is not null) {
+                capabilities|=SourceCapability.KnownCount;
+            }
+            return capabilities;
+        }
+    }
+    // O(1) で件数を返す式。null は「件数を持たない」(Tsavorite のマルチ用など)で、件数を前提にした
+    // 先取り・TryGetNonEnumeratedCount の即答をせず、走査しながら集める経路へ落ちる。
+    public virtual string? NativeCountExpression => $"{this.SourceExpression}.Count";
+    // 要素を取り出さずに全件を数えるメソッドの名前(引数なし・long を返す)。件数を持たない根だけが持つ。
+    public virtual string? ScanCountMethodName => null;
     public override string? NonEnumeratedCountExpression => this.NativeCountExpression;
     public abstract string ProviderName { get; }
     public abstract string SourceVariablePrefix { get; }

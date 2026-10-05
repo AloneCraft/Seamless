@@ -1987,6 +1987,12 @@ public sealed partial class FLinqIncrementalGenerator {
         if(IsListType(expressionType)) {
             return new ListRoot(number,sourceExpression,elementTypeName);
         }
+        if(IsTsavoriteParallelSetType(expressionType,out _)) {
+            return new TsavoriteParallelSetRoot(number,sourceExpression,elementTypeName,enumeratorTypeName);
+        }
+        if(IsTsavoriteParallelHashSetType(expressionType,out _)) {
+            return new TsavoriteParallelHashSetRoot(number,sourceExpression,elementTypeName,enumeratorTypeName);
+        }
         if(IsTsavoriteConcreteSetType(expressionType,out _)) {
             return new TsavoriteSetRoot(number,sourceExpression,elementTypeName,enumeratorTypeName);
         }

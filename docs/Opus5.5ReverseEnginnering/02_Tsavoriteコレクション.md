@@ -41,8 +41,8 @@ store.Save();
 | ストアから作る | `CreateTsavorite<K,V>`（辞書）・`CreateTsavoriteHashSet<T>`・`CreateTsavoriteSet<K,R>` | 実装済み | `Stores/StoreExtensions.cs:9-18` |
 | 配置の自動決定 | デバイス、保存フォルダ、索引・ログの大きさをストアの種類・上限・予想件数から決める | 実装済み | `Stores/TsavoriteLayout.cs:44-60` |
 | 詳細設定の公開 | ページ・セグメント・索引・自動拡張・ストレージ方式は公開 `TsavoriteTuning` で指定する。省略時の自動決定を維持 | 実装済み（2026-09-25 の追加承認） | `Stores/TsavoriteTuning.cs`、`Stores/StoreExtensions.cs` |
-| 件数の管理 | データ本体が件数を持つ。`Create()` は増減する版、`CreateUncounted()` は増減しない版、`ApplyCountDelta` で差分反映 | 実装済み | `Stores/CollectionStore.cs:190-240`、`HashSetStore.cs:21-26`、`DictionaryStore.cs:31-64` |
-| 索引の自動拡張 | ログの伸びから件数を推定し、混んでいれば索引を倍にする。拡張分は予算から先に予約 | 実装済み | `Stores/CollectionStore.cs:311-337` |
+| 件数の管理 | データ本体が件数を持つ。シングル用(`Create()`、同時に1つ)は追加・削除のたびに増減し O(1)。マルチ用(`BeginParallel()` の区間の `Create()`)は件数を持たず `ScanCount()` で毎回数える。区間を閉じると「不明」に戻し、次に全走査で数え直す | 実装済み | `Stores/CollectionStore.cs`(`OnAccessorCreated`・`FinishParallelRegion`)、`Stores/ParallelRegion.cs` |
+| 索引の自動拡張 | ログの伸びから件数を推定し、混んでいれば索引を倍にする。拡張分は予算から先に予約。並列区間の中では広げず、区間を開くときに見込み件数分まで先に広げ、閉じたときに混んでいれば広げる | 実装済み | `Stores/CollectionStore.cs`(`GrowIndexIfCrowded`・`BeginParallelCore`) |
 | 保存と復元 | ストアの `Save()` で確定。保存時にログを flush（EXP-0002） | 実装済み | `Test/Seamless/Stores/StoreExtensions.cs:121-175`、【記録】EXP-0002 |
 | 標準の集合インターフェイス | `HashSet` が `System.Collections.Generic.ISet<T>` を実装 | 実装済み | `Collections/HashSet.cs:9` |
 | 関係演算の逐次化 | 部分集合判定などで自分を全件メモリに載せない | 実装済み | `Collections/HashSet.cs:10-35` |
@@ -59,16 +59,16 @@ store.Save();
 
 1. **等値判定の既定はシリアライズ後のバイト列の一致**（`Collections/HashSet.cs:6`）。比較子を導入しても、既定の意味は変えない（決定7）。
 2. **列挙の順序は保証しない。** 順序付き LINQ 演算子を使う側は、`AsEnumerable()` などで明示的に受け入れる（`Seamless.Linq.Analyzers` の `SEAMLINQ001`）。
-3. **件数の正本は `long`（`GetLongCount()`）**（`Stores/CollectionStore.cs:236`）。件数を管理する版では、追加・削除のたびに増減し、挿入か上書きか分からない操作や一括の集合演算のあとは「不明」にして、次回に全走査で数え直す（`CollectionStore.cs:191-193`）。
-4. **`CreateUncounted()` の操作用オブジェクトはデータ本体の件数を変えない。** 反映は `ApplyCountDelta` の1回だけ（`CollectionStore.cs:226-233`）。旧 API で作ったデータ本体に `ApplyCountDelta` を呼ぶと `NotSupportedException`（`:230-231`）。
-5. **操作用オブジェクトが2つ以上生きている間は索引を拡張しない**（`CollectionStore.cs:316-321`）。Tsavorite の `GrowIndexAsync` を並行操作中に呼ぶと停止するため（【記録】EXP-0004。2.0.1-beta.5 と 2.1.8 で確認。2.1.8 でガードを外した複製で、4スレッドの約2.6%・8スレッドの約9%・16スレッドの過半数が停止または例外）。
+3. **件数の正本は `long`（`GetLongCount()`）**（`Stores/CollectionStore.cs:236`）。シングル用では追加・削除のたびに増減する。辞書の代入は Tsavorite の RMW で新規か上書きかを受け取るので、件数は分かったまま保たれる。一括の集合演算のあとや並列区間を閉じたあとは「不明」にして、次回に全走査で数え直す。
+4. **シングル用の操作用オブジェクトはデータ本体に同時に1つだけ。** 2つ目の `Create()`、並列区間が開いている間(閉じ中も含む)の `Create()`・読み込み・2つ目の区間は `InvalidOperationException`。マルチ用は件数を変えない。作成に失敗した操作用オブジェクトは、ファイナライザで他の権利を返さない(BUG-0018)。
+5. **並列区間の中では索引を拡張しない**(`CollectionStore.GrowIndexIfCrowded`)。索引の拡張・保存・読み込み・件数の走査・統計・詰め直しは、データ本体の関所で順番に行う(拡張は保存とも同時に走れない)。Tsavorite の `GrowIndexAsync` を並行操作中に呼ぶと停止するため（【記録】EXP-0004。2.0.1-beta.5 と 2.1.8 で確認。2.1.8 でガードを外した複製で、4スレッドの約2.6%・8スレッドの約9%・16スレッドの過半数が停止または例外）。
 6. **索引拡張のメモリは予算から先に予約し、予約できなければ拡張しない。** 正しさは変わらず、性能だけが落ちる（`CollectionStore.cs:307-329`）。
 7. **メモリ種は上限を超える追加を `ResourceLimitException` にし、それまでの要素を失わない**（`Test/Seamless/Stores/StoreExtensions.cs:75`）。退避先は `NullDevice`、判定は実アドレス＋余裕で行う（【記録】EXP-0001）。
 8. **一時ストア・永続ストアでは、メモリ上のログを超えた分をディスクへ退避し、すべて読める**（`Test/Seamless/Stores/StoreExtensions.cs:91`）。ディスク上限を超える追加は `ResourceLimitException`（`:109`）。
 9. **保存は明示的な `Save()` の時点だけが確定。** 保存後の追加は、開き直すと消える（`Test/Seamless/Stores/StoreExtensions.cs:121`）。
 10. **索引の大きさはストアの保存状態に記録し、開き直すと拡張後の大きさで復元される**（`Test/Seamless/Stores/StoreExtensions.cs:132`、`:175`）。
 11. **同じ名前のデータ本体は1つのストアに2つ作れない**（`Test/Seamless/Stores/StoreExtensions.cs:197`、`Seamless.Execution/Store.cs:111-115`）。
-12. **FLinq 生成器が前提にしているメンバーを保つ。** `Iterate(ref strategy)`、`.Count`、`.Contains`、型名 `HashSet`/`Dictionary`。生成器は型名を文字列で照合している（【記録】承認済み計画「壊してはいけない結合点」：`ProviderFacts.cs`、`UnorderedSourceSafety.cs`、`OptimizeVisitor.cs`）。
+12. **FLinq 生成器が前提にしているメンバーを保つ。** `Iterate(ref strategy)`、`.Count`(シングル用だけ。マルチ用では件数を読まずに集め、素の `Count()` は `ScanCount()` を呼ぶ)、`.Contains`、型名 `HashSet`/`Set`/`ParallelHashSet`/`ParallelSet`/`Dictionary`。生成器は型名を文字列で照合している（【記録】承認済み計画「壊してはいけない結合点」：`ProviderFacts.cs`、`UnorderedSourceSafety.cs`、`OptimizeVisitor.cs`）。
 13. **チェックポイントはバッファ付きのデバイスで書く**（`CollectionStore.cs` の `CreateCheckpointManager`）。索引は 64 バイトから始まり、主索引の書き込み長は索引と同じなので、Tsavorite 既定のバッファなし書き込み（長さがセクターの倍数でないと Win32 エラー 87）では小さいストアの `Save()` が失敗する。2.0.1-beta.5 はこの失敗を黙って捨てて主索引を保存していなかった（2.1.8 は例外にする）。【記録】2026-09-29 の実験：索引 64・128・256 バイトで beta.5 は主索引領域が全ゼロ、2.1.8＋バッファ付きは全サイズで保存・復元に成功し中身が書かれる。
 14. **`Save()` が終わった時点では、チェックポイントは OS のキャッシュに残っていてよい。ディスクへ確実に書くのは `Flush()`。** `Flush()` は、保存済み（まだ `Flush` していない）チェックポイントのフォルダ、索引サイズのメタデータ（`.Tsavorite`）、ログとオブジェクトログのデバイスのセグメントのファイルを `RandomAccess.FlushToDisk` で書き出す（`CollectionStore.cs` の `Flush`、`GetFlushTargets`）。`Save()` を続けて呼んだあとに 1 回呼べば、まとめて書き出せる。共通ストアの永続ストアは保存のたびに、マニフェストを書く前に自分で呼ぶ。【記録】2026-09-29 の実測：永続ストアの `Save()` は、書き出しなしの一時ストアより約 13〜17ms 長い（要素数 1000〜100万でほぼ一定）。
 15. **復元は、一時的な LogSizeTracker を付けて行う。復元後に末尾ページのスロットが先頭ページのスロットと重なっていたら例外にする**（`CollectionStore.cs` の `RecoverWithSizeTrackerAsync`、`ThrowIfRecoveredTailCollidesWithHead`）。Garnet 2.0.1-beta.6 以降（2.1.8 でも確認）の復元は、LogSizeTracker が無いと復元中にページを追い出さず（`TrimLogPages` の先頭が `logSizeTracker is null` で何もしない）、バッファに収まらないページの内容を失う。次のどちらでも起きる（黙ってデータが欠ける。索引の入口はあるのに読めない）。(1) 保存時にログの末尾がページ境界ちょうどで、バッファが満杯だった（`RecoveryReset` が末尾ページを、先頭ページと同じスロットにゼロクリアする）。(2) 保存時より小さいメモリで開き直した（`HeadAddress` が進まず、上書きされたページが「メモリ上にある」ままになる）。追跡は開始せず（背景の追い出しは動かさない）復元の間だけ付けて外す。復元側の修正なので、既に境界で保存済みのチェックポイントも復元できる。【記録】2026-09-30 の実験：`HashSet<long>` は 1 件 32B・ページ 4096B なので、バッファ 16 ページなら件数 2016・2142 … で 100% 再現し、メモリを縮めた開き直しは約半数で欠落した（ランダム 600 試行）。beta.5 では起きない。beta.5〜2.1.8 の二分探索で beta.6 が原因（upstream PR #1892 の復元の追い出しの作り直し）。追跡ありの復元は、境界の件数の掃引・ランダム 600 試行・管理型の辞書・FoldOver・SaveLogOnly・強制終了ハーネスで欠落 0、2.1.8 で境界保存されて欠落していた元のチェックポイントも復元できた。保存の前にヘッドを進める案は、既存のチェックポイントを救えないので採らなかった。復元後に `numPagesToPreload` を渡す案、チェックポイントの前にフラッシュする案、索引チェックポイントを使う復元は効かなかった（実験済み）。Garnet が直ったかは、`Test/Seamless/Stores/CollectionStore.cs` の `ThrowIfRecoveredTailCollidesWithHead`（Garnet の素の復元が衝突することを確かめるカナリア）が失敗したら、追跡を外せるか同じ実験で確かめる。
@@ -115,8 +115,9 @@ store.Save();
 | 上限超過（メモリ・ディスク）が例外になり、既存要素が残る | 同 `:75`、`:109` |
 | 索引の自動拡張と、拡張後の保存・復元 | 同 `:159`、`:175` |
 | 関係演算が標準 `HashSet` と一致 | `Test/Seamless/Tsavorite/HashSet.cs:25-68` |
-| 並列で件数を管理する版を使っても件数が正確 | 【記録】STAGE-3c の仕様テスト |
-| `CreateUncounted` の差分反映後に件数が正確 | 【記録】STAGE-3c |
+| 並列区間で書いて閉じたあと件数が正確・区間中の作成や読み込みが例外 | `Test/Seamless/Stores/ParallelRegion.cs` |
+| シングル用の2つ目の作成が例外・作れなかった操作用オブジェクトが権利を返さない | `Test/Seamless/Stores/CollectionStore.cs`(`OnAccessorCreated`) |
+| マルチ用を起点にした FLinq が件数を読まずに System.Linq と同じ結果を返す | `Test/Seamless/Tsavorite/Linq/Enumerable/FLinqParallelSourceTests.cs` |
 | 大量件数で常駐メモリが上限内 | `Test.Scalable.Tsavorite.Collections`（1,000万件規模）【記録】承認済み計画「検証」 |
 | FLinq の生成コードが引き続きネイティブ走査に展開される | `Test/SourceGenerator/ProviderContainsShapeTests.cs`、`Test.Tsavorite.Linq.Enumerable.*` |
 

@@ -1165,12 +1165,21 @@ public sealed partial class FLinqIncrementalGenerator {
             // 委ねると素の呼び出しより悪い(false になる)結果を返す退行になるため、ここで NativeCountExpression
             // を直接使う fast path へ分岐する。
             if(sourceFragment is ProviderNativeRootBase nativeRoot) {
-                builder.AppendLine($"bool {resultName}=true;");
                 var nativeCounterCall = CounterCallForGeneratedMethod(semanticModel,invocation,"IncrementTryGetNonEnumeratedCount");
-                if(!string.IsNullOrEmpty(nativeCounterCall)) {
-                    builder.AppendLine(nativeCounterCall);
+                if(nativeRoot.NativeCountExpression is { } nativeCount) {
+                    builder.AppendLine($"bool {resultName}=true;");
+                    if(!string.IsNullOrEmpty(nativeCounterCall)) {
+                        builder.AppendLine(nativeCounterCall);
+                    }
+                    builder.AppendLine($"{outTarget}=checked((int)({nativeCount}));");
+                } else {
+                    // 件数を持たない根(マルチ用の Tsavorite 等)は、列挙子を開かずに素の System.Linq と同じ false を返す。
+                    builder.AppendLine($"bool {resultName}=false;");
+                    if(!string.IsNullOrEmpty(nativeCounterCall)) {
+                        builder.AppendLine(nativeCounterCall);
+                    }
+                    builder.AppendLine($"{outTarget}=0;");
                 }
-                builder.AppendLine($"{outTarget}=checked((int)({nativeRoot.NativeCountExpression}));");
                 linqInvocationCount++;
                 return true;
             }
@@ -1201,7 +1210,12 @@ public sealed partial class FLinqIncrementalGenerator {
                 if(!string.IsNullOrEmpty(nativeCounterCall)) {
                     builder.AppendLine(nativeCounterCall);
                 }
-                builder.AppendLine($"{outTarget}=checked((int)({nativeRoot.NativeCountExpression}));");
+                if(nativeRoot.NativeCountExpression is { } nativeCount) {
+                    builder.AppendLine($"{outTarget}=checked((int)({nativeCount}));");
+                } else {
+                    // 件数を持たない根は、列挙子を開かずに素の System.Linq と同じ結果(0 と false)にする。
+                    builder.AppendLine($"{outTarget}=0;");
+                }
                 linqInvocationCount++;
                 return true;
             }
@@ -1231,7 +1245,12 @@ public sealed partial class FLinqIncrementalGenerator {
                 if(!string.IsNullOrEmpty(nativeCounterCall)) {
                     builder.AppendLine(nativeCounterCall);
                 }
-                builder.AppendLine($"{outTarget}=checked((int)({nativeRoot.NativeCountExpression}));");
+                if(nativeRoot.NativeCountExpression is { } nativeCount) {
+                    builder.AppendLine($"{outTarget}=checked((int)({nativeCount}));");
+                } else {
+                    // 件数を持たない根は、列挙子を開かずに素の System.Linq と同じ結果(0 と false)にする。
+                    builder.AppendLine($"{outTarget}=0;");
+                }
                 builder.AppendLine("return true;");
                 linqInvocationCount++;
                 return true;

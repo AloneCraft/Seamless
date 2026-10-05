@@ -13,7 +13,7 @@ Seamless は、メモリに収まらないデータを扱うコレクション�
 | F-01 | 共通 Store から一時・永続・メモリ用のデータを作成し、子資源と保存時点を管理する | `Store.CreateTemporary/Open/CreateMemory` とエンジン別拡張あり。永続保存は明示的 `Save`。S-02、S-04 | 異常終了・複数子資源・Save 境界の再確認。Phase 2A |
 | F-02 | 全演算子でメモリ・一時領域の予算、キャンセル、Codec、所有権を共有する | ExecutionScope、ResourceBudget、決定的 Codec、所有確認付き残骸回収あり。S-03 | 残骸・例外・キャンセル・破棄順の回帰。プロセス全体のメモリ上限とは区別。Phase 2A |
 | F-03 | ファイル backed Set / Dictionary / List / AppendOnlyList を使う | Persisted 実装あり。共通 Store 拡張は Set/List/Dictionary。AppendOnlyList は旧パス API。S-04 | AppendOnlyList の所有・保存契約の統合は追加実装候補。Dictionary.Compact の全件メモリ化は先に対処。Phase 2A、4C |
-| F-04 | Tsavorite の集合・辞書をスレッドごとの操作オブジェクトから使う | 共通 Store 作成、Create / CreateUncounted、Count 差分、索引拡張あり。S-05 | 重複追加・上書き・削除・並列書込み・再集計の検証。旧 factory API 移行。Phase 2A、4C |
+| F-04 | Tsavorite の集合・辞書をスレッドごとの操作オブジェクトから使う | 共通 Store 作成、Create(シングル用・同時に1つ)/ BeginParallel(マルチ用・件数なし)、件数の一元管理、索引拡張あり。S-05 | 重複追加・上書き・削除・並列書込み・再集計の検証。旧 factory API 移行。Phase 2A、4C |
 | F-05 | 通常の LINQ 演算を value enumerable として提供する | Seamless.Linq に Where / Select / SelectMany、集約、結合、集合、順序、実体化等あり。S-06 | 対応 overload・型・順序・例外をテストで固定する。演算子名の存在だけで全 overload 対応としない。Phase 2B |
 | F-06 | 大規模 LINQ を予算内で逐次処理し、必要時にディスクへ退避する | ScopedQuery、外部ソート、GroupBy、Join、集合演算、ToStorage あり。S-03、S-06 | 偏った巨大グループ、空列、巨大単一要素、重複キー、キャンセル、メモリ限界を確認。Phase 2A/2B |
 | F-07 | System.Linq 呼出しを意味互換性を保ってコンパイル時に展開する | FLinq incremental generator、Registry、Fragment、ProviderNative、最適化設定と trace あり。S-07 | Dynamic で除外されている FLinq 経路の再現と修復。意味を固定してから性能改善。Phase 2B、4B |

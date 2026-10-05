@@ -57,6 +57,27 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
+    // マルチ用(並列区間の操作用オブジェクト)。HashSet`1 / Set`2 を継承しない別系統なので、別に判定する。
+    private static bool IsTsavoriteParallelHashSetType(ITypeSymbol? type,out ITypeSymbol elementType) {
+        if(TryMatchGenericNamedType(type,"Seamless.Collections.Tsavorite","ParallelHashSet`1",out var named)) {
+            elementType=named.TypeArguments[0];
+            return true;
+        }
+
+        elementType=null!;
+        return false;
+    }
+
+    private static bool IsTsavoriteParallelSetType(ITypeSymbol? type,out ITypeSymbol elementType) {
+        if(TryMatchGenericNamedType(type,"Seamless.Collections.Tsavorite","ParallelSet`2",2,out var named)) {
+            elementType=named.TypeArguments[1];
+            return true;
+        }
+
+        elementType=null!;
+        return false;
+    }
+
     private static bool IsPersistedConcreteSetType(ITypeSymbol? type,out ITypeSymbol elementType) {
         if(TryMatchGenericNamedType(type,"Seamless.Collections.Persisted","Set`1",out var named)) {
             elementType=named.TypeArguments[0];

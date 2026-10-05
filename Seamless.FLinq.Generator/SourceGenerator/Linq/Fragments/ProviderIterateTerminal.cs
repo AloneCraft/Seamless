@@ -27,6 +27,8 @@ internal abstract class ProviderNativeExecutionBase(
     string                      sourceExpression,
     string                      sourceElementType,
     string                      strategyInterfaceTypeName,
+    bool                        sourceHasCount,
+    string?                     scanCountMethodName,
     FuncFragment?               terminalPredicate  =null,
     string?                     containsValue      =null,
     string?                     containsComparer   =null,
@@ -108,6 +110,9 @@ internal abstract class ProviderNativeExecutionBase(
 
     public override string StructMethod {
         get {
+            if(this.UsesScanCount) {
+                return string.Empty;
+            }
             var builder = new StringBuilder();
             foreach(var func in this.Funcs()) {
                 GeneratedCodeWriter.AppendMember(builder,this.FuncSupport(func,operationName));
@@ -125,13 +130,28 @@ internal abstract class ProviderNativeExecutionBase(
         var stateName = $"__{providerName}{operationName}State{this.number}";
         var builder = new StringBuilder();
         builder.AppendLine($"var {sourceName}={sourceExpression};");
+        if(this.UsesScanCount) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=({actualTypeName})checked((int)({sourceName}.{scanCountMethodName}()));");
+            return builder.ToString().TrimEnd();
+        }
         builder.AppendLine($"var {stateName}=new {this.StateTypeName}({this.ClosureArgumentList()});");
-        if(terminalKind==ProviderIterateTerminalKind.ToList) {
-            builder.AppendLine($"{stateName}.List=new global::System.Collections.Generic.List<{pipeline.ElementType}>({sourceName}.Count);");
-        } else if(terminalKind==ProviderIterateTerminalKind.ToArray) {
-            builder.AppendLine($"{stateName}.Array=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({sourceName}.Count);");
-        } else if(terminalKind==ProviderIterateTerminalKind.ToDictionary) {
-            builder.AppendLine($"{stateName}.Dictionary=new({sourceName}.Count,(global::System.Collections.Generic.IEqualityComparer<{this.DictionaryKeyType}>?){terminalComparer??"null"});");
+        if(sourceHasCount) {
+            if(terminalKind==ProviderIterateTerminalKind.ToList) {
+                builder.AppendLine($"{stateName}.List=new global::System.Collections.Generic.List<{pipeline.ElementType}>({sourceName}.Count);");
+            } else if(terminalKind==ProviderIterateTerminalKind.ToArray) {
+                builder.AppendLine($"{stateName}.Array=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({sourceName}.Count);");
+            } else if(terminalKind==ProviderIterateTerminalKind.ToDictionary) {
+                builder.AppendLine($"{stateName}.Dictionary=new({sourceName}.Count,(global::System.Collections.Generic.IEqualityComparer<{this.DictionaryKeyType}>?){terminalComparer??"null"});");
+            }
+        } else {
+            // 件数を持たない根(Tsavorite のマルチ用など)は先取りせず、集めながら伸ばす。
+            if(terminalKind==ProviderIterateTerminalKind.ToList) {
+                builder.AppendLine($"{stateName}.List=new global::System.Collections.Generic.List<{pipeline.ElementType}>();");
+            } else if(terminalKind==ProviderIterateTerminalKind.ToArray) {
+                builder.AppendLine($"{stateName}.Array=global::System.Array.Empty<{pipeline.ElementType}>();");
+            } else if(terminalKind==ProviderIterateTerminalKind.ToDictionary) {
+                builder.AppendLine($"{stateName}.Dictionary=new((global::System.Collections.Generic.IEqualityComparer<{this.DictionaryKeyType}>?){terminalComparer??"null"});");
+            }
         }
         if(containsValue is not null) {
             builder.AppendLine($"{stateName}.ContainsValue={containsValue};");
@@ -167,6 +187,14 @@ internal abstract class ProviderNativeExecutionBase(
         }
         return builder.ToString().TrimEnd();
     }
+
+    // 段も条件も無い素の Count を、要素を取り出さずに数える provider の走査(ScanCount)へ任せる。
+    // 段(Select 等)があると、System.Linq と同じく各要素で関数を呼ぶ必要があるので任せない。
+    private bool UsesScanCount =>
+        terminalKind==ProviderIterateTerminalKind.Count
+        &&scanCountMethodName is not null
+        &&terminalPredicate is null
+        &&pipeline.Stages.All(static stage => stage.Kind==PipelineStageKind.AsEnumerable);
 
     private string StateStructSource() {
         var builder = new StringBuilder();
@@ -296,6 +324,9 @@ internal abstract class ProviderNativeExecutionBase(
             builder.AppendLine($"    state.List!.Add(({pipeline.ElementType}){currentName});");
             builder.AppendLine("    return true;");
         } else if(terminalKind==ProviderIterateTerminalKind.ToArray) {
+            if(!sourceHasCount) {
+                builder.AppendLine("    if(state.Count==state.Array!.Length) global::Seamless.Linq.GeneratedCodeHelpers.GrowArray(ref state.Array);");
+            }
             builder.AppendLine($"    state.Array![state.Count++]=({pipeline.ElementType}){currentName};");
             builder.AppendLine("    return true;");
         } else if(terminalKind==ProviderIterateTerminalKind.ToDictionary) {
@@ -397,6 +428,8 @@ internal sealed class ProviderIterateTerminal:ProviderNativeExecutionBase {
             root.SourceExpression,
             root.ElementType,
             root.StrategyInterfaceTypeName,
+            root.NativeCountExpression is not null,
+            root.ScanCountMethodName,
             terminalPredicate,
             containsValue,
             containsComparer,

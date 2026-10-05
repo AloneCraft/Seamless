@@ -26,6 +26,22 @@ public static class GeneratedCodeHelpers {
     }
     public static InvalidOperationException NoElements() =>
         new("Sequence contains no elements");
+    /// <summary>
+    /// 件数の分からない源(Tsavorite のマルチ用など)から配列へ集めるとき、満杯になった配列を倍に伸ばす。
+    /// 伸ばすのは log n 回だけなので、要素ごとに呼ぶ側を小さく保つためインライン化しない。
+    /// </summary>
+    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    public static void GrowArray<T>(ref T[]? array) {
+        long length = 0;
+        if(array is not null) {
+            length=array.Length;
+        }
+        if(length>=Array.MaxLength) {
+            throw new OutOfMemoryException("Array dimensions exceeded supported range.");
+        }
+        var newLength = (int)Math.Min(Math.Max(4L,length*2),Array.MaxLength);
+        Array.Resize(ref array,newLength);
+    }
     public static NotSupportedException UnorderedSourceOperation(string methodName,string sourceType) =>
         new($"'{methodName}' requires sequence order and is not supported directly on unordered source '{sourceType}'. Cast to IEnumerable<T>, call AsEnumerable(), or materialize to Array/List to opt in.");
     [global::System.Diagnostics.CodeAnalysis.DoesNotReturn]

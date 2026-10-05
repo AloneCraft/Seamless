@@ -113,3 +113,72 @@ public struct TsavoriteSetEnumerator<TKey,TRecord>(global::Seamless.Collections.
         this.source=null;
     }
 }
+
+// Tsavorite のマルチ用(並列区間の操作用オブジェクト)。件数を持たないので TryGetNonEnumeratedCount は常に false。
+public struct TsavoriteParallelHashSetEnumerator<T>(global::Seamless.Collections.Tsavorite.ParallelHashSet<T> source):IValueEnumerator<T> {
+    private global::Seamless.Collections.Tsavorite.ParallelHashSet<T>? source=source;
+    private global::Seamless.Collections.Tsavorite.ParallelHashSet<T>.Enumerator<global::Seamless.Collections.Tsavorite.ParallelHashSet<T>.KeyIterator,T> enumerator;
+    private bool initialized;
+
+    [return: UnorderedEnumerable]
+    internal global::Seamless.Collections.Tsavorite.ParallelHashSet<T> GetSource() => this.source!;
+
+    public bool TryGetNonEnumeratedCount(out int count) {
+        count=0;
+        return false;
+    }
+    public bool TryGetSpan(out global::System.ReadOnlySpan<T> span) {
+        span=default;
+        return false;
+    }
+    public bool TryCopyTo(scoped global::System.Span<T> destination,global::System.Index offset) => false;
+    public bool TryGetNext(out T current) {
+        if(!this.initialized) {
+            this.enumerator=this.source!.GetEnumerator();
+            this.initialized=true;
+        }
+        if(this.enumerator.MoveNext()) {
+            current=this.enumerator.Current;
+            return true;
+        }
+        global::System.Runtime.CompilerServices.Unsafe.SkipInit(out current);
+        return false;
+    }
+    public void Dispose() {
+        if(this.initialized) this.enumerator.Dispose();
+        this.source=null;
+    }
+}
+
+public struct TsavoriteParallelSetEnumerator<TKey,TRecord>(global::Seamless.Collections.Tsavorite.ParallelSet<TKey,TRecord> source):IValueEnumerator<TRecord>
+    where TRecord : global::Seamless.Collections.IRecord<TKey> {
+    private global::Seamless.Collections.Tsavorite.ParallelSet<TKey,TRecord>? source=source;
+    private global::System.Collections.Generic.IEnumerator<TRecord>? enumerator;
+
+    [return: UnorderedEnumerable]
+    internal global::Seamless.Collections.Tsavorite.ParallelSet<TKey,TRecord> GetSource() => this.source!;
+
+    public bool TryGetNonEnumeratedCount(out int count) {
+        count=0;
+        return false;
+    }
+    public bool TryGetSpan(out global::System.ReadOnlySpan<TRecord> span) {
+        span=default;
+        return false;
+    }
+    public bool TryCopyTo(scoped global::System.Span<TRecord> destination,global::System.Index offset) => false;
+    public bool TryGetNext(out TRecord current) {
+        this.enumerator??=this.source!.GetEnumerator();
+        if(this.enumerator.MoveNext()) {
+            current=this.enumerator.Current;
+            return true;
+        }
+        global::System.Runtime.CompilerServices.Unsafe.SkipInit(out current);
+        return false;
+    }
+    public void Dispose() {
+        this.enumerator?.Dispose();
+        this.enumerator=null;
+        this.source=null;
+    }
+}
