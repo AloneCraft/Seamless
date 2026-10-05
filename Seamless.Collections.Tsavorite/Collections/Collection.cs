@@ -211,10 +211,22 @@ public abstract class Collection<
             TStoreFunctions,
             TAllocator
         > CollectionStore
+    ) : this(CollectionStore,null) {
+    }
+    /// <summary><paramref name="region"/> は並列区間のマルチ用、null はシングル用。</summary>
+    private protected Collection(
+        CollectionStore<
+            TKey,
+            TValue,
+            TStoreFunctions,
+            TAllocator
+        > CollectionStore,
+        ParallelRegionState? region
     ) {
         this.CollectionStore=CollectionStore;
+        this.region=region;
         // セッションを作る前に権利を取る。取れなければ(例外)、ファイナライザは何も返さない。
-        CollectionStore.OnAccessorCreated();
+        CollectionStore.OnAccessorCreated(region);
         this.claimed=1;
         try {
             this.RecreateCoreSessions();
@@ -223,12 +235,19 @@ public abstract class Collection<
             throw;
         }
     }
+    // マルチ用なら作った並列区間。シングル用は null。
+    private readonly ParallelRegionState? region;
     // 1 なら、データ本体から操作用オブジェクトの権利を取っている。破棄・構築の失敗・ファイナライザのどれか 1 回だけが返す。
     private int claimed;
-    private void ReleaseClaim() {
+    private void ReleaseClaim(bool fromFinalizer) {
         if(Interlocked.Exchange(ref this.claimed,0)==1) {
-            this.CollectionStore.OnAccessorDisposed();
+            this.CollectionStore.OnAccessorDisposed(this.region,fromFinalizer);
         }
+    }
+    /// <summary>件数を全走査で数える(マルチ用の ScanCount)。数えた件数は残さない。</summary>
+    private protected long ScanCountCore() {
+        this.VerifyThreadAffinity(nameof(this.ScanCountCore));
+        return this.CollectionStore.ScanCount();
     }
     /// <summary>
     /// コンストラクタの途中で失敗したときに呼ぶ。作ったセッションと権利をすぐ返す(ファイナライザに任せると GC まで権利が残る)。
@@ -241,7 +260,7 @@ public abstract class Collection<
             this.DisposeCoreSessions();
         } catch {
         } finally {
-            this.ReleaseClaim();
+            this.ReleaseClaim(fromFinalizer: false);
             GC.SuppressFinalize(this);
         }
     }
@@ -640,7 +659,7 @@ public abstract class Collection<
                 // ファイナライザからは状態を変えるだけにする(索引の拡大や件数の処理はしない)。
             }
         } finally {
-            this.ReleaseClaim();
+            this.ReleaseClaim(fromFinalizer: !disposing);
         }
     }
     ~Collection() => this.Dispose(false);
@@ -1245,6 +1264,73 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
         }
     }
     private protected Collection(CollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
+    }
+    private protected Collection(CollectionStore<TKey,TValue> CollectionStore,ParallelRegionState? region) : base(CollectionStore,region) {
+    }
+    // Reader から TStrategy.Invoke を直接呼ぶ push 型実装は、通常の列挙経路
+    // (Enumerator<KeyIterator,TKey>、ArrayPool チャンクへ Accept で詰めてから配る pull 型)より
+    // 実測で 3〜4 倍遅かった(Test.Tsavorite.Collections.NativeIterateVsEnumeratorDiagnostic で検証)。
+    // 通常経路と同じ IterateLookupIteratorFunctions_List<TKey>(sealed 非仮想 Reader・ArrayPool チャンク)
+    // へ揃えることで解消する。チャンクに溜めてから Invoke を回す都合上、Any/First 等の早期終了は
+    // 現在のチャンク(既定 4096 要素)を読み切ってから止まる — 全走査系(Count/ToList/Sum 等)には無関係。
+    /// <summary>キーを 1 つずつ <typeparamref name="TStrategy"/> へ渡す(HashSet 系の Iterate。FLinq の生成コードが呼ぶ)。</summary>
+    private protected void IterateKeysCore<TStrategy>(ref TStrategy strategy)
+        where TStrategy : struct, IHashSetIterateStrategy<TStrategy,TKey> {
+        this.VerifyThreadAffinity(nameof(this.IterateKeysCore));
+        var iterator = new KeyIterator();
+        var cursor = 0L;
+        try {
+            while(true) {
+                var mayHaveMore = this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+                this.ReadSession.BasicContext.CompletePending(wait: true);
+                for(var index = 0;index<iterator.Count;index++) {
+                    if(!TStrategy.Invoke(ref strategy,iterator.Chunk[index])) {
+                        return;
+                    }
+                }
+                if(!mayHaveMore) {
+                    return;
+                }
+                iterator.ResetChunk();
+            }
+        } finally {
+            iterator.ReturnChunk();
+        }
+    }
+    /// <summary>値を 1 つずつ <typeparamref name="TStrategy"/> へ渡す(Set 系の Iterate。FLinq の生成コードが呼ぶ)。</summary>
+    private protected void IterateValuesCore<TStrategy>(ref TStrategy strategy)
+        where TStrategy : struct, ISetIterateStrategy<TStrategy,TValue> {
+        this.VerifyThreadAffinity(nameof(this.IterateValuesCore));
+        var iterator = new IterateValuesAdapter<TStrategy>(strategy);
+        var cursor = 0L;
+        this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+        this.ReadSession.BasicContext.CompletePending(wait: true);
+        strategy=iterator.Strategy;
+    }
+    private sealed class IterateValuesAdapter<TStrategy>(TStrategy strategy):IScanIteratorFunctions
+        where TStrategy : struct, ISetIterateStrategy<TStrategy,TValue> {
+        public TStrategy Strategy = strategy;
+        public bool Reader<TSourceLogRecord>(
+            in TSourceLogRecord logRecord,
+            RecordMetadata recordMetadata,
+            long numberOfRecords,
+            out CursorRecordResult cursorRecordResult)
+            where TSourceLogRecord : ISourceLogRecord {
+            if(logRecord.Info.Tombstone) {
+                cursorRecordResult=CursorRecordResult.Skip;
+                return true;
+            }
+            var item = TValueSerializer.Deserialize(logRecord.ValueSpan);
+            if(TStrategy.Invoke(ref this.Strategy,item)) {
+                cursorRecordResult=CursorRecordResult.Accept;
+                return true;
+            }
+            cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
+            return true;
+        }
+        public bool OnStart(long beginAddress,long endAddress) => true;
+        public void OnStop(bool completed,long numberOfRecords) { }
+        public void OnException(Exception exception,long numberOfRecords) { }
     }
     public bool ContainsKey(TKey Key) {
         this.VerifyThreadAffinity(nameof(this.ContainsKey));

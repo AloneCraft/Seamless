@@ -24,6 +24,12 @@ public class HashSetStore<TKey>:CollectionStore<TKey,EqualityEmpty> {
         return set;
     }
     public Set<TKey> CreateSet() => new(this);
+    /// <summary>
+    /// 並列区間を開く。区間の <see cref="ParallelRegion{TAccessor}.Create"/> で、スレッドごとにマルチ用の操作用オブジェクトを作る。
+    /// <paramref name="expectedCount"/> は区間を閉じたときの全体の見込み件数で、索引をその件数に合う大きさまで先に広げる。
+    /// </summary>
+    public ParallelRegion<ParallelHashSet<TKey>> BeginParallel(long expectedCount = 0) =>
+        this.BeginParallelCore(expectedCount,region => new ParallelHashSet<TKey>(this,region));
     internal HashSet<TKey> CreateOwned() => new(this,this);
     internal Set<TKey> CreateOwnedSet() => new(this,this);
 }

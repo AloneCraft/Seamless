@@ -18,6 +18,12 @@ public class SetStore<TKey, TRecord>:CollectionStore<TKey,TRecord>
 
     /// <summary>件数を管理する操作用オブジェクト。スレッドごとに作る。</summary>
     public Set<TKey,TRecord> Create() => new(this);
+    /// <summary>
+    /// 並列区間を開く。区間の <see cref="ParallelRegion{TAccessor}.Create"/> で、スレッドごとにマルチ用の操作用オブジェクトを作る。
+    /// <paramref name="expectedCount"/> は区間を閉じたときの全体の見込み件数で、索引をその件数に合う大きさまで先に広げる。
+    /// </summary>
+    public ParallelRegion<ParallelSet<TKey,TRecord>> BeginParallel(long expectedCount = 0) =>
+        this.BeginParallelCore(expectedCount,region => new ParallelSet<TKey,TRecord>(this,region));
     /// <summary>件数を保持しない操作用オブジェクト。増減は呼び出し側で集計し、ApplyCountDelta で反映する。</summary>
     public Set<TKey,TRecord> CreateUncounted() {
         var set = new Set<TKey,TRecord>(this);

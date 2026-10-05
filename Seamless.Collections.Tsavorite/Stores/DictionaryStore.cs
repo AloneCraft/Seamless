@@ -28,29 +28,26 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
         this.valueUsesMemoryPackSerializer=RuntimeHelpers.IsReferenceOrContainsReferences<TValue>();
     }
 
+    /// <summary>シングル用の操作用オブジェクト。件数をデータ本体で管理し O(1)。</summary>
     public IDictionary<TKey,TValue> Create() {
-        if(this.keyUsesMemoryPackSerializer) {
-            if(this.valueUsesMemoryPackSerializer) {
-                return new Dictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(this);
-            }
-
-            return this.CreateDictionary(
-                typeof(Dictionary<,,,>),
-                typeof(MemoryPackSerializer<>),
-                typeof(BlittableSerializer<>));
+        if(this.keyUsesMemoryPackSerializer&&this.valueUsesMemoryPackSerializer) {
+            return new Dictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(this);
         }
+        return (IDictionary<TKey,TValue>)this.CreateAccessor(typeof(Dictionary<,,,>),[this]);
+    }
 
-        if(this.valueUsesMemoryPackSerializer) {
-            return this.CreateDictionary(
-                typeof(Dictionary<,,,>),
-                typeof(BlittableSerializer<>),
-                typeof(MemoryPackSerializer<>));
+    /// <summary>
+    /// 並列区間を開く。区間の <see cref="ParallelRegion{TAccessor}.Create"/> で、スレッドごとにマルチ用の操作用オブジェクトを作る。
+    /// <paramref name="expectedCount"/> は区間を閉じたときの全体の見込み件数で、索引をその件数に合う大きさまで先に広げる。
+    /// </summary>
+    public ParallelRegion<IParallelDictionary<TKey,TValue>> BeginParallel(long expectedCount = 0) =>
+        this.BeginParallelCore(expectedCount,this.CreateParallel);
+
+    private IParallelDictionary<TKey,TValue> CreateParallel(ParallelRegionState region) {
+        if(this.keyUsesMemoryPackSerializer&&this.valueUsesMemoryPackSerializer) {
+            return new ParallelDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(this,region);
         }
-
-        return this.CreateDictionary(
-            typeof(Dictionary<,,,>),
-            typeof(BlittableSerializer<>),
-            typeof(BlittableSerializer<>));
+        return (IParallelDictionary<TKey,TValue>)this.CreateAccessor(typeof(ParallelDictionary<,,,>),[this,region]);
     }
 
     /// <summary>
@@ -63,18 +60,36 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
         return dictionary;
     }
 
-    private IDictionary<TKey,TValue> CreateDictionary(Type dictionaryOpenType,Type keySerializerOpenType,Type valueSerializerOpenType) {
+    // 実行時に決まるシリアライザの組み合わせで作る。コンストラクタの例外(作れないときの InvalidOperationException など)は包まずにそのまま投げる。
+    private object CreateAccessor(Type dictionaryOpenType,object[] args) {
+        Type keySerializerOpenType;
+        if(this.keyUsesMemoryPackSerializer) {
+            keySerializerOpenType=typeof(MemoryPackSerializer<>);
+        } else {
+            keySerializerOpenType=typeof(BlittableSerializer<>);
+        }
+        Type valueSerializerOpenType;
+        if(this.valueUsesMemoryPackSerializer) {
+            valueSerializerOpenType=typeof(MemoryPackSerializer<>);
+        } else {
+            valueSerializerOpenType=typeof(BlittableSerializer<>);
+        }
         var dictionaryType = dictionaryOpenType.MakeGenericType(
             typeof(TKey),
             typeof(TValue),
             keySerializerOpenType.MakeGenericType(typeof(TKey)),
             valueSerializerOpenType.MakeGenericType(typeof(TValue)));
-        return (IDictionary<TKey,TValue>)Activator.CreateInstance(
-            dictionaryType,
-            BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic,
-            binder: null,
-            args: [this],
-            culture: null)!;
+        try {
+            return Activator.CreateInstance(
+                dictionaryType,
+                BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic,
+                binder: null,
+                args: args,
+                culture: null)!;
+        } catch(TargetInvocationException exception) when(exception.InnerException is not null) {
+            global::System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception.InnerException).Throw();
+            throw;
+        }
     }
 
 }

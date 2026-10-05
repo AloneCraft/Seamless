@@ -189,48 +189,9 @@ public interface IHashSetIterateStrategy<TSelf, T>
 }
 
 public partial class HashSet<TKey> {
-    // Reader から TStrategy.Invoke を直接呼ぶ push 型実装は、通常の列挙経路
-    // (Enumerator<KeyIterator,TKey>、ArrayPool チャンクへ Accept で詰めてから配る pull 型)より
-    // 実測で 3〜4 倍遅かった(Test.Tsavorite.Collections.NativeIterateVsEnumeratorDiagnostic で検証)。
-    // 通常経路と同じ IterateLookupIteratorFunctions_List<TKey>(sealed 非仮想 Reader・ArrayPool チャンク)
-    // へ揃えることで解消する。チャンクに溜めてから Invoke を回す都合上、Any/First 等の早期終了は
-    // 現在のチャンク(既定 4096 要素)を読み切ってから止まる — 全走査系(Count/ToList/Sum 等)には無関係。
+    /// <summary>キーを 1 つずつ <typeparamref name="TStrategy"/> へ渡す。FLinq の生成コードが呼ぶ。</summary>
     public void Iterate<TStrategy>(ref TStrategy strategy)
-        where TStrategy : struct, IHashSetIterateStrategy<TStrategy,TKey> {
-        this.VerifyThreadAffinity();
-        var iterator = new IterateLookupAdapter();
-        var cursor = 0L;
-        try {
-            while(true) {
-                var mayHaveMore = this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
-                this.ReadSession.BasicContext.CompletePending(wait: true);
-                for(var index = 0;index<iterator.Count;index++) {
-                    if(!TStrategy.Invoke(ref strategy,iterator.Chunk[index])) {
-                        return;
-                    }
-                }
-                if(!mayHaveMore) {
-                    return;
-                }
-                iterator.ResetChunk();
-            }
-        } finally {
-            iterator.ReturnChunk();
-        }
-    }
-
-    private sealed class IterateLookupAdapter:IterateLookupIteratorFunctions_List<TKey> {
-        public override bool Reader<TSourceLogRecord>(
-            in TSourceLogRecord logRecord,
-            RecordMetadata recordMetadata,
-            long numberOfRecords,
-            out CursorRecordResult cursorRecordResult) {
-            if(logRecord.Info.Tombstone) {
-                return Skip(out cursorRecordResult);
-            }
-            return this.Accept(AutoSerializer<TKey>.Deserialize(logRecord.Key),recordMetadata,out cursorRecordResult);
-        }
-    }
+        where TStrategy : struct, IHashSetIterateStrategy<TStrategy,TKey> => this.IterateKeysCore(ref strategy);
 }
 
 

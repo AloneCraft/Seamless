@@ -240,15 +240,9 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
         this.VerifyThreadAffinity();
         return new Enumerator<ValueIterator,TRecord>(this.ReadSession,new(),this.Store.Log.TailAddress,this);
     }
+    /// <summary>値を 1 つずつ <typeparamref name="TStrategy"/> へ渡す。FLinq の生成コードが呼ぶ。</summary>
     public void Iterate<TStrategy>(ref TStrategy strategy)
-        where TStrategy : struct, ISetIterateStrategy<TStrategy,TRecord> {
-        this.VerifyThreadAffinity();
-        var iterator = new IterateLookupAdapter<TStrategy>(strategy);
-        var cursor = 0L;
-        this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
-        this.ReadSession.BasicContext.CompletePending(wait: true);
-        strategy=iterator.Strategy;
-    }
+        where TStrategy : struct, ISetIterateStrategy<TStrategy,TRecord> => this.IterateValuesCore(ref strategy);
     IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator() => this.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     IEnumerator<TRecord> IMemoryCollection<TRecord>.GetEnumerator() {
@@ -256,33 +250,6 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
         return new Enumerator<MemoryValueIterator,TRecord>(this.ReadSession,new(),this.Store.Log.TailAddress,this);
     }
 
-    private sealed class IterateLookupAdapter<TStrategy>(TStrategy strategy):IScanIteratorFunctions
-        where TStrategy : struct, ISetIterateStrategy<TStrategy,TRecord> {
-        public TStrategy Strategy = strategy;
-
-        public bool Reader<TSourceLogRecord>(
-            in TSourceLogRecord logRecord,
-            RecordMetadata recordMetadata,
-            long numberOfRecords,
-            out CursorRecordResult cursorRecordResult)
-            where TSourceLogRecord : ISourceLogRecord {
-            if(logRecord.Info.Tombstone) {
-                cursorRecordResult=CursorRecordResult.Skip;
-                return true;
-            }
-            var item = AutoSerializer<TRecord>.Deserialize(logRecord.ValueSpan);
-            if(TStrategy.Invoke(ref this.Strategy,item)) {
-                cursorRecordResult=CursorRecordResult.Accept;
-                return true;
-            }
-            cursorRecordResult=CursorRecordResult.Skip|CursorRecordResult.EndBatch;
-            return true;
-        }
-
-        public bool OnStart(long beginAddress,long endAddress) => true;
-        public void OnStop(bool completed,long numberOfRecords) { }
-        public void OnException(Exception exception,long numberOfRecords) { }
-    }
 }
 
 

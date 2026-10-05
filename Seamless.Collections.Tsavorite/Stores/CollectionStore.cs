@@ -17,6 +17,9 @@ public abstract class CollectionStore {
     }
 
     private protected abstract long GetRecoveryEntryCount();
+
+    /// <summary>並列区間を仕上げる。区間の最後の操作用オブジェクトの破棄か、区間の破棄から 1 回だけ呼ばれる。</summary>
+    internal abstract void FinishParallelRegion(ParallelRegionState region,bool fromFinalizer);
 }
 
 
@@ -372,28 +375,98 @@ public abstract partial class CollectionStore<
         this.lastPayloadBytes=payloadBytes;
         // Tsavorite の GrowIndexAsync は、他のセッションの操作と並行すると
         // StateMachineDriver 内で IndexOutOfRangeException を起こして停止する(EXP-0004。2.0.1-beta.5 と 2.1.8 で確認)。
-        // 他の操作用オブジェクトが生きている間は拡張しない(正しさは変わらず、性能だけが落ちる)。
-        if(Volatile.Read(ref this.accessorCount)>1) {
+        // 他の操作用オブジェクトが生きている間と、並列区間の間は拡張しない(正しさは変わらず、性能だけが落ちる)。
+        // 並列区間で見送った拡張は、区間を閉じたとき(FinishParallelRegion)か、次のシングル用の作成で取り戻す。
+        if(Volatile.Read(ref this.accessorCount)>1||this.parallelRegion is not null) {
             return;
         }
         // 1 レコード ≒ レコード情報(8)＋長さ情報＋キー＋値を 8 バイト境界へ切り上げた大きさとみなす。
         var recordBytes = Math.Max(16L,(payloadBytes+16L+7)&~7L);
         var estimatedRecords = (this.Store.Log.TailAddress-this.Store.Log.BeginAddress)/recordBytes;
         while(estimatedRecords>this.Store.IndexSize*AverageEntriesPerBucket) {
-            var grownBytes = checked(this.indexBytes*2);
-            var previousMemoryBytes = layout.Memory.Bytes;
-            try {
-                layout.Memory.Resize(checked(previousMemoryBytes+grownBytes-this.indexBytes));
-            } catch(global::Seamless.Execution.ResourceLimitException) {
+            if(!this.TryDoubleIndex(layout)) {
                 return;
             }
-            if(!this.Store.GrowIndexAsync().GetAwaiter().GetResult()) {
-                layout.Memory.Resize(previousMemoryBytes);
-                return;
-            }
-            this.indexBytes=grownBytes;
         }
     }
+
+    /// <summary>索引を倍にする。拡張分のメモリを予算から先に予約し、予約できなければ拡張せずに false。関所の中で、他の操作が無いときに呼ぶ。</summary>
+    private bool TryDoubleIndex(TsavoriteLayout layout) {
+        var grownBytes = checked(this.indexBytes*2);
+        var previousMemoryBytes = layout.Memory.Bytes;
+        try {
+            layout.Memory.Resize(checked(previousMemoryBytes+grownBytes-this.indexBytes));
+        } catch(global::Seamless.Execution.ResourceLimitException) {
+            return false;
+        }
+        if(!this.Store.GrowIndexAsync().GetAwaiter().GetResult()) {
+            layout.Memory.Resize(previousMemoryBytes);
+            return false;
+        }
+        this.indexBytes=grownBytes;
+        return true;
+    }
+
+    // 並列区間。開いている間(閉じ中を含む)は、シングル用の作成・2つ目の区間・読み込みを例外にする。
+    private ParallelRegionState? parallelRegion;
+
+    /// <summary>
+    /// 並列区間を開く。操作用オブジェクトが 1 つも無いときだけ開ける。<paramref name="expectedCount"/> は区間を閉じたときの全体の見込み件数で、
+    /// 索引をその件数に合う大きさまで先に広げる(予算が足りなければ広げずに続ける。旧 API と AutoGrowIndex=false では広げない)。
+    /// </summary>
+    private protected ParallelRegion<TAccessor> BeginParallelCore<TAccessor>(long expectedCount,Func<ParallelRegionState,TAccessor> create)
+        where TAccessor : class {
+        ArgumentOutOfRangeException.ThrowIfNegative(expectedCount);
+        ArgumentNullException.ThrowIfNull(create);
+        ObjectDisposedException.ThrowIf(this.Disposed,this);
+        this.storeGate.Wait();
+        try {
+            if(this.parallelRegion is not null)
+                throw new InvalidOperationException("A parallel region is already open on this store.");
+            if(Volatile.Read(ref this.accessorCount)!=0)
+                throw new InvalidOperationException("Dispose the collections created by Create() before beginning a parallel region.");
+            // 操作用オブジェクトが無いので、索引を広げても他の操作と並行しない(EXP-0004)。
+            var layout = this.layout;
+            if(layout is not null&&layout.AutoGrowIndex&&expectedCount>0) {
+                var targetBytes = TsavoriteLayout.GetIndexSize(expectedCount);
+                while(this.indexBytes<targetBytes) {
+                    if(!this.TryDoubleIndex(layout)) {
+                        break;
+                    }
+                }
+            }
+            var region = new ParallelRegionState(this);
+            this.parallelRegion=region;
+            return new ParallelRegion<TAccessor>(region,create);
+        } finally {
+            this.storeGate.Release();
+        }
+    }
+
+    internal override void FinishParallelRegion(ParallelRegionState region,bool fromFinalizer) {
+        if(fromFinalizer) {
+            // ファイナライザからは関所を待たない。見送った索引の拡大は、次のシングル用の作成(OnAccessorCreated)で取り戻す。
+            Interlocked.CompareExchange(ref this.parallelRegion,null,region);
+            return;
+        }
+        this.storeGate.Wait();
+        try {
+            if(!ReferenceEquals(this.parallelRegion,region)) {
+                return;
+            }
+            this.parallelRegion=null;
+            // 区間の操作用オブジェクトはすべて破棄済みなので、索引を広げても他の操作と並行しない。
+            var layout = this.layout;
+            if(layout is not null&&!this.Disposed&&this.lastPayloadBytes>0&&Volatile.Read(ref this.accessorCount)==0) {
+                this.GrowIndexIfCrowded(layout,this.lastPayloadBytes);
+            }
+        } finally {
+            this.storeGate.Release();
+        }
+    }
+
+    /// <summary>件数を全走査で数える。件数として残さない(マルチ用の ScanCount。他のスレッドが書いている途中でも使える)。</summary>
+    internal long ScanCount() => this.ScanLiveRecordCount();
 
     /// <summary>全削除などでログを捨てたあとに呼ぶ。予約を索引分だけに戻す。</summary>
     internal void ResetCapacity() {
@@ -451,28 +524,45 @@ public abstract partial class CollectionStore<
     /// <summary>
     /// 操作用オブジェクトを作るとき、セッションを作る前に呼ぶ(権利を取る)。例外なら権利は取れていない。
     /// 取れたら、操作用オブジェクトの破棄(またはコンストラクタの失敗)で <see cref="OnAccessorDisposed"/> を 1 回だけ呼ぶ。
+    /// <paramref name="region"/> は並列区間のマルチ用、null はシングル用。
     /// </summary>
-    internal void OnAccessorCreated() {
+    internal void OnAccessorCreated(ParallelRegionState? region) {
         ObjectDisposedException.ThrowIf(this.Disposed,this);
         // 拡張・保存・件数の走査の途中に新しい操作用オブジェクトが操作を始めないよう、関所を通してから使わせる。
         this.storeGate.Wait();
         try {
-            var count = Interlocked.Increment(ref this.accessorCount);
-            try {
-                // 他に操作用オブジェクトが無いとき(=並行する操作が無いとき)に、並列中に見送った索引の拡張を取り戻す。
-                if(this.layout is not null&&count==1&&this.lastPayloadBytes>0) {
-                    this.GrowIndexIfCrowded(this.layout,this.lastPayloadBytes);
+            if(region is null) {
+                if(this.parallelRegion is not null)
+                    throw new InvalidOperationException("Create() is not available while a parallel region is open. Dispose the region and the collections created from it first.");
+                var count = Interlocked.Increment(ref this.accessorCount);
+                try {
+                    // 他に操作用オブジェクトが無いとき(=並行する操作が無いとき)に、並列中に見送った索引の拡張を取り戻す。
+                    if(this.layout is not null&&count==1&&this.lastPayloadBytes>0) {
+                        this.GrowIndexIfCrowded(this.layout,this.lastPayloadBytes);
+                    }
+                } catch {
+                    Interlocked.Decrement(ref this.accessorCount);
+                    throw;
                 }
-            } catch {
-                Interlocked.Decrement(ref this.accessorCount);
-                throw;
+            } else {
+                if(!ReferenceEquals(this.parallelRegion,region))
+                    throw new ObjectDisposedException(nameof(ParallelRegionState),"The parallel region has been disposed.");
+                // 閉じ中なら ObjectDisposedException。
+                region.Enter();
+                Interlocked.Increment(ref this.accessorCount);
+                // マルチ用は件数を増減しないので、作った時点から件数は不明(区間を閉じたあとに数え直す)。
+                this.InvalidateManagedCount();
             }
         } finally {
             this.storeGate.Release();
         }
     }
 
-    internal void OnAccessorDisposed() => Interlocked.Decrement(ref this.accessorCount);
+    /// <summary>操作用オブジェクトの権利を返す。ファイナライザからは関所を待たない。</summary>
+    internal void OnAccessorDisposed(ParallelRegionState? region,bool fromFinalizer) {
+        Interlocked.Decrement(ref this.accessorCount);
+        region?.Leave(fromFinalizer);
+    }
 
     /// <summary>生きている操作用オブジェクトの数(診断用)。</summary>
     internal int AccessorCount => Volatile.Read(ref this.accessorCount);
@@ -776,6 +866,8 @@ public abstract partial class CollectionStore<
     // 関所の中で呼ぶ。
     private async ValueTask LoadCoreAsync(Guid? token,CancellationToken ct) {
         this.AssertCheckpointDir();
+        if(this.parallelRegion is not null)
+            throw new InvalidOperationException("Dispose the parallel region and the collections created from it before loading a checkpoint.");
         await this.RecoverWithSizeTrackerAsync(token,ct);
         this.ThrowIfRecoveredTailCollidesWithHead();
         this.CheckpointFailed=false;
