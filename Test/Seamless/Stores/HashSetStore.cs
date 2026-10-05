@@ -1,6 +1,6 @@
 using CommonStore=global::Seamless.Execution.Store;
 namespace Test.Seamless.Stores;
-/// <summary>共通ストアから作った Tsavorite データ本体の件数管理(件数を管理する操作用オブジェクトと、保持しない操作用オブジェクト)の仕様。</summary>
+/// <summary>共通ストアから作った Tsavorite データ本体の件数管理(シングル用の操作用オブジェクト)の仕様。並列区間の仕様は ParallelRegion。</summary>
 public class HashSetStore{
     [Fact,Trait("Category","Unit")]public void Create(){
         {
@@ -39,32 +39,6 @@ public class HashSetStore{
             Assert.Equal(0,data.GetLongCount());
         }
     }
-    [Fact,Trait("Category","Unit")]public void CreateUncounted(){
-        using var store=CommonStore.CreateMemory();
-        using var data=store.CreateTsavoriteHashSet<long>("ids");
-        long delta=0;
-        {
-            //件数を保持しない操作用オブジェクトの追加は、反映するまでデータ本体の件数に入らない
-            Parallel.For(0,4,thread=>{
-                using var set=data.CreateUncounted();
-                long local=0;
-                for(long i=0;i<1_000;i++){
-                    if(set.Add(thread*1_000L+i)){
-                        local++;
-                    }
-                }
-                Interlocked.Add(ref delta,local);
-            });
-            Assert.Equal(0,data.GetLongCount());
-        }
-        {
-            //集計した増減を 1 回で反映すると、件数が正確になる
-            data.ApplyCountDelta(delta);
-            Assert.Equal(4_000,data.GetLongCount());
-            using var reader=data.Create();
-            Assert.Equal(4_000,reader.GetLongCount());
-        }
-    }
     [Fact,Trait("Category","Unit")]public void GetLongCount(){
         var root=Path.Combine(Path.GetTempPath(),"seamless-hashsetstore-tests",Guid.NewGuid().ToString("N"));
         try{
@@ -97,11 +71,6 @@ public class HashSetStore{
                     using var data=store.CreateTsavoriteHashSet<long>("ids");
                     Assert.Equal(500,data.GetLongCount());
                 }
-            }
-            {
-                //旧 API で作ったデータ本体では件数の反映はできない
-                using var legacy=Store.Create(MemorySize:1L<<20).Create<long>();
-                Assert.Throws<NotSupportedException>(()=>legacy.ApplyCountDelta(1));
             }
         }finally{
             if(Directory.Exists(root)){

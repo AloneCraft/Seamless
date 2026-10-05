@@ -28,7 +28,10 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
         this.valueUsesMemoryPackSerializer=RuntimeHelpers.IsReferenceOrContainsReferences<TValue>();
     }
 
-    /// <summary>シングル用の操作用オブジェクト。件数をデータ本体で管理し O(1)。</summary>
+    /// <summary>
+    /// シングル用の操作用オブジェクト。データ本体に同時に 1 つだけ作れる(2 つ目は InvalidOperationException)。
+    /// 件数をデータ本体で管理し O(1)。複数スレッドから書くときは <see cref="BeginParallel"/> を使う。
+    /// </summary>
     public IDictionary<TKey,TValue> Create() {
         if(this.keyUsesMemoryPackSerializer&&this.valueUsesMemoryPackSerializer) {
             return new Dictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(this);
@@ -48,16 +51,6 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
             return new ParallelDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(this,region);
         }
         return (IParallelDictionary<TKey,TValue>)this.CreateAccessor(typeof(ParallelDictionary<,,,>),[this,region]);
-    }
-
-    /// <summary>
-    /// 件数を保持しない操作用オブジェクト。1 つの処理の中で並列化するときに使う。
-    /// 増減は呼び出し側で集計し、最後に ApplyCountDelta で反映する。
-    /// </summary>
-    public IDictionary<TKey,TValue> CreateUncounted() {
-        var dictionary = this.Create();
-        ((IUncountableAccessor)dictionary).DisableCounting();
-        return dictionary;
     }
 
     // 実行時に決まるシリアライザの組み合わせで作る。コンストラクタの例外(作れないときの InvalidOperationException など)は包まずにそのまま投げる。

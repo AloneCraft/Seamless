@@ -231,7 +231,8 @@ public abstract partial class CollectionStore<
         return false;
     }
 
-    internal void AddManagedCount(long delta) => Interlocked.Add(ref this.managedCount,delta);
+    // 増減するのはシングル用の操作用オブジェクトだけで、同時に 1 つしか無いので排他命令は要らない。
+    internal void AddManagedCount(long delta) => this.managedCount+=delta;
 
     internal void SetManagedCount(long count) {
         Interlocked.Exchange(ref this.managedCount,count);
@@ -239,16 +240,6 @@ public abstract partial class CollectionStore<
     }
 
     internal void InvalidateManagedCount() => Volatile.Write(ref this.managedCountKnown,0);
-
-    /// <summary>
-    /// 件数を保持しない操作用オブジェクト(CreateUncounted)で集計した増減を、データ本体の件数へまとめて反映する。
-    /// 旧 API で作ったデータ本体では NotSupportedException。
-    /// </summary>
-    public void ApplyCountDelta(long delta) {
-        if(this.layout is null)
-            throw new NotSupportedException("Count management is available only for stores created from Seamless.Execution.Store.");
-        Interlocked.Add(ref this.managedCount,delta);
-    }
 
     /// <summary>データ本体の件数。管理している件数が分かっていればそれを返し、不明なら全走査で数え直す。</summary>
     public long GetLongCount() => this.CountCore(owners: 0);
@@ -534,6 +525,9 @@ public abstract partial class CollectionStore<
             if(region is null) {
                 if(this.parallelRegion is not null)
                     throw new InvalidOperationException("Create() is not available while a parallel region is open. Dispose the region and the collections created from it first.");
+                // シングル用は同時に 1 つだけ。件数を排他命令なしで増減し、索引を他の操作と並行せずに広げられるようにするため。
+                if(Volatile.Read(ref this.accessorCount)!=0)
+                    throw new InvalidOperationException("Only one collection created by Create() can be open at a time on this store. Dispose it first, or use BeginParallel() to work from multiple threads.");
                 var count = Interlocked.Increment(ref this.accessorCount);
                 try {
                     // 他に操作用オブジェクトが無いとき(=並行する操作が無いとき)に、並列中に見送った索引の拡張を取り戻す。

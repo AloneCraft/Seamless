@@ -91,6 +91,52 @@ public class CollectionStore {
         }
     }
     [Fact,Trait("Category","Unit")]
+    public void OnAccessorCreated(){
+        {
+            //シングル用は同時に1つだけ。2つ目は例外で、破棄すれば作れる
+            using var owner=global::Seamless.Execution.Store.CreateMemory();
+            using var data=owner.CreateTsavoriteHashSet<long>("ids");
+            var first=data.Create();
+            Assert.Throws<InvalidOperationException>(()=>data.Create());
+            Assert.Throws<InvalidOperationException>(()=>data.CreateSet());
+            //作れなかった操作用オブジェクトのファイナライザが、1つ目の権利を返してしまわない
+            GC.Collect(GC.MaxGeneration,GCCollectionMode.Forced,blocking:true);
+            GC.WaitForPendingFinalizers();
+            Assert.Throws<InvalidOperationException>(()=>data.Create());
+            Assert.Equal(1,data.AccessorCount);
+            first.Dispose();
+            using var second=data.Create();
+            Assert.Equal(1,data.AccessorCount);
+        }
+        {
+            //辞書はシリアライザの組み合わせで作り方が違う(実行時に型を組み立てる経路を含む)。どれも2つ目は例外
+            CheckDictionary<int,int>();
+            CheckDictionary<string,string>();
+            CheckDictionary<int,string>();
+            CheckDictionary<string,int>();
+        }
+        {
+            //キーを持つレコードの集合と、旧 API のデータ本体も同じ
+            using var owner=global::Seamless.Execution.Store.CreateMemory();
+            using var records=owner.CreateTsavoriteSet<int,ScoreRecord>("scores");
+            using(records.Create()){
+                Assert.Throws<InvalidOperationException>(()=>records.Create());
+            }
+            using var legacy=Store.Create(MemorySize:1L<<20).Create<long>();
+            using(legacy.Create()){
+                Assert.Throws<InvalidOperationException>(()=>legacy.Create());
+            }
+        }
+        static void CheckDictionary<TKey,TValue>() where TKey:notnull{
+            using var owner=global::Seamless.Execution.Store.CreateMemory();
+            using var data=owner.CreateTsavorite<TKey,TValue>("names");
+            using(data.Create()){
+                Assert.Throws<InvalidOperationException>(()=>data.Create());
+            }
+            using var again=data.Create();
+        }
+    }
+    [Fact,Trait("Category","Unit")]
     public async Task SaveWhileGrowingIndex(){
         //索引を広げる書き込みと、別のスレッドの保存が重なっても、どちらも失敗しない(保存と拡大は同時に走れない)
         var root=Path.Combine(Path.GetTempPath(),"save-while-growing-"+Guid.NewGuid().ToString("N"));
@@ -447,3 +493,5 @@ public class CollectionStore {
         }
     }
 }
+/// <summary>キーを持つレコードの集合の確認用。</summary>
+file readonly record struct ScoreRecord(int Key,int Value):global::Seamless.Collections.IRecord<int>;

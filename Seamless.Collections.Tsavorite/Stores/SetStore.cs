@@ -16,7 +16,10 @@ public class SetStore<TKey, TRecord>:CollectionStore<TKey,TRecord>
     internal SetStore(TsavoriteLayout layout) : base(layout) {
     }
 
-    /// <summary>件数を管理する操作用オブジェクト。スレッドごとに作る。</summary>
+    /// <summary>
+    /// シングル用の操作用オブジェクト。データ本体に同時に 1 つだけ作れる(2 つ目は InvalidOperationException)。
+    /// 件数をデータ本体で管理し O(1)。複数スレッドから書くときは <see cref="BeginParallel"/> を使う。
+    /// </summary>
     public Set<TKey,TRecord> Create() => new(this);
     /// <summary>
     /// 並列区間を開く。区間の <see cref="ParallelRegion{TAccessor}.Create"/> で、スレッドごとにマルチ用の操作用オブジェクトを作る。
@@ -24,10 +27,4 @@ public class SetStore<TKey, TRecord>:CollectionStore<TKey,TRecord>
     /// </summary>
     public ParallelRegion<ParallelSet<TKey,TRecord>> BeginParallel(long expectedCount = 0) =>
         this.BeginParallelCore(expectedCount,region => new ParallelSet<TKey,TRecord>(this,region));
-    /// <summary>件数を保持しない操作用オブジェクト。増減は呼び出し側で集計し、ApplyCountDelta で反映する。</summary>
-    public Set<TKey,TRecord> CreateUncounted() {
-        var set = new Set<TKey,TRecord>(this);
-        ((IUncountableAccessor)set).DisableCounting();
-        return set;
-    }
 }

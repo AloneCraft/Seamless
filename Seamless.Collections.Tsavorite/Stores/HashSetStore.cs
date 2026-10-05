@@ -12,17 +12,13 @@ public class HashSetStore<TKey>:CollectionStore<TKey,EqualityEmpty> {
 
     internal HashSetStore(TsavoriteLayout layout) : base(layout) { }
 
-    /// <summary>件数を管理する操作用オブジェクト。スレッドごとに作る。追加・削除のたびにデータ本体の件数を排他的に増減する。</summary>
-    public HashSet<TKey> Create() => new(this);
     /// <summary>
-    /// 件数を保持しない操作用オブジェクト。1 つの処理の中で並列化するときに使う。
-    /// 増減は呼び出し側で集計し、最後に <see cref="CollectionStore{TKey,TValue,TStoreFunctions,TAllocator}.ApplyCountDelta"/> で反映する。
+    /// シングル用の操作用オブジェクト。データ本体に同時に 1 つだけ作れる(2 つ目は InvalidOperationException)。
+    /// 件数をデータ本体で管理し O(1)。索引は混んだら自動で広げる。スレッドには縛られないが、同時に使えるのは 1 スレッドだけ。
+    /// 複数スレッドから書くときは <see cref="BeginParallel"/> を使う。
     /// </summary>
-    public HashSet<TKey> CreateUncounted() {
-        var set = new HashSet<TKey>(this);
-        ((IUncountableAccessor)set).DisableCounting();
-        return set;
-    }
+    public HashSet<TKey> Create() => new(this);
+    /// <summary>シングル用の操作用オブジェクト(<see cref="Set{TRecord}"/>)。<see cref="Create"/> と合わせて、同時に 1 つだけ作れる。</summary>
     public Set<TKey> CreateSet() => new(this);
     /// <summary>
     /// 並列区間を開く。区間の <see cref="ParallelRegion{TAccessor}.Create"/> で、スレッドごとにマルチ用の操作用オブジェクトを作る。

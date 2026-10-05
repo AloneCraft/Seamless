@@ -1,10 +1,5 @@
 namespace Seamless.Collections.Tsavorite;
 
-/// <summary>データ本体の件数を増減しない操作用オブジェクト(CreateUncounted)にするための内部の口。</summary>
-internal interface IUncountableAccessor {
-    void DisableCounting();
-}
-
 /// <summary>
 /// 操作用オブジェクトの共通基底。<typeparamref name="TMode"/> はシングル用(<see cref="ExclusiveAccess"/>)か
 /// マルチ用(<see cref="ParallelAccess"/>)かを表す構造体で、件数の管理と索引の拡大の有無を JIT が型ごとに決める(操作ごとの判定はしない)。
@@ -21,7 +16,7 @@ public abstract class Collection<
     TStoreFunctions,
     TAllocator,
     TMode
->:IDisposable, IUncountableAccessor where TReadFunctions : struct, ISessionFunctions<
+>:IDisposable where TReadFunctions : struct, ISessionFunctions<
         EqualityEmpty,
         TReadOutput,
         EqualityEmpty
@@ -170,19 +165,16 @@ public abstract class Collection<
         this.VerifyThreadAffinity(nameof(this.GetLongCountCore));
         return this.CollectionStore.GetLongCountFromAccessor();
     }
-    // false の操作用オブジェクト(CreateUncounted)は、データ本体の件数を増減しない。増減は呼び出し側が ApplyCountDelta で反映する。
-    private bool countsIntoStore = true;
-    void IUncountableAccessor.DisableCounting() => this.countsIntoStore=false;
     // 件数を管理するのはシングル用だけ。TMode は構造体なので、マルチ用ではこの判定ごと JIT が消す。
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private protected void OnInserted() {
-        if(TMode.IsExclusive&&this.countsIntoStore) {
+        if(TMode.IsExclusive) {
             this.CollectionStore.AddManagedCount(1);
         }
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private protected void OnRemoved() {
-        if(TMode.IsExclusive&&this.countsIntoStore) {
+        if(TMode.IsExclusive) {
             this.CollectionStore.AddManagedCount(-1);
         }
     }
@@ -665,6 +657,9 @@ public abstract class Collection<
     ~Collection() => this.Dispose(false);
     [global::System.Diagnostics.Conditional("DEBUG")]
     internal void VerifyThreadAffinity([global::System.Runtime.CompilerServices.CallerMemberName] string operation = "") {
+        // シングル用はスレッドに縛られない(1 つを別々のスレッドから順に使ってよい)ので確かめない。マルチ用はスレッドごとに作る。
+        if(TMode.IsExclusive)
+            return;
         if(this.ThreadOwnerManagedThreadId==Environment.CurrentManagedThreadId)
             return;
         if(global::System.Threading.Interlocked.CompareExchange(ref this.ThreadAffinityWarningRaised,1,0)!=0)
@@ -672,7 +667,7 @@ public abstract class Collection<
         Debug.WriteLine(
             $"[Tsavorite] Thread-affinity warning: {this.GetType().Name} should be used from thread {this.ThreadOwnerManagedThreadId}, "+
             $"current thread {Environment.CurrentManagedThreadId} at {operation}. "+
-            "Create a new collection instance from Store.Create() for each thread.");
+            "Create a collection from the parallel region (BeginParallel().Create()) for each thread.");
     }
     private struct IterateLookupIsSubsetOf<TCollection>(TCollection other):IScanIteratorFunctions
         where TCollection : Collection<
