@@ -63,11 +63,6 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
         return dictionary;
     }
 
-    private protected override long GetRecoveryEntryCount() {
-        using var dictionary = this.Create();
-        return dictionary.GetLongCount();
-    }
-
     private IDictionary<TKey,TValue> CreateDictionary(Type dictionaryOpenType,Type keySerializerOpenType,Type valueSerializerOpenType) {
         var dictionaryType = dictionaryOpenType.MakeGenericType(
             typeof(TKey),

@@ -164,15 +164,14 @@ public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<
     private bool disposed;
     protected override void Dispose(bool disposing) {
         if(this.disposed) return;
-        if(disposing) {
-            this.IntersectWith_ClientSession.Dispose();
-            this.SymmetricExceptWith_ClientSession.Dispose();
-        } else {
-        }
         this.disposed=true;
-        base.Dispose(disposing);
-        if(disposing)
-            this.ownedStore?.Dispose();
+        // 追加のセッションは基底の Dispose が DisposeAdditionalSessions で破棄する(ここで先に破棄すると二重になる)。
+        try {
+            base.Dispose(disposing);
+        } finally {
+            if(disposing)
+                this.ownedStore?.Dispose();
+        }
     }
 }
 
@@ -264,8 +263,14 @@ public partial class HashSet<TKey> {
         SpanByteStoreAllocator
     > SymmetricExceptWith_ClientSession = null!;
     internal HashSet(CollectionStore<TKey,EqualityEmpty> CollectionStore,IDisposable? ownedStore = null) : base(CollectionStore) {
+        try {
+            this.CreateAdditionalSessions();
+        } catch {
+            this.AbortConstruction();
+            throw;
+        }
+        // 構築に成功してから受け取る(失敗したときは呼び出し側が破棄する)。
         this.ownedStore=ownedStore;
-        this.CreateAdditionalSessions();
     }
     private protected override void DisposeAdditionalSessions() {
         CompletePendingAndDispose(this.ExceptWith_ClientSession);

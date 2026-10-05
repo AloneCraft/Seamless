@@ -16,11 +16,6 @@ public class SetStore<TKey, TRecord>:CollectionStore<TKey,TRecord>
     internal SetStore(TsavoriteLayout layout) : base(layout) {
     }
 
-    private protected override long GetRecoveryEntryCount() {
-        using var set = this.Create();
-        return set.GetLongCount();
-    }
-
     /// <summary>件数を管理する操作用オブジェクト。スレッドごとに作る。</summary>
     public Set<TKey,TRecord> Create() => new(this);
     /// <summary>件数を保持しない操作用オブジェクト。増減は呼び出し側で集計し、ApplyCountDelta で反映する。</summary>

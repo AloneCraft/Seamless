@@ -12,11 +12,6 @@ public class HashSetStore<TKey>:CollectionStore<TKey,EqualityEmpty> {
 
     internal HashSetStore(TsavoriteLayout layout) : base(layout) { }
 
-    private protected override long GetRecoveryEntryCount() {
-        using var set = this.Create();
-        return set.GetLongCount();
-    }
-
     /// <summary>件数を管理する操作用オブジェクト。スレッドごとに作る。追加・削除のたびにデータ本体の件数を排他的に増減する。</summary>
     public HashSet<TKey> Create() => new(this);
     /// <summary>

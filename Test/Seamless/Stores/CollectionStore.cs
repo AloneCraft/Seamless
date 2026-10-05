@@ -45,6 +45,83 @@ public class CollectionStore {
         }
     }
     [Fact,Trait("Category","Unit")]
+    public void AccessorCount(){
+        {
+            //破棄したデータ本体からは作れない。作成に失敗した操作用オブジェクトは、ファイナライザで数を減らさない
+            using var owner=global::Seamless.Execution.Store.CreateMemory();
+            var data=owner.CreateTsavoriteHashSet<long>("ids");
+            data.Dispose();
+            Assert.Throws<ObjectDisposedException>(()=>data.Create());
+            GC.Collect(GC.MaxGeneration,GCCollectionMode.Forced,blocking:true);
+            GC.WaitForPendingFinalizers();
+            Assert.Equal(0,data.AccessorCount);
+        }
+        {
+            //破棄し忘れた操作用オブジェクトは、ファイナライザが例外を出さずに数を戻す
+            using var owner=global::Seamless.Execution.Store.CreateMemory();
+            using var data=owner.CreateTsavoriteHashSet<long>("ids");
+            CreateOrphan(data);
+            Assert.Equal(1,data.AccessorCount);
+            GC.Collect(GC.MaxGeneration,GCCollectionMode.Forced,blocking:true);
+            GC.WaitForPendingFinalizers();
+            Assert.Equal(0,data.AccessorCount);
+            using var set=data.Create();
+            Assert.Equal(1,data.AccessorCount);
+        }
+        {
+            //内部の件数の走査(データ本体の件数・旧 API の保存)は、操作用オブジェクトを作らない
+            var root=Path.Combine(Path.GetTempPath(),"accessor-count-"+Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            try{
+                using var logDevice=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(root,"log"));
+                using var objDevice=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(root,"log_obj"));
+                using var store=Store.Create(CheckpointDir:Path.Combine(root,"checkpoint")).Create<int,int>(logDevice,objDevice);
+                using var dictionary=store.Create();
+                dictionary[1]=1;
+                store.Save();
+                Assert.Equal(1,store.AccessorCount);
+            }finally{
+                Directory.Delete(root,true);
+            }
+        }
+        [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        static void CreateOrphan(global::Seamless.Collections.Tsavorite.HashSetStore<long> data){
+            var set=data.Create();
+            set.Add(1);
+        }
+    }
+    [Fact,Trait("Category","Unit")]
+    public async Task SaveWhileGrowingIndex(){
+        //索引を広げる書き込みと、別のスレッドの保存が重なっても、どちらも失敗しない(保存と拡大は同時に走れない)
+        var root=Path.Combine(Path.GetTempPath(),"save-while-growing-"+Guid.NewGuid().ToString("N"));
+        try{
+            using var owner=global::Seamless.Execution.Store.Open(root);
+            using var data=owner.CreateTsavoriteHashSet<long>("ids",new TsavoriteTuning{IndexSize=4096,PageSize=4096,LogMemorySize=1L<<20});
+            using var stop=new CancellationTokenSource();
+            var saves=0;
+            var saver=Task.Run(()=>{
+                while(!stop.IsCancellationRequested){
+                    owner.Save();
+                    saves++;
+                }
+            });
+            using(var set=data.Create()){
+                for(long i=0;i<200_000;i++){
+                    set.Add(i);
+                }
+            }
+            stop.Cancel();
+            await saver;
+            Assert.True(saves>0);
+            Assert.True(data.GetStatistics().IndexBytes>4096);
+            Assert.Equal(200_000,data.GetLongCount());
+        }finally{
+            if(Directory.Exists(root)){
+                Directory.Delete(root,true);
+            }
+        }
+    }
+    [Fact,Trait("Category","Unit")]
     public void DumpIndexDistribution(){
         using var owner=global::Seamless.Execution.Store.CreateMemory();
         using var data=owner.CreateTsavoriteHashSet<int>("ids");

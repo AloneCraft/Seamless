@@ -262,9 +262,55 @@ public abstract partial class CollectionStore<
         if(this.TryGetManagedCount(out var count)) {
             return count;
         }
-        count=this.GetRecoveryEntryCount();
-        this.SetManagedCount(count);
-        return count;
+        this.storeGate.Wait();
+        try {
+            count=this.GetRecoveryEntryCount();
+            this.SetManagedCount(count);
+            return count;
+        } finally {
+            this.storeGate.Release();
+        }
+    }
+
+    /// <summary>件数。分かっていればそれを、不明なら全走査で数える。操作用オブジェクトは作らない(関所の中で呼ぶ)。</summary>
+    private protected override long GetRecoveryEntryCount() {
+        if(this.TryGetManagedCount(out var count)) {
+            return count;
+        }
+        return this.ScanLiveRecordCount();
+    }
+
+    /// <summary>削除の印を除いたレコードの数を、一時的なセッションで全走査して数える。</summary>
+    private long ScanLiveRecordCount() {
+        using var session = this.Store.NewSession<FixedSpanByteKey,EqualityEmpty,bool,EqualityEmpty,ContainsDelete>(new());
+        var counter = new LiveRecordCounter();
+        var cursor = 0L;
+        session.IterateLookup(ref counter,ref cursor,resetCursor: false);
+        session.BasicContext.CompletePending(wait: true);
+        return counter.Count;
+    }
+
+    // 構造体にすると Tsavorite の走査の中でコピーされ、数えた結果が戻らない(クラスにする)。
+    private sealed class LiveRecordCounter:IScanIteratorFunctions {
+        public long Count;
+        public bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult)
+            where TSourceLogRecord : ISourceLogRecord {
+            if(logRecord.Info.Tombstone) {
+                cursorRecordResult=CursorRecordResult.Skip;
+            } else {
+                cursorRecordResult=CursorRecordResult.Accept;
+                this.Count++;
+            }
+            return true;
+        }
+        public bool OnStart(long beginAddress,long endAddress) {
+            this.Count=0;
+            return true;
+        }
+        public void OnStop(bool completed,long numberOfRecords) {
+        }
+        public void OnException(Exception exception,long numberOfRecords) {
+        }
     }
 
     // 索引の自動拡張の目安。1 バケット(実効 7 件)あたり平均 4 件を超えたら倍にする(EXP-0003)。
@@ -285,15 +331,21 @@ public abstract partial class CollectionStore<
         this.GrowReservation(requiredTailAddress,keyLength+valueLength);
     }
 
-    // 予約と索引拡張はページに 1 回程度の頻度なので、スレッドごとの操作用オブジェクトからの同時呼び出しをここで直列にする。
-    private readonly object capacityGate = new();
+    // データ本体の関所。索引の拡大・予算の予約・保存・読み込み・件数の走査・統計・詰め直しを順番に行う。
+    // Tsavorite の状態機械(索引の拡大・チェックポイント)は同時に 1 つしか走れず、拡大は他の操作とも並行できない(EXP-0004)。
+    // 予約と索引拡張はページに 1 回程度の頻度なので、書き込みの通常経路では通らない。
+    // 保存の中で await するので Monitor ではなく SemaphoreSlim にする。再入できないので、関所の中では「…Core」の版を呼ぶ。
+    private readonly SemaphoreSlim storeGate = new(1,1);
 
     private void GrowReservation(long requiredTailAddress,int payloadBytes) {
-        lock(this.capacityGate) {
+        this.storeGate.Wait();
+        try {
             if(requiredTailAddress<=this.reservedTailAddress) {
                 return;
             }
             this.GrowReservationCore(requiredTailAddress,payloadBytes);
+        } finally {
+            this.storeGate.Release();
         }
     }
 
@@ -369,10 +421,13 @@ public abstract partial class CollectionStore<
         if(layout is null) {
             return;
         }
-        lock(this.capacityGate) {
+        this.storeGate.Wait();
+        try {
             layout.Memory.Resize(this.indexBytes);
             layout.Disk?.Resize(0);
             this.reservedTailAddress=0;
+        } finally {
+            this.storeGate.Release();
         }
     }
 
@@ -413,26 +468,58 @@ public abstract partial class CollectionStore<
     // 最後に書き込んだレコードのキー＋値の大きさ。操作用オブジェクトを作るときの拡張判定に使う。
     private int lastPayloadBytes;
 
+    /// <summary>
+    /// 操作用オブジェクトを作るとき、セッションを作る前に呼ぶ(権利を取る)。例外なら権利は取れていない。
+    /// 取れたら、操作用オブジェクトの破棄(またはコンストラクタの失敗)で <see cref="OnAccessorDisposed"/> を 1 回だけ呼ぶ。
+    /// </summary>
     internal void OnAccessorCreated() {
+        ObjectDisposedException.ThrowIf(this.Disposed,this);
         var count = Interlocked.Increment(ref this.accessorCount);
         if(this.layout is null) {
             return;
         }
-        // 拡張中に新しい操作用オブジェクトが操作を始めないよう、拡張と同じロックを通してから使わせる。
-        lock(this.capacityGate) {
-            // 他に操作用オブジェクトが無いとき(=並行する操作が無いとき)に、並列中に見送った索引の拡張を取り戻す。
-            if(count==1&&this.lastPayloadBytes>0) {
-                this.GrowIndexIfCrowded(this.layout,this.lastPayloadBytes);
+        try {
+            // 拡張中に新しい操作用オブジェクトが操作を始めないよう、拡張と同じ関所を通してから使わせる。
+            this.storeGate.Wait();
+            try {
+                // 他に操作用オブジェクトが無いとき(=並行する操作が無いとき)に、並列中に見送った索引の拡張を取り戻す。
+                if(count==1&&this.lastPayloadBytes>0) {
+                    this.GrowIndexIfCrowded(this.layout,this.lastPayloadBytes);
+                }
+            } finally {
+                this.storeGate.Release();
             }
+        } catch {
+            Interlocked.Decrement(ref this.accessorCount);
+            throw;
         }
     }
 
     internal void OnAccessorDisposed() => Interlocked.Decrement(ref this.accessorCount);
 
+    /// <summary>生きている操作用オブジェクトの数(診断用)。</summary>
+    internal int AccessorCount => Volatile.Read(ref this.accessorCount);
+
     string global::Seamless.Execution.IStoreComponent.Name => this.layout?.Name??string.Empty;
 
     string global::Seamless.Execution.IStoreComponent.Save() {
-        var token = this.TakeFullCheckpointAsync(CheckpointType.Snapshot,writeRecoveryIndexMetadata: false,default).GetAwaiter().GetResult();
+        this.AssertCheckpointDir();
+        this.ThrowIfCheckpointInProgress();
+        try {
+            this.storeGate.Wait();
+            try {
+                return this.SaveComponentCore();
+            } finally {
+                this.storeGate.Release();
+            }
+        } finally {
+            this.ReleaseCheckpoint();
+        }
+    }
+
+    // 保存中の印を付けて、関所の中で呼ぶ。
+    private string SaveComponentCore() {
+        var token = this.TakeFullCheckpointCoreAsync(CheckpointType.Snapshot,writeRecoveryIndexMetadata: false,default).GetAwaiter().GetResult();
         // checkpoint だけでは、復元に必要なログのページがまだデバイスへ書き終わっていないことがある(EXP-0002)。
         // 保存が戻った時点で復元できるよう、ログを書き出す。ただし末尾(セクターの途中)まで書くと、次の書き出しが末尾を含むセクターを頭から書き直し、
         // その間に更新・削除で無効化された古いレコードが書き込まれて、この保存の復元で見えなくなる。セクター境界までに限れば、末尾を含む
@@ -449,17 +536,23 @@ public abstract partial class CollectionStore<
         if(Volatile.Read(ref this.accessorCount)!=0)
             throw new InvalidOperationException("Dispose all collections created from this store before loading a checkpoint.");
         var saved = TsavoriteSavedState.Parse(state);
-        this.Load(saved.Token);
-        if(this.layout is not null) {
-            this.indexBytes=this.Store.IndexSize*64;
-            this.layout.Memory.Resize(this.indexBytes);
-        }
-        this.reservedTailAddress=0;
-        this.EnsureCapacity(this.Store.Log.TailAddress,0,0);
-        if(saved.Count is long count) {
-            this.SetManagedCount(count);
-        } else {
-            this.InvalidateManagedCount();
+        this.storeGate.Wait();
+        try {
+            this.LoadCoreAsync(saved.Token,default).GetAwaiter().GetResult();
+            if(this.layout is not null) {
+                this.indexBytes=this.Store.IndexSize*64;
+                this.layout.Memory.Resize(this.indexBytes);
+            }
+            this.reservedTailAddress=0;
+            var requiredTailAddress = this.Store.Log.TailAddress+MemoryOverflowMutableStrategy.GetRequiredBytes(0,0);
+            this.GrowReservationCore(requiredTailAddress,0);
+            if(saved.Count is long count) {
+                this.SetManagedCount(count);
+            } else {
+                this.InvalidateManagedCount();
+            }
+        } finally {
+            this.storeGate.Release();
         }
     }
 
@@ -468,14 +561,26 @@ public abstract partial class CollectionStore<
             throw new InvalidOperationException($"{nameof(this.Settings.CheckpointDir)} is not set.");
     }
 
-    public ValueTask<Guid> SaveAsync(CheckpointType CheckpointType = CheckpointType.Snapshot,CancellationToken ct = default) =>
-        this.TakeFullCheckpointAsync(CheckpointType,writeRecoveryIndexMetadata: true,ct);
+    public async ValueTask<Guid> SaveAsync(CheckpointType CheckpointType = CheckpointType.Snapshot,CancellationToken ct = default) {
+        this.AssertCheckpointDir();
+        // 保存中の再実行は、関所で待たずに例外にする(先に印を付ける)。
+        this.ThrowIfCheckpointInProgress();
+        try {
+            await this.storeGate.WaitAsync(ct);
+            try {
+                return await this.TakeFullCheckpointCoreAsync(CheckpointType,writeRecoveryIndexMetadata: true,ct);
+            } finally {
+                this.storeGate.Release();
+            }
+        } finally {
+            this.ReleaseCheckpoint();
+        }
+    }
 
     // 共通ストアから作った場合は索引の大きさをストアの保存に記録するので、全走査による件数計算と
     // checkpoint フォルダ内へのメタデータ書き込み(BUG-0006 の共有違反が起きる箇所)は行わない。
-    private async ValueTask<Guid> TakeFullCheckpointAsync(CheckpointType CheckpointType,bool writeRecoveryIndexMetadata,CancellationToken ct) {
-        this.AssertCheckpointDir();
-        this.ThrowIfCheckpointInProgress();
+    // 保存中の印を付けて、関所の中で呼ぶ。
+    private async ValueTask<Guid> TakeFullCheckpointCoreAsync(CheckpointType CheckpointType,bool writeRecoveryIndexMetadata,CancellationToken ct) {
         try {
             long recoveryEntryCount = 0;
             if(writeRecoveryIndexMetadata) {
@@ -495,8 +600,6 @@ public abstract partial class CollectionStore<
         } catch {
             this.CheckpointFailed=true;
             throw;
-        } finally {
-            this.ReleaseCheckpoint();
         }
     }
 
@@ -504,21 +607,27 @@ public abstract partial class CollectionStore<
 
     public async ValueTask<Guid> SaveLogOnlyAsync(CheckpointType CheckpointType = CheckpointType.Snapshot,CancellationToken ct = default) {
         this.AssertCheckpointDir();
+        // 保存中の再実行は、関所で待たずに例外にする(先に印を付ける)。
         this.ThrowIfCheckpointInProgress();
         try {
-            var recoveryEntryCount=this.GetRecoveryEntryCount();
-            var (success,token)=await this.Store.TakeHybridLogCheckpointAsync(CheckpointType,cancellationToken: ct);
-            await this.Store.CompleteCheckpointAsync(ct);
-            if(success) {
-                this.CheckpointFailed=false;
-                this.WriteRecoveryIndexMetadata(token,recoveryEntryCount);
-                this.MarkUnflushed(token);
-                return token;
+            await this.storeGate.WaitAsync(ct);
+            try {
+                var recoveryEntryCount=this.GetRecoveryEntryCount();
+                var (success,token)=await this.Store.TakeHybridLogCheckpointAsync(CheckpointType,cancellationToken: ct);
+                await this.Store.CompleteCheckpointAsync(ct);
+                if(success) {
+                    this.CheckpointFailed=false;
+                    this.WriteRecoveryIndexMetadata(token,recoveryEntryCount);
+                    this.MarkUnflushed(token);
+                    return token;
+                }
+                throw new InvalidOperationException($"{nameof(this.SaveLogOnly)}Checkpoint failed.");
+            } catch {
+                this.CheckpointFailed=true;
+                throw;
+            } finally {
+                this.storeGate.Release();
             }
-            throw new InvalidOperationException($"{nameof(this.SaveLogOnly)}Checkpoint failed.");
-        } catch {
-            this.CheckpointFailed=true;
-            throw;
         } finally {
             this.ReleaseCheckpoint();
         }
@@ -666,15 +775,27 @@ public abstract partial class CollectionStore<
     }
 
     public async ValueTask LoadAsync(CancellationToken ct = default) {
-        this.AssertCheckpointDir();
-        await this.RecoverWithSizeTrackerAsync(null,ct);
-        this.ThrowIfRecoveredTailCollidesWithHead();
-        this.CheckpointFailed=false;
+        await this.storeGate.WaitAsync(ct);
+        try {
+            await this.LoadCoreAsync(null,ct);
+        } finally {
+            this.storeGate.Release();
+        }
     }
 
     public void Load() => this.LoadAsync().GetAwaiter().GetResult();
 
     public async ValueTask LoadAsync(Guid token,CancellationToken ct = default) {
+        await this.storeGate.WaitAsync(ct);
+        try {
+            await this.LoadCoreAsync(token,ct);
+        } finally {
+            this.storeGate.Release();
+        }
+    }
+
+    // 関所の中で呼ぶ。
+    private async ValueTask LoadCoreAsync(Guid? token,CancellationToken ct) {
         this.AssertCheckpointDir();
         await this.RecoverWithSizeTrackerAsync(token,ct);
         this.ThrowIfRecoveredTailCollidesWithHead();
@@ -699,34 +820,56 @@ public abstract partial class CollectionStore<
     /// EntryCount の取得で索引全体と溢れバケットを走査するため、高頻度の監視には向かない。
     /// </summary>
     public TsavoriteStatistics GetStatistics() {
-        var indexSize = this.Store.IndexSize;
-        var log = this.Store.Log;
-        var beginAddress = log.BeginAddress;
-        var headAddress = log.HeadAddress;
-        var readOnlyAddress = log.ReadOnlyAddress;
-        var tailAddress = log.TailAddress;
-        return new(
-            indexSize,
-            checked(indexSize*64),
-            this.Store.EntryCount,
-            this.Store.OverflowBucketCount,
-            this.Store.OverflowBucketAllocations,
-            beginAddress,
-            headAddress,
-            readOnlyAddress,
-            tailAddress,
-            tailAddress-headAddress,
-            headAddress-beginAddress,
-            this.Store.HighWaterAllocatedPageCount);
+        // 索引の拡大と同時に索引を走査しない(EntryCount は索引全体を見る)。
+        this.storeGate.Wait();
+        try {
+            var indexSize = this.Store.IndexSize;
+            var log = this.Store.Log;
+            var beginAddress = log.BeginAddress;
+            var headAddress = log.HeadAddress;
+            var readOnlyAddress = log.ReadOnlyAddress;
+            var tailAddress = log.TailAddress;
+            return new(
+                indexSize,
+                checked(indexSize*64),
+                this.Store.EntryCount,
+                this.Store.OverflowBucketCount,
+                this.Store.OverflowBucketAllocations,
+                beginAddress,
+                headAddress,
+                readOnlyAddress,
+                tailAddress,
+                tailAddress-headAddress,
+                headAddress-beginAddress,
+                this.Store.HighWaterAllocatedPageCount);
+        } finally {
+            this.storeGate.Release();
+        }
     }
 
     /// <summary>
     /// 索引のバケットの分布を文字列で返す。索引全体を走査する高コストな操作。
     /// 取得した時点の値であり、並行して書き込んでいる間の整合性は保証しない。
     /// </summary>
-    public string DumpIndexDistribution() => this.Store.DumpDistribution();
+    public string DumpIndexDistribution() {
+        this.storeGate.Wait();
+        try {
+            return this.Store.DumpDistribution();
+        } finally {
+            this.storeGate.Release();
+        }
+    }
 
     public void CompactWithLookup() {
+        this.storeGate.Wait();
+        try {
+            this.CompactWithLookupCore();
+        } finally {
+            this.storeGate.Release();
+        }
+    }
+
+    private void CompactWithLookupCore() {
         var store = this.Store;
         var beginAddress = store.Log.BeginAddress;
         var segmentSize = this.Settings.SegmentSize;

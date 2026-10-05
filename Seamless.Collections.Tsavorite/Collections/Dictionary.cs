@@ -64,10 +64,7 @@ public partial class Dictionary<
         if(this.disposed)
             return;
         this.disposed=true;
-        if(disposing) {
-            this.Remove_TKey_TValue_ClientSession.Dispose();
-            this.Remove_KeyValuePair_ClientSession.Dispose();
-        }
+        // 追加のセッションは基底の Dispose が DisposeAdditionalSessions で破棄する(ここで先に破棄すると二重になる)。
         base.Dispose(disposing);
     }
 }
@@ -94,7 +91,12 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         SpanByteStoreAllocator//TAllocator
     > Remove_KeyValuePair_ClientSession { get; set; } = null!;
     internal Dictionary(CollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
-        this.CreateAdditionalSessions();
+        try {
+            this.CreateAdditionalSessions();
+        } catch {
+            this.AbortConstruction();
+            throw;
+        }
     }
     private protected override void DisposeAdditionalSessions() {
         CompletePendingAndDispose(this.Remove_TKey_TValue_ClientSession);

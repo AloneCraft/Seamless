@@ -9,6 +9,7 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
     where TRecord : IRecord<TKey> {
     private readonly IDisposable? ownedStore;
     internal Set(CollectionStore<TKey,TRecord> collectionStore,IDisposable? ownedStore = null) : base(collectionStore) {
+        // 構築に成功してから受け取る(失敗したときは呼び出し側が破棄する)。
         this.ownedStore=ownedStore;
     }
     public bool IsReadOnly => false;
@@ -161,12 +162,22 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
 
     private static Set<TKey,TRecord> CreateOwnedResultSet() {
         var store = global::Seamless.Collections.Tsavorite.Store.Create().CreateSet<TKey,TRecord>();
-        return new(store,store);
+        try {
+            return new(store,store);
+        } catch {
+            store.Dispose();
+            throw;
+        }
     }
 
     private static HashSet<TKey> CreateOwnedKeyResultSet() {
         var store = global::Seamless.Collections.Tsavorite.Store.Create().Create<TKey>();
-        return store.CreateOwned();
+        try {
+            return store.CreateOwned();
+        } catch {
+            store.Dispose();
+            throw;
+        }
     }
 
     public override bool IsDisposed => this.disposed;
@@ -175,9 +186,12 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,Aut
         if(this.disposed)
             return;
         this.disposed=true;
-        base.Dispose(disposing);
-        if(disposing)
-            this.ownedStore?.Dispose();
+        try {
+            base.Dispose(disposing);
+        } finally {
+            if(disposing)
+                this.ownedStore?.Dispose();
+        }
     }
     [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
     public struct ValueEnumerator {

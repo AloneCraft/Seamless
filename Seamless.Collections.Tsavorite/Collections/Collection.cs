@@ -242,8 +242,37 @@ public abstract class Collection<
         > CollectionStore
     ) {
         this.CollectionStore=CollectionStore;
-        this.RecreateCoreSessions();
+        // セッションを作る前に権利を取る。取れなければ(例外)、ファイナライザは何も返さない。
         CollectionStore.OnAccessorCreated();
+        this.claimed=1;
+        try {
+            this.RecreateCoreSessions();
+        } catch {
+            this.AbortConstruction();
+            throw;
+        }
+    }
+    // 1 なら、データ本体から操作用オブジェクトの権利を取っている。破棄・構築の失敗・ファイナライザのどれか 1 回だけが返す。
+    private int claimed;
+    private void ReleaseClaim() {
+        if(Interlocked.Exchange(ref this.claimed,0)==1) {
+            this.CollectionStore.OnAccessorDisposed();
+        }
+    }
+    /// <summary>
+    /// コンストラクタの途中で失敗したときに呼ぶ。作ったセッションと権利をすぐ返す(ファイナライザに任せると GC まで権利が残る)。
+    /// 後始末の失敗は捨てて、呼び出し側が構築の失敗の例外をそのまま投げ直す。
+    /// </summary>
+    private protected void AbortConstruction() {
+        this.disposed=true;
+        try {
+            this.DisposeAdditionalSessions();
+            this.DisposeCoreSessions();
+        } catch {
+        } finally {
+            this.ReleaseClaim();
+            GC.SuppressFinalize(this);
+        }
     }
     private void RecreateCoreSessions() {
         var Store = this.CollectionStore.Store;
@@ -293,6 +322,10 @@ public abstract class Collection<
             TOutput0,
             EqualityEmpty
         > {
+        // コンストラクタの途中で失敗したときは、まだ作っていないセッションがある。
+        if(session is null) {
+            return;
+        }
         session.BasicContext.CompletePending(wait: true);
         session.Dispose();
     }
@@ -628,13 +661,17 @@ public abstract class Collection<
     protected virtual void Dispose(bool disposing) {
         if(this.disposed)
             return;
-        if(disposing) {
-            this.DisposeAdditionalSessions();
-            this.DisposeCoreSessions();
-        } else {
-        }
         this.disposed=true;
-        this.CollectionStore.OnAccessorDisposed();
+        try {
+            if(disposing) {
+                this.DisposeAdditionalSessions();
+                this.DisposeCoreSessions();
+            } else {
+                // ファイナライザからは状態を変えるだけにする(索引の拡大や件数の処理はしない)。
+            }
+        } finally {
+            this.ReleaseClaim();
+        }
     }
     ~Collection() => this.Dispose(false);
     [global::System.Diagnostics.Conditional("DEBUG")]
