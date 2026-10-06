@@ -536,7 +536,8 @@ public abstract class Collection<
                 TSessionFunctions,
                 TStoreFunctions,
                 TAllocator
-            > session):IIterateLookupForEachStrategy<RmwSessionForEachStrategy<TSessionFunctions>>
+            > session,
+        Action<int,int> capacityGuard):IIterateLookupForEachStrategy<RmwSessionForEachStrategy<TSessionFunctions>>
         where TSessionFunctions : struct, ISessionFunctions<
             EqualityEmpty,
             EqualityEmpty,
@@ -551,6 +552,7 @@ public abstract class Collection<
             TStoreFunctions,
             TAllocator
         > _session = session;
+        private readonly Action<int,int> _capacityGuard = capacityGuard;
 
         public static unsafe bool Reader<TSourceLogRecord>(
             ref RmwSessionForEachStrategy<TSessionFunctions> self,
@@ -562,6 +564,8 @@ public abstract class Collection<
             var input = default(EqualityEmpty);
             var output = default(EqualityEmpty);
             ReadOnlySpan<byte> keyBytes = logRecord.KeyBytes;
+            // 追加は容量の確認(予算の予約・満杯の判定)を通す。通さないと、満杯のメモリストアで先頭のページが追い出されて要素を失う(BUG-0017)。
+            self._capacityGuard(keyBytes.Length,0);
             Status status;
             fixed(byte* _ = keyBytes) {
                 status=self._session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref input,ref output);
@@ -581,7 +585,8 @@ public abstract class Collection<
                 TSessionFunctions,
                 TStoreFunctions,
                 TAllocator
-            > session):IIterateLookupForEachStrategy<UpsertLogRecordForEachStrategy<TSessionFunctions>>
+            > session,
+        Action<int,int> capacityGuard):IIterateLookupForEachStrategy<UpsertLogRecordForEachStrategy<TSessionFunctions>>
         where TSessionFunctions : struct, ISessionFunctions<
             TAddInput,
             bool,
@@ -596,6 +601,7 @@ public abstract class Collection<
             TStoreFunctions,
             TAllocator
         > _session = session;
+        private readonly Action<int,int> _capacityGuard = capacityGuard;
 
         public static unsafe bool Reader<TSourceLogRecord>(
             ref UpsertLogRecordForEachStrategy<TSessionFunctions> self,
@@ -605,6 +611,7 @@ public abstract class Collection<
             out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
             ReadOnlySpan<byte> keyBytes = logRecord.KeyBytes;
+            self._capacityGuard(keyBytes.Length,logRecord.ValueSpan.Length);
             Status status;
             fixed(byte* _ = keyBytes) {
                 status=self._session.BasicContext.Upsert((FixedSpanByteKey)keyBytes,logRecord);
@@ -631,6 +638,12 @@ public abstract class Collection<
             OverflowMutableStrategyKind.Storage => this.CollectionStore.StorageOverflowMutableStrategy.WouldOverflowMutable(Log.TailAddress,KeyLength,ValueLength),
             _ => throw new UnreachableException(),
         };
+    }
+    // 容量を超えるなら、書く前に例外にする(1 件ずつの追加と同じ判定)。まとめて書き換える集合演算が使う。
+    private void ThrowIfWouldOverflow(int keyLength,int valueLength) {
+        if(this.WouldOverflowMutable(keyLength,valueLength)) {
+            throw this.ThrowLogFull();
+        }
     }
     public long EntryCount => this.CollectionStore.Store.EntryCount;
     private protected abstract Status Read(TKey Key,out TValue Output);
@@ -959,7 +972,7 @@ public abstract class Collection<
         > {
         other.VerifyThreadAffinity(nameof(this.SymmetricExceptWith));
         this.OnCountUnknown();
-        var strategy = new RmwSessionForEachStrategy<TSessionFunctions>(Session);
+        var strategy = new RmwSessionForEachStrategy<TSessionFunctions>(Session,this.ThrowIfWouldOverflow);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
     }
@@ -1027,7 +1040,7 @@ public abstract class Collection<
         > {
         other.VerifyThreadAffinity(nameof(this.UnionWith));
         this.OnCountUnknown();
-        var strategy = new UpsertLogRecordForEachStrategy<TSessionFunctions>(Session);
+        var strategy = new UpsertLogRecordForEachStrategy<TSessionFunctions>(Session,this.ThrowIfWouldOverflow);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
     }
