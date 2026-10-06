@@ -402,6 +402,29 @@ public class Compaction{
             }
         }finally{Directory.Delete(root,true);}
     }
+    [Fact,Trait("Category","Unit")]public void Load_InReopenedSession(){
+        var root=NewRoot();
+        try{
+            //ストアを開き直した同じセッションで、保存番号を指定した Load ができる(BUG-0024 として疑った。全削除が前の保存を壊していた実験の汚染で、再現しなかった)
+            var directory=Path.Combine(root,"store");
+            using(var store=CommonStore.Open(directory)){
+                using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
+                AddRange(data,0,Count);
+                store.Save();
+                using(var set=data.Create()){
+                    set.Clear();
+                    set.Add(5);
+                }
+            }
+            using(var store=CommonStore.Open(directory)){
+                using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
+                var first=store.Save();
+                AddRange(data,100_000,105_000);
+                store.Load(first);
+                AssertContents(data,0,Count,Count);
+            }
+        }finally{Directory.Delete(root,true);}
+    }
     [Fact,Trait("Category","Unit")]public void Load_ValidatesBeforeDroppingNewerSaves(){
         var root=NewRoot();
         try{
