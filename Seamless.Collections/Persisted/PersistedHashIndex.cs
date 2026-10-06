@@ -49,9 +49,9 @@ internal sealed class PersistedHashIndex:IDisposable {
         this.path=path;
         this.tuning=tuning;
         var initialCapacity = CapacityFor(Math.Max(expectedEntries,0));
-        var isNew = !File.Exists(path);
+        var isNew = !PersistedFile.Exists(path);
         if(!isNew){
-            var fileLength=new FileInfo(path).Length;
+            var fileLength=PersistedFile.GetLength(path);
             if(fileLength>0&&fileLength<HeaderLength){
                 throw new InvalidDataException("The persisted hash index header is incomplete.");
             }
@@ -243,15 +243,15 @@ internal sealed class PersistedHashIndex:IDisposable {
             }
             this.DisposeMappings();
             try{
-                File.Move(tempPath,this.path,overwrite:true);
+                PersistedFile.Move(tempPath,this.path);
             }finally{
                 this.OpenMappings(this.path,0,false);
             }
         }finally{
-            if(File.Exists(tempPath)){
-                File.Delete(tempPath);
+            if(PersistedFile.Exists(tempPath)){
+                PersistedFile.Delete(tempPath);
             }
-            this.reserveStorage?.Invoke(new FileInfo(this.path).Length);
+            this.reserveStorage?.Invoke(PersistedFile.GetLength(this.path));
         }
     }
     private void DisposeMappings(bool flush=true) {

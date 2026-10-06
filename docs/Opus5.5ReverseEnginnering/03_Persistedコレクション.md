@@ -50,7 +50,7 @@ ids.CompactSave();   // 並べ替えて重複を除き、そのまま保存す�
 ## 1. 不変条件
 
 1. **Garnet に依存しない**（`Seamless.Collections.Persisted.csproj` の参照は Collections と Execution だけ）。
-2. **メモリストアでは作れない。** ファイルを使うため `NotSupportedException`（`StoreExtensions.cs:26-28`）。【記録】Q-003 で扱いが未決。
+2. **メモリストアでも作れる(Q-003、2026-10-06)。** 既定はメモリ上の仮想ファイル(`PersistedVirtualFiles`、ネイティブメモリへポインタで読み書き。メモリ予算で確認)。`PersistedMemoryBacking.TemporaryFolder` なら一時フォルダのファイル(ディスク予算で確認、コレクションの破棄で削除)。メモリストアは保存できない。
 3. **保存されていない状態は確定していない。** 保存済み状態が無い名前でストアから作ると、前回の書きかけのファイルを消して新しく始める（`StoreExtensions.cs:30-38`）。
 4. **保存後の追加は、開き直すと捨てられる。索引も保存時点へ戻る**（`Test/Seamless/Persisted/StoreExtensions.cs:30`）。
 5. **ディスク上限を超えてファイルを伸ばすと `ResourceLimitException`。それまでの要素は読める**（同 `:52`）。
@@ -101,7 +101,7 @@ ids.CompactSave();   // 並べ替えて重複を除き、そのまま保存す�
 | 一時ストアで作り、破棄でフォルダごと消える | `Test/Seamless/Persisted/StoreExtensions.cs:16` |
 | 保存時点への復元（索引を含む） | 同 `:30`、`:101`（固定長）、`:121`（辞書） |
 | ディスク上限の例外と既存要素の読み取り | 同 `:52` |
-| メモリストアでは作れない | 同 `:66` |
+| メモリストアで作れる(メモリ上・一時フォルダ) | `Test/Seamless/Persisted/MemoryStore.cs` |
 | Tsavorite と同じストアで一括確定 | 同 `:71` |
 | `Remove()` 後に索引が古いまま残らない | 【記録】BUG-0003（修正前 FAIL → 修正後 PASS） |
 | Compact がメモリ上限内で動く | **未整備**。辞書の Compact を上限の小さいスコープで大量件数に対して動かすテストを追加する |

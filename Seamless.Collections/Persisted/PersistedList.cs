@@ -181,10 +181,7 @@ public abstract class PersistedList<T>:IReadOnlyList<T>, IDisposable, IPersisted
     protected PersistedList(string path) {
         ArgumentException.ThrowIfNullOrWhiteSpace(path);
 
-        var directoryPath = global::System.IO.Path.GetDirectoryName(path);
-        if(!string.IsNullOrEmpty(directoryPath)) {
-            Directory.CreateDirectory(directoryPath);
-        }
+        PersistedFile.EnsureDirectory(global::System.IO.Path.GetDirectoryName(path));
 
         this.Path=path;
     }

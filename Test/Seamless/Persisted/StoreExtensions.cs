@@ -87,11 +87,6 @@ public class StoreExtensions{
                 Assert.True(set.Contains(added-1));
             }
             {
-                //ファイルを使うので、メモリストアでは作れない
-                using var store=CommonStore.CreateMemory();
-                Assert.Throws<NotSupportedException>(()=>PersistedExtensions.CreatePersistedSet<long>(store,"ids"));
-            }
-            {
                 //同じストアに Tsavorite と Persisted のコレクションを作り、1 回の保存でまとめて確定できる
                 var directory=Path.Combine(root,"both");
                 using(var store=CommonStore.Open(directory)){

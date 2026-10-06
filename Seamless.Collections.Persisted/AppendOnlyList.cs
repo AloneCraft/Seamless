@@ -21,10 +21,7 @@ public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
         }
 
         this.tuning=tuning??StorageTuning.Default;
-        var directoryPath = global::System.IO.Path.GetDirectoryName(path);
-        if(!string.IsNullOrEmpty(directoryPath)) {
-            Directory.CreateDirectory(directoryPath);
-        }
+        PersistedFile.EnsureDirectory(global::System.IO.Path.GetDirectoryName(path));
 
         this.Path=path;
         try {
