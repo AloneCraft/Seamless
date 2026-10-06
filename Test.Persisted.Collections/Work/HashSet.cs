@@ -60,18 +60,18 @@ public class HashSet{
                 Assert.False(set.Contains(2));
                 set.Add(3);
                 owner.Save();
-                owner.Load(second);
+                // 古い保存へ戻すと、それより新しい保存は記録から外れ、戻れない(Q-007 の仕様)。
+                Assert.Throws<ArgumentException>(()=>owner.Load(second));
                 Assert.True(set.Contains(1));
-                Assert.True(set.Contains(2));
-                Assert.False(set.Contains(3));
-                owner.Save();
+                Assert.False(set.Contains(2));
+                Assert.True(set.Contains(3));
             }
             using(var owner=CommonStore.Open(directory)){
                 // 同じ等価性で hash seed が変わっても索引を再構築する。
                 using var set=owner.CreatePersistedHashSet<int>("ids",new SeedComparer(997),"integer-equality-v1");
                 Assert.Equal(2,set.Count);
                 Assert.True(set.Contains(1));
-                Assert.True(set.Contains(2));
+                Assert.True(set.Contains(3));
                 Assert.Throws<InvalidDataException>(()=>owner.CreatePersistedHashSet<int>("ids",new SeedComparer(997),"different-rule"));
             }
         }finally{

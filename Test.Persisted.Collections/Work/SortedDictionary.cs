@@ -29,8 +29,10 @@ public class SortedDictionary{
         owner.Load(building);Assert.False(dictionary.IsReady);Assert.False(rows.IsReady);
         Assert.Throws<InvalidOperationException>(()=>dictionary[1]);
         dictionary.Add(1,"branch");rows.Add(2);dictionary.CompleteAdding();rows.CompleteAdding();owner.Save();
-        owner.Load(ready);Assert.True(dictionary.IsReady);Assert.True(rows.IsReady);
-        Assert.Equal("last",dictionary[1]);Assert.Equal(new[]{1,1},System.Linq.Enumerable.ToArray(rows));
+        // 古い保存へ戻すと、それより新しい保存は記録から外れ、戻れない(Q-007 の仕様)。
+        Assert.Throws<ArgumentException>(()=>owner.Load(ready));
+        Assert.True(dictionary.IsReady);Assert.True(rows.IsReady);
+        Assert.Equal("branch",dictionary[1]);Assert.Equal(new[]{1,1,2},System.Linq.Enumerable.ToArray(rows));
     }
     [Fact]public void HashAndSortAgree(){
         using var owner=CommonStore.CreateTemporary();

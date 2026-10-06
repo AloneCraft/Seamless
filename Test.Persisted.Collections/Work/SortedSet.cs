@@ -55,15 +55,16 @@ public class SortedSet{
                 owner.Load(building);Assert.False(set.IsReady);Assert.Equal(3,set.Count);
                 Assert.Throws<InvalidOperationException>(()=>set.Contains("alpha"));
                 set.Add("Gamma");set.CompleteAdding();owner.Save();
-                owner.Load(complete);Assert.True(set.IsReady);Assert.Equal(2,set.Count);Assert.False(set.Contains("gamma"));
-                Assert.Equal(new[]{"ALPHA","Beta"},System.Linq.Enumerable.ToArray(set));
-                owner.Save();
+                // 古い保存へ戻すと、それより新しい保存は記録から外れ、戻れない(Q-007 の仕様)。
+                Assert.Throws<ArgumentException>(()=>owner.Load(complete));
+                Assert.True(set.IsReady);Assert.Equal(3,set.Count);Assert.True(set.Contains("gamma"));
+                Assert.Equal(new[]{"ALPHA","Beta","Gamma"},System.Linq.Enumerable.ToArray(set));
             }
             using(var owner=CommonStore.Open(path)){
                 Assert.Throws<InvalidDataException>(()=>owner.CreatePersistedSortedSet<string>("ids",StringComparer.OrdinalIgnoreCase,"other"));
                 Assert.Throws<InvalidDataException>(()=>owner.CreatePersistedSortedList<string>("ids",StringComparer.OrdinalIgnoreCase,"ordinal-ignore-case-v1"));
                 using var set=owner.CreatePersistedSortedSet<string>("ids",StringComparer.OrdinalIgnoreCase,"ordinal-ignore-case-v1");
-                Assert.True(set.IsReady);Assert.True(set.Contains("ALPHA"));Assert.Equal(2,set.Count);
+                Assert.True(set.IsReady);Assert.True(set.Contains("ALPHA"));Assert.Equal(3,set.Count);
             }
         }finally{if(Directory.Exists(path)){Directory.Delete(path,true);}}
     }

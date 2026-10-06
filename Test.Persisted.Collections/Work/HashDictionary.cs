@@ -103,11 +103,11 @@ public class HashDictionary{
                 Assert.False(dictionary.ContainsKey("two"));
                 dictionary.Add("three",30);
                 owner.Save();
-                owner.Load(second);
-                Assert.Equal(2,dictionary["one"]);
-                Assert.Equal(20,dictionary["two"]);
-                Assert.False(dictionary.ContainsKey("three"));
-                owner.Save();
+                // 古い保存へ戻すと、それより新しい保存は記録から外れ、戻れない(Q-007 の仕様)。
+                Assert.Throws<ArgumentException>(()=>owner.Load(second));
+                Assert.Equal(1,dictionary["one"]);
+                Assert.False(dictionary.ContainsKey("two"));
+                Assert.Equal(30,dictionary["three"]);
                 dictionary.Add("unsaved",-1);
             }
             using(var owner=CommonStore.Open(directory)){
@@ -115,7 +115,8 @@ public class HashDictionary{
                 Assert.Throws<InvalidDataException>(()=>owner.CreatePersistedHashSet<string>("values",StringComparer.OrdinalIgnoreCase,"ignore-case-v1"));
                 using var dictionary=owner.CreatePersistedHashDictionary<string,int>("values",StringComparer.OrdinalIgnoreCase,"ignore-case-v1");
                 Assert.Equal(2,dictionary.Count);
-                Assert.Equal(2,dictionary["ONE"]);
+                Assert.Equal(1,dictionary["ONE"]);
+                Assert.Equal(30,dictionary["three"]);
                 Assert.False(dictionary.ContainsKey("unsaved"));
             }
         }finally{
