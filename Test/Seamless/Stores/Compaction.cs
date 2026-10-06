@@ -322,6 +322,86 @@ public class Compaction{
             }
         }finally{Directory.Delete(root,true);}
     }
+    [Fact,Trait("Category","Unit")]public void Clear_BeforeSave_KeepsPreviousSave(){
+        var root=NewRoot();
+        try{
+            //全削除のあと保存する前に十分書き込んでも、前の保存のログを上書きしない(BUG-0023)。保存しないで開き直すと前の保存へ戻る
+            var directory=Path.Combine(root,"store");
+            using(var store=CommonStore.Open(directory)){
+                using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
+                AddRange(data,0,Count);
+                store.Save();
+                using(var set=data.Create()){
+                    set.Clear();
+                    for(long i=100_000;i<105_000;i++){
+                        set.Add(i);
+                    }
+                }
+            }
+            using(var store=CommonStore.Open(directory)){
+                using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
+                AssertContents(data,0,Count,Count);
+            }
+        }finally{Directory.Delete(root,true);}
+    }
+    [Fact,Trait("Category","Unit")]public void Clear_Save_RetiresOldGeneration(){
+        var root=NewRoot();
+        try{
+            //全削除のあとの保存が確定すると、前の保存は記録から外れ、古いログのファイルが消える。開き直すと新しい状態
+            var directory=Path.Combine(root,"store");
+            using(var store=CommonStore.Open(directory)){
+                using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
+                AddRange(data,0,Count);
+                store.Save();
+                Assert.True(LogFileCount(directory,"ids")>0);
+                using(var set=data.Create()){
+                    set.Clear();
+                    for(long i=100_000;i<105_000;i++){
+                        set.Add(i);
+                    }
+                }
+                //保存が確定するまで、古いログは残っている
+                Assert.True(LogFileCount(directory,"ids")>0);
+                store.Save();
+                Assert.Single(store.Checkpoints);
+                Assert.Equal(0,LogFileCount(directory,"ids"));
+                Assert.NotEmpty(Directory.GetFiles(LogDirectory(directory,"ids"),"gen1-hlog.*"));
+            }
+            using(var store=CommonStore.Open(directory)){
+                using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
+                using var set=data.Create();
+                Assert.Equal(5000,set.GetLongCount());
+                Assert.True(set.Contains(104_999));
+                Assert.False(set.Contains(5));
+            }
+        }finally{Directory.Delete(root,true);}
+    }
+    [Fact,Trait("Category","Unit")]public void Clear_ThenLoadPreviousSave(){
+        var root=NewRoot();
+        try{
+            //全削除のあと保存せずに前の保存を読み込むことはできない。何も変えずに例外にし、ストアを開き直せば前の保存へ戻る
+            var directory=Path.Combine(root,"store");
+            using(var store=CommonStore.Open(directory)){
+                using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
+                AddRange(data,0,Count);
+                var first=store.Save();
+                using(var set=data.Create()){
+                    set.Clear();
+                    for(long i=100_000;i<105_000;i++){
+                        set.Add(i);
+                    }
+                }
+                Assert.Throws<InvalidOperationException>(()=>store.Load(first));
+                Assert.Equal(new[]{first},store.Checkpoints);
+                //新しい世代のログと、そこへ書いた中身はそのまま
+                AssertContents(data,100_000,105_000,105_000);
+            }
+            using(var store=CommonStore.Open(directory)){
+                using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
+                AssertContents(data,0,Count,Count);
+            }
+        }finally{Directory.Delete(root,true);}
+    }
     [Fact,Trait("Category","Unit")]public void Load_ValidatesBeforeDroppingNewerSaves(){
         var root=NewRoot();
         try{

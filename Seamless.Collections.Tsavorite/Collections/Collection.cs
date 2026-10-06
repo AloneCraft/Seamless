@@ -316,6 +316,7 @@ public abstract class Collection<
         this.VerifyThreadAffinity(nameof(this.ClearCore));
         this.DisposeAdditionalSessions();
         this.DisposeCoreSessions();
+        this.CollectionStore.BeginClear();
         this.CollectionStore.Store.Reset();
         this.CollectionStore.ResetCapacity();
         this.CollectionStore.SetManagedCount(0);

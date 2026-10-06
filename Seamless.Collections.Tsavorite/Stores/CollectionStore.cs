@@ -107,7 +107,9 @@ public abstract partial class CollectionStore<
     private long invalidationSerial;
     // 保存した(チェックポイントを取った)が、マニフェストがまだ確定していない状態。確定の通知(SaveCommitted)で後始末をする。
     private SaveCommit? pendingCommit;
-    private sealed record SaveCommit(long BeginAddress,bool InvalidatesOlder,long Serial);
+    private sealed record SaveCommit(long BeginAddress,bool InvalidatesOlder,long Serial,int Generation);
+    // 全削除で別の世代へ切り替えたあと、保存が確定するまで残っている古い世代のファイルの大きさ(ディスクの予約に含める)。
+    private long retiredDiskBytes;
     private int accessorCount;
     public long LogMemorySize { get; }
     public double MutableFraction { get; }
@@ -371,7 +373,7 @@ public abstract partial class CollectionStore<
         layout.Memory.Resize(Math.Max(previousMemoryBytes,memoryBytes));
         if(layout.Disk is not null) {
             try {
-                layout.Disk.Resize(Math.Max(layout.Disk.Bytes,target-this.diskBaseAddress));
+                layout.Disk.Resize(Math.Max(layout.Disk.Bytes,this.retiredDiskBytes+target-this.diskBaseAddress));
             } catch {
                 layout.Memory.Resize(previousMemoryBytes);
                 throw;
@@ -488,6 +490,20 @@ public abstract partial class CollectionStore<
     /// <summary>件数を全走査で数える。件数として残さない(マルチ用の ScanCount。他のスレッドが書いている途中でも使える)。</summary>
     internal long ScanCount() => this.ScanLiveRecordCount();
 
+    /// <summary>全削除でログを捨てる前に呼ぶ。永続・一時ストアは、前の保存のログを上書きしないよう、新しい世代のファイルへ切り替える(BUG-0023)。</summary>
+    internal void BeginClear() {
+        var truncation = this.layout?.DeferredLogDevice;
+        if(truncation is null) {
+            return;
+        }
+        this.storeGate.Wait();
+        try {
+            truncation.StartNewGeneration();
+        } finally {
+            this.storeGate.Release();
+        }
+    }
+
     /// <summary>全削除などでログを捨てたあとに呼ぶ。予約を索引分だけに戻す。</summary>
     internal void ResetCapacity() {
         var layout = this.layout;
@@ -497,7 +513,11 @@ public abstract partial class CollectionStore<
         this.storeGate.Wait();
         try {
             layout.Memory.Resize(this.indexBytes);
-            layout.Disk?.Resize(0);
+            if(layout.Disk is not null){
+                // 古い世代のファイルは、新しい保存が確定するまで残る。その分を予約に残す。
+                this.retiredDiskBytes+=layout.Disk.Bytes;
+                layout.Disk.Resize(this.retiredDiskBytes);
+            }
             this.reservedTailAddress=0;
             // ログを作り直したので、ファイルは(保留なしで)消えている。前の保存のデータも無くなった。
             this.diskBaseAddress=this.Store.Log.BeginAddress;
@@ -625,8 +645,9 @@ public abstract partial class CollectionStore<
             count=managed;
         }
         // この保存が必要とするログの先頭と、前の保存を外す必要があるか。関所の中で、チェックポイントを取った直後なので、先頭はチェックポイントのものと同じ。
-        this.pendingCommit=new(this.Store.Log.BeginAddress,this.olderSavesInvalid,this.invalidationSerial);
-        return new TsavoriteSavedState(token,this.Store.IndexSize*64,count).Serialize();
+        var generation = this.layout?.DeferredLogDevice?.Generation??0;
+        this.pendingCommit=new(this.Store.Log.BeginAddress,this.olderSavesInvalid,this.invalidationSerial,generation);
+        return new TsavoriteSavedState(token,this.Store.IndexSize*64,count,generation).Serialize();
     }
 
     bool global::Seamless.Execution.IStoreComponent.InvalidatesOlderSaves => this.pendingCommit is { InvalidatesOlder: true };
@@ -655,15 +676,38 @@ public abstract partial class CollectionStore<
         if(truncation is null) {
             return;
         }
-        if(truncation.Release(commit.BeginAddress)&&!truncation.HasPending) {
+        // 保存のあとに全削除で世代が変わっていたら、保存が必要とするのは古い世代なので、何も消さない。
+        if(truncation.Generation!=commit.Generation) {
+            return;
+        }
+        var released = truncation.Release(commit.BeginAddress);
+        // 前の保存が記録から外れたので、古い世代のファイルを消す(新しい保存は新しい世代を指す)。
+        var retired = true;
+        if(commit.InvalidatesOlder) {
+            retired=truncation.RetireBefore(commit.Generation);
+            if(retired&&!truncation.HasRetired) {
+                this.retiredDiskBytes=0;
+            }
+        }
+        if(released&&retired&&!truncation.HasPending) {
             this.diskBaseAddress=Math.Max(this.diskBaseAddress,commit.BeginAddress);
             this.ShrinkReservationCore();
+        }
+    }
+
+    // 全削除でログのファイルを別の世代へ切り替えたあと、保存せずに全削除より前の保存へは戻せない(前の世代のデバイスの状態を安全に戻せない)。
+    // 何も変えずに例外にする。ストアを開き直せば、前の保存へ戻れる。
+    private void ThrowIfOtherGeneration(TsavoriteSavedState saved) {
+        var truncation = this.layout?.DeferredLogDevice;
+        if(truncation is not null&&truncation.Generation!=saved.Generation) {
+            throw new InvalidOperationException("The checkpoint was saved before Clear() switched the log files and cannot be loaded in this session. Save first, or reopen the store to return to it.");
         }
     }
 
     void global::Seamless.Execution.IStoreComponent.ValidateLoad(string state) {
         this.AssertCheckpointDir();
         var saved = TsavoriteSavedState.Parse(state);
+        this.ThrowIfOtherGeneration(saved);
         // Tsavorite は保存番号のフォルダの中身から復元する。フォルダが無ければ読み込めない。
         var checkpointDir = this.Settings.CheckpointDir!;
         foreach(var kindDirectory in new[] { "cpr-checkpoints","index-checkpoints" }) {
@@ -683,6 +727,7 @@ public abstract partial class CollectionStore<
         if(Volatile.Read(ref this.accessorCount)!=0)
             throw new InvalidOperationException("Dispose all collections created from this store before loading a checkpoint.");
         var saved = TsavoriteSavedState.Parse(state);
+        this.ThrowIfOtherGeneration(saved);
         this.storeGate.Wait();
         try {
             this.LoadCoreAsync(saved.Token,default).GetAwaiter().GetResult();
@@ -949,6 +994,7 @@ public abstract partial class CollectionStore<
         this.AssertCheckpointDir();
         if(this.parallelRegion is not null)
             throw new InvalidOperationException("Dispose the parallel region and the collections created from it before loading a checkpoint.");
+        this.retiredDiskBytes=0;
         await this.RecoverWithSizeTrackerAsync(token,ct);
         this.ThrowIfRecoveredTailCollidesWithHead();
         this.CheckpointFailed=false;
@@ -1129,7 +1175,7 @@ public abstract partial class CollectionStore<
             memoryBytes=checked(this.indexBytes+Math.Min(logBytes,this.LogMemorySize));
         }
         layout.Memory.Resize(memoryBytes);
-        layout.Disk?.Resize(Math.Max(0,target-this.diskBaseAddress));
+        layout.Disk?.Resize(Math.Max(0,this.retiredDiskBytes+target-this.diskBaseAddress));
         this.reservedTailAddress=target;
     }
 

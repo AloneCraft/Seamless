@@ -107,13 +107,18 @@ internal sealed class TsavoriteLayout:IDisposable{
                     Directory.Delete(workLists,true);
                 }
                 checkpointDirectory=Path.Combine(directory,"checkpoints");
+                // 保存した世代のファイル以外のログ(保存されなかった新しい世代・確定後に消し残した古い世代)は、記録に無いので消す。
+                var generation=saved?.Generation??0;
+                if(saved is not null){
+                    DeleteOtherGenerations(directory,generation);
+                }
                 // SpanByte のレコードは値をログに直接持つのでオブジェクトログは使わない。切り捨てを保留するのはログのデバイスだけ。
                 if(tuning.Storage is StorageTuning storage){
-                    deferredLogDevice=new(TsavoriteStorageDevices.Create(Path.Combine(directory,"hlog"),storage));
+                    deferredLogDevice=new(g=>TsavoriteStorageDevices.Create(Path.Combine(directory,LogName(g)),storage),generation);
                     logDevice=deferredLogDevice;
                     objectLogDevice=TsavoriteStorageDevices.Create(Path.Combine(directory,"obj"),storage);
                 }else{
-                    deferredLogDevice=new(global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(directory,"hlog")));
+                    deferredLogDevice=new(g=>global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(directory,LogName(g))),generation);
                     logDevice=deferredLogDevice;
                     objectLogDevice=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(directory,"obj"));
                 }
@@ -125,6 +130,32 @@ internal sealed class TsavoriteLayout:IDisposable{
             disk?.Dispose();
             memory.Dispose();
             throw;
+        }
+    }
+    /// <summary>ログのファイルの名前。世代 0 は従来の hlog、全削除のたびに世代が上がる(gen1-hlog、gen2-hlog…)。名前が hlog で始まらないのは、Tsavorite が接頭辞で別の世代のファイルを拾わないようにするため。</summary>
+    internal static string LogName(int generation){
+        if(generation==0){
+            return "hlog";
+        }
+        return "gen"+generation+"-hlog";
+    }
+    private static void DeleteOtherGenerations(string directory,int keep){
+        foreach(var file in Directory.EnumerateFiles(directory)){
+            var name=Path.GetFileName(file);
+            var dot=name.LastIndexOf('.');
+            if(dot<0||name.AsSpan(dot+1).IndexOfAnyExceptInRange('0','9')>=0){
+                continue;
+            }
+            var stem=name[..dot];
+            int generation;
+            if(stem=="hlog"){
+                generation=0;
+            }else if(!stem.StartsWith("gen",StringComparison.Ordinal)||!stem.EndsWith("-hlog",StringComparison.Ordinal)||!int.TryParse(stem.AsSpan(3,stem.Length-8),out generation)){
+                continue;
+            }
+            if(generation!=keep){
+                File.Delete(file);
+            }
         }
     }
     /// <summary>予想件数から索引の大きさを決める。1 バケット(64 バイト)あたり平均 4 件を目安にする。</summary>
@@ -161,7 +192,7 @@ internal sealed class TsavoriteLayout:IDisposable{
     }
 }
 /// <summary>共通ストアの保存に記録する Tsavorite データ本体の状態。Count は保存時に件数が分かっていたときだけ入る。</summary>
-internal sealed record TsavoriteSavedState(Guid Token,long IndexSize,long? Count){
+internal sealed record TsavoriteSavedState(Guid Token,long IndexSize,long? Count,int Generation=0){
     public static TsavoriteSavedState Parse(string state)=>JsonSerializer.Deserialize<TsavoriteSavedState>(state)??throw new InvalidDataException("Tsavorite saved state is empty.");
     public string Serialize()=>JsonSerializer.Serialize(this);
 }
