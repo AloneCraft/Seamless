@@ -18,6 +18,28 @@ public abstract class CollectionStore {
 
     private protected abstract long GetRecoveryEntryCount();
 
+#if DEBUG
+    // シングル用の共有の読み取りセッションを、別のスレッドが同時に使っていないかを確かめる(Debug ビルドだけ)。同じスレッドの入れ子は許す。
+    private int scanOwnerThreadId;
+    private int scanDepth;
+    internal void EnterScan() {
+        var me = Environment.CurrentManagedThreadId;
+        var owner = Interlocked.CompareExchange(ref this.scanOwnerThreadId,me,0);
+        if(owner!=0&&owner!=me) {
+            throw new InvalidOperationException(
+                $"The collection created by Create() is being scanned by thread {owner} while thread {me} started another scan. "+
+                "A collection created by Create() must be used from one thread at a time; use BeginParallel().Create() for each thread. "+
+                "Create() で作ったコレクションを複数のスレッドから同時に走査しています。スレッドごとに BeginParallel().Create() で作ってください(BUG-0016)。");
+        }
+        this.scanDepth++;
+    }
+    internal void ExitScan() {
+        if(--this.scanDepth==0) {
+            Volatile.Write(ref this.scanOwnerThreadId,0);
+        }
+    }
+#endif
+
     /// <summary>並列区間を仕上げる。区間の最後の操作用オブジェクトの破棄か、区間の破棄から 1 回だけ呼ばれる。</summary>
     internal abstract void FinishParallelRegion(ParallelRegionState region,bool fromFinalizer);
 }

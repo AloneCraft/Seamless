@@ -483,8 +483,10 @@ public abstract class Collection<
         var readSession = collection.ReadSession;
         var iterator = new IterateLookupForEachIterator<TStrategy>(strategy);
         var cursor = 0L;
-        readSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
-        readSession.BasicContext.CompletePending(wait: true);
+        using(collection.BeginScan()) {
+            readSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+            readSession.BasicContext.CompletePending(wait: true);
+        }
         strategy=iterator.Strategy;
     }
     private protected readonly struct DeleteSessionForEachStrategy<TSessionFunctions>(
@@ -639,6 +641,15 @@ public abstract class Collection<
             _ => throw new UnreachableException(),
         };
     }
+    // 共有の読み取りセッションで走査している間を示す。Debug ビルドで、シングル用を別のスレッドが同時に走査したら例外にする(BUG-0016)。Release では何もしない。
+    internal ScanScope BeginScan() {
+#if DEBUG
+        if(TMode.IsExclusive) {
+            return new(this.CollectionStore);
+        }
+#endif
+        return default;
+    }
     // 容量を超えるなら、書く前に例外にする(1 件ずつの追加と同じ判定)。まとめて書き換える集合演算が使う。
     private void ThrowIfWouldOverflow(int keyLength,int valueLength) {
         if(this.WouldOverflowMutable(keyLength,valueLength)) {
@@ -774,8 +785,10 @@ public abstract class Collection<
         var ReadSession = self.ReadSession;
         var Iterator = new IterateLookupIsSubsetOf<TCollection>(other);
         var Cursor = 0L;
-        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-        ReadSession.BasicContext.CompletePending(wait: true);
+        using(self.BeginScan()) {
+            ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+            ReadSession.BasicContext.CompletePending(wait: true);
+        }
         return Iterator.IsSubset;
     }
     private protected static bool IsSupersetOfSet<TCollection>(TCollection Self,TCollection Other)
@@ -851,8 +864,10 @@ public abstract class Collection<
         var ReadSession = other.ReadSession;
         var Iterator = new IterateLookupOverlaps<TCollection>(self);
         var Cursor = 0L;
-        ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-        ReadSession.BasicContext.CompletePending(wait: true);
+        using(other.BeginScan()) {
+            ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+            ReadSession.BasicContext.CompletePending(wait: true);
+        }
         return Iterator.FoundOverlap;
     }
     private protected static bool SetEqualsSet<TCollection>(TCollection Self,TCollection Other)
@@ -923,8 +938,10 @@ public abstract class Collection<
             // IntersectWith first collects keys to expire, then tombstones them with RMW.
             // This keeps the scan separate from the delete phase and avoids advancing TailAddress early.
             var Cursor = 0L;
-            ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
-            ReadSession.BasicContext.CompletePending(wait: true);
+            using(self.BeginScan()) {
+                ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+                ReadSession.BasicContext.CompletePending(wait: true);
+            }
             foreach(var keyBytes in keysToExpire) {
                 var input = default(EqualityEmpty);
                 var output = default(EqualityEmpty);
@@ -1235,8 +1252,11 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
 
             while(true) {
                 this._iterator.ResetChunk();
-                var mayHaveMore = this._session.IterateLookup(ref this._iterator,ref this.Cursor,resetCursor: false);
-                this._session.BasicContext.CompletePending(wait: true);
+                bool mayHaveMore;
+                using(this.CollectionInstance.BeginScan()) {
+                    mayHaveMore=this._session.IterateLookup(ref this._iterator,ref this.Cursor,resetCursor: false);
+                    this._session.BasicContext.CompletePending(wait: true);
+                }
                 this.Count=this._iterator.Count;
 
                 if(!mayHaveMore)
@@ -1290,8 +1310,11 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
         var cursor = 0L;
         try {
             while(true) {
-                var mayHaveMore = this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
-                this.ReadSession.BasicContext.CompletePending(wait: true);
+                bool mayHaveMore;
+                using(this.BeginScan()) {
+                    mayHaveMore=this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+                    this.ReadSession.BasicContext.CompletePending(wait: true);
+                }
                 for(var index = 0;index<iterator.Count;index++) {
                     if(!TStrategy.Invoke(ref strategy,iterator.Chunk[index])) {
                         return;
@@ -1312,8 +1335,10 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
         this.VerifyThreadAffinity(nameof(this.IterateValuesCore));
         var iterator = new IterateValuesAdapter<TStrategy>(strategy);
         var cursor = 0L;
-        this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
-        this.ReadSession.BasicContext.CompletePending(wait: true);
+        using(this.BeginScan()) {
+            this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+            this.ReadSession.BasicContext.CompletePending(wait: true);
+        }
         strategy=iterator.Strategy;
     }
     private sealed class IterateValuesAdapter<TStrategy>(TStrategy strategy):IScanIteratorFunctions
