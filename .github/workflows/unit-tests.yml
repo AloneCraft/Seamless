@@ -1,0 +1,44 @@
+name: Unit tests
+
+# 全ブランチへの push ごとに動く軽量テスト(MAUI を含まない Tsavorite コレクションのテスト)。
+# 重い .NET CI(dotnet-ci.yml)は master / PR / 定期実行のままにしている。
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: unit-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tsavorite-collections:
+    name: Tsavorite collections tests
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore .\Test.Tsavorite.Collections\Test.Tsavorite.Collections.csproj
+
+      - name: Test
+        run: >
+          dotnet test .\Test.Tsavorite.Collections\Test.Tsavorite.Collections.csproj
+          -c Release
+          --no-restore
+          --logger "trx;LogFileName=tsavorite-collections.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tsavorite-collections-test-results
+          path: "**/TestResults/*.trx"
+          if-no-files-found: ignore
