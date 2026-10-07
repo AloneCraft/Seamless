@@ -55,6 +55,19 @@ public class Set{
             Directory.Delete(directory,true);
         }
     }
+    [Fact,Trait("Category","Unit")]public void Count(){
+        //件数は列挙される件数と常に一致する(FLinq・ValueLinq が TryGetNonEnumeratedCount で使う)。
+        //作っている間は追記した件数(重複を含む)で、重複除去(CompactSave)のあとは異なる要素の数になる(INV-06)
+        using var set=PersistedStore.CreateTempSet<int>();
+        foreach(var item in new[]{3,1,3,2,1,3}){
+            set.Add(item);
+        }
+        Assert.Equal(6,set.GetLongCount());
+        Assert.Equal(set.GetLongCount(),set.AsEnumerable().LongCount());
+        set.CompactSave();
+        Assert.Equal(3,set.GetLongCount());
+        Assert.Equal([1,2,3],set.Order().ToArray());
+    }
     [Fact,Trait("Category","Unit")]public void IsProperSubsetOf()=>Check(static (set,other)=>set.IsProperSubsetOf(other),static (set,other)=>set.IsProperSubsetOf(other));
     [Fact,Trait("Category","Unit")]public void IsProperSupersetOf()=>Check(static (set,other)=>set.IsProperSupersetOf(other),static (set,other)=>set.IsProperSupersetOf(other));
     [Fact,Trait("Category","Unit")]public void IsSubsetOf()=>Check(static (set,other)=>set.IsSubsetOf(other),static (set,other)=>set.IsSubsetOf(other));

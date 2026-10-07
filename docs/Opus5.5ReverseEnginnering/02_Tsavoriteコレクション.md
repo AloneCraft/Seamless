@@ -41,7 +41,7 @@ store.Save();
 | ストアから作る | `CreateTsavorite<K,V>`（辞書）・`CreateTsavoriteHashSet<T>`・`CreateTsavoriteSet<K,R>` | 実装済み | `Stores/StoreExtensions.cs:9-18` |
 | 配置の自動決定 | デバイス、保存フォルダ、索引・ログの大きさをストアの種類・上限・予想件数から決める | 実装済み | `Stores/TsavoriteLayout.cs:44-60` |
 | 詳細設定の公開 | ページ・セグメント・索引・自動拡張・ストレージ方式は公開 `TsavoriteTuning` で指定する。省略時の自動決定を維持 | 実装済み（2026-09-25 の追加承認） | `Stores/TsavoriteTuning.cs`、`Stores/StoreExtensions.cs` |
-| 件数の管理 | データ本体が件数を持つ。シングル用(`Create()`、同時に1つ)は追加・削除のたびに増減し O(1)。マルチ用(`BeginParallel()` の区間の `Create()`)は件数を持たず `ScanCount()` で毎回数える。区間を閉じると「不明」に戻し、次に全走査で数え直す | 実装済み | `Stores/CollectionStore.cs`(`OnAccessorCreated`・`FinishParallelRegion`)、`Stores/ParallelRegion.cs` |
+| 件数の管理 | データ本体が件数を持つ。シングル用(`Create()`、同時に1つ)は追加・削除・集合演算の 1 件ごとに増減し O(1)。マルチ用(`BeginParallel()` の区間の `Create()`)は区間の中では件数を出さず `ScanCount()` で毎回数える。各マルチ用は新規・削除になった数を数え、区間を閉じると「開いたときの件数＋合計」で確定する | 実装済み | `Stores/CollectionStore.cs`(`OnAccessorCreated`・`FinishParallelRegion`)、`Stores/ParallelRegion.cs` |
 | 索引の自動拡張 | ログの伸びから件数を推定し、混んでいれば索引を倍にする。拡張分は予算から先に予約。並列区間の中では広げず、区間を開くときに見込み件数分まで先に広げ、閉じたときに混んでいれば広げる | 実装済み | `Stores/CollectionStore.cs`(`GrowIndexIfCrowded`・`BeginParallelCore`) |
 | 詰め直しと無駄の測定 | `Compact()` が生きているレコードを末尾へ少しずつ移し、先頭を進めて空きを返す(メモリ・一時・永続のすべて)。`MeasureLogUsage()` が生きているレコードの大きさと無駄の割合を測る。`GetStatistics()` には件数(分かっていれば)とログの大きさが入る | 実装済み | `Stores/CollectionStore.cs`(`CompactCore`)、`Stores/CompactionResult.cs`、`Stores/TsavoriteStatistics.cs`、`Test/Seamless/Stores/Compaction.cs` |
 | 保存と復元 | ストアの `Save()` で確定。保存時にログを flush（EXP-0002） | 実装済み | `Test/Seamless/Stores/StoreExtensions.cs:121-175`、【記録】EXP-0002 |
@@ -60,7 +60,7 @@ store.Save();
 
 1. **等値判定の既定はシリアライズ後のバイト列の一致**（`Collections/HashSet.cs:6`）。比較子を導入しても、既定の意味は変えない（決定7）。
 2. **列挙の順序は保証しない。** 順序付き LINQ 演算子を使う側は、`AsEnumerable()` などで明示的に受け入れる（`Seamless.Linq.Analyzers` の `SEAMLINQ001`）。
-3. **件数の正本は `long`（`GetLongCount()`）**（`Stores/CollectionStore.cs:236`）。シングル用では追加・削除のたびに増減する。辞書の代入は Tsavorite の RMW で新規か上書きかを受け取るので、件数は分かったまま保たれる。一括の集合演算のあとや並列区間を閉じたあとは「不明」にして、次回に全走査で数え直す。
+3. **件数の正本は `long`（`GetLongCount()`）**（`Stores/CollectionStore.cs:236`）。シングル用では追加・削除のたびに増減する。辞書の代入は Tsavorite の RMW で新規か上書きかを受け取るので、件数は分かったまま保たれる。集合演算は元のレコードを見る操作(RMW・確かめてからの Upsert)で書き、1 件ずつ増減する(Upsert・Delete は読み取り専用の領域やディスクの元のレコードを見ないので、既にあったかどうかが分からない)。並列区間を閉じたあとは各マルチ用の増減の合計で確定する。「不明」にして次回に全走査で数え直すのは、件数を戻せない読み込みと、区間を開いたときに不明だった場合と、区間の仕上げがファイナライザからの場合だけ。
 4. **シングル用の操作用オブジェクトはデータ本体に同時に1つだけ。** 2つ目の `Create()`、並列区間が開いている間(閉じ中も含む)の `Create()`・読み込み・2つ目の区間は `InvalidOperationException`。マルチ用は件数を変えない。作成に失敗した操作用オブジェクトは、ファイナライザで他の権利を返さない(BUG-0018)。
 5. **並列区間の中では索引を拡張しない**(`CollectionStore.GrowIndexIfCrowded`)。索引の拡張・保存・読み込み・件数の走査・統計・詰め直しは、データ本体の関所で順番に行う(拡張は保存とも同時に走れない)。Tsavorite の `GrowIndexAsync` を並行操作中に呼ぶと停止するため（【記録】EXP-0004。2.0.1-beta.5 と 2.1.8 で確認。2.1.8 でガードを外した複製で、4スレッドの約2.6%・8スレッドの約9%・16スレッドの過半数が停止または例外）。
 6. **索引拡張のメモリは予算から先に予約し、予約できなければ拡張しない。** 正しさは変わらず、性能だけが落ちる（`CollectionStore.cs:307-329`）。
@@ -142,7 +142,7 @@ store.Save();
 
 ## 10. 既知の問題 / 許容事項
 
-- 【記録】並列区間の中では索引を拡張しない。大量並列投入では `BeginParallel(見込み件数)` に全体の件数を渡す(区間を開くときに先に広げる)。マルチ用は件数を持たず、`ScanCount()` が毎回全件を数える。
+- 【記録】並列区間の中では索引を拡張しない。大量並列投入では `BeginParallel(見込み件数)` に全体の件数を渡す(区間を開くときに先に広げる)。マルチ用は区間の中では件数を出さず、`ScanCount()` が毎回全件を数える(区間を閉じると増減の合計で件数が確定する)。
 - 【記録】満杯に近いメモリストアは詰め直せない(写しを書くページの空きが要る。不変条件18)。全削除のあと保存する前に書き込むと、前の保存のログが上書きされる(BUG-0023、未修正)。
 - 【記録】メモリ種の集合演算の作業リストは `%TEMP%` を使う。
 - 【記録】BUG-0001（DEFERRED）：辞書のインデクサ setter が `fixed` の外で Pending を呼んでいる疑い。BUG-0002（DEFERRED）：セッションの二重 Dispose。どちらも段階3b でセッションまわりを作り直すときに解消する予定。

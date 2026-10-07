@@ -53,8 +53,8 @@ ids.Add(2);
 store.Save();                               // Tsavorite と Persisted をまとめて確定
 ```
 
-- Tsavorite の件数はデータ本体が管理します。`Create()` で作るシングル用の操作用オブジェクトは、データ本体に同時に1つだけ作れます(2つ目は `InvalidOperationException`)。追加・削除のたびに件数を増減するので `Count` は O(1) です。
-- 複数のスレッドから書くときは、`using var region = data.BeginParallel(見込み件数);` で並列区間を開き、スレッドごとに `region.Create()` でマルチ用(`ParallelHashSet`・`ParallelSet`・`IParallelDictionary`)を作ります。マルチ用は件数を持たず、`ScanCount()` が毎回全件を数えます。区間を閉じると、件数は次に数え直して正確になります。FLinq もマルチ用では件数を読まずに集めます。
+- Tsavorite の件数はデータ本体が管理します。`Create()` で作るシングル用の操作用オブジェクトは、データ本体に同時に1つだけ作れます(2つ目は `InvalidOperationException`)。追加・削除・集合演算の 1 件ごとに件数を増減するので `Count` は O(1) です。
+- 複数のスレッドから書くときは、`using var region = data.BeginParallel(見込み件数);` で並列区間を開き、スレッドごとに `region.Create()` でマルチ用(`ParallelHashSet`・`ParallelSet`・`IParallelDictionary`)を作ります。マルチ用は件数を出さず、`ScanCount()` が毎回全件を数えます。各マルチ用は新しく足した・消した数を自分で数えておき、区間を閉じると、区間を開いたときの件数にその合計を足したものが件数になります(全件を数え直しません)。FLinq もマルチ用では件数を読まずに集めます。
 - 索引は混んだら自動で拡張します。並列区間の中では拡張しないので、`BeginParallel` に見込み件数(全体の件数)を渡してください。区間を開くときに、その件数に合う大きさまで先に広げます。
 - `Create()` で作るシングル用は、1つのスレッドが順に使う前提です。複数のスレッドが同時に走査(列挙・`Iterate`)すると結果が誤るので、Debug ビルドでは `InvalidOperationException` で検出し、`Task.Run`・`Parallel.For`・`new Thread` に渡したラムダが捕捉している形はコンパイル時に警告(`SEAMTHREAD001`)します。スレッドごとに `BeginParallel().Create()` で作ってください。検出できない形(インターフェイス型の変数、メソッド呼び出しをまたぐ共有など)もあります。Database の `Table` も、同じテーブルを複数のスレッドで同時に読まない前提です。
 - 削除や上書きでログに無駄がたまったら、`MeasureLogUsage()` で無駄の割合を測り、`Compact()` で詰め直せます。生きているレコードをログの末尾へ少しずつ移し、先頭を進めて空きを返します(中身と件数は変わりません)。操作用オブジェクトも並列区間も無いときだけ呼べます。

@@ -250,9 +250,10 @@ public abstract partial class CollectionStore<
         this.SetManagedCount(0);
     }
 
-    // 件数の管理(決定8)。旧 API で作ったデータ本体も含め、件数はデータ本体が 1 つだけ持つ(操作用オブジェクトごとには持たない)。
-    // 操作用オブジェクトは追加・削除・新規の代入のたびに増減し、一括の集合演算や読み込みのあとは
-    // 「不明」にして、次に件数を求めるときに全走査で数え直す。作った直後の空のデータ本体は 0 件で分かっている。
+    // 件数の管理(決定8・INV-06)。旧 API で作ったデータ本体も含め、件数はデータ本体が 1 つだけ持つ。
+    // シングル用は追加・削除・新規の代入・集合演算の 1 件ごとに増減する。並列区間の中は「不明」で、閉じたときに区間を開いたときの件数へ
+    // マルチ用の増減の合計を足して確定する。読み込みで件数が戻せないときと、区間の仕上げがファイナライザからのときだけ「不明」のまま残り、
+    // 次に件数を求めるときに全走査で数え直す。作った直後の空のデータ本体は 0 件で分かっている。
     private long managedCount;
     private int managedCountKnown = 1;
 
@@ -479,8 +480,11 @@ public abstract partial class CollectionStore<
                     }
                 }
             }
-            var region = new ParallelRegionState(this);
+            // 区間の中では件数を持たない。開いたときの件数が分かっていれば覚えておき、閉じたときにマルチ用の増減の合計を足す。
+            long? baseCount = this.TryGetManagedCount(out var count) ? count : null;
+            var region = new ParallelRegionState(this,baseCount);
             this.parallelRegion=region;
+            this.InvalidateManagedCount();
             return new ParallelRegion<TAccessor>(region,create);
         } finally {
             this.storeGate.Release();
@@ -490,6 +494,7 @@ public abstract partial class CollectionStore<
     internal override void FinishParallelRegion(ParallelRegionState region,bool fromFinalizer) {
         if(fromFinalizer) {
             // ファイナライザからは関所を待たない。見送った索引の拡大は、次のシングル用の作成(OnAccessorCreated)で取り戻す。
+            // 件数は確定しない(区間を外した直後にシングル用が作られて増減を始めると、ここでの設定と競合する)。不明のままにして、次に求めたときに数え直す。
             Interlocked.CompareExchange(ref this.parallelRegion,null,region);
             return;
         }
@@ -499,6 +504,10 @@ public abstract partial class CollectionStore<
                 return;
             }
             this.parallelRegion=null;
+            // 区間の操作用オブジェクトはすべて破棄済み(増減は足し込み済み)。関所の中なので、シングル用はまだ作られていない。
+            if(region.BaseCount is long baseCount) {
+                this.SetManagedCount(baseCount+region.CountDelta);
+            }
             // 区間の操作用オブジェクトはすべて破棄済みなので、索引を広げても他の操作と並行しない。
             var layout = this.layout;
             if(layout is not null&&!this.Disposed&&this.lastPayloadBytes>0&&Volatile.Read(ref this.accessorCount)==0) {
@@ -618,8 +627,6 @@ public abstract partial class CollectionStore<
                 // 閉じ中なら ObjectDisposedException。
                 region.Enter();
                 Interlocked.Increment(ref this.accessorCount);
-                // マルチ用は件数を増減しないので、作った時点から件数は不明(区間を閉じたあとに数え直す)。
-                this.InvalidateManagedCount();
             }
         } finally {
             this.storeGate.Release();
@@ -627,9 +634,13 @@ public abstract partial class CollectionStore<
     }
 
     /// <summary>操作用オブジェクトの権利を返す。ファイナライザからは関所を待たない。</summary>
-    internal void OnAccessorDisposed(ParallelRegionState? region,bool fromFinalizer) {
+    /// <paramref name="countDelta"/> はマルチ用が貯めた件数の増減(シングル用は 0)。区間の仕上げより先に足し込む。
+    internal void OnAccessorDisposed(ParallelRegionState? region,bool fromFinalizer,long countDelta) {
         Interlocked.Decrement(ref this.accessorCount);
-        region?.Leave(fromFinalizer);
+        if(region is not null) {
+            region.AddCountDelta(countDelta);
+            region.Leave(fromFinalizer);
+        }
     }
 
     /// <summary>生きている操作用オブジェクトの数(診断用)。</summary>

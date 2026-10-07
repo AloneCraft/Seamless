@@ -4,7 +4,7 @@ namespace Test.Seamless.Stores;
 public class ParallelRegion{
     [Fact,Trait("Category","Unit")]public void Create(){
         {
-            //スレッドごとに作ったマルチ用で書き、区間を閉じると、件数は数え直して正確になる
+            //スレッドごとに作ったマルチ用で書き、区間を閉じると、各マルチ用の増減の合計で件数が確定する(数え直さない)
             using var store=CommonStore.CreateMemory();
             using var data=store.CreateTsavoriteHashSet<long>("ids");
             using(var region=data.BeginParallel(40_000)){
@@ -20,7 +20,8 @@ public class ParallelRegion{
                 //区間の中では件数は分からない(マルチ用は件数を増減しない)
                 Assert.False(data.TryGetManagedCount(out _));
             }
-            Assert.Equal(40_000,data.GetLongCount());
+            Assert.True(data.TryGetManagedCount(out var managed));
+            Assert.Equal(40_000,managed);
             using var reader=data.Create();
             Assert.Equal(40_000,reader.Count);
         }

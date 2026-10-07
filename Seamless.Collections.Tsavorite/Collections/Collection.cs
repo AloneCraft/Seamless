@@ -157,7 +157,7 @@ public abstract class Collection<
         Debug.Assert(Result==TryAddResult.Success);
     }
     /// <summary>
-    /// 件数。データ本体が管理している件数を返す(O(1))。一括の集合演算や読み込みのあとで不明なら、全走査で数え直す。
+    /// 件数。データ本体が管理している件数を返す(O(1))。件数を戻せない読み込みのあとなどで不明なら、全走査で数え直す。
     /// ICollection{T}.Count は O(1) を期待されており、System.Linq の TryGetNonEnumeratedCount も呼ぶので、書き込みのたびに数え直さない。
     /// 件数の窓口はシングル用の型だけが公開する(マルチ用は毎回数える ScanCount)。
     /// </summary>
@@ -167,23 +167,21 @@ public abstract class Collection<
     }
     // 件数を管理するのはシングル用だけ。TMode は構造体なので、マルチ用ではこの判定ごと JIT が消す。
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private protected void OnInserted() {
-        if(TMode.IsExclusive) {
-            this.CollectionStore.AddManagedCount(1);
-        }
-    }
+    private protected void OnInserted() => this.AddCountDelta(1);
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private protected void OnRemoved() {
+    private protected void OnRemoved() => this.AddCountDelta(-1);
+    // 集合演算も 1 件ずつの結果(新しく足した・消した)をここへ渡す。件数を「不明」にしないので、演算の途中で例外になっても、それまでの増減は正しく残る。
+    // シングル用はデータ本体の件数を直接増減する。マルチ用はこのオブジェクトだけの増減に貯め(1 つのスレッドだけが使うので排他命令は要らない)、
+    // 破棄したときに並列区間へ足し込む。区間を閉じると、区間を開いたときの件数にその合計を足したものが件数になる。
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private protected void AddCountDelta(long delta) {
         if(TMode.IsExclusive) {
-            this.CollectionStore.AddManagedCount(-1);
+            this.CollectionStore.AddManagedCount(delta);
+        } else {
+            this.parallelCountDelta+=delta;
         }
     }
-    // 挿入か上書きか分からない書き込みや、一括の集合演算のあと。次の件数取得で数え直す。
-    private protected void OnCountUnknown() {
-        if(TMode.IsExclusive) {
-            this.CollectionStore.InvalidateManagedCount();
-        }
-    }
+    private long parallelCountDelta;
     private protected unsafe bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes) {
         var Session = this.ContainsDeleteSession;
         var Output = false;
@@ -233,7 +231,7 @@ public abstract class Collection<
     private int claimed;
     private void ReleaseClaim(bool fromFinalizer) {
         if(Interlocked.Exchange(ref this.claimed,0)==1) {
-            this.CollectionStore.OnAccessorDisposed(this.region,fromFinalizer);
+            this.CollectionStore.OnAccessorDisposed(this.region,fromFinalizer,this.parallelCountDelta);
         }
     }
     /// <summary>件数を全走査で数える(マルチ用の ScanCount)。数えた件数は残さない。</summary>
@@ -489,41 +487,48 @@ public abstract class Collection<
         }
         strategy=iterator.Strategy;
     }
-    private protected readonly struct DeleteSessionForEachStrategy<TSessionFunctions>(
+    // 件数を 1 件ずつ増減するため、集合演算の書き込みは「元のレコードを見て」結果が分かる操作だけを使う。
+    // Upsert と Delete は読み取り専用の領域やディスクにある元のレコードを見ずに書くので、既にあったかどうかが Status に出ない。
+    private protected delegate bool ContainsKeyBytes(ReadOnlySpan<byte> keyBytes);
+    private protected readonly struct RemoveForEachStrategy(
         ClientSession<
                 FixedSpanByteKey,
                 EqualityEmpty,
+                bool,
                 EqualityEmpty,
-                EqualityEmpty,
-                TSessionFunctions,
+                TContainsDeleteFunctions,
                 TStoreFunctions,
                 TAllocator
-            > session):IIterateLookupForEachStrategy<DeleteSessionForEachStrategy<TSessionFunctions>>
-        where TSessionFunctions : struct, ISessionFunctions<
-            EqualityEmpty,
-            EqualityEmpty,
-            EqualityEmpty
-        > {
+            > session,
+        Action<long> countDelta):IIterateLookupForEachStrategy<RemoveForEachStrategy> {
         private readonly ClientSession<
             FixedSpanByteKey,
             EqualityEmpty,
+            bool,
             EqualityEmpty,
-            EqualityEmpty,
-            TSessionFunctions,
+            TContainsDeleteFunctions,
             TStoreFunctions,
             TAllocator
         > _session = session;
+        private readonly Action<long> _countDelta = countDelta;
 
         public static unsafe bool Reader<TSourceLogRecord>(
-            ref DeleteSessionForEachStrategy<TSessionFunctions> self,
+            ref RemoveForEachStrategy self,
             in TSourceLogRecord logRecord,
             RecordMetadata recordMetadata,
             long numberOfRecords,
             out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
+            var input = default(EqualityEmpty);
+            var removed = false;
             ReadOnlySpan<byte> keyBytes = logRecord.KeyBytes;
             fixed(byte* _ = keyBytes) {
-                self._session.BasicContext.Delete((FixedSpanByteKey)keyBytes);
+                var status = self._session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref input,ref removed);
+                Pending(self._session,status,ref removed);
+            }
+            // Remove と同じ削除。消したときだけ output が true になる。
+            if(removed) {
+                self._countDelta(-1);
             }
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
@@ -539,7 +544,8 @@ public abstract class Collection<
                 TStoreFunctions,
                 TAllocator
             > session,
-        Action<int,int> capacityGuard):IIterateLookupForEachStrategy<RmwSessionForEachStrategy<TSessionFunctions>>
+        Action<int,int> capacityGuard,
+        Action<long> countDelta):IIterateLookupForEachStrategy<RmwSessionForEachStrategy<TSessionFunctions>>
         where TSessionFunctions : struct, ISessionFunctions<
             EqualityEmpty,
             EqualityEmpty,
@@ -555,6 +561,7 @@ public abstract class Collection<
             TAllocator
         > _session = session;
         private readonly Action<int,int> _capacityGuard = capacityGuard;
+        private readonly Action<long> _countDelta = countDelta;
 
         public static unsafe bool Reader<TSourceLogRecord>(
             ref RmwSessionForEachStrategy<TSessionFunctions> self,
@@ -571,9 +578,14 @@ public abstract class Collection<
             Status status;
             fixed(byte* _ = keyBytes) {
                 status=self._session.BasicContext.RMW((FixedSpanByteKey)keyBytes,ref input,ref output);
+                status=Pending(self._session,status,ref output);
             }
-            if(status.IsPending)
-                self._session.BasicContext.CompletePending(wait: true);
+            // あれば消す(Found と Expired)。無ければ足す(NotFound。新しいレコードのことも、削除の印を付けたレコードをその場で生き返らせることもある)。
+            if(status.IsExpired) {
+                self._countDelta(-1);
+            } else if(status.NotFound) {
+                self._countDelta(1);
+            }
             cursorRecordResult=CursorRecordResult.Accept;
             return true;
         }
@@ -588,7 +600,9 @@ public abstract class Collection<
                 TStoreFunctions,
                 TAllocator
             > session,
-        Action<int,int> capacityGuard):IIterateLookupForEachStrategy<UpsertLogRecordForEachStrategy<TSessionFunctions>>
+        ContainsKeyBytes containsKey,
+        Action<int,int> capacityGuard,
+        Action<long> countDelta):IIterateLookupForEachStrategy<UpsertLogRecordForEachStrategy<TSessionFunctions>>
         where TSessionFunctions : struct, ISessionFunctions<
             TAddInput,
             bool,
@@ -603,7 +617,9 @@ public abstract class Collection<
             TStoreFunctions,
             TAllocator
         > _session = session;
+        private readonly ContainsKeyBytes _containsKey = containsKey;
         private readonly Action<int,int> _capacityGuard = capacityGuard;
+        private readonly Action<long> _countDelta = countDelta;
 
         public static unsafe bool Reader<TSourceLogRecord>(
             ref UpsertLogRecordForEachStrategy<TSessionFunctions> self,
@@ -613,14 +629,18 @@ public abstract class Collection<
             out CursorRecordResult cursorRecordResult)
             where TSourceLogRecord : ISourceLogRecord {
             ReadOnlySpan<byte> keyBytes = logRecord.KeyBytes;
+            cursorRecordResult=CursorRecordResult.Accept;
+            // 既にある要素は書かない(和集合の結果は変わらない)。シングル用だけが使うので、確かめてから書くまでの間に他から書かれることは無い。
+            if(self._containsKey(keyBytes)) {
+                return true;
+            }
             self._capacityGuard(keyBytes.Length,logRecord.ValueSpan.Length);
             Status status;
             fixed(byte* _ = keyBytes) {
                 status=self._session.BasicContext.Upsert((FixedSpanByteKey)keyBytes,logRecord);
+                Pending(self._session,status);
             }
-            if(status.IsPending)
-                self._session.BasicContext.CompletePending(wait: true);
-            cursorRecordResult=CursorRecordResult.Accept;
+            self._countDelta(1);
             return true;
         }
     }
@@ -926,7 +946,6 @@ public abstract class Collection<
         ArgumentNullException.ThrowIfNull(other);
         self.VerifyThreadAffinity(nameof(this.IntersectWith));
         other.VerifyThreadAffinity(nameof(this.IntersectWith));
-        self.OnCountUnknown();
         var ReadSession = self.ReadSession;
         var workListPath = self.CollectionStore.CreateWorkListPath("intersect-with");
         using var quota = self.CollectionStore.CreateWorkListQuota();
@@ -949,7 +968,10 @@ public abstract class Collection<
                 unsafe {
                     fixed(byte* _ = keyBytesSpan) {
                         var status = Session.BasicContext.RMW((FixedSpanByteKey)keyBytesSpan,ref input,ref output);
-                        Pending(Session,status,ref output);
+                        status=Pending(Session,status,ref output);
+                        if(status.IsExpired) {
+                            self.OnRemoved();
+                        }
                     }
                 }
             }
@@ -988,22 +1010,11 @@ public abstract class Collection<
             EqualityEmpty
         > {
         other.VerifyThreadAffinity(nameof(this.SymmetricExceptWith));
-        this.OnCountUnknown();
-        var strategy = new RmwSessionForEachStrategy<TSessionFunctions>(Session,this.ThrowIfWouldOverflow);
+        var strategy = new RmwSessionForEachStrategy<TSessionFunctions>(Session,this.ThrowIfWouldOverflow,this.AddCountDelta);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
     }
-    private protected void ExceptWith<TCollection, TSessionFunctions>(
-        TCollection other,
-        ClientSession<
-            FixedSpanByteKey,
-            EqualityEmpty,
-            EqualityEmpty,
-            EqualityEmpty,
-            TSessionFunctions,
-            TStoreFunctions,
-            TAllocator
-        > Session)
+    private protected void ExceptWith<TCollection>(TCollection other)
         where TCollection : Collection<
             TKey,
             TValue,
@@ -1015,15 +1026,10 @@ public abstract class Collection<
             TStoreFunctions,
             TAllocator,
             TMode
-        >
-        where TSessionFunctions : struct, ISessionFunctions<
-            EqualityEmpty,
-            EqualityEmpty,
-            EqualityEmpty
         > {
         other.VerifyThreadAffinity(nameof(this.ExceptWith));
-        this.OnCountUnknown();
-        var strategy = new DeleteSessionForEachStrategy<TSessionFunctions>(Session);
+        var Session = this.ContainsDeleteSession;
+        var strategy = new RemoveForEachStrategy(Session,this.AddCountDelta);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
     }
@@ -1056,8 +1062,7 @@ public abstract class Collection<
             EqualityEmpty
         > {
         other.VerifyThreadAffinity(nameof(this.UnionWith));
-        this.OnCountUnknown();
-        var strategy = new UpsertLogRecordForEachStrategy<TSessionFunctions>(Session,this.ThrowIfWouldOverflow);
+        var strategy = new UpsertLogRecordForEachStrategy<TSessionFunctions>(Session,this.PrivateProtectedContainsKey,this.ThrowIfWouldOverflow,this.AddCountDelta);
         ForEach(other,ref strategy);
         Session.BasicContext.CompletePending(wait: true);
     }
@@ -1429,21 +1434,5 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
             return TryAddResult.Success;
         }
         return TryAddResult.KeyAlreadyExists;
-    }
-
-    private protected unsafe void PrivateUpsert(TKey key,TValue value) {
-        this.VerifyThreadAffinity(nameof(this.PrivateUpsert));
-        this.OnCountUnknown();
-        var KeyBytes = TKeySerializer.Serialize(ref key);
-        var ValueBytes = TValueSerializer.Serialize(ref value);
-        if(this.WouldOverflowMutable(KeyBytes.Length,ValueBytes.Length))
-            throw this.ThrowLogFull();
-        var ClientSession = this.Add_ClientSession;
-        Status Status;
-        fixed(byte* _ = KeyBytes) {
-            var FixedKey = (FixedSpanByteKey)KeyBytes;
-            Status=ClientSession.BasicContext.Upsert(FixedKey,ValueBytes);
-            Pending(ClientSession,Status);
-        }
     }
 }

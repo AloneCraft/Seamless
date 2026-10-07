@@ -207,15 +207,6 @@ public partial class HashSet<TKey> {
         EqualityEmpty,//TInput
         EqualityEmpty,//TOutput
         EqualityEmpty,//TContext
-        ExceptWith,//TFunctions
-        SpanByteStoreFunctions,
-        SpanByteStoreAllocator
-    > ExceptWith_ClientSession = null!;
-    private ClientSession<
-        FixedSpanByteKey,//TKey
-        EqualityEmpty,//TInput
-        EqualityEmpty,//TOutput
-        EqualityEmpty,//TContext
         IntersectWith,//TFunctions
         SpanByteStoreFunctions,//TStoreFunctions
         SpanByteStoreAllocator
@@ -240,7 +231,6 @@ public partial class HashSet<TKey> {
         this.ownedStore=ownedStore;
     }
     private protected override void DisposeAdditionalSessions() {
-        CompletePendingAndDispose(this.ExceptWith_ClientSession);
         CompletePendingAndDispose(this.IntersectWith_ClientSession);
         CompletePendingAndDispose(this.SymmetricExceptWith_ClientSession);
     }
@@ -249,13 +239,6 @@ public partial class HashSet<TKey> {
     }
     private void CreateAdditionalSessions() {
         var Store = this.Store;
-        this.ExceptWith_ClientSession=Store.NewSession<
-            FixedSpanByteKey,//TKey
-            EqualityEmpty,//TInput
-            EqualityEmpty,//TOutput
-            EqualityEmpty,//TContext
-            ExceptWith//TFunctions
-        >(new());
         this.IntersectWith_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey
             EqualityEmpty,//TInput
@@ -319,7 +302,7 @@ public partial class HashSet<TKey> {
     }
     public partial void ExceptWith(HashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
-        base.ExceptWith(other,this.ExceptWith_ClientSession);
+        base.ExceptWith(other);
     }
     public partial void IntersectWith(HashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);
