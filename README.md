@@ -26,6 +26,25 @@
 
 どちらもランタイムパッケージを依存として引き連れるので、ジェネレータだけを入れれば動きます。
 
+## GitHub Release から入れる
+
+パッケージは nuget.org には公開していません。[Releases](https://github.com/AloneCraft/Seamless/releases) のアセット(`*.nupkg`、サンプルのソース ZIP、`SHA256SUMS.txt`)を取得して使います。
+
+```
+dotnet nuget add source <nupkg を置いたフォルダ> --name seamless-local
+dotnet add package Seamless --version X.Y.Z
+dotnet tool install --global Seamless.Database.Tool --version X.Y.Z --add-source <nupkg を置いたフォルダ>
+```
+
+リリースは `v*` タグの push で作られます(`.github/workflows/release.yml`)。バージョンはタグから決まり、ソース内の `Version` は書き換えません。
+
+```
+git tag vX.Y.Z
+git push origin vX.Y.Z
+```
+
+手動実行(Actions の Release → Run workflow)は、タグを作らない draft の Release を作ります。`vX.Y.Z-preview.1` のように `-` 付きのタグは pre-release になります。手元でも `.github/scripts/verify-release.ps1` で成果物を検証できます。
+
 ## 使い方
 
 一通りの機能を自動で動かして見せるサンプルアプリ(MAUI)が [Samples/Sample.NetShop](Samples/Sample.NetShop/README.md) にあります。

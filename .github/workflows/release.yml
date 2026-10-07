@@ -1,0 +1,92 @@
+name: Release
+
+# v* タグの push で GitHub Release を作る。nuget.org へは公開しない(配布先は Release のアセットだけ)。
+# 手動実行は draft の Release を作る(タグは作らず、公開時に GitHub が作る)。
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version without the leading v (e.g. 0.1.0 or 0.2.0-preview.1)
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      INPUT_VERSION: ${{ inputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Resolve version
+        id: v
+        shell: pwsh
+        run: |
+          $raw = if ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { $env:INPUT_VERSION } else { $env:GITHUB_REF_NAME }
+          $ver = $raw -replace '^v', ''
+          if ($ver -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { throw "Invalid version '$raw' (expected vX.Y.Z or vX.Y.Z-suffix)" }
+          "version=$ver" >> $env:GITHUB_OUTPUT
+          "prerelease=$($ver.Contains('-').ToString().ToLower())" >> $env:GITHUB_OUTPUT
+          "draft=$(($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch').ToString().ToLower())" >> $env:GITHUB_OUTPUT
+
+      - name: Test
+        run: dotnet test .\Test.Tsavorite.Collections\Test.Tsavorite.Collections.csproj -c Release
+
+      - name: Pack
+        shell: pwsh
+        run: |
+          $ver = '${{ steps.v.outputs.version }}'
+          $projects = 'Seamless.Execution','Seamless.Collections','Seamless.Collections.Persisted','Seamless.Collections.Tsavorite','Seamless.Linq','Seamless.Database','Seamless.Database.Generator','Seamless.Database.Rdbms','Seamless.FLinq.Generator','Seamless','Seamless.Database.Tool'
+          foreach ($p in $projects) {
+            dotnet pack ".\$p\$p.csproj" -c Release "-p:Version=$ver" -o artifacts
+            if ($LASTEXITCODE -ne 0) { throw "pack failed: $p" }
+          }
+          git archive --format=zip -o "artifacts\Seamless-Samples-$ver.zip" HEAD Samples
+          if ($LASTEXITCODE -ne 0) { throw 'git archive failed' }
+
+      - name: Verify artifacts
+        shell: pwsh
+        run: ./.github/scripts/verify-release.ps1 -Dir artifacts -Version '${{ steps.v.outputs.version }}'
+
+      - name: Checksums
+        shell: pwsh
+        run: |
+          Get-ChildItem artifacts -File | Where-Object Name -ne 'SHA256SUMS.txt' | Sort-Object Name |
+            ForEach-Object { '{0}  {1}' -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name } |
+            Set-Content artifacts\SHA256SUMS.txt -Encoding ascii
+          Get-Content artifacts\SHA256SUMS.txt
+
+      - name: Release notes
+        shell: pwsh
+        run: ./.github/scripts/write-release-notes.ps1 -Version '${{ steps.v.outputs.version }}' -Output release-notes.md
+
+      - name: Create release
+        shell: pwsh
+        run: |
+          $ver = '${{ steps.v.outputs.version }}'
+          $opts = @('--title', "Seamless v$ver", '--notes-file', 'release-notes.md', '--target', $env:GITHUB_SHA)
+          if ('${{ steps.v.outputs.prerelease }}' -eq 'true') { $opts += '--prerelease' }
+          if ('${{ steps.v.outputs.draft }}' -eq 'true') { $opts += '--draft' }
+          gh release create "v$ver" @opts (Get-ChildItem artifacts -File | ForEach-Object FullName)
+          if ($LASTEXITCODE -ne 0) { throw 'gh release create failed' }
