@@ -182,3 +182,7 @@ Console.WriteLine(set.Contains(1));         // True
 - [`Seamless.Linq`](Seamless.Linq/) の `scope.Query(source)` は、外部ソート、退避可能なGroupBy／Join／集合演算、バイト一致の既定等値性を提供します。
 - [`Verification.Cli`](Verification.Cli/) と [`Verification.UI`](Verification.UI/) は同じ検証計画、SQLite履歴、固定baseline、replay／resume／Dynamic失敗縮小を使用します。
 - 操作方法と比較条件は [Seamless Verification](docs/verification.md)、実行・等値性・DB・移行契約は [Execution、LINQ、Databaseの現在仕様](docs/execution-and-database.md) を参照してください。
+
+## 連絡先
+
+質問・不具合報告は [Issues](https://github.com/AloneCraft/Seamless/issues) へお願いします。メールの場合は alone.craft.developer@gmail.com まで。
