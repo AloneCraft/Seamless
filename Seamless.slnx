@@ -49,6 +49,12 @@
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Range.Ideal/Benchmark.System.Linq.Enumerable.Range.Ideal.csproj" />
     <Project Path="Benchmark/Benchmark.Optimization.Ideal/Benchmark.Optimization.Ideal.csproj" />
     <Project Path="Benchmark/Worker/Worker.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Core/Benchmark.TpcE.Core.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Tsavorite.Linq/Benchmark.TpcE.Tsavorite.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Tsavorite.FLinq/Benchmark.TpcE.Tsavorite.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Persisted.Linq/Benchmark.TpcE.Persisted.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Persisted.FLinq/Benchmark.TpcE.Persisted.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj" />
   </Folder>
   <Folder Name="/Benchmark/Shared/">
     <Project Path="Benchmark/Shared/UI/UI.shproj" />
@@ -78,6 +84,7 @@
     <Project Path="Shared/Linq.Optimization/Linq.Optimization.shproj" />
     <Project Path="Shared/Linq.Range/Linq.Range.shproj" />
     <Project Path="Shared/Tsavorite.Collections/Tsavorite.Collections.shproj" />
+    <Project Path="Shared/TpcE.Transactions/TpcE.Transactions.shproj" />
     <Project Path="Shared/UI.Core/UI.Core.shproj" />
     <Project Path="Shared/UI.Widgets/UI.Widgets.shproj" />
     <Project Path="Shared/UI.Storage/UI.Storage.csproj" />
@@ -94,6 +101,7 @@
     <File Path="Shared/Linq.Optimization/Linq.Optimization.projitems" />
     <File Path="Shared/Linq.Range/Linq.Range.projitems" />
     <File Path="Shared/Tsavorite.Collections/Tsavorite.Collections.projitems" />
+    <File Path="Shared/TpcE.Transactions/TpcE.Transactions.projitems" />
     <File Path="Shared/UI.Core/UI.Core.projitems" />
     <File Path="Shared/UI.Widgets/UI.Widgets.projitems" />
   </Folder>
@@ -135,6 +143,7 @@
     <Project Path="Test/Test.csproj" />
     <Project Path="Benchmark/Benchmark.Headless.Tests/Benchmark.Headless.Tests.csproj" />
     <Project Path="Benchmark/Benchmark.Audit.Tests/Benchmark.Audit.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj" />
     <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
     <Project Path="Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj" />
   </Folder>
