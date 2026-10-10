@@ -4,11 +4,11 @@
     <id>Seamless.FLinq.Generator</id>
     <version>$version$</version>
     <title>Seamless FLinq</title>
-    <authors>KazuhiroNomura</authors>
+    <authors>AloneCraft</authors>
     <description>Compile-time LINQ rewriting source generator for Seamless.</description>
     <license type="expression">MIT</license>
-    <projectUrl>https://github.com/KazuhiroNomura/Seamless</projectUrl>
-    <repository type="git" url="https://github.com/KazuhiroNomura/Seamless" />
+    <projectUrl>https://github.com/AloneCraft/Seamless</projectUrl>
+    <repository type="git" url="https://github.com/AloneCraft/Seamless" />
     <readme>README.md</readme>
     <dependencies>
       <group targetFramework="netstandard2.0">

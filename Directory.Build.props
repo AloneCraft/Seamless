@@ -6,10 +6,10 @@
   <!-- NuGet 共通メタデータ。公開する 8 プロジェクトだけが IsPackable=true で上書きする。 -->
   <PropertyGroup>
     <Version>0.0.0</Version>
-    <Authors>KazuhiroNomura</Authors>
+    <Authors>AloneCraft</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/KazuhiroNomura/Seamless</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/KazuhiroNomura/Seamless</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/AloneCraft/Seamless</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/AloneCraft/Seamless</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
