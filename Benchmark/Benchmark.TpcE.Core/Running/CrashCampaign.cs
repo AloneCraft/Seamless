@@ -36,7 +36,7 @@ public sealed class CrashCampaign(RunOptions options,IReadOnlyList<ITpcEVariant>
         var root=Path.Combine(runDirectory,"crash",variant.Name);
         var storeDirectory=Path.Combine(root,"store");
         Directory.CreateDirectory(storeDirectory);
-        using var reference=new ReferenceTrack(variant,options);
+        using var reference=new ReferenceTrack(variant,options with{Transactions=options.SaveEvery*3});
         long committed=-1;
         for(var cycle=1;cycle<=options.Cycles;cycle++){
             var rng=Rng.For(options.Seed,"crash-"+variant.ShortName,cycle);
