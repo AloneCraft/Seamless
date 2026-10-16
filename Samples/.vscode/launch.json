@@ -1,0 +1,35 @@
+{
+    // IntelliSense を使用して利用可能な属性を学べます。
+    // 既存の属性の説明をホバーして表示します。
+    // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Sample.VirtualDb",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-sample-virtualdb",
+            "program": "${workspaceFolder}/Sample.VirtualDb/bin/Debug/net10.0/Sample.VirtualDb.exe",
+            "args": [
+                "tsavorite"
+            ],
+            "cwd": "${workspaceFolder}/Sample.VirtualDb/bin/Debug/net10.0",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Sample.NetShop",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build-sample-netshop",
+            "program": "${workspaceFolder}/Sample.NetShop/bin/Debug/net10.0-windows10.0.19041.0/win-x64/Sample.NetShop.exe",
+            "args": [],
+            "env": {
+                "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
+            },
+            "cwd": "${workspaceFolder}/Sample.NetShop/bin/Debug/net10.0-windows10.0.19041.0/win-x64",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        }
+    ]
+}
