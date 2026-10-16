@@ -8,4 +8,12 @@ public static class VariantCatalog{
         new Benchmark.TpcE.Persisted.Linq.PersistedLinqVariant(),
         new Benchmark.TpcE.Persisted.FLinq.PersistedFLinqVariant(),
     ];
+    public static ITpcEVariant ByShortName(string shortName){
+        foreach(var variant in All){
+            if(string.Equals(variant.ShortName,shortName,StringComparison.OrdinalIgnoreCase)){
+                return variant;
+            }
+        }
+        throw new ArgumentException($"Unknown variant {shortName}.");
+    }
 }

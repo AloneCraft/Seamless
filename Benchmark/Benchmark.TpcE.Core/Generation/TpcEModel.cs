@@ -161,6 +161,8 @@ public sealed class TpcEModel{
     public long SecurityOf(Code16 symbol)=>this.securityBySymbol[symbol];
     /// <summary>発行区分(COMMON、PREF_A〜PREF_D)。</summary>
     public Code8 IssueOf(long security)=>Code8.From(IssueText(this.issueNumberOfSecurity[security]));
+    /// <summary>銘柄名(S_NAME)。会社名と発行区分。</summary>
+    public string SecurityName(long security)=>this.CompanyName(this.CompanyOfSecurity(security))+" "+this.IssueOf(security);
     public string CompanyName(long company)=>SyntheticText.CompanyName(Rng.Keyed(this.Seed,"company-name",company),company);
     public Code8 IndustryOfCompany(long company)=>IndustryId((int)Rng.KeyedRange(this.Seed,"company-industry",company,0,0,TpcEModel.IndustryCount-1));
     public Code8 ExchangeOfSecurity(long security){
@@ -301,6 +303,36 @@ public sealed class TpcEModel{
         return PriceLowCents+(PriceHighCents-PriceLowCents)*offset/half;
     }
     public decimal Price(long security,long time)=>this.PriceCents(security,time)/100m;
+    /// <summary>
+    /// 指値・逆指値が発動する最初の時刻(from 以上)。atOrAbove=true は価格が bid 以上になったとき(Limit-Sell)、false は bid 以下(Limit-Buy・Stop-Loss)。
+    /// 1 秒刻みで探し、見つからなければ谷と山のちょうどの時刻を見る(bid が下限・上限ちょうどのとき)。範囲外の bid は -1。
+    /// </summary>
+    public long TriggerTime(long security,bool atOrAbove,long bidCents,long from){
+        for(var time=from;time<=from+PricePeriodMilliseconds;time+=1000){
+            if(Reached(this.PriceCents(security,time),atOrAbove,bidCents)){
+                return time;
+            }
+        }
+        var phase=Rng.KeyedRange(this.Seed,"price-phase",security,0,0,PricePeriodMilliseconds-1);
+        long target;
+        if(atOrAbove){
+            target=PricePeriodMilliseconds/2;
+        }else{
+            target=0;
+        }
+        var offset=((target-(from+phase))%PricePeriodMilliseconds+PricePeriodMilliseconds)%PricePeriodMilliseconds;
+        var extreme=from+offset;
+        if(Reached(this.PriceCents(security,extreme),atOrAbove,bidCents)){
+            return extreme;
+        }
+        return -1;
+    }
+    private static bool Reached(long priceCents,bool atOrAbove,long bidCents){
+        if(atOrAbove){
+            return priceCents>=bidCents;
+        }
+        return priceCents<=bidCents;
+    }
 }
 /// <summary>仕様書で決まらず推測で決めた値(describe と要約に出す)。</summary>
 public static class TpcEAssumptions{
