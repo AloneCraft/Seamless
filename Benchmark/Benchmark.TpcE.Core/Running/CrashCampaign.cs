@@ -254,7 +254,7 @@ public sealed class CrashCampaign(RunOptions options,IReadOnlyList<ITpcEVariant>
                 var result=this.engine.Execute(request);
                 this.driver.Completed(request,result);
             }
-            return (StateDigest.Of(this.engine.Database),this.driver.State.Clone());
+            return (StateDigest.Of(this.engine.Database),this.driver.State.DeepClone());
         }
         public void Dispose(){
             this.engine.Dispose();

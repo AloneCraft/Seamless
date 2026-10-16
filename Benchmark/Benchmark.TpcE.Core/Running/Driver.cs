@@ -38,7 +38,7 @@ public sealed record DriverState{
     public int TickerOwn{get;set;}
     public int TickerOther{get;set;}
     public System.Collections.Generic.Dictionary<TxnKind,long> Counts{get;init;}=[];
-    public DriverState Clone()=>JsonSerializer.Deserialize<DriverState>(JsonSerializer.Serialize(this,DriverJson.Options),DriverJson.Options)!;
+    public DriverState DeepClone()=>JsonSerializer.Deserialize<DriverState>(JsonSerializer.Serialize(this,DriverJson.Options),DriverJson.Options)!;
 }
 internal static class DriverJson{
     public static readonly JsonSerializerOptions Options=new(){WriteIndented=false,IncludeFields=false};

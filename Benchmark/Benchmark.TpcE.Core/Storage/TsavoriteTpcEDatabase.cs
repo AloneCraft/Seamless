@@ -111,11 +111,19 @@ public sealed class TsavoriteTpcEDatabase:TpcEDatabaseBase{
     private TsavoriteTable<TKey,TRow> Table<TKey,TRow>(string name,long expected)
         where TKey:unmanaged
         where TRow:struct,IRecord<TKey>{
-        var data=this.Store.CreateTsavoriteSet<TKey,TRow>(name,TpcESizing.TableTuning(name,expected,this.Scale),expected);
-        return this.AddTable(new TsavoriteTable<TKey,TRow>(data,this.Log,this.NextTableId,name));
+        try{
+            var data=this.Store.CreateTsavoriteSet<TKey,TRow>(name,TpcESizing.TableTuning(name,expected,this.Scale),expected);
+            return this.AddTable(new TsavoriteTable<TKey,TRow>(data,this.Log,this.NextTableId,name));
+        }catch(Exception error){
+            throw new InvalidOperationException("Tsavorite table "+name+" could not be opened: "+error.Message,error);
+        }
     }
     protected override IKeyValueStore<TKey,TValue> CreateKeyValueStore<TKey,TValue>(string name){
-        var data=this.Store.CreateTsavorite<TKey,TValue>(name,TpcESizing.IndexTuning(name,this.Scale));
-        return new TsavoriteKeyValueStore<TKey,TValue>(data,name);
+        try{
+            var data=this.Store.CreateTsavorite<TKey,TValue>(name,TpcESizing.IndexTuning(name,this.Scale));
+            return new TsavoriteKeyValueStore<TKey,TValue>(data,name);
+        }catch(Exception error){
+            throw new InvalidOperationException("Tsavorite store "+name+" could not be opened: "+error.Message,error);
+        }
     }
 }

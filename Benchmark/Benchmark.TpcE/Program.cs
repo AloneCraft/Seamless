@@ -5,6 +5,7 @@ namespace Benchmark.TpcE;
 /// <summary>TPC-E 模擬の負荷試験ベンチ。使い方は README.md。</summary>
 public static class Program{
     public static int Main(string[] args){
+        Console.OutputEncoding=System.Text.Encoding.UTF8;
         if(args.Length>0&&args[0]=="crash-child"){
             return CrashChildMain(args);
         }
