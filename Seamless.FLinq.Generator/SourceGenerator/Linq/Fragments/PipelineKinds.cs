@@ -37,6 +37,7 @@ internal enum PipelineStageKind {
 internal enum PipelineTerminalKind {
     ToList,
     ToArray,
+    ToHashSet,
     Count,
     LongCount,
     Any,

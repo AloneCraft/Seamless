@@ -41,6 +41,9 @@ internal static partial class PipelineBuilder {
             case "ToArray":
                 terminalKind=PipelineTerminalKind.ToArray;
                 return true;
+            case "ToHashSet":
+                terminalKind=PipelineTerminalKind.ToHashSet;
+                return true;
             case "Count":
                 terminalKind=PipelineTerminalKind.Count;
                 return true;
@@ -85,6 +88,16 @@ internal static partial class PipelineBuilder {
         comparerValue=null;
         if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray) {
             return invocation.ArgumentList.Arguments.Count==0;
+        }
+        if(terminalKind==PipelineTerminalKind.ToHashSet) {
+            if(invocation.ArgumentList.Arguments.Count==0) {
+                return true;
+            }
+            if(invocation.ArgumentList.Arguments.Count==1) {
+                comparerValue=services.RenderExpression(invocation.ArgumentList.Arguments[0].Expression);
+                return true;
+            }
+            return false;
         }
         if(terminalKind==PipelineTerminalKind.ToDictionary) {
             return TryAppendToDictionaryTerminalArguments(semanticModel,invocation,method,services,ref uniqueNumber,out func1,out func2,out comparerValue);
