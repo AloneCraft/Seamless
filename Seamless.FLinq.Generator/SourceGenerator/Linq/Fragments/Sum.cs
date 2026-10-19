@@ -41,8 +41,39 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeSumInline(destVar,destType)
         ??this.RenderDirectSpanSumInline(destVar,destType)
+        ??this.RenderConsumeBasedSumInline(destVar,destType)
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum")
         ??this.RenderComputeInline(destVar,destType);
+
+    private string? RenderConsumeBasedSumInline(string destVar,string destType) {
+        if(source is not Join) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_SUM_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            return $"{indent}{destVar}+={arg};";
+        });
+        return $$"""
+            {{destType}} {{destVar}}=default!;
+            {{replaced}}
+            """;
+    }
     // Range の和は和の公式で求める(checked の逐次加算と同じ桁あふれの判定つき)。
     private string? RenderRangeSumInline(string destVar,string destType) =>
         source is RangeRoot range&&resultType=="int"
