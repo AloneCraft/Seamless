@@ -53,6 +53,9 @@ internal static partial class PipelineBuilder {
             case "Any":
                 terminalKind=PipelineTerminalKind.Any;
                 return true;
+            case "All":
+                terminalKind=PipelineTerminalKind.All;
+                return true;
             case "First":
                 terminalKind=PipelineTerminalKind.First;
                 return true;
@@ -98,6 +101,18 @@ internal static partial class PipelineBuilder {
                 return true;
             }
             return false;
+        }
+        if(terminalKind==PipelineTerminalKind.All) {
+            if(invocation.ArgumentList.Arguments.Count!=1
+                ||method.Parameters.Length==0
+                ||method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 } allPredType) {
+                return false;
+            }
+            if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,allPredType,ref uniqueNumber,out func1)
+                ||!services.CanUseFunc(func1)) {
+                return false;
+            }
+            return true;
         }
         if(terminalKind==PipelineTerminalKind.ToDictionary) {
             return TryAppendToDictionaryTerminalArguments(semanticModel,invocation,method,services,ref uniqueNumber,out func1,out func2,out comparerValue);
