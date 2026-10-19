@@ -50,8 +50,21 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeToArrayInline(destVar,destType)
         ??this.RenderDirectSpanToArrayInline(destVar,destType)
+        ??this.RenderZipToArrayInline(destVar,destType)
         ??this.RenderDirectEnumerableToArrayHybridInline(source,destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
+    private string? RenderZipToArrayInline(string destVar,string destType){
+        if(source is Zip zip){
+            return zip.RenderDirectToArrayInline(destVar,destType);
+        }
+        if(source is Zip_resultSelector zipSel){
+            return zipSel.RenderDirectToArrayInline(destVar,destType);
+        }
+        if(source is Zip3 zip3){
+            return zip3.RenderDirectToArrayInline(destVar,destType);
+        }
+        return null;
+    }
     private string? RenderDirectSpanToArrayInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""

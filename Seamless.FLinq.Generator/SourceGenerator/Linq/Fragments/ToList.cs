@@ -88,7 +88,20 @@ internal class ToList(int 番号,Enumerable source,string resultType):BufferedSc
         this.RenderArrayToListInline(destVar,destType)
         ??this.RenderRangeToListInline(destVar,destType)
         ??this.RenderDirectSpanToListInline(destVar,destType)
+        ??this.RenderZipToListInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
+    private string? RenderZipToListInline(string destVar,string destType){
+        if(source is Zip zip){
+            return zip.RenderDirectToListAsync(destVar,destType);
+        }
+        if(source is Zip_resultSelector zipSel){
+            return zipSel.RenderDirectToListAsync(destVar,destType);
+        }
+        if(source is Zip3 zip3){
+            return zip3.RenderDirectToListAsync(destVar,destType);
+        }
+        return null;
+    }
     private string? RenderArrayToListInline(string destVar,string destType) {
         if(source is not ArrayRoot { DirectArrayExpression: { } arrayExpression }) {
             return null;

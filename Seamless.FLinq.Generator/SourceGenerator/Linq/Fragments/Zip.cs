@@ -125,6 +125,65 @@ internal class Zip(int 番号,Enumerable source,Enumerable second):Enumerable(�
             }
             """;
     }
+    public string? RenderDirectToArrayInline(string destVar,string destType){
+        if(!source.CanProvideSpan||!second.CanProvideSpan){
+            return null;
+        }
+        var srcName=$"__zipSrc{番号}";
+        var secName=$"__zipSec{番号}";
+        var srcSpanExpr=source.GetDirectSpanExpression(srcName)??"__zipSrc"+番号+".GetSpan()";
+        var secSpanExpr=second.GetDirectSpanExpression(secName)??"__zipSec"+番号+".GetSpan()";
+        var lenName=$"__zipLen{番号}";
+        var idxName=$"__zipIdx{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{srcName}}={{source.GetEnumeratorExpression}}){
+                var __span1={{srcSpanExpr}};
+                using(var {{secName}}={{second.GetEnumeratorExpression}}){
+                    var __span2={{secSpanExpr}};
+                    global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
+                    var {{lenName}}=global::System.Math.Min(__span1.Length,__span2.Length);
+                    if({{lenName}}==0){
+                        {{destVar}}=global::System.Array.Empty<{{this.ElementType}}>();
+                    }else{
+                        {{destVar}}=global::System.GC.AllocateUninitializedArray<{{this.ElementType}}>({{lenName}});
+                        for(var {{idxName}}=0;{{idxName}}<{{lenName}};{{idxName}}++){
+                            {{destVar}}[{{idxName}}]=(__span1[{{idxName}}],__span2[{{idxName}}]);
+                        }
+                    }
+                }
+            }
+            """;
+    }
+    public string? RenderDirectToListAsync(string destVar,string destType){
+        if(!source.CanProvideSpan||!second.CanProvideSpan){
+            return null;
+        }
+        var srcName=$"__zipSrc{番号}";
+        var secName=$"__zipSec{番号}";
+        var srcSpanExpr=source.GetDirectSpanExpression(srcName)??"__zipSrc"+番号+".GetSpan()";
+        var secSpanExpr=second.GetDirectSpanExpression(secName)??"__zipSec"+番号+".GetSpan()";
+        var lenName=$"__zipLen{番号}";
+        var idxName=$"__zipIdx{番号}";
+        var listSpanName=$"__zipListSpan{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{srcName}}={{source.GetEnumeratorExpression}}){
+                var __span1={{srcSpanExpr}};
+                using(var {{secName}}={{second.GetEnumeratorExpression}}){
+                    var __span2={{secSpanExpr}};
+                    global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
+                    var {{lenName}}=global::System.Math.Min(__span1.Length,__span2.Length);
+                    {{destVar}}=new({{lenName}});
+                    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{lenName}});
+                    var {{listSpanName}}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}});
+                    for(var {{idxName}}=0;{{idxName}}<{{lenName}};{{idxName}}++){
+                        {{listSpanName}}[{{idxName}}]=(__span1[{{idxName}}],__span2[{{idxName}}]);
+                    }
+                }
+            }
+            """;
+    }
     public override string ElementType => $"({source.ElementType} First, {second.ElementType} Second)";
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
 }
@@ -167,6 +226,75 @@ internal class Zip3(int 番号,Enumerable source,Enumerable second,Enumerable th
         current=default!;
         return false;
         """;
+    public string? RenderDirectToArrayInline(string destVar,string destType){
+        if(!source.CanProvideSpan||!second.CanProvideSpan||!third.CanProvideSpan){
+            return null;
+        }
+        var srcName=$"__zipSrc{番号}";
+        var secName=$"__zipSec{番号}";
+        var thdName=$"__zipThd{番号}";
+        var srcSpanExpr=source.GetDirectSpanExpression(srcName)??"__zipSrc"+番号+".GetSpan()";
+        var secSpanExpr=second.GetDirectSpanExpression(secName)??"__zipSec"+番号+".GetSpan()";
+        var thdSpanExpr=third.GetDirectSpanExpression(thdName)??"__zipThd"+番号+".GetSpan()";
+        var lenName=$"__zipLen{番号}";
+        var idxName=$"__zipIdx{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{srcName}}={{source.GetEnumeratorExpression}}){
+                var __span1={{srcSpanExpr}};
+                using(var {{secName}}={{second.GetEnumeratorExpression}}){
+                    var __span2={{secSpanExpr}};
+                    using(var {{thdName}}={{third.GetEnumeratorExpression}}){
+                        var __span3={{thdSpanExpr}};
+                        global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
+                        var {{lenName}}=global::System.Math.Min(__span1.Length,global::System.Math.Min(__span2.Length,__span3.Length));
+                        if({{lenName}}==0){
+                            {{destVar}}=global::System.Array.Empty<{{this.ElementType}}>();
+                        }else{
+                            {{destVar}}=global::System.GC.AllocateUninitializedArray<{{this.ElementType}}>({{lenName}});
+                            for(var {{idxName}}=0;{{idxName}}<{{lenName}};{{idxName}}++){
+                                {{destVar}}[{{idxName}}]=(__span1[{{idxName}}],__span2[{{idxName}}],__span3[{{idxName}}]);
+                            }
+                        }
+                    }
+                }
+            }
+            """;
+    }
+    public string? RenderDirectToListAsync(string destVar,string destType){
+        if(!source.CanProvideSpan||!second.CanProvideSpan||!third.CanProvideSpan){
+            return null;
+        }
+        var srcName=$"__zipSrc{番号}";
+        var secName=$"__zipSec{番号}";
+        var thdName=$"__zipThd{番号}";
+        var srcSpanExpr=source.GetDirectSpanExpression(srcName)??"__zipSrc"+番号+".GetSpan()";
+        var secSpanExpr=second.GetDirectSpanExpression(secName)??"__zipSec"+番号+".GetSpan()";
+        var thdSpanExpr=third.GetDirectSpanExpression(thdName)??"__zipThd"+番号+".GetSpan()";
+        var lenName=$"__zipLen{番号}";
+        var idxName=$"__zipIdx{番号}";
+        var listSpanName=$"__zipListSpan{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{srcName}}={{source.GetEnumeratorExpression}}){
+                var __span1={{srcSpanExpr}};
+                using(var {{secName}}={{second.GetEnumeratorExpression}}){
+                    var __span2={{secSpanExpr}};
+                    using(var {{thdName}}={{third.GetEnumeratorExpression}}){
+                        var __span3={{thdSpanExpr}};
+                        global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
+                        var {{lenName}}=global::System.Math.Min(__span1.Length,global::System.Math.Min(__span2.Length,__span3.Length));
+                        {{destVar}}=new({{lenName}});
+                        global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{lenName}});
+                        var {{listSpanName}}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}});
+                        for(var {{idxName}}=0;{{idxName}}<{{lenName}};{{idxName}}++){
+                            {{listSpanName}}[{{idxName}}]=(__span1[{{idxName}}],__span2[{{idxName}}],__span3[{{idxName}}]);
+                        }
+                    }
+                }
+            }
+            """;
+    }
     public override string ElementType => $"({source.ElementType} First, {second.ElementType} Second, {third.ElementType} Third)";
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();\nthird.Dispose();";
 }
@@ -333,6 +461,97 @@ internal class Zip_resultSelector(int 番号,Enumerable source,Enumerable second
                         {{assign}}
                     }else{
                         {{notFoundAction}}
+                    }
+                }
+            }
+            """;
+    }
+    public string? RenderDirectToArrayInline(string destVar,string destType){
+        if(!source.CanProvideSpan||!second.CanProvideSpan){
+            return null;
+        }
+        var srcName=$"__zipSrc{番号}";
+        var secName=$"__zipSec{番号}";
+        var srcSpanExpr=source.GetDirectSpanExpression(srcName)??"__zipSrc"+番号+".GetSpan()";
+        var secSpanExpr=second.GetDirectSpanExpression(secName)??"__zipSec"+番号+".GetSpan()";
+        var lenName=$"__zipLen{番号}";
+        var idxName=$"__zipIdx{番号}";
+        var firstName=$"__zipFirst{番号}";
+        var secondValueName=$"__zipSecondValue{番号}";
+        var resultName=$"__zipResult{番号}";
+        var localDeclarations=string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(resultSelector),
+            this.StaticDelegateLocalDeclarations(resultSelector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        string localDeclBlock;
+        if(string.IsNullOrEmpty(localDeclarations)){
+            localDeclBlock=string.Empty;
+        }else{
+            localDeclBlock=localDeclarations+"\n";
+        }
+        var assign=$"{this.ElementType} {resultName}=default!;\n{this.FuncAssignStatic(resultSelector,nameof(resultSelector),resultName,firstName,secondValueName)}\n{destVar}[{idxName}]={resultName};";
+        return $$"""
+            {{localDeclBlock}}{{destType}} {{destVar}};
+            using(var {{srcName}}={{source.GetEnumeratorExpression}}){
+                var __span1={{srcSpanExpr}};
+                using(var {{secName}}={{second.GetEnumeratorExpression}}){
+                    var __span2={{secSpanExpr}};
+                    global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
+                    var {{lenName}}=global::System.Math.Min(__span1.Length,__span2.Length);
+                    if({{lenName}}==0){
+                        {{destVar}}=global::System.Array.Empty<{{this.ElementType}}>();
+                    }else{
+                        {{destVar}}=global::System.GC.AllocateUninitializedArray<{{this.ElementType}}>({{lenName}});
+                        for(var {{idxName}}=0;{{idxName}}<{{lenName}};{{idxName}}++){
+                            var {{firstName}}=__span1[{{idxName}}];
+                            var {{secondValueName}}=__span2[{{idxName}}];
+                            {{IndentGeneratedStatement(assign,"                ")}}
+                        }
+                    }
+                }
+            }
+            """;
+    }
+    public string? RenderDirectToListAsync(string destVar,string destType){
+        if(!source.CanProvideSpan||!second.CanProvideSpan){
+            return null;
+        }
+        var srcName=$"__zipSrc{番号}";
+        var secName=$"__zipSec{番号}";
+        var srcSpanExpr=source.GetDirectSpanExpression(srcName)??"__zipSrc"+番号+".GetSpan()";
+        var secSpanExpr=second.GetDirectSpanExpression(secName)??"__zipSec"+番号+".GetSpan()";
+        var lenName=$"__zipLen{番号}";
+        var idxName=$"__zipIdx{番号}";
+        var listSpanName=$"__zipListSpan{番号}";
+        var firstName=$"__zipFirst{番号}";
+        var secondValueName=$"__zipSecondValue{番号}";
+        var resultName=$"__zipResult{番号}";
+        var localDeclarations=string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(resultSelector),
+            this.StaticDelegateLocalDeclarations(resultSelector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        string localDeclBlock;
+        if(string.IsNullOrEmpty(localDeclarations)){
+            localDeclBlock=string.Empty;
+        }else{
+            localDeclBlock=localDeclarations+"\n";
+        }
+        var assign=$"{this.ElementType} {resultName}=default!;\n{this.FuncAssignStatic(resultSelector,nameof(resultSelector),resultName,firstName,secondValueName)}\n{listSpanName}[{idxName}]={resultName};";
+        return $$"""
+            {{localDeclBlock}}{{destType}} {{destVar}};
+            using(var {{srcName}}={{source.GetEnumeratorExpression}}){
+                var __span1={{srcSpanExpr}};
+                using(var {{secName}}={{second.GetEnumeratorExpression}}){
+                    var __span2={{secSpanExpr}};
+                    global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
+                    var {{lenName}}=global::System.Math.Min(__span1.Length,__span2.Length);
+                    {{destVar}}=new({{lenName}});
+                    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{lenName}});
+                    var {{listSpanName}}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}});
+                    for(var {{idxName}}=0;{{idxName}}<{{lenName}};{{idxName}}++){
+                        var {{firstName}}=__span1[{{idxName}}];
+                        var {{secondValueName}}=__span2[{{idxName}}];
+                        {{IndentGeneratedStatement(assign,"            ")}}
                     }
                 }
             }
