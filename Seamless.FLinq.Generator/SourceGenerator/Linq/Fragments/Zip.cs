@@ -47,7 +47,34 @@ internal class Zip(int 番号,Enumerable source,Enumerable second):Enumerable(�
         """;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,second.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum1 source, TEnum2 second";
+    public override string? NonEnumeratedCountExpression =>
+        source.NonEnumeratedCountExpression is { } count1&&second.NonEnumeratedCountExpression is { } count2
+            ? $"global::System.Math.Min({count1}, {count2})"
+            : null;
+    protected override string GetTryGetNonEnumeratedCountBody => $$"""
+        if(source.TryGetNonEnumeratedCount(out var __c1)&&second.TryGetNonEnumeratedCount(out var __c2)){
+            count=global::System.Math.Min(__c1,__c2);
+            return true;
+        }
+        count=0;
+        return false;
+        """;
     public override string GetConsumeExecutionStatement(string consumerName) {
+        if(source.CanProvideSpan&&second.CanProvideSpan) {
+            var srcSpan = source.GetDirectSpanExpression("__zipSource")??"__zipSource.GetSpan()";
+            var secSpan = second.GetDirectSpanExpression("__zipSecond")??"__zipSecond.GetSpan()";
+            return $$"""
+                using var __zipSource={{source.GetEnumeratorExpression}};
+                using var __zipSecond={{second.GetEnumeratorExpression}};
+                var __zipSourceSpan={{srcSpan}};
+                var __zipSecondSpan={{secSpan}};
+                global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
+                var __zipLength=global::System.Math.Min(__zipSourceSpan.Length,__zipSecondSpan.Length);
+                for(var __zipIndex=0;__zipIndex<__zipLength;__zipIndex++){
+                    {{consumerName}}.Consume((__zipSourceSpan[__zipIndex],__zipSecondSpan[__zipIndex]));
+                }
+                """;
+        }
         return $$"""
             using var __zipSource={{source.GetEnumeratorExpression}};
             using var __zipSecond={{second.GetEnumeratorExpression}};
@@ -72,6 +99,32 @@ internal class Zip(int 番号,Enumerable source,Enumerable second):Enumerable(�
         current=default!;
         return false;
         """;
+    public string? RenderDirectFirstInline(string destVar,string destType,bool orDefault) {
+        if(!source.CanProvideSpan||!second.CanProvideSpan) {
+            return null;
+        }
+        var srcName = $"__zipSrc{番号}";
+        var secName = $"__zipSec{番号}";
+        var srcSpanExpr = source.GetDirectSpanExpression(srcName)??"__zipSrc"+番号+".GetSpan()";
+        var secSpanExpr = second.GetDirectSpanExpression(secName)??"__zipSec"+番号+".GetSpan()";
+        var notFoundAction = orDefault
+            ? $"{destVar}=default!;"
+            : "throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();";
+        return $$"""
+            {{destType}} {{destVar}};
+            using(var {{srcName}}={{source.GetEnumeratorExpression}}){
+                var __span1={{srcSpanExpr}};
+                using(var {{secName}}={{second.GetEnumeratorExpression}}){
+                    var __span2={{secSpanExpr}};
+                    if(__span1.Length>0&&__span2.Length>0){
+                        {{destVar}}=(__span1[0],__span2[0]);
+                    }else{
+                        {{notFoundAction}}
+                    }
+                }
+            }
+            """;
+    }
     public override string ElementType => $"({source.ElementType} First, {second.ElementType} Second)";
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
 }
@@ -168,9 +221,18 @@ internal class Zip_resultSelector(int 番号,Enumerable source,Enumerable second
         RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { resultSelector },source.GetEnumeratorExpression,second.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum1 source, TEnum2 second{this.ClosurePrimaryCtorSuffix(resultSelector)}";
-    // Consume は Zip の列挙子の構造体を作らず、差し替えメソッドで両方の根を直接回す
-    // (Zip→根の構造体の入れ子の呼び出しは、参照型の共有ジェネリックコードでインライン化されない)。
-    // 両方が span を出せれば短い方の長さまで添字で回す。そうでなければ System.Linq と同じく先に first を進め、尽きたら second は進めない。
+    public override string? NonEnumeratedCountExpression =>
+        source.NonEnumeratedCountExpression is { } count1&&second.NonEnumeratedCountExpression is { } count2
+            ? $"global::System.Math.Min({count1}, {count2})"
+            : null;
+    protected override string GetTryGetNonEnumeratedCountBody => $$"""
+        if(source.TryGetNonEnumeratedCount(out var __c1)&&second.TryGetNonEnumeratedCount(out var __c2)){
+            count=global::System.Math.Min(__c1,__c2);
+            return true;
+        }
+        count=0;
+        return false;
+        """;
     public override string GetConsumeExecutionStatement(string consumerName) {
         string sourceExpression;
         string secondExpression;
@@ -195,6 +257,24 @@ internal class Zip_resultSelector(int 番号,Enumerable source,Enumerable second
         var resultName = $"__zipResult{番号}";
         var resultType = FuncReturnTypeName(resultSelector);
         var assign = $"{resultType} {resultName}=default!;\n{this.FuncAssignStatic(resultSelector,nameof(resultSelector),resultName,firstName,secondValueName)}\n{consumerName}.Consume({resultName});";
+        if(source.CanProvideSpan&&second.CanProvideSpan) {
+            var srcSpan = source.GetDirectSpanExpression(sourceName)??$"{sourceName}.GetSpan()";
+            var secSpan = second.GetDirectSpanExpression(secondName)??$"{secondName}.GetSpan()";
+            return $$"""
+                {{localDeclarations}}
+                using var {{sourceName}}={{sourceExpression}};
+                using var {{secondName}}={{secondExpression}};
+                var {{sourceSpanName}}={{srcSpan}};
+                var {{secondSpanName}}={{secSpan}};
+                global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
+                var {{lengthName}}=global::System.Math.Min({{sourceSpanName}}.Length,{{secondSpanName}}.Length);
+                for(var {{indexName}}=0;{{indexName}}<{{lengthName}};{{indexName}}++){
+                    var {{firstName}}={{sourceSpanName}}[{{indexName}}];
+                    var {{secondValueName}}={{secondSpanName}}[{{indexName}}];
+                    {{IndentGeneratedStatement(assign,"    ")}}
+                }
+                """;
+        }
         return $$"""
             {{localDeclarations}}
             using var {{sourceName}}={{sourceExpression}};
@@ -225,6 +305,39 @@ internal class Zip_resultSelector(int 番号,Enumerable source,Enumerable second
         current=default!;
         return false;
         """;
+    public string? RenderDirectFirstInline(string destVar,string destType,bool orDefault) {
+        if(!source.CanProvideSpan||!second.CanProvideSpan) {
+            return null;
+        }
+        var srcName = $"__zipSrc{番号}";
+        var secName = $"__zipSec{番号}";
+        var srcSpanExpr = source.GetDirectSpanExpression(srcName)??"__zipSrc"+番号+".GetSpan()";
+        var secSpanExpr = second.GetDirectSpanExpression(secName)??"__zipSec"+番号+".GetSpan()";
+        var notFoundAction = orDefault
+            ? $"{destVar}=default!;"
+            : "throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();";
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(resultSelector),
+            this.StaticDelegateLocalDeclarations(resultSelector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var localDeclBlock = string.IsNullOrEmpty(localDeclarations) ? string.Empty : localDeclarations+"\n";
+        var assign = this.FuncAssignStatic(resultSelector,nameof(resultSelector),destVar,"__span1[0]","__span2[0]");
+        return $$"""
+            {{localDeclBlock}}{{destType}} {{destVar}};
+            using(var {{srcName}}={{source.GetEnumeratorExpression}}){
+                var __span1={{srcSpanExpr}};
+                using(var {{secName}}={{second.GetEnumeratorExpression}}){
+                    var __span2={{secSpanExpr}};
+                    if(__span1.Length>0&&__span2.Length>0){
+                        {{destVar}}=default!;
+                        {{assign}}
+                    }else{
+                        {{notFoundAction}}
+                    }
+                }
+            }
+            """;
+    }
     public override string ElementType => FuncReturnTypeName(resultSelector);
     protected override string GetEnumeratorDisposeBody => "source.Dispose();\nsecond.Dispose();";
 }

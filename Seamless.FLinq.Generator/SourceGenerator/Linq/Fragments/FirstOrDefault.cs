@@ -19,7 +19,11 @@ internal class FirstOrDefault(int 番号,Enumerable source,string resultType):Bu
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderRangeFirstOrDefaultInline(destVar,destType)
+        source is Zip zip
+            ? zip.RenderDirectFirstInline(destVar,destType,orDefault: true)
+            : source is Zip_resultSelector zipSel
+                ? zipSel.RenderDirectFirstInline(destVar,destType,orDefault: true)
+                : this.RenderRangeFirstOrDefaultInline(destVar,destType)
         ??this.RenderDirectSpanFirstOrDefaultInline(destVar,destType)
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"FirstOrDefault")
         ??this.RenderComputeInline(destVar,destType);

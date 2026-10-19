@@ -37,9 +37,13 @@ internal class First(int 番号,Enumerable source,string resultType):BufferedSca
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        source is RangeRoot range
-            ? RangePredicateOptimizer.RenderFirst(range,番号,destVar,destType)
-            : this.RenderDirectSpanFirstInline(destVar,destType)
+        source is Zip zip
+            ? zip.RenderDirectFirstInline(destVar,destType,orDefault: false)
+            : source is Zip_resultSelector zipSel
+                ? zipSel.RenderDirectFirstInline(destVar,destType,orDefault: false)
+                : source is RangeRoot range
+                    ? RangePredicateOptimizer.RenderFirst(range,番号,destVar,destType)
+                    : this.RenderDirectSpanFirstInline(destVar,destType)
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"First")
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanFirstInline(string destVar,string destType) {

@@ -1862,7 +1862,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         if(terminalKind is not (PipelineTerminalKind.Sum or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault)) {
             return null;
         }
-        if(pipeline.Source is not Join) {
+        if(pipeline.Source is not (Join or Zip or Zip_resultSelector)) {
             return null;
         }
         if(!this.CanUseConsumeBasedDirectScalar(out var afterStages)) {
