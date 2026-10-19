@@ -2059,7 +2059,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private string? TryRenderConsumeBasedDirectScalar(string actualVariableName,string actualTypeName) {
-        if(terminalKind is not (PipelineTerminalKind.Sum or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault)) {
+        if(terminalKind is not (PipelineTerminalKind.Sum or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray)) {
             return null;
         }
         var placeholder = $"__FLINQ_CONSUME_{this.result}__";
@@ -2121,6 +2121,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             }
         }
 
+        var listBufferName = $"__consumeList{this.result}";
         if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
             builder.AppendLine($"{actualTypeName} {actualVariableName}=0;");
         } else if(terminalKind==PipelineTerminalKind.Any) {
@@ -2130,6 +2131,10 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"var {foundVar}=false;");
         } else if(terminalKind==PipelineTerminalKind.Sum) {
             builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+        } else if(terminalKind==PipelineTerminalKind.ToList) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=new();");
+        } else if(terminalKind==PipelineTerminalKind.ToArray) {
+            builder.AppendLine($"var {listBufferName}=new global::System.Collections.Generic.List<{pipeline.ElementType}>();");
         }
 
         var escapedPlaceholder = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
@@ -2168,11 +2173,19 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 sb.AppendLine($"{indent}{actualVariableName}={currentItem};");
                 sb.AppendLine($"{indent}{foundVar}=true;");
                 sb.Append($"{indent}goto {endLabel};");
+            } else if(terminalKind==PipelineTerminalKind.ToList) {
+                sb.Append($"{indent}{actualVariableName}.Add({currentItem});");
+            } else if(terminalKind==PipelineTerminalKind.ToArray) {
+                sb.Append($"{indent}{listBufferName}.Add({currentItem});");
             }
             return sb.ToString();
         });
 
         builder.AppendLine(replacedStatement);
+
+        if(terminalKind==PipelineTerminalKind.ToArray) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}={listBufferName}.ToArray();");
+        }
 
         if(terminalKind is PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
             builder.AppendLine($"{endLabel}:;");
@@ -2192,6 +2205,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             }
             if(this.RenderDirectSpanPipelineToListWithFilter(actualVariableName,actualTypeName) is { } directSpanFilteredList) {
                 return directSpanFilteredList;
+            }
+            if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } directConsumeList) {
+                return directConsumeList;
             }
             // using ではなく try-finally なのは、遅経路のヘルパーへ enumerator を ref で渡すため。
             // using ローカルは読み取り専用で ref に渡せず、値渡しにするとコンストラクタで
@@ -2222,6 +2238,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             }
             if(this.RenderDirectSpanPipelineToArrayWithFilter(actualVariableName,actualTypeName) is { } directSpanFilteredArray) {
                 return directSpanFilteredArray;
+            }
+            if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } directConsumeArray) {
+                return directConsumeArray;
             }
             var listName = $"{actualVariableName}_list";
             var countName = $"{actualVariableName}_count";
