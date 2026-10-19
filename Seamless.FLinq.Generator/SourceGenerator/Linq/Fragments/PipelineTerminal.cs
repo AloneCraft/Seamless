@@ -1853,6 +1853,10 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 afterStages.Add(st);
                 continue;
             }
+            if(st.Kind==PipelineStageKind.Where&&!st.UsesIndex&&st.Func is { } wf&&CanUseDirectSpanPipelineFunc(wf)) {
+                afterStages.Add(st);
+                continue;
+            }
             return false;
         }
         return true;
@@ -1862,29 +1866,64 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         if(terminalKind is not (PipelineTerminalKind.Sum or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault)) {
             return null;
         }
-        if(pipeline.Source is not (Join or Zip or Zip_resultSelector)) {
-            return null;
-        }
-        if(!this.CanUseConsumeBasedDirectScalar(out var afterStages)) {
-            return null;
-        }
         var placeholder = $"__FLINQ_CONSUME_{this.result}__";
-        string consumeStatement;
-        try {
-            consumeStatement=pipeline.Source.GetConsumeExecutionStatement(placeholder);
-        } catch(NotSupportedException) {
-            return null;
-        }
-        if(string.IsNullOrWhiteSpace(consumeStatement)
-            ||consumeStatement.Contains("TryGetNext")
-            ||consumeStatement.Contains("GetRemainingEnumerator")
-            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
-            return null;
+        string? consumeStatement = null;
+        List<PipelineStage>? afterStages = null;
+
+        // パス1: SelectMany ステージを持つパイプラインの場合、pipeline.GetConsumeExecutionStatement を使って入れ子ループを展開
+        if(pipeline.Stages.Any(static s => s.Kind==PipelineStageKind.SelectMany)) {
+            try {
+                var fullStatement = pipeline.GetConsumeExecutionStatement(placeholder);
+                if(!string.IsNullOrWhiteSpace(fullStatement)
+                    &&!fullStatement.Contains("TryGetNext")
+                    &&!fullStatement.Contains("GetRemainingEnumerator")
+                    &&fullStatement.Contains($"{placeholder}.Consume(")) {
+                    consumeStatement=fullStatement;
+                    afterStages=new List<PipelineStage>();
+                } else {
+                }
+            } catch(NotSupportedException) {
+            }
+        } else {
         }
 
+        if(consumeStatement is null) {
+            if(pipeline.Source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+                return null;
+            }
+            if(!this.CanUseConsumeBasedDirectScalar(out afterStages)) {
+                return null;
+            }
+            try {
+                consumeStatement=pipeline.Source.GetConsumeExecutionStatement(placeholder);
+            } catch(NotSupportedException) {
+                return null;
+            }
+            if(string.IsNullOrWhiteSpace(consumeStatement)
+                ||consumeStatement.Contains("TryGetNext")
+                ||consumeStatement.Contains("GetRemainingEnumerator")
+                ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+                return null;
+            } else {
+            }
+        }
+
+        afterStages??=new List<PipelineStage>();
         var builder = new StringBuilder();
         var endLabel = $"__consumeEnd{this.result}";
         var foundVar = $"__consumeFound{this.result}";
+
+        var afterFuncs=afterStages.Where(static st => st.Func is not null).Select(static st => st.Func!).ToArray();
+        if(afterFuncs.Length>0){
+            var hoisted=this.HoistedLocalDeclarations(afterFuncs);
+            if(!string.IsNullOrEmpty(hoisted)){
+                builder.AppendLine(hoisted);
+            }
+            var staticDelegates=this.StaticDelegateLocalDeclarations(afterFuncs);
+            if(!string.IsNullOrEmpty(staticDelegates)){
+                builder.AppendLine(staticDelegates);
+            }
+        }
 
         if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
             builder.AppendLine($"{actualTypeName} {actualVariableName}=0;");
@@ -1915,6 +1954,11 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     sb.AppendLine($"{indent}{st.OutputType} {nextName}=default!;");
                     sb.AppendLine(IndentLines(this.FuncAssignStatic(st.Func!,nameof(PipelineStageKind.Select),nextName,currentItem),indent));
                     currentItem=nextName;
+                } else if(st.Kind==PipelineStageKind.Where) {
+                    var condName = $"__stageCond{this.result}_{i+1}";
+                    sb.AppendLine($"{indent}bool {condName}=default!;");
+                    sb.AppendLine(IndentLines(this.FuncAssignStatic(st.Func!,nameof(PipelineStageKind.Where),condName,currentItem),indent));
+                    sb.AppendLine($"{indent}if(!{condName}) continue;");
                 }
             }
             if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {

@@ -27,6 +27,7 @@ SelectManyBase は外側 source と、各外側要素から作る内側 sequence
   - SelectMany_WithInlinedInner は内側 LINQ チェーンを具象 struct enumerator のまま保持する。
 */
 internal abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(番号) {
+    protected readonly Enumerable source = source;
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -183,6 +184,7 @@ SelectMany_selector は collection selector だけを持つ標準形。
   - 匿名型など delegate 保持が必要な場合は selectorDelegate.Invoke(outerValue).GetEnumerator() にする。
 */
 internal class SelectMany_selector(int 番号,Enumerable source,FuncFragment selector):SelectManyBase(番号,source) {
+    private readonly FuncFragment selector = selector;
     // Explicit Fragment child visitor
     protected override IEnumerable<FuncFragment> GetChildFunctions() {
         foreach(var function in base.GetChildFunctions()) {
@@ -247,6 +249,58 @@ internal class SelectMany_selector(int 番号,Enumerable source,FuncFragment sel
                 ? "innerEnumerable0"
                 : $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue)})";
     protected override string CurrentValueAssignmentFromInner => $"current = this.{this.currentValue} = {this.item};";
+    public override string GetConsumeExecutionStatement(string consumerName){
+        if(this.UseResultTypeParam){
+            return base.GetConsumeExecutionStatement(consumerName);
+        }else{
+        }
+        var outerPlaceholder=$"__FLINQ_SELECTMANY_OUTER_{番号}__";
+        string outerStatement;
+        try{
+            outerStatement=this.source.GetConsumeExecutionStatement(outerPlaceholder);
+        }catch(NotSupportedException){
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        if(string.IsNullOrWhiteSpace(outerStatement)||!outerStatement.Contains($"{outerPlaceholder}.Consume(")){
+            return base.GetConsumeExecutionStatement(consumerName);
+        }else{
+        }
+        var localDeclarations=string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(this.selector),
+            this.StaticDelegateLocalDeclarations(this.selector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        string localDeclarationBlock;
+        if(string.IsNullOrEmpty(localDeclarations)){
+            localDeclarationBlock=string.Empty;
+        }else{
+            localDeclarationBlock=localDeclarations+"\n";
+        }
+        var innerSeqName=$"__innerSeq{番号}";
+        var innerArrName=$"__innerArr{番号}";
+        var innerIdxName=$"__innerIdx{番号}";
+        var innerItemName=$"__innerItem{番号}";
+        var escapedPlaceholder=System.Text.RegularExpressions.Regex.Escape(outerPlaceholder);
+        var pattern=$@"(?<indent>[ \t]*){escapedPlaceholder}\.Consume\((?<arg>.+?)\);";
+        var replacedStatement=System.Text.RegularExpressions.Regex.Replace(outerStatement,pattern,match => {
+            var indent=match.Groups["indent"].Value;
+            var arg=match.Groups["arg"].Value;
+            var sb=new global::System.Text.StringBuilder();
+            sb.AppendLine($"{indent}global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}> {innerSeqName} = default!;");
+            sb.AppendLine(this.FuncAssignStaticIndented(indent,this.selector,nameof(this.selector),innerSeqName,arg));
+            sb.AppendLine($"{indent}if({innerSeqName} is {this.CollectionElementType}[] {innerArrName}){{");
+            sb.AppendLine($"{indent}    for(var {innerIdxName}=0;{innerIdxName}<{innerArrName}.Length;{innerIdxName}++){{");
+            sb.AppendLine($"{indent}        var {innerItemName}={innerArrName}[{innerIdxName}];");
+            sb.AppendLine($"{indent}        {consumerName}.Consume({innerItemName});");
+            sb.AppendLine($"{indent}    }}");
+            sb.AppendLine($"{indent}}}else{{");
+            sb.AppendLine($"{indent}    foreach(var {innerItemName} in {innerSeqName}){{");
+            sb.AppendLine($"{indent}        {consumerName}.Consume({innerItemName});");
+            sb.AppendLine($"{indent}    }}");
+            sb.Append($"{indent}}}");
+            return sb.ToString();
+        });
+        return localDeclarationBlock+replacedStatement;
+    }
 }
 
 internal class SelectMany_indexSelector(int 番号,Enumerable source,FuncFragment selector):SelectManyBase(番号,source) {
@@ -282,6 +336,8 @@ internal class SelectMany_indexSelector(int 番号,Enumerable source,FuncFragmen
 }
 
 internal class SelectMany_selector_resultSelector(int 番号,Enumerable source,FuncFragment collectionSelector,FuncFragment resultSelector):SelectManyBase(番号,source) {
+    private readonly FuncFragment collectionSelector = collectionSelector;
+    private readonly FuncFragment resultSelector = resultSelector;
     // Explicit Fragment child visitor
     protected override IEnumerable<FuncFragment> GetChildFunctions() {
         foreach(var function in base.GetChildFunctions()) {
@@ -316,6 +372,59 @@ internal class SelectMany_selector_resultSelector(int 番号,Enumerable source,F
         this.FuncAssignCurrent(resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.outerValue,this.item);
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(collectionSelector));
     public override string ElementType => FuncReturnTypeName(resultSelector);
+    public override string GetConsumeExecutionStatement(string consumerName){
+        var outerPlaceholder=$"__FLINQ_SELECTMANY_OUTER_{番号}__";
+        string outerStatement;
+        try{
+            outerStatement=this.source.GetConsumeExecutionStatement(outerPlaceholder);
+        }catch(NotSupportedException){
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        if(string.IsNullOrWhiteSpace(outerStatement)||!outerStatement.Contains($"{outerPlaceholder}.Consume(")){
+            return base.GetConsumeExecutionStatement(consumerName);
+        }else{
+        }
+        var localDeclarations=string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(this.collectionSelector,this.resultSelector),
+            this.StaticDelegateLocalDeclarations(this.collectionSelector,this.resultSelector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        string localDeclarationBlock;
+        if(string.IsNullOrEmpty(localDeclarations)){
+            localDeclarationBlock=string.Empty;
+        }else{
+            localDeclarationBlock=localDeclarations+"\n";
+        }
+        var innerSeqName=$"__innerSeq{番号}";
+        var innerArrName=$"__innerArr{番号}";
+        var innerIdxName=$"__innerIdx{番号}";
+        var innerItemName=$"__innerItem{番号}";
+        var resultName=$"__selectManyResult{番号}";
+        var escapedPlaceholder=System.Text.RegularExpressions.Regex.Escape(outerPlaceholder);
+        var pattern=$@"(?<indent>[ \t]*){escapedPlaceholder}\.Consume\((?<arg>.+?)\);";
+        var replacedStatement=System.Text.RegularExpressions.Regex.Replace(outerStatement,pattern,match => {
+            var indent=match.Groups["indent"].Value;
+            var arg=match.Groups["arg"].Value;
+            var sb=new global::System.Text.StringBuilder();
+            sb.AppendLine($"{indent}global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}> {innerSeqName} = default!;");
+            sb.AppendLine(this.FuncAssignStaticIndented(indent,this.collectionSelector,nameof(this.collectionSelector),innerSeqName,arg));
+            sb.AppendLine($"{indent}if({innerSeqName} is {this.CollectionElementType}[] {innerArrName}){{");
+            sb.AppendLine($"{indent}    for(var {innerIdxName}=0;{innerIdxName}<{innerArrName}.Length;{innerIdxName}++){{");
+            sb.AppendLine($"{indent}        var {innerItemName}={innerArrName}[{innerIdxName}];");
+            sb.AppendLine($"{indent}        {this.ElementType} {resultName}=default!;");
+            sb.AppendLine(this.FuncAssignStaticIndented(indent+"        ",this.resultSelector,nameof(this.resultSelector),resultName,arg,innerItemName));
+            sb.AppendLine($"{indent}        {consumerName}.Consume({resultName});");
+            sb.AppendLine($"{indent}    }}");
+            sb.AppendLine($"{indent}}}else{{");
+            sb.AppendLine($"{indent}    foreach(var {innerItemName} in {innerSeqName}){{");
+            sb.AppendLine($"{indent}        {this.ElementType} {resultName}=default!;");
+            sb.AppendLine(this.FuncAssignStaticIndented(indent+"        ",this.resultSelector,nameof(this.resultSelector),resultName,arg,innerItemName));
+            sb.AppendLine($"{indent}        {consumerName}.Consume({resultName});");
+            sb.AppendLine($"{indent}    }}");
+            sb.Append($"{indent}}}");
+            return sb.ToString();
+        });
+        return localDeclarationBlock+replacedStatement;
+    }
 }
 
 /// <summary>

@@ -46,7 +46,7 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
         ??this.RenderComputeInline(destVar,destType);
 
     private string? RenderConsumeBasedSumInline(string destVar,string destType) {
-        if(source is not (Join or Zip or Zip_resultSelector)) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
             return null;
         }
         var placeholder = $"__FLINQ_SUM_{番号}__";

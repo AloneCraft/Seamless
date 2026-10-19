@@ -101,7 +101,7 @@ internal class Any(int 番号,Enumerable source):Scalar(番号) {
     }
 
     private string? RenderConsumeBasedAnyInline(string destVar,string destType) {
-        if(source is not Join) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
             return null;
         }
         var placeholder = $"__FLINQ_ANY_{番号}__";

@@ -27,22 +27,27 @@ internal sealed partial class PipelineEnumerable {
                 """;
     }
 
-    public override string GetConsumeExecutionStatement(string consumerName) =>
-        this.RenderRangeParityConsume(consumerName)
-        ??this.RenderRangeUnionConsume(consumerName)
-        ??this.RenderSpanReverseConsume(consumerName)
-        ??this.RenderConcatThenStatelessConsume(consumerName)
-        ??this.RenderSingleTakeWhileDirectConsume(consumerName)
-        ??this.RenderSingleSkipWhileDirectConsume(consumerName)
-        ??this.RenderSingleConcatDirectConsume(consumerName)
-        ??this.RenderSingleAppendOrPrependDirectConsume(consumerName)
-        ??this.RenderSingleDefaultIfEmptyDirectConsume(consumerName)
-        ??this.RenderSingleSelectDirectConsume(consumerName)
-        ??this.RenderSingleWhereDirectConsume(consumerName)
-        ??this.RenderPureOrderingDirectConsume(consumerName)
-        ??this.RenderStatelessChainDirectConsume(consumerName)
-        ??this.RenderFlattenedConsume(consumerName)
-        ??base.GetConsumeExecutionStatement(consumerName);
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        if(stages.Count==0) {
+            return source.GetConsumeExecutionStatement(consumerName);
+        }
+        return this.RenderSelectManyDirectConsume(consumerName)
+            ??this.RenderRangeParityConsume(consumerName)
+            ??this.RenderRangeUnionConsume(consumerName)
+            ??this.RenderSpanReverseConsume(consumerName)
+            ??this.RenderConcatThenStatelessConsume(consumerName)
+            ??this.RenderSingleTakeWhileDirectConsume(consumerName)
+            ??this.RenderSingleSkipWhileDirectConsume(consumerName)
+            ??this.RenderSingleConcatDirectConsume(consumerName)
+            ??this.RenderSingleAppendOrPrependDirectConsume(consumerName)
+            ??this.RenderSingleDefaultIfEmptyDirectConsume(consumerName)
+            ??this.RenderSingleSelectDirectConsume(consumerName)
+            ??this.RenderSingleWhereDirectConsume(consumerName)
+            ??this.RenderPureOrderingDirectConsume(consumerName)
+            ??this.RenderStatelessChainDirectConsume(consumerName)
+            ??this.RenderFlattenedConsume(consumerName)
+            ??base.GetConsumeExecutionStatement(consumerName);
+    }
 
     // 段をまとめた列挙子の構造体を作らずに Consume する。構造体のコンストラクタ引数とフィールドを局所変数、
     // TryGetNext の本体を局所関数にして差し替えメソッドの中に展開し、局所関数から根(と第2ソース)の列挙子を直接呼ぶ。
@@ -584,6 +589,171 @@ internal sealed partial class PipelineEnumerable {
             for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++){
                 var {{itemName}}={{spanName}}[__i{{this.result}}];
             {{loopBody}}
+            }
+            """;
+    }
+
+    private string? RenderSelectManyDirectConsume(string consumerName) {
+        if(stages.Count(static s => s.Kind==PipelineStageKind.SelectMany)!=1) {
+            return null;
+        }
+        var selectManyIndex = -1;
+        for(var i = 0;i<stages.Count;i++) {
+            if(stages[i].Kind==PipelineStageKind.SelectMany) {
+                selectManyIndex=i;
+                break;
+            }
+        }
+        if(selectManyIndex<0) {
+            return null;
+        }
+        var selectManyStage = stages[selectManyIndex];
+        if(selectManyStage.UsesIndex
+            ||selectManyStage.Func is not { } collectionSelector
+            ||collectionSelector.RequiresStatementInlining
+            ||collectionSelector.CanInvokeAsDelegate
+            ||!collectionSelector.CanInlineAssign) {
+            return null;
+        }
+        if(selectManyStage.SecondFunc is { } resultSelector
+            &&(resultSelector.RequiresStatementInlining
+                ||resultSelector.CanInvokeAsDelegate
+                ||!resultSelector.CanInlineAssign)) {
+            return null;
+        }
+        for(var i = 0;i<selectManyIndex;i++) {
+            var st = stages[i];
+            if(st.Kind is not (PipelineStageKind.Select or PipelineStageKind.Where or PipelineStageKind.Cast or PipelineStageKind.AsEnumerable)
+                ||st.UsesIndex
+                ||(st.Func is not null&&(!st.Func.CanInlineAssign||st.Func.RequiresStatementInlining||st.Func.CanInvokeAsDelegate))) {
+                return null;
+            }
+        }
+        for(var i = selectManyIndex+1;i<stages.Count;i++) {
+            var st = stages[i];
+            if(st.Kind is not (PipelineStageKind.Select or PipelineStageKind.Where or PipelineStageKind.Cast or PipelineStageKind.AsEnumerable)
+                ||st.UsesIndex
+                ||(st.Func is not null&&(!st.Func.CanInlineAssign||st.Func.RequiresStatementInlining||st.Func.CanInvokeAsDelegate))) {
+                return null;
+            }
+        }
+        var allFuncs = new List<FuncFragment>();
+        for(var i = 0;i<stages.Count;i++) {
+            if(stages[i].Func is { } f) {
+                allFuncs.Add(f);
+            }
+            if(stages[i].SecondFunc is { } f2) {
+                allFuncs.Add(f2);
+            }
+        }
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(allFuncs.ToArray()),
+            this.StaticDelegateLocalDeclarations(allFuncs.ToArray()),
+        }.Where(static value => !string.IsNullOrWhiteSpace(value)));
+
+        var outerItemName = this.ItemName(0);
+        var outerBody = new StringBuilder();
+        var currentOuterName = outerItemName;
+        for(var index = 0;index<selectManyIndex;index++) {
+            currentOuterName=this.AppendStage(outerBody,stages[index],currentOuterName,index);
+        }
+
+        var innerSeqName = $"__innerSeq{this.result}_{selectManyIndex}";
+        string innerElementType;
+        if(selectManyStage.InnerElementType is not null) {
+            innerElementType=selectManyStage.InnerElementType;
+        } else {
+            innerElementType=SequenceElementTypeName(collectionSelector.ReturnTypeName);
+        }
+
+        outerBody.AppendLine($"    global::System.Collections.Generic.IEnumerable<{innerElementType}> {innerSeqName}=default!;");
+        outerBody.AppendLine(IndentBlock(this.FuncAssign(collectionSelector,nameof(PipelineStageKind.SelectMany),innerSeqName,currentOuterName),"    "));
+
+        var innerItemName = $"__innerItem{this.result}_{selectManyIndex}";
+        var innerBody = new StringBuilder();
+        var currentInnerName = innerItemName;
+        if(selectManyStage.SecondFunc is { } resSelector) {
+            var resName = $"__resItem{this.result}_{selectManyIndex}";
+            innerBody.AppendLine($"    {selectManyStage.OutputType} {resName}=default!;");
+            innerBody.AppendLine(IndentBlock(this.FuncAssign(resSelector,nameof(PipelineStageKind.SelectMany),resName,currentOuterName,innerItemName),"    "));
+            currentInnerName=resName;
+        }
+        for(var index = selectManyIndex+1;index<stages.Count;index++) {
+            currentInnerName=this.AppendStage(innerBody,stages[index],currentInnerName,index);
+        }
+        innerBody.AppendLine($"    {consumerName}.Consume({currentInnerName});");
+        var innerLoopCode = innerBody.ToString().TrimEnd();
+
+        var innerArrName = $"__innerArr{this.result}_{selectManyIndex}";
+        var innerIdxName = $"__innerIdx{this.result}_{selectManyIndex}";
+        if(selectManyStage.InnerIsArray) {
+            outerBody.AppendLine($"    var {innerArrName}=({innerElementType}[]){innerSeqName};");
+            outerBody.AppendLine($"    for(var {innerIdxName}=0;{innerIdxName}<{innerArrName}.Length;{innerIdxName}++){{");
+            outerBody.AppendLine($"        var {innerItemName}={innerArrName}[{innerIdxName}];");
+            outerBody.AppendLine(IndentLines(innerLoopCode,"        "));
+            outerBody.AppendLine($"    }}");
+        } else {
+            outerBody.AppendLine($"    if({innerSeqName} is {innerElementType}[] {innerArrName}){{");
+            outerBody.AppendLine($"        for(var {innerIdxName}=0;{innerIdxName}<{innerArrName}.Length;{innerIdxName}++){{");
+            outerBody.AppendLine($"            var {innerItemName}={innerArrName}[{innerIdxName}];");
+            outerBody.AppendLine(IndentLines(innerLoopCode,"            "));
+            outerBody.AppendLine($"        }}");
+            outerBody.AppendLine($"    }}else{{");
+            outerBody.AppendLine($"        foreach(var {innerItemName} in {innerSeqName}){{");
+            outerBody.AppendLine(IndentLines(innerLoopCode,"            "));
+            outerBody.AppendLine($"        }}");
+            outerBody.AppendLine($"    }}");
+        }
+
+        var loopBody = IndentLines(outerBody.ToString().TrimEnd(),"    ");
+
+        if(source is RangeRoot range) {
+            var start = $"__rangeStart{this.result}";
+            var count = $"__rangeCount{this.result}";
+            var end = $"__rangeEnd{this.result}";
+            return $$"""
+                {
+                    {{localDeclarations}}
+                    {{IndentLines(range.RenderArgumentPreparation(start,count),"    ").TrimStart()}}
+                    var {{end}}=(long){{start}}+{{count}};
+                    for(var {{outerItemName}}=(int){{start}};{{outerItemName}}<{{end}};{{outerItemName}}++){
+                    {{loopBody}}
+                    }
+                }
+                """;
+        }
+
+        var sourceName = $"__chainSource{this.result}";
+        var directSpanExpression = source.GetDirectSpanExpression(sourceName);
+        if(directSpanExpression is null) {
+            string sourceEnumeratorExpression;
+            try {
+                sourceEnumeratorExpression=source.GetEnumeratorExpression;
+            } catch(NotSupportedException) {
+                return null;
+            }
+            return $$"""
+                {
+                    {{localDeclarations}}
+                    using var {{sourceName}}={{sourceEnumeratorExpression}};
+                    {{this.CounterCall("IncrementEnumerationLoopUsed")}}
+                    {{DrainLoopHead(source,sourceName,outerItemName)}}
+                    {{loopBody}}
+                    }
+                }
+                """;
+        }
+        var spanName = $"__chainSpan{this.result}";
+        var directSpanSetup = new DirectConsumeSourceRenderModel(sourceName,source.GetEnumeratorExpression,spanName,directSpanExpression).RenderSetup();
+        return $$"""
+            {
+                {{localDeclarations}}
+                {{directSpanSetup}}
+                {{this.CounterCall("IncrementEnumerationLoopUsed")}}
+                for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++){
+                    var {{outerItemName}}={{spanName}}[__i{{this.result}}];
+                {{loopBody}}
+                }
             }
             """;
     }

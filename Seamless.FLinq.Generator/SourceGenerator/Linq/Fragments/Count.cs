@@ -62,7 +62,7 @@ internal class Count(int 番号,Enumerable source,string resultType):BufferedSca
     }
 
     private string? RenderConsumeBasedCountInline(string destVar,string destType) {
-        if(source is not Join) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
             return null;
         }
         var placeholder = $"__FLINQ_COUNT_{番号}__";
