@@ -29,6 +29,9 @@ internal sealed partial class PipelineEnumerable {
             .Select(static pair => pair.index)
             .ToArray();
         if(groupByIndex.Length==1) {
+            if(orderIndex.Length>0) {
+                return this.BuildGroupByOrderLoop(enumeratorName,successStatement,endStatement,groupByIndex[0],orderIndex[orderIndex.Length-1]);
+            }
             return this.BuildGroupByLoop(enumeratorName,successStatement,endStatement,groupByIndex[0]);
         }
         if(groupByIndex.Length>1) {

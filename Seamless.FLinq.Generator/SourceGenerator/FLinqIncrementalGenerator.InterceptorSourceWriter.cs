@@ -325,7 +325,9 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         message=message
             .Replace("\\","\\\\",StringComparison.Ordinal)
-            .Replace("\"","\\\"",StringComparison.Ordinal);
+            .Replace("\"","\\\"",StringComparison.Ordinal)
+            .Replace("\r","\\r",StringComparison.Ordinal)
+            .Replace("\n","\\n",StringComparison.Ordinal);
         return $"throw global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{target.Method.Name}\",\"{message}\");";
     }
 }

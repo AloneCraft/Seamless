@@ -18,6 +18,8 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
     private int entryIndex;
     private int resizeThreshold;
 
+    public int Count => this.entryIndex;
+
     public DictionarySlim(IEqualityComparer<TKey>? comparer = null) {
         this.comparer=comparer??EqualityComparer<TKey>.Default;
         this.isDefaultComparer=comparer is null||ReferenceEquals(comparer,EqualityComparer<TKey>.Default);

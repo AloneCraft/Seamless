@@ -67,9 +67,8 @@ internal static partial class PipelineBuilder {
         return true;
     }
 
-    // GroupBy のループは、グループを溜めた直後に後続の順序段でソートしてから残りの段を流す。
-    // そのため、順序段が GroupBy より前にあるとその順序(グループ内の要素順)が失われ、間に要素や順序を変える段があると
-    // 順序段のキー選択子が別の型・別の並びの値に適用されてしまう。融合できる形だけを通し、他は最適化しない。
+    // GroupBy の後に順序段がある場合は、グループから後続の中間段を通した結果を順序段のバッファへ積み、ソート後に残りの段を流す。
+    // そのため、順序段が GroupBy より前にあるとグループ内の要素順が失われるため拒否し、GroupBy と順序段の間は逐次適用できる段だけを許可する。
     private static bool CanFuseGroupByThenOrder(IReadOnlyList<PipelineStage> stages) {
         var groupIndex = stages.Select(static (stage,index) => (stage,index))
             .Where(static pair => pair.stage.Kind==PipelineStageKind.GroupBy)
@@ -86,9 +85,7 @@ internal static partial class PipelineBuilder {
             return false;
         }
         for(var index = groupIndex+1;index<orderIndex;index++) {
-            var stage = stages[index];
-            // ソートを Where より前に行うので、Where が位置(index)を使うと結果が変わる。
-            if(!(stage.Kind==PipelineStageKind.Where&&!stage.UsesIndex||stage.Kind==PipelineStageKind.AsEnumerable)) {
+            if(!CanRunBetweenBinarySetAndOrder(stages[index].Kind)) {
                 return false;
             }
         }
@@ -134,6 +131,11 @@ internal static partial class PipelineBuilder {
             AddFuncUnsafeAccessors(stage.Func,unsafeAccessorCollector);
             AddFuncUnsafeAccessors(stage.SecondFunc,unsafeAccessorCollector);
             AddFuncUnsafeAccessors(stage.ThirdFunc,unsafeAccessorCollector);
+            if(stage.AggregatePlan is { } plan) {
+                foreach(var item in plan.Items) {
+                    AddFuncUnsafeAccessors(item.InnerFunc,unsafeAccessorCollector);
+                }
+            }
             if(stage.SecondSource is { } secondSource) {
                 unsafeAccessorCollector.AddRange(secondSource.CollectAllUnsafeAccessorCodes());
             }

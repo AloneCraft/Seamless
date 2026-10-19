@@ -1,4 +1,4 @@
-﻿# Seamless.slnx から、各 exe を実行するのに必要な依存だけを残した軽量 .slnx を生成する。
+# Seamless.slnx から、各 exe を実行するのに必要な依存だけを残した軽量 .slnx を生成する。
 # 辿る辺: ProjectReference / csproj 内 <MSBuild Projects> (子プロセス Worker) / projitems Import (入れ子含む) / projitems と同ディレクトリの .shproj
 # 参照を変更したら再実行し、生成された *.slnx もコミットすること。
 $ErrorActionPreference = 'Stop'
@@ -13,7 +13,78 @@ $Solutions = [ordered]@{
     'DynamicLinq.Runner.slnx'                  = @('DynamicLinq.Runner/DynamicLinq.Runner.csproj')
     'Seamless.Database.Tool.slnx'              = @('Seamless.Database.Tool/Seamless.Database.Tool.csproj')
     'Sample.NetShop.slnx'                      = @('Samples/Sample.NetShop/Sample.NetShop.csproj', 'Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj')
+    'Sample.VirtualDb.slnx'                    = @('Samples/Sample.VirtualDb/Sample.VirtualDb.csproj')
     'Benchmark.TpcE.slnx'                      = @('Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj', 'Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj')
+    'Applications.slnx'                        = @(
+        'Samples/Sample.NetShop/Sample.NetShop.csproj',
+        'Samples/Sample.VirtualDb/Sample.VirtualDb.csproj',
+        'Samples/Sample.FLinqChainVerifier/Sample.FLinqChainVerifier.csproj',
+        'Seamless.Database.Tool/Seamless.Database.Tool.csproj'
+    )
+    'FLinq.slnx'                               = @(
+        'Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj',
+        'Test.System.Linq.Enumerable.FLinq/Test.System.Linq.Enumerable.FLinq.csproj',
+        'DynamicLinq.Runner/DynamicLinq.Runner.csproj',
+        'Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj',
+        'Samples/Sample.FLinqChainVerifier/Sample.FLinqChainVerifier.csproj'
+    )
+    'Core.slnx'                                = @(
+        'Seamless/Seamless.csproj',
+        'Seamless.Linq/Seamless.Linq.csproj',
+        'Seamless.Collections/Seamless.Collections.csproj',
+        'Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj',
+        'Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj',
+        'Seamless.Database/Seamless.Database.csproj',
+        'Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj',
+        'Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj',
+        'Seamless.Execution/Seamless.Execution.csproj',
+        'Seamless.Database.Generator/Seamless.Database.Generator.csproj',
+        'Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj',
+        'Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj'
+    )
+    'Benchmarks.slnx'                          = @(
+        'Benchmark/Benchmark.UI/Benchmark.UI.csproj',
+        'Benchmark/Benchmark.Headless/Benchmark.Headless.csproj',
+        'Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj',
+        'Benchmark/Benchmark.Scalable.Headless/Benchmark.Scalable.Headless.csproj',
+        'Benchmark/Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Tsavorite.ParameterSweep.UI.csproj',
+        'Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj',
+        'Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj',
+        'Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj',
+        'Benchmark/Benchmark.Audit/Benchmark.Audit.csproj',
+        'Benchmark/Worker/Worker.csproj'
+    )
+    'Tests.slnx'                               = @(
+        'Execution.Tests/Execution.Tests.csproj',
+        'Verification.Tests/Verification.Tests.csproj',
+        'DynamicLinq.Runner/DynamicLinq.Runner.csproj',
+        'Test.Persisted.Collections/Test.Persisted.Collections.csproj',
+        'Test.Persisted.Linq.Enumerable.FLinq/Test.Persisted.Linq.Enumerable.FLinq.csproj',
+        'Test.Persisted.Linq.Enumerable.IEnumerable.FLinq/Test.Persisted.Linq.Enumerable.IEnumerable.FLinq.csproj',
+        'Test.Persisted.Linq.Enumerable.Linq/Test.Persisted.Linq.Enumerable.Linq.csproj',
+        'Test.Persisted/Test.Persisted.csproj',
+        'Test.Scalable.Persisted.Collections/Test.Scalable.Persisted.Collections.csproj',
+        'Test.Scalable.Tsavorite.Collections/Test.Scalable.Tsavorite.Collections.csproj',
+        'Test.System.Linq.Enumerable.FLinq/Test.System.Linq.Enumerable.FLinq.csproj',
+        'Test.System.Linq.Enumerable.ZLinq/Test.System.Linq.Enumerable.ZLinq.csproj',
+        'Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj',
+        'Test.Tsavorite.ParameterSweep/Test.Tsavorite.ParameterSweep.csproj',
+        'Test.Tsavorite.Linq.Enumerable.FLinq/Test.Tsavorite.Linq.Enumerable.FLinq.csproj',
+        'Test.Tsavorite.Linq.Enumerable.IEnumerable.FLinq/Test.Tsavorite.Linq.Enumerable.IEnumerable.FLinq.csproj',
+        'Test.Tsavorite.Linq.Enumerable.Linq/Test.Tsavorite.Linq.Enumerable.Linq.csproj',
+        'Test.Persisted.Linq.Enumerable.ValueLinq/Test.Persisted.Linq.Enumerable.ValueLinq.csproj',
+        'Test.Tsavorite.Linq.Enumerable.ValueLinq/Test.Tsavorite.Linq.Enumerable.ValueLinq.csproj',
+        'Test.Tsavorite/Test.Tsavorite.csproj',
+        'Benchmark.UI.UITests/Benchmark.UI.UITests.csproj',
+        'Benchmark.Dynamic.Tests/Benchmark.Dynamic.Tests.csproj',
+        'Benchmark.Dynamic.UITests/Benchmark.Dynamic.UITests.csproj',
+        'Test/Test.csproj',
+        'Benchmark/Benchmark.Headless.Tests/Benchmark.Headless.Tests.csproj',
+        'Benchmark/Benchmark.Audit.Tests/Benchmark.Audit.Tests.csproj',
+        'Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj',
+        'Tests/Seamless.TestKit/Seamless.TestKit.csproj',
+        'Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj'
+    )
 }
 
 $Root = $PSScriptRoot

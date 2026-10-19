@@ -5,108 +5,192 @@ internal sealed partial class PipelineEnumerable {
     private string BuildGroupByLoop(string enumeratorName,string successStatement,string endStatement,int groupByIndex) {
         var stage = stages[groupByIndex];
         var builder = new StringBuilder();
-        builder.AppendLine($"if(this.{this.GroupItemsName(groupByIndex)} is null) {{");
-        builder.AppendLine($"    var {this.GroupItemsName(groupByIndex)}=new global::System.Collections.Generic.List<{this.GroupValueType(groupByIndex,stage)}>();");
-        builder.AppendLine($"    var __groupMap=new global::System.Collections.Generic.Dictionary<{ComparerKeyType(stage)},{this.GroupingName(groupByIndex)}>({this.ComparerName(this.ComparerOrdinal(groupByIndex))});");
-        builder.AppendLine($"    var __groupOrder=new global::System.Collections.Generic.List<{this.GroupingName(groupByIndex)}>();");
+        if(stage.AggregatePlan is { } aggPlan) {
+            builder.AppendLine($"if(!this.{this.GroupBuiltName(groupByIndex)}) {{");
+            builder.AppendLine($"    this.{this.GroupBuiltName(groupByIndex)}=true;");
+            builder.AppendLine($"    var __hasCnt={enumeratorName}.TryGetNonEnumeratedCount(out var __cnt);");
+            builder.AppendLine($"    this.{this.GroupAggMapName(groupByIndex)}=new global::Seamless.Linq.DictionarySlim<{ComparerKeyType(stage)},{aggPlan.AccumulatorType}>(__hasCnt ? global::System.Math.Min(__cnt,1024) : 0,{this.ComparerName(this.ComparerOrdinal(groupByIndex))});");
+            builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+            this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
+            var currentName = this.ItemName(0);
+            for(var index = 0;index<groupByIndex;index++) {
+                currentName=this.AppendStage(builder,stages[index],currentName,index);
+            }
+            var keyName = this.KeyName(groupByIndex);
+            builder.AppendLine($"        {ComparerKeyType(stage)} {keyName}=default!;");
+            builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,nameof(PipelineStageKind.GroupBy),keyName,currentName),"        "));
+            var groupElementName = $"__groupElem_{groupByIndex}";
+            builder.AppendLine($"        {stage.InnerElementType} {groupElementName}=default!;");
+            if(stage.SecondFunc is { } elementSelector) {
+                builder.AppendLine(IndentBlock(this.FuncAssign(elementSelector,nameof(PipelineStageKind.GroupBy),groupElementName,currentName),"        "));
+            } else {
+                builder.AppendLine($"        {groupElementName}=({stage.InnerElementType})(object?){currentName}!;");
+            }
+            builder.AppendLine($"        ref var __acc=ref this.{this.GroupAggMapName(groupByIndex)}!.GetValueRefOrAddDefault({keyName},out var __exists);");
+            builder.AppendLine(aggPlan.RenderAccumulatorUpdate("__acc",groupElementName,"        "));
+            builder.AppendLine("    }");
+            builder.AppendLine($"    this.{this.GroupAggEnumName(groupByIndex)}=this.{this.GroupAggMapName(groupByIndex)}!.GetEnumerator();");
+            builder.AppendLine("}");
+            builder.AppendLine($"while(this.{this.GroupAggEnumName(groupByIndex)}.TryGetNext(out var __kv)) {{");
+            builder.AppendLine("    var __key=__kv.Key;");
+            builder.AppendLine("    var __acc=__kv.Value;");
+            var resultName = this.ItemName(groupByIndex+1);
+            builder.AppendLine($"    {stage.OutputType} {resultName}={aggPlan.ProjectedResultExpression};");
+            var afterName = resultName;
+            for(var index = groupByIndex+1;index<stages.Count;index++) {
+                afterName=this.AppendStage(builder,stages[index],afterName,index);
+            }
+            builder.AppendLine(IndentBlock(string.Format(successStatement,afterName),"    "));
+            builder.AppendLine("}");
+            builder.AppendLine(endStatement);
+            return builder.ToString().TrimEnd();
+        }
+        builder.AppendLine($"if(!this.{this.GroupBuiltName(groupByIndex)}) {{");
+        builder.AppendLine($"    this.{this.GroupBuiltName(groupByIndex)}=true;");
+        builder.AppendLine($"    var __hasCnt={enumeratorName}.TryGetNonEnumeratedCount(out var __cnt);");
+        builder.AppendLine($"    var __builder=new global::Seamless.Linq.ContiguousLookupBuilder<{ComparerKeyType(stage)},{stage.InnerElementType}>(__hasCnt ? __cnt : 0,__hasCnt ? global::System.Math.Min(__cnt,1024) : 0,{this.ComparerName(this.ComparerOrdinal(groupByIndex))});");
         builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
         this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
-        var currentName = this.ItemName(0);
+        var currentName2 = this.ItemName(0);
         for(var index = 0;index<groupByIndex;index++) {
-            currentName=this.AppendStage(builder,stages[index],currentName,index);
+            currentName2=this.AppendStage(builder,stages[index],currentName2,index);
         }
-        var keyName = this.KeyName(groupByIndex);
-        builder.AppendLine($"        {ComparerKeyType(stage)} {keyName}=default!;");
-        builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,nameof(PipelineStageKind.GroupBy),keyName,currentName),"        "));
-        var groupElementName = this.ItemName(groupByIndex+1);
-        builder.AppendLine($"        {stage.InnerElementType} {groupElementName}=default!;");
-        if(stage.SecondFunc is { } elementSelector) {
-            builder.AppendLine(IndentBlock(this.FuncAssign(elementSelector,nameof(PipelineStageKind.GroupBy),groupElementName,currentName),"        "));
+        var keyName2 = this.KeyName(groupByIndex);
+        builder.AppendLine($"        {ComparerKeyType(stage)} {keyName2}=default!;");
+        builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,nameof(PipelineStageKind.GroupBy),keyName2,currentName2),"        "));
+        var groupElementName2 = $"__groupElem_{groupByIndex}";
+        builder.AppendLine($"        {stage.InnerElementType} {groupElementName2}=default!;");
+        if(stage.SecondFunc is { } elementSelector2) {
+            builder.AppendLine(IndentBlock(this.FuncAssign(elementSelector2,nameof(PipelineStageKind.GroupBy),groupElementName2,currentName2),"        "));
         } else {
-            builder.AppendLine($"        {groupElementName}=({stage.InnerElementType})(object?){currentName}!;");
+            builder.AppendLine($"        {groupElementName2}=({stage.InnerElementType})(object?){currentName2}!;");
         }
-        builder.AppendLine($"        if(!__groupMap.TryGetValue({keyName},out var {this.GroupName(groupByIndex)})) {{");
-        builder.AppendLine($"            {this.GroupName(groupByIndex)}=new {this.GroupingName(groupByIndex)}({keyName});");
-        builder.AppendLine($"            __groupMap.Add({keyName},{this.GroupName(groupByIndex)});");
-        builder.AppendLine($"            __groupOrder.Add({this.GroupName(groupByIndex)});");
-        if(stage.ThirdFunc is null) {
-            builder.AppendLine($"            {this.GroupItemsName(groupByIndex)}.Add({this.GroupName(groupByIndex)});");
-        }
-        builder.AppendLine("        }");
-        builder.AppendLine($"        {this.GroupName(groupByIndex)}.Add({groupElementName});");
+        builder.AppendLine($"        __builder.Add({keyName2},{groupElementName2});");
         builder.AppendLine("    }");
-        if(stage.ThirdFunc is { } resultSelector) {
-            builder.AppendLine($"    foreach(var {this.GroupName(groupByIndex)} in __groupOrder) {{");
-            var resultName = this.ItemName(groupByIndex+2);
-            builder.AppendLine($"        {stage.OutputType} {resultName}=default!;");
-            builder.AppendLine(IndentBlock(this.FuncAssign(resultSelector,nameof(PipelineStageKind.GroupBy),resultName,$"{this.GroupName(groupByIndex)}.Key",$"(global::System.Collections.Generic.IEnumerable<{stage.InnerElementType}>){this.GroupName(groupByIndex)}"),"        "));
-            builder.AppendLine($"        {this.GroupItemsName(groupByIndex)}.Add({resultName});");
-            builder.AppendLine("    }");
-        }
-        // GroupBy バッファ収集後、後続に OrderBy/ThenBy があればソートして融合する。
-        // 順序段の並びと間に置ける段は PipelineBuilder.CanFuseGroupByThenOrder が保証する(順序段は GroupBy より後で連続し、間は Where だけ。OrderBy は 1 つ)。
-        var orderAfterGroup = -1;
-        for(var checkIdx = groupByIndex+1;checkIdx<stages.Count;checkIdx++) {
-            if(stages[checkIdx].Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending) {
-                orderAfterGroup=checkIdx;
-            }
-        }
-        if(orderAfterGroup>=0) {
-            var keyStageIndexes = new List<int> { orderAfterGroup };
-            for(var thenIdx = orderAfterGroup+1;thenIdx<stages.Count&&stages[thenIdx].Kind is PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending;thenIdx++) {
-                keyStageIndexes.Add(thenIdx);
-            }
-            foreach(var keyStageIndex in keyStageIndexes) {
-                var keyStage = stages[keyStageIndex];
-                builder.AppendLine($"    var {this.OrderComparerLocalName(keyStageIndex)}={this.OrderComparerName(this.OrderComparerOrdinal(keyStageIndex))} ?? global::System.Collections.Generic.Comparer<{ComparerKeyType(keyStage)}>.Default;");
-            }
-            // List.Sort は不安定なので、キーが等しいグループは出現順(元の位置)で並べる。LINQ の OrderBy は安定ソート。
-            var groupItems = this.GroupItemsName(groupByIndex);
-            builder.AppendLine($"    var __gsrc={groupItems};");
-            builder.AppendLine("    var __gidx=new int[__gsrc.Count];");
-            builder.AppendLine("    for(var __gi=0;__gi<__gidx.Length;__gi++) __gidx[__gi]=__gi;");
-            builder.AppendLine("    global::System.Array.Sort(__gidx,(__ga,__gb) => {");
-            builder.AppendLine("        var left=__gsrc[__ga];");
-            builder.AppendLine("        var right=__gsrc[__gb];");
-            for(var keyOrdinal = 0;keyOrdinal<keyStageIndexes.Count;keyOrdinal++) {
-                var keyStageIndex = keyStageIndexes[keyOrdinal];
-                var keyStage = stages[keyStageIndex];
-                var keyCmpLocal = this.OrderComparerLocalName(keyStageIndex);
-                var leftKey = $"__lk{keyStageIndex}";
-                var rightKey = $"__rk{keyStageIndex}";
-                var cmpName = keyOrdinal==0 ? "__gcmp" : $"__gcmp{keyOrdinal+1}";
-                builder.AppendLine($"        {ComparerKeyType(keyStage)} {leftKey}=default!;");
-                if(keyStage.Func is null) {
-                    builder.AppendLine($"        {leftKey}=left;");
-                } else {
-                    builder.AppendLine(IndentBlock(this.FuncAssign(keyStage.Func,keyStage.Kind.ToString(),leftKey,"left"),"        "));
-                }
-                builder.AppendLine($"        {ComparerKeyType(keyStage)} {rightKey}=default!;");
-                if(keyStage.Func is null) {
-                    builder.AppendLine($"        {rightKey}=right;");
-                } else {
-                    builder.AppendLine(IndentBlock(this.FuncAssign(keyStage.Func,keyStage.Kind.ToString(),rightKey,"right"),"        "));
-                }
-                builder.AppendLine($"        var {cmpName}={keyCmpLocal}.Compare({leftKey},{rightKey});");
-                builder.AppendLine($"        if({cmpName}!=0) return {this.OrderCompareExpression(keyStage,cmpName)};");
-            }
-            builder.AppendLine("        return __ga.CompareTo(__gb);");
-            builder.AppendLine("    });");
-            builder.AppendLine($"    var __gsorted=new global::System.Collections.Generic.List<{this.GroupValueType(groupByIndex,stage)}>(__gsrc.Count);");
-            builder.AppendLine("    foreach(var __gi in __gidx) __gsorted.Add(__gsrc[__gi]);");
-            builder.AppendLine($"    {groupItems}=__gsorted;");
-        }
-        builder.AppendLine($"    this.{this.GroupItemsName(groupByIndex)}={this.GroupItemsName(groupByIndex)};");
-        builder.AppendLine($"    this.{this.StateName(groupByIndex)}=0;");
+        builder.AppendLine($"    this.{this.GroupCursorName(groupByIndex)}=this.{this.GroupFirstName(groupByIndex)}=__builder.GetRootGroupAndClear();");
         builder.AppendLine("}");
-        builder.AppendLine($"while(this.{this.StateName(groupByIndex)}<this.{this.GroupItemsName(groupByIndex)}.Count) {{");
-        // stages.Count+1 は任意の ItemName(index+1) より大きい値なので OrderBy が間にある場合でも名前衝突しない
-        currentName=this.ItemName(stages.Count+1);
-        builder.AppendLine($"    var {currentName}=this.{this.GroupItemsName(groupByIndex)}[this.{this.StateName(groupByIndex)}++];");
-        for(var index = groupByIndex+1;index<stages.Count;index++) {
-            currentName=this.AppendStage(builder,stages[index],currentName,index);
+        builder.AppendLine($"while(this.{this.GroupCursorName(groupByIndex)} is not null) {{");
+        builder.AppendLine($"    var __group=this.{this.GroupCursorName(groupByIndex)}!;");
+        builder.AppendLine("    var __next=__group.NextGroupInAddOrder;");
+        builder.AppendLine($"    this.{this.GroupCursorName(groupByIndex)}=__next==this.{this.GroupFirstName(groupByIndex)} ? null : __next;");
+        var groupOutName = this.ItemName(groupByIndex+1);
+        if(stage.ThirdFunc is { } resultSelector2) {
+            builder.AppendLine($"    {stage.OutputType} {groupOutName}=default!;");
+            builder.AppendLine(IndentBlock(this.FuncAssign(resultSelector2,nameof(PipelineStageKind.GroupBy),groupOutName,"__group.Key","(global::System.Collections.Generic.IEnumerable<"+stage.InnerElementType+">)__group"),"    "));
+        } else {
+            builder.AppendLine($"    var {groupOutName}=__group;");
         }
-        builder.AppendLine(IndentBlock(string.Format(successStatement,currentName),"    "));
+        var afterName2 = groupOutName;
+        for(var index = groupByIndex+1;index<stages.Count;index++) {
+            afterName2=this.AppendStage(builder,stages[index],afterName2,index);
+        }
+        builder.AppendLine(IndentBlock(string.Format(successStatement,afterName2),"    "));
+        builder.AppendLine("}");
+        builder.AppendLine(endStatement);
+        return builder.ToString().TrimEnd();
+    }
+
+    private string BuildGroupByOrderLoop(string enumeratorName,string successStatement,string endStatement,int groupByIndex,int orderIndex) {
+        var stage = stages[groupByIndex];
+        var orderStages = this.OrderStages(orderIndex).ToArray();
+        var lastOrderIndex = orderIndex+orderStages.Length-1;
+        var builder = new StringBuilder();
+        var endLabel = this.EndLabel(orderIndex);
+        var needsEndLabel = this.StagesBetweenNeedEndLabel(groupByIndex,orderIndex);
+        var breakStatement = needsEndLabel ? $"goto {endLabel};" : "break;";
+        builder.AppendLine($"if(this.{this.OrderValuesName(orderIndex)} is null) {{");
+        if(stage.AggregatePlan is { } aggPlan) {
+            builder.AppendLine($"    var __hasSrcCount={enumeratorName}.TryGetNonEnumeratedCount(out var __srcCount);");
+            builder.AppendLine($"    var __aggMap=new global::Seamless.Linq.DictionarySlim<{ComparerKeyType(stage)},{aggPlan.AccumulatorType}>(__hasSrcCount ? global::System.Math.Min(__srcCount,1024) : 0,{this.ComparerName(this.ComparerOrdinal(groupByIndex))});");
+            builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+            this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
+            var currentName = this.ItemName(0);
+            for(var index = 0;index<groupByIndex;index++) {
+                currentName=this.AppendStage(builder,stages[index],currentName,index);
+            }
+            var keyName = this.KeyName(groupByIndex);
+            builder.AppendLine($"        {ComparerKeyType(stage)} {keyName}=default!;");
+            builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,nameof(PipelineStageKind.GroupBy),keyName,currentName),"        "));
+            var groupElementName = $"__groupElem_{groupByIndex}";
+            builder.AppendLine($"        {stage.InnerElementType} {groupElementName}=default!;");
+            if(stage.SecondFunc is { } elementSelector) {
+                builder.AppendLine(IndentBlock(this.FuncAssign(elementSelector,nameof(PipelineStageKind.GroupBy),groupElementName,currentName),"        "));
+            } else {
+                builder.AppendLine($"        {groupElementName}=({stage.InnerElementType})(object?){currentName}!;");
+            }
+            builder.AppendLine($"        ref var __acc=ref __aggMap.GetValueRefOrAddDefault({keyName},out var __exists);");
+            builder.AppendLine(aggPlan.RenderAccumulatorUpdate("__acc",groupElementName,"        "));
+            builder.AppendLine("    }");
+            builder.AppendLine($"    var {this.OrderInitialCapacityLocalName(orderIndex)}=global::System.Math.Max(16,__aggMap.Count);");
+            this.AppendOrderBufferBuildStart(builder,orderIndex);
+            builder.AppendLine("        var __aggEnum=__aggMap.GetEnumerator();");
+            builder.AppendLine("        while(__aggEnum.TryGetNext(out var __kv)) {");
+            builder.AppendLine("            var __key=__kv.Key;");
+            builder.AppendLine("            var __acc=__kv.Value;");
+            var resultName = this.ItemName(groupByIndex+1);
+            builder.AppendLine($"            {stage.OutputType} {resultName}={aggPlan.ProjectedResultExpression};");
+            var intermediateName = resultName;
+            for(var index = groupByIndex+1;index<orderIndex;index++) {
+                intermediateName=this.AppendStage(builder,stages[index],intermediateName,index,breakStatement);
+            }
+            this.AppendOrderBufferedValue(builder,orderIndex,intermediateName,"            ");
+            builder.AppendLine("        }");
+        } else {
+            builder.AppendLine($"    var __hasSrcCount={enumeratorName}.TryGetNonEnumeratedCount(out var __srcCount);");
+            builder.AppendLine($"    var __builder=new global::Seamless.Linq.ContiguousLookupBuilder<{ComparerKeyType(stage)},{stage.InnerElementType}>(__hasSrcCount ? __srcCount : 0,__hasSrcCount ? global::System.Math.Min(__srcCount,1024) : 0,{this.ComparerName(this.ComparerOrdinal(groupByIndex))});");
+            builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+            this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
+            var currentName = this.ItemName(0);
+            for(var index = 0;index<groupByIndex;index++) {
+                currentName=this.AppendStage(builder,stages[index],currentName,index);
+            }
+            var keyName = this.KeyName(groupByIndex);
+            builder.AppendLine($"        {ComparerKeyType(stage)} {keyName}=default!;");
+            builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,nameof(PipelineStageKind.GroupBy),keyName,currentName),"        "));
+            var groupElementName = $"__groupElem_{groupByIndex}";
+            builder.AppendLine($"        {stage.InnerElementType} {groupElementName}=default!;");
+            if(stage.SecondFunc is { } elementSelector) {
+                builder.AppendLine(IndentBlock(this.FuncAssign(elementSelector,nameof(PipelineStageKind.GroupBy),groupElementName,currentName),"        "));
+            } else {
+                builder.AppendLine($"        {groupElementName}=({stage.InnerElementType})(object?){currentName}!;");
+            }
+            builder.AppendLine($"        __builder.Add({keyName},{groupElementName});");
+            builder.AppendLine("    }");
+            builder.AppendLine($"    var {this.OrderInitialCapacityLocalName(orderIndex)}=global::System.Math.Max(16,__builder.GroupCount);");
+            builder.AppendLine("    var __firstGroup=__builder.GetRootGroupAndClear();");
+            this.AppendOrderBufferBuildStart(builder,orderIndex);
+            builder.AppendLine("        var __groupCursor=__firstGroup;");
+            builder.AppendLine("        while(__groupCursor is not null) {");
+            builder.AppendLine("            var __group=__groupCursor;");
+            builder.AppendLine("            var __nextGroup=__group.NextGroupInAddOrder;");
+            builder.AppendLine("            __groupCursor=__nextGroup==__firstGroup ? null : __nextGroup;");
+            var groupOutName = this.ItemName(groupByIndex+1);
+            if(stage.ThirdFunc is { } resultSelector) {
+                builder.AppendLine($"            {stage.OutputType} {groupOutName}=default!;");
+                builder.AppendLine(IndentBlock(this.FuncAssign(resultSelector,nameof(PipelineStageKind.GroupBy),groupOutName,"__group.Key","(global::System.Collections.Generic.IEnumerable<"+stage.InnerElementType+">)__group"),"            "));
+            } else {
+                builder.AppendLine($"            var {groupOutName}=__group;");
+            }
+            var intermediateName = groupOutName;
+            for(var index = groupByIndex+1;index<orderIndex;index++) {
+                intermediateName=this.AppendStage(builder,stages[index],intermediateName,index,breakStatement);
+            }
+            this.AppendOrderBufferedValue(builder,orderIndex,intermediateName,"            ");
+            builder.AppendLine("        }");
+        }
+        if(needsEndLabel) {
+            builder.AppendLine($"        {endLabel}:");
+        }
+        this.AppendOrderBufferBuildEnd(builder,orderIndex,orderStages);
+        builder.AppendLine("}");
+        builder.AppendLine($"while(this.{this.StateName(orderIndex)}<this.{this.OrderCountName(orderIndex)}) {{");
+        var sortedCurrentName = this.ItemName(lastOrderIndex+1);
+        builder.AppendLine($"    var {sortedCurrentName}=this.{this.OrderValuesName(orderIndex)}[this.{this.OrderIndexesName(orderIndex)}[this.{this.StateName(orderIndex)}++]];");
+        var currentName3 = sortedCurrentName;
+        for(var index = lastOrderIndex+1;index<stages.Count;index++) {
+            currentName3=this.AppendStage(builder,stages[index],currentName3,index);
+        }
+        builder.AppendLine(IndentBlock(string.Format(successStatement,currentName3),"    "));
         builder.AppendLine("}");
         builder.AppendLine(endStatement);
         return builder.ToString().TrimEnd();

@@ -67,9 +67,17 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine($"private int {this.OrderCountName(index)} = 0;");
                     builder.AppendLine($"private int {this.StateName(index)} = 0;");
                 } else if(stage.Kind==PipelineStageKind.GroupBy) {
-                    builder.AppendLine(this.GroupingType(index,stage));
-                    builder.AppendLine($"private global::System.Collections.Generic.List<{this.GroupValueType(index,stage)}>? {this.GroupItemsName(index)} = null;");
-                    builder.AppendLine($"private int {this.StateName(index)} = 0;");
+                    var hasPostOrderBy = stages.Skip(index+1).Any(static s => s.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending);
+                    if(!hasPostOrderBy) {
+                        builder.AppendLine($"private bool {this.GroupBuiltName(index)} = false;");
+                        if(stage.AggregatePlan is { } aggPlan) {
+                            builder.AppendLine($"private global::Seamless.Linq.DictionarySlim<{ComparerKeyType(stage)},{aggPlan.AccumulatorType}>? {this.GroupAggMapName(index)} = null;");
+                            builder.AppendLine($"private global::Seamless.Linq.DictionarySlim<{ComparerKeyType(stage)},{aggPlan.AccumulatorType}>.Enumerator {this.GroupAggEnumName(index)};");
+                        } else {
+                            builder.AppendLine($"private global::Seamless.Linq.Grouping<{ComparerKeyType(stage)},{stage.InnerElementType}>? {this.GroupCursorName(index)} = null;");
+                            builder.AppendLine($"private global::Seamless.Linq.Grouping<{ComparerKeyType(stage)},{stage.InnerElementType}>? {this.GroupFirstName(index)} = null;");
+                        }
+                    }
                 } else if(stage.Kind==PipelineStageKind.Reverse) {
                     builder.AppendLine($"private {stage.OutputType}[]? {this.ReverseItemsName(index)} = null;");
                     builder.AppendLine($"private int {this.BufferCountName(index)} = 0;");
@@ -299,7 +307,14 @@ internal sealed partial class PipelineEnumerable {
 
     internal string BuildDirectLoop(string enumeratorName,string successStatement,string endStatement) => this.BuildLoop(enumeratorName,successStatement,endStatement);
 
-    private IEnumerable<FuncFragment> Funcs => stages.SelectMany(static stage => new[] { stage.Func,stage.SecondFunc,stage.ThirdFunc }).Where(static func => func is not null).Cast<FuncFragment>();
+    private IEnumerable<FuncFragment> Funcs => stages.SelectMany(static stage => {
+        var baseFuncs = new[] { stage.Func,stage.SecondFunc,stage.ThirdFunc }.Where(static func => func is not null);
+        if(stage.AggregatePlan is { } aggPlan){
+            return baseFuncs.Concat(aggPlan.Items.Select(static item => item.InnerFunc).Where(static func => func is not null));
+        }else{
+            return baseFuncs;
+        }
+    }).Cast<FuncFragment>();
     private IEnumerable<Enumerable> SecondSources => stages.Select(static stage => stage.SecondSource).Where(static source => source is not null).Cast<Enumerable>();
     private string SecondSourcesStructs {
         get {

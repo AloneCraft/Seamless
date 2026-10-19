@@ -50,7 +50,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(terminalKind==PipelineTerminalKind.Count) {
                 return "int";
             }
-            if(terminalKind==PipelineTerminalKind.First) {
+            if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
                 return pipeline.ElementType;
             }
             throw new NotSupportedException($"{terminalKind} does not support scalar enumerator generation.");
@@ -107,6 +107,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(terminalKind==PipelineTerminalKind.First) {
                 return "if(source.TryGetNext(out var item)) return item;\nthrow global::Seamless.Linq.GeneratedCodeHelpers.NoElements();";
             }
+            if(terminalKind==PipelineTerminalKind.FirstOrDefault) {
+                return "if(source.TryGetNext(out var item)) return item;\nreturn default!;";
+            }
             throw new NotSupportedException($"{terminalKind} does not support scalar enumerator generation.");
         }
     }
@@ -139,9 +142,48 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             return false;
         }
 
-        var parameterPattern = $@"\b{System.Text.RegularExpressions.Regex.Escape(func.ParameterNames[0])}\b";
-        var body = System.Text.RegularExpressions.Regex.Replace(func.InlineBody,parameterPattern,"__p",System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-        return !System.Text.RegularExpressions.Regex.IsMatch(body,@"\b(?!__p\b)[A-Za-z_@]\w*\b",System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        return true;
+    }
+
+    private bool CanUseDirectSpanPipelineScalarScan() {
+        foreach(var stage in pipeline.Stages) {
+            switch(stage.Kind) {
+                case PipelineStageKind.AsEnumerable:
+                case PipelineStageKind.Cast:
+                case PipelineStageKind.Take:
+                case PipelineStageKind.Skip:
+                    break;
+                case PipelineStageKind.Select:
+                case PipelineStageKind.Where:
+                case PipelineStageKind.TakeWhile:
+                case PipelineStageKind.SkipWhile:
+                    if(stage.UsesIndex||stage.Func is not { } func||!CanUseDirectSpanPipelineFunc(func)) {
+                        return false;
+                    }
+                    break;
+                default:
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    private string? TryGetDirectSourceSpanSetupForScalar(string sourceVar,out string sourceExpression,out string directSpanExpression) {
+        sourceExpression=string.Empty;
+        directSpanExpression=string.Empty;
+        if(!this.CanUseDirectSpanPipelineScalarScan()) {
+            return null;
+        }
+        try {
+            sourceExpression=pipeline.Source.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        directSpanExpression=pipeline.Source.GetDirectSpanExpression(sourceVar)??string.Empty;
+        if(directSpanExpression.Length==0) {
+            return null;
+        }
+        return string.Empty;
     }
 
     private string? TryGetDirectSourceSpanSetup(string sourceVar,out string sourceExpression,out string directSpanExpression) {
@@ -183,6 +225,202 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             }
         }
         return currentName;
+    }
+
+    private void AppendDirectSpanPipelineScalarInit(StringBuilder builder,string indent) {
+        for(var index = 0;index<pipeline.Stages.Count;index++) {
+            var stage = pipeline.Stages[index];
+            switch(stage.Kind) {
+                case PipelineStageKind.Take:
+                    builder.AppendLine($"{indent}var __pipelineTake{this.result}_{index+1}=0;");
+                    break;
+                case PipelineStageKind.Skip:
+                    builder.AppendLine($"{indent}var __pipelineSkip{this.result}_{index+1}=0;");
+                    break;
+                case PipelineStageKind.SkipWhile:
+                    builder.AppendLine($"{indent}var __pipelineSkipWhileActive{this.result}_{index+1}=true;");
+                    break;
+            }
+        }
+    }
+
+    private string AppendDirectSpanPipelineScalarStages(StringBuilder builder,string currentName,string indent) {
+        for(var index = 0;index<pipeline.Stages.Count;index++) {
+            var stage = pipeline.Stages[index];
+            switch(stage.Kind) {
+                case PipelineStageKind.AsEnumerable:
+                    break;
+                case PipelineStageKind.Cast: {
+                    var nextName = $"__pipelineItem{this.result}_{index+1}";
+                    builder.AppendLine($"{indent}var {nextName}=({stage.OutputType})(object?){currentName};");
+                    currentName=nextName;
+                    break;
+                }
+                case PipelineStageKind.Select: {
+                    var nextName = $"__pipelineItem{this.result}_{index+1}";
+                    builder.AppendLine($"{indent}{stage.OutputType} {nextName}=default!;");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.Select),nextName,currentName),indent));
+                    currentName=nextName;
+                    break;
+                }
+                case PipelineStageKind.Where: {
+                    var condName = $"__pipelineCond{this.result}_{index+1}";
+                    builder.AppendLine($"{indent}bool {condName}=default!;");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.Where),condName,currentName),indent));
+                    builder.AppendLine($"{indent}if(!{condName}) continue;");
+                    break;
+                }
+                case PipelineStageKind.Take: {
+                    var takeName = $"__pipelineTake{this.result}_{index+1}";
+                    builder.AppendLine($"{indent}if({takeName}>={stage.Value}) break;");
+                    builder.AppendLine($"{indent}{takeName}++;");
+                    break;
+                }
+                case PipelineStageKind.Skip: {
+                    var skipName = $"__pipelineSkip{this.result}_{index+1}";
+                    builder.AppendLine($"{indent}if({skipName}<{stage.Value}) {{ {skipName}++; continue; }}");
+                    break;
+                }
+                case PipelineStageKind.TakeWhile: {
+                    var condName = $"__pipelineTakeWhileCond{this.result}_{index+1}";
+                    builder.AppendLine($"{indent}bool {condName}=default!;");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.TakeWhile),condName,currentName),indent));
+                    builder.AppendLine($"{indent}if(!{condName}) break;");
+                    break;
+                }
+                case PipelineStageKind.SkipWhile: {
+                    var activeName = $"__pipelineSkipWhileActive{this.result}_{index+1}";
+                    var condName = $"__pipelineSkipWhileCond{this.result}_{index+1}";
+                    builder.AppendLine($"{indent}if({activeName}) {{");
+                    builder.AppendLine($"{indent}    bool {condName}=default!;");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.SkipWhile),condName,currentName),$"{indent}    "));
+                    builder.AppendLine($"{indent}    if({condName}) continue;");
+                    builder.AppendLine($"{indent}    {activeName}=false;");
+                    builder.AppendLine($"{indent}}}");
+                    break;
+                }
+                default:
+                    throw new NotSupportedException($"{stage.Kind} is not a direct span pipeline scalar stage.");
+            }
+        }
+        return currentName;
+    }
+
+    private string? RenderDirectSpanPipelineCount(string actualVariableName,string actualTypeName) {
+        var sourceName = $"__pipelineSrc{this.result}";
+        if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
+            return null;
+        }
+        var spanName = $"__pipelineSpan{this.result}";
+        var indexName = $"__pipelineIndex{this.result}";
+        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var builder = new StringBuilder();
+        builder.AppendLine($"{actualTypeName} {actualVariableName}=0;");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        this.AppendDirectSpanPipelineScalarInit(builder,"    ");
+        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+        this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ");
+        builder.AppendLine($"        {actualVariableName}++;");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
+    private string? RenderDirectSpanPipelineAny(string actualVariableName,string actualTypeName) {
+        var sourceName = $"__pipelineSrc{this.result}";
+        if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
+            return null;
+        }
+        var spanName = $"__pipelineSpan{this.result}";
+        var indexName = $"__pipelineIndex{this.result}";
+        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var builder = new StringBuilder();
+        builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        this.AppendDirectSpanPipelineScalarInit(builder,"    ");
+        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+        this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ");
+        builder.AppendLine($"        {actualVariableName}=true;");
+        builder.AppendLine("        break;");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
+    private string? RenderDirectSpanPipelineFirst(string actualVariableName,string actualTypeName) {
+        var sourceName = $"__pipelineSrc{this.result}";
+        if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
+            return null;
+        }
+        var spanName = $"__pipelineSpan{this.result}";
+        var indexName = $"__pipelineIndex{this.result}";
+        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var foundName = $"__pipelineFound{this.result}";
+        var builder = new StringBuilder();
+        builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+        builder.AppendLine($"var {foundName}=false;");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        this.AppendDirectSpanPipelineScalarInit(builder,"    ");
+        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ");
+        builder.AppendLine($"        {actualVariableName}={currentName};");
+        builder.AppendLine($"        {foundName}=true;");
+        builder.AppendLine("        break;");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        builder.AppendLine($"if(!{foundName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+        return builder.ToString().TrimEnd();
+    }
+
+    private string? RenderDirectSpanPipelineFirstOrDefault(string actualVariableName,string actualTypeName) {
+        var sourceName = $"__pipelineSrc{this.result}";
+        if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
+            return null;
+        }
+        var spanName = $"__pipelineSpan{this.result}";
+        var indexName = $"__pipelineIndex{this.result}";
+        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var builder = new StringBuilder();
+        builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        this.AppendDirectSpanPipelineScalarInit(builder,"    ");
+        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ");
+        builder.AppendLine($"        {actualVariableName}={currentName};");
+        builder.AppendLine("        break;");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
+    private string? RenderDirectSpanPipelineSum(string actualVariableName,string actualTypeName) {
+        var sourceName = $"__pipelineSrc{this.result}";
+        if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
+            return null;
+        }
+        var spanName = $"__pipelineSpan{this.result}";
+        var indexName = $"__pipelineIndex{this.result}";
+        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var builder = new StringBuilder();
+        builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        this.AppendDirectSpanPipelineScalarInit(builder,"    ");
+        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ");
+        builder.AppendLine($"        {actualVariableName}+={currentName};");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
     }
 
     private string? RenderDirectSpanPipelineToList(string actualVariableName,string actualTypeName) {
@@ -243,11 +481,77 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return builder.ToString().TrimEnd();
     }
 
+    private string? RenderDirectSpanPipelineToListWithFilter(string actualVariableName,string actualTypeName) {
+        var sourceName = $"__pipelineSrc{this.result}";
+        if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
+            return null;
+        }
+        var spanName = $"__pipelineSpan{this.result}";
+        var indexName = $"__pipelineIndex{this.result}";
+        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var builder = new StringBuilder();
+        builder.AppendLine($"{actualTypeName} {actualVariableName};");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        this.AppendDirectSpanPipelineScalarInit(builder,"    ");
+        builder.AppendLine($"    {actualVariableName}=new();");
+        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ");
+        builder.AppendLine($"        {actualVariableName}.Add({currentName});");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
+    private string? RenderDirectSpanPipelineToArrayWithFilter(string actualVariableName,string actualTypeName) {
+        var sourceName = $"__pipelineSrc{this.result}";
+        if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
+            return null;
+        }
+        var spanName = $"__pipelineSpan{this.result}";
+        var indexName = $"__pipelineIndex{this.result}";
+        var bufferName = $"__pipelineBuffer{this.result}";
+        var countName = $"__pipelineCount{this.result}";
+        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var builder = new StringBuilder();
+        builder.AppendLine($"{actualTypeName} {actualVariableName};");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        this.AppendDirectSpanPipelineScalarInit(builder,"    ");
+        builder.AppendLine($"    if({spanName}.Length==0) {{");
+        builder.AppendLine($"        {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+        builder.AppendLine("    } else {");
+        builder.AppendLine($"        var {bufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({spanName}.Length);");
+        builder.AppendLine($"        var {countName}=0;");
+        builder.AppendLine("        try {");
+        builder.AppendLine($"            for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        builder.AppendLine($"                var {sourceItemName}={spanName}[{indexName}];");
+        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"                ");
+        builder.AppendLine($"                {bufferName}[{countName}++]={currentName};");
+        builder.AppendLine("            }");
+        builder.AppendLine($"            if({countName}==0) {{");
+        builder.AppendLine($"                {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+        builder.AppendLine("            } else {");
+        builder.AppendLine($"                {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({countName});");
+        builder.AppendLine($"                global::System.Array.Copy({bufferName},{actualVariableName},{countName});");
+        builder.AppendLine("            }");
+        builder.AppendLine("        } finally {");
+        builder.AppendLine($"            global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Return({bufferName},clearArray:true);");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
     public string GetDirectExecutionStatement(string actualVariableName,string actualTypeName) {
         var builder = new StringBuilder();
         if(terminalKind==PipelineTerminalKind.ToList) {
             if(this.RenderDirectSpanPipelineToList(actualVariableName,actualTypeName) is { } directSpanPipeline) {
                 return directSpanPipeline;
+            }
+            if(this.RenderDirectSpanPipelineToListWithFilter(actualVariableName,actualTypeName) is { } directSpanFilteredList) {
+                return directSpanFilteredList;
             }
             // using ではなく try-finally なのは、遅経路のヘルパーへ enumerator を ref で渡すため。
             // using ローカルは読み取り専用で ref に渡せず、値渡しにするとコンストラクタで
@@ -275,6 +579,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         if(terminalKind==PipelineTerminalKind.ToArray) {
             if(this.RenderDirectSpanPipelineToArray(actualVariableName,actualTypeName) is { } directSpanPipeline) {
                 return directSpanPipeline;
+            }
+            if(this.RenderDirectSpanPipelineToArrayWithFilter(actualVariableName,actualTypeName) is { } directSpanFilteredArray) {
+                return directSpanFilteredArray;
             }
             var listName = $"{actualVariableName}_list";
             var countName = $"{actualVariableName}_count";
@@ -330,18 +637,27 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             return builder.ToString().TrimEnd();
         }
         if(terminalKind==PipelineTerminalKind.Count) {
+            if(this.RenderDirectSpanPipelineCount(actualVariableName,actualTypeName) is { } directSpanCount) {
+                return directSpanCount;
+            }
             builder.AppendLine($"{actualTypeName} {actualVariableName}=0;");
             builder.AppendLine($"using var {this.EnumeratorName()}={pipeline.GetEnumeratorExpression};");
             builder.AppendLine($"while({this.EnumeratorName()}.TryGetNext(out _)) {actualVariableName}++;");
             return builder.ToString().TrimEnd();
         }
         if(terminalKind==PipelineTerminalKind.Any) {
+            if(this.RenderDirectSpanPipelineAny(actualVariableName,actualTypeName) is { } directSpanAny) {
+                return directSpanAny;
+            }
             builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
             builder.AppendLine($"using var {this.EnumeratorName()}={pipeline.GetEnumeratorExpression};");
             builder.AppendLine($"if({this.EnumeratorName()}.TryGetNext(out _)) {actualVariableName}=true;");
             return builder.ToString().TrimEnd();
         }
         if(terminalKind==PipelineTerminalKind.First) {
+            if(this.RenderDirectSpanPipelineFirst(actualVariableName,actualTypeName) is { } directSpanFirst) {
+                return directSpanFirst;
+            }
             builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
             builder.AppendLine($"using var {this.EnumeratorName()}={pipeline.GetEnumeratorExpression};");
             builder.AppendLine($"if({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) {{");
@@ -351,7 +667,21 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine("}");
             return builder.ToString().TrimEnd();
         }
+        if(terminalKind==PipelineTerminalKind.FirstOrDefault) {
+            if(this.RenderDirectSpanPipelineFirstOrDefault(actualVariableName,actualTypeName) is { } directSpanFirstOrDefault) {
+                return directSpanFirstOrDefault;
+            }
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+            builder.AppendLine($"using var {this.EnumeratorName()}={pipeline.GetEnumeratorExpression};");
+            builder.AppendLine($"if({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) {{");
+            builder.AppendLine($"    {actualVariableName}=__item{this.result};");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
         if(terminalKind==PipelineTerminalKind.Sum) {
+            if(this.RenderDirectSpanPipelineSum(actualVariableName,actualTypeName) is { } directSpanSum) {
+                return directSpanSum;
+            }
             builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
             builder.AppendLine($"using var {this.EnumeratorName()}={pipeline.GetEnumeratorExpression};");
             builder.AppendLine($"while({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) {actualVariableName}+=__item{this.result};");

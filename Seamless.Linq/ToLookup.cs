@@ -578,77 +578,38 @@ namespace Seamless.Linq {
         }
     }
 
-    [DebuggerDisplay("Key = {Key}")]
-    [DebuggerTypeProxy(typeof(GroupingDebugView<,>))]
-    public class Grouping<TKey, TElement>:IGrouping<TKey,TElement>, IList<TElement>, IReadOnlyList<TElement> {
-        private readonly TKey key;
-        private readonly uint hashCode;
-        protected TElement[] elements;
+    // TKey を持たない列挙元(Root<TElement> など)からでも単一の型判定で ReadOnlySpan<TElement> と要素数を
+    // 取り出せるよう、要素配列の保持と IList<TElement> 実装を非 TKey 基底クラスへ切り出す。
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public abstract class GroupingElements<TElement>:IList<TElement>, IReadOnlyList<TElement> {
+        protected TElement[] elements = [];
         protected int count;
-        private readonly bool poolElements;
-        private TElement firstElement;
+        private protected bool poolElements;
+        private protected TElement firstElement = default!;
         // 要素は elements[start..start+count)。共有配列の区間を指すグループ(ContiguousLookupBuilder が作る)は要素を足せない。
-        private readonly int start;
-        private readonly bool segment;
+        private protected int start;
+        private protected bool segment;
 
-        public Grouping<TKey,TElement>? NextGroupInAddOrder;
-        public Grouping<TKey,TElement>? NextGroupInSameHashCode;
+        public virtual int Count => this.count;
 
-        public Grouping(TKey key,uint hashCode,TElement value) {
-            this.key     =key;
-            this.hashCode=hashCode;
-            this.elements=[value];
-            this.count      =1;
-            this.poolElements=false;
-            this.firstElement=default!;
-        }
-
-        // 要素を詰め終えた配列からグループを作る(生成コードが要素数の分かるグループを直接組み立てるときに使う)。
-        // 配列はこのグループが持つので、呼び出し側は以後書き換えない。
-        public Grouping(TKey key,TElement[] elements,int count) {
-            if((uint)count>(uint)elements.Length) {
-                throw new ArgumentOutOfRangeException(nameof(count));
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ReadOnlySpan<TElement> AsSpan() {
+            if(this.poolElements&&this.elements.Length==0) {
+                return MemoryMarshal.CreateReadOnlySpan(ref this.firstElement,this.count);
             }
-            this.key     =key;
-            this.hashCode=0;
-            this.elements=elements;
-            this.count   =count;
-            this.poolElements=false;
-            this.firstElement=default!;
+            return this.elements.AsSpan(this.start,this.count);
         }
 
-        // 共有配列の区間 elements[start..start+count) を指すグループ(生成コードが1本の配列へ並べたグループを組み立てるときに使う)。
-        // 配列は書き換えない前提で、要素は足せない。
-        public Grouping(TKey key,TElement[] elements,int start,int count) : this(key,0,elements,start,count) {
-            if((uint)start>(uint)elements.Length||(uint)count>(uint)(elements.Length-start)) {
-                throw new ArgumentOutOfRangeException(nameof(count));
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ReadOnlySpan<TElement> AsSpan(int offset) {
+            if((uint)offset>=(uint)this.count) {
+                return default;
             }
+            if(this.poolElements&&this.elements.Length==0) {
+                return MemoryMarshal.CreateReadOnlySpan(ref this.firstElement,1);
+            }
+            return this.elements.AsSpan(this.start+offset,this.count-offset);
         }
-
-        // 共有配列の区間 elements[start..start+count) を指すグループ。配列は書き換えない前提で、要素は足せない。
-        internal Grouping(TKey key,uint hashCode,TElement[] elements,int start,int count) {
-            this.key     =key;
-            this.hashCode=hashCode;
-            this.elements=elements;
-            this.start   =start;
-            this.count   =count;
-            this.poolElements=false;
-            this.segment =true;
-            this.firstElement=default!;
-        }
-
-        internal Grouping(TKey key,uint hashCode,TElement value,bool poolElements) {
-            this.key     =key;
-            this.hashCode=hashCode;
-            this.poolElements=poolElements;
-            this.firstElement=value;
-            this.elements   =poolElements ? [] : [value];
-            this.count      =1;
-        }
-
-        public         TKey Key      => this.key;
-        public         uint HashCode => this.hashCode;
-        public virtual  int  Count    => this.count;
 
         // mutable in construction, but readonly in public surface
 
@@ -727,9 +688,37 @@ namespace Seamless.Linq {
 
         IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
 
-        public IEnumerator<TElement> GetEnumerator() {
-            for(int i = 0;i<this.count;i++) {
-                yield return this[i];
+        public IEnumerator<TElement> GetEnumerator() => new Enumerator(this);
+
+        private sealed class Enumerator(GroupingElements<TElement> grouping):IEnumerator<TElement> {
+            private readonly TElement[] elements = grouping.elements;
+            private readonly int start = grouping.start;
+            private readonly int end = grouping.start+grouping.count;
+            private readonly bool singleFirstElement = grouping.poolElements&&grouping.elements.Length==0;
+            private int index = grouping.start-1;
+            private TElement current = default!;
+
+            public TElement Current => this.current;
+            object? IEnumerator.Current => this.current;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public bool MoveNext() {
+                var next = this.index+1;
+                if(next<this.end) {
+                    this.index=next;
+                    this.current=this.singleFirstElement ? grouping.firstElement : this.elements[next];
+                    return true;
+                }
+                this.current=default!;
+                return false;
+            }
+
+            public void Reset() {
+                this.index=this.start-1;
+                this.current=default!;
+            }
+
+            public void Dispose() {
             }
         }
 
@@ -772,6 +761,71 @@ namespace Seamless.Linq {
         public bool Remove(TElement item) {
             throw new NotSupportedException();
         }
+    }
+
+    [DebuggerDisplay("Key = {Key}")]
+    [DebuggerTypeProxy(typeof(GroupingDebugView<,>))]
+    public class Grouping<TKey, TElement>:GroupingElements<TElement>, IGrouping<TKey,TElement> {
+        private readonly TKey key;
+        private readonly uint hashCode;
+
+        public Grouping<TKey,TElement>? NextGroupInAddOrder;
+        public Grouping<TKey,TElement>? NextGroupInSameHashCode;
+
+        public Grouping(TKey key,uint hashCode,TElement value) {
+            this.key     =key;
+            this.hashCode=hashCode;
+            this.elements=[value];
+            this.count      =1;
+            this.poolElements=false;
+            this.firstElement=default!;
+        }
+
+        // 要素を詰め終えた配列からグループを作る(生成コードが要素数の分かるグループを直接組み立てるときに使う)。
+        // 配列はこのグループが持つので、呼び出し側は以後書き換えない。
+        public Grouping(TKey key,TElement[] elements,int count) {
+            if((uint)count>(uint)elements.Length) {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+            this.key     =key;
+            this.hashCode=0;
+            this.elements=elements;
+            this.count   =count;
+            this.poolElements=false;
+            this.firstElement=default!;
+        }
+
+        // 共有配列の区間 elements[start..start+count) を指すグループ(生成コードが1本の配列へ並べたグループを組み立てるときに使う)。
+        // 配列は書き換えない前提で、要素は足せない。
+        public Grouping(TKey key,TElement[] elements,int start,int count) : this(key,0,elements,start,count) {
+            if((uint)start>(uint)elements.Length||(uint)count>(uint)(elements.Length-start)) {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+        }
+
+        // 共有配列の区間 elements[start..start+count) を指すグループ。配列は書き換えない前提で、要素は足せない。
+        internal Grouping(TKey key,uint hashCode,TElement[] elements,int start,int count) {
+            this.key     =key;
+            this.hashCode=hashCode;
+            this.elements=elements;
+            this.start   =start;
+            this.count   =count;
+            this.poolElements=false;
+            this.segment =true;
+            this.firstElement=default!;
+        }
+
+        internal Grouping(TKey key,uint hashCode,TElement value,bool poolElements) {
+            this.key     =key;
+            this.hashCode=hashCode;
+            this.poolElements=poolElements;
+            this.firstElement=value;
+            this.elements   =poolElements ? [] : [value];
+            this.count      =1;
+        }
+
+        public TKey Key      => this.key;
+        public uint HashCode => this.hashCode;
     }
 
     internal sealed class GroupingDebugView<TKey,TElement>(Grouping<TKey,TElement> grouping) {

@@ -40,6 +40,7 @@ internal enum PipelineTerminalKind {
     Count,
     Any,
     First,
+    FirstOrDefault,
     ToDictionary,
     Sum,
 }

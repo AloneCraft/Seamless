@@ -158,9 +158,11 @@ internal sealed partial class PipelineEnumerable {
     private string OrderKeyLocalName(int orderIndex,PipelineStage orderStage) => $"__orderKey{this.item}_{orderIndex}_{this.OrderStageAbsoluteIndex(orderIndex,orderStage)}";
     private string OrderIndexComparerKeysFieldName(int orderIndex,PipelineStage orderStage) => $"keys{this.OrderStageAbsoluteIndex(orderIndex,orderStage)}";
     private string OrderIndexComparerComparerFieldName(int orderIndex,PipelineStage orderStage) => $"comparer{this.OrderStageAbsoluteIndex(orderIndex,orderStage)}";
-    private string GroupingName(int index) => $"__grouping{this.item}_{index}";
-    private string GroupItemsName(int index) => $"__groups{this.item}_{index}";
-    private string GroupName(int index) => $"__group{this.item}_{index}";
+    private string GroupBuiltName(int index) => $"__groupBuilt{this.item}_{index}";
+    private string GroupCursorName(int index) => $"__groupCursor{this.item}_{index}";
+    private string GroupFirstName(int index) => $"__groupFirst{this.item}_{index}";
+    private string GroupAggMapName(int index) => $"__groupAggMap{this.item}_{index}";
+    private string GroupAggEnumName(int index) => $"__groupAggEnum{this.item}_{index}";
     private string ReverseItemsName(int index) => $"__reversed{this.item}_{index}";
     private string BufferCountName(int index) => $"__bufCount{this.item}_{index}";
     private string EndLabel(int index) => $"__end{this.item}_{index}";
@@ -299,26 +301,6 @@ internal sealed partial class PipelineEnumerable {
         builder.AppendLine("}");
         return builder.ToString().TrimEnd();
     }
-
-    private string GroupValueType(int index,PipelineStage stage) {
-        if(stage.ThirdFunc is not null) {
-            return stage.OutputType;
-        }
-        return this.GroupingName(index);
-    }
-
-    private string GroupingType(int index,PipelineStage stage) => $$"""
-        private sealed class {{this.GroupingName(index)}}:global::System.Linq.IGrouping<{{ComparerKeyType(stage)}},{{stage.InnerElementType}}> {
-            private readonly global::System.Collections.Generic.List<{{stage.InnerElementType}}> values = new();
-            public {{this.GroupingName(index)}}({{ComparerKeyType(stage)}} key){
-                this.Key=key;
-            }
-            public {{ComparerKeyType(stage)}} Key { get; }
-            public void Add({{stage.InnerElementType}} value) => this.values.Add(value);
-            public global::System.Collections.Generic.IEnumerator<{{stage.InnerElementType}}> GetEnumerator() => this.values.GetEnumerator();
-            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
-        }
-        """;
 
     internal static string IndentBlock(string text,string indent) {
         if(string.IsNullOrWhiteSpace(text)) {

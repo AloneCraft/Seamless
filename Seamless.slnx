@@ -70,6 +70,11 @@
     <Project Path="Samples/Sample.NetShop.Core/Sample.NetShop.Core.csproj" />
     <Project Path="Samples/Sample.NetShop/Sample.NetShop.csproj" />
     <File Path="Samples/Sample.NetShop/README.md" />
+    <Project Path="Samples/Sample.VirtualDb/Sample.VirtualDb.csproj" />
+    <File Path="Samples/Sample.VirtualDb/README.md" />
+    <Project Path="Samples/Sample.FLinqChainVerifier.Core/Sample.FLinqChainVerifier.Core.csproj" />
+    <Project Path="Samples/Sample.FLinqChainVerifier/Sample.FLinqChainVerifier.csproj" />
+    <Project Path="Samples/Sample.FLinqChainVerifier.Cli/Sample.FLinqChainVerifier.Cli.csproj" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="Shared/Collections/Collections.shproj" />
