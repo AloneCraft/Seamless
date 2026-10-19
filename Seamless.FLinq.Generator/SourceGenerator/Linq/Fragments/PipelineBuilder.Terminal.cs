@@ -65,6 +65,12 @@ internal static partial class PipelineBuilder {
             case "FirstOrDefault":
                 terminalKind=PipelineTerminalKind.FirstOrDefault;
                 return true;
+            case "Last":
+                terminalKind=PipelineTerminalKind.Last;
+                return true;
+            case "LastOrDefault":
+                terminalKind=PipelineTerminalKind.LastOrDefault;
+                return true;
             case "ToDictionary":
                 terminalKind=PipelineTerminalKind.ToDictionary;
                 return true;

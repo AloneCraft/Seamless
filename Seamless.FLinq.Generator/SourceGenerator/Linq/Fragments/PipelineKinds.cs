@@ -45,6 +45,8 @@ internal enum PipelineTerminalKind {
     Contains,
     First,
     FirstOrDefault,
+    Last,
+    LastOrDefault,
     ToDictionary,
     Sum,
 }
