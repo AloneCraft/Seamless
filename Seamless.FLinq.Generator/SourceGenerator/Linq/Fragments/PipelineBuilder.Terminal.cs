@@ -56,6 +56,9 @@ internal static partial class PipelineBuilder {
             case "All":
                 terminalKind=PipelineTerminalKind.All;
                 return true;
+            case "Contains":
+                terminalKind=PipelineTerminalKind.Contains;
+                return true;
             case "First":
                 terminalKind=PipelineTerminalKind.First;
                 return true;
@@ -85,10 +88,12 @@ internal static partial class PipelineBuilder {
         ref string currentElementType,
         out FuncFragment? func1,
         out FuncFragment? func2,
-        out string? comparerValue) {
+        out string? comparerValue,
+        out string? terminalValue) {
         func1=null;
         func2=null;
         comparerValue=null;
+        terminalValue=null;
         if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray) {
             return invocation.ArgumentList.Arguments.Count==0;
         }
@@ -111,6 +116,16 @@ internal static partial class PipelineBuilder {
             if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,allPredType,ref uniqueNumber,out func1)
                 ||!services.CanUseFunc(func1)) {
                 return false;
+            }
+            return true;
+        }
+        if(terminalKind==PipelineTerminalKind.Contains) {
+            if(invocation.ArgumentList.Arguments.Count==0||method.Parameters.Length==0) {
+                return false;
+            }
+            terminalValue=services.RenderExpression(invocation.ArgumentList.Arguments[0].Expression);
+            if(invocation.ArgumentList.Arguments.Count>=2&&method.Parameters.Length>=2) {
+                comparerValue=services.RenderExpression(invocation.ArgumentList.Arguments[1].Expression);
             }
             return true;
         }

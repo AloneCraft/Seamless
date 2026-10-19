@@ -70,10 +70,11 @@ internal abstract class ProviderNativeExecutionBase(
         : $"{this.StateTypeBaseName}<{string.Join(", ",this.OuterTypeParameters)}>";
     protected override Enumerable PrimarySource => pipeline;
 
-    protected static bool CanCreateFor(PipelineEnumerable pipeline,PipelineTerminalKind terminalKind) =>
-        terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToHashSet
+    protected static bool CanCreateFor(PipelineEnumerable pipeline,PipelineTerminalKind terminalKind,string? containsValue = null) =>
+        (terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToHashSet
             or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.All or PipelineTerminalKind.First
             or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum
+            ||(terminalKind==PipelineTerminalKind.Contains&&containsValue is not null))
         &&pipeline.Stages.All(static stage => PipelineStageCapabilityTable.SupportsProviderNativeIterate(stage.Kind))
         &&!pipeline.Stages.Any(static stage => stage.Func is { RequiresStatementInlining: true });
 
@@ -102,6 +103,7 @@ internal abstract class ProviderNativeExecutionBase(
             PipelineTerminalKind.LongCount => ProviderIterateTerminalKind.Count,
             PipelineTerminalKind.Any => ProviderIterateTerminalKind.Any,
             PipelineTerminalKind.All => ProviderIterateTerminalKind.All,
+            PipelineTerminalKind.Contains => ProviderIterateTerminalKind.Contains,
             PipelineTerminalKind.First => ProviderIterateTerminalKind.First,
             PipelineTerminalKind.ToList => ProviderIterateTerminalKind.ToList,
             PipelineTerminalKind.ToArray => ProviderIterateTerminalKind.ToArray,
@@ -449,12 +451,13 @@ internal sealed class ProviderIterateTerminal:ProviderNativeExecutionBase {
         FuncFragment? terminalFunc1,
         FuncFragment? terminalFunc2,
         string? terminalComparer,
-        out ProviderIterateTerminal terminal) {
+        out ProviderIterateTerminal terminal,
+        string? terminalValue = null) {
         terminal=null!;
-        if(pipeline.Source is not ProviderNativeRootBase root||!CanCreateFor(pipeline,terminalKind)) {
+        if(pipeline.Source is not ProviderNativeRootBase root||!CanCreateFor(pipeline,terminalKind,terminalValue)) {
             return false;
         }
-        terminal=new(number,pipeline,ToProviderIterateTerminalKind(terminalKind),root,terminalFunc1: terminalFunc1,terminalFunc2: terminalFunc2,terminalComparer: terminalComparer);
+        terminal=new(number,pipeline,ToProviderIterateTerminalKind(terminalKind),root,containsValue: terminalValue,containsComparer: terminalComparer,terminalFunc1: terminalFunc1,terminalFunc2: terminalFunc2,terminalComparer: terminalComparer);
         return true;
     }
 

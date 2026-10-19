@@ -44,6 +44,7 @@ internal static partial class PipelineBuilder {
         FuncFragment? terminalFunc1 = null;
         FuncFragment? terminalFunc2 = null;
         string? terminalComparer = null;
+        string? terminalValue = null;
         for(var index = 0;index<invocations.Count;index++) {
             var currentInvocation = invocations[index];
             if(semanticModel.GetSymbolInfo(currentInvocation).Symbol is not IMethodSymbol method) {
@@ -55,7 +56,7 @@ internal static partial class PipelineBuilder {
                 if(!isLast) {
                     return false;
                 }
-                if(!TryAppendTerminalArguments(currentTerminalKind,semanticModel,currentInvocation,method,services,ref snapshot,stages,ref currentElementType,out terminalFunc1,out terminalFunc2,out terminalComparer)) {
+                if(!TryAppendTerminalArguments(currentTerminalKind,semanticModel,currentInvocation,method,services,ref snapshot,stages,ref currentElementType,out terminalFunc1,out terminalFunc2,out terminalComparer,out terminalValue)) {
                     return false;
                 }
                 terminalKind=currentTerminalKind;
@@ -104,6 +105,7 @@ internal static partial class PipelineBuilder {
                 terminalFunc1,
                 terminalFunc2,
                 terminalComparer,
+                terminalValue,
                 ref snapshot,
                 out fragment)) {
                 return false;
@@ -135,6 +137,7 @@ internal static partial class PipelineBuilder {
                 terminalFunc1,
                 terminalFunc2,
                 terminalComparer,
+                terminalValue,
                 ref snapshot,
                 out fragment)) {
                 return false;
@@ -163,11 +166,11 @@ internal static partial class PipelineBuilder {
             if(terminalResultType is null) {
                 return false;
             }
-            if(ProviderIterateTerminal.TryCreate(snapshot,pipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer,out var providerIterateTerminal)) {
+            if(ProviderIterateTerminal.TryCreate(snapshot,pipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer,out var providerIterateTerminal,terminalValue)) {
                 fragment=providerIterateTerminal;
                 snapshot++;
             } else {
-                fragment=new PipelineTerminal(snapshot++,pipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer);
+                fragment=new PipelineTerminal(snapshot++,pipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer,terminalValue);
             }
         } else {
             fragment=pipeline;
@@ -200,6 +203,7 @@ internal static partial class PipelineBuilder {
         FuncFragment? terminalFunc1,
         FuncFragment? terminalFunc2,
         string? terminalComparer,
+        string? terminalValue,
         ref int uniqueNumber,
         out Fragment fragment) {
         if(terminalKind is not { } terminal) {
@@ -212,7 +216,7 @@ internal static partial class PipelineBuilder {
         }
 
         var terminalPipeline = new PipelineEnumerable(uniqueNumber++,optimizedSource,Array.Empty<PipelineStage>(),currentElementType);
-        fragment=new PipelineTerminal(uniqueNumber++,terminalPipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer);
+        fragment=new PipelineTerminal(uniqueNumber++,terminalPipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer,terminalValue);
         return true;
     }
 }

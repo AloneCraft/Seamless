@@ -42,6 +42,7 @@ internal enum PipelineTerminalKind {
     LongCount,
     Any,
     All,
+    Contains,
     First,
     FirstOrDefault,
     ToDictionary,

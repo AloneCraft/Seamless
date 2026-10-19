@@ -18,7 +18,7 @@ PipelineTerminal は PipelineEnumerable の終端を scalar/direct execution と
   - ToList/ToArray/ToDictionary/Sum は direct execution 専用で、GetEnumeratorExpression は使わない。
   - ToDictionary は func1 を keySelector、func2 を elementSelector として扱い、comparerValue を constructor に渡す。
 */
-internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,PipelineTerminalKind terminalKind,FuncFragment? func1 = null,FuncFragment? func2 = null,string? comparerValue = null):Scalar(番号), DirectExecutionFragment {
+internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,PipelineTerminalKind terminalKind,FuncFragment? func1 = null,FuncFragment? func2 = null,string? comparerValue = null,string? terminalValue = null):Scalar(番号), DirectExecutionFragment {
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -44,7 +44,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     protected override Enumerable PrimarySource => pipeline;
     private string ResultType {
         get {
-            if(terminalKind==PipelineTerminalKind.Any) {
+            if(terminalKind is PipelineTerminalKind.Any or PipelineTerminalKind.All or PipelineTerminalKind.Contains) {
                 return "bool";
             }
             if(terminalKind==PipelineTerminalKind.Count) {
@@ -64,7 +64,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         func2 is null ? string.Empty : this.FuncSupport(func2,nameof(func2)));
     public override string GetEnumeratorStruct {
         get {
-            if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToHashSet or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum or PipelineTerminalKind.All) {
+            if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToHashSet or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum or PipelineTerminalKind.All or PipelineTerminalKind.Contains) {
                 return pipeline.GetEnumeratorStruct;
             }
             return $$"""
@@ -75,7 +75,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
     public override string GetEnumeratorExpression {
         get {
-            if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToHashSet or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum or PipelineTerminalKind.All) {
+            if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToHashSet or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum or PipelineTerminalKind.All or PipelineTerminalKind.Contains) {
                 throw new NotSupportedException($"{nameof(PipelineTerminal)} uses direct execution.");
             }
             return RenderEnumeratorExpression(this.EnumeratorTypeName,pipeline.GetEnumeratorExpression);
@@ -154,7 +154,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private bool IsDirectSpanFilterStage(PipelineStage stage) {
-        if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any) {
+        if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any or PipelineTerminalKind.Contains) {
             if(stage.Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy) {
                 return false;
             }
@@ -343,7 +343,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private bool CanIgnoreOrderForTerminal() {
-        if(terminalKind is not (PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any)) {
+        if(terminalKind is not (PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.Contains)) {
             if(terminalKind!=PipelineTerminalKind.Sum||!IsIntegerOrDecimalType(pipeline.ElementType)) {
                 return false;
             }
@@ -380,7 +380,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var isTop1Order = this.CanUseDirectSpanPipelineTop1Order(out var orderIdx);
         var canIgnoreOrder = this.CanIgnoreOrderForTerminal();
         var seenFilter = false;
-        var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any;
+        var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any or PipelineTerminalKind.Contains;
         for(var i = 0;i<pipeline.Stages.Count;i++) {
             var stage = pipeline.Stages[i];
             if(isTop1Order&&i==orderIdx) {
@@ -857,7 +857,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private void AppendDirectSpanPipelineScalarInit(StringBuilder builder,string spanName,string indent,HashSet<int> sliceIndices) {
-        var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any;
+        var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any or PipelineTerminalKind.Contains;
         for(var index = 0;index<pipeline.Stages.Count;index++) {
             if(sliceIndices.Contains(index)) {
                 continue;
@@ -895,7 +895,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         if(endIndex<0) {
             endIndex=pipeline.Stages.Count;
         }
-        var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any;
+        var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any or PipelineTerminalKind.Contains;
         for(var index = startIndex;index<endIndex;index++) {
             if(sliceIndices.Contains(index)) {
                 continue;
@@ -1768,6 +1768,38 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return builder.ToString().TrimEnd();
     }
 
+    private string? RenderDirectSpanPipelineContains(string actualVariableName,string actualTypeName) {
+        var sourceName = $"__pipelineSrc{this.result}";
+        if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
+            return null;
+        }
+        var spanName = $"__pipelineSpan{this.result}";
+        var sliceIndices = this.GetPrefixSliceStageIndices();
+        var indexName = $"__pipelineIndex{this.result}";
+        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var builder = new StringBuilder();
+        builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
+        this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
+        var comparerExpr = comparerValue is null ? null : $"({comparerValue})";
+        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+        var currentItem = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
+        if(comparerExpr is not null) {
+            builder.AppendLine($"        if({comparerExpr}.Equals({currentItem}, {terminalValue})) {{");
+        } else {
+            builder.AppendLine($"        if(global::System.Collections.Generic.EqualityComparer<{pipeline.ElementType}>.Default.Equals({currentItem}, {terminalValue})) {{");
+        }
+        builder.AppendLine($"            {actualVariableName}=true;");
+        builder.AppendLine($"            break;");
+        builder.AppendLine($"        }}");
+        builder.AppendLine($"    }}");
+        builder.AppendLine($"}}");
+        return builder.ToString().TrimEnd();
+    }
+
     private bool CanUseConsumeBasedDirectScalar(out List<PipelineStage> afterStages) {
         afterStages=new List<PipelineStage>();
         for(var i = 0;i<pipeline.Stages.Count;i++) {
@@ -2018,6 +2050,25 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             AppendIndented(builder,this.FuncAssign(func1!,"All",$"__allCond{this.result}",$"__item{this.result}"),"    ");
             builder.AppendLine($"    if(!__allCond{this.result}) {{");
             builder.AppendLine($"        {actualVariableName}=false;");
+            builder.AppendLine($"        break;");
+            builder.AppendLine($"    }}");
+            builder.AppendLine($"}}");
+            return builder.ToString().TrimEnd();
+        }
+        if(terminalKind==PipelineTerminalKind.Contains) {
+            if(this.RenderDirectSpanPipelineContains(actualVariableName,actualTypeName) is { } directSpanContains) {
+                return directSpanContains;
+            }
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
+            var comparerExpr = comparerValue is null ? null : $"({comparerValue})";
+            builder.AppendLine($"using var {this.EnumeratorName()}={pipeline.GetEnumeratorExpression};");
+            builder.AppendLine($"while({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) {{");
+            if(comparerExpr is not null) {
+                builder.AppendLine($"    if({comparerExpr}.Equals(__item{this.result}, {terminalValue})) {{");
+            } else {
+                builder.AppendLine($"    if(global::System.Collections.Generic.EqualityComparer<{pipeline.ElementType}>.Default.Equals(__item{this.result}, {terminalValue})) {{");
+            }
+            builder.AppendLine($"        {actualVariableName}=true;");
             builder.AppendLine($"        break;");
             builder.AppendLine($"    }}");
             builder.AppendLine($"}}");
