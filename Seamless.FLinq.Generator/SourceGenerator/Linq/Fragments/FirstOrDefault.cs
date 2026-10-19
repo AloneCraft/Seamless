@@ -18,15 +18,27 @@ internal class FirstOrDefault(int 番号,Enumerable source,string resultType):Bu
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute(ref {this.e})";
-    public override string? RenderInlineComputation(string destVar,string destType) =>
-        source is Zip zip
-            ? zip.RenderDirectFirstInline(destVar,destType,orDefault: true)
-            : source is Zip_resultSelector zipSel
-                ? zipSel.RenderDirectFirstInline(destVar,destType,orDefault: true)
-                : this.RenderRangeFirstOrDefaultInline(destVar,destType)
-        ??this.RenderDirectSpanFirstOrDefaultInline(destVar,destType)
-        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"FirstOrDefault")
-        ??this.RenderComputeInline(destVar,destType);
+    public override string? RenderInlineComputation(string destVar,string destType) {
+        if(source is GroupJoin groupJoin) {
+            return groupJoin.RenderDirectFirstInline(destVar,destType,orDefault: true);
+        }
+        if(source is Zip zip) {
+            return zip.RenderDirectFirstInline(destVar,destType,orDefault: true);
+        }
+        if(source is Zip_resultSelector zipSel) {
+            return zipSel.RenderDirectFirstInline(destVar,destType,orDefault: true);
+        }
+        if(this.RenderRangeFirstOrDefaultInline(destVar,destType) is { } rangeInline) {
+            return rangeInline;
+        }
+        if(this.RenderDirectSpanFirstOrDefaultInline(destVar,destType) is { } spanInline) {
+            return spanInline;
+        }
+        if(this.RenderDirectEnumerableCallInline(source,destVar,destType,"FirstOrDefault") is { } directCall) {
+            return directCall;
+        }
+        return this.RenderComputeInline(destVar,destType);
+    }
     private string? RenderDirectSpanFirstOrDefaultInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""

@@ -1875,7 +1875,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             try {
                 var fullStatement = pipeline.GetConsumeExecutionStatement(placeholder);
                 if(!string.IsNullOrWhiteSpace(fullStatement)
-                    &&!fullStatement.Contains("TryGetNext")
+                    &&!fullStatement.Contains($"__ce{pipeline.FragmentIndex}.TryGetNext")
                     &&!fullStatement.Contains("GetRemainingEnumerator")
                     &&fullStatement.Contains($"{placeholder}.Consume(")) {
                     consumeStatement=fullStatement;
@@ -1900,7 +1900,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 return null;
             }
             if(string.IsNullOrWhiteSpace(consumeStatement)
-                ||consumeStatement.Contains("TryGetNext")
+                ||consumeStatement.Contains($"__ce{pipeline.Source.FragmentIndex}.TryGetNext")
                 ||consumeStatement.Contains("GetRemainingEnumerator")
                 ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
                 return null;

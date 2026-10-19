@@ -27,6 +27,7 @@ Fragment は「LINQ 呼び出しをどの C# コードへ置き換えるか」�
 internal abstract class Fragment(
     int 番号
 ) {
+    internal int FragmentIndex => 番号;
     private protected const string AggressiveInliningAttribute = "[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]";
     private bool renderingInstanceMember;
 

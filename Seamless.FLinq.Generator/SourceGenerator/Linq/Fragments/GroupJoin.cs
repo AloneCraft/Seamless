@@ -69,12 +69,206 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             }
             """;
     }
-    public override string GetConsumeExecutionStatement(string consumerName) =>
-        this.CanBypassLookupForConsume()
-            ? this.outerSource.GetConsumeExecutionStatement(consumerName)
-            : this.CanSkipLookup()
-                ? this.RenderSkipLookupConsume(consumerName)
-                : base.GetConsumeExecutionStatement(consumerName);
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.CanBypassLookupForConsume()){
+            return this.outerSource.GetConsumeExecutionStatement(consumerName);
+        }else if(this.CanSkipLookup()){
+            return this.RenderSkipLookupConsume(consumerName);
+        }else{
+            return this.RenderLookupConsume(consumerName);
+        }
+    }
+
+    private string RenderLookupConsume(string consumerName) {
+        if(this.UseResultTypeParam) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        if(!TryPeelWheres(this.outerSource,out var outerRoot,out var outerPredicates)) {
+            outerRoot=this.outerSource;
+            outerPredicates=System.Array.Empty<FuncFragment>();
+        }
+        if(!TryPeelWheres(this.innerSource,out var innerRoot,out var innerPredicates)) {
+            innerRoot=this.innerSource;
+            innerPredicates=System.Array.Empty<FuncFragment>();
+        }
+        string outerExpression;
+        string innerExpression;
+        try {
+            outerExpression=this.outerSource.GetEnumeratorExpression;
+            innerExpression=this.innerSource.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return base.GetConsumeExecutionStatement(consumerName);
+        }
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(this.outerKey,this.innerKey,this.resultSelector),
+            this.StaticDelegateLocalDeclarations(this.outerKey,this.innerKey,this.resultSelector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+
+        var outerName = $"__groupJoinOuter{番号}";
+        var innerName = $"__groupJoinInner{番号}";
+        var lookupName = $"__groupJoinLookup{番号}";
+        var lookupBuilderName = $"__groupJoinLookupBuilder{番号}";
+        var outerItemName = $"__groupJoinOuterItem{番号}";
+        var outerKeyName = $"__groupJoinOuterKey{番号}";
+        var groupName = $"__groupJoinGroup{番号}";
+        var resultItemName = $"__groupJoinResult{番号}";
+        var hasCntName = $"__hasCnt{番号}";
+        var cntName = $"__cnt{番号}";
+        var innerItemName = $"__groupJoinInnerItem{番号}";
+        var innerKeyName = $"__groupJoinInnerKey{番号}";
+        var hasKeyName = $"__groupJoinHasKey{番号}";
+        var cmpArg = string.IsNullOrEmpty(this.comparerExpression)||"null".Equals(this.comparerExpression,StringComparison.Ordinal)
+            ? "null"
+            : this.comparerExpression;
+
+        var innerBody = $$"""
+            {{this.CounterCall("IncrementLogicalGroupJoinInner")}}
+            {{this.InnerKeyType}} {{innerKeyName}}=default!;
+            {{this.FuncAssignStatic(this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
+            if({{hasKeyName}}({{innerKeyName}})){
+                {{this.CounterCall("IncrementHashBuild")}}
+                {{this.CounterCall("IncrementBufferAdd")}}
+                {{lookupBuilderName}}.Add({{innerKeyName}},{{innerItemName}});
+            }
+            """;
+
+        var outerBody = $$"""
+            {{this.CounterCall("IncrementLogicalGroupJoinOuter")}}
+            {{FuncReturnTypeName(this.outerKey)}} {{outerKeyName}}=default!;
+            {{this.FuncAssignStatic(this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}}
+            {{this.CounterCall("IncrementHashProbe")}}
+            {{this.ElementType}} {{resultItemName}}=default!;
+            if({{lookupName}}!.GetGroup({{outerKeyName}}) is { } {{groupName}}){
+                {{this.FuncAssignStatic(this.resultSelector,nameof(this.resultSelector),resultItemName,outerItemName,groupName)}}
+            }else{
+                {{this.FuncAssignStatic(this.resultSelector,nameof(this.resultSelector),resultItemName,outerItemName,$"(global::System.Collections.Generic.IEnumerable<{this.InnerElementType}>)global::System.Array.Empty<{this.InnerElementType}>()")}}
+            }
+            {{consumerName}}.Consume({{resultItemName}});
+            """;
+
+        return $$"""
+            {
+                static bool {{hasKeyName}}<TKey>(TKey key) => key is not null;
+                {{localDeclarations}}
+                using var {{innerName}}={{innerExpression}};
+                var {{hasCntName}}={{innerName}}.TryGetNonEnumeratedCount(out var {{cntName}});
+                int __initialCapacity{{番号}};
+                if({{hasCntName}}){
+                    global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();
+                    __initialCapacity{{番号}}={{cntName}};
+                }else{
+                    __initialCapacity{{番号}}=0;
+                }
+                var {{lookupBuilderName}}=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(__initialCapacity{{番号}},(global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>?){{cmpArg}},true);
+                {{IndentLines(this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody),"    ").TrimStart()}}
+                using var {{lookupName}}={{lookupBuilderName}}.BuildPooledAndClear();
+                using var {{outerName}}={{outerExpression}};
+                {{IndentLines(this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,outerBody),"    ").TrimStart()}}
+            }
+            """;
+    }
+
+    public string? RenderDirectFirstInline(string destVar,string destType,bool orDefault) {
+        if(this.UseResultTypeParam) {
+            return null;
+        }
+        string outerExpression;
+        string innerExpression;
+        try {
+            outerExpression=this.outerSource.GetEnumeratorExpression;
+            innerExpression=this.innerSource.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(!TryPeelWheres(this.outerSource,out var outerRoot,out var outerPredicates)) {
+            outerRoot=this.outerSource;
+            outerPredicates=System.Array.Empty<FuncFragment>();
+        }
+        if(!TryPeelWheres(this.innerSource,out var innerRoot,out var innerPredicates)) {
+            innerRoot=this.innerSource;
+            innerPredicates=System.Array.Empty<FuncFragment>();
+        }
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(this.outerKey,this.innerKey,this.resultSelector),
+            this.StaticDelegateLocalDeclarations(this.outerKey,this.innerKey,this.resultSelector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+
+        var outerName = $"__groupJoinOuter{番号}";
+        var innerName = $"__groupJoinInner{番号}";
+        var lookupName = $"__groupJoinLookup{番号}";
+        var lookupBuilderName = $"__groupJoinLookupBuilder{番号}";
+        var outerItemName = $"__groupJoinOuterItem{番号}";
+        var outerKeyName = $"__groupJoinOuterKey{番号}";
+        var groupName = $"__groupJoinGroup{番号}";
+        var hasCntName = $"__hasCnt{番号}";
+        var cntName = $"__cnt{番号}";
+        var innerItemName = $"__groupJoinInnerItem{番号}";
+        var innerKeyName = $"__groupJoinInnerKey{番号}";
+        var hasKeyName = $"__groupJoinHasKey{番号}";
+        var foundName = $"__found{番号}";
+        var cmpArg = string.IsNullOrEmpty(this.comparerExpression)||"null".Equals(this.comparerExpression,StringComparison.Ordinal)
+            ? "null"
+            : this.comparerExpression;
+
+        var innerBody = $$"""
+            {{this.CounterCall("IncrementLogicalGroupJoinInner")}}
+            {{this.InnerKeyType}} {{innerKeyName}}=default!;
+            {{this.FuncAssignStatic(this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
+            if({{hasKeyName}}({{innerKeyName}})){
+                {{this.CounterCall("IncrementHashBuild")}}
+                {{this.CounterCall("IncrementBufferAdd")}}
+                {{lookupBuilderName}}.Add({{innerKeyName}},{{innerItemName}});
+            }
+            """;
+
+        var outerBody = $$"""
+            {{this.CounterCall("IncrementLogicalGroupJoinOuter")}}
+            {{FuncReturnTypeName(this.outerKey)}} {{outerKeyName}}=default!;
+            {{this.FuncAssignStatic(this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}}
+            {{this.CounterCall("IncrementHashProbe")}}
+            if({{lookupName}}!.GetGroup({{outerKeyName}}) is { } {{groupName}}){
+                {{this.FuncAssignStatic(this.resultSelector,nameof(this.resultSelector),destVar,outerItemName,groupName)}}
+            }else{
+                {{this.FuncAssignStatic(this.resultSelector,nameof(this.resultSelector),destVar,outerItemName,$"(global::System.Collections.Generic.IEnumerable<{this.InnerElementType}>)global::System.Array.Empty<{this.InnerElementType}>()")}}
+            }
+            {{foundName}}=true;
+            break;
+            """;
+
+        string notFoundBlock;
+        if(orDefault){
+            notFoundBlock=$"{destVar}=default!;";
+        }else{
+            notFoundBlock="throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();";
+        }
+
+        return $$"""
+            {{destType}} {{destVar}}=default!;
+            {
+                static bool {{hasKeyName}}<TKey>(TKey key) => key is not null;
+                {{localDeclarations}}
+                using var {{innerName}}={{innerExpression}};
+                var {{hasCntName}}={{innerName}}.TryGetNonEnumeratedCount(out var {{cntName}});
+                int __initialCapacity{{番号}};
+                if({{hasCntName}}){
+                    global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();
+                    __initialCapacity{{番号}}={{cntName}};
+                }else{
+                    __initialCapacity{{番号}}=0;
+                }
+                var {{lookupBuilderName}}=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(__initialCapacity{{番号}},(global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>?){{cmpArg}},true);
+                {{IndentLines(this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody),"    ").TrimStart()}}
+                using var {{lookupName}}={{lookupBuilderName}}.BuildPooledAndClear();
+                using var {{outerName}}={{outerExpression}};
+                var {{foundName}}=false;
+                {{IndentLines(this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,outerBody),"    ").TrimStart()}}
+                if(!{{foundName}}){
+                    {{notFoundBlock}}
+                }else{
+                }
+            }
+            """;
+    }
 
     // 探索表を省く形(結果が外側そのもの)の Consume は、外側を差し替えメソッドから直接回す(span があれば span)。
     // GroupJoin の列挙子の構造体から外側の構造体を呼ぶ入れ子は、参照型の共有ジェネリックコードで内側がインライン化されない。

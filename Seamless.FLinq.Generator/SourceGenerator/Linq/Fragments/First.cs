@@ -36,16 +36,27 @@ internal class First(int 番号,Enumerable source,string resultType):BufferedSca
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute(ref {this.e})";
-    public override string? RenderInlineComputation(string destVar,string destType) =>
-        source is Zip zip
-            ? zip.RenderDirectFirstInline(destVar,destType,orDefault: false)
-            : source is Zip_resultSelector zipSel
-                ? zipSel.RenderDirectFirstInline(destVar,destType,orDefault: false)
-                : source is RangeRoot range
-                    ? RangePredicateOptimizer.RenderFirst(range,番号,destVar,destType)
-                    : this.RenderDirectSpanFirstInline(destVar,destType)
-        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"First")
-        ??this.RenderComputeInline(destVar,destType);
+    public override string? RenderInlineComputation(string destVar,string destType) {
+        if(source is GroupJoin groupJoin) {
+            return groupJoin.RenderDirectFirstInline(destVar,destType,orDefault: false);
+        }
+        if(source is Zip zip) {
+            return zip.RenderDirectFirstInline(destVar,destType,orDefault: false);
+        }
+        if(source is Zip_resultSelector zipSel) {
+            return zipSel.RenderDirectFirstInline(destVar,destType,orDefault: false);
+        }
+        if(source is RangeRoot range) {
+            return RangePredicateOptimizer.RenderFirst(range,番号,destVar,destType);
+        }
+        if(this.RenderDirectSpanFirstInline(destVar,destType) is { } directSpan) {
+            return directSpan;
+        }
+        if(this.RenderDirectEnumerableCallInline(source,destVar,destType,"First") is { } directCall) {
+            return directCall;
+        }
+        return this.RenderComputeInline(destVar,destType);
+    }
     private string? RenderDirectSpanFirstInline(string destVar,string destType) {
         var sourceName = $"__firstSource{番号}";
         var directSpanExpression = source.GetDirectSpanExpression(sourceName);
