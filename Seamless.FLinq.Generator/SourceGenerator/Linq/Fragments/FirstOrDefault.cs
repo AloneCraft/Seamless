@@ -22,6 +22,9 @@ internal class FirstOrDefault(int 番号,Enumerable source,string resultType):Bu
         if(source is GroupJoin groupJoin) {
             return groupJoin.RenderDirectFirstInline(destVar,destType,orDefault: true);
         }
+        if(source is Join join) {
+            return join.RenderDirectFirstInline(destVar,destType,orDefault: true);
+        }
         if(source is Zip zip) {
             return zip.RenderDirectFirstInline(destVar,destType,orDefault: true);
         }

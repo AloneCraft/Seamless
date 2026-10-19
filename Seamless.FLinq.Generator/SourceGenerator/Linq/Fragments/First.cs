@@ -40,6 +40,9 @@ internal class First(int 番号,Enumerable source,string resultType):BufferedSca
         if(source is GroupJoin groupJoin) {
             return groupJoin.RenderDirectFirstInline(destVar,destType,orDefault: false);
         }
+        if(source is Join join) {
+            return join.RenderDirectFirstInline(destVar,destType,orDefault: false);
+        }
         if(source is Zip zip) {
             return zip.RenderDirectFirstInline(destVar,destType,orDefault: false);
         }

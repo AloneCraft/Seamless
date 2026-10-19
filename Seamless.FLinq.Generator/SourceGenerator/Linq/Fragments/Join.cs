@@ -420,6 +420,132 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             }
             """;
     }
+    public string? RenderDirectFirstInline(string destVar,string destType,bool orDefault){
+        if(this.UseResultTypeParam){
+            return null;
+        }
+        string notFoundBlock;
+        if(orDefault){
+            notFoundBlock=$"{destVar}=default!;";
+        }else{
+            notFoundBlock="throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();";
+        }
+
+        if(this.ProbesInnerRange()
+            &&this.outerSource is RangeRoot outerRange
+            &&this.innerSource is RangeRoot innerRange
+            &&!this.outerSource.TreeContainsAnchor()
+            &&this.outerKey.IsIdentity
+            &&!this.outerKey.ContainsAnchor
+            &&!this.resultSelector.ContainsAnchor){
+            var outerStart=$"__joinOuterStart{番号}";
+            var outerCount=$"__joinOuterCount{番号}";
+            var innerStart=$"__joinInnerStart{番号}";
+            var innerCount=$"__joinInnerCount{番号}";
+            var low=$"__joinOverlapLow{番号}";
+            var high=$"__joinOverlapHigh{番号}";
+            var itemName=$"__joinOverlapItem{番号}";
+            var localDeclarations=string.Join("\n",new[]{
+                this.HoistedLocalDeclarations(this.resultSelector),
+                this.StaticDelegateLocalDeclarations(this.resultSelector),
+            }.Where(static text => !string.IsNullOrEmpty(text)));
+            string localDeclBlock;
+            if(string.IsNullOrEmpty(localDeclarations)){
+                localDeclBlock=string.Empty;
+            }else{
+                localDeclBlock=localDeclarations+"\n";
+            }
+            var assign=this.FuncAssignStatic(this.resultSelector,nameof(this.resultSelector),destVar,itemName,itemName);
+            return $$"""
+                {{localDeclBlock}}{{destType}} {{destVar}}=default!;
+                {{outerRange.RenderArgumentPreparation(outerStart,outerCount)}}
+                {{innerRange.RenderArgumentPreparation(innerStart,innerCount)}}
+                var {{low}}=global::System.Math.Max((long){{outerStart}},(long){{innerStart}});
+                var {{high}}=global::System.Math.Min((long){{outerStart}}+{{outerCount}},(long){{innerStart}}+{{innerCount}});
+                if({{low}}<{{high}}){
+                    var {{itemName}}=(int){{low}};
+                    {{assign}}
+                }else{
+                    {{notFoundBlock}}
+                }
+                """;
+        }
+
+        if(!TryPeelWheres(this.outerSource,out var outerRoot,out var outerPredicates)
+            ||!TryPeelWheres(this.innerSource,out var innerRoot,out var innerPredicates)){
+            return null;
+        }
+        string outerExpression;
+        string innerExpression;
+        try{
+            outerExpression=outerRoot.GetEnumeratorExpression;
+            innerExpression=innerRoot.GetEnumeratorExpression;
+        }catch(NotSupportedException){
+            return null;
+        }
+
+        var outerName=$"__joinOuterRoot{番号}";
+        var innerName=$"__joinInnerRoot{番号}";
+        var outerItemName=$"__joinOuterItem{番号}";
+        var innerItemName=$"__joinInnerItem{番号}";
+        var innerKeyName=$"__joinInnerKey{番号}";
+        var outerKeyName=$"__joinOuterKey{番号}";
+        var builderName=$"__joinLookup{番号}";
+        var arrangedName=$"__joinArranged{番号}";
+        var startName=$"__joinStart{番号}";
+        var endName=$"__joinEnd{番号}";
+        var countName=$"__joinCapacity{番号}";
+        var hasKeyName=$"__joinHasKey{番号}";
+        var foundName=$"__joinFound{番号}";
+        var functions=outerPredicates.Concat(innerPredicates).Concat(new[]{ this.outerKey,this.innerKey,this.resultSelector }).ToArray();
+        var localDeclarationsGeneral=string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(functions),
+            this.StaticDelegateLocalDeclarations(functions),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        string localDeclBlockGeneral;
+        if(string.IsNullOrEmpty(localDeclarationsGeneral)){
+            localDeclBlockGeneral=string.Empty;
+        }else{
+            localDeclBlockGeneral=localDeclarationsGeneral+"\n";
+        }
+        var countsOnly=this.CountsOnly();
+        var innerAdd=countsOnly
+            ? $"global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({builderName},{innerKeyName},out _)++;"
+            : $"{builderName}.Add({innerKeyName},{innerItemName});";
+        var innerBody=$"{this.InnerKeyType} {innerKeyName}=default!;\n{this.FuncAssignStatic(this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}\nif({hasKeyName}({innerKeyName})){{\n    {innerAdd}\n}}";
+        var matchedInner=countsOnly ? $"default({this.InnerElementType})!" : $"{arrangedName}[{startName}]";
+        var assignGeneral=this.FuncAssignStatic(this.resultSelector,nameof(this.resultSelector),destVar,outerItemName,matchedInner);
+        var probe=countsOnly
+            ? $"if(!{builderName}.TryGetValue({outerKeyName},out var {endName})||{endName}<=0) continue;\n{assignGeneral}\n{foundName}=true;\nbreak;"
+            : $"if(!{builderName}.TryGetRange({outerKeyName},out var {startName},out var {endName})) continue;\n{assignGeneral}\n{foundName}=true;\nbreak;";
+        var outerBody=$"{this.InnerKeyType} {outerKeyName}=default!;\n{this.FuncAssignStatic(this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}\nif(!{hasKeyName}({outerKeyName})) continue;\n{probe}";
+        var builderDeclaration=countsOnly
+            ? $"var {builderName}=new {this.CountsType}({countName},{this.comparerExpression});"
+            : $"var {builderName}=new global::Seamless.Linq.ContiguousLookupBuilder<{this.InnerKeyType},{this.InnerElementType}>({countName},{countName},{this.comparerExpression});";
+        var prepare=countsOnly ? string.Empty : $"{builderName}.PrepareProbe();\nvar {arrangedName}={builderName}.Arranged;";
+        var dispose=countsOnly ? string.Empty : $"{builderName}.Dispose();";
+
+        return $$"""
+            {{localDeclBlockGeneral}}{{destType}} {{destVar}}=default!;
+            static bool {{hasKeyName}}<TKey>(TKey key) => key is not null;
+            using var {{outerName}}={{outerExpression}};
+            using var {{innerName}}={{innerExpression}};
+            var {{countName}}={{innerName}}.TryGetNonEnumeratedCount(out var {{countName}}Value) ? {{countName}}Value : 0;
+            {{builderDeclaration}}
+            try {
+            {{this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody)}}
+            {{prepare}}
+            var {{foundName}}=false;
+            {{this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,outerBody)}}
+            if(!{{foundName}}){
+                {{notFoundBlock}}
+            }else{
+            }
+            } finally {
+                {{dispose}}
+            }
+            """;
+    }
     protected override string GetEnumeratorDisposeBody => this.CountsOnly()
         ? $"{this.e}.Dispose();"
         : this.ProbesInnerRange()
