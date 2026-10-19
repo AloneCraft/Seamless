@@ -408,6 +408,125 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return true;
     }
 
+    private bool CanUseDirectSpanBinaryShortCircuit(out PipelineStage? binaryStage) {
+        binaryStage=null;
+        var count = 0;
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            var st = pipeline.Stages[i];
+            if(st.Kind is PipelineStageKind.Union or PipelineStageKind.UnionBy or PipelineStageKind.Concat) {
+                binaryStage=st;
+                count++;
+            } else if(st.Kind is not (PipelineStageKind.AsEnumerable or PipelineStageKind.Cast)) {
+                binaryStage=null;
+                return false;
+            }
+        }
+        return count==1&&binaryStage is not null;
+    }
+
+    private bool TryGetDirectPrimarySourceSpanSetup(
+        string firstSourceVar,
+        out string firstSourceExpression,
+        out string firstDirectSpanExpression) {
+        firstSourceExpression=string.Empty;
+        firstDirectSpanExpression=string.Empty;
+        try {
+            firstSourceExpression=pipeline.Source.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return false;
+        }
+        firstDirectSpanExpression=pipeline.Source.GetDirectSpanExpression(firstSourceVar)??string.Empty;
+        return firstDirectSpanExpression.Length>0;
+    }
+
+    private static bool TryGetDirectSecondSourceSpanSetup(
+        PipelineStage binaryStage,
+        string secondSourceVar,
+        out string secondSourceExpression,
+        out string secondDirectSpanExpression) {
+        secondSourceExpression=string.Empty;
+        secondDirectSpanExpression=string.Empty;
+        if(binaryStage.SecondSource is not { } secondSource) {
+            return false;
+        }
+        try {
+            secondSourceExpression=secondSource.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return false;
+        }
+        secondDirectSpanExpression=secondSource.GetDirectSpanExpression(secondSourceVar)??string.Empty;
+        return secondDirectSpanExpression.Length>0;
+    }
+
+    private string? RenderDirectSpanPipelineBinaryScalar(string actualVariableName,string actualTypeName) {
+        if(!this.CanUseDirectSpanBinaryShortCircuit(out var binaryStage)) {
+            return null;
+        }
+        var firstSrcName = $"__firstSrc{this.result}";
+        var secondSrcName = $"__secondSrc{this.result}";
+        if(!this.TryGetDirectPrimarySourceSpanSetup(firstSrcName,out var firstSrcExpr,out var firstSpanExpr)) {
+            return null;
+        }
+        if(!TryGetDirectSecondSourceSpanSetup(binaryStage!,secondSrcName,out var secondSrcExpr,out var secondSpanExpr)) {
+            return null;
+        }
+        var firstSpanName = $"__firstSpan{this.result}";
+        var secondSpanName = $"__secondSpan{this.result}";
+        var builder = new StringBuilder();
+
+        if(terminalKind==PipelineTerminalKind.Any) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
+            builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
+            builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
+            builder.AppendLine($"    if({firstSpanName}.Length>0) {{");
+            builder.AppendLine($"        {actualVariableName}=true;");
+            builder.AppendLine("    } else {");
+            builder.AppendLine($"        using(var {secondSrcName}={secondSrcExpr}) {{");
+            builder.AppendLine($"            var {secondSpanName}={secondSpanExpr};");
+            builder.AppendLine($"            {actualVariableName}={secondSpanName}.Length>0;");
+            builder.AppendLine("        }");
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+
+        if(terminalKind==PipelineTerminalKind.Count&&binaryStage!.Kind==PipelineStageKind.Concat) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=0;");
+            builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
+            builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
+            builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
+            builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
+            builder.AppendLine($"        {actualVariableName}={firstSpanName}.Length+{secondSpanName}.Length;");
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+
+        if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+            builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
+            builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
+            builder.AppendLine($"    if({firstSpanName}.Length>0) {{");
+            builder.AppendLine($"        {actualVariableName}={firstSpanName}[0];");
+            builder.AppendLine("    } else {");
+            builder.AppendLine($"        using(var {secondSrcName}={secondSrcExpr}) {{");
+            builder.AppendLine($"            var {secondSpanName}={secondSpanExpr};");
+            builder.AppendLine($"            if({secondSpanName}.Length>0) {{");
+            builder.AppendLine($"                {actualVariableName}={secondSpanName}[0];");
+            if(terminalKind==PipelineTerminalKind.First) {
+                builder.AppendLine("            } else {");
+                builder.AppendLine("                throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+            }
+            builder.AppendLine("            }");
+            builder.AppendLine("        }");
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+
+        return null;
+    }
+
     private string? TryGetDirectSourceSpanSetupForScalar(string sourceVar,out string sourceExpression,out string directSpanExpression) {
         sourceExpression=string.Empty;
         directSpanExpression=string.Empty;
@@ -597,6 +716,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private string? RenderDirectSpanPipelineCount(string actualVariableName,string actualTypeName) {
+        if(this.RenderDirectSpanPipelineBinaryScalar(actualVariableName,actualTypeName) is { } binaryCount) {
+            return binaryCount;
+        }
         var sourceName = $"__pipelineSrc{this.result}";
         if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
             return null;
@@ -641,6 +763,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private string? RenderDirectSpanPipelineAny(string actualVariableName,string actualTypeName) {
+        if(this.RenderDirectSpanPipelineBinaryScalar(actualVariableName,actualTypeName) is { } binaryAny) {
+            return binaryAny;
+        }
         if(this.TryGetSingleDefaultIfEmptyStage(out _)) {
             return $"{actualTypeName} {actualVariableName}=true;";
         }
@@ -799,6 +924,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private string? RenderDirectSpanPipelineFirst(string actualVariableName,string actualTypeName) {
+        if(this.RenderDirectSpanPipelineBinaryScalar(actualVariableName,actualTypeName) is { } binaryFirst) {
+            return binaryFirst;
+        }
         if(this.CanUseDirectSpanPipelineTop1Order(out var orderStageIndex)) {
             return this.RenderDirectSpanPipelineTop1Order(actualVariableName,actualTypeName,orderStageIndex);
         }
@@ -906,6 +1034,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private string? RenderDirectSpanPipelineFirstOrDefault(string actualVariableName,string actualTypeName) {
+        if(this.RenderDirectSpanPipelineBinaryScalar(actualVariableName,actualTypeName) is { } binaryFirstOrDefault) {
+            return binaryFirstOrDefault;
+        }
         if(this.CanUseDirectSpanPipelineTop1Order(out var orderStageIndex)) {
             return this.RenderDirectSpanPipelineTop1Order(actualVariableName,actualTypeName,orderStageIndex);
         }
