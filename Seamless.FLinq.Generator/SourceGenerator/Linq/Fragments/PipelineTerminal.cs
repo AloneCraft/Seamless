@@ -870,14 +870,14 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                         break;
                     }
                     var keyTypeDistinct = stage.KeyType??stage.OutputType;
-                    builder.AppendLine($"{indent}var __pipelineSet{this.result}_{index+1}=new global::System.Collections.Generic.HashSet<{keyTypeDistinct}>(global::System.Math.Min({spanName}.Length,1024));");
+                    builder.AppendLine($"{indent}var __pipelineSet{this.result}_{index+1}=new global::System.Collections.Generic.HashSet<{keyTypeDistinct}>();");
                     break;
                 case PipelineStageKind.DistinctBy:
                     if(skipDistinct) {
                         break;
                     }
                     var keyTypeDistinctBy = stage.KeyType??stage.Func?.ReturnTypeName??"object";
-                    builder.AppendLine($"{indent}var __pipelineSet{this.result}_{index+1}=new global::System.Collections.Generic.HashSet<{keyTypeDistinctBy}>(global::System.Math.Min({spanName}.Length,1024));");
+                    builder.AppendLine($"{indent}var __pipelineSet{this.result}_{index+1}=new global::System.Collections.Generic.HashSet<{keyTypeDistinctBy}>();");
                     break;
             }
         }
