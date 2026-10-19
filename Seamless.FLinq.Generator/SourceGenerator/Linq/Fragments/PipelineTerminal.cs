@@ -308,13 +308,37 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return true;
     }
 
+    private bool CanIgnoreOrderForTerminal() {
+        if(terminalKind is not (PipelineTerminalKind.Count or PipelineTerminalKind.Any)) {
+            return false;
+        }
+        var seenOrder = false;
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            var kind = pipeline.Stages[i].Kind;
+            if(kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending or PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending) {
+                seenOrder=true;
+                continue;
+            }
+            if(seenOrder) {
+                if(kind is PipelineStageKind.Take or PipelineStageKind.Skip or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile) {
+                    return false;
+                }
+            }
+        }
+        return seenOrder;
+    }
+
     private bool CanUseDirectSpanPipelineScalarScan() {
         var isTop1Order = this.CanUseDirectSpanPipelineTop1Order(out var orderIdx);
+        var canIgnoreOrder = this.CanIgnoreOrderForTerminal();
         var seenFilter = false;
         var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any;
         for(var i = 0;i<pipeline.Stages.Count;i++) {
             var stage = pipeline.Stages[i];
             if(isTop1Order&&i==orderIdx) {
+                continue;
+            }
+            if(canIgnoreOrder&&stage.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending or PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending) {
                 continue;
             }
             switch(stage.Kind) {
@@ -473,6 +497,10 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             var stage = pipeline.Stages[index];
             switch(stage.Kind) {
                 case PipelineStageKind.AsEnumerable:
+                case PipelineStageKind.OrderBy:
+                case PipelineStageKind.OrderByDescending:
+                case PipelineStageKind.ThenBy:
+                case PipelineStageKind.ThenByDescending:
                     break;
                 case PipelineStageKind.Cast: {
                     var nextName = $"__pipelineItem{this.result}_{index+1}";
