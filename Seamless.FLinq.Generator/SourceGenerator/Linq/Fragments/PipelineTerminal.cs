@@ -145,7 +145,107 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return true;
     }
 
+    private bool IsDirectSpanFilterStage(PipelineStage stage) {
+        if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any) {
+            if(stage.Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy) {
+                return false;
+            }
+        }
+        return stage.Kind is PipelineStageKind.Where
+            or PipelineStageKind.TakeWhile
+            or PipelineStageKind.SkipWhile
+            or PipelineStageKind.Distinct
+            or PipelineStageKind.DistinctBy;
+    }
+
+    private static bool IsDirectSpanSliceStage(PipelineStage stage) =>
+        stage.Kind is PipelineStageKind.Take
+            or PipelineStageKind.Skip
+            or PipelineStageKind.TakeLast
+            or PipelineStageKind.SkipLast;
+
+    private HashSet<int> GetPrefixSliceStageIndices() {
+        var result = new HashSet<int>();
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            var stage = pipeline.Stages[i];
+            if(this.IsDirectSpanFilterStage(stage)) {
+                break;
+            }
+            if(IsDirectSpanSliceStage(stage)||stage.Kind is PipelineStageKind.Reverse or PipelineStageKind.Prepend or PipelineStageKind.Append) {
+                result.Add(i);
+            }
+        }
+        return result;
+    }
+
+    private List<PipelineStage> GetPrefixPrependStages() {
+        var result = new List<PipelineStage>();
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            var stage = pipeline.Stages[i];
+            if(this.IsDirectSpanFilterStage(stage)) {
+                break;
+            }
+            if(stage.Kind==PipelineStageKind.Prepend) {
+                result.Add(stage);
+            }
+        }
+        return result;
+    }
+
+    private List<PipelineStage> GetPrefixAppendStages() {
+        var result = new List<PipelineStage>();
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            var stage = pipeline.Stages[i];
+            if(this.IsDirectSpanFilterStage(stage)) {
+                break;
+            }
+            if(stage.Kind==PipelineStageKind.Append) {
+                result.Add(stage);
+            }
+        }
+        return result;
+    }
+
+    private bool IsPrefixReversed() {
+        var count = 0;
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            var stage = pipeline.Stages[i];
+            if(this.IsDirectSpanFilterStage(stage)) {
+                break;
+            }
+            if(stage.Kind==PipelineStageKind.Reverse) {
+                count++;
+            }
+        }
+        return count%2!=0;
+    }
+
+    private void AppendDirectSpanPipelineSlices(StringBuilder builder,string spanName,string indent,HashSet<int> sliceIndices) {
+        for(var index = 0;index<pipeline.Stages.Count;index++) {
+            if(!sliceIndices.Contains(index)) {
+                continue;
+            }
+            var stage = pipeline.Stages[index];
+            switch(stage.Kind) {
+                case PipelineStageKind.Take:
+                    builder.AppendLine($"{indent}{spanName}={spanName}.Slice(0,global::System.Math.Min({spanName}.Length,global::System.Math.Max(0,{stage.Value})));");
+                    break;
+                case PipelineStageKind.Skip:
+                    builder.AppendLine($"{indent}{spanName}={spanName}.Slice(global::System.Math.Min({spanName}.Length,global::System.Math.Max(0,{stage.Value})));");
+                    break;
+                case PipelineStageKind.TakeLast:
+                    builder.AppendLine($"{indent}{spanName}={spanName}.Slice(global::System.Math.Max(0,{spanName}.Length-global::System.Math.Max(0,{stage.Value})));");
+                    break;
+                case PipelineStageKind.SkipLast:
+                    builder.AppendLine($"{indent}{spanName}={spanName}.Slice(0,global::System.Math.Max(0,{spanName}.Length-global::System.Math.Max(0,{stage.Value})));");
+                    break;
+            }
+        }
+    }
+
     private bool CanUseDirectSpanPipelineScalarScan() {
+        var seenFilter = false;
+        var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any;
         foreach(var stage in pipeline.Stages) {
             switch(stage.Kind) {
                 case PipelineStageKind.AsEnumerable:
@@ -153,14 +253,43 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 case PipelineStageKind.Take:
                 case PipelineStageKind.Skip:
                     break;
-                case PipelineStageKind.Select:
-                case PipelineStageKind.Where:
-                case PipelineStageKind.TakeWhile:
-                case PipelineStageKind.SkipWhile:
-                    if(stage.UsesIndex||stage.Func is not { } func||!CanUseDirectSpanPipelineFunc(func)) {
+                case PipelineStageKind.Reverse:
+                case PipelineStageKind.TakeLast:
+                case PipelineStageKind.SkipLast:
+                case PipelineStageKind.Prepend:
+                case PipelineStageKind.Append:
+                    if(seenFilter) {
                         return false;
                     }
                     break;
+                case PipelineStageKind.Distinct:
+                    if(!skipDistinct) {
+                        seenFilter=true;
+                    }
+                    break;
+                case PipelineStageKind.Select: {
+                    if(stage.UsesIndex||stage.Func is not { } selectFunc||!CanUseDirectSpanPipelineFunc(selectFunc)) {
+                        return false;
+                    }
+                    break;
+                }
+                case PipelineStageKind.Where:
+                case PipelineStageKind.TakeWhile:
+                case PipelineStageKind.SkipWhile:
+                    if(stage.UsesIndex||stage.Func is not { } filterFunc||!CanUseDirectSpanPipelineFunc(filterFunc)) {
+                        return false;
+                    }
+                    seenFilter=true;
+                    break;
+                case PipelineStageKind.DistinctBy: {
+                    if(stage.UsesIndex||stage.Func is not { } distinctByFunc||!CanUseDirectSpanPipelineFunc(distinctByFunc)) {
+                        return false;
+                    }
+                    if(!skipDistinct) {
+                        seenFilter=true;
+                    }
+                    break;
+                }
                 default:
                     return false;
             }
@@ -227,8 +356,12 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return currentName;
     }
 
-    private void AppendDirectSpanPipelineScalarInit(StringBuilder builder,string indent) {
+    private void AppendDirectSpanPipelineScalarInit(StringBuilder builder,string spanName,string indent,HashSet<int> sliceIndices) {
+        var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any;
         for(var index = 0;index<pipeline.Stages.Count;index++) {
+            if(sliceIndices.Contains(index)) {
+                continue;
+            }
             var stage = pipeline.Stages[index];
             switch(stage.Kind) {
                 case PipelineStageKind.Take:
@@ -240,12 +373,30 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 case PipelineStageKind.SkipWhile:
                     builder.AppendLine($"{indent}var __pipelineSkipWhileActive{this.result}_{index+1}=true;");
                     break;
+                case PipelineStageKind.Distinct:
+                    if(skipDistinct) {
+                        break;
+                    }
+                    var keyTypeDistinct = stage.KeyType??stage.OutputType;
+                    builder.AppendLine($"{indent}var __pipelineSet{this.result}_{index+1}=new global::System.Collections.Generic.HashSet<{keyTypeDistinct}>(global::System.Math.Min({spanName}.Length,1024));");
+                    break;
+                case PipelineStageKind.DistinctBy:
+                    if(skipDistinct) {
+                        break;
+                    }
+                    var keyTypeDistinctBy = stage.KeyType??stage.Func?.ReturnTypeName??"object";
+                    builder.AppendLine($"{indent}var __pipelineSet{this.result}_{index+1}=new global::System.Collections.Generic.HashSet<{keyTypeDistinctBy}>(global::System.Math.Min({spanName}.Length,1024));");
+                    break;
             }
         }
     }
 
-    private string AppendDirectSpanPipelineScalarStages(StringBuilder builder,string currentName,string indent) {
+    private string AppendDirectSpanPipelineScalarStages(StringBuilder builder,string currentName,string indent,HashSet<int> sliceIndices) {
+        var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any;
         for(var index = 0;index<pipeline.Stages.Count;index++) {
+            if(sliceIndices.Contains(index)) {
+                continue;
+            }
             var stage = pipeline.Stages[index];
             switch(stage.Kind) {
                 case PipelineStageKind.AsEnumerable:
@@ -299,6 +450,26 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     builder.AppendLine($"{indent}}}");
                     break;
                 }
+                case PipelineStageKind.Distinct: {
+                    if(skipDistinct) {
+                        break;
+                    }
+                    var setName = $"__pipelineSet{this.result}_{index+1}";
+                    builder.AppendLine($"{indent}if(!{setName}.Add({currentName})) continue;");
+                    break;
+                }
+                case PipelineStageKind.DistinctBy: {
+                    if(skipDistinct) {
+                        break;
+                    }
+                    var setName = $"__pipelineSet{this.result}_{index+1}";
+                    var keyName = $"__pipelineKey{this.result}_{index+1}";
+                    var keyType = stage.KeyType??stage.Func?.ReturnTypeName??"object";
+                    builder.AppendLine($"{indent}{keyType} {keyName}=default!;");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.DistinctBy),keyName,currentName),indent));
+                    builder.AppendLine($"{indent}if(!{setName}.Add({keyName})) continue;");
+                    break;
+                }
                 default:
                     throw new NotSupportedException($"{stage.Kind} is not a direct span pipeline scalar stage.");
             }
@@ -312,16 +483,31 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             return null;
         }
         var spanName = $"__pipelineSpan{this.result}";
-        var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sliceIndices = this.GetPrefixSliceStageIndices();
+        var hasFilter = pipeline.Stages.Any(this.IsDirectSpanFilterStage);
+        var prefixPrepends = this.GetPrefixPrependStages();
+        var prefixAppends = this.GetPrefixAppendStages();
+        var extraCount = prefixPrepends.Count+prefixAppends.Count;
         var builder = new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName}=0;");
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
-        this.AppendDirectSpanPipelineScalarInit(builder,"    ");
+        this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
+        if(!hasFilter) {
+            if(extraCount>0) {
+                builder.AppendLine($"    {actualVariableName}={spanName}.Length+{extraCount};");
+            } else {
+                builder.AppendLine($"    {actualVariableName}={spanName}.Length;");
+            }
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
+        var indexName = $"__pipelineIndex{this.result}";
+        var sourceItemName = $"__pipelineItem{this.result}_0";
         builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
         builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
-        this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ");
+        this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
         builder.AppendLine($"        {actualVariableName}++;");
         builder.AppendLine("    }");
         builder.AppendLine("}");
@@ -334,16 +520,31 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             return null;
         }
         var spanName = $"__pipelineSpan{this.result}";
-        var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sliceIndices = this.GetPrefixSliceStageIndices();
+        var hasFilter = pipeline.Stages.Any(this.IsDirectSpanFilterStage);
+        var prefixPrepends = this.GetPrefixPrependStages();
+        var prefixAppends = this.GetPrefixAppendStages();
+        var extraCount = prefixPrepends.Count+prefixAppends.Count;
         var builder = new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
-        this.AppendDirectSpanPipelineScalarInit(builder,"    ");
+        this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
+        if(!hasFilter) {
+            if(extraCount>0) {
+                builder.AppendLine($"    {actualVariableName}=true;");
+            } else {
+                builder.AppendLine($"    {actualVariableName}={spanName}.Length>0;");
+            }
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
+        var indexName = $"__pipelineIndex{this.result}";
+        var sourceItemName = $"__pipelineItem{this.result}_0";
         builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
         builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
-        this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ");
+        this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
         builder.AppendLine($"        {actualVariableName}=true;");
         builder.AppendLine("        break;");
         builder.AppendLine("    }");
@@ -357,19 +558,75 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             return null;
         }
         var spanName = $"__pipelineSpan{this.result}";
-        var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
-        var foundName = $"__pipelineFound{this.result}";
+        var sliceIndices = this.GetPrefixSliceStageIndices();
+        var hasFilter = pipeline.Stages.Any(this.IsDirectSpanFilterStage);
+        var isReversed = this.IsPrefixReversed();
+        var prefixPrepends = this.GetPrefixPrependStages();
+        var prefixAppends = this.GetPrefixAppendStages();
         var builder = new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+        if(!hasFilter) {
+            builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+            builder.AppendLine($"    var {spanName}={directSpanExpression};");
+            this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
+            if(prefixPrepends.Count>0) {
+                builder.AppendLine($"    {actualVariableName}={prefixPrepends[0].Value};");
+                builder.AppendLine("}");
+                return builder.ToString().TrimEnd();
+            }
+            if(isReversed) {
+                if(prefixAppends.Count>0) {
+                    builder.AppendLine($"    {actualVariableName}={prefixAppends[prefixAppends.Count-1].Value};");
+                    builder.AppendLine("}");
+                    return builder.ToString().TrimEnd();
+                }
+                builder.AppendLine($"    if({spanName}.Length==0) {{");
+                builder.AppendLine($"        throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+                builder.AppendLine("    }");
+                var sourceItemName = $"__pipelineItem{this.result}_0";
+                builder.AppendLine($"    var {sourceItemName}={spanName}[{spanName}.Length-1];");
+                var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"    ",sliceIndices);
+                builder.AppendLine($"    {actualVariableName}={currentName};");
+                builder.AppendLine("}");
+                return builder.ToString().TrimEnd();
+            }
+            builder.AppendLine($"    if({spanName}.Length==0) {{");
+            if(prefixAppends.Count>0) {
+                builder.AppendLine($"        {actualVariableName}={prefixAppends[0].Value};");
+                builder.AppendLine("    } else {");
+                var sourceItemName = $"__pipelineItem{this.result}_0";
+                builder.AppendLine($"        var {sourceItemName}={spanName}[0];");
+                var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
+                builder.AppendLine($"        {actualVariableName}={currentName};");
+                builder.AppendLine("    }");
+                builder.AppendLine("}");
+                return builder.ToString().TrimEnd();
+            }
+            builder.AppendLine($"        throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+            builder.AppendLine("    }");
+            var directItemName = $"__pipelineItem{this.result}_0";
+            builder.AppendLine($"    var {directItemName}={spanName}[0];");
+            var directCurrentName = this.AppendDirectSpanPipelineScalarStages(builder,directItemName,"    ",sliceIndices);
+            builder.AppendLine($"    {actualVariableName}={directCurrentName};");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        var foundName = $"__pipelineFound{this.result}";
+        var indexName = $"__pipelineIndex{this.result}";
+        var loopSourceItemName = $"__pipelineItem{this.result}_0";
         builder.AppendLine($"var {foundName}=false;");
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
-        this.AppendDirectSpanPipelineScalarInit(builder,"    ");
-        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
-        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
-        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ");
-        builder.AppendLine($"        {actualVariableName}={currentName};");
+        this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
+        this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
+        if(isReversed) {
+            builder.AppendLine($"    for(var {indexName}={spanName}.Length-1;{indexName}>=0;{indexName}--) {{");
+        } else {
+            builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        }
+        builder.AppendLine($"        var {loopSourceItemName}={spanName}[{indexName}];");
+        var currentLoopName = this.AppendDirectSpanPipelineScalarStages(builder,loopSourceItemName,"        ",sliceIndices);
+        builder.AppendLine($"        {actualVariableName}={currentLoopName};");
         builder.AppendLine($"        {foundName}=true;");
         builder.AppendLine("        break;");
         builder.AppendLine("    }");
@@ -384,17 +641,64 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             return null;
         }
         var spanName = $"__pipelineSpan{this.result}";
-        var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sliceIndices = this.GetPrefixSliceStageIndices();
+        var hasFilter = pipeline.Stages.Any(this.IsDirectSpanFilterStage);
+        var isReversed = this.IsPrefixReversed();
+        var prefixPrepends = this.GetPrefixPrependStages();
+        var prefixAppends = this.GetPrefixAppendStages();
         var builder = new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+        if(!hasFilter) {
+            builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+            builder.AppendLine($"    var {spanName}={directSpanExpression};");
+            this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
+            if(prefixPrepends.Count>0) {
+                builder.AppendLine($"    {actualVariableName}={prefixPrepends[0].Value};");
+                builder.AppendLine("}");
+                return builder.ToString().TrimEnd();
+            }
+            if(isReversed) {
+                if(prefixAppends.Count>0) {
+                    builder.AppendLine($"    {actualVariableName}={prefixAppends[prefixAppends.Count-1].Value};");
+                    builder.AppendLine("}");
+                    return builder.ToString().TrimEnd();
+                }
+                builder.AppendLine($"    if({spanName}.Length>0) {{");
+                var sourceItemName = $"__pipelineItem{this.result}_0";
+                builder.AppendLine($"        var {sourceItemName}={spanName}[{spanName}.Length-1];");
+                var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
+                builder.AppendLine($"        {actualVariableName}={currentName};");
+                builder.AppendLine("    }");
+                builder.AppendLine("}");
+                return builder.ToString().TrimEnd();
+            }
+            builder.AppendLine($"    if({spanName}.Length>0) {{");
+            var directItemName = $"__pipelineItem{this.result}_0";
+            builder.AppendLine($"        var {directItemName}={spanName}[0];");
+            var directCurrentName = this.AppendDirectSpanPipelineScalarStages(builder,directItemName,"        ",sliceIndices);
+            builder.AppendLine($"        {actualVariableName}={directCurrentName};");
+            if(prefixAppends.Count>0) {
+                builder.AppendLine("    } else {");
+                builder.AppendLine($"        {actualVariableName}={prefixAppends[0].Value};");
+            }
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        var indexName = $"__pipelineIndex{this.result}";
+        var loopSourceItemName = $"__pipelineItem{this.result}_0";
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
-        this.AppendDirectSpanPipelineScalarInit(builder,"    ");
-        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
-        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
-        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ");
-        builder.AppendLine($"        {actualVariableName}={currentName};");
+        this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
+        this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
+        if(isReversed) {
+            builder.AppendLine($"    for(var {indexName}={spanName}.Length-1;{indexName}>=0;{indexName}--) {{");
+        } else {
+            builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        }
+        builder.AppendLine($"        var {loopSourceItemName}={spanName}[{indexName}];");
+        var currentLoopName = this.AppendDirectSpanPipelineScalarStages(builder,loopSourceItemName,"        ",sliceIndices);
+        builder.AppendLine($"        {actualVariableName}={currentLoopName};");
         builder.AppendLine("        break;");
         builder.AppendLine("    }");
         builder.AppendLine("}");
@@ -407,16 +711,26 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             return null;
         }
         var spanName = $"__pipelineSpan{this.result}";
+        var sliceIndices = this.GetPrefixSliceStageIndices();
         var indexName = $"__pipelineIndex{this.result}";
         var sourceItemName = $"__pipelineItem{this.result}_0";
+        var prefixPrepends = this.GetPrefixPrependStages();
+        var prefixAppends = this.GetPrefixAppendStages();
         var builder = new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
-        this.AppendDirectSpanPipelineScalarInit(builder,"    ");
+        this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
+        this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
+        foreach(var prep in prefixPrepends) {
+            builder.AppendLine($"    {actualVariableName}+={prep.Value};");
+        }
+        foreach(var app in prefixAppends) {
+            builder.AppendLine($"    {actualVariableName}+={app.Value};");
+        }
         builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
         builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
-        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ");
+        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
         builder.AppendLine($"        {actualVariableName}+={currentName};");
         builder.AppendLine("    }");
         builder.AppendLine("}");
@@ -487,19 +801,60 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             return null;
         }
         var spanName = $"__pipelineSpan{this.result}";
+        var sliceIndices = this.GetPrefixSliceStageIndices();
+        var hasFilter = pipeline.Stages.Any(this.IsDirectSpanFilterStage);
+        var isReversed = this.IsPrefixReversed();
+        var prefixPrepends = this.GetPrefixPrependStages();
+        var prefixAppends = this.GetPrefixAppendStages();
+        var extraCount = prefixPrepends.Count+prefixAppends.Count;
         var indexName = $"__pipelineIndex{this.result}";
         var sourceItemName = $"__pipelineItem{this.result}_0";
         var builder = new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName};");
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
-        this.AppendDirectSpanPipelineScalarInit(builder,"    ");
+        this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
+        if(!hasFilter) {
+            if(extraCount>0) {
+                builder.AppendLine($"    {actualVariableName}=new({spanName}.Length+{extraCount});");
+            } else {
+                builder.AppendLine($"    {actualVariableName}=new({spanName}.Length);");
+            }
+            foreach(var prep in prefixPrepends) {
+                builder.AppendLine($"    {actualVariableName}.Add({prep.Value});");
+            }
+            if(isReversed) {
+                builder.AppendLine($"    for(var {indexName}={spanName}.Length-1;{indexName}>=0;{indexName}--) {{");
+            } else {
+                builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+            }
+            builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+            var currentDirectName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
+            builder.AppendLine($"        {actualVariableName}.Add({currentDirectName});");
+            builder.AppendLine("    }");
+            foreach(var app in prefixAppends) {
+                builder.AppendLine($"    {actualVariableName}.Add({app.Value});");
+            }
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
         builder.AppendLine($"    {actualVariableName}=new();");
-        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        foreach(var prep in prefixPrepends) {
+            builder.AppendLine($"    {actualVariableName}.Add({prep.Value});");
+        }
+        if(isReversed) {
+            builder.AppendLine($"    for(var {indexName}={spanName}.Length-1;{indexName}>=0;{indexName}--) {{");
+        } else {
+            builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        }
         builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
-        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ");
+        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
         builder.AppendLine($"        {actualVariableName}.Add({currentName});");
         builder.AppendLine("    }");
+        foreach(var app in prefixAppends) {
+            builder.AppendLine($"    {actualVariableName}.Add({app.Value});");
+        }
         builder.AppendLine("}");
         return builder.ToString().TrimEnd();
     }
@@ -510,26 +865,80 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             return null;
         }
         var spanName = $"__pipelineSpan{this.result}";
+        var sliceIndices = this.GetPrefixSliceStageIndices();
+        var hasFilter = pipeline.Stages.Any(this.IsDirectSpanFilterStage);
+        var isReversed = this.IsPrefixReversed();
+        var prefixPrepends = this.GetPrefixPrependStages();
+        var prefixAppends = this.GetPrefixAppendStages();
+        var extraCount = prefixPrepends.Count+prefixAppends.Count;
         var indexName = $"__pipelineIndex{this.result}";
-        var bufferName = $"__pipelineBuffer{this.result}";
-        var countName = $"__pipelineCount{this.result}";
+        var dstIndexName = $"__pipelineDstIndex{this.result}";
+        var countVarName = $"__pipelineTotalCount{this.result}";
         var sourceItemName = $"__pipelineItem{this.result}_0";
         var builder = new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName};");
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
-        this.AppendDirectSpanPipelineScalarInit(builder,"    ");
-        builder.AppendLine($"    if({spanName}.Length==0) {{");
+        this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
+        if(!hasFilter) {
+            if(extraCount>0) {
+                builder.AppendLine($"    var {countVarName}={spanName}.Length+{extraCount};");
+            } else {
+                builder.AppendLine($"    var {countVarName}={spanName}.Length;");
+            }
+            builder.AppendLine($"    if({countVarName}==0) {{");
+            builder.AppendLine($"        {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+            builder.AppendLine("    } else {");
+            builder.AppendLine($"        {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({countVarName});");
+            builder.AppendLine($"        var {dstIndexName}=0;");
+            foreach(var prep in prefixPrepends) {
+                builder.AppendLine($"        {actualVariableName}[{dstIndexName}++]={prep.Value};");
+            }
+            builder.AppendLine($"        for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+            if(isReversed) {
+                builder.AppendLine($"            var {sourceItemName}={spanName}[{spanName}.Length-1-{indexName}];");
+            } else {
+                builder.AppendLine($"            var {sourceItemName}={spanName}[{indexName}];");
+            }
+            var currentDirectName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"            ",sliceIndices);
+            builder.AppendLine($"            {actualVariableName}[{dstIndexName}++]={currentDirectName};");
+            builder.AppendLine("        }");
+            foreach(var app in prefixAppends) {
+                builder.AppendLine($"        {actualVariableName}[{dstIndexName}++]={app.Value};");
+            }
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
+        var bufferName = $"__pipelineBuffer{this.result}";
+        var countName = $"__pipelineCount{this.result}";
+        if(extraCount>0) {
+            builder.AppendLine($"    var {countVarName}={spanName}.Length+{extraCount};");
+        } else {
+            builder.AppendLine($"    var {countVarName}={spanName}.Length;");
+        }
+        builder.AppendLine($"    if({countVarName}==0) {{");
         builder.AppendLine($"        {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
         builder.AppendLine("    } else {");
-        builder.AppendLine($"        var {bufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({spanName}.Length);");
+        builder.AppendLine($"        var {bufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({countVarName});");
         builder.AppendLine($"        var {countName}=0;");
         builder.AppendLine("        try {");
-        builder.AppendLine($"            for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        foreach(var prep in prefixPrepends) {
+            builder.AppendLine($"            {bufferName}[{countName}++]={prep.Value};");
+        }
+        if(isReversed) {
+            builder.AppendLine($"            for(var {indexName}={spanName}.Length-1;{indexName}>=0;{indexName}--) {{");
+        } else {
+            builder.AppendLine($"            for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        }
         builder.AppendLine($"                var {sourceItemName}={spanName}[{indexName}];");
-        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"                ");
+        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"                ",sliceIndices);
         builder.AppendLine($"                {bufferName}[{countName}++]={currentName};");
         builder.AppendLine("            }");
+        foreach(var app in prefixAppends) {
+            builder.AppendLine($"            {bufferName}[{countName}++]={app.Value};");
+        }
         builder.AppendLine($"            if({countName}==0) {{");
         builder.AppendLine($"                {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
         builder.AppendLine("            } else {");
