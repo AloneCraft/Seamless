@@ -413,7 +413,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var count = 0;
         for(var i = 0;i<pipeline.Stages.Count;i++) {
             var st = pipeline.Stages[i];
-            if(st.Kind is PipelineStageKind.Union or PipelineStageKind.UnionBy or PipelineStageKind.Concat) {
+            if(st.Kind is PipelineStageKind.Union or PipelineStageKind.UnionBy or PipelineStageKind.Concat
+                or PipelineStageKind.Intersect or PipelineStageKind.IntersectBy or PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
                 binaryStage=st;
                 count++;
             } else if(st.Kind is not (PipelineStageKind.AsEnumerable or PipelineStageKind.Cast)) {
@@ -474,53 +475,181 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var secondSpanName = $"__secondSpan{this.result}";
         var builder = new StringBuilder();
 
-        if(terminalKind==PipelineTerminalKind.Any) {
-            builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
+        if(binaryStage!.Kind is PipelineStageKind.Union or PipelineStageKind.UnionBy or PipelineStageKind.Concat) {
+            if(terminalKind==PipelineTerminalKind.Any) {
+                builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
+                builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
+                builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
+                builder.AppendLine($"    if({firstSpanName}.Length>0) {{");
+                builder.AppendLine($"        {actualVariableName}=true;");
+                builder.AppendLine("    } else {");
+                builder.AppendLine($"        using(var {secondSrcName}={secondSrcExpr}) {{");
+                builder.AppendLine($"            var {secondSpanName}={secondSpanExpr};");
+                builder.AppendLine($"            {actualVariableName}={secondSpanName}.Length>0;");
+                builder.AppendLine("        }");
+                builder.AppendLine("    }");
+                builder.AppendLine("}");
+                return builder.ToString().TrimEnd();
+            }
+
+            if(terminalKind==PipelineTerminalKind.Count&&binaryStage.Kind==PipelineStageKind.Concat) {
+                builder.AppendLine($"{actualTypeName} {actualVariableName}=0;");
+                builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
+                builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
+                builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
+                builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
+                builder.AppendLine($"        {actualVariableName}={firstSpanName}.Length+{secondSpanName}.Length;");
+                builder.AppendLine("    }");
+                builder.AppendLine("}");
+                return builder.ToString().TrimEnd();
+            }
+
+            if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
+                builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+                builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
+                builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
+                builder.AppendLine($"    if({firstSpanName}.Length>0) {{");
+                builder.AppendLine($"        {actualVariableName}={firstSpanName}[0];");
+                builder.AppendLine("    } else {");
+                builder.AppendLine($"        using(var {secondSrcName}={secondSrcExpr}) {{");
+                builder.AppendLine($"            var {secondSpanName}={secondSpanExpr};");
+                builder.AppendLine($"            if({secondSpanName}.Length>0) {{");
+                builder.AppendLine($"                {actualVariableName}={secondSpanName}[0];");
+                if(terminalKind==PipelineTerminalKind.First) {
+                    builder.AppendLine("            } else {");
+                    builder.AppendLine("                throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+                }
+                builder.AppendLine("            }");
+                builder.AppendLine("        }");
+                builder.AppendLine("    }");
+                builder.AppendLine("}");
+                return builder.ToString().TrimEnd();
+            }
+            return null;
+        }
+
+        var keyType = binaryStage.KeyType;
+        if(keyType is null) {
+            if(binaryStage.Func?.ReturnTypeName is { } retType) {
+                keyType=retType;
+            } else {
+                keyType=pipeline.ElementType;
+            }
+        }
+        var foundName = $"__found{this.result}";
+
+        if(binaryStage.Kind is PipelineStageKind.Intersect or PipelineStageKind.IntersectBy) {
+            if(terminalKind is not (PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault)) {
+                return null;
+            }
+            if(terminalKind==PipelineTerminalKind.Any) {
+                builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
+            } else {
+                builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+            }
+            builder.AppendLine($"var {foundName}=false;");
             builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
             builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
             builder.AppendLine($"    if({firstSpanName}.Length>0) {{");
-            builder.AppendLine($"        {actualVariableName}=true;");
-            builder.AppendLine("    } else {");
-            builder.AppendLine($"        using(var {secondSrcName}={secondSrcExpr}) {{");
-            builder.AppendLine($"            var {secondSpanName}={secondSpanExpr};");
-            builder.AppendLine($"            {actualVariableName}={secondSpanName}.Length>0;");
-            builder.AppendLine("        }");
-            builder.AppendLine("    }");
-            builder.AppendLine("}");
-            return builder.ToString().TrimEnd();
-        }
-
-        if(terminalKind==PipelineTerminalKind.Count&&binaryStage!.Kind==PipelineStageKind.Concat) {
-            builder.AppendLine($"{actualTypeName} {actualVariableName}=0;");
-            builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
-            builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
-            builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
-            builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
-            builder.AppendLine($"        {actualVariableName}={firstSpanName}.Length+{secondSpanName}.Length;");
-            builder.AppendLine("    }");
-            builder.AppendLine("}");
-            return builder.ToString().TrimEnd();
-        }
-
-        if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
-            builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
-            builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
-            builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
-            builder.AppendLine($"    if({firstSpanName}.Length>0) {{");
-            builder.AppendLine($"        {actualVariableName}={firstSpanName}[0];");
-            builder.AppendLine("    } else {");
             builder.AppendLine($"        using(var {secondSrcName}={secondSrcExpr}) {{");
             builder.AppendLine($"            var {secondSpanName}={secondSpanExpr};");
             builder.AppendLine($"            if({secondSpanName}.Length>0) {{");
-            builder.AppendLine($"                {actualVariableName}={secondSpanName}[0];");
-            if(terminalKind==PipelineTerminalKind.First) {
-                builder.AppendLine("            } else {");
-                builder.AppendLine("                throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+            builder.AppendLine($"                var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>({secondSpanName}.Length);");
+            builder.AppendLine($"                for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
+            if(binaryStage.Func is not null) {
+                builder.AppendLine($"                    {keyType} __k{this.result}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"IntersectBy",$"__k{this.result}",$"{secondSpanName}[__i{this.result}]"),"                    "));
+                builder.AppendLine($"                    __set{this.result}.Add(__k{this.result});");
+            } else {
+                builder.AppendLine($"                    __set{this.result}.Add({secondSpanName}[__i{this.result}]);");
             }
+            builder.AppendLine("                }");
+            builder.AppendLine($"                for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
+            builder.AppendLine($"                    var __item{this.result}={firstSpanName}[__i{this.result}];");
+            if(binaryStage.Func is not null) {
+                builder.AppendLine($"                    {keyType} __k{this.result}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"IntersectBy",$"__k{this.result}",$"__item{this.result}"),"                    "));
+                builder.AppendLine($"                    if(__set{this.result}.Contains(__k{this.result})) {{");
+            } else {
+                builder.AppendLine($"                    if(__set{this.result}.Contains(__item{this.result})) {{");
+            }
+            if(terminalKind==PipelineTerminalKind.Any) {
+                builder.AppendLine($"                        {actualVariableName}=true;");
+            } else {
+                builder.AppendLine($"                        {actualVariableName}=__item{this.result};");
+            }
+            builder.AppendLine($"                        {foundName}=true;");
+            builder.AppendLine("                        break;");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                }");
             builder.AppendLine("            }");
             builder.AppendLine("        }");
             builder.AppendLine("    }");
             builder.AppendLine("}");
+            if(terminalKind==PipelineTerminalKind.First) {
+                builder.AppendLine($"if(!{foundName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+            }
+            return builder.ToString().TrimEnd();
+        }
+
+        if(binaryStage.Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
+            if(terminalKind is not (PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault)) {
+                return null;
+            }
+            if(terminalKind==PipelineTerminalKind.Any) {
+                builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
+            } else {
+                builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+            }
+            builder.AppendLine($"var {foundName}=false;");
+            builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
+            builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
+            builder.AppendLine($"    if({firstSpanName}.Length>0) {{");
+            builder.AppendLine($"        using(var {secondSrcName}={secondSrcExpr}) {{");
+            builder.AppendLine($"            var {secondSpanName}={secondSpanExpr};");
+            builder.AppendLine($"            if({secondSpanName}.Length==0) {{");
+            if(terminalKind==PipelineTerminalKind.Any) {
+                builder.AppendLine($"                {actualVariableName}=true;");
+            } else {
+                builder.AppendLine($"                {actualVariableName}={firstSpanName}[0];");
+            }
+            builder.AppendLine($"                {foundName}=true;");
+            builder.AppendLine("            } else {");
+            builder.AppendLine($"                var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>({secondSpanName}.Length);");
+            builder.AppendLine($"                for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
+            if(binaryStage.Func is not null) {
+                builder.AppendLine($"                    {keyType} __k{this.result}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"ExceptBy",$"__k{this.result}",$"{secondSpanName}[__i{this.result}]"),"                    "));
+                builder.AppendLine($"                    __set{this.result}.Add(__k{this.result});");
+            } else {
+                builder.AppendLine($"                    __set{this.result}.Add({secondSpanName}[__i{this.result}]);");
+            }
+            builder.AppendLine("                }");
+            builder.AppendLine($"                for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
+            builder.AppendLine($"                    var __item{this.result}={firstSpanName}[__i{this.result}];");
+            if(binaryStage.Func is not null) {
+                builder.AppendLine($"                    {keyType} __k{this.result}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"ExceptBy",$"__k{this.result}",$"__item{this.result}"),"                    "));
+                builder.AppendLine($"                    if(!__set{this.result}.Contains(__k{this.result})) {{");
+            } else {
+                builder.AppendLine($"                    if(!__set{this.result}.Contains(__item{this.result})) {{");
+            }
+            if(terminalKind==PipelineTerminalKind.Any) {
+                builder.AppendLine($"                        {actualVariableName}=true;");
+            } else {
+                builder.AppendLine($"                        {actualVariableName}=__item{this.result};");
+            }
+            builder.AppendLine($"                        {foundName}=true;");
+            builder.AppendLine("                        break;");
+            builder.AppendLine("                    }");
+            builder.AppendLine("                }");
+            builder.AppendLine("            }");
+            builder.AppendLine("        }");
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+            if(terminalKind==PipelineTerminalKind.First) {
+                builder.AppendLine($"if(!{foundName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+            }
             return builder.ToString().TrimEnd();
         }
 
