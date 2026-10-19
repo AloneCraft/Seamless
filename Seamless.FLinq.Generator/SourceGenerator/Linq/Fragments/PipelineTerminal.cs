@@ -328,6 +328,18 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return seenOrder;
     }
 
+    private bool TryGetSingleDefaultIfEmptyStage(out PipelineStage? defaultIfEmptyStage) {
+        defaultIfEmptyStage=null;
+        var count = 0;
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            if(pipeline.Stages[i].Kind==PipelineStageKind.DefaultIfEmpty) {
+                defaultIfEmptyStage=pipeline.Stages[i];
+                count++;
+            }
+        }
+        return count==1;
+    }
+
     private bool CanUseDirectSpanPipelineScalarScan() {
         var isTop1Order = this.CanUseDirectSpanPipelineTop1Order(out var orderIdx);
         var canIgnoreOrder = this.CanIgnoreOrderForTerminal();
@@ -346,6 +358,11 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 case PipelineStageKind.Cast:
                 case PipelineStageKind.Take:
                 case PipelineStageKind.Skip:
+                    break;
+                case PipelineStageKind.DefaultIfEmpty:
+                    if(terminalKind is not (PipelineTerminalKind.Count or PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault)) {
+                        return false;
+                    }
                     break;
                 case PipelineStageKind.Reverse:
                 case PipelineStageKind.TakeLast:
@@ -501,6 +518,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 case PipelineStageKind.OrderByDescending:
                 case PipelineStageKind.ThenBy:
                 case PipelineStageKind.ThenByDescending:
+                case PipelineStageKind.DefaultIfEmpty:
                     break;
                 case PipelineStageKind.Cast: {
                     var nextName = $"__pipelineItem{this.result}_{index+1}";
@@ -583,6 +601,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
             return null;
         }
+        var hasDefaultIfEmpty = this.TryGetSingleDefaultIfEmptyStage(out _);
         var spanName = $"__pipelineSpan{this.result}";
         var sliceIndices = this.GetPrefixSliceStageIndices();
         var hasFilter = pipeline.Stages.Any(this.IsDirectSpanFilterStage);
@@ -600,6 +619,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             } else {
                 builder.AppendLine($"    {actualVariableName}={spanName}.Length;");
             }
+            if(hasDefaultIfEmpty) {
+                builder.AppendLine($"    if({actualVariableName}==0) {actualVariableName}=1;");
+            }
             builder.AppendLine("}");
             return builder.ToString().TrimEnd();
         }
@@ -612,10 +634,16 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"        {actualVariableName}++;");
         builder.AppendLine("    }");
         builder.AppendLine("}");
+        if(hasDefaultIfEmpty) {
+            builder.AppendLine($"if({actualVariableName}==0) {actualVariableName}=1;");
+        }
         return builder.ToString().TrimEnd();
     }
 
     private string? RenderDirectSpanPipelineAny(string actualVariableName,string actualTypeName) {
+        if(this.TryGetSingleDefaultIfEmptyStage(out _)) {
+            return $"{actualTypeName} {actualVariableName}=true;";
+        }
         var sourceName = $"__pipelineSrc{this.result}";
         if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
             return null;
@@ -784,6 +812,11 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var isReversed = this.IsPrefixReversed();
         var prefixPrepends = this.GetPrefixPrependStages();
         var prefixAppends = this.GetPrefixAppendStages();
+        var hasDefaultIfEmpty = this.TryGetSingleDefaultIfEmptyStage(out var defaultIfEmptyStage);
+        var defaultValue = defaultIfEmptyStage?.Value;
+        if(defaultValue is null) {
+            defaultValue="default!";
+        }
         var builder = new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
         if(!hasFilter) {
@@ -802,8 +835,14 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     return builder.ToString().TrimEnd();
                 }
                 builder.AppendLine($"    if({spanName}.Length==0) {{");
-                builder.AppendLine($"        throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
-                builder.AppendLine("    }");
+                if(hasDefaultIfEmpty) {
+                    builder.AppendLine($"        {actualVariableName}={defaultValue};");
+                    builder.AppendLine("    }");
+                    return builder.ToString().TrimEnd();
+                } else {
+                    builder.AppendLine($"        throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+                    builder.AppendLine("    }");
+                }
                 var sourceItemName = $"__pipelineItem{this.result}_0";
                 builder.AppendLine($"    var {sourceItemName}={spanName}[{spanName}.Length-1];");
                 var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"    ",sliceIndices);
@@ -823,8 +862,14 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine("}");
                 return builder.ToString().TrimEnd();
             }
-            builder.AppendLine($"        throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
-            builder.AppendLine("    }");
+            if(hasDefaultIfEmpty) {
+                builder.AppendLine($"        {actualVariableName}={defaultValue};");
+                builder.AppendLine("    }");
+                return builder.ToString().TrimEnd();
+            } else {
+                builder.AppendLine($"        throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+                builder.AppendLine("    }");
+            }
             var directItemName = $"__pipelineItem{this.result}_0";
             builder.AppendLine($"    var {directItemName}={spanName}[0];");
             var directCurrentName = this.AppendDirectSpanPipelineScalarStages(builder,directItemName,"    ",sliceIndices);
@@ -852,7 +897,11 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine("        break;");
         builder.AppendLine("    }");
         builder.AppendLine("}");
-        builder.AppendLine($"if(!{foundName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+        if(hasDefaultIfEmpty) {
+            builder.AppendLine($"if(!{foundName}) {actualVariableName}={defaultValue};");
+        } else {
+            builder.AppendLine($"if(!{foundName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+        }
         return builder.ToString().TrimEnd();
     }
 
@@ -870,8 +919,17 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var isReversed = this.IsPrefixReversed();
         var prefixPrepends = this.GetPrefixPrependStages();
         var prefixAppends = this.GetPrefixAppendStages();
+        var hasDefaultIfEmpty = this.TryGetSingleDefaultIfEmptyStage(out var defaultIfEmptyStage);
+        var defaultValue = defaultIfEmptyStage?.Value;
+        if(defaultValue is null) {
+            defaultValue="default!";
+        }
         var builder = new StringBuilder();
-        builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+        if(hasDefaultIfEmpty) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}={defaultValue};");
+        } else {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+        }
         if(!hasFilter) {
             builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
             builder.AppendLine($"    var {spanName}={directSpanExpression};");
@@ -904,6 +962,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(prefixAppends.Count>0) {
                 builder.AppendLine("    } else {");
                 builder.AppendLine($"        {actualVariableName}={prefixAppends[0].Value};");
+            } else if(hasDefaultIfEmpty) {
+                builder.AppendLine("    } else {");
+                builder.AppendLine($"        {actualVariableName}={defaultValue};");
             }
             builder.AppendLine("    }");
             builder.AppendLine("}");
