@@ -33,6 +33,17 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
     public override string GetEnumeratorConstructor => this.CanSkipLookup()
         ? $"DrainInner(this.{this.innerEnumerator});"
         : $"this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});";
+    public override string? NonEnumeratedCountExpression =>
+        this.InnerEnumerationIsObservable() ? null : this.outerSource.NonEnumeratedCountExpression;
+    protected override string GetTryGetNonEnumeratedCountBody => this.InnerEnumerationIsObservable()
+        ? DefaultTryGetNonEnumeratedCountBody
+        : $$"""
+            if(this.{{this.e}}.TryGetNonEnumeratedCount(out count)){
+                return true;
+            }
+            count=0;
+            return false;
+            """;
     public override string GetEnumeratorFields => $$"""
         private global::Seamless.Linq.Lookup<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}>? {{this.lookup}};
         private int {{this.state}};
