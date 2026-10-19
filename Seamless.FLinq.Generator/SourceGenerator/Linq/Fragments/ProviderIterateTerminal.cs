@@ -72,7 +72,7 @@ internal abstract class ProviderNativeExecutionBase(
 
     protected static bool CanCreateFor(PipelineEnumerable pipeline,PipelineTerminalKind terminalKind) =>
         terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray
-            or PipelineTerminalKind.Count or PipelineTerminalKind.Any or PipelineTerminalKind.First
+            or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.First
             or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum
         &&pipeline.Stages.All(static stage => PipelineStageCapabilityTable.SupportsProviderNativeIterate(stage.Kind))
         &&!pipeline.Stages.Any(static stage => stage.Func is { RequiresStatementInlining: true });
@@ -99,6 +99,7 @@ internal abstract class ProviderNativeExecutionBase(
     protected static ProviderIterateTerminalKind ToProviderIterateTerminalKind(PipelineTerminalKind terminalKind) =>
         terminalKind switch {
             PipelineTerminalKind.Count => ProviderIterateTerminalKind.Count,
+            PipelineTerminalKind.LongCount => ProviderIterateTerminalKind.Count,
             PipelineTerminalKind.Any => ProviderIterateTerminalKind.Any,
             PipelineTerminalKind.First => ProviderIterateTerminalKind.First,
             PipelineTerminalKind.ToList => ProviderIterateTerminalKind.ToList,

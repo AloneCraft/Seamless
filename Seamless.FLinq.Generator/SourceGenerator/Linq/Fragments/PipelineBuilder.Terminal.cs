@@ -44,6 +44,9 @@ internal static partial class PipelineBuilder {
             case "Count":
                 terminalKind=PipelineTerminalKind.Count;
                 return true;
+            case "LongCount":
+                terminalKind=PipelineTerminalKind.LongCount;
+                return true;
             case "Any":
                 terminalKind=PipelineTerminalKind.Any;
                 return true;

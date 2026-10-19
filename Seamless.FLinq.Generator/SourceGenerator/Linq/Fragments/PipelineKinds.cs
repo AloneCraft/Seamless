@@ -38,6 +38,7 @@ internal enum PipelineTerminalKind {
     ToList,
     ToArray,
     Count,
+    LongCount,
     Any,
     First,
     FirstOrDefault,
