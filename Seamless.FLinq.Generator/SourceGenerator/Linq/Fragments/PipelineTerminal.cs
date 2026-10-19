@@ -243,10 +243,80 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
     }
 
+    private static bool IsPrimitiveComparableType(string typeName) {
+        switch(typeName) {
+            case "int":
+            case "long":
+            case "short":
+            case "byte":
+            case "sbyte":
+            case "uint":
+            case "ulong":
+            case "ushort":
+            case "float":
+            case "double":
+            case "decimal":
+            case "char":
+            case "System.Int32":
+            case "System.Int64":
+            case "System.Int16":
+            case "System.Byte":
+            case "System.SByte":
+            case "System.UInt32":
+            case "System.UInt64":
+            case "System.UInt16":
+            case "System.Single":
+            case "System.Double":
+            case "System.Decimal":
+            case "System.Char":
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private bool CanUseDirectSpanPipelineTop1Order(out int orderStageIndex) {
+        orderStageIndex=-1;
+        if(terminalKind is not (PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault)) {
+            return false;
+        }
+        var count = 0;
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            var stage = pipeline.Stages[i];
+            if(stage.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending) {
+                if(stage.UsesIndex) {
+                    return false;
+                }
+                if(stage.Func is { } func&&!CanUseDirectSpanPipelineFunc(func)) {
+                    return false;
+                }
+                orderStageIndex=i;
+                count++;
+            }
+        }
+        if(count!=1) {
+            orderStageIndex=-1;
+            return false;
+        }
+        for(var i = orderStageIndex+1;i<pipeline.Stages.Count;i++) {
+            var kind = pipeline.Stages[i].Kind;
+            if(kind is not (PipelineStageKind.Select or PipelineStageKind.Cast or PipelineStageKind.AsEnumerable)) {
+                orderStageIndex=-1;
+                return false;
+            }
+        }
+        return true;
+    }
+
     private bool CanUseDirectSpanPipelineScalarScan() {
+        var isTop1Order = this.CanUseDirectSpanPipelineTop1Order(out var orderIdx);
         var seenFilter = false;
         var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any;
-        foreach(var stage in pipeline.Stages) {
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            var stage = pipeline.Stages[i];
+            if(isTop1Order&&i==orderIdx) {
+                continue;
+            }
             switch(stage.Kind) {
                 case PipelineStageKind.AsEnumerable:
                 case PipelineStageKind.Cast:
@@ -391,9 +461,12 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
     }
 
-    private string AppendDirectSpanPipelineScalarStages(StringBuilder builder,string currentName,string indent,HashSet<int> sliceIndices) {
+    private string AppendDirectSpanPipelineScalarStages(StringBuilder builder,string currentName,string indent,HashSet<int> sliceIndices,int startIndex=0,int endIndex=-1) {
+        if(endIndex<0) {
+            endIndex=pipeline.Stages.Count;
+        }
         var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any;
-        for(var index = 0;index<pipeline.Stages.Count;index++) {
+        for(var index = startIndex;index<endIndex;index++) {
             if(sliceIndices.Contains(index)) {
                 continue;
             }
@@ -552,7 +625,127 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return builder.ToString().TrimEnd();
     }
 
+    private string? RenderDirectSpanPipelineTop1Order(string actualVariableName,string actualTypeName,int orderStageIndex) {
+        var sourceName = $"__pipelineSrc{this.result}";
+        if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
+            return null;
+        }
+        var spanName = $"__pipelineSpan{this.result}";
+        var sliceIndices = this.GetPrefixSliceStageIndices();
+        var isReversed = this.IsPrefixReversed();
+        var orderStage = pipeline.Stages[orderStageIndex];
+        var isDescending = orderStage.Kind==PipelineStageKind.OrderByDescending;
+        string itemBeforeOrderType;
+        if(orderStageIndex==0) {
+            itemBeforeOrderType=pipeline.ElementType;
+        } else {
+            itemBeforeOrderType=pipeline.Stages[orderStageIndex-1].OutputType;
+        }
+        var keyType = orderStage.KeyType;
+        if(keyType is null) {
+            if(orderStage.Func?.ReturnTypeName is { } retType) {
+                keyType=retType;
+            } else {
+                keyType=itemBeforeOrderType;
+            }
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+        var hasMinName = $"__pipelineHasTop{this.result}";
+        var bestItemName = $"__pipelineBestItem{this.result}";
+        var bestKeyName = $"__pipelineBestKey{this.result}";
+        var indexName = $"__pipelineIndex{this.result}";
+        var sourceItemName = $"__pipelineItem{this.result}_0";
+
+        builder.AppendLine($"var {hasMinName}=false;");
+        builder.AppendLine($"{itemBeforeOrderType} {bestItemName}=default!;");
+        builder.AppendLine($"{keyType} {bestKeyName}=default!;");
+
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
+        this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
+
+        if(isReversed) {
+            builder.AppendLine($"    for(var {indexName}={spanName}.Length-1;{indexName}>=0;{indexName}--) {{");
+        } else {
+            builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        }
+        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+        var currentBeforeOrder = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices,0,orderStageIndex);
+
+        var currentKeyName = $"__pipelineKey{this.result}_{orderStageIndex+1}";
+        builder.AppendLine($"        {keyType} {currentKeyName}=default!;");
+        if(orderStage.Func is not null) {
+            builder.AppendLine(IndentLines(this.FuncAssignStatic(orderStage.Func,nameof(PipelineStageKind.OrderBy),currentKeyName,currentBeforeOrder),"        "));
+        } else {
+            builder.AppendLine($"        {currentKeyName}={currentBeforeOrder};");
+        }
+
+        string comparisonExpr;
+        var hasCustomComparer = orderStage.Value is not null and not "null";
+        var isPrimitive = IsPrimitiveComparableType(keyType);
+        if(hasCustomComparer) {
+            if(isDescending) {
+                comparisonExpr = $"({orderStage.Value}.Compare({currentKeyName},{bestKeyName})>0)";
+            } else {
+                comparisonExpr = $"({orderStage.Value}.Compare({currentKeyName},{bestKeyName})<0)";
+            }
+        } else if(isPrimitive) {
+            if(isDescending) {
+                comparisonExpr = $"{currentKeyName}>{bestKeyName}";
+            } else {
+                comparisonExpr = $"{currentKeyName}<{bestKeyName}";
+            }
+        } else {
+            if(isDescending) {
+                comparisonExpr = $"(global::System.Collections.Generic.Comparer<{keyType}>.Default.Compare({currentKeyName},{bestKeyName})>0)";
+            } else {
+                comparisonExpr = $"(global::System.Collections.Generic.Comparer<{keyType}>.Default.Compare({currentKeyName},{bestKeyName})<0)";
+            }
+        }
+
+        builder.AppendLine($"        if(!{hasMinName}) {{");
+        builder.AppendLine($"            {hasMinName}=true;");
+        builder.AppendLine($"            {bestKeyName}={currentKeyName};");
+        builder.AppendLine($"            {bestItemName}={currentBeforeOrder};");
+        builder.AppendLine($"        }} else if({comparisonExpr}) {{");
+        builder.AppendLine($"            {bestKeyName}={currentKeyName};");
+        builder.AppendLine($"            {bestItemName}={currentBeforeOrder};");
+        builder.AppendLine($"        }}");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+
+        if(terminalKind==PipelineTerminalKind.First) {
+            builder.AppendLine($"if(!{hasMinName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+        }
+
+        builder.AppendLine($"if({hasMinName}) {{");
+        var afterItem = bestItemName;
+        for(var i = orderStageIndex+1;i<pipeline.Stages.Count;i++) {
+            var st = pipeline.Stages[i];
+            if(st.Kind==PipelineStageKind.Cast) {
+                var nextItem = $"__pipelineItem{this.result}_{i+1}";
+                builder.AppendLine($"    var {nextItem}=({st.OutputType})(object?){afterItem};");
+                afterItem=nextItem;
+            } else if(st.Kind==PipelineStageKind.Select) {
+                var nextItem = $"__pipelineItem{this.result}_{i+1}";
+                builder.AppendLine($"    {st.OutputType} {nextItem}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(st.Func!,nameof(PipelineStageKind.Select),nextItem,afterItem),"    "));
+                afterItem=nextItem;
+            }
+        }
+        builder.AppendLine($"    {actualVariableName}={afterItem};");
+        builder.AppendLine("}");
+
+        return builder.ToString().TrimEnd();
+    }
+
     private string? RenderDirectSpanPipelineFirst(string actualVariableName,string actualTypeName) {
+        if(this.CanUseDirectSpanPipelineTop1Order(out var orderStageIndex)) {
+            return this.RenderDirectSpanPipelineTop1Order(actualVariableName,actualTypeName,orderStageIndex);
+        }
         var sourceName = $"__pipelineSrc{this.result}";
         if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
             return null;
@@ -636,6 +829,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private string? RenderDirectSpanPipelineFirstOrDefault(string actualVariableName,string actualTypeName) {
+        if(this.CanUseDirectSpanPipelineTop1Order(out var orderStageIndex)) {
+            return this.RenderDirectSpanPipelineTop1Order(actualVariableName,actualTypeName,orderStageIndex);
+        }
         var sourceName = $"__pipelineSrc{this.result}";
         if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
             return null;
