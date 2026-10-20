@@ -54,4 +54,6 @@ internal enum PipelineTerminalKind {
     Max,
     ElementAt,
     ElementAtOrDefault,
+    MinBy,
+    MaxBy,
 }
