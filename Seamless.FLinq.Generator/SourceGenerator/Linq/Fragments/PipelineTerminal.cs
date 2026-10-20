@@ -2834,6 +2834,10 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 afterStages.Add(st);
                 continue;
             }
+            if(st.Kind is PipelineStageKind.Skip or PipelineStageKind.Take&&st.Value is not null) {
+                afterStages.Add(st);
+                continue;
+            }
             return false;
         }
         return true;
@@ -3261,6 +3265,15 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var poolBufferName = $"__consumePoolBuffer{this.result}";
         var poolCountName = $"__consumePoolCount{this.result}";
         var poolNextName = $"__consumePoolNext{this.result}";
+        for(var i = 0;i<afterStages.Count;i++) {
+            var st = afterStages[i];
+            if(st.Kind==PipelineStageKind.Skip) {
+                builder.AppendLine($"var __stageSkip{this.result}_{i+1}=0;");
+            } else if(st.Kind==PipelineStageKind.Take) {
+                builder.AppendLine($"var __stageTake{this.result}_{i+1}=0;");
+            } else {
+            }
+        }
         if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
             builder.AppendLine($"{actualTypeName} {actualVariableName}=0;");
         } else if(terminalKind==PipelineTerminalKind.Any) {
@@ -3340,6 +3353,18 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     sb.AppendLine($"{indent}bool {condName}=default!;");
                     sb.AppendLine(IndentLines(this.FuncAssignStatic(st.Func!,nameof(PipelineStageKind.Where),condName,currentItem),indent));
                     sb.AppendLine($"{indent}if(!{condName}) continue;");
+                } else if(st.Kind==PipelineStageKind.Skip) {
+                    var skipVar = $"__stageSkip{this.result}_{i+1}";
+                    sb.AppendLine($"{indent}if({skipVar}<{st.Value}) {{");
+                    sb.AppendLine($"{indent}    {skipVar}++;");
+                    sb.AppendLine($"{indent}    continue;");
+                    sb.AppendLine($"{indent}}}");
+                } else if(st.Kind==PipelineStageKind.Take) {
+                    var takeVar = $"__stageTake{this.result}_{i+1}";
+                    sb.AppendLine($"{indent}if({takeVar}>={st.Value}) {{");
+                    sb.AppendLine($"{indent}    goto {endLabel};");
+                    sb.AppendLine($"{indent}}}");
+                    sb.AppendLine($"{indent}{takeVar}++;");
                 }
             }
             if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
@@ -3462,7 +3487,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine("}");
         }
 
-        if(terminalKind is PipelineTerminalKind.Any or PipelineTerminalKind.Contains or PipelineTerminalKind.All or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault) {
+        var hasEarlyExit = terminalKind is PipelineTerminalKind.Any or PipelineTerminalKind.Contains or PipelineTerminalKind.All or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault;
+        var hasTakeStage = afterStages.Any(static st => st.Kind==PipelineStageKind.Take);
+        if(hasEarlyExit||hasTakeStage) {
             builder.AppendLine($"{endLabel}:;");
             if(terminalKind==PipelineTerminalKind.First) {
                 builder.AppendLine($"if(!{foundVar}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
