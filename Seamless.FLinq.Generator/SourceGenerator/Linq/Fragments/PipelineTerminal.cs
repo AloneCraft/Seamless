@@ -2871,7 +2871,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private string? TryRenderConsumeBasedDirectScalar(string actualVariableName,string actualTypeName) {
-        if(terminalKind is not (PipelineTerminalKind.Sum or PipelineTerminalKind.Average or PipelineTerminalKind.Min or PipelineTerminalKind.Max or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy or PipelineTerminalKind.Aggregate or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.All or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault or PipelineTerminalKind.Contains or PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray)) {
+        if(terminalKind is not (PipelineTerminalKind.Sum or PipelineTerminalKind.Average or PipelineTerminalKind.Min or PipelineTerminalKind.Max or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy or PipelineTerminalKind.Aggregate or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.All or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault or PipelineTerminalKind.Contains or PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToHashSet)) {
             return null;
         }
         var placeholder = $"__FLINQ_CONSUME_{this.result}__";
@@ -2983,6 +2983,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             }
         } else if(terminalKind==PipelineTerminalKind.ToList) {
             builder.AppendLine($"{actualTypeName} {actualVariableName}=new();");
+        } else if(terminalKind==PipelineTerminalKind.ToHashSet) {
+            var comparerArg = string.IsNullOrEmpty(comparerValue) ? string.Empty : comparerValue;
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=new({comparerArg});");
         } else if(terminalKind==PipelineTerminalKind.ToArray) {
             builder.AppendLine($"{actualTypeName} {actualVariableName};");
             builder.AppendLine($"var {poolBufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent(16);");
@@ -3106,6 +3109,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 sb.AppendLine($"{indent}{actualVariableName}={currentItem};");
                 sb.Append($"{indent}{foundVar}=true;");
             } else if(terminalKind==PipelineTerminalKind.ToList) {
+                sb.Append($"{indent}{actualVariableName}.Add({currentItem});");
+            } else if(terminalKind==PipelineTerminalKind.ToHashSet) {
                 sb.Append($"{indent}{actualVariableName}.Add({currentItem});");
             } else if(terminalKind==PipelineTerminalKind.ToArray) {
                 sb.AppendLine($"{indent}if({poolCountName}=={poolBufferName}.Length) {{");
@@ -3281,6 +3286,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             }
             if(this.RenderDirectSpanPipelineToHashSetWithFilter(actualVariableName,actualTypeName) is { } directSpanFilteredHashSet) {
                 return directSpanFilteredHashSet;
+            }
+            if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } directConsumeHashSet) {
+                return directConsumeHashSet;
             }
             var comparerArg = string.IsNullOrEmpty(comparerValue) ? string.Empty : comparerValue;
             builder.AppendLine($"{actualTypeName} {actualVariableName};");
