@@ -25,7 +25,7 @@ internal static partial class PipelineBuilder {
         if(concatLikeStageCount>1) return false;
         if(concatLikeStageCount>0&&(selectManyStageCount>0||(binarySetStageCount>0&&!isMultiBinaryFused))) return false;
         if(orderStageCount>0&&(selectManyStageCount>0||concatLikeStageCount>0)) return false;
-        if(binarySetStageCount>0&&orderStageCount>0&&!CanFuseBinarySetThenOrder(stages)) return false;
+        if(binarySetStageCount>0&&orderStageCount>0&&!CanFuseBinarySetThenOrder(stages)&&!CanFuseOrderThenBinarySet(stages,terminalKind)) return false;
         if(groupByStageCount>0&&orderStageCount>0&&!CanFuseGroupByThenOrder(stages)) return false;
         if(orderStageCount>0) {
             var orderIndexes = stages.Select(static (stage,index) => (stage,index))
@@ -42,6 +42,33 @@ internal static partial class PipelineBuilder {
         }
         // 単段でも順序ステージ（Order/OrderDescending）は実バッファ＋ソートを伴うので許可する。
         if(stages.Count<2&&!allowSingleStage&&terminalKind is null&&orderStageCount==0) return false;
+        return true;
+    }
+
+    private static bool CanIgnoreOrderForTerminalKind(PipelineTerminalKind? terminalKind) =>
+        terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.Contains;
+
+    private static bool CanFuseOrderThenBinarySet(IReadOnlyList<PipelineStage> stages,PipelineTerminalKind? terminalKind) {
+        if(!CanIgnoreOrderForTerminalKind(terminalKind)) {
+            return false;
+        }
+        var setIndex = -1;
+        var orderIndex = -1;
+        for(var i = 0;i<stages.Count;i++) {
+            if(IsBinarySetStage(stages[i].Kind)) {
+                setIndex=i;
+            } else if(IsPrimaryOrderStage(stages[i].Kind)) {
+                orderIndex=i;
+            }
+        }
+        if(setIndex<0||orderIndex<0||orderIndex>setIndex) {
+            return false;
+        }
+        for(var i = 0;i<setIndex;i++) {
+            if(stages[i].Kind is PipelineStageKind.Skip or PipelineStageKind.Take or PipelineStageKind.SkipLast or PipelineStageKind.TakeLast) {
+                return false;
+            }
+        }
         return true;
     }
 

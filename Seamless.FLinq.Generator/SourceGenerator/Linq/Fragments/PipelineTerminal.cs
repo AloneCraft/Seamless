@@ -559,6 +559,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         if(count!=1||binaryStage is null) {
             return false;
         }
+        var hasPreSlices = false;
+        for(var i = 0;i<binaryStageIndex;i++) {
+            if(pipeline.Stages[i].Kind is PipelineStageKind.Skip or PipelineStageKind.Take or PipelineStageKind.SkipLast or PipelineStageKind.TakeLast) {
+                hasPreSlices=true;
+                break;
+            }
+        }
         for(var i = 0;i<binaryStageIndex;i++) {
             var st = pipeline.Stages[i];
             if(st.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast or PipelineStageKind.Skip or PipelineStageKind.Take or PipelineStageKind.SkipLast or PipelineStageKind.TakeLast) {
@@ -569,6 +576,14 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             }
             if(st.Kind is PipelineStageKind.Where or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile&&!st.UsesIndex&&st.Func is { } wf&&CanUseDirectSpanPipelineFunc(wf)) {
                 continue;
+            }
+            if(!hasPreSlices) {
+                if(st.Kind==PipelineStageKind.Distinct) {
+                    continue;
+                }
+                if(this.CanIgnoreOrderForTerminal()&&st.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending or PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending) {
+                    continue;
+                }
             }
             return false;
         }
