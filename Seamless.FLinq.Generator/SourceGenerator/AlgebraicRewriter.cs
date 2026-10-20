@@ -38,6 +38,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(this.TryReorderWhereBeforeOrder(node,out var reorderedWhere)) return reorderedWhere;
         if(this.TryFuseWherePredicate(node,out var fused)) return fused;
         if(this.TryFuseNonEmptyUnionFirst(node,out var unionFirst)) return unionFirst;
+        if(this.TryRemoveRedundantPrependAppendBeforeTerminal(node,out var simplifiedPrependAppend)) return simplifiedPrependAppend;
         if(this.TryRemoveRedundantDistinctBeforeUnion(node,out var simplifiedUnion)) return simplifiedUnion;
         if(this.TryRemoveRedundantDistinctBeforeMinMax(node,out var simplifiedMinMax)) return simplifiedMinMax;
         if(this.TryRemoveRedundantDistinctBeforeTerminal(node,out var simplifiedDistinct)) return simplifiedDistinct;
@@ -129,6 +130,42 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         }
         result=CreateCall(unionSource,fName);
         return true;
+    }
+    // 非空保証のあるソースに対する Prepend(x).Last() / Append(x).First() を簡約。
+    // src が非空なら、末尾は src.Last() と一致し、先頭は src.First() と一致する。
+    private bool TryRemoveRedundantPrependAppendBeforeTerminal(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var terminalName,out var terminalReceiver,out var terminalArgs)){
+            return false;
+        }else{
+        }
+        if(terminalArgs.Count!=0){
+            return false;
+        }else{
+        }
+        if(Strip(terminalReceiver) is not InvocationExpressionSyntax innerInv){
+            return false;
+        }else{
+        }
+        if(!this.TryGetEnumerableExtensionCall(innerInv,out var innerName,out var innerSource,out _)){
+            return false;
+        }else{
+        }
+        if((terminalName is "First" or "FirstOrDefault")&&innerName=="Append"){
+            if(this.IsGuaranteedNonEmpty(innerSource)){
+                result=CreateCall(innerSource,terminalName);
+                return true;
+            }else{
+            }
+        }else if((terminalName is "Last" or "LastOrDefault")&&innerName=="Prepend"){
+            if(this.IsGuaranteedNonEmpty(innerSource)){
+                result=CreateCall(innerSource,terminalName);
+                return true;
+            }else{
+            }
+        }else{
+        }
+        return false;
     }
     private bool IsGuaranteedNonEmpty(ExpressionSyntax expr){
         var cur=Strip(expr);
