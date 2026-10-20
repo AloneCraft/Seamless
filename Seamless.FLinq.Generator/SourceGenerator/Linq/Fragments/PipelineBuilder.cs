@@ -155,7 +155,7 @@ internal static partial class PipelineBuilder {
             // ConsumeExecutionStatement による直接インライン展開が可能な場合は、
             // PipelineTerminal を作成してフラットな直接ループ展開を行わせる。
             if(terminalKind is not null) {
-                if(sourceFragment is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+                if(sourceFragment is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase or CountBy or AggregateBy)) {
                     return false;
                 }
             } else {

@@ -173,7 +173,21 @@ public static class 拡張メソッドカタログ{
                 "Join.cs のインライン化および直接Spanループを活用してください。");
         }
 
-        // 5. GroupBy -> 集計 / OrderBy / Take
+        // 5. SelectMany -> 後段 / 前段 -> SelectMany (平坦化2重入れ子ループ)
+        if(前段名=="SelectMany"||後段名=="SelectMany"){
+            return new ペア遷移特性(
+                前段名,
+                後段名,
+                "平坦化入れ子走査融合",
+                1,
+                64,
+                true,
+                "外側シーケンスと内側シーケンスを直列2重入れ子ループで走査し後段へ直接供給",
+                $"{前段名}と{後段名}の間で中間列挙子または不要バッファが生成されている疑い。",
+                "SelectManyBase.cs のインライン展開および直接Spanループを活用してください。");
+        }
+
+        // 6. GroupBy -> 集計 / OrderBy / Take
         if(前段名.StartsWith("GroupBy",StringComparison.Ordinal)){
             if(前段名=="GroupBy_KeyOnly"){
                 return new ペア遷移特性(
@@ -225,7 +239,33 @@ public static class 拡張メソッドカタログ{
                 "PipelineEnumerable.Loop.cs および 각スカラーFragmentのCompute生成で、前段ループ内部へアキュムレータをインライン展開してください。");
         }
 
-        // 6. ストリーミング前段 -> ToArray / ToList
+        // 6. ストリーミング前段 -> CountBy_ToArray / AggregateBy_ToArray (ハッシュ集計バリアと出力展開)
+        if(後段名=="CountBy_ToArray"){
+            return new ペア遷移特性(
+                前段名,
+                後段名,
+                "ハッシュ集計+配列直接書き出し2パス融合",
+                1,
+                16,
+                false,
+                "第1ループでDictionaryへキー別件数を集計し、第2ループで確定エントリから配列へ直接書き出し",
+                $"{前段名}と{後段名}の間で余分な中間バッファや列挙子ラッパーが残存している疑い。",
+                "CountBy のインライン集計および確定エントリの直接マテリアライズを適用してください。");
+        }
+        if(後段名=="AggregateBy_ToArray"){
+            return new ペア遷移特性(
+                前段名,
+                後段名,
+                "ハッシュ畳み込み集計+配列直接書き出し融合",
+                2,
+                16,
+                false,
+                "DictionarySlimによるシード初期化と畳み込み集計を行い、確定エントリから配列へ直接書き出し",
+                $"{前段名}と{後段名}の間で余分な中間バッファや列挙子ラッパーが残存している疑い。",
+                "AggregateBy のインライン集計および確定エントリの直接マテリアライズを適用してください。");
+        }
+
+        // 7. ストリーミング前段 -> ToArray / ToList
         if(前段.分類!=メソッド分類.順序変更&&前段.分類!=メソッド分類.グループ集約&&後段.分類==メソッド分類.終端コレクション){
             return new ペア遷移特性(
                 前段名,

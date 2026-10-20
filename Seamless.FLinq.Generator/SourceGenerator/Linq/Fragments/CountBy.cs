@@ -154,11 +154,53 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
             """;
     }
 
+    private string? RenderSourceCountsConsume(string consumerName) {
+        var placeholder = $"__FLINQ_COUNTBY_SRC_{番号}__";
+        string sourceConsume;
+        try {
+            sourceConsume=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(sourceConsume)
+            ||sourceConsume.Contains("TryGetNext")
+            ||sourceConsume.Contains("GetRemainingEnumerator")
+            ||!sourceConsume.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var keyType = FuncReturnTypeName(keySelector);
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(keySelector),
+            this.StaticDelegateLocalDeclarations(keySelector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var mapName = $"__countByMap{番号}";
+        var keyName = $"__countByKey{番号}";
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(sourceConsume,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            var assign = this.FuncAssignStatic(keySelector,nameof(keySelector),keyName,arg);
+            return $"{indent}{keyType} {keyName}=default!;\n{indent}{assign}\n{indent}global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({mapName},{keyName},out _)++;";
+        });
+        return $$"""
+            {{localDeclarations}}
+            var {{mapName}}=new global::System.Collections.Generic.Dictionary<{{keyType}},int>();
+            {{replaced}}
+            foreach(var {{mapName}}Entry in {{mapName}}){
+                {{consumerName}}.Consume(new global::System.Collections.Generic.KeyValuePair<{{keyType}},global::System.Int32>({{mapName}}Entry.Key,{{mapName}}Entry.Value));
+            }
+            """;
+    }
+
     // Range の CountBy(x => x%C) を Consume へ流すとき、start≧0 ならキーは start から先頭 min(count,C) 個で初めて現れ、
     // 値 x のキーの個数は [x,end) で x と合同な値の個数 (end-1-x)/C+1 になる。数え上げも辞書も要らない。
     // 負の値を含むとき(キーが負になる)は、Range の引数を1回だけ評価したうえで辞書で数える。
     public override string GetConsumeExecutionStatement(string consumerName) {
         if(source is not RangeRoot range||!RangeModuloOrderRoot.TryGetModulus(keySelector,out var modulus)) {
+            if(this.RenderSourceCountsConsume(consumerName) is { } sourceCounts) {
+                return sourceCounts;
+            }
             if(this.RenderRootCountsConsume(consumerName) is not { } rootCounts) {
                 return base.GetConsumeExecutionStatement(consumerName);
             }
