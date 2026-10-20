@@ -71,26 +71,40 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
             ||!consumeStatement.Contains($"{placeholder}.Consume(")){
             return null;
         }
-        var listVar=$"__list{番号}";
+        var poolBufferVar=$"__consumePoolBuffer{番号}";
+        var poolCountVar=$"__consumePoolCount{番号}";
+        var poolNextVar=$"__consumePoolNext{番号}";
         var escaped=global::System.Text.RegularExpressions.Regex.Escape(placeholder);
         var pattern=$@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
         var replaced=global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
             var indent=match.Groups["indent"].Value;
             var arg=match.Groups["arg"].Value;
-            return $"{indent}{listVar}.Add({arg});";
+            var sb = new StringBuilder();
+            sb.AppendLine($"{indent}if({poolCountVar}=={poolBufferVar}.Length) {{");
+            sb.AppendLine($"{indent}    var {poolNextVar}=global::System.Buffers.ArrayPool<{source.ElementType}>.Shared.Rent({poolBufferVar}.Length*2);");
+            sb.AppendLine($"{indent}    global::System.Array.Copy({poolBufferVar},{poolNextVar},{poolCountVar});");
+            sb.AppendLine($"{indent}    global::System.Buffers.ArrayPool<{source.ElementType}>.Shared.Return({poolBufferVar},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{source.ElementType}>());");
+            sb.AppendLine($"{indent}    {poolBufferVar}={poolNextVar};");
+            sb.AppendLine($"{indent}}}");
+            sb.Append($"{indent}{poolBufferVar}[{poolCountVar}++]={arg};");
+            return sb.ToString();
         });
-        string capacityArg;
-        if(source.NonEnumeratedCountExpression is { } countExpr){
-            capacityArg=countExpr;
-        }else{
-            capacityArg=string.Empty;
-        }
         return $$"""
             {{destType}} {{destVar}};
             {
-                var {{listVar}}=new global::System.Collections.Generic.List<{{source.ElementType}}>({{capacityArg}});
-                {{replaced}}
-                {{destVar}}={{listVar}}.ToArray();
+                var {{poolBufferVar}}=global::System.Buffers.ArrayPool<{{source.ElementType}}>.Shared.Rent(16);
+                var {{poolCountVar}}=0;
+                try {
+                    {{replaced}}
+                    if({{poolCountVar}}==0) {
+                        {{destVar}}=global::System.Array.Empty<{{source.ElementType}}>();
+                    } else {
+                        {{destVar}}=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>({{poolCountVar}});
+                        global::System.Array.Copy({{poolBufferVar}},{{destVar}},{{poolCountVar}});
+                    }
+                } finally {
+                    global::System.Buffers.ArrayPool<{{source.ElementType}}>.Shared.Return({{poolBufferVar}},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{source.ElementType}}>());
+                }
             }
             """;
     }

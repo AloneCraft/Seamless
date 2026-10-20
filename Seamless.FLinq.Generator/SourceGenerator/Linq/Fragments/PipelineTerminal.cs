@@ -2329,6 +2329,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
 
         var listBufferName = $"__consumeList{this.result}";
+        var poolBufferName = $"__consumePoolBuffer{this.result}";
+        var poolCountName = $"__consumePoolCount{this.result}";
+        var poolNextName = $"__consumePoolNext{this.result}";
         if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
             builder.AppendLine($"{actualTypeName} {actualVariableName}=0;");
         } else if(terminalKind==PipelineTerminalKind.Any) {
@@ -2341,7 +2344,10 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         } else if(terminalKind==PipelineTerminalKind.ToList) {
             builder.AppendLine($"{actualTypeName} {actualVariableName}=new();");
         } else if(terminalKind==PipelineTerminalKind.ToArray) {
-            builder.AppendLine($"var {listBufferName}=new global::System.Collections.Generic.List<{pipeline.ElementType}>();");
+            builder.AppendLine($"{actualTypeName} {actualVariableName};");
+            builder.AppendLine($"var {poolBufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent(16);");
+            builder.AppendLine($"var {poolCountName}=0;");
+            builder.AppendLine("try {");
         }
 
         var escapedPlaceholder = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
@@ -2383,7 +2389,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             } else if(terminalKind==PipelineTerminalKind.ToList) {
                 sb.Append($"{indent}{actualVariableName}.Add({currentItem});");
             } else if(terminalKind==PipelineTerminalKind.ToArray) {
-                sb.Append($"{indent}{listBufferName}.Add({currentItem});");
+                sb.AppendLine($"{indent}if({poolCountName}=={poolBufferName}.Length) {{");
+                sb.AppendLine($"{indent}    var {poolNextName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({poolBufferName}.Length*2);");
+                sb.AppendLine($"{indent}    global::System.Array.Copy({poolBufferName},{poolNextName},{poolCountName});");
+                sb.AppendLine($"{indent}    global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Return({poolBufferName},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{pipeline.ElementType}>());");
+                sb.AppendLine($"{indent}    {poolBufferName}={poolNextName};");
+                sb.AppendLine($"{indent}}}");
+                sb.Append($"{indent}{poolBufferName}[{poolCountName}++]={currentItem};");
             }
             return sb.ToString();
         });
@@ -2391,7 +2403,15 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine(replacedStatement);
 
         if(terminalKind==PipelineTerminalKind.ToArray) {
-            builder.AppendLine($"{actualTypeName} {actualVariableName}={listBufferName}.ToArray();");
+            builder.AppendLine($"    if({poolCountName}==0) {{");
+            builder.AppendLine($"        {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+            builder.AppendLine("    } else {");
+            builder.AppendLine($"        {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({poolCountName});");
+            builder.AppendLine($"        global::System.Array.Copy({poolBufferName},{actualVariableName},{poolCountName});");
+            builder.AppendLine("    }");
+            builder.AppendLine("} finally {");
+            builder.AppendLine($"    global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Return({poolBufferName},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{pipeline.ElementType}>());");
+            builder.AppendLine("}");
         }
 
         if(terminalKind is PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
