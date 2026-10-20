@@ -567,6 +567,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 break;
             }
         }
+        var firstSliceIndex = -1;
+        for(var i = 0;i<binaryStageIndex;i++) {
+            if(pipeline.Stages[i].Kind is PipelineStageKind.Skip or PipelineStageKind.Take or PipelineStageKind.SkipLast or PipelineStageKind.TakeLast) {
+                firstSliceIndex=i;
+                break;
+            }
+        }
         for(var i = 0;i<binaryStageIndex;i++) {
             var st = pipeline.Stages[i];
             if(st.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast) {
@@ -587,7 +594,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(st.Kind is PipelineStageKind.Where or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile&&!st.UsesIndex&&st.Func is { } wf&&CanUseDirectSpanPipelineFunc(wf)) {
                 continue;
             }
-            if(firstFilterIndex<0) {
+            if(firstSliceIndex<0) {
                 if(st.Kind==PipelineStageKind.Distinct) {
                     continue;
                 }

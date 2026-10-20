@@ -37,6 +37,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(this.TryReorderWhereRun(node,out var reordered)) return reordered;
         if(this.TryFuseWherePredicate(node,out var fused)) return fused;
         if(this.TryFuseNonEmptyUnionFirst(node,out var unionFirst)) return unionFirst;
+        if(this.TryRemoveRedundantDistinctBeforeUnion(node,out var simplifiedUnion)) return simplifiedUnion;
         if(this.TryRemoveRedundantOrderBeforeTerminal(node,out var strippedOrder)) return strippedOrder;
         if(this.TryFuseOrderByFirst(node,out var minmax)) return minmax;
         if(this.TryRemoveIdentityStage(node,out var stripped)) return stripped;
@@ -190,6 +191,46 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         }
         result=CreateCallWithArgumentList(rewritten,terminalName,node.ArgumentList);
         return true;
+    }
+    // src.Distinct().Union(second) -> src.Union(second)
+    // src.DistinctBy(k).UnionBy(second, k) -> src.UnionBy(second, k)
+    // （Union/UnionBy 自体が内部で Set を構築して重複排除するため、第1引数の事前 Distinct は冗長）
+    private bool TryRemoveRedundantDistinctBeforeUnion(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var unionName,out var unionReceiver,out var unionArgs)){
+            return false;
+        }else{
+        }
+        if(unionName is not ("Union" or "UnionBy")){
+            return false;
+        }else{
+        }
+        if(Strip(unionReceiver) is not InvocationExpressionSyntax distinctInv){
+            return false;
+        }else{
+        }
+        if(!this.TryGetEnumerableExtensionCall(distinctInv,out var distinctName,out var distinctSource,out var distinctArgs)){
+            return false;
+        }else{
+        }
+        if(unionName=="Union"&&distinctName=="Distinct"){
+            if(distinctArgs.Count==0&&unionArgs.Count==1){
+                result=CreateCallWithArgumentList(distinctSource,unionName,node.ArgumentList);
+                return true;
+            }else{
+            }
+        }else if(unionName=="UnionBy"&&distinctName=="DistinctBy"){
+            if(distinctArgs.Count==1&&unionArgs.Count==2){
+                if(distinctArgs[0].Expression.ToString()==unionArgs[1].Expression.ToString()){
+                    result=CreateCallWithArgumentList(distinctSource,unionName,node.ArgumentList);
+                    return true;
+                }else{
+                }
+            }else{
+            }
+        }else{
+        }
+        return false;
     }
     private static InvocationExpressionSyntax CreateCallWithArgumentList(ExpressionSyntax receiver,string method,ArgumentListSyntax argumentList){
         var ma=SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,Parenthesize(receiver),SyntaxFactory.IdentifierName(method));
