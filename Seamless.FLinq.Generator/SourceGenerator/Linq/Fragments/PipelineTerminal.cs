@@ -659,6 +659,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine("        }");
                 builder.AppendLine("    }");
                 builder.AppendLine("}");
+                return builder.ToString().TrimEnd();
             }
 
             if(terminalKind==PipelineTerminalKind.ToArray&&binaryStage.Kind==PipelineStageKind.Concat) {
