@@ -22,7 +22,48 @@ internal class ElementAt(int 番号,Enumerable source,string index,string result
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeElementAtInline(destVar,destType)
         ??this.RenderDirectSpanElementAtInline(destVar,destType)
+        ??this.RenderConsumeBasedElementAtInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,index);
+
+    private string? RenderConsumeBasedElementAtInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_ELEMENTAT_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var currIdx = $"__currIdx{番号}";
+        var targetIdx = $"__targetIdx{番号}";
+        var foundVar = $"__found{番号}";
+        var endLabel = $"__elemAtEnd{番号}";
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            return $"{indent}if({currIdx}++=={targetIdx}) {{\n{indent}    {destVar}={arg};\n{indent}    {foundVar}=true;\n{indent}    goto {endLabel};\n{indent}}}";
+        });
+        return $$"""
+            var {{targetIdx}}={{index}};
+            if({{targetIdx}}<0) throw new global::System.ArgumentOutOfRangeException("index");
+            {{destType}} {{destVar}}=default!;
+            var {{currIdx}}=0;
+            var {{foundVar}}=false;
+            {{replaced}}
+            {{endLabel}}:;
+            if(!{{foundVar}}) throw new global::System.ArgumentOutOfRangeException("index");
+            """ ;
+    }
     private string? RenderDirectSpanElementAtInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
