@@ -145,7 +145,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         return false;
     }
     private static readonly HashSet<string> OrderInsensitiveTerminals = new(StringComparer.Ordinal){
-        "Contains","Any","All","Count","LongCount",
+        "Contains","Any","All","Count","LongCount","Sum","Min","Max",
     };
     private static readonly HashSet<string> OrderPreservingTransparentStages = new(StringComparer.Ordinal){
         "Where","Select","Cast","OfType",
