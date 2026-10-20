@@ -237,6 +237,17 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return count%2!=0;
     }
 
+    private bool IsPipelineReversed() {
+        var count = 0;
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            var stage = pipeline.Stages[i];
+            if(stage.Kind==PipelineStageKind.Reverse) {
+                count++;
+            }
+        }
+        return count%2!=0;
+    }
+
     private void AppendDirectSpanPipelineSlices(StringBuilder builder,string spanName,string indent,HashSet<int> sliceIndices) {
         for(var index = 0;index<pipeline.Stages.Count;index++) {
             if(!sliceIndices.Contains(index)) {
@@ -389,6 +400,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var isTop1Order = this.CanUseDirectSpanPipelineTop1Order(out var orderIdx);
         var canIgnoreOrder = this.CanIgnoreOrderForTerminal();
         var seenFilter = false;
+        var seenStatefulFilter = false;
         var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any or PipelineTerminalKind.Contains;
         for(var i = 0;i<pipeline.Stages.Count;i++) {
             var stage = pipeline.Stages[i];
@@ -410,6 +422,10 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     }
                     break;
                 case PipelineStageKind.Reverse:
+                    if(seenStatefulFilter) {
+                        return false;
+                    }
+                    break;
                 case PipelineStageKind.TakeLast:
                 case PipelineStageKind.SkipLast:
                 case PipelineStageKind.Prepend:
@@ -421,6 +437,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 case PipelineStageKind.Distinct:
                     if(!skipDistinct) {
                         seenFilter=true;
+                        seenStatefulFilter=true;
                     }
                     break;
                 case PipelineStageKind.Select: {
@@ -430,12 +447,18 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     break;
                 }
                 case PipelineStageKind.Where:
+                    if(stage.UsesIndex||stage.Func is not { } whereFunc||!CanUseDirectSpanPipelineFunc(whereFunc)) {
+                        return false;
+                    }
+                    seenFilter=true;
+                    break;
                 case PipelineStageKind.TakeWhile:
                 case PipelineStageKind.SkipWhile:
                     if(stage.UsesIndex||stage.Func is not { } filterFunc||!CanUseDirectSpanPipelineFunc(filterFunc)) {
                         return false;
                     }
                     seenFilter=true;
+                    seenStatefulFilter=true;
                     break;
                 case PipelineStageKind.DistinctBy: {
                     if(stage.UsesIndex||stage.Func is not { } distinctByFunc||!CanUseDirectSpanPipelineFunc(distinctByFunc)) {
@@ -443,6 +466,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     }
                     if(!skipDistinct) {
                         seenFilter=true;
+                        seenStatefulFilter=true;
                     }
                     break;
                 }
@@ -1262,6 +1286,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     builder.AppendLine($"{indent}if(!{setName}.Add({keyName})) continue;");
                     break;
                 }
+                case PipelineStageKind.Reverse:
+                    break;
                 default:
                     throw new NotSupportedException($"{stage.Kind} is not a direct span pipeline scalar stage.");
             }
@@ -2158,7 +2184,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var spanName = $"__pipelineSpan{this.result}";
         var sliceIndices = this.GetPrefixSliceStageIndices();
         var hasFilter = pipeline.Stages.Any(this.IsDirectSpanFilterStage);
-        var isReversed = this.IsPrefixReversed();
+        var isReversed = this.IsPipelineReversed();
         var prefixPrepends = this.GetPrefixPrependStages();
         var prefixAppends = this.GetPrefixAppendStages();
         var extraCount = prefixPrepends.Count+prefixAppends.Count;
@@ -2222,7 +2248,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var spanName = $"__pipelineSpan{this.result}";
         var sliceIndices = this.GetPrefixSliceStageIndices();
         var hasFilter = pipeline.Stages.Any(this.IsDirectSpanFilterStage);
-        var isReversed = this.IsPrefixReversed();
+        var isReversed = this.IsPipelineReversed();
         var prefixPrepends = this.GetPrefixPrependStages();
         var prefixAppends = this.GetPrefixAppendStages();
         var extraCount = prefixPrepends.Count+prefixAppends.Count;
@@ -2339,7 +2365,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var spanName = $"__pipelineSpan{this.result}";
         var sliceIndices = this.GetPrefixSliceStageIndices();
         var hasFilter = pipeline.Stages.Any(this.IsDirectSpanFilterStage);
-        var isReversed = this.IsPrefixReversed();
+        var isReversed = this.IsPipelineReversed();
         var prefixPrepends = this.GetPrefixPrependStages();
         var prefixAppends = this.GetPrefixAppendStages();
         var extraCount = prefixPrepends.Count+prefixAppends.Count;
