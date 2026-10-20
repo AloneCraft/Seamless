@@ -38,6 +38,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(this.TryFuseWherePredicate(node,out var fused)) return fused;
         if(this.TryFuseNonEmptyUnionFirst(node,out var unionFirst)) return unionFirst;
         if(this.TryRemoveRedundantDistinctBeforeUnion(node,out var simplifiedUnion)) return simplifiedUnion;
+        if(this.TryRemoveRedundantDistinctBeforeMinMax(node,out var simplifiedMinMax)) return simplifiedMinMax;
         if(this.TryRemoveRedundantOrderBeforeTerminal(node,out var strippedOrder)) return strippedOrder;
         if(this.TryFuseOrderByFirst(node,out var minmax)) return minmax;
         if(this.TryRemoveIdentityStage(node,out var stripped)) return stripped;
@@ -223,6 +224,47 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             if(distinctArgs.Count==1&&unionArgs.Count==2){
                 if(distinctArgs[0].Expression.ToString()==unionArgs[1].Expression.ToString()){
                     result=CreateCallWithArgumentList(distinctSource,unionName,node.ArgumentList);
+                    return true;
+                }else{
+                }
+            }else{
+            }
+        }else{
+        }
+        return false;
+    }
+    // src.Distinct().Min() -> src.Min()
+    // src.Distinct().Max() -> src.Max()
+    // src.DistinctBy(k).MinBy(k) -> src.MinBy(k)
+    // src.DistinctBy(k).MaxBy(k) -> src.MaxBy(k)
+    private bool TryRemoveRedundantDistinctBeforeMinMax(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var terminalName,out var terminalReceiver,out var terminalArgs)){
+            return false;
+        }else{
+        }
+        if(terminalName is not ("Min" or "Max" or "MinBy" or "MaxBy")){
+            return false;
+        }else{
+        }
+        if(Strip(terminalReceiver) is not InvocationExpressionSyntax distinctInv){
+            return false;
+        }else{
+        }
+        if(!this.TryGetEnumerableExtensionCall(distinctInv,out var distinctName,out var distinctSource,out var distinctArgs)){
+            return false;
+        }else{
+        }
+        if((terminalName is "Min" or "Max")&&distinctName=="Distinct"){
+            if(distinctArgs.Count==0&&terminalArgs.Count==0){
+                result=CreateCallWithArgumentList(distinctSource,terminalName,node.ArgumentList);
+                return true;
+            }else{
+            }
+        }else if((terminalName is "MinBy" or "MaxBy")&&distinctName=="DistinctBy"){
+            if(distinctArgs.Count==1&&terminalArgs.Count==1){
+                if(distinctArgs[0].Expression.ToString()==terminalArgs[0].Expression.ToString()){
+                    result=CreateCallWithArgumentList(distinctSource,terminalName,node.ArgumentList);
                     return true;
                 }else{
                 }
