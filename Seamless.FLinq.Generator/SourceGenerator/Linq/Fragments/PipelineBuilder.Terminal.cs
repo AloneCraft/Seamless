@@ -77,6 +77,15 @@ internal static partial class PipelineBuilder {
             case "Sum":
                 terminalKind=PipelineTerminalKind.Sum;
                 return true;
+            case "Average":
+                terminalKind=PipelineTerminalKind.Average;
+                return true;
+            case "Min":
+                terminalKind=PipelineTerminalKind.Min;
+                return true;
+            case "Max":
+                terminalKind=PipelineTerminalKind.Max;
+                return true;
             default:
                 terminalKind=default;
                 return false;
@@ -138,8 +147,8 @@ internal static partial class PipelineBuilder {
         if(terminalKind==PipelineTerminalKind.ToDictionary) {
             return TryAppendToDictionaryTerminalArguments(semanticModel,invocation,method,services,ref uniqueNumber,out func1,out func2,out comparerValue);
         }
-        if(terminalKind==PipelineTerminalKind.Sum) {
-            // Sum(selector): add Select stage, then Sum() is applied to selected values.
+        if(terminalKind is PipelineTerminalKind.Sum or PipelineTerminalKind.Average or PipelineTerminalKind.Min or PipelineTerminalKind.Max) {
+            // Sum/Average/Min/Max(selector): add Select stage, then terminal is applied to selected values.
             if(invocation.ArgumentList.Arguments.Count==0) {
                 return true;
             }
@@ -148,13 +157,13 @@ internal static partial class PipelineBuilder {
                 ||method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 } selectorType) {
                 return false;
             }
-            if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,selectorType,ref uniqueNumber,out var sumSelector)
-                ||!services.CanUseFunc(sumSelector)) {
+            if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,selectorType,ref uniqueNumber,out var selector)
+                ||!services.CanUseFunc(selector)) {
                 return false;
             }
-            var sumSelectElementType = sumSelector.ReturnTypeName;
-            stages.Add(new PipelineStage(PipelineStageKind.Select,sumSelector,null,currentElementType,sumSelectElementType));
-            currentElementType=sumSelectElementType;
+            var selectElementType = selector.ReturnTypeName;
+            stages.Add(new PipelineStage(PipelineStageKind.Select,selector,null,currentElementType,selectElementType));
+            currentElementType=selectElementType;
             return true;
         }
         if(invocation.ArgumentList.Arguments.Count==0) {

@@ -49,4 +49,7 @@ internal enum PipelineTerminalKind {
     LastOrDefault,
     ToDictionary,
     Sum,
+    Average,
+    Min,
+    Max,
 }
