@@ -615,25 +615,65 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 }
             }
 
-            if(terminalKind==PipelineTerminalKind.Sum&&binaryStage.Kind==PipelineStageKind.Concat) {
-                builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
-                builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
-                builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
-                builder.AppendLine($"    for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
-                builder.AppendLine($"        var __item{this.result}={firstSpanName}[__i{this.result}];");
-                var sumItem1 = this.AppendBinaryAfterStages(builder,$"__item{this.result}","        ",binaryStageIndex);
-                builder.AppendLine($"        {actualVariableName}+={sumItem1};");
-                builder.AppendLine("    }");
-                builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
-                builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
-                builder.AppendLine($"        for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
-                builder.AppendLine($"            var __item{this.result}={secondSpanName}[__i{this.result}];");
-                var sumItem2 = this.AppendBinaryAfterStages(builder,$"__item{this.result}","            ",binaryStageIndex);
-                builder.AppendLine($"            {actualVariableName}+={sumItem2};");
-                builder.AppendLine("        }");
-                builder.AppendLine("    }");
-                builder.AppendLine("}");
-                return builder.ToString().TrimEnd();
+            if(terminalKind==PipelineTerminalKind.Sum) {
+                if(binaryStage.Kind==PipelineStageKind.Concat) {
+                    builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+                    builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
+                    builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
+                    builder.AppendLine($"    for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
+                    builder.AppendLine($"        var __item{this.result}={firstSpanName}[__i{this.result}];");
+                    var sumItem1 = this.AppendBinaryAfterStages(builder,$"__item{this.result}","        ",binaryStageIndex);
+                    builder.AppendLine($"        {actualVariableName}+={sumItem1};");
+                    builder.AppendLine("    }");
+                    builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
+                    builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
+                    builder.AppendLine($"        for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
+                    builder.AppendLine($"            var __item{this.result}={secondSpanName}[__i{this.result}];");
+                    var sumItem2 = this.AppendBinaryAfterStages(builder,$"__item{this.result}","            ",binaryStageIndex);
+                    builder.AppendLine($"            {actualVariableName}+={sumItem2};");
+                    builder.AppendLine("        }");
+                    builder.AppendLine("    }");
+                    builder.AppendLine("}");
+                    return builder.ToString().TrimEnd();
+                }
+                if(binaryStage.Kind is PipelineStageKind.Union or PipelineStageKind.UnionBy) {
+                    var unionKeyType = binaryStage.KeyType??binaryStage.Func?.ReturnTypeName??binaryStage.OutputType;
+                    builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+                    builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
+                    builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
+                    builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
+                    builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
+                    builder.AppendLine($"        var __set{this.result}=new global::System.Collections.Generic.HashSet<{unionKeyType}>();");
+                    builder.AppendLine($"        for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
+                    builder.AppendLine($"            var __item{this.result}={firstSpanName}[__i{this.result}];");
+                    if(binaryStage.Func is not null) {
+                        builder.AppendLine($"            {unionKeyType} __k{this.result}=default!;");
+                        builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"UnionBy",$"__k{this.result}",$"__item{this.result}"),"            "));
+                        builder.AppendLine($"            if(__set{this.result}.Add(__k{this.result})) {{");
+                    } else {
+                        builder.AppendLine($"            if(__set{this.result}.Add(__item{this.result})) {{");
+                    }
+                    var sumItem1 = this.AppendBinaryAfterStages(builder,$"__item{this.result}","                ",binaryStageIndex);
+                    builder.AppendLine($"                {actualVariableName}+={sumItem1};");
+                    builder.AppendLine("            }");
+                    builder.AppendLine("        }");
+                    builder.AppendLine($"        for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
+                    builder.AppendLine($"            var __item{this.result}={secondSpanName}[__i{this.result}];");
+                    if(binaryStage.Func is not null) {
+                        builder.AppendLine($"            {unionKeyType} __k{this.result}=default!;");
+                        builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"UnionBy",$"__k{this.result}",$"__item{this.result}"),"            "));
+                        builder.AppendLine($"            if(__set{this.result}.Add(__k{this.result})) {{");
+                    } else {
+                        builder.AppendLine($"            if(__set{this.result}.Add(__item{this.result})) {{");
+                    }
+                    var sumItem2 = this.AppendBinaryAfterStages(builder,$"__item{this.result}","                ",binaryStageIndex);
+                    builder.AppendLine($"                {actualVariableName}+={sumItem2};");
+                    builder.AppendLine("            }");
+                    builder.AppendLine("        }");
+                    builder.AppendLine("    }");
+                    builder.AppendLine("}");
+                    return builder.ToString().TrimEnd();
+                }
             }
 
             if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
@@ -738,13 +778,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(binaryStage.Func?.ReturnTypeName is { } retType) {
                 keyType=retType;
             } else {
-                keyType=pipeline.ElementType;
+                keyType=binaryStage.OutputType;
             }
         }
         var foundName = $"__found{this.result}";
 
         if(binaryStage.Kind is PipelineStageKind.Intersect or PipelineStageKind.IntersectBy) {
-            if(terminalKind is not (PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount)) {
+            if(terminalKind is not (PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Sum)) {
                 return null;
             }
             if(terminalKind==PipelineTerminalKind.Any) {
@@ -786,6 +826,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine("                        break;");
             } else if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
                 builder.AppendLine($"                        {actualVariableName}++;");
+            } else if(terminalKind==PipelineTerminalKind.Sum) {
+                var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}","                        ",binaryStageIndex);
+                builder.AppendLine($"                        {actualVariableName}+={hitItem};");
             } else {
                 var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}","                        ",binaryStageIndex);
                 builder.AppendLine($"                        {actualVariableName}={hitItem};");
@@ -805,7 +848,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
 
         if(binaryStage.Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
-            if(terminalKind is not (PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount)) {
+            if(terminalKind is not (PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Sum)) {
                 return null;
             }
             if(terminalKind==PipelineTerminalKind.Any) {
@@ -846,6 +889,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine("                    break;");
             } else if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
                 builder.AppendLine($"                    {actualVariableName}++;");
+            } else if(terminalKind==PipelineTerminalKind.Sum) {
+                var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}","                    ",binaryStageIndex);
+                builder.AppendLine($"                    {actualVariableName}+={hitItem};");
             } else {
                 var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}","                    ",binaryStageIndex);
                 builder.AppendLine($"                    {actualVariableName}={hitItem};");
