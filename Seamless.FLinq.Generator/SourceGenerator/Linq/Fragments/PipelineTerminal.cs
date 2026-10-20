@@ -561,13 +561,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
         for(var i = 0;i<binaryStageIndex;i++) {
             var st = pipeline.Stages[i];
-            if(st.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast or PipelineStageKind.Skip or PipelineStageKind.Take) {
+            if(st.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast or PipelineStageKind.Skip or PipelineStageKind.Take or PipelineStageKind.SkipLast or PipelineStageKind.TakeLast) {
                 continue;
             }
             if(st.Kind==PipelineStageKind.Select&&!st.UsesIndex&&st.Func is { } f&&CanUseDirectSpanPipelineFunc(f)) {
                 continue;
             }
-            if(st.Kind==PipelineStageKind.Where&&!st.UsesIndex&&st.Func is { } wf&&CanUseDirectSpanPipelineFunc(wf)) {
+            if(st.Kind is PipelineStageKind.Where or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile&&!st.UsesIndex&&st.Func is { } wf&&CanUseDirectSpanPipelineFunc(wf)) {
                 continue;
             }
             return false;
@@ -588,6 +588,16 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return true;
     }
 
+    private void AppendBinaryBeforeInit(StringBuilder builder,string indent,int binaryStageIndex) {
+        for(var i = 0;i<binaryStageIndex;i++) {
+            var stage = pipeline.Stages[i];
+            if(stage.Kind==PipelineStageKind.SkipWhile) {
+                var skipWhileFlag = $"__preSkipWhile{this.result}_{i+1}";
+                builder.AppendLine($"{indent}bool {skipWhileFlag}=false;");
+            }
+        }
+    }
+
     private void AppendBinaryBeforeSlices(StringBuilder builder,string spanName,string indent,int binaryStageIndex) {
         for(var i = 0;i<binaryStageIndex;i++) {
             var st = pipeline.Stages[i];
@@ -600,6 +610,16 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             } else if(st.Kind==PipelineStageKind.Take) {
                 builder.AppendLine($"{indent}if({spanName}.Length>{st.Value}) {{");
                 builder.AppendLine($"{indent}    {spanName}={spanName}.Slice(0,{st.Value});");
+                builder.AppendLine($"{indent}}}");
+            } else if(st.Kind==PipelineStageKind.SkipLast) {
+                builder.AppendLine($"{indent}if({spanName}.Length>{st.Value}) {{");
+                builder.AppendLine($"{indent}    {spanName}={spanName}.Slice(0,{spanName}.Length-{st.Value});");
+                builder.AppendLine($"{indent}}} else {{");
+                builder.AppendLine($"{indent}    {spanName}=global::System.ReadOnlySpan<{pipeline.ElementType}>.Empty;");
+                builder.AppendLine($"{indent}}}");
+            } else if(st.Kind==PipelineStageKind.TakeLast) {
+                builder.AppendLine($"{indent}if({spanName}.Length>{st.Value}) {{");
+                builder.AppendLine($"{indent}    {spanName}={spanName}.Slice({spanName}.Length-{st.Value});");
                 builder.AppendLine($"{indent}}}");
             }
         }
@@ -622,6 +642,19 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine($"{indent}{stage.OutputType} {nextName}=default!;");
                 builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.Select),nextName,currentName),indent));
                 currentName=nextName;
+            } else if(stage.Kind==PipelineStageKind.TakeWhile) {
+                var condName = $"__preCond{this.result}_{i+1}";
+                builder.AppendLine($"{indent}bool {condName}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.TakeWhile),condName,currentName),indent));
+                builder.AppendLine($"{indent}if(!{condName}) break;");
+            } else if(stage.Kind==PipelineStageKind.SkipWhile) {
+                var skipWhileFlag = $"__preSkipWhile{this.result}_{i+1}";
+                builder.AppendLine($"{indent}if(!{skipWhileFlag}) {{");
+                builder.AppendLine($"{indent}    bool __cond=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.SkipWhile),"__cond",currentName),$"{indent}    "));
+                builder.AppendLine($"{indent}    if(__cond) continue;");
+                builder.AppendLine($"{indent}    {skipWhileFlag}=true;");
+                builder.AppendLine($"{indent}}}");
             }
         }
         return currentName;
@@ -713,6 +746,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
                 builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
         this.AppendBinaryBeforeSlices(builder,firstSpanName,"    ",binaryStageIndex);
+        this.AppendBinaryBeforeInit(builder,"    ",binaryStageIndex);
                 builder.AppendLine($"    if({firstSpanName}.Length>0) {{");
                 builder.AppendLine($"        {actualVariableName}=true;");
                 builder.AppendLine("    } else {");
@@ -731,6 +765,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
                     builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
         this.AppendBinaryBeforeSlices(builder,firstSpanName,"    ",binaryStageIndex);
+        this.AppendBinaryBeforeInit(builder,"    ",binaryStageIndex);
                     builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
                     builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
                     builder.AppendLine($"        {actualVariableName}={firstSpanName}.Length+{secondSpanName}.Length;");
@@ -751,6 +786,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
                     builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
         this.AppendBinaryBeforeSlices(builder,firstSpanName,"    ",binaryStageIndex);
+        this.AppendBinaryBeforeInit(builder,"    ",binaryStageIndex);
                     builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
                     builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
                     string capExpr;
@@ -792,6 +828,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
                     builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
         this.AppendBinaryBeforeSlices(builder,firstSpanName,"    ",binaryStageIndex);
+        this.AppendBinaryBeforeInit(builder,"    ",binaryStageIndex);
                     builder.AppendLine($"    for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
                     builder.AppendLine($"        var __item{this.result}={firstSpanName}[__i{this.result}];");
                     var sumItem1 = this.AppendBinaryAfterStages(builder,$"__item{this.result}","        ",binaryStageIndex);
@@ -814,6 +851,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
                     builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
         this.AppendBinaryBeforeSlices(builder,firstSpanName,"    ",binaryStageIndex);
+        this.AppendBinaryBeforeInit(builder,"    ",binaryStageIndex);
                     builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
                     builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
                     string capExpr;
@@ -861,6 +899,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
                 builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
         this.AppendBinaryBeforeSlices(builder,firstSpanName,"    ",binaryStageIndex);
+        this.AppendBinaryBeforeInit(builder,"    ",binaryStageIndex);
                 builder.AppendLine($"    if({firstSpanName}.Length>0) {{");
                 builder.AppendLine($"        var __item{this.result}={firstSpanName}[0];");
                 var firstItem1 = this.AppendBinaryAfterStages(builder,$"__item{this.result}","        ",binaryStageIndex);
@@ -891,6 +930,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
                 builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
         this.AppendBinaryBeforeSlices(builder,firstSpanName,"    ",binaryStageIndex);
+        this.AppendBinaryBeforeInit(builder,"    ",binaryStageIndex);
                 builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
                 builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
                 builder.AppendLine($"        var {totalCountName}={firstSpanName}.Length+{secondSpanName}.Length;");
@@ -928,6 +968,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
                 builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
         this.AppendBinaryBeforeSlices(builder,firstSpanName,"    ",binaryStageIndex);
+        this.AppendBinaryBeforeInit(builder,"    ",binaryStageIndex);
                 builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
                 builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
                 builder.AppendLine($"        var {totalCountName}={firstSpanName}.Length+{secondSpanName}.Length;");
@@ -963,6 +1004,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
                 builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
         this.AppendBinaryBeforeSlices(builder,firstSpanName,"    ",binaryStageIndex);
+        this.AppendBinaryBeforeInit(builder,"    ",binaryStageIndex);
                 builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
                 builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
                 builder.AppendLine($"        var {maxCountName}={firstSpanName}.Length+{secondSpanName}.Length;");
@@ -1065,6 +1107,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
             builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
         this.AppendBinaryBeforeSlices(builder,firstSpanName,"    ",binaryStageIndex);
+        this.AppendBinaryBeforeInit(builder,"    ",binaryStageIndex);
             builder.AppendLine($"    if({firstSpanName}.Length>0) {{");
             builder.AppendLine($"        using(var {secondSrcName}={secondSrcExpr}) {{");
             builder.AppendLine($"            var {secondSpanName}={secondSpanExpr};");
@@ -1187,6 +1230,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
             builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
         this.AppendBinaryBeforeSlices(builder,firstSpanName,"    ",binaryStageIndex);
+        this.AppendBinaryBeforeInit(builder,"    ",binaryStageIndex);
             builder.AppendLine($"    if({firstSpanName}.Length>0) {{");
             if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
                 builder.AppendLine($"        var {rentedBufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({firstSpanName}.Length);");
