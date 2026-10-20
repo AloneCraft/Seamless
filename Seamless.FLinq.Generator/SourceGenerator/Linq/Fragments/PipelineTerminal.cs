@@ -691,7 +691,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
                     builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
                     builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
-                    var setArgs=RenderHashSetConstructorArgs($"{firstSpanName}.Length+{secondSpanName}.Length",binaryStage.Value);
+                    string capExpr;
+                    if(binaryStage.Func is not null){
+                        capExpr=$"global::System.Math.Min({firstSpanName}.Length+{secondSpanName}.Length,32)";
+                    }else{
+                        capExpr=$"{firstSpanName}.Length+{secondSpanName}.Length";
+                    }
+                    var setArgs=RenderHashSetConstructorArgs(capExpr,binaryStage.Value);
                     builder.AppendLine($"        var __set{this.result}=new global::System.Collections.Generic.HashSet<{unionKeyType}>({setArgs});");
                     builder.AppendLine($"        for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
                     if(binaryStage.Func is not null) {
@@ -746,7 +752,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
                     builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
                     builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
-                    var setArgs=RenderHashSetConstructorArgs($"{firstSpanName}.Length+{secondSpanName}.Length",binaryStage.Value);
+                    string capExpr;
+                    if(binaryStage.Func is not null){
+                        capExpr=$"global::System.Math.Min({firstSpanName}.Length+{secondSpanName}.Length,32)";
+                    }else{
+                        capExpr=$"{firstSpanName}.Length+{secondSpanName}.Length";
+                    }
+                    var setArgs=RenderHashSetConstructorArgs(capExpr,binaryStage.Value);
                     builder.AppendLine($"        var __set{this.result}=new global::System.Collections.Generic.HashSet<{unionKeyType}>({setArgs});");
                     builder.AppendLine($"        for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
                     builder.AppendLine($"            var __item{this.result}={firstSpanName}[__i{this.result}];");
@@ -896,7 +908,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine($"            var {rentedBufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({maxCountName});");
                 builder.AppendLine($"            var {countName}=0;");
                 builder.AppendLine("            try {");
-                var setArgs=RenderHashSetConstructorArgs(maxCountName,binaryStage.Value);
+                string capExpr;
+                if(binaryStage.Func is not null){
+                    capExpr=$"global::System.Math.Min({maxCountName},32)";
+                }else{
+                    capExpr=maxCountName;
+                }
+                var setArgs=RenderHashSetConstructorArgs(capExpr,binaryStage.Value);
                 builder.AppendLine($"                var __set{this.result}=new global::System.Collections.Generic.HashSet<{unionKeyType}>({setArgs});");
                 builder.AppendLine($"                for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
                 builder.AppendLine($"                    var __item{this.result}={firstSpanName}[__i{this.result}];");
@@ -989,7 +1007,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine("                try {");
             }
             var setIndent = terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList ? "                    " : "                ";
-            var setArgs=RenderHashSetConstructorArgs($"{secondSpanName}.Length",binaryStage.Value);
+            string capExpr;
+            if(binaryStage.Func is not null){
+                capExpr=$"global::System.Math.Min({secondSpanName}.Length,32)";
+            }else{
+                capExpr=$"{secondSpanName}.Length";
+            }
+            var setArgs=RenderHashSetConstructorArgs(capExpr,binaryStage.Value);
             builder.AppendLine($"{setIndent}var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>({setArgs});");
             builder.AppendLine($"{setIndent}for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
             if(binaryStage.Func is not null) {
@@ -1102,7 +1126,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             var exceptIndent = terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList ? "            " : "        ";
             builder.AppendLine($"{exceptIndent}using(var {secondSrcName}={secondSrcExpr}) {{");
             builder.AppendLine($"{exceptIndent}    var {secondSpanName}={secondSpanExpr};");
-            var exceptSetArgs=RenderHashSetConstructorArgs($"{secondSpanName}.Length",binaryStage.Value);
+            string capExpr;
+            if(binaryStage.Func is not null){
+                capExpr=$"global::System.Math.Min({secondSpanName}.Length,32)";
+            }else{
+                capExpr=$"{secondSpanName}.Length";
+            }
+            var exceptSetArgs=RenderHashSetConstructorArgs(capExpr,binaryStage.Value);
             builder.AppendLine($"{exceptIndent}    var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>({exceptSetArgs});");
             builder.AppendLine($"{exceptIndent}    for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
             if(binaryStage.Func is not null) {
@@ -1274,11 +1304,12 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                         break;
                     }
                     var keyTypeDistinctBy = stage.KeyType??stage.Func?.ReturnTypeName??"object";
+                    var capExpr = $"global::System.Math.Min({spanName}.Length,32)";
                     string ctorArg;
                     if(string.IsNullOrEmpty(stage.Value)) {
-                        ctorArg=$"{spanName}.Length";
+                        ctorArg=capExpr;
                     } else {
-                        ctorArg=$"{spanName}.Length, {stage.Value}";
+                        ctorArg=$"{capExpr},{stage.Value}";
                     }
                     builder.AppendLine($"{indent}var __pipelineSet{this.result}_{index+1}=new global::System.Collections.Generic.HashSet<{keyTypeDistinctBy}>({ctorArg});");
                     break;
