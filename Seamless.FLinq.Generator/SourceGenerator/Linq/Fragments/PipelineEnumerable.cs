@@ -47,7 +47,43 @@ internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IR
     public Enumerable Source => source;
     public IReadOnlyList<PipelineStage> Stages => stages;
     public override string ElementType => elementType;
-    public override string? NonEnumeratedCountExpression => this.StagesElementCountPreserving ? source.NonEnumeratedCountExpression : null;
+    public override string? NonEnumeratedCountExpression {
+        get {
+            if(source.NonEnumeratedCountExpression is not { } count) {
+                return null;
+            }
+            var current = count;
+            for(var i = 0;i<stages.Count;i++) {
+                var stage = stages[i];
+                switch(stage.Kind) {
+                    case PipelineStageKind.Select:
+                    case PipelineStageKind.AsEnumerable:
+                    case PipelineStageKind.Cast:
+                    case PipelineStageKind.Reverse:
+                    case PipelineStageKind.OrderBy:
+                    case PipelineStageKind.OrderByDescending:
+                    case PipelineStageKind.ThenBy:
+                    case PipelineStageKind.ThenByDescending:
+                        break;
+                    case PipelineStageKind.Prepend:
+                    case PipelineStageKind.Append:
+                        current=$"({current}+1)";
+                        break;
+                    case PipelineStageKind.Take:
+                    case PipelineStageKind.TakeLast:
+                        current=$"global::System.Math.Min({current},global::System.Math.Max(0,{stage.Value}))";
+                        break;
+                    case PipelineStageKind.Skip:
+                    case PipelineStageKind.SkipLast:
+                        current=$"global::System.Math.Max(0,{current}-global::System.Math.Max(0,{stage.Value}))";
+                        break;
+                    default:
+                        return null;
+                }
+            }
+            return current;
+        }
+    }
     public override bool CountPreserving => source.CountPreserving&&this.StagesElementCountPreserving;
     public override bool CanTryProvideSpan => this.SingleDefaultIfEmpty&&source.CanTryProvideSpan;
     // SecondSources は stages(PipelineStage の一覧)の中に埋もれているため、Fragment 型フィールドを

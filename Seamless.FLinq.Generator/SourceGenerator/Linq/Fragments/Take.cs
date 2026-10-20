@@ -53,6 +53,10 @@ internal class Take:Enumerable {
         ? $"global::System.Math.Min({take.EffectiveTakeCount},{this.TakeCountExpression})"
         : this.TakeCountExpression;
     protected override Enumerable PrimarySource => this.RootSource;
+    public override string? NonEnumeratedCountExpression =>
+        this.RootSource.NonEnumeratedCountExpression is { } count
+            ? $"global::System.Math.Min({count},global::System.Math.Max(0,{this.EffectiveTakeCount}))"
+            : null;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""
         {{this.RootSource.GetEnumeratorStruct}}
