@@ -94,8 +94,8 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         string outerExpression;
         string innerExpression;
         try {
-            outerExpression=this.outerSource.GetEnumeratorExpression;
-            innerExpression=this.innerSource.GetEnumeratorExpression;
+            outerExpression=outerRoot.GetEnumeratorExpression;
+            innerExpression=innerRoot.GetEnumeratorExpression;
         } catch(NotSupportedException) {
             return base.GetConsumeExecutionStatement(consumerName);
         }
@@ -172,14 +172,6 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         if(this.UseResultTypeParam) {
             return null;
         }
-        string outerExpression;
-        string innerExpression;
-        try {
-            outerExpression=this.outerSource.GetEnumeratorExpression;
-            innerExpression=this.innerSource.GetEnumeratorExpression;
-        } catch(NotSupportedException) {
-            return null;
-        }
         if(!TryPeelWheres(this.outerSource,out var outerRoot,out var outerPredicates)) {
             outerRoot=this.outerSource;
             outerPredicates=System.Array.Empty<FuncFragment>();
@@ -187,6 +179,14 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         if(!TryPeelWheres(this.innerSource,out var innerRoot,out var innerPredicates)) {
             innerRoot=this.innerSource;
             innerPredicates=System.Array.Empty<FuncFragment>();
+        }
+        string outerExpression;
+        string innerExpression;
+        try {
+            outerExpression=outerRoot.GetEnumeratorExpression;
+            innerExpression=innerRoot.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
         }
         var localDeclarations = string.Join("\n",new[]{
             this.HoistedLocalDeclarations(this.outerKey,this.innerKey,this.resultSelector),

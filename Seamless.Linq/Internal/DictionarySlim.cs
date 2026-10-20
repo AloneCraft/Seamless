@@ -134,6 +134,13 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
     // Since there are no deletions, the order of Entries is completely guaranteed to be in the order of addition.
     public Enumerator GetEnumerator() => new(this);
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void GetKeyAndValue(int index,out TKey key,out TValue? value) {
+        ref var entry = ref this.entries[index];
+        key=entry.Key;
+        value=entry.Value;
+    }
+
     // return to pool
     public void Dispose() {
         if(this.buckets!=null) {

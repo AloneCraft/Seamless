@@ -97,6 +97,10 @@ internal sealed partial class PipelineEnumerable {
             if(localName!=name) {
                 renamedNames.Add(name);
             }
+            if(localName==arguments[index]){
+                continue;
+            }else{
+            }
             locals.AppendLine(StructTypeParameterReference.IsMatch(typeExpression)
                 ? $"var {localName}={arguments[index]};"
                 : $"{typeExpression} {localName}={arguments[index]};");

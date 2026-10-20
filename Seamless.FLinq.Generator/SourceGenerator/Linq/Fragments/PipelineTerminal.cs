@@ -2265,6 +2265,361 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return true;
     }
 
+    private string AppendPostGroupByStages(StringBuilder builder,string currentName,string indent,int groupByIndex,string continueStatement = "continue;") {
+        for(var index = groupByIndex+1;index<pipeline.Stages.Count;index++) {
+            var stage = pipeline.Stages[index];
+            switch(stage.Kind) {
+                case PipelineStageKind.AsEnumerable:
+                    break;
+                case PipelineStageKind.Cast: {
+                    var nextName = $"__postItem{this.result}_{index}";
+                    builder.AppendLine($"{indent}var {nextName}=({stage.OutputType})(object?){currentName};");
+                    currentName=nextName;
+                    break;
+                }
+                case PipelineStageKind.Select: {
+                    var nextName = $"__postItem{this.result}_{index}";
+                    builder.AppendLine($"{indent}{stage.OutputType} {nextName}=default!;");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.Select),nextName,currentName),indent));
+                    currentName=nextName;
+                    break;
+                }
+                case PipelineStageKind.Where: {
+                    var (preCode,condition) = this.FuncInvokeConditionStatic(stage.Func!,nameof(PipelineStageKind.Where),$"__condPostTemp{this.result}_{index}",currentName);
+                    if(!string.IsNullOrEmpty(preCode)) {
+                        builder.AppendLine(IndentLines(preCode,indent));
+                    }
+                    builder.AppendLine($"{indent}if(!{WrapConditionExpression(condition)}) {continueStatement}");
+                    break;
+                }
+                default:
+                    throw new NotSupportedException($"{stage.Kind} is not supported in post-GroupBy direct execution.");
+            }
+        }
+        return currentName;
+    }
+
+    private string? TryRenderGroupByAggregateDirectExecution(string actualVariableName,string actualTypeName) {
+        if(terminalKind is not (PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.Sum or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault)) {
+            return null;
+        }
+        var groupByIndex = -1;
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            if(pipeline.Stages[i].Kind==PipelineStageKind.GroupBy) {
+                if(groupByIndex>=0) {
+                    return null;
+                }
+                groupByIndex=i;
+            }
+        }
+        if(groupByIndex<0) {
+            return null;
+        }
+        var stage = pipeline.Stages[groupByIndex];
+        if(stage.AggregatePlan is not { } aggPlan) {
+            return null;
+        }
+        if(stage.Func is null) {
+            return null;
+        }
+        for(var i = 0;i<groupByIndex;i++) {
+            var st = pipeline.Stages[i];
+            if(st.Kind is not (PipelineStageKind.Where or PipelineStageKind.Select or PipelineStageKind.Cast or PipelineStageKind.AsEnumerable)
+                ||st.UsesIndex
+                ||(st.Func is not null&&!CanUseDirectSpanPipelineFunc(st.Func))) {
+                return null;
+            }
+        }
+        var hasPostFilter = false;
+        for(var i = groupByIndex+1;i<pipeline.Stages.Count;i++) {
+            var st = pipeline.Stages[i];
+            if(st.Kind is not (PipelineStageKind.Where or PipelineStageKind.Select or PipelineStageKind.Cast or PipelineStageKind.AsEnumerable)
+                ||st.UsesIndex
+                ||(st.Func is not null&&!CanUseDirectSpanPipelineFunc(st.Func))) {
+                return null;
+            }
+            if(st.Kind==PipelineStageKind.Where) {
+                hasPostFilter=true;
+            }
+        }
+
+        string sourceExpression;
+        try {
+            sourceExpression=pipeline.Source.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var sourceName = $"__pipelineSrc{this.result}";
+        var directSpanExpression = pipeline.Source.GetDirectSpanExpression(sourceName);
+
+        var allFuncs = new List<FuncFragment>();
+        if(stage.Func is not null) {
+            allFuncs.Add(stage.Func);
+        }
+        if(stage.SecondFunc is not null) {
+            allFuncs.Add(stage.SecondFunc);
+        }
+        foreach(var item in aggPlan.Items) {
+            if(item.InnerFunc is not null) {
+                allFuncs.Add(item.InnerFunc);
+            }
+        }
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            if(i==groupByIndex) {
+                continue;
+            }
+            if(pipeline.Stages[i].Func is { } f) {
+                allFuncs.Add(f);
+            }
+            if(pipeline.Stages[i].SecondFunc is { } f2) {
+                allFuncs.Add(f2);
+            }
+        }
+        var hoistedLocals = this.HoistedLocalDeclarations(allFuncs.ToArray());
+        var staticDelegates = this.StaticDelegateLocalDeclarations(allFuncs.ToArray());
+
+        string comparerExpr;
+        if(string.IsNullOrWhiteSpace(stage.Value)||"null".Equals(stage.Value,StringComparison.Ordinal)) {
+            comparerExpr="null";
+        } else {
+            comparerExpr=stage.Value!;
+        }
+
+        var keyTypeName = stage.KeyType??stage.Func!.ReturnTypeName;
+        var accTypeName = aggPlan.AccumulatorType;
+        var mapName = $"__groupAggMap{this.result}";
+        var builder = new StringBuilder();
+
+        if(!string.IsNullOrEmpty(hoistedLocals)) {
+            builder.AppendLine(hoistedLocals);
+        }
+        if(!string.IsNullOrEmpty(staticDelegates)) {
+            builder.AppendLine(staticDelegates);
+        }
+
+        builder.AppendLine($"{actualTypeName} {actualVariableName};");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    int __initCap{this.result};");
+        builder.AppendLine($"    if({sourceName}.TryGetNonEnumeratedCount(out var __srcCnt{this.result})) {{");
+        builder.AppendLine($"        __initCap{this.result}=global::System.Math.Min(__srcCnt{this.result},1024);");
+        builder.AppendLine("    } else {");
+        builder.AppendLine($"        __initCap{this.result}=0;");
+        builder.AppendLine("    }");
+        builder.AppendLine($"    using var {mapName}=new global::Seamless.Linq.DictionarySlim<{keyTypeName},{accTypeName}>(__initCap{this.result},{comparerExpr});");
+
+        string indent;
+        var sourceItemName = $"__sourceItem{this.result}";
+        if(directSpanExpression is not null) {
+            var spanName = $"__pipelineSpan{this.result}";
+            var indexName = $"__pipelineIndex{this.result}";
+            builder.AppendLine($"    var {spanName}={directSpanExpression};");
+            builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+            builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+            indent="        ";
+        } else {
+            builder.AppendLine($"    while({sourceName}.TryGetNext(out var {sourceItemName})) {{");
+            indent="        ";
+        }
+
+        var currentName = sourceItemName;
+        for(var index = 0;index<groupByIndex;index++) {
+            var st = pipeline.Stages[index];
+            if(st.Kind==PipelineStageKind.Where) {
+                var (preCode,condition) = this.FuncInvokeConditionStatic(st.Func!,nameof(PipelineStageKind.Where),$"__condPreTemp{this.result}_{index}",currentName);
+                if(!string.IsNullOrEmpty(preCode)) {
+                    builder.AppendLine(IndentLines(preCode,indent));
+                }
+                builder.AppendLine($"{indent}if(!{WrapConditionExpression(condition)}) continue;");
+            } else if(st.Kind==PipelineStageKind.Select) {
+                var nextName = $"__preItem{this.result}_{index+1}";
+                builder.AppendLine($"{indent}{st.OutputType} {nextName}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(st.Func!,nameof(PipelineStageKind.Select),nextName,currentName),indent));
+                currentName=nextName;
+            } else if(st.Kind==PipelineStageKind.Cast) {
+                var nextName = $"__preItem{this.result}_{index+1}";
+                builder.AppendLine($"{indent}var {nextName}=({st.OutputType})(object?){currentName};");
+                currentName=nextName;
+            }
+        }
+
+        var keyName = $"__k{this.result}";
+        builder.AppendLine($"{indent}{keyTypeName} {keyName}=default!;");
+        builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.GroupBy),keyName,currentName),indent));
+
+        var groupElementName = $"__groupElem{this.result}";
+        builder.AppendLine($"{indent}{stage.InnerElementType} {groupElementName}=default!;");
+        if(stage.SecondFunc is { } elemSelector) {
+            builder.AppendLine(IndentLines(this.FuncAssignStatic(elemSelector,nameof(PipelineStageKind.GroupBy),groupElementName,currentName),indent));
+        } else {
+            builder.AppendLine($"{indent}{groupElementName}=({stage.InnerElementType})(object?){currentName}!;");
+        }
+        builder.AppendLine($"{indent}ref var __acc=ref {mapName}.GetValueRefOrAddDefault({keyName},out var __exists);");
+        builder.AppendLine(aggPlan.RenderAccumulatorUpdate("__acc",groupElementName,indent));
+
+        builder.AppendLine("    }");
+
+        if(!hasPostFilter&&(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount)) {
+            builder.AppendLine($"    {actualVariableName}=({actualTypeName}){mapName}.Count;");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        if(!hasPostFilter&&terminalKind==PipelineTerminalKind.Any) {
+            builder.AppendLine($"    {actualVariableName}={mapName}.Count>0;");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        if(!hasPostFilter&&terminalKind==PipelineTerminalKind.ToArray) {
+            var iName = $"__i{this.result}";
+            builder.AppendLine($"    if({mapName}.Count==0) {{");
+            builder.AppendLine($"        {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+            builder.AppendLine("    } else {");
+            builder.AppendLine($"        {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({mapName}.Count);");
+            builder.AppendLine($"        for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
+            builder.AppendLine($"            {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"            {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            var afterName = this.AppendPostGroupByStages(builder,"__resItem","            ",groupByIndex);
+            builder.AppendLine($"            {actualVariableName}[{iName}]={afterName};");
+            builder.AppendLine("        }");
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        if(!hasPostFilter&&terminalKind==PipelineTerminalKind.ToList) {
+            var iName = $"__i{this.result}";
+            builder.AppendLine($"    {actualVariableName}=new({mapName}.Count);");
+            builder.AppendLine($"    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},{mapName}.Count);");
+            builder.AppendLine($"    var __destSpan{this.result}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({actualVariableName});");
+            builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
+            builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"        {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
+            builder.AppendLine($"        __destSpan{this.result}[{iName}]={afterName};");
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        if(terminalKind==PipelineTerminalKind.Sum) {
+            var iName = $"__i{this.result}";
+            builder.AppendLine($"    {actualVariableName}=default!;");
+            builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
+            builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"        {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
+            builder.AppendLine($"        {actualVariableName}+={afterName};");
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
+            var foundName = $"__found{this.result}";
+            builder.AppendLine($"    {actualVariableName}=default!;");
+            builder.AppendLine($"    var {foundName}=false;");
+            var iName = $"__i{this.result}";
+            builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
+            builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"        {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
+            builder.AppendLine($"        {actualVariableName}={afterName};");
+            builder.AppendLine($"        {foundName}=true;");
+            builder.AppendLine("        break;");
+            builder.AppendLine("    }");
+            if(terminalKind==PipelineTerminalKind.First) {
+                builder.AppendLine($"    if(!{foundName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+            }
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        if(terminalKind is PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault) {
+            var foundName = $"__found{this.result}";
+            builder.AppendLine($"    {actualVariableName}=default!;");
+            builder.AppendLine($"    var {foundName}=false;");
+            var iName = $"__i{this.result}";
+            builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
+            builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"        {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
+            builder.AppendLine($"        {actualVariableName}={afterName};");
+            builder.AppendLine($"        {foundName}=true;");
+            builder.AppendLine("    }");
+            if(terminalKind==PipelineTerminalKind.Last) {
+                builder.AppendLine($"    if(!{foundName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+            }
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
+            builder.AppendLine($"    {actualVariableName}=0;");
+            var iName = $"__i{this.result}";
+            builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
+            builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"        {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
+            builder.AppendLine($"        {actualVariableName}++;");
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        if(terminalKind==PipelineTerminalKind.Any) {
+            builder.AppendLine($"    {actualVariableName}=false;");
+            var iName = $"__i{this.result}";
+            builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
+            builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"        {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
+            builder.AppendLine($"        {actualVariableName}=true;");
+            builder.AppendLine("        break;");
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        if(terminalKind==PipelineTerminalKind.ToArray) {
+            var poolBuffer = $"__poolBuffer{this.result}";
+            var poolCount = $"__poolCount{this.result}";
+            var poolNext = $"__poolNext{this.result}";
+            var iName = $"__i{this.result}";
+            builder.AppendLine($"    var {poolBuffer}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent(16);");
+            builder.AppendLine($"    var {poolCount}=0;");
+            builder.AppendLine("    try {");
+            builder.AppendLine($"        for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
+            builder.AppendLine($"            {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"            {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            var afterName = this.AppendPostGroupByStages(builder,"__resItem","            ",groupByIndex);
+            builder.AppendLine($"            if({poolCount}=={poolBuffer}.Length) {{");
+            builder.AppendLine($"                var {poolNext}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({poolBuffer}.Length*2);");
+            builder.AppendLine($"                global::System.Array.Copy({poolBuffer},{poolNext},{poolCount});");
+            builder.AppendLine($"                global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Return({poolBuffer},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{pipeline.ElementType}>());");
+            builder.AppendLine($"                {poolBuffer}={poolNext};");
+            builder.AppendLine("            }");
+            builder.AppendLine($"            {poolBuffer}[{poolCount}++]={afterName};");
+            builder.AppendLine("        }");
+            builder.AppendLine($"        if({poolCount}==0) {{");
+            builder.AppendLine($"            {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+            builder.AppendLine("        } else {");
+            builder.AppendLine($"            {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({poolCount});");
+            builder.AppendLine($"            global::System.Array.Copy({poolBuffer},{actualVariableName},{poolCount});");
+            builder.AppendLine("        }");
+            builder.AppendLine("    } finally {");
+            builder.AppendLine($"        global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Return({poolBuffer},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{pipeline.ElementType}>());");
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        if(terminalKind==PipelineTerminalKind.ToList) {
+            var iName = $"__i{this.result}";
+            builder.AppendLine($"    {actualVariableName}=new();");
+            builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
+            builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"        {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
+            builder.AppendLine($"        {actualVariableName}.Add({afterName});");
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+            return builder.ToString().TrimEnd();
+        }
+        builder.AppendLine("}");
+        return null;
+    }
+
     private string? TryRenderConsumeBasedDirectScalar(string actualVariableName,string actualTypeName) {
         if(terminalKind is not (PipelineTerminalKind.Sum or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.All or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault or PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray)) {
             return null;
@@ -2441,6 +2796,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     public string GetDirectExecutionStatement(string actualVariableName,string actualTypeName) {
+        if(this.TryRenderGroupByAggregateDirectExecution(actualVariableName,actualTypeName) is { } directGroupBy) {
+            return directGroupBy;
+        }
         var builder = new StringBuilder();
         if(terminalKind==PipelineTerminalKind.ToList) {
             if(this.RenderDirectSpanPipelineToList(actualVariableName,actualTypeName) is { } directSpanPipeline) {
