@@ -47,6 +47,8 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(this.TryFuseConsecutiveSkip(node,out var singleSkip)) return singleSkip;
         if(this.TryFuseConsecutiveTakeLast(node,out var singleTakeLast)) return singleTakeLast;
         if(this.TryFuseConsecutiveSkipLast(node,out var singleSkipLast)) return singleSkipLast;
+        if(this.TryFuseTakeSkip(node,out var fusedTakeSkip)) return fusedTakeSkip;
+        if(this.TryFuseTakeLastSkipLast(node,out var fusedTakeLastSkipLast)) return fusedTakeLastSkipLast;
         if(this.TryFuseReverseTerminal(node,out var revTerminal)) return revTerminal;
         if(this.TryFuseConsecutiveExcept(node,out var fusedExcept)) return fusedExcept;
         if(this.TryFuseConsecutiveUnion(node,out var fusedUnion)) return fusedUnion;
@@ -682,6 +684,94 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
                 Parenthesize(outerArgs[0].Expression));
             result=CreateCall(innerSource,"SkipLast",addExpr);
             return true;
+        }
+    }
+    // src.Take(m).Skip(n) -> src.Skip(n).Take(Math.Max(0, m - n))
+    // m <= n の場合は要素数 0 なので src.Take(0) へ簡約
+    private bool TryFuseTakeSkip(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var outerName,out var outerReceiver,out var outerArgs)){
+            return false;
+        }else{
+        }
+        if(outerName!="Skip"||outerArgs.Count!=1){
+            return false;
+        }else{
+        }
+        if(Strip(outerReceiver) is not InvocationExpressionSyntax innerInv){
+            return false;
+        }else{
+        }
+        if(!this.TryGetEnumerableExtensionCall(innerInv,out var innerName,out var innerSource,out var innerArgs)){
+            return false;
+        }else{
+        }
+        if(innerName!="Take"||innerArgs.Count!=1){
+            return false;
+        }else{
+        }
+        if(outerArgs[0].Expression is LiteralExpressionSyntax outerLit&&outerLit.Token.Value is int n&&
+           innerArgs[0].Expression is LiteralExpressionSyntax innerLit&&innerLit.Token.Value is int m){
+            if(n<=0){
+                result=innerInv;
+                return true;
+            }else if(m<=0||n>=m){
+                var zeroLit=SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,SyntaxFactory.Literal(0));
+                result=CreateCall(innerSource,"Take",zeroLit);
+                return true;
+            }else{
+                var skipLit=SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,SyntaxFactory.Literal(n));
+                var takeLit=SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,SyntaxFactory.Literal(m-n));
+                var skipCall=CreateCall(innerSource,"Skip",skipLit);
+                result=CreateCall(skipCall,"Take",takeLit);
+                return true;
+            }
+        }else{
+            return false;
+        }
+    }
+    // src.TakeLast(m).SkipLast(n) -> src.SkipLast(n).TakeLast(Math.Max(0, m - n))
+    // m <= n の場合は要素数 0 なので src.TakeLast(0) へ簡約
+    private bool TryFuseTakeLastSkipLast(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var outerName,out var outerReceiver,out var outerArgs)){
+            return false;
+        }else{
+        }
+        if(outerName!="SkipLast"||outerArgs.Count!=1){
+            return false;
+        }else{
+        }
+        if(Strip(outerReceiver) is not InvocationExpressionSyntax innerInv){
+            return false;
+        }else{
+        }
+        if(!this.TryGetEnumerableExtensionCall(innerInv,out var innerName,out var innerSource,out var innerArgs)){
+            return false;
+        }else{
+        }
+        if(innerName!="TakeLast"||innerArgs.Count!=1){
+            return false;
+        }else{
+        }
+        if(outerArgs[0].Expression is LiteralExpressionSyntax outerLit&&outerLit.Token.Value is int n&&
+           innerArgs[0].Expression is LiteralExpressionSyntax innerLit&&innerLit.Token.Value is int m){
+            if(n<=0){
+                result=innerInv;
+                return true;
+            }else if(m<=0||n>=m){
+                var zeroLit=SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,SyntaxFactory.Literal(0));
+                result=CreateCall(innerSource,"TakeLast",zeroLit);
+                return true;
+            }else{
+                var skipLit=SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,SyntaxFactory.Literal(n));
+                var takeLit=SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,SyntaxFactory.Literal(m-n));
+                var skipCall=CreateCall(innerSource,"SkipLast",skipLit);
+                result=CreateCall(skipCall,"TakeLast",takeLit);
+                return true;
+            }
+        }else{
+            return false;
         }
     }
     // src.Reverse().First() -> src.Last()
