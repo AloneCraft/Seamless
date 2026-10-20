@@ -297,12 +297,29 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private void AppendDirectSpanPipelineSlices(StringBuilder builder,string spanName,string indent,HashSet<int> sliceIndices) {
+        var isReversed = false;
         for(var index = 0;index<pipeline.Stages.Count;index++) {
+            var stage = pipeline.Stages[index];
+            if(stage.Kind==PipelineStageKind.Reverse) {
+                isReversed=!isReversed;
+            }
             if(!sliceIndices.Contains(index)) {
                 continue;
             }
-            var stage = pipeline.Stages[index];
-            switch(stage.Kind) {
+            var kind = stage.Kind;
+            if(isReversed) {
+                if(kind==PipelineStageKind.Take) {
+                    kind=PipelineStageKind.TakeLast;
+                } else if(kind==PipelineStageKind.Skip) {
+                    kind=PipelineStageKind.SkipLast;
+                } else if(kind==PipelineStageKind.TakeLast) {
+                    kind=PipelineStageKind.Take;
+                } else if(kind==PipelineStageKind.SkipLast) {
+                    kind=PipelineStageKind.Skip;
+                } else {
+                }
+            }
+            switch(kind) {
                 case PipelineStageKind.Take:
                     builder.AppendLine($"{indent}{spanName}={spanName}.Slice(0,global::System.Math.Min({spanName}.Length,global::System.Math.Max(0,{stage.Value})));");
                     break;
@@ -1949,13 +1966,24 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private string? RenderDirectSpanPipelineElementAt(string actualVariableName,string actualTypeName,bool orDefault) {
-        if(pipeline.Stages.Any(static s => s.Kind is PipelineStageKind.Reverse or PipelineStageKind.Prepend or PipelineStageKind.Append)) {
+        if(pipeline.Stages.Any(static s => s.Kind is PipelineStageKind.Prepend or PipelineStageKind.Append)) {
             return null;
+        }
+        var seenFilter = false;
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            var stage = pipeline.Stages[i];
+            if(this.IsDirectSpanFilterStage(stage)) {
+                seenFilter=true;
+            } else if(seenFilter&&stage.Kind==PipelineStageKind.Reverse) {
+                return null;
+            } else {
+            }
         }
         var sourceName = $"__pipelineSrc{this.result}";
         if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
             return null;
         }
+        var isReversed = this.IsPrefixReversed();
         var spanName = $"__pipelineSpan{this.result}";
         var sliceIndices = this.GetPrefixSliceStageIndices();
         var indexName = $"__pipelineIndex{this.result}";
@@ -1973,7 +2001,11 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         this.AppendDirectSpanPipelineScalarInit(builder,spanName,"        ",sliceIndices);
         builder.AppendLine($"        var {countName}=0;");
         builder.AppendLine($"        var {foundVar}=false;");
-        builder.AppendLine($"        for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        if(isReversed) {
+            builder.AppendLine($"        for(var {indexName}={spanName}.Length-1;{indexName}>=0;{indexName}--) {{");
+        } else {
+            builder.AppendLine($"        for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        }
         builder.AppendLine($"            var {sourceItemName}={spanName}[{indexName}];");
         var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"            ",sliceIndices);
         builder.AppendLine($"            if({countName}=={targetIndexVar}) {{");
