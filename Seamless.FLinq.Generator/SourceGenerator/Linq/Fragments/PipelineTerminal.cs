@@ -1804,6 +1804,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private string? RenderDirectSpanPipelineElementAt(string actualVariableName,string actualTypeName,bool orDefault) {
+        if(pipeline.Stages.Any(static s => s.Kind is PipelineStageKind.Reverse or PipelineStageKind.Prepend or PipelineStageKind.Append)) {
+            return null;
+        }
         var sourceName = $"__pipelineSrc{this.result}";
         if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
             return null;
@@ -2454,6 +2457,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private string? RenderDirectSpanPipelineLast(string actualVariableName,string actualTypeName,bool orDefault) {
+        if(pipeline.Stages.Any(static s => s.Kind is PipelineStageKind.Reverse or PipelineStageKind.Prepend or PipelineStageKind.Append)) {
+            return null;
+        }
         var sourceName = $"__pipelineSrc{this.result}";
         if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
             return null;
@@ -3558,6 +3564,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             }
             var accType = func1?.ReturnTypeName??actualTypeName;
             var hasSeed = terminalValue is not null;
+            builder.AppendLine($"{actualTypeName} {actualVariableName};");
             if(hasSeed) {
                 builder.AppendLine($"{accType} __acc{this.result}={terminalValue};");
             } else {
