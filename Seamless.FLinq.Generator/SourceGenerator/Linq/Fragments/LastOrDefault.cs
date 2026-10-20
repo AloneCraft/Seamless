@@ -21,8 +21,40 @@ internal class LastOrDefault(int 番号,Enumerable source,string resultType):Buf
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeLastOrDefaultInline(destVar,destType)
         ??this.RenderDirectSpanLastOrDefaultInline(destVar,destType)
+        ??this.RenderConsumeBasedLastOrDefaultInline(destVar,destType)
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault")
         ??this.RenderComputeInline(destVar,destType);
+
+    private string? RenderConsumeBasedLastOrDefaultInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_LASTORDEFAULT_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            return $"{indent}{destVar}={arg};";
+        });
+        return $$"""
+            {{destType}} {{destVar}}=default!;
+            {{replaced}}
+            """;
+    }
+
     private string? RenderDirectSpanLastOrDefaultInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""

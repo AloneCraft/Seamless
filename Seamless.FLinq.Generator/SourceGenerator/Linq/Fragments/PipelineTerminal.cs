@@ -2266,7 +2266,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private string? TryRenderConsumeBasedDirectScalar(string actualVariableName,string actualTypeName) {
-        if(terminalKind is not (PipelineTerminalKind.Sum or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray)) {
+        if(terminalKind is not (PipelineTerminalKind.Sum or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.All or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault or PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray)) {
             return null;
         }
         var placeholder = $"__FLINQ_CONSUME_{this.result}__";
@@ -2336,7 +2336,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"{actualTypeName} {actualVariableName}=0;");
         } else if(terminalKind==PipelineTerminalKind.Any) {
             builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
-        } else if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
+        } else if(terminalKind==PipelineTerminalKind.All) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=true;");
+        } else if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault) {
             builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
             builder.AppendLine($"var {foundVar}=false;");
         } else if(terminalKind==PipelineTerminalKind.Sum) {
@@ -2382,10 +2384,21 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             } else if(terminalKind==PipelineTerminalKind.Any) {
                 sb.AppendLine($"{indent}{actualVariableName}=true;");
                 sb.Append($"{indent}goto {endLabel};");
+            } else if(terminalKind==PipelineTerminalKind.All) {
+                var condName = $"__allCond{this.result}";
+                sb.AppendLine($"{indent}bool {condName}=default!;");
+                sb.AppendLine(IndentLines(this.FuncAssignStatic(func1!,"All",condName,currentItem),indent));
+                sb.AppendLine($"{indent}if(!{condName}) {{");
+                sb.AppendLine($"{indent}    {actualVariableName}=false;");
+                sb.AppendLine($"{indent}    goto {endLabel};");
+                sb.Append($"{indent}}}");
             } else if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
                 sb.AppendLine($"{indent}{actualVariableName}={currentItem};");
                 sb.AppendLine($"{indent}{foundVar}=true;");
                 sb.Append($"{indent}goto {endLabel};");
+            } else if(terminalKind is PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault) {
+                sb.AppendLine($"{indent}{actualVariableName}={currentItem};");
+                sb.Append($"{indent}{foundVar}=true;");
             } else if(terminalKind==PipelineTerminalKind.ToList) {
                 sb.Append($"{indent}{actualVariableName}.Add({currentItem});");
             } else if(terminalKind==PipelineTerminalKind.ToArray) {
@@ -2414,11 +2427,14 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine("}");
         }
 
-        if(terminalKind is PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
+        if(terminalKind is PipelineTerminalKind.Any or PipelineTerminalKind.All or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
             builder.AppendLine($"{endLabel}:;");
             if(terminalKind==PipelineTerminalKind.First) {
                 builder.AppendLine($"if(!{foundVar}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
             }
+        }
+        if(terminalKind==PipelineTerminalKind.Last) {
+            builder.AppendLine($"if(!{foundVar}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
         }
 
         return builder.ToString().TrimEnd();
@@ -2570,6 +2586,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(this.RenderDirectSpanPipelineAll(actualVariableName,actualTypeName) is { } directSpanAll) {
                 return directSpanAll;
             }
+            if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeAll) {
+                return consumeAll;
+            }
             builder.AppendLine($"{actualTypeName} {actualVariableName}=true;");
             builder.AppendLine($"using var {this.EnumeratorName()}={pipeline.GetEnumeratorExpression};");
             builder.AppendLine($"while({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) {{");
@@ -2635,6 +2654,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             var orDefault = terminalKind==PipelineTerminalKind.LastOrDefault;
             if(this.RenderDirectSpanPipelineLast(actualVariableName,actualTypeName,orDefault) is { } directSpanLast) {
                 return directSpanLast;
+            }
+            if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeLast) {
+                return consumeLast;
             }
             builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
             builder.AppendLine($"bool __found{this.result}=false;");
