@@ -41,6 +41,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(this.TryRemoveRedundantDistinctBeforeUnion(node,out var simplifiedUnion)) return simplifiedUnion;
         if(this.TryRemoveRedundantDistinctBeforeMinMax(node,out var simplifiedMinMax)) return simplifiedMinMax;
         if(this.TryFuseConsecutiveExcept(node,out var fusedExcept)) return fusedExcept;
+        if(this.TryFuseConsecutiveUnion(node,out var fusedUnion)) return fusedUnion;
         if(this.TryRemoveRedundantOrderBeforeTerminal(node,out var strippedOrder)) return strippedOrder;
         if(this.TryFuseOrderByFirst(node,out var minmax)) return minmax;
         if(this.TryRemoveIdentityStage(node,out var stripped)) return stripped;
@@ -324,6 +325,61 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
                             outerArgs[1]
                         }));
                     result=CreateCallWithArgumentList(innerSource,"ExceptBy",newArgs);
+                    return true;
+                }else{
+                }
+            }else{
+            }
+        }else{
+        }
+        return false;
+    }
+    private bool TryFuseConsecutiveUnion(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var outerName,out var outerReceiver,out var outerArgs)){
+            return false;
+        }else{
+        }
+        if(outerName is not ("Union" or "UnionBy")){
+            return false;
+        }else{
+        }
+        if(Strip(outerReceiver) is not InvocationExpressionSyntax innerInv){
+            return false;
+        }else{
+        }
+        if(!this.TryGetEnumerableExtensionCall(innerInv,out var innerName,out var innerSource,out var innerArgs)){
+            return false;
+        }else{
+        }
+        if(outerName=="Union"&&innerName=="Union"){
+            if(outerArgs.Count==1&&innerArgs.Count==1){
+                var concatSecond=SyntaxFactory.InvocationExpression(
+                    SyntaxFactory.MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        Parenthesize(innerArgs[0].Expression),
+                        SyntaxFactory.IdentifierName("Concat")),
+                    SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(outerArgs[0])));
+                var newArgs=SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Argument(concatSecond)));
+                result=CreateCallWithArgumentList(innerSource,"Union",newArgs);
+                return true;
+            }else{
+            }
+        }else if(outerName=="UnionBy"&&innerName=="UnionBy"){
+            if(outerArgs.Count==2&&innerArgs.Count==2){
+                if(outerArgs[1].Expression.ToString()==innerArgs[1].Expression.ToString()){
+                    var concatSecond=SyntaxFactory.InvocationExpression(
+                        SyntaxFactory.MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            Parenthesize(innerArgs[0].Expression),
+                            SyntaxFactory.IdentifierName("Concat")),
+                        SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(outerArgs[0])));
+                    var newArgs=SyntaxFactory.ArgumentList(
+                        SyntaxFactory.SeparatedList(new[]{
+                            SyntaxFactory.Argument(concatSecond),
+                            outerArgs[1]
+                        }));
+                    result=CreateCallWithArgumentList(innerSource,"UnionBy",newArgs);
                     return true;
                 }else{
                 }

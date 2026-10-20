@@ -55,10 +55,47 @@ internal class First(int 番号,Enumerable source,string resultType):BufferedSca
         if(this.RenderDirectSpanFirstInline(destVar,destType) is { } directSpan) {
             return directSpan;
         }
+        if(this.RenderConsumeBasedFirstInline(destVar,destType) is { } directConsume) {
+            return directConsume;
+        }
         if(this.RenderDirectEnumerableCallInline(source,destVar,destType,"First") is { } directCall) {
             return directCall;
         }
         return this.RenderComputeInline(destVar,destType);
+    }
+    private string? RenderConsumeBasedFirstInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_FIRST_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var foundVar = $"__found{番号}";
+        var endLabel = $"__firstEnd{番号}";
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            return $"{indent}{destVar}={arg};\n{indent}{foundVar}=true;\n{indent}goto {endLabel};";
+        });
+        return $$"""
+            {{destType}} {{destVar}}=default!;
+            var {{foundVar}}=false;
+            {{replaced}}
+            {{endLabel}}:;
+            if(!{{foundVar}}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+            """;
     }
     private string? RenderDirectSpanFirstInline(string destVar,string destType) {
         var sourceName = $"__firstSource{番号}";
