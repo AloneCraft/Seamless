@@ -35,6 +35,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     }
     public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
         if(this.TryReorderWhereRun(node,out var reordered)) return reordered;
+        if(this.TryReorderWhereBeforeOrder(node,out var reorderedWhere)) return reorderedWhere;
         if(this.TryFuseWherePredicate(node,out var fused)) return fused;
         if(this.TryFuseNonEmptyUnionFirst(node,out var unionFirst)) return unionFirst;
         if(this.TryRemoveRedundantDistinctBeforeUnion(node,out var simplifiedUnion)) return simplifiedUnion;
@@ -429,6 +430,43 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             rebuilt=CreateCall(rebuilt,"Where",p);
         }
         result=rebuilt;
+        return true;
+    }
+    // src.OrderBy(k).Where(pred) -> src.Where(pred).OrderBy(k)
+    // src.OrderByDescending(k).Where(pred) -> src.Where(pred).OrderByDescending(k)
+    // 要素フィルタWhereをソート前に移動することで、ソート対象要素数を削減し計算量・メモリを大幅低減。
+    private bool TryReorderWhereBeforeOrder(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var whereName,out var whereReceiver,out var whereArgs)){
+            return false;
+        }else{
+        }
+        if(whereName!="Where"||whereArgs.Count!=1||!TryGetSingleParamLambda(whereArgs[0],out var whereLambda)){
+            return false;
+        }else{
+        }
+        if(!this.IsReorderSafe(whereLambda)){
+            return false;
+        }else{
+        }
+        if(Strip(whereReceiver) is not InvocationExpressionSyntax orderInv){
+            return false;
+        }else{
+        }
+        if(!this.TryGetEnumerableExtensionCall(orderInv,out var orderName,out var orderSource,out var orderArgs)){
+            return false;
+        }else{
+        }
+        if(orderName is not ("OrderBy" or "OrderByDescending")){
+            return false;
+        }else{
+        }
+        if(orderArgs.Count!=1){
+            return false;
+        }else{
+        }
+        var newWhere=CreateCallWithArgumentList(orderSource,"Where",node.ArgumentList);
+        result=CreateCallWithArgumentList(newWhere,orderName,orderInv.ArgumentList);
         return true;
     }
     // --- reorder safety / heuristics ---
