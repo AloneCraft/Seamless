@@ -43,6 +43,8 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(this.TryRemoveDoubleReverse(node,out var singleRev)) return singleRev;
         if(this.TryFuseConsecutiveTake(node,out var singleTake)) return singleTake;
         if(this.TryFuseConsecutiveSkip(node,out var singleSkip)) return singleSkip;
+        if(this.TryFuseConsecutiveTakeLast(node,out var singleTakeLast)) return singleTakeLast;
+        if(this.TryFuseConsecutiveSkipLast(node,out var singleSkipLast)) return singleSkipLast;
         if(this.TryFuseReverseTerminal(node,out var revTerminal)) return revTerminal;
         if(this.TryFuseConsecutiveExcept(node,out var fusedExcept)) return fusedExcept;
         if(this.TryFuseConsecutiveUnion(node,out var fusedUnion)) return fusedUnion;
@@ -500,6 +502,87 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             return true;
         }
     }
+    // src.TakeLast(n1).TakeLast(n2) -> src.TakeLast(Math.Min(n1, n2))
+    private bool TryFuseConsecutiveTakeLast(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var outerName,out var outerReceiver,out var outerArgs)){
+            return false;
+        }else{
+        }
+        if(outerName!="TakeLast"||outerArgs.Count!=1){
+            return false;
+        }else{
+        }
+        if(Strip(outerReceiver) is not InvocationExpressionSyntax innerInv){
+            return false;
+        }else{
+        }
+        if(!this.TryGetEnumerableExtensionCall(innerInv,out var innerName,out var innerSource,out var innerArgs)){
+            return false;
+        }else{
+        }
+        if(innerName!="TakeLast"||innerArgs.Count!=1){
+            return false;
+        }else{
+        }
+        if(outerArgs[0].Expression is LiteralExpressionSyntax outerLit&&outerLit.Token.Value is int outerVal&&
+           innerArgs[0].Expression is LiteralExpressionSyntax innerLit&&innerLit.Token.Value is int innerVal){
+            var minVal=Math.Min(outerVal,innerVal);
+            var minLit=SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,SyntaxFactory.Literal(minVal));
+            result=CreateCall(innerSource,"TakeLast",minLit);
+            return true;
+        }else{
+            var minInvocation=SyntaxFactory.InvocationExpression(
+                SyntaxFactory.MemberAccessExpression(
+                    SyntaxKind.SimpleMemberAccessExpression,
+                    SyntaxFactory.ParseTypeName("global::System.Math"),
+                    SyntaxFactory.IdentifierName("Min")),
+                SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(new[]{
+                    outerArgs[0],
+                    innerArgs[0]
+                })));
+            result=CreateCall(innerSource,"TakeLast",minInvocation);
+            return true;
+        }
+    }
+    // src.SkipLast(n1).SkipLast(n2) -> src.SkipLast(n1 + n2)
+    private bool TryFuseConsecutiveSkipLast(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var outerName,out var outerReceiver,out var outerArgs)){
+            return false;
+        }else{
+        }
+        if(outerName!="SkipLast"||outerArgs.Count!=1){
+            return false;
+        }else{
+        }
+        if(Strip(outerReceiver) is not InvocationExpressionSyntax innerInv){
+            return false;
+        }else{
+        }
+        if(!this.TryGetEnumerableExtensionCall(innerInv,out var innerName,out var innerSource,out var innerArgs)){
+            return false;
+        }else{
+        }
+        if(innerName!="SkipLast"||innerArgs.Count!=1){
+            return false;
+        }else{
+        }
+        if(outerArgs[0].Expression is LiteralExpressionSyntax outerLit&&outerLit.Token.Value is int outerVal&&
+           innerArgs[0].Expression is LiteralExpressionSyntax innerLit&&innerLit.Token.Value is int innerVal){
+            var sumVal=innerVal+outerVal;
+            var sumLit=SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,SyntaxFactory.Literal(sumVal));
+            result=CreateCall(innerSource,"SkipLast",sumLit);
+            return true;
+        }else{
+            var addExpr=SyntaxFactory.BinaryExpression(
+                SyntaxKind.AddExpression,
+                Parenthesize(innerArgs[0].Expression),
+                Parenthesize(outerArgs[0].Expression));
+            result=CreateCall(innerSource,"SkipLast",addExpr);
+            return true;
+        }
+    }
     // src.Reverse().First() -> src.Last()
     // src.Reverse().FirstOrDefault() -> src.LastOrDefault()
     // src.Reverse().Last() -> src.First()
@@ -560,6 +643,11 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             }
             result=this.Visit(receiver) as SyntaxNode??receiver;
             return true;
+        }
+        if((name=="Skip"||name=="SkipLast")&&args.Count==1&&args[0].Expression is LiteralExpressionSyntax lit&&lit.Token.Value is 0){
+            result=this.Visit(receiver) as SyntaxNode??receiver;
+            return true;
+        }else{
         }
         if(name=="Select"&&args.Count==1&&TryGetSingleParamLambda(args[0],out var lambda)&&IsIdentityLambda(lambda)) {
             result=this.Visit(receiver) as SyntaxNode??receiver;
