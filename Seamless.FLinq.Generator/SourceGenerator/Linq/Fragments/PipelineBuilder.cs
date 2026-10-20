@@ -151,14 +151,20 @@ internal static partial class PipelineBuilder {
         if(stages.Count==0) {
             // AsEnumerable などの透過stageが正規化で消えた場合は、terminalを持っていても
             // PipelineEnumerable を作らない。通常のFragment経路がsource能力をそのまま使う。
+            // ただし、sourceFragment が二入力/入れ子操作(Join, Zip, GroupJoin, SelectMany 等)で
+            // ConsumeExecutionStatement による直接インライン展開が可能な場合は、
+            // PipelineTerminal を作成してフラットな直接ループ展開を行わせる。
             if(terminalKind is not null) {
-                return false;
+                if(sourceFragment is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+                    return false;
+                }
+            } else {
+                fragment=sourceFragment;
+                uniqueNumber=snapshot;
+                services.ApplyRenderContext(fragment);
+                staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
+                return true;
             }
-            fragment=sourceFragment;
-            uniqueNumber=snapshot;
-            services.ApplyRenderContext(fragment);
-            staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
-            return true;
         }
         var pipeline = new PipelineEnumerable(snapshot++,sourceFragment,stages.ToArray(),currentElementType);
         AddUnsafeAccessors(stages,unsafeAccessorCollector);

@@ -156,7 +156,24 @@ public static class 拡張メソッドカタログ{
                 "OrderBy.cs および PipelineEnumerable.OrderLoop.cs で後続のTake/First/ElementAtを検出し、Top-K部分ソート経路を有効化してください。");
         }
 
-        // 4. GroupBy -> 集計 / OrderBy / Take
+        // 4. Join / GroupJoin -> 後段
+        if(前段名=="Join"||前段名=="GroupJoin"){
+            var ループ数 = 2;
+            var 追加メモリ = 6400L;
+            var 説明 = $"{前段名}の内側ソースLookup探索表を構築し、外側走査ループ内で結合要素を後段へ供給";
+            return new ペア遷移特性(
+                前段名,
+                後段名,
+                $"{前段名}内側Lookup構築+走査融合",
+                ループ数,
+                追加メモリ,
+                true,
+                説明,
+                $"{前段名}と{後段名}の間で中間列挙子または不要バッファが生成されている疑い。",
+                "Join.cs のインライン化および直接Spanループを活用してください。");
+        }
+
+        // 5. GroupBy -> 集計 / OrderBy / Take
         if(前段名.StartsWith("GroupBy",StringComparison.Ordinal)){
             if(前段名=="GroupBy_KeyOnly"){
                 return new ペア遷移特性(
