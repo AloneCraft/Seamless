@@ -180,7 +180,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
                 break;
             }else{
             }
-            if(methodName=="OrderBy"||methodName=="OrderByDescending"||methodName=="ThenBy"||methodName=="ThenByDescending"){
+            if(methodName=="OrderBy"||methodName=="OrderByDescending"||methodName=="ThenBy"||methodName=="ThenByDescending"||methodName=="Reverse"){
                 cur=Strip(methodSource);
                 strippedAny=true;
                 continue;
