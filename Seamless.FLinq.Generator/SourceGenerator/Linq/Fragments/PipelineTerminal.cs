@@ -1181,20 +1181,34 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 case PipelineStageKind.SkipWhile:
                     builder.AppendLine($"{indent}var __pipelineSkipWhileActive{this.result}_{index+1}=true;");
                     break;
-                case PipelineStageKind.Distinct:
+                case PipelineStageKind.Distinct: {
                     if(skipDistinct) {
                         break;
                     }
                     var keyTypeDistinct = stage.KeyType??stage.OutputType;
-                    builder.AppendLine($"{indent}var __pipelineSet{this.result}_{index+1}=new global::System.Collections.Generic.HashSet<{keyTypeDistinct}>();");
+                    string ctorArg;
+                    if(string.IsNullOrEmpty(stage.Value)) {
+                        ctorArg=$"{spanName}.Length";
+                    } else {
+                        ctorArg=$"{spanName}.Length, {stage.Value}";
+                    }
+                    builder.AppendLine($"{indent}var __pipelineSet{this.result}_{index+1}=new global::System.Collections.Generic.HashSet<{keyTypeDistinct}>({ctorArg});");
                     break;
-                case PipelineStageKind.DistinctBy:
+                }
+                case PipelineStageKind.DistinctBy: {
                     if(skipDistinct) {
                         break;
                     }
                     var keyTypeDistinctBy = stage.KeyType??stage.Func?.ReturnTypeName??"object";
-                    builder.AppendLine($"{indent}var __pipelineSet{this.result}_{index+1}=new global::System.Collections.Generic.HashSet<{keyTypeDistinctBy}>();");
+                    string ctorArg;
+                    if(string.IsNullOrEmpty(stage.Value)) {
+                        ctorArg=$"{spanName}.Length";
+                    } else {
+                        ctorArg=$"{spanName}.Length, {stage.Value}";
+                    }
+                    builder.AppendLine($"{indent}var __pipelineSet{this.result}_{index+1}=new global::System.Collections.Generic.HashSet<{keyTypeDistinctBy}>({ctorArg});");
                     break;
+                }
             }
         }
     }
