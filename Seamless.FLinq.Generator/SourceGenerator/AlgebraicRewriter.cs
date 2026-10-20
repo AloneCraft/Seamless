@@ -37,6 +37,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(this.TryReorderWhereRun(node,out var reordered)) return reordered;
         if(this.TryFuseWherePredicate(node,out var fused)) return fused;
         if(this.TryFuseNonEmptyUnionFirst(node,out var unionFirst)) return unionFirst;
+        if(this.TryRemoveRedundantOrderBeforeTerminal(node,out var strippedOrder)) return strippedOrder;
         if(this.TryFuseOrderByFirst(node,out var minmax)) return minmax;
         if(this.TryRemoveIdentityStage(node,out var stripped)) return stripped;
         return base.VisitInvocationExpression(node);
@@ -133,6 +134,66 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             }
         }
         return false;
+    }
+    private static readonly HashSet<string> OrderInsensitiveTerminals = new(StringComparer.Ordinal){
+        "Contains","Any","All","Count","LongCount",
+    };
+    private static readonly HashSet<string> OrderPreservingTransparentStages = new(StringComparer.Ordinal){
+        "Where","Select","Cast","OfType",
+        "Distinct","DistinctBy",
+        "Intersect","IntersectBy",
+        "Except","ExceptBy",
+        "Union","UnionBy",
+        "Concat",
+    };
+    // 順序非依存な終端操作（Contains, Any, All, Count, LongCount）の上流にある冗長な OrderBy/OrderByDescending/ThenBy を除去。
+    private bool TryRemoveRedundantOrderBeforeTerminal(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var terminalName,out var terminalReceiver,out _)){
+            return false;
+        }else{
+        }
+        if(!OrderInsensitiveTerminals.Contains(terminalName)){
+            return false;
+        }else{
+        }
+        var cur=Strip(terminalReceiver);
+        var strippedAny=false;
+        var intermediateStages=new List<(string MethodName,ArgumentListSyntax Args)>();
+        while(cur is InvocationExpressionSyntax inv){
+            if(!this.TryGetEnumerableExtensionCall(inv,out var methodName,out var methodSource,out _)){
+                break;
+            }else{
+            }
+            if(methodName=="OrderBy"||methodName=="OrderByDescending"||methodName=="ThenBy"||methodName=="ThenByDescending"){
+                cur=Strip(methodSource);
+                strippedAny=true;
+                continue;
+            }else{
+            }
+            if(OrderPreservingTransparentStages.Contains(methodName)){
+                intermediateStages.Add((methodName,inv.ArgumentList));
+                cur=Strip(methodSource);
+                continue;
+            }else{
+            }
+            break;
+        }
+        if(!strippedAny){
+            return false;
+        }else{
+        }
+        var rewritten=cur;
+        for(var i=intermediateStages.Count-1;i>=0;i--){
+            var stage=intermediateStages[i];
+            rewritten=CreateCallWithArgumentList(rewritten,stage.MethodName,stage.Args);
+        }
+        result=CreateCallWithArgumentList(rewritten,terminalName,node.ArgumentList);
+        return true;
+    }
+    private static InvocationExpressionSyntax CreateCallWithArgumentList(ExpressionSyntax receiver,string method,ArgumentListSyntax argumentList){
+        var ma=SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,Parenthesize(receiver),SyntaxFactory.IdentifierName(method));
+        return SyntaxFactory.InvocationExpression(ma,argumentList);
     }
     // src.Select(x=>x) / src.AsEnumerable() を除去して src（再帰訪問済み）へ。
     // ただし「後続に別の Enumerable 拡張呼び出しがある（=チェーンの最外段でない）」場合のみ除去する。
