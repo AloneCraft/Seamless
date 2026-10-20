@@ -39,6 +39,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(this.TryFuseNonEmptyUnionFirst(node,out var unionFirst)) return unionFirst;
         if(this.TryRemoveRedundantDistinctBeforeUnion(node,out var simplifiedUnion)) return simplifiedUnion;
         if(this.TryRemoveRedundantDistinctBeforeMinMax(node,out var simplifiedMinMax)) return simplifiedMinMax;
+        if(this.TryFuseConsecutiveExcept(node,out var fusedExcept)) return fusedExcept;
         if(this.TryRemoveRedundantOrderBeforeTerminal(node,out var strippedOrder)) return strippedOrder;
         if(this.TryFuseOrderByFirst(node,out var minmax)) return minmax;
         if(this.TryRemoveIdentityStage(node,out var stripped)) return stripped;
@@ -265,6 +266,63 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             if(distinctArgs.Count==1&&terminalArgs.Count==1){
                 if(distinctArgs[0].Expression.ToString()==terminalArgs[0].Expression.ToString()){
                     result=CreateCallWithArgumentList(distinctSource,terminalName,node.ArgumentList);
+                    return true;
+                }else{
+                }
+            }else{
+            }
+        }else{
+        }
+        return false;
+    }
+    // src.Except(s1).Except(s2) -> src.Except(s1.Concat(s2))
+    // src.ExceptBy(s1, k).ExceptBy(s2, k) -> src.ExceptBy(s1.Concat(s2), k)
+    private bool TryFuseConsecutiveExcept(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var outerName,out var outerReceiver,out var outerArgs)){
+            return false;
+        }else{
+        }
+        if(outerName is not ("Except" or "ExceptBy")){
+            return false;
+        }else{
+        }
+        if(Strip(outerReceiver) is not InvocationExpressionSyntax innerInv){
+            return false;
+        }else{
+        }
+        if(!this.TryGetEnumerableExtensionCall(innerInv,out var innerName,out var innerSource,out var innerArgs)){
+            return false;
+        }else{
+        }
+        if(outerName=="Except"&&innerName=="Except"){
+            if(outerArgs.Count==1&&innerArgs.Count==1){
+                var concatSecond=SyntaxFactory.InvocationExpression(
+                    SyntaxFactory.MemberAccessExpression(
+                        SyntaxKind.SimpleMemberAccessExpression,
+                        Parenthesize(innerArgs[0].Expression),
+                        SyntaxFactory.IdentifierName("Concat")),
+                    SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(outerArgs[0])));
+                var newArgs=SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(SyntaxFactory.Argument(concatSecond)));
+                result=CreateCallWithArgumentList(innerSource,"Except",newArgs);
+                return true;
+            }else{
+            }
+        }else if(outerName=="ExceptBy"&&innerName=="ExceptBy"){
+            if(outerArgs.Count==2&&innerArgs.Count==2){
+                if(outerArgs[1].Expression.ToString()==innerArgs[1].Expression.ToString()){
+                    var concatSecond=SyntaxFactory.InvocationExpression(
+                        SyntaxFactory.MemberAccessExpression(
+                            SyntaxKind.SimpleMemberAccessExpression,
+                            Parenthesize(innerArgs[0].Expression),
+                            SyntaxFactory.IdentifierName("Concat")),
+                        SyntaxFactory.ArgumentList(SyntaxFactory.SingletonSeparatedList(outerArgs[0])));
+                    var newArgs=SyntaxFactory.ArgumentList(
+                        SyntaxFactory.SeparatedList(new[]{
+                            SyntaxFactory.Argument(concatSecond),
+                            outerArgs[1]
+                        }));
+                    result=CreateCallWithArgumentList(innerSource,"ExceptBy",newArgs);
                     return true;
                 }else{
                 }
