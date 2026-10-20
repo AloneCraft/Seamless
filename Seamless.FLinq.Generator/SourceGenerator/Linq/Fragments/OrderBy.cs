@@ -92,6 +92,7 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
 
     protected override Enumerable PrimarySource => this.UnorderedSource;
     public override string ElementType => this.UnorderedSource.ElementType;
+    public override string? NonEnumeratedCountExpression => this.UnorderedSource.NonEnumeratedCountExpression;
 
     public override string StructMethod =>
         this.PrimaryOrdering is { } po

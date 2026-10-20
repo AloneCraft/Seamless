@@ -41,13 +41,14 @@ internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IR
     internal IReadOnlyList<PipelineStage> PipelineStages => stages;
 
     private bool StagesCountPreserving => stages.All(static stage => stage.Kind is PipelineStageKind.Select or PipelineStageKind.AsEnumerable or PipelineStageKind.Cast);
+    private bool StagesElementCountPreserving => stages.All(static stage => stage.Kind is PipelineStageKind.Select or PipelineStageKind.AsEnumerable or PipelineStageKind.Cast or PipelineStageKind.Reverse or PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending or PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending);
     private bool SingleDefaultIfEmpty => stages.Count==1&&stages[0].Kind==PipelineStageKind.DefaultIfEmpty;
     protected override Enumerable PrimarySource => source;
     public Enumerable Source => source;
     public IReadOnlyList<PipelineStage> Stages => stages;
     public override string ElementType => elementType;
-    public override string? NonEnumeratedCountExpression => this.StagesCountPreserving ? source.NonEnumeratedCountExpression : null;
-    public override bool CountPreserving => source.CountPreserving&&this.StagesCountPreserving;
+    public override string? NonEnumeratedCountExpression => this.StagesElementCountPreserving ? source.NonEnumeratedCountExpression : null;
+    public override bool CountPreserving => source.CountPreserving&&this.StagesElementCountPreserving;
     public override bool CanTryProvideSpan => this.SingleDefaultIfEmpty&&source.CanTryProvideSpan;
     // SecondSources は stages(PipelineStage の一覧)の中に埋もれているため、Fragment 型フィールドを
     // 走査するリフレクションベースの伝播(基底実装)からは見えない。ここで明示的に伝播しないと、

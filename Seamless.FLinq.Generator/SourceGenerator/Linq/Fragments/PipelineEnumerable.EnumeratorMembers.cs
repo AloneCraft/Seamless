@@ -171,7 +171,7 @@ internal sealed partial class PipelineEnumerable {
                     return false;
                     """;
             }
-            return this.StagesCountPreserving
+            return this.StagesElementCountPreserving
                 ? $"return this.{this.e}.TryGetNonEnumeratedCount(out count);"
                 : base.GetTryGetNonEnumeratedCountBody;
         }
