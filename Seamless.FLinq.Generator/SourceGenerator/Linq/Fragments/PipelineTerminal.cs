@@ -499,6 +499,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 return false;
             }
         }
+        var hasFilter = false;
         for(var i = binaryStageIndex+1;i<pipeline.Stages.Count;i++) {
             var st = pipeline.Stages[i];
             if(st.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast) {
@@ -507,6 +508,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(st.Kind==PipelineStageKind.Select&&!st.UsesIndex&&st.Func is { } f&&CanUseDirectSpanPipelineFunc(f)) {
                 continue;
             }
+            if(st.Kind==PipelineStageKind.Where&&!st.UsesIndex&&st.Func is { } wf&&CanUseDirectSpanPipelineFunc(wf)) {
+                hasFilter=true;
+                continue;
+            }
+            return false;
+        }
+        if(hasFilter&&terminalKind!=PipelineTerminalKind.Sum) {
             return false;
         }
         return true;
@@ -519,6 +527,11 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 var nextName = $"__pipelineItem{this.result}_{i+1}";
                 builder.AppendLine($"{indent}var {nextName}=({stage.OutputType})(object?){currentName};");
                 currentName=nextName;
+            } else if(stage.Kind==PipelineStageKind.Where) {
+                var condName = $"__pipelineCond{this.result}_{i+1}";
+                builder.AppendLine($"{indent}bool {condName}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.Where),condName,currentName),indent));
+                builder.AppendLine($"{indent}if(!{condName}) continue;");
             } else if(stage.Kind==PipelineStageKind.Select) {
                 var nextName = $"__pipelineItem{this.result}_{i+1}";
                 builder.AppendLine($"{indent}{stage.OutputType} {nextName}=default!;");
