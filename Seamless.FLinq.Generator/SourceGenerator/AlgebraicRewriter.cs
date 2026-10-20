@@ -40,6 +40,8 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(this.TryFuseNonEmptyUnionFirst(node,out var unionFirst)) return unionFirst;
         if(this.TryRemoveRedundantDistinctBeforeUnion(node,out var simplifiedUnion)) return simplifiedUnion;
         if(this.TryRemoveRedundantDistinctBeforeMinMax(node,out var simplifiedMinMax)) return simplifiedMinMax;
+        if(this.TryRemoveRedundantDistinctBeforeTerminal(node,out var simplifiedDistinct)) return simplifiedDistinct;
+        if(this.TryDowngradeUnionToConcatBeforeTerminal(node,out var downgradedUnion)) return downgradedUnion;
         if(this.TryRemoveDoubleReverse(node,out var singleRev)) return singleRev;
         if(this.TryFuseConsecutiveTake(node,out var singleTake)) return singleTake;
         if(this.TryFuseConsecutiveSkip(node,out var singleSkip)) return singleSkip;
@@ -277,6 +279,105 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
                     return true;
                 }else{
                 }
+            }else{
+            }
+        }else{
+        }
+        return false;
+    }
+    // src.Distinct().First() -> src.First()
+    // src.Distinct().FirstOrDefault() -> src.FirstOrDefault()
+    // src.DistinctBy(k).First() -> src.First()
+    // src.DistinctBy(k).FirstOrDefault() -> src.FirstOrDefault()
+    // src.Distinct().Any() -> src.Any()
+    // src.DistinctBy(k).Any() -> src.Any()
+    // src.Distinct().Contains(x) -> src.Contains(x)
+    private bool TryRemoveRedundantDistinctBeforeTerminal(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var terminalName,out var terminalReceiver,out var terminalArgs)){
+            return false;
+        }else{
+        }
+        if(terminalName is not ("First" or "FirstOrDefault" or "Any" or "Contains")){
+            return false;
+        }else{
+        }
+        if(Strip(terminalReceiver) is not InvocationExpressionSyntax distinctInv){
+            return false;
+        }else{
+        }
+        if(!this.TryGetEnumerableExtensionCall(distinctInv,out var distinctName,out var distinctSource,out var distinctArgs)){
+            return false;
+        }else{
+        }
+        if(distinctName=="Distinct"&&distinctArgs.Count==0){
+            if(terminalName is "First" or "FirstOrDefault"&&terminalArgs.Count==0){
+                result=CreateCall(distinctSource,terminalName);
+                return true;
+            }else if(terminalName=="Any"){
+                result=CreateCallWithArgumentList(distinctSource,"Any",node.ArgumentList);
+                return true;
+            }else if(terminalName=="Contains"&&terminalArgs.Count==1){
+                result=CreateCallWithArgumentList(distinctSource,"Contains",node.ArgumentList);
+                return true;
+            }else{
+            }
+        }else if(distinctName=="DistinctBy"){
+            if(terminalName is "First" or "FirstOrDefault"&&terminalArgs.Count==0){
+                result=CreateCall(distinctSource,terminalName);
+                return true;
+            }else if(terminalName=="Any"&&terminalArgs.Count==0){
+                result=CreateCall(distinctSource,"Any");
+                return true;
+            }else{
+            }
+        }else{
+        }
+        return false;
+    }
+    // src.Union(second).Any() -> src.Concat(second).Any()
+    // src.Union(second).First() -> src.Concat(second).First()
+    // src.Union(second).FirstOrDefault() -> src.Concat(second).FirstOrDefault()
+    // src.Union(second).Contains(x) -> src.Concat(second).Contains(x)
+    // src.UnionBy(second, k).Any() -> src.Concat(second).Any()
+    private bool TryDowngradeUnionToConcatBeforeTerminal(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var terminalName,out var terminalReceiver,out var terminalArgs)){
+            return false;
+        }else{
+        }
+        if(terminalName is not ("First" or "FirstOrDefault" or "Any" or "Contains")){
+            return false;
+        }else{
+        }
+        if(Strip(terminalReceiver) is not InvocationExpressionSyntax unionInv){
+            return false;
+        }else{
+        }
+        if(!this.TryGetEnumerableExtensionCall(unionInv,out var unionName,out var unionSource,out var unionArgs)){
+            return false;
+        }else{
+        }
+        if(unionName=="Union"&&unionArgs.Count==1){
+            if(terminalName is "First" or "FirstOrDefault"&&terminalArgs.Count==0){
+                var concatCall=CreateCall(unionSource,"Concat",unionArgs[0].Expression);
+                result=CreateCall(concatCall,terminalName);
+                return true;
+            }else if(terminalName=="Any"&&terminalArgs.Count==0){
+                var concatCall=CreateCall(unionSource,"Concat",unionArgs[0].Expression);
+                result=CreateCall(concatCall,"Any");
+                return true;
+            }else if(terminalName=="Contains"&&terminalArgs.Count==1){
+                var concatCall=CreateCall(unionSource,"Concat",unionArgs[0].Expression);
+                result=CreateCallWithArgumentList(concatCall,"Contains",node.ArgumentList);
+                return true;
+            }else{
+            }
+        }else if(unionName=="UnionBy"&&unionArgs.Count==2){
+            if(terminalName=="Any"&&terminalArgs.Count==0){
+                var concatCall=CreateCall(unionSource,"Concat",unionArgs[0].Expression);
+                result=CreateCall(concatCall,"Any");
+                return true;
             }else{
             }
         }else{
