@@ -56,4 +56,5 @@ internal enum PipelineTerminalKind {
     ElementAtOrDefault,
     MinBy,
     MaxBy,
+    Aggregate,
 }

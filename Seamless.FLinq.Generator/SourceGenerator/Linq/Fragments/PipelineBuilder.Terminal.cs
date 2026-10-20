@@ -98,6 +98,9 @@ internal static partial class PipelineBuilder {
             case "MaxBy":
                 terminalKind=PipelineTerminalKind.MaxBy;
                 return true;
+            case "Aggregate":
+                terminalKind=PipelineTerminalKind.Aggregate;
+                return true;
             default:
                 terminalKind=default;
                 return false;
@@ -174,6 +177,51 @@ internal static partial class PipelineBuilder {
                 return false;
             }
             return true;
+        }
+        if(terminalKind==PipelineTerminalKind.Aggregate) {
+            if(invocation.ArgumentList.Arguments.Count==0||method.Parameters.Length==0) {
+                return false;
+            }
+            if(invocation.ArgumentList.Arguments.Count==1) {
+                if(method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 3 } funcType) {
+                    return false;
+                }
+                if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,funcType,ref uniqueNumber,out func1)
+                    ||!services.CanUseFunc(func1)) {
+                    return false;
+                }
+                return true;
+            }
+            if(invocation.ArgumentList.Arguments.Count==2) {
+                terminalValue=services.RenderExpression(invocation.ArgumentList.Arguments[0].Expression);
+                if(method.Parameters[1].Type is not INamedTypeSymbol { TypeArguments.Length: 3 } funcType) {
+                    return false;
+                }
+                if(!services.BuildFunc(invocation.ArgumentList.Arguments[1].Expression,funcType,ref uniqueNumber,out func1)
+                    ||!services.CanUseFunc(func1)) {
+                    return false;
+                }
+                return true;
+            }
+            if(invocation.ArgumentList.Arguments.Count==3) {
+                terminalValue=services.RenderExpression(invocation.ArgumentList.Arguments[0].Expression);
+                if(method.Parameters[1].Type is not INamedTypeSymbol { TypeArguments.Length: 3 } funcType) {
+                    return false;
+                }
+                if(!services.BuildFunc(invocation.ArgumentList.Arguments[1].Expression,funcType,ref uniqueNumber,out func1)
+                    ||!services.CanUseFunc(func1)) {
+                    return false;
+                }
+                if(method.Parameters[2].Type is not INamedTypeSymbol { TypeArguments.Length: 2 } resSelectorType) {
+                    return false;
+                }
+                if(!services.BuildFunc(invocation.ArgumentList.Arguments[2].Expression,resSelectorType,ref uniqueNumber,out func2)
+                    ||!services.CanUseFunc(func2)) {
+                    return false;
+                }
+                return true;
+            }
+            return false;
         }
         if(terminalKind==PipelineTerminalKind.ToDictionary) {
             return TryAppendToDictionaryTerminalArguments(semanticModel,invocation,method,services,ref uniqueNumber,out func1,out func2,out comparerValue);

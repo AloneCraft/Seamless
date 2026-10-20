@@ -56,6 +56,15 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault or PipelineTerminalKind.Min or PipelineTerminalKind.Max or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy) {
                 return pipeline.ElementType;
             }
+            if(terminalKind==PipelineTerminalKind.Aggregate) {
+                if(func2 is not null) {
+                    return func2.ReturnTypeName;
+                }
+                if(func1 is not null) {
+                    return func1.ReturnTypeName;
+                }
+                return pipeline.ElementType;
+            }
             throw new NotSupportedException($"{terminalKind} does not support scalar enumerator generation.");
         }
     }
@@ -64,7 +73,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         func2 is null ? string.Empty : this.FuncSupport(func2,nameof(func2)));
     public override string GetEnumeratorStruct {
         get {
-            if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToHashSet or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum or PipelineTerminalKind.Average or PipelineTerminalKind.Min or PipelineTerminalKind.Max or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy or PipelineTerminalKind.All or PipelineTerminalKind.Contains or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault) {
+            if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToHashSet or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum or PipelineTerminalKind.Average or PipelineTerminalKind.Min or PipelineTerminalKind.Max or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy or PipelineTerminalKind.Aggregate or PipelineTerminalKind.All or PipelineTerminalKind.Contains or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault) {
                 return pipeline.GetEnumeratorStruct;
             }
             return $$"""
@@ -75,7 +84,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
     public override string GetEnumeratorExpression {
         get {
-            if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToHashSet or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum or PipelineTerminalKind.Average or PipelineTerminalKind.Min or PipelineTerminalKind.Max or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy or PipelineTerminalKind.All or PipelineTerminalKind.Contains or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault) {
+            if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToHashSet or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum or PipelineTerminalKind.Average or PipelineTerminalKind.Min or PipelineTerminalKind.Max or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy or PipelineTerminalKind.Aggregate or PipelineTerminalKind.All or PipelineTerminalKind.Contains or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault) {
                 throw new NotSupportedException($"{nameof(PipelineTerminal)} uses direct execution.");
             }
             return RenderEnumeratorExpression(this.EnumeratorTypeName,pipeline.GetEnumeratorExpression);
@@ -1891,6 +1900,67 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return builder.ToString().TrimEnd();
     }
 
+    private string? RenderDirectSpanPipelineAggregate(string actualVariableName,string actualTypeName) {
+        if(func1 is null) {
+            return null;
+        }
+        var sourceName = $"__pipelineSrc{this.result}";
+        if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
+            return null;
+        }
+        var accType = func1.ReturnTypeName;
+        var hasSeed = terminalValue is not null;
+        var spanName = $"__pipelineSpan{this.result}";
+        var sliceIndices = this.GetPrefixSliceStageIndices();
+        var indexName = $"__pipelineIndex{this.result}";
+        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var hasValueName = $"__hasValue{this.result}";
+        var accName = $"__acc{this.result}";
+        var nextAccName = $"__nextAcc{this.result}";
+        var builder = new StringBuilder();
+        builder.AppendLine($"{actualTypeName} {actualVariableName};");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
+        this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
+        if(hasSeed) {
+            builder.AppendLine($"    {accType} {accName}={terminalValue};");
+        } else {
+            builder.AppendLine($"    var {hasValueName}=false;");
+            builder.AppendLine($"    {accType} {accName}=default!;");
+        }
+        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
+        if(hasSeed) {
+            builder.AppendLine($"        {accType} {nextAccName}=default!;");
+            builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"func",nextAccName,accName,currentName),"        "));
+            builder.AppendLine($"        {accName}={nextAccName};");
+        } else {
+            builder.AppendLine($"        if(!{hasValueName}) {{");
+            builder.AppendLine($"            {accName}=({accType})(object?){currentName}!;");
+            builder.AppendLine($"            {hasValueName}=true;");
+            builder.AppendLine($"        }} else {{");
+            builder.AppendLine($"            {accType} {nextAccName}=default!;");
+            builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"func",nextAccName,accName,currentName),"            "));
+            builder.AppendLine($"            {accName}={nextAccName};");
+            builder.AppendLine($"        }}");
+        }
+        builder.AppendLine("    }");
+        if(!hasSeed) {
+            builder.AppendLine($"    if(!{hasValueName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+        }
+        if(func2 is not null) {
+            builder.AppendLine($"    {actualTypeName} __finalResult{this.result}=default!;");
+            builder.AppendLine(IndentLines(this.FuncAssignStatic(func2,"resultSelector",$"__finalResult{this.result}",accName),"    "));
+            builder.AppendLine($"    {actualVariableName}=__finalResult{this.result};");
+        } else {
+            builder.AppendLine($"    {actualVariableName}={accName};");
+        }
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
     private bool CanUseDirectSpanPipelineDefaultIfEmpty(out PipelineStage defaultIfEmptyStage) {
         defaultIfEmptyStage=null!;
         if(!this.TryGetSingleDefaultIfEmptyStage(out var st)||st is null) {
@@ -2801,7 +2871,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private string? TryRenderConsumeBasedDirectScalar(string actualVariableName,string actualTypeName) {
-        if(terminalKind is not (PipelineTerminalKind.Sum or PipelineTerminalKind.Average or PipelineTerminalKind.Min or PipelineTerminalKind.Max or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.All or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault or PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray)) {
+        if(terminalKind is not (PipelineTerminalKind.Sum or PipelineTerminalKind.Average or PipelineTerminalKind.Min or PipelineTerminalKind.Max or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy or PipelineTerminalKind.Aggregate or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.All or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault or PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray)) {
             return null;
         }
         var placeholder = $"__FLINQ_CONSUME_{this.result}__";
@@ -2899,6 +2969,15 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"var {foundVar}=false;");
             builder.AppendLine($"{keyType} __bestKey{this.result}=default!;");
             builder.AppendLine($"var __comparer{this.result}=global::System.Collections.Generic.Comparer<{keyType}>.Default;");
+        } else if(terminalKind==PipelineTerminalKind.Aggregate) {
+            var accType = func1?.ReturnTypeName??actualTypeName;
+            var hasSeed = terminalValue is not null;
+            if(hasSeed) {
+                builder.AppendLine($"{accType} __acc{this.result}={terminalValue};");
+            } else {
+                builder.AppendLine($"var {foundVar}=false;");
+                builder.AppendLine($"{accType} __acc{this.result}=default!;");
+            }
         } else if(terminalKind==PipelineTerminalKind.ToList) {
             builder.AppendLine($"{actualTypeName} {actualVariableName}=new();");
         } else if(terminalKind==PipelineTerminalKind.ToArray) {
@@ -2977,6 +3056,24 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 sb.AppendLine($"{indent}    {actualVariableName}={currentItem};");
                 sb.AppendLine($"{indent}    __bestKey{this.result}={keyName};");
                 sb.AppendLine($"{indent}}}");
+            } else if(terminalKind==PipelineTerminalKind.Aggregate) {
+                var accType = func1?.ReturnTypeName??actualTypeName;
+                var hasSeed = terminalValue is not null;
+                var nextAccName = $"__nextAcc{this.result}";
+                if(hasSeed) {
+                    sb.AppendLine($"{indent}{accType} {nextAccName}=default!;");
+                    sb.AppendLine(IndentLines(this.FuncAssignStatic(func1!,"func",nextAccName,$"__acc{this.result}",currentItem),indent));
+                    sb.AppendLine($"{indent}__acc{this.result}={nextAccName};");
+                } else {
+                    sb.AppendLine($"{indent}if(!{foundVar}) {{");
+                    sb.AppendLine($"{indent}    __acc{this.result}=({accType})(object?){currentItem}!;");
+                    sb.AppendLine($"{indent}    {foundVar}=true;");
+                    sb.AppendLine($"{indent}}} else {{");
+                    sb.AppendLine($"{indent}    {accType} {nextAccName}=default!;");
+                    sb.AppendLine(IndentLines(this.FuncAssignStatic(func1!,"func",nextAccName,$"__acc{this.result}",currentItem),$"{indent}    "));
+                    sb.AppendLine($"{indent}    __acc{this.result}={nextAccName};");
+                    sb.AppendLine($"{indent}}}");
+                }
             } else if(terminalKind==PipelineTerminalKind.Any) {
                 sb.AppendLine($"{indent}{actualVariableName}=true;");
                 sb.Append($"{indent}goto {endLabel};");
@@ -3046,6 +3143,19 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
         if(terminalKind is PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy) {
             builder.AppendLine($"if(!{foundVar}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+        }
+        if(terminalKind==PipelineTerminalKind.Aggregate) {
+            var hasSeed = terminalValue is not null;
+            if(!hasSeed) {
+                builder.AppendLine($"if(!{foundVar}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+            }
+            if(func2 is not null) {
+                builder.AppendLine($"{actualTypeName} __finalResult{this.result}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(func2,"resultSelector",$"__finalResult{this.result}",$"__acc{this.result}"),""));
+                builder.AppendLine($"{actualVariableName}=__finalResult{this.result};");
+            } else {
+                builder.AppendLine($"{actualVariableName}=__acc{this.result};");
+            }
         }
 
         return builder.ToString().TrimEnd();
@@ -3413,6 +3523,50 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"    }}");
             builder.AppendLine($"}}");
             builder.AppendLine($"if(!__found{this.result}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+            return builder.ToString().TrimEnd();
+        }
+        if(terminalKind==PipelineTerminalKind.Aggregate) {
+            if(this.RenderDirectSpanPipelineAggregate(actualVariableName,actualTypeName) is { } directSpanAggregate) {
+                return directSpanAggregate;
+            }
+            if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeAggregate) {
+                return consumeAggregate;
+            }
+            var accType = func1?.ReturnTypeName??actualTypeName;
+            var hasSeed = terminalValue is not null;
+            if(hasSeed) {
+                builder.AppendLine($"{accType} __acc{this.result}={terminalValue};");
+            } else {
+                builder.AppendLine($"var __found{this.result}=false;");
+                builder.AppendLine($"{accType} __acc{this.result}=default!;");
+            }
+            builder.AppendLine($"using var {this.EnumeratorName()}={pipeline.GetEnumeratorExpression};");
+            builder.AppendLine($"while({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) {{");
+            if(hasSeed) {
+                builder.AppendLine($"    {accType} __nextAcc{this.result}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(func1!,"func",$"__nextAcc{this.result}",$"__acc{this.result}",$"__item{this.result}"),"    "));
+                builder.AppendLine($"    __acc{this.result}=__nextAcc{this.result};");
+            } else {
+                builder.AppendLine($"    if(!__found{this.result}) {{");
+                builder.AppendLine($"        __acc{this.result}=({accType})(object?)__item{this.result}!;");
+                builder.AppendLine($"        __found{this.result}=true;");
+                builder.AppendLine($"    }} else {{");
+                builder.AppendLine($"        {accType} __nextAcc{this.result}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(func1!,"func",$"__nextAcc{this.result}",$"__acc{this.result}",$"__item{this.result}"),"        "));
+                builder.AppendLine($"        __acc{this.result}=__nextAcc{this.result};");
+                builder.AppendLine($"    }}");
+            }
+            builder.AppendLine($"}}");
+            if(!hasSeed) {
+                builder.AppendLine($"if(!__found{this.result}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+            }
+            if(func2 is not null) {
+                builder.AppendLine($"{actualTypeName} __finalResult{this.result}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(func2,"resultSelector",$"__finalResult{this.result}",$"__acc{this.result}"),""));
+                builder.AppendLine($"{actualVariableName}=__finalResult{this.result};");
+            } else {
+                builder.AppendLine($"{actualVariableName}=__acc{this.result};");
+            }
             return builder.ToString().TrimEnd();
         }
         if(terminalKind==PipelineTerminalKind.ToDictionary) {
