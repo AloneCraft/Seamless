@@ -3224,7 +3224,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
 
         if(consumeStatement is null) {
-            if(pipeline.Source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase or CountBy or AggregateBy)) {
+            if(pipeline.Source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase or CountBy or AggregateBy or SetBase or SetByBase or DistinctBase or DistinctByBase)) {
                 return null;
             }
             if(!this.CanUseConsumeBasedDirectScalar(out afterStages)) {
