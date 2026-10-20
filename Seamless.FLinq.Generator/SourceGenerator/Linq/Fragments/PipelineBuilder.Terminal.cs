@@ -86,6 +86,12 @@ internal static partial class PipelineBuilder {
             case "Max":
                 terminalKind=PipelineTerminalKind.Max;
                 return true;
+            case "ElementAt":
+                terminalKind=PipelineTerminalKind.ElementAt;
+                return true;
+            case "ElementAtOrDefault":
+                terminalKind=PipelineTerminalKind.ElementAtOrDefault;
+                return true;
             default:
                 terminalKind=default;
                 return false;
@@ -142,6 +148,13 @@ internal static partial class PipelineBuilder {
             if(invocation.ArgumentList.Arguments.Count>=2&&method.Parameters.Length>=2) {
                 comparerValue=services.RenderExpression(invocation.ArgumentList.Arguments[1].Expression);
             }
+            return true;
+        }
+        if(terminalKind is PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault) {
+            if(invocation.ArgumentList.Arguments.Count!=1||method.Parameters.Length==0) {
+                return false;
+            }
+            terminalValue=services.RenderExpression(invocation.ArgumentList.Arguments[0].Expression);
             return true;
         }
         if(terminalKind==PipelineTerminalKind.ToDictionary) {

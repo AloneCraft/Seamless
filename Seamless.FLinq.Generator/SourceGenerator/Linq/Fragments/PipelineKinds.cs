@@ -52,4 +52,6 @@ internal enum PipelineTerminalKind {
     Average,
     Min,
     Max,
+    ElementAt,
+    ElementAtOrDefault,
 }
