@@ -2228,10 +2228,10 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
         var spanName = $"__pipelineSpan{this.result}";
         var sliceIndices = this.GetPrefixSliceStageIndices();
-        var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
         var prefixPrepends = this.GetPrefixPrependStages();
         var prefixAppends = this.GetPrefixAppendStages();
+        var indexName = $"__pipelineIndex{this.result}";
+        var sourceItemName = $"__pipelineItem{this.result}_0";
         var builder = new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
@@ -2305,6 +2305,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
         var spanName = $"__pipelineSpan{this.result}";
         var sliceIndices = this.GetPrefixSliceStageIndices();
+        var prefixPrepends = this.GetPrefixPrependStages();
+        var prefixAppends = this.GetPrefixAppendStages();
         var indexName = $"__pipelineIndex{this.result}";
         var sourceItemName = $"__pipelineItem{this.result}_0";
         var hasValueName = $"__hasValue{this.result}";
@@ -2322,6 +2324,12 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"    var {hasValueName}=false;");
         builder.AppendLine($"    {actualTypeName} {valName}=default!;");
         builder.AppendLine($"    var __comparer{this.result}=global::System.Collections.Generic.Comparer<{actualTypeName}>.Default;");
+        for(var __pIdx=0;__pIdx<prefixPrepends.Count;__pIdx++){
+            var __prep=prefixPrepends[__pIdx];
+            var __prepItemName=$"__prepItem{this.result}_{__pIdx}";
+            builder.AppendLine($"    var {__prepItemName}={__prep.Value};");
+            builder.AppendLine($"    if((object?){__prepItemName} is not null) {{\r\n        if(!{hasValueName}) {{\r\n            {valName}={__prepItemName};\r\n            {hasValueName}=true;\r\n        }} else if(__comparer{this.result}.Compare({__prepItemName},{valName}){compOp}) {{\r\n            {valName}={__prepItemName};\r\n        }}\r\n    }}");
+        }
         builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
         builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
         var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
@@ -2333,6 +2341,12 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"            {valName}={currentName};");
         builder.AppendLine($"        }}");
         builder.AppendLine("    }");
+        for(var __aIdx=0;__aIdx<prefixAppends.Count;__aIdx++){
+            var __app=prefixAppends[__aIdx];
+            var __appItemName=$"__appItem{this.result}_{__aIdx}";
+            builder.AppendLine($"    var {__appItemName}={__app.Value};");
+            builder.AppendLine($"    if((object?){__appItemName} is not null) {{\r\n        if(!{hasValueName}) {{\r\n            {valName}={__appItemName};\r\n            {hasValueName}=true;\r\n        }} else if(__comparer{this.result}.Compare({__appItemName},{valName}){compOp}) {{\r\n            {valName}={__appItemName};\r\n        }}\r\n    }}");
+        }
         builder.AppendLine($"    if(!{hasValueName}) {{");
         builder.AppendLine($"        if((object?)default({actualTypeName}) is not null) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
         builder.AppendLine($"    }}");
@@ -2416,6 +2430,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var keyType = func1.ReturnTypeName;
         var spanName = $"__pipelineSpan{this.result}";
         var sliceIndices = this.GetPrefixSliceStageIndices();
+        var prefixPrepends = this.GetPrefixPrependStages();
+        var prefixAppends = this.GetPrefixAppendStages();
         var indexName = $"__pipelineIndex{this.result}";
         var sourceItemName = $"__pipelineItem{this.result}_0";
         var hasValueName = $"__hasValue{this.result}";
@@ -2436,6 +2452,15 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"    {actualTypeName} {bestItemName}=default!;");
         builder.AppendLine($"    {keyType} {bestKeyName}=default!;");
         builder.AppendLine($"    var __comparer{this.result}=global::System.Collections.Generic.Comparer<{keyType}>.Default;");
+        for(var __pIdx=0;__pIdx<prefixPrepends.Count;__pIdx++){
+            var __prep=prefixPrepends[__pIdx];
+            var __prepItemName=$"__prepItem{this.result}_{__pIdx}";
+            var __prepKeyName=$"__prepKey{this.result}_{__pIdx}";
+            builder.AppendLine($"    var {__prepItemName}={__prep.Value};");
+            builder.AppendLine($"    {keyType} {__prepKeyName}=default!;");
+            builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"keySelector",__prepKeyName,__prepItemName),"    "));
+            builder.AppendLine($"    if(!{hasValueName}) {{\r\n        {bestItemName}={__prepItemName};\r\n        {bestKeyName}={__prepKeyName};\r\n        {hasValueName}=true;\r\n    }} else if(__comparer{this.result}.Compare({__prepKeyName},{bestKeyName}){compOp}) {{\r\n        {bestItemName}={__prepItemName};\r\n        {bestKeyName}={__prepKeyName};\r\n    }}");
+        }
         builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
         builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
         var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
@@ -2450,6 +2475,15 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"            {bestKeyName}={currentKeyName};");
         builder.AppendLine($"        }}");
         builder.AppendLine("    }");
+        for(var __aIdx=0;__aIdx<prefixAppends.Count;__aIdx++){
+            var __app=prefixAppends[__aIdx];
+            var __appItemName=$"__appItem{this.result}_{__aIdx}";
+            var __appKeyName=$"__appKey{this.result}_{__aIdx}";
+            builder.AppendLine($"    var {__appItemName}={__app.Value};");
+            builder.AppendLine($"    {keyType} {__appKeyName}=default!;");
+            builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"keySelector",__appKeyName,__appItemName),"    "));
+            builder.AppendLine($"    if(!{hasValueName}) {{\r\n        {bestItemName}={__appItemName};\r\n        {bestKeyName}={__appKeyName};\r\n        {hasValueName}=true;\r\n    }} else if(__comparer{this.result}.Compare({__appKeyName},{bestKeyName}){compOp}) {{\r\n        {bestItemName}={__appItemName};\r\n        {bestKeyName}={__appKeyName};\r\n    }}");
+        }
         builder.AppendLine($"    if(!{hasValueName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
         builder.AppendLine($"    {actualVariableName}={bestItemName};");
         builder.AppendLine("}");

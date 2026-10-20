@@ -36,6 +36,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     public override SyntaxNode? VisitInvocationExpression(InvocationExpressionSyntax node) {
         if(this.TryReorderWhereRun(node,out var reordered)) return reordered;
         if(this.TryFuseWherePredicate(node,out var fused)) return fused;
+        if(this.TryFuseNonEmptyUnionFirst(node,out var unionFirst)) return unionFirst;
         if(this.TryFuseOrderByFirst(node,out var minmax)) return minmax;
         if(this.TryRemoveIdentityStage(node,out var stripped)) return stripped;
         return base.VisitInvocationExpression(node);
@@ -75,6 +76,63 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(oArgs.Count!=1||!TryGetSingleParamLambda(oArgs[0],out _)) return false;   // keySelector のみ・index 無し
         result=CreateCall(orderSource,descending ? "MaxBy" : "MinBy",oArgs[0].Expression);
         return true;
+    }
+    // 非空保証のあるソースに対する Union/UnionBy の First/FirstOrDefault を簡約。
+    // first.Union(second).First() / first.UnionBy(second,...).First() において、
+    // first が非空（Prepend/Append/DefaultIfEmpty 等を含む）であれば、first の先頭要素は必ず重複せず出力され、
+    // second は一切参照されないため first.First() と等価。
+    private bool TryFuseNonEmptyUnionFirst(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var fName,out var firstReceiver,out var firstArgs)){
+            return false;
+        }else{
+        }
+        if(firstArgs.Count!=0){
+            return false;
+        }else{
+        }
+        if(fName!="First"&&fName!="FirstOrDefault"){
+            return false;
+        }else{
+        }
+        if(Strip(firstReceiver) is not InvocationExpressionSyntax unionInv){
+            return false;
+        }else{
+        }
+        if(!this.TryGetEnumerableExtensionCall(unionInv,out var uName,out var unionSource,out _)){
+            return false;
+        }else{
+        }
+        if(uName!="Union"&&uName!="UnionBy"){
+            return false;
+        }else{
+        }
+        if(!this.IsGuaranteedNonEmpty(unionSource)){
+            return false;
+        }else{
+        }
+        result=CreateCall(unionSource,fName);
+        return true;
+    }
+    private bool IsGuaranteedNonEmpty(ExpressionSyntax expr){
+        var cur=Strip(expr);
+        while(cur is InvocationExpressionSyntax inv){
+            if(this.TryGetEnumerableExtensionCall(inv,out var name,out var receiver,out _)){
+                if(name=="Prepend"||name=="Append"||name=="DefaultIfEmpty"){
+                    return true;
+                }else{
+                }
+                if(name=="OrderBy"||name=="OrderByDescending"||name=="ThenBy"||name=="ThenByDescending"||name=="Select"||name=="Cast"||name=="AsEnumerable"||name=="Reverse"){
+                    cur=Strip(receiver);
+                    continue;
+                }else{
+                }
+                break;
+            }else{
+                break;
+            }
+        }
+        return false;
     }
     // src.Select(x=>x) / src.AsEnumerable() を除去して src（再帰訪問済み）へ。
     // ただし「後続に別の Enumerable 拡張呼び出しがある（=チェーンの最外段でない）」場合のみ除去する。
