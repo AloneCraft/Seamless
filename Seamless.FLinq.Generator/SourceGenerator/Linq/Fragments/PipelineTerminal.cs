@@ -770,6 +770,75 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine("}");
                 return builder.ToString().TrimEnd();
             }
+
+            if((terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList)&&(binaryStage.Kind is PipelineStageKind.Union or PipelineStageKind.UnionBy)) {
+                var unionKeyType = binaryStage.KeyType??binaryStage.Func?.ReturnTypeName??binaryStage.OutputType;
+                var maxCountName = $"__maxCount{this.result}";
+                var rentedBufferName = $"__rentedBuffer{this.result}";
+                var countName = $"__count{this.result}";
+                builder.AppendLine($"{actualTypeName} {actualVariableName};");
+                builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
+                builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
+                builder.AppendLine($"    using(var {secondSrcName}={secondSrcExpr}) {{");
+                builder.AppendLine($"        var {secondSpanName}={secondSpanExpr};");
+                builder.AppendLine($"        var {maxCountName}={firstSpanName}.Length+{secondSpanName}.Length;");
+                builder.AppendLine($"        if({maxCountName}==0) {{");
+                if(terminalKind==PipelineTerminalKind.ToArray) {
+                    builder.AppendLine($"            {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+                } else {
+                    builder.AppendLine($"            {actualVariableName}=new global::System.Collections.Generic.List<{pipeline.ElementType}>();");
+                }
+                builder.AppendLine("        } else {");
+                builder.AppendLine($"            var {rentedBufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({maxCountName});");
+                builder.AppendLine($"            var {countName}=0;");
+                builder.AppendLine("            try {");
+                builder.AppendLine($"                var __set{this.result}=new global::System.Collections.Generic.HashSet<{unionKeyType}>();");
+                builder.AppendLine($"                for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
+                builder.AppendLine($"                    var __item{this.result}={firstSpanName}[__i{this.result}];");
+                if(binaryStage.Func is not null) {
+                    builder.AppendLine($"                    {unionKeyType} __k{this.result}=default!;");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"UnionBy",$"__k{this.result}",$"__item{this.result}"),"                    "));
+                    builder.AppendLine($"                    if(__set{this.result}.Add(__k{this.result})) {{");
+                } else {
+                    builder.AppendLine($"                    if(__set{this.result}.Add(__item{this.result})) {{");
+                }
+                var item1 = this.AppendBinaryAfterStages(builder,$"__item{this.result}","                        ",binaryStageIndex);
+                builder.AppendLine($"                        {rentedBufferName}[{countName}++]={item1};");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                }");
+                builder.AppendLine($"                for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
+                builder.AppendLine($"                    var __item{this.result}={secondSpanName}[__i{this.result}];");
+                if(binaryStage.Func is not null) {
+                    builder.AppendLine($"                    {unionKeyType} __k{this.result}=default!;");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"UnionBy",$"__k{this.result}",$"__item{this.result}"),"                    "));
+                    builder.AppendLine($"                    if(__set{this.result}.Add(__k{this.result})) {{");
+                } else {
+                    builder.AppendLine($"                    if(__set{this.result}.Add(__item{this.result})) {{");
+                }
+                var item2 = this.AppendBinaryAfterStages(builder,$"__item{this.result}","                        ",binaryStageIndex);
+                builder.AppendLine($"                        {rentedBufferName}[{countName}++]={item2};");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                }");
+                if(terminalKind==PipelineTerminalKind.ToArray) {
+                    builder.AppendLine($"                if({countName}==0) {{");
+                    builder.AppendLine($"                    {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+                    builder.AppendLine("                } else {");
+                    builder.AppendLine($"                    {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({countName});");
+                    builder.AppendLine($"                    global::System.Array.Copy({rentedBufferName},{actualVariableName},{countName});");
+                    builder.AppendLine("                }");
+                } else {
+                    builder.AppendLine($"                {actualVariableName}=new global::System.Collections.Generic.List<{pipeline.ElementType}>({countName});");
+                    builder.AppendLine($"                global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},{countName});");
+                    builder.AppendLine($"                global::System.MemoryExtensions.AsSpan({rentedBufferName},0,{countName}).CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({actualVariableName}));");
+                }
+                builder.AppendLine("            } finally {");
+                builder.AppendLine($"                global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Return({rentedBufferName},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{pipeline.ElementType}>());");
+                builder.AppendLine("            }");
+                builder.AppendLine("        }");
+                builder.AppendLine("    }");
+                builder.AppendLine("}");
+                return builder.ToString().TrimEnd();
+            }
             return null;
         }
 
@@ -784,62 +853,113 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var foundName = $"__found{this.result}";
 
         if(binaryStage.Kind is PipelineStageKind.Intersect or PipelineStageKind.IntersectBy) {
-            if(terminalKind is not (PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Sum)) {
+            if(terminalKind is not (PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Sum or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList)) {
                 return null;
             }
+            var rentedBufferName = $"__rentedBuffer{this.result}";
+            var countName = $"__count{this.result}";
+            var maxCountName = $"__maxCount{this.result}";
             if(terminalKind==PipelineTerminalKind.Any) {
                 builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
             } else if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
                 builder.AppendLine($"{actualTypeName} {actualVariableName}=0;");
+            } else if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
+                builder.AppendLine($"{actualTypeName} {actualVariableName};");
             } else {
                 builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
             }
-            builder.AppendLine($"var {foundName}=false;");
+            if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
+                builder.AppendLine($"var {foundName}=false;");
+            }
             builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
             builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
             builder.AppendLine($"    if({firstSpanName}.Length>0) {{");
             builder.AppendLine($"        using(var {secondSrcName}={secondSrcExpr}) {{");
             builder.AppendLine($"            var {secondSpanName}={secondSpanExpr};");
             builder.AppendLine($"            if({secondSpanName}.Length>0) {{");
-            builder.AppendLine($"                var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>();");
-            builder.AppendLine($"                for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
-            if(binaryStage.Func is not null) {
-                builder.AppendLine($"                    {keyType} __k{this.result}=default!;");
-                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"IntersectBy",$"__k{this.result}",$"{secondSpanName}[__i{this.result}]"),"                    "));
-                builder.AppendLine($"                    __set{this.result}.Add(__k{this.result});");
-            } else {
-                builder.AppendLine($"                    __set{this.result}.Add({secondSpanName}[__i{this.result}]);");
+            if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
+                builder.AppendLine($"                var {maxCountName}=global::System.Math.Min({firstSpanName}.Length,{secondSpanName}.Length);");
+                builder.AppendLine($"                var {rentedBufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({maxCountName});");
+                builder.AppendLine($"                var {countName}=0;");
+                builder.AppendLine("                try {");
             }
-            builder.AppendLine("                }");
-            builder.AppendLine($"                for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
-            builder.AppendLine($"                    var __item{this.result}={firstSpanName}[__i{this.result}];");
+            var setIndent = terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList ? "                    " : "                ";
+            builder.AppendLine($"{setIndent}var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>();");
+            builder.AppendLine($"{setIndent}for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
             if(binaryStage.Func is not null) {
-                builder.AppendLine($"                    {keyType} __k{this.result}=default!;");
-                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"IntersectBy",$"__k{this.result}",$"__item{this.result}"),"                    "));
-                builder.AppendLine($"                    if(__set{this.result}.Remove(__k{this.result})) {{");
+                builder.AppendLine($"{setIndent}    {keyType} __k{this.result}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"IntersectBy",$"__k{this.result}",$"{secondSpanName}[__i{this.result}]"),$"{setIndent}    "));
+                builder.AppendLine($"{setIndent}    __set{this.result}.Add(__k{this.result});");
             } else {
-                builder.AppendLine($"                    if(__set{this.result}.Remove(__item{this.result})) {{");
+                builder.AppendLine($"{setIndent}    __set{this.result}.Add({secondSpanName}[__i{this.result}]);");
+            }
+            builder.AppendLine($"{setIndent}}}");
+            builder.AppendLine($"{setIndent}for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
+            builder.AppendLine($"{setIndent}    var __item{this.result}={firstSpanName}[__i{this.result}];");
+            if(binaryStage.Func is not null) {
+                builder.AppendLine($"{setIndent}    {keyType} __k{this.result}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"IntersectBy",$"__k{this.result}",$"__item{this.result}"),$"{setIndent}    "));
+                builder.AppendLine($"{setIndent}    if(__set{this.result}.Remove(__k{this.result})) {{");
+            } else {
+                builder.AppendLine($"{setIndent}    if(__set{this.result}.Remove(__item{this.result})) {{");
             }
             if(terminalKind==PipelineTerminalKind.Any) {
-                builder.AppendLine($"                        {actualVariableName}=true;");
-                builder.AppendLine($"                        {foundName}=true;");
-                builder.AppendLine("                        break;");
+                builder.AppendLine($"{setIndent}        {actualVariableName}=true;");
+                builder.AppendLine($"{setIndent}        break;");
             } else if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
-                builder.AppendLine($"                        {actualVariableName}++;");
+                builder.AppendLine($"{setIndent}        {actualVariableName}++;");
             } else if(terminalKind==PipelineTerminalKind.Sum) {
-                var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}","                        ",binaryStageIndex);
-                builder.AppendLine($"                        {actualVariableName}+={hitItem};");
+                var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}",$"{setIndent}        ",binaryStageIndex);
+                builder.AppendLine($"{setIndent}        {actualVariableName}+={hitItem};");
+            } else if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
+                var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}",$"{setIndent}        ",binaryStageIndex);
+                builder.AppendLine($"{setIndent}        {rentedBufferName}[{countName}++]={hitItem};");
             } else {
-                var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}","                        ",binaryStageIndex);
-                builder.AppendLine($"                        {actualVariableName}={hitItem};");
-                builder.AppendLine($"                        {foundName}=true;");
-                builder.AppendLine("                        break;");
+                var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}",$"{setIndent}        ",binaryStageIndex);
+                builder.AppendLine($"{setIndent}        {actualVariableName}={hitItem};");
+                builder.AppendLine($"{setIndent}        {foundName}=true;");
+                builder.AppendLine($"{setIndent}        break;");
             }
-            builder.AppendLine("                    }");
-            builder.AppendLine("                }");
+            builder.AppendLine($"{setIndent}    }}");
+            builder.AppendLine($"{setIndent}}}");
+            if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
+                if(terminalKind==PipelineTerminalKind.ToArray) {
+                    builder.AppendLine($"                    if({countName}==0) {{");
+                    builder.AppendLine($"                        {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+                    builder.AppendLine("                    } else {");
+                    builder.AppendLine($"                        {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({countName});");
+                    builder.AppendLine($"                        global::System.Array.Copy({rentedBufferName},{actualVariableName},{countName});");
+                    builder.AppendLine("                    }");
+                } else {
+                    builder.AppendLine($"                    {actualVariableName}=new global::System.Collections.Generic.List<{pipeline.ElementType}>({countName});");
+                    builder.AppendLine($"                    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},{countName});");
+                    builder.AppendLine($"                    global::System.MemoryExtensions.AsSpan({rentedBufferName},0,{countName}).CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({actualVariableName}));");
+                }
+                builder.AppendLine("                } finally {");
+                builder.AppendLine($"                    global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Return({rentedBufferName},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{pipeline.ElementType}>());");
+                builder.AppendLine("                }");
+            }
             builder.AppendLine("            }");
+            if(terminalKind is PipelineTerminalKind.ToArray) {
+                builder.AppendLine("            else {");
+                builder.AppendLine($"                {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+                builder.AppendLine("            }");
+            } else if(terminalKind is PipelineTerminalKind.ToList) {
+                builder.AppendLine("            else {");
+                builder.AppendLine($"                {actualVariableName}=new();");
+                builder.AppendLine("            }");
+            }
             builder.AppendLine("        }");
             builder.AppendLine("    }");
+            if(terminalKind is PipelineTerminalKind.ToArray) {
+                builder.AppendLine("    else {");
+                builder.AppendLine($"        {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+                builder.AppendLine("    }");
+            } else if(terminalKind is PipelineTerminalKind.ToList) {
+                builder.AppendLine("    else {");
+                builder.AppendLine($"        {actualVariableName}=new();");
+                builder.AppendLine("    }");
+            }
             builder.AppendLine("}");
             if(terminalKind==PipelineTerminalKind.First) {
                 builder.AppendLine($"if(!{foundName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
@@ -848,60 +968,100 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
 
         if(binaryStage.Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
-            if(terminalKind is not (PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Sum)) {
+            if(terminalKind is not (PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Sum or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList)) {
                 return null;
             }
+            var rentedBufferName = $"__rentedBuffer{this.result}";
+            var countName = $"__count{this.result}";
             if(terminalKind==PipelineTerminalKind.Any) {
                 builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
             } else if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
                 builder.AppendLine($"{actualTypeName} {actualVariableName}=0;");
+            } else if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
+                builder.AppendLine($"{actualTypeName} {actualVariableName};");
             } else {
                 builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
             }
-            builder.AppendLine($"var {foundName}=false;");
+            if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
+                builder.AppendLine($"var {foundName}=false;");
+            }
             builder.AppendLine($"using(var {firstSrcName}={firstSrcExpr}) {{");
             builder.AppendLine($"    var {firstSpanName}={firstSpanExpr};");
             builder.AppendLine($"    if({firstSpanName}.Length>0) {{");
-            builder.AppendLine($"        using(var {secondSrcName}={secondSrcExpr}) {{");
-            builder.AppendLine($"            var {secondSpanName}={secondSpanExpr};");
-            builder.AppendLine($"            var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>();");
-            builder.AppendLine($"            for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
-            if(binaryStage.Func is not null) {
-                builder.AppendLine($"                {keyType} __k{this.result}=default!;");
-                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"ExceptBy",$"__k{this.result}",$"{secondSpanName}[__i{this.result}]"),"                "));
-                builder.AppendLine($"                __set{this.result}.Add(__k{this.result});");
-            } else {
-                builder.AppendLine($"                __set{this.result}.Add({secondSpanName}[__i{this.result}]);");
+            if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
+                builder.AppendLine($"        var {rentedBufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({firstSpanName}.Length);");
+                builder.AppendLine($"        var {countName}=0;");
+                builder.AppendLine("        try {");
             }
-            builder.AppendLine("            }");
-            builder.AppendLine($"            for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
-            builder.AppendLine($"                var __item{this.result}={firstSpanName}[__i{this.result}];");
+            var exceptIndent = terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList ? "            " : "        ";
+            builder.AppendLine($"{exceptIndent}using(var {secondSrcName}={secondSrcExpr}) {{");
+            builder.AppendLine($"{exceptIndent}    var {secondSpanName}={secondSpanExpr};");
+            builder.AppendLine($"{exceptIndent}    var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>();");
+            builder.AppendLine($"{exceptIndent}    for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
             if(binaryStage.Func is not null) {
-                builder.AppendLine($"                {keyType} __k{this.result}=default!;");
-                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"ExceptBy",$"__k{this.result}",$"__item{this.result}"),"                "));
-                builder.AppendLine($"                if(__set{this.result}.Add(__k{this.result})) {{");
+                builder.AppendLine($"{exceptIndent}        {keyType} __k{this.result}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"ExceptBy",$"__k{this.result}",$"{secondSpanName}[__i{this.result}]"),$"{exceptIndent}        "));
+                builder.AppendLine($"{exceptIndent}        __set{this.result}.Add(__k{this.result});");
             } else {
-                builder.AppendLine($"                if(__set{this.result}.Add(__item{this.result})) {{");
+                builder.AppendLine($"{exceptIndent}        __set{this.result}.Add({secondSpanName}[__i{this.result}]);");
+            }
+            builder.AppendLine($"{exceptIndent}    }}");
+            builder.AppendLine($"{exceptIndent}    for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
+            builder.AppendLine($"{exceptIndent}        var __item{this.result}={firstSpanName}[__i{this.result}];");
+            if(binaryStage.Func is not null) {
+                builder.AppendLine($"{exceptIndent}        {keyType} __k{this.result}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"ExceptBy",$"__k{this.result}",$"__item{this.result}"),$"{exceptIndent}        "));
+                builder.AppendLine($"{exceptIndent}        if(__set{this.result}.Add(__k{this.result})) {{");
+            } else {
+                builder.AppendLine($"{exceptIndent}        if(__set{this.result}.Add(__item{this.result})) {{");
             }
             if(terminalKind==PipelineTerminalKind.Any) {
-                builder.AppendLine($"                    {actualVariableName}=true;");
-                builder.AppendLine($"                    {foundName}=true;");
-                builder.AppendLine("                    break;");
+                builder.AppendLine($"{exceptIndent}            {actualVariableName}=true;");
+                builder.AppendLine($"{exceptIndent}            break;");
             } else if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
-                builder.AppendLine($"                    {actualVariableName}++;");
+                builder.AppendLine($"{exceptIndent}            {actualVariableName}++;");
             } else if(terminalKind==PipelineTerminalKind.Sum) {
-                var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}","                    ",binaryStageIndex);
-                builder.AppendLine($"                    {actualVariableName}+={hitItem};");
+                var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}",$"{exceptIndent}            ",binaryStageIndex);
+                builder.AppendLine($"{exceptIndent}            {actualVariableName}+={hitItem};");
+            } else if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
+                var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}",$"{exceptIndent}            ",binaryStageIndex);
+                builder.AppendLine($"{exceptIndent}            {rentedBufferName}[{countName}++]={hitItem};");
             } else {
-                var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}","                    ",binaryStageIndex);
-                builder.AppendLine($"                    {actualVariableName}={hitItem};");
-                builder.AppendLine($"                    {foundName}=true;");
-                builder.AppendLine("                    break;");
+                var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}",$"{exceptIndent}            ",binaryStageIndex);
+                builder.AppendLine($"{exceptIndent}            {actualVariableName}={hitItem};");
+                builder.AppendLine($"{exceptIndent}            {foundName}=true;");
+                builder.AppendLine($"{exceptIndent}            break;");
             }
-            builder.AppendLine("                }");
-            builder.AppendLine("            }");
-            builder.AppendLine("        }");
+            builder.AppendLine($"{exceptIndent}        }}");
+            builder.AppendLine($"{exceptIndent}    }}");
+            builder.AppendLine($"{exceptIndent}}}");
+            if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
+                if(terminalKind==PipelineTerminalKind.ToArray) {
+                    builder.AppendLine($"            if({countName}==0) {{");
+                    builder.AppendLine($"                {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+                    builder.AppendLine("            } else {");
+                    builder.AppendLine($"                {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({countName});");
+                    builder.AppendLine($"                global::System.Array.Copy({rentedBufferName},{actualVariableName},{countName});");
+                    builder.AppendLine("            }");
+                } else {
+                    builder.AppendLine($"            {actualVariableName}=new global::System.Collections.Generic.List<{pipeline.ElementType}>({countName});");
+                    builder.AppendLine($"            global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},{countName});");
+                    builder.AppendLine($"            global::System.MemoryExtensions.AsSpan({rentedBufferName},0,{countName}).CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({actualVariableName}));");
+                }
+                builder.AppendLine("        } finally {");
+                builder.AppendLine($"            global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Return({rentedBufferName},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{pipeline.ElementType}>());");
+                builder.AppendLine("        }");
+            }
             builder.AppendLine("    }");
+            if(terminalKind is PipelineTerminalKind.ToArray) {
+                builder.AppendLine("    else {");
+                builder.AppendLine($"        {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+                builder.AppendLine("    }");
+            } else if(terminalKind is PipelineTerminalKind.ToList) {
+                builder.AppendLine("    else {");
+                builder.AppendLine($"        {actualVariableName}=new();");
+                builder.AppendLine("    }");
+            }
             builder.AppendLine("}");
             if(terminalKind==PipelineTerminalKind.First) {
                 builder.AppendLine($"if(!{foundName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
