@@ -2970,6 +2970,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"{keyType} __bestKey{this.result}=default!;");
             builder.AppendLine($"var __comparer{this.result}=global::System.Collections.Generic.Comparer<{keyType}>.Default;");
         } else if(terminalKind==PipelineTerminalKind.Aggregate) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName};");
             var accType = func1?.ReturnTypeName??actualTypeName;
             var hasSeed = terminalValue is not null;
             if(hasSeed) {
