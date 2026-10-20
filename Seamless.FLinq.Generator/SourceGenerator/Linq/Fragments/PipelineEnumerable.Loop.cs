@@ -18,7 +18,7 @@ internal sealed partial class PipelineEnumerable {
             return this.BuildBinarySetLoop(enumeratorName,successStatement,endStatement,binarySetIndex[0]);
         }
         if(binarySetIndex.Length>1) {
-            throw new NotSupportedException("Multiple binary set stages are not supported in PipelineEnumerable.");
+            return endStatement;
         }
         var selectManyIndex = stages.Select(static (stage,index) => (stage,index)).Where(static pair => pair.stage.Kind==PipelineStageKind.SelectMany).Select(static pair => pair.index).ToArray();
         if(selectManyIndex.Length==1) {

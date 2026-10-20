@@ -724,7 +724,271 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return secondDirectSpanExpression.Length>0;
     }
 
+    private bool CanUseDirectSpanUnionIntersectShortCircuit(
+        out PipelineStage? unionStage,
+        out int unionStageIndex,
+        out PipelineStage? intersectStage,
+        out int intersectStageIndex) {
+        unionStage=null;
+        unionStageIndex=-1;
+        intersectStage=null;
+        intersectStageIndex=-1;
+        var binaryCount = 0;
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            var st = pipeline.Stages[i];
+            if(st.Kind is PipelineStageKind.Union or PipelineStageKind.UnionBy or PipelineStageKind.Concat
+                or PipelineStageKind.Intersect or PipelineStageKind.IntersectBy or PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
+                if(binaryCount==0) {
+                    unionStage=st;
+                    unionStageIndex=i;
+                } else if(binaryCount==1) {
+                    intersectStage=st;
+                    intersectStageIndex=i;
+                }
+                binaryCount++;
+            }
+        }
+        if(binaryCount!=2||unionStage is null||intersectStage is null) {
+            return false;
+        }
+        if(unionStage.Kind is not (PipelineStageKind.Union or PipelineStageKind.UnionBy or PipelineStageKind.Concat)) {
+            return false;
+        }
+        if(intersectStage.Kind is not (PipelineStageKind.Intersect or PipelineStageKind.IntersectBy)) {
+            return false;
+        }
+        for(var i = 0;i<unionStageIndex;i++) {
+            var st = pipeline.Stages[i];
+            if(st.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast or PipelineStageKind.Skip or PipelineStageKind.Take or PipelineStageKind.SkipLast or PipelineStageKind.TakeLast) {
+                continue;
+            }
+            if(st.Kind==PipelineStageKind.Select&&!st.UsesIndex&&st.Func is { } f&&CanUseDirectSpanPipelineFunc(f)) {
+                continue;
+            }
+            if(st.Kind is PipelineStageKind.Where or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile&&!st.UsesIndex&&st.Func is { } wf&&CanUseDirectSpanPipelineFunc(wf)) {
+                continue;
+            }
+            return false;
+        }
+        for(var i = unionStageIndex+1;i<intersectStageIndex;i++) {
+            var st = pipeline.Stages[i];
+            if(st.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast) {
+                continue;
+            }
+            return false;
+        }
+        for(var i = intersectStageIndex+1;i<pipeline.Stages.Count;i++) {
+            var st = pipeline.Stages[i];
+            if(st.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast) {
+                continue;
+            }
+            if(st.Kind==PipelineStageKind.Select&&!st.UsesIndex&&st.Func is { } f&&CanUseDirectSpanPipelineFunc(f)) {
+                continue;
+            }
+            if(st.Kind==PipelineStageKind.Where&&!st.UsesIndex&&st.Func is { } wf&&CanUseDirectSpanPipelineFunc(wf)) {
+                continue;
+            }
+            return false;
+        }
+        return true;
+    }
+
+    private string? RenderDirectSpanPipelineUnionIntersect(string actualVariableName,string actualTypeName) {
+        if(!this.CanUseDirectSpanUnionIntersectShortCircuit(out var unionStage,out var unionStageIndex,out var intersectStage,out var intersectStageIndex)) {
+            return null;
+        }
+        if(terminalKind is not (PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Sum or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList)) {
+            return null;
+        }
+        var firstSrcName = $"__firstSrc{this.result}";
+        var secondSrcName = $"__secondSrc{this.result}";
+        var thirdSrcName = $"__thirdSrc{this.result}";
+        if(!this.TryGetDirectPrimarySourceSpanSetup(firstSrcName,out var firstSrcExpr,out var firstSpanExpr)) {
+            return null;
+        }
+        if(!TryGetDirectSecondSourceSpanSetup(unionStage!,secondSrcName,out var secondSrcExpr,out var secondSpanExpr)) {
+            return null;
+        }
+        if(!TryGetDirectSecondSourceSpanSetup(intersectStage!,thirdSrcName,out var thirdSrcExpr,out var thirdSpanExpr)) {
+            return null;
+        }
+        var firstSpanName = $"__firstSpan{this.result}";
+        var secondSpanName = $"__secondSpan{this.result}";
+        var thirdSpanName = $"__thirdSpan{this.result}";
+        var foundName = $"__found{this.result}";
+        var builder = new StringBuilder();
+
+        var keyType = intersectStage!.KeyType;
+        if(keyType is null) {
+            if(intersectStage.Func?.ReturnTypeName is { } retType) {
+                keyType=retType;
+            } else {
+                keyType=intersectStage.OutputType;
+            }
+        }
+
+        if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=0;");
+        } else if(terminalKind==PipelineTerminalKind.Any) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
+        } else if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
+            builder.AppendLine($"{actualTypeName} {actualVariableName};");
+        } else {
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+        }
+        if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
+            builder.AppendLine($"var {foundName}=false;");
+        }
+
+        var rentedBufferName = $"__rentedBuffer{this.result}";
+        var countName = $"__count{this.result}";
+        var maxCountName = $"__maxCount{this.result}";
+
+        builder.AppendLine($"using(var {thirdSrcName}={thirdSrcExpr}) {{");
+        builder.AppendLine($"    var {thirdSpanName}={thirdSpanExpr};");
+        builder.AppendLine($"    if({thirdSpanName}.Length>0) {{");
+        string capExpr;
+        if(intersectStage.Func is not null) {
+            capExpr=$"global::System.Math.Min({thirdSpanName}.Length,32)";
+        } else {
+            capExpr=$"{thirdSpanName}.Length";
+        }
+        var setArgs=RenderHashSetConstructorArgs(capExpr,intersectStage.Value);
+        builder.AppendLine($"        var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>({setArgs});");
+        builder.AppendLine($"        for(var __i{this.result}=0;__i{this.result}<{thirdSpanName}.Length;__i{this.result}++) {{");
+        if(intersectStage.Func is not null) {
+            builder.AppendLine($"            {keyType} __k{this.result}=default!;");
+            builder.AppendLine(IndentLines(this.FuncAssignStatic(intersectStage.Func,"IntersectBy",$"__k{this.result}",$"{thirdSpanName}[__i{this.result}]"),"            "));
+            builder.AppendLine($"            __set{this.result}.Add(__k{this.result});");
+        } else {
+            builder.AppendLine($"            __set{this.result}.Add({thirdSpanName}[__i{this.result}]);");
+        }
+        builder.AppendLine("        }");
+
+        builder.AppendLine($"        using(var {firstSrcName}={firstSrcExpr}) {{");
+        builder.AppendLine($"            var {firstSpanName}={firstSpanExpr};");
+        this.AppendBinaryBeforeSlices(builder,firstSpanName,"            ",unionStageIndex);
+        this.AppendBinaryBeforeInit(builder,"            ",unionStageIndex);
+        builder.AppendLine($"            using(var {secondSrcName}={secondSrcExpr}) {{");
+        builder.AppendLine($"                var {secondSpanName}={secondSpanExpr};");
+
+        var innerIndent = "                ";
+        if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
+            builder.AppendLine($"{innerIndent}var {maxCountName}=global::System.Math.Min({firstSpanName}.Length+{secondSpanName}.Length,{thirdSpanName}.Length);");
+            builder.AppendLine($"{innerIndent}var {rentedBufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({maxCountName});");
+            builder.AppendLine($"{innerIndent}var {countName}=0;");
+            builder.AppendLine($"{innerIndent}try {{");
+            innerIndent="                    ";
+        }
+
+        // firstSpan 走査
+        builder.AppendLine($"{innerIndent}for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
+        builder.AppendLine($"{innerIndent}    var __item{this.result}={firstSpanName}[__i{this.result}];");
+        var filteredItem1 = this.AppendBinaryBeforeStages(builder,$"__item{this.result}",$"{innerIndent}    ",unionStageIndex);
+        if(intersectStage.Func is not null) {
+            builder.AppendLine($"{innerIndent}    {keyType} __k{this.result}=default!;");
+            builder.AppendLine(IndentLines(this.FuncAssignStatic(intersectStage.Func,"IntersectBy",$"__k{this.result}",filteredItem1),$"{innerIndent}    "));
+            builder.AppendLine($"{innerIndent}    if(__set{this.result}.Remove(__k{this.result})) {{");
+        } else {
+            builder.AppendLine($"{innerIndent}    if(__set{this.result}.Remove({filteredItem1})) {{");
+        }
+        if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
+            builder.AppendLine($"{innerIndent}        {actualVariableName}++;");
+        } else if(terminalKind==PipelineTerminalKind.Any) {
+            builder.AppendLine($"{innerIndent}        {actualVariableName}=true;");
+            builder.AppendLine($"{innerIndent}        goto __end{this.result};");
+        } else if(terminalKind==PipelineTerminalKind.Sum) {
+            var hitItem = this.AppendBinaryAfterStages(builder,filteredItem1,$"{innerIndent}        ",intersectStageIndex);
+            builder.AppendLine($"{innerIndent}        {actualVariableName}+={hitItem};");
+        } else if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
+            var hitItem = this.AppendBinaryAfterStages(builder,filteredItem1,$"{innerIndent}        ",intersectStageIndex);
+            builder.AppendLine($"{innerIndent}        {rentedBufferName}[{countName}++]={hitItem};");
+        } else {
+            var hitItem = this.AppendBinaryAfterStages(builder,filteredItem1,$"{innerIndent}        ",intersectStageIndex);
+            builder.AppendLine($"{innerIndent}        {actualVariableName}={hitItem};");
+            builder.AppendLine($"{innerIndent}        {foundName}=true;");
+            builder.AppendLine($"{innerIndent}        goto __end{this.result};");
+        }
+        builder.AppendLine($"{innerIndent}    }}");
+        builder.AppendLine($"{innerIndent}}}");
+
+        // secondSpan 走査
+        builder.AppendLine($"{innerIndent}for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
+        builder.AppendLine($"{innerIndent}    var __item{this.result}={secondSpanName}[__i{this.result}];");
+        if(intersectStage.Func is not null) {
+            builder.AppendLine($"{innerIndent}    {keyType} __k{this.result}=default!;");
+            builder.AppendLine(IndentLines(this.FuncAssignStatic(intersectStage.Func,"IntersectBy",$"__k{this.result}",$"__item{this.result}"),$"{innerIndent}    "));
+            builder.AppendLine($"{innerIndent}    if(__set{this.result}.Remove(__k{this.result})) {{");
+        } else {
+            builder.AppendLine($"{innerIndent}    if(__set{this.result}.Remove(__item{this.result})) {{");
+        }
+        if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
+            builder.AppendLine($"{innerIndent}        {actualVariableName}++;");
+        } else if(terminalKind==PipelineTerminalKind.Any) {
+            builder.AppendLine($"{innerIndent}        {actualVariableName}=true;");
+            builder.AppendLine($"{innerIndent}        goto __end{this.result};");
+        } else if(terminalKind==PipelineTerminalKind.Sum) {
+            var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}",$"{innerIndent}        ",intersectStageIndex);
+            builder.AppendLine($"{innerIndent}        {actualVariableName}+={hitItem};");
+        } else if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
+            var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}",$"{innerIndent}        ",intersectStageIndex);
+            builder.AppendLine($"{innerIndent}        {rentedBufferName}[{countName}++]={hitItem};");
+        } else {
+            var hitItem = this.AppendBinaryAfterStages(builder,$"__item{this.result}",$"{innerIndent}        ",intersectStageIndex);
+            builder.AppendLine($"{innerIndent}        {actualVariableName}={hitItem};");
+            builder.AppendLine($"{innerIndent}        {foundName}=true;");
+            builder.AppendLine($"{innerIndent}        goto __end{this.result};");
+        }
+        builder.AppendLine($"{innerIndent}    }}");
+        builder.AppendLine($"{innerIndent}}}");
+
+        if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
+            if(terminalKind==PipelineTerminalKind.ToArray) {
+                builder.AppendLine($"                    if({countName}==0) {{");
+                builder.AppendLine($"                        {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+                builder.AppendLine("                    } else {");
+                builder.AppendLine($"                        {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({countName});");
+                builder.AppendLine($"                        global::System.Array.Copy({rentedBufferName},{actualVariableName},{countName});");
+                builder.AppendLine("                    }");
+            } else {
+                builder.AppendLine($"                    {actualVariableName}=new global::System.Collections.Generic.List<{pipeline.ElementType}>({countName});");
+                builder.AppendLine($"                    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},{countName});");
+                builder.AppendLine($"                    global::System.MemoryExtensions.AsSpan({rentedBufferName},0,{countName}).CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({actualVariableName}));");
+            }
+            builder.AppendLine("                } finally {");
+            builder.AppendLine($"                    global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Return({rentedBufferName},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{pipeline.ElementType}>());");
+            builder.AppendLine("                }");
+        }
+
+        builder.AppendLine("            }");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList) {
+            builder.AppendLine("    else {");
+            if(terminalKind==PipelineTerminalKind.ToArray) {
+                builder.AppendLine($"        {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
+            } else {
+                builder.AppendLine($"        {actualVariableName}=new global::System.Collections.Generic.List<{pipeline.ElementType}>();");
+            }
+            builder.AppendLine("    }");
+        }
+        builder.AppendLine("}");
+
+        if(terminalKind is PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
+            builder.AppendLine($"__end{this.result}:;");
+            if(terminalKind==PipelineTerminalKind.First) {
+                builder.AppendLine($"if(!{foundName}) {{");
+                builder.AppendLine("    throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+                builder.AppendLine("}");
+            }
+        }
+        return builder.ToString().TrimEnd();
+    }
+
     private string? RenderDirectSpanPipelineBinaryScalar(string actualVariableName,string actualTypeName) {
+        if(this.RenderDirectSpanPipelineUnionIntersect(actualVariableName,actualTypeName) is { } unionIntersectResult) {
+            return unionIntersectResult;
+        }
         if(!this.CanUseDirectSpanBinaryShortCircuit(out var binaryStage,out var binaryStageIndex)) {
             return null;
         }

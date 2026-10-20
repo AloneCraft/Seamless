@@ -14,15 +14,16 @@ internal static partial class PipelineBuilder {
         var takeLastStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.TakeLast);
         var takeRangeStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.TakeRange);
         var bufferingStageCount = reverseStageCount+skipLastStageCount+takeLastStageCount+takeRangeStageCount+defaultIfEmptyStageCount;
+        var isMultiBinaryFused = CanFuseBinarySetMulti(stages,terminalKind);
         if(selectManyStageCount>1) return false;
         if(groupByStageCount>1) return false;
         if(bufferingStageCount>1) return false;
-        if(binarySetStageCount>1) return false;
+        if(binarySetStageCount>1&&!isMultiBinaryFused) return false;
         if(groupByStageCount>0&&(selectManyStageCount>0||binarySetStageCount>0||concatLikeStageCount>0)) return false;
         if(bufferingStageCount>0&&(selectManyStageCount>0||binarySetStageCount>0||concatLikeStageCount>0||orderStageCount>0||groupByStageCount>0)) return false;
         if(binarySetStageCount>0&&selectManyStageCount>0) return false;
         if(concatLikeStageCount>1) return false;
-        if(concatLikeStageCount>0&&(selectManyStageCount>0||binarySetStageCount>0)) return false;
+        if(concatLikeStageCount>0&&(selectManyStageCount>0||(binarySetStageCount>0&&!isMultiBinaryFused))) return false;
         if(orderStageCount>0&&(selectManyStageCount>0||concatLikeStageCount>0)) return false;
         if(binarySetStageCount>0&&orderStageCount>0&&!CanFuseBinarySetThenOrder(stages)) return false;
         if(groupByStageCount>0&&orderStageCount>0&&!CanFuseGroupByThenOrder(stages)) return false;
@@ -104,6 +105,67 @@ internal static partial class PipelineBuilder {
             or PipelineStageKind.Distinct
             or PipelineStageKind.DistinctBy
             or PipelineStageKind.AsEnumerable;
+
+    private static bool CanFuseBinarySetMulti(IReadOnlyList<PipelineStage> stages,PipelineTerminalKind? terminalKind) {
+        if(terminalKind is not (PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Sum or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList)) {
+            return false;
+        }
+        var binaryCount = 0;
+        var firstBinaryIndex = -1;
+        var secondBinaryIndex = -1;
+        PipelineStage? firstBinary = null;
+        PipelineStage? secondBinary = null;
+        for(var i = 0;i<stages.Count;i++) {
+            var st = stages[i];
+            if(IsBinarySetStage(st.Kind)||st.Kind==PipelineStageKind.Concat) {
+                if(binaryCount==0) {
+                    firstBinary=st;
+                    firstBinaryIndex=i;
+                } else if(binaryCount==1) {
+                    secondBinary=st;
+                    secondBinaryIndex=i;
+                }
+                binaryCount++;
+            }
+        }
+        if(binaryCount!=2||firstBinary is null||secondBinary is null) {
+            return false;
+        }
+        if(firstBinary.Kind is not (PipelineStageKind.Union or PipelineStageKind.UnionBy or PipelineStageKind.Concat)) {
+            return false;
+        }
+        if(secondBinary.Kind is not (PipelineStageKind.Intersect or PipelineStageKind.IntersectBy)) {
+            return false;
+        }
+        for(var i = 0;i<firstBinaryIndex;i++) {
+            var st = stages[i];
+            if(st.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast or PipelineStageKind.Skip or PipelineStageKind.Take or PipelineStageKind.SkipLast or PipelineStageKind.TakeLast) {
+                continue;
+            }
+            if(st.Kind is PipelineStageKind.Select or PipelineStageKind.Where or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile&&!st.UsesIndex) {
+                continue;
+            }
+            return false;
+        }
+        for(var i = firstBinaryIndex+1;i<secondBinaryIndex;i++) {
+            var st = stages[i];
+            if(st.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast) {
+                continue;
+            }
+            return false;
+        }
+        for(var i = secondBinaryIndex+1;i<stages.Count;i++) {
+            var st = stages[i];
+            if(st.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast) {
+                continue;
+            }
+            if(st.Kind is PipelineStageKind.Select or PipelineStageKind.Where&&!st.UsesIndex) {
+                continue;
+            }
+            return false;
+        }
+        return true;
+    }
 
     private static bool IsBinarySetStage(PipelineStageKind kind) =>
         kind is PipelineStageKind.Union
