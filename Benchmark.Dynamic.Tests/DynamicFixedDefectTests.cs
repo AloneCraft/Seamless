@@ -5,7 +5,7 @@ namespace Benchmark.Dynamic.Tests;
 
 /// <summary>
 /// 2026-10-22 に見つけて同じ日に直した FLinq の不具合が、直ったままであることを確かめる。
-/// 3段の全組み合わせ(夜間の実行)で見つかった110件は <c>Corpus/fixed-triple-defects.txt</c> に並びを記録してある。
+/// 3段の全組み合わせ(夜間の実行)で見つかった124件(最初の実行で110件、SelectMany・DefaultIfEmpty の対応後の再実行で14件)は <c>Corpus/fixed-triple-defects.txt</c> に並びを記録してある。
 /// 直した内容は設計書(docs/refactoring-designs/20261022-dynamic-verifier-consolidation.md)の「FLinq の不具合の修正」を参照。
 /// </summary>
 [Collection(DynamicWorkerTestCollection.Name)]
@@ -21,11 +21,11 @@ public sealed class DynamicFixedDefectTests{
     ];
 
     [Fact,Trait("Category","ChainCorpus")]
-    public async Task 夜間の3段全組み合わせで見つけて直した110件がSystemLinqと一致する(){
+    public async Task 夜間の3段全組み合わせで見つけて直した124件がSystemLinqと一致する(){
         var keys=File.ReadAllLines(Path.Combine(AppContext.BaseDirectory,"Corpus","fixed-triple-defects.txt"))
             .Where(static line=>line.Length>0&&line[0]!='#')
             .ToHashSet(StringComparer.Ordinal);
-        Assert.Equal(110,keys.Count);
+        Assert.Equal(124,keys.Count);
         var seed=Seed256.Parse("0xC0DE");
         var target=SourceTarget.SystemArray;
         var runner=new DynamicWorkerExecutionRunner();
@@ -56,7 +56,7 @@ public sealed class DynamicFixedDefectTests{
                 failures.Add($"{key}: Status={result.Status}, ALC={result.AssemblyUnloaded}  {Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(query)}");
             }
         }
-        Assert.Equal(110,executed);
+        Assert.Equal(keys.Count,executed);
         Assert.True(failures.Count==0,$"{failures.Count}/{executed} failed:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
     }
 

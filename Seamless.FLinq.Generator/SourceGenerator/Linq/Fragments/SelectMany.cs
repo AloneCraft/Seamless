@@ -306,6 +306,8 @@ internal class SelectMany_selector(int 番号,Enumerable source,FuncFragment sel
             var indent=match.Groups["indent"].Value;
             var arg=match.Groups["arg"].Value;
             var sb=new global::System.Text.StringBuilder();
+            // 元の Consume が複数ある(Append の追加要素など)と、同じ宣言が同じ範囲に並んで CS0128 / CS0136 になる。ブロックで囲む。
+            sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}> {innerSeqName} = default!;");
             sb.AppendLine(this.FuncAssignStaticIndented(indent,this.selector,nameof(this.selector),innerSeqName,arg));
             sb.AppendLine($"{indent}if({innerSeqName} is {this.CollectionElementType}[] {innerArrName}){{");
@@ -317,6 +319,7 @@ internal class SelectMany_selector(int 番号,Enumerable source,FuncFragment sel
             sb.AppendLine($"{indent}    foreach(var {innerItemName} in {innerSeqName}){{");
             sb.AppendLine($"{indent}        {consumerName}.Consume({innerItemName});");
             sb.AppendLine($"{indent}    }}");
+            sb.AppendLine($"{indent}}}");
             sb.Append($"{indent}}}");
             return sb.ToString();
         });
@@ -427,6 +430,8 @@ internal class SelectMany_selector_resultSelector(int 番号,Enumerable source,F
             var indent=match.Groups["indent"].Value;
             var arg=match.Groups["arg"].Value;
             var sb=new global::System.Text.StringBuilder();
+            // 元の Consume が複数ある(Append の追加要素など)と、同じ宣言が同じ範囲に並んで CS0128 / CS0136 になる。ブロックで囲む。
+            sb.AppendLine($"{indent}{{");
             sb.AppendLine($"{indent}global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}> {innerSeqName} = default!;");
             sb.AppendLine(this.FuncAssignStaticIndented(indent,this.collectionSelector,nameof(this.collectionSelector),innerSeqName,arg));
             sb.AppendLine($"{indent}if({innerSeqName} is {this.CollectionElementType}[] {innerArrName}){{");
@@ -442,6 +447,7 @@ internal class SelectMany_selector_resultSelector(int 番号,Enumerable source,F
             sb.AppendLine(this.FuncAssignStaticIndented(indent+"        ",this.resultSelector,nameof(this.resultSelector),resultName,arg,innerItemName));
             sb.AppendLine($"{indent}        {consumerName}.Consume({resultName});");
             sb.AppendLine($"{indent}    }}");
+            sb.AppendLine($"{indent}}}");
             sb.Append($"{indent}}}");
             return sb.ToString();
         });

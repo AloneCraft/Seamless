@@ -99,6 +99,7 @@ internal sealed partial class PipelineEnumerable {
         var currentName = this.ItemName(0);
         for(var index = 0;index<stages.Count;index++) {
             var stage = stages[index];
+            this.AppendTakeGuards(builder,index);
             switch(stage.Kind) {
                 case PipelineStageKind.Where:
                     this.AppendWhere(builder,stage,currentName,index);

@@ -214,8 +214,15 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
 
     // 集計付き GroupBy の結果式。巻き上げた変数は、enumerator の struct の中では this.__hoistN と書くが、
     // 終端が出す静的なコードの中では this が使えない(CS0026)ので、同じ名前のローカル(__hoistN)で参照する。
-    private static string StaticProjectedResult(GroupByAggregatePlan aggPlan) =>
-        aggPlan.ProjectedResultExpression.Replace("this.__hoist","__hoist");
+    private static string StaticProjectedResult(PipelineStage stage,GroupByAggregatePlan aggPlan) {
+        var expression = aggPlan.ProjectedResultExpression;
+        if(stage.ThirdFunc is { } resultSelector) {
+            foreach(var hoistedLocal in resultSelector.HoistedLocals) {
+                expression=expression.Replace("this."+hoistedLocal.Name,hoistedLocal.Name);
+            }
+        }
+        return expression;
+    }
 
     // 終端の述語(All など)が巻き上げた変数と静的デリゲートの宣言。ループの外、述語を展開する文より前に出す。
     // これを出さないと、述語の中の __hoistN が宣言されず CS0103 になる(2026-10-22)。
@@ -464,7 +471,10 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 continue;
             }
             if(seenOrder) {
-                if(kind is PipelineStageKind.Take or PipelineStageKind.Skip or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile) {
+                // 順序づけの後ろに、順序で結果が変わる段があるときは順序を捨てられない。
+                // DistinctBy はキーが同じ要素のうちどれを残すかが順序で決まる(Sum などの値が変わる)。添字つきの Select / Where は添字が変わる。
+                if(kind is PipelineStageKind.Take or PipelineStageKind.Skip or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile or PipelineStageKind.DistinctBy
+                    ||pipeline.Stages[i].UsesIndex) {
                     return false;
                 }
             }
@@ -2015,6 +2025,12 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 continue;
             }
             var stage = pipeline.Stages[index];
+            // Take の上限に達していたら、上流のラムダを呼ぶ前に抜ける(TakeGuard を参照)。
+            foreach(var takeIndex in TakeGuard.TakesGuardedBefore(pipeline.Stages,index)) {
+                if(takeIndex<endIndex&&!sliceIndices.Contains(takeIndex)) {
+                    builder.AppendLine($"{indent}if(__pipelineTake{this.result}_{takeIndex+1}>={pipeline.Stages[takeIndex].Value}) break;");
+                }
+            }
             switch(stage.Kind) {
                 case PipelineStageKind.AsEnumerable:
                 case PipelineStageKind.OrderBy:
@@ -3887,7 +3903,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"                for(var {iName}=0;{iName}<{nName};{iName}++) {{");
             builder.AppendLine($"                    {indexesName}[{iName}]={iName};");
             builder.AppendLine($"                    {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"                    {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
+            builder.AppendLine($"                    {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
 
             var currentOrderInput="__resItem";
             for(var stIdx=groupByIndex+1;stIdx<orderStageIndex;stIdx++){
@@ -3917,7 +3933,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"                for(var {outIdxName}=0;{outIdxName}<{finalCountName};{outIdxName}++) {{");
             builder.AppendLine($"                    var __sortedIdx{this.result}={indexesName}[{outIdxName}];");
             builder.AppendLine($"                    {mapName}.GetKeyAndValue(__sortedIdx{this.result},out var __key,out var __acc);");
-            builder.AppendLine($"                    {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
+            builder.AppendLine($"                    {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
 
             var currentFinalItem="__resItem";
             for(var stIdx=groupByIndex+1;stIdx<pipeline.Stages.Count;stIdx++){
@@ -3970,7 +3986,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"        {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({mapName}.Count);");
             builder.AppendLine($"        for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"            {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"            {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
+            builder.AppendLine($"            {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","            ",groupByIndex);
             builder.AppendLine($"            {actualVariableName}[{iName}]={afterName};");
             builder.AppendLine("        }");
@@ -3985,7 +4001,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"    var __destSpan{this.result}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({actualVariableName});");
             builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
+            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        __destSpan{this.result}[{iName}]={afterName};");
             builder.AppendLine("    }");
@@ -3997,7 +4013,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"    {actualVariableName}=default!;");
             builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
+            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}+={afterName};");
             builder.AppendLine("    }");
@@ -4011,7 +4027,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             var iName = $"__i{this.result}";
             builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
+            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}={afterName};");
             builder.AppendLine($"        {foundName}=true;");
@@ -4030,7 +4046,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             var iName = $"__i{this.result}";
             builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
+            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}={afterName};");
             builder.AppendLine($"        {foundName}=true;");
@@ -4046,7 +4062,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             var iName = $"__i{this.result}";
             builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
+            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}++;");
             builder.AppendLine("    }");
@@ -4058,7 +4074,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             var iName = $"__i{this.result}";
             builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
+            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}=true;");
             builder.AppendLine("        break;");
@@ -4076,7 +4092,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine("    try {");
             builder.AppendLine($"        for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"            {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"            {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
+            builder.AppendLine($"            {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","            ",groupByIndex);
             builder.AppendLine($"            if({poolCount}=={poolBuffer}.Length) {{");
             builder.AppendLine($"                var {poolNext}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({poolBuffer}.Length*2);");
@@ -4103,7 +4119,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"    {actualVariableName}=new();");
             builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
+            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}.Add({afterName});");
             builder.AppendLine("    }");
@@ -4255,6 +4271,12 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             var currentItem = arg;
             for(var i = 0;i<afterStages.Count;i++) {
                 var st = afterStages[i];
+                // Take の上限に達していたら、上流のラムダを呼ぶ前に抜ける(TakeGuard を参照)。
+                foreach(var takeIndex in TakeGuard.TakesGuardedBefore(afterStages,i)) {
+                    sb.AppendLine($"{indent}if(__stageTake{this.result}_{takeIndex+1}>={afterStages[takeIndex].Value}) {{");
+                    sb.AppendLine($"{indent}    goto {endLabel};");
+                    sb.AppendLine($"{indent}}}");
+                }
                 if(st.Kind==PipelineStageKind.Cast) {
                     var nextName = $"__stageItem{this.result}_{i+1}";
                     sb.AppendLine($"{indent}var {nextName}=({st.OutputType})(object?){currentItem};");

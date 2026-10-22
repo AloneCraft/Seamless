@@ -639,7 +639,11 @@ public sealed partial class FLinqIncrementalGenerator {
             if(replacements.ContainsKey(expressionKey)) {
                 continue;
             }
-            var name = $"__hoist{uniqueNumber++}";
+            // 名前の割り当て役があるとき(メソッドの生成の間)は、式に合った自然な名前。ないとき(識別子を集めていない経路)は従来の機械的な名前。
+            var name = GeneratedNames.Current is { } generatedNames
+                ? generatedNames.Allocate(HoistedNameFor(expression))
+                : $"__hoist{uniqueNumber}";
+            uniqueNumber++;
             var expressionAccessorCodes = new List<string>();
             var expressionText = RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,expressionAccessorCodes);
             replacements.Add(expressionKey,name);
@@ -658,6 +662,22 @@ public sealed partial class FLinqIncrementalGenerator {
         unsafeAccessorCodes=accessorCodes.ToArray();
         hoistedExpressions=selected.Select(pair => pair.Expression).ToArray();
         return true;
+    }
+
+    // 巻き上げた値の名前。式が名前(識別子・メンバー・呼び出し)ならその最後の名前、それ以外は invariant。
+    // 例: this.rate → rate、Compute(x) → compute、x*x → invariant。
+    private static string HoistedNameFor(ExpressionSyntax expression) {
+        var text = expression switch {
+            IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
+            MemberAccessExpressionSyntax memberAccess => memberAccess.Name.Identifier.ValueText,
+            InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax memberAccess } => memberAccess.Name.Identifier.ValueText,
+            InvocationExpressionSyntax { Expression: IdentifierNameSyntax identifier } => identifier.Identifier.ValueText,
+            _ => string.Empty,
+        };
+        if(text.Length==0||!char.IsLetter(text[0])) {
+            return "invariant";
+        }
+        return char.ToLowerInvariant(text[0])+text.Substring(1);
     }
 
     private bool IsNestedFunctionBoundary(SyntaxNode node) =>

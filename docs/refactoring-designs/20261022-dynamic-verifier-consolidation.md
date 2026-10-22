@@ -117,19 +117,14 @@ Benchmark.Dynamic（確認済み）:
 - 結果: 変換できた144件は、System / FLinq（最適化なし・あり）/ ZLinq で一致している（既知の不具合の表は空）。これらは移植元が直し切ったチェーンなので、回帰の防止として働く。
 - `PairwiseChainIdealTests.cs` は削除し、検証器に依存しない静的チェーンのテストは `Test.System.Linq.Enumerable.FLinq/StaticChainIdealTests.cs` へ移した。`Test.System.Linq.Enumerable.FLinq` は検証器を参照しなくなった。
 
-## 移植中に見つかった FLinq の不具合（2026-10-22 時点で未修正）
+## 移植中に見つかった FLinq の不具合（2026-10-22 に修正済み）
 
-生成器の修正は非目的なので、直さずに記録している。いずれも `Benchmark.Dynamic.Tests/DynamicChainCorpusTests.cs` の `KnownFlinqDefects` と、`CapabilityProfile.cs` の制約に表がある。直ったら表から外す。
+当初は「生成器の修正は非目的」として記録だけにしていたが、1件ずつ直して再テストを繰り返すのを避けるため、見つかった分をまとめて直す方針に変えた(利用者指示)。修正の内容は後の節「FLinq の不具合の修正」にある。`DynamicChainCorpusTests.cs` の `KnownFlinqDefects` は空になった。
 
-- 最適化あり経路だけが System.Linq と食い違う（最適化なしの FLinq と ZLinq は一致する。原因は未調査）
-  - `Append(54).TakeWhile(p=>p>16)` が1件を返す（正しくは0件）
-  - `Prepend(-58).Take(2)` が3件を返す（正しくは2件）
-  - `Prepend(-1).GroupBy(p=>(p%5+5)%5).Select(g=>g.Key)` がキー6個を返す（正しくは5個）
-  - `Where(偶数).Union(inner)` が24件を返す（正しくは20件）
-- 生成コードがコンパイルできない
-  - `Concat(inner).Take(15)`: CS0103（`__postTake__r3_2` が未宣言）
-  - `Zip(inner,(p,i)=>p+i).Take(3)`: CS0165（`__linq0` が未代入）
-  - `Enumerable.Range` に対する `CountBy` / `AggregateBy`: CS0103（`__rangeStart0` / `__rangeCount0` が未宣言）。能力表で SystemRange の FLinq 経路を非対応にしてある。
+見つかった当時の症状(参考):
+
+- 最適化あり経路だけが System.Linq と食い違う: `Append(54).TakeWhile(...)`、`Prepend(-58).Take(2)`、`Prepend(-1).GroupBy(...).Select(g=>g.Key)`、`Where(偶数).Union(inner)`
+- 生成コードがコンパイルできない: `Concat(inner).Take(15)`(CS0103)、`Zip(...).Take(3)`(CS0165)、`Enumerable.Range` に対する `CountBy` / `AggregateBy`(CS0103)
 
 あわせて、Worker の実行先変換が `ToHashSet` / `ToDictionary` / `ToLookup` の出力順序を検証側と違う規則で決めていた不具合を直した（順序なしの入力が `ToLookup` に来ると実行全体が Fatal になっていた）。
 
@@ -146,14 +141,14 @@ Benchmark.Dynamic（確認済み）:
 - 検証: `DynamicElementTypeTests`(12型 × 24本のランダムチェーンを実 Worker で4経路比較、List / IEnumerable の Source でも比較、特殊な値つき)。`CoreElementTypes` / `CoreTypedQueries` / `CoreElementTypeGolden` がコア側の単体テスト。
 - 未実装: DB の `element_type` 列(スキーマ v3 と移行)、UI の要素型欄と絞り込み、Persisted / Tsavorite での独自型、浮動小数点だけの差を別状態(`FloatingPointDivergence`)にする方針、文化圏の Invariant 固定(string の順序づけは現状 Ordinal 比較に依存する)。
 
-### 要素型の次元で見つかった FLinq の不具合(未修正、記録のみ)
+### 要素型の次元で見つかった FLinq の不具合(2026-10-22 に修正済み)
 
-`Benchmark.Dynamic.Tests/DynamicElementTypeTests.cs` の `DefectPatterns` / `KnownMismatches` に表がある。直ったら表から外す。
+`DynamicFixedDefectTests.要素型の次元で見つけて直した不具合は直ったまま` が6件を回帰として確かめる。症状(参考):
 
 - ラムダの中の `new T(...)` の型名を変数のように hoist して `new this.__hoistN(...)` を出し、コンパイルできない(CS1526)。
-- hoist した変数 `__hoistN` を宣言せず、コンパイルできない(CS0103 / CS1061)。`ExceptBy` の後の述語などで、int 以外の要素型だけに出る。
-- 最適化あり経路だけが System.Linq と食い違う3件: `UnionBy` / `Distinct` の後の `Any`(Order, String)と、`Distinct().Prepend(...)` の後の `Any`(String、先頭に足した要素を見落とす)。
-- Sum の選択子の中の桁あふれ(long から int への縮小)を、System.Linq は unchecked で流すが、FLinq(最適化なし)は選択子を checked に取り込んで `OverflowException` にする。
+- hoist した変数を宣言せず、コンパイルできない(CS0103 / CS1061)。`ExceptBy` の後の述語などで、int 以外の要素型だけに出る。
+- 最適化あり経路だけが System.Linq と食い違う3件: `UnionBy` / `Distinct` の後の `Any`、`Distinct().Prepend(...)` の後の `Any`。
+- Sum の選択子の中の桁あふれを FLinq(最適化なし)が checked にして `OverflowException` にする。
 
 ## DB の要素型列と UI の要素型欄（手順5の続き、2026-10-22 時点）
 
@@ -174,14 +169,16 @@ Benchmark.Dynamic（確認済み）:
 - 確認: 実画面で、開始→ペア全組み合わせが流れ、式・判定・展開コード・棒グラフ・メーター・ログが更新されることを見た(58件の時点で、合格47・要調査11。要調査は記録済みの FLinq 不具合)。Appium は未起動のため、UI テストの追加分(ID の存在確認)は未実行。
 - 未実装: 全組み合わせの件数を画面に出す進捗バー、段階の途中からの再開、複数の入力件数。
 
-### 夜間の3段全組み合わせで見つかった不具合(2026-10-22、未修正・原因は未調査)
+### 夜間の3段全組み合わせで見つかった不具合(2026-10-22、修正済み)
 
-SystemArray・シード 0xC0DE・入力16件で、4066件中110件が失敗した(状態は SemanticMismatch 78、CompilationFailed 30、ExpansionIncomplete 2)。並びは `Benchmark.Dynamic.Tests/Corpus/known-triple-defects.txt` に1行ずつ記録し、夜間実行(`ChainCorpusFull`)はこの表にない失敗だけを新しい不具合として落とす。直ったら表から外す。
+SystemArray・シード 0xC0DE・入力16件で、4066件中110件が失敗した(状態は SemanticMismatch 78、CompilationFailed 30、ExpansionIncomplete 2)。その後 SelectMany・DefaultIfEmpty に対応して再実行し、14件を足した。計124件の並びは `Benchmark.Dynamic.Tests/Corpus/fixed-triple-defects.txt` に記録し、`DynamicFixedDefectTests` が全件の一致を確かめる。以下は当時の分布(参考)。
 
 - 先頭の演算子に偏りがある: `groupBy.keyOnly` 25件、`prepend` 20件、`append` 14件、`concat` 9件、`where` 7件、`skip` 7件、`select` 6件。2番目は `concat`・`union`・`unionBy`・`take`・`where`・`skip`・`skipWhile`・`takeWhile`・`zip`・`join`・`groupJoin` が多い。終端は `sum` 40件、`toArray` 26件、`count` 24件。
 - 代表の式: `source.Append(-18).Take(7).ToArray()`、`source.Append(-25).Take(2).Count()`、`source.Append(11).DistinctBy(p=>(p%3+3)%3).Sum(p=>(long)p)`、`source.Append(-21).SkipWhile(p=>p<-11).Count()`。先に書いた最適化ありだけが食い違う不具合(`Append` / `Prepend` の後)と同じ系統とみられる(推測)。
 
-### 浮動小数点の Sum(2026-10-22 実測、未修正)
+### 浮動小数点の Sum(2026-10-22 実測、差は許容と決定)
+
+決定: この差は許容する(利用者承認)。`DynamicQueryComparer` の `FloatingPointTolerance`(相対 1e-9、順序あり・スカラーの比較のみ)で吸収し、`DynamicFloatingPointSumTests` が差の存在を記録として残す。以下は実測の内容。
 
 `DynamicFloatingPointSumTests` が、実際に FLinq の生成器を通して System.Linq とビット単位で比べる(配列と List、サイズ 1〜1000、各20試行)。
 
@@ -189,7 +186,19 @@ SystemArray・シード 0xC0DE・入力16件で、4066件中110件が失敗し�
 - float の `Sum()`: ずれる(乱数データで約5割)。System.Linq は double で足して float へ戻すが、FLinq は float のまま足す。手で再現した2通りが、それぞれ System.Linq と FLinq に 320/320 一致した。FLinq 側のコメントには float を `SumSpan` から外した理由(System.Linq の仕様に合わせるため)が書かれているが、実際の結果は一致していない。
 - 一致するもの: 選択子つきの `Sum`、`Average`(double・float)、整数値だけの入力(厳密に足せる)。
 - 80ビットと64ビットの精度の違いではない。x64 の .NET では double の計算はどの経路も64ビットで、差は足す順と蓄積の型から来る。
-- 直すか許容するかは未決。この比較は、決まるまで合否に混ぜない(`FloatingPointDivergence` の扱いと合わせて決める)。
+
+## FLinq の不具合の修正（2026-10-22）
+
+3段までの全組み合わせ124件と要素型の6件、Sum の選択子、SelectMany、Range の CountBy / AggregateBy を直した。主な根本原因と修正(いずれも `Seamless.FLinq.Generator`):
+
+- 融合してはいけない並びを融合していた: Append / Prepend は列の最後でなければ融合しない、Concat / Union 系は終端つきの融合で前後の位置を限る(`PipelineBuilder.Validate.cs` の `HasSafeConcatLikeOrder`)。順序に依存する段(DistinctBy・添字つき段)の後は順序を無視しない(`CanIgnoreOrderForTerminal`)。
+- スカラー走査の適用条件: DefaultIfEmpty は Select / AsEnumerable / Cast とだけ、Reverse の後の状態をもつ絞り込みは逆順に対応する終端だけ、Distinct の後に位置依存の段があれば省かない。
+- 宣言漏れ・代入漏れ: Take の終端ラベル、空スパンの型、既定値の宣言、All の述語、ThirdFunc の hoist 変数、ExceptBy / IntersectBy の第2キー(キー選択子を通さない)。
+- 巻き上げ(`FragmentBuilder`): 型名・代入先・変換された定数は巻き上げない。
+- Sum の選択子は `unchecked` の中で評価する。SelectMany は取り込み変数をローカルへ写す(`CopyCapturedToLocals`)。
+- Take(n) は n 個目を通したら止まる。Take より手前の最初のラムダ段(Select / Where など)の前に「上限なら抜ける」判定を置き(`TakeGuard`)、n+1 個目の要素に対して上流のラムダを実行しない(TPC-E 測定で見つかった。System.Linq は呼ばない)。回帰は `Test/System/Linq/Intercept/TakeStopsUpstream.cs`。
+
+生成コードの名前も、人が書いたように読める自然な名前に変えている(`GeneratedNames`): 結果の変数は `arrayResult` 形、巻き上げた値は式の最後の名前か `invariant`、ラムダの引数別名は元の引数名。ぶつかるときだけ番号を足す。構造体の型名と `OptimizedLinq_` 接頭辞は変えていない。
 
 ## 合意状態
 

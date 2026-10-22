@@ -702,6 +702,7 @@ internal sealed partial class PipelineEnumerable {
     }
 
     private string AppendStage(StringBuilder builder,PipelineStage stage,string currentName,int index,string breakStatement = "break;") {
+        this.AppendTakeGuards(builder,index,breakStatement);
         switch(stage.Kind) {
             case PipelineStageKind.Where:
                 this.AppendWhere(builder,stage,currentName,index);
@@ -786,6 +787,15 @@ internal sealed partial class PipelineEnumerable {
         this.AppendCounterCall(builder,"    ","IncrementLogicalSelect");
         builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,nameof(PipelineStageKind.Select),nextName,arguments),"    "));
         return nextName;
+    }
+
+    // Take の上限に達していたら、上流のラムダを呼ぶ前に抜ける(TakeGuard を参照)。
+    private void AppendTakeGuards(StringBuilder builder,int index,string breakStatement = "break;") {
+        foreach(var takeIndex in TakeGuard.TakesGuardedBefore(stages,index)) {
+            builder.AppendLine($"    if(this.{this.StateName(takeIndex)}>=this.{this.CountName(this.CountOrdinal(takeIndex))}Value) {{");
+            builder.AppendLine($"        {breakStatement}");
+            builder.AppendLine("    }");
+        }
     }
 
     private void AppendTake(StringBuilder builder,int index,int countIndex,string breakStatement = "break;") {

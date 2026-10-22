@@ -245,13 +245,41 @@ public sealed partial class FLinqIncrementalGenerator {
     // source generator の生成コードを検証する。
     // 生成コードの変数名がユーザーコードと衝突しないようにするための前処理。
     // ラムダ/匿名メソッドの内部はラムダスコープであるため再帰を止め収集しない。
-    private static HashSet<string> CollectMethodBodyIdentifiers(MethodDeclarationSyntax methodSyntax,IMethodSymbol method) {
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach(var p in method.Parameters)
-            names.Add(p.Name);
-        if(methodSyntax.Body is not null)
-            CollectMethodScopeIdentifiers(methodSyntax.Body,names);
-        return names;
+    // (メソッド全体の範囲とブロックの範囲の2種類の識別子は GeneratedNames.CollectUserIdentifiers が集める。)
+
+    /// <summary>自然な名前を割り当てる。空いていればそのまま、使用済みなら 2・3… を足す(<see cref="GeneratedNames.Allocate"/>)。</summary>
+    private static string AllocateName(HashSet<string> usedNames,string preferred) => (GeneratedNames.Current??new GeneratedNames(usedNames,usedNames)).Allocate(preferred);
+
+    /// <summary>LINQ 呼び出しの結果を受ける変数の名前。終端の名前から決める(ToArray なら arrayResult、Count なら countResult、不明なら linqResult)。</summary>
+    private static string ResultNameFor(InvocationExpressionSyntax linqInvocation) {
+        var method = linqInvocation.Expression switch {
+            MemberAccessExpressionSyntax memberAccess => memberAccess.Name.Identifier.ValueText,
+            IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
+            _ => string.Empty,
+        };
+        // 結果の変数は <名前>Result(arrayResult・sumResult など)にする。Sum の展開の中の sum のように、
+        // テンプレートが固定の名前で宣言するローカルと衝突しにくくするため。
+        return method switch {
+            "ToArray" => "arrayResult",
+            "ToList" => "listResult",
+            "ToHashSet" => "setResult",
+            "ToDictionary" => "dictionaryResult",
+            "ToLookup" => "lookupResult",
+            "Count" or "LongCount" => "countResult",
+            "Sum" => "sumResult",
+            "Average" => "averageResult",
+            "Min" or "MinBy" => "minResult",
+            "Max" or "MaxBy" => "maxResult",
+            "Any" => "anyResult",
+            "All" => "allResult",
+            "Contains" => "containsResult",
+            "First" or "FirstOrDefault" => "firstResult",
+            "Last" or "LastOrDefault" => "lastResult",
+            "Single" or "SingleOrDefault" => "singleResult",
+            "ElementAt" or "ElementAtOrDefault" => "elementResult",
+            "Aggregate" => "aggregateResult",
+            _ => "linqResult",
+        };
     }
     /// <summary>
     /// ノード以下の識別子をすべて <paramref name="names"/> に収集する再帰ヘルパー。
