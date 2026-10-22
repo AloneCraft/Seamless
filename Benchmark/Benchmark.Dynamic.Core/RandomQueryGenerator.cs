@@ -19,6 +19,12 @@ public sealed record RandomQueryGenerationOptions{
     /// </summary>
     public IReadOnlyList<string>? ForcedOperatorSequence{get;init;}
 
+    /// <summary>
+    /// true にすると、空の入力で例外になる終端や範囲外の ElementAt、重複キーの ToDictionary も生成する。
+    /// 生成した <see cref="QueryIrDocument.ExpectExceptions"/> も true になる。
+    /// </summary>
+    public bool ExpectExceptions{get;init;}
+
     /// <summary><see cref="ForcedOperatorSequence"/> と一緒に指定する終端演算子。</summary>
     public string? ForcedTerminalOperatorId{get;init;}
 }
@@ -45,7 +51,8 @@ public sealed class RandomQueryGenerator{
             options.OperatorCount,
             options.MaximumDepth,
             options.SourceTarget,
-            root);
+            root,
+            ExpectExceptions:options.ExpectExceptions);
         QueryIrValidator.ValidateAndThrow(document);
         return document;
     }
@@ -195,9 +202,9 @@ public sealed class RandomQueryGenerator{
             var descriptors=BuiltInOperatorCatalog.Initial
                 .Where(static descriptor=>descriptor.NodeKind==QueryNodeKind.Terminal)
                 .Where(descriptor=>this.allowed.Contains(descriptor.OperatorId))
-                .Where(descriptor=>!descriptor.RequiresNonEmpty||input.Cardinality.IsDefinitelyNonEmpty)
+                .Where(descriptor=>this.options.ExpectExceptions||!descriptor.RequiresNonEmpty||input.Cardinality.IsDefinitelyNonEmpty)
                 .Where(descriptor=>!descriptor.RequiresDeterministicOrder||input.OrderSemantics!=QueryOrderSemantics.Unordered)
-                .Where(descriptor=>!descriptor.RequiresUniqueInput||QuerySequenceSemantics.HasUniqueValues(input))
+                .Where(descriptor=>this.options.ExpectExceptions||!descriptor.RequiresUniqueInput||QuerySequenceSemantics.HasUniqueValues(input))
                 .OrderBy(static descriptor=>descriptor.OperatorId,StringComparer.Ordinal)
                 .ToArray();
             if(descriptors.Length==0){
@@ -228,7 +235,9 @@ public sealed class RandomQueryGenerator{
                 value=this.argumentRandom.NextInt32(0,2);
             }
             if(terminalKind==QueryTerminalKind.ElementAt){
-                var upper=(int)Math.Min(input.Cardinality.Minimum,32);
+                var upper=this.options.ExpectExceptions
+                    ?33
+                    :(int)Math.Min(input.Cardinality.Minimum,32);
                 value=this.argumentRandom.NextInt32(upper);
             }
             if(terminalKind==QueryTerminalKind.ElementAtOrDefault){

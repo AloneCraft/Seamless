@@ -229,7 +229,11 @@ public sealed record QueryIrDocument(
     SourceTarget SourceTarget,
     TerminalQueryNode Root,
     [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingDefault)]
-    QueryElementType ElementType=QueryElementType.Int){
+    QueryElementType ElementType=QueryElementType.Int,
+    // true のとき、空の入力・範囲外の添字・重複キーなどで例外になる並びも静的な安全検査で弾かない。
+    // 実行では、System.Linq が例外を投げたら他の実装も同じ型の例外を投げることを確かめる。
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingDefault)]
+    bool ExpectExceptions=false){
     public const int CurrentSchemaVersion=1;
     [JsonIgnore]public int ActualOperatorCount=>this.Root.OperatorCount;
     [JsonIgnore]public int ActualDepth=>this.Root.Depth;
@@ -262,7 +266,7 @@ public static class QueryIrValidator{
             errors.Add($"Query depth {document.Root.Depth} exceeds maximum depth {document.MaximumDepth}.");
         }
         var nodeIds=new HashSet<string>(StringComparer.Ordinal);
-        ValidateNode(document.Root,document.SourceTarget,nodeIds,errors);
+        ValidateNode(document.Root,document.SourceTarget,nodeIds,errors,document.ExpectExceptions);
         return errors;
     }
 
@@ -297,7 +301,7 @@ public static class QueryIrValidator{
         }
     }
 
-    private static void ValidateNode(QueryNode node,SourceTarget sourceTarget,HashSet<string> nodeIds,List<string> errors){
+    private static void ValidateNode(QueryNode node,SourceTarget sourceTarget,HashSet<string> nodeIds,List<string> errors,bool expectExceptions){
         if(string.IsNullOrWhiteSpace(node.NodeId)||!nodeIds.Add(node.NodeId)){
             errors.Add($"Node ID is empty or duplicated: '{node.NodeId}'.");
         }
@@ -324,12 +328,12 @@ public static class QueryIrValidator{
                     errors);
                 break;
             case UnaryQueryNode unary:
-                ValidateNode(unary.Input,sourceTarget,nodeIds,errors);
+                ValidateNode(unary.Input,sourceTarget,nodeIds,errors,expectExceptions);
                 ValidateUnary(unary,errors);
                 break;
             case BinaryQueryNode binary:
-                ValidateNode(binary.Left,sourceTarget,nodeIds,errors);
-                ValidateNode(binary.Right,sourceTarget,nodeIds,errors);
+                ValidateNode(binary.Left,sourceTarget,nodeIds,errors,expectExceptions);
+                ValidateNode(binary.Right,sourceTarget,nodeIds,errors,expectExceptions);
                 var expectedBinaryOperator=binary.Arguments.Kind switch{
                     QueryBinaryKind.Concat=>QueryOperatorIds.Concat,
                     QueryBinaryKind.Union=>QueryOperatorIds.Union,
@@ -375,8 +379,8 @@ public static class QueryIrValidator{
                 ValidateMetadata(binary,binaryCardinality,binaryOrder,QueryEmptySafety.Safe,errors);
                 break;
             case NestedQueryNode nested:
-                ValidateNode(nested.Outer,sourceTarget,nodeIds,errors);
-                ValidateNode(nested.Inner,sourceTarget,nodeIds,errors);
+                ValidateNode(nested.Outer,sourceTarget,nodeIds,errors,expectExceptions);
+                ValidateNode(nested.Inner,sourceTarget,nodeIds,errors,expectExceptions);
                 var expectedNestedOperator=nested.Arguments.Kind switch{
                     QueryNestedKind.SelectManyXor=>QueryOperatorIds.SelectManyXor,
                     QueryNestedKind.JoinXor=>QueryOperatorIds.JoinXor,
@@ -403,8 +407,8 @@ public static class QueryIrValidator{
                 ValidateMetadata(nested,nestedCardinality,nestedOrder,QueryEmptySafety.Safe,errors);
                 break;
             case TerminalQueryNode terminal:
-                ValidateNode(terminal.Input,sourceTarget,nodeIds,errors);
-                ValidateTerminal(terminal,errors);
+                ValidateNode(terminal.Input,sourceTarget,nodeIds,errors,expectExceptions);
+                ValidateTerminal(terminal,errors,expectExceptions);
                 break;
             default:
                 errors.Add($"Unknown query node type: {node.GetType().FullName}.");
@@ -495,7 +499,7 @@ public static class QueryIrValidator{
         ValidateMetadata(node,expectedCardinality,expectedOrder,QueryEmptySafety.Safe,errors);
     }
 
-    private static void ValidateTerminal(TerminalQueryNode node,List<string> errors){
+    private static void ValidateTerminal(TerminalQueryNode node,List<string> errors,bool expectExceptions){
         if(node.Input.OutputCardinality!=QueryCardinality.Sequence||node.Input.OutputType!=QueryValueType.Int){
             errors.Add($"Terminal node {node.NodeId} currently requires an Int sequence.");
         }
@@ -510,7 +514,7 @@ public static class QueryIrValidator{
         if(node.Arguments.Kind is QueryTerminalKind.Min or QueryTerminalKind.Max or QueryTerminalKind.MinBy or QueryTerminalKind.MaxBy or QueryTerminalKind.Average
             or QueryTerminalKind.First or QueryTerminalKind.Last or QueryTerminalKind.ElementAt
             ||ExtendedTerminalShape.RequiresNonEmpty(node.Arguments.Kind)){
-            if(!node.Input.Cardinality.IsDefinitelyNonEmpty){
+            if(!expectExceptions&&!node.Input.Cardinality.IsDefinitelyNonEmpty){
                 errors.Add($"Terminal node {node.NodeId} requires a statically non-empty input.");
             }
         }
@@ -527,11 +531,11 @@ public static class QueryIrValidator{
         if(node.Arguments.Kind is QueryTerminalKind.ElementAt or QueryTerminalKind.ElementAtOrDefault){
             if(node.Arguments.Value is not { }index||index<0){
                 errors.Add($"ElementAt terminal {node.NodeId} requires a non-negative index.");
-            }else if(node.Arguments.Kind==QueryTerminalKind.ElementAt&&index>=node.Input.Cardinality.Minimum){
+            }else if(!expectExceptions&&node.Arguments.Kind==QueryTerminalKind.ElementAt&&index>=node.Input.Cardinality.Minimum){
                 errors.Add($"ElementAt terminal {node.NodeId} index {index} is outside the statically safe minimum cardinality.");
             }
         }
-        if(node.Arguments.Kind==QueryTerminalKind.ToDictionary&&!QuerySequenceSemantics.HasUniqueValues(node.Input)){
+        if(!expectExceptions&&node.Arguments.Kind==QueryTerminalKind.ToDictionary&&!QuerySequenceSemantics.HasUniqueValues(node.Input)){
             errors.Add($"ToDictionary terminal {node.NodeId} requires an input whose values are statically unique.");
         }
         var expectedCardinality=node.OutputCardinality==QueryCardinality.Scalar

@@ -13,6 +13,7 @@ internal sealed class ExhaustiveQueryProvider{
     private readonly Seed256 baseSeed;
     private readonly SourceTarget target;
     private readonly int inputElementCount;
+    private readonly bool expectExceptions;
 
     public ExhaustiveQueryProvider(WorkerRunRequest request,QueryCapabilitySet capability){
         ArgumentNullException.ThrowIfNull(request);
@@ -20,6 +21,7 @@ internal sealed class ExhaustiveQueryProvider{
         this.baseSeed=request.BaseSeed;
         this.target=request.SourceTargets.Order().First();
         this.inputElementCount=request.InputElementCount;
+        this.expectExceptions=request.ExpectExceptions;
         var intermediates=capability.OperatorIds
             .Where(static id=>BuiltInOperatorCatalog.Get(id).NodeKind is QueryNodeKind.Unary or QueryNodeKind.Binary or QueryNodeKind.Nested)
             .ToArray();
@@ -38,7 +40,7 @@ internal sealed class ExhaustiveQueryProvider{
                 throw new InvalidOperationException(
                     $"The exhaustive enumeration has only {this.feasible.Count} feasible queries; QueryIndex {queryIndex} was requested.");
             }
-            if(ExhaustiveQueryEnumerator.TryGenerate(this.specs.Current,this.baseSeed,this.target,this.inputElementCount,out var document)){
+            if(ExhaustiveQueryEnumerator.TryGenerate(this.specs.Current,this.baseSeed,this.target,this.inputElementCount,out var document,this.expectExceptions)){
                 this.feasible.Add(document!);
             }
         }
