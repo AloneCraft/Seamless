@@ -1303,7 +1303,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
     }
     // Reader から TStrategy.Invoke を直接呼ぶ push 型実装は、通常の列挙経路
     // (Enumerator<KeyIterator,TKey>、ArrayPool チャンクへ Accept で詰めてから配る pull 型)より
-    // 実測で 3〜4 倍遅かった(Test.Tsavorite.Collections.NativeIterateVsEnumeratorDiagnostic で検証)。
+    // 実測で 3〜4 倍遅かった(2026-08-05 の使い捨て診断 NativeIterateVsEnumeratorDiagnostic で検証。診断は削除済み、27aab0cb 参照)。
     // 通常経路と同じ IterateLookupIteratorFunctions_List<TKey>(sealed 非仮想 Reader・ArrayPool チャンク)
     // へ揃えることで解消する。チャンクに溜めてから Invoke を回す都合上、Any/First 等の早期終了は
     // 現在のチャンク(既定 4096 要素)を読み切ってから止まる — 全走査系(Count/ToList/Sum 等)には無関係。
