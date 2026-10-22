@@ -210,7 +210,9 @@ public sealed record QueryIrDocument(
     int RequestedOperatorCount,
     int MaximumDepth,
     SourceTarget SourceTarget,
-    TerminalQueryNode Root){
+    TerminalQueryNode Root,
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingDefault)]
+    QueryElementType ElementType=QueryElementType.Int){
     public const int CurrentSchemaVersion=1;
     [JsonIgnore]public int ActualOperatorCount=>this.Root.OperatorCount;
     [JsonIgnore]public int ActualDepth=>this.Root.Depth;

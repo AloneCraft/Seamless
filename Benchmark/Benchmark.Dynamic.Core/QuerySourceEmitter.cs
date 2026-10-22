@@ -36,6 +36,7 @@ public sealed class QuerySourceEmitter{
         var className=string.IsNullOrWhiteSpace(options.ClassName)
             ?$"DynamicQuery_{irHash[..16]}"
             :ValidateIdentifier(options.ClassName);
+        var element=ElementTypeCatalog.Get(document.ElementType);
         var builder=new StringBuilder(8_192);
         builder.AppendLine("#nullable enable");
         builder.AppendLine("using System.Linq;");
@@ -43,18 +44,20 @@ public sealed class QuerySourceEmitter{
         builder.Append("namespace ").Append(generatedNamespace).AppendLine(";");
         builder.AppendLine();
         builder.Append("public sealed class ").Append(className).AppendLine("{");
-        this.EmitMethod(builder,document,ExecutionPath.SystemLinq,null);
+        this.EmitMethod(builder,document,element,ExecutionPath.SystemLinq,null);
         this.EmitMethod(
             builder,
             document,
+            element,
             ExecutionPath.FLinqNoOptimizations,
             "[global::Seamless.FLinq.LinqIntercept(true,Optimizations=global::Seamless.FLinq.LinqOptimizations.None)]");
         this.EmitMethod(
             builder,
             document,
+            element,
             ExecutionPath.FLinqOptimized,
             "[global::Seamless.FLinq.LinqIntercept(true,Optimizations=global::Seamless.FLinq.LinqOptimizations.All,ConvergenceMode=global::Seamless.FLinq.LinqConvergenceMode.GlobalFixedPoint,EmitOptimizationTrace=true)]");
-        this.EmitMethod(builder,document,ExecutionPath.ZLinq,null);
+        this.EmitMethod(builder,document,element,ExecutionPath.ZLinq,null);
         builder.AppendLine("}");
         var sourceText=builder.ToString();
         var sourceHash=Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(sourceText)));
@@ -70,6 +73,7 @@ public sealed class QuerySourceEmitter{
     private void EmitMethod(
         StringBuilder builder,
         QueryIrDocument document,
+        ElementTypeDescriptor element,
         ExecutionPath path,
         string? attribute){
         var methodName=DefaultMethodNames[path];
@@ -92,13 +96,13 @@ public sealed class QuerySourceEmitter{
                 .AppendLine("(object? primary,object? secondary){");
         }
         builder.Append("        var primarySource=")
-            .Append(EmitFixtureCast(document.SourceTarget,path,"primary"))
+            .Append(EmitFixtureCast(document.SourceTarget,element,path,"primary"))
             .AppendLine(";");
         builder.Append("        var secondarySource=")
-            .Append(EmitFixtureCast(document.SourceTarget,path,"secondary"))
+            .Append(EmitFixtureCast(document.SourceTarget,element,path,"secondary"))
             .AppendLine(";");
         builder.Append("        var result=")
-            .Append(this.EmitTerminal(document.Root,path))
+            .Append(this.EmitTerminal(document.Root,element,path))
             .AppendLine(";");
         builder.Append("        return ")
             .Append(EmitMaterialization(document.Root))
@@ -107,14 +111,14 @@ public sealed class QuerySourceEmitter{
         builder.AppendLine();
     }
 
-    private string EmitTerminal(TerminalQueryNode node,ExecutionPath path){
-        var input=this.EmitSequence(node.Input,path);
+    private string EmitTerminal(TerminalQueryNode node,ElementTypeDescriptor element,ExecutionPath path){
+        var input=this.EmitSequence(node.Input,element,path);
         if(path!=ExecutionPath.SystemLinq){
             return node.Arguments.Kind switch{
                 QueryTerminalKind.Count=>$"({input}).Count()",
                 QueryTerminalKind.LongCount=>$"({input}).LongCount()",
                 QueryTerminalKind.Any=>$"({input}).Any()",
-                QueryTerminalKind.All=>$"({input}).All({EmitPredicate(node.Arguments.Predicate!)})",
+                QueryTerminalKind.All=>$"({input}).All({element.EmitPredicate(node.Arguments.Predicate!)})",
                 QueryTerminalKind.Contains=>$"({input}).Contains({node.Arguments.Value!.Value})",
                 QueryTerminalKind.Sum=>$"({input}).Sum(static value=>(long)value)",
                 QueryTerminalKind.Min=>$"({input}).Min()",
@@ -143,7 +147,7 @@ public sealed class QuerySourceEmitter{
             QueryTerminalKind.Count=>$"global::System.Linq.Enumerable.Count({input})",
             QueryTerminalKind.LongCount=>$"global::System.Linq.Enumerable.LongCount({input})",
             QueryTerminalKind.Any=>$"global::System.Linq.Enumerable.Any({input})",
-            QueryTerminalKind.All=>$"global::System.Linq.Enumerable.All({input},{EmitPredicate(node.Arguments.Predicate!)})",
+            QueryTerminalKind.All=>$"global::System.Linq.Enumerable.All({input},{element.EmitPredicate(node.Arguments.Predicate!)})",
             QueryTerminalKind.Contains=>$"global::System.Linq.Enumerable.Contains({input},{node.Arguments.Value!.Value})",
             QueryTerminalKind.Sum=>$"global::System.Linq.Enumerable.Sum({input},static value=>(long)value)",
             QueryTerminalKind.Min=>$"global::System.Linq.Enumerable.Min({input})",
@@ -169,23 +173,23 @@ public sealed class QuerySourceEmitter{
         };
     }
 
-    private string EmitSequence(QueryNode node,ExecutionPath path){
+    private string EmitSequence(QueryNode node,ElementTypeDescriptor element,ExecutionPath path){
         return node switch{
             SourceNode source=>EmitSource(source,path),
-            UnaryQueryNode unary=>this.EmitUnary(unary,path),
-            BinaryQueryNode binary=>this.EmitBinary(binary,path),
-            NestedQueryNode nested=>this.EmitNested(nested,path),
+            UnaryQueryNode unary=>this.EmitUnary(unary,element,path),
+            BinaryQueryNode binary=>this.EmitBinary(binary,element,path),
+            NestedQueryNode nested=>this.EmitNested(nested,element,path),
             _=>throw new InvalidOperationException($"Node {node.NodeId} is not a sequence node."),
         };
     }
 
-    private string EmitUnary(UnaryQueryNode node,ExecutionPath path){
-        var input=this.EmitSequence(node.Input,path);
+    private string EmitUnary(UnaryQueryNode node,ElementTypeDescriptor element,ExecutionPath path){
+        var input=this.EmitSequence(node.Input,element,path);
         if(path!=ExecutionPath.SystemLinq){
             return node.Arguments switch{
-                WhereOperatorArguments where=>$"({input}).Where({EmitPredicate(where.Predicate)})",
+                WhereOperatorArguments where=>$"({input}).Where({element.EmitPredicate(where.Predicate)})",
                 WhereIndexedOperatorArguments where=>$"({input}).Where((value,index)=>index%{where.Modulus}=={where.Remainder})",
-                SelectOperatorArguments select=>$"({input}).Select({EmitSelector(select.Selector)})",
+                SelectOperatorArguments select=>$"({input}).Select({element.EmitSelector(select.Selector)})",
                 SelectIndexedOperatorArguments=>$"({input}).Select((value,index)=>value^index)",
                 DistinctOperatorArguments=>$"({input}).Distinct()",
                 DistinctByOperatorArguments distinctBy=>$"({input}).DistinctBy(value=>(value%{distinctBy.Modulus}+{distinctBy.Modulus})%{distinctBy.Modulus})",
@@ -200,9 +204,9 @@ public sealed class QuerySourceEmitter{
             };
         }
         return node.Arguments switch{
-            WhereOperatorArguments where=>$"global::System.Linq.Enumerable.Where({input},{EmitPredicate(where.Predicate)})",
+            WhereOperatorArguments where=>$"global::System.Linq.Enumerable.Where({input},{element.EmitPredicate(where.Predicate)})",
             WhereIndexedOperatorArguments where=>$"global::System.Linq.Enumerable.Where({input},(value,index)=>index%{where.Modulus}=={where.Remainder})",
-            SelectOperatorArguments select=>$"global::System.Linq.Enumerable.Select({input},{EmitSelector(select.Selector)})",
+            SelectOperatorArguments select=>$"global::System.Linq.Enumerable.Select({input},{element.EmitSelector(select.Selector)})",
             SelectIndexedOperatorArguments=>$"global::System.Linq.Enumerable.Select({input},(value,index)=>value^index)",
             DistinctOperatorArguments=>$"global::System.Linq.Enumerable.Distinct({input})",
             DistinctByOperatorArguments distinctBy=>$"global::System.Linq.Enumerable.DistinctBy({input},value=>(value%{distinctBy.Modulus}+{distinctBy.Modulus})%{distinctBy.Modulus})",
@@ -217,9 +221,9 @@ public sealed class QuerySourceEmitter{
         };
     }
 
-    private string EmitBinary(BinaryQueryNode node,ExecutionPath path){
-        var left=this.EmitSequence(node.Left,path);
-        var right=this.EmitSequence(node.Right,path);
+    private string EmitBinary(BinaryQueryNode node,ElementTypeDescriptor element,ExecutionPath path){
+        var left=this.EmitSequence(node.Left,element,path);
+        var right=this.EmitSequence(node.Right,element,path);
         if(path==ExecutionPath.ZLinq){
             return node.Arguments.Kind switch{
                 QueryBinaryKind.Concat=>$"({left}).Concat(({right}).ToArray())",
@@ -256,9 +260,9 @@ public sealed class QuerySourceEmitter{
         };
     }
 
-    private string EmitNested(NestedQueryNode node,ExecutionPath path){
-        var outer=this.EmitSequence(node.Outer,path);
-        var inner=this.EmitSequence(node.Inner,path);
+    private string EmitNested(NestedQueryNode node,ElementTypeDescriptor element,ExecutionPath path){
+        var outer=this.EmitSequence(node.Outer,element,path);
+        var inner=this.EmitSequence(node.Inner,element,path);
         if(node.Arguments.Kind==QueryNestedKind.GroupJoinXorCount){
             const string OuterKey="outerValue=>(outerValue%8+8)%8";
             const string InnerKey="innerValue=>(innerValue%8+8)%8";
@@ -308,37 +312,16 @@ public sealed class QuerySourceEmitter{
         return parameter;
     }
 
-    private static string EmitFixtureCast(SourceTarget target,ExecutionPath path,string parameter){
+    private static string EmitFixtureCast(SourceTarget target,ElementTypeDescriptor element,ExecutionPath path,string parameter){
         var type=target.GetSourceKind() switch{
             SourceKind.Range=>"global::Benchmark.Dynamic.Core.RangeSourceFixture",
-            SourceKind.Array when path is ExecutionPath.SystemLinq or ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized or ExecutionPath.ZLinq=>"global::System.Int32[]",
-            SourceKind.List when path is ExecutionPath.SystemLinq or ExecutionPath.ZLinq=>"global::System.Collections.Generic.List<global::System.Int32>",
-            SourceKind.Persisted when target==SourceTarget.SeamlessPersisted&&path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized=>"global::Seamless.Collections.Persisted.Set<global::System.Int32>",
-            SourceKind.Tsavorite when target==SourceTarget.SeamlessTsavorite&&path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized=>"global::Seamless.Collections.Tsavorite.HashSet<global::System.Int32>",
-            _=>"global::System.Collections.Generic.IEnumerable<global::System.Int32>",
+            SourceKind.Array when path is ExecutionPath.SystemLinq or ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized or ExecutionPath.ZLinq=>element.ClrTypeName+"[]",
+            SourceKind.List when path is ExecutionPath.SystemLinq or ExecutionPath.ZLinq=>$"global::System.Collections.Generic.List<{element.ClrTypeName}>",
+            SourceKind.Persisted when target==SourceTarget.SeamlessPersisted&&path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized=>$"global::Seamless.Collections.Persisted.Set<{element.ClrTypeName}>",
+            SourceKind.Tsavorite when target==SourceTarget.SeamlessTsavorite&&path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized=>$"global::Seamless.Collections.Tsavorite.HashSet<{element.ClrTypeName}>",
+            _=>$"global::System.Collections.Generic.IEnumerable<{element.ClrTypeName}>",
         };
         return $"({type}){parameter}!";
-    }
-
-    private static string EmitPredicate(QueryPredicate predicate){
-        return predicate.Kind switch{
-            QueryPredicateKind.IsEven=>"value=>(value&1)==0",
-            QueryPredicateKind.IsOdd=>"value=>(value&1)!=0",
-            QueryPredicateKind.GreaterThan=>$"value=>value>{predicate.Operand}",
-            QueryPredicateKind.LessThan=>$"value=>value<{predicate.Operand}",
-            QueryPredicateKind.ModuloEquals=>$"value=>value%{predicate.Modulus}=={predicate.Operand}",
-            _=>throw new ArgumentOutOfRangeException(nameof(predicate)),
-        };
-    }
-
-    private static string EmitSelector(QuerySelector selector){
-        return selector.Kind switch{
-            QuerySelectorKind.Identity=>"value=>value",
-            QuerySelectorKind.Add=>$"value=>value+({selector.Operand})",
-            QuerySelectorKind.Multiply=>$"value=>value*({selector.Operand})",
-            QuerySelectorKind.Negate=>"value=>-value",
-            _=>throw new ArgumentOutOfRangeException(nameof(selector)),
-        };
     }
 
     private static string EmitMaterialization(TerminalQueryNode root){
