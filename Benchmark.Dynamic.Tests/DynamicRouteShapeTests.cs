@@ -263,6 +263,45 @@ public sealed class DynamicRouteShapeTests{
         Assert.True(failures.Count==0,string.Join(Environment.NewLine+Environment.NewLine,failures));
     }
 
+    [Theory,Trait("Category","Integration")]
+    [InlineData(QueryOperatorIds.TakeLast)]
+    [InlineData(QueryOperatorIds.SkipLast)]
+    [InlineData(QueryOperatorIds.TakeWhile)]
+    [InlineData(QueryOperatorIds.SkipWhile)]
+    [InlineData(QueryOperatorIds.Append)]
+    [InlineData(QueryOperatorIds.Prepend)]
+    [InlineData(QueryOperatorIds.DefaultIfEmpty)]
+    [InlineData(QueryOperatorIds.GroupBySum)]
+    [InlineData(QueryOperatorIds.GroupByCount)]
+    [InlineData(QueryOperatorIds.GroupByKeyOnly)]
+    public async Task 追加した単項演算子はCapabilityの保証範囲で4経路が一致して実行できる(string operatorID){
+        var failures=new List<string>();
+        foreach(var target in Enum.GetValues<SourceTarget>()){
+            if(!QueryCapabilityProfiles.Get(target).SupportsOnAllPaths(operatorID)){
+                continue;
+            }
+            for(var queryIndex=0;queryIndex<4;queryIndex++){
+                var query=new RandomQueryGenerator().Generate(new RandomQueryGenerationOptions{
+                    MasterSeed=Seed256.Parse("0xD1A0"),
+                    QueryIndex=queryIndex,
+                    QueryId=$"route-ext-{target}-{queryIndex}",
+                    SourceTarget=target,
+                    OperatorCount=2,
+                    MaximumDepth=2,
+                    InputElementCount=4,
+                    EnableBinaryOperators=false,
+                    EnableNestedOperators=false,
+                    AllowedOperatorIds=[operatorID,QueryOperatorIds.ToArray],
+                });
+                var result=await ExecuteAsync(target,query,2);
+                if(result.Status!=WorkerExecutionStatus.Succeeded||!result.AssemblyUnloaded){
+                    failures.Add($"{operatorID} #{queryIndex}: {FormatFailure(target,result)}");
+                }
+            }
+        }
+        Assert.True(failures.Count==0,string.Join(Environment.NewLine+Environment.NewLine,failures));
+    }
+
     private static QueryIrDocument CreateOrderQuery(SourceTarget target,bool includeThenBy){
         var source=new SourceNode(
             "n0000",

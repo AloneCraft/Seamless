@@ -1,0 +1,69 @@
+using Benchmark.Dynamic.Core;
+using Core=Benchmark.Dynamic.Core;
+
+namespace Benchmark.Dynamic.Tests;
+
+public sealed class ExtendedOperatorTests{
+    public static TheoryData<string,string> 演算子と生成される呼び出し=>new(){
+        {QueryOperatorIds.TakeLast,"TakeLast("},
+        {QueryOperatorIds.SkipLast,"SkipLast("},
+        {QueryOperatorIds.TakeWhile,"TakeWhile("},
+        {QueryOperatorIds.SkipWhile,"SkipWhile("},
+        {QueryOperatorIds.Append,"Append("},
+        {QueryOperatorIds.Prepend,"Prepend("},
+        {QueryOperatorIds.DefaultIfEmpty,"DefaultIfEmpty("},
+        {QueryOperatorIds.OrderByKey,"OrderBy"},
+        {QueryOperatorIds.GroupBySum,"GroupBy("},
+        {QueryOperatorIds.GroupByCount,"GroupBy("},
+        {QueryOperatorIds.GroupByKeyOnly,"GroupBy("},
+    };
+
+    [Theory,Trait("Category","Unit")]
+    [MemberData(nameof(演算子と生成される呼び出し))]
+    public void 追加した単項演算子はIR往復と4経路の生成ができる(string operatorId,string expectedCall){
+        var generator=new Core.RandomQueryGenerator();
+        var emitter=new Core.QuerySourceEmitter();
+        for(var index=0;index<32;index++){
+            var document=generator.Generate(new RandomQueryGenerationOptions{
+                MasterSeed=Core.Seed256.Parse("0xE17E"),
+                QueryIndex=index,
+                SourceTarget=SourceTarget.SystemArray,
+                OperatorCount=2,
+                MaximumDepth=2,
+                InputElementCount=16,
+                EnableBinaryOperators=false,
+                EnableNestedOperators=false,
+                AllowedOperatorIds=[operatorId,QueryOperatorIds.Count],
+            });
+
+            var json=QueryIrJson.Serialize(document);
+            var restored=QueryIrJson.Deserialize(json);
+            Assert.Equal(json,QueryIrJson.Serialize(restored));
+            Assert.Empty(QueryIrValidator.Validate(restored));
+
+            var unary=Assert.IsType<UnaryQueryNode>(document.Root.Input);
+            Assert.Equal(operatorId,unary.OperatorId);
+            Assert.IsAssignableFrom<ExtendedUnaryOperatorArguments>(unary.Arguments);
+
+            var emitted=emitter.Emit(document);
+            Assert.Contains(expectedCall,emitted.SourceText,StringComparison.Ordinal);
+            Assert.Equal(4,emitted.MethodNames.Count);
+            Assert.False(string.IsNullOrWhiteSpace(Core.QueryExpressionFormatter.Format(document)));
+        }
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void 追加した単項演算子の件数と順序の規則(){
+        var exact=QueryCardinalityRange.Exact(10);
+        Assert.Equal(new QueryCardinalityRange(3,3),ExtendedUnaryShape.Cardinality(new TakeLastOperatorArguments(3),exact));
+        Assert.Equal(new QueryCardinalityRange(7,7),ExtendedUnaryShape.Cardinality(new SkipLastOperatorArguments(3),exact));
+        Assert.Equal(new QueryCardinalityRange(0,10),ExtendedUnaryShape.Cardinality(new TakeWhileOperatorArguments(new(QueryPredicateKind.IsEven)),exact));
+        Assert.Equal(new QueryCardinalityRange(11,11),ExtendedUnaryShape.Cardinality(new AppendOperatorArguments(1),exact));
+        Assert.Equal(new QueryCardinalityRange(1,1),ExtendedUnaryShape.Cardinality(new DefaultIfEmptyOperatorArguments(0),QueryCardinalityRange.Exact(0)));
+        Assert.Equal(new QueryCardinalityRange(1,4),ExtendedUnaryShape.Cardinality(new GroupByAggregateOperatorArguments(GroupByAggregateKind.Sum,4),exact));
+
+        Assert.Equal(QueryOrderSemantics.Unordered,ExtendedUnaryShape.Order(new OrderByKeyOperatorArguments(3,false),QueryOrderSemantics.Unordered));
+        Assert.Equal(QueryOrderSemantics.Ordered,ExtendedUnaryShape.Order(new OrderByKeyOperatorArguments(3,false),QueryOrderSemantics.TotalOrdered));
+        Assert.Equal(QueryOrderSemantics.Ordered,ExtendedUnaryShape.Order(new TakeLastOperatorArguments(3),QueryOrderSemantics.Ordered));
+    }
+}

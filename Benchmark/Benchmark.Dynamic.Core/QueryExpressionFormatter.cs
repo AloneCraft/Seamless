@@ -41,9 +41,37 @@ public static class QueryExpressionFormatter{
             ReverseOperatorArguments=>"Reverse()",
             OrderByOperatorArguments order=>FormatOrderBy(order.Descending),
             ThenByOperatorArguments order=>FormatThenBy(order.Descending),
+            TakeLastOperatorArguments takeLast=>$"TakeLast({Integer(takeLast.Count)})",
+            SkipLastOperatorArguments skipLast=>$"SkipLast({Integer(skipLast.Count)})",
+            TakeWhileOperatorArguments takeWhile=>$"TakeWhile({FormatPredicate(takeWhile.Predicate)})",
+            SkipWhileOperatorArguments skipWhile=>$"SkipWhile({FormatPredicate(skipWhile.Predicate)})",
+            AppendOperatorArguments append=>$"Append({Integer(append.Value)})",
+            PrependOperatorArguments prepend=>$"Prepend({Integer(prepend.Value)})",
+            DefaultIfEmptyOperatorArguments defaultIfEmpty=>$"DefaultIfEmpty({Integer(defaultIfEmpty.Value)})",
+            OrderByKeyOperatorArguments orderBy=>FormatOrderByKey(orderBy),
+            GroupByAggregateOperatorArguments group=>FormatGroupByAggregate(group),
             _=>throw new ArgumentOutOfRangeException(nameof(node)),
         };
         return$"{input}.{operation}";
+    }
+
+    private static string FormatOrderByKey(OrderByKeyOperatorArguments order){
+        var method=order.Descending?"OrderByDescending":"OrderBy";
+        if(order.Modulus==0){
+            return$"{method}(p=>p)";
+        }
+        var modulus=Integer(order.Modulus);
+        return$"{method}(p=>(p%{modulus}+{modulus})%{modulus})";
+    }
+
+    private static string FormatGroupByAggregate(GroupByAggregateOperatorArguments group){
+        var modulus=Integer(group.Modulus);
+        var key=$"p=>(p%{modulus}+{modulus})%{modulus}";
+        return group.Kind switch{
+            GroupByAggregateKind.Sum=>$"GroupBy({key},p=>p).Select(g=>(int)(g.Key+g.Sum(x=>(long)x)))",
+            GroupByAggregateKind.Count=>$"GroupBy({key}).Select(g=>g.Key*10+g.Count())",
+            _=>$"GroupBy({key}).Select(g=>g.Key)",
+        };
     }
 
     private static string FormatOrderBy(bool descending){

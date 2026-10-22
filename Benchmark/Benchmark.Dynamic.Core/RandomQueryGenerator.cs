@@ -236,6 +236,11 @@ public sealed class RandomQueryGenerator{
                 QueryOperatorIds.Reverse=>this.CreateReverse(input),
                 QueryOperatorIds.OrderBy=>this.CreateOrderBy(input),
                 QueryOperatorIds.ThenBy=>this.CreateThenBy(input),
+                QueryOperatorIds.TakeLast or QueryOperatorIds.SkipLast or QueryOperatorIds.TakeWhile
+                    or QueryOperatorIds.SkipWhile or QueryOperatorIds.Append or QueryOperatorIds.Prepend
+                    or QueryOperatorIds.DefaultIfEmpty or QueryOperatorIds.OrderByKey
+                    or QueryOperatorIds.GroupBySum or QueryOperatorIds.GroupByCount
+                    or QueryOperatorIds.GroupByKeyOnly=>this.CreateExtendedUnary(input,descriptor.OperatorId),
                 _=>throw new InvalidOperationException($"Unsupported unary operator: {descriptor.OperatorId}."),
             };
         }
@@ -455,6 +460,35 @@ public sealed class RandomQueryGenerator{
                 QueryValueType.Int,
                 new(minimum,outputMaximum),
                 input.OrderSemantics);
+        }
+
+        private UnaryQueryNode CreateExtendedUnary(QueryNode input,string operatorId){
+            var maximum=input.Cardinality.Maximum??32;
+            var boundedMaximum=(int)Math.Min(Math.Max(maximum,1),32);
+            ExtendedUnaryOperatorArguments arguments=operatorId switch{
+                QueryOperatorIds.TakeLast=>new TakeLastOperatorArguments(this.argumentRandom.NextInt32(1,boundedMaximum+1)),
+                QueryOperatorIds.SkipLast=>new SkipLastOperatorArguments(this.argumentRandom.NextInt32(1,boundedMaximum+1)),
+                QueryOperatorIds.TakeWhile=>new TakeWhileOperatorArguments(this.CreatePredicate()),
+                QueryOperatorIds.SkipWhile=>new SkipWhileOperatorArguments(this.CreatePredicate()),
+                QueryOperatorIds.Append=>new AppendOperatorArguments(this.argumentRandom.NextInt32(-64,65)),
+                QueryOperatorIds.Prepend=>new PrependOperatorArguments(this.argumentRandom.NextInt32(-64,65)),
+                QueryOperatorIds.DefaultIfEmpty=>new DefaultIfEmptyOperatorArguments(this.argumentRandom.NextInt32(-64,65)),
+                QueryOperatorIds.OrderByKey=>new OrderByKeyOperatorArguments(
+                    this.argumentRandom.NextInt32(0,9),
+                    this.argumentRandom.NextInt32(0,2)==1),
+                QueryOperatorIds.GroupBySum=>new GroupByAggregateOperatorArguments(GroupByAggregateKind.Sum,this.argumentRandom.NextInt32(2,9)),
+                QueryOperatorIds.GroupByCount=>new GroupByAggregateOperatorArguments(GroupByAggregateKind.Count,this.argumentRandom.NextInt32(2,9)),
+                QueryOperatorIds.GroupByKeyOnly=>new GroupByAggregateOperatorArguments(GroupByAggregateKind.KeyOnly,this.argumentRandom.NextInt32(2,9)),
+                _=>throw new InvalidOperationException($"Unsupported extended unary operator: {operatorId}."),
+            };
+            return new(
+                this.CreateNodeId(),
+                operatorId,
+                input,
+                arguments,
+                QueryValueType.Int,
+                ExtendedUnaryShape.Cardinality(arguments,input.Cardinality),
+                ExtendedUnaryShape.Order(arguments,input.OrderSemantics));
         }
 
         private UnaryQueryNode CreateReverse(QueryNode input){

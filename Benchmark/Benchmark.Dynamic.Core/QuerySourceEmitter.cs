@@ -200,6 +200,7 @@ public sealed class QuerySourceEmitter{
                 OrderByOperatorArguments=>$"({input}).OrderBy(value=>value)",
                 ThenByOperatorArguments order when order.Descending=>$"({input}).ThenByDescending(value=>value)",
                 ThenByOperatorArguments=>$"({input}).ThenBy(value=>value)",
+                ExtendedUnaryOperatorArguments extended=>EmitExtendedUnary(extended,input,element,path),
                 _=>throw new InvalidOperationException($"Unsupported unary arguments at {node.NodeId}."),
             };
         }
@@ -217,8 +218,65 @@ public sealed class QuerySourceEmitter{
             OrderByOperatorArguments=>$"global::System.Linq.Enumerable.OrderBy({input},value=>value)",
             ThenByOperatorArguments order when order.Descending=>$"global::System.Linq.Enumerable.ThenByDescending({input},value=>value)",
             ThenByOperatorArguments=>$"global::System.Linq.Enumerable.ThenBy({input},value=>value)",
+            ExtendedUnaryOperatorArguments extended=>EmitExtendedUnary(extended,input,element,path),
             _=>throw new InvalidOperationException($"Unsupported unary arguments at {node.NodeId}."),
         };
+    }
+
+    private static string EmitModuloKey(int modulus){
+        return modulus==0?"value=>value":$"value=>(value%{modulus}+{modulus})%{modulus}";
+    }
+
+    // System.Linq は System.Linq.Enumerable を完全修飾の静的呼び出しで書く。
+    // FLinq と ZLinq は拡張メソッド構文で書く。ただしグループ内の集計は、ZLinq では
+    // グループを AsValueEnumerable に変えて ZLinq の集計へ結び付ける(IGrouping は IEnumerable なので
+    // そのままだと System.Linq に結び付き、呼び出し先の検証で拒否される)。
+    private static string EmitExtendedUnary(
+        ExtendedUnaryOperatorArguments arguments,
+        string input,
+        ElementTypeDescriptor element,
+        ExecutionPath path){
+        var system=path==ExecutionPath.SystemLinq;
+        var groupValues=path==ExecutionPath.ZLinq?"global::ZLinq.ValueEnumerable.AsValueEnumerable(group)":"group";
+        string Call(string method,string callArguments)=>system
+            ?$"global::System.Linq.Enumerable.{method}({input}{(callArguments.Length==0?string.Empty:","+callArguments)})"
+            :$"({input}).{method}({callArguments})";
+        switch(arguments){
+            case TakeLastOperatorArguments takeLast:
+                return Call("TakeLast",takeLast.Count.ToString());
+            case SkipLastOperatorArguments skipLast:
+                return Call("SkipLast",skipLast.Count.ToString());
+            case TakeWhileOperatorArguments takeWhile:
+                return Call("TakeWhile",element.EmitPredicate(takeWhile.Predicate));
+            case SkipWhileOperatorArguments skipWhile:
+                return Call("SkipWhile",element.EmitPredicate(skipWhile.Predicate));
+            case AppendOperatorArguments append:
+                return Call("Append",$"({append.Value})");
+            case PrependOperatorArguments prepend:
+                return Call("Prepend",$"({prepend.Value})");
+            case DefaultIfEmptyOperatorArguments defaultIfEmpty:
+                return Call("DefaultIfEmpty",$"({defaultIfEmpty.Value})");
+            case OrderByKeyOperatorArguments orderBy:
+                return Call(orderBy.Descending?"OrderByDescending":"OrderBy",EmitModuloKey(orderBy.Modulus));
+            case GroupByAggregateOperatorArguments group:{
+                var key=EmitModuloKey(group.Modulus);
+                if(system){
+                    var grouped=$"global::System.Linq.Enumerable.GroupBy({input},{key})";
+                    return group.Kind switch{
+                        GroupByAggregateKind.Sum=>$"global::System.Linq.Enumerable.Select(global::System.Linq.Enumerable.GroupBy({input},{key},value=>value),group=>(int)(group.Key+global::System.Linq.Enumerable.Sum(group,static item=>(long)item)))",
+                        GroupByAggregateKind.Count=>$"global::System.Linq.Enumerable.Select({grouped},group=>group.Key*10+global::System.Linq.Enumerable.Count(group))",
+                        _=>$"global::System.Linq.Enumerable.Select({grouped},group=>group.Key)",
+                    };
+                }
+                return group.Kind switch{
+                    GroupByAggregateKind.Sum=>$"({input}).GroupBy({key},value=>value).Select(group=>(int)(group.Key+{groupValues}.Sum(static item=>(long)item)))",
+                    GroupByAggregateKind.Count=>$"({input}).GroupBy({key}).Select(group=>group.Key*10+{groupValues}.Count())",
+                    _=>$"({input}).GroupBy({key}).Select(group=>group.Key)",
+                };
+            }
+            default:
+                throw new InvalidOperationException($"Unsupported extended unary arguments: {arguments.GetType().Name}.");
+        }
     }
 
     private string EmitBinary(BinaryQueryNode node,ElementTypeDescriptor element,ExecutionPath path){

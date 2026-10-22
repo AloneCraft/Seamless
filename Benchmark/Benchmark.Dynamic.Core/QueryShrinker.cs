@@ -373,11 +373,13 @@ public static class QueryIrNormalizer{
                 input.Cardinality.Maximum is { }maximum?Math.Max(0,maximum-skip.Count):null),
             ReverseOperatorArguments=>input.Cardinality,
             OrderByOperatorArguments or ThenByOperatorArguments=>input.Cardinality,
+            ExtendedUnaryOperatorArguments extended=>ExtendedUnaryShape.Cardinality(extended,input.Cardinality),
             _=>throw new InvalidOperationException($"Unsupported unary arguments: {node.Arguments.GetType().FullName}."),
         };
         var order=node.Arguments switch{
             DistinctOperatorArguments or DistinctByOperatorArguments=>QueryOrderSemantics.Unordered,
             OrderByOperatorArguments or ThenByOperatorArguments=>QueryOrderSemantics.TotalOrdered,
+            ExtendedUnaryOperatorArguments extended=>ExtendedUnaryShape.Order(extended,input.OrderSemantics),
             _=>input.OrderSemantics,
         };
         return node with{Input=input,Cardinality=cardinality,OrderSemantics=order};

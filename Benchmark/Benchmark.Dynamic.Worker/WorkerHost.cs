@@ -880,6 +880,7 @@ public sealed class WorkerHost{
         var Order=Node.Arguments switch{
             DistinctOperatorArguments=>QueryOrderSemantics.Unordered,
             OrderByOperatorArguments or ThenByOperatorArguments=>QueryOrderSemantics.TotalOrdered,
+            ExtendedUnaryOperatorArguments Extended=>ExtendedUnaryShape.Order(Extended,Input.OrderSemantics),
             _=>Input.OrderSemantics,
         };
         return Node with{Input=Input,OrderSemantics=Order};

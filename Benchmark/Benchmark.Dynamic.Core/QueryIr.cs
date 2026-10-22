@@ -87,6 +87,15 @@ public sealed record QuerySelector(QuerySelectorKind Kind,int Operand=0);
 [JsonDerivedType(typeof(ReverseOperatorArguments),"reverse")]
 [JsonDerivedType(typeof(OrderByOperatorArguments),"orderBy")]
 [JsonDerivedType(typeof(ThenByOperatorArguments),"thenBy")]
+[JsonDerivedType(typeof(TakeLastOperatorArguments),"takeLast")]
+[JsonDerivedType(typeof(SkipLastOperatorArguments),"skipLast")]
+[JsonDerivedType(typeof(TakeWhileOperatorArguments),"takeWhile")]
+[JsonDerivedType(typeof(SkipWhileOperatorArguments),"skipWhile")]
+[JsonDerivedType(typeof(AppendOperatorArguments),"append")]
+[JsonDerivedType(typeof(PrependOperatorArguments),"prepend")]
+[JsonDerivedType(typeof(DefaultIfEmptyOperatorArguments),"defaultIfEmpty")]
+[JsonDerivedType(typeof(OrderByKeyOperatorArguments),"orderByKey")]
+[JsonDerivedType(typeof(GroupByAggregateOperatorArguments),"groupByAggregate")]
 public abstract record UnaryOperatorArguments;
 
 public sealed record WhereOperatorArguments(QueryPredicate Predicate):UnaryOperatorArguments;
@@ -416,6 +425,11 @@ public static class QueryIrValidator{
             case ThenByOperatorArguments:
                 errors.Add($"ThenBy node {node.NodeId} requires a total-ordered input.");
                 break;
+            case ExtendedUnaryOperatorArguments extended:
+                if(ExtendedUnaryShape.Validate(extended) is { }extendedError){
+                    errors.Add($"Unary node {node.NodeId}: {extendedError}");
+                }
+                break;
             default:
                 errors.Add($"Unary node {node.NodeId} has unsupported arguments.");
                 break;
@@ -432,6 +446,7 @@ public static class QueryIrValidator{
             ReverseOperatorArguments=>QueryOperatorIds.Reverse,
             OrderByOperatorArguments=>QueryOperatorIds.OrderBy,
             ThenByOperatorArguments=>QueryOperatorIds.ThenBy,
+            ExtendedUnaryOperatorArguments extended=>ExtendedUnaryShape.GetOperatorId(extended),
             _=>null,
         };
         if(expectedOperator is null||node.OperatorId!=expectedOperator){
@@ -453,13 +468,16 @@ public static class QueryIrValidator{
             SkipOperatorArguments skip=>new QueryCardinalityRange(
                 Math.Max(0,node.Input.Cardinality.Minimum-skip.Count),
                 node.Input.Cardinality.Maximum is { }maximum?Math.Max(0,maximum-skip.Count):null),
+            ExtendedUnaryOperatorArguments extended=>ExtendedUnaryShape.Cardinality(extended,node.Input.Cardinality),
             _=>node.Cardinality,
         };
         var expectedOrder=node.Arguments is DistinctOperatorArguments or DistinctByOperatorArguments
             ?QueryOrderSemantics.Unordered
             :node.Arguments is OrderByOperatorArguments or ThenByOperatorArguments
                 ?QueryOrderSemantics.TotalOrdered
-                :node.Input.OrderSemantics;
+                :node.Arguments is ExtendedUnaryOperatorArguments extendedOrder
+                    ?ExtendedUnaryShape.Order(extendedOrder,node.Input.OrderSemantics)
+                    :node.Input.OrderSemantics;
         ValidateMetadata(node,expectedCardinality,expectedOrder,QueryEmptySafety.Safe,errors);
     }
 
@@ -604,6 +622,7 @@ public static class QuerySequenceSemantics{
                     or SelectOperatorArguments
                     or TakeOperatorArguments or SkipOperatorArguments or ReverseOperatorArguments
                     or OrderByOperatorArguments or ThenByOperatorArguments=>HasUniqueValues(unary.Input),
+                ExtendedUnaryOperatorArguments extended when ExtendedUnaryShape.PreservesUniqueness(extended)=>HasUniqueValues(unary.Input),
                 _=>false,
             },
             BinaryQueryNode binary=>binary.Arguments.Kind is not QueryBinaryKind.Concat,

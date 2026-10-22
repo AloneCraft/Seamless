@@ -145,7 +145,7 @@ public static class QueryCapabilityProfiles{
                     verification=CapabilityVerification.RuntimeVerified;
                     limitation="Concrete provider roots bind their instance Contains method and therefore do not produce an FLinq interceptor.";
                 }
-                if(descriptor.OperatorId is QueryOperatorIds.OrderBy or QueryOperatorIds.ThenBy
+                if(descriptor.OperatorId is QueryOperatorIds.OrderBy or QueryOperatorIds.ThenBy or QueryOperatorIds.OrderByKey
                     &&path==ExecutionPath.ZLinq){
                     supported=false;
                     verification=CapabilityVerification.RuntimeVerified;
