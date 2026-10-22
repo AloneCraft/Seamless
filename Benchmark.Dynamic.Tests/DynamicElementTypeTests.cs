@@ -134,6 +134,30 @@ public sealed class DynamicElementTypeTests{
         // 例外の呼び出し履歴が動的アセンブリの型を指すので、アセンブリの解放の確認はここでは行わない。
     }
 
+    // 特殊な値(NaN・null・境界値・-0 など)を入力に混ぜた版。型ごとの特殊な値は ElementTypeDescriptor.SpecialValues。
+    [Theory,Trait("Category","ChainCorpus")]
+    [MemberData(nameof(NonIntTypes))]
+    public async Task 特殊な値を混ぜた入力でも要素型ごとのチェーンが全経路で一致する(QueryElementType type){
+        var runner=new DynamicWorkerExecutionRunner();
+        var failures=new List<string>();
+        for(var index=0;index<QueriesPerType;index++){
+            var query=new RandomQueryGenerator().Generate(Options(type,index));
+            var request=Request(type) with{IncludeSpecialValues=true};
+            var result=await runner.ExecuteAsync(request,query,index,SourceTarget.SystemArray,0,CancellationToken.None);
+            if(result.Status==WorkerExecutionStatus.Succeeded&&result.AssemblyUnloaded){
+                continue;
+            }
+            var key=$"{type}|{Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(query)}";
+            if(KnownMismatches.ContainsKey(key)||DefectPatterns.Any(pattern=>pattern.Matches(result))){
+                continue;
+            }
+            failures.Add($"#{index} Status={result.Status}{Environment.NewLine}  {key}{Environment.NewLine}  {ExtractDifference(result)}");
+        }
+        Assert.True(
+            failures.Count==0,
+            $"{type}: {failures.Count}/{QueriesPerType} failed:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
+    }
+
     private static string ExtractDifference(WorkerSourceExecutionCompletedEvent result){
         var json=result.ResultJson??string.Empty;
         var at=json.IndexOf("\"comparisons\"",StringComparison.Ordinal);

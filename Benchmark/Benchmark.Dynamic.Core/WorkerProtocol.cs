@@ -200,7 +200,9 @@ public sealed record WorkerRunRequest(
     int ExhaustiveIntermediateCount=0,
     IReadOnlyList<string>? ExhaustiveTerminalIds=null,
     bool ExpectExceptions=false,
-    QueryElementType ElementType=QueryElementType.Int);
+    QueryElementType ElementType=QueryElementType.Int,
+    // true にすると、int 以外の要素型の入力へ、NaN・null・境界値などの特殊な値を約1/16の位置に混ぜる。
+    bool IncludeSpecialValues=false);
 
 public enum WorkerExecutionStatus{
     NotStarted,
