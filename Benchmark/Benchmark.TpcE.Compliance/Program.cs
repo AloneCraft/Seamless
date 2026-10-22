@@ -24,6 +24,16 @@ public static class Program{
             };
             return MeasureCommand.Run(args.Skip(1).ToArray(),Console.Out,cancel.Token);
         }
+        if(command=="audit-report"){
+            var markdown=AuditReport.Markdown();
+            if(args.Length>2&&args[1]=="--out"){
+                File.WriteAllText(args[2],markdown,new System.Text.UTF8Encoding(true));
+                Console.WriteLine($"audit report: {args[2]}");
+            }else{
+                Console.WriteLine(markdown);
+            }
+            return 0;
+        }
         if(command=="acid"){
             using var cancel=new CancellationTokenSource();
             Console.CancelKeyPress+=(_,eventArgs)=>{
