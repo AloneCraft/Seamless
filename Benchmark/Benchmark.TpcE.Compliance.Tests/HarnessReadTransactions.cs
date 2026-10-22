@@ -21,7 +21,7 @@ public sealed class HarnessReadTransactions(EGenEngineFixture fixture):IClassFix
             var db=fixture.Engine!.Database;
             var brokers=db.Broker.EnumerateRows().OrderBy(static row=>row.Id).Take(5).Select(static row=>row.Name).ToArray();
             // 未約定の注文(TRADE_REQUEST)が無いと量が 0 になるので、指値の買い注文を何件か出しておく。
-            HarnessSupport.PlaceLimitOrders(fixture.Engine!,5);
+            HarnessSupport.PlaceLimitOrders(fixture.Engine!,5,910_000_000_000_000);
             foreach(var sector in db.Sector.EnumerateRows().OrderBy(static row=>row.Name).Take(3)){
                 var expected=(BrokerVolumeOutput)fixture.Engine!.Execute(new BrokerVolumeInput{BrokerList=brokers,SectorName=sector.Name,Now=1});
                 var input=new byte[Compliance.HarnessHost.SizeOf("BrokerVolumeTxnInput")];

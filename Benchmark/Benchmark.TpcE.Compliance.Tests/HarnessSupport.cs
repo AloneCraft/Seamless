@@ -2,8 +2,8 @@ using Benchmark.TpcE.Core;
 namespace Benchmark.TpcE.Compliance.Tests;
 /// <summary>ハーネスの試験が使う、既存の実装で DB に状態を作る補助。</summary>
 internal static class HarnessSupport{
-    /// <summary>指値の買い注文(TLB)を <paramref name="count"/> 件、異なる銘柄で出す。未約定の注文(TRADE_REQUEST)ができる。</summary>
-    public static void PlaceLimitOrders(ITpcEEngine engine,int count){
+    /// <summary>指値の買い注文(TLB)を <paramref name="count"/> 件、異なる銘柄で出す。未約定の注文(TRADE_REQUEST)ができる。取引 ID は基準から連番(共有のエンジンで試験ごとに重ならないよう、基準を分ける)。</summary>
+    public static void PlaceLimitOrders(ITpcEEngine engine,int count,long tradeIdBase=900_000_000_000_000){
         var db=engine.Database;
         var accounts=db.CustomerAccount.EnumerateRows().OrderBy(static row=>row.Id).Take(count).ToArray();
         var securities=db.Security.EnumerateRows().OrderBy(static row=>row.Symbol).Take(count).ToArray();
@@ -22,7 +22,7 @@ internal static class HarnessSupport{
                 TradeQuantity=100,
                 TradeTypeId=Code8.From("TLB"),
                 IsLifo=true,
-                TradeId=900_000_000_000_000+index,
+                TradeId=tradeIdBase+index,
                 Now=TpcETime.FromDateTime(new DateTime(2026,1,1))+index,
             });
             if(result.Status<0){

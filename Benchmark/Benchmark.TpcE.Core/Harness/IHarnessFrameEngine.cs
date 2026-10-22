@@ -9,6 +9,8 @@ public interface IHarnessFrameEngine{
     void ExecuteFrame(HarnessFrame frame,Span<byte> input,Span<byte> output,IMarketSink market);
     /// <summary>取引の終わり(成功でも失敗でも)に呼ぶ。確定されないまま開いている取引があれば巻き戻す。</summary>
     void EndTransaction();
+    /// <summary>取引の時刻(0001-01-01 からのミリ秒)を返す時計。既定(null)は実時計で、単調に増える。試験で既存の実装と時刻を揃えるときに差し替える。</summary>
+    Func<long>? Clock{get;set;}
 }
 /// <summary>市場(MEE)へ注文を送る口。ハーネスの Trade-Order と、Market-Feed のフレームが使う。引数は EGen の TTradeRequest のバイト列。</summary>
 public interface IMarketSink{
