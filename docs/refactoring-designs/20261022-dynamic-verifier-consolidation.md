@@ -174,6 +174,13 @@ Benchmark.Dynamic（確認済み）:
 - 確認: 実画面で、開始→ペア全組み合わせが流れ、式・判定・展開コード・棒グラフ・メーター・ログが更新されることを見た(58件の時点で、合格47・要調査11。要調査は記録済みの FLinq 不具合)。Appium は未起動のため、UI テストの追加分(ID の存在確認)は未実行。
 - 未実装: 全組み合わせの件数を画面に出す進捗バー、段階の途中からの再開、複数の入力件数。
 
+### 夜間の3段全組み合わせで見つかった不具合(2026-10-22、未修正・原因は未調査)
+
+SystemArray・シード 0xC0DE・入力16件で、4066件中110件が失敗した(状態は SemanticMismatch 78、CompilationFailed 30、ExpansionIncomplete 2)。並びは `Benchmark.Dynamic.Tests/Corpus/known-triple-defects.txt` に1行ずつ記録し、夜間実行(`ChainCorpusFull`)はこの表にない失敗だけを新しい不具合として落とす。直ったら表から外す。
+
+- 先頭の演算子に偏りがある: `groupBy.keyOnly` 25件、`prepend` 20件、`append` 14件、`concat` 9件、`where` 7件、`skip` 7件、`select` 6件。2番目は `concat`・`union`・`unionBy`・`take`・`where`・`skip`・`skipWhile`・`takeWhile`・`zip`・`join`・`groupJoin` が多い。終端は `sum` 40件、`toArray` 26件、`count` 24件。
+- 代表の式: `source.Append(-18).Take(7).ToArray()`、`source.Append(-25).Take(2).Count()`、`source.Append(11).DistinctBy(p=>(p%3+3)%3).Sum(p=>(long)p)`、`source.Append(-21).SkipWhile(p=>p<-11).Count()`。先に書いた最適化ありだけが食い違う不具合(`Append` / `Prepend` の後)と同じ系統とみられる(推測)。
+
 ## 合意状態
 
 - 2026-10-22 利用者承認済み: 段階的整理、Benchmark.Dynamic への一本化、要素型13種（int?・record・ハッシュ衝突型を含む）、Quadruple は LINQ に必要な演算のみ、UI の取り込み、実装前の現状コミット。
