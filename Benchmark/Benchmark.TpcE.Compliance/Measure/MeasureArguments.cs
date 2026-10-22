@@ -25,6 +25,10 @@ internal sealed record MeasureArguments{
     public long MemoryMegabytes{get;init;}=2048;
     public long DiskGigabytes{get;init;}=64;
     public double LoadTimeoutMinutes{get;init;}=240;
+    /// <summary>`acid`: 処理の喪失の試験を繰り返す回数。</summary>
+    public int Rounds{get;init;}=2;
+    /// <summary>`acid`: 運転側が動き始めてから SUT を強制停止するまでの秒数。</summary>
+    public double KillAfterSeconds{get;init;}=15;
     /// <summary>運転側に渡す目標の tpsE。ペース調整なしは 0。</summary>
     public double EffectiveTargetTpse(){
         if(this.Unthrottled){
@@ -64,6 +68,8 @@ internal sealed record MeasureArguments{
                 "--news-bytes"=>result with{NewsItemBytes=int.Parse(value,CultureInfo.InvariantCulture)},
                 "--memory-mb"=>result with{MemoryMegabytes=long.Parse(value,CultureInfo.InvariantCulture)},
                 "--disk-gb"=>result with{DiskGigabytes=long.Parse(value,CultureInfo.InvariantCulture)},
+                "--rounds"=>result with{Rounds=int.Parse(value,CultureInfo.InvariantCulture)},
+                "--kill-after-seconds"=>result with{KillAfterSeconds=double.Parse(value,CultureInfo.InvariantCulture)},
                 "--load-timeout-minutes"=>result with{LoadTimeoutMinutes=double.Parse(value,CultureInfo.InvariantCulture)},
                 _=>throw new ArgumentException($"Unknown option {name}."),
             };

@@ -42,6 +42,7 @@ internal sealed class SutServer:IDisposable{
     private long sequence;
     private long nextTradeId;
     private long lastNow;
+    private long lastWriteSequence;
     private volatile bool stopping;
     public SutServer(ITpcEEngine engine,RedoLogWriter redo,RedoCheckpoint checkpoint,long startSequence,Action<long> saveCheckpoint,SutOptions options){
         this.engine=engine;
@@ -158,7 +159,7 @@ internal sealed class SutServer:IDisposable{
         try{
             using var document=JsonDocument.Parse(body);
             if(document.RootElement.TryGetProperty("admin",out var admin)){
-                return this.Admin(admin.GetString() ?? "");
+                return this.Admin(admin.GetString() ?? "",document.RootElement);
             }
             var now=this.NextNow();
             var request=EGenRequestMapper.Map(document.RootElement,now);
@@ -172,18 +173,19 @@ internal sealed class SutServer:IDisposable{
             var record=this.observer.Seal(sequence);
             if(record is not null){
                 this.redo.Append(record);
+                this.lastWriteSequence=sequence;
             }
             Interlocked.Increment(ref this.executed[(int)kind]);
-            return Respond(true,result,null,sequence);
+            return Respond(true,result,null,sequence,this.lastWriteSequence);
         }catch(Exception error){
             // エンジンは例外で書き込みを巻き戻してある。通知で積んだ分は捨てる。
             this.observer.Discard();
             Interlocked.Increment(ref this.failed[(int)kind]);
-            return Respond(false,null,error.GetType().Name+": "+error.Message,this.Sequence);
+            return Respond(false,null,error.GetType().Name+": "+error.Message,this.Sequence,this.lastWriteSequence);
         }
     }
     /// <summary>管理用の要求。作業スレッドで処理するので、取引は止まっていて DB は静止している。</summary>
-    private byte[] Admin(string command){
+    private byte[] Admin(string command,JsonElement request){
         var buffer=new ArrayBufferWriter<byte>(256);
         using(var writer=new Utf8JsonWriter(buffer)){
             writer.WriteStartObject();
@@ -210,6 +212,37 @@ internal sealed class SutServer:IDisposable{
                 case "checkpoint":
                     this.Checkpoint();
                     break;
+                case "sample":{
+                    // 試験用に、DB にある有効な組み合わせ(口座・その持ち主・銘柄・会社)を 1 つ返す。
+                    var database=this.engine.Database;
+                    var account=database.CustomerAccount.EnumerateRows().OrderBy(static row=>row.Id).First();
+                    var customer=database.Customer.Get(new CustomerKey(account.CustomerId));
+                    var security=database.Security.EnumerateRows().OrderBy(static row=>row.Symbol).First();
+                    var company=database.Company.Get(new CompanyKey(security.CompanyId));
+                    writer.WriteNumber("acct_id",account.Id);
+                    writer.WriteString("exec_f_name",customer.FirstName);
+                    writer.WriteString("exec_l_name",customer.LastName);
+                    writer.WriteString("exec_tax_id",customer.TaxId.ToString());
+                    writer.WriteString("symbol",security.Symbol.ToString());
+                    writer.WriteString("issue",security.Issue.ToString());
+                    writer.WriteString("co_name",company.Name);
+                    break;
+                }
+                case "trade":{
+                    // 原子性の試験用: 取引と取引履歴の行があるか(小さい DB で使う。履歴は全件走査)。
+                    var tradeId=request.GetProperty("trade_id").GetInt64();
+                    var database=this.engine.Database;
+                    writer.WriteBoolean("trade_exists",database.Trade.Contains(new TradeKey(tradeId)));
+                    long history=0;
+                    foreach(var row in database.TradeHistory.EnumerateRows()){
+                        if(row.TradeId==tradeId){
+                            history++;
+                        }
+                    }
+                    writer.WriteNumber("history_rows",history);
+                    writer.WriteNumber("trade_count",database.Trade.Count);
+                    break;
+                }
                 default:
                     writer.WriteBoolean("unknown",true);
                     break;
@@ -227,17 +260,24 @@ internal sealed class SutServer:IDisposable{
         this.lastNow=now;
         return now;
     }
-    private static byte[] Respond(bool ok,TxnResult? result,string? error,long sequence){
+    private static byte[] Respond(bool ok,TxnResult? result,string? error,long sequence,long lastWriteSequence){
         var buffer=new ArrayBufferWriter<byte>(256);
         using(var writer=new Utf8JsonWriter(buffer)){
             writer.WriteStartObject();
             writer.WriteBoolean("ok",ok);
             writer.WriteNumber("seq",sequence);
+            // この応答を受け取った時点で、ここまでの書き込みは fsync 済み(応答は fsync の後に返す)。耐久性の試験で、応答済みの取引が残っているかの基準にする。
+            writer.WriteNumber("wseq",lastWriteSequence);
             if(result is not null){
                 writer.WriteNumber("status",result.Status);
             }
             if(error is not null){
                 writer.WriteString("error",error);
+            }
+            if(result is TradeOrderOutput placed){
+                // 巻き戻した注文も取引 ID は使い切る(戻さない)。原子性の試験が、その ID に行が無いことを確かめる。
+                writer.WriteNumber("trade_id",placed.TradeId);
+                writer.WriteBoolean("rolled_back",placed.RolledBack);
             }
             if(result is TradeOrderOutput order&&!order.RolledBack&&order.Status>=0&&order.TradeId>0){
                 // 市場(MEE)へ送る注文。成行は処理、指値は発動条件の登録。

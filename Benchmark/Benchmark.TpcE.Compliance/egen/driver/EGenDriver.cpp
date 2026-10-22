@@ -69,6 +69,8 @@ std::map<std::string,long long> g_errors;       // "取引: エラー文" ごと
 Clock::time_point g_t0;
 std::atomic<bool> g_stop(false);
 std::atomic<bool> g_fatal(false);
+// 応答を受け取った中で最大の「確定済みの書き込みの番号」。SUT を強制停止したあと、これより前の書き込みが全部残っているかを確かめる基準(耐久性の試験)。
+std::atomic<long long> g_lastAckedWriteSequence(0);
 std::string g_fatalMessage;
 std::mutex g_fatalLock;
 
@@ -192,6 +194,11 @@ Reply ParseReply(const std::string& json){
     std::string v;
     if(FindRaw(json,"ok",v)){ reply.ok=(v=="true"); }
     if(FindRaw(json,"status",v)){ reply.status=atoi(v.c_str()); }
+    if(FindRaw(json,"wseq",v)){
+        long long acked=_atoi64(v.c_str());
+        long long seen=g_lastAckedWriteSequence.load();
+        while(acked>seen&&!g_lastAckedWriteSequence.compare_exchange_weak(seen,acked)){}
+    }
     if(FindRaw(json,"error",v)){ reply.error=v; }
     if(json.find("\"trade_request\"")!=std::string::npos){
         reply.hasRequest=true;
@@ -444,7 +451,7 @@ void WriteResult(const Settings& s,long long m0,long long m1){
     if(seconds>0){ tpse=summaries[TR].count/seconds; }
     fprintf(f,"{\n  \"notice\": \"TPC-E derived, unaudited, not comparable to published TPC-E results\",\n");
     fprintf(f,"  \"customers\": %lld, \"scale_factor\": %d, \"days\": %d, \"users\": %d, \"target_tpse\": %.3f,\n",s.customers,s.scaleFactor,s.days,s.users,s.targetTpse);
-    fprintf(f,"  \"measure_seconds\": %.1f, \"tpsE\": %.3f, \"nominal_tpsE\": %.3f, \"fatal\": %s,\n",seconds,tpse,(double)s.customers/s.scaleFactor,g_fatal?"true":"false");
+    fprintf(f,"  \"measure_seconds\": %.1f, \"tpsE\": %.3f, \"nominal_tpsE\": %.3f, \"fatal\": %s, \"last_acked_wseq\": %lld,\n",seconds,tpse,(double)s.customers/s.scaleFactor,g_fatal?"true":"false",(long long)g_lastAckedWriteSequence.load());
     fprintf(f,"  \"transactions\": [\n");
     for(int t=0;t<TxnCount;++t){
         const Summary& m=summaries[t];

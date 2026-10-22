@@ -5,7 +5,7 @@ namespace Benchmark.TpcE.Compliance;
 /// </summary>
 public static class Program{
     public const string Notice="TPC-E 由来・非監査・公式結果と比較不可(tpsE 相当)";
-    private static readonly string[] EGenCommands=["load","drive","consistency","acid"];
+    private static readonly string[] EGenCommands=["load","drive","consistency"];
     public static int Main(string[] args){
         Console.OutputEncoding=System.Text.Encoding.UTF8;
         var command="help";
@@ -23,6 +23,14 @@ public static class Program{
                 cancel.Cancel();
             };
             return MeasureCommand.Run(args.Skip(1).ToArray(),Console.Out,cancel.Token);
+        }
+        if(command=="acid"){
+            using var cancel=new CancellationTokenSource();
+            Console.CancelKeyPress+=(_,eventArgs)=>{
+                eventArgs.Cancel=true;
+                cancel.Cancel();
+            };
+            return AcidCommand.Run(args.Skip(1).ToArray(),Console.Out,cancel.Token);
         }
         if(command=="sut"){
             using var cancel=new CancellationTokenSource();

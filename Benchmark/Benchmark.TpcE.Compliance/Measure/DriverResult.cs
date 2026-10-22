@@ -12,6 +12,8 @@ internal sealed class DriverResult{
     [JsonPropertyName("tpsE")]public double TpsE{get;init;}
     [JsonPropertyName("nominal_tpsE")]public double NominalTpsE{get;init;}
     [JsonPropertyName("fatal")]public bool Fatal{get;init;}
+    /// <summary>応答を受けた中で最大の、SUT が確定済みと返した書き込みの番号。強制停止後に残っているべき下限。</summary>
+    [JsonPropertyName("last_acked_wseq")]public long LastAckedWriteSequence{get;init;}
     [JsonPropertyName("transactions")]public List<DriverTransaction> Transactions{get;init;}=[];
     [JsonPropertyName("trade_result_per_second")]public List<long> TradeResultPerSecond{get;init;}=[];
     [JsonPropertyName("errors")]public List<DriverError> Errors{get;init;}=[];

@@ -6,7 +6,10 @@ namespace Benchmark.TpcE.Compliance;
 /// 終了コード: 0 全点検に合格、1 不合格あり、2 想定外のエラー、3 引数の誤り、4 メモリ使用率の上限、5 EGen のビルドが無い、130 取り消し。
 /// </summary>
 internal static class MeasureCommand{
+    /// <summary>実行中に PC 全体のメモリ使用率がこれに達したら両方止める。</summary>
     public const int MemoryStopPercent=90;
+    /// <summary>開始時にこれ以上なら始めない(途中で止まる実行を避ける)。</summary>
+    public const int MemoryStartLimitPercent=80;
     public static int Run(IReadOnlyList<string> args,TextWriter output,CancellationToken cancel){
         MeasureArguments arguments;
         try{
@@ -14,6 +17,11 @@ internal static class MeasureCommand{
         }catch(ArgumentException error){
             Console.Error.WriteLine(error.Message);
             return 3;
+        }
+        var startUsed=SystemMemory.UsedPercent();
+        if(startUsed>=MemoryStartLimitPercent){
+            Console.Error.WriteLine($"Memory use is already {startUsed}% (start limit {MemoryStartLimitPercent}%). Close other programs and retry.");
+            return 4;
         }
         var loader=Path.Combine(arguments.EGenBuild,"EGenLoader.exe");
         var driver=Path.Combine(arguments.EGenBuild,"EGenDriver.exe");
@@ -31,18 +39,7 @@ internal static class MeasureCommand{
         try{
             var flat=EnsureFlatFiles(arguments,loader,output);
             var self=ResolveSelf();
-            var sutArguments=new List<string>(self.Prefix){
-                "sut",
-                "--store",Path.Combine(runDirectory,"store"),
-                "--redo",Path.Combine(runDirectory,"redo","redo.log"),
-                "--flat",flat,
-                "--customers",arguments.Customers.ToString(CultureInfo.InvariantCulture),
-                "--days",arguments.Days.ToString(CultureInfo.InvariantCulture),
-                "--news-bytes",arguments.NewsItemBytes.ToString(CultureInfo.InvariantCulture),
-                "--memory-mb",arguments.MemoryMegabytes.ToString(CultureInfo.InvariantCulture),
-                "--disk-gb",arguments.DiskGigabytes.ToString(CultureInfo.InvariantCulture),
-                "--checkpoint-minutes",arguments.CheckpointMinutes.ToString(CultureInfo.InvariantCulture),
-            };
+            var sutArguments=SutArgumentList(arguments,self.Prefix,runDirectory,flat);
             output.WriteLine("[measure] starting the SUT (loads the EGen data)");
             sut=new ChildProcess(self.File,sutArguments,Path.Combine(runDirectory,"sut.log"));
             var ready=sut.WaitForLine("READY port",TimeSpan.FromMinutes(arguments.LoadTimeoutMinutes),cancel);
@@ -83,6 +80,7 @@ internal static class MeasureCommand{
             var settings=new MeasureSettings(arguments.CheckpointMinutes);
             var checks=new List<CheckResult>(ComplianceChecks.Evaluate(result,settings));
             // 仕様 7.3.3: 初期投入の後(SUT 起動時のログ)と、計測の後(SUT に問い合わせる)に、一貫性の 3 条件を点検する。
+            checks.Add(EGenLogChecks.Scan(Path.Combine(runDirectory,"EGenDriver.log")));
             checks.AddRange(ConsistencyReports.FromStartupLines(sut.FindLines("[sut] consistency ")));
             checks.AddRange(ConsistencyReports.FromAdminResponse(ConsistencyReports.Ask(port,"consistency"),"計測後"));
             var title=$"TPC-E 準拠リハーサルの結果({arguments.Customers:N0} 顧客・初期取引 {arguments.Days} 日)";
@@ -99,8 +97,23 @@ internal static class MeasureCommand{
             sut?.Dispose();
         }
     }
-    private static string Seconds(double minutes)=>Math.Max(1,(int)Math.Round(minutes*60)).ToString(CultureInfo.InvariantCulture);
-    private static (string File,string[] Prefix) ResolveSelf(){
+    internal static string Seconds(double minutes)=>Math.Max(1,(int)Math.Round(minutes*60)).ToString(CultureInfo.InvariantCulture);
+    /// <summary>`sut` コマンドの引数。ストアと再実行ログは実行フォルダの下に置く(同じフォルダで起動し直すと、復旧の経路を通る)。</summary>
+    internal static List<string> SutArgumentList(MeasureArguments arguments,string[] prefix,string runDirectory,string flat){
+        return new List<string>(prefix){
+            "sut",
+            "--store",Path.Combine(runDirectory,"store"),
+            "--redo",Path.Combine(runDirectory,"redo","redo.log"),
+            "--flat",flat,
+            "--customers",arguments.Customers.ToString(CultureInfo.InvariantCulture),
+            "--days",arguments.Days.ToString(CultureInfo.InvariantCulture),
+            "--news-bytes",arguments.NewsItemBytes.ToString(CultureInfo.InvariantCulture),
+            "--memory-mb",arguments.MemoryMegabytes.ToString(CultureInfo.InvariantCulture),
+            "--disk-gb",arguments.DiskGigabytes.ToString(CultureInfo.InvariantCulture),
+            "--checkpoint-minutes",arguments.CheckpointMinutes.ToString(CultureInfo.InvariantCulture),
+        };
+    }
+    internal static (string File,string[] Prefix) ResolveSelf(){
         var processPath=Environment.ProcessPath ?? throw new InvalidOperationException("The process path is unknown.");
         if(string.Equals(Path.GetFileNameWithoutExtension(processPath),"dotnet",StringComparison.OrdinalIgnoreCase)){
             return (processPath,[typeof(Program).Assembly.Location]);
@@ -108,7 +121,7 @@ internal static class MeasureCommand{
         return (processPath,[]);
     }
     /// <summary>EGenLoader の出力が無ければ作る。顧客数と日数ごとに作業フォルダに残して使い回す。</summary>
-    private static string EnsureFlatFiles(MeasureArguments arguments,string loader,TextWriter output){
+    internal static string EnsureFlatFiles(MeasureArguments arguments,string loader,TextWriter output){
         var flat=Path.Combine(arguments.Work,$"flat-{arguments.Customers}c-{arguments.Days}d");
         var marker=Path.Combine(flat,".complete");
         if(File.Exists(marker)){
@@ -157,7 +170,7 @@ internal static class MeasureCommand{
                 return 4;
             }
             if(report.Elapsed>=TimeSpan.FromMinutes(1)){
-                output.WriteLine($"[measure] running... memory {used}%");
+                output.WriteLine($"[measure] running... memory {used}% (SUT {sut.WorkingSetBytes/1024.0/1024/1024:F2} GB, driver {driver.WorkingSetBytes/1024.0/1024/1024:F2} GB)");
                 report.Restart();
             }
             Thread.Sleep(500);

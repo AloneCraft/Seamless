@@ -32,6 +32,17 @@ internal sealed class ChildProcess:IDisposable{
     public bool HasExited=>this.process.HasExited;
     public int ExitCode=>this.process.ExitCode;
     public int Id=>this.process.Id;
+    /// <summary>このプロセスの物理メモリ使用量(バイト)。取れなければ 0。</summary>
+    public long WorkingSetBytes{
+        get{
+            try{
+                this.process.Refresh();
+                return this.process.WorkingSet64;
+            }catch(InvalidOperationException){
+                return 0;
+            }
+        }
+    }
     private void OnLine(string? text){
         if(text is null){
             return;
