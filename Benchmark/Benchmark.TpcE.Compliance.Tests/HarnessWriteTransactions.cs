@@ -100,6 +100,55 @@ public sealed class HarnessWriteTransactions(EGenEngineFixture fixture):IClassFi
             }
         }
     }
+    [Fact,Trait("Category","Integration")]public void TradeUpdate(){
+        {
+            //frame_to_execute 1〜3 のそれぞれ。書き込み(実行者名・現金取引の名前・取引種別名)の後で、2 つのエンジンの全表が一致すること
+            if(!fixture.Available){
+                return;
+            }
+            var db=fixture.Engine!.Database;
+            var busiest=db.Trade.EnumerateRows().GroupBy(static row=>row.AccountId).OrderByDescending(static group=>group.Count()).ThenBy(static group=>group.Key).First();
+            var symbol=db.Trade.EnumerateRows().GroupBy(static row=>row.Symbol).OrderByDescending(static group=>group.Count()).ThenBy(static group=>group.Key).First().Key;
+            var firstIds=db.Trade.EnumerateRows().Select(static row=>row.Id).OrderBy(static id=>id).Skip(100).Take(20).ToArray();
+            var start=TpcETime.FromDateTime(new DateTime(2005,1,3));
+            var end=TpcETime.FromDateTime(new DateTime(2005,1,4));
+            var maxAccount=db.CustomerAccount.EnumerateRows().Max(static row=>row.Id);
+            var cases=new[]{
+                new TradeUpdateInput{FrameToExecute=1,TradeIds=firstIds,MaxTrades=20,MaxUpdates=2},
+                new TradeUpdateInput{FrameToExecute=2,AccountId=busiest.Key,MaxTrades=20,MaxUpdates=20,StartTradeDts=start,EndTradeDts=end},
+                new TradeUpdateInput{FrameToExecute=3,Symbol=symbol,MaxAccountId=maxAccount,MaxTrades=20,MaxUpdates=2,StartTradeDts=start,EndTradeDts=end},
+            };
+            var now=Start+10;
+            foreach(var template in cases){
+                var request=template with{Now=now};
+                var expected=(TradeUpdateOutput)fixture.Engine!.Execute(request);
+                var input=new byte[Compliance.HarnessHost.SizeOf("TradeUpdateTxnInput")];
+                var output=new byte[Compliance.HarnessHost.SizeOf("TradeUpdateTxnOutput")];
+                var wrapper=new TradeUpdateTxnInput(input);
+                wrapper.FrameToExecute=request.FrameToExecute;
+                for(var index=0;index<request.TradeIds.Length;index++){
+                    wrapper.SetTradeId(index,request.TradeIds[index]);
+                }
+                wrapper.AcctId=request.AccountId;
+                wrapper.MaxAcctId=request.MaxAccountId;
+                wrapper.MaxTrades=request.MaxTrades;
+                wrapper.MaxUpdates=request.MaxUpdates;
+                wrapper.StartTradeDts=EGenTimestamp.FromMilliseconds(request.StartTradeDts);
+                wrapper.EndTradeDts=EGenTimestamp.FromMilliseconds(request.EndTradeDts);
+                wrapper.Symbol=request.Symbol.ToString();
+                UseClock(fixture.Twin!,now);
+                var status=fixture.Host!.Run(HarnessTransaction.TradeUpdate,(IHarnessFrameEngine)fixture.Twin!,new MarketCollector(),input,output);
+                var result=new TradeUpdateTxnOutput(output);
+                var label=$"frame {request.FrameToExecute}";
+                Assert.True(expected.Status==status,$"{label}: status expected {expected.Status} but was {status}");
+                Assert.Equal(request.FrameToExecute,result.FrameExecuted);
+                Assert.True(expected.NumFound==result.NumFound,$"{label}: num_found expected {expected.NumFound} but was {result.NumFound}");
+                Assert.True(expected.NumUpdated==result.NumUpdated,$"{label}: num_updated expected {expected.NumUpdated} but was {result.NumUpdated}");
+                AssertSameState(fixture.Engine!,fixture.Twin!);
+                now++;
+            }
+        }
+    }
     [Fact,Trait("Category","Integration")]public void DataMaintenance(){
         {
             if(!fixture.Available){

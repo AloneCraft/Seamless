@@ -8,6 +8,8 @@ internal sealed partial class TpcEEngine:IHarnessFrameEngine{
     private readonly TradeCleanupHarness tradeCleanupHarness=new();
     private readonly DataMaintenanceHarness dataMaintenanceHarness=new();
     private readonly MarketFeedHarness marketFeedHarness=new();
+    private readonly TradeLookupHarness tradeLookupHarness=new();
+    private readonly TradeUpdateHarness tradeUpdateHarness=new();
     private long lastNow;
     public Func<long>? Clock{get;set;}
     public void ExecuteFrame(HarnessFrame frame,Span<byte> input,Span<byte> output,IMarketSink market){
@@ -45,6 +47,41 @@ internal sealed partial class TpcEEngine:IHarnessFrameEngine{
             case HarnessFrame.MarketFeed1:
                 this.BeginTransaction();
                 this.marketFeedHarness.Frame1(this.db,new MarketFeedFrame1Input(input),new MarketFeedFrame1Output(output),market,this.NextNow());
+                this.CommitTransaction();
+                break;
+            case HarnessFrame.TradeLookup1:
+                this.BeginTransaction();
+                this.tradeLookupHarness.Frame1(this.db,new TradeLookupFrame1Input(input),new TradeLookupFrame1Output(output),this.NextNow());
+                this.CommitTransaction();
+                break;
+            case HarnessFrame.TradeLookup2:
+                this.BeginTransaction();
+                this.tradeLookupHarness.Frame2(this.db,new TradeLookupFrame2Input(input),new TradeLookupFrame2Output(output),this.NextNow());
+                this.CommitTransaction();
+                break;
+            case HarnessFrame.TradeLookup3:
+                this.BeginTransaction();
+                this.tradeLookupHarness.Frame3(this.db,new TradeLookupFrame3Input(input),new TradeLookupFrame3Output(output),this.NextNow());
+                this.CommitTransaction();
+                break;
+            case HarnessFrame.TradeLookup4:
+                this.BeginTransaction();
+                this.tradeLookupHarness.Frame4(this.db,new TradeLookupFrame4Input(input),new TradeLookupFrame4Output(output),this.NextNow());
+                this.CommitTransaction();
+                break;
+            case HarnessFrame.TradeUpdate1:
+                this.BeginTransaction();
+                this.tradeUpdateHarness.Frame1(this.db,new TradeUpdateFrame1Input(input),new TradeUpdateFrame1Output(output),this.NextNow());
+                this.CommitTransaction();
+                break;
+            case HarnessFrame.TradeUpdate2:
+                this.BeginTransaction();
+                this.tradeUpdateHarness.Frame2(this.db,new TradeUpdateFrame2Input(input),new TradeUpdateFrame2Output(output),this.NextNow());
+                this.CommitTransaction();
+                break;
+            case HarnessFrame.TradeUpdate3:
+                this.BeginTransaction();
+                this.tradeUpdateHarness.Frame3(this.db,new TradeUpdateFrame3Input(input),new TradeUpdateFrame3Output(output),this.NextNow());
                 this.CommitTransaction();
                 break;
             default:

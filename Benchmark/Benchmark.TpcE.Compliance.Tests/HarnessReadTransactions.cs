@@ -65,6 +65,63 @@ public sealed class HarnessReadTransactions(EGenEngineFixture fixture):IClassFix
             }
         }
     }
+    [Fact,Trait("Category","Integration")]public void TradeLookup(){
+        {
+            //frame_to_execute 1〜4 のそれぞれを、ハーネス経由と既存の実装で流し、件数・取引の並び・is_cash・状態コードが一致すること
+            if(!fixture.Available){
+                return;
+            }
+            var db=fixture.Engine!.Database;
+            var busiest=db.Trade.EnumerateRows().GroupBy(static row=>row.AccountId).OrderByDescending(static group=>group.Count()).ThenBy(static group=>group.Key).First();
+            var symbol=db.Trade.EnumerateRows().GroupBy(static row=>row.Symbol).OrderByDescending(static group=>group.Count()).ThenBy(static group=>group.Key).First().Key;
+            var firstIds=db.Trade.EnumerateRows().Select(static row=>row.Id).OrderBy(static id=>id).Take(20).ToArray();
+            var start=TpcETime.FromDateTime(new DateTime(2005,1,3));
+            var end=TpcETime.FromDateTime(new DateTime(2005,1,4));
+            var maxAccount=db.CustomerAccount.EnumerateRows().Max(static row=>row.Id);
+            var history=db.HoldingHistory.EnumerateRows().OrderBy(static row=>row.TradeId).First();
+            var historyTrade=db.Trade.Get(new TradeKey(history.TradeId));
+            var cases=new[]{
+                new TradeLookupInput{FrameToExecute=1,TradeIds=firstIds,MaxTrades=20,Now=1},
+                new TradeLookupInput{FrameToExecute=2,AccountId=busiest.Key,MaxTrades=20,StartTradeDts=start,EndTradeDts=end,Now=1},
+                new TradeLookupInput{FrameToExecute=3,Symbol=symbol,MaxAccountId=maxAccount,MaxTrades=20,StartTradeDts=start,EndTradeDts=end,Now=1},
+                new TradeLookupInput{FrameToExecute=4,AccountId=historyTrade.AccountId,StartTradeDts=historyTrade.Dts,Now=1},
+            };
+            foreach(var request in cases){
+                var expected=(TradeLookupOutput)fixture.Engine!.Execute(request);
+                var input=new byte[Compliance.HarnessHost.SizeOf("TradeLookupTxnInput")];
+                var output=new byte[Compliance.HarnessHost.SizeOf("TradeLookupTxnOutput")];
+                var wrapper=new TradeLookupTxnInput(input);
+                wrapper.FrameToExecute=request.FrameToExecute;
+                for(var index=0;index<request.TradeIds.Length;index++){
+                    wrapper.SetTradeId(index,request.TradeIds[index]);
+                }
+                wrapper.AcctId=request.AccountId;
+                wrapper.MaxAcctId=request.MaxAccountId;
+                wrapper.MaxTrades=request.MaxTrades;
+                wrapper.StartTradeDts=EGenTimestamp.FromMilliseconds(request.StartTradeDts);
+                wrapper.EndTradeDts=EGenTimestamp.FromMilliseconds(request.EndTradeDts);
+                wrapper.Symbol=request.Symbol.ToString();
+                var status=this.Run(HarnessTransaction.TradeLookup,input,output);
+                var result=new TradeLookupTxnOutput(output);
+                var label=$"frame {request.FrameToExecute}";
+                Assert.True(expected.Status==status,$"{label}: status expected {expected.Status} but was {status}");
+                Assert.Equal(request.FrameToExecute,result.FrameExecuted);
+                Assert.True(expected.NumFound==result.NumFound,$"{label}: num_found expected {expected.NumFound} but was {result.NumFound}");
+                if(request.FrameToExecute==4){
+                    Assert.Equal(expected.TradeId,result.GetTradeList(0));
+                    continue;
+                }
+                for(var index=0;index<expected.Trades.Length;index++){
+                    Assert.Equal(expected.Trades[index].IsCash,result.GetIsCash(index));
+                    if(request.FrameToExecute!=1){
+                        Assert.Equal(expected.Trades[index].TradeId,result.GetTradeList(index));
+                    }else{
+                        Assert.Equal(expected.Trades[index].IsMarket,result.GetIsMarket(index));
+                    }
+                }
+            }
+        }
+    }
     [Fact,Trait("Category","Integration")]public void SecurityDetail(){
         {
             if(!fixture.Available){
