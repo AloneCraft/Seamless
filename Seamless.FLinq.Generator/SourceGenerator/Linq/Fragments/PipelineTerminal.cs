@@ -1064,6 +1064,16 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return builder.ToString().TrimEnd();
     }
 
+    private bool ConcatFollowedByOneToOneStagesOnly(int binaryStageIndex) {
+        for(var i = binaryStageIndex+1;i<pipeline.Stages.Count;i++) {
+            var st = pipeline.Stages[i];
+            if(st.Kind is not (PipelineStageKind.Select or PipelineStageKind.Cast or PipelineStageKind.AsEnumerable)||st.UsesIndex) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private string? RenderDirectSpanPipelineBinaryScalar(string actualVariableName,string actualTypeName) {
         if(this.RenderDirectSpanPipelineUnionIntersect(actualVariableName,actualTypeName) is { } unionIntersectResult) {
             return unionIntersectResult;
@@ -1305,7 +1315,10 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 return builder.ToString().TrimEnd();
             }
 
-            if(terminalKind==PipelineTerminalKind.ToArray&&binaryStage.Kind==PipelineStageKind.Concat) {
+            // 件数を先に確定して添字で書き込む経路なので、Concat の後ろが 1 件を 1 件へ写す段(Select など)だけのときに限る。
+            // Where・Skip・Take などが続くと出力が詰まらず、添字がずれて既定値が残る。
+            var concatKeepsOneToOne = this.ConcatFollowedByOneToOneStagesOnly(binaryStageIndex);
+            if(terminalKind==PipelineTerminalKind.ToArray&&binaryStage.Kind==PipelineStageKind.Concat&&concatKeepsOneToOne) {
                 var totalCountName = $"__totalCount{this.result}";
                 var destSpanName = $"__destSpan{this.result}";
                 var hasAfterStages = binaryStageIndex+1<pipeline.Stages.Count;
@@ -1343,7 +1356,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 return builder.ToString().TrimEnd();
             }
 
-            if(terminalKind==PipelineTerminalKind.ToList&&binaryStage.Kind==PipelineStageKind.Concat) {
+            if(terminalKind==PipelineTerminalKind.ToList&&binaryStage.Kind==PipelineStageKind.Concat&&concatKeepsOneToOne) {
                 var totalCountName = $"__totalCount{this.result}";
                 var destSpanName = $"__destSpan{this.result}";
                 var hasAfterStages = binaryStageIndex+1<pipeline.Stages.Count;
@@ -3652,6 +3665,10 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         if(stage.SecondFunc is not null) {
             allFuncs.Add(stage.SecondFunc);
         }
+        // 結果選択子の束縛済みローカル(__hoist)は ProjectedResultExpression が参照するので、これも宣言を出す。
+        if(stage.ThirdFunc is not null) {
+            allFuncs.Add(stage.ThirdFunc);
+        }
         foreach(var item in aggPlan.Items) {
             if(item.InnerFunc is not null) {
                 allFuncs.Add(item.InnerFunc);
@@ -3665,10 +3682,6 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 allFuncs.Add(f);
             }
             if(pipeline.Stages[i].SecondFunc is { } f2) {
-        // 結果選択子の束縛済みローカル(__hoist)は ProjectedResultExpression が参照するので、これも宣言を出す。
-        if(stage.ThirdFunc is not null) {
-            allFuncs.Add(stage.ThirdFunc);
-        }
                 allFuncs.Add(f2);
             }
         }

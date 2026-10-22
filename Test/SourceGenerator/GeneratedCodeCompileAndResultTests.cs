@@ -122,4 +122,35 @@ public sealed class GeneratedCodeCompileAndResultTests {
             }
             ""","ConsecutiveSkipProbe",3);
     }
+
+    // Concat の後ろに Where などの出力が詰まる段が続くとき、件数を先に確定して添字で書く展開を使うと、
+    // 間引かれた位置に既定値が残る。
+    [Fact]
+    public void Concatの後のWhereやSkipが付いたToListとToArrayはSystem_Linqと同じ結果になる() {
+        AssertSameAsLinq("""
+            using System.Linq;
+            using Seamless.FLinq;
+            namespace Sample;
+            public sealed class Container {
+                private static int[] A() => [1,2,3,4,5,6,7,8];
+                private static int[] B() => [4,5,6,9,10];
+                public static string RunFLinq() => string.Join("|",
+                    string.Join(",",WhereList()),string.Join(",",WhereArray()),string.Join(",",SkipList()),string.Join(",",SelectList()));
+                [LinqIntercept(false)]
+                public static string RunLinq() => string.Join("|",
+                    string.Join(",",A().Concat(B()).Where(v => v%2==0).ToList()),
+                    string.Join(",",A().Concat(B()).Where(v => v%2==0).ToArray()),
+                    string.Join(",",A().Concat(B()).Skip(3).ToList()),
+                    string.Join(",",A().Concat(B()).Select(v => v*2).ToList()));
+                [LinqIntercept(true)]
+                private static System.Collections.Generic.List<int> WhereList() => A().Concat(B()).Where(v => v%2==0).ToList();
+                [LinqIntercept(true)]
+                private static int[] WhereArray() => A().Concat(B()).Where(v => v%2==0).ToArray();
+                [LinqIntercept(true)]
+                private static System.Collections.Generic.List<int> SkipList() => A().Concat(B()).Skip(3).ToList();
+                [LinqIntercept(true)]
+                private static System.Collections.Generic.List<int> SelectList() => A().Concat(B()).Select(v => v*2).ToList();
+            }
+            ""","ConcatFilteredMaterializeProbe",4);
+    }
 }
