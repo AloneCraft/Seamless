@@ -912,7 +912,13 @@ public sealed class WorkerHost{
             ?QueryOrderSemantics.TotalOrdered
             :ExtendedTerminalShape.IsExtended(Node.Arguments.Kind)
                 ?ExtendedTerminalShape.Order(Node.Arguments.Kind,Input.OrderSemantics)
-                :Input.OrderSemantics;
+                // QueryIrValidator の規則と同じにする。違うと、順序なしの入力が ToLookup などへ来たときに
+                // 実行先への変換後の検証が例外になり、実行全体が Fatal で止まる。
+                :Node.Arguments.Kind==QueryTerminalKind.ToHashSet
+                    ?QueryOrderSemantics.Unordered
+                    :Node.Arguments.Kind is QueryTerminalKind.ToDictionary or QueryTerminalKind.ToLookup
+                        ?QueryOrderSemantics.TotalOrdered
+                        :Input.OrderSemantics;
         return Node with{Input=Input,OrderSemantics=Order};
     }
 

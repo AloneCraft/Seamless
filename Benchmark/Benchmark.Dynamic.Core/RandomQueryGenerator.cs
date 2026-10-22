@@ -12,6 +12,15 @@ public sealed record RandomQueryGenerationOptions{
     public bool EnableBinaryOperators{get;init;}=true;
     public bool EnableNestedOperators{get;init;}
     public IReadOnlyCollection<string>? AllowedOperatorIds{get;init;}
+
+    /// <summary>
+    /// 指定すると、演算子の並びを乱数ではなくこの順に固定する(全組み合わせの列挙用)。
+    /// Source に近い側から並べ、終端演算子は含めない。<see cref="OperatorCount"/> は個数+1にする。
+    /// </summary>
+    public IReadOnlyList<string>? ForcedOperatorSequence{get;init;}
+
+    /// <summary><see cref="ForcedOperatorSequence"/> と一緒に指定する終端演算子。</summary>
+    public string? ForcedTerminalOperatorId{get;init;}
 }
 
 public sealed class RandomQueryGenerator{
@@ -57,6 +66,14 @@ public sealed class RandomQueryGenerator{
         if(options.MaximumCardinality<1||options.MaximumCardinality>100_000){
             throw new ArgumentOutOfRangeException(nameof(options.MaximumCardinality));
         }
+        if(options.ForcedOperatorSequence is { }forced){
+            if(options.ForcedTerminalOperatorId is null){
+                throw new ArgumentException("ForcedTerminalOperatorId is required with ForcedOperatorSequence.",nameof(options));
+            }
+            if(options.OperatorCount!=forced.Count+1){
+                throw new ArgumentException("OperatorCount must be ForcedOperatorSequence.Count + 1.",nameof(options));
+            }
+        }
     }
 
     private sealed class GenerationContext{
@@ -67,14 +84,20 @@ public sealed class RandomQueryGenerator{
         private readonly DeterministicPrng argumentRandom;
         private readonly DeterministicPrng terminalRandom;
         private int nextNodeId;
+        private readonly IReadOnlyList<string>? forcedSequence;
+        private readonly string? forcedTerminal;
         private readonly bool binaryAvailable;
         private readonly bool nestedAvailable;
 
         public GenerationContext(RandomQueryGenerationOptions options,Seed256 querySeed){
             this.options=options;
-            this.allowed=options.AllowedOperatorIds is null
-                ?QueryCapabilityProfiles.CreateSet(OperatorSetMode.Maximum,[options.SourceTarget]).OperatorIds.ToHashSet(StringComparer.Ordinal)
-                :options.AllowedOperatorIds.ToHashSet(StringComparer.Ordinal);
+            this.forcedSequence=options.ForcedOperatorSequence;
+            this.forcedTerminal=options.ForcedTerminalOperatorId;
+            this.allowed=options.AllowedOperatorIds is not null
+                ?options.AllowedOperatorIds.ToHashSet(StringComparer.Ordinal)
+                :options.ForcedOperatorSequence is { }forcedIds
+                    ?forcedIds.Append(options.ForcedTerminalOperatorId!).ToHashSet(StringComparer.Ordinal)
+                    :QueryCapabilityProfiles.CreateSet(OperatorSetMode.Maximum,[options.SourceTarget]).OperatorIds.ToHashSet(StringComparer.Ordinal);
             this.shapeRandom=new(SeedDerivation.Derive(querySeed,"shape"));
             this.operatorRandom=new(SeedDerivation.Derive(querySeed,"operator"));
             this.argumentRandom=new(SeedDerivation.Derive(querySeed,"argument"));
@@ -123,6 +146,14 @@ public sealed class RandomQueryGenerator{
             if(remainingDepth<1){
                 throw new InvalidOperationException("The exact operator allocation exceeded the depth budget.");
             }
+            if(this.forcedSequence is not null){
+                return BuiltInOperatorCatalog.Get(this.forcedSequence[operatorCount-1]).NodeKind switch{
+                    QueryNodeKind.Unary=>this.BuildUnary(operatorCount,remainingDepth,preferredSlot,allowBranching),
+                    QueryNodeKind.Binary=>this.BuildBinary(operatorCount,remainingDepth,preferredSlot),
+                    QueryNodeKind.Nested=>this.BuildNested(operatorCount,remainingDepth,preferredSlot),
+                    _=>throw new ForcedOperatorNotApplicableException($"{this.forcedSequence[operatorCount-1]} is not an intermediate operator."),
+                };
+            }
             var childCapacity=GetMaximumSequenceNodes(
                 remainingDepth-1,
                 allowBranching&&this.binaryAvailable,
@@ -150,6 +181,16 @@ public sealed class RandomQueryGenerator{
             };
         }
 
+        // 固定モードでは、乱数で選ぶ代わりに指定された演算子を選ぶ。その位置で適用できなければ例外にする。
+        private OperatorDescriptor ChooseOperator(int operatorCount,OperatorDescriptor[] candidates){
+            if(this.forcedSequence is null){
+                return this.operatorRandom.Choose(candidates);
+            }
+            var id=this.forcedSequence[operatorCount-1];
+            return candidates.FirstOrDefault(candidate=>candidate.OperatorId==id)
+                ??throw new ForcedOperatorNotApplicableException($"Forced operator {id} is not applicable at position {operatorCount}.");
+        }
+
         public TerminalQueryNode BuildTerminal(QueryNode input){
             var descriptors=BuiltInOperatorCatalog.Initial
                 .Where(static descriptor=>descriptor.NodeKind==QueryNodeKind.Terminal)
@@ -160,9 +201,14 @@ public sealed class RandomQueryGenerator{
                 .OrderBy(static descriptor=>descriptor.OperatorId,StringComparer.Ordinal)
                 .ToArray();
             if(descriptors.Length==0){
-                throw new InvalidOperationException("No safe terminal operator is available.");
+                throw this.forcedTerminal is null
+                    ?new InvalidOperationException("No safe terminal operator is available.")
+                    :new ForcedOperatorNotApplicableException("No safe terminal operator is available.");
             }
-            var descriptor=this.terminalRandom.Choose(descriptors);
+            var descriptor=this.forcedTerminal is null
+                ?this.terminalRandom.Choose(descriptors)
+                :descriptors.FirstOrDefault(candidate=>candidate.OperatorId==this.forcedTerminal)
+                    ??throw new ForcedOperatorNotApplicableException($"Forced terminal {this.forcedTerminal} is not applicable here.");
             var terminalKind=GetTerminalKind(descriptor.OperatorId);
             QueryPredicate? predicate=null;
             int? value=null;
@@ -236,9 +282,11 @@ public sealed class RandomQueryGenerator{
                 .OrderBy(static descriptor=>descriptor.OperatorId,StringComparer.Ordinal)
                 .ToArray();
             if(descriptors.Length==0){
-                throw new InvalidOperationException("No unary operator is valid for the generated input.");
+                throw this.forcedSequence is null
+                    ?new InvalidOperationException("No unary operator is valid for the generated input.")
+                    :new ForcedOperatorNotApplicableException("No unary operator is valid for the generated input.");
             }
-            var descriptor=this.operatorRandom.Choose(descriptors);
+            var descriptor=this.ChooseOperator(operatorCount,descriptors);
             return descriptor.OperatorId switch{
                 QueryOperatorIds.Where=>this.CreateWhere(input),
                 QueryOperatorIds.WhereIndexed=>this.CreateWhereIndexed(input),
@@ -265,10 +313,10 @@ public sealed class RandomQueryGenerator{
                 remainingDepth-1,
                 this.binaryAvailable,
                 this.nestedAvailable);
-            var (leftCount,rightCount)=this.Split(operatorCount-1,childCapacity);
+            var (leftCount,rightCount)=this.forcedSequence is null?this.Split(operatorCount-1,childCapacity):(operatorCount-1,0);
             var left=this.BuildSequence(leftCount,remainingDepth-1,preferredSlot);
             var right=this.BuildSequence(rightCount,remainingDepth-1,Opposite(preferredSlot));
-            var descriptor=this.operatorRandom.Choose(BuiltInOperatorCatalog.Initial
+            var descriptor=this.ChooseOperator(operatorCount,BuiltInOperatorCatalog.Initial
                 .Where(static item=>item.NodeKind==QueryNodeKind.Binary)
                 .Where(item=>this.allowed.Contains(item.OperatorId))
                 .Where(item=>item.OperatorId!=QueryOperatorIds.Zip
@@ -324,10 +372,10 @@ public sealed class RandomQueryGenerator{
 
         private QueryNode BuildNested(int operatorCount,int remainingDepth,SourceSlot preferredSlot){
             var childCapacity=Math.Max(0,remainingDepth-1);
-            var (outerCount,innerCount)=this.Split(operatorCount-1,childCapacity);
+            var (outerCount,innerCount)=this.forcedSequence is null?this.Split(operatorCount-1,childCapacity):(operatorCount-1,0);
             var outer=this.BuildSequence(outerCount,remainingDepth-1,preferredSlot,allowBranching:false);
             var inner=this.BuildSequence(innerCount,remainingDepth-1,Opposite(preferredSlot),allowBranching:false);
-            var descriptor=this.operatorRandom.Choose(BuiltInOperatorCatalog.Initial
+            var descriptor=this.ChooseOperator(operatorCount,BuiltInOperatorCatalog.Initial
                 .Where(static item=>item.NodeKind==QueryNodeKind.Nested)
                 .Where(item=>this.allowed.Contains(item.OperatorId))
                 .OrderBy(static item=>item.OperatorId,StringComparer.Ordinal)
