@@ -58,8 +58,14 @@ internal sealed class InlinedScalarFunc(Fragment scalarFragment):LambdaFunc {
                 """;
         }
 
-        if(this.TryRenderInlineScalarStatement(destination,this.ReturnTypeName,number,arguments) is { } directScalar) {
-            return directScalar;
+        // RenderInlineComputation は出力先の変数を自分で宣言する。destination は呼び出し側が宣言済みなので、
+        // 宣言し直すと同じスコープで二重定義になる。別名の変数へ計算させてから代入する。
+        var directValueName = $"__scalarValue_{number}_{SanitizeLocalName(destination)}";
+        if(this.TryRenderInlineScalarStatement(directValueName,this.ReturnTypeName,number,arguments) is { } directScalar) {
+            return $$"""
+                {{directScalar}}
+                {{destination}}={{directValueName}};
+                """;
         }
 
         var tempName = $"__scalarTmp_{number}";

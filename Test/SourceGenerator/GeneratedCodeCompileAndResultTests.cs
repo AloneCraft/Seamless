@@ -51,4 +51,23 @@ public sealed class GeneratedCodeCompileAndResultTests {
             }
             ""","ExceptByKeysProbe",4);
     }
+
+    // Select の中の c.Sum() のようなスカラーの直接展開は、結果の変数を自分で宣言する。
+    // 呼び出し側が先に宣言しているのに同じ名前で宣言し直すと CS0128(同じ範囲で二重定義)になる。
+    [Fact]
+    public void Chunkの後のSelectでSumを直接展開しても結果の変数が二重に宣言されない() {
+        AssertSameAsLinq("""
+            using System.Linq;
+            using Seamless.FLinq;
+            namespace Sample;
+            public sealed class Container {
+                private static System.Collections.Generic.List<int> Source() => [1,2,3,4,5,6,7];
+                public static string RunFLinq() => string.Join(",",ChunkSums());
+                [LinqIntercept(false)]
+                public static string RunLinq() => string.Join(",",Source().Where(x => x>0).Chunk(2).Select(c => c.Sum()).ToList());
+                [LinqIntercept(true)]
+                private static System.Collections.Generic.List<int> ChunkSums() => Source().Where(x => x>0).Chunk(2).Select(c => c.Sum()).ToList();
+            }
+            ""","ChunkSumNestedScalarProbe",1);
+    }
 }
