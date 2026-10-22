@@ -124,7 +124,7 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
             }
             var 比較一覧=new Dictionary<DynamicImplementationKind,DynamicQueryComparison>();
             var System結果=結果一覧[DynamicImplementationKind.System];
-            foreach(var 実装 in 検証対象.Where(static 実装=>実装!=DynamicImplementationKind.System)){
+            foreach(var 実装 in 検証対象.Where(実装=>実装!=DynamicImplementationKind.System&&Loaded.Has(実装))){
                 比較一覧[実装]=DynamicQueryComparer.Compare(System結果,結果一覧[実装]);
             }
             ResultJSON=JsonSerializer.Serialize(
@@ -233,7 +233,7 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
         CancellationToken キャンセルToken){
         var 結果一覧=new Dictionary<DynamicImplementationKind,DynamicQueryValue>();
         var 例外一覧=new Dictionary<DynamicImplementationKind,WorkerInvocationFailure>();
-        foreach(var 実装 in 検証対象){
+        foreach(var 実装 in 検証対象.Where(Loaded.Has)){
             キャンセルToken.ThrowIfCancellationRequested();
             try{
                 var 値=Loaded.Run(実装,Primary,Secondary);

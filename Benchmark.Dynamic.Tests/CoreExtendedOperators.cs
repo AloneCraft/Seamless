@@ -47,8 +47,56 @@ public sealed class ExtendedOperatorTests{
 
             var emitted=emitter.Emit(document);
             Assert.Contains(expectedCall,emitted.SourceText,StringComparison.Ordinal);
-            Assert.Equal(4,emitted.MethodNames.Count);
+            Assert.Equal(QueryZLinqSupport.IsSupported(document)?4:3,emitted.MethodNames.Count);
             Assert.False(string.IsNullOrWhiteSpace(Core.QueryExpressionFormatter.Format(document)));
+        }
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void OrderBy系を含むクエリはZLinqの経路を作らない(){
+        var generator=new Core.RandomQueryGenerator();
+        var emitter=new Core.QuerySourceEmitter();
+        foreach(var operatorId in new[]{QueryOperatorIds.OrderBy,QueryOperatorIds.OrderByKey}){
+            var document=generator.Generate(new RandomQueryGenerationOptions{
+                MasterSeed=Core.Seed256.Parse("0x0DE7"),
+                QueryIndex=0,
+                SourceTarget=SourceTarget.SystemArray,
+                OperatorCount=2,
+                MaximumDepth=2,
+                InputElementCount=16,
+                EnableBinaryOperators=false,
+                EnableNestedOperators=false,
+                AllowedOperatorIds=[operatorId,QueryOperatorIds.ToArray],
+            });
+            var emitted=emitter.Emit(document);
+            Assert.False(QueryZLinqSupport.IsSupported(document));
+            Assert.DoesNotContain("RunZLinq",emitted.SourceText,StringComparison.Ordinal);
+            Assert.False(emitted.MethodNames.ContainsKey(ExecutionPath.ZLinq));
+            Assert.Equal(3,emitted.MethodNames.Count);
+        }
+
+        var plain=generator.Generate(new RandomQueryGenerationOptions{
+            MasterSeed=Core.Seed256.Parse("0x0DE7"),
+            QueryIndex=0,
+            SourceTarget=SourceTarget.SystemArray,
+            OperatorCount=2,
+            MaximumDepth=2,
+            InputElementCount=16,
+            EnableBinaryOperators=false,
+            EnableNestedOperators=false,
+            AllowedOperatorIds=[QueryOperatorIds.Where,QueryOperatorIds.ToArray],
+        });
+        Assert.True(QueryZLinqSupport.IsSupported(plain));
+        Assert.Equal(4,emitter.Emit(plain).MethodNames.Count);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void 演算子集合はZLinq非対応の演算子を含めFLinq非対応の演算子は含めない(){
+        foreach(var mode in Enum.GetValues<OperatorSetMode>()){
+            var set=QueryCapabilityProfiles.CreateSet(mode,[SourceTarget.SystemArray]);
+            Assert.Contains(QueryOperatorIds.OrderBy,set.OperatorIds);
+            Assert.Contains(QueryOperatorIds.OrderByKey,set.OperatorIds);
+            Assert.DoesNotContain(QueryOperatorIds.SelectManyXor,set.OperatorIds);
         }
     }
 

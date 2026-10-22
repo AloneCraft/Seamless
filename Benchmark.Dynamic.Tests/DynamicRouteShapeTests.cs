@@ -274,10 +274,12 @@ public sealed class DynamicRouteShapeTests{
     [InlineData(QueryOperatorIds.GroupBySum)]
     [InlineData(QueryOperatorIds.GroupByCount)]
     [InlineData(QueryOperatorIds.GroupByKeyOnly)]
-    public async Task 追加した単項演算子はCapabilityの保証範囲で4経路が一致して実行できる(string operatorID){
+    [InlineData(QueryOperatorIds.OrderByKey)]
+    [InlineData(QueryOperatorIds.OrderBy)]
+    public async Task 追加した単項演算子はCapabilityの保証範囲で各経路が一致して実行できる(string operatorID){
         var failures=new List<string>();
         foreach(var target in Enum.GetValues<SourceTarget>()){
-            if(!QueryCapabilityProfiles.Get(target).SupportsOnAllPaths(operatorID)){
+            if(!QueryCapabilityProfiles.Get(target).SupportsOnCorePaths(operatorID)){
                 continue;
             }
             for(var queryIndex=0;queryIndex<4;queryIndex++){

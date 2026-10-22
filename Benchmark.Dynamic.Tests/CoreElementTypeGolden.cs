@@ -36,7 +36,9 @@ public sealed class ElementTypeGoldenTests{
                     InputElementCount=32,
                     EnableBinaryOperators=true,
                     EnableNestedOperators=true,
-                    AllowedOperatorIds=capability.OperatorIds.Where(Version12OperatorIds.Contains).ToArray(),
+                    AllowedOperatorIds=capability.OperatorIds
+                        .Where(id=>Version12OperatorIds.Contains(id)&&QueryCapabilityProfiles.Get(target).SupportsOnAllPaths(id))
+                        .ToArray(),
                 });
                 var emitted=emitter.Emit(document);
                 lines.Append(target).Append('|').Append(index).Append('|')

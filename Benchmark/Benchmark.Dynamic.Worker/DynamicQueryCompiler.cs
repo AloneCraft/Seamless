@@ -74,6 +74,11 @@ public sealed class LoadedDynamicQuery {
         return 関数[実装](Primary,Secondary);
     }
 
+    public bool Has(DynamicImplementationKind 実装) {
+        var 関数=this.実行関数一覧??throw new ObjectDisposedException(nameof(LoadedDynamicQuery));
+        return 関数.ContainsKey(実装);
+    }
+
     public Func<object?,object?,DynamicQueryValue> GetDelegate(DynamicImplementationKind 実装) {
         var 関数=this.実行関数一覧??throw new ObjectDisposedException(nameof(LoadedDynamicQuery));
         return 関数[実装];
@@ -240,8 +245,10 @@ public sealed class DynamicQueryCompiler {
                 [DynamicImplementationKind.System]=Bind(型,"RunSystem"),
                 [DynamicImplementationKind.FLinqUnoptimized]=Bind(型,"RunFLinqUnoptimized"),
                 [DynamicImplementationKind.FLinq]=Bind(型,"RunFLinq"),
-                [DynamicImplementationKind.ZLinq]=Bind(型,"RunZLinq"),
             };
+            if(型.GetMethod("RunZLinq",BindingFlags.Public|BindingFlags.Static) is not null) {
+                関数一覧[DynamicImplementationKind.ZLinq]=Bind(型,"RunZLinq");
+            }
             Bind時間=経過ナノ秒(開始);
             var Loaded=new LoadedDynamicQuery(読込コンテキスト,Assembly,関数一覧);
             読込コンテキスト=null;

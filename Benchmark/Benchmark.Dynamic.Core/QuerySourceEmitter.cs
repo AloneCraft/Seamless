@@ -57,7 +57,10 @@ public sealed class QuerySourceEmitter{
             element,
             ExecutionPath.FLinqOptimized,
             "[global::Seamless.FLinq.LinqIntercept(true,Optimizations=global::Seamless.FLinq.LinqOptimizations.All,ConvergenceMode=global::Seamless.FLinq.LinqConvergenceMode.GlobalFixedPoint,EmitOptimizationTrace=true)]");
-        this.EmitMethod(builder,document,element,ExecutionPath.ZLinq,null);
+        var zLinqSupported=QueryZLinqSupport.IsSupported(document);
+        if(zLinqSupported){
+            this.EmitMethod(builder,document,element,ExecutionPath.ZLinq,null);
+        }
         builder.AppendLine("}");
         var sourceText=builder.ToString();
         var sourceHash=Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(sourceText)));
@@ -67,7 +70,9 @@ public sealed class QuerySourceEmitter{
             generatedNamespace,
             className,
             $"{generatedNamespace}.{className}",
-            DefaultMethodNames);
+            zLinqSupported
+                ?DefaultMethodNames
+                :DefaultMethodNames.Where(static pair=>pair.Key!=ExecutionPath.ZLinq).ToDictionary());
     }
 
     private void EmitMethod(

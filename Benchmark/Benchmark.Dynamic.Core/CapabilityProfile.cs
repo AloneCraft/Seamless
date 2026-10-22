@@ -48,6 +48,11 @@ public sealed record OperatorPathCapability(
 public sealed record OperatorCapability(string OperatorId,IReadOnlyList<OperatorPathCapability> Paths){
     [JsonIgnore]public bool IsSupportedOnAllPaths=>this.Paths.Count==Enum.GetValues<ExecutionPath>().Length&&this.Paths.All(static path=>path.IsSupported);
 
+    // ZLinq は対応しないクエリでは経路ごと外せる(QueryZLinqSupport)ので、System と FLinq の経路だけで判定する。
+    [JsonIgnore]public bool IsSupportedOnCorePaths=>this.Paths
+        .Where(static path=>path.Path!=ExecutionPath.ZLinq)
+        .All(static path=>path.IsSupported);
+
     public OperatorPathCapability Get(ExecutionPath path){
         return this.Paths.Single(capability=>capability.Path==path);
     }
@@ -69,6 +74,10 @@ public sealed record QueryCapabilityProfile(
 
     public OperatorCapability GetOperator(string operatorId){
         return this.Operators.Single(capability=>StringComparer.Ordinal.Equals(capability.OperatorId,operatorId));
+    }
+
+    public bool SupportsOnCorePaths(string operatorId){
+        return this.Operators.FirstOrDefault(capability=>StringComparer.Ordinal.Equals(capability.OperatorId,operatorId))?.IsSupportedOnCorePaths==true;
     }
 
     public bool SupportsOnAllPaths(string operatorId){
@@ -104,7 +113,7 @@ public static class QueryCapabilityProfiles{
             :selectedTargets;
         var profiles=capabilityTargets.Select(Get).ToArray();
         var operatorIds=BuiltInOperatorCatalog.All
-            .Where(descriptor=>profiles.All(profile=>profile.SupportsOnAllPaths(descriptor.OperatorId)))
+            .Where(descriptor=>profiles.All(profile=>profile.SupportsOnCorePaths(descriptor.OperatorId)))
             .Select(static descriptor=>descriptor.OperatorId)
             .Order(StringComparer.Ordinal)
             .ToArray();
