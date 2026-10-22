@@ -99,6 +99,15 @@ Benchmark.Dynamic（確認済み）:
 - [ ] FLinq の double Sum（SIMD で順序が変わる）と float Sum（float のまま蓄積する可能性）を「誤り」として直すか、「許容」とするか。
 - [ ] Persisted/Tsavorite で string・Int256・Order などが保存できるか（できなければ未対応として記録）。
 
+## 手順3で実装済みの検査と Worker プロトコル v5（2026-10-22 時点）
+
+- 展開検査: `FLinqExpansionValidator`。警告 `FLINQ002` と、生成物の `UnsupportedLinqExpansion(` / `LinqInterceptorFailure(` を、コンパイル前に `ExpansionIncomplete` として失敗にする。
+- フォールバック検査: 検証の実行（計測ではない方）を `LinqCounterScope` で囲み、FLinq 2 経路の `EnumerableFallback` が 0 でなければ `ExpansionIncomplete` にする。FLinq は黙って System.Linq へ切り替えず、展開できないと例外で止まる生成コードを出す方針なので、この検査は「その例外を作った」ことを数える。展開検査と見ているものがほぼ同じなので、状態は 1 つにまとめた。
+- 例外の型の一致: `QueryIrDocument.ExpectExceptions`（false のときは JSON に出ない）。true のとき、空の入力で例外になる終端・範囲外の `ElementAt`・重複キーの `ToDictionary` も静的な安全検査で弾かない。Worker は、System.Linq が例外を投げたら他の実装も同じ型の例外を投げることを一致とし、違えば `SemanticMismatch` にする。全実装が同じ型の例外を投げたクエリは、計測なしの `Succeeded` で終わる。
+- 再現テスト出力: `ReproTestEmitter`。生成クラス（ZLinq なし）と、System / FLinq 最適化なし / FLinq 最適化ありを `DynamicQueryComparer` で比べる xUnit テストを1ファイルにする。実際にコンパイルして実行し、通る場合と失敗する場合の両方を確かめてある。置き先のテストプロジェクトは `Benchmark.Dynamic.Core` を参照する必要がある。
+- プロトコル v5: `WorkerRunRequest` に `GenerationMode`（Random / Exhaustive）、`ExhaustiveIntermediateCount`、`ExhaustiveTerminalIds`、`ExpectExceptions` を追加した。全組み合わせモードでは、成り立たない並びを飛ばした上で QueryIndex 番目を使う（`ExhaustiveQueryProvider`）。
+- 未実装: 複数の入力件数（0・1・16・256）での検証。IR が件数を持つ形のままでは、件数ごとの再検証に作り直しが要る。必要になったら別途設計する。
+
 ## 移植中に見つかった FLinq の不具合（2026-10-22 時点で未修正）
 
 生成器の修正は非目的なので、直さずに記録している。いずれも `Benchmark.Dynamic.Tests/DynamicChainCorpusTests.cs` の `KnownFlinqDefects` と、`CapabilityProfile.cs` の制約に表がある。直ったら表から外す。
