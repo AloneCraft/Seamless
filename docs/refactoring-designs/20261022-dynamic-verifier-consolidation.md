@@ -155,6 +155,25 @@ Benchmark.Dynamic（確認済み）:
 - 最適化あり経路だけが System.Linq と食い違う3件: `UnionBy` / `Distinct` の後の `Any`(Order, String)と、`Distinct().Prepend(...)` の後の `Any`(String、先頭に足した要素を見落とす)。
 - Sum の選択子の中の桁あふれ(long から int への縮小)を、System.Linq は unchecked で流すが、FLinq(最適化なし)は選択子を checked に取り込んで `OverflowException` にする。
 
+## DB の要素型列と UI の要素型欄（手順5の続き、2026-10-22 時点）
+
+- DB: スキーマ版3。`DynamicQueries.element_type`(既定 `Int`)を足した。新規DBは `001_initial.sql` が版3を直接作る。版2の既存DBは `Storage/Schema/Migrations/002_element_type.sql` を `Apply-BenchmarkDynamicMigration.ps1 -TargetVersion 3` で上げる(適用前にバックアップを取る既存の手順)。版が違うDBへは今までどおり書き込めない。移行SQLの動作は `DynamicDatabaseMigrationTests` で確かめている。
+- 実行条件: `動的実行設定.要素型` / `動的実行条件Snapshot.ElementType`(古い保存は int として読む)。能力表・Worker要求・保存IRの検証・縮小・Run再実行・履歴の条件文字列に通した。int 以外は、配列・List・IEnumerable 以外のSourceを選ぶと実行前に入力エラーにする。
+- UI: 設定ストリップに要素型の選択欄(`動的設定.要素型`)。選んだ値は設定として保存する。
+- 未実装のまま: Persisted / Tsavorite での独自型、浮動小数点だけの差を別状態にする方針、文化圏の Invariant 固定。
+
+## ライブ検証タブ（手順6、2026-10-22 時点）
+
+- 置き場所: `Benchmark.Dynamic.UI` の最後のタブ「ライブ検証」(`Views/動的ライブ検証画面.cs`)。計画では先頭のタブだったが、既存の UI テストが先頭タブ前提の探し方をしているため末尾にした。
+- 動き: `動的ライブ検証サービス` が Worker を起動し、ペア全組み合わせ(中間1個+終端)→3段全組み合わせ(中間2個+終端)→ランダム探索(終わらない)の順に検証して、結果を1件ずつ渡す。結果を渡す側が待てば、そのまま Worker への背圧になるので、一時停止・速度調整は画面側の待ちだけで済み、プロトコルに Pause / Resume は足していない。
+- 画面: 左=段階、中央=式・判定・診断・検証コード・FLinq展開後のコード・再現 xUnit テスト(コピーボタン)、右=展開率と結果一致率のメーター・実行時間とメモリ割り当ての棒グラフ(System / FLinq / ZLinq の中央値、参考表示)・押すと見返せるログ。上部で Source・要素型・特殊な値・Seed・試行番号(ランダム探索の何番目か)・速度を選ぶ。
+- 判定は Worker が決めたものをそのまま出す。画面は独自のしきい値を持たず、速度は合否に使わない。
+- Worker 側の追加: `WorkerSourceExecutionCompletedEvent.ExpandedSourceText`(FLinq の生成器が出した展開後のコード)。`FixtureValues`(Core)が int 入力の規則を持ち、再現テストの入力が Worker の入力と一致することをテストで確かめている。
+- 再現テストは int の配列・List・IEnumerable・Range だけ対応。int 以外の要素型と永続系は、その旨のコメントを出す。
+- 開始ボタンを押したときだけ動く(タブを開いただけでは CPU を使わない)。ウィンドウを閉じると Worker を止める。
+- 確認: 実画面で、開始→ペア全組み合わせが流れ、式・判定・展開コード・棒グラフ・メーター・ログが更新されることを見た(58件の時点で、合格47・要調査11。要調査は記録済みの FLinq 不具合)。Appium は未起動のため、UI テストの追加分(ID の存在確認)は未実行。
+- 未実装: 全組み合わせの件数を画面に出す進捗バー、段階の途中からの再開、複数の入力件数。
+
 ## 合意状態
 
 - 2026-10-22 利用者承認済み: 段階的整理、Benchmark.Dynamic への一本化、要素型13種（int?・record・ハッシュ衝突型を含む）、Quadruple は LINQ に必要な演算のみ、UI の取り込み、実装前の現状コミット。
