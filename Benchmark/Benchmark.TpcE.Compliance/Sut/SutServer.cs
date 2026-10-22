@@ -279,6 +279,21 @@ internal sealed class SutServer:IDisposable{
                 writer.WriteNumber("trade_id",placed.TradeId);
                 writer.WriteBoolean("rolled_back",placed.RolledBack);
             }
+            if(result is MarketFeedOutput feed&&feed.Triggered.Length>0){
+                // Market-Feed が発動させた指値注文は、市場(MEE)へ送り返して処理させる(eMEEProcessOrder)。これを返さないと指値注文が約定しない。
+                writer.WriteStartArray("trade_requests");
+                foreach(var trigger in feed.Triggered){
+                    writer.WriteStartObject();
+                    writer.WriteNumber("trade_id",trigger.TradeId);
+                    writer.WriteString("symbol",trigger.Symbol.ToString());
+                    writer.WriteNumber("trade_qty",trigger.TradeQuantity);
+                    writer.WriteString("trade_type_id",trigger.TradeTypeId.ToString());
+                    writer.WriteNumber("price_quote",trigger.PriceQuote);
+                    writer.WriteNumber("action",0);
+                    writer.WriteEndObject();
+                }
+                writer.WriteEndArray();
+            }
             if(result is TradeOrderOutput order&&!order.RolledBack&&order.Status>=0&&order.TradeId>0){
                 // 市場(MEE)へ送る注文。成行は処理、指値は発動条件の登録。
                 writer.WriteStartObject("trade_request");

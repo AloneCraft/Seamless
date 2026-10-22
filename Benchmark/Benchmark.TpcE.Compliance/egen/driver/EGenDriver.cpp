@@ -182,11 +182,25 @@ bool FindRaw(const std::string& json,const char* key,std::string& value){
     return true;
 }
 
+TTradeRequest ParseRequest(const std::string& json){
+    TTradeRequest request;
+    request.Clear();
+    std::string v;
+    if(FindRaw(json,"trade_id",v)){ request.trade_id=_atoi64(v.c_str()); }
+    if(FindRaw(json,"symbol",v)){ strncpy(request.symbol,v.c_str(),sizeof(request.symbol)-1); }
+    if(FindRaw(json,"trade_qty",v)){ request.trade_qty=atoi(v.c_str()); }
+    if(FindRaw(json,"trade_type_id",v)){ strncpy(request.trade_type_id,v.c_str(),sizeof(request.trade_type_id)-1); }
+    if(FindRaw(json,"price_quote",v)){ request.price_quote=atof(v.c_str()); }
+    if(FindRaw(json,"action",v)){ request.eAction=(atoi(v.c_str())==0)?eMEEProcessOrder:eMEESetLimitOrderTrigger; }
+    return request;
+}
 struct Reply {
     bool ok=false;
     int status=0;
     bool hasRequest=false;
     TTradeRequest request;
+    // Market-Feed が発動させた指値注文。MEE へ eMEEProcessOrder で送り返す。
+    std::vector<TTradeRequest> triggered;
     std::string error;
 };
 Reply ParseReply(const std::string& json){
@@ -202,13 +216,22 @@ Reply ParseReply(const std::string& json){
     if(FindRaw(json,"error",v)){ reply.error=v; }
     if(json.find("\"trade_request\"")!=std::string::npos){
         reply.hasRequest=true;
-        reply.request.Clear();
-        if(FindRaw(json,"trade_id",v)){ reply.request.trade_id=_atoi64(v.c_str()); }
-        if(FindRaw(json,"symbol",v)){ strncpy(reply.request.symbol,v.c_str(),sizeof(reply.request.symbol)-1); }
-        if(FindRaw(json,"trade_qty",v)){ reply.request.trade_qty=atoi(v.c_str()); }
-        if(FindRaw(json,"trade_type_id",v)){ strncpy(reply.request.trade_type_id,v.c_str(),sizeof(reply.request.trade_type_id)-1); }
-        if(FindRaw(json,"price_quote",v)){ reply.request.price_quote=atof(v.c_str()); }
-        if(FindRaw(json,"action",v)){ reply.request.eAction=(atoi(v.c_str())==0)?eMEEProcessOrder:eMEESetLimitOrderTrigger; }
+        reply.request=ParseRequest(json);
+    }
+    size_t array=json.find("\"trade_requests\":[");
+    if(array!=std::string::npos){
+        size_t at=array;
+        while(true){
+            size_t open=json.find('{',at);
+            if(open==std::string::npos){ break; }
+            size_t close=json.find('}',open);
+            if(close==std::string::npos){ break; }
+            // 配列の終わり(']')より先の '{' は別の項目
+            size_t end=json.find(']',array);
+            if(end!=std::string::npos&&open>end){ break; }
+            reply.triggered.push_back(ParseRequest(json.substr(open,close-open+1)));
+            at=close+1;
+        }
     }
     return reply;
 }
@@ -242,6 +265,30 @@ public:
 };
 MeeTimer g_meeTimer;
 std::atomic<CMEE*> g_mee(nullptr);
+// Market-Feed が発動させた指値注文を、MEE のスレッドが GenerateTradeResult から戻った後に渡すための待ち行列。
+// MEE が GenerateTradeResult を実行している最中(= SUT の MarketFeed を呼んでいる最中)に同じスレッドから SubmitTradeRequest を呼ぶと、
+// MEE の内部の待ち行列をその場で書き換えて壊す(仕様の図 6.e でも、市場への送信は非同期)。
+std::mutex g_triggeredLock;
+std::vector<TTradeRequest> g_triggered;
+void QueueTriggered(const std::vector<TTradeRequest>& requests){
+    if(requests.empty()){ return; }
+    {
+        std::lock_guard<std::mutex> guard(g_triggeredLock);
+        g_triggered.insert(g_triggered.end(),requests.begin(),requests.end());
+    }
+    g_meeTimer.Schedule(0);   // MEE のスレッドを起こして、すぐ渡させる
+}
+void SubmitQueuedTriggered(CMEE* mee){
+    std::vector<TTradeRequest> batch;
+    {
+        std::lock_guard<std::mutex> guard(g_triggeredLock);
+        batch.swap(g_triggered);
+    }
+    for(TTradeRequest& request:batch){
+        INT32 delay=mee->SubmitTradeRequest(&request);
+        g_meeTimer.Schedule(delay);
+    }
+}
 
 // ---- SUT への口(CE・MEE・DM が共通に使う) -----------------------------------------------------------------------
 class JsonSut {
@@ -346,7 +393,13 @@ public:
         entries+="]";
         Json j; j.Long("unique_symbols",p->unique_symbols).Str("status_submitted",p->StatusAndTradeType.status_submitted).Str("type_limit_buy",p->StatusAndTradeType.type_limit_buy)
             .Str("type_limit_sell",p->StatusAndTradeType.type_limit_sell).Str("type_stop_loss",p->StatusAndTradeType.type_stop_loss).Raw("entries",entries);
-        return Send(MF,Envelope("MarketFeed",j));
+        Reply reply;
+        bool ok=Send(MF,Envelope("MarketFeed",j),&reply);
+        // 発動した指値注文は、ここ(MEE が GenerateTradeResult を実行している最中)では渡さず、待ち行列に積む。
+        if(ok){
+            QueueTriggered(reply.triggered);
+        }
+        return ok;
     }
 };
 
@@ -390,8 +443,10 @@ void CeThread(const Settings& s,CCE* cePointer){
 void MeeThread(CMEE* mee){
     try{
         while(g_meeTimer.WaitForFire()){
+            SubmitQueuedTriggered(mee);
             INT32 delay=mee->GenerateTradeResult();
             g_meeTimer.Schedule(delay);
+            SubmitQueuedTriggered(mee);
         }
         mee->DisableTickerTape();
     }catch(const std::exception& e){
