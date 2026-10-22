@@ -36,6 +36,7 @@ public enum QueryBinaryKind{
     UnionByIdentity,
     ExceptByIdentity,
     IntersectByIdentity,
+    Zip,
 }
 
 public enum QueryNestedKind{
@@ -70,6 +71,13 @@ public enum QueryTerminalKind{
     ToHashSet,
     ToDictionary,
     ToLookup,
+    CountWhere,
+    AnyWhere,
+    AggregateSum,
+    AverageSelector,
+    CountBy,
+    AggregateBy,
+    SequenceEqual,
 }
 
 public sealed record QueryPredicate(QueryPredicateKind Kind,int Operand=0,int Modulus=2);
@@ -330,6 +338,7 @@ public static class QueryIrValidator{
                     QueryBinaryKind.UnionByIdentity=>QueryOperatorIds.UnionByIdentity,
                     QueryBinaryKind.ExceptByIdentity=>QueryOperatorIds.ExceptByIdentity,
                     QueryBinaryKind.IntersectByIdentity=>QueryOperatorIds.IntersectByIdentity,
+                    QueryBinaryKind.Zip=>QueryOperatorIds.Zip,
                     _=>null,
                 };
                 if(expectedBinaryOperator is null||binary.OperatorId!=expectedBinaryOperator){
@@ -341,8 +350,13 @@ public static class QueryIrValidator{
                 if(binary.Left.OutputType!=QueryValueType.Int||binary.Right.OutputType!=QueryValueType.Int||binary.OutputType!=QueryValueType.Int){
                     errors.Add($"Binary node {binary.NodeId} currently supports Int only.");
                 }
+                if(binary.Arguments.Kind==QueryBinaryKind.Zip
+                    &&(binary.Left.OrderSemantics==QueryOrderSemantics.Unordered||binary.Right.OrderSemantics==QueryOrderSemantics.Unordered)){
+                    errors.Add($"Zip node {binary.NodeId} requires two ordered inputs.");
+                }
                 var sum=QueryCardinalityRange.Add(binary.Left.Cardinality,binary.Right.Cardinality);
                 var binaryCardinality=binary.Arguments.Kind switch{
+                    QueryBinaryKind.Zip=>ExtendedBinaryShape.ZipCardinality(binary.Left.Cardinality,binary.Right.Cardinality),
                     QueryBinaryKind.Concat=>sum,
                     QueryBinaryKind.Union or QueryBinaryKind.UnionByIdentity=>new QueryCardinalityRange(0,sum.Maximum),
                     QueryBinaryKind.Except or QueryBinaryKind.ExceptByIdentity=>new QueryCardinalityRange(0,binary.Left.Cardinality.Maximum),
@@ -353,7 +367,7 @@ public static class QueryIrValidator{
                             :binary.Left.Cardinality.Maximum??binary.Right.Cardinality.Maximum),
                     _=>binary.Cardinality,
                 };
-                var binaryOrder=binary.Arguments.Kind==QueryBinaryKind.Concat
+                var binaryOrder=binary.Arguments.Kind is QueryBinaryKind.Concat or QueryBinaryKind.Zip
                     &&binary.Left.OrderSemantics!=QueryOrderSemantics.Unordered
                     &&binary.Right.OrderSemantics!=QueryOrderSemantics.Unordered
                         ?QueryOrderSemantics.Ordered
@@ -494,10 +508,15 @@ public static class QueryIrValidator{
             errors.Add($"Terminal node {node.NodeId} has output {node.OutputCardinality}/{node.OutputType}, expected {expected.Cardinality}/{expected.Type}.");
         }
         if(node.Arguments.Kind is QueryTerminalKind.Min or QueryTerminalKind.Max or QueryTerminalKind.MinBy or QueryTerminalKind.MaxBy or QueryTerminalKind.Average
-            or QueryTerminalKind.First or QueryTerminalKind.Last or QueryTerminalKind.ElementAt){
+            or QueryTerminalKind.First or QueryTerminalKind.Last or QueryTerminalKind.ElementAt
+            ||ExtendedTerminalShape.RequiresNonEmpty(node.Arguments.Kind)){
             if(!node.Input.Cardinality.IsDefinitelyNonEmpty){
                 errors.Add($"Terminal node {node.NodeId} requires a statically non-empty input.");
             }
+        }
+        if(ExtendedTerminalShape.IsExtended(node.Arguments.Kind)
+            &&ExtendedTerminalShape.Validate(node.Arguments) is { }extendedTerminalError){
+            errors.Add($"Terminal node {node.NodeId}: {extendedTerminalError}");
         }
         if(node.Arguments.Kind==QueryTerminalKind.All&&node.Arguments.Predicate is null){
             errors.Add($"All terminal {node.NodeId} requires a predicate.");
@@ -517,6 +536,8 @@ public static class QueryIrValidator{
         }
         var expectedCardinality=node.OutputCardinality==QueryCardinality.Scalar
             ?QueryCardinalityRange.Exact(1)
+            :ExtendedTerminalShape.IsExtended(node.Arguments.Kind)
+                ?ExtendedTerminalShape.Cardinality(node.Arguments,node.Input.Cardinality)
             :node.Arguments.Kind==QueryTerminalKind.ToLookup
                 ?new QueryCardinalityRange(node.Input.Cardinality.Minimum>0?1:0,Math.Min(node.Input.Cardinality.Maximum??4,4))
                 :node.Arguments.Kind==QueryTerminalKind.ToHashSet
@@ -524,6 +545,8 @@ public static class QueryIrValidator{
                     :node.Input.Cardinality;
         var expectedOrder=node.OutputCardinality==QueryCardinality.Scalar
             ?QueryOrderSemantics.TotalOrdered
+            :ExtendedTerminalShape.IsExtended(node.Arguments.Kind)
+                ?ExtendedTerminalShape.Order(node.Arguments.Kind,node.Input.OrderSemantics)
             :node.Arguments.Kind==QueryTerminalKind.ToHashSet
                 ?QueryOrderSemantics.Unordered
                 :node.Arguments.Kind is QueryTerminalKind.ToDictionary or QueryTerminalKind.ToLookup
@@ -532,6 +555,7 @@ public static class QueryIrValidator{
         var expectedEmptySafety=node.Arguments.Kind is QueryTerminalKind.Min or QueryTerminalKind.Max
             or QueryTerminalKind.MinBy or QueryTerminalKind.MaxBy or QueryTerminalKind.Average
             or QueryTerminalKind.First or QueryTerminalKind.Last or QueryTerminalKind.ElementAt
+            or QueryTerminalKind.AverageSelector
                 ?QueryEmptySafety.RequiresNonEmpty
                 :QueryEmptySafety.Safe;
         ValidateMetadata(node,expectedCardinality,expectedOrder,expectedEmptySafety,errors);
@@ -574,6 +598,7 @@ public static class QueryIrValidator{
             QueryTerminalKind.ToDictionary=>(QueryValueType.IntPair,QueryCardinality.Sequence),
             QueryTerminalKind.ToLookup=>(QueryValueType.IntGroup,QueryCardinality.Sequence),
             QueryTerminalKind.ToArray or QueryTerminalKind.ToList or QueryTerminalKind.ToHashSet=>(QueryValueType.Int,QueryCardinality.Sequence),
+            _ when ExtendedTerminalShape.IsExtended(kind)=>ExtendedTerminalShape.Shape(kind),
             _=>(QueryValueType.Int,QueryCardinality.Scalar),
         };
     }
@@ -605,6 +630,7 @@ public static class QueryIrValidator{
             QueryTerminalKind.ToHashSet=>QueryOperatorIds.ToHashSet,
             QueryTerminalKind.ToDictionary=>QueryOperatorIds.ToDictionary,
             QueryTerminalKind.ToLookup=>QueryOperatorIds.ToLookup,
+            _ when ExtendedTerminalShape.IsExtended(kind)=>ExtendedTerminalShape.GetOperatorId(kind),
             _=>throw new ArgumentOutOfRangeException(nameof(kind)),
         };
     }
@@ -625,7 +651,7 @@ public static class QuerySequenceSemantics{
                 ExtendedUnaryOperatorArguments extended when ExtendedUnaryShape.PreservesUniqueness(extended)=>HasUniqueValues(unary.Input),
                 _=>false,
             },
-            BinaryQueryNode binary=>binary.Arguments.Kind is not QueryBinaryKind.Concat,
+            BinaryQueryNode binary=>binary.Arguments.Kind is not (QueryBinaryKind.Concat or QueryBinaryKind.Zip),
             NestedQueryNode=>false,
             TerminalQueryNode terminal=>HasUniqueValues(terminal.Input),
             _=>false,

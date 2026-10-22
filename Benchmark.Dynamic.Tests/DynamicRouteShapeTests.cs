@@ -304,6 +304,71 @@ public sealed class DynamicRouteShapeTests{
         Assert.True(failures.Count==0,string.Join(Environment.NewLine+Environment.NewLine,failures));
     }
 
+    [Theory,Trait("Category","Integration")]
+    [InlineData(QueryOperatorIds.CountWhere)]
+    [InlineData(QueryOperatorIds.AnyWhere)]
+    [InlineData(QueryOperatorIds.AggregateSum)]
+    [InlineData(QueryOperatorIds.AverageSelector)]
+    [InlineData(QueryOperatorIds.CountBy)]
+    [InlineData(QueryOperatorIds.AggregateBy)]
+    [InlineData(QueryOperatorIds.SequenceEqual)]
+    public async Task 追加した終端演算子はCapabilityの保証範囲で各経路が一致して実行できる(string operatorID){
+        var failures=new List<string>();
+        foreach(var target in Enum.GetValues<SourceTarget>()){
+            if(!QueryCapabilityProfiles.Get(target).SupportsOnCorePaths(operatorID)){
+                continue;
+            }
+            for(var queryIndex=0;queryIndex<4;queryIndex++){
+                var query=new RandomQueryGenerator().Generate(new RandomQueryGenerationOptions{
+                    MasterSeed=Seed256.Parse("0xD1A1"),
+                    QueryIndex=queryIndex,
+                    QueryId=$"route-term-{target}-{queryIndex}",
+                    SourceTarget=target,
+                    OperatorCount=2,
+                    MaximumDepth=2,
+                    InputElementCount=4,
+                    EnableBinaryOperators=false,
+                    EnableNestedOperators=false,
+                    AllowedOperatorIds=[QueryOperatorIds.Select,operatorID],
+                });
+                var result=await ExecuteAsync(target,query,2);
+                if(result.Status!=WorkerExecutionStatus.Succeeded||!result.AssemblyUnloaded){
+                    failures.Add($"{operatorID} #{queryIndex}: {FormatFailure(target,result)}");
+                }
+            }
+        }
+        Assert.True(failures.Count==0,string.Join(Environment.NewLine+Environment.NewLine,failures));
+    }
+
+    [Fact,Trait("Category","Integration")]
+    public async Task Zipは順序付きSourceで各経路が一致して実行できる(){
+        var failures=new List<string>();
+        foreach(var target in Enum.GetValues<SourceTarget>()){
+            if(!QueryCapabilityProfiles.Get(target).SupportsOnCorePaths(QueryOperatorIds.Zip)){
+                continue;
+            }
+            for(var queryIndex=0;queryIndex<4;queryIndex++){
+                var query=new RandomQueryGenerator().Generate(new RandomQueryGenerationOptions{
+                    MasterSeed=Seed256.Parse("0xD1A2"),
+                    QueryIndex=queryIndex,
+                    QueryId=$"route-zip-{target}-{queryIndex}",
+                    SourceTarget=target,
+                    OperatorCount=2,
+                    MaximumDepth=2,
+                    InputElementCount=4,
+                    EnableBinaryOperators=true,
+                    EnableNestedOperators=false,
+                    AllowedOperatorIds=[QueryOperatorIds.Zip,QueryOperatorIds.ToArray],
+                });
+                var result=await ExecuteAsync(target,query,2);
+                if(result.Status!=WorkerExecutionStatus.Succeeded||!result.AssemblyUnloaded){
+                    failures.Add($"zip #{queryIndex}: {FormatFailure(target,result)}");
+                }
+            }
+        }
+        Assert.True(failures.Count==0,string.Join(Environment.NewLine+Environment.NewLine,failures));
+    }
+
     private static QueryIrDocument CreateOrderQuery(SourceTarget target,bool includeThenBy){
         var source=new SourceNode(
             "n0000",

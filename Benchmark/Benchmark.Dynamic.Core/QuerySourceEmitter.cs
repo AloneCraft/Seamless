@@ -145,6 +145,13 @@ public sealed class QuerySourceEmitter{
                 QueryTerminalKind.ToHashSet=>$"({input}).ToHashSet()",
                 QueryTerminalKind.ToDictionary=>$"global::Benchmark.Dynamic.Core.DynamicQueryMaterializer.CreateCanonicalDictionaryPairs(({input}).ToDictionary(static value=>value,static value=>value))",
                 QueryTerminalKind.ToLookup=>$"global::Benchmark.Dynamic.Core.DynamicQueryMaterializer.CreateCanonicalLookupGroups(({input}).ToLookup(static value=>value&3,static value=>value))",
+                QueryTerminalKind.CountWhere=>$"({input}).Count({element.EmitPredicate(node.Arguments.Predicate!)})",
+                QueryTerminalKind.AnyWhere=>$"({input}).Any({element.EmitPredicate(node.Arguments.Predicate!)})",
+                QueryTerminalKind.AggregateSum=>$"({input}).Aggregate(0L,(accumulator,value)=>accumulator+value)",
+                QueryTerminalKind.AverageSelector=>$"({input}).Average(static value=>(long)value)",
+                QueryTerminalKind.CountBy=>$"({input}).CountBy({EmitModuloKey(node.Arguments.Value!.Value)}).Select(pair=>pair.Key+pair.Value).ToArray()",
+                QueryTerminalKind.AggregateBy=>$"({input}).AggregateBy({EmitModuloKey(node.Arguments.Value!.Value)},0,(accumulator,value)=>accumulator+value).Select(pair=>pair.Key+pair.Value).ToArray()",
+                QueryTerminalKind.SequenceEqual=>$"({input}).SequenceEqual({this.EmitSequenceEqualOther(node,input,path)})",
                 _=>throw new ArgumentOutOfRangeException(nameof(node)),
             };
         }
@@ -174,6 +181,13 @@ public sealed class QuerySourceEmitter{
             QueryTerminalKind.ToHashSet=>$"global::System.Linq.Enumerable.ToHashSet({input})",
             QueryTerminalKind.ToDictionary=>$"global::Benchmark.Dynamic.Core.DynamicQueryMaterializer.CreateCanonicalDictionaryPairs(global::System.Linq.Enumerable.ToDictionary({input},static value=>value,static value=>value))",
             QueryTerminalKind.ToLookup=>$"global::Benchmark.Dynamic.Core.DynamicQueryMaterializer.CreateCanonicalLookupGroups(global::System.Linq.Enumerable.ToLookup({input},static value=>value&3,static value=>value))",
+            QueryTerminalKind.CountWhere=>$"global::System.Linq.Enumerable.Count({input},{element.EmitPredicate(node.Arguments.Predicate!)})",
+            QueryTerminalKind.AnyWhere=>$"global::System.Linq.Enumerable.Any({input},{element.EmitPredicate(node.Arguments.Predicate!)})",
+            QueryTerminalKind.AggregateSum=>$"global::System.Linq.Enumerable.Aggregate({input},0L,(accumulator,value)=>accumulator+value)",
+            QueryTerminalKind.AverageSelector=>$"global::System.Linq.Enumerable.Average({input},static value=>(long)value)",
+            QueryTerminalKind.CountBy=>$"global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Select(global::System.Linq.Enumerable.CountBy({input},{EmitModuloKey(node.Arguments.Value!.Value)}),pair=>pair.Key+pair.Value))",
+            QueryTerminalKind.AggregateBy=>$"global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Select(global::System.Linq.Enumerable.AggregateBy({input},{EmitModuloKey(node.Arguments.Value!.Value)},0,(accumulator,value)=>accumulator+value),pair=>pair.Key+pair.Value))",
+            QueryTerminalKind.SequenceEqual=>$"global::System.Linq.Enumerable.SequenceEqual({input},{this.EmitSequenceEqualOther(node,input,path)})",
             _=>throw new ArgumentOutOfRangeException(nameof(node)),
         };
     }
@@ -226,6 +240,29 @@ public sealed class QuerySourceEmitter{
             ExtendedUnaryOperatorArguments extended=>EmitExtendedUnary(extended,input,element,path),
             _=>throw new InvalidOperationException($"Unsupported unary arguments at {node.NodeId}."),
         };
+    }
+
+    // SequenceEqual の比較相手。Value が 1 なら同じチェーン(同一式を2回評価する)、0 なら副Source。
+    private string EmitSequenceEqualOther(TerminalQueryNode node,string input,ExecutionPath path){
+        if(node.Arguments.Value==1){
+            return path==ExecutionPath.ZLinq?$"({input}).ToArray()":$"({input})";
+        }
+        var target=FindSourceTarget(node.Input);
+        var secondary=new SourceNode(
+            "secondary",
+            target,
+            SourceSlot.Secondary,
+            QueryCardinalityRange.Exact(0),
+            target.GetInitialOrder());
+        var source=EmitSource(secondary,path);
+        return path==ExecutionPath.ZLinq?$"({source}).ToArray()":source;
+    }
+
+    private static SourceTarget FindSourceTarget(QueryNode node){
+        if(node is SourceNode source){
+            return source.SourceTarget;
+        }
+        return FindSourceTarget(node.Children[0]);
     }
 
     private static string EmitModuloKey(int modulus){
@@ -296,6 +333,7 @@ public sealed class QuerySourceEmitter{
                 QueryBinaryKind.UnionByIdentity=>$"({left}).UnionBy(({right}).ToArray(),value=>value)",
                 QueryBinaryKind.ExceptByIdentity=>$"({left}).ExceptBy(({right}).ToArray(),value=>value)",
                 QueryBinaryKind.IntersectByIdentity=>$"({left}).IntersectBy(({right}).ToArray(),value=>value)",
+                QueryBinaryKind.Zip=>$"({left}).Zip(({right}).ToArray(),(leftValue,rightValue)=>leftValue+rightValue)",
                 _=>throw new InvalidOperationException($"Unsupported binary arguments at {node.NodeId}."),
             };
         }
@@ -308,6 +346,7 @@ public sealed class QuerySourceEmitter{
                 QueryBinaryKind.UnionByIdentity=>$"({left}).UnionBy({right},value=>value)",
                 QueryBinaryKind.ExceptByIdentity=>$"({left}).ExceptBy({right},value=>value)",
                 QueryBinaryKind.IntersectByIdentity=>$"({left}).IntersectBy({right},value=>value)",
+                QueryBinaryKind.Zip=>$"({left}).Zip({right},(leftValue,rightValue)=>leftValue+rightValue)",
                 _=>throw new InvalidOperationException($"Unsupported binary arguments at {node.NodeId}."),
             };
         }
@@ -319,6 +358,7 @@ public sealed class QuerySourceEmitter{
             QueryBinaryKind.UnionByIdentity=>$"global::System.Linq.Enumerable.UnionBy({left},{right},value=>value)",
             QueryBinaryKind.ExceptByIdentity=>$"global::System.Linq.Enumerable.ExceptBy({left},{right},value=>value)",
             QueryBinaryKind.IntersectByIdentity=>$"global::System.Linq.Enumerable.IntersectBy({left},{right},value=>value)",
+            QueryBinaryKind.Zip=>$"global::System.Linq.Enumerable.Zip({left},{right},(leftValue,rightValue)=>leftValue+rightValue)",
             _=>throw new InvalidOperationException($"Unsupported binary arguments at {node.NodeId}."),
         };
     }

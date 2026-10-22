@@ -889,7 +889,7 @@ public sealed class WorkerHost{
     private static BinaryQueryNode Binaryを変換(BinaryQueryNode Node,SourceTarget 対象){
         var Left=Nodeを変換(Node.Left,対象);
         var Right=Nodeを変換(Node.Right,対象);
-        var Order=Node.Arguments.Kind==QueryBinaryKind.Concat
+        var Order=Node.Arguments.Kind is QueryBinaryKind.Concat or QueryBinaryKind.Zip
             &&Left.OrderSemantics!=QueryOrderSemantics.Unordered
             &&Right.OrderSemantics!=QueryOrderSemantics.Unordered
                 ?QueryOrderSemantics.Ordered
@@ -910,7 +910,9 @@ public sealed class WorkerHost{
         var Input=Nodeを変換(Node.Input,対象);
         var Order=Node.OutputCardinality==QueryCardinality.Scalar
             ?QueryOrderSemantics.TotalOrdered
-            :Input.OrderSemantics;
+            :ExtendedTerminalShape.IsExtended(Node.Arguments.Kind)
+                ?ExtendedTerminalShape.Order(Node.Arguments.Kind,Input.OrderSemantics)
+                :Input.OrderSemantics;
         return Node with{Input=Input,OrderSemantics=Order};
     }
 

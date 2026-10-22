@@ -100,6 +100,84 @@ public sealed class ExtendedOperatorTests{
         }
     }
 
+    public static TheoryData<string,string> 追加した終端演算子=>new(){
+        {QueryOperatorIds.CountWhere,"Count("},
+        {QueryOperatorIds.AnyWhere,"Any("},
+        {QueryOperatorIds.AggregateSum,"Aggregate("},
+        {QueryOperatorIds.AverageSelector,"Average("},
+        {QueryOperatorIds.CountBy,"CountBy("},
+        {QueryOperatorIds.AggregateBy,"AggregateBy("},
+        {QueryOperatorIds.SequenceEqual,"SequenceEqual("},
+    };
+
+    [Theory,Trait("Category","Unit")]
+    [MemberData(nameof(追加した終端演算子))]
+    public void 追加した終端演算子はIR往復と経路の生成ができる(string operatorId,string expectedCall){
+        var generator=new Core.RandomQueryGenerator();
+        var emitter=new Core.QuerySourceEmitter();
+        for(var index=0;index<32;index++){
+            var document=generator.Generate(new RandomQueryGenerationOptions{
+                MasterSeed=Core.Seed256.Parse("0x7E57"),
+                QueryIndex=index,
+                SourceTarget=SourceTarget.SystemArray,
+                OperatorCount=2,
+                MaximumDepth=2,
+                InputElementCount=16,
+                EnableBinaryOperators=false,
+                EnableNestedOperators=false,
+                AllowedOperatorIds=[QueryOperatorIds.Select,operatorId],
+            });
+            var json=QueryIrJson.Serialize(document);
+            var restored=QueryIrJson.Deserialize(json);
+            Assert.Equal(json,QueryIrJson.Serialize(restored));
+            Assert.Equal(operatorId,document.Root.OperatorId);
+            var emitted=emitter.Emit(document);
+            Assert.Contains(expectedCall,emitted.SourceText,StringComparison.Ordinal);
+            Assert.Equal(4,emitted.MethodNames.Count);
+            Assert.False(string.IsNullOrWhiteSpace(Core.QueryExpressionFormatter.Format(document)));
+        }
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void Zipは二つの順序付き入力から生成されIR往復と経路の生成ができる(){
+        var generator=new Core.RandomQueryGenerator();
+        var emitter=new Core.QuerySourceEmitter();
+        for(var index=0;index<16;index++){
+            var document=generator.Generate(new RandomQueryGenerationOptions{
+                MasterSeed=Core.Seed256.Parse("0x21B"),
+                QueryIndex=index,
+                SourceTarget=SourceTarget.SystemArray,
+                OperatorCount=2,
+                MaximumDepth=2,
+                InputElementCount=16,
+                EnableBinaryOperators=true,
+                EnableNestedOperators=false,
+                AllowedOperatorIds=[QueryOperatorIds.Zip,QueryOperatorIds.Count],
+            });
+            var zip=Assert.IsType<BinaryQueryNode>(document.Root.Input);
+            Assert.Equal(QueryBinaryKind.Zip,zip.Arguments.Kind);
+            Assert.Equal(QueryCardinalityRange.Exact(16),zip.Cardinality);
+            Assert.Equal(QueryOrderSemantics.Ordered,zip.OrderSemantics);
+            var json=QueryIrJson.Serialize(document);
+            Assert.Equal(json,QueryIrJson.Serialize(QueryIrJson.Deserialize(json)));
+            var emitted=emitter.Emit(document);
+            Assert.Contains("Zip(",emitted.SourceText,StringComparison.Ordinal);
+            Assert.Equal(4,emitted.MethodNames.Count);
+        }
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void Zipの件数規則と順序なし入力の拒否(){
+        Assert.Equal(new QueryCardinalityRange(2,5),ExtendedBinaryShape.ZipCardinality(new QueryCardinalityRange(2,9),new QueryCardinalityRange(3,5)));
+        Assert.Equal(new QueryCardinalityRange(0,4),ExtendedBinaryShape.ZipCardinality(new QueryCardinalityRange(0,4),new QueryCardinalityRange(1,null)));
+
+        var capability=QueryCapabilityProfiles.Get(SourceTarget.SystemPersisted);
+        Assert.False(capability.SupportsOnCorePaths(QueryOperatorIds.Zip));
+        Assert.False(capability.SupportsOnCorePaths(QueryOperatorIds.SequenceEqual));
+        Assert.True(capability.SupportsOnCorePaths(QueryOperatorIds.CountBy));
+        Assert.True(QueryCapabilityProfiles.Get(SourceTarget.SystemArray).SupportsOnCorePaths(QueryOperatorIds.Zip));
+    }
+
     [Fact,Trait("Category","Unit")]
     public void 追加した単項演算子の件数と順序の規則(){
         var exact=QueryCardinalityRange.Exact(10);

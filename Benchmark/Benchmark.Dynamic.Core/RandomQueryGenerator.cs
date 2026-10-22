@@ -87,7 +87,8 @@ public sealed class RandomQueryGenerator{
                     ||this.allowed.Contains(QueryOperatorIds.Intersect)
                     ||this.allowed.Contains(QueryOperatorIds.UnionByIdentity)
                     ||this.allowed.Contains(QueryOperatorIds.ExceptByIdentity)
-                    ||this.allowed.Contains(QueryOperatorIds.IntersectByIdentity))
+                    ||this.allowed.Contains(QueryOperatorIds.IntersectByIdentity)
+                    ||this.allowed.Contains(QueryOperatorIds.Zip))
                 &&worstUnionCardinality<=options.MaximumCardinality;
             var oneNestedCardinality=QueryCardinalityRange.SaturatingMultiply(
                 options.InputElementCount,
@@ -171,6 +172,15 @@ public sealed class RandomQueryGenerator{
             if(terminalKind==QueryTerminalKind.Contains){
                 value=this.argumentRandom.NextInt32(-32,33);
             }
+            if(terminalKind is QueryTerminalKind.CountWhere or QueryTerminalKind.AnyWhere){
+                predicate=this.CreatePredicate();
+            }
+            if(terminalKind is QueryTerminalKind.CountBy or QueryTerminalKind.AggregateBy){
+                value=this.argumentRandom.NextInt32(2,9);
+            }
+            if(terminalKind==QueryTerminalKind.SequenceEqual){
+                value=this.argumentRandom.NextInt32(0,2);
+            }
             if(terminalKind==QueryTerminalKind.ElementAt){
                 var upper=(int)Math.Min(input.Cardinality.Minimum,32);
                 value=this.argumentRandom.NextInt32(upper);
@@ -180,8 +190,11 @@ public sealed class RandomQueryGenerator{
                 value=this.argumentRandom.NextInt32(upper);
             }
             var shape=QueryIrValidator.GetTerminalShape(terminalKind);
+            var terminalArguments=new TerminalOperatorArguments(terminalKind,predicate,value);
             var cardinality=shape.Cardinality==QueryCardinality.Scalar
                 ?QueryCardinalityRange.Exact(1)
+                :ExtendedTerminalShape.IsExtended(terminalKind)
+                    ?ExtendedTerminalShape.Cardinality(terminalArguments,input.Cardinality)
                 :terminalKind==QueryTerminalKind.ToLookup
                     ?new QueryCardinalityRange(input.Cardinality.Minimum>0?1:0,Math.Min(input.Cardinality.Maximum??4,4))
                     :terminalKind==QueryTerminalKind.ToHashSet
@@ -189,6 +202,8 @@ public sealed class RandomQueryGenerator{
                     :input.Cardinality;
             var order=shape.Cardinality==QueryCardinality.Scalar
                 ?QueryOrderSemantics.TotalOrdered
+                :ExtendedTerminalShape.IsExtended(terminalKind)
+                    ?ExtendedTerminalShape.Order(terminalKind,input.OrderSemantics)
                 :terminalKind==QueryTerminalKind.ToHashSet
                     ?QueryOrderSemantics.Unordered
                     :terminalKind is QueryTerminalKind.ToDictionary or QueryTerminalKind.ToLookup
@@ -256,6 +271,8 @@ public sealed class RandomQueryGenerator{
             var descriptor=this.operatorRandom.Choose(BuiltInOperatorCatalog.Initial
                 .Where(static item=>item.NodeKind==QueryNodeKind.Binary)
                 .Where(item=>this.allowed.Contains(item.OperatorId))
+                .Where(item=>item.OperatorId!=QueryOperatorIds.Zip
+                    ||(left.OrderSemantics!=QueryOrderSemantics.Unordered&&right.OrderSemantics!=QueryOrderSemantics.Unordered))
                 .OrderBy(static item=>item.OperatorId,StringComparer.Ordinal)
                 .ToArray());
             var sum=QueryCardinalityRange.Add(left.Cardinality,right.Cardinality);
@@ -267,9 +284,11 @@ public sealed class RandomQueryGenerator{
                 QueryOperatorIds.UnionByIdentity=>QueryBinaryKind.UnionByIdentity,
                 QueryOperatorIds.ExceptByIdentity=>QueryBinaryKind.ExceptByIdentity,
                 QueryOperatorIds.IntersectByIdentity=>QueryBinaryKind.IntersectByIdentity,
+                QueryOperatorIds.Zip=>QueryBinaryKind.Zip,
                 _=>throw new InvalidOperationException($"Unsupported binary operator: {descriptor.OperatorId}."),
             };
             var cardinality=kind switch{
+                QueryBinaryKind.Zip=>ExtendedBinaryShape.ZipCardinality(left.Cardinality,right.Cardinality),
                 QueryBinaryKind.Concat=>sum,
                 QueryBinaryKind.Union=>new QueryCardinalityRange(0,sum.Maximum),
                 QueryBinaryKind.Except=>new QueryCardinalityRange(0,left.Cardinality.Maximum),
@@ -287,7 +306,7 @@ public sealed class RandomQueryGenerator{
                         :left.Cardinality.Maximum??right.Cardinality.Maximum),
                 _=>throw new InvalidOperationException($"Unsupported binary kind: {kind}."),
             };
-            var order=kind==QueryBinaryKind.Concat
+            var order=kind is QueryBinaryKind.Concat or QueryBinaryKind.Zip
                 &&left.OrderSemantics!=QueryOrderSemantics.Unordered
                 &&right.OrderSemantics!=QueryOrderSemantics.Unordered
                     ?QueryOrderSemantics.Ordered
@@ -598,6 +617,9 @@ public sealed class RandomQueryGenerator{
                 QueryOperatorIds.ToHashSet=>QueryTerminalKind.ToHashSet,
                 QueryOperatorIds.ToDictionary=>QueryTerminalKind.ToDictionary,
                 QueryOperatorIds.ToLookup=>QueryTerminalKind.ToLookup,
+                QueryOperatorIds.CountWhere or QueryOperatorIds.AnyWhere or QueryOperatorIds.AggregateSum
+                    or QueryOperatorIds.AverageSelector or QueryOperatorIds.CountBy or QueryOperatorIds.AggregateBy
+                    or QueryOperatorIds.SequenceEqual=>ExtendedTerminalShape.GetKind(operatorId),
                 _=>throw new InvalidOperationException($"Unsupported terminal operator: {operatorId}."),
             };
         }

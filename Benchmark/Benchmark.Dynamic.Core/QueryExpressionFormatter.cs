@@ -99,6 +99,7 @@ public static class QueryExpressionFormatter{
             QueryBinaryKind.UnionByIdentity=>$"{left}.UnionBy({right},p=>p)",
             QueryBinaryKind.ExceptByIdentity=>$"{left}.ExceptBy({right},p=>p)",
             QueryBinaryKind.IntersectByIdentity=>$"{left}.IntersectBy({right},p=>p)",
+            QueryBinaryKind.Zip=>$"{left}.Zip({right},(p,i)=>p+i)",
             _=>throw new ArgumentOutOfRangeException(nameof(node)),
         };
     }
@@ -142,6 +143,13 @@ public static class QueryExpressionFormatter{
             QueryTerminalKind.ToHashSet=>"ToHashSet()",
             QueryTerminalKind.ToDictionary=>"ToDictionary(p=>p,p=>p).OrderBy(key)",
             QueryTerminalKind.ToLookup=>"ToLookup(p=>p&3,p=>p).OrderBy(key,value)",
+            QueryTerminalKind.CountWhere=>$"Count({FormatPredicate(arguments.Predicate??throw new InvalidOperationException("Count predicate is missing."))})",
+            QueryTerminalKind.AnyWhere=>$"Any({FormatPredicate(arguments.Predicate??throw new InvalidOperationException("Any predicate is missing."))})",
+            QueryTerminalKind.AggregateSum=>"Aggregate(0L,(a,p)=>a+p)",
+            QueryTerminalKind.AverageSelector=>"Average(p=>(long)p)",
+            QueryTerminalKind.CountBy=>$"CountBy(p=>(p%{Integer(arguments.Value??2)}+{Integer(arguments.Value??2)})%{Integer(arguments.Value??2)}).Select(kv=>kv.Key+kv.Value).ToArray()",
+            QueryTerminalKind.AggregateBy=>$"AggregateBy(p=>(p%{Integer(arguments.Value??2)}+{Integer(arguments.Value??2)})%{Integer(arguments.Value??2)},0,(a,p)=>a+p).Select(kv=>kv.Key+kv.Value).ToArray()",
+            QueryTerminalKind.SequenceEqual=>arguments.Value==1?"SequenceEqual(<same chain>)":"SequenceEqual(inner)",
             _=>throw new ArgumentOutOfRangeException(nameof(node)),
         };
     }

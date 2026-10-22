@@ -147,6 +147,13 @@ public static class QueryCapabilityProfiles{
                     verification=CapabilityVerification.RuntimeVerified;
                     limitation="FLinq generated SelectMany captures the inner fixture from an enumerator struct and fails with CS1673.";
                 }
+                if(descriptor.OperatorId is QueryOperatorIds.CountBy or QueryOperatorIds.AggregateBy
+                    &&target.GetSourceKind()==SourceKind.Range
+                    &&path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized){
+                    supported=false;
+                    verification=CapabilityVerification.RuntimeVerified;
+                    limitation="FLinq generated CountBy/AggregateBy over Enumerable.Range references the undeclared locals __rangeStart0/__rangeCount0 and fails with CS0103 (generator defect found by the chain verifier port).";
+                }
                 if(target.GetFamily()==SourceFamily.Seamless
                     &&descriptor.OperatorId==QueryOperatorIds.Contains
                     &&path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized){

@@ -59,6 +59,14 @@ public static class QueryOperatorIds{
     public const string ToHashSet="toHashSet";
     public const string ToDictionary="toDictionary.identity";
     public const string ToLookup="toLookup.modulo";
+    public const string Zip="zip";
+    public const string CountWhere="countWhere";
+    public const string AnyWhere="anyWhere";
+    public const string AggregateSum="aggregate.sum";
+    public const string AverageSelector="average.selector";
+    public const string CountBy="countBy.modulo";
+    public const string AggregateBy="aggregateBy.modulo";
+    public const string SequenceEqual="sequenceEqual";
 }
 
 public sealed record OperatorDescriptor(
@@ -74,7 +82,7 @@ public sealed record OperatorDescriptor(
     bool RequiresUniqueInput=false);
 
 public static class BuiltInOperatorCatalog{
-    public const int OperatorSetVersion=13;
+    public const int OperatorSetVersion=14;
     private static readonly OperatorDescriptor[] DescriptorArray=[
         new(QueryOperatorIds.Where,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,true),
         new(QueryOperatorIds.WhereIndexed,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,true,false),
@@ -105,6 +113,7 @@ public static class BuiltInOperatorCatalog{
         new(QueryOperatorIds.UnionByIdentity,QueryNodeKind.Binary,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
         new(QueryOperatorIds.ExceptByIdentity,QueryNodeKind.Binary,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
         new(QueryOperatorIds.IntersectByIdentity,QueryNodeKind.Binary,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
+        new(QueryOperatorIds.Zip,QueryNodeKind.Binary,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,true,false),
         new(QueryOperatorIds.SelectManyXor,QueryNodeKind.Nested,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,true),
         new(QueryOperatorIds.JoinXor,QueryNodeKind.Nested,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,true),
         new(QueryOperatorIds.GroupJoinXorCount,QueryNodeKind.Nested,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
@@ -133,6 +142,13 @@ public static class BuiltInOperatorCatalog{
         new(QueryOperatorIds.ToHashSet,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
         new(QueryOperatorIds.ToDictionary,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.IntPair,QueryCardinality.Sequence,false,false,false,true),
         new(QueryOperatorIds.ToLookup,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.IntGroup,QueryCardinality.Sequence,false,false,false),
+        new(QueryOperatorIds.CountWhere,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Scalar,false,false,false),
+        new(QueryOperatorIds.AnyWhere,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Bool,QueryCardinality.Scalar,false,false,false),
+        new(QueryOperatorIds.AggregateSum,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Long,QueryCardinality.Scalar,false,false,false),
+        new(QueryOperatorIds.AverageSelector,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Double,QueryCardinality.Scalar,true,false,false),
+        new(QueryOperatorIds.CountBy,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
+        new(QueryOperatorIds.AggregateBy,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
+        new(QueryOperatorIds.SequenceEqual,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Bool,QueryCardinality.Scalar,false,true,false),
     ];
     private static readonly IReadOnlyList<OperatorDescriptor> ReadOnlyDescriptors=Array.AsReadOnly(DescriptorArray);
     private static readonly IReadOnlyDictionary<string,OperatorDescriptor> ById=DescriptorArray.ToDictionary(
