@@ -36,6 +36,9 @@ public readonly struct Quadruple:IComparable<Quadruple>,IComparable,IEquatable<Q
     public static Quadruple MaxValue=>new(0x7FFE_FFFF_FFFF_FFFFUL,ulong.MaxValue);
 
     public ulong HighBits=>this.high;
+
+    /// <summary>実行ごとに変わらない int(ビット列から決める)。GetHashCode は実行ごとに変わるので、再現できるキーが要るときはこちらを使う。</summary>
+    public int StableKey=>unchecked((int)(this.high^(this.high>>32)^this.low^(this.low>>32)));
     public ulong LowBits=>this.low;
 
     private bool Sign=>(this.high&SignMask)!=0;
@@ -313,6 +316,8 @@ public sealed class QuadrupleObject:IComparable<QuadrupleObject>,IComparable,IEq
     }
 
     public Quadruple Value{get;}
+
+    public int StableKey=>this.Value.StableKey;
 
     public static implicit operator QuadrupleObject(int value)=>new(value);
 

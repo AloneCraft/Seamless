@@ -25,6 +25,9 @@ public sealed record RandomQueryGenerationOptions{
     /// </summary>
     public bool ExpectExceptions{get;init;}
 
+    /// <summary>要素型。<see cref="QueryElementType.Int"/> 以外は、配列・List・IEnumerable の Source だけで使える。</summary>
+    public QueryElementType ElementType{get;init;}=QueryElementType.Int;
+
     /// <summary><see cref="ForcedOperatorSequence"/> と一緒に指定する終端演算子。</summary>
     public string? ForcedTerminalOperatorId{get;init;}
 }
@@ -52,6 +55,7 @@ public sealed class RandomQueryGenerator{
             options.MaximumDepth,
             options.SourceTarget,
             root,
+            ElementType:options.ElementType,
             ExpectExceptions:options.ExpectExceptions);
         QueryIrValidator.ValidateAndThrow(document);
         return document;
@@ -73,6 +77,11 @@ public sealed class RandomQueryGenerator{
         if(options.MaximumCardinality<1||options.MaximumCardinality>100_000){
             throw new ArgumentOutOfRangeException(nameof(options.MaximumCardinality));
         }
+        if(!QueryCapabilityProfiles.SupportsElementType(options.SourceTarget,options.ElementType)){
+            throw new ArgumentException(
+                $"{options.ElementType} is not supported on {options.SourceTarget}.",
+                nameof(options));
+        }
         if(options.ForcedOperatorSequence is { }forced){
             if(options.ForcedTerminalOperatorId is null){
                 throw new ArgumentException("ForcedTerminalOperatorId is required with ForcedOperatorSequence.",nameof(options));
@@ -91,6 +100,7 @@ public sealed class RandomQueryGenerator{
         private readonly DeterministicPrng argumentRandom;
         private readonly DeterministicPrng terminalRandom;
         private int nextNodeId;
+        private readonly ElementTypeDescriptor element;
         private readonly IReadOnlyList<string>? forcedSequence;
         private readonly string? forcedTerminal;
         private readonly bool binaryAvailable;
@@ -98,6 +108,7 @@ public sealed class RandomQueryGenerator{
 
         public GenerationContext(RandomQueryGenerationOptions options,Seed256 querySeed){
             this.options=options;
+            this.element=ElementTypeCatalog.Get(options.ElementType);
             this.forcedSequence=options.ForcedOperatorSequence;
             this.forcedTerminal=options.ForcedTerminalOperatorId;
             this.allowed=options.AllowedOperatorIds is not null
@@ -105,6 +116,8 @@ public sealed class RandomQueryGenerator{
                 :options.ForcedOperatorSequence is { }forcedIds
                     ?forcedIds.Append(options.ForcedTerminalOperatorId!).ToHashSet(StringComparer.Ordinal)
                     :QueryCapabilityProfiles.CreateSet(OperatorSetMode.Maximum,[options.SourceTarget]).OperatorIds.ToHashSet(StringComparer.Ordinal);
+            // この要素型で使えない演算子(要素の列を別の型へ変えるもの、int 専用の式を持つもの、比較できない型の順序づけ)を外す。
+            this.allowed.RemoveWhere(id=>!this.element.Supports(id));
             this.shapeRandom=new(SeedDerivation.Derive(querySeed,"shape"));
             this.operatorRandom=new(SeedDerivation.Derive(querySeed,"operator"));
             this.argumentRandom=new(SeedDerivation.Derive(querySeed,"argument"));
@@ -550,7 +563,7 @@ public sealed class RandomQueryGenerator{
                 QueryOperatorIds.Prepend=>new PrependOperatorArguments(this.argumentRandom.NextInt32(-64,65)),
                 QueryOperatorIds.DefaultIfEmpty=>new DefaultIfEmptyOperatorArguments(this.argumentRandom.NextInt32(-64,65)),
                 QueryOperatorIds.OrderByKey=>new OrderByKeyOperatorArguments(
-                    this.argumentRandom.NextInt32(0,9),
+                    this.argumentRandom.NextInt32(this.element.IsComparable?0:2,9),
                     this.argumentRandom.NextInt32(0,2)==1),
                 QueryOperatorIds.GroupBySum=>new GroupByAggregateOperatorArguments(GroupByAggregateKind.Sum,this.argumentRandom.NextInt32(2,9)),
                 QueryOperatorIds.GroupByCount=>new GroupByAggregateOperatorArguments(GroupByAggregateKind.Count,this.argumentRandom.NextInt32(2,9)),

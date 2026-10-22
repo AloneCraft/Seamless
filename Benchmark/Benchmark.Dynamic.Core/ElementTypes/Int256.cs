@@ -27,6 +27,9 @@ public readonly struct Int256:IComparable<Int256>,IComparable,IEquatable<Int256>
     public bool IsEven=>(this.limb0&1)==0;
     public bool IsNegative=>(long)this.limb3<0;
 
+    /// <summary>実行ごとに変わらない int(下位32ビット)。GetHashCode は実行ごとに変わるので、再現できるキーが要るときはこちらを使う。</summary>
+    public int StableKey=>unchecked((int)this.limb0);
+
     public static implicit operator Int256(int value)=>FromInt64(value);
     public static implicit operator Int256(long value)=>FromInt64(value);
 
@@ -160,6 +163,8 @@ public sealed class Int256Object:IComparable<Int256Object>,IComparable,IEquatabl
     public Int256 Value{get;}
 
     public bool IsEven=>this.Value.IsEven;
+
+    public int StableKey=>this.Value.StableKey;
 
     public static implicit operator Int256Object(int value)=>new(value);
 

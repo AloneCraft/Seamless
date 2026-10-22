@@ -108,7 +108,7 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                 goto 完了;
             }
             var FixtureSeed=要求.FixtureSeedOverride??SeedDerivation.Derive(要求.BaseSeed,"fixture",QueryIndex);
-            Fixture=this.Fixture生成.Create(対象,要求.InputElementCount,FixtureSeed);
+            Fixture=this.Fixture生成.Create(対象,要求.InputElementCount,FixtureSeed,Query.ElementType);
             var 検証=検証する(Loaded,Fixture.Primary,Fixture.Secondary,キャンセルToken);
             var 結果一覧=検証.Results;
             var 例外一覧=検証.Exceptions;
@@ -580,7 +580,7 @@ public sealed class WorkerHost{
                 WorkerMessageTypes.RunStarted,
                 new WorkerRunStartedEvent(要求.RunId,DateTimeOffset.UtcNow,Total),
                 CancellationToken.None).ConfigureAwait(false);
-            var Capability=QueryCapabilityProfiles.CreateSet(要求.OperatorSetMode,要求.SourceTargets);
+            var Capability=QueryCapabilityProfiles.CreateSet(要求.OperatorSetMode,要求.SourceTargets,要求.ElementType);
             var Generator=new RandomQueryGenerator();
             var 全組み合わせ=要求.GenerationMode==QueryGenerationMode.Exhaustive
                 ?new ExhaustiveQueryProvider(要求,Capability)
@@ -616,6 +616,7 @@ public sealed class WorkerHost{
                             EnableNestedOperators=true,
                             AllowedOperatorIds=Capability.OperatorIds,
                             ExpectExceptions=要求.ExpectExceptions,
+                            ElementType=要求.ElementType,
                         });
                     保存IRJSON=QueryIrJson.Serialize(Template);
                 }else{
@@ -813,6 +814,11 @@ public sealed class WorkerHost{
         if(要求.QueryIndexOffset<0){
             throw new ArgumentOutOfRangeException(nameof(要求.QueryIndexOffset));
         }
+        foreach(var 対象 in 要求.SourceTargets){
+            if(!QueryCapabilityProfiles.SupportsElementType(対象,要求.ElementType)){
+                throw new ArgumentException($"{要求.ElementType} is not supported on {対象}.",nameof(要求));
+            }
+        }
         if(要求.GenerationMode==QueryGenerationMode.Exhaustive){
             if(要求.ExhaustiveIntermediateCount<1
                 ||要求.OperatorCount!=要求.ExhaustiveIntermediateCount+1
@@ -838,7 +844,7 @@ public sealed class WorkerHost{
                     "ReplayQueries must contain exactly one entry for every zero-based QueryIndex.",
                     nameof(要求.ReplayQueries));
             }
-            var 許可演算子=QueryCapabilityProfiles.CreateSet(要求.OperatorSetMode,要求.SourceTargets)
+            var 許可演算子=QueryCapabilityProfiles.CreateSet(要求.OperatorSetMode,要求.SourceTargets,要求.ElementType)
                 .OperatorIds.ToHashSet(StringComparer.Ordinal);
             foreach(var Replay in 要求.ReplayQueries){
                 ArgumentException.ThrowIfNullOrWhiteSpace(Replay.IrJson);

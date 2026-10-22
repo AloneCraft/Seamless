@@ -72,7 +72,8 @@ public static class ExhaustiveQueryEnumerator{
         SourceTarget target,
         int inputElementCount,
         out QueryIrDocument? document,
-        bool expectExceptions=false){
+        bool expectExceptions=false,
+        QueryElementType elementType=QueryElementType.Int){
         try{
             document=new RandomQueryGenerator().Generate(new RandomQueryGenerationOptions{
                 MasterSeed=masterSeed,
@@ -87,6 +88,7 @@ public static class ExhaustiveQueryEnumerator{
                 ForcedOperatorSequence=spec.Operators,
                 ForcedTerminalOperatorId=spec.Terminal,
                 ExpectExceptions=expectExceptions,
+                ElementType=elementType,
             });
             return true;
         }catch(ForcedOperatorNotApplicableException){

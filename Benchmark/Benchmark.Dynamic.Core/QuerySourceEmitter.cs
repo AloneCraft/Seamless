@@ -115,7 +115,7 @@ public sealed class QuerySourceEmitter{
             .Append(this.EmitTerminal(document.Root,element,path))
             .AppendLine(";");
         builder.Append("        return ")
-            .Append(EmitMaterialization(document.Root))
+            .Append(EmitMaterialization(document.Root,element))
             .AppendLine(";");
         builder.AppendLine("    }");
         builder.AppendLine();
@@ -129,8 +129,8 @@ public sealed class QuerySourceEmitter{
                 QueryTerminalKind.LongCount=>$"({input}).LongCount()",
                 QueryTerminalKind.Any=>$"({input}).Any()",
                 QueryTerminalKind.All=>$"({input}).All({element.EmitPredicate(node.Arguments.Predicate!)})",
-                QueryTerminalKind.Contains=>$"({input}).Contains({node.Arguments.Value!.Value})",
-                QueryTerminalKind.Sum=>$"({input}).Sum(static value=>(long)value)",
+                QueryTerminalKind.Contains=>$"({input}).Contains({element.Literal(node.Arguments.Value!.Value)})",
+                QueryTerminalKind.Sum=>$"({input}).Sum(static value=>{element.LongSelector("value")})",
                 QueryTerminalKind.Min=>$"({input}).Min()",
                 QueryTerminalKind.Max=>$"({input}).Max()",
                 QueryTerminalKind.MinBy=>$"({input}).MinBy(static value=>value)",
@@ -152,10 +152,10 @@ public sealed class QuerySourceEmitter{
                 QueryTerminalKind.ToLookup=>$"global::Benchmark.Dynamic.Core.DynamicQueryMaterializer.CreateCanonicalLookupGroups(({input}).ToLookup(static value=>value&3,static value=>value))",
                 QueryTerminalKind.CountWhere=>$"({input}).Count({element.EmitPredicate(node.Arguments.Predicate!)})",
                 QueryTerminalKind.AnyWhere=>$"({input}).Any({element.EmitPredicate(node.Arguments.Predicate!)})",
-                QueryTerminalKind.AggregateSum=>$"({input}).Aggregate(0L,(accumulator,value)=>accumulator+value)",
-                QueryTerminalKind.AverageSelector=>$"({input}).Average(static value=>(long)value)",
-                QueryTerminalKind.CountBy=>$"({input}).CountBy({EmitModuloKey(node.Arguments.Value!.Value)}).Select(pair=>pair.Key+pair.Value).ToArray()",
-                QueryTerminalKind.AggregateBy=>$"({input}).AggregateBy({EmitModuloKey(node.Arguments.Value!.Value)},0,(accumulator,value)=>accumulator+value).Select(pair=>pair.Key+pair.Value).ToArray()",
+                QueryTerminalKind.AggregateSum=>$"({input}).Aggregate(0L,(accumulator,value)=>accumulator+{element.LongAddend("value")})",
+                QueryTerminalKind.AverageSelector=>$"({input}).Average(static value=>{element.LongSelector("value")})",
+                QueryTerminalKind.CountBy=>$"({input}).CountBy({EmitModuloKey(element,node.Arguments.Value!.Value)}).Select(pair=>pair.Key+pair.Value).ToArray()",
+                QueryTerminalKind.AggregateBy=>$"({input}).AggregateBy({EmitModuloKey(element,node.Arguments.Value!.Value)},0,(accumulator,value)=>accumulator+{element.IntAddend("value")}).Select(pair=>pair.Key+pair.Value).ToArray()",
                 QueryTerminalKind.SequenceEqual=>$"({input}).SequenceEqual({this.EmitSequenceEqualOther(node,input,path)})",
                 _=>throw new ArgumentOutOfRangeException(nameof(node)),
             };
@@ -165,8 +165,8 @@ public sealed class QuerySourceEmitter{
             QueryTerminalKind.LongCount=>$"global::System.Linq.Enumerable.LongCount({input})",
             QueryTerminalKind.Any=>$"global::System.Linq.Enumerable.Any({input})",
             QueryTerminalKind.All=>$"global::System.Linq.Enumerable.All({input},{element.EmitPredicate(node.Arguments.Predicate!)})",
-            QueryTerminalKind.Contains=>$"global::System.Linq.Enumerable.Contains({input},{node.Arguments.Value!.Value})",
-            QueryTerminalKind.Sum=>$"global::System.Linq.Enumerable.Sum({input},static value=>(long)value)",
+            QueryTerminalKind.Contains=>$"global::System.Linq.Enumerable.Contains({input},{element.Literal(node.Arguments.Value!.Value)})",
+            QueryTerminalKind.Sum=>$"global::System.Linq.Enumerable.Sum({input},static value=>{element.LongSelector("value")})",
             QueryTerminalKind.Min=>$"global::System.Linq.Enumerable.Min({input})",
             QueryTerminalKind.Max=>$"global::System.Linq.Enumerable.Max({input})",
             QueryTerminalKind.MinBy=>$"global::System.Linq.Enumerable.MinBy({input},static value=>value)",
@@ -188,10 +188,10 @@ public sealed class QuerySourceEmitter{
             QueryTerminalKind.ToLookup=>$"global::Benchmark.Dynamic.Core.DynamicQueryMaterializer.CreateCanonicalLookupGroups(global::System.Linq.Enumerable.ToLookup({input},static value=>value&3,static value=>value))",
             QueryTerminalKind.CountWhere=>$"global::System.Linq.Enumerable.Count({input},{element.EmitPredicate(node.Arguments.Predicate!)})",
             QueryTerminalKind.AnyWhere=>$"global::System.Linq.Enumerable.Any({input},{element.EmitPredicate(node.Arguments.Predicate!)})",
-            QueryTerminalKind.AggregateSum=>$"global::System.Linq.Enumerable.Aggregate({input},0L,(accumulator,value)=>accumulator+value)",
-            QueryTerminalKind.AverageSelector=>$"global::System.Linq.Enumerable.Average({input},static value=>(long)value)",
-            QueryTerminalKind.CountBy=>$"global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Select(global::System.Linq.Enumerable.CountBy({input},{EmitModuloKey(node.Arguments.Value!.Value)}),pair=>pair.Key+pair.Value))",
-            QueryTerminalKind.AggregateBy=>$"global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Select(global::System.Linq.Enumerable.AggregateBy({input},{EmitModuloKey(node.Arguments.Value!.Value)},0,(accumulator,value)=>accumulator+value),pair=>pair.Key+pair.Value))",
+            QueryTerminalKind.AggregateSum=>$"global::System.Linq.Enumerable.Aggregate({input},0L,(accumulator,value)=>accumulator+{element.LongAddend("value")})",
+            QueryTerminalKind.AverageSelector=>$"global::System.Linq.Enumerable.Average({input},static value=>{element.LongSelector("value")})",
+            QueryTerminalKind.CountBy=>$"global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Select(global::System.Linq.Enumerable.CountBy({input},{EmitModuloKey(element,node.Arguments.Value!.Value)}),pair=>pair.Key+pair.Value))",
+            QueryTerminalKind.AggregateBy=>$"global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Select(global::System.Linq.Enumerable.AggregateBy({input},{EmitModuloKey(element,node.Arguments.Value!.Value)},0,(accumulator,value)=>accumulator+{element.IntAddend("value")}),pair=>pair.Key+pair.Value))",
             QueryTerminalKind.SequenceEqual=>$"global::System.Linq.Enumerable.SequenceEqual({input},{this.EmitSequenceEqualOther(node,input,path)})",
             _=>throw new ArgumentOutOfRangeException(nameof(node)),
         };
@@ -216,7 +216,7 @@ public sealed class QuerySourceEmitter{
                 SelectOperatorArguments select=>$"({input}).Select({element.EmitSelector(select.Selector)})",
                 SelectIndexedOperatorArguments=>$"({input}).Select((value,index)=>value^index)",
                 DistinctOperatorArguments=>$"({input}).Distinct()",
-                DistinctByOperatorArguments distinctBy=>$"({input}).DistinctBy(value=>(value%{distinctBy.Modulus}+{distinctBy.Modulus})%{distinctBy.Modulus})",
+                DistinctByOperatorArguments distinctBy=>$"({input}).DistinctBy(value=>{element.KeyExpression("value",distinctBy.Modulus)})",
                 TakeOperatorArguments take=>$"({input}).Take({take.Count})",
                 SkipOperatorArguments skip=>$"({input}).Skip({skip.Count})",
                 ReverseOperatorArguments=>$"({input}).Reverse()",
@@ -234,7 +234,7 @@ public sealed class QuerySourceEmitter{
             SelectOperatorArguments select=>$"global::System.Linq.Enumerable.Select({input},{element.EmitSelector(select.Selector)})",
             SelectIndexedOperatorArguments=>$"global::System.Linq.Enumerable.Select({input},(value,index)=>value^index)",
             DistinctOperatorArguments=>$"global::System.Linq.Enumerable.Distinct({input})",
-            DistinctByOperatorArguments distinctBy=>$"global::System.Linq.Enumerable.DistinctBy({input},value=>(value%{distinctBy.Modulus}+{distinctBy.Modulus})%{distinctBy.Modulus})",
+            DistinctByOperatorArguments distinctBy=>$"global::System.Linq.Enumerable.DistinctBy({input},value=>{element.KeyExpression("value",distinctBy.Modulus)})",
             TakeOperatorArguments take=>$"global::System.Linq.Enumerable.Take({input},{take.Count})",
             SkipOperatorArguments skip=>$"global::System.Linq.Enumerable.Skip({input},{skip.Count})",
             ReverseOperatorArguments=>$"global::System.Linq.Enumerable.Reverse({input})",
@@ -270,8 +270,8 @@ public sealed class QuerySourceEmitter{
         return FindSourceTarget(node.Children[0]);
     }
 
-    private static string EmitModuloKey(int modulus){
-        return modulus==0?"value=>value":$"value=>(value%{modulus}+{modulus})%{modulus}";
+    private static string EmitModuloKey(ElementTypeDescriptor element,int modulus){
+        return modulus==0?"value=>value":$"value=>{element.KeyExpression("value",modulus)}";
     }
 
     // System.Linq は System.Linq.Enumerable を完全修飾の静的呼び出しで書く。
@@ -298,15 +298,15 @@ public sealed class QuerySourceEmitter{
             case SkipWhileOperatorArguments skipWhile:
                 return Call("SkipWhile",element.EmitPredicate(skipWhile.Predicate));
             case AppendOperatorArguments append:
-                return Call("Append",$"({append.Value})");
+                return Call("Append",$"({element.Literal(append.Value)})");
             case PrependOperatorArguments prepend:
-                return Call("Prepend",$"({prepend.Value})");
+                return Call("Prepend",$"({element.Literal(prepend.Value)})");
             case DefaultIfEmptyOperatorArguments defaultIfEmpty:
-                return Call("DefaultIfEmpty",$"({defaultIfEmpty.Value})");
+                return Call("DefaultIfEmpty",$"({element.Literal(defaultIfEmpty.Value)})");
             case OrderByKeyOperatorArguments orderBy:
-                return Call(orderBy.Descending?"OrderByDescending":"OrderBy",EmitModuloKey(orderBy.Modulus));
+                return Call(orderBy.Descending?"OrderByDescending":"OrderBy",EmitModuloKey(element,orderBy.Modulus));
             case GroupByAggregateOperatorArguments group:{
-                var key=EmitModuloKey(group.Modulus);
+                var key=EmitModuloKey(element,group.Modulus);
                 if(system){
                     var grouped=$"global::System.Linq.Enumerable.GroupBy({input},{key})";
                     return group.Kind switch{
@@ -338,7 +338,7 @@ public sealed class QuerySourceEmitter{
                 QueryBinaryKind.UnionByIdentity=>$"({left}).UnionBy(({right}).ToArray(),value=>value)",
                 QueryBinaryKind.ExceptByIdentity=>$"({left}).ExceptBy(({right}).ToArray(),value=>value)",
                 QueryBinaryKind.IntersectByIdentity=>$"({left}).IntersectBy(({right}).ToArray(),value=>value)",
-                QueryBinaryKind.Zip=>$"({left}).Zip(({right}).ToArray(),(leftValue,rightValue)=>leftValue+rightValue)",
+                QueryBinaryKind.Zip=>$"({left}).Zip(({right}).ToArray(),(leftValue,rightValue)=>{element.Combine("leftValue","rightValue")})",
                 _=>throw new InvalidOperationException($"Unsupported binary arguments at {node.NodeId}."),
             };
         }
@@ -351,7 +351,7 @@ public sealed class QuerySourceEmitter{
                 QueryBinaryKind.UnionByIdentity=>$"({left}).UnionBy({right},value=>value)",
                 QueryBinaryKind.ExceptByIdentity=>$"({left}).ExceptBy({right},value=>value)",
                 QueryBinaryKind.IntersectByIdentity=>$"({left}).IntersectBy({right},value=>value)",
-                QueryBinaryKind.Zip=>$"({left}).Zip({right},(leftValue,rightValue)=>leftValue+rightValue)",
+                QueryBinaryKind.Zip=>$"({left}).Zip({right},(leftValue,rightValue)=>{element.Combine("leftValue","rightValue")})",
                 _=>throw new InvalidOperationException($"Unsupported binary arguments at {node.NodeId}."),
             };
         }
@@ -363,7 +363,7 @@ public sealed class QuerySourceEmitter{
             QueryBinaryKind.UnionByIdentity=>$"global::System.Linq.Enumerable.UnionBy({left},{right},value=>value)",
             QueryBinaryKind.ExceptByIdentity=>$"global::System.Linq.Enumerable.ExceptBy({left},{right},value=>value)",
             QueryBinaryKind.IntersectByIdentity=>$"global::System.Linq.Enumerable.IntersectBy({left},{right},value=>value)",
-            QueryBinaryKind.Zip=>$"global::System.Linq.Enumerable.Zip({left},{right},(leftValue,rightValue)=>leftValue+rightValue)",
+            QueryBinaryKind.Zip=>$"global::System.Linq.Enumerable.Zip({left},{right},(leftValue,rightValue)=>{element.Combine("leftValue","rightValue")})",
             _=>throw new InvalidOperationException($"Unsupported binary arguments at {node.NodeId}."),
         };
     }
@@ -385,12 +385,12 @@ public sealed class QuerySourceEmitter{
         }
         if(node.Arguments.Kind==QueryNestedKind.JoinXor){
             if(path==ExecutionPath.ZLinq){
-                return $"({outer}).Join(({inner}).ToArray(),outerValue=>outerValue,innerValue=>innerValue,(outerValue,innerValue)=>outerValue^innerValue)";
+                return $"({outer}).Join(({inner}).ToArray(),outerValue=>outerValue,innerValue=>innerValue,(outerValue,innerValue)=>{element.JoinResult("outerValue","innerValue")})";
             }
             if(path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized){
-                return $"({outer}).Join({inner},outerValue=>outerValue,innerValue=>innerValue,(outerValue,innerValue)=>outerValue^innerValue)";
+                return $"({outer}).Join({inner},outerValue=>outerValue,innerValue=>innerValue,(outerValue,innerValue)=>{element.JoinResult("outerValue","innerValue")})";
             }
-            return $"global::System.Linq.Enumerable.Join({outer},{inner},outerValue=>outerValue,innerValue=>innerValue,(outerValue,innerValue)=>outerValue^innerValue)";
+            return $"global::System.Linq.Enumerable.Join({outer},{inner},outerValue=>outerValue,innerValue=>innerValue,(outerValue,innerValue)=>{element.JoinResult("outerValue","innerValue")})";
         }
         if(node.Arguments.Kind==QueryNestedKind.SelectManyXor){
             if(path==ExecutionPath.ZLinq){
@@ -432,7 +432,21 @@ public sealed class QuerySourceEmitter{
         return $"({type}){parameter}!";
     }
 
-    private static string EmitMaterialization(TerminalQueryNode root){
+    // 要素そのものを返す終端(int 以外の要素型のとき、結果は要素の正規形で持つ)。
+    private static bool ReturnsElements(QueryTerminalKind kind){
+        return kind is QueryTerminalKind.ToArray or QueryTerminalKind.ToList or QueryTerminalKind.ToHashSet
+            or QueryTerminalKind.Min or QueryTerminalKind.Max or QueryTerminalKind.MinBy or QueryTerminalKind.MaxBy
+            or QueryTerminalKind.First or QueryTerminalKind.FirstOrDefault
+            or QueryTerminalKind.Last or QueryTerminalKind.LastOrDefault
+            or QueryTerminalKind.ElementAt or QueryTerminalKind.ElementAtOrDefault;
+    }
+
+    private static string EmitMaterialization(TerminalQueryNode root,ElementTypeDescriptor element){
+        if(!element.IsInt&&ReturnsElements(root.Arguments.Kind)){
+            return root.OutputCardinality==QueryCardinality.Sequence
+                ?$"global::Benchmark.Dynamic.Core.DynamicQueryValue.FromElements(result,global::Benchmark.Dynamic.Core.QueryOrderSemantics.{root.OrderSemantics})"
+                :"global::Benchmark.Dynamic.Core.DynamicQueryValue.ElementScalar(result)";
+        }
         if(root.OutputCardinality==QueryCardinality.Sequence){
             return $"global::Benchmark.Dynamic.Core.DynamicQueryValue.FromObject(result,global::Benchmark.Dynamic.Core.QueryValueType.{root.OutputType},global::Benchmark.Dynamic.Core.QueryCardinality.Sequence,global::Benchmark.Dynamic.Core.QueryOrderSemantics.{root.OrderSemantics})";
         }

@@ -199,7 +199,8 @@ public sealed record WorkerRunRequest(
     QueryGenerationMode GenerationMode=QueryGenerationMode.Random,
     int ExhaustiveIntermediateCount=0,
     IReadOnlyList<string>? ExhaustiveTerminalIds=null,
-    bool ExpectExceptions=false);
+    bool ExpectExceptions=false,
+    QueryElementType ElementType=QueryElementType.Int);
 
 public enum WorkerExecutionStatus{
     NotStarted,

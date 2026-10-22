@@ -98,6 +98,46 @@ public static class QueryCapabilityProfiles{
 
     public static QueryCapabilityProfile Get(SourceTarget sourceTarget)=>Defaults[sourceTarget];
 
+    /// <summary>
+    /// その Source でその要素型を使えるか。int 以外の要素型は、配列・List・IEnumerable だけ。
+    /// Range は int だけ、永続系(Persisted・Tsavorite)は int 以外の保存を確かめていないので対象外。
+    /// </summary>
+    public static bool SupportsElementType(SourceTarget sourceTarget,QueryElementType elementType){
+        return elementType==QueryElementType.Int
+            ||sourceTarget.GetSourceKind() is SourceKind.Array or SourceKind.IEnumerable or SourceKind.List;
+    }
+
+    /// <summary>要素型ごとの演算子集合。<c>Int</c> は従来と同じ集合・同じ識別子。</summary>
+    public static QueryCapabilitySet CreateSet(OperatorSetMode mode,IEnumerable<SourceTarget> sourceTargets,QueryElementType elementType){
+        var baseSet=CreateSet(mode,sourceTargets);
+        if(elementType==QueryElementType.Int){
+            return baseSet;
+        }
+        foreach(var target in baseSet.SourceTargets){
+            if(!SupportsElementType(target,elementType)){
+                throw new ArgumentException($"{elementType} is not supported on {target}.",nameof(sourceTargets));
+            }
+        }
+        var descriptor=ElementTypeCatalog.Get(elementType);
+        var operatorIds=baseSet.OperatorIds.Where(descriptor.Supports).ToArray();
+        var payload=new{
+            profileVersion=QueryCapabilityProfile.CurrentProfileVersion,
+            operatorSetVersion=BuiltInOperatorCatalog.OperatorSetVersion,
+            mode,
+            sourceTargets=baseSet.SourceTargets,
+            operatorIds,
+            elementType,
+        };
+        var json=JsonSerializer.Serialize(payload,new JsonSerializerOptions{
+            PropertyNamingPolicy=JsonNamingPolicy.CamelCase,
+            Converters={new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)},
+        });
+        return baseSet with{
+            OperatorIds=operatorIds,
+            CapabilityId=Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(json))),
+        };
+    }
+
     public static IReadOnlyList<QueryCapabilityProfile> GetAll(){
         return Enum.GetValues<SourceTarget>().Select(Get).ToArray();
     }
