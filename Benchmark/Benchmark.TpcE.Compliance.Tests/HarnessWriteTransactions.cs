@@ -100,6 +100,105 @@ public sealed class HarnessWriteTransactions(EGenEngineFixture fixture):IClassFi
             }
         }
     }
+    [Fact,Trait("Category","Integration")]public void TradeOrder(){
+        {
+            //成行買い・指値買い・成行売り(保有の取り崩し)・会社名での銘柄検索・巻き戻し・権限なし。
+            //取引 ID と時刻を揃えて、既存の実装とハーネス経由で流し、全表一致・出力一致・市場へ送る注文が正しいこと
+            if(!fixture.Available){
+                return;
+            }
+            var db=fixture.Engine!.Database;
+            var holding=db.HoldingSummary.EnumerateRows().Where(static row=>row.Quantity>0).OrderBy(static row=>row.AccountId).ThenBy(static row=>row.Symbol).First();
+            var holdingAccount=db.CustomerAccount.Get(new CustomerAccountKey(holding.AccountId));
+            var holdingCustomer=db.Customer.Get(new CustomerKey(holdingAccount.CustomerId));
+            var buyer=db.CustomerAccount.EnumerateRows().OrderBy(static row=>row.Id).Skip(10).First();
+            var buyerCustomer=db.Customer.Get(new CustomerKey(buyer.CustomerId));
+            var security=db.Security.EnumerateRows().OrderBy(static row=>row.Symbol).Skip(2).First();
+            var company=db.Company.Get(new CompanyKey(security.CompanyId));
+            var stranger=db.Customer.EnumerateRows().OrderBy(static row=>row.Id).Last();
+            TradeOrderInput Order(CustomerAccountRow account,CustomerRow executor,string type,Code16 symbol,string companyName,Code8 issue,int quantity,decimal price,bool rollBack,long tradeId){
+                return new TradeOrderInput{
+                    AccountId=account.Id,
+                    ExecFirstName=executor.FirstName,
+                    ExecLastName=executor.LastName,
+                    ExecTaxId=executor.TaxId,
+                    CompanyName=companyName,
+                    Issue=issue,
+                    Symbol=symbol,
+                    RequestedPrice=price,
+                    TradeQuantity=quantity,
+                    TradeTypeId=Code8.From(type),
+                    IsLifo=true,
+                    RollItBack=rollBack,
+                    TradeId=tradeId,
+                };
+            }
+            var cases=new[]{
+                Order(buyer,buyerCustomer,"TMB",security.Symbol,"",default,100,0m,false,950_000_000_000_001),
+                Order(buyer,buyerCustomer,"TLB",security.Symbol,"",default,200,31.25m,false,950_000_000_000_002),
+                Order(holdingAccount,holdingCustomer,"TMS",holding.Symbol,"",default,(int)holding.Quantity,0m,false,950_000_000_000_003),
+                Order(buyer,buyerCustomer,"TMB",default,company.Name,security.Issue,50,0m,false,950_000_000_000_004),
+                Order(buyer,buyerCustomer,"TMB",security.Symbol,"",default,10,0m,true,950_000_000_000_005),
+                Order(buyer,stranger,"TMB",security.Symbol,"",default,10,0m,false,950_000_000_000_006),
+            };
+            var now=Start+20;
+            foreach(var template in cases){
+                var request=template with{Now=now};
+                var expected=(TradeOrderOutput)fixture.Engine!.Execute(request);
+                var input=new byte[Compliance.HarnessHost.SizeOf("TradeOrderTxnInput")];
+                var output=new byte[Compliance.HarnessHost.SizeOf("TradeOrderTxnOutput")];
+                var wrapper=new TradeOrderTxnInput(input);
+                wrapper.AcctId=request.AccountId;
+                wrapper.ExecFName=request.ExecFirstName;
+                wrapper.ExecLName=request.ExecLastName;
+                wrapper.ExecTaxId=request.ExecTaxId.ToString();
+                wrapper.CoName=request.CompanyName;
+                wrapper.Issue=request.Issue.ToString();
+                wrapper.Symbol=request.Symbol.ToString();
+                wrapper.RequestedPrice=(double)request.RequestedPrice;
+                wrapper.TradeQty=request.TradeQuantity;
+                wrapper.TradeTypeId=request.TradeTypeId.ToString();
+                wrapper.TypeIsMargin=Convert.ToInt32(request.TypeIsMargin);
+                wrapper.IsLifo=Convert.ToInt32(request.IsLifo);
+                wrapper.RollItBack=Convert.ToInt32(request.RollItBack);
+                wrapper.StPendingId="PNDG";
+                wrapper.StSubmittedId="SBMT";
+                UseClock(fixture.Twin!,now);
+                ((IHarnessFrameEngine)fixture.Twin!).NextTradeId=request.TradeId;
+                var market=new MarketCollector();
+                var status=fixture.Host!.Run(HarnessTransaction.TradeOrder,(IHarnessFrameEngine)fixture.Twin!,market,input,output);
+                var result=new TradeOrderTxnOutput(output);
+                var label=$"{request.TradeTypeId} {request.AccountId} roll={request.RollItBack}";
+                // 意図的な巻き戻しの status は、EGen が EXPECTED_ROLLBACK = 1(警告の符号)と定めている(既存の実装は 0)。
+                var expectedStatus=expected.Status;
+                if(expected.RolledBack){
+                    expectedStatus=1;
+                }
+                Assert.True(expectedStatus==status,$"{label}: status expected {expectedStatus} but was {status}");
+                if(expected.Status==0){
+                    Assert.Equal(request.TradeId,result.TradeId);
+                    Assert.Equal((double)expected.BuyValue,result.BuyValue);
+                    Assert.Equal((double)expected.SellValue,result.SellValue);
+                    Assert.Equal((double)expected.TaxAmount,result.TaxAmount);
+                }
+                AssertSameState(fixture.Engine!,fixture.Twin!);
+                // 市場(MEE)へ送る注文: 確定した注文だけ。成行は処理(0)、指値は発動条件の登録(1)。
+                if(expected.Status==0&&!expected.RolledBack){
+                    Assert.Single(market.Requests);
+                    var sent=new TradeRequest(market.Requests[0]);
+                    Assert.Equal(request.TradeId,sent.TradeId);
+                    var action=1;
+                    if(expected.IsMarket){
+                        action=0;
+                    }
+                    Assert.Equal(action,sent.EAction);
+                }else{
+                    Assert.Empty(market.Requests);
+                }
+                now++;
+            }
+        }
+    }
     [Fact,Trait("Category","Integration")]public void TradeUpdate(){
         {
             //frame_to_execute 1〜3 のそれぞれ。書き込み(実行者名・現金取引の名前・取引種別名)の後で、2 つのエンジンの全表が一致すること

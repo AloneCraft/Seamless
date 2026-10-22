@@ -11,6 +11,8 @@ internal sealed partial class TpcEEngine:IHarnessFrameEngine{
     private readonly TradeLookupHarness tradeLookupHarness=new();
     private readonly TradeUpdateHarness tradeUpdateHarness=new();
     private readonly CustomerPositionHarness customerPositionHarness=new();
+    private readonly TradeOrderHarness tradeOrderHarness=new();
+    private long nextTradeId;
     private long lastNow;
     public Func<long>? Clock{get;set;}
     public void ExecuteFrame(HarnessFrame frame,Span<byte> input,Span<byte> output,IMarketSink market){
@@ -97,6 +99,28 @@ internal sealed partial class TpcEEngine:IHarnessFrameEngine{
             case HarnessFrame.CustomerPosition3:
                 this.CommitTransaction();
                 break;
+            case HarnessFrame.TradeOrder1:
+                this.BeginTransaction();
+                this.tradeOrderHarness.Frame1(this.db,new TradeOrderFrame1Input(input),new TradeOrderFrame1Output(output));
+                break;
+            case HarnessFrame.TradeOrder2:
+                this.tradeOrderHarness.Frame2(this.db,new TradeOrderFrame2Input(input),new TradeOrderFrame2Output(output));
+                break;
+            case HarnessFrame.TradeOrder3:
+                this.tradeOrderHarness.Frame3(this.db,new TradeOrderFrame3Input(input),new TradeOrderFrame3Output(output));
+                break;
+            case HarnessFrame.TradeOrder4:
+                this.tradeOrderHarness.Frame4(this.db,new TradeOrderFrame4Input(input),new TradeOrderFrame4Output(output),this.AllocateTradeId(),this.NextNow());
+                break;
+            case HarnessFrame.TradeOrder5:
+                // 意図的な巻き戻し、または権限が無いとき。採番は戻さない。
+                if(this.db.Log.IsRecording){
+                    this.db.Log.Rollback();
+                }
+                break;
+            case HarnessFrame.TradeOrder6:
+                this.CommitTransaction();
+                break;
             default:
                 throw new NotImplementedException($"Harness frame {frame} is not implemented yet.");
         }
@@ -116,6 +140,27 @@ internal sealed partial class TpcEEngine:IHarnessFrameEngine{
         if(this.db.Log.IsRecording){
             this.db.Log.Commit();
         }
+    }
+    public long NextTradeId{
+        get{
+            if(this.nextTradeId==0){
+                // まだ採番していなければ、DB にある最大の取引 ID の次から始める。
+                long maximum=0;
+                foreach(var row in this.db.Trade.EnumerateRows()){
+                    if(row.Id>maximum){
+                        maximum=row.Id;
+                    }
+                }
+                this.nextTradeId=maximum+1;
+            }
+            return this.nextTradeId;
+        }
+        set=>this.nextTradeId=value;
+    }
+    private long AllocateTradeId(){
+        var id=this.NextTradeId;
+        this.nextTradeId=id+1;
+        return id;
     }
     /// <summary>取引の時刻。実時計を使うが、単調に増える(同じ時刻の取引を作らない)。</summary>
     private long NextNow(){
