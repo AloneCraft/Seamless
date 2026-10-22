@@ -35,13 +35,13 @@ public sealed class DynamicElementTypeTests{
         ["String|source.Distinct().Prepend(-63).Any(p=>p<0)"]="FLinq(最適化あり)だけが False を返す(先頭に足した \"-63\" を見落とす)。System.Linq・FLinq(最適化なし)・ZLinq は True。",
     };
 
-    private static RandomQueryGenerationOptions Options(QueryElementType type,int index){
-        var capability=QueryCapabilityProfiles.CreateSet(OperatorSetMode.Maximum,[SourceTarget.SystemArray],type);
+    private static RandomQueryGenerationOptions Options(QueryElementType type,int index,SourceTarget target=SourceTarget.SystemArray){
+        var capability=QueryCapabilityProfiles.CreateSet(OperatorSetMode.Maximum,[target],type);
         return new RandomQueryGenerationOptions{
             MasterSeed=Seed256.Parse("0xE1E7"),
             QueryIndex=index,
             QueryId=$"typed-{type}-{index:D3}",
-            SourceTarget=SourceTarget.SystemArray,
+            SourceTarget=target,
             OperatorCount=3,
             MaximumDepth=3,
             InputElementCount=InputElementCount,
@@ -52,7 +52,7 @@ public sealed class DynamicElementTypeTests{
         };
     }
 
-    private static WorkerRunRequest Request(QueryElementType type)=>new(
+    private static WorkerRunRequest Request(QueryElementType type,SourceTarget target=SourceTarget.SystemArray)=>new(
         $"typed-{type}",
         Seed256.Parse("0xE1E7"),
         1,
@@ -60,7 +60,7 @@ public sealed class DynamicElementTypeTests{
         3,
         InputElementCount,
         OperatorSetMode.Maximum,
-        [SourceTarget.SystemArray],
+        [target],
         new WorkerMeasurementProfile("Typed-v1",0,1,0,1),
         RandomQueryGenerator.GeneratorVersion,
         QueryCapabilityProfile.CurrentProfileVersion.ToString(),
@@ -87,6 +87,35 @@ public sealed class DynamicElementTypeTests{
         Assert.True(
             failures.Count==0,
             $"{type}: {failures.Count}/{QueriesPerType} failed:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
+    }
+
+    // List と IEnumerable の Source でも(IEnumerable は配列と別の展開コードを通る)。少なめの件数で。
+    [Theory,Trait("Category","ChainCorpus")]
+    [MemberData(nameof(NonIntTypes))]
+    public async Task 要素型ごとのチェーンがListとIEnumerableのSourceでも全経路で一致する(QueryElementType type){
+        var runner=new DynamicWorkerExecutionRunner();
+        var failures=new List<string>();
+        var executed=0;
+        foreach(var target in new[]{SourceTarget.SystemList,SourceTarget.SystemIEnumerable}){
+            for(var index=0;index<12;index++){
+                var query=new RandomQueryGenerator().Generate(Options(type,index,target));
+                var request=Request(type,target) with{IncludeSpecialValues=index%2==1};
+                var result=await runner.ExecuteAsync(request,query,index,target,0,CancellationToken.None);
+                executed++;
+                if(result.Status==WorkerExecutionStatus.Succeeded&&result.AssemblyUnloaded){
+                    continue;
+                }
+                var key=$"{type}|{Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(query)}";
+                if(KnownMismatches.ContainsKey(key)||DefectPatterns.Any(pattern=>pattern.Matches(result))){
+                    continue;
+                }
+                failures.Add($"{target} #{index} Status={result.Status}{Environment.NewLine}  {key}{Environment.NewLine}  {ExtractDifference(result)}");
+            }
+        }
+        Assert.Equal(24,executed);
+        Assert.True(
+            failures.Count==0,
+            $"{type}: {failures.Count}/{executed} failed:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
     }
 
     // 既知の不具合が今も再現すること(直ったら、この再現と上の表を外す)。

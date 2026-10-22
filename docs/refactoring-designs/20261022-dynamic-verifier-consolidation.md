@@ -133,6 +133,28 @@ Benchmark.Dynamic（確認済み）:
 
 あわせて、Worker の実行先変換が `ToHashSet` / `ToDictionary` / `ToLookup` の出力順序を検証側と違う規則で決めていた不具合を直した（順序なしの入力が `ToLookup` に来ると実行全体が Fatal になっていた）。
 
+## 要素型の次元（手順5、2026-10-22 時点）
+
+- 型の一覧: `ElementTypeCatalog`。`QueryElementType` は Int, Long, Float, Double, Decimal, String, Int256Struct, Int256Class, QuadrupleStruct, QuadrupleClass, NullableInt, Order(複数項目の record)、CollidingKey(ハッシュ衝突型)の13種。型ごとに `ElementTypeDescriptor` が、CLR 型、比較できるか、述語・選択子・キー式・リテラル・合成の式、入力データの作り方、特殊な値を持つ。
+- 独自型: `Benchmark.Dynamic.Core/ElementTypes`(`Int256`、`Quadruple`、`ElementEntities`)。独立プロジェクトにはせず Core に置いた(Worker が動的にコンパイルするコードから参照できればよいため)。Int256 は ulong×4 の2の補数で + と * は折り返す。Quadruple は binary128 で、+ * / と比較・int からの変換・NaN・最近接偶数丸めだけを実装(非正規化数は作らない)。`INumber<T>` は実装しない。
+- IR: 要素の列の値型は従来どおり `QueryValueType.Int` のまま(int の IR・出力ソース・ハッシュはバイト単位で変わらない。ゴールデンテスト `CoreElementTypeGolden` で確認)。`QueryIrDocument.ElementType` は既定値(Int)なら JSON に出さない。int 以外のときは、要素そのものを返す終端の結果を `ElementQueryAtom`(要素の正規形の文字列)で持つ。
+- 使える演算子: 型ごとに外す。要素の列を別の型へ変える演算(GroupBy 系、GroupJoin、SelectIndexed、ToDictionary / ToLookup、AggregateXor、Average、ToIntPair / ToIntGroup、SelectMany)は全型で対象外。比較できない型(Order)では、キー指定なしの順序づけと Min / Max / MinBy / MaxBy を生成しない。
+- Source: int 以外は配列・List・IEnumerable だけ(`QueryCapabilityProfiles.SupportsElementType`)。Range は int 専用。Persisted / Tsavorite は、保存が通るかを未確認なので対象外。
+- 入力データ: 型ごと・スロットごとにシードから決定的に作る。`WorkerRunRequest.IncludeSpecialValues` で、NaN・-0・無限大・null・空文字列・Int256 / Quadruple の境界値などを約1/16の位置に混ぜられる。
+- 比較: 要素の正規形(`ElementCanonicalizer`)。浮動小数点は NaN を揃えて -0 を区別し、decimal は桁まで区別し、string の null と空文字列を区別する。
+- プロトコル: `WorkerRunRequest` の末尾に `ElementType`、`IncludeSpecialValues`。能力表の識別子は要素型が int でなければ要素型を含む(int は従来と同じ)。
+- 検証: `DynamicElementTypeTests`(12型 × 24本のランダムチェーンを実 Worker で4経路比較、List / IEnumerable の Source でも比較、特殊な値つき)。`CoreElementTypes` / `CoreTypedQueries` / `CoreElementTypeGolden` がコア側の単体テスト。
+- 未実装: DB の `element_type` 列(スキーマ v3 と移行)、UI の要素型欄と絞り込み、Persisted / Tsavorite での独自型、浮動小数点だけの差を別状態(`FloatingPointDivergence`)にする方針、文化圏の Invariant 固定(string の順序づけは現状 Ordinal 比較に依存する)。
+
+### 要素型の次元で見つかった FLinq の不具合(未修正、記録のみ)
+
+`Benchmark.Dynamic.Tests/DynamicElementTypeTests.cs` の `DefectPatterns` / `KnownMismatches` に表がある。直ったら表から外す。
+
+- ラムダの中の `new T(...)` の型名を変数のように hoist して `new this.__hoistN(...)` を出し、コンパイルできない(CS1526)。
+- hoist した変数 `__hoistN` を宣言せず、コンパイルできない(CS0103 / CS1061)。`ExceptBy` の後の述語などで、int 以外の要素型だけに出る。
+- 最適化あり経路だけが System.Linq と食い違う3件: `UnionBy` / `Distinct` の後の `Any`(Order, String)と、`Distinct().Prepend(...)` の後の `Any`(String、先頭に足した要素を見落とす)。
+- Sum の選択子の中の桁あふれ(long から int への縮小)を、System.Linq は unchecked で流すが、FLinq(最適化なし)は選択子を checked に取り込んで `OverflowException` にする。
+
 ## 合意状態
 
 - 2026-10-22 利用者承認済み: 段階的整理、Benchmark.Dynamic への一本化、要素型13種（int?・record・ハッシュ衝突型を含む）、Quadruple は LINQ に必要な演算のみ、UI の取り込み、実装前の現状コミット。
