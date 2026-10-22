@@ -70,4 +70,26 @@ public sealed class GeneratedCodeCompileAndResultTests {
             }
             ""","ChunkSumNestedScalarProbe",1);
     }
+
+    // GroupBy の結果選択子が外の値に触れる式で集約と並べ替えを融合するとき、
+    // 束縛済みローカルは static メソッド内のローカル変数であり、this. を付けると CS0026、宣言を出し忘れると CS0103 になる。
+    [Fact]
+    public void GroupByの結果選択子が外の値を使う集約とOrderByの融合がstaticメソッドでコンパイルできる() {
+        AssertSameAsLinq("""
+            using System.Linq;
+            using Seamless.FLinq;
+            namespace Sample;
+            public sealed record Item(int Key,int Id);
+            public sealed class Container {
+                private static Item[] Items() => [new(1,5),new(2,3),new(1,9),new(3,1),new(2,4)];
+                public static string RunFLinq() => string.Join(",",Run(3,4));
+                [LinqIntercept(false)]
+                public static string RunLinq() => string.Join(",",Items()
+                    .GroupBy(i => i.Key,i => i.Id+3*3,(k,g) => k+g.Sum()+4*4).OrderBy(x => x).ToList());
+                [LinqIntercept(true)]
+                private static System.Collections.Generic.List<int> Run(int a,int b) => Items()
+                    .GroupBy(i => i.Key,i => i.Id+a*a,(k,g) => k+g.Sum()+b*b).OrderBy(x => x).ToList();
+            }
+            ""","GroupByResultHoistProbe",1);
+    }
 }
