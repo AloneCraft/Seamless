@@ -53,7 +53,7 @@ public sealed class DynamicWorkerProtocolVersionException:DynamicWorkerProtocolE
 }
 
 public static class DynamicWorkerProtocol{
-    public const int CurrentVersion=4;
+    public const int CurrentVersion=5;
     private static readonly JsonSerializerOptions SerializerOptions=CreateSerializerOptions();
 
     public static JsonSerializerOptions JsonOptions=>SerializerOptions;
@@ -172,6 +172,12 @@ public sealed record WorkerRunResumeState(
     int NonConvergences=0,
     int ExecutionFailures=0);
 
+/// <summary>クエリの作り方。Random は乱数、Exhaustive は演算子の並びを全組み合わせで番号順に作る。</summary>
+public enum QueryGenerationMode{
+    Random,
+    Exhaustive,
+}
+
 public sealed record WorkerRunRequest(
     string RunId,
     Seed256 BaseSeed,
@@ -189,7 +195,10 @@ public sealed record WorkerRunRequest(
     Seed256? FixtureSeedOverride=null,
     int? MeasurementQueryIndexOverride=null,
     WorkerRunResumeState? ResumeState=null,
-    int QueryIndexOffset=0);
+    int QueryIndexOffset=0,
+    QueryGenerationMode GenerationMode=QueryGenerationMode.Random,
+    int ExhaustiveIntermediateCount=0,
+    IReadOnlyList<string>? ExhaustiveTerminalIds=null);
 
 public enum WorkerExecutionStatus{
     NotStarted,

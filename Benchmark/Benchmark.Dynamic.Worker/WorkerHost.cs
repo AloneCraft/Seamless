@@ -551,6 +551,9 @@ public sealed class WorkerHost{
                 CancellationToken.None).ConfigureAwait(false);
             var Capability=QueryCapabilityProfiles.CreateSet(要求.OperatorSetMode,要求.SourceTargets);
             var Generator=new RandomQueryGenerator();
+            var 全組み合わせ=要求.GenerationMode==QueryGenerationMode.Exhaustive
+                ?new ExhaustiveQueryProvider(要求,Capability)
+                :null;
             for(var LocalIndex=0;LocalIndex<要求.QueryCount;LocalIndex++){
                 var QueryIndex=要求.QueryIndexOffset+LocalIndex;
                 キャンセルToken.ThrowIfCancellationRequested();
@@ -567,19 +570,21 @@ public sealed class WorkerHost{
                 QueryIrDocument Template;
                 string 保存IRJSON;
                 if(Replay is null){
-                    Template=Generator.Generate(new RandomQueryGenerationOptions{
-                        MasterSeed=要求.BaseSeed,
-                        QueryIndex=QueryIndex,
-                        QueryId=$"{要求.RunId}-q{QueryIndex:D6}",
-                        SourceTarget=要求.SourceTargets.Order().First(),
-                        OperatorCount=要求.OperatorCount,
-                        MaximumDepth=要求.MaximumDepth,
-                        InputElementCount=要求.InputElementCount,
-                        MaximumCardinality=SourceFixtureFactory.MaximumInputElementCount,
-                        EnableBinaryOperators=true,
-                        EnableNestedOperators=true,
-                        AllowedOperatorIds=Capability.OperatorIds,
-                    });
+                    Template=全組み合わせ is not null
+                        ?全組み合わせ.Get(QueryIndex) with{QueryId=$"{要求.RunId}-q{QueryIndex:D6}"}
+                        :Generator.Generate(new RandomQueryGenerationOptions{
+                            MasterSeed=要求.BaseSeed,
+                            QueryIndex=QueryIndex,
+                            QueryId=$"{要求.RunId}-q{QueryIndex:D6}",
+                            SourceTarget=要求.SourceTargets.Order().First(),
+                            OperatorCount=要求.OperatorCount,
+                            MaximumDepth=要求.MaximumDepth,
+                            InputElementCount=要求.InputElementCount,
+                            MaximumCardinality=SourceFixtureFactory.MaximumInputElementCount,
+                            EnableBinaryOperators=true,
+                            EnableNestedOperators=true,
+                            AllowedOperatorIds=Capability.OperatorIds,
+                        });
                     保存IRJSON=QueryIrJson.Serialize(Template);
                 }else{
                     var 保存IR=QueryIrJson.Deserialize(Replay.IrJson);
@@ -775,6 +780,18 @@ public sealed class WorkerHost{
         }
         if(要求.QueryIndexOffset<0){
             throw new ArgumentOutOfRangeException(nameof(要求.QueryIndexOffset));
+        }
+        if(要求.GenerationMode==QueryGenerationMode.Exhaustive){
+            if(要求.ExhaustiveIntermediateCount<1
+                ||要求.OperatorCount!=要求.ExhaustiveIntermediateCount+1
+                ||要求.MaximumDepth!=要求.OperatorCount){
+                throw new ArgumentException(
+                    "Exhaustive generation requires ExhaustiveIntermediateCount >= 1, OperatorCount = ExhaustiveIntermediateCount + 1 and MaximumDepth = OperatorCount.",
+                    nameof(要求));
+            }
+            if(要求.ReplayQueries is not null){
+                throw new ArgumentException("Exhaustive generation is not supported together with ReplayQueries.",nameof(要求));
+            }
         }
         if(要求.ReplayQueries is not null&&要求.QueryIndexOffset!=0){
             throw new ArgumentException(
