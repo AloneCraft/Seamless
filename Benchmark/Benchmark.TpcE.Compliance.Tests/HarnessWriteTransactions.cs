@@ -199,6 +199,62 @@ public sealed class HarnessWriteTransactions(EGenEngineFixture fixture):IClassFi
             }
         }
     }
+    [Fact,Trait("Category","Integration")]public void TradeResult(){
+        {
+            //指値買い 6 件(新しい保有)と、既存の保有を全部売る成行売り。約定価格を変えて流し、全表一致・出力一致を確かめる。存在しない取引は status が一致すること
+            if(!fixture.Available){
+                return;
+            }
+            const long tradeIdBase=960_000_000_000_000;
+            this.PlaceOrdersOnBoth(tradeIdBase);
+            var db=fixture.Engine!.Database;
+            var holding=db.HoldingSummary.EnumerateRows().Where(static row=>row.Quantity>0).OrderBy(static row=>row.AccountId).ThenBy(static row=>row.Symbol).First();
+            var holdingAccount=db.CustomerAccount.Get(new CustomerAccountKey(holding.AccountId));
+            var holdingCustomer=db.Customer.Get(new CustomerKey(holdingAccount.CustomerId));
+            var sellId=tradeIdBase+100;
+            var sell=new TradeOrderInput{
+                AccountId=holdingAccount.Id,
+                ExecFirstName=holdingCustomer.FirstName,
+                ExecLastName=holdingCustomer.LastName,
+                ExecTaxId=holdingCustomer.TaxId,
+                Symbol=holding.Symbol,
+                TradeQuantity=(int)holding.Quantity,
+                TradeTypeId=Code8.From("TMS"),
+                IsLifo=true,
+                TradeId=sellId,
+                Now=TpcETime.FromDateTime(new DateTime(2026,1,2)),
+            };
+            Assert.Equal(0,fixture.Engine!.Execute(sell).Status);
+            Assert.Equal(0,fixture.Twin!.Execute(sell).Status);
+            AssertSameState(fixture.Engine!,fixture.Twin!);
+            var trades=new List<(long Id,decimal Price)>();
+            for(var index=0;index<6;index++){
+                trades.Add((tradeIdBase+index,95.25m+index*3.5m));
+            }
+            trades.Add((sellId,120.75m));
+            trades.Add((tradeIdBase+999,10m));
+            var now=TpcETime.FromDateTime(new DateTime(2026,1,3));
+            foreach(var (id,price) in trades){
+                var expected=(TradeResultOutput)fixture.Engine!.Execute(new TradeResultInput{TradeId=id,TradePrice=price,Now=now});
+                var input=new byte[Compliance.HarnessHost.SizeOf("TradeResultTxnInput")];
+                var output=new byte[Compliance.HarnessHost.SizeOf("TradeResultTxnOutput")];
+                var wrapper=new TradeResultTxnInput(input);
+                wrapper.TradeId=id;
+                wrapper.TradePrice=(double)price;
+                UseClock(fixture.Twin!,now);
+                var status=fixture.Host!.Run(HarnessTransaction.TradeResult,(IHarnessFrameEngine)fixture.Twin!,new MarketCollector(),input,output);
+                var result=new TradeResultTxnOutput(output);
+                var label=$"trade {id}";
+                Assert.True(expected.Status==status,$"{label}: status expected {expected.Status} but was {status}");
+                if(expected.Status==0){
+                    Assert.True((double)expected.AccountBalance==result.AcctBal,$"{label}: acct_bal expected {expected.AccountBalance} but was {result.AcctBal}");
+                    Assert.True(result.LoadUnit>=1,$"{label}: load_unit {result.LoadUnit}");
+                }
+                AssertSameState(fixture.Engine!,fixture.Twin!);
+                now++;
+            }
+        }
+    }
     [Fact,Trait("Category","Integration")]public void TradeUpdate(){
         {
             //frame_to_execute 1〜3 のそれぞれ。書き込み(実行者名・現金取引の名前・取引種別名)の後で、2 つのエンジンの全表が一致すること

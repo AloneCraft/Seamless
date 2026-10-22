@@ -12,6 +12,7 @@ internal sealed partial class TpcEEngine:IHarnessFrameEngine{
     private readonly TradeUpdateHarness tradeUpdateHarness=new();
     private readonly CustomerPositionHarness customerPositionHarness=new();
     private readonly TradeOrderHarness tradeOrderHarness=new();
+    private readonly TradeResultHarness tradeResultHarness=new();
     private long nextTradeId;
     private long lastNow;
     public Func<long>? Clock{get;set;}
@@ -119,6 +120,26 @@ internal sealed partial class TpcEEngine:IHarnessFrameEngine{
                 }
                 break;
             case HarnessFrame.TradeOrder6:
+                this.CommitTransaction();
+                break;
+            case HarnessFrame.TradeResult1:
+                this.BeginTransaction();
+                this.tradeResultHarness.Frame1(this.db,new TradeResultFrame1Input(input),new TradeResultFrame1Output(output));
+                break;
+            case HarnessFrame.TradeResult2:
+                this.tradeResultHarness.Frame2(this.db,new TradeResultFrame2Input(input),new TradeResultFrame2Output(output),this.NextNow());
+                break;
+            case HarnessFrame.TradeResult3:
+                this.tradeResultHarness.Frame3(this.db,new TradeResultFrame3Input(input),new TradeResultFrame3Output(output));
+                break;
+            case HarnessFrame.TradeResult4:
+                this.tradeResultHarness.Frame4(this.db,new TradeResultFrame4Input(input),new TradeResultFrame4Output(output));
+                break;
+            case HarnessFrame.TradeResult5:
+                this.tradeResultHarness.Frame5(this.db,new TradeResultFrame5Input(input));
+                break;
+            case HarnessFrame.TradeResult6:
+                this.tradeResultHarness.Frame6(this.db,new TradeResultFrame6Input(input),new TradeResultFrame6Output(output));
                 this.CommitTransaction();
                 break;
             default:
