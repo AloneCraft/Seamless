@@ -88,7 +88,7 @@ Benchmark.Dynamic（確認済み）:
 - 新演算子は IR の変更を要する（SequenceEqual は第2ソース、Zip は件数が min、GroupBy_* は合成演算）。検証・正規化・縮小まで対応しないと再生が壊れる。
 - CI 時間: 23k の3段を実行すると1〜1.5時間。まとめてコンパイルし、範囲で分割し、夜間のみにする。
 - ALC のアンロード漏れ: バッチごとに確認し、既存のストレステストを維持する。独自型は既定コンテキストから参照する。
-- 浮動小数点: double の SIMD Sum と float の蓄積型は差が出る見込み（推測）。別途判断する。
+- 浮動小数点: double の SIMD Sum と float の蓄積型で差が出ることを実測で確認した(下の「浮動小数点の Sum」)。直すか許容するかは別途判断する。
 - Persisted/Tsavorite の独自型は保存できない可能性がある。経路テストで確かめた型だけ有効にする。
 - 文化圏: string の並べ替えは文化圏依存のため Invariant に固定する。
 - ハッシュ安定性: `ElementType` は既定値なら書き出さず、既存ハッシュを保つ。
@@ -96,7 +96,7 @@ Benchmark.Dynamic（確認済み）:
 
 ## 未決事項
 
-- [ ] FLinq の double Sum（SIMD で順序が変わる）と float Sum（float のまま蓄積する可能性）を「誤り」として直すか、「許容」とするか。
+- [ ] FLinq の double Sum（SIMD で足す順が変わる）と float Sum（float のまま蓄積する）を「誤り」として直すか、「許容」とするか。実測済みで、直さず記録している。
 - [ ] Persisted/Tsavorite で string・Int256・Order などが保存できるか（できなければ未対応として記録）。
 
 ## 手順3で実装済みの検査と Worker プロトコル v5（2026-10-22 時点）
@@ -180,6 +180,16 @@ SystemArray・シード 0xC0DE・入力16件で、4066件中110件が失敗し�
 
 - 先頭の演算子に偏りがある: `groupBy.keyOnly` 25件、`prepend` 20件、`append` 14件、`concat` 9件、`where` 7件、`skip` 7件、`select` 6件。2番目は `concat`・`union`・`unionBy`・`take`・`where`・`skip`・`skipWhile`・`takeWhile`・`zip`・`join`・`groupJoin` が多い。終端は `sum` 40件、`toArray` 26件、`count` 24件。
 - 代表の式: `source.Append(-18).Take(7).ToArray()`、`source.Append(-25).Take(2).Count()`、`source.Append(11).DistinctBy(p=>(p%3+3)%3).Sum(p=>(long)p)`、`source.Append(-21).SkipWhile(p=>p<-11).Count()`。先に書いた最適化ありだけが食い違う不具合(`Append` / `Prepend` の後)と同じ系統とみられる(推測)。
+
+### 浮動小数点の Sum(2026-10-22 実測、未修正)
+
+`DynamicFloatingPointSumTests` が、実際に FLinq の生成器を通して System.Linq とビット単位で比べる(配列と List、サイズ 1〜1000、各20試行)。
+
+- double の `Sum()`(選択子なし、配列・List): 最適化なし・あり、どちらの FLinq も System.Linq とずれる(乱数データで約4割)。FLinq は `SumSpan`(SIMD、4並列の部分和を最後に足す)、System.Linq は順に足す。手で作った「4並列+`Vector.Sum`」の結果は FLinq と 320/320 一致、「順に足した結果」は System.Linq と 320/320 一致した。足す順の違いが原因。
+- float の `Sum()`: ずれる(乱数データで約5割)。System.Linq は double で足して float へ戻すが、FLinq は float のまま足す。手で再現した2通りが、それぞれ System.Linq と FLinq に 320/320 一致した。FLinq 側のコメントには float を `SumSpan` から外した理由(System.Linq の仕様に合わせるため)が書かれているが、実際の結果は一致していない。
+- 一致するもの: 選択子つきの `Sum`、`Average`(double・float)、整数値だけの入力(厳密に足せる)。
+- 80ビットと64ビットの精度の違いではない。x64 の .NET では double の計算はどの経路も64ビットで、差は足す順と蓄積の型から来る。
+- 直すか許容するかは未決。この比較は、決まるまで合否に混ぜない(`FloatingPointDivergence` の扱いと合わせて決める)。
 
 ## 合意状態
 
