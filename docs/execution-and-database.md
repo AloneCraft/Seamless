@@ -89,6 +89,8 @@ Codecを作れない値でも、`Where`や`Select`など退避不要の逐次演
 
 `seamless database sqlserver import` は宛先へ直接書かず、`<destination>.staging.<guid>` に構築します。全生成関係を再度開き、SQL Serverから読んだ行数と `LongCount` が一致することを検証してから公開します。公開時に旧宛先があれば `<destination>.backup.<timestamp>.<guid>` へ移し、削除しません。
 
+テスト用の生成コードは `Test/Database.Generated/<DB名>` に置きます。テストが型として使うのは今は `AdventureWorks2017` だけなので、ほかのサンプルDBの生成コードはコミットしていません。新しいサンプルDBをテストで使うときは、`seamless database sqlserver prepare --project Test/Test.csproj --connection <接続名> --sample <DB名> --data <データ置き場>` でSQL Serverへ用意し、`seamless database sqlserver generate --project Test/Test.csproj --connection <接続名> --database <DB名>` で生成します。DB名の一覧は `seamless database sqlserver samples` で確認できます。
+
 新しい宛先の `seamless-import.json` にはソースDB、生成コンテナ、スキーマ指紋、UTC時刻、テーブル別行数、テーブル別ストレージ設定を保存します。未対応SQL構文・型は `NotSupportedException` と対象の構文名／SQL型名をCLI診断へ出し、別の意味へ暗黙変換しません。
 
 ## 旧データからの移行
