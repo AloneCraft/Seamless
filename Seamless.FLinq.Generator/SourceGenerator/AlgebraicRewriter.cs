@@ -604,7 +604,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             return true;
         }
     }
-    // src.Skip(n1).Skip(n2) -> src.Skip(n1 + n2)
+    // src.Skip(n1).Skip(n2) -> src.Skip(Max(0,n1) + Max(0,n2))。負数は各自 0 に直してから足し、足し合わせは int.MaxValue で頭打ちにする。
     private bool TryFuseConsecutiveSkip(InvocationExpressionSyntax node,out SyntaxNode result){
         result=null!;
         if(!this.TryGetEnumerableExtensionCall(node,out var outerName,out var outerReceiver,out var outerArgs)){
@@ -629,16 +629,12 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         }
         if(outerArgs[0].Expression is LiteralExpressionSyntax outerLit&&outerLit.Token.Value is int outerVal&&
            innerArgs[0].Expression is LiteralExpressionSyntax innerLit&&innerLit.Token.Value is int innerVal){
-            var sumVal=innerVal+outerVal;
+            var sumVal=(int)global::System.Math.Min((long)global::System.Math.Max(0,innerVal)+global::System.Math.Max(0,outerVal),int.MaxValue);
             var sumLit=SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,SyntaxFactory.Literal(sumVal));
             result=CreateCall(innerSource,"Skip",sumLit);
             return true;
         }else{
-            var addExpr=SyntaxFactory.BinaryExpression(
-                SyntaxKind.AddExpression,
-                Parenthesize(innerArgs[0].Expression),
-                Parenthesize(outerArgs[0].Expression));
-            result=CreateCall(innerSource,"Skip",addExpr);
+            result=CreateCall(innerSource,"Skip",CreateSaturatingCountSum(innerArgs[0].Expression,outerArgs[0].Expression));
             return true;
         }
     }
@@ -685,7 +681,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             return true;
         }
     }
-    // src.SkipLast(n1).SkipLast(n2) -> src.SkipLast(n1 + n2)
+    // src.SkipLast(n1).SkipLast(n2) -> src.SkipLast(Max(0,n1) + Max(0,n2))(負数と桁あふれの扱いは Skip と同じ)
     private bool TryFuseConsecutiveSkipLast(InvocationExpressionSyntax node,out SyntaxNode result){
         result=null!;
         if(!this.TryGetEnumerableExtensionCall(node,out var outerName,out var outerReceiver,out var outerArgs)){
@@ -710,16 +706,12 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         }
         if(outerArgs[0].Expression is LiteralExpressionSyntax outerLit&&outerLit.Token.Value is int outerVal&&
            innerArgs[0].Expression is LiteralExpressionSyntax innerLit&&innerLit.Token.Value is int innerVal){
-            var sumVal=innerVal+outerVal;
+            var sumVal=(int)global::System.Math.Min((long)global::System.Math.Max(0,innerVal)+global::System.Math.Max(0,outerVal),int.MaxValue);
             var sumLit=SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,SyntaxFactory.Literal(sumVal));
             result=CreateCall(innerSource,"SkipLast",sumLit);
             return true;
         }else{
-            var addExpr=SyntaxFactory.BinaryExpression(
-                SyntaxKind.AddExpression,
-                Parenthesize(innerArgs[0].Expression),
-                Parenthesize(outerArgs[0].Expression));
-            result=CreateCall(innerSource,"SkipLast",addExpr);
+            result=CreateCall(innerSource,"SkipLast",CreateSaturatingCountSum(innerArgs[0].Expression,outerArgs[0].Expression));
             return true;
         }
     }
@@ -1114,6 +1106,10 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
                 return false;
         }
     }
+    // Max(0,left) と Max(0,right) の和を、int.MaxValue で頭打ちにして返す式。left を先に評価する。
+    private static ExpressionSyntax CreateSaturatingCountSum(ExpressionSyntax left,ExpressionSyntax right) =>
+        SyntaxFactory.ParseExpression($"(int)global::System.Math.Min((long)global::System.Math.Max(0,{left.ToString()})+global::System.Math.Max(0,{right.ToString()}),int.MaxValue)");
+
     private static InvocationExpressionSyntax CreateCall(ExpressionSyntax receiver,string method,params ExpressionSyntax[] args) {
         var ma = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,Parenthesize(receiver),SyntaxFactory.IdentifierName(method));
         return SyntaxFactory.InvocationExpression(ma,SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(args.Select(static a => SyntaxFactory.Argument(a)))));

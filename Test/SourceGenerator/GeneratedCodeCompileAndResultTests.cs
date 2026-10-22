@@ -92,4 +92,34 @@ public sealed class GeneratedCodeCompileAndResultTests {
             }
             ""","GroupByResultHoistProbe",1);
     }
+
+    // Skip を続けた式は、それぞれの負数を 0 に直してから足す。足し合わせが int を超えるときは頭打ちにする。
+    [Fact]
+    public void 連続したSkipは負数を0に直し桁あふれせずSystem_Linqと同じ結果になる() {
+        AssertSameAsLinq("""
+            using System.Linq;
+            using Seamless.FLinq;
+            namespace Sample;
+            public sealed class Container {
+                public static string RunFLinq() => string.Join("|",
+                    string.Join(",",Skip2(5,-10)),string.Join(",",Skip2(-10,2)),string.Join(",",Skip2(int.MaxValue,int.MaxValue)),
+                    string.Join(",",SkipLast2(5,-10)),string.Join(",",SkipLast2(-3,2)),
+                    string.Join(",",SkipLiteral()));
+                [LinqIntercept(false)]
+                public static string RunLinq() => string.Join("|",
+                    string.Join(",",System.Linq.Enumerable.Range(10,6).Skip(5).Skip(-10).ToList()),
+                    string.Join(",",System.Linq.Enumerable.Range(10,6).Skip(-10).Skip(2).ToList()),
+                    string.Join(",",System.Linq.Enumerable.Range(10,6).Skip(int.MaxValue).Skip(int.MaxValue).ToList()),
+                    string.Join(",",System.Linq.Enumerable.Range(10,6).SkipLast(5).SkipLast(-10).ToList()),
+                    string.Join(",",System.Linq.Enumerable.Range(10,6).SkipLast(-3).SkipLast(2).ToList()),
+                    string.Join(",",System.Linq.Enumerable.Range(10,6).Skip(-3).Skip(2).ToList()));
+                [LinqIntercept(true)]
+                private static System.Collections.Generic.List<int> Skip2(int a,int b) => System.Linq.Enumerable.Range(10,6).Skip(a).Skip(b).ToList();
+                [LinqIntercept(true)]
+                private static System.Collections.Generic.List<int> SkipLast2(int a,int b) => System.Linq.Enumerable.Range(10,6).SkipLast(a).SkipLast(b).ToList();
+                [LinqIntercept(true)]
+                private static System.Collections.Generic.List<int> SkipLiteral() => System.Linq.Enumerable.Range(10,6).Skip(-3).Skip(2).ToList();
+            }
+            ""","ConsecutiveSkipProbe",3);
+    }
 }
