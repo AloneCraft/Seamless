@@ -86,8 +86,6 @@
     <ProjectReference Include="..\Benchmark\Benchmark.Scalable.Persisted.Collections\Benchmark.Scalable.Persisted.Collections.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.Scalable.Tsavorite.Collections\Benchmark.Scalable.Tsavorite.Collections.csproj" />
     <ProjectReference Include="..\Shared\UI.Storage\UI.Storage.csproj" />
-    <ProjectReference Include="..\Test.System.Linq.Enumerable.FLinq\Test.System.Linq.Enumerable.FLinq.csproj" PrivateAssets="all" Aliases="BenchmarkFLinq" />
-    <ProjectReference Include="..\Test.System.Linq.Enumerable.ZLinq\Test.System.Linq.Enumerable.ZLinq.csproj" PrivateAssets="all" Aliases="BenchmarkZLinq" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.FLinq\Benchmark.System.Linq.Enumerable.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.ZLinq\Benchmark.System.Linq.Enumerable.ZLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.Range.FLinq\Benchmark.System.Linq.Enumerable.Range.FLinq.csproj" />
