@@ -6,6 +6,7 @@
     <Project Path="Benchmark/Benchmark.TpcE.Persisted.Linq/Benchmark.TpcE.Persisted.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE.Persisted.FLinq/Benchmark.TpcE.Persisted.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="Shared/TpcE.Transactions/TpcE.Transactions.shproj" />
@@ -18,6 +19,7 @@
   </Folder>
   <Folder Name="/Tests/">
     <Project Path="Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj" />
   </Folder>
   <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
   <Project Path="Seamless.Execution/Seamless.Execution.csproj" />
