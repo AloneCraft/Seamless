@@ -940,13 +940,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var setArgs=RenderHashSetConstructorArgs(capExpr,intersectStage.Value);
         builder.AppendLine($"        var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>({setArgs});");
         builder.AppendLine($"        for(var __i{this.result}=0;__i{this.result}<{thirdSpanName}.Length;__i{this.result}++) {{");
-        if(intersectStage.Func is not null) {
-            builder.AppendLine($"            {keyType} __k{this.result}=default!;");
-            builder.AppendLine(IndentLines(this.FuncAssignStatic(intersectStage.Func,"IntersectBy",$"__k{this.result}",$"{thirdSpanName}[__i{this.result}]"),"            "));
-            builder.AppendLine($"            __set{this.result}.Add(__k{this.result});");
-        } else {
-            builder.AppendLine($"            __set{this.result}.Add({thirdSpanName}[__i{this.result}]);");
-        }
+        // IntersectBy の第2引数は要素ではなく鍵そのものなので、鍵選択関数は通さずそのまま集合へ足す。
+        builder.AppendLine($"            __set{this.result}.Add({thirdSpanName}[__i{this.result}]);");
         builder.AppendLine("        }");
 
         builder.AppendLine($"        using(var {firstSrcName}={firstSrcExpr}) {{");
@@ -1532,13 +1527,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"{setIndent}var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>({setArgs});");
         this.AppendBinaryAfterInit(builder,setIndent,binaryStageIndex);
             builder.AppendLine($"{setIndent}for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
-            if(binaryStage.Func is not null) {
-                builder.AppendLine($"{setIndent}    {keyType} __k{this.result}=default!;");
-                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"IntersectBy",$"__k{this.result}",$"{secondSpanName}[__i{this.result}]"),$"{setIndent}    "));
-                builder.AppendLine($"{setIndent}    __set{this.result}.Add(__k{this.result});");
-            } else {
-                builder.AppendLine($"{setIndent}    __set{this.result}.Add({secondSpanName}[__i{this.result}]);");
-            }
+            // IntersectBy の第2引数は要素ではなく鍵そのものなので、鍵選択関数は通さずそのまま集合へ足す。
+            builder.AppendLine($"{setIndent}    __set{this.result}.Add({secondSpanName}[__i{this.result}]);");
             builder.AppendLine($"{setIndent}}}");
             builder.AppendLine($"{setIndent}for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
             builder.AppendLine($"{setIndent}    var __item{this.result}={firstSpanName}[__i{this.result}];");
@@ -1718,13 +1708,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"{exceptIndent}    var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>({exceptSetArgs});");
         this.AppendBinaryAfterInit(builder,$"{exceptIndent}    ",binaryStageIndex);
             builder.AppendLine($"{exceptIndent}    for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
-            if(binaryStage.Func is not null) {
-                builder.AppendLine($"{exceptIndent}        {keyType} __k{this.result}=default!;");
-                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"ExceptBy",$"__k{this.result}",$"{secondSpanName}[__i{this.result}]"),$"{exceptIndent}        "));
-                builder.AppendLine($"{exceptIndent}        __set{this.result}.Add(__k{this.result});");
-            } else {
-                builder.AppendLine($"{exceptIndent}        __set{this.result}.Add({secondSpanName}[__i{this.result}]);");
-            }
+            // ExceptBy の第2引数は要素ではなく鍵そのものなので、鍵選択関数は通さずそのまま集合へ足す。
+            builder.AppendLine($"{exceptIndent}        __set{this.result}.Add({secondSpanName}[__i{this.result}]);");
             builder.AppendLine($"{exceptIndent}    }}");
             builder.AppendLine($"{exceptIndent}    for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
             builder.AppendLine($"{exceptIndent}        var __item{this.result}={firstSpanName}[__i{this.result}];");
