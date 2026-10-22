@@ -10,9 +10,9 @@ public sealed record RunOptions{
     public int MarketDays{get;init;}=260;
     public int NewsItemBytes{get;init;}=1024;
     /// <summary>流す CE の取引の件数。</summary>
-    public long Transactions{get;init;}=50_000;
+    public long Transactions{get;init;}=15_000;
     /// <summary>時間の集計から外す最初の CE の件数(正しさの検査には含める)。</summary>
-    public long Warmup{get;init;}=2_000;
+    public long Warmup{get;init;}=1_000;
     /// <summary>流す組み合わせ(略称 TL,TF,PL,PF)。</summary>
     public IReadOnlyList<string> Variants{get;init;}=["TL","TF","PL","PF"];
     /// <summary>何件の CE ごとに保存するか(0 は保存しない)。</summary>

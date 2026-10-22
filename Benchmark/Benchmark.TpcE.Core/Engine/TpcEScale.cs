@@ -50,6 +50,25 @@ public static class TpcESizing{
     public static long DefaultMemoryBytes(TpcEScale scale){
         return 512L*1024*1024;
     }
+    /// <summary>Persisted の表の初期容量(レコード数、データの大きさ)。更新と削除も追記なので、見込みの 2 倍で確保する。</summary>
+    public static (long Capacity,long DataCapacity) PersistedCapacity(string name,long expectedRows,TpcEScale scale){
+        var rows=Math.Max(16,expectedRows*2);
+        return (rows,Math.Max(4096,rows*(RowBytes(name,scale)+32)));
+    }
+    /// <summary>Persisted の索引の辞書の初期容量。取引の索引(X6〜X8・X10・X11)は取引数に比例し、他は顧客・会社・銘柄に比例する。</summary>
+    public static (long Capacity,long DataCapacity) PersistedIndexCapacity(string name,TpcEScale scale){
+        var isChunks=name.EndsWith(".c",StringComparison.Ordinal);
+        long owners=Math.Max(64,scale.Customers+scale.Accounts+scale.Securities);
+        if(name.StartsWith("x06",StringComparison.Ordinal)||name.StartsWith("x10",StringComparison.Ordinal)||name.StartsWith("x11",StringComparison.Ordinal)){
+            owners=Math.Max(owners,scale.TotalTrades/2);
+        }
+        var rows=owners*2;
+        long entryBytes=40;
+        if(isChunks){
+            entryBytes=700;
+        }
+        return (rows,Math.Max(4096,rows*entryBytes));
+    }
     private static long RowBytes(string name,TpcEScale scale){
         return name switch{
             "news_item"=>scale.NewsItemBytes+512,
