@@ -5,14 +5,13 @@
 
 ## 1. 今の問題一覧
 
-### 1.1 作業の途中で、まだ確定していないもの
+### 1.1 名前の付け替えの確定(2026-10-23 に解消)
 
-| # | 問題 | 状態 | 事実 |
-|---|---|---|---|
-| P1 | 生成コードの名前の付け替え(G:\GitHub\Seamless\Seamless.FLinq.Generator\SourceGenerator\GeneratedNameRenamer.cs)が未コミット | 作業中 | 新規ファイル1つ、G:\GitHub\Seamless\Seamless.FLinq.Generator\SourceGenerator\FLinqIncrementalGenerator.MethodBodyRewriter.cs と LinqGenerationState.cs の変更、名前に依存するテスト約27ファイルの更新が、すべて作業ツリーにあるだけ。直近のコミットは d440a68d。 |
-| P2 | FLinq 全テストの最後の完走結果がない | 未確認 | 付け替えを入れた直後の完走では 99 件失敗(うち約 89 件は名前依存のテスト)。テスト側を役割名の正規表現へ直した後の完走では 30 件失敗(元から落ちていた 10 件 + 新しい 20 件)。さらに 20 件を直して回したが、その実行は途中で止まり、結果を読めていない。 |
-| P3 | 付け替えの後の Dynamic テスト(124件の回帰コーパス・要素型・浮動小数点)を回していない | 未確認 | 56/56 合格は付け替えを入れる前の結果。 |
-| P4 | 一時ファイル G:\GitHub\Seamless\Test\System\Linq\Intercept\ZzShow.cs が残っている | 要削除 | 生成コードを見るための調査用。コミットしない。 |
+名前の付け替え(G:\GitHub\Seamless\Seamless.FLinq.Generator\SourceGenerator\GeneratedNameRenamer.cs)は、コミット 6a6040d9 で確定した(push はしていない)。確定前の検証結果:
+
+- FLinq 全テスト 1883 件: 失敗 13 件。元から落ちていた 10 件(次の 1.2)と、`TsavoriteCheckpointCapacity.Save_Load_Stores1024_RestoresDataAndCreatesSegmentFiles` の 3 件(SaveFoldOver・SaveLogOnlySnapshot・SaveSnapshot)。この 3 件は単独で回すと 12/12 合格で、全体実行のときだけ落ちる。Tsavorite を変更していないので、今回の変更とは無関係(原因は未調査)。
+- Dynamic の回帰コーパス・要素型・浮動小数点・再現: 56/56 合格(6 分 17 秒)。
+- 調査用の一時ファイルは削除した。
 
 ### 1.2 元から落ちている FLinq のテスト 10 件(今回の変更とは無関係。HEAD 時点で確認済みの一覧)
 
@@ -82,7 +81,7 @@
 
 ### 3.1 すぐやること(確定の作業)
 
-1. P2・P3 を解消する: FLinq の全テストを最後まで回して失敗を元の 10 件と突き合わせ、Dynamic の回帰コーパスを付け替え後の生成器で回す。合格なら、一時ファイルを消して、名前の付け替えを1つのコミットにする(push はしない)。
+1. (済) 全テストの突き合わせとコミット。残りは `TsavoriteCheckpointCapacity` の不安定さの原因調査。
 2. 設計書(前の設計書の「FLinq の不具合の修正」の節)に、付け替えの方式と、計画との違い(1.3 の最後)を書き足す。
 
 ### 3.2 名前の作業の続き(利用者の判断が要る点を含む)
