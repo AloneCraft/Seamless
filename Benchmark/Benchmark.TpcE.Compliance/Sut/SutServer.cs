@@ -157,6 +157,9 @@ internal sealed class SutServer:IDisposable{
         var kind=TxnKind.TradeStatus;
         try{
             using var document=JsonDocument.Parse(body);
+            if(document.RootElement.TryGetProperty("admin",out var admin)){
+                return this.Admin(admin.GetString() ?? "");
+            }
             var now=this.NextNow();
             var request=EGenRequestMapper.Map(document.RootElement,now);
             kind=request.Kind;
@@ -178,6 +181,42 @@ internal sealed class SutServer:IDisposable{
             Interlocked.Increment(ref this.failed[(int)kind]);
             return Respond(false,null,error.GetType().Name+": "+error.Message,this.Sequence);
         }
+    }
+    /// <summary>管理用の要求。作業スレッドで処理するので、取引は止まっていて DB は静止している。</summary>
+    private byte[] Admin(string command){
+        var buffer=new ArrayBufferWriter<byte>(256);
+        using(var writer=new Utf8JsonWriter(buffer)){
+            writer.WriteStartObject();
+            writer.WriteBoolean("ok",true);
+            writer.WriteString("admin",command);
+            writer.WriteNumber("seq",this.Sequence);
+            switch(command){
+                case "consistency":{
+                    var results=ConsistencyChecker.Check(this.engine.Database);
+                    writer.WriteStartArray("results");
+                    foreach(var result in results){
+                        writer.WriteStartObject();
+                        writer.WriteString("clause",result.Clause);
+                        writer.WriteString("name",result.Name);
+                        writer.WriteNumber("checked",result.Checked);
+                        writer.WriteNumber("violations",result.Violations);
+                        writer.WriteBoolean("passed",result.Passed);
+                        writer.WriteString("detail",result.Detail);
+                        writer.WriteEndObject();
+                    }
+                    writer.WriteEndArray();
+                    break;
+                }
+                case "checkpoint":
+                    this.Checkpoint();
+                    break;
+                default:
+                    writer.WriteBoolean("unknown",true);
+                    break;
+            }
+            writer.WriteEndObject();
+        }
+        return buffer.WrittenSpan.ToArray();
     }
     /// <summary>取引の時刻。実時計を使うが、単調に増える(同じ時刻の取引を作らない)。</summary>
     private long NextNow(){

@@ -87,6 +87,7 @@ internal static class SutHost{
         }
         long startSequence;
         long validLength=0;
+        string phase;
         if(database.Customer.Count==0){
             if(arguments.FlatDirectory is null){
                 Console.Error.WriteLine("The store is empty. Pass --flat <folder written by EGenLoader>.");
@@ -104,13 +105,25 @@ internal static class SutHost{
             checkpoint.LastSequence=0;
             startSequence=0;
             Save(0);
+            phase="after-load";
         }else{
             var watch=Stopwatch.StartNew();
             var recovery=RedoLogReader.Replay(database,arguments.RedoPath,checkpoint.LastSequence);
             validLength=recovery.ValidLength;
             startSequence=recovery.LastSequence;
+            phase="after-recovery";
             output.WriteLine($"[sut] recovered: checkpoint at {checkpoint.LastSequence:N0}, replayed {recovery.AppliedTransactions:N0} transactions up to {recovery.LastSequence:N0} ({watch.Elapsed.TotalSeconds:F1} s)");
         }
+        // 仕様 7.3.3: 初期投入の後と、障害からの復旧の後に、一貫性の 3 条件を点検する。
+        var consistencyWatch=Stopwatch.StartNew();
+        foreach(var result in ConsistencyChecker.Check(database)){
+            var verdict="FAIL";
+            if(result.Passed){
+                verdict="PASS";
+            }
+            output.WriteLine($"[sut] consistency {phase} {result.Clause} {verdict} checked={result.Checked} violations={result.Violations} {result.Detail}");
+        }
+        output.WriteLine($"[sut] consistency checked in {consistencyWatch.Elapsed.TotalSeconds:F1} s");
         using var writer=new RedoLogWriter(arguments.RedoPath,validLength);
         var options=new SutOptions{Port=arguments.Port,CheckpointInterval=TimeSpan.FromMinutes(arguments.CheckpointMinutes)};
         using var server=new SutServer(engine,writer,checkpoint,startSequence,Save,options);
