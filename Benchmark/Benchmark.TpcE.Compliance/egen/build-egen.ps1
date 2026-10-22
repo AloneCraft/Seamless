@@ -1,6 +1,6 @@
 ﻿# EGen 1.14.0 を現行の MSVC でビルドする(EGen の本体ソースは書き換えない)。
 # 使い方: powershell -File build-egen.ps1 [-EGenDirectory <EGen の展開先>] [-OutputDirectory <出力先>]
-# 出力: <OutputDirectory>\EGenLoader.exe と、ドライバー用の静的ライブラリ(EGenCore.lib)。
+# 出力: <OutputDirectory>\EGenLoader.exe(データ生成)、EGenDriver.exe(運転側)、EGenCore.lib。
 #
 # 回避しているのは次の 2 つだけで、どちらも EGen の動作には関係しない。
 #  1. EGenStandardTypes.h の `#define snprintf _snprintf` が新しい Windows SDK の stdio.h と衝突する
@@ -15,7 +15,9 @@ $ErrorActionPreference='Stop'
 $vcvars='C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvars64.bat'
 $objects=Join-Path $OutputDirectory 'obj'
 $loaderObjects=Join-Path $OutputDirectory 'obj-loader'
-New-Item -ItemType Directory -Force $objects,$loaderObjects | Out-Null
+$driverObjects=Join-Path $OutputDirectory 'obj-driver'
+New-Item -ItemType Directory -Force $objects,$loaderObjects,$driverObjects | Out-Null
+$driver=Join-Path $PSScriptRoot 'driver\EGenDriver.cpp'
 $patched=Join-Path $OutputDirectory 'EGenVersion.cpp'
 (Get-Content (Join-Path $EGenDirectory 'Utilities\src\EGenVersion.cpp') -Raw).Replace('__DATE__" "__TIME__','__DATE__ " " __TIME__') | Set-Content $patched -Encoding utf8
 $patchedLoader=Join-Path $OutputDirectory 'EGenLoader.cpp'
@@ -28,17 +30,19 @@ $sources+=$patched
 $list=($sources | ForEach-Object { '"'+$_+'"' }) -join ' '
 $loader='"'+$patchedLoader+'"'
 $include="/I`"$EGenDirectory\inc`" /I`"$EGenDirectory\Utilities\inc`" /I`"$EGenDirectory\InputFiles\inc`""
-$flags='/nologo /O2 /MD /EHsc /std:c++14 /FIstdio.h /wd4996 /D_CRT_SECURE_NO_DEPRECATE /DWIN32 /DCOMPILE_FLAT_FILE_LOAD'
+$flags='/nologo /utf-8 /O2 /MD /EHsc /std:c++14 /FIstdio.h /wd4996 /D_CRT_SECURE_NO_DEPRECATE /DWIN32 /DCOMPILE_FLAT_FILE_LOAD'
 $log=Join-Path $OutputDirectory 'build.log'
 $commands=@(
     "`"$vcvars`" >nul 2>&1",
     "cl $flags /c $include /Fo`"$objects\\`" $list > `"$log`" 2>&1",
     "cl $flags /c $include /Fo`"$loaderObjects\\`" $loader >> `"$log`" 2>&1",
     "lib /nologo /OUT:`"$OutputDirectory\EGenCore.lib`" `"$objects\*.obj`" >> `"$log`" 2>&1",
-    "link /nologo /OUT:`"$OutputDirectory\EGenLoader.exe`" `"$loaderObjects\EGenLoader.obj`" `"$OutputDirectory\EGenCore.lib`" >> `"$log`" 2>&1"
+    "link /nologo /OUT:`"$OutputDirectory\EGenLoader.exe`" `"$loaderObjects\EGenLoader.obj`" `"$OutputDirectory\EGenCore.lib`" >> `"$log`" 2>&1",
+    "cl $flags /c $include /Fo`"$driverObjects\\`" `"$driver`" >> `"$log`" 2>&1",
+    "link /nologo /OUT:`"$OutputDirectory\EGenDriver.exe`" `"$driverObjects\EGenDriver.obj`" `"$OutputDirectory\EGenCore.lib`" ws2_32.lib >> `"$log`" 2>&1"
 )
 cmd /c ($commands -join ' && ')
 if($LASTEXITCODE -ne 0){
     Write-Error "build failed. See $log"
 }
-Write-Output "built: $OutputDirectory\EGenLoader.exe"
+Write-Output "built: $OutputDirectory\EGenLoader.exe, $OutputDirectory\EGenDriver.exe"

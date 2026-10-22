@@ -46,6 +46,17 @@ public sealed class EGenRequestMapper{
             Assert.Equal(TpcETime.DayNumber(2000,1,5),request.StartDate);
         }
     }
+    [Fact,Trait("Category","Unit")]public void TreatsZeroDatesAsUnset(){
+        {
+            //EGen は使わないフレームの日時を 0000-00-00 で渡す。例外にせず 0 にする
+            var request=(TradeUpdateInput)Map("""
+                {"txn":"TradeUpdate","input":{"trade_id":[5],"acct_id":0,"max_acct_id":0,"frame_to_execute":1,"max_trades":1,"max_updates":1,"start_trade_dts":"0000-00-00 00:00:00.000","end_trade_dts":"0000-00-00 00:00:00.000","symbol":""}}
+                """);
+            Assert.Equal(0,request.StartTradeDts);
+            Assert.Equal(0,request.EndTradeDts);
+            Assert.Equal([5L],request.TradeIds);
+        }
+    }
     [Fact,Trait("Category","Unit")]public void MapsMarketSideTransactions(){
         {
             //Market-Feed: 更新の並びと、状態・取引種別の名前

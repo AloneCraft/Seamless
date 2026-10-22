@@ -169,6 +169,10 @@ internal static class EGenRequestMapper{
             var year=int.Parse(text.AsSpan(0,4));
             var month=int.Parse(text.AsSpan(5,2));
             var day=int.Parse(text.AsSpan(8,2));
+            if(year<1||month<1||day<1){
+                // EGen は使わない日時を 0000-00-00 で渡す(例: Trade-Lookup のフレーム 1 の期間)。未設定として 0 にする。
+                return 0;
+            }
             var hour=0;
             var minute=0;
             var second=0;

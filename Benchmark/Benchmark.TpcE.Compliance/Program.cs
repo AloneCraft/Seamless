@@ -5,7 +5,7 @@ namespace Benchmark.TpcE.Compliance;
 /// </summary>
 public static class Program{
     public const string Notice="TPC-E 由来・非監査・公式結果と比較不可(tpsE 相当)";
-    private static readonly string[] EGenCommands=["load","drive","measure","consistency","acid","sut"];
+    private static readonly string[] EGenCommands=["load","drive","measure","consistency","acid"];
     public static int Main(string[] args){
         Console.OutputEncoding=System.Text.Encoding.UTF8;
         var command="help";
@@ -15,6 +15,14 @@ public static class Program{
         Console.WriteLine(Notice);
         if(command=="help"||command=="--help"){
             return Help();
+        }
+        if(command=="sut"){
+            using var cancel=new CancellationTokenSource();
+            Console.CancelKeyPress+=(_,eventArgs)=>{
+                eventArgs.Cancel=true;
+                cancel.Cancel();
+            };
+            return SutHost.Run(args.Skip(1).ToArray(),Console.Out,cancel.Token);
         }
         if(Array.IndexOf(EGenCommands,command)>=0){
             Console.Error.WriteLine($"{command}: EGen 1.14.0 が必要です(Work/TpcE/egen/)。まだ組み込んでいません。");
