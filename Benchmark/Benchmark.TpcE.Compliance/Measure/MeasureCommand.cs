@@ -8,6 +8,8 @@ namespace Benchmark.TpcE.Compliance;
 internal static class MeasureCommand{
     /// <summary>実行中に PC 全体のメモリ使用率がこれに達したら両方止める。</summary>
     public const int MemoryStopPercent=90;
+    /// <summary>上の使用率がこの時間続いたら止める。</summary>
+    public static readonly TimeSpan MemoryStopAfter=TimeSpan.FromSeconds(30);
     /// <summary>開始時にこれ以上なら始めない(途中で止まる実行を避ける)。</summary>
     public const int MemoryStartLimitPercent=80;
     public static int Run(IReadOnlyList<string> args,TextWriter output,CancellationToken cancel){
@@ -155,6 +157,7 @@ internal static class MeasureCommand{
     /// <summary>運転側が終わるのを待つ。メモリ使用率が上限に達したら両方止める。</summary>
     private static int WaitForDriver(ChildProcess driver,ChildProcess sut,TextWriter output,CancellationToken cancel){
         var report=Stopwatch.StartNew();
+        Stopwatch? highSince=null;
         while(!driver.HasExited){
             if(cancel.IsCancellationRequested){
                 output.WriteLine("[measure] cancelled");
@@ -166,8 +169,16 @@ internal static class MeasureCommand{
             }
             var used=SystemMemory.UsedPercent();
             if(used>=MemoryStopPercent){
-                Console.Error.WriteLine($"Memory use reached {used}%. Stopping the run (limit {MemoryStopPercent}%).");
-                return 4;
+                // 一瞬の急上昇(他のプログラムのビルドなど)では止めず、続いたときだけ止める。
+                if(highSince is null){
+                    highSince=Stopwatch.StartNew();
+                }
+                if(highSince.Elapsed>=MemoryStopAfter){
+                    Console.Error.WriteLine($"Memory use stayed at {used}% for {highSince.Elapsed.TotalSeconds:F0} s. Stopping the run (limit {MemoryStopPercent}%).");
+                    return 4;
+                }
+            }else{
+                highSince=null;
             }
             if(report.Elapsed>=TimeSpan.FromMinutes(1)){
                 output.WriteLine($"[measure] running... memory {used}% (SUT {sut.WorkingSetBytes/1024.0/1024/1024:F2} GB, driver {driver.WorkingSetBytes/1024.0/1024/1024:F2} GB)");
