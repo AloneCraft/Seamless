@@ -41,7 +41,7 @@ dotnet run -c Release --project Benchmark/Benchmark.TpcE.Compliance -- measure -
 | `--customers` | 1000 | 1,000 の倍数 |
 | `--days` | 1 | 初期取引の営業日数。**公式は 300**(1 日だと EGen のログに `NO` が出て不合格)。**Trade-Status は 1 口座に取引が 50 件以上、Customer-Position は履歴 10 件以上が要る**ため、少なすぎると EGenTxnHarness が誤り(-911、-221)を返して失敗に数える。1,000 顧客なら 10 日程度から |
 | `--users` | 8 | CE のユーザー数。1 ユーザーの取引の間隔が 1 秒以下になるように |
-| `--ramp-minutes` / `--measure-minutes` / `--down-minutes` | 1 / 10 / 0.5 | **公式は計測 120 分以上** |
+| `--ramp-minutes` / `--measure-minutes` / `--down-minutes` | 20 / 10 / 0.5 | **公式は計測 120 分以上**。立ち上がりが短いと待っている指値注文が溜まらず、Trade-Result の比率が約1割低く出る(2,000 顧客で、立ち上がり 1 分は 9.26%、20 分は 10.05%) |
 | `--tpse` / `--unthrottled` | 公称(顧客数÷500) | 目標の tpsE / ペース調整なし |
 | `--checkpoint-minutes` | 7.5 | データがコミット済みの状態より 15 分以上古くならないための間隔 |
 

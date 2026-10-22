@@ -42,7 +42,7 @@ internal static class AcidCommand{
             var sutArguments=MeasureCommand.SutArgumentList(arguments,self.Prefix,runDirectory,flat);
             var round=0;
             int port;
-            (sut,port)=StartSut(self.File,sutArguments,runDirectory,round,arguments,cancel,output);
+            (sut,port,_)=StartSut(self.File,sutArguments,runDirectory,round,arguments,cancel,output);
             if(sut is null){
                 return 2;
             }
@@ -80,18 +80,19 @@ internal static class AcidCommand{
             sut?.Dispose();
         }
     }
-    private static (ChildProcess? Process,int Port) StartSut(string file,List<string> sutArguments,string runDirectory,int round,MeasureArguments arguments,CancellationToken cancel,TextWriter output){
+    private static (ChildProcess? Process,int Port,TimeSpan Elapsed) StartSut(string file,List<string> sutArguments,string runDirectory,int round,MeasureArguments arguments,CancellationToken cancel,TextWriter output){
         var logPath=Path.Combine(runDirectory,$"sut-{round}.log");
         output.WriteLine($"[acid] starting the SUT (round {round})");
+        var watch=System.Diagnostics.Stopwatch.StartNew();
         var process=new ChildProcess(file,sutArguments,logPath);
         var ready=process.WaitForLine("READY port",TimeSpan.FromMinutes(arguments.LoadTimeoutMinutes),cancel);
         if(ready is null){
             Console.Error.WriteLine($"The SUT did not become ready. See {logPath}.");
             process.Dispose();
-            return (null,0);
+            return (null,0,watch.Elapsed);
         }
         var port=int.Parse(ready[(ready.IndexOf("READY port",StringComparison.Ordinal)+"READY port".Length)..].Trim(),CultureInfo.InvariantCulture);
-        return (process,port);
+        return (process,port,watch.Elapsed);
     }
     /// <summary>7.2.2: 確定する Trade-Order では TRADE と TRADE_HISTORY に行が入り、巻き戻す Trade-Order では何も残らない。</summary>
     private static IEnumerable<CheckResult> Atomicity(int port,TextWriter output){
@@ -163,7 +164,7 @@ internal static class AcidCommand{
             return false;
         }
         var result=DriverResult.Parse(File.ReadAllText(resultPath));
-        (var restartedProcess,var newPort)=StartSut(self.File,sutArguments,runDirectory,round,arguments,cancel,output);
+        (var restartedProcess,var newPort,var recoveryTime)=StartSut(self.File,sutArguments,runDirectory,round,arguments,cancel,output);
         restarted=restartedProcess;
         restartedPort=newPort;
         if(restartedProcess is null){
@@ -179,6 +180,8 @@ internal static class AcidCommand{
         var lost=Math.Max(0,acked-recovered.Value);
         var detail=$"応答済みの最後の書き込み番号 {acked:N0}、復旧後に残っている最後の番号 {recovered.Value:N0}、失われた応答済みの書き込み {lost:N0} 件";
         tests.Add(new CheckResult("7.5.3.1",$"処理の喪失 第{round}回: 応答済みの取引が残っている",Outcome(lost==0&&acked>0),detail));
+        // 7.5.6: 障害から取引を再開できるまでの時間(プロセスの起動 → チェックポイントの読み込み → 再実行ログの適用 → 一貫性の点検 → 要求の受け付け)。
+        tests.Add(new CheckResult("7.5.6",$"復旧時間 第{round}回",CheckOutcome.Pass,$"SUT を起動し直してから要求を受け付けるまで {recoveryTime.TotalSeconds:F1} 秒(再実行ログの適用: {RecoveryLogLine(restartedProcess)})"));
         foreach(var check in ConsistencyReports.FromStartupLines(restartedProcess.FindLines("[sut] consistency after-recovery "))){
             tests.Add(check with{Name=check.Name+$" 第{round}回"});
         }
@@ -195,6 +198,13 @@ internal static class AcidCommand{
             return null;
         }
         return long.Parse(match.Groups[1].Value.Replace(",",""),CultureInfo.InvariantCulture);
+    }
+    private static string RecoveryLogLine(ChildProcess process){
+        var line=process.FindLine("[sut] recovered:");
+        if(line is null){
+            return "ログ行なし";
+        }
+        return line["[sut] recovered: ".Length..];
     }
     private static CheckOutcome Outcome(bool passed){
         if(passed){
@@ -230,7 +240,7 @@ internal static class AcidCommand{
         builder.AppendLine("| 7.5.3.2 | 記憶装置 1 台の喪失 | 再実行ログとデータを別の物理ドライブに置いてミラーを組む構成が、この PC にありません。 |");
         builder.AppendLine("| 7.5.3.3 | 外部電源の喪失 | PC の電源を切る試験は危険なので自動では行いません。利用者が手で行う必要があります。処理の喪失の試験(プロセスの強制停止)は、OS の書き込みキャッシュが残るため、fsync の漏れを検出できません。 |");
         builder.AppendLine("| 7.6 | データへのアクセス | ドライブ 1 台の永久的な故障を作れないため。 |");
-        builder.AppendLine("| 7.5.6 | 復旧時間の報告 | 測定区間での障害注入と、チェックポイントの完了時刻の記録が未実装です。 |");
+        builder.AppendLine("| 7.5.6 | 復旧時間のグラフ | 復旧時間(再起動から要求の受け付けまで)は上の表に出しますが、測定区間の途中で障害を注入し、その前後の毎秒の取引数をグラフにする手順は未実装です。 |");
         return builder.ToString();
     }
 }

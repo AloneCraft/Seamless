@@ -143,7 +143,7 @@ internal static class SutHost{
             Thread.Sleep(200);
             if(report.Elapsed>=TimeSpan.FromSeconds(10)){
                 var count=server.Sequence;
-                output.WriteLine($"[sut] sequence {count:N0} ({(count-lastCount)/report.Elapsed.TotalSeconds:F1}/s)");
+                output.WriteLine($"[sut] sequence {count:N0} ({(count-lastCount)/report.Elapsed.TotalSeconds:F1}/s) {server.Diagnostics()}");
                 lastCount=count;
                 report.Restart();
             }

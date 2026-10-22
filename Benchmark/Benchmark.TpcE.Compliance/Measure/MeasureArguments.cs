@@ -12,7 +12,8 @@ internal sealed record MeasureArguments{
     public int Customers{get;init;}=1000;
     public int Days{get;init;}=1;
     public int Users{get;init;}=8;
-    public double RampMinutes{get;init;}=1;
+    /// <summary>立ち上がり。待っている指値注文が溜まって定常になるまでの時間。1 分では Trade-Result の比率が約1割低く出た(20 分立ち上げた計測では許容幅に入った)。</summary>
+    public double RampMinutes{get;init;}=20;
     public double MeasureMinutes{get;init;}=10;
     public double DownMinutes{get;init;}=0.5;
     /// <summary>目標の tpsE。0 以下で公称(顧客数÷500)にする。</summary>

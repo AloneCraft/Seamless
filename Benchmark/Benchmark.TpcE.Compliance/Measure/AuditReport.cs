@@ -74,7 +74,7 @@ internal static class AuditReport{
         new("10.7.4","隔離の試験(7.4.2)",AuditStatus.Gap,"意図した設計判断(利用者決定): SUT は取引を 1 本の作業スレッドで直列に実行し、同時実行の制御を持たない。直列なので P0〜P3 は起こり得ず、7.4.1.7 の代替技法として扱う。ただし試験の手順(S3 がフレームの間で止まり S4 が割り込む)は実行できず、7.4.1.4『任意の取引の同時実行を許す』を満たすかは監査人との協議が要る"),
         new("10.7.5","データへのアクセス(7.6)",AuditStatus.NotPerformed,"ドライブ 1 台の永久故障を作る構成が無い"),
         new("10.7.6.1〜2","耐久性(7.5): 単一故障からの復旧",AuditStatus.Evidence,"処理の喪失(プロセスの強制停止)のみ実施。記憶装置の喪失と電源の喪失は未実施。強制停止は OS のキャッシュが残るので fsync の漏れを検出できない"),
-        new("10.7.6.3〜4","Business Recovery Time とグラフ",AuditStatus.NotPerformed,"復旧時間の測定とグラフは未実装"),
+        new("10.7.6.3〜4","Business Recovery Time とグラフ",AuditStatus.Evidence,"acid が、強制停止から要求の受け付けまでの復旧時間を測って報告する。測定区間の途中で障害を注入した前後の取引数のグラフは未実装"),
         new("10.8","価格(8 章): 3 年の総費用、60 日分の領域、部品の代替",AuditStatus.External,"製品として一般提供(文書・保守・価格)されていることが前提。Seamless は未提供"),
         new("10.9","開示報告書(9 章)と補足ファイル",AuditStatus.External,"report.md / report.json は点検結果で、開示報告書ではない"),
     ];

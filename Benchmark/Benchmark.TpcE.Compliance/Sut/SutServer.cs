@@ -26,6 +26,7 @@ internal sealed class SutServer:IDisposable{
         public Stream Stream{get;}=stream;
         public byte[] Body{get;}=body;
         public byte[]? Response{get;set;}
+        public long ArrivedAt{get;}=Stopwatch.GetTimestamp();
     }
     /// <summary>取引の要求の先頭バイト。</summary>
     public const byte TransactionMarker=1;
@@ -53,6 +54,12 @@ internal sealed class SutServer:IDisposable{
     private readonly long[] failed=new long[Enum.GetValues<HarnessTransaction>().Length];
     private long sequence;
     private long lastWriteSequence;
+    // 診断用: 取引の実行・fsync・要求が待ち行列で待った時間(Stopwatch の刻み)と件数。作業スレッドだけが書き、別スレッドが読む(目安なので同期しない)。
+    private long executeTicks;
+    private long syncTicks;
+    private long queueWaitTicks;
+    private long batchCount;
+    private long batchedTransactions;
     private volatile bool stopping;
     private sealed class MarketCollector(List<byte[]> requests):IMarketSink{
         public void SendToMarket(ReadOnlySpan<byte> tradeRequest)=>requests.Add(tradeRequest.ToArray());
@@ -82,6 +89,13 @@ internal sealed class SutServer:IDisposable{
     }
     public int Port=>((IPEndPoint)this.listener.LocalEndpoint).Port;
     public long Sequence=>Interlocked.Read(ref this.sequence);
+    /// <summary>診断用の累計(取引ごとの平均の実行時間、バッチごとの平均の fsync 時間、取引が待ち行列で待った平均時間。ミリ秒)。</summary>
+    public string Diagnostics(){
+        var perMillisecond=Stopwatch.Frequency/1000.0;
+        var transactions=Math.Max(1,this.batchedTransactions);
+        var batches=Math.Max(1,this.batchCount);
+        return $"exec {this.executeTicks/perMillisecond/transactions:F2} ms/txn, fsync {this.syncTicks/perMillisecond/batches:F2} ms/batch, queue wait {this.queueWaitTicks/perMillisecond/transactions:F2} ms/txn, batch {(double)this.batchedTransactions/batches:F2} txns";
+    }
     public long Executed(HarnessTransaction transaction)=>Interlocked.Read(ref this.executed[(int)transaction]);
     public long Failed(HarnessTransaction transaction)=>Interlocked.Read(ref this.failed[(int)transaction]);
     public void Start(){
@@ -133,11 +147,18 @@ internal sealed class SutServer:IDisposable{
             while(batch.Count<this.options.MaxBatch&&this.queue.TryTake(out var next)){
                 batch.Add(next);
             }
+            var executeStart=Stopwatch.GetTimestamp();
             foreach(var pending in batch){
+                this.queueWaitTicks+=Stopwatch.GetTimestamp()-pending.ArrivedAt;
                 pending.Response=this.Execute(pending.Body);
             }
+            var syncStart=Stopwatch.GetTimestamp();
+            this.executeTicks+=syncStart-executeStart;
             // 応答は fsync の後。ここを越えた取引は電源断でも残る。
             this.redo.Sync();
+            this.syncTicks+=Stopwatch.GetTimestamp()-syncStart;
+            this.batchCount++;
+            this.batchedTransactions+=batch.Count;
             foreach(var pending in batch){
                 try{
                     Framing.Write(pending.Stream,pending.Response!);
