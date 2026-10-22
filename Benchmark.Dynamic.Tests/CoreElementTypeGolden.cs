@@ -7,6 +7,16 @@ namespace Benchmark.Dynamic.Tests;
 
 public sealed class ElementTypeGoldenTests{
     // 要素型を一覧化する前後で、int のIRハッシュと生成ソースがバイト単位で変わらないことを固定する。
+    // 版12時点の演算子ID。以後に演算子を足しても、この基準は変わらない。
+    private static readonly HashSet<string> Version12OperatorIds=new(StringComparer.Ordinal){
+        "where","where.indexedModulo","select","select.indexedXor","distinct","distinctBy.modulo","take","skip",
+        "reverse","orderBy","thenBy","concat","union","except","intersect","unionBy.identity","exceptBy.identity",
+        "intersectBy.identity","selectMany.xor","join.xor","groupJoin.xorCount","count","longCount","any","all",
+        "contains","sum","min","max","minBy.identity","maxBy.identity","average","aggregate.xor",
+        "materialize.intPair","materialize.intGroup","first","firstOrDefault","last","lastOrDefault","elementAt",
+        "elementAtOrDefault","toArray","toList","toHashSet","toDictionary.identity","toLookup.modulo",
+    };
+
     private const string GoldenDigest="509fcd68c20a2ed47a451c7d4b94516a4d694eb6ee6350cf91fb32635c8459c6";
 
     [Fact,Trait("Category","Unit")]
@@ -26,7 +36,7 @@ public sealed class ElementTypeGoldenTests{
                     InputElementCount=32,
                     EnableBinaryOperators=true,
                     EnableNestedOperators=true,
-                    AllowedOperatorIds=capability.OperatorIds,
+                    AllowedOperatorIds=capability.OperatorIds.Where(Version12OperatorIds.Contains).ToArray(),
                 });
                 var emitted=emitter.Emit(document);
                 lines.Append(target).Append('|').Append(index).Append('|')
