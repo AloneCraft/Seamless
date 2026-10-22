@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using Benchmark.TpcE.Core.Harness;
 using System.Text.RegularExpressions;
 namespace Benchmark.TpcE.Compliance;
 /// <summary>
@@ -96,46 +97,31 @@ internal static class AcidCommand{
     private static IEnumerable<CheckResult> Atomicity(int port,TextWriter output){
         var sample=SutClient.Admin(port,"sample");
         var before=SutClient.Call(port,"{\"admin\":\"trade\",\"trade_id\":1}").GetProperty("trade_count").GetInt64();
-        var committed=SutClient.Call(port,OrderJson(sample,rollBack:false));
+        var committed=SutClient.Call(port,OrderBody(sample,rollBack:false));
         var committedId=committed.GetProperty("trade_id").GetInt64();
         var afterCommit=SutClient.Call(port,$"{{\"admin\":\"trade\",\"trade_id\":{committedId}}}");
         var commitOk=committed.GetProperty("ok").GetBoolean()&&!committed.GetProperty("rolled_back").GetBoolean()&&afterCommit.GetProperty("trade_exists").GetBoolean()&&afterCommit.GetProperty("history_rows").GetInt64()>=1&&afterCommit.GetProperty("trade_count").GetInt64()==before+1;
         yield return new CheckResult("7.2.2","原子性: 確定する Trade-Order(roll_it_back=0)",Outcome(commitOk),
             $"取引 {committedId}: TRADE の行 {afterCommit.GetProperty("trade_exists").GetBoolean()}、TRADE_HISTORY の行 {afterCommit.GetProperty("history_rows").GetInt64()}、TRADE の件数 {before} → {afterCommit.GetProperty("trade_count").GetInt64()}");
-        var rolled=SutClient.Call(port,OrderJson(sample,rollBack:true));
+        var rolled=SutClient.Call(port,OrderBody(sample,rollBack:true));
         var rolledId=rolled.GetProperty("trade_id").GetInt64();
         var afterRollback=SutClient.Call(port,$"{{\"admin\":\"trade\",\"trade_id\":{rolledId}}}");
         var rollbackOk=rolled.GetProperty("ok").GetBoolean()&&rolled.GetProperty("rolled_back").GetBoolean()&&!afterRollback.GetProperty("trade_exists").GetBoolean()&&afterRollback.GetProperty("history_rows").GetInt64()==0&&afterRollback.GetProperty("trade_count").GetInt64()==before+1;
         yield return new CheckResult("7.2.2","原子性: 巻き戻す Trade-Order(roll_it_back=1)",Outcome(rollbackOk),
             $"取引 {rolledId}: TRADE の行 {afterRollback.GetProperty("trade_exists").GetBoolean()}、TRADE_HISTORY の行 {afterRollback.GetProperty("history_rows").GetInt64()}、TRADE の件数 {afterRollback.GetProperty("trade_count").GetInt64()}(増えていない)");
     }
-    private static string OrderJson(JsonElement sample,bool rollBack){
-        var flag=0;
-        if(rollBack){
-            flag=1;
-        }
-        var buffer=new System.Buffers.ArrayBufferWriter<byte>(512);
-        using(var writer=new Utf8JsonWriter(buffer,new JsonWriterOptions{Encoder=System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping})){
-            writer.WriteStartObject();
-            writer.WriteString("txn","TradeOrder");
-            writer.WriteStartObject("input");
-            writer.WriteNumber("acct_id",sample.GetProperty("acct_id").GetInt64());
-            writer.WriteString("exec_f_name",sample.GetProperty("exec_f_name").GetString());
-            writer.WriteString("exec_l_name",sample.GetProperty("exec_l_name").GetString());
-            writer.WriteString("exec_tax_id",sample.GetProperty("exec_tax_id").GetString());
-            writer.WriteString("co_name",sample.GetProperty("co_name").GetString());
-            writer.WriteString("issue",sample.GetProperty("issue").GetString());
-            writer.WriteString("symbol",sample.GetProperty("symbol").GetString());
-            writer.WriteNumber("requested_price",25.00m);
-            writer.WriteNumber("trade_qty",100);
-            writer.WriteString("trade_type_id","TMB");
-            writer.WriteNumber("type_is_margin",0);
-            writer.WriteNumber("is_lifo",1);
-            writer.WriteNumber("roll_it_back",flag);
-            writer.WriteEndObject();
-            writer.WriteEndObject();
-        }
-        return Encoding.UTF8.GetString(buffer.WrittenSpan);
+    private static byte[] OrderBody(JsonElement sample,bool rollBack){
+        return HarnessRequest.TradeOrder(
+            sample.GetProperty("acct_id").GetInt64(),
+            sample.GetProperty("exec_f_name").GetString() ?? "",
+            sample.GetProperty("exec_l_name").GetString() ?? "",
+            sample.GetProperty("exec_tax_id").GetString() ?? "",
+            sample.GetProperty("co_name").GetString() ?? "",
+            sample.GetProperty("issue").GetString() ?? "",
+            sample.GetProperty("symbol").GetString() ?? "",
+            25.00,
+            "TMB",
+            rollBack);
     }
     /// <summary>
     /// 7.5.3.1 処理の喪失: 運転側を最大速度で流している最中に SUT を強制停止し、同じフォルダで再起動する。
@@ -240,7 +226,7 @@ internal static class AcidCommand{
         builder.AppendLine();
         builder.AppendLine("| 条項 | 試験 | 理由 |");
         builder.AppendLine("|---|---|---|");
-        builder.AppendLine("| 7.4.2 | 隔離(P0〜P3) | SUT は取引を 1 本の作業スレッドで直列に実行するため、取引どうしが重ならず、どの現象も起こり得ません。仕様の手順(S3 がフレームの間で止まり S4 が割り込む)は実行できません。ただし 7.4.1.4『任意の取引の同時実行を許す』を満たさないと判断される可能性があり、監査人と協議すべき事項です。 |");
+        builder.AppendLine("| 7.4.2 | 隔離(P0〜P3) | SUT は取引を 1 本の作業スレッドで直列に実行する設計です(利用者が決めた意図的な判断)。取引どうしが重ならないので、どの現象(P0〜P3)も起こり得ません(7.4.1.7 の代替技法)。仕様の手順(S3 がフレームの間で止まり S4 が割り込む)は実行できません。7.4.1.4『任意の取引の同時実行を許す』を満たすかは、監査人と協議すべき事項です。 |");
         builder.AppendLine("| 7.5.3.2 | 記憶装置 1 台の喪失 | 再実行ログとデータを別の物理ドライブに置いてミラーを組む構成が、この PC にありません。 |");
         builder.AppendLine("| 7.5.3.3 | 外部電源の喪失 | PC の電源を切る試験は危険なので自動では行いません。利用者が手で行う必要があります。処理の喪失の試験(プロセスの強制停止)は、OS の書き込みキャッシュが残るため、fsync の漏れを検出できません。 |");
         builder.AppendLine("| 7.6 | データへのアクセス | ドライブ 1 台の永久的な故障を作れないため。 |");

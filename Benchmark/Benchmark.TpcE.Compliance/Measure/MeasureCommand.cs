@@ -83,6 +83,7 @@ internal static class MeasureCommand{
             var checks=new List<CheckResult>(ComplianceChecks.Evaluate(result,settings));
             // 仕様 7.3.3: 初期投入の後(SUT 起動時のログ)と、計測の後(SUT に問い合わせる)に、一貫性の 3 条件を点検する。
             checks.Add(EGenLogChecks.Scan(Path.Combine(runDirectory,"EGenDriver.log")));
+            checks.Add(EGenValidateCheck.Run(result,arguments.EGenBuild,TimeSpan.FromMinutes(30)));
             checks.AddRange(ConsistencyReports.FromStartupLines(sut.FindLines("[sut] consistency ")));
             checks.AddRange(ConsistencyReports.FromAdminResponse(ConsistencyReports.Ask(port,"consistency"),"計測後"));
             var title=$"TPC-E 準拠リハーサルの結果({arguments.Customers:N0} 顧客・初期取引 {arguments.Days} 日)";
@@ -107,6 +108,7 @@ internal static class MeasureCommand{
             "--store",Path.Combine(runDirectory,"store"),
             "--redo",Path.Combine(runDirectory,"redo","redo.log"),
             "--flat",flat,
+            "--harness-dll",Path.Combine(arguments.EGenBuild,"EGenHarness.dll"),
             "--customers",arguments.Customers.ToString(CultureInfo.InvariantCulture),
             "--days",arguments.Days.ToString(CultureInfo.InvariantCulture),
             "--news-bytes",arguments.NewsItemBytes.ToString(CultureInfo.InvariantCulture),

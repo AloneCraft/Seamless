@@ -1,6 +1,6 @@
 ﻿# EGen 1.14.0 を現行の MSVC でビルドする(EGen の本体ソースは書き換えない)。
 # 使い方: powershell -File build-egen.ps1 [-EGenDirectory <EGen の展開先>] [-OutputDirectory <出力先>]
-# 出力: <OutputDirectory>\EGenLoader.exe(データ生成)、EGenDriver.exe(運転側)、EGenCore.lib。
+# 出力: <OutputDirectory>\EGenLoader.exe(データ生成)、EGenDriver.exe(運転側)、EGenHarness.dll(取引の手順)、EGenValidate.exe(負荷単位ごとの Trade-Result の検定)、EGenCore.lib。
 #
 # 回避しているのは次の 2 つだけで、どちらも EGen の動作には関係しない。
 #  1. EGenStandardTypes.h の `#define snprintf _snprintf` が新しい Windows SDK の stdio.h と衝突する
@@ -21,6 +21,8 @@ $driver=Join-Path $PSScriptRoot 'driver\EGenDriver.cpp'
 $harnessSource=Join-Path $PSScriptRoot 'harness\HarnessBridge.cpp'
 $harnessInclude=Join-Path $PSScriptRoot 'harness'
 $harnessObjects=Join-Path $OutputDirectory 'obj-harness'
+$validateObjects=Join-Path $OutputDirectory 'obj-validate'
+New-Item -ItemType Directory -Force $validateObjects | Out-Null
 New-Item -ItemType Directory -Force $harnessObjects | Out-Null
 $patched=Join-Path $OutputDirectory 'EGenVersion.cpp'
 (Get-Content (Join-Path $EGenDirectory 'Utilities\src\EGenVersion.cpp') -Raw).Replace('__DATE__" "__TIME__','__DATE__ " " __TIME__') | Set-Content $patched -Encoding utf8
@@ -51,4 +53,17 @@ cmd /c ($commands -join ' && ')
 if($LASTEXITCODE -ne 0){
     Write-Error "build failed. See $log"
 }
-Write-Output "built: $OutputDirectory\EGenLoader.exe, $OutputDirectory\EGenDriver.exe, $OutputDirectory\EGenHarness.dll"
+# EGenValidate(仕様 6.7.4。負荷単位ごとの Trade-Result の検定)。引用符の入れ子を避けるため、一時の .cmd にして動かす。
+$validateCmd=Join-Path $OutputDirectory 'build-validate.cmd'
+@(
+    "@echo off",
+    "call `"$vcvars`" >nul 2>&1",
+    "cl $flags /c /I`"$EGenDirectory\inc`" /I`"$EGenDirectory\Utilities\inc`" /I`"$EGenDirectory\InputFiles\inc`" /Fo`"$validateObjects\\`" `"$EGenDirectory\src\EGenValidate.cpp`" `"$EGenDirectory\src\bucketsimulator.cpp`" >> `"$log`" 2>&1",
+    "if errorlevel 1 exit /b 1",
+    "link /nologo /OUT:`"$OutputDirectory\EGenValidate.exe`" `"$validateObjects\EGenValidate.obj`" `"$validateObjects\bucketsimulator.obj`" `"$OutputDirectory\EGenCore.lib`" >> `"$log`" 2>&1"
+) | Set-Content $validateCmd -Encoding ascii
+cmd /c $validateCmd
+if($LASTEXITCODE -ne 0){
+    Write-Error "EGenValidate build failed. See $log"
+}
+Write-Output "built: $OutputDirectory\EGenLoader.exe, $OutputDirectory\EGenDriver.exe, $OutputDirectory\EGenHarness.dll, $OutputDirectory\EGenValidate.exe"

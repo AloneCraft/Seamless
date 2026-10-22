@@ -1,4 +1,5 @@
-// TPC-E 準拠リハーサルの運転側(Driver)。EGen 1.14.0 の CE/MEE/DM をそのまま使い、取引の入力を JSON にして SUT(C#)へ送る。
+// TPC-E 準拠リハーサルの運転側(Driver)。EGen 1.14.0 の CE/MEE/DM をそのまま使い、取引の入力(EGen の TxnInput の構造体のバイト列)を SUT(C#)へ送る。
+// SUT は EGenTxnHarness(C++)で取引を実行する。入力は EGen が作った構造体を変換せずに送るので、取引の中身はドライバーと SUT の間で書き換わらない。
 // 出す数字は TPC-E 由来の非監査値で、公式結果とは比較できない。
 //
 // 構成(仕様 6.2 の「複数スレッドの CE」): CE のスレッドが U 本(各自 CCE を 1 つ・SUT への接続を 1 本持つ)、MEE のスレッド 1 本、DM のスレッド 1 本。
@@ -136,7 +137,7 @@ public:
     }
 };
 
-// ---- JSON(書く側は手書き、読む側は SUT の応答の形に限った簡易版) ----------------------------------------------------
+// ---- JSON(SUT の応答の形に限った簡易版。取引の入力は JSON にしない) -------------------------------------------------
 std::string Quote(const char* text){
     std::string out="\"";
     for(const char* p=text;*p;++p){
@@ -148,23 +149,6 @@ std::string Quote(const char* text){
     out+='"';
     return out;
 }
-class Json {
-    std::string m_text;
-    bool m_first=true;
-    void Key(const char* name){ if(!m_first){ m_text+=','; } m_first=false; m_text+='"'; m_text+=name; m_text+="\":"; }
-public:
-    Json& Long(const char* name,long long value){ Key(name); m_text+=std::to_string(value); return *this; }
-    Json& Money(const char* name,double value){ Key(name); char b[64]; snprintf(b,sizeof(b),"%.2f",value); m_text+=b; return *this; }
-    Json& Str(const char* name,const char* value){ Key(name); m_text+=Quote(value); return *this; }
-    Json& Raw(const char* name,const std::string& value){ Key(name); m_text+=value; return *this; }
-    Json& Stamp(const char* name,const TIMESTAMP_STRUCT& t){
-        Key(name); char b[64];
-        snprintf(b,sizeof(b),"\"%04d-%02d-%02d %02d:%02d:%02d.%03u\"",(int)t.year,(int)t.month,(int)t.day,(int)t.hour,(int)t.minute,(int)t.second,(unsigned)(t.fraction/1000000));
-        m_text+=b; return *this;
-    }
-    std::string Done() const { return "{"+m_text+"}"; }
-};
-std::string Envelope(const char* txn,const Json& input){ return std::string("{\"txn\":\"")+txn+"\",\"input\":"+input.Done()+"}"; }
 
 bool FindRaw(const std::string& json,const char* key,std::string& value){
     std::string pattern=std::string("\"")+key+"\":";
@@ -197,10 +181,8 @@ TTradeRequest ParseRequest(const std::string& json){
 struct Reply {
     bool ok=false;
     int status=0;
-    bool hasRequest=false;
-    TTradeRequest request;
-    // Market-Feed が発動させた指値注文。MEE へ eMEEProcessOrder で送り返す。
-    std::vector<TTradeRequest> triggered;
+    // SUT が市場(MEE)へ送るよう返した注文。Trade-Order の成行(処理)と指値(発動条件の登録)、Market-Feed が発動させた指値(処理)。
+    std::vector<TTradeRequest> requests;
     std::string error;
 };
 Reply ParseReply(const std::string& json){
@@ -214,22 +196,16 @@ Reply ParseReply(const std::string& json){
         while(acked>seen&&!g_lastAckedWriteSequence.compare_exchange_weak(seen,acked)){}
     }
     if(FindRaw(json,"error",v)){ reply.error=v; }
-    if(json.find("\"trade_request\"")!=std::string::npos){
-        reply.hasRequest=true;
-        reply.request=ParseRequest(json);
-    }
     size_t array=json.find("\"trade_requests\":[");
     if(array!=std::string::npos){
+        size_t end=json.find(']',array);
         size_t at=array;
         while(true){
             size_t open=json.find('{',at);
-            if(open==std::string::npos){ break; }
+            if(open==std::string::npos||(end!=std::string::npos&&open>end)){ break; }
             size_t close=json.find('}',open);
             if(close==std::string::npos){ break; }
-            // 配列の終わり(']')より先の '{' は別の項目
-            size_t end=json.find(']',array);
-            if(end!=std::string::npos&&open>end){ break; }
-            reply.triggered.push_back(ParseRequest(json.substr(open,close-open+1)));
+            reply.requests.push_back(ParseRequest(json.substr(open,close-open+1)));
             at=close+1;
         }
     }
@@ -291,12 +267,22 @@ void SubmitQueuedTriggered(CMEE* mee){
 }
 
 // ---- SUT への口(CE・MEE・DM が共通に使う) -----------------------------------------------------------------------
-class JsonSut {
+// EGenHarness の取引 ID(SUT の HarnessTransaction と同じ値)。
+enum HarnessId { HTradeOrder=0,HTradeStatus=1,HCustomerPosition=2,HBrokerVolume=3,HSecurityDetail=4,HMarketWatch=5,HTradeLookup=6,HTradeUpdate=7,HTradeResult=8,HMarketFeed=9,HDataMaintenance=10,HTradeCleanup=11 };
+
+class SutLink {
 protected:
     Connection m_connection;
-    JsonSut(const Settings& s):m_connection(s.host,s.port){}
-    // 1 件送って応答を待つ。sT/eT を計り、成功したかを返す。
-    bool Send(Txn txn,const std::string& message,Reply* reply=nullptr){
+    SutLink(const Settings& s):m_connection(s.host,s.port){}
+    // 1 件送って応答を待つ。sT/eT を計り、成功したかを返す。要求は「0x01 + 取引 ID(4 バイト) + TxnInput の構造体」。
+    // 取引の status が負(誤り)のときは失敗として数える(仕様 6.1.1.2: 取引の誤りは認められない。予期された巻き戻しの status は正)。
+    template<typename Input>
+    bool Send(Txn txn,HarnessId id,const Input* input,Reply* reply=nullptr){
+        std::string message(1+4+sizeof(Input),'\0');
+        message[0]=1;
+        int32_t txnId=(int32_t)id;
+        memcpy(&message[1],&txnId,4);
+        memcpy(&message[5],input,sizeof(Input));
         long long start=NowMs();
         std::string text;
         try{
@@ -307,115 +293,92 @@ protected:
         }
         long long end=NowMs();
         Reply parsed=ParseReply(text);
+        bool ok=parsed.ok;
         if(!parsed.ok){
             std::lock_guard<std::mutex> guard(g_errorLock);
             ++g_errors[std::string(TxnNames[txn])+": "+parsed.error];
+        }else if(parsed.status<0){
+            ok=false;
+            std::lock_guard<std::mutex> guard(g_errorLock);
+            ++g_errors[std::string(TxnNames[txn])+": status "+std::to_string(parsed.status)];
         }
         {
             std::lock_guard<std::mutex> guard(g_stats[txn].lock);
-            g_stats[txn].samples.push_back(Sample{(unsigned)start,(unsigned)end,parsed.ok,parsed.status});
+            g_stats[txn].samples.push_back(Sample{(unsigned)start,(unsigned)end,ok,parsed.status});
         }
         if(reply){ *reply=parsed; }
-        return parsed.ok;
+        return ok;
     }
 };
 
-class CeSut : public CCESUTInterface, private JsonSut {
+class CeSut : public CCESUTInterface, private SutLink {
 public:
-    CeSut(const Settings& s):JsonSut(s){}
-    bool BrokerVolume(PBrokerVolumeTxnInput p) override {
-        std::string list="[";
-        for(int i=0;i<max_broker_list_len;++i){ if(p->broker_list[i][0]==0){ break; } if(i>0){ list+=','; } list+=Quote(p->broker_list[i]); }
-        list+="]";
-        Json j; j.Raw("broker_list",list).Str("sector_name",p->sector_name);
-        return Send(BV,Envelope("BrokerVolume",j));
-    }
-    bool CustomerPosition(PCustomerPositionTxnInput p) override {
-        Json j; j.Long("acct_id_idx",p->acct_id_idx).Long("cust_id",p->cust_id).Long("get_history",p->get_history?1:0).Str("tax_id",p->tax_id);
-        return Send(CP,Envelope("CustomerPosition",j));
-    }
-    bool MarketWatch(PMarketWatchTxnInput p) override {
-        Json j; j.Long("acct_id",p->acct_id).Long("c_id",p->c_id).Long("ending_co_id",p->ending_co_id).Long("starting_co_id",p->starting_co_id).Stamp("start_day",p->start_day).Str("industry_name",p->industry_name);
-        return Send(MW,Envelope("MarketWatch",j));
-    }
-    bool SecurityDetail(PSecurityDetailTxnInput p) override {
-        Json j; j.Long("max_rows_to_return",p->max_rows_to_return).Long("access_lob_flag",p->access_lob_flag?1:0).Stamp("start_day",p->start_day).Str("symbol",p->symbol);
-        return Send(SD,Envelope("SecurityDetail",j));
-    }
-    bool TradeLookup(PTradeLookupTxnInput p) override {
-        std::string ids="[";
-        for(int i=0;i<TradeLookupFrame1MaxRows;++i){ if(i>0){ ids+=','; } ids+=std::to_string((long long)p->trade_id[i]); }
-        ids+="]";
-        Json j; j.Raw("trade_id",ids).Long("acct_id",p->acct_id).Long("max_acct_id",p->max_acct_id).Long("frame_to_execute",p->frame_to_execute).Long("max_trades",p->max_trades).Stamp("end_trade_dts",p->end_trade_dts).Stamp("start_trade_dts",p->start_trade_dts).Str("symbol",p->symbol);
-        return Send(TL,Envelope("TradeLookup",j));
-    }
+    CeSut(const Settings& s):SutLink(s){}
+    bool BrokerVolume(PBrokerVolumeTxnInput p) override { return Send(BV,HBrokerVolume,p); }
+    bool CustomerPosition(PCustomerPositionTxnInput p) override { return Send(CP,HCustomerPosition,p); }
+    bool MarketWatch(PMarketWatchTxnInput p) override { return Send(MW,HMarketWatch,p); }
+    bool SecurityDetail(PSecurityDetailTxnInput p) override { return Send(SD,HSecurityDetail,p); }
+    bool TradeLookup(PTradeLookupTxnInput p) override { return Send(TL,HTradeLookup,p); }
     bool TradeOrder(PTradeOrderTxnInput p,INT32 /*tradeType*/,bool /*executorIsAccountOwner*/) override {
-        Json j; j.Money("requested_price",p->requested_price).Long("acct_id",p->acct_id).Long("is_lifo",p->is_lifo).Long("roll_it_back",p->roll_it_back).Long("trade_qty",p->trade_qty).Long("type_is_margin",p->type_is_margin)
-            .Str("co_name",p->co_name).Str("exec_f_name",p->exec_f_name).Str("exec_l_name",p->exec_l_name).Str("exec_tax_id",p->exec_tax_id).Str("issue",p->issue)
-            .Str("st_pending_id",p->st_pending_id).Str("st_submitted_id",p->st_submitted_id).Str("symbol",p->symbol).Str("trade_type_id",p->trade_type_id);
         Reply reply;
-        bool ok=Send(TO,Envelope("TradeOrder",j),&reply);
+        bool ok=Send(TO,HTradeOrder,p,&reply);
         CMEE* mee=g_mee.load();
-        if(ok&&reply.hasRequest&&mee){
+        if(ok&&mee){
             // 市場(MEE)へ注文を送る。ここから先は応答時間に含めない(仕様どおり、応答を受けた後)。
-            INT32 delay=mee->SubmitTradeRequest(&reply.request);
-            g_meeTimer.Schedule(delay);
+            for(TTradeRequest& request:reply.requests){
+                INT32 delay=mee->SubmitTradeRequest(&request);
+                g_meeTimer.Schedule(delay);
+            }
         }
         return ok;
     }
-    bool TradeStatus(PTradeStatusTxnInput p) override {
-        Json j; j.Long("acct_id",p->acct_id);
-        return Send(TS,Envelope("TradeStatus",j));
-    }
-    bool TradeUpdate(PTradeUpdateTxnInput p) override {
-        std::string ids="[";
-        for(int i=0;i<TradeUpdateFrame1MaxRows;++i){ if(i>0){ ids+=','; } ids+=std::to_string((long long)p->trade_id[i]); }
-        ids+="]";
-        Json j; j.Raw("trade_id",ids).Long("acct_id",p->acct_id).Long("max_acct_id",p->max_acct_id).Long("frame_to_execute",p->frame_to_execute).Long("max_trades",p->max_trades).Long("max_updates",p->max_updates).Stamp("end_trade_dts",p->end_trade_dts).Stamp("start_trade_dts",p->start_trade_dts).Str("symbol",p->symbol);
-        return Send(TU,Envelope("TradeUpdate",j));
-    }
+    bool TradeStatus(PTradeStatusTxnInput p) override { return Send(TS,HTradeStatus,p); }
+    bool TradeUpdate(PTradeUpdateTxnInput p) override { return Send(TU,HTradeUpdate,p); }
 };
 
-class MeeSut : public CMEESUTInterface, private JsonSut {
+class MeeSut : public CMEESUTInterface, private SutLink {
 public:
-    MeeSut(const Settings& s):JsonSut(s){}
-    bool TradeResult(PTradeResultTxnInput p) override {
-        Json j; j.Money("trade_price",p->trade_price).Long("trade_id",p->trade_id);
-        return Send(TR,Envelope("TradeResult",j));
-    }
+    MeeSut(const Settings& s):SutLink(s){}
+    bool TradeResult(PTradeResultTxnInput p) override { return Send(TR,HTradeResult,p); }
     bool MarketFeed(PMarketFeedTxnInput p) override {
-        std::string entries="[";
-        for(int i=0;i<max_feed_len;++i){
-            if(i>0){ entries+=','; }
-            Json e; e.Money("price_quote",p->Entries[i].price_quote).Long("trade_qty",p->Entries[i].trade_qty).Str("symbol",p->Entries[i].symbol);
-            entries+=e.Done();
-        }
-        entries+="]";
-        Json j; j.Long("unique_symbols",p->unique_symbols).Str("status_submitted",p->StatusAndTradeType.status_submitted).Str("type_limit_buy",p->StatusAndTradeType.type_limit_buy)
-            .Str("type_limit_sell",p->StatusAndTradeType.type_limit_sell).Str("type_stop_loss",p->StatusAndTradeType.type_stop_loss).Raw("entries",entries);
         Reply reply;
-        bool ok=Send(MF,Envelope("MarketFeed",j),&reply);
+        bool ok=Send(MF,HMarketFeed,p,&reply);
         // 発動した指値注文は、ここ(MEE が GenerateTradeResult を実行している最中)では渡さず、待ち行列に積む。
         if(ok){
-            QueueTriggered(reply.triggered);
+            QueueTriggered(reply.requests);
         }
         return ok;
     }
 };
 
-class DmSut : public CDMSUTInterface, private JsonSut {
+class DmSut : public CDMSUTInterface, private SutLink {
 public:
-    DmSut(const Settings& s):JsonSut(s){}
-    bool DataMaintenance(PDataMaintenanceTxnInput p) override {
-        Json j; j.Long("acct_id",p->acct_id).Long("c_id",p->c_id).Long("co_id",p->co_id).Long("day_of_month",p->day_of_month).Long("vol_incr",p->vol_incr)
-            .Str("symbol",p->symbol).Str("table_name",p->table_name).Str("tx_id",p->tx_id);
-        return Send(DMT,Envelope("DataMaintenance",j));
-    }
-    bool TradeCleanup(PTradeCleanupTxnInput p) override {
-        Json j; j.Long("start_trade_id",p->start_trade_id).Str("st_canceled_id",p->st_canceled_id).Str("st_pending_id",p->st_pending_id).Str("st_submitted_id",p->st_submitted_id);
-        return Send(TC,Envelope("TradeCleanup",j));
-    }
+    DmSut(const Settings& s):SutLink(s){}
+    bool DataMaintenance(PDataMaintenanceTxnInput p) override { return Send(DMT,HDataMaintenance,p); }
+    bool TradeCleanup(PTradeCleanupTxnInput p) override { return Send(TC,HTradeCleanup,p); }
 };
+
+// 負荷単位(顧客 1,000 人ごと)ごとの Trade-Result の累計を SUT に問い合わせる(計測区間の始めと終わりの差が、区間中の件数。仕様 6.7.4)。
+std::vector<long long> QueryLoadUnits(const Settings& s){
+    std::vector<long long> counts;
+    try{
+        Connection connection(s.host,s.port);
+        std::string text=connection.Call("{\"admin\":\"load_units\"}");
+        size_t at=text.find("\"load_units\":[");
+        if(at==std::string::npos){ return counts; }
+        at=text.find('[',at)+1;
+        size_t end=text.find(']',at);
+        while(at<end){
+            size_t comma=text.find(',',at);
+            if(comma==std::string::npos||comma>end){ comma=end; }
+            counts.push_back(_atoi64(text.substr(at,comma-at).c_str()));
+            at=comma+1;
+        }
+    }catch(const std::exception& e){
+        fprintf(stderr,"load unit query failed: %s\n",e.what());
+    }
+    return counts;
+}
 
 // ---- スレッド ----------------------------------------------------------------------------------------------------
 // EGen の CCE/CMEE/CDM のコンストラクターは、共有の静的な状態を最初に初期化する(スレッド安全ではない)。
@@ -495,7 +458,7 @@ Summary Summarize(Txn txn,long long fromMs,long long toMs){
 }
 double RoundUp2(double v){ if(v<=0){ return 0; } return std::ceil(v*100.0-1e-9)/100.0; }
 
-void WriteResult(const Settings& s,long long m0,long long m1){
+void WriteResult(const Settings& s,long long m0,long long m1,const std::vector<long long>& loadUnitsAtStart,const std::vector<long long>& loadUnitsAtEnd){
     FILE* f=fopen(s.out.c_str(),"w");
     if(!f){ fprintf(stderr,"cannot write %s\n",s.out.c_str()); return; }
     double seconds=(double)(m1-m0)/1000.0;
@@ -533,6 +496,11 @@ void WriteResult(const Settings& s,long long m0,long long m1){
             fprintf(f,"%s{\"message\":%s,\"count\":%lld}",first?"":",",Quote(entry.first.c_str()).c_str(),entry.second);
             first=false;
         }
+    }
+    fprintf(f,"],\n  \"load_unit_trade_results\": [");
+    for(size_t i=0;i<loadUnitsAtEnd.size();++i){
+        long long before=(i<loadUnitsAtStart.size())?loadUnitsAtStart[i]:0;
+        fprintf(f,"%s%lld",(i>0)?",":"",loadUnitsAtEnd[i]-before);
     }
     fprintf(f,"]\n}\n");
     fclose(f);
@@ -622,13 +590,18 @@ int main(int argc,char** argv){
         const long long m0=(long long)s.rampSeconds*1000;
         const long long m1=m0+(long long)s.measureSeconds*1000;
         const long long end=m1+(long long)s.downSeconds*1000;
+        std::vector<long long> loadUnitsAtStart,loadUnitsAtEnd;
+        bool tookStart=false,tookEnd=false;
         while(!g_stop&&NowMs()<end){
+            long long now=NowMs();
+            if(!tookStart&&now>=m0){ loadUnitsAtStart=QueryLoadUnits(s); tookStart=true; }
+            if(!tookEnd&&now>=m1){ loadUnitsAtEnd=QueryLoadUnits(s); tookEnd=true; }
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
         g_stop=true;
         for(std::thread& t:threads){ t.join(); }
         g_mee=nullptr;
-        WriteResult(s,m0,m1);
+        WriteResult(s,m0,m1,loadUnitsAtStart,loadUnitsAtEnd);
         if(g_fatal){ exitCode=2; }
     }catch(const std::exception& e){
         fprintf(stderr,"driver failed: %s\n",e.what());

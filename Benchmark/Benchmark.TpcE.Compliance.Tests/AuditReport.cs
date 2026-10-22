@@ -19,8 +19,10 @@ public sealed class AuditReport{
         {
             //公式化を妨げる既知の隔たりを、未達として隠さず出している
             var gaps=Compliance.AuditReport.Items.Where(static item=>item.Status==AuditStatus.Gap).Select(static item=>item.Clause).ToArray();
-            Assert.Contains("10.5.Harness",gaps);
+            Assert.DoesNotContain("10.5.Harness",gaps);
+            Assert.Equal(AuditStatus.Automated,Compliance.AuditReport.Items.Single(static item=>item.Clause=="10.5.Harness").Status);
             Assert.Contains("10.7.4",gaps);
+            Assert.Contains("意図した設計判断",Compliance.AuditReport.Items.Single(static item=>item.Clause=="10.7.4").Note);
             Assert.Contains("10.2.1.7",gaps);
             Assert.Contains("10.4.7",gaps);
             var markdown=Compliance.AuditReport.Markdown();

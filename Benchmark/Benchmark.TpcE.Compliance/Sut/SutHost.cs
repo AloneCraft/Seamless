@@ -18,6 +18,8 @@ internal sealed record SutArguments{
     public int NewsItemBytes{get;init;}=100_000;
     public long ExpectedRunTrades{get;init;}=500_000;
     public int Port{get;init;}
+    /// <summary>EGenHarness.dll(build-egen.ps1 の出力)。取引の手順は EGenTxnHarness に任せる。</summary>
+    public string HarnessDll{get;init;}="";
     public long MemoryMegabytes{get;init;}=2048;
     public long DiskGigabytes{get;init;}=64;
     public double CheckpointMinutes{get;init;}=7.5;
@@ -41,6 +43,7 @@ internal sealed record SutArguments{
                 "--news-bytes"=>result with{NewsItemBytes=int.Parse(value,CultureInfo.InvariantCulture)},
                 "--expected-run-trades"=>result with{ExpectedRunTrades=long.Parse(value,CultureInfo.InvariantCulture)},
                 "--port"=>result with{Port=int.Parse(value,CultureInfo.InvariantCulture)},
+                "--harness-dll"=>result with{HarnessDll=value},
                 "--memory-mb"=>result with{MemoryMegabytes=long.Parse(value,CultureInfo.InvariantCulture)},
                 "--disk-gb"=>result with{DiskGigabytes=long.Parse(value,CultureInfo.InvariantCulture)},
                 "--checkpoint-minutes"=>result with{CheckpointMinutes=double.Parse(value,CultureInfo.InvariantCulture)},
@@ -49,6 +52,9 @@ internal sealed record SutArguments{
         }
         if(result.StoreDirectory.Length==0){
             throw new ArgumentException("--store is required.");
+        }
+        if(result.HarnessDll.Length==0){
+            throw new ArgumentException("--harness-dll is required (EGenHarness.dll built by build-egen.ps1).");
         }
         if(result.RedoPath.Length==0){
             result=result with{RedoPath=Path.Combine(result.StoreDirectory,"..","redo.log")};
@@ -125,8 +131,9 @@ internal static class SutHost{
         }
         output.WriteLine($"[sut] consistency checked in {consistencyWatch.Elapsed.TotalSeconds:F1} s");
         using var writer=new RedoLogWriter(arguments.RedoPath,validLength);
+        using var harness=new HarnessHost(arguments.HarnessDll);
         var options=new SutOptions{Port=arguments.Port,CheckpointInterval=TimeSpan.FromMinutes(arguments.CheckpointMinutes)};
-        using var server=new SutServer(engine,writer,checkpoint,startSequence,Save,options);
+        using var server=new SutServer(engine,harness,writer,checkpoint,startSequence,Save,options);
         server.Start();
         output.WriteLine($"[sut] READY port {server.Port}");
         output.Flush();

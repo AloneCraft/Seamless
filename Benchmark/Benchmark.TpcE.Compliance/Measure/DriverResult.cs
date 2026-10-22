@@ -17,6 +17,8 @@ internal sealed class DriverResult{
     [JsonPropertyName("transactions")]public List<DriverTransaction> Transactions{get;init;}=[];
     [JsonPropertyName("trade_result_per_second")]public List<long> TradeResultPerSecond{get;init;}=[];
     [JsonPropertyName("errors")]public List<DriverError> Errors{get;init;}=[];
+    /// <summary>計測区間に、負荷単位(顧客 1,000 人)ごとに完了した Trade-Result の件数(添字 0 が負荷単位 1)。仕様 6.7.4。</summary>
+    [JsonPropertyName("load_unit_trade_results")]public List<long> LoadUnitTradeResults{get;init;}=[];
     public static DriverResult Parse(string json)=>JsonSerializer.Deserialize<DriverResult>(json) ?? throw new InvalidDataException("The driver result is empty.");
     public DriverTransaction? Find(string name){
         foreach(var transaction in this.Transactions){
