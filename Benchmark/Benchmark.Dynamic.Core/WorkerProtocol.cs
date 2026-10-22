@@ -203,6 +203,8 @@ public enum WorkerExecutionStatus{
     AssemblyUnloadFailed,
     Canceled,
     Fatal,
+    /// <summary>FLinq が展開しきれなかった(FLINQ002・展開失敗の目印・実行時の EnumerableFallback)。</summary>
+    ExpansionIncomplete,
 }
 
 public sealed record WorkerStartedEvent(

@@ -8,6 +8,9 @@ public sealed record RangeSourceFixture(int Start,int Count);
 public sealed record QuerySourceEmissionOptions{
     public string GeneratedNamespace{get;init;}="Benchmark.Dynamic.Generated";
     public string? ClassName{get;init;}
+
+    /// <summary>false にすると ZLinq の経路と <c>using ZLinq</c> を出さない(ZLinq を参照しない再現テスト向け)。</summary>
+    public bool IncludeZLinq{get;init;}=true;
 }
 
 public sealed record QuerySourceEmissionResult(
@@ -40,7 +43,9 @@ public sealed class QuerySourceEmitter{
         var builder=new StringBuilder(8_192);
         builder.AppendLine("#nullable enable");
         builder.AppendLine("using System.Linq;");
-        builder.AppendLine("using ZLinq;");
+        if(options.IncludeZLinq){
+            builder.AppendLine("using ZLinq;");
+        }
         builder.Append("namespace ").Append(generatedNamespace).AppendLine(";");
         builder.AppendLine();
         builder.Append("public sealed class ").Append(className).AppendLine("{");
@@ -57,7 +62,7 @@ public sealed class QuerySourceEmitter{
             element,
             ExecutionPath.FLinqOptimized,
             "[global::Seamless.FLinq.LinqIntercept(true,Optimizations=global::Seamless.FLinq.LinqOptimizations.All,ConvergenceMode=global::Seamless.FLinq.LinqConvergenceMode.GlobalFixedPoint,EmitOptimizationTrace=true)]");
-        var zLinqSupported=QueryZLinqSupport.IsSupported(document);
+        var zLinqSupported=options.IncludeZLinq&&QueryZLinqSupport.IsSupported(document);
         if(zLinqSupported){
             this.EmitMethod(builder,document,element,ExecutionPath.ZLinq,null);
         }

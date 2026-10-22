@@ -42,6 +42,31 @@ public sealed record DynamicCompilationDiagnostic(
     string Message,
     string Location);
 
+/// <summary>
+/// FLinq は展開できない呼び出しを黙って System.Linq へ切り替えず、警告 FLINQ002 を出して
+/// 実行すると例外で止まるコードを生成する。実行前に、その兆候が生成物に無いことを確かめる。
+/// </summary>
+public static class FLinqExpansionValidator {
+    public const string DiagnosticId="FLinqExpansionIncomplete";
+
+    private static readonly string[] FailureMarkers=["LinqInterceptorFailure(","UnsupportedLinqExpansion("];
+
+    public static IEnumerable<DynamicCompilationDiagnostic> Validate(
+        IReadOnlyList<DynamicCompilationDiagnostic> diagnostics,
+        string generatedSourceText) {
+        ArgumentNullException.ThrowIfNull(diagnostics);
+        ArgumentNullException.ThrowIfNull(generatedSourceText);
+        foreach(var diagnostic in diagnostics.Where(static diagnostic=>diagnostic.ID=="FLINQ002")) {
+            yield return new("Expansion","Error",DiagnosticId,$"FLINQ002: {diagnostic.Message}",diagnostic.Location);
+        }
+        foreach(var marker in FailureMarkers) {
+            if(generatedSourceText.Contains(marker,StringComparison.Ordinal)) {
+                yield return new("Expansion","Error",DiagnosticId,$"生成コードに{marker}が含まれます。FLinq が展開しきれませんでした。",string.Empty);
+            }
+        }
+    }
+}
+
 public sealed record DynamicCompilationRequest(
     string AssemblyName,
     string TypeName,
@@ -73,6 +98,9 @@ public sealed class LoadedDynamicQuery {
         var 関数=this.実行関数一覧??throw new ObjectDisposedException(nameof(LoadedDynamicQuery));
         return 関数[実装](Primary,Secondary);
     }
+
+    /// <summary>読み込んだ動的アセンブリ。再現テストを実行するテストが、生成した型を直接呼ぶために使う。</summary>
+    public Assembly? DynamicAssembly=>this.動的アセンブリ;
 
     public bool Has(DynamicImplementationKind 実装) {
         var 関数=this.実行関数一覧??throw new ObjectDisposedException(nameof(LoadedDynamicQuery));
@@ -213,6 +241,9 @@ public sealed class DynamicQueryCompiler {
                     string.Empty));
             }
             診断一覧.AddRange(呼出先を検証(Compilation,構文木,Run結果));
+            診断一覧.AddRange(FLinqExpansionValidator.Validate(
+                診断一覧,
+                string.Concat(Run結果.Results.SelectMany(結果=>結果.GeneratedSources).Select(Source=>Source.SourceText.ToString()))));
             if(診断一覧.Any(診断=>診断.Severity=="Error")) {
                 return 失敗();
             }

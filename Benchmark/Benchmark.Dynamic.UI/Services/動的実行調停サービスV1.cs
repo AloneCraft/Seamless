@@ -586,6 +586,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
                 switch(Status){
                     case WorkerExecutionStatus.CompilationFailed:
                     case WorkerExecutionStatus.InvocationTargetMismatch:
+                    case WorkerExecutionStatus.ExpansionIncomplete:
                         this.コンパイル失敗数++;
                         break;
                     case WorkerExecutionStatus.SemanticMismatch:

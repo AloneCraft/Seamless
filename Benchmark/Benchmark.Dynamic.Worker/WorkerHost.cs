@@ -134,6 +134,18 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                 Status=WorkerExecutionStatus.SemanticMismatch;
                 goto 完了;
             }
+            if(検証.Fallbacks.Count!=0){
+                var 内訳=string.Join(", ",検証.Fallbacks.Select(static 項目=>$"{項目.Key}={項目.Value}"));
+                診断JSON=診断を追加(
+                    診断JSON,
+                    "Expansion",
+                    new WorkerInvocationFailure(
+                        "FLinqRuntimeFallback",
+                        $"実行時に EnumerableFallback が数えられました({内訳})。FLinq が展開しきれていません。",
+                        null));
+                Status=WorkerExecutionStatus.ExpansionIncomplete;
+                goto 完了;
+            }
             var Profile=要求.MeasurementProfile;
             var 計測器=new MeasurementEngine(new MeasurementProfile(
                 Profile.ProfileId,
@@ -222,6 +234,9 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
             診断.ID is "InvocationTargetMismatch" or "FLinqInterceptorMissing")){
             return WorkerExecutionStatus.InvocationTargetMismatch;
         }
+        if(診断一覧.Any(static 診断=>診断.ID=="FLinqExpansionIncomplete")){
+            return WorkerExecutionStatus.ExpansionIncomplete;
+        }
         return WorkerExecutionStatus.CompilationFailed;
     }
 
@@ -233,12 +248,19 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
         CancellationToken キャンセルToken){
         var 結果一覧=new Dictionary<DynamicImplementationKind,DynamicQueryValue>();
         var 例外一覧=new Dictionary<DynamicImplementationKind,WorkerInvocationFailure>();
+        var フォールバック=new Dictionary<DynamicImplementationKind,long>();
         foreach(var 実装 in 検証対象.Where(Loaded.Has)){
             キャンセルToken.ThrowIfCancellationRequested();
             try{
+                // FLinq の実行時フォールバック回数は、検証の実行だけで数える(計測の実行では数えない)。
+                using var カウンタ範囲=global::Seamless.Linq.LinqCounterScope.Start();
                 var 値=Loaded.Run(実装,Primary,Secondary);
                 値.Validate();
                 結果一覧[実装]=値;
+                if(実装 is DynamicImplementationKind.FLinqUnoptimized or DynamicImplementationKind.FLinq
+                    &&カウンタ範囲.Counter.EnumerableFallback>0){
+                    フォールバック[実装]=カウンタ範囲.Counter.EnumerableFallback;
+                }
             }catch(Exception 例外) when(例外 is not OperationCanceledException){
                 例外一覧[実装]=new(
                     例外.GetType().FullName??例外.GetType().Name,
@@ -246,7 +268,7 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                     例外.StackTrace);
             }
         }
-        return new(結果一覧,例外一覧);
+        return new(結果一覧,例外一覧,フォールバック);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -391,7 +413,8 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
     private sealed record WorkerInvocationFailure(string Type,string Message,string? StackTrace);
     private sealed record ValidationExecution(
         Dictionary<DynamicImplementationKind,DynamicQueryValue> Results,
-        Dictionary<DynamicImplementationKind,WorkerInvocationFailure> Exceptions);
+        Dictionary<DynamicImplementationKind,WorkerInvocationFailure> Exceptions,
+        Dictionary<DynamicImplementationKind,long> Fallbacks);
     private sealed record MeasurementExecution(
         BalancedMeasurementResult? Result,
         WorkerInvocationFailure? Failure);
@@ -623,6 +646,7 @@ public sealed class WorkerHost{
                     switch(結果.Status){
                         case WorkerExecutionStatus.CompilationFailed:
                         case WorkerExecutionStatus.InvocationTargetMismatch:
+                        case WorkerExecutionStatus.ExpansionIncomplete:
                             CompilationFailures++;
                             break;
                         case WorkerExecutionStatus.SemanticMismatch:
