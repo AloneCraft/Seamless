@@ -35,22 +35,20 @@ public sealed class DynamicReproEmitterTests{
     }
 
     [Fact,Trait("Category","Integration")]
-    public void 既知のFLinqの不具合の再現テストは今は失敗する(){
-        // DynamicChainCorpusTests.KnownFlinqDefects の「prepend > take > toArray」と同じクエリ。
-        // このテストが通るようになったら、不具合が直っている。表と、このテストの両方を直す。
+    public void 直したFLinqの不具合の再現テストは通る(){
+        // 以前は最適化ありの FLinq が、2件のはずの所で3件を返していた「prepend > take > toArray」と同じクエリ。
+        // 2026-10-22 に FLinq を直したので、再現テストは通る。
         var seed=Seed256.Parse("0xC0DE");
         var target=SourceTarget.SystemArray;
         var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target);
         var spec=ExhaustiveQueryEnumerator.Enumerate(2,intermediates,[QueryOperatorIds.ToArray,QueryOperatorIds.Count,QueryOperatorIds.Sum,QueryOperatorIds.FirstOrDefault,QueryOperatorIds.Any])
-            .Where(static spec=>spec.Ordinal%25==0)
             .First(static spec=>spec.Operators.SequenceEqual([QueryOperatorIds.Prepend,QueryOperatorIds.Take])&&spec.Terminal==QueryOperatorIds.ToArray);
         Assert.True(ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var document));
 
         var outcome=CompileAndRun(document!,seed,(int)spec.Ordinal);
 
         Assert.True(outcome.Compiled,outcome.Diagnostics);
-        Assert.NotNull(outcome.Failure);
-        Assert.Contains("FLinq(最適化あり)",outcome.Failure,StringComparison.Ordinal);
+        Assert.Null(outcome.Failure);
         Assert.True(outcome.Unloaded);
     }
 

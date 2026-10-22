@@ -16,24 +16,13 @@ public sealed class DynamicElementTypeTests{
     public static TheoryData<QueryElementType> NonIntTypes=>new(
         Enum.GetValues<QueryElementType>().Where(static type=>type!=QueryElementType.Int));
 
-    // 症状のパターンで見分ける FLinq の不具合(どの要素型・どの並びでも、診断にその兆候が出れば既知とする)。
+    // 2026-10-22 までに見つかった FLinq の不具合は全て直した(どちらの表も空)。新しい不具合は、直すか、ここに症状と理由を記録する。
     private sealed record DefectPattern(string Reason,Func<WorkerSourceExecutionCompletedEvent,bool> Matches);
 
-    private static readonly DefectPattern[] DefectPatterns=[
-        new(
-            "FLinq がラムダの中の new T(...) の型名を変数のように hoist し、new this.__hoistN(...) を出してコンパイルできない(CS1526)",
-            static result=>(result.DiagnosticsJson??string.Empty).Contains("\"id\":\"CS1526\"",StringComparison.Ordinal)),
-        new(
-            "FLinq が hoist した変数 __hoistN を宣言せず、生成コードがコンパイルできない(CS0103 / CS1061)。ExceptBy の後の述語などで、int 以外の要素型だけに出る",
-            static result=>(result.DiagnosticsJson??string.Empty).Contains("__hoist",StringComparison.Ordinal)),
-    ];
+    private static readonly DefectPattern[] DefectPatterns=[];
 
-    // 個別の食い違い。キーは "<要素型>|<式>"(固定シード 0xE1E7・入力16件・SystemArray で再現した)。
-    private static readonly Dictionary<string,string> KnownMismatches=new(StringComparer.Ordinal){
-        ["Order|source.UnionBy(inner,p=>p).Distinct().Any(p=>p<-11)"]="FLinq(最適化あり)だけが True を返す。System.Linq・FLinq(最適化なし)・ZLinq は False。",
-        ["String|source.UnionBy(inner,p=>p).Select(p=>p+(-6)).Any(p=>p<8)"]="FLinq(最適化あり)だけが True を返す。System.Linq・FLinq(最適化なし)・ZLinq は False。",
-        ["String|source.Distinct().Prepend(-63).Any(p=>p<0)"]="FLinq(最適化あり)だけが False を返す(先頭に足した \"-63\" を見落とす)。System.Linq・FLinq(最適化なし)・ZLinq は True。",
-    };
+    // 個別の食い違い。キーは "<要素型>|<式>"。
+    private static readonly Dictionary<string,string> KnownMismatches=new(StringComparer.Ordinal);
 
     private static RandomQueryGenerationOptions Options(QueryElementType type,int index,SourceTarget target=SourceTarget.SystemArray){
         var capability=QueryCapabilityProfiles.CreateSet(OperatorSetMode.Maximum,[target],type);
@@ -118,29 +107,10 @@ public sealed class DynamicElementTypeTests{
             $"{type}: {failures.Count}/{executed} failed:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
     }
 
-    // 既知の不具合が今も再現すること(直ったら、この再現と上の表を外す)。
-    [Theory,Trait("Category","ChainCorpus")]
-    [InlineData(QueryElementType.CollidingKey,0,WorkerExecutionStatus.CompilationFailed,"\"id\":\"CS1526\"")]
-    [InlineData(QueryElementType.Int256Struct,27,WorkerExecutionStatus.CompilationFailed,"__hoist")]
-    [InlineData(QueryElementType.Order,27,WorkerExecutionStatus.CompilationFailed,"__hoist")]
-    [InlineData(QueryElementType.Order,0,WorkerExecutionStatus.SemanticMismatch,"\"fLinq\":{\"isMatch\":false")]
-    [InlineData(QueryElementType.String,0,WorkerExecutionStatus.SemanticMismatch,"\"fLinq\":{\"isMatch\":false")]
-    [InlineData(QueryElementType.String,2,WorkerExecutionStatus.SemanticMismatch,"\"fLinq\":{\"isMatch\":false")]
-    public async Task 既知のFLinqの不具合は今も再現する(QueryElementType type,int index,WorkerExecutionStatus expectedStatus,string needle){
-        var query=new RandomQueryGenerator().Generate(Options(type,index));
-
-        var result=await new DynamicWorkerExecutionRunner().ExecuteAsync(
-            Request(type),query,index,SourceTarget.SystemArray,0,CancellationToken.None);
-
-        Assert.Equal(expectedStatus,result.Status);
-        Assert.Contains(needle,(result.DiagnosticsJson??string.Empty)+(result.ResultJson??string.Empty),StringComparison.Ordinal);
-    }
-
-    // System.Linq は Sum の選択子を unchecked で実行するが、FLinq(最適化なし)は選択子を checked { } の中へ取り込むので、
-    // 選択子の中の桁あふれ(ここでは long から int への縮小)が例外になる。最適化ありでは、この並びでは出ていない。
-    // 直ったらこのテストを反転する。
+    // 選択子の中の桁あふれ(ここでは long から int への縮小)の扱い。System.Linq は選択子を呼び出し側の文脈(unchecked)で実行し、
+    // checked なのは足し算だけ。FLinq は以前、選択子を checked { } の中へ取り込んで OverflowException にしていたが、2026-10-22 に直した。
     [Fact,Trait("Category","ChainCorpus")]
-    public void 既知のFLinqの不具合_Sumの選択子がcheckedの中で実行され縮小変換が例外になる(){
+    public void Sumの選択子の縮小変換はSystemLinqと同じく例外にならない(){
         var query=new RandomQueryGenerator().Generate(Options(QueryElementType.Long,18));
         Assert.Equal("source.Take(8).SkipWhile(p=>(p&1)!=0).Sum(p=>(long)p)",Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(query));
         var emitted=new QuerySourceEmitter().Emit(query,new QuerySourceEmissionOptions{ClassName="CheckedSum"});
@@ -155,12 +125,13 @@ public sealed class DynamicElementTypeTests{
         var seed=SeedDerivation.Derive(Seed256.Parse("0xE1E7"),"fixture",18);
         using var fixture=new SourceFixtureFactory().Create(SourceTarget.SystemArray,InputElementCount,seed,QueryElementType.Long);
 
-        // System.Linq は桁あふれしない(unchecked の選択子)。
         var expected=loaded.Run(DynamicImplementationKind.System,fixture.Primary,fixture.Secondary);
         Assert.Equal(QueryCardinality.Scalar,expected.Cardinality);
-        // FLinq(最適化なし)は OverflowException。
-        Assert.Throws<OverflowException>(()=>loaded.Run(DynamicImplementationKind.FLinqUnoptimized,fixture.Primary,fixture.Secondary));
-        // 例外の呼び出し履歴が動的アセンブリの型を指すので、アセンブリの解放の確認はここでは行わない。
+        foreach(var kind in new[]{DynamicImplementationKind.FLinqUnoptimized,DynamicImplementationKind.FLinq}){
+            var actual=loaded.Run(kind,fixture.Primary,fixture.Secondary);
+            Assert.True(DynamicQueryComparer.Compare(expected,actual).IsMatch,$"{kind} should match System.Linq");
+        }
+        Assert.True(loaded.UnloadAndVerify().Unloaded);
     }
 
     // 特殊な値(NaN・null・境界値・-0 など)を入力に混ぜた版。型ごとの特殊な値は ElementTypeDescriptor.SpecialValues。

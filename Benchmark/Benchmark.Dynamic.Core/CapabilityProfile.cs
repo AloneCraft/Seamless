@@ -70,7 +70,7 @@ public sealed record QueryCapabilityProfile(
     CountCost CountCost,
     IReadOnlyList<ExecutionRouteCapability> Routes,
     IReadOnlyList<OperatorCapability> Operators){
-    public const int CurrentProfileVersion=14;
+    public const int CurrentProfileVersion=15;
 
     public OperatorCapability GetOperator(string operatorId){
         return this.Operators.Single(capability=>StringComparer.Ordinal.Equals(capability.OperatorId,operatorId));
@@ -181,19 +181,8 @@ public static class QueryCapabilityProfiles{
                 var supported=true;
                 var verification=CapabilityVerification.RuntimeVerified;
                 string? limitation=null;
-                if(descriptor.OperatorId==QueryOperatorIds.SelectManyXor
-                    &&path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized){
-                    supported=false;
-                    verification=CapabilityVerification.RuntimeVerified;
-                    limitation="FLinq generated SelectMany captures the inner fixture from an enumerator struct and fails with CS1673.";
-                }
-                if(descriptor.OperatorId is QueryOperatorIds.CountBy or QueryOperatorIds.AggregateBy
-                    &&target.GetSourceKind()==SourceKind.Range
-                    &&path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized){
-                    supported=false;
-                    verification=CapabilityVerification.RuntimeVerified;
-                    limitation="FLinq generated CountBy/AggregateBy over Enumerable.Range references the undeclared locals __rangeStart0/__rangeCount0 and fails with CS0103 (generator defect found by the chain verifier port).";
-                }
+                // 2026-10-22: FLinq の SelectMany(CS1673)と、Range 上の CountBy / AggregateBy(CS0103)の不具合を直したので、
+                // 非対応にしていた2つの制約を外した。
                 if(target.GetFamily()==SourceFamily.Seamless
                     &&descriptor.OperatorId==QueryOperatorIds.Contains
                     &&path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized){

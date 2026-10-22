@@ -21,25 +21,9 @@ public sealed class DynamicChainCorpusTests{
         QueryOperatorIds.Any,
     ];
 
-    // チェーン検証の移植で見つかった FLinq(最適化あり)の不具合。固定シード 0xC0DE・入力16件・SystemArray で再現した。
-    // 最適化なしの FLinq と ZLinq は System.Linq と一致しているので、不具合は最適化の段階にある(原因は未調査)。
-    // 直ったらこの表から外す。外さないと「失敗するはずの並びが通った」ことでテストが落ちる。
-    // 引数の値はシードで決まるので、生成器を変えて並びの引数が変わったら、表を取り直す。
-    private static readonly Dictionary<string,string> KnownFlinqDefects=new(StringComparer.Ordinal){
-        ["append > takeWhile > toArray"]="Append(54).TakeWhile(p=>p>16): 結果が1件。System.Linq は0件。",
-        ["prepend > take > toArray"]="Prepend(-58).Take(2): 結果が3件。System.Linq は2件。",
-        ["prepend > groupBy.keyOnly > toArray"]="Prepend(-1).GroupBy(p=>(p%5+5)%5).Select(g=>g.Key): キーが6個。System.Linq は5個。",
-        ["where > union > toArray"]="Where(偶数).Union(inner): 結果が24件。System.Linq は20件。",
-        ["concat > take > toArray"]="Concat(inner).Take(15): 生成コードが CS0103(__postTake__r3_2 が未宣言)でコンパイルできない。",
-        ["zip > take > toArray"]="Zip(inner,(p,i)=>p+i).Take(3): 生成コードが CS0165(__linq0 が未代入)でコンパイルできない。",
-    };
-
-    // 夜間の3段全組み合わせで見つかり、直さずに記録した並び(Corpus/known-triple-defects.txt)。
-    // 上の表と違い、抜き取りの実行では通る並びもあるので「今回も失敗すること」は求めない。失敗しても新しい不具合とは数えない。
-    private static readonly HashSet<string> RecordedTripleDefects=File
-        .ReadAllLines(Path.Combine(AppContext.BaseDirectory,"Corpus","known-triple-defects.txt"))
-        .Where(static line=>line.Length>0&&line[0]!='#')
-        .ToHashSet(StringComparer.Ordinal);
+    // 2026-10-22 までに見つかった FLinq の不具合は全て直した(表は空)。
+    // 新しく見つかった不具合は、直すか、ここに並びと理由を記録する(直ったら外す)。
+    private static readonly Dictionary<string,string> KnownFlinqDefects=new(StringComparer.Ordinal);
 
     [Fact,Trait("Category","ChainCorpus")]
     public async Task 中間演算子1個と終端の全組み合わせがSystemArrayで全経路一致する(){
@@ -100,9 +84,6 @@ public sealed class DynamicChainCorpusTests{
             if(result.Status!=WorkerExecutionStatus.Succeeded||!result.AssemblyUnloaded){
                 if(KnownFlinqDefects.ContainsKey(key)){
                     knownFailed.Add(key);
-                    continue;
-                }
-                if(intermediateCount==2&&target==SourceTarget.SystemArray&&RecordedTripleDefects.Contains(key)){
                     continue;
                 }
                 failures.Add(

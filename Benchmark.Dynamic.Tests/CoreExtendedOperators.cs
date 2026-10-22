@@ -91,12 +91,12 @@ public sealed class ExtendedOperatorTests{
     }
 
     [Fact,Trait("Category","Unit")]
-    public void 演算子集合はZLinq非対応の演算子を含めFLinq非対応の演算子は含めない(){
+    public void 演算子集合はZLinq非対応の演算子を含めFLinqの不具合が直ったSelectManyも含む(){
         foreach(var mode in Enum.GetValues<OperatorSetMode>()){
             var set=QueryCapabilityProfiles.CreateSet(mode,[SourceTarget.SystemArray]);
             Assert.Contains(QueryOperatorIds.OrderBy,set.OperatorIds);
             Assert.Contains(QueryOperatorIds.OrderByKey,set.OperatorIds);
-            Assert.DoesNotContain(QueryOperatorIds.SelectManyXor,set.OperatorIds);
+            Assert.Contains(QueryOperatorIds.SelectManyXor,set.OperatorIds);
         }
     }
 

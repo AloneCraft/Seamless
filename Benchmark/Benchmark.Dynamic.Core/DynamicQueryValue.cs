@@ -242,7 +242,8 @@ public static class DynamicQueryComparer{
             return new(false,$"{description} length mismatch: expected {expected.Count}, actual {actual.Count}.");
         }
         for(var index=0;index<expected.Count;index++){
-            if(!DynamicQueryAtomEqualityComparer.Instance.Equals(expected[index],actual[index])){
+            if(!DynamicQueryAtomEqualityComparer.Instance.Equals(expected[index],actual[index])
+                &&!FloatingPointTolerance.AreNearlyEqual(expected[index],actual[index])){
                 return new(false,$"{description} mismatch at index {index}: expected {Format(expected[index])}, actual {Format(actual[index])}.",index);
             }
         }
@@ -355,5 +356,27 @@ public static class DynamicQueryComparer{
             }
             return hash.ToHashCode();
         }
+    }
+}
+
+/// <summary>
+/// double の値の許容。足す順(FLinq の SumSpan は4並列で足す)や蓄積の型(float は double で足すか float で足すか)で
+/// 最下位の桁がずれるのは許容する。2026-10-22 に利用者が決めた。
+/// 相対 1e-9 まで(絶対値が1未満のときは絶対 1e-9 まで)。NaN と無限大は完全一致だけ。
+/// 順序のある比較(スカラー・順序つきの列)にだけ使う。順序なしの集合の比較はハッシュなので完全一致のまま。
+/// </summary>
+public static class FloatingPointTolerance{
+    public const double RelativeTolerance=1e-9;
+
+    public static bool AreNearlyEqual(DynamicQueryAtom expected,DynamicQueryAtom actual){
+        return expected is DoubleQueryAtom left&&actual is DoubleQueryAtom right&&AreNearlyEqual(left.Value,right.Value);
+    }
+
+    public static bool AreNearlyEqual(double expected,double actual){
+        if(!double.IsFinite(expected)||!double.IsFinite(actual)){
+            return expected.Equals(actual);
+        }
+        var scale=Math.Max(1.0,Math.Max(Math.Abs(expected),Math.Abs(actual)));
+        return Math.Abs(expected-actual)<=RelativeTolerance*scale;
     }
 }

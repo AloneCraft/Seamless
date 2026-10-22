@@ -8,12 +8,13 @@ namespace Benchmark.Dynamic.Tests;
 
 /// <summary>
 /// double / float の Sum・Average が System.Linq と FLinq(最適化なし・あり)でビット単位で一致するかを、
-/// 実際に FLinq の生成器を通して確かめる。2026-10-22 の実測では、次の2つが System.Linq とずれる(直さず記録している)。
+/// 実際に FLinq の生成器を通して確かめる。2026-10-22 の実測では、次の2つが System.Linq とビット単位でずれる。
+/// このずれは利用者が許容すると決めた(FloatingPointTolerance が相対 1e-9 まで一致とみなす)。直さない。
 ///  1. double の Sum(選択子なし、配列・List): FLinq は SumSpan(SIMD、4並列の部分和を最後に足す)で、
 ///     System.Linq は順に足す。足す順が違うので最下位ビットがずれる。
 ///  2. float の Sum: System.Linq は double で足してから float へ戻すが、FLinq は float のまま足す。
 /// 選択子つきの Sum と Average は一致する。整数値だけの入力は(厳密に足せるので)どちらも一致する。
-/// 直ったら、ずれる側の期待を反転する。
+/// このテストは、ずれる範囲(上の2つだけで、選択子つきの Sum・Average・整数値は一致する)が変わっていないことを確かめる。
 /// 精度の違い(80ビットと64ビット)ではない: 64ビットの x64 では double の計算はどの経路も64ビットで、差は足す順と蓄積の型から来る。
 /// </summary>
 public sealed class DynamicFloatingPointSumTests{
@@ -84,7 +85,7 @@ public sealed class Probe{
 """;
 
     [Fact,Trait("Category","Integration")]
-    public void 浮動小数点のSumとAverageのずれる範囲が記録どおり(){
+    public void 浮動小数点のSumとAverageのずれる範囲が許容した範囲のまま(){
         var result=new DynamicQueryCompiler().Compile(new DynamicCompilationRequest(
             "Exp."+Guid.NewGuid().ToString("N"),
             "Exp.Probe",
@@ -196,7 +197,7 @@ public sealed class Probe{
                     }
                 }else{
                     foreach(var caseName in new[]{"DoubleSum","ListSum","FloatSum"}){
-                        Assert.True(divergent[$"{datasetName}|{caseName}|{path}"]>0,$"既知のずれが出なかった(直ったなら期待を反転する): {datasetName} {caseName} {path}{Environment.NewLine}{report}");
+                        Assert.True(divergent[$"{datasetName}|{caseName}|{path}"]>0,$"許容したずれが出なかった(FLinq の足し方が変わったなら、この期待を見直す): {datasetName} {caseName} {path}{Environment.NewLine}{report}");
                     }
                 }
             }

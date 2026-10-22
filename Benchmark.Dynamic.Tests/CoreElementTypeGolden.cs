@@ -37,7 +37,9 @@ public sealed class ElementTypeGoldenTests{
                     EnableBinaryOperators=true,
                     EnableNestedOperators=true,
                     AllowedOperatorIds=capability.OperatorIds
-                        .Where(id=>Version12OperatorIds.Contains(id)&&QueryCapabilityProfiles.Get(target).SupportsOnAllPaths(id))
+                        // selectMany.xor は、基準を取った時点では FLinq 非対応で必ず除かれていた。2026-10-22 に FLinq を直して対応したが、
+                        // この基準(int の出力が変わらないこと)を保つため、引き続き除く。
+                        .Where(id=>Version12OperatorIds.Contains(id)&&id!=QueryOperatorIds.SelectManyXor&&QueryCapabilityProfiles.Get(target).SupportsOnAllPaths(id))
                         .ToArray(),
                 });
                 var emitted=emitter.Emit(document);

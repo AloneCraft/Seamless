@@ -82,7 +82,7 @@ public sealed record OperatorDescriptor(
     bool RequiresUniqueInput=false);
 
 public static class BuiltInOperatorCatalog{
-    public const int OperatorSetVersion=14;
+    public const int OperatorSetVersion=15;
     private static readonly OperatorDescriptor[] DescriptorArray=[
         new(QueryOperatorIds.Where,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,true),
         new(QueryOperatorIds.WhereIndexed,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,true,false),

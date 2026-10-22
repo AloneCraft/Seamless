@@ -246,9 +246,10 @@ public sealed class DynamicQueryCompiler {
                 Environment.NewLine,
                 Run結果.Results.SelectMany(結果=>結果.GeneratedSources).Select(Source=>Source.SourceText.ToString()));
             診断一覧.AddRange(呼出先を検証(Compilation,構文木,Run結果));
+            // Validate は診断一覧を遅延で読むので、AddRange(自分自身を書き換える)の前に配列へ確定させる。
             診断一覧.AddRange(FLinqExpansionValidator.Validate(
                 診断一覧,
-                string.Concat(Run結果.Results.SelectMany(結果=>結果.GeneratedSources).Select(Source=>Source.SourceText.ToString()))));
+                string.Concat(Run結果.Results.SelectMany(結果=>結果.GeneratedSources).Select(Source=>Source.SourceText.ToString()))).ToArray());
             if(診断一覧.Any(診断=>診断.Severity=="Error")) {
                 return 失敗();
             }

@@ -31,7 +31,8 @@ public sealed class ExhaustiveQueryEnumeratorTests{
         Assert.Contains(QueryOperatorIds.Where,intermediates);
         Assert.Contains(QueryOperatorIds.Zip,intermediates);
         Assert.Contains(QueryOperatorIds.OrderByKey,intermediates);
-        Assert.DoesNotContain(QueryOperatorIds.SelectManyXor,intermediates);
+        // 2026-10-22 に FLinq の SelectMany(CS1673)を直したので、全組み合わせにも含める。
+        Assert.Contains(QueryOperatorIds.SelectManyXor,intermediates);
         Assert.DoesNotContain(QueryOperatorIds.Count,intermediates);
 
         var seed=Core.Seed256.Parse("0xE4A5");
