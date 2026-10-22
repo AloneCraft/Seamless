@@ -57,8 +57,6 @@
     <ProjectReference Include="..\Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq\Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark.Tsavorite.Linq.Enumerable.Linq\Benchmark.Tsavorite.Linq.Enumerable.Linq.csproj" />
     <ProjectReference Include="..\Benchmark.Tsavorite.Linq.Enumerable.ValueLinq\Benchmark.Tsavorite.Linq.Enumerable.ValueLinq.csproj" />
-    <ProjectReference Include="..\Benchmark.Persisted.Collections\Benchmark.Persisted.Collections.csproj" />
-    <ProjectReference Include="..\Benchmark.Tsavorite.Collections\Benchmark.Tsavorite.Collections.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Ideal\Benchmark.System.Linq.Enumerable.Ideal.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.IEnumerable.Ideal\Benchmark.System.Linq.Enumerable.IEnumerable.Ideal.csproj" />
     <ProjectReference Include="..\Benchmark.System.Linq.Enumerable.Range.Ideal\Benchmark.System.Linq.Enumerable.Range.Ideal.csproj" />

@@ -17,12 +17,10 @@
     <Project Path="Benchmark/Benchmark.Optimization.NoPredicatePushdown/Benchmark.Optimization.NoPredicatePushdown.csproj" />
     <Project Path="Benchmark/Benchmark.Optimization.NoProjectionMerge/Benchmark.Optimization.NoProjectionMerge.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.FLinq/Benchmark.System.Linq.Enumerable.List.FLinq.csproj" />
-    <Project Path="Benchmark/Benchmark.Persisted.Collections/Benchmark.Persisted.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.Linq/Benchmark.Persisted.Linq.Enumerable.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.ValueLinq/Benchmark.Persisted.Linq.Enumerable.ValueLinq.csproj" />
-    <Project Path="Benchmark/Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.FLinq/Benchmark.Tsavorite.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq/Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.Linq/Benchmark.Tsavorite.Linq.Enumerable.Linq.csproj" />
@@ -55,7 +53,6 @@
   </Folder>
   <Folder Name="/Samples/">
     <Project Path="Samples/Sample.NetShop.Core/Sample.NetShop.Core.csproj" />
-    <Project Path="Samples/Sample.FLinqChainVerifier.Core/Sample.FLinqChainVerifier.Core.csproj" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="Shared/Collections/Collections.shproj" />
