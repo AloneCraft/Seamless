@@ -99,6 +99,22 @@ Benchmark.Dynamic（確認済み）:
 - [ ] FLinq の double Sum（SIMD で順序が変わる）と float Sum（float のまま蓄積する可能性）を「誤り」として直すか、「許容」とするか。
 - [ ] Persisted/Tsavorite で string・Int256・Order などが保存できるか（できなければ未対応として記録）。
 
+## 移植中に見つかった FLinq の不具合（2026-10-22 時点で未修正）
+
+生成器の修正は非目的なので、直さずに記録している。いずれも `Benchmark.Dynamic.Tests/DynamicChainCorpusTests.cs` の `KnownFlinqDefects` と、`CapabilityProfile.cs` の制約に表がある。直ったら表から外す。
+
+- 最適化あり経路だけが System.Linq と食い違う（最適化なしの FLinq と ZLinq は一致する。原因は未調査）
+  - `Append(54).TakeWhile(p=>p>16)` が1件を返す（正しくは0件）
+  - `Prepend(-58).Take(2)` が3件を返す（正しくは2件）
+  - `Prepend(-1).GroupBy(p=>(p%5+5)%5).Select(g=>g.Key)` がキー6個を返す（正しくは5個）
+  - `Where(偶数).Union(inner)` が24件を返す（正しくは20件）
+- 生成コードがコンパイルできない
+  - `Concat(inner).Take(15)`: CS0103（`__postTake__r3_2` が未宣言）
+  - `Zip(inner,(p,i)=>p+i).Take(3)`: CS0165（`__linq0` が未代入）
+  - `Enumerable.Range` に対する `CountBy` / `AggregateBy`: CS0103（`__rangeStart0` / `__rangeCount0` が未宣言）。能力表で SystemRange の FLinq 経路を非対応にしてある。
+
+あわせて、Worker の実行先変換が `ToHashSet` / `ToDictionary` / `ToLookup` の出力順序を検証側と違う規則で決めていた不具合を直した（順序なしの入力が `ToLookup` に来ると実行全体が Fatal になっていた）。
+
 ## 合意状態
 
 - 2026-10-22 利用者承認済み: 段階的整理、Benchmark.Dynamic への一本化、要素型13種（int?・record・ハッシュ衝突型を含む）、Quadruple は LINQ に必要な演算のみ、UI の取り込み、実装前の現状コミット。
