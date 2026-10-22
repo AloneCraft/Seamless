@@ -108,6 +108,15 @@ Benchmark.Dynamic（確認済み）:
 - プロトコル v5: `WorkerRunRequest` に `GenerationMode`（Random / Exhaustive）、`ExhaustiveIntermediateCount`、`ExhaustiveTerminalIds`、`ExpectExceptions` を追加した。全組み合わせモードでは、成り立たない並びを飛ばした上で QueryIndex 番目を使う（`ExhaustiveQueryProvider`）。
 - 未実装: 複数の入力件数（0・1・16・256）での検証。IR が件数を持つ形のままでは、件数ごとの再検証に作り直しが要る。必要になったら別途設計する。
 
+## 回帰コーパス（手順4、2026-10-22 時点）
+
+- 置き場所: `Benchmark.Dynamic.Tests/Corpus/representative-chains.json`（25件: 手書きの理想コード付きだったペア15本＋代表チェーン10本）と `regressions.json`（200件: 全組み合わせ100件＋ランダム探索100件）。移植元の最終実行（2026-10-21、`Work/VerifierReport/results.json`）の識別子とメソッド名の並びだけを保存している。
+- 変換: `CoreCorpusChainBuilder`。固定した並びで骨組みを生成し、各演算子の引数を移植元の固定の呼び出しに合わせて差し替え、`QueryIrNormalizer` で件数・順序を再計算して検証する。空の入力や範囲外の添字で例外になる並びも許す（`ExpectExceptions`）。
+- 近似: 移植元のキー射影つき演算（`UnionBy` / `IntersectBy` / `ExceptBy` / `MinBy` / `MaxBy`、`Join` / `GroupJoin` のキー）は、Dynamic に無いので恒等キー等の版にしている。`x&31` は法32、`Select(x*3+1)` は `x*3` にしている。
+- 変換できた件数: 代表チェーン 23/25、回帰 121/200（計144件）。作れない理由は、`SelectMany`（FLinq が CS1673 で扱えない既知の制約）と、Dynamic の順序の規則（順序なしの入力への位置依存演算子や `Zip`）。
+- 結果: 変換できた144件は、System / FLinq（最適化なし・あり）/ ZLinq で一致している（既知の不具合の表は空）。これらは移植元が直し切ったチェーンなので、回帰の防止として働く。
+- `PairwiseChainIdealTests.cs` は削除し、検証器に依存しない静的チェーンのテストは `Test.System.Linq.Enumerable.FLinq/StaticChainIdealTests.cs` へ移した。`Test.System.Linq.Enumerable.FLinq` は検証器を参照しなくなった。
+
 ## 移植中に見つかった FLinq の不具合（2026-10-22 時点で未修正）
 
 生成器の修正は非目的なので、直さずに記録している。いずれも `Benchmark.Dynamic.Tests/DynamicChainCorpusTests.cs` の `KnownFlinqDefects` と、`CapabilityProfile.cs` の制約に表がある。直ったら表から外す。
