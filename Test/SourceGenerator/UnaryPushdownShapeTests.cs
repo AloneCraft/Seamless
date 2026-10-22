@@ -93,9 +93,9 @@ public sealed partial class UnaryPushdownShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             // 押し下げると並べ替えの段は Where の後になり、ソースの span の昇順高速経路ではなく溜めた値の確認を使う。
-            PredicatePrecedes(enabled,"Array.Sort(")&&enabled.Contains("__orderBufferedSorted",StringComparison.Ordinal)
-            &&!enabled.Contains("__orderSpan",StringComparison.Ordinal)
-            &&disabled.Contains("__orderSpan",StringComparison.Ordinal),
+            PredicatePrecedes(enabled,"Array.Sort(")&&enabled.Contains("orderBufferedSorted",StringComparison.Ordinal)
+            &&!enabled.Contains("orderSpan",StringComparison.Ordinal)
+            &&disabled.Contains("orderSpan",StringComparison.Ordinal),
             "Order on a span-capable source must still take the pushed predicate and skip the sort when the buffered values are already ordered.",
             enabled,
             output);

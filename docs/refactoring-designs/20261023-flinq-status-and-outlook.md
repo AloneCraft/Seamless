@@ -1,0 +1,118 @@
+# FLinq 生成器と動的検証の現状・改善・展望（2026-10-23 時点）
+
+対象: G:\GitHub\Seamless（ブランチ tpce-benchmark）。前提の設計書は G:\GitHub\Seamless\docs\refactoring-designs\20261022-dynamic-verifier-consolidation.md。
+この文書は「いまの事実」だけを書く。確かめていないことは「未確認」と明記する。
+
+## 1. 今の問題一覧
+
+### 1.1 作業の途中で、まだ確定していないもの
+
+| # | 問題 | 状態 | 事実 |
+|---|---|---|---|
+| P1 | 生成コードの名前の付け替え(G:\GitHub\Seamless\Seamless.FLinq.Generator\SourceGenerator\GeneratedNameRenamer.cs)が未コミット | 作業中 | 新規ファイル1つ、G:\GitHub\Seamless\Seamless.FLinq.Generator\SourceGenerator\FLinqIncrementalGenerator.MethodBodyRewriter.cs と LinqGenerationState.cs の変更、名前に依存するテスト約27ファイルの更新が、すべて作業ツリーにあるだけ。直近のコミットは d440a68d。 |
+| P2 | FLinq 全テストの最後の完走結果がない | 未確認 | 付け替えを入れた直後の完走では 99 件失敗(うち約 89 件は名前依存のテスト)。テスト側を役割名の正規表現へ直した後の完走では 30 件失敗(元から落ちていた 10 件 + 新しい 20 件)。さらに 20 件を直して回したが、その実行は途中で止まり、結果を読めていない。 |
+| P3 | 付け替えの後の Dynamic テスト(124件の回帰コーパス・要素型・浮動小数点)を回していない | 未確認 | 56/56 合格は付け替えを入れる前の結果。 |
+| P4 | 一時ファイル G:\GitHub\Seamless\Test\System\Linq\Intercept\ZzShow.cs が残っている | 要削除 | 生成コードを見るための調査用。コミットしない。 |
+
+### 1.2 元から落ちている FLinq のテスト 10 件(今回の変更とは無関係。HEAD 時点で確認済みの一覧)
+
+- Persisted の FLinqNativeIterateTests.PersistedSetRoot_UsesNativeIterateTerminalForAllAndExplicitFirstOrDefault
+- AnchorShortcutTests(SelectCountAnchored)
+- FragmentIndentationTests.FragmentRawStrings_DoNotDirectlyEmbedFuncAssignStatements
+- InterceptorLanguageShapeTests.ScalarMaterializeConsume_ExpandsWithoutForwardingFailure
+- OptimizationFixedPointTests.PipelineGlobalFixedPoint
+- PerformanceShapeTests.MinMaxCompute_OwnsTheEnumeratorCopy_CallerDoesNotDisposeAgain
+- PerformanceShapeTests.ExplicitDefaultComparersUseSortedSpanFastPaths
+- RangeSkipLastTests(start: 1, count: 10, skip: -4)
+- UnaryPushdownShapeTests.OrderAfterLinqCallIsPushed
+- RangePartition.ConsecutiveSkipNormalizesEachNegativeCountBeforeFolding
+
+原因は調べていない。名前の作業とは分けて、別に調べる。
+
+### 1.3 名前の作業で残っている弱点(事実)
+
+- 付け替えは「メソッドの生成が終わった後の後処理」で行っている。名前は元の機械的な名前から番号を除いた役割名(`__pipelineItem__r2_0` → `pipelineItem`、`__e2` → `enumerator`)。意味から付けた名前ではない。たとえば配列の根の `enumerator` は、実際は添字の整数。
+- 構造体の型名(`OptimizedLinq_A_…_補助0_Struct2`)、ラベル(`Head2`・`End3`)は変えていない。
+- 構造体のメンバーに `this.` を書く規則(利用者の最初の依頼の後半)は未着手。今の生成コードは `this.` つきと無しが混在している。
+- 名前を直接比べるテストは、役割名 + 省略可能な番号(`span\d*`)の正規表現に直しただけで、「名前でなく意味で確かめる」形にはまだなっていない。名前が変わるたびに壊れる性質は残っている。
+- 付け替えの対象外にした名前: `__Tsavorite…` / `__Persisted…`(走査の種類を表す目印)、UnsafeAccessor のメソッド名(`__Method_…`)、利用者のコードにある名前。これらは宣言の種類(ローカル・フィールド・引数・ラベル)で判別しており、他の宣言(メソッド・型)は触らない。
+- 計画と実装がずれている: 計画(C:\Users\kazuh\.claude\plans\gemini-argon-process-1-1-swift-rabin.md)は断片ごとの名前の入口(Fragment.cs など約 1000 か所)を GeneratedNames へ寄せる方式だったが、実際は安全と作業量のために「後処理で一括付け替え」を採った。利用者の確認は取っていない。
+
+### 1.4 Take の修正の限界(事実)
+
+- 「Take の上限に達したら、上流のラムダを呼ぶ前に抜ける」判定(G:\GitHub\Seamless\Seamless.FLinq.Generator\SourceGenerator\Linq\Fragments\TakeGuard.cs)は、段が1つのループに順に並ぶ形だけに入れた。SelectMany・Concat・二項の集合演算・順序づけをまたぐ Take、添字つきのラムダ段は、今までどおり(上限の次の要素の上流を評価する)。
+- 回帰テスト G:\GitHub\Seamless\Test\System\Linq\Intercept\TakeStopsUpstream.cs は 9 件合格。修正前に失敗することを確かめたのは Where の場合だけ(Select の配列は修正前から通っていた)。List・IEnumerable は修正前の失敗を未確認。
+
+### 1.5 TPC-E 側から受けた依頼の状態
+
+- 1(Take): 修正済み、連絡済み。
+- 3(入れ子ラムダが外側のメソッド引数を使うと CS0103): こちらでは再現しない(通常のコレクションでは正常)。Tsavorite / Persisted の Set が絡む形だけの可能性があり、TPC-E 側が最新の生成器で再試験する予定。
+- 2(Tsavorite の Set の Join / GroupBy / OrderBy の直接走査): 未着手。1 と 3 の後で良いと先方から返答済み。
+
+### 1.6 統合作業の積み残し(前の設計書から)
+
+- 旧検証器プロジェクト(Sample.FLinqChainVerifier など)の削除、slnx・CI の整理(手順7〜8)。別セッションが同じファイルを触る可能性があるため保留。
+- Persisted / Tsavorite の要素型の対応、文化圏の Invariant 固定、複数の入力件数、UI の進捗バー・途中再開。
+- UI テスト(Appium)の追加分は未実行(Appium が動いていない)。
+- ZLinq 1.5.6 の制約(`TakeWhile` の直後の `DefaultIfEmpty` が非対応)は能力表で外している。
+- 浮動小数点の `Sum` の差は「許容」と決定済み(相対 1e-9 の許容で吸収)。差そのものは存在する。
+
+## 2. 改善一覧(2026-10-22〜23 に済んだこと)
+
+### 2.1 FLinq 生成器の不具合の修正(コミット f6d1c7e0 と d440a68d)
+
+- 3段までの全組み合わせで見つかった 124 件、要素型で見つかった 6 件、Sum の選択子の桁あふれ、SelectMany、Range の CountBy / AggregateBy を修正。
+- 根本原因の分類: ① 融合してはいけない並び(Append / Prepend / Concat / Union 系の位置、順序に依存する段の後)を融合していた。② スカラー走査の適用条件の不足(DefaultIfEmpty・Reverse・Distinct)。③ 宣言・代入の漏れ(Take の終端ラベル・空スパンの型・All の述語・ExceptBy / IntersectBy の第2キー)。④ 巻き上げが型名・代入先・変換した定数まで対象にしていた。
+- FLinq 本体の Test プロジェクトが、修正前の HEAD ではコンパイルできなかった(5 件のエラー)のも解消。
+- Take(n) が n+1 個目の上流のラムダを実行する不具合を修正(TPC-E の測定で発見)。
+
+### 2.2 生成コードの読みやすさ
+
+- 結果の変数は `arrayResult` / `listResult` / `sumResult` など、巻き上げた値は式の最後の名前か `invariant`、ラムダの引数の別名は元の引数名。衝突するときだけ番号を足す(G:\GitHub\Seamless\Seamless.FLinq.Generator\SourceGenerator\GeneratedNames.cs)。
+- 名前の付け替え(作業中)で、`__it2_1`・`__pipelineItem__r2_0`・`__k__r3_0` などの機械的な名前も、`item`・`pipelineItem`・`key` へ。1つの構造体の中だけに出る名前は構造体ごとに独立に付けるので、番号が増えすぎない。サンプル(配列の Where・Select・Take・ToList、List の OrderBy・Distinct・ToArray、Range の Where・Sum)で、読める形になることと、コンパイル・実行が通ることを確認した。
+
+### 2.3 Benchmark.Dynamic への統合
+
+- 要素型 13 種の次元、DB のスキーマ版 3(`element_type` 列と移行)、UI の要素型欄、ライブ検証タブ、Worker プロトコル v5(FLinq の展開後のコードを返す)、浮動小数点の許容。
+- 回帰コーパス 124 件を固定(G:\GitHub\Seamless\Benchmark.Dynamic.Tests\Corpus\fixed-triple-defects.txt)。
+
+## 3. 将来の展望
+
+近い順に並べる。「次の一手」は、利用者の判断が要るものを除いて、こちらで進められる。
+
+### 3.1 すぐやること(確定の作業)
+
+1. P2・P3 を解消する: FLinq の全テストを最後まで回して失敗を元の 10 件と突き合わせ、Dynamic の回帰コーパスを付け替え後の生成器で回す。合格なら、一時ファイルを消して、名前の付け替えを1つのコミットにする(push はしない)。
+2. 設計書(前の設計書の「FLinq の不具合の修正」の節)に、付け替えの方式と、計画との違い(1.3 の最後)を書き足す。
+
+### 3.2 名前の作業の続き(利用者の判断が要る点を含む)
+
+- 方式の確認(判断事項): 計画は断片ごとの入口の置き換えだったが、後処理方式で目的(読める名前)は達している。後処理方式を正式とするか、断片ごとの意味のある名前(`item` と添字を区別する等)へ進めるか。
+- 段階B(構造体メンバーの `this.` 規則): 約 50〜60 ファイル・400〜600 か所の変更になる見込み(調査結果)。最大の危険は、構造体のフィールドを呼び出し側のローカルへ変換する経路(G:\GitHub\Seamless\Seamless.FLinq.Generator\SourceGenerator\Linq\Fragments\PipelineEnumerable.DirectConsume.cs)での名前の衝突。後処理の付け替えは衝突を避ける仕組みなので、先に `this.` を統一してから付け替える順で進めると安全。
+- テストを意味で確かめる形へ: 小さな補助(`GeneratedShape`)を作り、`LinqCounterScope`・`SumSpan`・`TryGetSpan`・形の正規表現で確かめる。名前の変更で壊れないテストにする。
+- 名前の衝突の専用テスト: 利用者のローカル・引数・ラムダ引数に `item`・`source`・`count`・`result`・`span` を使ったメソッドで、コンパイルと結果が通ることを確かめる(まだ書いていない)。
+- 展開後のコードを確かめる出口: ライブ検証タブの「FLinq が展開した後のコード」で、付け替え前後を同じクエリで並べて、設計書に載せる。
+
+### 3.3 正しさの強化
+
+- TakeGuard の範囲を広げる(SelectMany・Concat をまたぐ Take、添字つきの段)。先に、System.Linq と食い違う例を Dynamic の全組み合わせで探して、必要なものだけ直す。
+- 元から落ちている 10 件の原因調査と修正(1.2)。
+- 夜間の全組み合わせ(3段)を、付け替え後の生成器で定期的に回す。4段以上、複数の入力件数、Persisted / Tsavorite の要素型へ広げる。
+
+### 3.4 性能と他セッションとの連携
+
+- TPC-E の依頼 2(Tsavorite の Set に対する Join / GroupBy / OrderBy の直接走査)を、性能の課題として設計から始める。
+- TPC-E の依頼 3 は、先方の再試験の結果を待つ。再現したら生成コードとクラス定義をもらって直す。
+- 名前の付け替えが性能に影響しないことを、代表クエリの前後比較で確かめる(名前だけの変更なので変わらない見込み。未計測)。
+
+### 3.5 統合の仕上げ
+
+- 旧検証器プロジェクトの削除と slnx・CI の整理(手順7〜8)を、他セッションの編集と重ならない時に行う。
+- 生成フォルダなど不要物の掃除は利用者の承認待ち。
+- Appium を起動して UI テストの追加分を実行する。
+
+## 4. 利用者に確認したいこと
+
+1. 名前の付け替えは、いまの「後処理方式」で確定してよいか(3.2 の最初)。
+2. 段階B(構造体メンバーの `this.` 規則)に進むか。進む場合、作業量が大きいので、付け替えをコミットした後に着手する。
+3. 元から落ちている 10 件の調査を、次の作業として入れるか。

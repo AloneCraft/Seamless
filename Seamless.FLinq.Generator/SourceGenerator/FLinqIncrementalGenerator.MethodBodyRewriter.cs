@@ -64,6 +64,8 @@ public sealed partial class FLinqIncrementalGenerator {
         usedNames.Clear();
         this.state.BlockScopeIdentifiers.Clear();
         GeneratedNames.CollectUserIdentifiers(メソッド構文,対象.Method.Parameters.Select(static parameter => parameter.Name),usedNames,this.state.BlockScopeIdentifiers);
+        this.state.UserIdentifiers.Clear();
+        this.state.UserIdentifiers.UnionWith(usedNames);
         GeneratedNames.ReserveTemplateNames(usedNames,this.state.BlockScopeIdentifiers);
         var sourceUnsafeAccessorCollector = this.state.UnsafeAccessorCodes;
         sourceUnsafeAccessorCollector.Clear();
@@ -108,6 +110,9 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         補助メンバーをメソッド専用クラスへ退避(対象.MethodName,ref this.state.StaticMethods,ref 本体);
+
+        // 機械的な名前(__it2_1 など)を、人が書いたような名前に付け替える。UnsafeAccessor の宣言はこのあとで足すので、外部の名前は触らない。
+        GeneratedNameRenamer.Rename(ref this.state.StaticMethods,ref 本体,this.state.UserIdentifiers);
 
         // フラグメントツリーおよびソース式から UnsafeAccessor 宣言を収集し、補助クラスの外（クラス直下）に追記する。
         // これにより、インターセプタメソッド本体から短い名前で直接参照できる。

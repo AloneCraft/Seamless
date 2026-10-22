@@ -89,6 +89,6 @@ public sealed class FlattenedPipelineConsumeTests {
             (string)probe.GetMethod("RunLinq")!.Invoke(null,null)!));
         Assert.Equal(expected.Split('|'),actual.Split('|'));
         // 汎用の入れ子の Consume(列挙子の構造体を作って TryGetNext で回す形)は、並べ替え(比較子の型をフィールドに持つ)の1つだけ残る。
-        Assert.Single(global::System.Text.RegularExpressions.Regex.Matches(generated,@"while\(__ce"));
+        Assert.Single(global::System.Text.RegularExpressions.Regex.Matches(generated,@"while\(ce"));
     }
 }
