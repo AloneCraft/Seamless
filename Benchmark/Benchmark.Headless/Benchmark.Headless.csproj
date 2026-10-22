@@ -12,9 +12,6 @@
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)'==''">win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
-    <None Update="Manifests/*.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-  <ItemGroup>
     <InternalsVisibleTo Include="Benchmark.Headless.Tests" />
   </ItemGroup>
   <ItemGroup>
