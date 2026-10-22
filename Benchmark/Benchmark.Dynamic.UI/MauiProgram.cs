@@ -13,6 +13,7 @@ public static class MauiProgram {
 
         ビルダー.Services.AddSingleton<I動的実行調停サービス,動的実行調停サービス>();
         ビルダー.Services.AddSingleton<I動的UI設定,Maui動的UI設定>();
+        ビルダー.Services.AddSingleton(_=>new 動的ライブ検証サービス(動的実行調停サービス.Workerパスを解決()));
         ビルダー.Services.AddSingleton<動的ベンチマーク画面モデル>();
         ビルダー.Services.AddSingleton<MainPage>();
 

@@ -280,11 +280,5 @@ public sealed class SourceFixtureFactory{
         }
     }
 
-    private static int 開始値を作成(Seed256 Seed,string 用途,int 要素数){
-        var 派生=SeedDerivation.Derive(Seed,"fixture."+用途);
-        var 乱数=new DeterministicPrng(派生);
-        var 中央寄せ開始=-(要素数/2);
-        var 小さいずれ=乱数.NextInt32(-8,9);
-        return checked(中央寄せ開始+小さいずれ);
-    }
+    private static int 開始値を作成(Seed256 Seed,string 用途,int 要素数)=>FixtureValues.StartValue(Seed,用途,要素数);
 }

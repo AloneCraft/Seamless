@@ -69,6 +69,7 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
         string? ResultJSON=null;
         string? 診断JSON=null;
         string? TraceJSON=null;
+        var 展開コード=string.Empty;
         string? 計測JSON=null;
         var 解放済み=true;
         var Source生成時間=0L;
@@ -95,6 +96,7 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
             Compilation時間=Compilation.Timings;
             診断JSON=JsonSerializer.Serialize(Compilation.Diagnostics,DynamicWorkerProtocol.JsonOptions);
             TraceJSON=TraceをJSON化(Compilation.OptimizationTracePayloads);
+            展開コード=Compilation.ExpandedSource;
             var Trace概要=Traceを集計(Compilation.OptimizationTracePayloads);
             if(!Compilation.Success||Compilation.LoadedQuery is null){
                 Status=失敗Status(Compilation.Diagnostics,Trace概要.NonConverged);
@@ -232,7 +234,8 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                 TraceJSON,
                 計測JSON,
                 解放済み,
-                完了日時);
+                完了日時,
+                展開コード.Length==0?null:展開コード);
         }
     }
 

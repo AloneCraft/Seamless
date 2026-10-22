@@ -9,10 +9,13 @@ public partial class App:Application {
     }
 
     protected override Window CreateWindow(IActivationState? 有効化状態) {
-        return new Window(this.起動ページ) {
+        var ウィンドウ=new Window(this.起動ページ) {
             Title="Seamless Dynamic Benchmark",
             MinimumWidth=1120,
             MinimumHeight=720,
         };
+        // ライブ検証が動かしている Worker を、ウィンドウを閉じるときに止める。
+        ウィンドウ.Destroying+=(_,_)=>this.起動ページ.ライブ検証を終了する();
+        return ウィンドウ;
     }
 }

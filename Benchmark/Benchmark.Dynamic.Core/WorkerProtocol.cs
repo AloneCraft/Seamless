@@ -257,7 +257,9 @@ public sealed record WorkerSourceExecutionCompletedEvent(
     string? OptimizationTraceJson,
     string? MeasurementsJson,
     bool AssemblyUnloaded,
-    DateTimeOffset CompletedAtUtc);
+    DateTimeOffset CompletedAtUtc,
+    // FLinq の生成器が出した展開後のコード(コンパイルまで進んだとき)。理想のループと見比べるための表示用。
+    string? ExpandedSourceText=null);
 
 public sealed record WorkerProgressEvent(
     string RunId,

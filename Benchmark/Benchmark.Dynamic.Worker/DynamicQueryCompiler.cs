@@ -78,7 +78,8 @@ public sealed record DynamicCompilationResult(
     DynamicCompilationTimings Timings,
     IReadOnlyList<DynamicCompilationDiagnostic> Diagnostics,
     IReadOnlyList<string> OptimizationTracePayloads,
-    LoadedDynamicQuery? LoadedQuery);
+    LoadedDynamicQuery? LoadedQuery,
+    string ExpandedSource="");
 
 public sealed class LoadedDynamicQuery {
     private DynamicAssemblyLoadContext? 読込コンテキスト;
@@ -165,6 +166,7 @@ public sealed class DynamicQueryCompiler {
         ArgumentNullException.ThrowIfNull(要求);
         var 診断一覧=new List<DynamicCompilationDiagnostic>();
         var Trace一覧=new List<string>();
+        var 展開結果=string.Empty;
         var SourceText時間=0L;
         var SyntaxTree時間=0L;
         var Compilation時間=0L;
@@ -240,6 +242,9 @@ public sealed class DynamicQueryCompiler {
                     "FLinq最適化が固定点へ到達しなかったためEmitを中止しました。",
                     string.Empty));
             }
+            展開結果=string.Join(
+                Environment.NewLine,
+                Run結果.Results.SelectMany(結果=>結果.GeneratedSources).Select(Source=>Source.SourceText.ToString()));
             診断一覧.AddRange(呼出先を検証(Compilation,構文木,Run結果));
             診断一覧.AddRange(FLinqExpansionValidator.Validate(
                 診断一覧,
@@ -283,7 +288,7 @@ public sealed class DynamicQueryCompiler {
             Bind時間=経過ナノ秒(開始);
             var Loaded=new LoadedDynamicQuery(読込コンテキスト,Assembly,関数一覧);
             読込コンテキスト=null;
-            return new(true,時間(),診断一覧,Trace一覧,Loaded);
+            return new(true,時間(),診断一覧,Trace一覧,Loaded,展開結果);
         } catch(Exception 例外) when(例外 is not OperationCanceledException) {
             診断一覧.Add(new("Compiler","Error",例外.GetType().Name,例外.Message,string.Empty));
             if(読込コンテキスト is not null) {
@@ -297,7 +302,7 @@ public sealed class DynamicQueryCompiler {
                 _=DynamicAssemblyUnloader.Release(読込コンテキスト);
                 読込コンテキスト=null;
             }
-            return new(false,時間(),診断一覧,Trace一覧,null);
+            return new(false,時間(),診断一覧,Trace一覧,null,展開結果);
         }
 
         DynamicCompilationTimings 時間() {
