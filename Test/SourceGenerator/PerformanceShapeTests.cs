@@ -1287,6 +1287,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
     [Fact]
     public void MinMaxCompute_OwnsTheEnumeratorCopy_CallerDoesNotDisposeAgain() {
+        // (Max は OrderBy を除いて MaxSpan へ直接進むので、Compute を通らなくても、呼び出し元が Dispose しなければよい。)
         // Min/Max(セレクター無し)の Compute は、列挙子の複製をライブラリ関数へ値渡しし、ライブラリが using でその複製を破棄する。
         // 呼び出し元がさらに本体を Dispose すると、コンストラクタでプール配列を借りる列挙子(OrderBy 等)は二重 Return になり、
         // ArrayPool が同じ配列を 2 回貸し出して後続の無関係なクエリのデータが壊れる(2026-09-30 の差分ファズで確認)。所有者は 1 人にする。
@@ -1311,7 +1312,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         GeneratedSourceAssert.True(
             min.Contains("compute",StringComparison.Ordinal)
             &&!min.Contains(".Dispose();",StringComparison.Ordinal)
-            &&max.Contains("compute",StringComparison.Ordinal)
+            &&(max.Contains("compute",StringComparison.Ordinal)||max.Contains("MaxSpan",StringComparison.Ordinal))
             &&!max.Contains(".Dispose();",StringComparison.Ordinal),
             "Min/Max の Compute が列挙子の複製を破棄するので、呼び出し元は本体を Dispose してはいけない(二重 Return)。",
             generated,
@@ -1740,7 +1741,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     private static string GeneratedMethod(string generated,string methodName) {
-        var summaryMarker = $"<c>{methodName}()</c>";
+        var summaryMarker = $"<c>{methodName}(";
         var summaryIndex = generated.IndexOf(summaryMarker,StringComparison.Ordinal);
         if(summaryIndex<0) {
             return string.Empty;

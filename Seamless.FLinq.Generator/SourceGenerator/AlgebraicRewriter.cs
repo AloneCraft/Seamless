@@ -634,7 +634,13 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             return true;
         }
     }
-    // src.Skip(n1).Skip(n2) -> src.Skip(n1 + n2)
+    // Skip / SkipLast の負の件数は 0 として扱われ、合計は int.MaxValue で頭打ちになる(System.Linq と同じ)。
+    // n1 + n2 のまま足すと、Skip(5).Skip(-10) が Skip(-5) になって先頭の5件を飛ばさなくなり、MaxValue 同士は桁あふれで負になる。
+    private static ExpressionSyntax NonNegativeSaturatingSum(ExpressionSyntax first,ExpressionSyntax second) =>
+        SyntaxFactory.ParseExpression(
+            $"(int)global::System.Math.Min((long)global::System.Math.Max({first},0)+global::System.Math.Max({second},0),int.MaxValue)");
+
+    // src.Skip(n1).Skip(n2) -> src.Skip(Max(n1,0) + Max(n2,0))
     private bool TryFuseConsecutiveSkip(InvocationExpressionSyntax node,out SyntaxNode result){
         result=null!;
         if(!this.TryGetEnumerableExtensionCall(node,out var outerName,out var outerReceiver,out var outerArgs)){
@@ -659,16 +665,12 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         }
         if(outerArgs[0].Expression is LiteralExpressionSyntax outerLit&&outerLit.Token.Value is int outerVal&&
            innerArgs[0].Expression is LiteralExpressionSyntax innerLit&&innerLit.Token.Value is int innerVal){
-            var sumVal=innerVal+outerVal;
+            var sumVal=(int)Math.Min((long)Math.Max(innerVal,0)+Math.Max(outerVal,0),int.MaxValue);
             var sumLit=SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,SyntaxFactory.Literal(sumVal));
             result=CreateCall(innerSource,"Skip",sumLit);
             return true;
         }else{
-            var addExpr=SyntaxFactory.BinaryExpression(
-                SyntaxKind.AddExpression,
-                Parenthesize(innerArgs[0].Expression),
-                Parenthesize(outerArgs[0].Expression));
-            result=CreateCall(innerSource,"Skip",addExpr);
+            result=CreateCall(innerSource,"Skip",NonNegativeSaturatingSum(innerArgs[0].Expression,outerArgs[0].Expression));
             return true;
         }
     }
@@ -740,16 +742,12 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         }
         if(outerArgs[0].Expression is LiteralExpressionSyntax outerLit&&outerLit.Token.Value is int outerVal&&
            innerArgs[0].Expression is LiteralExpressionSyntax innerLit&&innerLit.Token.Value is int innerVal){
-            var sumVal=innerVal+outerVal;
+            var sumVal=(int)Math.Min((long)Math.Max(innerVal,0)+Math.Max(outerVal,0),int.MaxValue);
             var sumLit=SyntaxFactory.LiteralExpression(SyntaxKind.NumericLiteralExpression,SyntaxFactory.Literal(sumVal));
             result=CreateCall(innerSource,"SkipLast",sumLit);
             return true;
         }else{
-            var addExpr=SyntaxFactory.BinaryExpression(
-                SyntaxKind.AddExpression,
-                Parenthesize(innerArgs[0].Expression),
-                Parenthesize(outerArgs[0].Expression));
-            result=CreateCall(innerSource,"SkipLast",addExpr);
+            result=CreateCall(innerSource,"SkipLast",NonNegativeSaturatingSum(innerArgs[0].Expression,outerArgs[0].Expression));
             return true;
         }
     }

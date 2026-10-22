@@ -107,7 +107,7 @@ public sealed partial class UnaryPushdownShapeTests(ITestOutputHelper output) {
         var disabled = GeneratedSource(WithoutPushdown(OrderAfterLinqCallSource));
 
         GeneratedSourceAssert.True(
-            PredicatePrecedes(enabled,"Sort")&&!PredicatePrecedes(disabled,"Sort"),
+            PredicateFiltersBeforeBuffering(enabled)&&!PredicateFiltersBeforeBuffering(disabled),
             "The fast path is already lost when Order sits on another LINQ call, so the predicate must be evaluated before the sort.",
             enabled,
             output);
@@ -115,6 +115,11 @@ public sealed partial class UnaryPushdownShapeTests(ITestOutputHelper output) {
 
     // 融合ループ内で述語チェックが HashSetSlim.Add より前に出ているかを見る。
     private static bool PredicatePrecedesSetInsert(string generated) => PredicatePrecedes(generated,".Add(");
+
+    // 並べ替えの前に溜める段で、述語が溜める処理(容量の確認と書き込み)より前にあるか。
+    // 文字の位置の前後では判定できない(並べ替え後に列挙する部分が先に書かれるため、押し下げなしでも述語が先に出る)。
+    private static bool PredicateFiltersBeforeBuffering(string generated) =>
+        Regex.IsMatch(generated,@"777\)\)\s*continue;\s*if\(orderCountLocal==orderValuesLocal\.Length\)");
 
     private static bool PredicatePrecedes(string generated,string marker) {
         var predicateIndex = generated.IndexOf("777",StringComparison.Ordinal);

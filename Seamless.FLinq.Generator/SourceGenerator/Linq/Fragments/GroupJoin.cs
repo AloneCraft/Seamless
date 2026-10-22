@@ -124,7 +124,7 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         var innerBody = $$"""
             {{this.CounterCall("IncrementLogicalGroupJoinInner")}}
             {{this.InnerKeyType}} {{innerKeyName}}=default!;
-            {{this.FuncAssignStatic(this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
+            {{this.FuncAssignStaticIndented("",this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
             if({{hasKeyName}}({{innerKeyName}})){
                 {{this.CounterCall("IncrementHashBuild")}}
                 {{this.CounterCall("IncrementBufferAdd")}}
@@ -135,13 +135,13 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         var outerBody = $$"""
             {{this.CounterCall("IncrementLogicalGroupJoinOuter")}}
             {{FuncReturnTypeName(this.outerKey)}} {{outerKeyName}}=default!;
-            {{this.FuncAssignStatic(this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}}
+            {{this.FuncAssignStaticIndented("",this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}}
             {{this.CounterCall("IncrementHashProbe")}}
             {{this.ElementType}} {{resultItemName}}=default!;
             if({{lookupName}}!.GetGroup({{outerKeyName}}) is { } {{groupName}}){
-                {{this.FuncAssignStatic(this.resultSelector,nameof(this.resultSelector),resultItemName,outerItemName,groupName)}}
+                {{this.FuncAssignStaticIndented("    ",this.resultSelector,nameof(this.resultSelector),resultItemName,outerItemName,groupName)}}
             }else{
-                {{this.FuncAssignStatic(this.resultSelector,nameof(this.resultSelector),resultItemName,outerItemName,$"(global::System.Collections.Generic.IEnumerable<{this.InnerElementType}>)global::System.Array.Empty<{this.InnerElementType}>()")}}
+                {{this.FuncAssignStaticIndented("    ",this.resultSelector,nameof(this.resultSelector),resultItemName,outerItemName,$"(global::System.Collections.Generic.IEnumerable<{this.InnerElementType}>)global::System.Array.Empty<{this.InnerElementType}>()")}}
             }
             {{consumerName}}.Consume({{resultItemName}});
             """;
@@ -213,7 +213,7 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         var innerBody = $$"""
             {{this.CounterCall("IncrementLogicalGroupJoinInner")}}
             {{this.InnerKeyType}} {{innerKeyName}}=default!;
-            {{this.FuncAssignStatic(this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
+            {{this.FuncAssignStaticIndented("",this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
             if({{hasKeyName}}({{innerKeyName}})){
                 {{this.CounterCall("IncrementHashBuild")}}
                 {{this.CounterCall("IncrementBufferAdd")}}
@@ -224,12 +224,12 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         var outerBody = $$"""
             {{this.CounterCall("IncrementLogicalGroupJoinOuter")}}
             {{FuncReturnTypeName(this.outerKey)}} {{outerKeyName}}=default!;
-            {{this.FuncAssignStatic(this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}}
+            {{this.FuncAssignStaticIndented("",this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}}
             {{this.CounterCall("IncrementHashProbe")}}
             if({{lookupName}}!.GetGroup({{outerKeyName}}) is { } {{groupName}}){
-                {{this.FuncAssignStatic(this.resultSelector,nameof(this.resultSelector),destVar,outerItemName,groupName)}}
+                {{this.FuncAssignStaticIndented("    ",this.resultSelector,nameof(this.resultSelector),destVar,outerItemName,groupName)}}
             }else{
-                {{this.FuncAssignStatic(this.resultSelector,nameof(this.resultSelector),destVar,outerItemName,$"(global::System.Collections.Generic.IEnumerable<{this.InnerElementType}>)global::System.Array.Empty<{this.InnerElementType}>()")}}
+                {{this.FuncAssignStaticIndented("    ",this.resultSelector,nameof(this.resultSelector),destVar,outerItemName,$"(global::System.Collections.Generic.IEnumerable<{this.InnerElementType}>)global::System.Array.Empty<{this.InnerElementType}>()")}}
             }
             {{foundName}}=true;
             break;

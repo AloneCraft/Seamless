@@ -2128,7 +2128,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var hasDefaultIfEmpty = this.TryGetSingleDefaultIfEmptyStage(out _);
         var spanName = $"__pipelineSpan{this.result}";
         var sliceIndices = this.GetPrefixSliceStageIndices();
-        var hasFilter = pipeline.Stages.Any(this.IsDirectSpanFilterStage);
+        // .Anchor を書いたラムダは System.Linq と同じ回数だけ評価する契約なので、件数だけ数える近道(Select を飛ばす)に使わず、段を実行する。
+        var hasFilter = pipeline.Stages.Any(this.IsDirectSpanFilterStage)||pipeline.Stages.Any(static stage => stage.Func is { ContainsAnchor: true });
         var prefixPrepends = this.GetPrefixPrependStages();
         var prefixAppends = this.GetPrefixAppendStages();
         var extraCount = prefixPrepends.Count+prefixAppends.Count;
@@ -3173,7 +3174,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         if(string.IsNullOrEmpty(orderStage.Value)){
             comparerArg="null";
         }else{
-            comparerArg=orderStage.Value!;
+            comparerArg=ComparerExpressionSupport.RenderOrderComparer(orderStage.Value!,keyType);
         }
         var builder=new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName};");
@@ -3858,7 +3859,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(string.IsNullOrEmpty(orderStage.Value)){
                 comparerArg="null";
             }else{
-                comparerArg=orderStage.Value!;
+                comparerArg=ComparerExpressionSupport.RenderOrderComparer(orderStage.Value!,orderKeyType);
             }
             var nName=$"__groupCount{this.result}";
             var indexesName=$"__indexes{this.result}";

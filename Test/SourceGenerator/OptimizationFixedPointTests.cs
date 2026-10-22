@@ -178,7 +178,7 @@ public sealed partial class OptimizationFixedPointTests{
                 &&termination.GetProperty("Termination").GetString()=="FixedPoint");
         Assert.Contains(
             document.RootElement.GetProperty("Events").EnumerateArray(),
-            static traceEvent=>traceEvent.GetProperty("RuleId").GetString()=="Pipeline.Reverse");
+            static traceEvent=>traceEvent.GetProperty("RuleId").GetString() is "Pipeline.Reverse" or "Algebraic.Reverse"); // Reverse の打ち消しは、構文の層(Algebraic)が先に行うことがある。
     }
 
     [Fact]

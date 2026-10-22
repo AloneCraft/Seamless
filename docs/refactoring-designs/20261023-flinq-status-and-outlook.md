@@ -13,20 +13,19 @@
 - Dynamic の回帰コーパス・要素型・浮動小数点・再現: 56/56 合格(6 分 17 秒)。
 - 調査用の一時ファイルは削除した。
 
-### 1.2 元から落ちている FLinq のテスト 10 件(今回の変更とは無関係。HEAD 時点で確認済みの一覧)
+### 1.2 元から落ちていた FLinq のテスト 10 件(2026-10-23 に全て解消。FLinq 全 1886 件合格)
 
-- Persisted の FLinqNativeIterateTests.PersistedSetRoot_UsesNativeIterateTerminalForAllAndExplicitFirstOrDefault
-- AnchorShortcutTests(SelectCountAnchored)
-- FragmentIndentationTests.FragmentRawStrings_DoNotDirectlyEmbedFuncAssignStatements
-- InterceptorLanguageShapeTests.ScalarMaterializeConsume_ExpandsWithoutForwardingFailure
-- OptimizationFixedPointTests.PipelineGlobalFixedPoint
-- PerformanceShapeTests.MinMaxCompute_OwnsTheEnumeratorCopy_CallerDoesNotDisposeAgain
-- PerformanceShapeTests.ExplicitDefaultComparersUseSortedSpanFastPaths
-- RangeSkipLastTests(start: 1, count: 10, skip: -4)
-- UnaryPushdownShapeTests.OrderAfterLinqCallIsPushed
-- RangePartition.ConsecutiveSkipNormalizesEachNegativeCountBeforeFolding
+原因は件ごとに違った。生成器の不具合 5 件、古くなったテスト 5 件。
 
-原因は調べていない。名前の作業とは分けて、別に調べる。
+生成器の不具合(修正した):
+- `Skip(a).Skip(b)` / `SkipLast(a).SkipLast(b)` の融合が `a+b` で、負の件数を 0 にせず、`int.MaxValue` 同士で桁あふれしていた(RangePartition・RangeSkipLast)。`Max(a,0)+Max(b,0)` を `int.MaxValue` で頭打ちにする形へ(AlgebraicRewriter の `NonNegativeSaturatingSum`)。
+- 並べ替えの直接走査が、既定の比較子 `Comparer<int>.Default` を `global::` なしのまま出してコンパイルできなかった(PerformanceShapeTests.ExplicitDefaultComparers)。`ComparerExpressionSupport.RenderOrderComparer` を通す。
+- `.Anchor` を書いた Select の後の `Count()` が、件数だけ数える近道で Select を飛ばしていた(AnchorShortcutTests)。Anchor つきのラムダがあれば近道を使わない。
+- GroupJoin の raw string が `FuncAssign` を直接埋め込んでいた(FragmentIndentationTests のソース検査)。既存の `FuncAssignStaticIndented` に揃えた。
+- Persisted の Set で、`AsEnumerable().Where(...).FirstOrDefault()` のように複数段になると native iterate に流れなかった(ProviderIterateTerminal が FirstOrDefault を受けていなかった)。既定値なしの FirstOrDefault を受ける。
+
+古くなったテスト(実測に合わせて直した):
+- `GeneratedMethod` の目印、Min/Max の Compute 形(Max は OrderBy を除いて MaxSpan へ進む)、Scalar の `foreach(var item in linq…)`(結果変数の名前が変わった)、PipelineGlobalFixedPoint(Reverse の打ち消しは構文の層が先に行う)、OrderAfterLinqCallIsPushed(文字の位置の前後では判定できないので、述語が溜める処理より前にあるかの形で検査)。
 
 ### 1.3 名前の作業で残っている弱点(事実)
 
@@ -114,4 +113,4 @@
 
 1. (済・2026-10-23 確定)名前の付け替えは「後処理方式」。
 2. 段階B(構造体メンバーの `this.` 規則)に進むか。進む場合、作業量が大きいので、付け替えをコミットした後に着手する。
-3. 元から落ちている 10 件の調査を、次の作業として入れるか。
+3. (済・2026-10-23)元から落ちていた 10 件の調査と修正。

@@ -182,7 +182,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output) {
         this.AssertIntercepted(result.GeneratedSource,nameof(ToArrayConsume));
         GeneratedSourceAssert.True(
             !result.GeneratedSource.Contains("LinqInterceptorFailure",StringComparison.Ordinal)
-            &&result.GeneratedSource.Contains("foreach(var item in linq",StringComparison.Ordinal)
+            &&global::System.Text.RegularExpressions.Regex.IsMatch(result.GeneratedSource,@"foreach\(var item in \w+\)")
             &&result.GeneratedSource.Contains(".Consume(item);",StringComparison.Ordinal),
             "Scalar materialize terminal followed by Consume should expand to direct item consumption.",
             result.GeneratedSource,

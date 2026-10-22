@@ -74,7 +74,9 @@ internal abstract class ProviderNativeExecutionBase(
         (terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToHashSet
             or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any or PipelineTerminalKind.All or PipelineTerminalKind.First
             or PipelineTerminalKind.ToDictionary or PipelineTerminalKind.Sum
-            ||(terminalKind==PipelineTerminalKind.Contains&&containsValue is not null))
+            ||(terminalKind==PipelineTerminalKind.Contains&&containsValue is not null)
+            // 既定値を取らない FirstOrDefault(Where の後ろなど複数段の形)も native iterate に流す。既定値つきは別の演算なので対象外。
+            ||(terminalKind==PipelineTerminalKind.FirstOrDefault&&containsValue is null))
         &&pipeline.Stages.All(static stage => PipelineStageCapabilityTable.SupportsProviderNativeIterate(stage.Kind))
         &&!pipeline.Stages.Any(static stage => stage.Func is { RequiresStatementInlining: true });
 
@@ -105,6 +107,7 @@ internal abstract class ProviderNativeExecutionBase(
             PipelineTerminalKind.All => ProviderIterateTerminalKind.All,
             PipelineTerminalKind.Contains => ProviderIterateTerminalKind.Contains,
             PipelineTerminalKind.First => ProviderIterateTerminalKind.First,
+            PipelineTerminalKind.FirstOrDefault => ProviderIterateTerminalKind.FirstOrDefault,
             PipelineTerminalKind.ToList => ProviderIterateTerminalKind.ToList,
             PipelineTerminalKind.ToArray => ProviderIterateTerminalKind.ToArray,
             PipelineTerminalKind.ToDictionary => ProviderIterateTerminalKind.ToDictionary,
