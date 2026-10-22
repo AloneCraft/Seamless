@@ -85,7 +85,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                         keyType=orderStage.InputType??pipeline.ElementType;
                     }
                 }
-                var comparerStructName=$"__OrderDirectComparer{this.result}";
+                // クラス直下に置く補助型なので、補助クラス退避の正規表現（Struct\d+_接尾辞）にマッチする名前にしてメソッドごとに付け替えさせる。
+                var comparerStructName=$"{this.Struct}_OrderDirectComparer";
                 string descExpr;
                 if(isDescending){
                     descExpr="-c";
@@ -3095,7 +3096,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var indexesName=$"__pipelineIndexes{this.result}";
         var keysName=$"__pipelineKeys{this.result}";
         var iName=$"__pipelineI{this.result}";
-        var comparerStructName=$"__OrderDirectComparer{this.result}";
+        var comparerStructName=$"{this.Struct}_OrderDirectComparer";
         var comparerVarName=$"__orderDirectComp{this.result}";
         string comparerArg;
         if(string.IsNullOrEmpty(orderStage.Value)){
@@ -3775,7 +3776,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     orderKeyType=orderStage.InputType??pipeline.ElementType;
                 }
             }
-            var comparerStructName=$"__OrderDirectComparer{this.result}";
+            var comparerStructName=$"{this.Struct}_OrderDirectComparer";
             var comparerVarName=$"__orderDirectComp{this.result}";
             string comparerArg;
             if(string.IsNullOrEmpty(orderStage.Value)){
