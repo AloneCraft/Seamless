@@ -113,6 +113,8 @@ public sealed partial class FLinqIncrementalGenerator {
 
         // 機械的な名前(__it2_1 など)を、人が書いたような名前に付け替える。UnsafeAccessor の宣言はこのあとで足すので、外部の名前は触らない。
         GeneratedNameRenamer.Rename(ref this.state.StaticMethods,ref 本体,this.state.UserIdentifiers);
+        // 構造体の中で自分のメンバーを使うときは this. を付けて揃える(付けると意味が変わる所は付けない)。
+        this.state.StaticMethods=GeneratedThisQualifier.Qualify(this.state.StaticMethods);
 
         // フラグメントツリーおよびソース式から UnsafeAccessor 宣言を収集し、補助クラスの外（クラス直下）に追記する。
         // これにより、インターセプタメソッド本体から短い名前で直接参照できる。

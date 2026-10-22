@@ -1016,7 +1016,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("CollectionsMarshal.AsSpan(source).Slice",StringComparison.Ordinal)
+            generated.Contains("CollectionsMarshal.AsSpan(this.source).Slice",StringComparison.Ordinal)
             &&generated.Contains("=src.GetSpan();",StringComparison.Ordinal)
             &&generated.Contains("=sec.GetSpan();",StringComparison.Ordinal),
             "List roots should expose a direct GetSpan() backed by CollectionsMarshal.AsSpan.",
@@ -1205,7 +1205,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             methods.Contains(".GetSpan();",StringComparison.Ordinal)
-            &&generated.Contains("CollectionsMarshal.AsSpan(source).Slice",StringComparison.Ordinal)
+            &&generated.Contains("CollectionsMarshal.AsSpan(this.source).Slice",StringComparison.Ordinal)
             &&!methods.Contains("global::System.Linq.Enumerable.ToArray",StringComparison.Ordinal)
             &&!methods.Contains("global::System.Linq.Enumerable.ToList",StringComparison.Ordinal)
             &&!methods.Contains("TryGetSpan(out var sourceSpan",StringComparison.Ordinal)
@@ -1426,7 +1426,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             methods.Contains(".GetSpan();",StringComparison.Ordinal)
-            &&generated.Contains("CollectionsMarshal.AsSpan(source).Slice",StringComparison.Ordinal)
+            &&generated.Contains("CollectionsMarshal.AsSpan(this.source).Slice",StringComparison.Ordinal)
             &&!methods.Contains(".TryGetSpan(out var span)",StringComparison.Ordinal),
             "Array/List scalar terminals should read direct GetSpan and avoid runtime TryGetSpan branches.",
             generated,
