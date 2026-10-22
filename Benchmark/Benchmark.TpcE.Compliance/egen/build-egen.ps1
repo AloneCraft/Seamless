@@ -18,6 +18,10 @@ $loaderObjects=Join-Path $OutputDirectory 'obj-loader'
 $driverObjects=Join-Path $OutputDirectory 'obj-driver'
 New-Item -ItemType Directory -Force $objects,$loaderObjects,$driverObjects | Out-Null
 $driver=Join-Path $PSScriptRoot 'driver\EGenDriver.cpp'
+$harnessSource=Join-Path $PSScriptRoot 'harness\HarnessBridge.cpp'
+$harnessInclude=Join-Path $PSScriptRoot 'harness'
+$harnessObjects=Join-Path $OutputDirectory 'obj-harness'
+New-Item -ItemType Directory -Force $harnessObjects | Out-Null
 $patched=Join-Path $OutputDirectory 'EGenVersion.cpp'
 (Get-Content (Join-Path $EGenDirectory 'Utilities\src\EGenVersion.cpp') -Raw).Replace('__DATE__" "__TIME__','__DATE__ " " __TIME__') | Set-Content $patched -Encoding utf8
 $patchedLoader=Join-Path $OutputDirectory 'EGenLoader.cpp'
@@ -39,10 +43,12 @@ $commands=@(
     "lib /nologo /OUT:`"$OutputDirectory\EGenCore.lib`" `"$objects\*.obj`" >> `"$log`" 2>&1",
     "link /nologo /OUT:`"$OutputDirectory\EGenLoader.exe`" `"$loaderObjects\EGenLoader.obj`" `"$OutputDirectory\EGenCore.lib`" >> `"$log`" 2>&1",
     "cl $flags /c $include /Fo`"$driverObjects\\`" `"$driver`" >> `"$log`" 2>&1",
-    "link /nologo /OUT:`"$OutputDirectory\EGenDriver.exe`" `"$driverObjects\EGenDriver.obj`" `"$OutputDirectory\EGenCore.lib`" ws2_32.lib >> `"$log`" 2>&1"
+    "link /nologo /OUT:`"$OutputDirectory\EGenDriver.exe`" `"$driverObjects\EGenDriver.obj`" `"$OutputDirectory\EGenCore.lib`" ws2_32.lib >> `"$log`" 2>&1",
+    "cl $flags /c $include /I`"$harnessInclude`" /Fo`"$harnessObjects\\`" `"$harnessSource`" >> `"$log`" 2>&1",
+    "link /nologo /DLL /OUT:`"$OutputDirectory\EGenHarness.dll`" `"$harnessObjects\HarnessBridge.obj`" `"$OutputDirectory\EGenCore.lib`" >> `"$log`" 2>&1"
 )
 cmd /c ($commands -join ' && ')
 if($LASTEXITCODE -ne 0){
     Write-Error "build failed. See $log"
 }
-Write-Output "built: $OutputDirectory\EGenLoader.exe, $OutputDirectory\EGenDriver.exe"
+Write-Output "built: $OutputDirectory\EGenLoader.exe, $OutputDirectory\EGenDriver.exe, $OutputDirectory\EGenHarness.dll"
