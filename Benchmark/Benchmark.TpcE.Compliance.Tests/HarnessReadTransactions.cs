@@ -65,6 +65,44 @@ public sealed class HarnessReadTransactions(EGenEngineFixture fixture):IClassFix
             }
         }
     }
+    [Fact,Trait("Category","Integration")]public void CustomerPosition(){
+        {
+            //履歴あり(フレーム 1→2)と、履歴なし(フレーム 1→3)、納税者番号での検索。件数・口座・資産・履歴の件数と status が既存の実装と一致すること
+            if(!fixture.Available){
+                return;
+            }
+            var db=fixture.Engine!.Database;
+            var customer=db.Customer.EnumerateRows().OrderBy(static row=>row.Id).Skip(3).First();
+            var cases=new[]{
+                new CustomerPositionInput{CustomerId=customer.Id,GetHistory=true,AccountIdIndex=0,Now=1},
+                new CustomerPositionInput{CustomerId=customer.Id,GetHistory=false,Now=1},
+                new CustomerPositionInput{CustomerId=0,TaxId=customer.TaxId,GetHistory=true,AccountIdIndex=1,Now=1},
+            };
+            foreach(var request in cases){
+                var expected=(CustomerPositionOutput)fixture.Engine!.Execute(request);
+                var input=new byte[Compliance.HarnessHost.SizeOf("CustomerPositionTxnInput")];
+                var output=new byte[Compliance.HarnessHost.SizeOf("CustomerPositionTxnOutput")];
+                var wrapper=new CustomerPositionTxnInput(input);
+                wrapper.CustId=request.CustomerId;
+                wrapper.TaxId=request.TaxId.ToString();
+                wrapper.GetHistory=request.GetHistory;
+                wrapper.AcctIdIdx=request.AccountIdIndex;
+                var status=this.Run(HarnessTransaction.CustomerPosition,input,output);
+                var result=new CustomerPositionTxnOutput(output);
+                Assert.Equal(expected.Status,status);
+                Assert.Equal(expected.AccountLength,result.AcctLen);
+                Assert.Equal(expected.HistoryLength,result.HistLen);
+                for(var index=0;index<expected.Accounts.Length;index++){
+                    Assert.Equal(expected.Accounts[index].AccountId,result.GetAcctId(index));
+                    Assert.Equal((double)expected.Accounts[index].AssetTotal,result.GetAssetTotal(index));
+                }
+                for(var index=0;index<expected.History.Length;index++){
+                    Assert.Equal(expected.History[index].TradeId,result.GetTradeId(index));
+                }
+                Assert.False(fixture.Engine!.Database.Log.IsRecording);
+            }
+        }
+    }
     [Fact,Trait("Category","Integration")]public void TradeLookup(){
         {
             //frame_to_execute 1〜4 のそれぞれを、ハーネス経由と既存の実装で流し、件数・取引の並び・is_cash・状態コードが一致すること

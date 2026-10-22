@@ -7,12 +7,25 @@ internal sealed class CustomerPositionFrames{
     private const int MinHistoryLength=10;
     private readonly CustomerPositionQueries queries=new();
     public CustomerPositionOutput Run(TpcEDatabase db,CustomerPositionInput input){
-        // Frame 1(3.3.2.3)。cust_id が 0 なら納税者番号(索引 X1)で顧客を引く。
-        var customerId=input.CustomerId;
+        var output=this.Frame1(db,input.CustomerId,input.TaxId);
+        if(output.Status!=0||!input.GetHistory){
+            // Frame 3(3.3.2.5)。DB は読まずに確定するだけ。
+            return output;
+        }
+        // Frame 2 に渡す口座は、Frame 1 の口座一覧の acct_id_idx 番目。
+        if(input.AccountIdIndex<0||input.AccountIdIndex>=output.Accounts.Length){
+            throw new ArgumentOutOfRangeException(nameof(input),input.AccountIdIndex,$"Customer-Position: acct_id_idx is outside the {output.Accounts.Length} accounts.");
+        }
+        var history=this.Frame2(db,output.Accounts[input.AccountIdIndex].AccountId);
+        return output with{Status=history.Status,HistoryLength=history.History.Length,History=history.History};
+    }
+    /// <summary>Frame 1(3.3.2.3)。cust_id が 0 なら納税者番号で顧客を引き、口座ごとの資産を求める。口座が無いなどの誤りは Status -211。</summary>
+    public CustomerPositionOutput Frame1(TpcEDatabase db,long requestedCustomerId,Code24 taxId){
+        var customerId=requestedCustomerId;
         if(customerId==0){
-            var found=db.CustomerByTaxId.All(input.TaxId);
+            var found=db.CustomerByTaxId.All(taxId);
             if(found.Length!=1){
-                throw new KeyNotFoundException($"Customer-Position: tax id '{input.TaxId}' matched {found.Length} customers.");
+                throw new KeyNotFoundException($"Customer-Position: tax id '{taxId}' matched {found.Length} customers.");
             }
             customerId=found[0];
         }
@@ -57,15 +70,10 @@ internal sealed class CustomerPositionFrames{
         if(positions.Length<1||positions.Length>TpcESpec.MaxAccountLength){
             return output with{Status=-211};
         }
-        if(!input.GetHistory){
-            // Frame 3(3.3.2.5)。DB は読まずに確定するだけ。
-            return output;
-        }
-        // Frame 2(3.3.2.4)。Frame 1 の口座一覧の acct_id_idx 番目の口座の、直近 10 取引(索引 X7、T_DTS の降順)の状態の記録を集める。
-        if(input.AccountIdIndex<0||input.AccountIdIndex>=positions.Length){
-            throw new ArgumentOutOfRangeException(nameof(input),input.AccountIdIndex,$"Customer-Position: acct_id_idx is outside the {positions.Length} accounts.");
-        }
-        var accountId=positions[input.AccountIdIndex].AccountId;
+        return output;
+    }
+    /// <summary>Frame 2(3.3.2.4)。口座の直近 10 取引(索引 X7、T_DTS の降順)の状態の記録を集める。件数が範囲外なら Status -221。</summary>
+    public (int Status,CustomerPositionHistory[] History) Frame2(TpcEDatabase db,long accountId){
         var recent=db.AccountTrades.TopDesc(accountId,CustomerPositionFrames.HistoryTradeCount);
         var statusTypes=this.queries.StatusTypes(db);
         var trades=new TradeRow[recent.Length];
@@ -85,6 +93,6 @@ internal sealed class CustomerPositionFrames{
         if(events.Length<CustomerPositionFrames.MinHistoryLength||events.Length>TpcESpec.MaxHistoryLength){
             status=-221;
         }
-        return output with{Status=status,HistoryLength=events.Length,History=events};
+        return (status,events);
     }
 }

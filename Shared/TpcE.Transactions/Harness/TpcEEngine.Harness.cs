@@ -10,6 +10,7 @@ internal sealed partial class TpcEEngine:IHarnessFrameEngine{
     private readonly MarketFeedHarness marketFeedHarness=new();
     private readonly TradeLookupHarness tradeLookupHarness=new();
     private readonly TradeUpdateHarness tradeUpdateHarness=new();
+    private readonly CustomerPositionHarness customerPositionHarness=new();
     private long lastNow;
     public Func<long>? Clock{get;set;}
     public void ExecuteFrame(HarnessFrame frame,Span<byte> input,Span<byte> output,IMarketSink market){
@@ -82,6 +83,18 @@ internal sealed partial class TpcEEngine:IHarnessFrameEngine{
             case HarnessFrame.TradeUpdate3:
                 this.BeginTransaction();
                 this.tradeUpdateHarness.Frame3(this.db,new TradeUpdateFrame3Input(input),new TradeUpdateFrame3Output(output),this.NextNow());
+                this.CommitTransaction();
+                break;
+            case HarnessFrame.CustomerPosition1:
+                // 取引を開始する。確定はフレーム 2(履歴あり)かフレーム 3(履歴なし)。
+                this.BeginTransaction();
+                this.customerPositionHarness.Frame1(this.db,new CustomerPositionFrame1Input(input),new CustomerPositionFrame1Output(output));
+                break;
+            case HarnessFrame.CustomerPosition2:
+                this.customerPositionHarness.Frame2(this.db,new CustomerPositionFrame2Input(input),new CustomerPositionFrame2Output(output));
+                this.CommitTransaction();
+                break;
+            case HarnessFrame.CustomerPosition3:
                 this.CommitTransaction();
                 break;
             default:
