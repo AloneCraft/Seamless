@@ -263,18 +263,39 @@ internal abstract class Fragment(
     // 代入文が必要なときの共通ヘルパー。
     private protected string FuncAssign(FuncFragment func,string methodName,string destination,params string[] arguments) {
         if(func.RequiresStatementInlining) {
-            return $"{this.CounterCall("IncrementLogicalDelegate")}\n{this.RenderInlineAssign(func,destination,arguments)}";
+            return $"{this.CounterCall("IncrementLogicalDelegate")}\n{StripDestinationDeclaration(this.RenderInlineAssign(func,destination,arguments),destination)}";
         }
         if(func.CanInvokeAsDelegate) {
             return $"{destination}={this.CountPhysicalDelegateExpression($"this.{func.DelegateFieldName}.Invoke({string.Join(", ",arguments)})")};";
         }
         if(func.CanInlineAssign) {
-            return $"{this.CounterCall("IncrementLogicalDelegate")}\n{this.RenderInlineAssign(func,destination,arguments)}";
+            return $"{this.CounterCall("IncrementLogicalDelegate")}\n{StripDestinationDeclaration(this.RenderInlineAssign(func,destination,arguments),destination)}";
         }
         if(func is LambdaFunc) {
             throw LambdaInlineUnsupported(func,methodName);
         }
         return $"{destination}={this.FuncInvoke(func,methodName,arguments)};";
+    }
+    // FuncAssign の呼び出し側は、代入先(destination)を先に宣言してから呼ぶ。ラムダの本体が別の LINQ 呼び出し(c=>c.Sum() など)のとき、
+    // その展開が「型 代入先;」という宣言を自分で出すと、同じ名前を2回宣言することになる(CS0128)。
+    // 展開の中の「宣言だけの行」を取り除く(代入先は呼び出し側が宣言済みなので、代入はそのまま通る)。
+    private static string StripDestinationDeclaration(string code,string destination) {
+        if(code.IndexOf(destination,System.StringComparison.Ordinal)<0) {
+            return code;
+        }
+        var lines = code.Split('\n');
+        var kept = new System.Collections.Generic.List<string>(lines.Length);
+        foreach(var line in lines) {
+            var trimmed = line.Trim();
+            if(trimmed.EndsWith(" "+destination+";",System.StringComparison.Ordinal)
+                &&!trimmed.Contains("=")
+                &&!trimmed.StartsWith("return ",System.StringComparison.Ordinal)
+                &&!trimmed.StartsWith(destination,System.StringComparison.Ordinal)) {
+                continue;
+            }
+            kept.Add(line);
+        }
+        return string.Join("\n",kept);
     }
     private protected string FuncAssignIndented(string indent,FuncFragment func,string methodName,string destination,params string[] arguments) =>
         IndentGeneratedStatement(this.FuncAssign(func,methodName,destination,arguments),indent);

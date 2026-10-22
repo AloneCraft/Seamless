@@ -677,6 +677,23 @@ public sealed partial class FLinqIncrementalGenerator {
         if(expression is MemberBindingExpressionSyntax) {
             return false;
         }
+        // 型名(new global::A.B.C(...) の C、キャスト・default・typeof の型など)は値ではないので巻き上げない。
+        // 完全修飾名(QualifiedName / AliasQualifiedName)は MemberAccess ではないため、下の判定をすり抜けて
+        // 「型を値として巻き上げた __hoistN」になり、new this.__hoistN(...) というコンパイルできないコードを出していた(2026-10-22)。
+        if(expression is TypeSyntax) {
+            var typeSymbolInfo = semanticModel.GetSymbolInfo(expression);
+            if(typeSymbolInfo.Symbol is INamespaceOrTypeSymbol
+                ||typeSymbolInfo.CandidateSymbols.Any(symbol => symbol is INamespaceOrTypeSymbol)) {
+                return false;
+            }
+        }
+        // 代入の左辺(オブジェクト初期化子・with 式の { Price = ... } のメンバー名など)は値ではなく書き込み先なので巻き上げない。
+        // 巻き上げると with{this.__hoistN=...} のようなコンパイルできないコードになる(2026-10-22)。
+        if(expression is IdentifierNameSyntax
+            &&expression.Parent is AssignmentExpressionSyntax assignment
+            &&ReferenceEquals(assignment.Left,expression)) {
+            return false;
+        }
         if(expression is SimpleNameSyntax simpleName
             &&((simpleName.Parent is MemberAccessExpressionSyntax memberAccess&&ReferenceEquals(memberAccess.Name,simpleName))
                 ||(simpleName.Parent is MemberBindingExpressionSyntax memberBinding&&ReferenceEquals(memberBinding.Name,simpleName)))) {
@@ -699,7 +716,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         // -2 のような定数式(単項マイナス+リテラルなど)は巻き上げても得が無い。しかも Range の述語の閉形式などは、比較の相手を
         // 巻き上げ前の式として読み直すので、定義していない __hoistN を参照する不正なコードになる(CS0103)。
-        if(semanticModel.GetConstantValue(expression).HasValue) {
+        if(semanticModel.GetConstantValue(expression).HasValue||IsConstantLiteralExpression(expression)) {
             return false;
         }
         if(expression is IdentifierNameSyntax identifier) {
@@ -711,6 +728,18 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         return true;
     }
+
+    // リテラル(符号つき・括弧つきを含む)は、ユーザー定義の暗黙変換(int から Int256 など)で型が変わっても定数のまま。
+    // 変換後の式は GetConstantValue が値を持たないので、リテラルの形で見分ける。巻き上げると、述語を別の場所へ展開する描画で
+    // 巻き上げた変数の宣言が届かず CS0103 になることがある(2026-10-22)。
+    private static bool IsConstantLiteralExpression(ExpressionSyntax expression) =>
+        expression switch {
+            LiteralExpressionSyntax => true,
+            ParenthesizedExpressionSyntax parenthesized => IsConstantLiteralExpression(parenthesized.Expression),
+            PrefixUnaryExpressionSyntax prefix when prefix.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.UnaryMinusExpression)
+                || prefix.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.UnaryPlusExpression) => IsConstantLiteralExpression(prefix.Operand),
+            _ => false,
+        };
 
     private bool IsPredefinedTypeAlias(string text) =>
         text is "bool"

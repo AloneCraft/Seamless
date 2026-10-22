@@ -76,7 +76,7 @@ internal sealed partial class PipelineEnumerable {
         var groupOutName = this.ItemName(groupByIndex+1);
         if(stage.ThirdFunc is { } resultSelector2) {
             builder.AppendLine($"    {stage.OutputType} {groupOutName}=default!;");
-            builder.AppendLine(IndentBlock(this.FuncAssign(resultSelector2,nameof(PipelineStageKind.GroupBy),groupOutName,"__group.Key","(global::System.Collections.Generic.IEnumerable<"+stage.InnerElementType+">)__group"),"    "));
+            builder.AppendLine(IndentBlock(this.GroupResultAssign(resultSelector2,stage.InnerElementType,groupOutName),"    "));
         } else {
             builder.AppendLine($"    var {groupOutName}=__group;");
         }
@@ -88,6 +88,16 @@ internal sealed partial class PipelineEnumerable {
         builder.AppendLine("}");
         builder.AppendLine(endStatement);
         return builder.ToString().TrimEnd();
+    }
+
+    // GroupBy の結果選択子を呼ぶ。GroupBy(key,elem,(k,g)=>...) 由来なら引数は (キー, 要素の列) の2つ、
+    // GroupBy(key).Select(g=>...) を畳んだ形なら引数は IGrouping 1つ(g)。
+    // 後者に「キー」を渡すと g.Key が key.Key になってコンパイルできない(2026-10-22 に Zip / Join の前で見つかった)。
+    private string GroupResultAssign(FuncFragment resultSelector,string? innerElementType,string destination) {
+        if(resultSelector.ParameterNames.Length==1) {
+            return this.FuncAssign(resultSelector,nameof(PipelineStageKind.GroupBy),destination,"__group");
+        }
+        return this.FuncAssign(resultSelector,nameof(PipelineStageKind.GroupBy),destination,"__group.Key","(global::System.Collections.Generic.IEnumerable<"+innerElementType+">)__group");
     }
 
     private string BuildGroupByOrderLoop(string enumeratorName,string successStatement,string endStatement,int groupByIndex,int orderIndex) {
@@ -167,7 +177,7 @@ internal sealed partial class PipelineEnumerable {
             var groupOutName = this.ItemName(groupByIndex+1);
             if(stage.ThirdFunc is { } resultSelector) {
                 builder.AppendLine($"            {stage.OutputType} {groupOutName}=default!;");
-                builder.AppendLine(IndentBlock(this.FuncAssign(resultSelector,nameof(PipelineStageKind.GroupBy),groupOutName,"__group.Key","(global::System.Collections.Generic.IEnumerable<"+stage.InnerElementType+">)__group"),"            "));
+                builder.AppendLine(IndentBlock(this.GroupResultAssign(resultSelector,stage.InnerElementType,groupOutName),"            "));
             } else {
                 builder.AppendLine($"            var {groupOutName}=__group;");
             }

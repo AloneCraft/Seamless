@@ -104,6 +104,24 @@ internal abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(
     // 配列なら添字アクセス(span相当)、そうでなければ IEnumerator<T> にフォールバックする。
     protected abstract string CreateInnerSequenceExpression { get; }
     protected virtual string MoveNextOuterPrologue => string.Empty;
+    // 内側の列を作る式(ラムダを含む)の直前に置く文。struct のメソッドの中のラムダは this のフィールドを取り込めない(CS1673)ので、
+    // ラムダが使う外部のローカル(struct ではフィールドになっている)を、同じ名前のローカルへ写してから式を評価する。
+    // 同じ名前のローカルはフィールドを隠すので、式の文面は変えずに済む。
+    // 外側の値は、直前の TryGetNext(out var ...Next)のローカルをそのまま渡す(フィールドではなくローカルを取り込ませる)。
+    protected virtual string InnerSequenceLocalCopies => string.Empty;
+    protected string OuterValueLocal => $"{this.outerValue}Next";
+    protected static string CopyCapturedToLocals(params FuncFragment[] funcs) {
+        var builder = new System.Text.StringBuilder();
+        var seen = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal);
+        foreach(var func in funcs) {
+            foreach(var (name,_) in func.CapturedLocals) {
+                if(seen.Add(name)) {
+                    builder.Append($"var {name} = this.{name};{"\n"}        ");
+                }
+            }
+        }
+        return builder.ToString();
+    }
     protected abstract string CurrentValueAssignmentFromInner { get; }
     private string innerArray => $"__ia{番号}";
     private string innerIndex => $"__ii{番号}";
@@ -154,6 +172,7 @@ internal abstract class SelectManyBase(int 番号,Enumerable source):Enumerable(
         {{this.MoveNextOuterPrologue}}
         {{this.CounterCall("IncrementLogicalSelectManyOuter")}}
         this.{{this.outerValue}} = {{this.outerValue}}Next;
+        {{this.InnerSequenceLocalCopies}}
         var {{this.temp}} = {{this.CreateInnerSequenceExpression}};
         if({{this.temp}} is {{this.CollectionElementType}}[] {{this.innerArray}}Local){
             this.{{this.innerArray}} = {{this.innerArray}}Local;
@@ -247,7 +266,9 @@ internal class SelectMany_selector(int 番号,Enumerable source,FuncFragment sel
             ? $"{selector.DelegateFieldName}.Invoke({this.outerValue})"
             : this.IsHoistable
                 ? "innerEnumerable0"
-                : $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue)})";
+                : $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpressionWithHoistedReceiver("this.",this.OuterValueLocal)})";
+    protected override string InnerSequenceLocalCopies =>
+        selector.CanInvokeAsDelegate||this.IsHoistable ? string.Empty : CopyCapturedToLocals(selector);
     protected override string CurrentValueAssignmentFromInner => $"current = this.{this.currentValue} = {this.item};";
     public override string GetConsumeExecutionStatement(string consumerName){
         if(this.UseResultTypeParam){
@@ -329,7 +350,8 @@ internal class SelectMany_indexSelector(int 番号,Enumerable source,FuncFragmen
         """;
     protected override string MoveNextOuterPrologue => $"this.{this.a}++;";
     protected override string CreateInnerSequenceExpression =>
-        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue,this.a)})";
+        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpressionWithHoistedReceiver("this.",this.OuterValueLocal,$"{this.a}Local")})";
+    protected override string InnerSequenceLocalCopies => $"var {this.a}Local = this.{this.a};{"\n"}        "+CopyCapturedToLocals(selector);
     protected override string CurrentValueAssignmentFromInner => $"current = this.{this.currentValue} = {this.item};";
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(selector));
     public override string ElementType => this.CollectionElementType;
@@ -367,7 +389,7 @@ internal class SelectMany_selector_resultSelector(int 番号,Enumerable source,F
         """;
     protected override string CollectionSelectorPrimaryConstructorParameter => string.Empty;
     protected override string CreateInnerSequenceExpression =>
-        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){collectionSelector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue)})";
+        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){collectionSelector.RenderInlineExpressionWithHoistedReceiver("this.",this.OuterValueLocal)})";
     protected override string CurrentValueAssignmentFromInner =>
         this.FuncAssignCurrent(resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.outerValue,this.item);
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(collectionSelector));
@@ -604,7 +626,8 @@ internal class SelectMany_indexSelector_resultSelector(int 番号,Enumerable sou
     protected override string CollectionSelectorPrimaryConstructorParameter => string.Empty;
     protected override string MoveNextOuterPrologue => $"this.{this.a}++;";
     protected override string CreateInnerSequenceExpression =>
-        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){collectionSelector.RenderInlineExpressionWithHoistedReceiver("this.",this.outerValue,this.a)})";
+        $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){collectionSelector.RenderInlineExpressionWithHoistedReceiver("this.",this.OuterValueLocal,$"{this.a}Local")})";
+    protected override string InnerSequenceLocalCopies => $"var {this.a}Local = this.{this.a};";
     protected override string CurrentValueAssignmentFromInner =>
         this.FuncAssignCurrent(resultSelector,nameof(resultSelector),$"this.{this.currentValue}",this.outerValue,this.item);
     protected override string CollectionElementType => SequenceElementTypeName(FuncReturnTypeName(collectionSelector));

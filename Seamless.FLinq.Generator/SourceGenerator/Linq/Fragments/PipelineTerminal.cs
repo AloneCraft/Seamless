@@ -212,6 +212,27 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return true;
     }
 
+    // 集計付き GroupBy の結果式。巻き上げた変数は、enumerator の struct の中では this.__hoistN と書くが、
+    // 終端が出す静的なコードの中では this が使えない(CS0026)ので、同じ名前のローカル(__hoistN)で参照する。
+    private static string StaticProjectedResult(GroupByAggregatePlan aggPlan) =>
+        aggPlan.ProjectedResultExpression.Replace("this.__hoist","__hoist");
+
+    // 終端の述語(All など)が巻き上げた変数と静的デリゲートの宣言。ループの外、述語を展開する文より前に出す。
+    // これを出さないと、述語の中の __hoistN が宣言されず CS0103 になる(2026-10-22)。
+    private void AppendTerminalFuncDeclarations(StringBuilder builder) {
+        if(func1 is null) {
+            return;
+        }
+        var hoisted = this.HoistedLocalDeclarations(func1);
+        if(!string.IsNullOrEmpty(hoisted)) {
+            builder.AppendLine(hoisted);
+        }
+        var staticDelegates = this.StaticDelegateLocalDeclarations(func1);
+        if(!string.IsNullOrEmpty(staticDelegates)) {
+            builder.AppendLine(staticDelegates);
+        }
+    }
+
     private bool IsDirectSpanFilterStage(PipelineStage stage) {
         if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any or PipelineTerminalKind.Contains) {
             if(stage.Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy) {
@@ -468,9 +489,39 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var canIgnoreOrder = this.CanIgnoreOrderForTerminal();
         var seenFilter = false;
         var seenStatefulFilter = false;
+        var seenReverse = false;
         var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any or PipelineTerminalKind.Contains;
+        // First / Any などは Distinct を省いても先頭は変わらない。ただし Distinct の後ろに位置や数に依存する段(Skip / Take / Where など)があると、
+        // 重複を除いた後の列で数えるので省けない。Select(添字なし)・AsEnumerable・Cast だけなら省ける。
+        if(skipDistinct) {
+            for(var d = 0;d<pipeline.Stages.Count;d++) {
+                if(pipeline.Stages[d].Kind is not (PipelineStageKind.Distinct or PipelineStageKind.DistinctBy)) {
+                    continue;
+                }
+                for(var after = d+1;after<pipeline.Stages.Count;after++) {
+                    var laterStage = pipeline.Stages[after];
+                    if(laterStage.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast
+                        ||laterStage.Kind==PipelineStageKind.Select&&!laterStage.UsesIndex) {
+                        continue;
+                    }
+                    return false;
+                }
+            }
+        }
+        // Reverse の後ろに順序に依存する段(TakeWhile / SkipWhile / Distinct / DistinctBy)があるとき、逆順に走査する描画だけが正しい。
+        // 逆順に対応するのは First / FirstOrDefault / ElementAt / ToArray / ToList / ToHashSet だけ。Count / Any / Sum などの描画は前から走査する。
+        var reversalAwareTerminal = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault
+            or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault
+            or PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList or PipelineTerminalKind.ToHashSet;
+        // DefaultIfEmpty は、Count / Any / Sum の描画が「空なら既定値1個」と決め打ちで扱うので、
+        // 前後に件数や中身を変える段(Where / Take / Skip / Distinct / Reverse / Append / Prepend / 順序づけなど)があると結果がずれる。
+        // 件数を変えない Select だけが一緒にあるときに限る。
+        var hasDefaultIfEmpty = pipeline.Stages.Any(static stage => stage.Kind==PipelineStageKind.DefaultIfEmpty);
         for(var i = 0;i<pipeline.Stages.Count;i++) {
             var stage = pipeline.Stages[i];
+            if(hasDefaultIfEmpty&&stage.Kind is not (PipelineStageKind.DefaultIfEmpty or PipelineStageKind.Select or PipelineStageKind.AsEnumerable or PipelineStageKind.Cast)) {
+                return false;
+            }
             if(isTop1Order&&i==orderIdx) {
                 continue;
             }
@@ -492,6 +543,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     if(seenStatefulFilter) {
                         return false;
                     }
+                    seenReverse=true;
                     break;
                 case PipelineStageKind.TakeLast:
                 case PipelineStageKind.SkipLast:
@@ -503,6 +555,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     break;
                 case PipelineStageKind.Distinct:
                     if(!skipDistinct) {
+                        if(seenReverse&&!reversalAwareTerminal) {
+                            return false;
+                        }
                         seenFilter=true;
                         seenStatefulFilter=true;
                     }
@@ -524,6 +579,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     if(stage.UsesIndex||stage.Func is not { } filterFunc||!CanUseDirectSpanPipelineFunc(filterFunc)) {
                         return false;
                     }
+                    if(seenReverse&&!reversalAwareTerminal) {
+                        return false;
+                    }
                     seenFilter=true;
                     seenStatefulFilter=true;
                     break;
@@ -532,6 +590,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                         return false;
                     }
                     if(!skipDistinct) {
+                        if(seenReverse&&!reversalAwareTerminal) {
+                            return false;
+                        }
                         seenFilter=true;
                         seenStatefulFilter=true;
                     }
@@ -661,7 +722,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine($"{indent}if({spanName}.Length>{st.Value}) {{");
                 builder.AppendLine($"{indent}    {spanName}={spanName}.Slice({st.Value});");
                 builder.AppendLine($"{indent}}} else {{");
-                builder.AppendLine($"{indent}    {spanName}=global::System.ReadOnlySpan<{pipeline.ElementType}>.Empty;");
+                builder.AppendLine($"{indent}    {spanName}=global::System.ReadOnlySpan<{pipeline.Source.ElementType}>.Empty;");
                 builder.AppendLine($"{indent}}}");
             } else if(st.Kind==PipelineStageKind.Take) {
                 builder.AppendLine($"{indent}if({spanName}.Length>{st.Value}) {{");
@@ -671,7 +732,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine($"{indent}if({spanName}.Length>{st.Value}) {{");
                 builder.AppendLine($"{indent}    {spanName}={spanName}.Slice(0,{spanName}.Length-{st.Value});");
                 builder.AppendLine($"{indent}}} else {{");
-                builder.AppendLine($"{indent}    {spanName}=global::System.ReadOnlySpan<{pipeline.ElementType}>.Empty;");
+                builder.AppendLine($"{indent}    {spanName}=global::System.ReadOnlySpan<{pipeline.Source.ElementType}>.Empty;");
                 builder.AppendLine($"{indent}}}");
             } else if(st.Kind==PipelineStageKind.TakeLast) {
                 builder.AppendLine($"{indent}if({spanName}.Length>{st.Value}) {{");
@@ -940,13 +1001,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var setArgs=RenderHashSetConstructorArgs(capExpr,intersectStage.Value);
         builder.AppendLine($"        var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>({setArgs});");
         builder.AppendLine($"        for(var __i{this.result}=0;__i{this.result}<{thirdSpanName}.Length;__i{this.result}++) {{");
-        if(intersectStage.Func is not null) {
-            builder.AppendLine($"            {keyType} __k{this.result}=default!;");
-            builder.AppendLine(IndentLines(this.FuncAssignStatic(intersectStage.Func,"IntersectBy",$"__k{this.result}",$"{thirdSpanName}[__i{this.result}]"),"            "));
-            builder.AppendLine($"            __set{this.result}.Add(__k{this.result});");
-        } else {
-            builder.AppendLine($"            __set{this.result}.Add({thirdSpanName}[__i{this.result}]);");
-        }
+        // ExceptBy / IntersectBy の second は「キーの列」なので、キー選択子は掛けずにそのまま集合へ入れる(first の要素にだけ掛ける)。
+        builder.AppendLine($"            __set{this.result}.Add({thirdSpanName}[__i{this.result}]);");
         builder.AppendLine("        }");
 
         builder.AppendLine($"        using(var {firstSrcName}={firstSrcExpr}) {{");
@@ -1532,13 +1588,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"{setIndent}var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>({setArgs});");
         this.AppendBinaryAfterInit(builder,setIndent,binaryStageIndex);
             builder.AppendLine($"{setIndent}for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
-            if(binaryStage.Func is not null) {
-                builder.AppendLine($"{setIndent}    {keyType} __k{this.result}=default!;");
-                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"IntersectBy",$"__k{this.result}",$"{secondSpanName}[__i{this.result}]"),$"{setIndent}    "));
-                builder.AppendLine($"{setIndent}    __set{this.result}.Add(__k{this.result});");
-            } else {
-                builder.AppendLine($"{setIndent}    __set{this.result}.Add({secondSpanName}[__i{this.result}]);");
-            }
+            // ExceptBy / IntersectBy の second は「キーの列」なので、キー選択子は掛けずにそのまま集合へ入れる(first の要素にだけ掛ける)。
+            builder.AppendLine($"{setIndent}    __set{this.result}.Add({secondSpanName}[__i{this.result}]);");
             builder.AppendLine($"{setIndent}}}");
             builder.AppendLine($"{setIndent}for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
             builder.AppendLine($"{setIndent}    var __item{this.result}={firstSpanName}[__i{this.result}];");
@@ -1718,13 +1769,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"{exceptIndent}    var __set{this.result}=new global::System.Collections.Generic.HashSet<{keyType}>({exceptSetArgs});");
         this.AppendBinaryAfterInit(builder,$"{exceptIndent}    ",binaryStageIndex);
             builder.AppendLine($"{exceptIndent}    for(var __i{this.result}=0;__i{this.result}<{secondSpanName}.Length;__i{this.result}++) {{");
-            if(binaryStage.Func is not null) {
-                builder.AppendLine($"{exceptIndent}        {keyType} __k{this.result}=default!;");
-                builder.AppendLine(IndentLines(this.FuncAssignStatic(binaryStage.Func,"ExceptBy",$"__k{this.result}",$"{secondSpanName}[__i{this.result}]"),$"{exceptIndent}        "));
-                builder.AppendLine($"{exceptIndent}        __set{this.result}.Add(__k{this.result});");
-            } else {
-                builder.AppendLine($"{exceptIndent}        __set{this.result}.Add({secondSpanName}[__i{this.result}]);");
-            }
+            // ExceptBy / IntersectBy の second は「キーの列」なので、キー選択子は掛けずにそのまま集合へ入れる(first の要素にだけ掛ける)。
+            builder.AppendLine($"{exceptIndent}        __set{this.result}.Add({secondSpanName}[__i{this.result}]);");
             builder.AppendLine($"{exceptIndent}    }}");
             builder.AppendLine($"{exceptIndent}    for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
             builder.AppendLine($"{exceptIndent}        var __item{this.result}={firstSpanName}[__i{this.result}];");
@@ -1886,6 +1932,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             var stage = pipeline.Stages[index];
             switch(stage.Kind) {
                 case PipelineStageKind.AsEnumerable:
+                case PipelineStageKind.DefaultIfEmpty:
+                    // DefaultIfEmpty は要素を変えない(空のときの既定値は呼び出し側が先に用意する)。
                     break;
                 case PipelineStageKind.Cast: {
                     var nextName = $"__pipelineItem{this.result}_{index+1}";
@@ -2104,7 +2152,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         if(this.RenderDirectSpanPipelineBinaryScalar(actualVariableName,actualTypeName) is { } binaryAny) {
             return binaryAny;
         }
-        if(this.TryGetSingleDefaultIfEmptyStage(out _)) {
+        // DefaultIfEmpty があれば Any は常に true。ただし後ろに TakeWhile / SkipWhile などの段があると空になりうるので、
+        // 件数を変える段がないとき(CanUseDirectSpanPipelineScalarScan が通るとき)に限る。
+        if(this.TryGetSingleDefaultIfEmptyStage(out _)&&this.CanUseDirectSpanPipelineScalarScan()) {
             return $"{actualTypeName} {actualVariableName}=true;";
         }
         var sourceName = $"__pipelineSrc{this.result}";
@@ -2812,6 +2862,11 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             return false;
         }
         defaultIfEmptyStage=st;
+        // 既定値は DefaultIfEmpty より後ろの段だけを通る。描画は全ての段を既定値にも掛けるので、DefaultIfEmpty が先頭のときに限る
+        // (Select の後ろの DefaultIfEmpty の既定値に Select を掛けてしまうと結果がずれる)。
+        if(pipeline.Stages.Count==0||pipeline.Stages[0].Kind!=PipelineStageKind.DefaultIfEmpty) {
+            return false;
+        }
         foreach(var stage in pipeline.Stages) {
             if(stage.Kind is PipelineStageKind.DefaultIfEmpty or PipelineStageKind.AsEnumerable or PipelineStageKind.Cast) {
                 continue;
@@ -2850,7 +2905,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
         builder.AppendLine($"    if({spanName}.Length==0) {{");
         if(hasAfterStages) {
-            builder.AppendLine($"        {sourceItemName}={defaultValue};");
+            builder.AppendLine($"        {pipeline.Source.ElementType} {sourceItemName}={defaultValue};");
             var mappedDefault = this.AppendDirectSpanPipelineStages(builder,sourceItemName,"        ");
             builder.AppendLine($"        {actualVariableName}=new global::System.Collections.Generic.List<{pipeline.ElementType}> {{ {mappedDefault} }};");
         } else {
@@ -2900,7 +2955,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
         builder.AppendLine($"    if({spanName}.Length==0) {{");
         if(hasAfterStages) {
-            builder.AppendLine($"        {sourceItemName}={defaultValue};");
+            builder.AppendLine($"        {pipeline.Source.ElementType} {sourceItemName}={defaultValue};");
             var mappedDefault = this.AppendDirectSpanPipelineStages(builder,sourceItemName,"        ");
             builder.AppendLine($"        {actualVariableName}=new {pipeline.ElementType}[] {{ {mappedDefault} }};");
         } else {
@@ -3447,6 +3502,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var indexName = $"__pipelineIndex{this.result}";
         var sourceItemName = $"__pipelineItem{this.result}_0";
         var builder = new StringBuilder();
+        this.AppendTerminalFuncDeclarations(builder);
         builder.AppendLine($"{actualTypeName} {actualVariableName}=true;");
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
@@ -3667,6 +3723,10 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         if(stage.SecondFunc is not null) {
             allFuncs.Add(stage.SecondFunc);
         }
+        // 結果選択子(Select(g=>...) や (key,g)=>...)が巻き上げた変数も宣言する。集計の結果式(ProjectedResultExpression)が参照する。
+        if(stage.ThirdFunc is not null) {
+            allFuncs.Add(stage.ThirdFunc);
+        }
         foreach(var item in aggPlan.Items) {
             if(item.InnerFunc is not null) {
                 allFuncs.Add(item.InnerFunc);
@@ -3827,7 +3887,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"                for(var {iName}=0;{iName}<{nName};{iName}++) {{");
             builder.AppendLine($"                    {indexesName}[{iName}]={iName};");
             builder.AppendLine($"                    {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"                    {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            builder.AppendLine($"                    {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
 
             var currentOrderInput="__resItem";
             for(var stIdx=groupByIndex+1;stIdx<orderStageIndex;stIdx++){
@@ -3857,7 +3917,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"                for(var {outIdxName}=0;{outIdxName}<{finalCountName};{outIdxName}++) {{");
             builder.AppendLine($"                    var __sortedIdx{this.result}={indexesName}[{outIdxName}];");
             builder.AppendLine($"                    {mapName}.GetKeyAndValue(__sortedIdx{this.result},out var __key,out var __acc);");
-            builder.AppendLine($"                    {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            builder.AppendLine($"                    {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
 
             var currentFinalItem="__resItem";
             for(var stIdx=groupByIndex+1;stIdx<pipeline.Stages.Count;stIdx++){
@@ -3910,7 +3970,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"        {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({mapName}.Count);");
             builder.AppendLine($"        for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"            {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"            {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            builder.AppendLine($"            {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","            ",groupByIndex);
             builder.AppendLine($"            {actualVariableName}[{iName}]={afterName};");
             builder.AppendLine("        }");
@@ -3925,7 +3985,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"    var __destSpan{this.result}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({actualVariableName});");
             builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"        {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        __destSpan{this.result}[{iName}]={afterName};");
             builder.AppendLine("    }");
@@ -3937,7 +3997,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"    {actualVariableName}=default!;");
             builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"        {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}+={afterName};");
             builder.AppendLine("    }");
@@ -3951,7 +4011,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             var iName = $"__i{this.result}";
             builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"        {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}={afterName};");
             builder.AppendLine($"        {foundName}=true;");
@@ -3970,7 +4030,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             var iName = $"__i{this.result}";
             builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"        {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}={afterName};");
             builder.AppendLine($"        {foundName}=true;");
@@ -3986,7 +4046,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             var iName = $"__i{this.result}";
             builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"        {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
             this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}++;");
             builder.AppendLine("    }");
@@ -3998,7 +4058,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             var iName = $"__i{this.result}";
             builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"        {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
             this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}=true;");
             builder.AppendLine("        break;");
@@ -4016,7 +4076,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine("    try {");
             builder.AppendLine($"        for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"            {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"            {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            builder.AppendLine($"            {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","            ",groupByIndex);
             builder.AppendLine($"            if({poolCount}=={poolBuffer}.Length) {{");
             builder.AppendLine($"                var {poolNext}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({poolBuffer}.Length*2);");
@@ -4043,7 +4103,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"    {actualVariableName}=new();");
             builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
             builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
-            builder.AppendLine($"        {stage.OutputType} __resItem={aggPlan.ProjectedResultExpression};");
+            builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}.Add({afterName});");
             builder.AppendLine("    }");
@@ -4332,6 +4392,11 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine(replacedStatement);
 
         if(terminalKind==PipelineTerminalKind.ToArray) {
+            // Take で打ち切るとき(goto)も、配列を作る処理を通る必要がある。ラベルは try の中、配列を作る処理の直前に置く
+            // (try の外に置くと、配列の代入を飛ばして CS0165 になる)。goto で try から出ても、プールの返却は finally が行う。
+            if(afterStages.Any(static st => st.Kind==PipelineStageKind.Take)) {
+                builder.AppendLine($"    {endLabel}:;");
+            }
             builder.AppendLine($"    if({poolCountName}==0) {{");
             builder.AppendLine($"        {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
             builder.AppendLine("    } else {");
@@ -4345,7 +4410,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
 
         var hasEarlyExit = terminalKind is PipelineTerminalKind.Any or PipelineTerminalKind.Contains or PipelineTerminalKind.All or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault;
         var hasTakeStage = afterStages.Any(static st => st.Kind==PipelineStageKind.Take);
-        if(hasEarlyExit||hasTakeStage) {
+        if(hasEarlyExit||(hasTakeStage&&terminalKind!=PipelineTerminalKind.ToArray)) {
             builder.AppendLine($"{endLabel}:;");
             if(terminalKind==PipelineTerminalKind.First) {
                 builder.AppendLine($"if(!{foundVar}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
@@ -4549,6 +4614,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeAll) {
                 return consumeAll;
             }
+            this.AppendTerminalFuncDeclarations(builder);
             builder.AppendLine($"{actualTypeName} {actualVariableName}=true;");
             builder.AppendLine($"using var {this.EnumeratorName()}={pipeline.GetEnumeratorExpression};");
             builder.AppendLine($"while({this.EnumeratorName()}.TryGetNext(out var __item{this.result})) {{");

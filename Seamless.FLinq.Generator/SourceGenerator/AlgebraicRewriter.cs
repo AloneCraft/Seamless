@@ -190,14 +190,44 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     private static readonly HashSet<string> OrderInsensitiveTerminals = new(StringComparer.Ordinal){
         "Contains","Any","All","Count","LongCount","Sum","Min","Max",
     };
+    // 上流の順序を捨てても結果が変わらない段。値だけで決まる段(比較子なしの Distinct / Union / Intersect / Except と Concat)と、
+    // 添字を使わない Where / Select だけ。次の段は順序に依存するので含めない(2026-10-22 の全組み合わせ検証で見つかった)。
+    //  - DistinctBy / UnionBy / IntersectBy / ExceptBy: キーが同じ要素のうちどれを残すかが順序で変わる(Sum や後続の Where の結果が変わる)。
+    //  - 添字つきの Where / Select: 添字が順序で変わる。
     private static readonly HashSet<string> OrderPreservingTransparentStages = new(StringComparer.Ordinal){
         "Where","Select","Cast","OfType",
-        "Distinct","DistinctBy",
-        "Intersect","IntersectBy",
-        "Except","ExceptBy",
-        "Union","UnionBy",
+        "Distinct",
+        "Intersect",
+        "Except",
+        "Union",
         "Concat",
     };
+    private static bool IsOrderIndependentStage(string methodName,ArgumentListSyntax args){
+        switch(methodName){
+            case "Cast":
+            case "OfType":
+                return true;
+            case "Distinct":
+                return args.Arguments.Count==0;
+            case "Union":
+            case "Intersect":
+            case "Except":
+            case "Concat":
+                return args.Arguments.Count==1;
+            case "Where":
+            case "Select":
+                if(args.Arguments.Count!=1){
+                    return false;
+                }
+                return args.Arguments[0].Expression switch{
+                    SimpleLambdaExpressionSyntax=>true,
+                    ParenthesizedLambdaExpressionSyntax lambda=>lambda.ParameterList.Parameters.Count==1,
+                    _=>false,
+                };
+            default:
+                return false;
+        }
+    }
     // 順序非依存な終端操作（Contains, Any, All, Count, LongCount）の上流にある冗長な OrderBy/OrderByDescending/ThenBy を除去。
     private bool TryRemoveRedundantOrderBeforeTerminal(InvocationExpressionSyntax node,out SyntaxNode result){
         result=null!;
@@ -223,7 +253,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
                 continue;
             }else{
             }
-            if(OrderPreservingTransparentStages.Contains(methodName)){
+            if(OrderPreservingTransparentStages.Contains(methodName)&&IsOrderIndependentStage(methodName,inv.ArgumentList)){
                 intermediateStages.Add((methodName,inv.ArgumentList));
                 cur=Strip(methodSource);
                 continue;

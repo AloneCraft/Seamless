@@ -23,6 +23,7 @@ internal static partial class PipelineBuilder {
         if(bufferingStageCount>0&&(selectManyStageCount>0||binarySetStageCount>0||concatLikeStageCount>0||orderStageCount>0||groupByStageCount>0)) return false;
         if(binarySetStageCount>0&&selectManyStageCount>0) return false;
         if(concatLikeStageCount>1) return false;
+        if(!HasSafeConcatLikeOrder(stages,terminalKind)) return false;
         if(concatLikeStageCount>0&&(selectManyStageCount>0||(binarySetStageCount>0&&!isMultiBinaryFused))) return false;
         if(orderStageCount>0&&(selectManyStageCount>0||concatLikeStageCount>0)) return false;
         if(binarySetStageCount>0&&orderStageCount>0&&!CanFuseBinarySetThenOrder(stages)&&!CanFuseOrderThenBinarySet(stages,terminalKind)) return false;
@@ -42,6 +43,41 @@ internal static partial class PipelineBuilder {
         }
         // 単段でも順序ステージ（Order/OrderDescending）は実バッファ＋ソートを伴うので許可する。
         if(stages.Count<2&&!allowSingleStage&&terminalKind is null&&orderStageCount==0) return false;
+        return true;
+    }
+
+    // Append / Prepend / Concat / Union / UnionBy は、前後に別の段があると融合の出力が System.Linq とずれる
+    // (追加した要素に後ろの Select や Take が掛からない、Where の前後で連結の位置がずれる、など)。
+    // 2026-10-22 の全組み合わせ検証(Benchmark.Dynamic)で見つかった形を融合しない。
+    //  - Append / Prepend は最後の段のときだけ融合する。
+    //  - Concat / Union / UnionBy の前に Where / TakeWhile / SkipWhile / Select / Distinct / DistinctBy があるときは融合しない。
+    //  - Concat / Union / UnionBy の後ろに Where / Skip / Take / TakeWhile / SkipWhile があるときは融合しない。
+    private static bool HasSafeConcatLikeOrder(IReadOnlyList<PipelineStage> stages,PipelineTerminalKind? terminalKind) {
+        for(var i = 0;i<stages.Count;i++) {
+            var kind = stages[i].Kind;
+            if(kind is PipelineStageKind.Append or PipelineStageKind.Prepend) {
+                for(var j = i+1;j<stages.Count;j++) {
+                    if(stages[j].Kind is not PipelineStageKind.AsEnumerable) {
+                        return false;
+                    }
+                }
+            } else if(terminalKind is not null&&kind is PipelineStageKind.Concat or PipelineStageKind.Union or PipelineStageKind.UnionBy) {
+                // 終端のない融合(Consume で流す形。Range の Concat / Union の後ろに添字なしの Where / Select を流す専用の展開)は対象外。
+                // 対象は、ToArray / Count / Sum / First などの終端がついた融合で、全組み合わせの検証で結果がずれた形。
+                for(var j = 0;j<i;j++) {
+                    if(stages[j].Kind is PipelineStageKind.Where or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile
+                        or PipelineStageKind.Select or PipelineStageKind.Distinct or PipelineStageKind.DistinctBy) {
+                        return false;
+                    }
+                }
+                for(var j = i+1;j<stages.Count;j++) {
+                    if(stages[j].Kind is PipelineStageKind.Where or PipelineStageKind.Skip or PipelineStageKind.Take
+                        or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile) {
+                        return false;
+                    }
+                }
+            }
+        }
         return true;
     }
 

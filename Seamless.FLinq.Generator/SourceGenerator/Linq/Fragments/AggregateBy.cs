@@ -136,7 +136,9 @@ internal class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector
             var assignVal = this.FuncAssignStatic(func,nameof(func),valueName,valueName,arg);
             return $"{indent}{this.KeyType} {keyName}=default!;\n{indent}{assignKey}\n{indent}ref var {valueName}=ref {mapName}.GetValueRefOrAddDefault({keyName},out var {valueName}Exists);\n{indent}if(!{valueName}Exists){{\n{indent}    {valueName}={seed};\n{indent}}}\n{indent}{assignVal}";
         });
+        // 根が Range で間に Select などがあるとき、上流の消費が使う __rangeStart / __rangeCount の宣言(準備文)を先に出す(CS0103 の対策)。
         return $$"""
+            {{source.GetConsumePreparationStatement()}}
             {{localDeclarations}}
             var {{mapName}}=new global::Seamless.Linq.DictionarySlim<{{this.KeyType}},{{valueType}}>();
             try{
