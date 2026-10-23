@@ -160,6 +160,25 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                 Status=WorkerExecutionStatus.ExpansionIncomplete;
                 goto 完了;
             }
+            IReadOnlyDictionary<DynamicImplementationKind,long>? 評価回数=null;
+            if(要求.CheckEvaluationCounts&&QueryEvaluationCheck.Applies(Query)){
+                var 評価検査=this.評価回数を検査する(要求,Query,QueryIndex,対象,Fixture,キャンセルToken);
+                評価回数=評価検査.Counts;
+                if(評価検査.Skipped is not null){
+                    診断JSON=診断を追加(診断JSON,"Evaluation",new WorkerInvocationFailure("EvaluationCheckSkipped",評価検査.Skipped,null),"Info");
+                }
+                ResultJSON=JsonSerializer.Serialize(
+                    new WorkerValidationArtifact(結果一覧,例外一覧,比較一覧,評価回数),
+                    DynamicWorkerProtocol.JsonOptions);
+                if(評価検査.Mismatch is not null){
+                    if(要求.StrictEvaluationCounts){
+                        診断JSON=診断を追加(診断JSON,"Evaluation",new WorkerInvocationFailure("EvaluationCountMismatch",評価検査.Mismatch,null));
+                        Status=WorkerExecutionStatus.SemanticMismatch;
+                        goto 完了;
+                    }
+                    診断JSON=診断を追加(診断JSON,"Evaluation",new WorkerInvocationFailure("EvaluationCountExcess",評価検査.Mismatch,null),"Warning");
+                }
+            }
             var Profile=要求.MeasurementProfile;
             var 計測器=new MeasurementEngine(new MeasurementProfile(
                 Profile.ProfileId,
@@ -236,6 +255,54 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                 解放済み,
                 完了日時,
                 展開コード.Length==0?null:展開コード);
+        }
+    }
+
+    /// <summary>
+    /// ラムダの本体を数える形のソース(<see cref="EvaluationProbeRewriter"/>)を別にコンパイルして、System.Linq と FLinq の評価回数を比べる。
+    /// 数える形にするとラムダが関数呼び出しを含む形になり、FLinq の展開の形が変わることがある(これは、通常の検証とは別の展開を見ることになる)。
+    /// コンパイルできなかったときは、検査できなかったこと(Skipped)を返し、失敗にはしない。
+    /// </summary>
+    private (string? Mismatch,string? Skipped,Dictionary<DynamicImplementationKind,long> Counts) 評価回数を検査する(
+        WorkerRunRequest 要求,
+        QueryIrDocument Query,
+        int QueryIndex,
+        SourceTarget 対象,
+        SourceFixture Fixture,
+        CancellationToken キャンセルToken){
+        var 回数=new Dictionary<DynamicImplementationKind,long>();
+        LoadedDynamicQuery? 読込=null;
+        try{
+            var Source=this.Source生成.Emit(Query,new QuerySourceEmissionOptions{
+                GeneratedNamespace="Benchmark.Dynamic.Generated",
+                ClassName=$"C_{安全な識別子(要求.RunId)}_{QueryIndex:D6}_{(int)対象}_{SourceHash短縮(Query)}",
+            });
+            var 数える形=EvaluationProbeRewriter.Instrument(Source.SourceText);
+            var 結果=this.コンパイラ.Compile(
+                new DynamicCompilationRequest(
+                    $"Benchmark.Dynamic.Generated.Counted.{安全な識別子(要求.RunId)}.{QueryIndex}.{(int)対象}.{Source.SourceHash[..12]}",
+                    Source.QualifiedTypeName,
+                    数える形,
+                    $"{Source.ClassName}.g.cs"),
+                キャンセルToken);
+            if(!結果.Success||結果.LoadedQuery is null){
+                var 最初の誤り=結果.Diagnostics.FirstOrDefault(static 診断=>診断.Severity=="Error");
+                return (null,$"数える形のソースをコンパイルできなかったので、評価回数は検査していません({最初の誤り?.ID}: {最初の誤り?.Message})。",回数);
+            }
+            読込=結果.LoadedQuery;
+            foreach(var 実装 in 検証対象.Where(読込.Has)){
+                キャンセルToken.ThrowIfCancellationRequested();
+                EvaluationProbe.Reset();
+                try{
+                    読込.Run(実装,Fixture.Primary,Fixture.Secondary);
+                }catch(Exception 例外) when(例外 is not OperationCanceledException){
+                    // 例外の型の一致は、通常の検証が見ている。ここでは、例外までに評価した回数だけを使う。
+                }
+                回数[実装]=EvaluationProbe.Count;
+            }
+            return (EvaluationCountComparer.Compare(回数),null,回数);
+        }finally{
+            読込?.UnloadAndVerify();
         }
     }
 
@@ -400,10 +467,11 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
     private static string 診断を追加(
         string? 現在,
         string 段階,
-        WorkerInvocationFailure 失敗){
+        WorkerInvocationFailure 失敗,
+        string 重大度="Error"){
         var 追加=new DynamicCompilationDiagnostic(
             段階,
-            "Error",
+            重大度,
             失敗.Type,
             失敗.Message,
             string.Empty);
@@ -455,7 +523,8 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
     private sealed record WorkerValidationArtifact(
         IReadOnlyDictionary<DynamicImplementationKind,DynamicQueryValue> Results,
         IReadOnlyDictionary<DynamicImplementationKind,WorkerInvocationFailure> Exceptions,
-        IReadOnlyDictionary<DynamicImplementationKind,DynamicQueryComparison> Comparisons);
+        IReadOnlyDictionary<DynamicImplementationKind,DynamicQueryComparison> Comparisons,
+        IReadOnlyDictionary<DynamicImplementationKind,long>? EvaluationCounts=null);
     private sealed record TraceSummary(int RewriteCount,bool ReachedFixedPoint,bool NonConverged);
 }
 

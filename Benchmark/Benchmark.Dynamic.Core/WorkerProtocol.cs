@@ -202,7 +202,13 @@ public sealed record WorkerRunRequest(
     bool ExpectExceptions=false,
     QueryElementType ElementType=QueryElementType.Int,
     // true にすると、int 以外の要素型の入力へ、NaN・null・境界値などの特殊な値を約1/16の位置に混ぜる。
-    bool IncludeSpecialValues=false);
+    bool IncludeSpecialValues=false,
+    // true(既定)のとき、Take・Skip・Zip・First・Any など途中で止まる演算を含むクエリについて、ラムダの評価回数も System.Linq と比べる。
+    bool CheckEvaluationCounts=true,
+    // true のとき、FLinq が System.Linq より多くラムダを評価したら失敗(SemanticMismatch)にする。
+    // false(既定)では、警告の診断(EvaluationCountExcess)と評価回数の記録だけを残す。
+    // 融合した GroupBy の集約・Join・OrderBy の後の Take/Skip などは、System.Linq が省く評価を省かない既知の差があるため(設計書の「評価回数の検査」を参照)。
+    bool StrictEvaluationCounts=false);
 
 public enum WorkerExecutionStatus{
     NotStarted,

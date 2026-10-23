@@ -71,4 +71,19 @@ public sealed class GeneratedThisQualifierTests {
         Assert.Contains("var item = 1;",body);
         Assert.DoesNotContain("var item = item",body);
     }
+
+    [Fact]
+    public void FieldUsedByLambdaIsCopiedToALocalAtTheStart() {
+        var result = Qualify("int db; int limit; int Run(int item) { return Use(x => db+x)+limit; }");
+        Assert.Contains("var db = this.db;",result);
+        Assert.Contains("x => db+x",result);
+        // ラムダの外で使う、ラムダに使われないフィールドには this. が付く。
+        Assert.Contains("this.limit",result);
+    }
+
+    [Fact]
+    public void FieldThatIsMutatedIsNotCopied() {
+        var result = Qualify("int state; int Run() { state++; return Use(x => state+x); }");
+        Assert.DoesNotContain("var state = this.state;",result);
+    }
 }

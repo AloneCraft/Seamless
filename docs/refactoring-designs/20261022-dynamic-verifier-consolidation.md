@@ -218,6 +218,36 @@ SystemArray・シード 0xC0DE・入力16件で、4066件中110件が失敗し�
 - 付けない: すでに `a.b` の `b`・名前つき引数・オブジェクト初期化子の左辺・`nameof` の中、静的なメンバーの中、ラムダ・静的ローカル関数の中(CS1673)、同じ名前の引数・ローカルがそのメンバーの中で宣言されているとき(コンストラクタの右辺 `this.x = x;` の `x` など)、型の位置の名前。
 - テスト: `GeneratedThisQualifierTests`(付ける/付けない場合 8 件)。`Seamless.FLinq.Generator` に `InternalsVisibleTo("Test")` を足した。
 
+## 評価回数の検査(2026-10-23)
+
+結果の一致だけを比べても、System.Linq が評価しない要素に FLinq がラムダを実行する不具合は見つからない。Dynamic が作るラムダ(`value^index`・`(p%k+k)%k` など)は例外も副作用も出さないので、余分に評価しても結果が同じに見える。TPC-E の測定で見つかった「Take の上限の次の要素の評価」はこの種類で、検索が失敗する(0 除算・キーなし)ラムダだと、System.Linq は成功し、FLinq だけ例外になる。
+
+- 仕組み: 生成したクエリのラムダの式本体を `EvaluationProbe.Hit(式)` で包んだ別のソース(`EvaluationProbeRewriter`)をコンパイルし、System・FLinq 最適化なし・FLinq・ZLinq のラムダの実行回数を数えて比べる(`WorkerHost.評価回数を検査する`)。対象は、Take・Skip・TakeWhile・Zip・Any・All・Contains・First・ElementAt・SequenceEqual を含むクエリだけ(`QueryEvaluationCheck.Applies`)。包んだ形にできない(コンパイルできない)ときは、検査しなかったことを Info の診断(`EvaluationCheckSkipped`)に残す。
+- 比べる相手: 最適化ありの FLinq が System.Linq より多く評価していたら問題。少ない分は構わない(.Anchor の無いラムダは評価の回数を変えてよい)。最適化なしの FLinq と ZLinq は参考値(最適化なしは、Skip を Select の前へ移す・OrderBy の後の Any の簡約などの代数的な書き換えをしないため、System.Linq が評価を省く形で多くなる)。
+- 既定は警告: `WorkerRunRequest.CheckEvaluationCounts`(既定 true)で検査し、問題は診断 `EvaluationCountExcess`(Warning)と、結果の記録の `EvaluationCounts` に残す。`StrictEvaluationCounts: true` にすると失敗(`SemanticMismatch`・診断 `EvaluationCountMismatch`)にする。理由: 次の既知の差が多数あり、既定で失敗にすると既存の検証が全て赤になるため。
+- 費用: 検査の対象になるクエリは、数える形を別に1回コンパイルする。Dynamic の回帰一式(71 件)は 8.8 分(検査を足す前の 56 件は 5〜8 分)。
+- 厳密に比べる範囲: `DynamicEvaluationCountTests.Take系の組み合わせでFLinqの評価回数がSystemLinqを超えない`(中間演算子が where・select・take・skip・takeWhile・skipWhile・concat・zip・append・prepend・distinct・添字つき where/select の 126 並びを厳密に比べる)は合格。
+
+見つかった既知の差(最適化ありの FLinq が System.Linq より多く評価する。抜き取りの検証で 132 並び、2026-10-23 時点・未修正):
+
+| 種類 | 例 | 件数(抜き取り) |
+|---|---|---|
+| 融合した GroupBy の集約 | `groupBy.sum > firstOrDefault`(FLinq 49 回 / System 37 回)。先頭の1グループしか使わなくても、全グループの集約を評価する | 約 71 |
+| Join / GroupJoin | `groupBy.sum > groupJoin.xorCount > any`(67 / 59) | 約 36 |
+| OrderBy の後の Take/Skip の Count/Any | `orderBy > take > count`。System.Linq は並べ替えの鍵を評価せずに答える | 約 8 |
+| SelectMany の内側・集合演算(By) | `exceptBy.identity > selectMany.xor > any`(19 / 3。ZLinq も 18 回) | 約 5 |
+| その他 | `select > concat > any`、`where > reverse > any`、`orderBy > thenBy > firstOrDefault`、`skip > orderBy.key > toArray` | 約 6 |
+
+これらを直す候補: 融合した GroupBy の集約は、First・Any・Skip の前では融合しない(または、集約を遅延させる)。OrderBy の後の Take/Skip + Count/Any は、OrderBy を除く代数的な書き換え。直すたびに、`StrictEvaluationCounts` の範囲を広げていく。
+
+この検査の途中で見つかって直したもの: 配列・List・GroupBy の結果などを Select した後の Skip(飛ばす要素の選択子を評価しない: `TrySkipBeforeSelect`)、Select の後の Any(選択子を評価しない: `TryDropSelectBeforeAny`)、Zip・Except・Concat・SelectMany・添字つきの段をまたぐ Take(`TakeStopsUpstreamMatrix`)。ZLinq 1.5.6 の `takeWhile > select > firstOrDefault`(述語が偽でも選択した値を返す)は、能力表で外した。
+
+### 入れ子のラムダが外側の引数を使うと CS0103(TPC-E の報告、2026-10-23 に修正)
+
+`accounts.Select(a=>new Row(a,db.Index.All(a).Sum(e=>db.Trade.Get(e.Id).Quantity)))` や `source.Select(x=>db.Rows.Where(y=>y>x+bonus).Sum())` で、生成コードに `db`・`bonus` が残って CS0103 になった。原因は、取り込み変数の判定が入れ子のラムダの中の参照を数えていなかったこと(`SymbolReferencedOutsideHoistedExpressions`)。取り込んだ変数を入れ子のラムダが使うと、構造体の中のラムダが CS1673 になるので、書き換えられないフィールドは、メンバーの先頭で同じ名前のローカルに写す(`GeneratedThisQualifier`)。回帰は `NestedLambdaOuterParameter`。
+
+注意: この件は最初「再現しない」と報告したが、誤りだった。再現のテストが FLinq に展開されておらず、System.Linq が実行されていた。確かめた事実: ①`[Fact]` のテストメソッドの中に LINQ を直接書くと展開されない(理由は未調査)。通常の static・インスタンスのメソッド(ブロック本体・式本体とも)は、属性が無くても展開される。②private な型を引数にするメソッドは、展開が黙ってされず、System.Linq のまま動く(internal 以上の型にする)。テストでは、LINQ を `[LinqIntercept(true)]` を付けた private static のメソッドへ置いて呼ぶ形にした。
+
 ## 合意状態
 
 - 2026-10-22 利用者承認済み: 段階的整理、Benchmark.Dynamic への一本化、要素型13種（int?・record・ハッシュ衝突型を含む）、Quadruple は LINQ に必要な演算のみ、UI の取り込み、実装前の現状コミット。

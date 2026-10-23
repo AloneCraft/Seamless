@@ -20,6 +20,11 @@ public static class QueryZLinqSupport{
         if(node is UnaryQueryNode{Arguments:DefaultIfEmptyOperatorArguments,Input:UnaryQueryNode{Arguments:TakeWhileOperatorArguments}}){
             return false;
         }
+        // ZLinq 1.5.6 は TakeWhile の述語が最初の要素で偽でも、Select を挟んだ FirstOrDefault が、最初の要素を選択した値を返す
+        // (評価回数の検査の中で見つかった。takeWhile > select > firstOrDefault で System.Linq・FLinq は既定値、ZLinq は選択した値)。
+        if(node is TerminalQueryNode{OperatorId:QueryOperatorIds.First or QueryOperatorIds.FirstOrDefault,Input:UnaryQueryNode{Arguments:SelectOperatorArguments,Input:UnaryQueryNode{Arguments:TakeWhileOperatorArguments}}}){
+            return false;
+        }
         return node.Children.All(IsSupported);
     }
 }

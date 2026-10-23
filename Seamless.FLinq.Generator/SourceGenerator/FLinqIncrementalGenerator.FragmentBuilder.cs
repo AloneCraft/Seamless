@@ -818,7 +818,9 @@ public sealed partial class FLinqIncrementalGenerator {
         if(symbol is IParameterSymbol { Name: "this" }) {
             return UsesThisOutsideHoistedExpressions(body,hoistedExpressions,semanticModel);
         }
-        foreach(var identifier in body.DescendantNodesAndSelf(descendIntoChildren: node => !IsNestedFunctionBoundary(node)).OfType<IdentifierNameSyntax>()) {
+        // 入れ子のラムダの中での参照も数える(外側のラムダの引数・取り込み変数を、内側のラムダだけが使う形がある。
+        // 数えないと、構造体のフィールドへ取り込まれず、生成コードで名前が見つからない CS0103 になる)。
+        foreach(var identifier in body.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>()) {
             if(IsInsideHoistedExpression(identifier,hoistedExpressions)) {
                 continue;
             }
@@ -833,7 +835,7 @@ public sealed partial class FLinqIncrementalGenerator {
         ExpressionSyntax body,
         IReadOnlyCollection<ExpressionSyntax> hoistedExpressions,
         SemanticModel semanticModel) {
-        foreach(var node in body.DescendantNodesAndSelf(descendIntoChildren: node => !IsNestedFunctionBoundary(node))) {
+        foreach(var node in body.DescendantNodesAndSelf()) {
             if(IsInsideHoistedExpression(node,hoistedExpressions)) {
                 continue;
             }
