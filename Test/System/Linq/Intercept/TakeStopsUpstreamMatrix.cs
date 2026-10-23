@@ -149,6 +149,126 @@ public sealed class TakeStopsUpstreamMatrix {
     }
 
     [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] Opt_SecurityDetailDaysShape_Array_ToArray() {
+        var src = A();
+        return src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false)]
+    private static int[] Ref_SecurityDetailDaysShape_Array_ToArray() {
+        var src = A();
+        return src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] Opt_SecurityDetailDaysShape_Array_Sum() {
+        var src = A();
+        return new[] { src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).Sum() };
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false)]
+    private static int[] Ref_SecurityDetailDaysShape_Array_Sum() {
+        var src = A();
+        return new[] { src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).Sum() };
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] Opt_SecurityDetailDaysShape_Array_Consume() {
+        var src = A();
+        var consumer = new Consumer<int>();
+        src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).Consume(consumer);
+        return consumer.Items.ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false)]
+    private static int[] Ref_SecurityDetailDaysShape_Array_Consume() {
+        var src = A();
+        var consumer = new Consumer<int>();
+        src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).Consume(consumer);
+        return consumer.Items.ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] Opt_SecurityDetailDaysShape_List_ToArray() {
+        var src = new List<int>(A());
+        return src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false)]
+    private static int[] Ref_SecurityDetailDaysShape_List_ToArray() {
+        var src = new List<int>(A());
+        return src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] Opt_SecurityDetailDaysShape_List_Sum() {
+        var src = new List<int>(A());
+        return new[] { src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).Sum() };
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false)]
+    private static int[] Ref_SecurityDetailDaysShape_List_Sum() {
+        var src = new List<int>(A());
+        return new[] { src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).Sum() };
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] Opt_SecurityDetailDaysShape_List_Consume() {
+        var src = new List<int>(A());
+        var consumer = new Consumer<int>();
+        src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).Consume(consumer);
+        return consumer.Items.ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false)]
+    private static int[] Ref_SecurityDetailDaysShape_List_Consume() {
+        var src = new List<int>(A());
+        var consumer = new Consumer<int>();
+        src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).Consume(consumer);
+        return consumer.Items.ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] Opt_SecurityDetailDaysShape_Enumerable_ToArray() {
+        var src = Lazy(A());
+        return src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false)]
+    private static int[] Ref_SecurityDetailDaysShape_Enumerable_ToArray() {
+        var src = Lazy(A());
+        return src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] Opt_SecurityDetailDaysShape_Enumerable_Sum() {
+        var src = Lazy(A());
+        return new[] { src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).Sum() };
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false)]
+    private static int[] Ref_SecurityDetailDaysShape_Enumerable_Sum() {
+        var src = Lazy(A());
+        return new[] { src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).Sum() };
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] Opt_SecurityDetailDaysShape_Enumerable_Consume() {
+        var src = Lazy(A());
+        var consumer = new Consumer<int>();
+        src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).Consume(consumer);
+        return consumer.Items.ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false)]
+    private static int[] Ref_SecurityDetailDaysShape_Enumerable_Consume() {
+        var src = Lazy(A());
+        var consumer = new Consumer<int>();
+        src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x)).Consume(consumer);
+        return consumer.Items.ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
     private static int[] Opt_WhereTakeZero_Array_ToArray() {
         var src = A();
         return src.Where(x => P(x)).Take(0).ToArray();
@@ -3422,6 +3542,33 @@ public sealed class TakeStopsUpstreamMatrix {
 
     [Fact(), Trait("Category","Unit")]
     public void WhereTake_Enumerable_Consume() => Check(() => Opt_WhereTake_Enumerable_Consume(),() => Ref_WhereTake_Enumerable_Consume(),"WhereTake_Enumerable_Consume");
+
+    [Fact(), Trait("Category","Unit")]
+    public void SecurityDetailDaysShape_Array_ToArray() => Check(() => Opt_SecurityDetailDaysShape_Array_ToArray(),() => Ref_SecurityDetailDaysShape_Array_ToArray(),"SecurityDetailDaysShape_Array_ToArray");
+
+    [Fact(), Trait("Category","Unit")]
+    public void SecurityDetailDaysShape_Array_Sum() => Check(() => Opt_SecurityDetailDaysShape_Array_Sum(),() => Ref_SecurityDetailDaysShape_Array_Sum(),"SecurityDetailDaysShape_Array_Sum");
+
+    [Fact(), Trait("Category","Unit")]
+    public void SecurityDetailDaysShape_Array_Consume() => Check(() => Opt_SecurityDetailDaysShape_Array_Consume(),() => Ref_SecurityDetailDaysShape_Array_Consume(),"SecurityDetailDaysShape_Array_Consume");
+
+    [Fact(), Trait("Category","Unit")]
+    public void SecurityDetailDaysShape_List_ToArray() => Check(() => Opt_SecurityDetailDaysShape_List_ToArray(),() => Ref_SecurityDetailDaysShape_List_ToArray(),"SecurityDetailDaysShape_List_ToArray");
+
+    [Fact(), Trait("Category","Unit")]
+    public void SecurityDetailDaysShape_List_Sum() => Check(() => Opt_SecurityDetailDaysShape_List_Sum(),() => Ref_SecurityDetailDaysShape_List_Sum(),"SecurityDetailDaysShape_List_Sum");
+
+    [Fact(), Trait("Category","Unit")]
+    public void SecurityDetailDaysShape_List_Consume() => Check(() => Opt_SecurityDetailDaysShape_List_Consume(),() => Ref_SecurityDetailDaysShape_List_Consume(),"SecurityDetailDaysShape_List_Consume");
+
+    [Fact(), Trait("Category","Unit")]
+    public void SecurityDetailDaysShape_Enumerable_ToArray() => Check(() => Opt_SecurityDetailDaysShape_Enumerable_ToArray(),() => Ref_SecurityDetailDaysShape_Enumerable_ToArray(),"SecurityDetailDaysShape_Enumerable_ToArray");
+
+    [Fact(), Trait("Category","Unit")]
+    public void SecurityDetailDaysShape_Enumerable_Sum() => Check(() => Opt_SecurityDetailDaysShape_Enumerable_Sum(),() => Ref_SecurityDetailDaysShape_Enumerable_Sum(),"SecurityDetailDaysShape_Enumerable_Sum");
+
+    [Fact(), Trait("Category","Unit")]
+    public void SecurityDetailDaysShape_Enumerable_Consume() => Check(() => Opt_SecurityDetailDaysShape_Enumerable_Consume(),() => Ref_SecurityDetailDaysShape_Enumerable_Consume(),"SecurityDetailDaysShape_Enumerable_Consume");
 
     [Fact(), Trait("Category","Unit")]
     public void WhereTakeZero_Array_ToArray() => Check(() => Opt_WhereTakeZero_Array_ToArray(),() => Ref_WhereTakeZero_Array_ToArray(),"WhereTakeZero_Array_ToArray");

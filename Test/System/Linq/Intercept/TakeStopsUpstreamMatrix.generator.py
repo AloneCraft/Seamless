@@ -1,6 +1,7 @@
 import os
 cases = [
  ("WhereTake", "src.Where(x => P(x)).Take(2)"),
+ ("SecurityDetailDaysShape", "src.Select(x => F(x)).Where(x => x%20==0).Select(x => F(x)).Take(2).Select(x => F(x))"),
  ("WhereTakeZero", "src.Where(x => P(x)).Take(0)"),
  ("SelectTakeOne", "src.Select(x => F(x)).Take(1)"),
  ("SelectManyTakeOne", "src.SelectMany(x => new[] { x,x+1 }).Select(x => F(x)).Take(1)"),
