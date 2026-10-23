@@ -36,10 +36,17 @@
 - 付け替えの対象外にした名前: `__Tsavorite…` / `__Persisted…`(走査の種類を表す目印)、UnsafeAccessor のメソッド名(`__Method_…`)、利用者のコードにある名前。これらは宣言の種類(ローカル・フィールド・引数・ラベル)で判別しており、他の宣言(メソッド・型)は触らない。
 - 計画と実装がずれている: 計画(C:\Users\kazuh\.claude\plans\gemini-argon-process-1-1-swift-rabin.md)は断片ごとの名前の入口(Fragment.cs など約 1000 か所)を GeneratedNames へ寄せる方式だったが、実際は安全と作業量のために「後処理で一括付け替え」を採った。利用者の確認は取っていない。
 
-### 1.4 Take の修正の限界(事実)
+### 1.4 Take の上限後の評価(2026-10-23 に範囲を広げた)
 
-- 「Take の上限に達したら、上流のラムダを呼ぶ前に抜ける」判定(G:\GitHub\Seamless\Seamless.FLinq.Generator\SourceGenerator\Linq\Fragments\TakeGuard.cs)は、段が1つのループに順に並ぶ形だけに入れた。SelectMany・Concat・二項の集合演算・順序づけをまたぐ Take、添字つきのラムダ段は、今までどおり(上限の次の要素の上流を評価する)。
-- 回帰テスト G:\GitHub\Seamless\Test\System\Linq\Intercept\TakeStopsUpstream.cs は 9 件合格。修正前に失敗することを確かめたのは Where の場合だけ(Select の配列は修正前から通っていた)。List・IEnumerable は修正前の失敗を未確認。
+Take が上限に達した後、次の要素に対して上流のラムダを動かさない(System.Linq と同じ)ための判定は、3 か所に分けて入れてある。
+
+- 段が1つのループに順に並ぶ形の、最初のラムダ段の前(`TakeGuard.cs`、従来どおり)。
+- 構造体の列挙子の `TryGetNext` の先頭(`PipelineEnumerable.EnumeratorMembers.cs` の `TakeEntryGuard`)。次の要素を上流から取る前に終わるので、Concat・SelectMany・Zip・集合演算・添字つきの段・入れ子の源の上流にも効く。Take の後ろが「入力1つにつき出力0〜1個」の段だけのときに限る(後ろに OrderBy・SelectMany・Concat があると、上限後も返す分がある)。
+- 直接のループ: Consume の段の置き換え(Take を使い終えた直後に抜ける)と、二項演算(Except・Intersect)の前段の先頭。
+
+確かめ方: `Test/System/Linq/Intercept/TakeStopsUpstreamMatrix.cs`(`TakeStopsUpstreamMatrix.generator.py` で生成)。段の並び 28 種 × 源(配列・List・IEnumerable)× 終端(ToArray・Sum・Consume)の 252 組について、ラムダの呼び出し回数と結果と例外が System.Linq と同じか、少ないことを確かめる。TakeGuard を無効にすると 96 件が落ちる(感度の確認済み)。修正前は、Zip・Concat・Union・Except・SelectMany の後の Select・添字つき Select の 8 形が 1 回多く評価していた。
+
+残る差(Take とは別): 配列・List の `Select(f).Skip(n).Take(m)` を Consume すると、System.Linq は飛ばす要素の `f` を呼ばないが、FLinq は呼ぶ(ToArray の経路は呼ばない)。マトリクスでは理由つきスキップにしてある。
 
 ### 1.5 TPC-E 側から受けた依頼の状態
 

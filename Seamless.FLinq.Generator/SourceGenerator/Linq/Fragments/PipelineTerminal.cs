@@ -753,6 +753,16 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private string AppendBinaryBeforeStages(StringBuilder builder,string currentName,string indent,int binaryStageIndex) {
+        // 二項演算の後ろの Take が上限に達していたら、次の要素に対して上流のラムダを動かす前に抜ける。
+        if(this.postTakeInitialized.Contains(binaryStageIndex)) {
+            for(var j = binaryStageIndex+1;j<pipeline.Stages.Count;j++) {
+                if(pipeline.Stages[j].Kind==PipelineStageKind.Take&&pipeline.Stages[j].Value is not null
+                    &&pipeline.Stages.Skip(j+1).All(static stage => stage.Kind is PipelineStageKind.Where or PipelineStageKind.Select or PipelineStageKind.Skip
+                        or PipelineStageKind.Take or PipelineStageKind.Cast or PipelineStageKind.AsEnumerable)) {
+                    builder.AppendLine($"{indent}if(__postTake{this.result}_{j+1}>={pipeline.Stages[j].Value}) break;");
+                }
+            }
+        }
         var firstFilterIndex = this.GetFirstBinaryPreFilterIndex(binaryStageIndex);
         for(var i = 0;i<binaryStageIndex;i++) {
             var stage = pipeline.Stages[i];
@@ -796,7 +806,11 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         return currentName;
     }
 
+    // AppendBinaryAfterInit で __postTake の宣言を出した二項演算の位置(宣言のある範囲でだけ、先頭の Take 判定を出せる)。
+    private readonly HashSet<int> postTakeInitialized = [];
+
     private void AppendBinaryAfterInit(StringBuilder builder,string indent,int binaryStageIndex) {
+        this.postTakeInitialized.Add(binaryStageIndex);
         for(var i = binaryStageIndex+1;i<pipeline.Stages.Count;i++) {
             var stage = pipeline.Stages[i];
             if(stage.Kind==PipelineStageKind.Take) {
@@ -4408,6 +4422,16 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 sb.AppendLine($"{indent}    {poolBufferName}={poolNextName};");
                 sb.AppendLine($"{indent}}}");
                 sb.Append($"{indent}{poolBufferName}[{poolCountName}++]={currentItem};");
+            }
+            // Take の上限に達したら、この要素を使い終えた直後に抜ける(次の要素の上流 = Zip の結果選択子など を動かさない)。
+            // Any / First 系は、その時点で goto 済みなので足さない。
+            if(terminalKind is not (PipelineTerminalKind.Any or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault)) {
+                for(var i = 0;i<afterStages.Count;i++) {
+                    if(afterStages[i].Kind==PipelineStageKind.Take&&afterStages[i].Value is not null) {
+                        sb.AppendLine();
+                        sb.Append($"{indent}if(__stageTake{this.result}_{i+1}>={afterStages[i].Value}) goto {endLabel};");
+                    }
+                }
             }
             return sb.ToString();
         });

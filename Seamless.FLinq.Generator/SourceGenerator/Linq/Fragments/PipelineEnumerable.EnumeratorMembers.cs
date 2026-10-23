@@ -155,7 +155,36 @@ internal sealed partial class PipelineEnumerable {
             return builder.ToString().TrimEnd();
         }
     }
-    public override string GetTryGetNextBody => this.BuildLoop(this.e,"current=this.Current={0};\nreturn true;","current=default!;\nreturn false;");
+    public override string GetTryGetNextBody {
+        get {
+            var loop = this.BuildLoop(this.e,"current=this.Current={0};\nreturn true;","current=default!;\nreturn false;");
+            var guard = this.TakeEntryGuard();
+            return guard.Length==0 ? loop : guard+"\n"+loop;
+        }
+    }
+
+    // Take の上限に達したら、次の要素を上流から取る前に(上流の列挙子・ラムダを動かす前に)終わる。
+    // System.Linq は上限に達した次の要素の上流を動かさない。ループの中の判定だけだと、次の要素を取って上流のラムダを実行した後に気づく。
+    // Take より後ろが「入力1つにつき出力が0〜1個」の段だけのときに限る(Take の後ろに OrderBy・SelectMany・Concat などがあると、
+    // Take が上限に達した後も、溜めた分や足した分を返す必要がある)。
+    private string TakeEntryGuard() {
+        var builder = new StringBuilder();
+        for(var index = 0;index<stages.Count;index++) {
+            if(stages[index].Kind!=PipelineStageKind.Take||stages[index].UsesIndex||stages[index].Value is null) {
+                continue;
+            }
+            if(!stages.Skip(index+1).All(static stage => stage.Kind is PipelineStageKind.Where or PipelineStageKind.Select or PipelineStageKind.Skip
+                or PipelineStageKind.Take or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile or PipelineStageKind.Cast or PipelineStageKind.OfType
+                or PipelineStageKind.AsEnumerable or PipelineStageKind.Distinct or PipelineStageKind.DistinctBy)) {
+                continue;
+            }
+            builder.AppendLine($"if(this.{this.StateName(index)}>=this.{this.CountName(this.CountOrdinal(index))}Value) {{");
+            builder.AppendLine("    current=default!;");
+            builder.AppendLine("    return false;");
+            builder.AppendLine("}");
+        }
+        return builder.ToString().TrimEnd();
+    }
     protected override string GetTryGetNonEnumeratedCountBody {
         get {
             if(this.SingleDefaultIfEmpty) {
