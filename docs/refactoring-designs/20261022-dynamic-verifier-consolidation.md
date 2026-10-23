@@ -228,17 +228,27 @@ SystemArray・シード 0xC0DE・入力16件で、4066件中110件が失敗し�
 - 費用: 検査の対象になるクエリは、数える形を別に1回コンパイルする。Dynamic の回帰一式(71 件)は 8.8 分(検査を足す前の 56 件は 5〜8 分)。
 - 厳密に比べる範囲: `DynamicEvaluationCountTests.Take系の組み合わせでFLinqの評価回数がSystemLinqを超えない`(中間演算子が where・select・take・skip・takeWhile・skipWhile・concat・zip・append・prepend・distinct・添字つき where/select の 126 並びを厳密に比べる)は合格。
 
-見つかった既知の差(最適化ありの FLinq が System.Linq より多く評価する。抜き取りの検証で 132 並び、2026-10-23 時点・未修正):
+見つかった既知の差(最適化ありの FLinq が System.Linq より多く評価する)。
 
-| 種類 | 例 | 件数(抜き取り) |
+最初の抜き取り(132 並び)の内訳は、融合した GroupBy の集約が約 71、Join / GroupJoin が約 36、OrderBy の後の Take/Skip + Count/Any が約 8、SelectMany の内側と集合演算が約 5、その他が約 6 だった。
+
+修正後(2026-10-23): 調査用のテスト `DynamicEvaluationCountSurvey`(環境変数 EVAL_SURVEY で動く)で、途中で止まる演算を含む並びを調べた。中間演算子 1 個と 2 個の全並びは、2222 並び中 26 並び(最初の抜き取り 132 並びの約 5 分の 1)。
+
+- 直した: 融合した GroupBy の集約(First・Any・Skip・Take などの前では融合しない。`PipelineBuilder` の `ConsumesOnlyPartOfSequence`)、OrderBy の後の Take / Skip を Count / Any だけが使う形(OrderBy を除く。`TryRemoveRedundantOrderBeforeTerminal`)。
+- 速度への影響(2026-10-23 実測、Release、200,000 件・1000 グループ、最小値): 融合を止めた形は、`GroupBy(k).Select(g=>g.Key*10+g.Count()).FirstOrDefault()` が 453 µs → 1190 µs(2.6 倍)、`…Take(5).ToArray()` が 482 µs → 1366 µs(2.8 倍)で、System.Linq(982 µs・1244 µs)より約 1.2〜1.3 倍遅くなった(修正前は約 2 倍速かった)。全グループを使う形(対照)は変わらない。OrderBy を除いた `OrderBy(x=>-x).Take(1000).Count()` は 850 µs → 0 µs。
+- 速度を戻す案(未実施): 要素ごとにグループの番号だけを記録し、必要なグループ(First なら先頭の 1 つ)の分だけ、要素を走査して集約する。ラムダの評価は System.Linq と同じになり、グループごとの配列も作らない。
+
+まだ直していない差(26 並びの内訳):
+
+| 種類 | 例 | 件数 |
 |---|---|---|
-| 融合した GroupBy の集約 | `groupBy.sum > firstOrDefault`(FLinq 49 回 / System 37 回)。先頭の1グループしか使わなくても、全グループの集約を評価する | 約 71 |
-| Join / GroupJoin | `groupBy.sum > groupJoin.xorCount > any`(67 / 59) | 約 36 |
-| OrderBy の後の Take/Skip の Count/Any | `orderBy > take > count`。System.Linq は並べ替えの鍵を評価せずに答える | 約 8 |
-| SelectMany の内側・集合演算(By) | `exceptBy.identity > selectMany.xor > any`(19 / 3。ZLinq も 18 回) | 約 5 |
-| その他 | `select > concat > any`、`where > reverse > any`、`orderBy > thenBy > firstOrDefault`、`skip > orderBy.key > toArray` | 約 6 |
+| Join / GroupJoin が、外側が空でも内側の探索表を先に作る(System.Linq は外側の最初の要素ができてから作る。ZLinq も同じ) | `takeWhile > join.xor > count`(FLinq 17 回 / System 1 回)、`join.xor > prepend > any`(16 / 0) | 15 |
+| Reverse の後の先頭だけを使う終端が、前の段を全要素で評価する(System.Linq は最後の 1 件だけ) | `groupBy.sum > reverse > firstOrDefault`(53 / 36)、`where > reverse > any`(2 / 1) | 4 |
+| ExceptBy / IntersectBy / UnionBy の後の SelectMany + Any(と GroupBy + ExceptBy + Any)が、内側の列を全部評価する | `exceptBy.identity > selectMany.xor > any`(19 / 3。ZLinq も 18)、`groupBy.keyOnly > exceptBy.identity > any`(48 / 32) | 4 |
+| ThenBy の二次の鍵を全要素で評価する(System.Linq は同順位のときだけ) | `orderBy > thenBy > firstOrDefault`(32 / 17) | 1 |
+| 1 回だけ多い端の形 | `select > concat > any`(1 / 0)、`skip > orderBy.key > toArray`(1 / 0) | 2 |
 
-これらを直す候補: 融合した GroupBy の集約は、First・Any・Skip の前では融合しない(または、集約を遅延させる)。OrderBy の後の Take/Skip + Count/Any は、OrderBy を除く代数的な書き換え。直すたびに、`StrictEvaluationCounts` の範囲を広げていく。
+厳密に比べる範囲(`DynamicEvaluationCountTests.途中で止まる演算を含む組み合わせでFLinqの評価回数がSystemLinqを超えない`): 上の表の演算子(Join・GroupJoin・ThenBy・Reverse・ExceptBy・IntersectBy・UnionBy)と、`select > concat > any`・`skip > orderBy.key > toArray` を除いた全部。中間演算子 1 個の全並びと、2 個の並びの 9 件おきを、途中で止まる演算を含むものに限って、厳密に比べる(258 並び、合格)。
 
 この検査の途中で見つかって直したもの: 配列・List・GroupBy の結果などを Select した後の Skip(飛ばす要素の選択子を評価しない: `TrySkipBeforeSelect`)、Select の後の Any(選択子を評価しない: `TryDropSelectBeforeAny`)、Zip・Except・Concat・SelectMany・添字つきの段をまたぐ Take(`TakeStopsUpstreamMatrix`)。ZLinq 1.5.6 の `takeWhile > select > firstOrDefault`(述語が偽でも選択した値を返す)は、能力表で外した。
 
