@@ -3981,7 +3981,7 @@ public sealed class TakeStopsUpstreamMatrix {
     [Fact(), Trait("Category","Unit")]
     public void SelectSkipTake_Array_Sum() => Check(() => Opt_SelectSkipTake_Array_Sum(),() => Ref_SelectSkipTake_Array_Sum(),"SelectSkipTake_Array_Sum");
 
-    [Fact(Skip = "System.Linq は配列・List の Select.Skip で、飛ばす要素の選択子を呼ばない(FLinq の Consume の経路は呼ぶ)。Take の件とは別の差で、未対応。"), Trait("Category","Unit")]
+    [Fact(), Trait("Category","Unit")]
     public void SelectSkipTake_Array_Consume() => Check(() => Opt_SelectSkipTake_Array_Consume(),() => Ref_SelectSkipTake_Array_Consume(),"SelectSkipTake_Array_Consume");
 
     [Fact(), Trait("Category","Unit")]
@@ -3990,7 +3990,7 @@ public sealed class TakeStopsUpstreamMatrix {
     [Fact(), Trait("Category","Unit")]
     public void SelectSkipTake_List_Sum() => Check(() => Opt_SelectSkipTake_List_Sum(),() => Ref_SelectSkipTake_List_Sum(),"SelectSkipTake_List_Sum");
 
-    [Fact(Skip = "System.Linq は配列・List の Select.Skip で、飛ばす要素の選択子を呼ばない(FLinq の Consume の経路は呼ぶ)。Take の件とは別の差で、未対応。"), Trait("Category","Unit")]
+    [Fact(), Trait("Category","Unit")]
     public void SelectSkipTake_List_Consume() => Check(() => Opt_SelectSkipTake_List_Consume(),() => Ref_SelectSkipTake_List_Consume(),"SelectSkipTake_List_Consume");
 
     [Fact(), Trait("Category","Unit")]

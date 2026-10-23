@@ -90,8 +90,6 @@ out.append('''    private static void Check(Func<int[]> optimized,Func<int[]> re
 ''')
 for n in names:
     skip = ''
-    if n in ("SelectSkipTake_Array_Consume","SelectSkipTake_List_Consume"):
-        skip = 'Skip = "System.Linq は配列・List の Select.Skip で、飛ばす要素の選択子を呼ばない(FLinq の Consume の経路は呼ぶ)。Take の件とは別の差で、未対応。",'
     out.append(f'''    [Fact({skip.rstrip(',')}), Trait("Category","Unit")]
     public void {n}() => Check(() => Opt_{n}(),() => Ref_{n}(),"{n}");
 ''')

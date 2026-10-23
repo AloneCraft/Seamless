@@ -46,6 +46,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(this.TryRemoveDoubleReverse(node,out var singleRev)) return singleRev;
         if(this.TryFuseConsecutiveTake(node,out var singleTake)) return singleTake;
         if(this.TryFuseConsecutiveSkip(node,out var singleSkip)) return singleSkip;
+        if(this.TrySkipBeforeSelect(node,out var skipBeforeSelect)) return skipBeforeSelect;
         if(this.TryFuseConsecutiveTakeLast(node,out var singleTakeLast)) return singleTakeLast;
         if(this.TryFuseConsecutiveSkipLast(node,out var singleSkipLast)) return singleSkipLast;
         if(this.TryFuseTakeSkip(node,out var fusedTakeSkip)) return fusedTakeSkip;
@@ -633,6 +634,42 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             result=CreateCall(innerSource,"Take",minInvocation);
             return true;
         }
+    }
+    // src.Select(f).Skip(n) -> src.Skip(n).Select(f)
+    // System.Linq(と ZLinq)は、配列・List の Select の後の Skip で、飛ばす要素の選択子を呼ばない。融合したループは飛ばす要素にも選択子を呼ぶので、評価の回数が増えていた
+    // (f が 0 除算などで例外を投げる要素を飛ばす形では、System.Linq にない例外になる)。
+    // 選択子は 1:1 の写像なので、先に飛ばしても結果は同じ。添字つき(2引数)の選択子は、添字がずれるので対象外。.Anchor を含む選択子は評価の回数を守る。
+    private bool TrySkipBeforeSelect(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var outerName,out var outerReceiver,out var outerArgs)){
+            return false;
+        }
+        if(outerName!="Skip"||outerArgs.Count!=1){
+            return false;
+        }
+        if(Strip(outerReceiver) is not InvocationExpressionSyntax innerInv){
+            return false;
+        }
+        if(!this.TryGetEnumerableExtensionCall(innerInv,out var innerName,out var innerSource,out var innerArgs)){
+            return false;
+        }
+        if(innerName!="Select"||innerArgs.Count!=1||!TryGetSingleParamLambda(innerArgs[0],out var lambda)){
+            return false;
+        }
+        if(AnchorAnalysis.ContainsAnchor(lambda,this.model)){
+            return false;
+        }
+        // System.Linq が飛ばす要素の選択子を呼ばないのは、配列と List<T> を直接 Select したときだけ(添字で範囲を切る実装がある)。
+        // それ以外の源(IEnumerable・Where の後など)は、System.Linq も飛ばす要素に選択子を呼ぶので、そこで例外が出る形まで揃えるため対象にしない。
+        var sourceType=this.model.GetTypeInfo(innerSource).Type;
+        var isIndexable=sourceType is IArrayTypeSymbol
+            ||sourceType is INamedTypeSymbol{ OriginalDefinition: { Name: "List",ContainingNamespace: { Name: "Generic" } } };
+        if(!isIndexable){
+            return false;
+        }
+        var skipped=CreateCall(innerSource,"Skip",outerArgs[0].Expression);
+        result=CreateCall(skipped,"Select",innerArgs[0].Expression);
+        return true;
     }
     // Skip / SkipLast の負の件数は 0 として扱われ、合計は int.MaxValue で頭打ちになる(System.Linq と同じ)。
     // n1 + n2 のまま足すと、Skip(5).Skip(-10) が Skip(-5) になって先頭の5件を飛ばさなくなり、MaxValue 同士は桁あふれで負になる。
