@@ -33,6 +33,9 @@ internal static class MeasureCommand{
         }
         var stamp=DateTime.Now.ToString("yyyyMMdd-HHmmss",CultureInfo.InvariantCulture);
         var runDirectory=Path.Combine(arguments.Work,"runs",$"{stamp}-{arguments.Customers}c-{arguments.Days}d");
+        if(arguments.Resume is not null){
+            runDirectory=arguments.Resume;
+        }
         Directory.CreateDirectory(runDirectory);
         output.WriteLine($"[measure] {Program.Notice}");
         output.WriteLine($"[measure] run folder: {runDirectory}");

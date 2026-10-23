@@ -9,6 +9,8 @@ internal sealed record MeasureArguments{
     public string EGenBuild{get;init;}=Path.Combine(Environment.GetEnvironmentVariable("TPCE_WORK") ?? DefaultWork,"egen-build");
     /// <summary>EGen の入力ファイル(flat_in)のフォルダ。</summary>
     public string EGenInput{get;init;}=Path.Combine(Environment.GetEnvironmentVariable("TPCE_WORK") ?? DefaultWork,"egen","flat_in");
+    /// <summary>既存の実行フォルダ。指定すると新しく作らず、そのフォルダのストアと再実行ログから SUT を起動し直す(取り込みを省く。中断した実行の続きや、取り込みに時間がかかる大きなデータ用)。</summary>
+    public string? Resume{get;init;}
     public int Customers{get;init;}=1000;
     public int Days{get;init;}=1;
     public int Users{get;init;}=8;
@@ -55,6 +57,7 @@ internal sealed record MeasureArguments{
             var value=args[index++];
             result=name switch{
                 "--work"=>result with{Work=value},
+                "--resume"=>result with{Resume=value},
                 "--egen-build"=>result with{EGenBuild=value},
                 "--egen-input"=>result with{EGenInput=value},
                 "--customers"=>result with{Customers=int.Parse(value,CultureInfo.InvariantCulture)},
