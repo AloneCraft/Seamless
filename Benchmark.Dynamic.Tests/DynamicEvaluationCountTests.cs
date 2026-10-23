@@ -107,38 +107,42 @@ public sealed class DynamicEvaluationCountTests{
         Assert.Equal(counts[DynamicImplementationKind.System],counts[DynamicImplementationKind.FLinq]);
     }
 
-    // 評価回数を厳密に比べる演算子の集合。融合した GroupBy の集約・Join・OrderBy の後の Take/Skip・SelectMany の内側などは、
-    // System.Linq が省く評価を省かない既知の差があるので、含めない(設計書の「評価回数の検査」を参照)。
-    private static readonly HashSet<string> StrictIntermediates=new(StringComparer.Ordinal){
-        QueryOperatorIds.Where,
-        QueryOperatorIds.Select,
-        QueryOperatorIds.Take,
-        QueryOperatorIds.Skip,
-        QueryOperatorIds.TakeWhile,
-        QueryOperatorIds.SkipWhile,
-        QueryOperatorIds.Concat,
-        QueryOperatorIds.Zip,
-        QueryOperatorIds.Append,
-        QueryOperatorIds.Prepend,
-        QueryOperatorIds.Distinct,
-        QueryOperatorIds.WhereIndexed,
-        QueryOperatorIds.SelectIndexed,
+    // 評価回数を厳密に比べる範囲から外す演算子(設計書の「評価回数の検査」の既知の差)。
+    // Join / GroupJoin は、外側が空でも内側の探索表を先に作る(System.Linq は外側の最初の要素ができてから作る)。
+    // ThenBy は、二次の鍵を全要素で評価する(System.Linq は同順位のときだけ)。
+    // Reverse は、先頭だけを使う終端(FirstOrDefault・Any)でも、前の段を全要素で評価する(System.Linq は最後の1件だけ)。
+    // ExceptBy / IntersectBy / UnionBy は、後ろの SelectMany + Any で内側の列を全部評価する。
+    private static readonly HashSet<string> NotStrictOperatorIds=new(StringComparer.Ordinal){
+        QueryOperatorIds.JoinXor,
+        QueryOperatorIds.GroupJoinXorCount,
+        QueryOperatorIds.ThenBy,
+        QueryOperatorIds.Reverse,
+        QueryOperatorIds.ExceptByIdentity,
+        QueryOperatorIds.IntersectByIdentity,
+        QueryOperatorIds.UnionByIdentity,
+    };
+
+    // 厳密な比較から外す個別の並び(評価が System.Linq より 1 回多いだけの端の形)。
+    private static readonly HashSet<string> NotStrictKeys=new(StringComparer.Ordinal){
+        "select > concat > any",
+        "skip > orderBy.key > toArray",
     };
 
     [Fact]
-    public async Task Take系の組み合わせでFLinqの評価回数がSystemLinqを超えない(){
+    public async Task 途中で止まる演算を含む組み合わせでFLinqの評価回数がSystemLinqを超えない(){
         var seed=Seed256.Parse("0xC0DE");
         var target=SourceTarget.SystemArray;
         var runner=new DynamicWorkerExecutionRunner();
-        var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target).Where(StrictIntermediates.Contains).ToArray();
+        var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target).Where(static id=>!NotStrictOperatorIds.Contains(id)).ToArray();
         var failures=new List<string>();
         var checkedCount=0;
         foreach(var intermediateCount in new[]{1,2}){
             foreach(var spec in ExhaustiveQueryEnumerator.Enumerate(intermediateCount,intermediates,Terminals)){
-                // 中間演算子が2個の並びは、全部は回さず間引く(全組み合わせは夜間の検証で回す)。
-                if(!spec.Operators.Any(static id=>id is QueryOperatorIds.Take or QueryOperatorIds.Skip or QueryOperatorIds.Zip or QueryOperatorIds.TakeWhile)
-                    ||intermediateCount==2&&spec.Ordinal%4!=0
-                    ||!ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var query)){
+                // 中間演算子が2個の並びは、全部は回さず間引く(全組み合わせは DynamicEvaluationCountSurvey で調べる)。
+                if(intermediateCount==2&&spec.Ordinal%9!=0
+                    ||NotStrictKeys.Contains($"{string.Join(" > ",spec.Operators)} > {spec.Terminal}")
+                    ||!ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var query)
+                    ||!QueryEvaluationCheck.Applies(query!)){
                     continue;
                 }
                 var request=new WorkerRunRequest(
@@ -170,16 +174,18 @@ public sealed class DynamicEvaluationCountTests{
     public async Task 既知の差がある並びは通常の実行では警告にとどめ厳密にすると失敗にする(){
         var seed=Seed256.Parse("0xC0DE");
         var target=SourceTarget.SystemArray;
-        // FLinq の融合した GroupBy の集約は、先頭の1グループしか使わない FirstOrDefault でも、全グループの集約を評価する(System.Linq は先頭のグループだけ)。
-        var spec=ExhaustiveQueryEnumerator.Enumerate(1,[QueryOperatorIds.GroupBySum],[QueryOperatorIds.FirstOrDefault]).First();
+        // takeWhile の結果が先頭で空になる並びでも、FLinq は Join の内側の探索表を先に作る(System.Linq は外側の最初の要素まで作らない)ので、評価が多い。
+        var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target);
+        var spec=ExhaustiveQueryEnumerator.Enumerate(2,intermediates,[QueryOperatorIds.Count])
+            .First(static spec=>spec.Operators.SequenceEqual([QueryOperatorIds.TakeWhile,QueryOperatorIds.JoinXor]));
         Assert.True(ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var query));
         WorkerRunRequest Request(bool strict)=>new(
             "evalcount-known-gap",seed,1,query!.RequestedOperatorCount,query.MaximumDepth,InputElementCount,
             OperatorSetMode.Maximum,[target],new WorkerMeasurementProfile("EvalCount-v1",0,1,0,1),
             RandomQueryGenerator.GeneratorVersion,QueryCapabilityProfile.CurrentProfileVersion.ToString(),BuiltInOperatorCatalog.OperatorSetVersion.ToString(),
             StrictEvaluationCounts:strict);
-        var lenient=await new DynamicWorkerExecutionRunner().ExecuteAsync(Request(false),query!,0,target,0,CancellationToken.None);
-        var strictResult=await new DynamicWorkerExecutionRunner().ExecuteAsync(Request(true),query!,0,target,0,CancellationToken.None);
+        var lenient=await new DynamicWorkerExecutionRunner().ExecuteAsync(Request(false),query!,(int)spec.Ordinal,target,0,CancellationToken.None);
+        var strictResult=await new DynamicWorkerExecutionRunner().ExecuteAsync(Request(true),query!,(int)spec.Ordinal,target,0,CancellationToken.None);
         Assert.Equal(WorkerExecutionStatus.Succeeded,lenient.Status);
         Assert.Contains("EvaluationCountExcess",lenient.DiagnosticsJson);
         Assert.Equal(WorkerExecutionStatus.SemanticMismatch,strictResult.Status);

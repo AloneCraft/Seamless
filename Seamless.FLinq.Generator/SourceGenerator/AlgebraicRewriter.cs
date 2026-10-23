@@ -233,10 +233,12 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     // 順序非依存な終端操作（Contains, Any, All, Count, LongCount）の上流にある冗長な OrderBy/OrderByDescending/ThenBy を除去。
     private bool TryRemoveRedundantOrderBeforeTerminal(InvocationExpressionSyntax node,out SyntaxNode result){
         result=null!;
-        if(!this.TryGetEnumerableExtensionCall(node,out var terminalName,out var terminalReceiver,out _)){
+        if(!this.TryGetEnumerableExtensionCall(node,out var terminalName,out var terminalReceiver,out var terminalArgs)){
             return false;
         }else{
         }
+        // 件数だけを使う終端(引数なしの Count / LongCount / Any)は、Take / Skip の手前の順序も要らない(どの要素が残るかは件数に影響しない)。
+        var countOnlyTerminal=terminalName is "Count" or "LongCount" or "Any"&&terminalArgs.Count==0;
         if(!OrderInsensitiveTerminals.Contains(terminalName)){
             return false;
         }else{
@@ -252,6 +254,15 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             if(methodName=="OrderBy"||methodName=="OrderByDescending"||methodName=="ThenBy"||methodName=="ThenByDescending"||methodName=="Reverse"){
                 cur=Strip(methodSource);
                 strippedAny=true;
+                continue;
+            }else{
+            }
+            // OrderBy(k).Take(n).Count() -> Take(n).Count()。Take / Skip と終端の間が、件数を変えない段(Select など)だけのときに限る。
+            // (間に Where があると、Take / Skip が選ぶ要素で件数が変わる。)System.Linq は並べ替えの鍵を評価せずに件数を答える。
+            if(countOnlyTerminal&&methodName is "Take" or "Skip"&&inv.ArgumentList.Arguments.Count==1
+                &&intermediateStages.All(static stage=>stage.MethodName is "Select" or "AsEnumerable" or "Cast")){
+                intermediateStages.Add((methodName,inv.ArgumentList));
+                cur=Strip(methodSource);
                 continue;
             }else{
             }

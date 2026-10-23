@@ -3,6 +3,30 @@ namespace Seamless.FLinq.Generator;
 
 // 中間段の追加。
 internal static partial class PipelineBuilder {
+    // 融合した GroupBy の集約を、いまの呼び出しでは行わない(この後に、途中で止まる・飛ばす演算があるとき)。TryBuild のループが呼び出しごとに設定する。
+    [ThreadStatic]
+    private static bool suppressAggregateFusion;
+
+    private static readonly HashSet<string> PartialConsumptionMethodNames = new(StringComparer.Ordinal) {
+        "First","FirstOrDefault","Any","All","Contains","ElementAt","ElementAtOrDefault","Single","SingleOrDefault",
+        "Take","Skip","TakeWhile","SkipWhile","SequenceEqual","TakeLast","SkipLast","Chunk",
+    };
+
+    // invocations[index] より後ろに、列の一部しか使わない演算があるか。
+    private static bool ConsumesOnlyPartOfSequence(IReadOnlyList<InvocationExpressionSyntax> invocations,int index) {
+        for(var later = index+1;later<invocations.Count;later++) {
+            var name = invocations[later].Expression switch {
+                MemberAccessExpressionSyntax access => access.Name.Identifier.ValueText,
+                IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
+                _ => null,
+            };
+            if(name is not null&&PartialConsumptionMethodNames.Contains(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static bool TryAppendStage(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
@@ -40,7 +64,7 @@ internal static partial class PipelineBuilder {
                         &&!services.ContainsAnonymousType(selectorType.TypeArguments[1])) {
                         if(services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,selectorType,ref uniqueNumber,out var selectFunc)
                             &&services.CanUseFunc(selectFunc)) {
-                            if(GroupByAggregateFusion.TryAnalyzeSelect(selectLambda,selectFunc,semanticModel,lastGroupBy.KeyType!,lastGroupBy.InnerElementType!,services,ref uniqueNumber,out var aggPlan)) {
+                            if(!suppressAggregateFusion&&GroupByAggregateFusion.TryAnalyzeSelect(selectLambda,selectFunc,semanticModel,lastGroupBy.KeyType!,lastGroupBy.InnerElementType!,services,ref uniqueNumber,out var aggPlan)) {
                                 stages[stages.Count-1]=new PipelineStage(
                                     PipelineStageKind.GroupBy,
                                     lastGroupBy.Func,
@@ -669,6 +693,7 @@ internal static partial class PipelineBuilder {
                 if(invocation.ArgumentList.Arguments[index].Expression is LambdaExpressionSyntax resLambda
                     &&method.Parameters[index].Type is INamedTypeSymbol { TypeArguments.Length: 3 } resultFuncType
                     &&!services.ContainsAnonymousType(resultFuncType.TypeArguments[2])
+                    &&!suppressAggregateFusion
                     &&GroupByAggregateFusion.TryAnalyzeResultSelector(resLambda,resultSelector,semanticModel,keySelector.ReturnTypeName,groupElementType,services,ref uniqueNumber,out var plan)) {
                     aggregatePlan=plan;
                     break;
