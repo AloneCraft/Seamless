@@ -45,6 +45,21 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
         this.buckets.AsSpan().Clear(); // 0-clear.
     }
 
+    // 追加せずに探す。無ければ null 参照(Unsafe.IsNullRef で調べる)。GroupBy の集約で、先頭の k グループだけが必要なとき(First・Take)に、
+    // k 個を超えるグループを作らずに、要素がどのグループのものかだけを調べるために使う。
+    public ref TValue? GetValueRefOrNullRef(TKey key) {
+        var hashCode = this.InternalGetHashCode(key);
+        var index = this.buckets[this.GetBucketIndex(hashCode)]-1;
+        while(index!=-1) {
+            ref var entry = ref this.entries[index];
+            if(entry.HashCode==hashCode&&this.KeyEquals(entry.Key,key)) {
+                return ref entry.Value;
+            }
+            index=entry.Next;
+        }
+        return ref Unsafe.NullRef<TValue?>();
+    }
+
     public ref TValue? GetValueRefOrAddDefault(TKey key,out bool exists) {
         var hashCode = this.InternalGetHashCode(key);
         ref var bucket = ref this.buckets[this.GetBucketIndex(hashCode)];

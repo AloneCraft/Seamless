@@ -232,23 +232,37 @@ SystemArray・シード 0xC0DE・入力16件で、4066件中110件が失敗し�
 
 最初の抜き取り(132 並び)の内訳は、融合した GroupBy の集約が約 71、Join / GroupJoin が約 36、OrderBy の後の Take/Skip + Count/Any が約 8、SelectMany の内側と集合演算が約 5、その他が約 6 だった。
 
-修正後(2026-10-23): 調査用のテスト `DynamicEvaluationCountSurvey`(環境変数 EVAL_SURVEY で動く)で、途中で止まる演算を含む並びを調べた。中間演算子 1 個と 2 個の全並びは、2222 並び中 26 並び(最初の抜き取り 132 並びの約 5 分の 1)。
+修正後(2026-10-23): 調査用のテスト `DynamicEvaluationCountSurvey`(環境変数 EVAL_SURVEY と EVAL_SURVEY_STEP=1 で動く)で、中間演算子 1 個と 2 個の全並び(2222 並び)を調べた。最初の抜き取りで見つかった差は 26 並びあったが、7 並びまで減った。
 
-- 直した: 融合した GroupBy の集約(First・Any・Skip・Take などの前では融合しない。`PipelineBuilder` の `ConsumesOnlyPartOfSequence`)、OrderBy の後の Take / Skip を Count / Any だけが使う形(OrderBy を除く。`TryRemoveRedundantOrderBeforeTerminal`)。
-- 速度への影響(2026-10-23 実測、Release、200,000 件・1000 グループ、最小値): 融合を止めた形は、`GroupBy(k).Select(g=>g.Key*10+g.Count()).FirstOrDefault()` が 453 µs → 1190 µs(2.6 倍)、`…Take(5).ToArray()` が 482 µs → 1366 µs(2.8 倍)で、System.Linq(982 µs・1244 µs)より約 1.2〜1.3 倍遅くなった(修正前は約 2 倍速かった)。全グループを使う形(対照)は変わらない。OrderBy を除いた `OrderBy(x=>-x).Take(1000).Count()` は 850 µs → 0 µs。
-- 速度を戻す案(未実施): 要素ごとにグループの番号だけを記録し、必要なグループ(First なら先頭の 1 つ)の分だけ、要素を走査して集約する。ラムダの評価は System.Linq と同じになり、グループごとの配列も作らない。
+直したもの:
 
-まだ直していない差(26 並びの内訳):
+- 融合した GroupBy の集約: 後ろの `First`・`FirstOrDefault`・`Any`・`Take(定数)`・`Skip(定数)` が使う先頭のグループ数が定数で分かるときは、融合を止めずに、その数のグループだけ集約する(遅延集約。`PipelineBuilder.Stages.cs` の `TryComputeGroupLimit`、`GroupByAggregatePlan.GroupLimit` と `RenderAccumulate`、`DictionarySlim.GetValueRefOrNullRef`)。1 回の走査で、グループが上限に達したら新しいグループを作らず、上限の外の要素は集約しない。キー選択子と要素選択子は System.Linq と同じく全要素で評価する。上限が定数で分からない形、`Last`・`LastOrDefault`・`TakeLast`・`SkipLast` などの前では融合しない(System.Linq と同じ評価になる)。
+- Join / GroupJoin: 内側の探索表を、外側の最初の要素を得てから作る(System.Linq と同じ)。外側が空・列を使わない終端(`join > prepend > any` など)では、内側のキー選択子を評価しない。列挙子の構造体、配列どうし、根を直接回す形、`First` 向けの直接展開のすべてで揃えた。
+- 並べ替え: 要素が 1 個のときは鍵を評価しない(`PipelineEnumerable.OrderLoop.cs`、`PipelineTerminal.cs` の直接の並べ替え、`OrderBy.cs` の列挙子。鍵は 2 件以上のときだけ評価する)。OrderBy の後の Take / Skip を Count / Any だけが使う形は OrderBy を除く(`TryRemoveRedundantOrderBeforeTerminal`)。
+- 代数的な書き換え: `Select(f).Concat(x).Any()` は前半だけで `Any` を調べる形に分ける(`TrySplitConcatAny`。`x` が識別子・メンバーだけのときに限る)。`SelectMany(p => inner.Select(f)).Any()` は内側の `Select` を除く(`TryDropInnerSelectInSelectManyBeforeAny`)。
+- ExceptBy / IntersectBy の結果を `Consume` で直接展開する形が、第 2 引数(キーの列)にもキー選択子を適用していた。要素の型とキーの型が同じとき(int と int など)は、`new[]{1,2,3,14}.ExceptBy(new[]{14}, v=>v%10)` が `[1,2,3]` になった(System.Linq は `[1,2,3,14]`)。評価回数の調査の途中で見つかった、結果が違う不具合で、直した(`SetBases.cs` の `AppendSetByCollectLoop`。テストは `SetByKeySelectorOnSecond`)。
 
-| 種類 | 例 | 件数 |
+速度への影響(2026-10-23 実測、Release、200,000 件・1000 グループ、最小値。共用マシンでばらつきが大きく、同じ設定を 3 回回して 295〜360 µs の幅):
+
+- GroupBy の `FirstOrDefault`: 融合を止めた版 1190 µs → 約 300 µs(止める前の版は 453 µs、System.Linq は 982 µs)。`Take(5).ToArray()`: 1366 µs → 約 300 µs(止める前 482 µs、System.Linq 1244 µs)。全グループを使う形(対照)は変わらない。
+- Join の `Count` は約 10% 遅くなった(1362〜1450 µs → 1550〜1587 µs、200,000 件の外側。外側の要素ごとに「作ったか」の分岐を 1 回入れたため。1 要素あたり約 1 ns)。`ToArray`・GroupJoin・OrderBy・ThenBy・Select 後の OrderBy・全グループの GroupBy は、ばらつきの範囲内。
+- 遅延集約の型ごとの比較は、単体の測定 `Benchmark/Experiments/GroupByLazyBench` にある(README に取り直し方と判断基準)。108 行のうち `Limit/System`(生成器に入れた形 ÷ System.Linq)が 1 を超えたのは、`Big32`(32 バイトの構造体)× `Guid` キー × 1,000 件 × 10 グループ × 先頭 5 グループの 1 行(1.08)だけだった。ハードや .NET の版で変わりうるので、次の .NET の版・別のマシンでビルドし直したときに、同じ表を取り直して比べる(結果ファイル名に環境を入れる)。
+
+まだ直していない差(7 並び):
+
+| 種類 | 例 | 理由 |
 |---|---|---|
-| Join / GroupJoin が、外側が空でも内側の探索表を先に作る(System.Linq は外側の最初の要素ができてから作る。ZLinq も同じ) | `takeWhile > join.xor > count`(FLinq 17 回 / System 1 回)、`join.xor > prepend > any`(16 / 0) | 15 |
-| Reverse の後の先頭だけを使う終端が、前の段を全要素で評価する(System.Linq は最後の 1 件だけ) | `groupBy.sum > reverse > firstOrDefault`(53 / 36)、`where > reverse > any`(2 / 1) | 4 |
-| ExceptBy / IntersectBy / UnionBy の後の SelectMany + Any(と GroupBy + ExceptBy + Any)が、内側の列を全部評価する | `exceptBy.identity > selectMany.xor > any`(19 / 3。ZLinq も 18)、`groupBy.keyOnly > exceptBy.identity > any`(48 / 32) | 4 |
-| ThenBy の二次の鍵を全要素で評価する(System.Linq は同順位のときだけ) | `orderBy > thenBy > firstOrDefault`(32 / 17) | 1 |
-| 1 回だけ多い端の形 | `select > concat > any`(1 / 0)、`skip > orderBy.key > toArray`(1 / 0) | 2 |
+| Reverse の後の `First` は `Last` になるが、System.Linq は最後のグループの集約だけを評価する。FLinq は全グループを評価する | `groupBy.sum > reverse > firstOrDefault`(53 / 36)、`groupBy.count > …`(19 / 17)、`groupBy.keyOnly > …`(24 / 17) | 最後の 1 グループだけ集約するには、全グループの確定を待つ別の生成が要る |
+| `where > reverse > any` | `where > reverse > any`(2 / 1) | System.Linq は後ろから走査して 1 回。FLinq は前から走査して 2 回(ZLinq は 16 回) |
+| ThenBy の二次の鍵を全要素で評価する(System.Linq は同順位のときだけ) | `orderBy > thenBy > firstOrDefault`(32 / 17) | 最小値を探して、同順位のときだけ二次の鍵を評価する別の生成が要る |
+| 後ろの `Distinct` が消えて、後ろの選択子が重複する要素にも走る | `groupBy.keyOnly > exceptBy.identity > any`(48 / 32) | Distinct を消す書き換えが、評価回数を増やす |
+| UnionBy は第 2 引数のキーを先に集合へ入れ、第 1 引数のキー選択子を System.Linq より多く評価する | `unionBy.identity > selectMany.xor > any`(14 / 3。ZLinq は 18) | 第 2 引数を先に読む実装の方針 |
 
-厳密に比べる範囲(`DynamicEvaluationCountTests.途中で止まる演算を含む組み合わせでFLinqの評価回数がSystemLinqを超えない`): 上の表の演算子(Join・GroupJoin・ThenBy・Reverse・ExceptBy・IntersectBy・UnionBy)と、`select > concat > any`・`skip > orderBy.key > toArray` を除いた全部。中間演算子 1 個の全並びと、2 個の並びの 9 件おきを、途中で止まる演算を含むものに限って、厳密に比べる(258 並び、合格)。
+厳密に比べる範囲(`DynamicEvaluationCountTests.途中で止まる演算を含む組み合わせでFLinqの評価回数がSystemLinqを超えない`): 上の表の 7 並びを除いた全部。中間演算子 1 個の全並びと、2 個の並びの 9 件おきを、途中で止まる演算を含むものに限って厳密に比べる。1 つ直したら `NotStrictKeys` から外す。`既知の差がある並びは通常の実行では警告にとどめ厳密にすると失敗にする` は、`orderBy > thenBy > firstOrDefault` を使う(直したら別の既知の差に替える)。
+
+テストの注意: Dynamic の回帰一式(322 件)のうち `キャンセル時に処理中と未開始のSourceExecutionをDBへ保持する` は、一式を回すと一時フォルダの削除でファイルが使用中の `IOException` になることがある(単独では通る。生成器とは関係のない、DB のファイルを閉じる前に消す競合)。
+
+GroupJoin の結果選択子が `g.Count()` のように入れ子の変数を宣言する形で、生成コードの結果変数名が重なる CS0136 になる(`Outer.GroupJoin(Inner,o=>o,i=>i,(o,g)=>g.Count()).Sum()`)。今回の変更の前から出る(変更前の版でも同じ)。未修正。
 
 この検査の途中で見つかって直したもの: 配列・List・GroupBy の結果などを Select した後の Skip(飛ばす要素の選択子を評価しない: `TrySkipBeforeSelect`)、Select の後の Any(選択子を評価しない: `TryDropSelectBeforeAny`)、Zip・Except・Concat・SelectMany・添字つきの段をまたぐ Take(`TakeStopsUpstreamMatrix`)。ZLinq 1.5.6 の `takeWhile > select > firstOrDefault`(述語が偽でも選択した値を返す)は、能力表で外した。
 

@@ -107,25 +107,20 @@ public sealed class DynamicEvaluationCountTests{
         Assert.Equal(counts[DynamicImplementationKind.System],counts[DynamicImplementationKind.FLinq]);
     }
 
-    // 評価回数を厳密に比べる範囲から外す演算子(設計書の「評価回数の検査」の既知の差)。
-    // Join / GroupJoin は、外側が空でも内側の探索表を先に作る(System.Linq は外側の最初の要素ができてから作る)。
-    // ThenBy は、二次の鍵を全要素で評価する(System.Linq は同順位のときだけ)。
-    // Reverse は、先頭だけを使う終端(FirstOrDefault・Any)でも、前の段を全要素で評価する(System.Linq は最後の1件だけ)。
-    // ExceptBy / IntersectBy / UnionBy は、後ろの SelectMany + Any で内側の列を全部評価する。
-    private static readonly HashSet<string> NotStrictOperatorIds=new(StringComparer.Ordinal){
-        QueryOperatorIds.JoinXor,
-        QueryOperatorIds.GroupJoinXorCount,
-        QueryOperatorIds.ThenBy,
-        QueryOperatorIds.Reverse,
-        QueryOperatorIds.ExceptByIdentity,
-        QueryOperatorIds.IntersectByIdentity,
-        QueryOperatorIds.UnionByIdentity,
-    };
-
-    // 厳密な比較から外す個別の並び(評価が System.Linq より 1 回多いだけの端の形)。
+    // 厳密な比較から外す個別の並び(FLinq が System.Linq より多く評価する既知の差。直したらここから外す)。
+    // groupBy > reverse > First: Reverse の後の First は Last になり、System.Linq は最後のグループの集約だけを評価するが、FLinq は全グループを評価する。
+    // orderBy > thenBy > First: System.Linq は ThenBy の二次の鍵を同順位のときだけ評価する。
+    // where > reverse > any: System.Linq は後ろから走査して1回、FLinq は前から走査して2回。
+    // groupBy.keyOnly > exceptBy > any: 後ろの Distinct が消えて、後ろの選択子が重複する要素にも走る。
+    // unionBy > selectMany > any: 第2引数のキーを先に集合へ入れるので、第1引数のキー選択子を System.Linq より多く評価する。
     private static readonly HashSet<string> NotStrictKeys=new(StringComparer.Ordinal){
-        "select > concat > any",
-        "skip > orderBy.key > toArray",
+        "groupBy.count > reverse > firstOrDefault",
+        "groupBy.keyOnly > reverse > firstOrDefault",
+        "groupBy.sum > reverse > firstOrDefault",
+        "orderBy > thenBy > firstOrDefault",
+        "where > reverse > any",
+        "groupBy.keyOnly > exceptBy.identity > any",
+        "unionBy.identity > selectMany.xor > any",
     };
 
     [Fact]
@@ -133,7 +128,7 @@ public sealed class DynamicEvaluationCountTests{
         var seed=Seed256.Parse("0xC0DE");
         var target=SourceTarget.SystemArray;
         var runner=new DynamicWorkerExecutionRunner();
-        var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target).Where(static id=>!NotStrictOperatorIds.Contains(id)).ToArray();
+        var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target).ToArray();
         var failures=new List<string>();
         var checkedCount=0;
         foreach(var intermediateCount in new[]{1,2}){
@@ -174,10 +169,10 @@ public sealed class DynamicEvaluationCountTests{
     public async Task 既知の差がある並びは通常の実行では警告にとどめ厳密にすると失敗にする(){
         var seed=Seed256.Parse("0xC0DE");
         var target=SourceTarget.SystemArray;
-        // takeWhile の結果が先頭で空になる並びでも、FLinq は Join の内側の探索表を先に作る(System.Linq は外側の最初の要素まで作らない)ので、評価が多い。
+        // ThenBy の二次の鍵を、FLinq は全要素で評価する(System.Linq は同順位のときだけ)ので、評価が多い。直したら別の既知の差に替える。
         var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target);
-        var spec=ExhaustiveQueryEnumerator.Enumerate(2,intermediates,[QueryOperatorIds.Count])
-            .First(static spec=>spec.Operators.SequenceEqual([QueryOperatorIds.TakeWhile,QueryOperatorIds.JoinXor]));
+        var spec=ExhaustiveQueryEnumerator.Enumerate(2,intermediates,[QueryOperatorIds.FirstOrDefault])
+            .First(static spec=>spec.Operators.SequenceEqual([QueryOperatorIds.OrderBy,QueryOperatorIds.ThenBy]));
         Assert.True(ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var query));
         WorkerRunRequest Request(bool strict)=>new(
             "evalcount-known-gap",seed,1,query!.RequestedOperatorCount,query.MaximumDepth,InputElementCount,

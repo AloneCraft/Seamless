@@ -30,8 +30,9 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
     public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { this.outerKey,this.innerKey,this.resultSelector },this.outerSource.GetEnumeratorExpression,this.innerSource.GetEnumeratorExpression,this.comparerExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TOuterEnum {this.e},TInnerEnum {this.innerEnumerator},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(this.innerKey)}>? comparer{this.ClosurePrimaryCtorSuffix(this.outerKey,this.innerKey,this.resultSelector)}";
     public override string GetEnumerableExpression => this.UseResultTypeParam ? $"{this.FactoryMethodName}({this.outerSource.GetEnumeratorExpression},{this.innerSource.GetEnumeratorExpression},{this.comparerExpression}{this.ClosureArgsSuffix(this.outerKey,this.innerKey,this.resultSelector)})" : base.GetEnumerableExpression;
+    // 内側の探索表は、外側の最初の要素を得てから作る(System.Linq と同じ。外側が空・列を使わない終端なら、内側のキー選択子を評価しない)。
     public override string GetEnumeratorConstructor => this.CountsOnly()
-        ? $"this.{this.lookup}=BuildCounts(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});"
+        ? string.Empty
         : this.ProbesInnerRange()
         ? $$"""
             // 内側は Range で恒等キーなので、探索表を作らず区間 [始点,始点+個数) で一致を判定する(各キーに一致する内側は自身1つ)。
@@ -39,7 +40,12 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             this.{{this.innerLow}}=__innerCount>0&&this.{{this.innerEnumerator}}.TryGetNext(out var __innerFirst) ? __innerFirst : 0L;
             this.{{this.innerHigh}}=this.{{this.innerLow}}+__innerCount;
             """
-        : $"this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});\nthis.{this.arranged}=this.{this.lookup}.Arranged;";
+        : string.Empty;
+    private string built => $"__built{番号}";
+    // 最初の外側の要素を得た直後に、内側の探索表を作る文(2回目以降は何もしない)。
+    private string LazyBuildStatement => this.CountsOnly()
+        ? $"if(!this.{this.built}){{\n    this.{this.built}=true;\n    this.{this.lookup}=BuildCounts(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});\n}}"
+        : $"if(!this.{this.built}){{\n    this.{this.built}=true;\n    this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});\n    this.{this.arranged}=this.{this.lookup}.Arranged;\n}}";
     private string arranged => $"__ar{番号}";
     private string groupEnd => $"__ge{番号}";
     private string innerLow => $"__innerLow{番号}";
@@ -87,6 +93,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
     public override string GetEnumeratorFields => this.CountsOnly()
         ? $$"""
             private {{this.CountsType}} {{this.lookup}};
+            private bool {{this.built}};
             private int {{this.groupIndex}};
             private {{this.outerSource.ElementType}} {{this.outerValue}};
             private static bool IsNullKey<TKey>(TKey key){
@@ -101,6 +108,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             """
         : $$"""
         private global::Seamless.Linq.ContiguousLookupBuilder<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}> {{this.lookup}};
+        private bool {{this.built}};
         private {{this.innerSource.ElementType}}[] {{this.arranged}};
         private int {{this.groupIndex}};
         private int {{this.groupEnd}};
@@ -148,6 +156,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         }
         {{this.CounterCall("IncrementLogicalJoinOuter")}}
         {{this.outerValue}}=__mn38;
+        {{this.LazyBuildStatement}}
         {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
         {{this.FuncAssignIndented("",this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
         if(IsNullKey({{this.key}})){
@@ -185,6 +194,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         }
         {{this.CounterCall("IncrementLogicalJoinOuter")}}
         {{this.outerValue}}=__mn38;
+        {{this.LazyBuildStatement}}
         {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
         {{this.FuncAssignIndented("",this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
         if(IsNullKey({{this.key}})){
@@ -233,20 +243,23 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         return $$"""
             {{localDeclarationBlock}}
             static bool {{hasKeyName}}<TKey>(TKey key) => key is not null;
+            var {{outerArrayName}}={{outerArrayExpression}};
             var {{innerArrayName}}={{innerArrayExpression}};
             var {{lookupBuilderName}}=new global::Seamless.Linq.ContiguousLookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>({{innerArrayName}}.Length,{{innerArrayName}}.Length,{{this.comparerExpression}});
             try {
-            for(var {{innerIndexName}}=0;{{innerIndexName}}<{{innerArrayName}}.Length;{{innerIndexName}}++){
-                var {{innerItemName}}={{innerArrayName}}[{{innerIndexName}}];
-                {{this.InnerKeyType}} {{innerKeyName}}=default!;
-                {{this.FuncAssignStaticIndented("    ",this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
-                if({{hasKeyName}}({{innerKeyName}})){
-                    {{lookupBuilderName}}.Add({{innerKeyName}},{{innerItemName}});
+            // 外側が空なら、内側のキー選択子を評価しない(System.Linq と同じ)。
+            if({{outerArrayName}}.Length!=0){
+                for(var {{innerIndexName}}=0;{{innerIndexName}}<{{innerArrayName}}.Length;{{innerIndexName}}++){
+                    var {{innerItemName}}={{innerArrayName}}[{{innerIndexName}}];
+                    {{this.InnerKeyType}} {{innerKeyName}}=default!;
+                    {{this.FuncAssignStaticIndented("        ",this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
+                    if({{hasKeyName}}({{innerKeyName}})){
+                        {{lookupBuilderName}}.Add({{innerKeyName}},{{innerItemName}});
+                    }
                 }
+                {{lookupBuilderName}}.PrepareProbe();
             }
-            {{lookupBuilderName}}.PrepareProbe();
             var {{arrangedName}}={{lookupBuilderName}}.Arranged;
-            var {{outerArrayName}}={{outerArrayExpression}};
             for(var {{outerIndexName}}=0;{{outerIndexName}}<{{outerArrayName}}.Length;{{outerIndexName}}++){
                 var {{outerItemName}}={{outerArrayName}}[{{outerIndexName}}];
                 {{this.InnerKeyType}} {{outerKeyName}}=default!;
@@ -316,8 +329,12 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         var builderDeclaration = countsOnly
             ? $"var {builderName}=new {this.CountsType}({countName},{this.comparerExpression});"
             : $"var {builderName}=new global::Seamless.Linq.ContiguousLookupBuilder<{this.InnerKeyType},{this.InnerElementType}>({countName},{countName},{this.comparerExpression});";
-        var prepare = countsOnly ? string.Empty : $"{builderName}.PrepareProbe();\nvar {arrangedName}={builderName}.Arranged;";
+        var prepare = countsOnly ? string.Empty : $"{builderName}.PrepareProbe();\n{arrangedName}={builderName}.Arranged;";
         var dispose = countsOnly ? string.Empty : $"{builderName}.Dispose();";
+        // 外側の最初の要素を得てから、内側の探索表を作る(外側が空なら、内側のキー選択子を評価しない。System.Linq と同じ)。
+        var builtName = $"__joinBuilt{番号}";
+        var arrangedDeclaration = countsOnly ? string.Empty : $"var {arrangedName}=default({this.InnerElementType}[])!;";
+        var lazyOuterBody = $"if(!{builtName}){{\n    {builtName}=true;\n{IndentGeneratedStatement(this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody)+"\n"+prepare,"    ")}\n}}\n{outerBody}";
         return $$"""
             {{localDeclarations}}
             static bool {{hasKeyName}}<TKey>(TKey key) => key is not null;
@@ -325,10 +342,10 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             using var {{innerName}}={{innerExpression}};
             var {{countName}}={{innerName}}.TryGetNonEnumeratedCount(out var {{countName}}Value) ? {{countName}}Value : 0;
             {{builderDeclaration}}
+            var {{builtName}}=false;
+            {{arrangedDeclaration}}
             try {
-            {{this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody)}}
-            {{prepare}}
-            {{this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,outerBody)}}
+            {{this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,lazyOuterBody)}}
             } finally {
                 {{dispose}}
             }
@@ -356,17 +373,20 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         return $$"""
             {{localDeclarations}}
             static bool {{hasKeyName}}<TKey>(TKey key) => key is not null;
+            var {{outerArrayName}}={{outerArrayExpression}};
             var {{innerArrayName}}={{innerArrayExpression}};
             var {{countsName}}=new {{this.CountsType}}({{innerArrayName}}.Length,{{this.comparerExpression}});
-            for(var {{innerIndexName}}=0;{{innerIndexName}}<{{innerArrayName}}.Length;{{innerIndexName}}++){
-                var {{innerItemName}}={{innerArrayName}}[{{innerIndexName}}];
-                {{this.InnerKeyType}} {{innerKeyName}}=default!;
-                {{this.FuncAssignStaticIndented("    ",this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
-                if({{hasKeyName}}({{innerKeyName}})){
-                    global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({{countsName}},{{innerKeyName}},out _)++;
+            // 外側が空なら、内側のキー選択子を評価しない(System.Linq と同じ)。
+            if({{outerArrayName}}.Length!=0){
+                for(var {{innerIndexName}}=0;{{innerIndexName}}<{{innerArrayName}}.Length;{{innerIndexName}}++){
+                    var {{innerItemName}}={{innerArrayName}}[{{innerIndexName}}];
+                    {{this.InnerKeyType}} {{innerKeyName}}=default!;
+                    {{this.FuncAssignStaticIndented("        ",this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
+                    if({{hasKeyName}}({{innerKeyName}})){
+                        global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({{countsName}},{{innerKeyName}},out _)++;
+                    }
                 }
             }
-            var {{outerArrayName}}={{outerArrayExpression}};
             for(var {{outerIndexName}}=0;{{outerIndexName}}<{{outerArrayName}}.Length;{{outerIndexName}}++){
                 var {{outerItemName}}={{outerArrayName}}[{{outerIndexName}}];
                 {{this.InnerKeyType}} {{outerKeyName}}=default!;
@@ -522,8 +542,11 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         var builderDeclaration=countsOnly
             ? $"var {builderName}=new {this.CountsType}({countName},{this.comparerExpression});"
             : $"var {builderName}=new global::Seamless.Linq.ContiguousLookupBuilder<{this.InnerKeyType},{this.InnerElementType}>({countName},{countName},{this.comparerExpression});";
-        var prepare=countsOnly ? string.Empty : $"{builderName}.PrepareProbe();\nvar {arrangedName}={builderName}.Arranged;";
+        var prepare=countsOnly ? string.Empty : $"{builderName}.PrepareProbe();\n{arrangedName}={builderName}.Arranged;";
         var dispose=countsOnly ? string.Empty : $"{builderName}.Dispose();";
+        var builtName=$"__joinBuilt{番号}";
+        var arrangedDeclaration=countsOnly ? string.Empty : $"var {arrangedName}=default({this.InnerElementType}[])!;";
+        var lazyOuterBody=$"if(!{builtName}){{\n    {builtName}=true;\n{IndentGeneratedStatement(this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody)+"\n"+prepare,"    ")}\n}}\n{outerBody}";
 
         return $$"""
             {{localDeclBlockGeneral}}{{destType}} {{destVar}}=default!;
@@ -532,11 +555,11 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             using var {{innerName}}={{innerExpression}};
             var {{countName}}={{innerName}}.TryGetNonEnumeratedCount(out var {{countName}}Value) ? {{countName}}Value : 0;
             {{builderDeclaration}}
+            var {{builtName}}=false;
+            {{arrangedDeclaration}}
             try {
-            {{this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody)}}
-            {{prepare}}
             var {{foundName}}=false;
-            {{this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,outerBody)}}
+            {{this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,lazyOuterBody)}}
             if(!{{foundName}}){
                 {{notFoundBlock}}
             }else{
@@ -546,9 +569,10 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             }
             """;
     }
+    // 探索表を作る前に捨てるときは、内側の列挙子を探索表の構築が閉じていないので、ここで閉じる。
     protected override string GetEnumeratorDisposeBody => this.CountsOnly()
-        ? $"{this.e}.Dispose();"
+        ? $"{this.e}.Dispose(); if(!this.{this.built}) {{ this.{this.innerEnumerator}.Dispose(); }}"
         : this.ProbesInnerRange()
         ? $"{this.e}.Dispose(); {this.innerEnumerator}.Dispose();"
-        : $"{this.lookup}.Dispose(); {this.e}.Dispose();";
+        : $"{this.lookup}.Dispose(); {this.e}.Dispose(); if(!this.{this.built}) {{ this.{this.innerEnumerator}.Dispose(); }}";
 }

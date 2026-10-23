@@ -48,6 +48,7 @@ internal static partial class PipelineBuilder {
         for(var index = 0;index<invocations.Count;index++) {
             var currentInvocation = invocations[index];
             suppressAggregateFusion=false;
+            pendingGroupLimit=null;
             if(semanticModel.GetSymbolInfo(currentInvocation).Symbol is not IMethodSymbol method) {
                 return false;
             }
@@ -68,7 +69,7 @@ internal static partial class PipelineBuilder {
             }
             // この後に途中で止まる・飛ばす演算(First・Any・Take・Skip など)があるときは、GroupBy の集約を融合しない。
             // 融合した集約は全グループの集約を評価するが、System.Linq は必要なグループだけを評価する(評価回数の検査で見つかった)。
-            suppressAggregateFusion=ConsumesOnlyPartOfSequence(invocations,index);
+            suppressAggregateFusion=ConsumesOnlyPartOfSequence(semanticModel,invocations,index,out pendingGroupLimit);
             if(TryAppendStage(semanticModel,currentInvocation,method,services,ref snapshot,stages,ref currentElementType)) {
                 continue;
             }

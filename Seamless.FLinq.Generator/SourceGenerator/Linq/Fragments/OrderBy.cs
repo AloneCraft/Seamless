@@ -192,10 +192,9 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
             this.keys=newKeys;
             this.indexMap=newIndexMap;
         }
-        private void AddItem({{this.ElementType}} value,{{keyType}} key){
+        private void AddItem({{this.ElementType}} value){
             this.EnsureCapacity(this.count+1);
             this.values![this.count]=value;
-            this.keys![this.count]=key;
             this.indexMap![this.count]=this.count;
             this.count++;
         }
@@ -206,7 +205,9 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
                     this.EnsureCapacity(__count);
                 }
                 {{this.SortLoopSingle}}
+                // 鍵は並べ替えが要る(2件以上の)ときだけ評価する(System.Linq と同じ。1件なら鍵を評価しない)。
                 if(this.count>1){
+                    {{this.KeyLoopSingle}}
                     {{sortCall}}
                 }
             }catch{
@@ -222,17 +223,22 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
         ? $$"""
                 this.source.TryGetSpan(out var __span);
                 foreach(var {{this.item}} in __span){
-                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("                ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    this.AddItem({{this.item}},{{this.key}});
+                    this.AddItem({{this.item}});
                 }
             """
         : $$"""
                 while(this.source.TryGetNext(out var {{this.item}})){
-                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("                ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    this.AddItem({{this.item}},{{this.key}});
+                    this.AddItem({{this.item}});
                 }
+            """;
+
+    private string KeyLoopSingle => $$"""
+                    for(var __keyIndex=0;__keyIndex<this.count;__keyIndex++){
+                        var {{this.item}}=this.values![__keyIndex];
+                        {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+                        {{this.FuncAssignIndented("                        ",keySelector,nameof(keySelector),this.key,this.item)}}
+                        this.keys![__keyIndex]={{this.key}};
+                    }
             """;
 
     private string BuildMembersCombined(OrderingBase po) {
@@ -315,11 +321,9 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
             this.keys=newKeys;
             this.indexMap=newIndexMap;
         }
-        private void AddItem({{this.ElementType}} value,{{primaryKeyType}} primaryKey,{{keyType}} key){
+        private void AddItem({{this.ElementType}} value){
             this.EnsureCapacity(this.count+1);
             this.values![this.count]=value;
-            this.primaryKeys![this.count]=primaryKey;
-            this.keys![this.count]=key;
             this.indexMap![this.count]=this.count;
             this.count++;
         }
@@ -331,7 +335,9 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
                     this.EnsureCapacity(__count);
                 }
                 {{this.SortLoopCombined(po)}}
+                // 鍵は並べ替えが要る(2件以上の)ときだけ評価する(System.Linq と同じ。1件なら鍵を評価しない)。
                 if(this.count>1){
+                    {{this.KeyLoopCombined(po)}}
                     {{sortCall}}
                 }
             }catch{
@@ -347,21 +353,25 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
         ? $$"""
                 this.source.TryGetSpan(out var __span);
                 foreach(var {{this.item}} in __span){
-                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("                ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    {{FuncReturnTypeName(po.OwnKeySelector)}} {{this.a}}=default!;
-                    {{this.FuncAssignIndented("                ",po.OwnKeySelector,"primaryKeySelector",this.a,this.item)}}
-                    this.AddItem({{this.item}},{{this.a}},{{this.key}});
+                    this.AddItem({{this.item}});
                 }
             """
         : $$"""
                 while(this.source.TryGetNext(out var {{this.item}})){
-                    {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("                ",keySelector,nameof(keySelector),this.key,this.item)}}
-                    {{FuncReturnTypeName(po.OwnKeySelector)}} {{this.a}}=default!;
-                    {{this.FuncAssignIndented("                ",po.OwnKeySelector,"primaryKeySelector",this.a,this.item)}}
-                    this.AddItem({{this.item}},{{this.a}},{{this.key}});
+                    this.AddItem({{this.item}});
                 }
+            """;
+
+    private string KeyLoopCombined(OrderingBase po) => $$"""
+                    for(var __keyIndex=0;__keyIndex<this.count;__keyIndex++){
+                        var {{this.item}}=this.values![__keyIndex];
+                        {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+                        {{this.FuncAssignIndented("                        ",keySelector,nameof(keySelector),this.key,this.item)}}
+                        {{FuncReturnTypeName(po.OwnKeySelector)}} {{this.a}}=default!;
+                        {{this.FuncAssignIndented("                        ",po.OwnKeySelector,"primaryKeySelector",this.a,this.item)}}
+                        this.keys![__keyIndex]={{this.key}};
+                        this.primaryKeys![__keyIndex]={{this.a}};
+                    }
             """;
 
     protected override string GetTryGetNonEnumeratedCountBody => $$"""

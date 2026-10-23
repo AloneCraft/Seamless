@@ -3205,6 +3205,10 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"        var {indexesName}=global::System.Buffers.ArrayPool<int>.Shared.Rent({nName});");
         builder.AppendLine($"        var {keysName}=global::System.Buffers.ArrayPool<{keyType}>.Shared.Rent({nName});");
         builder.AppendLine("        try {");
+        // 要素が1個のときは並べ替えの鍵を評価しない(System.Linq と同じ)。
+        builder.AppendLine($"            if({nName}==1) {{");
+        builder.AppendLine($"                {indexesName}[0]=0;");
+        builder.AppendLine("            } else {");
         builder.AppendLine($"            for(var {iName}=0;{iName}<{nName};{iName}++) {{");
         builder.AppendLine($"                {indexesName}[{iName}]={iName};");
         builder.AppendLine($"                var __srcItem{this.result}={spanName}[{iName}];");
@@ -3218,6 +3222,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine("            }");
         builder.AppendLine($"            var {comparerVarName}=new {comparerStructName}({keysName},{comparerArg});");
         builder.AppendLine($"            global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes({indexesName},{nName},{comparerVarName});");
+        builder.AppendLine("            }");
         if(terminalKind==PipelineTerminalKind.ToArray){
             builder.AppendLine($"            {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({nName});");
             builder.AppendLine($"            for(var {iName}=0;{iName}<{nName};{iName}++) {{");
@@ -3852,8 +3857,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         } else {
             builder.AppendLine($"{indent}{groupElementName}=({stage.InnerElementType})(object?){currentName}!;");
         }
-        builder.AppendLine($"{indent}ref var __acc=ref {mapName}.GetValueRefOrAddDefault({keyName},out var __exists);");
-        builder.AppendLine(aggPlan.RenderAccumulatorUpdate("__acc",groupElementName,indent));
+        builder.AppendLine(aggPlan.RenderAccumulate(mapName,keyName,groupElementName,indent));
 
         builder.AppendLine("    }");
 

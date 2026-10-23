@@ -7,13 +7,24 @@ internal static partial class PipelineBuilder {
     [ThreadStatic]
     private static bool suppressAggregateFusion;
 
+    // 融合した集約を行うとき、後ろの Take(n)・First・Any などが使う先頭のグループ数(定数で分かるときだけ)。null なら全グループ。
+    [ThreadStatic]
+    private static int? pendingGroupLimit;
+
     private static readonly HashSet<string> PartialConsumptionMethodNames = new(StringComparer.Ordinal) {
         "First","FirstOrDefault","Any","All","Contains","ElementAt","ElementAtOrDefault","Single","SingleOrDefault",
-        "Take","Skip","TakeWhile","SkipWhile","SequenceEqual","TakeLast","SkipLast","Chunk",
+        "Take","Skip","TakeWhile","SkipWhile","SequenceEqual","TakeLast","SkipLast","Chunk","Last","LastOrDefault",
     };
 
     // invocations[index] より後ろに、列の一部しか使わない演算があるか。
-    private static bool ConsumesOnlyPartOfSequence(IReadOnlyList<InvocationExpressionSyntax> invocations,int index) {
+    // 後ろが「Select(1対1の変換)の後の Skip(定数)* と Take(定数)・First・FirstOrDefault・Any」だけなら、使うグループ数 groupLimit を求める。
+    // その形のときは融合を止めず、先頭の groupLimit 個のグループだけを集約する(戻り値は false)。
+    private static bool ConsumesOnlyPartOfSequence(SemanticModel semanticModel,IReadOnlyList<InvocationExpressionSyntax> invocations,int index,out int? groupLimit) {
+        groupLimit=null;
+        if(TryComputeGroupLimit(semanticModel,invocations,index,out var limit)) {
+            groupLimit=limit;
+            return false;
+        }
         for(var later = index+1;later<invocations.Count;later++) {
             var name = invocations[later].Expression switch {
                 MemberAccessExpressionSyntax access => access.Name.Identifier.ValueText,
@@ -25,6 +36,45 @@ internal static partial class PipelineBuilder {
             }
         }
         return false;
+    }
+
+    // 後ろの Skip・Take・First・Any が使うグループの範囲 [start,end) を、定数だけで求める。end が決まれば、それが使う先頭のグループ数の上限になる。
+    // end が決まった後ろの演算(Where など)は、その範囲のグループしか見ないので、end のままでよい。end が決まる前に Select 以外が挟まると求められない。
+    private static bool TryComputeGroupLimit(SemanticModel semanticModel,IReadOnlyList<InvocationExpressionSyntax> invocations,int index,out int limit) {
+        limit=0;
+        long start = 0;
+        long end = long.MaxValue;
+        for(var later = index+1;later<invocations.Count;later++) {
+            var invocation = invocations[later];
+            var name = invocation.Expression switch {
+                MemberAccessExpressionSyntax access => access.Name.Identifier.ValueText,
+                IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
+                _ => null,
+            };
+            var arguments = invocation.ArgumentList.Arguments;
+            if(name=="Select") {
+                continue;
+            }
+            if(name is "Skip" or "Take"&&arguments.Count==1&&semanticModel.GetConstantValue(arguments[0].Expression) is { HasValue: true, Value: int count }) {
+                count=Math.Max(0,count);
+                if(name=="Skip") {
+                    start=Math.Min(start+count,end);
+                } else {
+                    end=Math.Min(end,start+count);
+                }
+                continue;
+            }
+            if(name is "First" or "FirstOrDefault" or "Any"&&arguments.Count==0) {
+                end=Math.Min(end,start+1);
+                break;
+            }
+            break;
+        }
+        if(end==long.MaxValue) {
+            return false;
+        }
+        limit=(int)Math.Min(end,int.MaxValue);
+        return true;
     }
 
     private static bool TryAppendStage(
@@ -77,6 +127,7 @@ internal static partial class PipelineBuilder {
                                     keyType: lastGroupBy.KeyType,
                                     containsAnchor: lastGroupBy.ContainsAnchor||selectFunc.ContainsAnchor,
                                     aggregatePlan: aggPlan);
+                                aggPlan.GroupLimit=pendingGroupLimit;
                                 currentElementType=aggPlan.ResultType;
                                 return true;
                             }
@@ -696,6 +747,7 @@ internal static partial class PipelineBuilder {
                     &&!suppressAggregateFusion
                     &&GroupByAggregateFusion.TryAnalyzeResultSelector(resLambda,resultSelector,semanticModel,keySelector.ReturnTypeName,groupElementType,services,ref uniqueNumber,out var plan)) {
                     aggregatePlan=plan;
+                    plan.GroupLimit=pendingGroupLimit;
                     break;
                 }
             }

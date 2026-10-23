@@ -26,8 +26,7 @@ internal sealed partial class PipelineEnumerable {
             } else {
                 builder.AppendLine($"        {groupElementName}=({stage.InnerElementType})(object?){currentName}!;");
             }
-            builder.AppendLine($"        ref var __acc=ref this.{this.GroupAggMapName(groupByIndex)}!.GetValueRefOrAddDefault({keyName},out var __exists);");
-            builder.AppendLine(aggPlan.RenderAccumulatorUpdate("__acc",groupElementName,"        "));
+            builder.AppendLine(aggPlan.RenderAccumulate($"this.{this.GroupAggMapName(groupByIndex)}!",keyName,groupElementName,"        "));
             builder.AppendLine("    }");
             builder.AppendLine($"    this.{this.GroupAggEnumName(groupByIndex)}=this.{this.GroupAggMapName(groupByIndex)}!.GetEnumerator();");
             builder.AppendLine("}");
@@ -128,8 +127,7 @@ internal sealed partial class PipelineEnumerable {
             } else {
                 builder.AppendLine($"        {groupElementName}=({stage.InnerElementType})(object?){currentName}!;");
             }
-            builder.AppendLine($"        ref var __acc=ref __aggMap.GetValueRefOrAddDefault({keyName},out var __exists);");
-            builder.AppendLine(aggPlan.RenderAccumulatorUpdate("__acc",groupElementName,"        "));
+            builder.AppendLine(aggPlan.RenderAccumulate("__aggMap",keyName,groupElementName,"        "));
             builder.AppendLine("    }");
             builder.AppendLine($"    var {this.OrderInitialCapacityLocalName(orderIndex)}=global::System.Math.Max(16,__aggMap.Count);");
             this.AppendOrderBufferBuildStart(builder,orderIndex);

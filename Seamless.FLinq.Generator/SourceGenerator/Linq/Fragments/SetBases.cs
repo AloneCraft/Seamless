@@ -654,10 +654,9 @@ internal abstract class SetByBase(int 番号,Enumerable source,Enumerable second
         builder.AppendLine($"            : new global::Seamless.Linq.HashSetSlim<{keyType}>((global::System.Collections.Generic.IEqualityComparer<{keyType}>?){this.Comparer});");
     }
     private void AppendSetByCollectLoop(StringBuilder builder,string enumeratorName,string setName) {
+        // 第2引数はキーの列なので、キー選択子は適用しない(System.Linq と同じ。構造体の列挙子も SecondKeyExpression で第2引数をそのままキーにする)。
         TraversalSupport.AppendTraversalLoop(builder,enumeratorName,second.ElementType,"value",$$"""
-            {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-            {{this.FuncAssignIndented("",keySelector,nameof(keySelector),this.key,"value")}}
-            {{setName}}.Add({{this.key}});
+            {{setName}}.Add({{this.SecondKeyExpression("value")}});
             """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(enumeratorName),second.ProvidesRemainingEnumerator);
     }
     private void AppendSetByConsumeLoop(StringBuilder builder,string enumeratorName,string consumerName,string setName,string operationMethod) {

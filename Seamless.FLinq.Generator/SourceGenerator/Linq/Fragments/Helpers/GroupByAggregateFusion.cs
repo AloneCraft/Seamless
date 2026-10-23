@@ -30,6 +30,27 @@ internal sealed class GroupByAggregatePlan {
     public string ResultType { get; set; } = string.Empty;
     public bool IsSingleField => this.Items.Count==1;
 
+    // 後ろの Take(n)・First・Any などが先頭の n グループしか使わないとき、その n。null なら全グループを集約する。
+    // System.Linq は集約のラムダを、使うグループの分しか評価しないので、それを超えるグループの要素は集約しない(キー選択子と要素選択子は全要素で評価する)。
+    public int? GroupLimit { get; set; }
+
+    // グループのアキュムレータを探して(必要なら作って)、要素を集約する文。GroupLimit があるときは、上限に達した後の新しいグループを作らず、その要素の集約を飛ばす。
+    public string RenderAccumulate(string mapExpression,string keyName,string elementVarName,string indent) {
+        if(this.GroupLimit is not { } limit) {
+            return $"{indent}ref var __acc=ref {mapExpression}.GetValueRefOrAddDefault({keyName},out var __exists);\n"+this.RenderAccumulatorUpdate("__acc",elementVarName,indent);
+        }
+        var sb = new StringBuilder();
+        sb.AppendLine($"{indent}ref var __acc=ref {mapExpression}.GetValueRefOrNullRef({keyName});");
+        sb.AppendLine($"{indent}var __exists=!global::System.Runtime.CompilerServices.Unsafe.IsNullRef(ref __acc);");
+        sb.AppendLine($"{indent}if(!__exists&&{mapExpression}.Count<{limit}) {{");
+        sb.AppendLine($"{indent}    __acc=ref {mapExpression}.GetValueRefOrAddDefault({keyName},out _);");
+        sb.AppendLine($"{indent}}}");
+        sb.AppendLine($"{indent}if(!global::System.Runtime.CompilerServices.Unsafe.IsNullRef(ref __acc)) {{");
+        sb.AppendLine(this.RenderAccumulatorUpdate("__acc",elementVarName,indent+"    "));
+        sb.Append($"{indent}}}");
+        return sb.ToString();
+    }
+
     public string RenderAccumulatorUpdate(string accRefName,string elementVarName,string indent) {
         var sb = new StringBuilder();
         for(var i = 0;i<this.Items.Count;i++) {

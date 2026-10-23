@@ -111,7 +111,10 @@ internal sealed partial class PipelineEnumerable {
         var lastOrderIndex = orderIndex+orderStages.Count-1;
         var usesPartialSort = this.TryGetOrderSortRange(lastOrderIndex,countLocal,out var minSortIndexExpression,out var maxSortIndexExpression);
         var useDirectValueSort = !usesPartialSort&&this.CanUseDirectValueOrderSort(orderStages);
-        builder.AppendLine($"        if({countLocal}>0){{");
+        // 要素が1個のときは並べ替えの鍵を評価しない(System.Linq と同じ)。
+        builder.AppendLine($"        if({countLocal}==1){{");
+        builder.AppendLine($"            {indexesLocal}[0]=0;");
+        builder.AppendLine($"        }}else if({countLocal}>1){{");
         var checksSorted = this.CanCheckBufferedValuesSorted(orderIndex,orderStages);
         if(checksSorted) {
             // 溜めた値が既に並べ替え後の順(昇順なら非減少、降順なら非増加)なら、元の順がそのまま安定な並べ替えの結果なので並べ替えない。

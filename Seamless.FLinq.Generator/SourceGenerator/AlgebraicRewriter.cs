@@ -48,6 +48,8 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(this.TryFuseConsecutiveSkip(node,out var singleSkip)) return singleSkip;
         if(this.TrySkipBeforeSelect(node,out var skipBeforeSelect)) return skipBeforeSelect;
         if(this.TryDropSelectBeforeAny(node,out var anyWithoutSelect)) return anyWithoutSelect;
+        if(this.TrySplitConcatAny(node,out var splitConcatAny)) return splitConcatAny;
+        if(this.TryDropInnerSelectInSelectManyBeforeAny(node,out var selectManyAny)) return selectManyAny;
         if(this.TryFuseConsecutiveTakeLast(node,out var singleTakeLast)) return singleTakeLast;
         if(this.TryFuseConsecutiveSkipLast(node,out var singleSkipLast)) return singleSkipLast;
         if(this.TryFuseTakeSkip(node,out var fusedTakeSkip)) return fusedTakeSkip;
@@ -673,6 +675,68 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         }
         result=CreateCall(innerSource,"Any");
         return true;
+    }
+    // src.Select(f).Concat(other).Any() -> (src.Select(f).Any() || other.Any())
+    // System.Linq は Concat の Any を、前半に要素があれば後半を見ずに、選択子も呼ばずに答える。Select の Any は選択子を落とせる(TryDropSelectBeforeAny)ので、
+    // 先に前半だけで Any を調べる形に分ける。後半の式が副作用を持つと評価の時点が変わるので、識別子・メンバーだけ(呼び出し・添字なし)のときに限る。
+    private bool TrySplitConcatAny(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var outerName,out var outerReceiver,out var outerArgs)){
+            return false;
+        }
+        if(outerName!="Any"||outerArgs.Count!=0){
+            return false;
+        }
+        if(Strip(outerReceiver) is not InvocationExpressionSyntax concatInv){
+            return false;
+        }
+        if(!this.TryGetEnumerableExtensionCall(concatInv,out var concatName,out var first,out var concatArgs)){
+            return false;
+        }
+        if(concatName!="Concat"||concatArgs.Count!=1||!IsPlainMemberChain(concatArgs[0].Expression)){
+            return false;
+        }
+        if(Strip(first) is not InvocationExpressionSyntax selectInv
+            ||!this.TryGetEnumerableExtensionCall(selectInv,out var selectName,out _,out var selectArgs)
+            ||selectName!="Select"||selectArgs.Count!=1||!TryGetSingleParamLambda(selectArgs[0],out var lambda)
+            ||AnchorAnalysis.ContainsAnchor(lambda,this.model)){
+            return false;
+        }
+        var left = CreateCall(first,"Any");
+        var right = CreateCall(concatArgs[0].Expression,"Any");
+        result=SyntaxFactory.ParenthesizedExpression(
+            SyntaxFactory.BinaryExpression(SyntaxKind.LogicalOrExpression,left,right));
+        return true;
+    }
+    // src.SelectMany(p => inner.Select(f)).Any() -> src.SelectMany(p => inner).Any()
+    // Any は要素があるかだけを見るので、内側の選択子の値は使わない(System.Linq は内側の先頭の1件にだけ選択子を呼ぶ)。内側を全部評価していた。
+    private bool TryDropInnerSelectInSelectManyBeforeAny(InvocationExpressionSyntax node,out SyntaxNode result){
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var outerName,out var outerReceiver,out var outerArgs)
+            ||outerName!="Any"||outerArgs.Count!=0
+            ||Strip(outerReceiver) is not InvocationExpressionSyntax manyInv
+            ||!this.TryGetEnumerableExtensionCall(manyInv,out var manyName,out var manySource,out var manyArgs)
+            ||manyName!="SelectMany"||manyArgs.Count!=1
+            ||manyArgs[0].Expression is not SimpleLambdaExpressionSyntax manyLambda
+            ||manyLambda.ExpressionBody is not { } body
+            ||Strip(body) is not InvocationExpressionSyntax innerSelectInv
+            ||!this.TryGetEnumerableExtensionCall(innerSelectInv,out var innerName,out var innerSource,out var innerArgs)
+            ||innerName!="Select"||innerArgs.Count!=1||!TryGetSingleParamLambda(innerArgs[0],out var selector)
+            ||selector is not SimpleLambdaExpressionSyntax
+            ||AnchorAnalysis.ContainsAnchor(selector,this.model)){
+            return false;
+        }
+        var newLambda = manyLambda.WithExpressionBody(innerSource);
+        result=CreateCall(CreateCall(manySource,"SelectMany",newLambda),"Any");
+        return true;
+    }
+    private static bool IsPlainMemberChain(ExpressionSyntax expression){
+        expression=Strip(expression);
+        return expression switch {
+            IdentifierNameSyntax => true,
+            MemberAccessExpressionSyntax { Expression: var inner } access when access.IsKind(SyntaxKind.SimpleMemberAccessExpression) => IsPlainMemberChain(inner),
+            _ => false,
+        };
     }
     // src.Select(f).Skip(n) -> src.Skip(n).Select(f)
     // System.Linq(と ZLinq)は、源によって(配列・List・GroupBy の結果など)、飛ばす要素の選択子を呼ばない。融合したループは飛ばす要素にも選択子を呼ぶので、

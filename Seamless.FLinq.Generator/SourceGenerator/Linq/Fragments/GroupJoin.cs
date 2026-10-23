@@ -32,7 +32,10 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
     public override string GetEnumerableExpression => this.UseResultTypeParam ? $"{this.FactoryMethodName}({this.outerSource.GetEnumeratorExpression},{this.innerSource.GetEnumeratorExpression},{this.comparerExpression}{this.ClosureArgsSuffix(this.outerKey,this.innerKey,this.resultSelector)})" : base.GetEnumerableExpression;
     public override string GetEnumeratorConstructor => this.CanSkipLookup()
         ? $"DrainInner(this.{this.innerEnumerator});"
-        : $"this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});";
+        : string.Empty;
+    // 内側の探索表は、外側の最初の要素を得てから作る(System.Linq と同じ。外側が空・列を使わない終端なら、内側のキー選択子を評価しない)。
+    private string LazyBuildStatement => $"if(!this.{this.built}){{\n    this.{this.built}=true;\n    this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});\n}}";
+    private string built => $"__built{番号}";
     public override string? NonEnumeratedCountExpression =>
         this.InnerEnumerationIsObservable() ? null : this.outerSource.NonEnumeratedCountExpression;
     protected override string GetTryGetNonEnumeratedCountBody => this.InnerEnumerationIsObservable()
@@ -46,6 +49,7 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             """;
     public override string GetEnumeratorFields => $$"""
         private global::Seamless.Linq.Lookup<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}>? {{this.lookup}};
+        private bool {{this.built}};
         private int {{this.state}};
         {{this.LookupMembers()}}
         """;
@@ -145,6 +149,16 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             }
             {{consumerName}}.Consume({{resultItemName}});
             """;
+        // 外側の最初の要素を得てから、内側の探索表を作る(外側が空なら、内側のキー選択子を評価しない。System.Linq と同じ)。
+        var builtName = $"__groupJoinBuilt{番号}";
+        var lazyOuterBody = $$"""
+            if(!{{builtName}}){
+                {{builtName}}=true;
+                {{IndentLines(this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody),"    ").TrimStart()}}
+                {{lookupName}}={{lookupBuilderName}}.BuildPooledAndClear();
+            }
+            {{outerBody}}
+            """;
 
         return $$"""
             {
@@ -160,10 +174,14 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
                     __initialCapacity{{番号}}=0;
                 }
                 var {{lookupBuilderName}}=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(__initialCapacity{{番号}},(global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>?){{cmpArg}},true);
-                {{IndentLines(this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody),"    ").TrimStart()}}
-                using var {{lookupName}}={{lookupBuilderName}}.BuildPooledAndClear();
+                var {{builtName}}=false;
+                global::Seamless.Linq.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}>? {{lookupName}}=null;
                 using var {{outerName}}={{outerExpression}};
-                {{IndentLines(this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,outerBody),"    ").TrimStart()}}
+                try {
+                    {{IndentLines(this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,lazyOuterBody),"        ").TrimStart()}}
+                } finally {
+                    {{lookupName}}?.Dispose();
+                }
             }
             """;
     }
@@ -234,6 +252,16 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             {{foundName}}=true;
             break;
             """;
+        // 外側の最初の要素を得てから、内側の探索表を作る(外側が空なら、内側のキー選択子を評価しない。System.Linq と同じ)。
+        var builtName = $"__groupJoinBuilt{番号}";
+        var lazyOuterBody = $$"""
+            if(!{{builtName}}){
+                {{builtName}}=true;
+                {{IndentLines(this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody),"    ").TrimStart()}}
+                {{lookupName}}={{lookupBuilderName}}.BuildPooledAndClear();
+            }
+            {{outerBody}}
+            """;
 
         string notFoundBlock;
         if(orDefault){
@@ -257,11 +285,15 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
                     __initialCapacity{{番号}}=0;
                 }
                 var {{lookupBuilderName}}=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(__initialCapacity{{番号}},(global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>?){{cmpArg}},true);
-                {{IndentLines(this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody),"    ").TrimStart()}}
-                using var {{lookupName}}={{lookupBuilderName}}.BuildPooledAndClear();
+                var {{builtName}}=false;
+                global::Seamless.Linq.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}>? {{lookupName}}=null;
                 using var {{outerName}}={{outerExpression}};
                 var {{foundName}}=false;
-                {{IndentLines(this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,outerBody),"    ").TrimStart()}}
+                try {
+                    {{IndentLines(this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,lazyOuterBody),"        ").TrimStart()}}
+                } finally {
+                    {{lookupName}}?.Dispose();
+                }
                 if(!{{foundName}}){
                     {{notFoundBlock}}
                 }else{
@@ -330,6 +362,7 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         if({{this.e}}.TryGetNext(out var __mn36)){
             {{this.CounterCall("IncrementLogicalGroupJoinOuter")}}
             var {{this.outerValue}}=__mn36;
+            {{this.LazyBuildStatement}}
             {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
             {{this.FuncAssignIndented("    ",this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
             {{this.CounterCall("IncrementHashProbe")}}
@@ -345,7 +378,10 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         current=default!;
         return false;
         """;
-    protected override string GetEnumeratorDisposeBody => $"{this.lookup}?.Dispose(); {this.e}.Dispose();";
+    // 探索表を作る前に捨てるときは、内側の列挙子を探索表の構築が閉じていないので、ここで閉じる(探索表を省く形は作るときに閉じている)。
+    protected override string GetEnumeratorDisposeBody => this.CanSkipLookup()
+        ? $"{this.lookup}?.Dispose(); {this.e}.Dispose();"
+        : $"{this.lookup}?.Dispose(); {this.e}.Dispose(); if(!this.{this.built}) {{ this.{this.innerEnumerator}.Dispose(); }}";
 
     // 結果選択子が内側のグループを使わず、キー選択子が恒等で比較子も既定なら、探索表の中身は結果に現れない。
     // そのときは探索表を作らない。ソース式の評価と列挙子の構築は通常と同じ順・同じ時点で行う。

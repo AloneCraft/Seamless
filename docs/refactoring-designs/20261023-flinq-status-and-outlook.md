@@ -48,6 +48,12 @@ Take が上限に達した後、次の要素に対して上流のラムダを動
 
 残る差(Take とは別): 配列・List の `Select(f).Skip(n).Take(m)` を Consume すると、System.Linq は飛ばす要素の `f` を呼ばないが、FLinq は呼ぶ(ToArray の経路は呼ばない)。マトリクスでは理由つきスキップにしてある。
 
+### 1.4a 評価回数の検査と、System.Linq 以下に揃えた修正(2026-10-23)
+
+Dynamic に評価回数の検査(最適化ありの FLinq が System.Linq より多くラムダを評価したら問題)を入れ、中間演算子 1〜2 個の全並び(2222)を調べた。最初に見つかった 26 並びを 7 並びまで直した。直したのは、GroupBy の遅延集約(先頭の n グループだけ集約)、Join / GroupJoin の内側の探索表の遅延構築、要素 1 個の並べ替え、`Select.Concat.Any`、`SelectMany(内側に Select).Any`。調査の途中で、ExceptBy / IntersectBy の `Consume` 直接展開が第 2 引数にキー選択子を適用して結果が違う不具合も見つけて直した。詳細・速度・測定の取り直し方・残る 7 並びは、前の設計書(20261022-dynamic-verifier-consolidation.md)の「評価回数の検査」の節にある。
+
+残る 7 並び: Reverse の後の `First`(GroupBy の集約を最後のグループだけにする生成が要る)、`where > reverse > any`(後ろから走査)、ThenBy の二次の鍵(同順位のときだけ評価)、`groupBy.keyOnly > exceptBy > any`(消えた Distinct)、`unionBy > selectMany > any`(第 2 引数を先に読む方針)。
+
 ### 1.5 TPC-E 側から受けた依頼の状態
 
 - 1(Take): 修正済み、連絡済み。実際のクエリ(`SecurityDetailQueries.Days`)の形も一覧テストに入れた。
@@ -110,6 +116,8 @@ Take が上限に達した後、次の要素に対して上流のラムダを動
 - TPC-E の依頼 2(Tsavorite の Set に対する Join / GroupBy / OrderBy の直接走査)を、性能の課題として設計から始める。
 - TPC-E の依頼 3 は、先方の再試験の結果を待つ。再現したら生成コードとクラス定義をもらって直す。
 - 名前の付け替えが性能に影響しないことを、代表クエリの前後比較で確かめる(名前だけの変更なので変わらない見込み。未計測)。
+- 遅延集約の型ごとの比較(`Benchmark/Experiments/GroupByLazyBench`)を、次の .NET の版・別のマシンで取り直して、`Limit/System < 1` が崩れないか確かめる。
+- GroupJoin の結果選択子が `g.Count()` のように入れ子の変数を宣言する形で、結果変数名が重なる CS0136(`Outer.GroupJoin(Inner,o=>o,i=>i,(o,g)=>g.Count()).Sum()`)になる。今回の変更の前から出る。
 
 ### 3.5 統合の仕上げ
 
