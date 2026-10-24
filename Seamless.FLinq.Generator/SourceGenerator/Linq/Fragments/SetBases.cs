@@ -621,14 +621,18 @@ internal abstract class SetByBase(int 番号,Enumerable source,Enumerable second
             return builder.ToString().TrimEnd();
         }
         if(!operation.PreloadSecondFirst) {
+            // UnionBy: 第1引数→第2引数の順に、どちらの要素もキー選択子を通し、新しいキーの要素を出す(列挙子の TryGetNext と同じ)。
+            // 第2引数をキーの列として先に読むのは、ExceptBy / IntersectBy だけ。
+            this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+            this.AppendSetByConsumeLoop(builder,sourceName,consumerName,setName,"Add");
+            this.AppendUnionBySecondConsumeLoop(builder,secondName,consumerName,setName);
+            return builder.ToString().TrimEnd();
+        }
+        if(operation.SourceAcceptMethod=="Add") {
+            // ExceptBy は第1ソースのキーも集合へ足すので、両方の件数の和で作る(足しながら広げ直さない)。
             this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
         } else {
-            if(operation.SourceAcceptMethod=="Add") {
-                // ExceptBy は第1ソースのキーも集合へ足すので、両方の件数の和で作る(足しながら広げ直さない)。
-                this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
-            } else {
-                TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
-            }
+            TraversalSupport.AppendHashSetInitialization(builder,setName,FuncReturnTypeName(keySelector),secondName,this.Comparer);
         }
         this.AppendSetByCollectLoop(builder,secondName,setName);
         this.AppendSetByConsumeLoop(builder,sourceName,consumerName,setName,operation.SourceAcceptMethod);
@@ -668,6 +672,17 @@ internal abstract class SetByBase(int 番号,Enumerable source,Enumerable second
             }
             {{consumerName}}.Consume(value);
             """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(enumeratorName),source.ProvidesRemainingEnumerator);
+    }
+    private void AppendUnionBySecondConsumeLoop(StringBuilder builder,string enumeratorName,string consumerName,string setName) {
+        TraversalSupport.AppendTraversalLoop(builder,enumeratorName,second.ElementType,"secondValue",$$"""
+            var value=({{source.ElementType}})(object?)secondValue!;
+            {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+            {{this.FuncAssignIndented("",keySelector,nameof(keySelector),this.key,"value")}}
+            if(!{{setName}}.Add({{this.key}})){
+                continue;
+            }
+            {{consumerName}}.Consume(value);
+            """,second.CanTryProvideSpan,second.CanProvideSpan,second.GetDirectSpanExpression(enumeratorName),second.ProvidesRemainingEnumerator);
     }
     private string SecondKeyExpression(string valueName) {
         if(FuncReturnTypeName(keySelector)==second.ElementType) {
