@@ -56,6 +56,7 @@
     <Project Path="Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj" />
     <Project Path="Benchmark/Benchmark.Tpc.Core/Benchmark.Tpc.Core.csproj" />
     <Project Path="Benchmark/Benchmark.Tpc.Server/Benchmark.Tpc.Server.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcC.Core/Benchmark.TpcC.Core.csproj" />
   </Folder>
   <Folder Name="/Benchmark/Shared/">
     <Project Path="Benchmark/Shared/UI/UI.shproj" />
@@ -145,6 +146,7 @@
     <Project Path="Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj" />
     <Project Path="Benchmark/Benchmark.Tpc.Tests/Benchmark.Tpc.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcC.Tests/Benchmark.TpcC.Tests.csproj" />
     <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
     <Project Path="Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj" />
   </Folder>

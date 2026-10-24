@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/Benchmark/">
+    <Project Path="Benchmark/Benchmark.Tpc.Core/Benchmark.Tpc.Core.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcC.Core/Benchmark.TpcC.Core.csproj" />
+  </Folder>
+  <Folder Name="/SourceGenerator/">
+    <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
+    <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Benchmark/Benchmark.TpcC.Tests/Benchmark.TpcC.Tests.csproj" />
+  </Folder>
+  <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
+  <Project Path="Seamless.Execution/Seamless.Execution.csproj" />
+  <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
+  <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
+  <Project Path="Seamless.Database/Seamless.Database.csproj" />
+  <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
+  <Project Path="Seamless/Seamless.csproj" />
+</Solution>
