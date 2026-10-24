@@ -19,10 +19,10 @@ public sealed class TpcCPartitionBase{
                 Assert.Equal(orders,partition.CustomerOrders.TopDesc(new Core.CustomerOwner(2,3,9,0),1));
             }
             {
-                //姓の索引は名の昇順に並び、同じ姓の顧客を全員返す
+                //姓の索引は名の昇順(大文字にそろえた序数比較、Q-019)に並び、同じ姓の顧客を全員返す
                 var rows=partition.Customer.EnumerateRows().Where(row=>row.DistrictId==5).ToList();
                 var last=rows[0].Last;
-                var expected=rows.Where(row=>row.Last==last).OrderBy(row=>row.First,StringComparer.Ordinal).ThenBy(row=>row.Id).Select(row=>(long)row.Id).ToList();
+                var expected=rows.Where(row=>row.Last==last).OrderBy(row=>row.First.ToUpperInvariant(),StringComparer.Ordinal).ThenBy(row=>row.Id).Select(row=>(long)row.Id).ToList();
                 var entries=partition.CustomerByName.All(new Core.CustomerNameOwner(2,5,Code16.From(last)));
                 Assert.Equal(expected,entries.Select(entry=>entry.CustomerId));
                 Assert.Equal(entries.OrderBy(entry=>entry).ToList(),entries.ToList());

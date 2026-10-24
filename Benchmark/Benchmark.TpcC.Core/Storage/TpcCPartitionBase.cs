@@ -32,7 +32,11 @@ public abstract class TpcCPartitionBase:TpcDatabaseBase{
     public TableCore<OrderLineKey,OrderLineRow> OrderLine{get;private set;}=null!;
     public TableCore<ItemKey,ItemRow> Item{get;private set;}=null!;
     public TableCore<StockKey,StockRow> Stock{get;private set;}=null!;
-    /// <summary>姓から顧客を引く(名の昇順)。Payment と Order-Status の 60% が使う。</summary>
+    /// <summary>
+    /// 姓から顧客を引く。名(C_FIRST)の昇順に並ぶ。並びは「大文字にそろえた序数比較」にする: HammerDB の SQL Server 版は表の列に照合順序を指定せず、
+    /// データベースの照合順序(この PC では Japanese_CI_AS)で並ぶが、0-9・A-Z・a-z だけの文字列ではどの CI 照合でもこの並びと同じ(Q-019)。
+    /// 仕様は照合順序を規定しないので、仕様の形でも同じ並びを使う。Payment と Order-Status の 60% が使う。
+    /// </summary>
     public OrderedIndex<CustomerNameOwner,CustomerNameEntry> CustomerByName{get;private set;}=null!;
     /// <summary>顧客の注文(番号の昇順)。末尾が最新の注文。</summary>
     public OrderedIndex<CustomerOwner,long> CustomerOrders{get;private set;}=null!;
@@ -58,7 +62,7 @@ public abstract class TpcCPartitionBase:TpcDatabaseBase{
         this.Item=item;
         this.Stock=stock;
         this.CustomerByName=this.CreateIndex<CustomerNameOwner,CustomerNameEntry>(this.PhysicalName("x1-customer-by-name"));
-        IndexBinding.Bind(this.Customer,this.CustomerByName,static r=>(new CustomerNameOwner(r.WarehouseId,r.DistrictId,Code16.From(r.Last)),new CustomerNameEntry(Code16.From(r.First),r.Id)));
+        IndexBinding.Bind(this.Customer,this.CustomerByName,static r=>(new CustomerNameOwner(r.WarehouseId,r.DistrictId,Code16.From(r.Last)),new CustomerNameEntry(Code16.From(r.First.ToUpperInvariant()),r.Id)));
         this.CustomerOrders=this.CreateIndex<CustomerOwner,long>(this.PhysicalName("x2-customer-orders"));
         IndexBinding.Bind(this.Order,this.CustomerOrders,static r=>(new CustomerOwner(r.WarehouseId,r.DistrictId,r.CustomerId,0),(long)r.Id));
         this.NewOrderQueue=this.CreateIndex<DistrictOwner,long>(this.PhysicalName("x3-new-order-queue"));
