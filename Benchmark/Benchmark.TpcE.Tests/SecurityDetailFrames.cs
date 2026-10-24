@@ -5,7 +5,7 @@ namespace Benchmark.TpcE.Tests;
 public sealed class SecurityDetailFrames{
     private static readonly Code16 Alpha=Code16.From("ALPH");
     private static readonly Code16 Beta=Code16.From("BETA");
-    private static readonly Core.Code8 Active=Core.Code8.From("ACTV");
+    private static readonly Code8 Active=Code8.From("ACTV");
     private static readonly long Now=TpcETime.FromDateTime(new DateTime(2005,1,5,9,0,0));
     [Fact,Trait("Category","Unit")]public void Run(){
         {
@@ -97,9 +97,9 @@ public sealed class SecurityDetailFrames{
                 store.Dispose();
             }
         }
-        var expected=Core.CanonicalWriter.ToBytes(outputs[0]);
+        var expected=CanonicalWriter.ToBytes(outputs[0]);
         for(var index=1;index<outputs.Count;index++){
-            Assert.True(expected.AsSpan().SequenceEqual(Core.CanonicalWriter.ToBytes(outputs[index])),$"{VariantCatalog.All[index].Name} differs from {VariantCatalog.All[0].Name}.");
+            Assert.True(expected.AsSpan().SequenceEqual(CanonicalWriter.ToBytes(outputs[index])),$"{VariantCatalog.All[index].Name} differs from {VariantCatalog.All[0].Name}.");
         }
         return outputs[0];
     }
@@ -110,24 +110,24 @@ public sealed class SecurityDetailFrames{
         sink.Load(new AddressRow(101,"1 Main St.",null,Code16.From("10001"),"USA"));
         sink.Load(new AddressRow(102,"2 Side St.",null,Code16.From("10001"),"USA"));
         sink.Load(new AddressRow(201,"11 Wall St.","Floor 3",Code16.From("20002"),"USA"));
-        sink.Load(new ExchangeRow(Core.Code8.From("NYSE"),"New York Stock Exchange",2,930,1600,"Big board",201));
-        sink.Load(new IndustryRow(Core.Code8.From("AA"),"Industry AA",Core.Code8.From("SA")));
-        sink.Load(new IndustryRow(Core.Code8.From("AB"),"Industry AB",Core.Code8.From("SA")));
+        sink.Load(new ExchangeRow(Code8.From("NYSE"),"New York Stock Exchange",2,930,1600,"Big board",201));
+        sink.Load(new IndustryRow(Code8.From("AA"),"Industry AA",Code8.From("SA")));
+        sink.Load(new IndustryRow(Code8.From("AB"),"Industry AB",Code8.From("SA")));
         for(var company=1L;company<=5;company++){
             var address=102L;
             if(company==1){
                 address=101;
             }
-            sink.Load(new CompanyRow(company,SecurityDetailFrames.Active,"Company "+company,Core.Code8.From("AA"),"AAA","CEO "+company,address,"Description "+company,TpcETime.DayNumber(1900,1,1)));
+            sink.Load(new CompanyRow(company,SecurityDetailFrames.Active,"Company "+company,Code8.From("AA"),"AAA","CEO "+company,address,"Description "+company,TpcETime.DayNumber(1900,1,1)));
         }
-        sink.Load(new SecurityRow(SecurityDetailFrames.Alpha,Core.Code8.From("COMMON"),SecurityDetailFrames.Active,"Alpha common",Core.Code8.From("NYSE"),1,5_000_000,TpcETime.DayNumber(1990,1,2),TpcETime.DayNumber(1990,2,3),12.5m,30.25m,TpcETime.DayNumber(2004,6,1),20.75m,TpcETime.DayNumber(2004,2,2),0.50m,1.25m));
-        sink.Load(new SecurityRow(SecurityDetailFrames.Beta,Core.Code8.From("COMMON"),SecurityDetailFrames.Active,"Beta common",Core.Code8.From("NYSE"),2,7_000_000,TpcETime.DayNumber(1991,1,2),TpcETime.DayNumber(1991,2,3),8.5m,22.00m,TpcETime.DayNumber(2004,7,1),21.00m,TpcETime.DayNumber(2004,3,2),0.10m,0.75m));
+        sink.Load(new SecurityRow(SecurityDetailFrames.Alpha,Code8.From("COMMON"),SecurityDetailFrames.Active,"Alpha common",Code8.From("NYSE"),1,5_000_000,TpcETime.DayNumber(1990,1,2),TpcETime.DayNumber(1990,2,3),12.5m,30.25m,TpcETime.DayNumber(2004,6,1),20.75m,TpcETime.DayNumber(2004,2,2),0.50m,1.25m));
+        sink.Load(new SecurityRow(SecurityDetailFrames.Beta,Code8.From("COMMON"),SecurityDetailFrames.Active,"Beta common",Code8.From("NYSE"),2,7_000_000,TpcETime.DayNumber(1991,1,2),TpcETime.DayNumber(1991,2,3),8.5m,22.00m,TpcETime.DayNumber(2004,7,1),21.00m,TpcETime.DayNumber(2004,3,2),0.10m,0.75m));
         // 競合は入れる順をばらす(索引が会社 ID の昇順に並べる)
-        sink.Load(new CompanyCompetitorRow(1,5,Core.Code8.From("AA")));
-        sink.Load(new CompanyCompetitorRow(1,3,Core.Code8.From("AA")));
-        sink.Load(new CompanyCompetitorRow(1,2,Core.Code8.From("AB")));
-        sink.Load(new CompanyCompetitorRow(1,4,Core.Code8.From("AA")));
-        sink.Load(new CompanyCompetitorRow(2,1,Core.Code8.From("AA")));
+        sink.Load(new CompanyCompetitorRow(1,5,Code8.From("AA")));
+        sink.Load(new CompanyCompetitorRow(1,3,Code8.From("AA")));
+        sink.Load(new CompanyCompetitorRow(1,2,Code8.From("AB")));
+        sink.Load(new CompanyCompetitorRow(1,4,Code8.From("AA")));
+        sink.Load(new CompanyCompetitorRow(2,1,Code8.From("AA")));
         for(var year=2004;year>=2000;year--){
             for(var quarter=4;quarter>=1;quarter--){
                 sink.Load(SecurityDetailFrames.Financial(1,year,quarter));

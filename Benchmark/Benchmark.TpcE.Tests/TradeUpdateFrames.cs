@@ -132,9 +132,9 @@ public sealed class TradeUpdateFrames{
                 store.Dispose();
             }
         }
-        var expected=Core.CanonicalWriter.ToBytes(outputs[0]);
+        var expected=CanonicalWriter.ToBytes(outputs[0]);
         for(var index=1;index<outputs.Count;index++){
-            Assert.True(expected.AsSpan().SequenceEqual(Core.CanonicalWriter.ToBytes(outputs[index])),$"{VariantCatalog.All[index].Name} differs from {VariantCatalog.All[0].Name}.");
+            Assert.True(expected.AsSpan().SequenceEqual(CanonicalWriter.ToBytes(outputs[index])),$"{VariantCatalog.All[index].Name} differs from {VariantCatalog.All[0].Name}.");
             Assert.Empty(digests[0].Differences(digests[index]));
         }
         return outputs[0];

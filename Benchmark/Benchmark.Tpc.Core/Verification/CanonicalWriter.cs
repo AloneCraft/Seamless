@@ -4,7 +4,7 @@ using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
-namespace Benchmark.TpcE.Core;
+namespace Benchmark.Tpc.Core;
 /// <summary>並びの順序に意味が無いことを示す(比較の前に要素のバイト列で並べ替える)。</summary>
 [AttributeUsage(AttributeTargets.Property|AttributeTargets.Field)]
 public sealed class UnorderedAttribute:Attribute;

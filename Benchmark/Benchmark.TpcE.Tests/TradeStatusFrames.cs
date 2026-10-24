@@ -40,7 +40,7 @@ public sealed class TradeStatusFrames{
             //CE の入力: 実在の顧客の実在の口座
             var model=new TpcEModel(7,new TpcEScale{Customers=1000});
             var generator=new CeInputGenerator(new CeContext(model));
-            var rng=new Core.Rng(17);
+            var rng=new Rng(17);
             for(var index=0;index<1000;index++){
                 var input=generator.TradeStatus(ref rng);
                 var customer=TpcEModel.CustomerOfAccount(input.AccountId);
@@ -57,23 +57,23 @@ public sealed class TradeStatusFrames{
     }
     /// <summary>口座 10(顧客 1・ブローカー 1)に取引 1〜52、口座 11(顧客 1・ブローカー 2)に取引 101〜103。</summary>
     private static void Load(ILoadSink sink){
-        sink.Load(new CustomerRow(1,Code24.From("C000000000001"),Core.Code8.From("ACTV"),"Tanaka","Taro",null,"M",2,0,1,null,null,null,null,null,null,null,null,null,null,null,null,null,null));
+        sink.Load(new CustomerRow(1,Code24.From("C000000000001"),Code8.From("ACTV"),"Tanaka","Taro",null,"M",2,0,1,null,null,null,null,null,null,null,null,null,null,null,null,null,null));
         sink.Load(new CustomerAccountRow(10,1,1,"main",1,1000.00m));
         sink.Load(new CustomerAccountRow(11,2,1,"sub",1,10.00m));
-        sink.Load(new BrokerRow(1,Core.Code8.From("ACTV"),"Zed Brown",0,0m));
-        sink.Load(new BrokerRow(2,Core.Code8.From("ACTV"),"Amy Lee",0,0m));
-        sink.Load(new StatusTypeRow(Core.Code8.From("CMPT"),"Completed"));
-        sink.Load(new StatusTypeRow(Core.Code8.From("ACTV"),"Active"));
-        sink.Load(new StatusTypeRow(Core.Code8.From("SBMT"),"Submitted"));
-        sink.Load(new StatusTypeRow(Core.Code8.From("PNDG"),"Pending"));
-        sink.Load(new StatusTypeRow(Core.Code8.From("CNCL"),"Canceled"));
-        sink.Load(new TradeTypeRow(Core.Code8.From("TMB"),"Market-Buy",false,true));
-        sink.Load(new TradeTypeRow(Core.Code8.From("TMS"),"Market-Sell",true,true));
-        sink.Load(new TradeTypeRow(Core.Code8.From("TLB"),"Limit-Buy",false,false));
-        sink.Load(new TradeTypeRow(Core.Code8.From("TLS"),"Limit-Sell",true,false));
-        sink.Load(new TradeTypeRow(Core.Code8.From("TSL"),"Stop-Loss",true,false));
-        sink.Load(new ExchangeRow(Core.Code8.From("NYSE"),"New York Stock Exchange",1,930,1600,null,1));
-        sink.Load(new ExchangeRow(Core.Code8.From("NASDAQ"),"NASDAQ Stock Market",1,930,1600,null,2));
+        sink.Load(new BrokerRow(1,Code8.From("ACTV"),"Zed Brown",0,0m));
+        sink.Load(new BrokerRow(2,Code8.From("ACTV"),"Amy Lee",0,0m));
+        sink.Load(new StatusTypeRow(Code8.From("CMPT"),"Completed"));
+        sink.Load(new StatusTypeRow(Code8.From("ACTV"),"Active"));
+        sink.Load(new StatusTypeRow(Code8.From("SBMT"),"Submitted"));
+        sink.Load(new StatusTypeRow(Code8.From("PNDG"),"Pending"));
+        sink.Load(new StatusTypeRow(Code8.From("CNCL"),"Canceled"));
+        sink.Load(new TradeTypeRow(Code8.From("TMB"),"Market-Buy",false,true));
+        sink.Load(new TradeTypeRow(Code8.From("TMS"),"Market-Sell",true,true));
+        sink.Load(new TradeTypeRow(Code8.From("TLB"),"Limit-Buy",false,false));
+        sink.Load(new TradeTypeRow(Code8.From("TLS"),"Limit-Sell",true,false));
+        sink.Load(new TradeTypeRow(Code8.From("TSL"),"Stop-Loss",true,false));
+        sink.Load(new ExchangeRow(Code8.From("NYSE"),"New York Stock Exchange",1,930,1600,null,1));
+        sink.Load(new ExchangeRow(Code8.From("NASDAQ"),"NASDAQ Stock Market",1,930,1600,null,2));
         sink.Load(Security("AAAA","Alpha Common","NYSE"));
         sink.Load(Security("AAAB","Beta Common","NASDAQ"));
         for(var trade=1;trade<=52;trade++){
@@ -91,10 +91,10 @@ public sealed class TradeStatusFrames{
         if(trade%2==1){
             symbol="AAAB";
         }
-        return new(trade,dts,Core.Code8.From(statuses[trade%3]),Core.Code8.From(types[trade%3]),true,Code16.From(symbol),100+trade,20.00m,accountId,"Taro Tanaka",null,trade/10m,1.00m,0m,false);
+        return new(trade,dts,Code8.From(statuses[trade%3]),Code8.From(types[trade%3]),true,Code16.From(symbol),100+trade,20.00m,accountId,"Taro Tanaka",null,trade/10m,1.00m,0m,false);
     }
     private static SecurityRow Security(string symbol,string name,string exchange){
-        return new(Code16.From(symbol),Core.Code8.From("COMMON"),Core.Code8.From("ACTV"),name,Core.Code8.From(exchange),1,1000,0,0,10m,30m,0,20m,0,1m,1m);
+        return new(Code16.From(symbol),Code8.From("COMMON"),Code8.From("ACTV"),name,Code8.From(exchange),1,1000,0,0,10m,30m,0,20m,0,1m,1m);
     }
     /// <summary>
     /// 4 通りのエンジンに同じ行を入れて入力を順に流し、4 通りの出力の正規化バイト列が一致することと、DB が変わらないこと(読み取りだけの取引)を確かめて、先頭のエンジンの出力を返す。
@@ -115,7 +115,7 @@ public sealed class TradeStatusFrames{
         }
         foreach(var (name,outputs) in results){
             for(var index=0;index<inputs.Length;index++){
-                Assert.True(Core.CanonicalWriter.ToBytes(results[0].Outputs[index]).AsSpan().SequenceEqual(Core.CanonicalWriter.ToBytes(outputs[index])),$"{name}: output #{index} differs from {results[0].Name}: {outputs[index]}");
+                Assert.True(CanonicalWriter.ToBytes(results[0].Outputs[index]).AsSpan().SequenceEqual(CanonicalWriter.ToBytes(outputs[index])),$"{name}: output #{index} differs from {results[0].Name}: {outputs[index]}");
             }
         }
         return results[0].Outputs;
