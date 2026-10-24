@@ -33,4 +33,14 @@ for round in 1 2 3; do
 done
 # 6: 小規模(約 5.7 万行)のログを残す
 run exp6b-small "$NEW" exp6 --scale small --saves 4 --txns 500 --release true
+# 追加(限界を埋める): 保存の積み重ね・データ本体の数・Set の固定メモリ・メモリ内の 100 万回受け渡し
+run exp7-checkpoints "$NEW" exp7 --mode checkpoints --scale small --steps 1,5,10,20,40,80 --txns 50
+run exp7-storecount "$NEW" exp7 --mode storecount --rows 20000 --counts 1,2,4,9,18,36
+run exp7-setoverhead "$NEW" exp7 --mode setoverhead
+run exp2-thread-bigmem-1m "$NEW" exp2 --mode thread --handoffs 1000000 --small-memory false --save-every 100000 --verify-every 100000 --reacquire-every 50000
+run exp2-pool-bigmem-1m "$NEW" exp2 --mode pool --handoffs 1000000 --small-memory false --save-every 100000 --verify-every 100000 --reacquire-every 50000
+# 複数コア(他プロセスの負荷が低いと確認してから短時間だけ。論理 CPU 1,3,5,7)
+# run exp2mc-thread-bigmem-1m "$NEW" exp2 --mode thread --handoffs 1000000 --small-memory false --save-every 100000 --verify-every 100000 --reacquire-every 50000 --cpu 1,3,5,7
+# run exp1mc-p4-all "$NEW" exp1 --partitions 4 --seconds 30 --save-by all --release true --save-interval-ms 300 --cpu 1,3,5,7
+# run exp4mc-crash-p4-saves "$NEW" exp4 --mode crash --partitions 4 --cycles 12 --kill-mode saves --save-interval-ms 600 --seed 5 --cpu 1,3,5,7
 echo "== final done $(date +%H:%M:%S)"

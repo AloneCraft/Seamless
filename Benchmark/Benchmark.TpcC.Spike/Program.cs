@@ -10,7 +10,7 @@ namespace Benchmark.TpcC.Spike;
 public static class Program{
     public static int Main(string[] args){
         if(args.Length==0){
-            Console.Error.WriteLine("usage: exp1|exp2|exp3|exp4|exp4child|exp5|exp6 [--key value]...");
+            Console.Error.WriteLine("usage: exp1|exp2|exp3|exp4|exp4child|exp5|exp6|exp7 [--key value]...");
             return 2;
         }
         var options=new Args(args[1..]);
@@ -25,6 +25,7 @@ public static class Program{
                 "exp4child"=>Exp4.Child(options),
                 "exp5"=>Exp5.Run(options),
                 "exp6"=>Exp6.Run(options),
+                "exp7"=>Exp7.Run(options),
                 _=>throw new ArgumentException("unknown command "+args[0]),
             };
         }catch(Exception error){
