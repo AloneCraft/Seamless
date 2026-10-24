@@ -46,7 +46,7 @@ public sealed partial class OptimizationFixedPointTests{
         public sealed class Container{
             [LinqIntercept(
                 true,
-                Optimizations=LinqOptimizations.All,
+                Optimizations=LinqOptimizations.PipelineFusion|LinqOptimizations.PredicatePushdown|LinqOptimizations.ProjectionMerge,
                 ConvergenceMode=LinqConvergenceMode.GlobalFixedPoint,
                 EmitOptimizationTrace=true)]
             private static int[] Query(int[] source)=>source
