@@ -79,7 +79,7 @@ public sealed class TpcCDataGenerator(TpcCScale scale,TpcCLoadRules rules,ulong 
             }
             sink.Load(new CustomerRow(
                 warehouse,district,customer,first,"OE",LastName(number),AString(ref rng,10,20),AString(ref rng,10,20),AString(ref rng,10,20),State(ref rng),Zip(ref rng),NString(ref rng,16,16),
-                this.Rules.LoadTime,credit,50_000.00m,rng.Range(0,5000)/10_000m,-10.00m,10.00m,1,0,AString(ref rng,300,500)));
+                this.Rules.LoadTime,credit,50_000.00m,this.Discount(ref rng),-10.00m,10.00m,1,0,AString(ref rng,300,500)));
             sink.Load(new HistoryRow(warehouse,district,customer,warehouse,district,customer,this.Rules.LoadTime,10.00m,AString(ref rng,12,24)));
         }
         // 初期の注文は顧客ごとに 1 件。O_C_ID は顧客 ID の無作為な順列。
@@ -87,9 +87,11 @@ public sealed class TpcCDataGenerator(TpcCScale scale,TpcCLoadRules rules,ulong 
         for(var index=0;index<customers;index++){
             permutation[index]=index+1;
         }
-        for(var index=customers-1;index>0;index--){
-            var other=rng.Range(0,index);
-            (permutation[index],permutation[other])=(permutation[other],permutation[index]);
+        if(this.Rules.OrderCustomerIsPermutation){
+            for(var index=customers-1;index>0;index--){
+                var other=rng.Range(0,index);
+                (permutation[index],permutation[other])=(permutation[other],permutation[index]);
+            }
         }
         var firstNewOrder=this.Scale.FirstInitialNewOrder;
         for(var order=1;order<=this.Scale.InitialOrdersPerDistrict;order++){
@@ -99,7 +101,11 @@ public sealed class TpcCDataGenerator(TpcCScale scale,TpcCLoadRules rules,ulong 
             if(delivered){
                 carrier=rng.Range(1,10);
             }
-            sink.Load(new OrderRow(warehouse,district,order,permutation[order-1],this.Rules.LoadTime,carrier,lines,1));
+            var orderCustomer=permutation[order-1];
+            if(!this.Rules.OrderCustomerIsPermutation){
+                orderCustomer=rng.Range(order,customers);
+            }
+            sink.Load(new OrderRow(warehouse,district,order,orderCustomer,this.Rules.LoadTime,carrier,lines,1));
             if(!delivered){
                 sink.Load(new NewOrderRow(warehouse,district,order));
             }
@@ -109,14 +115,18 @@ public sealed class TpcCDataGenerator(TpcCScale scale,TpcCLoadRules rules,ulong 
                 var amount=0m;
                 if(delivered){
                     deliveryDate=this.Rules.LoadTime;
-                }else{
+                    if(this.Rules.InvertedInitialLineAmounts){
+                        amount=rng.Range(10,10_000)/100m;
+                    }
+                }else if(!this.Rules.InvertedInitialLineAmounts){
                     amount=rng.Range(1,999_999)/100m;
                 }
                 sink.Load(new OrderLineRow(warehouse,district,order,number,item,warehouse,deliveryDate,5,amount,AString(ref rng,24,24)));
             }
         }
     }
-    private decimal Tax(ref Rng rng)=>rng.Range(this.Rules.TaxMin,this.Rules.TaxMax)/10_000m;
+    private decimal Tax(ref Rng rng)=>rng.Range(this.Rules.TaxMin/this.Rules.TaxStep,this.Rules.TaxMax/this.Rules.TaxStep)*this.Rules.TaxStep/10_000m;
+    private decimal Discount(ref Rng rng)=>rng.Range(0,5000/this.Rules.DiscountStep)*this.Rules.DiscountStep/10_000m;
     /// <summary>26〜50 文字の a-string。10% は無作為な位置に印(ORIGINAL)を埋める。</summary>
     private string DataWithOriginal(ref Rng rng){
         var text=AString(ref rng,26,50);

@@ -12,13 +12,15 @@ public sealed class TpcCConsistency{
     private static Core.ConsistencyResult Condition(IReadOnlyList<Core.ConsistencyResult> results,int number)=>results.Single(result=>result.Condition==number);
     [Fact,Trait("Category","Integration")]public void Check(){
         {
-            //初期データは全部の条件(1〜12、条件 11 は初期状態のみ)に合格する。仕様の形も HammerDB の形も
+            //仕様の形の初期データは全部の条件(1〜12、条件 11 は初期状態のみ)に合格する。
+            //HammerDB の形は、初期の明細金額が仕様と逆なので(Q-027)、条件 10・12 だけが初めから外れる(Q-046)
             foreach(var mode in new[]{Core.TpcCMode.Spec,Core.TpcCMode.HammerDbMssql}){
                 WithDatabase(TestDatabases.Mini(3,2),db=>{
                     var results=Core.TpcCConsistency.Check(db,deep:true,initial:true);
                     Assert.Equal(Enumerable.Range(1,12),results.Select(result=>result.Condition));
                     foreach(var result in results){
-                        Assert.True(result.Passed,$"{mode} CC{result.Condition}: {result.Detail}");
+                        var expectedToFail=mode==Core.TpcCMode.HammerDbMssql&&(result.Condition==10||result.Condition==12);
+                        Assert.True(result.Passed!=expectedToFail,$"{mode} CC{result.Condition}: {result.Detail}");
                         Assert.True(result.Checked>0,$"CC{result.Condition} checked nothing");
                     }
                 },mode);

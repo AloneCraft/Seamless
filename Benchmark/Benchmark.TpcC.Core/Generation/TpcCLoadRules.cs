@@ -6,8 +6,10 @@ public enum TpcCMode{
 }
 /// <summary>
 /// 初期データの作り方の規則(形ごとに違う点)。
-/// <see cref="Spec"/> は 4.3.3.1 どおり。<see cref="HammerDbMssql"/> は HammerDB 6.1 の規則で、
-/// <b>C4(HammerDB の規則の書き起こし)で確定するまでは仮の値</b>(Work/TpcC/docs/QUIRKS.md の確定後に直す)。
+/// <see cref="Spec"/> は 4.3.3.1 どおり。<see cref="HammerDbMssql"/> は HammerDB 6.1 の読み込みの規則で、出典は
+/// <c>Work/TpcC/docs/QUIRKS.md</c> の Q-006(C_LAST の C=123)・Q-022(小文字の original)・Q-023(税・割引の刻み)・Q-024(BC 50%)・Q-025(注文の顧客が順列にならない)・Q-027(初期の明細金額が逆)。
+/// 次の癖は NOPM の仕事量に効かないデータの不備なので再現しない: Q-021(郵便番号のゼロ埋めなし)、Q-022 の「印を付ける行を重複ありで選ぶ」(期待値 9.5%)、
+/// Q-026(bcp の形で未配達の注文に配送業者が入り、日時が空になる。再現すると一貫性の条件 5・7 が初めから外れる)。
 /// </summary>
 public sealed record TpcCLoadRules{
     public TpcCMode Mode{get;init;}=TpcCMode.Spec;
@@ -16,10 +18,18 @@ public sealed record TpcCLoadRules{
     /// <summary>W_TAX・D_TAX の範囲(万分率)。仕様は 0.0000〜0.2000。</summary>
     public int TaxMin{get;init;}
     public int TaxMax{get;init;}=2000;
+    /// <summary>W_TAX・D_TAX の刻み(万分率)。仕様は 1(0.0001 刻み)、HammerDB は 100(0.01 刻み)。</summary>
+    public int TaxStep{get;init;}=1;
+    /// <summary>C_DISCOUNT の刻み(万分率、範囲は 0.0000〜0.5000)。仕様は 1、HammerDB は 100。</summary>
+    public int DiscountStep{get;init;}=1;
     /// <summary>I_DATA・S_DATA に 10% 混ぜる印。仕様は大文字の "ORIGINAL"。</summary>
     public string OriginalMarker{get;init;}="ORIGINAL";
     /// <summary>C_LAST の NURand(255,0,999,C) の C(読み込み時)。null なら種から [0,255] で選ぶ。</summary>
     public int? LastNameCLoad{get;init;}
+    /// <summary>初期の注文の O_C_ID が顧客 ID の順列か。false(HammerDB)は、注文 i の顧客を i..顧客数 から一様に選ぶ(顧客の約半数が初期の注文を持たない)。</summary>
+    public bool OrderCustomerIsPermutation{get;init;}=true;
+    /// <summary>初期の明細の金額が仕様と逆か。true(HammerDB)は、配達済みの明細が 0.10〜100.00、未配達が 0。仕様は配達済みが 0.00、未配達が 0.01〜9,999.99。</summary>
+    public bool InvertedInitialLineAmounts{get;init;}
     /// <summary>初期データの日時(1970-01-01 からの秒)。既定は 2026-01-01T00:00:00Z。</summary>
     public long LoadTime{get;init;}=1_767_225_600;
     public static TpcCLoadRules For(TpcCMode mode){
@@ -27,8 +37,18 @@ public sealed record TpcCLoadRules{
             case TpcCMode.Spec:
                 return new TpcCLoadRules();
             case TpcCMode.HammerDbMssql:
-                // 仮: HammerDB の読み込みは BC 50%、税 0.10〜0.20、小文字の 'original'、C_LAST の C は 123 固定(事前調査の値。C4 で確定する)。
-                return new TpcCLoadRules{Mode=TpcCMode.HammerDbMssql,BadCreditPercent=50,TaxMin=1000,TaxMax=2000,OriginalMarker="original",LastNameCLoad=123};
+                return new TpcCLoadRules{
+                    Mode=TpcCMode.HammerDbMssql,
+                    BadCreditPercent=50,
+                    TaxMin=1000,
+                    TaxMax=2000,
+                    TaxStep=100,
+                    DiscountStep=100,
+                    OriginalMarker="original",
+                    LastNameCLoad=123,
+                    OrderCustomerIsPermutation=false,
+                    InvertedInitialLineAmounts=true,
+                };
             default:
                 throw new ArgumentOutOfRangeException(nameof(mode),mode,null);
         }

@@ -65,8 +65,8 @@ public sealed class TpcCDataGenerator{
     }
     [Fact,Trait("Category","Integration")]public void GenerateRules(){
         {
-            //仕様の形は BC が約 10%、HammerDB の形(仮)は約 50%。最初の 1,000 人(縮小時は全員)の姓は番号順
-            var scale=new Core.TpcCScale{Warehouses=1,Items=100,CustomersPerDistrict=3_000};
+            //仕様の形は BC が約 10%、HammerDB の形(Q-024)は約 50%。最初の 1,000 人の姓は番号順
+            var scale=new Core.TpcCScale{Warehouses=1,Items=2_000,CustomersPerDistrict=3_000};
             foreach(var (mode,low,high) in new[]{(Core.TpcCMode.Spec,0.07,0.13),(Core.TpcCMode.HammerDbMssql,0.46,0.54)}){
                 var (store,db)=TestDatabases.Load(scale,mode);
                 try{
@@ -76,6 +76,35 @@ public sealed class TpcCDataGenerator{
                     Assert.InRange(bad,low,high);
                     foreach(var row in customers.Where(row=>row.Id<=1000)){
                         Assert.Equal(Core.TpcCDataGenerator.LastName(row.Id-1),row.Last);
+                    }
+                    //税と割引の刻み: 仕様は 0.0001 刻み、HammerDB は 0.01 刻み(Q-023、税は 0.10〜0.20、割引は 0.00〜0.50)
+                    var taxes=db.For(1).District.EnumerateRows().Select(row=>row.Tax).Append(db.For(1).Warehouse.Get(new Core.WarehouseKey(1)).Tax).ToList();
+                    var discounts=customers.Select(row=>row.Discount).ToList();
+                    if(mode==Core.TpcCMode.HammerDbMssql){
+                        Assert.All(taxes,tax=>Assert.True(tax>=0.10m&&tax<=0.20m&&tax*100m==decimal.Truncate(tax*100m),$"tax {tax}"));
+                        Assert.All(discounts,discount=>Assert.True(discount>=0m&&discount<=0.50m&&discount*100m==decimal.Truncate(discount*100m),$"discount {discount}"));
+                        Assert.Contains(discounts,discount=>discount!=0m);
+                    }else{
+                        Assert.Contains(taxes,tax=>tax*100m!=decimal.Truncate(tax*100m));
+                    }
+                    //I_DATA の印: 仕様は大文字の ORIGINAL、HammerDB は小文字の original(Q-022)
+                    var items=db.For(1).Item.EnumerateRows().ToList();
+                    var upper=items.Count(row=>row.Data.Contains("ORIGINAL",StringComparison.Ordinal));
+                    var lower=items.Count(row=>row.Data.Contains("original",StringComparison.Ordinal));
+                    if(mode==Core.TpcCMode.HammerDbMssql){
+                        Assert.Equal(0,upper);
+                        Assert.InRange(lower,100,300);
+                    }else{
+                        Assert.Equal(0,lower);
+                        Assert.InRange(upper,100,300);
+                    }
+                    //初期の注文の顧客: 仕様は順列(全員が 1 件)、HammerDB は注文 i の顧客を i..3000 から選ぶので約半数の顧客に注文が無い(Q-025)
+                    var withOrders=db.For(1).Order.EnumerateRows().Where(row=>row.DistrictId==4).Select(row=>row.CustomerId).Distinct().Count();
+                    if(mode==Core.TpcCMode.HammerDbMssql){
+                        Assert.InRange(withOrders,1_300,1_700);
+                        Assert.All(db.For(1).Order.EnumerateRows().Where(row=>row.DistrictId==4),row=>Assert.True(row.CustomerId>=row.Id));
+                    }else{
+                        Assert.Equal(3_000,withOrders);
                     }
                 }finally{
                     db.Dispose();
