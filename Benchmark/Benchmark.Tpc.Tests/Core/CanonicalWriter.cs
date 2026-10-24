@@ -1,5 +1,5 @@
-using Benchmark.TpcE.Core;
-namespace Benchmark.TpcE.Tests;
+using Benchmark.Tpc.Core;
+namespace Benchmark.Tpc.Tests;
 public sealed class CanonicalWriter{
     private readonly record struct Sample(long Id,decimal Amount,string? Name,Core.Code8 Code,int[] Values);
     private readonly record struct WithDouble(double Value);

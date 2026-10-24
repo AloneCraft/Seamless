@@ -50,7 +50,7 @@ public sealed class BrokerVolumeFrames{
             //CE の入力: 互いに異なる実在のブローカー名を 20〜40 件(ブローカーが少ない規模では全員)と、実在の部門名
             var model=new TpcEModel(7,new TpcEScale{Customers=5000});
             var generator=new CeInputGenerator(new CeContext(model));
-            var rng=new Core.Rng(11);
+            var rng=new Rng(11);
             var brokerNames=new HashSet<string>(StringComparer.Ordinal);
             for(var broker=1L;broker<=model.Scale.Brokers;broker++){
                 brokerNames.Add(model.BrokerName(broker));
@@ -75,12 +75,12 @@ public sealed class BrokerVolumeFrames{
     /// 銘柄 AAAA・AAAA-PA(会社 1)、AAAB(会社 2)、AAAC(会社 3)。ブローカー 1 Zed Brown、2 Amy Lee、3 Carl Ng。
     /// </summary>
     private static void Load(ILoadSink sink){
-        sink.Load(new SectorRow(Core.Code8.From("SA"),"Energy"));
-        sink.Load(new SectorRow(Core.Code8.From("SB"),"Technology"));
-        sink.Load(new SectorRow(Core.Code8.From("SC"),"Healthcare"));
-        sink.Load(new IndustryRow(Core.Code8.From("IA"),"Oil",Core.Code8.From("SA")));
-        sink.Load(new IndustryRow(Core.Code8.From("IB"),"Gas",Core.Code8.From("SA")));
-        sink.Load(new IndustryRow(Core.Code8.From("IC"),"Software",Core.Code8.From("SB")));
+        sink.Load(new SectorRow(Code8.From("SA"),"Energy"));
+        sink.Load(new SectorRow(Code8.From("SB"),"Technology"));
+        sink.Load(new SectorRow(Code8.From("SC"),"Healthcare"));
+        sink.Load(new IndustryRow(Code8.From("IA"),"Oil",Code8.From("SA")));
+        sink.Load(new IndustryRow(Code8.From("IB"),"Gas",Code8.From("SA")));
+        sink.Load(new IndustryRow(Code8.From("IC"),"Software",Code8.From("SB")));
         sink.Load(Company(1,"IA"));
         sink.Load(Company(2,"IB"));
         sink.Load(Company(3,"IC"));
@@ -88,9 +88,9 @@ public sealed class BrokerVolumeFrames{
         sink.Load(Security("AAAA-PA",1));
         sink.Load(Security("AAAB",2));
         sink.Load(Security("AAAC",3));
-        sink.Load(new BrokerRow(1,Core.Code8.From("ACTV"),"Zed Brown",0,0m));
-        sink.Load(new BrokerRow(2,Core.Code8.From("ACTV"),"Amy Lee",0,0m));
-        sink.Load(new BrokerRow(3,Core.Code8.From("ACTV"),"Carl Ng",0,0m));
+        sink.Load(new BrokerRow(1,Code8.From("ACTV"),"Zed Brown",0,0m));
+        sink.Load(new BrokerRow(2,Code8.From("ACTV"),"Amy Lee",0,0m));
+        sink.Load(new BrokerRow(3,Code8.From("ACTV"),"Carl Ng",0,0m));
         sink.Load(Request(101,"TLB","AAAA",100,20.50m,1));
         sink.Load(Request(102,"TLS","AAAB",200,25.00m,2));
         sink.Load(Request(103,"TSL","AAAA-PA",50,21.10m,1));
@@ -100,13 +100,13 @@ public sealed class BrokerVolumeFrames{
         sink.Load(Request(107,"TLS","AAAC",100,120.00m,2));
     }
     private static CompanyRow Company(long id,string industry){
-        return new(id,Core.Code8.From("ACTV"),"Company "+id.ToString(System.Globalization.CultureInfo.InvariantCulture),Core.Code8.From(industry),"AAA","Ceo",id,"",0);
+        return new(id,Code8.From("ACTV"),"Company "+id.ToString(System.Globalization.CultureInfo.InvariantCulture),Code8.From(industry),"AAA","Ceo",id,"",0);
     }
     private static SecurityRow Security(string symbol,long companyId){
-        return new(Code16.From(symbol),Core.Code8.From("COMMON"),Core.Code8.From("ACTV"),symbol+" stock",Core.Code8.From("NYSE"),companyId,1000,0,0,10m,30m,0,20m,0,1m,1m);
+        return new(Code16.From(symbol),Code8.From("COMMON"),Code8.From("ACTV"),symbol+" stock",Code8.From("NYSE"),companyId,1000,0,0,10m,30m,0,20m,0,1m,1m);
     }
     private static TradeRequestRow Request(long tradeId,string type,string symbol,int quantity,decimal bidPrice,long brokerId){
-        return new(tradeId,Core.Code8.From(type),Code16.From(symbol),quantity,bidPrice,brokerId);
+        return new(tradeId,Code8.From(type),Code16.From(symbol),quantity,bidPrice,brokerId);
     }
     /// <summary>
     /// 4 通りのエンジンに同じ行を入れて入力を順に流し、4 通りの出力の正規化バイト列が一致することと、DB が変わらないこと(読み取りだけの取引)を確かめて、先頭のエンジンの出力を返す。
@@ -127,7 +127,7 @@ public sealed class BrokerVolumeFrames{
         }
         foreach(var (name,outputs) in results){
             for(var index=0;index<inputs.Length;index++){
-                Assert.True(Core.CanonicalWriter.ToBytes(results[0].Outputs[index]).AsSpan().SequenceEqual(Core.CanonicalWriter.ToBytes(outputs[index])),$"{name}: output #{index} differs from {results[0].Name}: {outputs[index]}");
+                Assert.True(CanonicalWriter.ToBytes(results[0].Outputs[index]).AsSpan().SequenceEqual(CanonicalWriter.ToBytes(outputs[index])),$"{name}: output #{index} differs from {results[0].Name}: {outputs[index]}");
             }
         }
         return results[0].Outputs;

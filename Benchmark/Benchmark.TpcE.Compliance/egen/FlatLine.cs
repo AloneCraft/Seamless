@@ -65,9 +65,9 @@ internal sealed class FlatLine{
         }
         return TpcETime.FromDateTime(value)+milliseconds;
     }
-    public Code8 Code8(int field)=>Benchmark.TpcE.Core.Code8.From(this.Span(field).ToString());
-    public Code16 Code16(int field)=>Benchmark.TpcE.Core.Code16.From(this.Span(field).ToString());
-    public Code24 Code24(int field)=>Benchmark.TpcE.Core.Code24.From(this.Span(field).ToString());
+    public Code8 Code8(int field)=>Benchmark.Tpc.Core.Code8.From(this.Span(field).ToString());
+    public Code16 Code16(int field)=>Benchmark.Tpc.Core.Code16.From(this.Span(field).ToString());
+    public Code24 Code24(int field)=>Benchmark.Tpc.Core.Code24.From(this.Span(field).ToString());
     public byte[] Utf8(int field)=>Encoding.UTF8.GetBytes(this.Span(field).ToString());
     private static int Digits(ReadOnlySpan<char> span,int offset,int length){
         var value=0;

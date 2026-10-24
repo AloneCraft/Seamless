@@ -65,7 +65,7 @@ public sealed class MarketWatchFrames{
             var model=new TpcEModel(7,new TpcEScale{Customers=1000});
             var context=new CeContext(model){MarketDays=model.MarketDays()};
             var generator=new CeInputGenerator(context);
-            var rng=new Core.Rng(19);
+            var rng=new Rng(19);
             var days=new HashSet<long>(context.MarketDays);
             var industries=new HashSet<string>(StringComparer.Ordinal);
             for(var industry=0;industry<TpcEModel.IndustryCount;industry++){
@@ -105,10 +105,10 @@ public sealed class MarketWatchFrames{
     /// 顧客 1 のウォッチリスト 1(AAAA・AAAB)と 2(AAAA)、顧客 2 のリスト 3(AAAD)。口座 10 の保有は AAAC・AAAD。
     /// </summary>
     private static void Load(ILoadSink sink){
-        sink.Load(new SectorRow(Core.Code8.From("SA"),"Energy"));
-        sink.Load(new SectorRow(Core.Code8.From("SB"),"Technology"));
-        sink.Load(new IndustryRow(Core.Code8.From("IA"),"Oil Products",Core.Code8.From("SA")));
-        sink.Load(new IndustryRow(Core.Code8.From("IB"),"Software",Core.Code8.From("SB")));
+        sink.Load(new SectorRow(Code8.From("SA"),"Energy"));
+        sink.Load(new SectorRow(Code8.From("SB"),"Technology"));
+        sink.Load(new IndustryRow(Code8.From("IA"),"Oil Products",Code8.From("SA")));
+        sink.Load(new IndustryRow(Code8.From("IB"),"Software",Code8.From("SB")));
         sink.Load(Company(1,"IA"));
         sink.Load(Company(2,"IA"));
         sink.Load(Company(3,"IB"));
@@ -132,13 +132,13 @@ public sealed class MarketWatchFrames{
     /// <summary>銘柄 1 つぶん(SECURITY、2 日分の DAILY_MARKET、LAST_TRADE)。</summary>
     private static void Symbol(ILoadSink sink,string text,long companyId,long numOutstanding,decimal closeDay1,decimal closeDay2,decimal price){
         var symbol=Code16.From(text);
-        sink.Load(new SecurityRow(symbol,Core.Code8.From("COMMON"),Core.Code8.From("ACTV"),text+" stock",Core.Code8.From("NYSE"),companyId,numOutstanding,0,0,10m,60m,0,5m,0,1m,1m));
+        sink.Load(new SecurityRow(symbol,Code8.From("COMMON"),Code8.From("ACTV"),text+" stock",Code8.From("NYSE"),companyId,numOutstanding,0,0,10m,60m,0,5m,0,1m,1m));
         sink.Load(new DailyMarketRow(MarketWatchFrames.Day1,symbol,closeDay1,closeDay1+1m,closeDay1-1m,1000));
         sink.Load(new DailyMarketRow(MarketWatchFrames.Day2,symbol,closeDay2,closeDay2+1m,closeDay2-1m,1000));
         sink.Load(new LastTradeRow(symbol,0,price,price,0));
     }
     private static CompanyRow Company(long id,string industry){
-        return new(id,Core.Code8.From("ACTV"),"Company "+id.ToString(System.Globalization.CultureInfo.InvariantCulture),Core.Code8.From(industry),"AAA","Ceo",id,"",0);
+        return new(id,Code8.From("ACTV"),"Company "+id.ToString(System.Globalization.CultureInfo.InvariantCulture),Code8.From(industry),"AAA","Ceo",id,"",0);
     }
     /// <summary>
     /// 4 通りのエンジンに同じ行を入れて入力を順に流し、4 通りの出力の正規化バイト列が一致することと、DB が変わらないこと(読み取りだけの取引)を確かめて、先頭のエンジンの出力を返す。
@@ -159,7 +159,7 @@ public sealed class MarketWatchFrames{
         }
         foreach(var (name,outputs) in results){
             for(var index=0;index<inputs.Length;index++){
-                Assert.True(Core.CanonicalWriter.ToBytes(results[0].Outputs[index]).AsSpan().SequenceEqual(Core.CanonicalWriter.ToBytes(outputs[index])),$"{name}: output #{index} differs from {results[0].Name}: {outputs[index]}");
+                Assert.True(CanonicalWriter.ToBytes(results[0].Outputs[index]).AsSpan().SequenceEqual(CanonicalWriter.ToBytes(outputs[index])),$"{name}: output #{index} differs from {results[0].Name}: {outputs[index]}");
             }
         }
         return results[0].Outputs;

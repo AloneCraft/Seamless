@@ -1,5 +1,5 @@
-using Benchmark.TpcE.Core;
-namespace Benchmark.TpcE.Tests;
+using Benchmark.Tpc.Core;
+namespace Benchmark.Tpc.Tests;
 public sealed class Rng{
     [Fact,Trait("Category","Unit")]public void For(){
         {

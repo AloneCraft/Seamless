@@ -24,7 +24,7 @@ public sealed class CustomerPositionFrames{
             Assert.Equal("Q",output.MiddleInitial);
             Assert.Equal("M",output.Gender);
             Assert.Equal(2,output.Tier);
-            Assert.Equal(Core.Code8.From("ACTV"),output.CustomerStatusId);
+            Assert.Equal(Code8.From("ACTV"),output.CustomerStatusId);
             Assert.Equal(TpcETime.DayNumber(1970,5,6),output.DateOfBirth);
             Assert.Equal(101,output.AddressId);
             Assert.Equal("81",output.Country1);
@@ -95,7 +95,7 @@ public sealed class CustomerPositionFrames{
             //CE の入力: 納税者番号か顧客 ID のどちらか一方で、実在の顧客を指す。履歴を求めるときだけ口座の添字が口座数の範囲に入る
             var model=new TpcEModel(7,new TpcEScale{Customers=1000});
             var generator=new CeInputGenerator(new CeContext(model));
-            var rng=new Core.Rng(13);
+            var rng=new Rng(13);
             var byTaxId=0;
             var withHistory=0;
             for(var index=0;index<2000;index++){
@@ -144,35 +144,35 @@ public sealed class CustomerPositionFrames{
         sink.Load(new HoldingSummaryRow(20,aaaa,1000));
         sink.Load(new LastTradeRow(aaaa,Start,20.00m,19.00m,0));
         sink.Load(new LastTradeRow(aaab,Start,30.50m,30.00m,0));
-        sink.Load(new StatusTypeRow(Core.Code8.From("CMPT"),"Completed"));
-        sink.Load(new StatusTypeRow(Core.Code8.From("ACTV"),"Active"));
-        sink.Load(new StatusTypeRow(Core.Code8.From("SBMT"),"Submitted"));
-        sink.Load(new StatusTypeRow(Core.Code8.From("PNDG"),"Pending"));
-        sink.Load(new StatusTypeRow(Core.Code8.From("CNCL"),"Canceled"));
-        var completed=Core.Code8.From("CMPT");
+        sink.Load(new StatusTypeRow(Code8.From("CMPT"),"Completed"));
+        sink.Load(new StatusTypeRow(Code8.From("ACTV"),"Active"));
+        sink.Load(new StatusTypeRow(Code8.From("SBMT"),"Submitted"));
+        sink.Load(new StatusTypeRow(Code8.From("PNDG"),"Pending"));
+        sink.Load(new StatusTypeRow(Code8.From("CNCL"),"Canceled"));
+        var completed=Code8.From("CMPT");
         for(var trade=1;trade<=12;trade++){
             var dts=TradeDts(trade);
             var type="TMB";
             if(trade==12){
                 type="TLB";
-                sink.Load(new TradeHistoryRow(trade,dts-2000,Core.Code8.From("PNDG")));
+                sink.Load(new TradeHistoryRow(trade,dts-2000,Code8.From("PNDG")));
             }
-            sink.Load(new TradeRow(trade,dts,completed,Core.Code8.From(type),true,aaaa,100+trade,20.00m,10,"Taro Tanaka",20.00m,1.00m,2.00m,0m,false));
-            sink.Load(new TradeHistoryRow(trade,dts-1000,Core.Code8.From("SBMT")));
+            sink.Load(new TradeRow(trade,dts,completed,Code8.From(type),true,aaaa,100+trade,20.00m,10,"Taro Tanaka",20.00m,1.00m,2.00m,0m,false));
+            sink.Load(new TradeHistoryRow(trade,dts-1000,Code8.From("SBMT")));
             sink.Load(new TradeHistoryRow(trade,dts,completed));
         }
         // 他の顧客の取引(入らないことの確認用)。
-        sink.Load(new TradeRow(13,TradeDts(13),completed,Core.Code8.From("TMB"),true,aaaa,500,20.00m,20,"Hanako Suzuki",20.00m,1.00m,2.00m,0m,false));
+        sink.Load(new TradeRow(13,TradeDts(13),completed,Code8.From("TMB"),true,aaaa,500,20.00m,20,"Hanako Suzuki",20.00m,1.00m,2.00m,0m,false));
         sink.Load(new TradeHistoryRow(13,TradeDts(13),completed));
         // 顧客 4(口座 40): 取引 201〜210 に状態の記録を 4 件ずつ(PNDG・SBMT・ACTV・CMPT)。
         sink.Load(Customer(4,"C000000000004","Ito","Saburo"));
         sink.Load(new CustomerAccountRow(40,1,4,"busy",1,0m));
         for(var trade=201;trade<=210;trade++){
             var dts=TradeDts(trade);
-            sink.Load(new TradeRow(trade,dts,completed,Core.Code8.From("TLB"),true,aaaa,trade,20.00m,40,"Saburo Ito",20.00m,1.00m,2.00m,0m,false));
-            sink.Load(new TradeHistoryRow(trade,dts-3000,Core.Code8.From("PNDG")));
-            sink.Load(new TradeHistoryRow(trade,dts-2000,Core.Code8.From("SBMT")));
-            sink.Load(new TradeHistoryRow(trade,dts-1000,Core.Code8.From("ACTV")));
+            sink.Load(new TradeRow(trade,dts,completed,Code8.From("TLB"),true,aaaa,trade,20.00m,40,"Saburo Ito",20.00m,1.00m,2.00m,0m,false));
+            sink.Load(new TradeHistoryRow(trade,dts-3000,Code8.From("PNDG")));
+            sink.Load(new TradeHistoryRow(trade,dts-2000,Code8.From("SBMT")));
+            sink.Load(new TradeHistoryRow(trade,dts-1000,Code8.From("ACTV")));
             sink.Load(new TradeHistoryRow(trade,dts,completed));
         }
         // 顧客 5: 口座 50〜60 の 11 口座。口座 50+k は AAAA を数量 [1,2,3,3,5,6,7,8,9,10,11][k] 持つ(資産は ×20.00)。
@@ -185,13 +185,13 @@ public sealed class CustomerPositionFrames{
     }
     private static CustomerRow Customer(long id,string taxId,string lastName,string firstName){
         if(id==1){
-            return new(id,Code24.From(taxId),Core.Code8.From("ACTV"),lastName,firstName,"Q","M",2,TpcETime.DayNumber(1970,5,6),101,
+            return new(id,Code24.From(taxId),Code8.From("ACTV"),lastName,firstName,"Q","M",2,TpcETime.DayNumber(1970,5,6),101,
                 "81","3","1234-5678",null,
                 "81","90","2222-3333","12",
                 null,null,null,null,
                 "taro@example.com",null);
         }
-        return new(id,Code24.From(taxId),Core.Code8.From("ACTV"),lastName,firstName,null,"F",1,TpcETime.DayNumber(1980,1,2),100+id,
+        return new(id,Code24.From(taxId),Code8.From("ACTV"),lastName,firstName,null,"F",1,TpcETime.DayNumber(1980,1,2),100+id,
             null,null,null,null,null,null,null,null,null,null,null,null,null,null);
     }
     /// <summary>
@@ -213,7 +213,7 @@ public sealed class CustomerPositionFrames{
         }
         foreach(var (name,outputs) in results){
             for(var index=0;index<inputs.Length;index++){
-                Assert.True(Core.CanonicalWriter.ToBytes(results[0].Outputs[index]).AsSpan().SequenceEqual(Core.CanonicalWriter.ToBytes(outputs[index])),$"{name}: output #{index} differs from {results[0].Name}: {outputs[index]}");
+                Assert.True(CanonicalWriter.ToBytes(results[0].Outputs[index]).AsSpan().SequenceEqual(CanonicalWriter.ToBytes(outputs[index])),$"{name}: output #{index} differs from {results[0].Name}: {outputs[index]}");
             }
         }
         return results[0].Outputs;
