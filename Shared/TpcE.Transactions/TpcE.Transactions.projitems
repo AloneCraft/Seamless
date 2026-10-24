@@ -10,6 +10,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)**\*.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Using Include="Benchmark.Tpc.Core" />
     <Using Include="Benchmark.TpcE.Core" />
     <Using Include="Benchmark.TpcE.Core.Harness" />
   </ItemGroup>
