@@ -1,5 +1,5 @@
 using System.Text;
-namespace Benchmark.TpcE.Core;
+namespace Benchmark.Tpc.Core;
 /// <summary>
 /// 表 1 つのダイジェスト。件数と、各行の正規化バイト列の XxHash128 の和(mod 2^128)。和なので列挙の順序に依らず、重複にも反応する。
 /// </summary>
@@ -68,7 +68,7 @@ public sealed record DatabaseDigest(IReadOnlyList<TableDigest> Tables,IReadOnlyL
 }
 /// <summary>DB のダイジェストを取る・食い違う行を探す。</summary>
 public static class StateDigest{
-    public static DatabaseDigest Of(TpcEDatabaseBase db){
+    public static DatabaseDigest Of(TpcDatabaseBase db){
         var tables=new List<TableDigest>(db.Tables.Count);
         foreach(var table in db.Tables){
             var builder=new TableDigestBuilder(table.Name);

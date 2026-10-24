@@ -354,11 +354,11 @@ public sealed class DataMaintenanceFrames{
     private static Core.DataMaintenanceOutput Execute(List<Core.ITpcEEngine> engines,Core.DataMaintenanceInput input){
         Core.DataMaintenanceOutput? first=null;
         byte[]? expected=null;
-        Core.DatabaseDigest? digest=null;
+        DatabaseDigest? digest=null;
         foreach(var engine in engines){
             var output=Assert.IsType<Core.DataMaintenanceOutput>(engine.Execute(input));
             var bytes=CanonicalWriter.ToBytes(output);
-            var state=Core.StateDigest.Of(engine.Database);
+            var state=StateDigest.Of(engine.Database);
             if(first is null){
                 first=output;
                 expected=bytes;
