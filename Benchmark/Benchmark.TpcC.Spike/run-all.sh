@@ -46,4 +46,12 @@ run exp4-crash-p8 "$EXE" exp4 --mode crash --partitions 8 --cycles 10
 run exp5-sector-current "$EXE" exp5 --mode sector
 run exp5-sweep-old "$OLD" exp5 --mode sweep --minutes 8 --seed 1
 run exp5-sweep-current "$EXE" exp5 --mode sweep --minutes 25 --seed 1
+# 追加分(実行の順序は実際に行った順とは違う)
+run exp5-described-old "$OLD" exp5 --mode described
+run exp5-described-current "$EXE" exp5 --mode described
+run exp5-sectorscan-old "$OLD" exp5 --mode sectorscan --max 300
+run exp5-sectorscan-current "$EXE" exp5 --mode sectorscan --max 300
+run exp4-crash-p8-saves "$EXE" exp4 --mode crash --partitions 8 --cycles 16 --kill-mode saves --save-interval-ms 1500 --seed 2
+run exp4-crash-p4-saves "$EXE" exp4 --mode crash --partitions 4 --cycles 24 --kill-mode saves --save-interval-ms 800 --seed 3
 echo "== all done $(date +%H:%M:%S)"
+# 続きは run-final.sh(最終版のバイナリでの再実行)
