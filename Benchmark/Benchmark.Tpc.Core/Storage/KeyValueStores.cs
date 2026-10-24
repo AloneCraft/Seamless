@@ -1,6 +1,6 @@
 using PersistedCollections=Seamless.Collections.Persisted;
 using TsavoriteCollections=Seamless.Collections.Tsavorite;
-namespace Benchmark.TpcE.Core;
+namespace Benchmark.Tpc.Core;
 /// <summary>索引表を置くキーと値の入れ物。保存先ごとに実装する(LINQ は使わない)。</summary>
 public interface IKeyValueStore<TKey,TValue>:IDisposable
     where TKey:unmanaged

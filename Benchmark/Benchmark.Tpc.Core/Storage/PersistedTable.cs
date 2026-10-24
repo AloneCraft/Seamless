@@ -2,7 +2,7 @@ using System.Collections;
 using MemoryPack;
 using Seamless.Collections;
 using PersistedDictionary=Seamless.Collections.Persisted;
-namespace Benchmark.TpcE.Core;
+namespace Benchmark.Tpc.Core;
 /// <summary>
 /// Persisted の行の入れ物。Persisted には削除が無いので、削除は <see cref="Live"/>=false の行を追記して表す(後勝ち)。
 /// </summary>

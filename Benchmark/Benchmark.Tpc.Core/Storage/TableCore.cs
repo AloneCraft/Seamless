@@ -1,5 +1,5 @@
 using Seamless.Collections;
-namespace Benchmark.TpcE.Core;
+namespace Benchmark.Tpc.Core;
 /// <summary>表への書き込みの種類。巻き戻しによる書き戻しも別の種類として通知する。</summary>
 public enum WriteKind:byte{
     Insert=1,

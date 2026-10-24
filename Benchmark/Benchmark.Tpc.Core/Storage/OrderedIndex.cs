@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-namespace Benchmark.TpcE.Core;
+namespace Benchmark.Tpc.Core;
 /// <summary>順序付きチャンク列の見出し。チャンク番号 First..Last を使い、Total は全要素数。</summary>
 public struct IndexHeader{
     public long First;
