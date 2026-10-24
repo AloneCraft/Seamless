@@ -2,7 +2,7 @@ namespace Benchmark.TpcC.Tests;
 public sealed class TpcCInputGenerator{
     private static Core.TpcCInputGenerator Make(Core.TpcCScale scale,Core.TpcCMode mode,int terminal=0,ulong seed=1,int allWarehouses=0){
         var load=new Core.TpcCDataGenerator(scale,Core.TpcCLoadRules.For(mode),seed).LastNameCLoad;
-        return new Core.TpcCInputGenerator(scale,mode,seed,terminal,Core.TpcCNuRandConstants.For(mode,seed,load),allWarehouses);
+        return new Core.TpcCInputGenerator(scale,mode,seed,terminal,Core.TpcCNuRandConstants.For(scale,mode,seed,load),allWarehouses);
     }
     private sealed class Mix{
         public readonly int[] Counts=new int[5];
@@ -71,14 +71,15 @@ public sealed class TpcCInputGenerator{
             Assert.True(different>40);
         }
         {
-            //仕様の形の混合(5.2.3、5.5.1.5 の帯): 45/43/4/4/4、巻き戻し約 1%、明細は平均 10 行で遠隔 1%、遠隔の Payment 15%、姓で引く割合 60%
+            //仕様の形の混合は 5.2.4.2 の山札(23 枚: New-Order 10・Payment 10・他 1 枚ずつ)。最低比率(5.2.3: Payment 43%・他 4%)を割らない。
+            //巻き戻し約 1%、明細は平均 10 行で遠隔 1%、遠隔の Payment 15%、姓で引く割合 60%(5.5.1.5 の帯)
             var scale=new Core.TpcCScale{Warehouses=10};
             var mix=Sample(Make(scale,Core.TpcCMode.Spec,terminal:3),scale,40_000);
-            Assert.InRange(Share(mix.Counts[(int)Core.TpcCTxnKind.NewOrder],40_000),0.435,0.465);
-            Assert.InRange(Share(mix.Counts[(int)Core.TpcCTxnKind.Payment],40_000),0.415,0.445);
-            Assert.InRange(Share(mix.Counts[(int)Core.TpcCTxnKind.OrderStatus],40_000),0.033,0.047);
-            Assert.InRange(Share(mix.Counts[(int)Core.TpcCTxnKind.Delivery],40_000),0.033,0.047);
-            Assert.InRange(Share(mix.Counts[(int)Core.TpcCTxnKind.StockLevel],40_000),0.033,0.047);
+            Assert.InRange(Share(mix.Counts[(int)Core.TpcCTxnKind.NewOrder],40_000),10/23.0-0.001,10/23.0+0.001);
+            Assert.InRange(Share(mix.Counts[(int)Core.TpcCTxnKind.Payment],40_000),0.43,10/23.0+0.001);
+            Assert.InRange(Share(mix.Counts[(int)Core.TpcCTxnKind.OrderStatus],40_000),0.04,1/23.0+0.001);
+            Assert.InRange(Share(mix.Counts[(int)Core.TpcCTxnKind.Delivery],40_000),0.04,1/23.0+0.001);
+            Assert.InRange(Share(mix.Counts[(int)Core.TpcCTxnKind.StockLevel],40_000),0.04,1/23.0+0.001);
             Assert.InRange(Share(mix.Rollbacks,mix.NewOrders),0.008,0.012);
             Assert.InRange(mix.Lines/(double)mix.NewOrders,9.9,10.1);
             Assert.InRange(mix.RemoteLines/(double)mix.Lines,0.009,0.011);
@@ -99,6 +100,71 @@ public sealed class TpcCInputGenerator{
             Assert.InRange(mix.RemoteLines/(double)mix.Lines,0.009,0.011);
             Assert.InRange(Share(mix.RemotePayments,mix.Payments),0.142,0.158);
             Assert.InRange(Share(mix.PaymentsByName,mix.Payments),0.585,0.615);
+        }
+    }
+    [Fact,Trait("Category","Unit")]public void Deck(){
+        {
+            //仕様の形: 23 件ごと(山札 1 周)にちょうど New-Order 10・Payment 10・Order-Status/Delivery/Stock-Level 1 ずつ。どの区切りでも最低比率を割らない
+            var scale=new Core.TpcCScale{Warehouses=2};
+            var generator=Make(scale,Core.TpcCMode.Spec,terminal:5);
+            for(long deck=0;deck<50;deck++){
+                var counts=new int[5];
+                for(long position=0;position<23;position++){
+                    counts[(int)generator.Next(deck*23+position,0).Kind]++;
+                }
+                Assert.Equal(new[]{10,10,1,1,1},new[]{counts[(int)Core.TpcCTxnKind.NewOrder],counts[(int)Core.TpcCTxnKind.Payment],counts[(int)Core.TpcCTxnKind.OrderStatus],counts[(int)Core.TpcCTxnKind.Delivery],counts[(int)Core.TpcCTxnKind.StockLevel]});
+            }
+            //順序は周ごとに変わり、呼ぶ順序に依らない(後ろの番号を先に呼んでも同じ)
+            var forward=Enumerable.Range(0,46).Select(index=>generator.Next(index,0).Kind).ToArray();
+            Assert.NotEqual(forward[..23],forward[23..]);
+            var other=Make(scale,Core.TpcCMode.Spec,terminal:5);
+            var backward=Enumerable.Range(0,46).Reverse().Select(index=>other.Next(index,0).Kind).Reverse().ToArray();
+            Assert.Equal(forward,backward);
+        }
+    }
+    [Fact,Trait("Category","Unit")]public void Constructor(){
+        {
+            //仕様の形は端末が倉庫あたり 10 台の範囲を超えると受け付けず、「全倉庫を使う」(HammerDB の設定)も受け付けない
+            var scale=new Core.TpcCScale{Warehouses=3};
+            var constants=Core.TpcCNuRandConstants.For(scale,Core.TpcCMode.Spec,1,5);
+            Assert.Throws<ArgumentOutOfRangeException>(()=>new Core.TpcCInputGenerator(scale,Core.TpcCMode.Spec,1,30,constants));
+            Assert.Throws<ArgumentOutOfRangeException>(()=>new Core.TpcCInputGenerator(scale,Core.TpcCMode.Spec,1,-1,constants));
+            Assert.Throws<ArgumentException>(()=>new Core.TpcCInputGenerator(scale,Core.TpcCMode.Spec,1,0,constants,3));
+            _=new Core.TpcCInputGenerator(scale,Core.TpcCMode.Spec,1,29,constants);
+            _=new Core.TpcCInputGenerator(scale,Core.TpcCMode.HammerDbMssql,1,500,Core.TpcCNuRandConstants.For(scale,Core.TpcCMode.HammerDbMssql,1,123),3);
+        }
+    }
+    [Fact,Trait("Category","Unit")]public void ReducedScale(){
+        {
+            //縮小した規模(地区あたり顧客 30): NURand の C は [0..A] に収まり、姓の番号は存在する 0..29 から引くので、姓で引く入力は必ず該当者がいる
+            var scale=TestDatabases.Mini(2,1);
+            Assert.Equal(30,scale.LastNameCount);
+            foreach(var mode in new[]{Core.TpcCMode.Spec,Core.TpcCMode.HammerDbMssql}){
+                var load=new Core.TpcCDataGenerator(scale,Core.TpcCLoadRules.For(mode),1).LastNameCLoad;
+                var constants=Core.TpcCNuRandConstants.For(scale,mode,9,load);
+                if(mode==Core.TpcCMode.Spec){
+                    Assert.InRange(constants.CustomerId,0,scale.CustomerIdA);
+                    Assert.InRange(constants.ItemId,0,scale.ItemIdA);
+                    Assert.InRange(constants.LastNameRun,0,scale.LastNameA);
+                }
+                var generator=Make(scale,mode,terminal:2,seed:9);
+                var existing=new HashSet<string>(Enumerable.Range(0,30).Select(Core.TpcCDataGenerator.LastName));
+                var named=0;
+                for(long index=0;index<3_000;index++){
+                    var request=generator.Next(index,0);
+                    string? last=null;
+                    if(request is Core.PaymentRequest payment){
+                        last=payment.CustomerLast;
+                    }else if(request is Core.OrderStatusRequest status){
+                        last=status.CustomerLast;
+                    }
+                    if(last is not null){
+                        named++;
+                        Assert.Contains(last,existing);
+                    }
+                }
+                Assert.True(named>200,$"{mode}: {named}");
+            }
         }
     }
     [Fact,Trait("Category","Unit")]public void Distributions(){
@@ -241,14 +307,14 @@ public sealed class TpcCInputGenerator{
             //仕様の形: C_LAST の運転時の C は作成時の C と 65〜119(96 と 112 を除く)離れる。HammerDB の形は 123 固定で差が 0(Q-006)
             for(ulong seed=1;seed<=200;seed++){
                 var load=new Core.TpcCDataGenerator(new Core.TpcCScale(),Core.TpcCLoadRules.For(Core.TpcCMode.Spec),seed).LastNameCLoad;
-                var constants=Core.TpcCNuRandConstants.For(Core.TpcCMode.Spec,seed,load);
+                var constants=Core.TpcCNuRandConstants.For(new Core.TpcCScale(),Core.TpcCMode.Spec,seed,load);
                 var delta=Math.Abs(constants.LastNameRun-constants.LastNameLoad);
                 Assert.InRange(delta,65,119);
                 Assert.NotEqual(96,delta);
                 Assert.NotEqual(112,delta);
                 Assert.InRange(constants.LastNameRun,0,255);
             }
-            var hammerdb=Core.TpcCNuRandConstants.For(Core.TpcCMode.HammerDbMssql,1,123);
+            var hammerdb=Core.TpcCNuRandConstants.For(new Core.TpcCScale(),Core.TpcCMode.HammerDbMssql,1,123);
             Assert.Equal(123,hammerdb.LastNameLoad);
             Assert.Equal(123,hammerdb.LastNameRun);
         }

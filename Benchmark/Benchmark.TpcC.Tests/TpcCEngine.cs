@@ -62,10 +62,18 @@ public sealed class TpcCEngine{
                 if(mode==Core.TpcCMode.Spec){
                     Assert.Equal((stockBefore.Ytd+4,stockBefore.OrderCount+1,stockBefore.RemoteCount),(stockAfter.Ytd,stockAfter.OrderCount,stockAfter.RemoteCount));
                     Assert.True(result.TotalAmount>0m,label);
+                    //仕様の出力(2.4.3.3): 明細ごとの品目名・在庫数・brand-generic・金額と、合計 = 金額の和 × (1 − 割引) × (1 + 税)
+                    Assert.Equal(2,result.Lines.Length);
+                    Assert.Equal((5,item.Name,stockAfter.Quantity,item.Price,4*item.Price),(result.Lines[0].ItemId,result.Lines[0].ItemName,result.Lines[0].StockQuantity,result.Lines[0].Price,result.Lines[0].Amount));
+                    Assert.Equal(result.Lines.Sum(line=>line.Amount)*(1m-result.CustomerDiscount)*(1m+result.WarehouseTax+result.DistrictTax),result.TotalAmount);
                 }else{
                     Assert.Equal((stockBefore.Ytd,stockBefore.OrderCount,stockBefore.RemoteCount),(stockAfter.Ytd,stockAfter.OrderCount,stockAfter.RemoteCount));
+                    //HammerDB は合計も明細ごとの出力も作らず(Q-032)、更新後の D_NEXT_O_ID を返す(Q-007)
                     Assert.Equal(0m,result.TotalAmount);
+                    Assert.Empty(result.Lines);
                 }
+                Assert.Equal(32,result.NextOrderId);
+                Assert.Equal(1000L,result.EntryDate);
             });
         }
         {
@@ -134,9 +142,10 @@ public sealed class TpcCEngine{
                     Assert.Equal(good.Data,after.Data);
                     Assert.Equal(warehouseBefore.Name+"    "+districtBefore.Name,history.Data);
                 }else{
-                    //HammerDB: 累計と回数は更新せず(Q-035)、信用が BC でない顧客の C_DATA を信用の値で上書きし(Q-036)、H_DATA は空白だけになる(Q-038)
+                    //HammerDB: 累計と回数は更新せず(Q-035)、信用が BC でない顧客の C_DATA を信用の値で上書きし(Q-036。char(500) なので空白で 500 文字のまま)、H_DATA は空白だけになる(Q-038)
                     Assert.Equal((good.YtdPayment,good.PaymentCount),(after.YtdPayment,after.PaymentCount));
-                    Assert.Equal("GC",after.Data);
+                    Assert.Equal(500,good.Data.Length);
+                    Assert.Equal("GC".PadRight(500),after.Data);
                     Assert.Equal(new string(' ',24),history.Data);
                 }
             });
@@ -155,6 +164,8 @@ public sealed class TpcCEngine{
                     Assert.EndsWith(bad.Data[..Math.Min(bad.Data.Length,500-$"{bad.Id} 3 2 3 2 40 ".Length)],after.Data);
                 }else{
                     Assert.Equal(500,after.Data.Length);
+                    //支払額は numeric(6,2) を char(8) にした形('40.00   ')
+                    Assert.Equal("40.00   ",after.Data[155..163]);
                     Assert.Equal(bad.Data[..Math.Min(bad.Data.Length,500-219)],after.Data[219..Math.Min(500,219+bad.Data.Length)]);
                     Assert.Equal(new string(' ',11)+" "+new string(' ',11)+" ",after.Data[(219-24)..219]);
                 }
@@ -371,7 +382,7 @@ public sealed class TpcCEngine{
                     var (store,engine)=TestDatabases.Open(variant,Scale,mode);
                     try{
                         var label=$"{variant.ShortName}/{mode}";
-                        var generators=Enumerable.Range(0,4).Select(terminal=>new Core.TpcCInputGenerator(Scale,mode,7,terminal,Core.TpcCNuRandConstants.For(mode,7,new Core.TpcCDataGenerator(Scale,Core.TpcCLoadRules.For(mode),1).LastNameCLoad))).ToArray();
+                        var generators=TestDatabases.Generators(Scale,mode,7,4);
                         var nextBefore=engine.SumNextOrderIds();
                         var committed=0;
                         var rolledBack=0;
@@ -393,6 +404,8 @@ public sealed class TpcCEngine{
                             Assert.True(result.Passed!=expectedToFail,$"{label} CC{result.Condition}: {result.Detail}");
                         }
                         Assert.Empty(Core.TpcCStateDigest.ItemReplicaDifferences(engine.Database));
+                        Assert.Empty(Core.TpcCIndexConsistency.Check(engine.Database));
+                        Assert.False(engine.IsFaulted);
                     }finally{
                         TestDatabases.Close(store,engine);
                     }
@@ -412,7 +425,7 @@ public sealed class TpcCEngine{
                         stores.Add(store);
                         engines.Add(engine);
                     }
-                    var generators=Enumerable.Range(0,4).Select(terminal=>new Core.TpcCInputGenerator(Scale,mode,11,terminal,Core.TpcCNuRandConstants.For(mode,11,new Core.TpcCDataGenerator(Scale,Core.TpcCLoadRules.For(mode),1).LastNameCLoad))).ToArray();
+                    var generators=TestDatabases.Generators(Scale,mode,11,4);
                     for(long index=0;index<400;index++){
                         var request=generators[(int)(index%4)].Next(index/4,20_000+index);
                         byte[]? expected=null;
@@ -435,6 +448,197 @@ public sealed class TpcCEngine{
                     for(var position=0;position<engines.Count;position++){
                         TestDatabases.Close(stores[position],engines[position]);
                     }
+                }
+            }
+        }
+    }
+    [Fact,Trait("Category","Integration")]public void Execute_NewOrderRules(){
+        {
+            //O_ALL_LOCAL: 仕様の形は明細の供給倉庫から決め、HammerDB の形は入力の値をそのまま使う(Q-029)
+            ForEach(Scale,(variant,mode,engine)=>{
+                var label=$"{variant.ShortName}/{mode}";
+                var partition=TestDatabases.PartitionOf(engine,1);
+                Run(engine,new Core.NewOrderRequest(1,1000,2,3,[new Core.NewOrderLine(5,1,1)],0));
+                Run(engine,new Core.NewOrderRequest(1,1001,2,3,[new Core.NewOrderLine(6,3,1)],1));
+                var local=partition.Order.Get(new Core.OrderKey(1,2,31));
+                var remote=partition.Order.Get(new Core.OrderKey(1,2,32));
+                if(mode==Core.TpcCMode.Spec){
+                    Assert.Equal((1,0),(local.AllLocal,remote.AllLocal));
+                }else{
+                    Assert.Equal((0,1),(local.AllLocal,remote.AllLocal));
+                }
+            });
+        }
+        {
+            //在庫の補充の閾値(Q-030): 仕様は 在庫数−数量 が 10 未満なら 91 を足し、HammerDB は 在庫数 ≤ 数量 のときだけ足す。食い違うのは数量 < 在庫数 < 数量+10
+            ForEach(Scale,(variant,mode,engine)=>{
+                var label=$"{variant.ShortName}/{mode}";
+                var partition=TestDatabases.PartitionOf(engine,1);
+                foreach(var quantity in new[]{4,5,6,13,14,15,16,100}){
+                    var stock=partition.Stock.Get(new Core.StockKey(1,20));
+                    TestDatabases.PutRaw(partition.Stock,stock with{Quantity=quantity});
+                    Run(engine,new Core.NewOrderRequest(1,1000,5,6,[new Core.NewOrderLine(20,1,5)],1));
+                    Assert.Equal(ExpectedQuantity(mode,quantity,5),partition.Stock.Get(new Core.StockKey(1,20)).Quantity);
+                }
+            });
+            //食い違う範囲(在庫数 14 は仕様で 100、HammerDB で 9)を通ったことの確認
+            Assert.Equal(100,ExpectedQuantity(Core.TpcCMode.Spec,14,5));
+            Assert.Equal(9,ExpectedQuantity(Core.TpcCMode.HammerDbMssql,14,5));
+        }
+        {
+            //brand-generic(仕様 2.4.2.2、仕様の形だけ): 品目と在庫のデータの両方に ORIGINAL があれば B、片方だけなら G
+            foreach(var variant in TestDatabases.Variants){
+                var (store,engine)=TestDatabases.Open(variant,Scale,Core.TpcCMode.Spec);
+                try{
+                    var partition=TestDatabases.PartitionOf(engine,1);
+                    void Mark(int item,bool inItem,bool inStock){
+                        var itemRow=partition.Item.Get(new Core.ItemKey(item));
+                        var stockRow=partition.Stock.Get(new Core.StockKey(1,item));
+                        var itemData="plain item data";
+                        if(inItem){
+                            itemData="xxORIGINALxx";
+                        }
+                        var stockData="plain stock data";
+                        if(inStock){
+                            stockData="yyORIGINALyy";
+                        }
+                        TestDatabases.PutRaw(partition.Item,itemRow with{Data=itemData});
+                        TestDatabases.PutRaw(partition.Stock,stockRow with{Data=stockData});
+                    }
+                    Mark(31,true,true);
+                    Mark(32,true,false);
+                    Mark(33,false,true);
+                    Mark(34,false,false);
+                    var result=(Core.NewOrderResult)Run(engine,new Core.NewOrderRequest(1,1000,1,1,[new Core.NewOrderLine(31,1,1),new Core.NewOrderLine(32,1,1),new Core.NewOrderLine(33,1,1),new Core.NewOrderLine(34,1,1)],1));
+                    Assert.Equal(new[]{"B","G","G","G"},result.Lines.Select(line=>line.Brand).ToArray());
+                }finally{
+                    TestDatabases.Close(store,engine);
+                }
+            }
+        }
+    }
+    [Fact,Trait("Category","Integration")]public void Execute_StockLevelReads(){
+        {
+            //Stock-Level は DISTRICT・ORDER-LINE・STOCK だけを読む(ORDERS は読まない): 直近の注文の ORDERS の行を消しても結果は変わらない
+            ForEach(Scale,(variant,mode,engine)=>{
+                var label=$"{variant.ShortName}/{mode}";
+                var partition=TestDatabases.PartitionOf(engine,3);
+                var expected=((Core.StockLevelResult)Run(engine,new Core.StockLevelRequest(3,5000,2,30))).LowStock;
+                for(var order=11;order<=30;order++){
+                    TestDatabases.DeleteRaw(partition.Order,new Core.OrderKey(3,2,order));
+                }
+                Assert.Equal(expected,((Core.StockLevelResult)Run(engine,new Core.StockLevelRequest(3,5000,2,30))).LowStock);
+                Assert.True(expected>0,label);
+            });
+        }
+    }
+    [Fact,Trait("Category","Integration")]public void Execute_DeliveryStaleVariables(){
+        {
+            //HammerDB の形: 空の地区には、直前に配達した地区の顧客番号と合計が使われる(連続しない空の地区それぞれに、その直前の値)。仕様の形は何も足さない(Q-041)
+            ForEach(Scale,(variant,mode,engine)=>{
+                var label=$"{variant.ShortName}/{mode}";
+                var partition=TestDatabases.PartitionOf(engine,1);
+                var first=engine.Database.Scale.FirstInitialNewOrder;
+                var last=engine.Database.Scale.InitialOrdersPerDistrict;
+                partition.Log.Begin();
+                foreach(var district in new[]{2,4}){
+                    for(var order=first;order<=last;order++){
+                        partition.NewOrder.Delete(new Core.NewOrderKey(1,district,order));
+                    }
+                }
+                partition.Log.Commit();
+                var totals=new Dictionary<int,decimal>();
+                var customers=new Dictionary<int,int>();
+                foreach(var (district,amount) in new[]{(1,10m),(3,20m)}){
+                    var order=partition.Order.Get(new Core.OrderKey(1,district,first));
+                    customers[district]=order.CustomerId;
+                    totals[district]=order.LineCount*amount;
+                    for(var number=1;number<=order.LineCount;number++){
+                        TestDatabases.PutRaw(partition.OrderLine,partition.OrderLine.Get(new Core.OrderLineKey(1,district,first,number)) with{Amount=amount});
+                    }
+                }
+                var stale2=partition.Customer.Get(new Core.CustomerKey(1,2,customers[1]));
+                var stale4=partition.Customer.Get(new Core.CustomerKey(1,4,customers[3]));
+                Run(engine,new Core.DeliveryRequest(1,4000,3));
+                var after2=partition.Customer.Get(new Core.CustomerKey(1,2,customers[1]));
+                var after4=partition.Customer.Get(new Core.CustomerKey(1,4,customers[3]));
+                if(mode==Core.TpcCMode.HammerDbMssql){
+                    Assert.Equal(stale2.Balance+totals[1],after2.Balance);
+                    Assert.Equal(stale4.Balance+totals[3],after4.Balance);
+                }else{
+                    Assert.Equal(stale2.Balance,after2.Balance);
+                    Assert.Equal(stale4.Balance,after4.Balance);
+                }
+            });
+        }
+    }
+    [Fact,Trait("Category","Integration")]public void Execute_Chunks(){
+        {
+            //地区の新規注文が索引の 1 チャンク(32 件)を超える規模(地区あたり顧客 200 → 新規注文 60 件): 配達でチャンクを使い切って次へ進み、New-Order の追加と巻き戻しでもチャンクが増減する
+            var scale=new Core.TpcCScale{Warehouses=1,Items=100,CustomersPerDistrict=200,ExpectedRunOrders=1_000};
+            ForEach(scale,(variant,mode,engine)=>{
+                var label=$"{variant.ShortName}/{mode}";
+                var partition=TestDatabases.PartitionOf(engine,1);
+                var first=scale.FirstInitialNewOrder;
+                Assert.Equal(60,scale.InitialOrdersPerDistrict-first+1);
+                Assert.Empty(Core.TpcCIndexConsistency.Check(engine.Database));
+                for(var round=0;round<45;round++){
+                    Run(engine,new Core.DeliveryRequest(1,4000+round,1+round%10));
+                }
+                var queue=partition.NewOrderQueue.All(new Core.DistrictOwner(1,3));
+                Assert.Equal(Enumerable.Range(first+45,scale.InitialOrdersPerDistrict-first-44).Select(order=>(long)order),queue);
+                Assert.Empty(Core.TpcCIndexConsistency.Check(engine.Database));
+                var generator=TestDatabases.Generators(scale,mode,5,1)[0];
+                for(long index=0;index<80;index++){
+                    Run(engine,generator.Next(index,5000+index,Core.TpcCTxnKind.NewOrder));
+                }
+                //巻き戻しになる注文も流して、追加したチャンクが戻ることを確かめる
+                var digest=Core.TpcCStateDigest.Of(engine.Database);
+                Assert.True(Run(engine,new Core.NewOrderRequest(1,6000,3,7,[new Core.NewOrderLine(1,1,1),new Core.NewOrderLine(101,1,1)],1)).RolledBack,label);
+                Assert.Empty(Core.TpcCStateDigest.Of(engine.Database).Differences(digest));
+                Assert.Empty(Core.TpcCIndexConsistency.Check(engine.Database));
+                foreach(var result in Core.TpcCConsistency.Check(engine.Database,deep:false,initial:false)){
+                    Assert.True(result.Passed,$"{label} CC{result.Condition}: {result.Detail}");
+                }
+            });
+        }
+    }
+    [Fact,Trait("Category","Integration")]public void Execute_Faults(){
+        {
+            //取引の途中の想定外の例外(在庫の行が無い)は致命: 書き込み済みの分は全区画で戻り、取り消し記録は残らず、以後の取引は断られる
+            foreach(var variant in TestDatabases.Variants){
+                foreach(var supplyWarehouse in new[]{1,3}){
+                    var (store,engine)=TestDatabases.Open(variant,Scale,Core.TpcCMode.Spec);
+                    try{
+                        var label=$"{variant.ShortName}/supply={supplyWarehouse}";
+                        var partition=TestDatabases.PartitionOf(engine,supplyWarehouse);
+                        TestDatabases.DeleteRaw(partition.Stock,new Core.StockKey(supplyWarehouse,7));
+                        var digest=Core.TpcCStateDigest.Of(engine.Database);
+                        Assert.False(engine.IsFaulted);
+                        Assert.Throws<KeyNotFoundException>(()=>engine.Execute(new Core.NewOrderRequest(1,1000,2,3,[new Core.NewOrderLine(5,1,1),new Core.NewOrderLine(7,supplyWarehouse,1)],0)));
+                        Assert.True(engine.IsFaulted,label);
+                        foreach(var each in engine.Database.PartitionBases){
+                            Assert.False(each.Log.IsRecording,label);
+                        }
+                        Assert.Empty(Core.TpcCStateDigest.Of(engine.Database).Differences(digest));
+                        Assert.Throws<InvalidOperationException>(()=>engine.Execute(new Core.StockLevelRequest(1,2000,1,15)));
+                    }finally{
+                        TestDatabases.Close(store,engine);
+                    }
+                }
+            }
+        }
+        {
+            //存在しない顧客の取引も、書き込む前に例外になるが、同じく致命として扱われる
+            foreach(var variant in TestDatabases.Variants){
+                var (store,engine)=TestDatabases.Open(variant,Scale,Core.TpcCMode.HammerDbMssql);
+                try{
+                    var digest=Core.TpcCStateDigest.Of(engine.Database);
+                    Assert.Throws<KeyNotFoundException>(()=>engine.Execute(new Core.NewOrderRequest(1,1000,2,999,[new Core.NewOrderLine(5,1,1)],1)));
+                    Assert.True(engine.IsFaulted);
+                    Assert.Empty(Core.TpcCStateDigest.Of(engine.Database).Differences(digest));
+                }finally{
+                    TestDatabases.Close(store,engine);
                 }
             }
         }

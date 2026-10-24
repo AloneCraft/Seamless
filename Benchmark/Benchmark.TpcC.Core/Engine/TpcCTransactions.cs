@@ -16,9 +16,33 @@ public abstract record TpcCRequest(int WarehouseId,long Now){
     public abstract TpcCTxnKind Kind{get;}
     /// <summary>この取引が触る倉庫(家の倉庫を含み、昇順・重複なし)。区画をまたぐ取引の判定と、区画を昇順に押さえるのに使う。</summary>
     public abstract int[] TouchedWarehouses();
-    protected static int[] Sorted(int home,IEnumerable<int> others){
-        var set=new SortedSet<int>(others){home};
-        return [..set];
+    /// <summary>家の倉庫と他の倉庫を、昇順・重複なしにまとめる(取引ごとに呼ばれるので LINQ を使わない)。</summary>
+    protected static int[] Sorted(int home,ReadOnlySpan<int> others){
+        var buffer=new int[others.Length+1];
+        var count=0;
+        buffer[count++]=home;
+        foreach(var other in others){
+            var exists=false;
+            for(var index=0;index<count;index++){
+                if(buffer[index]==other){
+                    exists=true;
+                    break;
+                }
+            }
+            if(exists){
+                continue;
+            }
+            var position=count++;
+            while(position>0&&buffer[position-1]>other){
+                buffer[position]=buffer[position-1];
+                position--;
+            }
+            buffer[position]=other;
+        }
+        if(count==buffer.Length){
+            return buffer;
+        }
+        return buffer[..count];
     }
 }
 /// <summary>
@@ -27,7 +51,13 @@ public abstract record TpcCRequest(int WarehouseId,long Now){
 /// </summary>
 public sealed record NewOrderRequest(int WarehouseId,long Now,int DistrictId,int CustomerId,NewOrderLine[] Lines,int AllLocal):TpcCRequest(WarehouseId,Now){
     public override TpcCTxnKind Kind=>TpcCTxnKind.NewOrder;
-    public override int[] TouchedWarehouses()=>Sorted(this.WarehouseId,this.Lines.Select(line=>line.SupplyWarehouseId));
+    public override int[] TouchedWarehouses(){
+        var supplies=new int[this.Lines.Length];
+        for(var index=0;index<supplies.Length;index++){
+            supplies[index]=this.Lines[index].SupplyWarehouseId;
+        }
+        return Sorted(this.WarehouseId,supplies);
+    }
 }
 /// <summary>Payment。<see cref="CustomerLast"/> が null でなければ姓で顧客を引く(<see cref="CustomerId"/> は姓で見つからなかったときに使う)。</summary>
 public sealed record PaymentRequest(int WarehouseId,long Now,int DistrictId,int CustomerWarehouseId,int CustomerDistrictId,int CustomerId,string? CustomerLast,decimal Amount):TpcCRequest(WarehouseId,Now){
@@ -48,12 +78,24 @@ public sealed record StockLevelRequest(int WarehouseId,long Now,int DistrictId,i
 }
 /// <summary>取引の結果。<see cref="RolledBack"/> は業務上の巻き戻し(New-Order の存在しない品目)。それ以外の失敗は例外になる。</summary>
 public abstract record TpcCResult(bool RolledBack);
-/// <summary>New-Order の結果。TotalAmount は仕様の形だけが計算する(HammerDB は計算しない: Q-032)。</summary>
-public sealed record NewOrderResult(bool RolledBack,int OrderId,string CustomerLast,string CustomerCredit,decimal CustomerDiscount,decimal WarehouseTax,decimal DistrictTax,int LineCount,decimal TotalAmount):TpcCResult(RolledBack);
-public sealed record PaymentResult(bool RolledBack,int CustomerId,string CustomerFirst,string CustomerLast,string CustomerCredit,decimal CustomerBalance,int HistoryId,string WarehouseName,string DistrictName):TpcCResult(RolledBack);
+/// <summary>仕様 2.4.3.3 の明細ごとの出力。仕様の形だけが返す(HammerDB の手続きは返さない)。Brand は "B" か "G"(brand-generic)。</summary>
+public readonly record struct NewOrderLineResult(int ItemId,int SupplyWarehouseId,string ItemName,int Quantity,int StockQuantity,string Brand,decimal Price,decimal Amount);
+/// <summary>
+/// New-Order の結果。OrderId は付けた注文番号、NextOrderId は更新後の D_NEXT_O_ID(HammerDB が返す値: Q-007)。
+/// TotalAmount と Lines は仕様の形だけが計算する(HammerDB は計算しない: Q-032)。
+/// </summary>
+public sealed record NewOrderResult(bool RolledBack,int OrderId,int NextOrderId,long EntryDate,string CustomerLast,string CustomerCredit,decimal CustomerDiscount,decimal WarehouseTax,decimal DistrictTax,int LineCount,decimal TotalAmount,NewOrderLineResult[] Lines):TpcCResult(RolledBack);
+/// <summary>
+/// Payment の結果(仕様 2.5.3.3 の出力)。CustomerData は仕様の形で信用が BC のときだけ、更新後の C_DATA の先頭 200 文字(HammerDB は返さない)。
+/// </summary>
+public sealed record PaymentResult(
+    bool RolledBack,int CustomerId,string CustomerFirst,string CustomerMiddle,string CustomerLast,string CustomerStreet1,string CustomerStreet2,string CustomerCity,string CustomerState,string CustomerZip,string CustomerPhone,
+    long CustomerSince,string CustomerCredit,decimal CustomerCreditLimit,decimal CustomerDiscount,decimal CustomerBalance,string CustomerData,int HistoryId,
+    string WarehouseName,string WarehouseStreet1,string WarehouseStreet2,string WarehouseCity,string WarehouseState,string WarehouseZip,
+    string DistrictName,string DistrictStreet1,string DistrictStreet2,string DistrictCity,string DistrictState,string DistrictZip):TpcCResult(RolledBack);
 public readonly record struct OrderStatusLine(int ItemId,int SupplyWarehouseId,int Quantity,decimal Amount,long DeliveryDate);
 /// <summary>Order-Status の結果。顧客に注文が無いときは OrderId が 0 で明細も空。</summary>
-public sealed record OrderStatusResult(bool RolledBack,int CustomerId,string CustomerFirst,string CustomerLast,decimal CustomerBalance,int OrderId,long OrderEntryDate,int CarrierId,OrderStatusLine[] Lines):TpcCResult(RolledBack);
+public sealed record OrderStatusResult(bool RolledBack,int CustomerId,string CustomerFirst,string CustomerMiddle,string CustomerLast,decimal CustomerBalance,int OrderId,long OrderEntryDate,int CarrierId,OrderStatusLine[] Lines):TpcCResult(RolledBack);
 public readonly record struct DeliveredOrder(int DistrictId,int OrderId,int CustomerId,decimal Total);
 /// <summary>Delivery の結果。配達した注文(地区の順)と、新規注文が無くてとばした地区の数。</summary>
 public sealed record DeliveryResult(bool RolledBack,DeliveredOrder[] Delivered,int SkippedDistricts):TpcCResult(RolledBack);

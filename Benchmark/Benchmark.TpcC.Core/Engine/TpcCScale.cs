@@ -53,6 +53,10 @@ public sealed record TpcCScale{
     public int MaxWarehousesPerPartition=>(this.Warehouses+this.PartitionCount-1)/this.PartitionCount;
     /// <summary>NURand の A(顧客 ID)。範囲が 3,000 のときは仕様の 1,023。</summary>
     public int CustomerIdA=>NuRandA(this.CustomersPerDistrict,1023,3_000);
+    /// <summary>存在する姓の種類(姓の番号は 0..LastNameCount-1)。顧客は地区あたり 1〜1,000 番が番号順の姓を持つので、1,000 人未満に縮小すると姓も減る。</summary>
+    public int LastNameCount=>Math.Min(1_000,this.CustomersPerDistrict);
+    /// <summary>NURand の A(姓の番号)。姓が 1,000 種のときは仕様の 255。</summary>
+    public int LastNameA=>NuRandA(this.LastNameCount,255,1_000);
     /// <summary>NURand の A(品目 ID)。範囲が 100,000 のときは仕様の 8,191。</summary>
     public int ItemIdA=>NuRandA(this.Items,8191,100_000);
     /// <summary>範囲が仕様の大きさなら仕様の A を、縮小したときは範囲の半分以下で最大の 2^k-1 を返す。</summary>
