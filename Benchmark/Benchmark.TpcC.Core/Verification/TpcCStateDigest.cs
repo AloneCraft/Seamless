@@ -5,14 +5,14 @@ namespace Benchmark.TpcC.Core;
 /// 複製どうしの一致は <see cref="ItemReplicaDifferences"/> で別に確かめる。
 /// </summary>
 public static class TpcCStateDigest{
-    public static DatabaseDigest Of<TPartition>(TpcCDatabase<TPartition> db) where TPartition:TpcCPartitionBase{
-        var first=db.Partitions[0];
+    public static DatabaseDigest Of(ITpcCDatabase db){
+        var first=db.PartitionBases[0];
         var tables=new List<TableDigest>(first.Tables.Count);
         for(var index=0;index<first.Tables.Count;index++){
             var logical=Logical(first.Tables[index].Name);
             var builder=new TableDigestBuilder(logical);
             long reported=0;
-            foreach(var partition in db.Partitions){
+            foreach(var partition in db.PartitionBases){
                 if(logical=="item"&&partition.Partition!=0){
                     continue;
                 }
@@ -31,7 +31,7 @@ public static class TpcCStateDigest{
         var indexes=new List<TableDigest>(first.Indexes.Count);
         for(var index=0;index<first.Indexes.Count;index++){
             var builder=new TableDigestBuilder(Logical(first.Indexes[index].Name));
-            foreach(var partition in db.Partitions){
+            foreach(var partition in db.PartitionBases){
                 foreach(var (owner,entry) in partition.Indexes[index].EnumerateEntriesBoxed()){
                     builder.Add(new IndexItem(owner,entry));
                 }
@@ -41,11 +41,11 @@ public static class TpcCStateDigest{
         return new DatabaseDigest(tables,indexes);
     }
     /// <summary>ITEM の複製が区画 0 と食い違っている区画の番号。</summary>
-    public static IReadOnlyList<int> ItemReplicaDifferences<TPartition>(TpcCDatabase<TPartition> db) where TPartition:TpcCPartitionBase{
-        var reference=ItemDigest(db.Partitions[0]);
+    public static IReadOnlyList<int> ItemReplicaDifferences(ITpcCDatabase db){
+        var reference=ItemDigest(db.PartitionBases[0]);
         var result=new List<int>();
-        for(var partition=1;partition<db.Partitions.Count;partition++){
-            if(ItemDigest(db.Partitions[partition])!=reference){
+        for(var partition=1;partition<db.PartitionBases.Count;partition++){
+            if(ItemDigest(db.PartitionBases[partition])!=reference){
                 result.Add(partition);
             }
         }
