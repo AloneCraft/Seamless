@@ -1,5 +1,5 @@
 using System.Diagnostics;
-namespace Benchmark.TpcE.Core;
+namespace Benchmark.Tpc.Core;
 /// <summary>
 /// 所要時間の分布。対数の区切りの固定サイズの入れ物(約 2% の精度)に数えるので、件数が増えてもメモリは増えない。
 /// </summary>

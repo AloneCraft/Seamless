@@ -1,4 +1,4 @@
-namespace Benchmark.TpcE.Core;
+namespace Benchmark.Tpc.Core;
 /// <summary>
 /// 決定的な乱数(xoshiro256**)。種は SplitMix64 で広げる。System.Random は版をまたいだ再現が保証されないので使わない。
 /// 運転状態に乱数の位置を保存しなくて済むよう、使う側は (種, 流れの名前, 番号) から毎回作る(<see cref="For"/>)。

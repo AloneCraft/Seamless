@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-namespace Benchmark.TpcE.Core;
+namespace Benchmark.Tpc.Core;
 /// <summary>
 /// 文字の ID(ST_ID・TT_ID など 8 文字以下)を ulong に詰めた値。
 /// ASCII を上位バイトから順に詰めるので、数値の大小が文字列の Ordinal 比較と一致する。
