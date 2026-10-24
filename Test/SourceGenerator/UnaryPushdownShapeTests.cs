@@ -103,8 +103,9 @@ public sealed partial class UnaryPushdownShapeTests(ITestOutputHelper output) {
 
     [Fact]
     public void OrderAfterLinqCallIsPushed() {
-        var enabled = GeneratedSource(WithPushdown(OrderAfterLinqCallSource));
-        var disabled = GeneratedSource(WithoutPushdown(OrderAfterLinqCallSource));
+        // 構文書き換え(Rewrite)も Where を Order の前へ並べ替えるので、押し下げの層だけを確かめるために Rewrite は切る。
+        var enabled = GeneratedSource(OrderAfterLinqCallSource.Replace("OPTIMIZATIONS","LinqOptimizations.All&~LinqOptimizations.Rewrite",StringComparison.Ordinal));
+        var disabled = GeneratedSource(OrderAfterLinqCallSource.Replace("OPTIMIZATIONS","LinqOptimizations.All&~LinqOptimizations.Rewrite&~LinqOptimizations.PredicatePushdown",StringComparison.Ordinal));
 
         GeneratedSourceAssert.True(
             PredicateFiltersBeforeBuffering(enabled)&&!PredicateFiltersBeforeBuffering(disabled),
