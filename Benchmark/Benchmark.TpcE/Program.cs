@@ -111,7 +111,7 @@ public static class Program{
             if(!variant.Name.EndsWith("-flinq",StringComparison.Ordinal)){
                 continue;
             }
-            var missing=InterceptionCoverage.FindMissing(variant.GetType().Assembly,out var stopped);
+            var missing=InterceptionCoverage.FindMissing(variant.GetType().Assembly,TpcETransactions.Namespace,out var stopped);
             Console.WriteLine($"  {variant.Name}: 止めた {stopped.Count} 件 {string.Join(", ",stopped)}、置き換え漏れ {missing.Count} 件 {string.Join(", ",missing)}");
         }
         return 0;

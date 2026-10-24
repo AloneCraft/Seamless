@@ -1,13 +1,12 @@
 using System.Reflection;
-namespace Benchmark.TpcE.Core;
+namespace Benchmark.Tpc.Core;
 /// <summary>
-/// FLinq の組み合わせで、取引の問い合わせ(名前が *Queries の型の public メソッド)がすべて FLinq のインターセプタに置き換わっているかを調べる。
+/// FLinq の組み合わせで、取引の問い合わせ(指定した名前空間の、名前が *Queries の型の public メソッド)がすべて FLinq のインターセプタに置き換わっているかを調べる。
 /// FLinq は置き換えられないメソッドを診断なしに System.Linq のまま動かすので、それを見逃さないための検査。
 /// </summary>
 public static class InterceptionCoverage{
-    public const string TransactionsNamespace="Shared.TpcE.Transactions";
     /// <summary>置き換えの無い問い合わせの一覧(「型名.メソッド名」)。[LinqIntercept(false)] で止めたものは <paramref name="allowed"/> に入れて返す。</summary>
-    public static IReadOnlyList<string> FindMissing(Assembly variant,out IReadOnlyList<string> allowed){
+    public static IReadOnlyList<string> FindMissing(Assembly variant,string transactionsNamespace,out IReadOnlyList<string> allowed){
         var intercepted=new HashSet<(Type,string)>();
         foreach(var type in SafeTypes(variant)){
             if(type.Namespace is null||!(type.Namespace=="Intercept"||type.Namespace.StartsWith("Intercept.",StringComparison.Ordinal))){
@@ -30,7 +29,7 @@ public static class InterceptionCoverage{
         var missing=new List<string>();
         var stopped=new List<string>();
         foreach(var type in SafeTypes(variant)){
-            if(type.Namespace!=TransactionsNamespace||!type.Name.EndsWith("Queries",StringComparison.Ordinal)){
+            if(type.Namespace!=transactionsNamespace||!type.Name.EndsWith("Queries",StringComparison.Ordinal)){
                 continue;
             }
             foreach(var method in type.GetMethods(BindingFlags.Public|BindingFlags.Instance|BindingFlags.DeclaredOnly)){
