@@ -113,4 +113,57 @@ public sealed class TpcCDataGenerator{
             }
         }
     }
+    [Fact,Trait("Category","Integration")]public void GenerateAmounts(){
+        {
+            //初期の明細の金額: 仕様は配達済みが 0.00・未配達が 0.01〜9,999.99、HammerDB は逆で配達済みが 0.10〜100.00・未配達が 0(Q-027)。配達日は配達済みだけに入る
+            var scale=TestDatabases.Mini(1,1);
+            foreach(var mode in new[]{Core.TpcCMode.Spec,Core.TpcCMode.HammerDbMssql}){
+                var (store,db)=TestDatabases.Load(scale,mode);
+                try{
+                    var lines=db.For(1).OrderLine.EnumerateRows().ToList();
+                    var delivered=lines.Where(line=>line.OrderId<scale.FirstInitialNewOrder).ToList();
+                    var pending=lines.Where(line=>line.OrderId>=scale.FirstInitialNewOrder).ToList();
+                    Assert.NotEmpty(delivered);
+                    Assert.NotEmpty(pending);
+                    Assert.All(delivered,line=>Assert.NotEqual(0L,line.DeliveryDate));
+                    Assert.All(pending,line=>Assert.Equal(0L,line.DeliveryDate));
+                    if(mode==Core.TpcCMode.Spec){
+                        Assert.All(delivered,line=>Assert.Equal(0m,line.Amount));
+                        Assert.All(pending,line=>Assert.InRange(line.Amount,0.01m,9999.99m));
+                    }else{
+                        Assert.All(delivered,line=>Assert.InRange(line.Amount,0.10m,100.00m));
+                        Assert.All(pending,line=>Assert.Equal(0m,line.Amount));
+                    }
+                }finally{
+                    db.Dispose();
+                    store.Dispose();
+                }
+            }
+        }
+    }
+    [Fact,Trait("Category","Integration")]public void GeneratePadding(){
+        {
+            //HammerDB の形は C_DATA を 500 文字、I_DATA と S_DATA を 50 文字に詰める(固定長の列)。仕様の形は詰めない
+            var scale=TestDatabases.Mini(1,1);
+            foreach(var mode in new[]{Core.TpcCMode.Spec,Core.TpcCMode.HammerDbMssql}){
+                var (store,db)=TestDatabases.Load(scale,mode);
+                try{
+                    var customers=db.For(1).Customer.EnumerateRows().ToList();
+                    var items=db.For(1).Item.EnumerateRows().ToList();
+                    var stocks=db.For(1).Stock.EnumerateRows().ToList();
+                    if(mode==Core.TpcCMode.HammerDbMssql){
+                        Assert.All(customers,row=>Assert.Equal(500,row.Data.Length));
+                        Assert.All(items,row=>Assert.Equal(50,row.Data.Length));
+                        Assert.All(stocks,row=>Assert.Equal(50,row.Data.Length));
+                    }else{
+                        Assert.Contains(customers,row=>row.Data.Length<500);
+                        Assert.Contains(items,row=>row.Data.Length<50);
+                    }
+                }finally{
+                    db.Dispose();
+                    store.Dispose();
+                }
+            }
+        }
+    }
 }

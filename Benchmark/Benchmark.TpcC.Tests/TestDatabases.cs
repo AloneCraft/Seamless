@@ -19,6 +19,16 @@ internal static class TestDatabases{
         engine.Database.EndBulkLoad();
         return (store,engine);
     }
+    /// <summary>端末ごとの入力生成器(読み込みと同じ規則の C_LAST の C から運転時の定数を決める)。</summary>
+    public static Core.TpcCInputGenerator[] Generators(Core.TpcCScale scale,Core.TpcCMode mode,ulong seed,int count,ulong loadSeed=1){
+        var load=new Core.TpcCDataGenerator(scale,Core.TpcCLoadRules.For(mode),loadSeed).LastNameCLoad;
+        var constants=Core.TpcCNuRandConstants.For(scale,mode,seed,load);
+        var result=new Core.TpcCInputGenerator[count];
+        for(var terminal=0;terminal<count;terminal++){
+            result[terminal]=new Core.TpcCInputGenerator(scale,mode,seed,terminal,constants);
+        }
+        return result;
+    }
     /// <summary>倉庫 w を持つ区画。</summary>
     public static Core.TpcCPartitionBase PartitionOf(Core.ITpcCEngine engine,int warehouse)=>engine.Database.PartitionBases[engine.Database.Scale.PartitionOf(warehouse)];
     public static void Close(Store store,Core.ITpcCEngine engine){

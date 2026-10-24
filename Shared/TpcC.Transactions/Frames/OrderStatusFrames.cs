@@ -9,7 +9,7 @@ internal sealed class OrderStatusFrames(CustomerLookup lookup,OrderStatusQueries
         var latest=partition.CustomerOrders.TopDesc(new CustomerOwner(warehouse,request.DistrictId,customerId,0),1);
         if(latest.Length==0){
             // 初期データの注文の顧客が順列でない HammerDB の形では、注文の無い顧客に当たる(Q-025)。
-            return new OrderStatusResult(false,customerId,customer.First,customer.Last,customer.Balance,0,0,0,[]);
+            return new OrderStatusResult(false,customerId,customer.First,customer.Middle,customer.Last,customer.Balance,0,0,0,[]);
         }
         var order=partition.Order.Get(new OrderKey(warehouse,request.DistrictId,(int)latest[0]));
         var lines=new List<OrderLineRow>(order.LineCount);
@@ -19,6 +19,6 @@ internal sealed class OrderStatusFrames(CustomerLookup lookup,OrderStatusQueries
                 lines.Add(found);
             }
         }
-        return new OrderStatusResult(false,customerId,customer.First,customer.Last,customer.Balance,order.Id,order.EntryDate,order.CarrierId,queries.ToLines(lines.ToArray()));
+        return new OrderStatusResult(false,customerId,customer.First,customer.Middle,customer.Last,customer.Balance,order.Id,order.EntryDate,order.CarrierId,queries.ToLines(lines.ToArray()));
     }
 }

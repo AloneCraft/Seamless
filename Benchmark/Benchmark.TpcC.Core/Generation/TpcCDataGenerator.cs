@@ -39,7 +39,7 @@ public sealed class TpcCDataGenerator(TpcCScale scale,TpcCLoadRules rules,ulong 
         for(var id=1;id<=this.Scale.Items;id++){
             var name=AString(ref rng,14,24);
             var price=rng.Range(100,10_000)/100m;
-            var data=this.DataWithOriginal(ref rng);
+            var data=this.Pad(this.DataWithOriginal(ref rng),50);
             var image=rng.Range(1,10_000);
             sink.Load(new ItemRow(id,image,name,price,data));
         }
@@ -57,7 +57,7 @@ public sealed class TpcCDataGenerator(TpcCScale scale,TpcCLoadRules rules,ulong 
                 warehouse,item,quantity,
                 AString(ref rng,24,24),AString(ref rng,24,24),AString(ref rng,24,24),AString(ref rng,24,24),AString(ref rng,24,24),
                 AString(ref rng,24,24),AString(ref rng,24,24),AString(ref rng,24,24),AString(ref rng,24,24),AString(ref rng,24,24),
-                0,0,0,this.DataWithOriginal(ref rng)));
+                0,0,0,this.Pad(this.DataWithOriginal(ref rng),50)));
         }
     }
     private void GenerateDistrict(ITpcCLoadSink sink,int warehouse,int district){
@@ -79,7 +79,7 @@ public sealed class TpcCDataGenerator(TpcCScale scale,TpcCLoadRules rules,ulong 
             }
             sink.Load(new CustomerRow(
                 warehouse,district,customer,first,"OE",LastName(number),AString(ref rng,10,20),AString(ref rng,10,20),AString(ref rng,10,20),State(ref rng),Zip(ref rng),NString(ref rng,16,16),
-                this.Rules.LoadTime,credit,50_000.00m,this.Discount(ref rng),-10.00m,10.00m,1,0,AString(ref rng,300,500)));
+                this.Rules.LoadTime,credit,50_000.00m,this.Discount(ref rng),-10.00m,10.00m,1,0,this.Pad(AString(ref rng,300,500),500)));
             sink.Load(new HistoryRow(warehouse,district,customer,warehouse,district,customer,this.Rules.LoadTime,10.00m,AString(ref rng,12,24)));
         }
         // 初期の注文は顧客ごとに 1 件。O_C_ID は顧客 ID の無作為な順列。
@@ -124,6 +124,13 @@ public sealed class TpcCDataGenerator(TpcCScale scale,TpcCLoadRules rules,ulong 
                 sink.Load(new OrderLineRow(warehouse,district,order,number,item,warehouse,deliveryDate,5,amount,AString(ref rng,24,24)));
             }
         }
+    }
+    /// <summary>固定長の列(HammerDB の char(n))なら空白で詰める。</summary>
+    private string Pad(string text,int width){
+        if(this.Rules.PadDataColumns){
+            return text.PadRight(width);
+        }
+        return text;
     }
     private decimal Tax(ref Rng rng)=>rng.Range(this.Rules.TaxMin/this.Rules.TaxStep,this.Rules.TaxMax/this.Rules.TaxStep)*this.Rules.TaxStep/10_000m;
     private decimal Discount(ref Rng rng)=>rng.Range(0,5000/this.Rules.DiscountStep)*this.Rules.DiscountStep/10_000m;

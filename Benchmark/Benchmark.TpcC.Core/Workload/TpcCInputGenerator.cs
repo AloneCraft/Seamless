@@ -2,30 +2,37 @@ namespace Benchmark.TpcC.Core;
 /// <summary>
 /// NURand の定数 C。仕様 2.1.6.1: C_LAST の運転時の C は、作成時の C との差が 65〜119(96 と 112 を除く)になるように選ぶ。
 /// HammerDB(Q-006)は作成時も運転時も 123 に固定する(差 0)。
+/// 規模を縮小したときは A が小さくなる(仕様 2.1.6 は C を [0..A] から選ぶ)ので、C もその範囲から選ぶ。姓の A が 255 でない縮小規模では、差の規則を守れないので範囲内から選ぶだけにする。
 /// </summary>
 public sealed record TpcCNuRandConstants(int LastNameLoad,int LastNameRun,int CustomerId,int ItemId){
-    public static TpcCNuRandConstants For(TpcCMode mode,ulong seed,int lastNameLoad){
+    public static TpcCNuRandConstants For(TpcCScale scale,TpcCMode mode,ulong seed,int lastNameLoad){
         if(mode==TpcCMode.HammerDbMssql){
             // 顧客 ID と品目 ID は NURand を使わない(一様)ので、定数は使われない。
             return new TpcCNuRandConstants(123,123,0,0);
         }
         var rng=Rng.For(seed,"nurand-c",0);
-        var delta=0;
-        while(delta==0||delta==96||delta==112){
-            delta=rng.Range(65,119);
+        var run=0;
+        if(scale.LastNameA==255){
+            var delta=0;
+            while(delta==0||delta==96||delta==112){
+                delta=rng.Range(65,119);
+            }
+            run=lastNameLoad+delta;
+            if(run>255){
+                run=lastNameLoad-delta;
+            }
+        }else{
+            run=rng.Range(0,scale.LastNameA);
         }
-        var run=lastNameLoad+delta;
-        if(run>255){
-            run=lastNameLoad-delta;
-        }
-        return new TpcCNuRandConstants(lastNameLoad,run,rng.Range(0,1023),rng.Range(0,8191));
+        return new TpcCNuRandConstants(lastNameLoad,run,rng.Range(0,scale.CustomerIdA),rng.Range(0,scale.ItemIdA));
     }
 }
 /// <summary>
 /// 取引の入力の生成(仕様 2.4.1〜2.8.1、5.2.4)。<see cref="TpcCMode.Spec"/> は仕様どおり(NURand で偏らせ、取引は 45/43/4/4/4 の重み付き選択)、
 /// <see cref="TpcCMode.HammerDbMssql"/> は HammerDB 6.1 の運転側と手続きの中の乱数の分布(QUIRKS Q-001〜Q-009)を再現する
 /// (取引は 1..23 の一様乱数、顧客と品目は一様、C_LAST だけ NURand(255,0,999,C=123)、遠隔の抽選、支払額は 1..5000 の整数)。
-/// 端末(HammerDB の VU)ごとに生成器を 1 つ作る。要求番号から乱数を毎回作り直すので、同じ (種, 端末, 要求番号) なら同じ入力で、順序に依らない。
+/// 端末(HammerDB の VU)ごとに生成器を 1 つ作り、1 つのスレッドで使う(山札を覚えておくので同時には使えない)。
+/// 要求番号から乱数を毎回作り直すので、同じ (種, 端末, 要求番号) なら同じ入力で、呼ぶ順序に依らない。
 /// </summary>
 public sealed class TpcCInputGenerator{
     private readonly TpcCScale scale;
@@ -34,6 +41,9 @@ public sealed class TpcCInputGenerator{
     private readonly int terminal;
     private readonly TpcCNuRandConstants constants;
     private readonly int[]? warehouseList;
+    private long deckNumber=-1;
+    private readonly int[] deck=new int[DeckSize];
+    private const int DeckSize=23;
     /// <param name="warehouseCount">HammerDB の「全倉庫を使う」を入れるときの VU の数。0 なら家の倉庫は端末ごとに 1 つに固定する。</param>
     public TpcCInputGenerator(TpcCScale scale,TpcCMode mode,ulong seed,int terminal,TpcCNuRandConstants constants,int allWarehousesTerminalCount=0){
         this.scale=scale;
@@ -41,6 +51,15 @@ public sealed class TpcCInputGenerator{
         this.seed=seed;
         this.terminal=terminal;
         this.constants=constants;
+        if(mode==TpcCMode.Spec){
+            // 仕様の端末は倉庫あたり 10 台。範囲を超えると家の倉庫と地区が折り返して (W_ID, D_ID) が重なるので受け付けない(2.8.1.1)。
+            if(terminal<0||terminal>=scale.Warehouses*TpcCScale.DistrictsPerWarehouse){
+                throw new ArgumentOutOfRangeException(nameof(terminal),terminal,"A spec terminal must be 0..10*Warehouses-1.");
+            }
+            if(allWarehousesTerminalCount>0){
+                throw new ArgumentException("All-warehouses (HammerDB) is not part of the spec mode: the home warehouse is fixed per terminal (2.4.1.1).",nameof(allWarehousesTerminalCount));
+            }
+        }
         var setup=Rng.For(seed,"terminal-setup",terminal);
         if(mode==TpcCMode.HammerDbMssql){
             // VU ごとに、家の倉庫は 1..W から重複を許して一様に選ぶ(Q-002)。Stock-Level の地区は VU ごとに 1..10 から選んで固定する(Q-004)。
@@ -67,15 +86,15 @@ public sealed class TpcCInputGenerator{
     /// <summary>要求番号 <paramref name="index"/> の入力。取引の種類も混合の規則で決める。</summary>
     public TpcCRequest Next(long index,long now){
         var rng=Rng.For(this.seed,"t"+this.terminal.ToString(System.Globalization.CultureInfo.InvariantCulture),index);
-        return this.Make(ref rng,this.ChooseKind(ref rng),now);
+        return this.Make(ref rng,this.ChooseKind(ref rng,index),now);
     }
     /// <summary>種類を指定して要求番号 <paramref name="index"/> の入力を作る(試験と、種類ごとの検証用)。</summary>
     public TpcCRequest Next(long index,long now,TpcCTxnKind kind){
         var rng=Rng.For(this.seed,"t"+this.terminal.ToString(System.Globalization.CultureInfo.InvariantCulture),index);
-        this.ChooseKind(ref rng);
+        this.ChooseKind(ref rng,index);
         return this.Make(ref rng,kind,now);
     }
-    private TpcCTxnKind ChooseKind(ref Rng rng){
+    private TpcCTxnKind ChooseKind(ref Rng rng,long index){
         if(this.mode==TpcCMode.HammerDbMssql){
             // 1..23 の一様乱数: 1..10 New-Order、11..20 Payment、21 Delivery、22 Stock-Level、23 Order-Status(Q-001)。
             var draw=rng.Range(1,23);
@@ -93,21 +112,37 @@ public sealed class TpcCInputGenerator{
             }
             return TpcCTxnKind.OrderStatus;
         }
-        // 仕様 5.2.3: Payment 43%・Order-Status 4%・Delivery 4%・Stock-Level 4% が最低で、残りの 45% が New-Order(重み付き選択、5.2.4.1)。
-        var choice=rng.Range(1,100);
-        if(choice<=45){
+        // 仕様 5.2.4.2 の山札: 23 枚(New-Order 10・Payment 10・Order-Status 1・Delivery 1・Stock-Level 1)を周ごとにシャッフルして順に引く。
+        // 最低比率(5.2.3: Payment 43%・Order-Status/Delivery/Stock-Level 各 4%)を、短い運転でも割らない(重み付き選択では最低ぎりぎりで半分の確率で割る)。
+        var number=index/DeckSize;
+        if(number!=this.deckNumber){
+            this.Shuffle(number);
+        }
+        var card=this.deck[(int)(index%DeckSize)];
+        if(card<10){
             return TpcCTxnKind.NewOrder;
         }
-        if(choice<=88){
+        if(card<20){
             return TpcCTxnKind.Payment;
         }
-        if(choice<=92){
+        if(card==20){
             return TpcCTxnKind.OrderStatus;
         }
-        if(choice<=96){
+        if(card==21){
             return TpcCTxnKind.Delivery;
         }
         return TpcCTxnKind.StockLevel;
+    }
+    private void Shuffle(long number){
+        var rng=Rng.For(this.seed,"deck-t"+this.terminal.ToString(System.Globalization.CultureInfo.InvariantCulture),number);
+        for(var card=0;card<DeckSize;card++){
+            this.deck[card]=card;
+        }
+        for(var position=DeckSize-1;position>0;position--){
+            var other=rng.Range(0,position);
+            (this.deck[position],this.deck[other])=(this.deck[other],this.deck[position]);
+        }
+        this.deckNumber=number;
     }
     private TpcCRequest Make(ref Rng rng,TpcCTxnKind kind,long now){
         var home=this.HomeWarehouse;
@@ -141,7 +176,8 @@ public sealed class TpcCInputGenerator{
         return (int)rng.NURand(this.scale.ItemIdA,1,this.scale.Items,this.constants.ItemId);
     }
     private string LastName(ref Rng rng){
-        var number=(int)rng.NURand(255,0,999,this.constants.LastNameRun);
+        // 存在する姓は 0..LastNameCount-1(1,000 人未満に縮小すると減る)。仕様の規模では NURand(255,0,999)。
+        var number=(int)rng.NURand(this.scale.LastNameA,0,this.scale.LastNameCount-1,this.constants.LastNameRun);
         return TpcCDataGenerator.LastName(number);
     }
     /// <summary>家の倉庫以外の倉庫を一様に選ぶ。倉庫が 1 つしか無いときは家の倉庫のまま。</summary>
