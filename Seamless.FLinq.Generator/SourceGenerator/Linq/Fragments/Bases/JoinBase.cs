@@ -63,7 +63,9 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
     protected string InnerKeyType => FuncReturnTypeName(this.innerKey);
     protected string InnerElementType => this.innerSource.ElementType;
     protected string OuterElementType => this.outerSource.ElementType;
-    protected string BuildLookupBody(bool skipNullKeyCheck,string logicalInnerCounterMethod) => skipNullKeyCheck ? $$"""
+    // skipNullKeys: null キーの内側を探索表に入れない(System.Linq の Join / GroupJoin / LeftJoin と同じ。null キーは何とも一致しない)。
+    // true にするときは、呼び出し側の構造体に IsNullKey を置く。
+    protected string BuildLookupBody(bool skipNullKeys,string logicalInnerCounterMethod) => skipNullKeys ? $$"""
         private static global::Seamless.Linq.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
             var __hasCnt=inner.TryGetNonEnumeratedCount(out var __cnt);
             if(__hasCnt) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();

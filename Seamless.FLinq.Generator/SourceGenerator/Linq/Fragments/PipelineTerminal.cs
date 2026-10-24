@@ -500,9 +500,12 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var seenFilter = false;
         var seenStatefulFilter = false;
         var seenReverse = false;
-        var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any or PipelineTerminalKind.Contains;
-        // First / Any などは Distinct を省いても先頭は変わらない。ただし Distinct の後ろに位置や数に依存する段(Skip / Take / Where など)があると、
-        // 重複を除いた後の列で数えるので省けない。Select(添字なし)・AsEnumerable・Cast だけなら省ける。
+        // First / FirstOrDefault / 述語なしの Any は、Distinct を省いても先頭の要素は変わらず、後ろの Select も先頭の1件にしか評価しない。
+        // Contains と述語つきの Any は先頭で止まらないので、後ろにラムダの段や述語があると、重複にも評価する(System.Linq より多い)。
+        // Distinct の後ろに位置や数に依存する段(Skip / Take / Where など)があると、重複を除いた後の列で数えるので省けない。
+        var stopsAtFirstElement = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault
+            ||terminalKind==PipelineTerminalKind.Any&&func1 is null;
+        var skipDistinct = stopsAtFirstElement||terminalKind==PipelineTerminalKind.Contains;
         if(skipDistinct) {
             for(var d = 0;d<pipeline.Stages.Count;d++) {
                 if(pipeline.Stages[d].Kind is not (PipelineStageKind.Distinct or PipelineStageKind.DistinctBy)) {
@@ -511,7 +514,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 for(var after = d+1;after<pipeline.Stages.Count;after++) {
                     var laterStage = pipeline.Stages[after];
                     if(laterStage.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast
-                        ||laterStage.Kind==PipelineStageKind.Select&&!laterStage.UsesIndex) {
+                        ||stopsAtFirstElement&&laterStage.Kind==PipelineStageKind.Select&&!laterStage.UsesIndex) {
                         continue;
                     }
                     return false;
@@ -667,7 +670,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 continue;
             }
             if(firstSliceIndex<0) {
-                if(st.Kind==PipelineStageKind.Distinct) {
+                if(st.Kind==PipelineStageKind.Distinct&&this.CanDropDistinctBeforeBinary(i,binaryStageIndex,binaryStage)) {
                     continue;
                 }
                 if(this.CanIgnoreOrderForTerminal()&&st.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending or PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending) {
@@ -688,6 +691,24 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 continue;
             }
             return false;
+        }
+        return true;
+    }
+
+    // 二項集合演算の前の Distinct を描画で省いてよいか。後ろの Except / Intersect(By の付かない形)は、出力を既定の比較子で重複なしにするので、
+    // 既定の比較子の Distinct は結果を変えない。ただし、独自の比較子の Distinct はどの重複が残るかを決めるので省けない。
+    // 間にラムダの段があると、そのラムダを重複にも評価する(System.Linq より多い)ので、間は Cast / AsEnumerable だけに限る。
+    private bool CanDropDistinctBeforeBinary(int distinctIndex,int binaryStageIndex,PipelineStage binaryStage) {
+        var distinct = pipeline.Stages[distinctIndex];
+        if(binaryStage.Kind is not (PipelineStageKind.Except or PipelineStageKind.Intersect)
+            ||!ComparerExpressionSupport.IsDefaultEqualityComparer(distinct.Value??"null",distinct.OutputType)
+            ||!ComparerExpressionSupport.IsDefaultEqualityComparer(binaryStage.Value??"null",binaryStage.OutputType)) {
+            return false;
+        }
+        for(var i = distinctIndex+1;i<binaryStageIndex;i++) {
+            if(pipeline.Stages[i].Kind is not (PipelineStageKind.Cast or PipelineStageKind.AsEnumerable)) {
+                return false;
+            }
         }
         return true;
     }

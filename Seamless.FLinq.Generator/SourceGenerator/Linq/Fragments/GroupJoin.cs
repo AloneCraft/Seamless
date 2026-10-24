@@ -55,7 +55,12 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         """;
     private string LookupMembers() {
         if(!this.CanSkipLookup()) {
-            return this.BuildLookupBody(false,"IncrementLogicalGroupJoinInner");
+            return this.BuildLookupBody(true,"IncrementLogicalGroupJoinInner")+"""
+
+                private static bool IsNullKey<TKey>(TKey key){
+                    return key is null;
+                }
+                """;
         }
         if(!this.InnerEnumerationIsObservable()) {
             return $$"""
