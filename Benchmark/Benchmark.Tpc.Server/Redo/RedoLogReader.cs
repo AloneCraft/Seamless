@@ -1,7 +1,7 @@
-using Benchmark.TpcE.Core;
-namespace Benchmark.TpcE.Compliance;
+using Benchmark.Tpc.Core;
+namespace Benchmark.Tpc.Server;
 /// <summary>再実行ログの読み手と、復旧時の再適用。</summary>
-internal static class RedoLogReader{
+public static class RedoLogReader{
     /// <summary>有効な記録を順に返す。切れた、または壊れた記録で止め、そこまでの長さを <paramref name="validLength"/> に返す。</summary>
     public static IEnumerable<RedoTransaction> Read(string path,Action<long> validLength){
         if(!File.Exists(path)){
@@ -21,7 +21,7 @@ internal static class RedoLogReader{
         validLength(offset);
     }
     /// <summary>通し番号が <paramref name="afterSequence"/> より後の記録だけを、ログの順に当てる。索引も更新される。</summary>
-    public static RedoRecovery Replay(TpcEDatabaseBase database,string path,long afterSequence){
+    public static RedoRecovery Replay(TpcDatabaseBase database,string path,long afterSequence){
         var tables=new Dictionary<int,ITableView>();
         foreach(var table in database.Tables){
             tables.Add(table.TableId,table);
@@ -49,4 +49,4 @@ internal static class RedoLogReader{
     }
 }
 /// <summary>再適用の結果。<see cref="ValidLength"/> までが有効なログで、書き手はここから足す。</summary>
-internal readonly record struct RedoRecovery(long ValidLength,long LastSequence,long AppliedTransactions);
+public readonly record struct RedoRecovery(long ValidLength,long LastSequence,long AppliedTransactions);

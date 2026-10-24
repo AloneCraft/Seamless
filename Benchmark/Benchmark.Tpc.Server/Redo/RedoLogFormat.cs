@@ -1,13 +1,13 @@
 using System.Buffers.Binary;
 using System.IO.Hashing;
-using Benchmark.TpcE.Core;
-namespace Benchmark.TpcE.Compliance;
+using Benchmark.Tpc.Core;
+namespace Benchmark.Tpc.Server;
 /// <summary>
 /// 再実行ログの 1 件の形: [長さ int32][CRC32 uint32][中身]。
 /// 中身: 通し番号 int64、書き込みの数 int32、書き込みごとに [表 int32][種類 byte][キー長 int32][キー][行の有無 byte][行長 int32][行]。
 /// 末尾が途中で切れた、または CRC が合わない記録は、電源断で書き終えなかったものとして読み捨てる。
 /// </summary>
-internal static class RedoLogFormat{
+public static class RedoLogFormat{
     public const int HeaderLength=8;
     public static byte[] Encode(RedoTransaction transaction){
         using var payload=new MemoryStream();
