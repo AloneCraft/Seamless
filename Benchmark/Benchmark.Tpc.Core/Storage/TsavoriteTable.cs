@@ -1,6 +1,6 @@
 using Seamless.Collections;
 using Seamless.Collections.Tsavorite;
-namespace Benchmark.TpcE.Core;
+namespace Benchmark.Tpc.Core;
 /// <summary>
 /// Tsavorite の <c>Set&lt;TKey,TRow&gt;</c> に置いた表。<see cref="Rows"/> の静的な型が具体型なので、FLinq は表を直接回す。
 /// 上書きの API が無いので、更新は Remove→Add で行う。

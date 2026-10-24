@@ -23,4 +23,8 @@
     <ProjectReference Include="..\Benchmark.TpcE.Persisted.Linq\Benchmark.TpcE.Persisted.Linq.csproj" />
     <ProjectReference Include="..\Benchmark.TpcE.Persisted.FLinq\Benchmark.TpcE.Persisted.FLinq.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- 共通の部品(表・索引・取り消し記録など)は Benchmark.Tpc.Core にある。 -->
+    <Using Include="Benchmark.Tpc.Core" />
+  </ItemGroup>
 </Project>

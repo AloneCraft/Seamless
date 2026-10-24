@@ -10,7 +10,7 @@ public sealed class RedoLogWriter:IDisposable{
         }catch(IOException){
         }
     }
-    private static RedoTransaction Sample(long sequence)=>new(sequence,[new RedoEntry(1,Core.WriteKind.Update,[1],[2])]);
+    private static RedoTransaction Sample(long sequence)=>new(sequence,[new RedoEntry(1,WriteKind.Update,[1],[2])]);
     private static long Count(string path){
         long valid=0;
         long count=0;
