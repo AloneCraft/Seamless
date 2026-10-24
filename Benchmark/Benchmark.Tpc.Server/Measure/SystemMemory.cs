@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
-namespace Benchmark.TpcE.Compliance;
+namespace Benchmark.Tpc.Server;
 /// <summary>PC 全体のメモリ使用率。長い実行で、他の作業を巻き込まないための見張りに使う。</summary>
-internal static class SystemMemory{
+public static class SystemMemory{
     [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Auto)]
     private struct MemoryStatus{
         public uint Length;

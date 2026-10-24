@@ -49,6 +49,7 @@
     <Project Path="Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj" />
     <Project Path="Benchmark/Benchmark.Tpc.Core/Benchmark.Tpc.Core.csproj" />
+    <Project Path="Benchmark/Benchmark.Tpc.Server/Benchmark.Tpc.Server.csproj" />
   </Folder>
   <Folder Name="/Benchmark/Shared/">
     <Project Path="Benchmark/Shared/UI/UI.shproj" />

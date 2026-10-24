@@ -24,7 +24,7 @@ public sealed class RedoLogReader{
                 Assert.Empty(StateDigest.Of(a.Database).Differences(StateDigest.Of(b.Database)));
                 var observer=new RedoObserver(a.Database);
                 a.Database.Log.Observer=observer;
-                using(var writer=new Compliance.RedoLogWriter(path,0)){
+                using(var writer=new Tpc.Server.RedoLogWriter(path,0)){
                     var db=a.Database;
                     var trade=db.Trade.EnumerateRows().OrderBy(static row=>row.Id).First();
                     var other=db.Trade.EnumerateRows().OrderBy(static row=>row.Id).Skip(1).First();
@@ -48,12 +48,12 @@ public sealed class RedoLogReader{
                     writer.Sync();
                 }
                 Assert.NotEmpty(StateDigest.Of(a.Database).Differences(StateDigest.Of(b.Database)));
-                var recovery=Compliance.RedoLogReader.Replay(b.Database,path,0);
+                var recovery=Tpc.Server.RedoLogReader.Replay(b.Database,path,0);
                 Assert.Equal(3,recovery.AppliedTransactions);
                 Assert.Equal(3,recovery.LastSequence);
                 Assert.Empty(StateDigest.Of(a.Database).Differences(StateDigest.Of(b.Database)));
                 // チェックポイントより前の分は当て直さない。
-                Assert.Equal(0,Compliance.RedoLogReader.Replay(b.Database,path,3).AppliedTransactions);
+                Assert.Equal(0,Tpc.Server.RedoLogReader.Replay(b.Database,path,3).AppliedTransactions);
             }finally{
                 try{
                     Directory.Delete(directory,true);

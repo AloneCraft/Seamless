@@ -1,9 +1,9 @@
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
-namespace Benchmark.TpcE.Compliance;
+namespace Benchmark.Tpc.Server;
 /// <summary>SUT へ要求を 1 件送って応答を読む(試験用の小さなクライアント)。</summary>
-internal static class SutClient{
+public static class SutClient{
     public static JsonElement Call(int port,string json)=>Call(port,Encoding.UTF8.GetBytes(json));
     public static JsonElement Call(int port,byte[] request){
         using var client=new TcpClient("127.0.0.1",port);

@@ -1,9 +1,9 @@
-namespace Benchmark.TpcE.Compliance;
+namespace Benchmark.Tpc.Server;
 /// <summary>
 /// 再実行ログの書き手。<see cref="Append"/> は積むだけで、<see cref="Sync"/> が書き出して fsync する(複数の取引をまとめて 1 回で確定する)。
 /// 応答は <see cref="Sync"/> の後に返す。
 /// </summary>
-internal sealed class RedoLogWriter:IDisposable{
+public sealed class RedoLogWriter:IDisposable{
     private readonly FileStream stream;
     private readonly MemoryStream pending=new();
     private long lastAppendedSequence;

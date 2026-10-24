@@ -15,6 +15,8 @@
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" />
     <Using Include="Xunit" />
+    <Using Include="Benchmark.Tpc.Core" />
+    <Using Include="Benchmark.Tpc.Server" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Benchmark.Tpc.Core\Benchmark.Tpc.Core.csproj" />
