@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
-namespace Benchmark.TpcE.Compliance;
+namespace Benchmark.Tpc.Server;
 /// <summary>運転側と SUT の通信の枠: [長さ int32 リトルエンディアン][UTF-8 の JSON]。</summary>
-internal static class Framing{
+public static class Framing{
     public const int MaximumLength=4*1024*1024;
     /// <summary>1 件読む。相手が閉じていたら null。</summary>
     public static byte[]? Read(Stream stream){

@@ -1,10 +1,10 @@
-using Benchmark.TpcE.Core;
-namespace Benchmark.TpcE.Compliance;
+using Benchmark.Tpc.Core;
+namespace Benchmark.Tpc.Server;
 /// <summary>取引中の書き込みを保存形式で積み、取引が終わったら <see cref="Seal"/> で 1 件の記録にする。</summary>
-internal sealed class RedoObserver:IWriteObserver{
+public sealed class RedoObserver:IWriteObserver{
     private readonly List<RedoEntry> entries=[];
     private readonly Dictionary<int,ITableView> tables=[];
-    public RedoObserver(TpcEDatabaseBase database){
+    public RedoObserver(TpcDatabaseBase database){
         foreach(var table in database.Tables){
             this.tables.Add(table.TableId,table);
         }

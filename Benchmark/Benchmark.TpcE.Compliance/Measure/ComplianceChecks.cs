@@ -1,14 +1,6 @@
 using System.Globalization;
 using System.Text;
 namespace Benchmark.TpcE.Compliance;
-internal enum CheckOutcome{
-    Pass,
-    Fail,
-    /// <summary>この実行では判定できない(例: Data-Maintenance がまだ 1 回も動いていない)。合否には数えない。</summary>
-    NotExercised,
-}
-/// <summary>点検 1 件。<see cref="Clause"/> は仕様 1.14.0 の条項番号。</summary>
-internal sealed record CheckResult(string Clause,string Name,CheckOutcome Outcome,string Detail);
 /// <summary>測定の設定のうち、点検に要るもの(運転側の結果 JSON には入らない)。</summary>
 internal sealed record MeasureSettings(double CheckpointMinutes);
 /// <summary>運転側の結果を、仕様の規則に照らして点検する。</summary>

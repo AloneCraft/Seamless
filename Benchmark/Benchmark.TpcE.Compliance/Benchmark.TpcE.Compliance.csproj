@@ -19,10 +19,12 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Benchmark.TpcE.Core\Benchmark.TpcE.Core.csproj" />
+    <ProjectReference Include="..\Benchmark.Tpc.Server\Benchmark.Tpc.Server.csproj" />
     <ProjectReference Include="..\Benchmark.TpcE.Tsavorite.FLinq\Benchmark.TpcE.Tsavorite.FLinq.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- 共通の部品(表・索引・取り消し記録など)は Benchmark.Tpc.Core にある。 -->
     <Using Include="Benchmark.Tpc.Core" />
+    <Using Include="Benchmark.Tpc.Server" />
   </ItemGroup>
 </Project>

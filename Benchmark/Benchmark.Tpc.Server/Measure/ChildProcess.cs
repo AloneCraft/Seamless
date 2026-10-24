@@ -1,7 +1,7 @@
 using System.Diagnostics;
-namespace Benchmark.TpcE.Compliance;
+namespace Benchmark.Tpc.Server;
 /// <summary>子プロセス。標準出力と標準エラーをログファイルに書き、行を後から待てるようにする。</summary>
-internal sealed class ChildProcess:IDisposable{
+public sealed class ChildProcess:IDisposable{
     private readonly Process process;
     private readonly StreamWriter log;
     private readonly object gate=new();
