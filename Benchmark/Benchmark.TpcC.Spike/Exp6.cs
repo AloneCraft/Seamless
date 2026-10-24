@@ -33,7 +33,7 @@ public static class Exp6{
             }
             var record=partition.Save(release);
             var after=Breakdown(directory);
-            Console.WriteLine($"save {round}: {Report.Ms(record.Elapsed)}ms, added {Format(Delta(after,breakdown))}, total {Report.Mb(after.Values.Sum())}");
+            Console.WriteLine($"save {round}: {Report.Ms(record.Elapsed)}ms (gate-held total incl. digests/release/acquire {Report.Ms(record.Full)}ms), added {Format(Delta(after,breakdown))}, total {Report.Mb(after.Values.Sum())}");
             if(round>0){
                 times.Add(record.Elapsed);
             }

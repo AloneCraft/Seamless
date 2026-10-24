@@ -45,7 +45,8 @@ public static class Exp5{
     public static int Run(Args options){
         var mode=options.Str("mode","described");
         var root=Report.NewRoot(options,"exp5-"+mode);
-        Console.WriteLine($"root={root} Garnet {typeof(Tsavorite.core.LightEpoch).Assembly.GetName().Version} Seamless.Collections.Tsavorite {typeof(SetStore<,>).Assembly.Location}");
+        var dll=typeof(SetStore<,>).Assembly.Location;
+        Console.WriteLine($"root={root} Garnet {typeof(Tsavorite.core.LightEpoch).Assembly.GetName().Version} Seamless.Collections.Tsavorite {dll} sha256={Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(dll)))[..16]}");
         var failures=mode switch{
             "described"=>Described(root,options),
             "sector"=>Sector(root),
@@ -139,7 +140,8 @@ public static class Exp5{
         var max=options.Int("max",300);
         var failures=0;
         var directory=Path.Combine(root,"t");
-        foreach(var kind in new[]{"dict","set0","set1","set2"}){
+        var kinds=options.Str("kinds","dict,set0,set1,set2").Split(',');
+        foreach(var kind in kinds){
             var failed=new List<int>();
             for(var n=1;n<=max;n++){
                 if(Directory.Exists(directory)){
@@ -156,6 +158,12 @@ public static class Exp5{
                         break;
                     case "set2":
                         spec=spec with{PadKind=2};
+                        break;
+                    case "set3":
+                        spec=spec with{PadKind=3};
+                        break;
+                    case "set4":
+                        spec=spec with{PadKind=4};
                         break;
                 }
                 var keys=Keys("sym",n);
@@ -200,6 +208,8 @@ public static class Exp5{
     private static int Sweep(string root,Args options){
         var minutes=options.Double("minutes",10);
         var rng=new Random(options.Int("seed",1));
+        // 既定(0,1,2)なら以前のログと同じ乱数列。3(Pad16)と4(Pad64)は修正前で落ちる大きさ(レコード 8 バイト×奇数)。
+        var pads=options.Str("pads","0,1,2").Split(',').Select(int.Parse).ToArray();
         var watch=Stopwatch.StartNew();
         var trials=0;
         var failures=0;
@@ -227,7 +237,7 @@ public static class Exp5{
             if(rng.Next(2)==0){
                 kind="dict";
             }
-            var spec=new Spec(kind,KeySets[rng.Next(KeySets.Length)],8+rng.Next(400),rng.Next(),ops,close,reopen,new[]{20,33,50,70}[rng.Next(4)],memory,page,rng.Next(3));
+            var spec=new Spec(kind,KeySets[rng.Next(KeySets.Length)],8+rng.Next(400),rng.Next(),ops,close,reopen,new[]{20,33,50,70}[rng.Next(4)],memory,page,pads[rng.Next(pads.Length)]);
             var problem=Trial(Path.Combine(root,"t"),spec);
             trials++;
             var label=$"{spec.Kind}/pad{spec.PadKind}";
@@ -327,6 +337,8 @@ public static class Exp5{
             return spec.PadKind switch{
                 0=>new SetTrial<Pad8>(directory,tuning),
                 1=>new SetTrial<Pad56>(directory,tuning),
+                3=>new SetTrial<Pad16>(directory,tuning),
+                4=>new SetTrial<Pad64>(directory,tuning),
                 _=>new SetTrial<Pad600>(directory,tuning),
             };
         }

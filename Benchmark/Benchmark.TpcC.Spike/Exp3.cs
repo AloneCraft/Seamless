@@ -190,7 +190,7 @@ public static class Exp3{
         var process=Process.GetCurrentProcess();
         process.Refresh();
         Console.WriteLine($"limit: created {components.Count} components in {Report.Ms(watch.Elapsed)}ms then {failure?.GetType().Name}: {failure?.Message}");
-        Console.WriteLine($"limit: active before the failing call={beforeFailure} after={afterFailure} (leak={afterFailure-beforeFailure}) working set={Report.Mb(process.WorkingSet64)} handles={process.HandleCount}");
+        Console.WriteLine($"limit: active before the failing call={beforeFailure} after={afterFailure} (leak={afterFailure-beforeFailure}) working set={Report.Mb(process.WorkingSet64)} private={Report.Mb(process.PrivateMemorySize64)} gc-committed={Report.Mb(GC.GetGCMemoryInfo().TotalCommittedBytes)} managed={Report.Mb(GC.GetTotalMemory(false))} handles={process.HandleCount}");
         if(afterFailure!=beforeFailure){
             errors.Add($"limit: the failed creation leaked {afterFailure-beforeFailure} instances");
         }
@@ -205,8 +205,9 @@ public static class Exp3{
             }
         }
         try{
+            var saveWatch=Stopwatch.StartNew();
             var (token,peak)=WithPeak(()=>store.Save());
-            Console.WriteLine($"limit: Save of {components.Count} components at the limit took {Report.Ms(watch.Elapsed)}ms total so far (peak active={peak})");
+            Console.WriteLine($"limit: Save of {components.Count} components at the limit took {Report.Ms(saveWatch.Elapsed)}ms (peak active={peak})");
             var load=Stopwatch.StartNew();
             store.Load(token);
             Console.WriteLine($"limit: Load at the limit {Report.Ms(load.Elapsed)}ms");

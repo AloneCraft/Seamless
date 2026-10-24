@@ -21,6 +21,7 @@ public static class Exp1{
         var partitionOptions=new PartitionOptions{Seed=seed,SmallMemory=options.Bool("small-memory",false),MemoryBytes=options.Long("memory-mb",512)*1024*1024};
         Console.WriteLine($"root={root} partitions={count} scale={scale} save-by={saveBy} interval={interval.TotalMilliseconds}ms release={release} seconds={seconds}");
         var partitions=new Partition[count];
+        Overlap.Reset();
         var loadWatch=Stopwatch.StartNew();
         // 作成と初期投入も区画ごとのスレッドで同時に行う(同時の書き込みの一部)。
         RunThreads(count,index=>{
@@ -149,6 +150,7 @@ public static class Exp1{
             }
             Console.WriteLine($"p{index}: txns={partition.Transactions} saves={saves[index].Count} serial={partition.Serial}");
         }
+        Console.WriteLine("overlap: "+Overlap.Summary);
         Console.WriteLine($"run {Report.Ms(elapsed)}ms total txns={total} ({total/elapsed.TotalSeconds:0} txn/s) save times {Report.Stats(saveTimes)}");
         foreach(var partition in partitions){
             partition.Dispose();

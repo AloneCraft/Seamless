@@ -7,7 +7,7 @@ namespace Benchmark.TpcC.Spike;
 public sealed record Scale(int Warehouses,int Customers,int Items,int InitialOrders){
     public static Scale Tiny{get;}=new(1,60,500,60);
     public static Scale Small{get;}=new(1,300,5000,300);
-    /// <summary>行数 約 110 万(倉庫 2、品目 10 万、顧客 3,000/地区)。</summary>
+    /// <summary>行数 約 122 万(倉庫 2、品目 10 万、顧客 3,000/地区。読み込み直後の値)。</summary>
     public static Scale Million{get;}=new(2,3000,100_000,3000);
     public static Scale Parse(string text){
         return text switch{
@@ -25,7 +25,42 @@ public sealed record PartitionOptions{
     public long MemoryBytes{get;init;}=512L*1024*1024;
     public int Seed{get;init;}=1;
 }
-public sealed record SaveRecord(Guid Token,long Serial,Digest[]? Expected,TimeSpan Elapsed);
+public sealed record SaveRecord(Guid Token,long Serial,Digest[]? Expected,TimeSpan Elapsed,TimeSpan Full);
+/// <summary>区画をまたいだ重なりの計測。Store.Save の同時実行数の最大と、他の区画の取引が動いている最中に始まった保存の回数。</summary>
+public static class Overlap{
+    private static int savesInFlight;
+    private static int transactionsInFlight;
+    private static int maxSaves;
+    private static long saves;
+    private static long savesDuringTransactions;
+    private static long savesDuringSaves;
+    public static void Reset(){
+        Interlocked.Exchange(ref savesInFlight,0);
+        Interlocked.Exchange(ref transactionsInFlight,0);
+        Interlocked.Exchange(ref maxSaves,0);
+        Interlocked.Exchange(ref saves,0);
+        Interlocked.Exchange(ref savesDuringTransactions,0);
+        Interlocked.Exchange(ref savesDuringSaves,0);
+    }
+    public static void EnterTransaction()=>Interlocked.Increment(ref transactionsInFlight);
+    public static void ExitTransaction()=>Interlocked.Decrement(ref transactionsInFlight);
+    public static void EnterSave(){
+        var now=Interlocked.Increment(ref savesInFlight);
+        Interlocked.Increment(ref saves);
+        if(now>1){
+            Interlocked.Increment(ref savesDuringSaves);
+        }
+        if(Volatile.Read(ref transactionsInFlight)>0){
+            Interlocked.Increment(ref savesDuringTransactions);
+        }
+        int seen;
+        do{
+            seen=Volatile.Read(ref maxSaves);
+        }while(now>seen&&Interlocked.CompareExchange(ref maxSaves,now,seen)!=seen);
+    }
+    public static void ExitSave()=>Interlocked.Decrement(ref savesInFlight);
+    public static string Summary=>$"saves={Interlocked.Read(ref saves)} max concurrent Store.Save={Volatile.Read(ref maxSaves)} saves that started while another Store.Save was running={Interlocked.Read(ref savesDuringSaves)} saves that started while a transaction of some partition was running={Interlocked.Read(ref savesDuringTransactions)}";
+}
 /// <summary>
 /// 区画 1 つ = 共通ストア 1 つ。表 9 個(Set)と索引 9 個(辞書、うち 1 個は保存時の要約)を持つ。
 /// 取引は TPC-C を模した形(新規注文・支払い・配送・注文状況・在庫水準)で、区画の中だけで完結する。
@@ -185,6 +220,14 @@ public sealed class Partition:IDisposable{
     }
     /// <summary>取引を 1 つ実行する。比率は新規注文 45・支払い 43・配送 4・注文状況 4・在庫水準 4。</summary>
     public void RunTransaction(){
+        Overlap.EnterTransaction();
+        try{
+            this.RunTransactionCore();
+        }finally{
+            Overlap.ExitTransaction();
+        }
+    }
+    private void RunTransactionCore(){
         var pick=this.rng.Next(100);
         var w=this.FirstWarehouse+this.rng.Next(this.Scale.Warehouses);
         if(pick<45){
@@ -390,6 +433,7 @@ public sealed class Partition:IDisposable{
     /// (保存したものが自分で正しさを確かめられるように)。<paramref name="releaseHandles"/> なら操作用オブジェクトを閉じて保存する。
     /// </summary>
     public SaveRecord Save(bool releaseHandles){
+        var full=Stopwatch.StartNew();
         this.serial++;
         Digest[]? expected=null;
         if(this.Options.Mirror){
@@ -404,12 +448,18 @@ public sealed class Partition:IDisposable{
             this.ReleaseAll();
         }
         var watch=Stopwatch.StartNew();
-        var token=this.Store.Save();
+        Guid token;
+        Overlap.EnterSave();
+        try{
+            token=this.Store.Save();
+        }finally{
+            Overlap.ExitSave();
+        }
         var elapsed=watch.Elapsed;
         if(releaseHandles){
             this.AcquireAll();
         }
-        return new(token,this.serial,expected,elapsed);
+        return new(token,this.serial,expected,elapsed,full.Elapsed);
     }
     /// <summary>今の中身を全走査して、期待した要約と比べる。違えば説明を返す。</summary>
     public string? Verify(Digest[] expected){
