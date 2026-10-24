@@ -850,7 +850,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             return true;
         }
     }
-    // src.SkipLast(n1).SkipLast(n2) -> src.SkipLast(n1 + n2)
+    // src.SkipLast(n1).SkipLast(n2) -> src.SkipLast(Max(0,n1) + Max(0,n2))(負数と桁あふれの扱いは Skip と同じ)
     private bool TryFuseConsecutiveSkipLast(InvocationExpressionSyntax node,out SyntaxNode result){
         result=null!;
         if(!this.TryGetEnumerableExtensionCall(node,out var outerName,out var outerReceiver,out var outerArgs)){
@@ -1275,6 +1275,10 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
                 return false;
         }
     }
+    // Max(0,left) と Max(0,right) の和を、int.MaxValue で頭打ちにして返す式。left を先に評価する。
+    private static ExpressionSyntax CreateSaturatingCountSum(ExpressionSyntax left,ExpressionSyntax right) =>
+        SyntaxFactory.ParseExpression($"(int)global::System.Math.Min((long)global::System.Math.Max(0,{left.ToString()})+global::System.Math.Max(0,{right.ToString()}),int.MaxValue)");
+
     private static InvocationExpressionSyntax CreateCall(ExpressionSyntax receiver,string method,params ExpressionSyntax[] args) {
         var ma = SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,Parenthesize(receiver),SyntaxFactory.IdentifierName(method));
         return SyntaxFactory.InvocationExpression(ma,SyntaxFactory.ArgumentList(SyntaxFactory.SeparatedList(args.Select(static a => SyntaxFactory.Argument(a)))));

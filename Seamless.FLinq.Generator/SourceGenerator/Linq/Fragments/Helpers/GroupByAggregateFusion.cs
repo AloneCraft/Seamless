@@ -27,6 +27,18 @@ internal sealed class GroupByAggregatePlan {
     public string AccumulatorType { get; set; } = string.Empty;
     public List<GroupAggregateItem> Items { get; } = new();
     public string ProjectedResultExpression { get; set; } = string.Empty;
+    // ProjectedResultExpression で this. を前置した束縛済みローカルの名前。
+    public List<string> ReceiverNames { get; } = new();
+    // static メソッドへ展開する終端は this を持たず、同名のローカル変数で参照するので、this. を外した式を使う。
+    public string ProjectedResultExpressionWithoutReceiver {
+        get {
+            var text = this.ProjectedResultExpression;
+            foreach(var name in this.ReceiverNames) {
+                text=text.Replace($"this.{name}",name,StringComparison.Ordinal);
+            }
+            return text;
+        }
+    }
     public string ResultType { get; set; } = string.Empty;
     public bool IsSingleField => this.Items.Count==1;
 
@@ -313,6 +325,7 @@ internal static class GroupByAggregateFusion {
         // Replace hoisted and captured local expressions with this. receivers
         if(funcFragment is not null){
             foreach(var hoisted in funcFragment.HoistedLocals){
+                aggPlan.ReceiverNames.Add(hoisted.Name);
                 bodyText=bodyText.Replace(hoisted.ExpressionText,$"this.{hoisted.Name}",StringComparison.Ordinal);
                 bodyText=System.Text.RegularExpressions.Regex.Replace(
                     bodyText,
@@ -321,6 +334,7 @@ internal static class GroupByAggregateFusion {
                     System.Text.RegularExpressions.RegexOptions.CultureInvariant);
             }
             foreach(var captured in funcFragment.CapturedLocals){
+                aggPlan.ReceiverNames.Add(captured.Name);
                 bodyText=System.Text.RegularExpressions.Regex.Replace(
                     bodyText,
                     $@"(?<![\w\.]){System.Text.RegularExpressions.Regex.Escape(captured.Name)}\b",
