@@ -3,7 +3,7 @@ namespace Shared.TpcE.Transactions;
 /// 1 つの組み合わせの取引の実行器。LINQ は書かない(LINQ は *Queries にだけ書き、*Frames から呼ぶ)。
 /// FLinq は「LINQ を含むメソッドを呼んでいる箇所」を置き換えるので、Frames→Queries の呼び出しが同じアセンブリにあることが要る。
 /// </summary>
-internal sealed class TpcEEngine:ITpcEEngine{
+internal sealed partial class TpcEEngine:ITpcEEngine{
     private readonly TpcEDatabase db;
     private readonly TradeCleanupFrames tradeCleanup=new();
     private readonly DataMaintenanceFrames dataMaintenance=new();

@@ -4,11 +4,16 @@ namespace Shared.TpcE.Transactions;
 /// 主キーで引ける行(銘柄・会社・住所・取引所・直近取引)はここで引き、索引や並べ替えを伴う読み取りは問い合わせに任せる。
 /// </summary>
 internal sealed class SecurityDetailFrames{
-    /// <summary>財務データを探す年数の上限(1 行も見つからないまま、この年数をさかのぼったら止める)。</summary>
-    private const int FinancialSearchYears=10;
+    /// <summary>財務データの最初の年を探す範囲。EGen のデータは固定の 5 年(2000〜2004)で、実行時の時計とは関係が無い。</summary>
+    private const long FinancialFirstYearFrom=1900;
+    private const long FinancialFirstYearTo=2200;
+    /// <summary>最初の年から前向きに当てる年数の上限(1 社 20 行 = 5 年なので十分に広い)。</summary>
+    private const int FinancialSearchYears=30;
     /// <summary>DAILY_MARKET の候補日に足す余裕(行の無い平日があっても max_rows_to_return 行に届くように)。</summary>
     private const int CandidateDaySlack=TpcESpec.MaxDayLength;
     private readonly SecurityDetailQueries queries=new();
+    /// <summary>財務データの最初の年(最初に見つけた会社のもの。全社が同じ年に並ぶ前提で、違う会社は個別に探し直す)。0 は未発見。</summary>
+    private long firstFinancialYear;
     public SecurityDetailOutput Run(TpcEDatabase db,SecurityDetailInput input){
         // 銘柄・会社・会社の住所・取引所・取引所の住所(SECURITY × COMPANY × ADDRESS × ZIP_CODE × EXCHANGE)。
         var security=db.Security.Get(new SecurityKey(input.Symbol));
@@ -17,7 +22,7 @@ internal sealed class SecurityDetailFrames{
         var exchange=db.Exchange.Get(new ExchangeKey(security.ExchangeId));
         var exchangeAddress=SecurityDetailFrames.AddressOf(db,exchange.AddressId);
         var competitors=this.queries.Competitors(db,company.Id);
-        var financials=this.queries.Financials(db,SecurityDetailFrames.FindFinancials(db,company.Id,input.Now));
+        var financials=this.queries.Financials(db,this.FindFinancials(db,company.Id));
         var maxRows=Math.Max(0,input.MaxRowsToReturn);
         var candidateDays=SecurityDetailFrames.Weekdays(input.StartDay,maxRows+SecurityDetailFrames.CandidateDaySlack);
         var days=this.queries.Days(db,input.Symbol,candidateDays,maxRows);
@@ -78,32 +83,43 @@ internal sealed class SecurityDetailFrames{
         return new SecurityDetailAddress(address.Line1,address.Line2,zip.Town,zip.Division,address.ZipCode,address.Country);
     }
     /// <summary>
-    /// 会社の財務データを主キー (会社, 年, 四半期) で当てて集める(FINANCIAL は主キーの先頭で範囲を引けないため)。
-    /// 年は現在時刻の翌年から過去へ 1 年ずつ当て、行が見つかった後で 1 行も無い年に来たら止める(四半期決算は連続した年に並ぶ前提)。
-    /// 1 行も見つからないまま <see cref="FinancialSearchYears"/> 年さかのぼったら止める。並べ替えは問い合わせが行う。
+    /// 会社の財務データ(3.3.5.3 の FINANCIAL: 年・四半期の順の先頭 20 行)を主キー (会社, 年, 四半期) で当てて集める(FINANCIAL は主キーの先頭で範囲を引けないため)。
+    /// 最初の年は、実行時の時計に頼らず、最初の 1 回だけ <see cref="FinancialFirstYearFrom"/>〜<see cref="FinancialFirstYearTo"/> を探して覚える。並べ替えは問い合わせが行う。
     /// </summary>
-    private static FinancialRow[] FindFinancials(TpcEDatabase db,long companyId,long now){
+    private FinancialRow[] FindFinancials(TpcEDatabase db,long companyId){
         var rows=new List<FinancialRow>(TpcESpec.MaxFinancialLength);
-        long year=TpcETime.ToDateTime(now).Year+1;
-        var emptyYears=0;
-        while(emptyYears<SecurityDetailFrames.FinancialSearchYears){
-            var found=false;
+        var first=this.firstFinancialYear;
+        if(first!=0){
+            SecurityDetailFrames.CollectFinancials(db,companyId,first,rows);
+        }
+        if(rows.Count==0){
+            first=SecurityDetailFrames.LocateFirstFinancialYear(db,companyId);
+            if(first==0){
+                return rows.ToArray();
+            }
+            this.firstFinancialYear=first;
+            SecurityDetailFrames.CollectFinancials(db,companyId,first,rows);
+        }
+        return rows.ToArray();
+    }
+    private static void CollectFinancials(TpcEDatabase db,long companyId,long firstYear,List<FinancialRow> rows){
+        for(var year=firstYear;year<firstYear+SecurityDetailFrames.FinancialSearchYears&&rows.Count<TpcESpec.MaxFinancialLength;year++){
             for(var quarter=1L;quarter<=4;quarter++){
                 if(db.Financial.TryGet(new FinancialKey(companyId,year,quarter),out var row)){
                     rows.Add(row);
-                    found=true;
                 }
             }
-            if(found){
-                emptyYears=0;
-            }else if(rows.Count>0){
-                break;
-            }else{
-                emptyYears++;
-            }
-            year--;
         }
-        return rows.ToArray();
+    }
+    private static long LocateFirstFinancialYear(TpcEDatabase db,long companyId){
+        for(var year=SecurityDetailFrames.FinancialFirstYearFrom;year<=SecurityDetailFrames.FinancialFirstYearTo;year++){
+            for(var quarter=1L;quarter<=4;quarter++){
+                if(db.Financial.Contains(new FinancialKey(companyId,year,quarter))){
+                    return year;
+                }
+            }
+        }
+        return 0;
     }
     /// <summary>start(日番号)以降の平日を古い順に count 日ぶん返す(DAILY_MARKET は営業日=平日にだけ行がある)。</summary>
     private static long[] Weekdays(long start,int count){
