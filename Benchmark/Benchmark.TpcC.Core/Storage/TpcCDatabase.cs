@@ -4,7 +4,16 @@ namespace Benchmark.TpcC.Core;
 /// TPC-C の DB 全体 = 区画の配列。倉庫 w の行は <see cref="For"/> が返す区画にある。区画の数が 1 のときも同じ形(1 区画が全倉庫を持つ)。
 /// 区画ごとの Store を渡せば区画ごとに独立して保存・復旧でき、同じ Store を渡せば 1 回の保存で全区画が原子的に確定する。
 /// </summary>
-public class TpcCDatabase<TPartition>:IDisposable where TPartition:TpcCPartitionBase{
+/// <summary>保存先に依らない TPC-C の DB の口(状態の要約・一貫性の点検・エンジンが使う)。</summary>
+public interface ITpcCDatabase:IDisposable{
+    TpcCScale Scale{get;}
+    IReadOnlyList<TpcCPartitionBase> PartitionBases{get;}
+    void ReleaseHandles();
+    void AcquireHandles();
+    void BeginBulkLoad();
+    void EndBulkLoad();
+}
+public class TpcCDatabase<TPartition>:ITpcCDatabase where TPartition:TpcCPartitionBase{
     private readonly TPartition[] partitions;
     private bool disposed;
     public TpcCDatabase(TpcCScale scale,Func<int,TPartition> create){
@@ -16,6 +25,7 @@ public class TpcCDatabase<TPartition>:IDisposable where TPartition:TpcCPartition
     }
     public TpcCScale Scale{get;}
     public IReadOnlyList<TPartition> Partitions=>this.partitions;
+    IReadOnlyList<TpcCPartitionBase> ITpcCDatabase.PartitionBases=>this.partitions;
     public TPartition Partition(int partition)=>this.partitions[partition];
     /// <summary>倉庫 w(1 始まり)を持つ区画。</summary>
     public TPartition For(int warehouse)=>this.partitions[this.Scale.PartitionOf(warehouse)];

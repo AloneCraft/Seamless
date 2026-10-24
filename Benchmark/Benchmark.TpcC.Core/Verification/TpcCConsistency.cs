@@ -11,9 +11,9 @@ public sealed record ConsistencyResult(int Condition,string Name,long Checked,lo
 /// </summary>
 public static class TpcCConsistency{
     private const int DetailLimit=5;
-    public static IReadOnlyList<ConsistencyResult> Check<TPartition>(TpcCDatabase<TPartition> db,bool deep,bool initial) where TPartition:TpcCPartitionBase{
+    public static IReadOnlyList<ConsistencyResult> Check(ITpcCDatabase db,bool deep,bool initial){
         var state=new Totals();
-        foreach(var partition in db.Partitions){
+        foreach(var partition in db.PartitionBases){
             foreach(var row in partition.Warehouse.EnumerateRows()){
                 state.WarehouseYtd[row.Id]=row.Ytd;
             }
