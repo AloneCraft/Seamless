@@ -73,6 +73,13 @@ public interface ITableView{
     void PutRawBoxed(object row);
     /// <summary>故障注入用。索引も取り消し記録も通知も通さずに消す。</summary>
     void DeleteRawBoxed(object key);
+    /// <summary>再実行ログの再適用。索引(フック)は更新するが、取り消し記録も通知もしない。冪等ではなく、ログの順に 1 回ずつ当てる。</summary>
+    void ApplyRedoBoxed(WriteKind kind,object key,object? row);
+    /// <summary>再実行ログ用の符号化。キーは中身のバイト列そのまま(パディングなしの unmanaged)、行は MemoryPack。</summary>
+    byte[] EncodeKey(object key);
+    object DecodeKey(ReadOnlySpan<byte> bytes);
+    byte[] EncodeRow(object row);
+    object DecodeRow(ReadOnlySpan<byte> bytes);
 }
 /// <summary>
 /// 保存先ごとの表の共通部分。書き込みは必ずここを通り、索引の更新・取り消し記録・書き込み通知を行う。
@@ -195,6 +202,42 @@ public abstract class TableCore<TKey,TRow>:ITableView
         var typed=(TKey)key;
         if(this.TryGet(typed,out _)){
             this.DeleteRaw(typed);
+        }
+    }
+    byte[] ITableView.EncodeKey(object key){
+        var typed=(TKey)key;
+        return System.Runtime.InteropServices.MemoryMarshal.AsBytes(System.Runtime.InteropServices.MemoryMarshal.CreateReadOnlySpan(ref typed,1)).ToArray();
+    }
+    object ITableView.DecodeKey(ReadOnlySpan<byte> bytes)=>System.Runtime.InteropServices.MemoryMarshal.Read<TKey>(bytes);
+    byte[] ITableView.EncodeRow(object row)=>MemoryPack.MemoryPackSerializer.Serialize((TRow)row);
+    object ITableView.DecodeRow(ReadOnlySpan<byte> bytes)=>MemoryPack.MemoryPackSerializer.Deserialize<TRow>(bytes);
+    void ITableView.ApplyRedoBoxed(WriteKind kind,object key,object? row){
+        var typedKey=(TKey)key;
+        switch(kind){
+            case WriteKind.Insert:
+            case WriteKind.UndoDelete:{
+                var after=(TRow)row!;
+                this.InsertRaw(typedKey,after);
+                this.RaiseChanged(null,after);
+                break;
+            }
+            case WriteKind.Update:
+            case WriteKind.UndoUpdate:{
+                var after=(TRow)row!;
+                this.TryGet(typedKey,out var before);
+                this.ReplaceRaw(typedKey,after);
+                this.RaiseChanged(before,after);
+                break;
+            }
+            case WriteKind.Delete:
+            case WriteKind.UndoInsert:{
+                this.TryGet(typedKey,out var before);
+                this.DeleteRaw(typedKey);
+                this.RaiseChanged(before,null);
+                break;
+            }
+            default:
+                throw new ArgumentOutOfRangeException(nameof(kind),kind,null);
         }
     }
 }

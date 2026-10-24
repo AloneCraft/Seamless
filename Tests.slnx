@@ -46,6 +46,7 @@
     <Project Path="Benchmark/Benchmark.TpcE.Persisted.Linq/Benchmark.TpcE.Persisted.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE.Persisted.FLinq/Benchmark.TpcE.Persisted.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj" />
   </Folder>
   <Folder Name="/Benchmark/Shared/">
     <Project Path="Benchmark/Shared/UI/UI.shproj" />
@@ -113,6 +114,7 @@
     <Project Path="Benchmark/Benchmark.Headless.Tests/Benchmark.Headless.Tests.csproj" />
     <Project Path="Benchmark/Benchmark.Audit.Tests/Benchmark.Audit.Tests.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj" />
     <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
     <Project Path="Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj" />
   </Folder>

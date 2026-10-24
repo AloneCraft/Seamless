@@ -14,7 +14,7 @@ $Solutions = [ordered]@{
     'Seamless.Database.Tool.slnx'              = @('Seamless.Database.Tool/Seamless.Database.Tool.csproj')
     'Sample.NetShop.slnx'                      = @('Samples/Sample.NetShop/Sample.NetShop.csproj', 'Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj')
     'Sample.VirtualDb.slnx'                    = @('Samples/Sample.VirtualDb/Sample.VirtualDb.csproj')
-    'Benchmark.TpcE.slnx'                      = @('Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj', 'Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj')
+    'Benchmark.TpcE.slnx'                      = @('Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj', 'Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj', 'Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj', 'Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj')
     'Applications.slnx'                        = @(
         'Samples/Sample.NetShop/Sample.NetShop.csproj',
         'Samples/Sample.VirtualDb/Sample.VirtualDb.csproj',
@@ -51,6 +51,7 @@ $Solutions = [ordered]@{
         'Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj',
         'Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj',
         'Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj',
+        'Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj',
         'Benchmark/Benchmark.Audit/Benchmark.Audit.csproj',
         'Benchmark/Worker/Worker.csproj'
     )
@@ -75,6 +76,7 @@ $Solutions = [ordered]@{
         'Benchmark/Benchmark.Headless.Tests/Benchmark.Headless.Tests.csproj',
         'Benchmark/Benchmark.Audit.Tests/Benchmark.Audit.Tests.csproj',
         'Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj',
+        'Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj',
         'Tests/Seamless.TestKit/Seamless.TestKit.csproj',
         'Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj'
     )
