@@ -12,6 +12,7 @@ internal sealed class TpcCEngine:ITpcCEngine{
     private readonly DeliveryFrames delivery;
     private readonly StockLevelFrames stockLevel;
     private readonly AdminQueries admin=new();
+    private volatile bool faulted;
     public TpcCEngine(TpcCDatabase db,TpcCMode mode){
         this.db=db;
         this.Mode=mode;
@@ -25,6 +26,7 @@ internal sealed class TpcCEngine:ITpcCEngine{
         this.Loader=new TpcCDatabaseLoadSink<TpcCPartition>(db);
     }
     public TpcCMode Mode{get;}
+    public bool IsFaulted=>this.faulted;
     public ITpcCDatabase Database=>this.db;
     public ITpcCLoadSink Loader{get;}
     public long SumNextOrderIds(){
@@ -35,11 +37,14 @@ internal sealed class TpcCEngine:ITpcCEngine{
         return total;
     }
     public TpcCResult Execute(TpcCRequest request){
-        var involved=this.Involved(request);
-        foreach(var partition in involved){
-            partition.Log.Begin();
+        if(this.faulted){
+            throw new InvalidOperationException("The engine stopped after an earlier failure. Reopen the store and recover from the redo log.");
         }
+        var involved=this.Involved(request);
         try{
+            foreach(var partition in involved){
+                partition.Log.Begin();
+            }
             TpcCResult result=request switch{
                 NewOrderRequest input=>this.newOrder.Run(this.db,input),
                 PaymentRequest input=>this.payment.Run(this.db,input),
@@ -49,22 +54,30 @@ internal sealed class TpcCEngine:ITpcCEngine{
                 _=>throw new NotSupportedException($"{request.GetType().Name} is not a TPC-C transaction input."),
             };
             if(result.RolledBack){
-                this.RollbackAll(involved);
+                for(var index=involved.Count-1;index>=0;index--){
+                    involved[index].Log.Rollback();
+                }
             }else{
                 foreach(var partition in involved){
                     partition.Log.Commit();
                 }
             }
             return result;
-        }catch{
-            this.RollbackAll(involved);
+        }catch(Exception error){
+            this.FailStop(involved,error);
             throw;
         }
     }
-    private void RollbackAll(List<TpcCPartition> involved){
+    /// <summary>致命の例外: 取り消し記録を始めた区画をすべて(逆順に)戻そうとし、戻す途中の失敗は集めて、以後の取引を止める。元の例外はそのまま投げ直される。</summary>
+    private void FailStop(List<TpcCPartition> involved,Exception error){
+        this.faulted=true;
         for(var index=involved.Count-1;index>=0;index--){
-            if(involved[index].Log.IsRecording){
-                involved[index].Log.Rollback();
+            try{
+                if(involved[index].Log.IsRecording){
+                    involved[index].Log.Rollback();
+                }
+            }catch(Exception rollbackError){
+                error.Data["rollback-failure-"+index.ToString(System.Globalization.CultureInfo.InvariantCulture)]=rollbackError.Message;
             }
         }
     }

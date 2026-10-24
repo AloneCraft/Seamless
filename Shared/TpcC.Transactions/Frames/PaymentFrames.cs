@@ -26,8 +26,8 @@ internal sealed class PaymentFrames(TpcCMode mode,CustomerLookup lookup){
             if(customer.Credit=="BC"){
                 updated=updated with{Data=Truncate(HammerDbPrefix(customerId,request,customer)+customer.Data)};
             }else{
-                // 信用が BC でない顧客も C_DATA を信用の値で上書きしてしまう(Q-036)。
-                updated=updated with{Data=customer.Credit};
+                // 信用が BC でない顧客も C_DATA を信用の値で上書きしてしまう(Q-036)。列は char(500) なので空白で 500 文字に詰まる(行は縮まない)。
+                updated=updated with{Data=customer.Credit.PadRight(CustomerDataLength)};
             }
         }
         customerPartition.Customer.Update(updated);
@@ -42,14 +42,23 @@ internal sealed class PaymentFrames(TpcCMode mode,CustomerLookup lookup){
         home.History.Insert(new HistoryRow(homeWarehouse,request.DistrictId,historyId,request.CustomerWarehouseId,request.CustomerDistrictId,customerId,request.Now,request.Amount,historyData));
         home.District.Update(district with{Ytd=district.Ytd+request.Amount,NextHistoryId=historyId+1});
         home.Warehouse.Update(warehouse with{Ytd=warehouse.Ytd+request.Amount});
-        return new PaymentResult(false,customerId,customer.First,customer.Last,customer.Credit,updated.Balance,historyId,warehouse.Name,district.Name);
+        // 出力は仕様 2.5.3.3 の項目。C_DATA は仕様の形で信用が BC のときだけ、更新後の先頭 200 文字(HammerDB の手続きは返さない)。
+        var preview="";
+        if(mode==TpcCMode.Spec&&updated.Credit=="BC"){
+            preview=updated.Data[..Math.Min(200,updated.Data.Length)];
+        }
+        return new PaymentResult(false,customerId,customer.First,customer.Middle,customer.Last,customer.Street1,customer.Street2,customer.City,customer.State,customer.Zip,customer.Phone,
+            customer.Since,customer.Credit,customer.CreditLimit,customer.Discount,updated.Balance,preview,historyId,
+            warehouse.Name,warehouse.Street1,warehouse.Street2,warehouse.City,warehouse.State,warehouse.Zip,
+            district.Name,district.Street1,district.Street2,district.City,district.State,district.Zip);
     }
     /// <summary>
     /// HammerDB の BC 顧客の C_DATA の先頭(Q-037): 顧客番号・顧客の地区・顧客の倉庫・地区・倉庫(それぞれ 30 文字に空白で詰める)、支払額(8 文字)、日時(30 文字)、
     /// 倉庫名と地区名(まだ読んでいないので空白 11 文字ずつ)。各項目の後ろに空白 1 つで、合計 219 文字。
     /// </summary>
     internal static string HammerDbPrefix(int customerId,PaymentRequest request,CustomerRow customer){
-        var amount=request.Amount.ToString(CultureInfo.InvariantCulture);
+        // 支払額は numeric(6,2) を char(8) にするので小数 2 桁('1.00    '、'5000.00 ')。
+        var amount=request.Amount.ToString("0.00",CultureInfo.InvariantCulture);
         var date=DateTimeOffset.FromUnixTimeSeconds(request.Now).UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss",CultureInfo.InvariantCulture);
         return Pad(customerId.ToString(CultureInfo.InvariantCulture),30)+" "
             +Pad(request.CustomerDistrictId.ToString(CultureInfo.InvariantCulture),30)+" "
