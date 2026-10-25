@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Benchmark.Infrastructure</RootNamespace>
+    <AssemblyName>Benchmark.Infrastructure</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+    <ProjectReference Include="../../Seamless.Execution/Seamless.Execution.csproj" />
+    <EmbeddedResource Include="Storage/Initial.sql" />
+    <EmbeddedResource Include="Storage/Common.sql" />
+  </ItemGroup>
+</Project>

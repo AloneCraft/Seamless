@@ -1,4 +1,4 @@
-using Benchmark.Dynamic.Core;
+﻿using Benchmark.Dynamic.Core;
 using Syncfusion.Maui.Core.Internals;
 using Syncfusion.Maui.DataGrid;
 using Syncfusion.Maui.Toolkit.TabView;
@@ -8,8 +8,10 @@ using UI;
 namespace Benchmark.Dynamic.UI;
 
 public sealed class MainPage:ContentPage {
+    private readonly Shared.Benchmark.History.測定設定画面 測定設定=new();
     private readonly 動的ベンチマーク画面モデル 画面モデル;
     private readonly 動的ライブ検証画面 ライブ検証;
+    private readonly 固定理想比較画面 理想比較;
     private readonly Grid ルート;
     private readonly Grid 詳細領域;
     private readonly List<VisualElement> 設定入力一覧=[];
@@ -18,6 +20,7 @@ public sealed class MainPage:ContentPage {
     public MainPage(動的ベンチマーク画面モデル 画面モデル,動的ライブ検証サービス ライブ検証サービス) {
         this.画面モデル=画面モデル;
         this.ライブ検証=new 動的ライブ検証画面(ライブ検証サービス);
+        this.理想比較=new(()=>this.測定設定.最適化フラグ);
         this.BindingContext=画面モデル;
         this.Title="Dynamic LINQ Benchmark";
         this.BackgroundColor=Color.FromArgb("#F4F7FB");
@@ -50,13 +53,22 @@ public sealed class MainPage:ContentPage {
         this.詳細領域=this.詳細領域を作成();
         this.ルート.Add(this.詳細領域,0,4);
 
+        this.画面モデル.測定設定を取得=()=>this.ストレージ設定を作る();
+        this.ライブ検証.測定設定を取得=()=>this.ストレージ設定を作る();
         this.Content=this.ルート;
         this.画面モデル.PropertyChanged+=this.画面モデル変更時;
         this.画面状態を適用();
     }
 
+    private (int 最適化,WorkerStorageSettings 設定) ストレージ設定を作る(){
+        var 明示=this.測定設定.明示設定;
+        return (this.測定設定.最適化フラグ,new WorkerStorageSettings(this.測定設定.プロファイル,this.測定設定.拡張,this.測定設定.保存,
+            IndexBytes:明示.IndexBytes,MemoryBytes:明示.LogMemoryBytes,MemoryLimitBytes:this.測定設定.メモリ予算,DiskLimitBytes:this.測定設定.ディスク予算,ProfileCatalogJSON:this.測定設定.プロファイルJSON,IOMode:this.測定設定.入出力,AccessPattern:this.測定設定.アクセス));
+    }
+
     public void ライブ検証を終了する() {
         this.ライブ検証.終了する();
+        this.理想比較.終了する();
     }
 
     private View 結果領域を作成() {
@@ -101,6 +113,9 @@ public sealed class MainPage:ContentPage {
                 Header="ライブ検証",
                 Content=this.ライブ検証,
             },
+            new SfTabItem{Header="理想コード",Content=this.理想比較},
+            new SfTabItem{Header="測定設定",Content=this.測定設定},
+            new SfTabItem{Header="共有履歴・比較",Content=new Shared.Benchmark.History.履歴比較画面(Benchmark.Dynamic.Infrastructure.DynamicDatabasePathResolver.Resolve())},
         ];
         タブ.SelectedIndex=0;
         return タブ;

@@ -1,4 +1,4 @@
-using Benchmark.Dynamic.Core;
+﻿using Benchmark.Dynamic.Core;
 using Benchmark.Dynamic.Infrastructure;
 using System.Text.Json;
 
@@ -19,7 +19,9 @@ public sealed record 動的ライブ設定(
     動的ライブ段階 開始段階=動的ライブ段階.ペア全組み合わせ,
     int 開始番号=0,
     int ランダムN=4,
-    OperatorSetMode モード=OperatorSetMode.Maximum);
+    OperatorSetMode モード=OperatorSetMode.Maximum,
+    int 最適化フラグ=15,
+    WorkerStorageSettings? ストレージ設定=null);
 
 /// <summary>1つのクエリを1つのSourceで検証した結果(画面に出す形)。</summary>
 public sealed record 動的ライブ結果(
@@ -52,11 +54,13 @@ public sealed class 動的ライブ検証サービス{
     private const int ランダム探索の件数=1_000_000;
     private readonly string Workerパス;
     private readonly IWorkerProcessClient WorkerClient;
+    private readonly string データベースパス;
 
-    public 動的ライブ検証サービス(string Workerパス,IWorkerProcessClient? WorkerClient=null){
+    public 動的ライブ検証サービス(string Workerパス,IWorkerProcessClient? WorkerClient=null,string? データベースパス=null){
         ArgumentException.ThrowIfNullOrWhiteSpace(Workerパス);
         this.Workerパス=Path.GetFullPath(Workerパス);
         this.WorkerClient=WorkerClient??new VersionedJsonLineWorkerProcessClient();
+        this.データベースパス=データベースパス??DynamicDatabasePathResolver.Resolve();
     }
 
     public async Task 実行Async(
@@ -80,7 +84,7 @@ public sealed class 動的ライブ検証サービス{
     }
 
     public static WorkerRunRequest 段階の要求を作る(動的ライブ設定 設定,動的ライブ段階 段階,int 開始番号,string 実行ID){
-        var 計測=new WorkerMeasurementProfile("Live-v1",1,3,0,4096);
+        var 計測=new WorkerMeasurementProfile("Balanced-v1",2,7,25,4096);
         var 全組み合わせか=段階!=動的ライブ段階.ランダム探索;
         var 中間数=段階==動的ライブ段階.ペア全組み合わせ?1:2;
         var 演算子数=全組み合わせか?中間数+1:設定.ランダムN;
@@ -108,7 +112,8 @@ public sealed class 動的ライブ検証サービス{
             ExhaustiveIntermediateCount:全組み合わせか?中間数:0,
             ExpectExceptions:true,
             ElementType:設定.要素型,
-            IncludeSpecialValues:設定.特殊な値を混ぜる);
+            IncludeSpecialValues:設定.特殊な値を混ぜる,
+            OptimizationFlags:設定.最適化フラグ,StorageSettings:設定.ストレージ設定);
     }
 
     /// <summary>成り立たない並びを飛ばした後の、全組み合わせの件数。</summary>
@@ -137,6 +142,8 @@ public sealed class 動的ライブ検証サービス{
         CancellationToken 取消){
         var 実行ID="live-"+Guid.NewGuid().ToString("N");
         var 要求=await Task.Run(()=>段階の要求を作る(設定,段階,開始番号,実行ID),取消).ConfigureAwait(false);
+        await using var 記録=new DynamicHistoryRecorder(this.データベースパス);
+        await 記録.BeginAsync(要求,取消).ConfigureAwait(false);
         await using var Session=this.WorkerClient.Start(this.Workerパス);
         var IR一覧=new Dictionary<string,WorkerQueryStartedEvent>(StringComparer.Ordinal);
         await Session.SendAsync(実行ID,WorkerMessageTypes.StartRun,要求,取消).ConfigureAwait(false);
@@ -151,23 +158,35 @@ public sealed class 動的ライブ検証サービス{
                     case WorkerMessageTypes.SourceExecutionCompleted:{
                         var 完了=DynamicWorkerProtocol.DeserializePayload<WorkerSourceExecutionCompletedEvent>(Envelope);
                         IR一覧.Remove(完了.QueryId,out var クエリ);
+                        if(クエリ is not null){await 記録.RecordAsync(クエリ,完了,取消).ConfigureAwait(false);}
                         var 結果=結果を作る(設定,段階,要求,完了,クエリ);
                         await 結果受信時(結果,取消).ConfigureAwait(false);
                         break;
                     }
                     case WorkerMessageTypes.RunCompleted:
+                        await 記録.CompleteAsync("Completed").ConfigureAwait(false);
+                        return;
                     case WorkerMessageTypes.RunCanceled:
+                        await 記録.CompleteAsync("Canceled").ConfigureAwait(false);
                         return;
                     case WorkerMessageTypes.Fatal:{
                         var 致命=DynamicWorkerProtocol.DeserializePayload<WorkerFatalEvent>(Envelope);
                         // 全組み合わせを数え切った後に先の番号を求めたときなど。段階の終わりとして次へ進む。
                         if(致命.Message.Contains("exhaustive enumeration",StringComparison.OrdinalIgnoreCase)){
+                            await 記録.CompleteAsync("Completed").ConfigureAwait(false);
                             return;
                         }
                         throw new InvalidOperationException($"Workerが停止しました: {致命.Message}");
                     }
                 }
             }
+            throw new IOException("Workerが完了通知なしで終了しました。");
+        }catch(OperationCanceledException){
+            await 記録.CompleteAsync("Canceled").ConfigureAwait(false);
+            throw;
+        }catch{
+            await 記録.CompleteAsync("Failed").ConfigureAwait(false);
+            throw;
         }finally{
             if(!Session.HasExited){
                 try{

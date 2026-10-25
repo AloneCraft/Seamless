@@ -4,72 +4,23 @@
 $ErrorActionPreference = 'Stop'
 
 $Solutions = [ordered]@{
-    'Benchmark.UI.slnx'                        = @('Benchmark/Benchmark.UI/Benchmark.UI.csproj')
     'Benchmark.Headless.slnx'                  = @('Benchmark/Benchmark.Headless/Benchmark.Headless.csproj')
-    'Benchmark.Scalable.slnx'                  = @('Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj', 'Benchmark/Benchmark.Scalable.Headless/Benchmark.Scalable.Headless.csproj')
-    'Benchmark.Tsavorite.ParameterSweep.slnx'  = @('Benchmark/Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Tsavorite.ParameterSweep.UI.csproj', 'Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj')
-    'Benchmark.Dynamic.slnx'                   = @('Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj')
-    'Verification.slnx'                        = @('Verification.Cli/Verification.Cli.csproj', 'Verification.UI/Verification.UI.csproj')
-    'DynamicLinq.Runner.slnx'                  = @('DynamicLinq.Runner/DynamicLinq.Runner.csproj')
+    'Benchmark.Scalable.slnx'                  = @('Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj', 'Benchmark/Benchmark.Scalable.Headless/Benchmark.Scalable.Headless.csproj', 'Benchmark/Benchmark.Scalable.Tests/Benchmark.Scalable.Tests.csproj')
+    'Benchmark.Tsavorite.ParameterSweep.slnx'  = @('Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj')
+    'Benchmark.Dynamic.slnx'                   = @('Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj', 'Benchmark.Dynamic.Tests/Benchmark.Dynamic.Tests.csproj', 'Benchmark/Benchmark.Infrastructure.Tests/Benchmark.Infrastructure.Tests.csproj')
     'Seamless.Database.Tool.slnx'              = @('Seamless.Database.Tool/Seamless.Database.Tool.csproj')
     'Sample.NetShop.slnx'                      = @('Samples/Sample.NetShop/Sample.NetShop.csproj', 'Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj')
     'Sample.VirtualDb.slnx'                    = @('Samples/Sample.VirtualDb/Sample.VirtualDb.csproj')
     'Benchmark.TpcE.slnx'                      = @('Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj', 'Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj', 'Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj', 'Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj', 'Benchmark/Benchmark.Tpc.Tests/Benchmark.Tpc.Tests.csproj')
-    'Applications.slnx'                        = @(
-        'Samples/Sample.NetShop/Sample.NetShop.csproj',
-        'Samples/Sample.VirtualDb/Sample.VirtualDb.csproj',
-        'Samples/Sample.FLinqChainVerifier/Sample.FLinqChainVerifier.csproj',
-        'Seamless.Database.Tool/Seamless.Database.Tool.csproj'
-    )
-    'FLinq.slnx'                               = @(
-        'Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj',
-        'Test.System.Linq.Enumerable.FLinq/Test.System.Linq.Enumerable.FLinq.csproj',
-        'DynamicLinq.Runner/DynamicLinq.Runner.csproj',
-        'Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj',
-        'Samples/Sample.FLinqChainVerifier/Sample.FLinqChainVerifier.csproj'
-    )
-    'Core.slnx'                                = @(
-        'Seamless/Seamless.csproj',
-        'Seamless.Linq/Seamless.Linq.csproj',
-        'Seamless.Collections/Seamless.Collections.csproj',
-        'Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj',
-        'Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj',
-        'Seamless.Database/Seamless.Database.csproj',
-        'Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj',
-        'Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj',
-        'Seamless.Execution/Seamless.Execution.csproj',
-        'Seamless.Database.Generator/Seamless.Database.Generator.csproj',
-        'Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj',
-        'Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj'
-    )
-    'Benchmarks.slnx'                          = @(
-        'Benchmark/Benchmark.UI/Benchmark.UI.csproj',
-        'Benchmark/Benchmark.Headless/Benchmark.Headless.csproj',
-        'Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj',
-        'Benchmark/Benchmark.Scalable.Headless/Benchmark.Scalable.Headless.csproj',
-        'Benchmark/Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Tsavorite.ParameterSweep.UI.csproj',
-        'Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj',
-        'Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj',
-        'Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj',
-        'Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj',
-        'Benchmark/Benchmark.Audit/Benchmark.Audit.csproj',
-        'Benchmark/Worker/Worker.csproj'
-    )
     'Tests.slnx'                               = @(
         'Execution.Tests/Execution.Tests.csproj',
-        'Verification.Tests/Verification.Tests.csproj',
-        'DynamicLinq.Runner/DynamicLinq.Runner.csproj',
+        'Benchmark/Benchmark.Infrastructure.Tests/Benchmark.Infrastructure.Tests.csproj',
+        'Benchmark/Benchmark.Scalable.Tests/Benchmark.Scalable.Tests.csproj',
         'Test.Persisted.Collections/Test.Persisted.Collections.csproj',
-        'Test.Persisted.Linq.Enumerable.FLinq/Test.Persisted.Linq.Enumerable.FLinq.csproj',
-        'Test.Persisted.Linq.Enumerable.IEnumerable.FLinq/Test.Persisted.Linq.Enumerable.IEnumerable.FLinq.csproj',
         'Test.Scalable.Persisted.Collections/Test.Scalable.Persisted.Collections.csproj',
         'Test.Scalable.Tsavorite.Collections/Test.Scalable.Tsavorite.Collections.csproj',
-        'Test.System.Linq.Enumerable.FLinq/Test.System.Linq.Enumerable.FLinq.csproj',
         'Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj',
         'Test.Tsavorite.ParameterSweep/Test.Tsavorite.ParameterSweep.csproj',
-        'Test.Tsavorite.Linq.Enumerable.FLinq/Test.Tsavorite.Linq.Enumerable.FLinq.csproj',
-        'Test.Tsavorite.Linq.Enumerable.IEnumerable.FLinq/Test.Tsavorite.Linq.Enumerable.IEnumerable.FLinq.csproj',
-        'Benchmark.UI.UITests/Benchmark.UI.UITests.csproj',
         'Benchmark.Dynamic.Tests/Benchmark.Dynamic.Tests.csproj',
         'Benchmark.Dynamic.UITests/Benchmark.Dynamic.UITests.csproj',
         'Test/Test.csproj',
@@ -112,6 +63,28 @@ function Get-Edges([string]$relPath) {
             $target = if ([System.IO.Path]::IsPathRooted($raw)) { $raw } else { Join-Path $dir $raw }
             if (-not (Test-Path -LiteralPath $target)) { $Errors.Add("参照先が存在しない: $relPath -> $raw"); continue }
             $result += Get-RelativeKey $target
+        }
+    }
+    # 直接リンクされた共有ソースにも所有projitemsへの辺を張る。
+    foreach($include in [regex]::Matches($text,'<Compile\s[^>]*?Include\s*=\s*"([^"*?]+\.cs)"')){
+        $raw=$include.Groups[1].Value.Replace('$(MSBuildProjectDirectory)',$dir+'\').Replace('$(MSBuildThisFileDirectory)',$dir+'\')
+        if($raw -match '\$\('){continue}
+        $source=[IO.Path]::GetFullPath((Join-Path $dir $raw))
+        if(-not (Test-Path -LiteralPath $source)){continue}
+        $owner=[IO.DirectoryInfo](Split-Path $source -Parent)
+        while($owner -and $owner.FullName.StartsWith($Root,[StringComparison]::OrdinalIgnoreCase)){
+            $found=$false
+            foreach($items in Get-ChildItem -LiteralPath $owner.FullName -Filter '*.projitems'){
+                $itemsText=[IO.File]::ReadAllText($items.FullName)
+                foreach($compile in [regex]::Matches($itemsText,'<Compile\s[^>]*?Include\s*=\s*"([^"]+)"')){
+                    $pattern=$compile.Groups[1].Value.Replace('$(MSBuildThisFileDirectory)',$owner.FullName+'\')
+                    if($pattern -match '\$\('){continue}
+                    $pattern=[IO.Path]::GetFullPath((Join-Path $owner.FullName $pattern))
+                    if($source -like $pattern){$result+=Get-RelativeKey $items.FullName;$found=$true;break}
+                }
+            }
+            if($found){break}
+            $owner=$owner.Parent
         }
     }
     # projitems は同ディレクトリの .shproj とセットで見せる (AGENTS.md の共有プロジェクト可視化方針)

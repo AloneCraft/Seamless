@@ -18,7 +18,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(MSBuildProjectFile)'=='Benchmark.UI.csproj' Or '$(MSBuildProjectFile)'=='Benchmark.UI.UITests.csproj' Or '$(MSBuildProjectFile)'=='Benchmark.Dynamic.UI.csproj' Or '$(MSBuildProjectFile)'=='Benchmark.Dynamic.Tests.csproj' Or '$(MSBuildProjectFile)'=='Benchmark.Dynamic.UITests.csproj' Or '$(MSBuildProjectFile)'=='Benchmark.Scalable.UI.csproj' Or '$(MSBuildProjectFile)'=='Benchmark.Tsavorite.ParameterSweep.UI.csproj'">
+  <PropertyGroup Condition="'$(MSBuildProjectFile)'=='Benchmark.Dynamic.UI.csproj' Or '$(MSBuildProjectFile)'=='Benchmark.Dynamic.Tests.csproj' Or '$(MSBuildProjectFile)'=='Benchmark.Dynamic.UITests.csproj' Or '$(MSBuildProjectFile)'=='Benchmark.Scalable.UI.csproj'">
     <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
     <TargetPlatformVersion>10.0.19041.0</TargetPlatformVersion>
   </PropertyGroup>

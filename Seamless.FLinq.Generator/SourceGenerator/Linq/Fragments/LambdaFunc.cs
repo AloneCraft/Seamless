@@ -4,7 +4,10 @@ internal class LambdaFunc:FuncFragment {
     public override bool IsIdentity =>
         this.ParameterNames.Length==1
         &&!this.RequiresStatementInlining
-        &&string.Equals(this.InlineBody.Trim(),this.ParameterNames[0],StringComparison.Ordinal);
+        &&(this.BodyIsWrappedParameter||string.Equals(this.InlineBody.Trim(),this.ParameterNames[0],StringComparison.Ordinal));
+
+    // 本体が、恒等の包み(TransparentCalls)を剥がすと引数そのもの。恒等として扱い、包みは呼ばなくてよい。
+    public bool BodyIsWrappedParameter { get; set; }
 
     // ラムダ本体を代入文として埋め込む。
     public override string RenderInlineAssign(string destination,int number,params string[] arguments) {

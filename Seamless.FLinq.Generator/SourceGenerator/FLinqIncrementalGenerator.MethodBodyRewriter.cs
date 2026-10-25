@@ -112,7 +112,9 @@ public sealed partial class FLinqIncrementalGenerator {
         補助メンバーをメソッド専用クラスへ退避(対象.MethodName,ref this.state.StaticMethods,ref 本体);
 
         // 機械的な名前(__it2_1 など)を、人が書いたような名前に付け替える。UnsafeAccessor の宣言はこのあとで足すので、外部の名前は触らない。
-        GeneratedNameRenamer.Rename(ref this.state.StaticMethods,ref 本体,this.state.UserIdentifiers);
+        this.state.StaticMethods=GeneratedLocalInitializers.Simplify(this.state.StaticMethods);
+        本体=GeneratedLocalInitializers.Simplify(本体,methodBody:true);
+        GeneratedNameRenamer.Rename(ref this.state.StaticMethods,ref 本体,this.state.UserIdentifiers,GeneratedNames.Current?.PreferredLocals);
         // 構造体の中で自分のメンバーを使うときは this. を付けて揃える(付けると意味が変わる所は付けない)。
         this.state.StaticMethods=GeneratedThisQualifier.Qualify(this.state.StaticMethods);
 

@@ -34,6 +34,17 @@ public sealed class StoreProfiles{
         Assert.Equal(actual.Length,data.MeasureLogUsage().LiveRecords);
     }
     [Fact]
+    public void IndexGrowthAccountsForBothIndexesDuringTransition(){
+        using var owner=CommonStore.CreateTemporary(limits:new(){MemoryBytes=20000},options:new(){Growth=new Policy<Estimated>()});
+        using var data=owner.CreateTsavorite<int,int>("dictionary",expectedCount:100000);
+        using var values=data.Create();
+        for(var index=0;index<200;index++){values.Add(index,index);}
+        for(var index=0;index<200;index++){Assert.Equal(index,values[index]);}
+        Assert.True(owner.Budget.PeakMemoryBytes>owner.Budget.MemoryBytes);
+        Assert.True(owner.Budget.PeakMemoryBytes<=owner.Limits.MemoryBytes);
+        Assert.Equal(data.Store.IndexSize*64,owner.GetCurrentSettings("dictionary").IndexBytes);
+    }
+    [Fact]
     public void MemoryLogGrowsWithoutLosingDataAndRespectsBudget(){
         using(var owner=global::Seamless.Execution.Store.CreateMemory()){
             using var data=owner.CreateTsavorite<int,int>("dictionary");

@@ -11,6 +11,7 @@ public sealed record QuerySourceEmissionOptions{
 
     /// <summary>false にすると ZLinq の経路と <c>using ZLinq</c> を出さない(ZLinq を参照しない再現テスト向け)。</summary>
     public bool IncludeZLinq{get;init;}=true;
+    public int OptimizationFlags{get;init;}=15;
 }
 
 public sealed record QuerySourceEmissionResult(
@@ -34,6 +35,7 @@ public sealed class QuerySourceEmitter{
         ArgumentNullException.ThrowIfNull(document);
         QueryIrValidator.ValidateAndThrow(document);
         options??=new();
+        if(options.OptimizationFlags<0||options.OptimizationFlags>15){throw new ArgumentOutOfRangeException(nameof(options.OptimizationFlags));}
         var generatedNamespace=ValidateNamespace(options.GeneratedNamespace);
         var irHash=QueryIrJson.ComputeHash(document);
         var className=string.IsNullOrWhiteSpace(options.ClassName)
@@ -61,7 +63,7 @@ public sealed class QuerySourceEmitter{
             document,
             element,
             ExecutionPath.FLinqOptimized,
-            "[global::Seamless.FLinq.LinqIntercept(true,Optimizations=global::Seamless.FLinq.LinqOptimizations.All,ConvergenceMode=global::Seamless.FLinq.LinqConvergenceMode.GlobalFixedPoint,EmitOptimizationTrace=true)]");
+            $"[global::Seamless.FLinq.LinqIntercept(true,Optimizations={(options.OptimizationFlags==15?"global::Seamless.FLinq.LinqOptimizations.All":"(global::Seamless.FLinq.LinqOptimizations)"+options.OptimizationFlags)},ConvergenceMode=global::Seamless.FLinq.LinqConvergenceMode.GlobalFixedPoint,EmitOptimizationTrace=true)]");
         var zLinqSupported=options.IncludeZLinq&&QueryZLinqSupport.IsSupported(document);
         if(zLinqSupported){
             this.EmitMethod(builder,document,element,ExecutionPath.ZLinq,null);

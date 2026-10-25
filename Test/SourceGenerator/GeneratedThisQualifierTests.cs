@@ -86,4 +86,46 @@ public sealed class GeneratedThisQualifierTests {
         var result = Qualify("int state; int Run() { state++; return Use(x => state+x); }");
         Assert.DoesNotContain("var state = this.state;",result);
     }
+
+    [Fact]
+    public void OriginalLambdaNamesAreReusedOnlyWhenTheyDisappearFromGeneratedCode(){
+        var helpers="struct S { void M() { var __it1_0=Read(); Use(__it1_0); } }";
+        var body="";
+        var preferred=new global::System.Collections.Generic.Dictionary<string,string>{{"__it1_0","row"}};
+        var user=new global::System.Collections.Generic.HashSet<string>{"row"};
+        GeneratedNameRenamer.Rename(ref helpers,ref body,user,preferred);
+        Assert.Contains("var row=Read(); Use(row);",helpers);
+        helpers="struct S { void M(int row) { var __it1_0=Read(); Use(row,__it1_0); } }";
+        GeneratedNameRenamer.Rename(ref helpers,ref body,user,preferred);
+        Assert.Contains("M(int row)",helpers);
+        Assert.DoesNotContain("var row=Read()",helpers);
+    }
+
+    [Fact]
+    public void LocalFunctionsAreReadableButExternalMethodsArePreserved(){
+        var helpers="";
+        var body="static bool __hasKey3(int key)=>key>0; var __it1=Read(); __Method_External(__hasKey3(__it1));";
+        GeneratedNameRenamer.Rename(ref helpers,ref body,[]);
+        Assert.Contains("static bool hasKey",body);
+        Assert.Contains("__Method_External(hasKey(",body);
+    }
+
+    [Fact]
+    public void GeneratedClassMembersAlsoGetThis(){
+        var result=GeneratedThisQualifier.Qualify("class C { int count; int Run()=>count; }");
+        Assert.Contains("=>this.count",result);
+    }
+
+    [Fact]
+    public void GeneratedInitializationKeepsEvaluationOrderAndUserVariables(){
+        var code="int __key2=default!; __key2=Next(); Use(__key2); int user=default; user=Next();";
+        var result=GeneratedLocalInitializers.Simplify(code,methodBody:true);
+        Assert.Contains("int __key2=Next();",result);
+        Assert.Contains("int user=default; user=Next();",result);
+        Assert.Equal(2,result.Split("Next()").Length-1);
+        var self="int __key2=default; __key2=__key2+1;";
+        Assert.Equal(self,GeneratedLocalInitializers.Simplify(self,methodBody:true));
+        var intervening="int __key2=default; Observe(); __key2=Next();";
+        Assert.Equal(intervening,GeneratedLocalInitializers.Simplify(intervening,methodBody:true));
+    }
 }

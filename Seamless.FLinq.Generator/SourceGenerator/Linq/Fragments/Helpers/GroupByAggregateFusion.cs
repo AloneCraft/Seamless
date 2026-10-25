@@ -42,18 +42,35 @@ internal sealed class GroupByAggregatePlan {
     public string ResultType { get; set; } = string.Empty;
     public bool IsSingleField => this.Items.Count==1;
 
-    // 後ろの Take(n)・First・Any などが先頭の n グループしか使わないとき、その n。null なら全グループを集約する。
-    // System.Linq は集約のラムダを、使うグループの分しか評価しないので、それを超えるグループの要素は集約しない(キー選択子と要素選択子は全要素で評価する)。
-    public int? GroupLimit { get; set; }
+    // 後ろの Take(n)・First・Any などが先頭の n グループしか使わないとき、その n(実行時の式も可。GroupByFusionPass が下流の要求から決める)。
+    // null なら全グループを集約する。System.Linq は集約のラムダを、使うグループの分しか評価しないので、
+    // それを超えるグループの要素は集約しない(キー選択子と要素選択子は全要素で評価する)。
+    public GroupByConsumptionPlan? Consumption{get;private init;}
+    public CountExpr? GroupLimit=>this.Consumption?.Limit;
+    public GroupByAggregatePlan WithConsumption(GroupByConsumptionPlan consumption){
+        var snapshot=new GroupByAggregatePlan{
+            KeyType=this.KeyType,AccumulatorType=this.AccumulatorType,ProjectedResultExpression=this.ProjectedResultExpression,
+            ResultType=this.ResultType,Consumption=consumption
+        };
+        snapshot.Items.AddRange(this.Items.Select(static item=>new GroupAggregateItem{
+            Kind=item.Kind,FieldName=item.FieldName,AccumulatorFieldType=item.AccumulatorFieldType,ResultExpressionType=item.ResultExpressionType,
+            InnerFunc=item.InnerFunc,OriginalInvocationText=item.OriginalInvocationText,RawInvocationText=item.RawInvocationText
+        }));
+        snapshot.ReceiverNames.AddRange(this.ReceiverNames);
+        return snapshot;
+    }
 
     // グループのアキュムレータを探して(必要なら作って)、要素を集約する文。GroupLimit があるときは、上限に達した後の新しいグループを作らず、その要素の集約を飛ばす。
-    public string RenderAccumulate(string mapExpression,string keyName,string elementVarName,string indent) {
-        if(this.GroupLimit is not { } limit) {
-            return $"{indent}ref var __acc=ref {mapExpression}.GetValueRefOrAddDefault({keyName},out var __exists);\n"+this.RenderAccumulatorUpdate("__acc",elementVarName,indent);
+    // limitExpression は、呼び出し側がループの前に評価した上限の式(GroupLimit があるときは必須)。
+    public string RenderAccumulate(string mapExpression,string keyName,string elementVarName,string indent,string? limitExpression) {
+        if(this.GroupLimit is null) {
+            var existing=this.Items.Any(static item=>item.Kind is GroupAggregateKind.Min or GroupAggregateKind.Max) ? "var __exists" : "_";
+            return $"{indent}ref var __acc=ref {mapExpression}.GetValueRefOrAddDefault({keyName},out {existing});\n"+this.RenderAccumulatorUpdate("__acc",elementVarName,indent);
         }
         var sb = new StringBuilder();
         sb.AppendLine($"{indent}ref var __acc=ref {mapExpression}.GetValueRefOrNullRef({keyName});");
         sb.AppendLine($"{indent}var __exists=!global::System.Runtime.CompilerServices.Unsafe.IsNullRef(ref __acc);");
+        var limit = limitExpression??throw new InvalidOperationException("GroupLimit needs a limit expression.");
         sb.AppendLine($"{indent}if(!__exists&&{mapExpression}.Count<{limit}) {{");
         sb.AppendLine($"{indent}    __acc=ref {mapExpression}.GetValueRefOrAddDefault({keyName},out _);");
         sb.AppendLine($"{indent}}}");

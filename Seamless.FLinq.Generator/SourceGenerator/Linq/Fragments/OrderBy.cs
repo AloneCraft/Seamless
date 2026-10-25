@@ -365,10 +365,10 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
     private string KeyLoopCombined(OrderingBase po) => $$"""
                     for(var __keyIndex=0;__keyIndex<this.count;__keyIndex++){
                         var {{this.item}}=this.values![__keyIndex];
-                        {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                        {{this.FuncAssignIndented("                        ",keySelector,nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(po.OwnKeySelector)}} {{this.a}}=default!;
                         {{this.FuncAssignIndented("                        ",po.OwnKeySelector,"primaryKeySelector",this.a,this.item)}}
+                        {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
+                        {{this.FuncAssignIndented("                        ",keySelector,nameof(keySelector),this.key,this.item)}}
                         this.keys![__keyIndex]={{this.key}};
                         this.primaryKeys![__keyIndex]={{this.a}};
                     }

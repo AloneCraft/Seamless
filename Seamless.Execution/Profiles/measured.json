@@ -2,7 +2,7 @@
   "Version": 1,
   "Profiles": [
     {
-      "ID": "tsavorite-file-int32-filter-4096-v1",
+      "ID": "tsavorite-file-int32-filter-4096-doubling-v1",
       "Version": 1,
       "Conditions": {
         "Backend": "Tsavorite",
@@ -23,14 +23,14 @@
         "MutableFraction": 1
       },
       "EvidenceRunIDs": [
-        "0fe3f991143143dd8e50c0ea3555f4ca",
-        "f0bd0670687e4806b1a276bf3c6c38ae",
-        "7526d35e0b834eb3afe707c3455eaabb",
-        "4139df68a6104d9b994211ac939bc69a"
+        "74018124c6c1403a999fd2efc451bf30",
+        "373120941a7e4a13a9c01c1792c2a1b6",
+        "16fee5862f014537ac807a35b4b8a3d5",
+        "601d86183c434c7fbbf5194958501b7c"
       ],
       "IndependentlyValidated": true,
       "Growth": {
-        "ID": "fixed",
+        "ID": "doubling",
         "Version": 1,
         "ParametersJSON": "{}"
       }

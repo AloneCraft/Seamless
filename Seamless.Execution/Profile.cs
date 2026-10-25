@@ -42,13 +42,14 @@ public sealed record ProfileSettings{
     }
 }
 
-public sealed record ProfileRequest(string Backend,StoreKind StoreKind,string ElementType,long ElementCount=0,string Workload="*",string Environment="*");
+public sealed record ProfileRequest(string Backend,StoreKind StoreKind,string ElementType,long ElementCount=0,string Workload="*",string Environment="*",string IO="BackendDefault",ProfileEvidence? RequiredEvidence=null);
 
 public sealed record MeasuredProfile(
     string ID,int Version,ProfileRequest Conditions,long MaximumCount,ProfileSettings Settings,
-    string[] EvidenceRunIDs,bool IndependentlyValidated=false,Growth.Descriptor? Growth=null){
+    string[] EvidenceRunIDs,bool IndependentlyValidated=false,Growth.Descriptor? Growth=null,ProfileEvidence? Evidence=null){
     public bool AppliesTo(ProfileRequest request)=>this.Conditions.Backend==request.Backend
         &&this.Conditions.StoreKind==request.StoreKind
+        &&this.Conditions.IO==request.IO
         &&(this.Conditions.ElementType=="*"||this.Conditions.ElementType==request.ElementType)
         &&request.ElementCount>=this.Conditions.ElementCount&&request.ElementCount<=this.MaximumCount
         &&(this.Conditions.Workload=="*"||this.Conditions.Workload==request.Workload)
@@ -79,13 +80,13 @@ public sealed class ProfileCatalog{
         return new(document.Profiles);
     }
     public string ToJSON()=>JsonSerializer.Serialize(new CatalogDocument(1,this.profiles),new JsonSerializerOptions{WriteIndented=true});
-    public MeasuredProfile? Find(ProfileRequest request)=>this.profiles
+    public MeasuredProfile? Find(ProfileRequest request)=>this.Candidates(request).FirstOrDefault(profile=>profile.Evidence==(request.RequiredEvidence??ProfileEvidence.Current));
+    internal IEnumerable<MeasuredProfile> Candidates(ProfileRequest request)=>this.profiles
         .Where(profile=>profile.AppliesTo(request))
         .OrderByDescending(profile=>profile.Conditions.ElementType!="*")
         .ThenByDescending(profile=>profile.Conditions.Workload!="*")
         .ThenBy(profile=>profile.MaximumCount-profile.Conditions.ElementCount)
-        .ThenByDescending(profile=>profile.Version)
-        .FirstOrDefault();
+        .ThenByDescending(profile=>profile.Version);
     private static ProfileCatalog LoadBundled(){
         using var stream=typeof(ProfileCatalog).Assembly.GetManifestResourceStream("Seamless.Execution.Profiles.measured.json");
         if(stream is null){return new([]);}
@@ -98,6 +99,14 @@ public sealed class ProfileCatalog{
 public sealed record ProfileResolution(Profile Requested,Profile Applied,string? ProfileID,int? ProfileVersion,ProfileSettings Settings,string Reason,string[] EvidenceRunIDs,Growth.Descriptor? Growth=null);
 
 public static class ProfileResolver{
+    public const int MinimumVersion=1;
+    public static ProfileExplanation Explain(Profile requested,ProfileRequest request,StoreLimits limits,
+        ProfileSettings? explicitSettings=null,ProfileCatalog? supplied=null,Growth.Policy? explicitGrowth=null){
+        var result=Resolve(requested,request,limits,explicitSettings,supplied,explicitGrowth);
+        IReadOnlyList<string> missing=Array.Empty<string>();
+        if(requested==Profile.Optimized&&result.Applied==Profile.Minimum){missing=Array.AsReadOnly(new[]{result.Reason});}
+        return ProfileExplanation.Create(result,explicitGrowth,request.RequiredEvidence) with{Conditions=request,MissingConditions=missing};
+    }
     public static ProfileResolution Resolve(Profile requested,ProfileRequest request,StoreLimits limits,
         ProfileSettings? explicitSettings=null,ProfileCatalog? supplied=null,Growth.Policy? explicitGrowth=null){
         ArgumentOutOfRangeException.ThrowIfNegative(request.ElementCount);
@@ -107,21 +116,30 @@ public static class ProfileResolver{
         var selected=minimum.OverrideWith(explicitSettings);
         selected.Validate();
         EnsureBudget(selected,limits);
-        if(requested==Profile.Minimum){return new(requested,Profile.Minimum,null,null,selected,"Minimum initial configuration.",[]);}
+        if(requested==Profile.Minimum){return new(requested,Profile.Minimum,"Minimum",MinimumVersion,selected,"Minimum initial configuration.",[]);}
         if(requested!=Profile.Optimized){throw new ArgumentOutOfRangeException(nameof(requested));}
-        var candidate=supplied?.Find(request)??ProfileCatalog.Bundled.Find(request);
-        if(candidate is null){return new(requested,Profile.Minimum,null,null,selected,"No independently validated profile matches these conditions.",[]);}
-        if(candidate.Growth is not null&&explicitGrowth is null&&Growth.Policy.FromDescriptor(candidate.Growth) is null){
-            return new(requested,Profile.Minimum,null,null,selected,"The profile growth strategy is unavailable. Supply an explicit strategy.",[]);
+        var rejected=new List<string>();
+        var candidates=(supplied?.Candidates(request)??[]).Concat(ProfileCatalog.Bundled.Candidates(request));
+        foreach(var candidate in candidates){
+            if(candidate.Evidence!=(request.RequiredEvidence??ProfileEvidence.Current)){
+                rejected.Add(candidate.ID+": evidence versions unknown or incompatible.");continue;
+            }
+            if(candidate.Growth is not null&&explicitGrowth is null&&Growth.Policy.FromDescriptor(candidate.Growth) is null){
+                rejected.Add(candidate.ID+": growth strategy unavailable.");continue;
+            }
+            var optimized=minimum.OverrideWith(candidate.Settings).OverrideWith(explicitSettings);
+            optimized.Validate();
+            try{
+                EnsureBudget(optimized,limits);
+            }catch(ResourceLimitException){
+                rejected.Add(candidate.ID+": resource budget exceeded.");continue;
+            }
+            return new(requested,Profile.Optimized,candidate.ID,candidate.Version,optimized,
+                string.Join(" ",rejected.Append("An independently validated measured profile was selected.")),candidate.EvidenceRunIDs,explicitGrowth?.Descriptor??candidate.Growth);
         }
-        var optimized=minimum.OverrideWith(candidate.Settings).OverrideWith(explicitSettings);
-        optimized.Validate();
-        try{
-            EnsureBudget(optimized,limits);
-        }catch(ResourceLimitException){
-            return new(requested,Profile.Minimum,null,null,selected,"The optimized profile exceeds the resource budget.",[]);
-        }
-        return new(requested,Profile.Optimized,candidate.ID,candidate.Version,optimized,"An independently validated measured profile was selected.",candidate.EvidenceRunIDs,explicitGrowth?.Descriptor??candidate.Growth);
+        var reason="No independently validated profile matches these conditions.";
+        if(rejected.Count>0){reason=string.Join(" ",rejected);}
+        return new(requested,Profile.Minimum,"Minimum",MinimumVersion,selected,reason,[]);
     }
     public static ProfileSettings Minimum(string backend)=>backend switch{
         "Tsavorite"=>new(){IndexBytes=64,PageBytes=4096,SegmentBytes=4096,LogMemoryBytes=8192,MutableFraction=1},

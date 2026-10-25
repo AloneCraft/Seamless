@@ -1,4 +1,4 @@
-using Benchmark.Dynamic.Core;
+﻿using Benchmark.Dynamic.Core;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
@@ -26,6 +26,7 @@ public sealed record WorkerExecutionArtifact(
     bool ReachedFixedPoint);
 
 public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
+    private static readonly Lazy<string> ビルド指紋=new(static ()=>Benchmark.Infrastructure.BuildFingerprint.Capture(typeof(DynamicWorkerExecutionRunner).Assembly.Location));
     private static readonly DynamicImplementationKind[] 検証対象=[
         DynamicImplementationKind.System,
         DynamicImplementationKind.FLinqUnoptimized,
@@ -62,8 +63,11 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
         SourceTarget 対象,
         int Source順序,
         CancellationToken キャンセルToken){
+        using var 計測排他=Benchmark.Infrastructure.MeasurementLease.Acquire(キャンセルToken);
         var 完了日時=DateTimeOffset.UtcNow;
         var Status=WorkerExecutionStatus.ExecutionFailed;
+        var 保存方式=対象.GetSourceKind().ToString();
+        if(対象.GetSourceKind() is SourceKind.Persisted or SourceKind.Tsavorite){保存方式=(要求.StorageSettings??new()).Kind;}
         var SourceText=string.Empty;
         var SourceHash=string.Empty;
         string? ResultJSON=null;
@@ -71,6 +75,12 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
         string? TraceJSON=null;
         var 展開コード=string.Empty;
         string? 計測JSON=null;
+        string? 入力ハッシュ=null;
+        string? 環境JSON=null;
+        string? パラメーターJSON=null;
+        string? 拡張JSON=null;
+        string? 設定変更JSON=null;
+        var 入出力方式="BackendDefault";
         var 解放済み=true;
         var Source生成時間=0L;
         DynamicCompilationTimings Compilation時間=空のコンパイル時間();
@@ -78,10 +88,12 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
         SourceFixture? Fixture=null;
         try{
             キャンセルToken.ThrowIfCancellationRequested();
+            Benchmark.Infrastructure.SystemResources.Check(starting:true);
             var 開始=Stopwatch.GetTimestamp();
             var Source=this.Source生成.Emit(Query,new QuerySourceEmissionOptions{
                 GeneratedNamespace="Benchmark.Dynamic.Generated",
                 ClassName=$"Q_{安全な識別子(要求.RunId)}_{QueryIndex:D6}_{(int)対象}_{SourceHash短縮(Query)}",
+                OptimizationFlags=要求.OptimizationFlags,
             });
             Source生成時間=経過ナノ秒(開始);
             SourceText=Source.SourceText;
@@ -110,7 +122,20 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                 goto 完了;
             }
             var FixtureSeed=要求.FixtureSeedOverride??SeedDerivation.Derive(要求.BaseSeed,"fixture",QueryIndex);
-            Fixture=this.Fixture生成.Create(対象,要求.InputElementCount,FixtureSeed,Query.ElementType,要求.IncludeSpecialValues);
+            Fixture=this.Fixture生成.Create(対象,要求.InputElementCount,FixtureSeed,Query.ElementType,要求.IncludeSpecialValues,要求.StorageSettings,QueryWorkloadIdentity.Compute(Query));
+            入力ハッシュ=FixtureInputIdentity.Compute(Fixture,Query.ElementType);
+            環境JSON=JsonSerializer.Serialize(Benchmark.Infrastructure.EnvironmentSnapshot.Capture(要求.MeasurementProfile.ProfileId));
+            var 所有者=Fixture.Stores.FirstOrDefault();
+            if(所有者 is not null){
+                var 採用設定=所有者.ResolvedProfiles.Values.First();
+                var 実設定=所有者.GetCurrentSettings(所有者.ResolvedProfiles.Keys.First());
+                パラメーターJSON=JsonSerializer.Serialize(new Benchmark.Infrastructure.ProfileParameters(WorkerStorage.Requested(要求.StorageSettings??new()),実設定,採用設定.ProfileID??"Minimum",採用設定.Reason,採用設定.ProfileVersion,採用設定.EvidenceRunIDs,採用設定.Requested.ToString(),採用設定.Settings));
+                拡張JSON=JsonSerializer.Serialize(所有者.GetGrowth(所有者.ResolvedProfiles.Keys.First()).Descriptor);
+                入出力方式=global::Seamless.Execution.ProfileIO.Describe(WorkerStorage.Storage(要求.StorageSettings??new()));
+            }else{
+                パラメーターJSON="{}";拡張JSON="{}";
+            }
+            設定変更JSON=JsonSerializer.Serialize(WorkerStorage.Changes(Fixture,要求.RunId,QueryIndex));
             var 検証=検証する(Loaded,Fixture.Primary,Fixture.Secondary,キャンセルToken);
             var 結果一覧=検証.Results;
             var 例外一覧=検証.Exceptions;
@@ -203,7 +228,8 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
             計測JSON=ArtifactをJSON化(Source生成時間,Compilation時間,計測,Trace概要);
             Status=WorkerExecutionStatus.Succeeded;
             goto 完了;
-        }catch(OperationCanceledException){
+        }catch(OperationCanceledException 例外){
+            if(例外 is Benchmark.Infrastructure.ResourceGuardException){診断JSON=JsonSerializer.Serialize(new[]{new DynamicCompilationDiagnostic("Resource","Error","PhysicalMemoryGuard",例外.Message,string.Empty)},DynamicWorkerProtocol.JsonOptions);}
             Status=WorkerExecutionStatus.Canceled;
             goto 完了;
         }catch(Exception 例外){
@@ -254,7 +280,8 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                 計測JSON,
                 解放済み,
                 完了日時,
-                展開コード.Length==0?null:展開コード);
+                展開コード.Length==0?null:展開コード,
+                入力ハッシュ,環境JSON,パラメーターJSON,拡張JSON,保存方式,ビルド指紋.Value,設定変更JSON,入出力方式);
         }
     }
 
@@ -271,6 +298,7 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
         SourceFixture Fixture,
         CancellationToken キャンセルToken){
         var 回数=new Dictionary<DynamicImplementationKind,long>();
+        var ラムダごとの回数=new Dictionary<DynamicImplementationKind,long[]>();
         LoadedDynamicQuery? 読込=null;
         try{
             var Source=this.Source生成.Emit(Query,new QuerySourceEmissionOptions{
@@ -299,8 +327,9 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                     // 例外の型の一致は、通常の検証が見ている。ここでは、例外までに評価した回数だけを使う。
                 }
                 回数[実装]=EvaluationProbe.Count;
+                ラムダごとの回数[実装]=EvaluationProbe.CountsByLambda;
             }
-            return (EvaluationCountComparer.Compare(回数),null,回数);
+            return (EvaluationCountComparer.CompareByLambda(ラムダごとの回数),null,回数);
         }finally{
             読込?.UnloadAndVerify();
         }
@@ -876,7 +905,7 @@ public sealed class WorkerHost{
         if(要求.MaximumDepth<1||要求.MaximumDepth>Math.Min(要求.OperatorCount,32)){
             throw new ArgumentOutOfRangeException(nameof(要求.MaximumDepth));
         }
-        if(要求.InputElementCount<1||要求.InputElementCount>SourceFixtureFactory.MaximumInputElementCount){
+        if(要求.InputElementCount<0||要求.InputElementCount>SourceFixtureFactory.MaximumInputElementCount){
             throw new ArgumentOutOfRangeException(nameof(要求.InputElementCount));
         }
         if(要求.SourceTargets.Count<1||要求.SourceTargets.Count>Enum.GetValues<SourceTarget>().Length

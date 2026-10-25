@@ -1,4 +1,4 @@
-using Benchmark.Dynamic.Core;
+﻿using Benchmark.Dynamic.Core;
 using Microsoft.Maui.Controls.Shapes;
 using System.Globalization;
 
@@ -12,6 +12,7 @@ namespace Benchmark.Dynamic.UI;
 /// 実行中は CPU を使うので、タブを開いただけでは始めず「開始」を押したときだけ動く。
 /// </summary>
 public sealed class 動的ライブ検証画面:ContentView{
+    public Func<(int 最適化,WorkerStorageSettings 設定)>? 測定設定を取得{get;set;}
     private const int ログ最大件数=250;
     private static readonly (string 表示,int 待ちミリ秒)[] 速度一覧=[
         ("ゆっくり",1200),
@@ -327,7 +328,8 @@ public sealed class 動的ライブ検証画面:ContentView{
         this.ログ領域.Clear();
         this.状態表示.TextColor=動的ライブ配色.薄い文字;
         this.状態表示.Text="開始しています";
-        var 設定=new 動的ライブ設定(対象,要素型,シード,特殊な値を混ぜる:this.特殊値チェック.IsChecked,開始段階:段階,開始番号:開始番号);
+        var 追加設定=this.測定設定を取得?.Invoke();
+        var 設定=new 動的ライブ設定(対象,要素型,シード,特殊な値を混ぜる:this.特殊値チェック.IsChecked,開始段階:段階,開始番号:開始番号,最適化フラグ:追加設定?.最適化??15,ストレージ設定:追加設定?.設定);
         var 取消=new CancellationTokenSource();
         this.取消=取消;
         this.実行中=true;

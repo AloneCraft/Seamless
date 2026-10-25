@@ -210,7 +210,7 @@ public sealed class QueryShrinker{
 
     public IReadOnlyList<ShrinkCandidate> EnumerateCandidates(QueryIrDocument query,int inputElementCount){
         ArgumentNullException.ThrowIfNull(query);
-        if(inputElementCount<1){
+        if(inputElementCount<0){
             throw new ArgumentOutOfRangeException(nameof(inputElementCount));
         }
         QueryIrValidator.ValidateAndThrow(query);
@@ -309,7 +309,7 @@ public sealed class QueryShrinker{
     }
 
     private static void ValidateRequest(ShrinkRequest request){
-        if(request.InputElementCount<1){
+        if(request.InputElementCount<0){
             throw new ArgumentOutOfRangeException(nameof(request.InputElementCount));
         }
         if(request.MaximumCandidates<1){
@@ -327,7 +327,7 @@ public sealed class QueryShrinker{
 public static class QueryIrNormalizer{
     public static QueryIrDocument Normalize(QueryIrDocument document,int inputElementCount){
         ArgumentNullException.ThrowIfNull(document);
-        if(inputElementCount<1){
+        if(inputElementCount<0){
             throw new ArgumentOutOfRangeException(nameof(inputElementCount));
         }
         var root=(TerminalQueryNode)NormalizeNode(document.Root,inputElementCount);

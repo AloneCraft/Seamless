@@ -1,4 +1,4 @@
-using Benchmark.Dynamic.Core;
+﻿using Benchmark.Dynamic.Core;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
@@ -15,6 +15,7 @@ public enum DynamicImplementationKind {
     FLinqUnoptimized,
     FLinq,
     ZLinq,
+    Ideal,
 }
 
 public sealed record DynamicCompilationTimings(
@@ -283,6 +284,9 @@ public sealed class DynamicQueryCompiler {
                 [DynamicImplementationKind.FLinqUnoptimized]=Bind(型,"RunFLinqUnoptimized"),
                 [DynamicImplementationKind.FLinq]=Bind(型,"RunFLinq"),
             };
+            if(型.GetMethod("RunIdeal",BindingFlags.Public|BindingFlags.Static) is not null){
+                関数一覧[DynamicImplementationKind.Ideal]=Bind(型,"RunIdeal");
+            }
             if(型.GetMethod("RunZLinq",BindingFlags.Public|BindingFlags.Static) is not null) {
                 関数一覧[DynamicImplementationKind.ZLinq]=Bind(型,"RunZLinq");
             }
