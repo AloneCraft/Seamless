@@ -55,8 +55,11 @@ public static class ConsolidationMemory {
 }
 $load=[ConsolidationMemory]::Load()
 if($load -ge 85){throw "Not started: physical memory $load%."}
-$runID=$Name+'-'+[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')+'-'+[Guid]::NewGuid().ToString('N')
-$runDirectory=Join-Path $dataRoot $runID
+$directoryID=[Guid]::NewGuid().ToString('N')
+$runID=$Name+'-'+[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')+'-'+$directoryID
+# チェックポイントがさらに長い階層を追加するため、実行名と時刻はログにだけ付ける。
+$runDirectory=Join-Path $dataRoot $directoryID
+if(Test-Path -LiteralPath $runDirectory){throw "Run directory already exists: $runDirectory"}
 $temporaryDirectory=Join-Path $runDirectory 'temp'
 $testDirectory=Join-Path $runDirectory 'data'
 foreach($directory in @($runDirectory,$temporaryDirectory,$testDirectory)){
