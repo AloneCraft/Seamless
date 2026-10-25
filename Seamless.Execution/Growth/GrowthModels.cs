@@ -12,7 +12,7 @@ public readonly record struct Context(
 
 public readonly record struct Decision(Status Status,long TargetBytes,string Reason);
 public sealed record Descriptor(string ID,int Version,string ParametersJSON);
-public sealed record Event(string Component,DateTimeOffset RecordedAt,Context Context,Decision Decision);
+public sealed record Event(string Component,DateTimeOffset RecordedAt,Context Context,Decision Decision,double? ElapsedNanoseconds=null);
 
 /// <summary>判断の状態はTSelfに保持する。エンジンの操作と資源予約は変更案の検証後に行う。</summary>
 public interface IStrategy<TSelf> where TSelf:struct,IStrategy<TSelf>{

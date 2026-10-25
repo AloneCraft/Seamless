@@ -9,9 +9,10 @@ internal sealed class TsavoriteLayout:IDisposable{
     /// <summary>集合演算の作業リストを置くフォルダ名(データ本体のフォルダの中)。</summary>
     internal const string WorkListDirectoryName="worklists";
     private const long MinimumIndexSize=64;
-    private TsavoriteLayout(global::Seamless.Execution.Store owner,string name,StoreKind kind,long indexSize,TsavoriteTuning tuning,long logMemorySize,IDevice logDevice,DeferredTruncationDevice? deferredLogDevice,IDevice objectLogDevice,string? checkpointDirectory,ResourceReservation memory,ResourceReservation? disk){
+    private TsavoriteLayout(global::Seamless.Execution.Store owner,string name,StoreKind kind,long indexSize,TsavoriteTuning tuning,long logMemorySize,IDevice logDevice,DeferredTruncationDevice? deferredLogDevice,IDevice objectLogDevice,string? checkpointDirectory,ResourceReservation memory,ResourceReservation? disk,long expectedCount){
         this.Owner=owner;
         this.Name=name;
+        this.ExpectedCount=expectedCount;
         this.Kind=kind;
         this.IndexSize=indexSize;
         this.PageSize=tuning.PageSize;
@@ -29,6 +30,7 @@ internal sealed class TsavoriteLayout:IDisposable{
     /// <summary>このデータ本体を子資源として登録している共通ストア。</summary>
     public global::Seamless.Execution.Store Owner{get;}
     public string Name{get;}
+    public long ExpectedCount{get;}
     public StoreKind Kind{get;}
     public long IndexSize{get;}
     public long PageSize{get;}
@@ -121,7 +123,7 @@ internal sealed class TsavoriteLayout:IDisposable{
                     objectLogDevice=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(directory,"obj"));
                 }
             }
-            return new(store,name,store.Kind,indexSize,tuning,logMemorySize,logDevice,deferredLogDevice,objectLogDevice,checkpointDirectory,memory,disk);
+            return new(store,name,store.Kind,indexSize,tuning,logMemorySize,logDevice,deferredLogDevice,objectLogDevice,checkpointDirectory,memory,disk,expectedCount);
         }catch{
             objectLogDevice?.Dispose();
             logDevice?.Dispose();

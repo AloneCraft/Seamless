@@ -97,8 +97,8 @@ public sealed class Store:IDisposable{
         }
         return settings;
     }
-    public void RecordGrowthDecision(string component,Growth.Context context,Growth.Decision decision){
-        var entry=new Growth.Event(component,DateTimeOffset.UtcNow,context,decision);
+    public void RecordGrowthDecision(string component,Growth.Context context,Growth.Decision decision,double? elapsedNanoseconds=null){
+        var entry=new Growth.Event(component,DateTimeOffset.UtcNow,context,decision,elapsedNanoseconds);
         this.growthDecisions[component]=entry;
         if(decision.Status==Growth.Status.Grow){this.growthEvents.Enqueue(entry);}
     }
