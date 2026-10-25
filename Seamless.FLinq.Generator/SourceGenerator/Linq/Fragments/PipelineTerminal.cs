@@ -421,7 +421,16 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             orderStageIndex=-1;
             return false;
         }
-        for(var i = orderStageIndex+1;i<pipeline.Stages.Count;i++) {
+        // 一次の OrderBy に続く ThenBy は、同じ走査で最良の1件を探す(二次以降の鍵は同順位のときだけ評価する)。
+        var runEnd = this.Top1OrderRunEnd(orderStageIndex);
+        for(var i = orderStageIndex+1;i<runEnd;i++) {
+            var stage = pipeline.Stages[i];
+            if(stage.UsesIndex||stage.Func is { } thenFunc&&!CanUseDirectSpanPipelineFunc(thenFunc)) {
+                orderStageIndex=-1;
+                return false;
+            }
+        }
+        for(var i = runEnd;i<pipeline.Stages.Count;i++) {
             var kind = pipeline.Stages[i].Kind;
             if(kind is not (PipelineStageKind.Select or PipelineStageKind.Cast or PipelineStageKind.AsEnumerable)) {
                 orderStageIndex=-1;
@@ -429,6 +438,15 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             }
         }
         return true;
+    }
+
+    // orderStageIndex の OrderBy に続く ThenBy の並びの終わり(最後の ThenBy の次の位置)。
+    private int Top1OrderRunEnd(int orderStageIndex) {
+        var end = orderStageIndex+1;
+        while(end<pipeline.Stages.Count&&pipeline.Stages[end].Kind is PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending) {
+            end++;
+        }
+        return end;
     }
 
     private static bool IsIntegerOrDecimalType(string typeName) {
@@ -464,9 +482,15 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             }
         }
         var seenOrder = false;
+        var demand = this.Demand();
         for(var i = 0;i<pipeline.Stages.Count;i++) {
             var kind = pipeline.Stages[i].Kind;
             if(kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending or PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending) {
+                // 並べ替えの後ろで途中で止まり、止まるまでにラムダを評価するなら(Where の後の Any など)、並べ替えた順で評価しないと
+                // System.Linq と別の要素にラムダを評価する(例外の有無が変わる)ので、順序を捨てられない(要素ごとに System.Linq に合わせる方針)。
+                if(!demand.After[i].AllowsDroppingOrder) {
+                    return false;
+                }
                 seenOrder=true;
                 continue;
             }
@@ -481,6 +505,27 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
         return seenOrder;
     }
+
+    // この終端が段の並びの各出口に何を要求するか(DemandAnalysis)。
+    private DemandAnalysisResult Demand() =>
+        DemandAnalysis.Analyze(pipeline.Stages,new TerminalDemand(terminalKind,func1 is not null,IsIntegerOrDecimalType(pipeline.ElementType),terminalValue));
+
+    // 途中で止まる終端(Any / All / Contains)の走査の向き。Reverse が奇数回あるときは、System.Linq は後ろから評価する
+    // (ReverseIterator.TryGetFirst が源の TryGetLast を使う)ので、後ろから走査する。後ろから走査できるのは、段が要素ごとの
+    // Where / Select / Cast / OfType / AsEnumerable / Reverse だけで、切り出し・前後への追加が無いとき。できなければ false(この描画を使わない)。
+    private bool TryGetShortCircuitScanDirection(HashSet<int> sliceIndices,out bool backward) {
+        backward=this.IsPipelineReversed();
+        if(!backward) {
+            return true;
+        }
+        return sliceIndices.Count==0
+            &&pipeline.Stages.All(static stage => !stage.UsesIndex&&stage.Kind is PipelineStageKind.Where or PipelineStageKind.Select or PipelineStageKind.Cast
+                or PipelineStageKind.OfType or PipelineStageKind.AsEnumerable or PipelineStageKind.Reverse);
+    }
+
+    private static string ScanLoopHeader(string indexName,string spanName,bool backward) => backward
+        ? $"for(var {indexName}={spanName}.Length-1;{indexName}>=0;{indexName}--) {{"
+        : $"for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{";
 
     private bool TryGetSingleDefaultIfEmptyStage(out PipelineStage? defaultIfEmptyStage) {
         defaultIfEmptyStage=null;
@@ -535,7 +580,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(hasDefaultIfEmpty&&stage.Kind is not (PipelineStageKind.DefaultIfEmpty or PipelineStageKind.Select or PipelineStageKind.AsEnumerable or PipelineStageKind.Cast)) {
                 return false;
             }
-            if(isTop1Order&&i==orderIdx) {
+            if(isTop1Order&&i>=orderIdx&&i<this.Top1OrderRunEnd(orderIdx)) {
                 continue;
             }
             if(canIgnoreOrder&&stage.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending or PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending) {
@@ -2246,10 +2291,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine("}");
             return builder.ToString().TrimEnd();
         }
+        if(!this.TryGetShortCircuitScanDirection(sliceIndices,out var backward)||backward&&extraCount>0) {
+            return null;
+        }
         this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
         var indexName = $"__pipelineIndex{this.result}";
         var sourceItemName = $"__pipelineItem{this.result}_0";
-        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        builder.AppendLine($"    {ScanLoopHeader(indexName,spanName,backward)}");
         builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
         this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
         builder.AppendLine($"        {actualVariableName}=true;");
@@ -2260,6 +2308,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     }
 
     private string? RenderDirectSpanPipelineTop1Order(string actualVariableName,string actualTypeName,int orderStageIndex) {
+        if(this.Top1OrderRunEnd(orderStageIndex)>orderStageIndex+1) {
+            return this.RenderDirectSpanPipelineTop1OrderLevels(actualVariableName,actualTypeName,orderStageIndex);
+        }
         var sourceName = $"__pipelineSrc{this.result}";
         if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
             return null;
@@ -2373,6 +2424,134 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"    {actualVariableName}={afterItem};");
         builder.AppendLine("}");
 
+        return builder.ToString().TrimEnd();
+    }
+
+    // OrderBy(a).ThenBy(b)….First / FirstOrDefault を、並べ替えずに最良の1件を探す走査にする。
+    // 一次の鍵は全要素で評価し、二次以降の鍵は、上の段の鍵が同順位になったときだけ評価する(最良の要素の鍵も、必要になったときに1回だけ評価する)。
+    // System.Linq(CachingComparer)は、最良の要素が変わるたびに下の段の鍵も先に評価するので、これはその回数以下になる。
+    // 鍵に .Anchor があるときは評価の回数を変えられないので、System.Linq と同じく、最良の要素が変わったら下の段の鍵をすぐに評価する。
+    // 全部の段で同順位なら、先に見つけた要素を残す(安定な並べ替えの先頭と同じ)。
+    private string? RenderDirectSpanPipelineTop1OrderLevels(string actualVariableName,string actualTypeName,int orderStageIndex) {
+        var sourceName = $"__pipelineSrc{this.result}";
+        if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
+            return null;
+        }
+        var runEnd = this.Top1OrderRunEnd(orderStageIndex);
+        var levels = new List<PipelineStage>();
+        for(var i = orderStageIndex;i<runEnd;i++) {
+            levels.Add(pipeline.Stages[i]);
+        }
+        var eager = levels.Skip(1).Any(static level => level.Func?.ContainsAnchor==true);
+        var spanName = $"__pipelineSpan{this.result}";
+        var sliceIndices = this.GetPrefixSliceStageIndices();
+        var isReversed = this.IsPrefixReversed();
+        var itemType = orderStageIndex==0 ? pipeline.Source.ElementType : pipeline.Stages[orderStageIndex-1].OutputType;
+        string KeyType(PipelineStage level) => level.KeyType??level.Func?.ReturnTypeName??itemType;
+        string BestKey(int level) => $"__pipelineBestKey{this.result}_{level}";
+        string HasBestKey(int level) => $"__pipelineHasBestKey{this.result}_{level}";
+        string CurrentKey(int level) => $"__pipelineKey{this.result}_{level}";
+        string AssignKey(int level,string destination,string item,string indent) {
+            var stage = levels[level];
+            return stage.Func is null
+                ? $"{indent}{destination}={item};"
+                : IndentLines(this.FuncAssignStatic(stage.Func,stage.Kind.ToString(),destination,item),indent);
+        }
+        string Compare(int level,string left,string right) {
+            var stage = levels[level];
+            var descending = stage.Kind is PipelineStageKind.OrderByDescending or PipelineStageKind.ThenByDescending;
+            var (a,b) = descending ? (right,left) : (left,right);
+            return stage.Value is not null and not "null"
+                ? $"{stage.Value}.Compare({a},{b})"
+                : $"global::System.Collections.Generic.Comparer<{KeyType(stage)}>.Default.Compare({a},{b})";
+        }
+        var bestItemName = $"__pipelineBestItem{this.result}";
+        var hasTopName = $"__pipelineHasTop{this.result}";
+        var indexName = $"__pipelineIndex{this.result}";
+        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var builder = new StringBuilder();
+        builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+        builder.AppendLine($"var {hasTopName}=false;");
+        builder.AppendLine($"{itemType} {bestItemName}=default!;");
+        for(var level = 0;level<levels.Count;level++) {
+            builder.AppendLine($"{KeyType(levels[level])} {BestKey(level)}=default!;");
+            if(level>0) {
+                builder.AppendLine($"var {HasBestKey(level)}=false;");
+            }
+        }
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
+        this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
+        builder.AppendLine($"    {ScanLoopHeader(indexName,spanName,isReversed)}");
+        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+        var item = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices,0,orderStageIndex);
+        // 最良の要素を item に替える。level より上の段の鍵は呼び出し側で入れる。level 以降は、今の要素で計算済みの鍵を入れ、下の段は未計算にする(eager なら計算する)。
+        void Replace(StringBuilder target,int fromLevel,string indent) {
+            target.AppendLine($"{indent}{bestItemName}={item};");
+            target.AppendLine($"{indent}{BestKey(fromLevel)}={CurrentKey(fromLevel)};");
+            if(fromLevel>0) {
+                target.AppendLine($"{indent}{HasBestKey(fromLevel)}=true;");
+            }
+            for(var deeper = fromLevel+1;deeper<levels.Count;deeper++) {
+                if(eager) {
+                    target.AppendLine(AssignKey(deeper,BestKey(deeper),bestItemName,indent));
+                    target.AppendLine($"{indent}{HasBestKey(deeper)}=true;");
+                } else {
+                    target.AppendLine($"{indent}{HasBestKey(deeper)}=false;");
+                }
+            }
+        }
+        // level の段で比べる。同順位なら下の段へ。
+        void CompareLevel(StringBuilder target,int level,string indent) {
+            if(level>0) {
+                target.AppendLine($"{indent}if(!{HasBestKey(level)}) {{");
+                target.AppendLine(AssignKey(level,BestKey(level),bestItemName,indent+"    "));
+                target.AppendLine($"{indent}    {HasBestKey(level)}=true;");
+                target.AppendLine($"{indent}}}");
+            }
+            target.AppendLine($"{indent}{KeyType(levels[level])} {CurrentKey(level)}=default!;");
+            target.AppendLine(AssignKey(level,CurrentKey(level),item,indent));
+            var compareName = $"__pipelineCompare{this.result}_{level}";
+            target.AppendLine($"{indent}var {compareName}={Compare(level,CurrentKey(level),BestKey(level))};");
+            target.AppendLine($"{indent}if({compareName}<0) {{");
+            Replace(target,level,indent+"    ");
+            if(level+1<levels.Count) {
+                target.AppendLine($"{indent}}} else if({compareName}==0) {{");
+                CompareLevel(target,level+1,indent+"    ");
+            }
+            target.AppendLine($"{indent}}}");
+        }
+        builder.AppendLine($"        if(!{hasTopName}) {{");
+        builder.AppendLine($"            {hasTopName}=true;");
+        builder.AppendLine($"            {KeyType(levels[0])} {CurrentKey(0)}=default!;");
+        builder.AppendLine(AssignKey(0,CurrentKey(0),item,"            "));
+        Replace(builder,0,"            ");
+        builder.AppendLine("        } else {");
+        CompareLevel(builder,0,"            ");
+        builder.AppendLine("        }");
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        if(terminalKind==PipelineTerminalKind.First) {
+            builder.AppendLine($"if(!{hasTopName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+        }
+        builder.AppendLine($"if({hasTopName}) {{");
+        var afterItem = bestItemName;
+        for(var i = runEnd;i<pipeline.Stages.Count;i++) {
+            var st = pipeline.Stages[i];
+            if(st.Kind==PipelineStageKind.Cast) {
+                var nextItem = $"__pipelineItem{this.result}_{i+1}";
+                builder.AppendLine($"    var {nextItem}=({st.OutputType})(object?){afterItem};");
+                afterItem=nextItem;
+            } else if(st.Kind==PipelineStageKind.Select) {
+                var nextItem = $"__pipelineItem{this.result}_{i+1}";
+                builder.AppendLine($"    {st.OutputType} {nextItem}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(st.Func!,nameof(PipelineStageKind.Select),nextItem,afterItem),"    "));
+                afterItem=nextItem;
+            }
+        }
+        builder.AppendLine($"    {actualVariableName}={afterItem};");
+        builder.AppendLine("}");
         return builder.ToString().TrimEnd();
     }
 
@@ -3571,6 +3750,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var sliceIndices = this.GetPrefixSliceStageIndices();
         var indexName = $"__pipelineIndex{this.result}";
         var sourceItemName = $"__pipelineItem{this.result}_0";
+        if(!this.TryGetShortCircuitScanDirection(sliceIndices,out var backward)) {
+            return null;
+        }
         var builder = new StringBuilder();
         this.AppendTerminalFuncDeclarations(builder);
         builder.AppendLine($"{actualTypeName} {actualVariableName}=true;");
@@ -3578,7 +3760,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
         this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
         this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
-        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        builder.AppendLine($"    {ScanLoopHeader(indexName,spanName,backward)}");
         builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
         var currentItem = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
         builder.AppendLine($"        bool __allCond{this.result}=default!;");
@@ -3604,6 +3786,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var sliceIndices = this.GetPrefixSliceStageIndices();
         var indexName = $"__pipelineIndex{this.result}";
         var sourceItemName = $"__pipelineItem{this.result}_0";
+        if(!this.TryGetShortCircuitScanDirection(sliceIndices,out var backward)) {
+            return null;
+        }
         var builder = new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName}=false;");
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
@@ -3611,7 +3796,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
         this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
         var comparerExpr = comparerValue is null ? null : $"({comparerValue})";
-        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        builder.AppendLine($"    {ScanLoopHeader(indexName,spanName,backward)}");
         builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
         var currentItem = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
         if(comparerExpr is not null) {
@@ -3624,6 +3809,149 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"        }}");
         builder.AppendLine($"    }}");
         builder.AppendLine($"}}");
+        return builder.ToString().TrimEnd();
+    }
+
+    // GroupBy の後の Last / LastOrDefault(Reverse().First() の書き換えを含む)。System.Linq はキー選択子と要素選択子を全要素で評価してグループを作り、
+    // 結果の選択子(Select(g=>…)・(key,g)=>…)は最後のグループにだけ評価する。全グループを作ってから、最後のグループにだけ結果の選択子を通す。
+    // 形: [Where|Select|Cast|AsEnumerable]* GroupBy(集約の融合なし) [Select(結果の選択子) が高々1つ|結果選択子つきの GroupBy] [Cast|AsEnumerable]*
+    private string? TryRenderGroupByLast(string actualVariableName,string actualTypeName,bool orDefault) {
+        var groupByIndex = -1;
+        for(var i = 0;i<pipeline.Stages.Count;i++) {
+            if(pipeline.Stages[i].Kind==PipelineStageKind.GroupBy) {
+                if(groupByIndex>=0) {
+                    return null;
+                }
+                groupByIndex=i;
+            }
+        }
+        if(groupByIndex<0) {
+            return null;
+        }
+        var stage = pipeline.Stages[groupByIndex];
+        if(stage.AggregatePlan is not null||stage.Func is null||stage.ThirdFunc is { ParameterNames.Length: not 2 }) {
+            return null;
+        }
+        for(var i = 0;i<groupByIndex;i++) {
+            var st = pipeline.Stages[i];
+            if(st.Kind is not (PipelineStageKind.Where or PipelineStageKind.Select or PipelineStageKind.Cast or PipelineStageKind.AsEnumerable)
+                ||st.UsesIndex
+                ||(st.Func is not null&&!CanUseDirectSpanPipelineFunc(st.Func))) {
+                return null;
+            }
+        }
+        FuncFragment? groupSelector = null;
+        for(var i = groupByIndex+1;i<pipeline.Stages.Count;i++) {
+            var st = pipeline.Stages[i];
+            if(st.Kind is PipelineStageKind.Cast or PipelineStageKind.AsEnumerable) {
+                continue;
+            }
+            if(st.Kind==PipelineStageKind.Select&&!st.UsesIndex&&groupSelector is null&&stage.ThirdFunc is null&&i==groupByIndex+1&&st.Func is { } selectFunc) {
+                groupSelector=selectFunc;
+                continue;
+            }
+            return null;
+        }
+        string sourceExpression;
+        try {
+            sourceExpression=pipeline.Source.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return null;
+        }
+        var sourceName = $"__pipelineSrc{this.result}";
+        var directSpanExpression = pipeline.Source.GetDirectSpanExpression(sourceName);
+        var allFuncs = pipeline.Stages.SelectMany(static st => new[] { st.Func,st.SecondFunc,st.ThirdFunc }).OfType<FuncFragment>().ToArray();
+        var builder = new StringBuilder();
+        var hoistedLocals = this.HoistedLocalDeclarations(allFuncs);
+        if(!string.IsNullOrEmpty(hoistedLocals)) {
+            builder.AppendLine(hoistedLocals);
+        }
+        var staticDelegates = this.StaticDelegateLocalDeclarations(allFuncs);
+        if(!string.IsNullOrEmpty(staticDelegates)) {
+            builder.AppendLine(staticDelegates);
+        }
+        var comparerExpr = string.IsNullOrWhiteSpace(stage.Value)||"null".Equals(stage.Value,StringComparison.Ordinal) ? "null" : stage.Value!;
+        var keyTypeName = stage.KeyType??stage.Func.ReturnTypeName;
+        var elementTypeName = stage.InnerElementType!;
+        var lookupName = $"__groupLastBuilder{this.result}";
+        var firstName = $"__groupLastFirst{this.result}";
+        var lastName = $"__groupLastGroup{this.result}";
+        var sourceItemName = GeneratedNames.PreferLocal($"__sourceItem{this.result}",pipeline.Stages.FirstOrDefault()?.Func);
+        builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+        builder.AppendLine($"global::Seamless.Linq.Grouping<{keyTypeName},{elementTypeName}>? {firstName};");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var __hasCnt{this.result}={sourceName}.TryGetNonEnumeratedCount(out var __cnt{this.result});");
+        builder.AppendLine($"    var {lookupName}=new global::Seamless.Linq.ContiguousLookupBuilder<{keyTypeName},{elementTypeName}>(__hasCnt{this.result} ? __cnt{this.result} : 0,__hasCnt{this.result} ? global::System.Math.Min(__cnt{this.result},1024) : 0,{comparerExpr});");
+        const string indent = "        ";
+        if(directSpanExpression is not null) {
+            var spanName = $"__pipelineSpan{this.result}";
+            var indexName = $"__pipelineIndex{this.result}";
+            builder.AppendLine($"    var {spanName}={directSpanExpression};");
+            builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+            builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+        } else {
+            builder.AppendLine($"    while({sourceName}.TryGetNext(out var {sourceItemName})) {{");
+        }
+        var currentName = sourceItemName;
+        for(var index = 0;index<groupByIndex;index++) {
+            var st = pipeline.Stages[index];
+            if(st.Kind==PipelineStageKind.Where) {
+                var (preCode,condition) = this.FuncInvokeConditionStatic(st.Func!,nameof(PipelineStageKind.Where),$"__condPreTemp{this.result}_{index}",currentName);
+                if(!string.IsNullOrEmpty(preCode)) {
+                    builder.AppendLine(IndentLines(preCode,indent));
+                }
+                builder.AppendLine($"{indent}if(!{WrapConditionExpression(condition)}) continue;");
+            } else if(st.Kind==PipelineStageKind.Select) {
+                var nextName = $"__preItem{this.result}_{index+1}";
+                builder.AppendLine($"{indent}{st.OutputType} {nextName}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(st.Func!,nameof(PipelineStageKind.Select),nextName,currentName),indent));
+                currentName=nextName;
+            } else if(st.Kind==PipelineStageKind.Cast) {
+                var nextName = $"__preItem{this.result}_{index+1}";
+                builder.AppendLine($"{indent}var {nextName}=({st.OutputType})(object?){currentName};");
+                currentName=nextName;
+            }
+        }
+        var keyName = $"__groupLastKey{this.result}";
+        builder.AppendLine($"{indent}{keyTypeName} {keyName}=default!;");
+        builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func,nameof(PipelineStageKind.GroupBy),keyName,currentName),indent));
+        var elementName = $"__groupLastElem{this.result}";
+        builder.AppendLine($"{indent}{elementTypeName} {elementName}=default!;");
+        if(stage.SecondFunc is { } elementSelector) {
+            builder.AppendLine(IndentLines(this.FuncAssignStatic(elementSelector,nameof(PipelineStageKind.GroupBy),elementName,currentName),indent));
+        } else {
+            builder.AppendLine($"{indent}{elementName}=({elementTypeName})(object?){currentName}!;");
+        }
+        builder.AppendLine($"{indent}{lookupName}.Add({keyName},{elementName});");
+        builder.AppendLine("    }");
+        builder.AppendLine($"    {firstName}={lookupName}.GetRootGroupAndClear();");
+        builder.AppendLine("}");
+        builder.AppendLine($"if({firstName} is not null) {{");
+        builder.AppendLine($"    var {lastName}={firstName};");
+        builder.AppendLine($"    while(!ReferenceEquals({lastName}.NextGroupInAddOrder,{firstName})) {{");
+        builder.AppendLine($"        {lastName}={lastName}.NextGroupInAddOrder!;");
+        builder.AppendLine("    }");
+        var groupType = $"global::System.Linq.IGrouping<{keyTypeName},{elementTypeName}>";
+        if(stage.ThirdFunc is { } resultSelector) {
+            var resultName = $"__groupLastResult{this.result}";
+            builder.AppendLine($"    {resultSelector.ReturnTypeName} {resultName}=default!;");
+            builder.AppendLine(IndentLines(this.FuncAssignStatic(resultSelector,nameof(PipelineStageKind.GroupBy),resultName,$"{lastName}.Key",$"(global::System.Collections.Generic.IEnumerable<{elementTypeName}>){lastName}"),"    "));
+            builder.AppendLine($"    {actualVariableName}=({actualTypeName})(object?){resultName}!;");
+        } else if(groupSelector is not null) {
+            var resultName = $"__groupLastResult{this.result}";
+            builder.AppendLine($"    {groupSelector.ReturnTypeName} {resultName}=default!;");
+            builder.AppendLine(IndentLines(this.FuncAssignStatic(groupSelector,nameof(PipelineStageKind.Select),resultName,$"(({groupType}){lastName})"),"    "));
+            builder.AppendLine($"    {actualVariableName}=({actualTypeName})(object?){resultName}!;");
+        } else {
+            builder.AppendLine($"    {actualVariableName}=({actualTypeName})(object?)(({groupType}){lastName})!;");
+        }
+        if(orDefault) {
+            builder.AppendLine("}");
+        } else {
+            builder.AppendLine("} else {");
+            builder.AppendLine("    throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+            builder.AppendLine("}");
+        }
         return builder.ToString().TrimEnd();
     }
 
@@ -3657,12 +3985,31 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine($"        break;");
             builder.AppendLine($"    }}");
         } else {
+            // 後ろの 1 対 1 の段(Select・Cast・AsEnumerable)は、最後の要素にだけ通す(System.Linq の Select の TryGetLast と同じ。選択子は1回)。
+            var tailStart = pipeline.Stages.Count;
+            while(tailStart>0
+                &&!sliceIndices.Contains(tailStart-1)
+                &&pipeline.Stages[tailStart-1].Kind is PipelineStageKind.Select or PipelineStageKind.Cast or PipelineStageKind.AsEnumerable
+                &&!pipeline.Stages[tailStart-1].UsesIndex) {
+                tailStart--;
+            }
+            var lastBeforeTailName = $"__pipelineLastBeforeTail{this.result}";
+            var beforeTailType = tailStart==0 ? pipeline.Source.ElementType : pipeline.Stages[tailStart-1].OutputType;
+            if(tailStart<pipeline.Stages.Count) {
+                builder.AppendLine($"    {beforeTailType} {lastBeforeTailName}=default!;");
+            }
             builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
             builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
-            var currentItem = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
-            builder.AppendLine($"        {actualVariableName}={currentItem};");
+            var currentItem = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices,0,tailStart);
+            builder.AppendLine(tailStart<pipeline.Stages.Count ? $"        {lastBeforeTailName}={currentItem};" : $"        {actualVariableName}={currentItem};");
             builder.AppendLine($"        {foundName}=true;");
             builder.AppendLine($"    }}");
+            if(tailStart<pipeline.Stages.Count) {
+                builder.AppendLine($"    if({foundName}) {{");
+                var tailItem = this.AppendDirectSpanPipelineScalarStages(builder,lastBeforeTailName,"        ",sliceIndices,tailStart,pipeline.Stages.Count);
+                builder.AppendLine($"        {actualVariableName}={tailItem};");
+                builder.AppendLine($"    }}");
+            }
         }
         builder.AppendLine($"}}");
         if(!orDefault) {
@@ -3844,9 +4191,15 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"        __initCap{this.result}=0;");
         builder.AppendLine("    }");
         builder.AppendLine($"    using var {mapName}=new global::Seamless.Linq.DictionarySlim<{keyTypeName},{accTypeName}>(__initCap{this.result},{comparerExpr});");
+        // 集約するグループ数の上限(Take(n) の n など)は、ループの前に1回だけ評価する。
+        string? groupLimitName = null;
+        if(aggPlan.GroupLimit is { } groupLimit) {
+            groupLimitName=$"__groupLimit{this.result}";
+            builder.AppendLine($"    var {groupLimitName}={groupLimit.Render()};");
+        }
 
         string indent;
-        var sourceItemName = $"__sourceItem{this.result}";
+        var sourceItemName = GeneratedNames.PreferLocal($"__sourceItem{this.result}",pipeline.Stages.FirstOrDefault()?.Func);
         if(directSpanExpression is not null) {
             var spanName = $"__pipelineSpan{this.result}";
             var indexName = $"__pipelineIndex{this.result}";
@@ -3884,14 +4237,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"{indent}{keyTypeName} {keyName}=default!;");
         builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.GroupBy),keyName,currentName),indent));
 
-        var groupElementName = $"__groupElem{this.result}";
-        builder.AppendLine($"{indent}{stage.InnerElementType} {groupElementName}=default!;");
-        if(stage.SecondFunc is { } elemSelector) {
+        var groupElementName=currentName;
+        if(stage.SecondFunc is { } elemSelector){
+            groupElementName=$"__groupElem{this.result}";
+            builder.AppendLine($"{indent}{stage.InnerElementType} {groupElementName}=default!;");
             builder.AppendLine(IndentLines(this.FuncAssignStatic(elemSelector,nameof(PipelineStageKind.GroupBy),groupElementName,currentName),indent));
-        } else {
-            builder.AppendLine($"{indent}{groupElementName}=({stage.InnerElementType})(object?){currentName}!;");
         }
-        builder.AppendLine(aggPlan.RenderAccumulate(mapName,keyName,groupElementName,indent));
+        builder.AppendLine(aggPlan.RenderAccumulate(mapName,keyName,groupElementName,indent,groupLimitName));
 
         builder.AppendLine("    }");
 
@@ -3950,8 +4302,13 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine($"            global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},{finalCountName});");
                 builder.AppendLine($"            var __destSpan{this.result}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({actualVariableName});");
             }
+            // 並べ替えの前の値(集約の結果と、その後の Select)は各グループで1回だけ計算して溜め、並べ替えた後はそれを使う
+            // (System.Linq の OrderBy は、手前の Select の結果を溜めて並べ替える)。鍵は2件以上のときだけ評価する。
+            var orderInputType = orderStageIndex-1>groupByIndex ? pipeline.Stages[orderStageIndex-1].OutputType : stage.OutputType;
+            var orderValuesName = $"__orderValues{this.result}";
             builder.AppendLine($"            var {indexesName}=global::System.Buffers.ArrayPool<int>.Shared.Rent({nName});");
             builder.AppendLine($"            var {keysName}=global::System.Buffers.ArrayPool<{orderKeyType}>.Shared.Rent({nName});");
+            builder.AppendLine($"            var {orderValuesName}=global::System.Buffers.ArrayPool<{orderInputType}>.Shared.Rent({nName});");
             builder.AppendLine("            try {");
             builder.AppendLine($"                for(var {iName}=0;{iName}<{nName};{iName}++) {{");
             builder.AppendLine($"                    {indexesName}[{iName}]={iName};");
@@ -3973,24 +4330,28 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 }
             }
 
+            builder.AppendLine($"                    {orderValuesName}[{iName}]={currentOrderInput};");
+            builder.AppendLine($"                    if({nName}>1) {{");
             if(orderStage.Func is not null){
-                builder.AppendLine($"                    {orderKeyType} __keyVal{this.result}=default!;");
-                builder.AppendLine(IndentLines(this.FuncAssignStatic(orderStage.Func,nameof(PipelineStageKind.OrderBy),$"__keyVal{this.result}",currentOrderInput),"                    "));
-                builder.AppendLine($"                    {keysName}[{iName}]=__keyVal{this.result};");
+                builder.AppendLine($"                        {orderKeyType} __keyVal{this.result}=default!;");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(orderStage.Func,nameof(PipelineStageKind.OrderBy),$"__keyVal{this.result}",currentOrderInput),"                        "));
+                builder.AppendLine($"                        {keysName}[{iName}]=__keyVal{this.result};");
             }else{
-                builder.AppendLine($"                    {keysName}[{iName}]={currentOrderInput};");
+                builder.AppendLine($"                        {keysName}[{iName}]={currentOrderInput};");
             }
+            builder.AppendLine("                    }");
             builder.AppendLine("                }");
-            builder.AppendLine($"                var {comparerVarName}=new {comparerStructName}({keysName},{comparerArg});");
-            builder.AppendLine($"                global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes({indexesName},{nName},{comparerVarName});");
+            builder.AppendLine($"                if({nName}>1) {{");
+            builder.AppendLine($"                    var {comparerVarName}=new {comparerStructName}({keysName},{comparerArg});");
+            builder.AppendLine($"                    global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes({indexesName},{nName},{comparerVarName});");
+            builder.AppendLine("                }");
             builder.AppendLine($"                for(var {outIdxName}=0;{outIdxName}<{finalCountName};{outIdxName}++) {{");
             builder.AppendLine($"                    var __sortedIdx{this.result}={indexesName}[{outIdxName}];");
-            builder.AppendLine($"                    {mapName}.GetKeyAndValue(__sortedIdx{this.result},out var __key,out var __acc);");
-            builder.AppendLine($"                    {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
+            builder.AppendLine($"                    var __orderedItem{this.result}={orderValuesName}[__sortedIdx{this.result}];");
 
-            var currentFinalItem="__resItem";
-            for(var stIdx=groupByIndex+1;stIdx<pipeline.Stages.Count;stIdx++){
-                if(stIdx==orderStageIndex||stIdx==takeStageIndex){
+            var currentFinalItem=$"__orderedItem{this.result}";
+            for(var stIdx=orderStageIndex+1;stIdx<pipeline.Stages.Count;stIdx++){
+                if(stIdx==takeStageIndex){
                     continue;
                 }
                 var midStage=pipeline.Stages[stIdx];
@@ -4013,7 +4374,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             builder.AppendLine("                }");
             builder.AppendLine("            } finally {");
             builder.AppendLine($"                global::System.Buffers.ArrayPool<int>.Shared.Return({indexesName});");
-            builder.AppendLine($"                global::System.Buffers.ArrayPool<{orderKeyType}>.Shared.Return({keysName});");
+            builder.AppendLine($"                global::System.Buffers.ArrayPool<{orderKeyType}>.Shared.Return({keysName},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{orderKeyType}>());");
+            builder.AppendLine($"                global::System.Buffers.ArrayPool<{orderInputType}>.Shared.Return({orderValuesName},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{orderInputType}>());");
             builder.AppendLine("            }");
             builder.AppendLine("        }");
             builder.AppendLine("    }");
@@ -4766,6 +5128,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
         if(terminalKind is PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault) {
             var orDefault = terminalKind==PipelineTerminalKind.LastOrDefault;
+            if(this.TryRenderGroupByLast(actualVariableName,actualTypeName,orDefault) is { } groupByLast) {
+                return groupByLast;
+            }
             if(this.RenderDirectSpanPipelineLast(actualVariableName,actualTypeName,orDefault) is { } directSpanLast) {
                 return directSpanLast;
             }

@@ -598,6 +598,67 @@ internal abstract class Fragment(
             """;
     }
 
+    // 根を回すループで、最初に条件を満たす要素を得た直後に onFirst を1回だけ実行する(Join の内側の探索表を、外側の最初の要素の後に作るため)。
+    // 要素ごとに「済んだか」を調べないよう、最初の要素を探すループと残りのループに分ける。条件は各要素で1回だけ評価する。
+    // continueCondition は、最初の要素の本体の後に残りを回すかの条件(本体が break で止まる形用。null なら常に回す)。
+    // span を出せない根では null を返す(呼び出し側は、旗で確かめる形を使う)。
+    private protected string? RenderRootLoopWithFirst(Enumerable root,FuncFragment[] predicates,string enumeratorName,string itemName,string onFirst,string body,string? continueCondition) {
+        if(root.GetDirectSpanExpression(enumeratorName) is not { } spanExpression) {
+            return null;
+        }
+        var span = $"{enumeratorName}Span";
+        var index = $"{enumeratorName}Index";
+        if(predicates.Length==0) {
+            var loop = $$"""
+                for(var {{index}}=0;{{index}}<{{span}}.Length;{{index}}++){
+                    var {{itemName}}={{span}}[{{index}}];
+                {{IndentGeneratedStatement(body,"    ")}}
+                }
+                """;
+            return $$"""
+                var {{span}}={{spanExpression}};
+                if({{span}}.Length!=0){
+                {{IndentGeneratedStatement(onFirst,"    ")}}
+                }
+                {{loop}}
+                """;
+        }
+        var checks = new StringBuilder();
+        for(var predicateIndex = 0;predicateIndex<predicates.Length;predicateIndex++) {
+            var (preCode,condition) = this.FuncInvokeConditionStatic(predicates[predicateIndex],"predicate",$"{itemName}Keep{predicateIndex}",itemName);
+            if(!string.IsNullOrEmpty(preCode)) {
+                checks.AppendLine(preCode);
+            }
+            checks.AppendLine($"if(!{WrapConditionExpression(condition)}) continue;");
+        }
+        var checkText = checks.ToString().Trim();
+        var restBody = checkText+"\n"+body;
+        var firstBody = checkText+"\nbreak;";
+        var rest = $$"""
+            for({{index}}++;{{index}}<{{span}}.Length;{{index}}++){
+                var {{itemName}}={{span}}[{{index}}];
+            {{IndentGeneratedStatement(restBody,"    ")}}
+            }
+            """;
+        var restStatement = continueCondition is null ? rest : $"if({continueCondition}){{\n{IndentGeneratedStatement(rest,"    ")}\n}}";
+        return $$"""
+            var {{span}}={{spanExpression}};
+            var {{index}}=0;
+            for(;{{index}}<{{span}}.Length;{{index}}++){
+                var {{itemName}}={{span}}[{{index}}];
+            {{IndentGeneratedStatement(firstBody,"    ")}}
+            }
+            if({{index}}<{{span}}.Length){
+            {{IndentGeneratedStatement(onFirst,"    ")}}
+                for(var {{enumeratorName}}Once=0;{{enumeratorName}}Once<1;{{enumeratorName}}Once++){
+                    var {{itemName}}={{span}}[{{index}}];
+            {{IndentGeneratedStatement(body,"        ")}}
+                }
+            {{IndentGeneratedStatement(restStatement,"    ")}}
+            }
+            """;
+    }
+
     internal static string DrainLoopHead(Enumerable root,string enumeratorName,string itemName) {
         var (preamble,condition,declaration) = DrainParts(root,enumeratorName,itemName);
         return $"{preamble}while({condition}){{{declaration}";

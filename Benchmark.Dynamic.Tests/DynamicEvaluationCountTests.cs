@@ -23,8 +23,8 @@ public sealed class DynamicEvaluationCountTests{
     [Fact]
     public void ラムダの式本体を数える呼び出しで包む(){
         var rewritten=EvaluationProbeRewriter.Instrument("class C{ void M(){ var a=x=>x%3==0; var b=(x,y)=>x^y; var c=x=>{ return x; }; } }");
-        Assert.Contains("x=>global::Benchmark.Dynamic.Core.EvaluationProbe.Hit(x%3==0)",rewritten);
-        Assert.Contains("(x,y)=>global::Benchmark.Dynamic.Core.EvaluationProbe.Hit(x^y)",rewritten);
+        Assert.Contains("x=>global::Benchmark.Dynamic.Core.EvaluationProbe.Hit(0,x%3==0)",rewritten);
+        Assert.Contains("(x,y)=>global::Benchmark.Dynamic.Core.EvaluationProbe.Hit(1,x^y)",rewritten);
         // ブロック本体は包まない。
         Assert.Contains("x=>{ return x; }",rewritten);
     }
@@ -32,7 +32,7 @@ public sealed class DynamicEvaluationCountTests{
     [Fact]
     public void 入れ子のラムダも内側と外側の両方を包む(){
         var rewritten=EvaluationProbeRewriter.Instrument("class C{ void M(){ var a=o=>s.Select(i=>o^i); } }");
-        Assert.Contains("o=>global::Benchmark.Dynamic.Core.EvaluationProbe.Hit(s.Select(i=>global::Benchmark.Dynamic.Core.EvaluationProbe.Hit(o^i)))",rewritten);
+        Assert.Contains("o=>global::Benchmark.Dynamic.Core.EvaluationProbe.Hit(1,s.Select(i=>global::Benchmark.Dynamic.Core.EvaluationProbe.Hit(0,o^i)))",rewritten);
     }
 
     [Theory]
@@ -68,6 +68,28 @@ public sealed class DynamicEvaluationCountTests{
         Assert.NotNull(problem);
         Assert.Contains("FLinq ",problem);
         Assert.Contains("3 回 > 2 回",problem);
+    }
+
+    [Fact]
+    public void 合計が少なくてもラムダごとにSystemLinqより多ければ問題にする(){
+        var counts=new Dictionary<DynamicImplementationKind,long[]>{
+            [DynamicImplementationKind.System]=[4,1],
+            [DynamicImplementationKind.FLinq]=[0,2],
+        };
+        var problem=EvaluationCountComparer.CompareByLambda(counts);
+        Assert.NotNull(problem);
+        Assert.Contains("ラムダ #1",problem);
+        Assert.Null(EvaluationCountComparer.CompareByLambda(new Dictionary<DynamicImplementationKind,long[]>{
+            [DynamicImplementationKind.System]=[4,2],
+            [DynamicImplementationKind.FLinq]=[1,2],
+        }));
+    }
+
+    [Fact]
+    public void メソッドごとにラムダの番号を0から振る(){
+        var rewritten=EvaluationProbeRewriter.Instrument("class C{ void A(){ var a=x=>x+1; } void B(){ var b=y=>y+2; } }");
+        Assert.Contains("x=>global::Benchmark.Dynamic.Core.EvaluationProbe.Hit(0,x+1)",rewritten);
+        Assert.Contains("y=>global::Benchmark.Dynamic.Core.EvaluationProbe.Hit(0,y+2)",rewritten);
     }
 
     [Fact]
@@ -108,20 +130,8 @@ public sealed class DynamicEvaluationCountTests{
     }
 
     // 厳密な比較から外す個別の並び(FLinq が System.Linq より多く評価する既知の差。直したらここから外す)。
-    // groupBy > reverse > First: Reverse の後の First は Last になり、System.Linq は最後のグループの集約だけを評価するが、FLinq は全グループを評価する。
-    // orderBy > thenBy > First: System.Linq は ThenBy の二次の鍵を同順位のときだけ評価する。
-    // where > reverse > any: System.Linq は後ろから走査して1回、FLinq は前から走査して2回。
-    // groupBy.keyOnly > exceptBy > any: 後ろの Distinct が消えて、後ろの選択子が重複する要素にも走る。
-    // unionBy > selectMany > any: 第2引数のキーを先に集合へ入れるので、第1引数のキー選択子を System.Linq より多く評価する。
-    private static readonly HashSet<string> NotStrictKeys=new(StringComparer.Ordinal){
-        "groupBy.count > reverse > firstOrDefault",
-        "groupBy.keyOnly > reverse > firstOrDefault",
-        "groupBy.sum > reverse > firstOrDefault",
-        "orderBy > thenBy > firstOrDefault",
-        "where > reverse > any",
-        "groupBy.keyOnly > exceptBy.identity > any",
-        "unionBy.identity > selectMany.xor > any",
-    };
+    // 2026-10-25: 中間演算子 1〜2 個の全並び(2222)をラムダごとに比べて、既知の差は無い(docs/refactoring-designs/20261024-2208-flinq-demand-analysis.md)。
+    private static readonly HashSet<string> NotStrictKeys=new(StringComparer.Ordinal);
 
     [Fact]
     public async Task 途中で止まる演算を含む組み合わせでFLinqの評価回数がSystemLinqを超えない(){
@@ -165,26 +175,37 @@ public sealed class DynamicEvaluationCountTests{
         Assert.True(failures.Count==0,$"{failures.Count}/{checkedCount} failed:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
     }
 
-    [Fact]
-    public async Task 既知の差がある並びは通常の実行では警告にとどめ厳密にすると失敗にする(){
+    // 以前に既知の差だった並び(2026-10-23〜25 に直した)。中間演算子が2個の並びは厳密な比較では 9 件おきにしか回さないので、ここで全部を厳密に比べる。
+    public static TheoryData<string,string,string> FormerKnownGaps=>new(){
+        {QueryOperatorIds.GroupBySum,QueryOperatorIds.Reverse,QueryOperatorIds.FirstOrDefault},
+        {QueryOperatorIds.GroupByCount,QueryOperatorIds.Reverse,QueryOperatorIds.FirstOrDefault},
+        {QueryOperatorIds.GroupByKeyOnly,QueryOperatorIds.Reverse,QueryOperatorIds.FirstOrDefault},
+        {QueryOperatorIds.OrderBy,QueryOperatorIds.ThenBy,QueryOperatorIds.FirstOrDefault},
+        {QueryOperatorIds.Where,QueryOperatorIds.Reverse,QueryOperatorIds.Any},
+        {QueryOperatorIds.GroupByKeyOnly,QueryOperatorIds.ExceptByIdentity,QueryOperatorIds.Any},
+        {QueryOperatorIds.UnionByIdentity,QueryOperatorIds.SelectManyXor,QueryOperatorIds.Any},
+        {QueryOperatorIds.GroupBySum,QueryOperatorIds.TakeWhile,QueryOperatorIds.Sum},
+        {QueryOperatorIds.OrderBy,QueryOperatorIds.ExceptByIdentity,QueryOperatorIds.Any},
+        {QueryOperatorIds.OrderByKey,QueryOperatorIds.IntersectByIdentity,QueryOperatorIds.Any},
+    };
+
+    [Theory]
+    [MemberData(nameof(FormerKnownGaps))]
+    public async Task 以前の既知の差の並びも厳密に比べて合格する(string first,string second,string terminal){
         var seed=Seed256.Parse("0xC0DE");
         var target=SourceTarget.SystemArray;
-        // ThenBy の二次の鍵を、FLinq は全要素で評価する(System.Linq は同順位のときだけ)ので、評価が多い。直したら別の既知の差に替える。
         var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target);
-        var spec=ExhaustiveQueryEnumerator.Enumerate(2,intermediates,[QueryOperatorIds.FirstOrDefault])
-            .First(static spec=>spec.Operators.SequenceEqual([QueryOperatorIds.OrderBy,QueryOperatorIds.ThenBy]));
+        var spec=ExhaustiveQueryEnumerator.Enumerate(2,intermediates,[terminal])
+            .First(spec=>spec.Operators.SequenceEqual([first,second]));
         Assert.True(ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var query));
-        WorkerRunRequest Request(bool strict)=>new(
-            "evalcount-known-gap",seed,1,query!.RequestedOperatorCount,query.MaximumDepth,InputElementCount,
+        var request=new WorkerRunRequest(
+            "evalcount-former-gap",seed,1,query!.RequestedOperatorCount,query.MaximumDepth,InputElementCount,
             OperatorSetMode.Maximum,[target],new WorkerMeasurementProfile("EvalCount-v1",0,1,0,1),
             RandomQueryGenerator.GeneratorVersion,QueryCapabilityProfile.CurrentProfileVersion.ToString(),BuiltInOperatorCatalog.OperatorSetVersion.ToString(),
-            StrictEvaluationCounts:strict);
-        var lenient=await new DynamicWorkerExecutionRunner().ExecuteAsync(Request(false),query!,(int)spec.Ordinal,target,0,CancellationToken.None);
-        var strictResult=await new DynamicWorkerExecutionRunner().ExecuteAsync(Request(true),query!,(int)spec.Ordinal,target,0,CancellationToken.None);
-        Assert.Equal(WorkerExecutionStatus.Succeeded,lenient.Status);
-        Assert.Contains("EvaluationCountExcess",lenient.DiagnosticsJson);
-        Assert.Equal(WorkerExecutionStatus.SemanticMismatch,strictResult.Status);
-        Assert.Contains("EvaluationCountMismatch",strictResult.DiagnosticsJson);
+            StrictEvaluationCounts:true);
+        var result=await new DynamicWorkerExecutionRunner().ExecuteAsync(request,query!,(int)spec.Ordinal,target,0,CancellationToken.None);
+        Assert.True(result.Status==WorkerExecutionStatus.Succeeded,$"{result.Status}: {EvaluationDiagnostics(result.DiagnosticsJson)}");
+        Assert.DoesNotContain("EvaluationCountExcess",result.DiagnosticsJson??string.Empty);
     }
 
     private static string Truncate(string? text)=>text is null?string.Empty:text.Length<=900?text:text[..900];

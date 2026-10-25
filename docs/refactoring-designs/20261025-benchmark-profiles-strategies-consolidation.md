@@ -86,11 +86,11 @@
 
 ## 移行手順
 
-- [ ] 0: 開始状態・基準検証・設計/API表の保存。
-- [ ] 1: ライブラリAPI・命名・Growth・プロファイルと対象テスト。
-- [ ] 2: 共通DBと移行・比較・Dynamicの記録/履歴/理想コード。
-- [ ] 3: Scalable独立化・画面・自動調整・Optimized候補の実測。
-- [ ] 4: 固有テストと理想/回帰の移植後、Verification/旧UI/ParameterSweep.UI/旧検証器/Runnerを整理。
+- [x] 0: 開始状態・基準検証・設計/API表の保存。
+- [x] 1: ライブラリAPI・命名・Growth・プロファイルと対象テスト。
+- [x] 2: 共通DBと移行・比較・Dynamicの記録/履歴/理想コード。
+- [x] 3: Scalable独立化・画面・自動調整・Optimized候補の実測。
+- [x] 4: 固有テストと理想/回帰の移植後、Verification/旧UI/ParameterSweep.UI/旧検証器/Runnerを整理。
 - [ ] 5: ソリューション・CI・文書・起動設定整合、全体検証、明示パスでコミット。
 - [ ] 6: 完了後に既存チャット「1022Argon ベンチマークプロジェクト統合」へ確定コミット/API表/DB移行/テスト結果を渡し、影響部分だけ再実行依頼。
 
@@ -155,3 +155,19 @@ Minimum/Fixed/拡張/独自戦略/状態分離/予算/保存再開、プロフ�
 - ライブ保存、通常のリポジトリ、詳細/共有履歴の原子的なチェックポイントを検査する9件が成功した。共通履歴の書込を意図的に失敗させ、詳細/共有の両方がロールバックすることも確認した。
 - 元Dynamic DBの実データはRun 0件・測定0件だった。原本の版3を保持し、共有先の版4で整合性を再確認した。通常UIとVerificationの既存DBも `Work/Benchmark/Legacy` にSQLite Backup APIで保全済みである。
 - 長時間の組み合わせ性能検査を含む途中の2実行は、機能回帰と原式の検査を分けるため中止した。これらは合格実績に含めない。
+
+### 統合先の対応と現在の採用条件
+
+- 旧25個の参照実装: `FixedCaseCatalog`、原文は `FixedCases/chains.json`。0/1/16件で結果照合、各7回の実測を保存した。
+- 旧56演算子の呼出式・ペア/3段の生成: `LegacyChainCatalog`。225個の保存済み原式とペア網羅を0/1/16件でSystem/最適化なし/ありと照合し、すべて成功した。近似IRの追加検査とは役割を分ける。
+- 旧DynamicLinqカタログ: `Test/System/Linq/Intercept/EnumerableComparisonCatalog.cs`。旧CSVレポートのプロセス起動は削除し、カタログ比較を本体へ残す。固有FLinqテストと合わせて90件成功した。
+- 旧5プロジェクトの固有テスト: `Test/FLinqBackends`。参照型のMemoryPack定義は `Seamless.TestKit.ClassInt32` へ置く。共通ベンチの例外なし実行を重複させず、割り当て・境界・保存後・参照型・型消去の固有検査を保持する。
+- Comparison/容量の判定規則: `Benchmark.Infrastructure.Comparison` とそのテスト。正常完了Runだけを基準固定・性能判定・プロファイル採用の対象とする。中断結果の保存と、合格判定は区別する。
+- 通常/ライブの詳細・共有履歴は同一トランザクション。実ストアの拡張・拒否理由・時刻・所要時間を共通履歴へ投影する。初期設定と、測定時点の実際の容量を別に記録する。
+- ストリーミング実行・容量探索: `Benchmark.Scalable.Core`。Scoped LINQ、再構成失敗時の全件保持、Buffered/Unbufferedの両バックエンドを含む16件成功。新旧索引の同時常駐も予算に含めるExecution 37件が成功した。
+- `50409aad`: 上限内のEstimatedと拡張所要時間・実容量の記録。予想件数をMinimumの初期サイズへ流用しない。
+- 同梱候補は `tsavorite-file-int32-filter-4096-doubling-v1`。索引4096B/ログ8192B/Doubling、Native/FilterAggregate、Tsavorite/Temporary、Int32のキーと値、4096件、測定した環境・バックエンド既定I/Oに限定する。
+- 正常完了した既定Minimum＋Doublingの対照Runは `16fee5862f014537ac807a35b4b8a3d5` / `601d86183c434c7fbbf5194958501b7c`、候補Runは `74018124c6c1403a999fd2efc451bf30` / `373120941a7e4a13a9c01c1792c2a1b6`。各7回の中央値の比は0.06955/0.06238。候補の変動係数0.409/0.463も表示し、未測定の条件へ外挿しない。
+- 初回のFixed候補も既定より改善したが、Doubling候補がさらに速かった。旧候補と原測定を保全したまま同梱候補を変更した。Fixed最小を対照にするだけでは、通常の既定より良いという証拠にしない。
+- 削除した追跡ソースのコピーは `Work/Consolidation/RetiredSources`。削除対象にあった開始時の未コミットREADMEもここへ保全し、他作業の生成器・ドキュメント差分は混ぜない。
+- 整理後の全体Debugビルドは85個のcsproj・16個のshprojで成功した。起動設定と通常CIを更新し、直接Compile Includeした共有ソースの所有プロジェクトも生成器で追跡する。

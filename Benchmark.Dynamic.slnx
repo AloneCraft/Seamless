@@ -1,18 +1,25 @@
 <Solution>
   <Folder Name="/Benchmark/">
+    <Project Path="Benchmark/Benchmark.Infrastructure/Benchmark.Infrastructure.csproj" />
     <Project Path="Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj" />
     <Project Path="Benchmark/Benchmark.Dynamic.Core/Benchmark.Dynamic.Core.csproj" />
     <Project Path="Benchmark/Benchmark.Dynamic.Infrastructure/Benchmark.Dynamic.Infrastructure.csproj" />
     <Project Path="Benchmark/Benchmark.Dynamic.Worker/Benchmark.Dynamic.Worker.csproj" />
   </Folder>
   <Folder Name="/Shared/">
+    <Project Path="Shared/Benchmark.History/Benchmark.History.shproj" />
     <Project Path="Shared/UI.Widgets/UI.Widgets.shproj" />
+    <File Path="Shared/Benchmark.History/Benchmark.History.projitems" />
     <File Path="Shared/UI.Widgets/UI.Widgets.projitems" />
   </Folder>
   <Folder Name="/SourceGenerator/">
     <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
     <Project Path="Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" />
     <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Benchmark.Dynamic.Tests/Benchmark.Dynamic.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.Infrastructure.Tests/Benchmark.Infrastructure.Tests.csproj" />
   </Folder>
   <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
   <Project Path="Seamless.Execution/Seamless.Execution.csproj" />

@@ -21,7 +21,7 @@ namespace Seamless.FLinq.Generator;
 /// </summary>
 internal static class GeneratedThisQualifier {
     internal static string Qualify(string text) {
-        if(text.IndexOf("struct ",StringComparison.Ordinal)<0) {
+        if(text.IndexOf("struct ",StringComparison.Ordinal)<0&&text.IndexOf("class ",StringComparison.Ordinal)<0) {
             return text;
         }
         var tree = CSharpSyntaxTree.ParseText(text,new CSharpParseOptions(LanguageVersion.Latest));
@@ -44,7 +44,7 @@ internal static class GeneratedThisQualifier {
             var savedActive = this.active;
             var savedFields = this.fields;
             var savedMutated = this.mutated;
-            this.members=node is StructDeclarationSyntax ? InstanceMemberNames(node) : [];
+            this.members=InstanceMemberNames(node);
             this.fields=node is StructDeclarationSyntax ? InstanceFieldNames(node) : [];
             this.mutated=node is StructDeclarationSyntax ? MutatedFieldNames(node,this.fields) : [];
             this.active=[];

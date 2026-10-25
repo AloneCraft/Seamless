@@ -62,6 +62,7 @@ public sealed class DynamicEvaluationCountSurvey{
                     continue;
                 }
                 var counts=new Dictionary<DynamicImplementationKind,long>();
+                var byLambda=new Dictionary<DynamicImplementationKind,long[]>();
                 if(detailKeys.Count>0){
                     report.AppendLine("=== "+key+"  "+Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(query!));
                     report.AppendLine("primary="+string.Join(",",(int[])fixture.Primary!));
@@ -79,17 +80,18 @@ public sealed class DynamicEvaluationCountSurvey{
                         outcome=exception.GetType().Name;
                     }
                     counts[kind]=EvaluationProbe.Count;
+                    byLambda[kind]=EvaluationProbe.CountsByLambda;
                     if(detailKeys.Count>0){
-                        report.AppendLine($"{kind}: {counts[kind]} 回  結果={outcome}");
+                        report.AppendLine($"{kind}: {counts[kind]} 回 [{string.Join(",",byLambda[kind])}]  結果={outcome}");
                     }
                 }
                 loaded.UnloadAndVerify();
                 if(detailKeys.Count>0){
                     report.AppendLine(compiled.ExpandedSource);
                 }
-                if(EvaluationCountComparer.Compare(counts) is not null){
+                if(EvaluationCountComparer.CompareByLambda(byLambda) is not null){
                     excess++;
-                    report.AppendLine($"EXCESS {key}  System={counts[DynamicImplementationKind.System]} FLinq={counts[DynamicImplementationKind.FLinq]}"
+                    report.AppendLine($"EXCESS {key}  System={counts[DynamicImplementationKind.System]} [{string.Join(",",byLambda[DynamicImplementationKind.System])}] FLinq={counts[DynamicImplementationKind.FLinq]} [{string.Join(",",byLambda[DynamicImplementationKind.FLinq])}]"
                         +(counts.TryGetValue(DynamicImplementationKind.ZLinq,out var z)?$" ZLinq={z}":string.Empty));
                 }
             }

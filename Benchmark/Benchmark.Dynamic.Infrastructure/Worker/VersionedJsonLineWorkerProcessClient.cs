@@ -65,7 +65,7 @@ public sealed class VersionedJsonLineWorkerProcessClient:IWorkerProcessClient{
         return this.Start(workerPath,arguments,workingDirectory);
     }
 
-    private static ProcessStartInfo CreateStartInfo(string workerPath,string? workingDirectory){
+    public static ProcessStartInfo CreateStartInfo(string workerPath,string? workingDirectory=null){
         var isDll=string.Equals(Path.GetExtension(workerPath),".dll",StringComparison.OrdinalIgnoreCase);
         var startInfo=new ProcessStartInfo{
             FileName=isDll?"dotnet":workerPath,

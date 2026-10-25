@@ -280,6 +280,17 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             return false;
         }else{
         }
+        // 途中で止まる終端(Any / All / Contains)は、止まるまでにラムダを評価するなら(述語つきの終端、Where、Contains の手前の Select など)、
+        // 並べ替え・Reverse を消すと System.Linq と別の要素にラムダを評価する(例外の有無が変わる)。要素ごとに System.Linq に合わせるので消さない。
+        // (Count / Sum / Min / Max などは全要素を評価するので、順が変わるだけ。)
+        if(terminalName is "Any" or "All" or "Contains"
+            &&(terminalName=="All"
+                ||terminalName=="Any"&&terminalArgs.Count!=0
+                ||intermediateStages.Any(stage=>stage.MethodName=="Where"
+                    ||stage.MethodName=="Select"&&(terminalName!="Any"||AnchorAnalysis.ContainsAnchor(stage.Args.Arguments[0].Expression,this.model))))){
+            return false;
+        }else{
+        }
         var rewritten=cur;
         for(var i=intermediateStages.Count-1;i>=0;i--){
             var stage=intermediateStages[i];
@@ -719,14 +730,16 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             ||manyName!="SelectMany"||manyArgs.Count!=1
             ||manyArgs[0].Expression is not SimpleLambdaExpressionSyntax manyLambda
             ||manyLambda.ExpressionBody is not { } body
-            ||Strip(body) is not InvocationExpressionSyntax innerSelectInv
+            ||Strip(TransparentCalls.Peel(body,this.model)) is not InvocationExpressionSyntax innerSelectInv
             ||!this.TryGetEnumerableExtensionCall(innerSelectInv,out var innerName,out var innerSource,out var innerArgs)
             ||innerName!="Select"||innerArgs.Count!=1||!TryGetSingleParamLambda(innerArgs[0],out var selector)
             ||selector is not SimpleLambdaExpressionSyntax
             ||AnchorAnalysis.ContainsAnchor(selector,this.model)){
             return false;
         }
-        var newLambda = manyLambda.WithExpressionBody(innerSource);
+        // 恒等の包みがあれば残し、包まれた Select だけを内側の列に置き換える。
+        var newBody = ReferenceEquals(Strip(body),innerSelectInv) ? innerSource : body.ReplaceNode(innerSelectInv,innerSource.WithTriviaFrom(innerSelectInv));
+        var newLambda = manyLambda.WithExpressionBody(newBody);
         result=CreateCall(CreateCall(manySource,"SelectMany",newLambda),"Any");
         return true;
     }
@@ -1038,7 +1051,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             return true;
         }else{
         }
-        if(name=="Select"&&args.Count==1&&TryGetSingleParamLambda(args[0],out var lambda)&&IsIdentityLambda(lambda)) {
+        if(name=="Select"&&args.Count==1&&TryGetSingleParamLambda(args[0],out var lambda)&&this.IsIdentityLambda(lambda)) {
             result=this.Visit(receiver) as SyntaxNode??receiver;
             return true;
         }
@@ -1230,7 +1243,8 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         }
         return false;
     }
-    private static bool IsIdentityLambda(LambdaExpressionSyntax lambda) {
+    // 恒等の包み(TransparentCalls。評価回数の検査が本体を包む EvaluationProbe.Hit など)を剥がして判定する。
+    private bool IsIdentityLambda(LambdaExpressionSyntax lambda) {
         string p;
         if(lambda is SimpleLambdaExpressionSyntax sl) {
             p=sl.Parameter.Identifier.ValueText;
@@ -1240,7 +1254,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             return false;
         }
         if(lambda.Body is not ExpressionSyntax body) return false;
-        return Strip(body) is IdentifierNameSyntax id&&id.Identifier.ValueText==p;
+        return Strip(TransparentCalls.Peel(body,this.model)) is IdentifierNameSyntax id&&id.Identifier.ValueText==p;
     }
     private static bool TryGetIntLiteral(ExpressionSyntax e,out int value) {
         value=0;

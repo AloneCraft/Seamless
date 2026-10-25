@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Benchmark.Dynamic.Core;
@@ -53,7 +53,7 @@ public sealed class DynamicWorkerProtocolVersionException:DynamicWorkerProtocolE
 }
 
 public static class DynamicWorkerProtocol{
-    public const int CurrentVersion=5;
+    public const int CurrentVersion=6;
     private static readonly JsonSerializerOptions SerializerOptions=CreateSerializerOptions();
 
     public static JsonSerializerOptions JsonOptions=>SerializerOptions;
@@ -208,7 +208,15 @@ public sealed record WorkerRunRequest(
     // true のとき、FLinq が System.Linq より多くラムダを評価したら失敗(SemanticMismatch)にする。
     // false(既定)では、警告の診断(EvaluationCountExcess)と評価回数の記録だけを残す。
     // 融合した GroupBy の集約・Join・OrderBy の後の Take/Skip などは、System.Linq が省く評価を省かない既知の差があるため(設計書の「評価回数の検査」を参照)。
-    bool StrictEvaluationCounts=false);
+    bool StrictEvaluationCounts=false,
+    int OptimizationFlags=15,
+    WorkerStorageSettings? StorageSettings=null);
+
+public sealed record WorkerStorageSettings(
+    string Profile="Minimum",string Growth="profile",string Kind="Temporary",
+    long? IndexBytes=null,long? PageBytes=null,long? SegmentBytes=null,long? MemoryBytes=null,
+    long? InitialCapacity=null,long? InitialDataBytes=null,
+    long MemoryLimitBytes=268435456,long DiskLimitBytes=17179869184,string? ProfileCatalogJSON=null,string Workload="*",string IOMode="BackendDefault",string AccessPattern="Sequential");
 
 public enum WorkerExecutionStatus{
     NotStarted,
@@ -265,7 +273,9 @@ public sealed record WorkerSourceExecutionCompletedEvent(
     bool AssemblyUnloaded,
     DateTimeOffset CompletedAtUtc,
     // FLinq の生成器が出した展開後のコード(コンパイルまで進んだとき)。理想のループと見比べるための表示用。
-    string? ExpandedSourceText=null);
+    string? ExpandedSourceText=null,
+    string? InputHash=null,string? EnvironmentJSON=null,string? ParametersJSON=null,
+    string? GrowthJSON=null,string? StoreKind=null,string? CodeFingerprint=null,string? StorageChangesJSON=null,string IO="BackendDefault");
 
 public sealed record WorkerProgressEvent(
     string RunId,

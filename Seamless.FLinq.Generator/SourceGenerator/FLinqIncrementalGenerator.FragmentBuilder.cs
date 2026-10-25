@@ -1264,6 +1264,9 @@ public sealed partial class FLinqIncrementalGenerator {
                 HoistedLocals=hoistedLocals,
                 BodyUnsafeAccessorCodes=bodyAccessorCodes,
                 ContainsAnchor=AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
+                BodyIsWrappedParameter=lambdaSpec.ParameterNames.Length==1
+                    &&lambda.Body is ExpressionSyntax wrappedBody
+                    &&TransparentCalls.IsWrappedParameter(wrappedBody,lambdaSpec.ParameterNames[0],semanticModel),
             };
             return true;
         }

@@ -466,7 +466,9 @@ public abstract partial class CollectionStore<
 
     private void ApplyIndexGrowth(TsavoriteLayout layout,long requiredBytes,long expectedCount){
         var budget=layout.Owner.Budget;
-        var limit=checked(this.indexBytes+Math.Max(0,budget.MemoryLimitBytes-budget.MemoryBytes));
+        // Nativeは新旧の索引を同時に保持してから切り替える。最終段のピークは新容量の1.5倍。
+        var available=checked(this.indexBytes+Math.Max(0,budget.MemoryLimitBytes-budget.MemoryBytes));
+        var limit=Math.Max(this.indexBytes,available/3*2);
         var context=new global::Seamless.Execution.Growth.Context(
             global::Seamless.Execution.Growth.Resource.Index,this.indexBytes,requiredBytes,limit,
             ExpectedCount:Math.Max(expectedCount,layout.ExpectedCount),BytesPerItem:64d/AverageEntriesPerBucket,
@@ -493,17 +495,24 @@ public abstract partial class CollectionStore<
     private bool TryDoubleIndex(TsavoriteLayout layout) {
         var grownBytes = checked(this.indexBytes*2);
         var previousMemoryBytes = layout.Memory.Bytes;
+        global::Seamless.Execution.ResourceReservation? overlap=null;
         try {
+            overlap=layout.Owner.Budget.ReserveMemory(this.indexBytes);
             layout.Memory.Resize(checked(previousMemoryBytes+grownBytes-this.indexBytes));
         } catch(global::Seamless.Execution.ResourceLimitException) {
+            overlap?.Dispose();
             return false;
         }
-        if(!this.Store.GrowIndexAsync().GetAwaiter().GetResult()) {
-            layout.Memory.Resize(previousMemoryBytes);
-            return false;
+        try{
+            if(!this.Store.GrowIndexAsync().GetAwaiter().GetResult()) {
+                layout.Memory.Resize(previousMemoryBytes);
+                return false;
+            }
+            this.indexBytes=grownBytes;
+            return true;
+        }finally{
+            overlap.Dispose();
         }
-        this.indexBytes=grownBytes;
-        return true;
     }
 
     // 並列区間。開いている間(閉じ中を含む)は、シングル用の作成・2つ目の区間・読み込みを例外にする。

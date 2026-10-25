@@ -1,11 +1,15 @@
 using Benchmark.Dynamic.Core;
+using Benchmark.Infrastructure;
 using Benchmark.Dynamic.UI;
 using Benchmark.Dynamic.Worker;
 
 namespace Benchmark.Dynamic.Tests;
 
-public sealed class DynamicLiveVerificationTests{
+[Collection(DynamicWorkerTestCollection.Name)]
+public sealed class DynamicLiveVerificationTests:IDisposable{
     private static string WorkerPath=>Path.Combine(AppContext.BaseDirectory,"Benchmark.Dynamic.Worker.exe");
+    private readonly string directory=Path.Combine(Path.GetTempPath(),"Seamless-LiveHistory-"+Guid.NewGuid().ToString("N"));
+    public void Dispose(){if(Directory.Exists(this.directory)){Directory.Delete(this.directory,true);}}
 
     // UI が再現テストに書く入力は、Worker が実行で使う入力と同じでなければならない。
     [Theory,Trait("Category","Unit")]
@@ -43,7 +47,7 @@ public sealed class DynamicLiveVerificationTests{
 
     [Fact,Trait("Category","Unit")]
     public async Task int以外の要素型はRangeでは使えない(){
-        var service=new 動的ライブ検証サービス(WorkerPath);
+        var service=new 動的ライブ検証サービス(WorkerPath,データベースパス:Path.Combine(this.directory,"history.db"));
         var settings=new 動的ライブ設定(SourceTarget.SystemRange,QueryElementType.Long,Seed256.Parse("0x1"));
         await Assert.ThrowsAsync<ArgumentException>(()=>service.実行Async(settings,(_,_)=>Task.CompletedTask,null,CancellationToken.None));
     }
@@ -53,7 +57,8 @@ public sealed class DynamicLiveVerificationTests{
     [InlineData(QueryElementType.String)]
     public async Task ペア全組み合わせを実Workerで検証して結果を順に受け取れる(QueryElementType type){
         Assert.True(File.Exists(WorkerPath),$"Worker was not found: {WorkerPath}");
-        var service=new 動的ライブ検証サービス(WorkerPath);
+        var databasePath=Path.Combine(this.directory,"history.db");
+        var service=new 動的ライブ検証サービス(WorkerPath,データベースパス:databasePath);
         var settings=new 動的ライブ設定(SourceTarget.SystemArray,type,Seed256.Parse("0x5EED"),入力要素数:16,特殊な値を混ぜる:type!=QueryElementType.Int);
         using var cancellation=new CancellationTokenSource(TimeSpan.FromMinutes(5));
         var results=new List<動的ライブ結果>();
@@ -87,5 +92,17 @@ public sealed class DynamicLiveVerificationTests{
         if(type==QueryElementType.Int){
             Assert.All(results,static result=>Assert.Contains("[Fact",result.再現テスト,StringComparison.Ordinal));
         }
+        var history=new BenchmarkRepository(new BenchmarkDatabase(databasePath));
+        var run=Assert.Single(history.GetRuns());
+        Assert.Equal("Canceled",run.Status);
+        var measurements=history.GetMeasurements(run.ID);
+        Assert.NotEmpty(measurements);
+        Assert.Contains(measurements,static value=>value.Conditions.Implementation=="FLinqUnoptimized");
+        Assert.All(measurements,static value=>{
+            Assert.True(value.Conditions.Known);
+            Assert.Equal(7,value.Samples.Length);
+            Assert.Equal(16,value.Conditions.Count);
+            Assert.NotEmpty(value.Conditions.InputHash);
+        });
     }
 }
