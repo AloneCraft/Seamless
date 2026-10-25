@@ -134,6 +134,7 @@ Minimum/Fixed/拡張/独自戦略/状態分離/予算/保存再開、プロフ�
 | 理想という名前でも全体が手書き最適実装とは限らない | 旧 `チェーン生成器` のGroupBy_Sum/OrderByDescending/Take/ToArrayは末尾が `items.OrderByDescending(...).Take(12).ToArray()` | 原文は保持する。結果一致だけで最適性を認定しない。手書き参照実装であることを表示する |
 | 最適化なしFLinqが時間測定から抜ける | 開始時点の `MeasurementEngine.MeasuredImplementations` はSystem/FLinq/ZLinqのみ | FLinqUnoptimizedも同じ入力・測定方式で記録する |
 | 旧ケースの意味を近似して移植している | `CoreCorpusChainBuilder` はSelectの `x*3+1` を `x*3`、By演算を恒等キーにする | 近似IRによる検査と原式の回帰検査を区別する。`LegacyChainCatalog` に原式56件を保持し、組み合わせを検査する |
+| Tsavoriteのディスク列挙が生存キーを欠落させる | `7f9669cd`を隔離してIndex64/Page4096/Log8192/固定で実行すると、管理件数4096・個別検索4096に対してforeach248。今回のMinimum+Doublingでも4096件中33件、8192件中32件が欠けた | 生ログを逐次走査し、通常のキー検索で得る最新アドレスと一致する版だけを渡す。更新・削除・複数チャンク・統計件数を回帰検査する。欠落した測定をプロファイルの根拠にしない |
 
 性能の未確定候補: 共有DBの実行 `12cfb00126a241739d7c815e0ed8a4f9`、16件・chain-05(Where/FirstOrDefault)は7測定の中央値がFLinq 37.568ns、FLinqUnoptimized 34.953ns、割り当て112B/操作で同じだった。比率1.075、各経路の変動係数は約0.08/0.09である。単一実行の差から性能不具合や改善不足を確定せず、同条件の独立した再測定を必要とする。原測定は共有DBに保持する。
 

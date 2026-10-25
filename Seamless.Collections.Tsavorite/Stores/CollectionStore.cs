@@ -328,7 +328,7 @@ public abstract partial class CollectionStore<
         using var session = this.Store.NewSession<FixedSpanByteKey,EqualityEmpty,bool,EqualityEmpty,ContainsDelete>(new());
         var counter = new IterateLookupCounter();
         var cursor = 0L;
-        session.IterateLookup(ref counter,ref cursor,resetCursor: false);
+        Scans.Lookup.Next(this.Store,ref counter,ref cursor);
         session.BasicContext.CompletePending(wait: true);
         return counter;
     }
