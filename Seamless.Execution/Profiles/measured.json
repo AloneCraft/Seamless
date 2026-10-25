@@ -1,0 +1,39 @@
+{
+  "Version": 1,
+  "Profiles": [
+    {
+      "ID": "tsavorite-file-int32-filter-4096-v1",
+      "Version": 1,
+      "Conditions": {
+        "Backend": "Tsavorite",
+        "StoreKind": 0,
+        "ElementType": "System.Int32|System.Int32",
+        "ElementCount": 4096,
+        "Workload": "FilterAggregate",
+        "Environment": "8FA900839AF2BED1425FC569D731A7F4A9CE099A38A1A63E4861AC936F60875A"
+      },
+      "MaximumCount": 4096,
+      "Settings": {
+        "IndexBytes": 4096,
+        "PageBytes": 4096,
+        "SegmentBytes": 4096,
+        "LogMemoryBytes": 8192,
+        "InitialCapacity": null,
+        "InitialDataBytes": null,
+        "MutableFraction": 1
+      },
+      "EvidenceRunIDs": [
+        "0fe3f991143143dd8e50c0ea3555f4ca",
+        "f0bd0670687e4806b1a276bf3c6c38ae",
+        "7526d35e0b834eb3afe707c3455eaabb",
+        "4139df68a6104d9b994211ac939bc69a"
+      ],
+      "IndependentlyValidated": true,
+      "Growth": {
+        "ID": "fixed",
+        "Version": 1,
+        "ParametersJSON": "{}"
+      }
+    }
+  ]
+}

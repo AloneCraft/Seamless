@@ -27,10 +27,25 @@ using var items=data.Create();
 var profiles=ProfileCatalog.Load("profiles.json");
 using var store=Store.CreateMemory(options:new(){
     Profile=Profile.Optimized,Profiles=profiles,
-    Workload="FilterAggregate",Environment="測定環境の識別子"
+    Workload="FilterAggregate"
 });
 ```
 
 通常の利用アプリは測定DBへ接続しない。プロファイルはJSONとして持ち運ぶ。測定・独立入力による検証を終えた条件だけを採用する。
+
+環境は既定で `ProfileEnvironment.Current` を使う。同梱した版1の候補はTsavorite/Temporary、intのキーと値、4096件、NativeのFilterAggregate、測定した環境だけに適用する。索引64→4096バイトの変更を2種類の入力で独立に検証したもので、他の件数・処理・環境まで最適だとするものではない。条件外ではMinimumを採用し、`ResolvedProfiles` から理由を取得できる。プロファイルが推奨する拡張方式より利用者の明示的な `Growth` を優先する。
+
+メモリストアでは常駐ログの論理容量を最小から増やす。Tsavorite内部のページリングは資源上限内で確保可能な上限を持ち、初期のページ本体は最小で開始する。`Fixed` のメモリストアは設定した常駐容量を超えると理由付きで失敗する。ファイルストアの通常の退避とは区別する。`GetCurrentSettings` は初期設定へ成功した拡張を反映した現在値を返す。
+
+## アルゴリズムの公開契約
+
+| 役割 | 静的契約・実装 | 実行時の入口 |
+|---|---|---|
+| 拡張 | `Seamless.Execution.Growth.IStrategy<TSelf>`、Fixed/Doubling/Estimated | `Policy<TStrategy>`でストアごとに状態を保持 |
+| 要素走査 | `Seamless.Collections.Iteration.IStrategy<TSelf,T>` | コレクションの型付きIterate |
+| バイト符号化 | `Seamless.Execution.Codecs.IStrategy<TSelf,T>`、Serializer | `IAdapter<T>`と`Adapter<T,TStrategy>`をCodecRegistryへ登録 |
+| 等価判定 | `Seamless.Execution.Equalities.IStrategy<TSelf,T>`、Default/Binary | BCLのIEqualityComparerへAdapterで接続 |
+
+外部TsavoriteのISessionFunctions/IScanIteratorFunctionsとBCLの契約は、外部から呼ばれる境界として維持する。外部資源を所有するストアや型レジストリ全体をstructへ置き換えない。旧IBinaryCodec、BinaryEqualityComparer、バックエンド別の要素走査用インターフェースは新契約へ移し、互換入口を残さない。
 
 シリアライザーの役割名は `Seamless.Collections.Serializers` に統一した。実装は `Auto<T>`、`Blittable<T>`、`MemoryPack<T>`、`RawByteArray`。契約は `IStrategy<T>`。旧 `Serialization.*Serializer` の互換入口は提供しない。

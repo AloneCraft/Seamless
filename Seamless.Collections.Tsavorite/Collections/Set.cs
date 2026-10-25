@@ -1,9 +1,4 @@
-namespace Seamless.Collections.Tsavorite;
-
-public interface ISetIterateStrategy<TSelf,in TRecord>
-    where TSelf : struct, ISetIterateStrategy<TSelf,TRecord> {
-    static abstract bool Invoke(ref TSelf self,TRecord item);
-}
+﻿namespace Seamless.Collections.Tsavorite;
 
 public class Set<TKey, TRecord>:Collection<TKey,TRecord,global::Seamless.Collections.Serializers.Auto<TKey>,global::Seamless.Collections.Serializers.Auto<TRecord>,ExclusiveAccess>, ISet<TKey,TRecord>, IMemoryCollection<TRecord>
     where TRecord : IRecord<TKey> {
@@ -242,7 +237,7 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,global::Seamless.Collect
     }
     /// <summary>値を 1 つずつ <typeparamref name="TStrategy"/> へ渡す。FLinq の生成コードが呼ぶ。</summary>
     public void Iterate<TStrategy>(ref TStrategy strategy)
-        where TStrategy : struct, ISetIterateStrategy<TStrategy,TRecord> => this.IterateValuesCore(ref strategy);
+        where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TRecord> => this.IterateValuesCore(ref strategy);
     IEnumerator<TRecord> IEnumerable<TRecord>.GetEnumerator() => this.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     IEnumerator<TRecord> IMemoryCollection<TRecord>.GetEnumerator() {

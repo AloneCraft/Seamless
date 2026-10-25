@@ -11,5 +11,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Seamless.Collections/Seamless.Collections.csproj" />
+    <EmbeddedResource Include="Profiles/measured.json" LogicalName="Seamless.Execution.Profiles.measured.json" />
   </ItemGroup>
 </Project>

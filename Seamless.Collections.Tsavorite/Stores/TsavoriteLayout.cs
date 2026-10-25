@@ -17,7 +17,7 @@ internal sealed class TsavoriteLayout:IDisposable{
         this.PageSize=tuning.PageSize;
         this.SegmentSize=tuning.SegmentSize;
         this.MutableFraction=tuning.MutableFraction;
-        this.Growth=(tuning.Growth??owner.Options.Growth).CreateController();
+        this.Growth=(tuning.Growth??owner.GetGrowth(name)).CreateController();
         this.LogMemorySize=logMemorySize;
         this.LogDevice=logDevice;
         this.DeferredLogDevice=deferredLogDevice;
@@ -49,7 +49,7 @@ internal sealed class TsavoriteLayout:IDisposable{
         ArgumentNullException.ThrowIfNull(store);
         ArgumentOutOfRangeException.ThrowIfNegative(expectedCount);
         ArgumentNullException.ThrowIfNull(tuning);
-        var profile=store.ResolveProfile(name,"Tsavorite",elementType,expectedCount,tuning.Overrides);
+        var profile=store.ResolveProfile(name,"Tsavorite",elementType,expectedCount,tuning.Overrides,tuning.Growth);
         tuning=tuning with{IndexSize=profile.Settings.IndexBytes,PageSize=profile.Settings.PageBytes!.Value,SegmentSize=profile.Settings.SegmentBytes!.Value,LogMemorySize=profile.Settings.LogMemoryBytes,MutableFraction=profile.Settings.MutableFraction!.Value};
         tuning.Validate(store.Kind);
         TsavoriteSavedState? saved=null;
@@ -58,7 +58,7 @@ internal sealed class TsavoriteLayout:IDisposable{
         }
         long indexSize;
         if(tuning.IndexSize is long explicitIndexSize){
-            if((tuning.Growth??store.Options.Growth).Descriptor.ID=="fixed"&&saved is not null&&saved.IndexSize!=explicitIndexSize){
+            if((tuning.Growth??store.GetGrowth(name)).Descriptor.ID=="fixed"&&saved is not null&&saved.IndexSize!=explicitIndexSize){
                 throw new InvalidOperationException("The saved index size differs from the explicitly configured fixed index size.");
             }
             indexSize=explicitIndexSize;

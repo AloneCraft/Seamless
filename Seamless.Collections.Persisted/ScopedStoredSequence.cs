@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
@@ -8,7 +8,7 @@ namespace Seamless.Collections.Persisted;
 /// <summary>A sequential result stored in the scope's temporary storage, without materializing all rows in memory.</summary>
 public sealed class ScopedStoredSequence<T>:IEnumerable<T>,IDisposable{
     private readonly ExecutionScope scope;
-    private readonly IBinaryCodec<T> codec;
+    private readonly global::Seamless.Execution.Codecs.IAdapter<T> codec;
     private readonly TemporaryFile file;
     private bool sealedForReading;
     private bool disposed;

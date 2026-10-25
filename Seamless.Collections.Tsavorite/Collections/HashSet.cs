@@ -1,4 +1,4 @@
-namespace Seamless.Collections.Tsavorite;
+﻿namespace Seamless.Collections.Tsavorite;
 
 /// <summary>
 /// Tsavorite のハッシュセット実装。
@@ -183,15 +183,10 @@ public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,global::Seamles
 
 
 
-public interface IHashSetIterateStrategy<TSelf, T>
-    where TSelf : struct, IHashSetIterateStrategy<TSelf,T> {
-    static abstract bool Invoke(ref TSelf self,T item);
-}
-
 public partial class HashSet<TKey> {
     /// <summary>キーを 1 つずつ <typeparamref name="TStrategy"/> へ渡す。FLinq の生成コードが呼ぶ。</summary>
     public void Iterate<TStrategy>(ref TStrategy strategy)
-        where TStrategy : struct, IHashSetIterateStrategy<TStrategy,TKey> => this.IterateKeysCore(ref strategy);
+        where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TKey> => this.IterateKeysCore(ref strategy);
 }
 
 

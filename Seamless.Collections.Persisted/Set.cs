@@ -1,9 +1,4 @@
-namespace Seamless.Collections.Persisted;
-
-public interface ISetIterateStrategy<TSelf, T>
-    where TSelf : struct, ISetIterateStrategy<TSelf,T> {
-    static abstract bool Invoke(ref TSelf self,T item);
-}
+﻿namespace Seamless.Collections.Persisted;
 
 public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
     // global::Seamless.Collections.Serializers.Auto は固定長の型を global::Seamless.Collections.Serializers.Blittable と同じ生バイトで、それ以外を MemoryPack で書くので、
@@ -61,7 +56,7 @@ public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
     internal IPersistedCommittable Committable => this.list;
 
     public void Iterate<TStrategy>(ref TStrategy strategy)
-        where TStrategy : struct, ISetIterateStrategy<TStrategy,T> {
+        where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,T> {
         foreach(var item in this) {
             if(!TStrategy.Invoke(ref strategy,item))
                 break;

@@ -1,4 +1,4 @@
-using Shared.Linq;
+﻿using Shared.Linq;
 
 namespace Test.Persisted.Linq.Enumerable.IEnumerable.FLinq;
 
@@ -19,7 +19,7 @@ public sealed class IEnumerableRootTests {
             Assert.Equal(2,CountEvenImpl());
             var generated=GeneratedFor(nameof(CountEvenImpl));
             Assert.DoesNotContain("PersistedSetIterateState",generated);
-            Assert.DoesNotContain("ISetIterateStrategy",generated);
+            Assert.DoesNotContain("Seamless.Collections.Iteration.IStrategy",generated);
             Assert.DoesNotContain(".Iterate(ref __PersistedSetIterateState",generated);
         } finally {
             source=null;

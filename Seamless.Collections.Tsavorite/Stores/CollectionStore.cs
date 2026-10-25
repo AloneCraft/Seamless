@@ -1,4 +1,4 @@
-using Seamless.Collections.Tsavorite;
+﻿using Seamless.Collections.Tsavorite;
 namespace Seamless.Collections.Tsavorite;
 
 public abstract class CollectionStore {
@@ -58,18 +58,27 @@ public abstract partial class CollectionStore<TKey, TValue>
 
 
 public abstract partial class CollectionStore<TKey, TValue> {
-    private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes,long? ObjectLogSegmentSize = null) :
+    private protected CollectionStore(long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes,long? ObjectLogSegmentSize = null,long? NativeMemoryLimit=null) :
         base(
             new SpanByteStoreFunctions(new SpanByteComparer(),static () => null,DefaultRecordTriggers.Instance),
             static (allocSettings,storeFuncs) => new SpanByteStoreAllocator(allocSettings,storeFuncs),
-            IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,OverflowMutableStrategyKind,StorageLimitFraction,StorageReserveBytes,ObjectLogSegmentSize
+            IndexSize,PageSize,SegmentSize,MemorySize,MutableFraction,LogDevice,ObjectLogDevice,CheckpointDir,OverflowMutableStrategyKind,StorageLimitFraction,StorageReserveBytes,ObjectLogSegmentSize,NativeMemoryLimit
         ) {
     }
 
     /// <summary>共通ストアから決めた配置で作る。デバイスと予算の予約はこのデータ本体が所有する。</summary>
     private protected CollectionStore(TsavoriteLayout layout) :
-        this(layout.IndexSize,layout.PageSize,layout.SegmentSize,layout.LogMemorySize,layout.MutableFraction,layout.LogDevice,layout.ObjectLogDevice,layout.CheckpointDirectory,ResolveOverflowKind(layout)) {
+        this(layout.IndexSize,layout.PageSize,layout.SegmentSize,layout.LogMemorySize,layout.MutableFraction,layout.LogDevice,layout.ObjectLogDevice,layout.CheckpointDirectory,ResolveOverflowKind(layout),NativeMemoryLimit:ResolveNativeMemoryLimit(layout)) {
         this.AttachLayout(layout);
+    }
+
+    // Nativeのリング上限と初期に常駐させる量を分離する。ページ本体は遅延確保され、初期は2ページ。
+    private static long ResolveNativeMemoryLimit(TsavoriteLayout layout){
+        if(layout.Kind!=global::Seamless.Execution.StoreKind.Memory||layout.Growth.Descriptor.ID=="fixed"){return layout.LogMemorySize;}
+        var limit=layout.Owner.Limits.MemoryBytes-layout.Owner.Budget.MemoryBytes+layout.Memory.Bytes-layout.IndexSize;
+        long capacity=layout.PageSize*2;
+        while(capacity<=limit/2){capacity*=2;}
+        return Math.Max(layout.LogMemorySize,capacity);
     }
 
     private static OverflowMutableStrategyKind ResolveOverflowKind(TsavoriteLayout layout) {
@@ -133,7 +142,7 @@ public abstract partial class CollectionStore<
     // 全削除で別の世代へ切り替えたあと、保存が確定するまで残っている古い世代のファイルの大きさ(ディスクの予約に含める)。
     private long retiredDiskBytes;
     private int accessorCount;
-    public long LogMemorySize { get; }
+    public long LogMemorySize { get; private set; }
     public double MutableFraction { get; }
     internal OverflowMutableStrategyKind OverflowMutableStrategyKind { get; }
     internal StorageOverflowMutableStrategy StorageOverflowMutableStrategy { get; }
@@ -150,7 +159,7 @@ public abstract partial class CollectionStore<
     private protected CollectionStore(
         TStoreFunctions StoreFunctions,
         Func<AllocatorSettings,TStoreFunctions,TAllocator> allocatorFactory,
-        long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes,long? ObjectLogSegmentSize = null) {
+        long IndexSize,long PageSize,long SegmentSize,long MemorySize,double MutableFraction,IDevice LogDevice,IDevice ObjectLogDevice,string? CheckpointDir,OverflowMutableStrategyKind OverflowMutableStrategyKind,double StorageLimitFraction = StorageOverflowMutableStrategy.DefaultLimitFraction,long StorageReserveBytes = StorageOverflowMutableStrategy.DefaultReserveBytes,long? ObjectLogSegmentSize = null,long? NativeMemoryLimit=null) {
         ValidatePowerOfTwo(IndexSize,nameof(IndexSize));
         ValidatePowerOfTwo(PageSize,nameof(PageSize));
         ValidatePowerOfTwo(SegmentSize,nameof(SegmentSize));
@@ -198,7 +207,7 @@ public abstract partial class CollectionStore<
         this.checkpointManager=CreateCheckpointManager(CheckpointDir);
         this.Settings=new() {
             IndexSize=IndexSize,
-            LogMemorySize=MemorySize,
+            LogMemorySize=NativeMemoryLimit??MemorySize,
             PageSize=PageSize,
             SegmentSize=SegmentSize,
 
@@ -353,10 +362,34 @@ public abstract partial class CollectionStore<
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal void EnsureCapacity(long tailAddress,int keyLength,int valueLength) {
         var requiredTailAddress = tailAddress+MemoryOverflowMutableStrategy.GetRequiredBytes(keyLength,valueLength);
+        if(this.layout is not null&&this.layout.Kind==global::Seamless.Execution.StoreKind.Memory){
+            var required=checked((long)Math.Ceiling((requiredTailAddress-this.Store.Log.BeginAddress)/this.MutableFraction));
+            if(required>this.LogMemorySize){this.GrowLog(required,keyLength+valueLength);}
+        }
         if(requiredTailAddress<=this.reservedTailAddress) {
             return;
         }
         this.GrowReservation(requiredTailAddress,keyLength+valueLength);
+    }
+
+    private void GrowLog(long required,int payloadBytes){
+        this.storeGate.Wait();
+        try{this.GrowLogCore(required,payloadBytes);}finally{this.storeGate.Release();}
+    }
+    private void GrowLogCore(long required,int payloadBytes){
+        var layout=this.layout;
+        if(layout is null||required<=this.LogMemorySize){return;}
+        var limit=Math.Min(this.Settings.LogMemorySize,layout.Owner.Limits.MemoryBytes-layout.Owner.Budget.MemoryBytes+this.LogMemorySize);
+        var context=new global::Seamless.Execution.Growth.Context(global::Seamless.Execution.Growth.Resource.LogMemory,this.LogMemorySize,required,limit,
+            BytesPerItem:payloadBytes+MemoryOverflowMutableStrategy.RecordOverheadBytes,
+            IsSafePoint:Volatile.Read(ref this.accessorCount)<=1&&this.parallelRegion is null,AllocationUnit:this.Settings.PageSize);
+        var decision=layout.Growth.Decide(context);
+        if(decision.Status==global::Seamless.Execution.Growth.Status.Grow){
+            // 資源予約を済ませてから論理容量を公開する。Nativeのページは書き込みに伴い遅延確保される。
+            layout.Memory.Resize(checked(layout.Memory.Bytes+decision.TargetBytes-this.LogMemorySize));
+            this.LogMemorySize=decision.TargetBytes;
+        }
+        layout.Owner.RecordGrowthDecision(layout.Name+".log",context,decision);
     }
 
     // データ本体の関所。索引の拡大・予算の予約・保存・読み込み・件数の走査・統計・詰め直しを順番に行う。
@@ -488,6 +521,11 @@ public abstract partial class CollectionStore<
             if(layout is not null&&expectedCount>0) {
                 var targetBytes = TsavoriteLayout.GetIndexSize(expectedCount);
                 this.ApplyIndexGrowth(layout,targetBytes,expectedCount);
+                if(layout.Kind==global::Seamless.Execution.StoreKind.Memory){
+                    // 並列区間中には設定を変えないため、開始前に固定長型の保守的な必要量を確保する。
+                    var required=checked((long)Math.Ceiling((expectedCount*(MemoryOverflowMutableStrategy.RecordOverheadBytes+64)+this.Settings.PageSize)/this.MutableFraction));
+                    this.GrowLogCore(required,64);
+                }
             }
             // 区間の中では件数を持たない。開いたときの件数が分かっていれば覚えておき、閉じたときにマルチ用の増減の合計を足す。
             long? baseCount = this.TryGetManagedCount(out var count) ? count : null;
