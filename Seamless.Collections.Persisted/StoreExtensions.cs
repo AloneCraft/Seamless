@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Seamless.Execution;
 namespace Seamless.Collections.Persisted;
 /// <summary>
@@ -9,18 +9,21 @@ namespace Seamless.Collections.Persisted;
 /// メモリストアでは、既定でメモリ上の仮想ファイルに置き(メモリの予算で確認する。保存はできない)、<see cref="PersistedMemoryBacking.TemporaryFolder"/> を選ぶと一時フォルダのファイルに置く(ディスクの予算で確認する)。
 /// </summary>
 public static partial class StoreExtensions{
-    public static Set<T> CreatePersistedSet<T>(this global::Seamless.Execution.Store store,string name,long initialCapacity=16,long initialDataCapacity=4096,StorageTuning? tuning=null,PersistedMemoryBacking memoryBacking=PersistedMemoryBacking.InMemory){
+    public static Set<T> CreatePersistedSet<T>(this global::Seamless.Execution.Store store,string name,long? initialCapacity=null,long? initialDataCapacity=null,StorageTuning? tuning=null,PersistedMemoryBacking memoryBacking=PersistedMemoryBacking.InMemory,long expectedCount=0){
+        var profile=store.ResolveProfile(name,"Persisted",typeof(T).FullName??typeof(T).Name,expectedCount,explicitSettings:new(){InitialCapacity=initialCapacity,InitialDataBytes=initialDataCapacity});
         var place=PreparePlace(store,name,memoryBacking);
-        return Attach(store,name,place,()=>new Set<T>(Path.Combine(place.Directory,"items.dat"),initialCapacity,initialDataCapacity,tuning),static set=>set.Committable,static (set,action)=>set.SetDisposeAction(action),static (set,action)=>set.SetSaveAction(action));
+        return Attach(store,name,place,()=>new Set<T>(Path.Combine(place.Directory,"items.dat"),profile.Settings.InitialCapacity!.Value,profile.Settings.InitialDataBytes!.Value,tuning),static set=>set.Committable,static (set,action)=>set.SetDisposeAction(action),static (set,action)=>set.SetSaveAction(action));
     }
-    public static PersistedList<T> CreatePersistedList<T>(this global::Seamless.Execution.Store store,string name,long initialCapacity=16,long initialDataCapacity=4096,StorageTuning? tuning=null,PersistedMemoryBacking memoryBacking=PersistedMemoryBacking.InMemory){
+    public static PersistedList<T> CreatePersistedList<T>(this global::Seamless.Execution.Store store,string name,long? initialCapacity=null,long? initialDataCapacity=null,StorageTuning? tuning=null,PersistedMemoryBacking memoryBacking=PersistedMemoryBacking.InMemory,long expectedCount=0){
+        var profile=store.ResolveProfile(name,"Persisted",typeof(T).FullName??typeof(T).Name,expectedCount,explicitSettings:new(){InitialCapacity=initialCapacity,InitialDataBytes=initialDataCapacity});
         var place=PreparePlace(store,name,memoryBacking);
-        return Attach(store,name,place,()=>Store.CreateList<T>(Path.Combine(place.Directory,"items.dat"),initialCapacity,initialDataCapacity,tuning),static list=>list,static (list,action)=>list.SetDisposeAction(action),static (list,action)=>{});
+        return Attach(store,name,place,()=>Store.CreateList<T>(Path.Combine(place.Directory,"items.dat"),profile.Settings.InitialCapacity!.Value,profile.Settings.InitialDataBytes!.Value,tuning),static list=>list,static (list,action)=>list.SetDisposeAction(action),static (list,action)=>{});
     }
-    public static Dictionary<TKey,TValue> CreatePersistedDictionary<TKey,TValue>(this global::Seamless.Execution.Store store,string name,long initialCapacity=16,long initialDataCapacity=4096,StorageTuning? tuning=null,PersistedMemoryBacking memoryBacking=PersistedMemoryBacking.InMemory)
+    public static Dictionary<TKey,TValue> CreatePersistedDictionary<TKey,TValue>(this global::Seamless.Execution.Store store,string name,long? initialCapacity=null,long? initialDataCapacity=null,StorageTuning? tuning=null,PersistedMemoryBacking memoryBacking=PersistedMemoryBacking.InMemory,long expectedCount=0)
         where TKey:notnull{
+        var profile=store.ResolveProfile(name,"Persisted",$"{typeof(TKey).FullName}|{typeof(TValue).FullName}",expectedCount,explicitSettings:new(){InitialCapacity=initialCapacity,InitialDataBytes=initialDataCapacity});
         var place=PreparePlace(store,name,memoryBacking);
-        return Attach(store,name,place,()=>new Dictionary<TKey,TValue>(Path.Combine(place.Directory,"items.dat"),initialCapacity,initialDataCapacity,tuning),static dictionary=>dictionary.Committable,static (dictionary,action)=>dictionary.SetDisposeAction(action),static (dictionary,action)=>dictionary.SetSaveAction(action));
+        return Attach(store,name,place,()=>new Dictionary<TKey,TValue>(Path.Combine(place.Directory,"items.dat"),profile.Settings.InitialCapacity!.Value,profile.Settings.InitialDataBytes!.Value,tuning),static dictionary=>dictionary.Committable,static (dictionary,action)=>dictionary.SetDisposeAction(action),static (dictionary,action)=>dictionary.SetSaveAction(action));
     }
     /// <summary>ファイルの置き場(ディレクトリまたは仮想パスの根)と、使う予算の種類、破棄時の後始末。</summary>
     private sealed record Place(string Directory,bool UsesMemoryBudget,Action? Cleanup);

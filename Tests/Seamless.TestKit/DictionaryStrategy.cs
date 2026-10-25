@@ -79,7 +79,7 @@ public readonly struct ManagedStoreDictionaryStrategy<TKeyProvider, TValueProvid
         long indexSize = global::Seamless.Collections.Tsavorite.Const.IndexSize,
         long pageSize = global::Seamless.Collections.Tsavorite.Const.PageSize,
         long segmentSize = global::Seamless.Collections.Tsavorite.Const.SegmentSize) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<TKey,TValue>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<TKey,TValue>(new global::Seamless.Collections.Serializers.MemoryPack(),new global::Seamless.Collections.Serializers.MemoryPack());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -90,7 +90,7 @@ public readonly struct ManagedStoreDictionaryStrategy<TKeyProvider, TValueProvid
         double mutableFraction = 1.0,
         string? checkpointDir = null,
         bool recoverDevice = false) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new global::Seamless.Collections.Serializers.MemoryPack(),new global::Seamless.Collections.Serializers.MemoryPack());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -110,7 +110,7 @@ public readonly struct UnmanagedKeyDictionaryStrategy<TKeyProvider, TValueProvid
         long indexSize = global::Seamless.Collections.Tsavorite.Const.IndexSize,
         long pageSize = global::Seamless.Collections.Tsavorite.Const.PageSize,
         long segmentSize = global::Seamless.Collections.Tsavorite.Const.SegmentSize) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<TKey,TValue>(new BlittableStrategy(),new MemoryPackSerializerStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<TKey,TValue>(new global::Seamless.Collections.Serializers.Blittable(),new global::Seamless.Collections.Serializers.MemoryPack());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -121,7 +121,7 @@ public readonly struct UnmanagedKeyDictionaryStrategy<TKeyProvider, TValueProvid
         double mutableFraction = 1.0,
         string? checkpointDir = null,
         bool recoverDevice = false) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new BlittableStrategy(),new MemoryPackSerializerStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new global::Seamless.Collections.Serializers.Blittable(),new global::Seamless.Collections.Serializers.MemoryPack());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -141,7 +141,7 @@ public readonly struct UnmanagedValueDictionaryStrategy<TKeyProvider, TValueProv
         long indexSize = global::Seamless.Collections.Tsavorite.Const.IndexSize,
         long pageSize = global::Seamless.Collections.Tsavorite.Const.PageSize,
         long segmentSize = global::Seamless.Collections.Tsavorite.Const.SegmentSize) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<TKey,TValue>(new MemoryPackSerializerStrategy(),new BlittableStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<TKey,TValue>(new global::Seamless.Collections.Serializers.MemoryPack(),new global::Seamless.Collections.Serializers.Blittable());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -152,7 +152,7 @@ public readonly struct UnmanagedValueDictionaryStrategy<TKeyProvider, TValueProv
         double mutableFraction = 1.0,
         string? checkpointDir = null,
         bool recoverDevice = false) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new BlittableStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new global::Seamless.Collections.Serializers.MemoryPack(),new global::Seamless.Collections.Serializers.Blittable());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -173,7 +173,7 @@ public readonly struct UnmanagedStoreDictionaryStrategy<TKeyProvider, TValueProv
         long pageSize = global::Seamless.Collections.Tsavorite.Const.PageSize,
         long segmentSize = global::Seamless.Collections.Tsavorite.Const.SegmentSize
     ) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<TKey,TValue>(new BlittableStrategy(),new BlittableStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<TKey,TValue>(new global::Seamless.Collections.Serializers.Blittable(),new global::Seamless.Collections.Serializers.Blittable());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);
@@ -185,7 +185,7 @@ public readonly struct UnmanagedStoreDictionaryStrategy<TKeyProvider, TValueProv
         string? checkpointDir = null,
         bool recoverDevice = false
     ) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,CheckpointDir: checkpointDir).Create<TKey,TValue>(logDevice,objDevice,new global::Seamless.Collections.Serializers.Blittable(),new global::Seamless.Collections.Serializers.Blittable());
         return DictStoreHandleFactory.Create(
             store,() => store.Create(),wait => store.Store.Log.FlushAndEvict(wait),
             () => store.Save(),token => store.Load(token),() => store.Address);

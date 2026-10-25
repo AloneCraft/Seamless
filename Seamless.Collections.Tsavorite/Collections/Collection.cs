@@ -950,7 +950,7 @@ public abstract class Collection<
         var workListPath = self.CollectionStore.CreateWorkListPath("intersect-with");
         using var quota = self.CollectionStore.CreateWorkListQuota();
         try {
-            using var keysToExpire = new SerializedList<byte[],RawByteArraySerializer>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+            using var keysToExpire = new SerializedList<byte[],global::Seamless.Collections.Serializers.RawByteArray>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
             keysToExpire.StorageQuota=quota;
             quota?.EnsureTotalBytes(((IPersistedCommittable)keysToExpire).StorageBytes);
             var Iterator = new IterateLookupIntersectWith<TCollection>(other,keysToExpire);
@@ -1068,7 +1068,7 @@ public abstract class Collection<
     }
     private readonly struct IterateLookupIntersectWith<TCollection>(
         TCollection other,
-        SerializedList<byte[],RawByteArraySerializer> keysToExpire
+        SerializedList<byte[],global::Seamless.Collections.Serializers.RawByteArray> keysToExpire
     ):IScanIteratorFunctions
         where TCollection : Collection<
             TKey,
@@ -1115,8 +1115,8 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
     SpanByteStoreFunctions,//TStoreFunctions
     SpanByteStoreAllocator,//TAllocator
     TMode
-> where TKeySerializer : ISerializer<TKey>
-    where TValueSerializer : ISerializer<TValue>
+> where TKeySerializer : global::Seamless.Collections.Serializers.IStrategy<TKey>
+    where TValueSerializer : global::Seamless.Collections.Serializers.IStrategy<TValue>
     where TMode : struct, IAccessMode {
     public sealed class KeyIterator:IterateLookupIteratorFunctions_List<TKey>, ICreate<KeyIterator> {
         public static KeyIterator Create() => new();

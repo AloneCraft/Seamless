@@ -34,7 +34,7 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
     /// </summary>
     public IDictionary<TKey,TValue> Create() {
         if(this.keyUsesMemoryPackSerializer&&this.valueUsesMemoryPackSerializer) {
-            return new Dictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(this);
+            return new Dictionary<TKey,TValue,global::Seamless.Collections.Serializers.MemoryPack<TKey>,global::Seamless.Collections.Serializers.MemoryPack<TValue>>(this);
         }
         return (IDictionary<TKey,TValue>)this.CreateAccessor(typeof(Dictionary<,,,>),[this]);
     }
@@ -48,7 +48,7 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
 
     private IParallelDictionary<TKey,TValue> CreateParallel(ParallelRegionState region) {
         if(this.keyUsesMemoryPackSerializer&&this.valueUsesMemoryPackSerializer) {
-            return new ParallelDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(this,region);
+            return new ParallelDictionary<TKey,TValue,global::Seamless.Collections.Serializers.MemoryPack<TKey>,global::Seamless.Collections.Serializers.MemoryPack<TValue>>(this,region);
         }
         return (IParallelDictionary<TKey,TValue>)this.CreateAccessor(typeof(ParallelDictionary<,,,>),[this,region]);
     }
@@ -57,15 +57,15 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
     private object CreateAccessor(Type dictionaryOpenType,object[] args) {
         Type keySerializerOpenType;
         if(this.keyUsesMemoryPackSerializer) {
-            keySerializerOpenType=typeof(MemoryPackSerializer<>);
+            keySerializerOpenType=typeof(global::Seamless.Collections.Serializers.MemoryPack<>);
         } else {
-            keySerializerOpenType=typeof(BlittableSerializer<>);
+            keySerializerOpenType=typeof(global::Seamless.Collections.Serializers.Blittable<>);
         }
         Type valueSerializerOpenType;
         if(this.valueUsesMemoryPackSerializer) {
-            valueSerializerOpenType=typeof(MemoryPackSerializer<>);
+            valueSerializerOpenType=typeof(global::Seamless.Collections.Serializers.MemoryPack<>);
         } else {
-            valueSerializerOpenType=typeof(BlittableSerializer<>);
+            valueSerializerOpenType=typeof(global::Seamless.Collections.Serializers.Blittable<>);
         }
         var dictionaryType = dictionaryOpenType.MakeGenericType(
             typeof(TKey),

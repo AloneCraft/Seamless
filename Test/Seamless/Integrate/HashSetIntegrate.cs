@@ -95,7 +95,7 @@ public sealed class HashSet(ITestOutputHelper output):HashSetStorageBoundaryTest
             factory=factory.WithRecoveryIndexSize(token,64);
         }
 
-        return factory.Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy());
+        return factory.Create<string>(logDevice,objDevice,new global::Seamless.Collections.Serializers.MemoryPack());
     }
 }
 

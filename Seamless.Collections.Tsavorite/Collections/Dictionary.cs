@@ -17,8 +17,8 @@ public partial class Dictionary<
         TValueSerializer,
         ExclusiveAccess
     >,
-    IDictionary<TKey,TValue> where TKeySerializer : ISerializer<TKey>
-    where TValueSerializer : ISerializer<TValue> {
+    IDictionary<TKey,TValue> where TKeySerializer : global::Seamless.Collections.Serializers.IStrategy<TKey>
+    where TValueSerializer : global::Seamless.Collections.Serializers.IStrategy<TValue> {
     /// <summary>件数(O(1))。データ本体が管理している件数を返す。</summary>
     public int Count => checked((int)this.GetLongCountCore());
     /// <summary>件数(O(1))。データ本体が管理している件数を返す。</summary>

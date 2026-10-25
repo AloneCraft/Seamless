@@ -8,7 +8,7 @@ using global::System.Diagnostics.CodeAnalysis;
 /// </summary>
 public readonly struct Upsert<TValue, TStrategy>:
     ISessionFunctions<TValue,bool,EqualityEmpty>,
-    ICreate<Upsert<TValue,TStrategy>> where TStrategy : ISerializer<TValue> {
+    ICreate<Upsert<TValue,TStrategy>> where TStrategy : global::Seamless.Collections.Serializers.IStrategy<TValue> {
     public static Upsert<TValue,TStrategy> Create() => new();
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]

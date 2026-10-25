@@ -5,7 +5,7 @@ namespace Seamless.Collections.Tsavorite;
 /// 件数を管理しないので、件数の窓口は持たない。件数は <see cref="ScanCount"/> が毎回全件を数える。
 /// </summary>
 [DebuggerDisplay("EntryCount={EntryCount}")]
-public sealed class ParallelSet<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>,ParallelAccess>, global::Seamless.Collections.IUnorderedEnumerable<TRecord>
+public sealed class ParallelSet<TKey, TRecord>:Collection<TKey,TRecord,global::Seamless.Collections.Serializers.Auto<TKey>,global::Seamless.Collections.Serializers.Auto<TRecord>,ParallelAccess>, global::Seamless.Collections.IUnorderedEnumerable<TRecord>
     where TRecord : IRecord<TKey> {
     internal ParallelSet(CollectionStore<TKey,TRecord> collectionStore,ParallelRegionState region) : base(collectionStore,region) {
     }

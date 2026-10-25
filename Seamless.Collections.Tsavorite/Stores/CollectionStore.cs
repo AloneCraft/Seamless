@@ -414,9 +414,6 @@ public abstract partial class CollectionStore<
     /// 予約できなければ拡張しない(正しさは変わらず、性能だけが落ちる)。
     /// </summary>
     private void GrowIndexIfCrowded(TsavoriteLayout layout,int payloadBytes) {
-        if(!layout.AutoGrowIndex) {
-            return;
-        }
         this.lastPayloadBytes=payloadBytes;
         // Tsavorite の GrowIndexAsync は、他のセッションの操作と並行すると
         // StateMachineDriver 内で IndexOutOfRangeException を起こして停止する(EXP-0004。2.0.1-beta.5 と 2.1.8 で確認)。
@@ -428,11 +425,27 @@ public abstract partial class CollectionStore<
         // 1 レコード ≒ レコード情報(8)＋長さ情報＋キー＋値を 8 バイト境界へ切り上げた大きさとみなす。
         var recordBytes = Math.Max(16L,(payloadBytes+16L+7)&~7L);
         var estimatedRecords = (this.Store.Log.TailAddress-this.Store.Log.BeginAddress)/recordBytes;
-        while(estimatedRecords>this.Store.IndexSize*AverageEntriesPerBucket) {
-            if(!this.TryDoubleIndex(layout)) {
-                return;
+        if(estimatedRecords<=this.Store.IndexSize*AverageEntriesPerBucket){return;}
+        this.ApplyIndexGrowth(layout,TsavoriteLayout.GetIndexSize(estimatedRecords),estimatedRecords);
+    }
+
+    private void ApplyIndexGrowth(TsavoriteLayout layout,long requiredBytes,long expectedCount){
+        var budget=layout.Owner.Budget;
+        var limit=checked(this.indexBytes+Math.Max(0,budget.MemoryLimitBytes-budget.MemoryBytes));
+        var context=new global::Seamless.Execution.Growth.Context(
+            global::Seamless.Execution.Growth.Resource.Index,this.indexBytes,requiredBytes,limit,
+            ExpectedCount:expectedCount,BytesPerItem:64d/AverageEntriesPerBucket,
+            IsSafePoint:Volatile.Read(ref this.accessorCount)<=1&&this.parallelRegion is null,AllocationUnit:64);
+        var decision=layout.Growth.Decide(context);
+        if(decision.Status==global::Seamless.Execution.Growth.Status.Grow){
+            while(this.indexBytes<decision.TargetBytes){
+                if(!this.TryDoubleIndex(layout)){
+                    decision=new(global::Seamless.Execution.Growth.Status.Rejected,this.indexBytes,"The backend could not reserve or grow the index.");
+                    break;
+                }
             }
         }
+        layout.Owner.RecordGrowthDecision(layout.Name,context,decision);
     }
 
     /// <summary>索引を倍にする。拡張分のメモリを予算から先に予約し、予約できなければ拡張せずに false。関所の中で、他の操作が無いときに呼ぶ。</summary>
@@ -457,7 +470,7 @@ public abstract partial class CollectionStore<
 
     /// <summary>
     /// 並列区間を開く。操作用オブジェクトが 1 つも無いときだけ開ける。<paramref name="expectedCount"/> は区間を閉じたときの全体の見込み件数で、
-    /// 索引をその件数に合う大きさまで先に広げる(予算が足りなければ広げずに続ける。旧 API と AutoGrowIndex=false では広げない)。
+    /// 索引の必要量を拡張ストラテジーへ渡す。予算が足りない場合と固定方式では広げずに続ける。
     /// </summary>
     private protected ParallelRegion<TAccessor> BeginParallelCore<TAccessor>(long expectedCount,Func<ParallelRegionState,TAccessor> create)
         where TAccessor : class {
@@ -472,13 +485,9 @@ public abstract partial class CollectionStore<
                 throw new InvalidOperationException("Dispose the collections created by Create() before beginning a parallel region.");
             // 操作用オブジェクトが無いので、索引を広げても他の操作と並行しない(EXP-0004)。
             var layout = this.layout;
-            if(layout is not null&&layout.AutoGrowIndex&&expectedCount>0) {
+            if(layout is not null&&expectedCount>0) {
                 var targetBytes = TsavoriteLayout.GetIndexSize(expectedCount);
-                while(this.indexBytes<targetBytes) {
-                    if(!this.TryDoubleIndex(layout)) {
-                        break;
-                    }
-                }
+                this.ApplyIndexGrowth(layout,targetBytes,expectedCount);
             }
             // 区間の中では件数を持たない。開いたときの件数が分かっていれば覚えておき、閉じたときにマルチ用の増減の合計を足す。
             long? baseCount = this.TryGetManagedCount(out var count) ? count : null;

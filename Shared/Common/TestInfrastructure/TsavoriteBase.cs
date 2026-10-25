@@ -112,7 +112,7 @@ where T : notnull {
         var store = Seamless.Collections.Tsavorite.Store.Create(
             IndexSize: Seamless.Collections.Tsavorite.Store.GetIndexSizeForCapacity(count),
             MemorySize: GetMemorySize(count))
-            .Create<T>(new Seamless.Collections.MemoryPackSerializerStrategy());
+            .Create<T>(new global::Seamless.Collections.Serializers.MemoryPack());
         var set = store.Create();
         foreach(var value in values) {
             set.Add(value);
