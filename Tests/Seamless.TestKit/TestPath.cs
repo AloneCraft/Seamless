@@ -4,6 +4,15 @@ using System.Reflection;
 namespace Seamless.TestKit;
 
 public static class TestPath {
+    /// <summary>ストレージテストのランナーが指定した保存先。未指定時は従来の作業フォルダ。</summary>
+    public static string Root{
+        get{
+            var root=Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT");
+            if(string.IsNullOrWhiteSpace(root)){return Environment.CurrentDirectory;}
+            if(!Path.IsPathFullyQualified(root)){throw new InvalidOperationException("SEAMLESS_TEST_DATA_ROOT must be an absolute path.");}
+            return Path.GetFullPath(root);
+        }
+    }
     public static string Directory(object owner,params string[] segments) =>
         Directory(GetRootType(owner.GetType()),segments);
 
@@ -11,7 +20,7 @@ public static class TestPath {
         Directory(GetRootType(typeof(TTest)),segments);
 
     public static string Directory(string className,string methodName,params string[] segments) {
-        var path = Path.Combine(Environment.CurrentDirectory,className,methodName);
+        var path = Path.Combine(Root,className,methodName);
         foreach(var segment in segments) {
             if(string.IsNullOrWhiteSpace(segment)) continue;
             path=Path.Combine(path,segment);
