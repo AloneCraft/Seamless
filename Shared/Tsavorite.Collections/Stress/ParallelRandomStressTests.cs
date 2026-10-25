@@ -125,7 +125,7 @@ public class ParallelRandomStressTests {
             }
             using var logDevice= Devices.CreateLogDevice(logPath);
             using var objDevice= Devices.CreateLogDevice(objPath);
-            using var store    = Store.Create().Create<string,string>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+            using var store    = Store.Create().Create<string,string>(logDevice,objDevice,new global::Seamless.Collections.Serializers.MemoryPack(),new global::Seamless.Collections.Serializers.MemoryPack());
             for(var r = 0;r<repeat;r++) {
                 using(var dict = store.Create()) {
                     dict.Clear();
@@ -233,7 +233,7 @@ public class ParallelRandomStressTests {
             }
             using var logDevice= Devices.CreateLogDevice(logPath);
             using var objDevice= Devices.CreateLogDevice(objPath);
-            using var store    = Store.Create().Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy());
+            using var store    = Store.Create().Create<string>(logDevice,objDevice,new global::Seamless.Collections.Serializers.MemoryPack());
             for(var r = 0;r<repeat;r++) {
                 using(var set = store.Create()) {
                     set.Clear();

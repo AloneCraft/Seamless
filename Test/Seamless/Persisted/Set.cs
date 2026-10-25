@@ -43,7 +43,7 @@ public class Set{
             {
                 //参照を含む要素: 従来の MemoryPack の SerializedSet で書いたファイルを、そのまま開いて読める
                 var path=Path.Combine(directory,"memorypack.dat");
-                using(var old=new global::Seamless.Collections.Persisted.SerializedSet<string,global::Seamless.Collections.MemoryPackSerializer<string>>(path)){
+                using(var old=new global::Seamless.Collections.Persisted.SerializedSet<string,global::Seamless.Collections.Serializers.MemoryPack<string>>(path)){
                     old.Add("a");
                     old.Add("b");
                 }

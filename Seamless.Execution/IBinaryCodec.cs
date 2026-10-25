@@ -6,7 +6,7 @@ public interface IBinaryCodec<T>{
     void Encode(T value,Span<byte> destination);
     T Decode(ReadOnlySpan<byte> source);
 }
-public sealed class SerializerCodec<T,TSerializer>:IBinaryCodec<T> where TSerializer:Seamless.Collections.ISerializer<T>{
+public sealed class SerializerCodec<T,TSerializer>:IBinaryCodec<T> where TSerializer:global::Seamless.Collections.Serializers.IStrategy<T>{
     public SerializerCodec(string formatId){
         ArgumentException.ThrowIfNullOrWhiteSpace(formatId);
         this.FormatId=formatId;

@@ -8,15 +8,19 @@ public sealed record TsavoriteTuning{
     /// <summary>索引の大きさ(バイト)。64 バイト以上。1 バケット 64 バイト。省略時は予想件数から決める。</summary>
     public long? IndexSize{get;init;}
     /// <summary>ログのページの大きさ(バイト)。4096 バイト以上、1GB 以下。</summary>
-    public long PageSize{get;init;}=1L<<16;
+    private long? pageSize;
+    public long PageSize{get=>this.pageSize??4096;init=>this.pageSize=value;}
     /// <summary>ログファイルのセグメントの大きさ(バイト)。ページ以上であること。</summary>
-    public long SegmentSize{get;init;}=1L<<30;
+    private long? segmentSize;
+    public long SegmentSize{get=>this.segmentSize??4096;init=>this.segmentSize=value;}
     /// <summary>ログのメモリ上の大きさ(バイト)。省略時はメモリ種ならストアのメモリ上限(2 の冪へ切り下げ)、それ以外は上限の半分(最大 64MB)。</summary>
     public long? LogMemorySize{get;init;}
     /// <summary>メモリ上のログのうち変更可能な領域の割合。0 より大きく 1 以下。</summary>
-    public double MutableFraction{get;init;}=1.0;
+    private double? mutableFraction;
+    public double MutableFraction{get=>this.mutableFraction??1;init=>this.mutableFraction=value;}
     /// <summary>索引が混んだときに自動で拡張する。false の場合は指定した大きさを維持する。</summary>
-    public bool AutoGrowIndex{get;init;}=true;
+    public global::Seamless.Execution.Growth.Policy? Growth{get;init;}
+    internal global::Seamless.Execution.ProfileSettings Overrides=>new(){IndexBytes=this.IndexSize,PageBytes=this.pageSize,SegmentBytes=this.segmentSize,LogMemoryBytes=this.LogMemorySize,MutableFraction=this.mutableFraction};
     /// <summary>ログファイルの読み書き方式。AccessPattern と BufferingMode をデバイスの選択に使う。他の項目は使わない。省略時は既定のデバイスを使う。メモリストアには指定できない。</summary>
     public StorageTuning? Storage{get;init;}
 

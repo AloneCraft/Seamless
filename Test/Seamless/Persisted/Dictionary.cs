@@ -21,7 +21,7 @@ public class Dictionary{
             {
                 //片方が参照を含む: 従来どおり両方 MemoryPack の形式で読める
                 var path=Path.Combine(directory,"mixed.dat");
-                using(var old=new global::Seamless.Collections.Persisted.SerializedDictionary<int,string,global::Seamless.Collections.MemoryPackSerializer<int>,global::Seamless.Collections.MemoryPackSerializer<string>>(path)){
+                using(var old=new global::Seamless.Collections.Persisted.SerializedDictionary<int,string,global::Seamless.Collections.Serializers.MemoryPack<int>,global::Seamless.Collections.Serializers.MemoryPack<string>>(path)){
                     old.Add(1,"one");
                 }
                 using var dictionary=new global::Seamless.Collections.Persisted.Dictionary<int,string>(path);

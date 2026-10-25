@@ -227,7 +227,7 @@ public class Enumerator {
         try {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
-            using var store = Store.Create(MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDevice,objDevice,new BlittableStrategy());
+            using var store = Store.Create(MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDevice,objDevice,new global::Seamless.Collections.Serializers.Blittable());
             using var set = store.Create();
             for(var i = 0;i<128;i++)
                 set.Add(i);
@@ -264,7 +264,7 @@ public class Enumerator {
         try {
             using var logDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder,"log.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
             using var objDevice = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folder+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
-            using var store = Store.Create().Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy());
+            using var store = Store.Create().Create<string>(logDevice,objDevice,new global::Seamless.Collections.Serializers.MemoryPack());
             using var set = store.Create();
             var expected = Enumerable.Range(0,2048).Select(i => "s"+i).ToArray();
             foreach(var value in expected)

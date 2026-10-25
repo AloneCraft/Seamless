@@ -5,7 +5,7 @@ public interface ISetIterateStrategy<TSelf,in TRecord>
     static abstract bool Invoke(ref TSelf self,TRecord item);
 }
 
-public class Set<TKey, TRecord>:Collection<TKey,TRecord,AutoSerializer<TKey>,AutoSerializer<TRecord>,ExclusiveAccess>, ISet<TKey,TRecord>, IMemoryCollection<TRecord>
+public class Set<TKey, TRecord>:Collection<TKey,TRecord,global::Seamless.Collections.Serializers.Auto<TKey>,global::Seamless.Collections.Serializers.Auto<TRecord>,ExclusiveAccess>, ISet<TKey,TRecord>, IMemoryCollection<TRecord>
     where TRecord : IRecord<TKey> {
     /// <summary>件数(O(1))。データ本体が管理している件数を返す。</summary>
     public int Count => checked((int)this.GetLongCountCore());

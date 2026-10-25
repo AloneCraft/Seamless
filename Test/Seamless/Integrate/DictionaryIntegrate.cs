@@ -118,7 +118,7 @@ public sealed class Dictionary(ITestOutputHelper output) {
                 factory=factory.WithRecoveryIndexSize(token,64);
             }
 
-            return factory.Create<string,string>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+            return factory.Create<string,string>(logDevice,objDevice,new global::Seamless.Collections.Serializers.MemoryPack(),new global::Seamless.Collections.Serializers.MemoryPack());
         }
     );
 
@@ -132,7 +132,7 @@ public sealed class Dictionary(ITestOutputHelper output) {
                 factory=factory.WithRecoveryIndexSize(token,64);
             }
 
-            return factory.Create<int,int>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy());
+            return factory.Create<int,int>(logDevice,objDevice,new global::Seamless.Collections.Serializers.Blittable(),new global::Seamless.Collections.Serializers.Blittable());
         }
     );
 }

@@ -5,7 +5,7 @@ namespace Seamless.Collections.Tsavorite;
 /// 削除操作の動作を検証する。
 /// </summary>
 public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
-    ISessionFunctions<EqualityEmpty,TValue,EqualityEmpty> where TStrategy : ISerializer<TValue> {
+    ISessionFunctions<EqualityEmpty,TValue,EqualityEmpty> where TStrategy : global::Seamless.Collections.Serializers.IStrategy<TValue> {
     [ExcludeFromCodeCoverage]
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref TValue output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {

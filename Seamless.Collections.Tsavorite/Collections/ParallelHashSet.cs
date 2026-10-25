@@ -6,7 +6,7 @@ namespace Seamless.Collections.Tsavorite;
 /// 全削除やまとめて書き換える集合演算は、シングル用の <see cref="HashSet{TKey}"/> を使う。
 /// </summary>
 [DebuggerDisplay("EntryCount={EntryCount}")]
-public sealed class ParallelHashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<TKey>,MemoryPackSerializer<EqualityEmpty>,ParallelAccess>, global::Seamless.Collections.IUnorderedEnumerable<TKey> {
+public sealed class ParallelHashSet<TKey>:Collection<TKey,EqualityEmpty,global::Seamless.Collections.Serializers.Auto<TKey>,global::Seamless.Collections.Serializers.MemoryPack<EqualityEmpty>,ParallelAccess>, global::Seamless.Collections.IUnorderedEnumerable<TKey> {
     internal ParallelHashSet(CollectionStore<TKey,EqualityEmpty> collectionStore,ParallelRegionState region) : base(collectionStore,region) {
     }
     /// <summary>追加する。すでにあれば false。</summary>

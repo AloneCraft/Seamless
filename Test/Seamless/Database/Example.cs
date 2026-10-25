@@ -29,7 +29,7 @@ namespace Test.Seamless.Database.Example {
         }
 
         private static byte[] RoundTrip_Tsavorite2_0BETA3(Key0 key,byte[] valueBytes) {
-            using var store = Store.Create().Create<Key0,byte[]>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+            using var store = Store.Create().Create<Key0,byte[]>(new global::Seamless.Collections.Serializers.MemoryPack(),new global::Seamless.Collections.Serializers.MemoryPack());
             using var dict = store.Create();
 
             dict[key]=valueBytes;
