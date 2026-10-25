@@ -6,7 +6,7 @@ namespace Seamless.Collections.Tsavorite;
 /// Tsavorite 永続ストア上で高速な追加・削除・検索を行うコレクションです。等価判定はシリアライズ後のバイト列の一致です。
 /// </summary>
 [DebuggerTypeProxy(typeof(HashSetDebugView<>))]
-public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<TKey>,MemoryPackSerializer<EqualityEmpty>,ExclusiveAccess>, IHashSet<TKey>, global::System.Collections.Generic.ISet<TKey> {
+public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,global::Seamless.Collections.Serializers.Auto<TKey>,global::Seamless.Collections.Serializers.MemoryPack<EqualityEmpty>,ExclusiveAccess>, IHashSet<TKey>, global::System.Collections.Generic.ISet<TKey> {
     /// <summary>件数(O(1))。データ本体が管理している件数を返す。</summary>
     public int Count => checked((int)this.GetLongCountCore());
     /// <summary>件数(O(1))。データ本体が管理している件数を返す。</summary>
@@ -113,7 +113,7 @@ public partial class HashSet<TKey>:Collection<TKey,EqualityEmpty,AutoSerializer<
         var workListPath = this.CreateWorkListPath("hashset-intersect-ienumerable");
         using var quota = this.CreateWorkListQuota();
         try {
-            using var keysToRemove = new SerializedList<TKey,AutoSerializer<TKey>>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+            using var keysToRemove = new SerializedList<TKey,global::Seamless.Collections.Serializers.Auto<TKey>>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
             keysToRemove.StorageQuota=quota;
             quota?.EnsureTotalBytes(((IPersistedCommittable)keysToRemove).StorageBytes);
             foreach(var item in this) {

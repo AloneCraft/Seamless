@@ -14,7 +14,7 @@ public class ScanIteratorFunctions {
 
     [Fact, Trait("Category","Unit")]
     public void OnExceptionDoesNotThrow() {
-        var iter = new Dictionary<int,int,MemoryPackSerializer<int>,MemoryPackSerializer<int>>.KeyIterator();
+        var iter = new Dictionary<int,int,global::Seamless.Collections.Serializers.MemoryPack<int>,global::Seamless.Collections.Serializers.MemoryPack<int>>.KeyIterator();
         iter.OnException(new Exception("test"),0);
     }
 }

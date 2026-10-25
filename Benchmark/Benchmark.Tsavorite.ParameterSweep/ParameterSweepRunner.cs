@@ -468,7 +468,7 @@ internal abstract class ワークロード基底:IDisposable {
             SegmentSize=設定.Segmentサイズ,
             LogMemorySize=設定.Memoryサイズ,
             MutableFraction=設定.可変Fraction,
-            AutoGrowIndex=false,
+            Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>(),
         };
         if(ケース.バックエンド==パラメータスイープバックエンド.メモリ) {
             this.共通ストア=共通ストア型.CreateMemory(上限);

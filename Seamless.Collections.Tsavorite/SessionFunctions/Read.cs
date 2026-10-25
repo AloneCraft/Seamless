@@ -7,7 +7,7 @@ using global::System.Diagnostics.CodeAnalysis;
 /// </summary>
 public readonly struct Read<TValue, TStrategy>():
     ISessionFunctions<EqualityEmpty,TValue,EqualityEmpty>,
-    ICreate<Read<TValue,TStrategy>> where TStrategy : ISerializer<TValue> {
+    ICreate<Read<TValue,TStrategy>> where TStrategy : global::Seamless.Collections.Serializers.IStrategy<TValue> {
     public static Read<TValue,TStrategy> Create() => new();
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]

@@ -81,7 +81,7 @@ public sealed class TsavoriteScalableOwnership{
         Assert.Equal(Page,tuning.SegmentSize);
         Assert.Equal(Memory,tuning.LogMemorySize);
         Assert.Equal(1.0,tuning.MutableFraction);
-        Assert.False(tuning.AutoGrowIndex);
+        Assert.Equal("fixed",tuning.Growth!.Descriptor.ID);
         Assert.Null(tuning.Storage);
         Assert.Equal(checked(Index+Memory+2*Page),limits.MemoryBytes);
     }

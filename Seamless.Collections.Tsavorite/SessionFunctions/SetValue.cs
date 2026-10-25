@@ -9,7 +9,7 @@ using global::System.Diagnostics.CodeAnalysis;
 /// </summary>
 public readonly struct SetValue<TValue, TStrategy>:
     ISessionFunctions<TValue,bool,EqualityEmpty>,
-    ICreate<SetValue<TValue,TStrategy>> where TStrategy : ISerializer<TValue> {
+    ICreate<SetValue<TValue,TStrategy>> where TStrategy : global::Seamless.Collections.Serializers.IStrategy<TValue> {
     public static SetValue<TValue,TStrategy> Create() => new();
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]

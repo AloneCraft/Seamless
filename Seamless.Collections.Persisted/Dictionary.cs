@@ -68,18 +68,18 @@ where TKey : notnull {
     internal IPersistedCommittable Committable => (IPersistedCommittable)this.dictionary;
 
     private static IPersistedDictionary<TKey,TValue> CreateCore(string path,long initialCapacity,long initialDataCapacity,StorageTuning? tuning) {
-        // キーと値の両方が固定長なら、AutoSerializer は BlittableDictionary と同じ生バイトを書く(リフレクション不要)。
+        // キーと値の両方が固定長なら、global::Seamless.Collections.Serializers.Auto は BlittableDictionary と同じ生バイトを書く(リフレクション不要)。
         // どちらかが参照を含むときは、従来どおり両方とも MemoryPack にしてレコード本体の形式を変えない。
         if(!RuntimeHelpers.IsReferenceOrContainsReferences<TKey>()&&!RuntimeHelpers.IsReferenceOrContainsReferences<TValue>()) {
-            return new SerializedDictionary<TKey,TValue,AutoSerializer<TKey>,AutoSerializer<TValue>>(path,initialCapacity,initialDataCapacity,tuning);
+            return new SerializedDictionary<TKey,TValue,global::Seamless.Collections.Serializers.Auto<TKey>,global::Seamless.Collections.Serializers.Auto<TValue>>(path,initialCapacity,initialDataCapacity,tuning);
         }
 
-        return new SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>(path,initialCapacity,initialDataCapacity,tuning);
+        return new SerializedDictionary<TKey,TValue,global::Seamless.Collections.Serializers.MemoryPack<TKey>,global::Seamless.Collections.Serializers.MemoryPack<TValue>>(path,initialCapacity,initialDataCapacity,tuning);
     }
 }
 
 public class SerializedDictionary<TKey, TValue>
-    :SerializedDictionary<TKey,TValue,MemoryPackSerializer<TKey>,MemoryPackSerializer<TValue>>
+    :SerializedDictionary<TKey,TValue,global::Seamless.Collections.Serializers.MemoryPack<TKey>,global::Seamless.Collections.Serializers.MemoryPack<TValue>>
     where TKey : struct
     where TValue : struct {
     public SerializedDictionary(string path,long initialCapacity = 16,long initialDataCapacity = 4096)
@@ -92,7 +92,7 @@ public class SerializedDictionary<TKey, TValue>
 }
 
 public sealed class BlittableDictionary<TKey, TValue>
-    :SerializedDictionary<TKey,TValue,BlittableSerializer<TKey>,BlittableSerializer<TValue>>
+    :SerializedDictionary<TKey,TValue,global::Seamless.Collections.Serializers.Blittable<TKey>,global::Seamless.Collections.Serializers.Blittable<TValue>>
     where TKey : unmanaged
     where TValue : unmanaged {
     public BlittableDictionary(string path,long initialCapacity = 16,long initialDataCapacity = 4096)
@@ -107,11 +107,11 @@ public sealed class BlittableDictionary<TKey, TValue>
 public class SerializedDictionary<TKey, TValue, TKeySerializer, TValueSerializer>
     :SerializedList<SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>.Entry,SerializedDictionary<TKey,TValue,TKeySerializer,TValueSerializer>.EntrySerializer>, IPersistedDictionary<TKey,TValue>
     where TKey : notnull
-    where TKeySerializer : ISerializer<TKey>
-    where TValueSerializer : ISerializer<TValue> {
+    where TKeySerializer : global::Seamless.Collections.Serializers.IStrategy<TKey>
+    where TValueSerializer : global::Seamless.Collections.Serializers.IStrategy<TValue> {
     public readonly record struct Entry(TKey Key,TValue Value);
 
-    public readonly struct EntrySerializer:ISerializer<Entry> {
+    public readonly struct EntrySerializer:global::Seamless.Collections.Serializers.IStrategy<Entry> {
         public static ReadOnlySpan<byte> Serialize(ref Entry value)=>SerializeOwned(ref value);
 
         internal static byte[] SerializeOwned(ref Entry value){

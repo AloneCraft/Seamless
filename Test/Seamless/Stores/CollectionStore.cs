@@ -36,7 +36,7 @@ public class CollectionStore {
     }
     [Fact,Trait("Category","Unit")]
     public void GetStatistics(){
-        var tuning=new TsavoriteTuning{IndexSize=4096,PageSize=4096,SegmentSize=65536,LogMemorySize=65536,AutoGrowIndex=false};
+        var tuning=new TsavoriteTuning{IndexSize=4096,PageSize=4096,SegmentSize=65536,LogMemorySize=65536,Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>()};
         {
             using var owner=global::Seamless.Execution.Store.CreateMemory();
             using var data=owner.CreateTsavoriteHashSet<long>("ids",tuning with{LogMemorySize=1L<<20});

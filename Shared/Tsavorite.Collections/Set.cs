@@ -221,7 +221,7 @@ public class Set {
     public void UnmanagedSet_FunctionalOperations_WithUnmanagedHashSet_KeepReturnTypesAndValues() {
         using var store = Store.Create().CreateSet<int,UnmanagedSetRecord>();
         using var set = store.Create();
-        using var keyStore = Store.Create().Create<int>(new BlittableStrategy());
+        using var keyStore = Store.Create().Create<int>(new global::Seamless.Collections.Serializers.Blittable());
         using var keys = keyStore.Create();
 
         set.Add(new UnmanagedSetRecord(1,10));

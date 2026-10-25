@@ -4,7 +4,7 @@ namespace Seamless.Collections.Persisted.Work;
 public sealed class HashDictionary<TKey,TValue>:IReadOnlyDictionary<TKey,TValue>,IDisposable where TKey:notnull{
     private readonly HashStore<KeyValuePair<TKey,TValue>,PairSerializer> store;
     internal HashDictionary(global::Seamless.Execution.Store owner,string name,IEqualityComparer<TKey> comparer,string comparerId,StorageTuning? tuning){
-        this.store=new(owner,name,"dictionary",comparerId,(path,quota)=>new Records(path,tuning,new HashKeyPolicy<TKey,AutoSerializer<TKey>>(comparer,owner.Budget),quota));
+        this.store=new(owner,name,"dictionary",comparerId,(path,quota)=>new Records(path,tuning,new HashKeyPolicy<TKey,global::Seamless.Collections.Serializers.Auto<TKey>>(comparer,owner.Budget),quota));
     }
     public int Count=>checked((int)this.GetLongCount());
     public long GetLongCount()=>this.store.Records.DistinctCount;
@@ -43,14 +43,14 @@ public sealed class HashDictionary<TKey,TValue>:IReadOnlyDictionary<TKey,TValue>
     public bool ContainsKey(TKey key){
         ArgumentNullException.ThrowIfNull(key);
         var records=this.store.Records;
-        var bytes=AutoSerializer<TKey>.Serialize(ref key);
+        var bytes=global::Seamless.Collections.Serializers.Auto<TKey>.Serialize(ref key);
         using var memory=this.store.Budget.ReserveMemory(checked(128+2L*bytes.Length));
         return records.Lookup(bytes,out _);
     }
     public bool TryGetValue(TKey key,[MaybeNullWhen(false)]out TValue value){
         ArgumentNullException.ThrowIfNull(key);
         var records=this.store.Records;
-        var bytes=AutoSerializer<TKey>.Serialize(ref key);
+        var bytes=global::Seamless.Collections.Serializers.Auto<TKey>.Serialize(ref key);
         using var keyMemory=this.store.Budget.ReserveMemory(checked(128+2L*bytes.Length));
         if(records.Lookup(bytes,out var offset)){
             using var recordMemory=this.store.Budget.ReserveMemory(checked(128+2L*records.ByteLengthAt(offset)));
@@ -77,13 +77,13 @@ public sealed class HashDictionary<TKey,TValue>:IReadOnlyDictionary<TKey,TValue>
             return payload.Slice(sizeof(int),length);
         }
     }
-    private readonly struct PairSerializer:ISerializer<KeyValuePair<TKey,TValue>>{
+    private readonly struct PairSerializer:global::Seamless.Collections.Serializers.IStrategy<KeyValuePair<TKey,TValue>>{
         public static ReadOnlySpan<byte> Serialize(ref KeyValuePair<TKey,TValue> pair){
-            var entry=new SerializedDictionary<TKey,TValue,AutoSerializer<TKey>,AutoSerializer<TValue>>.Entry(pair.Key,pair.Value);
-            return SerializedDictionary<TKey,TValue,AutoSerializer<TKey>,AutoSerializer<TValue>>.EntrySerializer.SerializeOwned(ref entry);
+            var entry=new SerializedDictionary<TKey,TValue,global::Seamless.Collections.Serializers.Auto<TKey>,global::Seamless.Collections.Serializers.Auto<TValue>>.Entry(pair.Key,pair.Value);
+            return SerializedDictionary<TKey,TValue,global::Seamless.Collections.Serializers.Auto<TKey>,global::Seamless.Collections.Serializers.Auto<TValue>>.EntrySerializer.SerializeOwned(ref entry);
         }
         public static KeyValuePair<TKey,TValue> Deserialize(ReadOnlySpan<byte> bytes){
-            var entry=SerializedDictionary<TKey,TValue,AutoSerializer<TKey>,AutoSerializer<TValue>>.EntrySerializer.Deserialize(bytes);
+            var entry=SerializedDictionary<TKey,TValue,global::Seamless.Collections.Serializers.Auto<TKey>,global::Seamless.Collections.Serializers.Auto<TValue>>.EntrySerializer.Deserialize(bytes);
             return new(entry.Key,entry.Value);
         }
     }
