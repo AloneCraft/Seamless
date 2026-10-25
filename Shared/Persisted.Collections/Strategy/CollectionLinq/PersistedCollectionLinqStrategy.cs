@@ -218,7 +218,7 @@ public readonly struct PersistedSerializedDictionaryCollectionLinqStrategy<TProv
 internal static class PersistedCollectionLinqPaths {
     public static string CreatePath<TStrategy, TElement>(string tag) {
         var directoryPath = Path.Combine(
-            Environment.CurrentDirectory,
+            global::Seamless.TestKit.TestPath.Root,
             typeof(TStrategy).Name,
             typeof(TElement).Name,
             Guid.NewGuid().ToString("N"));

@@ -353,7 +353,7 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider, TKey, TVa
 internal static class ScalablePath {
     public static string Create<TStrategy, TElement>(string tag) {
         var directory = Path.Combine(
-            Environment.CurrentDirectory,
+            global::Seamless.TestKit.TestPath.Root,
             "Scalable",
             typeof(TStrategy).Name,
             typeof(TElement).Name,

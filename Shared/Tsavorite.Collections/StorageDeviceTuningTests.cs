@@ -3,7 +3,7 @@ namespace Shared.Tsavorite.Collections;
 public class StorageDeviceTuningTests {
     [Fact]
     public void CreatePair_RandomBuffered_ReturnsDevices() {
-        var directoryPath = Path.Combine(Environment.CurrentDirectory,nameof(StorageDeviceTuningTests));
+        var directoryPath = Path.Combine(global::Seamless.TestKit.TestPath.Root,nameof(StorageDeviceTuningTests));
         Directory.CreateDirectory(directoryPath);
         try {
             var tuning = new global::Seamless.Collections.StorageTuning(

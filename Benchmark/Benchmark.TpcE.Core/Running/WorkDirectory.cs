@@ -16,6 +16,11 @@ public static class WorkDirectory{
         if(!string.IsNullOrWhiteSpace(configured)){
             return Path.GetFullPath(configured);
         }
+        var testRoot=Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT");
+        if(!string.IsNullOrWhiteSpace(testRoot)){
+            if(!Path.IsPathFullyQualified(testRoot)){throw new InvalidOperationException("SEAMLESS_TEST_DATA_ROOT must be an absolute path.");}
+            return Path.Combine(testRoot,"TpcE");
+        }
         return Path.Combine(RepositoryRoot(),"Work","TpcE");
     }
     /// <summary>実行 ID(例 20261010-153012-s1-run)。同じ秒に重なったら連番を足す。</summary>

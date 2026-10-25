@@ -7,7 +7,7 @@ public abstract class ListTestBase<TStrategy, T>
 
     private static string CreatePath([CallerMemberName] string methodName = "") {
         var directoryPath = Path.Combine(
-            Environment.CurrentDirectory,
+            global::Seamless.TestKit.TestPath.Root,
             typeof(TStrategy).Name,
             typeof(T).Name
         );
