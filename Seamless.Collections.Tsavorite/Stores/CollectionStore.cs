@@ -381,15 +381,17 @@ public abstract partial class CollectionStore<
         if(layout is null||required<=this.LogMemorySize){return;}
         var limit=Math.Min(this.Settings.LogMemorySize,layout.Owner.Limits.MemoryBytes-layout.Owner.Budget.MemoryBytes+this.LogMemorySize);
         var context=new global::Seamless.Execution.Growth.Context(global::Seamless.Execution.Growth.Resource.LogMemory,this.LogMemorySize,required,limit,
-            BytesPerItem:payloadBytes+MemoryOverflowMutableStrategy.RecordOverheadBytes,
+            ExpectedCount:layout.ExpectedCount,BytesPerItem:payloadBytes+MemoryOverflowMutableStrategy.RecordOverheadBytes,
+            RecommendedBytes:layout.Owner.ResolvedProfiles[layout.Name].Settings.LogMemoryBytes??0,
             IsSafePoint:Volatile.Read(ref this.accessorCount)<=1&&this.parallelRegion is null,AllocationUnit:this.Settings.PageSize);
         var decision=layout.Growth.Decide(context);
+        var started=global::System.Diagnostics.Stopwatch.GetTimestamp();
         if(decision.Status==global::Seamless.Execution.Growth.Status.Grow){
             // 資源予約を済ませてから論理容量を公開する。Nativeのページは書き込みに伴い遅延確保される。
             layout.Memory.Resize(checked(layout.Memory.Bytes+decision.TargetBytes-this.LogMemorySize));
             this.LogMemorySize=decision.TargetBytes;
         }
-        layout.Owner.RecordGrowthDecision(layout.Name+".log",context,decision);
+        layout.Owner.RecordGrowthDecision(layout.Name+".log",context,decision,global::System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalNanoseconds);
     }
 
     // データ本体の関所。索引の拡大・予算の予約・保存・読み込み・件数の走査・統計・詰め直しを順番に行う。
@@ -467,9 +469,11 @@ public abstract partial class CollectionStore<
         var limit=checked(this.indexBytes+Math.Max(0,budget.MemoryLimitBytes-budget.MemoryBytes));
         var context=new global::Seamless.Execution.Growth.Context(
             global::Seamless.Execution.Growth.Resource.Index,this.indexBytes,requiredBytes,limit,
-            ExpectedCount:expectedCount,BytesPerItem:64d/AverageEntriesPerBucket,
+            ExpectedCount:Math.Max(expectedCount,layout.ExpectedCount),BytesPerItem:64d/AverageEntriesPerBucket,
+            RecommendedBytes:layout.Owner.ResolvedProfiles[layout.Name].Settings.IndexBytes??0,
             IsSafePoint:Volatile.Read(ref this.accessorCount)<=1&&this.parallelRegion is null,AllocationUnit:64);
         var decision=layout.Growth.Decide(context);
+        var started=global::System.Diagnostics.Stopwatch.GetTimestamp();
         if(decision.Status==global::Seamless.Execution.Growth.Status.Grow){
             while(this.indexBytes<decision.TargetBytes){
                 if(!this.TryDoubleIndex(layout)){
@@ -478,7 +482,11 @@ public abstract partial class CollectionStore<
                 }
             }
         }
-        layout.Owner.RecordGrowthDecision(layout.Name,context,decision);
+        if(this.indexBytes>context.CurrentBytes){
+            var applied=new global::Seamless.Execution.Growth.Decision(global::Seamless.Execution.Growth.Status.Grow,this.indexBytes,decision.Reason);
+            layout.Owner.RecordGrowthDecision(layout.Name,context,applied,global::System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalNanoseconds);
+        }
+        if(decision.Status!=global::Seamless.Execution.Growth.Status.Grow){layout.Owner.RecordGrowthDecision(layout.Name,context,decision);}
     }
 
     /// <summary>索引を倍にする。拡張分のメモリを予算から先に予約し、予約できなければ拡張せずに false。関所の中で、他の操作が無いときに呼ぶ。</summary>

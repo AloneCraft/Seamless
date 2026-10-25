@@ -11,6 +11,9 @@ public sealed class Growth{
         Assert.Equal(Status.Rejected,new Policy<Doubling>().CreateController().Decide(context with{LimitBytes=64}).Status);
         Assert.Equal(Status.Deferred,new Policy<Doubling>().CreateController().Decide(context with{IsSafePoint=false}).Status);
         Assert.Equal(512,new Policy<Estimated>().CreateController().Decide(context with{RecommendedBytes=512}).TargetBytes);
+        var forecast=new Policy<Estimated>().CreateController().Decide(context with{ExpectedCount=1_000_000,BytesPerItem=128,LimitBytes=1000});
+        Assert.Equal(Status.Grow,forecast.Status);Assert.Equal(512,forecast.TargetBytes);
+        Assert.Equal(Status.Rejected,new Policy<Estimated>().CreateController().Decide(context with{RequiredBytes=1025,ExpectedCount=1_000_000,BytesPerItem=128}).Status);
     }
 
     [Fact]

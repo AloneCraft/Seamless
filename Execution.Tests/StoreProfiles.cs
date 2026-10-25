@@ -17,6 +17,9 @@ public sealed class StoreProfiles{
             Assert.True(data.LogMemorySize>8192);
             for(var index=0;index<4096;index++){Assert.Equal(index*3,items[index]);}
             Assert.Contains(owner.GrowthEvents,entry=>entry.Context.Resource==Seamless.Execution.Growth.Resource.LogMemory);
+            Assert.All(owner.GrowthEvents,entry=>Assert.True(entry.ElapsedNanoseconds>=0));
+            Assert.Equal(data.LogMemorySize,owner.GetCurrentSettings("dictionary").LogMemoryBytes);
+            Assert.Equal(data.Store.IndexSize*64,owner.GetCurrentSettings("dictionary").IndexBytes);
             Assert.True(owner.Budget.MemoryBytes<=owner.Limits.MemoryBytes);
         }
         using(var owner=global::Seamless.Execution.Store.CreateMemory(limits:new(){MemoryBytes=32768})){
@@ -25,6 +28,8 @@ public sealed class StoreProfiles{
             Assert.True(inserted>0);
             for(var index=0;index<inserted;index++){Assert.Equal(index,items[index]);}
             Assert.True(owner.Budget.MemoryBytes<=32768);
+            Assert.Equal(data.LogMemorySize,owner.GetCurrentSettings("dictionary").LogMemoryBytes);
+            Assert.Equal(data.Store.IndexSize*64,owner.GetCurrentSettings("dictionary").IndexBytes);
         }
     }
     [Fact]
@@ -43,6 +48,7 @@ public sealed class StoreProfiles{
             }else{
                 Assert.True(data.Store.IndexSize*64>64);
                 Assert.NotEmpty(store.GrowthEvents);
+                if(policy.Descriptor.ID=="estimated"){Assert.Contains(store.GrowthEvents,entry=>entry.Context.ExpectedCount==1_000_000);}
             }
         }
     }
