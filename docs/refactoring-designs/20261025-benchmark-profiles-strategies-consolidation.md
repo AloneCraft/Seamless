@@ -1,4 +1,4 @@
-# プロファイル・測定履歴・ストラテジー統一とプロジェクト整理
+﻿# プロファイル・測定履歴・ストラテジー統一とプロジェクト整理
 
 ## 背景
 
@@ -107,3 +107,40 @@ Minimum/Fixed/拡張/独自戦略/状態分離/予算/保存再開、プロフ�
 ## 実装と検証の記録
 
 - 開始時の差分を保存。CIMアクセス不可のためメモリ監視にはWindows APIを使用する。
+
+### 2026-10-25 第1段階以後の観測
+
+- `ac1da82b`: Minimum/Growth/Serializer APIの移行。Execution 33件成功。
+- 共通DB版4を追加。SQLite Backup APIによる旧Dynamic版3のバックアップと明示移行を実施。原本は `Work/UI/Benchmark.Dynamic.db`、バックアップは `Work/UI/Benchmark.Dynamic.db.backup-20261025T0619065815980Z`。共有先は `Work/Benchmark/Benchmark.db`。移行テストの整合性・外部キー・原本保全・同時書込も成功。
+- Dynamic/ScalableのDebugビルド成功。Scalableの独立Coreは、小規模のメモリ/ファイル/再構成/外部ソート等6件成功。
+- 旧検証器の25個の手書きループを `Benchmark.Dynamic.Core/FixedCases/chains.json` に式と原文ハッシュ付きで移植。0/1/16件でSystemとの一致を確認し、16件入力のSystem/FLinq/Idealを各7回実測してDB保存。原本の削除は残る回帰ケースの対応確認後とする。
+- Fact: Tsavoriteは大きなログ上限でも開始時の常駐ページ本体が8192バイトだった。Nativeのリング上限と論理ログ容量を分離し、最小からのログ拡張を追加。4096件の全件保持、予算停止後の全件保持を含むExecution 34件成功。
+- Fact: Persistedの辞書には削除APIがない。Scalableの `Collections.AppendOnly` をTsavoriteの `Collections` と区別する。削除未対応を隠して同じ処理として比較しない。
+- Fact: 4096件・Tsavorite/Temporary・FilterAggregate・固定方式で、索引64→4096バイトの1要因だけを変更した選定・別シード検証を各7回測定した。候補採用は両方のMinimum対照比較が5%以上改善した場合だけ許可する。
+- Decision: Fixedが固定するのは調整対象の常駐索引・ログ設定。Persistedのオープンアドレッシング索引を含むファイル形式上の増加は、通常のディスク増加として予算内で継続する。件数を固定する意味にはしない。
+- 走査契約の同値3定義を `Seamless.Collections.Iteration.IStrategy<TSelf,T>` に統一し、生成器と利用側を同時更新中。
+- Codecの静的契約を `Seamless.Execution.Codecs.IStrategy<TSelf,T>`、実行時境界を `IAdapter<T>` とする。レジストリの型選択・反射型のCanonical実装は実行時選択が必要なためアダプター側へ保持する。
+- 外部Tsavoriteの `ISessionFunctions` と `IScanIteratorFunctions` は外部が要求するインスタンス契約を維持する。内部のシリアライズと要素処理は型付き静的契約へ接続する。
+
+### 統合前の実装で確認した問題と移行時の検査条件
+
+以下は旧実装のコードと開始時点の `7f9669cd` を確認した事実である。修正を移植したことと、統合全体の検証完了は区別する。
+
+| 問題 | 確認した根拠 | 移行先で守る条件 |
+|---|---|---|
+| Persisted/Tsavoriteが実ストレージでない | 旧 `動的検証ランナー.テスト入力を生成` はArray/List/Range以外を `配列.Where(static _=>true)` にする | 実ストアで実行し、実際のバックエンド・設定を保存する |
+| 存在しない理想コードの時間を作る | 同ランナーは理想がない場合 `idealTicks=(long)(swOpt.ElapsedTicks*0.95)`、割り当て量も推定値にする | 理想がある場合だけ実測する。存在しない時間や割り当て量を作らない |
+| 速度による再試行打ち切りが片側に有利 | 同ランナーはFLinqが比較対象の1.05倍以内になった場合に再試行を終える | 結果の良否で測定回数を選ばず、既定7回の有効値と中央値・ばらつきを保存する |
+| 理想という名前でも全体が手書き最適実装とは限らない | 旧 `チェーン生成器` のGroupBy_Sum/OrderByDescending/Take/ToArrayは末尾が `items.OrderByDescending(...).Take(12).ToArray()` | 原文は保持する。結果一致だけで最適性を認定しない。手書き参照実装であることを表示する |
+| 最適化なしFLinqが時間測定から抜ける | 開始時点の `MeasurementEngine.MeasuredImplementations` はSystem/FLinq/ZLinqのみ | FLinqUnoptimizedも同じ入力・測定方式で記録する |
+| 旧ケースの意味を近似して移植している | `CoreCorpusChainBuilder` はSelectの `x*3+1` を `x*3`、By演算を恒等キーにする | 近似IRによる検査と原式の回帰検査を区別する。`LegacyChainCatalog` に原式56件を保持し、組み合わせを検査する |
+
+性能の未確定候補: 共有DBの実行 `12cfb00126a241739d7c815e0ed8a4f9`、16件・chain-05(Where/FirstOrDefault)は7測定の中央値がFLinq 37.568ns、FLinqUnoptimized 34.953ns、割り当て112B/操作で同じだった。比率1.075、各経路の変動係数は約0.08/0.09である。単一実行の差から性能不具合や改善不足を確定せず、同条件の独立した再測定を必要とする。原測定は共有DBに保持する。
+
+統合時の失敗: 移植テスト22件中、IEnumerable経由の走査用生成コードを検査する2件が失敗した。元のPersistedプロジェクトでは同じ検査が成功した。移植時にAsXの型付きローカル変数を単純な式本体へ変えたため、生成器が元の具象型まで見通した。型消去の境界を元と同じ形に戻し、旧機能の不具合とは分類しない。型消去を検査するテストでは境界のソース形状も保持する。
+
+- 型消去の移植修正後、統合先の固有テスト22件がすべて成功した。最適化なしFLinqを測定対象に追加したため、通常実行の測定件数・実装名を検査する期待値も4系列へ追従する。
+- `030afeb0`: 静的Codec/Iteration/Equality契約と最小常駐ログの拡張。Execution 36件成功。測定済みプロファイルの適用範囲は同梱JSONの条件に限定する。
+- ライブ保存、通常のリポジトリ、詳細/共有履歴の原子的なチェックポイントを検査する9件が成功した。共通履歴の書込を意図的に失敗させ、詳細/共有の両方がロールバックすることも確認した。
+- 元Dynamic DBの実データはRun 0件・測定0件だった。原本の版3を保持し、共有先の版4で整合性を再確認した。通常UIとVerificationの既存DBも `Work/Benchmark/Legacy` にSQLite Backup APIで保全済みである。
+- 長時間の組み合わせ性能検査を含む途中の2実行は、機能回帰と原式の検査を分けるため中止した。これらは合格実績に含めない。
