@@ -5,6 +5,18 @@ namespace Execution.Tests;
 
 public sealed class ProfileResolver{
     [Fact]
+    public void BundledEvidenceIsNarrowAndCarriesGrowth(){
+        var profile=Assert.Single(ProfileCatalog.Bundled.Profiles,static value=>value.ID=="tsavorite-file-int32-filter-4096-v1");
+        var result=Target.Resolve(Profile.Optimized,profile.Conditions,new());
+        Assert.Equal(Profile.Optimized,result.Applied);Assert.Equal("fixed",result.Growth!.ID);
+        Assert.Equal(4,result.EvidenceRunIDs.Length);
+        Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,profile.Conditions with{ElementType="other"},new()).Applied);
+        var unknown=profile with{Growth=new("user-defined",1,"{}")};
+        var catalog=new ProfileCatalog([unknown]);
+        Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,profile.Conditions,new(),supplied:catalog).Applied);
+        Assert.Equal(Profile.Optimized,Target.Resolve(Profile.Optimized,profile.Conditions,new(),supplied:catalog,explicitGrowth:new Seamless.Execution.Growth.Policy<Seamless.Execution.Growth.Doubling>()).Applied);
+    }
+    [Fact]
     public void Resolve(){
         var request=new ProfileRequest("Tsavorite",StoreKind.Temporary,"Int32",1_000_000);
         var minimum=Target.Resolve(Profile.Minimum,request,new());

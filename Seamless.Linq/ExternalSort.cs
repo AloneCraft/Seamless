@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Buffers.Binary;
 using Seamless.Execution;
 namespace Seamless.Linq;
@@ -16,7 +16,7 @@ internal static class ExternalSort<T,TKey>{
         });
         var threshold=Math.Max(1,(scope.Budget.MemoryLimitBytes-scope.Budget.MemoryBytes)/3);
         var canEncode=scope.Codecs.CanEncode<(long,TKey,T)>();
-        IBinaryCodec<(long,TKey,T)>? codec=null;
+        global::Seamless.Execution.Codecs.IAdapter<(long,TKey,T)>? codec=null;
         if(canEncode){codec=scope.Codecs.Get<(long,TKey,T)>();}
         long position=0,values=0;
         TemporaryFile? final=null;
@@ -68,7 +68,7 @@ internal static class ExternalSort<T,TKey>{
             }catch{file.Dispose();throw;}
         }
     }
-    private static void AddRun(TemporaryFile file,TemporaryFile?[] runs,ExecutionScope scope,IBinaryCodec<(long,TKey,T)> codec,IComparer<Row> comparer){
+    private static void AddRun(TemporaryFile file,TemporaryFile?[] runs,ExecutionScope scope,global::Seamless.Execution.Codecs.IAdapter<(long,TKey,T)> codec,IComparer<Row> comparer){
         try{
             for(var level=0;level<runs.Length;level++){
                 if(runs[level] is null){runs[level]=file;return;}
@@ -79,7 +79,7 @@ internal static class ExternalSort<T,TKey>{
             throw new OverflowException("The number of sort runs exceeds Int64 capacity.");
         }catch{file.Dispose();throw;}
     }
-    private static TemporaryFile Merge(ExecutionScope scope,TemporaryFile first,TemporaryFile second,IBinaryCodec<(long,TKey,T)> codec,IComparer<Row> comparer){
+    private static TemporaryFile Merge(ExecutionScope scope,TemporaryFile first,TemporaryFile second,global::Seamless.Execution.Codecs.IAdapter<(long,TKey,T)> codec,IComparer<Row> comparer){
         var output=scope.CreateTemporaryFile();
         try{
             using var left=new Cursor(scope,first,codec);
@@ -98,7 +98,7 @@ internal static class ExternalSort<T,TKey>{
         }catch{output.Dispose();throw;}
         finally{first.Dispose();second.Dispose();}
     }
-    private static void Write(ExecutionScope scope,TemporaryFile file,IBinaryCodec<(long,TKey,T)> codec,Row row){
+    private static void Write(ExecutionScope scope,TemporaryFile file,global::Seamless.Execution.Codecs.IAdapter<(long,TKey,T)> codec,Row row){
         var tuple=(row.Position,row.Key,row.Value);
         using var buffer=scope.Rent(codec.GetEncodedLength(tuple));
         codec.Encode(tuple,buffer.Memory.Span);
@@ -109,9 +109,9 @@ internal static class ExternalSort<T,TKey>{
     private sealed class Cursor:IDisposable{
         private readonly ExecutionScope scope;
         private readonly TemporaryFile file;
-        private readonly IBinaryCodec<(long,TKey,T)> codec;
+        private readonly global::Seamless.Execution.Codecs.IAdapter<(long,TKey,T)> codec;
         private readonly ResourceReservation memory;
-        public Cursor(ExecutionScope scope,TemporaryFile file,IBinaryCodec<(long,TKey,T)> codec){
+        public Cursor(ExecutionScope scope,TemporaryFile file,global::Seamless.Execution.Codecs.IAdapter<(long,TKey,T)> codec){
             this.scope=scope;this.file=file;this.codec=codec;
             this.memory=scope.Budget.ReserveMemory(0);
             file.Position=0;

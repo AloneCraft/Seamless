@@ -46,7 +46,7 @@ public sealed record ProfileRequest(string Backend,StoreKind StoreKind,string El
 
 public sealed record MeasuredProfile(
     string ID,int Version,ProfileRequest Conditions,long MaximumCount,ProfileSettings Settings,
-    string[] EvidenceRunIDs,bool IndependentlyValidated=false){
+    string[] EvidenceRunIDs,bool IndependentlyValidated=false,Growth.Descriptor? Growth=null){
     public bool AppliesTo(ProfileRequest request)=>this.Conditions.Backend==request.Backend
         &&this.Conditions.StoreKind==request.StoreKind
         &&(this.Conditions.ElementType=="*"||this.Conditions.ElementType==request.ElementType)
@@ -95,11 +95,11 @@ public sealed class ProfileCatalog{
     private sealed record CatalogDocument(int Version,MeasuredProfile[] Profiles);
 }
 
-public sealed record ProfileResolution(Profile Requested,Profile Applied,string? ProfileID,int? ProfileVersion,ProfileSettings Settings,string Reason,string[] EvidenceRunIDs);
+public sealed record ProfileResolution(Profile Requested,Profile Applied,string? ProfileID,int? ProfileVersion,ProfileSettings Settings,string Reason,string[] EvidenceRunIDs,Growth.Descriptor? Growth=null);
 
 public static class ProfileResolver{
     public static ProfileResolution Resolve(Profile requested,ProfileRequest request,StoreLimits limits,
-        ProfileSettings? explicitSettings=null,ProfileCatalog? supplied=null){
+        ProfileSettings? explicitSettings=null,ProfileCatalog? supplied=null,Growth.Policy? explicitGrowth=null){
         ArgumentOutOfRangeException.ThrowIfNegative(request.ElementCount);
         explicitSettings??=new();
         explicitSettings.Validate();
@@ -111,6 +111,9 @@ public static class ProfileResolver{
         if(requested!=Profile.Optimized){throw new ArgumentOutOfRangeException(nameof(requested));}
         var candidate=supplied?.Find(request)??ProfileCatalog.Bundled.Find(request);
         if(candidate is null){return new(requested,Profile.Minimum,null,null,selected,"No independently validated profile matches these conditions.",[]);}
+        if(candidate.Growth is not null&&explicitGrowth is null&&Growth.Policy.FromDescriptor(candidate.Growth) is null){
+            return new(requested,Profile.Minimum,null,null,selected,"The profile growth strategy is unavailable. Supply an explicit strategy.",[]);
+        }
         var optimized=minimum.OverrideWith(candidate.Settings).OverrideWith(explicitSettings);
         optimized.Validate();
         try{
@@ -118,7 +121,7 @@ public static class ProfileResolver{
         }catch(ResourceLimitException){
             return new(requested,Profile.Minimum,null,null,selected,"The optimized profile exceeds the resource budget.",[]);
         }
-        return new(requested,Profile.Optimized,candidate.ID,candidate.Version,optimized,"An independently validated measured profile was selected.",candidate.EvidenceRunIDs);
+        return new(requested,Profile.Optimized,candidate.ID,candidate.Version,optimized,"An independently validated measured profile was selected.",candidate.EvidenceRunIDs,explicitGrowth?.Descriptor??candidate.Growth);
     }
     public static ProfileSettings Minimum(string backend)=>backend switch{
         "Tsavorite"=>new(){IndexBytes=64,PageBytes=4096,SegmentBytes=4096,LogMemoryBytes=8192,MutableFraction=1},
@@ -132,9 +135,11 @@ public static class ProfileResolver{
 }
 
 public sealed record StoreOptions{
+    private Growth.Policy? growth;
     public Profile Profile{get;init;}=Profile.Minimum;
     public ProfileCatalog? Profiles{get;init;}
-    public Growth.Policy Growth{get;init;}=new Growth.Policy<Growth.Doubling>();
+    public Growth.Policy Growth{get=>this.growth??new Growth.Policy<Growth.Doubling>();init=>this.growth=value;}
+    internal Growth.Policy? ExplicitGrowth=>this.growth;
     public string Workload{get;init;}="*";
-    public string Environment{get;init;}="*";
+    public string Environment{get;init;}=ProfileEnvironment.Current;
 }

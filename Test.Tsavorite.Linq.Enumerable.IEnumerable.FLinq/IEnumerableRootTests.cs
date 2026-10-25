@@ -1,4 +1,4 @@
-using Shared.Linq;
+﻿using Shared.Linq;
 
 namespace Test.Tsavorite.Linq.Enumerable.IEnumerable.FLinq;
 
@@ -16,7 +16,7 @@ public sealed class IEnumerableRootTests {
             Assert.Equal(2,CountEvenImpl());
             var generated=GeneratedFor(nameof(CountEvenImpl));
             Assert.DoesNotContain("TsavoriteHashSetIterateState",generated);
-            Assert.DoesNotContain("IHashSetIterateStrategy",generated);
+            Assert.DoesNotContain("Seamless.Collections.Iteration.IStrategy",generated);
             Assert.DoesNotContain(".Iterate(ref __TsavoriteHashSetIterateState",generated);
         } finally {
             source=null;

@@ -1,4 +1,4 @@
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -9,14 +9,15 @@ public sealed class CodecRegistry{
     private readonly Dictionary<Type,object> codecs=[];
     private readonly Dictionary<Type,MemberInfo[]> members=[];
     private bool frozen;
-    public void Register<T>(IBinaryCodec<T> codec){
+    public void Register<T,TStrategy>(TStrategy strategy) where TStrategy:struct,Codecs.IStrategy<TStrategy,T>{this.Register<T>(new Codecs.Adapter<T,TStrategy>(strategy));}
+    public void Register<T>(global::Seamless.Execution.Codecs.IAdapter<T> codec){
         ArgumentNullException.ThrowIfNull(codec);
         if(this.frozen){throw new InvalidOperationException("Codecs cannot change after a scope has resolved its first codec.");}
         ArgumentException.ThrowIfNullOrWhiteSpace(codec.FormatId);
         this.registered[typeof(T)]=new RegisteredCodec<T>(codec);
     }
-    public IBinaryCodec<T> Get<T>(){
-        if(this.codecs.TryGetValue(typeof(T),out var cached)){return(IBinaryCodec<T>)cached;}
+    public global::Seamless.Execution.Codecs.IAdapter<T> Get<T>(){
+        if(this.codecs.TryGetValue(typeof(T),out var cached)){return(global::Seamless.Execution.Codecs.IAdapter<T>)cached;}
         var schema=this.Schema(typeof(T),new HashSet<Type>());
         this.frozen=true;
         var codec=new CanonicalCodec<T>(this,SHA256.HashData(Encoding.UTF8.GetBytes("seamless-binary-v1|"+schema)));
@@ -156,8 +157,8 @@ public sealed class CodecRegistry{
         public abstract void Write(object? value,ref Encoder writer);
         public abstract object? Read(ref Decoder reader);
     }
-    private sealed class RegisteredCodec<T>(IBinaryCodec<T> codec):RegisteredCodec{
-        private readonly IBinaryCodec<T> codec=codec;
+    private sealed class RegisteredCodec<T>(global::Seamless.Execution.Codecs.IAdapter<T> codec):RegisteredCodec{
+        private readonly global::Seamless.Execution.Codecs.IAdapter<T> codec=codec;
         public override string FormatId=>this.codec.FormatId;
         public override void Write(object? value,ref Encoder writer){
             var typed=(T)value!;
@@ -169,7 +170,7 @@ public sealed class CodecRegistry{
         }
         public override object? Read(ref Decoder reader)=>this.codec.Decode(reader.Bytes(reader.Int32()));
     }
-    private sealed class CanonicalCodec<T>(CodecRegistry registry,byte[] header):IBinaryCodec<T>{
+    private sealed class CanonicalCodec<T>(CodecRegistry registry,byte[] header):global::Seamless.Execution.Codecs.IAdapter<T>{
         private readonly CodecRegistry registry=registry;
         private readonly byte[] header=header;
         public string FormatId=>"seamless-binary-v1:"+Convert.ToHexString(this.header);

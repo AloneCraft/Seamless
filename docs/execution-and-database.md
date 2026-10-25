@@ -1,4 +1,4 @@
-# Execution、LINQ、Databaseの現在仕様
+﻿# Execution、LINQ、Databaseの現在仕様
 
 ## ExecutionScope
 
@@ -50,11 +50,11 @@ foreach(var row in stored) {
 Codecの表現には形式版と型スキーマのSHA-256を含めます。整数はlittle endian、`float`／`double` はビット表現、`decimal` は4整数、文字列はUTF-16コード単位で決定的に符号化します。構造体はフィールド単位で処理し、未定義パディングを含めません。匿名型はプロパティ構造からCodecを作ります。一般クラスは明示Codecが必要です。
 
 ```csharp
-scope.Codecs.Register(new SerializerCodec<MyRecord, MySerializer>(
-    "my-record-v2"));
+scope.Codecs.Register(new Seamless.Execution.Codecs.Adapter<MyRecord, Seamless.Execution.Codecs.Serializer<MyRecord, MySerializer>>(new(
+    "my-record-v2")));
 ```
 
-`SerializerCodec<T,TSerializer>` は既存の `ISerializer<T>` を適合させます。`FormatId` は読み書き互換性が変わるたびに更新してください。スコープが最初のCodecを解決した時点でレジストリ全体が固定され、それ以後は登録内容を変更できません。必要なCodecはクエリ実行前に登録します。
+`Codecs.Serializer<T,TSerializer>` は既存の `Seamless.Collections.Serializers.IStrategy<T>` を適合させます。`FormatId` は読み書き互換性が変わるたびに更新してください。スコープが最初のCodecを解決した時点でレジストリ全体が固定され、それ以後は登録内容を変更できません。必要なCodecはクエリ実行前に登録します。
 
 スコープ外でFLinqが `System.Linq` を最適化する場合は、元の.NET等値性を維持します。たとえば.NETでは `+0.0f` と `-0.0f` は既定比較で等しい一方、スコープ付きクエリではビット表現が異なるため別キーです。この2種類の意味論は検証結果の `Semantics` に別の値で記録します。
 
