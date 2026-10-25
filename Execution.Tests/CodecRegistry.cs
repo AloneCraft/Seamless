@@ -1,7 +1,16 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using Registry=Seamless.Execution.CodecRegistry;
 namespace Execution.Tests;
 public sealed class CodecRegistry{
+    [Fact]
+    public void StaticSerializerAdapter(){
+        var registry=new Seamless.Execution.CodecRegistry();
+        registry.Register<int,Seamless.Execution.Codecs.Serializer<int,Seamless.Collections.Serializers.Blittable<int>>>(new("int-static-v1"));
+        var codec=registry.Get<int>();
+        var bytes=new byte[codec.GetEncodedLength(123)];codec.Encode(123,bytes);
+        Assert.Equal(123,codec.Decode(bytes));
+    }
+
     [Fact]public void Get(){
         {
             var registry=new Registry();
@@ -47,7 +56,7 @@ public sealed class CodecRegistry{
         var bytes=Bytes(codec,value);
         Assert.Equal(bytes,Bytes(codec,codec.Decode(bytes)));
     }
-    private static byte[] Bytes<T>(Seamless.Execution.IBinaryCodec<T> codec,T value){
+    private static byte[] Bytes<T>(global::Seamless.Execution.Codecs.IAdapter<T> codec,T value){
         var bytes=new byte[codec.GetEncodedLength(value)];codec.Encode(value,bytes);return bytes;
     }
     [StructLayout(LayoutKind.Sequential)]private struct Padded{public byte A;public int B;}

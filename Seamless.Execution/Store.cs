@@ -74,13 +74,28 @@ public sealed class Store:IDisposable{
     public IReadOnlyDictionary<string,ProfileResolution> ResolvedProfiles=>new Dictionary<string,ProfileResolution>(this.profiles,StringComparer.Ordinal);
     public IReadOnlyList<Growth.Event> GrowthEvents=>this.growthEvents.ToArray();
     public IReadOnlyDictionary<string,Growth.Event> GrowthDecisions=>new Dictionary<string,Growth.Event>(this.growthDecisions,StringComparer.Ordinal);
-    public ProfileResolution ResolveProfile(string component,string backend,string elementType,long expectedCount=0,ProfileSettings? explicitSettings=null){
+    public ProfileResolution ResolveProfile(string component,string backend,string elementType,long expectedCount=0,ProfileSettings? explicitSettings=null,Growth.Policy? explicitGrowth=null){
         ValidateName(component);
         var resolution=ProfileResolver.Resolve(this.Options.Profile,
             new(backend,this.Kind,elementType,expectedCount,this.Options.Workload,this.Options.Environment),
-            this.Limits,explicitSettings,this.Options.Profiles);
+            this.Limits,explicitSettings,this.Options.Profiles,explicitGrowth??this.Options.ExplicitGrowth);
         this.profiles[component]=resolution;
         return resolution;
+    }
+    public Growth.Policy GetGrowth(string component){
+        if(this.Options.ExplicitGrowth is not null){return this.Options.ExplicitGrowth;}
+        if(this.profiles.TryGetValue(component,out var profile)&&profile.Growth is not null){
+            return Growth.Policy.FromDescriptor(profile.Growth)??throw new InvalidOperationException("The resolved growth strategy is unavailable.");
+        }
+        return this.Options.Growth;
+    }
+    public ProfileSettings GetCurrentSettings(string component){
+        var settings=this.profiles[component].Settings;
+        foreach(var entry in this.growthEvents.Where(entry=>entry.Component==component||entry.Component==component+".log")){
+            if(entry.Context.Resource==Growth.Resource.Index){settings=settings with{IndexBytes=entry.Decision.TargetBytes};}
+            if(entry.Context.Resource==Growth.Resource.LogMemory){settings=settings with{LogMemoryBytes=entry.Decision.TargetBytes};}
+        }
+        return settings;
     }
     public void RecordGrowthDecision(string component,Growth.Context context,Growth.Decision decision){
         var entry=new Growth.Event(component,DateTimeOffset.UtcNow,context,decision);

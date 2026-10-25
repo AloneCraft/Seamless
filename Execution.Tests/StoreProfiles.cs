@@ -7,6 +7,27 @@ namespace Execution.Tests;
 
 public sealed class StoreProfiles{
     [Fact]
+    public void MemoryLogGrowsWithoutLosingDataAndRespectsBudget(){
+        using(var owner=global::Seamless.Execution.Store.CreateMemory()){
+            using var data=owner.CreateTsavorite<int,int>("dictionary");
+            Assert.Equal(8192,data.LogMemorySize);
+            Assert.Equal(8192,data.Store.Log.MemorySizeBytes);
+            using var items=data.Create();
+            for(var index=0;index<4096;index++){items.Add(index,index*3);}
+            Assert.True(data.LogMemorySize>8192);
+            for(var index=0;index<4096;index++){Assert.Equal(index*3,items[index]);}
+            Assert.Contains(owner.GrowthEvents,entry=>entry.Context.Resource==Seamless.Execution.Growth.Resource.LogMemory);
+            Assert.True(owner.Budget.MemoryBytes<=owner.Limits.MemoryBytes);
+        }
+        using(var owner=global::Seamless.Execution.Store.CreateMemory(limits:new(){MemoryBytes=32768})){
+            using var data=owner.CreateTsavorite<int,int>("dictionary");using var items=data.Create();var inserted=0;
+            Assert.Throws<OutOfMemoryException>(()=>{for(;inserted<4096;inserted++){items.Add(inserted,inserted);}});
+            Assert.True(inserted>0);
+            for(var index=0;index<inserted;index++){Assert.Equal(index,items[index]);}
+            Assert.True(owner.Budget.MemoryBytes<=32768);
+        }
+    }
+    [Fact]
     public void MinimumStartsSmallAndGrowthIsIndependent(){
         foreach(var policy in new Policy[]{new Policy<Fixed>(),new Policy<Doubling>(),new Policy<Estimated>()}){
             using var store=CommonStore.CreateMemory(options:new(){Growth=policy});

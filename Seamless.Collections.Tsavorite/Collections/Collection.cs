@@ -1,4 +1,4 @@
-namespace Seamless.Collections.Tsavorite;
+﻿namespace Seamless.Collections.Tsavorite;
 
 /// <summary>
 /// 操作用オブジェクトの共通基底。<typeparamref name="TMode"/> はシングル用(<see cref="ExclusiveAccess"/>)か
@@ -1309,7 +1309,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
     // 現在のチャンク(既定 4096 要素)を読み切ってから止まる — 全走査系(Count/ToList/Sum 等)には無関係。
     /// <summary>キーを 1 つずつ <typeparamref name="TStrategy"/> へ渡す(HashSet 系の Iterate。FLinq の生成コードが呼ぶ)。</summary>
     private protected void IterateKeysCore<TStrategy>(ref TStrategy strategy)
-        where TStrategy : struct, IHashSetIterateStrategy<TStrategy,TKey> {
+        where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TKey> {
         this.VerifyThreadAffinity(nameof(this.IterateKeysCore));
         var iterator = new KeyIterator();
         var cursor = 0L;
@@ -1336,7 +1336,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
     }
     /// <summary>値を 1 つずつ <typeparamref name="TStrategy"/> へ渡す(Set 系の Iterate。FLinq の生成コードが呼ぶ)。</summary>
     private protected void IterateValuesCore<TStrategy>(ref TStrategy strategy)
-        where TStrategy : struct, ISetIterateStrategy<TStrategy,TValue> {
+        where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TValue> {
         this.VerifyThreadAffinity(nameof(this.IterateValuesCore));
         var iterator = new IterateValuesAdapter<TStrategy>(strategy);
         var cursor = 0L;
@@ -1347,7 +1347,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
         strategy=iterator.Strategy;
     }
     private sealed class IterateValuesAdapter<TStrategy>(TStrategy strategy):IScanIteratorFunctions
-        where TStrategy : struct, ISetIterateStrategy<TStrategy,TValue> {
+        where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TValue> {
         public TStrategy Strategy = strategy;
         public bool Reader<TSourceLogRecord>(
             in TSourceLogRecord logRecord,

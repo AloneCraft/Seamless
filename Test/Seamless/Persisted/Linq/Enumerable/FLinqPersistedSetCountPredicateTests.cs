@@ -1,4 +1,4 @@
-using Seamless.FLinq;
+﻿using Seamless.FLinq;
 
 using Test.System.Linq.Intercept;
 
@@ -24,7 +24,7 @@ public class FLinqPersistedSetCountPredicateTests {
 
             var generated = GeneratedInterceptorAssert.SourceFor<FLinqPersistedSetCountPredicateTests>(nameof(CountEvenImpl));
             Assert.Contains("PersistedSetIterateState",generated);
-            Assert.Contains("ISetIterateStrategy",generated);
+            Assert.Contains("Seamless.Collections.Iteration.IStrategy",generated);
             Assert.Contains(".Iterate(ref __PersistedSetIterateState",generated);
         } finally {
             source=null;

@@ -26,6 +26,12 @@ public interface IStrategy<TSelf> where TSelf:struct,IStrategy<TSelf>{
 public abstract class Policy{
     public abstract Descriptor Descriptor{get;}
     public abstract Controller CreateController();
+    public static Policy? FromDescriptor(Descriptor descriptor){
+        if(descriptor.Version!=1){return null;}
+        using var parameters=JsonDocument.Parse(descriptor.ParametersJSON);
+        if(parameters.RootElement.ValueKind!=JsonValueKind.Object||parameters.RootElement.EnumerateObject().Any()){return null;}
+        return descriptor.ID switch{"fixed"=>new Policy<Fixed>(),"doubling"=>new Policy<Doubling>(),"estimated"=>new Policy<Estimated>(),_=>null};
+    }
 }
 
 public sealed class Policy<TStrategy>:Policy where TStrategy:struct,IStrategy<TStrategy>{

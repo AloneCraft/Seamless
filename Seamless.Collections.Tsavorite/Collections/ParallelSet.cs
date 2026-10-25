@@ -1,4 +1,4 @@
-namespace Seamless.Collections.Tsavorite;
+﻿namespace Seamless.Collections.Tsavorite;
 
 /// <summary>
 /// キーを持つレコードの集合のマルチ用の操作用オブジェクト。並列区間(<see cref="SetStore{TKey,TRecord}.BeginParallel"/>)の中で、スレッドごとに作る。
@@ -28,7 +28,7 @@ public sealed class ParallelSet<TKey, TRecord>:Collection<TKey,TRecord,global::S
     public long ScanCount() => this.ScanCountCore();
     /// <summary>レコードを 1 つずつ <typeparamref name="TStrategy"/> へ渡す。FLinq の生成コードが呼ぶ。</summary>
     public void Iterate<TStrategy>(ref TStrategy strategy)
-        where TStrategy : struct, ISetIterateStrategy<TStrategy,TRecord> => this.IterateValuesCore(ref strategy);
+        where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TRecord> => this.IterateValuesCore(ref strategy);
     public IEnumerator<TRecord> GetEnumerator() {
         this.VerifyThreadAffinity();
         return new Enumerator<ValueIterator,TRecord>(this.ReadSession,new(),this.Store.Log.TailAddress,this);
