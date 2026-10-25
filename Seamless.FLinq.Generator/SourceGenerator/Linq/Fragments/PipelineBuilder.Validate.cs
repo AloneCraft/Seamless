@@ -105,7 +105,14 @@ internal static partial class PipelineBuilder {
                 return false;
             }
         }
-        return true;
+        // この融合は並べ替えを捨てる。途中で止まる終端(Any / Contains)で、止まるまでにラムダ(ExceptBy のキー選択子など)を評価するなら、
+        // 並べ替えた順で評価しないと System.Linq と別の要素に評価するので、融合しない(要素ごとに System.Linq に合わせる方針)。
+        var lastOrderIndex = orderIndex;
+        while(lastOrderIndex+1<stages.Count&&stages[lastOrderIndex+1].Kind is PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending) {
+            lastOrderIndex++;
+        }
+        var demand = DemandAnalysis.Analyze(stages,new TerminalDemand(terminalKind,false,false));
+        return demand.After[lastOrderIndex].AllowsDroppingOrder;
     }
 
     private static bool CanFuseBinarySetThenOrder(IReadOnlyList<PipelineStage> stages) {

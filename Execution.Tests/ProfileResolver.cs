@@ -6,14 +6,17 @@ namespace Execution.Tests;
 public sealed class ProfileResolver{
     [Fact]
     public void BundledEvidenceIsNarrowAndCarriesGrowth(){
-        var profile=Assert.Single(ProfileCatalog.Bundled.Profiles,static value=>value.ID=="tsavorite-file-int32-filter-4096-v1");
+        var profile=Assert.Single(ProfileCatalog.Bundled.Profiles,static value=>value.ID=="tsavorite-file-int32-filter-4096-doubling-v1");
         var result=Target.Resolve(Profile.Optimized,profile.Conditions,new());
-        Assert.Equal(Profile.Optimized,result.Applied);Assert.Equal("fixed",result.Growth!.ID);
-        Assert.Equal(4,result.EvidenceRunIDs.Length);
+        Assert.Equal(Profile.Minimum,result.Applied);Assert.Contains("versions unknown",result.Reason);
+        Assert.Equal("doubling",profile.Growth!.ID);
+        Assert.Equal(4,profile.EvidenceRunIDs.Length);
         Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,profile.Conditions with{ElementType="other"},new()).Applied);
-        var unknown=profile with{Growth=new("user-defined",1,"{}")};
+        Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,profile.Conditions with{IO="other-io"},new()).Applied);
+        var unknown=profile with{Growth=new("user-defined",1,"{}"),Evidence=ProfileEvidence.Current};
         var catalog=new ProfileCatalog([unknown]);
-        Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,profile.Conditions,new(),supplied:catalog).Applied);
+        var bundled=Target.Resolve(Profile.Optimized,profile.Conditions,new(),supplied:catalog);
+        Assert.Equal(Profile.Minimum,bundled.Applied);Assert.Contains("unavailable",bundled.Reason);
         Assert.Equal(Profile.Optimized,Target.Resolve(Profile.Optimized,profile.Conditions,new(),supplied:catalog,explicitGrowth:new Seamless.Execution.Growth.Policy<Seamless.Execution.Growth.Doubling>()).Applied);
     }
     [Fact]
@@ -21,13 +24,14 @@ public sealed class ProfileResolver{
         var request=new ProfileRequest("Tsavorite",StoreKind.Temporary,"Int32",1_000_000);
         var minimum=Target.Resolve(Profile.Minimum,request,new());
         Assert.Equal(64,minimum.Settings.IndexBytes);
+        Assert.Equal("Minimum",minimum.ProfileID);Assert.Equal(Target.MinimumVersion,minimum.ProfileVersion);
         Assert.Equal(8192,minimum.Settings.LogMemoryBytes);
         var fallback=Target.Resolve(Profile.Optimized,request,new());
         Assert.Equal(Profile.Minimum,fallback.Applied);
         Assert.NotEmpty(fallback.Reason);
 
         var measured=new MeasuredProfile("measured",1,request with{ElementCount=0},2_000_000,
-            new(){IndexBytes=512,LogMemoryBytes=65536},["training","validation"],true);
+            new(){IndexBytes=512,LogMemoryBytes=65536},["training","validation"],true,Evidence:ProfileEvidence.Current);
         var catalog=new ProfileCatalog([measured]);
         var optimized=Target.Resolve(Profile.Optimized,request,new(),new(){IndexBytes=128},catalog);
         Assert.Equal(Profile.Optimized,optimized.Applied);
@@ -35,6 +39,12 @@ public sealed class ProfileResolver{
         Assert.Equal(65536,optimized.Settings.LogMemoryBytes);
         Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,request,new(){MemoryBytes=16384},supplied:catalog).Applied);
         Assert.Throws<ArgumentException>(()=>Target.Resolve(Profile.Minimum,request,new(),new(){IndexBytes=65}));
+        var alternatives=new ProfileCatalog([
+            measured with{ID="large",Version=2,Settings=new(){IndexBytes=1<<20,LogMemoryBytes=8192}},
+            measured with{ID="small",Settings=new(){IndexBytes=512,LogMemoryBytes=8192}}
+        ]);
+        var withinBudget=Target.Resolve(Profile.Optimized,request,new(){MemoryBytes=16384},supplied:alternatives);
+        Assert.Equal("small",withinBudget.ProfileID);Assert.Contains("resource budget",withinBudget.Reason);
         Assert.Equal("measured",ProfileCatalog.FromJSON(catalog.ToJSON()).Profiles[0].ID);
     }
 }

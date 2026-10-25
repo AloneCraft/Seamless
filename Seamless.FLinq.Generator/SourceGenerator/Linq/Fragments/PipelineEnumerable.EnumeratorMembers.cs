@@ -173,9 +173,7 @@ internal sealed partial class PipelineEnumerable {
             if(stages[index].Kind!=PipelineStageKind.Take||stages[index].UsesIndex||stages[index].Value is null) {
                 continue;
             }
-            if(!stages.Skip(index+1).All(static stage => stage.Kind is PipelineStageKind.Where or PipelineStageKind.Select or PipelineStageKind.Skip
-                or PipelineStageKind.Take or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile or PipelineStageKind.Cast or PipelineStageKind.OfType
-                or PipelineStageKind.AsEnumerable or PipelineStageKind.Distinct or PipelineStageKind.DistinctBy)) {
+            if(!stages.Skip(index+1).All(PipelineStageTraits.IsStreamingAtMostOne)) {
                 continue;
             }
             builder.AppendLine($"if(this.{this.StateName(index)}>=this.{this.CountName(this.CountOrdinal(index))}Value) {{");

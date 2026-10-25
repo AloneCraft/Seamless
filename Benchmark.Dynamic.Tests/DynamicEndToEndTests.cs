@@ -70,11 +70,11 @@ public sealed class DynamicEndToEndTests{
             Assert.Equal(8,snapshot.Validations.Count(static validation=>validation.Status=="Success"));
             Assert.Equal(24,snapshot.Validations.Count(static validation=>validation.Status=="Match"));
             Assert.All(snapshot.Validations,static validation=>Assert.NotEqual("null",validation.FullResult));
-            Assert.Equal(24,snapshot.Measurements.Count);
+            Assert.Equal(32,snapshot.Measurements.Count);
             Assert.Equal(
-                ["FLinq","System","ZLinq"],
+                ["FLinq","FLinqUnoptimized","System","ZLinq"],
                 snapshot.Measurements.Select(static measurement=>measurement.ImplementationKind).Distinct().Order().ToArray());
-            Assert.Equal(24,snapshot.RawSamples.Count);
+            Assert.Equal(32,snapshot.RawSamples.Count);
             Assert.Equal(8,rows.Count);
             Assert.All(rows,static row=>{
                 Assert.Equal("Succeeded",row.状態);
@@ -327,7 +327,7 @@ public sealed class DynamicEndToEndTests{
             Assert.Equal(parent.Queries[0].QueryID,replayedRun.Queries[0].ReplayedFromQueryID);
             Assert.Equal(parent.Queries[0].CanonicalIRJSON,replayedRun.Queries[0].CanonicalIRJSON);
             Assert.Equal(parent.Queries[0].QueryHash,replayedRun.Queries[0].QueryHash);
-            Assert.Equal(3,replayedRun.Measurements.Count);
+            Assert.Equal(4,replayedRun.Measurements.Count);
 
             var queryReplay=await service.Queryを再実行Async(parent.Queries[0].QueryID,_=>{},_=>{});
             var replayedQuery=repository.GetRunSnapshot(queryReplay.実行ID);
@@ -335,7 +335,7 @@ public sealed class DynamicEndToEndTests{
             Assert.Equal(parentRunID,replayedQuery.Run.ReplayedFromRunID);
             Assert.Equal(parent.Queries[0].QueryID,replayedQuery.Queries[0].ReplayedFromQueryID);
             Assert.Equal(parent.Queries[0].CanonicalIRJSON,replayedQuery.Queries[0].CanonicalIRJSON);
-            Assert.Equal(3,replayedQuery.Measurements.Count);
+            Assert.Equal(4,replayedQuery.Measurements.Count);
         }finally{
             DynamicDatabase.一時ルートを削除(temporaryRoot);
         }

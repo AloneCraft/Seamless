@@ -1,4 +1,4 @@
-using Benchmark.Dynamic.Core;
+﻿using Benchmark.Dynamic.Core;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
@@ -8,6 +8,7 @@ using System.ComponentModel;
 namespace Benchmark.Dynamic.UI;
 
 public sealed class 動的ベンチマーク画面モデル:ObservableObject {
+    public Func<(int 最適化,WorkerStorageSettings 設定)>? 測定設定を取得{get;set;}
     private const string 選択ソース設定キー="Benchmark.Dynamic.選択ソース";
     private readonly I動的実行調停サービス 実行調停;
     private readonly I動的UI設定 UI設定;
@@ -53,7 +54,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
 
         this.Query数状態=Math.Clamp(this.UI設定.取得("Benchmark.Dynamic.Query数",10),1,1_000);
         this.N状態=Math.Clamp(this.UI設定.取得("Benchmark.Dynamic.N",8),1,64);
-        this.入力要素数状態=Math.Clamp(this.UI設定.取得("Benchmark.Dynamic.入力要素数",1024),1,100_000);
+        this.入力要素数状態=Math.Clamp(this.UI設定.取得("Benchmark.Dynamic.入力要素数",1024),0,100_000);
         this.最大深度状態=Math.Min(
             Math.Max(1,this.UI設定.取得("Benchmark.Dynamic.最大深度",Math.Min(this.N状態,8))),
             Math.Min(this.N状態,32));
@@ -132,7 +133,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
     public int 入力要素数 {
         get=>this.入力要素数状態;
         set {
-            var 値=Math.Clamp(value,1,100000);
+            var 値=Math.Clamp(value,0,100000);
             if(this.SetProperty(ref this.入力要素数状態,値)) {
                 this.UI設定.保存("Benchmark.Dynamic.入力要素数",値);
             }
@@ -365,6 +366,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         this.意味不一致数=0;
         this.非収束数=0;
         this.実行例外数=0;
+        var 追加設定=this.測定設定を取得?.Invoke();
         var 設定=new 動的実行設定(
             Guid.NewGuid().ToString("N"),
             this.Query数,
@@ -374,7 +376,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
             Seed,
             this.演算子集合モード,
             選択対象,
-            要素型:this.要素型);
+            要素型:this.要素型,最適化フラグ:追加設定?.最適化??15,ストレージ設定:追加設定?.設定);
         try {
             await using var UI更新=new 動的UI更新Channel(
                 行=>this.結果一覧.Add(行),

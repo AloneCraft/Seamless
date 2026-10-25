@@ -1,4 +1,4 @@
-﻿# Execution、LINQ、Databaseの現在仕様
+# Execution、LINQ、Databaseの現在仕様
 
 ## ExecutionScope
 
@@ -27,7 +27,7 @@ foreach(var row in stored) {
 }
 ```
 
-既定値は管理対象メモリ256 MiB、一時領域16 GiBです。この値はCLR全体や呼び出し元が保持する入力を含むプロセス上限ではありません。検証基盤はプロセスのpeak private bytesも別に記録します。
+既定値は管理対象メモリ256 MiB、一時領域16 GiBです。この値はCLR全体や呼び出し元が保持する入力を含むプロセス上限ではありません。ScalableはOSが報告するプロセス生存期間全体のPeakWorkingSet64、区間内のチェック地点で観測したWorkingSet64、予約のピークを別に記録します。WorkingSetはprivate bytesではなく、チェック地点の最大値は真の区間ピークではありません。
 
 一つのスコープで同時に複数の列挙は行えません。並行実行には別のスコープを使います。遅延クエリ、`ToStorage()` の結果、`GroupBy` が返すグループはスコープ所有です。スコープ破棄後の列挙は `ObjectDisposedException` になります。
 
@@ -95,12 +95,20 @@ Codecを作れない値でも、`Where`や`Select`など退避不要の逐次演
 
 ## 旧データからの移行
 
-保存形式と検証DBは新規開始です。旧DBを新形式へ自動変換しません。
+コレクションの保存形式は新規開始です。旧コレクションを自動変換しません。測定履歴は原本とバックアップを残し、明示コマンドで共有DBへ移します。
 
 1. 旧アプリとwriterを停止する
 2. 旧ストレージ、旧SQLite、関連成果物を読み取り専用バックアップへコピーする
-3. `seamless-verify init` またはSQL Server importを明示的に実行する
+3. コレクションはSQL Server importなどで新規作成する。Dynamic履歴は `Benchmark.Scalable.Headless migrate --source <旧Dynamic.db> --writers-stopped true` で明示的に移す
 4. マニフェスト、行数、代表クエリ、再起動後の読み取りを確認する
 5. 問題があれば新しい宛先を破棄し、保管した旧データへ戻る
 
 アプリ起動、スキーマ版の増加、自動削除を移行手段にしません。
+
+## 親予算
+
+`ResourceBudget.CreateChild(memoryLimitBytes,temporaryStorageLimitBytes)` で生成後不変の階層を作る。子への増分予約は子と全祖先の上限を検証してから確定し、失敗時は現在量・予約量・ピークを変えない。同じ階層で一つのロックを共有し、Resize/Disposeも同じ同期規則で扱う。予約のDisposeは冪等である。
+
+Storeの各ファクトリの `parentBudget`、`ExecutionOptions.ParentBudget` で親を明示する。単独予算の既存コンストラクタと既定の使い方は維持する。親予算は会計であり、子資源を所有・破棄するオブジェクトではない。
+
+Scalableは標本ごとに親予算を作り、Store、Scope、旧・新Storeの再構成中の同時生存分を合算する。System.Linqの結合・並べ替えは推定作業領域、Native外部ソートはチャンク・I/Oと最大一時領域をまとめて予約する。予約ピークは実メモリ使用量や実ファイル量の測定値ではない。`ScalableRequest.TemporaryDirectory` で保存先を指定した場合、ストアとソート/Scopeの一時領域を同じ保存先に置く。

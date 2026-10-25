@@ -19,14 +19,13 @@ internal sealed partial class PipelineEnumerable {
             var keyName = this.KeyName(groupByIndex);
             builder.AppendLine($"        {ComparerKeyType(stage)} {keyName}=default!;");
             builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,nameof(PipelineStageKind.GroupBy),keyName,currentName),"        "));
-            var groupElementName = $"__groupElem_{groupByIndex}";
-            builder.AppendLine($"        {stage.InnerElementType} {groupElementName}=default!;");
-            if(stage.SecondFunc is { } elementSelector) {
+            var groupElementName=currentName;
+            if(stage.SecondFunc is { } elementSelector){
+                groupElementName=$"__groupElem_{groupByIndex}";
+                builder.AppendLine($"        {stage.InnerElementType} {groupElementName}=default!;");
                 builder.AppendLine(IndentBlock(this.FuncAssign(elementSelector,nameof(PipelineStageKind.GroupBy),groupElementName,currentName),"        "));
-            } else {
-                builder.AppendLine($"        {groupElementName}=({stage.InnerElementType})(object?){currentName}!;");
             }
-            builder.AppendLine(aggPlan.RenderAccumulate($"this.{this.GroupAggMapName(groupByIndex)}!",keyName,groupElementName,"        "));
+            builder.AppendLine(aggPlan.RenderAccumulate($"this.{this.GroupAggMapName(groupByIndex)}!",keyName,groupElementName,"        ",this.GroupLimitExpression(aggPlan)));
             builder.AppendLine("    }");
             builder.AppendLine($"    this.{this.GroupAggEnumName(groupByIndex)}=this.{this.GroupAggMapName(groupByIndex)}!.GetEnumerator();");
             builder.AppendLine("}");
@@ -120,14 +119,13 @@ internal sealed partial class PipelineEnumerable {
             var keyName = this.KeyName(groupByIndex);
             builder.AppendLine($"        {ComparerKeyType(stage)} {keyName}=default!;");
             builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,nameof(PipelineStageKind.GroupBy),keyName,currentName),"        "));
-            var groupElementName = $"__groupElem_{groupByIndex}";
-            builder.AppendLine($"        {stage.InnerElementType} {groupElementName}=default!;");
-            if(stage.SecondFunc is { } elementSelector) {
+            var groupElementName=currentName;
+            if(stage.SecondFunc is { } elementSelector){
+                groupElementName=$"__groupElem_{groupByIndex}";
+                builder.AppendLine($"        {stage.InnerElementType} {groupElementName}=default!;");
                 builder.AppendLine(IndentBlock(this.FuncAssign(elementSelector,nameof(PipelineStageKind.GroupBy),groupElementName,currentName),"        "));
-            } else {
-                builder.AppendLine($"        {groupElementName}=({stage.InnerElementType})(object?){currentName}!;");
             }
-            builder.AppendLine(aggPlan.RenderAccumulate("__aggMap",keyName,groupElementName,"        "));
+            builder.AppendLine(aggPlan.RenderAccumulate("__aggMap",keyName,groupElementName,"        ",this.GroupLimitExpression(aggPlan)));
             builder.AppendLine("    }");
             builder.AppendLine($"    var {this.OrderInitialCapacityLocalName(orderIndex)}=global::System.Math.Max(16,__aggMap.Count);");
             this.AppendOrderBufferBuildStart(builder,orderIndex);
@@ -155,12 +153,11 @@ internal sealed partial class PipelineEnumerable {
             var keyName = this.KeyName(groupByIndex);
             builder.AppendLine($"        {ComparerKeyType(stage)} {keyName}=default!;");
             builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,nameof(PipelineStageKind.GroupBy),keyName,currentName),"        "));
-            var groupElementName = $"__groupElem_{groupByIndex}";
-            builder.AppendLine($"        {stage.InnerElementType} {groupElementName}=default!;");
-            if(stage.SecondFunc is { } elementSelector) {
+            var groupElementName=currentName;
+            if(stage.SecondFunc is { } elementSelector){
+                groupElementName=$"__groupElem_{groupByIndex}";
+                builder.AppendLine($"        {stage.InnerElementType} {groupElementName}=default!;");
                 builder.AppendLine(IndentBlock(this.FuncAssign(elementSelector,nameof(PipelineStageKind.GroupBy),groupElementName,currentName),"        "));
-            } else {
-                builder.AppendLine($"        {groupElementName}=({stage.InnerElementType})(object?){currentName}!;");
             }
             builder.AppendLine($"        __builder.Add({keyName},{groupElementName});");
             builder.AppendLine("    }");

@@ -1,4 +1,4 @@
-using Benchmark.Dynamic.Core;
+﻿using Benchmark.Dynamic.Core;
 using System.Diagnostics;
 
 namespace Benchmark.Dynamic.Worker;
@@ -56,8 +56,10 @@ public sealed record BalancedMeasurementResult(
 public sealed class MeasurementEngine {
     private static readonly DynamicImplementationKind[] MeasuredImplementations=[
         DynamicImplementationKind.System,
+        DynamicImplementationKind.FLinqUnoptimized,
         DynamicImplementationKind.FLinq,
         DynamicImplementationKind.ZLinq,
+        DynamicImplementationKind.Ideal,
     ];
     private readonly MeasurementProfile Profile;
 

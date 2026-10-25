@@ -41,6 +41,10 @@ internal static class GeneratedNameRenamer {
         ["cmp"] = "comparer",
         ["ordcmp"] = "orderComparer",
         ["smr"] = "selectManyResult",
+        ["acc"] = "aggregate",
+        ["resItem"] = "groupResult",
+        ["hasCnt"] = "hasCount",
+        ["kv"] = "entry",
     };
 
     // ローカル名にすると紛らわしい・使えない名前(クエリ式のキーワードなど)。
@@ -53,7 +57,7 @@ internal static class GeneratedNameRenamer {
     /// 補助の構造体の群(<paramref name="helpers"/>)と、メソッドの本体(<paramref name="body"/>)の中の機械的な名前を付け替える。
     /// <paramref name="userIdentifiers"/> に含まれる名前は利用者のコードの名前なので付け替えない。
     /// </summary>
-    internal static void Rename(ref string helpers,ref string body,HashSet<string> userIdentifiers) {
+    internal static void Rename(ref string helpers,ref string body,HashSet<string> userIdentifiers,IReadOnlyDictionary<string,string>? preferredLocals=null) {
         var helperTokens = Tokenize(helpers,0);
         var bodyTokens = Tokenize(body,int.MaxValue/2);
 
@@ -86,12 +90,31 @@ internal static class GeneratedNameRenamer {
             units.Add(entry.Unit);
         }
 
+        // 元のラムダ名が展開後に消えている場合だけ再利用できる。
+        // 実際に残っている識別子は、宣言だけでなく参照も含めて保護する。
+        var preserved=new HashSet<string>(helperTokens.Concat(bodyTokens)
+            .Where(entry=>entry.Token.IsKind(SyntaxKind.IdentifierToken)&&!declaredSet.Contains(entry.Token.ValueText))
+            .Select(entry=>entry.Token.ValueText),StringComparer.Ordinal);
+        if(preferredLocals is not null){
+            foreach(var preferred in preferredLocals.Values){
+                if(!preserved.Contains(preferred)){
+                    forbidden.Remove(preferred);
+                }
+            }
+        }
+        string PreferredRole(string name){
+            if(preferredLocals is not null&&preferredLocals.TryGetValue(name,out var preferred)&&!preserved.Contains(preferred)){
+                return GeneratedNames.ToIdentifier(preferred);
+            }
+            return RoleOf(name);
+        }
+
         // 複数の範囲に出る名前(範囲をまたいで参照される)は、全体で1つの名前にする。
         // 1つの範囲(構造体の中など)だけに出る名前は、範囲ごとに独立に付ける(別の構造体で item を使い回せるので、番号が増えすぎない)。
         var shared = new Dictionary<string,string>(StringComparer.Ordinal);
         foreach(var name in declared) {
             if(unitsOf[name].Count>1) {
-                shared[name]=Allocate(RoleOf(name),forbidden);
+                shared[name]=Allocate(PreferredRole(name),forbidden);
             }
         }
         var local = new Dictionary<(int Unit,string Name),string>();
@@ -108,7 +131,7 @@ internal static class GeneratedNameRenamer {
                 taken=new HashSet<string>(StringComparer.Ordinal);
                 takenInUnit[entry.Unit]=taken;
             }
-            var role = RoleOf(text);
+            var role = PreferredRole(text);
             var candidate = role;
             for(var number = 2;forbidden.Contains(candidate)||taken.Contains(candidate);number++) {
                 candidate=role+number.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -180,6 +203,7 @@ internal static class GeneratedNameRenamer {
             CatchDeclarationSyntax catchDeclaration => catchDeclaration.Identifier==token,
             SingleVariableDesignationSyntax designation => designation.Identifier==token,
             LabeledStatementSyntax labeled => labeled.Identifier==token,
+            LocalFunctionStatementSyntax function => function.Identifier==token,
             _ => false,
         };
 

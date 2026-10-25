@@ -37,6 +37,7 @@ public sealed class SourceFixture:IDisposable{
     public bool RequiresSameThread{get;}
     public int CreationThreadId{get;}
     public bool IsDisposed=>Volatile.Read(ref this.破棄済み)!=0;
+    public IReadOnlyList<global::Seamless.Execution.Store> Stores=>this.破棄対象.OfType<global::Seamless.Execution.Store>().ToArray();
 
     public void Dispose(){
         if(this.IsDisposed){
@@ -67,10 +68,12 @@ public sealed class SourceFixture:IDisposable{
 public sealed class SourceFixtureFactory{
     public const int MaximumInputElementCount=100_000;
 
-    public SourceFixture Create(SourceTarget 対象,int 要素数,Seed256 Seed,QueryElementType 要素型=QueryElementType.Int,bool 特殊な値を混ぜる=false){
-        if(要素数<1||要素数>MaximumInputElementCount){
+    public SourceFixture Create(SourceTarget 対象,int 要素数,Seed256 Seed,QueryElementType 要素型=QueryElementType.Int,bool 特殊な値を混ぜる=false,WorkerStorageSettings? StorageSettings=null,string Workload="*"){
+        if(要素数<0||要素数>MaximumInputElementCount){
             throw new ArgumentOutOfRangeException(nameof(要素数));
         }
+        StorageSettings=(StorageSettings??new()) with{Workload=Workload};
+        if(対象.GetSourceKind() is SourceKind.Persisted or SourceKind.Tsavorite){Benchmark.Infrastructure.SystemResources.CheckBudget(checked(StorageSettings.MemoryLimitBytes*2));}
         var PrimaryStart=開始値を作成(Seed,"primary",要素数);
         var SecondaryStart=開始値を作成(Seed,"secondary",要素数);
         var PrimaryValues=Enumerable.Range(PrimaryStart,要素数).ToArray();
@@ -116,13 +119,13 @@ public sealed class SourceFixtureFactory{
                 PrimaryValues,
                 SecondaryValues,
                 PrimaryStart,
-                SecondaryStart),
+                SecondaryStart,StorageSettings??new()),
             SourceKind.Tsavorite=>Tsavoriteを作成(
                 対象,
                 PrimaryValues,
                 SecondaryValues,
                 PrimaryStart,
-                SecondaryStart),
+                SecondaryStart,StorageSettings??new()),
             _=>throw new ArgumentOutOfRangeException(nameof(対象)),
         };
     }
@@ -183,16 +186,15 @@ public sealed class SourceFixtureFactory{
         int[] PrimaryValues,
         int[] SecondaryValues,
         int PrimaryStart,
-        int SecondaryStart){
+        int SecondaryStart,WorkerStorageSettings settings){
+        var primaryOwner=WorkerStorage.Create(settings,settings.Workload);
+        global::Seamless.Execution.Store? secondaryOwner=null;
         global::Seamless.Collections.Persisted.Set<int>? Primary=null;
         global::Seamless.Collections.Persisted.Set<int>? Secondary=null;
         try{
-            Primary=global::Seamless.Collections.Persisted.Store.CreateTempSet<int>(
-                InitialCapacity:Math.Max(16,PrimaryValues.Length),
-                InitialDataCapacity:Math.Max(4_096,PrimaryValues.Length*sizeof(int)));
-            Secondary=global::Seamless.Collections.Persisted.Store.CreateTempSet<int>(
-                InitialCapacity:Math.Max(16,SecondaryValues.Length),
-                InitialDataCapacity:Math.Max(4_096,SecondaryValues.Length*sizeof(int)));
+            secondaryOwner=WorkerStorage.Create(settings,settings.Workload);
+            Primary=global::Seamless.Collections.Persisted.StoreExtensions.CreatePersistedSet<int>(primaryOwner,"primary",settings.InitialCapacity,settings.InitialDataBytes,tuning:WorkerStorage.Storage(settings),expectedCount:PrimaryValues.Length);
+            Secondary=global::Seamless.Collections.Persisted.StoreExtensions.CreatePersistedSet<int>(secondaryOwner,"secondary",settings.InitialCapacity,settings.InitialDataBytes,tuning:WorkerStorage.Storage(settings),expectedCount:SecondaryValues.Length);
             foreach(var 値 in PrimaryValues){
                 Primary.Add(値);
             }
@@ -207,10 +209,11 @@ public sealed class SourceFixtureFactory{
                 SecondaryValues,
                 PrimaryStart,
                 SecondaryStart,
-                [Primary,Secondary]);
+                [primaryOwner,secondaryOwner,Primary,Secondary]);
         }catch{
             Secondary?.Dispose();
             Primary?.Dispose();
+            secondaryOwner?.Dispose();primaryOwner.Dispose();
             throw;
         }
     }
@@ -220,14 +223,17 @@ public sealed class SourceFixtureFactory{
         int[] PrimaryValues,
         int[] SecondaryValues,
         int PrimaryStart,
-        int SecondaryStart){
+        int SecondaryStart,WorkerStorageSettings settings){
+        var primaryOwner=WorkerStorage.Create(settings,settings.Workload);
+        global::Seamless.Execution.Store? secondaryOwner=null;
         global::Seamless.Collections.Tsavorite.HashSetStore<int>? PrimaryStore=null;
         global::Seamless.Collections.Tsavorite.HashSetStore<int>? SecondaryStore=null;
         global::Seamless.Collections.Tsavorite.HashSet<int>? Primary=null;
         global::Seamless.Collections.Tsavorite.HashSet<int>? Secondary=null;
         try{
-            PrimaryStore=global::Seamless.Collections.Tsavorite.Store.Create().Create<int>();
-            SecondaryStore=global::Seamless.Collections.Tsavorite.Store.Create().Create<int>();
+            secondaryOwner=WorkerStorage.Create(settings,settings.Workload);
+            PrimaryStore=global::Seamless.Collections.Tsavorite.StoreExtensions.CreateTsavoriteHashSet<int>(primaryOwner,"primary",WorkerStorage.Tuning(settings),PrimaryValues.Length);
+            SecondaryStore=global::Seamless.Collections.Tsavorite.StoreExtensions.CreateTsavoriteHashSet<int>(secondaryOwner,"secondary",WorkerStorage.Tuning(settings),SecondaryValues.Length);
             Primary=PrimaryStore.Create();
             Secondary=SecondaryStore.Create();
             foreach(var 値 in PrimaryValues){
@@ -244,12 +250,13 @@ public sealed class SourceFixtureFactory{
                 SecondaryValues,
                 PrimaryStart,
                 SecondaryStart,
-                [PrimaryStore,SecondaryStore,Primary,Secondary]);
+                [primaryOwner,secondaryOwner,PrimaryStore,SecondaryStore,Primary,Secondary]);
         }catch{
             Secondary?.Dispose();
             Primary?.Dispose();
             SecondaryStore?.Dispose();
             PrimaryStore?.Dispose();
+            secondaryOwner?.Dispose();primaryOwner.Dispose();
             throw;
         }
     }

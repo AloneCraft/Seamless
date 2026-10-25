@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Benchmark.Dynamic.Core\Benchmark.Dynamic.Core.csproj" />
+    <ProjectReference Include="..\Benchmark.Infrastructure\Benchmark.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>
