@@ -39,10 +39,11 @@ public abstract class Collection<
         TStoreFunctions
     >
     where TMode : struct, IAccessMode {
+    internal bool ScanNext<TScanFunctions>(ref TScanFunctions functions,ref long cursor,long untilAddress=-1)
+        where TScanFunctions:IScanIteratorFunctions=>Scans.Lookup.Next(this.Store,ref functions,ref cursor,untilAddress);
     /// <summary>
-    /// IScanIteratorFunctions 実装です。
-    /// IterateLookup から読んだレコードをデシリアライズしてチャンクへ格納します。
-    /// 列挙時は ResetChunk() で Count を初期化して再利用します。
+    /// 生存レコードをデシリアライズしてチャンクへ格納する。
+    /// 列挙時はResetChunkでCountを初期化して再利用する。
     /// </summary>
     public abstract class IterateLookupIteratorFunctions_List<T>:IScanIteratorFunctions {
         private const int MinimumScanChunkLength = 4096;
@@ -482,7 +483,7 @@ public abstract class Collection<
         var iterator = new IterateLookupForEachIterator<TStrategy>(strategy);
         var cursor = 0L;
         using(collection.BeginScan()) {
-            readSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+            collection.ScanNext(ref iterator,ref cursor);
             readSession.BasicContext.CompletePending(wait: true);
         }
         strategy=iterator.Strategy;
@@ -806,7 +807,7 @@ public abstract class Collection<
         var Iterator = new IterateLookupIsSubsetOf<TCollection>(other);
         var Cursor = 0L;
         using(self.BeginScan()) {
-            ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+            self.ScanNext(ref Iterator,ref Cursor);
             ReadSession.BasicContext.CompletePending(wait: true);
         }
         return Iterator.IsSubset;
@@ -885,7 +886,7 @@ public abstract class Collection<
         var Iterator = new IterateLookupOverlaps<TCollection>(self);
         var Cursor = 0L;
         using(other.BeginScan()) {
-            ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+            other.ScanNext(ref Iterator,ref Cursor);
             ReadSession.BasicContext.CompletePending(wait: true);
         }
         return Iterator.FoundOverlap;
@@ -958,7 +959,7 @@ public abstract class Collection<
             // This keeps the scan separate from the delete phase and avoids advancing TailAddress early.
             var Cursor = 0L;
             using(self.BeginScan()) {
-                ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+                self.ScanNext(ref Iterator,ref Cursor);
                 ReadSession.BasicContext.CompletePending(wait: true);
             }
             foreach(var keyBytes in keysToExpire) {
@@ -1259,7 +1260,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
                 this._iterator.ResetChunk();
                 bool mayHaveMore;
                 using(this.CollectionInstance.BeginScan()) {
-                    mayHaveMore=this._session.IterateLookup(ref this._iterator,ref this.Cursor,resetCursor: false);
+                    mayHaveMore=this.CollectionInstance.ScanNext(ref this._iterator,ref this.Cursor,this._untilAddress);
                     this._session.BasicContext.CompletePending(wait: true);
                 }
                 this.Count=this._iterator.Count;
@@ -1317,7 +1318,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
             while(true) {
                 bool mayHaveMore;
                 using(this.BeginScan()) {
-                    mayHaveMore=this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+                    mayHaveMore=this.ScanNext(ref iterator,ref cursor);
                     this.ReadSession.BasicContext.CompletePending(wait: true);
                 }
                 for(var index = 0;index<iterator.Count;index++) {
@@ -1341,7 +1342,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
         var iterator = new IterateValuesAdapter<TStrategy>(strategy);
         var cursor = 0L;
         using(this.BeginScan()) {
-            this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+            this.ScanNext(ref iterator,ref cursor);
             this.ReadSession.BasicContext.CompletePending(wait: true);
         }
         strategy=iterator.Strategy;
