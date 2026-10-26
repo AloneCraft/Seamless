@@ -21,3 +21,7 @@ Releaseのライブ画面でシード再現を開始すると、Workerが完了�
 ## 回帰結果
 
 修正前は上限検査3件中、三段27,720件とランダム1,000,000件の2件が失敗した。修正後はライブ関連11件すべて成功した（Release、D SSD、物理メモリ最大65%）。末尾1,500件が1,000件と500件に分かれ、通番・シード・独立Run ID・履歴を保持する。実Workerでペアint/string、ランダム開始と取消、計測不能の結果も詳細履歴へ保持することを確認した。途中取消を正常完了へ置き換えない。
+
+## 対象変換の順序属性
+
+ライブのseed 0x1018_2026は30件進んだ後、DistinctByを含むIRの実行対象変換で順序属性エラーとなった。IR生成・検証はDistinctByをUnorderedとするが、WorkerHost.Unaryを変換はDistinctだけを特別扱いし、DistinctByに入力のOrdered属性を付けていた。DistinctByも同じ変換規則へ追加し、検証規則を緩めない。配列・List・IEnumerable・Rangeの対象変換をWorkerHostのプロトコル経路で検査する。
