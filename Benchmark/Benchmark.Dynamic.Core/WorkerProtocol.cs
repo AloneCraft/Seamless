@@ -54,6 +54,7 @@ public sealed class DynamicWorkerProtocolVersionException:DynamicWorkerProtocolE
 
 public static class DynamicWorkerProtocol{
     public const int CurrentVersion=6;
+    public const int MaximumQueryCount=1_000;
     private static readonly JsonSerializerOptions SerializerOptions=CreateSerializerOptions();
 
     public static JsonSerializerOptions JsonOptions=>SerializerOptions;

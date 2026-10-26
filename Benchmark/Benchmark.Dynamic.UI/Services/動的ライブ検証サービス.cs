@@ -1,4 +1,4 @@
-﻿using Benchmark.Dynamic.Core;
+using Benchmark.Dynamic.Core;
 using Benchmark.Dynamic.Infrastructure;
 using System.Text.Json;
 
@@ -47,7 +47,7 @@ public sealed record 動的ライブ計測(string 実装,double 中央値ナノ�
 
 /// <summary>
 /// Workerを起動して、全組み合わせ(ペア・3段)とランダム探索を順に検証し、結果を1件ずつ渡す。
-/// 結果を渡す側の待ちはそのままWorkerへの背圧になるので、画面の一時停止・速度調整はここで待てばよい。
+/// 画面の一時停止・速度調整は結果通知を待機させる。Worker側の実行停止は取消要求で行う。
 /// 検証の合否は Worker が決める(独自の合格しきい値は持たない)。
 /// </summary>
 public sealed class 動的ライブ検証サービス{
@@ -97,7 +97,7 @@ public sealed class 動的ライブ検証サービス{
         return new WorkerRunRequest(
             実行ID,
             設定.基準シード,
-            Math.Max(1,件数-開始番号),
+            Math.Min(DynamicWorkerProtocol.MaximumQueryCount,Math.Max(1,件数-開始番号)),
             演算子数,
             全組み合わせか?演算子数:Math.Min(演算子数,8),
             設定.入力要素数,
@@ -140,8 +140,30 @@ public sealed class 動的ライブ検証サービス{
         int 開始番号,
         Func<動的ライブ結果,CancellationToken,Task> 結果受信時,
         CancellationToken 取消){
-        var 実行ID="live-"+Guid.NewGuid().ToString("N");
-        var 要求=await Task.Run(()=>段階の要求を作る(設定,段階,開始番号,実行ID),取消).ConfigureAwait(false);
+        var 総件数=ランダム探索の件数;
+        if(段階!=動的ライブ段階.ランダム探索){
+            var 中間数=2;
+            if(段階==動的ライブ段階.ペア全組み合わせ){中間数=1;}
+            総件数=await Task.Run(()=>全組み合わせの件数(設定,中間数),取消).ConfigureAwait(false);
+        }
+        var 次番号=開始番号;
+        do{
+            取消.ThrowIfCancellationRequested();
+            var 実行ID="live-"+Guid.NewGuid().ToString("N");
+            var 要求=await Task.Run(()=>段階の要求を作る(設定,段階,次番号,実行ID),取消).ConfigureAwait(false);
+            await this.バッチを実行Async(設定,段階,要求,結果受信時,取消).ConfigureAwait(false);
+            取消.ThrowIfCancellationRequested();
+            次番号=checked(要求.QueryIndexOffset+要求.QueryCount);
+        }while(次番号<総件数);
+    }
+
+    private async Task バッチを実行Async(
+        動的ライブ設定 設定,
+        動的ライブ段階 段階,
+        WorkerRunRequest 要求,
+        Func<動的ライブ結果,CancellationToken,Task> 結果受信時,
+        CancellationToken 取消){
+        var 実行ID=要求.RunId;
         await using var 記録=new DynamicHistoryRecorder(this.データベースパス);
         await 記録.BeginAsync(要求,取消).ConfigureAwait(false);
         await using var Session=this.WorkerClient.Start(this.Workerパス);
@@ -168,7 +190,7 @@ public sealed class 動的ライブ検証サービス{
                         return;
                     case WorkerMessageTypes.RunCanceled:
                         await 記録.CompleteAsync("Canceled").ConfigureAwait(false);
-                        return;
+                        throw new OperationCanceledException(取消);
                     case WorkerMessageTypes.Fatal:{
                         var 致命=DynamicWorkerProtocol.DeserializePayload<WorkerFatalEvent>(Envelope);
                         // 全組み合わせを数え切った後に先の番号を求めたときなど。段階の終わりとして次へ進む。
@@ -180,7 +202,9 @@ public sealed class 動的ライブ検証サービス{
                     }
                 }
             }
-            throw new IOException("Workerが完了通知なしで終了しました。");
+            var 標準エラー=string.Empty;
+            if(Session.HasExited){標準エラー=await Session.GetStandardErrorAsync().ConfigureAwait(false);}
+            throw new IOException("Workerが完了通知なしで終了しました。"+標準エラー);
         }catch(OperationCanceledException){
             await 記録.CompleteAsync("Canceled").ConfigureAwait(false);
             throw;

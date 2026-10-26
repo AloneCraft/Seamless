@@ -898,7 +898,7 @@ public sealed class WorkerHost{
 
     private static void 要求を検証(WorkerRunRequest 要求){
         ArgumentException.ThrowIfNullOrWhiteSpace(要求.RunId);
-        if(要求.QueryCount<1||要求.QueryCount>1_000){
+        if(要求.QueryCount<1||要求.QueryCount>DynamicWorkerProtocol.MaximumQueryCount){
             throw new ArgumentOutOfRangeException(nameof(要求.QueryCount));
         }
         if(要求.OperatorCount<1||要求.OperatorCount>64){
