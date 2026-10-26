@@ -64,7 +64,7 @@ internal sealed class GroupByAggregatePlan {
     // limitExpression は、呼び出し側がループの前に評価した上限の式(GroupLimit があるときは必須)。
     public string RenderAccumulate(string mapExpression,string keyName,string elementVarName,string indent,string? limitExpression) {
         if(this.GroupLimit is null) {
-            var existing=this.Items.Any(static item=>item.Kind is GroupAggregateKind.Min or GroupAggregateKind.Max) ? "var __exists" : "_";
+            var existing=this.Items.Any(static item=>item.Kind is GroupAggregateKind.Min or GroupAggregateKind.Max)||GeneratedNames.Current?.CanUseDiscard!=true ? "var __exists" : "_";
             return $"{indent}ref var __acc=ref {mapExpression}.GetValueRefOrAddDefault({keyName},out {existing});\n"+this.RenderAccumulatorUpdate("__acc",elementVarName,indent);
         }
         var sb = new StringBuilder();

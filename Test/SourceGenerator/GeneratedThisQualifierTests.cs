@@ -99,6 +99,7 @@ public sealed class GeneratedThisQualifierTests {
         GeneratedNameRenamer.Rename(ref helpers,ref body,user,preferred);
         Assert.Contains("M(int row)",helpers);
         Assert.DoesNotContain("var row=Read()",helpers);
+        Assert.Contains("var row2=Read()",helpers);
     }
 
     [Fact]
@@ -127,5 +128,22 @@ public sealed class GeneratedThisQualifierTests {
         Assert.Equal(self,GeneratedLocalInitializers.Simplify(self,methodBody:true));
         var intervening="int __key2=default; Observe(); __key2=Next();";
         Assert.Equal(intervening,GeneratedLocalInitializers.Simplify(intervening,methodBody:true));
+    }
+
+    [Fact]
+    public void DiscardLambdaParameterDoesNotBecomeAnOutDiscard(){
+        var helpers="struct S { int M() { source.TryGetNext(out var __it1_0); return __it1_0; } }";
+        var body="";
+        var preferred=new global::System.Collections.Generic.Dictionary<string,string>{{"__it1_0","_"}};
+        GeneratedNameRenamer.Rename(ref helpers,ref body,[],preferred);
+        Assert.DoesNotContain("out var _",helpers);
+        Assert.Contains("out var item",helpers);
+    }
+
+    [Fact]
+    public void ExistingUnderscoreVariablePreventsDiscardAssignments(){
+        var names=new GeneratedNames(new global::System.Collections.Generic.HashSet<string>{"_"},[]);
+        Assert.False(names.CanUseDiscard);
+        Assert.True(new GeneratedNames([],[]).CanUseDiscard);
     }
 }

@@ -19,6 +19,7 @@ PipelineTerminal は PipelineEnumerable の終端を scalar/direct execution と
   - ToDictionary は func1 を keySelector、func2 を elementSelector として扱い、comparerValue を constructor に渡す。
 */
 internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,PipelineTerminalKind terminalKind,FuncFragment? func1 = null,FuncFragment? func2 = null,string? comparerValue = null,string? terminalValue = null):Scalar(番号), DirectExecutionFragment {
+    private string SourceItemName()=>GeneratedNames.PreferLocal($"__pipelineItem{this.result}_0",pipeline.Stages.FirstOrDefault(static stage=>stage.Func is not null)?.Func??func1);
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -2245,7 +2246,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
         this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
         builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
         this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
@@ -2296,7 +2297,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
         this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         builder.AppendLine($"    {ScanLoopHeader(indexName,spanName,backward)}");
         builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
         this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
@@ -2341,7 +2342,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var bestItemName = $"__pipelineBestItem{this.result}";
         var bestKeyName = $"__pipelineBestKey{this.result}";
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
 
         builder.AppendLine($"var {hasMinName}=false;");
         builder.AppendLine($"{itemBeforeOrderType} {bestItemName}=default!;");
@@ -2468,7 +2469,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var bestItemName = $"__pipelineBestItem{this.result}";
         var hasTopName = $"__pipelineHasTop{this.result}";
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var builder = new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
         builder.AppendLine($"var {hasTopName}=false;");
@@ -2603,7 +2604,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     builder.AppendLine($"        throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
                     builder.AppendLine("    }");
                 }
-                var sourceItemName = $"__pipelineItem{this.result}_0";
+                var sourceItemName = this.SourceItemName();
                 builder.AppendLine($"    var {sourceItemName}={spanName}[{spanName}.Length-1];");
                 var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"    ",sliceIndices);
                 builder.AppendLine($"    {actualVariableName}={currentName};");
@@ -2614,7 +2615,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(prefixAppends.Count>0) {
                 builder.AppendLine($"        {actualVariableName}={prefixAppends[0].Value};");
                 builder.AppendLine("    } else {");
-                var sourceItemName = $"__pipelineItem{this.result}_0";
+                var sourceItemName = this.SourceItemName();
                 builder.AppendLine($"        var {sourceItemName}={spanName}[0];");
                 var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
                 builder.AppendLine($"        {actualVariableName}={currentName};");
@@ -2630,7 +2631,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 builder.AppendLine($"        throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
                 builder.AppendLine("    }");
             }
-            var directItemName = $"__pipelineItem{this.result}_0";
+            var directItemName = this.SourceItemName();
             builder.AppendLine($"    var {directItemName}={spanName}[0];");
             var directCurrentName = this.AppendDirectSpanPipelineScalarStages(builder,directItemName,"    ",sliceIndices);
             builder.AppendLine($"    {actualVariableName}={directCurrentName};");
@@ -2639,7 +2640,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
         var foundName = $"__pipelineFound{this.result}";
         var indexName = $"__pipelineIndex{this.result}";
-        var loopSourceItemName = $"__pipelineItem{this.result}_0";
+        var loopSourceItemName = this.SourceItemName();
         builder.AppendLine($"var {foundName}=false;");
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
@@ -2709,7 +2710,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     return builder.ToString().TrimEnd();
                 }
                 builder.AppendLine($"    if({spanName}.Length>0) {{");
-                var sourceItemName = $"__pipelineItem{this.result}_0";
+                var sourceItemName = this.SourceItemName();
                 builder.AppendLine($"        var {sourceItemName}={spanName}[{spanName}.Length-1];");
                 var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
                 builder.AppendLine($"        {actualVariableName}={currentName};");
@@ -2718,7 +2719,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                 return builder.ToString().TrimEnd();
             }
             builder.AppendLine($"    if({spanName}.Length>0) {{");
-            var directItemName = $"__pipelineItem{this.result}_0";
+            var directItemName = this.SourceItemName();
             builder.AppendLine($"        var {directItemName}={spanName}[0];");
             var directCurrentName = this.AppendDirectSpanPipelineScalarStages(builder,directItemName,"        ",sliceIndices);
             builder.AppendLine($"        {actualVariableName}={directCurrentName};");
@@ -2734,7 +2735,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             return builder.ToString().TrimEnd();
         }
         var indexName = $"__pipelineIndex{this.result}";
-        var loopSourceItemName = $"__pipelineItem{this.result}_0";
+        var loopSourceItemName = this.SourceItemName();
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
         this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
@@ -2771,7 +2772,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var prefixPrepends = this.GetPrefixPrependStages();
         var prefixAppends = this.GetPrefixAppendStages();
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var builder = new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
@@ -2806,7 +2807,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var spanName = $"__pipelineSpan{this.result}";
         var sliceIndices = this.GetPrefixSliceStageIndices();
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var countName = $"__count{this.result}";
         var sumName = $"__sum{this.result}";
         string accType;
@@ -2851,7 +2852,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var prefixPrepends = this.GetPrefixPrependStages();
         var prefixAppends = this.GetPrefixAppendStages();
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var hasValueName = $"__hasValue{this.result}";
         var valName = $"__val{this.result}";
         var compOp = "<0";
@@ -2923,7 +2924,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var spanName = $"__pipelineSpan{this.result}";
         var sliceIndices = this.GetPrefixSliceStageIndices();
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var countName = $"__count{this.result}";
         var foundVar = $"__found{this.result}";
         var targetIndexVar = $"__targetIndex{this.result}";
@@ -2982,7 +2983,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var prefixPrepends = this.GetPrefixPrependStages();
         var prefixAppends = this.GetPrefixAppendStages();
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var hasValueName = $"__hasValue{this.result}";
         var bestItemName = $"__bestItem{this.result}";
         var bestKeyName = $"__bestKey{this.result}";
@@ -3052,7 +3053,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var spanName = $"__pipelineSpan{this.result}";
         var sliceIndices = this.GetPrefixSliceStageIndices();
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var hasValueName = $"__hasValue{this.result}";
         var accName = $"__acc{this.result}";
         var nextAccName = $"__nextAcc{this.result}";
@@ -3140,7 +3141,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
         var spanName = $"__pipelineSpan{this.result}";
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var defaultValue = defaultIfEmptyStage.Value??"default!";
         var hasAfterStages = pipeline.Stages.Any(static s => s.Kind==PipelineStageKind.Select);
         var builder = new StringBuilder();
@@ -3190,7 +3191,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
         var spanName = $"__pipelineSpan{this.result}";
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var defaultValue = defaultIfEmptyStage.Value??"default!";
         var hasAfterStages = pipeline.Stages.Any(static s => s.Kind==PipelineStageKind.Select);
         var builder = new StringBuilder();
@@ -3235,7 +3236,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var spanName = $"__pipelineSpan{this.result}";
         var indexName = $"__pipelineIndex{this.result}";
         var destinationName = $"__pipelineDestination{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var builder = new StringBuilder();
         // Direct span pipeline copy avoids runtime TryCopyTo for count-preserving chains.
         // Example: `int[] src; src.Select(static x=>x+1).ToArray()` emits
@@ -3475,7 +3476,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
         var spanName = $"__pipelineSpan{this.result}";
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var builder = new StringBuilder();
         // See RenderDirectSpanPipelineToList: direct span roots prove the count at generation
         // time, so Select/AsEnumerable/identity Cast materialization can skip TryCopyTo.
@@ -3509,7 +3510,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var prefixAppends = this.GetPrefixAppendStages();
         var extraCount = prefixPrepends.Count+prefixAppends.Count;
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var builder = new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName};");
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
@@ -3575,7 +3576,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var indexName = $"__pipelineIndex{this.result}";
         var dstIndexName = $"__pipelineDstIndex{this.result}";
         var countVarName = $"__pipelineTotalCount{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var builder = new StringBuilder();
         builder.AppendLine($"{actualTypeName} {actualVariableName};");
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
@@ -3661,7 +3662,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         }
         var spanName = $"__pipelineSpan{this.result}";
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var builder = new StringBuilder();
         var comparerArg = string.IsNullOrEmpty(comparerValue) ? string.Empty : $", {comparerValue}";
         builder.AppendLine($"{actualTypeName} {actualVariableName};");
@@ -3690,7 +3691,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var prefixAppends = this.GetPrefixAppendStages();
         var extraCount = prefixPrepends.Count+prefixAppends.Count;
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var builder = new StringBuilder();
         var comparerArg = string.IsNullOrEmpty(comparerValue) ? string.Empty : comparerValue;
         builder.AppendLine($"{actualTypeName} {actualVariableName};");
@@ -3749,7 +3750,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var spanName = $"__pipelineSpan{this.result}";
         var sliceIndices = this.GetPrefixSliceStageIndices();
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         if(!this.TryGetShortCircuitScanDirection(sliceIndices,out var backward)) {
             return null;
         }
@@ -3785,7 +3786,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var spanName = $"__pipelineSpan{this.result}";
         var sliceIndices = this.GetPrefixSliceStageIndices();
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         if(!this.TryGetShortCircuitScanDirection(sliceIndices,out var backward)) {
             return null;
         }
@@ -3967,7 +3968,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         var hasOrderDependentStage = pipeline.Stages.Any(static s => s.Kind is PipelineStageKind.Take or PipelineStageKind.Skip or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile or PipelineStageKind.Distinct or PipelineStageKind.DistinctBy or PipelineStageKind.TakeLast or PipelineStageKind.SkipLast);
         var spanName = $"__pipelineSpan{this.result}";
         var indexName = $"__pipelineIndex{this.result}";
-        var sourceItemName = $"__pipelineItem{this.result}_0";
+        var sourceItemName = this.SourceItemName();
         var builder = new StringBuilder();
         var foundName = $"__pipelineFound{this.result}";
         builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
