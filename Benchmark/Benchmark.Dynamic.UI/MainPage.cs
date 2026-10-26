@@ -1,4 +1,5 @@
 ﻿using Benchmark.Dynamic.Core;
+using Benchmark.Infrastructure;
 using Syncfusion.Maui.Core.Internals;
 using Syncfusion.Maui.DataGrid;
 using Syncfusion.Maui.Toolkit.TabView;
@@ -16,11 +17,15 @@ public sealed class MainPage:ContentPage {
     private readonly Grid 詳細領域;
     private readonly List<VisualElement> 設定入力一覧=[];
     private readonly List<VisualElement> 実行中無効化一覧=[];
+    private readonly CancellationTokenSource 内部制御終了=new();
+    private Task? 内部制御タスク;
+    private アプリ操作ホスト? 内部制御;
+    private bool 内部制御初期化済みか;
 
     public MainPage(動的ベンチマーク画面モデル 画面モデル,動的ライブ検証サービス ライブ検証サービス) {
         this.画面モデル=画面モデル;
-        this.ライブ検証=new 動的ライブ検証画面(ライブ検証サービス);
-        this.理想比較=new(()=>this.測定設定.最適化フラグ);
+        this.ライブ検証=new 動的ライブ検証画面(ライブ検証サービス){実行排他=画面モデル.実行排他};
+        this.理想比較=new(()=>this.測定設定.最適化フラグ){実行排他=画面モデル.実行排他};
         this.BindingContext=画面モデル;
         this.Title="Dynamic LINQ Benchmark";
         this.BackgroundColor=Color.FromArgb("#F4F7FB");
@@ -67,8 +72,31 @@ public sealed class MainPage:ContentPage {
     }
 
     public void ライブ検証を終了する() {
+        this.内部制御終了.Cancel();
         this.ライブ検証.終了する();
         this.理想比較.終了する();
+    }
+
+    public async Task 終了Async(){
+        this.画面モデル.実行排他.終了を受け付ける();
+        this.内部制御終了.Cancel();
+        await Task.WhenAll(this.画面モデル.終了Async(),this.ライブ検証.終了Async(),this.理想比較.終了Async(),this.内部制御タスク??Task.CompletedTask);
+        if(this.内部制御 is{} 制御&&!制御.終了可能か){throw new InvalidOperationException("外部操作の停止・保存・receiptを確認できないため終了を保留しています。",制御.最終障害);}
+    }
+
+    public void 終了障害を表示(string 内容)=>this.画面モデル.内部制御障害を表示(内容);
+
+    protected override void OnAppearing(){
+        base.OnAppearing();
+        if(this.内部制御初期化済みか){return;}
+        this.内部制御初期化済みか=true;
+        try{
+            var 通信=アプリ操作メールボックス.環境から作成();
+            if(通信 is null){return;}
+            var ホスト=new アプリ操作ホスト("Benchmark.Dynamic.UI",通信,new 動的アプリ操作サービス(this.画面モデル));
+            this.内部制御=ホスト;
+            this.内部制御タスク=Task.Run(()=>ホスト.実行Async(this.内部制御終了.Token));
+        }catch(Exception 例外){this.画面モデル.内部制御障害を表示(例外.Message);}
     }
 
     private View 結果領域を作成() {
