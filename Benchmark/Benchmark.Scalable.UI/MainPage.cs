@@ -28,12 +28,19 @@ public sealed class MainPage:TabbedPage{
     private readonly Editor 探索結果=new(){IsReadOnly=true,HeightRequest=360};
     private CancellationTokenSource? 取消;
     private readonly BenchmarkRepository 記録;
+    private readonly 大規模実行サービス 実行サービス;
+    private readonly CancellationTokenSource 内部制御終了=new();
+    private Task? 内部制御タスク;
+    private アプリ操作ホスト? 内部制御;
+    private Task? 手動実行タスク;
+    private bool 内部制御初期化済みか;
     public MainPage(){
         this.Title="Scalable";
         var 場所=new DirectoryInfo(AppContext.BaseDirectory);
         while(場所 is not null&&!File.Exists(Path.Combine(場所.FullName,"Seamless.slnx"))){場所=場所.Parent;}
         var DBパス=BenchmarkDatabase.Resolve(場所?.FullName??Environment.CurrentDirectory);
         this.記録=new(new(DBパス));
+        this.実行サービス=new(this.記録);
         var 説明=new Button{Text="設定と実行経路を説明",AutomationId="大規模.説明"};
         説明.Clicked+=(_,_)=>{
             try{
@@ -42,8 +49,8 @@ public sealed class MainPage:TabbedPage{
             }catch(Exception 例外){this.結果.Text=例外.Message;}
         };
         var 中止=new Button{Text="中止",AutomationId="大規模.中止"};中止.Clicked+=(_,_)=>this.取消?.Cancel();
-        this.開始.Clicked+=async (_,_)=>await this.実行Async(false);
-        this.探索.Clicked+=async (_,_)=>await this.実行Async(true);
+        this.開始.Clicked+=async (_,_)=>await this.手動開始Async(false);
+        this.探索.Clicked+=async (_,_)=>await this.手動開始Async(true);
         this.Children.Add(new ContentPage{Title="測定",Content=new ScrollView{Content=new VerticalStackLayout{Padding=16,Spacing=8,Children={
             new Label{Text="大規模ストリーミング測定",FontSize=24},new Label{Text="件数"},this.件数,new Label{Text="入力シード"},this.シード,this.バックエンド,this.処理,this.実装,
             new Label{Text="ScopedはSeamlessの予算付きLINQです。並べ替えと結合は必要に応じてディスクを使います。CollectionsはNativeのコレクションAPIで実行します。"},
@@ -67,8 +74,17 @@ public sealed class MainPage:TabbedPage{
                     Kind:Enum.Parse<StoreKind>(this.設定.保存),Workload:Enum.Parse<Workload>(this.処理.SelectedItem.ToString()!),Profile:Enum.Parse<Profile>(this.設定.プロファイル),Growth:this.設定.拡張,
                     ExplicitSettings:this.設定.明示設定,ProfileCatalogJSON:this.設定.プロファイルJSON,MemoryLimitBytes:this.設定.メモリ予算,DiskLimitBytes:this.設定.ディスク予算,Adaptive:this.自動調整.IsChecked,Implementation:Enum.Parse<ScalableImplementation>(this.実装.SelectedItem.ToString()!),IOMode:this.設定.入出力,AccessPattern:this.設定.アクセス);
     }
+    private async Task 手動開始Async(bool 探索か){
+        if(this.実行サービス.実行排他.実行中か){return;}
+        var 実行=this.実行Async(探索か);
+        this.手動実行タスク=実行;
+        await 実行;
+    }
+
     private async Task 実行Async(bool 探索か){
         if(this.取消 is not null){return;}
+        using var 予約=this.実行サービス.実行排他.予約する();
+        if(予約 is null){return;}
         using var 取消=new CancellationTokenSource();this.取消=取消;this.開始.IsEnabled=false;this.探索.IsEnabled=false;
         try{
             if(探索か){
@@ -79,10 +95,58 @@ public sealed class MainPage:TabbedPage{
                 this.探索結果.Text=JsonSerializer.Serialize(結果,new JsonSerializerOptions{WriteIndented=true});this.探索進捗.Text="完了: "+結果.Count+"ケース";
             }else{
                 var 要求=this.要求作成();
-                var 結果=await Task.Run(()=>new ScalableRunner(this.記録).Run(要求,進捗=>MainThread.BeginInvokeOnMainThread(()=>this.進捗.Text=$"{進捗.Phase} {進捗.Sample}/{進捗.Total} {進捗.Completed:N0}/{進捗.Count:N0}"),取消.Token));
+                var 結果=await this.実行サービス.実行Async(要求,this.測定進捗を適用,取消.Token);
                 this.結果.Text=JsonSerializer.Serialize(結果,new JsonSerializerOptions(BenchmarkRepository.JSON){WriteIndented=true});
             }
         }catch(Exception 例外){if(探索か){this.探索結果.Text=例外.ToString();}else{this.結果.Text=例外.ToString();}}
         finally{this.取消=null;this.開始.IsEnabled=true;this.探索.IsEnabled=true;}
+    }
+
+    private void 測定進捗を適用(ScalableProgress 進捗)=>MainThread.BeginInvokeOnMainThread(()=>this.進捗.Text=$"{進捗.Phase} {進捗.Sample}/{進捗.Total} {進捗.Completed:N0}/{進捗.Count:N0}");
+
+    public async Task<アプリ操作結果> 外部実行Async(ScalableRequest 要求,CancellationToken 取消){
+        using var 実行取消=CancellationTokenSource.CreateLinkedTokenSource(取消);
+        this.取消=実行取消;this.開始.IsEnabled=false;this.探索.IsEnabled=false;
+        try{
+            var 測定=await this.実行サービス.実行Async(要求,this.測定進捗を適用,実行取消.Token);
+            this.結果.Text=JsonSerializer.Serialize(測定,new JsonSerializerOptions(BenchmarkRepository.JSON){WriteIndented=true});
+            var 合否="Unavailable";
+            if(測定.Status=="Passed"){合否="Passed";}
+            if(測定.Status=="Failed"){合否="Failed";}
+            return new("Completed",合否,"run:"+測定.RunID);
+        }catch(OperationCanceledException) when(実行取消.IsCancellationRequested){
+            this.進捗.Text="キャンセル済み";
+            // Runner は Worker を作らず、finally の Store.Dispose と取消履歴の保存後に再throwする。
+            return new("Cancelled","Unavailable","");
+        }catch(Exception 例外){
+            this.結果.Text=例外.ToString();
+            throw;
+        }finally{
+            this.取消=null;this.開始.IsEnabled=true;this.探索.IsEnabled=true;
+        }
+    }
+
+    public void 終了を要求する(){this.内部制御終了.Cancel();this.取消?.Cancel();}
+
+    public async Task 終了Async(){
+        this.実行サービス.実行排他.終了を受け付ける();
+        this.終了を要求する();
+        await Task.WhenAll(this.手動実行タスク??Task.CompletedTask,this.内部制御タスク??Task.CompletedTask);
+        if(this.内部制御 is{} 制御&&!制御.終了可能か){throw new InvalidOperationException("外部操作の停止・保存・receiptを確認できないため終了を保留しています。",制御.最終障害);}
+    }
+
+    public void 終了障害を表示(string 内容)=>this.進捗.Text="終了保留: "+内容;
+
+    protected override void OnAppearing(){
+        base.OnAppearing();
+        if(this.内部制御初期化済みか){return;}
+        this.内部制御初期化済みか=true;
+        try{
+            var 通信=アプリ操作メールボックス.環境から作成();
+            if(通信 is null){return;}
+            var ホスト=new アプリ操作ホスト("Benchmark.Scalable.UI",通信,new 大規模アプリ操作サービス(this,this.実行サービス));
+            this.内部制御=ホスト;
+            this.内部制御タスク=Task.Run(()=>ホスト.実行Async(this.内部制御終了.Token));
+        }catch(Exception 例外){this.進捗.Text="アプリ内部操作 Unavailable: "+例外.Message;}
     }
 }
