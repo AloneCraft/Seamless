@@ -12,3 +12,12 @@
 
 ## 検証
 名前衝突・局所関数・this. の単体検証、生成器再ビルド、同じクエリのソース差分・System.Linq との実行比較、関連する評価回数と SourceGenerator 回帰テストを行う。
+
+## 確認結果
+- 生成器 Release / netstandard2.0 のビルド成功。警告0・エラー0。
+- SourceGenerator・需要解析の実行テスト・遅延評価・Range の引数検査を含む関連回帰404件成功（readability-final.trx）。
+- 利用者の `_` を書き換えない補正後、命名・GroupBy・需要解析・遅延評価・Range の重点確認120件成功（readability-discard.trx）。両者は重複を含むため件数を合算しない。
+- 実際の生成コードを実行して、Join / Join ToArray / GroupJoin / OrderBy ThenBy / GroupBy 全件・First・Take・Last / OrderBy Where Any の9ケースで System.Linq と結果一致。
+- 実行用の小さな再現例でも、`Run(int[] source,bool _)` の false が GroupBy 集計後も false のままで、結果が `False:2,2` になることを確認。
+- 改善前後の生ソースは `Work/readability/before.cs` と `after.cs`、読み比べは `docs/flinq-ideal/generated-readability-examples.md`。同一クエリを強制再ビルドした実出力。
+- 今回は可読性と意味の維持を検証した。実行速度改善の数値は測定していない。

@@ -268,7 +268,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         GeneratedSourceAssert.True(
             generated.Contains("orderSpan",StringComparison.Ordinal)
             &&generated.Contains("while(orderNextIndex",StringComparison.Ordinal)
-            &&generated.Contains("if(!(item",StringComparison.Ordinal)
+            &&global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"if\s*\(!\([^;\r\n]+>1\)\)\s*continue;")
             &&generated.Contains(">1)) continue;",StringComparison.Ordinal),
             "Sorted Order fast path should keep elementwise continuation inside a loop.",
             generated,
@@ -804,7 +804,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         GeneratedSourceAssert.True(
             compact.Contains(".Length)!=0",StringComparison.Ordinal)
             &&compact.Contains("=(long)(src.Length);",StringComparison.Ordinal)
-            &&compact.Contains("=__compute",StringComparison.Ordinal)&&global::System.Text.RegularExpressions.Regex.IsMatch(compact,@"\(refs\d*")
+            &&global::System.Text.RegularExpressions.Regex.IsMatch(compact,@"=\w+\(ref\w+")
             &&!generated.Contains("global::Seamless.Linq.IValueEnumerator<bool>",StringComparison.Ordinal)
             &&!generated.Contains("global::Seamless.Linq.IValueEnumerator<long>",StringComparison.Ordinal),
             "Scalar terminals should use source facts or static Compute inline without scalar enumerator structs.",

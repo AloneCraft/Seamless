@@ -97,7 +97,7 @@ public sealed class SetOperationWhereConsumeTests {
             (string)probe.GetMethod("RunLinq")!.Invoke(null,null)!));
         Assert.Equal(expected.Split('|','#'),actual.Split('|','#'));
         // Intersect は第2ソースの集合から取り除けたものだけを流す(集合1つ)。
-        Assert.Contains(".Remove(item",generated);
+        Assert.Contains(".Remove(",generated);
         Assert.Contains("hashSetRoot",generated);
     }
 }

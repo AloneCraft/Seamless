@@ -103,7 +103,7 @@ internal static class GeneratedNameRenamer {
             }
         }
         string PreferredRole(string name){
-            if(preferredLocals is not null&&preferredLocals.TryGetValue(name,out var preferred)&&!preserved.Contains(preferred)){
+            if(preferredLocals is not null&&preferredLocals.TryGetValue(name,out var preferred)&&preferred!="_"){
                 return GeneratedNames.ToIdentifier(preferred);
             }
             return RoleOf(name);
@@ -231,6 +231,7 @@ internal static class GeneratedNameRenamer {
         if(separator>=0) {
             text=text.Substring(0,separator);
         }
+        text=Regex.Replace(text,@"(?<=[A-Za-z])\d+(?=[A-Z])",string.Empty);
         text=Regex.Replace(text,@"[_\d]+$",string.Empty);
         if(text.Length==0) {
             return "value";
