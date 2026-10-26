@@ -37,7 +37,7 @@ SQL Server/HammerDBとの比較、Unity/Omni/GPU実adapter、新しいVM/OS/有�
 
 - 統括は要求GPT-6.1 Sol/Ultra、同時稼働は統括と最大2agent。
 - 定型照合/ログ集計はgpt-6-luna/low、確定仕様の局所実装/文書/CIはluna/medium。
-- 複数ファイルの既存契約接続はgpt-6.1-sol/medium、意味/性能原因はhigh、並行/永続化/寿命契約はxhigh。
+- 複数ファイルの確定仕様実装・既存契約接続はgpt-6.1-terra/medium、意味/性能原因の調査はgpt-6.1-sol/high、並行/永続化/寿命契約の判断はgpt-6.1-sol/xhigh。
 - 単純照合はスクリプト。曖昧さ/矛盾/想定外失敗はSolへ上げ、判断確定後の反映は軽量担当へ戻す。
 - 設定変更は新規担当へ必要な文脈だけを渡す。要求モデル/effortと観測結果、task IDを台帳へ記録する。
 
