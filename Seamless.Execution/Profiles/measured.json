@@ -1,8 +1,7 @@
 {
-  "Version": 1,
   "Profiles": [
     {
-      "ID": "tsavorite-file-int32-filter-4096-doubling-v1",
+      "ID": "tsavorite-4096-doubling-ssd-fbc51054-20261026",
       "Version": 1,
       "Conditions": {
         "Backend": "Tsavorite",
@@ -10,7 +9,10 @@
         "ElementType": "System.Int32|System.Int32",
         "ElementCount": 4096,
         "Workload": "FilterAggregate",
-        "Environment": "8FA900839AF2BED1425FC569D731A7F4A9CE099A38A1A63E4861AC936F60875A"
+        "Environment": "8FA900839AF2BED1425FC569D731A7F4A9CE099A38A1A63E4861AC936F60875A",
+        "IO": "BackendDefault",
+        "RequiredEvidence": null,
+        "StorageKey": "volume-v1:CAD0E59B29FB39BF06FF7D9A44DD9700A0FD57F47BE54D515140973E85418671"
       },
       "MaximumCount": 4096,
       "Settings": {
@@ -23,17 +25,67 @@
         "MutableFraction": 1
       },
       "EvidenceRunIDs": [
-        "74018124c6c1403a999fd2efc451bf30",
-        "373120941a7e4a13a9c01c1792c2a1b6",
-        "16fee5862f014537ac807a35b4b8a3d5",
-        "601d86183c434c7fbbf5194958501b7c"
+        "d59f15887c114937b2f5dc0d4ba9e7c0",
+        "948e02bfb3644321904245eebb25978e",
+        "dd52e477bf0e494890c8d3e661be1ee5",
+        "66ce20c61f75477f84a5c9a1b4322509"
       ],
       "IndependentlyValidated": true,
       "Growth": {
         "ID": "doubling",
         "Version": 1,
         "ParametersJSON": "{}"
+      },
+      "Evidence": {
+        "LibraryVersion": "execution-source-v3:E346F37055EB3620B860E54775F2948FDBBE5FAF3C9267A4E8A3749B1F905326",
+        "CodecVersion": "1",
+        "MeasurementVersion": "scalable-content-v2",
+        "ComparisonPolicyVersion": "noise-v1"
+      }
+    },
+    {
+      "ID": "tsavorite-4096-doubling-hdd-fbc51054-20261026",
+      "Version": 1,
+      "Conditions": {
+        "Backend": "Tsavorite",
+        "StoreKind": 0,
+        "ElementType": "System.Int32|System.Int32",
+        "ElementCount": 4096,
+        "Workload": "FilterAggregate",
+        "Environment": "8FA900839AF2BED1425FC569D731A7F4A9CE099A38A1A63E4861AC936F60875A",
+        "IO": "BackendDefault",
+        "RequiredEvidence": null,
+        "StorageKey": "volume-v1:6C6DB5117211194FF8F380FAE020D57B70FFE16E52194C168B4D70AC396A1003"
+      },
+      "MaximumCount": 4096,
+      "Settings": {
+        "IndexBytes": 4096,
+        "PageBytes": 4096,
+        "SegmentBytes": 4096,
+        "LogMemoryBytes": 8192,
+        "InitialCapacity": null,
+        "InitialDataBytes": null,
+        "MutableFraction": 1
+      },
+      "EvidenceRunIDs": [
+        "d7f7e6196d7740d68d04a636328171ef",
+        "6bf0946a4e4f4547979ce80770271feb",
+        "f06c0d2aef8244a48afa3e2a48691263",
+        "73f48324654344ccb86ecc08a9ebc420"
+      ],
+      "IndependentlyValidated": true,
+      "Growth": {
+        "ID": "doubling",
+        "Version": 1,
+        "ParametersJSON": "{}"
+      },
+      "Evidence": {
+        "LibraryVersion": "execution-source-v3:E346F37055EB3620B860E54775F2948FDBBE5FAF3C9267A4E8A3749B1F905326",
+        "CodecVersion": "1",
+        "MeasurementVersion": "scalable-content-v2",
+        "ComparisonPolicyVersion": "noise-v1"
       }
     }
-  ]
+  ],
+  "Version": 1
 }

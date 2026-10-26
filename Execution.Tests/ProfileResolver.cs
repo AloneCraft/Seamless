@@ -23,13 +23,24 @@ public sealed class ProfileResolver{
     }
     [Fact]
     public void BundledEvidenceIsNarrowAndCarriesGrowth(){
-        var profile=Assert.Single(ProfileCatalog.Bundled.Profiles,static value=>value.ID=="tsavorite-file-int32-filter-4096-doubling-v1");
-        var result=Target.Resolve(Profile.Optimized,profile.Conditions,new());
-        Assert.Equal(Profile.Minimum,result.Applied);Assert.Contains("Storage volume is unknown",result.Reason);
-        Assert.Equal("doubling",profile.Growth!.ID);
-        Assert.Equal(4,profile.EvidenceRunIDs.Length);
-        Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,profile.Conditions with{ElementType="other"},new()).Applied);
-        Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,profile.Conditions with{IO="other-io"},new()).Applied);
+        Assert.NotEmpty(ProfileCatalog.Bundled.Profiles);
+        foreach(var measured in ProfileCatalog.Bundled.Profiles){
+            Assert.NotNull(measured.Evidence);Assert.StartsWith("execution-source-v3:",measured.Evidence.LibraryVersion);
+            Assert.StartsWith("volume-v1:",measured.Conditions.StorageKey);
+            Assert.Equal(4096,measured.Conditions.ElementCount);Assert.Equal(4096,measured.MaximumCount);
+            Assert.Equal("doubling",measured.Growth!.ID);Assert.Equal(4,measured.EvidenceRunIDs.Distinct().Count());
+            var result=Target.Resolve(Profile.Optimized,measured.Conditions,new());
+            if(measured.Evidence==ProfileEvidence.Current){Assert.Equal(Profile.Optimized,result.Applied);Assert.Equal(measured.ID,result.ProfileID);}
+            else{Assert.Equal(Profile.Minimum,result.Applied);Assert.Contains("versions unknown",result.Reason);}
+            Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,measured.Conditions with{ElementType="other"},new()).Applied);
+            Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,measured.Conditions with{IO="other-io"},new()).Applied);
+            Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,measured.Conditions with{ElementCount=4095},new()).Applied);
+            Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,measured.Conditions with{ElementCount=4097},new()).Applied);
+            Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,measured.Conditions with{StorageKey="other-volume"},new()).Applied);
+            var legacy=Target.Resolve(Profile.Optimized,measured.Conditions with{StorageKey="Unknown"},new());
+            Assert.Equal(Profile.Minimum,legacy.Applied);Assert.Contains("Storage volume is unknown",legacy.Reason);
+        }
+        var profile=ProfileCatalog.Bundled.Profiles[0];
         var unknown=profile with{Conditions=profile.Conditions with{StorageKey="test-volume"},Growth=new("user-defined",1,"{}"),Evidence=ProfileEvidence.Current};
         var catalog=new ProfileCatalog([unknown]);
         var bundled=Target.Resolve(Profile.Optimized,unknown.Conditions,new(),supplied:catalog);
