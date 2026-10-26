@@ -90,10 +90,9 @@ public sealed class ProfileCatalog{
         .ThenBy(profile=>profile.MaximumCount-profile.Conditions.ElementCount)
         .ThenByDescending(profile=>profile.Version);
     private static ProfileCatalog LoadBundled(){
-        using var stream=typeof(ProfileCatalog).Assembly.GetManifestResourceStream("Seamless.Execution.Profiles.measured.json");
-        if(stream is null){return new([]);}
-        using var reader=new StreamReader(stream);
-        return FromJSON(reader.ReadToEnd());
+        var path=Path.Combine(AppContext.BaseDirectory,"Seamless.Execution.Profiles","measured.json");
+        if(!File.Exists(path)){return new([]);}
+        return Load(path);
     }
     private sealed record CatalogDocument(int Version,MeasuredProfile[] Profiles);
 }

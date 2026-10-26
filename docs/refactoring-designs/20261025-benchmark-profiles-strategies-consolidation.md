@@ -56,6 +56,7 @@
 - ストラテジーはContextからDecisionを返す。エンジンが資源予約・サイズ条件・並列条件を確認して適用する。Fixedは索引・常駐枠を固定し、ファイルの通常の成長や件数自体は固定しない。
 - Optimizedが条件や上限に適合しなければMinimumへ戻し、採用設定と理由を公開する。不正な明示値はエラー。
 - `ProfileRequest.StorageKey` は `ProfileEnvironment.Storage(directory)` と同じ規則で指定する。Storeは実際の保存先から自動設定する。ディスクの保存先を識別できなければMinimumへ戻し、理由を公開する。`StorageKey` のない旧候補をボリューム不問の候補として解釈しない。
+- 証拠版はライブラリのソース・依存パッケージ・コンパイル条件から求め、同梱JSONやGitメタデータから分離する。標準JSONはDLLとともに配置し、DBを使わず読む。[証拠版と同梱の詳細設計](20261026-profile-evidence-bundling.md) を参照する。
 - シリアライザーは `Seamless.Collections.Serializers` に Auto<T> / Blittable<T> / MemoryPack<T> / RawByteArray、方式タグはBlittable / MemoryPackへ統一する。
 - 比較・走査は実装とBCL境界を棚卸しし、役割別名前空間と型確定した実行部へ移す。DB接続や資源所有などのサービスは責務に合う構造を維持する。
 
