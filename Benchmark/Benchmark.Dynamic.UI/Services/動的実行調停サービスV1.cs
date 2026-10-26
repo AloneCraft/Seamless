@@ -930,7 +930,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
         }
     }
 
-    private static QueryCapabilitySet 実行設定を検証(動的実行設定 設定){
+    internal static QueryCapabilitySet 実行設定を検証(動的実行設定 設定){
         ArgumentException.ThrowIfNullOrWhiteSpace(設定.実行ID);
         if(設定.Query数<1||設定.Query数>1_000){
             throw new ArgumentOutOfRangeException(nameof(設定.Query数));
