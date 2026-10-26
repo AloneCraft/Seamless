@@ -98,6 +98,38 @@ internal sealed class DemandAnalysisResult(Demand source,Demand[] after) {
 }
 
 internal static class DemandAnalysis {
+    // 構文書き換え前にも同じ Window の伝播を使う。列をローカル変数へ保存した場合や
+    // 未対応の消費者は需要を確定できないので、全件消費とみなさない。
+    internal static bool IsEntireSequenceConsumed(InvocationExpressionSyntax sequence,SemanticModel model,INamedTypeSymbol? enumerableType){
+        var stages=new List<PipelineStage>();
+        ExpressionSyntax current=sequence;
+        while(true){
+            while(current.Parent is ParenthesizedExpressionSyntax parentheses){
+                current=parentheses;
+            }
+            if(current.Parent is not MemberAccessExpressionSyntax memberAccess
+                ||memberAccess.Expression!=current
+                ||memberAccess.Parent is not InvocationExpressionSyntax invocation
+                ||!CarrierAnalysis.TryGetLinqSequenceCall(invocation,model,enumerableType,out var call)){
+                return false;
+            }
+            if(Enum.TryParse<PipelineTerminalKind>(call.MethodName,out var terminal)){
+                var hasPredicate=call.Arguments.Any(argument=>model.GetTypeInfo(argument.Expression).ConvertedType is INamedTypeSymbol{DelegateInvokeMethod:not null});
+                var terminalDemand=new TerminalDemand(terminal,hasPredicate,false,call.Arguments.FirstOrDefault()?.Expression.ToString());
+                return Analyze(stages,terminalDemand).Source.Window.IsAll;
+            }
+            if(!OperatorPipelineManifest.TryGet(call.MethodName,out var definition)){
+                return false;
+            }
+            // Window はラムダの本体・入出力型を使わない。Take/Skip の範囲と添字つき Select
+            // だけは消費範囲に影響するため、構文と delegate 型から持ち込む。
+            var usesIndex=call.Arguments.Any(argument=>model.GetTypeInfo(argument.Expression).ConvertedType is INamedTypeSymbol{DelegateInvokeMethod.Parameters.Length:>1});
+            var value=call.Arguments.FirstOrDefault()?.Expression.ToString();
+            stages.Add(new PipelineStage(definition.Stage,null,value,string.Empty,string.Empty,usesIndex:usesIndex));
+            current=invocation;
+        }
+    }
+
     public static DemandAnalysisResult Analyze(IReadOnlyList<PipelineStage> stages,TerminalDemand terminal) {
         var after = new Demand[stages.Count];
         var current = Seed(terminal);
