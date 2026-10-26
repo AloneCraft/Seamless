@@ -172,8 +172,8 @@ Minimum/Fixed/拡張/独自戦略/状態分離/予算/保存再開、プロフ�
 - 通常/ライブの詳細・共有履歴は同一トランザクション。実ストアの拡張・拒否理由・時刻・所要時間を共通履歴へ投影する。初期設定と、測定時点の実際の容量を別に記録する。
 - ストリーミング実行・容量探索: `Benchmark.Scalable.Core`。Scoped LINQ、再構成失敗時の全件保持、Buffered/Unbufferedの両バックエンドを含む16件成功。新旧索引の同時常駐も予算に含めるExecution 37件が成功した。
 - `50409aad`: 上限内のEstimatedと拡張所要時間・実容量の記録。予想件数をMinimumの初期サイズへ流用しない。
-- 同梱候補は `tsavorite-file-int32-filter-4096-doubling-v1`。索引4096B/ログ8192B/Doubling、Native/FilterAggregate、Tsavorite/Temporary、Int32のキーと値、4096件、測定した環境・バックエンド既定I/Oに限定する。
-- 正常完了した既定Minimum＋Doublingの対照Runは `16fee5862f014537ac807a35b4b8a3d5` / `601d86183c434c7fbbf5194958501b7c`、候補Runは `74018124c6c1403a999fd2efc451bf30` / `373120941a7e4a13a9c01c1792c2a1b6`。各7回の中央値の比は0.06955/0.06238。候補の変動係数0.409/0.463も表示し、未測定の条件へ外挿しない。
-- 初回のFixed候補も既定より改善したが、Doubling候補がさらに速かった。旧候補と原測定を保全したまま同梱候補を変更した。Fixed最小を対照にするだけでは、通常の既定より良いという証拠にしない。
+- 同梱候補は `tsavorite-4096-doubling-ssd-fbc51054-20261026` と `tsavorite-4096-doubling-hdd-fbc51054-20261026`。索引4096B/ログ8192B/Doubling、Native/FilterAggregate、Tsavorite/Temporary、Int32のキーと値、4096件、測定した環境・Release構成・保存先ボリューム・バックエンド既定I/Oに限定する。
+- 既定Minimum＋Doublingを対照とし、seed42/43を各7回測定した。時間中央値の比はDで0.27967/0.26590、Fで0.23714/0.23514。両入力でnoise-v1と5%以上の改善条件を通過した。生測定・比較・根拠RunIDを共有DBへ保存し、候補データだけでなく採用理由も取得できる。未測定の条件へ外挿しない。
+- 旧同梱候補と原測定は保持するが、証拠版や保存先を確認できない記録は現行候補へ自動採用しない。Fixed最小を対照にするだけでは、通常の既定より良いという証拠にしない。
 - 削除した追跡ソースのコピーは `Work/Consolidation/RetiredSources`。削除対象にあった開始時の未コミットREADMEもここへ保全し、他作業の生成器・ドキュメント差分は混ぜない。
 - 整理後の全体Debugビルドは85個のcsproj・16個のshprojで成功した。起動設定と通常CIを更新し、直接Compile Includeした共有ソースの所有プロジェクトも生成器で追跡する。
