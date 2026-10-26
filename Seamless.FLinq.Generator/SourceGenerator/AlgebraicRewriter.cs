@@ -1132,7 +1132,8 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     }
     // src.OrderBy(k).Where(pred) -> src.Where(pred).OrderBy(k)
     // src.OrderByDescending(k).Where(pred) -> src.Where(pred).OrderByDescending(k)
-    // 要素フィルタWhereをソート前に移動することで、ソート対象要素数を削減し計算量・メモリを大幅低減。
+    // 下流が Where 出力を全件消費するときだけソート前へ移動する。
+    // First/Any/Take などの前では、ソート後に必要な分だけ述語を評価する契約を維持する。
     private bool TryReorderWhereBeforeOrder(InvocationExpressionSyntax node,out SyntaxNode result){
         result=null!;
         if(!this.TryGetEnumerableExtensionCall(node,out var whereName,out var whereReceiver,out var whereArgs)){
@@ -1162,6 +1163,10 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(orderArgs.Count!=1){
             return false;
         }else{
+        }
+        if(AnchorAnalysis.ContainsAnchor(orderArgs[0].Expression,this.model)
+            ||!DemandAnalysis.IsEntireSequenceConsumed(node,this.model,this.enumerableType)){
+            return false;
         }
         var newWhere=CreateCallWithArgumentList(orderSource,"Where",node.ArgumentList);
         result=CreateCallWithArgumentList(newWhere,orderName,orderInv.ArgumentList);

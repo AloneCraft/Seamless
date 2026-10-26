@@ -285,7 +285,15 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         if(uc.MethodName=="Select") return this.TryPushWhereThroughSelect(uc,wl);
         if(uc.MethodName=="SelectMany") return this.TryPushWhereThroughSelectMany(uc,wl);
         if(uc.MethodName is "Join" or "LeftJoin") return this.TryPushWhereThroughBinaryCarrier(uc,wl,3);
-        // 並べ替えの前へも押し下げる(並べ替える要素が減る)。ソースが既に並んでいるときは、並べ替えの段が溜めた値を確かめて並べ替えを省く。
+        // 並べ替え・Reverse の後は元の順序で必要な分だけ述語を評価する。前倒しで
+        // System.Linq が読まない要素へ評価を増やさないよう、下流の全件消費を要求する。
+        if(uc.MethodName is "Order" or "OrderBy" or "OrderDescending" or "OrderByDescending" or "Reverse"){
+            if(AnchorAnalysis.ContainsAnchor(wl,this.model)
+                ||uc.Arguments.Any(argument=>AnchorAnalysis.ContainsAnchor(argument.Expression,this.model))
+                ||!DemandAnalysis.IsEntireSequenceConsumed(invocation,this.model,this.enumerableType)){
+                return null;
+            }
+        }
         if(PushWhereThroughUnaryMethods.Contains(uc.MethodName)||PushWhereThroughFirstSourceMethods.Contains(uc.MethodName)) {
             return PushWhereBeforeSource(uc,wl);
         }
