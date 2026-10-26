@@ -134,8 +134,9 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
             return await this.実行CoreAsync(設定,結果受信時,進捗受信時).ConfigureAwait(false);
         }finally{
             foreach(var Key in this.WorkerSessions.Keys.ToArray()){
-                if(this.WorkerSessions.TryRemove(Key,out var Session)){
+                if(this.WorkerSessions.TryGetValue(Key,out var Session)){
                     await Session.DisposeAsync().ConfigureAwait(false);
+                    this.WorkerSessions.TryRemove(Key,out _);
                 }
             }
             this.実行キャンセル?.Dispose();
@@ -619,7 +620,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
 
     public async Task キャンセルAsync(){
         this.実行キャンセル?.Cancel();
-        var セッション一覧=this.WorkerSessions.Values.Where(static Session=>!Session.HasExited).ToArray();
+        var セッション一覧=this.WorkerSessions.Values.ToArray();
         await Task.WhenAll(セッション一覧.Select(
             Session=>Session.CancelAsync("ui-cancel-"+Guid.NewGuid().ToString("N")))).ConfigureAwait(false);
     }
@@ -746,8 +747,9 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
                 },
                 Token).ConfigureAwait(false);
         }finally{
-            if(this.WorkerSessions.TryRemove(縮小SessionKey,out var 残存Session)){
+            if(this.WorkerSessions.TryGetValue(縮小SessionKey,out var 残存Session)){
                 await 残存Session.DisposeAsync().ConfigureAwait(false);
+                this.WorkerSessions.TryRemove(縮小SessionKey,out _);
             }
             this.実行キャンセル?.Dispose();
             this.実行キャンセル=null;
