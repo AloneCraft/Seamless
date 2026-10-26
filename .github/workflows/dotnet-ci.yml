@@ -74,6 +74,8 @@ jobs:
 
       - name: Run execution contracts
         run: dotnet test .\Execution.Tests\Execution.Tests.csproj -c Debug --no-restore --logger "trx;LogFileName=execution.trx"
+      - name: Rebuild FLinq generator before tests
+        run: dotnet build .\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj -c Debug -f netstandard2.0 -t:Rebuild --no-restore -p:UseSharedCompilation=false
       - name: Test database streaming, transactions, and recovery
         run: >
           dotnet test .\Test\Test.csproj -c Debug -f net10.0 --no-restore
@@ -229,7 +231,7 @@ jobs:
           dotnet restore .\Benchmark.Dynamic.Tests\Benchmark.Dynamic.Tests.csproj
 
       - name: Build FLinq generator
-        run: dotnet build .\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj -c Debug -f netstandard2.0
+        run: dotnet build .\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj -c Debug -f netstandard2.0 -t:Rebuild -p:UseSharedCompilation=false
 
       - name: Run full ChainCorpus
         if: matrix.mode == 'ChainCorpusFull'
