@@ -1,0 +1,67 @@
+# Worker停止とDisposeの完了共有
+
+## 背景
+
+主統合normal04で取消E2Eが実測失敗し、SendControlAndStopAsyncの2度目のWaitForExitAsyncが、関連付けのないProcessを参照した。元ログとread-only分析は `Work/Orchestration/argon-normal-integrated-04`、`worker-cancel-lifetime-diagnosis.md` に保全した。
+
+## 現状の観察
+
+修正前のstopStarted/disposedは開始を一度にするが、完了Taskを共有しない。重複ShutdownはOS終了だけで復帰し、DisposeもOS終了済みなら停止処理全体をjoinしない。
+
+phase1の親BGO実測ではbuildと入力hash照合が全て終了コード0、決定的テストは1件失敗（195 ms）だった。専用WorkerのOS終了・stdout EOF・stderr完了後に先行Cancelをgateで保留すると、ShutdownとDisposeが両方早期成功した。gate解除後のCancelだけがFaultedとなり、元221行に対応するphase1の231行で同じ`No process is associated with this object.`が出た。ScenarioFailureはnull、CleanupFailuresは空だった。したがって、この寿命競合は制御した順序で実測再現した。最初の通常E2E実行のスレッド順序そのものを遡って記録できたわけではない。
+
+証拠は`G:/GitHub/Seamless/Work/Orchestration/worker-lifetime-before-01/run-output/results.json`と、このworktreeの`Work/Orchestration/worker-lifetime-before-01/worker-stop-ownership-491af2f8f0e84e5b930c60b191c9f434.json`。phase1のartifactと入力freezeは変更しない。
+
+## 過去設計から引き継ぐ仕様
+
+アプリ内部制御と共通BGOの『取消受付と終了・保存完了は別』『停止確認不能はreceiptを作らず所有権保持』を維持する。3秒の強制終了境界を延ばさず、自分で起動したWorkerだけを対象とする。元runTaskとDB commitのjoinを弱めない。
+
+## 目的
+
+全Cancel/Shutdown/Dispose呼出しが同じ停止完了または同じ失敗を観測する。停止処理中のProcessをDisposeせず、成功済みsnapshotからの重複停止も生Processの寿命へ依存しない。
+
+## 非目的
+
+全プロセス用adapterの新設、一般的な例外の握りつぶし、待ち時間追加、取消中の全例外をCanceledへ変換する上位仕様変更は行わない。隣接するStart登録窓・サービス終了Taskの問題は別途証拠で判断する。
+
+## 提案設計
+
+第1段階は実装前の決定的な再現。internal constructorへ既定no-opの最小phase gateを注入できるようにし、最初のOS終了待機完了後・停止全体の完了前だけを止める。public APIや通常の既定動作は変更しない。必要なfriendアクセスはテストassemblyに限定し、広いfake Process抽象は追加しない。実Worker起動・EOF確認後、先行Cancelをgateで止めたままShutdownとDisposeが早期成功できる現症状を記録する。finallyでgateを必ず解除し、自分の全Task/Workerを回収する。時間延長や繰返しpassで代用しない。
+
+第2段階は単一stopTask/disposeTaskを短い同期gateで作成して共有する。再入前にTaskCompletionSourceのTaskを公開し、停止・Disposeの本体はlock外で実行する。await中にlockを保持しない。DisposeはOS終了済みでも先行stopTaskをjoinしてからProcess/writeGateを解放する。stop本体は最初に得たexitTaskを再利用する。停止失敗時はProcess/writeGateを手放さず、失敗Taskと確認能力を保持する。重複停止・重複Disposeは同じ成功結果または失敗を観測する。
+
+ProcessIDは構築時に固定する。HasExitedは同期gate下で観測済みOS終了をcacheし、Dispose後の生Process参照を避ける。HasExited=trueは停止処理・保存の完了を意味しない。停止後のstderr取得もこの終了確認状態と既存Taskを使う。通常Sendの全並行契約やStart登録窓の再設計は混ぜない。
+
+取消側の辞書snapshotは生Process.HasExitedで事前選別せず、sessionのidempotentな停止へ委譲する。public ProcessID/HasExitedを変更する必要が出た場合は、観測済み終了と未確認を区別し、影響箇所を確認する。
+
+通常実行と縮小の外側finallyは、残存sessionをDispose成功後にだけ辞書から削除する。修正前のTryRemove先行では、shared Disposeの失敗は元Taskへ伝わっても、未確認Workerの登録と後続Cancelのjoin先を失う。停止失敗sessionの所有を保つための直接境界修正として順序を揃える。一般例外をCanceledへ変換する既存catch自体は変更しない。
+
+## 影響範囲
+
+WorkerProcessSessionと既存同名テスト、最小のテストassembly friend設定、調停サービスの取消snapshot部分。外部receiptとDB writerの成功条件は維持する。
+
+## 移行手順
+
+専用worktree `Work/Orchestration/worktrees/worker-lifetime`、基準82c92ef9。phase1の観測とテストをfreeze→親がBGOで修正前失敗→phase2寿命修正→同じ決定的テストと元E2E→周辺停止/再起動/receipt回帰→Debug/Release→統括が限定統合。root/CI/TPC/Sum childのソースは変更しない。
+
+## テスト計画
+
+Cancel+Shutdown+Dispose、重複Cancel/Dispose、終了済みsnapshot、同じ停止失敗の伝播を最小のケース群で検証する。phase1のCancelAsync回帰メソッド本文は維持する。実sessionの停止失敗はOS終了後の既存phase gateからIOExceptionを注入し、全待機者が同じ例外を観測することとProcessへの関連付けを保持することを調べる。Kill失敗やOS停止確認不能そのものを再現したとは扱わない。
+
+通常実行と縮小の両方の調停境界でProcessを持たないsessionを注入し、停止失敗時に元Taskと再取消が同じ失敗を返すこと、成功時の再取消ではsessionを呼ばないことを検証する。縮小は専用の一時DBへ有効なIRと失敗SourceExecutionを保存して、実際のQueryを縮小Asyncから候補sessionに到達させる。テスト後処理だけでfakeを解放し、Writerと元Taskを回収する。DB保存や縮小アルゴリズムそのものの仕様変更は行わない。
+
+元E2Eでは元Task後のDBを再Openし、6SourceExecutionの保持とRunning残留なしを確認する。プロセス停止確認が失敗した場合に正常receiptを出さない既存境界も回帰する。
+
+## リスクと対策
+
+共有Task作成時の同期再入・自己await・失敗後の早期成功をレビューする。テストgateは既定未使用、機微な入力をログへ追加しない。生成/Worker DLLとテストDLLのhashを保存する。全実行は共通BGO、全出力排他、専用D領域、RAM80/88制限を守る。
+
+上位の一般catchは取消中の例外をCanceledとしてDBへ保存し得るが、partitionのDisposeが失敗すればsession登録が残る。外側finallyも同じDispose faultをjoinしてthrowするため、元Taskは正常完了せず、外部実行とApplicationControlHostのreceipt成功条件に到達しない。DBのCanceled記録だけを停止確認の証拠にしない。一般catch・Writer・receiptの仕様は今回変更しない。
+
+## 未決事項
+
+phase1の寿命競合は再現済み。phase2の同一gate回帰、重複Cancel/Dispose、終了済みsnapshot、停止失敗の共有と上位伝播は次の親BGOで検証する。通常Sendと開始取消の隣接リスクは今回の本修正に含めない。
+
+## 合意状態
+
+利用者が承認した内部制御の取消・Worker残留・資源所有受入と「実行して」の範囲内。統括がphase1実測を確認し、phase2本修正と最小回帰ケース追加を採用した。build/test/runは親BGOだけが行う。新しい外部公開やユーザー承認待ちは追加しない。
