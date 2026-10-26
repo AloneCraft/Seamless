@@ -1060,7 +1060,7 @@ public sealed class WorkerHost{
     private static UnaryQueryNode Unaryを変換(UnaryQueryNode Node,SourceTarget 対象){
         var Input=Nodeを変換(Node.Input,対象);
         var Order=Node.Arguments switch{
-            DistinctOperatorArguments=>QueryOrderSemantics.Unordered,
+            DistinctOperatorArguments or DistinctByOperatorArguments=>QueryOrderSemantics.Unordered,
             OrderByOperatorArguments or ThenByOperatorArguments=>QueryOrderSemantics.TotalOrdered,
             ExtendedUnaryOperatorArguments Extended=>ExtendedUnaryShape.Order(Extended,Input.OrderSemantics),
             _=>Input.OrderSemantics,
