@@ -73,3 +73,13 @@ dotnet test Benchmark.Dynamic.Tests/Benchmark.Dynamic.Tests.csproj -c Release --
 ```
 
 新規限定回帰は 10 Theory + 取消 Fact + Fixed Run Fact の 12 件。既存 FixedCaseCatalog 3 件を含む最初の filter は計 15 件を期待する。既存 DynamicExceptionParityTests は各 theory が多数 query を実行するため、統括の資源状況を確認して別枠で実行する。成功は性能改善の証拠とは扱わない。
+
+## 呼出位置の傍受と旧原式の検証
+
+生成物にCore名が含まれるという文字列検査だけでは、別の生成メソッド名に同じ文字列がある場合の傍受漏れを見逃し得る。現行の発行templateに対して、要求TypeNameのpublic static・object 2引数・DynamicQueryValue戻り値のwrapperを一意に解決し、正規Coreの名前・signature・source symbolを照合する。最適化あり入口を未最適化Coreへ誤配線したものも拒否する。無関係な同型helperは傍受必須と扱わない。
+
+正規Coreを直接返す呼出について、生成後CompilationのSemanticModelからGetInterceptorMethodで実際の束縛を確認し、呼出位置と傍受先を診断へ保存する。入口・Coreが不明または曖昧ならEmit前にErrorとする。既存の呼出先/System/ZLinq検証、FLINQ002、失敗マーカー、固定点収束、runtime Fallback検査も維持する。
+
+旧カタログ56演算子は保存原典のCall等と全一致し、225メソッド列から引数を変えずに原式を再構成できる。既存Legacy 2 Factsへ共通validatorを適用し、225完走数、source/generatedハッシュ、診断・trace、各入力長0/1/16の結果・例外・Fallbackを保存する。これは近似IR144件の検査とは別である。証跡I/Oが失敗してもLoadedQueryの解放をfinallyで実行する。
+
+正しい入口とhelper付き入口、傍受無効化、最適化Core誤配線、Core曖昧の正負回帰を追加する。傍受無効化例では旧Contains条件が実際に成立することも確認する。追加版のbuildと受入はargon-interceptor-coverage-01で行い、旧版の成功を流用しない。

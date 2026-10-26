@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Operations;
 using Microsoft.CodeAnalysis.Text;
 
 using Seamless.FLinq;
@@ -602,6 +603,14 @@ public sealed partial class FLinqIncrementalGenerator {
         hoistedExpressions=Array.Empty<ExpressionSyntax>();
 
         var parameterSet = new HashSet<string>(parameterNames,StringComparer.Ordinal);
+        var stableReferences=new Dictionary<ISymbol,bool>(SymbolEqualityComparer.Default);
+        bool IsStableReference(ISymbol symbol){
+            if(!stableReferences.TryGetValue(symbol,out var stable)){
+                stable=IsStableInvariantReference(symbol,body,semanticModel);
+                stableReferences.Add(symbol,stable);
+            }
+            return stable;
+        }
         var candidates = body.DescendantNodesAndSelf(descendIntoChildren: node => !IsNestedFunctionBoundary(node))
             .OfType<ExpressionSyntax>()
             .Where(expr => !ReferenceEquals(expr,body))
@@ -610,6 +619,7 @@ public sealed partial class FLinqIncrementalGenerator {
             .Where(expr => !AnchorAnalysis.ContainsAnchor(expr,semanticModel))
             .Where(expr => !IsInsideAnchorAccess(expr,semanticModel))
             .Where(expr => !ReferencesAnyLambdaParameter(expr,parameterSet,semanticModel))
+            .Where(expr => IsSafeInvariantOperation(semanticModel.GetOperation(expr),IsStableReference))
             .Select(expr => (Expression: expr,Type: semanticModel.GetTypeInfo(expr).ConvertedType??semanticModel.GetTypeInfo(expr).Type))
             .Where(pair => IsUsableHoistedType(pair.Type))
             .ToArray();
@@ -650,6 +660,7 @@ public sealed partial class FLinqIncrementalGenerator {
             locals.Add(new HoistedLocal(
                 name,
                 type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                $"unchecked({expressionText})",
                 expressionText));
             accessorCodes.AddRange(expressionAccessorCodes);
         }
@@ -661,6 +672,71 @@ public sealed partial class FLinqIncrementalGenerator {
         hoistedLocals=locals.ToArray();
         unsafeAccessorCodes=accessorCodes.ToArray();
         hoistedExpressions=selected.Select(pair => pair.Expression).ToArray();
+        return true;
+    }
+
+    // parameter非参照だけでは、空入力や短絡の前へ評価を移してよいとは限らない。
+    // 無例外のprimitive演算と、囲むmethod内で変更されない値参照だけを許可する。
+    private static bool IsSafeInvariantOperation(IOperation? operation,Func<ISymbol,bool> isStableReference){
+        if(operation is null||!IsPrimitiveInvariantType(operation.Type)){
+            return false;
+        }
+        if(operation.ConstantValue.HasValue){
+            return true;
+        }
+        return operation switch{
+            ILocalReferenceOperation local=>isStableReference(local.Local),
+            IParameterReferenceOperation parameter=>isStableReference(parameter.Parameter),
+            IDefaultValueOperation=>true,
+            IParenthesizedOperation parenthesized=>IsSafeInvariantOperation(parenthesized.Operand,isStableReference),
+            IUnaryOperation unary=>!unary.IsChecked&&unary.OperatorMethod is null
+                &&IsSafeInvariantOperation(unary.Operand,isStableReference),
+            IBinaryOperation binary=>!binary.IsChecked&&binary.OperatorMethod is null
+                &&binary.OperatorKind is not (BinaryOperatorKind.Divide or BinaryOperatorKind.Remainder)
+                &&IsSafeInvariantOperation(binary.LeftOperand,isStableReference)
+                &&IsSafeInvariantOperation(binary.RightOperand,isStableReference),
+            IConversionOperation conversion=>!conversion.IsChecked&&!conversion.IsTryCast&&conversion.OperatorMethod is null
+                &&!conversion.Conversion.IsUserDefined&&IsSafeInvariantOperation(conversion.Operand,isStableReference),
+            IConditionalOperation conditional=>!conditional.IsRef&&IsSafeInvariantOperation(conditional.Condition,isStableReference)
+                &&IsSafeInvariantOperation(conditional.WhenTrue,isStableReference)
+                &&IsSafeInvariantOperation(conditional.WhenFalse,isStableReference),
+            _=>false,
+        };
+    }
+
+    private static bool IsPrimitiveInvariantType(ITypeSymbol? type)=>type?.SpecialType is
+        SpecialType.System_Boolean or SpecialType.System_Char
+        or SpecialType.System_SByte or SpecialType.System_Byte
+        or SpecialType.System_Int16 or SpecialType.System_UInt16
+        or SpecialType.System_Int32 or SpecialType.System_UInt32
+        or SpecialType.System_Int64 or SpecialType.System_UInt64
+        or SpecialType.System_IntPtr or SpecialType.System_UIntPtr
+        or SpecialType.System_Single or SpecialType.System_Double;
+
+    private static bool IsStableInvariantReference(ISymbol symbol,ExpressionSyntax expression,SemanticModel semanticModel){
+        if(symbol is IParameterSymbol parameter){
+            if(parameter.RefKind!=RefKind.None){return false;}
+        }else if(symbol is ILocalSymbol local){
+            if(local.RefKind!=RefKind.None||!local.DeclaringSyntaxReferences.All(reference=>reference.GetSyntax() is VariableDeclaratorSyntax{Initializer:not null})){
+                return false;
+            }
+        }else{
+            return false;
+        }
+        var scope=expression.Ancestors().LastOrDefault(node=>node is BaseMethodDeclarationSyntax or AccessorDeclarationSyntax or LocalFunctionStatementSyntax or AnonymousFunctionExpressionSyntax);
+        if(scope is null){return false;}
+        foreach(var identifier in scope.DescendantNodes().OfType<IdentifierNameSyntax>()){
+            if(!SymbolEqualityComparer.Default.Equals(semanticModel.GetSymbolInfo(identifier).Symbol,symbol)){continue;}
+            foreach(var ancestor in identifier.Ancestors().TakeWhile(node=>node!=scope)){
+                if(ancestor is AssignmentExpressionSyntax assignment&&assignment.Left.Span.Contains(identifier.Span)
+                    ||ancestor is ArgumentSyntax argument&&argument.RefKindKeyword.Kind()!=SyntaxKind.None
+                    ||ancestor is RefExpressionSyntax
+                    ||ancestor is PrefixUnaryExpressionSyntax prefix&&prefix.Kind() is SyntaxKind.PreIncrementExpression or SyntaxKind.PreDecrementExpression or SyntaxKind.AddressOfExpression
+                    ||ancestor is PostfixUnaryExpressionSyntax postfix&&postfix.Kind() is SyntaxKind.PostIncrementExpression or SyntaxKind.PostDecrementExpression){
+                    return false;
+                }
+            }
+        }
         return true;
     }
 

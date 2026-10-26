@@ -3,7 +3,8 @@ using Microsoft.CodeAnalysis.CSharp;
 using System.Text.RegularExpressions;
 namespace Seamless.FLinq.Generator;
 
-internal readonly record struct HoistedLocal(string Name,string TypeName,string ExpressionText);
+// 評価式にはunchecked等の生成用文脈を含める。元のlambdaを再描画する束縛には、その前の式を使う。
+internal readonly record struct HoistedLocal(string Name,string TypeName,string ExpressionText,string BindingExpressionText);
 
 /*
 FuncFragment は predicate/selector/accumulator などの lambda を Fragment 内でどう呼ぶかを表す。

@@ -14,7 +14,7 @@
 
 既存A/cliを維持し、B/file-mailboxは明示opt-in、登録mailbox、live instance、操作ID、grant、永続claimと耐久終端receiptを必要とする。処理停止を確認できなければQuarantinedで所有権を保持する。C/描画、D/隔離GUI、全ツールへの強制的な資源検査は未実装。
 
-機械共通の `G:/AI/Skills/instructions/CodexBackgroundOperations.md` は変更していない。自動承認審査が永続的な共有規約変更を拒否したため、`shared-policy-proposed.patch` に具体的な差分を保存し、利用者のファイル単位の承認を待つ。共通基盤のローカルdocsは配置済み実装に対応している。
+機械共通の `G:/AI/Skills/instructions/CodexBackgroundOperations.md` は、保存した具体的差分への利用者の明示承認後に更新した。変更前全文、承認時点の原文ハッシュ、反映後ハッシュを `shared-policy-approval-status.json` と `codex-background-operations-before.md` に保存した。自動承認審査の拒否を迂回してはいない。
 
 ## Dynamic/Scalable内部制御
 
@@ -32,15 +32,27 @@ chain-19の入力16件で、Systemのlambda評価は `[16,1,1]`、修正前FLinq
 
 69件のsource/generatedハッシュ、25参照のOriginalSHA256/OriginalIdealBody不変、138 traceのFixedPointは `argon-current-evidence-audit.{md,json}` に保存した。コンパイル時の傍受証拠と実行時Fallbackゼロは区別する。
 
-元225件は代表25+回帰200のケース記録であり、全件の完全な原式保存・実行を意味しない。従来変換可能だった23+121件だけを225件合格と言い換えない。型/Sourceの既存対応も拡張せず再利用する。
+元225件は代表25+回帰200のケース記録である。後続の `legacy-original-template-audit.json` では、保存メソッド列と保全された旧カタログ56演算子の引数付きCallを照合し、225式を引数変更なしに再構成した。カタログと旧理想生成器の実ファイルは各OriginalSHA256と一致した。これは225個の独立した元式ファイルの保存を意味しない。
 
-`DynamicQueryValidator` による通常Workerと固定ケースの値・例外・Fallback共通化は実装を取り込んだが、本書作成時点では `argon-validation-integrated-01` が受入待ち。性能・割り当ての最終比較、独立seed、noise-v1判定、夜間全コーパス/全評価調査は未完了。CI設定の静的10項目照合は成功したが、実GitHub Actions実行はしていない。
+既存の `LegacyChainCatalog` は、この再構成225件と旧ペアを直接コンパイル・実行する。従来IRへ変換可能だった23+121件の検査とは別である。実行時Fallbackと呼出位置への傍受、全source/generatedハッシュの証跡を追加した版は `argon-interceptor-coverage-01` で別途受入する。型/Sourceの既存対応も拡張せず再利用する。
+
+`DynamicQueryValidator` による通常Workerと固定ケースの値・例外・Fallback共通化は、`argon-validation-integrated-01` の限定15件とWorker関連8件で成功した。同型例外は測定せず、取消は伝播し、通常値の実行時FallbackはExpansionIncompleteとする。性能・割り当ての最終比較、独立seed、noise-v1判定、夜間全コーパス/全評価調査は未完了。CI設定の静的10項目照合は成功したが、実GitHub Actions実行はしていない。
+
+`argon-invariant-runtime-02` では、強制generator Rebuild後、固定参照5件とvalidator12件の17件、および既存の需要・SelectMany・InvariantHoisting等の周辺回帰136件が全成功した。評価93記録の両FLinq実装に過剰評価はなく、25参照×入力長0/1/16の75 runtime検証でFallbackは0。97件のsource/generated/meta組のハッシュは全一致した。
+
+続く `argon-normal-integrated-02` は通常PRと同じfilterで376件成功、失敗・skip 0。実行時間は約15分46秒で、前段階の362件から追加された検証も含む。generator DLLは `e566dc1edc58a47b8b07e03834b2ac2a049e9fda5aaa3a7a1361b1cb7a39a711`、Worker DLLは `2de33914576027a45dca9af1c09945c89767d86a974f84bcec0338a84d4f7334`。後続の呼出位置の傍受gate候補はこの受入に含めない。
+
+追加で確認した原因は、空outerのSelectManyでもselectorをconstructorへ前倒ししていた経路と、除算等の例外を発生させる部分式を一般の不変式hoistが前倒ししていた経路である。不変式は副作用・例外・可変captureを除外し、元のunchecked文脈を維持する。評価用式と元projectionを束縛する式を別に保持し、GroupByの既存回帰も通した。
 
 ## Tsavorite/TPC-C
 
 元データを変更せず、新規Cデータの `recovery-r0-baseline-01` と `recovery-r0-noinline-01` でtxn80/p0-customer再OpenのNREを再現した。noinlineで `LogRecord.get_KeyBytes:1033` まで特定した。初発NREと後続cleanupの共有違反は分離する。
 
-新しいsnapshot page72末尾704Bと、初回page8の同じ位置の704Bが両実験で一致した。64-page ringの同じslot8を使う。次の観測は、正常な再Open直後の未使用slotに旧payloadが残っているかを確認する `recovery-r1-observe-01`。この段階では原因修正や復旧合格としない。
+新しいsnapshot page72末尾704Bと、初回page8の同じ位置の704Bが両実験で一致した。64-page ringの同じslot8を使う。`recovery-r1-observe-01` では、正常な再Open直後の未使用slotに旧page8の4096B全体が残り、その後のappendで旧payloadをrecordとして読むことを確認した。
+
+固定上流 `b0255a31de95b1e903ee187feb59ceb04819a639` から比較用のsigned Coreを2つ作り、両者ともbuild警告・エラー0、元assembly version/tokenと一致した。baseline/patchedの差はRecovery.csの6行だけである。`recovery-r1-observe-source-baseline-01` は元txn80 NREを再現し、`recovery-r1-observe-source-patched-01` は80取引、4変種とP1比較、shadow、保存・再Open・正常終了に成功した。patchedのopen3以降は次slotの旧payloadが0、resident外の余分なallocated slotも0である。
+
+修正は、復旧走査でheadより前の各pageの処理・必要なflushを終えてから、既存の所有権処理でそのpageを解放する。後からring slotを一括解放してresident aliasを壊す方法は採らない。この比較実験の成功だけでは、長期運転・別checkpoint形式・失敗時cleanup・正式依存の受入完了とはしない。
 
 旧DLL固定の初期走査probeは10万行の6条件と、行数だけ100万へ増やしたraw/Double/4096条件が成功した。元のP4初期走査CountdownEvent underflowは未再現・未解決であり、再OpenのNREと同じ原因とは扱わない。
 
@@ -51,3 +63,9 @@ TPC-C childの4変種・C10実装は保全したまま。元症状の修正、Ex
 実行は共通CLIの `run --spec` と専用の `*.spec.json` / `*.commands.json` を用いる。workspace S、全ProjectReferenceを含む出力X、共通cpu:heavy Xを宣言する。80%未満で開始し88%で所有処理を止め、取得不能では開始しない。D/FとTPC-C専用Cの媒体条件を維持する。データと出力は毎回新規pathにし、旧証拠を上書きしない。
 
 要求した設定だけでなく、実セッションのturn_contextから確認したmodel/effortを `agent-models.json` に保存する。統括はGPT-6.1 Sol/Ultra。定型照合はLuna/low、局所harnessはLuna/medium、意味修正はSol/high、復旧・所有権はSol/xhighを使用した。未実行、取消、Unavailable、判定不能を成功へ数えない。
+
+## 後続の対象版
+
+- `argon-validation-integrated-01` は共通validator版の限定15件とWorker関連8件が成功。テストに追加されたxUnit2031警告はAssert.Singleの述語overloadへ修正し、次版で再確認する。
+- 旧93記録を未最適化側も含めて再計算し、chain-15/25の空入力でlambda#0がSystem0/FLinqUnoptimized1と確認した。これはSelectManyのinner selectorのconstructor前倒しが原因。修正と非計測例外回帰を取り込み、runtime Fallback検査の追加Factとともに次版を検証する。
+- `recovery-r1-observe-01` は既存DLLのまま元NREを再現。txn60再Open直後のnext page72/slot8に旧page8末尾と同じhashがあり、resident範囲外slot9..18もallocatedだった。後続取引・保存前の復旧済みメモリに旧payloadが残ることを観測した。修正前証拠であり復旧合格ではない。
