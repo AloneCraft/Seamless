@@ -48,15 +48,15 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
 
         this.AssertAssignmentAligned(
             lines,
-            @"^\s*key\d*=outer\d*;$",
-            @"^\s*var outer\d*=",
-            @"^\s*if\((?:this\.)?lookup\d*!?\.GetGroup");
+            @"^\s*int\s+\w+=\w+;$",
+            @"^\s*var\s+\w+=",
+            @"^\s*if\(.*\.GetGroup");
 
         this.AssertAssignmentAligned(
             lines,
-            @"^\s*key\d*=item\d*;$",
-            @"^\s*int key\d*=default!;$",
-            @"^\s*lookupBuilder\.Add");
+            @"^\s*int\s+\w+=\w+;$",
+            @"^\s*var\s+\w+=",
+            @"^\s*\w+\.Add");
     }
 
     [Fact]
@@ -79,7 +79,9 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
 
     private void AssertAssignmentAligned(string[] lines,string assignmentPattern,string beforePattern,string afterPattern) {
         var generated = string.Join(Environment.NewLine,lines);
-        var assignmentIndex = Array.FindIndex(lines,line => Regex.IsMatch(line,assignmentPattern));
+        var afterIndex=Array.FindIndex(lines,line=>Regex.IsMatch(line,afterPattern));
+        var assignmentIndex=afterIndex<0 ? -1 : Enumerable.Range(0,afterIndex)
+            .Where(index=>Regex.IsMatch(lines[index],assignmentPattern)).DefaultIfEmpty(-1).Last();
 
         GeneratedSourceAssert.True(
             assignmentIndex>=0,

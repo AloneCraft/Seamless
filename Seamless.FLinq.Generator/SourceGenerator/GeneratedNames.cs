@@ -32,7 +32,7 @@ internal sealed class GeneratedNames(HashSet<string> methodScope,HashSet<string>
     internal static string PreferLocal(string generated,FuncFragment? function,int parameterIndex=0){
         if(Current is { } names&&function is not null&&parameterIndex<function.ParameterNames.Length){
             var preferred=function.ParameterNames[parameterIndex];
-            if(!string.IsNullOrWhiteSpace(preferred)&&!names.PreferredLocals.ContainsKey(generated)){
+            if(!string.IsNullOrWhiteSpace(preferred)&&preferred!="_"&&!names.PreferredLocals.ContainsKey(generated)){
                 names.PreferredLocals.Add(generated,preferred.TrimStart('@'));
             }
         }
@@ -73,6 +73,7 @@ internal sealed class GeneratedNames(HashSet<string> methodScope,HashSet<string>
     }
 
     /// <summary>メソッド直下の名前。使用済みでない名前を新しく割り当てる。空いていればそのまま、使用済みなら 2・3… を足す。</summary>
+    internal bool CanUseDiscard=>!this.methodScope.Contains("_");
     public string Allocate(string preferred) => this.AllocateIn(this.methodScope,preferred);
 
     /// <summary>ブロックの中だけの名前。ラムダの中だけで宣言される名前とは衝突しない。</summary>
