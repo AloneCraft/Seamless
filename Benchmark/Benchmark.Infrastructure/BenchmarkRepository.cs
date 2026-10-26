@@ -140,7 +140,7 @@ public sealed class BenchmarkRepository{
         var growth=JsonSerializer.Deserialize<Seamless.Execution.Growth.Descriptor>(conditions.GrowthJSON,JSON)??throw new InvalidDataException("拡張方式がありません。");
         var workload=conditions.WorkloadID;
         if(this.GetRun(training.RunID)!.Application.StartsWith("Scalable",StringComparison.Ordinal)&&conditions.Implementation!="Native"){workload+="."+conditions.Implementation;}
-        var profile=new MeasuredProfile(id,1,new(conditions.Backend,kind,conditions.ElementType,conditions.Count,workload,environment.ProfileEnvironment,conditions.IO),conditions.Count,settings,[training.RunID,validation.RunID,trainingBaseline,validationBaseline],true,growth,parameters.Evidence);
+        var profile=new MeasuredProfile(id,1,new(conditions.Backend,kind,conditions.ElementType,conditions.Count,workload,environment.ProfileEnvironment,conditions.IO,StorageKey:conditions.StorageKey),conditions.Count,settings,[training.RunID,validation.RunID,trainingBaseline,validationBaseline],true,growth,parameters.Evidence);
         _=new ProfileCatalog([profile]);
         using var connection=this.database.OpenWrite();using var command=connection.CreateCommand();command.CommandText="INSERT INTO BenchmarkProfiles VALUES($id,$at,$payload);";
         Add(command,"$id",id);Add(command,"$at",DateTimeOffset.UtcNow.ToString("O"));Add(command,"$payload",Serialize(profile));command.ExecuteNonQuery();return profile;

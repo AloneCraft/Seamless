@@ -2,6 +2,20 @@ namespace Benchmark.Infrastructure.Tests;
 
 public sealed class Comparison{
     [Fact]
+    public void DifferentStorageIsNotAPerformanceComparison(){
+        Conditions Read(string storage){
+            var original=new Conditions("sum","input",100,"Int32","Tsavorite","Temporary","Native","Native","{}","{}","host");
+            var json=System.Text.Json.JsonSerializer.SerializeToNode(original)!;
+            json["StorageKey"]=storage;
+            return System.Text.Json.JsonSerializer.Deserialize<Conditions>(json.ToJsonString())!;
+        }
+        var before=Measurement.Create("before","run",Read("volume-ssd"),"same",Enumerable.Repeat(new Sample(100,1,0),7).ToArray());
+        var after=before with{ID="after",Conditions=Read("volume-hdd")};
+        Assert.Equal(ComparisonStatus.Incompatible,Infrastructure.Comparison.Compare(before,after,ComparisonMode.Experiment).Status);
+        var legacy=before with{Conditions=Read("Unknown")};
+        Assert.Equal(ComparisonStatus.Incompatible,Infrastructure.Comparison.Compare(legacy,legacy).Status);
+    }
+    [Fact]
     public void Compare(){
         var conditions=new Conditions("sum","input",100,"Int32","Tsavorite","Memory","FLinq","All","{}","{}","environment");
         Assert.Equal("9920D3FA72013C2393FA67D929CB95273F576F9D34D6D62591207B1F42FE9E2C",conditions.ScopeKey);

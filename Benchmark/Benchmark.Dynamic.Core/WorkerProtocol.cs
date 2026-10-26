@@ -275,7 +275,7 @@ public sealed record WorkerSourceExecutionCompletedEvent(
     // FLinq の生成器が出した展開後のコード(コンパイルまで進んだとき)。理想のループと見比べるための表示用。
     string? ExpandedSourceText=null,
     string? InputHash=null,string? EnvironmentJSON=null,string? ParametersJSON=null,
-    string? GrowthJSON=null,string? StoreKind=null,string? CodeFingerprint=null,string? StorageChangesJSON=null,string IO="BackendDefault");
+    string? GrowthJSON=null,string? StoreKind=null,string? CodeFingerprint=null,string? StorageChangesJSON=null,string IO="BackendDefault",string StorageKey="Unknown");
 
 public sealed record WorkerProgressEvent(
     string RunId,

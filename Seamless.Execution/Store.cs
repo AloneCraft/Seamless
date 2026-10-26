@@ -77,7 +77,7 @@ public sealed class Store:IDisposable{
     public ProfileResolution ResolveProfile(string component,string backend,string elementType,long expectedCount=0,ProfileSettings? explicitSettings=null,Growth.Policy? explicitGrowth=null,string io="BackendDefault"){
         ValidateName(component);
         var resolution=ProfileResolver.Resolve(this.Options.Profile,
-            new(backend,this.Kind,elementType,expectedCount,this.Options.Workload,this.Options.Environment,io),
+            new(backend,this.Kind,elementType,expectedCount,this.Options.Workload,this.Options.Environment,io,StorageKey:ProfileEnvironment.Storage(this.directoryPath)),
             this.Limits,explicitSettings,this.Options.Profiles,explicitGrowth??this.Options.ExplicitGrowth);
         this.profiles[component]=resolution;
         return resolution;

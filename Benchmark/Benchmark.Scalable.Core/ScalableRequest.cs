@@ -56,9 +56,15 @@ public sealed record ScalableRequest(
         Seamless.Execution.Growth.Policy? growth=null;
         if(this.Growth!="profile"){growth=options.Growth;}
         var request=new ProfileRequest(this.Backend,this.Kind,"System.Int32|System.Int32",this.Count,this.ProfileWorkloadID,options.Environment,
-            ProfileIO.Describe(IOConfiguration.Parse(this.IOMode,this.AccessPattern)));
+            ProfileIO.Describe(IOConfiguration.Parse(this.IOMode,this.AccessPattern)),StorageKey:this.StorageKey);
         return new(ProfileResolver.Explain(this.Profile,request,this.CreateLimits(),this.ExplicitSettings,options.Profiles,growth),
             this.ActualImplementation.ToString(),"実装の選択は確定。拡張・結合・外部ソートの詳細経路と資源量は実行時に判断します。");
+    }
+    [System.Text.Json.Serialization.JsonIgnore]public string StorageKey{
+        get{
+            if(this.Kind==StoreKind.Memory){return "Memory";}
+            return ProfileEnvironment.Storage(this.TemporaryDirectory??Path.GetTempPath());
+        }
     }
 }
 public sealed record ScalableExplanation(ProfileExplanation Profile,string Implementation,string RuntimeDecisions);

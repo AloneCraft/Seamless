@@ -51,7 +51,7 @@ internal sealed class DynamicHistoryProjector{
             if(known){workload=QueryWorkloadIdentity.Compute(QueryIrJson.Deserialize(reader.GetString(7)));}
             var conditions=new Conditions(workload,metadata?.InputHash??"unknown",count,type,source.GetSourceKind().ToString(),metadata?.StoreKind??"Unknown",
                 kind,kind=="FLinq"?(metadata?.Optimizations??"All"):kind=="FLinqUnoptimized"?"None":"Native",metadata?.ParametersJSON??"{}",metadata?.GrowthJSON??"{}",environment,
-                MeasurementVersion:run.Profile,Known:known,IO:metadata?.IO??"BackendDefault");
+                MeasurementVersion:run.Profile,Known:known,IO:metadata?.IO??"BackendDefault",StorageKey:metadata?.StorageKey??"Unknown");
             var samples=bundle.RawSamples.Where(static sample=>sample.Phase=="Measurement").Select(static sample=>new Sample(sample.ElapsedNanoseconds,sample.OperationCount,sample.AllocatedBytes,Gen0:checked((int)sample.Gen0Collections),Gen1:checked((int)sample.Gen1Collections),Gen2:checked((int)sample.Gen2Collections))).ToArray();
             if(samples.Length==0){samples=bundle.RawSamples.Select(static sample=>new Sample(sample.ElapsedNanoseconds,sample.OperationCount,sample.AllocatedBytes)).ToArray();}
             var measurement=Measurement.Create(bundle.Measurement.MeasurementID,run.RunID,conditions,reader.GetString(4),samples) with{Status=reader.GetString(5)=="Succeeded"?"Passed":reader.GetString(5),Interval=reader.GetInt32(2)};
@@ -65,4 +65,4 @@ internal sealed class DynamicHistoryProjector{
     }
 }
 
-public sealed record DynamicMeasurementConditions(string InputHash,string EnvironmentJSON,string ParametersJSON,string GrowthJSON,string StoreKind,string Optimizations,string CodeFingerprint,string? StorageChangesJSON=null,string IO="BackendDefault");
+public sealed record DynamicMeasurementConditions(string InputHash,string EnvironmentJSON,string ParametersJSON,string GrowthJSON,string StoreKind,string Optimizations,string CodeFingerprint,string? StorageChangesJSON=null,string IO="BackendDefault",string StorageKey="Unknown");

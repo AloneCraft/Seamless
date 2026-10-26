@@ -9,8 +9,10 @@ public static class Comparison{
         ComparisonResult Result(ComparisonStatus status,string reason,double? time=null,double? allocation=null)=>new(
             Guid.NewGuid().ToString("N"),baseline.ID,candidate.ID,mode,status,tolerance,time,allocation,reason,differences,DateTimeOffset.UtcNow,policy.Version);
         if(!baseline.Conditions.Known||!candidate.Conditions.Known){return Result(ComparisonStatus.Incompatible,"記録時の測定条件が不明です。");}
+        static bool UnknownDisk(Conditions value)=>value.StoreKind is "Temporary" or "Persistent"&&value.StorageKey=="Unknown";
+        if(UnknownDisk(baseline.Conditions)||UnknownDisk(candidate.Conditions)){return Result(ComparisonStatus.Incompatible,"ディスクの保存先が不明な旧記録は性能比較に使えません。");}
         var required=new[]{nameof(Conditions.WorkloadID),nameof(Conditions.InputHash),nameof(Conditions.Count),nameof(Conditions.ElementType),
-            nameof(Conditions.EnvironmentKey),nameof(Conditions.MeasurementVersion),nameof(Conditions.SemanticsVersion),nameof(Conditions.CodecVersion)};
+            nameof(Conditions.EnvironmentKey),nameof(Conditions.StorageKey),nameof(Conditions.MeasurementVersion),nameof(Conditions.SemanticsVersion),nameof(Conditions.CodecVersion)};
         if((mode==ComparisonMode.Regression&&differences.Length!=0)
             ||differences.Any(difference=>required.Contains(difference,StringComparer.Ordinal))){
             return Result(ComparisonStatus.Incompatible,"比較に必要な入力・処理・環境・測定条件が一致しません。");

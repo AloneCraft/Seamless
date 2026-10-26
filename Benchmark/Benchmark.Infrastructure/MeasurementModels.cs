@@ -10,11 +10,12 @@ public sealed record Run(string ID,string Application,string Status,string Setti
 public sealed record Conditions(
     string WorkloadID,string InputHash,long Count,string ElementType,string Backend,string StoreKind,
     string Implementation,string Optimizations,string ParametersJSON,string GrowthJSON,string EnvironmentKey,
-    string MeasurementVersion="balanced-v1",string SemanticsVersion="1",string CodecVersion="1",bool Adaptive=false,bool Known=true,string IO="BackendDefault"){
+    string MeasurementVersion="balanced-v1",string SemanticsVersion="1",string CodecVersion="1",bool Adaptive=false,bool Known=true,string IO="BackendDefault",string StorageKey="Unknown"){
     [System.Text.Json.Serialization.JsonIgnore]public string ScopeKey{
         get{
             var json=(JsonObject)JsonSerializer.SerializeToNode(this)!;
             if(this.IO=="BackendDefault"){json.Remove(nameof(this.IO));}
+            if(this.StorageKey=="Unknown"){json.Remove(nameof(this.StorageKey));}
             return Fingerprint.Of(Fingerprint.CanonicalJSON(json.ToJsonString()));
         }
     }

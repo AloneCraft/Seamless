@@ -68,7 +68,7 @@ public sealed class ScalableRunner(BenchmarkRepository repository){
             }
             var parameters=new ProfileParameters(request.ExplicitSettings,effective!,resolution!.ProfileID??resolution.Applied.ToString(),resolution.Reason,resolution.ProfileVersion,resolution.EvidenceRunIDs,request.Profile.ToString(),resolution.Settings,ProfileEvidence.Current);
             var input=Fingerprint.OfJSON(new{request.Count,request.Seed,Generator="xor-sequence-v1"});
-            var conditions=new Conditions(request.WorkloadID,input,request.Count,"System.Int32|System.Int32",request.Backend,request.Kind.ToString(),request.ActualImplementation.ToString(),"Native",JsonSerializer.Serialize(parameters),growth,environment.Key,"scalable-content-v2",Adaptive:request.Adaptive,IO:ProfileIO.Describe(IOConfiguration.Parse(request.IOMode,request.AccessPattern)));
+            var conditions=new Conditions(request.WorkloadID,input,request.Count,"System.Int32|System.Int32",request.Backend,request.Kind.ToString(),request.ActualImplementation.ToString(),"Native",JsonSerializer.Serialize(parameters),growth,environment.Key,"scalable-content-v2",Adaptive:request.Adaptive,IO:ProfileIO.Describe(IOConfiguration.Parse(request.IOMode,request.AccessPattern)),StorageKey:request.StorageKey);
             var measurement=Measurement.Create(Guid.NewGuid().ToString("N"),id,conditions,digest!,samples.ToArray()) with{TransitionNanoseconds=transitions};
             repository.SaveMeasurement(measurement);
             repository.SaveRun(run with{Status="Passed",CompletedAt=DateTimeOffset.UtcNow});
