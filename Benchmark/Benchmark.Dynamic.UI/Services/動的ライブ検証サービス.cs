@@ -313,7 +313,7 @@ public sealed class 動的ライブ検証サービス{
                 &&例外一覧.ValueKind==JsonValueKind.Object
                 &&例外一覧.EnumerateObject().Any();
             if(根.TryGetProperty("comparisons",out var 比較一覧)&&比較一覧.ValueKind==JsonValueKind.Object){
-                一致=!例外あり;
+                一致=比較一覧.EnumerateObject().Any();
                 foreach(var 比較 in 比較一覧.EnumerateObject()){
                     if(!比較.Value.GetProperty("isMatch").GetBoolean()){
                         一致=false;
