@@ -42,7 +42,7 @@ public sealed record ProfileSettings{
     }
 }
 
-public sealed record ProfileRequest(string Backend,StoreKind StoreKind,string ElementType,long ElementCount=0,string Workload="*",string Environment="*",string IO="BackendDefault",ProfileEvidence? RequiredEvidence=null);
+public sealed record ProfileRequest(string Backend,StoreKind StoreKind,string ElementType,long ElementCount=0,string Workload="*",string Environment="*",string IO="BackendDefault",ProfileEvidence? RequiredEvidence=null,string StorageKey="Unknown");
 
 public sealed record MeasuredProfile(
     string ID,int Version,ProfileRequest Conditions,long MaximumCount,ProfileSettings Settings,
@@ -50,6 +50,8 @@ public sealed record MeasuredProfile(
     public bool AppliesTo(ProfileRequest request)=>this.Conditions.Backend==request.Backend
         &&this.Conditions.StoreKind==request.StoreKind
         &&this.Conditions.IO==request.IO
+        &&this.Conditions.StorageKey==request.StorageKey
+        &&(this.Conditions.StoreKind==StoreKind.Memory||this.Conditions.StorageKey!="Unknown")
         &&(this.Conditions.ElementType=="*"||this.Conditions.ElementType==request.ElementType)
         &&request.ElementCount>=this.Conditions.ElementCount&&request.ElementCount<=this.MaximumCount
         &&(this.Conditions.Workload=="*"||this.Conditions.Workload==request.Workload)
@@ -118,6 +120,9 @@ public static class ProfileResolver{
         EnsureBudget(selected,limits);
         if(requested==Profile.Minimum){return new(requested,Profile.Minimum,"Minimum",MinimumVersion,selected,"Minimum initial configuration.",[]);}
         if(requested!=Profile.Optimized){throw new ArgumentOutOfRangeException(nameof(requested));}
+        if(request.StoreKind!=StoreKind.Memory&&request.StorageKey=="Unknown"){
+            return new(requested,Profile.Minimum,"Minimum",MinimumVersion,selected,"Storage volume is unknown; measured disk profiles cannot be applied.",[]);
+        }
         var rejected=new List<string>();
         var candidates=(supplied?.Candidates(request)??[]).Concat(ProfileCatalog.Bundled.Candidates(request));
         foreach(var candidate in candidates){

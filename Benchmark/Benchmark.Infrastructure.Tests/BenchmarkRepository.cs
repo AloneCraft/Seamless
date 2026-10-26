@@ -13,7 +13,7 @@ public sealed class BenchmarkRepository{
             var application="Scalable";var implementation="Native";var workload="FilterAggregate";
             Measurement Save(string id,string input,Seamless.Execution.ProfileSettings settings,double time,Seamless.Execution.ProfileSettings? initial=null){
                 repository.SaveRun(new(id,application,"Passed","{}",System.Text.Json.JsonSerializer.Serialize(environment),"build",DateTimeOffset.UtcNow));
-                var conditions=new Conditions(workload,input,4096,"System.Int32|System.Int32","Tsavorite","Temporary",implementation,"Native",System.Text.Json.JsonSerializer.Serialize(new ProfileParameters(null,settings,Initial:initial,Evidence:Seamless.Execution.ProfileEvidence.Current)),growth,environment.Key,"scalable-content-v2");
+                var conditions=new Conditions(workload,input,4096,"System.Int32|System.Int32","Tsavorite","Temporary",implementation,"Native",System.Text.Json.JsonSerializer.Serialize(new ProfileParameters(null,settings,Initial:initial,Evidence:Seamless.Execution.ProfileEvidence.Current)),growth,environment.Key,"scalable-content-v2",StorageKey:"test-volume");
                 var measurement=Measurement.Create(id,id,conditions,"digest-"+input,Enumerable.Repeat(new Sample(time,1,0),7).ToArray());repository.SaveMeasurement(measurement);return measurement;
             }
             var before=Save("control","training-input",minimum,100);var training=Save("candidate","training-input",candidate,80);
@@ -22,7 +22,8 @@ public sealed class BenchmarkRepository{
             repository.Compare(before.ID,training.ID,ComparisonMode.Experiment);repository.Compare(beforeValidation.ID,validation.ID,ComparisonMode.Experiment);
             var profile=repository.PublishProfile("validated",training.ID,validation.ID);
             Assert.Equal(4,profile.EvidenceRunIDs.Length);Assert.Equal(4096,profile.Settings.IndexBytes);Assert.Equal("doubling",profile.Growth!.ID);
-            Assert.NotNull(repository.GetProfiles().Find(new("Tsavorite",Seamless.Execution.StoreKind.Temporary,"System.Int32|System.Int32",4096,"FilterAggregate",environment.ProfileEnvironment)));
+            Assert.NotNull(repository.GetProfiles().Find(new("Tsavorite",Seamless.Execution.StoreKind.Temporary,"System.Int32|System.Int32",4096,"FilterAggregate",environment.ProfileEnvironment,StorageKey:"test-volume")));
+            Assert.Null(repository.GetProfiles().Find(profile.Conditions with{StorageKey="another-volume"}));
             application="Dynamic";implementation="FLinq";workload="query-hash";
             var grown=minimum with{IndexBytes=16384};var faster=grown with{IndexBytes=32768};
             var dynamicBefore=Save("dynamic-before","dynamic-training",grown,100,minimum);
@@ -53,7 +54,7 @@ public sealed class BenchmarkRepository{
             var at=DateTimeOffset.UtcNow;
             repository.SaveRun(new("one","Dynamic","Passed","{}","{}","revision1",at));
             repository.SaveRun(new("two","Scalable","Passed","{}","{}","revision2",at));
-            var conditions=new Conditions("lookup","same-input",100,"Int32","Tsavorite","Temporary","FLinq","All","{}","{}","same-environment");
+            var conditions=new Conditions("lookup","same-input",100,"Int32","Tsavorite","Temporary","FLinq","All","{}","{}","same-environment",StorageKey:"test-volume");
             var first=Measurement.Create("a","one",conditions,"same-result",Enumerable.Repeat(new Sample(100,1,4),7).ToArray());
             var second=first with{ID="b",RunID="two",Samples=Enumerable.Repeat(new Sample(90,1,0),7).ToArray()};
             repository.SaveMeasurement(first);repository.SaveMeasurement(second);

@@ -81,6 +81,7 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
         string? 拡張JSON=null;
         string? 設定変更JSON=null;
         var 入出力方式="BackendDefault";
+        var 保存先キー="Unknown";
         var 解放済み=true;
         var Source生成時間=0L;
         DynamicCompilationTimings Compilation時間=空のコンパイル時間();
@@ -126,6 +127,7 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
             入力ハッシュ=FixtureInputIdentity.Compute(Fixture,Query.ElementType);
             環境JSON=JsonSerializer.Serialize(Benchmark.Infrastructure.EnvironmentSnapshot.Capture(要求.MeasurementProfile.ProfileId));
             var 所有者=Fixture.Stores.FirstOrDefault();
+            保存先キー=global::Seamless.Execution.ProfileEnvironment.Storage(所有者?.DirectoryPath);
             if(所有者 is not null){
                 var 採用設定=所有者.ResolvedProfiles.Values.First();
                 var 実設定=所有者.GetCurrentSettings(所有者.ResolvedProfiles.Keys.First());
@@ -281,7 +283,7 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                 解放済み,
                 完了日時,
                 展開コード.Length==0?null:展開コード,
-                入力ハッシュ,環境JSON,パラメーターJSON,拡張JSON,保存方式,ビルド指紋.Value,設定変更JSON,入出力方式);
+                入力ハッシュ,環境JSON,パラメーターJSON,拡張JSON,保存方式,ビルド指紋.Value,設定変更JSON,入出力方式,保存先キー);
         }
     }
 
