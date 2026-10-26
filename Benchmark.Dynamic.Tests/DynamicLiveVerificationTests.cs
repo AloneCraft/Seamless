@@ -82,6 +82,26 @@ public sealed class DynamicLiveVerificationTests:IDisposable{
         Assert.Equal(first.状態.ToString(),Assert.Single(snapshot.SourceExecutions).Status);
     }
 
+    [Theory,Trait("Category","Unit")]
+    [InlineData(true,true)]
+    [InlineData(false,true)]
+    [InlineData(true,false)]
+    public void 同型例外の一致は合格にし不一致や未比較は合格にしない(bool matches,bool compared){
+        var settings=new 動的ライブ設定(SourceTarget.SystemArray,QueryElementType.Int,Seed256.Parse("0x1"));
+        var request=動的ライブ検証サービス.段階の要求を作る(settings,動的ライブ段階.ランダム探索,0,"exception-check");
+        var comparisons=new Dictionary<string,object>();
+        if(compared){comparisons.Add("fLinq",new{isMatch=matches});}
+        var json=System.Text.Json.JsonSerializer.Serialize(new{
+            exceptions=new{system=new{exceptionType="System.InvalidOperationException"},fLinq=new{exceptionType="System.InvalidOperationException"}},
+            comparisons});
+        var completed=new WorkerSourceExecutionCompletedEvent(request.RunId,"q0",0,SourceTarget.SystemArray,
+            WorkerExecutionStatus.Succeeded,string.Empty,string.Empty,json,"[]",null,null,true,DateTimeOffset.UtcNow);
+        var result=動的ライブ検証サービス.結果を作る(settings,動的ライブ段階.ランダム探索,request,completed,null);
+        Assert.Equal(matches&&compared,result.全経路一致か);
+        Assert.Equal(matches&&compared,result.合格か);
+        Assert.Contains("実行例外",result.診断,StringComparison.Ordinal);
+    }
+
     private sealed class BatchClient:IWorkerProcessClient{
         public List<WorkerRunRequest> Requests{get;}=[];
         public IWorkerProcessSession Start(string workerPath,IReadOnlyList<string>? arguments=null,string? workingDirectory=null)=>new BatchSession(this.Requests);
