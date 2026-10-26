@@ -36,6 +36,7 @@ public sealed class ScalableRunner{
             Assert.Equal(4096,parameters.Initial!.IndexBytes);
             Assert.True(parameters.Effective.IndexBytes>parameters.Initial.IndexBytes);
             Assert.Equal("Passed",measurement.Status);
+            Assert.Equal(ProfileEnvironment.Storage(Path.GetTempPath()),measurement.Conditions.StorageKey);
         }finally{File.Delete(path);}
     }
     [Theory]

@@ -28,9 +28,13 @@
 
 ## このPCでのストレージテストの保存先（2026-10-25 利用者指定）
 
+### 保存先を含む候補選択（2026-10-26）
+
+最終検証で、D/Fを分けて測った候補が同じCPU/OS条件として選択されることを再現した。ストレージを使う測定・比較・プロファイルには、実際の保存先ボリュームの識別子 `StorageKey` を追加する。キーはボリュームルート・ファイルシステム・ラベル・総容量から求め、同じ媒体の実行ごとの一時フォルダ名は含めない。ドライブをまたいだ性能比較は条件不一致とし、候補選択も一致する保存先に限定する。メモリは専用の `Memory` キーとする。識別できない旧ディスク記録は原本を保持し、性能判定・プロファイル採用へ自動使用しない。通常アプリのStoreと測定前の説明も同じ規則を使う。ボリューム交換や構成変更でキーが変わった場合は再測定が必要であり、媒体種別だけから設定を流用しない。
+
 - 次回の実行から、SSDのテストデータは `D:\SeamlessTestData`、HDDのテストデータは `F:\SeamlessTestData` 配下の実行ごとの専用ディレクトリへ置く。DはCSSD-M2L1KSFT6KEのNVMe SSD、FはWDC WD60EZAZ-00SF3B0のSATA HDDであることを実機で確認した。
 - Cドライブには新しいストレージテストデータを作らない。実行前に対象プロセスの `TEMP` / `TMP`、ストアの明示保存先、外部ソートの一時領域、作業ディレクトリ基準のテスト保存先を確認し、対象のDまたはF配下へそろえる。OS全体の環境変数は変更しない。
-- `Invoke-StorageTest.ps1` と従来の `Work/Consolidation/Invoke-Checked.ps1` で `-Storage SSD`（既定、D）または `-Storage HDD`（F）を指定する。ランナーとテスト保存先の対応は [実行手順](20261025-storage-test-runner.md) を参照する。今回はテストを実行せず、次回に実際のファイル配置を確認してから本測定へ進む。
+- `Invoke-StorageTest.ps1` と従来の `Work/Consolidation/Invoke-Checked.ps1` で `-Storage SSD`（既定、D）または `-Storage HDD`（F）を指定する。ランナーとテスト保存先の対応は [実行手順](20261025-storage-test-runner.md) を参照する。実際のファイル配置と媒体を確認してから測定へ進む。
 - 比較時には使用ドライブ・媒体・実データと一時領域の保存先を結果へ記録する。以前Cで測った結果をD/Fでの実測結果として流用しない。
 - 測定履歴の正本 `G:\GitHub\Seamless\Work\Benchmark\Benchmark.db` と既存バックアップ・証拠ログは保全する。今回の指定で履歴DBを移動しない。
 - Cの後片付けは、今回のテストが作った使われていない一時データだけを対象とする。所有者不明の古いデータ、使用中のデータ、測定履歴は削除しない。
@@ -51,6 +55,7 @@
 - `Seamless.Execution.Growth.IStrategy<TSelf>`: structとstatic abstract。Fixed / Doubling / Estimatedを同梱し、利用者定義も同じ契約で扱う。状態はストアごとに独立する。
 - ストラテジーはContextからDecisionを返す。エンジンが資源予約・サイズ条件・並列条件を確認して適用する。Fixedは索引・常駐枠を固定し、ファイルの通常の成長や件数自体は固定しない。
 - Optimizedが条件や上限に適合しなければMinimumへ戻し、採用設定と理由を公開する。不正な明示値はエラー。
+- `ProfileRequest.StorageKey` は `ProfileEnvironment.Storage(directory)` と同じ規則で指定する。Storeは実際の保存先から自動設定する。ディスクの保存先を識別できなければMinimumへ戻し、理由を公開する。`StorageKey` のない旧候補をボリューム不問の候補として解釈しない。
 - シリアライザーは `Seamless.Collections.Serializers` に Auto<T> / Blittable<T> / MemoryPack<T> / RawByteArray、方式タグはBlittable / MemoryPackへ統一する。
 - 比較・走査は実装とBCL境界を棚卸しし、役割別名前空間と型確定した実行部へ移す。DB接続や資源所有などのサービスは責務に合う構造を維持する。
 

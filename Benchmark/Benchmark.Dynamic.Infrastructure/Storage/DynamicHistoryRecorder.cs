@@ -42,7 +42,7 @@ public sealed class DynamicHistoryRecorder:IAsyncDisposable{
                 }
             }
         }
-        var metadata=new DynamicMeasurementConditions(result.InputHash??"",result.EnvironmentJSON??"",result.ParametersJSON??"{}",result.GrowthJSON??"{}",result.StoreKind??"Unknown",this.request.OptimizationFlags.ToString(),result.CodeFingerprint??"",result.StorageChangesJSON,result.IO);
+        var metadata=new DynamicMeasurementConditions(result.InputHash??"",result.EnvironmentJSON??"",result.ParametersJSON??"{}",result.GrowthJSON??"{}",result.StoreKind??"Unknown",this.request.OptimizationFlags.ToString(),result.CodeFingerprint??"",result.StorageChangesJSON,result.IO,result.StorageKey);
         var diagnostic=new DynamicDiagnosticRecord(Guid.NewGuid().ToString("N"),executionID,"MeasurementConditions",JsonSerializer.Serialize(metadata),result.CompletedAtUtc);
         await this.repository.SaveCheckpointAsync(new(this.run with{UpdatedAt=result.CompletedAtUtc},Queries:[queryRecord],SourceExecutions:[execution],Measurements:measurements,Diagnostics:[diagnostic]),cancellationToken);
     }

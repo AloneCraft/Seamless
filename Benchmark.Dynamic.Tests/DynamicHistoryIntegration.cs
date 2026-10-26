@@ -8,14 +8,16 @@ namespace Benchmark.Dynamic.Tests;
 
 [Collection(DynamicWorkerTestCollection.Name)]
 public sealed class DynamicHistoryIntegration{
-    [Fact]
-    public async Task ActualStoreGrowthIsSavedWithLiveMeasurement(){
+    [Theory]
+    [InlineData("Memory")]
+    [InlineData("Temporary")]
+    public async Task ActualStoreGrowthIsSavedWithLiveMeasurement(string kind){
         var directory=DynamicDatabase.一時ルートを作成();
         try{
             var databasePath=Path.Combine(directory,"history.db");
             var ir=CorpusChainBuilder.Build(new("growth-history","test",["Where","Count"]),SourceTarget.SeamlessTsavorite,4096);
             var request=new WorkerRunRequest("growth-history",Seed256.Parse("42"),1,2,2,4096,OperatorSetMode.Maximum,[SourceTarget.SeamlessTsavorite],
-                new("test",0,1,0,1),RandomQueryGenerator.GeneratorVersion,QueryCapabilityProfile.CurrentProfileVersion.ToString(),BuiltInOperatorCatalog.OperatorSetVersion.ToString(),StorageSettings:new(Kind:"Memory"));
+                new("test",0,1,0,1),RandomQueryGenerator.GeneratorVersion,QueryCapabilityProfile.CurrentProfileVersion.ToString(),BuiltInOperatorCatalog.OperatorSetVersion.ToString(),StorageSettings:new(Kind:kind));
             var completed=await new DynamicWorkerExecutionRunner().ExecuteAsync(request,ir,0,SourceTarget.SeamlessTsavorite,0,CancellationToken.None);
             Assert.True(completed.Status==WorkerExecutionStatus.Succeeded,completed.DiagnosticsJson);
             await using(var recorder=new DynamicHistoryRecorder(databasePath)){
@@ -30,7 +32,10 @@ public sealed class DynamicHistoryIntegration{
             Assert.All(changes,change=>Assert.Equal(request.RunId,change.RunID));
             var measurements=repository.GetMeasurements(request.RunId);
             Assert.Equal(4,measurements.Count);
-            Assert.All(measurements,measurement=>Assert.Equal("Memory",measurement.Conditions.StoreKind));
+            Assert.All(measurements,measurement=>Assert.Equal(kind,measurement.Conditions.StoreKind));
+            string? storageDirectory=null;
+            if(kind=="Temporary"){storageDirectory=Path.GetTempPath();}
+            Assert.All(measurements,measurement=>Assert.Equal(Seamless.Execution.ProfileEnvironment.Storage(storageDirectory),measurement.Conditions.StorageKey));
             var parameters=System.Text.Json.JsonSerializer.Deserialize<ProfileParameters>(measurements[0].Conditions.ParametersJSON)!;
             Assert.Equal(64,parameters.Initial!.IndexBytes);Assert.True(parameters.Effective.IndexBytes>64);
         }finally{Directory.Delete(directory,true);}

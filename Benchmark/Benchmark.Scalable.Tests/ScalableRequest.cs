@@ -13,5 +13,8 @@ public sealed class ScalableRequest{
         Assert.Equal(32,explanation.Profile.Settings.InitialCapacity);
         Assert.Equal("fixed",explanation.Profile.Growth.ID);Assert.Equal("Scoped",explanation.Implementation);
         Assert.NotEmpty(explanation.RuntimeDecisions);
+        Assert.Equal("Memory",Assert.IsType<ProfileRequest>(explanation.Profile.Conditions).StorageKey);
+        var fileRequest=request with{Kind=StoreKind.Temporary,TemporaryDirectory=Path.GetTempPath()};
+        Assert.Equal(ProfileEnvironment.Storage(Path.GetTempPath()),Assert.IsType<ProfileRequest>(fileRequest.Explain("unknown").Profile.Conditions).StorageKey);
     }
 }

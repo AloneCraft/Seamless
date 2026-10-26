@@ -5,23 +5,40 @@ namespace Execution.Tests;
 
 public sealed class ProfileResolver{
     [Fact]
+    public void StoreMatchesTheActualVolumeAndRejectsUnknownDiskEvidence(){
+        var root=Path.GetTempPath();
+        var key=ProfileEnvironment.Storage(root);
+        Assert.Equal(key,ProfileEnvironment.Storage(Path.Combine(root,"not-created-"+Guid.NewGuid().ToString("N"))));
+        var request=new ProfileRequest("Tsavorite",StoreKind.Temporary,"Int32",1,StorageKey:key);
+        var measured=new MeasuredProfile("measured-volume",1,request,1,new(){IndexBytes=4096},["training","validation"],true,Evidence:ProfileEvidence.Current);
+        var catalog=new ProfileCatalog([measured with{ID="wrong-volume",Conditions=request with{StorageKey="other-volume"}},measured]);
+        var options=new StoreOptions{Profile=Profile.Optimized,Profiles=catalog};
+        using var store=Seamless.Execution.Store.CreateTemporary(temporaryDirectory:root,options:options);
+        Assert.Equal("measured-volume",store.ResolveProfile("data","Tsavorite","Int32",1).ProfileID);
+        Assert.Null(new ProfileCatalog([measured with{Conditions=request with{StorageKey="Unknown"}}]).Find(request));
+        Assert.Null(new ProfileCatalog([measured with{Conditions=request with{StorageKey="Unknown"}}]).Find(request with{StorageKey="Unknown"}));
+        var unknown=Target.Resolve(Profile.Optimized,request with{StorageKey="Unknown"},new(),supplied:catalog);
+        Assert.Equal(Profile.Minimum,unknown.Applied);Assert.Contains("Storage volume is unknown",unknown.Reason);
+        Assert.Equal("Memory",ProfileEnvironment.Storage(null));
+    }
+    [Fact]
     public void BundledEvidenceIsNarrowAndCarriesGrowth(){
         var profile=Assert.Single(ProfileCatalog.Bundled.Profiles,static value=>value.ID=="tsavorite-file-int32-filter-4096-doubling-v1");
         var result=Target.Resolve(Profile.Optimized,profile.Conditions,new());
-        Assert.Equal(Profile.Minimum,result.Applied);Assert.Contains("versions unknown",result.Reason);
+        Assert.Equal(Profile.Minimum,result.Applied);Assert.Contains("Storage volume is unknown",result.Reason);
         Assert.Equal("doubling",profile.Growth!.ID);
         Assert.Equal(4,profile.EvidenceRunIDs.Length);
         Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,profile.Conditions with{ElementType="other"},new()).Applied);
         Assert.Equal(Profile.Minimum,Target.Resolve(Profile.Optimized,profile.Conditions with{IO="other-io"},new()).Applied);
-        var unknown=profile with{Growth=new("user-defined",1,"{}"),Evidence=ProfileEvidence.Current};
+        var unknown=profile with{Conditions=profile.Conditions with{StorageKey="test-volume"},Growth=new("user-defined",1,"{}"),Evidence=ProfileEvidence.Current};
         var catalog=new ProfileCatalog([unknown]);
-        var bundled=Target.Resolve(Profile.Optimized,profile.Conditions,new(),supplied:catalog);
+        var bundled=Target.Resolve(Profile.Optimized,unknown.Conditions,new(),supplied:catalog);
         Assert.Equal(Profile.Minimum,bundled.Applied);Assert.Contains("unavailable",bundled.Reason);
-        Assert.Equal(Profile.Optimized,Target.Resolve(Profile.Optimized,profile.Conditions,new(),supplied:catalog,explicitGrowth:new Seamless.Execution.Growth.Policy<Seamless.Execution.Growth.Doubling>()).Applied);
+        Assert.Equal(Profile.Optimized,Target.Resolve(Profile.Optimized,unknown.Conditions,new(),supplied:catalog,explicitGrowth:new Seamless.Execution.Growth.Policy<Seamless.Execution.Growth.Doubling>()).Applied);
     }
     [Fact]
     public void Resolve(){
-        var request=new ProfileRequest("Tsavorite",StoreKind.Temporary,"Int32",1_000_000);
+        var request=new ProfileRequest("Tsavorite",StoreKind.Temporary,"Int32",1_000_000,StorageKey:"test-volume");
         var minimum=Target.Resolve(Profile.Minimum,request,new());
         Assert.Equal(64,minimum.Settings.IndexBytes);
         Assert.Equal("Minimum",minimum.ProfileID);Assert.Equal(Target.MinimumVersion,minimum.ProfileVersion);
