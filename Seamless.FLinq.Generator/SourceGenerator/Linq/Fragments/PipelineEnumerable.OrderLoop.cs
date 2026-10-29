@@ -2,6 +2,115 @@ namespace Seamless.FLinq.Generator;
 
 // 並べ替え段のバッファ構築とソート。
 internal sealed partial class PipelineEnumerable {
+    private bool skipSingletonOrderKeyEvaluation;
+    private bool useOrderedFirst;
+    private const string OrderedMaterializationFlag="__skipSingletonOrderKeyEvaluation";
+    private const string OrderedFirstFlag="__orderedFirst";
+    private const string OrderedFirstCompletedFlag="__orderedFirstCompleted";
+    internal const string OrderedMaterializationMethod="__UseOrderedMaterialization";
+    internal const string OrderedConsumerMethod="__SetOrderedConsumer";
+    internal const string OrderedSourceProperty="__OrderedSourceEnumerator";
+    internal enum OrderedConsumerDemand{Enumerate,Materialize,First}
+    internal bool SupportsOrderedMaterialization=>stages.Count>0&&stages.All(static stage=>stage.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending or PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending);
+
+    internal static PipelineEnumerable CreateWithOrderSourceDemand(int index,Enumerable source,IReadOnlyList<PipelineStage> stages,string elementType){
+        var boundSource=BindOrderedSource(source,stages,OrderedConsumerDemand.Enumerate);
+        return new PipelineEnumerable(index,boundSource,stages,elementType);
+    }
+
+    private static Enumerable BindOrderedSource(Enumerable source,IReadOnlyList<PipelineStage> stages,OrderedConsumerDemand demand){
+        // Order の通常列挙も入力を ToArray で読む。Where 等の前処理があれば通常列挙の境界になる。
+        if(stages.Count>0&&stages[0].Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending
+            &&source is PipelineEnumerable{SupportsOrderedMaterialization:true} orderedSource){
+            if(demand==OrderedConsumerDemand.First){
+                return orderedSource.ForOrderedConsumer(OrderedConsumerDemand.Enumerate);
+            }
+            return orderedSource.ForOrderedConsumer(OrderedConsumerDemand.Materialize);
+        }
+        return source;
+    }
+
+    internal PipelineEnumerable ForOrderedMaterialization()=>this.ForOrderedConsumer(OrderedConsumerDemand.Materialize);
+
+    internal PipelineEnumerable ForOrderedConsumer(OrderedConsumerDemand demand){
+        // 構造体の初期需要だけを変え、元の alias や capture/source 式は再評価しない。
+        var boundSource=BindOrderedSource(source,stages,demand);
+        var pipeline=new PipelineEnumerable(this.FragmentIndex,boundSource,stages,elementType){
+            skipSingletonOrderKeyEvaluation=demand==OrderedConsumerDemand.Materialize,
+            useOrderedFirst=demand==OrderedConsumerDemand.First,
+            SourceContainsAnchor=this.SourceContainsAnchor
+        };
+        pipeline.ApplyRenderContext(this.RenderContext);
+        return pipeline;
+    }
+
+    private string BuildOrderedFirstLoop(){
+        var builder=new StringBuilder();
+        var bestItem=$"__orderedFirstBest{this.item}";
+        var candidate=$"__orderedFirstCandidate{this.item}";
+        var improved=$"__orderedFirstImproved{this.item}";
+        string BestKey(int level)=>$"__orderedFirstBestKey{this.item}_{level}";
+        string CandidateKey(int level)=>$"__orderedFirstKey{this.item}_{level}";
+        void AssignKey(int level,string destination,string value,string indent){
+            var stage=stages[level];
+            if(stage.Func is { } selector){
+                builder.AppendLine(IndentBlock(this.FuncAssign(selector,stage.Kind.ToString(),destination,value),indent));
+            }else{
+                builder.AppendLine($"{indent}{destination}={value};");
+            }
+        }
+        void CompareLevel(int level,string indent){
+            var stage=stages[level];
+            var keyType=ComparerKeyType(stage);
+            var key=CandidateKey(level);
+            var best=BestKey(level);
+            builder.AppendLine($"{indent}{keyType} {key}=default!;");
+            AssignKey(level,key,candidate,indent);
+            var left=key;
+            var right=best;
+            // 単一キーの TryGetFirst は candidate,best の順で比較する。
+            // ThenBy を持つ CachingComparer は降順時に引数を逆にする。
+            var singleDescending=stages.Count==1&&stage.Descending;
+            if(stage.Descending&&!singleDescending){left=best;right=key;}
+            var comparer=$"(this.{this.OrderComparerName(this.OrderComparerOrdinal(level))}??global::System.Collections.Generic.Comparer<{keyType}>.Default)";
+            var comparison=$"__orderedFirstCompare{this.item}_{level}";
+            builder.AppendLine($"{indent}var {comparison}={comparer}.Compare({left},{right});");
+            var improves=$"{comparison}<0";
+            if(singleDescending){improves=$"{comparison}>0";}
+            builder.AppendLine($"{indent}if({improves}){{");
+            builder.AppendLine($"{indent}    {best}={key};");
+            // CachingComparer は最良値の交代時に下位キーもすぐ更新する。
+            for(var child=level+1;child<stages.Count;child++){
+                AssignKey(child,BestKey(child),candidate,indent+"    ");
+            }
+            builder.AppendLine($"{indent}    {improved}=true;");
+            if(level+1<stages.Count){
+                builder.AppendLine($"{indent}}}else if({comparison}==0){{");
+                CompareLevel(level+1,indent+"    ");
+            }
+            builder.AppendLine($"{indent}}}");
+        }
+        builder.AppendLine($"if(this.{OrderedFirstFlag}){{");
+        builder.AppendLine($"    if(this.{OrderedFirstCompletedFlag}){{current=default!;return false;}}");
+        builder.AppendLine($"    this.{OrderedFirstCompletedFlag}=true;");
+        builder.AppendLine($"    if(!this.{this.e}.TryGetNext(out var {bestItem})){{current=default!;return false;}}");
+        this.AppendCounterCall(builder,"    ","IncrementPhysicalMoveNext");
+        for(var level=0;level<stages.Count;level++){
+            builder.AppendLine($"    {ComparerKeyType(stages[level])} {BestKey(level)}=default!;");
+            AssignKey(level,BestKey(level),bestItem,"    ");
+        }
+        builder.AppendLine($"    while(this.{this.e}.TryGetNext(out var {candidate})){{");
+        this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
+        builder.AppendLine($"        var {improved}=false;");
+        CompareLevel(0,"        ");
+        builder.AppendLine($"        if({improved}){{{bestItem}={candidate};}}");
+        builder.AppendLine("    }");
+        builder.AppendLine($"    current=this.Current={bestItem};");
+        builder.AppendLine("    return true;");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
     private string BuildOrderLoop(string enumeratorName,string successStatement,string endStatement,int orderIndex) {
         var orderStages = this.OrderStages(orderIndex).ToArray();
         var primaryOrder = orderStages[0];
@@ -111,8 +220,24 @@ internal sealed partial class PipelineEnumerable {
         var lastOrderIndex = orderIndex+orderStages.Count-1;
         var usesPartialSort = this.TryGetOrderSortRange(lastOrderIndex,countLocal,out var minSortIndexExpression,out var maxSortIndexExpression);
         var useDirectValueSort = !usesPartialSort&&this.CanUseDirectValueOrderSort(orderStages);
-        // 要素が1個のときは並べ替えの鍵を評価しない(System.Linq と同じ)。
+        // 通常のordered列挙は1件でも鍵を評価する。plain ToArray/ToListだけは終端需要で省略する。
         builder.AppendLine($"        if({countLocal}==1){{");
+        if((this.SupportsOrderedMaterialization||!this.skipSingletonOrderKeyEvaluation)&&orderStages.Any(static stage=>stage.Func is not null)){
+            if(this.SupportsOrderedMaterialization){
+                builder.AppendLine($"            if(!this.{OrderedMaterializationFlag}){{");
+            }
+            builder.AppendLine($"            var {valueName}={valuesLocal}[0];");
+            foreach(var orderStage in orderStages){
+                if(orderStage.Func is not { } selector){continue;}
+                var keyName=this.OrderKeyLocalName(orderIndex,orderStage);
+                builder.AppendLine($"            {ComparerKeyType(orderStage)} {keyName}=default!;");
+                builder.AppendLine(IndentBlock(this.FuncAssign(selector,orderStage.Kind.ToString(),keyName,valueName),"            "));
+                builder.AppendLine($"            _={keyName};");
+            }
+            if(this.SupportsOrderedMaterialization){
+                builder.AppendLine("            }");
+            }
+        }
         builder.AppendLine($"            {indexesLocal}[0]=0;");
         builder.AppendLine($"        }}else if({countLocal}>1){{");
         var checksSorted = this.CanCheckBufferedValuesSorted(orderIndex,orderStages);
@@ -152,10 +277,13 @@ internal sealed partial class PipelineEnumerable {
             builder.AppendLine($"{indent}{this.OrderKeysLocalName(orderIndex,orderStage)}=global::System.Buffers.ArrayPool<{ComparerKeyType(orderStage)}>.Shared.Rent({countLocal});");
         }
         var fallbackIndent = useDirectValueSort ? "                " : "            ";
-        builder.AppendLine($"{fallbackIndent}for(var __orderKeyIndex{orderIndex}=0;__orderKeyIndex{orderIndex}<{countLocal};__orderKeyIndex{orderIndex}++){{");
-        builder.AppendLine($"{fallbackIndent}    {indexesLocal}[__orderKeyIndex{orderIndex}]=__orderKeyIndex{orderIndex};");
-        builder.AppendLine($"{fallbackIndent}    var {valueName}={valuesLocal}[__orderKeyIndex{orderIndex}];");
+        // EnumerableSorter は一次キー全件を先に計算し、その後に ThenBy のキー全件を計算する。
         foreach(var orderStage in orderStages) {
+            builder.AppendLine($"{fallbackIndent}for(var __orderKeyIndex{orderIndex}=0;__orderKeyIndex{orderIndex}<{countLocal};__orderKeyIndex{orderIndex}++){{");
+            if(ReferenceEquals(orderStage,orderStages[0])){
+                builder.AppendLine($"{fallbackIndent}    {indexesLocal}[__orderKeyIndex{orderIndex}]=__orderKeyIndex{orderIndex};");
+            }
+            builder.AppendLine($"{fallbackIndent}    var {valueName}={valuesLocal}[__orderKeyIndex{orderIndex}];");
             var keyName = this.OrderKeyLocalName(orderIndex,orderStage);
             builder.AppendLine($"{fallbackIndent}    {ComparerKeyType(orderStage)} {keyName}=default!;");
             if(orderStage.Func is null) {
@@ -164,8 +292,8 @@ internal sealed partial class PipelineEnumerable {
                 builder.AppendLine(IndentBlock(this.FuncAssign(orderStage.Func,orderStage.Kind.ToString(),keyName,valueName),fallbackIndent+"    "));
             }
             builder.AppendLine($"{fallbackIndent}    {this.OrderKeysLocalName(orderIndex,orderStage)}![__orderKeyIndex{orderIndex}]={keyName};");
+            builder.AppendLine($"{fallbackIndent}}}");
         }
-        builder.AppendLine($"{fallbackIndent}}}");
         var comparerArgs = orderStages
             .SelectMany(orderStage => {
                 var absoluteIndex = this.OrderStageAbsoluteIndex(orderIndex,orderStage);
@@ -178,7 +306,18 @@ internal sealed partial class PipelineEnumerable {
         if(usesPartialSort) {
             builder.AppendLine($"{fallbackIndent}global::Seamless.Linq.GeneratedCodeHelpers.PartialSortIndexes({indexesLocal},{countLocal},{minSortIndexExpression},{maxSortIndexExpression},new {this.OrderIndexComparerName(orderIndex)}({string.Join(",",comparerArgs)}));");
         } else {
+            var usesCountingSort=orderStages.Count==1
+                &&!orderStages[0].Descending
+                &&IsInt32Type(ComparerKeyType(orderStages[0]))
+                &&ComparerExpressionSupport.IsDefaultOrderComparer(orderStages[0].Value!,ComparerKeyType(orderStages[0]));
+            if(usesCountingSort){
+                this.AppendSmallRangeIntOrderSort(builder,orderIndex,orderStages[0],fallbackIndent);
+                builder.AppendLine($"{fallbackIndent}if(!__orderCountingSorted{orderIndex}){{");
+            }
             builder.AppendLine($"{fallbackIndent}global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes({indexesLocal},{countLocal},new {this.OrderIndexComparerName(orderIndex)}({string.Join(",",comparerArgs)}));");
+            if(usesCountingSort){
+                builder.AppendLine($"{fallbackIndent}}}");
+            }
         }
         if(useDirectValueSort) {
             builder.AppendLine("            }");
@@ -187,6 +326,54 @@ internal sealed partial class PipelineEnumerable {
             builder.AppendLine("            }");
         }
         builder.AppendLine("        }");
+    }
+
+    // 全キーの評価後だけに適用し、同じキーの元の添字順と後段の短絡を維持する。
+    private void AppendSmallRangeIntOrderSort(StringBuilder builder,int orderIndex,PipelineStage orderStage,string indent){
+        var keysLocal=this.OrderKeysLocalName(orderIndex,orderStage);
+        var indexesLocal=this.OrderIndexesLocalName(orderIndex);
+        var countLocal=this.OrderCountLocalName(orderIndex);
+        var sorted=$"__orderCountingSorted{orderIndex}";
+        var min=$"__orderCountingMin{orderIndex}";
+        var max=$"__orderCountingMax{orderIndex}";
+        var index=$"__orderCountingIndex{orderIndex}";
+        var key=$"__orderCountingKey{orderIndex}";
+        var range=$"__orderCountingRange{orderIndex}";
+        var buckets=$"__orderCountingBuckets{orderIndex}";
+        var bucket=$"__orderCountingBucket{orderIndex}";
+        var offset=$"__orderCountingOffset{orderIndex}";
+        var size=$"__orderCountingSize{orderIndex}";
+        builder.AppendLine($"{indent}var {sorted}=false;");
+        builder.AppendLine($"{indent}if({countLocal}>=64){{");
+        builder.AppendLine($"{indent}    var {min}={keysLocal}![0];");
+        builder.AppendLine($"{indent}    var {max}={min};");
+        builder.AppendLine($"{indent}    for(var {index}=1;{index}<{countLocal};{index}++){{");
+        builder.AppendLine($"{indent}        var {key}={keysLocal}[{index}];");
+        builder.AppendLine($"{indent}        if({key}<{min}){{{min}={key};}}");
+        builder.AppendLine($"{indent}        if({key}>{max}){{{max}={key};}}");
+        // 幅は縮まらないため、対象外が確定したらsnapshotの追加走査を打ち切る。
+        builder.AppendLine($"{indent}        if({min}<0||(long){max}-{min}>=256){{break;}}");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}    var {range}=(long){max}-{min}+1;");
+        builder.AppendLine($"{indent}    if({min}>=0&&{range}<=256){{");
+        builder.AppendLine($"{indent}        global::System.Span<int> {buckets}=stackalloc int[256];");
+        builder.AppendLine($"{indent}        {buckets}.Clear();");
+        builder.AppendLine($"{indent}        for(var {index}=0;{index}<{countLocal};{index}++){{");
+        builder.AppendLine($"{indent}            {buckets}[{keysLocal}[{index}]-{min}]++;");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}        var {offset}=0;");
+        builder.AppendLine($"{indent}        for(var {bucket}=0;{bucket}<{range};{bucket}++){{");
+        builder.AppendLine($"{indent}            var {size}={buckets}[{bucket}];");
+        builder.AppendLine($"{indent}            {buckets}[{bucket}]={offset};");
+        builder.AppendLine($"{indent}            {offset}+={size};");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}        for(var {index}=0;{index}<{countLocal};{index}++){{");
+        builder.AppendLine($"{indent}            var {bucket}={keysLocal}[{index}]-{min};");
+        builder.AppendLine($"{indent}            {indexesLocal}[{buckets}[{bucket}]++]={index};");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}        {sorted}=true;");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}}}");
     }
 
     // 順序段の直後に Skip/Take があるとき、並べ替えが必要な添字範囲 [minIndex, maxIndex] を求める。
