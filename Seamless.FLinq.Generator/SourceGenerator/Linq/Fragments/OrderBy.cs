@@ -25,7 +25,7 @@ OrderingBase は OrderBy/ThenBy 系を、全件 buffer + stable sort + buffer en
   - source が既に OrderingBase の場合、一次 key と二次 key を SortItem に同居させる。
   - originalIndex を最後に比較し、System.Linq と同じ安定ソートの結果にする。
 */
-internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer,bool descending,bool isThenBy = false):Enumerable(番号) {
+internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer,bool descending,bool isThenBy = false,bool evaluateSingletonKeys=false):Enumerable(番号) {
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -43,6 +43,40 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
             yield return __visitorChild_keySelector;
         }
     }
+
+    // 同じordered sourceをmaterializeする利用者へFirstの需要を漏らさない。
+    internal static Enumerable BindFirstConsumer(Enumerable source){
+        if(source is not OrderingBase ordering){return source;}
+        // 二重OrderByの内側は列挙される。ThenByの同一sort連鎖には需要を伝播しない。
+        var boundSource=ordering.OwnSource;
+        if(!ordering.OwnIsThenBy){
+            boundSource=BindFirstConsumer(boundSource);
+        }
+        var bound=new FirstConsumerOrdering(ordering.FragmentIndex,boundSource,ordering.OwnKeySelector,
+            ordering.OwnRawComparer,ordering.OwnDescending,ordering.OwnIsThenBy){
+            MaxTakeCountExpression=ordering.MaxTakeCountExpression,
+            SourceContainsAnchor=ordering.SourceContainsAnchor
+        };
+        bound.ApplyRenderContext(ordering.RenderContext);
+        return bound;
+    }
+    // 返却queryは未開始の値型列挙子を保持し、既存の遅延sortを列挙ごとに使う。
+    // 一段のarray OrderByだけを対象とし、融合・最適化の設定は変更しない。
+    internal PipelineEnumerable BindEscapingArrayConsumer(){
+        var kind=PipelineStageKind.OrderBy;
+        if(this.OwnDescending){kind=PipelineStageKind.OrderByDescending;}
+        var stage=new PipelineStage(kind,this.OwnKeySelector,this.OwnRawComparer,this.ElementType,this.ElementType,
+            keyType:FuncReturnTypeName(this.OwnKeySelector),descending:this.OwnDescending);
+        var pipeline=new PipelineEnumerable(this.FragmentIndex,this.OwnSource,[stage],this.ElementType){
+            SourceContainsAnchor=this.SourceContainsAnchor
+        };
+        pipeline.ApplyRenderContext(this.RenderContext);
+        return pipeline;
+    }
+    private sealed class FirstConsumerOrdering(int number,Enumerable source,FuncFragment selector,string comparer,bool descending,bool isThenBy)
+        :OrderingBase(number,source,selector,comparer,descending,isThenBy,evaluateSingletonKeys:true){}
+    private string SingletonKeyParameter=>GeneratedNames.Current?.StableLocal($"OrderingSingleton:{this.FragmentIndex}",$"__evaluateSingletonOrderKeys{this.result}")??$"__evaluateSingletonOrderKeys{this.result}";
+    private string SingletonKeyArgument=>evaluateSingletonKeys.ToString().ToLowerInvariant();
 
     // チェーン（ThenBy）検出用に一次ソースを公開
     internal FuncFragment OwnKeySelector => keySelector;
@@ -107,43 +141,50 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
     public override string GetEnumeratorExpression =>
         this.PrimaryOrdering is { } po
             ? (this.MaxTakeCountExpression is { } maxTakeCombined
-                ? RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,po.OwnKeySelector },this.UnorderedSource.GetEnumeratorExpression,this.OwnComparer,po.OwnComparer,maxTakeCombined)
-                : RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,po.OwnKeySelector },this.UnorderedSource.GetEnumeratorExpression,this.OwnComparer,po.OwnComparer))
+                ? RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,po.OwnKeySelector },this.UnorderedSource.GetEnumeratorExpression,this.OwnComparer,po.OwnComparer,this.SingletonKeyArgument,maxTakeCombined)
+                : RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector,po.OwnKeySelector },this.UnorderedSource.GetEnumeratorExpression,this.OwnComparer,po.OwnComparer,this.SingletonKeyArgument))
             : (this.MaxTakeCountExpression is { } maxTakeSingle
-                ? RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression,this.OwnComparer,maxTakeSingle)
-                : RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression,this.OwnComparer));
+                ? RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression,this.OwnComparer,this.SingletonKeyArgument,maxTakeSingle)
+                : RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { keySelector },source.GetEnumeratorExpression,this.OwnComparer,this.SingletonKeyArgument));
 
     private string MaxTakeCtorParamSuffix => this.MaxTakeCountExpression is not null ? ", int __maxTakeCount" : string.Empty;
     private string MaxTakeArgSuffix => this.MaxTakeCountExpression is not null ? ",__maxTakeCount" : string.Empty;
 
     public override string GetEnumeratorPrimaryConstructorParameters =>
         this.PrimaryOrdering is { } po
-            ? $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(po.OwnKeySelector)}>? primaryComparer{this.MaxTakeCtorParamSuffix}{this.ClosurePrimaryCtorSuffix(keySelector,po.OwnKeySelector)}"
-            : $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer{this.MaxTakeCtorParamSuffix}{this.ClosurePrimaryCtorSuffix(keySelector)}";
+            ? $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(po.OwnKeySelector)}>? primaryComparer,bool {this.SingletonKeyParameter}{this.MaxTakeCtorParamSuffix}{this.ClosurePrimaryCtorSuffix(keySelector,po.OwnKeySelector)}"
+            : $"TEnum source, global::System.Collections.Generic.IComparer<{FuncReturnTypeName(keySelector)}>? comparer,bool {this.SingletonKeyParameter}{this.MaxTakeCtorParamSuffix}{this.ClosurePrimaryCtorSuffix(keySelector)}";
 
     public override string GetEnumeratorConstructor =>
         this.PrimaryOrdering is { } po
-            ? $"this.Build(comparer,primaryComparer{this.MaxTakeArgSuffix}{this.ClosureArgsSuffixForCtorBody(keySelector,po.OwnKeySelector)});"
-            : $"this.Build(comparer{this.MaxTakeArgSuffix}{this.ClosureArgsSuffixForCtorBody(keySelector)});";
+            ? $"this.Build(comparer,primaryComparer,{this.SingletonKeyParameter}{this.MaxTakeArgSuffix}{this.ClosureArgsSuffixForCtorBody(keySelector,po.OwnKeySelector)});"
+            : $"this.Build(comparer,{this.SingletonKeyParameter}{this.MaxTakeArgSuffix}{this.ClosureArgsSuffixForCtorBody(keySelector)});";
 
     public override string GetEnumeratorFields =>
         this.PrimaryOrdering is { } po ? this.BuildMembersCombined(po) : this.BuildMembersSingle();
 
     private string BuildMembersSingle() {
         var keyType = FuncReturnTypeName(keySelector);
-        var compareExpr = CanUseDirectDefaultCompare(comparer,keyType)
+        var useDirectCompare=CanUseDirectDefaultCompare(comparer,keyType);
+        var indexComparerParameters=$"global::System.Collections.Generic.IComparer<{keyType}> comparer,{keyType}[] keys";
+        var indexComparerArguments="comparer,this.keys!";
+        if(useDirectCompare){
+            indexComparerParameters=$"{keyType}[] keys";
+            indexComparerArguments="this.keys!";
+        }
+        var compareExpr = useDirectCompare
             ? "keys[left].CompareTo(keys[right])"
             : "comparer.Compare(keys[left],keys[right])";
         var sortCall = this.MaxTakeCountExpression is not null
-            ? "global::Seamless.Linq.GeneratedCodeHelpers.PartialSortIndexes(this.indexMap!,this.count,0,global::System.Math.Max(0,__maxTakeCount)-1,new IndexComparer(comparer,this.keys!));"
-            : "global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes(this.indexMap!,this.count,new IndexComparer(comparer,this.keys!));";
+            ? $"global::Seamless.Linq.GeneratedCodeHelpers.PartialSortIndexes(this.indexMap!,this.count,0,global::System.Math.Max(0,__maxTakeCount)-1,new IndexComparer({indexComparerArguments}));"
+            : $"global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes(this.indexMap!,this.count,new IndexComparer({indexComparerArguments}));";
         return $$"""
         private {{this.ElementType}}[]? values;
         private {{keyType}}[]? keys;
         private int[]? indexMap;
         private int count;
         private int position = -1;
-        private readonly struct IndexComparer(global::System.Collections.Generic.IComparer<{{keyType}}> comparer,{{keyType}}[] keys) : global::System.Collections.Generic.IComparer<int> {
+        private readonly struct IndexComparer({{indexComparerParameters}}) : global::System.Collections.Generic.IComparer<int> {
             public int Compare(int left,int right){
                 var compare={{compareExpr}};
                 if(compare!=0) return {{(descending ? "-compare" : "compare")}};
@@ -198,16 +239,18 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
             this.indexMap![this.count]=this.count;
             this.count++;
         }
-        private void Build(global::System.Collections.Generic.IComparer<{{keyType}}>? comparer{{this.MaxTakeCtorParamSuffix}}{{this.ClosureMethodParameterSuffix(keySelector)}}){
+        private void Build(global::System.Collections.Generic.IComparer<{{keyType}}>? comparer,bool {{this.SingletonKeyParameter}}{{this.MaxTakeCtorParamSuffix}}{{this.ClosureMethodParameterSuffix(keySelector)}}){
             comparer ??= global::System.Collections.Generic.Comparer<{{keyType}}>.Default;
             try {
                 if(this.source.TryGetNonEnumeratedCount(out var __count) && __count>0){
                     this.EnsureCapacity(__count);
                 }
                 {{this.SortLoopSingle}}
-                // 鍵は並べ替えが要る(2件以上の)ときだけ評価する(System.Linq と同じ。1件なら鍵を評価しない)。
-                if(this.count>1){
+                // 通常のmaterializationは単一keyを省く。First系の消費側は単一keyも評価する。
+                if(this.count>1||({{this.SingletonKeyParameter}}&&this.count==1)){
                     {{this.KeyLoopSingle}}
+                }
+                if(this.count>1){
                     {{sortCall}}
                 }
             }catch{
@@ -327,7 +370,7 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
             this.indexMap![this.count]=this.count;
             this.count++;
         }
-        private void Build(global::System.Collections.Generic.IComparer<{{keyType}}>? comparer,global::System.Collections.Generic.IComparer<{{primaryKeyType}}>? primaryComparer{{this.MaxTakeCtorParamSuffix}}{{this.ClosureMethodParameterSuffix(keySelector,po.OwnKeySelector)}}){
+        private void Build(global::System.Collections.Generic.IComparer<{{keyType}}>? comparer,global::System.Collections.Generic.IComparer<{{primaryKeyType}}>? primaryComparer,bool {{this.SingletonKeyParameter}}{{this.MaxTakeCtorParamSuffix}}{{this.ClosureMethodParameterSuffix(keySelector,po.OwnKeySelector)}}){
             comparer ??= global::System.Collections.Generic.Comparer<{{keyType}}>.Default;
             primaryComparer ??= global::System.Collections.Generic.Comparer<{{primaryKeyType}}>.Default;
             try {
@@ -335,9 +378,11 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
                     this.EnsureCapacity(__count);
                 }
                 {{this.SortLoopCombined(po)}}
-                // 鍵は並べ替えが要る(2件以上の)ときだけ評価する(System.Linq と同じ。1件なら鍵を評価しない)。
-                if(this.count>1){
+                // 通常のmaterializationは単一keyを省く。First系の消費側は単一keyも評価する。
+                if(this.count>1||({{this.SingletonKeyParameter}}&&this.count==1)){
                     {{this.KeyLoopCombined(po)}}
+                }
+                if(this.count>1){
                     {{sortCall}}
                 }
             }catch{

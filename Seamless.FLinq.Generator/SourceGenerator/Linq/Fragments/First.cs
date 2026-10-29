@@ -18,7 +18,8 @@ First は source.First() を、最初の1要素だけ読む Compute に変換す
     BufferedScalar の Compute インライン展開に乗る(System.Linq への委譲ではない。
     唯一の RenderDirectEnumerableCallInline override である BufferedScalar.cs 参照)。
 */
-internal class First(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+internal class First(int 番号,Enumerable sourceFragment,string resultType):BufferedScalar(番号,resultType) {
+    private readonly Enumerable source=OrderingBase.BindFirstConsumer(sourceFragment);
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -123,7 +124,9 @@ internal class First(int 番号,Enumerable source,string resultType):BufferedSca
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-internal class First_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
+internal class First_predicate(int 番号,Enumerable sourceFragment,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
+    // 述語付きFirst系はordered sourceを列挙するため単一keyも評価する。
+    private readonly Enumerable source=OrderingBase.BindFirstConsumer(sourceFragment);
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
