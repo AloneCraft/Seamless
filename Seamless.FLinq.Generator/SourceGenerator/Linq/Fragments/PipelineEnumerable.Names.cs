@@ -326,6 +326,7 @@ internal sealed partial class PipelineEnumerable {
         if(string.IsNullOrWhiteSpace(text)) {
             return string.Empty;
         }
+        if(GeneratedTextFormatting.TryIndentPreservingTokens(text,indent,out var preserved)) return preserved;
         var lines = text.Replace("\r\n","\n").Split('\n');
         var builder = new StringBuilder();
         for(var index = 0;index<lines.Length;index++) {
