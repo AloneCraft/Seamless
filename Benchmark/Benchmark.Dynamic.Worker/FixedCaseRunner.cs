@@ -29,9 +29,9 @@ public sealed class FixedCaseRunner(BenchmarkRepository repository){
                     var measured=new MeasurementEngine().Measure(loaded,fixture.Primary,fixture.Secondary,0,0,cancellationToken);
                     var input=Fingerprint.OfJSON(new{fixture.PrimaryValues,fixture.SecondaryValues,count,seed,Generator="fixed-v1"});
                     foreach(var summary in measured.Measurements){
-                        var conditions=new Conditions(item.ID,input,count,"System.Int32","System","Array",summary.Implementation.ToString(),flags.ToString(),"{}","{}",environment.Key,"Balanced-v1",SemanticsVersion:Fingerprint.Of(item.Expression+item.IdealBody));
+                        var conditions=new Conditions(item.ID,input,count,"System.Int32","System","Array",summary.Implementation.ToString(),flags.ToString(),"{}","{}",environment.Key,"Balanced-v1",SemanticsVersion:Fingerprint.Of(item.Expression+FixedCaseCatalog.EffectiveIdealBody(item)));
                         var samples=summary.Samples.Select(sample=>new Sample(sample.ElapsedNanoseconds,sample.OperationCount,sample.AllocatedBytes,Gen0:sample.Gen0Collections,Gen1:sample.Gen1Collections,Gen2:sample.Gen2Collections)).ToArray();
-                        var result=Measurement.Create(Guid.NewGuid().ToString("N"),id,conditions,Fingerprint.OfJSON(expected),samples) with{DiagnosticsJSON=JsonSerializer.Serialize(new{item.ID,item.Methods,item.Expression,item.IdealBody,compiled.ExpandedSource})};
+                        var result=Measurement.Create(Guid.NewGuid().ToString("N"),id,conditions,Fingerprint.OfJSON(expected),samples) with{DiagnosticsJSON=JsonSerializer.Serialize(new{item.ID,item.Methods,item.Expression,OriginalIdealBody=item.IdealBody,IdealBody=FixedCaseCatalog.EffectiveIdealBody(item),compiled.ExpandedSource})};
                         repository.SaveMeasurement(result);recorded.Add(result);
                     }
                 }finally{if(!loaded.UnloadAndVerify().Unloaded){throw new InvalidOperationException("Fixed case assembly did not unload.");}}
