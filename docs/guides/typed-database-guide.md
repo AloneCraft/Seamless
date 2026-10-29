@@ -78,34 +78,67 @@ using (var tx = db.BeginTransaction())
 
 ---
 
-## FLinq を用いた型安全なクエリ
+## FLinq を用いた型安全なクエリの実践
 
-テーブルデータは `IEnumerable<T>` や FLinq によるクエリ式に対応しています。コンパイル時最適化により、大量データのスキャンや結合がゼロアロケーションで実行されます。
+テーブルに対する検索・集計クエリは、**サービスクラスやリポジトリクラスのメソッド内** に記述します。
+
+C# 12+ の Interceptor 設定を有効にしておくことで、これらのメソッド内の LINQ 呼び出しは、コンパイル時に Roslyn Generator によって検出され、中間オブジェクトを生成しない直接ループへと自動展開（ゼロアロケーション化）されます。
 
 ```csharp
+using System.Collections.Generic;
 using System.Linq;
 
-// レベル 3 以上のユーザーを取得
-var activeUsers = db.Users
-    .Where(u => u.Level >= 3)
-    .Select(u => new { u.Id, u.Name })
-    .ToList();
+public class ShopRepository
+{
+    private readonly ShopDatabase db;
 
-// ユーザーごとの注文合計を結合して集計
-var userTotals = db.Users
-    .Join(
-        db.Orders,
-        u => u.Id,
-        o => o.UserId,
-        (u, o) => new { u.Name, o.Amount })
-    .GroupBy(x => x.Name)
-    .Select(g => new { UserName = g.Key, TotalAmount = g.Sum(x => x.Amount) });
+    public ShopRepository(ShopDatabase db)
+    {
+        this.db = db;
+    }
+
+    // ① 条件フィルタと射影クエリ
+    public List<ActiveUserInfo> GetActiveUsers(int minLevel)
+    {
+        // この Where / Select / ToList はコンパイル時にインターセプトされ、
+        // テーブルストレージからの直接走査ループへと展開されます
+        return this.db.Users
+            .Where(u => u.Level >= minLevel)
+            .Select(u => new ActiveUserInfo(u.Id, u.Name))
+            .ToList();
+    }
+
+    // ② テーブル間の結合（Join）とグループ集計
+    public List<UserSalesSummary> GetUserSalesSummaries()
+    {
+        // 複数テーブルの Join もパイプライン融合により高速に実行されます
+        return this.db.Users
+            .Join(
+                this.db.Orders,
+                u => u.Id,
+                o => o.UserId,
+                (u, o) => new { u.Name, o.Amount })
+            .GroupBy(x => x.Name)
+            .Select(g => new UserSalesSummary(g.Key, g.Sum(x => x.Amount)))
+            .ToList();
+    }
+}
+
+public record ActiveUserInfo(long Id, string Name);
+public record UserSalesSummary(string UserName, long TotalAmount);
 ```
+
+> [!TIP]
+> **インターセプトが正しく適用されているか確認するには？**
+> 上記の `.Where(...)` や `.Select(...)` にカーソルを合わせて **F12（定義へ移動）** を押してください。
+> 通常の `System.Linq.Enumerable` ではなく、Roslyn が自動生成した `obj/.../generated/` 配下の Interceptor メソッドへジャンプすれば、正しくゼロアロケーション最適化が適用されています。
+> 詳しい条件や確認方法は [ゼロアロケーション LINQ (FLinq) クイックスタート](flinq-quickstart.md) をご覧ください。
 
 ---
 
 ## 関連項目
 
+- [ゼロアロケーション LINQ (FLinq)](flinq-quickstart.md) : プロジェクト設定とインターセプト確認法
 - [ORマッパーとの根本的相違](../architecture/orm-vs-typed-database.md) : EF Core や Dapper と比較したオーバーヘッドの違い
 - [データベースエンジンの内部構造](../architecture/database-engine.md) : WAL、整合性チェック、クラッシュ復旧のメカニズム
 - [サーバー・クライアント共通設計](universal-architecture.md) : クライアントアプリとサーバーで同一スキーマを共有する方法
