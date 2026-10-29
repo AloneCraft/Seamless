@@ -32,6 +32,14 @@
         "files": [
           "api/**.yml",
           "api/index.md",
+          "guides/**.md",
+          "guides/toc.yml",
+          "architecture/**.md",
+          "architecture/toc.yml",
+          "performance/**.md",
+          "performance/toc.yml",
+          "vision/**.md",
+          "vision/toc.yml",
           "index.md",
           "toc.yml"
         ]
@@ -51,10 +59,9 @@
     ],
     "globalMetadata": {
       "_appName": "Seamless",
-      "_appTitle": "Seamless API Reference",
-      "_appFooter": "Seamless - High-performance .NET In-Memory & Persisted Database and Collections",
+      "_appTitle": "Seamless Documentation",
+      "_appFooter": "Seamless - High-performance .NET In-Memory & Persisted Database, Collections, and Zero-Allocation LINQ",
       "_enableSearch": true
     }
   }
 }
-
