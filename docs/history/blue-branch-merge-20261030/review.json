@@ -1,0 +1,1683 @@
+{
+  "mainBefore": "883e2f277fcb59426797fdef1fe92d087b344da8",
+  "side": "14fca7479293d520f64a847ae11029d8449e6e91",
+  "sourceParent": "481fe149f469751d654588de67740684f2d6d90b",
+  "sourceSnapshot": "9bb95f46718f012caacbb5126a95d7d2287dca12",
+  "reviewedPaths": [
+    {
+      "path": "Benchmark.Dynamic.slnx",
+      "sideBlob": "38bd216e97d37ade0a213168afe594ab70b08100",
+      "snapshotBlob": "38bd216e97d37ade0a213168afe594ab70b08100",
+      "mainBlob": "04c68224911b0404e6d4a057606f834176875d77",
+      "resolution": "Keep regenerated solution/project registration including later TPC-C integration"
+    },
+    {
+      "path": "Benchmark.Headless.slnx",
+      "sideBlob": "67137f3d82837184e9cb7934f3c50576d4f16018",
+      "snapshotBlob": "67137f3d82837184e9cb7934f3c50576d4f16018",
+      "mainBlob": "0df3a3f8555f2279d278a8a03681da6b391fb41b",
+      "resolution": "Keep regenerated solution/project registration including later TPC-C integration"
+    },
+    {
+      "path": "Benchmark.Scalable.slnx",
+      "sideBlob": "e2b29603e0201c3d3be2aa8f2684a1080d6ba628",
+      "snapshotBlob": "e2b29603e0201c3d3be2aa8f2684a1080d6ba628",
+      "mainBlob": "dbc3502a39f7cd9c3191f95f258341e227907f81",
+      "resolution": "Keep regenerated solution/project registration including later TPC-C integration"
+    },
+    {
+      "path": "Benchmark.TpcE.slnx",
+      "sideBlob": "0916b3454bc91c00e0281015ea162acc4fc98fc4",
+      "snapshotBlob": "0916b3454bc91c00e0281015ea162acc4fc98fc4",
+      "mainBlob": "5739e16117a7f8d6919c68e6ba55b17e92bdce9d",
+      "resolution": "Keep regenerated solution/project registration including later TPC-C integration"
+    },
+    {
+      "path": "Benchmark.Tsavorite.ParameterSweep.slnx",
+      "sideBlob": "edcbc16ea04cdc8329f951b3030992e6e7b66427",
+      "snapshotBlob": "edcbc16ea04cdc8329f951b3030992e6e7b66427",
+      "mainBlob": "ef84f5ddee4f9b0bde878096e483c5ec4d8f4871",
+      "resolution": "Keep regenerated solution/project registration including later TPC-C integration"
+    },
+    {
+      "path": "Sample.NetShop.slnx",
+      "sideBlob": "e7fe58c2ad98f38f329bf03cec5113fa931a39bb",
+      "snapshotBlob": "e7fe58c2ad98f38f329bf03cec5113fa931a39bb",
+      "mainBlob": "b08937fabb7009b48afa683445e0bf893b31d4b0",
+      "resolution": "Keep regenerated solution/project registration including later TPC-C integration"
+    },
+    {
+      "path": "Seamless.Database.Client/NativeProtocol.cs",
+      "sideBlob": "16b651cf3f4a95f63e37d0e943441fd8b3c6e9b3",
+      "snapshotBlob": "16b651cf3f4a95f63e37d0e943441fd8b3c6e9b3",
+      "mainBlob": "16b651cf3f4a95f63e37d0e943441fd8b3c6e9b3",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Client/NativeQueryClient.cs",
+      "sideBlob": "9598f52fac2854dfef4a3d9cb12ccae4b284ff78",
+      "snapshotBlob": "9598f52fac2854dfef4a3d9cb12ccae4b284ff78",
+      "mainBlob": "9598f52fac2854dfef4a3d9cb12ccae4b284ff78",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Client/Seamless.Database.Client.csproj",
+      "sideBlob": "ce460f8568d072278d1998dfa43632991335cad7",
+      "snapshotBlob": "ce460f8568d072278d1998dfa43632991335cad7",
+      "mainBlob": "ce460f8568d072278d1998dfa43632991335cad7",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Gateway/GatewayServer.cs",
+      "sideBlob": "743304b45d2591bac5e3af8b02e5df692939d5ea",
+      "snapshotBlob": "6cf88844330cc4f33d9737b5735cbb8e680c9db0",
+      "mainBlob": "6cf88844330cc4f33d9737b5735cbb8e680c9db0",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/GlobalUsings.cs",
+      "sideBlob": "0f4b1c33fa7cd3b6773ebbb9a21d620b3139b5ee",
+      "snapshotBlob": "0f4b1c33fa7cd3b6773ebbb9a21d620b3139b5ee",
+      "mainBlob": "0f4b1c33fa7cd3b6773ebbb9a21d620b3139b5ee",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Hosting/ComparisonHost.cs",
+      "sideBlob": "f28f16fee5f1d943d70430c833f514e5e8c74f77",
+      "snapshotBlob": "f28f16fee5f1d943d70430c833f514e5e8c74f77",
+      "mainBlob": "f28f16fee5f1d943d70430c833f514e5e8c74f77",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Hosting/DatabaseRegistry.Schema.cs",
+      "sideBlob": "f1d8cebe273508d6530b85cc79c9e30e32cf2b80",
+      "snapshotBlob": "c9cc39900494454897c7d98953a2058a5923b017",
+      "mainBlob": "c9cc39900494454897c7d98953a2058a5923b017",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Hosting/DatabaseRegistry.Session.cs",
+      "sideBlob": "502347c5e3686c9a66be9e743965fc1924b2913c",
+      "snapshotBlob": "502347c5e3686c9a66be9e743965fc1924b2913c",
+      "mainBlob": "502347c5e3686c9a66be9e743965fc1924b2913c",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Hosting/DatabaseRegistry.cs",
+      "sideBlob": "b92edd44bdeadf77e3f0dd101b1eacc42136856a",
+      "snapshotBlob": "ddf4dff7f58099bd67b9bd9165ed89b5a630c297",
+      "mainBlob": "3b9cb3f78a2ab612c41cb0b06293d0f3ed743307",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Hosting/IDatabaseAdapter.cs",
+      "sideBlob": "609881b36a20078e8fb58f7603bc15aedf766290",
+      "snapshotBlob": "d7f9e9a78b4fc90b9304749a7b970f2617b54aaa",
+      "mainBlob": "d7f9e9a78b4fc90b9304749a7b970f2617b54aaa",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Hosting/InProcessDatabaseAdapter.cs",
+      "sideBlob": "1850eaac6c31502773620cc10af5e37860bc75c0",
+      "snapshotBlob": "f0fd717db03c9b654f63e1435942b0469a188ba7",
+      "mainBlob": "f0fd717db03c9b654f63e1435942b0469a188ba7",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Hosting/QueryResult.cs",
+      "sideBlob": "3f0b7144262a3239dd68dda326b7a025cbcf37f4",
+      "snapshotBlob": "bace4f7c81ac9bda2e24918828bcb72c2d179067",
+      "mainBlob": "bace4f7c81ac9bda2e24918828bcb72c2d179067",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Hosting/SessionContext.cs",
+      "sideBlob": "34ba69f42b7b4f173f4e6da25178db2165c7cffc",
+      "snapshotBlob": "fb9eb5a1a6a9a4a3c61b519327844b92b3ae663d",
+      "mainBlob": "fec919af82152a9641c3be37b159421dd2e4fe49",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Hosting/TableMetadata.cs",
+      "sideBlob": "fa3cac77ba6038ef21f532c22a831025aedb743f",
+      "snapshotBlob": "74445c020d83ea3a8c3e5997b069bf3333e74456",
+      "mainBlob": "74445c020d83ea3a8c3e5997b069bf3333e74456",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Http/HttpEndpoints.cs",
+      "sideBlob": "edaa325dffb1a558f5cbac63ef666617aae5ea4d",
+      "snapshotBlob": "34269be28a787017ea9efa423210d46977d58c0e",
+      "mainBlob": "34269be28a787017ea9efa423210d46977d58c0e",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Http/HttpServer.cs",
+      "sideBlob": "937568762a04d2f5daedf51a56fcffddae7cf337",
+      "snapshotBlob": "3a51386243606bc633600fe3389a221ee13ef665",
+      "mainBlob": "3a51386243606bc633600fe3389a221ee13ef665",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Native/NativeQueryServer.cs",
+      "sideBlob": "956c9ad96917f837534eef82b73c802571667b38",
+      "snapshotBlob": "956c9ad96917f837534eef82b73c802571667b38",
+      "mainBlob": "956c9ad96917f837534eef82b73c802571667b38",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Seamless.Database.Gateway.csproj",
+      "sideBlob": "5da23a6f236cb5dd9c0e5b9abb33246cc908677d",
+      "snapshotBlob": "927f49d240d569d42b2d0d0732b1228d3791bb02",
+      "mainBlob": "8507adeaf0973f60f8b65805cbd2273dd43e6a2e",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsConnectionInitialization.sql",
+      "sideBlob": "d3b62eb21a40e07f9689efe64d79350ec70866a7",
+      "snapshotBlob": "d3b62eb21a40e07f9689efe64d79350ec70866a7",
+      "mainBlob": "d3b62eb21a40e07f9689efe64d79350ec70866a7",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsQuerySettings.sql",
+      "sideBlob": "c431e605aae4755c3b429062fef88ef2072aaa62",
+      "snapshotBlob": "c431e605aae4755c3b429062fef88ef2072aaa62",
+      "mainBlob": "c431e605aae4755c3b429062fef88ef2072aaa62",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsServerInformation.sql",
+      "sideBlob": "77aa60b04a1fac7f9475d0a2786dd94eb2326fc0",
+      "snapshotBlob": "77aa60b04a1fac7f9475d0a2786dd94eb2326fc0",
+      "mainBlob": "77aa60b04a1fac7f9475d0a2786dd94eb2326fc0",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/QueryPlanCache.cs",
+      "sideBlob": "4e3ce2987fdb7995f159047a64a01f20742aaab3",
+      "snapshotBlob": "4e3ce2987fdb7995f159047a64a01f20742aaab3",
+      "mainBlob": "4e3ce2987fdb7995f159047a64a01f20742aaab3",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/ScriptDomParser.cs",
+      "sideBlob": "08edaf7b25bc0ee64f2662ccf8ba8d30e1251181",
+      "snapshotBlob": "99aa8951a2908921f3b7751e28a26433e117c72a",
+      "mainBlob": "99aa8951a2908921f3b7751e28a26433e117c72a",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/SqlExecutionEngine.cs",
+      "sideBlob": "215f5136699a1c7cff2a8d189c8203ca6a984dcc",
+      "snapshotBlob": "0295db7ceab8c6f74e0af628f6ea5428a9424841",
+      "mainBlob": "d1c3ac89e57cb10e2bfd0bab36c1414eaf72064e",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/SqlServerConnectionProbes.cs",
+      "sideBlob": "3d3f054ea155d7a4562f0e66b47d2088caf11fef",
+      "snapshotBlob": "0b923d8834fbb1e2fb2366f032628e53ccb4ea24",
+      "mainBlob": "0b923d8834fbb1e2fb2366f032628e53ccb4ea24",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/SqlServerSessionSettings.cs",
+      "sideBlob": "d8305d8e44f6d03b7d23c0c3a843c4e8bff93c17",
+      "snapshotBlob": "2ec05c893d0d37e93065db55a6deb90e3d74241e",
+      "mainBlob": "2ec05c893d0d37e93065db55a6deb90e3d74241e",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/SystemCatalogEmulator.cs",
+      "sideBlob": "5e4d78e9c1b3c3e27619f8401915f8df90a955ec",
+      "snapshotBlob": "7f72c8bf6955c6ae2640d0c70412bb4a36dd57fe",
+      "mainBlob": "f896175d706dc4b27e9b7a01460bc0c3d4fef697",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Tds/ParameterDeclarations.cs",
+      "sideBlob": "758b3005ae3a7a92db2f13fbf9855451ce32fc88",
+      "snapshotBlob": "67e404ea72ecb049efe9a83ad00b941490882682",
+      "mainBlob": "67e404ea72ecb049efe9a83ad00b941490882682",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Tds/TdsConstants.cs",
+      "sideBlob": "d6413875a415c4945d258a827afb13c24ebf9462",
+      "snapshotBlob": "15fcc995143045343ade6026a4a0344c3dc266b2",
+      "mainBlob": "15fcc995143045343ade6026a4a0344c3dc266b2",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Tds/TdsPacketReader.cs",
+      "sideBlob": "815efb52345182fd3398a74648e18ac8e202f9b7",
+      "snapshotBlob": "738afb08ce932d6482e89a9dab10004d2f01209b",
+      "mainBlob": "738afb08ce932d6482e89a9dab10004d2f01209b",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Tds/TdsPacketWriter.cs",
+      "sideBlob": "3b045fea0467d2e110542c3f4528720efbc23b24",
+      "snapshotBlob": "9e32ba1f24e4d670a9088dba5717ddfa54e52443",
+      "mainBlob": "9e32ba1f24e4d670a9088dba5717ddfa54e52443",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Tds/TdsRpcRequest.cs",
+      "sideBlob": "ddb6cc30bf1f50321d51ba375a500cd838fb75d8",
+      "snapshotBlob": "bb1417c1fd89cfa5088116e9a65693793a2c4b2d",
+      "mainBlob": "bb1417c1fd89cfa5088116e9a65693793a2c4b2d",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Tds/TdsServer.cs",
+      "sideBlob": "b83c361b37b4eb5a7c20a65ec0552c2fd5b74643",
+      "snapshotBlob": "8ec465c815e0611993cc1fe8d8b07d62564605bb",
+      "mainBlob": "8ec465c815e0611993cc1fe8d8b07d62564605bb",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Tds/TdsSession.cs",
+      "sideBlob": "9f45a70463f2d9030299ab8d093ccd8b3d8cd4aa",
+      "snapshotBlob": "785b1cb2dd1f9b4c47f8ce217e4bd41fa7de35e2",
+      "mainBlob": "785b1cb2dd1f9b4c47f8ce217e4bd41fa7de35e2",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Gateway/Tds/TdsValueWriter.cs",
+      "sideBlob": "1112496432b4af8cc33870f66dcf7698b0913375",
+      "snapshotBlob": "1112496432b4af8cc33870f66dcf7698b0913375",
+      "mainBlob": "1112496432b4af8cc33870f66dcf7698b0913375",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Generator/DatabaseContainerGenerator.cs",
+      "sideBlob": "c46421195cfc4ae8544c0f11a0c7935a0b29d2e3",
+      "snapshotBlob": "c46421195cfc4ae8544c0f11a0c7935a0b29d2e3",
+      "mainBlob": "c46421195cfc4ae8544c0f11a0c7935a0b29d2e3",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Query/AggregateState.cs",
+      "sideBlob": "d06d09471b2c68e7b972292ac7454c30fc1d7aa6",
+      "snapshotBlob": "b6ae2dab7b6ca0658c84ff95a8709f1089eed4d3",
+      "mainBlob": "b6ae2dab7b6ca0658c84ff95a8709f1089eed4d3",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Query/QueryBinder.Basic.cs",
+      "sideBlob": "9907e1f1ff0536454d7f8b75533615963cc3cc5f",
+      "snapshotBlob": "047f90ff671a75e399ead344919aa606463baa43",
+      "mainBlob": "047f90ff671a75e399ead344919aa606463baa43",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Query/QueryBinder.Expressions.cs",
+      "sideBlob": "b8046eed30c3a3ef36c969a426f1e5d36edde9b2",
+      "snapshotBlob": "b55f74e53ff8177a1f8cd8a4a029416212e20dcf",
+      "mainBlob": "d2df7aa283e75df5f171074ae6e00c2004bed0b3",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Query/QueryBinder.Join.cs",
+      "sideBlob": "18dc16380feba26ba46e048dc0e20d22219396f1",
+      "snapshotBlob": "18dc16380feba26ba46e048dc0e20d22219396f1",
+      "mainBlob": "18dc16380feba26ba46e048dc0e20d22219396f1",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Query/QueryBinder.Operators.cs",
+      "sideBlob": "097a7b10cc3e6b99b9eeded1e10cd28484a29d66",
+      "snapshotBlob": "097a7b10cc3e6b99b9eeded1e10cd28484a29d66",
+      "mainBlob": "097a7b10cc3e6b99b9eeded1e10cd28484a29d66",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Query/QueryBinder.Routines.cs",
+      "sideBlob": "fdfda61b827feaa621b0cf6c1c487b0f758ba4a7",
+      "snapshotBlob": "e0f2dc455a994ec73b7cc4c2abe544c650189951",
+      "mainBlob": "e0f2dc455a994ec73b7cc4c2abe544c650189951",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Query/QueryBinder.Xml.cs",
+      "sideBlob": "feeee9cf1d0d468713caa59d6e3375b1d8df7459",
+      "snapshotBlob": "c5974bf407a2ccc36522becb5b14e02578c77d74",
+      "mainBlob": "c5974bf407a2ccc36522becb5b14e02578c77d74",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Query/QueryBinder.cs",
+      "sideBlob": "2b139ae746a6a9867962d18319c850eec118b4b8",
+      "snapshotBlob": "1482877b3dba3d0a3fdecaff4cf059f0d8e7371a",
+      "mainBlob": "1482877b3dba3d0a3fdecaff4cf059f0d8e7371a",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Query/RuntimeSqlCatalog.cs",
+      "sideBlob": "9f3ef9ef7f34f63a661774ae50ef82fb8bf0e7ba",
+      "snapshotBlob": "f36ee6f5f9df7437a1183a04f50113dbf6e2db0c",
+      "mainBlob": "f36ee6f5f9df7437a1183a04f50113dbf6e2db0c",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Query/RuntimeSqlDatabaseContainer.cs",
+      "sideBlob": "a318dadb16b3d4df7158236076a2b901dd2ef7d6",
+      "snapshotBlob": "a318dadb16b3d4df7158236076a2b901dd2ef7d6",
+      "mainBlob": "a318dadb16b3d4df7158236076a2b901dd2ef7d6",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Query/Seamless.Database.Query.csproj",
+      "sideBlob": "483a590a2c12108ffb0447ebba1ca4ad4f61300b",
+      "snapshotBlob": "68697f15ec174a34dcc447d21f61cf35e17c5a49",
+      "mainBlob": "68697f15ec174a34dcc447d21f61cf35e17c5a49",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Query/SqlBoundedOperators.cs",
+      "sideBlob": "cb72ed88f17e0fdef74f41d93138c1d499b1d95d",
+      "snapshotBlob": "cb72ed88f17e0fdef74f41d93138c1d499b1d95d",
+      "mainBlob": "cb72ed88f17e0fdef74f41d93138c1d499b1d95d",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Query/SqlCatalogSnapshot.cs",
+      "sideBlob": "772425ccc3a74be5d1a88c49dca1d6768a3ea338",
+      "snapshotBlob": "772425ccc3a74be5d1a88c49dca1d6768a3ea338",
+      "mainBlob": "772425ccc3a74be5d1a88c49dca1d6768a3ea338",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Query/SqlDdlParser.cs",
+      "sideBlob": "d82214d471834cfca8fb25650f7327171936f812",
+      "snapshotBlob": "d82214d471834cfca8fb25650f7327171936f812",
+      "mainBlob": "d82214d471834cfca8fb25650f7327171936f812",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Query/SqlMetadata.cs",
+      "sideBlob": "892b62b06f247dac92e53a158cfeefeac5fa1176",
+      "snapshotBlob": "2b4dec2ec5d293aa9994451a01c01fb562f38db9",
+      "mainBlob": "2b4dec2ec5d293aa9994451a01c01fb562f38db9",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Query/SqlOperators.cs",
+      "sideBlob": "4749951c6c7a3f077ad7da7d1a595a69487626ce",
+      "snapshotBlob": "4749951c6c7a3f077ad7da7d1a595a69487626ce",
+      "mainBlob": "4749951c6c7a3f077ad7da7d1a595a69487626ce",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Query/SqlParserCsAdapter.cs",
+      "sideBlob": "906ae6a77c9a89c31c6dd08859cfd5a89ff7c0d0",
+      "snapshotBlob": "906ae6a77c9a89c31c6dd08859cfd5a89ff7c0d0",
+      "mainBlob": "906ae6a77c9a89c31c6dd08859cfd5a89ff7c0d0",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Query/SqlQueryEngine.Basic.cs",
+      "sideBlob": "b64e3ae1e98c1e2c06c37443bf0d15b3fa265d7b",
+      "snapshotBlob": "b64e3ae1e98c1e2c06c37443bf0d15b3fa265d7b",
+      "mainBlob": "b64e3ae1e98c1e2c06c37443bf0d15b3fa265d7b",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Query/SqlQueryEngine.cs",
+      "sideBlob": "2cd5369fae2aa200d2519f33274ae72dd56cb181",
+      "snapshotBlob": "b58f720d75267efa4c878b8c266791ac0bda3087",
+      "mainBlob": "b58f720d75267efa4c878b8c266791ac0bda3087",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Query/SqlRowCodec.cs",
+      "sideBlob": "0d1d99b2f9898a394c0eff5cadbc89bcce20b3cc",
+      "snapshotBlob": "0d1d99b2f9898a394c0eff5cadbc89bcce20b3cc",
+      "mainBlob": "0d1d99b2f9898a394c0eff5cadbc89bcce20b3cc",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Query/SqlScriptBatches.cs",
+      "sideBlob": "3b2aa7d73510aee88152a7a1921915192a867ce5",
+      "snapshotBlob": "3b2aa7d73510aee88152a7a1921915192a867ce5",
+      "mainBlob": "3b2aa7d73510aee88152a7a1921915192a867ce5",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Query/SqlSyntax.cs",
+      "sideBlob": "dd33d52488bf36c2c3c344b7bee966272c35cdb1",
+      "snapshotBlob": "dd33d52488bf36c2c3c344b7bee966272c35cdb1",
+      "mainBlob": "dd33d52488bf36c2c3c344b7bee966272c35cdb1",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Query/SqlValues.cs",
+      "sideBlob": "cca6fb38f1eb28cf2ba5383608630c6382009747",
+      "snapshotBlob": "32be35c4617ede5dbeadaec38da2ae382c7fcd40",
+      "mainBlob": "32be35c4617ede5dbeadaec38da2ae382c7fcd40",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Query/ThirdPartyNotices.txt",
+      "sideBlob": "99b0225c45fa34011511a3bc74d8927ffe0012de",
+      "snapshotBlob": "99b0225c45fa34011511a3bc74d8927ffe0012de",
+      "mainBlob": "99b0225c45fa34011511a3bc74d8927ffe0012de",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Server/GlobalUsings.cs",
+      "sideBlob": "0f4b1c33fa7cd3b6773ebbb9a21d620b3139b5ee",
+      "snapshotBlob": "0f4b1c33fa7cd3b6773ebbb9a21d620b3139b5ee",
+      "mainBlob": "0f4b1c33fa7cd3b6773ebbb9a21d620b3139b5ee",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database.Server/Program.cs",
+      "sideBlob": "44c27428d83961163fd34b1568de2355fc23bd8a",
+      "snapshotBlob": "b3ce48111c79543c1a6d6ca2bd8ba1be07c6e46d",
+      "mainBlob": "b3ce48111c79543c1a6d6ca2bd8ba1be07c6e46d",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Server/Seamless.Database.Server.csproj",
+      "sideBlob": "f476b8f82b9891bc53d18aa969d0aac173855e5e",
+      "snapshotBlob": "db2707ca25720e93a9b3131f7acace50d328524c",
+      "mainBlob": "db2707ca25720e93a9b3131f7acace50d328524c",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Seamless.Database.Tool.slnx",
+      "sideBlob": "13af5b26085f0f56b346b20d10d9a9799c1b5ca3",
+      "snapshotBlob": "13af5b26085f0f56b346b20d10d9a9799c1b5ca3",
+      "mainBlob": "74c3e26d2c111793ad1e4902c9e42ab4283fe431",
+      "resolution": "Keep regenerated solution/project registration including later TPC-C integration"
+    },
+    {
+      "path": "Seamless.Database/AssemblyInfo.cs",
+      "sideBlob": "2791efe8fc27d97b36c27b42f8485270be7c527d",
+      "snapshotBlob": "2791efe8fc27d97b36c27b42f8485270be7c527d",
+      "mainBlob": "2791efe8fc27d97b36c27b42f8485270be7c527d",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database/DatabaseContainer.cs",
+      "sideBlob": "4c72b1b4c150ca38f4503c18f2facbc98beb68ba",
+      "snapshotBlob": "4c72b1b4c150ca38f4503c18f2facbc98beb68ba",
+      "mainBlob": "4c72b1b4c150ca38f4503c18f2facbc98beb68ba",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database/DatabaseContainerOptions.cs",
+      "sideBlob": "2eaae1037bafb7a061cce7ffa457146151fba55a",
+      "snapshotBlob": "2eaae1037bafb7a061cce7ffa457146151fba55a",
+      "mainBlob": "2eaae1037bafb7a061cce7ffa457146151fba55a",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database/DatabaseTransaction.cs",
+      "sideBlob": "40754516ab333cc1f7d2bbb844592e776769dc23",
+      "snapshotBlob": "40754516ab333cc1f7d2bbb844592e776769dc23",
+      "mainBlob": "40754516ab333cc1f7d2bbb844592e776769dc23",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database/DatabaseTransactions.cs",
+      "sideBlob": "3744891ee8f6bc64a4d9e2972b5864d756cab8d6",
+      "snapshotBlob": "3744891ee8f6bc64a4d9e2972b5864d756cab8d6",
+      "mainBlob": "3744891ee8f6bc64a4d9e2972b5864d756cab8d6",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database/KeyedTable.cs",
+      "sideBlob": "ed3a9c1c01a46c8165704e72e7a60e8fccc69e79",
+      "snapshotBlob": "ed3a9c1c01a46c8165704e72e7a60e8fccc69e79",
+      "mainBlob": "ed3a9c1c01a46c8165704e72e7a60e8fccc69e79",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database/MaterializedView.cs",
+      "sideBlob": "7ae2c858ebd013ed9f77840c68e01b85e9062661",
+      "snapshotBlob": "7ae2c858ebd013ed9f77840c68e01b85e9062661",
+      "mainBlob": "7ae2c858ebd013ed9f77840c68e01b85e9062661",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database/Seamless.Database.csproj",
+      "sideBlob": "1a2bd33cfe1dad1f38ea984fadb3e52c66506779",
+      "snapshotBlob": "1a2bd33cfe1dad1f38ea984fadb3e52c66506779",
+      "mainBlob": "1a2bd33cfe1dad1f38ea984fadb3e52c66506779",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Database/Table.cs",
+      "sideBlob": "b0d742213b801cb3a708501b00b0f593164e2576",
+      "snapshotBlob": "b0d742213b801cb3a708501b00b0f593164e2576",
+      "mainBlob": "b0d742213b801cb3a708501b00b0f593164e2576",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Transactions.Collections/ReadOnlyTransactionCollection.cs",
+      "sideBlob": "d37761326a689ad3c6b17bf77a25b46f421ed24e",
+      "snapshotBlob": "d37761326a689ad3c6b17bf77a25b46f421ed24e",
+      "mainBlob": "d37761326a689ad3c6b17bf77a25b46f421ed24e",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Transactions.Collections/Seamless.Transactions.Collections.csproj",
+      "sideBlob": "e6bd297366df1fea909b308f69a6a6b84b8f2645",
+      "snapshotBlob": "e6bd297366df1fea909b308f69a6a6b84b8f2645",
+      "mainBlob": "e6bd297366df1fea909b308f69a6a6b84b8f2645",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Transactions.Collections/TransactionChangeSet.cs",
+      "sideBlob": "d18a635d4cf2d8d9aee27375826ff0e3b37f0e5c",
+      "snapshotBlob": "d18a635d4cf2d8d9aee27375826ff0e3b37f0e5c",
+      "mainBlob": "d18a635d4cf2d8d9aee27375826ff0e3b37f0e5c",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Transactions.Collections/TransactionalTable.cs",
+      "sideBlob": "a20370744fd0335d1921801c5412118370ac74d7",
+      "snapshotBlob": "a20370744fd0335d1921801c5412118370ac74d7",
+      "mainBlob": "a20370744fd0335d1921801c5412118370ac74d7",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Transactions/FakeWalDevice.cs",
+      "sideBlob": "9503c12c2ea3b54fc8ccafae83a660ef4a253ec5",
+      "snapshotBlob": "9503c12c2ea3b54fc8ccafae83a660ef4a253ec5",
+      "mainBlob": "9503c12c2ea3b54fc8ccafae83a660ef4a253ec5",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Transactions/PartitionExecutor.cs",
+      "sideBlob": "3956ea0062b90ea1bd642882ce74b8fe181a39ce",
+      "snapshotBlob": "3956ea0062b90ea1bd642882ce74b8fe181a39ce",
+      "mainBlob": "3956ea0062b90ea1bd642882ce74b8fe181a39ce",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Transactions/README.md",
+      "sideBlob": "d0cc1904cc9d927ce41354da88549b8ddaef6e27",
+      "snapshotBlob": "d0cc1904cc9d927ce41354da88549b8ddaef6e27",
+      "mainBlob": "d0cc1904cc9d927ce41354da88549b8ddaef6e27",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Transactions/Seamless.Transactions.csproj",
+      "sideBlob": "82f1fdf64f3860cf14f258d6ac4093c04d23b11a",
+      "snapshotBlob": "82f1fdf64f3860cf14f258d6ac4093c04d23b11a",
+      "mainBlob": "82f1fdf64f3860cf14f258d6ac4093c04d23b11a",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Transactions/TransactionCoordinator.cs",
+      "sideBlob": "193faec64c5c8eb1a5a5af94cc2473796fb35cdb",
+      "snapshotBlob": "193faec64c5c8eb1a5a5af94cc2473796fb35cdb",
+      "mainBlob": "193faec64c5c8eb1a5a5af94cc2473796fb35cdb",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Transactions/TransactionJournal.cs",
+      "sideBlob": "b0d379e31c6ca9b6d7dce0cd064aa195ffeb156b",
+      "snapshotBlob": "b0d379e31c6ca9b6d7dce0cd064aa195ffeb156b",
+      "mainBlob": "b0d379e31c6ca9b6d7dce0cd064aa195ffeb156b",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Transactions/WalContract.cs",
+      "sideBlob": "b8373d3036eeb6a4e4bace320cff70231c83b62a",
+      "snapshotBlob": "b8373d3036eeb6a4e4bace320cff70231c83b62a",
+      "mainBlob": "b8373d3036eeb6a4e4bace320cff70231c83b62a",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Transactions/WalFileDevice.cs",
+      "sideBlob": "0341f34fe57d4cce562a0bd1f10b834db2adcf12",
+      "snapshotBlob": "0341f34fe57d4cce562a0bd1f10b834db2adcf12",
+      "mainBlob": "0341f34fe57d4cce562a0bd1f10b834db2adcf12",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Transactions/WalFormat.cs",
+      "sideBlob": "80f31a4191af741cacb60c9842d430d5232acb68",
+      "snapshotBlob": "80f31a4191af741cacb60c9842d430d5232acb68",
+      "mainBlob": "80f31a4191af741cacb60c9842d430d5232acb68",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.Transactions/WalWriter.cs",
+      "sideBlob": "2c712ce1e5537b066d19cab934cb312bf8e854f9",
+      "snapshotBlob": "2c712ce1e5537b066d19cab934cb312bf8e854f9",
+      "mainBlob": "2c712ce1e5537b066d19cab934cb312bf8e854f9",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Seamless.slnx",
+      "sideBlob": "3a66bfa9190b51d87570b9f72c91a1723da60bd0",
+      "snapshotBlob": "e7629360296469159017250983716b01587ddbbe",
+      "mainBlob": "ae0dacf0720655c9d27737ac5636837b7af31562",
+      "resolution": "Keep regenerated solution/project registration including later TPC-C integration"
+    },
+    {
+      "path": "TestSeamless/Cases/AdventureWorks/Basic.sql",
+      "sideBlob": "75cd251d7a107174c0363774e6896ffc649c4965",
+      "snapshotBlob": "75cd251d7a107174c0363774e6896ffc649c4965",
+      "mainBlob": "75cd251d7a107174c0363774e6896ffc649c4965",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Cases/AdventureWorks/GeneratedMethods.sql",
+      "sideBlob": "60da411ca3fc22e91773b288f32622a9ecd9a259",
+      "snapshotBlob": "60da411ca3fc22e91773b288f32622a9ecd9a259",
+      "mainBlob": "60da411ca3fc22e91773b288f32622a9ecd9a259",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Cases/Common/Fixture-CRUD-CommitRollback.sql",
+      "sideBlob": "4c35da6a920948431bcb77a97971abc65aad1fe0",
+      "snapshotBlob": "4c35da6a920948431bcb77a97971abc65aad1fe0",
+      "mainBlob": "4c35da6a920948431bcb77a97971abc65aad1fe0",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Cases/Common/Read-AggregateJoinView.sql",
+      "sideBlob": "ea5b7aab51f792f2f32cb9f949866877a29f9934",
+      "snapshotBlob": "ea5b7aab51f792f2f32cb9f949866877a29f9934",
+      "mainBlob": "ea5b7aab51f792f2f32cb9f949866877a29f9934",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Cases/Common/manifest.json",
+      "sideBlob": "32c6c5011b0b4f0584a61a9ed58b8505433d13d4",
+      "snapshotBlob": "32c6c5011b0b4f0584a61a9ed58b8505433d13d4",
+      "mainBlob": "32c6c5011b0b4f0584a61a9ed58b8505433d13d4",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/CatalogPreflight.cs",
+      "sideBlob": "66a1e1c09f294bbeed854148d2c9138e82be1621",
+      "snapshotBlob": "66a1e1c09f294bbeed854148d2c9138e82be1621",
+      "mainBlob": "66a1e1c09f294bbeed854148d2c9138e82be1621",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/ComparisonConcurrency.cs",
+      "sideBlob": "f114bc6c666b5074802e5db927dc33f3b55227a5",
+      "snapshotBlob": "f114bc6c666b5074802e5db927dc33f3b55227a5",
+      "mainBlob": "f114bc6c666b5074802e5db927dc33f3b55227a5",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/ComparisonRunner.cs",
+      "sideBlob": "4c277b5bd9640d8c894101ebe09907c599999641",
+      "snapshotBlob": "20a2491a34fd16cb9b6977d037b5dbba639bc30e",
+      "mainBlob": "20a2491a34fd16cb9b6977d037b5dbba639bc30e",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Diagnostics.cs",
+      "sideBlob": "9e20749a5e6616bdea2d942a82cc96610265b85e",
+      "snapshotBlob": "c945c81d503a1617f4020655ec2ffd877dd96233",
+      "mainBlob": "c945c81d503a1617f4020655ec2ffd877dd96233",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Diagnostics/README.md",
+      "sideBlob": "8a76751791fbdd2f0ce6132a4bf69681b6f39b68",
+      "snapshotBlob": "8a76751791fbdd2f0ce6132a4bf69681b6f39b68",
+      "mainBlob": "8a76751791fbdd2f0ce6132a4bf69681b6f39b68",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Diagnostics/Start-SsmsSqlTrace.sql",
+      "sideBlob": "fccd9b138faf6ca7070f00946b3e8105bc564e99",
+      "snapshotBlob": "fccd9b138faf6ca7070f00946b3e8105bc564e99",
+      "mainBlob": "fccd9b138faf6ca7070f00946b3e8105bc564e99",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Directory.Build.props",
+      "sideBlob": "0845fb3d3ee208cd7024a55931b7df4ddce9dcb1",
+      "snapshotBlob": "7e2cd04b0a9490c9bcd704a95b90ac95359bb762",
+      "mainBlob": "7e2cd04b0a9490c9bcd704a95b90ac95359bb762",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/GeneratedDatabaseAcceptance.cs",
+      "sideBlob": "8b35ac864b888361b34c41b88d7be04f3bc7e8d4",
+      "snapshotBlob": "8b35ac864b888361b34c41b88d7be04f3bc7e8d4",
+      "mainBlob": "8b35ac864b888361b34c41b88d7be04f3bc7e8d4",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/GenerationImport.cs",
+      "sideBlob": "ac81c5fc446462e220bd7cb81ae6449926cdf9b5",
+      "snapshotBlob": "e8e97202028dcf585f6e37e8a276ef54ea3f7a2b",
+      "mainBlob": "e8e97202028dcf585f6e37e8a276ef54ea3f7a2b",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Get-ProductProjects.ps1",
+      "sideBlob": "52e612d4fc280abeeec0a623c6e841790a53964e",
+      "snapshotBlob": "52e612d4fc280abeeec0a623c6e841790a53964e",
+      "mainBlob": "52e612d4fc280abeeec0a623c6e841790a53964e",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Initialize-Storage.ps1",
+      "sideBlob": "7d65f527e6db956166107ee81d79c2d6dde7f321",
+      "snapshotBlob": "8763dd9369a0ecbb316a8011358058f388f3cac5",
+      "mainBlob": "8763dd9369a0ecbb316a8011358058f388f3cac5",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Invoke-Comparison.ps1",
+      "sideBlob": "5ba4c70f035185ddcdf99e43c2aa724e93c7c1c3",
+      "snapshotBlob": "a81c927cb8d54a886e4c77066b25db1d4628987c",
+      "mainBlob": "a81c927cb8d54a886e4c77066b25db1d4628987c",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Invoke-LocalProcess.ps1",
+      "sideBlob": "4a709f48a2124363d95de8cb4b48faa5736767cc",
+      "snapshotBlob": "4a709f48a2124363d95de8cb4b48faa5736767cc",
+      "mainBlob": "4a709f48a2124363d95de8cb4b48faa5736767cc",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Pack-Products.ps1",
+      "sideBlob": "03081332a5f0f0dbb18b49720ed5f04cf115c654",
+      "snapshotBlob": "03081332a5f0f0dbb18b49720ed5f04cf115c654",
+      "mainBlob": "03081332a5f0f0dbb18b49720ed5f04cf115c654",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Preparation/Invoke-Prepare-TpcE.ps1",
+      "sideBlob": "a3973a6d7f2d9295dde6d80b48050733e717d072",
+      "snapshotBlob": "b6baec72bf519ae3523af0ac4970f35b10d6e5f3",
+      "mainBlob": "b6baec72bf519ae3523af0ac4970f35b10d6e5f3",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Preparation/New-GenerationManifest.ps1",
+      "sideBlob": "938465e2d8b42c11c8536fca2abc1797a4ddd33f",
+      "snapshotBlob": "938465e2d8b42c11c8536fca2abc1797a4ddd33f",
+      "mainBlob": "938465e2d8b42c11c8536fca2abc1797a4ddd33f",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Preparation/Prepare-Fixture.ps1",
+      "sideBlob": "3e667c79e6d25e45f9a6bf9adaf2adbbeac388fc",
+      "snapshotBlob": "3e667c79e6d25e45f9a6bf9adaf2adbbeac388fc",
+      "mainBlob": "3e667c79e6d25e45f9a6bf9adaf2adbbeac388fc",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Preparation/Prepare-TpcE.ps1",
+      "sideBlob": "723ed8af2d3efd9689d2c3c9c7cec38252699e7e",
+      "snapshotBlob": "723ed8af2d3efd9689d2c3c9c7cec38252699e7e",
+      "mainBlob": "723ed8af2d3efd9689d2c3c9c7cec38252699e7e",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Preparation/README.md",
+      "sideBlob": "1e6d75a3a32a1f473149c94007d7768c1976ddaf",
+      "snapshotBlob": "e27040416fe19ef5f5c13ffbc2a6d640eb13d34e",
+      "mainBlob": "e27040416fe19ef5f5c13ffbc2a6d640eb13d34e",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Preparation/TpcEFlatLoader.cs",
+      "sideBlob": "f4df46505bd9ab58372fdfa58ca3ee8f3b40c292",
+      "snapshotBlob": "f4df46505bd9ab58372fdfa58ca3ee8f3b40c292",
+      "mainBlob": "f4df46505bd9ab58372fdfa58ca3ee8f3b40c292",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Preparation/preflight.py",
+      "sideBlob": "e9906907a531404ae8886394c9ed4f26182f84eb",
+      "snapshotBlob": "e9906907a531404ae8886394c9ed4f26182f84eb",
+      "mainBlob": "e9906907a531404ae8886394c9ed4f26182f84eb",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Preparation/tpce-schema.sql",
+      "sideBlob": "5d8cd78f2dad744293d5961f54b092a9ad2c3024",
+      "snapshotBlob": "5d8cd78f2dad744293d5961f54b092a9ad2c3024",
+      "mainBlob": "5d8cd78f2dad744293d5961f54b092a9ad2c3024",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Preparation/tpce-tables.json",
+      "sideBlob": "eac767f1868d87e93c3e43e1a635c03bb4ae77cd",
+      "snapshotBlob": "eac767f1868d87e93c3e43e1a635c03bb4ae77cd",
+      "mainBlob": "eac767f1868d87e93c3e43e1a635c03bb4ae77cd",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/ProcessMetrics.cs",
+      "sideBlob": "12bfad5d3cd4a97fd65dddcd75f1321f1857a2f4",
+      "snapshotBlob": "12bfad5d3cd4a97fd65dddcd75f1321f1857a2f4",
+      "mainBlob": "12bfad5d3cd4a97fd65dddcd75f1321f1857a2f4",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Program.cs",
+      "sideBlob": "2784c9b21d5798d1c9fab866731143a3b59beaa3",
+      "snapshotBlob": "ee544af06067471fa440615d6ef9efa94a145c5a",
+      "mainBlob": "ee544af06067471fa440615d6ef9efa94a145c5a",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Publish-TestWorkspace.ps1",
+      "sideBlob": "49aeab51013c340c3d64a2482563dcc58f65161a",
+      "snapshotBlob": "49aeab51013c340c3d64a2482563dcc58f65161a",
+      "mainBlob": "49aeab51013c340c3d64a2482563dcc58f65161a",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Queries/AggregateJoin.cs.template",
+      "sideBlob": "6d519debeff49caecfc4657d09ea09fac2cb63d8",
+      "snapshotBlob": "6d519debeff49caecfc4657d09ea09fac2cb63d8",
+      "mainBlob": "6d519debeff49caecfc4657d09ea09fac2cb63d8",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Queries/NativeFixtureCommand.cs",
+      "sideBlob": "7f72d9f3f6cf9af46843c4d6e1ad4d500914e600",
+      "snapshotBlob": "7f72d9f3f6cf9af46843c4d6e1ad4d500914e600",
+      "mainBlob": "7f72d9f3f6cf9af46843c4d6e1ad4d500914e600",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Queries/README.md",
+      "sideBlob": "21fa74848969a4ca788531f60069c5a2fefc781e",
+      "snapshotBlob": "21fa74848969a4ca788531f60069c5a2fefc781e",
+      "mainBlob": "21fa74848969a4ca788531f60069c5a2fefc781e",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Queries/TestSeamless.Queries.csproj",
+      "sideBlob": "9697c7b9e46c85e8f0ea123ed4d9fb9d170ec901",
+      "snapshotBlob": "9697c7b9e46c85e8f0ea123ed4d9fb9d170ec901",
+      "mainBlob": "9697c7b9e46c85e8f0ea123ed4d9fb9d170ec901",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Queries/query-definitions.json",
+      "sideBlob": "8068dd474c69911a1ecc7e39ca55ce02ca4185d5",
+      "snapshotBlob": "8068dd474c69911a1ecc7e39ca55ce02ca4185d5",
+      "mainBlob": "8068dd474c69911a1ecc7e39ca55ce02ca4185d5",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/QueryModuleWriter.cs",
+      "sideBlob": "8c7ea16d8078c3a4378c3b5416147bb50efca05d",
+      "snapshotBlob": "abe1f91e77f386a8205803878ba3c57a999850ce",
+      "mainBlob": "abe1f91e77f386a8205803878ba3c57a999850ce",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/README.md",
+      "sideBlob": "ed92eb735f9abab13a20697156efbb54aeda3798",
+      "snapshotBlob": "762ee70cb12e28b6f76667525fa5831a0e8d150f",
+      "mainBlob": "762ee70cb12e28b6f76667525fa5831a0e8d150f",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/ResultBag.cs",
+      "sideBlob": "0408da8aa1b3edcf2bd7d0dac58a4c483c65323f",
+      "snapshotBlob": "0408da8aa1b3edcf2bd7d0dac58a4c483c65323f",
+      "mainBlob": "0408da8aa1b3edcf2bd7d0dac58a4c483c65323f",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Schema/TestSeamless.Schema.csproj",
+      "sideBlob": "e39e871f638da238474d3ee97ec04ae4854404e6",
+      "snapshotBlob": "c991ab69ec0338cb3e525f479f756efc9a7d1db0",
+      "mainBlob": "c991ab69ec0338cb3e525f479f756efc9a7d1db0",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/SqlConsole.cs",
+      "sideBlob": "da8aa134044987285c5bae9cc43d8eaf4972f5c4",
+      "snapshotBlob": "da8aa134044987285c5bae9cc43d8eaf4972f5c4",
+      "mainBlob": "da8aa134044987285c5bae9cc43d8eaf4972f5c4",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Ssms/.seamless-ssms-owner",
+      "sideBlob": "63f9cc0747200c05c8f997ed713001309886591b",
+      "snapshotBlob": "63f9cc0747200c05c8f997ed713001309886591b",
+      "mainBlob": "63f9cc0747200c05c8f997ed713001309886591b",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Ssms/Invoke-CompareSsms.ps1",
+      "sideBlob": "a7af3b8647144dd815093c1aeaaae53298a7f7ee",
+      "snapshotBlob": "983bc162e80f0790fbd2496c801b90c4b2be9a00",
+      "mainBlob": "983bc162e80f0790fbd2496c801b90c4b2be9a00",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Ssms/README.md",
+      "sideBlob": "f4d142b3c4cba919e774de8cc29d2718f041a139",
+      "snapshotBlob": "ac91be2b45e2b4cb66a15eaae7bbf751d245bda7",
+      "mainBlob": "77e649d399f8bc618991dace2ab59530d1b74a61",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Ssms/SQLServer/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/Table-FixtureDuplicates-f572839b.sql",
+      "sideBlob": "67fbece4391e6d2172cd03f4146fff8f32e27b62",
+      "snapshotBlob": "67fbece4391e6d2172cd03f4146fff8f32e27b62",
+      "mainBlob": "67fbece4391e6d2172cd03f4146fff8f32e27b62",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Ssms/SQLServer/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/Table-FixtureItem-1f3451f3.sql",
+      "sideBlob": "2e0d2e3fcda66366364ac1f4cdd6a5f6d285af57",
+      "snapshotBlob": "2e0d2e3fcda66366364ac1f4cdd6a5f6d285af57",
+      "mainBlob": "2e0d2e3fcda66366364ac1f4cdd6a5f6d285af57",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Ssms/SQLServer/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/Table-FixtureParent-2536a6ac.sql",
+      "sideBlob": "46ec4d051b86c82358abd26fe0d6aca241648b69",
+      "snapshotBlob": "46ec4d051b86c82358abd26fe0d6aca241648b69",
+      "mainBlob": "46ec4d051b86c82358abd26fe0d6aca241648b69",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Ssms/SQLServer/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/View-vFixtureItemSummary-d5373605.sql",
+      "sideBlob": "91994594b60e558718e84ff3f1f7bcb275b66c85",
+      "snapshotBlob": null,
+      "mainBlob": null,
+      "resolution": "Obsolete generated SSMS view script absent from approved snapshot and current manifest; retain deletion"
+    },
+    {
+      "path": "TestSeamless/Ssms/SQLServer/SQLServer.ssmssqlproj",
+      "sideBlob": "41d6fcf6e71e311513417070ec9ee2dc6123302b",
+      "snapshotBlob": "b089649c26e8826dfb8a4945b846bb1987104d67",
+      "mainBlob": "b089649c26e8826dfb8a4945b846bb1987104d67",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Ssms/SeamlessDB/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/Table-FixtureDuplicates-f572839b.sql",
+      "sideBlob": "67fbece4391e6d2172cd03f4146fff8f32e27b62",
+      "snapshotBlob": "67fbece4391e6d2172cd03f4146fff8f32e27b62",
+      "mainBlob": "67fbece4391e6d2172cd03f4146fff8f32e27b62",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Ssms/SeamlessDB/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/Table-FixtureItem-1f3451f3.sql",
+      "sideBlob": "2e0d2e3fcda66366364ac1f4cdd6a5f6d285af57",
+      "snapshotBlob": "2e0d2e3fcda66366364ac1f4cdd6a5f6d285af57",
+      "mainBlob": "2e0d2e3fcda66366364ac1f4cdd6a5f6d285af57",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Ssms/SeamlessDB/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/Table-FixtureParent-2536a6ac.sql",
+      "sideBlob": "46ec4d051b86c82358abd26fe0d6aca241648b69",
+      "snapshotBlob": "46ec4d051b86c82358abd26fe0d6aca241648b69",
+      "mainBlob": "46ec4d051b86c82358abd26fe0d6aca241648b69",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Ssms/SeamlessDB/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/View-vFixtureItemSummary-d5373605.sql",
+      "sideBlob": "91994594b60e558718e84ff3f1f7bcb275b66c85",
+      "snapshotBlob": null,
+      "mainBlob": null,
+      "resolution": "Obsolete generated SSMS view script absent from approved snapshot and current manifest; retain deletion"
+    },
+    {
+      "path": "TestSeamless/Ssms/SeamlessDB/SeamlessDB.ssmssqlproj",
+      "sideBlob": "e6d51ec25de955e29000c0217df713dde575f294",
+      "snapshotBlob": "d80de8fdf5e6c749949f6a7b53f9c536a448beb8",
+      "mainBlob": "d80de8fdf5e6c749949f6a7b53f9c536a448beb8",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Ssms/Test-SsmsWorkspace.ps1",
+      "sideBlob": "edb575c50a59c54410f85127070ee5cb724743aa",
+      "snapshotBlob": "0908e6449bf1e648cd3ac1c428e3309accd4cdd8",
+      "mainBlob": "0908e6449bf1e648cd3ac1c428e3309accd4cdd8",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Ssms/TestSeamless.Compare.sln",
+      "sideBlob": "9f452c5c36981ef93c5635e221a120e934894290",
+      "snapshotBlob": "9f452c5c36981ef93c5635e221a120e934894290",
+      "mainBlob": "9f452c5c36981ef93c5635e221a120e934894290",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Ssms/TestSeamless.Compare.ssmssln",
+      "sideBlob": "9f452c5c36981ef93c5635e221a120e934894290",
+      "snapshotBlob": "9f452c5c36981ef93c5635e221a120e934894290",
+      "mainBlob": "9f452c5c36981ef93c5635e221a120e934894290",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Ssms/Update-SsmsWorkspace.ps1",
+      "sideBlob": "a0a29d54c1b9a6afa1f45f615d9bad76143645ab",
+      "snapshotBlob": "5c77ed6782d60b157add8e11137199a8c3a1b87d",
+      "mainBlob": "5c77ed6782d60b157add8e11137199a8c3a1b87d",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Ssms/managed-ssms-files.json",
+      "sideBlob": "d391a8ac591b2bed42e40a0ca23ffd87c4238c1c",
+      "snapshotBlob": "6b8922266b11a929328dd1e71dd48191f17ac8c9",
+      "mainBlob": "6b8922266b11a929328dd1e71dd48191f17ac8c9",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/TestSeamless.csproj",
+      "sideBlob": "e16228d3667d7053e1209654fe829efe430ea66a",
+      "snapshotBlob": "e16228d3667d7053e1209654fe829efe430ea66a",
+      "mainBlob": "e16228d3667d7053e1209654fe829efe430ea66a",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Tests/ComparisonConcurrency.cs",
+      "sideBlob": "805b865cc7597d63f6c77e3cf911dac049f77b0e",
+      "snapshotBlob": "805b865cc7597d63f6c77e3cf911dac049f77b0e",
+      "mainBlob": "805b865cc7597d63f6c77e3cf911dac049f77b0e",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Tests/ComparisonRunner.cs",
+      "sideBlob": "a3e0174c0650de39434c5423ced6ffbd5734da29",
+      "snapshotBlob": "a3e0174c0650de39434c5423ced6ffbd5734da29",
+      "mainBlob": "a3e0174c0650de39434c5423ced6ffbd5734da29",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Tests/GenerationSafety.ps1",
+      "sideBlob": "96478962f96cddbe6555c4248db36a7894cd9ad7",
+      "snapshotBlob": "8cc9d3664dcd8dfb54dcfc2b713b126b4f03f8ba",
+      "mainBlob": "8cc9d3664dcd8dfb54dcfc2b713b126b4f03f8ba",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Tests/HttpShutdown.cs",
+      "sideBlob": "1ceb4f0d06f46291fd2a30ca0d69d35535284c48",
+      "snapshotBlob": "1ceb4f0d06f46291fd2a30ca0d69d35535284c48",
+      "mainBlob": "1ceb4f0d06f46291fd2a30ca0d69d35535284c48",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Tests/LocalProcess.ps1",
+      "sideBlob": "0a04cd39a698c88cfe37256d8c0e63f255447112",
+      "snapshotBlob": "0a04cd39a698c88cfe37256d8c0e63f255447112",
+      "mainBlob": "0a04cd39a698c88cfe37256d8c0e63f255447112",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Tests/Protocol-Legacy.ps1",
+      "sideBlob": "674666045e244f35d3d7760d75435551bd6c7541",
+      "snapshotBlob": "674666045e244f35d3d7760d75435551bd6c7541",
+      "mainBlob": "674666045e244f35d3d7760d75435551bd6c7541",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Tests/ProtocolCipherAndCollation.cs",
+      "sideBlob": "6679224401678157106a36f2ffec9b8b684207ee",
+      "snapshotBlob": "6679224401678157106a36f2ffec9b8b684207ee",
+      "mainBlob": "0921531cbcbc4bae5a650007ed8391b881487492",
+      "resolution": "Keep current accepted tests; four unfinished cases preserved in held-protocol-tests.patch and documented as pending"
+    },
+    {
+      "path": "TestSeamless/Tests/ProtocolMetadata.cs",
+      "sideBlob": "8daea3e68ed259e1e5bdce0c9441534cba7d5ed6",
+      "snapshotBlob": "8daea3e68ed259e1e5bdce0c9441534cba7d5ed6",
+      "mainBlob": "8daea3e68ed259e1e5bdce0c9441534cba7d5ed6",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Tests/ProtocolSynthetic.cs",
+      "sideBlob": "5257e8a7748a8fff3f436c9e0448d1fa2b6da6d2",
+      "snapshotBlob": "5257e8a7748a8fff3f436c9e0448d1fa2b6da6d2",
+      "mainBlob": "34e7b314c90bbce782beb67d7a3dd375ac656441",
+      "resolution": "Keep current accepted tests; four unfinished cases preserved in held-protocol-tests.patch and documented as pending"
+    },
+    {
+      "path": "TestSeamless/Tests/ProtocolTests.cs",
+      "sideBlob": "1f605cbb4e2d6df96d849044e15d4a50ff8d9d85",
+      "snapshotBlob": "1f605cbb4e2d6df96d849044e15d4a50ff8d9d85",
+      "mainBlob": "1f605cbb4e2d6df96d849044e15d4a50ff8d9d85",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Tests/QueryModuleWriter.cs",
+      "sideBlob": "8b5b31802c917f74070e77733fe16926f4674fa0",
+      "snapshotBlob": "8b5b31802c917f74070e77733fe16926f4674fa0",
+      "mainBlob": "8b5b31802c917f74070e77733fe16926f4674fa0",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Tests/ResultBag.cs",
+      "sideBlob": "3dc7967e1b093999cb340ed8dda6815799d3e78c",
+      "snapshotBlob": "3dc7967e1b093999cb340ed8dda6815799d3e78c",
+      "mainBlob": "3dc7967e1b093999cb340ed8dda6815799d3e78c",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Tests/SqlConsole.cs",
+      "sideBlob": "4da410c22f8b73fd63d3cb8bf10edbd837b569e9",
+      "snapshotBlob": "4da410c22f8b73fd63d3cb8bf10edbd837b569e9",
+      "mainBlob": "4da410c22f8b73fd63d3cb8bf10edbd837b569e9",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Tests/TestSeamless.Tests.csproj",
+      "sideBlob": "b70a9b93b0750c361881d1cd6387ed97a29d9936",
+      "snapshotBlob": "b70a9b93b0750c361881d1cd6387ed97a29d9936",
+      "mainBlob": "b70a9b93b0750c361881d1cd6387ed97a29d9936",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Tests/TestTempDirectory.cs",
+      "sideBlob": "58c25a94ea725dcab794ab6e7bbfcd583b9e95d9",
+      "snapshotBlob": "58c25a94ea725dcab794ab6e7bbfcd583b9e95d9",
+      "mainBlob": "58c25a94ea725dcab794ab6e7bbfcd583b9e95d9",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Tests/TypedQueryFixture/Bootstrap.cs.template",
+      "sideBlob": "3d611ed11e31c0b09a26b85f1cf6c8c22700cb81",
+      "snapshotBlob": "3d611ed11e31c0b09a26b85f1cf6c8c22700cb81",
+      "mainBlob": "3d611ed11e31c0b09a26b85f1cf6c8c22700cb81",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Tests/TypedQueryFixture/Invoke-TypedQueryFixture.ps1",
+      "sideBlob": "da9417098435fb6fd1a53615d024312c670f87e1",
+      "snapshotBlob": "c696a2bb2df3e8961eca2afe8de667b5ca22fe05",
+      "mainBlob": "c696a2bb2df3e8961eca2afe8de667b5ca22fe05",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Tests/TypedQueryFixture/README.md",
+      "sideBlob": "2a0f57360f5f2ec5bdc3b777d35d9825a6eb1355",
+      "snapshotBlob": "c11f2b2e054d3e87b1d6ec636402fe8520bb5c65",
+      "mainBlob": "c11f2b2e054d3e87b1d6ec636402fe8520bb5c65",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "TestSeamless/Tests/TypedQueryFixture/Runtime.cs.template",
+      "sideBlob": "4c9c50d300be0e4ac29449100ba77cbcf798d44e",
+      "snapshotBlob": "4c9c50d300be0e4ac29449100ba77cbcf798d44e",
+      "mainBlob": "4c9c50d300be0e4ac29449100ba77cbcf798d44e",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "TestSeamless/Write-RestoreConfiguration.ps1",
+      "sideBlob": "691549b8476b71650d3f83f4584c1e34b57c5906",
+      "snapshotBlob": "691549b8476b71650d3f83f4584c1e34b57c5906",
+      "mainBlob": "691549b8476b71650d3f83f4584c1e34b57c5906",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests.slnx",
+      "sideBlob": "3c2a7d971bc0537d462fe5f2a75ee4837926d8a9",
+      "snapshotBlob": "3c2a7d971bc0537d462fe5f2a75ee4837926d8a9",
+      "mainBlob": "26bb842a63b7a30a0a18e4730da5b9ecede989a8",
+      "resolution": "Keep regenerated solution/project registration including later TPC-C integration"
+    },
+    {
+      "path": "Tests/Database.Query.Tests/Database.Query.Tests.csproj",
+      "sideBlob": "5f82d497a866de1d1165942035927190056dcfcc",
+      "snapshotBlob": "5f82d497a866de1d1165942035927190056dcfcc",
+      "mainBlob": "5f82d497a866de1d1165942035927190056dcfcc",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Database.Query.Tests/Fixtures/catalog.json",
+      "sideBlob": "8587c45486ffecdc786e420ff46053b66157845e",
+      "snapshotBlob": "8587c45486ffecdc786e420ff46053b66157845e",
+      "mainBlob": "8587c45486ffecdc786e420ff46053b66157845e",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Database.Query.Tests/Fixtures/columns.json",
+      "sideBlob": "5c3a3eb26493723b7a984fd6e8a844a15a8e2bc8",
+      "snapshotBlob": "5c3a3eb26493723b7a984fd6e8a844a15a8e2bc8",
+      "mainBlob": "5c3a3eb26493723b7a984fd6e8a844a15a8e2bc8",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Database.Query.Tests/SqlQueryEngine.Basic.cs",
+      "sideBlob": "f81a9b6297ad0efb0780cdf48a6be8c7a3f3e118",
+      "snapshotBlob": "f81a9b6297ad0efb0780cdf48a6be8c7a3f3e118",
+      "mainBlob": "f81a9b6297ad0efb0780cdf48a6be8c7a3f3e118",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Database.Query.Tests/SqlQueryEngine.BitComparison.cs",
+      "sideBlob": "e3029612a1e59f4c86d85e2a827d4ee24568e654",
+      "snapshotBlob": "e3029612a1e59f4c86d85e2a827d4ee24568e654",
+      "mainBlob": "e3029612a1e59f4c86d85e2a827d4ee24568e654",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Database.Query.Tests/SqlQueryEngine.Catalog.cs",
+      "sideBlob": "d8b4fbc78b635933a42e1cc1d9a60f18d441e257",
+      "snapshotBlob": "d8b4fbc78b635933a42e1cc1d9a60f18d441e257",
+      "mainBlob": "d8b4fbc78b635933a42e1cc1d9a60f18d441e257",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Database.Query.Tests/SqlQueryEngine.FloatingPoint.cs",
+      "sideBlob": "477425b4a7442681fa2c14646e48d9050479fa2c",
+      "snapshotBlob": "4eb63528084784100eb68d005caf6e6f4dec1914",
+      "mainBlob": "4eb63528084784100eb68d005caf6e6f4dec1914",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Tests/Database.Query.Tests/SqlQueryEngine.Generation.cs",
+      "sideBlob": "2cd6cb7b6eb186901099a71c5a025267388b0ba5",
+      "snapshotBlob": "2cd6cb7b6eb186901099a71c5a025267388b0ba5",
+      "mainBlob": "2cd6cb7b6eb186901099a71c5a025267388b0ba5",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Database.Query.Tests/SqlQueryEngine.Semantics.cs",
+      "sideBlob": "164896a6c40fd6d30c5045dfaded89b585ed8927",
+      "snapshotBlob": "164896a6c40fd6d30c5045dfaded89b585ed8927",
+      "mainBlob": "164896a6c40fd6d30c5045dfaded89b585ed8927",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Database.Query.Tests/SqlQueryEngine.cs",
+      "sideBlob": "6b1400d917b2329aa85bcc7898bf02f40d3b1f91",
+      "snapshotBlob": "6b1400d917b2329aa85bcc7898bf02f40d3b1f91",
+      "mainBlob": "6b1400d917b2329aa85bcc7898bf02f40d3b1f91",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Database.Query.Tests/SqlScriptBatches.cs",
+      "sideBlob": "9601cc9d067fecc758bdd31bb26507a3c8b24682",
+      "snapshotBlob": "9601cc9d067fecc758bdd31bb26507a3c8b24682",
+      "mainBlob": "9601cc9d067fecc758bdd31bb26507a3c8b24682",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/ComparisonRuntimeProfileTests.cs",
+      "sideBlob": "70177fcea75b213af1376f7d967d08d2255cbe20",
+      "snapshotBlob": "70177fcea75b213af1376f7d967d08d2255cbe20",
+      "mainBlob": "70177fcea75b213af1376f7d967d08d2255cbe20",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/GatewayServerTests.cs",
+      "sideBlob": "9b544c0e1ecaf22178762d4b0301f53b86992fe0",
+      "snapshotBlob": "f659e79f204329dcbf2cdc94ab13670ddb295687",
+      "mainBlob": "a10ebb2dcd1ba67562ed7515c3f0418f5f70c31c",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/InProcessDatabaseAdapterTests.cs",
+      "sideBlob": "2f26d6378aeb1f59d62665a9e5eea774c7237245",
+      "snapshotBlob": "aedc37783dbf485eb4678c6490b210c8ebae5dff",
+      "mainBlob": "aedc37783dbf485eb4678c6490b210c8ebae5dff",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/NativeSharedTransactionTests.cs",
+      "sideBlob": "4327e3c53d68e4f7c6c75af5389c5f6a81fc749b",
+      "snapshotBlob": "4327e3c53d68e4f7c6c75af5389c5f6a81fc749b",
+      "mainBlob": "4327e3c53d68e4f7c6c75af5389c5f6a81fc749b",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/ParameterDeclarationsTests.cs",
+      "sideBlob": "735985ca8e8130f72728314361b6da2779231240",
+      "snapshotBlob": "735985ca8e8130f72728314361b6da2779231240",
+      "mainBlob": "735985ca8e8130f72728314361b6da2779231240",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/RuntimeDdlWireTests.cs",
+      "sideBlob": "50d60d0d7761354d043de58dcd0a69e85111f6f7",
+      "snapshotBlob": "a54cd752c5a9252420b5dc50df4305650415dd14",
+      "mainBlob": "a54cd752c5a9252420b5dc50df4305650415dd14",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/RuntimeSchemaStorageContractTests.cs",
+      "sideBlob": "5a718168c5080d298d597de939c8e8370fd69e3b",
+      "snapshotBlob": "5a718168c5080d298d597de939c8e8370fd69e3b",
+      "mainBlob": "5a718168c5080d298d597de939c8e8370fd69e3b",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/RuntimeSqlCatalogTests.cs",
+      "sideBlob": "638310a46604d6134b114345a742093547c5131f",
+      "snapshotBlob": "638310a46604d6134b114345a742093547c5131f",
+      "mainBlob": "638310a46604d6134b114345a742093547c5131f",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/ScriptDomParserTests.cs",
+      "sideBlob": "993e8e56b94448da0c824055cc76b9a3e81ab086",
+      "snapshotBlob": "112fd4b4be3c7ce91bb042438fbb2497ab0c4ce7",
+      "mainBlob": "112fd4b4be3c7ce91bb042438fbb2497ab0c4ce7",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/Seamless.Database.Gateway.Tests.csproj",
+      "sideBlob": "12073c1f31b7c4d31d6752448e105b908d32a547",
+      "snapshotBlob": "a2b7c04450fc39aafa1806a3254bcbf9ab6f944f",
+      "mainBlob": "a2b7c04450fc39aafa1806a3254bcbf9ab6f944f",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/ServerPropertyWireTests.cs",
+      "sideBlob": "cf92ffb1f0dc59407e5fd2a945adb92c451c8f3a",
+      "snapshotBlob": "78b1e329568b291eb9167fadae9bc4a298bbd62f",
+      "mainBlob": "78b1e329568b291eb9167fadae9bc4a298bbd62f",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/SessionLockTimeoutTests.cs",
+      "sideBlob": "35cfde179c2458ab1f762552f6d98496ae7e9274",
+      "snapshotBlob": "524b7709bafbeaa551c0d875b011c8a20fbd9d43",
+      "mainBlob": "524b7709bafbeaa551c0d875b011c8a20fbd9d43",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/SqlPrintTests.cs",
+      "sideBlob": "74ee01d69dc1b07779af0a1620c398afe5cb71f7",
+      "snapshotBlob": "74ee01d69dc1b07779af0a1620c398afe5cb71f7",
+      "mainBlob": "74ee01d69dc1b07779af0a1620c398afe5cb71f7",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/SsmsInitializationTests.cs",
+      "sideBlob": "c8dd94ca42e996c3a6ef9f8069a50eadf673f263",
+      "snapshotBlob": "347a4a00704e3e7063b513bfefa1c61624e17e1c",
+      "mainBlob": "347a4a00704e3e7063b513bfefa1c61624e17e1c",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/SystemCatalogNativeRoutineTests.cs",
+      "sideBlob": "1e593c6ab729b70f2e751ba408b2e65e4a3a47da",
+      "snapshotBlob": "1e593c6ab729b70f2e751ba408b2e65e4a3a47da",
+      "mainBlob": "1e593c6ab729b70f2e751ba408b2e65e4a3a47da",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/SystemCatalogRoutineTests.cs",
+      "sideBlob": "c7315a7832aebf8a07a40684073b41a91aeb8a21",
+      "snapshotBlob": "c7315a7832aebf8a07a40684073b41a91aeb8a21",
+      "mainBlob": "c7315a7832aebf8a07a40684073b41a91aeb8a21",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/SystemCatalogTests.cs",
+      "sideBlob": "697fb66fb9b69d7de384afc579f3c5b634b7eba4",
+      "snapshotBlob": "697fb66fb9b69d7de384afc579f3c5b634b7eba4",
+      "mainBlob": "68177d152b64e016d18c7dcdcd96ada6f92d3b4e",
+      "resolution": "Keep later catalog correctness adjustment verified by current regression tests"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/SystemCatalogWireTests.cs",
+      "sideBlob": "0a635633ff8c426b4d50695d07621e04f3ce10da",
+      "snapshotBlob": "0a635633ff8c426b4d50695d07621e04f3ce10da",
+      "mainBlob": "0a635633ff8c426b4d50695d07621e04f3ce10da",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/TdsFixedValueTests.cs",
+      "sideBlob": "bdc390b303282f9cf20c4e9f639c0df86266842f",
+      "snapshotBlob": "bdc390b303282f9cf20c4e9f639c0df86266842f",
+      "mainBlob": "bdc390b303282f9cf20c4e9f639c0df86266842f",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/TdsLargeValueTests.cs",
+      "sideBlob": "272b5ec55053ffb0f32b064533db199a616786c3",
+      "snapshotBlob": "272b5ec55053ffb0f32b064533db199a616786c3",
+      "mainBlob": "272b5ec55053ffb0f32b064533db199a616786c3",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/TdsLoopbackTests.cs",
+      "sideBlob": "06ff4a23a56025badbd6d2ad810a6b1b052814ac",
+      "snapshotBlob": "06ff4a23a56025badbd6d2ad810a6b1b052814ac",
+      "mainBlob": "06ff4a23a56025badbd6d2ad810a6b1b052814ac",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Database.Transactions.Tests/BankTests.cs",
+      "sideBlob": "cb761d95aad68a41b7fd29ab314b7baaea23acbb",
+      "snapshotBlob": "cb761d95aad68a41b7fd29ab314b7baaea23acbb",
+      "mainBlob": "cb761d95aad68a41b7fd29ab314b7baaea23acbb",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Database.Transactions.Tests/Seamless.Database.Transactions.Tests.csproj",
+      "sideBlob": "f07c0cb5128f9ed43b6097ba092670ea725d0b8d",
+      "snapshotBlob": "f07c0cb5128f9ed43b6097ba092670ea725d0b8d",
+      "mainBlob": "f07c0cb5128f9ed43b6097ba092670ea725d0b8d",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Transactions.Tests/DurabilityBoundaries.cs",
+      "sideBlob": "8efeb52fa4fbd4996a639ef48e795aea247e9d47",
+      "snapshotBlob": "8efeb52fa4fbd4996a639ef48e795aea247e9d47",
+      "mainBlob": "8efeb52fa4fbd4996a639ef48e795aea247e9d47",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Transactions.Tests/FileAndPartitionTests.cs",
+      "sideBlob": "cd6b97941a800d5e2a794411c2d204895cccca20",
+      "snapshotBlob": "cd6b97941a800d5e2a794411c2d204895cccca20",
+      "mainBlob": "cd6b97941a800d5e2a794411c2d204895cccca20",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Transactions.Tests/ProcessTermination.cs",
+      "sideBlob": "25bdca906c288eb515dafa19c771aee7c9b50359",
+      "snapshotBlob": "25bdca906c288eb515dafa19c771aee7c9b50359",
+      "mainBlob": "25bdca906c288eb515dafa19c771aee7c9b50359",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Transactions.Tests/Seamless.Transactions.Tests.csproj",
+      "sideBlob": "c125ef0e5d1a9c87050f6efc2522356b9afce891",
+      "snapshotBlob": "c125ef0e5d1a9c87050f6efc2522356b9afce891",
+      "mainBlob": "c125ef0e5d1a9c87050f6efc2522356b9afce891",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Transactions.Tests/TransactionTests.cs",
+      "sideBlob": "5d9d348b4e021b2f88a385b43aaaadad190c9607",
+      "snapshotBlob": "5d9d348b4e021b2f88a385b43aaaadad190c9607",
+      "mainBlob": "5d9d348b4e021b2f88a385b43aaaadad190c9607",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Tests/Seamless.Transactions.Tests/WalTests.cs",
+      "sideBlob": "91664965f47b7d6f2859934c9a3953c1094ddd8d",
+      "snapshotBlob": "91664965f47b7d6f2859934c9a3953c1094ddd8d",
+      "mainBlob": "91664965f47b7d6f2859934c9a3953c1094ddd8d",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "Update-FocusedSolutions.ps1",
+      "sideBlob": "c1c5d37708d703e4dfc38b16929c486910f3c0a8",
+      "snapshotBlob": "34546cd1ecae48cb763a7981a8c9cb4aa1edf2fd",
+      "mainBlob": "5eb5d476564d47e84d9d4b15b82d7a3f03b73e63",
+      "resolution": "Keep regenerated solution/project registration including later TPC-C integration"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/README.md",
+      "sideBlob": "3c9185d95de18caf773653cf6e335efc1e175ade",
+      "snapshotBlob": "3c9185d95de18caf773653cf6e335efc1e175ade",
+      "mainBlob": "3c9185d95de18caf773653cf6e335efc1e175ade",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/acceptance.md",
+      "sideBlob": "582fc2b1e18fc1a65a6f70da76b96b5e8ecabce1",
+      "snapshotBlob": "582fc2b1e18fc1a65a6f70da76b96b5e8ecabce1",
+      "mainBlob": "582fc2b1e18fc1a65a6f70da76b96b5e8ecabce1",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/architecture.md",
+      "sideBlob": "9f6c547fe822b9ad1b5971101157f1260f05269f",
+      "snapshotBlob": "9f6c547fe822b9ad1b5971101157f1260f05269f",
+      "mainBlob": "9f6c547fe822b9ad1b5971101157f1260f05269f",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/benchmark.md",
+      "sideBlob": "65b066e8c5266d633743c10dba62130900d751fc",
+      "snapshotBlob": "65b066e8c5266d633743c10dba62130900d751fc",
+      "mainBlob": "65b066e8c5266d633743c10dba62130900d751fc",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/current-state.md",
+      "sideBlob": "0fd5041ed04b0adab36567482e6bbf7d731502a8",
+      "snapshotBlob": "0fd5041ed04b0adab36567482e6bbf7d731502a8",
+      "mainBlob": "0fd5041ed04b0adab36567482e6bbf7d731502a8",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/evidence.json",
+      "sideBlob": "7164987e5c08ec1f6560598287b37553f8fdaaca",
+      "snapshotBlob": "7164987e5c08ec1f6560598287b37553f8fdaaca",
+      "mainBlob": "7164987e5c08ec1f6560598287b37553f8fdaaca",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/examples.md",
+      "sideBlob": "c58a9b65233ff31e58456af564d3a157f09e1979",
+      "snapshotBlob": "c58a9b65233ff31e58456af564d3a157f09e1979",
+      "mainBlob": "c58a9b65233ff31e58456af564d3a157f09e1979",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/migration.md",
+      "sideBlob": "3a2d27922ac9d573cbe1e3bb108c35b64116bcd1",
+      "snapshotBlob": "5602cae9324bfe09e68fe4dcf1d9fe06404765ea",
+      "mainBlob": "5602cae9324bfe09e68fe4dcf1d9fe06404765ea",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/onboarding.md",
+      "sideBlob": "2b526eff7e4cec04a05991a4c6405803421232a2",
+      "snapshotBlob": "2b526eff7e4cec04a05991a4c6405803421232a2",
+      "mainBlob": "2b526eff7e4cec04a05991a4c6405803421232a2",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/oss-cutover.md",
+      "sideBlob": "620ac49d09f78a30097d1052e6c1bab3e879819e",
+      "snapshotBlob": "620ac49d09f78a30097d1052e6c1bab3e879819e",
+      "mainBlob": "620ac49d09f78a30097d1052e6c1bab3e879819e",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/parser-decision.md",
+      "sideBlob": "70ed56297cd8fa613eb1b7a3d68bb2570420e661",
+      "snapshotBlob": "91fe031812acf2c0a8248cf17fdd1124f6800adb",
+      "mainBlob": "91fe031812acf2c0a8248cf17fdd1124f6800adb",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/plp-streaming.md",
+      "sideBlob": "fa1004078d1115748bd9845ef956dfaec2c26bb8",
+      "snapshotBlob": "fa1004078d1115748bd9845ef956dfaec2c26bb8",
+      "mainBlob": "fa1004078d1115748bd9845ef956dfaec2c26bb8",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/runtime-ddl.md",
+      "sideBlob": "6be4c63c52bc0191d05ed43efc07519105fd77e6",
+      "snapshotBlob": "73a9b45953318e25ecda87f0a19ef0ec73151817",
+      "mainBlob": "73a9b45953318e25ecda87f0a19ef0ec73151817",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/ssms-generated-db.md",
+      "sideBlob": "892959ed25a1a87e48bf6e47d5ea8f50a33d780b",
+      "snapshotBlob": "15146df224b5077d877bc62ad4a90176ceb0c88d",
+      "mainBlob": "5129624b40d20827ec24248c7f8eb2df8eb9a0fe",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/validation.json",
+      "sideBlob": "e761564e16d67d8155ed407446404f4c21dda632",
+      "snapshotBlob": "e761564e16d67d8155ed407446404f4c21dda632",
+      "mainBlob": "e761564e16d67d8155ed407446404f4c21dda632",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/wire-compatibility.md",
+      "sideBlob": "e41448298c662af08daa3408231a21c4357804ab",
+      "snapshotBlob": "6d5f29a0a667dfcf0646342771d20620377ead77",
+      "mainBlob": "ff35512476358f173f93c0433950c1d567b9d2fa",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/workloads.json",
+      "sideBlob": "78a53266149f34aaace780ff32e63f84ff79f066",
+      "snapshotBlob": "78a53266149f34aaace780ff32e63f84ff79f066",
+      "mainBlob": "78a53266149f34aaace780ff32e63f84ff79f066",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-transactions-tpc-c12-acceptance.md",
+      "sideBlob": "8256d891a4b5b0df991c695e59b5b2734cfb4786",
+      "snapshotBlob": "778f6bfe939a8677ea5f2e9842e84a041ce0bbd5",
+      "mainBlob": "778f6bfe939a8677ea5f2e9842e84a041ce0bbd5",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-transactions-tpc-c12.md",
+      "sideBlob": "c1bb285f0a869afcb49bc72d79ee1f8c997130eb",
+      "snapshotBlob": "c1bb285f0a869afcb49bc72d79ee1f8c997130eb",
+      "mainBlob": "c1bb285f0a869afcb49bc72d79ee1f8c997130eb",
+      "resolution": "Already identical in main"
+    },
+    {
+      "path": "docs/refactoring-designs/20261030-local-cpu-execution.md",
+      "sideBlob": "49bc42e28516f620225d52b33d352e626ef8084e",
+      "snapshotBlob": "299c14205fae08b0c97a86aa1e87bd54c6c3d852",
+      "mainBlob": "299c14205fae08b0c97a86aa1e87bd54c6c3d852",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "docs/refactoring-designs/20261030-sql-lock-timeout.md",
+      "sideBlob": "b393d91584151ae92636c6def720efcc85f0d81d",
+      "snapshotBlob": "5b1434be4a6171a9531501980cb32010f35c6bb5",
+      "mainBlob": "5b1434be4a6171a9531501980cb32010f35c6bb5",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    },
+    {
+      "path": "docs/refactoring-designs/20261030-ssms-session-initialization.md",
+      "sideBlob": "b0ee2791f04568546e191f3e937e843859c0f163",
+      "snapshotBlob": "b14858f28f3e9a309aab5fb38ec8bff2766207a3",
+      "mainBlob": "b14858f28f3e9a309aab5fb38ec8bff2766207a3",
+      "resolution": "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes"
+    }
+  ],
+  "counts": {
+    "Keep regenerated solution/project registration including later TPC-C integration": 10,
+    "Already identical in main": 147,
+    "Staged version predates approved working-tree snapshot 9bb95f46; keep approved snapshot plus subsequent SQL/SSMS fixes": 76,
+    "Obsolete generated SSMS view script absent from approved snapshot and current manifest; retain deletion": 2,
+    "Keep current accepted tests; four unfinished cases preserved in held-protocol-tests.patch and documented as pending": 2,
+    "Keep later catalog correctness adjustment verified by current regression tests": 1
+  },
+  "decision": "Keep integrated product tree after comparing staged snapshot with previously approved source and later fixes; retain pending acceptance cases in existing recovery patch."
+}
