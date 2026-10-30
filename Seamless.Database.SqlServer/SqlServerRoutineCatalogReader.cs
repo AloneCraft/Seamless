@@ -43,14 +43,14 @@ internal static class SqlServerRoutineCatalogReader {
 
     public static async Task<IReadOnlyList<RoutineCatalog>> ReadAsync(
         SqlConnection connection,
-        CancellationToken cancellationToken) {
+        CancellationToken cancellationToken,bool analyzeRoutines=true) {
         var builders=new Dictionary<int,RoutineBuilder>();
         await using(var command=new SqlCommand(RoutineQuery,connection)) {
             await using var reader=await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             while(await reader.ReadAsync(cancellationToken).ConfigureAwait(false)) {
                 var objectId=reader.GetInt32(0);
                 builders.Add(objectId,new(objectId,reader.GetString(1),reader.GetString(2),
-                    MapKind(reader.GetString(3).Trim()),reader.IsDBNull(4)?null:reader.GetString(4)));
+                    MapKind(reader.GetString(3).Trim()),reader.IsDBNull(4)?null:reader.GetString(4),reader.GetString(3).Trim()));
             }
         }
         await using(var command=new SqlCommand(ParameterQuery,connection)) {
@@ -85,6 +85,7 @@ internal static class SqlServerRoutineCatalogReader {
             }
         }
         foreach(var routine in builders.Values) {
+            if(!analyzeRoutines){routine.HasMutation=routine.Kind==RoutineKind.StoredProcedure;continue;}
             if(routine.Definition is null) {
                 continue;
             }
@@ -96,7 +97,11 @@ internal static class SqlServerRoutineCatalogReader {
         }
         return builders.Values.OrderBy(static value=>value.SchemaName,StringComparer.Ordinal)
             .ThenBy(static value=>value.Name,StringComparer.Ordinal)
-            .Select(static value=>value.Build()).ToArray();
+            .Select(static value=>{
+                var routine=value.Build();
+                if(SqlServerRoutineCompiler.TryCompile(routine,out var implementation,out var reason)){return routine with{Implementation=implementation};}
+                return routine with{CompilationDiagnostic=reason};
+            }).ToArray();
     }
 
     private static RoutineKind MapKind(string type)=>type switch {
@@ -106,11 +111,12 @@ internal static class SqlServerRoutineCatalogReader {
         _=>throw new ArgumentOutOfRangeException(nameof(type),type,"Unsupported SQL Server routine type."),
     };
 
-    private sealed class RoutineBuilder(int objectId,string schemaName,string name,RoutineKind kind,string? definition) {
+    private sealed class RoutineBuilder(int objectId,string schemaName,string name,RoutineKind kind,string? definition,string sourceObjectType) {
         public int ObjectId { get; }=objectId;
         public string SchemaName { get; }=schemaName;
         public string Name { get; }=name;
         public RoutineKind Kind { get; }=kind;
+        public string SourceObjectType{get;}=sourceObjectType;
         public string? Definition { get; }=definition;
         public DatabaseType? ReturnType { get; set; }
         public List<ParameterCatalog> Parameters { get; }=[];
@@ -123,6 +129,6 @@ internal static class SqlServerRoutineCatalogReader {
         public RoutineCatalog Build()=>new(this.SchemaName,this.Name,this.Kind,this.ReturnType,
             this.Parameters.OrderBy(static value=>value.Ordinal).ToArray(),
             this.ResultColumns.OrderBy(static value=>value.Ordinal).ToArray(),this.Definition,
-            this.HasMutation,this.ResultSetCount,this.ReturnCount,this.RelationalAlgebra);
+            this.HasMutation,this.ResultSetCount,this.ReturnCount,this.RelationalAlgebra){SourceObjectType=this.SourceObjectType};
     }
 }

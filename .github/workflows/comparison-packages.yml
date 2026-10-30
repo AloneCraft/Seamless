@@ -1,0 +1,81 @@
+name: Comparison package consumers
+
+on:
+  push:
+    paths:
+      - 'Seamless*/**'
+      - 'TestSeamless/**'
+      - 'Tests/Database.Query.Tests/**'
+      - '.github/workflows/comparison-packages.yml'
+  pull_request:
+    paths:
+      - 'Seamless*/**'
+      - 'TestSeamless/**'
+      - 'Tests/Database.Query.Tests/**'
+      - '.github/workflows/comparison-packages.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: comparison-packages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package-fixtures:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Pack products before restoring consumers
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $version='0.0.0-ci.'+$env:GITHUB_RUN_ID+'.'+$env:GITHUB_RUN_ATTEMPT+'.'+'${{ matrix.configuration }}'.ToLowerInvariant()
+          $feed=Join-Path $env:RUNNER_TEMP 'comparison-feed'
+          New-Item -ItemType Directory -Force -Path $feed|Out-Null
+          $projects=@(& ./TestSeamless/Get-ProductProjects.ps1)
+          $plan=@{Projects=$projects;Version=$version;Feed=$feed;Dotnet=(Get-Command dotnet).Source;Configuration='${{ matrix.configuration }}';Sources='https://api.nuget.org/v3/index.json'}
+          $planFile=Join-Path $env:RUNNER_TEMP 'package-plan.json'
+          $plan|ConvertTo-Json -Depth 5|Set-Content -LiteralPath $planFile
+          & ./TestSeamless/Pack-Products.ps1 -Plan $planFile
+          "COMPARISON_VERSION=$version"|Out-File -FilePath $env:GITHUB_ENV -Append
+          "COMPARISON_FEED=$feed"|Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Test only packaged product references
+        shell: pwsh
+        run: |
+          $config=Join-Path $env:RUNNER_TEMP 'comparison-consumer-nuget.config'
+          & ./TestSeamless/Write-RestoreConfiguration.ps1 -Sources @($env:COMPARISON_FEED,'https://api.nuget.org/v3/index.json') -Output $config
+          dotnet test ./TestSeamless/Tests/TestSeamless.Tests.csproj -c '${{ matrix.configuration }}' -m:1 -nr:false -p:UseSharedCompilation=false -p:NuGetAudit=false "-p:SeamlessPackageVersion=$env:COMPARISON_VERSION" "-p:RestoreConfigFile=$config" "-p:GenerationDirectory=$env:RUNNER_TEMP/empty-generation" "-p:ComparisonBuildRoot=$env:RUNNER_TEMP/consumer-build" --logger 'trx;LogFileName=package-consumers.trx' --results-directory ./Work/TestSeamless/CI
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+      - name: Test generated typed query fixture
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $env:SEAMLESS_COMPARISON_ARCHIVE_ROOT=Join-Path $env:GITHUB_WORKSPACE 'Work/TestSeamless/CI/typed-fixture'
+          $env:SEAMLESS_COMPARISON_TEMP_ROOT=Join-Path $env:RUNNER_TEMP 'comparison-typed-fixture/Temp'
+          New-Item -ItemType Directory -Force -Path (Join-Path $env:SEAMLESS_COMPARISON_ARCHIVE_ROOT 'dependency-feed')|Out-Null
+          & ./TestSeamless/Tests/TypedQueryFixture/Invoke-TypedQueryFixture.ps1 -Direct -Configuration '${{ matrix.configuration }}' -PackageVersion $env:COMPARISON_VERSION -PackageFeed $env:COMPARISON_FEED
+      - name: Test SQL binding, operators and fixed source definitions
+        shell: pwsh
+        run: dotnet test ./Tests/Database.Query.Tests/Database.Query.Tests.csproj -c '${{ matrix.configuration }}' -m:1 -nr:false -p:UseSharedCompilation=false -p:NuGetAudit=false --logger 'trx;LogFileName=query-fixtures.trx' --results-directory ./Work/TestSeamless/CI
+      - name: Test generation cleanup safety without running the pipeline main
+        shell: pwsh
+        run: ./TestSeamless/Tests/GenerationSafety.ps1
+      - name: Record real SQL Server acceptance availability
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path ./Work/TestSeamless/CI|Out-Null
+          @{Status='NotRun';Reason='The local SQL Server sample databases and EGen data are not provisioned on this runner. Full table/view acceptance remains a separate local step.'}|ConvertTo-Json|Set-Content ./Work/TestSeamless/CI/sqlserver-real-data.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: comparison-${{ matrix.configuration }}
+          path: Work/TestSeamless/CI/**
+          if-no-files-found: error

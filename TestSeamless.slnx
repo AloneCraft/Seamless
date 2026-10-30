@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/TestSeamless/">
+    <Project Path="TestSeamless/TestSeamless.csproj" />
+    <Project Path="TestSeamless/Schema/TestSeamless.Schema.csproj" />
+    <Project Path="TestSeamless/Queries/TestSeamless.Queries.csproj" />
+    <Project Path="TestSeamless/Tests/TestSeamless.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -4,6 +4,8 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Channels;
 
+[assembly:InternalsVisibleTo("Benchmark.Dynamic.Tests")]
+
 namespace Benchmark.Dynamic.Infrastructure;
 
 public interface IWorkerProcessClient{
@@ -92,16 +94,23 @@ public sealed class WorkerProcessSession:IWorkerProcessSession{
     public static readonly TimeSpan ForcedTerminationDelay=TimeSpan.FromSeconds(3);
 
     private readonly Process process;
+    private readonly int processID;
+    private readonly object lifetimeGate=new();
     private readonly Channel<WorkerMessageEnvelope> responses;
     private readonly SemaphoreSlim writeGate=new(1,1);
     private readonly Task outputPumpTask;
     private readonly Task<string> standardErrorTask;
+    private readonly Func<Task>? afterProcessExit;
+    private Task<bool>? stopTask;
+    private Task? disposeTask;
+    private bool exitConfirmed;
     private int responseReaderStarted;
-    private int stopStarted;
     private int disposed;
 
-    internal WorkerProcessSession(Process process){
+    internal WorkerProcessSession(Process process,Func<Task>? afterProcessExit=null){
         this.process=process;
+        this.processID=process.Id;
+        this.afterProcessExit=afterProcessExit;
         this.responses=Channel.CreateUnbounded<WorkerMessageEnvelope>(
             new UnboundedChannelOptions{
                 SingleReader=true,
@@ -112,8 +121,17 @@ public sealed class WorkerProcessSession:IWorkerProcessSession{
         this.standardErrorTask=process.StandardError.ReadToEndAsync();
     }
 
-    public int ProcessID=>this.process.Id;
-    public bool HasExited=>this.process.HasExited;
+    public int ProcessID=>this.processID;
+    public bool HasExited{
+        get{
+            lock(this.lifetimeGate){
+                if(!this.exitConfirmed){
+                    this.exitConfirmed=this.process.HasExited;
+                }
+                return this.exitConfirmed;
+            }
+        }
+    }
 
     public async Task SendAsync<T>(
         string requestID,
@@ -161,41 +179,68 @@ public sealed class WorkerProcessSession:IWorkerProcessSession{
     }
 
     public async Task<string> GetStandardErrorAsync(){
-        if(!this.process.HasExited){
+        if(!this.HasExited){
             throw new InvalidOperationException(
                 "Worker standard error is available after the process exits.");
         }
         return await this.standardErrorTask.ConfigureAwait(false);
     }
 
-    public async ValueTask DisposeAsync(){
-        if(Interlocked.Exchange(ref this.disposed,1)!=0){
-            return;
-        }
-        try{
-            if(!this.process.HasExited){
-                await this.SendControlAndStopAsync(
-                    $"dispose-{Guid.NewGuid():N}",
-                    "shutdown").ConfigureAwait(false);
+    public ValueTask DisposeAsync(){
+        TaskCompletionSource completion;
+        lock(this.lifetimeGate){
+            if(this.disposeTask is{} existing){
+                return new ValueTask(existing);
             }
-            await this.outputPumpTask.ConfigureAwait(false);
-            await this.standardErrorTask.ConfigureAwait(false);
-        }finally{
-            this.writeGate.Dispose();
-            this.process.Dispose();
+            Volatile.Write(ref this.disposed,1);
+            completion=new(TaskCreationOptions.RunContinuationsAsynchronously);
+            this.disposeTask=completion.Task;
+        }
+        _=this.CompleteDisposeAsync(completion);
+        return new ValueTask(completion.Task);
+    }
+
+    private async Task CompleteDisposeAsync(TaskCompletionSource completion){
+        try{
+            await this.SendControlAndStopAsync(
+                $"dispose-{Guid.NewGuid():N}",
+                "shutdown").ConfigureAwait(false);
+            lock(this.lifetimeGate){
+                this.writeGate.Dispose();
+                this.process.Dispose();
+            }
+            completion.TrySetResult();
+        }catch(Exception exception){
+            // 停止失敗時はProcessを保持し、後続Disposeにも同じ失敗を返す。
+            completion.TrySetException(exception);
         }
     }
 
-    private async Task<bool> SendControlAndStopAsync(string requestID,string messageType){
-        if(Interlocked.Exchange(ref this.stopStarted,1)!=0){
-            if(!this.process.HasExited){
-                await this.process.WaitForExitAsync().ConfigureAwait(false);
+    private Task<bool> SendControlAndStopAsync(string requestID,string messageType){
+        TaskCompletionSource<bool> completion;
+        lock(this.lifetimeGate){
+            if(this.stopTask is{} existing){
+                return existing;
             }
-            return false;
+            completion=new(TaskCreationOptions.RunContinuationsAsynchronously);
+            this.stopTask=completion.Task;
         }
+        _=this.CompleteStopAsync(completion,requestID,messageType);
+        return completion.Task;
+    }
 
-        if(this.process.HasExited){
+    private async Task CompleteStopAsync(TaskCompletionSource<bool> completion,string requestID,string messageType){
+        try{
+            completion.TrySetResult(await this.StopCoreAsync(requestID,messageType).ConfigureAwait(false));
+        }catch(Exception exception){
+            completion.TrySetException(exception);
+        }
+    }
+
+    private async Task<bool> StopCoreAsync(string requestID,string messageType){
+        if(this.HasExited){
             await this.outputPumpTask.ConfigureAwait(false);
+            await this.standardErrorTask.ConfigureAwait(false);
             return false;
         }
 
@@ -206,8 +251,8 @@ public sealed class WorkerProcessSession:IWorkerProcessSession{
                     messageType,
                     new WorkerControlPayload(DateTimeOffset.UtcNow)));
             await this.WriteLineAsync(line,CancellationToken.None).ConfigureAwait(false);
-        }catch(IOException) when(this.process.HasExited){
-        }catch(InvalidOperationException) when(this.process.HasExited){
+        }catch(IOException) when(this.HasExited){
+        }catch(InvalidOperationException) when(this.HasExited){
         }
 
         var exitTask=this.process.WaitForExitAsync();
@@ -215,12 +260,18 @@ public sealed class WorkerProcessSession:IWorkerProcessSession{
             exitTask,
             Task.Delay(ForcedTerminationDelay)).ConfigureAwait(false);
         var forced=completed!=exitTask;
-        if(forced&&!this.process.HasExited){
+        if(forced&&!this.HasExited){
             this.process.Kill(true);
         }
-        await this.process.WaitForExitAsync().ConfigureAwait(false);
+        await exitTask.ConfigureAwait(false);
+        lock(this.lifetimeGate){
+            this.exitConfirmed=true;
+        }
         await this.outputPumpTask.ConfigureAwait(false);
         await this.standardErrorTask.ConfigureAwait(false);
+        if(this.afterProcessExit is{} phaseGate){
+            await phaseGate().ConfigureAwait(false);
+        }
         return forced;
     }
 
@@ -247,12 +298,14 @@ public sealed class WorkerProcessSession:IWorkerProcessSession{
     }
 
     private void ThrowIfDisposed(){
-        if(Volatile.Read(ref this.disposed)!=0){
-            throw new ObjectDisposedException(nameof(WorkerProcessSession));
-        }
-        if(this.process.HasExited){
-            throw new InvalidOperationException(
-                $"Worker process has already exited with code {this.process.ExitCode}.");
+        lock(this.lifetimeGate){
+            if(Volatile.Read(ref this.disposed)!=0){
+                throw new ObjectDisposedException(nameof(WorkerProcessSession));
+            }
+            if(this.HasExited){
+                throw new InvalidOperationException(
+                    $"Worker process has already exited with code {this.process.ExitCode}.");
+            }
         }
     }
 

@@ -1,0 +1,20 @@
+[
+  {
+    "Id": "fixture/aggregate-join",
+    "Database": "Seamless_Comparison_Fixture",
+    "ClassName": "TestSeamless.Queries.AggregateJoinQuery",
+    "MethodName": "Find",
+    "ArgumentsType": "System.Int32",
+    "ResultType": "TestSeamless.Queries.AggregateJoinRow",
+    "ClientMethodName": "AggregateJoinAsync",
+    "IsReadOnly": true,
+    "ComparisonArgumentsJson": "0",
+    "ComparisonColumns": [
+      "ParentId",
+      "ParentName",
+      "ItemCount",
+      "AmountTotal"
+    ],
+    "SourceFile": "AggregateJoin.cs.template"
+  }
+]

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><LangVersion>14</LangVersion><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><AssemblyName>Seamless.Database.Query</AssemblyName><RootNamespace>Seamless.Database.Query</RootNamespace><IsPackable>true</IsPackable><Description>SQL query binding and bounded execution over database-independent row sources.</Description></PropertyGroup>
+  <ItemGroup><PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.102.0"/><ProjectReference Include="../Seamless.Linq/Seamless.Linq.csproj"/><ProjectReference Include="../Seamless.Database/Seamless.Database.csproj"/><PackageReference Include="MemoryPack" Version="1.*"/><PackageReference Include="SqlParserCS" Version="0.6.5"/></ItemGroup>
+  <ItemGroup><None Update="ThirdPartyNotices.txt" Pack="true" PackagePath="contentFiles/any/any/Seamless.SqlParserCS.Notices.txt" PackageCopyToOutput="true" CopyToOutputDirectory="PreserveNewest"/></ItemGroup>
+</Project>

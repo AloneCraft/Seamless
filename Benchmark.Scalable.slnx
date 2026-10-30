@@ -20,6 +20,8 @@
   </Folder>
   <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
   <Project Path="Seamless.Execution/Seamless.Execution.csproj" />
+  <Project Path="Seamless.Transactions/Seamless.Transactions.csproj" />
+  <Project Path="Seamless.Transactions.Collections/Seamless.Transactions.Collections.csproj" />
   <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
   <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
   <Project Path="Seamless.Database/Seamless.Database.csproj" />

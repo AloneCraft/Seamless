@@ -1,5 +1,6 @@
 ﻿namespace Seamless.Database;
 
+using global::System.Linq;
 /// <summary>
 /// 宣言的データベースコンテナの基底。
 /// 派生 partial クラスの Table/View/TableFunction/スカラー関数宣言から、
@@ -7,7 +8,7 @@
 /// Table 実体は Tsavorite ストアで、<see cref="DatabaseContainerOptions"/> により
 /// メモリ範囲内運用とストレージ利用を切り替える。
 /// </summary>
-public abstract class DatabaseContainer:IDisposable {
+public abstract partial class DatabaseContainer:IDisposable {
     private static readonly global::Seamless.Database.System.SystemTable<global::Seamless.Database.System.Keys.DatabaseObject,global::Seamless.Database.System.Records.DatabaseObject> EmptyDatabaseObjects =
         new([],static record=>record.Key);
 
@@ -60,8 +61,13 @@ public abstract class DatabaseContainer:IDisposable {
             if(this.ambientReadSession.Value is not null) {
                 throw new InvalidOperationException("A read session cannot be promoted to a write transaction. Dispose the read session first.");
             }
-            var lease=this.concurrencyGate.EnterWrite(cancellationToken);
-            state=new(this.Options.TransactionMemoryLimit,lease);
+            if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){
+                var shared=this.BeginTransactionScopeAsync(cancellationToken).AsTask().GetAwaiter().GetResult();
+                state=new(this.Options.TransactionMemoryLimit,new SharedScopeLease(shared)){SharedScope=shared};
+            }else{
+                var lease=this.concurrencyGate.EnterWrite(cancellationToken);
+                state=new(this.Options.TransactionMemoryLimit,lease);
+            }
             this.ambientTransaction.Value=state;
         }
         state.Depth++;
@@ -81,6 +87,11 @@ public abstract class DatabaseContainer:IDisposable {
         }
         try {
             if(!state.Aborted) {
+                if(state.SharedScope is not null){
+                    state.SharedScope.Enlist(new SharedLegacyChanges(this,state.Overlays.Values.ToArray()));
+                    state.SharedScope.CommitAsync().AsTask().GetAwaiter().GetResult();
+                    return;
+                }
                 IEnumerable<DatabaseWalOperation> Operations() {
                     foreach(var overlay in state.Overlays.Values) {
                         foreach(var operation in overlay.CreateWalOperations()){yield return operation;}
@@ -105,7 +116,10 @@ public abstract class DatabaseContainer:IDisposable {
         var state=this.ambientReadSession.Value;
         if(state is null) {
             IDisposable? lease=null;
-            if(this.ambientTransaction.Value is null&&this.ambientWriteDepth.Value==0){lease=this.concurrencyGate.EnterRead(cancellationToken);}
+            if(this.ambientTransaction.Value is null&&this.ambientWriteDepth.Value==0){
+                if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){this.EnsureSharedReady();lease=this.sharedCoordinator!.EnterRead(cancellationToken);}
+                else{lease=this.concurrencyGate.EnterRead(cancellationToken);}
+            }
             state=new(lease);
             this.ambientReadSession.Value=state;
         }
@@ -188,6 +202,7 @@ public abstract class DatabaseContainer:IDisposable {
             return action();
         }
         this.EnsureAvailable();
+        if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){throw new InvalidOperationException("Use a transaction to update a SharedV2 database.");}
         if(this.ambientReadSession.Value is not null) {
             throw new InvalidOperationException("A read session cannot be promoted to a write operation. Dispose the read session first.");
         }
@@ -363,6 +378,7 @@ public abstract class DatabaseContainer:IDisposable {
 
     private Table<TRecord> CreateTable<TRecord>(string name)
         where TRecord:notnull {
+        if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){return this.CreateSharedTable<TRecord>(name);}
         var sizing=this.ResolveTableStorage(name);
         var reservation=this.ReserveTableStoreMemory(sizing);
         var resources=new StackedDisposable(reservation);
@@ -421,6 +437,7 @@ public abstract class DatabaseContainer:IDisposable {
         string name)
         where TKey:struct
         where TRecord:struct {
+        if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){return this.CreateSharedTable(keySelector,name);}
         var sizing=this.ResolveTableStorage(name);
         var reservation=this.ReserveTableStoreMemory(sizing);
         var resources=new StackedDisposable(reservation);
@@ -489,6 +506,7 @@ public abstract class DatabaseContainer:IDisposable {
         string name)
         where TKey:struct
         where TRecord:struct {
+          if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){return this.CreateSharedMaterializedView(keySelector,name);}
         var sizing=this.ResolveTableStorage(name);
         var reservation=this.ReserveTableStoreMemory(sizing);
         var resources=new StackedDisposable(reservation);
@@ -620,6 +638,7 @@ public abstract class DatabaseContainer:IDisposable {
     private readonly record struct TableStorageSizing(long IndexSize,long PageSize,long SegmentSize,long MemorySize);
 
     private DatabaseWriteAheadLog? GetWriteAheadLog() {
+        if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){return null;}
         if(this.Options.StorageMode==DatabaseStorageMode.Memory) {
             return null;
         }
@@ -703,6 +722,7 @@ public abstract class DatabaseContainer:IDisposable {
 
     public void Dispose() {
         if(this.disposed){return;}
+        if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){this.DisposeShared();return;}
         if(this.ambientTransaction.Value is not null||this.ambientReadSession.Value is not null) {
             throw new InvalidOperationException("Dispose active database transactions and read sessions before disposing the database.");
         }
