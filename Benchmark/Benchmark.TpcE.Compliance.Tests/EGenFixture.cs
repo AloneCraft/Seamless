@@ -14,7 +14,7 @@ internal static class EGenFixture{
         }
         var output=Path.Combine(Path.GetTempPath(),"tpce-egen-test-"+Guid.NewGuid().ToString("N"))+Path.DirectorySeparatorChar;
         Directory.CreateDirectory(output);
-        var start=new ProcessStartInfo(exe){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
+        var start=new ProcessStartInfo(exe){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false,CreateNoWindow=true};
         var count=customers.ToString(System.Globalization.CultureInfo.InvariantCulture);
         foreach(var argument in new[]{"-b","1","-c",count,"-t",count,"-f","500","-w",days.ToString(System.Globalization.CultureInfo.InvariantCulture),"-i",inputs+Path.DirectorySeparatorChar,"-o",output,"-x"}){
             start.ArgumentList.Add(argument);

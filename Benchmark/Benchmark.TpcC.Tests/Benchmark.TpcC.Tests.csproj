@@ -19,6 +19,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Benchmark.TpcC.Core\Benchmark.TpcC.Core.csproj" />
+    <ProjectReference Include="..\Benchmark.TpcC.Server\Benchmark.TpcC.Server.csproj" />
     <ProjectReference Include="..\Benchmark.TpcC.Tsavorite.Linq\Benchmark.TpcC.Tsavorite.Linq.csproj" />
     <ProjectReference Include="..\Benchmark.TpcC.Tsavorite.FLinq\Benchmark.TpcC.Tsavorite.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark.TpcC.Persisted.Linq\Benchmark.TpcC.Persisted.Linq.csproj" />

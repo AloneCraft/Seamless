@@ -85,13 +85,13 @@ internal static class SqlServerMetadataReader {
 
     public static async Task<SqlServerCatalogMetadata> ReadAsync(
         SqlConnection connection,
-        CancellationToken cancellationToken) {
+        CancellationToken cancellationToken,bool analyzeRoutines=true) {
         var tables=new Dictionary<(string Schema,string Table),TableMetadataBuilder>();
         await ReadUniqueKeysAsync(connection,tables,cancellationToken).ConfigureAwait(false);
         await ReadForeignKeysAsync(connection,tables,cancellationToken).ConfigureAwait(false);
         await ReadChecksAsync(connection,tables,cancellationToken).ConfigureAwait(false);
         await ReadTriggersAsync(connection,tables,cancellationToken).ConfigureAwait(false);
-        var routines=await SqlServerRoutineCatalogReader.ReadAsync(connection,cancellationToken).ConfigureAwait(false);
+        var routines=await SqlServerRoutineCatalogReader.ReadAsync(connection,cancellationToken,analyzeRoutines).ConfigureAwait(false);
         var result=tables.ToDictionary(
             static pair=>pair.Key,
             static pair=>pair.Value.Build());

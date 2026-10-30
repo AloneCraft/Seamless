@@ -1,0 +1,9 @@
+# Block generator pairing 設計（source-only）
+
+基準 before.cs SHA BEDB9E2230A5C4F4D9EC06FA24A0957942B4E6A820CC452DB38BF31EA182A6B1。Cases/BuildSource、4 mode、56入力および値・例外・trace・count・既存診断/assertを維持。旧source自体にUnsupportedLinqExpansion専用assertは存在しないため、既存検査を削除したり新たに合格を主張しない。
+
+Generateはusingでgenerator handleを所有する。未指定は既定型のinstance、指定は絶対DLLをcollectible ALCへLoadFromAssemblyPathし、IIncrementalGeneratorを生成する。共有interfaceの既定context依存は同一FullNameのみ返し、選択generator自身は既定から返さない。選択したassembly.Locationと絶対pathを確認し実ファイルSHAを記録。SHA envが指定されたら64桁のhexを必須にして実hashと照合する。失敗はセルの既存catchで明示記録しAssert.Emptyで失敗。UnloadはusingのDispose、強制GCやwaitを使わない。Load解決および実行は未検証。
+
+生成diagnosticと各セルのhashes.jsonには選択方法、path、SHAを記録。input.cs/input SHAは既存Saveで残し親がbefore/afterで同じ56入力と照合する。generator選択が失敗したセルは識別情報nullと例外を残し合格に数えない。環境変数とload contextはテストの実行単位で固定する。
+
+親による3つの独立BGO案: source統合前の旧Generator DLLを保全し、TestDLLを新generator既定でbuildしてDLL/SHA/sourceをfreeze。次に同じTestDLLを--no-buildで旧DLL絶対pathとそのSHA環境変数付き実行（期待Failed、raw exit保持）、最後に同じTestDLLを--no-buildでpath未指定・新DLLのSHA指定で実行（期待Passed）。各実行output/tempは新規に分離し、各stageのsourceとTest DLL SHAおよび56 input SHAの同一性、実際のloaded path/hash、diagnostics/観測を照合する。compile/runtime失敗は区別し、予想どおりでも内容を確認する。user holdは解除しない。build/run/generator未実施。

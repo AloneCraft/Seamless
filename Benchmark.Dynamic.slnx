@@ -8,8 +8,10 @@
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="Shared/Benchmark.History/Benchmark.History.shproj" />
+    <Project Path="Shared/UI.Core/UI.Core.shproj" />
     <Project Path="Shared/UI.Widgets/UI.Widgets.shproj" />
     <File Path="Shared/Benchmark.History/Benchmark.History.projitems" />
+    <File Path="Shared/UI.Core/UI.Core.projitems" />
     <File Path="Shared/UI.Widgets/UI.Widgets.projitems" />
   </Folder>
   <Folder Name="/SourceGenerator/">
@@ -23,6 +25,8 @@
   </Folder>
   <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
   <Project Path="Seamless.Execution/Seamless.Execution.csproj" />
+  <Project Path="Seamless.Transactions/Seamless.Transactions.csproj" />
+  <Project Path="Seamless.Transactions.Collections/Seamless.Transactions.Collections.csproj" />
   <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
   <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
   <Project Path="Seamless.Database/Seamless.Database.csproj" />

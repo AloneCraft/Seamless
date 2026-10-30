@@ -31,6 +31,10 @@
     <Project Path="Benchmark/Benchmark.Optimization.Ideal/Benchmark.Optimization.Ideal.csproj" />
     <Project Path="Benchmark/Worker/Worker.csproj" />
   </Folder>
+  <Folder Name="/Benchmark/Shared/">
+    <Project Path="Benchmark/Shared/UI/UI.shproj" />
+    <File Path="Benchmark/Shared/UI/UI.projitems" />
+  </Folder>
   <Folder Name="/Shared/">
     <Project Path="Shared/Collections/Collections.shproj" />
     <Project Path="Shared/Common/Common.shproj" />
@@ -42,6 +46,7 @@
     <Project Path="Shared/Linq.Optimization/Linq.Optimization.shproj" />
     <Project Path="Shared/Linq.Range/Linq.Range.shproj" />
     <Project Path="Shared/UI.Core/UI.Core.shproj" />
+    <Project Path="Shared/UI.Widgets/UI.Widgets.shproj" />
     <Project Path="Shared/UI.Storage/UI.Storage.csproj" />
     <File Path="Shared/Collections/Collections.projitems" />
     <File Path="Shared/Common/Common.projitems" />
@@ -53,6 +58,7 @@
     <File Path="Shared/Linq.Optimization/Linq.Optimization.projitems" />
     <File Path="Shared/Linq.Range/Linq.Range.projitems" />
     <File Path="Shared/UI.Core/UI.Core.projitems" />
+    <File Path="Shared/UI.Widgets/UI.Widgets.projitems" />
   </Folder>
   <Folder Name="/SourceGenerator/">
     <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
@@ -64,6 +70,8 @@
   </Folder>
   <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
   <Project Path="Seamless.Execution/Seamless.Execution.csproj" />
+  <Project Path="Seamless.Transactions/Seamless.Transactions.csproj" />
+  <Project Path="Seamless.Transactions.Collections/Seamless.Transactions.Collections.csproj" />
   <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
   <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
   <Project Path="Seamless.Database/Seamless.Database.csproj" />

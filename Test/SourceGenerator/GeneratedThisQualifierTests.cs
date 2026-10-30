@@ -82,6 +82,25 @@ public sealed class GeneratedThisQualifierTests {
     }
 
     [Fact]
+    public void EscapedFieldsUsedByNestedLambdasCompileAndPreserveValues(){
+        const string source="""
+            public sealed class CaptureOwner{public int Value=7;}
+            public struct CaptureProbe{
+                private readonly CaptureOwner @this;
+                private readonly int @event;
+                public CaptureProbe(CaptureOwner owner,int value){this.@this=owner;this.@event=value;}
+                public int Read(){return Invoke(first=>Invoke(second=>@this.Value+@event+first+second));}
+                private static int Invoke(System.Func<int,int> selector){return selector(1);}
+            }
+            public sealed class CaptureEntry{public static int Run(){return new CaptureProbe(new CaptureOwner(),3).Read();}}
+            """;
+        var qualified=GeneratedThisQualifier.Qualify(source);
+        var compilation=GeneratorTestHelpers.CreateCompilation([("Capture.cs",qualified)]).WithAssemblyName("EscapedCaptureProbe");
+        var actual=ExecutableGeneration.Run(compilation,"CaptureEntry",static type=>(int)type.GetMethod("Run")!.Invoke(null,null)!);
+        Assert.Equal(12,actual);
+    }
+
+    [Fact]
     public void FieldThatIsMutatedIsNotCopied() {
         var result = Qualify("int state; int Run() { state++; return Use(x => state+x); }");
         Assert.DoesNotContain("var state = this.state;",result);

@@ -15,7 +15,8 @@ internal sealed class PipelineBuildServices(
     Func<string,string,string> joinStaticMethods,
     string[] outerTypeParameters,
     LinqGenerationConfiguration configuration,
-    OptimizationTraceCollector? trace) {
+    OptimizationTraceCollector? trace,
+    bool counterInstrumentationEnabled=false) {
     public SymbolDisplayFormat FullyQualifiedFormat { get; } = fullyQualifiedFormat;
     public PipelineEnumerableBuilder BuildEnumerable { get; } = buildEnumerable;
     public PipelineFuncBuilder BuildFunc { get; } = buildFunc;
@@ -28,7 +29,7 @@ internal sealed class PipelineBuildServices(
     public LinqGenerationConfiguration Configuration { get; } = configuration;
     public OptimizationTraceCollector? Trace { get; } = trace;
     internal FragmentRenderContext RenderContext =>
-        FragmentRenderContext.ForOuterTypeParameters(this.OuterTypeParameters);
+        FragmentRenderContext.ForOuterTypeParameters(this.OuterTypeParameters).WithCounterInstrumentation(counterInstrumentationEnabled);
 
     internal void ApplyRenderContext(Fragment fragment) {
         fragment.ApplyRenderContext(this.RenderContext);

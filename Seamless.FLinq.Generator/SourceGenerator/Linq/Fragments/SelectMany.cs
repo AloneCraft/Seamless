@@ -198,8 +198,7 @@ SelectMany_selector は collection selector だけを持つ標準形。
   source.SelectMany(x => x.Items)
 
 生成分岐:
-  - selector が外側 item に依存しない場合、innerEnumerable0 を constructor に渡して使い回す。
-  - selector が item に依存する場合、各 outerValue ごとに selector(outerValue).GetEnumerator() を作る。
+  - selector は外側 item を読むたびに評価する。item を参照しない式も、空外側では呼ばず、例外を前倒ししない。
   - 匿名型など delegate 保持が必要な場合は selectorDelegate.Invoke(outerValue).GetEnumerator() にする。
 */
 internal class SelectMany_selector(int 番号,Enumerable source,FuncFragment selector):SelectManyBase(番号,source) {
@@ -219,11 +218,6 @@ internal class SelectMany_selector(int 番号,Enumerable source,FuncFragment sel
         method.Parameters.Length==1&&
         !(method.Parameters[0].Type is INamedTypeSymbol { TypeArguments.Length: 3 });
     private bool UseResultTypeParam => selector.RequiresResultTypeParameter;
-    private bool IsHoistable =>
-        !selector.CanInvokeAsDelegate&&
-        selector.CanInlineAssign&&
-        !selector.RenderInlineExpression("__TsavoriteHoistProbe__").Contains("__TsavoriteHoistProbe__")&&
-        !selector.ContainsAnchor;
     protected override string CollectionElementType =>
         this.UseResultTypeParam ? "TResult" : SequenceElementTypeName(FuncReturnTypeName(selector));
     public override string ElementType => this.CollectionElementType;
@@ -244,31 +238,22 @@ internal class SelectMany_selector(int 番号,Enumerable source,FuncFragment sel
     public override string StructMethod =>
         this.UseResultTypeParam
             ? JoinStaticMethods(selector.SupportingMemberSources,this.FactorySource)
-            : this.IsHoistable ? selector.SupportingMemberSources : this.FuncSupport(selector,nameof(selector));
+            : this.FuncSupport(selector,nameof(selector));
     public override string GetEnumeratorExpression =>
-        this.IsHoistable
-            ? RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression,selector.RenderInlineExpression("__unused__"))
-            : RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { selector },source.GetEnumeratorExpression);
+        RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { selector },source.GetEnumeratorExpression);
     public override string GetEnumerableExpression =>
         this.UseResultTypeParam
             ? $"{this.FactoryMethodName}({source.GetEnumeratorExpression}{this.ClosureArgsSuffix(selector)})"
             : base.GetEnumerableExpression;
     public override string GetEnumeratorPrimaryConstructorParameters =>
-        this.IsHoistable
-            ? $"TEnum {this.e}, global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}> innerEnumerable0"
-            : $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(selector)}";
-    protected override string CollectionSelectorPrimaryConstructorParameter =>
-        this.IsHoistable
-            ? $"global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}> innerEnumerable0"
-            : string.Empty;
+        $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(selector)}";
+    protected override string CollectionSelectorPrimaryConstructorParameter => string.Empty;
     protected override string CreateInnerSequenceExpression =>
         selector.CanInvokeAsDelegate
             ? $"{selector.DelegateFieldName}.Invoke({this.outerValue})"
-            : this.IsHoistable
-                ? "innerEnumerable0"
-                : $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpressionWithHoistedReceiver("this.",this.OuterValueLocal)})";
+            : $"((global::System.Collections.Generic.IEnumerable<{this.CollectionElementType}>){selector.RenderInlineExpressionWithHoistedReceiver("this.",this.OuterValueLocal)})";
     protected override string InnerSequenceLocalCopies =>
-        selector.CanInvokeAsDelegate||this.IsHoistable ? string.Empty : CopyCapturedToLocals(selector);
+        selector.CanInvokeAsDelegate ? string.Empty : CopyCapturedToLocals(selector);
     protected override string CurrentValueAssignmentFromInner => $"current = this.{this.currentValue} = {this.item};";
     public override string GetConsumeExecutionStatement(string consumerName){
         if(this.UseResultTypeParam){

@@ -4,6 +4,8 @@
 $ErrorActionPreference = 'Stop'
 
 $Solutions = [ordered]@{
+    'Benchmark.TpcC.slnx' = @('Benchmark/Benchmark.TpcC/Benchmark.TpcC.csproj','Benchmark/Benchmark.TpcC.Tests/Benchmark.TpcC.Tests.csproj')
+    'TestSeamless.slnx' = @('TestSeamless/TestSeamless.csproj','TestSeamless/Tests/TestSeamless.Tests.csproj')
     'Benchmark.Headless.slnx'                  = @('Benchmark/Benchmark.Headless/Benchmark.Headless.csproj')
     'Benchmark.Scalable.slnx'                  = @('Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj', 'Benchmark/Benchmark.Scalable.Headless/Benchmark.Scalable.Headless.csproj', 'Benchmark/Benchmark.Scalable.Tests/Benchmark.Scalable.Tests.csproj')
     'Benchmark.Tsavorite.ParameterSweep.slnx'  = @('Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj')
@@ -14,6 +16,8 @@ $Solutions = [ordered]@{
     'Benchmark.TpcC.slnx'                      = @('Benchmark/Benchmark.TpcC.Tests/Benchmark.TpcC.Tests.csproj')
     'Benchmark.TpcE.slnx'                      = @('Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj', 'Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj', 'Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj', 'Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj', 'Benchmark/Benchmark.Tpc.Tests/Benchmark.Tpc.Tests.csproj')
     'Tests.slnx'                               = @(
+        'Tests/Seamless.Transactions.Tests/Seamless.Transactions.Tests.csproj',
+        'Tests/Seamless.Database.Transactions.Tests/Seamless.Database.Transactions.Tests.csproj',
         'Execution.Tests/Execution.Tests.csproj',
         'Benchmark/Benchmark.Infrastructure.Tests/Benchmark.Infrastructure.Tests.csproj',
         'Benchmark/Benchmark.Scalable.Tests/Benchmark.Scalable.Tests.csproj',
@@ -27,6 +31,7 @@ $Solutions = [ordered]@{
         'Test/Test.csproj',
         'Benchmark/Benchmark.Headless.Tests/Benchmark.Headless.Tests.csproj',
         'Benchmark/Benchmark.Audit.Tests/Benchmark.Audit.Tests.csproj',
+        'Benchmark/Benchmark.TpcC.Tests/Benchmark.TpcC.Tests.csproj',
         'Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj',
         'Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj',
         'Benchmark/Benchmark.Tpc.Tests/Benchmark.Tpc.Tests.csproj',
@@ -45,6 +50,32 @@ function Get-RelativeKey([string]$fullPath) {
     $rootFull = [System.IO.Path]::GetFullPath($Root).TrimEnd('\') + '\'
     if (-not $full.StartsWith($rootFull, [StringComparison]::OrdinalIgnoreCase)) { throw "リポジトリ外のパス: $full" }
     return $full.Substring($rootFull.Length).Replace('\', '/')
+}
+
+# 実在する共有ソースを照合し、globを含まない接頭辞だけを正規化する。
+function Test-CompilePath([string]$source,[string]$directory,[string]$include) {
+    $raw=$include.Replace('$(MSBuildThisFileDirectory)',$directory+'\')
+    if($raw -match '\$\('){return $false}
+    $path=if([IO.Path]::IsPathRooted($raw)){$raw}else{Join-Path $directory $raw}
+    if($raw -notmatch '[*?]'){
+        return $source.Equals([IO.Path]::GetFullPath($path),[StringComparison]::OrdinalIgnoreCase)
+    }
+    $path=$path.Replace('\','/')
+    $wildcard=$path.IndexOfAny([char[]]'*?')
+    $separator=$path.LastIndexOf('/', $wildcard)
+    $prefix=[IO.Path]::GetFullPath($path.Substring(0,$separator+1)).Replace('\','/').TrimEnd('/')+'/'
+    $expression=[regex]::Escape($prefix)
+    $segments=$path.Substring($separator+1).Split('/')
+    for($i=0;$i -lt $segments.Length;$i++){
+        $segment=$segments[$i]
+        if($segment -eq '**'){
+            if($i -lt $segments.Length-1){$expression+='(?:[^/]+/)*'}else{$expression+='.*'}
+        }else{
+            $expression+=[regex]::Escape($segment).Replace('\*','[^/]*').Replace('\?','[^/]')
+            if($i -lt $segments.Length-1){$expression+='/'}
+        }
+    }
+    return [regex]::IsMatch($source.Replace('\','/'),'^'+$expression+'$',[Text.RegularExpressions.RegexOptions]::IgnoreCase)
 }
 
 # ファイル内の参照先 (csproj / projitems) をリポジトリ相対パスで返す
@@ -71,18 +102,22 @@ function Get-Edges([string]$relPath) {
     foreach($include in [regex]::Matches($text,'<Compile\s[^>]*?Include\s*=\s*"([^"*?]+\.cs)"')){
         $raw=$include.Groups[1].Value.Replace('$(MSBuildProjectDirectory)',$dir+'\').Replace('$(MSBuildThisFileDirectory)',$dir+'\')
         if($raw -match '\$\('){continue}
-        $source=[IO.Path]::GetFullPath((Join-Path $dir $raw))
+        $sourcePath=if([IO.Path]::IsPathRooted($raw)){$raw}else{Join-Path $dir $raw}
+        $source=[IO.Path]::GetFullPath($sourcePath)
         if(-not (Test-Path -LiteralPath $source)){continue}
         $owner=[IO.DirectoryInfo](Split-Path $source -Parent)
         while($owner -and $owner.FullName.StartsWith($Root,[StringComparison]::OrdinalIgnoreCase)){
             $found=$false
             foreach($items in Get-ChildItem -LiteralPath $owner.FullName -Filter '*.projitems'){
                 $itemsText=[IO.File]::ReadAllText($items.FullName)
-                foreach($compile in [regex]::Matches($itemsText,'<Compile\s[^>]*?Include\s*=\s*"([^"]+)"')){
-                    $pattern=$compile.Groups[1].Value.Replace('$(MSBuildThisFileDirectory)',$owner.FullName+'\')
-                    if($pattern -match '\$\('){continue}
-                    $pattern=[IO.Path]::GetFullPath((Join-Path $owner.FullName $pattern))
-                    if($source -like $pattern){$result+=Get-RelativeKey $items.FullName;$found=$true;break}
+                foreach($compile in [regex]::Matches($itemsText,'<Compile\s[^>]*?Include\s*=\s*"([^"]+)"[^>]*>')){
+                    if(-not (Test-CompilePath $source $owner.FullName $compile.Groups[1].Value)){continue}
+                    $excluded=$false
+                    $exclude=[regex]::Match($compile.Value,'\sExclude\s*=\s*"([^"]+)"')
+                    foreach($pattern in $exclude.Groups[1].Value.Split(';')){
+                        if($pattern -and (Test-CompilePath $source $owner.FullName $pattern)){$excluded=$true;break}
+                    }
+                    if(-not $excluded){$result+=Get-RelativeKey $items.FullName;$found=$true;break}
                 }
             }
             if($found){break}
