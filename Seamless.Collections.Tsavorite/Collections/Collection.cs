@@ -660,10 +660,11 @@ public abstract class Collection<
     private protected bool WouldOverflowMutable(int KeyLength,int ValueLength) {
         Debug.Assert(this.LogMemorySize>=8192);
         var Log = this.CollectionStore.Store.Log;
-        this.CollectionStore.EnsureCapacity(Log.TailAddress,KeyLength,ValueLength);
+        var tailAddress=Log.TailAddress;
+        this.CollectionStore.EnsureCapacity(tailAddress,KeyLength,ValueLength);
         return this.CollectionStore.OverflowMutableStrategyKind switch {
-            OverflowMutableStrategyKind.Memory => MemoryOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
-            OverflowMutableStrategyKind.Storage => this.CollectionStore.StorageOverflowMutableStrategy.WouldOverflowMutable(Log.TailAddress,KeyLength,ValueLength),
+            OverflowMutableStrategyKind.Memory => MemoryOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,Log.BeginAddress,tailAddress,KeyLength,ValueLength),
+            OverflowMutableStrategyKind.Storage => this.CollectionStore.StorageOverflowMutableStrategy.WouldOverflowMutable(tailAddress,KeyLength,ValueLength),
             _ => throw new UnreachableException(),
         };
     }
