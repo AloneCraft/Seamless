@@ -8,7 +8,7 @@ flowchart TD
         UserSource[ユーザー C# ソースコード]
         FLinqGen[FLinq Generator<br/>- Interceptor 置換<br/>- パイプライン融合]
         DBGen[Database Generator<br/>- スキーマ展開<br/>- シリアライザ自動生成]
-        
+
         UserSource --> FLinqGen
         UserSource --> DBGen
     end
@@ -22,9 +22,9 @@ flowchart TD
 
     subgraph RuntimeEngine [実行時エンジン (Runtime Engine)]
         ExecutionLayer[Seamless.Execution<br/>- ResourceBudget (メモリ/ディスク予算)<br/>- ExecutionScope (実行スコープ)<br/>- 一時資源回収 (Temporary Recovery)]
-        
+
         StorageLayer[ストレージ層<br/>- Seamless.Collections (Blittable)<br/>- Seamless.Collections.Persisted (MMF)<br/>- Seamless.Collections.Tsavorite (HybridLog)]
-        
+
         DBEngine[Seamless.Database<br/>- ACID トランザクション<br/>- WAL (Write-Ahead Log)]
     end
 

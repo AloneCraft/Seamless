@@ -43,7 +43,7 @@ sequenceDiagram
     Tx->>WAL: operation(TableName, Key, RecordData)
     Tx->>WAL: commit(TxId)
     WAL->>WAL: FileStream.Flush(flushToDisk: true)
-    
+
     Note over Tx, Store: 2. ストレージ反映フェーズ
     Tx->>Store: 変更セットを実テーブルへ適用
     Tx-->>App: コミット完了

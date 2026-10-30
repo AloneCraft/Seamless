@@ -50,7 +50,7 @@ C# 12+ の Interceptor 機能を有効化するため、プロジェクトファ
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework> <!-- または net8.0 以上 -->
-    
+
     <!-- FLinq インターセプターを有効化 -->
     <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Seamless.FLinq;Intercept</InterceptorsPreviewNamespaces>
     <!-- 高速ポインタ走査を利用可能にする -->

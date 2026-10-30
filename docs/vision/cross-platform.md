@@ -9,7 +9,7 @@ Seamless は、最新の .NET（.NET 10 / 11）が動作するあらゆる環境
 ```mermaid
 flowchart TD
     Core[Seamless コアエンジン]
-    
+
     subgraph Server [サーバー・クラウド]
         Linux[Linux x64 / ARM64<br/>- Docker / Kubernetes<br/>- Ubuntu / RHEL]
         WinServer[Windows Server<br/>- IIS / Self-hosted]
