@@ -127,6 +127,8 @@
     <Compile Include="System\Linq\BenchmarkValueComparison\BenchmarkValueComparisonTests.cs" />
     <Compile Include="SourceGenerator\GeneratorTestHelpers.cs" />
     <Compile Include="SourceGenerator\OptimizationFixedPointTests.cs" />
+    <Compile Include="SourceGenerator\MultiStatementInterceptionTests.cs" />
+    <Compile Include="SourceGenerator\ExecutableGeneration.cs" />
     <ProjectReference Include="..\Seamless.Database.Generator\Seamless.Database.Generator.csproj" />
     <ProjectReference Include="..\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj" SetTargetFramework="TargetFramework=netstandard2.0" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.FLinq\Benchmark.System.Linq.Enumerable.FLinq.csproj" />
