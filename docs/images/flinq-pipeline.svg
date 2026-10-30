@@ -1,0 +1,203 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420" width="100%" height="auto" style="max-width: 960px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <defs>
+    <!-- 背景グラデーション -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d13" />
+      <stop offset="50%" stop-color="#0d1117" />
+      <stop offset="100%" stop-color="#161b22" />
+    </linearGradient>
+
+    <!-- 従来LINQ用グラデーション (Red) -->
+    <linearGradient id="red-card-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2b1114" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#1c1215" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- Interceptor用グラデーション (Purple/Blue) -->
+    <linearGradient id="purple-card-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1f1838" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#161b22" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- Seamless FLinq用グラデーション (Emerald) -->
+    <linearGradient id="green-card-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#102b1f" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#121e1a" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- 矢印グラデーション -->
+    <linearGradient id="arrow-grad-1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f85149" />
+      <stop offset="100%" stop-color="#bc8cff" />
+    </linearGradient>
+    <linearGradient id="arrow-grad-2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#bc8cff" />
+      <stop offset="100%" stop-color="#3fb950" />
+    </linearGradient>
+
+    <!-- ホバー時のグローフィルター -->
+    <filter id="glow-red" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#f85149" flood-opacity="0.5"/>
+    </filter>
+    <filter id="glow-purple" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="#bc8cff" flood-opacity="0.6"/>
+    </filter>
+    <filter id="glow-green" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#3fb950" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <style>
+    .card-link { text-decoration: none; cursor: pointer; }
+    .interactive-card { transition: transform 0.2s ease, filter 0.2s ease; }
+    .card-red:hover { filter: url(#glow-red); transform: translateY(-3px); }
+    .card-purple:hover { filter: url(#glow-purple); transform: translateY(-3px); }
+    .card-green:hover { filter: url(#glow-green); transform: translateY(-3px); }
+    .code-font { font-family: 'Consolas', 'Courier New', monospace; font-size: 11.5px; }
+  </style>
+
+  <!-- 外枠 & 背景ベース -->
+  <rect width="960" height="420" rx="16" fill="url(#bg-grad)" stroke="#30363d" stroke-width="1.5"/>
+
+  <!-- ヘッダーエリア -->
+  <g transform="translate(30, 24)">
+    <circle cx="8" cy="8" r="4" fill="#58a6ff" />
+    <circle cx="22" cy="8" r="4" fill="#3fb950" />
+    <circle cx="36" cy="8" r="4" fill="#bc8cff" />
+    <text x="56" y="13" fill="#f0f6fc" font-size="16" font-weight="700" letter-spacing="0.5">FLinq: コンパイル時ゼロアロケーション・パイプライン展開アーキテクチャ</text>
+    <text x="56" y="30" fill="#8b949e" font-size="12">C# 12+ Interceptor が標準 LINQ 構文を手書き C 相当のフラットループへ完全自動置換</text>
+  </g>
+
+  <!-- ==================== 1. 左側: 従来の System.Linq ==================== -->
+  <a href="performance/beyond-struct-linq.md" class="card-link" target="_self">
+    <g class="interactive-card card-red" transform="translate(30, 72)">
+      <rect width="265" height="320" rx="12" fill="url(#red-card-grad)" stroke="#da3633" stroke-width="1.5"/>
+      
+      <!-- タイトルバッジ -->
+      <rect x="14" y="14" width="237" height="28" rx="6" fill="#da3633" fill-opacity="0.25" stroke="#f85149" stroke-width="1"/>
+      <text x="132" y="33" fill="#ff7b72" font-size="13" font-weight="700" text-anchor="middle">❌ 従来の System.Linq</text>
+      
+      <!-- クエリコード枠 -->
+      <rect x="14" y="52" width="237" height="42" rx="6" fill="#0d1117" stroke="#30363d"/>
+      <text x="22" y="70" fill="#8b949e" class="code-font">// 呼び出しコード</text>
+      <text x="22" y="85" fill="#f0f6fc" class="code-font">src.<tspan fill="#d2a8ff">Where</tspan>(..).<tspan fill="#d2a8ff">Select</tspan>(..).<tspan fill="#79c0ff">Sum</tspan>()</text>
+
+      <!-- 内部動作・オーバーヘッド -->
+      <text x="18" y="115" fill="#ff7b72" font-size="11" font-weight="700">【実行時の多重オーバーヘッド】</text>
+      
+      <g transform="translate(18, 126)">
+        <!-- 項目 1 -->
+        <circle cx="6" cy="10" r="3" fill="#f85149"/>
+        <text x="16" y="14" fill="#c9d1d9" font-size="11.5">WhereEnumerableIterator 確保</text>
+        <!-- 項目 2 -->
+        <circle cx="6" cy="30" r="3" fill="#f85149"/>
+        <text x="16" y="34" fill="#c9d1d9" font-size="11.5">SelectEnumerableIterator 確保</text>
+        <!-- 項目 3 -->
+        <circle cx="6" cy="50" r="3" fill="#f85149"/>
+        <text x="16" y="54" fill="#c9d1d9" font-size="11.5">Func&lt;T, bool&gt; デリゲート確保</text>
+        <!-- 項目 4 -->
+        <circle cx="6" cy="70" r="3" fill="#f85149"/>
+        <text x="16" y="74" fill="#c9d1d9" font-size="11.5">多段 MoveNext() 仮想関数呼出</text>
+        <!-- 項目 5 -->
+        <circle cx="6" cy="90" r="3" fill="#f85149"/>
+        <text x="16" y="94" fill="#ffa198" font-size="11.5" font-weight="600">💥 GC ポーズ / キャッシュミス頻発</text>
+      </g>
+
+      <!-- メトリクスバッジ -->
+      <rect x="14" y="246" width="237" height="34" rx="6" fill="#3d1418" stroke="#f85149" stroke-width="1"/>
+      <text x="132" y="262" fill="#ff7b72" font-size="11" text-anchor="middle">Heap Allocation: <tspan font-weight="700">&gt; 120 bytes / 呼出</tspan></text>
+      <text x="132" y="274" fill="#8b949e" font-size="10" text-anchor="middle">毎秒の反復で大量の GC スパイク</text>
+
+      <!-- リンク誘導フッター -->
+      <text x="132" y="304" fill="#79c0ff" font-size="11" text-anchor="middle">👉 構造的課題の解説を読む ↗</text>
+    </g>
+  </a>
+
+  <!-- ==================== 2. 中央: Roslyn C# 12+ Interceptor ==================== -->
+  <a href="architecture/flinq-internals.md" class="card-link" target="_self">
+    <g class="interactive-card card-purple" transform="translate(320, 84)">
+      <rect width="280" height="296" rx="12" fill="url(#purple-card-grad)" stroke="#8957e5" stroke-width="1.5"/>
+
+      <!-- タイトルバッジ -->
+      <rect x="16" y="14" width="248" height="28" rx="6" fill="#8957e5" fill-opacity="0.3" stroke="#bc8cff" stroke-width="1"/>
+      <text x="140" y="33" fill="#d2a8ff" font-size="13" font-weight="700" text-anchor="middle">⚡ Roslyn Interceptor Engine</text>
+
+      <!-- 機能説明 -->
+      <text x="20" y="65" fill="#bc8cff" font-size="11" font-weight="700">【コンパイル時パイプライン融合】</text>
+
+      <g transform="translate(20, 76)">
+        <rect x="0" y="0" width="240" height="28" rx="4" fill="#0d1117" stroke="#30363d"/>
+        <text x="10" y="18" fill="#e6edf3" font-size="11">① 構文木解析・呼出位置 (Location) 検知</text>
+
+        <rect x="0" y="36" width="240" height="28" rx="4" fill="#0d1117" stroke="#30363d"/>
+        <text x="10" y="54" fill="#e6edf3" font-size="11">② 呼び出しコード無変更で置換 (0-Touch)</text>
+
+        <rect x="0" y="72" width="240" height="28" rx="4" fill="#0d1117" stroke="#30363d"/>
+        <text x="10" y="90" fill="#e6edf3" font-size="11">③ 多段クエリを単一フラットループへ融合</text>
+
+        <rect x="0" y="108" width="240" height="28" rx="4" fill="#0d1117" stroke="#30363d"/>
+        <text x="10" y="126" fill="#e6edf3" font-size="11">④ 複数文に分かれたクエリも自動展開</text>
+      </g>
+
+      <!-- インターセプター属性バッジ -->
+      <rect x="16" y="222" width="248" height="34" rx="6" fill="#1f1838" stroke="#bc8cff" stroke-width="1"/>
+      <text x="140" y="238" fill="#d2a8ff" font-size="10.5" class="code-font" text-anchor="middle">[InterceptsLocation("...", line, col)]</text>
+      <text x="140" y="250" fill="#8b949e" font-size="10" text-anchor="middle">完全コンパイル時解決 / 実行時リフレクション 0</text>
+
+      <!-- リンク誘導フッター -->
+      <text x="140" y="280" fill="#79c0ff" font-size="11" text-anchor="middle">👉 インターセプトの仕組みを詳しく見る ↗</text>
+    </g>
+  </a>
+
+  <!-- ==================== 3. 右側: Seamless FLinq ==================== -->
+  <a href="guides/flinq-quickstart.md" class="card-link" target="_self">
+    <g class="interactive-card card-green" transform="translate(625, 72)">
+      <rect width="305" height="320" rx="12" fill="url(#green-card-grad)" stroke="#238636" stroke-width="1.8"/>
+
+      <!-- タイトルバッジ -->
+      <rect x="14" y="14" width="277" height="28" rx="6" fill="#238636" fill-opacity="0.35" stroke="#3fb950" stroke-width="1"/>
+      <text x="152" y="33" fill="#3fb950" font-size="13" font-weight="700" text-anchor="middle">🚀 Seamless FLinq (Zero-Alloc)</text>
+
+      <!-- クエリコード枠 (コード無変更を強調) -->
+      <rect x="14" y="52" width="277" height="42" rx="6" fill="#0d1117" stroke="#2ea043"/>
+      <text x="22" y="68" fill="#3fb950" class="code-font">// 呼び出しコードは 1 文字も不変！</text>
+      <text x="22" y="85" fill="#f0f6fc" class="code-font">src.<tspan fill="#3fb950">Where</tspan>(..).<tspan fill="#3fb950">Select</tspan>(..).<tspan fill="#79c0ff">Sum</tspan>()</text>
+
+      <!-- 最適化展開の特長 -->
+      <text x="18" y="115" fill="#3fb950" font-size="11" font-weight="700">【手書き C 相当のネイティブループへ直結】</text>
+
+      <g transform="translate(18, 126)">
+        <!-- 項目 1 -->
+        <circle cx="6" cy="10" r="3" fill="#3fb950"/>
+        <text x="16" y="14" fill="#c9d1d9" font-size="11.5">単一のインライン flat while/for ループ</text>
+        <!-- 項目 2 -->
+        <circle cx="6" cy="30" r="3" fill="#3fb950"/>
+        <text x="16" y="34" fill="#c9d1d9" font-size="11.5">CPU レジスタ直接割り当て &amp; SIMD 最適化</text>
+        <!-- 項目 3 -->
+        <circle cx="6" cy="50" r="3" fill="#3fb950"/>
+        <text x="16" y="54" fill="#c9d1d9" font-size="11.5">イテレータ／デリゲートのオブジェクト皆無</text>
+        <!-- 項目 4 -->
+        <circle cx="6" cy="70" r="3" fill="#3fb950"/>
+        <text x="16" y="74" fill="#c9d1d9" font-size="11.5">L1 CPU キャッシュ内で最高密度回転</text>
+        <!-- 項目 5 -->
+        <circle cx="6" cy="90" r="3" fill="#3fb950"/>
+        <text x="16" y="94" fill="#7ee787" font-size="11.5" font-weight="600">✨ GC 停止なし・フレーム落ち・p99遅延解消</text>
+      </g>
+
+      <!-- メトリクスバッジ (Zero-Alloc 強調) -->
+      <rect x="14" y="246" width="277" height="34" rx="6" fill="#0f3d20" stroke="#3fb950" stroke-width="1.5"/>
+      <text x="152" y="262" fill="#3fb950" font-size="12" font-weight="800" text-anchor="middle">Heap Allocation: 完全 0 bytes</text>
+      <text x="152" y="274" fill="#7ee787" font-size="10" text-anchor="middle">手書き C 言語ループと同等の限界スループット</text>
+
+      <!-- リンク誘導フッター -->
+      <text x="152" y="304" fill="#79c0ff" font-size="11" text-anchor="middle">👉 5分クイックスタート・実装ガイドを見る ↗</text>
+    </g>
+  </a>
+
+  <!-- 中央の接続矢印・フローライン -->
+  <!-- 左 -> 中央 -->
+  <path d="M 295 210 L 320 210" stroke="url(#arrow-grad-1)" stroke-width="2.5" fill="none" stroke-dasharray="4,3"/>
+  <!-- 中央 -> 右 -->
+  <path d="M 600 210 L 625 210" stroke="url(#arrow-grad-2)" stroke-width="3" fill="none"/>
+  <polygon points="625,210 617,205 617,215" fill="#3fb950" />
+</svg>
