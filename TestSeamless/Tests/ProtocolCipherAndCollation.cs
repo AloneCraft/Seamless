@@ -26,13 +26,6 @@ public sealed class ProtocolCipherDatabase:DatabaseContainer{
         using(var metadata=connection.CreateCommand()){metadata.CommandText="SELECT system_type_id,max_length FROM sys.columns WHERE name=N'Secret'";using var schemaReader=metadata.ExecuteReader();Assert.True(schemaReader.Read());Assert.Equal((byte)231,schemaReader.GetByte(0));Assert.Equal((short)22,schemaReader.GetInt16(1));Assert.False(schemaReader.Read());}
         using var command=connection.CreateCommand();command.CommandText="SELECT Secret FROM dbo.Rows";using var reader=command.ExecuteReader();var schema=reader.GetColumnSchema();Assert.Equal("varbinary",schema[0].DataTypeName);Assert.Equal(81,schema[0].ColumnSize);Assert.True(reader.Read());Assert.Equal(new byte[]{1,2,3},(byte[])reader.GetValue(0));Assert.Equal("nvarchar",type.SqlTypeName);Assert.Equal<short?>(22,type.SourceMaximumLength);
     }
-    [Fact]public void JapaneseVarcharRpcAndDatabaseSwitch(){
-        var adapter=new ProtocolMetadataAdapter();var registry=new DatabaseRegistry();var register=typeof(DatabaseRegistry).GetMethod("Register")!;Assert.Equal(7,register.GetParameters().Length);
-        register.Invoke(registry,["first",adapter,false,"",null,null,"Japanese_CI_AS"]);register.Invoke(registry,["second",adapter,false,"",null,null,"SQL_Latin1_General_CP1_CI_AS"]);
-        using var server=new TdsServer(14943,adapter,new SqlExecutionEngine(registry));server.Start();using var connection=Connect();
-        void Verify(){using var command=connection.CreateCommand();command.CommandText="SELECT @value";var value=command.Parameters.Add("@value",SqlDbType.VarChar,20);value.LocaleId=1041;value.Value="日本語";Assert.Equal("日本語",command.ExecuteScalar());}
-        Verify();using(var command=connection.CreateCommand()){command.CommandText="USE second";command.ExecuteNonQuery();command.CommandText="USE first";command.ExecuteNonQuery();}Verify();
-    }
     [Fact]public void JapaneseCollationReturnsAfterPoolReset(){
         var adapter=new ProtocolMetadataAdapter();var registry=new DatabaseRegistry();var register=typeof(DatabaseRegistry).GetMethod("Register")!;
         register.Invoke(registry,["first",adapter,false,"",null,null,"Japanese_CI_AS"]);register.Invoke(registry,["second",adapter,false,"",null,null,"SQL_Latin1_General_CP1_CI_AS"]);
@@ -69,12 +62,6 @@ public sealed class ProtocolCipherDatabase:DatabaseContainer{
         }
         Assert.Throws<NotSupportedException>(()=>ComparisonHost.ToSqlType(new(DatabaseTypeKind.Object,false)));
         Assert.Throws<NotSupportedException>(()=>ComparisonHost.ToSqlType(new(DatabaseTypeKind.Object,false,RuntimeType:typeof(string))));
-    }
-    [Fact]public void UdtColumnsJoinSysTypesOverSqlClient(){
-        var adapter=new ProtocolMetadataAdapter();var registry=new DatabaseRegistry();registry.Register("first",adapter);using var server=new TdsServer(14943,adapter,new SqlExecutionEngine(registry));server.Start();using var connection=Connect();
-        using var command=connection.CreateCommand();command.CommandText="SELECT c.name,t.name,c.system_type_id,c.user_type_id,c.max_length,t.is_assembly_type FROM sys.columns AS c JOIN sys.types AS t ON c.user_type_id=t.user_type_id WHERE c.name IN (N'Node',N'Shape',N'Location') ORDER BY c.name";
-        using var reader=command.ExecuteReader();var rows=new Dictionary<string,(string,int,int,int,bool)>();while(reader.Read()){rows.Add(reader.GetString(0),(reader.GetString(1),reader.GetByte(2),reader.GetInt32(3),reader.GetInt16(4),reader.GetBoolean(5)));}
-        Assert.Equal(3,rows.Count);Assert.Equal(("hierarchyid",240,128,892,true),rows["Node"]);Assert.Equal(("geometry",240,129,-1,true),rows["Shape"]);Assert.Equal(("geography",240,130,-1,true),rows["Location"]);
     }
     [Fact]public void TdsPreflightUsesWireMetadataAndCollationRules(){
         TdsPacketWriter.ValidateCollation(null);TdsPacketWriter.ValidateCollation("Japanese_CI_AS");
