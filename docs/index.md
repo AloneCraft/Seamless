@@ -46,10 +46,10 @@
 </defs>
 <style>
 .card-link { text-decoration: none; cursor: pointer; }
-.interactive-card { transition: transform 0.2s ease, filter 0.2s ease; }
-.card-red:hover { filter: url(#glow-red); transform: translateY(-3px); }
-.card-purple:hover { filter: url(#glow-purple); transform: translateY(-3px); }
-.card-green:hover { filter: url(#glow-green); transform: translateY(-3px); }
+.interactive-card { transition: filter 0.2s ease, opacity 0.2s ease; }
+.card-red:hover { filter: url(#glow-red); opacity: 0.95; }
+.card-purple:hover { filter: url(#glow-purple); opacity: 0.95; }
+.card-green:hover { filter: url(#glow-green); opacity: 0.95; }
 .code-font { font-family: 'Consolas', 'Courier New', monospace; font-size: 11.5px; }
 </style>
 <rect width="960" height="420" rx="16" fill="url(#bg-grad)" stroke="#30363d" stroke-width="1.5"/>
