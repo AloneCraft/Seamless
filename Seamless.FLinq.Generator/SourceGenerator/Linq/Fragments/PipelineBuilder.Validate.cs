@@ -15,8 +15,10 @@ internal static partial class PipelineBuilder {
             or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault
             or PipelineTerminalKind.Min or PipelineTerminalKind.Max or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault;
 
+        var isSliceFusionTerminal = isScalarTerminal || terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList;
+
         var leadingSliceCount = 0;
-        if(isScalarTerminal) {
+        if(isSliceFusionTerminal) {
             for(var i = 0; i < stages.Count; i++) {
                 var k = stages[i].Kind;
                 if(k is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast or PipelineStageKind.Skip or PipelineStageKind.Take or PipelineStageKind.SkipLast or PipelineStageKind.TakeLast) {

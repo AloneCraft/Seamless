@@ -798,7 +798,39 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
 
-        foreach(var stage in pipeline.Stages) {
+        var hasLeadingSlice = this.TryAnalyzeLeadingSlice(out var leadingSliceStageCount);
+
+
+
+        for(var i = 0; i < leadingSliceStageCount; i++) {
+
+
+
+            var stage = pipeline.Stages[i];
+
+
+
+            if(stage.Value is null) {
+
+
+
+                return false;
+
+
+
+            }
+
+
+
+        }
+
+
+
+        for(var i = leadingSliceStageCount; i < pipeline.Stages.Count; i++) {
+
+
+
+            var stage = pipeline.Stages[i];
 
 
 
@@ -13361,6 +13393,50 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
 
+        var hasLeadingSlice = this.TryAnalyzeLeadingSlice(out var leadingSliceStageCount);
+
+
+
+        var startIdxName = $"__startIndex{this.result}";
+
+
+
+        var endIdxName = $"__endIndex{this.result}";
+
+
+
+        var lenName = $"__length{this.result}";
+
+
+
+        var hasSelect = false;
+
+
+
+        for(var i = leadingSliceStageCount; i < pipeline.Stages.Count; i++) {
+
+
+
+            if(pipeline.Stages[i].Kind == PipelineStageKind.Select) {
+
+
+
+                hasSelect = true;
+
+
+
+                break;
+
+
+
+            }
+
+
+
+        }
+
+
+
         builder.AppendLine($"{actualTypeName} {actualVariableName};");
 
 
@@ -13373,11 +13449,111 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
 
-        builder.AppendLine($"    {actualVariableName}=new({spanName}.Length);");
+        if(hasLeadingSlice) {
 
 
 
-        builder.AppendLine($"    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},{spanName}.Length);");
+            builder.AppendLine($"    var {startIdxName}=0;");
+
+
+
+            builder.AppendLine($"    var {endIdxName}={spanName}.Length;");
+
+
+
+            for(var i = 0; i < leadingSliceStageCount; i++) {
+
+
+
+                var stage = pipeline.Stages[i];
+
+
+
+                switch(stage.Kind) {
+
+
+
+                    case PipelineStageKind.Skip:
+
+
+
+                        builder.AppendLine($"    {startIdxName}=global::System.Math.Min({endIdxName}, {startIdxName} + global::System.Math.Max(0, {stage.Value}));");
+
+
+
+                        break;
+
+
+
+                    case PipelineStageKind.Take:
+
+
+
+                        builder.AppendLine($"    {endIdxName}=global::System.Math.Min({endIdxName}, {startIdxName} + global::System.Math.Max(0, {stage.Value}));");
+
+
+
+                        break;
+
+
+
+                    case PipelineStageKind.SkipLast:
+
+
+
+                        builder.AppendLine($"    {endIdxName}=global::System.Math.Max({startIdxName}, {endIdxName} - global::System.Math.Max(0, {stage.Value}));");
+
+
+
+                        break;
+
+
+
+                    case PipelineStageKind.TakeLast:
+
+
+
+                        builder.AppendLine($"    {startIdxName}=global::System.Math.Max({startIdxName}, {endIdxName} - global::System.Math.Max(0, {stage.Value}));");
+
+
+
+                        break;
+
+
+
+                }
+
+
+
+            }
+
+
+
+            builder.AppendLine($"    var {lenName}=global::System.Math.Max(0, {endIdxName} - {startIdxName});");
+
+
+
+        } else {
+
+
+
+            builder.AppendLine($"    var {startIdxName}=0;");
+
+
+
+            builder.AppendLine($"    var {lenName}={spanName}.Length;");
+
+
+
+        }
+
+
+
+        builder.AppendLine($"    {actualVariableName}=new({lenName});");
+
+
+
+        builder.AppendLine($"    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},{lenName});");
 
 
 
@@ -13385,23 +13561,39 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
 
-        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        if(!hasSelect && pipeline.ElementType == pipeline.Source.ElementType) {
 
 
 
-        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+            builder.AppendLine($"    {spanName}.Slice({startIdxName}, {lenName}).CopyTo({destinationName});");
 
 
 
-        var currentName = this.AppendDirectSpanPipelineStages(builder,sourceItemName,"        ");
+        } else {
 
 
 
-        builder.AppendLine($"        {destinationName}[{indexName}]={currentName};");
+            builder.AppendLine($"    for(var {indexName}=0;{indexName}<{lenName};{indexName}++) {{");
 
 
 
-        builder.AppendLine("    }");
+            builder.AppendLine($"        var {sourceItemName}={spanName}[{startIdxName} + {indexName}];");
+
+
+
+            var currentName = this.AppendDirectSpanPipelineStages(builder,sourceItemName,"        ",startIndex: leadingSliceStageCount);
+
+
+
+            builder.AppendLine($"        {destinationName}[{indexName}]={currentName};");
+
+
+
+            builder.AppendLine("    }");
+
+
+
+        }
 
 
 
@@ -14321,6 +14513,50 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
 
+        var hasLeadingSlice = this.TryAnalyzeLeadingSlice(out var leadingSliceStageCount);
+
+
+
+        var startIdxName = $"__startIndex{this.result}";
+
+
+
+        var endIdxName = $"__endIndex{this.result}";
+
+
+
+        var lenName = $"__length{this.result}";
+
+
+
+        var hasSelect = false;
+
+
+
+        for(var i = leadingSliceStageCount; i < pipeline.Stages.Count; i++) {
+
+
+
+            if(pipeline.Stages[i].Kind == PipelineStageKind.Select) {
+
+
+
+                hasSelect = true;
+
+
+
+                break;
+
+
+
+            }
+
+
+
+        }
+
+
+
         builder.AppendLine($"{actualTypeName} {actualVariableName};");
 
 
@@ -14333,7 +14569,107 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
 
-        builder.AppendLine($"    if({spanName}.Length==0) {{");
+        if(hasLeadingSlice) {
+
+
+
+            builder.AppendLine($"    var {startIdxName}=0;");
+
+
+
+            builder.AppendLine($"    var {endIdxName}={spanName}.Length;");
+
+
+
+            for(var i = 0; i < leadingSliceStageCount; i++) {
+
+
+
+                var stage = pipeline.Stages[i];
+
+
+
+                switch(stage.Kind) {
+
+
+
+                    case PipelineStageKind.Skip:
+
+
+
+                        builder.AppendLine($"    {startIdxName}=global::System.Math.Min({endIdxName}, {startIdxName} + global::System.Math.Max(0, {stage.Value}));");
+
+
+
+                        break;
+
+
+
+                    case PipelineStageKind.Take:
+
+
+
+                        builder.AppendLine($"    {endIdxName}=global::System.Math.Min({endIdxName}, {startIdxName} + global::System.Math.Max(0, {stage.Value}));");
+
+
+
+                        break;
+
+
+
+                    case PipelineStageKind.SkipLast:
+
+
+
+                        builder.AppendLine($"    {endIdxName}=global::System.Math.Max({startIdxName}, {endIdxName} - global::System.Math.Max(0, {stage.Value}));");
+
+
+
+                        break;
+
+
+
+                    case PipelineStageKind.TakeLast:
+
+
+
+                        builder.AppendLine($"    {startIdxName}=global::System.Math.Max({startIdxName}, {endIdxName} - global::System.Math.Max(0, {stage.Value}));");
+
+
+
+                        break;
+
+
+
+                }
+
+
+
+            }
+
+
+
+            builder.AppendLine($"    var {lenName}=global::System.Math.Max(0, {endIdxName} - {startIdxName});");
+
+
+
+        } else {
+
+
+
+            builder.AppendLine($"    var {startIdxName}=0;");
+
+
+
+            builder.AppendLine($"    var {lenName}={spanName}.Length;");
+
+
+
+        }
+
+
+
+        builder.AppendLine($"    if({lenName}==0) {{");
 
 
 
@@ -14345,27 +14681,43 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
 
-        builder.AppendLine($"        {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({spanName}.Length);");
+        builder.AppendLine($"        {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({lenName});");
 
 
 
-        builder.AppendLine($"        for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+        if(!hasSelect && pipeline.ElementType == pipeline.Source.ElementType) {
 
 
 
-        builder.AppendLine($"            var {sourceItemName}={spanName}[{indexName}];");
+            builder.AppendLine($"        {spanName}.Slice({startIdxName}, {lenName}).CopyTo({actualVariableName});");
 
 
 
-        var currentName = this.AppendDirectSpanPipelineStages(builder,sourceItemName,"            ");
+        } else {
 
 
 
-        builder.AppendLine($"            {actualVariableName}[{indexName}]={currentName};");
+            builder.AppendLine($"        for(var {indexName}=0;{indexName}<{lenName};{indexName}++) {{");
 
 
 
-        builder.AppendLine("        }");
+            builder.AppendLine($"            var {sourceItemName}={spanName}[{startIdxName} + {indexName}];");
+
+
+
+            var currentName = this.AppendDirectSpanPipelineStages(builder,sourceItemName,"            ",startIndex: leadingSliceStageCount);
+
+
+
+            builder.AppendLine($"            {actualVariableName}[{indexName}]={currentName};");
+
+
+
+            builder.AppendLine("        }");
+
+
+
+        }
 
 
 
