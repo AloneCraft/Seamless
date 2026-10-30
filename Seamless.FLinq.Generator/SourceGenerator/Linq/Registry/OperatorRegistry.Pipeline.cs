@@ -29,6 +29,8 @@ internal static class OperatorPipelineManifest {
             ["Concat"] = new(PipelineStageKind.Concat,PipelineStageCapability.Streaming|PipelineStageCapability.Binary,false),
             ["Append"] = new(PipelineStageKind.Append,PipelineStageCapability.Streaming|PipelineStageCapability.Binary,false),
             ["Prepend"] = new(PipelineStageKind.Prepend,PipelineStageCapability.Streaming|PipelineStageCapability.Binary,false),
+            ["Order"] = new(PipelineStageKind.OrderBy,PipelineStageCapability.Buffering|PipelineStageCapability.Order,false),
+            ["OrderDescending"] = new(PipelineStageKind.OrderByDescending,PipelineStageCapability.Buffering|PipelineStageCapability.Order,false),
             ["OrderBy"] = new(PipelineStageKind.OrderBy,PipelineStageCapability.Buffering|PipelineStageCapability.Order,false),
             ["OrderByDescending"] = new(PipelineStageKind.OrderByDescending,PipelineStageCapability.Buffering|PipelineStageCapability.Order,false),
             ["ThenBy"] = new(PipelineStageKind.ThenBy,PipelineStageCapability.Buffering|PipelineStageCapability.Order,false),

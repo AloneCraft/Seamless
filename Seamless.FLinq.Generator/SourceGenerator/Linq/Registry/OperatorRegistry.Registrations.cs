@@ -1,4 +1,4 @@
-namespace Seamless.FLinq.Generator;
+﻿namespace Seamless.FLinq.Generator;
 
 internal static partial class OperatorRegistry {
     private static ImmutableHashSet<string> CreateEnumerableCoverageNames() => ImmutableHashSet.Create(StringComparer.Ordinal,
@@ -83,8 +83,8 @@ internal static partial class OperatorRegistry {
             .AddRange(CreateScalarDescriptors())
             .AddRange(CreateTerminalDescriptors())
             .AddRange(CreateRootDescriptors())
-            .Add(CoverageOnly("Order",OperatorCoverageKind.Excluded))
-            .Add(CoverageOnly("OrderDescending",OperatorCoverageKind.Excluded))
-            .Add(CoverageOnly("TryGetNonEnumeratedCount",OperatorCoverageKind.Excluded));
+            .Add(CoverageOnly("Order",OperatorCoverageKind.Pipeline))
+            .Add(CoverageOnly("OrderDescending",OperatorCoverageKind.Pipeline))
+            .Add(CoverageOnly("TryGetNonEnumeratedCount",OperatorCoverageKind.Fragment));
     }
 }
