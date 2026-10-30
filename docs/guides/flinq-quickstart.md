@@ -96,6 +96,21 @@ public static class MathUtility
     }
 }
 
+// ③ 複数文に分かれたクエリでも属性不要で完全自動展開
+public class ReportService
+{
+    public int ProcessMultiStatements(int[] array1, int[] array2)
+    {
+        // 式1: ここで自動的にゼロアロケーション直接ループへ展開！
+        var count = array1.Where(x => x > 10).Select(x => x * 2).Count();
+
+        // 式2: 別行のクエリも自動的に個別の直接ループへ展開！
+        var sum = array2.Where(x => x < count).Sum();
+
+        return sum;
+    }
+}
+
 public record OrderItem(string Name, decimal Price, int Quantity);
 ```
 
