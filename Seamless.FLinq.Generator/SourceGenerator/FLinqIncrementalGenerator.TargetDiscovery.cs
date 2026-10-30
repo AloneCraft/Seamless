@@ -1,4 +1,4 @@
-using Microsoft.CodeAnalysis.CSharp;
+﻿using Microsoft.CodeAnalysis.CSharp;
 namespace Seamless.FLinq.Generator;
 
 public sealed partial class FLinqIncrementalGenerator {
@@ -106,17 +106,29 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        if(invocation.FirstAncestorOrSelf<MethodDeclarationSyntax>() is not { } containingMethodSyntax) {
-            return false;
+        if(method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is MethodDeclarationSyntax calleeSyntax) {
+            if(calleeSyntax.DescendantNodes().Any(static n => n.IsKind(SyntaxKind.YieldReturnStatement)||n.IsKind(SyntaxKind.YieldBreakStatement)||n.IsKind(SyntaxKind.AwaitExpression))) {
+                diagnostic=Diagnostic.Create(フォールバック警告Descriptor,invocation.GetLocation(),method.Name,"yield return または await");
+                return false;
+            }
         }
 
-        var containingMethod = context.SemanticModel.GetDeclaredSymbol(containingMethodSyntax,cancellationToken);
-        if(containingMethod is null) {
+        var enclosingSymbol = context.SemanticModel.GetEnclosingSymbol(invocation.SpanStart,cancellationToken);
+        if(enclosingSymbol is null) {
             return false;
         }
-
-        if(IsLinqInterceptionExplicitlyDisabled(containingMethodSyntax)) {
+        var containingMethod = enclosingSymbol as IMethodSymbol??enclosingSymbol.ContainingSymbol as IMethodSymbol;
+        var containingType = enclosingSymbol.ContainingType??(enclosingSymbol as INamedTypeSymbol);
+        if(containingType is null) {
             return false;
+        }
+        if(containingMethod is not null&&!LinqRewrite判定(containingMethod,context.SemanticModel.Compilation)) {
+            return false;
+        }
+        for(var t = containingType;t is not null;t=t.ContainingType) {
+            if(TryGetLinqRewriteOverride(t.GetAttributes(),out var typeOverride)&&!typeOverride) {
+                return false;
+            }
         }
 
         var linqAnalysis = LinqExpressionAnalyzer.Analyze(method,context.SemanticModel.Compilation);
@@ -149,7 +161,8 @@ public sealed partial class FLinqIncrementalGenerator {
         var invocationLineSpan = invocation.GetLocation().GetLineSpan();
         var line = invocationLineSpan.StartLinePosition.Line+1;
         var character = invocationLineSpan.StartLinePosition.Character+1;
-        var identifier = SanitizeIdentifier($"{method.Name}_{System.IO.Path.GetFileNameWithoutExtension(invocationLineSpan.Path)}_{containingMethod.Name}_{line}_{character}");
+        var containingMethodName = containingMethod?.Name ?? enclosingSymbol.Name;
+        var identifier = SanitizeIdentifier($"{method.Name}_{System.IO.Path.GetFileNameWithoutExtension(invocationLineSpan.Path)}_{containingMethodName}_{line}_{character}");
         var parameterSpecs = method.Parameters
             .Select(static parameter => new InterceptParameterSpec(parameter.Name,parameter.Type.ToDisplayString(完全修飾形式),parameter.RefKind))
             .ToArray();
@@ -165,12 +178,12 @@ public sealed partial class FLinqIncrementalGenerator {
 
         target=new Linq傍受対象型(
             identifier,
-            containingMethod.Name,
+            containingMethodName,
             interceptsLocationAttributeText,
             method,
             method,
             invocation,
-            containingMethod.ContainingType,
+            containingType,
             context.SemanticModel,
             parameterSpecs,
             configuration,
