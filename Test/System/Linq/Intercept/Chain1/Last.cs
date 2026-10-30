@@ -36,8 +36,9 @@ public sealed class Last(ITestOutputHelper output):LinqChain1TestBase(output) {
     [Fact, Trait("Category","Unit")]
     public void predicate_Nested() {
         var expected = Source().Last(p => Source().Last(q => q==p)==p);
-        this.AssertOptimized(expected,() => predicate_NestedOptimized(),4,0);
-        this.AssertOptimized(expected,() => predicate_NestedNoOptimized(),1,1);
+        // visible-query-lambdas-total-v1: outer と実行された inner の合計。
+        this.AssertOptimized(expected,() => predicate_NestedOptimized(),20,0);
+        this.AssertOptimized(expected,() => predicate_NestedNoOptimized(),2,2);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]

@@ -247,13 +247,18 @@ public sealed class LazyEvaluationCounts {
         return rows.OrderBy(static r => r.A).ThenBy(static r => r.B).ThenBy(static r => r.Name,StringComparer.Ordinal).Select(static r => r.Name).FirstOrDefault();
     }
     [Fact, Trait("Category","Unit")]
-    public void OrderThenByFirstEvaluatesSecondaryKeysOnlyOnTies() {
-        // A=1 の3件(b,d,e)が同順位。二次の鍵は、最良の要素 b の鍵と、d・e の鍵の3回だけ(System.Linq はもっと多い)。
-        Assert.Equal("d",OrderThenFirstImpl());
-        Assert.Equal(3,calls);
-        // A%3 の降順で最大は 2(c だけ)なので、二次の鍵は評価しない。
-        Assert.Equal("c",OrderDescendingThenDescendingFirstImpl());
-        Assert.Equal(0,calls);
+    public void OrderThenByFirstDoesNotExceedSystemSecondaryEvaluationCounts() {
+        // Anchorなしでは評価減少を許す。実装固有の3回ではなく独立したSystemの上限を確認する。
+        calls=0;
+        var expected=global::System.Linq.Enumerable.First(global::System.Linq.Enumerable.ThenBy(global::System.Linq.Enumerable.OrderBy(Rows,static row=>row.A),static row=>Count(row.B))).Name;
+        var maximum=calls;
+        Assert.Equal(expected,OrderThenFirstImpl());
+        Assert.InRange(calls,0,maximum);
+        calls=0;
+        var descendingExpected=global::System.Linq.Enumerable.FirstOrDefault(global::System.Linq.Enumerable.Select(global::System.Linq.Enumerable.ThenByDescending(global::System.Linq.Enumerable.OrderByDescending(Rows,static row=>row.A%3),static row=>Count(row.B)),static row=>row.Name));
+        var descendingMaximum=calls;
+        Assert.Equal(descendingExpected,OrderDescendingThenDescendingFirstImpl());
+        Assert.InRange(calls,0,descendingMaximum);
         Assert.Equal("d",OrderThenThenFirstOrDefaultImpl(Rows));
         Assert.Null(OrderThenThenFirstOrDefaultImpl([]));
     }

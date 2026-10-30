@@ -138,44 +138,14 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                 パラメーターJSON="{}";拡張JSON="{}";
             }
             設定変更JSON=JsonSerializer.Serialize(WorkerStorage.Changes(Fixture,要求.RunId,QueryIndex));
-            var 検証=検証する(Loaded,Fixture.Primary,Fixture.Secondary,キャンセルToken);
+            var 検証=DynamicQueryValidator.Validate(Loaded,Fixture.Primary,Fixture.Secondary,検証対象,Query.ExpectExceptions,キャンセルToken);
             var 結果一覧=検証.Results;
             var 例外一覧=検証.Exceptions;
-            ResultJSON=JsonSerializer.Serialize(
-                new WorkerValidationArtifact(
-                    結果一覧,
-                    例外一覧,
-                    new Dictionary<DynamicImplementationKind,DynamicQueryComparison>()),
-                DynamicWorkerProtocol.JsonOptions);
-            if(例外一覧.Count!=0){
-                if(!Query.ExpectExceptions){
-                    Status=WorkerExecutionStatus.ExecutionFailed;
-                    goto 完了;
-                }
-                // 例外を許す検証: System.Linq が例外を投げたら、他の実装も同じ型の例外を投げることを一致とする。
-                var 例外比較=例外の一致を比べる(Loaded,結果一覧,例外一覧);
-                ResultJSON=JsonSerializer.Serialize(
-                    new WorkerValidationArtifact(結果一覧,例外一覧,例外比較),
-                    DynamicWorkerProtocol.JsonOptions);
-                // 全実装が同じ型の例外を投げたときは、比べる値も測る処理も無いので、ここで終わる。
-                Status=例外比較.Values.Any(static 比較=>!比較.IsMatch)
-                    ?WorkerExecutionStatus.SemanticMismatch
-                    :WorkerExecutionStatus.Succeeded;
-                goto 完了;
-            }
-            var 比較一覧=new Dictionary<DynamicImplementationKind,DynamicQueryComparison>();
-            var System結果=結果一覧[DynamicImplementationKind.System];
-            foreach(var 実装 in 検証対象.Where(実装=>実装!=DynamicImplementationKind.System&&Loaded.Has(実装))){
-                比較一覧[実装]=DynamicQueryComparer.Compare(System結果,結果一覧[実装]);
-            }
+            var 比較一覧=検証.Comparisons;
             ResultJSON=JsonSerializer.Serialize(
                 new WorkerValidationArtifact(結果一覧,例外一覧,比較一覧),
                 DynamicWorkerProtocol.JsonOptions);
-            if(比較一覧.Values.Any(static 比較=>!比較.IsMatch)){
-                Status=WorkerExecutionStatus.SemanticMismatch;
-                goto 完了;
-            }
-            if(検証.Fallbacks.Count!=0){
+            if(検証.Status==WorkerExecutionStatus.ExpansionIncomplete){
                 var 内訳=string.Join(", ",検証.Fallbacks.Select(static 項目=>$"{項目.Key}={項目.Value}"));
                 診断JSON=診断を追加(
                     診断JSON,
@@ -184,7 +154,9 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                         "FLinqRuntimeFallback",
                         $"実行時に EnumerableFallback が数えられました({内訳})。FLinq が展開しきれていません。",
                         null));
-                Status=WorkerExecutionStatus.ExpansionIncomplete;
+            }
+            if(!検証.ShouldMeasure){
+                Status=検証.Status;
                 goto 完了;
             }
             IReadOnlyDictionary<DynamicImplementationKind,long>? 評価回数=null;
@@ -353,56 +325,6 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
         return WorkerExecutionStatus.CompilationFailed;
     }
 
-    private static Dictionary<DynamicImplementationKind,DynamicQueryComparison> 例外の一致を比べる(
-        LoadedDynamicQuery Loaded,
-        Dictionary<DynamicImplementationKind,DynamicQueryValue> 結果一覧,
-        Dictionary<DynamicImplementationKind,WorkerInvocationFailure> 例外一覧){
-        var 比較一覧=new Dictionary<DynamicImplementationKind,DynamicQueryComparison>();
-        例外一覧.TryGetValue(DynamicImplementationKind.System,out var 期待);
-        foreach(var 実装 in 検証対象.Where(実装=>実装!=DynamicImplementationKind.System&&Loaded.Has(実装))){
-            例外一覧.TryGetValue(実装,out var 実際);
-            比較一覧[実装]=(期待,実際) switch{
-                (null,null)=>DynamicQueryComparer.Compare(結果一覧[DynamicImplementationKind.System],結果一覧[実装]),
-                ({ }e,{ }a) when e.Type==a.Type=>new(true),
-                ({ }e,{ }a)=>new(false,$"System threw {e.Type} but {実装} threw {a.Type}: {a.Message}"),
-                ({ }e,null)=>new(false,$"System threw {e.Type} but {実装} returned a value."),
-                (null,{ }a)=>new(false,$"System returned a value but {実装} threw {a.Type}: {a.Message}"),
-            };
-        }
-        return 比較一覧;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static ValidationExecution 検証する(
-        LoadedDynamicQuery Loaded,
-        object? Primary,
-        object? Secondary,
-        CancellationToken キャンセルToken){
-        var 結果一覧=new Dictionary<DynamicImplementationKind,DynamicQueryValue>();
-        var 例外一覧=new Dictionary<DynamicImplementationKind,WorkerInvocationFailure>();
-        var フォールバック=new Dictionary<DynamicImplementationKind,long>();
-        foreach(var 実装 in 検証対象.Where(Loaded.Has)){
-            キャンセルToken.ThrowIfCancellationRequested();
-            try{
-                // FLinq の実行時フォールバック回数は、検証の実行だけで数える(計測の実行では数えない)。
-                using var カウンタ範囲=global::Seamless.Linq.LinqCounterScope.Start();
-                var 値=Loaded.Run(実装,Primary,Secondary);
-                値.Validate();
-                結果一覧[実装]=値;
-                if(実装 is DynamicImplementationKind.FLinqUnoptimized or DynamicImplementationKind.FLinq
-                    &&カウンタ範囲.Counter.EnumerableFallback>0){
-                    フォールバック[実装]=カウンタ範囲.Counter.EnumerableFallback;
-                }
-            }catch(Exception 例外) when(例外 is not OperationCanceledException){
-                例外一覧[実装]=new(
-                    例外.GetType().FullName??例外.GetType().Name,
-                    例外.Message,
-                    例外.StackTrace);
-            }
-        }
-        return new(結果一覧,例外一覧,フォールバック);
-    }
-
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static MeasurementExecution 測定する(
         MeasurementEngine 計測器,
@@ -544,16 +466,12 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
     }
 
     private sealed record WorkerInvocationFailure(string Type,string Message,string? StackTrace);
-    private sealed record ValidationExecution(
-        Dictionary<DynamicImplementationKind,DynamicQueryValue> Results,
-        Dictionary<DynamicImplementationKind,WorkerInvocationFailure> Exceptions,
-        Dictionary<DynamicImplementationKind,long> Fallbacks);
     private sealed record MeasurementExecution(
         BalancedMeasurementResult? Result,
         WorkerInvocationFailure? Failure);
     private sealed record WorkerValidationArtifact(
         IReadOnlyDictionary<DynamicImplementationKind,DynamicQueryValue> Results,
-        IReadOnlyDictionary<DynamicImplementationKind,WorkerInvocationFailure> Exceptions,
+        IReadOnlyDictionary<DynamicImplementationKind,DynamicQueryInvocationFailure> Exceptions,
         IReadOnlyDictionary<DynamicImplementationKind,DynamicQueryComparison> Comparisons,
         IReadOnlyDictionary<DynamicImplementationKind,long>? EvaluationCounts=null);
     private sealed record TraceSummary(int RewriteCount,bool ReachedFixedPoint,bool NonConverged);

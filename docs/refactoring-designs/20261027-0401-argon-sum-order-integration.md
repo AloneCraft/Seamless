@@ -1,0 +1,46 @@
+# Sum・整列・materializer需要の統合
+
+## 背景と現状の観察
+
+主統合HEADは3c6c8c72。Sumのchecked累積修正と、安定整列・singleton・ordered localの修正は別worktreeで限定受入済み。共通のPipelineTerminalはbase82c92ef9に対する3way mergeがexit0だが、統合版の生成・受入はまだない。元JSON、OriginalSHA256、既存compiler3、Worker所有権修正を保つ。
+
+## 過去設計から引き継ぐ仕様と目的
+
+20261027-0202-sum-checked-order.mdと動的検証契約を引き継ぐ。selectorの算術文脈と累積checkedを分離し、整数Sumの途中overflowと列挙順を保持する。整列は全キーの評価後、既定int昇順の小範囲だけ安定countingへ切り替え、その他は既存比較へ戻す。通常列挙・FirstとToArray/ToListではsingletonのキー評価契約を区別する。
+
+## 提案設計と影響範囲
+
+製品6ファイル、回帰2ファイル、Sum設計書をhash付きで取り込む。共有PipelineTerminalはchecked加算・順序fallbackと終端専用cloneの両方を維持する。生成private enumeratorのコピーへmaterializer需要を束縛し、元のordered aliasやsource/captureを再評価しない。公開runtime API、DB、共有プロジェクト登録は変更しない。
+
+レビューで、最終orderへのsingleton省略flagが上流の別orderにも伝播する可能性を見つけた。OrderBy(K1).Where(P).OrderBy(K2).ToArray/ToListの実traceを先に比較する。上流K1はWhereの入力列挙として評価し、最終K2だけ省略するという実行結果が得られた場合は、省略需要を最終連続order群へ限定する。症状の未再現時に修正完了としない。
+
+## 移行手順とテスト計画
+
+元9パス、統合前HEAD/blob/raw/LF hash、既存6パスのbackupを保存する。Generatorを先にRebuildし、Sum22ケース×3モードの66観測、整列5件と上流order比較、周辺回帰、実Workerの固定・評価93record・Fallback75、通常Debug/Releaseを順に確認する。生成C#とDLL hashを同時に保存し、正しさ確認後に同じD/F条件・seedで性能を比較する。
+
+## リスク・未決事項
+
+Counterの集計範囲は人間回答により入れ子込みの総数へ確定した。対応候補と既存7件の期待は別の局所差分で受け入れる。旧候補の成功を統合版へ流用しない。性能改善幅、全通常・Debug/Release、上流orderの需要境界は統合後の確認対象。
+
+## 合意状態
+
+利用者の承認済み統合計画・監査改善・実行指示の範囲内で統括が採用。値・例外・実評価順の既存System.Linq契約を独立に検証する。全重処理はBGO、出力排他、RAM開始80%未満・88%中止を維持する。
+
+## 追加再現と最小修正
+BGO ee7ef66abefd4080a7352312d06ee26eはGenerator Rebuild成功後6件中5pass/1fail。上流OrderBy→Where→最終OrderBy→ToArrayの空結果で、System traceはK0,W0、候補はW0。元sourceはfreeze一致、生成C#・入力・TRX・実DLLをbeforeへ保全。
+
+最終order群へflagを限定する仮説を比較したtask54810503ba8947319d70ffb34c12f3ddでも同じ不一致だった。生成C#はキー評価がWhereの後に移動し、全不合格時にキーが未評価となることを示した。単にflagの範囲を変える案は原因に対応せず撤回した。Pipelineは複数primary Orderを既存検証で拒否し、入れ子の別pipelineとして生成していた。
+
+原因はAlgebraicRewriterとOptimizeVisitorの整列前Where移動が、Anchorと全件消費だけを確認し、キー・述語の副作用/例外を証明していなかったこと。共有の純粋なOrderFilterReorderSafetyで、両lambdaを自身のprimitive引数・定数・無例外の組み込み演算に限定する。method/property/field・変更されるcapture・除算/剰余・checked・独自演算/比較・証明不能なdelegateは移動しない。明示FLinqTransparentの恒等計測だけは既存契約どおり見通す。keyless Orderはprimitive既定比較だけ、Reverseは純粋な述語だけを許す。正常な純粋キーの最適化経路は維持する。
+
+## 連続 Order の consumer 契約
+
+追加96観測は terminal8/9/10/11 に23不一致があり、6/7は上の純粋性guard後に一致した。連続 Order は複数primary拒否から従来 OrderingBase に戻り、生成constructorの Build が上流Keyを先に列挙していた。terminal11はSystem `1/1/1|R,D,K1,S1,S1` に対し候補 `0/0/0|R,K1,D`。先行するキー評価と、bufferを持つenumのコピー・破棄後の再列挙があることを生成C#で確認した。具体的な0値の発生はpool再利用に依存するため、毎回同じ0になるとは扱わない。
+
+PipelineBuilderは第2primary Order直前でprefixを別のlazy Pipelineへ確定し、primaryを同一sorterに混ぜない。Validateの複数primary拒否は維持する。ThenByは同じ連続整列群に残す。source/comparer/captureのconstructor引数は生成式の元の位置で1回評価し、キーとpool確保は列挙まで遅延する。
+
+通常のordered列挙は入力をmaterializeするため、直結するplain ordered sourceへmaterialization需要を渡す。ToArray/ToListは自身のsingletonキーも省略する。plain First/FirstOrDefaultは自身のキーを評価し、直結sourceを通常列挙する。Where等を含む入力ではこの需要再帰を停止する。生成private enumは需要boolを保持し、stable localの元enumからmaterializer用とFirst用のsnapshotを別々に作る。閉型localからsource-copy propertyへ書き戻すため、公開runtimeAPI、Unsafe.As、source/capture再評価を追加しない。
+
+First需要は通常sortの先頭取得と区別する。private enumの一走査branchで、初回の全キー、同順位のchild比較、最良値交代時の下位キー更新をSystemのCachingComparerと同じ順で行う。単一降順キーのFirstはcandidate,bestの比較、多キーの降順はbest,candidateの比較を維持する。通常sortのThenByは一次キー全件→二次キー全件の順にし、direct span materializerも空/1件を含めcomparer引数を列挙前に1回評価する。
+
+実装は専用Work/Orchestration/worktrees/ordered-contractに限定したsource-only候補。元96観測fixtureを維持し、ThenBy・副作用comparerのfactory/比較trace・空/1件/重複/複数件/各例外をconsumer別に比較する3行の追加theoryを用意した。現時点で生成・compile・testは未実行であり、受入済みとは扱わない。基準・patch・実行計画はWork/Orchestration/ordered-materialization-contract-01/implementationを参照する。
