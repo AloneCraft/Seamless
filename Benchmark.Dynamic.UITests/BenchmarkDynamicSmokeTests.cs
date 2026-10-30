@@ -4,7 +4,7 @@ using OpenQA.Selenium.Appium.Windows;
 namespace Benchmark.Dynamic.UITests;
 
 public sealed class BenchmarkDynamicSmokeTests{
-    [Fact]
+    [DynamicUiFact]
     public void 起動して主要設定Controlを公開する(){
         var applicationPath=Environment.GetEnvironmentVariable("BENCHMARK_DYNAMIC_APP_PATH");
         Assert.False(
@@ -39,6 +39,14 @@ public sealed class BenchmarkDynamicSmokeTests{
             "動的ライブ.Source","動的ライブ.要素型","動的ライブ.速度","動的ライブ.Seed","動的ライブ.試行番号",
             "動的ライブ.段階.1","動的ライブ.段階.2","動的ライブ.段階.3"}){
             Assert.NotNull(driver.FindElement(MobileBy.AccessibilityId(id)));
+        }
+    }
+}
+
+public sealed class DynamicUiFactAttribute:FactAttribute{
+    public DynamicUiFactAttribute(){
+        if(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BENCHMARK_DYNAMIC_APP_PATH"))){
+            this.Skip="BENCHMARK_DYNAMIC_APP_PATHが未設定のためUI自動化を実行しません。";
         }
     }
 }

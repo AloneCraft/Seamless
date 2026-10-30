@@ -1,4 +1,5 @@
-using Benchmark.Dynamic.Core;
+﻿using Benchmark.Dynamic.Core;
+using Benchmark.Infrastructure;
 using Microsoft.Maui.Controls.Shapes;
 using System.Globalization;
 
@@ -12,6 +13,8 @@ namespace Benchmark.Dynamic.UI;
 /// 実行中は CPU を使うので、タブを開いただけでは始めず「開始」を押したときだけ動く。
 /// </summary>
 public sealed class 動的ライブ検証画面:ContentView{
+    public アプリ操作排他? 実行排他{get;set;}
+    public Func<(int 最適化,WorkerStorageSettings 設定)>? 測定設定を取得{get;set;}
     private const int ログ最大件数=250;
     private static readonly (string 表示,int 待ちミリ秒)[] 速度一覧=[
         ("ゆっくり",1200),
@@ -96,6 +99,12 @@ public sealed class 動的ライブ検証画面:ContentView{
             this.実行タスク?.Wait(TimeSpan.FromSeconds(5));
         }catch(AggregateException){
         }
+    }
+
+    public async Task 終了Async(){
+        this.取消?.Cancel();
+        this.再開待ち?.TrySetResult();
+        if(this.実行タスク is{} 実行){await 実行;}
     }
 
     // ---- 画面を作る ----
@@ -327,7 +336,13 @@ public sealed class 動的ライブ検証画面:ContentView{
         this.ログ領域.Clear();
         this.状態表示.TextColor=動的ライブ配色.薄い文字;
         this.状態表示.Text="開始しています";
-        var 設定=new 動的ライブ設定(対象,要素型,シード,特殊な値を混ぜる:this.特殊値チェック.IsChecked,開始段階:段階,開始番号:開始番号);
+        var 追加設定=this.測定設定を取得?.Invoke();
+        var 設定=new 動的ライブ設定(対象,要素型,シード,特殊な値を混ぜる:this.特殊値チェック.IsChecked,開始段階:段階,開始番号:開始番号,最適化フラグ:追加設定?.最適化??15,ストレージ設定:追加設定?.設定);
+        IDisposable? 予約=null;
+        if(this.実行排他 is{} 排他){
+            予約=排他.予約する();
+            if(予約 is null){this.状態表示.Text="別の操作の実行またはcleanupを待っています。";return;}
+        }
         var 取消=new CancellationTokenSource();
         this.取消=取消;
         this.実行中=true;
@@ -348,6 +363,7 @@ public sealed class 動的ライブ検証画面:ContentView{
                     this.状態表示.TextColor=動的ライブ配色.失敗;
                 });
             }finally{
+                予約?.Dispose();
                 MainThread.BeginInvokeOnMainThread(()=>{
                     if(ReferenceEquals(this.取消,取消)){
                         this.実行中=false;

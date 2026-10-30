@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Seamless.Database.Rdbms;
@@ -38,7 +38,7 @@ internal static class CSharpIdentifier {
 }
 
 internal sealed class CSharpIdentifierScope {
-    private readonly Dictionary<string,string> names = new(StringComparer.Ordinal);
+    private readonly Dictionary<string,string> names = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string,string> originals = new(StringComparer.Ordinal);
 
     public void Reserve(string identifier) {

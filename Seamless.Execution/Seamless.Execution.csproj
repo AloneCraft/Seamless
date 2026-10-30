@@ -11,6 +11,34 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Seamless.Collections/Seamless.Collections.csproj" />
-    <EmbeddedResource Include="Profiles/measured.json" LogicalName="Seamless.Execution.Profiles.measured.json" />
+    <None Update="Profiles/measured.json" TargetPath="Seamless.Execution.Profiles/measured.json"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          Pack="true" PackagePath="contentFiles/any/any/Seamless.Execution.Profiles/measured.json"
+          PackageCopyToOutput="true" PackageFlatten="false" />
   </ItemGroup>
+  <Target Name="GenerateProfileBuildIdentity" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <_ProfileSource Include="../Seamless*/**/*.cs;../Seamless*/**/*.csproj;../Shared/Common/**/*.cs"
+                      Exclude="../Seamless*/**/bin/**;../Seamless*/**/obj/**" />
+      <_ProfileSource Include="../Directory.Build.props;../Directory.Build.targets" />
+      <_ProfileSource Include="../Directory.Packages.props" Condition="Exists('../Directory.Packages.props')" />
+      <_ProfileSource Include="../global.json" Condition="Exists('../global.json')" />
+    </ItemGroup>
+    <GetFileHash Files="@(_ProfileSource)" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="_ProfileHashedSource" />
+    </GetFileHash>
+    <WriteLinesToFile File="$(IntermediateOutputPath)ProfileSources.sha256"
+                      Lines="@(_ProfileHashedSource->'%(Identity)|%(FileHash)');@(ReferencePath->'Package:%(NuGetPackageId)|%(NuGetPackageVersion)');@(Analyzer->'Analyzer:%(NuGetPackageId)|%(NuGetPackageVersion)|%(Filename)');SDK=$(NETCoreSdkVersion)|Configuration=$(Configuration)|Framework=$(TargetFramework)|Constants=$(DefineConstants)|Optimize=$(Optimize)|Language=$(LangVersion)"
+                      Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <GetFileHash Files="$(IntermediateOutputPath)ProfileSources.sha256" Algorithm="SHA256">
+      <Output TaskParameter="Hash" PropertyName="_ProfileSourceHash" />
+    </GetFileHash>
+    <WriteLinesToFile File="$(IntermediateOutputPath)ProfileBuildIdentity.g.cs"
+                      Lines="namespace Seamless.Execution%3B internal static class ProfileBuildIdentity{internal const string Value=&quot;$(_ProfileSourceHash)&quot;%3B}"
+                      Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)ProfileBuildIdentity.g.cs" />
+      <FileWrites Include="$(IntermediateOutputPath)ProfileBuildIdentity.g.cs;$(IntermediateOutputPath)ProfileSources.sha256" />
+    </ItemGroup>
+  </Target>
 </Project>

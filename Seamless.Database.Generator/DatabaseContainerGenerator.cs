@@ -169,7 +169,9 @@ public sealed class DatabaseContainerGenerator:IIncrementalGenerator {
         var typeName = recordType
             .WithNullableAnnotation(NullableAnnotation.None)
             .ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        return new(kind,name,typeName,importKind,location);
+        string? keyType=null;
+        if(member is IPropertySymbol property&&property.Type is INamedTypeSymbol {TypeArguments.Length:2} named){keyType=named.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);}
+        return new(kind,name,typeName,importKind,location,keyType);
     }
 
     private static bool TryGetMaterializedRecordType(ITypeSymbol type,out ITypeSymbol recordType) {
@@ -265,6 +267,7 @@ public sealed class DatabaseContainerGenerator:IIncrementalGenerator {
             builder.AppendLine($"{indent}        }}");
         }
         builder.AppendLine($"{indent}    }}");
+        AppendTransactions(builder,indent,className,declarations);
         builder.AppendLine($"{indent}}}");
 
         if(namespaceName.Length>0) {
@@ -291,11 +294,52 @@ public sealed class DatabaseContainerGenerator:IIncrementalGenerator {
     }
 
     private sealed class ObjectDeclaration(
-        string kind,string name,string recordTypeName,string? importKind,Location location) {
+        string kind,string name,string recordTypeName,string? importKind,Location location,string? keyTypeName) {
         public string Kind { get; }=kind;
         public string Name { get; }=name;
         public string RecordTypeName { get; }=recordTypeName;
         public string? ImportKind { get; }=importKind;
         public Location Location { get; }=location;
+        public string? KeyTypeName{get;}=keyTypeName;
+    }
+    private static void AppendTransactions(StringBuilder builder,string indent,string className,ImmutableArray<ObjectDeclaration> declarations){
+        var tables=declarations.Where(static d=>d.ImportKind is "Table" or "MaterializedView").ToArray();
+        builder.AppendLine($"{indent}    protected override void EnsureTransactionSchema()=>this.EnsureTablesCreated();");
+        builder.Append($"{indent}    protected override string TransactionCatalogIdentity=>{Literal(className+"|typed-v2")}");
+        foreach(var table in tables){builder.Append($"+\"|\"+this.TransactionCodecIdentity<{table.KeyTypeName??table.RecordTypeName},{table.RecordTypeName}>({Literal(table.Name)})");}
+        builder.AppendLine(";");
+        builder.AppendLine($"{indent}    public global::System.Threading.Tasks.ValueTask<TypedTransaction> BeginTransactionAsync(global::System.Threading.CancellationToken cancellationToken=default){{");
+        builder.AppendLine($"{indent}        var operation=this.BeginTransactionScopeAsync(cancellationToken);");
+        builder.AppendLine($"{indent}        return Wrap(operation);");
+        builder.AppendLine($"{indent}        async global::System.Threading.Tasks.ValueTask<TypedTransaction> Wrap(global::System.Threading.Tasks.ValueTask<global::Seamless.Transactions.TransactionScope> pending)=>new(this,await pending.ConfigureAwait(false));");
+        builder.AppendLine($"{indent}    }}");
+        builder.AppendLine($"{indent}    public sealed class TypedTransaction:global::System.IAsyncDisposable{{");
+        builder.AppendLine($"{indent}        private readonly {className} owner;");
+        builder.AppendLine($"{indent}        private readonly global::Seamless.Transactions.TransactionScope scope;");
+        builder.AppendLine($"{indent}        internal TypedTransaction({className} owner,global::Seamless.Transactions.TransactionScope scope){{this.owner=owner;this.scope=scope;}}");
+        builder.AppendLine($"{indent}        public global::System.Guid Id=>this.scope.Id;");
+        builder.AppendLine($"{indent}        public global::System.Threading.Tasks.ValueTask<TypedTransaction> BeginTransactionAsync()=>global::System.Threading.Tasks.ValueTask.FromResult(new TypedTransaction(this.owner,this.scope.BeginNested()));");
+        builder.AppendLine($"{indent}        public global::System.Threading.Tasks.ValueTask<global::Seamless.Transactions.TransactionCommitResult> CommitAsync()=>this.scope.CommitAsync();");
+        builder.AppendLine($"{indent}        public global::System.Threading.Tasks.ValueTask RollbackAsync()=>this.scope.RollbackAsync();");
+        builder.AppendLine($"{indent}        public global::System.Threading.Tasks.ValueTask DisposeAsync()=>this.scope.DisposeAsync();");
+        var number=0;
+        AppendTransactionProperties(builder,indent+"        ",className,tables,"",ref number);
+        builder.AppendLine($"{indent}    }}");
+    }
+    private static void AppendTransactionProperties(StringBuilder builder,string indent,string className,ObjectDeclaration[] tables,string prefix,ref int number){
+        foreach(var table in tables.Where(t=>!t.Name[prefix.Length..].Contains('.'))){
+            var name=Identifier(table.Name[prefix.Length..]);
+            var collection="TransactionCollection";if(table.ImportKind=="MaterializedView"){collection="ReadOnlyTransactionCollection";}
+            builder.AppendLine($"{indent}public global::Seamless.Transactions.Collections.{collection}<{table.KeyTypeName??table.RecordTypeName},{table.RecordTypeName}> {name}=>this.owner.GetTransactionCollection(this.scope,this.owner.{MemberAccess(table.Name)});");
+        }
+        foreach(var group in tables.Where(t=>t.Name[prefix.Length..].Contains('.')).GroupBy(t=>t.Name[prefix.Length..].Split('.')[0],StringComparer.Ordinal)){
+            var type="SchemaView"+(number++).ToString(global::System.Globalization.CultureInfo.InvariantCulture);
+            builder.AppendLine($"{indent}public {type} {Identifier(group.Key)}=>new(this.owner,this.scope);");
+            builder.AppendLine($"{indent}public sealed class {type}{{");
+            builder.AppendLine($"{indent}    private readonly {className} owner;");builder.AppendLine($"{indent}    private readonly global::Seamless.Transactions.TransactionScope scope;");
+            builder.AppendLine($"{indent}    internal {type}({className} owner,global::Seamless.Transactions.TransactionScope scope){{this.owner=owner;this.scope=scope;}}");
+            AppendTransactionProperties(builder,indent+"    ",className,group.ToArray(),prefix+group.Key+".",ref number);
+            builder.AppendLine($"{indent}}}");
+        }
     }
 }

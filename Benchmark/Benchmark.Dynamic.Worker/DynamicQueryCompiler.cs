@@ -1,4 +1,4 @@
-using Benchmark.Dynamic.Core;
+﻿using Benchmark.Dynamic.Core;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Emit;
@@ -15,6 +15,7 @@ public enum DynamicImplementationKind {
     FLinqUnoptimized,
     FLinq,
     ZLinq,
+    Ideal,
 }
 
 public sealed record DynamicCompilationTimings(
@@ -245,7 +246,7 @@ public sealed class DynamicQueryCompiler {
             展開結果=string.Join(
                 Environment.NewLine,
                 Run結果.Results.SelectMany(結果=>結果.GeneratedSources).Select(Source=>Source.SourceText.ToString()));
-            診断一覧.AddRange(呼出先を検証(Compilation,構文木,Run結果));
+            診断一覧.AddRange(呼出先を検証(Compilation,(CSharpCompilation)出力Compilation,構文木,要求.TypeName));
             // Validate は診断一覧を遅延で読むので、AddRange(自分自身を書き換える)の前に配列へ確定させる。
             診断一覧.AddRange(FLinqExpansionValidator.Validate(
                 診断一覧,
@@ -283,6 +284,9 @@ public sealed class DynamicQueryCompiler {
                 [DynamicImplementationKind.FLinqUnoptimized]=Bind(型,"RunFLinqUnoptimized"),
                 [DynamicImplementationKind.FLinq]=Bind(型,"RunFLinq"),
             };
+            if(型.GetMethod("RunIdeal",BindingFlags.Public|BindingFlags.Static) is not null){
+                関数一覧[DynamicImplementationKind.Ideal]=Bind(型,"RunIdeal");
+            }
             if(型.GetMethod("RunZLinq",BindingFlags.Public|BindingFlags.Static) is not null) {
                 関数一覧[DynamicImplementationKind.ZLinq]=Bind(型,"RunZLinq");
             }
@@ -326,13 +330,21 @@ public sealed class DynamicQueryCompiler {
 
     private static IEnumerable<DynamicCompilationDiagnostic> 呼出先を検証(
         CSharpCompilation Compilation,
+        CSharpCompilation 出力Compilation,
         SyntaxTree 構文木,
-        GeneratorDriverRunResult Run結果) {
+        string 要求型名) {
         var モデル=Compilation.GetSemanticModel(構文木,ignoreAccessibility:false);
         var Root=構文木.GetRoot();
+        var 要求型=Compilation.GetTypeByMetadataName(要求型名);
+        var 戻り型=Compilation.GetTypeByMetadataName("Benchmark.Dynamic.Core.DynamicQueryValue");
+        if(要求型 is null||戻り型 is null){
+            yield return new("SymbolValidation","Error","InvocationTargetMismatch",$"要求型またはDynamicQueryValueを一意に解決できません: {要求型名}",string.Empty);
+            yield break;
+        }
         var メソッド一覧=Root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
             .Where(static メソッド=>メソッド.Identifier.ValueText is
                 "RunSystem" or "RunZLinq" or "RunFLinqUnoptimizedCore" or "RunFLinqCore")
+            .Where(メソッド=>SymbolEqualityComparer.Default.Equals(モデル.GetDeclaredSymbol(メソッド)?.ContainingType,要求型))
             .ToArray();
         foreach(var メソッド in メソッド一覧) {
             var 呼出一覧=メソッド.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax>();
@@ -366,14 +378,54 @@ public sealed class DynamicQueryCompiler {
                 }
             }
         }
-        var 生成文字列=string.Concat(
-            Run結果.Results.SelectMany(結果=>結果.GeneratedSources).Select(Source=>Source.SourceText.ToString()));
-        foreach(var メソッド名 in new[]{"RunFLinqUnoptimizedCore","RunFLinqCore"}) {
-            if(!生成文字列.Contains(メソッド名,StringComparison.Ordinal)) {
-                yield return new("SymbolValidation","Error","FLinqInterceptorMissing",$"{メソッド名}に対応するinterceptorが生成されませんでした。",string.Empty);
+        var 出力モデル=出力Compilation.GetSemanticModel(構文木,ignoreAccessibility:false);
+        foreach(var ラッパー名 in new[]{"RunFLinqUnoptimized","RunFLinq"}) {
+            var ラッパー候補=要求型.GetMembers(ラッパー名).OfType<IMethodSymbol>().ToArray();
+            if(ラッパー候補.Length!=1||!クエリ署名か(ラッパー候補[0],戻り型)||ラッパー候補[0].DeclaredAccessibility!=Accessibility.Public){
+                yield return new("SymbolValidation","Error","FLinqInterceptorMissing",$"{要求型名}.{ラッパー名}のpublic static呼出入口を一意に解決できません。",string.Empty);
+                continue;
+            }
+            var 宣言一覧=ラッパー候補[0].DeclaringSyntaxReferences.Where(参照=>参照.SyntaxTree==構文木).ToArray();
+            if(宣言一覧.Length!=1||宣言一覧[0].GetSyntax() is not Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax ラッパー){
+                yield return new("SymbolValidation","Error","FLinqInterceptorMissing",$"{要求型名}.{ラッパー名}のソース宣言を一意に解決できません。",string.Empty);
+                continue;
+            }
+            var コア名=ラッパー名+"Core";
+            var コア候補=要求型.GetMembers(コア名).OfType<IMethodSymbol>().ToArray();
+            if(コア候補.Length!=1||!クエリ署名か(コア候補[0],戻り型)||コア候補[0].DeclaringSyntaxReferences.Length!=1){
+                yield return new("SymbolValidation","Error","FLinqInterceptorMissing",$"{ラッパー名}の正規Core {要求型名}.{コア名}を一意に解決できません。",位置(ラッパー.GetLocation()));
+                continue;
+            }
+            // 現templateの入口は正規Coreの呼出を直接返す。補助呼出や内包lambdaは入口とみなさない。
+            var 戻り式一覧=new List<Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax>();
+            if(ラッパー.ExpressionBody is { } 式本体){戻り式一覧.Add(式本体.Expression);}
+            if(ラッパー.Body is { } 文本体){
+                戻り式一覧.AddRange(文本体.Statements.OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ReturnStatementSyntax>()
+                    .Select(戻り文=>戻り文.Expression).OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ExpressionSyntax>());
+            }
+            if(戻り式一覧.Count!=1||戻り式一覧[0] is not Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax 呼出
+                ||モデル.GetSymbolInfo(呼出).Symbol is not IMethodSymbol 呼出先
+                ||!SymbolEqualityComparer.Default.Equals(呼出先.OriginalDefinition,コア候補[0].OriginalDefinition)
+                ||!SymbolEqualityComparer.Default.Equals(呼出先.ContainingType,要求型)){
+                yield return new("SymbolValidation","Error","InvocationTargetMismatch",$"{ラッパー名}は正規Core {要求型名}.{コア名}の呼出を直接返す必要があります。",位置(ラッパー.GetLocation()));
+                continue;
+            }
+            // 生成物内の名前ではなく、この呼出位置にコンパイラが束縛する傍受先を確認する。
+            var 傍受先=Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptorMethod(出力モデル,呼出);
+            if(傍受先 is null){
+                yield return new("SymbolValidation","Error","FLinqInterceptorMissing",$"{ラッパー名}の{呼出}に対応するinterceptorがありません。",位置(呼出.GetLocation()));
+            }else{
+                yield return new("SymbolValidation","Info","FLinqInterceptorBound",$"{ラッパー名} -> {呼出先.ToDisplayString()}: {傍受先.ToDisplayString()}",位置(呼出.GetLocation()));
             }
         }
     }
+
+    private static bool クエリ署名か(IMethodSymbol メソッド,INamedTypeSymbol 戻り型)=>
+        メソッド.IsStatic&&メソッド.MethodKind==MethodKind.Ordinary&&メソッド.Arity==0&&!メソッド.IsVararg
+        &&!メソッド.ReturnsByRef&&!メソッド.ReturnsByRefReadonly
+        &&SymbolEqualityComparer.Default.Equals(メソッド.ReturnType,戻り型)
+        &&メソッド.Parameters.Length==2
+        &&メソッド.Parameters.All(static 引数=>引数.RefKind==RefKind.None&&引数.Type.SpecialType==SpecialType.System_Object);
 
     private static bool 固定点到達(string Payload) {
         try {

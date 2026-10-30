@@ -1,0 +1,127 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 上流の署名済みassembly identityを維持し、Seamlessのrelease versionで配布する。 -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Tsavorite.core</AssemblyName>
+    <RootNamespace>Tsavorite.core</RootNamespace>
+    <AssemblyVersion>2.2.1.0</AssemblyVersion>
+    <FileVersion>2.2.1.0</FileVersion>
+    <InformationalVersion>2.2.1+seamless.core43.b0255a.1</InformationalVersion>
+    <!-- 既存release全体のVersionを採用し、assembly versionとは独立させる。 -->
+    <PackageId>Seamless.Tsavorite.Core</PackageId>
+    <PackageVersion>$(Version)</PackageVersion>
+    <IsPackable>true</IsPackable>
+    <Title>Seamless patched Tsavorite core</Title>
+    <Description>Tsavorite 2.2.1 from b0255a with the Seamless recovery I/O ownership and scan lifecycle patches (Core43).</Description>
+    <PackageReadmeFile>README.Core.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>Upstream/Garnet.snk</AssemblyOriginatorKeyFile>
+    <DelaySign>false</DelaySign>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <NoWarn>$(NoWarn);1701;1702;CS1573;CS1591;CA1865;CA1866;CA1867;CA2254</NoWarn>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <DebugType>embedded</DebugType>
+    <IncludeSymbols>false</IncludeSymbols>
+    <IncludeSource>false</IncludeSource>
+  </PropertyGroup>
+  <!-- 固定元csprojのBufferPoolStats/構成別設定/全InternalsVisibleToを保持する。 -->
+  <Import Project="Upstream.Core.Items.props" />
+  <ItemGroup>
+    <Compile Include="Upstream/libs/storage/Tsavorite/cs/src/core/**/*.cs"
+             Exclude="Upstream/**/obj/**;Upstream/**/bin/**" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="[10.0.5]" />
+    <!-- CommonのAzure device依存を閉じる通常の公開runtime依存。 -->
+    <PackageReference Include="Azure.Storage.Blobs" Version="[12.27.0]" />
+    <!-- 取得専用。旧Coreのcompile/runtime/native/build assetsを一切選ばない。 -->
+    <PackageReference Include="Microsoft.Garnet" Version="[2.2.1]"
+                      PrivateAssets="all" ExcludeAssets="all" GeneratePathProperty="true" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Core自身のcompile Referenceへ加えない。不要なCore→Common循環を作らない。 -->
+    <None Include="$(PkgMicrosoft_Garnet)/lib/net10.0/Garnet.common.dll"
+          TargetPath="Garnet.common.dll" CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" Pack="true" PackagePath="lib/net10.0/" />
+    <None Include="$(PkgMicrosoft_Garnet)/lib/net10.0/Tsavorite.devices.AzureStorageDevice.dll"
+          TargetPath="Tsavorite.devices.AzureStorageDevice.dll" CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" Pack="true" PackagePath="lib/net10.0/" />
+    <None Include="$(PkgMicrosoft_Garnet)/lib/net10.0/Garnet.common.xml"
+          Pack="true" PackagePath="lib/net10.0/" />
+    <None Include="$(PkgMicrosoft_Garnet)/lib/net10.0/Tsavorite.devices.AzureStorageDevice.xml"
+          Pack="true" PackagePath="lib/net10.0/" />
+    <!-- 固定10ファイルを明示し、pack taskによるglob相対pathの二重付加を防ぐ。 -->
+    <None Include="$(PkgMicrosoft_Garnet)/runtimes/linux-arm64/native/libnative_device_libaio.so"
+          TargetPath="runtimes/linux-arm64/native/libnative_device_libaio.so"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          Pack="true" PackagePath="runtimes/linux-arm64/native/" />
+    <None Include="$(PkgMicrosoft_Garnet)/runtimes/linux-arm64/native/libnative_device.so"
+          TargetPath="runtimes/linux-arm64/native/libnative_device.so"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          Pack="true" PackagePath="runtimes/linux-arm64/native/" />
+    <None Include="$(PkgMicrosoft_Garnet)/runtimes/linux-musl-arm64/native/libnative_device_libaio.so"
+          TargetPath="runtimes/linux-musl-arm64/native/libnative_device_libaio.so"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          Pack="true" PackagePath="runtimes/linux-musl-arm64/native/" />
+    <None Include="$(PkgMicrosoft_Garnet)/runtimes/linux-musl-arm64/native/libnative_device.so"
+          TargetPath="runtimes/linux-musl-arm64/native/libnative_device.so"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          Pack="true" PackagePath="runtimes/linux-musl-arm64/native/" />
+    <None Include="$(PkgMicrosoft_Garnet)/runtimes/linux-musl-x64/native/libnative_device_libaio.so"
+          TargetPath="runtimes/linux-musl-x64/native/libnative_device_libaio.so"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          Pack="true" PackagePath="runtimes/linux-musl-x64/native/" />
+    <None Include="$(PkgMicrosoft_Garnet)/runtimes/linux-musl-x64/native/libnative_device.so"
+          TargetPath="runtimes/linux-musl-x64/native/libnative_device.so"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          Pack="true" PackagePath="runtimes/linux-musl-x64/native/" />
+    <None Include="$(PkgMicrosoft_Garnet)/runtimes/linux-x64/native/libnative_device_libaio.so"
+          TargetPath="runtimes/linux-x64/native/libnative_device_libaio.so"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          Pack="true" PackagePath="runtimes/linux-x64/native/" />
+    <None Include="$(PkgMicrosoft_Garnet)/runtimes/linux-x64/native/libnative_device.so"
+          TargetPath="runtimes/linux-x64/native/libnative_device.so"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          Pack="true" PackagePath="runtimes/linux-x64/native/" />
+    <None Include="$(PkgMicrosoft_Garnet)/runtimes/win-arm64/native/native_device.dll"
+          TargetPath="runtimes/win-arm64/native/native_device.dll"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          Pack="true" PackagePath="runtimes/win-arm64/native/" />
+    <None Include="$(PkgMicrosoft_Garnet)/runtimes/win-x64/native/native_device.dll"
+          TargetPath="runtimes/win-x64/native/native_device.dll"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
+          Pack="true" PackagePath="runtimes/win-x64/native/" />
+    <None Include="buildTransitive/Seamless.Tsavorite.Core.targets"
+          Pack="true" PackagePath="buildTransitive/" />
+    <None Include="README.Core.md" Pack="true" PackagePath="/" />
+    <None Include="Upstream/LICENSE" Pack="true" PackagePath="licenses/" />
+    <None Include="UPSTREAM-PROVENANCE.json" Pack="true" PackagePath="/" />
+    <None Include="recovery-head-pages.patch" Pack="true" PackagePath="/" />
+    <None Include="core43-recovery-and-scan.patch" Pack="true" PackagePath="/" />
+    <None Include="Upstream/Garnet.snk" Pack="false" />
+  </ItemGroup>
+  <!-- 共通targetsのREADMEは通常製品向け。Coreは固有READMEだけをpackする。 -->
+  <Target Name="SelectSeamlessTsavoriteReadme" BeforeTargets="_GetPackageFiles">
+    <!-- SDKの_GetPackageFilesがNoneを収集する直前、正規FullPathで共通READMEだけを除く。 -->
+    <PropertyGroup>
+      <_SeamlessRootReadmeFullPath>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../README.md'))</_SeamlessRootReadmeFullPath>
+    </PropertyGroup>
+    <ItemGroup>
+      <_SeamlessRootReadme Include="@(None)" Condition="'%(None.FullPath)'=='$(_SeamlessRootReadmeFullPath)'" />
+      <None Remove="@(_SeamlessRootReadme)" />
+    </ItemGroup>
+  </Target>
+  <Import Project="buildTransitive/Seamless.Tsavorite.Core.targets" />
+  <Target Name="ValidateSeamlessTsavoriteInput" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(TargetFramework)'!='net10.0'" Text="The patched Core currently supports net10.0 only." />
+    <Error Condition="'$(PkgMicrosoft_Garnet)'==''" Text="Restore the exact acquisition-only Microsoft.Garnet 2.2.1 package first." />
+    <Error Condition="!Exists('$(PkgMicrosoft_Garnet)/lib/net10.0/Garnet.common.dll')" Text="Pinned Garnet.common input missing." />
+    <Error Condition="!Exists('$(PkgMicrosoft_Garnet)/lib/net10.0/Tsavorite.devices.AzureStorageDevice.dll')" Text="Pinned AzureStorageDevice input missing." />
+  </Target>
+</Project>

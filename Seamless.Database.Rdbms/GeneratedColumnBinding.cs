@@ -3,4 +3,5 @@
 public sealed record GeneratedColumnBinding(
     string SourceName,
     string PropertyName,
-    DatabaseType Type);
+    DatabaseType Type,
+    bool IsSynthetic=false);

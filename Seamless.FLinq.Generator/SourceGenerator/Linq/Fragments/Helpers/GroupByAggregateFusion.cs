@@ -20,6 +20,7 @@ internal sealed class GroupAggregateItem {
     public FuncFragment? InnerFunc { get; set; }
     public string OriginalInvocationText { get; set; } = string.Empty;
     public string RawInvocationText { get; set; } = string.Empty;
+    public bool DeferredCheckedSum{get;set;}
 }
 
 internal sealed class GroupByAggregatePlan {
@@ -42,18 +43,35 @@ internal sealed class GroupByAggregatePlan {
     public string ResultType { get; set; } = string.Empty;
     public bool IsSingleField => this.Items.Count==1;
 
-    // 後ろの Take(n)・First・Any などが先頭の n グループしか使わないとき、その n。null なら全グループを集約する。
-    // System.Linq は集約のラムダを、使うグループの分しか評価しないので、それを超えるグループの要素は集約しない(キー選択子と要素選択子は全要素で評価する)。
-    public int? GroupLimit { get; set; }
+    // 後ろの Take(n)・First・Any などが先頭の n グループしか使わないとき、その n(実行時の式も可。GroupByFusionPass が下流の要求から決める)。
+    // null なら全グループを集約する。System.Linq は集約のラムダを、使うグループの分しか評価しないので、
+    // それを超えるグループの要素は集約しない(キー選択子と要素選択子は全要素で評価する)。
+    public GroupByConsumptionPlan? Consumption{get;private init;}
+    public CountExpr? GroupLimit=>this.Consumption?.Limit;
+    public GroupByAggregatePlan WithConsumption(GroupByConsumptionPlan consumption){
+        var snapshot=new GroupByAggregatePlan{
+            KeyType=this.KeyType,AccumulatorType=this.AccumulatorType,ProjectedResultExpression=this.ProjectedResultExpression,
+            ResultType=this.ResultType,Consumption=consumption
+        };
+        snapshot.Items.AddRange(this.Items.Select(static item=>new GroupAggregateItem{
+            Kind=item.Kind,FieldName=item.FieldName,AccumulatorFieldType=item.AccumulatorFieldType,ResultExpressionType=item.ResultExpressionType,
+            InnerFunc=item.InnerFunc,OriginalInvocationText=item.OriginalInvocationText,RawInvocationText=item.RawInvocationText,DeferredCheckedSum=item.DeferredCheckedSum
+        }));
+        snapshot.ReceiverNames.AddRange(this.ReceiverNames);
+        return snapshot;
+    }
 
     // グループのアキュムレータを探して(必要なら作って)、要素を集約する文。GroupLimit があるときは、上限に達した後の新しいグループを作らず、その要素の集約を飛ばす。
-    public string RenderAccumulate(string mapExpression,string keyName,string elementVarName,string indent) {
-        if(this.GroupLimit is not { } limit) {
-            return $"{indent}ref var __acc=ref {mapExpression}.GetValueRefOrAddDefault({keyName},out var __exists);\n"+this.RenderAccumulatorUpdate("__acc",elementVarName,indent);
+    // limitExpression は、呼び出し側がループの前に評価した上限の式(GroupLimit があるときは必須)。
+    public string RenderAccumulate(string mapExpression,string keyName,string elementVarName,string indent,string? limitExpression) {
+        if(this.GroupLimit is null) {
+            var existing=this.Items.Any(static item=>item.Kind is GroupAggregateKind.Min or GroupAggregateKind.Max)||GeneratedNames.Current?.CanUseDiscard!=true ? "var __exists" : "_";
+            return $"{indent}ref var __acc=ref {mapExpression}.GetValueRefOrAddDefault({keyName},out {existing});\n"+this.RenderAccumulatorUpdate("__acc",elementVarName,indent);
         }
         var sb = new StringBuilder();
         sb.AppendLine($"{indent}ref var __acc=ref {mapExpression}.GetValueRefOrNullRef({keyName});");
         sb.AppendLine($"{indent}var __exists=!global::System.Runtime.CompilerServices.Unsafe.IsNullRef(ref __acc);");
+        var limit = limitExpression??throw new InvalidOperationException("GroupLimit needs a limit expression.");
         sb.AppendLine($"{indent}if(!__exists&&{mapExpression}.Count<{limit}) {{");
         sb.AppendLine($"{indent}    __acc=ref {mapExpression}.GetValueRefOrAddDefault({keyName},out _);");
         sb.AppendLine($"{indent}}}");
@@ -96,7 +114,11 @@ internal sealed class GroupByAggregatePlan {
                     }
                     break;
                 case GroupAggregateKind.Sum:
-                    sb.AppendLine($"{indent}{fieldAccess}+={valueExpr};");
+                    if(item.DeferredCheckedSum){
+                        sb.AppendLine($"{indent}{fieldAccess}.Add({valueExpr});");
+                    }else{
+                        sb.AppendLine($"{indent}{fieldAccess}+={valueExpr};");
+                    }
                     break;
                 case GroupAggregateKind.Min:
                     sb.AppendLine($"{indent}if(!__exists || {valueExpr} < {fieldAccess}) {fieldAccess}={valueExpr};");
@@ -312,6 +334,8 @@ internal static class GroupByAggregateFusion {
             string replacementExpr;
             if(item.Kind==GroupAggregateKind.Average){
                 replacementExpr=$"(({item.ResultExpressionType})({fieldAccess}.Sum)/{fieldAccess}.Count)";
+            }else if(item.DeferredCheckedSum){
+                replacementExpr=fieldAccess+".Value";
             }else{
                 replacementExpr=fieldAccess;
             }
@@ -326,7 +350,7 @@ internal static class GroupByAggregateFusion {
         if(funcFragment is not null){
             foreach(var hoisted in funcFragment.HoistedLocals){
                 aggPlan.ReceiverNames.Add(hoisted.Name);
-                bodyText=bodyText.Replace(hoisted.ExpressionText,$"this.{hoisted.Name}",StringComparison.Ordinal);
+                bodyText=bodyText.Replace(hoisted.BindingExpressionText,$"this.{hoisted.Name}",StringComparison.Ordinal);
                 bodyText=System.Text.RegularExpressions.Regex.Replace(
                     bodyText,
                     $@"(?<![\w\.]){System.Text.RegularExpressions.Regex.Escape(hoisted.Name)}\b",
@@ -392,6 +416,10 @@ internal static class GroupByAggregateFusion {
             case GroupAggregateKind.Sum:
                 item.AccumulatorFieldType=inputType;
                 item.ResultExpressionType=inputType;
+                if(inputType is "int" or "System.Int32" or "global::System.Int32" or "long" or "System.Int64" or "global::System.Int64" or "decimal" or "System.Decimal" or "global::System.Decimal"){
+                    item.DeferredCheckedSum=true;
+                    item.AccumulatorFieldType=$"global::Seamless.Linq.DeferredGroupSum<{inputType}>";
+                }
                 break;
             case GroupAggregateKind.Min:
             case GroupAggregateKind.Max:

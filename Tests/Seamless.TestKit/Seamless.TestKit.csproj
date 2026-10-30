@@ -18,9 +18,22 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="MemoryPack" Version="1.*" />
-    <PackageReference Include="Microsoft.Garnet" Version="2.2.1" />
+    <PackageReference Include="Microsoft.Garnet" Version="[2.2.1]" PrivateAssets="all" ExcludeAssets="all" GeneratePathProperty="true" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
   </ItemGroup>
+  <!-- 元packageはsupport DLLの取得専用。Coreは修正済みprojectを公開参照する。 -->
+  <ItemGroup>
+    <ProjectReference Include="../../Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
+    <Reference Include="Garnet.common">
+      <HintPath>$(PkgMicrosoft_Garnet)/lib/net10.0/Garnet.common.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Tsavorite.devices.AzureStorageDevice">
+      <HintPath>$(PkgMicrosoft_Garnet)/lib/net10.0/Tsavorite.devices.AzureStorageDevice.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+  <Import Project="../../Seamless.Tsavorite.Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
 </Project>

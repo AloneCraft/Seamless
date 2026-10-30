@@ -1,0 +1,27 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using MemoryPack;
+using Seamless.Execution;
+using Seamless.Linq;
+
+namespace TestSeamless.Queries;
+
+[MemoryPackable]public sealed partial record AggregateJoinRow(int ParentId,string ParentName,int ItemCount,decimal? AmountTotal);
+public sealed class AggregateJoinQuery{
+    public IEnumerable<AggregateJoinRow> Find({{DatabaseType}} database,int arguments,CancellationToken cancellationToken){
+        using var scope=new ExecutionScope(new(){CancellationToken=cancellationToken});
+        foreach(var parent in scope.Query(database.dbo.FixtureParent.AsEnumerable()).OrderBy(row=>row.Id)){
+            cancellationToken.ThrowIfCancellationRequested();var count=this.CountMatching(database,parent.Id,cancellationToken);decimal? total=null;
+            foreach(var item in database.dbo.FixtureItem){
+                cancellationToken.ThrowIfCancellationRequested();
+                if(item.ParentId!=parent.Id){continue;}
+                if(item.Amount.HasValue){total=(total??0m)+item.Amount.Value;}
+            }
+            yield return new(parent.Id,parent.Name,count,total);
+        }
+    }
+    public int CountMatching({{DatabaseType}} database,int parentId,CancellationToken token)=>database.dbo.FixtureItem.Where(row=>CheckCancellation(token,row.Id)&&row.ParentId==parentId).Count();
+    private static bool CheckCancellation(CancellationToken token,int rowId){token.ThrowIfCancellationRequested();return true;}
+}

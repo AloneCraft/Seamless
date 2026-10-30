@@ -51,7 +51,7 @@ internal sealed class TsavoriteLayout:IDisposable{
         ArgumentNullException.ThrowIfNull(store);
         ArgumentOutOfRangeException.ThrowIfNegative(expectedCount);
         ArgumentNullException.ThrowIfNull(tuning);
-        var profile=store.ResolveProfile(name,"Tsavorite",elementType,expectedCount,tuning.Overrides,tuning.Growth);
+        var profile=store.ResolveProfile(name,"Tsavorite",elementType,expectedCount,tuning.Overrides,tuning.Growth,ProfileIO.Describe(tuning.Storage));
         tuning=tuning with{IndexSize=profile.Settings.IndexBytes,PageSize=profile.Settings.PageBytes!.Value,SegmentSize=profile.Settings.SegmentBytes!.Value,LogMemorySize=profile.Settings.LogMemoryBytes,MutableFraction=profile.Settings.MutableFraction!.Value};
         tuning.Validate(store.Kind);
         TsavoriteSavedState? saved=null;

@@ -180,8 +180,8 @@ Console.WriteLine(set.Contains(1));         // True
 
 - [`Seamless.Execution`](Seamless.Execution/) は実行スコープ、256 MiB／16 GiBの既定共有予算、決定的Codec、一時資源所有を提供します。
 - [`Seamless.Linq`](Seamless.Linq/) の `scope.Query(source)` は、外部ソート、退避可能なGroupBy／Join／集合演算、バイト一致の既定等値性を提供します。
-- [`Verification.Cli`](Verification.Cli/) と [`Verification.UI`](Verification.UI/) は同じ検証計画、SQLite履歴、固定baseline、replay／resume／Dynamic失敗縮小を使用します。
-- 操作方法と比較条件は [Seamless Verification](docs/verification.md)、実行・等値性・DB・移行契約は [Execution、LINQ、Databaseの現在仕様](docs/execution-and-database.md) を参照してください。
+- DynamicはFLinqの検証・固定参照コードとの比較、Scalableは大規模コレクションとLINQ・容量探索を受け持ち、共有SQLite履歴へ記録します。
+- 操作方法と比較条件は [測定履歴・比較・プロファイル](docs/verification.md)、利用者向けAPIは [初期設定と拡張](docs/profiles.md)、実行・等値性・DB契約は [Execution、LINQ、Databaseの現在仕様](docs/execution-and-database.md) を参照してください。
 
 ## 連絡先
 

@@ -1,0 +1,12 @@
+using System.Text.Json;
+using Seamless.Database.Rdbms;
+namespace TestSeamless;
+public static class Program{
+ public static void Main(string[] args){
+  var path=args[0];Directory.CreateDirectory(path);var db=new ComparisonDatabase("fixture","Fixture","fixture-v1",true,new DatabaseCatalog("fixture",[]),[new GeneratedTableBinding("dbo.CancelRows","dbo","CancelRows",[])]);
+  var generation=new ComparisonGeneration("sample-module","test",DateTimeOffset.UtcNow,[db]);
+  var definitions=Path.Combine(path,"handwritten.json");File.WriteAllText(definitions,JsonSerializer.Serialize(new[]{new{Id="sample/find",Database="fixture",ClassName="TestSeamless.Queries.AggregateJoinQuery",MethodName="Find",ArgumentsType="System.Int32",ResultType="TestSeamless.Queries.AggregateJoinRow",ClientMethodName="AggregateJoinAsync",IsReadOnly=true,ComparisonArgumentsJson="0",ComparisonColumns=new[]{"ParentId","ParentName","ItemCount","AmountTotal"},SourceFile="AggregateJoin.cs.template"}}));
+  File.Copy(Path.Combine(args[1],"TestSeamless/Queries/AggregateJoin.cs.template"),Path.Combine(path,"AggregateJoin.cs.template"),true);
+  QueryModuleWriter.Write(path,generation,definitions);
+ }
+}

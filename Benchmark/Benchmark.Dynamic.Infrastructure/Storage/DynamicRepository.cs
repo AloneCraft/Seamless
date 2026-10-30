@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Microsoft.Data.Sqlite;
 
 namespace Benchmark.Dynamic.Infrastructure;
@@ -6,10 +6,12 @@ namespace Benchmark.Dynamic.Infrastructure;
 public sealed class DynamicRepository{
     private readonly DynamicDatabase database;
     private readonly DynamicSingleWriterQueue writer;
+    private readonly DynamicHistoryProjector history;
 
     public DynamicRepository(DynamicDatabase database,DynamicSingleWriterQueue writer){
         this.database=database??throw new ArgumentNullException(nameof(database));
         this.writer=writer??throw new ArgumentNullException(nameof(writer));
+        this.history=new();
     }
 
     public async Task SaveRunPlanAsync(
@@ -28,6 +30,7 @@ public sealed class DynamicRepository{
             foreach(var query in queries){
                 UpsertQuery(connection,transaction,query);
             }
+            this.history.SaveRun(connection,transaction,run);
             return true;
         },cancellationToken).ConfigureAwait(false);
     }
@@ -38,6 +41,7 @@ public sealed class DynamicRepository{
         ArgumentNullException.ThrowIfNull(run);
         await this.writer.ExecuteAsync((connection,transaction)=>{
             UpsertRun(connection,transaction,run);
+            this.history.SaveRun(connection,transaction,run);
             return true;
         },cancellationToken).ConfigureAwait(false);
     }
@@ -151,6 +155,10 @@ public sealed class DynamicRepository{
             }
             foreach(var runEvent in checkpoint.RunEvents??[]){
                 UpsertRunEvent(connection,transaction,runEvent);
+            }
+            this.history.SaveMeasurements(connection,transaction,checkpoint.Run,checkpoint.Measurements);
+            foreach(var diagnostic in checkpoint.Diagnostics??[]){
+                if(diagnostic.Name=="MeasurementConditions"){this.history.SaveChanges(connection,transaction,checkpoint.Run,diagnostic.DetailsJSON);}
             }
             return true;
         },cancellationToken).ConfigureAwait(false);

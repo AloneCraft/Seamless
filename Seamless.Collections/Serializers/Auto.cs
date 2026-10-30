@@ -3,7 +3,7 @@ namespace Seamless.Collections.Serializers;
 /// <summary>
 /// 型ごとの静的特殊化ディスパッチャ。
 /// unmanaged 型は blittable ゼロコピー経路(<see cref="Blittable{T}"/> と同一実装)、
-/// 参照を含む型はシリアライズ版(<see cref="MemoryPackSerializer{T}"/>)へ振り分ける。
+/// 参照を含む型はシリアライズ版(<see cref="MemoryPack{T}"/>)へ振り分ける。
 /// 判定 <see cref="RuntimeHelpers.IsReferenceOrContainsReferences{T}"/> は JIT intrinsic で
 /// 具体型ごとに定数畳み込みされ、分岐は消えて片方の経路だけが機械語に残る。
 /// したがって値型キーは実行時分岐なしの blittable 経路にコンパイルされる(技法a/b)。

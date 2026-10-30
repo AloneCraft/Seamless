@@ -12,7 +12,8 @@ public sealed class ExecutionScope:IDisposable,IAsyncDisposable{
     public ExecutionScope(ExecutionOptions? options=null){
         this.options=options??new();
         ArgumentException.ThrowIfNullOrWhiteSpace(this.options.TemporaryDirectory);
-        this.Budget=new(this.options.MemoryLimitBytes,this.options.TemporaryStorageLimitBytes);
+        this.Budget=this.options.ParentBudget?.CreateChild(this.options.MemoryLimitBytes,this.options.TemporaryStorageLimitBytes)
+            ??new(this.options.MemoryLimitBytes,this.options.TemporaryStorageLimitBytes);
         this.Codecs=new();
     }
     public ResourceBudget Budget{get;}

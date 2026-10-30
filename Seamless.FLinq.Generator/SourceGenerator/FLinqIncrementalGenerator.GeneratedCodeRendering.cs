@@ -4,6 +4,8 @@ namespace Seamless.FLinq.Generator;
 
 public sealed partial class FLinqIncrementalGenerator {
 
+    private static readonly CSharpParseOptions GeneratedExpressionParseOptions=new(LanguageVersion.Preview);
+
     /// <summary>
     /// source generator の生成コードを検証する。
     /// Fragment 構築中に積み上がる <c>staticMethods</c> を逐次マージするために使う。
@@ -59,8 +61,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 text=text.Replace(pair.Key,pair.Value,StringComparison.Ordinal);
             }
         }
-        return text
-            .Replace("this.","@this.",StringComparison.Ordinal);
+        return NormalizeGeneratedExpressionText(text);
     }
     private static string RenderStatementForGeneratedMethod(
         StatementSyntax statement,
@@ -96,8 +97,7 @@ public sealed partial class FLinqIncrementalGenerator {
             }
         }
 
-        return text
-            .Replace("this.","@this.",StringComparison.Ordinal);
+        return NormalizeGeneratedExpressionText(text);
     }
 
     private static IEnumerable<ExpressionSyntax> OutermostStatementExpressions(StatementSyntax statement) {
@@ -351,6 +351,10 @@ public sealed partial class FLinqIncrementalGenerator {
     /// source generator の生成コードを検証する。
     /// </summary>
     private static void インデント付き追記(StringBuilder builder,string value,string indent) {
+        if(GeneratedTextFormatting.TryIndentPreservingTokens(value,indent,out var preserved)) {
+            builder.AppendLine(preserved);
+            return;
+        }
         foreach(var line in value.Replace("\r\n","\n").Split('\n')) {
             if(line.Length==0) {
                 builder.AppendLine();
@@ -383,18 +387,37 @@ public sealed partial class FLinqIncrementalGenerator {
         return builder.ToString();
     }
 
-    /// <summary>改行を空白に置換してトリミングする。置換マップのキー正規化に使う。</summary>
+    /// <summary>前後だけをトリミングする。literal値とcomment境界の改行をkey/本文の両方で保つ。</summary>
     private static string NormalizeExpressionText(string value) {
-        return value.Replace("\r\n"," ").Replace('\n',' ').Trim();
+        return value.Trim();
     }
 
     /// <summary>
-    /// <see cref="NormalizeExpressionText"/> に加え、<c>this.</c> → <c>@this.</c> の変換も行う。
+    /// <see cref="NormalizeExpressionText"/> に加え、実際のthis tokenだけを@thisへ変換する。
     /// 生成コードへ埋め込む式テキストの標準化に使う。
     /// </summary>
-    private static string NormalizeGeneratedExpressionText(string value) =>
-        NormalizeExpressionText(value)
-            .Replace("this.","@this.",StringComparison.Ordinal);
+    private static string NormalizeGeneratedExpressionText(string value){
+        var text=NormalizeExpressionText(value);
+        if(text.IndexOf("this",StringComparison.Ordinal)<0){return text;}
+        var builder=new StringBuilder(text.Length);
+        foreach(var token in SyntaxFactory.ParseTokens(text,options:GeneratedExpressionParseOptions)){
+            if(token.IsKind(SyntaxKind.ThisKeyword)){
+                builder.Append(token.LeadingTrivia.ToFullString()).Append("@this").Append(token.TrailingTrivia.ToFullString());
+            }else if(token.IsKind(SyntaxKind.InterpolatedStringToken)){
+                // lexerでは補間全体が1token。text/formatを保ち、parserでhole内のthisだけを見る。
+                var expression=SyntaxFactory.ParseExpression(token.Text,options:GeneratedExpressionParseOptions);
+                var rewritten=new GeneratedThisExpressionRewriter().Visit(expression)!;
+                builder.Append(token.LeadingTrivia.ToFullString()).Append(rewritten.ToFullString()).Append(token.TrailingTrivia.ToFullString());
+            }else{
+                builder.Append(token.ToFullString());
+            }
+        }
+        return builder.ToString();
+    }
+
+    private sealed class GeneratedThisExpressionRewriter:CSharpSyntaxRewriter{
+        public override SyntaxNode? VisitThisExpression(ThisExpressionSyntax node)=>SyntaxFactory.IdentifierName("@this").WithTriviaFrom(node);
+    }
 
     private static string RenderArgumentForGeneratedMethod(
         ArgumentSyntax argument,
@@ -671,11 +694,10 @@ public sealed partial class FLinqIncrementalGenerator {
                 continue;
             }
 
-            var memberText = NormalizeExpressionText(memberAccess.ToString())
-                .Replace("this.","@this.",StringComparison.Ordinal);
+            var memberText = NormalizeGeneratedExpressionText(memberAccess.ToString());
             var receiver = method.IsStatic
                 ? null
-                : NormalizeExpressionText(memberAccess.Expression.ToString()).Replace("this","@this",StringComparison.Ordinal);
+                : NormalizeGeneratedExpressionText(memberAccess.Expression.ToString());
             text=text.Replace(
                 memberText,
                 RenderDelegateCreateExpression(method,delegateType,receiver,unsafeAccessorCollector),
@@ -702,8 +724,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 continue;
             }
 
-            var memberText = NormalizeExpressionText(memberAccess.ToString())
-                .Replace("this.","@this.",StringComparison.Ordinal);
+            var memberText = NormalizeGeneratedExpressionText(memberAccess.ToString());
             var receiverText = RenderExpressionForGeneratedMethod(memberAccess.Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
             text=text.Replace(memberText,receiverText,StringComparison.Ordinal);
             text=text.Replace($"{receiverText}.Anchor",receiverText,StringComparison.Ordinal);
@@ -715,8 +736,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 continue;
             }
 
-            var memberText = NormalizeExpressionText(memberAccess.ToString())
-                .Replace("this.","@this.",StringComparison.Ordinal);
+            var memberText = NormalizeGeneratedExpressionText(memberAccess.ToString());
             var replacement = field.HasConstantValue
                 ? RenderConstantValue(field.ConstantValue)
                 : RenderFieldForwardExpression(field,memberAccess,semanticModel,unsafeAccessorCollector);
@@ -735,15 +755,13 @@ public sealed partial class FLinqIncrementalGenerator {
                 ||property.GetMethod is null) {
                 continue;
             }
-            var memberText = NormalizeExpressionText(memberAccess.ToString())
-                .Replace("this.","@this.",StringComparison.Ordinal);
+            var memberText = NormalizeGeneratedExpressionText(memberAccess.ToString());
             var accessorName = $"__Property_{SanitizeIdentifier(property.ContainingType.Name)}_{SanitizeIdentifier(property.Name)}";
             var targetTypeName = property.ContainingType.ToDisplayString(完全修飾形式);
             var propTypeName = property.Type.ToDisplayString(完全修飾形式);
             var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"get_{property.Name}\")]\nprivate static extern {propTypeName} {accessorName}({targetTypeName} @this);";
             unsafeAccessorCollector?.Add(accessorCode);
-            var receiverText = NormalizeExpressionText(memberAccess.Expression.ToString())
-                .Replace("this","@this",StringComparison.Ordinal);
+            var receiverText = NormalizeGeneratedExpressionText(memberAccess.Expression.ToString());
             text=text.Replace(memberText,$"{accessorName}({receiverText})",StringComparison.Ordinal);
         }
         foreach(var param in allParameters) {

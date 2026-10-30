@@ -23,7 +23,7 @@ public sealed class EGenFlatFileImporter{
             var output=Path.Combine(Path.GetTempPath(),"tpce-egen-test-"+Guid.NewGuid().ToString("N"))+Path.DirectorySeparatorChar;
             Directory.CreateDirectory(output);
             try{
-                var start=new ProcessStartInfo(exe){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false};
+                var start=new ProcessStartInfo(exe){RedirectStandardOutput=true,RedirectStandardError=true,UseShellExecute=false,CreateNoWindow=true};
                 foreach(var argument in new[]{"-b","1","-c","1000","-t","1000","-f","500","-w","1","-i",inputs+Path.DirectorySeparatorChar,"-o",output,"-x"}){
                     start.ArgumentList.Add(argument);
                 }
@@ -33,7 +33,7 @@ public sealed class EGenFlatFileImporter{
                     process.WaitForExit();
                     Assert.Equal(0,process.ExitCode);
                 }
-                var scale=new TpcEScale{Customers=1000,InitialTradeDays=1,MarketDays=1305,NewsItemBytes=100_000};
+                var scale=new TpcEScale{Customers=1000,InitialTradeDays=1,MarketDays=1305,NewsItemBytes=100_000,TsavoriteSegmentBytes=NativeTestProgress.SegmentBytes};
                 using var store=Store.CreateTemporary();
                 using var engine=new Benchmark.TpcE.Tsavorite.FLinq.TsavoriteFLinqVariant().Open(store,scale);
                 engine.Database.BeginBulkLoad();

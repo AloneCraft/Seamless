@@ -55,8 +55,11 @@ public static class ConsolidationMemory {
 }
 $load=[ConsolidationMemory]::Load()
 if($load -ge 85){throw "Not started: physical memory $load%."}
-$runID=$Name+'-'+[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')+'-'+[Guid]::NewGuid().ToString('N')
-$runDirectory=Join-Path $dataRoot $runID
+$directoryID=[Guid]::NewGuid().ToString('N')
+$runID=$Name+'-'+[DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')+'-'+$directoryID
+# チェックポイントがさらに長い階層を追加するため、実行名と時刻はログにだけ付ける。
+$runDirectory=Join-Path $dataRoot $directoryID
+if(Test-Path -LiteralPath $runDirectory){throw "Run directory already exists: $runDirectory"}
 $temporaryDirectory=Join-Path $runDirectory 'temp'
 $testDirectory=Join-Path $runDirectory 'data'
 foreach($directory in @($runDirectory,$temporaryDirectory,$testDirectory)){
@@ -141,7 +144,16 @@ try{
     if(-not $reason -and $child.ExitCode -eq 0){$metadata.Status='Completed'}
     $metadata.Reason=$reason
     Write-Output "$Name exit=$($child.ExitCode) peak=$peak% seconds=$([Math]::Round($timer.Elapsed.TotalSeconds,1)) $reason log=$logPath"
-    Get-Content -LiteralPath $logPath -Tail 12
+    # 履歴JSONは1行が数MBになるため、完全な内容はファイルに残しコンソールへの転送量を制限する。
+    # Get-Content -Tail は巨大な1行を逆向きに読む際に時間がかかるため、前から読む。
+    $tail=[Collections.Generic.Queue[string]]::new()
+    foreach($line in [IO.File]::ReadLines($logPath)){
+        $text=$line
+        if($text.Length -gt 800){$text=$text.Substring(0,800)+' [truncated; see full log]'}
+        $tail.Enqueue($text)
+        if($tail.Count -gt 12){$null=$tail.Dequeue()}
+    }
+    foreach($line in $tail){Write-Output $line}
     if($reason){throw $reason}
     exit $child.ExitCode
 }finally{

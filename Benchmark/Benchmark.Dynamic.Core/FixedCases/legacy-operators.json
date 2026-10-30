@@ -1,0 +1,450 @@
+[
+  {
+    "Name": "Where",
+    "Call": ".Where(x=>(x&1)==0)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Select",
+    "Call": ".Select(x=>x*3+1)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "SelectMany",
+    "Call": ".SelectMany(x=>second)",
+    "Terminal": false,
+    "Second": true,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Join",
+    "Call": ".Join(second,x=>x&15,y=>y&15,(x,y)=>x+y)",
+    "Terminal": false,
+    "Second": true,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "GroupJoin",
+    "Call": ".GroupJoin(second,x=>x&15,y=>y&15,(x,g)=>x+g.Count())",
+    "Terminal": false,
+    "Second": true,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Take",
+    "Call": ".Take(12)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Skip",
+    "Call": ".Skip(4)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "TakeLast",
+    "Call": ".TakeLast(8)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "SkipLast",
+    "Call": ".SkipLast(4)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "TakeWhile",
+    "Call": ".TakeWhile(x=>x<200)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "SkipWhile",
+    "Call": ".SkipWhile(x=>x<20)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Distinct",
+    "Call": ".Distinct()",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "DistinctBy",
+    "Call": ".DistinctBy(x=>x&31)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Union",
+    "Call": ".Union(second)",
+    "Terminal": false,
+    "Second": true,
+    "Unordered": true,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Intersect",
+    "Call": ".Intersect(second)",
+    "Terminal": false,
+    "Second": true,
+    "Unordered": true,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Except",
+    "Call": ".Except(second)",
+    "Terminal": false,
+    "Second": true,
+    "Unordered": true,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "UnionBy",
+    "Call": ".UnionBy(second,x=>x&31)",
+    "Terminal": false,
+    "Second": true,
+    "Unordered": true,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "IntersectBy",
+    "Call": ".IntersectBy(second,x=>x&31)",
+    "Terminal": false,
+    "Second": true,
+    "Unordered": true,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "ExceptBy",
+    "Call": ".ExceptBy(second,x=>x&31)",
+    "Terminal": false,
+    "Second": true,
+    "Unordered": true,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Concat",
+    "Call": ".Concat(second)",
+    "Terminal": false,
+    "Second": true,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Append",
+    "Call": ".Append(77)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Prepend",
+    "Call": ".Prepend(11)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "DefaultIfEmpty",
+    "Call": ".DefaultIfEmpty(0)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Reverse",
+    "Call": ".Reverse()",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "OrderBy",
+    "Call": ".OrderBy(x=>x&31)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "OrderByDescending",
+    "Call": ".OrderByDescending(x=>x&31)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "GroupBy_Sum",
+    "Call": ".GroupBy(x=>x&15,x=>x).Select(g=>g.Key+g.Sum())",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": true,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "GroupBy_Count",
+    "Call": ".GroupBy(x=>x&15).Select(g=>g.Key*10+g.Count())",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": true,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "GroupBy_KeyOnly",
+    "Call": ".GroupBy(x=>x&15).Select(g=>g.Key)",
+    "Terminal": false,
+    "Second": false,
+    "Unordered": true,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Zip",
+    "Call": ".Zip(second,(x,y)=>x+y)",
+    "Terminal": false,
+    "Second": true,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "ToArray",
+    "Call": ".ToArray()",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "ToList",
+    "Call": ".ToList()",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "ToHashSet",
+    "Call": ".ToHashSet()",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": true,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Count",
+    "Call": ".Count()",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Count_Pred",
+    "Call": ".Count(x=>(x&1)==0)",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "LongCount",
+    "Call": ".LongCount()",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Sum",
+    "Call": ".Sum(x=>(long)x)",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Min",
+    "Call": ".Min()",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Max",
+    "Call": ".Max()",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "MinBy",
+    "Call": ".MinBy(x=>x&31)",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "MaxBy",
+    "Call": ".MaxBy(x=>x&31)",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Average",
+    "Call": ".Average(x=>(long)x)",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Aggregate",
+    "Call": ".Aggregate(0L,(acc,x)=>acc+x)",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Any",
+    "Call": ".Any()",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Any_Pred",
+    "Call": ".Any(x=>x%7==0)",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "All",
+    "Call": ".All(x=>x>=-10000)",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Contains",
+    "Call": ".Contains(10)",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "First",
+    "Call": ".First()",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "FirstOrDefault",
+    "Call": ".FirstOrDefault()",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "Last",
+    "Call": ".Last()",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "LastOrDefault",
+    "Call": ".LastOrDefault()",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "ElementAt",
+    "Call": ".ElementAt(2)",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "ElementAtOrDefault",
+    "Call": ".ElementAtOrDefault(2)",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "SequenceEqual",
+    "Call": ".SequenceEqual(second)",
+    "Terminal": true,
+    "Second": true,
+    "Unordered": false,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "CountBy_ToArray",
+    "Call": ".CountBy(x=>x&15).Select(kv=>kv.Key+kv.Value).ToArray()",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": true,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  },
+  {
+    "Name": "AggregateBy_ToArray",
+    "Call": ".AggregateBy(x=>x&15,0,(acc,x)=>acc+x).Select(kv=>kv.Key+kv.Value).ToArray()",
+    "Terminal": true,
+    "Second": false,
+    "Unordered": true,
+    "OriginalSHA256": "e52c83c51d8047a268d7394fb1ac9cf6f800b2a5167444c9980f94e84ac21e01"
+  }
+]

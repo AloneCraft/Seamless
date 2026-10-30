@@ -71,7 +71,7 @@ public sealed class RandomQueryGenerator{
         if(options.MaximumDepth<1){
             throw new ArgumentOutOfRangeException(nameof(options.MaximumDepth));
         }
-        if(options.InputElementCount<1||options.InputElementCount>100_000){
+        if(options.InputElementCount<0||options.InputElementCount>100_000){
             throw new ArgumentOutOfRangeException(nameof(options.InputElementCount));
         }
         if(options.MaximumCardinality<1||options.MaximumCardinality>100_000){

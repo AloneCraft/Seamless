@@ -1,5 +1,4 @@
-using DynamicLinq;
-namespace Test.System.Linq.Intercept;
+﻿namespace Test.System.Linq.Intercept;
 
 public sealed class EnumerableComparisonCatalogTests {
     public static IEnumerable<object[]> BenchmarkMethodNames() {

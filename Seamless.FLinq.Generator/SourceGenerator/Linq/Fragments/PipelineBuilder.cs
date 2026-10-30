@@ -47,8 +47,6 @@ internal static partial class PipelineBuilder {
         string? terminalValue = null;
         for(var index = 0;index<invocations.Count;index++) {
             var currentInvocation = invocations[index];
-            suppressAggregateFusion=false;
-            pendingGroupLimit=null;
             if(semanticModel.GetSymbolInfo(currentInvocation).Symbol is not IMethodSymbol method) {
                 return false;
             }
@@ -67,9 +65,20 @@ internal static partial class PipelineBuilder {
                     ??"object";
                 continue;
             }
-            // この後に途中で止まる・飛ばす演算(First・Any・Take・Skip など)があるときは、GroupBy の集約を融合しない。
-            // 融合した集約は全グループの集約を評価するが、System.Linq は必要なグループだけを評価する(評価回数の検査で見つかった)。
-            suppressAggregateFusion=ConsumesOnlyPartOfSequence(semanticModel,invocations,index,out pendingGroupLimit);
+            if(methodName is "Order" or "OrderDescending" or "OrderBy" or "OrderByDescending"
+                &&stages.Any(static stage=>IsPrimaryOrderStage(stage.Kind))){
+                // 次の一次整列は別の安定整列として残す。ThenBy と同じ sorter には畳まない。
+                stages=GroupByFusionPass.Apply(stages,new TerminalDemand(null,false,false),services.Trace);
+                stages=LinqOptimizationExecutor.NormalizePipeline(stages,services.JoinStaticMethods,services.Configuration,services.Trace);
+                stages=StreamGroupByKeysWhenResultIgnoresGroup(sourceFragment,stages);
+                stages=StripRangeNoOpPrefix(ref sourceFragment,stages,ref snapshot);
+                if(!ValidateStageCombination(stages,null,allowSingleStage:true)){return false;}
+                var prefix=PipelineEnumerable.CreateWithOrderSourceDemand(snapshot++,sourceFragment,stages.ToArray(),currentElementType);
+                AddUnsafeAccessors(stages,unsafeAccessorCollector);
+                sourceStaticMethods=services.JoinStaticMethods(sourceStaticMethods,prefix.StructMethod);
+                sourceFragment=prefix;
+                stages.Clear();
+            }
             if(TryAppendStage(semanticModel,currentInvocation,method,services,ref snapshot,stages,ref currentElementType)) {
                 continue;
             }
@@ -89,6 +98,9 @@ internal static partial class PipelineBuilder {
             return false;
         }
 
+        // GroupBy の集約を融合するかは、段の並びと終端が揃ってから、下流の要求(DemandAnalysis)を見て決める。
+        // 正規化は Select を併合するので、その前に行う(候補を持つ Select が併合されると候補が失われる)。
+        stages=GroupByFusionPass.Apply(stages,new TerminalDemand(terminalKind,terminalFunc1 is not null,false,terminalValue),services.Trace);
         stages=LinqOptimizationExecutor.NormalizePipeline(stages,services.JoinStaticMethods,services.Configuration,services.Trace);
         stages=StreamGroupByKeysWhenResultIgnoresGroup(sourceFragment,stages);
         stages=StripRangeNoOpPrefix(ref sourceFragment,stages,ref snapshot);
@@ -171,7 +183,10 @@ internal static partial class PipelineBuilder {
                 return true;
             }
         }
-        var pipeline = new PipelineEnumerable(snapshot++,sourceFragment,stages.ToArray(),currentElementType);
+        if(sourceFragment is Join plannedJoin&&terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount){
+            plannedJoin.PlanConsumption(DemandAnalysis.Analyze(stages,new(terminalKind,terminalFunc1 is not null,false,terminalValue)).Source,services.Trace);
+        }
+        var pipeline=PipelineEnumerable.CreateWithOrderSourceDemand(snapshot++,sourceFragment,stages.ToArray(),currentElementType);
         AddUnsafeAccessors(stages,unsafeAccessorCollector);
         if(terminalKind is { } terminal) {
             if(terminalResultType is null) {
