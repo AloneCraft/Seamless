@@ -1,0 +1,13 @@
+# Count比較の短絡化と例外・Anchor
+
+Fact: nested-counter-total-root-phase3-01-reviewed は22件中20成功、2失敗。Pure21、可視境界21、cross63、generic cast3と旧nested群は成功。非AnchorのCount/failure2はSystemが最初の内側失敗で止まるまでに無いO2等を追加実行し、Anchor付きCountは3入力すべてtrace不一致。入力・生成C#・診断・実行結果は原本として保持する。
+
+Cause: AlgebraicRewriter.TryRewriteCountComparison がCount/LongCountのsourceやpredicateを検査せずAnyへ短絡化していた。Anchor付きの省略禁止にも、非Anchor時の正常値・例外・評価上限にも適合しない。
+
+Decision: Anchorを含むCount比較は短絡化しない。それ以外も、列挙中の例外が無い既知の有限sourceと、無副作用・無例外なprimitive predicateを証明できる場合だけ適用する。array/List、Range/Repeat/Empty、およびそれらの純粋Where/Select/Reverse/AsEnumerableを初期の証明範囲とする。未知IEnumerableや呼出し/field/property/checked/divideを含むpredicateはCountの実行形を維持する。単に最適化を全面停止する修正にはしない。
+
+Invariant: source式・引数式は元の位置で同回数評価する。Count/LongCountの値と例外はSystemと一致し、Anchor時はtraceも一致する。既知arrayの純粋predicateでは短絡化を保持し、実行されたlambda総数を独立算出する。
+
+Validation: 既存phase3の2失敗を同fixtureで再実行する。追加のarray述語例外、checked overflow、divide、未知iterator途中例外、Anchor、純粋array/Whereの比較を独立Systemで確認する。入力・生成・diagnostics・loaded DLL hashを保存し、before/after artifactを上書きしない。既存Count比較/固定点の関連回帰も対象とする。
+
+Scope: rootだけがAlgebraicRewriterと対応する新fixtureを変更する。Counter製品2files、ordered候補、正式Core、TPC-Cはこの変更で触れない。CounterOnlyの例外時attempt/completion差は別の既存制約として保持する。

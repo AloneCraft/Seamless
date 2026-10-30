@@ -288,8 +288,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
         // 並べ替え・Reverse の後は元の順序で必要な分だけ述語を評価する。前倒しで
         // System.Linq が読まない要素へ評価を増やさないよう、下流の全件消費を要求する。
         if(uc.MethodName is "Order" or "OrderBy" or "OrderDescending" or "OrderByDescending" or "Reverse"){
-            if(AnchorAnalysis.ContainsAnchor(wl,this.model)
-                ||uc.Arguments.Any(argument=>AnchorAnalysis.ContainsAnchor(argument.Expression,this.model))
+            if(!OrderFilterReorderSafety.CanMoveFilter(ui,wl,this.model)
                 ||!DemandAnalysis.IsEntireSequenceConsumed(invocation,this.model,this.enumerableType)){
                 return null;
             }

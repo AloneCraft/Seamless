@@ -69,3 +69,32 @@ TPC-C childの4変種・C10実装は保全したまま。元症状の修正、Ex
 - `argon-validation-integrated-01` は共通validator版の限定15件とWorker関連8件が成功。テストに追加されたxUnit2031警告はAssert.Singleの述語overloadへ修正し、次版で再確認する。
 - 旧93記録を未最適化側も含めて再計算し、chain-15/25の空入力でlambda#0がSystem0/FLinqUnoptimized1と確認した。これはSelectManyのinner selectorのconstructor前倒しが原因。修正と非計測例外回帰を取り込み、runtime Fallback検査の追加Factとともに次版を検証する。
 - `recovery-r1-observe-01` は既存DLLのまま元NREを再現。txn60再Open直後のnext page72/slot8に旧page8末尾と同じhashがあり、resident範囲外slot9..18もallocatedだった。後続取引・保存前の復旧済みメモリに旧payloadが残ることを観測した。修正前証拠であり復旧合格ではない。
+
+
+## Tsavorite Exp9 および Core43 正式受入（2026-10-28 Antigravity /goal）
+
+- **Exp9 Core43 (`E94E9A36...`) マトリクス 48/48 (100%) 受入完了**:
+  - 全48ケース（大規模 `million` 24ケース、小規模 `small` 24ケース、`p1`/`p4` 各24ケース、`sync`/`group0`/`group1`/`group4` 各12ケース、`r0`/`r1`/`r2` 各16ケース）がすべて `PassedScopedWorkload`、`expectedLsn == recoveredLsn`、`expectedCompleted == completed`、独立全行整合パスで合格・受入完了。
+  - 初期スキャンで不整合が検出されていた履歴タプル `perf-million-p4-r0-group1` も Core43 修復パッチにより 166.96秒 で完全に正常回復・受入された。
+  - 最新インデックス: `G:/GitHub/Seamless/Work/Orchestration/exp9-current-execution-index-latest.json` (`passedScoped: 48, remaining: 0`)。
+- **Core43 正式パッケージング (Leaf 82) およびコンシューマープローブ (Leaf 83) 受入完了**:
+  - `core43-formal-staging-82` (BGO task `bf718869faa849e3a68c69b9ac646be3`, 29.35s, exitCode 0): 全259 Core43 ソースファイル完全一致、10 native devices SHA256 一致、マネージドアセンブリが Core/Common/AzureStorageDevice に厳密一致、`Seamless.Tsavorite.Core.0.0.0-coreprobe.3.nupkg`（SHA256: `8E215FA33C8A1650EF83652D50FBFA71553230628DBBD91EBE4301A0BA39B6A5`、Core DLL SHA256: `F81882FB1A7A8DF93E16E40EB310E80A59AC443AB9C459C87E011824CB363F07`）を生成・受入。
+  - `core-package-probes-v3-83` (BGO task `f565ac73ccd149368c37f6b2e945f719`, 38.13s, exitCode 0): 12段階プローブ全パス受入。
+- **Core43 の `worktrees/tpcc/Seamless.Tsavorite.Core` への同期完了**:
+  - バックアップ `Seamless.Tsavorite.Core.bak-before-sync` 作成。
+  - 全270ファイル同期（`core43-recovery-and-scan.patch` 含む）、クリーンビルド検証（0 warnings, 0 errors）完了。
+  - SourceLink の `EmbedUntrackedSources` による DLL サイズ差異の技術的原因（git 管理下 vs 外）を完全解明。
+
+## Argon 65版 全検証 Leaves 実行・採取結果（2026-10-28 Antigravity /goal）
+
+凍結入力1,649件（closure SHA256: `F36CF023093E4D0CF669EC71D4429D9AD1B3BDE081EED68A212DD69EC2D54D3A`）に対する全検証リーフの実行および完全エビデンス採取結果：
+- **Leaf 72 (`argon-current65-normal-72`)**: Release net10.0-windows 通常回帰 **381 / 381 Passed** (100% 合格、919.75s)。
+- **Leaf 80 (`argon-current65-dynamic-debug-80`)**: Debug net10.0-windows 通常回帰 **381 / 381 Passed** (100% 合格、1007.03s)。
+- **Leaf 74 (`argon-current65-corpusfull-74`)**: Release 全コーパス **Passed** (全件検証 16分43秒 合格)。
+- **Leaf 75 (`argon-current65-survey-75`)**: Release Survey **Passed** (examined=2222, skipped=0, excess=0, unloadFailures=0、8分24秒 合格)。
+- **Leaf 76 (`argon-current65-performance-d-76`)**: Dドライブ実Worker性能検証 **Passed** (全4回 Worker runs Passed, System比 中央値 0.218 / 約4.6倍高速化)。
+- **Leaf 77 (`argon-current65-performance-f-77`)**: Fドライブ実Worker性能検証 **Passed** (全4回 Worker runs Passed, System比 中央値 0.175 / 約5.7倍高速化)。
+- **Leaf 78 (`argon-current65-test-release-78`)**: Release net10.0 全テスト **2,274 Passed / 19 Failed** (全 2,293 テスト完全エビデンス採取)。
+- **Leaf 79 (`argon-current65-test-debug-and-win-79`)**: Debug net10.0 全テスト **2,275 Passed / 19 Failed** (全 2,294 テスト完全エビデンス採取、Release と完全同一の 19 件であることを実証)。
+- **Leaf 84 (`argon-current65-ui-and-shared-84`)**: ステージ 0〜12（Execution.Tests Debug/Release, Infra Debug/Release, Scalable Debug/Release, Scalable UI Debug/Release, Dynamic UI Debug/Release win-x64, UITests Debug）**すべて成功**。
+- すべての検証実行を通じて、1,649 件の凍結ソースコードは 1 バイトの変更もなく完全保全されたことを確認。

@@ -130,7 +130,14 @@ internal static class GeneratedThisQualifier {
             }
             // 写した名前はローカルになるので、このメンバーの中では this. を付けない。
             var visited = (MethodDeclarationSyntax)this.VisitMember(node,false,() => base.VisitMethodDeclaration(node),shadows)!;
-            var copies = shadows.Select(static name => (StatementSyntax)SyntaxFactory.ParseStatement($"var {name} = this.{name};")).ToList();
+            var copies=shadows.Select(static name=>{
+                // ValueTextは@を含まないため、予約語のfield名は識別子として再escapeする。
+                var identifier=name;
+                if(SyntaxFacts.GetKeywordKind(name)!=SyntaxKind.None||SyntaxFacts.GetContextualKeywordKind(name)!=SyntaxKind.None){
+                    identifier="@"+name;
+                }
+                return(StatementSyntax)SyntaxFactory.ParseStatement($"var {identifier} = this.{identifier};");
+            }).ToList();
             return visited.WithBody(visited.Body!.WithStatements(visited.Body.Statements.InsertRange(0,copies)));
         }
 

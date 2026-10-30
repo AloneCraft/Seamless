@@ -551,6 +551,20 @@ static ワーカー結果メッセージ 高速ベンチマークを実行(
             ベンチマーク呼出();
         }
         var 診断カウンター = 診断カウンターを作成(カウンター);
+        // 旧生成物も読めるため、生成時の証拠との照合前にv2と断定しない。
+        File.WriteAllText(
+            Path.Combine(タスク.成果物フォルダー,"delegate-counter-provenance.json"),
+            JsonSerializer.Serialize(new{
+                計測定義=(string?)null,
+                候補計測定義="visible-query-lambdas-entry-total-v2",
+                定義確認済みか=false,
+                旧計測定義="visible-query-lambdas-total-v1",
+                旧例外計測時点="legacy path dependent; not unified",
+                ランタイムSHA256=Convert.ToHexString(global::System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(typeof(global::Seamless.Linq.LinqCounter).Assembly.Location))),
+                ベンチマークSHA256=Convert.ToHexString(global::System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(ベンチマーク型.Assembly.Location))),
+                生成器SHA256=(string?)null
+            }),
+            Encoding.UTF8);
         File.WriteAllText(
             ログパス,
             "高速ワーカーの直接ベンチマークが完了しました。CPU="
