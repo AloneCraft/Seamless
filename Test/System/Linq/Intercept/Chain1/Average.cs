@@ -21,8 +21,9 @@ public sealed class Average(ITestOutputHelper output):LinqChain1TestBase(output)
     [Fact, Trait("Category","Unit")]
     public void selector_Nested() {
         var expected = Source().Average<int>(p => Source().Average(int (q) => q+p));
-        this.AssertOptimized(expected,() => selector_NestedOptimized(),4,0);
-        this.AssertOptimized(expected,() => selector_NestedNoOptimized(),4,4);
+        // visible-query-lambdas-total-v1: outer と実行された inner の合計。
+        this.AssertOptimized(expected,() => selector_NestedOptimized(),20,0);
+        this.AssertOptimized(expected,() => selector_NestedNoOptimized(),20,20);
     }
 
     [LinqIntercept(true,LinqInstrumentation.Counter)]
