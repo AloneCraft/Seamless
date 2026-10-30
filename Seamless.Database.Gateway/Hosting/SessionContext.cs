@@ -23,6 +23,9 @@ public sealed class SessionContext:IDisposable{
     public CancellationToken CancellationToken{get;set;}
     public int LockTimeoutMilliseconds{get;internal set;}=-1;
     internal bool ServerInformationCleanupAvailable{get;set;}
+    internal bool DatabaseOptionRetentionAvailable{get;set;}
+    internal bool DatabaseAvailabilityAvailable{get;set;}
+    internal int DatabaseAvailabilityCleanupOrdinal{get;set;}
     internal T AcquireLock<T>(Func<CancellationToken,T> acquire){
         if(this.LockTimeoutMilliseconds<0){return acquire(this.CancellationToken);}
         using var timeout=CancellationTokenSource.CreateLinkedTokenSource(this.CancellationToken);
@@ -31,7 +34,7 @@ public sealed class SessionContext:IDisposable{
         catch(OperationCanceledException)when(timeout.IsCancellationRequested&&!this.CancellationToken.IsCancellationRequested){throw new SqlQueryException("Lock request time out period exceeded.",1222);}
     }
     public byte LastTransactionOperation{get;set;}=9;
-    public void Reset(){this.Dispose();this.LastTransactionOperation=10;this.LockTimeoutMilliseconds=-1;this.ServerInformationCleanupAvailable=false;}
+    public void Reset(){this.Dispose();this.LastTransactionOperation=10;this.LockTimeoutMilliseconds=-1;this.ServerInformationCleanupAvailable=false;this.DatabaseOptionRetentionAvailable=false;this.DatabaseAvailabilityAvailable=false;this.DatabaseAvailabilityCleanupOrdinal=0;}
     public bool IsInTransaction=>this.currentTransaction is not null;
 
     public void AttachTransaction(IDisposable transaction){

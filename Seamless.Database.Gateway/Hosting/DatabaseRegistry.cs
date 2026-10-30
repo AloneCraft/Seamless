@@ -30,6 +30,10 @@ public sealed partial class DatabaseRegistry:ISqlCatalog{
             var reference=this.databases.Values.FirstOrDefault();if(reference is null){return null;}if(!SystemCatalogEmulator.TryEmulate("SELECT * FROM sys.databases",reference.Adapter,out var shape)){return null;}
             return new(name,shape.Columns.Select(c=>new SqlColumn(c.Name,new SqlType(c.SqlTypeName,c.ClrType,c.MaximumLength,c.Precision,c.Scale,c.Collation),c.IsNullable,name,c.Ordinal)).ToArray(),_=>DatabaseRows());
         }
+        if(name.Database.Equals("master",StringComparison.OrdinalIgnoreCase)&&name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("database_mirroring",StringComparison.OrdinalIgnoreCase)){
+            var mirroring=SqlServerDatabaseOptionCatalog.Mirroring();
+            return new(name,mirroring.Columns.Select(c=>new SqlColumn(c.Name,new SqlType(c.SqlTypeName,c.ClrType,c.MaximumLength,c.Precision,c.Scale,c.Collation),c.IsNullable,name,c.Ordinal)).ToArray(),_=>mirroring.Rows);
+        }
         if(!this.databases.TryGetValue(name.Database,out var registration)){return null;}
         using var read=ReadSqlDatabase(registration.Adapter);
         if((name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)||name.Schema.Equals("seamless",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("generated_methods",StringComparison.OrdinalIgnoreCase))&&SystemCatalogEmulator.TryCatalog(name.Name,registration.Adapter,registration.Views,registration.Routines,out var catalog,registration.Name)){
@@ -49,8 +53,8 @@ public sealed partial class DatabaseRegistry:ISqlCatalog{
         }
     }
     private IEnumerable<object?[]> DatabaseRows(){
-        yield return ["master",1,"Japanese_CI_AS",(byte)0,"ONLINE",(byte)160,false,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null];
-        var id=5;foreach(var database in this.databases.Values){yield return [database.Name,id++,database.DefaultCollation??"Japanese_CI_AS",(byte)0,"ONLINE",(byte)160,database.IsReadOnly,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null];}
+        yield return SqlServerDatabaseOptionCatalog.Expand(["master",1,"Japanese_CI_AS",(byte)0,"ONLINE",(byte)160,false,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null]);
+        var id=5;foreach(var database in this.databases.Values){yield return SqlServerDatabaseOptionCatalog.Expand([database.Name,id++,database.DefaultCollation??"Japanese_CI_AS",(byte)0,"ONLINE",(byte)160,database.IsReadOnly,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null]);}
     }
     public SqlRoutine? FindRoutine(SqlObjectName name){
         this.RejectForeignDatabaseTransaction(name.Database);
@@ -61,8 +65,42 @@ public sealed partial class DatabaseRegistry:ISqlCatalog{
                 if(database.Equals("msdb",StringComparison.OrdinalIgnoreCase)){return 0;}return null;
             }));
         }
+        if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("QUOTENAME",StringComparison.OrdinalIgnoreCase)){
+            var textType=new SqlType("nvarchar",typeof(string),-1);
+            return new(name,null,new([new("@value",textType,true),new("@delimiter",textType,true)],new("nvarchar",typeof(string),258),true,arguments=>{
+                if(arguments[0] is not string value||arguments[1] is not string delimiter||value.Length>128||delimiter.Length!=1){return null;}
+                char left;char right;
+                switch(delimiter[0]){
+                    case '[':case ']':left='[';right=']';break;
+                    case '(':case ')':left='(';right=')';break;
+                    case '{':case '}':left='{';right='}';break;
+                    case '<':case '>':left='<';right='>';break;
+                    case '\'':left='\'';right='\'';break;
+                    case '"':left='"';right='"';break;
+                    case '`':left='`';right='`';break;
+                    default:return null;
+                }
+                return left+value.Replace(right.ToString(),new string(right,2),StringComparison.Ordinal)+right;
+            }));
+        }
         if(!this.databases.TryGetValue(name.Database,out var registration)){return null;}
         using var read=ReadSqlDatabase(registration.Adapter);
+        if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("OBJECTPROPERTYEX",StringComparison.OrdinalIgnoreCase)){
+            return new(name,null,new([new("@object_id",SqlType.Int,true),new("@property",new("nvarchar",typeof(string),-1),true)],SqlType.Int,true,arguments=>{
+                if(arguments[0] is not int id||arguments[1] is not string property){return null;}
+                if(!property.Equals("IsSchemaBound",StringComparison.OrdinalIgnoreCase)){throw new SqlQueryException("Unsupported OBJECTPROPERTYEX property: "+property,40515);}
+                using var catalogRead=ReadSqlDatabase(registration.Adapter);
+                SystemCatalogEmulator.TryCatalog("objects",registration.Adapter,registration.Views,registration.Routines,out var objects);
+                if(!objects.Rows.Any(row=>Equals(row[1],id))){return null;}
+                SystemCatalogEmulator.TryCatalog("sql_modules",registration.Adapter,registration.Views,registration.Routines,out var modules);
+                var ordinal=Array.FindIndex(modules.Columns.ToArray(),column=>column.Name.Equals("is_schema_bound",StringComparison.OrdinalIgnoreCase));
+                if(ordinal<0){throw new SqlQueryException("sys.sql_modules.is_schema_bound is unavailable.",40515);}
+                var module=modules.Rows.FirstOrDefault(row=>Equals(row[0],id));
+                if(module is null){return 0;}
+                if(module[ordinal] is null){return null;}
+                return Convert.ToInt32(module[ordinal],global::System.Globalization.CultureInfo.InvariantCulture);
+            }));
+        }
         if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.ToUpperInvariant() is "SCHEMA_NAME" or "SCHEMA_ID" or "OBJECT_NAME" or "OBJECT_ID"){
             var function=name.Name.ToUpperInvariant();var schemaFunction=function.StartsWith("SCHEMA_",StringComparison.Ordinal);
             SystemCatalogEmulator.TryCatalog(schemaFunction?"schemas":"objects",registration.Adapter,registration.Views,registration.Routines,out var catalog);
