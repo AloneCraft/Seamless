@@ -1,0 +1,47 @@
+{
+  "status": "Passed",
+  "before": "4efab2dd67e7af82b489141000f33dc21ca9ec37",
+  "sourceTree": "47b18baff9dbccb1ff6b1847fd2fb9570e247b8e",
+  "graphCandidate": "2b6c9369674ad8fe8b4c1fde4e238b53d75fe604",
+  "preservedPreviousPayload": true,
+  "newPaths": 14,
+  "productImplementationChanged": false,
+  "explicitMergesValidated": {
+    "sqlReturn": "bad19d138d6362f5e3bdd319f0ea84f8d327cd37",
+    "workerReturn": "3deab5789f2cc552fc5e600af0b16e8713a871c3",
+    "workerFollowupReturn": "52c96678e60159386fb2b126475325929485561e",
+    "spikeReturn": "def11b5fc8a0b6887ab809d43a2e6a858138725b"
+  },
+  "spikeChecks": [
+    {
+      "outcome": "Passed",
+      "stage": "spike-build-debug-03"
+    },
+    {
+      "outcome": "Passed",
+      "stage": "spike-exp1-debug-02"
+    },
+    {
+      "outcome": "Passed",
+      "stage": "spike-exp7-debug-02"
+    },
+    {
+      "outcome": "Passed",
+      "stage": "spike-build-release-03"
+    },
+    {
+      "outcome": "Passed",
+      "stage": "spike-exp1-release-02"
+    },
+    {
+      "outcome": "Passed",
+      "stage": "spike-exp7-release-02"
+    }
+  ],
+  "retainedPriorValidation": {
+    "matrix": 6151,
+    "native": 12,
+    "reason": "all previous product/source blobs unchanged; graph changes plus isolated spike only"
+  },
+  "tpccCompleted": true
+}

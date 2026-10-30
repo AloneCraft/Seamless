@@ -1,0 +1,26 @@
+[
+  {
+    "outcome": "Passed",
+    "stage": "spike-build-debug-03"
+  },
+  {
+    "outcome": "Passed",
+    "stage": "spike-exp1-debug-02"
+  },
+  {
+    "outcome": "Passed",
+    "stage": "spike-exp7-debug-02"
+  },
+  {
+    "outcome": "Passed",
+    "stage": "spike-build-release-03"
+  },
+  {
+    "outcome": "Passed",
+    "stage": "spike-exp1-release-02"
+  },
+  {
+    "outcome": "Passed",
+    "stage": "spike-exp7-release-02"
+  }
+]

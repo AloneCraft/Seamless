@@ -1,12 +1,11 @@
 {
-  "target": "7529303ba3dd4a085f8d963e352e7b53c14dcd36",
+  "target": "2b6c9369674ad8fe8b4c1fde4e238b53d75fe604",
   "originalCommitCount": 1001,
   "decisions": {
     "retained-identical-commit": 892,
     "obsolete-integration-topology-preserved-in-archive": 20,
     "equivalent-patch": 23,
-    "rewritten-parent-chain": 63,
-    "held-experiment-per-user": 3
+    "rewritten-parent-chain": 66
   },
   "unresolved": [],
   "auditedObsoleteMerges": [

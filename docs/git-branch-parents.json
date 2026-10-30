@@ -12,5 +12,7 @@
       "parent": "0.1"
     }
   },
-  "rule": "Merge each child into its immediate recorded fork parent; return deepest children first."
+  "rule": "Merge each child into its immediate recorded fork parent; return deepest children first.",
+  "mergeMode": "no-ff",
+  "requireExplicitReturnMerge": true
 }

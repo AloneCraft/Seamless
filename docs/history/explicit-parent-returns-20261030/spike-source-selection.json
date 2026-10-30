@@ -1,0 +1,58 @@
+[
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Benchmark.TpcC.Spike.csproj",
+    "sha256": "7a49b70eac1a6ac3075e3fff9a9f287d449f8b311f54a68b9a2fbf6d4454bccf"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Exp1.cs",
+    "sha256": "d6b160889c223dc8244f260f6b6babf76a325ea66df3b31cb1ae676c4b6bf019"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Exp2.cs",
+    "sha256": "5e8934b30aa5d9d91273899ab5dffdf62c4ffff70bc7ad380480753a90041b55"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Exp3.cs",
+    "sha256": "d667bd2a027394870c09f6c56d9d4ec81fea800301b29b7c1a4abe02ff455c21"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Exp4.cs",
+    "sha256": "85fc6f4d737fd4e8a09b3b53e8d19ca9ac54df899784a364e7c257c2bd6ddc12"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Exp5.cs",
+    "sha256": "750952d1e4b7a823bf208af4f28888d81d1c0a0a94a113f90d60408ab9247418"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Exp6.cs",
+    "sha256": "a32950ad3d705a8f51a8c41961e9863cb5aca487d868fbc1f72ff905e102aea2"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Exp7.cs",
+    "sha256": "37bc93758b723933b8ca80899fc964f070f163b49efcf126dc03a6c890598950"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Partition.cs",
+    "sha256": "281d80465c9badad12e699e489c6b1f16e93455b22d4adeea83ec3098fdabd29"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Parts.cs",
+    "sha256": "6f3d4f6113dfedaecde1d152c39a2b2e4afbece7c45987eaa6f72d6de06f276f"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Program.cs",
+    "sha256": "132daddee387bf23c2d9d123a7be523c0b5571fdebf5a31d1062a0f77c900e5b"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Rows.cs",
+    "sha256": "fb049a6aa3b304e687762f9b21462897ae40a9523df7ad957806336b111a9f45"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/run-all.sh",
+    "sha256": "87e60e0a1118371c5379bcaee215aca5487603e48968d8dc49cb0b8c56027771"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/run-final.sh",
+    "sha256": "2a947c94453cdab330f7dab5222b935f70f3ec91e0e54348a63c2cb37481ed70"
+  }
+]

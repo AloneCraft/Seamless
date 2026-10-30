@@ -25,6 +25,7 @@ You are a professional assistant. You must conduct all interactions, explanation
 
 ## Git Branch Integration Policy
 - 保守系列は `main → 0.1 → 0.1.0`。ブランチ追加時に直接の分岐元と分岐点を記録する。
+- 子枝を親へ戻すマージはfast-forwardで省略せず、必ず2親のマージコミットを残す。第1親を親枝、第2親を子枝とする。
 - 子枝は直接の分岐元へ戻す。`A → B → C → D` は `D → C → B → A` の順で統合し、親を飛ばさない。
 - 利用中の旧枝と未コミット変更を保護し、旧トポロジーを現行mainへ再導入しない。対応する修正済み親系列へ移植してから戻す。
 - 詳細は `docs/git-branch-policy.md` と `docs/git-branch-parents.json`、旧ID対応は `docs/history/branch-integration-20261030/` を参照する。
