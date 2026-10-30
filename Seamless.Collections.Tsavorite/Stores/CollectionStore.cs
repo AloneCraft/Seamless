@@ -142,7 +142,8 @@ public abstract partial class CollectionStore<
     // 全削除で別の世代へ切り替えたあと、保存が確定するまで残っている古い世代のファイルの大きさ(ディスクの予約に含める)。
     private long retiredDiskBytes;
     private int accessorCount;
-    public long LogMemorySize { get; private set; }
+    private long logMemorySize;
+    public long LogMemorySize { get=>Interlocked.Read(ref this.logMemorySize); private set=>Interlocked.Exchange(ref this.logMemorySize,value); }
     public double MutableFraction { get; }
     internal OverflowMutableStrategyKind OverflowMutableStrategyKind { get; }
     internal StorageOverflowMutableStrategy StorageOverflowMutableStrategy { get; }
@@ -374,16 +375,17 @@ public abstract partial class CollectionStore<
 
     private void GrowLog(long required,int payloadBytes){
         this.storeGate.Wait();
-        try{this.GrowLogCore(required,payloadBytes);}finally{this.storeGate.Release();}
+        try{this.GrowLogCore(required,payloadBytes,true);}finally{this.storeGate.Release();}
     }
-    private void GrowLogCore(long required,int payloadBytes){
+    private void GrowLogCore(long required,int payloadBytes,bool throwIfRejected=false){
         var layout=this.layout;
         if(layout is null||required<=this.LogMemorySize){return;}
         var limit=Math.Min(this.Settings.LogMemorySize,layout.Owner.Limits.MemoryBytes-layout.Owner.Budget.MemoryBytes+this.LogMemorySize);
+        // ログ拡張は事前確保したNativeリングの論理上限だけを変え、storeGate内で予算確保後に公開する。
         var context=new global::Seamless.Execution.Growth.Context(global::Seamless.Execution.Growth.Resource.LogMemory,this.LogMemorySize,required,limit,
             ExpectedCount:layout.ExpectedCount,BytesPerItem:payloadBytes+MemoryOverflowMutableStrategy.RecordOverheadBytes,
             RecommendedBytes:layout.Owner.ResolvedProfiles[layout.Name].Settings.LogMemoryBytes??0,
-            IsSafePoint:Volatile.Read(ref this.accessorCount)<=1&&this.parallelRegion is null,AllocationUnit:this.Settings.PageSize);
+            IsSafePoint:true,AllocationUnit:this.Settings.PageSize);
         var decision=layout.Growth.Decide(context);
         var started=global::System.Diagnostics.Stopwatch.GetTimestamp();
         if(decision.Status==global::Seamless.Execution.Growth.Status.Grow){
@@ -392,6 +394,9 @@ public abstract partial class CollectionStore<
             this.LogMemorySize=decision.TargetBytes;
         }
         layout.Owner.RecordGrowthDecision(layout.Name+".log",context,decision,global::System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalNanoseconds);
+        if(throwIfRejected&&decision.Status==global::Seamless.Execution.Growth.Status.Rejected){
+            throw new global::Seamless.Execution.ResourceLimitException(global::Seamless.Execution.ResourceLimitKind.Memory,required,limit);
+        }
     }
 
     // データ本体の関所。索引の拡大・予算の予約・保存・読み込み・件数の走査・統計・詰め直しを順番に行う。
