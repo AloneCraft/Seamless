@@ -1,0 +1,9 @@
+# 入れ子scalarの計算スコープと列挙子所有
+
+直接文へ展開するscalar計算は、その1回の評価専用のlexical blockを持つ。計算用localとusing宣言を呼出元の残りの処理へ漏らさず、計算終了時にDisposeする。代入先destinationは呼出元が宣言し、計算中の一時値だけを結果として渡す。
+
+OrderedFirstの最初のkeyと次candidateは同じfragmentを再展開するため、同一の機械名が現れても別計算の兄弟blockに属さなければならない。名前だけを変更してusing寿命を伸ばしたままにしない。既存のfragment番号/destination suffixとGeneratedNameRenamerの契約を維持する。
+
+Composite scalarは既存static local functionの帰還、enumerator fallbackは既存using blockで寿命を閉じる。direct assignmentも同じ境界に揃える。列挙中の例外とDispose例外は保持し、Dispose完了前に次のkey評価へ進めない。短絡で選ばれなかったscalarの列挙/Disposeは行わない。
+
+回帰はTest/SourceGenerator/NestedSumScope/InlinedScalarFunc.csでSystemの独立trace/Dispose期待とNone/Allを比較する。空/単一/checked overflow/selector throw/Dispose throw、入れ子2段、短絡、複合式L→scalar→Dispose→Rを含む。最終版のinput/generated/Generator DLL hashと実結果はOrchestration台帳へ記録する。

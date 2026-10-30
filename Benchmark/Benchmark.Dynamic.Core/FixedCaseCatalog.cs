@@ -35,15 +35,34 @@ public static class FixedCaseCatalog{
         return builder.ToString();
     }
 
-    // Keep the imported body unchanged for provenance; comparisons use the corrected reference.
+    // 取り込み原文は由来として保持し、比較には意味を修正した参照を使う。
     public static string? EffectiveIdealBody(FixedCase item){
+        if(item.ID=="chain-20"){
+            return """
+                var groups=new global::System.Collections.Generic.List<int>?[16];
+                var order=new global::System.Collections.Generic.List<int>(16);
+                foreach(var value in raw){
+                    var key=value&15;
+                    if(groups[key] is null){groups[key]=new global::System.Collections.Generic.List<int>();order.Add(key);}
+                    groups[key]!.Add(value);
+                }
+                var items=new int[order.Count];
+                for(var index=0;index<order.Count;index++){
+                    var key=order[index];
+                    var groupSum=0;
+                    foreach(var value in groups[key]!){groupSum=checked(groupSum+value);}
+                    items[index]=unchecked(key+groupSum);
+                }
+                return items.OrderByDescending(x=>x&31).Take(12).ToArray();
+                """;
+        }
         if(item.ID!="chain-08"){return item.IdealBody;}
         return """
-            var groups=new List<int>?[16];
-            var order=new List<int>(16);
+            var groups=new global::System.Collections.Generic.List<int>?[16];
+            var order=new global::System.Collections.Generic.List<int>(16);
             foreach(var value in raw){
                 var key=value&15;
-                if(groups[key] is null){groups[key]=new List<int>();order.Add(key);}
+                if(groups[key] is null){groups[key]=new global::System.Collections.Generic.List<int>();order.Add(key);}
                 groups[key]!.Add(value);
             }
             var total=0L;
