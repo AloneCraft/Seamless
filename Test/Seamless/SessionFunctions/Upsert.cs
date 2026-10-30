@@ -95,7 +95,7 @@ public sealed class Upsert:AddTests<int,string> {
         using var objectLog=new NullDevice();
         using var settings=new KVSettings {
             IndexSize=1L<<12,LogMemorySize=1L<<20,PageSize=1L<<12,SegmentSize=1L<<20,
-            ObjectLogSegmentSize=1L<<20,LogDevice=log,ObjectLogDevice=objectLog,
+            ObjectLogSegmentSize=4L<<20,LogDevice=log,ObjectLogDevice=objectLog,
         };
         using var store=new TsavoriteKV<StoreFunctions<SpanByteComparer,DefaultRecordTriggers>,ObjectAllocator<StoreFunctions<SpanByteComparer,DefaultRecordTriggers>>>(
             settings,new(new(),static()=>new DummyHeapObjectSerializer(),new()),static (allocatorSettings,functions)=>new(allocatorSettings,functions));
