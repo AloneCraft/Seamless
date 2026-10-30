@@ -88,7 +88,7 @@ dotnet run --project Benchmark/Benchmark.Scalable.Headless -- migrate --source W
 
 SQLite Backup APIで原本の整合したバックアップを作り、そのスナップショットを版4へ移行する。原本は変更しない。既存の共有DBを上書きしない。アプリ起動時に既存DBのスキーマを自動移行・削除しない。旧記録に不足する条件を補造しない。条件不明の記録は自動の性能判定・プロファイル選定から除外する。
 
-旧通常UI/Verification DBは `Work/Benchmark/Legacy` に保全している。旧Verificationの操作書は [移行前の資料](https://github.com/AloneCraft/Seamless/blob/codex/seamless-optimization-baseline-20261025/docs/history/20261025-benchmark-consolidation/verification.md) としてのみ参照する。現行CIはExecutionとDB回帰を通常ジョブへ移し、重い性能探索を自動開始しない。
+旧通常UI/Verification DBは `Work/Benchmark/Legacy` に保全している。旧Verificationの操作書は [移行前の資料](https://github.com/AloneCraft/Seamless/blob/main/docs/history/20261025-benchmark-consolidation/verification.md) としてのみ参照する。現行CIはExecutionとDB回帰を通常ジョブへ移し、重い性能探索を自動開始しない。
 
 ## 比較ポリシーとScalableの内容検証
 
