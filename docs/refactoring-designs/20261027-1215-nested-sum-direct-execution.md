@@ -1,0 +1,19 @@
+# 入れ子Sumの直接展開と可視lambda総数
+
+## 根拠と合意
+
+利用者が可視lambdaの評価回数を入れ子を含む総数へ統一することを承認済み。現行349入力/E612Generatorの追加契約16件は13成功3失敗。保存済current-generator-contract-20の生成C#と独立callback entryから、整列key内のWhere.Select.SumがSystem.Linqと物理delegateの経路へ残り、演算子counterが加算されない。正常singletonでは論理6/物理4/where0/select0、独立正解は論理6/物理0/where2/select2。例外時の差も期待を緩和せず観測する。
+
+## 最小変更
+
+FragmentBuilderは入れ子SumのDirectExecutionFragmentだけを列挙式判定の例外として直接文展開へ許可する。InlinedScalarFuncはScalarの文生成が空なら既存DirectExecutionへ進み、列挙式の取得は実際にその経路を使うまで遅らせる。ToArray等の未受入終端へ範囲を広げない。
+
+Lastのarray末尾走査は既に実装されており、NestedPureの古い期待20を外側p4/内側q4の独立算出1+1=2へ訂正する。このテスト訂正はSum製品不具合と区別する。
+
+## 不変条件と受入
+
+公開API/永続形式は変えない。入れ子Sumのソース評価、generic/capture束縛、checked加算順序、例外、Dispose、短絡位置を維持。元OrderedContextの値・例外・trace・Logical/Physical/Where/Select/Operations期待は変更しない。新Generatorを強制再生成し新source/DLL/hashを保存、16契約とLast106/414/12、対象Sum/Countと既存SourceGeneratorを必要範囲で検証する。旧合格を新sourceへ流用しない。性能・全Worker・最終Debug/Releaseの全受入は別gate。
+
+## リスクと未検証
+
+新たに直接文を使うためcapture context・補助member・複合scalar位置の生成を回帰確認する。未対応の終端やopaque delegate全体の時点定義まで拡張しない。候補時点で新sourceのbuild/runtimeは未実行。実行後の結果と残件はOrchestration台帳へ記録する。
