@@ -103,12 +103,6 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        if(method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is MethodDeclarationSyntax calleeSyntax) {
-            if(calleeSyntax.DescendantNodes().Any(static n => n.IsKind(SyntaxKind.YieldReturnStatement)||n.IsKind(SyntaxKind.YieldBreakStatement)||n.IsKind(SyntaxKind.AwaitExpression))) {
-                diagnostic=Diagnostic.Create(フォールバック警告Descriptor,invocation.GetLocation(),method.Name,"yield return または await");
-                return false;
-            }
-        }
 
         var enclosingSymbol = context.SemanticModel.GetEnclosingSymbol(invocation.SpanStart,cancellationToken);
         if(enclosingSymbol is null) {
@@ -131,12 +125,22 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
+
         var configuration = LinqConfigurationResolver.Resolve(method,context.SemanticModel.Compilation);
         var optimizeLinq = LinqRewrite判定(method,context.SemanticModel.Compilation);
         var counterInstrumentation = LinqInstrumentation判定(method,context.SemanticModel.Compilation);
         if(!optimizeLinq&&!counterInstrumentation) {
             return false;
         }
+
+        if(method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is MethodDeclarationSyntax calleeSyntax) {
+            if(calleeSyntax.DescendantNodes().Any(static n => n.IsKind(SyntaxKind.YieldReturnStatement)||n.IsKind(SyntaxKind.YieldBreakStatement)||n.IsKind(SyntaxKind.AwaitExpression))) {
+                diagnostic=Diagnostic.Create(フォールバック警告Descriptor,invocation.GetLocation(),method.Name,"yield return または await");
+                return false;
+            }
+        }
+
+
 
         if(!全型パラメーター取得(method,out var allTypeParameters,out var signatureFailureReason)) {
             diagnostic=Diagnostic.Create(署名生成不能Descriptor,invocation.GetLocation(),method.Name,signatureFailureReason);
