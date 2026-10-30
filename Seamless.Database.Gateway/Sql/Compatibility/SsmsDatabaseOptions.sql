@@ -7,7 +7,7 @@
           exec sp_executesql N'insert into #temp_data_retention_property2
           select dr_db.database_id, dr_db.is_data_retention_enabled
           from sys.databases dr_db'
-        
+
 
 
 SELECT
@@ -48,4 +48,3 @@ WHERE
 (CAST(case when dtb.name in ('master','model','msdb','tempdb') then 1 else dtb.is_distributor end AS bit)=@_msparam_0 and CAST(isnull(dtb.source_database_id, 0) AS bit)=@_msparam_0)
 
           drop table #temp_data_retention_property2
-        

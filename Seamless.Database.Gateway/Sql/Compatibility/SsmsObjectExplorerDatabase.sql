@@ -1,20 +1,20 @@
 
         declare @HasViewPermission int
         select @HasViewPermission = HAS_PERMS_BY_NAME(null, null, 'VIEW SERVER STATE')
-      
+
 
 
         create table #tmp_db_ars (replica_id uniqueidentifier, group_id uniqueidentifier, replica_server_name sysname)
         create table #tmp_db_ags (group_id uniqueidentifier, name sysname)
-      
+
 
 
         create table #tmp_db_hadr_dbrs (group_database_id uniqueidentifier, synchronization_state tinyint, is_local bit, group_id uniqueidentifier, database_id int)
-      
+
 
 
         create table #tmp_sync_states (database_id int, sync_state tinyint)
-      
+
 
 
         if (@HasViewPermission = 1)
@@ -22,14 +22,14 @@
         insert into #tmp_db_ars select replica_id, group_id, replica_server_name  from  master.sys.availability_replicas
         insert into #tmp_db_ags select group_id, name from master.sys.availability_groups
         end
-      
+
 
 
         if (@HasViewPermission = 1)
         begin
         insert into #tmp_db_hadr_dbrs select group_database_id, synchronization_state, is_local, group_id, database_id from master.sys.dm_hadr_database_replica_states
         end
-      
+
 
 
         if (@HasViewPermission = 1)
@@ -53,7 +53,7 @@
         join #tmp_db_hadr_dbrs AS hadrd ON hadrd.database_id = dtb.database_id AND hadrd.is_local = 1
         end
         end
-      
+
 
 
 
@@ -111,14 +111,12 @@ WHERE
 (CAST(case when dtb.name in ('master','model','msdb','tempdb') then 1 else dtb.is_distributor end AS bit)=@_msparam_0 and CAST(isnull(dtb.source_database_id, 0) AS bit)=@_msparam_0)
 
         drop table #tmp_db_ars
-        drop table #tmp_db_ags        
-      
+        drop table #tmp_db_ags
+
 
 
         drop table #tmp_db_hadr_dbrs
-      
+
 
 
         drop table #tmp_sync_states
-      
-
