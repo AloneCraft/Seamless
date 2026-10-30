@@ -1,0 +1,34 @@
+[
+  {
+    "sourceFile": "TestSeamless/Tests/ProtocolSynthetic.cs",
+    "test": "TestSeamless.Tests.ProtocolSynthetic.PrimaryKeyUpdateMovesRowAndRejectsCollision",
+    "methodSha256": "33b1ef2a55cfad195b262f9ce7b7f66087be8213386bfeab9146adda7a22e6db",
+    "decision": "held-incoming-unfinished-contract",
+    "observedOutcome": "Failed",
+    "failureEvidence": "testseamless-final-release-02 (30 passed, 4 failed)"
+  },
+  {
+    "sourceFile": "TestSeamless/Tests/ProtocolSynthetic.cs",
+    "test": "TestSeamless.Tests.ProtocolSynthetic.DuplicateRowsSurviveRollbackAndRestart",
+    "methodSha256": "70d1647f2adfb0b797f528a8b3d87b6df8ea167e8186081a297cef2e1d889163",
+    "decision": "held-incoming-unfinished-contract",
+    "observedOutcome": "Failed",
+    "failureEvidence": "testseamless-final-release-02 (30 passed, 4 failed)"
+  },
+  {
+    "sourceFile": "TestSeamless/Tests/ProtocolCipherAndCollation.cs",
+    "test": "TestSeamless.Tests.ProtocolCipherAndCollation.JapaneseVarcharRpcAndDatabaseSwitch",
+    "methodSha256": "f19f55f6fb6fb614aa1c0b99783430d1f02bc16c267c458499daef5403e5b501",
+    "decision": "held-incoming-unfinished-contract",
+    "observedOutcome": "Failed",
+    "failureEvidence": "testseamless-final-release-02 (30 passed, 4 failed)"
+  },
+  {
+    "sourceFile": "TestSeamless/Tests/ProtocolCipherAndCollation.cs",
+    "test": "TestSeamless.Tests.ProtocolCipherAndCollation.UdtColumnsJoinSysTypesOverSqlClient",
+    "methodSha256": "27d78289157059aa4ff9a73761d9ef25289d0bb9d0b6d40fda35c2c9320e961e",
+    "decision": "held-incoming-unfinished-contract",
+    "observedOutcome": "Failed",
+    "failureEvidence": "testseamless-final-release-02 (30 passed, 4 failed)"
+  }
+]
