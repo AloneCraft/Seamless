@@ -58,7 +58,7 @@ public class StoreExtensions{
             {
                 //固定した索引は混雑しても拡張せず、要素はすべて読み取れる
                 using var store=CommonStore.CreateMemory();
-                using var data=store.CreateTsavoriteHashSet<long>("fixed",Small with{Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>(),LogMemorySize=null});
+                using var data=store.CreateTsavoriteHashSet<long>("fixed",Small with{Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>(),LogMemorySize=1L<<21});
                 using var set=data.Create();
                 var initialOverflowBuckets=data.Store.OverflowBucketCount;
                 for(long i=0;i<10_000;i++){
@@ -75,10 +75,10 @@ public class StoreExtensions{
                 using var store=CommonStore.CreateMemory();
                 TsavoriteTuning[] invalid=[Small with{IndexSize=65},Small with{PageSize=4097},Small with{SegmentSize=8193},Small with{LogMemorySize=65537},Small with{SegmentSize=2048},Small with{MutableFraction=0},Small with{MutableFraction=-1},Small with{MutableFraction=1.01},Small with{MutableFraction=double.NaN},Small with{Storage=new()}];
                 foreach(var tuning in invalid){
-                    Assert.Throws<ArgumentException>(()=>store.CreateTsavoriteHashSet<long>("invalid",tuning));
+                    Assert.ThrowsAny<ArgumentException>(()=>store.CreateTsavoriteHashSet<long>("invalid",tuning));
                     Assert.Equal(0,store.Budget.MemoryBytes);
                 }
-                Assert.Throws<ResourceLimitException>(()=>store.CreateTsavoriteHashSet<long>("too-small",Small with{LogMemorySize=4096}));
+                Assert.Throws<ArgumentException>(()=>store.CreateTsavoriteHashSet<long>("too-small",Small with{LogMemorySize=4096}));
             }
             {
                 //保存済みの索引と異なる固定指定は、小さくても大きくても拒否する

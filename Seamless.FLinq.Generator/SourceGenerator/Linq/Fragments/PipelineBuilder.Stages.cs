@@ -3,80 +3,6 @@ namespace Seamless.FLinq.Generator;
 
 // 中間段の追加。
 internal static partial class PipelineBuilder {
-    // 融合した GroupBy の集約を、いまの呼び出しでは行わない(この後に、途中で止まる・飛ばす演算があるとき)。TryBuild のループが呼び出しごとに設定する。
-    [ThreadStatic]
-    private static bool suppressAggregateFusion;
-
-    // 融合した集約を行うとき、後ろの Take(n)・First・Any などが使う先頭のグループ数(定数で分かるときだけ)。null なら全グループ。
-    [ThreadStatic]
-    private static int? pendingGroupLimit;
-
-    private static readonly HashSet<string> PartialConsumptionMethodNames = new(StringComparer.Ordinal) {
-        "First","FirstOrDefault","Any","All","Contains","ElementAt","ElementAtOrDefault","Single","SingleOrDefault",
-        "Take","Skip","TakeWhile","SkipWhile","SequenceEqual","TakeLast","SkipLast","Chunk","Last","LastOrDefault",
-    };
-
-    // invocations[index] より後ろに、列の一部しか使わない演算があるか。
-    // 後ろが「Select(1対1の変換)の後の Skip(定数)* と Take(定数)・First・FirstOrDefault・Any」だけなら、使うグループ数 groupLimit を求める。
-    // その形のときは融合を止めず、先頭の groupLimit 個のグループだけを集約する(戻り値は false)。
-    private static bool ConsumesOnlyPartOfSequence(SemanticModel semanticModel,IReadOnlyList<InvocationExpressionSyntax> invocations,int index,out int? groupLimit) {
-        groupLimit=null;
-        if(TryComputeGroupLimit(semanticModel,invocations,index,out var limit)) {
-            groupLimit=limit;
-            return false;
-        }
-        for(var later = index+1;later<invocations.Count;later++) {
-            var name = invocations[later].Expression switch {
-                MemberAccessExpressionSyntax access => access.Name.Identifier.ValueText,
-                IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
-                _ => null,
-            };
-            if(name is not null&&PartialConsumptionMethodNames.Contains(name)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // 後ろの Skip・Take・First・Any が使うグループの範囲 [start,end) を、定数だけで求める。end が決まれば、それが使う先頭のグループ数の上限になる。
-    // end が決まった後ろの演算(Where など)は、その範囲のグループしか見ないので、end のままでよい。end が決まる前に Select 以外が挟まると求められない。
-    private static bool TryComputeGroupLimit(SemanticModel semanticModel,IReadOnlyList<InvocationExpressionSyntax> invocations,int index,out int limit) {
-        limit=0;
-        long start = 0;
-        long end = long.MaxValue;
-        for(var later = index+1;later<invocations.Count;later++) {
-            var invocation = invocations[later];
-            var name = invocation.Expression switch {
-                MemberAccessExpressionSyntax access => access.Name.Identifier.ValueText,
-                IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
-                _ => null,
-            };
-            var arguments = invocation.ArgumentList.Arguments;
-            if(name=="Select") {
-                continue;
-            }
-            if(name is "Skip" or "Take"&&arguments.Count==1&&semanticModel.GetConstantValue(arguments[0].Expression) is { HasValue: true, Value: int count }) {
-                count=Math.Max(0,count);
-                if(name=="Skip") {
-                    start=Math.Min(start+count,end);
-                } else {
-                    end=Math.Min(end,start+count);
-                }
-                continue;
-            }
-            if(name is "First" or "FirstOrDefault" or "Any"&&arguments.Count==0) {
-                end=Math.Min(end,start+1);
-                break;
-            }
-            break;
-        }
-        if(end==long.MaxValue) {
-            return false;
-        }
-        limit=(int)Math.Min(end,int.MaxValue);
-        return true;
-    }
-
     private static bool TryAppendStage(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
@@ -114,21 +40,10 @@ internal static partial class PipelineBuilder {
                         &&!services.ContainsAnonymousType(selectorType.TypeArguments[1])) {
                         if(services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,selectorType,ref uniqueNumber,out var selectFunc)
                             &&services.CanUseFunc(selectFunc)) {
-                            if(!suppressAggregateFusion&&GroupByAggregateFusion.TryAnalyzeSelect(selectLambda,selectFunc,semanticModel,lastGroupBy.KeyType!,lastGroupBy.InnerElementType!,services,ref uniqueNumber,out var aggPlan)) {
-                                stages[stages.Count-1]=new PipelineStage(
-                                    PipelineStageKind.GroupBy,
-                                    lastGroupBy.Func,
-                                    lastGroupBy.Value,
-                                    lastGroupBy.InputType,
-                                    aggPlan.ResultType,
-                                    secondFunc: lastGroupBy.SecondFunc,
-                                    thirdFunc: selectFunc,
-                                    innerElementType: lastGroupBy.InnerElementType,
-                                    keyType: lastGroupBy.KeyType,
-                                    containsAnchor: lastGroupBy.ContainsAnchor||selectFunc.ContainsAnchor,
-                                    aggregatePlan: aggPlan);
-                                aggPlan.GroupLimit=pendingGroupLimit;
-                                currentElementType=aggPlan.ResultType;
+                            if(GroupByAggregateFusion.TryAnalyzeSelect(selectLambda,selectFunc,semanticModel,lastGroupBy.KeyType!,lastGroupBy.InnerElementType!,services,ref uniqueNumber,out var aggPlan)) {
+                                // 融合は後で決める(GroupByFusionPass)。ここでは、候補を持つ通常の Select の段にする。
+                                stages.Add(new PipelineStage(PipelineStageKind.Select,selectFunc,null,currentElementType,selectFunc.ReturnTypeName,aggregateCandidate: aggPlan));
+                                currentElementType=selectFunc.ReturnTypeName;
                                 return true;
                             }
                             if(GroupBySupport.SelectIgnoresGroup(selectFunc)) {
@@ -738,16 +653,15 @@ internal static partial class PipelineBuilder {
         }
         var groupElementType = elementSelector?.ReturnTypeName??currentElementType;
         var outputType = resultSelector?.ReturnTypeName??$"global::System.Linq.IGrouping<{keySelector.ReturnTypeName},{groupElementType}>";
-        GroupByAggregatePlan? aggregatePlan = null;
+        GroupByAggregatePlan? aggregateCandidate = null;
         if(resultSelector is not null) {
             for(var index = 1;index<invocation.ArgumentList.Arguments.Count;index++) {
                 if(invocation.ArgumentList.Arguments[index].Expression is LambdaExpressionSyntax resLambda
                     &&method.Parameters[index].Type is INamedTypeSymbol { TypeArguments.Length: 3 } resultFuncType
                     &&!services.ContainsAnonymousType(resultFuncType.TypeArguments[2])
-                    &&!suppressAggregateFusion
                     &&GroupByAggregateFusion.TryAnalyzeResultSelector(resLambda,resultSelector,semanticModel,keySelector.ReturnTypeName,groupElementType,services,ref uniqueNumber,out var plan)) {
-                    aggregatePlan=plan;
-                    plan.GroupLimit=pendingGroupLimit;
+                    // 融合は後で決める(GroupByFusionPass)。
+                    aggregateCandidate=plan;
                     break;
                 }
             }
@@ -763,7 +677,7 @@ internal static partial class PipelineBuilder {
             innerElementType: groupElementType,
             keyType: keySelector.ReturnTypeName,
             containsAnchor: containsAnchor,
-            aggregatePlan: aggregatePlan));
+            aggregateCandidate: aggregateCandidate));
         currentElementType=outputType;
         return true;
     }

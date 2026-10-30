@@ -1,5 +1,6 @@
 namespace Seamless.Execution;
 public sealed record ExecutionOptions{
+    public ResourceBudget? ParentBudget{get;init;}
     public long MemoryLimitBytes{get;init;}=256L*1024*1024;
     public long TemporaryStorageLimitBytes{get;init;}=16L*1024*1024*1024;
     public string TemporaryDirectory{get;init;}=Path.Combine(Path.GetTempPath(),"Seamless","Execution");

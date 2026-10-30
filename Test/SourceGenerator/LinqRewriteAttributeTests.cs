@@ -178,6 +178,26 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void NonGenericMethodOnClosedGenericOwnerCompilesAndRuns(){
+        const string source="""
+            #nullable disable
+            using System.Linq;
+            using Seamless.FLinq;
+            namespace Sample;
+            [LinqIntercept(false)]public sealed class Entry{
+                public static int Run(){return new Box<string>().CountItems(new[]{"a",null})+new Box<int>().CountItems(new[]{0,1});}
+            }
+            [LinqIntercept(false)]public sealed class Box<T>{
+                [LinqIntercept(true)]public int CountItems(T[] values){return values.Where(value=>value is not null).Count();}
+            }
+            """;
+        var(compilation,generated)=ExecutableGeneration.Generate(source,"ClosedGenericOwnerProbe",minimumInterceptions:2);
+        Assert.DoesNotContain("UnsupportedLinqExpansion(",generated,StringComparison.Ordinal);
+        var actual=ExecutableGeneration.Run(compilation,"Sample.Entry",static type=>(int)type.GetMethod("Run")!.Invoke(null,null)!);
+        Assert.Equal(3,actual);
+    }
+
+    [Fact]
     public void PrivateConstraint_ReportsNotConfigurableFLINQ005() {
         var (result,_)=RunGenerator(PrivateConstraintRewrite);
         var diagnostic=Assert.Single(result.Diagnostics.Where(static diagnostic => diagnostic.Id=="FLINQ005"));

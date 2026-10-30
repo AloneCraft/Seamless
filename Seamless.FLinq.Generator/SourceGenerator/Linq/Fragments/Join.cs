@@ -1,6 +1,23 @@
 namespace Seamless.FLinq.Generator;
 
 internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment outerKeySelector,FuncFragment innerKeySelector,FuncFragment resultSelector,string comparer):JoinBase(番号,outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer) {
+    private JoinConsumptionPlan? consumptionPlan;
+    private JoinConsumptionPlan ConsumptionPlan=>this.consumptionPlan??=this.CreateConsumptionPlan(new(DemandWindow.Unknown,true,true,0));
+    private JoinConsumptionPlan CreateConsumptionPlan(Demand demand){
+        var range=this.CanProbeInnerRange();
+        var counts=!this.UseResultTypeParam&&!range&&this.resultSelector.CanInlineAssign
+            &&!this.resultSelector.CanInvokeAsDelegate&&!this.resultSelector.RequiresStatementInlining
+            &&GroupBySupport.ResultIgnoresGroup(this.resultSelector);
+        return JoinConsumptionPlan.Create(demand,range,counts,this.outerKey.ContainsAnchor||this.innerKey.ContainsAnchor||this.resultSelector.ContainsAnchor);
+    }
+    internal void PlanConsumption(Demand demand,OptimizationTraceCollector? trace){
+        this.consumptionPlan=this.CreateConsumptionPlan(demand);
+        if(trace is not null){
+            var run=trace.BeginRun(OptimizationLayer.Pipeline);
+            trace.RecordPipeline(run,"SemanticPlan","JoinConsumptionPlan",1,1,1,0,"Join→Count",this.consumptionPlan.ToString());
+            trace.EndRun(run,OptimizationLayer.Pipeline,1,OptimizationTermination.FixedPoint);
+        }
+    }
     public override string ElementType => this.UseResultTypeParam ? "TResult" : FuncReturnTypeName(this.resultSelector);
     protected override string StructTypeParameters => this.UseResultTypeParam
         ? this.StructTypeParametersWithOuter("TOuterEnum","TInnerEnum","TResult")
@@ -52,7 +69,8 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
     private string innerHigh => $"__innerHigh{番号}";
     // 内側が .Anchor の無い Range そのもので、両キーが int(内側は恒等)・比較子が既定なら、内側の要素はキーと等しく一意。
     // 外側のキーが区間に入るかだけで一致が決まるので、内側を列挙せず探索表も作らない(FLinq の契約: Range の列挙は観測されない)。
-    private bool ProbesInnerRange() =>
+    private bool ProbesInnerRange()=>this.ConsumptionPlan.Lookup==JoinLookupKind.Range;
+    private bool CanProbeInnerRange() =>
         this.comparerExpression=="null"
         &&this.innerSource is RangeRoot
         &&!this.innerSource.TreeContainsAnchor()
@@ -62,13 +80,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         &&FuncReturnTypeName(this.innerKey)=="int";
     // 結果選択子が内側の要素を使わない(第2引数が本体に現れない)なら、一致の件数だけが結果を決める。
     // 内側の要素を溜めず、キーごとの件数だけを数える(内側の列挙・キー選択子の評価の回数と順は変わらない)。
-    private bool CountsOnly() =>
-        !this.UseResultTypeParam
-        &&!this.ProbesInnerRange()
-        &&this.resultSelector.CanInlineAssign
-        &&!this.resultSelector.CanInvokeAsDelegate
-        &&!this.resultSelector.RequiresStatementInlining
-        &&GroupBySupport.ResultIgnoresGroup(this.resultSelector);
+    private bool CountsOnly()=>this.ConsumptionPlan.Lookup==JoinLookupKind.KeyCounts;
     private string CountsType => $"global::System.Collections.Generic.Dictionary<{this.InnerKeyType},int>";
     private string BuildCountsBody() => $$"""
         private static {{this.CountsType}} BuildCounts(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
@@ -228,8 +240,8 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         var outerIndexName = $"__joinOuterIndex{番号}";
         var innerIndexName = $"__joinInnerIndex{番号}";
         var groupIndexName = $"__joinGroupIndex{番号}";
-        var outerItemName = $"__joinOuterItem{番号}";
-        var innerItemName = $"__joinInnerItem{番号}";
+        var outerItemName = GeneratedNames.PreferLocal($"__joinOuterItem{番号}",this.outerKey);
+        var innerItemName = GeneratedNames.PreferLocal($"__joinInnerItem{番号}",this.innerKey);
         var innerKeyName = $"__joinInnerKey{番号}";
         var outerKeyName = $"__joinOuterKey{番号}";
         var resultName = $"__joinResult{番号}";
@@ -299,8 +311,8 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         }
         var outerName = $"__joinOuterRoot{番号}";
         var innerName = $"__joinInnerRoot{番号}";
-        var outerItemName = $"__joinOuterItem{番号}";
-        var innerItemName = $"__joinInnerItem{番号}";
+        var outerItemName = GeneratedNames.PreferLocal($"__joinOuterItem{番号}",this.outerKey);
+        var innerItemName = GeneratedNames.PreferLocal($"__joinInnerItem{番号}",this.innerKey);
         var innerKeyName = $"__joinInnerKey{番号}";
         var outerKeyName = $"__joinOuterKey{番号}";
         var builderName = $"__joinLookup{番号}";
@@ -334,7 +346,11 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         // 外側の最初の要素を得てから、内側の探索表を作る(外側が空なら、内側のキー選択子を評価しない。System.Linq と同じ)。
         var builtName = $"__joinBuilt{番号}";
         var arrangedDeclaration = countsOnly ? string.Empty : $"var {arrangedName}=default({this.InnerElementType}[])!;";
-        var lazyOuterBody = $"if(!{builtName}){{\n    {builtName}=true;\n{IndentGeneratedStatement(this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody)+"\n"+prepare,"    ")}\n}}\n{outerBody}";
+        var buildLookup = this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody)+"\n"+prepare;
+        // span の外側は、最初の要素を探すループと残りのループに分けて、外側の要素ごとの確認をしない。それ以外は旗で確かめる。
+        var outerLoop = this.RenderRootLoopWithFirst(outerRoot,outerPredicates,outerName,outerItemName,buildLookup,outerBody,null)
+            ??this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,$"if(!{builtName}){{\n    {builtName}=true;\n{IndentGeneratedStatement(buildLookup,"    ")}\n}}\n{outerBody}");
+        var builtDeclaration = outerLoop.Contains(builtName) ? $"var {builtName}=false;" : string.Empty;
         return $$"""
             {{localDeclarations}}
             static bool {{hasKeyName}}<TKey>(TKey key) => key is not null;
@@ -342,10 +358,10 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             using var {{innerName}}={{innerExpression}};
             var {{countName}}={{innerName}}.TryGetNonEnumeratedCount(out var {{countName}}Value) ? {{countName}}Value : 0;
             {{builderDeclaration}}
-            var {{builtName}}=false;
+            {{builtDeclaration}}
             {{arrangedDeclaration}}
             try {
-            {{this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,lazyOuterBody)}}
+            {{outerLoop}}
             } finally {
                 {{dispose}}
             }
@@ -360,8 +376,8 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         var innerIndexName = $"__joinInnerIndex{番号}";
         var matchName = $"__joinMatch{番号}";
         var matchCountName = $"__joinMatchCount{番号}";
-        var outerItemName = $"__joinOuterItem{番号}";
-        var innerItemName = $"__joinInnerItem{番号}";
+        var outerItemName = GeneratedNames.PreferLocal($"__joinOuterItem{番号}",this.outerKey);
+        var innerItemName = GeneratedNames.PreferLocal($"__joinInnerItem{番号}",this.innerKey);
         var innerKeyName = $"__joinInnerKey{番号}";
         var outerKeyName = $"__joinOuterKey{番号}";
         var resultName = $"__joinResult{番号}";
@@ -546,7 +562,10 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         var dispose=countsOnly ? string.Empty : $"{builderName}.Dispose();";
         var builtName=$"__joinBuilt{番号}";
         var arrangedDeclaration=countsOnly ? string.Empty : $"var {arrangedName}=default({this.InnerElementType}[])!;";
-        var lazyOuterBody=$"if(!{builtName}){{\n    {builtName}=true;\n{IndentGeneratedStatement(this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody)+"\n"+prepare,"    ")}\n}}\n{outerBody}";
+        var buildLookup=this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody)+"\n"+prepare;
+        var outerLoop=this.RenderRootLoopWithFirst(outerRoot,outerPredicates,outerName,outerItemName,buildLookup,outerBody,$"!{foundName}")
+            ??this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,$"if(!{builtName}){{\n    {builtName}=true;\n{IndentGeneratedStatement(buildLookup,"    ")}\n}}\n{outerBody}");
+        var builtDeclaration=outerLoop.Contains(builtName) ? $"var {builtName}=false;" : string.Empty;
 
         return $$"""
             {{localDeclBlockGeneral}}{{destType}} {{destVar}}=default!;
@@ -555,11 +574,11 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             using var {{innerName}}={{innerExpression}};
             var {{countName}}={{innerName}}.TryGetNonEnumeratedCount(out var {{countName}}Value) ? {{countName}}Value : 0;
             {{builderDeclaration}}
-            var {{builtName}}=false;
+            {{builtDeclaration}}
             {{arrangedDeclaration}}
             try {
             var {{foundName}}=false;
-            {{this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,lazyOuterBody)}}
+            {{outerLoop}}
             if(!{{foundName}}){
                 {{notFoundBlock}}
             }else{

@@ -57,7 +57,7 @@ public class Compaction{
     [Fact,Trait("Category","Unit")]public void Compact_Memory(){
         {
             //半分まで入れて 6 割を削除し、詰め直すと、中身と件数は変わらず、空いた分だけ追加できる。予算の予約も減る
-            var tuning=new TsavoriteTuning{PageSize=1L<<12,SegmentSize=1L<<16,LogMemorySize=1L<<16,IndexSize=1L<<14,MutableFraction=0.9};
+            var tuning=new TsavoriteTuning{PageSize=1L<<12,SegmentSize=1L<<16,LogMemorySize=1L<<16,IndexSize=1L<<14,MutableFraction=0.9,Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>()};
             using var store=CommonStore.CreateMemory();
             using var data=store.CreateTsavoriteHashSet<long>("ids",tuning);
             long inserted=0;
@@ -90,7 +90,7 @@ public class Compaction{
         {
             //満杯のログは、写しを書くページが無い。写しを書くために先頭のページが追い出されて生きているレコードを失うので、何も移さずに例外にする
             using var store=CommonStore.CreateMemory();
-            using var data=store.CreateTsavoriteHashSet<long>("ids",Small);
+            using var data=store.CreateTsavoriteHashSet<long>("ids",Small with{Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>()});
             long inserted=0;
             using(var set=data.Create()){
                 try{

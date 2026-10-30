@@ -1,6 +1,7 @@
 namespace Seamless.FLinq.Generator;
 
-internal class FirstOrDefault(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+internal class FirstOrDefault(int 番号,Enumerable sourceFragment,string resultType):BufferedScalar(番号,resultType) {
+    private readonly Enumerable source=OrderingBase.BindFirstConsumer(sourceFragment);
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -113,7 +114,8 @@ internal class FirstOrDefault(int 番号,Enumerable source,string resultType):Bu
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-internal class FirstOrDefault_defaultValue(int 番号,Enumerable source,string defaultValue,string resultType):BufferedScalar(番号,resultType) {
+internal class FirstOrDefault_defaultValue(int 番号,Enumerable sourceFragment,string defaultValue,string resultType):BufferedScalar(番号,resultType) {
+    private readonly Enumerable source=OrderingBase.BindFirstConsumer(sourceFragment);
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -205,7 +207,9 @@ internal class FirstOrDefault_defaultValue(int 番号,Enumerable source,string d
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-internal class FirstOrDefault_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
+internal class FirstOrDefault_predicate(int 番号,Enumerable sourceFragment,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
+    // 述語付きFirst系はordered sourceを列挙するため単一keyも評価する。
+    private readonly Enumerable source=OrderingBase.BindFirstConsumer(sourceFragment);
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {

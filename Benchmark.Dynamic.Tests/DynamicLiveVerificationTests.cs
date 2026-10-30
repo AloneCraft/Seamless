@@ -1,11 +1,17 @@
 using Benchmark.Dynamic.Core;
+using Benchmark.Dynamic.Infrastructure;
+using System.Runtime.CompilerServices;
+using Benchmark.Infrastructure;
 using Benchmark.Dynamic.UI;
 using Benchmark.Dynamic.Worker;
 
 namespace Benchmark.Dynamic.Tests;
 
-public sealed class DynamicLiveVerificationTests{
+[Collection(DynamicWorkerTestCollection.Name)]
+public sealed class DynamicLiveVerificationTests:IDisposable{
     private static string WorkerPath=>Path.Combine(AppContext.BaseDirectory,"Benchmark.Dynamic.Worker.exe");
+    private readonly string directory=Path.Combine(Path.GetTempPath(),"Seamless-LiveHistory-"+Guid.NewGuid().ToString("N"));
+    public void Dispose(){if(Directory.Exists(this.directory)){Directory.Delete(this.directory,true);}}
 
     // UI が再現テストに書く入力は、Worker が実行で使う入力と同じでなければならない。
     [Theory,Trait("Category","Unit")]
@@ -16,6 +22,114 @@ public sealed class DynamicLiveVerificationTests{
         using var fixture=new SourceFixtureFactory().Create(target,count,seed);
         Assert.Equal(FixtureValues.Values(seed,"primary",count),ToInts(fixture.Primary));
         Assert.Equal(FixtureValues.Values(seed,"secondary",count),ToInts(fixture.Secondary));
+    }
+
+    [Theory,Trait("Category","Unit")]
+    [InlineData(動的ライブ段階.ペア全組み合わせ)]
+    [InlineData(動的ライブ段階.三段全組み合わせ)]
+    [InlineData(動的ライブ段階.ランダム探索)]
+    public void 各段階の要求件数は実Workerの上限内になる(動的ライブ段階 stage){
+        var settings=new 動的ライブ設定(SourceTarget.SystemArray,QueryElementType.Int,Seed256.Parse("0x1"));
+        var request=動的ライブ検証サービス.段階の要求を作る(settings,stage,0,"live-boundary");
+        Assert.InRange(request.QueryCount,1,1000);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public async Task ランダム段階は欠落重複なく上限内の次バッチへ進み履歴を分ける(){
+        var databasePath=Path.Combine(this.directory,"batches.db");
+        var client=new BatchClient();
+        var service=new 動的ライブ検証サービス(WorkerPath,client,databasePath);
+        var seed=Seed256.Parse("0x10182026");
+        var settings=new 動的ライブ設定(SourceTarget.SystemArray,QueryElementType.Int,seed,
+            開始段階:動的ライブ段階.ランダム探索,開始番号:998_500);
+        var stages=new List<動的ライブ段階>();
+        await service.実行Async(settings,(_,_)=>Task.CompletedTask,stages.Add,CancellationToken.None);
+        Assert.Equal([998_500,999_500],client.Requests.Select(static request=>request.QueryIndexOffset));
+        Assert.Equal([1_000,500],client.Requests.Select(static request=>request.QueryCount));
+        Assert.All(client.Requests,request=>Assert.Equal(seed,request.BaseSeed));
+        Assert.Equal(2,client.Requests.Select(static request=>request.RunId).Distinct().Count());
+        Assert.Equal([動的ライブ段階.ランダム探索],stages);
+        var history=new BenchmarkRepository(new BenchmarkDatabase(databasePath));
+        Assert.Equal(2,history.GetRuns().Count);
+        Assert.All(history.GetRuns(),static run=>Assert.Equal("Passed",run.Status));
+    }
+
+    [Fact,Trait("Category","Integration")]
+    public async Task ランダム段階は実Workerで開始し取消後も結果を保存する(){
+        var databasePath=Path.Combine(this.directory,"random.db");
+        var service=new 動的ライブ検証サービス(WorkerPath,データベースパス:databasePath);
+        var settings=new 動的ライブ設定(SourceTarget.SystemArray,QueryElementType.Int,Seed256.Parse("0x10182026"),
+            開始段階:動的ライブ段階.ランダム探索);
+        using var cancellation=new CancellationTokenSource(TimeSpan.FromMinutes(3));
+        動的ライブ結果? first=null;
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(()=>service.実行Async(settings,(result,_)=>{
+            first=result;
+            cancellation.Cancel();
+            return Task.CompletedTask;
+        },null,cancellation.Token));
+        Assert.NotNull(first);
+        Assert.Equal(0,first.通番);
+        Assert.False(string.IsNullOrWhiteSpace(first.式));
+        Assert.False(string.IsNullOrWhiteSpace(first.生成コード));
+        var history=new BenchmarkRepository(new BenchmarkDatabase(databasePath));
+        var run=Assert.Single(history.GetRuns());
+        Assert.Equal("Canceled",run.Status);
+        var database=new global::Benchmark.Dynamic.Infrastructure.DynamicDatabase(databasePath);
+        await using var writer=new DynamicSingleWriterQueue(database);
+        var snapshot=new global::Benchmark.Dynamic.Infrastructure.DynamicRepository(database,writer).GetRunSnapshot(run.ID);
+        Assert.NotNull(snapshot);
+        Assert.Equal(first.QueryId,Assert.Single(snapshot.Queries).QueryID);
+        Assert.Equal(first.状態.ToString(),Assert.Single(snapshot.SourceExecutions).Status);
+    }
+
+    [Theory,Trait("Category","Unit")]
+    [InlineData(true,true)]
+    [InlineData(false,true)]
+    [InlineData(true,false)]
+    public void 同型例外の一致は合格にし不一致や未比較は合格にしない(bool matches,bool compared){
+        var settings=new 動的ライブ設定(SourceTarget.SystemArray,QueryElementType.Int,Seed256.Parse("0x1"));
+        var request=動的ライブ検証サービス.段階の要求を作る(settings,動的ライブ段階.ランダム探索,0,"exception-check");
+        var comparisons=new Dictionary<string,object>();
+        if(compared){comparisons.Add("fLinq",new{isMatch=matches});}
+        var json=System.Text.Json.JsonSerializer.Serialize(new{
+            exceptions=new{system=new{exceptionType="System.InvalidOperationException"},fLinq=new{exceptionType="System.InvalidOperationException"}},
+            comparisons});
+        var completed=new WorkerSourceExecutionCompletedEvent(request.RunId,"q0",0,SourceTarget.SystemArray,
+            WorkerExecutionStatus.Succeeded,string.Empty,string.Empty,json,"[]",null,null,true,DateTimeOffset.UtcNow);
+        var result=動的ライブ検証サービス.結果を作る(settings,動的ライブ段階.ランダム探索,request,completed,null);
+        Assert.Equal(matches&&compared,result.全経路一致か);
+        Assert.Equal(matches&&compared,result.合格か);
+        Assert.Contains("実行例外",result.診断,StringComparison.Ordinal);
+    }
+
+    private sealed class BatchClient:IWorkerProcessClient{
+        public List<WorkerRunRequest> Requests{get;}=[];
+        public IWorkerProcessSession Start(string workerPath,IReadOnlyList<string>? arguments=null,string? workingDirectory=null)=>new BatchSession(this.Requests);
+    }
+
+    private sealed class BatchSession(List<WorkerRunRequest> requests):IWorkerProcessSession{
+        private WorkerRunRequest? request;
+        public int ProcessID=>1;
+        public bool HasExited{get;private set;}
+        public Task SendAsync<T>(string requestID,string messageType,T payload,CancellationToken cancellationToken=default){
+            cancellationToken.ThrowIfCancellationRequested();
+            if(messageType==WorkerMessageTypes.StartRun){
+                this.request=Assert.IsType<WorkerRunRequest>(payload);
+                requests.Add(this.request);
+            }
+            return Task.CompletedTask;
+        }
+        public async IAsyncEnumerable<WorkerMessageEnvelope> ReadAllAsync([EnumeratorCancellation]CancellationToken cancellationToken=default){
+            await Task.Yield();
+            cancellationToken.ThrowIfCancellationRequested();
+            var run=this.request??throw new InvalidOperationException();
+            yield return DynamicWorkerProtocol.Create(run.RunId,WorkerMessageTypes.RunCompleted,
+                new WorkerRunCompletedEvent(run.RunId,WorkerExecutionStatus.Succeeded,run.QueryCount,0,DateTimeOffset.UtcNow));
+        }
+        public Task<bool> CancelAsync(string requestID){this.HasExited=true;return Task.FromResult(true);}
+        public Task<bool> ShutdownAsync(string requestID){this.HasExited=true;return Task.FromResult(true);}
+        public Task<string> GetStandardErrorAsync()=>Task.FromResult(string.Empty);
+        public ValueTask DisposeAsync(){this.HasExited=true;return ValueTask.CompletedTask;}
     }
 
     private static int[] ToInts(object source)=>((IEnumerable<int>)source).ToArray();
@@ -43,7 +157,7 @@ public sealed class DynamicLiveVerificationTests{
 
     [Fact,Trait("Category","Unit")]
     public async Task int以外の要素型はRangeでは使えない(){
-        var service=new 動的ライブ検証サービス(WorkerPath);
+        var service=new 動的ライブ検証サービス(WorkerPath,データベースパス:Path.Combine(this.directory,"history.db"));
         var settings=new 動的ライブ設定(SourceTarget.SystemRange,QueryElementType.Long,Seed256.Parse("0x1"));
         await Assert.ThrowsAsync<ArgumentException>(()=>service.実行Async(settings,(_,_)=>Task.CompletedTask,null,CancellationToken.None));
     }
@@ -53,7 +167,8 @@ public sealed class DynamicLiveVerificationTests{
     [InlineData(QueryElementType.String)]
     public async Task ペア全組み合わせを実Workerで検証して結果を順に受け取れる(QueryElementType type){
         Assert.True(File.Exists(WorkerPath),$"Worker was not found: {WorkerPath}");
-        var service=new 動的ライブ検証サービス(WorkerPath);
+        var databasePath=Path.Combine(this.directory,"history.db");
+        var service=new 動的ライブ検証サービス(WorkerPath,データベースパス:databasePath);
         var settings=new 動的ライブ設定(SourceTarget.SystemArray,type,Seed256.Parse("0x5EED"),入力要素数:16,特殊な値を混ぜる:type!=QueryElementType.Int);
         using var cancellation=new CancellationTokenSource(TimeSpan.FromMinutes(5));
         var results=new List<動的ライブ結果>();
@@ -87,5 +202,17 @@ public sealed class DynamicLiveVerificationTests{
         if(type==QueryElementType.Int){
             Assert.All(results,static result=>Assert.Contains("[Fact",result.再現テスト,StringComparison.Ordinal));
         }
+        var history=new BenchmarkRepository(new BenchmarkDatabase(databasePath));
+        var run=Assert.Single(history.GetRuns());
+        Assert.Equal("Canceled",run.Status);
+        var measurements=history.GetMeasurements(run.ID);
+        Assert.NotEmpty(measurements);
+        Assert.Contains(measurements,static value=>value.Conditions.Implementation=="FLinqUnoptimized");
+        Assert.All(measurements,static value=>{
+            Assert.True(value.Conditions.Known);
+            Assert.Equal(7,value.Samples.Length);
+            Assert.Equal(16,value.Conditions.Count);
+            Assert.NotEmpty(value.Conditions.InputHash);
+        });
     }
 }

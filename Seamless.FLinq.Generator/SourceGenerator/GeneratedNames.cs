@@ -26,6 +26,18 @@ internal sealed class GeneratedNames(HashSet<string> methodScope,HashSet<string>
     private readonly HashSet<string> methodScope = methodScope;
     private readonly HashSet<string> blockScope = blockScope;
     private readonly Dictionary<string,string> stable = new(StringComparer.Ordinal);
+    internal Dictionary<string,string> PreferredLocals{get;}=new(StringComparer.Ordinal);
+
+    // 名前は描画中には変えず、全体の衝突相手が揃った最終段階で割り当てる。
+    internal static string PreferLocal(string generated,FuncFragment? function,int parameterIndex=0){
+        if(Current is { } names&&function is not null&&parameterIndex<function.ParameterNames.Length){
+            var preferred=function.ParameterNames[parameterIndex];
+            if(!string.IsNullOrWhiteSpace(preferred)&&preferred!="_"&&!names.PreferredLocals.ContainsKey(generated)){
+                names.PreferredLocals.Add(generated,preferred.TrimStart('@'));
+            }
+        }
+        return generated;
+    }
 
     /// <summary>いま生成しているメソッドの割り当て役。メソッドの生成の外では null(その場合、呼び出し側は従来の機械的な名前に戻る)。</summary>
     internal static GeneratedNames? Current => current;
@@ -61,6 +73,7 @@ internal sealed class GeneratedNames(HashSet<string> methodScope,HashSet<string>
     }
 
     /// <summary>メソッド直下の名前。使用済みでない名前を新しく割り当てる。空いていればそのまま、使用済みなら 2・3… を足す。</summary>
+    internal bool CanUseDiscard=>!this.methodScope.Contains("_");
     public string Allocate(string preferred) => this.AllocateIn(this.methodScope,preferred);
 
     /// <summary>ブロックの中だけの名前。ラムダの中だけで宣言される名前とは衝突しない。</summary>

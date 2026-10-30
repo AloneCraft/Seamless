@@ -1,9 +1,9 @@
 namespace Benchmark.Dynamic.Infrastructure;
 
 public static class DynamicInfrastructureSchema{
-    public const int CurrentVersion=3;
-    public const int UserTableCount=11;
-    public const string DatabaseFileName="Benchmark.Dynamic.db";
+    public const int CurrentVersion=4;
+    public const int UserTableCount=20;
+    public const string DatabaseFileName="Benchmark.db";
 }
 
 public sealed record DynamicRunRecord(

@@ -1,4 +1,4 @@
-using Benchmark.Dynamic.Core;
+﻿using Benchmark.Dynamic.Core;
 using Benchmark.Dynamic.Infrastructure;
 using System.Collections.Concurrent;
 using System.Globalization;
@@ -21,7 +21,8 @@ public sealed record 動的実行設定(
     string? 親実行ID=null,
     IReadOnlyList<WorkerReplayQuery>? 再実行Query一覧=null,
     WorkerMeasurementProfile? 計測ProfileOverride=null,
-    QueryElementType 要素型=QueryElementType.Int);
+    QueryElementType 要素型=QueryElementType.Int,
+    int 最適化フラグ=15,WorkerStorageSettings? ストレージ設定=null);
 
 public sealed record 動的実行進捗(
     int QueryIndex,
@@ -50,7 +51,8 @@ public sealed record 動的実行条件Snapshot(
     int OperatorSetVersion,
     string CapabilityId,
     string? ReplayedFromRunId=null,
-    QueryElementType ElementType=QueryElementType.Int);
+    QueryElementType ElementType=QueryElementType.Int,
+    int OptimizationFlags=15,WorkerStorageSettings? StorageSettings=null);
 
 public interface I動的実行調停サービス{
     Task<動的履歴項目> 実行Async(
@@ -132,8 +134,9 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
             return await this.実行CoreAsync(設定,結果受信時,進捗受信時).ConfigureAwait(false);
         }finally{
             foreach(var Key in this.WorkerSessions.Keys.ToArray()){
-                if(this.WorkerSessions.TryRemove(Key,out var Session)){
+                if(this.WorkerSessions.TryGetValue(Key,out var Session)){
                     await Session.DisposeAsync().ConfigureAwait(false);
+                    this.WorkerSessions.TryRemove(Key,out _);
                 }
             }
             this.実行キャンセル?.Dispose();
@@ -167,7 +170,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
                 Capability.OperatorSetVersion,
                 Capability.CapabilityId,
                 設定.親実行ID,
-                設定.要素型),
+                設定.要素型,設定.最適化フラグ,設定.ストレージ設定),
             DynamicWorkerProtocol.JsonOptions);
         var Run=new DynamicRunRecord(
             設定.実行ID,
@@ -363,7 +366,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
                         設定.再実行Query一覧,
                         ResumeState:ResumeState,
                         QueryIndexOffset:QueryIndexOffset,
-                        ElementType:設定.要素型),
+                        ElementType:設定.要素型,OptimizationFlags:設定.最適化フラグ,StorageSettings:設定.ストレージ設定),
                     CancellationToken.None).ConfigureAwait(false);
                 await foreach(var Envelope in Session.ReadAllAsync(CancellationToken.None).ConfigureAwait(false)){
                     switch(Envelope.MessageType){
@@ -617,7 +620,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
 
     public async Task キャンセルAsync(){
         this.実行キャンセル?.Cancel();
-        var セッション一覧=this.WorkerSessions.Values.Where(static Session=>!Session.HasExited).ToArray();
+        var セッション一覧=this.WorkerSessions.Values.ToArray();
         await Task.WhenAll(セッション一覧.Select(
             Session=>Session.CancelAsync("ui-cancel-"+Guid.NewGuid().ToString("N")))).ConfigureAwait(false);
     }
@@ -744,8 +747,9 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
                 },
                 Token).ConfigureAwait(false);
         }finally{
-            if(this.WorkerSessions.TryRemove(縮小SessionKey,out var 残存Session)){
+            if(this.WorkerSessions.TryGetValue(縮小SessionKey,out var 残存Session)){
                 await 残存Session.DisposeAsync().ConfigureAwait(false);
+                this.WorkerSessions.TryRemove(縮小SessionKey,out _);
             }
             this.実行キャンセル?.Dispose();
             this.実行キャンセル=null;
@@ -910,7 +914,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
             親実行ID,
             Replay一覧,
             条件.MeasurementProfile,
-            条件.ElementType);
+            条件.ElementType,条件.OptimizationFlags,条件.StorageSettings);
     }
 
     private static 動的実行条件Snapshot 保存条件を読む(DynamicRunRecord Run){
@@ -928,7 +932,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
         }
     }
 
-    private static QueryCapabilitySet 実行設定を検証(動的実行設定 設定){
+    internal static QueryCapabilitySet 実行設定を検証(動的実行設定 設定){
         ArgumentException.ThrowIfNullOrWhiteSpace(設定.実行ID);
         if(設定.Query数<1||設定.Query数>1_000){
             throw new ArgumentOutOfRangeException(nameof(設定.Query数));
@@ -936,7 +940,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
         if(設定.N<1||設定.N>64){
             throw new ArgumentOutOfRangeException(nameof(設定.N));
         }
-        if(設定.入力要素数<1||設定.入力要素数>100_000){
+        if(設定.入力要素数<0||設定.入力要素数>100_000){
             throw new ArgumentOutOfRangeException(nameof(設定.入力要素数));
         }
         if(設定.最大深度<1||設定.最大深度>Math.Min(設定.N,32)){
@@ -1080,7 +1084,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
         var IR=QueryIrJson.Deserialize(Query開始.IrJson);
         var Artifact=Artifactを解析(結果.MeasurementsJson);
         var 検証=検証結果を解析(結果.Status,結果.ResultJson);
-        var ResultDigest=Hashを計算(結果.ResultJson);
+        var ResultDigest=DynamicResultDigest.Compute(結果.ResultJson);
         var QueryHash=QueryIrJson.ComputeHash(IR);
         var ExecutionID=$"{結果.QueryId}-{結果.SourceTarget}-a1";
         var 開始日時=Source開始?.StartedAtUtc??結果.CompletedAtUtc;
@@ -1144,7 +1148,10 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
             FixedPointTermination:FixedPointTermination,
             AssemblyUnloaded:結果.AssemblyUnloaded);
         var Validations=検証一覧を作成(ExecutionID,結果);
-        var Diagnostics=診断一覧を作成(ExecutionID,結果,ResultDigest);
+        var Diagnostics=診断一覧を作成(ExecutionID,結果,ResultDigest).Concat([
+            new DynamicDiagnosticRecord(Guid.NewGuid().ToString("N"),ExecutionID,"MeasurementConditions",
+                JsonSerializer.Serialize(new DynamicMeasurementConditions(結果.InputHash??"",結果.EnvironmentJSON??"",結果.ParametersJSON??"{}",結果.GrowthJSON??"{}",結果.StoreKind??"Unknown",設定.最適化フラグ.ToString(CultureInfo.InvariantCulture),結果.CodeFingerprint??"",結果.StorageChangesJSON,結果.IO)),結果.CompletedAtUtc),
+        ]).ToArray();
         var Measurements=計測一覧を作成(ExecutionID,Artifact,開始日時,結果.CompletedAtUtc);
         var OptimizationEvents=最適化Event一覧を作成(
             ExecutionID,
@@ -1619,6 +1626,8 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
     }
 
     private static string 実装名を正規化(string? 値){
+        if(string.Equals(値,"fLinqUnoptimized",StringComparison.OrdinalIgnoreCase)){return "FLinqUnoptimized";}
+        if(string.Equals(値,"ideal",StringComparison.OrdinalIgnoreCase)){return "Ideal";}
         if(string.Equals(値,"system",StringComparison.OrdinalIgnoreCase)){
             return"System";
         }
