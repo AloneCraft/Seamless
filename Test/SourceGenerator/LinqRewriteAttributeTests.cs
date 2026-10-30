@@ -257,6 +257,29 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
         this.AssertIntercepted(InnerClassOverridesOuter);
     }
 
+    [Theory]
+    [InlineData(false,false)]
+    [InlineData(false,true)]
+    [InlineData(true,false)]
+    [InlineData(true,true)]
+    public void IteratorFallbackWarningIsLimitedToLinqMethods(bool containsLinq,bool enabled) {
+        var body=containsLinq
+            ? "yield return values.Where(static value=>value>0).First();"
+            : "foreach(var value in values){yield return value;}";
+        var source=$$"""
+using System.Collections.Generic;
+using System.Linq;
+[Seamless.FLinq.LinqIntercept({{enabled.ToString().ToLowerInvariant()}})]
+public class Container {
+    public IEnumerable<int> Source(int[] values){ {{body}} }
+    public IEnumerable<int> Run(int[] values)=>this.Source(values);
+}
+""";
+        var (result,compilation)=RunGenerator(source);
+        Assert.DoesNotContain(compilation.GetDiagnostics(),static diagnostic=>diagnostic.Severity==global::Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+        Assert.Equal(containsLinq&&enabled,result.Diagnostics.Any(static diagnostic=>diagnostic.Id=="FLINQ004"));
+    }
+
     private void AssertIntercepted(string source) {
         var generated = GeneratedSource(source);
         GeneratedSourceAssert.True(
