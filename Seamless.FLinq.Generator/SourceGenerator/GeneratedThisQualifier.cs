@@ -21,7 +21,7 @@ namespace Seamless.FLinq.Generator;
 /// </summary>
 internal static class GeneratedThisQualifier {
     internal static string Qualify(string text) {
-        if(text.IndexOf("struct ",StringComparison.Ordinal)<0) {
+        if(text.IndexOf("struct ",StringComparison.Ordinal)<0&&text.IndexOf("class ",StringComparison.Ordinal)<0) {
             return text;
         }
         var tree = CSharpSyntaxTree.ParseText(text,new CSharpParseOptions(LanguageVersion.Latest));
@@ -44,7 +44,7 @@ internal static class GeneratedThisQualifier {
             var savedActive = this.active;
             var savedFields = this.fields;
             var savedMutated = this.mutated;
-            this.members=node is StructDeclarationSyntax ? InstanceMemberNames(node) : [];
+            this.members=InstanceMemberNames(node);
             this.fields=node is StructDeclarationSyntax ? InstanceFieldNames(node) : [];
             this.mutated=node is StructDeclarationSyntax ? MutatedFieldNames(node,this.fields) : [];
             this.active=[];
@@ -130,7 +130,14 @@ internal static class GeneratedThisQualifier {
             }
             // 写した名前はローカルになるので、このメンバーの中では this. を付けない。
             var visited = (MethodDeclarationSyntax)this.VisitMember(node,false,() => base.VisitMethodDeclaration(node),shadows)!;
-            var copies = shadows.Select(static name => (StatementSyntax)SyntaxFactory.ParseStatement($"var {name} = this.{name};")).ToList();
+            var copies=shadows.Select(static name=>{
+                // ValueTextは@を含まないため、予約語のfield名は識別子として再escapeする。
+                var identifier=name;
+                if(SyntaxFacts.GetKeywordKind(name)!=SyntaxKind.None||SyntaxFacts.GetContextualKeywordKind(name)!=SyntaxKind.None){
+                    identifier="@"+name;
+                }
+                return(StatementSyntax)SyntaxFactory.ParseStatement($"var {identifier} = this.{identifier};");
+            }).ToList();
             return visited.WithBody(visited.Body!.WithStatements(visited.Body.Statements.InsertRange(0,copies)));
         }
 

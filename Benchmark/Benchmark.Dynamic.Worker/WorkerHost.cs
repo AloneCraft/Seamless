@@ -1,4 +1,4 @@
-using Benchmark.Dynamic.Core;
+﻿using Benchmark.Dynamic.Core;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
@@ -26,6 +26,7 @@ public sealed record WorkerExecutionArtifact(
     bool ReachedFixedPoint);
 
 public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
+    private static readonly Lazy<string> ビルド指紋=new(static ()=>Benchmark.Infrastructure.BuildFingerprint.Capture(typeof(DynamicWorkerExecutionRunner).Assembly.Location));
     private static readonly DynamicImplementationKind[] 検証対象=[
         DynamicImplementationKind.System,
         DynamicImplementationKind.FLinqUnoptimized,
@@ -62,8 +63,11 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
         SourceTarget 対象,
         int Source順序,
         CancellationToken キャンセルToken){
+        using var 計測排他=Benchmark.Infrastructure.MeasurementLease.Acquire(キャンセルToken);
         var 完了日時=DateTimeOffset.UtcNow;
         var Status=WorkerExecutionStatus.ExecutionFailed;
+        var 保存方式=対象.GetSourceKind().ToString();
+        if(対象.GetSourceKind() is SourceKind.Persisted or SourceKind.Tsavorite){保存方式=(要求.StorageSettings??new()).Kind;}
         var SourceText=string.Empty;
         var SourceHash=string.Empty;
         string? ResultJSON=null;
@@ -71,6 +75,13 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
         string? TraceJSON=null;
         var 展開コード=string.Empty;
         string? 計測JSON=null;
+        string? 入力ハッシュ=null;
+        string? 環境JSON=null;
+        string? パラメーターJSON=null;
+        string? 拡張JSON=null;
+        string? 設定変更JSON=null;
+        var 入出力方式="BackendDefault";
+        var 保存先キー="Unknown";
         var 解放済み=true;
         var Source生成時間=0L;
         DynamicCompilationTimings Compilation時間=空のコンパイル時間();
@@ -78,10 +89,12 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
         SourceFixture? Fixture=null;
         try{
             キャンセルToken.ThrowIfCancellationRequested();
+            Benchmark.Infrastructure.SystemResources.Check(starting:true);
             var 開始=Stopwatch.GetTimestamp();
             var Source=this.Source生成.Emit(Query,new QuerySourceEmissionOptions{
                 GeneratedNamespace="Benchmark.Dynamic.Generated",
                 ClassName=$"Q_{安全な識別子(要求.RunId)}_{QueryIndex:D6}_{(int)対象}_{SourceHash短縮(Query)}",
+                OptimizationFlags=要求.OptimizationFlags,
             });
             Source生成時間=経過ナノ秒(開始);
             SourceText=Source.SourceText;
@@ -110,45 +123,29 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                 goto 完了;
             }
             var FixtureSeed=要求.FixtureSeedOverride??SeedDerivation.Derive(要求.BaseSeed,"fixture",QueryIndex);
-            Fixture=this.Fixture生成.Create(対象,要求.InputElementCount,FixtureSeed,Query.ElementType,要求.IncludeSpecialValues);
-            var 検証=検証する(Loaded,Fixture.Primary,Fixture.Secondary,キャンセルToken);
+            Fixture=this.Fixture生成.Create(対象,要求.InputElementCount,FixtureSeed,Query.ElementType,要求.IncludeSpecialValues,要求.StorageSettings,QueryWorkloadIdentity.Compute(Query));
+            入力ハッシュ=FixtureInputIdentity.Compute(Fixture,Query.ElementType);
+            環境JSON=JsonSerializer.Serialize(Benchmark.Infrastructure.EnvironmentSnapshot.Capture(要求.MeasurementProfile.ProfileId));
+            var 所有者=Fixture.Stores.FirstOrDefault();
+            保存先キー=global::Seamless.Execution.ProfileEnvironment.Storage(所有者?.DirectoryPath);
+            if(所有者 is not null){
+                var 採用設定=所有者.ResolvedProfiles.Values.First();
+                var 実設定=所有者.GetCurrentSettings(所有者.ResolvedProfiles.Keys.First());
+                パラメーターJSON=JsonSerializer.Serialize(new Benchmark.Infrastructure.ProfileParameters(WorkerStorage.Requested(要求.StorageSettings??new()),実設定,採用設定.ProfileID??"Minimum",採用設定.Reason,採用設定.ProfileVersion,採用設定.EvidenceRunIDs,採用設定.Requested.ToString(),採用設定.Settings));
+                拡張JSON=JsonSerializer.Serialize(所有者.GetGrowth(所有者.ResolvedProfiles.Keys.First()).Descriptor);
+                入出力方式=global::Seamless.Execution.ProfileIO.Describe(WorkerStorage.Storage(要求.StorageSettings??new()));
+            }else{
+                パラメーターJSON="{}";拡張JSON="{}";
+            }
+            設定変更JSON=JsonSerializer.Serialize(WorkerStorage.Changes(Fixture,要求.RunId,QueryIndex));
+            var 検証=DynamicQueryValidator.Validate(Loaded,Fixture.Primary,Fixture.Secondary,検証対象,Query.ExpectExceptions,キャンセルToken);
             var 結果一覧=検証.Results;
             var 例外一覧=検証.Exceptions;
-            ResultJSON=JsonSerializer.Serialize(
-                new WorkerValidationArtifact(
-                    結果一覧,
-                    例外一覧,
-                    new Dictionary<DynamicImplementationKind,DynamicQueryComparison>()),
-                DynamicWorkerProtocol.JsonOptions);
-            if(例外一覧.Count!=0){
-                if(!Query.ExpectExceptions){
-                    Status=WorkerExecutionStatus.ExecutionFailed;
-                    goto 完了;
-                }
-                // 例外を許す検証: System.Linq が例外を投げたら、他の実装も同じ型の例外を投げることを一致とする。
-                var 例外比較=例外の一致を比べる(Loaded,結果一覧,例外一覧);
-                ResultJSON=JsonSerializer.Serialize(
-                    new WorkerValidationArtifact(結果一覧,例外一覧,例外比較),
-                    DynamicWorkerProtocol.JsonOptions);
-                // 全実装が同じ型の例外を投げたときは、比べる値も測る処理も無いので、ここで終わる。
-                Status=例外比較.Values.Any(static 比較=>!比較.IsMatch)
-                    ?WorkerExecutionStatus.SemanticMismatch
-                    :WorkerExecutionStatus.Succeeded;
-                goto 完了;
-            }
-            var 比較一覧=new Dictionary<DynamicImplementationKind,DynamicQueryComparison>();
-            var System結果=結果一覧[DynamicImplementationKind.System];
-            foreach(var 実装 in 検証対象.Where(実装=>実装!=DynamicImplementationKind.System&&Loaded.Has(実装))){
-                比較一覧[実装]=DynamicQueryComparer.Compare(System結果,結果一覧[実装]);
-            }
+            var 比較一覧=検証.Comparisons;
             ResultJSON=JsonSerializer.Serialize(
                 new WorkerValidationArtifact(結果一覧,例外一覧,比較一覧),
                 DynamicWorkerProtocol.JsonOptions);
-            if(比較一覧.Values.Any(static 比較=>!比較.IsMatch)){
-                Status=WorkerExecutionStatus.SemanticMismatch;
-                goto 完了;
-            }
-            if(検証.Fallbacks.Count!=0){
+            if(検証.Status==WorkerExecutionStatus.ExpansionIncomplete){
                 var 内訳=string.Join(", ",検証.Fallbacks.Select(static 項目=>$"{項目.Key}={項目.Value}"));
                 診断JSON=診断を追加(
                     診断JSON,
@@ -157,7 +154,9 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                         "FLinqRuntimeFallback",
                         $"実行時に EnumerableFallback が数えられました({内訳})。FLinq が展開しきれていません。",
                         null));
-                Status=WorkerExecutionStatus.ExpansionIncomplete;
+            }
+            if(!検証.ShouldMeasure){
+                Status=検証.Status;
                 goto 完了;
             }
             IReadOnlyDictionary<DynamicImplementationKind,long>? 評価回数=null;
@@ -203,7 +202,8 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
             計測JSON=ArtifactをJSON化(Source生成時間,Compilation時間,計測,Trace概要);
             Status=WorkerExecutionStatus.Succeeded;
             goto 完了;
-        }catch(OperationCanceledException){
+        }catch(OperationCanceledException 例外){
+            if(例外 is Benchmark.Infrastructure.ResourceGuardException){診断JSON=JsonSerializer.Serialize(new[]{new DynamicCompilationDiagnostic("Resource","Error","PhysicalMemoryGuard",例外.Message,string.Empty)},DynamicWorkerProtocol.JsonOptions);}
             Status=WorkerExecutionStatus.Canceled;
             goto 完了;
         }catch(Exception 例外){
@@ -254,7 +254,8 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                 計測JSON,
                 解放済み,
                 完了日時,
-                展開コード.Length==0?null:展開コード);
+                展開コード.Length==0?null:展開コード,
+                入力ハッシュ,環境JSON,パラメーターJSON,拡張JSON,保存方式,ビルド指紋.Value,設定変更JSON,入出力方式,保存先キー);
         }
     }
 
@@ -271,6 +272,7 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
         SourceFixture Fixture,
         CancellationToken キャンセルToken){
         var 回数=new Dictionary<DynamicImplementationKind,long>();
+        var ラムダごとの回数=new Dictionary<DynamicImplementationKind,long[]>();
         LoadedDynamicQuery? 読込=null;
         try{
             var Source=this.Source生成.Emit(Query,new QuerySourceEmissionOptions{
@@ -299,8 +301,9 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                     // 例外の型の一致は、通常の検証が見ている。ここでは、例外までに評価した回数だけを使う。
                 }
                 回数[実装]=EvaluationProbe.Count;
+                ラムダごとの回数[実装]=EvaluationProbe.CountsByLambda;
             }
-            return (EvaluationCountComparer.Compare(回数),null,回数);
+            return (EvaluationCountComparer.CompareByLambda(ラムダごとの回数),null,回数);
         }finally{
             読込?.UnloadAndVerify();
         }
@@ -320,56 +323,6 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
             return WorkerExecutionStatus.ExpansionIncomplete;
         }
         return WorkerExecutionStatus.CompilationFailed;
-    }
-
-    private static Dictionary<DynamicImplementationKind,DynamicQueryComparison> 例外の一致を比べる(
-        LoadedDynamicQuery Loaded,
-        Dictionary<DynamicImplementationKind,DynamicQueryValue> 結果一覧,
-        Dictionary<DynamicImplementationKind,WorkerInvocationFailure> 例外一覧){
-        var 比較一覧=new Dictionary<DynamicImplementationKind,DynamicQueryComparison>();
-        例外一覧.TryGetValue(DynamicImplementationKind.System,out var 期待);
-        foreach(var 実装 in 検証対象.Where(実装=>実装!=DynamicImplementationKind.System&&Loaded.Has(実装))){
-            例外一覧.TryGetValue(実装,out var 実際);
-            比較一覧[実装]=(期待,実際) switch{
-                (null,null)=>DynamicQueryComparer.Compare(結果一覧[DynamicImplementationKind.System],結果一覧[実装]),
-                ({ }e,{ }a) when e.Type==a.Type=>new(true),
-                ({ }e,{ }a)=>new(false,$"System threw {e.Type} but {実装} threw {a.Type}: {a.Message}"),
-                ({ }e,null)=>new(false,$"System threw {e.Type} but {実装} returned a value."),
-                (null,{ }a)=>new(false,$"System returned a value but {実装} threw {a.Type}: {a.Message}"),
-            };
-        }
-        return 比較一覧;
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static ValidationExecution 検証する(
-        LoadedDynamicQuery Loaded,
-        object? Primary,
-        object? Secondary,
-        CancellationToken キャンセルToken){
-        var 結果一覧=new Dictionary<DynamicImplementationKind,DynamicQueryValue>();
-        var 例外一覧=new Dictionary<DynamicImplementationKind,WorkerInvocationFailure>();
-        var フォールバック=new Dictionary<DynamicImplementationKind,long>();
-        foreach(var 実装 in 検証対象.Where(Loaded.Has)){
-            キャンセルToken.ThrowIfCancellationRequested();
-            try{
-                // FLinq の実行時フォールバック回数は、検証の実行だけで数える(計測の実行では数えない)。
-                using var カウンタ範囲=global::Seamless.Linq.LinqCounterScope.Start();
-                var 値=Loaded.Run(実装,Primary,Secondary);
-                値.Validate();
-                結果一覧[実装]=値;
-                if(実装 is DynamicImplementationKind.FLinqUnoptimized or DynamicImplementationKind.FLinq
-                    &&カウンタ範囲.Counter.EnumerableFallback>0){
-                    フォールバック[実装]=カウンタ範囲.Counter.EnumerableFallback;
-                }
-            }catch(Exception 例外) when(例外 is not OperationCanceledException){
-                例外一覧[実装]=new(
-                    例外.GetType().FullName??例外.GetType().Name,
-                    例外.Message,
-                    例外.StackTrace);
-            }
-        }
-        return new(結果一覧,例外一覧,フォールバック);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -513,16 +466,12 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
     }
 
     private sealed record WorkerInvocationFailure(string Type,string Message,string? StackTrace);
-    private sealed record ValidationExecution(
-        Dictionary<DynamicImplementationKind,DynamicQueryValue> Results,
-        Dictionary<DynamicImplementationKind,WorkerInvocationFailure> Exceptions,
-        Dictionary<DynamicImplementationKind,long> Fallbacks);
     private sealed record MeasurementExecution(
         BalancedMeasurementResult? Result,
         WorkerInvocationFailure? Failure);
     private sealed record WorkerValidationArtifact(
         IReadOnlyDictionary<DynamicImplementationKind,DynamicQueryValue> Results,
-        IReadOnlyDictionary<DynamicImplementationKind,WorkerInvocationFailure> Exceptions,
+        IReadOnlyDictionary<DynamicImplementationKind,DynamicQueryInvocationFailure> Exceptions,
         IReadOnlyDictionary<DynamicImplementationKind,DynamicQueryComparison> Comparisons,
         IReadOnlyDictionary<DynamicImplementationKind,long>? EvaluationCounts=null);
     private sealed record TraceSummary(int RewriteCount,bool ReachedFixedPoint,bool NonConverged);
@@ -867,7 +816,7 @@ public sealed class WorkerHost{
 
     private static void 要求を検証(WorkerRunRequest 要求){
         ArgumentException.ThrowIfNullOrWhiteSpace(要求.RunId);
-        if(要求.QueryCount<1||要求.QueryCount>1_000){
+        if(要求.QueryCount<1||要求.QueryCount>DynamicWorkerProtocol.MaximumQueryCount){
             throw new ArgumentOutOfRangeException(nameof(要求.QueryCount));
         }
         if(要求.OperatorCount<1||要求.OperatorCount>64){
@@ -876,7 +825,7 @@ public sealed class WorkerHost{
         if(要求.MaximumDepth<1||要求.MaximumDepth>Math.Min(要求.OperatorCount,32)){
             throw new ArgumentOutOfRangeException(nameof(要求.MaximumDepth));
         }
-        if(要求.InputElementCount<1||要求.InputElementCount>SourceFixtureFactory.MaximumInputElementCount){
+        if(要求.InputElementCount<0||要求.InputElementCount>SourceFixtureFactory.MaximumInputElementCount){
             throw new ArgumentOutOfRangeException(nameof(要求.InputElementCount));
         }
         if(要求.SourceTargets.Count<1||要求.SourceTargets.Count>Enum.GetValues<SourceTarget>().Length
@@ -1029,7 +978,7 @@ public sealed class WorkerHost{
     private static UnaryQueryNode Unaryを変換(UnaryQueryNode Node,SourceTarget 対象){
         var Input=Nodeを変換(Node.Input,対象);
         var Order=Node.Arguments switch{
-            DistinctOperatorArguments=>QueryOrderSemantics.Unordered,
+            DistinctOperatorArguments or DistinctByOperatorArguments=>QueryOrderSemantics.Unordered,
             OrderByOperatorArguments or ThenByOperatorArguments=>QueryOrderSemantics.TotalOrdered,
             ExtendedUnaryOperatorArguments Extended=>ExtendedUnaryShape.Order(Extended,Input.OrderSemantics),
             _=>Input.OrderSemantics,

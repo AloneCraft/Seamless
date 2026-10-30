@@ -1,0 +1,13 @@
+CREATE TABLE BenchmarkSchema(version INTEGER NOT NULL PRIMARY KEY,applied_at TEXT NOT NULL) STRICT;
+INSERT INTO BenchmarkSchema VALUES(4,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+CREATE TABLE BenchmarkRuns(id TEXT NOT NULL PRIMARY KEY,application TEXT NOT NULL,status TEXT NOT NULL,created_at TEXT NOT NULL,payload TEXT NOT NULL CHECK(json_valid(payload))) STRICT;
+CREATE TABLE BenchmarkMeasurements(id TEXT NOT NULL PRIMARY KEY,run_id TEXT NOT NULL,scope_key TEXT NOT NULL,interval INTEGER NOT NULL,status TEXT NOT NULL,payload TEXT NOT NULL CHECK(json_valid(payload)),FOREIGN KEY(run_id) REFERENCES BenchmarkRuns(id) ON DELETE CASCADE) STRICT;
+CREATE INDEX index_benchmark_measurement_scope ON BenchmarkMeasurements(scope_key,run_id);
+CREATE TABLE BenchmarkSamples(measurement_id TEXT NOT NULL,sample_index INTEGER NOT NULL,elapsed_ns REAL NOT NULL,operations INTEGER NOT NULL,allocated_bytes INTEGER NOT NULL,payload TEXT NOT NULL CHECK(json_valid(payload)),PRIMARY KEY(measurement_id,sample_index),FOREIGN KEY(measurement_id) REFERENCES BenchmarkMeasurements(id) ON DELETE CASCADE) STRICT;
+CREATE TABLE BenchmarkChanges(id TEXT NOT NULL PRIMARY KEY,run_id TEXT NOT NULL,interval INTEGER NOT NULL,payload TEXT NOT NULL CHECK(json_valid(payload)),FOREIGN KEY(run_id) REFERENCES BenchmarkRuns(id) ON DELETE CASCADE) STRICT;
+CREATE TABLE BenchmarkBaselines(scope_key TEXT NOT NULL PRIMARY KEY,measurement_id TEXT NOT NULL,selected_at TEXT NOT NULL,FOREIGN KEY(measurement_id) REFERENCES BenchmarkMeasurements(id)) STRICT;
+CREATE TABLE BenchmarkComparisons(id TEXT NOT NULL PRIMARY KEY,baseline_id TEXT NOT NULL,candidate_id TEXT NOT NULL,payload TEXT NOT NULL CHECK(json_valid(payload)),FOREIGN KEY(baseline_id) REFERENCES BenchmarkMeasurements(id),FOREIGN KEY(candidate_id) REFERENCES BenchmarkMeasurements(id)) STRICT;
+CREATE TABLE BenchmarkProfiles(id TEXT NOT NULL PRIMARY KEY,created_at TEXT NOT NULL,payload TEXT NOT NULL CHECK(json_valid(payload))) STRICT;
+CREATE TABLE BenchmarkImports(source TEXT NOT NULL PRIMARY KEY,imported_at TEXT NOT NULL,backup_path TEXT NOT NULL) STRICT;
+UPDATE DynamicSchemaInfo SET version=4;
+PRAGMA user_version=4;

@@ -40,7 +40,12 @@ public abstract class Collection<
     >
     where TMode : struct, IAccessMode {
     internal bool ScanNext<TScanFunctions>(ref TScanFunctions functions,ref long cursor,long untilAddress=-1)
-        where TScanFunctions:IScanIteratorFunctions=>Scans.Lookup.Next(this.Store,ref functions,ref cursor,untilAddress);
+        where TScanFunctions:IScanIteratorFunctions{
+        if(this.Store.Log.HeadAddress<=this.Store.Log.BeginAddress){
+            return this.ReadSession.IterateLookup(ref functions,ref cursor,untilAddress:untilAddress,resetCursor:false);
+        }
+        return Scans.Lookup.Next(this.Store,ref functions,ref cursor,untilAddress);
+    }
     /// <summary>
     /// 生存レコードをデシリアライズしてチャンクへ格納する。
     /// 列挙時はResetChunkでCountを初期化して再利用する。
@@ -655,10 +660,11 @@ public abstract class Collection<
     private protected bool WouldOverflowMutable(int KeyLength,int ValueLength) {
         Debug.Assert(this.LogMemorySize>=8192);
         var Log = this.CollectionStore.Store.Log;
-        this.CollectionStore.EnsureCapacity(Log.TailAddress,KeyLength,ValueLength);
+        var tailAddress=Log.TailAddress;
+        this.CollectionStore.EnsureCapacity(tailAddress,KeyLength,ValueLength);
         return this.CollectionStore.OverflowMutableStrategyKind switch {
-            OverflowMutableStrategyKind.Memory => MemoryOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
-            OverflowMutableStrategyKind.Storage => this.CollectionStore.StorageOverflowMutableStrategy.WouldOverflowMutable(Log.TailAddress,KeyLength,ValueLength),
+            OverflowMutableStrategyKind.Memory => MemoryOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,Log.BeginAddress,tailAddress,KeyLength,ValueLength),
+            OverflowMutableStrategyKind.Storage => this.CollectionStore.StorageOverflowMutableStrategy.WouldOverflowMutable(tailAddress,KeyLength,ValueLength),
             _ => throw new UnreachableException(),
         };
     }

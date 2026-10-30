@@ -69,9 +69,20 @@ public sealed class InvariantHoisting:OptimizationTestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void InvariantMayEvaluateBeforeLazyGuard() {
-        Assert.Throws<DivideByZeroException>(() => InvariantNotHoistedPastLazyGuardOptimized());
+    public static void InvariantDoesNotEvaluateBeforeLazyGuard() {
+        Assert.Empty(InvariantNotHoistedPastLazyGuardOptimized());
         Assert.Empty(InvariantNotHoistedPastLazyGuardNoOptimized());
+        Assert.Throws<DivideByZeroException>(()=>DivisionInvariantOptimized([1],0));
+        Assert.Equal([3],DivisionInvariantOptimized([1],5));
+        Assert.Empty(NullMemberInvariantOptimized([],null));
+        Assert.Throws<NullReferenceException>(()=>NullMemberInvariantOptimized([1],null));
+        Assert.Equal([2],NullMemberInvariantOptimized([1],[1]));
+        Assert.Empty(CheckedInvariantOptimized([],int.MaxValue));
+        Assert.Throws<OverflowException>(()=>CheckedInvariantOptimized([1],int.MaxValue));
+        Assert.Equal([3],CheckedInvariantOptimized([1],1));
+        Assert.Empty(NarrowingInvariantOptimized([],int.MaxValue));
+        Assert.Throws<OverflowException>(()=>NarrowingInvariantOptimized([1],int.MaxValue));
+        Assert.Equal([2],NarrowingInvariantOptimized([1],1));
     }
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
@@ -86,13 +97,27 @@ public sealed class InvariantHoisting:OptimizationTestBase {
         return EmptyOuter().Where(v => v>100/divisor).ToList();
     }
 
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] DivisionInvariantOptimized(int[] source,int divisor)=>source.Select(value=>value+10/divisor).ToArray();
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] NullMemberInvariantOptimized(int[] source,int[]? values)=>source.Select(value=>value+values!.Length).ToArray();
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] CheckedInvariantOptimized(int[] source,int offset)=>source.Select(value=>value+checked(offset+1)).ToArray();
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] NarrowingInvariantOptimized(int[] source,int offset)=>source.Select(value=>value+checked((byte)offset)).ToArray();
+
     [Fact, Trait("Category","Unit")]
     public static void PartialExpressionHoistedForSelect() {
         AssertSequenceEqual(SelectPartialInvariantNoOptimized(),SelectPartialInvariantOptimized());
         var generated = GeneratedInterceptorAssert.SourceFor<InvariantHoisting>(nameof(SelectPartialInvariantOptimized));
         // 巻き上げた x*x は、ループの外で1回だけ計算して構造体のフィールドへ渡し、ループの中ではそのフィールドを足す(名前ではなく形で確かめる)。
-        Assert.Matches(@",\s*x\*x\)",generated);
+        Assert.Matches(@",\s*unchecked\(x\*x\)\)",generated);
         Assert.Matches(@"\+this\.\w+;",generated);
+        Assert.Equal([10,11],ValueParameterInvariantOptimized([1,2],3));
+        Assert.Equal([unchecked(1+50000*50000)],UncheckedInvariantInsideCheckedContextOptimized([1],50000));
     }
 
     [Fact, Trait("Category","Unit")]
@@ -103,21 +128,25 @@ public sealed class InvariantHoisting:OptimizationTestBase {
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void PartialExpressionHoistEvaluatesOncePerEnumeratorConstruction() {
+    public static void PartialExpressionKeepsMethodAndMutableCaptureEvaluationAtLambdaUse() {
         mutatingCallCount=0;
         AssertSequenceEqual([8,9,10,11,12],MutatingPartialInvariantOptimized());
-        Assert.Equal(1,mutatingCallCount);
+        Assert.Equal(Outer().Length,mutatingCallCount);
 
         mutatingCallCount=0;
         AssertSequenceEqual([8,9,10,11,12],MutatingPartialInvariantNoOptimized());
         Assert.Equal(Outer().Length,mutatingCallCount);
+        AssertSequenceEqual(MutableCaptureNoOptimized(),MutableCaptureOptimized());
+        AssertSequenceEqual([2,6,12,20,30],MutableCaptureOptimized());
+        AssertSequenceEqual(MutableCaptureByRefNoOptimized(),MutableCaptureByRefOptimized());
+        AssertSequenceEqual([2,6,12,20,30],MutableCaptureByRefOptimized());
     }
 
     [Fact, Trait("Category","Unit")]
-    public static void PartialExpressionHoistEvaluatesBeforeEmptySourceEnumeration() {
+    public static void PartialExpressionDoesNotEvaluateBeforeEmptySourceEnumeration() {
         mutatingCallCount=0;
         Assert.Empty(EmptySourceMutatingPartialInvariantOptimized());
-        Assert.Equal(1,mutatingCallCount);
+        Assert.Equal(0,mutatingCallCount);
     }
 
     [Fact, Trait("Category","Unit")]
@@ -138,6 +167,42 @@ public sealed class InvariantHoisting:OptimizationTestBase {
         var x = 3;
         return Outer().Select(p => p+x*x).ToList();
     }
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] ValueParameterInvariantOptimized(int[] source,int offset)=>source.Select(value=>value+offset*offset).ToArray();
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] UncheckedInvariantInsideCheckedContextOptimized(int[] source,int factor){
+        checked{
+            return source.Select(value=>unchecked(value+factor*factor)).ToArray();
+        }
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] MutableCaptureOptimized(){
+        var offset=0;
+        return Outer().Select(value=>value+(offset++*0)).Select(value=>value+offset*offset).ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false)]
+    private static int[] MutableCaptureNoOptimized(){
+        var offset=0;
+        return Outer().Select(value=>value+(offset++*0)).Select(value=>value+offset*offset).ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(true)]
+    private static int[] MutableCaptureByRefOptimized(){
+        var offset=0;
+        return Outer().Select(value=>IncrementAndReturn(value,ref offset)).Select(value=>value+offset*offset).ToArray();
+    }
+
+    [global::Seamless.FLinq.LinqIntercept(false)]
+    private static int[] MutableCaptureByRefNoOptimized(){
+        var offset=0;
+        return Outer().Select(value=>IncrementAndReturn(value,ref offset)).Select(value=>value+offset*offset).ToArray();
+    }
+
+    private static int IncrementAndReturn(int value,ref int offset){offset++;return value;}
 
     [global::Seamless.FLinq.LinqIntercept(true,global::Seamless.FLinq.LinqInstrumentation.Counter)]
     private static List<int> WherePartialInvariantOptimized() {

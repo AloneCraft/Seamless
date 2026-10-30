@@ -36,6 +36,16 @@ internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IR
         }
     }
 
+    // stage内の関数も、入れ子scalarへのcontext伝播とAnchor/Accessor探索の子として公開する。
+    protected override IEnumerable<FuncFragment> GetChildFunctions(){
+        foreach(var function in base.GetChildFunctions()){
+            yield return function;
+        }
+        foreach(var function in this.Funcs){
+            yield return function;
+        }
+    }
+
     // 段の並びの根と段(Fragment.TryPeelWheres が Where だけの段の並びを根と述語に分けるのに使う)。
     internal Enumerable PipelineSource => source;
     internal IReadOnlyList<PipelineStage> PipelineStages => stages;

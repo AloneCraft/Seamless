@@ -75,11 +75,11 @@ public sealed class DemandCorrectness {
 
     [global::Seamless.FLinq.LinqIntercept(true)]
     private static bool OrderWhereAnyImpl() => new[] { 3,4 }.OrderByDescending(static x => x).Where(static x => 10/(x-3)>0).Any();
-    [Fact(Skip = "段階 6 で直す(並べ替えを消す規則を、要素ごとに System.Linq に合わせる)"), Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public void OrderWhereAnyEvaluatesInSortedOrder() => Assert.True(OrderWhereAnyImpl());
 
     [global::Seamless.FLinq.LinqIntercept(true)]
     private static bool ReverseWhereAnyImpl() => new[] { 3,4 }.Reverse().Where(static x => 10/(x-3)>0).Any();
-    [Fact(Skip = "段階 6 で直す(並べ替えを消す規則を、要素ごとに System.Linq に合わせる)"), Trait("Category","Unit")]
+    [Fact, Trait("Category","Unit")]
     public void ReverseWhereAnyEvaluatesInReversedOrder() => Assert.True(ReverseWhereAnyImpl());
 }

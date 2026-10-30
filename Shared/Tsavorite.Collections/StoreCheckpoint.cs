@@ -4,8 +4,10 @@ using Tsavorite.core;
 namespace Shared.Tsavorite.Collections;
 
 public class StoreCheckpoint {
-    //private static string CreateFolder()=>Path.Combine(Environment.CurrentDirectory,"TsavoriteTest_"+Guid.NewGuid().ToString("N"));
-    private static string CreateFolder() => TestPath.Directory<StoreCheckpoint>();
+    private static string CreateFolder([System.Runtime.CompilerServices.CallerMemberName]string testName=""){
+        var root=TestPath.Directory(nameof(StoreCheckpoint),testName);
+        return Path.Combine(root,"store");
+    }
     [BenchFact]
     public async Task SaveAsync_CheckpointDirNotSet_ThrowsInvalidOperationException() {
         var ct = CancellationToken.None;

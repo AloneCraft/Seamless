@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Benchmark.Infrastructure/Benchmark.Infrastructure.csproj" />
+    <ProjectReference Include="../Benchmark.Tsavorite.ParameterSweep/Benchmark.Tsavorite.ParameterSweep.csproj" />
+    <ProjectReference Include="../../Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
+    <ProjectReference Include="../../Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
+    <ProjectReference Include="../../Seamless.Linq/Seamless.Linq.csproj" />
+  </ItemGroup>
+</Project>
