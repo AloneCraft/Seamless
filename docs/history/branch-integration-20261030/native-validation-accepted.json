@@ -1,0 +1,61 @@
+{
+  "status": "Passed",
+  "head": "7529303ba3dd4a085f8d963e352e7b53c14dcd36",
+  "requireEgen": true,
+  "cases": [
+    {
+      "stage": "native-c12-critical-debug-01",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "tests": [
+        "Benchmark.TpcE.Compliance.Tests.SharedRecovery.NativeCommitReplaysFromCheckpointAfterRepeatedInterruptedRecovery(backend: \"Persisted\")",
+        "Benchmark.TpcE.Compliance.Tests.MarketRequestContract.EveryAbiFieldIsComparedAndOnlyTailAlignmentIsExcluded",
+        "Benchmark.TpcE.Compliance.Tests.RedoLogReader.ReplayReproducesTablesAndIndexes",
+        "Benchmark.TpcE.Compliance.Tests.SharedRecovery.NativeCommitReplaysFromCheckpointAfterRepeatedInterruptedRecovery(backend: \"Tsavorite\")",
+        "Benchmark.TpcE.Compliance.Tests.HarnessHost.RunsTradeStatusThroughTheHarness",
+        "Benchmark.TpcE.Compliance.Tests.SharedTransactions.NativeTradeOrderUsesSharedWalAndReturnsMarketMessagesAfterCommit"
+      ],
+      "sourceIdentity": {
+        "sourceUnchanged": true,
+        "headBefore": "7529303ba3dd4a085f8d963e352e7b53c14dcd36",
+        "headAfter": "7529303ba3dd4a085f8d963e352e7b53c14dcd36"
+      }
+    },
+    {
+      "stage": "native-c12-critical-release-01",
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "tests": [
+        "Benchmark.TpcE.Compliance.Tests.SharedRecovery.NativeCommitReplaysFromCheckpointAfterRepeatedInterruptedRecovery(backend: \"Persisted\")",
+        "Benchmark.TpcE.Compliance.Tests.MarketRequestContract.EveryAbiFieldIsComparedAndOnlyTailAlignmentIsExcluded",
+        "Benchmark.TpcE.Compliance.Tests.HarnessHost.RunsTradeStatusThroughTheHarness",
+        "Benchmark.TpcE.Compliance.Tests.SharedRecovery.NativeCommitReplaysFromCheckpointAfterRepeatedInterruptedRecovery(backend: \"Tsavorite\")",
+        "Benchmark.TpcE.Compliance.Tests.SharedTransactions.NativeTradeOrderUsesSharedWalAndReturnsMarketMessagesAfterCommit",
+        "Benchmark.TpcE.Compliance.Tests.RedoLogReader.ReplayReproducesTablesAndIndexes"
+      ],
+      "sourceIdentity": {
+        "sourceUnchanged": true,
+        "headAfter": "7529303ba3dd4a085f8d963e352e7b53c14dcd36",
+        "headBefore": "7529303ba3dd4a085f8d963e352e7b53c14dcd36"
+      }
+    }
+  ],
+  "binaryIdentity": [
+    {
+      "path": "G:\\GitHub\\Seamless\\Work\\TpcE\\egen-build\\EGenHarness.dll",
+      "sha256": "98628B1F8091DBFC01140A0B48468A56040BD32126E9FD3AE3629F5757E07293"
+    },
+    {
+      "path": "G:\\GitHub\\Seamless\\Work\\TpcE\\egen-build\\EGenLoader.exe",
+      "sha256": "40531EB7FD9778E1EB3ED889C9934FDA13DBB9563CEA184F6012BA41CEB95AF8"
+    },
+    {
+      "path": "G:\\GitHub\\Seamless\\Work\\TpcE\\egen-build\\EGenValidate.exe",
+      "sha256": "CA62C0E0139F6E6ABB27610A7660657F5A9301EAE5F785BFF3EECDB8AF532E0C"
+    }
+  ],
+  "full37CurrentRerun": false,
+  "historicalFull37": "C12 accepted-stages.json; historical evidence only"
+}

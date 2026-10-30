@@ -1,0 +1,225 @@
+{
+  "verified": true,
+  "refs": [
+    {
+      "sha": "56a8995746dc875feb69cfa2cf711c1d69b8ea6d",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/0.1.0",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/0.1.0"
+    },
+    {
+      "sha": "b0e5041921d7e9b69f307d55ae41e5bf44af08ed",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/2.1.8",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/2.1.8"
+    },
+    {
+      "sha": "bf704b25208b4008d80f2e7aaf8d4e0b7e21405e",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/FLinqベンチマーク最適化",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/FLinqベンチマーク最適化"
+    },
+    {
+      "sha": "f53a5254686df78fb035c5dad82ba641897c5694",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/ci/benchmark-ui-actions",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/ci/benchmark-ui-actions"
+    },
+    {
+      "sha": "45e873dbd0bfc7edd4575baab24926b395dd8190",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/claude/relaxed-cannon-f5276b",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/claude/relaxed-cannon-f5276b"
+    },
+    {
+      "sha": "332da28eeefae20ac868046364a8158a952bc229",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/integrate-argon-20261030",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/integrate-argon-20261030"
+    },
+    {
+      "sha": "87e185eaaedfcc8ede1e8e200296a5ad4d6aa363",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/integrate-argon-corrected-20261030",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/integrate-argon-corrected-20261030"
+    },
+    {
+      "sha": "027d93e0fd0ce81d76fd92d6bb23c05d6a767df2",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/integrate-final-corrected-20261030",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/integrate-final-corrected-20261030"
+    },
+    {
+      "sha": "c00c31ac3fa7dfe463719ed9667fdb6addb7bd88",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/integrate-optimization-20261030",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/integrate-optimization-20261030"
+    },
+    {
+      "sha": "928cd0ccc29a9bd565ec068450a06e2b2c2fdb48",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/integrate-optimization-corrected-20261030",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/integrate-optimization-corrected-20261030"
+    },
+    {
+      "sha": "0e62d292472d55d0b308a6ca692aad2684d43963",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/integrate-parent-1846-20261030",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/integrate-parent-1846-20261030"
+    },
+    {
+      "sha": "cf0ce888d27c04f056ef04cfe61c6375b635a632",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/integrate-parent-argon-20261030",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/integrate-parent-argon-20261030"
+    },
+    {
+      "sha": "d6fbccaf261d5dfaac35894e4629b035eeb29f71",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/integrate-parent-final-20261030",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/integrate-parent-final-20261030"
+    },
+    {
+      "sha": "b091a88ab1408cf9b559091f1accb1e91eead4a9",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/integrate-parent-master-20261030",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/integrate-parent-master-20261030"
+    },
+    {
+      "sha": "4493bf0959991282f5cd20727dd05f7b85ccaf14",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/integrate-parent-root-20261030",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/integrate-parent-root-20261030"
+    },
+    {
+      "sha": "4d7f1fc1cd0b402044625c8318978fe9c8d67fcf",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/integrate-parent-verified-20261030",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/integrate-parent-verified-20261030"
+    },
+    {
+      "sha": "fd4381692df0b25c2af2cb0b11adae7de20e9ad8",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/integrate-verification-20261030",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/integrate-verification-20261030"
+    },
+    {
+      "sha": "a47a4bfdfc91b9dae9a16cf9e21f6b45e455e316",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/integrate-worker-verification-20261030",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/integrate-worker-verification-20261030"
+    },
+    {
+      "sha": "0a69aa44d4abb6f07c76b0250870842aa8ca4bff",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/preserve-seamless-ordered-20261029",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/preserve-seamless-ordered-20261029"
+    },
+    {
+      "sha": "6b13fe4389a04688c34c19b94abe63fdd270f1ef",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/preserve-seamless-unified-20261029",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/preserve-seamless-unified-20261029"
+    },
+    {
+      "sha": "89211f26ed6b54d014148156a2c42f5adcd29334",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/preserve-seamless-verification-20261029",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/preserve-seamless-verification-20261029"
+    },
+    {
+      "sha": "05b524a36feafeb76e7caef3350acd3f8eece61d",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/seamless-argon-unified-20261026",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/seamless-argon-unified-20261026"
+    },
+    {
+      "sha": "481fe149f469751d654588de67740684f2d6d90b",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/seamless-optimization-baseline-20261025",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/seamless-optimization-baseline-20261025"
+    },
+    {
+      "sha": "481fe149f469751d654588de67740684f2d6d90b",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/codex/seamless-ui-worker-integration-20261029",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/codex/seamless-ui-worker-integration-20261029"
+    },
+    {
+      "sha": "598a351d9ef462e69682ddc4397c1609a0d8a3fe",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/copilot/refactor-dictionary-tests",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/copilot/refactor-dictionary-tests"
+    },
+    {
+      "sha": "56a8995746dc875feb69cfa2cf711c1d69b8ea6d",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/feature/caller-interception-and-statement-split",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/feature/caller-interception-and-statement-split"
+    },
+    {
+      "sha": "ffc1cd8ba8545442794e08148122c3cfd4260ed7",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/feature/statement-level-interception-and-benchmark",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/feature/statement-level-interception-and-benchmark"
+    },
+    {
+      "sha": "62b6fcbeb408244c91fe1b926aa5f5f121d77c64",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/master",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/master"
+    },
+    {
+      "sha": "5690492f25fb8ba40ccd7014597c0587ce8e7b4a",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/opusで最適化",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/opusで最適化"
+    },
+    {
+      "sha": "0f05f1edfce286b4c4c4dec04c48f20279c3f7f8",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/sonnet5",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/sonnet5"
+    },
+    {
+      "sha": "9ea42c8f5347beeaa75a941c39551cd4367e8d48",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/tpcc-benchmark",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/tpcc-benchmark"
+    },
+    {
+      "sha": "5240421c84b0f6cedf3eb07ba565b8ef3208267b",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/worktree-wf_54218454-e2d-1",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/worktree-wf_54218454-e2d-1"
+    },
+    {
+      "sha": "3a5a09af62de643ee4d564fb81649d1d87835ce6",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/演算子レジストリ中心リファクタリング",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/演算子レジストリ中心リファクタリング"
+    },
+    {
+      "sha": "accf24bf2001ec67eb7fb52b42234cb8457eeed9",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/heads/速度改善していなかったので改善",
+      "destination": "refs/tags/archive/20261030T053031Z/local/heads/速度改善していなかったので改善"
+    },
+    {
+      "sha": "fcf40f727fb7a7bb47c5435f6ae893741560e8bc",
+      "source": "refs/backup/SeamlessBranchIntegration-20261030T053031Z/tags/v0.1.0",
+      "destination": "refs/tags/archive/20261030T053031Z/local/tags/v0.1.0"
+    },
+    {
+      "sha": "56a8995746dc875feb69cfa2cf711c1d69b8ea6d",
+      "source": "refs/audit/integration-20261030T053031Z/heads/0.1.0",
+      "destination": "refs/tags/archive/20261030T053031Z/remote/heads/0.1.0"
+    },
+    {
+      "sha": "b0e5041921d7e9b69f307d55ae41e5bf44af08ed",
+      "source": "refs/audit/integration-20261030T053031Z/heads/2.1.8",
+      "destination": "refs/tags/archive/20261030T053031Z/remote/heads/2.1.8"
+    },
+    {
+      "sha": "bf704b25208b4008d80f2e7aaf8d4e0b7e21405e",
+      "source": "refs/audit/integration-20261030T053031Z/heads/FLinqベンチマーク最適化",
+      "destination": "refs/tags/archive/20261030T053031Z/remote/heads/FLinqベンチマーク最適化"
+    },
+    {
+      "sha": "f53a5254686df78fb035c5dad82ba641897c5694",
+      "source": "refs/audit/integration-20261030T053031Z/heads/ci/benchmark-ui-actions",
+      "destination": "refs/tags/archive/20261030T053031Z/remote/heads/ci/benchmark-ui-actions"
+    },
+    {
+      "sha": "598a351d9ef462e69682ddc4397c1609a0d8a3fe",
+      "source": "refs/audit/integration-20261030T053031Z/heads/copilot/refactor-dictionary-tests",
+      "destination": "refs/tags/archive/20261030T053031Z/remote/heads/copilot/refactor-dictionary-tests"
+    },
+    {
+      "sha": "f37403fd38389da8e3e39aaeb448540baf376862",
+      "source": "refs/audit/integration-20261030T053031Z/heads/master",
+      "destination": "refs/tags/archive/20261030T053031Z/remote/heads/master"
+    },
+    {
+      "sha": "5690492f25fb8ba40ccd7014597c0587ce8e7b4a",
+      "source": "refs/audit/integration-20261030T053031Z/heads/opusで最適化",
+      "destination": "refs/tags/archive/20261030T053031Z/remote/heads/opusで最適化"
+    },
+    {
+      "sha": "f9609f0ad38735f86f94b1c827de031038bf52d2",
+      "source": "refs/audit/integration-20261030T053031Z/heads/tpce-benchmark",
+      "destination": "refs/tags/archive/20261030T053031Z/remote/heads/tpce-benchmark"
+    },
+    {
+      "sha": "fcf40f727fb7a7bb47c5435f6ae893741560e8bc",
+      "source": "refs/audit/integration-20261030T053031Z/tags/v0.1.0",
+      "destination": "refs/tags/archive/20261030T053031Z/remote/tags/v0.1.0"
+    }
+  ]
+}

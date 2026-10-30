@@ -1,0 +1,26 @@
+[
+  {
+    "path": "Seamless.Database.Gateway/Hosting/InProcessDatabaseAdapter.cs",
+    "sameAsApproved470": true,
+    "originalWorktreeSameNormalized": true,
+    "originalDiffPreview": []
+  },
+  {
+    "path": "Seamless.Database.Gateway/Sql/ScriptDomParser.cs",
+    "sameAsApproved470": true,
+    "originalWorktreeSameNormalized": true,
+    "originalDiffPreview": []
+  },
+  {
+    "path": "Seamless.Database.Gateway/Tds/TdsValueWriter.cs",
+    "sameAsApproved470": true,
+    "originalWorktreeSameNormalized": true,
+    "originalDiffPreview": []
+  },
+  {
+    "path": "Seamless.Database.Query/SqlValues.cs",
+    "sameAsApproved470": true,
+    "originalWorktreeSameNormalized": true,
+    "originalDiffPreview": []
+  }
+]

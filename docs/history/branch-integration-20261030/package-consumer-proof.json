@@ -1,0 +1,26 @@
+{
+  "pid": 11296,
+  "creationUtc": "2026-10-30T09:16:45.2300218Z",
+  "status": "Passed",
+  "version": "0.1.0",
+  "steps": [
+    {
+      "step": "build",
+      "outcome": "Passed"
+    },
+    {
+      "step": "run",
+      "outcome": "Passed"
+    },
+    {
+      "step": "tool-install",
+      "outcome": "Passed"
+    },
+    {
+      "step": "tool-samples",
+      "outcome": "Passed"
+    }
+  ],
+  "patchedCoreHashesMatch": true,
+  "nativePayloadFiles": 10
+}

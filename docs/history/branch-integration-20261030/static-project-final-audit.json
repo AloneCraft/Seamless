@@ -1,0 +1,93 @@
+{
+  "head": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+  "projectCount": 109,
+  "sharedProjectCount": 17,
+  "shared": [
+    {
+      "items": "Benchmark/Shared/UI/UI.projitems",
+      "owner": "Benchmark/Shared/UI/UI.shproj",
+      "guid": "{9A75284D-0FA1-40D3-A0D4-81DF6C571B36}"
+    },
+    {
+      "items": "Shared/Benchmark.History/Benchmark.History.projitems",
+      "owner": "Shared/Benchmark.History/Benchmark.History.shproj",
+      "guid": "{03ABC264-72F4-4C58-B6CB-9F3E8B08C9C1}"
+    },
+    {
+      "items": "Shared/Collections/Collections.projitems",
+      "owner": "Shared/Collections/Collections.shproj",
+      "guid": "{2C38B4D1-E5B8-4D1A-8C41-F2EFDB834719}"
+    },
+    {
+      "items": "Shared/Common/Common.projitems",
+      "owner": "Shared/Common/Common.shproj",
+      "guid": "{32F8552A-51B0-447B-B9DE-35153A29BA29}"
+    },
+    {
+      "items": "Shared/Linq.Enumerable/Linq.Enumerable.projitems",
+      "owner": "Shared/Linq.Enumerable/Linq.Enumerable.shproj",
+      "guid": "{7C5E9A2D-84C8-4B64-8B83-2F2E3DF74372}"
+    },
+    {
+      "items": "Shared/Linq.Ideal/Linq.Ideal.projitems",
+      "owner": "Shared/Linq.Ideal/Linq.Ideal.shproj",
+      "guid": "{DEE0401E-4760-46DB-9446-C6D85F4176D6}"
+    },
+    {
+      "items": "Shared/Linq.Optimization/Linq.Optimization.projitems",
+      "owner": "Shared/Linq.Optimization/Linq.Optimization.shproj",
+      "guid": "{B30EBE1D-B5F9-49BE-A7FB-491F47D95AB6}"
+    },
+    {
+      "items": "Shared/Linq.Range/Linq.Range.projitems",
+      "owner": "Shared/Linq.Range/Linq.Range.shproj",
+      "guid": "{EB8A2D76-3298-40DB-9E26-FBBF01714341}"
+    },
+    {
+      "items": "Shared/Persisted.Collections/Persisted.Collections.projitems",
+      "owner": "Shared/Persisted.Collections/Persisted.Collections.shproj",
+      "guid": "{97A44F8D-5B8F-4F1F-AC04-E4CE389475ED}"
+    },
+    {
+      "items": "Shared/Scalable.Collections/Scalable.Collections.projitems",
+      "owner": "Shared/Scalable.Collections/Scalable.Collections.shproj",
+      "guid": "{DE1C5B56-2E3D-4A38-8A7C-A0766A65B8D2}"
+    },
+    {
+      "items": "Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.projitems",
+      "owner": "Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.shproj",
+      "guid": "{C37513C4-1907-44C8-AB78-21F0333D33FA}"
+    },
+    {
+      "items": "Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.projitems",
+      "owner": "Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.shproj",
+      "guid": "{0C55218A-7E46-47A6-A037-780403059628}"
+    },
+    {
+      "items": "Shared/TpcC.Transactions/TpcC.Transactions.projitems",
+      "owner": "Shared/TpcC.Transactions/TpcC.Transactions.shproj",
+      "guid": "{15FE0C8C-EEC3-4841-A139-3E2A3083C7A3}"
+    },
+    {
+      "items": "Shared/TpcE.Transactions/TpcE.Transactions.projitems",
+      "owner": "Shared/TpcE.Transactions/TpcE.Transactions.shproj",
+      "guid": "{6819E5EF-CBE6-4ABB-9334-1EB49E4858A6}"
+    },
+    {
+      "items": "Shared/Tsavorite.Collections/Tsavorite.Collections.projitems",
+      "owner": "Shared/Tsavorite.Collections/Tsavorite.Collections.shproj",
+      "guid": "{F6816E63-63B4-4639-B553-1596AC007D52}"
+    },
+    {
+      "items": "Shared/UI.Core/UI.Core.projitems",
+      "owner": "Shared/UI.Core/UI.Core.shproj",
+      "guid": "{DFF9429B-D7AF-4DC4-9C74-C52139346996}"
+    },
+    {
+      "items": "Shared/UI.Widgets/UI.Widgets.projitems",
+      "owner": "Shared/UI.Widgets/UI.Widgets.shproj",
+      "guid": "{B6C1B2C0-6E2D-4E43-9C7B-0B7B9E9E2B41}"
+    }
+  ],
+  "errors": []
+}

@@ -1,0 +1,92 @@
+[
+  {
+    "oldMerge": "162bd56ce83c75fe60283ef682be502a219661eb",
+    "path": "Benchmark/Benchmark.Dynamic.Core/FixedCaseCatalog.cs",
+    "oldBlob": "d38d68a5036e2d9f292e6194cbc4507d0786197e",
+    "verifiedParentCandidateBlob": "d38d68a5036e2d9f292e6194cbc4507d0786197e",
+    "currentBlob": "d38d68a5036e2d9f292e6194cbc4507d0786197e",
+    "sameAsVerifiedParentCandidate": true,
+    "currentUnchanged": true
+  },
+  {
+    "oldMerge": "162bd56ce83c75fe60283ef682be502a219661eb",
+    "path": "Benchmark/Benchmark.Dynamic.Worker/FixedCaseRunner.cs",
+    "oldBlob": "5acd0badc1e7f4e2bfff3c807ad40de24b972e01",
+    "verifiedParentCandidateBlob": "5acd0badc1e7f4e2bfff3c807ad40de24b972e01",
+    "currentBlob": "5acd0badc1e7f4e2bfff3c807ad40de24b972e01",
+    "sameAsVerifiedParentCandidate": true,
+    "currentUnchanged": true
+  },
+  {
+    "oldMerge": "24b18ef7b5fa962cb4831f19f63b9812bd03030d",
+    "path": "Benchmark/Benchmark.Dynamic.Core/FixedCaseCatalog.cs",
+    "oldBlob": "d38d68a5036e2d9f292e6194cbc4507d0786197e",
+    "verifiedParentCandidateBlob": "d38d68a5036e2d9f292e6194cbc4507d0786197e",
+    "currentBlob": "d38d68a5036e2d9f292e6194cbc4507d0786197e",
+    "sameAsVerifiedParentCandidate": true,
+    "currentUnchanged": true
+  },
+  {
+    "oldMerge": "24b18ef7b5fa962cb4831f19f63b9812bd03030d",
+    "path": "Benchmark/Benchmark.Dynamic.Worker/FixedCaseRunner.cs",
+    "oldBlob": "5acd0badc1e7f4e2bfff3c807ad40de24b972e01",
+    "verifiedParentCandidateBlob": "5acd0badc1e7f4e2bfff3c807ad40de24b972e01",
+    "currentBlob": "5acd0badc1e7f4e2bfff3c807ad40de24b972e01",
+    "sameAsVerifiedParentCandidate": true,
+    "currentUnchanged": true
+  },
+  {
+    "oldMerge": "332da28eeefae20ac868046364a8158a952bc229",
+    "path": "Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/PipelineTerminal.cs",
+    "oldBlob": "d718ba966a4a5563323c9bcf9740781d01d55626",
+    "verifiedParentCandidateBlob": "d718ba966a4a5563323c9bcf9740781d01d55626",
+    "currentBlob": "d718ba966a4a5563323c9bcf9740781d01d55626",
+    "sameAsVerifiedParentCandidate": true,
+    "currentUnchanged": true
+  },
+  {
+    "oldMerge": "6462e0241516b2b419f78a03695cd9b478c30b24",
+    "path": "Benchmark/Benchmark.Dynamic.Core/FixedCaseCatalog.cs",
+    "oldBlob": "d38d68a5036e2d9f292e6194cbc4507d0786197e",
+    "verifiedParentCandidateBlob": "d38d68a5036e2d9f292e6194cbc4507d0786197e",
+    "currentBlob": "d38d68a5036e2d9f292e6194cbc4507d0786197e",
+    "sameAsVerifiedParentCandidate": true,
+    "currentUnchanged": true
+  },
+  {
+    "oldMerge": "6462e0241516b2b419f78a03695cd9b478c30b24",
+    "path": "Benchmark/Benchmark.Dynamic.Worker/FixedCaseRunner.cs",
+    "oldBlob": "5acd0badc1e7f4e2bfff3c807ad40de24b972e01",
+    "verifiedParentCandidateBlob": "5acd0badc1e7f4e2bfff3c807ad40de24b972e01",
+    "currentBlob": "5acd0badc1e7f4e2bfff3c807ad40de24b972e01",
+    "sameAsVerifiedParentCandidate": true,
+    "currentUnchanged": true
+  },
+  {
+    "oldMerge": "87e185eaaedfcc8ede1e8e200296a5ad4d6aa363",
+    "path": "Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/PipelineTerminal.cs",
+    "oldBlob": "d718ba966a4a5563323c9bcf9740781d01d55626",
+    "verifiedParentCandidateBlob": "d718ba966a4a5563323c9bcf9740781d01d55626",
+    "currentBlob": "d718ba966a4a5563323c9bcf9740781d01d55626",
+    "sameAsVerifiedParentCandidate": true,
+    "currentUnchanged": true
+  },
+  {
+    "oldMerge": "9a94754b0282e7f49595d7354c3e139383effca3",
+    "path": "Benchmark/Benchmark.Dynamic.Core/FixedCaseCatalog.cs",
+    "oldBlob": "d38d68a5036e2d9f292e6194cbc4507d0786197e",
+    "verifiedParentCandidateBlob": "d38d68a5036e2d9f292e6194cbc4507d0786197e",
+    "currentBlob": "d38d68a5036e2d9f292e6194cbc4507d0786197e",
+    "sameAsVerifiedParentCandidate": true,
+    "currentUnchanged": true
+  },
+  {
+    "oldMerge": "9a94754b0282e7f49595d7354c3e139383effca3",
+    "path": "Benchmark/Benchmark.Dynamic.Worker/FixedCaseRunner.cs",
+    "oldBlob": "5acd0badc1e7f4e2bfff3c807ad40de24b972e01",
+    "verifiedParentCandidateBlob": "5acd0badc1e7f4e2bfff3c807ad40de24b972e01",
+    "currentBlob": "5acd0badc1e7f4e2bfff3c807ad40de24b972e01",
+    "sameAsVerifiedParentCandidate": true,
+    "currentUnchanged": true
+  }
+]
