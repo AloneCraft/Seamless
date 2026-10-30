@@ -19725,33 +19725,23 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
         } else if(terminalKind==PipelineTerminalKind.ToList) {
 
-
-
-            builder.AppendLine($"{actualTypeName} {actualVariableName}=new();");
-
-
+            var hasSelectMany = pipeline.Stages.Any(static s => s.Kind==PipelineStageKind.SelectMany);
+            var initialCap = hasSelectMany ? "128" : "";
+            builder.AppendLine($"{actualTypeName} {actualVariableName}=new({initialCap});");
 
         } else if(terminalKind==PipelineTerminalKind.ToHashSet) {
 
-
-
             var comparerArg = string.IsNullOrEmpty(comparerValue) ? string.Empty : comparerValue;
-
-
 
             builder.AppendLine($"{actualTypeName} {actualVariableName}=new({comparerArg});");
 
-
-
         } else if(terminalKind==PipelineTerminalKind.ToArray) {
 
-
-
+            var hasSelectMany = pipeline.Stages.Any(static s => s.Kind==PipelineStageKind.SelectMany);
+            var initialRent = hasSelectMany ? "256" : "16";
             builder.AppendLine($"{actualTypeName} {actualVariableName};");
 
-
-
-            builder.AppendLine($"var {poolBufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent(16);");
+            builder.AppendLine($"var {poolBufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({initialRent});");
 
 
 
@@ -20399,6 +20389,28 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
 
+        });
+
+        var patternEnsureCap = $@"(?<indent>[ \t]*){escapedPlaceholder}\.EnsureCapacity\((?<arg>.+?)\);[ \t]*[\r\n]*";
+        replacedStatement = global::System.Text.RegularExpressions.Regex.Replace(replacedStatement,patternEnsureCap,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            if(terminalKind==PipelineTerminalKind.ToList) {
+                return $"{indent}{actualVariableName}.EnsureCapacity({arg});\n";
+            } else if(terminalKind==PipelineTerminalKind.ToHashSet) {
+                return $"{indent}{actualVariableName}.EnsureCapacity({arg});\n";
+            } else if(terminalKind==PipelineTerminalKind.ToArray) {
+                return $$"""
+{{indent}}if({{poolBufferName}}.Length<{{arg}}) {
+{{indent}}    var __newPool = global::System.Buffers.ArrayPool<{{pipeline.ElementType}}>.Shared.Rent({{arg}});
+{{indent}}    global::System.Array.Copy({{poolBufferName}},__newPool,{{poolCountName}});
+{{indent}}    global::System.Buffers.ArrayPool<{{pipeline.ElementType}}>.Shared.Return({{poolBufferName}},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{pipeline.ElementType}}>());
+{{indent}}    {{poolBufferName}}=__newPool;
+{{indent}}}
+
+""";
+            }
+            return "";
         });
 
 

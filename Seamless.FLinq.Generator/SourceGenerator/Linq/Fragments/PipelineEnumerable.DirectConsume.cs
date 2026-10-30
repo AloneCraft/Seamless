@@ -672,6 +672,24 @@ internal sealed partial class PipelineEnumerable {
 
         outerBody.AppendLine($"    global::System.Collections.Generic.IEnumerable<{innerElementType}> {innerSeqName}=default!;");
         outerBody.AppendLine(IndentBlock(this.FuncAssign(collectionSelector,nameof(PipelineStageKind.SelectMany),innerSeqName,currentOuterName),"    "));
+        var ensureCapName = $"__ensureCap{this.result}_{selectManyIndex}";
+        outerBody.AppendLine($"    if(!{ensureCapName}) {{");
+        outerBody.AppendLine($"        {ensureCapName}=true;");
+        outerBody.AppendLine($"        if(__outerCount{this.result} > 0) {{");
+        outerBody.AppendLine($"            int __innerLen{this.result} = -1;");
+        outerBody.AppendLine($"            if({innerSeqName} is global::System.Collections.Generic.IReadOnlyCollection<{innerElementType}> __roCol{this.result}) {{");
+        outerBody.AppendLine($"                __innerLen{this.result} = __roCol{this.result}.Count;");
+        outerBody.AppendLine($"            }} else if({innerSeqName} is global::System.Collections.Generic.ICollection<{innerElementType}> __col{this.result}) {{");
+        outerBody.AppendLine($"                __innerLen{this.result} = __col{this.result}.Count;");
+        outerBody.AppendLine($"            }}");
+        outerBody.AppendLine($"            if(__innerLen{this.result} > 0) {{");
+        outerBody.AppendLine($"                long __totalCap{this.result} = (long)__outerCount{this.result} * __innerLen{this.result};");
+        outerBody.AppendLine($"                if(__totalCap{this.result} <= 100_000_000) {{");
+        outerBody.AppendLine($"                    {consumerName}.EnsureCapacity((int)__totalCap{this.result});");
+        outerBody.AppendLine($"                }}");
+        outerBody.AppendLine($"            }}");
+        outerBody.AppendLine($"        }}");
+        outerBody.AppendLine($"    }}");
 
         var innerItemName = $"__innerItem{this.result}_{selectManyIndex}";
         var innerBody = new StringBuilder();
@@ -690,16 +708,61 @@ internal sealed partial class PipelineEnumerable {
 
         var innerArrName = $"__innerArr{this.result}_{selectManyIndex}";
         var innerIdxName = $"__innerIdx{this.result}_{selectManyIndex}";
+        var innerListName = $"__innerList{this.result}_{selectManyIndex}";
+        var innerImmName = $"__innerImm{this.result}_{selectManyIndex}";
+        var innerSpanName = $"__innerSpan{this.result}_{selectManyIndex}";
+        var innerRoListName = $"__innerRoList{this.result}_{selectManyIndex}";
+        var innerIListName = $"__innerIList{this.result}_{selectManyIndex}";
+        var innerCountName = $"__innerCount{this.result}_{selectManyIndex}";
+
         if(selectManyStage.InnerIsArray) {
             outerBody.AppendLine($"    var {innerArrName}=({innerElementType}[]){innerSeqName};");
             outerBody.AppendLine($"    for(var {innerIdxName}=0;{innerIdxName}<{innerArrName}.Length;{innerIdxName}++){{");
             outerBody.AppendLine($"        var {innerItemName}={innerArrName}[{innerIdxName}];");
             outerBody.AppendLine(IndentLines(innerLoopCode,"        "));
             outerBody.AppendLine($"    }}");
+        } else if(selectManyStage.InnerIsList) {
+            outerBody.AppendLine($"    var {innerListName}=(global::System.Collections.Generic.List<{innerElementType}>){innerSeqName};");
+            outerBody.AppendLine($"    var {innerSpanName}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({innerListName});");
+            outerBody.AppendLine($"    for(var {innerIdxName}=0;{innerIdxName}<{innerSpanName}.Length;{innerIdxName}++){{");
+            outerBody.AppendLine($"        var {innerItemName}={innerSpanName}[{innerIdxName}];");
+            outerBody.AppendLine(IndentLines(innerLoopCode,"        "));
+            outerBody.AppendLine($"    }}");
+        } else if(selectManyStage.InnerIsImmutableArray) {
+            outerBody.AppendLine($"    var {innerImmName}=(global::System.Collections.Immutable.ImmutableArray<{innerElementType}>){innerSeqName};");
+            outerBody.AppendLine($"    var {innerSpanName}={innerImmName}.AsSpan();");
+            outerBody.AppendLine($"    for(var {innerIdxName}=0;{innerIdxName}<{innerSpanName}.Length;{innerIdxName}++){{");
+            outerBody.AppendLine($"        var {innerItemName}={innerSpanName}[{innerIdxName}];");
+            outerBody.AppendLine(IndentLines(innerLoopCode,"        "));
+            outerBody.AppendLine($"    }}");
         } else {
             outerBody.AppendLine($"    if({innerSeqName} is {innerElementType}[] {innerArrName}){{");
             outerBody.AppendLine($"        for(var {innerIdxName}=0;{innerIdxName}<{innerArrName}.Length;{innerIdxName}++){{");
             outerBody.AppendLine($"            var {innerItemName}={innerArrName}[{innerIdxName}];");
+            outerBody.AppendLine(IndentLines(innerLoopCode,"            "));
+            outerBody.AppendLine($"        }}");
+            outerBody.AppendLine($"    }}else if({innerSeqName} is global::System.Collections.Generic.List<{innerElementType}> {innerListName}){{");
+            outerBody.AppendLine($"        var {innerSpanName}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({innerListName});");
+            outerBody.AppendLine($"        for(var {innerIdxName}=0;{innerIdxName}<{innerSpanName}.Length;{innerIdxName}++){{");
+            outerBody.AppendLine($"            var {innerItemName}={innerSpanName}[{innerIdxName}];");
+            outerBody.AppendLine(IndentLines(innerLoopCode,"            "));
+            outerBody.AppendLine($"        }}");
+            outerBody.AppendLine($"    }}else if({innerSeqName} is global::System.Collections.Immutable.ImmutableArray<{innerElementType}> {innerImmName}){{");
+            outerBody.AppendLine($"        var {innerSpanName}={innerImmName}.AsSpan();");
+            outerBody.AppendLine($"        for(var {innerIdxName}=0;{innerIdxName}<{innerSpanName}.Length;{innerIdxName}++){{");
+            outerBody.AppendLine($"            var {innerItemName}={innerSpanName}[{innerIdxName}];");
+            outerBody.AppendLine(IndentLines(innerLoopCode,"            "));
+            outerBody.AppendLine($"        }}");
+            outerBody.AppendLine($"    }}else if({innerSeqName} is global::System.Collections.Generic.IReadOnlyList<{innerElementType}> {innerRoListName}){{");
+            outerBody.AppendLine($"        var {innerCountName}={innerRoListName}.Count;");
+            outerBody.AppendLine($"        for(var {innerIdxName}=0;{innerIdxName}<{innerCountName};{innerIdxName}++){{");
+            outerBody.AppendLine($"            var {innerItemName}={innerRoListName}[{innerIdxName}];");
+            outerBody.AppendLine(IndentLines(innerLoopCode,"            "));
+            outerBody.AppendLine($"        }}");
+            outerBody.AppendLine($"    }}else if({innerSeqName} is global::System.Collections.Generic.IList<{innerElementType}> {innerIListName}){{");
+            outerBody.AppendLine($"        var {innerCountName}={innerIListName}.Count;");
+            outerBody.AppendLine($"        for(var {innerIdxName}=0;{innerIdxName}<{innerCountName};{innerIdxName}++){{");
+            outerBody.AppendLine($"            var {innerItemName}={innerIListName}[{innerIdxName}];");
             outerBody.AppendLine(IndentLines(innerLoopCode,"            "));
             outerBody.AppendLine($"        }}");
             outerBody.AppendLine($"    }}else{{");
@@ -711,6 +774,7 @@ internal sealed partial class PipelineEnumerable {
 
         var loopBody = IndentLines(outerBody.ToString().TrimEnd(),"    ");
 
+        var ensureCapBoolName = $"__ensureCap{this.result}_{selectManyIndex}";
         if(source is RangeRoot range) {
             var start = $"__rangeStart{this.result}";
             var count = $"__rangeCount{this.result}";
@@ -719,6 +783,8 @@ internal sealed partial class PipelineEnumerable {
                 {
                     {{localDeclarations}}
                     {{IndentLines(range.RenderArgumentPreparation(start,count),"    ").TrimStart()}}
+                    var __outerCount{{this.result}} = (int){{count}};
+                    var {{ensureCapBoolName}} = false;
                     var {{end}}=(long){{start}}+{{count}};
                     for(var {{outerItemName}}=(int){{start}};{{outerItemName}}<{{end}};{{outerItemName}}++){
                     {{loopBody}}
@@ -739,6 +805,8 @@ internal sealed partial class PipelineEnumerable {
             return $$"""
                 {
                     {{localDeclarations}}
+                    var __outerCount{{this.result}} = 0;
+                    var {{ensureCapBoolName}} = false;
                     using var {{sourceName}}={{sourceEnumeratorExpression}};
                     {{this.CounterCall("IncrementEnumerationLoopUsed")}}
                     {{DrainLoopHead(source,sourceName,outerItemName)}}
@@ -753,6 +821,8 @@ internal sealed partial class PipelineEnumerable {
             {
                 {{localDeclarations}}
                 {{directSpanSetup}}
+                var __outerCount{{this.result}} = {{spanName}}.Length;
+                var {{ensureCapBoolName}} = false;
                 {{this.CounterCall("IncrementEnumerationLoopUsed")}}
                 for(var __i{{this.result}}=0;__i{{this.result}}<{{spanName}}.Length;__i{{this.result}}++){
                     var {{outerItemName}}={{spanName}}[__i{{this.result}}];

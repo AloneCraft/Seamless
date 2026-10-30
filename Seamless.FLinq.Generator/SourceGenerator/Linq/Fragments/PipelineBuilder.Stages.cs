@@ -277,8 +277,21 @@ internal static partial class PipelineBuilder {
         if(collectionSelector.RequiresStatementInlining) {
             return false;
         }
-        var innerIsArray = invocation.ArgumentList.Arguments[0].Expression is LambdaExpressionSyntax { Body: ExpressionSyntax collectionSelectorBodyExpr }
-            &&semanticModel.GetTypeInfo(collectionSelectorBodyExpr).Type is IArrayTypeSymbol;
+        var collectionSelectorExpr = invocation.ArgumentList.Arguments[0].Expression;
+        ITypeSymbol? innerReturnType = null;
+        if(collectionSelectorExpr is LambdaExpressionSyntax lambdaExpr) {
+            if(lambdaExpr.Body is ExpressionSyntax bodyExpr) {
+                innerReturnType=semanticModel.GetTypeInfo(bodyExpr).Type;
+            } else if(semanticModel.GetSymbolInfo(lambdaExpr).Symbol is IMethodSymbol lambdaMethod) {
+                innerReturnType=lambdaMethod.ReturnType;
+            }
+        }
+
+        var innerIsArray = innerReturnType is IArrayTypeSymbol;
+        var innerIsList = innerReturnType is INamedTypeSymbol listType
+            &&listType.OriginalDefinition.ToDisplayString()=="System.Collections.Generic.List<T>";
+        var innerIsImmutableArray = innerReturnType is INamedTypeSymbol immType
+            &&immType.OriginalDefinition.ToDisplayString()=="System.Collections.Immutable.ImmutableArray<T>";
 
         FuncFragment? resultSelector = null;
         var outputType = innerElementType;
@@ -303,7 +316,9 @@ internal static partial class PipelineBuilder {
             innerElementType: innerElementType,
             keyType: null,
             usesIndex: usesIndex,
-            innerIsArray: innerIsArray));
+            innerIsArray: innerIsArray,
+            innerIsList: innerIsList,
+            innerIsImmutableArray: innerIsImmutableArray));
         currentElementType=outputType;
         return true;
     }

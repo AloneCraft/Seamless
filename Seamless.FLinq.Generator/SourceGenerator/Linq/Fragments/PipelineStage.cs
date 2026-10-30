@@ -15,6 +15,7 @@ internal sealed class PipelineStage(
     bool descending = false,
     bool innerIsArray = false,
     bool innerIsList = false,
+    bool innerIsImmutableArray = false,
     bool containsAnchor = false,
     GroupByAggregatePlan? aggregatePlan = null,
     GroupByAggregatePlan? aggregateCandidate = null) {
@@ -31,6 +32,7 @@ internal sealed class PipelineStage(
     // インデックスベースで直接走査する specialize パスを使う。
     public bool InnerIsArray { get; } = innerIsArray;
     public bool InnerIsList { get; } = innerIsList;
+    public bool InnerIsImmutableArray { get; } = innerIsImmutableArray;
     public string? KeyType { get; } = keyType;
     public bool UsesIndex { get; } = usesIndex;
     public bool Descending { get; } = descending;
