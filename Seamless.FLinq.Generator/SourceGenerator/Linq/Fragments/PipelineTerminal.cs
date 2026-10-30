@@ -8897,6 +8897,14 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
 
+                case PipelineStageKind.SkipLast:
+
+
+
+                case PipelineStageKind.TakeLast:
+
+
+
                     break;
 
 

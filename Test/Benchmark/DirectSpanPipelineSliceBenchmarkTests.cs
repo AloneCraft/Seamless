@@ -86,6 +86,40 @@ public class DirectSpanPipelineSliceBenchmarkTests(ITestOutputHelper output)
     }
 
     // ==========================================
+    // 3. 末尾スライス (Trailing Slice: SkipLast -> TakeLast -> Where -> Sum)
+    // ==========================================
+
+    [global::Seamless.FLinq.LinqIntercept(false)]
+    private static int RunTrailingSlice_SystemLinq(int[] array, int skipLast, int takeLast, int threshold)
+    {
+        return array.SkipLast(skipLast).TakeLast(takeLast).Where(x => x > threshold).Sum();
+    }
+
+    private static int RunTrailingSlice_Ideal(int[] array, int skipLast, int takeLast, int threshold)
+    {
+        ReadOnlySpan<int> span = array;
+        int startIndex = 0;
+        int endIndex = span.Length;
+        endIndex = Math.Max(startIndex, endIndex - Math.Max(0, skipLast));
+        startIndex = Math.Max(startIndex, endIndex - Math.Max(0, takeLast));
+        int sum = 0;
+        for (int i = startIndex; i < endIndex; i++)
+        {
+            int val = span[i];
+            if (val > threshold)
+            {
+                checked { sum += val; }
+            }
+        }
+        return sum;
+    }
+
+    private static int RunTrailingSlice_FLinq(int[] array, int skipLast, int takeLast, int threshold)
+    {
+        return array.SkipLast(skipLast).TakeLast(takeLast).Where(x => x > threshold).Sum();
+    }
+
+    // ==========================================
     // 測定ユーティリティ
     // ==========================================
     private static (long AllocatedBytes, double ElapsedUs, int Result) Measure(Func<int> action, int warmup = 5, int iterations = 100)
@@ -115,12 +149,12 @@ public class DirectSpanPipelineSliceBenchmarkTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void Benchmark_Slice_Fusion_Leading_And_Filtered()
+    public void Benchmark_Slice_Fusion_Leading_Filtered_And_Trailing()
     {
         const int size = 100_000;
         var array = Enumerable.Range(1, size).ToArray();
         const int skip = 5_000;
-        const int take = 40_000;
+        const int take = 20_000;
         const int threshold = 10_000;
 
         var results = new List<BenchmarkResult>();
@@ -152,6 +186,22 @@ public class DirectSpanPipelineSliceBenchmarkTests(ITestOutputHelper output)
         Assert.Equal(resFiltSys, resFiltFLinq);
         Assert.Equal(0, allocFiltIdeal);
         Assert.Equal(0, allocFiltFLinq);
+
+        // 3. 末尾スライス (Trailing Slice)
+        const int skipLast = 5_000;
+        const int takeLast = 20_000;
+        var (allocTrailSys, timeTrailSys, resTrailSys) = Measure(() => RunTrailingSlice_SystemLinq(array, skipLast, takeLast, threshold));
+        var (allocTrailIdeal, timeTrailIdeal, resTrailIdeal) = Measure(() => RunTrailingSlice_Ideal(array, skipLast, takeLast, threshold));
+        var (allocTrailFLinq, timeTrailFLinq, resTrailFLinq) = Measure(() => RunTrailingSlice_FLinq(array, skipLast, takeLast, threshold));
+
+        results.Add(new("1. System.Linq", "Trailing (SkipLast->TakeLast->Where->Sum)", size, allocTrailSys, timeTrailSys, resTrailSys));
+        results.Add(new("2. Ideal Loop", "Trailing (SkipLast->TakeLast->Where->Sum)", size, allocTrailIdeal, timeTrailIdeal, resTrailIdeal));
+        results.Add(new("3. FLinq Direct Fusion", "Trailing (SkipLast->TakeLast->Where->Sum)", size, allocTrailFLinq, timeTrailFLinq, resTrailFLinq));
+
+        Assert.Equal(resTrailSys, resTrailIdeal);
+        Assert.Equal(resTrailSys, resTrailFLinq);
+        Assert.Equal(0, allocTrailIdeal);
+        Assert.Equal(0, allocTrailFLinq);
 
         // 出力テーブル
         output.WriteLine("| パターン | 方式 | 要素数 | メモリ (Allocated) | 実行時間 (平均) | 計算結果 |");

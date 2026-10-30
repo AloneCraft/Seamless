@@ -10,10 +10,31 @@ internal static partial class PipelineBuilder {
         var groupByStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.GroupBy);
         var reverseStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.Reverse);
         var defaultIfEmptyStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.DefaultIfEmpty);
-        var skipLastStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.SkipLast);
-        var takeLastStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.TakeLast);
+        var isScalarTerminal = terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Sum or PipelineTerminalKind.Average
+            or PipelineTerminalKind.Any or PipelineTerminalKind.All or PipelineTerminalKind.Contains
+            or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault
+            or PipelineTerminalKind.Min or PipelineTerminalKind.Max or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault;
+
+        var leadingSliceCount = 0;
+        if(isScalarTerminal) {
+            for(var i = 0; i < stages.Count; i++) {
+                var k = stages[i].Kind;
+                if(k is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast or PipelineStageKind.Skip or PipelineStageKind.Take or PipelineStageKind.SkipLast or PipelineStageKind.TakeLast) {
+                    leadingSliceCount++;
+                    continue;
+                }
+                break;
+            }
+        }
+
+        var nonLeadingSkipLastCount = 0;
+        var nonLeadingTakeLastCount = 0;
+        for(var i = leadingSliceCount; i < stages.Count; i++) {
+            if(stages[i].Kind==PipelineStageKind.SkipLast) nonLeadingSkipLastCount++;
+            if(stages[i].Kind==PipelineStageKind.TakeLast) nonLeadingTakeLastCount++;
+        }
         var takeRangeStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.TakeRange);
-        var bufferingStageCount = reverseStageCount+skipLastStageCount+takeLastStageCount+takeRangeStageCount+defaultIfEmptyStageCount;
+        var bufferingStageCount = reverseStageCount+nonLeadingSkipLastCount+nonLeadingTakeLastCount+takeRangeStageCount+defaultIfEmptyStageCount;
         var isMultiBinaryFused = CanFuseBinarySetMulti(stages,terminalKind);
         if(selectManyStageCount>1) return false;
         if(groupByStageCount>1) return false;

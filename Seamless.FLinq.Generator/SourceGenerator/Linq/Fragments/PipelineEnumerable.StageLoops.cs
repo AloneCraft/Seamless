@@ -746,6 +746,9 @@ internal sealed partial class PipelineEnumerable {
                 return currentName;
             case PipelineStageKind.Reverse:
                 return currentName;
+            case PipelineStageKind.SkipLast:
+            case PipelineStageKind.TakeLast:
+                return currentName;
             case PipelineStageKind.AsEnumerable:
                 return currentName;
             default:
