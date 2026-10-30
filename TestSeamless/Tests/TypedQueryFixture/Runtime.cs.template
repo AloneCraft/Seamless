@@ -1,0 +1,56 @@
+using System.Reflection;
+using MemoryPack;
+using Seamless.Execution;
+using Seamless.Linq;
+using Seamless.Database;
+using Seamless.Database.Client;
+using Seamless.Database.Gateway.Hosting;
+using Seamless.Database.Gateway.Native;
+using TestSeamless.Queries;
+namespace Fixture{
+
+ [MemoryPackable]public readonly partial record struct Item(int Id,int ParentId,decimal? Amount);
+ public sealed class Fixture:DatabaseContainer{
+  public Fixture():base(DatabaseContainerOptions.InMemory with{IndexSize=1L<<12,MemorySize=1L<<20}){this.dbo=new(this);}
+  public Table<Records.FixtureParent> Parents{[return:Seamless.Linq.UnorderedEnumerable]get=>this.Table<Records.FixtureParent>();}
+  public Table<Item> Items{[return:Seamless.Linq.UnorderedEnumerable]get=>this.Table<Item>();}
+  public Tables dbo{get;}
+ }
+ public sealed class Tables(Fixture database){public CancellationTokenSource? CancelDuringCount;public IEnumerable<int> CancelRows=>this.Rows();private IEnumerable<int> Rows(){yield return 1;if(this.CancelDuringCount is not null){this.CancelDuringCount.Cancel();yield return 2;throw new InvalidOperationException("COUNT enumerated past cancellation");}yield return 2;}public Table<Records.FixtureParent> FixtureParent{[return:Seamless.Linq.UnorderedEnumerable]get=>database.Parents;}public Table<Item> FixtureItem{[return:Seamless.Linq.UnorderedEnumerable]get=>database.Items;}}
+}
+namespace Fixture.Records{[MemoryPackable]public readonly partial record struct FixtureParent(int Id,string Name);}
+namespace Sample{
+ public sealed record Context(object Database,string DatabaseName,CancellationToken CancellationToken):INativeQueryContext;
+ public static class Program{
+  public static async Task Main(string[] args){
+   using var database=new Fixture.Fixture();database.dbo.FixtureParent.Add(new(1,"one"));database.dbo.FixtureParent.Add(new(2,"two"));database.dbo.FixtureParent.Add(new(3,"empty"));database.dbo.FixtureItem.Add(new(1,1,1.25m));database.dbo.FixtureItem.Add(new(2,1,null));database.dbo.FixtureItem.Add(new(3,2,null));
+   var module=new QueryModule();var type=module.GetType();
+   var arguments=(type.GetMethod("CreateComparisonArguments")??throw new Exception("Missing argument codec")).CreateDelegate<Func<string,byte[]>>(module);
+   var project=(type.GetMethod("ProjectComparisonRow")??throw new Exception("Missing projection codec")).CreateDelegate<Func<string,ReadOnlyMemory<byte>,object?[]>>(module);
+   var execute=(type.GetMethod("ExecuteComparisonRemoteAsync")??throw new Exception("Missing remote codec")).CreateDelegate<Func<NativeQueryClient,string,string,string,string,CancellationToken,IAsyncEnumerable<object?[]>>>(module);
+   var payload=arguments("sample/find");var direct=module.Execute("sample/find",payload,new Context(database,"fixture",CancellationToken.None)).Select(bytes=>project("sample/find",bytes)).ToArray();
+   Check(direct);
+   var registry=new DatabaseRegistry();registry.Register("fixture",new InProcessDatabaseAdapter(database),readOnly:true,schemaFingerprint:"fixture-v1");
+   var version=typeof(INativeQueryModule).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
+   var definitions=System.Text.Json.JsonSerializer.Deserialize<NativeQueryDefinition[]>(File.ReadAllText(Path.Combine(args[0],"native-definitions.json")))!;
+   using var server=new NativeQueryServer(registry,35479);server.Register(new("sample-module","","","",version,definitions),module,version);server.Start();
+   await using var client=new NativeQueryClient("127.0.0.1",server.Port);var typed=new TypedClient(client);var typedRows=new List<AggregateJoinRow>();await foreach(var row in typed.AggregateJoinAsync(0)){typedRows.Add(row);}Check(typedRows.Select(row=>new object?[]{row.ParentId,row.ParentName,row.ItemCount,row.AmountTotal}).ToArray());
+   var remote=new List<object?[]>();await foreach(var row in execute(client,"sample-module","sample/find","fixture","fixture-v1",CancellationToken.None)){remote.Add(row);}Check(remote.ToArray());
+   var countId=definitions.Single(x=>x.Id.StartsWith("count/",StringComparison.Ordinal)).Id;
+   var count=module.Execute(countId,MemoryPackSerializer.Serialize(0),new Context(database,"fixture",CancellationToken.None)).Select(bytes=>MemoryPackSerializer.Deserialize<long>(bytes)).Single();if(count!=2||await typed.Query0Async()!=2)throw new Exception("Normal COUNT differs");
+   using(var alreadyCancelled=new CancellationTokenSource()){alreadyCancelled.Cancel();var stopped=false;try{module.Execute(countId,MemoryPackSerializer.Serialize(0),new Context(database,"fixture",alreadyCancelled.Token)).ToArray();}catch(OperationCanceledException){stopped=true;}if(!stopped)throw new Exception("Pre-cancelled COUNT did not stop");}
+   await server.StopAsync();
+   using var cancel=new CancellationTokenSource();database.dbo.CancelDuringCount=cancel;
+   var cancelled=false;try{module.Execute(countId,MemoryPackSerializer.Serialize(0),new Context(database,"fixture",cancel.Token)).ToArray();}catch(OperationCanceledException){cancelled=true;}
+   if(!cancelled)throw new Exception("COUNT failed to stop when cancelled");
+   CheckSpill();Console.WriteLine("PASS direct, typed remote, comparison remote, COUNT cancellation, and bounded sort spill");
+  }
+  private static void CheckSpill(){
+   using var scope=new ExecutionScope(new(){MemoryLimitBytes=32768,TemporaryStorageLimitBytes=32*1024*1024});
+   var input=global::System.Linq.Enumerable.Range(0,1000).Select(i=>new Fixture.Records.FixtureParent(999-i,new string('x',128)));
+   var expected=0;foreach(var row in scope.Query(input).OrderBy(row=>row.Id)){if(row.Id!=expected++)throw new Exception("Bounded sort order differs");}
+   if(expected!=1000||scope.Budget.PeakTemporaryStorageBytes<=0||scope.Budget.PeakMemoryBytes>32768||scope.Budget.TemporaryStorageBytes!=0)throw new Exception("Bounded sort did not spill and release resources");
+  }
+  private static void Check(object?[][] rows){if(rows.Length!=3||!rows[0].SequenceEqual(new object?[]{1,"one",2,1.25m})||!rows[1].SequenceEqual(new object?[]{2,"two",1,null})||!rows[2].SequenceEqual(new object?[]{3,"empty",0,null}))throw new Exception("Aggregate results differ");}
+ }
+}

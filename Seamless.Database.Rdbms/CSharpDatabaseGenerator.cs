@@ -1,39 +1,48 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Seamless.Database.Rdbms;
 
 public static class CSharpDatabaseGenerator {
-    public static GeneratedDatabase Generate(DatabaseCatalog catalog) {
+    public static GeneratedDatabase Generate(DatabaseCatalog catalog,bool preserveSqlRows=false,bool executableViews=false)=>Generate(catalog,preserveSqlRows,executableViews,false);
+    public static GeneratedDatabase Generate(DatabaseCatalog catalog,bool preserveSqlRows,bool executableViews,bool runtimeSql) {
+        var originalCatalog=catalog;
+        if(preserveSqlRows){catalog=CreateImportCatalog(catalog);}
         ArgumentNullException.ThrowIfNull(catalog);
         Validate(catalog);
         var databaseName = CSharpIdentifier.Normalize(catalog.Name);
+        if(preserveSqlRows){databaseName+="_"+Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(catalog.Name)))[..8];}
+        if(runtimeSql){databaseName=FileName(databaseName)+"_RuntimeSqlV1";}
+        var typeNamespace=runtimeSql?"Seamless.Generated."+FileName(databaseName):databaseName;
         var schemas = CreateNames(catalog,databaseName);
-        var fingerprint = CreateFingerprint(catalog);
+        var fingerprint = CreateFingerprint(originalCatalog);
+        if(preserveSqlRows||executableViews){fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|"+preserveSqlRows+"|"+executableViews)));}
+        if(runtimeSql){fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|RuntimeSqlV1")));}
+        var routines=new List<GeneratedRoutineBinding>();
         var files = new List<GeneratedSourceFile> {
-            new($"{FileName(databaseName)}.cs",CreateDatabaseSource(databaseName,fingerprint,schemas)),
+            new($"{FileName(databaseName)}.cs",CreateDatabaseSource(databaseName,typeNamespace,fingerprint,schemas,executableViews,catalog.Name,routines,runtimeSql)),
         };
         foreach(var schema in schemas) {
             foreach(var table in schema.Tables) {
                 files.Add(new(
                     $"Records/{FileName(schema.Name)}/{FileName(table.Name)}.cs",
-                    CreateRecordSource(databaseName,schema,table)));
+                    CreateRecordSource(typeNamespace,schema,table)));
                 files.Add(new(
                     $"Keys/{FileName(schema.Name)}/{FileName(table.Name)}.cs",
-                    CreateKeySource(databaseName,schema,table)));
+                    CreateKeySource(typeNamespace,schema,table)));
             }
             foreach(var view in schema.Views) {
                 files.Add(new(
                     $"Records/{FileName(schema.Name)}/{FileName(view.Name)}.cs",
-                    CreateRecordSource(databaseName,schema,view)));
+                    CreateRecordSource(typeNamespace,schema,view)));
                 files.Add(new(
                     $"Keys/{FileName(schema.Name)}/{FileName(view.Name)}.cs",
-                    CreateKeySource(databaseName,schema,view)));
+                    CreateKeySource(typeNamespace,schema,view)));
             }
             foreach(var routine in schema.Routines.Where(static routine=>routine.Source.ResultColumns.Count>0)) {
                 files.Add(new(
                     $"Records/{FileName(schema.Name)}/{FileName(routine.TypeName)}.cs",
-                    CreateRecordSource(databaseName,schema,routine)));
+                    CreateRecordSource(typeNamespace,schema,routine)));
             }
         }
         var tables=schemas.SelectMany(schema=>
@@ -44,7 +53,7 @@ public static class CSharpDatabaseGenerator {
                 table.Columns.Select(static column=>new GeneratedColumnBinding(
                     column.Source.Name,
                     FileName(column.Name),
-                    column.Source.Type)).ToArray(),
+                    column.Source.Type,column.Source.IsSynthetic)).ToArray(),
                 GeneratedRelationKind.Table))
              .Concat(schema.Views.Select(view=>new GeneratedTableBinding(
                  $"{FileName(schema.Name)}.{FileName(view.Name)}",
@@ -53,9 +62,21 @@ public static class CSharpDatabaseGenerator {
                 view.Columns.Select(static column=>new GeneratedColumnBinding(
                     column.Source.Name,
                     FileName(column.Name),
-                    column.Source.Type)).ToArray(),
+                    column.Source.Type,column.Source.IsSynthetic)).ToArray(),
                  GeneratedRelationKind.View)))).ToArray();
-        return new(catalog.Name,FileName(databaseName),fingerprint,files.AsReadOnly(),tables);
+        if(executableViews){tables=tables.Where(static table=>table.Kind==GeneratedRelationKind.Table).ToArray();}
+        return new(catalog.Name,FileName(databaseName),fingerprint,files.AsReadOnly(),tables){Routines=routines.AsReadOnly(),RootNamespace=runtimeSql?typeNamespace:null};
+    }
+
+    private static DatabaseCatalog CreateImportCatalog(DatabaseCatalog catalog){
+        var schemas=catalog.Schemas.Select(schema=>new SchemaCatalog(schema.Name,schema.Tables.Select(table=>{
+            if(table.PrimaryKey is not null){return table;}
+            var name="__SeamlessImportRowId";while(table.Columns.Any(c=>c.Name==name)){name="_"+name;}
+            var ordinal=0;if(table.Columns.Count>0){ordinal=table.Columns.Max(c=>c.Ordinal)+1;}
+            var column=new ColumnCatalog(ordinal,name,new DatabaseType(DatabaseTypeKind.Int64,false),false,IsSynthetic:true);
+            return new TableCatalog(table.Name,table.Columns.Append(column).ToArray(),new PrimaryKeyCatalog("__SeamlessImportKey",[new KeyColumnCatalog(name,false)]),table.UniqueKeys,table.ForeignKeys,table.CheckConstraints,table.Triggers);
+        }).ToArray(),schema.Views,schema.Routines)).ToArray();
+        return new(catalog.Name,schemas);
     }
 
     private static IReadOnlyList<SchemaName> CreateNames(DatabaseCatalog catalog,string databaseName) {
@@ -109,41 +130,62 @@ public static class CSharpDatabaseGenerator {
     }
 
     private static string CreateDatabaseSource(
-        string databaseName,
+        string databaseName,string typeNamespace,
         string fingerprint,
-        IReadOnlyList<SchemaName> schemas) {
+        IReadOnlyList<SchemaName> schemas,bool executableViews,string sourceDatabaseName,List<GeneratedRoutineBinding> routines,bool runtimeSql) {
         var builder = Header();
-        builder.AppendLine($"namespace {databaseName} {{");
+        builder.AppendLine($"namespace {typeNamespace} {{");
         builder.AppendLine();
         builder.AppendLine("internal static class DatabaseGenerator;");
         builder.AppendLine();
-        builder.AppendLine($"public sealed partial class {databaseName}:global::Seamless.Database.DatabaseContainer {{");
-        builder.AppendLine($"    public {databaseName}(global::Seamless.Database.DatabaseContainerOptions? options=null):base(options) {{");
+        if(runtimeSql){
+            builder.AppendLine($"public sealed partial class {databaseName}:global::Seamless.Database.Query.RuntimeSqlDatabaseContainer {{");
+            builder.AppendLine($"    public {databaseName}(global::Seamless.Database.DatabaseContainerOptions? options=null):base(options??(global::Seamless.Database.DatabaseContainerOptions.InMemory with{{Transactions=global::Seamless.Database.DatabaseTransactionMode.SharedV2}}),{Literal(fingerprint)}) {{");
+            builder.AppendLine("        try {");
+        }else{
+            builder.AppendLine($"public sealed partial class {databaseName}:global::Seamless.Database.DatabaseContainer {{");
+            builder.AppendLine($"    public {databaseName}(global::Seamless.Database.DatabaseContainerOptions? options=null):base(options) {{");
+        }
         foreach(var schema in schemas) {
             builder.AppendLine($"        this.{schema.Name}=new(this);");
         }
+        if(runtimeSql){
+            builder.AppendLine("            this.EnsureTablesCreated();");
+            builder.AppendLine("        }catch(global::System.Exception error){");
+            builder.AppendLine("            try{this.Dispose();}catch(global::System.Exception cleanup){throw new global::System.AggregateException(error,cleanup);}throw;");
+            builder.AppendLine("        }");
+        }
         builder.AppendLine("    }");
         builder.AppendLine();
+        if(executableViews){builder.AppendLine("    public global::System.Func<string,global::System.Collections.Generic.IEnumerable<object?[]>>? SqlViewRows{get;set;}");}
         builder.AppendLine($"    public const string GeneratedSchemaFingerprint=\"{fingerprint}\";");
         foreach(var schema in schemas) {
-            builder.AppendLine($"    public global::{databaseName}.Schemas.{schema.Name} {schema.Name} {{ get; }}");
+            builder.AppendLine($"    public global::{typeNamespace}.Schemas.{schema.Name} {schema.Name} {{ get; }}");
         }
         builder.AppendLine("}");
         builder.AppendLine("}");
         builder.AppendLine();
-        builder.AppendLine($"namespace {databaseName}.Schemas {{");
+        builder.AppendLine($"namespace {typeNamespace}.Schemas {{");
         foreach(var schema in schemas) {
             builder.AppendLine($"    public sealed class {schema.Name}(global::Seamless.Database.DatabaseContainer database):global::Seamless.Database.DatabaseSchema(database,\"{Escape(schema.Source.Name)}\") {{");
             foreach(var table in schema.Tables) {
                 var keyArguments=string.Join(",",TableKeyColumns(table).Select(static column=>$"record.{column.Name}"));
-                builder.AppendLine($"        public global::Seamless.Database.Table<global::{databaseName}.Keys.{table.TypeName},global::{databaseName}.Records.{table.TypeName}> {table.Name}=>this.Table<global::{databaseName}.Keys.{table.TypeName},global::{databaseName}.Records.{table.TypeName}>(static record=>new({keyArguments}));");
+                builder.AppendLine($"        public global::Seamless.Database.Table<global::{typeNamespace}.Keys.{table.TypeName},global::{typeNamespace}.Records.{table.TypeName}> {table.Name}=>this.Table<global::{typeNamespace}.Keys.{table.TypeName},global::{typeNamespace}.Records.{table.TypeName}>(static record=>new({keyArguments}));");
             }
             foreach(var view in schema.Views) {
                 var keyArguments=string.Join(",",ViewKeyColumns(view).Select(static column=>$"record.{column.Name}"));
-                builder.AppendLine($"        public global::Seamless.Database.MaterializedView<global::{databaseName}.Keys.{view.TypeName},global::{databaseName}.Records.{view.TypeName}> {view.Name}=>this.MaterializedView<global::{databaseName}.Keys.{view.TypeName},global::{databaseName}.Records.{view.TypeName}>(static record=>new({keyArguments}));");
+                if(executableViews){
+                    builder.AppendLine($"        public global::System.Collections.Generic.IEnumerable<global::{typeNamespace}.Records.{view.TypeName}> {view.Name}=>global::Seamless.Database.Rdbms.GeneratedSqlViewReader.Read<global::{typeNamespace}.Records.{view.TypeName}>(((global::{typeNamespace}.{databaseName})database).SqlViewRows,\"{Escape("["+schema.Source.Name.Replace("]","]]")+"].["+view.Source.Name.Replace("]","]]")+"]")}\");");
+                }else{
+                builder.AppendLine($"        public global::Seamless.Database.MaterializedView<global::{typeNamespace}.Keys.{view.TypeName},global::{typeNamespace}.Records.{view.TypeName}> {view.Name}=>this.MaterializedView<global::{typeNamespace}.Keys.{view.TypeName},global::{typeNamespace}.Records.{view.TypeName}>(static record=>new({keyArguments}));");
+                }
             }
             foreach(var routine in schema.Routines) {
-                AppendRoutineSource(builder,databaseName,routine);
+                var start=builder.Length;
+                AppendRoutineSource(builder,typeNamespace,routine);
+                routines.Add(new(sourceDatabaseName,schema.Source.Name,routine.Source.Name,routine.Source.Kind,
+                    $"{FileName(typeNamespace)}.Schemas.{FileName(schema.Name)}",FileName(routine.Name),
+                    $"{FileName(databaseName)}.cs",builder.ToString(start,builder.Length-start),!HasRoutineImplementation(routine.Source)));
             }
             builder.AppendLine("    }");
         }
@@ -205,9 +247,11 @@ public static class CSharpDatabaseGenerator {
                 var scalarType=routine.Source.ReturnType is null
                     ?"object?"
                     :TypeName(routine.Source.ReturnType);
+                var scalarExpression=$"this.ScalarFunction<{scalarType}>(()=>throw new global::System.NotSupportedException({Literal($"Imported SQL Server scalar function '{routine.Source.SchemaName}.{routine.Source.Name}' requires relational-algebra execution.")}))";
+                if(HasRoutineImplementation(routine.Source)){scalarExpression=$"this.ScalarFunction<{scalarType}>(()=>{{{routine.Source.Implementation!.CSharpBody}}})";}
                 AppendRoutineMethod(builder,
                     $"        public global::Seamless.Database.ScalarFunction<{scalarType}> {routine.Name}({parameters})",
-                    $"this.ScalarFunction<{scalarType}>(()=>throw new global::System.NotSupportedException({Literal($"Imported SQL Server scalar function '{routine.Source.SchemaName}.{routine.Source.Name}' requires relational-algebra execution.")}))",
+                    scalarExpression,
                     outputParameters);
                 break;
             case RoutineKind.StoredProcedure:
@@ -222,6 +266,11 @@ public static class CSharpDatabaseGenerator {
             default:
                 throw new ArgumentOutOfRangeException();
         }
+    }
+
+    private static bool HasRoutineImplementation(RoutineCatalog routine){
+        if(routine.Kind!=RoutineKind.ScalarFunction||routine.Definition is null||routine.Implementation is not{}implementation||implementation.CompilerProfile!="SqlServerScalarTinyintCaseNvarcharV1"||string.IsNullOrWhiteSpace(implementation.CSharpBody)){return false;}
+        return string.Equals(implementation.SourceDefinitionSha256,Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(routine.Definition))),StringComparison.OrdinalIgnoreCase);
     }
 
     private static void AppendRoutineMethod(
@@ -280,6 +329,7 @@ public static class CSharpDatabaseGenerator {
     private static string CreateFingerprint(DatabaseCatalog catalog) {
         var canonical = new StringBuilder();
         Append(canonical,catalog.Name);
+        if(catalog.DefaultCollation is not null){Append(canonical,"DatabaseCollation");Append(canonical,catalog.DefaultCollation);}
         foreach(var schema in catalog.Schemas.OrderBy(static value=>value.Name,StringComparer.Ordinal)) {
             Append(canonical,schema.Name);
             foreach(var table in schema.Tables.OrderBy(static value=>value.Name,StringComparer.Ordinal)) {
@@ -293,6 +343,7 @@ public static class CSharpDatabaseGenerator {
                     Append(canonical,column.ComputedDefinition??string.Empty);
                 }
                 Append(canonical,table.PrimaryKey?.Name??string.Empty);
+                Append(canonical,table.PrimaryKey?.IndexType?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
                 if(table.PrimaryKey is not null) {
                     foreach(var column in table.PrimaryKey.Columns) {
                         Append(canonical,column.Name);
@@ -354,6 +405,10 @@ public static class CSharpDatabaseGenerator {
                 .ThenBy(static value=>value.Kind)) {
                 Append(canonical,routine.Name);
                 Append(canonical,routine.Kind.ToString());
+                Append(canonical,routine.SourceObjectType??string.Empty);
+                Append(canonical,routine.Implementation?.CompilerProfile??string.Empty);
+                Append(canonical,routine.Implementation?.SourceDefinitionSha256??string.Empty);
+                Append(canonical,routine.Implementation?.CSharpBody??string.Empty);
                 AppendType(canonical,routine.ReturnType);
                 foreach(var parameter in routine.Parameters.OrderBy(static value=>value.Ordinal)) {
                     Append(canonical,parameter.Ordinal.ToString(global::System.Globalization.CultureInfo.InvariantCulture));
@@ -393,6 +448,12 @@ public static class CSharpDatabaseGenerator {
         Append(builder,type.Precision?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
         Append(builder,type.Scale?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
         Append(builder,type.RuntimeType?.FullName??string.Empty);
+        Append(builder,type.SqlTypeName??string.Empty);
+        Append(builder,type.Collation??string.Empty);
+        Append(builder,type.SourceMaximumLength?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
+        Append(builder,type.SourcePrecision?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
+        Append(builder,type.SourceScale?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
+        if(type.ResultSqlTypeName is not null||type.ResultMaximumLength is not null){Append(builder,"ResultSqlType");Append(builder,type.ResultSqlTypeName??string.Empty);Append(builder,type.ResultMaximumLength?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);}
     }
 
     private static void AppendKey(StringBuilder builder,UniqueKeyCatalog key) {

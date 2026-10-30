@@ -11,19 +11,21 @@ public sealed class Table<TRecord>:
     IDisposable
     where TRecord:notnull {
     private readonly DatabaseContainer database;
-    private readonly global::Seamless.Collections.Tsavorite.HashSet<TRecord> rows;
+    private global::Seamless.Collections.Tsavorite.HashSet<TRecord> rows;
+    private readonly Func<global::Seamless.Collections.Tsavorite.HashSet<TRecord>>? sharedFactory;
     private bool disposed;
 
     internal Table(
         DatabaseContainer database,
         global::Seamless.Collections.Tsavorite.HashSet<TRecord> rows,
-        string name) {
+        string name,Func<global::Seamless.Collections.Tsavorite.HashSet<TRecord>>? sharedFactory=null) {
         ArgumentNullException.ThrowIfNull(database);
         ArgumentNullException.ThrowIfNull(rows);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         this.database=database;
         this.rows=rows;
         this.Name=name;
+        this.sharedFactory=sharedFactory;
     }
 
     /// <summary>宣言プロパティ名。</summary>
@@ -139,6 +141,8 @@ public sealed class Table<TRecord>:
     internal bool DirectAdd(TRecord item)=>this.rows.Add(item);
     internal bool DirectRemove(TRecord item)=>this.rows.Remove(item);
     internal void DirectClear()=>this.rows.Clear();
+    internal void ReleaseSharedHandle()=>this.rows.Dispose();
+    internal void AcquireSharedHandle(){this.rows=this.sharedFactory!();}
 
     private void ReplaceWithIntersection(
         IEnumerable<TRecord> current,

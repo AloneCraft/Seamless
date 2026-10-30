@@ -7,9 +7,12 @@ public enum DatabaseStorageMode {
     /// <summary>ストレージデバイスへ退避しながら運用する。</summary>
     Storage,
 }
+public enum DatabaseTransactionMode{Legacy,SharedV2}
 
 /// <summary>コンテナ作成オプション。メモリ範囲内運用とストレージ利用をパラメータで切り替える。</summary>
 public sealed record DatabaseContainerOptions {
+    /// <summary>SharedV2は新規保存領域への明示導入。旧DBを自動変換しない。</summary>
+    public DatabaseTransactionMode Transactions{get;init;}=DatabaseTransactionMode.Legacy;
     public DatabaseStorageMode StorageMode { get; init; } = DatabaseStorageMode.Memory;
     /// <summary><see cref="DatabaseStorageMode.Storage"/> でテーブルログを配置するルートディレクトリ。未指定ならカレントディレクトリ配下のデータベース名。</summary>
     public string? StorageDirectory { get; init; }
