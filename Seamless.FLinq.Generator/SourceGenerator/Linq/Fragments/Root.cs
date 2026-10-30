@@ -1,3 +1,6 @@
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
 namespace Seamless.FLinq.Generator;
 
 /*
@@ -31,6 +34,20 @@ Root 系 Fragment は LINQ チェーンの最初の source を struct enumerator
 // 複数ファイルから派生される ProviderNativeRootBase だけが Bases に残っている。
 internal abstract class SourceRootBase(int number,string sourceExpression):Enumerable(number) {
     public string SourceExpression { get; } = sourceExpression;
+    // Last需要向けのsource束縛口。対応する根だけがopt-inする。
+    internal virtual LocalDeclarationStatementSyntax? BindLastSource(string localName)=>null;
+    protected LocalDeclarationStatementSyntax? CreateLastSourceBinding(string localName){
+        var sourceSyntax=SyntaxFactory.ParseExpression(this.SourceExpression);
+        if(sourceSyntax.ContainsDiagnostics){return null;}
+        var expression=SyntaxFactory.CastExpression(
+            SyntaxFactory.ParseTypeName($"global::System.Collections.Generic.IEnumerable<{this.ElementType}>"),
+            SyntaxFactory.ParenthesizedExpression(sourceSyntax));
+        return SyntaxFactory.LocalDeclarationStatement(
+            SyntaxFactory.VariableDeclaration(SyntaxFactory.IdentifierName("var"))
+                .WithVariables(SyntaxFactory.SingletonSeparatedList(
+                    SyntaxFactory.VariableDeclarator(localName)
+                        .WithInitializer(SyntaxFactory.EqualsValueClause(expression)))));
+    }
     public abstract SourceCapability Capabilities { get; }
     public bool HasCapability(SourceCapability capability) => (this.Capabilities&capability)==capability;
 }
@@ -115,6 +132,7 @@ internal abstract class DirectSpanRootBase(
 // IEnumerable<T>/配列の場合は IEnumerator<T>、List<T> 等の具象型の場合は List<T>.Enumerator 等の値型エニュメレータ名になる。
 // 構造体 Struct1<TEnum> は TEnum でパラメータ化され、呼び出し側で具体型引数により単相化される。
 internal class Root(int 番号,string sourceExpression,string elementType,string enumeratorTypeName,bool useEnumerableInterface):EnumeratorRootBase(番号,sourceExpression) {
+    internal override LocalDeclarationStatementSyntax? BindLastSource(string localName)=>this.CreateLastSourceBinding(localName);
     public override SourceCapability Capabilities => SourceCapability.ChunkStreaming;
     public override bool CanProvideSpan => false;
     public override bool CanTryProvideSpan => useEnumerableInterface;
@@ -286,6 +304,7 @@ ArrayRoot は配列 source 専用。IEnumerator<T> を作らず index で直接�
   分岐なしに連続メモリ fast path を選べる。
 */
 internal sealed class ArrayRoot(int 番号,string sourceExpression,string elementType):DirectSpanRootBase(番号,sourceExpression,elementType) {
+    internal override LocalDeclarationStatementSyntax? BindLastSource(string localName)=>this.CreateLastSourceBinding(localName);
     public override string? DirectArrayExpression => sourceExpression;
     protected override string SourceTypeName => $"{elementType}[]";
     protected override string CountExpression(string sourceName) => $"{sourceName}.Length";
@@ -311,6 +330,7 @@ CollectionsMarshal.AsSpan(list) を index で読む。
   配列同様に TryGetSpan/TryCopyTo を提供し、Select/Where 後の materialize でもコピー系 fast path を維持する。
 */
 internal sealed class ListRoot(int 番号,string sourceExpression,string elementType):DirectSpanRootBase(番号,sourceExpression,elementType) {
+    internal override LocalDeclarationStatementSyntax? BindLastSource(string localName)=>this.CreateLastSourceBinding(localName);
     protected override string SourceTypeName => $"global::System.Collections.Generic.List<{elementType}>";
     protected override string CountExpression(string sourceName) => $"{sourceName}.Count";
     protected override string RemainingCountExpression(string sourceName,string indexName) => $"{sourceName}.Count-({indexName}+1)";

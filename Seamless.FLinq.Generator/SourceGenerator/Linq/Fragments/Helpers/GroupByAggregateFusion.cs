@@ -350,7 +350,7 @@ internal static class GroupByAggregateFusion {
         if(funcFragment is not null){
             foreach(var hoisted in funcFragment.HoistedLocals){
                 aggPlan.ReceiverNames.Add(hoisted.Name);
-                bodyText=bodyText.Replace(hoisted.ExpressionText,$"this.{hoisted.Name}",StringComparison.Ordinal);
+                bodyText=bodyText.Replace(hoisted.BindingExpressionText,$"this.{hoisted.Name}",StringComparison.Ordinal);
                 bodyText=System.Text.RegularExpressions.Regex.Replace(
                     bodyText,
                     $@"(?<![\w\.]){System.Text.RegularExpressions.Regex.Escape(hoisted.Name)}\b",

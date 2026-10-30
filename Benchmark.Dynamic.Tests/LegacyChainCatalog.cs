@@ -1,5 +1,6 @@
 using Benchmark.Dynamic.Core;
 using Benchmark.Dynamic.Worker;
+using System.Text.Json;
 
 namespace Benchmark.Dynamic.Tests;
 
@@ -7,38 +8,56 @@ namespace Benchmark.Dynamic.Tests;
 public sealed class LegacyChainCatalog{
     [Fact,Trait("Category","LegacyChainCorpus")]
     public void ExactSavedRegressionCasesPreserveArgumentsAndResults(){
+        var executed=0;
         foreach(var file in new[]{"representative-chains.json","regressions.json"}){
             var corpus=CorpusChainBuilder.Load(file);
             foreach(var entry in corpus.Entries){
-                Verify(Core.LegacyChainCatalog.Build(entry.Id,entry.Methods.ToArray()));
+                Verify(Core.LegacyChainCatalog.Build(entry.Id,entry.Methods.ToArray()),"saved");
+                executed++;
             }
         }
+        Assert.Equal(225,executed);
     }
     [Fact,Trait("Category","LegacyChainCorpus")]
     public void ExactLegacyPairsPreserveArgumentsAndResults(){
         var cases=Core.LegacyChainCatalog.Pairs().ToArray();Assert.True(cases.Length>=150);
-        foreach(var item in cases){Verify(item);}
+        foreach(var item in cases){Verify(item,"pairs");}
     }
-    private static void Verify(FixedCase item){
-            var compilation=new DynamicQueryCompiler().Compile(new("legacy-"+Guid.NewGuid().ToString("N"),"Benchmark.Dynamic.Generated.FixedQuery",Core.FixedCaseCatalog.Emit(item),item.ID+".cs"));
-            Assert.True(compilation.Success,item.ID+": "+string.Join("\n",compilation.Diagnostics.Where(d=>d.Severity=="Error").Select(d=>d.Message)));
-            var loaded=compilation.LoadedQuery!;
+    private static void Verify(FixedCase item,string phase){
+            var source=Core.FixedCaseCatalog.Emit(item);
+            var compilation=new DynamicQueryCompiler().Compile(new("legacy-"+Guid.NewGuid().ToString("N"),"Benchmark.Dynamic.Generated.FixedQuery",source,item.ID+".cs"));
+            var directory=string.Empty;
+            var validations=new List<object>();
+            var loaded=compilation.LoadedQuery;
             try{
+                directory=Path.Combine(Path.GetTempPath(),"LegacyOriginalEvidence",phase);
+                Directory.CreateDirectory(directory);
+                File.WriteAllText(Path.Combine(directory,item.ID+".source.cs"),source);
+                File.WriteAllText(Path.Combine(directory,item.ID+".generated.cs"),compilation.ExpandedSource);
+                SaveEvidence();
+                Assert.True(compilation.Success,item.ID+": "+string.Join("\n",compilation.Diagnostics.Where(d=>d.Severity=="Error").Select(d=>d.Message)));
+                var query=Assert.IsType<LoadedDynamicQuery>(loaded);
                 foreach(var count in new[]{0,1,16}){
                     using var fixture=new SourceFixtureFactory().Create(SourceTarget.SystemArray,count,Seed256.Parse("42"));
-                    var (expected,expectedException)=Execute(loaded,DynamicImplementationKind.System,fixture.Primary,fixture.Secondary);
-                    Assert.NotEqual(typeof(InvalidCastException).FullName,expectedException);
-                    foreach(var implementation in new[]{DynamicImplementationKind.FLinqUnoptimized,DynamicImplementationKind.FLinq}){
-                        var (actual,actualException)=Execute(loaded,implementation,fixture.Primary,fixture.Secondary);
-                        Assert.Equal(expectedException,actualException);
-                        if(expected is not null){Assert.True(DynamicQueryComparer.Compare(expected,actual!).IsMatch,item.ID+" "+implementation+" count="+count);}
+                    var validation=global::Benchmark.Dynamic.Worker.DynamicQueryValidator.Validate(query,fixture.Primary,fixture.Secondary,[DynamicImplementationKind.System,DynamicImplementationKind.FLinqUnoptimized,DynamicImplementationKind.FLinq],true);
+                    validations.Add(new{count,Status=validation.Status.ToString(),validation.Exceptions,validation.Comparisons,validation.Fallbacks});
+                    if(validation.Exceptions.TryGetValue(DynamicImplementationKind.System,out var failure)){
+                        Assert.NotEqual(typeof(InvalidCastException).FullName,failure.Type);
                     }
+                    Assert.True(validation.Status==WorkerExecutionStatus.Succeeded,item.ID+" count="+count+": "+JsonSerializer.Serialize(validation));
                 }
-            }finally{Assert.True(loaded.UnloadAndVerify().Unloaded,item.ID+": collectible query assembly was retained.");}
-    }
-    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    private static (DynamicQueryValue? Value,string? Exception) Execute(LoadedDynamicQuery query,DynamicImplementationKind implementation,object primary,object secondary){
-        try{return(query.Run(implementation,primary,secondary),null);}
-        catch(Exception exception){return(null,exception.GetType().FullName);}
+            }finally{
+                try{SaveEvidence();}
+                finally{if(loaded is not null){Assert.True(loaded.UnloadAndVerify().Unloaded,item.ID+": collectible query assembly was retained.");}}
+            }
+            void SaveEvidence(){
+                if(directory.Length==0){return;}
+                File.WriteAllText(Path.Combine(directory,item.ID+".json"),JsonSerializer.Serialize(new{
+                    item.ID,item.Methods,item.Expression,item.OriginalSHA256,
+                    SourceSHA256=Benchmark.Infrastructure.Fingerprint.Of(source),
+                    GeneratedSHA256=Benchmark.Infrastructure.Fingerprint.Of(compilation.ExpandedSource),
+                    compilation.Success,compilation.Diagnostics,compilation.OptimizationTracePayloads,Validation=validations
+                }));
+            }
     }
 }

@@ -22,7 +22,8 @@ internal sealed class InlinedScalarFunc(Fragment scalarFragment):LambdaFunc {
         string? statement = null;
         if(scalarFragment is Scalar scalar) {
             statement=scalar.RenderInlineComputation(targetVar,targetType);
-        } else if(scalarFragment is DirectExecutionFragment directExec) {
+        }
+        if(string.IsNullOrWhiteSpace(statement)&&scalarFragment is DirectExecutionFragment directExec) {
             statement=directExec.GetDirectExecutionStatement(targetVar,targetType);
         } else {
         }
@@ -35,7 +36,6 @@ internal sealed class InlinedScalarFunc(Fragment scalarFragment):LambdaFunc {
 
     public override string RenderInlineAssign(string destination,int number,params string[] arguments) {
         var enumeratorName = $"__scalar_{number}_{SanitizeLocalName(destination)}";
-        var enumeratorExpression = this.RenderScalarEnumeratorExpression(arguments);
         if(!string.IsNullOrWhiteSpace(this.BodyExpression)
             &&!string.IsNullOrWhiteSpace(this.ScalarExpression)
             &&this.BodyExpression!=this.ScalarExpression) {
@@ -46,12 +46,16 @@ internal sealed class InlinedScalarFunc(Fragment scalarFragment):LambdaFunc {
         // 宣言し直すと同じスコープで二重定義になる。別名の変数へ計算させてから代入する。
         var directValueName = $"__scalarValue_{number}_{SanitizeLocalName(destination)}";
         if(this.TryRenderInlineScalarStatement(directValueName,this.ReturnTypeName,number,arguments) is { } directScalar) {
+            // 一回のscalar計算のlocalとusing寿命をcallerへ漏らさない。
             return $$"""
-                {{directScalar}}
-                {{destination}}={{directValueName}};
+                {
+                    {{directScalar}}
+                    {{destination}}={{directValueName}};
+                }
                 """;
         }
 
+        var enumeratorExpression = this.RenderScalarEnumeratorExpression(arguments);
         var tempName = $"__scalarTmp_{number}";
         return $$"""
             using(var {{enumeratorName}}={{enumeratorExpression}}){

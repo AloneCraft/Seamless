@@ -1,0 +1,7 @@
+# 構造体内captureとclosed generic ownerの生成
+
+保存335版/Gen88Dのstrict ordered7件はruntime480比較へ進む前に生成エラーになった。fieldのValueTextは@を含まないため、shadow local生成ではkeyword/contextual keywordへ@を戻す。構築済みownerの非generic methodもOriginalDefinitionへ戻し、署名と宣言本文のTを同じ束縛にする。既存のmember変換・method generic正規化を拡張し、返値・既存assertは変更しない。
+
+独立回帰はescaped @this/@eventのnestedcaptureの実値12と、Box<string>/Box<int>の非genericメソッド2傍受・実値3。strict ordered fixtureのNoFallback/PhysicalDelegate0/値・例外/Anchor trace/normal upperboundと480比較を維持する。compileが直ってもnested Sumのphysical delegateや論理counterは独立未解決gateなので全体合格とはしない。
+
+診断コメントとBlockFunc型修飾は336版/Gen6A1C81で別受入済み（同56入力、旧88Dは4compilefail、新版56Executed失敗0）。本2製品変更後も同fixtureを回帰確認する。今回339版の受入は未実行。

@@ -50,13 +50,10 @@ public sealed partial class FLinqIncrementalGenerator {
         target=null;
         diagnostic=null;
 
-        // 呼び出し側で型引数が確定済みのジェネリックメソッド呼び出し（例: Foo<int>(...)）も、
-        // 未構築の定義（OriginalDefinition）に正規化してから以降の判定・生成を行う。
-        // 生成される補助メソッドは元の型パラメーター名（例: TAnonymous）を持つジェネリックメソッドとして
-        // 宣言され、呼び出し側の型引数はインターセプター経由でコンパイラが解決する。
-        if(method.IsGenericMethod) {
-            method=method.OriginalDefinition;
-        }
+        // method自身と含有型の両方を未構築の定義へ戻す。Probe<string>.Runのような
+        // 非generic methodでも、本文はProbe<T>の宣言を読むため署名と同じ型束縛を使う。
+        // 呼び出し側の具体型はinterceptorのreceiverと引数からコンパイラが解決する。
+        method=method.OriginalDefinition;
 
         // インターセプト対象にする主条件は 2 つ:
         // 1. その場所が

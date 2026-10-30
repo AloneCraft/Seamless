@@ -124,6 +124,19 @@ internal static partial class PipelineBuilder {
         func2=null;
         comparerValue=null;
         terminalValue=null;
+        if(terminalKind is PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault){
+            if(invocation.ArgumentList.Arguments.Count==0){return true;}
+            if(invocation.ArgumentList.Arguments.Count!=1||method.Parameters.Length==0
+                ||method.Parameters[0].Type is not INamedTypeSymbol{TypeArguments.Length:2}){
+                return false;
+            }
+            if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,method.Parameters[0].Type,ref uniqueNumber,out func1)
+                ||!services.CanUseFunc(func1)){
+                return false;
+            }
+            // 元terminal predicateを保持する。Where stageとして追加しない。
+            return true;
+        }
         if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray) {
             return invocation.ArgumentList.Arguments.Count==0;
         }
