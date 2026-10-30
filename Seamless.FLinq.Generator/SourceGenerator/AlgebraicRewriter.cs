@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Operations;
 namespace Seamless.FLinq.Generator;
 // §1「構文結合・アルゴリズムレベルの最適化（置換パターン）」を実装する構文 rewriter。
 // interceptor.cs の query lowering 直後（生成パイプライン前段）で intercept 対象メソッド本体へ適用し、
@@ -8,7 +9,7 @@ namespace Seamless.FLinq.Generator;
 // 静的形 SystemEnumerable.X(...) は intercept されない参照なので書き換えない（テストの expected を保つ）。
 //
 // 実装ルール:
-//   - Where(p).Op()                 -> Op(p)        Op∈{Count,LongCount,Any,First,FirstOrDefault,Last,LastOrDefault,Single,SingleOrDefault}
+//   - Where(p).Op()                 -> Op(p)        Op∈{Count,LongCount,Any,First,FirstOrDefault,Single,SingleOrDefault}
 //   - OrderBy(k).First()            -> MinBy(k)     / OrderByDescending(k).First()             -> MaxBy(k)
 //     OrderBy(k).FirstOrDefault()   -> MinBy(k)     / OrderByDescending(k).FirstOrDefault()    -> MaxBy(k)
 //        空列/同値の意味保存ゲート: First→Min/MaxBy は非null値型のみ、FirstOrDefault→Min/MaxBy はnull既定(参照/Nullable)のみ。
@@ -24,7 +25,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     private readonly SemanticModel model;
     private readonly INamedTypeSymbol? enumerableType;
     private static readonly HashSet<string> FusableTerminals = new(StringComparer.Ordinal) {
-        "Count","LongCount","Any","First","FirstOrDefault","Last","LastOrDefault","Single","SingleOrDefault",
+        "Count","LongCount","Any","First","FirstOrDefault","Single","SingleOrDefault",
     };
     private AlgebraicRewriter(SemanticModel model) {
         this.model=model;
@@ -66,6 +67,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(this.TryRewriteCountComparison(node,out var rewritten)) return rewritten;
         return base.VisitBinaryExpression(node);
     }
+    // Last系は無match例外とSystem iteratorの走査方向が異なるため融合しない。
     // src.Where(pred).Op() -> src.Op(pred)。Op は無引数オーバーロードのみ、pred は単一引数ラムダ。
     private bool TryFuseWherePredicate(InvocationExpressionSyntax node,out SyntaxNode result) {
         result=null!;
@@ -245,6 +247,11 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             return false;
         }else{
         }
+        // 整数/decimalのSumは途中の和で停止する。最終和が同じでもOrder/Reverseを消せない。
+        if(terminalName=="Sum"&&Sum.RequiresCheckedAccumulation(
+            this.model.GetTypeInfo(node).Type?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)??string.Empty)){
+            return false;
+        }
         var cur=Strip(terminalReceiver);
         var strippedAny=false;
         var intermediateStages=new List<(string MethodName,ArgumentListSyntax Args)>();
@@ -282,7 +289,7 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         }
         // 途中で止まる終端(Any / All / Contains)は、止まるまでにラムダを評価するなら(述語つきの終端、Where、Contains の手前の Select など)、
         // 並べ替え・Reverse を消すと System.Linq と別の要素にラムダを評価する(例外の有無が変わる)。要素ごとに System.Linq に合わせるので消さない。
-        // (Count / Sum / Min / Max などは全要素を評価するので、順が変わるだけ。)
+        // 整数/decimal Sumの途中overflowによる停止は上の型判定で順序を保持する。
         if(terminalName is "Any" or "All" or "Contains"
             &&(terminalName=="All"
                 ||terminalName=="Any"&&terminalArgs.Count!=0
@@ -1085,6 +1092,10 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         var normalizedOp = countOnLeft ? op : Reverse(op);
         if(!TryMapToAny(normalizedOp,literal,out var negate)) return false;
         this.TryGetEnumerableExtensionCall(countInv,out _,out var countSource,out var countArgs);
+        // 短絡化は後続の例外やAnchorの評価を省く。既知の有限sourceと全域な述語だけを許す。
+        if(AnchorAnalysis.ContainsAnchor(countInv,this.model)
+            ||!this.IsSafeCountComparisonSource(countSource)
+            ||countArgs.Any(argument=>!this.IsSafeCountComparisonLambda(argument.Expression))){return false;}
         ExpressionSyntax any = countArgs.Count==1
             ? CreateCall(countSource,"Any",countArgs[0].Expression)
             : CreateCall(countSource,"Any");
@@ -1093,6 +1104,51 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         }
         result=any;
         return true;
+    }
+    private bool IsSafeCountComparisonSource(ExpressionSyntax source){
+        var type=this.model.GetTypeInfo(source).Type;
+        if(type is IArrayTypeSymbol{Rank:1}){return true;}
+        if(type is INamedTypeSymbol named&&named.OriginalDefinition.MetadataName=="List`1"
+            &&named.ContainingNamespace.ToDisplayString()=="System.Collections.Generic"){return true;}
+        if(Strip(source) is not InvocationExpressionSyntax invocation
+            ||this.model.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method){return false;}
+        var definition=method.ReducedFrom??method;
+        if(definition.ContainingType.ToDisplayString()!="System.Linq.Enumerable"){return false;}
+        if(definition.Name is "Range" or "Repeat" or "Empty"){return true;}
+        if(!this.TryGetEnumerableExtensionCall(invocation,out var name,out var inner,out var arguments)
+            ||!this.IsSafeCountComparisonSource(inner)){return false;}
+        if(name is "AsEnumerable" or "Reverse"){return arguments.Count==0;}
+        if(name is "Where" or "Select"){
+            return arguments.Count==1&&this.IsSafeCountComparisonLambda(arguments[0].Expression);
+        }
+        return false;
+    }
+    private bool IsSafeCountComparisonLambda(ExpressionSyntax expression){
+        return Strip(expression) is LambdaExpressionSyntax{Body:ExpressionSyntax body}
+            &&!AnchorAnalysis.ContainsAnchor(body,this.model)
+            &&IsSafeCountComparisonOperation(this.model.GetOperation(body));
+    }
+    private static bool IsSafeCountComparisonOperation(IOperation? operation){
+        if(operation is null||operation.Type?.SpecialType is not (
+            SpecialType.System_Boolean or SpecialType.System_Char or SpecialType.System_SByte or SpecialType.System_Byte
+            or SpecialType.System_Int16 or SpecialType.System_UInt16 or SpecialType.System_Int32 or SpecialType.System_UInt32
+            or SpecialType.System_Int64 or SpecialType.System_UInt64 or SpecialType.System_IntPtr or SpecialType.System_UIntPtr
+            or SpecialType.System_Single or SpecialType.System_Double)){return false;}
+        if(operation.ConstantValue.HasValue){return true;}
+        return operation switch{
+            IParameterReferenceOperation parameter=>parameter.Parameter.RefKind==RefKind.None,
+            IDefaultValueOperation=>true,
+            IParenthesizedOperation parenthesized=>IsSafeCountComparisonOperation(parenthesized.Operand),
+            IUnaryOperation unary=>!unary.IsChecked&&unary.OperatorMethod is null&&IsSafeCountComparisonOperation(unary.Operand),
+            IBinaryOperation binary=>!binary.IsChecked&&binary.OperatorMethod is null
+                &&binary.OperatorKind is not (BinaryOperatorKind.Divide or BinaryOperatorKind.Remainder)
+                &&IsSafeCountComparisonOperation(binary.LeftOperand)&&IsSafeCountComparisonOperation(binary.RightOperand),
+            IConversionOperation conversion=>!conversion.IsChecked&&!conversion.IsTryCast&&conversion.OperatorMethod is null
+                &&!conversion.Conversion.IsUserDefined&&IsSafeCountComparisonOperation(conversion.Operand),
+            IConditionalOperation conditional=>!conditional.IsRef&&IsSafeCountComparisonOperation(conditional.Condition)
+                &&IsSafeCountComparisonOperation(conditional.WhenTrue)&&IsSafeCountComparisonOperation(conditional.WhenFalse),
+            _=>false,
+        };
     }
     // 連続 Where を実行順に集め、純粋・全域な場合のみ (passRate,cost,元index) で安定整列して再構築。
     private bool TryReorderWhereRun(InvocationExpressionSyntax node,out SyntaxNode result) {
@@ -1132,7 +1188,8 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     }
     // src.OrderBy(k).Where(pred) -> src.Where(pred).OrderBy(k)
     // src.OrderByDescending(k).Where(pred) -> src.Where(pred).OrderByDescending(k)
-    // 要素フィルタWhereをソート前に移動することで、ソート対象要素数を削減し計算量・メモリを大幅低減。
+    // 下流が Where 出力を全件消費するときだけソート前へ移動する。
+    // First/Any/Take などの前では、ソート後に必要な分だけ述語を評価する契約を維持する。
     private bool TryReorderWhereBeforeOrder(InvocationExpressionSyntax node,out SyntaxNode result){
         result=null!;
         if(!this.TryGetEnumerableExtensionCall(node,out var whereName,out var whereReceiver,out var whereArgs)){
@@ -1162,6 +1219,10 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(orderArgs.Count!=1){
             return false;
         }else{
+        }
+        if(!OrderFilterReorderSafety.CanMoveFilter(orderInv,whereLambda,this.model)
+            ||!DemandAnalysis.IsEntireSequenceConsumed(node,this.model,this.enumerableType)){
+            return false;
         }
         var newWhere=CreateCallWithArgumentList(orderSource,"Where",node.ArgumentList);
         result=CreateCallWithArgumentList(newWhere,orderName,orderInv.ArgumentList);
