@@ -15,19 +15,19 @@ LEFT OUTER JOIN sys.system_sql_modules AS ssmv ON ssmv.object_id = v.object_id
 LEFT OUTER JOIN sys.indexes AS idx ON idx.object_id = v.object_id and (idx.index_id < @ui_2)
 WHERE
 (v.type = @ui_V)and(CAST(
- case 
+ case
     when v.is_ms_shipped = 1 then 1
     when exists (
-        select 
+        select
             1
-        from 
-            sys.extended_properties 
-        where 
-            major_id = v.object_id and 
-            minor_id = 0 and 
-            class = 1 and 
-            name = N'microsoft_database_tools_support') 
+        from
+            sys.extended_properties
+        where
+            major_id = v.object_id and
+            minor_id = 0 and
+            class = 1 and
+            name = N'microsoft_database_tools_support')
         then 1
     else 0
-end          
+end
              AS bit)=@ui_0 and CAST(ISNULL(v.ledger_view_type, 0) AS tinyint)=@ui_0)

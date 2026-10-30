@@ -15,19 +15,19 @@ LEFT OUTER JOIN sys.system_sql_modules AS ssmsp ON ssmsp.object_id = sp.object_i
 LEFT OUTER JOIN sys.all_sql_modules AS sm ON sm.object_id = sp.object_id
 WHERE
 (sp.type = @ui_P OR sp.type = @ui_RF OR sp.type=@ui_PC)and(CAST(
- case 
+ case
     when sp.is_ms_shipped = 1 then 1
     when exists (
-        select 
+        select
             1
-        from 
-            sys.extended_properties 
-        where 
-            major_id = sp.object_id and 
-            minor_id = 0 and 
-            class = 1 and 
-            name = N'microsoft_database_tools_support') 
+        from
+            sys.extended_properties
+        where
+            major_id = sp.object_id and
+            minor_id = 0 and
+            class = 1 and
+            name = N'microsoft_database_tools_support')
         then 1
     else 0
-end          
+end
              AS bit)=@ui_0 and ISNULL(sm.uses_native_compilation,0)=@ui_0)
