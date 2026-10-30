@@ -20,6 +20,7 @@ internal sealed class GroupAggregateItem {
     public FuncFragment? InnerFunc { get; set; }
     public string OriginalInvocationText { get; set; } = string.Empty;
     public string RawInvocationText { get; set; } = string.Empty;
+    public bool DeferredCheckedSum{get;set;}
 }
 
 internal sealed class GroupByAggregatePlan {
@@ -54,7 +55,7 @@ internal sealed class GroupByAggregatePlan {
         };
         snapshot.Items.AddRange(this.Items.Select(static item=>new GroupAggregateItem{
             Kind=item.Kind,FieldName=item.FieldName,AccumulatorFieldType=item.AccumulatorFieldType,ResultExpressionType=item.ResultExpressionType,
-            InnerFunc=item.InnerFunc,OriginalInvocationText=item.OriginalInvocationText,RawInvocationText=item.RawInvocationText
+            InnerFunc=item.InnerFunc,OriginalInvocationText=item.OriginalInvocationText,RawInvocationText=item.RawInvocationText,DeferredCheckedSum=item.DeferredCheckedSum
         }));
         snapshot.ReceiverNames.AddRange(this.ReceiverNames);
         return snapshot;
@@ -113,7 +114,11 @@ internal sealed class GroupByAggregatePlan {
                     }
                     break;
                 case GroupAggregateKind.Sum:
-                    sb.AppendLine($"{indent}{fieldAccess}+={valueExpr};");
+                    if(item.DeferredCheckedSum){
+                        sb.AppendLine($"{indent}{fieldAccess}.Add({valueExpr});");
+                    }else{
+                        sb.AppendLine($"{indent}{fieldAccess}+={valueExpr};");
+                    }
                     break;
                 case GroupAggregateKind.Min:
                     sb.AppendLine($"{indent}if(!__exists || {valueExpr} < {fieldAccess}) {fieldAccess}={valueExpr};");
@@ -329,6 +334,8 @@ internal static class GroupByAggregateFusion {
             string replacementExpr;
             if(item.Kind==GroupAggregateKind.Average){
                 replacementExpr=$"(({item.ResultExpressionType})({fieldAccess}.Sum)/{fieldAccess}.Count)";
+            }else if(item.DeferredCheckedSum){
+                replacementExpr=fieldAccess+".Value";
             }else{
                 replacementExpr=fieldAccess;
             }
@@ -409,6 +416,10 @@ internal static class GroupByAggregateFusion {
             case GroupAggregateKind.Sum:
                 item.AccumulatorFieldType=inputType;
                 item.ResultExpressionType=inputType;
+                if(inputType is "int" or "System.Int32" or "global::System.Int32" or "long" or "System.Int64" or "global::System.Int64" or "decimal" or "System.Decimal" or "global::System.Decimal"){
+                    item.DeferredCheckedSum=true;
+                    item.AccumulatorFieldType=$"global::Seamless.Linq.DeferredGroupSum<{inputType}>";
+                }
                 break;
             case GroupAggregateKind.Min:
             case GroupAggregateKind.Max:
