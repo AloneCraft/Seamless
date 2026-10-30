@@ -1,0 +1,60 @@
+name: Deploy Documentation to GitHub Pages
+
+on:
+  push:
+    branches:
+      - '0.1.0'
+      - '0.1'
+      - 'main'
+    paths:
+      - 'docs/**'
+      - 'Seamless*/**'
+      - '.github/workflows/deploy-docs.yml'
+  workflow_dispatch:
+
+# GitHub Pages へのデプロイ権限を設定
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時実行制御
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install DocFX
+        run: dotnet tool install -g docfx
+
+      - name: Build DocFX Site
+        run: |
+          docfx metadata docs/docfx.json
+          docfx build docs/docfx.json
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
