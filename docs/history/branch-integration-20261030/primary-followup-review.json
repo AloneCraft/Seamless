@@ -1,0 +1,205 @@
+{
+  "captureUtc": "2026-10-30T07:32:32.585664+00:00",
+  "directory": "F:\\CodexTemp\\SeamlessBranchIntegration-20261030T053031Z\\primary-followup-20261030T073226Z",
+  "sourceHeadBefore": "481fe149f469751d654588de67740684f2d6d90b",
+  "sourceHeadAfter": "481fe149f469751d654588de67740684f2d6d90b",
+  "relativeToSnapshot": "9bb95f46718f012caacbb5126a95d7d2287dca12",
+  "files": [
+    {
+      "path": "Seamless.Database.Gateway/Hosting/DatabaseRegistry.cs",
+      "state": "changed",
+      "sha256": "6ae9cb1c52fc4d23c30f9947fa60360be4efc31470a73de9f085f958b305f339",
+      "bytes": 14621,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Hosting/SessionContext.cs",
+      "state": "changed",
+      "sha256": "868bc73cd1217ab30a240a528991d1feb5153baf8cd28ebe457f8eb9752aca8d",
+      "bytes": 3593,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Seamless.Database.Gateway.csproj",
+      "state": "changed",
+      "sha256": "39d934fbc3f048af3ea5d48c2a5153d6539c5eaa074b9258eaf9f01a3ce1587a",
+      "bytes": 1848,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsDatabaseList.sql",
+      "state": "new",
+      "sha256": "52a757b44ec3d4596a7fd6fe77b4f20df92f92d553a97986214909447c06ae77",
+      "bytes": 1125,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsDatabaseOptions.sql",
+      "state": "new",
+      "sha256": "c27384a77188db4df0147f9d05de5f32383bb4ebe21f5d5904961af74e3f982d",
+      "bytes": 2496,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerDatabase.sql",
+      "state": "new",
+      "sha256": "8a03bf6d41c7673a6bb3e4d48fa3f197c8e4f56ea898c103752dd3d7dd11b842",
+      "bytes": 4237,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerFunctions.sql",
+      "state": "new",
+      "sha256": "b3ec6c59e3f4beb136fd8ff3322b05994a244c21fa0ec441d8528db51b36c1b5",
+      "bytes": 1053,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerProcedure120.sql",
+      "state": "new",
+      "sha256": "62d5ff6dc7558b914290669e264e99f17bce629e58ce85debf66fcefb064609d",
+      "bytes": 1418,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerTable160.sql",
+      "state": "new",
+      "sha256": "c4916ec514838f62361f639aae03d118fd2f34aadf6e9e1da447899351768461",
+      "bytes": 3637,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerView160.sql",
+      "state": "new",
+      "sha256": "b9ad8ef7657fc1403cad87dfbd26be391a6b465a57884cca413dd5198a4540cb",
+      "bytes": 1394,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/SqlExecutionEngine.cs",
+      "state": "changed",
+      "sha256": "86dd13574334d8f8bba3338812053d51b132840e4eb02473c98c859bbfed7207",
+      "bytes": 16606,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/SqlServerCatalogProperties.cs",
+      "state": "new",
+      "sha256": "e9a8110847e0c4c75e4581c25e572093c2ecc98eb2251d71549061016136c329",
+      "bytes": 2159,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/SqlServerDatabaseAvailabilityProfile.cs",
+      "state": "new",
+      "sha256": "7c9487bf47db98c1b05fa0530d456960eb60c8109c9a0cc90a2d6e95a121d18e",
+      "bytes": 2684,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/SqlServerDatabaseOptionCatalog.cs",
+      "state": "new",
+      "sha256": "c593ef064ce9974b06963553a68df49ef7eee9a26021e770d66e949f0b1601d3",
+      "bytes": 2905,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/SqlServerDatabaseQueryProfile.cs",
+      "state": "new",
+      "sha256": "2653352299c392c18e693270f3b117349587d8d75668c726c5426fe7df8c0572",
+      "bytes": 5603,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/SqlServerObjectCatalogProfile.cs",
+      "state": "new",
+      "sha256": "728528cba3bb02a1c0665ce8efe150f9d6f2c6d9082b97789db36d8edc95dff8",
+      "bytes": 846,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Gateway/Sql/SystemCatalogEmulator.cs",
+      "state": "changed",
+      "sha256": "3105fdad239a6e1ef8e2c0d1df794cf43448125fe81d07bf7e9d7535a411f6e8",
+      "bytes": 54484,
+      "stable": true
+    },
+    {
+      "path": "Seamless.Database.Query/QueryBinder.Expressions.cs",
+      "state": "changed",
+      "sha256": "055f441be8875084b9061ce927f525f8201ccfdfc02c16240c97af8fd78455da",
+      "bytes": 32721,
+      "stable": true
+    },
+    {
+      "path": "TestSeamless/Ssms/README.md",
+      "state": "changed",
+      "sha256": "4723b8cd6681e2b7ec020ac81d28958c151103104cbdf126bd009b1c5865e6e1",
+      "bytes": 6793,
+      "stable": true
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/GatewayServerTests.cs",
+      "state": "changed",
+      "sha256": "ddb94552230620cb42e98de40c2dad1f884cde3f1cd95005e52de073a56fd7cf",
+      "bytes": 7164,
+      "stable": true
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/SsmsCatalogScalarFunctionTests.cs",
+      "state": "new",
+      "sha256": "2a57e07d5e6a5012cfc99984db263ce959046a67aa0a9655b4ec7173fe4700d3",
+      "bytes": 4215,
+      "stable": true
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/SsmsDatabaseOptionTests.cs",
+      "state": "new",
+      "sha256": "7a424004855b82d93e4d7dafac810695d9f65654d8f7dd4cdcd544f9954979f6",
+      "bytes": 6370,
+      "stable": true
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/SsmsObjectCatalogMetadataTests.cs",
+      "state": "new",
+      "sha256": "32f15a5e79f2e1a135015fdda48474087ccd739863422da9221cd6d43ce3e51d",
+      "bytes": 4143,
+      "stable": true
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/SsmsObjectExplorerRequestTests.cs",
+      "state": "new",
+      "sha256": "a9936dbb035e381c92d976a2f1ba80a17c2a7e7a629be79d2c7ea94391a9f4e3",
+      "bytes": 7262,
+      "stable": true
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/SystemCatalogTests.cs",
+      "state": "changed",
+      "sha256": "723994920fd821b1c30348feaf6aa58bf03ca5502eddcd772abfde96e7f04346",
+      "bytes": 8960,
+      "stable": true
+    },
+    {
+      "path": "Tests/Seamless.Database.Gateway.Tests/TdsNtextRpcTests.cs",
+      "state": "changed",
+      "sha256": "3eb226460e0fe76cfae6aaa51866b60ccea34d9f09d247b35e8b91af595f84c2",
+      "bytes": 6217,
+      "stable": true
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/ssms-generated-db.md",
+      "state": "changed",
+      "sha256": "10572cc9d215097a7000bd01de4c8839c3abf9fae05187bf47702eca5126a6ce",
+      "bytes": 10897,
+      "stable": true
+    },
+    {
+      "path": "docs/refactoring-designs/20261029-generic-sql/wire-compatibility.md",
+      "state": "changed",
+      "sha256": "db83744714f89baae8193260ae9c710304329e95b6155008629b978d6538ef9f",
+      "bytes": 34237,
+      "stable": true
+    }
+  ]
+}

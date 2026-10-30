@@ -1,0 +1,117 @@
+{
+  "initial": [
+    "Seamless.Execution",
+    "Seamless.Collections",
+    "Seamless.Collections.Persisted",
+    "Seamless.Tsavorite.Core",
+    "Seamless.Collections.Tsavorite",
+    "Seamless.Linq",
+    "Seamless.Database",
+    "Seamless.Database.Generator",
+    "Seamless.Database.Rdbms",
+    "Seamless.FLinq.Generator",
+    "Seamless",
+    "Seamless.Database.Tool"
+  ],
+  "required": [
+    "Seamless.Collections",
+    "Seamless.Execution",
+    "Seamless.Collections.Persisted",
+    "Seamless.Tsavorite.Core",
+    "Seamless.Collections.Tsavorite",
+    "Seamless.Linq",
+    "Seamless.Transactions",
+    "Seamless.Transactions.Collections",
+    "Seamless.Database",
+    "Seamless.Database.Generator",
+    "Seamless.Database.Rdbms",
+    "Seamless.FLinq.Generator",
+    "Seamless",
+    "Seamless.Database.SqlServer",
+    "Seamless.Database.Tool",
+    "Seamless.Database.Client",
+    "Seamless.Database.Query",
+    "Seamless.Database.Gateway"
+  ],
+  "added": [
+    "Seamless.Database.Client",
+    "Seamless.Database.Gateway",
+    "Seamless.Database.Query",
+    "Seamless.Database.SqlServer",
+    "Seamless.Transactions",
+    "Seamless.Transactions.Collections"
+  ],
+  "publicProjectReferences": {
+    "Seamless.Collections": [],
+    "Seamless.Execution": [
+      "Seamless.Collections"
+    ],
+    "Seamless.Collections.Persisted": [
+      "Seamless.Collections",
+      "Seamless.Execution"
+    ],
+    "Seamless.Tsavorite.Core": [],
+    "Seamless.Collections.Tsavorite": [
+      "Seamless.Collections",
+      "Seamless.Execution",
+      "Seamless.Tsavorite.Core"
+    ],
+    "Seamless.Linq": [
+      "Seamless.Execution",
+      "Seamless.Collections.Persisted",
+      "Seamless.Collections.Tsavorite"
+    ],
+    "Seamless.Transactions": [
+      "Seamless.Execution"
+    ],
+    "Seamless.Transactions.Collections": [
+      "Seamless.Transactions",
+      "Seamless.Collections.Persisted",
+      "Seamless.Collections.Tsavorite"
+    ],
+    "Seamless.Database": [
+      "Seamless.Transactions.Collections",
+      "Seamless.Execution",
+      "Seamless.Linq",
+      "Seamless.Collections.Persisted",
+      "Seamless.Collections.Tsavorite"
+    ],
+    "Seamless.Database.Generator": [
+      "Seamless.Database"
+    ],
+    "Seamless.Database.Rdbms": [],
+    "Seamless.FLinq.Generator": [],
+    "Seamless": [
+      "Seamless.Execution",
+      "Seamless.Collections",
+      "Seamless.Linq",
+      "Seamless.Collections.Persisted",
+      "Seamless.Collections.Tsavorite",
+      "Seamless.Database",
+      "Seamless.Database.Generator"
+    ],
+    "Seamless.Database.SqlServer": [
+      "Seamless.Database",
+      "Seamless.Database.Rdbms"
+    ],
+    "Seamless.Database.Tool": [
+      "Seamless.Database.SqlServer",
+      "Seamless.Database"
+    ],
+    "Seamless.Database.Client": [],
+    "Seamless.Database.Query": [
+      "Seamless.Linq",
+      "Seamless.Database"
+    ],
+    "Seamless.Database.Gateway": [
+      "Seamless.Database",
+      "Seamless.Database.Client",
+      "Seamless.Database.Query",
+      "Seamless.Database.Rdbms",
+      "Seamless.Linq"
+    ]
+  },
+  "additionalProductRoots": [
+    "Seamless.Database.Gateway"
+  ]
+}

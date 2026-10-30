@@ -1,0 +1,39 @@
+{
+  "target": "7529303ba3dd4a085f8d963e352e7b53c14dcd36",
+  "originalCommitCount": 1001,
+  "decisions": {
+    "retained-identical-commit": 892,
+    "obsolete-integration-topology-preserved-in-archive": 20,
+    "equivalent-patch": 23,
+    "rewritten-parent-chain": 63,
+    "held-experiment-per-user": 3
+  },
+  "unresolved": [],
+  "auditedObsoleteMerges": [
+    "01be08c9c48a335363307a754f386f34f28796bc",
+    "0e62d292472d55d0b308a6ca692aad2684d43963",
+    "162bd56ce83c75fe60283ef682be502a219661eb",
+    "1a0ffe4bbce0438587af0609c6d168b481235d6a",
+    "1c654337f64f6ff1c03e4f1cd5f712f7bf677bf2",
+    "1d45053ea7209395785dead7e1048f27d6e1b8cd",
+    "24b18ef7b5fa962cb4831f19f63b9812bd03030d",
+    "2a641c0a3d706e2c8e6bd449f261e801a73cd3e8",
+    "2b17becacceeced856c596665c26393f69a588f5",
+    "332da28eeefae20ac868046364a8158a952bc229",
+    "6462e0241516b2b419f78a03695cd9b478c30b24",
+    "66975feed6ec9810449943f06d860c166f9743ef",
+    "87e185eaaedfcc8ede1e8e200296a5ad4d6aa363",
+    "928cd0ccc29a9bd565ec068450a06e2b2c2fdb48",
+    "9a94754b0282e7f49595d7354c3e139383effca3",
+    "a47a4bfdfc91b9dae9a16cf9e21f6b45e455e316",
+    "b091a88ab1408cf9b559091f1accb1e91eead4a9",
+    "bd63150fce5c0b71eb6e8e2f6ca99ee3cd9ecbe7",
+    "d22f093937c25887de9e429085868563b8c6b825",
+    "e8fdb4bb7622c0e1d5d2275fb51698e037996a57"
+  ],
+  "mergeResolutionUnresolved": [],
+  "mergeResolutionProof": [
+    "old-merge-resolution-audit.json",
+    "old-merge-resolution-content.json"
+  ]
+}

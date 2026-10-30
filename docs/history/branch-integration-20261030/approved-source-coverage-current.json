@@ -1,0 +1,64 @@
+{
+  "primary470": {
+    "total": 470,
+    "missing": [],
+    "differentNormalized": [
+      ".github/workflows/dotnet-ci.yml",
+      ".gitignore",
+      "Benchmark.Dynamic.Tests/FixedCaseCatalog.cs",
+      "Benchmark.Dynamic.slnx",
+      "Benchmark.Headless.slnx",
+      "Benchmark.Scalable.slnx",
+      "Benchmark.TpcE.slnx",
+      "Benchmark.Tsavorite.ParameterSweep.slnx",
+      "Benchmark/Benchmark.Dynamic.Worker/FixedCaseRunner.cs",
+      "Sample.NetShop.slnx",
+      "Seamless.Database.Gateway/Hosting/DatabaseRegistry.cs",
+      "Seamless.Database.Gateway/Hosting/SessionContext.cs",
+      "Seamless.Database.Gateway/Seamless.Database.Gateway.csproj",
+      "Seamless.Database.Gateway/Sql/SqlExecutionEngine.cs",
+      "Seamless.Database.Gateway/Sql/SystemCatalogEmulator.cs",
+      "Seamless.Database.Query/QueryBinder.Expressions.cs",
+      "Seamless.Database.Tool.slnx",
+      "Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Helpers/GroupByAggregateFusion.cs",
+      "Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Helpers/InlinedScalarFunc.cs",
+      "Seamless.slnx",
+      "TestSeamless/Ssms/README.md",
+      "TestSeamless/Tests/ProtocolCipherAndCollation.cs",
+      "TestSeamless/Tests/ProtocolSynthetic.cs",
+      "Tests.slnx",
+      "Tests/Seamless.Database.Gateway.Tests/GatewayServerTests.cs",
+      "Tests/Seamless.Database.Gateway.Tests/SystemCatalogTests.cs",
+      "Tests/Seamless.Database.Gateway.Tests/TdsNtextRpcTests.cs",
+      "Update-FocusedSolutions.ps1",
+      "docs/refactoring-designs/20261026-three-chat-orchestration.md",
+      "docs/refactoring-designs/20261029-generic-sql/ssms-generated-db.md",
+      "docs/refactoring-designs/20261029-generic-sql/wire-compatibility.md"
+    ],
+    "identicalNormalized": 439
+  },
+  "c12": {
+    "total": 384,
+    "missing": [],
+    "differentNormalized": [
+      "Seamless.slnx",
+      "Test/Test.csproj",
+      "Update-FocusedSolutions.ps1"
+    ],
+    "identicalNormalized": 381
+  },
+  "followup28": {
+    "total": 28,
+    "missing": [],
+    "differentNormalized": [
+      "Seamless.Database.Gateway/Sql/Compatibility/SsmsDatabaseList.sql",
+      "Seamless.Database.Gateway/Sql/Compatibility/SsmsDatabaseOptions.sql",
+      "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerDatabase.sql",
+      "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerFunctions.sql",
+      "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerProcedure120.sql",
+      "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerTable160.sql",
+      "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerView160.sql"
+    ],
+    "identicalNormalized": 21
+  }
+}

@@ -7,9 +7,24 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $packages = @(
-    'Seamless', 'Seamless.Execution', 'Seamless.Collections', 'Seamless.Collections.Persisted',
-    'Seamless.Tsavorite.Core', 'Seamless.Collections.Tsavorite', 'Seamless.Linq', 'Seamless.Database', 'Seamless.Database.Generator',
-    'Seamless.Database.Rdbms', 'Seamless.FLinq.Generator', 'Seamless.Database.Tool'
+    'Seamless.Collections',
+    'Seamless.Execution',
+    'Seamless.Collections.Persisted',
+    'Seamless.Tsavorite.Core',
+    'Seamless.Collections.Tsavorite',
+    'Seamless.Linq',
+    'Seamless.Transactions',
+    'Seamless.Transactions.Collections',
+    'Seamless.Database',
+    'Seamless.Database.Generator',
+    'Seamless.Database.Rdbms',
+    'Seamless.FLinq.Generator',
+    'Seamless',
+    'Seamless.Database.SqlServer',
+    'Seamless.Database.Tool',
+    'Seamless.Database.Client',
+    'Seamless.Database.Query',
+    'Seamless.Database.Gateway'
 )
 $forbidden = '(^|/)(bin|obj|Library|Temp|Logs|Work|TestResults|\.git|\.vs)/'
 $errors = [System.Collections.Generic.List[string]]::new()
@@ -30,6 +45,15 @@ foreach ($id in $packages) {
         $meta = $xml.package.metadata
         if ($meta.id -ne $id) { $errors.Add("nuspec id mismatch: $($meta.id) != $id") }
         if ($meta.version -ne $Version) { $errors.Add("nuspec version mismatch in ${id}: $($meta.version) != $Version") }
+        foreach ($dependency in $xml.SelectNodes("//*[local-name()='dependency']")) {
+            $dependencyId = $dependency.GetAttribute('id')
+            if ($dependencyId -eq 'Seamless' -or $dependencyId.StartsWith('Seamless.', [StringComparison]::Ordinal)) {
+                $dependencyFile = Join-Path $Dir "$dependencyId.$Version.nupkg"
+                if (-not (Test-Path -LiteralPath $dependencyFile)) {
+                    $errors.Add("missing release dependency: $dependencyId.$Version.nupkg required by $id ($($dependency.GetAttribute('version')))")
+                }
+            }
+        }
         $readme = 'README.md'
         if ($id -eq 'Seamless.Tsavorite.Core') { $readme = 'README.Core.md' }
         if ($names -notcontains $readme) { $errors.Add("no $readme in $id") }

@@ -1,0 +1,51 @@
+[
+  {
+    "identical": true,
+    "tokens": 218,
+    "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsDatabaseList.sql",
+    "tokenSha256": "341C191DE2C8DE02100E2EBD291048681F50F6FCDD03ED907A8C4A15A88508A7",
+    "lineEnding": "CRLF"
+  },
+  {
+    "identical": true,
+    "tokens": 322,
+    "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsDatabaseOptions.sql",
+    "tokenSha256": "D369EE4B89DE5133BBBEBD3E32F21D248C46F431DF26437F55706CB5F42B12F7",
+    "lineEnding": "CRLF"
+  },
+  {
+    "identical": true,
+    "tokens": 610,
+    "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerDatabase.sql",
+    "tokenSha256": "30B268E1DA4B1C8C893B4EEEBCE032AC1FB02ED73B49C62E1E647031E6DC64BD",
+    "lineEnding": "CRLF"
+  },
+  {
+    "identical": true,
+    "tokens": 203,
+    "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerFunctions.sql",
+    "tokenSha256": "8E239BEE51CF8D3332FFE873246EFB8E12DF911F768498F086B0E11EAADAB09C",
+    "lineEnding": "CRLF"
+  },
+  {
+    "identical": true,
+    "tokens": 276,
+    "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerProcedure120.sql",
+    "tokenSha256": "C1366C81F68731103C67BE5EBA3FA6D6267F1162301735A7C252140959CA2B2B",
+    "lineEnding": "CRLF"
+  },
+  {
+    "identical": true,
+    "tokens": 761,
+    "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerTable160.sql",
+    "tokenSha256": "5CD9B16D80907CB34C0A97B3C5FA8F6C2AD32634A46975319D87429BBD7F0D2E",
+    "lineEnding": "CRLF"
+  },
+  {
+    "identical": true,
+    "tokens": 283,
+    "path": "Seamless.Database.Gateway/Sql/Compatibility/SsmsObjectExplorerView160.sql",
+    "tokenSha256": "7D9A959D96B1DB55EFA4C4F277587F8361677EEAF4E9E415C6862358074179A1",
+    "lineEnding": "CRLF"
+  }
+]

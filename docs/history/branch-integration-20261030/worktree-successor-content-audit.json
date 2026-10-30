@@ -1,0 +1,278 @@
+[
+  {
+    "worktreeIndex": 1,
+    "path": "Benchmark.Dynamic.Tests/FixedCaseCatalog.cs",
+    "currentBlob": "79a9f61634116fad8984f1c9e455d83eb3ff37cb",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 1,
+    "path": "Benchmark/Benchmark.Dynamic.Core/FixedCaseCatalog.cs",
+    "currentBlob": "d38d68a5036e2d9f292e6194cbc4507d0786197e",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 1,
+    "path": "Benchmark/Benchmark.Dynamic.Worker/FixedCaseRunner.cs",
+    "currentBlob": "5acd0badc1e7f4e2bfff3c807ad40de24b972e01",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 4,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.TargetDiscovery.cs",
+    "currentBlob": "083d12dc0fd5de185e8b06c2006fbd1f5d647186",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 4,
+    "path": "Test/System/Linq/Intercept/Chain1/Last.cs",
+    "currentBlob": "717df84fb801ee15d990eb51d48cd523b9e08639",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": ".github/workflows/dotnet-ci.yml",
+    "currentBlob": "2f3662045171979a4abccfd26105e35a62207d86",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Benchmark.Dynamic.Tests/FixedCaseCatalog.cs",
+    "currentBlob": "79a9f61634116fad8984f1c9e455d83eb3ff37cb",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/AlgebraicRewriter.cs",
+    "currentBlob": "09ae094c662cb7fcebf7efd551f0590d7bae2e72",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.CounterOnlyMethodBodyRewriter.cs",
+    "currentBlob": "413354a9de5d9968dd3d058ac35aafd123da5da0",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.FragmentBuilder.cs",
+    "currentBlob": "6c07fa6e63d396f4efa68273d1db25ebaf7443d4",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.GeneratedCodeRendering.cs",
+    "currentBlob": "ab0ab904a6d499530c75a32a2614920224b3ac53",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.MethodBodyRewriter.cs",
+    "currentBlob": "d03c95c566d385804c41843d95ff28855a480b0f",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Helpers/InlinedScalarFunc.cs",
+    "currentBlob": "68419b9184b27492b0b7fb0c4c56170e0dbf220d",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/PipelineEnumerable.EnumeratorMembers.cs",
+    "currentBlob": "9fd232cc786c8ed14a39b7416bec48177a85f64e",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/PipelineEnumerable.OrderLoop.cs",
+    "currentBlob": "8f876d1899470e2c47903f16ccfe873b5f03ec5a",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/PipelineTerminal.cs",
+    "currentBlob": "d718ba966a4a5563323c9bcf9740781d01d55626",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/OptimizeVisitor.cs",
+    "currentBlob": "997d14d823ceca5694abf99e41dc51806b73bcb9",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Test/SourceGenerator/BlockFunc.cs",
+    "currentBlob": "7671a098556210ca36a4c4b622b5f397b0f752d2",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Test/SourceGenerator/CounterOnlyMethodBodyRewriter.cs",
+    "currentBlob": "b04ac6df508553b62c39e9abb28752b403b23a0e",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Test/SourceGenerator/PipelineEnumerable.cs",
+    "currentBlob": "029380725cf520d6823ecdd9af9bb1189ea92059",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "Test/System/Linq/Intercept/Chain1/Last.cs",
+    "currentBlob": "717df84fb801ee15d990eb51d48cd523b9e08639",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "docs/refactoring-designs/20261026-three-chat-orchestration.md",
+    "currentBlob": "dd6d062b44a95f8400b5cefaa71efc69d570c83d",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "docs/refactoring-designs/20261027-nested-counter-total-phase2.md",
+    "currentBlob": "b109c45a9fd5abb9cd82555aa5507611747f94fb",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "docs/refactoring-designs/20261027-nested-counter-total-phase3.md",
+    "currentBlob": "c2e61ea325a5633dc20179d4b0aabd243eb0620e",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 10,
+    "path": "docs/refactoring-designs/20261027-nested-counter-total.md",
+    "currentBlob": "07977534f12776e0d716abee760cff8cdd10021b",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 11,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/AlgebraicRewriter.cs",
+    "currentBlob": "09ae094c662cb7fcebf7efd551f0590d7bae2e72",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 11,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.MethodBodyRewriter.cs",
+    "currentBlob": "d03c95c566d385804c41843d95ff28855a480b0f",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 11,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/PipelineTerminal.cs",
+    "currentBlob": "d718ba966a4a5563323c9bcf9740781d01d55626",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 12,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/AlgebraicRewriter.cs",
+    "currentBlob": "09ae094c662cb7fcebf7efd551f0590d7bae2e72",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 12,
+    "path": "Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/PipelineTerminal.cs",
+    "currentBlob": "d718ba966a4a5563323c9bcf9740781d01d55626",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 14,
+    "path": "Benchmark.TpcC.slnx",
+    "currentBlob": "e02feac45534bea483c8fca7ab355d58c4c3107b",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 14,
+    "path": "Benchmark/Benchmark.Dynamic.UI/Services/動的実行調停サービスV1.cs",
+    "currentBlob": "1c268324b14da981bb302060f6b9e0d2bafccdfe",
+    "sameAsParentCorrectedBaseline": true
+  },
+  {
+    "worktreeIndex": 14,
+    "path": "Benchmark/Benchmark.TpcC.Core/Engine/ITpcCEngine.cs",
+    "currentBlob": "8befcca2376993d0002298b27177b46cb7d97a53",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 14,
+    "path": "Benchmark/Benchmark.TpcC.Persisted.FLinq/PersistedFLinqVariant.cs",
+    "currentBlob": "460759933d2506f6e194851a386c9e3dad94b656",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 14,
+    "path": "Benchmark/Benchmark.TpcC.Persisted.Linq/PersistedLinqVariant.cs",
+    "currentBlob": "6e3a187853273c10e4bf68941f6d55dc916332ed",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 14,
+    "path": "Benchmark/Benchmark.TpcC.Tests/Benchmark.TpcC.Tests.csproj",
+    "currentBlob": "6b11714d6d8928e16072cd227cc216d6431d1f85",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 14,
+    "path": "Benchmark/Benchmark.TpcC.Tests/TpcCLockstepRunner.cs",
+    "currentBlob": "6e0d604d1ac8a0ea38d48b7e473c0a5d8e47ac79",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 14,
+    "path": "Benchmark/Benchmark.TpcC.Tsavorite.FLinq/TsavoriteFLinqVariant.cs",
+    "currentBlob": "09f78260e5f152a1100c76a06fedb44072935c88",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 14,
+    "path": "Benchmark/Benchmark.TpcC.Tsavorite.Linq/TsavoriteLinqVariant.cs",
+    "currentBlob": "5dd23d72ec8c68a75e452f797a0a44ece8ba7893",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 14,
+    "path": "Seamless.slnx",
+    "currentBlob": "ae0dacf0720655c9d27737ac5636837b7af31562",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 14,
+    "path": "Tests.slnx",
+    "currentBlob": "26bb842a63b7a30a0a18e4730da5b9ecede989a8",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 14,
+    "path": "Update-FocusedSolutions.ps1",
+    "currentBlob": "5eb5d476564d47e84d9d4b15b82d7a3f03b73e63",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 16,
+    "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCFaultInjection.cs",
+    "currentBlob": "002499977927a742e5327a751f1ab55b4312196f",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 16,
+    "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCLockstepRunner.cs",
+    "currentBlob": "d3212620a90479d4765090f6c110f17be7002a9e",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 16,
+    "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCRunOptions.cs",
+    "currentBlob": "3dcdac5f06e7ae6cd379623edb7b644295c33d50",
+    "sameAsParentCorrectedBaseline": false
+  },
+  {
+    "worktreeIndex": 16,
+    "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCVariantSession.cs",
+    "currentBlob": "2d89340863db01ef2ff5b9d834dd1b057fac9c93",
+    "sameAsParentCorrectedBaseline": false
+  }
+]
