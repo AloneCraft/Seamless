@@ -1,0 +1,14 @@
+- name: アーキテクチャ (Architecture)
+  items:
+    - name: 全体アーキテクチャ
+      href: overview.md
+    - name: ORマッパーとの根本的相違
+      href: orm-vs-typed-database.md
+    - name: コレクション内部構造とメモリモデル
+      href: data-structures.md
+    - name: 共通ストアと実行スコープ
+      href: execution-scope.md
+    - name: データベースエンジン内部構造
+      href: database-engine.md
+    - name: FLinq 内部設計とパイプライン融合
+      href: flinq-internals.md

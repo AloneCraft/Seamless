@@ -60,7 +60,7 @@ BenchmarkDotNet.Artifacts/
 Artifacts/
 test_output.txt
 
-# 実行時に生成されるデータ(DB・計測結果・ログ・作業フォルダ)は git で管理しない
+# 螳溯｡梧凾縺ｫ逕滓・縺輔ｌ繧九ョ繝ｼ繧ｿ(DB繝ｻ險域ｸｬ邨先棡繝ｻ繝ｭ繧ｰ繝ｻ菴懈･ｭ繝輔か繝ｫ繝)縺ｯ git 縺ｧ邂｡逅・＠縺ｪ縺・
 /Work/
 *.db
 *.db-wal
@@ -79,7 +79,7 @@ test-rerun-*/
 chat.json
 .idea/dataSources/
 
-# テストが生成する作業フォルダ(生成バックアップ・統合テストの出力)
+# 繝・せ繝医′逕滓・縺吶ｋ菴懈･ｭ繝輔か繝ｫ繝(逕滓・繝舌ャ繧ｯ繧｢繝・・繝ｻ邨ｱ蜷医ユ繧ｹ繝医・蜃ｺ蜉・
 Test/Work/
 
 # .NET Core
@@ -395,3 +395,9 @@ FodyWeavers.xsd
 # Local package/generation selection produced after a verified comparison cutover.
 /TestSeamless/Comparison.Local.props
 /TestSeamless/Comparison.Local.props.backup
+# DocFX build output
+docs/_site/
+docs/api/*.yml
+docs/api/toc.yml
+!docs/api/index.md
+docs/api/.manifest

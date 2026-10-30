@@ -1,0 +1,14 @@
+- name: 性能とハードウェア適合 (Performance)
+  items:
+    - name: 先行の構造体LINQを超えた理由
+      href: beyond-struct-linq.md
+    - name: C#の性能限界を引き出す技術
+      href: csharp-to-the-metal.md
+    - name: ハードウェア適合と NUMA / Affinity
+      href: hardware-and-numa.md
+    - name: メモリアクセス効率化とゼロアロケーション
+      href: memory-and-zero-alloc.md
+    - name: Tsavorite / FASTER チューニング
+      href: tsavorite-tuning.md
+    - name: 開発中に得られた技術的知見と落とし穴
+      href: lessons-learned.md

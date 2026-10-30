@@ -1,0 +1,67 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+  "metadata": [
+    {
+      "src": [
+        {
+          "files": [
+            "Seamless/Seamless.csproj",
+            "Seamless.Execution/Seamless.Execution.csproj",
+            "Seamless.Collections/Seamless.Collections.csproj",
+            "Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj",
+            "Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj",
+            "Seamless.Linq/Seamless.Linq.csproj",
+            "Seamless.Database/Seamless.Database.csproj",
+            "Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj",
+            "Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj",
+            "Seamless.Database.Tool/Seamless.Database.Tool.csproj"
+          ],
+          "src": ".."
+        }
+      ],
+      "dest": "api",
+      "includePrivateMembers": false,
+      "properties": {
+        "GenerateDocumentationFile": "true"
+      }
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": [
+          "api/**.yml",
+          "api/index.md",
+          "guides/**.md",
+          "guides/toc.yml",
+          "architecture/**.md",
+          "architecture/toc.yml",
+          "performance/**.md",
+          "performance/toc.yml",
+          "vision/**.md",
+          "vision/toc.yml",
+          "index.md",
+          "toc.yml"
+        ]
+      }
+    ],
+    "resource": [
+      {
+        "files": [
+          "images/**"
+        ]
+      }
+    ],
+    "output": "_site",
+    "template": [
+      "default",
+      "modern"
+    ],
+    "globalMetadata": {
+      "_appName": "Seamless",
+      "_appTitle": "Seamless Documentation",
+      "_appFooter": "Seamless - High-performance .NET In-Memory & Persisted Database, Collections, and Zero-Allocation LINQ",
+      "_enableSearch": true
+    }
+  }
+}
