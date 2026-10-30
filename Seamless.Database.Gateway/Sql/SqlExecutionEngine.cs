@@ -17,6 +17,18 @@ public sealed class SqlExecutionEngine{
         var script=parser.Parse(new StringReader(sql),out var errors) as TSqlScript;
         if(errors.Count>0){throw new SqlQueryException(errors[0].Message,102,errors[0].Line);}
         if(script is null){throw new SqlQueryException("SQL script was not parsed.",102);}
+        if(SqlServerDatabaseAvailabilityProfile.IsPrefix(script)){
+            return [QueryResult.Defer(()=>{session.DatabaseAvailabilityAvailable=true;session.DatabaseAvailabilityCleanupOrdinal=0;return QueryResult.Empty;})];
+        }
+        if(SqlServerDatabaseAvailabilityProfile.TryBatch(script,sql,out var availabilitySelect)){
+            return [QueryResult.Defer(()=>this.Execute(availabilitySelect,session,parameters,values))];
+        }
+        if(SqlServerDatabaseQueryProfile.IsPrefix(script)){
+            return [QueryResult.Defer(()=>{session.DatabaseOptionRetentionAvailable=true;return QueryResult.Empty;})];
+        }
+        if(SqlServerDatabaseQueryProfile.TryBatch(script,sql,out var optionSelect)){
+            return [QueryResult.Defer(()=>this.Execute(optionSelect,session,parameters,values))];
+        }
         if(SqlServerConnectionProbes.IsConnectionInitialization(script)&&SystemCatalogEmulator.TryEmulateBatch(sql,this.Resolve(session).Adapter,out var initialization)){return initialization;}
         if(SqlServerConnectionProbes.IsServerInformation(script)){
             return [QueryResult.Defer(()=>{
@@ -50,6 +62,13 @@ public sealed class SqlExecutionEngine{
         var statement=parsed.Batches.SelectMany(b=>b.Statements).Single();
         if(SqlServerSessionSettings.TryExecute(statement,session,out var settings)){return settings;}
         if(session.ServerInformationCleanupAvailable&&SqlServerConnectionProbes.IsServerInformationCleanup(statement)){session.ServerInformationCleanupAvailable=false;return QueryResult.Empty;}
+        if(session.DatabaseOptionRetentionAvailable&&SqlServerDatabaseQueryProfile.IsCleanup(statement)){session.DatabaseOptionRetentionAvailable=false;return QueryResult.Empty;}
+        if(session.DatabaseAvailabilityAvailable&&SqlServerDatabaseAvailabilityProfile.IsCleanup(statement,session.DatabaseAvailabilityCleanupOrdinal)){
+            session.DatabaseAvailabilityCleanupOrdinal++;if(session.DatabaseAvailabilityCleanupOrdinal==4){session.DatabaseAvailabilityAvailable=false;session.DatabaseAvailabilityCleanupOrdinal=0;}return QueryResult.Empty;
+        }
+        if(statement is SelectStatement availability&&session.DatabaseAvailabilityAvailable&&SqlServerDatabaseAvailabilityProfile.TrySelect(availability,sql,out var withoutTemporaryStates)){return this.ExecuteCore(withoutTemporaryStates,session,parameters,values);}
+        if(statement is SelectStatement profile&&SqlServerDatabaseQueryProfile.TrySelect(profile,sql,session.DatabaseOptionRetentionAvailable,out var normalized)){return this.ExecuteCore(normalized,session,parameters,values);}
+        if(statement is SelectStatement properties&&SqlServerCatalogProperties.TryRewrite(properties,sql,out var literalProperties)){return this.ExecuteCore(literalProperties,session,parameters,values);}
         if(statement is UseStatement use){
             if(session.IsInTransaction){throw new SqlQueryException("Finish the transaction before changing databases.");}
             var database=this.registry.Resolve(use.DatabaseName.Value);
@@ -131,7 +150,7 @@ public sealed class SqlExecutionEngine{
     private sealed class RelationalCatalogVisitor:TSqlFragmentVisitor{
         public bool Found{get;private set;}
         public override void ExplicitVisit(NamedTableReference node){
-            if(string.Equals(node.SchemaObject.SchemaIdentifier?.Value,"sys",StringComparison.OrdinalIgnoreCase)&&node.SchemaObject.BaseIdentifier.Value.ToLowerInvariant() is "schemas" or "tables" or "views" or "objects" or "columns" or "types" or "indexes" or "index_columns" or "procedures" or "sql_modules" or "parameters" or "all_objects" or "all_views" or "all_columns"){this.Found=true;}
+            if(string.Equals(node.SchemaObject.SchemaIdentifier?.Value,"sys",StringComparison.OrdinalIgnoreCase)&&node.SchemaObject.BaseIdentifier.Value.ToLowerInvariant() is "schemas" or "tables" or "views" or "objects" or "columns" or "types" or "indexes" or "index_columns" or "procedures" or "sql_modules" or "parameters" or "all_objects" or "all_views" or "all_columns" or "all_sql_modules" or "system_sql_modules" or "extended_properties" or "data_spaces"){this.Found=true;}
         }
 
     }

@@ -50,6 +50,18 @@ public sealed class TdsNtextRpcTests{
         await using var reader=await command.ExecuteReaderAsync();Assert.True(await reader.ReadAsync());Assert.Equal(value,reader.GetString(0));Assert.Equal(42,reader.GetInt32(1));Assert.False(await reader.ReadAsync());
     }
 
+    [Fact,Trait("Category","Integration")]
+    public async Task SqlClientExecutesNtextStatementThroughRpcHandler(){
+        var adapter=new EmptyAdapter();using var server=new TdsServer(0,adapter,new SqlExecutionEngine(adapter));server.Start();
+        var options=new SqlConnectionStringBuilder{DataSource=$"tcp:127.0.0.1,{server.Port}",InitialCatalog="fixture",UserID="sa",Password="test",Encrypt=false,Pooling=false,ConnectTimeout=5};
+        await using var connection=new SqlConnection(options.ConnectionString);await connection.OpenAsync();
+        using var command=connection.CreateCommand();command.CommandType=CommandType.StoredProcedure;command.CommandText="sp_executesql";
+        command.Parameters.Add("@stmt",SqlDbType.NText).Value="SELECT @value";
+        command.Parameters.Add("@params",SqlDbType.NVarChar,100).Value="@value int";
+        command.Parameters.Add("@value",SqlDbType.Int).Value=42;
+        Assert.Equal(42,Convert.ToInt32(await command.ExecuteScalarAsync()));
+    }
+
     private sealed class EmptyAdapter:IDatabaseAdapter{
         public string DatabaseName=>"fixture";public IReadOnlyList<TableMetadata> GetTables()=>[];public TableMetadata? FindTable(string name)=>null;
         public QueryResult ExecuteSelect(string n,IReadOnlyList<string>? c,Func<object,bool>? p,SessionContext s)=>throw new NotSupportedException();
