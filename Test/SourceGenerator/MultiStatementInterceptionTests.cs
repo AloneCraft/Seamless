@@ -1,5 +1,3 @@
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using System.Linq;
 using Xunit;
 using Xunit.Abstractions;
@@ -26,27 +24,25 @@ public class MultiStatementInterceptionTests(ITestOutputHelper output) {
             }
             """;
 
-        var comp = GeneratorTestHelpers.CreateCompilation([("MultiQueryService.cs", source)]);
-        GeneratorDriver driver = GeneratorTestHelpers.CreateDriver();
-        driver = driver.RunGeneratorsAndUpdateCompilation(comp, out var outputCompilation, out var generatorDiagnostics);
-        var runResult = driver.GetRunResult();
-
-        var generated = string.Concat(runResult.Results.SelectMany(r => r.GeneratedSources).Select(s => s.SourceText.ToString()));
-
-        // コンパイルエラーがないことを検証
-        var errors = generatorDiagnostics
-            .Concat(outputCompilation.GetDiagnostics())
-            .Where(static d => d.Severity == DiagnosticSeverity.Error)
-            .Where(static d => d.Id != "CS9137") // Interceptors preview warning 除外
-            .ToArray();
-
-        Assert.Empty(errors);
-
-        // 生成されたインターセプターメソッド内に、2つの LINQ パイプライン（__pipeline__r2, __pipeline__r5）が
-        // 独立して展開され、完全にゼロアロケーション化されていることを検証
-        Assert.Contains("using var __pipeline__r2", generated);
-        Assert.Contains("using var __pipeline__r5", generated);
-        Assert.Contains("var count=__linq0;", generated);
-        Assert.Contains("var sum=__linq1;", generated);
+        var (compilation,generated)=ExecutableGeneration.Generate(source,"MultiStatementInterception",1);
+        Assert.Contains("Intercepts <c>ExecuteBoth()",generated);
+        Assert.DoesNotContain("UnsupportedLinqExpansion(",generated);
+        ExecutableGeneration.Run(compilation,"Sample.MultiQueryService",type=>{
+            var instance=Activator.CreateInstance(type)!;
+            var expected=type.GetMethod("ExecuteBoth")!;
+            var actual=type.GetMethod("Run")!;
+            foreach(var input in new[]{
+                (new[]{11,12,3},new[]{-3,0,1,2,3}),
+                (Array.Empty<int>(),new[]{-2,0,1}),
+                (new[]{11,12,13},Array.Empty<int>()),
+                (new[]{11},new[]{int.MinValue,-1})}){
+                (object? value,Type? exception) Invoke(global::System.Reflection.MethodInfo method){
+                    try{return(method.Invoke(instance,[input.Item1,input.Item2]),null);}
+                    catch(global::System.Reflection.TargetInvocationException exception){return(null,exception.InnerException?.GetType());}
+                }
+                Assert.Equal(Invoke(expected),Invoke(actual));
+            }
+            return true;
+        });
     }
 }
