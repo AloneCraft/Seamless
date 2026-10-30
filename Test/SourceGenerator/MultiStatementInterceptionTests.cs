@@ -42,10 +42,10 @@ public class MultiStatementInterceptionTests(ITestOutputHelper output) {
 
         Assert.Empty(errors);
 
-        // 生成されたインターセプターメソッド内に、2つの LINQ パイプライン（__pipeline__r2, __pipeline__r5）が
-        // 独立して展開され、完全にゼロアロケーション化されていることを検証
-        Assert.Contains("using var __pipeline__r2", generated);
-        Assert.Contains("using var __pipeline__r5", generated);
+        // 生成されたインターセプターメソッド内に、2つの LINQ パイプラインが
+        // 独立して展開され、直接ループ融合（Direct Scalar Loop Fusion）により完全にゼロアロケーション化されていることを検証
+        Assert.Contains("__pipelineSpan__r2", generated);
+        Assert.Contains("__pipelineSpan__r5", generated);
         Assert.Contains("var count=__linq0;", generated);
         Assert.Contains("var sum=__linq1;", generated);
     }
