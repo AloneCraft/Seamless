@@ -13,4 +13,4 @@
     <Using Include="Benchmark.Tpc.Core" />
     <Using Include="Benchmark.TpcC.Core" />
   </ItemGroup>
-</Project>
+</Project>

@@ -1,0 +1,3034 @@
+--- a/libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs
+@@ -21,9 +21,9 @@
+     public abstract class AllocatorBase
+     {
+         /// <summary>Create the circular buffers for <see cref="LogRecord"/> flushing to device. Only implemented by ObjectAllocator.</summary>
+-        internal virtual CircularDiskWriteBuffer CreateCircularFlushBuffers(IDevice objectLogDevice, ILogger logger) => default;
++        internal virtual CircularDiskWriteBuffer CreateCircularFlushBuffers(IDevice objectLogDevice, ILogger logger, RecoveryIoScope recoveryIo = null) => default;
+         /// <summary>Create the circular flush buffers for object deserialization from device. Only implemented by ObjectAllocator.</summary>
+-        internal virtual CircularDiskReadBuffer CreateCircularReadBuffers(IDevice objectLogDevice, ILogger logger) => default;
++        internal virtual CircularDiskReadBuffer CreateCircularReadBuffers(IDevice objectLogDevice, ILogger logger, RecoveryIoScope recoveryIo = null) => default;
+         /// <summary>Create the circular flush buffers for object deserialization from device. Only implemented by ObjectAllocator.</summary>
+         internal virtual CircularDiskReadBuffer CreateCircularReadBuffers() => default;
+ 
+@@ -36,7 +36,7 @@
+         /// <summary>Calculate the total serialized object size on a loaded page. Only implemented by ObjectAllocator.</summary>
+         internal virtual long CalculatePageObjectSizes(long page, long startAddress, long untilAddress) => 0;
+         /// <summary>Load objects for records on an already-loaded page for recovery pass 2.</summary>
+-        internal virtual void LoadObjectsForRecoveryPass2(long page, long fromAddress, long untilAddress, IDevice objectLogDevice) { }
++        internal virtual void LoadObjectsForRecoveryPass2(long page, long fromAddress, long untilAddress, IDevice objectLogDevice, RecoveryIoScope recoveryIo = null) { }
+     }
+ 
+     /// <summary>
+@@ -625,6 +625,8 @@
+         internal void WriteInlinePageAsync<TContext>(IntPtr alignedSourceAddress, ulong alignedDestinationAddress, uint numBytesToWrite,
+                 DeviceIOCompletionCallback callback, PageAsyncFlushResult<TContext> asyncResult, IDevice device)
+         {
++            if (asyncResult.context is RecoveryStatus recoveryStatus)
++                device = recoveryStatus.Io.Wrap(device);
+             if (asyncResult.partial)
+             {
+                 // Write only required bytes within the page
+@@ -2140,7 +2142,10 @@
+         private void AsyncReadPagesForRecovery<TContext>(long readPageStart, int numPages, long untilAddress, TContext context,
+             out CountdownEvent completed, long devicePageOffset = 0, IDevice logDevice = null, IDevice objectLogDevice = null, RecoveryPhase recoveryPhase = RecoveryPhase.Pass1)
+         {
++            var recoveryIo = (context as object as RecoveryStatus)?.Io;
+             var usedDevice = logDevice ?? this.device;
++            if (recoveryIo is not null)
++                usedDevice = recoveryIo.Wrap(usedDevice);
+ 
+             completed = new CountdownEvent(numPages);
+             for (long readPage = readPageStart; readPage < (readPageStart + numPages); readPage++)
+@@ -2181,7 +2186,7 @@
+                 {
+                     // Create separate readBuffers for each main-log page, as each page launches its own async read and callbacks are on different threads.
+                     // Do *not* use "using" here as we need it to survive to the ReadAsync AsyncReadPagesForRecoveryCallback.
+-                    asyncResult.readBuffers = CreateCircularReadBuffers(objectLogDevice, logger);
++                    asyncResult.readBuffers = CreateCircularReadBuffers(objectLogDevice, logger, recoveryIo);
+                 }
+ 
+                 // Call the overridden ReadAsync for the derived allocator class
+@@ -2321,7 +2326,8 @@
+ 
+                 // When copying snapshot object bytes into the main object-log, rent this page's object-log write buffers; the hybrid-log region
+                 // (which reuses the stored lengths/positions without writing object bytes) needs none.
+-                var flushBuffers = copyObjects ? CreateCircularFlushBuffers(objectLogDevice: null, logger) : null;
++                var recoveryIo = (context as object as RecoveryStatus)?.Io;
++                var flushBuffers = copyObjects ? CreateCircularFlushBuffers(objectLogDevice: null, logger, recoveryIo) : null;
+                 var asyncResult = new PageAsyncFlushResult<TContext>()
+                 {
+                     page = flushPage,
+@@ -2335,7 +2341,7 @@
+                     fromAddress = flushFromAddress,
+                     untilAddress = GetLogicalAddressOfStartOfPage(flushPage + 1),
+                     flushRequestState = FlushRequestState.Recovery,
+-                    recoverySnapshotObjectLogDevice = snapshotObjectLogDevice,
++                    recoverySnapshotObjectLogDevice = recoveryIo?.Wrap(snapshotObjectLogDevice) ?? snapshotObjectLogDevice,
+                     recoveryFormerFlushedUntilAddress = formerFlushedUntilAddress,
+                     flushBuffers = flushBuffers
+                 };
+@@ -2531,11 +2537,8 @@
+         /// allocating one per page.
+         /// </summary>
+         /// <remarks>
+-        /// Reuse is safe because a frame is only re-read once its previous load has completed: the scanning thread
+-        /// awaits the current frame in <c>WaitForFrameLoad</c> and any read-ahead frame in <c>WaitForPriorFrameLoad</c>
+-        /// before re-claiming it, so no completion callback still references the event when it is reset. This keeps one
+-        /// event, and so at most one lazily-created kernel wait handle, per frame for the iterator's lifetime; the scan
+-        /// iterator's Dispose releases them.
++        /// ScanFrameCompletionの旧issuer/callback/wait accessをjoinしたframeだけ再利用する。
++        /// Wait復帰やCountdownEvent.IsSetだけをcallback終端の証明にしない。
+         /// </remarks>
+         private protected static void PrepareFrameLoadCompletionEvent(ref CountdownEvent completed)
+         {
+@@ -2559,48 +2562,62 @@
+                                         long devicePageOffset = 0,
+                                         IDevice device = null, IDevice objectLogDevice = null, CancellationTokenSource cts = null)
+         {
+-            var usedDevice = device ?? this.device;
+-
+-            PrepareFrameLoadCompletionEvent(ref completed);
+-
+-            int pageIndex = (int)(readPage % frame.frameSize);
+-            if (!frame.IsAllocated(pageIndex))
+-                frame.Allocate(pageIndex);
+-            else
+-                frame.Clear(pageIndex);
+-
+-            var asyncResult = new PageAsyncReadResult<TContext>()
+-            {
+-                page = readPage,
+-                context = context,
+-                handle = completed,
+-                cts = cts,
+-                readBuffers = readBuffers,
+-                // Default to a full page; overridden below for a partial last page. This bounds the object-record walk in
+-                // ObjectAllocatorImpl.DeserializeObjectsOnPage to the valid data extent, not the sector-aligned device read length.
+-                maxAddressOffsetOnPage = PageSize
+-            };
+-
+-            ulong offsetInFile = (ulong)(AlignedPageSizeBytes * readPage);
+-            uint readLength = (uint)AlignedPageSizeBytes;
+-            long adjustedUntilAddress = AlignedPageSizeBytes * GetPage(untilAddress) + GetOffsetOnPage(untilAddress);
+-
+-            if (adjustedUntilAddress > 0 && ((adjustedUntilAddress - (long)offsetInFile) < PageSize))
+-            {
+-                readLength = (uint)(adjustedUntilAddress - (long)offsetInFile);
+-                // Record the scan's true end (untilAddress) before rounding up to a sector boundary: the object-record walk must
+-                // stop here. untilAddress can be mid-page, so the sector-aligned read pulls in records that lie ABOVE the requested
+-                // range and can straddle the read end -- their ObjectLogPosition word and R11 value-length high bits then fall past
+-                // the bytes actually transferred and are read from the un-read (only incidentally zeroed) buffer tail, yielding a
+-                // bogus position/length. Such records must not be parsed as in-range records.
+-                asyncResult.maxAddressOffsetOnPage = readLength;
+-                readLength = (uint)((readLength + (sectorSize - 1)) & ~(sectorSize - 1));
+-            }
+-
+-            if (device != null)
+-                offsetInFile = (ulong)(AlignedPageSizeBytes * (readPage - devicePageOffset));
+-
+-            ReadAsync(offsetInFile, (IntPtr)frame.GetPhysicalAddress(pageIndex), readLength, callback, asyncResult, usedDevice);
++            var usedDevice=device??this.device;
++            ScanFrameCompletion operation=null;
++            if(context is ScanFrameCompletion frameOperation){operation=frameOperation;}
++            PageAsyncReadResult<TContext> asyncResult=null;
++            ulong offsetInFile=0;
++            uint readLength=0;
++            IntPtr destination=IntPtr.Zero;
++            try{
++                PrepareFrameLoadCompletionEvent(ref completed);
++
++                int pageIndex = (int)(readPage % frame.frameSize);
++                if (!frame.IsAllocated(pageIndex))
++                    frame.Allocate(pageIndex);
++                else
++                    frame.Clear(pageIndex);
++
++                asyncResult = new PageAsyncReadResult<TContext>()
++                {
++                    page = readPage,
++                    context = context,
++                    handle = completed,
++                    cts = cts,
++                    readBuffers = readBuffers,
++                    // Default to a full page; overridden below for a partial last page. This bounds the object-record walk in
++                    // ObjectAllocatorImpl.DeserializeObjectsOnPage to the valid data extent, not the sector-aligned device read length.
++                    maxAddressOffsetOnPage = PageSize
++                };
++
++                offsetInFile = (ulong)(AlignedPageSizeBytes * readPage);
++                readLength = (uint)AlignedPageSizeBytes;
++                long adjustedUntilAddress = AlignedPageSizeBytes * GetPage(untilAddress) + GetOffsetOnPage(untilAddress);
++
++                if (adjustedUntilAddress > 0 && ((adjustedUntilAddress - (long)offsetInFile) < PageSize))
++                {
++                    readLength = (uint)(adjustedUntilAddress - (long)offsetInFile);
++                    // Record the scan's true end (untilAddress) before rounding up to a sector boundary: the object-record walk must
++                    // stop here. untilAddress can be mid-page, so the sector-aligned read pulls in records that lie ABOVE the requested
++                    // range and can straddle the read end -- their ObjectLogPosition word and R11 value-length high bits then fall past
++                    // the bytes actually transferred and are read from the un-read (only incidentally zeroed) buffer tail, yielding a
++                    // bogus position/length. Such records must not be parsed as in-range records.
++                    asyncResult.maxAddressOffsetOnPage = readLength;
++                    readLength = (uint)((readLength + (sectorSize - 1)) & ~(sectorSize - 1));
++                }
++
++                if (device != null)
++                    offsetInFile = (ulong)(AlignedPageSizeBytes * (readPage - devicePageOffset));
++                destination=(IntPtr)frame.GetPhysicalAddress(pageIndex);
++                operation?.BindPreparedResources(completed,cts,readBuffers);
++            }catch{
++                // このhelperの準備未発行証拠。未知outer override全体のnegative証明にはしない。
++                operation?.CertifyTrustedPreparationFailure();
++                throw;
++            }
++            // virtual override/deferred producerへ渡す前。以後のthrowはunknownのまま保持。
++            operation?.MarkMayHaveEscaped();
++            ReadAsync(offsetInFile,destination,readLength,callback,asyncResult,usedDevice);
+         }
+ 
+         /// <summary>
+--- a/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectAllocatorImpl.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectAllocatorImpl.cs
+@@ -592,17 +592,24 @@
+         }
+ 
+         /// <inheritdoc/>
+-        internal override CircularDiskWriteBuffer CreateCircularFlushBuffers(IDevice objectLogDevice, ILogger logger)
++        internal override CircularDiskWriteBuffer CreateCircularFlushBuffers(IDevice objectLogDevice, ILogger logger, RecoveryIoScope recoveryIo = null)
+         {
+             var localObjectLogDevice = objectLogDevice ?? this.objectLogDevice;
++            if (recoveryIo is not null)
++                localObjectLogDevice = recoveryIo.Wrap(localObjectLogDevice);
+             return localObjectLogDevice is not null
+                 ? new(bufferPool, IStreamBuffer.BufferSize, numberOfFlushBuffers, localObjectLogDevice, logger)
+                 : null;
+         }
+ 
+         /// <inheritdoc/>
+-        internal override CircularDiskReadBuffer CreateCircularReadBuffers(IDevice objectLogDevice, ILogger logger)
+-            => new(bufferPool, IStreamBuffer.BufferSize, numberOfDeserializationBuffers, objectLogDevice ?? this.objectLogDevice, logger);
++        internal override CircularDiskReadBuffer CreateCircularReadBuffers(IDevice objectLogDevice, ILogger logger, RecoveryIoScope recoveryIo = null)
++        {
++            var source = objectLogDevice ?? this.objectLogDevice;
++            if (recoveryIo is not null)
++                source = recoveryIo.Wrap(source);
++            return new(bufferPool, IStreamBuffer.BufferSize, numberOfDeserializationBuffers, source, logger);
++        }
+ 
+         /// <inheritdoc/>
+         internal override CircularDiskReadBuffer CreateCircularReadBuffers()
+@@ -727,6 +734,8 @@
+                 return;
+             }
+ 
++            if (asyncResult.context is RecoveryStatus recoveryStatus)
++                device = recoveryStatus.Io.Wrap(device);
+             var pageStart = GetLogicalAddressOfStartOfPage(asyncResult.page);
+             var logPagePointer = (byte*)pagePointers[flushPage % BufferSize];
+ 
+@@ -1288,6 +1297,40 @@
+         {
+             var result = (PageAsyncReadResult<TContext>)context;
+ 
++            if(result.context is ScanFrameCompletion operation){
++                operation.BeginOuterCallback();
++                Exception callbackFailure=null;
++                var bindingVerified=false;
++                try{
++                    operation.VerifyOuterCallbackResources(result.handle,result.cts,result.readBuffers);
++                    bindingVerified=true;
++                    result.readBuffers?.BindFrameOwner(operation);
++                    // Object前処理がthrowしても最終failure通知を一回試し、last-accessまで所有する。
++                    if(errorCode==0&&ioException is null){
++                        try{
++                            var map=transientObjectIdMap;
++                            DeserializeObjectsOnPage((long)result.destinationPtr,result.maxAddressOffsetOnPage,map,result.readBuffers);
++                        }catch(Exception deserializeError){errorCode=uint.MaxValue;numBytes=0;ioException=deserializeError;}
++                    }else if(errorCode==0){errorCode=uint.MaxValue;numBytes=0;}
++                    if(ioException is not null){operation.RecordFailure(ioException);}
++                    result.callback(errorCode,numBytes,context,ioException:ioException);
++                }catch(Exception callbackError){callbackFailure=callbackError;operation.RecordFailure(callbackError);}
++                finally{
++                    try{
++                        try{if(bindingVerified){result.readBuffers?.JoinPendingReads();}}
++                        catch(Exception joinError){
++                            if(result.readBuffers is not null&&!result.readBuffers.AllReadsTerminal){operation.RetainNestedResourceDebt();}
++                            if(callbackFailure is null){callbackFailure=joinError;}
++                            operation.RecordFailure(joinError);
++                        }
++                        try{if(bindingVerified){result.Free();}}
++                        catch(Exception freeError){if(callbackFailure is null){callbackFailure=freeError;}operation.RecordFailure(freeError);}
++                    }finally{operation.EndCallback();}
++                }
++                if(callbackFailure is not null){System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(callbackFailure).Throw();}
++                return;
++            }
++
+             if (errorCode != 0)
+             {
+                 // The page read failed or was cancelled. The destination buffer may contain partial or
+@@ -1451,7 +1494,7 @@
+         }
+ 
+         /// <inheritdoc/>
+-        internal override void LoadObjectsForRecoveryPass2(long page, long fromAddress, long untilAddress, IDevice objectLogDevice)
++        internal override void LoadObjectsForRecoveryPass2(long page, long fromAddress, long untilAddress, IDevice objectLogDevice, RecoveryIoScope recoveryIo = null)
+         {
+             var pageStartAddress = GetFirstValidLogicalAddressOnPage(page);
+             var address = Math.Max(fromAddress, pageStartAddress);
+@@ -1462,7 +1505,7 @@
+             var pagePhysicalAddress = GetPhysicalAddress(GetLogicalAddressOfStartOfPage(page));
+             var maxOffset = endAddress - GetLogicalAddressOfStartOfPage(page);
+             var objectIdMapToUse = objectPages[page % BufferSize].objectIdMap;
+-            using var readBuffers = CreateCircularReadBuffers(objectLogDevice, logger);
++            using var readBuffers = CreateCircularReadBuffers(objectLogDevice, logger, recoveryIo);
+             DeserializeObjectsOnPage(pagePhysicalAddress, maxOffset, objectIdMapToUse, readBuffers);
+         }
+ 
+--- a/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectScanIterator.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectScanIterator.cs
+@@ -443,19 +443,21 @@
+         /// <summary>
+         /// Dispose iterator
+         /// </summary>
+-        public override void Dispose()
+-        {
+-            base.Dispose();
+-            if (diskLogRecord.IsSet)
+-                hlogBase._wrapper.OnDisposeDiskRecord(ref diskLogRecord, DisposeReason.DeserializedFromDisk);
+-            recordBuffer?.Return();
+-            recordBuffer = null;
+-            //TODOobjDispose("Dispose objects in frame");
+-            frame?.Dispose();
+-        }
+-
++        public override void Dispose()=>base.Dispose();
++        internal override void DisposeFrameStorage(){
++            Exception primary=null;
++            CaptureFrameCleanup(()=>{if(this.diskLogRecord.IsSet){this.hlogBase._wrapper.OnDisposeDiskRecord(ref this.diskLogRecord,DisposeReason.DeserializedFromDisk);}},ref primary);
++            CaptureFrameCleanup(()=>this.recordBuffer?.Return(),ref primary);
++            this.recordBuffer=null;
++            CaptureFrameCleanup(()=>this.frame?.Dispose(),ref primary);
++            if(primary is not null){System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(primary).Throw();}
++        }
+         internal override void AsyncReadPageFromDeviceToFrame<TContext>(CircularDiskReadBuffer readBuffers, long readPage, long untilAddress, TContext context, ref CountdownEvent completed,
+                 long devicePageOffset = 0, IDevice device = null, IDevice objectLogDevice = null, CancellationTokenSource cts = null)
+-            => hlogBase.AsyncReadPageFromDeviceToFrame(readBuffers, readPage, untilAddress, AsyncReadPageFromDeviceToFrameCallback, context, frame, ref completed, devicePageOffset, device, objectLogDevice, cts);
++        {
++            // exact wrapper選択+固定GetPageOfAddress本体+helper明示receiptのchainに限る。
++            if(typeof(TAllocator)==typeof(ObjectAllocator<TStoreFunctions>)&&context is ScanFrameCompletion operation){operation.TrustSourceAuditedForwarder(this);}
++            this.hlogBase.AsyncReadPageFromDeviceToFrame(readBuffers,readPage,untilAddress,this.AsyncReadPageFromDeviceToFrameCallback,context,this.frame,ref completed,devicePageOffset,device,objectLogDevice,cts);
++        }
+     }
+ }--- a/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/CircularDiskReadBuffer.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/CircularDiskReadBuffer.cs
+@@ -25,6 +25,7 @@
+         int currentIndex;
+ 
+         bool disposed;
++        private ScanFrameCompletion frameOwner;
+ 
+         /// <summary>Device address to do the next read from (segment and offset); set at the start of a record by <see cref="ObjectLogReader{TStoreFunctions}"/>
+         /// and incremented with each buffer read; all of these should be aligned to sector size, so this address remains sector-aligned.</summary>
+@@ -60,6 +61,7 @@
+         private DiskReadBuffer CreateBuffer(int bufferIndex)
+         {
+             DiskReadBuffer buffer = new(bufferPool.Get(bufferSize), objectLogDevice, logger);
++            buffer.BindFrameOwner(this.frameOwner);
+             buffers[bufferIndex] = buffer;
+             return buffer;
+         }
+@@ -127,6 +129,7 @@
+             if (disposed)
+                 throw new ObjectDisposedException(nameof(CircularDiskReadBuffer));
+ 
++            this.JoinPendingReads(throwFailure:false);
+             Debug.Assert(totalLength > 0, "TotalLength cannot be 0");
+             nextFileReadPosition = startFilePosition;
+             unreadLengthRemaining = totalLength;
+@@ -157,13 +160,37 @@
+         /// Called when one or more records with Objects have been read and via ReadAsync, e.g. being processed by AsyncReadPageWithObjectsCallback,
+         /// and we have completed reading and deserializing those objects.
+         /// </summary>
+-        internal void OnEndReadRecords()
+-        {
+-            for (var ii = 0; ii < buffers.Length; ii++)
+-            {
+-                Debug.Assert(buffers[ii] is null || !buffers[ii].HasInFlightRead, $"All reads should have been completed by OnEndReadRecords()");
+-            }
+-        }
++        internal void OnEndReadRecords()=>this.JoinPendingReads();
++        internal void BindFrameOwner(ScanFrameCompletion owner){
++            this.JoinPendingReads(throwFailure:false);
++            foreach(var buffer in this.buffers){buffer?.BindFrameOwner(owner);}
++            this.frameOwner=owner;
++        }
++        internal bool AllReadsTerminal{
++            get{
++                var snapshot=this.buffers;
++                if(snapshot is null){return false;}
++                foreach(var buffer in snapshot){if(buffer is not null&&!buffer.ReadResourcesTerminal){return false;}}
++                return true;
++            }
++        }
++        internal void JoinPendingReads(bool throwFailure=true){
++            var snapshot=this.buffers;
++            if(snapshot is null){throw new ObjectDisposedException(nameof(CircularDiskReadBuffer));}
++            Exception primary=null;
++            foreach(var buffer in snapshot){
++                if(buffer is null){continue;}
++                try{buffer.JoinReadCompletion();}
++                catch(Exception joinError){if(primary is null){primary=joinError;}else{RecoveryIoScope.AttachCleanupError(primary,joinError);}}
++                var failure=buffer.ReadFailure;
++                if(throwFailure&&failure is not null){
++                    if(primary is null){primary=failure;}
++                    else if(!ReferenceEquals(primary,failure)){RecoveryIoScope.AttachCleanupError(primary,failure);}
++                }
++            }
++            if(primary is not null){System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(primary).Throw();}
++        }
++
+ 
+         internal bool OnBeginRecord(ObjectLogFilePositionInfo recordFilePosition)
+         {
+@@ -254,6 +281,8 @@
+ 
+         public void Dispose()
+         {
++            if(this.disposed){return;}
++            this.JoinPendingReads(throwFailure:false);
+             disposed = true;
+ 
+             // Atomic swap to avoid clearing twice.
+--- a/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/CircularDiskWriteBuffer.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/CircularDiskWriteBuffer.cs
+@@ -155,41 +155,51 @@
+             // Lock this with a reference until we have set the callback and issue the write. This callback is for the main log page write, and
+             // when the countdownCallbackAndContext.Decrement hits 0 again, we're done with this partial flush range and will call the external callback.
+             countdownCallbackAndContext.Increment();
+-            countdownCallbackAndContext.Set(externalCallback, externalContext, (uint)mainLogPageSpanLength);
+-
+-            // Issue the last ObjectLog write for this partial flush.
+-            var buffer = GetCurrentBuffer();
+-            Debug.Assert(IsAligned(alignedMainLogFlushAddress, (int)mainLogDevice.SectorSize), "alignedMainLogFlushAddress is not aligned to sector size");
+-            Debug.Assert(IsAligned(buffer.flushedUntilPosition, (int)device.SectorSize), $"flushedUntilPosition {buffer.flushedUntilPosition} is not sector-aligned");
+-            Debug.Assert(buffer.currentPosition >= buffer.flushedUntilPosition, $"buffer.currentPosition {buffer.currentPosition} must be >= buffer.flushedUntilPosition {buffer.flushedUntilPosition}");
+-
+-            if (buffer.currentPosition > buffer.flushedUntilPosition)
+-            {
+-                // We have something to flush. First ensure sector-alignment of the flush; we'll "waste" some space to do so. This is necessary to avoid rewriting sectors,
+-                // which can be a problem for some devices due to inefficiencies in rewriting or inability to back up (or both).
+-                var sectorEnd = RoundUp(buffer.currentPosition, (int)device.SectorSize);
+-                if (sectorEnd > buffer.currentPosition)
++            Exception primary=null;
++            try{
++                countdownCallbackAndContext.Set(externalCallback, externalContext, (uint)mainLogPageSpanLength);
++
++                // Issue the last ObjectLog write for this partial flush.
++                var buffer = GetCurrentBuffer();
++                Debug.Assert(IsAligned(alignedMainLogFlushAddress, (int)mainLogDevice.SectorSize), "alignedMainLogFlushAddress is not aligned to sector size");
++                Debug.Assert(IsAligned(buffer.flushedUntilPosition, (int)device.SectorSize), $"flushedUntilPosition {buffer.flushedUntilPosition} is not sector-aligned");
++                Debug.Assert(buffer.currentPosition >= buffer.flushedUntilPosition, $"buffer.currentPosition {buffer.currentPosition} must be >= buffer.flushedUntilPosition {buffer.flushedUntilPosition}");
++
++                if (buffer.currentPosition > buffer.flushedUntilPosition)
+                 {
+-                    // Prepare to flush the final piece to disk by zero-initializing the sector-alignment padding.
+-                    new Span<byte>(buffer.memory.GetValidPointer() + buffer.currentPosition, sectorEnd - buffer.currentPosition).Clear();
+-                    buffer.currentPosition = sectorEnd;
++                    // We have something to flush. First ensure sector-alignment of the flush; we'll "waste" some space to do so. This is necessary to avoid rewriting sectors,
++                    // which can be a problem for some devices due to inefficiencies in rewriting or inability to back up (or both).
++                    var sectorEnd = RoundUp(buffer.currentPosition, (int)device.SectorSize);
++                    if (sectorEnd > buffer.currentPosition)
++                    {
++                        // Prepare to flush the final piece to disk by zero-initializing the sector-alignment padding.
++                        new Span<byte>(buffer.memory.GetValidPointer() + buffer.currentPosition, sectorEnd - buffer.currentPosition).Clear();
++                        buffer.currentPosition = sectorEnd;
++                    }
++
++                    // Now write the buffer to the device.
++                    _ = Interlocked.Increment(ref numInFlightWrites);
++                    buffer.FlushToDevice(ref filePosition, FlushToDeviceCallback, CreateDiskWriteCallbackContext());
+                 }
+ 
+-                // Now write the buffer to the device.
+-                _ = Interlocked.Increment(ref numInFlightWrites);
+-                buffer.FlushToDevice(ref filePosition, FlushToDeviceCallback, CreateDiskWriteCallbackContext());
++                // Update the object log file position for the caller, unless we are using our own.
++                if (!ownFilePosition)
++                    endObjectLogFilePosition = filePosition;
++
++                // Write the main log page to the mainLogDevice.
++                FlushToMainLogDevice(mainLogPageSpanPtr, mainLogPageSpanLength, mainLogDevice, alignedMainLogFlushAddress, CreateDiskWriteCallbackContext());
++            }catch(Exception error){
++                primary=error;
++                this.countdownCallbackAndContext.RecordError(uint.MaxValue,error);
++                throw;
++            }finally{
++                // 受付失敗でもproducer sentinelを返し、既存の失敗completionへ所有を戻す。
++                try{_=this.countdownCallbackAndContext.Decrement();}
++                catch(Exception completionError){
++                    if(primary is null){throw;}
++                    RecoveryIoScope.AttachCleanupError(primary,completionError);
++                }
+             }
+-
+-            // Update the object log file position for the caller, unless we are using our own.
+-            if (!ownFilePosition)
+-                endObjectLogFilePosition = filePosition;
+-
+-            // Write the main log page to the mainLogDevice.
+-            FlushToMainLogDevice(mainLogPageSpanPtr, mainLogPageSpanLength, mainLogDevice, alignedMainLogFlushAddress, CreateDiskWriteCallbackContext());
+-
+-            // We added a count to countdownCallbackAndContext at the start, and the callback state creation also added a count. Remove the one we added at the start.
+-            // If the write in FlushToMainLogDeviced completed fast, this decrement here may be the final one.
+-            _ = countdownCallbackAndContext.Decrement();
+         }
+ 
+         internal DiskWriteCallbackContext CreateDiskWriteCallbackContext() => new(countdownCallbackAndContext);
+--- a/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/DiskReadBuffer.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/DiskReadBuffer.cs
+@@ -16,6 +16,8 @@
+         /// <summary>Signals when reads are complete. Allows multiple reads of buffer subsections to be enqueed, and uses a ManualResetEvent
+         ///     so it remains signaled until Reset() is called (currently only one read for a single span of the buffer is done).</summary>
+         internal CountdownEvent countdownEvent;
++        private ScanFrameCompletion readCompletion;
++        private ScanFrameCompletion frameOwner;
+ 
+         /// <summary>The buffer to read (part of) the page image into.</summary>
+         internal SectorAlignedMemory memory;
+@@ -56,6 +58,8 @@
+ 
+         internal void Initialize()
+         {
++            this.readCompletion?.JoinAndSeal();
++            this.readCompletion=null;
+             currentPosition = endPosition = NoPosition;
+         }
+ 
+@@ -68,31 +72,64 @@
+         /// <param name="startPosition">Start position in the buffer (relative to start of buffer)</param>
+         /// <param name="alignedReadLength">Number of bytes to read</param>
+         /// <param name="callback">The <see cref="CircularDiskReadBuffer"/> callback.</param>
+-        internal void ReadFromDevice(ObjectLogFilePositionInfo filePosition, int startPosition, uint alignedReadLength, DeviceIOCompletionCallback callback)
+-        {
+-            IncrementOrResetCountdown(ref countdownEvent);
+-            startFilePosition = filePosition;
+-
+-            currentPosition = startPosition;
+-            endPosition = 0;
+-            device.ReadAsync(filePosition.SegmentId, filePosition.Offset, (IntPtr)memory.aligned_pointer, (uint)alignedReadLength, callback, context: this);
++        internal void ReadFromDevice(ObjectLogFilePositionInfo filePosition,int startPosition,uint alignedReadLength,DeviceIOCompletionCallback callback){
++            this.readCompletion?.AssertNoSelfJoin();
++            this.readCompletion?.JoinAndSeal();
++            // 一つのread世代。旧callback/Waitのjoin後にだけ次read用Resetを行う。
++            this.countdownEvent.Reset(1);
++            var operation=new ScanFrameCompletion(0,0,this.countdownEvent,null,null,static()=>{},this.frameOwner,this);
++            operation.TryOwnDeferredAction();
++            operation.TrustSourceAuditedForwarder(this);
++            this.readCompletion=operation;
++            Exception issueError=null;
++            var escaped=false;
++            try{
++                this.startFilePosition=filePosition;
++                this.currentPosition=startPosition;
++                this.endPosition=0;
++                var destination=(IntPtr)this.memory.aligned_pointer;
++                void Completed(uint error,uint bytes,object actual,Exception exception){
++                    operation.BeginOuterCallback();
++                    try{
++                        if(exception is not null||error!=0){
++                            var failure=exception;
++                            if(failure is null){failure=new System.IO.IOException("Object buffer I/O failed.",unchecked((int)error));}
++                            operation.RecordFailure(failure);
++                            if(error==0){error=uint.MaxValue;bytes=0;}
++                        }
++                        callback(error,bytes,actual,exception);
++                    }catch(Exception callbackError){operation.RecordFailure(callbackError);throw;}
++                    finally{operation.EndCallback();}
++                }
++                operation.MarkMayHaveEscaped();
++                escaped=true;
++                this.device.ReadAsync(filePosition.SegmentId,filePosition.Offset,destination,alignedReadLength,Completed,this);
++            }catch(Exception error){
++                issueError=error;
++                operation.RecordFailure(error);
++                if(!escaped){operation.CertifyTrustedPreparationFailure();operation.CommitTrustedUnissued();}
++                throw;
++            }finally{operation.EndIssuer(issueError);}
+         }
++        internal void JoinReadCompletion()=>this.readCompletion?.JoinAndSeal();
++        internal void BindFrameOwner(ScanFrameCompletion owner){this.JoinReadCompletion();this.frameOwner=owner;}
++        internal bool ReadResourcesTerminal=>this.readCompletion is null||this.readCompletion.ResourcesJoined;
++        internal Exception ReadFailure=>this.readCompletion?.Failure;
+ 
+         internal static void IncrementOrResetCountdown(ref CountdownEvent countdownEvent) => DiskWriteBuffer.IncrementOrResetCountdown(ref countdownEvent);
+ 
+-        internal bool HasData => endPosition > 0;
++        internal bool HasData=>this.ReadResourcesTerminal&&this.ReadFailure is null&&this.endPosition>0;
+ 
+-        internal bool WaitForDataAvailable()
+-        {
+-            // Because we have issued reads ahead of the buffer wrap, if the currentPosition is NoPosition, we're done.
+-            if (currentPosition == NoPosition)
+-                return false;
+-            if (!HasData)
+-                countdownEvent.Wait();
++        internal bool WaitForDataAvailable(){
++            if(this.currentPosition==NoPosition){return false;}
++            this.readCompletion?.AssertNoSelfJoin();
++            this.readCompletion?.WaitForTerminal();
++            var error=this.ReadFailure;
++            if(error is not null){System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();}
+             return true;
+         }
++        internal bool HasInFlightRead=>!this.ReadResourcesTerminal;
+ 
+-        internal bool HasInFlightRead => countdownEvent is not null && !countdownEvent.IsSet;
+ 
+         internal ObjectLogFilePositionInfo GetCurrentFilePosition()
+         {
+@@ -106,6 +143,18 @@
+ 
+         public void Dispose()
+         {
++            this.readCompletion?.AssertNoSelfJoin();
++            if (device is RecoveryIoScope.BorrowedDevice recoveryDevice)
++            {
++                recoveryDevice.Scope.RetireContext(this, DisposeCore);
++                return;
++            }
++            DisposeCore();
++        }
++
++        private void DisposeCore()
++        {
++            this.JoinReadCompletion();
+             memory?.Return();
+             memory = null;
+             countdownEvent?.Dispose();
+--- a/libs/storage/Tsavorite/cs/src/core/Allocator/ScanIteratorBase.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Allocator/ScanIteratorBase.cs
+@@ -2,7 +2,8 @@
+ // Licensed under the MIT license.
+ 
+ using System;
+-using System.Diagnostics;
++using System.Collections.Generic;
++using System.Runtime.ExceptionServices;
+ using System.Threading;
+ using Microsoft.Extensions.Logging;
+ 
+@@ -17,6 +18,21 @@
+     public abstract class ScanIteratorBase<TAllocatorWrapper>
+         where TAllocatorWrapper : IAllocator
+     {
++        // lifecycle gateを保持してI/O/epoch/callbackをjoinしない。
++        private readonly object frameLifecycleGate=new();
++        private readonly Dictionary<int,int> frameCallers=[];
++        private ScanFrameCompletion[] frameOperations;
++        private bool[] frameClaims;
++        private bool frameClosing;
++        private bool frameDisposed;
++        private bool frameResetting;
++        private int frameLifecycleOwner;
++        private bool frameDisposeActive;
++        private bool frameCloseCompleted;
++        private long frameCloseReceipt;
++        private ScanFrameCompletion[] frameClosedOperations;
++        private Exception frameLifecycleFault;
++        private AllocatorBase frameReadBufferAllocator;
+         /// <summary>Frame size (1 or 2)</summary>
+         protected readonly int frameSize;
+ 
+@@ -135,28 +151,52 @@
+         }
+ 
+         /// <summary>Initialize fields for read callback management</summary>
+-        public virtual void InitializeForReads()
+-        {
+-            loadCompletionEvents = new CountdownEvent[frameSize];
+-            loadCTSs = new CancellationTokenSource[frameSize];
+-            loadedPages = new long[frameSize];
+-            nextLoadedPages = new long[frameSize];
+-            for (var i = 0; i < frameSize; i++)
+-            {
+-                loadedPages[i] = -1;
+-                nextLoadedPages[i] = -1;
+-                loadCTSs[i] = new CancellationTokenSource();
+-            }
+-            currentAddress = -1;
+-            nextAddress = beginAddress;
++        public virtual void InitializeForReads(){
++            lock(this.frameLifecycleGate){
++                this.AssertNoFrameSelfJoin();
++                this.ThrowFrameLifecycleFault();
++                if(this.frameOperations is null&&!this.frameClosing&&!this.frameDisposed){this.InitializeFrameReads();return;}
++            }
++            this.Reset();
++        }
++        private void InitializeFrameReads(){
++            var events=new CountdownEvent[this.frameSize];
++            var cancellations=new CancellationTokenSource[this.frameSize];
++            var loaded=new long[this.frameSize];
++            var next=new long[this.frameSize];
++            for(var i=0;i<this.frameSize;i++){loaded[i]=-1;next[i]=-1;}
++            this.loadCompletionEvents=events;
++            this.loadCTSs=cancellations;
++            this.loadedPages=loaded;
++            this.nextLoadedPages=next;
++            this.frameOperations=new ScanFrameCompletion[this.frameSize];
++            this.frameClaims=new bool[this.frameSize];
++            this.frameDisposed=false;
++            this.frameCloseCompleted=false;
++            this.frameClosedOperations=null;
++            this.currentAddress=-1;
++            this.nextAddress=this.beginAddress;
+         }
+ 
+         /// <summary>Initialize read buffers</summary>
+-        public virtual void InitializeReadBuffers(AllocatorBase allocatorBase = default)
+-        {
+-            objectReadBuffers = new CircularDiskReadBuffer[frameSize];
+-            for (var i = 0; i < frameSize; i++)
+-                objectReadBuffers[i] = allocatorBase?.CreateCircularReadBuffers();
++        public virtual void InitializeReadBuffers(AllocatorBase allocatorBase=default){
++            lock(this.frameLifecycleGate){
++                this.AssertNoFrameSelfJoin();
++                this.ThrowFrameLifecycleFault();
++                if(this.frameClosing||this.frameDisposed||this.frameCallers.Count!=0){throw new InvalidOperationException("Cannot replace scan read buffers while their lifecycle is active.");}
++                if(this.frameOperations is not null){foreach(var operation in this.frameOperations){if(operation is not null){throw new InvalidOperationException("Read buffers must be initialized before issuing frame loads.");}}}
++                this.frameReadBufferAllocator=allocatorBase;
++                this.CreateFrameReadBuffers();
++            }
++        }
++        private void CreateFrameReadBuffers(){
++            var thread=Environment.CurrentManagedThreadId;
++            this.frameCallers.Add(thread,1);
++            try{
++                var buffers=new CircularDiskReadBuffer[this.frameSize];
++                for(var i=0;i<this.frameSize;i++){buffers[i]=this.frameReadBufferAllocator?.CreateCircularReadBuffers();}
++                this.objectReadBuffers=buffers;
++            }finally{this.frameCallers.Remove(thread);}
+         }
+ 
+         /// <summary>
+@@ -169,115 +209,94 @@
+         /// <param name="endIterationAddress">Address to stop the scan at</param>
+         /// <returns>True we had to await the event here; </returns>
+         /// <returns></returns>
+-        protected bool BufferAndLoad(long currentIterationAddress, long currentPage, long currentFrame, long headAddress, long endIterationAddress)
+-        {
+-            for (var i = 0; i < frameSize; i++)
+-            {
+-                // Read the next page. If i == 0 this is the page we are about to iterate; if i > 0, then we are issuing read-ahead for efficiency.
+-                var nextPage = currentPage + i;
+-
+-                // Cannot load nextPage if it is entirely in memory or beyond the end address
+-                var pageStartAddress = GetLogicalAddressOfStartOfPage(nextPage, logPageSizeBits);
+-                if (pageStartAddress >= headAddress || pageStartAddress >= endIterationAddress)
+-                    continue;
+-
+-                // Determine the endAddress on nextPage, which may be limited by endAddress or headAddress to be before end of page.
+-                var pageEndAddress = GetLogicalAddressOfStartOfPage(nextPage + 1, logPageSizeBits);
+-                if (endIterationAddress < pageEndAddress)
+-                    pageEndAddress = endIterationAddress;
+-
+-                // With HeadAddress now possibly in the middle of the page, we have to ensure we handle re-entering with the same currentFrame while
+-                // a previous request on currentFrame is ongoing; this is ensured by CalculateReadOnlyAddress. So just read the entire page regardless
+-                // of headAddress; the entire page will have been flushed to disk already. TODO Leaving this here in case we change to record-aligned ReadOnlyAddress.
+-                //if (headAddress < pageEndAddress)
+-                //    pageEndAddress = headAddress;
+-
+-                // Calculate the nextFrame we will load nextPage into
+-                var nextFrame = (currentFrame + i) % frameSize;
+-
+-                // Loop using CAS as a latch-free way to ensure only one thread issues the load for nextPage into nextFrame.
+-                while (true)
+-                {
+-                    // Get the endAddress of the next page being loaded for this frame. If it is already loaded, as indicated by being >= the required endAddress, we're done.
+-                    var val = nextLoadedPages[nextFrame];
+-                    if (val >= pageEndAddress && loadedPages[nextFrame] >= pageEndAddress)
+-                        break;
+-
+-                    // If the endAddress of the next page being loaded is less than the endAddress we need for the next page for this frame,
+-                    // try to atomically exchange it with the endAddress we need. If successful, issue the load.
+-                    if (val < pageEndAddress && Interlocked.CompareExchange(ref nextLoadedPages[nextFrame], pageEndAddress, val) == val)
+-                    {
+-                        // Only currentFrame is awaited before this method returns, so a read-ahead issued into nextFrame
+-                        // by an earlier call may still be in flight when the scan reaches a page that maps back to it
+-                        // without having consumed the prefetched one (BeginAddress advancing past the prefetched page is
+-                        // one way in). Reusing the buffer now would leave two device reads writing the same memory and
+-                        // orphan the completion event this load replaces, so drain the prior load first. The hazard is
+-                        // specific to read-ahead: with frameSize 1, nextFrame is always currentFrame, which is awaited
+-                        // before every return, so this is then a no-op.
+-                        WaitForPriorFrameLoad(nextFrame, val);
+-
+-                        var readBuffer = objectReadBuffers is not null ? objectReadBuffers[nextFrame] : default;
+-
+-                        var frameIndex = i;
+-                        var frameRepairLatch = 0;
+-                        _ = Interlocked.Increment(ref pendingDrainCallbacks);
+-                        if (epoch != null)
+-                        {
+-                            try
+-                            {
+-                                epoch.BumpCurrentEpoch(() => DoReadPage(frameIndex));
++        protected bool BufferAndLoad(long currentIterationAddress,long currentPage,long currentFrame,long headAddress,long endIterationAddress){
++            this.EnterFrameCall();
++            try{
++                for(var i=0;i<this.frameSize;i++){
++                    var nextPage=currentPage+i;
++                    var start=GetLogicalAddressOfStartOfPage(nextPage,this.logPageSizeBits);
++                    if(start>=headAddress||start>=endIterationAddress){continue;}
++                    var claim=GetLogicalAddressOfStartOfPage(nextPage+1,this.logPageSizeBits);
++                    if(endIterationAddress<claim){claim=endIterationAddress;}
++                    var frame=(int)((currentFrame+i)%this.frameSize);
++                    while(true){
++                        ScanFrameCompletion previous;
++                        long priorClaim;
++                        var claimed=false;
++                        lock(this.frameLifecycleGate){
++                            if(this.frameClosing){throw new ObjectDisposedException(this.GetType().Name);}
++                            previous=this.frameOperations[frame];
++                            // 同frame所有threadのjoinはclaim/vector変更より前に拒否する。
++                            previous?.AssertNoSelfJoin();
++                            priorClaim=this.nextLoadedPages[frame];
++                            if(priorClaim>=claim&&Volatile.Read(ref this.loadedPages[frame])>=claim){break;}
++                            if(!this.frameClaims[frame]&&priorClaim<claim){this.frameClaims[frame]=true;this.nextLoadedPages[frame]=claim;claimed=true;}
++                        }
++                        if(!claimed){this.epoch?.ProtectAndDrain();continue;}
++                        ScanFrameCompletion operation=null;
++                        CountdownEvent preparedEvent=null;
++                        CancellationTokenSource preparedCancellation=null;
++                        var createdEvent=false;
++                        try{
++                            this.WaitForPriorFrameLoad(previous);
++                            var completion=this.loadCompletionEvents[frame];
++                            if(completion is null){completion=new CountdownEvent(1);createdEvent=true;}
++                            preparedEvent=completion;
++                            var cancellation=new CancellationTokenSource();
++                            preparedCancellation=cancellation;
++                            var readBuffer=this.objectReadBuffers?[frame];
++                            operation=new ScanFrameCompletion(frame,claim,completion,cancellation,readBuffer,this.CompleteFrameAccounting,issuerOwner:this);
++                            // 旧callback/wait accessはjoin済み。CTSの最後access後だけ破棄する。
++                            this.loadCTSs[frame]?.Dispose();
++                            lock(this.frameLifecycleGate){
++                                this.loadCompletionEvents[frame]=completion;
++                                this.loadCTSs[frame]=cancellation;
++                                Interlocked.Increment(ref this.pendingDrainCallbacks);
++                                this.frameOperations[frame]=operation;
++                                this.frameClaims[frame]=false;
+                             }
+-                            catch (Exception ex)
+-                            {
+-                                // BumpCurrentEpoch runs other threads' registered drain actions, so it can throw either
+-                                // before or after our action is registered, and the caller cannot tell which. The latch
+-                                // makes the repair idempotent: whichever of DoReadPage or this handler runs first owns
+-                                // the frame, and the other is a no-op.
+-                                if (Interlocked.Exchange(ref frameRepairLatch, 1) == 0)
+-                                {
+-                                    FailFrameLoad(nextFrame, pageEndAddress, ex);
+-                                    _ = Interlocked.Decrement(ref pendingDrainCallbacks);
++                        }catch(Exception error){
++                            lock(this.frameLifecycleGate){this.frameClaims[frame]=false;this.nextLoadedPages[frame]=priorClaim;}
++                            Exception primary=error;
++                            CaptureFrameCleanup(()=>preparedCancellation?.Dispose(),ref primary);
++                            if(createdEvent){CaptureFrameCleanup(()=>preparedEvent?.Dispose(),ref primary);}
++                            throw;
++                        }
++                        var frameIndex=i;
++                        void DoReadPage(){
++                            if(!operation.TryOwnDeferredAction()){return;}
++                            Exception issueError=null;
++                            try{
++                                var readPage=frameIndex+this.allocator.GetPageOfAddress(currentIterationAddress,this.logPageSizeBits);
++                                var completion=operation.Event;
++                                this.AsyncReadPageFromDeviceToFrame(operation.ReadBuffers,readPage,endIterationAddress,operation,ref completion,0,null,null,operation.Cancellation);
++                                if(!ReferenceEquals(completion,operation.Event)){throw new InvalidOperationException("Frame helper replaced the bound completion event.");}
++                            }catch(Exception error){
++                                issueError=error;
++                                this.FailFrameLoad(operation,error);
++                                operation.CommitTrustedUnissued();
++                            }finally{
++                                Volatile.Write(ref this.loadedPages[frame],claim);
++                                operation.EndIssuer(issueError);
++                            }
++                        }
++                        if(this.epoch is null){DoReadPage();}
++                        else{
++                            try{this.epoch.BumpCurrentEpoch(DoReadPage);}
++                            catch(Exception error){
++                                // 未開始withdraw勝者だけ未発行補償。敗者は実issuer/callbackの所有を変更しない。
++                                if(operation.TryWithdrawBeforeAction()){
++                                    try{this.FailFrameLoad(operation,error);operation.CommitTrustedUnissued();}
++                                    finally{Volatile.Write(ref this.loadedPages[frame],claim);operation.EndIssuer(error);}
+                                 }
+                                 throw;
+                             }
+                         }
+-                        else
+-                            DoReadPage(frameIndex);
+-
+-                        void DoReadPage(int frameIndex)
+-                        {
+-                            // The failure handler above already repaired the frame and accounted for the callback.
+-                            if (Interlocked.Exchange(ref frameRepairLatch, 1) != 0)
+-                                return;
+-
+-                            try
+-                            {
+-                                AsyncReadPageFromDeviceToFrame(readBuffer, readPage: frameIndex + allocator.GetPageOfAddress(currentIterationAddress, logPageSizeBits), untilAddress: endIterationAddress,
+-                                    context: Empty.Default, ref loadCompletionEvents[nextFrame], devicePageOffset: 0, device: null, objectLogDevice: null, loadCTSs[nextFrame]);
+-                            }
+-                            catch (Exception ex)
+-                            {
+-                                // Publish the terminal state before releasing pendingDrainCallbacks: Dispose treats a
+-                                // zero count as license to dispose the completion event and token source.
+-                                FailFrameLoad(nextFrame, pageEndAddress, ex);
+-                                _ = Interlocked.Decrement(ref pendingDrainCallbacks);
+-                                return;
+-                            }
+-                            loadedPages[nextFrame] = pageEndAddress;
+-                        }
++                        break;
+                     }
+-                    else
+-                    {
+-                        // Someone else incremented nextLoadedPage[nextFrame] or the BumpCE has not completed and set loadedPages, so give things a chance to work and try again.
+-                        epoch?.ProtectAndDrain();
+-                    }
+-                }
+-            }
+-
+-            // Wait only for currentFrame; nextFrame(s, if we ever have frameSize > 2) will process in the background until we actually need its data,
+-            // in which case it will come in here as currentFrame, see that nextLoadedPage is already set, and then this line will wait for it.
+-            // WaitForFrameLoad returns immediately if the wait has already been satisfied.
+-            return WaitForFrameLoad(currentIterationAddress, currentFrame);
++                }
++                return this.WaitForFrameLoad(currentIterationAddress,currentFrame);
++            }finally{this.ExitFrameCall();}
+         }
+ 
+         /// <summary>
+@@ -308,7 +327,8 @@
+ 
+                 // If the endAddress of the next page being loaded for this frame is already loaded, as indicated by being >= the required endAddress,
+                 // we don't need to load.
+-                if (nextLoadedPages[nextFrame] < pageEndAddress || loadedPages[nextFrame] < pageEndAddress)
++                var operation=Volatile.Read(ref this.frameOperations[nextFrame]);
++                if(nextLoadedPages[nextFrame]<pageEndAddress||Volatile.Read(ref loadedPages[nextFrame])<pageEndAddress||(operation is not null&&(!operation.TerminalPublished||operation.Failure is not null)))
+                     return true;
+             }
+             return false;
+@@ -317,277 +337,234 @@
+         internal abstract void AsyncReadPageFromDeviceToFrame<TContext>(CircularDiskReadBuffer readBuffers, long readPage, long untilAddress, TContext context, ref CountdownEvent completed,
+                 long devicePageOffset = 0, IDevice device = null, IDevice objectLogDevice = null, CancellationTokenSource cts = null);
+ 
+-        /// <summary>
+-        /// Publish the failure of a page read that could not be issued, so no completion callback will fire for
+-        /// <paramref name="frame"/>.
+-        /// </summary>
+-        /// <remarks>
+-        /// Runs inside the deferred <see cref="LightEpoch.BumpCurrentEpoch(Action)"/> action, so nothing may escape: an
+-        /// exception here aborts an arbitrary thread's drain pass and never reaches the scanning thread. The failure is
+-        /// instead routed through the channel a failed I/O uses -- cancelling the frame's <see cref="loadCTSs"/> -- so
+-        /// <see cref="WaitForFrameLoad"/> skips the page, and <see cref="loadedPages"/> is advanced so
+-        /// <see cref="BufferAndLoad"/>'s CAS loop does not wait on a load that will never be retried.
+-        /// </remarks>
+-        private void FailFrameLoad(long frame, long pageEndAddress, Exception ex)
+-        {
+-            // Repair the frame before logging, which is external code and guarded separately.
+-            try
+-            {
+-                // Leave the frame as an asynchronously failed load does: an unset completion event and a cancelled
+-                // token, so WaitForFrameLoad's wait throws immediately and its catch makes the frame reusable.
+-                // Resetting rather than replacing the event keeps the frame on a single event for its lifetime; no
+-                // completion callback can still reference it, because either the read was never issued or the failing
+-                // callback has already run.
+-                if (loadCompletionEvents[frame] is null)
+-                    loadCompletionEvents[frame] = new CountdownEvent(1);
+-                else
+-                    loadCompletionEvents[frame].Reset();
+-            }
+-            catch { }
+-
+-            try
+-            {
+-                loadCTSs[frame]?.Cancel();
+-            }
+-            catch { }
+-
+-            loadedPages[frame] = pageEndAddress;
+-
+-            try
+-            {
+-                logger?.LogError(ex, "Failed to issue page read from storage during scan, skipping page. Frame: {frame}, pageEndAddress: {pageEndAddress}", frame, AddressString(pageEndAddress));
+-            }
+-            catch { }
+-        }
+-
+-        /// <summary>
+-        /// Mark <paramref name="frame"/> as having no page load in flight.
+-        /// </summary>
+-        private void SignalFrameLoadCompletion(long frame)
+-        {
+-            var completionEvent = loadCompletionEvents[frame];
+-            if (completionEvent is not null && !completionEvent.IsSet)
+-                _ = completionEvent.Signal();
+-        }
+-
+-        protected void AsyncReadPageFromDeviceToFrameCallback(uint errorCode, uint numBytes, object context, Exception ioException)
+-        {
+-            try
+-            {
+-                var result = (PageAsyncReadResult<Empty>)context;
+-
+-                if (errorCode == 0)
+-                    _ = result.handle?.Signal();
+-                else
+-                {
+-                    if (ioException is null)
+-                        logger?.LogError($"{nameof(AsyncReadPageFromDeviceToFrameCallback)} error: {{errorCode}}", errorCode);
+-                    else
+-                        logger?.LogError($"{nameof(AsyncReadPageFromDeviceToFrameCallback)} error: {{exception}}", Utility.GetCallbackExceptionDetail(ioException));
+-                    result.cts?.Cancel();
+-                }
+-            }
+-            finally
+-            {
+-                _ = Interlocked.Decrement(ref pendingDrainCallbacks);
+-            }
+-        }
+-
+-        /// <summary>
+-        /// Prepare <paramref name="frame"/> for reuse by this thread's claim: wait for any load previously claimed on it
+-        /// to finish, and renew its cancellation source if a failed load left that cancelled.
+-        /// </summary>
+-        /// <param name="frame">The frame whose buffer is about to be reused.</param>
+-        /// <param name="priorClaim">The <see cref="nextLoadedPages"/> value this thread's claim replaced, or a negative
+-        /// value if the frame has never been claimed. The prior load has been issued once <see cref="loadedPages"/>
+-        /// reaches it.</param>
+-        /// <remarks>
+-        /// The caller holds the epoch, so the prior claim's deferred read may not have been issued yet; drain until it
+-        /// has, then release the epoch across the wait so the drain list can continue to make progress. A prior load
+-        /// that failed or was canceled leaves the frame reusable and its page is skipped by whoever awaits it as
+-        /// currentFrame, so nothing here depends on its outcome.
+-        /// </remarks>
+-        private void WaitForPriorFrameLoad(long frame, long priorClaim)
+-        {
+-            if (priorClaim >= 0)
+-            {
+-                while (loadedPages[frame] < priorClaim)
+-                    epoch?.ProtectAndDrain();
+-
+-                var completionEvent = loadCompletionEvents[frame];
+-                if (completionEvent is not null && !completionEvent.IsSet)
+-                {
+-                    try
+-                    {
+-                        epoch?.Suspend();
+-                        _ = completionEvent.Wait(Timeout.Infinite, loadCTSs[frame].Token);
++        // issue failureでもeventをReset/Signalしない。unknownのcallback debtは保持する。
++        private void FailFrameLoad(ScanFrameCompletion operation,Exception error){
++            operation.RecordFailure(error);
++            try{
++                this.logger?.LogError(error,"Failed to issue scan page read. Frame: {frame}, pageEndAddress: {pageEndAddress}",operation.Frame,AddressString(operation.Claim));
++            }catch(Exception loggingError){operation.RecordFailure(loggingError);}
++            finally{
++                try{operation.Cancellation.Cancel();}
++                catch(Exception cancelError){operation.RecordFailure(cancelError);}
++            }
++        }
++        protected void AsyncReadPageFromDeviceToFrameCallback(uint errorCode,uint numBytes,object context,Exception ioException){
++            var result=(PageAsyncReadResult<ScanFrameCompletion>)context;
++            var operation=result.context;
++            var ownsCallback=operation.BeginFinalCallback(result.handle,result.cts);
++            Exception callbackError=null;
++            try{
++                if(errorCode==0&&ioException is null){result.handle?.Signal();}
++                else{
++                    var failure=ioException;
++                    if(failure is null){failure=new System.IO.IOException("Scan page I/O failed.",unchecked((int)errorCode));}
++                    operation.RecordFailure(failure);
++                    try{this.logger?.LogError(failure,"Scan page callback failed. Frame: {frame}",operation.Frame);}
++                    catch(Exception loggingError){callbackError=loggingError;operation.RecordFailure(loggingError);}
++                    finally{
++                        try{result.cts?.Cancel();}
++                        catch(Exception cancelError){if(callbackError is null){callbackError=cancelError;}operation.RecordFailure(cancelError);}
+                     }
+-                    catch (Exception e)
+-                    {
+-                        logger?.LogWarning(e, "Prior page load did not complete successfully before its frame was reused. Frame: {frame}", frame);
++                    if(callbackError is not null){ExceptionDispatchInfo.Capture(callbackError).Throw();}
++                }
++            }catch(Exception error){
++                operation.RecordFailure(error);
++                try{result.cts?.Cancel();}catch(Exception cancelError){operation.RecordFailure(cancelError);}
++                throw;
++            }finally{
++                // Object外側が所有する場合はFree/最後accessの後までEndを委譲する。
++                if(ownsCallback){operation.EndCallback();}
++            }
++        }
++        private void CompleteFrameAccounting(){Interlocked.Decrement(ref this.pendingDrainCallbacks);}
++        private void AwaitIssuer(ScanFrameCompletion operation){
++            while(!operation.IssuerReturned){this.epoch?.ProtectAndDrain();}
++        }
++        private bool SuspendFrameEpoch(){
++            if(this.epoch is not null&&this.epoch.ThisInstanceProtected()){this.epoch.Suspend();return true;}
++            return false;
++        }
++        private void WaitForPriorFrameLoad(ScanFrameCompletion operation){
++            if(operation is null){return;}
++            operation.AssertNoSelfJoin();
++            this.AwaitIssuer(operation);
++            var suspended=this.SuspendFrameEpoch();
++            try{operation.JoinAndSeal();}finally{if(suspended){this.epoch.Resume();}}
++        }
++        private bool WaitForFrameLoad(long currentAddress,long currentFrame){
++            ScanFrameCompletion operation;
++            lock(this.frameLifecycleGate){operation=this.frameOperations[currentFrame];}
++            if(operation is null){return false;}
++            operation.AssertNoSelfJoin();
++            this.AwaitIssuer(operation);
++            var waited=!operation.TerminalPublished;
++            var borrow=operation.TryBeginWaitAccess();
++            var suspended=this.SuspendFrameEpoch();
++            Exception failure=null;
++            try{
++                operation.WaitForTerminal(()=>this.logger?.LogWarning("Still waiting for scan frame ownership to end. CurrentAddress: {address}, frame: {frame}",AddressString(currentAddress),currentFrame));
++                failure=operation.Failure;
++                // captured bindingだけへアクセス。旧Signal/Cancel/issuer終了後もborrowでReset/Disposeを防ぐ。
++                if(borrow&&failure is null&&operation.Cancellation.IsCancellationRequested){failure=new OperationCanceledException(operation.Cancellation.Token);}
++            }finally{
++                if(borrow){operation.EndWaitAccess();}
++                if(suspended){this.epoch.Resume();}
++            }
++            if(failure is not null){
++                lock(this.frameLifecycleGate){
++                    if(ReferenceEquals(this.frameOperations[currentFrame],operation)){this.loadedPages[currentFrame]=-1;this.nextLoadedPages[currentFrame]=-1;}
++                }
++                Utility.MonotonicUpdate(ref this.nextAddress,GetLogicalAddressOfStartOfPage(1+this.allocator.GetPageOfAddress(currentAddress,this.logPageSizeBits),this.logPageSizeBits),out _);
++                throw new OperationCanceledException("Scan page read failed; its resources have reached terminal ownership.",failure);
++            }
++            return waited;
++        }
++        private void EnterFrameCall(){
++            lock(this.frameLifecycleGate){
++                this.ThrowFrameLifecycleFault();
++                if(this.frameClosing||this.frameDisposed){throw new ObjectDisposedException(this.GetType().Name);}
++                var thread=Environment.CurrentManagedThreadId;
++                this.frameCallers.TryGetValue(thread,out var count);
++                this.frameCallers[thread]=count+1;
++            }
++        }
++        private void ExitFrameCall(){
++            lock(this.frameLifecycleGate){
++                var thread=Environment.CurrentManagedThreadId;
++                var count=this.frameCallers[thread];
++                if(count==1){this.frameCallers.Remove(thread);}else{this.frameCallers[thread]=count-1;}
++                Monitor.PulseAll(this.frameLifecycleGate);
++            }
++        }
++        private void AssertNoFrameSelfJoin(){
++            if(this.frameCallers.ContainsKey(Environment.CurrentManagedThreadId)){throw new InvalidOperationException("Reentrant scan lifecycle would wait for its own frame call.");}
++            if(this.frameOperations is not null){foreach(var operation in this.frameOperations){operation?.AssertNoSelfJoin();}}
++        }
++        internal static void CaptureFrameCleanup(Action cleanup,ref Exception primary){
++            try{cleanup();}
++            catch(Exception error){if(primary is null){primary=error;}else{RecoveryIoScope.AttachCleanupError(primary,error);}}
++        }
++        // 既知派生型のphysical/record cleanupもlifecycleを閉じたまま実行する。
++        internal virtual void DisposeFrameStorage(){}
++        // 以下のreceipt/fault操作はframeLifecycleGate内だけで行う。
++        private void PublishFrameCloseReceipt(){
++            this.frameCloseCompleted=true;
++            this.frameClosedOperations=this.frameOperations;
++            this.frameCloseReceipt=unchecked(this.frameCloseReceipt+1);
++        }
++        private void RecordFrameLifecycleFault(Exception error){
++            this.frameLifecycleFault??=error;
++            this.frameCloseCompleted=false;
++            this.frameDisposed=true;
++            this.frameClosing=true;
++            this.frameLifecycleOwner=0;
++            Monitor.PulseAll(this.frameLifecycleGate);
++        }
++        private void ThrowFrameLifecycleFault(){
++            if(this.frameLifecycleFault is not null){ExceptionDispatchInfo.Capture(this.frameLifecycleFault).Throw();}
++        }
++        public virtual void Dispose(){
++            var thread=Environment.CurrentManagedThreadId;
++            lock(this.frameLifecycleGate){
++                this.AssertNoFrameSelfJoin();
++                this.ThrowFrameLifecycleFault();
++                while(this.frameClosing&&this.frameLifecycleOwner!=thread&&this.frameLifecycleFault is null){Monitor.Wait(this.frameLifecycleGate);}
++                this.ThrowFrameLifecycleFault();
++                if(this.frameClosing&&!(this.frameResetting&&this.frameLifecycleOwner==thread&&!this.frameDisposeActive)){throw new InvalidOperationException("Reentrant scan Dispose.");}
++                if(this.frameDisposed){
++                    if(!this.frameCloseCompleted||!ReferenceEquals(this.frameClosedOperations,this.frameOperations)){
++                        this.RecordFrameLifecycleFault(new InvalidOperationException("Scan frame lifecycle has no completed close receipt."));
++                        this.ThrowFrameLifecycleFault();
+                     }
+-                    finally
+-                    {
+-                        epoch?.Resume();
++                    // 既に閉鎖済みでも、このbase呼出しをfresh receiptで確認する。
++                    this.PublishFrameCloseReceipt();
++                    return;
++                }
++                this.frameClosing=true;
++                this.frameLifecycleOwner=thread;
++                this.frameDisposeActive=true;
++            }
++            var suspended=false;
++            var closed=false;
++            Exception primary=null;
++            Exception closeError=null;
++            try{
++                suspended=this.SuspendFrameEpoch();
++                lock(this.frameLifecycleGate){while(this.frameCallers.Count!=0){Monitor.Wait(this.frameLifecycleGate);}}
++                if(this.frameOperations is not null){foreach(var operation in this.frameOperations){operation?.JoinAndSeal();}}
++                for(var i=0;i<this.frameSize;i++){
++                    var index=i;
++                    CaptureFrameCleanup(()=>this.loadCompletionEvents?[index]?.Dispose(),ref primary);
++                    CaptureFrameCleanup(()=>this.loadCTSs?[index]?.Dispose(),ref primary);
++                    CaptureFrameCleanup(()=>this.objectReadBuffers?[index]?.Dispose(),ref primary);
++                }
++                CaptureFrameCleanup(this.DisposeFrameStorage,ref primary);
++                if(primary is not null){ExceptionDispatchInfo.Capture(primary).Throw();}
++                closed=true;
++            }catch(Exception error){closeError=error;throw;}
++            finally{
++                Exception resumeError=null;
++                try{if(suspended){this.epoch.Resume();}}
++                catch(Exception error){
++                    resumeError=error;
++                    if(closeError is null){throw;}
++                    RecoveryIoScope.AttachCleanupError(closeError,error);
++                }finally{
++                    lock(this.frameLifecycleGate){
++                        this.frameDisposeActive=false;
++                        this.frameDisposed=true;
++                        if(closeError is not null){this.RecordFrameLifecycleFault(closeError);}
++                        else if(resumeError is not null){this.RecordFrameLifecycleFault(resumeError);}
++                        else if(!closed){this.RecordFrameLifecycleFault(new InvalidOperationException("Scan frame close did not reach completion."));}
++                        else{
++                            this.PublishFrameCloseReceipt();
++                            if(!this.frameResetting){this.frameClosing=false;this.frameLifecycleOwner=0;}
++                            Monitor.PulseAll(this.frameLifecycleGate);
++                        }
+                     }
+                 }
+             }
+-
+-            // A failed load cancels the frame's token without replacing it, and only WaitForFrameLoad's failure path
+-            // installs a fresh one -- which a frame re-claimed without first being awaited as currentFrame never reaches.
+-            // Issuing the replacement read under the cancelled token would make the next WaitForFrameLoad throw at once:
+-            // it would skip a page that is genuinely being read, and signal the frame reusable while that read is still
+-            // writing into its buffer, which is the concurrent-reads-into-one-buffer hazard this method exists to prevent.
+-            // Renew it here, where the frame is prepared for reuse. The old source is left for Dispose rather than
+-            // disposed now, since a token handed to an in-flight wait may still reference it.
+-            if (loadCTSs[frame].IsCancellationRequested)
+-                loadCTSs[frame] = new CancellationTokenSource();
+-        }
+-
+-        /// <summary>
+-        /// Wait for the current frame to complete loading
+-        /// </summary>
+-        /// <param name="currentAddress"></param>
+-        /// <param name="currentFrame"></param>
+-        /// <returns>True if we had to wait for the current frame load to complete; else false</returns>
+-        /// <exception cref="TsavoriteException"></exception>
+-        private bool WaitForFrameLoad(long currentAddress, long currentFrame)
+-        {
+-            if (loadCompletionEvents[currentFrame].IsSet)
+-                return false;
+-
+-            try
+-            {
+-                epoch?.Suspend();
+-                WaitForFrameLoadCompletion(currentAddress, currentFrame); // Ensure we have completed ongoing load
+-            }
+-            catch (Exception e)
+-            {
+-                // Exception occurred so skip the page containing the currentAddress, and reinitialize the loaded page and cancellation token for the current frame.
+-                // The exception may have been an OperationCanceledException.
+-                // A load that fails asynchronously cancels the token without signaling the completion event, so signal
+-                // it here to leave the frame reusable.
+-                // Both page vectors are reset together: leaving nextLoadedPages at the failed claim while loadedPages
+-                // is cleared puts the frame in a state the CAS loop in BufferAndLoad can neither satisfy nor re-claim,
+-                // so a later pass over a page ending at or below the failed claim would spin.
+-                SignalFrameLoadCompletion(currentFrame);
+-                loadedPages[currentFrame] = -1;
+-                nextLoadedPages[currentFrame] = -1;
+-                loadCTSs[currentFrame] = new CancellationTokenSource();
+-                _ = Utility.MonotonicUpdate(ref nextAddress, GetLogicalAddressOfStartOfPage(1 + allocator.GetPageOfAddress(currentAddress, logPageSizeBits), logPageSizeBits), out _);
+-
+-                // Callers may be looking for an OCE so throw that if it's what we got.
+-                if (e is OperationCanceledException)
+-                {
+-                    logger?.LogWarning(e, "Wait for frame load was canceled, skipping page. CurrentAddress: {currentAddress}, currentFrame: {currentFrame}", AddressString(currentAddress), currentFrame);
+-                    throw;
+-                }
+-                else
+-                    throw new TsavoriteException("Page read from storage failed, skipping page. Inner exception: " + e.ToString());
+-            }
+-            finally
+-            {
+-                epoch?.Resume();
+-            }
+-            return true;
+-        }
+-
+-        /// <summary>
+-        /// Interval at which an outstanding frame load is reported, so a device that never delivers its completion
+-        /// callback surfaces as a logged stall rather than a silent wait.
+-        /// </summary>
+-        private const int FrameLoadWaitReportIntervalMs = 15_000;
+-
+-        /// <summary>
+-        /// Wait for an outstanding page load into <paramref name="currentFrame"/> to complete, reporting periodically
+-        /// while it remains outstanding.
+-        /// </summary>
+-        /// <remarks>
+-        /// Recovery runs this path before the server accepts connections, so a stall here is otherwise
+-        /// indistinguishable from a healthy startup. The wait stays unbounded, since a slow device is not a failed one.
+-        /// </remarks>
+-        private void WaitForFrameLoadCompletion(long currentAddress, long currentFrame)
+-        {
+-            var completionEvent = loadCompletionEvents[currentFrame];
+-            var token = loadCTSs[currentFrame].Token;
+-            for (var elapsedMs = 0L; !completionEvent.Wait(FrameLoadWaitReportIntervalMs, token); elapsedMs += FrameLoadWaitReportIntervalMs)
+-            {
+-                logger?.LogWarning("Still waiting for page read from storage to complete after {elapsedSeconds} seconds. CurrentAddress: {currentAddress}, currentFrame: {currentFrame}",
+-                    (elapsedMs + FrameLoadWaitReportIntervalMs) / 1000, AddressString(currentAddress), currentFrame);
+-            }
+-        }
+-
+-        /// <summary>
+-        /// Dispose iterator
+-        /// </summary>
+-        public virtual void Dispose()
+-        {
+-            // Wait for all deferred DoReadPage callbacks and their async I/O to complete before freeing
+-            // resources. The counter is incremented before BumpCurrentEpoch registration and decremented
+-            // in AsyncReadPageFromDeviceToFrameCallback when I/O completes, so reaching zero guarantees
+-            // no outstanding access to our state. BufferAndLoad's CAS loop does not return until the deferred
+-            // action has run, so a non-zero count here is I/O still in flight. Report periodically so a device
+-            // that never delivers a completion shows up as a logged stall.
+-            var reportIntervalTicks = Stopwatch.Frequency * FrameLoadWaitReportIntervalMs / 1000;
+-            var startTimestamp = Stopwatch.GetTimestamp();
+-            var nextReportTimestamp = startTimestamp + reportIntervalTicks;
+-            while (Volatile.Read(ref pendingDrainCallbacks) > 0)
+-            {
+-                Thread.Yield();
+-
+-                var nowTimestamp = Stopwatch.GetTimestamp();
+-                if (nowTimestamp < nextReportTimestamp)
+-                    continue;
+-                nextReportTimestamp = nowTimestamp + reportIntervalTicks;
+-                logger?.LogWarning("Still waiting for {pendingDrainCallbacks} pending page read(s) from storage after {elapsedSeconds} seconds while disposing scan iterator",
+-                    Volatile.Read(ref pendingDrainCallbacks), (nowTimestamp - startTimestamp) / Stopwatch.Frequency);
+-            }
+-
+-            for (var i = 0; i < frameSize; i++)
+-            {
+-                // Wait for ongoing reads to complete/fail; if the wait throws (e.g. due to cancellation), we still
+-                // need to dispose the event, CTS, and read buffers below.
+-                try
+-                {
+-                    if (loadCompletionEvents != null && loadedPages[i] != -1)
+-                        loadCompletionEvents[i]?.Wait(loadCTSs[i].Token);
+-                }
+-                catch { }
+-
+-                // Always dispose resources regardless of whether the wait succeeded.
+-                loadCompletionEvents?[i]?.Dispose();
+-                loadCTSs?[i]?.Dispose();
+-                loadCTSs?[i] = null;
+-
+-                // Do not null this; we didn't hold onto the hlogBase to recreate. CircularDiskReadBuffer.Dispose() clears
+-                // things and leaves it in an "initialized" state.
+-                objectReadBuffers?[i]?.Dispose();
+-            }
+-            loadCompletionEvents = default;
+-        }
+-
+-        /// <summary>
+-        /// Reset iterator
+-        /// </summary>
+-        public void Reset()
+-        {
+-            Dispose();
+-            loadCompletionEvents = new CountdownEvent[frameSize];
+-            loadCTSs = new CancellationTokenSource[frameSize];
+-            loadedPages = new long[frameSize];
+-            nextLoadedPages = new long[frameSize];
+-            for (var i = 0; i < frameSize; i++)
+-            {
+-                loadedPages[i] = -1;
+-                nextLoadedPages[i] = -1;
+-                loadCTSs[i] = new CancellationTokenSource();
+-                // readBuffers do not need to be reset because that is done in its Dispose, leaving it in an "initialized" state.
+-                // Also, OnBeginReadRecords() will do reinitialization internally.
+-            }
+-            currentAddress = -1;
+-            nextAddress = beginAddress;
+-        }
+-
++        }
++        public void Reset(){
++            var thread=Environment.CurrentManagedThreadId;
++            ScanFrameCompletion[] resetOperations;
++            long receiptBefore;
++            lock(this.frameLifecycleGate){
++                this.AssertNoFrameSelfJoin();
++                this.ThrowFrameLifecycleFault();
++                while(this.frameClosing&&this.frameLifecycleOwner!=thread&&this.frameLifecycleFault is null){Monitor.Wait(this.frameLifecycleGate);}
++                this.ThrowFrameLifecycleFault();
++                if(this.frameClosing){throw new InvalidOperationException("Reentrant scan Reset.");}
++                resetOperations=this.frameOperations;
++                receiptBefore=this.frameCloseReceipt;
++                this.frameClosing=true;
++                this.frameResetting=true;
++                this.frameLifecycleOwner=thread;
++            }
++            var completed=false;
++            try{
++                this.Dispose();
++                lock(this.frameLifecycleGate){
++                    this.ThrowFrameLifecycleFault();
++                    if(!this.frameCloseCompleted||this.frameCloseReceipt==receiptBefore||!ReferenceEquals(this.frameClosedOperations,resetOperations)||!ReferenceEquals(this.frameOperations,resetOperations)||!this.frameDisposed||!this.frameClosing||!this.frameResetting||this.frameLifecycleOwner!=thread||this.frameDisposeActive){
++                        throw new InvalidOperationException("Dispose override did not complete this scan frame lifecycle close.");
++                    }
++                    // fresh receiptと同世代のdrain/close確認後だけ新stateをpublishする。
++                    this.InitializeFrameReads();
++                    this.CreateFrameReadBuffers();
++                    completed=true;
++                }
++            }catch(Exception error){
++                lock(this.frameLifecycleGate){this.RecordFrameLifecycleFault(error);}
++                throw;
++            }finally{
++                lock(this.frameLifecycleGate){
++                    this.frameResetting=false;
++                    if(completed){this.frameClosing=false;this.frameLifecycleOwner=0;}
++                    Monitor.PulseAll(this.frameLifecycleGate);
++                }
++            }
++        }
+         /// <inheritdoc/>
+         public override string ToString() => $"BA {AddressString(BeginAddress)}, EA {AddressString(EndAddress)}, CA {AddressString(CurrentAddress)}, NA {AddressString(NextAddress)}";
+     }
+--- a/libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteScanIterator.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteScanIterator.cs
+@@ -443,18 +443,21 @@
+         /// <summary>
+         /// Dispose iterator
+         /// </summary>
+-        public override void Dispose()
+-        {
+-            base.Dispose();
+-            if (diskLogRecord.IsSet)
+-                hlogBase._wrapper.OnDisposeDiskRecord(ref diskLogRecord, DisposeReason.DeserializedFromDisk);
+-            recordBuffer?.Return();
+-            recordBuffer = null;
+-            frame?.Dispose();
+-        }
+-
++        public override void Dispose()=>base.Dispose();
++        internal override void DisposeFrameStorage(){
++            Exception primary=null;
++            CaptureFrameCleanup(()=>{if(this.diskLogRecord.IsSet){this.hlogBase._wrapper.OnDisposeDiskRecord(ref this.diskLogRecord,DisposeReason.DeserializedFromDisk);}},ref primary);
++            CaptureFrameCleanup(()=>this.recordBuffer?.Return(),ref primary);
++            this.recordBuffer=null;
++            CaptureFrameCleanup(()=>this.frame?.Dispose(),ref primary);
++            if(primary is not null){System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(primary).Throw();}
++        }
+         internal override void AsyncReadPageFromDeviceToFrame<TContext>(CircularDiskReadBuffer readBuffers, long readPage, long untilAddress, TContext context, ref CountdownEvent completed,
+                 long devicePageOffset = 0, IDevice device = null, IDevice objectLogDevice = null, CancellationTokenSource cts = null)
+-            => hlogBase.AsyncReadPageFromDeviceToFrame(readBuffers, readPage, untilAddress, AsyncReadPageFromDeviceToFrameCallback, context, frame, ref completed, devicePageOffset, device, objectLogDevice, cts);
++        {
++            // exact wrapper選択+固定GetPageOfAddress本体+helper明示receiptのchainに限る。
++            if(typeof(TAllocator)==typeof(SpanByteAllocator<TStoreFunctions>)&&context is ScanFrameCompletion operation){operation.TrustSourceAuditedForwarder(this);}
++            this.hlogBase.AsyncReadPageFromDeviceToFrame(readBuffers,readPage,untilAddress,this.AsyncReadPageFromDeviceToFrameCallback,context,this.frame,ref completed,devicePageOffset,device,objectLogDevice,cts);
++        }
+     }
+ }--- a/libs/storage/Tsavorite/cs/src/core/Allocator/TsavoriteLogAllocatorImpl.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Allocator/TsavoriteLogAllocatorImpl.cs
+@@ -207,39 +207,53 @@
+                                         IDevice objectLogDevice = null,
+                                         CancellationTokenSource cts = null)
+         {
+-            var usedDevice = device ?? this.device;
+-
+-            PrepareFrameLoadCompletionEvent(ref completed);
+-
+-            int pageIndex = (int)(readPage % frame.frameSize);
+-            if (!frame.IsAllocated(pageIndex))
+-                frame.Allocate(pageIndex);
+-            else
+-                frame.Clear(pageIndex);
+-
+-            var asyncResult = new PageAsyncReadResult<TContext>()
+-            {
+-                page = readPage,
+-                context = context,
+-                handle = completed,
+-                cts = cts
+-            };
+-
+-            ulong offsetInFile = (ulong)(AlignedPageSizeBytes * readPage);
+-
+-            uint readLength = (uint)AlignedPageSizeBytes;
+-            long adjustedUntilAddress = AlignedPageSizeBytes * GetPage(untilAddress) + GetOffsetOnPage(untilAddress);
+-
+-            if (adjustedUntilAddress > 0 && ((adjustedUntilAddress - (long)offsetInFile) < PageSize))
+-            {
+-                readLength = (uint)(adjustedUntilAddress - (long)offsetInFile);
+-                readLength = (uint)((readLength + (sectorSize - 1)) & ~(sectorSize - 1));
+-            }
+-
+-            if (device != null)
+-                offsetInFile = (ulong)(AlignedPageSizeBytes * (readPage - devicePageOffset));
+-
+-            usedDevice.ReadAsync(offsetInFile, (IntPtr)frame.pointers[pageIndex], readLength, callback, asyncResult);
++            var usedDevice=device??this.device;
++            ScanFrameCompletion operation=null;
++            if(context is ScanFrameCompletion frameOperation){operation=frameOperation;}
++            PageAsyncReadResult<TContext> asyncResult=null;
++            ulong offsetInFile=0;
++            uint readLength=0;
++            IntPtr destination=IntPtr.Zero;
++            try{
++                PrepareFrameLoadCompletionEvent(ref completed);
++
++                int pageIndex = (int)(readPage % frame.frameSize);
++                if (!frame.IsAllocated(pageIndex))
++                    frame.Allocate(pageIndex);
++                else
++                    frame.Clear(pageIndex);
++
++                asyncResult = new PageAsyncReadResult<TContext>()
++                {
++                    page = readPage,
++                    context = context,
++                    handle = completed,
++                    cts = cts
++                };
++
++                offsetInFile = (ulong)(AlignedPageSizeBytes * readPage);
++
++                readLength = (uint)AlignedPageSizeBytes;
++                long adjustedUntilAddress = AlignedPageSizeBytes * GetPage(untilAddress) + GetOffsetOnPage(untilAddress);
++
++                if (adjustedUntilAddress > 0 && ((adjustedUntilAddress - (long)offsetInFile) < PageSize))
++                {
++                    readLength = (uint)(adjustedUntilAddress - (long)offsetInFile);
++                    readLength = (uint)((readLength + (sectorSize - 1)) & ~(sectorSize - 1));
++                }
++
++                if (device != null)
++                    offsetInFile = (ulong)(AlignedPageSizeBytes * (readPage - devicePageOffset));
++                destination=(IntPtr)frame.pointers[pageIndex];
++                operation?.BindPreparedResources(completed,cts,null);
++            }catch{
++                // このhelperの準備未発行証拠。未知outer override全体のnegative証明にはしない。
++                operation?.CertifyTrustedPreparationFailure();
++                throw;
++            }
++            // virtual override/deferred producerへ渡す前。以後のthrowはunknownのまま保持。
++            operation?.MarkMayHaveEscaped();
++            usedDevice.ReadAsync(offsetInFile,destination,readLength,callback,asyncResult);
+         }
+     }
+ }--- a/libs/storage/Tsavorite/cs/src/core/Device/LocalStorageDevice.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Device/LocalStorageDevice.cs
+@@ -6,6 +6,7 @@
+ using System.Collections.Generic;
+ using System.IO;
+ using System.Runtime.InteropServices;
++using System.Runtime.ExceptionServices;
+ using System.Threading;
+ using Microsoft.Extensions.Logging;
+ using Microsoft.Win32.SafeHandles;
+@@ -37,6 +38,7 @@
+         private readonly SafeConcurrentDictionary<int, SafeFileHandle> logHandles;
+         private readonly bool useIoCompletionPort;
+         private readonly ConcurrentQueue<SimpleAsyncResult> results;
++        private readonly object resultPoolGate = new();
+         private bool _disposed;
+         readonly bool readOnly;
+         readonly ILogger logger;
+@@ -84,8 +86,11 @@
+         {
+             Interlocked.Decrement(ref numPending);
+             var result = (SimpleAsyncResult)Overlapped.Unpack(pOVERLAP).AsyncResult;
+-            result.callback(errorCode, numBytes, result.context, ioException: default);
+-            results.Enqueue(result);
++            try{
++                result.callback(errorCode,numBytes,result.context,ioException:default);
++            }finally{
++                this.ReturnResult(result);
++            }
+         }
+ 
+         /// <inheritdoc />
+@@ -226,12 +231,18 @@
+                                      uint readLength,
+                                      DeviceIOCompletionCallback callback,
+                                      object context)
+-        {
++            =>this.ReadAsyncCore(segmentId,sourceAddress,destinationAddress,readLength,callback,context,null);
++
++        internal void ReadAsyncForRecovery(int segmentId,ulong sourceAddress,IntPtr destinationAddress,uint readLength,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission)
++            =>this.ReadAsyncCore(segmentId,sourceAddress,destinationAddress,readLength,callback,context,submission);
++
++        private void ReadAsyncCore(int segmentId,ulong sourceAddress,IntPtr destinationAddress,uint readLength,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission){
+             if (!results.TryDequeue(out SimpleAsyncResult result))
+             {
+                 result = new SimpleAsyncResult();
+                 result.overlapped = new Overlapped(0, 0, IntPtr.Zero, result);
+                 result.nativeOverlapped = result.overlapped.UnsafePack(_callback, IntPtr.Zero);
++                RecoveryCleanupDiagnostics.Allocated?.Invoke(this,(IntPtr)result.nativeOverlapped);
+             }
+ 
+             result.context = context;
+@@ -241,12 +252,15 @@
+             ovNative->OffsetLow = unchecked((int)((ulong)sourceAddress & 0xFFFFFFFF));
+             ovNative->OffsetHigh = unchecked((int)(((ulong)sourceAddress >> 32) & 0xFFFFFFFF));
+ 
++            var pendingCounted=false;
+             try
+             {
+                 var logHandle = GetOrAddHandle(segmentId);
+ 
+                 Interlocked.Increment(ref numPending);
+-
++                pendingCounted=true;
++
++                submission?.MarkMayHaveEscaped();
+                 bool _result = Native32.ReadFile(logHandle,
+                                                 destinationAddress,
+                                                 readLength,
+@@ -262,19 +276,11 @@
+                     }
+                 }
+             }
+-            catch (IOException e)
+-            {
+-                logger?.LogCritical(e, $"{nameof(ReadAsync)}");
+-                Interlocked.Decrement(ref numPending);
+-                callback((uint)(e.HResult & 0x0000FFFF), 0, context, ioException: e);
+-                results.Enqueue(result);
+-            }
+-            catch (Exception e)
+-            {
+-                logger?.LogCritical(e, $"{nameof(ReadAsync)}");
+-                Interlocked.Decrement(ref numPending);
+-                callback(uint.MaxValue, 0, context, ioException: e);
+-                results.Enqueue(result);
++            catch(IOException e){
++                this.CompleteFailure(result,(uint)(e.HResult&0x0000FFFF),e,pendingCounted,false);
++            }
++            catch(Exception e){
++                this.CompleteFailure(result,uint.MaxValue,e,pendingCounted,false);
+             }
+         }
+ 
+@@ -293,7 +299,12 @@
+                                       uint numBytesToWrite,
+                                       DeviceIOCompletionCallback callback,
+                                       object context)
+-        {
++            =>this.WriteAsyncCore(sourceAddress,segmentId,destinationAddress,numBytesToWrite,callback,context,null);
++
++        internal void WriteAsyncForRecovery(IntPtr sourceAddress,int segmentId,ulong destinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission)
++            =>this.WriteAsyncCore(sourceAddress,segmentId,destinationAddress,numBytesToWrite,callback,context,submission);
++
++        private void WriteAsyncCore(IntPtr sourceAddress,int segmentId,ulong destinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission){
+             HandleCapacity(segmentId);
+ 
+             if (!results.TryDequeue(out SimpleAsyncResult result))
+@@ -301,6 +312,7 @@
+                 result = new SimpleAsyncResult();
+                 result.overlapped = new Overlapped(0, 0, IntPtr.Zero, result);
+                 result.nativeOverlapped = result.overlapped.UnsafePack(_callback, IntPtr.Zero);
++                RecoveryCleanupDiagnostics.Allocated?.Invoke(this,(IntPtr)result.nativeOverlapped);
+             }
+ 
+             result.context = context;
+@@ -310,12 +322,15 @@
+             ovNative->OffsetLow = unchecked((int)(destinationAddress & 0xFFFFFFFF));
+             ovNative->OffsetHigh = unchecked((int)((destinationAddress >> 32) & 0xFFFFFFFF));
+ 
++            var pendingCounted=false;
+             try
+             {
+                 Interlocked.Increment(ref numPending);
++                pendingCounted=true;
+ 
+                 var logHandle = GetOrAddHandle(segmentId);
+ 
++                submission?.MarkMayHaveEscaped();
+                 bool _result = Native32.WriteFile(logHandle,
+                                         sourceAddress,
+                                         numBytesToWrite,
+@@ -331,20 +346,32 @@
+                     }
+                 }
+             }
+-            catch (IOException e)
+-            {
+-                logger?.LogCritical(e, $"{nameof(WriteAsync)}");
+-                Interlocked.Decrement(ref numPending);
+-                callback((uint)(e.HResult & 0x0000FFFF), 0, context, ioException: e);
+-                results.Enqueue(result);
+-            }
+-            catch (Exception e)
+-            {
+-                logger?.LogCritical(e, $"{nameof(WriteAsync)}");
+-                Interlocked.Decrement(ref numPending);
+-                callback(uint.MaxValue, 0, context, ioException: e);
+-                results.Enqueue(result);
+-            }
++            catch(IOException e){
++                this.CompleteFailure(result,(uint)(e.HResult&0x0000FFFF),e,pendingCounted,true);
++            }
++            catch(Exception e){
++                this.CompleteFailure(result,uint.MaxValue,e,pendingCounted,true);
++            }
++        }
++
++        // logger例外を保持し、呼出側の完了通知とresult返却も試行する。
++        private void CompleteFailure(SimpleAsyncResult result,uint errorCode,Exception issueError,bool pendingCounted,bool isWrite){
++            // failureをsuccessへ変えない。元ioException instanceはそのままcallbackへ渡す。
++            if(errorCode==0){errorCode=uint.MaxValue;}
++            Exception loggingError=null;
++            try{
++                if(isWrite){this.logger?.LogCritical(issueError,$"{nameof(WriteAsync)}");}
++                else{this.logger?.LogCritical(issueError,$"{nameof(ReadAsync)}");}
++            }catch(Exception error){loggingError=error;}
++            if(pendingCounted){Interlocked.Decrement(ref this.numPending);}
++            try{
++                try{result.callback(errorCode,0,result.context,ioException:issueError);}
++                finally{this.ReturnResult(result);}
++            }catch(Exception completionError){
++                if(loggingError is null){throw;}
++                RecoveryIoScope.AttachCleanupError(loggingError,completionError);
++            }
++            if(loggingError is not null){ExceptionDispatchInfo.Capture(loggingError).Throw();}
+         }
+ 
+         /// <summary>
+@@ -375,17 +402,41 @@
+         /// </summary>
+         public override void Dispose()
+         {
+-            if (_disposed)
+-                return;
+-            _disposed = true;
+-            foreach (var logHandle in logHandles.Values)
++            // client callback自身からDisposeできるよう、ここではjoinしない。完了済み結果は
++            // この場かcompletion末尾で解放し、閉鎖後にpoolへ追加しない。
++            lock(this.resultPoolGate){
++                if(this._disposed){
++                    return;
++                }
++                this._disposed=true;
++                while(this.results.TryDequeue(out var entry)){
++                    Overlapped.Free(entry.nativeOverlapped);
++                    RecoveryCleanupDiagnostics.Freed?.Invoke(this,(IntPtr)entry.nativeOverlapped);
++                }
++            }
++            foreach(var logHandle in this.logHandles.Values){
+                 logHandle.Dispose();
+-
+-            if (useIoCompletionPort)
+-                new SafeFileHandle(ioCompletionPort, true).Dispose();
+-
+-            while (results.TryDequeue(out var entry))
+-                Overlapped.Free(entry.nativeOverlapped);
++            }
++            if(this.useIoCompletionPort){
++                new SafeFileHandle(this.ioCompletionPort,true).Dispose();
++            }
++        }
++
++        internal int RecoveryDiagnosticPoolCount=>this.results.Count;
++        private void ReturnResult(SimpleAsyncResult result){
++            RecoveryCleanupDiagnostics.BeforeReturn?.Invoke(this);
++            try{
++                lock(this.resultPoolGate){
++                    if(this._disposed){
++                        Overlapped.Free(result.nativeOverlapped);
++                        RecoveryCleanupDiagnostics.Freed?.Invoke(this,(IntPtr)result.nativeOverlapped);
++                    }else{
++                        this.results.Enqueue(result);
++                    }
++                }
++            }finally{
++                RecoveryCleanupDiagnostics.AfterReturn?.Invoke(this);
++            }
+         }
+ 
+         /// <inheritdoc/>
+--- a/libs/storage/Tsavorite/cs/src/core/Device/NativeStorageDevice.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Device/NativeStorageDevice.cs
+@@ -1684,7 +1684,12 @@
+                                      uint readLength,
+                                      DeviceIOCompletionCallback callback,
+                                      object context)
+-        {
++            =>this.ReadAsyncCore(segmentId,sourceAddress,destinationAddress,readLength,callback,context,null);
++
++        internal void ReadAsyncForRecovery(int segmentId,ulong sourceAddress,IntPtr destinationAddress,uint readLength,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission)
++            =>this.ReadAsyncCore(segmentId,sourceAddress,destinationAddress,readLength,callback,context,submission);
++
++        private void ReadAsyncCore(int segmentId,ulong sourceAddress,IntPtr destinationAddress,uint readLength,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission){
+             if (Volatile.Read(ref disposedFlag) != 0)
+                 throw new ObjectDisposedException(nameof(NativeStorageDevice));
+             EnsureNativeDeviceCreated();
+@@ -1728,6 +1733,7 @@
+             {
+                 try
+                 {
++                    submission?.MarkMayHaveEscaped();
+                     int _result = NativeDevice_ReadAsync(nativeDevice, ((ulong)segmentId << segmentSizeBits) | sourceAddress, destinationAddress, readLength, _callbackDelegate, (IntPtr)offset);
+ 
+                     if (_result != 0)
+@@ -1773,7 +1779,12 @@
+                                       uint numBytesToWrite,
+                                       DeviceIOCompletionCallback callback,
+                                       object context)
+-        {
++            =>this.WriteAsyncCore(sourceAddress,segmentId,destinationAddress,numBytesToWrite,callback,context,null);
++
++        internal void WriteAsyncForRecovery(IntPtr sourceAddress,int segmentId,ulong destinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission)
++            =>this.WriteAsyncCore(sourceAddress,segmentId,destinationAddress,numBytesToWrite,callback,context,submission);
++
++        private void WriteAsyncCore(IntPtr sourceAddress,int segmentId,ulong destinationAddress,uint numBytesToWrite,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission){
+             if (Volatile.Read(ref disposedFlag) != 0)
+                 throw new ObjectDisposedException(nameof(NativeStorageDevice));
+             EnsureNativeDeviceCreated();
+@@ -1805,6 +1816,7 @@
+             {
+                 try
+                 {
++                    submission?.MarkMayHaveEscaped();
+                     int _result = NativeDevice_WriteAsync(nativeDevice, sourceAddress, ((ulong)segmentId << segmentSizeBits) | destinationAddress, numBytesToWrite, _callbackDelegate, (IntPtr)offset);
+ 
+                     if (_result != 0)
+--- a/libs/storage/Tsavorite/cs/src/core/Device/RandomAccessLocalStorageDevice.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Device/RandomAccessLocalStorageDevice.cs
+@@ -323,6 +323,144 @@
+             }
+         }
+ 
++        // recovery専用。公開entry/既存workerの例外・callback挙動は変更しない。
++        internal void ReadAsyncForRecovery(int segmentId,ulong address,IntPtr destination,uint length,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission){
++            this.ThrowIfDisposedForRecovery();
++            using(ExecutionContext.SuppressFlow()){
++                // worker開始自体が遅延I/Oの所有者を作り得るため、その前に単調markerを立てる。
++                submission.MarkMayHaveEscaped();
++                ConsumeRecoveryWorker(this.RecoveryReadWriteWorkerAsync(segmentId,address,destination,length,callback,context,false));
++            }
++        }
++        internal void WriteAsyncForRecovery(IntPtr source,int segmentId,ulong address,uint length,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission){
++            this.ThrowIfDisposedForRecovery();
++            using(ExecutionContext.SuppressFlow()){
++                submission.MarkMayHaveEscaped();
++                ConsumeRecoveryWorker(this.RecoveryReadWriteWorkerAsync(segmentId,address,source,length,callback,context,true));
++            }
++        }
++        private void ThrowIfDisposedForRecovery(){
++            if(Volatile.Read(ref this._disposed)){throw new ObjectDisposedException(nameof(RandomAccessLocalStorageDevice));}
++        }
++        private static void ConsumeRecoveryWorker(ValueTask worker){
++            // Pooling builderのboxを含め、一度だけ消費する。同期faultは元entryへ返す。
++            if(worker.IsCompleted){worker.GetAwaiter().GetResult();}
++            else{_=ConsumePendingRecoveryWorkerAsync(worker);}
++        }
++        private static async Task ConsumePendingRecoveryWorkerAsync(ValueTask worker){
++            try{await worker.ConfigureAwait(false);}
++            // 非同期callback CはCompletedがdrain成立前に既存scopeへ記録する。
++            // Scope側C伝達patchとの組合せを必須とし、ここではpooling boxの返却を完遂する。
++            catch(Exception){}
++        }
++        private RecoveryUnresolvedSubmission recoveryUnresolved;
++        private sealed class RecoveryUnresolvedSubmission{
++            internal readonly SafeFileHandle Handle;
++            internal readonly UnmanagedMemoryManager<byte> MemoryManager;
++            internal readonly DeviceIOCompletionCallback Callback;
++            internal readonly object Context;
++            internal Exception Error;
++            internal RecoveryUnresolvedSubmission Next;
++            internal RecoveryUnresolvedSubmission(SafeFileHandle handle,UnmanagedMemoryManager<byte> memoryManager,DeviceIOCompletionCallback callback,object context){
++                this.Handle=handle;
++                this.MemoryManager=memoryManager;
++                this.Callback=callback;
++                this.Context=context;
++            }
++        }
++        private void RetainRecoverySubmission(RecoveryUnresolvedSubmission submission){
++            // 外部呼出前にrecordを用意する。unknown後はallocation/解放/追加callbackを行わない。
++            while(true){
++                var observed=Volatile.Read(ref this.recoveryUnresolved);
++                submission.Next=observed;
++                if(ReferenceEquals(Interlocked.CompareExchange(ref this.recoveryUnresolved,submission,observed),observed)){return;}
++            }
++        }
++        private static uint RecoveryFailureCode(Exception error){
++            var ioError=error as IOException;
++            if(ioError is null){ioError=error.InnerException as IOException;}
++            if(ioError is not null){
++                var code=(uint)(ioError.HResult&0x0000FFFF);
++                if(code!=0){return code;}
++            }
++            return uint.MaxValue;
++        }
++        private static void MergeRecoveryCleanupError(ref Exception primary,Exception cleanup,ref uint errorCode,ref uint numBytes){
++            if(primary is null){
++                primary=cleanup;
++                errorCode=RecoveryFailureCode(cleanup);
++                numBytes=0;
++            }else{
++                RecoveryIoScope.AttachCleanupError(primary,cleanup);
++            }
++        }
++        [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder))]
++        private async ValueTask RecoveryReadWriteWorkerAsync(int segmentId,ulong address,IntPtr buffer,uint length,DeviceIOCompletionCallback callback,object context,bool write){
++            uint errorCode=0;
++            uint numBytes=0;
++            Exception completionException=null;
++            var pendingCounted=false;
++            var externalCallInProgress=false;
++            var unknownSubmission=false;
++            RecoveryUnresolvedSubmission unresolved=null;
++            UnmanagedMemoryManager<byte> memoryManager=null;
++            try{
++                // 公開write workerのpre-try faultをrecoveryへ持ち込まず、必ずfailure callbackへ通知する。
++                if(write){this.HandleCapacity(segmentId);}
++                Interlocked.Increment(ref this.numPending);
++                pendingCounted=true;
++                var handles=this.GetOrAddHandle(segmentId);
++                SafeFileHandle handle;
++                if(write){handle=handles.WriteHandle;}else{handle=handles.ReadHandle;}
++                unsafe{memoryManager=this.RentUmm((byte*)buffer,(int)length);}
++                var memory=memoryManager.Memory;
++                unresolved=new RecoveryUnresolvedSubmission(handle,memoryManager,callback,context);
++                if(write){
++                    externalCallInProgress=true;
++                    var operation=RandomAccess.WriteAsync(handle,memory,(long)address);
++                    externalCallInProgress=false;
++                    await operation.ConfigureAwait(false);
++                    numBytes=length;
++                }else{
++                    externalCallInProgress=true;
++                    var operation=RandomAccess.ReadAsync(handle,memory,(long)address);
++                    externalCallInProgress=false;
++                    numBytes=(uint)await operation.ConfigureAwait(false);
++                }
++            }catch(Exception issueError){
++                if(externalCallInProgress){
++                    // ValueTask未取得の同期throwは受理不明。future I/Oの不在を推測しない。
++                    unknownSubmission=true;
++                    unresolved.Error=issueError;
++                    this.RetainRecoverySubmission(unresolved);
++                    throw;
++                }
++                // loggerより先に元のfailureを確定し、logger faultをsuccess通知へ変えない。
++                completionException=issueError;
++                errorCode=RecoveryFailureCode(issueError);
++                numBytes=0;
++                try{
++                    if(write){this.logger?.LogCritical(issueError,$"{nameof(WriteAsync)}");}
++                    else{this.logger?.LogCritical(issueError,$"{nameof(ReadAsync)}");}
++                }catch(Exception loggingError){
++                    RecoveryIoScope.AttachCleanupError(completionException,loggingError);
++                }
++            }finally{
++                if(!unknownSubmission){
++                try{
++                    if(memoryManager is not null){this.ummPool.Enqueue(memoryManager);}
++                }catch(Exception returnError){
++                    MergeRecoveryCleanupError(ref completionException,returnError,ref errorCode,ref numBytes);
++                }finally{
++                    // cleanup/secondary記録がthrowしても、所有したcountとcaller callbackの回収は試す。
++                    if(pendingCounted){Interlocked.Decrement(ref this.numPending);}
++                    callback(errorCode,numBytes,context,ioException:completionException);
++                    // callback後はbuffer/MM/handleを再アクセスしない。
++                }
++                }
++            }
++        }
++
+         /// <summary>
+         /// Rent a wrapper from <see cref="ummPool"/> (or allocate one if the pool is empty)
+         /// and bind it to the given unmanaged buffer. Caller must <c>Enqueue</c> back to
+--- /dev/null
++++ b/libs/storage/Tsavorite/cs/src/core/Device/RecoveryCleanupDiagnostics.cs
+@@ -0,0 +1,11 @@
++// Copyright (c) Microsoft Corporation.
++// Licensed under the MIT license.
++using System;
++namespace Tsavorite.core;
++// この新artifactだけの決定的barrier。製品candidateには含めない。
++internal static class RecoveryCleanupDiagnostics{
++    internal static Action<LocalStorageDevice,IntPtr> Allocated{get;set;}
++    internal static Action<LocalStorageDevice,IntPtr> Freed{get;set;}
++    internal static Action<LocalStorageDevice> BeforeReturn{get;set;}
++    internal static Action<LocalStorageDevice> AfterReturn{get;set;}
++}
+--- /dev/null
++++ b/libs/storage/Tsavorite/cs/src/core/Device/RecoverySubmissionAdapter.cs
+@@ -0,0 +1,54 @@
++// Copyright (c) Microsoft Corporation.
++// Licensed under the MIT license.
++using System;
++namespace Tsavorite.core;
++
++// markerは操作固有で単調に変化し、受付の証明ではない。
++// trusted adapterは外部APIや遅延所有者へ引き渡す前にmarkerを設定する。
++internal interface IRecoverySubmission{
++    void MarkMayHaveEscaped();
++}
++
++internal abstract class RecoverySubmissionAdapter(StorageDeviceBase device){
++    internal static RecoverySubmissionAdapter TryCreate(IDevice inner){
++        // exact typeは派生型のvirtual overrideを迂回せずprivate Core経路を選択する。
++        // 拒否時の安全性は型判定ではなく操作のmarkerで判断する。
++        if(inner.GetType()==typeof(NativeStorageDevice)){return new NativeAdapter((NativeStorageDevice)inner);}
++        if(inner.GetType()==typeof(LocalStorageDevice)&&OperatingSystem.IsWindows()){return new LocalAdapter((LocalStorageDevice)inner);}
++        if(inner.GetType()==typeof(RandomAccessLocalStorageDevice)){return new RandomAccessAdapter((RandomAccessLocalStorageDevice)inner);}
++        return null;
++    }
++    internal abstract void ReadAsync(int segment,ulong address,IntPtr destination,uint length,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission);
++    internal abstract void WriteAsync(IntPtr source,int segment,ulong address,uint length,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission);
++    internal void ReadAsync(ulong address,IntPtr destination,uint length,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission){
++        device.ResolveAddressForRecovery(address,out var segment,out var offset);
++        this.ReadAsync(segment,offset,destination,length,callback,context,submission);
++    }
++    internal void WriteAsync(IntPtr source,ulong address,uint length,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission){
++        device.ResolveAddressForRecovery(address,out var segment,out var offset);
++        this.WriteAsync(source,segment,offset,length,callback,context,submission);
++    }
++    private sealed class NativeAdapter(NativeStorageDevice device):RecoverySubmissionAdapter(device){
++        internal override void ReadAsync(int segment,ulong address,IntPtr destination,uint length,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission)
++            =>device.ReadAsyncForRecovery(segment,address,destination,length,callback,context,submission);
++        internal override void WriteAsync(IntPtr source,int segment,ulong address,uint length,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission)
++            =>device.WriteAsyncForRecovery(source,segment,address,length,callback,context,submission);
++    }
++    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
++    private sealed class LocalAdapter:RecoverySubmissionAdapter{
++        private readonly LocalStorageDevice device;
++        internal LocalAdapter(LocalStorageDevice device):base(device){this.device=device;}
++        internal override void ReadAsync(int segment,ulong address,IntPtr destination,uint length,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission)
++            =>this.device.ReadAsyncForRecovery(segment,address,destination,length,callback,context,submission);
++        internal override void WriteAsync(IntPtr source,int segment,ulong address,uint length,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission)
++            =>this.device.WriteAsyncForRecovery(source,segment,address,length,callback,context,submission);
++    }
++    private sealed class RandomAccessAdapter:RecoverySubmissionAdapter{
++        private readonly RandomAccessLocalStorageDevice device;
++        internal RandomAccessAdapter(RandomAccessLocalStorageDevice device):base(device){this.device=device;}
++        internal override void ReadAsync(int segment,ulong address,IntPtr destination,uint length,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission)
++            =>this.device.ReadAsyncForRecovery(segment,address,destination,length,callback,context,submission);
++        internal override void WriteAsync(IntPtr source,int segment,ulong address,uint length,DeviceIOCompletionCallback callback,object context,IRecoverySubmission submission)
++            =>this.device.WriteAsyncForRecovery(source,segment,address,length,callback,context,submission);
++    }
++}
+--- a/libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs
+@@ -168,6 +168,13 @@
+         /// <returns></returns>
+         public virtual bool Throttle() => false;
+ 
++        // 既存のpublic direct-address overloadと同じフィールドと順序を使う。
++        internal void ResolveAddressForRecovery(ulong address,out int segment,out ulong offset){
++            segment=0;
++            if(this.segmentSizeBits<64){segment=(int)(address>>this.segmentSizeBits);}
++            offset=address&this.segmentSizeMask;
++        }
++
+         /// <summary>
+         /// Write operation; compute the segment id and call the IDevice implementation.
+         /// </summary>
+--- a/libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs
+@@ -22,6 +22,7 @@
+         /// the address range of the snapshot file (i.e. the page at the snapshot file's offset 0). This field is populated
+         /// from <see cref="HybridLogRecoveryInfo.snapshotStartFlushedLogicalAddress"/>.</summary>
+         public long recoveryDevicePageOffset;
++        internal readonly RecoveryIoScope Io = new();
+         /// <summary>Object log recovery device, obtained from CheckpointManager.</summary>
+         public IDevice objectLogRecoveryDevice;
+ 
+@@ -116,12 +117,33 @@
+                 throw new TsavoriteException($"Error flushing page {pageIndex} to device");
+         }
+ 
+-        internal void Dispose()
+-        {
+-            recoveryDevice.Dispose();
+-            objectLogRecoveryDevice?.Dispose();
+-            readSemaphore.Dispose();
+-            flushSemaphore.Dispose();
++        internal async ValueTask CleanupAsync(Exception primary)
++        {
++            // 発行元は終了済み。callback内の子I/Oは最後の資源アクセスまで登録を維持する。
++            await Io.CloseAndDrainAsync().ConfigureAwait(false);
++            var errors = Io.GetCleanupErrors();
++            void Close(Action action)
++            {
++                try { action(); }
++                catch (Exception error) { errors.Add(error); }
++            }
++            Close(() => recoveryDevice?.Dispose());
++            if (!ReferenceEquals(objectLogRecoveryDevice, recoveryDevice))
++                Close(() => objectLogRecoveryDevice?.Dispose());
++            Close(readSemaphore.Dispose);
++            Close(flushSemaphore.Dispose);
++            // noarg内部ABIを保ち、primary自身をsecondaryへ再追加しない。
++            if(primary is not null){
++                for(var i=errors.Count-1;i>=0;i--){if(ReferenceEquals(errors[i],primary)){errors.RemoveAt(i);}}
++            }
++            if (errors.Count != 0)
++            {
++                var cleanup = new AggregateException("Recovery cleanup failures", errors);
++                if (primary is not null)
++                    RecoveryIoScope.AttachCleanupError(primary, cleanup);
++                else
++                    throw cleanup;
++            }
+         }
+     }
+ 
+@@ -814,53 +836,68 @@
+             CheckpointType checkpointType, long headAddress, RecoveryOptions options, CancellationToken cancellationToken)
+         {
+             var recoveryStatus = GetPageRangesToRead(scanFromAddress, untilAddress, checkpointType, out long startPage, out long endPage, out int numPagesToReadPerIteration);
+-            recoveryStatus.headAddress = headAddress;
+-
+-            // Free any pages still allocated below startPage before reading. The store is freshly constructed for recovery with the allocator's minimum
+-            // pages allocated at page 0 (Head=Begin=Tail=0); when the checkpoint's BeginAddress is above page 0 those low pages lie below the first page we
+-            // read (startPage), and the upward-only read/eviction never reaches them. Freeing them up front keeps them out of AllocatedPageCount for the
+-            // whole budget-checked recovery, instead of carrying the dead pages through every budget check and reclaiming them at the end.
+-            for (var deadPage = 0L; deadPage < startPage && deadPage < hlogBase.BufferSize; deadPage++)
+-            {
+-                if (hlogBase.IsAllocated(hlogBase.GetPageIndexForPage(deadPage)))
+-                    hlogBase.EvictPageForRecovery(deadPage);
+-            }
+-
+-            if (untilAddress <= scanFromAddress)
++            Exception primary = null;
++            try
++            {
++                recoveryStatus.headAddress = headAddress;
++
++                // Free any pages still allocated below startPage before reading. The store is freshly constructed for recovery with the allocator's minimum
++                // pages allocated at page 0 (Head=Begin=Tail=0); when the checkpoint's BeginAddress is above page 0 those low pages lie below the first page we
++                // read (startPage), and the upward-only read/eviction never reaches them. Freeing them up front keeps them out of AllocatedPageCount for the
++                // whole budget-checked recovery, instead of carrying the dead pages through every budget check and reclaiming them at the end.
++                for (var deadPage = 0L; deadPage < startPage && deadPage < hlogBase.BufferSize; deadPage++)
++                {
++                    if (hlogBase.IsAllocated(hlogBase.GetPageIndexForPage(deadPage)))
++                        hlogBase.EvictPageForRecovery(deadPage);
++                }
++
++                if (untilAddress <= scanFromAddress)
++                    return recoveryStatus;
++
++                for (long page = startPage; page < endPage; page += numPagesToReadPerIteration)
++                {
++                    var end = await ReadPagesForRecoveryAsync(untilAddress, recoveryStatus, endPage, numPagesToReadPerIteration, page, cancellationToken).ConfigureAwait(false);
++                    for (var p = page; p < end; p++)
++                    {
++                        // Ensure page has been read into memory
++                        var pageIndex = hlogBase.GetPageIndexForPage(p);
++                        await recoveryStatus.WaitReadAsync(pageIndex, cancellationToken).ConfigureAwait(false);
++
++                        // We make an extra pass to clear locks when reading every page back into memory
++                        ClearBitsOnPage(p, untilAddress, in options, recoveryStatus.headAddress);
++                        ProcessReadPageAndFlush(scanFromAddress, recoverFromAddress, untilAddress, nextVersion, in options, recoveryStatus, p, pageIndex);
++
++                        // Pages below the resident head were read only to rebuild the index. Release them
++                        // after any undo flush so their circular-buffer slots cannot retain old records
++                        // when later reused for pages beyond the recovered tail.
++                        if (p < hlogBase.GetPage(recoveryStatus.headAddress) && hlogBase.IsAllocated(pageIndex))
++                            FlushIfNeededThenEvictPageForRecovery(recoveryStatus, p);
++                    }
++                }
++
++                await WaitUntilAllPagesHaveBeenFlushedAsync(startPage, endPage, recoveryStatus, cancellationToken).ConfigureAwait(false);
++
++                // Defer object loading when this is the hybrid-log phase of a snapshot recovery; RecoverHybridLogFromSnapshotFileAsync
++                // loads the objects once after the snapshot pages have also been read (without their objects), so the final headAddress
++                // (after eviction over the full recovered range) is honored. For FoldOver there is no following snapshot phase.
++                if (checkpointType != CheckpointType.Snapshot)
++                {
++                    RecoveryLoadObjectsPass2(recoveryStatus, recoveryStatus.headAddress, untilAddress, snapshotObjectLogDevice: null, snapshotBoundaryPage: long.MaxValue);
++                    TrimResidentPagesToBudget(recoveryStatus, untilAddress);
++                }
+                 return recoveryStatus;
+-
+-            for (long page = startPage; page < endPage; page += numPagesToReadPerIteration)
+-            {
+-                var end = await ReadPagesForRecoveryAsync(untilAddress, recoveryStatus, endPage, numPagesToReadPerIteration, page, cancellationToken).ConfigureAwait(false);
+-                for (var p = page; p < end; p++)
+-                {
+-                    // Ensure page has been read into memory
+-                    var pageIndex = hlogBase.GetPageIndexForPage(p);
+-                    await recoveryStatus.WaitReadAsync(pageIndex, cancellationToken).ConfigureAwait(false);
+-
+-                    // We make an extra pass to clear locks when reading every page back into memory
+-                    ClearBitsOnPage(p, untilAddress, in options, recoveryStatus.headAddress);
+-                    ProcessReadPageAndFlush(scanFromAddress, recoverFromAddress, untilAddress, nextVersion, in options, recoveryStatus, p, pageIndex);
+-
+-                    // Pages below the resident head were read only to rebuild the index. Release them
+-                    // after any undo flush so their circular-buffer slots cannot retain old records
+-                    // when later reused for pages beyond the recovered tail.
+-                    if (p < hlogBase.GetPage(recoveryStatus.headAddress) && hlogBase.IsAllocated(pageIndex))
+-                        FlushIfNeededThenEvictPageForRecovery(recoveryStatus, p);
+-                }
+-            }
+-
+-            await WaitUntilAllPagesHaveBeenFlushedAsync(startPage, endPage, recoveryStatus, cancellationToken).ConfigureAwait(false);
+-
+-            // Defer object loading when this is the hybrid-log phase of a snapshot recovery; RecoverHybridLogFromSnapshotFileAsync
+-            // loads the objects once after the snapshot pages have also been read (without their objects), so the final headAddress
+-            // (after eviction over the full recovered range) is honored. For FoldOver there is no following snapshot phase.
+-            if (checkpointType != CheckpointType.Snapshot)
+-            {
+-                RecoveryLoadObjectsPass2(recoveryStatus, recoveryStatus.headAddress, untilAddress, snapshotObjectLogDevice: null, snapshotBoundaryPage: long.MaxValue);
+-                TrimResidentPagesToBudget(recoveryStatus, untilAddress);
+-            }
+-            return recoveryStatus;
++            
++            }
++            catch (Exception error)
++            {
++                primary = error;
++                throw;
++            }
++            finally
++            {
++                if (recoveryStatus is not null)
++                    await recoveryStatus.CleanupAsync(primary).ConfigureAwait(false);
++            }
+         }
+ 
+         /// <summary>
+@@ -985,69 +1022,84 @@
+             long snapshotStartAddress, long snapshotEndAddress, long nextVersion, Guid guid, long headAddress, RecoveryOptions options,
+             CancellationToken cancellationToken)
+         {
+-            GetSnapshotPageRangesToRead(scanFromAddress, untilAddress, snapshotStartAddress, snapshotEndAddress, guid, out long startPage,
+-                out long endPage, out long snapshotEndPage, out var recoveryStatus, out int numPagesToReadPerIteration);
+-
+-            // Seed the head from the preceding hybrid-log phase so the snapshot-read loop (TrimLogPages) and the deferred object load
+-            // evict from, and track, the correct lowest-resident address across the full recovered range.
+-            recoveryStatus.headAddress = headAddress;
+-
+-            // Mark this as snapshot recovery: eviction (read-time and load-time) must flush a snapshot-region page to the main log before freeing
+-            // it (FlushIfNeededThenEvictPageForRecovery), since it was read from the snapshot file and is not otherwise durable. scanFromAddress is
+-            // the hybrid-log/snapshot boundary; pages at or above its page are the snapshot region (read from the snapshot device without their
+-            // objects), pages strictly below it are the hybrid-log region (already durable on the main log/object-log).
+-            recoveryStatus.snapshotScanFromAddress = scanFromAddress;
+-            var snapshotBoundaryPage = hlogBase.GetPage(scanFromAddress);
+-
+-            // Notify application of checkpoint token before processing snapshot records
+-            if (storeFunctions.CallOnDiskRead)
+-                storeFunctions.OnRecovery(guid);
+-
+-            for (long page = startPage; page < endPage; page += numPagesToReadPerIteration)
+-            {
+-                _ = await ReadPagesForRecoveryAsync(snapshotEndAddress, recoveryStatus, snapshotEndPage, numPagesToReadPerIteration, page, cancellationToken).ConfigureAwait(false);
+-                var end = Math.Min(page + numPagesToReadPerIteration, endPage);
+-
+-                for (long p = page; p < end; p++)
+-                {
+-                    int pageIndex = hlogBase.GetPageIndexForPage(p);
+-                    if (p < snapshotEndPage)
++            RecoveryStatus recoveryStatus = null;
++            Exception primary = null;
++            try
++            {
++                GetSnapshotPageRangesToRead(scanFromAddress, untilAddress, snapshotStartAddress, snapshotEndAddress, guid, out long startPage,
++                    out long endPage, out long snapshotEndPage, out recoveryStatus, out int numPagesToReadPerIteration);
++
++                // Seed the head from the preceding hybrid-log phase so the snapshot-read loop (TrimLogPages) and the deferred object load
++                // evict from, and track, the correct lowest-resident address across the full recovered range.
++                recoveryStatus.headAddress = headAddress;
++
++                // Mark this as snapshot recovery: eviction (read-time and load-time) must flush a snapshot-region page to the main log before freeing
++                // it (FlushIfNeededThenEvictPageForRecovery), since it was read from the snapshot file and is not otherwise durable. scanFromAddress is
++                // the hybrid-log/snapshot boundary; pages at or above its page are the snapshot region (read from the snapshot device without their
++                // objects), pages strictly below it are the hybrid-log region (already durable on the main log/object-log).
++                recoveryStatus.snapshotScanFromAddress = scanFromAddress;
++                var snapshotBoundaryPage = hlogBase.GetPage(scanFromAddress);
++
++                // Notify application of checkpoint token before processing snapshot records
++                if (storeFunctions.CallOnDiskRead)
++                    storeFunctions.OnRecovery(guid);
++
++                for (long page = startPage; page < endPage; page += numPagesToReadPerIteration)
++                {
++                    _ = await ReadPagesForRecoveryAsync(snapshotEndAddress, recoveryStatus, snapshotEndPage, numPagesToReadPerIteration, page, cancellationToken).ConfigureAwait(false);
++                    var end = Math.Min(page + numPagesToReadPerIteration, endPage);
++
++                    for (long p = page; p < end; p++)
+                     {
+-                        // Ensure the page is read from file
+-                        await recoveryStatus.WaitReadAsync(pageIndex, cancellationToken).ConfigureAwait(false);
+-
+-                        // We make an extra pass to clear locks when reading pages back into memory
+-                        ClearBitsOnPage(p, untilAddress, in options, recoveryStatus.headAddress, snapshotFromAddress: scanFromAddress);
++                        int pageIndex = hlogBase.GetPageIndexForPage(p);
++                        if (p < snapshotEndPage)
++                        {
++                            // Ensure the page is read from file
++                            await recoveryStatus.WaitReadAsync(pageIndex, cancellationToken).ConfigureAwait(false);
++
++                            // We make an extra pass to clear locks when reading pages back into memory
++                            ClearBitsOnPage(p, untilAddress, in options, recoveryStatus.headAddress, snapshotFromAddress: scanFromAddress);
++                        }
++                        else
++                        {
++                            await recoveryStatus.WaitFlushAsync(pageIndex, cancellationToken).ConfigureAwait(false);
++                            if (!hlogBase.IsAllocated(pageIndex))
++                                hlog.AllocatePage(pageIndex);
++                            else
++                                hlogBase.ClearPage(pageIndex);
++                        }
+                     }
+-                    else
+-                    {
+-                        await recoveryStatus.WaitFlushAsync(pageIndex, cancellationToken).ConfigureAwait(false);
+-                        if (!hlogBase.IsAllocated(pageIndex))
+-                            hlog.AllocatePage(pageIndex);
+-                        else
+-                            hlogBase.ClearPage(pageIndex);
+-                    }
+-                }
+-
+-                RecoverSnapshotPages(recoverFromAddress, untilAddress, nextVersion, in options, recoveryStatus, page, end);
+-            }
+-
+-            await WaitUntilAllPagesHaveBeenFlushedAsync(startPage, endPage, recoveryStatus, cancellationToken).ConfigureAwait(false);
+-
+-            // Deferred object load: a single top-down pass over the full recovered range [headAddress, untilAddress), evicting bottom-up to honor the
+-            // memory budget and flushing any evicted snapshot page to the main log first. Records on snapshot-region pages (snapshotBoundaryPage and above)
+-            // still carry their snapshot object-log positions, so their objects are read from the snapshot object-log device; hybrid-log-region pages (below
+-            // the boundary) reference the main object-log (null device). The device is selected per page inside the pass. This leaves a clean, unbroken set
+-            // of resident pages down to headAddress with their objects loaded.
+-            RecoveryLoadObjectsPass2(recoveryStatus, recoveryStatus.headAddress, untilAddress, recoveryStatus.objectLogRecoveryDevice, snapshotBoundaryPage);
+-
+-            // Bring AllocatedPageCount within the hard MaxAllocatedPageCount cap for object-free pages (see TrimResidentPagesToBudget): the per-batch
+-            // read-time trim targets the delta-padded highTargetSize and does not run after the final batch, so an inline store can settle one page over.
+-            TrimResidentPagesToBudget(recoveryStatus, untilAddress);
+-
+-            var finalHeadAddress = recoveryStatus.headAddress;
+-            recoveryStatus.Dispose();
+-            return finalHeadAddress;
++
++                    RecoverSnapshotPages(recoverFromAddress, untilAddress, nextVersion, in options, recoveryStatus, page, end);
++                }
++
++                await WaitUntilAllPagesHaveBeenFlushedAsync(startPage, endPage, recoveryStatus, cancellationToken).ConfigureAwait(false);
++
++                // Deferred object load: a single top-down pass over the full recovered range [headAddress, untilAddress), evicting bottom-up to honor the
++                // memory budget and flushing any evicted snapshot page to the main log first. Records on snapshot-region pages (snapshotBoundaryPage and above)
++                // still carry their snapshot object-log positions, so their objects are read from the snapshot object-log device; hybrid-log-region pages (below
++                // the boundary) reference the main object-log (null device). The device is selected per page inside the pass. This leaves a clean, unbroken set
++                // of resident pages down to headAddress with their objects loaded.
++                RecoveryLoadObjectsPass2(recoveryStatus, recoveryStatus.headAddress, untilAddress, recoveryStatus.objectLogRecoveryDevice, snapshotBoundaryPage);
++
++                // Bring AllocatedPageCount within the hard MaxAllocatedPageCount cap for object-free pages (see TrimResidentPagesToBudget): the per-batch
++                // read-time trim targets the delta-padded highTargetSize and does not run after the final batch, so an inline store can settle one page over.
++                TrimResidentPagesToBudget(recoveryStatus, untilAddress);
++
++                var finalHeadAddress = recoveryStatus.headAddress;
++                return finalHeadAddress;
++            
++            }
++            catch (Exception error)
++            {
++                primary = error;
++                throw;
++            }
++            finally
++            {
++                if (recoveryStatus is not null)
++                    await recoveryStatus.CleanupAsync(primary).ConfigureAwait(false);
++            }
+         }
+ 
+         /// <summary>
+@@ -1083,7 +1135,7 @@
+                     var objectLogDevice = page >= snapshotBoundaryPage ? snapshotObjectLogDevice : null;
+                     var pageFromAddress = page == startPage ? fromAddress : hlogBase.GetFirstValidLogicalAddressOnPage(page);
+                     var pageUntilAddress = page == endPage - 1 ? untilAddress : hlogBase.GetLogicalAddressOfStartOfPage(page + 1);
+-                    hlogBase.LoadObjectsForRecoveryPass2(page, pageFromAddress, pageUntilAddress, objectLogDevice);
++                    hlogBase.LoadObjectsForRecoveryPass2(page, pageFromAddress, pageUntilAddress, objectLogDevice, recoveryStatus.Io);
+                 }
+                 return;
+             }
+@@ -1111,7 +1163,7 @@
+                 var totalPageObjectSize = hlogBase.CalculatePageObjectSizes(page, pageFromAddress, pageUntilAddress);
+                 if (totalPageObjectSize == 0)
+                 {
+-                    hlogBase.LoadObjectsForRecoveryPass2(page, pageFromAddress, pageUntilAddress, objectLogDevice);
++                    hlogBase.LoadObjectsForRecoveryPass2(page, pageFromAddress, pageUntilAddress, objectLogDevice, recoveryStatus.Io);
+                     continue;
+                 }
+ 
+@@ -1139,7 +1191,7 @@
+ 
+                 // Load objects, using per-record budget checking via DeserializeObjectsOnPage.
+                 // The method handles all records from pageCutoff to pageUntilAddress.
+-                hlogBase.LoadObjectsForRecoveryPass2(page, pageCutoff, pageUntilAddress, objectLogDevice);
++                hlogBase.LoadObjectsForRecoveryPass2(page, pageCutoff, pageUntilAddress, objectLogDevice, recoveryStatus.Io);
+ 
+                 // After loading, recheck budget. If over budget, evict from headAddress up to and including loaded records.
+                 if (hlogBase.logSizeTracker.IsOverBudget && recoveryStatus.headAddress < maxHeadAddress)
+@@ -1219,17 +1271,13 @@
+                 snapshotEndPage++;
+ 
+             // By default first page has one extra record
+-            var recoveryDevice = checkpointManager.GetSnapshotLogDevice(guid);
+-            var objectLogRecoveryDevice = hlogBase._wrapper.HasObjectLog ? checkpointManager.GetSnapshotObjectLogDevice(guid) : null;
+-
+-            recoveryDevice.Initialize(hlogBase.GetMainLogSegmentSize());
+-            objectLogRecoveryDevice?.Initialize(hlogBase.GetObjectLogSegmentSize());
+-            recoveryStatus = new RecoveryStatus(hlogBase.BufferSize)
+-            {
+-                recoveryDevice = recoveryDevice,
+-                objectLogRecoveryDevice = objectLogRecoveryDevice,
+-                recoveryDevicePageOffset = snapshotStartPage
+-            };
++            recoveryStatus = new RecoveryStatus(hlogBase.BufferSize);
++            recoveryStatus.recoveryDevice = checkpointManager.GetSnapshotLogDevice(guid);
++            if (hlogBase._wrapper.HasObjectLog)
++                recoveryStatus.objectLogRecoveryDevice = checkpointManager.GetSnapshotObjectLogDevice(guid);
++            recoveryStatus.recoveryDevice.Initialize(hlogBase.GetMainLogSegmentSize());
++            recoveryStatus.objectLogRecoveryDevice?.Initialize(hlogBase.GetObjectLogSegmentSize());
++            recoveryStatus.recoveryDevicePageOffset = snapshotStartPage;
+ 
+             // Read as many pages as buffer allows, leaving room for at least 1 page for eviction.
+             numPagesToReadPerIteration = Math.Min(hlogBase.BufferSize - 1, (int)(endPage - startPage));
+@@ -1421,13 +1469,29 @@
+         /// <param name="numPagesToPreload">Number of pages to preload into memory after recovery</param>
+         public void RestoreHybridLog(long beginAddress, long headAddress, long fromAddress, long untilAddress, int numPagesToPreload = -1)
+         {
+-            if (RestoreHybridLogInitializePages(beginAddress, headAddress, fromAddress, untilAddress, numPagesToPreload, out var recoveryStatus, out long headPage, out long fromPage))
+-            {
+-                for (long page = headPage; page <= fromPage; page++)
+-                    recoveryStatus.WaitRead(GetPageIndexForPage(page));
+-            }
+-
+-            RecoveryReset(untilAddress, headAddress, beginAddress, untilAddress);
++            RecoveryStatus recoveryStatus = null;
++            Exception primary = null;
++            try
++            {
++                if (RestoreHybridLogInitializePages(beginAddress, headAddress, fromAddress, untilAddress, numPagesToPreload, out recoveryStatus, out long headPage, out long fromPage))
++                {
++                    for (long page = headPage; page <= fromPage; page++)
++                        recoveryStatus.WaitRead(GetPageIndexForPage(page));
++                }
++
++                RecoveryReset(untilAddress, headAddress, beginAddress, untilAddress);
++            
++            }
++            catch (Exception error)
++            {
++                primary = error;
++                throw;
++            }
++            finally
++            {
++                if (recoveryStatus is not null)
++                    recoveryStatus.CleanupAsync(primary).GetAwaiter().GetResult();
++            }
+         }
+ 
+         /// <summary>
+@@ -1441,13 +1505,29 @@
+         /// <param name="cancellationToken"></param>
+         public async ValueTask RestoreHybridLogAsync(long beginAddress, long headAddress, long fromAddress, long untilAddress, int numPagesToPreload = -1, CancellationToken cancellationToken = default)
+         {
+-            if (RestoreHybridLogInitializePages(beginAddress, headAddress, fromAddress, untilAddress, numPagesToPreload, out var recoveryStatus, out long headPage, out long fromPage))
+-            {
+-                for (long page = headPage; page <= fromPage; page++)
+-                    await recoveryStatus.WaitReadAsync(GetPageIndexForPage(page), cancellationToken).ConfigureAwait(false);
+-            }
+-
+-            RecoveryReset(untilAddress, headAddress, beginAddress, untilAddress);
++            RecoveryStatus recoveryStatus = null;
++            Exception primary = null;
++            try
++            {
++                if (RestoreHybridLogInitializePages(beginAddress, headAddress, fromAddress, untilAddress, numPagesToPreload, out recoveryStatus, out long headPage, out long fromPage))
++                {
++                    for (long page = headPage; page <= fromPage; page++)
++                        await recoveryStatus.WaitReadAsync(GetPageIndexForPage(page), cancellationToken).ConfigureAwait(false);
++                }
++
++                RecoveryReset(untilAddress, headAddress, beginAddress, untilAddress);
++            
++            }
++            catch (Exception error)
++            {
++                primary = error;
++                throw;
++            }
++            finally
++            {
++                if (recoveryStatus is not null)
++                    await recoveryStatus.CleanupAsync(primary).ConfigureAwait(false);
++            }
+         }
+ 
+         private bool RestoreHybridLogInitializePages(long beginAddress, long headAddress, long fromAddress, long untilAddress, int numPagesToPreload,
+--- /dev/null
++++ b/libs/storage/Tsavorite/cs/src/core/Index/Recovery/RecoveryIoScope.cs
+@@ -0,0 +1,178 @@
++// Copyright (c) Microsoft Corporation.
++// Licensed under the MIT license.
++// 回復時だけの所有候補。公開APIは追加しない。
++using System;
++using System.Collections.Generic;
++using System.Threading;
++using System.Threading.Tasks;
++namespace Tsavorite.core;
++
++internal sealed class RecoveryIoScope{
++    private readonly object gate=new();
++    private readonly Dictionary<IDevice,IDevice> devices=new(ReferenceEqualityComparer.Instance);
++    private readonly Dictionary<object,ContextState> contexts=new(ReferenceEqualityComparer.Instance);
++    private readonly List<Exception> errors=[];
++    private readonly TaskCompletionSource drained=new(TaskCreationOptions.RunContinuationsAsynchronously);
++    private readonly TaskCompletionSource stoppedSignal=new(TaskCreationOptions.RunContinuationsAsynchronously);
++    private long pending=1;
++    private bool stopped;
++    private sealed class ContextState{
++        internal long Pending;
++        internal readonly List<Action> Retired=[];
++    }
++    internal Task ProducerStopped=>this.stoppedSignal.Task;
++    internal long Outstanding{get{lock(this.gate){if(this.stopped){return this.pending;}else{return this.pending-1;}}}}
++    internal IDevice Wrap(IDevice inner){
++        if(inner is null){return null;}
++        if(inner is BorrowedDevice same&&ReferenceEquals(same.Scope,this)){return same;}
++        lock(this.gate){
++            if(this.devices.TryGetValue(inner,out var wrapper)){return wrapper;}
++            wrapper=new BorrowedDevice(this,inner);
++            this.devices.Add(inner,wrapper);
++            return wrapper;
++        }
++    }
++    private Lease Begin(object context,bool trustedSubmission){
++        lock(this.gate){
++            if(this.pending==0){throw new InvalidOperationException("Recovery issued I/O after its scope drained.");}
++            var hasState=this.contexts.TryGetValue(context,out var state);
++            if(!hasState){state=new ContextState();}
++            var lease=new Lease(this,context,state,trustedSubmission);
++            if(!hasState){this.contexts.Add(context,state);}
++            state.Pending++;
++            this.pending++;
++            return lease;
++        }
++    }
++    internal Task CloseAndDrainAsync(){
++        lock(this.gate){
++            if(!this.stopped){
++                this.stopped=true;
++                if(--this.pending==0){this.drained.TrySetResult();}
++            }
++        }
++        this.stoppedSignal.TrySetResult();
++        return this.drained.Task;
++    }
++    internal void RecordCleanupError(Exception error){lock(this.gate){this.errors.Add(error);}}
++    internal static void AttachCleanupError(Exception primary,Exception error){
++        lock(primary){
++            var errors=new List<Exception>();
++            if(primary.Data["Tsavorite.RecoveryCleanupErrors"] is AggregateException previous){errors.AddRange(previous.InnerExceptions);}
++            errors.Add(error);
++            primary.Data["Tsavorite.RecoveryCleanupErrors"]=new AggregateException("Recovery cleanup failures",errors);
++        }
++    }
++    internal List<Exception> GetCleanupErrors(){lock(this.gate){return new List<Exception>(this.errors);}}
++    private void Retire(Action action){
++        try{action();}catch(Exception error){lock(this.gate){this.errors.Add(error);}}
++    }
++    internal void RetireContext(object context,Action dispose){
++        lock(this.gate){
++            if(this.contexts.TryGetValue(context,out var state)&&state.Pending!=0){state.Retired.Add(dispose);return;}
++        }
++        this.Retire(dispose);
++    }
++    private void End(object context,ContextState state){
++        Action[] retired=[];
++        lock(this.gate){
++            if(--state.Pending==0){
++                this.contexts.Remove(context);
++                retired=state.Retired.ToArray();
++                state.Retired.Clear();
++            }
++        }
++        foreach(var action in retired){this.Retire(action);}
++        lock(this.gate){if(--this.pending==0){this.drained.TrySetResult();}}
++    }
++    private sealed class Lease(RecoveryIoScope owner,object context,ContextState state,bool trustedSubmission):IRecoverySubmission{
++        private const int MayHaveEscaped=1;
++        private const int CallbackStarted=2;
++        private const int CompensationClaimed=4;
++        private int submissionState=InitialState(trustedSubmission);
++        private int ended;
++        private static int InitialState(bool trusted){if(trusted){return 0;}return MayHaveEscaped;}
++        void IRecoverySubmission.MarkMayHaveEscaped(){Interlocked.Or(ref this.submissionState,MayHaveEscaped);}
++        internal bool TryMarkCallbackStarted(){
++            while(true){
++                var observed=Volatile.Read(ref this.submissionState);
++                if((observed&CallbackStarted)!=0){return false;}
++                if(Interlocked.CompareExchange(ref this.submissionState,observed|CallbackStarted,observed)==observed){return true;}
++            }
++        }
++        internal bool TryClaimPreSubmissionFailure()=>Interlocked.CompareExchange(ref this.submissionState,CompensationClaimed,0)==0;
++        internal void End(){if(Interlocked.Exchange(ref this.ended,1)==0){owner.End(context,state);}}
++    }
++    internal sealed class BorrowedDevice(RecoveryIoScope scope,IDevice inner):IDevice{
++        private readonly RecoverySubmissionAdapter submissionAdapter=RecoverySubmissionAdapter.TryCreate(inner);
++        internal RecoveryIoScope Scope=>scope;
++        private void Submit(object context,DeviceIOCompletionCallback callback,Action<DeviceIOCompletionCallback,IRecoverySubmission> issue){
++            var lease=scope.Begin(context,this.submissionAdapter is not null);
++            void Completed(uint error,uint bytes,object actual,Exception exception){
++                if(!lease.TryMarkCallbackStarted()){
++                    // 二度目はuser/contextへ触れず、Endも繰り返さない。protocol faultを黙って捨てない。
++                    var protocolError=new InvalidOperationException("Recovery device completed one operation more than once.");
++                    scope.RecordCleanupError(protocolError);
++                    throw protocolError;
++                }
++                try{callback(error,bytes,actual,exception);}
++                catch(Exception callbackError){
++                    // callback自身のfinally/最終accessが済んでから、drain成立より前にfaultを記録する。
++                    scope.RecordCleanupError(callbackError);
++                    throw;
++                }finally{lease.End();}
++            }
++            try{issue(Completed,lease);}
++            catch(Exception issueError){
++                // state0は、trusted経路で外部にも将来I/Oを発行できる主体にも渡していない場合だけ。
++                // markerまたはcallback開始後は補償せず、実callbackのfinallyまで所有を保持する。
++                if(lease.TryClaimPreSubmissionFailure()){
++                    try{Completed(uint.MaxValue,0,context,issueError);}
++                    // Completedで記録済み。synthetic通知のfaultで元issueErrorを置換しない。
++                    catch(Exception){}
++                }
++                throw;
++            }
++        }
++        public void ReadAsync(int segmentId,ulong address,IntPtr destination,uint length,DeviceIOCompletionCallback callback,object context)
++            =>this.Submit(context,callback,(completed,submission)=>{
++                if(this.submissionAdapter is not null){this.submissionAdapter.ReadAsync(segmentId,address,destination,length,completed,context,submission);}
++                else{inner.ReadAsync(segmentId,address,destination,length,completed,context);}
++            });
++        public void ReadAsync(ulong address,IntPtr destination,uint length,DeviceIOCompletionCallback callback,object context)
++            =>this.Submit(context,callback,(completed,submission)=>{
++                if(this.submissionAdapter is not null){this.submissionAdapter.ReadAsync(address,destination,length,completed,context,submission);}
++                else{inner.ReadAsync(address,destination,length,completed,context);}
++            });
++        public void WriteAsync(IntPtr source,int segmentId,ulong address,uint length,DeviceIOCompletionCallback callback,object context)
++            =>this.Submit(context,callback,(completed,submission)=>{
++                if(this.submissionAdapter is not null){this.submissionAdapter.WriteAsync(source,segmentId,address,length,completed,context,submission);}
++                else{inner.WriteAsync(source,segmentId,address,length,completed,context);}
++            });
++        public void WriteAsync(IntPtr source,ulong address,uint length,DeviceIOCompletionCallback callback,object context)
++            =>this.Submit(context,callback,(completed,submission)=>{
++                if(this.submissionAdapter is not null){this.submissionAdapter.WriteAsync(source,address,length,completed,context,submission);}
++                else{inner.WriteAsync(source,address,length,completed,context);}
++            });
++        public void Dispose(){}
++        public void Initialize(long segmentSize,LightEpoch epoch=null,bool omitSegmentIdFromFilename=false)=>inner.Initialize(segmentSize,epoch,omitSegmentIdFromFilename);
++        public bool TryComplete()=>inner.TryComplete();
++        public bool TryCompleteMine()=>inner.TryCompleteMine();
++        public bool Throttle()=>inner.Throttle();
++        public uint SectorSize=>inner.SectorSize;
++        public string FileName=>inner.FileName;
++        public long Capacity=>inner.Capacity;
++        public long SegmentSize=>inner.SegmentSize;
++        public int StartSegment=>inner.StartSegment;
++        public int EndSegment=>inner.EndSegment;
++        public int ThrottleLimit{get=>inner.ThrottleLimit;set=>inner.ThrottleLimit=value;}
++        public long GetFileSize(int segment)=>inner.GetFileSize(segment);
++        public void Reset()=>inner.Reset();
++        public void TruncateUntilAddressAsync(long address,AsyncCallback callback,IAsyncResult result)=>inner.TruncateUntilAddressAsync(address,callback,result);
++        public void TruncateUntilAddress(long address)=>inner.TruncateUntilAddress(address);
++        public void TruncateUntilSegmentAsync(int segment,AsyncCallback callback,IAsyncResult result)=>inner.TruncateUntilSegmentAsync(segment,callback,result);
++        public void TruncateUntilSegment(int segment)=>inner.TruncateUntilSegment(segment);
++        public void RemoveSegmentAsync(int segment,AsyncCallback callback,IAsyncResult result)=>inner.RemoveSegmentAsync(segment,callback,result);
++        public void RemoveSegment(int segment)=>inner.RemoveSegment(segment);
++    }
++}
+--- a/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanIterator.cs
++++ b/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanIterator.cs
+@@ -627,52 +627,27 @@
+         /// <summary>
+         /// Dispose the iterator
+         /// </summary>
+-        public override void Dispose()
+-        {
+-            if (!disposed)
+-            {
+-                base.Dispose();
+-
+-                // Dispose/unpin the frame from memory
+-                frame?.Dispose();
+-
+-                if (Interlocked.Decrement(ref tsavoriteLog.logRefCount) == 0)
+-                    tsavoriteLog.TrueDispose();
+-
+-                disposed = true;
+-            }
+-        }
++        public override void Dispose()=>base.Dispose();
++        internal override void DisposeFrameStorage(){
++            if(!this.disposed){
++                Exception primary=null;
++                CaptureFrameCleanup(()=>this.frame?.Dispose(),ref primary);
++                CaptureFrameCleanup(()=>{if(Interlocked.Decrement(ref this.tsavoriteLog.logRefCount)==0){this.tsavoriteLog.TrueDispose();}},ref primary);
++                this.disposed=true;
++                if(primary is not null){System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(primary).Throw();}
++            }
++        }
++
+ 
+         internal override void AsyncReadPageFromDeviceToFrame<TContext>(CircularDiskReadBuffer _ /*readBuffers*/, long readPage, long untilAddress, TContext context, ref CountdownEvent completed,
+                 long devicePageOffset = 0, IDevice device = null, IDevice objectLogDevice = null, CancellationTokenSource cts = null)
+-            => allocator.AsyncReadPageFromDeviceToFrame(readBuffers: null, readPage, untilAddress, AsyncReadPagesToFrameCallback, context, frame, ref completed, devicePageOffset, device, objectLogDevice, cts);
+-
+-        private unsafe void AsyncReadPagesToFrameCallback(uint errorCode, uint numBytes, object context, Exception ioException)
+-        {
+-            try
+-            {
+-                var result = (PageAsyncReadResult<Empty>)context;
+-
+-                if (errorCode == 0)
+-                    _ = result.handle?.Signal();
+-                else
+-                {
+-                    if (ioException is null)
+-                        logger?.LogError($"{nameof(AsyncReadPagesToFrameCallback)} error: {{errorCode}}", errorCode);
+-                    else
+-                        logger?.LogError($"{nameof(AsyncReadPagesToFrameCallback)} error: {{exception}}", Utility.GetCallbackExceptionDetail(ioException));
+-                    result.cts?.Cancel();
+-                }
+-                Interlocked.MemoryBarrier();
+-            }
+-            catch when (disposed)
+-            {
+-            }
+-            finally
+-            {
+-                _ = Interlocked.Decrement(ref pendingDrainCallbacks);
+-            }
+-        }
++        {
++            if((this.GetType()==typeof(TsavoriteLogScanIterator)||this.GetType()==typeof(TsavoriteLogScanSingleIterator))&&context is ScanFrameCompletion operation){operation.TrustSourceAuditedForwarder(this);}
++            this.allocator.AsyncReadPageFromDeviceToFrame(readBuffers:null,readPage,untilAddress,this.AsyncReadPagesToFrameCallback,context,this.frame,ref completed,devicePageOffset,device,objectLogDevice,cts);
++        }
++
++        private unsafe void AsyncReadPagesToFrameCallback(uint errorCode,uint numBytes,object context,Exception ioException)
++            =>this.AsyncReadPageFromDeviceToFrameCallback(errorCode,numBytes,context,ioException);
+ 
+         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+         private static int Align(int length)
+--- a/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanSingleIterator.cs
++++ b/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanSingleIterator.cs
+@@ -26,12 +26,13 @@
+             };
+         }
+ 
+-        public override void Dispose()
+-        {
+-            tsavoriteLog.RemoveSingleIterator(this);
+-            base.Dispose();
+-            // Any awaiting iterator should be woken up during dispose
+-            onEnqueue.Signal();
++        public override void Dispose()=>base.Dispose();
++        internal override void DisposeFrameStorage(){
++            System.Exception primary=null;
++            CaptureFrameCleanup(()=>this.tsavoriteLog.RemoveSingleIterator(this),ref primary);
++            CaptureFrameCleanup(base.DisposeFrameStorage,ref primary);
++            CaptureFrameCleanup(this.onEnqueue.Signal,ref primary);
++            if(primary is not null){System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(primary).Throw();}
+         }
+ 
+         public void Signal()
+--- /dev/null
++++ b/libs/storage/Tsavorite/cs/src/core/Utilities/ScanFrameCompletion.cs
+@@ -0,0 +1,261 @@
++// Copyright (c) Microsoft Corporation.
++// Licensed under the MIT license.
++using System;
++using System.Collections.Generic;
++using System.Threading;
++namespace Tsavorite.core;
++
++// frame毎の一回のload。eventの状態と、最後の資源accessの終了を別に所有する。
++internal sealed class ScanFrameCompletion{
++    private readonly object gate=new();
++    private readonly Dictionary<int,int> waiterThreads=[];
++    private readonly Dictionary<int,int> nestedThreads=[];
++    private readonly Action terminalAccounting;
++    private readonly ScanFrameCompletion parentFrame;
++    private readonly object issuerOwner;
++    private int deferredOwner;
++    private int issuerThread;
++    private int callbackThread;
++    private int waitAccesses;
++    private int nestedAccesses;
++    private bool trustedForwarder;
++    private bool trustedPreparationFailure;
++    private bool issuerReturned;
++    private bool mayHaveEscaped;
++    private bool callbackDebt=true;
++    private bool callbackStarted;
++    private bool nestedResourcesUnresolved;
++    private bool outerCallback;
++    private bool finalCallbackStarted;
++    private bool terminalClaimed;
++    private bool terminalPublished;
++    private bool sealedForReuse;
++    private bool poisoned;
++    private Exception failure;
++    private List<Exception> secondaryFailures;
++    internal long Frame{get;}
++    internal long Claim{get;}
++    internal CountdownEvent Event{get;}
++    internal CancellationTokenSource Cancellation{get;}
++    internal CircularDiskReadBuffer ReadBuffers{get;}
++    internal ScanFrameCompletion(long frame,long claim,CountdownEvent completion,CancellationTokenSource cancellation,CircularDiskReadBuffer readBuffers,Action terminalAccounting,ScanFrameCompletion parentFrame=null,object issuerOwner=null){
++        this.Frame=frame;
++        this.Claim=claim;
++        this.Event=completion;
++        this.Cancellation=cancellation;
++        this.ReadBuffers=readBuffers;
++        this.terminalAccounting=terminalAccounting;
++        this.parentFrame=parentFrame;
++        this.issuerOwner=issuerOwner;
++    }
++    internal bool IssuerReturned{get{lock(this.gate){return this.issuerReturned;}}}
++    internal bool TerminalPublished{get{lock(this.gate){return this.terminalPublished;}}}
++    internal bool ResourcesJoined{get{lock(this.gate){return this.terminalPublished&&!this.poisoned;}}}
++    internal Exception Failure{get{lock(this.gate){return this.failure;}}}
++    internal bool HasCurrentThreadAccess{
++        get{lock(this.gate){return this.CurrentThreadOwnsAccess();}}
++    }
++    private bool CurrentThreadOwnsAccess(){
++        var thread=Environment.CurrentManagedThreadId;
++        return this.issuerThread==thread||this.callbackThread==thread||this.waiterThreads.ContainsKey(thread)||this.nestedThreads.ContainsKey(thread);
++    }
++    internal void AssertNoSelfJoin(){
++        lock(this.gate){if(this.CurrentThreadOwnsAccess()){throw new InvalidOperationException("Reentrant same-frame join would wait for itself.");}}
++    }
++    internal bool TryOwnDeferredAction()=>this.TryOwnIssuer(1);
++    internal bool TryWithdrawBeforeAction()=>this.TryOwnIssuer(2);
++    private bool TryOwnIssuer(int owner){
++        lock(this.gate){
++            if(this.deferredOwner!=0){return false;}
++            this.deferredOwner=owner;
++            this.issuerThread=Environment.CurrentManagedThreadId;
++            return true;
++        }
++    }
++    // source監査済みの既定forwarderだけがarmする。未知overrideがbase helperへ委譲しただけではarmしない。
++    internal void TrustSourceAuditedForwarder(object owner){
++        lock(this.gate){this.RequireIssuer();if(owner is not null&&ReferenceEquals(owner,this.issuerOwner)){this.trustedForwarder=true;}}
++    }
++    internal void BindPreparedResources(CountdownEvent completion,CancellationTokenSource cancellation,CircularDiskReadBuffer readBuffers){
++        lock(this.gate){
++            this.RequireIssuer();
++            if(!ReferenceEquals(this.Event,completion)||!ReferenceEquals(this.Cancellation,cancellation)||!ReferenceEquals(this.ReadBuffers,readBuffers)){
++                throw this.Violation("Frame resource binding changed during preparation.");
++            }
++        }
++    }
++    internal void CertifyTrustedPreparationFailure(){
++        lock(this.gate){
++            this.RequireIssuer();
++            if(this.trustedForwarder&&!this.mayHaveEscaped&&!this.callbackStarted){this.trustedPreparationFailure=true;}
++        }
++    }
++    internal void MarkMayHaveEscaped(){lock(this.gate){this.RequireIssuer();this.mayHaveEscaped=true;}}
++    // Cancel/logger/失敗公開の最後accessが終わった後だけ呼ぶ。marker欠如だけではdebtを消さない。
++    internal bool CommitTrustedUnissued(){
++        lock(this.gate){
++            this.RequireIssuer();
++            if(this.mayHaveEscaped||this.callbackStarted||!this.callbackDebt){return false;}
++            if(this.deferredOwner!=2&&!(this.trustedForwarder&&this.trustedPreparationFailure)){return false;}
++            this.callbackDebt=false;
++            return true;
++        }
++    }
++    internal void RecordFailure(Exception error){
++        if(error is null){return;}
++        Exception primary;
++        lock(this.gate){
++            primary=this.failure;
++            if(primary is null){this.failure=error;return;}
++            if(ReferenceEquals(primary,error)){return;}
++            if(this.secondaryFailures is null){this.secondaryFailures=[];}
++            foreach(var previous in this.secondaryFailures){if(ReferenceEquals(previous,error)){return;}}
++            this.secondaryFailures.Add(error);
++        }
++        RecoveryIoScope.AttachCleanupError(primary,error);
++    }
++    internal void BeginOuterCallback(){
++        lock(this.gate){this.ClaimCallback();this.outerCallback=true;}
++    }
++    internal void VerifyOuterCallbackResources(CountdownEvent completion,CancellationTokenSource cancellation,CircularDiskReadBuffer readBuffers){
++        lock(this.gate){
++            if(!ReferenceEquals(this.Event,completion)||!ReferenceEquals(this.Cancellation,cancellation)||!ReferenceEquals(this.ReadBuffers,readBuffers)){
++                throw this.Violation("Object callback resource binding differs from its frame operation.");
++            }
++        }
++    }
++    // Object前段が所有中なら最終通知だけclaimし、外側finallyに資源終端を残す。
++    internal bool BeginFinalCallback(CountdownEvent completion,CancellationTokenSource cancellation){
++        lock(this.gate){
++            if(this.finalCallbackStarted){throw this.Violation("Frame final callback was delivered more than once.");}
++            var ownsCallback=this.callbackThread!=Environment.CurrentManagedThreadId||!this.outerCallback;
++            if(ownsCallback){this.ClaimCallback();}
++            if(!ReferenceEquals(this.Event,completion)||!ReferenceEquals(this.Cancellation,cancellation)){
++                throw this.Violation("Callback resource binding differs from its frame operation.");
++            }
++            this.finalCallbackStarted=true;
++            return ownsCallback;
++        }
++    }
++    private void ClaimCallback(){
++        // 実callbackそのものがescapeの証拠。未知overrideのmarker欠如を拒否理由にしない。
++        if(this.callbackStarted||!this.callbackDebt||this.sealedForReuse){throw this.Violation("Unexpected or duplicate frame callback.");}
++        this.callbackStarted=true;
++        this.mayHaveEscaped=true;
++        this.callbackThread=Environment.CurrentManagedThreadId;
++        this.parentFrame?.BeginNestedAccess();
++    }
++    internal void EndIssuer(Exception error){
++        this.RecordFailure(error);
++        bool publish;
++        lock(this.gate){
++            this.RequireIssuer();
++            this.issuerReturned=true;
++            this.issuerThread=0;
++            publish=this.TakeTerminalAccounting();
++            Monitor.PulseAll(this.gate);
++        }
++        if(publish){this.PublishTerminal();}
++    }
++    internal void EndCallback(){
++        bool publish;
++        lock(this.gate){
++            if(this.callbackThread!=Environment.CurrentManagedThreadId){throw this.Violation("Frame callback owner mismatch.");}
++            this.callbackThread=0;
++            this.callbackDebt=this.nestedResourcesUnresolved;
++            publish=this.TakeTerminalAccounting();
++        }
++        // 下位callbackの最後access後、child terminal公開前にparentの自己join追跡を返す。
++        this.parentFrame?.EndNestedAccess();
++        if(publish){this.PublishTerminal();}
++    }
++    private void BeginNestedAccess(){
++        lock(this.gate){
++            var thread=Environment.CurrentManagedThreadId;
++            this.nestedThreads.TryGetValue(thread,out var count);
++            this.nestedThreads[thread]=count+1;
++            this.nestedAccesses++;
++        }
++    }
++    private void EndNestedAccess(){
++        bool publish;
++        lock(this.gate){
++            var thread=Environment.CurrentManagedThreadId;
++            if(!this.nestedThreads.TryGetValue(thread,out var count)){throw this.Violation("Nested callback owner mismatch.");}
++            if(count==1){this.nestedThreads.Remove(thread);}else{this.nestedThreads[thread]=count-1;}
++            this.nestedAccesses--;
++            publish=this.TakeTerminalAccounting();
++            Monitor.PulseAll(this.gate);
++        }
++        if(publish){this.PublishTerminal();}
++    }
++    internal void RetainNestedResourceDebt(){
++        lock(this.gate){
++            if(this.callbackThread!=Environment.CurrentManagedThreadId){throw this.Violation("Nested resource debt owner mismatch.");}
++            this.nestedResourcesUnresolved=true;
++        }
++    }
++    private bool TakeTerminalAccounting(){
++        if(this.issuerReturned&&!this.callbackDebt&&this.callbackThread==0&&this.nestedAccesses==0&&!this.terminalClaimed&&!this.poisoned){
++            this.terminalClaimed=true;
++            return true;
++        }
++        return false;
++    }
++    private void PublishTerminal(){
++        // このdelegateはiterator自身のcounter減算だけ。外部observer/loggerを間に置かない。
++        this.terminalAccounting();
++        lock(this.gate){this.terminalPublished=true;Monitor.PulseAll(this.gate);}
++    }
++    internal bool TryBeginWaitAccess(){
++        lock(this.gate){
++            if(this.CurrentThreadOwnsAccess()){throw new InvalidOperationException("Reentrant same-frame wait would wait for itself.");}
++            if(this.sealedForReuse){return false;}
++            var thread=Environment.CurrentManagedThreadId;
++            this.waiterThreads.TryGetValue(thread,out var nested);
++            this.waiterThreads[thread]=nested+1;
++            this.waitAccesses++;
++            return true;
++        }
++    }
++    internal void EndWaitAccess(){
++        lock(this.gate){
++            var thread=Environment.CurrentManagedThreadId;
++            if(!this.waiterThreads.TryGetValue(thread,out var nested)){throw this.Violation("Frame wait owner mismatch.");}
++            if(nested==1){this.waiterThreads.Remove(thread);}else{this.waiterThreads[thread]=nested-1;}
++            this.waitAccesses--;
++            Monitor.PulseAll(this.gate);
++        }
++    }
++    internal void WaitForTerminal(Action report=null){
++        while(true){
++            bool reportWait;
++            lock(this.gate){
++                if(this.terminalPublished){return;}
++                if(this.poisoned){throw new InvalidOperationException("Frame protocol violation remains unresolved.");}
++                reportWait=!Monitor.Wait(this.gate,15_000);
++            }
++            // 既存間隔のstall診断だけ。時間経過で所有解放/成功にしない。
++            if(reportWait){report?.Invoke();}
++        }
++    }
++    internal void JoinAndSeal(){
++        lock(this.gate){
++            if(this.CurrentThreadOwnsAccess()){throw new InvalidOperationException("Reentrant same-frame join would wait for itself.");}
++            if(this.poisoned){throw new InvalidOperationException("Frame protocol violation remains unresolved.");}
++            while(!this.terminalPublished||this.waitAccesses!=0){
++                if(this.poisoned){throw new InvalidOperationException("Frame protocol violation remains unresolved.");}
++                Monitor.Wait(this.gate);
++            }
++            this.sealedForReuse=true;
++        }
++    }
++    private void RequireIssuer(){
++        if(this.issuerThread!=Environment.CurrentManagedThreadId||this.issuerReturned){throw this.Violation("Frame issuer owner mismatch.");}
++    }
++    private Exception Violation(string message){
++        this.poisoned=true;
++        Monitor.PulseAll(this.gate);
++        return new InvalidOperationException(message);
++    }
++}

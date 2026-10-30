@@ -22,4 +22,5 @@ public interface ITpcCVariant{
     string Name{get;}
     string ShortName{get;}
     ITpcCEngine Open(Store store,TpcCScale scale,TpcCMode mode);
+    ITpcCEngine Open(IReadOnlyList<Store> stores,TpcCScale scale,TpcCMode mode);
 }
