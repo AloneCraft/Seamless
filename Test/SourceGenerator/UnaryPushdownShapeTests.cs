@@ -93,9 +93,9 @@ public sealed partial class UnaryPushdownShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             // 押し下げると並べ替えの段は Where の後になり、ソースの span の昇順高速経路ではなく溜めた値の確認を使う。
-            PredicatePrecedes(enabled,"Array.Sort(")&&enabled.Contains("__orderBufferedSorted",StringComparison.Ordinal)
-            &&!enabled.Contains("__orderSpan",StringComparison.Ordinal)
-            &&disabled.Contains("__orderSpan",StringComparison.Ordinal),
+            PredicatePrecedes(enabled,"Array.Sort(")&&enabled.Contains("orderBufferedSorted",StringComparison.Ordinal)
+            &&!enabled.Contains("orderSpan",StringComparison.Ordinal)
+            &&disabled.Contains("orderSpan",StringComparison.Ordinal),
             "Order on a span-capable source must still take the pushed predicate and skip the sort when the buffered values are already ordered.",
             enabled,
             output);
@@ -103,11 +103,12 @@ public sealed partial class UnaryPushdownShapeTests(ITestOutputHelper output) {
 
     [Fact]
     public void OrderAfterLinqCallIsPushed() {
-        var enabled = GeneratedSource(WithPushdown(OrderAfterLinqCallSource));
-        var disabled = GeneratedSource(WithoutPushdown(OrderAfterLinqCallSource));
+        // 構文書き換え(Rewrite)も Where を Order の前へ並べ替えるので、押し下げの層だけを確かめるために Rewrite は切る。
+        var enabled = GeneratedSource(OrderAfterLinqCallSource.Replace("OPTIMIZATIONS","LinqOptimizations.All&~LinqOptimizations.Rewrite",StringComparison.Ordinal));
+        var disabled = GeneratedSource(OrderAfterLinqCallSource.Replace("OPTIMIZATIONS","LinqOptimizations.All&~LinqOptimizations.Rewrite&~LinqOptimizations.PredicatePushdown",StringComparison.Ordinal));
 
         GeneratedSourceAssert.True(
-            PredicatePrecedes(enabled,"Sort")&&!PredicatePrecedes(disabled,"Sort"),
+            PredicateFiltersBeforeBuffering(enabled)&&!PredicateFiltersBeforeBuffering(disabled),
             "The fast path is already lost when Order sits on another LINQ call, so the predicate must be evaluated before the sort.",
             enabled,
             output);
@@ -115,6 +116,11 @@ public sealed partial class UnaryPushdownShapeTests(ITestOutputHelper output) {
 
     // 融合ループ内で述語チェックが HashSetSlim.Add より前に出ているかを見る。
     private static bool PredicatePrecedesSetInsert(string generated) => PredicatePrecedes(generated,".Add(");
+
+    // 並べ替えの前に溜める段で、述語が溜める処理(容量の確認と書き込み)より前にあるか。
+    // 文字の位置の前後では判定できない(並べ替え後に列挙する部分が先に書かれるため、押し下げなしでも述語が先に出る)。
+    private static bool PredicateFiltersBeforeBuffering(string generated) =>
+        Regex.IsMatch(generated,@"777\)\)\s*continue;\s*if\(orderCountLocal==orderValuesLocal\.Length\)");
 
     private static bool PredicatePrecedes(string generated,string marker) {
         var predicateIndex = generated.IndexOf("777",StringComparison.Ordinal);

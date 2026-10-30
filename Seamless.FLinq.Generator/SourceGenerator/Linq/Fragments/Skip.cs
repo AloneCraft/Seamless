@@ -42,6 +42,10 @@ internal class Skip(int 番号,Enumerable source,string skipCount):Enumerable(�
         ? $"(int)global::System.Math.Min(int.MaxValue,(long)({skip.EffectiveSkipCount})+({this.NormalizedSkipCountExpression}))"
         : this.NormalizedSkipCountExpression;
     protected override Enumerable PrimarySource => this.RootSource;
+    public override string? NonEnumeratedCountExpression =>
+        this.RootSource.NonEnumeratedCountExpression is { } count
+            ? $"global::System.Math.Max(0,{count}-{this.EffectiveSkipCount})"
+            : null;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""
         {{this.RootSource.GetEnumeratorStruct}}

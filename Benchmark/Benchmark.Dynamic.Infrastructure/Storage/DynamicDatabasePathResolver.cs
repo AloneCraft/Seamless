@@ -14,7 +14,7 @@ public static class DynamicDatabasePathResolver{
         return Path.Combine(
             Path.GetFullPath(root),
             "Work",
-            "UI",
+            "Benchmark",
             DynamicInfrastructureSchema.DatabaseFileName);
     }
 

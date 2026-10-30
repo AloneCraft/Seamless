@@ -20,7 +20,7 @@ namespace Test.Seamless.Database.TPC_H {
         public Container() : this(null) {
         }
         private static global::Seamless.Database.DatabaseContainerOptions DefaultOptions() =>
-            global::Seamless.Database.DatabaseContainerOptions.OnStorage(Path.Combine(Environment.CurrentDirectory,typeof(Container).FullName!)) with {
+            global::Seamless.Database.DatabaseContainerOptions.OnStorage(Path.Combine(global::Seamless.TestKit.TestPath.Root,typeof(Container).FullName!)) with {
                 IndexSize=1L<<12,
                 MemorySize=1L<<24,
             };

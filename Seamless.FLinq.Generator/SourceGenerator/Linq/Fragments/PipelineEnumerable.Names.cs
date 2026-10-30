@@ -120,12 +120,32 @@ internal sealed partial class PipelineEnumerable {
         stages.Take(stageIndex).Count(static stage => stage.Kind==PipelineStageKind.TakeRange);
     private IEnumerable<PipelineStage> RangeStages() =>
         stages.Where(static stage => stage.Kind==PipelineStageKind.TakeRange);
-    private string ItemName(int index) => $"{this.item}_{index}";
+    private string ItemName(int index)=>GeneratedNames.PreferLocal($"{this.item}_{index}",index<stages.Count ? stages[index].Func : null);
     private string SelectManyResultName(int index) => $"__smr{this.item}_{index}";
     private string TempName(int index) => $"{this.temp}_{index}";
     private string StateName(int index) => $"{this.state}_{index}";
     private string IndexName(int index) => $"__idx{this.item}_{index}";
     private string CountName(int index) => $"__cnt{this.item}_{index}";
+    // 融合した集約の上限を、列挙子の中で描く。Take / Skip の値は、構築のときに 0 以上へ直したフィールド(__cnt…Value)に入っている。
+    // 段は参照で探し、見つからなければ同じ値の式の Take / Skip を探す(正規化で段が作り直された場合)。
+    private string? GroupLimitExpression(GroupByAggregatePlan plan) =>
+        plan.GroupLimit?.Render((stage,valueText) => {
+            var index = -1;
+            for(var i = 0;i<stages.Count&&index<0;i++) {
+                if(ReferenceEquals(stages[i],stage)) {
+                    index=i;
+                }
+            }
+            for(var i = 0;i<stages.Count&&index<0;i++) {
+                if(stages[i].Kind is PipelineStageKind.Take or PipelineStageKind.Skip&&stages[i].Value==valueText) {
+                    index=i;
+                }
+            }
+            if(index<0) {
+                throw new InvalidOperationException($"The Take/Skip stage for the GroupBy aggregate limit '{valueText}' was not found.");
+            }
+            return $"this.{this.CountName(this.CountOrdinal(index))}Value";
+        });
     private string ComparerName(int index) => $"__cmp{this.item}_{index}";
     private string OrderComparerName(int index) => $"__ordcmp{this.item}_{index}";
     private string OrderComparerLocalName(int index) => $"__ordcmpLocal{this.item}_{index}";
@@ -158,9 +178,11 @@ internal sealed partial class PipelineEnumerable {
     private string OrderKeyLocalName(int orderIndex,PipelineStage orderStage) => $"__orderKey{this.item}_{orderIndex}_{this.OrderStageAbsoluteIndex(orderIndex,orderStage)}";
     private string OrderIndexComparerKeysFieldName(int orderIndex,PipelineStage orderStage) => $"keys{this.OrderStageAbsoluteIndex(orderIndex,orderStage)}";
     private string OrderIndexComparerComparerFieldName(int orderIndex,PipelineStage orderStage) => $"comparer{this.OrderStageAbsoluteIndex(orderIndex,orderStage)}";
-    private string GroupingName(int index) => $"__grouping{this.item}_{index}";
-    private string GroupItemsName(int index) => $"__groups{this.item}_{index}";
-    private string GroupName(int index) => $"__group{this.item}_{index}";
+    private string GroupBuiltName(int index) => $"__groupBuilt{this.item}_{index}";
+    private string GroupCursorName(int index) => $"__groupCursor{this.item}_{index}";
+    private string GroupFirstName(int index) => $"__groupFirst{this.item}_{index}";
+    private string GroupAggMapName(int index) => $"__groupAggMap{this.item}_{index}";
+    private string GroupAggEnumName(int index) => $"__groupAggEnum{this.item}_{index}";
     private string ReverseItemsName(int index) => $"__reversed{this.item}_{index}";
     private string BufferCountName(int index) => $"__bufCount{this.item}_{index}";
     private string EndLabel(int index) => $"__end{this.item}_{index}";
@@ -300,30 +322,11 @@ internal sealed partial class PipelineEnumerable {
         return builder.ToString().TrimEnd();
     }
 
-    private string GroupValueType(int index,PipelineStage stage) {
-        if(stage.ThirdFunc is not null) {
-            return stage.OutputType;
-        }
-        return this.GroupingName(index);
-    }
-
-    private string GroupingType(int index,PipelineStage stage) => $$"""
-        private sealed class {{this.GroupingName(index)}}:global::System.Linq.IGrouping<{{ComparerKeyType(stage)}},{{stage.InnerElementType}}> {
-            private readonly global::System.Collections.Generic.List<{{stage.InnerElementType}}> values = new();
-            public {{this.GroupingName(index)}}({{ComparerKeyType(stage)}} key){
-                this.Key=key;
-            }
-            public {{ComparerKeyType(stage)}} Key { get; }
-            public void Add({{stage.InnerElementType}} value) => this.values.Add(value);
-            public global::System.Collections.Generic.IEnumerator<{{stage.InnerElementType}}> GetEnumerator() => this.values.GetEnumerator();
-            global::System.Collections.IEnumerator global::System.Collections.IEnumerable.GetEnumerator() => this.GetEnumerator();
-        }
-        """;
-
     internal static string IndentBlock(string text,string indent) {
         if(string.IsNullOrWhiteSpace(text)) {
             return string.Empty;
         }
+        if(GeneratedTextFormatting.TryIndentPreservingTokens(text,indent,out var preserved)) return preserved;
         var lines = text.Replace("\r\n","\n").Split('\n');
         var builder = new StringBuilder();
         for(var index = 0;index<lines.Length;index++) {

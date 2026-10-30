@@ -41,18 +41,7 @@
 - `正確`は左右ともBenchmarkDotNetを使い、LaunchCount 1、WarmupCount 1、IterationCount 7とする。DBへ保存する時間は7反復のMeanである。
 - `中間`は左右ともBenchmarkDotNetを使い、LaunchCount 1、WarmupCount 1、IterationCount 1とする。
 - `高速`は左右とも直接測定を使い、破棄2サンプル後の実測7サンプル中央値とする。
-- BenchmarkDotNetの総割当量は実際の操作回数で正規化する。Worker戻り値は1バッチ単位、UI・DB・性能ゲートへはLoopCount除算後の1操作単位とする。IterationCountを1から7へ増やしても表示割当量を7倍にしない。
-
-## Run 249性能ゲート
-
-- `Benchmark.Headless --performance-gate <manifest.json>`はRelease専用のローカル性能ゲートであり、通常CIでは実時間測定を実行しない。
-- マニフェストは11ペアをタブID、左右の完全型名、メソッド名、引数キーで厳密に識別する。対象IDまたは解決ペアの重複、ケース欠落、複数一致、Run 249のFLinq割当上限不一致は測定前に失敗する。
-- 条件はN=4096、最終バッチ目標1.024秒、5回直列に固定する。CPUはトポロジーで識別した最初のPコア物理コアの主論理スレッドを使い、そのスレッドがアフィニティ非対応なら次のPコアを探す。対応Pコアがなければ代替せず失敗する。
-- 1～4回目の成果物は各回の集計後に削除する。5回目の既存BenchmarkDotNet成果物は合否調査のため保持し、独自統計レポートファイルは作らない。不合格時もDBは変更しない。
-- 各対象は5回の`FLinq時間/基準時間`中央値が1.00以下、5回目の左シェアが0.50以下、全回で左右の結果ダイジェスト、論理CPU、LoopCountが一致し、FLinq割当量が基準以下かつRun 249上限以下のときだけ合格する。
-- 合格時も既定ではDBを変更しない。`--retire-run-on-pass 249`を明示した場合だけ、Benchmark UI、別Headless、Workerの停止を確認し、SQLite Online Backup APIで日時付き一貫バックアップを作成した後、5回目の11件を新しい正確Runへ保存してRun 249を退役する。
-- Run 249の退役前に、11表の子行が承認済みの合計1,348件（書き換え11、パイプライン融合11、述語プッシュダウン143、Array 194、IEnumerable 194、Range 81、List 194、Persisted(Seamless) 130、Persisted(System) 130、Tsavorite(Seamless) 130、Tsavorite(System) 130）と一致することを、読取専用の事前検査と削除直前のトランザクション内の両方で表別に検証する。合計だけが一致しても表別内訳が異なれば退役しない。
-- 保存後は新Run 11件の再読込、`foreign_key_check`、`integrity_check`、Run 249と全タブ子行の残存0件、新Run存在を同一更新単位で確認する。新Run作成後・Run 249退役直前の`sqlite_sequence`を記録し、退役によって値が変化しないことを完全一致で確認する。失敗時は明示バックアップから復元する。
+- BenchmarkDotNetの総割当量は実際の操作回数で正規化する。Worker戻り値は1バッチ単位、UI・DBへはLoopCount除算後の1操作単位とする。IterationCountを1から7へ増やしても表示割当量を7倍にしない。
 
 ## 表示と集計
 

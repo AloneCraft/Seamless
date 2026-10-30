@@ -135,7 +135,7 @@ public sealed class GroupJoinLookupSkipTests {
         }
         {
             //内側を列挙するのは .Anchor を付けた2つだけ
-            Assert.Equal(2,global::System.Text.RegularExpressions.Regex.Matches(generated,@"while\(__ie\d+\.TryGetNext\(out _\)\)").Count);
+            Assert.Equal(2,global::System.Text.RegularExpressions.Regex.Matches(generated,@"while\(innerEnumerator\d*\.TryGetNext\(out _\)\)").Count);
         }
     }
 

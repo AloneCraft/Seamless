@@ -13,7 +13,7 @@ public abstract class SymmetricExceptWith<TKey, TSet>:CommonWith<TKey,TSet>
 public sealed class ManagedSymmetricExceptWith:SymmetricExceptWith<string,global::Seamless.Collections.Tsavorite.HashSet<string>> {
     protected override string CreateKey(int seed) => seed.ToString();
     protected override (global::Seamless.Collections.Tsavorite.HashSet<string> Set,IDisposable Store) CreateSet() {
-        var store = Store.Create().Create<string>(new MemoryPackSerializerStrategy());
+        var store = Store.Create().Create<string>(new global::Seamless.Collections.Serializers.MemoryPack());
         return (store.Create(),store);
     }
     protected override void With(global::Seamless.Collections.Tsavorite.HashSet<string> set,global::Seamless.Collections.Tsavorite.HashSet<string> other) => set.SymmetricExceptWith(other);

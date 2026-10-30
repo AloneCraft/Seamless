@@ -57,7 +57,7 @@ public sealed class RangeSkipLastTests {
     [InlineData(1,-1,1)]
     public void System_Linqと同じ結果を返す(int start,int count,int skip) {
         var (compilation,generated) = ExecutableGeneration.Generate(Source,"RangeSkipLastProbe",2);
-        Assert.Equal(2,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var __skipLastKeep\d+=").Count);
+        Assert.Equal(2,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var skipLastKeep\d*=").Count);
         var (actual,expected) = ExecutableGeneration.Run(compilation,"Sample.Probe",probe => (
             (string)probe.GetMethod("RunFLinq")!.Invoke(null,[start,count,skip])!,
             (string)probe.GetMethod("RunLinq")!.Invoke(null,[start,count,skip])!));

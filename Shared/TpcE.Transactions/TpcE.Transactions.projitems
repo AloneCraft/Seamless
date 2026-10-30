@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>{6819E5EF-CBE6-4ABB-9334-1EB49E4858A6}</SharedGUID>
+  </PropertyGroup>
+  <!-- 取引の処理。4 つの組み合わせ(Tsavorite/Persisted × 標準LINQ/FLinq)に取り込まれ、別名 TpcEDatabase と LinqInterceptAttribute だけが違う。 -->
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)**\*.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Benchmark.Tpc.Core" />
+    <Using Include="Benchmark.TpcE.Core" />
+    <Using Include="Benchmark.TpcE.Core.Harness" />
+  </ItemGroup>
+</Project>

@@ -6,8 +6,37 @@ namespace Test.Seamless.Stores;
 
 public class CollectionStore {
     [Fact,Trait("Category","Unit")]
+    public void Save_SectorBoundaryInsideRecord_Reopens(){
+        var directory=Path.Combine(Path.GetTempPath(),"sector-boundary-record-"+Guid.NewGuid().ToString("N"));
+        var tuning=new TsavoriteTuning{PageSize=64L<<10,SegmentSize=1L<<20,LogMemorySize=256L<<10,IndexSize=64};
+        try{
+            using(var owner=global::Seamless.Execution.Store.Open(directory)){
+                var data=owner.CreateTsavorite<RecoveryKey,RecoveryValue>("records",tuning);
+                using(var dictionary=data.Create()){
+                    for(var index=0;index<19;index++){
+                        dictionary[new(index,~(long)index)]=new(index,index+1,index+2);
+                    }
+                    owner.Save();
+                    Assert.Equal(1128,data.Store.Log.TailAddress);
+                    owner.Save();
+                }
+            }
+            using(var owner=global::Seamless.Execution.Store.Open(directory)){
+                using var dictionary=owner.CreateTsavorite<RecoveryKey,RecoveryValue>("records",tuning).Create();
+                Assert.Equal(19,dictionary.Count);
+                for(var index=0;index<19;index++){
+                    Assert.Equal(new RecoveryValue(index,index+1,index+2),dictionary[new(index,~(long)index)]);
+                }
+            }
+        }finally{
+            if(Directory.Exists(directory)){
+                Directory.Delete(directory,true);
+            }
+        }
+    }
+    [Fact,Trait("Category","Unit")]
     public void GetStatistics(){
-        var tuning=new TsavoriteTuning{IndexSize=4096,PageSize=4096,SegmentSize=65536,LogMemorySize=65536,AutoGrowIndex=false};
+        var tuning=new TsavoriteTuning{IndexSize=4096,PageSize=4096,SegmentSize=65536,LogMemorySize=65536,Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>()};
         {
             using var owner=global::Seamless.Execution.Store.CreateMemory();
             using var data=owner.CreateTsavoriteHashSet<long>("ids",tuning with{LogMemorySize=1L<<20});
@@ -44,6 +73,8 @@ public class CollectionStore {
             Assert.True(set.Contains(19_999));
         }
     }
+    private readonly record struct RecoveryKey(long High,long Low);
+    private readonly record struct RecoveryValue(long First,long Second,long Third);
     [Fact,Trait("Category","Unit")]
     public void AccessorCount(){
         {

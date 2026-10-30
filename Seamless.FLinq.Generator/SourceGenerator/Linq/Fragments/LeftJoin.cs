@@ -31,9 +31,12 @@ internal class LeftJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragmen
     public override string GetEnumeratorExpression => RenderEnumeratorExpressionWithClosure(this.EnumeratorTypeName,new[] { this.outerKey,this.innerKey,this.resultSelector },this.outerSource.GetEnumeratorExpression,this.innerSource.GetEnumeratorExpression,this.comparerExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TOuterEnum {this.e},TInnerEnum {this.innerEnumerator},global::System.Collections.Generic.IEqualityComparer<{FuncReturnTypeName(this.innerKey)}>? comparer{this.ClosurePrimaryCtorSuffix(this.outerKey,this.innerKey,this.resultSelector)}";
     public override string GetEnumerableExpression => this.UseResultTypeParam ? $"{this.FactoryMethodName}({this.outerSource.GetEnumeratorExpression},{this.innerSource.GetEnumeratorExpression},{this.comparerExpression}{this.ClosureArgsSuffix(this.outerKey,this.innerKey,this.resultSelector)})" : base.GetEnumerableExpression;
-    public override string GetEnumeratorConstructor => $"this.{this.lookup}=BuildLookup(this.{this.innerEnumerator},this.comparer{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)});";
+    // 内側の探索表は、外側の最初の要素を得てから作る(System.Linq と同じ。外側が空なら、内側のキー選択子を評価しない)。
+    public override string GetEnumeratorConstructor => string.Empty;
+    private string built => $"__built{番号}";
     public override string GetEnumeratorFields => $$"""
-        private global::Seamless.Linq.Lookup<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}> {{this.lookup}};
+        private global::Seamless.Linq.Lookup<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}>? {{this.lookup}};
+        private bool {{this.built}};
         private global::Seamless.Linq.Grouping<{{FuncReturnTypeName(this.innerKey)}},{{this.innerSource.ElementType}}>? {{this.group}};
         private int {{this.groupIndex}};
         private int {{this.state}};
@@ -60,10 +63,14 @@ internal class LeftJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragmen
         }
         {{this.CounterCall("IncrementLogicalLeftJoinOuter")}}
         {{this.outerValue}}=__mn44;
+        if(!this.{{this.built}}){
+            this.{{this.built}}=true;
+            this.{{this.lookup}}=BuildLookup(this.{{this.innerEnumerator}},this.comparer{{this.ClosureArgsSuffixForCtorBody(this.outerKey,this.innerKey,this.resultSelector)}});
+        }
         {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
         {{this.FuncAssignIndented("",this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
         {{this.CounterCall("IncrementHashProbe")}}
-        if(!IsNullKey({{this.key}})&&({{this.group}}={{this.lookup}}.GetGroup({{this.key}})) is not null){
+        if(!IsNullKey({{this.key}})&&({{this.group}}={{this.lookup}}!.GetGroup({{this.key}})) is not null){
             {{this.groupIndex}}=0;
             {{this.state}}=1;
             goto {{this.Start}};
@@ -71,5 +78,6 @@ internal class LeftJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragmen
         {{this.FuncAssignCurrentIndented("",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,$"default({this.innerSource.ElementType})")}}
         return true;
         """;
-    protected override string GetEnumeratorDisposeBody => $"{this.lookup}.Dispose(); {this.e}.Dispose();";
+    // 探索表を作る前に捨てるときは、内側の列挙子を探索表の構築が閉じていないので、ここで閉じる。
+    protected override string GetEnumeratorDisposeBody => $"{this.lookup}?.Dispose(); {this.e}.Dispose(); if(!this.{this.built}) {{ this.{this.innerEnumerator}.Dispose(); }}";
 }

@@ -57,7 +57,7 @@ public readonly struct MemoryPackHashSetStrategy<TProvider, T>:IHashSetTestStrat
         long indexSize = global::Seamless.Collections.Tsavorite.Const.IndexSize,
         long pageSize = global::Seamless.Collections.Tsavorite.Const.PageSize,
         long segmentSize = global::Seamless.Collections.Tsavorite.Const.SegmentSize) {
-        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<T>(new MemoryPackSerializerStrategy());
+        var store = Store.Create(MemorySize: memorySize,MutableFraction: mutableFraction,IndexSize: indexSize,PageSize: pageSize,SegmentSize: segmentSize).Create<T>(new global::Seamless.Collections.Serializers.MemoryPack());
         return new HashSetHandle<T>(store,store.Create());
     }
 }

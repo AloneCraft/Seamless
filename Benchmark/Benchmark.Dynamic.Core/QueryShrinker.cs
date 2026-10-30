@@ -210,7 +210,7 @@ public sealed class QueryShrinker{
 
     public IReadOnlyList<ShrinkCandidate> EnumerateCandidates(QueryIrDocument query,int inputElementCount){
         ArgumentNullException.ThrowIfNull(query);
-        if(inputElementCount<1){
+        if(inputElementCount<0){
             throw new ArgumentOutOfRangeException(nameof(inputElementCount));
         }
         QueryIrValidator.ValidateAndThrow(query);
@@ -309,7 +309,7 @@ public sealed class QueryShrinker{
     }
 
     private static void ValidateRequest(ShrinkRequest request){
-        if(request.InputElementCount<1){
+        if(request.InputElementCount<0){
             throw new ArgumentOutOfRangeException(nameof(request.InputElementCount));
         }
         if(request.MaximumCandidates<1){
@@ -327,7 +327,7 @@ public sealed class QueryShrinker{
 public static class QueryIrNormalizer{
     public static QueryIrDocument Normalize(QueryIrDocument document,int inputElementCount){
         ArgumentNullException.ThrowIfNull(document);
-        if(inputElementCount<1){
+        if(inputElementCount<0){
             throw new ArgumentOutOfRangeException(nameof(inputElementCount));
         }
         var root=(TerminalQueryNode)NormalizeNode(document.Root,inputElementCount);
@@ -373,11 +373,13 @@ public static class QueryIrNormalizer{
                 input.Cardinality.Maximum is { }maximum?Math.Max(0,maximum-skip.Count):null),
             ReverseOperatorArguments=>input.Cardinality,
             OrderByOperatorArguments or ThenByOperatorArguments=>input.Cardinality,
+            ExtendedUnaryOperatorArguments extended=>ExtendedUnaryShape.Cardinality(extended,input.Cardinality),
             _=>throw new InvalidOperationException($"Unsupported unary arguments: {node.Arguments.GetType().FullName}."),
         };
         var order=node.Arguments switch{
             DistinctOperatorArguments or DistinctByOperatorArguments=>QueryOrderSemantics.Unordered,
             OrderByOperatorArguments or ThenByOperatorArguments=>QueryOrderSemantics.TotalOrdered,
+            ExtendedUnaryOperatorArguments extended=>ExtendedUnaryShape.Order(extended,input.OrderSemantics),
             _=>input.OrderSemantics,
         };
         return node with{Input=input,Cardinality=cardinality,OrderSemantics=order};
@@ -388,6 +390,7 @@ public static class QueryIrNormalizer{
         var right=NormalizeNode(node.Right,inputElementCount);
         var sum=QueryCardinalityRange.Add(left.Cardinality,right.Cardinality);
         var cardinality=node.Arguments.Kind switch{
+            QueryBinaryKind.Zip=>ExtendedBinaryShape.ZipCardinality(left.Cardinality,right.Cardinality),
             QueryBinaryKind.Concat=>sum,
             QueryBinaryKind.Union=>new QueryCardinalityRange(0,sum.Maximum),
             QueryBinaryKind.Except=>new QueryCardinalityRange(0,left.Cardinality.Maximum),
@@ -405,7 +408,7 @@ public static class QueryIrNormalizer{
                     :left.Cardinality.Maximum??right.Cardinality.Maximum),
             _=>throw new InvalidOperationException($"Unsupported binary kind: {node.Arguments.Kind}."),
         };
-        var order=node.Arguments.Kind==QueryBinaryKind.Concat
+        var order=node.Arguments.Kind is QueryBinaryKind.Concat or QueryBinaryKind.Zip
             &&left.OrderSemantics!=QueryOrderSemantics.Unordered
             &&right.OrderSemantics!=QueryOrderSemantics.Unordered
                 ?QueryOrderSemantics.Ordered
@@ -434,6 +437,8 @@ public static class QueryIrNormalizer{
         var shape=QueryIrValidator.GetTerminalShape(node.Arguments.Kind);
         var cardinality=shape.Cardinality==QueryCardinality.Scalar
             ?QueryCardinalityRange.Exact(1)
+            :ExtendedTerminalShape.IsExtended(node.Arguments.Kind)
+                ?ExtendedTerminalShape.Cardinality(node.Arguments,input.Cardinality)
             :node.Arguments.Kind==QueryTerminalKind.ToLookup
                 ?new QueryCardinalityRange(input.Cardinality.Minimum>0?1:0,Math.Min(input.Cardinality.Maximum??4,4))
                 :node.Arguments.Kind==QueryTerminalKind.ToHashSet
@@ -441,6 +446,8 @@ public static class QueryIrNormalizer{
                 :input.Cardinality;
         var order=shape.Cardinality==QueryCardinality.Scalar
             ?QueryOrderSemantics.TotalOrdered
+            :ExtendedTerminalShape.IsExtended(node.Arguments.Kind)
+                ?ExtendedTerminalShape.Order(node.Arguments.Kind,input.OrderSemantics)
             :node.Arguments.Kind==QueryTerminalKind.ToHashSet
                 ?QueryOrderSemantics.Unordered
                 :node.Arguments.Kind is QueryTerminalKind.ToDictionary or QueryTerminalKind.ToLookup
@@ -448,6 +455,7 @@ public static class QueryIrNormalizer{
                     :input.OrderSemantics;
         var emptySafety=node.Arguments.Kind is QueryTerminalKind.Min or QueryTerminalKind.Max or QueryTerminalKind.MinBy or QueryTerminalKind.MaxBy or QueryTerminalKind.Average
             or QueryTerminalKind.First or QueryTerminalKind.Last or QueryTerminalKind.ElementAt
+            or QueryTerminalKind.AverageSelector
             ?QueryEmptySafety.RequiresNonEmpty
             :QueryEmptySafety.Safe;
         return node with{

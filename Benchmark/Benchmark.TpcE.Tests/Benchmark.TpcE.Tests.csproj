@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Benchmark.TpcE.Tests</RootNamespace>
+    <AssemblyName>Benchmark.TpcE.Tests</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- exe を参照すると、Core と 4 つの組み合わせも推移で入る。強制終了の検査では出力フォルダの exe を子プロセスとして起動する。 -->
+    <ProjectReference Include="..\Benchmark.TpcE\Benchmark.TpcE.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 共通の部品(表・索引・取り消し記録など)は Benchmark.Tpc.Core にある。 -->
+    <Using Include="Benchmark.Tpc.Core" />
+  </ItemGroup>
+</Project>

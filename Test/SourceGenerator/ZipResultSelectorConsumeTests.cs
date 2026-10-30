@@ -89,7 +89,7 @@ public sealed class ZipResultSelectorConsumeTests {
             (string)probe.GetMethod("RunLinq")!.Invoke(null,null)!));
         Assert.Equal(expected.Split('|','#'),actual.Split('|','#'));
         // 汎用の入れ子の Consume(Zip の列挙子の構造体を TryGetNext で回す形)は残らない。
-        Assert.DoesNotContain("while(__ce",generated);
-        Assert.Contains("__zipSourceSpan",generated);
+        Assert.DoesNotContain("while(ce",generated);
+        Assert.Contains("zipSourceSpan",generated);
     }
 }

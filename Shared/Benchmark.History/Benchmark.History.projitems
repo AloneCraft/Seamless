@@ -1,0 +1,9 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>{03ABC264-72F4-4C58-B6CB-9F3E8B08C9C1}</SharedGUID>
+  </PropertyGroup>
+  <ItemGroup><Compile Include="$(MSBuildThisFileDirectory)*.cs" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="$(MSBuildThisFileDirectory)..\..\Benchmark\Benchmark.Infrastructure\Benchmark.Infrastructure.csproj" /></ItemGroup>
+</Project>

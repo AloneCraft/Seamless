@@ -31,6 +31,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Benchmark.Dynamic.Core\Benchmark.Dynamic.Core.csproj" />
     <ProjectReference Include="..\Benchmark.Dynamic.Infrastructure\Benchmark.Dynamic.Infrastructure.csproj" />
+    <ProjectReference Include="..\Benchmark.Dynamic.Worker\Benchmark.Dynamic.Worker.csproj" ReferenceOutputAssembly="false" OutputItemType="BenchmarkDynamicWorkerOutput" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained" Condition="'$(SkipBenchmarkDynamicWorkerBuild)'!='true'" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,6 +40,7 @@
     <Compile Include="..\..\Shared\UI.Core\BenchmarkStatusIconLogic.cs" Link="Shared\UI.Core\BenchmarkStatusIconLogic.cs" />
   </ItemGroup>
 
+  <Import Project="..\..\Shared\Benchmark.History\Benchmark.History.projitems" Label="Shared" />
   <Import Project="..\..\Shared\UI.Widgets\UI.Widgets.projitems" Label="Shared" />
 
   <ItemGroup>
@@ -46,13 +48,13 @@
   </ItemGroup>
 
   <Target Name="CopyBenchmarkDynamicWorker" AfterTargets="Build" Condition="'$(IsCrossTargetingBuild)'!='true' and '$(TargetDir)'!='' and '$(SkipBenchmarkDynamicWorkerBuild)'!='true'">
-    <MSBuild Projects="$(MSBuildProjectDirectory)\..\Benchmark.Dynamic.Worker\Benchmark.Dynamic.Worker.csproj" Targets="Build" Properties="Configuration=$(Configuration);TargetFramework=net10.0" />
+    <PropertyGroup>
+      <_BenchmarkDynamicWorkerDirectory>@(BenchmarkDynamicWorkerOutput->'%(RootDir)%(Directory)')</_BenchmarkDynamicWorkerDirectory>
+    </PropertyGroup>
+    <Error Condition="'$(_BenchmarkDynamicWorkerDirectory)'==''" Text="Dynamic Workerの出力先をProjectReferenceから解決できませんでした。" />
     <ItemGroup>
-      <_BenchmarkDynamicWorkerFiles Include="$(MSBuildProjectDirectory)\..\Benchmark.Dynamic.Worker\bin\$(Configuration)\net10.0\*.exe" />
-      <_BenchmarkDynamicWorkerFiles Include="$(MSBuildProjectDirectory)\..\Benchmark.Dynamic.Worker\bin\$(Configuration)\net10.0\*.dll" />
-      <_BenchmarkDynamicWorkerFiles Include="$(MSBuildProjectDirectory)\..\Benchmark.Dynamic.Worker\bin\$(Configuration)\net10.0\*.json" />
-      <_BenchmarkDynamicWorkerFiles Include="$(MSBuildProjectDirectory)\..\Benchmark.Dynamic.Worker\bin\$(Configuration)\net10.0\*.pdb" />
+      <_BenchmarkDynamicWorkerFiles Include="$(_BenchmarkDynamicWorkerDirectory)**\*" />
     </ItemGroup>
-    <Copy SourceFiles="@(_BenchmarkDynamicWorkerFiles)" DestinationFolder="$(TargetDir)DynamicWorker" SkipUnchangedFiles="true" Condition="'@(_BenchmarkDynamicWorkerFiles)'!=''" />
+    <Copy SourceFiles="@(_BenchmarkDynamicWorkerFiles)" DestinationFiles="@(_BenchmarkDynamicWorkerFiles->'$(TargetDir)DynamicWorker\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
   </Target>
 </Project>

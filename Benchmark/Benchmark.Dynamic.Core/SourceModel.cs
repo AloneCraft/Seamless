@@ -46,6 +46,8 @@ public enum QueryValueType{
     Double,
     IntPair,
     IntGroup,
+    /// <summary>要素型が int 以外のクエリで、要素そのものである値。要素型は <see cref="QueryIrDocument.ElementType"/> で決まる。</summary>
+    Element,
 }
 
 public enum QueryCardinality{

@@ -15,7 +15,9 @@ internal sealed class PipelineStage(
     bool descending = false,
     bool innerIsArray = false,
     bool innerIsList = false,
-    bool containsAnchor = false) {
+    bool containsAnchor = false,
+    GroupByAggregatePlan? aggregatePlan = null,
+    GroupByAggregatePlan? aggregateCandidate = null) {
     public PipelineStageKind Kind { get; } = kind;
     public FuncFragment? Func { get; } = func;
     public FuncFragment? SecondFunc { get; } = secondFunc;
@@ -32,6 +34,10 @@ internal sealed class PipelineStage(
     public string? KeyType { get; } = keyType;
     public bool UsesIndex { get; } = usesIndex;
     public bool Descending { get; } = descending;
+    public GroupByAggregatePlan? AggregatePlan { get; } = aggregatePlan;
+    // 融合できる集約の候補(段を作るときに解析だけしておく)。融合するかは、段の並びが揃った後で GroupByFusionPass が下流の要求を見て決める。
+    // GroupBy の後の Select の段(Select の形)か、結果選択子つきの GroupBy の段(結果選択子の形)に付く。
+    public GroupByAggregatePlan? AggregateCandidate { get; } = aggregateCandidate;
     public bool ContainsAnchor { get; } = containsAnchor
         ||func?.ContainsAnchor==true
         ||secondFunc?.ContainsAnchor==true

@@ -48,6 +48,11 @@ public sealed record OperatorPathCapability(
 public sealed record OperatorCapability(string OperatorId,IReadOnlyList<OperatorPathCapability> Paths){
     [JsonIgnore]public bool IsSupportedOnAllPaths=>this.Paths.Count==Enum.GetValues<ExecutionPath>().Length&&this.Paths.All(static path=>path.IsSupported);
 
+    // ZLinq は対応しないクエリでは経路ごと外せる(QueryZLinqSupport)ので、System と FLinq の経路だけで判定する。
+    [JsonIgnore]public bool IsSupportedOnCorePaths=>this.Paths
+        .Where(static path=>path.Path!=ExecutionPath.ZLinq)
+        .All(static path=>path.IsSupported);
+
     public OperatorPathCapability Get(ExecutionPath path){
         return this.Paths.Single(capability=>capability.Path==path);
     }
@@ -65,10 +70,14 @@ public sealed record QueryCapabilityProfile(
     CountCost CountCost,
     IReadOnlyList<ExecutionRouteCapability> Routes,
     IReadOnlyList<OperatorCapability> Operators){
-    public const int CurrentProfileVersion=14;
+    public const int CurrentProfileVersion=15;
 
     public OperatorCapability GetOperator(string operatorId){
         return this.Operators.Single(capability=>StringComparer.Ordinal.Equals(capability.OperatorId,operatorId));
+    }
+
+    public bool SupportsOnCorePaths(string operatorId){
+        return this.Operators.FirstOrDefault(capability=>StringComparer.Ordinal.Equals(capability.OperatorId,operatorId))?.IsSupportedOnCorePaths==true;
     }
 
     public bool SupportsOnAllPaths(string operatorId){
@@ -89,6 +98,46 @@ public static class QueryCapabilityProfiles{
 
     public static QueryCapabilityProfile Get(SourceTarget sourceTarget)=>Defaults[sourceTarget];
 
+    /// <summary>
+    /// その Source でその要素型を使えるか。int 以外の要素型は、配列・List・IEnumerable だけ。
+    /// Range は int だけ、永続系(Persisted・Tsavorite)は int 以外の保存を確かめていないので対象外。
+    /// </summary>
+    public static bool SupportsElementType(SourceTarget sourceTarget,QueryElementType elementType){
+        return elementType==QueryElementType.Int
+            ||sourceTarget.GetSourceKind() is SourceKind.Array or SourceKind.IEnumerable or SourceKind.List;
+    }
+
+    /// <summary>要素型ごとの演算子集合。<c>Int</c> は従来と同じ集合・同じ識別子。</summary>
+    public static QueryCapabilitySet CreateSet(OperatorSetMode mode,IEnumerable<SourceTarget> sourceTargets,QueryElementType elementType){
+        var baseSet=CreateSet(mode,sourceTargets);
+        if(elementType==QueryElementType.Int){
+            return baseSet;
+        }
+        foreach(var target in baseSet.SourceTargets){
+            if(!SupportsElementType(target,elementType)){
+                throw new ArgumentException($"{elementType} is not supported on {target}.",nameof(sourceTargets));
+            }
+        }
+        var descriptor=ElementTypeCatalog.Get(elementType);
+        var operatorIds=baseSet.OperatorIds.Where(descriptor.Supports).ToArray();
+        var payload=new{
+            profileVersion=QueryCapabilityProfile.CurrentProfileVersion,
+            operatorSetVersion=BuiltInOperatorCatalog.OperatorSetVersion,
+            mode,
+            sourceTargets=baseSet.SourceTargets,
+            operatorIds,
+            elementType,
+        };
+        var json=JsonSerializer.Serialize(payload,new JsonSerializerOptions{
+            PropertyNamingPolicy=JsonNamingPolicy.CamelCase,
+            Converters={new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)},
+        });
+        return baseSet with{
+            OperatorIds=operatorIds,
+            CapabilityId=Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(json))),
+        };
+    }
+
     public static IReadOnlyList<QueryCapabilityProfile> GetAll(){
         return Enum.GetValues<SourceTarget>().Select(Get).ToArray();
     }
@@ -104,7 +153,7 @@ public static class QueryCapabilityProfiles{
             :selectedTargets;
         var profiles=capabilityTargets.Select(Get).ToArray();
         var operatorIds=BuiltInOperatorCatalog.All
-            .Where(descriptor=>profiles.All(profile=>profile.SupportsOnAllPaths(descriptor.OperatorId)))
+            .Where(descriptor=>profiles.All(profile=>profile.SupportsOnCorePaths(descriptor.OperatorId)))
             .Select(static descriptor=>descriptor.OperatorId)
             .Order(StringComparer.Ordinal)
             .ToArray();
@@ -132,12 +181,8 @@ public static class QueryCapabilityProfiles{
                 var supported=true;
                 var verification=CapabilityVerification.RuntimeVerified;
                 string? limitation=null;
-                if(descriptor.OperatorId==QueryOperatorIds.SelectManyXor
-                    &&path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized){
-                    supported=false;
-                    verification=CapabilityVerification.RuntimeVerified;
-                    limitation="FLinq generated SelectMany captures the inner fixture from an enumerator struct and fails with CS1673.";
-                }
+                // 2026-10-22: FLinq の SelectMany(CS1673)と、Range 上の CountBy / AggregateBy(CS0103)の不具合を直したので、
+                // 非対応にしていた2つの制約を外した。
                 if(target.GetFamily()==SourceFamily.Seamless
                     &&descriptor.OperatorId==QueryOperatorIds.Contains
                     &&path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized){
@@ -145,7 +190,7 @@ public static class QueryCapabilityProfiles{
                     verification=CapabilityVerification.RuntimeVerified;
                     limitation="Concrete provider roots bind their instance Contains method and therefore do not produce an FLinq interceptor.";
                 }
-                if(descriptor.OperatorId is QueryOperatorIds.OrderBy or QueryOperatorIds.ThenBy
+                if(descriptor.OperatorId is QueryOperatorIds.OrderBy or QueryOperatorIds.ThenBy or QueryOperatorIds.OrderByKey
                     &&path==ExecutionPath.ZLinq){
                     supported=false;
                     verification=CapabilityVerification.RuntimeVerified;

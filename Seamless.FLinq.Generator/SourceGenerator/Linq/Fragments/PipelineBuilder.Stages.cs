@@ -33,6 +33,37 @@ internal static partial class PipelineBuilder {
                     ||method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 or 3 } selectorType) {
                     return false;
                 }
+                if(stages.Count>0&&stages[stages.Count-1].Kind==PipelineStageKind.GroupBy&&stages[stages.Count-1].ThirdFunc is null&&stages[stages.Count-1].AggregatePlan is null) {
+                    var lastGroupBy = stages[stages.Count-1];
+                    if(invocation.ArgumentList.Arguments[0].Expression is LambdaExpressionSyntax selectLambda
+                        &&selectorType.TypeArguments.Length==2
+                        &&!services.ContainsAnonymousType(selectorType.TypeArguments[1])) {
+                        if(services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,selectorType,ref uniqueNumber,out var selectFunc)
+                            &&services.CanUseFunc(selectFunc)) {
+                            if(GroupByAggregateFusion.TryAnalyzeSelect(selectLambda,selectFunc,semanticModel,lastGroupBy.KeyType!,lastGroupBy.InnerElementType!,services,ref uniqueNumber,out var aggPlan)) {
+                                // 融合は後で決める(GroupByFusionPass)。ここでは、候補を持つ通常の Select の段にする。
+                                stages.Add(new PipelineStage(PipelineStageKind.Select,selectFunc,null,currentElementType,selectFunc.ReturnTypeName,aggregateCandidate: aggPlan));
+                                currentElementType=selectFunc.ReturnTypeName;
+                                return true;
+                            }
+                            if(GroupBySupport.SelectIgnoresGroup(selectFunc)) {
+                                stages[stages.Count-1]=new PipelineStage(
+                                    PipelineStageKind.GroupBy,
+                                    lastGroupBy.Func,
+                                    lastGroupBy.Value,
+                                    lastGroupBy.InputType,
+                                    selectFunc.ReturnTypeName,
+                                    secondFunc: lastGroupBy.SecondFunc,
+                                    thirdFunc: selectFunc,
+                                    innerElementType: lastGroupBy.InnerElementType,
+                                    keyType: lastGroupBy.KeyType,
+                                    containsAnchor: lastGroupBy.ContainsAnchor||selectFunc.ContainsAnchor);
+                                currentElementType=selectFunc.ReturnTypeName;
+                                return true;
+                            }
+                        }
+                    }
+                }
                 if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,selectorType,ref uniqueNumber,out var selector)) {
                     return false;
                 }
@@ -76,7 +107,7 @@ internal static partial class PipelineBuilder {
             case "ThenByDescending":
                 return TryAppendOrderStage(PipelineStageKind.ThenByDescending,invocation,method,services,ref uniqueNumber,stages,currentElementType);
             case "GroupBy":
-                return TryAppendGroupByStage(invocation,method,services,ref uniqueNumber,stages,ref currentElementType);
+                return TryAppendGroupByStage(semanticModel,invocation,method,services,ref uniqueNumber,stages,ref currentElementType);
             case "Reverse":
                 stages.Add(new PipelineStage(PipelineStageKind.Reverse,null,null,currentElementType,currentElementType));
                 return true;
@@ -574,6 +605,7 @@ internal static partial class PipelineBuilder {
     }
 
     private static bool TryAppendGroupByStage(
+        SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
         IMethodSymbol method,
         PipelineBuildServices services,
@@ -621,6 +653,19 @@ internal static partial class PipelineBuilder {
         }
         var groupElementType = elementSelector?.ReturnTypeName??currentElementType;
         var outputType = resultSelector?.ReturnTypeName??$"global::System.Linq.IGrouping<{keySelector.ReturnTypeName},{groupElementType}>";
+        GroupByAggregatePlan? aggregateCandidate = null;
+        if(resultSelector is not null) {
+            for(var index = 1;index<invocation.ArgumentList.Arguments.Count;index++) {
+                if(invocation.ArgumentList.Arguments[index].Expression is LambdaExpressionSyntax resLambda
+                    &&method.Parameters[index].Type is INamedTypeSymbol { TypeArguments.Length: 3 } resultFuncType
+                    &&!services.ContainsAnonymousType(resultFuncType.TypeArguments[2])
+                    &&GroupByAggregateFusion.TryAnalyzeResultSelector(resLambda,resultSelector,semanticModel,keySelector.ReturnTypeName,groupElementType,services,ref uniqueNumber,out var plan)) {
+                    // 融合は後で決める(GroupByFusionPass)。
+                    aggregateCandidate=plan;
+                    break;
+                }
+            }
+        }
         stages.Add(new PipelineStage(
             PipelineStageKind.GroupBy,
             keySelector,
@@ -631,7 +676,8 @@ internal static partial class PipelineBuilder {
             thirdFunc: resultSelector,
             innerElementType: groupElementType,
             keyType: keySelector.ReturnTypeName,
-            containsAnchor: containsAnchor));
+            containsAnchor: containsAnchor,
+            aggregateCandidate: aggregateCandidate));
         currentElementType=outputType;
         return true;
     }
@@ -640,39 +686,67 @@ internal static partial class PipelineBuilder {
     // グループを作らず、要素選択子も評価しない(FLinq の契約。.Anchor の条件は GroupBySupport.CanStreamDistinctKeys と同じで、
     // 逐次流すと後段が途中で止めたときに前段とソースの評価が減るので、前段かソースに .Anchor があれば置き換えない)。
     private static List<PipelineStage> StreamGroupByKeysWhenResultIgnoresGroup(Enumerable source,List<PipelineStage> stages) {
-        var index = stages.FindIndex(static stage => stage.Kind==PipelineStageKind.GroupBy);
-        if(index<0) {
-            return stages;
+        var rewritten = new List<PipelineStage>(stages.Count+4);
+        for(var index = 0;index<stages.Count;index++) {
+            var stage = stages[index];
+            if(stage.Kind!=PipelineStageKind.GroupBy
+                ||stage.Func is null
+                ||stage.KeyType is not { } keyType
+                ||stage.ContainsAnchor
+                ||stages.Take(index).Any(static previous => previous.ContainsAnchor)
+                ||source.TreeContainsAnchor()) {
+                rewritten.Add(stage);
+                continue;
+            }
+
+            if(stage.ThirdFunc is LambdaFunc resultSelector&&GroupBySupport.ResultIgnoresGroup(resultSelector)) {
+                var resultFromKey = new LambdaFunc {
+                    ReturnTypeName=resultSelector.ReturnTypeName,
+                    ParameterTypeNames=[resultSelector.ParameterTypeNames[0]],
+                    ParameterNames=[resultSelector.ParameterNames[0]],
+                    CanGenerateMethod=resultSelector.CanGenerateMethod,
+                    CanInlineAssign=true,
+                    InlineBody=resultSelector.InlineBody,
+                    CapturedLocals=resultSelector.CapturedLocals,
+                    HoistedLocals=resultSelector.HoistedLocals,
+                    BodyUnsafeAccessorCodes=resultSelector.BodyUnsafeAccessorCodes,
+                    SupportingMemberSources=resultSelector.SupportingMemberSources,
+                };
+                rewritten.Add(new PipelineStage(PipelineStageKind.Select,stage.Func,null,stage.InputType,keyType));
+                rewritten.Add(new PipelineStage(PipelineStageKind.Distinct,null,stage.Value,keyType,keyType,keyType: keyType));
+                rewritten.Add(new PipelineStage(PipelineStageKind.Select,resultFromKey,null,keyType,stage.OutputType));
+                continue;
+            }
+
+            if(stage.ThirdFunc is LambdaFunc selectFunc&&GroupBySupport.SelectIgnoresGroup(selectFunc)) {
+                var groupParam = selectFunc.ParameterNames[0];
+                var newParamName = "__k";
+                var replacedBody = System.Text.RegularExpressions.Regex.Replace(
+                    selectFunc.InlineBody,
+                    $@"\b{System.Text.RegularExpressions.Regex.Escape(groupParam)}\.Key\b",
+                    newParamName,
+                    System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+                var resultFromKey = new LambdaFunc {
+                    ReturnTypeName=selectFunc.ReturnTypeName,
+                    ParameterTypeNames=[keyType],
+                    ParameterNames=[newParamName],
+                    CanGenerateMethod=selectFunc.CanGenerateMethod,
+                    CanInlineAssign=true,
+                    InlineBody=replacedBody,
+                    CapturedLocals=selectFunc.CapturedLocals,
+                    HoistedLocals=selectFunc.HoistedLocals,
+                    BodyUnsafeAccessorCodes=selectFunc.BodyUnsafeAccessorCodes,
+                    SupportingMemberSources=selectFunc.SupportingMemberSources,
+                };
+                rewritten.Add(new PipelineStage(PipelineStageKind.Select,stage.Func,null,stage.InputType,keyType));
+                rewritten.Add(new PipelineStage(PipelineStageKind.Distinct,null,stage.Value,keyType,keyType,keyType: keyType));
+                rewritten.Add(new PipelineStage(PipelineStageKind.Select,resultFromKey,null,keyType,stage.OutputType));
+                continue;
+            }
+
+            rewritten.Add(stage);
         }
-        var stage = stages[index];
-        if(stage.ThirdFunc is not LambdaFunc resultSelector
-            ||stage.Func is null
-            ||stage.KeyType is not { } keyType
-            ||stage.ContainsAnchor
-            ||stages.Take(index).Any(static previous => previous.ContainsAnchor)
-            ||source.TreeContainsAnchor()
-            ||!GroupBySupport.ResultIgnoresGroup(resultSelector)) {
-            return stages;
-        }
-        // 本体はグループの引数を参照しないので、キーの引数だけを持つ関数として使える。
-        var resultFromKey = new LambdaFunc {
-            ReturnTypeName=resultSelector.ReturnTypeName,
-            ParameterTypeNames=[resultSelector.ParameterTypeNames[0]],
-            ParameterNames=[resultSelector.ParameterNames[0]],
-            CanGenerateMethod=resultSelector.CanGenerateMethod,
-            CanInlineAssign=true,
-            InlineBody=resultSelector.InlineBody,
-            CapturedLocals=resultSelector.CapturedLocals,
-            HoistedLocals=resultSelector.HoistedLocals,
-            BodyUnsafeAccessorCodes=resultSelector.BodyUnsafeAccessorCodes,
-            SupportingMemberSources=resultSelector.SupportingMemberSources,
-        };
-        var rewritten = new List<PipelineStage>(stages.Count+2);
-        rewritten.AddRange(stages.Take(index));
-        rewritten.Add(new PipelineStage(PipelineStageKind.Select,stage.Func,null,stage.InputType,keyType));
-        rewritten.Add(new PipelineStage(PipelineStageKind.Distinct,null,stage.Value,keyType,keyType,keyType: keyType));
-        rewritten.Add(new PipelineStage(PipelineStageKind.Select,resultFromKey,null,keyType,stage.OutputType));
-        rewritten.AddRange(stages.Skip(index+1));
         return rewritten;
     }
 }

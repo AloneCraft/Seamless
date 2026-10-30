@@ -46,6 +46,10 @@ internal class Prepend(int 番号,Enumerable source,string element):Enumerable(�
         }
     }
     protected override Enumerable PrimarySource => this.RootSource;
+    public override string? NonEnumeratedCountExpression =>
+        this.RootSource.NonEnumeratedCountExpression is { } count
+            ? $"({count}+{this.FlattenedElements.Count})"
+            : null;
     public override string StructMethod => string.Empty;
     public override string GetEnumerableExpression => base.GetEnumerableExpression;
     public override string GetEnumeratorStruct => $$"""

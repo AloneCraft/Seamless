@@ -22,6 +22,25 @@ Sum は source.Sum() / Sum(selector) を checked 加算の Compute に変換す�
     methodName を無視して FLinq 自身の Compute を埋め込むため、System.Linq への委譲ではない)。
 */
 internal class Sum(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+    // nullableと未知の数値型へは拡張しない。checked累積は最終和だけでなく途中の和にも依存する。
+    internal static bool RequiresCheckedAccumulation(string typeName){
+        if(typeName.StartsWith("global::",StringComparison.Ordinal)){
+            typeName=typeName.Substring("global::".Length);
+        }
+        return typeName is "byte" or "sbyte" or "short" or "ushort" or "int" or "uint" or "long" or "ulong" or "decimal"
+            or "System.Byte" or "System.SByte" or "System.Int16" or "System.UInt16" or "System.Int32" or "System.UInt32"
+            or "System.Int64" or "System.UInt64" or "System.Decimal";
+    }
+
+    // Consumeの引数が式でも、その評価をcheckedへ巻き込まず、一度だけ評価してから加算する。
+    internal static string RenderAccumulation(string destination,string value,string typeName,int number){
+        if(!RequiresCheckedAccumulation(typeName)){
+            return $"{destination}+={value};";
+        }
+        var valueName=$"__checkedSumValue{number}";
+        return "{"+typeName+" "+valueName+"="+value+";checked{"+destination+"+="+valueName+";}}";
+    }
+
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -41,8 +60,39 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeSumInline(destVar,destType)
         ??this.RenderDirectSpanSumInline(destVar,destType)
+        ??this.RenderConsumeBasedSumInline(destVar,destType)
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum")
         ??this.RenderComputeInline(destVar,destType);
+
+    private string? RenderConsumeBasedSumInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_SUM_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            return indent+RenderAccumulation(destVar,arg,destType,番号);
+        });
+        return $$"""
+            {{destType}} {{destVar}}=default!;
+            {{replaced}}
+            """;
+    }
     // Range の和は和の公式で求める(checked の逐次加算と同じ桁あふれの判定つき)。
     private string? RenderRangeSumInline(string destVar,string destType) =>
         source is RangeRoot range&&resultType=="int"
@@ -198,7 +248,11 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
                     for(var __i=0;__i<__span.Length;__i++){
                         var {{this.item}}=__span[__i];
                         {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                        // System.Linq は選択子を呼び出し側の文脈(通常は unchecked)で実行し、checked なのは足し算だけ。
+                        // 選択子の中の縮小変換などを checked にすると OverflowException になり、System.Linq と食い違う。
+                        unchecked{
                         {{this.FuncAssignIndented("                ",selector,nameof(selector),this.temp,this.item)}}
+                        }
                         sum+={{this.temp}};
                     }
                 }
@@ -215,14 +269,22 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
                         for(var __i=0;__i<__span.Length;__i++){
                             var {{this.item}}=__span[__i];
                             {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                            // System.Linq は選択子を呼び出し側の文脈(通常は unchecked)で実行し、checked なのは足し算だけ。
+                            // 選択子の中の縮小変換などを checked にすると OverflowException になり、System.Linq と食い違う。
+                            unchecked{
                             {{this.FuncAssignIndented("                ",selector,nameof(selector),this.temp,this.item)}}
+                            }
                             sum+={{this.temp}};
                         }
                     }else{
                         while(source.TryGetNext(out var __mn73)){
                             var {{this.item}}=__mn73;
                             {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                            // System.Linq は選択子を呼び出し側の文脈(通常は unchecked)で実行し、checked なのは足し算だけ。
+                            // 選択子の中の縮小変換などを checked にすると OverflowException になり、System.Linq と食い違う。
+                            unchecked{
                             {{this.FuncAssignIndented("                ",selector,nameof(selector),this.temp,this.item)}}
+                            }
                             sum+={{this.temp}};
                         }
                     }
@@ -238,7 +300,11 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
                     while(source.TryGetNext(out var __mn74)){
                         var {{this.item}}=__mn74;
                         {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
+                        // System.Linq は選択子を呼び出し側の文脈(通常は unchecked)で実行し、checked なのは足し算だけ。
+                        // 選択子の中の縮小変換などを checked にすると OverflowException になり、System.Linq と食い違う。
+                        unchecked{
                         {{this.FuncAssignIndented("            ",selector,nameof(selector),this.temp,this.item)}}
+                        }
                         sum+={{this.temp}};
                     }
                 }

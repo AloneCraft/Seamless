@@ -19,6 +19,10 @@ internal sealed class GenerationState(FLinqIncrementalGenerator.Linq傍受対象
         FLinqIncrementalGenerator.AnonRecordFileToken(target.SourcePath)+"_"+target.MethodName);
     public HashSet<string> EmittedUnsafeAccessors { get; } = new(StringComparer.Ordinal);
     public HashSet<string> UsedIdentifiers { get; } = new(StringComparer.Ordinal);
+    // ループなど入れ子のブロックの中だけの名前の衝突相手(ラムダの中だけで宣言される名前を除く)。GeneratedNames を参照。
+    public HashSet<string> BlockScopeIdentifiers { get; } = new(StringComparer.Ordinal);
+    // 利用者のメソッドに現れる識別子だけ(割り当てた名前・テンプレートの予約名を含まない)。GeneratedNameRenamer が付け替えの対象から外すために使う。
+    public HashSet<string> UserIdentifiers { get; } = new(StringComparer.Ordinal);
     public List<Fragment> GeneratedFragments { get; } = new();
     public List<string> UnsafeAccessorCodes { get; } = new();
 
@@ -52,10 +56,11 @@ internal sealed class FragmentBuildContext(
     internal int UniqueNumber = uniqueNumber;
     public LinqGenerationConfiguration Configuration => this.State.Configuration;
     public string[] MethodTypeParameters => this.State.Target.MethodTypeParameters;
-    internal FragmentRenderContext CreateRenderContext(bool counterInstrumentationEnabled = false) =>
-        new(null,this.MethodTypeParameters.ToImmutableArray(),counterInstrumentationEnabled);
+    // StructMethodは構築中にも文字列化されるため、最初のsnapshotから対象の計測契約を使う。
+    internal FragmentRenderContext CreateRenderContext(bool? counterInstrumentationEnabled = null) =>
+        new(null,this.MethodTypeParameters.ToImmutableArray(),counterInstrumentationEnabled??this.State.Target.CounterInstrumentation);
 
-    internal void ApplyRenderContext(Fragment fragment,bool counterInstrumentationEnabled = false) {
+    internal void ApplyRenderContext(Fragment fragment,bool? counterInstrumentationEnabled = null) {
         fragment.ApplyRenderContext(this.CreateRenderContext(counterInstrumentationEnabled));
     }
 }

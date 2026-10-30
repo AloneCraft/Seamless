@@ -1,4 +1,5 @@
-using Benchmark.Dynamic.Core;
+﻿using Benchmark.Dynamic.Core;
+using Benchmark.Infrastructure;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
@@ -8,6 +9,8 @@ using System.ComponentModel;
 namespace Benchmark.Dynamic.UI;
 
 public sealed class 動的ベンチマーク画面モデル:ObservableObject {
+    public アプリ操作排他 実行排他{get;}=new();
+    public Func<(int 最適化,WorkerStorageSettings 設定)>? 測定設定を取得{get;set;}
     private const string 選択ソース設定キー="Benchmark.Dynamic.選択ソース";
     private readonly I動的実行調停サービス 実行調停;
     private readonly I動的UI設定 UI設定;
@@ -17,6 +20,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
     private int 最大深度状態=8;
     private string Seed文字列状態="0x5EED5EED5EED5EED";
     private OperatorSetMode 演算子集合モード状態=OperatorSetMode.Common;
+    private QueryElementType 要素型状態=QueryElementType.Int;
     private bool 実行中状態か;
     private bool キャンセル要求状態か;
     private string 進捗文字列状態="待機中";
@@ -52,7 +56,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
 
         this.Query数状態=Math.Clamp(this.UI設定.取得("Benchmark.Dynamic.Query数",10),1,1_000);
         this.N状態=Math.Clamp(this.UI設定.取得("Benchmark.Dynamic.N",8),1,64);
-        this.入力要素数状態=Math.Clamp(this.UI設定.取得("Benchmark.Dynamic.入力要素数",1024),1,100_000);
+        this.入力要素数状態=Math.Clamp(this.UI設定.取得("Benchmark.Dynamic.入力要素数",1024),0,100_000);
         this.最大深度状態=Math.Min(
             Math.Max(1,this.UI設定.取得("Benchmark.Dynamic.最大深度",Math.Min(this.N状態,8))),
             Math.Min(this.N状態,32));
@@ -63,6 +67,10 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         this.演算子集合モード状態=this.UI設定.取得("Benchmark.Dynamic.演算子集合モード","Common")=="Maximum"
             ?OperatorSetMode.Maximum
             :OperatorSetMode.Common;
+        this.要素型状態=Enum.TryParse<QueryElementType>(this.UI設定.取得("Benchmark.Dynamic.要素型","Int"),out var 保存要素型)
+            &&Enum.IsDefined(保存要素型)
+                ?保存要素型
+                :QueryElementType.Int;
         this.詳細領域高さ状態=Math.Max(180d,this.UI設定.取得("Benchmark.Dynamic.詳細領域高さ",280d));
         this.詳細領域折畳状態か=this.UI設定.取得("Benchmark.Dynamic.詳細領域折畳",false);
 
@@ -127,7 +135,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
     public int 入力要素数 {
         get=>this.入力要素数状態;
         set {
-            var 値=Math.Clamp(value,1,100000);
+            var 値=Math.Clamp(value,0,100000);
             if(this.SetProperty(ref this.入力要素数状態,値)) {
                 this.UI設定.保存("Benchmark.Dynamic.入力要素数",値);
             }
@@ -162,6 +170,17 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
                 this.UI設定.保存("Benchmark.Dynamic.演算子集合モード",value.ToString());
                 this.OnPropertyChanged(nameof(this.Common選択か));
                 this.OnPropertyChanged(nameof(this.Maximum選択か));
+            }
+        }
+    }
+
+    public IReadOnlyList<QueryElementType> 要素型一覧{get;}=Enum.GetValues<QueryElementType>();
+
+    public QueryElementType 要素型 {
+        get=>this.要素型状態;
+        set {
+            if(this.SetProperty(ref this.要素型状態,value)) {
+                this.UI設定.保存("Benchmark.Dynamic.要素型",value.ToString());
             }
         }
     }
@@ -325,6 +344,8 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
     }
 
     private async Task 実行Async() {
+        using var 予約=this.実行排他.予約する();
+        if(予約 is null){return;}
         var 選択対象=this.ソース選択一覧.Where(項目=>項目.選択済みか).Select(項目=>項目.対象).Order().ToArray();
         if(選択対象.Length==0) {
             await 通知Async("入力エラー","少なくとも1つのSourceTargetを選択してください。");
@@ -332,6 +353,11 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         }
         if(!Seed256.TryParse(this.Seed文字列,out var Seed)) {
             await 通知Async("入力エラー","Seedは符号なし64bitの10進または0x付き16進で入力してください。");
+            return;
+        }
+        var 使えない対象=選択対象.Where(対象=>!QueryCapabilityProfiles.SupportsElementType(対象,this.要素型)).ToArray();
+        if(使えない対象.Length!=0) {
+            await 通知Async("入力エラー",$"要素型 {this.要素型} は {string.Join(", ",使えない対象)} では使えません(int 以外は配列・List・IEnumerable だけです)。");
             return;
         }
 
@@ -344,6 +370,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         this.意味不一致数=0;
         this.非収束数=0;
         this.実行例外数=0;
+        var 追加設定=this.測定設定を取得?.Invoke();
         var 設定=new 動的実行設定(
             Guid.NewGuid().ToString("N"),
             this.Query数,
@@ -352,7 +379,8 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
             this.最大深度,
             Seed,
             this.演算子集合モード,
-            選択対象);
+            選択対象,
+            要素型:this.要素型,最適化フラグ:追加設定?.最適化??15,ストレージ設定:追加設定?.設定);
         try {
             await using var UI更新=new 動的UI更新Channel(
                 行=>this.結果一覧.Add(行),
@@ -366,6 +394,54 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         } catch(Exception 例外) {
             this.進捗文字列="Run致命障害: "+例外.Message;
         } finally {
+            this.実行中か=false;
+        }
+    }
+
+    public void 内部制御障害を表示(string 内容)=>this.進捗文字列="アプリ内部操作 Unavailable: "+内容;
+
+    public async Task 終了Async(){
+        await this.実行調停.キャンセルAsync();
+        var 実行一覧=new[]{this.実行コマンド.ExecutionTask,this.Run再実行コマンド.ExecutionTask,this.Query再実行コマンド.ExecutionTask,this.Query縮小コマンド.ExecutionTask,this.選択Query再実行コマンド.ExecutionTask};
+        await Task.WhenAll(実行一覧.OfType<Task>());
+    }
+
+    public async Task<アプリ操作結果> 外部実行Async(動的実行設定 設定,CancellationToken 取消){
+        if(取消.IsCancellationRequested){return new("Cancelled","Unavailable","");}
+        this.実行中か=true;
+        this.キャンセル要求済みか=false;
+        this.進捗文字列="外部操作を実行しています";
+        this.CPU活動をクリア?.Invoke();
+        this.完了数=0;
+        this.コンパイル失敗数=0;
+        this.意味不一致数=0;
+        this.非収束数=0;
+        this.実行例外数=0;
+        var 集計=new 動的外部検証集計(checked(設定.Query数*設定.対象一覧.Count));
+        try{
+            await using var UI更新=new 動的UI更新Channel(行=>this.結果一覧.Add(行),this.進捗を適用);
+            var 元の処理=this.実行調停.実行Async(設定,行=>{
+                _=Enum.TryParse<WorkerExecutionStatus>(行.状態,out var 状態);
+                集計.結果を追加(状態,行.意味一致=="一致",行.FixedPoint=="到達");
+                UI更新.結果を追加(行);
+            },UI更新.進捗を更新);
+            Task 取消処理=Task.CompletedTask;
+            // 実行Async が作った元 Task を待つ。取消送信の完了を停止証拠にしない。
+            var 登録=取消.Register(()=>取消処理=this.実行調停.キャンセルAsync());
+            動的履歴項目 履歴;
+            try{履歴=await 元の処理;}
+            finally{登録.Dispose();await 取消処理;}
+            await UI更新.完了Async();
+            this.履歴一覧.Insert(0,履歴);
+            this.進捗文字列=履歴.状態;
+            var 終端="Failed";
+            if(履歴.状態=="Completed"){終端="Completed";}
+            if(履歴.状態 is "Canceled" or "Cancelled"){終端="Cancelled";}
+            return new(終端,集計.検証結果を取得(履歴.状態),"run:"+履歴.実行ID);
+        }catch(Exception 例外){
+            this.進捗文字列="外部操作失敗: "+例外.Message;
+            throw;
+        }finally{
             this.実行中か=false;
         }
     }
@@ -409,6 +485,8 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
 
     private async Task 再実行Async(
         Func<Action<動的結果行>,Action<動的実行進捗>,Task<動的履歴項目>> 開始){
+        using var 予約=this.実行排他.予約する();
+        if(予約 is null){return;}
         this.実行中か=true;
         this.キャンセル要求済みか=false;
         this.進捗文字列="再実行を開始しています";
@@ -445,6 +523,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         this.入力要素数=条件.InputElementCount;
         this.最大深度=条件.MaximumDepth;
         this.演算子集合モード=条件.Mode;
+        this.要素型=条件.ElementType;
         var 選択=条件.SourceTargets.ToHashSet();
         foreach(var Source in this.ソース選択一覧) {
             Source.選択済みか=選択.Contains(Source.対象);

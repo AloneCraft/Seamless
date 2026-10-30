@@ -5,7 +5,7 @@ namespace Seamless.Collections.Tsavorite;
 /// 内部でログの値をデシリアライズし、input と Equals 比較する。
 /// </summary>
 public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
-    ISessionFunctions<TValue,bool,EqualityEmpty> where TStrategy : ISerializer<TValue> {
+    ISessionFunctions<TValue,bool,EqualityEmpty> where TStrategy : global::Seamless.Collections.Serializers.IStrategy<TValue> {
     [ExcludeFromCodeCoverage]
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input,ref bool output,ref ReadInfo readInfo) where TSourceLogRecord : ISourceLogRecord =>
     // Read 経路はこの処理では使用しない。

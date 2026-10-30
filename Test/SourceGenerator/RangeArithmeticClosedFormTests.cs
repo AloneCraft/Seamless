@@ -133,7 +133,7 @@ public sealed class RangeArithmeticClosedFormTests {
     public void 一次式の選択子と和の畳み込みだけを数式にする() {
         var (_,generated) = ExecutableGeneration.Generate(Source,"RangeArithmeticClosedFormShape",18);
         // 和の公式: Sum 4つ・Average 3つ・Aggregate 4つ。端の値: x*2・5-x*3・-(x+1)*3・(long)x・(double)x の6つ(x*x は従来の経路)。
-        Assert.Equal(11,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var __sum\d+=\(long\)").Count);
-        Assert.Equal(6,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var __first\d+=").Count);
+        Assert.Equal(11,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var sum\d*=\(long\)").Count);
+        Assert.Equal(6,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var first\d*=").Count);
     }
 }

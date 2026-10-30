@@ -64,6 +64,8 @@ public sealed class 動的ベンチマーク画面モデル {
     [Fact,Trait("Category","Unit")]
     public void N() {
         var 対象=new global::Benchmark.Dynamic.UI.動的ベンチマーク画面モデル(new 偽実行調停(),new メモリ設定());
+        対象.N=0;
+        Assert.Equal(1,対象.N);
         対象.Query数=0;
         Assert.Equal(1,対象.Query数);
         対象.Query数=1001;

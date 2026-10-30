@@ -1,7 +1,7 @@
 namespace Seamless.Collections;
 
-public class SerializedList<T>(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null):SerializedList<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning);
-public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatcher where TSerializer : ISerializer<T> {
+public class SerializedList<T>(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null):SerializedList<T,global::Seamless.Collections.Serializers.MemoryPack<T>>(path,initialCapacity,initialDataCapacity,tuning);
+public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatcher where TSerializer : global::Seamless.Collections.Serializers.IStrategy<T> {
     private const long UnusedIndex = -1;
     // Set/Dictionary が override して true にすると、レコードキー→データオフセットのディスク上のハッシュ索引を維持する。
     // これにより Contains/TryGetValue が O(n) 走査から O(1) 索引 lookup になる(技法 c/d)。

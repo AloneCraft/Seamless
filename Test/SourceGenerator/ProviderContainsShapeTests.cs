@@ -68,7 +68,7 @@ public sealed class ProviderContainsShapeTests {
             generated.Contains("IEnumerator<int>",StringComparison.Ordinal)
             &&generated.Contains(".GetEnumerator()",StringComparison.Ordinal)
             &&generated.Contains(".MoveNext()",StringComparison.Ordinal)
-            &&!generated.Contains("TryGetNext(out var __genericItem",StringComparison.Ordinal),
+            &&!generated.Contains("TryGetNext(out var genericItem",StringComparison.Ordinal),
             "Static IEnumerable<T>.Contains must use one direct IEnumerator<T> fallback loop.",generated,null);
     }
 
@@ -91,8 +91,8 @@ public sealed class ProviderContainsShapeTests {
         var generated=Generate(source);
         var callCount=generated.Split("__Method_Container_NextValue(@this)",StringSplitOptions.None).Length-1;
         GeneratedSourceAssert.True(
-            generated.Contains("var __genericValue0=__Method_Container_NextValue(@this);",StringComparison.Ordinal)
-            &&generated.Contains("comparer.Equals(__genericItem0,__genericValue0)",StringComparison.Ordinal)
+            generated.Contains("var genericValue=__Method_Container_NextValue(@this);",StringComparison.Ordinal)
+            &&generated.Contains("comparer.Equals(genericItem,genericValue)",StringComparison.Ordinal)
             &&callCount==1,
             "Contains value expression must be evaluated once before the direct fallback loop.",generated,null);
     }
@@ -161,7 +161,7 @@ public sealed class ProviderContainsShapeTests {
             """;
         var generated=Generate(source);
         GeneratedSourceAssert.True(
-            generated.Contains("__reverseSpan",StringComparison.Ordinal)
+            generated.Contains("reverseSpan",StringComparison.Ordinal)
             &&generated.Contains("Length-1",StringComparison.Ordinal)
             &&!generated.Contains("IEnumerator<int>",StringComparison.Ordinal),
             "Static Reverse over List<T> must remain a direct reverse span loop.",generated,null);

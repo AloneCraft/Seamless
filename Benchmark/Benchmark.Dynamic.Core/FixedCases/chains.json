@@ -1,0 +1,322 @@
+[
+  {
+    "ID": "chain-01",
+    "Methods": [
+      "Where",
+      "Sum"
+    ],
+    "Expression": "source.Where(x=>(x&1)==0).Sum(x=>(long)x)",
+    "IdealBody": "                var sum=0L;\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        sum+=x;\n                    }\n                }\n                return sum;",
+    "ValueType": "Long",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-02",
+    "Methods": [
+      "Select",
+      "Sum"
+    ],
+    "Expression": "source.Select(x=>x*3+1).Sum(x=>(long)x)",
+    "IdealBody": "                var sum=0L;\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    sum+=(long)(x*3+1);\n                }\n                return sum;",
+    "ValueType": "Long",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-03",
+    "Methods": [
+      "Where",
+      "Count"
+    ],
+    "Expression": "source.Where(x=>(x&1)==0).Count()",
+    "IdealBody": "                var count=0;\n                for(var i=0;i<raw.Length;i++){\n                    if((raw[i]&1)==0){\n                        count++;\n                    }\n                }\n                return count;",
+    "ValueType": "Int",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-04",
+    "Methods": [
+      "Where",
+      "Any"
+    ],
+    "Expression": "source.Where(x=>(x&1)==0).Any()",
+    "IdealBody": "                for(var i=0;i<raw.Length;i++){\n                    if((raw[i]&1)==0){\n                        return true;\n                    }\n                }\n                return false;",
+    "ValueType": "Bool",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-05",
+    "Methods": [
+      "Where",
+      "FirstOrDefault"
+    ],
+    "Expression": "source.Where(x=>(x&1)==0).FirstOrDefault()",
+    "IdealBody": "                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        return x;\n                    }\n                }\n                return 0;",
+    "ValueType": "Int",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-06",
+    "Methods": [
+      "Skip",
+      "Take",
+      "ToArray"
+    ],
+    "Expression": "source.Skip(4).Take(12).ToArray()",
+    "IdealBody": "                if(raw.Length<=4){\n                    return Array.Empty<int>();\n                }\n                var len=raw.Length-4;\n                if(len>12){\n                    len=12;\n                }\n                var res=new int[len];\n                Array.Copy(raw,4,res,0,len);\n                return res;",
+    "ValueType": "Int",
+    "Cardinality": "Sequence",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-07",
+    "Methods": [
+      "OrderBy",
+      "FirstOrDefault"
+    ],
+    "Expression": "source.OrderBy(x=>x&31).FirstOrDefault()",
+    "IdealBody": "                if(raw.Length==0){\n                    return 0;\n                }\n                var best=raw[0];\n                var bestKey=best&31;\n                for(var i=1;i<raw.Length;i++){\n                    var x=raw[i];\n                    var k=x&31;\n                    if(k<bestKey){\n                        bestKey=k;\n                        best=x;\n                    }\n                }\n                return best;",
+    "ValueType": "Int",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-08",
+    "Methods": [
+      "GroupBy_Sum",
+      "Sum"
+    ],
+    "Expression": "source.GroupBy(x=>x&15,x=>x).Select(g=>g.Key+g.Sum()).Sum(x=>(long)x)",
+    "IdealBody": "                if(raw.Length==0){\n                    return 0L;\n                }\n                Span<long> sums=stackalloc long[16];\n                Span<bool> seen=stackalloc bool[16];\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    var k=x&15;\n                    seen[k]=true;\n                    sums[k]+=x;\n                }\n                var total=0L;\n                for(var k=0;k<16;k++){\n                    if(seen[k]){\n                        total+=k+sums[k];\n                    }\n                }\n                return total;",
+    "ValueType": "Long",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-09",
+    "Methods": [
+      "GroupBy_KeyOnly",
+      "Count"
+    ],
+    "Expression": "source.GroupBy(x=>x&15).Select(g=>g.Key).Count()",
+    "IdealBody": "                Span<bool> seen=stackalloc bool[16];\n                var count=0;\n                for(var i=0;i<raw.Length;i++){\n                    var k=raw[i]&15;\n                    if(!seen[k]){\n                        seen[k]=true;\n                        count++;\n                    }\n                }\n                return count;",
+    "ValueType": "Int",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-10",
+    "Methods": [
+      "Distinct",
+      "Count"
+    ],
+    "Expression": "source.Distinct().Count()",
+    "IdealBody": "                var set=new HashSet<int>(raw.Length);\n                for(var i=0;i<raw.Length;i++){\n                    set.Add(raw[i]);\n                }\n                return set.Count;",
+    "ValueType": "Int",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-11",
+    "Methods": [
+      "Reverse",
+      "FirstOrDefault"
+    ],
+    "Expression": "source.Reverse().FirstOrDefault()",
+    "IdealBody": "                if(raw.Length==0){\n                    return 0;\n                }\n                return raw[raw.Length-1];",
+    "ValueType": "Int",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-12",
+    "Methods": [
+      "Append",
+      "Sum"
+    ],
+    "Expression": "source.Append(77).Sum(x=>(long)x)",
+    "IdealBody": "                var sum=77L;\n                for(var i=0;i<raw.Length;i++){\n                    sum+=raw[i];\n                }\n                return sum;",
+    "ValueType": "Long",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-13",
+    "Methods": [
+      "Prepend",
+      "First"
+    ],
+    "Expression": "source.Prepend(11).First()",
+    "IdealBody": "                return 11;",
+    "ValueType": "Int",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-14",
+    "Methods": [
+      "Concat",
+      "Count"
+    ],
+    "Expression": "source.Concat(second).Count()",
+    "IdealBody": "                return raw.Length+second.Length;",
+    "ValueType": "Int",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-15",
+    "Methods": [
+      "SelectMany",
+      "Sum"
+    ],
+    "Expression": "source.SelectMany(x=>second).Sum(x=>(long)x)",
+    "IdealBody": "                var secondSum=0L;\n                for(var j=0;j<second.Length;j++){\n                    secondSum+=second[j];\n                }\n                return (long)raw.Length*secondSum;",
+    "ValueType": "Long",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-16",
+    "Methods": [
+      "Where",
+      "Select",
+      "Sum"
+    ],
+    "Expression": "source.Where(x=>(x&1)==0).Select(x=>x*3+1).Sum(x=>(long)x)",
+    "IdealBody": "                // A.B(Where->Select) + B.C(Select->Sum) => 1本のループでフィルタ・射影・加算\n                var sum=0L;\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        var y=x*3+1;\n                        sum+=y;\n                    }\n                }\n                return sum;",
+    "ValueType": "Long",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-17",
+    "Methods": [
+      "Where",
+      "Select",
+      "Take",
+      "ToArray"
+    ],
+    "Expression": "source.Where(x=>(x&1)==0).Select(x=>x*3+1).Take(12).ToArray()",
+    "IdealBody": "                // A.B(Where->Select) + B.C(Select->Take) + C.D(Take->ToArray) => 最大12件で即時breakする単一ループ\n                var buf=new List<int>(12);\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        buf.Add(x*3+1);\n                        if(buf.Count>=12){\n                            break;\n                        }\n                    }\n                }\n                return buf.ToArray();",
+    "ValueType": "Int",
+    "Cardinality": "Sequence",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-18",
+    "Methods": [
+      "Skip",
+      "Where",
+      "Select",
+      "FirstOrDefault"
+    ],
+    "Expression": "source.Skip(4).Where(x=>(x&1)==0).Select(x=>x*3+1).FirstOrDefault()",
+    "IdealBody": "                // A.B(Skip->Where) + B.C(Where->Select) + C.D(Select->FirstOrDefault) => インデックス4から走査し最初の一致で即return\n                for(var i=4;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        return x*3+1;\n                    }\n                }\n                return 0;",
+    "ValueType": "Int",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-19",
+    "Methods": [
+      "OrderBy",
+      "Where",
+      "Select",
+      "FirstOrDefault"
+    ],
+    "Expression": "source.OrderBy(x=>x&31).Where(x=>(x&1)==0).Select(x=>x*3+1).FirstOrDefault()",
+    "IdealBody": "                // A.B(OrderBy->Where Pushdown) + B.C(Where->Select) + C.D(Select->FirstOrDefault) => 偶数のみから最小キー要素を1パス選択\n                var found=false;\n                var bestVal=0;\n                var bestKey=int.MaxValue;\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        var k=x&31;\n                        if(!found||k<bestKey){\n                            found=true;\n                            bestKey=k;\n                            bestVal=x*3+1;\n                        }\n                    }\n                }\n                if(found){\n                    return bestVal;\n                }else{\n                    return 0;\n                }",
+    "ValueType": "Int",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-20",
+    "Methods": [
+      "GroupBy_Sum",
+      "OrderByDescending",
+      "Take",
+      "ToArray"
+    ],
+    "Expression": "source.GroupBy(x=>x&15,x=>x).Select(g=>g.Key+g.Sum()).OrderByDescending(x=>x&31).Take(12).ToArray()",
+    "IdealBody": "                // A.B(GroupBy 1パス集計) + B.C(OrderByDescending直接転送) + C.D(Take Top-K抽出)\n                var dict=new Dictionary<int,int>(16);\n                var order=new List<int>(16);\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    var k=x&15;\n                    if(dict.TryGetValue(k,out var cur)){\n                        dict[k]=cur+x;\n                    }else{\n                        dict[k]=x;\n                        order.Add(k);\n                    }\n                }\n                var items=new int[order.Count];\n                for(var i=0;i<order.Count;i++){\n                    var k=order[i];\n                    items[i]=k+dict[k];\n                }\n                return items.OrderByDescending(x=>x&31).Take(12).ToArray();",
+    "ValueType": "Int",
+    "Cardinality": "Sequence",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-21",
+    "Methods": [
+      "GroupBy_Count",
+      "Where",
+      "Sum"
+    ],
+    "Expression": "source.GroupBy(x=>x&15).Select(g=>g.Key*10+g.Count()).Where(x=>(x&1)==0).Sum(x=>(long)x)",
+    "IdealBody": "                // A.B(GroupBy 1パス件数集計) + B.C(Whereフィルタ) + C.D(Sum直接加算)\n                var counts=new Dictionary<int,int>(16);\n                for(var i=0;i<raw.Length;i++){\n                    var k=raw[i]&15;\n                    if(counts.TryGetValue(k,out var c)){\n                        counts[k]=c+1;\n                    }else{\n                        counts[k]=1;\n                    }\n                }\n                var sum=0L;\n                foreach(var kv in counts){\n                    var val=kv.Key*10+kv.Value;\n                    if((val&1)==0){\n                        sum+=val;\n                    }\n                }\n                return sum;",
+    "ValueType": "Long",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-22",
+    "Methods": [
+      "Distinct",
+      "Where",
+      "Select",
+      "Count"
+    ],
+    "Expression": "source.Distinct().Where(x=>(x&1)==0).Select(x=>x*3+1).Count()",
+    "IdealBody": "                // A.B(Distinct<-Where Pushdown) + B.C(Select) + C.D(Count) => 偶数のみHashSet投入して件数取得\n                var set=new HashSet<int>();\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        set.Add(x);\n                    }\n                }\n                return set.Count;",
+    "ValueType": "Int",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-23",
+    "Methods": [
+      "Reverse",
+      "Where",
+      "Select",
+      "Take",
+      "ToArray"
+    ],
+    "Expression": "source.Reverse().Where(x=>(x&1)==0).Select(x=>x*3+1).Take(12).ToArray()",
+    "IdealBody": "                // A.B(Reverse逆順走査) + B.C(Where) + C.D(Select->Take) => 末尾から逆順forループで最大12件収集\n                var list=new List<int>(12);\n                for(var i=raw.Length-1;i>=0;i--){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        list.Add(x*3+1);\n                        if(list.Count>=12){\n                            break;\n                        }\n                    }\n                }\n                return list.ToArray();",
+    "ValueType": "Int",
+    "Cardinality": "Sequence",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-24",
+    "Methods": [
+      "Concat",
+      "Where",
+      "Select",
+      "Sum"
+    ],
+    "Expression": "source.Concat(second).Where(x=>(x&1)==0).Select(x=>x*3+1).Sum(x=>(long)x)",
+    "IdealBody": "                // A.B(Concat 2ループ連結) + B.C(Where->Select) + C.D(Sum)\n                var sum=0L;\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        sum+=(long)(x*3+1);\n                    }\n                }\n                for(var j=0;j<second.Length;j++){\n                    var y=second[j];\n                    if((y&1)==0){\n                        sum+=(long)(y*3+1);\n                    }\n                }\n                return sum;",
+    "ValueType": "Long",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "chain-25",
+    "Methods": [
+      "SelectMany",
+      "Where",
+      "Select",
+      "Sum"
+    ],
+    "Expression": "source.SelectMany(x=>second).Where(x=>(x&1)==0).Select(x=>x*3+1).Sum(x=>(long)x)",
+    "IdealBody": "                // A.B(SelectMany 2重ループ) + B.C(Where->Select) + C.D(Sum)\n                var innerSum=0L;\n                for(var j=0;j<second.Length;j++){\n                    var y=second[j];\n                    if((y&1)==0){\n                        innerSum+=(long)(y*3+1);\n                    }\n                }\n                return (long)raw.Length*innerSum;",
+    "ValueType": "Long",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  }
+]

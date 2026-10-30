@@ -167,7 +167,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
             MemorySize: MinMemorySize,
             CheckpointDir: checkpointDir,
             ObjectLogSegmentSize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
-        using var store = factory.Create<long,long>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy());
+        using var store = factory.Create<long,long>(logDevice,objDevice,new global::Seamless.Collections.Serializers.Blittable(),new global::Seamless.Collections.Serializers.Blittable());
         using(var dict = store.Create()) {
             FillDictionaryLongLong(dict,count);
         }
@@ -184,7 +184,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
             MemorySize: MinMemorySize,
             CheckpointDir: checkpointDir,
             ObjectLogSegmentSize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
-        using var store = factory.Create<long,long>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy());
+        using var store = factory.Create<long,long>(logDevice,objDevice,new global::Seamless.Collections.Serializers.Blittable(),new global::Seamless.Collections.Serializers.Blittable());
         LoadStore(store,token,mode);
         using var dict = store.Create();
         AssertDictionaryLongLong(dict,count);
@@ -212,7 +212,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
             MemorySize: memorySize,
             CheckpointDir: checkpointDir,
             ObjectLogSegmentSize: segmentSize);
-        using var store = factory.Create<long,long>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy());
+        using var store = factory.Create<long,long>(logDevice,objDevice,new global::Seamless.Collections.Serializers.Blittable(),new global::Seamless.Collections.Serializers.Blittable());
         using(var dict = store.Create()) {
             FillDictionaryLongLong(dict,count);
         }
@@ -243,7 +243,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
             MemorySize: memorySize,
             CheckpointDir: checkpointDir,
             ObjectLogSegmentSize: segmentSize);
-        using var store = factory.Create<long,long>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy());
+        using var store = factory.Create<long,long>(logDevice,objDevice,new global::Seamless.Collections.Serializers.Blittable(),new global::Seamless.Collections.Serializers.Blittable());
         LoadStore(store,token,mode);
         using var dict = store.Create();
         AssertDictionaryLongLong(dict,count);
@@ -271,7 +271,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
             MemorySize: memorySize,
             CheckpointDir: checkpointDir,
             ObjectLogSegmentSize: segmentSize);
-        using var store = factory.Create<long,string>(logDevice,objDevice,new BlittableStrategy(),new MemoryPackSerializerStrategy());
+        using var store = factory.Create<long,string>(logDevice,objDevice,new global::Seamless.Collections.Serializers.Blittable(),new global::Seamless.Collections.Serializers.MemoryPack());
         using(var dict = store.Create()) {
             FillDictionaryLongString(dict,count);
         }
@@ -302,7 +302,7 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
             MemorySize: memorySize,
             CheckpointDir: checkpointDir,
             ObjectLogSegmentSize: segmentSize);
-        using var store = factory.Create<long,string>(logDevice,objDevice,new BlittableStrategy(),new MemoryPackSerializerStrategy());
+        using var store = factory.Create<long,string>(logDevice,objDevice,new global::Seamless.Collections.Serializers.Blittable(),new global::Seamless.Collections.Serializers.MemoryPack());
         LoadStore(store,token,mode);
         using var dict = store.Create();
         AssertDictionaryLongString(dict,count);
@@ -341,10 +341,10 @@ public sealed class TsavoriteCheckpointCapacity(ITestOutputHelper output) {
 
     private static CollectionStore CreateStore(global::Seamless.Collections.Tsavorite.Store factory,IDevice logDevice,IDevice objDevice,int index) =>
         (index%4) switch {
-            0 => factory.Create<long,long>(logDevice,objDevice,new BlittableStrategy(),new BlittableStrategy()),
-            1 => factory.Create<long>(logDevice,objDevice,new BlittableStrategy()),
-            2 => factory.Create<long,string>(logDevice,objDevice,new BlittableStrategy(),new MemoryPackSerializerStrategy()),
-            _ => factory.Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy()),
+            0 => factory.Create<long,long>(logDevice,objDevice,new global::Seamless.Collections.Serializers.Blittable(),new global::Seamless.Collections.Serializers.Blittable()),
+            1 => factory.Create<long>(logDevice,objDevice,new global::Seamless.Collections.Serializers.Blittable()),
+            2 => factory.Create<long,string>(logDevice,objDevice,new global::Seamless.Collections.Serializers.Blittable(),new global::Seamless.Collections.Serializers.MemoryPack()),
+            _ => factory.Create<string>(logDevice,objDevice,new global::Seamless.Collections.Serializers.MemoryPack()),
         };
 
     private static void PopulateStore(CollectionStore store,int index) {

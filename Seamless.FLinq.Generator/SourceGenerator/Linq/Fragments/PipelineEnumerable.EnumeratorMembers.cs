@@ -27,6 +27,17 @@ internal sealed partial class PipelineEnumerable {
     public override string GetEnumeratorFields {
         get {
             var builder = new StringBuilder();
+            if(this.SupportsOrderedMaterialization){
+                // ValueEnumerable.Enumeratorのコピーだけへ設定し、元の通常列挙は変更しない。
+                builder.AppendLine($"private bool {OrderedMaterializationFlag}={this.skipSingletonOrderKeyEvaluation.ToString().ToLowerInvariant()};");
+                builder.AppendLine($"private bool {OrderedFirstFlag}={this.useOrderedFirst.ToString().ToLowerInvariant()};");
+                builder.AppendLine($"private bool {OrderedFirstCompletedFlag}=false;");
+                builder.AppendLine($"public void {OrderedMaterializationMethod}(){{this.{OrderedMaterializationFlag}=true;}}");
+                builder.AppendLine($"public void {OrderedConsumerMethod}(bool materialize,bool first){{this.{OrderedMaterializationFlag}=materialize;this.{OrderedFirstFlag}=first;}}");
+                if(source is PipelineEnumerable{SupportsOrderedMaterialization:true}){
+                    builder.AppendLine($"public TEnum {OrderedSourceProperty}{{get=>this.{this.e};set=>this.{this.e}=value;}}");
+                }
+            }
             for(var index = 0;index<stages.Count;index++) {
                 var stage = stages[index];
                 if(stage.Kind is PipelineStageKind.Where or PipelineStageKind.Select&&stage.UsesIndex) {
@@ -67,9 +78,17 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine($"private int {this.OrderCountName(index)} = 0;");
                     builder.AppendLine($"private int {this.StateName(index)} = 0;");
                 } else if(stage.Kind==PipelineStageKind.GroupBy) {
-                    builder.AppendLine(this.GroupingType(index,stage));
-                    builder.AppendLine($"private global::System.Collections.Generic.List<{this.GroupValueType(index,stage)}>? {this.GroupItemsName(index)} = null;");
-                    builder.AppendLine($"private int {this.StateName(index)} = 0;");
+                    var hasPostOrderBy = stages.Skip(index+1).Any(static s => s.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending);
+                    if(!hasPostOrderBy) {
+                        builder.AppendLine($"private bool {this.GroupBuiltName(index)} = false;");
+                        if(stage.AggregatePlan is { } aggPlan) {
+                            builder.AppendLine($"private global::Seamless.Linq.DictionarySlim<{ComparerKeyType(stage)},{aggPlan.AccumulatorType}>? {this.GroupAggMapName(index)} = null;");
+                            builder.AppendLine($"private global::Seamless.Linq.DictionarySlim<{ComparerKeyType(stage)},{aggPlan.AccumulatorType}>.Enumerator {this.GroupAggEnumName(index)};");
+                        } else {
+                            builder.AppendLine($"private global::Seamless.Linq.Grouping<{ComparerKeyType(stage)},{stage.InnerElementType}>? {this.GroupCursorName(index)} = null;");
+                            builder.AppendLine($"private global::Seamless.Linq.Grouping<{ComparerKeyType(stage)},{stage.InnerElementType}>? {this.GroupFirstName(index)} = null;");
+                        }
+                    }
                 } else if(stage.Kind==PipelineStageKind.Reverse) {
                     builder.AppendLine($"private {stage.OutputType}[]? {this.ReverseItemsName(index)} = null;");
                     builder.AppendLine($"private int {this.BufferCountName(index)} = 0;");
@@ -147,7 +166,35 @@ internal sealed partial class PipelineEnumerable {
             return builder.ToString().TrimEnd();
         }
     }
-    public override string GetTryGetNextBody => this.BuildLoop(this.e,"current=this.Current={0};\nreturn true;","current=default!;\nreturn false;");
+    public override string GetTryGetNextBody {
+        get {
+            var loop = this.BuildLoop(this.e,"current=this.Current={0};\nreturn true;","current=default!;\nreturn false;");
+            if(this.SupportsOrderedMaterialization){loop=this.BuildOrderedFirstLoop()+"\n"+loop;}
+            var guard = this.TakeEntryGuard();
+            return guard.Length==0 ? loop : guard+"\n"+loop;
+        }
+    }
+
+    // Take の上限に達したら、次の要素を上流から取る前に(上流の列挙子・ラムダを動かす前に)終わる。
+    // System.Linq は上限に達した次の要素の上流を動かさない。ループの中の判定だけだと、次の要素を取って上流のラムダを実行した後に気づく。
+    // Take より後ろが「入力1つにつき出力が0〜1個」の段だけのときに限る(Take の後ろに OrderBy・SelectMany・Concat などがあると、
+    // Take が上限に達した後も、溜めた分や足した分を返す必要がある)。
+    private string TakeEntryGuard() {
+        var builder = new StringBuilder();
+        for(var index = 0;index<stages.Count;index++) {
+            if(stages[index].Kind!=PipelineStageKind.Take||stages[index].UsesIndex||stages[index].Value is null) {
+                continue;
+            }
+            if(!stages.Skip(index+1).All(PipelineStageTraits.IsStreamingAtMostOne)) {
+                continue;
+            }
+            builder.AppendLine($"if(this.{this.StateName(index)}>=this.{this.CountName(this.CountOrdinal(index))}Value) {{");
+            builder.AppendLine("    current=default!;");
+            builder.AppendLine("    return false;");
+            builder.AppendLine("}");
+        }
+        return builder.ToString().TrimEnd();
+    }
     protected override string GetTryGetNonEnumeratedCountBody {
         get {
             if(this.SingleDefaultIfEmpty) {
@@ -163,7 +210,7 @@ internal sealed partial class PipelineEnumerable {
                     return false;
                     """;
             }
-            return this.StagesCountPreserving
+            return this.StagesElementCountPreserving
                 ? $"return this.{this.e}.TryGetNonEnumeratedCount(out count);"
                 : base.GetTryGetNonEnumeratedCountBody;
         }
@@ -299,7 +346,14 @@ internal sealed partial class PipelineEnumerable {
 
     internal string BuildDirectLoop(string enumeratorName,string successStatement,string endStatement) => this.BuildLoop(enumeratorName,successStatement,endStatement);
 
-    private IEnumerable<FuncFragment> Funcs => stages.SelectMany(static stage => new[] { stage.Func,stage.SecondFunc,stage.ThirdFunc }).Where(static func => func is not null).Cast<FuncFragment>();
+    private IEnumerable<FuncFragment> Funcs => stages.SelectMany(static stage => {
+        var baseFuncs = new[] { stage.Func,stage.SecondFunc,stage.ThirdFunc }.Where(static func => func is not null);
+        if(stage.AggregatePlan is { } aggPlan){
+            return baseFuncs.Concat(aggPlan.Items.Select(static item => item.InnerFunc).Where(static func => func is not null));
+        }else{
+            return baseFuncs;
+        }
+    }).Cast<FuncFragment>();
     private IEnumerable<Enumerable> SecondSources => stages.Select(static stage => stage.SecondSource).Where(static source => source is not null).Cast<Enumerable>();
     private string SecondSourcesStructs {
         get {

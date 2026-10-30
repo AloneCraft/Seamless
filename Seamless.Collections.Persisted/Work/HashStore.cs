@@ -3,7 +3,7 @@ using Seamless.Execution;
 using CommonStore=Seamless.Execution.Store;
 namespace Seamless.Collections.Persisted.Work;
 
-internal abstract class HashRecords<T,TSerializer>:SerializedList<T,TSerializer> where TSerializer:ISerializer<T>{
+internal abstract class HashRecords<T,TSerializer>:SerializedList<T,TSerializer> where TSerializer:global::Seamless.Collections.Serializers.IStrategy<T>{
     protected HashRecords(string path,StorageTuning? tuning,IPersistedKeyPolicy policy,IPersistedStorageQuota quota)
         :base(path,16,4096,tuning,policy,quota){
     }
@@ -19,7 +19,7 @@ internal abstract class HashRecords<T,TSerializer>:SerializedList<T,TSerializer>
     }
 }
 
-internal sealed class HashKeyPolicy<TKey,TSerializer>(IEqualityComparer<TKey> comparer,ResourceBudget budget):IPersistedKeyPolicy where TSerializer:ISerializer<TKey>{
+internal sealed class HashKeyPolicy<TKey,TSerializer>(IEqualityComparer<TKey> comparer,ResourceBudget budget):IPersistedKeyPolicy where TSerializer:global::Seamless.Collections.Serializers.IStrategy<TKey>{
     public ulong Hash(ReadOnlySpan<byte> key){
         var value=TSerializer.Deserialize(key);
         if(value is null){
@@ -32,7 +32,7 @@ internal sealed class HashKeyPolicy<TKey,TSerializer>(IEqualityComparer<TKey> co
 }
 
 /// <summary>hash 作業コレクションの保存・寿命・予算。各保存の生ファイルを不変な世代へ写す。</summary>
-internal sealed class HashStore<T,TSerializer>:IStoreComponent where TSerializer:ISerializer<T>{
+internal sealed class HashStore<T,TSerializer>:IStoreComponent where TSerializer:global::Seamless.Collections.Serializers.IStrategy<T>{
     private const string Format="seamless-work-hash-v1";
     private readonly CommonStore owner;
     private readonly string directory;
