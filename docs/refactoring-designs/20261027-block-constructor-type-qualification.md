@@ -1,0 +1,7 @@
+# ブロックラムダの構築型の名前解決
+
+入力側のusingを生成名前空間へ引き継がない構成のため、ブロック内new式の型は元SemanticModelで完全修飾する。既存RenderExpressionForGeneratedMethodをReturnToResultRewriterのObjectCreationへ適用し、元型、引数、triviaの変換を再利用する。
+
+修正前Gen88D768の保存済み56入力では52実行成功、throw4は生成InvalidOperationException未修飾によるCS0246。元Select<int,string>入力はusing Systemを含む。14ケース/4モードの入力と期待は変更しない。旧DLLと同じTest DLLで56入力SHAを照合し、新旧のvalue/例外型・message/trace/counterを比較する。生成失敗を成功へ数えない。例外時counter timingは新しい共通契約へ変更しない。
+
+この局所修正はconstructor以外のgeneric closure/Last走査/placeholder文字列置換を解決したとは扱わない。修正後受入は未実行。
