@@ -68,6 +68,14 @@ public sealed partial class FLinqIncrementalGenerator {
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         description: "対象メソッド内の LINQ 呼び出しをインライン展開できなかったため、生成されたインターセプターコードは実行時に例外を発生させます。Fragment 未実装のメソッド、または未対応のデリゲートパターンが含まれている可能性があります.");
+    private static readonly DiagnosticDescriptor フォールバック警告Descriptor = new(
+        id: "FLINQ004",
+        title: "LINQ 最適化フォールバック",
+        messageFormat: "'{0}' は {1} を含んでいるため、標準の System.Linq へ安全にフォールバックしました。ゼロアロケーション化するには展開リファクタリングメニュー等の使用を検討してください。",
+        category: "Tsavorite.Performance",
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "対象メソッドは yield return または await などの非インライン構文を含むため、FLinq のインラインゼロアロケーション最適化から除外され、素の System.Linq にフォールバックしました.");
     private static readonly DiagnosticDescriptor RegistryConsistencyDescriptor = new(
         id: "FLINQ006",
         title: "FLinq Operator Registry 不整合",
