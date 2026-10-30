@@ -867,80 +867,29 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
     private bool CanUseDirectSpanPipelineScalar() {
-
-
-
         foreach(var stage in pipeline.Stages) {
-
-
-
             switch(stage.Kind) {
-
-
-
                 case PipelineStageKind.AsEnumerable:
-
-
-
                 case PipelineStageKind.Cast:
-
-
-
                     break;
-
-
-
-                case PipelineStageKind.Where:
-
-
-
-                case PipelineStageKind.Select:
-
-
-
-                    if(stage.UsesIndex||stage.Func is not { } func||!CanUseDirectScalarFunc(func)) {
-
-
-
+                case PipelineStageKind.Skip:
+                case PipelineStageKind.Take:
+                    if(stage.Value is null) {
                         return false;
-
-
-
                     }
-
-
-
                     break;
-
-
-
+                case PipelineStageKind.Where:
+                case PipelineStageKind.Select:
+                    if(stage.UsesIndex||stage.Func is not { } func||!CanUseDirectScalarFunc(func)) {
+                        return false;
+                    }
+                    break;
                 default:
-
-
-
                     return false;
-
-
-
             }
-
-
-
         }
-
-
-
         return true;
-
-
-
     }
-
-
-
-
-
-
 
     private static bool CanUseDirectScalarFunc(FuncFragment func) {
 
@@ -8487,6 +8436,50 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
                     currentName=nextName;
+
+
+
+                    break;
+
+
+
+                }
+
+
+
+                case PipelineStageKind.Take: {
+
+
+
+                    var takeName = $"__pipelineTake{this.result}_{index+1}";
+
+
+
+                    builder.AppendLine($"{indent}if({takeName}>={stage.Value}) break;");
+
+
+
+                    builder.AppendLine($"{indent}{takeName}++;");
+
+
+
+                    break;
+
+
+
+                }
+
+
+
+                case PipelineStageKind.Skip: {
+
+
+
+                    var skipName = $"__pipelineSkip{this.result}_{index+1}";
+
+
+
+                    builder.AppendLine($"{indent}if({skipName}<{stage.Value}) {{ {skipName}++; continue; }}");
 
 
 
@@ -20065,9 +20058,20 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
     private bool CanUseDirectSpanPipelineScalarTerminal() {
         if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.Sum or PipelineTerminalKind.Any
-            or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault
-            or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault) {
+            or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault) {
             return func1 is null || CanUseDirectScalarFunc(func1);
+        }
+        if(terminalKind is PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault) {
+            if(func1 is not null && !CanUseDirectScalarFunc(func1)) {
+                return false;
+            }
+            this.TryAnalyzeLeadingSlice(out _, out _, out var leadingSliceStageCount);
+            for(var i = leadingSliceStageCount; i < pipeline.Stages.Count; i++) {
+                if(pipeline.Stages[i].Kind is PipelineStageKind.Take or PipelineStageKind.Skip) {
+                    return false;
+                }
+            }
+            return true;
         }
         if(terminalKind == PipelineTerminalKind.All) {
             return func1 is { } f && CanUseDirectScalarFunc(f);
@@ -20079,6 +20083,47 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
             return true;
         }
         return false;
+    }
+
+    private bool TryAnalyzeLeadingSlice(
+        out string? leadingSkipExpr,
+        out string? leadingTakeExpr,
+        out int leadingSliceStageCount) {
+        leadingSkipExpr = null;
+        leadingTakeExpr = null;
+        leadingSliceStageCount = 0;
+
+        for(var i = 0; i < pipeline.Stages.Count; i++) {
+            var stage = pipeline.Stages[i];
+            if(stage.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast) {
+                leadingSliceStageCount++;
+                continue;
+            }
+            if(stage.Kind == PipelineStageKind.Skip && stage.Value is not null) {
+                if(leadingTakeExpr is not null) {
+                    break;
+                }
+                if(leadingSkipExpr is null) {
+                    leadingSkipExpr = $"global::System.Math.Max(0, {stage.Value})";
+                } else {
+                    leadingSkipExpr = $"global::System.Math.Max(0, {leadingSkipExpr} + {stage.Value})";
+                }
+                leadingSliceStageCount++;
+                continue;
+            }
+            if(stage.Kind == PipelineStageKind.Take && stage.Value is not null) {
+                if(leadingTakeExpr is null) {
+                    leadingTakeExpr = $"global::System.Math.Max(0, {stage.Value})";
+                } else {
+                    leadingTakeExpr = $"global::System.Math.Min({leadingTakeExpr}, global::System.Math.Max(0, {stage.Value}))";
+                }
+                leadingSliceStageCount++;
+                continue;
+            }
+            break;
+        }
+
+        return leadingSkipExpr is not null || leadingTakeExpr is not null;
     }
 
     private string? RenderDirectSpanPipelineScalar(string actualVariableName,string actualTypeName) {
@@ -20136,17 +20181,47 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
                 break;
         }
 
+        var hasLeadingSlice = this.TryAnalyzeLeadingSlice(out var leadingSkipExpr, out var leadingTakeExpr, out var leadingSliceStageCount);
+        var sliceIndices = new HashSet<int>();
+        for(var i = 0; i < leadingSliceStageCount; i++) {
+            sliceIndices.Add(i);
+        }
+
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        this.AppendDirectSpanPipelineScalarInit(builder, spanName, "    ", sliceIndices);
 
         var isReverse = terminalKind is PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault;
-        if(isReverse) {
-            builder.AppendLine($"    for(var {indexName}={spanName}.Length-1;{indexName}>=0;{indexName}--) {{");
+        var startIdxName = $"__startIndex{this.result}";
+        var endIdxName = $"__endIndex{this.result}";
+
+        if(hasLeadingSlice) {
+            if(leadingSkipExpr is not null) {
+                builder.AppendLine($"    var {startIdxName}=global::System.Math.Min({spanName}.Length, {leadingSkipExpr});");
+            } else {
+                builder.AppendLine($"    var {startIdxName}=0;");
+            }
+            if(leadingTakeExpr is not null) {
+                builder.AppendLine($"    var {endIdxName}=global::System.Math.Min({spanName}.Length, {startIdxName} + {leadingTakeExpr});");
+            } else {
+                builder.AppendLine($"    var {endIdxName}={spanName}.Length;");
+            }
+
+            if(isReverse) {
+                builder.AppendLine($"    for(var {indexName}={endIdxName}-1;{indexName}>={startIdxName};{indexName}--) {{");
+            } else {
+                builder.AppendLine($"    for(var {indexName}={startIdxName};{indexName}<{endIdxName};{indexName}++) {{");
+            }
         } else {
-            builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+            if(isReverse) {
+                builder.AppendLine($"    for(var {indexName}={spanName}.Length-1;{indexName}>=0;{indexName}--) {{");
+            } else {
+                builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+            }
         }
+
         builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
-        var currentName = this.AppendDirectSpanPipelineStages(builder,sourceItemName,"        ");
+        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices,startIndex: leadingSliceStageCount);
 
         if(isReverse && func1 is not null) {
             var lastPredCond = $"__lastCond{this.result}";
