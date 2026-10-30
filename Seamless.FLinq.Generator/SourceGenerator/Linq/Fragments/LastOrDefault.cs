@@ -19,7 +19,8 @@ internal class LastOrDefault(int 番号,Enumerable source,string resultType):Buf
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderRangeLastOrDefaultInline(destVar,destType)
+        LastDemandRenderer.TryRender(this,source,new LastTerminalContract(true,null),destVar,destType)
+        ??this.RenderRangeLastOrDefaultInline(destVar,destType)
         ??this.RenderDirectSpanLastOrDefaultInline(destVar,destType)
         ??this.RenderConsumeBasedLastOrDefaultInline(destVar,destType)
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault")
@@ -189,7 +190,9 @@ internal class LastOrDefault_predicate(int 番号,Enumerable source,FuncFragment
     public override string GetEnumeratorConstructor =>
         $"this.Current = Compute(ref this.{this.e}{this.ClosureArgsSuffixForCtorBody(predicate)});";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderRangeLastOrDefaultPredicateInline(destVar,destType)
+        OrderedLastDemandRenderer.TryRender(this,source,new LastTerminalContract(true,predicate),destVar,destType)
+        ??LastDemandRenderer.TryRender(this,source,new LastTerminalContract(true,predicate),destVar,destType)
+        ??this.RenderRangeLastOrDefaultPredicateInline(destVar,destType)
         ??(TryRenderDirectLambda(predicate) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"LastOrDefault",lambda)
             : this.RenderComputeInline(destVar,destType));
@@ -219,14 +222,34 @@ internal class LastOrDefault_predicate(int 番号,Enumerable source,FuncFragment
             }
             """;
     }
+    private string PredicateSpanName=>GeneratedNames.Current?.StableLocal("LastOrDefault_predicate:"+this.FragmentIndex+":Span","__span")??"__span";
+    private string PredicateIndexName=>GeneratedNames.Current?.StableLocal("LastOrDefault_predicate:"+this.FragmentIndex+":Index","__i")??"__i";
+    private string RuntimeLastSpanName=>GeneratedNames.Current?.StableLocal("LastOrDefault_predicate:"+this.FragmentIndex+":RuntimeSpan","__lastSpan")??"__lastSpan";
+    private string RuntimeLastIndexName=>GeneratedNames.Current?.StableLocal("LastOrDefault_predicate:"+this.FragmentIndex+":RuntimeIndex","__lastIndex")??"__lastIndex";
+    private string RenderRuntimeRootLastOrDefaultPredicateSpan(){
+        if(source is not Root{CanTryProvideSpan:true}){
+            return string.Empty;
+        }
+        return $$"""
+            if(source.TryGetSpan(out var {{this.RuntimeLastSpanName}})){
+                for(var {{this.RuntimeLastIndexName}}={{this.RuntimeLastSpanName}}.Length-1;{{this.RuntimeLastIndexName}}>=0;{{this.RuntimeLastIndexName}}--){
+                    var {{this.item}}={{this.RuntimeLastSpanName}}[{{this.RuntimeLastIndexName}}];
+                    bool {{this.temp}}=default!;
+                    {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
+                    if({{this.temp}}){return {{this.item}};}
+                }
+                return default!;
+            }
+            """;
+    }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
                 {{resultType}} result = default!;
-                source.TryGetSpan(out var __span);
-                for(var __i=__span.Length-1;__i>=0;__i--){
-                    var {{this.item}}=__span[__i];
+                source.TryGetSpan(out var {{this.PredicateSpanName}});
+                for(var {{this.PredicateIndexName}}={{this.PredicateSpanName}}.Length-1;{{this.PredicateIndexName}}>=0;{{this.PredicateIndexName}}--){
+                    var {{this.item}}={{this.PredicateSpanName}}[{{this.PredicateIndexName}}];
                     bool {{this.temp}}=default!;
                     {{this.FuncAssignStaticIndented("        ",predicate,nameof(predicate),this.temp,this.item)}}
                     if({{this.temp}}){
@@ -239,6 +262,7 @@ internal class LastOrDefault_predicate(int 番号,Enumerable source,FuncFragment
         : $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(predicate)}}){
+                {{this.RenderRuntimeRootLastOrDefaultPredicateSpan()}}
                 {{resultType}} result = default!;
                 while(source.TryGetNext(out var __mn43)){
                     var {{this.item}} = __mn43;
