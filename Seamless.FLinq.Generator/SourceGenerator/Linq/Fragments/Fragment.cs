@@ -155,13 +155,15 @@ internal abstract class Fragment(
 
     private protected string CountLogicalDelegateExpression(string expression) =>
         this.CounterInstrumentationEnabled
-            ? $"global::Seamless.Linq.LinqCounterScope.Counter.RecordLogicalDelegate({expression})"
+            ? $"global::Seamless.Linq.LinqCounterScope.Counter.EnterLogicalDelegate().ReturnValue({expression})"
             : expression;
 
-    private protected string CountPhysicalDelegateExpression(string expression) =>
-        this.CounterInstrumentationEnabled
-            ? $"global::Seamless.Linq.LinqCounterScope.Counter.RecordPhysicalDelegate({expression})"
-            : expression;
+    private string CountPhysicalDelegateInvocation(string callback,params string[] arguments){
+        if(this.CounterInstrumentationEnabled){
+            return $"global::Seamless.Linq.LinqCounterScope.Counter.InvokePhysicalDelegate({callback},{string.Join(",",arguments)})";
+        }
+        return $"{callback}.Invoke({string.Join(",",arguments)})";
+    }
 
     // UnsafeAccessor コードを断片ツリー全体から収集する。
     public IEnumerable<string> CollectAllUnsafeAccessorCodes() {
@@ -252,7 +254,7 @@ internal abstract class Fragment(
     // キャプチャ変数付きラムダもインライン展開可能（キャプチャ変数はインターセプト先メソッドのスコープに存在する）。
     private protected string FuncInvoke(FuncFragment func,string methodName,params string[] arguments) {
         if(func.CanInvokeAsDelegate) {
-            return this.CountPhysicalDelegateExpression($"this.{func.DelegateFieldName}.Invoke({string.Join(", ",arguments)})");
+            return this.CountPhysicalDelegateInvocation($"this.{func.DelegateFieldName}",arguments);
         }
         if(func.CanInlineAssign) {
             return this.CountLogicalDelegateExpression(this.RenderInlineExpression(func,arguments));
@@ -266,7 +268,7 @@ internal abstract class Fragment(
             return $"{this.CounterCall("IncrementLogicalDelegate")}\n{StripDestinationDeclaration(this.RenderInlineAssign(func,destination,arguments),destination)}";
         }
         if(func.CanInvokeAsDelegate) {
-            return $"{destination}={this.CountPhysicalDelegateExpression($"this.{func.DelegateFieldName}.Invoke({string.Join(", ",arguments)})")};";
+            return $"{destination}={this.CountPhysicalDelegateInvocation($"this.{func.DelegateFieldName}",arguments)};";
         }
         if(func.CanInlineAssign) {
             return $"{this.CounterCall("IncrementLogicalDelegate")}\n{StripDestinationDeclaration(this.RenderInlineAssign(func,destination,arguments),destination)}";
@@ -322,22 +324,15 @@ internal abstract class Fragment(
 
     internal string FuncAssignForAggregateInline(FuncFragment func,string methodName,string destination,string? delegateLocalName,params string[] arguments) {
         if(func.CanInvokeAsDelegate&&delegateLocalName is { Length:>0 }) {
-            return $"{destination}={this.CountPhysicalDelegateExpression($"{delegateLocalName}.Invoke({string.Join(", ",arguments)})")};";
+            return $"{destination}={this.CountPhysicalDelegateInvocation($"{delegateLocalName}",arguments)};";
         }
 
         return this.FuncAssign(func,methodName,destination,arguments);
     }
 
-    // TryGetNext 内で destination フィールドと out current の両方を設定する複合代入を生成する。
-    // 単純ラムダなら current = destination = expr; の一行に。
-    // RequiresStatementInlining またはデリゲート呼び出しの場合は FuncAssign の後に current = destination; を付加する。
-    private protected string FuncAssignCurrent(FuncFragment func,string methodName,string destination,params string[] arguments) {
-        if(func.RequiresStatementInlining||(!func.CanInlineAssign&&!func.CanInvokeAsDelegate)) {
-            return $"{this.FuncAssign(func,methodName,destination,arguments)}\ncurrent = {destination};";
-        }
-        var expr = this.FuncInvoke(func,methodName,arguments);
-        return $"current = {destination} = {expr};";
-    }
+    // destinationを設定してからout currentへ渡す。inline callbackのentry計測はFuncAssignと共通にする。
+    private protected string FuncAssignCurrent(FuncFragment func,string methodName,string destination,params string[] arguments) =>
+        $"{this.FuncAssign(func,methodName,destination,arguments)}\ncurrent = {destination};";
     private protected string FuncAssignCurrentIndented(string indent,FuncFragment func,string methodName,string destination,params string[] arguments) =>
         IndentGeneratedStatement(this.FuncAssignCurrent(func,methodName,destination,arguments),indent);
 
@@ -372,24 +367,22 @@ internal abstract class Fragment(
     // 単純ラムダなら直接式として展開（一時変数なし）。
     // RequiresStatementInlining=true（InlinedScalarFuncなど）なら一時変数経由にフォールバック。
     private protected (string preCode,string conditionExpr) FuncInvokeCondition(FuncFragment func,string methodName,string tempVar,params string[] arguments) {
-        // @this をキャプチャしたstruct closureでは、入れ子ラムダから@thisフィールド経由で
-        // インスタンスメンバーへアクセスするとCS1673（構造体のthisをラムダがキャプチャできない）になる。
-        // 同名のローカル変数でシャドウしてコピーを参照させることで回避する。
-        var thisShadow = func.CapturedLocals.Any(c => c.Name=="@this") ? "var @this = this.@this;" : string.Empty;
+        // capture fieldの修飾とnested lambda用copyはGeneratedThisQualifierがmember単位で行う。
+        // predicateごとの同名local挿入は、先行selectorの参照を隠し複数predicateで重複する。
         if(func.RequiresStatementInlining) {
             // InlinedScalarFunc など複数文が必要な場合は一時変数経由
             var declaration = $"{func.ReturnTypeName} {tempVar} = default!;";
             var assignStatement = this.RenderInlineAssign(func,tempVar,arguments);
             var counterCall = this.CounterCall("IncrementLogicalDelegate");
-            var pre = thisShadow.Length>0 ? $"{thisShadow}\n{counterCall}\n{declaration}\n{assignStatement}" : $"{counterCall}\n{declaration}\n{assignStatement}";
+            var pre = $"{counterCall}\n{declaration}\n{assignStatement}";
             return (pre,tempVar);
         }
         if(func.CanInvokeAsDelegate) {
-            return (string.Empty,this.CountPhysicalDelegateExpression($"this.{func.DelegateFieldName}.Invoke({string.Join(", ",arguments)})"));
+            return (string.Empty,this.CountPhysicalDelegateInvocation($"this.{func.DelegateFieldName}",arguments));
         }
         if(func.CanInlineAssign) {
             // 単純ラムダなら直接式として展開
-            return (thisShadow,this.CountLogicalDelegateExpression(this.RenderInlineExpression(func,arguments)));
+            return (string.Empty,this.CountLogicalDelegateExpression(this.RenderInlineExpression(func,arguments)));
         }
         throw LambdaInlineUnsupported(func,methodName);
     }
@@ -403,7 +396,7 @@ internal abstract class Fragment(
             return ($"{counterCall}\n{declaration}\n{assignStatement}",tempVar);
         }
         if(func.CanInvokeAsDelegate) {
-            return (string.Empty,this.CountPhysicalDelegateExpression($"{func.DelegateFieldName}.Invoke({string.Join(", ",arguments)})"));
+            return (string.Empty,this.CountPhysicalDelegateInvocation($"{func.DelegateFieldName}",arguments));
         }
         if(func.CanInlineAssign) {
             return (string.Empty,this.CountLogicalDelegateExpression(func.RenderInlineExpression(arguments)));
@@ -510,7 +503,7 @@ internal abstract class Fragment(
     // static メソッド本体内（this. が使えない文脈）でのデリゲート呼び出し生成。
     private protected string FuncInvokeStatic(FuncFragment func,string methodName,params string[] arguments) {
         if(func.CanInvokeAsDelegate) {
-            return this.CountPhysicalDelegateExpression($"{func.DelegateFieldName}.Invoke({string.Join(", ",arguments)})");
+            return this.CountPhysicalDelegateInvocation($"{func.DelegateFieldName}",arguments);
         }
         if(func.CanInlineAssign) {
             return this.CountLogicalDelegateExpression(func.RenderInlineExpression(arguments));
@@ -524,7 +517,7 @@ internal abstract class Fragment(
             return $"{this.CounterCall("IncrementLogicalDelegate")}\n{func.RenderInlineAssign(destination,番号,arguments)}";
         }
         if(func.CanInvokeAsDelegate) {
-            return $"{destination}={this.CountPhysicalDelegateExpression($"{func.DelegateFieldName}.Invoke({string.Join(", ",arguments)})")};";
+            return $"{destination}={this.CountPhysicalDelegateInvocation($"{func.DelegateFieldName}",arguments)};";
         }
         if(func.CanInlineAssign) {
             return $"{this.CounterCall("IncrementLogicalDelegate")}\n{func.RenderInlineAssign(destination,番号,arguments)}";
