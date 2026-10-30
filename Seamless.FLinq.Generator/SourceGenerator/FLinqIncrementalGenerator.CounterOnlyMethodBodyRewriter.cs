@@ -103,6 +103,11 @@ public sealed partial class FLinqIncrementalGenerator {
             return RenderCounterOnlyExpression(anchorAccess.Expression,semanticModel,containingType,unsafeAccessors);
         }
 
+        if(expression is CastExpressionSyntax cast){
+            var type=semanticModel.GetTypeInfo(cast.Type).Type?.ToDisplayString(完全修飾形式)??cast.Type.ToString();
+            return $"(({type})({RenderCounterOnlyExpression(cast.Expression,semanticModel,containingType,unsafeAccessors)}))";
+        }
+
         if(expression is InvocationExpressionSyntax invocation
             &&semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol invokedMethod
             &&TryRenderCounterOnlyEnumerableInvocation(invokedMethod,invocation,semanticModel,containingType,unsafeAccessors,out var enumerableExpression)) {
@@ -118,7 +123,87 @@ public sealed partial class FLinqIncrementalGenerator {
             return $"{receiver}.{memberAccess.Name}({string.Join(", ",arguments)})";
         }
 
-        return RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,unsafeAccessors);
+        var replacements=CreateCounterOnlyNestedQueryReplacements(expression,semanticModel,containingType,unsafeAccessors);
+        return replacements.Complete(RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,unsafeAccessors,replacements.Map));
+    }
+
+    // 元のsyntaxでbindingし、式位置を保ったまま入れ子のqueryだけを書き換える。
+    // 可視callback内のqueryも元の式位置で計測する。外部delegateの実装は探索しない。
+    private static CounterOnlyNestedQueryRenderPlan CreateCounterOnlyNestedQueryReplacements(
+        SyntaxNode root,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        List<string> unsafeAccessors,
+        InvocationExpressionSyntax? excludedInvocation=null) {
+        var replacements=new CounterOnlyNestedQueryRenderPlan(root.SpanStart);
+        foreach(var node in root.DescendantNodesAndSelf(descendIntoChildren:node=>{
+            return node is not InvocationExpressionSyntax invocation
+                ||semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method
+                ||(method.ReducedFrom??method).ContainingType.ToDisplayString()!="System.Linq.Enumerable";
+        })){
+            if(node is InvocationExpressionSyntax invocation
+                &&semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol method){
+                if(ReferenceEquals(invocation,excludedInvocation)){
+                    replacements.Add(invocation,RenderExpressionForGeneratedMethod(invocation,semanticModel,containingType,unsafeAccessors));
+                }else if(TryRenderCounterOnlyEnumerableInvocation(method,invocation,semanticModel,containingType,unsafeAccessors,out var rendered)){
+                    replacements.Add(invocation,rendered);
+                }
+            }
+        }
+        return replacements;
+    }
+
+    // 同じテキストでも別scopeなら別binding。rendererにはplaceholderだけを渡し、元syntax順で各出現を戻す。
+    private sealed class CounterOnlyNestedQueryRenderPlan(int start){
+        internal Dictionary<string,string> Map {get;}=new(StringComparer.Ordinal);
+        private readonly List<(string Token,string Rendered)> bindings=new();
+        internal void Add(InvocationExpressionSyntax invocation,string rendered){
+            var key=NormalizeExpressionText(invocation.ToString());
+            if(!this.Map.TryGetValue(key,out var token)){
+                token=$"__counterQuery{start}_{this.Map.Count}__";
+                this.Map.Add(key,token);
+            }
+            this.bindings.Add((token,rendered));
+        }
+        internal string Complete(string text){
+            foreach(var (token,rendered) in this.bindings){
+                var index=text.IndexOf(token,StringComparison.Ordinal);
+                if(index<0){throw new InvalidOperationException("Nested counter query placeholder was lost.");}
+                text=text.Substring(0,index)+rendered+text.Substring(index+token.Length);
+            }
+            foreach(var token in this.Map.Values){
+                if(text.Contains(token)){throw new InvalidOperationException("Nested counter query placeholder count differs from its source occurrences.");}
+            }
+            return text;
+        }
+    }
+
+    private static string RenderCounterOnlyDelegateExpression(
+        ExpressionSyntax expression,
+        string renderedExpression,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        List<string> unsafeAccessors) {
+        if(expression is ParenthesizedExpressionSyntax parenthesizedExpression){
+            var inner=parenthesizedExpression.Expression;
+            return $"({RenderCounterOnlyDelegateExpression(inner,RenderCounterOnlyExpression(inner,semanticModel,containingType,unsafeAccessors),semanticModel,containingType,unsafeAccessors)})";
+        }
+        if(expression is CastExpressionSyntax castExpression){
+            var type=semanticModel.GetTypeInfo(castExpression.Type).Type?.ToDisplayString(完全修飾形式)??castExpression.Type.ToString();
+            var inner=castExpression.Expression;
+            return $"(({type})({RenderCounterOnlyDelegateExpression(inner,RenderCounterOnlyExpression(inner,semanticModel,containingType,unsafeAccessors),semanticModel,containingType,unsafeAccessors)}))";
+        }
+        var unwrapped=expression;
+        while(unwrapped is ParenthesizedExpressionSyntax or CastExpressionSyntax){
+            if(unwrapped is ParenthesizedExpressionSyntax parenthesized){unwrapped=parenthesized.Expression;}
+            else if(unwrapped is CastExpressionSyntax cast){unwrapped=cast.Expression;}
+        }
+        SyntaxNode body;
+        if(unwrapped is LambdaExpressionSyntax lambda){body=lambda.Body;}
+        else if(unwrapped is AnonymousMethodExpressionSyntax anonymous){body=anonymous.Block;}
+        else{return renderedExpression;}
+        var replacements=CreateCounterOnlyNestedQueryReplacements(body,semanticModel,containingType,unsafeAccessors);
+        return replacements.Complete(RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,unsafeAccessors,replacements.Map));
     }
 
     private static string RenderCounterOnlyArgument(
@@ -270,19 +355,20 @@ public sealed partial class FLinqIncrementalGenerator {
             return true;
         }
 
+        delegateExpression=RenderCounterOnlyDelegateExpression(argumentExpression,delegateExpression,semanticModel,containingType,unsafeAccessors);
         var delegateTypeName = namedDelegate.ToDisplayString(完全修飾形式);
         var argumentNames = invokeMethod.Parameters
-            .Select(static (_,index) => $"__delegateArg{index}")
+            .Select((_,index) => $"__counterDelegate{argumentExpression.SpanStart}Arg{index}")
             .ToArray();
         wrappedExpression=
             $"(({delegateTypeName})(({string.Join(", ",argumentNames)}) => "+
-            $"global::Seamless.Linq.LinqCounterScope.Counter.RecordPhysicalDelegate((({delegateTypeName})({delegateExpression})).Invoke({string.Join(", ",argumentNames)}))))";
+            $"global::Seamless.Linq.LinqCounterScope.Counter.InvokePhysicalDelegate((({delegateTypeName})({delegateExpression})),{string.Join(",",argumentNames)})))";
         return true;
     }
 
-    // 元のラムダの仮引数名をそのまま使い、本体を RecordPhysicalDelegate(...) で包むだけの形にする。
+    // 元のラムダの仮引数名をそのまま使い、本体先頭で入口を記録する。
     // キャストも.Invoke()も経由しないので、引数/戻り値の型(匿名型を含む)を一切書かずに済む。
-    // 式本体の単純ラムダのみ対応。block本体・メソッドグループ・デリゲート変数は非対応で false を返し、
+    // 式/block本体のラムダに対応。メソッドグループ・デリゲート変数は非対応で false を返し、
     // 呼び出し元はその引数を計測なしの素のまま(renderedArgument)で通す。
     private static bool TryWrapCounterOnlyDelegateByInlining(
         ExpressionSyntax argumentExpression,
@@ -294,6 +380,20 @@ public sealed partial class FLinqIncrementalGenerator {
         var expression = argumentExpression;
         while(expression is ParenthesizedExpressionSyntax parenthesized) {
             expression=parenthesized.Expression;
+        }
+
+        if(expression is LambdaExpressionSyntax {Body:BlockSyntax}){
+            var rendered=RenderCounterOnlyDelegateExpression(expression,expression.ToString(),semanticModel,containingType,unsafeAccessors);
+            if(SyntaxFactory.ParseExpression(rendered) is LambdaExpressionSyntax {Body:BlockSyntax block} renderedLambda){
+                // 最外の入口だけを数え、元のreturn・local function・finallyをそのまま保つ。
+                var countedBlock=block.WithStatements(block.Statements.InsertRange(0,new[]{
+                    SyntaxFactory.ParseStatement("global::Seamless.Linq.LinqCounterScope.Counter.IncrementLogicalDelegate();"),
+                    SyntaxFactory.ParseStatement("global::Seamless.Linq.LinqCounterScope.Counter.IncrementPhysicalDelegate();")
+                }));
+                wrappedExpression=renderedLambda.WithBody(countedBlock).NormalizeWhitespace().ToFullString();
+                return true;
+            }
+            return false;
         }
 
         IReadOnlyList<string> parameterNames;
@@ -314,7 +414,11 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         var renderedBody = RenderCounterOnlyExpression(body,semanticModel,containingType,unsafeAccessors);
-        wrappedExpression=$"(({string.Join(", ",parameterNames)}) => global::Seamless.Linq.LinqCounterScope.Counter.RecordPhysicalDelegate({renderedBody}))";
+        wrappedExpression=$"(({string.Join(", ",parameterNames)}) => {{"+
+            "global::Seamless.Linq.LinqCounterScope.Counter.IncrementLogicalDelegate();"+
+            "global::Seamless.Linq.LinqCounterScope.Counter.IncrementPhysicalDelegate();"+
+            $"return {renderedBody};}})";
         return true;
     }
+
 }

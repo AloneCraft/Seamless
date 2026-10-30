@@ -22,6 +22,25 @@ Sum は source.Sum() / Sum(selector) を checked 加算の Compute に変換す�
     methodName を無視して FLinq 自身の Compute を埋め込むため、System.Linq への委譲ではない)。
 */
 internal class Sum(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+    // nullableと未知の数値型へは拡張しない。checked累積は最終和だけでなく途中の和にも依存する。
+    internal static bool RequiresCheckedAccumulation(string typeName){
+        if(typeName.StartsWith("global::",StringComparison.Ordinal)){
+            typeName=typeName.Substring("global::".Length);
+        }
+        return typeName is "byte" or "sbyte" or "short" or "ushort" or "int" or "uint" or "long" or "ulong" or "decimal"
+            or "System.Byte" or "System.SByte" or "System.Int16" or "System.UInt16" or "System.Int32" or "System.UInt32"
+            or "System.Int64" or "System.UInt64" or "System.Decimal";
+    }
+
+    // Consumeの引数が式でも、その評価をcheckedへ巻き込まず、一度だけ評価してから加算する。
+    internal static string RenderAccumulation(string destination,string value,string typeName,int number){
+        if(!RequiresCheckedAccumulation(typeName)){
+            return $"{destination}+={value};";
+        }
+        var valueName=$"__checkedSumValue{number}";
+        return "{"+typeName+" "+valueName+"="+value+";checked{"+destination+"+="+valueName+";}}";
+    }
+
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -67,7 +86,7 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
         var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
             var indent = match.Groups["indent"].Value;
             var arg = match.Groups["arg"].Value;
-            return $"{indent}{destVar}+={arg};";
+            return indent+RenderAccumulation(destVar,arg,destType,番号);
         });
         return $$"""
             {{destType}} {{destVar}}=default!;
