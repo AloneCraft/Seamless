@@ -13,7 +13,7 @@ internal static partial class PipelineBuilder {
         var isScalarTerminal = terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Sum or PipelineTerminalKind.Average
             or PipelineTerminalKind.Any or PipelineTerminalKind.All or PipelineTerminalKind.Contains
             or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault
-            or PipelineTerminalKind.Min or PipelineTerminalKind.Max or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault;
+            or PipelineTerminalKind.Min or PipelineTerminalKind.Max or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy or PipelineTerminalKind.Aggregate or PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault;
 
         var isSliceFusionTerminal = isScalarTerminal || terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList or PipelineTerminalKind.ToHashSet or PipelineTerminalKind.ToDictionary;
 
