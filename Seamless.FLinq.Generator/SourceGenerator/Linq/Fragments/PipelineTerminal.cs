@@ -867,6 +867,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
     private bool CanUseDirectSpanPipelineScalar() {
+        var hasFilter = false;
         foreach(var stage in pipeline.Stages) {
             switch(stage.Kind) {
                 case PipelineStageKind.AsEnumerable:
@@ -878,11 +879,22 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
                         return false;
                     }
                     break;
+                case PipelineStageKind.SkipLast:
+                case PipelineStageKind.TakeLast:
+                    if(stage.Value is null || hasFilter) {
+                        return false;
+                    }
+                    break;
                 case PipelineStageKind.Where:
-                case PipelineStageKind.Select:
                 case PipelineStageKind.TakeWhile:
                 case PipelineStageKind.SkipWhile:
+                    hasFilter = true;
                     if(stage.UsesIndex||stage.Func is not { } func||!CanUseDirectScalarFunc(func)) {
+                        return false;
+                    }
+                    break;
+                case PipelineStageKind.Select:
+                    if(stage.UsesIndex||stage.Func is not { } selFunc||!CanUseDirectScalarFunc(selFunc)) {
                         return false;
                     }
                     break;
@@ -20139,7 +20151,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
             if(func1 is not null && !CanUseDirectScalarFunc(func1)) {
                 return false;
             }
-            this.TryAnalyzeLeadingSlice(out _, out _, out var leadingSliceStageCount);
+            this.TryAnalyzeLeadingSlice(out var leadingSliceStageCount);
             for(var i = leadingSliceStageCount; i < pipeline.Stages.Count; i++) {
                 if(pipeline.Stages[i].Kind is PipelineStageKind.Take or PipelineStageKind.Skip or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile) {
                     return false;
@@ -20159,12 +20171,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
         return false;
     }
 
-    private bool TryAnalyzeLeadingSlice(
-        out string? leadingSkipExpr,
-        out string? leadingTakeExpr,
-        out int leadingSliceStageCount) {
-        leadingSkipExpr = null;
-        leadingTakeExpr = null;
+    private bool TryAnalyzeLeadingSlice(out int leadingSliceStageCount) {
         leadingSliceStageCount = 0;
 
         for(var i = 0; i < pipeline.Stages.Count; i++) {
@@ -20173,31 +20180,19 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
                 leadingSliceStageCount++;
                 continue;
             }
-            if(stage.Kind == PipelineStageKind.Skip && stage.Value is not null) {
-                if(leadingTakeExpr is not null) {
-                    break;
-                }
-                if(leadingSkipExpr is null) {
-                    leadingSkipExpr = $"global::System.Math.Max(0, {stage.Value})";
-                } else {
-                    leadingSkipExpr = $"global::System.Math.Max(0, {leadingSkipExpr} + {stage.Value})";
-                }
-                leadingSliceStageCount++;
-                continue;
-            }
-            if(stage.Kind == PipelineStageKind.Take && stage.Value is not null) {
-                if(leadingTakeExpr is null) {
-                    leadingTakeExpr = $"global::System.Math.Max(0, {stage.Value})";
-                } else {
-                    leadingTakeExpr = $"global::System.Math.Min({leadingTakeExpr}, global::System.Math.Max(0, {stage.Value}))";
-                }
+            if(stage.Kind is PipelineStageKind.Skip or PipelineStageKind.Take or PipelineStageKind.SkipLast or PipelineStageKind.TakeLast && stage.Value is not null) {
                 leadingSliceStageCount++;
                 continue;
             }
             break;
         }
 
-        return leadingSkipExpr is not null || leadingTakeExpr is not null;
+        for(var i = 0; i < leadingSliceStageCount; i++) {
+            if(pipeline.Stages[i].Kind is PipelineStageKind.Skip or PipelineStageKind.Take or PipelineStageKind.SkipLast or PipelineStageKind.TakeLast) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private string? RenderDirectSpanPipelineScalar(string actualVariableName,string actualTypeName) {
@@ -20255,7 +20250,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
                 break;
         }
 
-        var hasLeadingSlice = this.TryAnalyzeLeadingSlice(out var leadingSkipExpr, out var leadingTakeExpr, out var leadingSliceStageCount);
+        var hasLeadingSlice = this.TryAnalyzeLeadingSlice(out var leadingSliceStageCount);
         var sliceIndices = new HashSet<int>();
         for(var i = 0; i < leadingSliceStageCount; i++) {
             sliceIndices.Add(i);
@@ -20270,15 +20265,25 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
         var endIdxName = $"__endIndex{this.result}";
 
         if(hasLeadingSlice) {
-            if(leadingSkipExpr is not null) {
-                builder.AppendLine($"    var {startIdxName}=global::System.Math.Min({spanName}.Length, {leadingSkipExpr});");
-            } else {
-                builder.AppendLine($"    var {startIdxName}=0;");
-            }
-            if(leadingTakeExpr is not null) {
-                builder.AppendLine($"    var {endIdxName}=global::System.Math.Min({spanName}.Length, {startIdxName} + {leadingTakeExpr});");
-            } else {
-                builder.AppendLine($"    var {endIdxName}={spanName}.Length;");
+            builder.AppendLine($"    var {startIdxName}=0;");
+            builder.AppendLine($"    var {endIdxName}={spanName}.Length;");
+
+            for(var i = 0; i < leadingSliceStageCount; i++) {
+                var stage = pipeline.Stages[i];
+                switch(stage.Kind) {
+                    case PipelineStageKind.Skip:
+                        builder.AppendLine($"    {startIdxName}=global::System.Math.Min({endIdxName}, {startIdxName} + global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                    case PipelineStageKind.Take:
+                        builder.AppendLine($"    {endIdxName}=global::System.Math.Min({endIdxName}, {startIdxName} + global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                    case PipelineStageKind.SkipLast:
+                        builder.AppendLine($"    {endIdxName}=global::System.Math.Max({startIdxName}, {endIdxName} - global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                    case PipelineStageKind.TakeLast:
+                        builder.AppendLine($"    {startIdxName}=global::System.Math.Max({startIdxName}, {endIdxName} - global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                }
             }
 
             if(isReverse) {
