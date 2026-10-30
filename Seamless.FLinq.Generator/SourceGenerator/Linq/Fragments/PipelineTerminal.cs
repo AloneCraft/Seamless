@@ -15575,90 +15575,60 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
 
-    private string? RenderDirectSpanPipelineToHashSet(string actualVariableName,string actualTypeName) {
-
-
-
+        private string? RenderDirectSpanPipelineToHashSet(string actualVariableName,string actualTypeName) {
         var sourceName = $"__pipelineSrc{this.result}";
-
-
-
         if(this.TryGetDirectSourceSpanSetup(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
-
-
-
             return null;
-
-
-
         }
 
-
-
+        var hasLeadingSlice = this.TryAnalyzeLeadingSlice(out var leadingSliceStageCount);
         var spanName = $"__pipelineSpan{this.result}";
-
-
-
+        var startIdxName = $"__startIndex{this.result}";
+        var endIdxName = $"__endIndex{this.result}";
+        var lenName = $"__length{this.result}";
         var indexName = $"__pipelineIndex{this.result}";
-
-
-
         var sourceItemName = this.SourceItemName();
-
-
-
         var builder = new StringBuilder();
-
-
-
         var comparerArg = string.IsNullOrEmpty(comparerValue) ? string.Empty : $", {comparerValue}";
 
-
-
         builder.AppendLine($"{actualTypeName} {actualVariableName};");
-
-
-
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
-
-
-
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
 
+        if(hasLeadingSlice) {
+            builder.AppendLine($"    var {startIdxName}=0;");
+            builder.AppendLine($"    var {endIdxName}={spanName}.Length;");
+            for(var i = 0; i < leadingSliceStageCount; i++) {
+                var stage = pipeline.Stages[i];
+                switch(stage.Kind) {
+                    case PipelineStageKind.Skip:
+                        builder.AppendLine($"    {startIdxName}=global::System.Math.Min({endIdxName}, {startIdxName} + global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                    case PipelineStageKind.Take:
+                        builder.AppendLine($"    {endIdxName}=global::System.Math.Min({endIdxName}, {startIdxName} + global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                    case PipelineStageKind.SkipLast:
+                        builder.AppendLine($"    {endIdxName}=global::System.Math.Max({startIdxName}, {endIdxName} - global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                    case PipelineStageKind.TakeLast:
+                        builder.AppendLine($"    {startIdxName}=global::System.Math.Max({startIdxName}, {endIdxName} - global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                }
+            }
+            builder.AppendLine($"    var {lenName}=global::System.Math.Max(0, {endIdxName} - {startIdxName});");
+        } else {
+            builder.AppendLine($"    var {startIdxName}=0;");
+            builder.AppendLine($"    var {lenName}={spanName}.Length;");
+        }
 
-
-        builder.AppendLine($"    {actualVariableName}=new({spanName}.Length{comparerArg});");
-
-
-
-        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
-
-
-
-        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
-
-
-
-        var currentName = this.AppendDirectSpanPipelineStages(builder,sourceItemName,"        ");
-
-
-
+        builder.AppendLine($"    {actualVariableName}=new({lenName}{comparerArg});");
+        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{lenName};{indexName}++) {{");
+        builder.AppendLine($"        var {sourceItemName}={spanName}[{startIdxName} + {indexName}];");
+        var currentName = this.AppendDirectSpanPipelineStages(builder,sourceItemName,"        ",startIndex: leadingSliceStageCount);
         builder.AppendLine($"        {actualVariableName}.Add({currentName});");
-
-
-
         builder.AppendLine("    }");
-
-
-
         builder.AppendLine("}");
-
-
-
         return builder.ToString().TrimEnd();
-
-
-
     }
 
 
