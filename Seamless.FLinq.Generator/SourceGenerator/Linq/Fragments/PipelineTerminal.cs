@@ -18,7 +18,21 @@ PipelineTerminal は PipelineEnumerable の終端を scalar/direct execution と
   - ToList/ToArray/ToDictionary/Sum は direct execution 専用で、GetEnumeratorExpression は使わない。
   - ToDictionary は func1 を keySelector、func2 を elementSelector として扱い、comparerValue を constructor に渡す。
 */
-internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,PipelineTerminalKind terminalKind,FuncFragment? func1 = null,FuncFragment? func2 = null,string? comparerValue = null,string? terminalValue = null):Scalar(番号), DirectExecutionFragment {
+internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSource,PipelineTerminalKind terminalKind,FuncFragment? func1 = null,FuncFragment? func2 = null,string? comparerValue = null,string? terminalValue = null):Scalar(番号), DirectExecutionFragment {
+    private readonly PipelineEnumerable pipeline=BindMaterializationDemand(pipelineSource,terminalKind,func1);
+
+    private static PipelineEnumerable BindMaterializationDemand(PipelineEnumerable pipeline,PipelineTerminalKind terminalKind,FuncFragment? predicate){
+        if(terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList
+            &&pipeline.Stages.Count>0
+            &&pipeline.Stages[pipeline.Stages.Count-1].Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending or PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending){
+            return pipeline.ForOrderedMaterialization();
+        }
+        if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault
+            &&predicate is null&&pipeline.SupportsOrderedMaterialization){
+            return pipeline.ForOrderedConsumer(PipelineEnumerable.OrderedConsumerDemand.First);
+        }
+        return pipeline;
+    }
     private string SourceItemName()=>GeneratedNames.PreferLocal($"__pipelineItem{this.result}_0",pipeline.Stages.FirstOrDefault(static stage=>stage.Func is not null)?.Func??func1);
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
