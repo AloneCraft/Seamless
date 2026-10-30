@@ -65,6 +65,20 @@ internal static partial class PipelineBuilder {
                     ??"object";
                 continue;
             }
+            if(methodName is "Order" or "OrderDescending" or "OrderBy" or "OrderByDescending"
+                &&stages.Any(static stage=>IsPrimaryOrderStage(stage.Kind))){
+                // 次の一次整列は別の安定整列として残す。ThenBy と同じ sorter には畳まない。
+                stages=GroupByFusionPass.Apply(stages,new TerminalDemand(null,false,false),services.Trace);
+                stages=LinqOptimizationExecutor.NormalizePipeline(stages,services.JoinStaticMethods,services.Configuration,services.Trace);
+                stages=StreamGroupByKeysWhenResultIgnoresGroup(sourceFragment,stages);
+                stages=StripRangeNoOpPrefix(ref sourceFragment,stages,ref snapshot);
+                if(!ValidateStageCombination(stages,null,allowSingleStage:true)){return false;}
+                var prefix=PipelineEnumerable.CreateWithOrderSourceDemand(snapshot++,sourceFragment,stages.ToArray(),currentElementType);
+                AddUnsafeAccessors(stages,unsafeAccessorCollector);
+                sourceStaticMethods=services.JoinStaticMethods(sourceStaticMethods,prefix.StructMethod);
+                sourceFragment=prefix;
+                stages.Clear();
+            }
             if(TryAppendStage(semanticModel,currentInvocation,method,services,ref snapshot,stages,ref currentElementType)) {
                 continue;
             }
@@ -172,7 +186,7 @@ internal static partial class PipelineBuilder {
         if(sourceFragment is Join plannedJoin&&terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount){
             plannedJoin.PlanConsumption(DemandAnalysis.Analyze(stages,new(terminalKind,terminalFunc1 is not null,false,terminalValue)).Source,services.Trace);
         }
-        var pipeline = new PipelineEnumerable(snapshot++,sourceFragment,stages.ToArray(),currentElementType);
+        var pipeline=PipelineEnumerable.CreateWithOrderSourceDemand(snapshot++,sourceFragment,stages.ToArray(),currentElementType);
         AddUnsafeAccessors(stages,unsafeAccessorCollector);
         if(terminalKind is { } terminal) {
             if(terminalResultType is null) {

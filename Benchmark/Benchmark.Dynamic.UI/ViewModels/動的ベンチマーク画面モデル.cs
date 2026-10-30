@@ -1,4 +1,5 @@
 ﻿using Benchmark.Dynamic.Core;
+using Benchmark.Infrastructure;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System.Collections.ObjectModel;
@@ -8,6 +9,7 @@ using System.ComponentModel;
 namespace Benchmark.Dynamic.UI;
 
 public sealed class 動的ベンチマーク画面モデル:ObservableObject {
+    public アプリ操作排他 実行排他{get;}=new();
     public Func<(int 最適化,WorkerStorageSettings 設定)>? 測定設定を取得{get;set;}
     private const string 選択ソース設定キー="Benchmark.Dynamic.選択ソース";
     private readonly I動的実行調停サービス 実行調停;
@@ -342,6 +344,8 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
     }
 
     private async Task 実行Async() {
+        using var 予約=this.実行排他.予約する();
+        if(予約 is null){return;}
         var 選択対象=this.ソース選択一覧.Where(項目=>項目.選択済みか).Select(項目=>項目.対象).Order().ToArray();
         if(選択対象.Length==0) {
             await 通知Async("入力エラー","少なくとも1つのSourceTargetを選択してください。");
@@ -394,6 +398,54 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         }
     }
 
+    public void 内部制御障害を表示(string 内容)=>this.進捗文字列="アプリ内部操作 Unavailable: "+内容;
+
+    public async Task 終了Async(){
+        await this.実行調停.キャンセルAsync();
+        var 実行一覧=new[]{this.実行コマンド.ExecutionTask,this.Run再実行コマンド.ExecutionTask,this.Query再実行コマンド.ExecutionTask,this.Query縮小コマンド.ExecutionTask,this.選択Query再実行コマンド.ExecutionTask};
+        await Task.WhenAll(実行一覧.OfType<Task>());
+    }
+
+    public async Task<アプリ操作結果> 外部実行Async(動的実行設定 設定,CancellationToken 取消){
+        if(取消.IsCancellationRequested){return new("Cancelled","Unavailable","");}
+        this.実行中か=true;
+        this.キャンセル要求済みか=false;
+        this.進捗文字列="外部操作を実行しています";
+        this.CPU活動をクリア?.Invoke();
+        this.完了数=0;
+        this.コンパイル失敗数=0;
+        this.意味不一致数=0;
+        this.非収束数=0;
+        this.実行例外数=0;
+        var 集計=new 動的外部検証集計(checked(設定.Query数*設定.対象一覧.Count));
+        try{
+            await using var UI更新=new 動的UI更新Channel(行=>this.結果一覧.Add(行),this.進捗を適用);
+            var 元の処理=this.実行調停.実行Async(設定,行=>{
+                _=Enum.TryParse<WorkerExecutionStatus>(行.状態,out var 状態);
+                集計.結果を追加(状態,行.意味一致=="一致",行.FixedPoint=="到達");
+                UI更新.結果を追加(行);
+            },UI更新.進捗を更新);
+            Task 取消処理=Task.CompletedTask;
+            // 実行Async が作った元 Task を待つ。取消送信の完了を停止証拠にしない。
+            var 登録=取消.Register(()=>取消処理=this.実行調停.キャンセルAsync());
+            動的履歴項目 履歴;
+            try{履歴=await 元の処理;}
+            finally{登録.Dispose();await 取消処理;}
+            await UI更新.完了Async();
+            this.履歴一覧.Insert(0,履歴);
+            this.進捗文字列=履歴.状態;
+            var 終端="Failed";
+            if(履歴.状態=="Completed"){終端="Completed";}
+            if(履歴.状態 is "Canceled" or "Cancelled"){終端="Cancelled";}
+            return new(終端,集計.検証結果を取得(履歴.状態),"run:"+履歴.実行ID);
+        }catch(Exception 例外){
+            this.進捗文字列="外部操作失敗: "+例外.Message;
+            throw;
+        }finally{
+            this.実行中か=false;
+        }
+    }
+
     private async Task キャンセルAsync() {
         this.キャンセル要求済みか=true;
         this.進捗文字列="キャンセル要求中";
@@ -433,6 +485,8 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
 
     private async Task 再実行Async(
         Func<Action<動的結果行>,Action<動的実行進捗>,Task<動的履歴項目>> 開始){
+        using var 予約=this.実行排他.予約する();
+        if(予約 is null){return;}
         this.実行中か=true;
         this.キャンセル要求済みか=false;
         this.進捗文字列="再実行を開始しています";

@@ -1,4 +1,4 @@
-﻿# リリース成果物(.nupkg / .snupkg / サンプル ZIP)を検証する。release.yml と手元の両方から使う。
+# リリース成果物(.nupkg / .snupkg / サンプル ZIP)を検証する。release.yml と手元の両方から使う。
 param(
     [Parameter(Mandatory)][string]$Dir,
     [Parameter(Mandatory)][string]$Version
@@ -8,7 +8,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $packages = @(
     'Seamless', 'Seamless.Execution', 'Seamless.Collections', 'Seamless.Collections.Persisted',
-    'Seamless.Collections.Tsavorite', 'Seamless.Linq', 'Seamless.Database', 'Seamless.Database.Generator',
+    'Seamless.Tsavorite.Core', 'Seamless.Collections.Tsavorite', 'Seamless.Linq', 'Seamless.Database', 'Seamless.Database.Generator',
     'Seamless.Database.Rdbms', 'Seamless.FLinq.Generator', 'Seamless.Database.Tool'
 )
 $forbidden = '(^|/)(bin|obj|Library|Temp|Logs|Work|TestResults|\.git|\.vs)/'
@@ -30,7 +30,19 @@ foreach ($id in $packages) {
         $meta = $xml.package.metadata
         if ($meta.id -ne $id) { $errors.Add("nuspec id mismatch: $($meta.id) != $id") }
         if ($meta.version -ne $Version) { $errors.Add("nuspec version mismatch in ${id}: $($meta.version) != $Version") }
-        if ($names -notcontains 'README.md') { $errors.Add("no README.md in $id") }
+        $readme = 'README.md'
+        if ($id -eq 'Seamless.Tsavorite.Core') { $readme = 'README.Core.md' }
+        if ($names -notcontains $readme) { $errors.Add("no $readme in $id") }
+        if ($id -eq 'Seamless.Tsavorite.Core') {
+            foreach ($required in @('lib/net10.0/Tsavorite.core.dll','lib/net10.0/Garnet.common.dll','lib/net10.0/Tsavorite.devices.AzureStorageDevice.dll','buildTransitive/Seamless.Tsavorite.Core.targets','UPSTREAM-PROVENANCE.json','recovery-head-pages.patch','licenses/LICENSE')) {
+                if ($names -notcontains $required) { $errors.Add("missing patched Core entry: $required") }
+            }
+            $managed = @($names | Where-Object { $_ -like 'lib/net10.0/*.dll' })
+            if ($managed.Count -ne 3) { $errors.Add("patched Core must contain exactly 3 managed DLLs") }
+            $native = @($names | Where-Object { $_ -like 'runtimes/*/native/*native_device*' })
+            if ($native.Count -ne 10) { $errors.Add("patched Core must retain exactly 10 native device files") }
+            if ($meta.dependencies.group.dependency.id -contains 'Microsoft.Garnet') { $errors.Add('patched Core must not depend on original Microsoft.Garnet') }
+        }
         $bad = $names | Where-Object { $_ -match $forbidden }
         if ($bad) { $errors.Add("forbidden entries in ${id}: $($bad -join ', ')") }
     } finally { $zip.Dispose() }

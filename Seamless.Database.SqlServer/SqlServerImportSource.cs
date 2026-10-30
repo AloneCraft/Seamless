@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Text;
 
 namespace Seamless.Database.SqlServer;
@@ -11,20 +11,30 @@ public sealed class SqlServerImportSource:global::Seamless.Database.IDatabaseImp
     private readonly IReadOnlyDictionary<string,GeneratedTableBinding> tables;
     private readonly Dictionary<string,long> rowsReadByTable=new(StringComparer.Ordinal);
     private bool disposed;
+    private bool completed;
 
     public long RowsRead { get; private set; }
     public IReadOnlyDictionary<string,long> RowsReadByTable=>this.rowsReadByTable;
 
-    public SqlServerImportSource(string connectionString,IEnumerable<GeneratedTableBinding> tables) {
+    public SqlServerImportSource(string connectionString,IEnumerable<GeneratedTableBinding> tables,bool consistentRead=false) {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         ArgumentNullException.ThrowIfNull(tables);
         this.tables=tables.ToDictionary(static table=>table.ObjectName,StringComparer.Ordinal);
-        this.connection=new(connectionString);
+        var settings=new SqlConnectionStringBuilder(connectionString){ColumnEncryptionSetting=SqlConnectionColumnEncryptionSetting.Disabled};
+        this.connection=new(settings.ConnectionString);
         this.connection.Open();
         try {
             this.encryptedColumns=ReadEncryptedColumns(this.connection);
             this.memoryOptimizedTables=ReadMemoryOptimizedTables(this.connection);
-            this.transaction=this.connection.BeginTransaction(SelectIsolationLevel(this.memoryOptimizedTables.Count>0));
+            var isolation=SelectIsolationLevel(this.memoryOptimizedTables.Count>0);
+            if(consistentRead){using var check=this.connection.CreateCommand();check.CommandText="SELECT snapshot_isolation_state FROM sys.databases WHERE database_id=DB_ID();";var snapshot=Convert.ToInt32(check.ExecuteScalar())==1;isolation=IsolationLevel.Serializable;if(snapshot&&this.memoryOptimizedTables.Count==0){isolation=IsolationLevel.Snapshot;}}
+            this.transaction=this.connection.BeginTransaction(isolation);
+            if(consistentRead&&this.memoryOptimizedTables.Count>0){
+                // Hekatonはsession SNAPSHOTを拒否する。全disk表のS lock取得後、mem表は同一txのSNAPSHOTで読む。
+                foreach(var table in this.tables.Values.Where(t=>!this.memoryOptimizedTables.Contains((t.SourceSchema,t.SourceTable))).OrderBy(t=>t.SourceSchema,StringComparer.Ordinal).ThenBy(t=>t.SourceTable,StringComparer.Ordinal)){
+                    using var hold=this.connection.CreateCommand();hold.Transaction=this.transaction;hold.CommandTimeout=0;hold.CommandText="SELECT COUNT_BIG(*) FROM "+Quote(table.SourceSchema)+"."+Quote(table.SourceTable)+" WITH (TABLOCK,HOLDLOCK);";hold.ExecuteScalar();
+                }
+            }
         } catch {
             this.connection.Dispose();
             throw;
@@ -52,14 +62,18 @@ public sealed class SqlServerImportSource:global::Seamless.Database.IDatabaseImp
             this.encryptedColumns);
         using var reader=command.ExecuteReader(CommandBehavior.SequentialAccess);
         var parameters=constructor.GetParameters();
+        var rowId=0L;
         while(reader.Read()) {
             var values=new object?[table.Columns.Count];
+            var sourceIndex=0;
             for(var index=0;index<values.Length;index++) {
-                if(reader.IsDBNull(index)) {
+                if(table.Columns[index].IsSynthetic){values[index]=checked(++rowId);continue;}
+                var readerIndex=sourceIndex++;
+                if(reader.IsDBNull(readerIndex)) {
                     values[index]=null;
                     continue;
                 }
-                var value=reader.GetValue(index);
+                var value=reader.GetValue(readerIndex);
                 try {
                     values[index]=ConvertValue(value,parameters[index].ParameterType);
                 } catch(Exception exception) when(exception is InvalidCastException or FormatException or OverflowException) {
@@ -74,6 +88,12 @@ public sealed class SqlServerImportSource:global::Seamless.Database.IDatabaseImp
             this.rowsReadByTable[table.ObjectName]++;
             yield return record;
         }
+    }
+
+    public IEnumerable<object?[]> ReadVerificationRows(GeneratedTableBinding table)=>this.ReadVerificationSql(CreateSelect(table,this.memoryOptimizedTables.Contains((table.SourceSchema,table.SourceTable)),this.encryptedColumns));
+    public IEnumerable<object?[]> ReadVerificationSql(string sql){
+        ObjectDisposedException.ThrowIf(this.disposed,this);using var command=this.connection.CreateCommand();command.Transaction=this.transaction;command.CommandText=sql;command.CommandTimeout=0;using var reader=command.ExecuteReader(CommandBehavior.SequentialAccess);
+        while(reader.Read()){var row=new object?[reader.FieldCount];for(var i=0;i<row.Length;i++){if(!reader.IsDBNull(i)){row[i]=reader.GetValue(i);}}yield return row;}
     }
 
     private static ConstructorInfo FindConstructor<TRecord>(int parameterCount) {
@@ -94,20 +114,13 @@ public sealed class SqlServerImportSource:global::Seamless.Database.IDatabaseImp
         bool isMemoryOptimized,
         IReadOnlySet<(string Schema,string Table,string Column)> encryptedColumns) {
         var builder=new StringBuilder("SELECT ");
-        for(var index=0;index<table.Columns.Count;index++) {
-            if(index>0) {
-                builder.Append(',');
-            }
-            var column=Quote(table.Columns[index].SourceName);
-            var isEncrypted=encryptedColumns.Contains((
-                table.SourceSchema,
-                table.SourceTable,
-                table.Columns[index].SourceName));
-            if(table.Columns[index].Type.Kind==DatabaseTypeKind.Binary&&!isEncrypted) {
-                builder.Append($"CONVERT(varbinary(max),{column})");
-            } else {
-                builder.Append(column);
-            }
+        var selected=0;
+        foreach(var field in table.Columns){
+            if(field.IsSynthetic){continue;}
+            if(selected++>0){builder.Append(',');}
+            var column=Quote(field.SourceName);
+            var isEncrypted=encryptedColumns.Contains((table.SourceSchema,table.SourceTable,field.SourceName));
+            if(field.Type.Kind==DatabaseTypeKind.Binary&&!isEncrypted){builder.Append($"CONVERT(varbinary(max),{column})");}else{builder.Append(column);}
         }
         builder.Append(" FROM ");
         builder.Append(Quote(table.SourceSchema));
@@ -159,6 +172,7 @@ public sealed class SqlServerImportSource:global::Seamless.Database.IDatabaseImp
         if(type.IsInstanceOfType(value)) {
             return value;
         }
+        if(type==typeof(global::Seamless.Database.SqlServer.Types.Bit)){return new global::Seamless.Database.SqlServer.Types.Bit(Convert.ToInt32(value,global::System.Globalization.CultureInfo.InvariantCulture));}
         if(type==typeof(DateOnly)&&value is DateTime dateTime) {
             return DateOnly.FromDateTime(dateTime);
         }
@@ -168,13 +182,15 @@ public sealed class SqlServerImportSource:global::Seamless.Database.IDatabaseImp
         return Convert.ChangeType(value,type,global::System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    public void Complete(){ObjectDisposedException.ThrowIf(this.disposed,this);if(this.completed){throw new InvalidOperationException("The source transaction is already complete.");}this.transaction.Commit();this.completed=true;}
+
     public void Dispose() {
         if(this.disposed) {
             return;
         }
         this.disposed=true;
         try {
-            this.transaction.Rollback();
+            if(!this.completed){this.transaction.Rollback();}
         } finally {
             this.transaction.Dispose();
             this.connection.Dispose();

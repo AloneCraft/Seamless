@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><LangVersion>14</LangVersion><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><IsPackable>true</IsPackable><AssemblyName>Seamless.Database.Client</AssemblyName><RootNamespace>Seamless.Database.Client</RootNamespace><Description>Typed native query protocol and client for SeamlessDB.</Description></PropertyGroup>
+  <ItemGroup><PackageReference Include="MemoryPack" Version="1.*" /></ItemGroup>
+</Project>

@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>TestSeamless.Queries</AssemblyName><RootNamespace>TestSeamless.Queries</RootNamespace><AllowUnsafeBlocks>true</AllowUnsafeBlocks><InterceptorsNamespaces>$(InterceptorsNamespaces);Intercept</InterceptorsNamespaces></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Seamless.Database.Client" Version="$(SeamlessPackageVersion)" />
+    <PackageReference Include="Seamless.FLinq.Generator" Version="$(SeamlessPackageVersion)" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Schema/TestSeamless.Schema.csproj" />
+    <Compile Include="$(GenerationDirectory)/queries/**/*.cs" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Seamless.Database.Gateway</RootNamespace>
+    <AssemblyName>Seamless.Database.Gateway</AssemblyName>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.102.0" />
+    <EmbeddedResource Include="Sql\Compatibility\SsmsServerInformation.sql" />
+    <EmbeddedResource Include="Sql\Compatibility\SsmsQuerySettings.sql" />
+    <EmbeddedResource Include="Sql\Compatibility\SsmsConnectionInitialization.sql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" />
+    <ProjectReference Include="..\Seamless.Database.Client\Seamless.Database.Client.csproj" />
+    <ProjectReference Include="..\Seamless.Database.Query\Seamless.Database.Query.csproj" />
+    <ProjectReference Include="..\Seamless.Database.Rdbms\Seamless.Database.Rdbms.csproj" />
+    <ProjectReference Include="..\Seamless.Linq\Seamless.Linq.csproj" />
+  </ItemGroup>
+</Project>

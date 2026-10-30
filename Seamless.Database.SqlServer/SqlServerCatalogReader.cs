@@ -1,6 +1,8 @@
+using System.IO;
+using System.Data.Common;
 namespace Seamless.Database.SqlServer;
 
-public sealed class SqlServerCatalogReader(string connectionString) {
+public sealed class SqlServerCatalogReader(string connectionString,bool analyzeRoutines=true) {
     private const string TableQuery = """
         SELECT schema_definition.name,table_definition.name,column_definition.column_id,
             column_definition.name,COALESCE(system_type.name,declared_type.name),
@@ -8,7 +10,7 @@ public sealed class SqlServerCatalogReader(string connectionString) {
             column_definition.is_nullable,column_definition.is_identity,
             default_definition.definition,computed_definition.definition,
             primary_key.name,primary_key.key_ordinal,primary_key.is_descending_key,
-            column_definition.encryption_type
+            column_definition.encryption_type,column_definition.collation_name,primary_key.index_type
         FROM sys.tables AS table_definition
         INNER JOIN sys.schemas AS schema_definition ON schema_definition.schema_id=table_definition.schema_id
         INNER JOIN sys.columns AS column_definition ON column_definition.object_id=table_definition.object_id
@@ -22,7 +24,7 @@ public sealed class SqlServerCatalogReader(string connectionString) {
             AND computed_definition.column_id=column_definition.column_id
         LEFT JOIN (
             SELECT index_definition.object_id,index_definition.name,index_column.column_id,
-                index_column.key_ordinal,index_column.is_descending_key
+                index_column.key_ordinal,index_column.is_descending_key,index_definition.type AS index_type
             FROM sys.indexes AS index_definition
             INNER JOIN sys.index_columns AS index_column
                 ON index_column.object_id=index_definition.object_id
@@ -36,13 +38,14 @@ public sealed class SqlServerCatalogReader(string connectionString) {
         """;
 
     public async Task<DatabaseCatalog> ReadAsync(CancellationToken cancellationToken=default) {
-        await using var connection=new SqlConnection(connectionString);
+        var settings=new SqlConnectionStringBuilder(connectionString){ColumnEncryptionSetting=SqlConnectionColumnEncryptionSetting.Disabled};
+        await using var connection=new SqlConnection(settings.ConnectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         var databaseName=await ReadDatabaseNameAsync(connection,cancellationToken).ConfigureAwait(false);
         var tables=new Dictionary<(string Schema,string Table),TableBuilder>();
         await ReadTablesAsync(connection,tables,cancellationToken).ConfigureAwait(false);
         var views=await SqlServerViewCatalogReader.ReadAsync(connection,cancellationToken).ConfigureAwait(false);
-        var metadata=await SqlServerMetadataReader.ReadAsync(connection,cancellationToken).ConfigureAwait(false);
+        var metadata=await SqlServerMetadataReader.ReadAsync(connection,cancellationToken,analyzeRoutines).ConfigureAwait(false);
         var tableCatalogs=tables.ToDictionary(
             static pair=>pair.Key,
             pair=>pair.Value.Build(metadata.TryGetValue(pair.Key,out var value)?value:null));
@@ -60,13 +63,16 @@ public sealed class SqlServerCatalogReader(string connectionString) {
                     .Select(static view=>view.View).ToArray(),
                 metadata.Routines.Where(routine=>routine.SchemaName==schemaName).ToArray()))
             .ToArray();
-        return new(databaseName,schemas);
+        await using var collationCommand=new SqlCommand("SELECT CONVERT(nvarchar(128),DATABASEPROPERTYEX(DB_NAME(),'Collation'));",connection);
+        var collation=await collationCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return new(databaseName,schemas,collation is string value?value:null);
     }
 
     private static async Task ReadTablesAsync(
         SqlConnection connection,
         Dictionary<(string Schema,string Table),TableBuilder> tables,
         CancellationToken cancellationToken) {
+        var encrypted=new List<(TableBuilder Table,int Index)>();
         await using var command=new SqlCommand(TableQuery,connection);
         await using var reader=await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while(await reader.ReadAsync(cancellationToken).ConfigureAwait(false)) {
@@ -81,17 +87,32 @@ public sealed class SqlServerCatalogReader(string connectionString) {
             table.Columns.Add(new(
                 reader.GetInt32(2)-1,columnName,
                 SqlServerTypeMapper.Map(reader.GetString(4),reader.GetBoolean(8),reader.GetInt16(5),
-                    reader.GetByte(6),reader.GetByte(7),!reader.IsDBNull(15)),
+                    reader.GetByte(6),reader.GetByte(7),!reader.IsDBNull(15),reader.IsDBNull(16)?null:reader.GetString(16)),
                 reader.GetBoolean(9),reader.IsDBNull(10)?null:reader.GetString(10),
                 reader.IsDBNull(11)?null:reader.GetString(11)));
+            if(!reader.IsDBNull(15)){encrypted.Add((table,table.Columns.Count-1));}
             if(!reader.IsDBNull(12)) {
                 table.PrimaryKeyName=reader.GetString(12);
+                table.PrimaryKeyIndexType=reader.GetByte(17);
                 table.PrimaryKeyColumns.Add((Convert.ToInt32(reader.GetValue(13),global::System.Globalization.CultureInfo.InvariantCulture),
                     new(columnName,reader.GetBoolean(14))));
             }
         }
+        await reader.DisposeAsync().ConfigureAwait(false);
+        await CaptureEncryptedResultTypesAsync(connection,encrypted,cancellationToken).ConfigureAwait(false);
     }
 
+    private static async Task CaptureEncryptedResultTypesAsync(SqlConnection connection,List<(TableBuilder Table,int Index)> encrypted,CancellationToken cancellationToken){
+        static string Quote(string name)=>"["+name.Replace("]","]]",StringComparison.Ordinal)+"]";
+        foreach(var item in encrypted){
+            var column=item.Table.Columns[item.Index];
+            await using var command=new SqlCommand("SELECT TOP (0) "+Quote(column.Name)+" FROM "+Quote(item.Table.SchemaName)+"."+Quote(item.Table.TableName),connection);
+            await using var reader=await command.ExecuteReaderAsync(CommandBehavior.SchemaOnly,cancellationToken).ConfigureAwait(false);
+            var result=reader.GetColumnSchema()[0];var name=result.DataTypeName??throw new InvalidDataException("Encrypted result type is unavailable.");
+            if(!name.Equals("varbinary",StringComparison.OrdinalIgnoreCase)||result.ColumnSize is null){throw new InvalidDataException("Encrypted result metadata is unsupported.");}
+            item.Table.Columns[item.Index]=column with{Type=column.Type with{ResultSqlTypeName=name,ResultMaximumLength=result.ColumnSize}};
+        }
+    }
     private static async Task<string> ReadDatabaseNameAsync(SqlConnection connection,CancellationToken cancellationToken) {
         await using var command=new SqlCommand("SELECT DB_NAME();",connection);
         return (string)(await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false))!;
@@ -102,13 +123,14 @@ public sealed class SqlServerCatalogReader(string connectionString) {
         public string TableName { get; }=tableName;
         public List<ColumnCatalog> Columns { get; }=[];
         public string? PrimaryKeyName { get; set; }
+        public byte? PrimaryKeyIndexType { get; set; }
         public List<(int Ordinal,KeyColumnCatalog Column)> PrimaryKeyColumns { get; }=[];
 
         public TableCatalog Build(SqlServerTableMetadata? metadata) {
             PrimaryKeyCatalog? primaryKey=null;
             if(this.PrimaryKeyName is not null) {
                 primaryKey=new(this.PrimaryKeyName,this.PrimaryKeyColumns.OrderBy(static value=>value.Ordinal)
-                    .Select(static value=>value.Column).ToArray());
+                    .Select(static value=>value.Column).ToArray(),this.PrimaryKeyIndexType);
             }
             return new(this.TableName,this.Columns.OrderBy(static value=>value.Ordinal).ToArray(),primaryKey,
                 metadata?.UniqueKeys,metadata?.ForeignKeys,metadata?.CheckConstraints,metadata?.Triggers);
