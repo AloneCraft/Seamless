@@ -10633,6 +10633,103 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
 
+    private string? TryRenderDirectSpanPipelineFirstLastO1(string actualVariableName, string actualTypeName, bool isLast, bool orDefault) {
+        if(pipeline.Stages.Any(static s => s.Kind is PipelineStageKind.Prepend or PipelineStageKind.Append)) {
+            return null;
+        }
+        var seenFilter = false;
+        for(var i = 0; i < pipeline.Stages.Count; i++) {
+            var stage = pipeline.Stages[i];
+            if(this.IsDirectSpanFilterStage(stage)) {
+                seenFilter = true;
+                break;
+            }
+        }
+        if(seenFilter) {
+            return null;
+        }
+
+        var hasLeadingSlice = this.TryAnalyzeLeadingSlice(out var leadingSliceStageCount);
+        for(var i = leadingSliceStageCount; i < pipeline.Stages.Count; i++) {
+            var stage = pipeline.Stages[i];
+            if(stage.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast) {
+                continue;
+            }
+            if(stage.Kind is PipelineStageKind.Select && !stage.UsesIndex && stage.Func is { } func && CanUseDirectSpanPipelineFunc(func)) {
+                continue;
+            }
+            return null;
+        }
+
+        var sourceName = $"__pipelineSrc{this.result}";
+        if(this.TryGetDirectSourceSpanSetupForScalar(sourceName, out var sourceExpression, out var directSpanExpression) is null) {
+            return null;
+        }
+
+        var isReversed = this.IsPrefixReversed();
+        var spanName = $"__pipelineSpan{this.result}";
+        var startIdxName = $"__startIndex{this.result}";
+        var endIdxName = $"__endIndex{this.result}";
+        var lenName = $"__length{this.result}";
+        var actualIdxName = $"__actualIndex{this.result}";
+        var sourceItemName = this.SourceItemName();
+
+        var builder = new StringBuilder();
+        builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+        if(hasLeadingSlice) {
+            builder.AppendLine($"    var {startIdxName}=0;");
+            builder.AppendLine($"    var {endIdxName}={spanName}.Length;");
+            for(var i = 0; i < leadingSliceStageCount; i++) {
+                var stage = pipeline.Stages[i];
+                switch(stage.Kind) {
+                    case PipelineStageKind.Skip:
+                        builder.AppendLine($"    {startIdxName}=global::System.Math.Min({endIdxName}, {startIdxName} + global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                    case PipelineStageKind.Take:
+                        builder.AppendLine($"    {endIdxName}=global::System.Math.Min({endIdxName}, {startIdxName} + global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                    case PipelineStageKind.SkipLast:
+                        builder.AppendLine($"    {endIdxName}=global::System.Math.Max({startIdxName}, {endIdxName} - global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                    case PipelineStageKind.TakeLast:
+                        builder.AppendLine($"    {startIdxName}=global::System.Math.Max({startIdxName}, {endIdxName} - global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                }
+            }
+            builder.AppendLine($"    var {lenName}=global::System.Math.Max(0, {endIdxName} - {startIdxName});");
+        } else {
+            builder.AppendLine($"    var {startIdxName}=0;");
+            builder.AppendLine($"    var {lenName}={spanName}.Length;");
+            builder.AppendLine($"    var {endIdxName}={spanName}.Length;");
+        }
+
+        builder.AppendLine($"    if({lenName}>0) {{");
+        var useStartIndex = isLast ? isReversed : !isReversed;
+        if(useStartIndex) {
+            builder.AppendLine($"        var {actualIdxName}={startIdxName};");
+        } else {
+            builder.AppendLine($"        var {actualIdxName}={endIdxName} - 1;");
+        }
+        builder.AppendLine($"        var {sourceItemName}={spanName}[{actualIdxName}];");
+        var currentName = this.AppendDirectSpanPipelineStages(builder, sourceItemName, "        ", startIndex: leadingSliceStageCount);
+        builder.AppendLine($"        {actualVariableName}={currentName};");
+        builder.AppendLine("    } else {");
+        if(!orDefault) {
+            builder.AppendLine("        throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+        } else {
+            if(this.TryGetSingleDefaultIfEmptyStage(out var defaultIfEmptyStage) && defaultIfEmptyStage?.Value is { } defVal) {
+                builder.AppendLine($"        {actualVariableName}={defVal};");
+            } else {
+                builder.AppendLine($"        {actualVariableName}=default!;");
+            }
+        }
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
     private string? RenderDirectSpanPipelineFirst(string actualVariableName,string actualTypeName) {
 
 
@@ -10654,6 +10751,18 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
             return this.RenderDirectSpanPipelineTop1Order(actualVariableName,actualTypeName,orderStageIndex);
+
+
+
+        }
+
+
+
+        if(this.TryRenderDirectSpanPipelineFirstLastO1(actualVariableName, actualTypeName, isLast: false, orDefault: false) is { } o1First) {
+
+
+
+            return o1First;
 
 
 
@@ -11094,6 +11203,18 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
             return this.RenderDirectSpanPipelineTop1Order(actualVariableName,actualTypeName,orderStageIndex);
+
+
+
+        }
+
+
+
+        if(this.TryRenderDirectSpanPipelineFirstLastO1(actualVariableName, actualTypeName, isLast: false, orDefault: true) is { } o1FirstOrDefault) {
+
+
+
+            return o1FirstOrDefault;
 
 
 
@@ -16659,6 +16780,18 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
     private string? RenderDirectSpanPipelineLast(string actualVariableName,string actualTypeName,bool orDefault) {
+
+
+
+        if(this.TryRenderDirectSpanPipelineFirstLastO1(actualVariableName, actualTypeName, isLast: true, orDefault: orDefault) is { } o1Last) {
+
+
+
+            return o1Last;
+
+
+
+        }
 
 
 
