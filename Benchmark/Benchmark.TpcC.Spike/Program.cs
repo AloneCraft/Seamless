@@ -15,7 +15,11 @@ public static class Program{
         }
         var options=new Args(args[1..]);
         Affinity.Apply(options.Str("cpu","14"));
-        Console.WriteLine($"# {args[0]} {string.Join(' ',args[1..])} | pid={Environment.ProcessId} cpus={Environment.ProcessorCount} affinity=0x{(long)Process.GetCurrentProcess().ProcessorAffinity:X} {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        long affinity;
+        if(OperatingSystem.IsWindows()||OperatingSystem.IsLinux()){
+            affinity=(long)Process.GetCurrentProcess().ProcessorAffinity;
+        }else{throw new PlatformNotSupportedException("Processor affinity requires Windows or Linux.");}
+        Console.WriteLine($"# {args[0]} {string.Join(' ',args[1..])} | pid={Environment.ProcessId} cpus={Environment.ProcessorCount} affinity=0x{affinity:X} {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         try{
             return args[0] switch{
                 "exp1"=>Exp1.Run(options),
@@ -80,7 +84,9 @@ public static class Affinity{
             }
         }
         if(mask!=0){
-            Process.GetCurrentProcess().ProcessorAffinity=(nint)mask;
+            if(OperatingSystem.IsWindows()||OperatingSystem.IsLinux()){
+                Process.GetCurrentProcess().ProcessorAffinity=(nint)mask;
+            }else{throw new PlatformNotSupportedException("Processor affinity requires Windows or Linux.");}
         }
     }
 }

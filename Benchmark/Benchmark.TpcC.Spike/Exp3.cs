@@ -11,7 +11,7 @@ namespace Benchmark.TpcC.Spike;
 /// (3) 上限まで作ったときの例外・漏れ・作り直し・上限近くでの保存と読み込み。(4) 複数スレッドから同時に作ったときの上限。
 /// </summary>
 public static class Exp3{
-    private static readonly TsavoriteTuning Tiny=TsavoriteTuning.Default with{PageSize=4096,LogMemorySize=8192,IndexSize=64,AutoGrowIndex=false};
+    private static readonly TsavoriteTuning Tiny=TsavoriteTuning.Default with{PageSize=4096,LogMemorySize=8192,IndexSize=64,Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>()};
     public static int Run(Args options){
         var root=Report.NewRoot(options,"exp3");
         var baseline=LightEpoch.ActiveInstanceCount();

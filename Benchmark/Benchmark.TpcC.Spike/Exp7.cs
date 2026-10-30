@@ -97,7 +97,7 @@ public static class Exp7{
             using var store=Store.Open(directory,new StoreLimits{MemoryBytes=64L*1024*1024*1024});
             var tuning=TsavoriteTuning.Default;
             if(label=="set-tiny"){
-                tuning=TsavoriteTuning.Default with{PageSize=4096,LogMemorySize=8192,IndexSize=64,AutoGrowIndex=false};
+                tuning=TsavoriteTuning.Default with{PageSize=4096,LogMemorySize=8192,IndexSize=64,Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>()};
             }
             for(var index=0;index<Count;index++){
                 if(label=="dict-default"){
