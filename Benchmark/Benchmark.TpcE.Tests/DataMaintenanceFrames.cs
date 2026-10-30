@@ -9,16 +9,16 @@ public sealed class DataMaintenanceFrames{
     private static readonly Core.TpcEScale Scale=new(){Customers=10,MarketDays=30};
     private static readonly long Now1=Core.TpcETime.FromDateTime(new DateTime(2005,1,3,9,30,0));
     private static readonly long Now2=Core.TpcETime.FromDateTime(new DateTime(2005,1,3,9,31,0,250));
-    private static readonly Core.Code24 TaxA=Core.Code24.From("C000000000001");
-    private static readonly Core.Code24 TaxB=Core.Code24.From("P000000000011-1");
-    private static readonly Core.Code24 TaxC=Core.Code24.From("C000000000002");
-    private static readonly Core.Code16 Aaaa=Core.Code16.From("AAAA");
-    private static readonly Core.Code16 Aaab=Core.Code16.From("AAAB");
-    private static readonly Core.Code16 Aaac=Core.Code16.From("AAAC");
-    private static readonly Core.Code16 Aaad=Core.Code16.From("AAAD");
-    private static readonly Core.Code16 Aaae=Core.Code16.From("AAAE");
-    private static readonly Core.Code16 Aaaf=Core.Code16.From("AAAF");
-    private static readonly Core.Code16 Aaag=Core.Code16.From("AAAG");
+    private static readonly Code24 TaxA=Code24.From("C000000000001");
+    private static readonly Code24 TaxB=Code24.From("P000000000011-1");
+    private static readonly Code24 TaxC=Code24.From("C000000000002");
+    private static readonly Code16 Aaaa=Code16.From("AAAA");
+    private static readonly Code16 Aaab=Code16.From("AAAB");
+    private static readonly Code16 Aaac=Code16.From("AAAC");
+    private static readonly Code16 Aaad=Code16.From("AAAD");
+    private static readonly Code16 Aaae=Code16.From("AAAE");
+    private static readonly Code16 Aaaf=Code16.From("AAAF");
+    private static readonly Code16 Aaag=Code16.From("AAAG");
     private const long NewsDts=632_000_000_000_000;
     [Fact,Trait("Category","Unit")]public void Run(){
         var stores=new List<Store>();
@@ -109,8 +109,8 @@ public sealed class DataMaintenanceFrames{
                 //CUSTOMER_TAXRATE: US5→US1(主キーが変わるので消して足す)、CN2→CN3、CN4→CN1、US1→US2。地域の税率は変えない
                 DataMaintenanceFrames.Execute(engines,DataMaintenanceFrames.Input(Core.DataMaintenanceInput.CustomerTaxrate) with{CustomerId=1});
                 DataMaintenanceFrames.AssertAll(engines,db=>{
-                    Assert.False(db.CustomerTaxrate.Contains(new(Core.Code8.From("US5"),1)));
-                    Assert.True(db.CustomerTaxrate.Contains(new(Core.Code8.From("US1"),1)));
+                    Assert.False(db.CustomerTaxrate.Contains(new(Code8.From("US5"),1)));
+                    Assert.True(db.CustomerTaxrate.Contains(new(Code8.From("US1"),1)));
                     Assert.Equal(new[]{"AB1","US1"},DataMaintenanceFrames.Texts(db.CustomerTaxrates.All(1)));
                 });
                 DataMaintenanceFrames.Execute(engines,DataMaintenanceFrames.Input(Core.DataMaintenanceInput.CustomerTaxrate) with{CustomerId=2});
@@ -151,19 +151,19 @@ public sealed class DataMaintenanceFrames{
                 var output=DataMaintenanceFrames.Execute(engines,DataMaintenanceFrames.Input(Core.DataMaintenanceInput.Exchange));
                 Assert.Equal(4,output.NumUpdated);
                 DataMaintenanceFrames.AssertAll(engines,db=>{
-                    Assert.Equal("New York desc LAST UPDATED 2005-01-03 09:30:00.000",db.Exchange.Get(new(Core.Code8.From("NYSE"))).Description);
-                    Assert.Equal("NASDAQ desc LAST UPDATED 2005-01-03 09:30:00.000",db.Exchange.Get(new(Core.Code8.From("NASDAQ"))).Description);
-                    Assert.Null(db.Exchange.Get(new(Core.Code8.From("AMEX"))).Description);
-                    Assert.Equal("Pacific desc LAST UPDATED 2005-01-03 09:30:00.000",db.Exchange.Get(new(Core.Code8.From("PCX"))).Description);
+                    Assert.Equal("New York desc LAST UPDATED 2005-01-03 09:30:00.000",db.Exchange.Get(new(Code8.From("NYSE"))).Description);
+                    Assert.Equal("NASDAQ desc LAST UPDATED 2005-01-03 09:30:00.000",db.Exchange.Get(new(Code8.From("NASDAQ"))).Description);
+                    Assert.Null(db.Exchange.Get(new(Code8.From("AMEX"))).Description);
+                    Assert.Equal("Pacific desc LAST UPDATED 2005-01-03 09:30:00.000",db.Exchange.Get(new(Code8.From("PCX"))).Description);
                 });
             }
             {
                 //EXCHANGE: 付いていれば末尾の日時だけを今の日時に差し替える
                 DataMaintenanceFrames.Execute(engines,DataMaintenanceFrames.Input(Core.DataMaintenanceInput.Exchange) with{Now=DataMaintenanceFrames.Now2});
                 DataMaintenanceFrames.AssertAll(engines,db=>{
-                    Assert.Equal("New York desc LAST UPDATED 2005-01-03 09:31:00.250",db.Exchange.Get(new(Core.Code8.From("NYSE"))).Description);
-                    Assert.Equal("Pacific desc LAST UPDATED 2005-01-03 09:31:00.250",db.Exchange.Get(new(Core.Code8.From("PCX"))).Description);
-                    Assert.Equal("New York Stock Exchange",db.Exchange.Get(new(Core.Code8.From("NYSE"))).Name);
+                    Assert.Equal("New York desc LAST UPDATED 2005-01-03 09:31:00.250",db.Exchange.Get(new(Code8.From("NYSE"))).Description);
+                    Assert.Equal("Pacific desc LAST UPDATED 2005-01-03 09:31:00.250",db.Exchange.Get(new(Code8.From("PCX"))).Description);
+                    Assert.Equal("New York Stock Exchange",db.Exchange.Get(new(Code8.From("NYSE"))).Name);
                 });
             }
             {
@@ -204,15 +204,15 @@ public sealed class DataMaintenanceFrames{
             }
             {
                 //TAXRATE: " Tax " があれば " tax " に、無ければ " tax " を " Tax " に(大文字小文字を区別する)
-                DataMaintenanceFrames.Execute(engines,DataMaintenanceFrames.Input(Core.DataMaintenanceInput.Taxrate) with{TaxId=Core.Code8.From("US1")});
-                DataMaintenanceFrames.Execute(engines,DataMaintenanceFrames.Input(Core.DataMaintenanceInput.Taxrate) with{TaxId=Core.Code8.From("AB1")});
+                DataMaintenanceFrames.Execute(engines,DataMaintenanceFrames.Input(Core.DataMaintenanceInput.Taxrate) with{TaxId=Code8.From("US1")});
+                DataMaintenanceFrames.Execute(engines,DataMaintenanceFrames.Input(Core.DataMaintenanceInput.Taxrate) with{TaxId=Code8.From("AB1")});
                 DataMaintenanceFrames.AssertAll(engines,db=>{
-                    Assert.Equal("Federal tax Rate One",db.Taxrate.Get(new(Core.Code8.From("US1"))).Name);
-                    Assert.Equal("Region Tax AB1",db.Taxrate.Get(new(Core.Code8.From("AB1"))).Name);
-                    Assert.Equal(0.15m,db.Taxrate.Get(new(Core.Code8.From("US1"))).Rate);
+                    Assert.Equal("Federal tax Rate One",db.Taxrate.Get(new(Code8.From("US1"))).Name);
+                    Assert.Equal("Region Tax AB1",db.Taxrate.Get(new(Code8.From("AB1"))).Name);
+                    Assert.Equal(0.15m,db.Taxrate.Get(new(Code8.From("US1"))).Rate);
                 });
-                DataMaintenanceFrames.Execute(engines,DataMaintenanceFrames.Input(Core.DataMaintenanceInput.Taxrate) with{TaxId=Core.Code8.From("US1")});
-                DataMaintenanceFrames.AssertAll(engines,db=>Assert.Equal("Federal Tax Rate One",db.Taxrate.Get(new(Core.Code8.From("US1"))).Name));
+                DataMaintenanceFrames.Execute(engines,DataMaintenanceFrames.Input(Core.DataMaintenanceInput.Taxrate) with{TaxId=Code8.From("US1")});
+                DataMaintenanceFrames.AssertAll(engines,db=>Assert.Equal("Federal Tax Rate One",db.Taxrate.Get(new(Code8.From("US1"))).Name));
             }
             {
                 //WATCH_ITEM: [AAAA,AAAC,AAAE,AAAF] の中央(2 番目)AAAC を、次の未登録の AAAD に差し替える(主キーが変わるので消して足す)
@@ -255,21 +255,21 @@ public sealed class DataMaintenanceFrames{
         var generator=new Core.CeInputGenerator(new Core.CeContext(model){Now=DataMaintenanceFrames.Now1});
         {
             //表の番号は 0〜11 だけ
-            var rng=new Core.Rng(1);
+            var rng=new Rng(1);
             Assert.Throws<ArgumentOutOfRangeException>(()=>generator.DataMaintenance(ref rng,-1));
             Assert.Throws<ArgumentOutOfRangeException>(()=>generator.DataMaintenance(ref rng,12));
         }
         {
             //表ごとに使う引数だけが範囲内の値を持ち、使わない引数は 0 か空
-            var taxIds=new HashSet<Core.Code8>();
+            var taxIds=new HashSet<Code8>();
             foreach(var national in Core.TpcEModel.NationalTaxrates){
-                taxIds.Add(Core.Code8.From(national));
+                taxIds.Add(Code8.From(national));
             }
             for(var index=0;index<Core.TpcEModel.DivisionTaxrateCount;index++){
                 taxIds.Add(Core.TpcEModel.DivisionTaxrateId(index));
             }
             Assert.Equal(Core.TpcEModel.TaxrateCount,taxIds.Count);
-            var rng=new Core.Rng(7);
+            var rng=new Rng(7);
             var addressByCustomer=0;
             var negative=0;
             var positive=0;
@@ -342,8 +342,8 @@ public sealed class DataMaintenanceFrames{
         }
         {
             //同じ乱数の列なら同じ入力
-            var left=new Core.Rng(99);
-            var right=new Core.Rng(99);
+            var left=new Rng(99);
+            var right=new Rng(99);
             for(var index=0;index<100;index++){
                 Assert.Equal(generator.DataMaintenance(ref left,index%12),generator.DataMaintenance(ref right,index%12));
             }
@@ -354,11 +354,11 @@ public sealed class DataMaintenanceFrames{
     private static Core.DataMaintenanceOutput Execute(List<Core.ITpcEEngine> engines,Core.DataMaintenanceInput input){
         Core.DataMaintenanceOutput? first=null;
         byte[]? expected=null;
-        Core.DatabaseDigest? digest=null;
+        DatabaseDigest? digest=null;
         foreach(var engine in engines){
             var output=Assert.IsType<Core.DataMaintenanceOutput>(engine.Execute(input));
-            var bytes=Core.CanonicalWriter.ToBytes(output);
-            var state=Core.StateDigest.Of(engine.Database);
+            var bytes=CanonicalWriter.ToBytes(output);
+            var state=StateDigest.Of(engine.Database);
             if(first is null){
                 first=output;
                 expected=bytes;
@@ -391,33 +391,33 @@ public sealed class DataMaintenanceFrames{
         sink.Load(DataMaintenanceFrames.Customer(1,101,"taro@example.com"));
         sink.Load(DataMaintenanceFrames.Customer(2,102,null));
         sink.Load(DataMaintenanceFrames.Customer(3,103,"@mindspring.com"));
-        sink.Load(new Core.AddressRow(101,"Line one 101",null,Core.Code16.From("10001"),"USA"));
-        sink.Load(new Core.AddressRow(102,"Line one 102","Apt. 10C",Core.Code16.From("10002"),"USA"));
-        sink.Load(new Core.AddressRow(103,"Line one 103","Apt. 22",Core.Code16.From("10003"),"USA"));
-        sink.Load(new Core.AddressRow(201,"Line one 201","Suite 5",Core.Code16.From("10004"),"USA"));
-        sink.Load(new Core.AddressRow(202,"Line one 202","Suite 9",Core.Code16.From("10005"),"USA"));
+        sink.Load(new Core.AddressRow(101,"Line one 101",null,Code16.From("10001"),"USA"));
+        sink.Load(new Core.AddressRow(102,"Line one 102","Apt. 10C",Code16.From("10002"),"USA"));
+        sink.Load(new Core.AddressRow(103,"Line one 103","Apt. 22",Code16.From("10003"),"USA"));
+        sink.Load(new Core.AddressRow(201,"Line one 201","Suite 5",Code16.From("10004"),"USA"));
+        sink.Load(new Core.AddressRow(202,"Line one 202","Suite 9",Code16.From("10005"),"USA"));
         // 会社
-        sink.Load(new Core.CompanyRow(1,Core.Code8.From("ACTV"),"Company One",Core.Code8.From("AA"),"AAA","Ceo One",201,"First company",Core.TpcETime.DayNumber(1980,1,1)));
-        sink.Load(new Core.CompanyRow(2,Core.Code8.From("ACTV"),"Company Two",Core.Code8.From("AB"),"BBB","Ceo Two",202,"Second company",Core.TpcETime.DayNumber(1981,1,1)));
+        sink.Load(new Core.CompanyRow(1,Code8.From("ACTV"),"Company One",Code8.From("AA"),"AAA","Ceo One",201,"First company",Core.TpcETime.DayNumber(1980,1,1)));
+        sink.Load(new Core.CompanyRow(2,Code8.From("ACTV"),"Company Two",Code8.From("AB"),"BBB","Ceo Two",202,"Second company",Core.TpcETime.DayNumber(1981,1,1)));
         // 口座の権限(口座 11 は 2 人、口座 21 は 1 人)
-        sink.Load(new Core.AccountPermissionRow(11,Core.Code8.From("0001"),DataMaintenanceFrames.TaxA,"Last","First"));
-        sink.Load(new Core.AccountPermissionRow(11,Core.Code8.From("0011"),DataMaintenanceFrames.TaxB,"Other","Person"));
-        sink.Load(new Core.AccountPermissionRow(21,Core.Code8.From("1111"),DataMaintenanceFrames.TaxC,"Last","Second"));
+        sink.Load(new Core.AccountPermissionRow(11,Code8.From("0001"),DataMaintenanceFrames.TaxA,"Last","First"));
+        sink.Load(new Core.AccountPermissionRow(11,Code8.From("0011"),DataMaintenanceFrames.TaxB,"Other","Person"));
+        sink.Load(new Core.AccountPermissionRow(21,Code8.From("1111"),DataMaintenanceFrames.TaxC,"Last","Second"));
         // 顧客の税率(国 1 つ + 地域 1 つ)と税率
-        sink.Load(new Core.CustomerTaxrateRow(Core.Code8.From("US5"),1));
-        sink.Load(new Core.CustomerTaxrateRow(Core.Code8.From("AB1"),1));
-        sink.Load(new Core.CustomerTaxrateRow(Core.Code8.From("CN2"),2));
-        sink.Load(new Core.CustomerTaxrateRow(Core.Code8.From("XA3"),2));
-        sink.Load(new Core.CustomerTaxrateRow(Core.Code8.From("CN4"),3));
-        sink.Load(new Core.CustomerTaxrateRow(Core.Code8.From("AC2"),3));
-        sink.Load(new Core.TaxrateRow(Core.Code8.From("US1"),"Federal Tax Rate One",0.15m));
-        sink.Load(new Core.TaxrateRow(Core.Code8.From("AB1"),"Region tax AB1",0.02m));
+        sink.Load(new Core.CustomerTaxrateRow(Code8.From("US5"),1));
+        sink.Load(new Core.CustomerTaxrateRow(Code8.From("AB1"),1));
+        sink.Load(new Core.CustomerTaxrateRow(Code8.From("CN2"),2));
+        sink.Load(new Core.CustomerTaxrateRow(Code8.From("XA3"),2));
+        sink.Load(new Core.CustomerTaxrateRow(Code8.From("CN4"),3));
+        sink.Load(new Core.CustomerTaxrateRow(Code8.From("AC2"),3));
+        sink.Load(new Core.TaxrateRow(Code8.From("US1"),"Federal Tax Rate One",0.15m));
+        sink.Load(new Core.TaxrateRow(Code8.From("AB1"),"Region tax AB1",0.02m));
         // 銘柄と DAILY_MARKET(AAAA と AAAB の 2004-11-22〜2004-12-31 の平日 = 30 営業日)
-        Core.Code16[] symbols=[DataMaintenanceFrames.Aaaa,DataMaintenanceFrames.Aaab,DataMaintenanceFrames.Aaac,DataMaintenanceFrames.Aaad,DataMaintenanceFrames.Aaae,DataMaintenanceFrames.Aaaf,DataMaintenanceFrames.Aaag];
-        Core.Code16[] marketSymbols=[DataMaintenanceFrames.Aaaa,DataMaintenanceFrames.Aaab];
-        Core.Code16[] firstWatchList=[DataMaintenanceFrames.Aaaa,DataMaintenanceFrames.Aaac,DataMaintenanceFrames.Aaae,DataMaintenanceFrames.Aaaf];
+        Code16[] symbols=[DataMaintenanceFrames.Aaaa,DataMaintenanceFrames.Aaab,DataMaintenanceFrames.Aaac,DataMaintenanceFrames.Aaad,DataMaintenanceFrames.Aaae,DataMaintenanceFrames.Aaaf,DataMaintenanceFrames.Aaag];
+        Code16[] marketSymbols=[DataMaintenanceFrames.Aaaa,DataMaintenanceFrames.Aaab];
+        Code16[] firstWatchList=[DataMaintenanceFrames.Aaaa,DataMaintenanceFrames.Aaac,DataMaintenanceFrames.Aaae,DataMaintenanceFrames.Aaaf];
         foreach(var symbol in symbols){
-            sink.Load(new Core.SecurityRow(symbol,Core.Code8.From("COMMON"),Core.Code8.From("ACTV"),"Security "+symbol,Core.Code8.From("NYSE"),1,1_000_000,Core.TpcETime.DayNumber(1980,1,1),Core.TpcETime.DayNumber(1990,1,1),10m,30m,Core.TpcETime.DayNumber(2004,6,1),20m,Core.TpcETime.DayNumber(2004,2,1),1m,2m));
+            sink.Load(new Core.SecurityRow(symbol,Code8.From("COMMON"),Code8.From("ACTV"),"Security "+symbol,Code8.From("NYSE"),1,1_000_000,Core.TpcETime.DayNumber(1980,1,1),Core.TpcETime.DayNumber(1990,1,1),10m,30m,Core.TpcETime.DayNumber(2004,6,1),20m,Core.TpcETime.DayNumber(2004,2,1),1m,2m));
         }
         foreach(var symbol in marketSymbols){
             for(var date=new DateOnly(2004,11,22);date<=new DateOnly(2004,12,31);date=date.AddDays(1)){
@@ -428,10 +428,10 @@ public sealed class DataMaintenanceFrames{
             }
         }
         // 取引所(AMEX の説明は NULL)
-        sink.Load(new Core.ExchangeRow(Core.Code8.From("NYSE"),"New York Stock Exchange",7,930,1600,"New York desc",301));
-        sink.Load(new Core.ExchangeRow(Core.Code8.From("NASDAQ"),"NASDAQ Stock Market",0,930,1600,"NASDAQ desc",302));
-        sink.Load(new Core.ExchangeRow(Core.Code8.From("AMEX"),"American Stock Exchange",0,930,1600,null,303));
-        sink.Load(new Core.ExchangeRow(Core.Code8.From("PCX"),"Pacific Exchange",0,930,1600,"Pacific desc",304));
+        sink.Load(new Core.ExchangeRow(Code8.From("NYSE"),"New York Stock Exchange",7,930,1600,"New York desc",301));
+        sink.Load(new Core.ExchangeRow(Code8.From("NASDAQ"),"NASDAQ Stock Market",0,930,1600,"NASDAQ desc",302));
+        sink.Load(new Core.ExchangeRow(Code8.From("AMEX"),"American Stock Exchange",0,930,1600,null,303));
+        sink.Load(new Core.ExchangeRow(Code8.From("PCX"),"Pacific Exchange",0,930,1600,"Pacific desc",304));
         // 決算(会社 1 は 2000〜2004 年の 20 四半期で開始日は 1 日、会社 2 は 2 四半期で開始日は 2 日)
         for(var year=2000;year<=2004;year++){
             for(var quarter=1;quarter<=4;quarter++){
@@ -464,7 +464,7 @@ public sealed class DataMaintenanceFrames{
         sink.Load(new Core.WatchItemRow(4,DataMaintenanceFrames.Aaad));
     }
     private static Core.CustomerRow Customer(long id,long addressId,string? email2){
-        return new(id,Core.Code24.From("C"+id.ToString("D12",System.Globalization.CultureInfo.InvariantCulture)),Core.Code8.From("ACTV"),"Last"+id,"First"+id,null,null,1,Core.TpcETime.DayNumber(1970,1,1),addressId,
+        return new(id,Code24.From("C"+id.ToString("D12",System.Globalization.CultureInfo.InvariantCulture)),Code8.From("ACTV"),"Last"+id,"First"+id,null,null,1,Core.TpcETime.DayNumber(1970,1,1),addressId,
             "1","212","5550000",null,null,null,null,null,null,null,null,null,
             "taro@example.com",email2);
     }

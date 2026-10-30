@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Benchmark.TpcC.Tests</RootNamespace>
+    <AssemblyName>Benchmark.TpcC.Tests</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" />
+    <Using Include="Xunit" />
+    <Using Include="Benchmark.Tpc.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Benchmark.TpcC.Core\Benchmark.TpcC.Core.csproj" />
+    <ProjectReference Include="..\Benchmark.TpcC.Tsavorite.Linq\Benchmark.TpcC.Tsavorite.Linq.csproj" />
+    <ProjectReference Include="..\Benchmark.TpcC.Tsavorite.FLinq\Benchmark.TpcC.Tsavorite.FLinq.csproj" />
+    <ProjectReference Include="..\Benchmark.TpcC.Persisted.Linq\Benchmark.TpcC.Persisted.Linq.csproj" />
+    <ProjectReference Include="..\Benchmark.TpcC.Persisted.FLinq\Benchmark.TpcC.Persisted.FLinq.csproj" />
+  </ItemGroup>
+</Project>

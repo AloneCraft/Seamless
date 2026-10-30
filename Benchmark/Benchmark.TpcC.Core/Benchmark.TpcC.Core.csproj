@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Benchmark.TpcC.Core</RootNamespace>
+    <AssemblyName>Benchmark.TpcC.Core</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Artifacts\**;Work\**" />
+    <None Remove="Artifacts\**;Work\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Benchmark.TpcC.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 行の型に [MemoryPackable] を付けるため、生成器が届くよう利用側で直接参照する。 -->
+    <PackageReference Include="MemoryPack" Version="1.*" />
+    <Using Include="Benchmark.Tpc.Core" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Benchmark.Tpc.Core\Benchmark.Tpc.Core.csproj" />
+    <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
+  </ItemGroup>
+</Project>

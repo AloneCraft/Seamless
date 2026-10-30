@@ -47,7 +47,7 @@ public sealed class SutServer(EGenEngineFixture fixture):IClassFixture<EGenEngin
                 var company=database.Company.Get(new CompanyKey(security.CompanyId));
                 long marketTradeId;
                 long limitTradeId;
-                var writer=new Compliance.RedoLogWriter(path,0);
+                var writer=new Tpc.Server.RedoLogWriter(path,0);
                 using(var server=new Compliance.SutServer(engine,fixture.Host!,writer,new RedoCheckpoint(),0,static _=>{},new SutOptions())){
                     server.Start();
                     using var client=new TcpClient("127.0.0.1",server.Port);
@@ -92,7 +92,7 @@ public sealed class SutServer(EGenEngineFixture fixture):IClassFixture<EGenEngin
                 }
                 writer.Dispose();
                 Assert.NotEmpty(StateDigest.Of(engine.Database).Differences(StateDigest.Of(twin.Database)));
-                var recovery=Compliance.RedoLogReader.Replay(twin.Database,path,0);
+                var recovery=Tpc.Server.RedoLogReader.Replay(twin.Database,path,0);
                 Assert.True(recovery.AppliedTransactions>=4);
                 Assert.Empty(StateDigest.Of(engine.Database).Differences(StateDigest.Of(twin.Database)));
                 Assert.True(twin.Database.Trade.Contains(new TradeKey(marketTradeId)));

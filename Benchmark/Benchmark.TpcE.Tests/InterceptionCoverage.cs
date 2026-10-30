@@ -8,7 +8,7 @@ public sealed class InterceptionCoverage{
                 if(!variant.Name.EndsWith("-flinq",StringComparison.Ordinal)){
                     continue;
                 }
-                var missing=Core.InterceptionCoverage.FindMissing(variant.GetType().Assembly,out _);
+                var missing=Tpc.Core.InterceptionCoverage.FindMissing(variant.GetType().Assembly,TpcETransactions.Namespace,out _);
                 Assert.True(missing.Count==0,$"{variant.Name}: not intercepted: {string.Join(", ",missing)}");
             }
         }
@@ -18,7 +18,7 @@ public sealed class InterceptionCoverage{
             //標準 LINQ の組み合わせにはインターセプタが無い(FLinq の設定が漏れていないことの確認)
             foreach(var variant in VariantCatalog.All){
                 if(variant.Name.EndsWith("-linq",StringComparison.Ordinal)){
-                    Assert.Equal(0,Core.InterceptionCoverage.CountInterceptors(variant.GetType().Assembly));
+                    Assert.Equal(0,Tpc.Core.InterceptionCoverage.CountInterceptors(variant.GetType().Assembly));
                 }
             }
         }
