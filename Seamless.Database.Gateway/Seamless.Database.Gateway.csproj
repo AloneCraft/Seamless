@@ -15,6 +15,13 @@
     <EmbeddedResource Include="Sql\Compatibility\SsmsServerInformation.sql" />
     <EmbeddedResource Include="Sql\Compatibility\SsmsQuerySettings.sql" />
     <EmbeddedResource Include="Sql\Compatibility\SsmsConnectionInitialization.sql" />
+    <EmbeddedResource Include="Sql\Compatibility\SsmsDatabaseOptions.sql" />
+    <EmbeddedResource Include="Sql\Compatibility\SsmsDatabaseList.sql" />
+    <EmbeddedResource Include="Sql\Compatibility\SsmsObjectExplorerDatabase.sql" />
+    <EmbeddedResource Include="Sql\Compatibility\SsmsObjectExplorerTable160.sql" />
+    <EmbeddedResource Include="Sql\Compatibility\SsmsObjectExplorerView160.sql" />
+    <EmbeddedResource Include="Sql\Compatibility\SsmsObjectExplorerProcedure120.sql" />
+    <EmbeddedResource Include="Sql\Compatibility\SsmsObjectExplorerFunctions.sql" />
   </ItemGroup>
 
   <ItemGroup>
