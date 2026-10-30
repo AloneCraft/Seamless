@@ -17,6 +17,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
     private int 最大深度状態=8;
     private string Seed文字列状態="0x5EED5EED5EED5EED";
     private OperatorSetMode 演算子集合モード状態=OperatorSetMode.Common;
+    private QueryElementType 要素型状態=QueryElementType.Int;
     private bool 実行中状態か;
     private bool キャンセル要求状態か;
     private string 進捗文字列状態="待機中";
@@ -63,6 +64,10 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         this.演算子集合モード状態=this.UI設定.取得("Benchmark.Dynamic.演算子集合モード","Common")=="Maximum"
             ?OperatorSetMode.Maximum
             :OperatorSetMode.Common;
+        this.要素型状態=Enum.TryParse<QueryElementType>(this.UI設定.取得("Benchmark.Dynamic.要素型","Int"),out var 保存要素型)
+            &&Enum.IsDefined(保存要素型)
+                ?保存要素型
+                :QueryElementType.Int;
         this.詳細領域高さ状態=Math.Max(180d,this.UI設定.取得("Benchmark.Dynamic.詳細領域高さ",280d));
         this.詳細領域折畳状態か=this.UI設定.取得("Benchmark.Dynamic.詳細領域折畳",false);
 
@@ -162,6 +167,17 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
                 this.UI設定.保存("Benchmark.Dynamic.演算子集合モード",value.ToString());
                 this.OnPropertyChanged(nameof(this.Common選択か));
                 this.OnPropertyChanged(nameof(this.Maximum選択か));
+            }
+        }
+    }
+
+    public IReadOnlyList<QueryElementType> 要素型一覧{get;}=Enum.GetValues<QueryElementType>();
+
+    public QueryElementType 要素型 {
+        get=>this.要素型状態;
+        set {
+            if(this.SetProperty(ref this.要素型状態,value)) {
+                this.UI設定.保存("Benchmark.Dynamic.要素型",value.ToString());
             }
         }
     }
@@ -334,6 +350,11 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
             await 通知Async("入力エラー","Seedは符号なし64bitの10進または0x付き16進で入力してください。");
             return;
         }
+        var 使えない対象=選択対象.Where(対象=>!QueryCapabilityProfiles.SupportsElementType(対象,this.要素型)).ToArray();
+        if(使えない対象.Length!=0) {
+            await 通知Async("入力エラー",$"要素型 {this.要素型} は {string.Join(", ",使えない対象)} では使えません(int 以外は配列・List・IEnumerable だけです)。");
+            return;
+        }
 
         this.実行中か=true;
         this.キャンセル要求済みか=false;
@@ -352,7 +373,8 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
             this.最大深度,
             Seed,
             this.演算子集合モード,
-            選択対象);
+            選択対象,
+            要素型:this.要素型);
         try {
             await using var UI更新=new 動的UI更新Channel(
                 行=>this.結果一覧.Add(行),
@@ -445,6 +467,7 @@ public sealed class 動的ベンチマーク画面モデル:ObservableObject {
         this.入力要素数=条件.InputElementCount;
         this.最大深度=条件.MaximumDepth;
         this.演算子集合モード=条件.Mode;
+        this.要素型=条件.ElementType;
         var 選択=条件.SourceTargets.ToHashSet();
         foreach(var Source in this.ソース選択一覧) {
             Source.選択済みか=選択.Contains(Source.対象);

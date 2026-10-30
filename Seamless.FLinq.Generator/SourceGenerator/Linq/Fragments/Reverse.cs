@@ -38,6 +38,9 @@ internal class Reverse(int 番号,Enumerable source):Enumerable(番号) {
     private string groupReturn => $"{this.group}Return";
     protected override Enumerable PrimarySource => this.RootSource;
     public override string StructMethod => string.Empty;
+    public override string? NonEnumeratedCountExpression => this.RootSource.NonEnumeratedCountExpression;
+    protected override string GetTryGetNonEnumeratedCountBody =>
+        $"return this.{this.e}.TryGetNonEnumeratedCount(out count);";
     public override string GetEnumerableExpression =>
         this.IsIdentity
             ? this.RootSource.GetEnumerableExpression

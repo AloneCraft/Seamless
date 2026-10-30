@@ -1,0 +1,226 @@
+{
+ "description": "手書きの理想コード付きだったペア15本と代表チェーン10本。",
+ "origin": "Sample.FLinqChainVerifier の最終実行 (2026-10-21, Work/VerifierReport/results.json) の項目。メソッド名の並びだけを保存し、引数は CoreCorpusChainBuilder が固定する。",
+ "entries": [
+  {
+   "id": "S0_Array_0000_Where_Sum",
+   "stage": "pair",
+   "methods": [
+    "Where",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S0_Array_0001_Select_Sum",
+   "stage": "pair",
+   "methods": [
+    "Select",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S0_Array_0002_Where_Count",
+   "stage": "pair",
+   "methods": [
+    "Where",
+    "Count"
+   ]
+  },
+  {
+   "id": "S0_Array_0003_Where_Any",
+   "stage": "pair",
+   "methods": [
+    "Where",
+    "Any"
+   ]
+  },
+  {
+   "id": "S0_Array_0004_Where_FirstOrDefault",
+   "stage": "pair",
+   "methods": [
+    "Where",
+    "FirstOrDefault"
+   ]
+  },
+  {
+   "id": "S0_Array_0005_Skip_Take_ToArray",
+   "stage": "pair",
+   "methods": [
+    "Skip",
+    "Take",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S0_Array_0006_OrderBy_FirstOrDefault",
+   "stage": "pair",
+   "methods": [
+    "OrderBy",
+    "FirstOrDefault"
+   ]
+  },
+  {
+   "id": "S0_Array_0007_GroupBy_Sum_Sum",
+   "stage": "pair",
+   "methods": [
+    "GroupBy_Sum",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S0_Array_0008_GroupBy_KeyOnly_Count",
+   "stage": "pair",
+   "methods": [
+    "GroupBy_KeyOnly",
+    "Count"
+   ]
+  },
+  {
+   "id": "S0_Array_0009_Distinct_Count",
+   "stage": "pair",
+   "methods": [
+    "Distinct",
+    "Count"
+   ]
+  },
+  {
+   "id": "S0_Array_0010_Reverse_FirstOrDefault",
+   "stage": "pair",
+   "methods": [
+    "Reverse",
+    "FirstOrDefault"
+   ]
+  },
+  {
+   "id": "S0_Array_0011_Append_Sum",
+   "stage": "pair",
+   "methods": [
+    "Append",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S0_Array_0012_Prepend_First",
+   "stage": "pair",
+   "methods": [
+    "Prepend",
+    "First"
+   ]
+  },
+  {
+   "id": "S0_Array_0013_Concat_Count",
+   "stage": "pair",
+   "methods": [
+    "Concat",
+    "Count"
+   ]
+  },
+  {
+   "id": "S0_Array_0014_SelectMany_Sum",
+   "stage": "pair",
+   "methods": [
+    "SelectMany",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S1_Array_0000_Where_Select_Sum",
+   "stage": "representative",
+   "methods": [
+    "Where",
+    "Select",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S1_Array_0001_Where_Select_Take_ToArray",
+   "stage": "representative",
+   "methods": [
+    "Where",
+    "Select",
+    "Take",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S1_Array_0002_Skip_Where_Select_FirstOrDefault",
+   "stage": "representative",
+   "methods": [
+    "Skip",
+    "Where",
+    "Select",
+    "FirstOrDefault"
+   ]
+  },
+  {
+   "id": "S1_Array_0003_OrderBy_Where_Select_FirstOrDefault",
+   "stage": "representative",
+   "methods": [
+    "OrderBy",
+    "Where",
+    "Select",
+    "FirstOrDefault"
+   ]
+  },
+  {
+   "id": "S1_Array_0004_GroupBy_Sum_OrderByDescending_Take_ToArray",
+   "stage": "representative",
+   "methods": [
+    "GroupBy_Sum",
+    "OrderByDescending",
+    "Take",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S1_Array_0005_GroupBy_Count_Where_Sum",
+   "stage": "representative",
+   "methods": [
+    "GroupBy_Count",
+    "Where",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S1_Array_0006_Distinct_Where_Select_Count",
+   "stage": "representative",
+   "methods": [
+    "Distinct",
+    "Where",
+    "Select",
+    "Count"
+   ]
+  },
+  {
+   "id": "S1_Array_0007_Reverse_Where_Select_Take_ToArray",
+   "stage": "representative",
+   "methods": [
+    "Reverse",
+    "Where",
+    "Select",
+    "Take",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S1_Array_0008_Concat_Where_Select_Sum",
+   "stage": "representative",
+   "methods": [
+    "Concat",
+    "Where",
+    "Select",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S1_Array_0009_SelectMany_Where_Select_Sum",
+   "stage": "representative",
+   "methods": [
+    "SelectMany",
+    "Where",
+    "Select",
+    "Sum"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,91 @@
+using Benchmark.Dynamic.Core;
+using Benchmark.Dynamic.UI;
+using Benchmark.Dynamic.Worker;
+
+namespace Benchmark.Dynamic.Tests;
+
+public sealed class DynamicLiveVerificationTests{
+    private static string WorkerPath=>Path.Combine(AppContext.BaseDirectory,"Benchmark.Dynamic.Worker.exe");
+
+    // UI が再現テストに書く入力は、Worker が実行で使う入力と同じでなければならない。
+    [Theory,Trait("Category","Unit")]
+    [InlineData(SourceTarget.SystemArray,16)]
+    [InlineData(SourceTarget.SystemList,7)]
+    public void 再現テスト用の入力はWorkerが作る入力と一致する(SourceTarget target,int count){
+        var seed=SeedDerivation.Derive(Seed256.Parse("0xF1F1"),"fixture",3);
+        using var fixture=new SourceFixtureFactory().Create(target,count,seed);
+        Assert.Equal(FixtureValues.Values(seed,"primary",count),ToInts(fixture.Primary));
+        Assert.Equal(FixtureValues.Values(seed,"secondary",count),ToInts(fixture.Secondary));
+    }
+
+    private static int[] ToInts(object source)=>((IEnumerable<int>)source).ToArray();
+
+    [Fact,Trait("Category","Unit")]
+    public void 段階の要求は全組み合わせとランダム探索で作り分ける(){
+        var settings=new 動的ライブ設定(SourceTarget.SystemArray,QueryElementType.Int,Seed256.Parse("0x1"));
+        var pair=動的ライブ検証サービス.段階の要求を作る(settings,動的ライブ段階.ペア全組み合わせ,0,"run-pair");
+        Assert.Equal(QueryGenerationMode.Exhaustive,pair.GenerationMode);
+        Assert.Equal(1,pair.ExhaustiveIntermediateCount);
+        Assert.Equal(2,pair.OperatorCount);
+        Assert.Equal(pair.OperatorCount,pair.MaximumDepth);
+        Assert.True(pair.ExpectExceptions);
+        Assert.True(pair.QueryCount>100);
+
+        var shifted=動的ライブ検証サービス.段階の要求を作る(settings,動的ライブ段階.ペア全組み合わせ,10,"run-pair");
+        Assert.Equal(10,shifted.QueryIndexOffset);
+        Assert.Equal(pair.QueryCount-10,shifted.QueryCount);
+
+        var random=動的ライブ検証サービス.段階の要求を作る(settings,動的ライブ段階.ランダム探索,25,"run-random");
+        Assert.Equal(QueryGenerationMode.Random,random.GenerationMode);
+        Assert.Equal(25,random.QueryIndexOffset);
+        Assert.Equal(4,random.OperatorCount);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public async Task int以外の要素型はRangeでは使えない(){
+        var service=new 動的ライブ検証サービス(WorkerPath);
+        var settings=new 動的ライブ設定(SourceTarget.SystemRange,QueryElementType.Long,Seed256.Parse("0x1"));
+        await Assert.ThrowsAsync<ArgumentException>(()=>service.実行Async(settings,(_,_)=>Task.CompletedTask,null,CancellationToken.None));
+    }
+
+    [Theory,Trait("Category","Integration")]
+    [InlineData(QueryElementType.Int)]
+    [InlineData(QueryElementType.String)]
+    public async Task ペア全組み合わせを実Workerで検証して結果を順に受け取れる(QueryElementType type){
+        Assert.True(File.Exists(WorkerPath),$"Worker was not found: {WorkerPath}");
+        var service=new 動的ライブ検証サービス(WorkerPath);
+        var settings=new 動的ライブ設定(SourceTarget.SystemArray,type,Seed256.Parse("0x5EED"),入力要素数:16,特殊な値を混ぜる:type!=QueryElementType.Int);
+        using var cancellation=new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        var results=new List<動的ライブ結果>();
+        var stages=new List<動的ライブ段階>();
+        try{
+            await service.実行Async(
+                settings,
+                (result,token)=>{
+                    results.Add(result);
+                    if(results.Count>=6){
+                        cancellation.Cancel();
+                    }
+                    return Task.CompletedTask;
+                },
+                stages.Add,
+                cancellation.Token);
+        }catch(OperationCanceledException){
+        }
+
+        Assert.Equal(6,results.Count);
+        Assert.Equal(動的ライブ段階.ペア全組み合わせ,stages[0]);
+        Assert.All(results,result=>{
+            Assert.Equal(type,result.要素型);
+            Assert.False(string.IsNullOrWhiteSpace(result.式));
+            Assert.False(string.IsNullOrWhiteSpace(result.生成コード));
+            Assert.Equal(動的ライブ段階.ペア全組み合わせ,result.段階);
+        });
+        // 展開後のコードは、コンパイルまで進んだ結果に付く。
+        Assert.Contains(results,static result=>result.展開コード.Length>0);
+        // int のときは、再現テストが単独で動く形で付く。
+        if(type==QueryElementType.Int){
+            Assert.All(results,static result=>Assert.Contains("[Fact",result.再現テスト,StringComparison.Ordinal));
+        }
+    }
+}

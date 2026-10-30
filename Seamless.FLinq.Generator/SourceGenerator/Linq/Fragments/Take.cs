@@ -20,26 +20,43 @@ Take は source.Take(count) を、返した件数を数える enumerator へ変�
   - count < 0 は constructor で 0 に丸める。
   - 連続 Take は RootSource へ畳み込み、count は Math.Min(previous, current) にする。
 */
-internal class Take(int 番号,Enumerable source,string takeCount):Enumerable(番号) {
+internal class Take:Enumerable {
+    private readonly int 番号;
+    private readonly Enumerable source;
+    private readonly string takeCount;
+
+    public Take(int 番号,Enumerable source,string takeCount):base(番号) {
+        this.番号=番号;
+        this.source=source;
+        this.takeCount=takeCount;
+        if(this.RootSource is OrderingBase ordering) {
+            ordering.MaxTakeCountExpression=this.EffectiveTakeCount;
+        }
+    }
+
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
                 yield return child;
         }
-        if(source is { } __visitorChild_source) {
+        if(this.source is { } __visitorChild_source) {
             yield return __visitorChild_source;
         }
     }
 
     public static bool IsApplicableVariant(IMethodSymbol method) =>
         method.Parameters.Length==1&&method.Parameters[0].Type.SpecialType==SpecialType.System_Int32;
-    private Enumerable Source => source;
-    private string TakeCountExpression => takeCount;
+    private Enumerable Source => this.source;
+    private string TakeCountExpression => this.takeCount;
     private Enumerable RootSource => this.Source is Take take ? take.RootSource : this.Source;
     private string EffectiveTakeCount => this.Source is Take take
         ? $"global::System.Math.Min({take.EffectiveTakeCount},{this.TakeCountExpression})"
         : this.TakeCountExpression;
     protected override Enumerable PrimarySource => this.RootSource;
+    public override string? NonEnumeratedCountExpression =>
+        this.RootSource.NonEnumeratedCountExpression is { } count
+            ? $"global::System.Math.Min({count},global::System.Math.Max(0,{this.EffectiveTakeCount}))"
+            : null;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""
         {{this.RootSource.GetEnumeratorStruct}}

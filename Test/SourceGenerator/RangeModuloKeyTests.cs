@@ -110,10 +110,9 @@ public sealed class RangeModuloKeyTests {
     public void 剰余のキーを周期から求める() {
         var (_,generated) = ExecutableGeneration.Generate(Source,"RangeModuloKeyShape",9);
         // DistinctBy は Consume 2つと ToList 1つ、MaxBy/MinBy は4つ。
-        Assert.Equal(2,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var __skipZero\d+=").Count);
-        Assert.Equal(1,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var __skipZero=").Count);
-        Assert.Equal(4,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var __bestKey\d+=").Count);
+        Assert.Equal(3,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var skipZero\d*=").Count);
+        Assert.Equal(4,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var bestKey\d*=").Count);
         // CountBy は Consume 2つ。
-        Assert.Equal(2,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var __counts\d+=").Count);
+        Assert.Equal(2,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var counts\d*=").Count);
     }
 }

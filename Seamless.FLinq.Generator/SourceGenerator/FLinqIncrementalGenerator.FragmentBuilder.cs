@@ -639,7 +639,11 @@ public sealed partial class FLinqIncrementalGenerator {
             if(replacements.ContainsKey(expressionKey)) {
                 continue;
             }
-            var name = $"__hoist{uniqueNumber++}";
+            // 名前の割り当て役があるとき(メソッドの生成の間)は、式に合った自然な名前。ないとき(識別子を集めていない経路)は従来の機械的な名前。
+            var name = GeneratedNames.Current is { } generatedNames
+                ? generatedNames.Allocate(HoistedNameFor(expression))
+                : $"__hoist{uniqueNumber}";
+            uniqueNumber++;
             var expressionAccessorCodes = new List<string>();
             var expressionText = RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,expressionAccessorCodes);
             replacements.Add(expressionKey,name);
@@ -660,6 +664,22 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
+    // 巻き上げた値の名前。式が名前(識別子・メンバー・呼び出し)ならその最後の名前、それ以外は invariant。
+    // 例: this.rate → rate、Compute(x) → compute、x*x → invariant。
+    private static string HoistedNameFor(ExpressionSyntax expression) {
+        var text = expression switch {
+            IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
+            MemberAccessExpressionSyntax memberAccess => memberAccess.Name.Identifier.ValueText,
+            InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax memberAccess } => memberAccess.Name.Identifier.ValueText,
+            InvocationExpressionSyntax { Expression: IdentifierNameSyntax identifier } => identifier.Identifier.ValueText,
+            _ => string.Empty,
+        };
+        if(text.Length==0||!char.IsLetter(text[0])) {
+            return "invariant";
+        }
+        return char.ToLowerInvariant(text[0])+text.Substring(1);
+    }
+
     private bool IsNestedFunctionBoundary(SyntaxNode node) =>
         node is AnonymousFunctionExpressionSyntax
             or LocalFunctionStatementSyntax;
@@ -675,6 +695,23 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
         if(expression is MemberBindingExpressionSyntax) {
+            return false;
+        }
+        // 型名(new global::A.B.C(...) の C、キャスト・default・typeof の型など)は値ではないので巻き上げない。
+        // 完全修飾名(QualifiedName / AliasQualifiedName)は MemberAccess ではないため、下の判定をすり抜けて
+        // 「型を値として巻き上げた __hoistN」になり、new this.__hoistN(...) というコンパイルできないコードを出していた(2026-10-22)。
+        if(expression is TypeSyntax) {
+            var typeSymbolInfo = semanticModel.GetSymbolInfo(expression);
+            if(typeSymbolInfo.Symbol is INamespaceOrTypeSymbol
+                ||typeSymbolInfo.CandidateSymbols.Any(symbol => symbol is INamespaceOrTypeSymbol)) {
+                return false;
+            }
+        }
+        // 代入の左辺(オブジェクト初期化子・with 式の { Price = ... } のメンバー名など)は値ではなく書き込み先なので巻き上げない。
+        // 巻き上げると with{this.__hoistN=...} のようなコンパイルできないコードになる(2026-10-22)。
+        if(expression is IdentifierNameSyntax
+            &&expression.Parent is AssignmentExpressionSyntax assignment
+            &&ReferenceEquals(assignment.Left,expression)) {
             return false;
         }
         if(expression is SimpleNameSyntax simpleName
@@ -699,7 +736,7 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         // -2 のような定数式(単項マイナス+リテラルなど)は巻き上げても得が無い。しかも Range の述語の閉形式などは、比較の相手を
         // 巻き上げ前の式として読み直すので、定義していない __hoistN を参照する不正なコードになる(CS0103)。
-        if(semanticModel.GetConstantValue(expression).HasValue) {
+        if(semanticModel.GetConstantValue(expression).HasValue||IsConstantLiteralExpression(expression)) {
             return false;
         }
         if(expression is IdentifierNameSyntax identifier) {
@@ -711,6 +748,18 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         return true;
     }
+
+    // リテラル(符号つき・括弧つきを含む)は、ユーザー定義の暗黙変換(int から Int256 など)で型が変わっても定数のまま。
+    // 変換後の式は GetConstantValue が値を持たないので、リテラルの形で見分ける。巻き上げると、述語を別の場所へ展開する描画で
+    // 巻き上げた変数の宣言が届かず CS0103 になることがある(2026-10-22)。
+    private static bool IsConstantLiteralExpression(ExpressionSyntax expression) =>
+        expression switch {
+            LiteralExpressionSyntax => true,
+            ParenthesizedExpressionSyntax parenthesized => IsConstantLiteralExpression(parenthesized.Expression),
+            PrefixUnaryExpressionSyntax prefix when prefix.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.UnaryMinusExpression)
+                || prefix.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.UnaryPlusExpression) => IsConstantLiteralExpression(prefix.Operand),
+            _ => false,
+        };
 
     private bool IsPredefinedTypeAlias(string text) =>
         text is "bool"
@@ -769,7 +818,9 @@ public sealed partial class FLinqIncrementalGenerator {
         if(symbol is IParameterSymbol { Name: "this" }) {
             return UsesThisOutsideHoistedExpressions(body,hoistedExpressions,semanticModel);
         }
-        foreach(var identifier in body.DescendantNodesAndSelf(descendIntoChildren: node => !IsNestedFunctionBoundary(node)).OfType<IdentifierNameSyntax>()) {
+        // 入れ子のラムダの中での参照も数える(外側のラムダの引数・取り込み変数を、内側のラムダだけが使う形がある。
+        // 数えないと、構造体のフィールドへ取り込まれず、生成コードで名前が見つからない CS0103 になる)。
+        foreach(var identifier in body.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>()) {
             if(IsInsideHoistedExpression(identifier,hoistedExpressions)) {
                 continue;
             }
@@ -784,7 +835,7 @@ public sealed partial class FLinqIncrementalGenerator {
         ExpressionSyntax body,
         IReadOnlyCollection<ExpressionSyntax> hoistedExpressions,
         SemanticModel semanticModel) {
-        foreach(var node in body.DescendantNodesAndSelf(descendIntoChildren: node => !IsNestedFunctionBoundary(node))) {
+        foreach(var node in body.DescendantNodesAndSelf()) {
             if(IsInsideHoistedExpression(node,hoistedExpressions)) {
                 continue;
             }

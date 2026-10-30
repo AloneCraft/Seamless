@@ -42,6 +42,31 @@ public sealed record DynamicCompilationDiagnostic(
     string Message,
     string Location);
 
+/// <summary>
+/// FLinq は展開できない呼び出しを黙って System.Linq へ切り替えず、警告 FLINQ002 を出して
+/// 実行すると例外で止まるコードを生成する。実行前に、その兆候が生成物に無いことを確かめる。
+/// </summary>
+public static class FLinqExpansionValidator {
+    public const string DiagnosticId="FLinqExpansionIncomplete";
+
+    private static readonly string[] FailureMarkers=["LinqInterceptorFailure(","UnsupportedLinqExpansion("];
+
+    public static IEnumerable<DynamicCompilationDiagnostic> Validate(
+        IReadOnlyList<DynamicCompilationDiagnostic> diagnostics,
+        string generatedSourceText) {
+        ArgumentNullException.ThrowIfNull(diagnostics);
+        ArgumentNullException.ThrowIfNull(generatedSourceText);
+        foreach(var diagnostic in diagnostics.Where(static diagnostic=>diagnostic.ID=="FLINQ002")) {
+            yield return new("Expansion","Error",DiagnosticId,$"FLINQ002: {diagnostic.Message}",diagnostic.Location);
+        }
+        foreach(var marker in FailureMarkers) {
+            if(generatedSourceText.Contains(marker,StringComparison.Ordinal)) {
+                yield return new("Expansion","Error",DiagnosticId,$"生成コードに{marker}が含まれます。FLinq が展開しきれませんでした。",string.Empty);
+            }
+        }
+    }
+}
+
 public sealed record DynamicCompilationRequest(
     string AssemblyName,
     string TypeName,
@@ -53,7 +78,8 @@ public sealed record DynamicCompilationResult(
     DynamicCompilationTimings Timings,
     IReadOnlyList<DynamicCompilationDiagnostic> Diagnostics,
     IReadOnlyList<string> OptimizationTracePayloads,
-    LoadedDynamicQuery? LoadedQuery);
+    LoadedDynamicQuery? LoadedQuery,
+    string ExpandedSource="");
 
 public sealed class LoadedDynamicQuery {
     private DynamicAssemblyLoadContext? 読込コンテキスト;
@@ -72,6 +98,14 @@ public sealed class LoadedDynamicQuery {
     public DynamicQueryValue Run(DynamicImplementationKind 実装,object? Primary,object? Secondary) {
         var 関数=this.実行関数一覧??throw new ObjectDisposedException(nameof(LoadedDynamicQuery));
         return 関数[実装](Primary,Secondary);
+    }
+
+    /// <summary>読み込んだ動的アセンブリ。再現テストを実行するテストが、生成した型を直接呼ぶために使う。</summary>
+    public Assembly? DynamicAssembly=>this.動的アセンブリ;
+
+    public bool Has(DynamicImplementationKind 実装) {
+        var 関数=this.実行関数一覧??throw new ObjectDisposedException(nameof(LoadedDynamicQuery));
+        return 関数.ContainsKey(実装);
     }
 
     public Func<object?,object?,DynamicQueryValue> GetDelegate(DynamicImplementationKind 実装) {
@@ -132,6 +166,7 @@ public sealed class DynamicQueryCompiler {
         ArgumentNullException.ThrowIfNull(要求);
         var 診断一覧=new List<DynamicCompilationDiagnostic>();
         var Trace一覧=new List<string>();
+        var 展開結果=string.Empty;
         var SourceText時間=0L;
         var SyntaxTree時間=0L;
         var Compilation時間=0L;
@@ -207,7 +242,14 @@ public sealed class DynamicQueryCompiler {
                     "FLinq最適化が固定点へ到達しなかったためEmitを中止しました。",
                     string.Empty));
             }
+            展開結果=string.Join(
+                Environment.NewLine,
+                Run結果.Results.SelectMany(結果=>結果.GeneratedSources).Select(Source=>Source.SourceText.ToString()));
             診断一覧.AddRange(呼出先を検証(Compilation,構文木,Run結果));
+            // Validate は診断一覧を遅延で読むので、AddRange(自分自身を書き換える)の前に配列へ確定させる。
+            診断一覧.AddRange(FLinqExpansionValidator.Validate(
+                診断一覧,
+                string.Concat(Run結果.Results.SelectMany(結果=>結果.GeneratedSources).Select(Source=>Source.SourceText.ToString()))).ToArray());
             if(診断一覧.Any(診断=>診断.Severity=="Error")) {
                 return 失敗();
             }
@@ -240,12 +282,14 @@ public sealed class DynamicQueryCompiler {
                 [DynamicImplementationKind.System]=Bind(型,"RunSystem"),
                 [DynamicImplementationKind.FLinqUnoptimized]=Bind(型,"RunFLinqUnoptimized"),
                 [DynamicImplementationKind.FLinq]=Bind(型,"RunFLinq"),
-                [DynamicImplementationKind.ZLinq]=Bind(型,"RunZLinq"),
             };
+            if(型.GetMethod("RunZLinq",BindingFlags.Public|BindingFlags.Static) is not null) {
+                関数一覧[DynamicImplementationKind.ZLinq]=Bind(型,"RunZLinq");
+            }
             Bind時間=経過ナノ秒(開始);
             var Loaded=new LoadedDynamicQuery(読込コンテキスト,Assembly,関数一覧);
             読込コンテキスト=null;
-            return new(true,時間(),診断一覧,Trace一覧,Loaded);
+            return new(true,時間(),診断一覧,Trace一覧,Loaded,展開結果);
         } catch(Exception 例外) when(例外 is not OperationCanceledException) {
             診断一覧.Add(new("Compiler","Error",例外.GetType().Name,例外.Message,string.Empty));
             if(読込コンテキスト is not null) {
@@ -259,7 +303,7 @@ public sealed class DynamicQueryCompiler {
                 _=DynamicAssemblyUnloader.Release(読込コンテキスト);
                 読込コンテキスト=null;
             }
-            return new(false,時間(),診断一覧,Trace一覧,null);
+            return new(false,時間(),診断一覧,Trace一覧,null,展開結果);
         }
 
         DynamicCompilationTimings 時間() {

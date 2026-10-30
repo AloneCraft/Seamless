@@ -41,8 +41,43 @@ internal class Last(int 番号,Enumerable source,string resultType):BufferedScal
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeLastInline(destVar,destType)
         ??this.RenderDirectSpanLastInline(destVar,destType)
+        ??this.RenderConsumeBasedLastInline(destVar,destType)
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Last")
         ??this.RenderComputeInline(destVar,destType);
+
+    private string? RenderConsumeBasedLastInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_LAST_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var foundVar = $"__found{番号}";
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            return $"{indent}{destVar}={arg};\n{indent}{foundVar}=true;";
+        });
+        return $$"""
+            {{destType}} {{destVar}}=default!;
+            var {{foundVar}}=false;
+            {{replaced}}
+            if(!{{foundVar}}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+            """;
+    }
+
     private string? RenderDirectSpanLastInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""

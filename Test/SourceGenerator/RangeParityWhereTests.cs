@@ -73,7 +73,7 @@ public sealed class RangeParityWhereTests {
     [InlineData(1,-1)]
     public void System_Linqと同じ結果を返す(int start,int count) {
         var (compilation,generated) = ExecutableGeneration.Generate(Source,"RangeParityWhereProbe",9);
-        Assert.Equal(9,global::System.Text.RegularExpressions.Regex.Matches(generated,@"__parityValue\w*[+-]=2\)").Count);
+        Assert.Equal(9,global::System.Text.RegularExpressions.Regex.Matches(generated,@"parityValue\w*[+-]=2\)").Count);
         var (actual,expected) = ExecutableGeneration.Run(compilation,"Sample.Probe",probe => (
             (string)probe.GetMethod("RunFLinq")!.Invoke(null,[start,count])!,
             (string)probe.GetMethod("RunLinq")!.Invoke(null,[start,count])!));

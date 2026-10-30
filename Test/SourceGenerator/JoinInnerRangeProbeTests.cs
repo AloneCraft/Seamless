@@ -91,9 +91,9 @@ public sealed class JoinInnerRangeProbeTests {
     public void 内側が恒等キーのRangeのときだけ探索表を作らない() {
         var (_,generated) = ExecutableGeneration.Generate(Source,"JoinInnerRangeProbeShape",5);
         // 区間判定は4つ(x%3 のキーは従来の探索表)。
-        Assert.Equal(4,global::System.Text.RegularExpressions.Regex.Matches(generated,@"private long __innerLow\d+;").Count);
+        Assert.Equal(4,global::System.Text.RegularExpressions.Regex.Matches(generated,@"private long innerLow\d*;").Count);
         Assert.Contains("BuildLookup(",generated);
         // 外側も恒等キーの Range なら、Consume は2つの区間の重なりだけを回す。
-        Assert.Contains("__joinOverlapLow",generated);
+        Assert.Contains("joinOverlapLow",generated);
     }
 }

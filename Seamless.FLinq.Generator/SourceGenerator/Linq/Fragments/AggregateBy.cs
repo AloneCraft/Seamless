@@ -105,10 +105,61 @@ internal class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector
     public override string ElementType => resultElementType;
     protected override string GetEnumeratorDisposeBody => $"this.{this.lookup}?.Dispose(); {this.e}.Dispose();";
 
+    private string? RenderSourceAggregateConsume(string consumerName) {
+        var placeholder = $"__FLINQ_AGGBY_SRC_{番号}__";
+        string sourceConsume;
+        try {
+            sourceConsume=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(sourceConsume)
+            ||sourceConsume.Contains("TryGetNext")
+            ||sourceConsume.Contains("GetRemainingEnumerator")
+            ||!sourceConsume.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var valueType = FuncReturnTypeName(func);
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(keySelector,func),
+            this.StaticDelegateLocalDeclarations(keySelector,func),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var mapName = $"__aggregateByMap{番号}";
+        var keyName = $"__aggregateByKey{番号}";
+        var valueName = $"__aggregateByValue{番号}";
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(sourceConsume,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            var assignKey = this.FuncAssignStatic(keySelector,nameof(keySelector),keyName,arg);
+            var assignVal = this.FuncAssignStatic(func,nameof(func),valueName,valueName,arg);
+            return $"{indent}{this.KeyType} {keyName}=default!;\n{indent}{assignKey}\n{indent}ref var {valueName}=ref {mapName}.GetValueRefOrAddDefault({keyName},out var {valueName}Exists);\n{indent}if(!{valueName}Exists){{\n{indent}    {valueName}={seed};\n{indent}}}\n{indent}{assignVal}";
+        });
+        // 根が Range で間に Select などがあるとき、上流の消費が使う __rangeStart / __rangeCount の宣言(準備文)を先に出す(CS0103 の対策)。
+        return $$"""
+            {{source.GetConsumePreparationStatement()}}
+            {{localDeclarations}}
+            var {{mapName}}=new global::Seamless.Linq.DictionarySlim<{{this.KeyType}},{{valueType}}>();
+            try{
+            {{replaced}}
+                for(var {{mapName}}Index=0;{{mapName}}Index<{{mapName}}.Count;{{mapName}}Index++){
+                    {{mapName}}.GetKeyAndValue({{mapName}}Index,out var {{mapName}}Key,out var {{mapName}}Value);
+                    {{consumerName}}.Consume(new {{resultElementType}}({{mapName}}Key,{{mapName}}Value));
+                }
+            }finally{
+                {{mapName}}.Dispose();
+            }
+            """;
+    }
+
     // ソースが根(配列・List、または IEnumerable)なら、AggregateBy の列挙子の構造体を作らずに差し替えメソッドの中で根を直接回して
     // 集計し、追加順に流す(列挙子の構造体→根の構造体の入れ子は、参照型の共有ジェネリックコードで内側がインライン化されない)。
     // 全件を集計してから流すのは列挙子と同じなので、選択子の評価の回数と順は変わらない。
     public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.RenderSourceAggregateConsume(consumerName) is { } sourceConsume) {
+            return sourceConsume;
+        }
         if(!(source.ProvidesRemainingEnumerator||source is ArrayRoot or ListRoot)) {
             return base.GetConsumeExecutionStatement(consumerName);
         }
@@ -162,9 +213,9 @@ internal class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector
             using var {{sourceName}}={{sourceExpression}};
             {{loop}}
             try{
-                var {{mapName}}Enumerator={{mapName}}.GetEnumerator();
-                while({{mapName}}Enumerator.TryGetNext(out var {{mapName}}Entry)){
-                    {{consumerName}}.Consume(new {{resultElementType}}({{mapName}}Entry.Key,{{mapName}}Entry.Value));
+                for(var {{mapName}}Index=0;{{mapName}}Index<{{mapName}}.Count;{{mapName}}Index++){
+                    {{mapName}}.GetKeyAndValue({{mapName}}Index,out var {{mapName}}Key,out var {{mapName}}Value);
+                    {{consumerName}}.Consume(new {{resultElementType}}({{mapName}}Key,{{mapName}}Value));
                 }
             }finally{
                 {{mapName}}.Dispose();

@@ -116,6 +116,35 @@ internal static class GroupBySupport {
         return !body.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>().Any(identifier => identifier.Identifier.ValueText==groupName);
     }
 
+    public static bool SelectIgnoresGroup(FuncFragment selectFunc) {
+        if(selectFunc.RequiresStatementInlining
+            ||selectFunc.CanInvokeAsDelegate
+            ||!selectFunc.CanInlineAssign
+            ||selectFunc.ParameterNames.Length!=1) {
+            return false;
+        }
+        var body = SyntaxFactory.ParseExpression(selectFunc.InlineBody);
+        if(body.ContainsDiagnostics) {
+            return false;
+        }
+        var paramName = selectFunc.ParameterNames[0];
+        var idNodes = body.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>()
+            .Where(id => id.Identifier.ValueText==paramName)
+            .ToList();
+        if(idNodes.Count==0) {
+            return true;
+        }
+        foreach(var idNode in idNodes) {
+            if(idNode.Parent is MemberAccessExpressionSyntax memberAccess
+                &&memberAccess.Expression==idNode
+                &&memberAccess.Name.Identifier.ValueText=="Key") {
+                continue;
+            }
+            return false;
+        }
+        return true;
+    }
+
     // グループを作らずキーの重複だけを除いて結果を逐次流してよいか(FLinq の契約: .Anchor の無い要素選択子は評価しなくてよい)。
     // 逐次流すと、後段が途中で止めたときにソースとキー選択子の評価が減るので、それらと結果選択子に .Anchor があれば使わない。
     public static bool CanStreamDistinctKeys(Enumerable source,FuncFragment resultSelector,params FuncFragment[] otherFunctions) =>

@@ -138,6 +138,7 @@ public static class DynamicShrinkPlanFactory{
     internal static void EnsureShrinkableFailure(WorkerExecutionStatus status){
         if(status is WorkerExecutionStatus.CompilationFailed
             or WorkerExecutionStatus.InvocationTargetMismatch
+            or WorkerExecutionStatus.ExpansionIncomplete
             or WorkerExecutionStatus.SemanticMismatch
             or WorkerExecutionStatus.OptimizationNonConverged
             or WorkerExecutionStatus.ExecutionFailed

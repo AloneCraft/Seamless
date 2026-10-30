@@ -52,7 +52,7 @@
     <PackageReference Include="JetBrains.Profiler.Api" Version="1.*" />
     <PackageReference Include="MemoryPack" Version="1.*" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
-    <PackageReference Include="Microsoft.Garnet" Version="2.1.8" />
+    <PackageReference Include="Microsoft.Garnet" Version="2.2.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true' and '$(TargetFramework)'=='net10.0-windows'" />
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" Condition="'$(EnableBenchmarkUiViewModelTests)'=='true' and '$(TargetFramework)'=='net10.0-windows'" />
@@ -86,8 +86,6 @@
     <ProjectReference Include="..\Benchmark\Benchmark.Scalable.Persisted.Collections\Benchmark.Scalable.Persisted.Collections.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.Scalable.Tsavorite.Collections\Benchmark.Scalable.Tsavorite.Collections.csproj" />
     <ProjectReference Include="..\Shared\UI.Storage\UI.Storage.csproj" />
-    <ProjectReference Include="..\Test.System.Linq.Enumerable.FLinq\Test.System.Linq.Enumerable.FLinq.csproj" PrivateAssets="all" Aliases="BenchmarkFLinq" />
-    <ProjectReference Include="..\Test.System.Linq.Enumerable.ZLinq\Test.System.Linq.Enumerable.ZLinq.csproj" PrivateAssets="all" Aliases="BenchmarkZLinq" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.FLinq\Benchmark.System.Linq.Enumerable.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.ZLinq\Benchmark.System.Linq.Enumerable.ZLinq.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.System.Linq.Enumerable.Range.FLinq\Benchmark.System.Linq.Enumerable.Range.FLinq.csproj" />

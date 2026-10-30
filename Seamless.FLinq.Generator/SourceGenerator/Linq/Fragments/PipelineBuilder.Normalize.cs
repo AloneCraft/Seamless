@@ -279,5 +279,5 @@ internal static partial class PipelineBuilder {
         $"global::System.Math.Min(global::System.Math.Max(0,{left}),global::System.Math.Max(0,{right}))";
 
     private static string AddCountExpression(string left,string right) =>
-        $"global::System.Math.Max(0,{left})+global::System.Math.Max(0,{right})";
+        $"(int)global::System.Math.Min((long)global::System.Math.Max(0,{left})+global::System.Math.Max(0,{right}),int.MaxValue)";
 }

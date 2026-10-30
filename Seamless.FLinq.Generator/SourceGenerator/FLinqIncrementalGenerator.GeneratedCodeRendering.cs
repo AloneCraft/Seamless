@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Seamless.FLinq.Generator;
 
 public sealed partial class FLinqIncrementalGenerator {
@@ -147,6 +148,7 @@ public sealed partial class FLinqIncrementalGenerator {
         if(string.IsNullOrWhiteSpace(staticMethods)) {
             return;
         }
+        staticMethods=重複メンバー宣言を除去(staticMethods);
         var prefix = $"{SanitizeIdentifier(methodName)}_補助0_";
         const string pattern = @"\bStruct(?<番号>\d+)(?<接尾辞>_[A-Za-z_][A-Za-z0-9_]*)?\b";
         staticMethods=System.Text.RegularExpressions.Regex.Replace(
@@ -160,6 +162,64 @@ public sealed partial class FLinqIncrementalGenerator {
             $"{prefix}Struct${{番号}}${{接尾辞}}",
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         staticMethods=補助Struct関数へAggressiveInlining付与(staticMethods);
+        staticMethods=重複メンバー宣言を除去(staticMethods);
+    }
+
+    /// <summary>
+    /// 静的メソッド・補助構造体群から、同一型名・同一シグネチャの重複宣言を除去する。
+    /// </summary>
+    private static string 重複メンバー宣言を除去(string source) {
+        if(string.IsNullOrWhiteSpace(source)) {
+            return source;
+        }
+        var wrapped = "class __DeduplicationWrapper {\n"+source+"\n}";
+        var tree = CSharpSyntaxTree.ParseText(wrapped);
+        var root = tree.GetRoot();
+        if(root is not CompilationUnitSyntax cu||cu.Members.Count==0||cu.Members[0] is not ClassDeclarationSyntax cls) {
+            return source;
+        }
+
+        var uniqueKeys = new HashSet<string>(StringComparer.Ordinal);
+        var resultBuilder = new StringBuilder(source.Length);
+
+        foreach(var member in cls.Members) {
+            string key;
+            if(member is StructDeclarationSyntax s) {
+                var paramCount = 0;
+                if(s.TypeParameterList is not null) {
+                    paramCount=s.TypeParameterList.Parameters.Count;
+                }
+                key=$"struct:{s.Identifier.ValueText}`{paramCount}";
+            } else if(member is RecordDeclarationSyntax r) {
+                var paramCount = 0;
+                if(r.TypeParameterList is not null) {
+                    paramCount=r.TypeParameterList.Parameters.Count;
+                }
+                key=$"record:{r.Identifier.ValueText}`{paramCount}";
+            } else if(member is MethodDeclarationSyntax m) {
+                var paramTypes = new List<string>();
+                foreach(var p in m.ParameterList.Parameters) {
+                    if(p.Type is not null) {
+                        paramTypes.Add(p.Type.ToString());
+                    } else {
+                        paramTypes.Add(string.Empty);
+                    }
+                }
+                var typeParamCount = 0;
+                if(m.TypeParameterList is not null) {
+                    typeParamCount=m.TypeParameterList.Parameters.Count;
+                }
+                key=$"method:{m.Identifier.ValueText}`{typeParamCount}({string.Join(",",paramTypes)})";
+            } else {
+                key=member.ToString();
+            }
+
+            if(uniqueKeys.Add(key)) {
+                resultBuilder.AppendLine(member.ToFullString().Trim());
+            }
+        }
+
+        return resultBuilder.ToString().Trim();
     }
     /// <summary>
     /// 生成済み補助コード内の <c>private static … Compute(…)</c> / <c>private static … Build(…)</c>
@@ -185,13 +245,41 @@ public sealed partial class FLinqIncrementalGenerator {
     // source generator の生成コードを検証する。
     // 生成コードの変数名がユーザーコードと衝突しないようにするための前処理。
     // ラムダ/匿名メソッドの内部はラムダスコープであるため再帰を止め収集しない。
-    private static HashSet<string> CollectMethodBodyIdentifiers(MethodDeclarationSyntax methodSyntax,IMethodSymbol method) {
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        foreach(var p in method.Parameters)
-            names.Add(p.Name);
-        if(methodSyntax.Body is not null)
-            CollectMethodScopeIdentifiers(methodSyntax.Body,names);
-        return names;
+    // (メソッド全体の範囲とブロックの範囲の2種類の識別子は GeneratedNames.CollectUserIdentifiers が集める。)
+
+    /// <summary>自然な名前を割り当てる。空いていればそのまま、使用済みなら 2・3… を足す(<see cref="GeneratedNames.Allocate"/>)。</summary>
+    private static string AllocateName(HashSet<string> usedNames,string preferred) => (GeneratedNames.Current??new GeneratedNames(usedNames,usedNames)).Allocate(preferred);
+
+    /// <summary>LINQ 呼び出しの結果を受ける変数の名前。終端の名前から決める(ToArray なら arrayResult、Count なら countResult、不明なら linqResult)。</summary>
+    private static string ResultNameFor(InvocationExpressionSyntax linqInvocation) {
+        var method = linqInvocation.Expression switch {
+            MemberAccessExpressionSyntax memberAccess => memberAccess.Name.Identifier.ValueText,
+            IdentifierNameSyntax identifier => identifier.Identifier.ValueText,
+            _ => string.Empty,
+        };
+        // 結果の変数は <名前>Result(arrayResult・sumResult など)にする。Sum の展開の中の sum のように、
+        // テンプレートが固定の名前で宣言するローカルと衝突しにくくするため。
+        return method switch {
+            "ToArray" => "arrayResult",
+            "ToList" => "listResult",
+            "ToHashSet" => "setResult",
+            "ToDictionary" => "dictionaryResult",
+            "ToLookup" => "lookupResult",
+            "Count" or "LongCount" => "countResult",
+            "Sum" => "sumResult",
+            "Average" => "averageResult",
+            "Min" or "MinBy" => "minResult",
+            "Max" or "MaxBy" => "maxResult",
+            "Any" => "anyResult",
+            "All" => "allResult",
+            "Contains" => "containsResult",
+            "First" or "FirstOrDefault" => "firstResult",
+            "Last" or "LastOrDefault" => "lastResult",
+            "Single" or "SingleOrDefault" => "singleResult",
+            "ElementAt" or "ElementAtOrDefault" => "elementResult",
+            "Aggregate" => "aggregateResult",
+            _ => "linqResult",
+        };
     }
     /// <summary>
     /// ノード以下の識別子をすべて <paramref name="names"/> に収集する再帰ヘルパー。
@@ -536,27 +624,33 @@ public sealed partial class FLinqIncrementalGenerator {
                         replacement=$"{methodGroup.ContainingType.ToDisplayString(完全修飾形式)}.{methodGroup.Name}";
                     }
                 }
-                text=System.Text.RegularExpressions.Regex.Replace(
-                    text,
-                    $@"\b{System.Text.RegularExpressions.Regex.Escape(methodGroupText)}\b",
-                    replacement,
-                    System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+                text=ReplaceIdentifierReference(text,methodGroupText,replacement);
+                continue;
+            }
+
+            if(semanticModel.GetSymbolInfo(identifier).Symbol is IPropertySymbol staticProperty
+                &&staticProperty.IsStatic
+                &&staticProperty.GetMethod is not null) {
+                var staticPropertyExpression = CanAccessFromGeneratedCode(staticProperty)
+                    ? $"{staticProperty.ContainingType.ToDisplayString(完全修飾形式)}.{staticProperty.Name}"
+                    : RenderStaticPropertyForwardExpression(staticProperty,unsafeAccessorCollector);
+                text=ReplaceIdentifierReference(text,identifierText,staticPropertyExpression);
                 continue;
             }
 
             if(semanticModel.GetSymbolInfo(identifier).Symbol is not IFieldSymbol field
-                ||!field.IsStatic
-                ||!IsSameOrBaseType(containingType,field.ContainingType)
-                ||CanAccessFromGeneratedCode(field)) {
+                ||!field.IsStatic) {
+                continue;
+            }
+
+            if(CanAccessFromGeneratedCode(field)) {
+                var qualifiedField = $"{field.ContainingType.ToDisplayString(完全修飾形式)}.{field.Name}";
+                text=ReplaceIdentifierReference(text,identifierText,qualifiedField);
                 continue;
             }
 
             if(field.HasConstantValue) {
-                text=System.Text.RegularExpressions.Regex.Replace(
-                    text,
-                    $@"\b{System.Text.RegularExpressions.Regex.Escape(identifierText)}\b",
-                    RenderConstantValue(field.ConstantValue),
-                    System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+                text=ReplaceIdentifierReference(text,identifierText,RenderConstantValue(field.ConstantValue));
                 continue;
             }
 
@@ -565,11 +659,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 SyntaxFactory.ParseExpression(field.ContainingType.ToDisplayString(完全修飾形式)),
                 SyntaxFactory.IdentifierName(field.Name));
             var fieldExpression = RenderFieldForwardExpression(field,memberAccess,semanticModel,unsafeAccessorCollector);
-            text=System.Text.RegularExpressions.Regex.Replace(
-                text,
-                $@"\b{System.Text.RegularExpressions.Regex.Escape(identifierText)}\b",
-                fieldExpression,
-                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+            text=ReplaceIdentifierReference(text,identifierText,fieldExpression);
         }
 
         foreach(var memberAccess in allMemberAccesses) {
@@ -627,9 +717,12 @@ public sealed partial class FLinqIncrementalGenerator {
 
             var memberText = NormalizeExpressionText(memberAccess.ToString())
                 .Replace("this.","@this.",StringComparison.Ordinal);
+            var replacement = field.HasConstantValue
+                ? RenderConstantValue(field.ConstantValue)
+                : RenderFieldForwardExpression(field,memberAccess,semanticModel,unsafeAccessorCollector);
             text=text.Replace(
                 memberText,
-                RenderFieldForwardExpression(field,memberAccess,semanticModel,unsafeAccessorCollector),
+                replacement,
                 StringComparison.Ordinal);
         }
 
@@ -904,12 +997,21 @@ public sealed partial class FLinqIncrementalGenerator {
             newText,
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
-    private static bool CanAccessFromGeneratedCode(ISymbol symbol) =>
-        symbol.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal;
+    private static bool CanAccessFromGeneratedCode(ISymbol symbol) {
+        for(var current = symbol;current is not null&&current is not INamespaceSymbol;current=current.ContainingSymbol) {
+            if(current.DeclaredAccessibility is not (Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal)) {
+                return false;
+            }
+        }
+        return true;
+    }
 
     private static bool IsMemberAccessName(IdentifierNameSyntax identifier) =>
-        identifier.Parent is MemberAccessExpressionSyntax memberAccess
-        &&ReferenceEquals(memberAccess.Name,identifier);
+        (identifier.Parent is MemberAccessExpressionSyntax memberAccess
+            &&ReferenceEquals(memberAccess.Name,identifier))
+        ||(identifier.Parent is MemberBindingExpressionSyntax memberBinding
+            &&ReferenceEquals(memberBinding.Name,identifier))
+        ||identifier.Parent is NameColonSyntax or NameEqualsSyntax;
 
     private static bool IsInsideNameof(SyntaxNode node) {
         for(var current = node.Parent;current is not null;current=current.Parent) {
@@ -925,7 +1027,7 @@ public sealed partial class FLinqIncrementalGenerator {
     private static string ReplaceIdentifierReference(string text,string identifierText,string replacement) =>
         System.Text.RegularExpressions.Regex.Replace(
             text,
-            $@"\b{System.Text.RegularExpressions.Regex.Escape(identifierText)}\b",
+            $@"(?<![\w\.:])\b{System.Text.RegularExpressions.Regex.Escape(identifierText)}\b",
             replacement,
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
@@ -936,6 +1038,16 @@ public sealed partial class FLinqIncrementalGenerator {
         var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"get_{property.Name}\")]\nprivate static extern {propTypeName} {accessorName}({targetTypeName} @this);";
         unsafeAccessorCollector?.Add(accessorCode);
         return $"{accessorName}({receiverText})";
+    }
+
+    private static string RenderStaticPropertyForwardExpression(IPropertySymbol property,List<string>? unsafeAccessorCollector) {
+        var accessorName = $"__StaticProperty_{SanitizeIdentifier(property.ContainingType.Name)}_{SanitizeIdentifier(property.Name)}";
+        var targetTypeName = property.ContainingType.ToDisplayString(完全修飾形式);
+        var propTypeName = property.Type.ToDisplayString(完全修飾形式);
+        var (accessorTypeParameters,accessorConstraints)=アクセサ型パラメータ(property.ContainingType,property.Type);
+        var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = \"get_{property.Name}\")]\nprivate static extern {propTypeName} {accessorName}{accessorTypeParameters}({targetTypeName}? _){accessorConstraints};";
+        unsafeAccessorCollector?.Add(accessorCode);
+        return $"{accessorName}{accessorTypeParameters}(null)";
     }
 
     /// <summary>

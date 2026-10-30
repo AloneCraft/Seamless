@@ -15,7 +15,8 @@ internal sealed class PipelineStage(
     bool descending = false,
     bool innerIsArray = false,
     bool innerIsList = false,
-    bool containsAnchor = false) {
+    bool containsAnchor = false,
+    GroupByAggregatePlan? aggregatePlan = null) {
     public PipelineStageKind Kind { get; } = kind;
     public FuncFragment? Func { get; } = func;
     public FuncFragment? SecondFunc { get; } = secondFunc;
@@ -32,6 +33,7 @@ internal sealed class PipelineStage(
     public string? KeyType { get; } = keyType;
     public bool UsesIndex { get; } = usesIndex;
     public bool Descending { get; } = descending;
+    public GroupByAggregatePlan? AggregatePlan { get; } = aggregatePlan;
     public bool ContainsAnchor { get; } = containsAnchor
         ||func?.ContainsAnchor==true
         ||secondFunc?.ContainsAnchor==true

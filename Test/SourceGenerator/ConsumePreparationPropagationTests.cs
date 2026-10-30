@@ -55,8 +55,8 @@ public sealed class ConsumePreparationPropagationTests(ITestOutputHelper output)
         var reverseConcat=GeneratedMethod(generated,"ReverseConcat");
         GeneratedSourceAssert.True(
             reverseConcat.Contains("ArgumentOutOfRangeException(\"count\")",StringComparison.Ordinal)
-            &&reverseConcat.Contains("__concatLeftCount",StringComparison.Ordinal)
-            &&reverseConcat.Contains("__concatRightCount",StringComparison.Ordinal),
+            &&reverseConcat.Contains("concatLeftCount",StringComparison.Ordinal)
+            &&reverseConcat.Contains("concatRightCount",StringComparison.Ordinal),
             "Double Reverse must retain each prepared child's validation and direct consume locals.",
             generated,
             output);

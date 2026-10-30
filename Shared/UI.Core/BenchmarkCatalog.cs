@@ -17,10 +17,7 @@ public static class ベンチマークカタログ{
 
     public static IReadOnlyList<ベンチマークプロジェクト>標準プロジェクト一覧{get;}=ベンチマークソースタブ一覧.標準全て
         .SelectMany(static タブ=>タブ.列一覧
-            .Select(static 列=>new ベンチマークプロジェクト(列.プロジェクト,列.アセンブリ名,列.型接頭辞)))        .Concat([
-        new("Persisted コレクション","Benchmark.Persisted.Collections"),
-        new("Tsavorite コレクション","Benchmark.Tsavorite.Collections"),
-        ])
+            .Select(static 列=>new ベンチマークプロジェクト(列.プロジェクト,列.アセンブリ名,列.型接頭辞)))
         .ToArray();
 
 #if SCALABLE_BENCHMARK

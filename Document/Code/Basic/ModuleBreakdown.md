@@ -21,4 +21,4 @@
 
 配布用ランタイムパッケージはVerification、UI、検証DB、テストassemblyを参照しない。`Verification.Infrastructure` は既存Worker群へ依存してよいが、逆方向の依存は作らない。
 
-`Shared/UI.Core/BenchmarkPerformanceGate.cs` は旧UI互換であり、新しい比較契約ではない。新しい比較の正本は `Verification.Core.VerificationComparison` である。
+比較の正本は `Verification.Core.VerificationComparison` である。旧Benchmark UIの性能ゲートは2026-10-22に削除した。

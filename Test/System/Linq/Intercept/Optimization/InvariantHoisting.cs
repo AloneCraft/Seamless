@@ -90,7 +90,9 @@ public sealed class InvariantHoisting:OptimizationTestBase {
     public static void PartialExpressionHoistedForSelect() {
         AssertSequenceEqual(SelectPartialInvariantNoOptimized(),SelectPartialInvariantOptimized());
         var generated = GeneratedInterceptorAssert.SourceFor<InvariantHoisting>(nameof(SelectPartialInvariantOptimized));
-        Assert.Contains("__hoist",generated);
+        // 巻き上げた x*x は、ループの外で1回だけ計算して構造体のフィールドへ渡し、ループの中ではそのフィールドを足す(名前ではなく形で確かめる)。
+        Assert.Matches(@",\s*x\*x\)",generated);
+        Assert.Matches(@"\+this\.\w+;",generated);
     }
 
     [Fact, Trait("Category","Unit")]

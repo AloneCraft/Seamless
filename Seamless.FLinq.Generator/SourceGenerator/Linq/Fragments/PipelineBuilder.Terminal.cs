@@ -41,20 +41,65 @@ internal static partial class PipelineBuilder {
             case "ToArray":
                 terminalKind=PipelineTerminalKind.ToArray;
                 return true;
+            case "ToHashSet":
+                terminalKind=PipelineTerminalKind.ToHashSet;
+                return true;
             case "Count":
                 terminalKind=PipelineTerminalKind.Count;
+                return true;
+            case "LongCount":
+                terminalKind=PipelineTerminalKind.LongCount;
                 return true;
             case "Any":
                 terminalKind=PipelineTerminalKind.Any;
                 return true;
+            case "All":
+                terminalKind=PipelineTerminalKind.All;
+                return true;
+            case "Contains":
+                terminalKind=PipelineTerminalKind.Contains;
+                return true;
             case "First":
                 terminalKind=PipelineTerminalKind.First;
+                return true;
+            case "FirstOrDefault":
+                terminalKind=PipelineTerminalKind.FirstOrDefault;
+                return true;
+            case "Last":
+                terminalKind=PipelineTerminalKind.Last;
+                return true;
+            case "LastOrDefault":
+                terminalKind=PipelineTerminalKind.LastOrDefault;
                 return true;
             case "ToDictionary":
                 terminalKind=PipelineTerminalKind.ToDictionary;
                 return true;
             case "Sum":
                 terminalKind=PipelineTerminalKind.Sum;
+                return true;
+            case "Average":
+                terminalKind=PipelineTerminalKind.Average;
+                return true;
+            case "Min":
+                terminalKind=PipelineTerminalKind.Min;
+                return true;
+            case "Max":
+                terminalKind=PipelineTerminalKind.Max;
+                return true;
+            case "ElementAt":
+                terminalKind=PipelineTerminalKind.ElementAt;
+                return true;
+            case "ElementAtOrDefault":
+                terminalKind=PipelineTerminalKind.ElementAtOrDefault;
+                return true;
+            case "MinBy":
+                terminalKind=PipelineTerminalKind.MinBy;
+                return true;
+            case "MaxBy":
+                terminalKind=PipelineTerminalKind.MaxBy;
+                return true;
+            case "Aggregate":
+                terminalKind=PipelineTerminalKind.Aggregate;
                 return true;
             default:
                 terminalKind=default;
@@ -73,18 +118,116 @@ internal static partial class PipelineBuilder {
         ref string currentElementType,
         out FuncFragment? func1,
         out FuncFragment? func2,
-        out string? comparerValue) {
+        out string? comparerValue,
+        out string? terminalValue) {
         func1=null;
         func2=null;
         comparerValue=null;
+        terminalValue=null;
         if(terminalKind is PipelineTerminalKind.ToList or PipelineTerminalKind.ToArray) {
             return invocation.ArgumentList.Arguments.Count==0;
+        }
+        if(terminalKind==PipelineTerminalKind.ToHashSet) {
+            if(invocation.ArgumentList.Arguments.Count==0) {
+                return true;
+            }
+            if(invocation.ArgumentList.Arguments.Count==1) {
+                comparerValue=services.RenderExpression(invocation.ArgumentList.Arguments[0].Expression);
+                return true;
+            }
+            return false;
+        }
+        if(terminalKind==PipelineTerminalKind.All) {
+            if(invocation.ArgumentList.Arguments.Count!=1
+                ||method.Parameters.Length==0
+                ||method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 } allPredType) {
+                return false;
+            }
+            if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,allPredType,ref uniqueNumber,out func1)
+                ||!services.CanUseFunc(func1)) {
+                return false;
+            }
+            return true;
+        }
+        if(terminalKind==PipelineTerminalKind.Contains) {
+            if(invocation.ArgumentList.Arguments.Count==0||method.Parameters.Length==0) {
+                return false;
+            }
+            terminalValue=services.RenderExpression(invocation.ArgumentList.Arguments[0].Expression);
+            if(invocation.ArgumentList.Arguments.Count>=2&&method.Parameters.Length>=2) {
+                comparerValue=services.RenderExpression(invocation.ArgumentList.Arguments[1].Expression);
+            }
+            return true;
+        }
+        if(terminalKind is PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault) {
+            if(invocation.ArgumentList.Arguments.Count!=1||method.Parameters.Length==0) {
+                return false;
+            }
+            terminalValue=services.RenderExpression(invocation.ArgumentList.Arguments[0].Expression);
+            return true;
+        }
+        if(terminalKind is PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy) {
+            if(invocation.ArgumentList.Arguments.Count!=1
+                ||method.Parameters.Length==0
+                ||method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 } keySelectorType) {
+                return false;
+            }
+            if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,keySelectorType,ref uniqueNumber,out func1)
+                ||!services.CanUseFunc(func1)) {
+                return false;
+            }
+            return true;
+        }
+        if(terminalKind==PipelineTerminalKind.Aggregate) {
+            if(invocation.ArgumentList.Arguments.Count==0||method.Parameters.Length==0) {
+                return false;
+            }
+            if(invocation.ArgumentList.Arguments.Count==1) {
+                if(method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 3 } funcType) {
+                    return false;
+                }
+                if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,funcType,ref uniqueNumber,out func1)
+                    ||!services.CanUseFunc(func1)) {
+                    return false;
+                }
+                return true;
+            }
+            if(invocation.ArgumentList.Arguments.Count==2) {
+                terminalValue=services.RenderExpression(invocation.ArgumentList.Arguments[0].Expression);
+                if(method.Parameters[1].Type is not INamedTypeSymbol { TypeArguments.Length: 3 } funcType) {
+                    return false;
+                }
+                if(!services.BuildFunc(invocation.ArgumentList.Arguments[1].Expression,funcType,ref uniqueNumber,out func1)
+                    ||!services.CanUseFunc(func1)) {
+                    return false;
+                }
+                return true;
+            }
+            if(invocation.ArgumentList.Arguments.Count==3) {
+                terminalValue=services.RenderExpression(invocation.ArgumentList.Arguments[0].Expression);
+                if(method.Parameters[1].Type is not INamedTypeSymbol { TypeArguments.Length: 3 } funcType) {
+                    return false;
+                }
+                if(!services.BuildFunc(invocation.ArgumentList.Arguments[1].Expression,funcType,ref uniqueNumber,out func1)
+                    ||!services.CanUseFunc(func1)) {
+                    return false;
+                }
+                if(method.Parameters[2].Type is not INamedTypeSymbol { TypeArguments.Length: 2 } resSelectorType) {
+                    return false;
+                }
+                if(!services.BuildFunc(invocation.ArgumentList.Arguments[2].Expression,resSelectorType,ref uniqueNumber,out func2)
+                    ||!services.CanUseFunc(func2)) {
+                    return false;
+                }
+                return true;
+            }
+            return false;
         }
         if(terminalKind==PipelineTerminalKind.ToDictionary) {
             return TryAppendToDictionaryTerminalArguments(semanticModel,invocation,method,services,ref uniqueNumber,out func1,out func2,out comparerValue);
         }
-        if(terminalKind==PipelineTerminalKind.Sum) {
-            // Sum(selector): add Select stage, then Sum() is applied to selected values.
+        if(terminalKind is PipelineTerminalKind.Sum or PipelineTerminalKind.Average or PipelineTerminalKind.Min or PipelineTerminalKind.Max) {
+            // Sum/Average/Min/Max(selector): add Select stage, then terminal is applied to selected values.
             if(invocation.ArgumentList.Arguments.Count==0) {
                 return true;
             }
@@ -93,13 +236,13 @@ internal static partial class PipelineBuilder {
                 ||method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 } selectorType) {
                 return false;
             }
-            if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,selectorType,ref uniqueNumber,out var sumSelector)
-                ||!services.CanUseFunc(sumSelector)) {
+            if(!services.BuildFunc(invocation.ArgumentList.Arguments[0].Expression,selectorType,ref uniqueNumber,out var selector)
+                ||!services.CanUseFunc(selector)) {
                 return false;
             }
-            var sumSelectElementType = sumSelector.ReturnTypeName;
-            stages.Add(new PipelineStage(PipelineStageKind.Select,sumSelector,null,currentElementType,sumSelectElementType));
-            currentElementType=sumSelectElementType;
+            var selectElementType = selector.ReturnTypeName;
+            stages.Add(new PipelineStage(PipelineStageKind.Select,selector,null,currentElementType,selectElementType));
+            currentElementType=selectElementType;
             return true;
         }
         if(invocation.ArgumentList.Arguments.Count==0) {
