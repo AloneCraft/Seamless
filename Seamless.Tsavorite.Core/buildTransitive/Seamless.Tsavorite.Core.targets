@@ -1,0 +1,26 @@
+<Project>
+  <!-- packageのbuildTransitive/に置く。
+       sourceのProjectReference graphではCore projectのNone CopyToOutput/Publishが運ぶ。 -->
+  <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory)../runtimes')">
+    <!-- RID publishの標準native flattenとは別に、固定resolverが必要な相対treeを保持する。 -->
+    <None Include="$(MSBuildThisFileDirectory)../runtimes/**/*native_device*"
+          Link="runtimes/%(RecursiveDir)%(Filename)%(Extension)"
+          TargetPath="runtimes/%(RecursiveDir)%(Filename)%(Extension)"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest"
+          Pack="false" Visible="false" />
+  </ItemGroup>
+  <!-- 旧Garnetと新Coreは別PackageIdなので、NuGet自身には排他的な置換と認識されない。
+       SDK10.0.401のResolvePackageAssets出力で旧Coreのactive assetを検出して失敗させる。
+       取得専用参照は許可し、旧Coreのactive assetだけを拒否する。 -->
+  <Target Name="RejectOriginalTsavoriteCoreAssets"
+          AfterTargets="ResolvePackageAssets"
+          Condition="'$(DesignTimeBuild)'!='true'">
+    <ItemGroup>
+      <_SeamlessOriginalCoreAsset Include="@(ResolvedCompileFileDefinitions);@(RuntimeCopyLocalItems);@(RuntimeTargetsCopyLocalItems)"
+                                  Condition="'%(NuGetPackageId)'=='Microsoft.Garnet' and '%(Filename)'=='Tsavorite.core'" />
+    </ItemGroup>
+    <Error Condition="'@(_SeamlessOriginalCoreAsset)'!=''"
+           Text="Original Microsoft.Garnet Tsavorite.core assets conflict with Seamless.Tsavorite.Core. Exclude the original package assets or remove that reference. Active paths: @(_SeamlessOriginalCoreAsset)" />
+  </Target>
+</Project>

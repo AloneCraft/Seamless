@@ -1,7 +1,7 @@
 name: Unit tests
 
 # 全ブランチへの push ごとに動く軽量テスト(MAUI を含まない Tsavorite コレクションのテスト)。
-# 重い .NET CI(dotnet-ci.yml)は master / PR / 定期実行のままにしている。
+# 重い .NET CI(dotnet-ci.yml)は main・バージョン枝 / PR / 定期実行のままにしている。
 on:
   push:
   workflow_dispatch:

@@ -1,0 +1,58 @@
+[
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Benchmark.TpcC.Spike.csproj",
+    "blob": "a90eb3a6c3f88c37df320c4205c03e7daa9a507e"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Exp1.cs",
+    "blob": "0371673996a113da0d3dc47b45e2f6202f4e26c2"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Exp2.cs",
+    "blob": "95ae8ab7c7feacd99e544999b15935bb4b45203f"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Exp3.cs",
+    "blob": "0bf39c68f5793b6905b0cb546918e47c2effb822"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Exp4.cs",
+    "blob": "5341b7faf2aa08b1b30f8c0aff2034e0be56948b"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Exp5.cs",
+    "blob": "ea1dd4038a31d5bb49b1a282e50d9f0f08ae2820"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Exp6.cs",
+    "blob": "8dc573de308764e93a38dac79deb912e2b0287c6"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Exp7.cs",
+    "blob": "a034b8c9ba2c05b3f2a9e4c97aba3099e88f9ecd"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Partition.cs",
+    "blob": "84b5d0375f228d05758c397264e625ff9f9b268e"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Parts.cs",
+    "blob": "8f8cfaf5fb16b60e9419c55e2d41749bcd425d15"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Program.cs",
+    "blob": "1644451281a6fe8dd0236ec2288fe82d30e329b1"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/Rows.cs",
+    "blob": "cc5193db1deadba761cbb160359ac42000260b24"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/run-all.sh",
+    "blob": "6f886b73f6ba61223aa85bbeb96f89f99ee287c2"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Spike/run-final.sh",
+    "blob": "772b6aa4324bdd73b08ae740671ed80b1faaa467"
+  }
+]

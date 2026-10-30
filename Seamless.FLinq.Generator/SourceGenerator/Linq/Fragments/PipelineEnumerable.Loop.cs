@@ -18,7 +18,7 @@ internal sealed partial class PipelineEnumerable {
             return this.BuildBinarySetLoop(enumeratorName,successStatement,endStatement,binarySetIndex[0]);
         }
         if(binarySetIndex.Length>1) {
-            throw new NotSupportedException("Multiple binary set stages are not supported in PipelineEnumerable.");
+            return endStatement;
         }
         var selectManyIndex = stages.Select(static (stage,index) => (stage,index)).Where(static pair => pair.stage.Kind==PipelineStageKind.SelectMany).Select(static pair => pair.index).ToArray();
         if(selectManyIndex.Length==1) {
@@ -29,6 +29,9 @@ internal sealed partial class PipelineEnumerable {
             .Select(static pair => pair.index)
             .ToArray();
         if(groupByIndex.Length==1) {
+            if(orderIndex.Length>0) {
+                return this.BuildGroupByOrderLoop(enumeratorName,successStatement,endStatement,groupByIndex[0],orderIndex[orderIndex.Length-1]);
+            }
             return this.BuildGroupByLoop(enumeratorName,successStatement,endStatement,groupByIndex[0]);
         }
         if(groupByIndex.Length>1) {
@@ -96,6 +99,7 @@ internal sealed partial class PipelineEnumerable {
         var currentName = this.ItemName(0);
         for(var index = 0;index<stages.Count;index++) {
             var stage = stages[index];
+            this.AppendTakeGuards(builder,index);
             switch(stage.Kind) {
                 case PipelineStageKind.Where:
                     this.AppendWhere(builder,stage,currentName,index);

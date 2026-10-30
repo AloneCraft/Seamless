@@ -33,6 +33,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Corpus\*.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Corpus\*.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
     <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.UI\Benchmark.Dynamic.UI.csproj" Condition="'$(CoreOnly)'!='true'" />
     <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Core\Benchmark.Dynamic.Core.csproj" />

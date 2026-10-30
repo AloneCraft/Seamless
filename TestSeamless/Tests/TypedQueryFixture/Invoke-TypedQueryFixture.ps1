@@ -1,0 +1,65 @@
+param([switch]$InternalRun,[string]$RunId,[string]$PackageVersion,[string]$PackageFeed,[ValidateSet("Debug","Release")][string]$Configuration="Debug")
+$ErrorActionPreference='Stop'
+$repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
+$localProcess=Join-Path $repo 'TestSeamless/Invoke-LocalProcess.ps1'
+$previousCount=[Environment]::GetEnvironmentVariable('DOTNET_PROCESSOR_COUNT','Process')
+$previousTelemetry=[Environment]::GetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT','Process')
+$affinity=& $localProcess -InitializeOnly -MaxLogicalProcessors 8
+try{
+& (Join-Path $repo 'TestSeamless/Initialize-Storage.ps1')|Out-Null
+$archive=$env:SEAMLESS_COMPARISON_ARCHIVE_ROOT;$temp=$env:SEAMLESS_COMPARISON_TEMP_ROOT
+if(-not $PackageVersion -or -not $PackageFeed){
+    $latest=Get-Content -Raw -LiteralPath (Join-Path $archive 'latest-packages.json')|ConvertFrom-Json
+    $PackageVersion=$latest.Version;$PackageFeed=$latest.Feed
+}
+if(-not $PackageVersion -or -not (Test-Path -LiteralPath $PackageFeed)){throw 'A valid package version and feed are required.'}
+if(-not $RunId){$RunId=[Guid]::NewGuid().ToString('N')}
+if($RunId -notmatch '^[a-f0-9]{32}$'){throw 'Invalid run ID.'}
+$fixture=Join-Path (Split-Path $temp -Parent) ("TypedQueryFixture/"+$RunId)
+$results=Join-Path $archive ("TypedQueryFixture/"+$RunId)
+New-Item -ItemType Directory -Force -Path $results|Out-Null
+if(-not $InternalRun){
+    $shell=(Get-Process -Id $PID).Path
+    $arguments=@('-NoProfile','-File',$PSCommandPath,'-InternalRun','-RunId',$RunId,'-PackageVersion',$PackageVersion,'-PackageFeed',$PackageFeed,'-Configuration',$Configuration)
+    $reply=& $localProcess -Executable $shell -Arguments $arguments -WorkingDirectory $repo -ArtifactDirectory $results -TimeoutSeconds 1800 -MaxLogicalProcessors 8
+    if($reply.Outcome -ne 'Passed'){throw "Fixture failed ($($reply.Outcome)): $($reply.Error); $results"}
+    Write-Output "Passed: $results";return
+}
+New-Item -ItemType Directory -Force -Path $fixture,(Join-Path $fixture 'bootstrap'),(Join-Path $fixture 'runtime')|Out-Null
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Bootstrap.cs.template') -Destination (Join-Path $fixture 'bootstrap/Program.cs')
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Runtime.cs.template') -Destination (Join-Path $fixture 'runtime/Program.cs')
+$writer=[Security.SecurityElement]::Escape((Join-Path $repo 'TestSeamless/QueryModuleWriter.cs'))
+$generation=[Security.SecurityElement]::Escape((Join-Path $fixture 'generation/queries/*.cs'))
+$bootstrap='<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><LangVersion>14</LangVersion><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><OutputType>Exe</OutputType></PropertyGroup><ItemGroup><PackageReference Include="Seamless.Database.Client" Version="$(SeamlessPackageVersion)"/><PackageReference Include="Seamless.Database.Rdbms" Version="$(SeamlessPackageVersion)"/><Compile Include="'+$writer+'"/></ItemGroup></Project>'
+$runtime='<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><LangVersion>14</LangVersion><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><OutputType>Exe</OutputType><AllowUnsafeBlocks>true</AllowUnsafeBlocks><InterceptorsNamespaces>$(InterceptorsNamespaces);Intercept</InterceptorsNamespaces><EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles><CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)generated/$(Configuration)</CompilerGeneratedFilesOutputPath></PropertyGroup><ItemGroup><PackageReference Include="Seamless.Database" Version="$(SeamlessPackageVersion)"/><PackageReference Include="Seamless.Database.Gateway" Version="$(SeamlessPackageVersion)"/><PackageReference Include="Seamless.Database.Client" Version="$(SeamlessPackageVersion)"/><PackageReference Include="Seamless.FLinq.Generator" Version="$(SeamlessPackageVersion)" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/><Compile Include="'+$generation+'"/></ItemGroup></Project>'
+[IO.File]::WriteAllText((Join-Path $fixture 'bootstrap/Bootstrap.csproj'),$bootstrap)
+[IO.File]::WriteAllText((Join-Path $fixture 'runtime/Runtime.csproj'),$runtime)
+$config=Join-Path $results 'NuGet.Config';$dependencies=Join-Path $archive 'dependency-feed'
+& (Join-Path $repo 'TestSeamless/Initialize-Storage.ps1')|Out-Null
+& (Join-Path $repo 'TestSeamless/Write-RestoreConfiguration.ps1') -Sources @($PackageFeed,$dependencies,'https://api.nuget.org/v3/index.json') -Output $config
+function Run-Dotnet([string]$name,[string[]]$arguments){
+    & (Join-Path $repo 'TestSeamless/Initialize-Storage.ps1')|Out-Null
+    & dotnet @arguments 2>&1|Tee-Object -FilePath (Join-Path $results ($name+'.log'))
+    if($LASTEXITCODE -ne 0){throw "$name failed with exit $LASTEXITCODE"}
+}
+$common=@('-nr:false','-m:1','-p:UseSharedCompilation=false','-p:NuGetAudit=false',"-p:SeamlessPackageVersion=$PackageVersion","-p:RestoreConfigFile=$config")
+Run-Dotnet 'bootstrap-build' (@('build',(Join-Path $fixture 'bootstrap/Bootstrap.csproj'),'-c',$Configuration)+$common)
+Run-Dotnet 'bootstrap-generate' @((Join-Path $fixture "bootstrap/bin/$Configuration/net10.0/Bootstrap.dll"),(Join-Path $fixture 'generation'),$repo)
+Run-Dotnet 'fixture-build' (@('build',(Join-Path $fixture 'runtime/Runtime.csproj'),'-c',$Configuration)+$common)
+Run-Dotnet 'fixture-run' @((Join-Path $fixture "runtime/bin/$Configuration/net10.0/Runtime.dll"),(Join-Path $fixture 'generation'))
+$generated=Get-ChildItem -Path (Join-Path $fixture "runtime/obj/generated/$Configuration") -Filter '*.cs' -Recurse
+$hand=$generated|Where-Object {$_.Name -like '*Handwritten*'}|Select-Object -First 1
+$count=$generated|Where-Object {$_.Name -like '*QueryModule*'}|Select-Object -First 1
+if(-not $hand -or -not $count){throw 'Expected FLinq generated sources are missing.'}
+$handText=[IO.File]::ReadAllText($hand.FullName);$countText=[IO.File]::ReadAllText($count.FullName)
+if(-not $handText.Contains('InterceptsLocation') -or -not $handText.Contains('OptimizedLinq_CountMatching')){throw 'Handwritten FLinq interceptor is missing.'}
+if(-not $countText.Contains('OptimizedLinq_Query0') -or $countText -notmatch 'while\(rest_source\.MoveNext\(\)\)[\s\S]*?__StaticMethod_TypedQueries_CheckCancellation'){throw 'COUNT per-row cancellation interceptor is missing.'}
+[pscustomobject]@{PackageVersion=$PackageVersion;Configuration=$Configuration;Status='Passed';CountInterceptor=$count.FullName;HandwrittenInterceptor=$hand.FullName;FixtureDirectory=$fixture}|ConvertTo-Json|Set-Content -Encoding utf8 (Join-Path $results 'summary.json')
+}finally{
+    $process=[Diagnostics.Process]::GetCurrentProcess()
+    try{$process.ProcessorAffinity=$affinity.OriginalAffinityMask}finally{
+        $process.Dispose()
+        if($null -eq $previousCount){Remove-Item Env:DOTNET_PROCESSOR_COUNT -ErrorAction SilentlyContinue}else{[Environment]::SetEnvironmentVariable('DOTNET_PROCESSOR_COUNT',$previousCount,'Process')}
+        if($null -eq $previousTelemetry){Remove-Item Env:POWERSHELL_TELEMETRY_OPTOUT -ErrorAction SilentlyContinue}else{[Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT',$previousTelemetry,'Process')}
+    }
+}

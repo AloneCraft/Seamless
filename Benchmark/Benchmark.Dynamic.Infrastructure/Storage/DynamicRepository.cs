@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Microsoft.Data.Sqlite;
 
 namespace Benchmark.Dynamic.Infrastructure;
@@ -6,10 +6,12 @@ namespace Benchmark.Dynamic.Infrastructure;
 public sealed class DynamicRepository{
     private readonly DynamicDatabase database;
     private readonly DynamicSingleWriterQueue writer;
+    private readonly DynamicHistoryProjector history;
 
     public DynamicRepository(DynamicDatabase database,DynamicSingleWriterQueue writer){
         this.database=database??throw new ArgumentNullException(nameof(database));
         this.writer=writer??throw new ArgumentNullException(nameof(writer));
+        this.history=new();
     }
 
     public async Task SaveRunPlanAsync(
@@ -28,6 +30,7 @@ public sealed class DynamicRepository{
             foreach(var query in queries){
                 UpsertQuery(connection,transaction,query);
             }
+            this.history.SaveRun(connection,transaction,run);
             return true;
         },cancellationToken).ConfigureAwait(false);
     }
@@ -38,6 +41,7 @@ public sealed class DynamicRepository{
         ArgumentNullException.ThrowIfNull(run);
         await this.writer.ExecuteAsync((connection,transaction)=>{
             UpsertRun(connection,transaction,run);
+            this.history.SaveRun(connection,transaction,run);
             return true;
         },cancellationToken).ConfigureAwait(false);
     }
@@ -151,6 +155,10 @@ public sealed class DynamicRepository{
             }
             foreach(var runEvent in checkpoint.RunEvents??[]){
                 UpsertRunEvent(connection,transaction,runEvent);
+            }
+            this.history.SaveMeasurements(connection,transaction,checkpoint.Run,checkpoint.Measurements);
+            foreach(var diagnostic in checkpoint.Diagnostics??[]){
+                if(diagnostic.Name=="MeasurementConditions"){this.history.SaveChanges(connection,transaction,checkpoint.Run,diagnostic.DetailsJSON);}
             }
             return true;
         },cancellationToken).ConfigureAwait(false);
@@ -345,11 +353,11 @@ public sealed class DynamicRepository{
             INSERT INTO "DynamicQueries"(
                 "query_id","run_id","ordinal","path_key","generation_seed","canonical_ir_json",
                 "source_text","query_hash","status","replayed_from_query_id","ir_schema_version",
-                "operator_count","depth","result_type","order_semantics","ir_generation_ns")
+                "operator_count","depth","result_type","order_semantics","ir_generation_ns","element_type")
             VALUES(
                 $query_id,$run_id,$ordinal,$path_key,$generation_seed,$canonical_ir_json,
                 $source_text,$query_hash,$status,$replayed_from_query_id,$ir_schema_version,
-                $operator_count,$depth,$result_type,$order_semantics,$ir_generation_ns)
+                $operator_count,$depth,$result_type,$order_semantics,$ir_generation_ns,$element_type)
             ON CONFLICT("query_id") DO UPDATE SET
                 "run_id"=excluded."run_id",
                 "ordinal"=excluded."ordinal",
@@ -365,7 +373,8 @@ public sealed class DynamicRepository{
                 "depth"=excluded."depth",
                 "result_type"=excluded."result_type",
                 "order_semantics"=excluded."order_semantics",
-                "ir_generation_ns"=excluded."ir_generation_ns";
+                "ir_generation_ns"=excluded."ir_generation_ns",
+                "element_type"=excluded."element_type";
             """);
         Add(command,"$query_id",query.QueryID);
         Add(command,"$run_id",query.RunID);
@@ -383,6 +392,7 @@ public sealed class DynamicRepository{
         Add(command,"$result_type",query.ResultType);
         Add(command,"$order_semantics",query.OrderSemantics);
         Add(command,"$ir_generation_ns",query.IrGenerationNanoseconds);
+        Add(command,"$element_type",query.ElementType);
         command.ExecuteNonQuery();
     }
 
@@ -803,7 +813,7 @@ public sealed class DynamicRepository{
             """
             SELECT "query_id","run_id","ordinal","path_key","generation_seed",
                    "canonical_ir_json","source_text","query_hash","status","replayed_from_query_id",
-                   "ir_schema_version","operator_count","depth","result_type","order_semantics","ir_generation_ns"
+                   "ir_schema_version","operator_count","depth","result_type","order_semantics","ir_generation_ns","element_type"
             FROM "DynamicQueries"
             WHERE "run_id"=$run_id
             ORDER BY "ordinal";
@@ -828,7 +838,8 @@ public sealed class DynamicRepository{
                 reader.GetInt32(12),
                 reader.GetString(13),
                 reader.GetString(14),
-                reader.GetInt64(15)));
+                reader.GetInt64(15),
+                reader.GetString(16)));
         }
         return records;
     }

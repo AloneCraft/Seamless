@@ -11,11 +11,11 @@ FLinq のコンパイル時処理は、以下の 4 つのフェーズで実行�
 ```mermaid
 flowchart TD
     SyntaxTree[C# 構文木解析<br/>- System.Linq メソッド呼び出しの検出] --> TargetDiscovery[ターゲット特定<br/>- 呼び出し箇所のファイルパス・行・列]
-    
+
     TargetDiscovery --> PipelineBuilder[パイプライン構築<br/>- 演算子の連結順序の把握<br/>- 式の構文木フラグメント化]
-    
+
     PipelineBuilder --> OptimizationPass[最適化パス<br/>1. Pipeline Fusion (パイプライン融合)<br/>2. Predicate Pushdown (述語プッシュダウン)<br/>3. Projection Merge (射影マージ)<br/>4. Direct Span Loop (直接ループ展開)]
-    
+
     OptimizationPass --> CodeEmission[コード生成 & Interceptor 注入<br/>- [InterceptsLocation] 属性付与<br/>- 最適化ループコードの生成]
 ```
 

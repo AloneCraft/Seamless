@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>TestSeamless.Schema</AssemblyName><RootNamespace>TestSeamless.Schema</RootNamespace><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Seamless.Database" Version="$(SeamlessPackageVersion)" />
+    <PackageReference Include="Seamless.Database.Query" Version="$(SeamlessPackageVersion)" />
+    <PackageReference Include="Seamless.Database.Rdbms" Version="$(SeamlessPackageVersion)" />
+    <PackageReference Include="Seamless.Database.SqlServer" Version="$(SeamlessPackageVersion)" />
+    <PackageReference Include="Seamless.Database.Generator" Version="$(SeamlessPackageVersion)" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <Compile Include="$(GenerationDirectory)/generated/**/*.cs" />
+  </ItemGroup>
+</Project>

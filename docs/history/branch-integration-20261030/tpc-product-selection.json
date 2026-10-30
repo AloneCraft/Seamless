@@ -1,0 +1,2205 @@
+{
+  "snapshot": "bec2358cf3ec66f9746743e89e0631bdb709f973",
+  "parent": "1846c8b70ed6411a4b273bbf5cf73316038e8bc8",
+  "selected": [
+    {
+      "path": ".github/scripts/verify-release.ps1",
+      "state": "absent-from-acceptance",
+      "sha256": "281322bb3760c74cfe79d81dc6f69e4927e9161a8d7685b329bd0438e5924f7f"
+    },
+    {
+      "path": ".github/workflows/release.yml",
+      "state": "absent-from-acceptance",
+      "sha256": "2f6a21d9b3c9227aa15eb4cc37646bc0de1075a1ca8630d8b5bca311fe9d2926"
+    },
+    {
+      "path": "Benchmark/Benchmark.Scalable.Tsavorite.Collections/Benchmark.Scalable.Tsavorite.Collections.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "f3fbdf3198ef3235caeb5fea9f191dc0d546a9fb06ed82078b0e656e7090950c"
+    },
+    {
+      "path": "Benchmark/Benchmark.Tpc.Server/Benchmark.Tpc.Server.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "697e6cebad698aad359b73d45a8eea96717477ea49d1222675f6f2b504824e02"
+    },
+    {
+      "path": "Benchmark/Benchmark.Tpc.Server/Transactions/TpcCodecIdentity.cs",
+      "state": "matches-accepted-source",
+      "sha256": "7983bf2a4a74ba523ad6127e80dbed2097f61078582f1add69f3bfe6d09cdc8f"
+    },
+    {
+      "path": "Benchmark/Benchmark.Tpc.Server/Transactions/TpcWalHost.cs",
+      "state": "matches-accepted-source",
+      "sha256": "67f0f823ba06c4f35702b4b7812386e670040f051a8e6e6e8147f4775ce90d13"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Benchmark.TpcC.Core.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "5258591563a4c841c1bed862ba2ff0771d57ca78833d88781f4caa39dc2e6f95"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Engine/ITpcCEngine.cs",
+      "state": "matches-accepted-source",
+      "sha256": "7c10bd898f6a1a115f74639c32bc48ca75266b888e71d95a640168581cb5959e"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Engine/TpcCScale.cs",
+      "state": "matches-accepted-source",
+      "sha256": "4f7ad0ce790108573974c0a60107cd34e1d7cb53703b28eac698f0cf4335c22e"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Engine/TpcCTransactions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "7732d7e150000c7059ad4663751f0cbefff4150e12a95edd4b1f839dd4fde20c"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Generation/TpcCDataGenerator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "b901d69c60e009346236a814efbe43792383e65e85829117a17b2ed5b05b9ce6"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Generation/TpcCLoadRules.cs",
+      "state": "matches-accepted-source",
+      "sha256": "64025139cb16ea2b4e1c8cf54303256f79c10bcef33ab4fbc06f4e29e1c8cb8f"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Generation/TpcCLoadSinks.cs",
+      "state": "matches-accepted-source",
+      "sha256": "84364f7d4a287881aee78b0b6d1acd8022424e06ccc16921f974133b2878e3d1"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCCrashCampaign.cs",
+      "state": "matches-accepted-source",
+      "sha256": "28a534a759cc5cf08cd3e93deddacd956707f1a6582b7995371a87286d471c37"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCCrashChild.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8144dd9d28641b93778a274033543e38cb2d32917cad6f043cc4a32d82040783"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCDedicatedOwner.cs",
+      "state": "matches-accepted-source",
+      "sha256": "20157b18a3c4143510d6f1ca5cdedd23088b61e0f57e364e0a0b19b2372d70e1"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCDriver.cs",
+      "state": "matches-accepted-source",
+      "sha256": "0368cdf58cc2da3452d5b997504790a9bc9de7dfbcf051fe3d284c3d08c4ab12"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCFailure.cs",
+      "state": "matches-accepted-source",
+      "sha256": "dec55fa4ddcd0e1c4aa06efbfa68b24672972d39ddd38b0933362f53ad2d85fe"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCFaultInjection.cs",
+      "state": "matches-accepted-source",
+      "sha256": "c3a18673e379bcbafc7828f817501af3694ea54fa28fbb43397d9d8d41e2dbe3"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCLockstepRunner.cs",
+      "state": "matches-accepted-source",
+      "sha256": "13996698494eb870cbf01ddc46dae929abd82cfbdec935b1f43a609977643ade"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCRunOptions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "26e4ac72745b17ec8de2d4767562e4b72053976370a4ecc468871a5857361dc4"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCRunSummary.cs",
+      "state": "matches-accepted-source",
+      "sha256": "74506f0263b430bc76be8bd0081d1d9c1aa6d865601e13846a914dc9f8076d07"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCVariantSession.cs",
+      "state": "matches-accepted-source",
+      "sha256": "7a1df06124f4be194141586f8664cf38317099a2a094f8272ab1dd51cd113a11"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCWorkDirectory.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9eb03f929722ba62d5b036a4f01b1b4f8f298dba136638721c7a99f155e95f48"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Schema/TpcCTables.cs",
+      "state": "matches-accepted-source",
+      "sha256": "87afcb0f09a5eb22a7f0a646679d32696daf2a886232acd3bde32607f0f75de2"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Storage/PersistedTpcCPartition.cs",
+      "state": "matches-accepted-source",
+      "sha256": "3fed3828ae69a52be5dd0eabf65962d8f6e8dc6038dd5764a04f75e770fea4bb"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Storage/TpcCDatabase.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9f8a9e864f3b8e43a5253938d9614ab883b29d4d23934c38fb6df763d5eb974f"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Storage/TpcCPartitionBase.cs",
+      "state": "matches-accepted-source",
+      "sha256": "217ca61af199a261469cbc3c13fb337d8dd8267bd74bbfb5f20b94cebc4ed1e0"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Storage/TpcCSizing.cs",
+      "state": "matches-accepted-source",
+      "sha256": "e0f971a74b2d6f19375203f8429b0c288cf132702e3a635dcab5d7d27fe2c604"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Storage/TsavoriteTpcCPartition.cs",
+      "state": "matches-accepted-source",
+      "sha256": "11e6e4b1f6b88a231541286900785043b16dbdd2b900c1112c7d51ae5316f9a7"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Verification/TpcCConsistency.cs",
+      "state": "matches-accepted-source",
+      "sha256": "e967b28c85ebb876ff27a0f87f1777cf0f7e2b14589b8952bc04b2e57b66fe38"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Verification/TpcCIndexConsistency.cs",
+      "state": "matches-accepted-source",
+      "sha256": "d3d7d88b709243fcbbb8ddb0d861761fe5f47eefb8d167b1ca648d81f6213fd9"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Verification/TpcCStateDigest.cs",
+      "state": "matches-accepted-source",
+      "sha256": "bc9510a721d25b02682e3b670be216217b63a34b42e496f0d52490a6eb76e5ba"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Core/Workload/TpcCInputGenerator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "ed892e847fdf9a03ac6c067016c0b197cabb4b513d87dfb3bc54c9d5994248ba"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Persisted.FLinq/Benchmark.TpcC.Persisted.FLinq.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "d4f7add5866724c14188487140d3fd6a10ee8bcb975a74f3da6e757074a159b2"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Persisted.FLinq/GlobalUsings.cs",
+      "state": "matches-accepted-source",
+      "sha256": "c9f57076776e2d2b7815ff00d82379e1f26f40a961566c8d8f169864054ee0aa"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Persisted.FLinq/PersistedFLinqVariant.cs",
+      "state": "matches-accepted-source",
+      "sha256": "131192afe940f61ac8fafc9651b66ef5b12e52ce42a2df5377a74840f06bb0a5"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Persisted.Linq/Benchmark.TpcC.Persisted.Linq.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "c5781b5644d87dd0c18e688546ca116c918042cf72e920748b50d2052d52cf53"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Persisted.Linq/GlobalUsings.cs",
+      "state": "matches-accepted-source",
+      "sha256": "196b6b6e44ca3d3264697f39b91d331f15cd5d1c8857d5d7afc6ba8293734a91"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Persisted.Linq/PersistedLinqVariant.cs",
+      "state": "matches-accepted-source",
+      "sha256": "38023177ba61d2e87e109a9b9996ead4aaa770e3a8cc1d1ec449986ce8dbe60e"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Server/Benchmark.TpcC.Server.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "9ec6eadeb600db2652d746b3e04951a51401f327dc84783a271c6c142ba16580"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Server/TpcCPartitionedSut.cs",
+      "state": "matches-accepted-source",
+      "sha256": "c3448b30e99d42db0f729fe4e09cf56b01dd790762ff852bc4b314cb2cc2dfc2"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/AssemblyInfo.cs",
+      "state": "matches-accepted-source",
+      "sha256": "1cdd928904699e51c96fb541994db892b5358e4b17a8dea4fcb486edecf96e21"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/Benchmark.TpcC.Tests.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "696d3ef0665d36c2136ae65c9c35119ac23348e63770ae18d78e5e49b98bede5"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/InterceptionCoverage.cs",
+      "state": "matches-accepted-source",
+      "sha256": "092cad54971d7295a73eb206c4497850613b07213fd7a99f153c81ed3902f98d"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/PersistedTpcCDatabase.cs",
+      "state": "matches-accepted-source",
+      "sha256": "d92373b24fc4e87c9b80e9a837a518055e18285c951f0cf898b774c3be5d6b7e"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TestDatabases.cs",
+      "state": "matches-accepted-source",
+      "sha256": "e6afdbeb50196b415485988e1ff5166e47af38600468088b520621f49de6fc83"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcCConsistency.cs",
+      "state": "matches-accepted-source",
+      "sha256": "092b7405be9a27e887dc79f5c905521d6a988a7c6b489add17c58c9d49e21a73"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcCCrashChild.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a7e179436d1377e671b08402ea75f1289900c3638e9e54ce25fcf01721d13e6f"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcCDataGenerator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "b144e96947d3307eaf2f4d09e7435127f75676cfe08e36574991fb4063b19615"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcCDriver.cs",
+      "state": "matches-accepted-source",
+      "sha256": "6543e60a6ce95887be55f7f2cf12a9bd3cd907645e79638ff634c8960c349b81"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcCEngine.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a243bc0ade7b56d0a20a9bcae753ba40d9b5557318e54f63e9878dc22542f712"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcCInputGenerator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "0495b24eed49167eac2092766518b2e55e76c853a42631e5341bb1a9763e98d1"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcCLockstepRunner.cs",
+      "state": "matches-accepted-source",
+      "sha256": "88292523763ec414d3e236277778ef90053b555ff645ee8e469f53a1b97fc16f"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcCPartitionBase.cs",
+      "state": "matches-accepted-source",
+      "sha256": "921082d2080d42dd0064b703922cce23b84e186a69be3629b9079067f11d62e7"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcCPartitionedSut.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a93fe858e19eae6e71c10cce5e8d8c7c8c2d4609ea2f0455a2fd0ce6935b9c2a"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcCRunOptions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "aff45bcba97f339eb2d4c6fa3275cd2dc99204e65be1d5d7e8fdb6ba4c3aa3e6"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcCScale.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a6837556a187e5a3172ac4d7f14dd0b356e87dde6e8b89ae3f7c432859ce52b9"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcCStateDigest.cs",
+      "state": "matches-accepted-source",
+      "sha256": "e0d8a94d24bffe74693b58d8bd6a3be5a701b3c19431fdc7a1f9ac19978e61eb"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcCTables.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a56d74120bde85e74064b9e4d556d8ac5e3780392667a1e39340737cd26e8d3d"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcWalFailure.cs",
+      "state": "matches-accepted-source",
+      "sha256": "cbdee31be0353e614de3d7d6517a6734f6713613f3d143c89da561aacacffa13"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tests/TpcWalParallel.cs",
+      "state": "matches-accepted-source",
+      "sha256": "c9f1b86a19c7cce61080f8beb285b86e63ed553d648a491785a0bebb99c82bc4"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tsavorite.FLinq/Benchmark.TpcC.Tsavorite.FLinq.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "f17098af2206b842e1ff1bb7868cd3f0b9b96b9882fa38e989d9d910986b8701"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tsavorite.FLinq/GlobalUsings.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9180ad06f706c2053e84e7a655efb7119b19341858c6cf96465c6384171ccf96"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tsavorite.FLinq/TsavoriteFLinqVariant.cs",
+      "state": "matches-accepted-source",
+      "sha256": "cbb8fbb4d2eed367c1a0e53427e4257aa861ed288027701c22b4062e2c134c11"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tsavorite.Linq/Benchmark.TpcC.Tsavorite.Linq.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "7e726b6cfae74c87fb8a985f283a4a39bcb2ce4b11a02589140c68b0c4693490"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tsavorite.Linq/GlobalUsings.cs",
+      "state": "matches-accepted-source",
+      "sha256": "0b981df4d077098c94eaaa6ed71e22cf85cbc7f3446568ab16183e3285f9f97c"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC.Tsavorite.Linq/TsavoriteLinqVariant.cs",
+      "state": "matches-accepted-source",
+      "sha256": "651b4f3d95d069e45088ddd8a4310bc1f06488e27f80387e8773f3a761d5b42f"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC/Benchmark.TpcC.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "c4a4d6c16fc13eba470b8b9b8d92a7af13e3de8ef9b5b0d388feb12e3f2e00a5"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC/Program.cs",
+      "state": "matches-accepted-source",
+      "sha256": "5e750a6193a82eb867115fdcb80567278ad4c2c41587096b0a5eebfee6273fbc"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC/README.md",
+      "state": "absent-from-acceptance",
+      "sha256": "2386a25626dbc4b8f4eee40a863904a62b55245ab20f1495c6e433db97c28d85"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC/VariantCatalog.cs",
+      "state": "matches-accepted-source",
+      "sha256": "df9af6e44300c1dc20f798a5bb3198ddb515f5123843906c831cb1fd9c89911c"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC/docs/HAMMERDB_RULES.md",
+      "state": "absent-from-acceptance",
+      "sha256": "8ca636dd5c9a87fa219d7d9889a16a36bed69db68b42991eb60ae295e9345a24"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcC/docs/QUIRKS.md",
+      "state": "absent-from-acceptance",
+      "sha256": "01180149b09e30be9a15b595246b11574c1ef240894e30f5a854ab4c91dbb621"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "eb906c5f769929474510d7dd51ad9d07cebb3da7fa0c90a2c4f1d7ae05b7212d"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcE.Compliance.Tests/ConsistencyChecker.cs",
+      "state": "matches-accepted-source",
+      "sha256": "25e76b46bb68ae523207e817828ba438c95b58c33967ea6bd8f26292bd1ad238"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcE.Compliance.Tests/EGenEngineFixture.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9f9b9d6f9492f53d50e92179c5a0aa76680ad90bbd4279d0386f68b5d0b3467f"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcE.Compliance.Tests/EGenFixture.cs",
+      "state": "matches-accepted-source",
+      "sha256": "95cc28a1c351387d32affb441bbd17730b9b8c61de38d8d978c31783345881f6"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcE.Compliance.Tests/EGenFlatFileImporter.cs",
+      "state": "matches-accepted-source",
+      "sha256": "b3dcf9155c42f4f38f0fb36f20561be5f40b890353ed529905a7576672ee43b7"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcE.Compliance.Tests/MarketRequestContract.cs",
+      "state": "matches-accepted-source",
+      "sha256": "7666a5cc38921e99cb4bc48dc346808018b0780bb51b2484905d0409f30cbf34"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcE.Compliance.Tests/NativeTestProgress.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a6f23421843c110d2ea5e1d11cb579a5ea2ae50fe9de66945f84671239deafde"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcE.Compliance.Tests/SharedRecovery.cs",
+      "state": "matches-accepted-source",
+      "sha256": "977d9837b649473f8bc2816b87c44e85750e13c4011d5e8ef70aa38c6335402c"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcE.Compliance.Tests/SharedTransactions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "621d9f1ca0d8a2e52a42b5d8caf2d3f5c742a344cdd44c768dcb5e2210a444a1"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcE.Compliance/Sut/TpcETransactionalSut.cs",
+      "state": "matches-accepted-source",
+      "sha256": "0ed339cb99d79ca080547984af6f8676c2a0f6226f2b721f1a0e65baac613605"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcE.Core/Engine/TpcEScale.cs",
+      "state": "matches-accepted-source",
+      "sha256": "bea1f4da85d1e0ac9f38a6b3c96cbfc0118df6e6d148ed5d3f6d64ecbd7b8f6a"
+    },
+    {
+      "path": "Benchmark/Benchmark.TpcE.Tests/TpcESizing.cs",
+      "state": "matches-accepted-source",
+      "sha256": "faab3c036b21efbd1d96d62292bfa64edd6525887528b14c6e7fdaa5d58224d8"
+    },
+    {
+      "path": "Benchmark/Benchmark.Tsavorite.ParameterSweep/Benchmark.Tsavorite.ParameterSweep.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "fd6fb84b187b8ddfc33a22769028c2574b96ea48519cb0b018b54a379ed5f216"
+    },
+    {
+      "path": "Directory.Build.props",
+      "state": "matches-accepted-source",
+      "sha256": "df37b60582cee94df45a03df147430174d98452ae610ea4778f4b2f887eae7e5"
+    },
+    {
+      "path": "Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "d4b9e819c8e8c1c50b87869cd19282cd9719f5926bf1e3119c3c88a0eaa81fa7"
+    },
+    {
+      "path": "Seamless.Transactions/FakeWalDevice.cs",
+      "state": "matches-accepted-source",
+      "sha256": "4c28cb8734741ceb3849174359e07128b318457aa8390b170aa142a015f88c23"
+    },
+    {
+      "path": "Seamless.Transactions/PartitionExecutor.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9fca282e00f80d6209f13ed43f4a5311c4a03bb576b9ca5ccf96d8ad7307f869"
+    },
+    {
+      "path": "Seamless.Transactions/Seamless.Transactions.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "e38e25718da2e0cb71cdf12395972f2f339f5601458094f3caaaa37e470a8423"
+    },
+    {
+      "path": "Seamless.Transactions/TransactionCoordinator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8da81ea91690ef70b16a2b25cc1e007cf400bd266ce7ba5e261c545ac9901f38"
+    },
+    {
+      "path": "Seamless.Transactions/TransactionJournal.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a7cca2ba4d3e6d31947649729119bce0be4dc428716761db2e9b758f19064323"
+    },
+    {
+      "path": "Seamless.Transactions/WalContract.cs",
+      "state": "matches-accepted-source",
+      "sha256": "c648e57a56f084fa987278edf1bb07463da3368cdd97904a4b2cc1d8e193bc24"
+    },
+    {
+      "path": "Seamless.Transactions/WalFileDevice.cs",
+      "state": "matches-accepted-source",
+      "sha256": "65cd0fa1a572155bb6521fbe10dcb81a43975408e7082e83bc1469bc779a98d2"
+    },
+    {
+      "path": "Seamless.Transactions/WalFormat.cs",
+      "state": "matches-accepted-source",
+      "sha256": "b0fdd8dbf84a7dd5daac35cd443ec7b700879fdec668e7d576d66ecf13e73602"
+    },
+    {
+      "path": "Seamless.Transactions/WalWriter.cs",
+      "state": "matches-accepted-source",
+      "sha256": "02a633f7f72b9e8353a21096c7465eeeb2dfd427255d22339255f25312fad1f4"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/.gitattributes",
+      "state": "absent-from-acceptance",
+      "sha256": "238cd0bf44667e17326475eae9be8261c549b21efb9a5323eb7770ff73e4e63a"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/README.Core.md",
+      "state": "absent-from-acceptance",
+      "sha256": "a2e17a4fe49f1cc385104fe8c5f8effe60addfc5da2765eb83dbe0251eab79ff"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "1cf214a69b77727f0950edb4f4c664cbfcf5f4deac61403a4bf856c6034d8ea3"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/UPSTREAM-PROVENANCE.json",
+      "state": "absent-from-acceptance",
+      "sha256": "103ee5f26ed6c8f8f64f753de9469a1c18ea33e945cb22ad8d5721c5a5dcbe45"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream.Core.Items.props",
+      "state": "absent-from-acceptance",
+      "sha256": "69e05fa3dac611dd1e7d54027c8afdcc7f5b55cd98deca3b6115323ba1a0769d"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/.editorconfig",
+      "state": "absent-from-acceptance",
+      "sha256": "60b0a168cc9d24dc17e988c055cf07c6491c271e1fa93f19e68ae1273962b883"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/Garnet.snk",
+      "state": "absent-from-acceptance",
+      "sha256": "7adbe203e242848e0d3532b685dae2aa445f424244ca37f545ef7dec7810dc6b"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/LICENSE",
+      "state": "absent-from-acceptance",
+      "sha256": "9906940f61b1f0b533fa7d99baf55178b2808fbe113ea51dfbfad8572ccd5f2b"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs",
+      "state": "matches-accepted-source",
+      "sha256": "fa3f74154759596d04a2e0fc3d0ed82c5c0e728aeeaead39eeccbd8009e6ae79"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorScan.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a81e6f6aafe7b06715f96d3ddcc33aa033fd519e6a0742b461ccea2686b48529"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorSettings.cs",
+      "state": "matches-accepted-source",
+      "sha256": "652ab5731e69efe17ee7e265706039e27f26783182cbfd0d478b744ba88964be"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/AsyncIOContext.cs",
+      "state": "matches-accepted-source",
+      "sha256": "62db736467ccf8edb00b3c7847e669e04c51803f1c775b1e18b593fed41dedc8"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/AtomicOwner.cs",
+      "state": "matches-accepted-source",
+      "sha256": "4c232370dae336f60fba308a95101381ffda1fd5f1bf3ddfaa30033c4c96cc05"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs",
+      "state": "matches-accepted-source",
+      "sha256": "5138d55ca0da76f0fcfa1d6660e0d4279b80fdd456fb50343482e440e54189d6"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ConditionallyHoistedKey.cs",
+      "state": "matches-accepted-source",
+      "sha256": "6a80330312cc5106e31ad20728a3f809c290da0c653ecea3e2ea38d7149849ec"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/CountdownWrapper.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8a3df07b11d91ae7515b58deade36d72e10731d75a092fb23865ff698105d714"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/DiskLogRecord.cs",
+      "state": "matches-accepted-source",
+      "sha256": "dcba7d354fdd2a32c1483d8d164016182f2a3c3c5bccafa4b4806811e15c7361"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ErrorList.cs",
+      "state": "matches-accepted-source",
+      "sha256": "70fcc17dced270e27a0e4b36c5961e84deb1d6fbd16b6e754c50f642da274804"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/HeapObjectBase.cs",
+      "state": "matches-accepted-source",
+      "sha256": "42b6baff97544b6023ac24b23fa5708a03bfc9b147b2fec1e0b5e507bf1359f4"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/IAllocator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "aef740045ea270bf9f6d8e5728416700bf530f1a75b0a2994c8009d6bcb326c5"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/IHeapObject.cs",
+      "state": "matches-accepted-source",
+      "sha256": "72fd706766adac5a718ae3bac7261cf22d85ad2f33c129e34a6c7f14f955d7ec"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/IScanIteratorFunctions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8432ab710eb92d3e921314baec3a6d0841953145ebe70a8bac5ef5847a52241c"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ISourceLogRecord.cs",
+      "state": "matches-accepted-source",
+      "sha256": "341a74136a9f3c01f5d86b41562ccd4dd2c22e423b1a1c08549d62182d83cc76"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/IStreamingSnapshotIteratorFunctions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "95c6e4233a8c5826993049472ecabbb58bd1294305a372a4cab77cfa4cb6eae7"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ITsavoriteScanIterator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "75aa87c23ada53f176cb1a5ec0a5218a94c694d29144b5cacb1b0b05e444a47d"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/LogField.cs",
+      "state": "matches-accepted-source",
+      "sha256": "bcbc3cde9bb68581e0bb573447279321ac446f04802c03d2969d43cb8c0c4ad4"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a90e1272f60392651767008174c488bd675c32d8b67e44f02069c4d727589c95"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/MallocFixedPageSize.cs",
+      "state": "matches-accepted-source",
+      "sha256": "3343e9a224d7becfb65ba13bd8e63bd6ba63ad83a4e7196f0cbf22176c03d9a3"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectAllocator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "6ff01cab3600c7e8c5a43bde1f15535f2c292be909d696e696a517049d8e49a9"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectAllocatorImpl.cs",
+      "state": "matches-accepted-source",
+      "sha256": "38f4f4f826c2b9c68bf146f629d658d7f55438b2c17af19f56b787f3d91c3260"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectIdMap.cs",
+      "state": "matches-accepted-source",
+      "sha256": "6f4a77f4f8d751b32bb85d57ca177beeea4efc643daed761e330c10500e92dee"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectScanIterator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "94ac5dabfbf6cf0ec3bdc39298a8823b545e1fa41272d15d52ba8d006dff0252"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ChunkHeader.cs",
+      "state": "matches-accepted-source",
+      "sha256": "f2ea6f0fbf6e24bb1ae1f5ad51ee0b0282f49410f6458ca2a6f0175fac79f75e"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ChunkedObjectSerializer.cs",
+      "state": "matches-accepted-source",
+      "sha256": "089db1786413113a173e1496dd5961de619639f6631042a2d5ac05b38fa542c6"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ChunkedRecordConstants.cs",
+      "state": "matches-accepted-source",
+      "sha256": "931aa97344e46e78fc1f16fa5070e1ee955eb4ca271bc156f8531f16274c8c68"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/CircularDiskReadBuffer.cs",
+      "state": "matches-accepted-source",
+      "sha256": "451ebf549565cec9f9897962a078f949f81503f86fc7cfa48162a4129e28c09e"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/CircularDiskWriteBuffer.cs",
+      "state": "matches-accepted-source",
+      "sha256": "561208171734e8e8f5bd61d6dfd7f1ce644c5502aae6e6e5c032d2666c6d85ec"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/DiskReadBuffer.cs",
+      "state": "matches-accepted-source",
+      "sha256": "1b5a66b0c4400aeab942e58e06b6f029309b380f1a0851499c1d14b8c7b1ae8c"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/DiskWriteBuffer.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a36ef735bece52683194042f2c5120893da03487b1c2e6e27bf6a005fd812463"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/IChunkedObjectSerializerConsumer.cs",
+      "state": "matches-accepted-source",
+      "sha256": "d8b266baac7af843d77a21a11905618b4d0caa20e73fc97fa837d5cfb4a10286"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/IStreamBuffer.cs",
+      "state": "matches-accepted-source",
+      "sha256": "4ac12cb4d47fc467eaaa6957e111368f6b3f64aba6f21bead2fa243bc1445dd1"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ObjectLogFilePositionInfo.cs",
+      "state": "matches-accepted-source",
+      "sha256": "51b9e716999467a4390b54153a4973d906449860a0bcf65d9bffa0112bc21b0b"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ObjectLogReader.cs",
+      "state": "matches-accepted-source",
+      "sha256": "ecb1387f05bbca24d9738d972c1321b40a7804c8f545cfebb2709d82747e0872"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ObjectLogWriter.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a7089f182075176d697d5c260e4a8c909c59616dc816b0fd0ab0391fa4705388"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/PinnedMemoryStream.cs",
+      "state": "matches-accepted-source",
+      "sha256": "0dbd6096e142fd37562b9d0a26524326196de1f0d579c0e90049e23def7a426e"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/OptionalFieldsShift.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8629f81c67b2c5fa63785a66e745d3e30992a44e6252e62474ea097c597fe9d4"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/OverflowByteArray.cs",
+      "state": "matches-accepted-source",
+      "sha256": "3ef07ea39fbf98dab9d8e43a318e2f36864ed1b87c63daf636d87aeef31e3082"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/PageHeader.cs",
+      "state": "matches-accepted-source",
+      "sha256": "d761db0d60bf41ac5d266029b274fa4e90745e7bc8a7655cc0e78ee6c50742a8"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/PageUnit.cs",
+      "state": "matches-accepted-source",
+      "sha256": "3b0ff85cfdfc6a6c07c9e9130b0338cad378c49cbdeb9e131050e5425af671c2"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/PendingFlushList.cs",
+      "state": "matches-accepted-source",
+      "sha256": "c0f82a3556c890edd869ae7dbf6b57172f1df2c008981ae0cd2f481c678c6ac2"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/RecordDataHeader.cs",
+      "state": "matches-accepted-source",
+      "sha256": "16ae2487c58860577130cf42a3e6002bc58cd4531dc9a89b3ca38078f262c6c7"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/RecordNamespace.cs",
+      "state": "matches-accepted-source",
+      "sha256": "dd7b2a9d7061e93c8f20ed84555cda38de1910bbd41e1316ede63123d593fd4b"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ScanCursorState.cs",
+      "state": "matches-accepted-source",
+      "sha256": "b3db33a8f09d798f10a31052549169a14abd3389726ab3f43eb1133abfca0d89"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ScanIteratorBase.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8919b0eb93ebb461fae8e0b4101a1642d05d6895564d60e94b3d08b7ea4ab39b"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/SerializationPhase.cs",
+      "state": "matches-accepted-source",
+      "sha256": "4434567b8ac0e5f04d1ae42265b515de27233beac8c49f03aa7ce39726676a6e"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteAllocator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "20461da5aae3a8d6dfa43c3045f25a00f61a4429a9b31bb02184e14e60f03b7b"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteAllocatorImpl.cs",
+      "state": "matches-accepted-source",
+      "sha256": "444c5903001cc24ee65e5aff662ffdef35afec48015a8deb9727df34df4b64c4"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteScanIterator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "3516c175c9888486ae5d922f63d170a92a91ff0a1ae3f3abe752aa8eedca42de"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/TsavoriteLogAllocator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "77abeaf1a078cf1ba48bcc36e6b64a799ea537966c9f5b6ceb87cdb15f558b88"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/TsavoriteLogAllocatorImpl.cs",
+      "state": "matches-accepted-source",
+      "sha256": "57ba69d48e03392dfe4e287b9e2f77d146f77f88cdab69ee018646988e0ba6c9"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/WorkQueueFIFO.cs",
+      "state": "matches-accepted-source",
+      "sha256": "134bfd28c613dff33c470ff75179c0c21aa7a8eef8b0490f76c3b24ff158c605"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/WorkQueueLIFO.cs",
+      "state": "matches-accepted-source",
+      "sha256": "3e7374a100d9e183f29f4d43ee482d36888aa11b025af375a3043ce6659e36a1"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Async/CompletePendingAsync.cs",
+      "state": "matches-accepted-source",
+      "sha256": "6a7369b2eaef81c272c3cf6790abc07df0cf399b38114a131e3819ecc7801b8c"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/BasicContext.cs",
+      "state": "matches-accepted-source",
+      "sha256": "3d2fa39762e7e0189f9aa99668c5f7374597c743069a3e2af8125eaf25a9a665"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/ClientSession.cs",
+      "state": "matches-accepted-source",
+      "sha256": "6f05a6c6254d5529b36f20a103e7fecfe248c7e6a33756dcc26619936afde810"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/ConsistentReadContext.cs",
+      "state": "matches-accepted-source",
+      "sha256": "b625f2908e6f451fda28b6a8767d1245c388d0047ecf89691d09ccc8df4fe980"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/IClientSession.cs",
+      "state": "matches-accepted-source",
+      "sha256": "afbcf3a9f7a53be2865f80f9b70ebcb2596d49469918e5a00f206557cdde9327"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/ITransactionalContext.cs",
+      "state": "matches-accepted-source",
+      "sha256": "3af194ff768ab9aa3ff23a1faa242b2f1cf803f6a341be69c84c86356c0e9e78"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/ITsavoriteContext.cs",
+      "state": "matches-accepted-source",
+      "sha256": "eb1e89ad14cc53b4f30e6c0f69f6a22e6a5048b7d3b0a00113de51ad59a67351"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/IUnsafeContext.cs",
+      "state": "matches-accepted-source",
+      "sha256": "84d965774eefe8ec285058dc39d80d616fc400309a1bb8aa44f65a69da17ce06"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/ManageClientSessions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8df30ef173b35bc535601873d756c037c00c92ee0b5981238a3ed41276c6d1cf"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/NoOpSessionFunctions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9b26869fbac220444a816ef10325c1c056bb6111a69ddc8b1ecc0ded997e376f"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/SessionFunctionsWrapper.cs",
+      "state": "matches-accepted-source",
+      "sha256": "766f5cc437735b5781c8355c129cdb179479b744cbadf84cc6d42d888ab87ccc"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalConsistentReadContext.cs",
+      "state": "matches-accepted-source",
+      "sha256": "c884abaaa3696485b2164a7cf86f5316ba184db52c90c28c306436779cc3c07d"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalContext.cs",
+      "state": "matches-accepted-source",
+      "sha256": "e4500b845bd79d4d8e5239950701f13d1b078703838709b5f4d8d0de1ecf66a0"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalUnsafeContext.cs",
+      "state": "matches-accepted-source",
+      "sha256": "414f6b7f9a34017bd69a3c4186c784cef95802d9f9d30ac3db6dee24e1121a21"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/UnsafeContext.cs",
+      "state": "matches-accepted-source",
+      "sha256": "cd4886cdb9f501908097ee54c970b814619e5292f615fb8e549a66bea45ce09f"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Compaction/CompactionType.cs",
+      "state": "matches-accepted-source",
+      "sha256": "42d7c57f8586a9392c0dc22f9c5a4d5721e4df66bd25669c94caf4733c29152d"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Compaction/ICompactionFunctions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "7ad99433c88e3d79c9198251e7f51bf807811fac0bd3731eb1cec03c856d88b8"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Compaction/TsavoriteCompaction.cs",
+      "state": "matches-accepted-source",
+      "sha256": "804258c9599915958204c2096ff45f7530835cfe493b987289bafcf3c5f5e3f0"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/AsyncPool.cs",
+      "state": "matches-accepted-source",
+      "sha256": "4ca466b99344e58b2adb6728a52c42e44d80b49d585463918380791eaddf0888"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/DeviceOptions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "ce092e8f95ee4d6f5a7a29dbe171303adee87f54b72a497313fd70dabb55b001"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/DeviceType.cs",
+      "state": "matches-accepted-source",
+      "sha256": "d066bef224fed58cd7606f862599545bfe90184e3f79fddca0d67c9ae85b137e"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/Devices.cs",
+      "state": "matches-accepted-source",
+      "sha256": "f7e9ee5553ae4009f1d4dc0015e9c82b30c0ccd832e7cd844f800234226c7cdc"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs",
+      "state": "matches-accepted-source",
+      "sha256": "2a13f8e7edcd8d8830f6ec97f5dcb8ff7d46f7c1119c9a32625bf46daf994efc"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/LinuxFileExtensions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "ebaf106dcab01525adecce84084ebe9d8af4fc196776e7d27ed6f075062baa18"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/LocalMemoryDevice.cs",
+      "state": "matches-accepted-source",
+      "sha256": "4cb0c3fe31e4b2dc323695f21c3979fb3f624f2e91a770e0c2e62a127820d193"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/LocalStorageDevice.cs",
+      "state": "matches-accepted-source",
+      "sha256": "bab812f009964cc2497baea73711b7b418fd10d7bb6eae0c330fa65b26e317e2"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/ManagedLocalStorageDevice.cs",
+      "state": "matches-accepted-source",
+      "sha256": "34979581db19621d5fe96f13b2b406d467e0f07ed676df9e24c4665130094c81"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/NativeStorageDevice.cs",
+      "state": "matches-accepted-source",
+      "sha256": "5d19ec4d988b2840b4dfa83302a9bd93d15ef1d8ea7d459ca59935d469f30c5c"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/NullDevice.cs",
+      "state": "matches-accepted-source",
+      "sha256": "cbecb96f8dd1a671d2806d407c7c535f8ee62be8602c33e10b755ee42e2b3b9e"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/RandomAccessLocalStorageDevice.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9ff77a73034b5d95807d14d1ab67dc51496c35e7d7267e3ca077c7cc4892115d"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/RecoveryCleanupDiagnostics.cs",
+      "state": "matches-accepted-source",
+      "sha256": "cff7b9ed1be7453e27668548fc6cb675f7b78ad5417eb3577b7414aa25ad45cd"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/RecoverySubmissionAdapter.cs",
+      "state": "matches-accepted-source",
+      "sha256": "57350b8d232247cb5245975343d620837714bf4e5953440bbe122dd93ce4fd20"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/ShardedStorageDevice.cs",
+      "state": "matches-accepted-source",
+      "sha256": "6c357089c0db0e32f1bf0584630dc698693650a8197849d4d8c6ee00ea33f800"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/SpscRing.cs",
+      "state": "matches-accepted-source",
+      "sha256": "fe5f9653cbd80e6ec1be57dbcbcf49659afc270ef73b87f4f6c61a61d6abd1d1"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a7acf09a768bb6dbad1ac54545158fee47b93b53469565e5876ddf090c08d274"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Device/TieredStorageDevice.cs",
+      "state": "matches-accepted-source",
+      "sha256": "cf55548bbc0876ac60a84d12fc90cefe5b1c4930132a8c4ffa46707836bfeadc"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Epochs/IEpochAccessor.cs",
+      "state": "matches-accepted-source",
+      "sha256": "838f87ef3d350530e7d9890bdd78f5e4fa6fd657fc2c51756931acb21ac6b26f"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.EntryTable.cs",
+      "state": "matches-accepted-source",
+      "sha256": "41ed783ae737155cdabc7c5acf799de24e0d09dcc50343f81a411a93684009f5"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.TestHooks.cs",
+      "state": "matches-accepted-source",
+      "sha256": "f968739c7e398c027c015742ee0a8948c6be43ae0afe3950fea4de7b8707fba5"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9803b1de6aed18e8e8b5e34ddd74081550b9a08d0572d95b5766e06a7dc3c392"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DefaultCheckpointNamingScheme.cs",
+      "state": "matches-accepted-source",
+      "sha256": "91e8c29bb7f2699527dcffd9e19d08c434e5610e81f150f507cfa8ed04525286"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DeviceLogCommitCheckpointManager.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a0891e2197020ce602bc479189c200b5f8a2a0a66dbbb1f7594cc2cec854180a"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/ICheckpointNamingScheme.cs",
+      "state": "matches-accepted-source",
+      "sha256": "23a1b004f6d0475b73bea951b45f52956959a1ef9cfb05ac881c9187156cfc18"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/INamedDeviceFactory.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8a32f1aec28d510216dd920d676cd1228aaabe07e63f72ca041b5bd88ff2a622"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/INamedDeviceFactoryCreator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "ae7cc43749f6e7e8cf6d6557b52887e421ad07bf562463ade4125bc19ec15895"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/LocalStorageNamedDeviceFactory.cs",
+      "state": "matches-accepted-source",
+      "sha256": "5c44f2ee242fdb0f9ebb0360a84d169afcf9e509db992cdc2390bd915c1cbf3f"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/LocalStorageNamedDeviceFactoryCreator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a17a4a09516cc5c311755394a875118e1a971dacccccc6298dba7c252f706539"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/NullNamedDeviceFactory.cs",
+      "state": "matches-accepted-source",
+      "sha256": "5ad0a18d76cf0be75cf39d15860f4a2702b65823d336e3a1c59ff29b44cd5b76"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/NullNamedDeviceFactoryCreator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "0eaa4a003a14dd8eb87fd77e24b742e6f9ab19bfb88773aa920aacc83eeae7d5"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/RecoveryInfo.cs",
+      "state": "matches-accepted-source",
+      "sha256": "0abd78b1a4acc313e2fd95087227fcf780dbb2b5816a4938846442f24a30ce1c"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/Checkpoint.cs",
+      "state": "matches-accepted-source",
+      "sha256": "19598fe921810aa294703ce23722da251a9016979306679a9938cc633c3764e0"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/FoldOverSMTask.cs",
+      "state": "matches-accepted-source",
+      "sha256": "3ea1d85a894fa1938ca0f3ecc6b562c5107484778e68c6f069cf7c472c781101"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/FullCheckpointSM.cs",
+      "state": "matches-accepted-source",
+      "sha256": "ed3b6a924f531f0886ce3fe8a47cd40bd2647e85c925f13b1cebabbe96c4a53c"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/HybridLogCheckpointSM.cs",
+      "state": "matches-accepted-source",
+      "sha256": "70c3f9c74c7b264f14a912e68ce401666c79c93901b7d5438e4b06bc9fabeab7"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/HybridLogCheckpointSMTask.cs",
+      "state": "matches-accepted-source",
+      "sha256": "e002cedafd72f349af93687d6f27761def029ea30e31d1b8332fd44592064333"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IStateMachine.cs",
+      "state": "matches-accepted-source",
+      "sha256": "fad4b7f107ffba918aadd410730d4c1e1646f5ce714d9662eef82078fd25fb6f"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IStateMachineCallback.cs",
+      "state": "matches-accepted-source",
+      "sha256": "2daec919b9555200b648a0001f5df0d71ab6bc6c6010c63207cea19eb9e93132"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IStateMachineTask.cs",
+      "state": "matches-accepted-source",
+      "sha256": "1f45b03479f06a13215e584f71cacc40e3af58d90c421433c06f051349428d5d"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexCheckpointSM.cs",
+      "state": "matches-accepted-source",
+      "sha256": "058c7c5dd1b55b6a9632da6616eda77095c959db9ceb315683b43eb8f0afdd31"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexCheckpointSMTask.cs",
+      "state": "matches-accepted-source",
+      "sha256": "7746bc79cb089f844919811a7bc5bbb6dfc8d64f743580a2a79ca525ab12819d"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexResizeSM.cs",
+      "state": "matches-accepted-source",
+      "sha256": "fc3d783e8f9117f0b5b156167f9fec3f4f25fed2a4c370df76240a9e664ad9c9"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexResizeSMTask.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8b3a4af4df82bd24270381703e82cbe5e5b36025e70a1f7e780e02172dc23212"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/SemaphoreWaiterMonitor.cs",
+      "state": "matches-accepted-source",
+      "sha256": "69d41559c7d0f594e200527475d5c2253f23bb841f9017a7b3e0fcc9f6cfe96b"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/SnapshotCheckpointSMTask.cs",
+      "state": "matches-accepted-source",
+      "sha256": "4033ca73eaf79f9055c5181c82ebfee899f859d8cce7730563fb1aac1c5e3d0e"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateMachineBase.cs",
+      "state": "matches-accepted-source",
+      "sha256": "603b631ec84e745703a7883dd3fc148d46145be510db5b878c519f38cd87468b"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateMachineDriver.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9bc7b0fd1aec8600e6e759b53be7ae7f397c4027a315a841aecd3bb645541388"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateMachineTaskType.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a82bc5c97d2d06422ba6ae1ede3891b5acc37ea106fa44c354100cb77d6cfd2f"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateTransitions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "b53f9f9d3679b2632dbb94a3db874564b69bc8ae7e696d8f5967c165929a6ed4"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StreamingSnapshotCheckpointSM.cs",
+      "state": "matches-accepted-source",
+      "sha256": "455382053023a8dec5a442b32c9b6ad1affdf17cea32d719745add1772c0d52a"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StreamingSnapshotCheckpointSMTask.cs",
+      "state": "matches-accepted-source",
+      "sha256": "5b8742b5566e59dbe98e21b858f327e1b205f5fa4c8e934b1be3c90dfd4305a0"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StreamingSnapshotTsavoriteKV.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a2d33527100d91a0027504d785c53ffb3f4207182e7a63900ab0e8f47ebc8624"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/TsavoriteStateMachineProperties.cs",
+      "state": "matches-accepted-source",
+      "sha256": "bad9448548f2b1200e40cca0601fced08b367217f09edaad6714cb7e9bd6c6a7"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/VersionChangeSM.cs",
+      "state": "matches-accepted-source",
+      "sha256": "4472a0053d827e62793599864dac73dc393746aa68e48430c393e78742bac2b3"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/CheckpointSettings.cs",
+      "state": "matches-accepted-source",
+      "sha256": "34f7a649874d608da03a65ec6e73748a9aebfbaed6bad966bcae9489788ba645"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/CompletedOutput.cs",
+      "state": "matches-accepted-source",
+      "sha256": "959764de15bd93e8cd3c3ed9d26fa7a8748c288257fffc5c1e8583e6af279b70"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/ConcurrentCounter.cs",
+      "state": "matches-accepted-source",
+      "sha256": "faff903c48e42f02a8551d6dd15776e1ba64dbccbce0f7113eac8b7ec577970c"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/ExecutionContext.cs",
+      "state": "matches-accepted-source",
+      "sha256": "b7d9f2d0dc40b3627b33657bbf6c4fa5bb413275dc67a1449edc8c30814cb9d4"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/HeapContainer.cs",
+      "state": "matches-accepted-source",
+      "sha256": "5bddff65a0f7ca39d51edb1ac7c2f482556ef05d6d42ecfde6b86ca3b34a4bf8"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/KVSettings.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a6ebb1409f92f7221581b98af7775e7b8753f8810ea96dbae6346a9ccf51f3b4"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/LogAddress.cs",
+      "state": "matches-accepted-source",
+      "sha256": "fc8aa4a3adb39a7753c9fe8bd7512da042a0eadab412330e5b948e1cb2bc3c4a"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/LogSettings.cs",
+      "state": "matches-accepted-source",
+      "sha256": "2cdc23b64f2dc846e33c28d4b1a18f1a241726a3db209ab2e25cc740ce33fa34"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/LogSizeTracker.cs",
+      "state": "matches-accepted-source",
+      "sha256": "4f7835b343ae8e42100689df715b44d6e4319113210cbd5be1e1f62d796c611f"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/OperationOptions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "25b07c2a88bfaefd949c64ff8a0cc9072dbc23753f74a0a5c3154d29b124da8b"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/OperationState.cs",
+      "state": "matches-accepted-source",
+      "sha256": "df257ef101db31d5106cfa1f8c6ae94c9a679da72e374820c6bf2a622262a8bf"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/OperationStatus.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9fe31134a22c99eb543c8fa95e385601cde3a94fa715e5235e1ac2e0e66d3001"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/PendingIoContext.cs",
+      "state": "matches-accepted-source",
+      "sha256": "22d09de6c3fd68b1fff5119049a8bcde311353eb05c59019a6ba39ba680fec95"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/PendingState.cs",
+      "state": "matches-accepted-source",
+      "sha256": "946d29e2a96c435e0160f414912e681952f0ad22d3c5ae539dec48bd1f51f6eb"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/ReadCacheSettings.cs",
+      "state": "matches-accepted-source",
+      "sha256": "214700fb544d1911b642f9f39720c30665cc27eec2980b27885b8a8b1c7ff89f"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs",
+      "state": "matches-accepted-source",
+      "sha256": "625c519bfb4663c29aebb12f1e4b827620b0e831a6db647b2e771679f8245c76"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/RecordMetadata.cs",
+      "state": "matches-accepted-source",
+      "sha256": "4d350fd3c644739a2a4b4d11abc9e51319a8a9cbbfac5a99d07a186ccf944aae"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/SingleWaiterAutoResetEvent.cs",
+      "state": "matches-accepted-source",
+      "sha256": "0605bec785a9c8304863f61b7bc99d9f391122253d2c45c498c6593a1383ffea"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/CallbackInfos.cs",
+      "state": "matches-accepted-source",
+      "sha256": "301fbeecdb9a340b5e355e6f12ba7374791e7ad6d20cb2ed490b0d16d392d44c"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IKey.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8a6f8a5eee185f115d56e7f6d104edf397abbdabbac8cbda4d9cec95f546df1d"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IKeyComparer.cs",
+      "state": "matches-accepted-source",
+      "sha256": "f7d02b355899251f887e6e55c7c1395869ec522667e3fa8c59c13348d59fa9c4"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IObjectSerializer.cs",
+      "state": "matches-accepted-source",
+      "sha256": "98e606ea60ae921b36ea101b8f0e72a2351fef617b20ea0f30df01c1cc7eb168"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IReadArgBatch.cs",
+      "state": "matches-accepted-source",
+      "sha256": "521726fde63001c0c0f8b2e647e5fbeb65d85bbfa5b1fbe65343a9c0c8646e54"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionFunctions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "61a168c3e8e14f619b31ea355524e0c42c09db5f602619826c9480e74466b503"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionFunctionsWrapper.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9ac5bb61306a573312d3f4dc1d43b2dff6635bdc1a0a03583a19483acdafa5e6"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionLocker.cs",
+      "state": "matches-accepted-source",
+      "sha256": "042b732bba8bf819dac2e578c1927f8684e1ba215346300d7ee1e461380d6fdd"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/SessionFunctionsBase.cs",
+      "state": "matches-accepted-source",
+      "sha256": "acb478a382873e8f4833a5224693f9485c925f838dea9f3ae14b1ccbd9862e51"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Recovery/Checkpoint.cs",
+      "state": "matches-accepted-source",
+      "sha256": "14abfe1dbddc25db59ef287f66a7ec26759220a186a262a4576feb2ab789ec84"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Recovery/FileDescriptor.cs",
+      "state": "matches-accepted-source",
+      "sha256": "90ec9608d135b3e00ef27b9a19ddf3e478841f74dee9e7dbbef5e7f49e22b8e3"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Recovery/ICheckpointManager.cs",
+      "state": "matches-accepted-source",
+      "sha256": "615045cce1175ac6de56d8adcd253528c2b2c82d14ff5a938f364ab44af4590d"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Recovery/IndexCheckpoint.cs",
+      "state": "matches-accepted-source",
+      "sha256": "13ea0d422a2a47bef3393a3d3d4edb0fe03463b219ff3a007b88394be7ab4db0"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Recovery/IndexRecovery.cs",
+      "state": "matches-accepted-source",
+      "sha256": "f8a403d294144ca062789200344aac6f802f41db484e514742c7c3d874b32e6f"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs",
+      "state": "matches-accepted-source",
+      "sha256": "84c54f7252483643571f78400bb9fdb5f554a66702818596bf58a26a78fee261"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Recovery/RecoveryIoScope.cs",
+      "state": "matches-accepted-source",
+      "sha256": "bdd116ff90a1e10e28f9aa4c69569ced0407f976e5c23b74fc10e03453f71b52"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/CheckpointTrigger.cs",
+      "state": "matches-accepted-source",
+      "sha256": "06f8fbbd40b22ef136b42a159a6197588bf29d31c89de8959f2aee7a5395e068"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/DisposeReason.cs",
+      "state": "matches-accepted-source",
+      "sha256": "49f629c5241049718729898c5bbb81f0f1823fb432500c8631b07aa3c4305079"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/IRecordTriggers.cs",
+      "state": "matches-accepted-source",
+      "sha256": "2f91c6f05656c6f7947430e0610b109aa0174118b1d8ec06abbedf08ea288c19"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/IStoreFunctions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "36dd9e939cc5a4fa4031728181b1dce5275c042041ef443db4e84f66f6ba32ec"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/StoreFunctions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "c655e4d24d2899a06c950c77f65778bc88812d9b08da2088eb6b853e3f97a5b2"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Constants.cs",
+      "state": "matches-accepted-source",
+      "sha256": "c36486df436c7405c1d2b1b0ae9aa6d7e496a7a1c268c4c6abc1500c7b8ec26a"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucket.cs",
+      "state": "matches-accepted-source",
+      "sha256": "1d28ee0105efd4cda34e198978fba76a6d482ed75c5c1ddc82bc66ce412de47d"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucketEntry.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a45a3f5c2cd714200a3f817450e098d17406251182b1aadfae111c56f157d729"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/BlockAllocate.cs",
+      "state": "matches-accepted-source",
+      "sha256": "21bcf0592e26670224d38d7b68a843fa45f97ad2aa11d94eb718d2c59f470098"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ConditionalCopyToTail.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8829e590b101f0f887a8e289329c9a3a4d8c451060c101adc1aa143e9e2f1332"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ContainsKeyInMemory.cs",
+      "state": "matches-accepted-source",
+      "sha256": "0b2cf7146e11d4219f134657b7bfde29623fdcd56a4d9c6f759ee113afb4693c"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ContinuePending.cs",
+      "state": "matches-accepted-source",
+      "sha256": "fcab122b2502b2098b9799ef0c0bde788845acb42db07dca8e5fa4fb63b64b54"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/EpochOperations.cs",
+      "state": "matches-accepted-source",
+      "sha256": "e98db3bda6ea25de6ffbdeba757a79cdb825b0481f7414b536390e734f8bccba"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/FindRecord.cs",
+      "state": "matches-accepted-source",
+      "sha256": "3dbe95eaa80a40c3d8bb3954f53c124c10d0c6a16a9602f72d33f5403a18122c"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/HandleOperationStatus.cs",
+      "state": "matches-accepted-source",
+      "sha256": "06c6871cd36e7014a8fe835a0e9933e86e63633794f405d201548e75304f41de"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/HashEntryInfo.cs",
+      "state": "matches-accepted-source",
+      "sha256": "ab15643e40bae947d90893a1813aa45f70ef1fb5cfffb3ddf9fc07d3cc4c5dbc"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Helpers.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8c210c636de43e38c037d633fe934ef44b1ec24cfeca8724b2620e7fd835e60c"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalDelete.cs",
+      "state": "matches-accepted-source",
+      "sha256": "86fde22f49793fa1f4f627e5b07edfc67f707ad5f7b3ea52ebaa714473330601"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalLock.cs",
+      "state": "matches-accepted-source",
+      "sha256": "7c77b79473d60bb931c1d23950e9bd59348236ad768bf629e450161f2aaf0f01"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRMW.cs",
+      "state": "matches-accepted-source",
+      "sha256": "d0a7f2b4c70d8ffa45be29f7aacc518f11dc6ab771090fa63d82b3f926dad0ca"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9f096dc189ba6e21a1e68698e5db9cb8179f1cf932beb9627e35fc23868ff9c6"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalUpsert.cs",
+      "state": "matches-accepted-source",
+      "sha256": "79d88ca6b582a9e07ab778e6df665f5f42f6f8fc3f809d0dfa3a7174a1e4face"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/ILockTable.cs",
+      "state": "matches-accepted-source",
+      "sha256": "f1521fcd027930c49005b522103d3a4ad7d071334cfa913f2dcd58ac6a8fcb5f"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/OverflowBucketLockTable.cs",
+      "state": "matches-accepted-source",
+      "sha256": "be1935cf1cd2621bd3d62eb92faf35a886a6ca9df557d0a9ded0ec0c9b57028a"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/TransientLocking.cs",
+      "state": "matches-accepted-source",
+      "sha256": "709aea66a2588ba7824de8e11c62b8ebdbd2e0fbaac16021d8bfae484a39c2cf"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ModifiedBitOperation.cs",
+      "state": "matches-accepted-source",
+      "sha256": "7c90c976f703d64188da81630f6080824190618e258d2698feca6d95b355253a"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/OperationStackContext.cs",
+      "state": "matches-accepted-source",
+      "sha256": "1a137ab8104d251b0bcd5f92c475d951abef8a3724679de7f5017081cd8c2da7"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs",
+      "state": "matches-accepted-source",
+      "sha256": "b0ae41912cdcf0e6bafa7f6564f8210c9570a7e0c2189eadcd02f1a0c99dbd0c"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/RecordSource.cs",
+      "state": "matches-accepted-source",
+      "sha256": "146f0f52a20dd5f8aab331e14438dfc3f994ad9a2f17d08d6455084cd6038c0f"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/CheckEmptyWorker.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9855ef65df2ebf67b25869f428afd6190e64d34817d2c19fba60be8f598e28f5"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/FreeRecordPool.cs",
+      "state": "matches-accepted-source",
+      "sha256": "79ebd20b3236d79e0aac948cc02a0963b1905ec5e58066e9ac37dca49c25ca64"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationManager.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8f75bd0fc15ece5fa29464c27972bb8f297ec8a854f2db6b10972410c08cc30d"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationSettings.cs",
+      "state": "matches-accepted-source",
+      "sha256": "f602c3a24b7ad0ece4fd0573c2a12c63a1bb2e22d3014fb90848657c5e769eb0"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationStats.cs",
+      "state": "matches-accepted-source",
+      "sha256": "e9fe58ee26294d02fac107b3ccbcfc7b87d8ebf777f43388b1ad306ab7d845b2"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/SplitIndex.cs",
+      "state": "matches-accepted-source",
+      "sha256": "bebc9503dd741e01592757d9acf822f3b414c7cd3c723dc8b075be18900cb633"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/TryCopyToReadCache.cs",
+      "state": "matches-accepted-source",
+      "sha256": "311dd5f480e4300d38b13a69fb7e2ce0d4234dd2b415d7dfae7d017cac989405"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/TryCopyToTail.cs",
+      "state": "matches-accepted-source",
+      "sha256": "04fc2937c7aacb3ee6ed3b774027255e2d52f34373ce505eaf885e970279f8c2"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/UpsertValueSelector.cs",
+      "state": "matches-accepted-source",
+      "sha256": "2a38c12eff31f91e0a1d0b56e0d269e8f7ba0ecb7bdff13f1bd286a816487d7d"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/LogAccessor.cs",
+      "state": "matches-accepted-source",
+      "sha256": "fb43fc5b221aa7c12cb20886d1e47ebb79b38de5fa8dbe5e9fc7da5ffcc89ea6"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Tsavorite.cs",
+      "state": "matches-accepted-source",
+      "sha256": "5b31dd1c6e121f6f49bfd39f2cce49835966106456f7a67a0dcffd6d0769efe6"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a9129529cb85c7b5bb25c0bcea223e7d84049841c89c1536f20ec402f4199234"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteIterator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "a333afe9cdb8be6e45b432ffd266bff27a6101045fddf189343b614c5493dabe"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteThread.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9caae72f9d735722d9107f3fdce4fca21ddeda21c8b56fc87a55d1a26c7904b8"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Native/DirectVirtualMemory.cs",
+      "state": "matches-accepted-source",
+      "sha256": "d0397387e6fd0185a5020fbbedabc5b097a19f169246f8e7d5066eb40c324185"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Native/DirectVmBlockOwner.cs",
+      "state": "matches-accepted-source",
+      "sha256": "d09177c1841e431eb56844291d833c3780aff1c053a0e43d84a4b5b205b45331"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Native/NativeAllocatorInitializer.cs",
+      "state": "matches-accepted-source",
+      "sha256": "adc0c68f47876f0c7e9e95802bb8e7189479d8c14428eb047154f59c5001c356"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Native/NativeMemoryTracker.cs",
+      "state": "matches-accepted-source",
+      "sha256": "45ce3bbec7cb1e1d36362556315d9aca56ab63a4f953cd66188226edc158bf94"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Native/NativePageBlockRegistry.cs",
+      "state": "matches-accepted-source",
+      "sha256": "1a3148cb68113fa020d6166df5007fe08bdc52b530caa133b309ef6964bb4e36"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/CommitFailureException.cs",
+      "state": "matches-accepted-source",
+      "sha256": "521e1143cf45b4bb587b3f945428b0fe959fa06ede965b6dff6cf798129f1f02"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/CommitInfo.cs",
+      "state": "matches-accepted-source",
+      "sha256": "3a8c084008465d26fe0325b8aebfe55eb3f85b889b034d29781e02a95154b947"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogCommitManager.cs",
+      "state": "matches-accepted-source",
+      "sha256": "fa88951ed1a6e675321d5a664dfd46ba9577df30653f02057056bb48ae33ccf6"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogEnqueueEntry.cs",
+      "state": "matches-accepted-source",
+      "sha256": "42fffc3d596e80258f4210e1ba00b569388a9788f94a75e0dbadbd5e0d3562f4"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogEntryConsumer.cs",
+      "state": "matches-accepted-source",
+      "sha256": "88dec152a3b9eb5f614688afd6ef2a88a453a5eabbb115e3e74bc8b28b8e08df"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/IReadOnlySpanBatch.cs",
+      "state": "matches-accepted-source",
+      "sha256": "f6e9073fe443ed225dc6a0977f50d97fcf198409dcd6ae622faedee36fac07fd"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/IStoreInput.cs",
+      "state": "matches-accepted-source",
+      "sha256": "2c06bef404ee77b1c35f1e8468f2ca8a62d4c98771e29d0da7cc9ca3f1ad9bbc"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/LogCommitPolicy.cs",
+      "state": "matches-accepted-source",
+      "sha256": "cc283cac75d7b09ad4503b3350cc5c4014fb98aea98226841e3cf1c7d991ef04"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.Chunked.cs",
+      "state": "matches-accepted-source",
+      "sha256": "690924d67c3ce4d90826c0cadd222c4285b27611c451c1efd9f4614a0b7b77b0"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs",
+      "state": "matches-accepted-source",
+      "sha256": "2eafbfa525804f97e5fab8c88be9105d7610f7c6fa109571b8f533d64eebd9f8"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogRecoveryInfo.cs",
+      "state": "matches-accepted-source",
+      "sha256": "d6fc84a9defe096bbd4dac48bb423c18d741d4e8950bc4b2fa7923a161d1c047"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanIterator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "b52c9d07b61d6d2027d6eedd5edf37865accaa1a8340def0b6521ec61b2428f0"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanSingleIterator.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8c82fa06c85e9299f41a078d474bc3df9c2bb450f2aaaba1196edc4c8ebc77cc"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogSettings.cs",
+      "state": "matches-accepted-source",
+      "sha256": "df28dd0babf90658e23193d3eaecee369e0cd3e0b85273286b1b9706ffd68a1b"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/AsyncCountDown.cs",
+      "state": "matches-accepted-source",
+      "sha256": "7d5bec6bbc8863633b8927eb29f8739d2b5b6417037f08c87de649c5ded28d06"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/AsyncQueue.cs",
+      "state": "matches-accepted-source",
+      "sha256": "1077e2341578afc04761ecbdd8f6c4406858972e76368c65d3c1e22096cc75b5"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/AsyncResultTypes.cs",
+      "state": "matches-accepted-source",
+      "sha256": "af8c5fd59259675dfbc330456c032382d61d01ffc23c40aea7899526ebed846e"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.Legacy.cs",
+      "state": "matches-accepted-source",
+      "sha256": "ef12b687c4403bf052bb66b8ba0a51d634cb474a6e30ddfabaf086ede40167a3"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs",
+      "state": "matches-accepted-source",
+      "sha256": "255d31b10bfc48731e7d62c3b50354813a8d0b7060c130b7512217e184592912"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.cs",
+      "state": "matches-accepted-source",
+      "sha256": "0bf56f254b67e970bb3efa3ea9730229226736d38e5382b15434548417f12d36"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/CompletionEvent.cs",
+      "state": "matches-accepted-source",
+      "sha256": "8220eb6483aa4c5da36e623ebfd14e794c8939a7958f6c713c5c61a32f25cd64"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/ConcurrencySharding.cs",
+      "state": "matches-accepted-source",
+      "sha256": "328b27bb8d8f009f31888510e0a2ed1cd692479798be991a57cd76c4f7e91dca"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/EmptyKey.cs",
+      "state": "matches-accepted-source",
+      "sha256": "27083fc63bb1c4d147d12c28d7c16b115168c8baf0fcfd6ac412b2132d85a7a4"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/FlushCompletionTracker.cs",
+      "state": "matches-accepted-source",
+      "sha256": "e56379cdf4e3b404894b4b08e0602bea17e7f53451202827237975d3e4428a0b"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/IoFailure.cs",
+      "state": "matches-accepted-source",
+      "sha256": "b0c9527d429638d2241b87e48d7776b9a62a5c0ca000fff9cfabca9a3f07b21a"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/LockType.cs",
+      "state": "matches-accepted-source",
+      "sha256": "9223ae3567710b1ffd8d6decfa22b990c5deef78d555ae45c776ff7e68fbdd68"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/MemoryUtils.cs",
+      "state": "matches-accepted-source",
+      "sha256": "aa2b4f41afc6976ce260978c8cc4aba13af8f7c7f847b7957a79e0c7d047ed29"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/MultiLevelPageArray.cs",
+      "state": "matches-accepted-source",
+      "sha256": "5f03cd2ef157fd98a979add2b7668116a6c7efc0483e06231530938922c1913b"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/Native32.cs",
+      "state": "matches-accepted-source",
+      "sha256": "48769e29b17ae316642e772774512119fcb8db54636f3526843c9155bd7bc5a7"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/OverflowPool.cs",
+      "state": "matches-accepted-source",
+      "sha256": "053e2934491d08d3cb73a3b7dc704b22877f03f15d9629f664756d5343bcd4f8"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/PageAsyncResultTypes.cs",
+      "state": "matches-accepted-source",
+      "sha256": "c87786fb3d3933ff56cb147c3ae45f5f63e8b130e750b9e98ba45555b357ab73"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/SafeConcurrentDictionary.cs",
+      "state": "matches-accepted-source",
+      "sha256": "821bf4c8e09cf49da02401b1d70b7966a0eba77da831dce9569803da9f3d9fd9"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/ScanFrameCompletion.cs",
+      "state": "matches-accepted-source",
+      "sha256": "7dd80544a5526078290e2cdc5c376aab6f239a6d974762fb9db6165baea7411a"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/SimpleConcurrentStack.cs",
+      "state": "matches-accepted-source",
+      "sha256": "61ed67f4a7363f15ca92b04a2c35d0222e728c5fa1525e9c4f840646b5f1feff"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/Status.cs",
+      "state": "matches-accepted-source",
+      "sha256": "162fca51377419a5fa5f4998a40542c54cf39f91b3ccd6182a38c883fde46dd4"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/StatusCode.cs",
+      "state": "matches-accepted-source",
+      "sha256": "1319b84ca1be7e666fb71b7eda3f7eb51cfddea7abd92ccc6b3f0e9866f5789b"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/ThreadLocalCache.cs",
+      "state": "matches-accepted-source",
+      "sha256": "b133b6d48aa260c2e89d69b42b5fef570d9f8d83a9ac2af738f1c0e494413ec9"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/TsavoriteException.cs",
+      "state": "matches-accepted-source",
+      "sha256": "d34f58f056de25e51a114269e8c7bdd695f7db2b2e633b39cc8a1498ec59b835"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/Utility.cs",
+      "state": "matches-accepted-source",
+      "sha256": "57c86436260e55c9120eda870b887f638f02e91eea099a6369f9706a4a05a06a"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/BorrowedMemoryOwner.cs",
+      "state": "matches-accepted-source",
+      "sha256": "faaae33d12751b8423b4581ef317260d11ab75322fbde9e9bed90e5f81a91c00"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/IVariableLengthInput.cs",
+      "state": "matches-accepted-source",
+      "sha256": "73f6e47a9daf649009ba6df379f9a0192b99fcd2410630c763d0af7a3437f2c0"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/PinnedSpanByte.cs",
+      "state": "matches-accepted-source",
+      "sha256": "02480434f04e9f4328df399acdb51d8ad23b88dde7f041346a4ac4bfa29ae75a"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/RecordFieldInfo.cs",
+      "state": "matches-accepted-source",
+      "sha256": "0d76fd4e32e3fba04e5bdd018ed921ffabb60d4f3708291e8d02ba36eb6ea894"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/RecordSizeInfo.cs",
+      "state": "matches-accepted-source",
+      "sha256": "45bd9d9449dc0abc5255ff73d0accb01c1dddf6905e4dfcfa87aa6f22e05d7ab"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByte.cs",
+      "state": "matches-accepted-source",
+      "sha256": "d0e6113033d70eac26b70d028a0dfcf811e43126d6b13e577e85d30b9a22c5b5"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteAndMemory.cs",
+      "state": "matches-accepted-source",
+      "sha256": "382ebd2394ae6427dcb576d41635bfaf34ea3a9f0d3764b7cebcc2f2b3b503f5"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteComparer.cs",
+      "state": "matches-accepted-source",
+      "sha256": "5bd7e5fd5021c86c0b11eb5cafc9b96e33d9e184ee315a98ff437168f1f636a4"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteFunctions.cs",
+      "state": "matches-accepted-source",
+      "sha256": "5bb59733753a765b135b6e095f7f8bd5e42b6b396dfbc3f49b012397cd679dad"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteHeapContainer.cs",
+      "state": "matches-accepted-source",
+      "sha256": "7839730911f68c5b7e53f767ceedffea40d33ab57ebd9936e062d134a019c3e1"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/UnmanagedMemoryManager.cs",
+      "state": "matches-accepted-source",
+      "sha256": "6fbf7c7c141c74e0059dd26ad895f74f7862e9334c1d26c90971569492acc9ce"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/buildTransitive/Seamless.Tsavorite.Core.targets",
+      "state": "absent-from-acceptance",
+      "sha256": "68860c473f9ff4d65bd78db4e9640d86dad6507e0a4a72ecdbefd9f6e81cf816"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/core43-recovery-and-scan.patch",
+      "state": "absent-from-acceptance",
+      "sha256": "740be82ee2dc57e499829236606371e1b1399b23c1c3e92e0100667ab4b0c398"
+    },
+    {
+      "path": "Seamless.Tsavorite.Core/recovery-head-pages.patch",
+      "state": "absent-from-acceptance",
+      "sha256": "c517408f7561de15c6b52b0be62ddaacb9571860b3fbd48fc4ed138af4a917b5"
+    },
+    {
+      "path": "Seamless.slnx",
+      "state": "absent-from-acceptance",
+      "sha256": "a51fc7db503dbae7351743da288648369b821f78637994f4dd1d372b9d9cc479"
+    },
+    {
+      "path": "Shared/TpcC.Transactions/Frames/CustomerLookup.cs",
+      "state": "matches-accepted-source",
+      "sha256": "144ae8da86b3763d22bf05c1e8a65b819ba0d67183313131da503682f483f5f2"
+    },
+    {
+      "path": "Shared/TpcC.Transactions/Frames/DeliveryFrames.cs",
+      "state": "matches-accepted-source",
+      "sha256": "1aeabb3e904b27a6d46579080f75c5f86ed4d5d2f45780aa0f705b74289a3e98"
+    },
+    {
+      "path": "Shared/TpcC.Transactions/Frames/NewOrderFrames.cs",
+      "state": "matches-accepted-source",
+      "sha256": "75b061c035fbcab9c3edd06a07c7d7f2ac99de4d4058f07545c5f57fc7adaf03"
+    },
+    {
+      "path": "Shared/TpcC.Transactions/Frames/OrderStatusFrames.cs",
+      "state": "matches-accepted-source",
+      "sha256": "738236500ea6a58501b6be708733d80fcad240497c1601b1fab56eddf4955db3"
+    },
+    {
+      "path": "Shared/TpcC.Transactions/Frames/PaymentFrames.cs",
+      "state": "matches-accepted-source",
+      "sha256": "f28a09a65a8dd6cc4141a971ed68992411d0af86df6d201f878a06816239e2cb"
+    },
+    {
+      "path": "Shared/TpcC.Transactions/Frames/StockLevelFrames.cs",
+      "state": "matches-accepted-source",
+      "sha256": "85cecbe27d404a756268081c8018c386e8b264da7ddf2ca29da81db7a46a9b2b"
+    },
+    {
+      "path": "Shared/TpcC.Transactions/Queries/TpcCQueries.cs",
+      "state": "matches-accepted-source",
+      "sha256": "ba451165a76516f363a84bb4828ea886943960da3473959793892406c004edab"
+    },
+    {
+      "path": "Shared/TpcC.Transactions/TpcC.Transactions.projitems",
+      "state": "matches-accepted-source",
+      "sha256": "2fe2c56d16c6e3d2d36acce23695c5cf5d32d5c40c36b477ccaa78d54b1b2a8e"
+    },
+    {
+      "path": "Shared/TpcC.Transactions/TpcC.Transactions.shproj",
+      "state": "absent-from-acceptance",
+      "sha256": "1f376a7c60191e2b872d67109d151cbcdbcc6eb39deb74c2db97acab9fddd8b1"
+    },
+    {
+      "path": "Shared/TpcC.Transactions/TpcCEngine.cs",
+      "state": "matches-accepted-source",
+      "sha256": "ab35b87d1e9a822f68a8236b456fce35b8c75b25f957cb76dcde4cdd1c412789"
+    },
+    {
+      "path": "Test.Scalable.Tsavorite.Collections/Test.Scalable.Tsavorite.Collections.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "6f934791daa07696917e35b039dc51d5baed73d44c4d7e96266b1c108f08ee7d"
+    },
+    {
+      "path": "Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "2ef3d6bec40cb157c3cca5c3443a80901d33ed5fcd02aff35123aa2d78139fb9"
+    },
+    {
+      "path": "Test/Test.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "81efede50eee61b4080e8634428d2541fefb5727c3dcca933367dbdaebf1afbf"
+    },
+    {
+      "path": "Tests/Seamless.TestKit/Seamless.TestKit.csproj",
+      "state": "matches-accepted-source",
+      "sha256": "96192ccbda51547c2078f878ef0e81e9a9a9ad4c1c55daed4642c12601a05ecf"
+    },
+    {
+      "path": "Update-FocusedSolutions.ps1",
+      "state": "absent-from-acceptance",
+      "sha256": "a5c7201c9c33fc7d9e67ba05559b883f6460ed145af5cb807c85bfa57ee5d3ef"
+    }
+  ],
+  "excluded": [
+    "Benchmark.Dynamic.slnx",
+    "Benchmark.Headless.slnx",
+    "Benchmark.Scalable.slnx",
+    "Benchmark.TpcC.slnx",
+    "Benchmark.TpcE.slnx",
+    "Benchmark.Tsavorite.ParameterSweep.slnx",
+    "Sample.NetShop.slnx",
+    "Seamless.Database.Tool.slnx",
+    "Seamless.Tsavorite.Core.bak-before-sync/.gitattributes",
+    "Seamless.Tsavorite.Core.bak-before-sync/README.Core.md",
+    "Seamless.Tsavorite.Core.bak-before-sync/Seamless.Tsavorite.Core.csproj",
+    "Seamless.Tsavorite.Core.bak-before-sync/UPSTREAM-PROVENANCE.json",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream.Core.Items.props",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/.editorconfig",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/Garnet.snk",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/LICENSE",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorScan.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorSettings.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/AsyncIOContext.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/AtomicOwner.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ConditionallyHoistedKey.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/CountdownWrapper.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/DiskLogRecord.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ErrorList.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/HeapObjectBase.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/IAllocator.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/IHeapObject.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/IScanIteratorFunctions.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ISourceLogRecord.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/IStreamingSnapshotIteratorFunctions.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ITsavoriteScanIterator.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/LogField.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/MallocFixedPageSize.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectAllocator.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectAllocatorImpl.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectIdMap.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectScanIterator.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ChunkHeader.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ChunkedObjectSerializer.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ChunkedRecordConstants.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/CircularDiskReadBuffer.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/CircularDiskWriteBuffer.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/DiskReadBuffer.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/DiskWriteBuffer.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/IChunkedObjectSerializerConsumer.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/IStreamBuffer.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ObjectLogFilePositionInfo.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ObjectLogReader.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ObjectLogWriter.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/PinnedMemoryStream.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/OptionalFieldsShift.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/OverflowByteArray.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/PageHeader.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/PageUnit.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/PendingFlushList.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/RecordDataHeader.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/RecordNamespace.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ScanCursorState.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/ScanIteratorBase.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/SerializationPhase.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteAllocator.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteAllocatorImpl.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteScanIterator.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/TsavoriteLogAllocator.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/TsavoriteLogAllocatorImpl.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/WorkQueueFIFO.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Allocator/WorkQueueLIFO.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Async/CompletePendingAsync.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/BasicContext.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/ClientSession.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/ConsistentReadContext.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/IClientSession.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/ITransactionalContext.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/ITsavoriteContext.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/IUnsafeContext.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/ManageClientSessions.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/NoOpSessionFunctions.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/SessionFunctionsWrapper.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalConsistentReadContext.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalContext.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalUnsafeContext.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/ClientSession/UnsafeContext.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Compaction/CompactionType.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Compaction/ICompactionFunctions.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Compaction/TsavoriteCompaction.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/AsyncPool.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/DeviceOptions.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/DeviceType.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/Devices.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/LinuxFileExtensions.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/LocalMemoryDevice.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/LocalStorageDevice.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/ManagedLocalStorageDevice.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/NativeStorageDevice.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/NullDevice.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/RandomAccessLocalStorageDevice.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/ShardedStorageDevice.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/SpscRing.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Device/TieredStorageDevice.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Epochs/IEpochAccessor.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.EntryTable.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.TestHooks.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DefaultCheckpointNamingScheme.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DeviceLogCommitCheckpointManager.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/ICheckpointNamingScheme.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/INamedDeviceFactory.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/INamedDeviceFactoryCreator.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/LocalStorageNamedDeviceFactory.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/LocalStorageNamedDeviceFactoryCreator.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/NullNamedDeviceFactory.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/NullNamedDeviceFactoryCreator.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/RecoveryInfo.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/Checkpoint.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/FoldOverSMTask.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/FullCheckpointSM.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/HybridLogCheckpointSM.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/HybridLogCheckpointSMTask.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IStateMachine.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IStateMachineCallback.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IStateMachineTask.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexCheckpointSM.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexCheckpointSMTask.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexResizeSM.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexResizeSMTask.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/SemaphoreWaiterMonitor.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/SnapshotCheckpointSMTask.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateMachineBase.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateMachineDriver.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateMachineTaskType.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateTransitions.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StreamingSnapshotCheckpointSM.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StreamingSnapshotCheckpointSMTask.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StreamingSnapshotTsavoriteKV.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/TsavoriteStateMachineProperties.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/VersionChangeSM.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/CheckpointSettings.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/CompletedOutput.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/ConcurrentCounter.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/ExecutionContext.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/HeapContainer.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/KVSettings.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/LogAddress.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/LogSettings.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/LogSizeTracker.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/OperationOptions.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/OperationState.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/OperationStatus.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/PendingIoContext.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/PendingState.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/ReadCacheSettings.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/RecordMetadata.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Common/SingleWaiterAutoResetEvent.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/CallbackInfos.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IKey.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IKeyComparer.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IObjectSerializer.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IReadArgBatch.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionFunctions.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionFunctionsWrapper.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionLocker.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/SessionFunctionsBase.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Recovery/Checkpoint.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Recovery/FileDescriptor.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Recovery/ICheckpointManager.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Recovery/IndexCheckpoint.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Recovery/IndexRecovery.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/CheckpointTrigger.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/DisposeReason.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/IRecordTriggers.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/IStoreFunctions.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/StoreFunctions.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Constants.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucket.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucketEntry.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/BlockAllocate.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ConditionalCopyToTail.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ContainsKeyInMemory.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ContinuePending.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/EpochOperations.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/FindRecord.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/HandleOperationStatus.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/HashEntryInfo.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Helpers.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalDelete.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalLock.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRMW.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalUpsert.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/ILockTable.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/OverflowBucketLockTable.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/TransientLocking.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ModifiedBitOperation.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/OperationStackContext.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/RecordSource.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/CheckEmptyWorker.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/FreeRecordPool.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationManager.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationSettings.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationStats.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/SplitIndex.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/TryCopyToReadCache.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/TryCopyToTail.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/UpsertValueSelector.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/LogAccessor.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Tsavorite.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteIterator.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteThread.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Native/DirectVirtualMemory.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Native/DirectVmBlockOwner.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Native/NativeAllocatorInitializer.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Native/NativeMemoryTracker.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Native/NativePageBlockRegistry.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/CommitFailureException.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/CommitInfo.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogCommitManager.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogEnqueueEntry.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogEntryConsumer.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/IReadOnlySpanBatch.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/IStoreInput.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/LogCommitPolicy.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.Chunked.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogRecoveryInfo.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanIterator.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanSingleIterator.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogSettings.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/AsyncCountDown.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/AsyncQueue.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/AsyncResultTypes.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.Legacy.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/CompletionEvent.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/ConcurrencySharding.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/EmptyKey.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/FlushCompletionTracker.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/IoFailure.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/LockType.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/MemoryUtils.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/MultiLevelPageArray.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/Native32.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/OverflowPool.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/PageAsyncResultTypes.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/SafeConcurrentDictionary.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/SimpleConcurrentStack.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/Status.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/StatusCode.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/ThreadLocalCache.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/TsavoriteException.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/Utilities/Utility.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/BorrowedMemoryOwner.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/IVariableLengthInput.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/PinnedSpanByte.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/RecordFieldInfo.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/RecordSizeInfo.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByte.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteAndMemory.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteComparer.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteFunctions.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteHeapContainer.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/Upstream/libs/storage/Tsavorite/cs/src/core/VarLen/UnmanagedMemoryManager.cs",
+    "Seamless.Tsavorite.Core.bak-before-sync/buildTransitive/Seamless.Tsavorite.Core.targets",
+    "Seamless.Tsavorite.Core.bak-before-sync/recovery-head-pages.patch",
+    "Tests.slnx"
+  ],
+  "selectionCount": 384,
+  "acceptanceMatched": 366,
+  "policy": "Keep the pre-sync backup outside product history; regenerate focused solutions; reconcile source and project registrations with the current integration candidate."
+}

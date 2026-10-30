@@ -47,6 +47,6 @@ public class HashSetDebugView<TKey>(IMemoryCollection<TKey> collection):DebugVie
 /// DebuggerTypeProxy の型引数数を Dictionary の 4 型引数に合わせるためのラッパー。
 /// デバッガーはオープンジェネリック型を使う際に型引数数が一致している必要がある。
 /// </summary>
-public class DictionaryDebugView<TKey, TValue, TKeySerializer, TValueSerializer>(IMemoryCollection<KeyValuePair<TKey,TValue>> collection):DebugView<TKey,TValue>(collection) where TKeySerializer : ISerializer<TKey>
-    where TValueSerializer : ISerializer<TValue> {
+public class DictionaryDebugView<TKey, TValue, TKeySerializer, TValueSerializer>(IMemoryCollection<KeyValuePair<TKey,TValue>> collection):DebugView<TKey,TValue>(collection) where TKeySerializer : global::Seamless.Collections.Serializers.IStrategy<TKey>
+    where TValueSerializer : global::Seamless.Collections.Serializers.IStrategy<TValue> {
 }

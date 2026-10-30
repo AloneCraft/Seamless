@@ -178,6 +178,26 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
     }
 
     [Fact]
+    public void NonGenericMethodOnClosedGenericOwnerCompilesAndRuns(){
+        const string source="""
+            #nullable disable
+            using System.Linq;
+            using Seamless.FLinq;
+            namespace Sample;
+            [LinqIntercept(false)]public sealed class Entry{
+                public static int Run(){return new Box<string>().CountItems(new[]{"a",null})+new Box<int>().CountItems(new[]{0,1});}
+            }
+            [LinqIntercept(false)]public sealed class Box<T>{
+                [LinqIntercept(true)]public int CountItems(T[] values){return values.Where(value=>value is not null).Count();}
+            }
+            """;
+        var(compilation,generated)=ExecutableGeneration.Generate(source,"ClosedGenericOwnerProbe",minimumInterceptions:2);
+        Assert.DoesNotContain("UnsupportedLinqExpansion(",generated,StringComparison.Ordinal);
+        var actual=ExecutableGeneration.Run(compilation,"Sample.Entry",static type=>(int)type.GetMethod("Run")!.Invoke(null,null)!);
+        Assert.Equal(3,actual);
+    }
+
+    [Fact]
     public void PrivateConstraint_ReportsNotConfigurableFLINQ005() {
         var (result,_)=RunGenerator(PrivateConstraintRewrite);
         var diagnostic=Assert.Single(result.Diagnostics.Where(static diagnostic => diagnostic.Id=="FLINQ005"));
@@ -235,6 +255,29 @@ public class LinqRewriteAttributeTests(ITestOutputHelper output) {
     [Fact]
     public void LinqRewrite_OnInnerClass_OverridesNoRewriteOnOuterClass() {
         this.AssertIntercepted(InnerClassOverridesOuter);
+    }
+
+    [Theory]
+    [InlineData(false,false)]
+    [InlineData(false,true)]
+    [InlineData(true,false)]
+    [InlineData(true,true)]
+    public void IteratorFallbackWarningIsLimitedToLinqMethods(bool containsLinq,bool enabled) {
+        var body=containsLinq
+            ? "yield return values.Where(static value=>value>0).First();"
+            : "foreach(var value in values){yield return value;}";
+        var source=$$"""
+using System.Collections.Generic;
+using System.Linq;
+[Seamless.FLinq.LinqIntercept({{enabled.ToString().ToLowerInvariant()}})]
+public class Container {
+    public IEnumerable<int> Source(int[] values){ {{body}} }
+    public IEnumerable<int> Run(int[] values)=>this.Source(values);
+}
+""";
+        var (result,compilation)=RunGenerator(source);
+        Assert.DoesNotContain(compilation.GetDiagnostics(),static diagnostic=>diagnostic.Severity==global::Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
+        Assert.Equal(containsLinq&&enabled,result.Diagnostics.Any(static diagnostic=>diagnostic.Id=="FLINQ004"));
     }
 
     private void AssertIntercepted(string source) {

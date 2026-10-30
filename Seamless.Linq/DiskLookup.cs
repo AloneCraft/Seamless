@@ -1,12 +1,12 @@
-using System.Buffers.Binary;
+﻿using System.Buffers.Binary;
 using System.IO;
 using Seamless.Collections.Persisted;
 using Seamless.Execution;
 namespace Seamless.Linq;
 internal sealed class DiskLookup<TKey,TElement>:IDisposable{
     private readonly ExecutionScope scope;
-    private readonly IBinaryCodec<TKey> keys;
-    private readonly IBinaryCodec<TElement> elements;
+    private readonly global::Seamless.Execution.Codecs.IAdapter<TKey> keys;
+    private readonly global::Seamless.Execution.Codecs.IAdapter<TElement> elements;
     private readonly IEqualityComparer<TKey>? comparer;
     private readonly ScopedByteIndex index;
     private readonly TemporaryFile groups;

@@ -56,10 +56,82 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
             return RangeModuloDistinctRoot.RenderExtremeBy(range,modulus,番号,destVar,destType,direction=="greater");
         }
         var methodName = direction=="greater" ? "MaxBy" : "MinBy";
-        return this.RenderComputeInline(destVar,destType)
+        return this.RenderConsumeBasedMinMaxByInline(destVar,destType)
+            ??this.RenderComputeInline(destVar,destType)
             ??(TryRenderDirectLambda(keySelector) is { } lambda
                 ? this.RenderDirectEnumerableCallInline(source,destVar,destType,methodName,lambda)
                 : null);
+    }
+
+    private string? RenderConsumeBasedMinMaxByInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }else{
+        }
+        var placeholder = $"__FLINQ_MINMAXBY_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }else{
+        }
+        var keyType = FuncReturnTypeName(keySelector);
+        var foundVar = $"__found{番号}";
+        var bestElementVar = $"__bestElem{番号}";
+        var bestKeyVar = $"__bestKey{番号}";
+        var keyVar = $"__key{番号}";
+        var comparerVar = $"__comparer{番号}";
+        var isMax = direction=="greater";
+        string compOp;
+        if(isMax) {
+            compOp=">0";
+        }else{
+            compOp="<0";
+        }
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(keySelector),
+            this.StaticDelegateLocalDeclarations(keySelector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            var assign = this.FuncAssignStatic(keySelector,nameof(keySelector),keyVar,arg);
+            string compExpr;
+            if(this.IsIntegralKey) {
+                if(isMax) {
+                    compExpr=$"{keyVar}>{bestKeyVar}";
+                }else{
+                    compExpr=$"{keyVar}<{bestKeyVar}";
+                }
+            }else{
+                compExpr=$"{comparerVar}.Compare({keyVar},{bestKeyVar}){compOp}";
+            }
+            return $"{indent}{keyType} {keyVar}=default!;\n{indent}{assign}\n{indent}if(!{foundVar}) {{\n{indent}    {bestElementVar}={arg};\n{indent}    {bestKeyVar}={keyVar};\n{indent}    {foundVar}=true;\n{indent}}} else if({compExpr}) {{\n{indent}    {bestElementVar}={arg};\n{indent}    {bestKeyVar}={keyVar};\n{indent}}}";
+        });
+        string comparerInit;
+        if(this.IsIntegralKey) {
+            comparerInit="";
+        }else{
+            comparerInit=$"var {comparerVar}=global::System.Collections.Generic.Comparer<{keyType}>.Default;\n";
+        }
+        return $$"""
+            {{localDeclarations}}
+            {{destType}} {{bestElementVar}}=default!;
+            {{keyType}} {{bestKeyVar}}=default!;
+            var {{foundVar}}=false;
+            {{comparerInit}}{{replaced}}
+            if(!{{foundVar}}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+            {{destType}} {{destVar}}={{bestElementVar}};
+            """;
     }
     protected override string ComputeMembers => source.CanTryProvideSpan
         ? this.BuildTrySpanCompute()

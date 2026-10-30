@@ -304,7 +304,7 @@ file static class ScalableTsavoriteConfiguration {
         SegmentSize=segment,
         LogMemorySize=memory,
         MutableFraction=fraction,
-        AutoGrowIndex=false,
+        Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>(),
     };
 
     public static StoreLimits CreateLimits(long index,long page,long memory) => new() {

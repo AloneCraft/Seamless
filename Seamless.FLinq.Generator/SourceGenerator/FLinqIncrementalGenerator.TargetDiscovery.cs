@@ -50,13 +50,10 @@ public sealed partial class FLinqIncrementalGenerator {
         target=null;
         diagnostic=null;
 
-        // 呼び出し側で型引数が確定済みのジェネリックメソッド呼び出し（例: Foo<int>(...)）も、
-        // 未構築の定義（OriginalDefinition）に正規化してから以降の判定・生成を行う。
-        // 生成される補助メソッドは元の型パラメーター名（例: TAnonymous）を持つジェネリックメソッドとして
-        // 宣言され、呼び出し側の型引数はインターセプター経由でコンパイラが解決する。
-        if(method.IsGenericMethod) {
-            method=method.OriginalDefinition;
-        }
+        // method自身と含有型の両方を未構築の定義へ戻す。Probe<string>.Runのような
+        // 非generic methodでも、本文はProbe<T>の宣言を読むため署名と同じ型束縛を使う。
+        // 呼び出し側の具体型はinterceptorのreceiverと引数からコンパイラが解決する。
+        method=method.OriginalDefinition;
 
         // インターセプト対象にする主条件は 2 つ:
         // 1. その場所が
@@ -106,12 +103,6 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        if(method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is MethodDeclarationSyntax calleeSyntax) {
-            if(calleeSyntax.DescendantNodes().Any(static n => n.IsKind(SyntaxKind.YieldReturnStatement)||n.IsKind(SyntaxKind.YieldBreakStatement)||n.IsKind(SyntaxKind.AwaitExpression))) {
-                diagnostic=Diagnostic.Create(フォールバック警告Descriptor,invocation.GetLocation(),method.Name,"yield return または await");
-                return false;
-            }
-        }
 
         var enclosingSymbol = context.SemanticModel.GetEnclosingSymbol(invocation.SpanStart,cancellationToken);
         if(enclosingSymbol is null) {
@@ -122,13 +113,11 @@ public sealed partial class FLinqIncrementalGenerator {
         if(containingType is null) {
             return false;
         }
-        if(containingMethod is not null&&!LinqRewrite判定(containingMethod,context.SemanticModel.Compilation)) {
+        // Rewrite属性の優先順位は呼び出し先で解決する。呼び出し側のNoRewriteを
+        // 重ねると、method/inner classの明示指定やCounterOnlyまで無効になってしまう。
+        if(invocation.FirstAncestorOrSelf<MethodDeclarationSyntax>() is { } containingMethodSyntax
+            &&IsLinqInterceptionExplicitlyDisabled(containingMethodSyntax)) {
             return false;
-        }
-        for(var t = containingType;t is not null;t=t.ContainingType) {
-            if(TryGetLinqRewriteOverride(t.GetAttributes(),out var typeOverride)&&!typeOverride) {
-                return false;
-            }
         }
 
         var linqAnalysis = LinqExpressionAnalyzer.Analyze(method,context.SemanticModel.Compilation);
@@ -136,12 +125,22 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
+
         var configuration = LinqConfigurationResolver.Resolve(method,context.SemanticModel.Compilation);
         var optimizeLinq = LinqRewrite判定(method,context.SemanticModel.Compilation);
         var counterInstrumentation = LinqInstrumentation判定(method,context.SemanticModel.Compilation);
         if(!optimizeLinq&&!counterInstrumentation) {
             return false;
         }
+
+        if(method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is MethodDeclarationSyntax calleeSyntax) {
+            if(calleeSyntax.DescendantNodes().Any(static n => n.IsKind(SyntaxKind.YieldReturnStatement)||n.IsKind(SyntaxKind.YieldBreakStatement)||n.IsKind(SyntaxKind.AwaitExpression))) {
+                diagnostic=Diagnostic.Create(フォールバック警告Descriptor,invocation.GetLocation(),method.Name,"yield return または await");
+                return false;
+            }
+        }
+
+
 
         if(!全型パラメーター取得(method,out var allTypeParameters,out var signatureFailureReason)) {
             diagnostic=Diagnostic.Create(署名生成不能Descriptor,invocation.GetLocation(),method.Name,signatureFailureReason);

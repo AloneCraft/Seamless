@@ -29,7 +29,7 @@ public class StoreTests {
 
     [Fact, Trait("Category","Unit")]
     public void Create_MemoryPackSerializerStrategyExplicit_UnmanagedKey_UnmanagedValue_ReturnsMemoryPackSerializer() {
-        using var store = Store.Create().Create<int,int>(new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+        using var store = Store.Create().Create<int,int>(new global::Seamless.Collections.Serializers.MemoryPack(),new global::Seamless.Collections.Serializers.MemoryPack());
         Assert.IsType<DictionaryStore<int,int>>(store);
     }
 
@@ -61,33 +61,33 @@ public class StoreTests {
     public void CreateManagedManaged_ReturnsManagedManagedDictionary() {
         using var store = Store.Create().Create<string,string>();
         using var dictionary = store.Create();
-        Assert.IsType<Dictionary<string,string,MemoryPackSerializer<string>,MemoryPackSerializer<string>>>(dictionary);
+        Assert.IsType<Dictionary<string,string,global::Seamless.Collections.Serializers.MemoryPack<string>,global::Seamless.Collections.Serializers.MemoryPack<string>>>(dictionary);
     }
 
     [Fact, Trait("Category","Unit")]
     public void CreateUnmanagedManaged_ReturnsUnmanagedManagedDictionary() {
         using var store = Store.Create().Create<int,string>();
         using var dictionary = store.Create();
-        Assert.IsType<Dictionary<int,string,BlittableSerializer<int>,MemoryPackSerializer<string>>>(dictionary);
+        Assert.IsType<Dictionary<int,string,global::Seamless.Collections.Serializers.Blittable<int>,global::Seamless.Collections.Serializers.MemoryPack<string>>>(dictionary);
     }
 
     [Fact, Trait("Category","Unit")]
     public void CreateManagedUnmanaged_ReturnsManagedUnmanagedDictionary() {
         using var store = Store.Create().Create<string,int>();
         using var dictionary = store.Create();
-        Assert.IsType<Dictionary<string,int,MemoryPackSerializer<string>,BlittableSerializer<int>>>(dictionary);
+        Assert.IsType<Dictionary<string,int,global::Seamless.Collections.Serializers.MemoryPack<string>,global::Seamless.Collections.Serializers.Blittable<int>>>(dictionary);
     }
 
     [Fact, Trait("Category","Unit")]
     public void CreateUnmanagedUnmanaged_ReturnsUnmanagedUnmanagedDictionary() {
         using var store = Store.Create().Create<int,int>();
         using var dictionary = store.Create();
-        Assert.IsType<Dictionary<int,int,BlittableSerializer<int>,BlittableSerializer<int>>>(dictionary);
+        Assert.IsType<Dictionary<int,int,global::Seamless.Collections.Serializers.Blittable<int>,global::Seamless.Collections.Serializers.Blittable<int>>>(dictionary);
     }
 
     [Fact, Trait("Category","Unit")]
     public void CreateManagedUnmanagedHashSet_ReturnsManagedUnmanagedHashSet() {
-        using var store = Store.Create().Create<string>(new MemoryPackSerializerStrategy());
+        using var store = Store.Create().Create<string>(new global::Seamless.Collections.Serializers.MemoryPack());
         using var set = store.Create();
         Assert.IsType<global::Seamless.Collections.Tsavorite.HashSet<string>>(set);
     }

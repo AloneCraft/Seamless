@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Benchmark.TpcC.Tsavorite.Linq</RootNamespace>
+    <AssemblyName>Benchmark.TpcC.Tsavorite.Linq</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Benchmark.TpcC.Core\Benchmark.TpcC.Core.csproj" />
+    <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
+  </ItemGroup>
+  <Import Project="..\..\Shared\TpcC.Transactions\TpcC.Transactions.projitems" Label="Shared" />
+</Project>

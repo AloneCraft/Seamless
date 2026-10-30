@@ -1,4 +1,4 @@
-﻿# Release のノート(Markdown)を生成する。変更内容は直前の v* タグからのコミット件名。
+# Release のノート(Markdown)を生成する。変更内容は直前の v* タグからのコミット件名。
 param(
     [Parameter(Mandatory)][string]$Version,
     [Parameter(Mandatory)][string]$Output
@@ -36,7 +36,7 @@ ${fence}
 
 ### アセット
 
-- ``Seamless*.nupkg`` / ``*.snupkg``: ライブラリ・ジェネレータ・ツールとデバッグ用シンボル(``Seamless`` を入れれば一式、個別でも入れられます)
+- ``Seamless*.nupkg`` / ``*.snupkg``: ライブラリ・ジェネレータ・ツールとデバッグ用シンボル(``Seamless`` で基本ライブラリを導入でき、各パッケージは個別にも使えます)
 - ``Seamless-Samples-$Version.zip``: ``Samples/`` のソース(ビルド済みではありません。サンプルのビルドには MAUI のワークロードが必要)
 - ``SHA256SUMS.txt``: 全アセットのチェックサム
 

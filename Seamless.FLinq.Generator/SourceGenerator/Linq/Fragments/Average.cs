@@ -50,6 +50,7 @@ internal class Average(int 番号,Enumerable source,string resultType):BufferedS
             ? RangeArithmeticOptimizer.RenderAverage(range,番号,destVar,destType,doubleElements: false)
             : null)
         ??this.RenderDirectSpanAverageInline(destVar,destType)
+        ??this.RenderConsumeBasedAverageInline(destVar,destType)
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Average")
         ??this.RenderComputeInline(destVar,destType);
     private string? RenderDirectSpanAverageInline(string destVar,string destType) {
@@ -82,6 +83,56 @@ internal class Average(int 番号,Enumerable source,string resultType):BufferedS
             foreach(var item in {{spanName}}) sum+=item;
             {{destVar}}=sum/({{resultType}}){{spanName}}.Length;
             """);
+    }
+    private string? RenderConsumeBasedAverageInline(string destVar,string destType) {
+        var placeholder = $"__FLINQ_AVG_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var countVar = $"__count{番号}";
+        var sumVar = $"__sum{番号}";
+        string accType;
+        string zeroLiteral;
+        if(this.UseDecimalAccumulator){
+            accType="decimal";
+            zeroLiteral="0m";
+        }else if(this.UseDoubleAccumulator){
+            accType="double";
+            zeroLiteral="0.0";
+        }else{
+            accType=destType;
+            zeroLiteral="default!";
+        }
+
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            return $"{indent}{countVar}++;\n{indent}{sumVar}+={arg};";
+        });
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                long {{countVar}}=0;
+                {{accType}} {{sumVar}}={{zeroLiteral}};
+            {{IndentLines(replaced,"    ")}}
+                if({{countVar}}==0){
+                    throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                }else{
+                    {{destVar}}=({{destType}})({{sumVar}}/{{countVar}});
+                }
+            }
+            """;
     }
     protected override string ComputeMembers => this.BuildComputeMembers(source.ElementType,"item","source.Current");
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";

@@ -85,7 +85,7 @@ public sealed class SpanReverseConsumeTests {
             (string)probe.GetMethod("RunFLinq")!.Invoke(null,null)!,
             (string)probe.GetMethod("RunLinq")!.Invoke(null,null)!));
         Assert.Equal(expected.Split('|','#'),actual.Split('|','#'));
-        Assert.Contains("__reverseSpan",generated);
-        Assert.Contains("__reverseBuffer",generated);
+        Assert.Contains("reverseSpan",generated);
+        Assert.Contains("reverseBuffer",generated);
     }
 }

@@ -1,4 +1,5 @@
-using Benchmark.Dynamic.Core;
+﻿using Benchmark.Dynamic.Core;
+using Benchmark.Infrastructure;
 using Syncfusion.Maui.Core.Internals;
 using Syncfusion.Maui.DataGrid;
 using Syncfusion.Maui.Toolkit.TabView;
@@ -8,14 +9,23 @@ using UI;
 namespace Benchmark.Dynamic.UI;
 
 public sealed class MainPage:ContentPage {
+    private readonly Shared.Benchmark.History.測定設定画面 測定設定=new();
     private readonly 動的ベンチマーク画面モデル 画面モデル;
+    private readonly 動的ライブ検証画面 ライブ検証;
+    private readonly 固定理想比較画面 理想比較;
     private readonly Grid ルート;
     private readonly Grid 詳細領域;
     private readonly List<VisualElement> 設定入力一覧=[];
     private readonly List<VisualElement> 実行中無効化一覧=[];
+    private readonly CancellationTokenSource 内部制御終了=new();
+    private Task? 内部制御タスク;
+    private アプリ操作ホスト? 内部制御;
+    private bool 内部制御初期化済みか;
 
-    public MainPage(動的ベンチマーク画面モデル 画面モデル) {
+    public MainPage(動的ベンチマーク画面モデル 画面モデル,動的ライブ検証サービス ライブ検証サービス) {
         this.画面モデル=画面モデル;
+        this.ライブ検証=new 動的ライブ検証画面(ライブ検証サービス){実行排他=画面モデル.実行排他};
+        this.理想比較=new(()=>this.測定設定.最適化フラグ){実行排他=画面モデル.実行排他};
         this.BindingContext=画面モデル;
         this.Title="Dynamic LINQ Benchmark";
         this.BackgroundColor=Color.FromArgb("#F4F7FB");
@@ -48,9 +58,45 @@ public sealed class MainPage:ContentPage {
         this.詳細領域=this.詳細領域を作成();
         this.ルート.Add(this.詳細領域,0,4);
 
+        this.画面モデル.測定設定を取得=()=>this.ストレージ設定を作る();
+        this.ライブ検証.測定設定を取得=()=>this.ストレージ設定を作る();
         this.Content=this.ルート;
         this.画面モデル.PropertyChanged+=this.画面モデル変更時;
         this.画面状態を適用();
+    }
+
+    private (int 最適化,WorkerStorageSettings 設定) ストレージ設定を作る(){
+        var 明示=this.測定設定.明示設定;
+        return (this.測定設定.最適化フラグ,new WorkerStorageSettings(this.測定設定.プロファイル,this.測定設定.拡張,this.測定設定.保存,
+            IndexBytes:明示.IndexBytes,MemoryBytes:明示.LogMemoryBytes,MemoryLimitBytes:this.測定設定.メモリ予算,DiskLimitBytes:this.測定設定.ディスク予算,ProfileCatalogJSON:this.測定設定.プロファイルJSON,IOMode:this.測定設定.入出力,AccessPattern:this.測定設定.アクセス));
+    }
+
+    public void ライブ検証を終了する() {
+        this.内部制御終了.Cancel();
+        this.ライブ検証.終了する();
+        this.理想比較.終了する();
+    }
+
+    public async Task 終了Async(){
+        this.画面モデル.実行排他.終了を受け付ける();
+        this.内部制御終了.Cancel();
+        await Task.WhenAll(this.画面モデル.終了Async(),this.ライブ検証.終了Async(),this.理想比較.終了Async(),this.内部制御タスク??Task.CompletedTask);
+        if(this.内部制御 is{} 制御&&!制御.終了可能か){throw new InvalidOperationException("外部操作の停止・保存・receiptを確認できないため終了を保留しています。",制御.最終障害);}
+    }
+
+    public void 終了障害を表示(string 内容)=>this.画面モデル.内部制御障害を表示(内容);
+
+    protected override void OnAppearing(){
+        base.OnAppearing();
+        if(this.内部制御初期化済みか){return;}
+        this.内部制御初期化済みか=true;
+        try{
+            var 通信=アプリ操作メールボックス.環境から作成();
+            if(通信 is null){return;}
+            var ホスト=new アプリ操作ホスト("Benchmark.Dynamic.UI",通信,new 動的アプリ操作サービス(this.画面モデル));
+            this.内部制御=ホスト;
+            this.内部制御タスク=Task.Run(()=>ホスト.実行Async(this.内部制御終了.Token));
+        }catch(Exception 例外){this.画面モデル.内部制御障害を表示(例外.Message);}
     }
 
     private View 結果領域を作成() {
@@ -91,6 +137,13 @@ public sealed class MainPage:ContentPage {
                 Header="ごみ箱",
                 Content=this.履歴グリッドを作成(true),
             },
+            new SfTabItem {
+                Header="ライブ検証",
+                Content=this.ライブ検証,
+            },
+            new SfTabItem{Header="理想コード",Content=this.理想比較},
+            new SfTabItem{Header="測定設定",Content=this.測定設定},
+            new SfTabItem{Header="共有履歴・比較",Content=new Shared.Benchmark.History.履歴比較画面(Benchmark.Dynamic.Infrastructure.DynamicDatabasePathResolver.Resolve())},
         ];
         タブ.SelectedIndex=0;
         return タブ;
@@ -370,6 +423,19 @@ public sealed class MainPage:ContentPage {
         設定行.Children.Add(モード行);
         this.設定入力一覧.Add(Common);
         this.設定入力一覧.Add(Maximum);
+
+        var 要素型行=new HorizontalStackLayout {Spacing=4};
+        要素型行.Children.Add(new Label {Text="要素型",VerticalTextAlignment=TextAlignment.Center,FontSize=12});
+        var 要素型選択=new Picker {
+            AutomationId="動的設定.要素型",
+            FontSize=12,
+            WidthRequest=150,
+            ItemsSource=this.画面モデル.要素型一覧.ToList(),
+        };
+        要素型選択.SetBinding(Picker.SelectedItemProperty,nameof(動的ベンチマーク画面モデル.要素型),BindingMode.TwoWay);
+        要素型行.Children.Add(要素型選択);
+        設定行.Children.Add(要素型行);
+        this.設定入力一覧.Add(要素型選択);
 
         var 実行=new Button {
             Text="実行",

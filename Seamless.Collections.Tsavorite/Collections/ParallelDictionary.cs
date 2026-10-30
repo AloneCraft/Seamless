@@ -6,8 +6,8 @@ namespace Seamless.Collections.Tsavorite;
 /// </summary>
 public sealed class ParallelDictionary<TKey, TValue, TKeySerializer, TValueSerializer>
     :Collection<TKey,TValue,TKeySerializer,TValueSerializer,ParallelAccess>, IParallelDictionary<TKey,TValue>
-    where TKeySerializer : ISerializer<TKey>
-    where TValueSerializer : ISerializer<TValue> {
+    where TKeySerializer : global::Seamless.Collections.Serializers.IStrategy<TKey>
+    where TValueSerializer : global::Seamless.Collections.Serializers.IStrategy<TValue> {
     private ClientSession<
         FixedSpanByteKey,//TKey
         EqualityEmpty,//TInput

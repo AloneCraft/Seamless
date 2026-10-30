@@ -81,15 +81,56 @@ internal class Any(int 番号,Enumerable source):Scalar(番号) {
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string InlineSupportingMembers => source.GetEnumeratorStruct;
-    public override string? RenderInlineComputation(string destVar,string destType) =>
-        source is RangeRoot range
-            ? RangePredicateOptimizer.RenderAny(range,番号,destVar,destType)
-        : source is RepeatRoot repeat
-            ? RangePredicateOptimizer.RenderAny(repeat,番号,destVar,destType)
-        : source.NonEnumeratedCountExpression is { } countExpression
-            ? $"{destType} {destVar}=({countExpression})!=0;"
-        : this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any")
-            ??this.RenderEnumeratorInline(destVar,destType);
+    public override string? RenderInlineComputation(string destVar,string destType) {
+        if(source is RangeRoot range) {
+            return RangePredicateOptimizer.RenderAny(range,番号,destVar,destType);
+        }
+        if(source is RepeatRoot repeat) {
+            return RangePredicateOptimizer.RenderAny(repeat,番号,destVar,destType);
+        }
+        if(source.NonEnumeratedCountExpression is { } countExpression) {
+            return $"{destType} {destVar}=({countExpression})!=0;";
+        }
+        if(this.RenderConsumeBasedAnyInline(destVar,destType) is { } directConsume) {
+            return directConsume;
+        }
+        if(this.RenderDirectEnumerableCallInline(source,destVar,destType,"Any") is { } directCall) {
+            return directCall;
+        }
+        return this.RenderEnumeratorInline(destVar,destType);
+    }
+
+    private string? RenderConsumeBasedAnyInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_ANY_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var endLabel = $"__anyEnd{番号}";
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            return $"{indent}{destVar}=true;\n{indent}goto {endLabel};";
+        });
+        return $$"""
+            {{destType}} {{destVar}}=false;
+            {{replaced}}
+            {{endLabel}}:;
+            """;
+    }
+
     private string RenderEnumeratorInline(string destVar,string destType) {
         var enumeratorName = $"__s{番号}";
         return $$"""

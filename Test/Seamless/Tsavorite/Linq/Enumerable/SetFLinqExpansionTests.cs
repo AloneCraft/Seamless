@@ -1,4 +1,4 @@
-using Seamless.FLinq;
+﻿using Seamless.FLinq;
 
 using Test.System.Linq.Intercept;
 
@@ -25,7 +25,7 @@ public sealed class SetFLinqExpansionTests {
             Assert.DoesNotContain("System.Linq.Enumerable.Select",generated);
             Assert.DoesNotContain("System.Linq.Enumerable.Sum",generated);
             Assert.DoesNotContain("ScanCursor",generated);
-            Assert.Contains("ISetIterateStrategy",generated);
+            Assert.Contains("Seamless.Collections.Iteration.IStrategy",generated);
             Assert.Contains(".Iterate(ref __TsavoriteSetIterateState",generated);
         } finally {
             source=null;
@@ -70,7 +70,7 @@ public sealed class SetFLinqExpansionTests {
 
     public readonly record struct Row(int Key,int Value):global::Seamless.Collections.IRecord<int>;
 
-    private struct CollectStrategy:global::Seamless.Collections.Tsavorite.ISetIterateStrategy<CollectStrategy,Row> {
+    private struct CollectStrategy:global::Seamless.Collections.Iteration.IStrategy<CollectStrategy,Row> {
         public List<Row>? Items;
         public static bool Invoke(ref CollectStrategy self,Row item) {
             self.Items!.Add(item);
@@ -78,7 +78,7 @@ public sealed class SetFLinqExpansionTests {
         }
     }
 
-    private struct StopAfterOneStrategy:global::Seamless.Collections.Tsavorite.ISetIterateStrategy<StopAfterOneStrategy,Row> {
+    private struct StopAfterOneStrategy:global::Seamless.Collections.Iteration.IStrategy<StopAfterOneStrategy,Row> {
         public int Count;
         public static bool Invoke(ref StopAfterOneStrategy self,Row item) {
             self.Count++;
@@ -86,7 +86,7 @@ public sealed class SetFLinqExpansionTests {
         }
     }
 
-    private struct ThrowingStrategy:global::Seamless.Collections.Tsavorite.ISetIterateStrategy<ThrowingStrategy,Row> {
+    private struct ThrowingStrategy:global::Seamless.Collections.Iteration.IStrategy<ThrowingStrategy,Row> {
         public static bool Invoke(ref ThrowingStrategy self,Row item) => throw new StrategyException();
     }
 

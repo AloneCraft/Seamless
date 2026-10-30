@@ -36,10 +36,9 @@ public sealed partial class FLinqIncrementalGenerator {
         if(collected.Count==0) {
             return (string.Empty,string.Empty);
         }
-        // .NET 10 時点の UnsafeAccessor は「ジェネリック型の非公開メンバー」を実行時に解決できず
-        // MissingMethodException / MissingFieldException になる（method/static/field いずれも不可。
-        // 非ジェネリック型は可）。コンパイルは通るが実行時に落ちるため、生成器としてはここで例外を投げ、
-        // ジェネリック含有型の傍受を諦めて元実装（素の System.Linq、遅いが正しい）にフォールバックさせる。
+        // 現行生成器はジェネリック型の非公開メンバーへのアクセサをここで拒否する。
+        // この拒否を含む直接傍受は展開不可として出力され、通常のSystem.Linqへ戻る保証はない。
+        // このガードの存在だけでは、実行環境のUnsafeAccessor対応可否を証明したことにはならない。
         // 対象の非公開メンバーを internal 以上に上げれば UnsafeAccessor を介さず直接呼べるようになり、
         // この制限を回避して傍受を有効化できる（Database.md 参照）。
         throw new global::System.NotSupportedException(

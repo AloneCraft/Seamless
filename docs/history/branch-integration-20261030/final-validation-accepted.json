@@ -1,0 +1,163 @@
+{
+  "status": "Passed",
+  "head": "7529303ba3dd4a085f8d963e352e7b53c14dcd36",
+  "productCodeHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+  "productCodeUnchangedSinceMatrix": true,
+  "nonProductDelta": [
+    "TestSeamless/Tests/ProtocolCipherAndCollation.cs",
+    "TestSeamless/Tests/ProtocolSynthetic.cs",
+    "docs/history/branch-integration-20261030/held-protocol-tests.json",
+    "docs/history/branch-integration-20261030/held-protocol-tests.md",
+    "docs/history/branch-integration-20261030/held-protocol-tests.patch"
+  ],
+  "stages": [
+    {
+      "stage": "gateway-final-debug-01",
+      "passed": 136,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "query-final-debug-01",
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "main-final-debug-02",
+      "passed": 2305,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "main-final-release-01",
+      "passed": 2304,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "transactions-final-release-01",
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "database-transactions-final-release-01",
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "query-final-release-01",
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "gateway-final-release-01",
+      "passed": 136,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "tpcc-final-release-01",
+      "passed": 65,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "tsavorite-collections-final-release-01",
+      "passed": 368,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "execution-final-release-01",
+      "passed": 44,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "dynamic-final-release-01",
+      "passed": 384,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "infrastructure-final-release-01",
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "scalable-final-release-01",
+      "passed": 26,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "tpce-final-release-01",
+      "passed": 27,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "tpce-compliance-unit-final-release-01",
+      "passed": 16,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "main-windows-final-release-01",
+      "passed": 187,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "864d591c3c4bed5881e2c44999d9135355cdc57e",
+      "sourceUnchanged": true
+    },
+    {
+      "stage": "testseamless-final-release-03",
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "sourceHead": "7529303ba3dd4a085f8d963e352e7b53c14dcd36",
+      "sourceUnchanged": true
+    }
+  ],
+  "totalPassed": 6151,
+  "incomingUnfinishedCasesHeld": 4,
+  "heldEvidence": "checks/testseamless-final-release-02",
+  "recoveredPreparationFailure": "testseamless-final-release-01: initial feed was not prepared; replaced by prepared package run 03"
+}

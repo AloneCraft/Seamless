@@ -1,4 +1,4 @@
-namespace Seamless.Collections.Tsavorite;
+﻿namespace Seamless.Collections.Tsavorite;
 
 /// <summary>
 /// 操作用オブジェクトの共通基底。<typeparamref name="TMode"/> はシングル用(<see cref="ExclusiveAccess"/>)か
@@ -39,10 +39,16 @@ public abstract class Collection<
         TStoreFunctions
     >
     where TMode : struct, IAccessMode {
+    internal bool ScanNext<TScanFunctions>(ref TScanFunctions functions,ref long cursor,long untilAddress=-1)
+        where TScanFunctions:IScanIteratorFunctions{
+        if(this.Store.Log.HeadAddress<=this.Store.Log.BeginAddress){
+            return this.ReadSession.IterateLookup(ref functions,ref cursor,untilAddress:untilAddress,resetCursor:false);
+        }
+        return Scans.Lookup.Next(this.Store,ref functions,ref cursor,untilAddress);
+    }
     /// <summary>
-    /// IScanIteratorFunctions 実装です。
-    /// IterateLookup から読んだレコードをデシリアライズしてチャンクへ格納します。
-    /// 列挙時は ResetChunk() で Count を初期化して再利用します。
+    /// 生存レコードをデシリアライズしてチャンクへ格納する。
+    /// 列挙時はResetChunkでCountを初期化して再利用する。
     /// </summary>
     public abstract class IterateLookupIteratorFunctions_List<T>:IScanIteratorFunctions {
         private const int MinimumScanChunkLength = 4096;
@@ -482,7 +488,7 @@ public abstract class Collection<
         var iterator = new IterateLookupForEachIterator<TStrategy>(strategy);
         var cursor = 0L;
         using(collection.BeginScan()) {
-            readSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+            collection.ScanNext(ref iterator,ref cursor);
             readSession.BasicContext.CompletePending(wait: true);
         }
         strategy=iterator.Strategy;
@@ -654,10 +660,11 @@ public abstract class Collection<
     private protected bool WouldOverflowMutable(int KeyLength,int ValueLength) {
         Debug.Assert(this.LogMemorySize>=8192);
         var Log = this.CollectionStore.Store.Log;
-        this.CollectionStore.EnsureCapacity(Log.TailAddress,KeyLength,ValueLength);
+        var tailAddress=Log.TailAddress;
+        this.CollectionStore.EnsureCapacity(tailAddress,KeyLength,ValueLength);
         return this.CollectionStore.OverflowMutableStrategyKind switch {
-            OverflowMutableStrategyKind.Memory => MemoryOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,Log.BeginAddress,Log.TailAddress,KeyLength,ValueLength),
-            OverflowMutableStrategyKind.Storage => this.CollectionStore.StorageOverflowMutableStrategy.WouldOverflowMutable(Log.TailAddress,KeyLength,ValueLength),
+            OverflowMutableStrategyKind.Memory => MemoryOverflowMutableStrategy.WouldOverflowMutable(this.LogMemorySize,this.MutableFraction,Log.BeginAddress,tailAddress,KeyLength,ValueLength),
+            OverflowMutableStrategyKind.Storage => this.CollectionStore.StorageOverflowMutableStrategy.WouldOverflowMutable(tailAddress,KeyLength,ValueLength),
             _ => throw new UnreachableException(),
         };
     }
@@ -806,7 +813,7 @@ public abstract class Collection<
         var Iterator = new IterateLookupIsSubsetOf<TCollection>(other);
         var Cursor = 0L;
         using(self.BeginScan()) {
-            ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+            self.ScanNext(ref Iterator,ref Cursor);
             ReadSession.BasicContext.CompletePending(wait: true);
         }
         return Iterator.IsSubset;
@@ -885,7 +892,7 @@ public abstract class Collection<
         var Iterator = new IterateLookupOverlaps<TCollection>(self);
         var Cursor = 0L;
         using(other.BeginScan()) {
-            ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+            other.ScanNext(ref Iterator,ref Cursor);
             ReadSession.BasicContext.CompletePending(wait: true);
         }
         return Iterator.FoundOverlap;
@@ -950,7 +957,7 @@ public abstract class Collection<
         var workListPath = self.CollectionStore.CreateWorkListPath("intersect-with");
         using var quota = self.CollectionStore.CreateWorkListQuota();
         try {
-            using var keysToExpire = new SerializedList<byte[],RawByteArraySerializer>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
+            using var keysToExpire = new SerializedList<byte[],global::Seamless.Collections.Serializers.RawByteArray>(workListPath,initialCapacity: Const.Chunk_Length,initialDataCapacity: 4096);
             keysToExpire.StorageQuota=quota;
             quota?.EnsureTotalBytes(((IPersistedCommittable)keysToExpire).StorageBytes);
             var Iterator = new IterateLookupIntersectWith<TCollection>(other,keysToExpire);
@@ -958,7 +965,7 @@ public abstract class Collection<
             // This keeps the scan separate from the delete phase and avoids advancing TailAddress early.
             var Cursor = 0L;
             using(self.BeginScan()) {
-                ReadSession.IterateLookup(ref Iterator,ref Cursor,resetCursor: false);
+                self.ScanNext(ref Iterator,ref Cursor);
                 ReadSession.BasicContext.CompletePending(wait: true);
             }
             foreach(var keyBytes in keysToExpire) {
@@ -1068,7 +1075,7 @@ public abstract class Collection<
     }
     private readonly struct IterateLookupIntersectWith<TCollection>(
         TCollection other,
-        SerializedList<byte[],RawByteArraySerializer> keysToExpire
+        SerializedList<byte[],global::Seamless.Collections.Serializers.RawByteArray> keysToExpire
     ):IScanIteratorFunctions
         where TCollection : Collection<
             TKey,
@@ -1115,8 +1122,8 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
     SpanByteStoreFunctions,//TStoreFunctions
     SpanByteStoreAllocator,//TAllocator
     TMode
-> where TKeySerializer : ISerializer<TKey>
-    where TValueSerializer : ISerializer<TValue>
+> where TKeySerializer : global::Seamless.Collections.Serializers.IStrategy<TKey>
+    where TValueSerializer : global::Seamless.Collections.Serializers.IStrategy<TValue>
     where TMode : struct, IAccessMode {
     public sealed class KeyIterator:IterateLookupIteratorFunctions_List<TKey>, ICreate<KeyIterator> {
         public static KeyIterator Create() => new();
@@ -1259,7 +1266,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
                 this._iterator.ResetChunk();
                 bool mayHaveMore;
                 using(this.CollectionInstance.BeginScan()) {
-                    mayHaveMore=this._session.IterateLookup(ref this._iterator,ref this.Cursor,resetCursor: false);
+                    mayHaveMore=this.CollectionInstance.ScanNext(ref this._iterator,ref this.Cursor,this._untilAddress);
                     this._session.BasicContext.CompletePending(wait: true);
                 }
                 this.Count=this._iterator.Count;
@@ -1303,13 +1310,13 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
     }
     // Reader から TStrategy.Invoke を直接呼ぶ push 型実装は、通常の列挙経路
     // (Enumerator<KeyIterator,TKey>、ArrayPool チャンクへ Accept で詰めてから配る pull 型)より
-    // 実測で 3〜4 倍遅かった(Test.Tsavorite.Collections.NativeIterateVsEnumeratorDiagnostic で検証)。
+    // 実測で 3〜4 倍遅かった(2026-08-05 の使い捨て診断 NativeIterateVsEnumeratorDiagnostic で検証。診断は削除済み、27aab0cb 参照)。
     // 通常経路と同じ IterateLookupIteratorFunctions_List<TKey>(sealed 非仮想 Reader・ArrayPool チャンク)
     // へ揃えることで解消する。チャンクに溜めてから Invoke を回す都合上、Any/First 等の早期終了は
     // 現在のチャンク(既定 4096 要素)を読み切ってから止まる — 全走査系(Count/ToList/Sum 等)には無関係。
     /// <summary>キーを 1 つずつ <typeparamref name="TStrategy"/> へ渡す(HashSet 系の Iterate。FLinq の生成コードが呼ぶ)。</summary>
     private protected void IterateKeysCore<TStrategy>(ref TStrategy strategy)
-        where TStrategy : struct, IHashSetIterateStrategy<TStrategy,TKey> {
+        where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TKey> {
         this.VerifyThreadAffinity(nameof(this.IterateKeysCore));
         var iterator = new KeyIterator();
         var cursor = 0L;
@@ -1317,7 +1324,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
             while(true) {
                 bool mayHaveMore;
                 using(this.BeginScan()) {
-                    mayHaveMore=this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+                    mayHaveMore=this.ScanNext(ref iterator,ref cursor);
                     this.ReadSession.BasicContext.CompletePending(wait: true);
                 }
                 for(var index = 0;index<iterator.Count;index++) {
@@ -1336,18 +1343,18 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
     }
     /// <summary>値を 1 つずつ <typeparamref name="TStrategy"/> へ渡す(Set 系の Iterate。FLinq の生成コードが呼ぶ)。</summary>
     private protected void IterateValuesCore<TStrategy>(ref TStrategy strategy)
-        where TStrategy : struct, ISetIterateStrategy<TStrategy,TValue> {
+        where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TValue> {
         this.VerifyThreadAffinity(nameof(this.IterateValuesCore));
         var iterator = new IterateValuesAdapter<TStrategy>(strategy);
         var cursor = 0L;
         using(this.BeginScan()) {
-            this.ReadSession.IterateLookup(ref iterator,ref cursor,resetCursor: false);
+            this.ScanNext(ref iterator,ref cursor);
             this.ReadSession.BasicContext.CompletePending(wait: true);
         }
         strategy=iterator.Strategy;
     }
     private sealed class IterateValuesAdapter<TStrategy>(TStrategy strategy):IScanIteratorFunctions
-        where TStrategy : struct, ISetIterateStrategy<TStrategy,TValue> {
+        where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TValue> {
         public TStrategy Strategy = strategy;
         public bool Reader<TSourceLogRecord>(
             in TSourceLogRecord logRecord,

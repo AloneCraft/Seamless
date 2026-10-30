@@ -22,9 +22,42 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeContainsInline(destVar,destType)
         ??this.RenderDirectSpanContainsInline(destVar,destType)
+        ??this.RenderConsumeBasedContainsInline(destVar,destType)
         ??this.RenderProviderNativeContainsInline(destVar,destType)
         ??this.RenderGenericCollectionContainsInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,value);
+
+    private string? RenderConsumeBasedContainsInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_CONTAINS_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var endLabel = $"__containsEnd{番号}";
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            return $"{indent}if(global::System.Collections.Generic.EqualityComparer<{source.ElementType}>.Default.Equals({arg}, {value})) {{\n{indent}    {destVar}=true;\n{indent}    goto {endLabel};\n{indent}}}";
+        });
+        return $$"""
+            {{destType}} {{destVar}}=false;
+            {{replaced}}
+            {{endLabel}}:;
+            """ ;
+    }
     // Persisted/Tsavorite の根(ProviderNativeRootBase)は mmap ハッシュ索引で Contains が O(1)
     // (PersistedSetRoot.cs 参照: "Set<T>.Contains は .hindex で O(1)。native scan の O(n) を回避する")。
     // 標準の Compute 経路は TryGetNext ベースの O(n) 線形走査で、要素ごとに逆シリアライズの実コストを
@@ -163,7 +196,46 @@ internal class Contains_comparer(int 番号,Enumerable source,string value,strin
     protected override string ComputeExpression => $"Compute(ref {this.e}, value, comparer)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderDirectSpanContainsComparerInline(destVar,destType)
+        ??this.RenderConsumeBasedContainsComparerInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,value,comparer);
+
+    private string? RenderConsumeBasedContainsComparerInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_CONTAINS_CMP_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var endLabel = $"__containsCmpEnd{番号}";
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        string comparerExpr;
+        if(comparer=="null") {
+            comparerExpr=$"global::System.Collections.Generic.EqualityComparer<{source.ElementType}>.Default";
+        } else {
+            comparerExpr=$"({comparer}??global::System.Collections.Generic.EqualityComparer<{source.ElementType}>.Default)";
+        }
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            return $"{indent}if({comparerExpr}.Equals({arg}, {value})) {{\n{indent}    {destVar}=true;\n{indent}    goto {endLabel};\n{indent}}}";
+        });
+        return $$"""
+            {{destType}} {{destVar}}=false;
+            {{replaced}}
+            {{endLabel}}:;
+            """ ;
+    }
     // comparer=="null"(呼び出し側が実質比較子なし。無引数 Contains が MemoryExtensions の
     // 比較子省略可能な3引数オーバーロードへ解決されて Contains_comparer 側に来るケースを含む)のときは
     // ContainsSpan(typeof(T) 実行時分岐で既知プリミティブ型なら MemoryExtensions.Contains の

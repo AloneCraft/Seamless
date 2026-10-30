@@ -13,7 +13,7 @@ public abstract class IntersectWith<TKey, TSet>:CommonWith<TKey,TSet>
 public sealed class ManagedIntersectWith:IntersectWith<string,global::Seamless.Collections.Tsavorite.HashSet<string>> {
     protected override string CreateKey(int seed) => seed.ToString();
     protected override (global::Seamless.Collections.Tsavorite.HashSet<string> Set,IDisposable Store) CreateSet() {
-        var store = Store.Create().Create<string>(new MemoryPackSerializerStrategy());
+        var store = Store.Create().Create<string>(new global::Seamless.Collections.Serializers.MemoryPack());
         return (store.Create(),store);
     }
     protected override void With(global::Seamless.Collections.Tsavorite.HashSet<string> set,global::Seamless.Collections.Tsavorite.HashSet<string> other) => set.IntersectWith(other);
@@ -28,8 +28,8 @@ public sealed class ManagedIntersectWith:IntersectWith<string,global::Seamless.C
         using var objDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
         using var logDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
         using var objDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
-        using var storeA = Store.Create(MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceA,objDeviceA,new MemoryPackSerializerStrategy());
-        using var storeB = Store.Create(MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceB,objDeviceB,new MemoryPackSerializerStrategy());
+        using var storeA = Store.Create(MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceA,objDeviceA,new global::Seamless.Collections.Serializers.MemoryPack());
+        using var storeB = Store.Create(MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<string>(logDeviceB,objDeviceB,new global::Seamless.Collections.Serializers.MemoryPack());
         using var setA = storeA.Create();
         using var setB = storeB.Create();
 
@@ -73,8 +73,8 @@ public sealed class UnmanagedIntersectWith:IntersectWith<int,global::Seamless.Co
         using var objDeviceA = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderA+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
         using var logDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB,"log.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
         using var objDeviceB = global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(folderB+"_obj","obj.data"),deleteOnClose: true,capacity: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity);
-        using var storeA = Store.Create(MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceA,objDeviceA,new BlittableStrategy());
-        using var storeB = Store.Create(MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceB,objDeviceB,new BlittableStrategy());
+        using var storeA = Store.Create(MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceA,objDeviceA,new global::Seamless.Collections.Serializers.Blittable());
+        using var storeB = Store.Create(MemorySize: global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity,MutableFraction: 0).Create<int>(logDeviceB,objDeviceB,new global::Seamless.Collections.Serializers.Blittable());
         using var setA = storeA.Create();
         using var setB = storeB.Create();
 

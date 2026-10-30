@@ -1,10 +1,10 @@
 namespace Seamless.Collections.Persisted;
 
 public class AppendOnlyList<T>(string path,long initialDataCapacity=4096,StorageTuning? tuning=null)
-    :AppendOnlyList<T,MemoryPackSerializer<T>>(path,initialDataCapacity,tuning);
+    :AppendOnlyList<T,global::Seamless.Collections.Serializers.MemoryPack<T>>(path,initialDataCapacity,tuning);
 
 public class AppendOnlyList<T, TSerializer>:IEnumerable<T>, IDisposable
-    where TSerializer : ISerializer<T> {
+    where TSerializer : global::Seamless.Collections.Serializers.IStrategy<T> {
     private readonly Stream stream;
     private readonly StorageTuning tuning;
     private Action? disposeAction;

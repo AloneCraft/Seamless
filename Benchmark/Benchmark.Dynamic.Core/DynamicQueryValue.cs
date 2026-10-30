@@ -76,6 +76,7 @@ public static class DynamicQueryMaterializer{
 [JsonDerivedType(typeof(DoubleQueryAtom),"double")]
 [JsonDerivedType(typeof(IntPairQueryAtom),"intPair")]
 [JsonDerivedType(typeof(IntGroupQueryAtom),"intGroup")]
+[JsonDerivedType(typeof(ElementQueryAtom),"element")]
 public abstract record DynamicQueryAtom(QueryValueType Type);
 
 public sealed record IntQueryAtom(int Value):DynamicQueryAtom(QueryValueType.Int);
@@ -84,6 +85,9 @@ public sealed record BoolQueryAtom(bool Value):DynamicQueryAtom(QueryValueType.B
 public sealed record DoubleQueryAtom(double Value):DynamicQueryAtom(QueryValueType.Double);
 public sealed record IntPairQueryAtom(IntPair Value):DynamicQueryAtom(QueryValueType.IntPair);
 public sealed record IntGroupQueryAtom(IntGroup Value):DynamicQueryAtom(QueryValueType.IntGroup);
+
+/// <summary>int 以外の要素型の要素。値は <see cref="ElementCanonicalizer"/> の正規形(失われない文字列)で持つ。</summary>
+public sealed record ElementQueryAtom(string Canonical):DynamicQueryAtom(QueryValueType.Element);
 
 public sealed record DynamicQueryValue(
     QueryValueType ValueType,
@@ -108,6 +112,24 @@ public sealed record DynamicQueryValue(
         var value=new DynamicQueryValue(valueType,QueryCardinality.Sequence,orderSemantics,materialized);
         value.Validate();
         return value;
+    }
+
+    /// <summary>要素を返す終端(First など)の結果。null も要素として扱う。</summary>
+    public static DynamicQueryValue ElementScalar(object? value){
+        return Scalar(new ElementQueryAtom(ElementCanonicalizer.Canonical(value)));
+    }
+
+    /// <summary>要素の列(ToArray など)の結果。null の要素も許す。</summary>
+    public static DynamicQueryValue FromElements(System.Collections.IEnumerable elements,QueryOrderSemantics orderSemantics){
+        ArgumentNullException.ThrowIfNull(elements);
+        var items=new List<DynamicQueryAtom>();
+        foreach(var element in elements){
+            if(items.Count>=MaximumMaterializedItemCount){
+                throw MaterializeLimitException();
+            }
+            items.Add(new ElementQueryAtom(ElementCanonicalizer.Canonical(element)));
+        }
+        return Sequence(QueryValueType.Element,orderSemantics,items);
     }
 
     public static DynamicQueryValue FromObject(
@@ -220,7 +242,8 @@ public static class DynamicQueryComparer{
             return new(false,$"{description} length mismatch: expected {expected.Count}, actual {actual.Count}.");
         }
         for(var index=0;index<expected.Count;index++){
-            if(!DynamicQueryAtomEqualityComparer.Instance.Equals(expected[index],actual[index])){
+            if(!DynamicQueryAtomEqualityComparer.Instance.Equals(expected[index],actual[index])
+                &&!FloatingPointTolerance.AreNearlyEqual(expected[index],actual[index])){
                 return new(false,$"{description} mismatch at index {index}: expected {Format(expected[index])}, actual {Format(actual[index])}.",index);
             }
         }
@@ -274,6 +297,7 @@ public static class DynamicQueryComparer{
             DoubleQueryAtom value=>value.Value.ToString("R",System.Globalization.CultureInfo.InvariantCulture),
             IntPairQueryAtom value=>$"({value.Value.First},{value.Value.Second})",
             IntGroupQueryAtom value=>$"{value.Value.Key}:[{string.Join(",",value.Value.Values)}]",
+            ElementQueryAtom value=>value.Canonical,
             _=>atom.ToString()??atom.GetType().Name,
         };
     }
@@ -296,6 +320,7 @@ public static class DynamicQueryComparer{
                 (IntPairQueryAtom leftValue,IntPairQueryAtom rightValue)=>leftValue.Value==rightValue.Value,
                 (IntGroupQueryAtom leftValue,IntGroupQueryAtom rightValue)=>
                     leftValue.Value.Key==rightValue.Value.Key&&leftValue.Value.Values.SequenceEqual(rightValue.Value.Values),
+                (ElementQueryAtom leftValue,ElementQueryAtom rightValue)=>string.Equals(leftValue.Canonical,rightValue.Canonical,StringComparison.Ordinal),
                 _=>false,
             };
         }
@@ -325,8 +350,33 @@ public static class DynamicQueryComparer{
                         hash.Add(element);
                     }
                     break;
+                case ElementQueryAtom item:
+                    hash.Add(item.Canonical,StringComparer.Ordinal);
+                    break;
             }
             return hash.ToHashCode();
         }
+    }
+}
+
+/// <summary>
+/// double の値の許容。足す順(FLinq の SumSpan は4並列で足す)や蓄積の型(float は double で足すか float で足すか)で
+/// 最下位の桁がずれるのは許容する。2026-10-22 に利用者が決めた。
+/// 相対 1e-9 まで(絶対値が1未満のときは絶対 1e-9 まで)。NaN と無限大は完全一致だけ。
+/// 順序のある比較(スカラー・順序つきの列)にだけ使う。順序なしの集合の比較はハッシュなので完全一致のまま。
+/// </summary>
+public static class FloatingPointTolerance{
+    public const double RelativeTolerance=1e-9;
+
+    public static bool AreNearlyEqual(DynamicQueryAtom expected,DynamicQueryAtom actual){
+        return expected is DoubleQueryAtom left&&actual is DoubleQueryAtom right&&AreNearlyEqual(left.Value,right.Value);
+    }
+
+    public static bool AreNearlyEqual(double expected,double actual){
+        if(!double.IsFinite(expected)||!double.IsFinite(actual)){
+            return expected.Equals(actual);
+        }
+        var scale=Math.Max(1.0,Math.Max(Math.Abs(expected),Math.Abs(actual)));
+        return Math.Abs(expected-actual)<=RelativeTolerance*scale;
     }
 }

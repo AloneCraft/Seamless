@@ -3,10 +3,10 @@ name: .NET CI
 on:
   push:
     branches:
-      - master
+      - main
+      - '0.1'
+      - '0.1.0'
   pull_request:
-    branches:
-      - master
   workflow_dispatch:
   schedule:
     - cron: "23 16 * * *"
@@ -16,49 +16,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  benchmark-ui:
-    name: Benchmark UI build and tests
+  benchmark-scalable:
+    name: Scalable and shared history
     runs-on: windows-latest
     timeout-minutes: 60
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-
-      - name: Show .NET info
-        run: dotnet --info
-
-      - name: Restore MAUI workloads
-        run: dotnet workload restore .\Benchmark\Benchmark.UI\Benchmark.UI.csproj
-
-      - name: Restore Benchmark UI
-        run: dotnet restore .\Benchmark\Benchmark.UI\Benchmark.UI.csproj
-
-      - name: Restore test project
-        run: dotnet restore .\Test\Test.csproj
-
-      - name: Run benchmark tests
-        run: dotnet test .\Test\Test.csproj -c Debug -f net10.0-windows --no-restore --filter "FullyQualifiedName~CompletedRun_CanReloadSavedDatabaseRunAfterNewSelection|FullyQualifiedName~UiRunStoreTests|FullyQualifiedName~BenchmarkUiRunRepository" --logger "trx;LogFileName=benchmark-tests.trx"
-
-      - name: Build Benchmark UI
-        run: >
-          dotnet build .\Benchmark\Benchmark.UI\Benchmark.UI.csproj
-          -c Release
-          -f net10.0-windows
-          --no-restore
-          "-p:BaseOutputPath=$env:RUNNER_TEMP\seamless-bin\"
-
-      - name: Upload test results
+      - name: Restore Scalable
+        run: |
+          dotnet workload restore .\Benchmark\Benchmark.Scalable.UI\Benchmark.Scalable.UI.csproj
+          dotnet restore .\Benchmark\Benchmark.Scalable.UI\Benchmark.Scalable.UI.csproj -r win-x64
+          dotnet restore .\Benchmark\Benchmark.Scalable.Tests\Benchmark.Scalable.Tests.csproj
+          dotnet restore .\Benchmark\Benchmark.Infrastructure.Tests\Benchmark.Infrastructure.Tests.csproj
+      - name: Test storage operations and shared history
+        run: |
+          dotnet test .\Benchmark\Benchmark.Infrastructure.Tests\Benchmark.Infrastructure.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=history.trx"
+          dotnet test .\Benchmark\Benchmark.Scalable.Tests\Benchmark.Scalable.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=scalable.trx"
+      - name: Build Scalable app
+        run: dotnet build .\Benchmark\Benchmark.Scalable.UI\Benchmark.Scalable.UI.csproj -c Release -f net10.0-windows -r win-x64 --no-restore
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: benchmark-test-results
-          path: Test/TestResults/**/*.trx
+          name: scalable-history-results
+          path: Benchmark/**/TestResults/**/*.trx
           if-no-files-found: ignore
 
   benchmark-dynamic:
@@ -83,10 +66,21 @@ jobs:
 
       - name: Restore Dynamic projects
         run: |
-          dotnet restore .\Benchmark\Benchmark.Dynamic.UI\Benchmark.Dynamic.UI.csproj
+          dotnet restore .\Benchmark\Benchmark.Dynamic.UI\Benchmark.Dynamic.UI.csproj -r win-x64
           dotnet restore .\Benchmark.Dynamic.Tests\Benchmark.Dynamic.Tests.csproj
           dotnet restore .\Benchmark.Dynamic.UITests\Benchmark.Dynamic.UITests.csproj
           dotnet restore .\Test\Test.csproj
+          dotnet restore .\Execution.Tests\Execution.Tests.csproj
+
+      - name: Run execution contracts
+        run: dotnet test .\Execution.Tests\Execution.Tests.csproj -c Debug --no-restore --logger "trx;LogFileName=execution.trx"
+      - name: Rebuild FLinq generator before tests
+        run: dotnet build .\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj -c Debug -f netstandard2.0 -t:Rebuild --no-restore -p:UseSharedCompilation=false
+      - name: Test database streaming, transactions, and recovery
+        run: >
+          dotnet test .\Test\Test.csproj -c Debug -f net10.0 --no-restore
+          --filter "FullyQualifiedName~DatabaseTransactionTests|FullyQualifiedName~DatabaseStoragePersistenceTests|FullyQualifiedName~SqlServerImportSizerTests|FullyQualifiedName~DatabaseToolImportIntegrationTests"
+          --logger "trx;LogFileName=database-redesign.trx"
 
       - name: Run FLinq fixed-point tests
         run: >
@@ -105,6 +99,7 @@ jobs:
           -f net10.0-windows
           --no-restore
           -p:UseSharedCompilation=false
+          --filter "Category!=ChainCorpusFull&Category!=Survey"
           --logger "trx;LogFileName=benchmark-dynamic-tests.trx"
 
       - name: Build Benchmark Dynamic
@@ -112,6 +107,7 @@ jobs:
           dotnet build .\Benchmark\Benchmark.Dynamic.UI\Benchmark.Dynamic.UI.csproj
           -c Release
           -f net10.0-windows
+          -r win-x64
           --no-restore
           -p:UseSharedCompilation=false
           "-p:BaseOutputPath=$env:RUNNER_TEMP\seamless-dynamic-bin\"
@@ -119,7 +115,7 @@ jobs:
       - name: Verify Worker payload
         shell: pwsh
         run: |
-          $worker = Get-ChildItem -Path "$env:RUNNER_TEMP\seamless-dynamic-bin" -Recurse -Filter Benchmark.Dynamic.Worker.exe | Select-Object -First 1
+          $worker = Get-ChildItem -Path "$env:RUNNER_TEMP\seamless-dynamic-bin" -Recurse -Filter Benchmark.Dynamic.Worker.exe | Where-Object { $_.Directory.Name -eq 'DynamicWorker' } | Select-Object -First 1
           if ($null -eq $worker) {
             throw "Benchmark.Dynamic.Worker.exe was not copied into the Release payload."
           }
@@ -128,7 +124,11 @@ jobs:
             "Benchmark.Dynamic.Worker.dll",
             "Benchmark.Dynamic.Worker.deps.json",
             "Benchmark.Dynamic.Worker.runtimeconfig.json",
-            "Benchmark.Dynamic.Worker.pdb"
+            "Benchmark.Dynamic.Worker.pdb",
+            "Benchmark.Infrastructure.dll",
+            "Seamless.Collections.Tsavorite.dll",
+            "Tsavorite.core.dll",
+            "Microsoft.CodeAnalysis.CSharp.dll"
           )
           $missing = $required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $worker.DirectoryName $_) -PathType Leaf) }
           if ($missing.Count -ne 0) {
@@ -199,4 +199,81 @@ jobs:
         with:
           name: benchmark-dynamic-corpus-10k-result
           path: Benchmark.Dynamic.Tests/TestResults/**/*.trx
+          if-no-files-found: ignore
+
+  benchmark-dynamic-nightly:
+    name: Benchmark Dynamic nightly ${{ matrix.mode }}
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        mode:
+          - ChainCorpusFull
+          - Survey
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore MAUI workloads
+        run: dotnet workload restore .\Benchmark\Benchmark.Dynamic.UI\Benchmark.Dynamic.UI.csproj
+
+      - name: Restore Dynamic projects
+        run: |
+          dotnet restore .\Benchmark\Benchmark.Dynamic.UI\Benchmark.Dynamic.UI.csproj -r win-x64
+          dotnet restore .\Benchmark.Dynamic.Tests\Benchmark.Dynamic.Tests.csproj
+
+      - name: Build FLinq generator
+        run: dotnet build .\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj -c Debug -f netstandard2.0 -t:Rebuild -p:UseSharedCompilation=false
+
+      - name: Run full ChainCorpus
+        if: matrix.mode == 'ChainCorpusFull'
+        run: >
+          dotnet test .\Benchmark.Dynamic.Tests\Benchmark.Dynamic.Tests.csproj
+          -c Debug
+          -f net10.0-windows
+          --no-restore
+          -p:UseSharedCompilation=false
+          --filter "Category=ChainCorpusFull"
+          --logger "trx;LogFileName=benchmark-dynamic-chain-corpus-full.trx"
+
+      - name: Run evaluation count survey
+        if: matrix.mode == 'Survey'
+        env:
+          EVAL_SURVEY: seamless-evaluation-survey.txt
+          EVAL_SURVEY_STEP: 1
+          EVAL_SURVEY_REQUIRE_CLEAN: 1
+        run: >
+          dotnet test .\Benchmark.Dynamic.Tests\Benchmark.Dynamic.Tests.csproj
+          -c Debug
+          -f net10.0-windows
+          --no-restore
+          -p:UseSharedCompilation=false
+          --filter "Category=Survey"
+          --logger "trx;LogFileName=benchmark-dynamic-evaluation-survey.trx"
+
+      - name: Stage evaluation survey report
+        if: always() && matrix.mode == 'Survey'
+        shell: pwsh
+        run: |
+          $survey = Join-Path ([System.IO.Path]::GetTempPath()) "seamless-evaluation-survey.txt"
+          if (Test-Path -LiteralPath $survey -PathType Leaf) {
+            Copy-Item -LiteralPath $survey -Destination (Join-Path $env:RUNNER_TEMP "seamless-evaluation-survey.txt") -Force
+          }
+
+      - name: Upload nightly Dynamic results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-dynamic-nightly-${{ matrix.mode }}-results
+          path: |
+            Benchmark.Dynamic.Tests/TestResults/**/*.trx
+            ${{ runner.temp }}/seamless-evaluation-survey.txt
           if-no-files-found: ignore

@@ -11,8 +11,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>preview</LangVersion>
-    <DefineConstants>$(DefineConstants);SCALABLE_BENCHMARK;BENCHMARK_UI_TYPED_CATALOG</DefineConstants>
-    <ApplicationTitle>Benchmark Scalble UI</ApplicationTitle>
+
+    <ApplicationTitle>Seamless Scalable Benchmark</ApplicationTitle>
     <ApplicationId>com.seamless.benchmark.scalable</ApplicationId>
     <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
     <ApplicationVersion>1</ApplicationVersion>
@@ -24,49 +24,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
-    <PackageReference Include="Syncfusion.Maui.Buttons" Version="33.2.15" />
-    <PackageReference Include="Syncfusion.Maui.DataGrid" Version="33.2.15" />
-    <PackageReference Include="Syncfusion.Licensing" Version="33.2.15" />
-    <PackageReference Include="Syncfusion.Maui.Toolkit" Version="1.0.10" />
+    <ProjectReference Include="../Benchmark.Scalable.Core/Benchmark.Scalable.Core.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" SetTargetFramework="TargetFramework=netstandard2.0" />
-    <ProjectReference Include="..\..\Shared\UI.Storage\UI.Storage.csproj" />
-    <ProjectReference Include="..\Benchmark.Scalable.Persisted.Collections\Benchmark.Scalable.Persisted.Collections.csproj" />
-    <ProjectReference Include="..\Benchmark.Scalable.Tsavorite.Collections\Benchmark.Scalable.Tsavorite.Collections.csproj" />
-  </ItemGroup>
-
-  <!--
-    Worker は UI が子プロセスとして起動する実行ファイル。正式な依存(アセンブリとしては参照しない)にして、
-    VS が Worker を先にビルドし変更も検知できるようにする(BUG-0009)。RID を付けずに標準の出力先へビルドする。
-  -->
-  <ItemGroup>
-    <ProjectReference Include="..\Worker\Worker.csproj" ReferenceOutputAssembly="false" OutputItemType="BenchmarkWorkerOutput" GlobalPropertiesToRemove="RuntimeIdentifier;SelfContained" />
-  </ItemGroup>
-
-  <!-- VS の高速な最新判定に、コピーした Worker とその元ファイルを知らせる。 -->
-  <ItemGroup Condition="'$(TargetFramework)' != ''">
-    <UpToDateCheckBuilt Include="$(TargetDir)Worker.dll" Original="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.dll" />
-    <UpToDateCheckBuilt Include="$(TargetDir)Worker.exe" Original="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.exe" />
-    <UpToDateCheckBuilt Include="$(TargetDir)Worker.deps.json" Original="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.deps.json" />
-    <UpToDateCheckBuilt Include="$(TargetDir)Worker.runtimeconfig.json" Original="$(MSBuildProjectDirectory)\..\Worker\bin\$(Configuration)\net10.0\Worker.runtimeconfig.json" />
-  </ItemGroup>
-
-  <!-- Worker の出力(参照が返す実際の出力先)から、起動に必要なファイルを UI の出力フォルダへコピーする。 -->
-  <Target Name="CopyBenchmarkWorkerHost" AfterTargets="Build" Condition="'$(IsCrossTargetingBuild)' != 'true' and '$(TargetDir)' != ''">
-    <PropertyGroup>
-      <_BenchmarkWorkerDirectory>@(BenchmarkWorkerOutput->'%(RootDir)%(Directory)')</_BenchmarkWorkerDirectory>
-    </PropertyGroup>
-    <Error Condition="'$(_BenchmarkWorkerDirectory)' == ''" Text="Worker の出力先を解決できませんでした。Worker.csproj への ProjectReference を確認してください。" />
-    <ItemGroup>
-      <_BenchmarkWorkerFiles Include="$(_BenchmarkWorkerDirectory)Worker.exe;$(_BenchmarkWorkerDirectory)Worker.dll;$(_BenchmarkWorkerDirectory)Worker.deps.json;$(_BenchmarkWorkerDirectory)Worker.runtimeconfig.json;$(_BenchmarkWorkerDirectory)Worker.pdb" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_BenchmarkWorkerFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="Exists('%(FullPath)')" />
-  </Target>
-
-  <Import Project="..\Shared\UI\UI.projitems" Label="Shared" />
+  <Import Project="../../Shared/Benchmark.History/Benchmark.History.projitems" Label="Shared" />
 </Project>

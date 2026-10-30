@@ -27,7 +27,7 @@ foreach(var row in stored) {
 }
 ```
 
-既定値は管理対象メモリ256 MiB、一時領域16 GiBです。この値はCLR全体や呼び出し元が保持する入力を含むプロセス上限ではありません。検証基盤はプロセスのpeak private bytesも別に記録します。
+既定値は管理対象メモリ256 MiB、一時領域16 GiBです。この値はCLR全体や呼び出し元が保持する入力を含むプロセス上限ではありません。ScalableはOSが報告するプロセス生存期間全体のPeakWorkingSet64、区間内のチェック地点で観測したWorkingSet64、予約のピークを別に記録します。WorkingSetはprivate bytesではなく、チェック地点の最大値は真の区間ピークではありません。
 
 一つのスコープで同時に複数の列挙は行えません。並行実行には別のスコープを使います。遅延クエリ、`ToStorage()` の結果、`GroupBy` が返すグループはスコープ所有です。スコープ破棄後の列挙は `ObjectDisposedException` になります。
 
@@ -50,11 +50,11 @@ foreach(var row in stored) {
 Codecの表現には形式版と型スキーマのSHA-256を含めます。整数はlittle endian、`float`／`double` はビット表現、`decimal` は4整数、文字列はUTF-16コード単位で決定的に符号化します。構造体はフィールド単位で処理し、未定義パディングを含めません。匿名型はプロパティ構造からCodecを作ります。一般クラスは明示Codecが必要です。
 
 ```csharp
-scope.Codecs.Register(new SerializerCodec<MyRecord, MySerializer>(
-    "my-record-v2"));
+scope.Codecs.Register(new Seamless.Execution.Codecs.Adapter<MyRecord, Seamless.Execution.Codecs.Serializer<MyRecord, MySerializer>>(new(
+    "my-record-v2")));
 ```
 
-`SerializerCodec<T,TSerializer>` は既存の `ISerializer<T>` を適合させます。`FormatId` は読み書き互換性が変わるたびに更新してください。スコープが最初のCodecを解決した時点でレジストリ全体が固定され、それ以後は登録内容を変更できません。必要なCodecはクエリ実行前に登録します。
+`Codecs.Serializer<T,TSerializer>` は既存の `Seamless.Collections.Serializers.IStrategy<T>` を適合させます。`FormatId` は読み書き互換性が変わるたびに更新してください。スコープが最初のCodecを解決した時点でレジストリ全体が固定され、それ以後は登録内容を変更できません。必要なCodecはクエリ実行前に登録します。
 
 スコープ外でFLinqが `System.Linq` を最適化する場合は、元の.NET等値性を維持します。たとえば.NETでは `+0.0f` と `-0.0f` は既定比較で等しい一方、スコープ付きクエリではビット表現が異なるため別キーです。この2種類の意味論は検証結果の `Semantics` に別の値で記録します。
 
@@ -89,16 +89,29 @@ Codecを作れない値でも、`Where`や`Select`など退避不要の逐次演
 
 `seamless database sqlserver import` は宛先へ直接書かず、`<destination>.staging.<guid>` に構築します。全生成関係を再度開き、SQL Serverから読んだ行数と `LongCount` が一致することを検証してから公開します。公開時に旧宛先があれば `<destination>.backup.<timestamp>.<guid>` へ移し、削除しません。
 
+テスト用の生成コードは `Test/Database.Generated/<DB名>` に置きます。テストが型として使うのは今は `AdventureWorks2017` だけなので、ほかのサンプルDBの生成コードはコミットしていません。新しいサンプルDBをテストで使うときは、`seamless database sqlserver prepare --project Test/Test.csproj --connection <接続名> --sample <DB名> --data <データ置き場>` でSQL Serverへ用意し、`seamless database sqlserver generate --project Test/Test.csproj --connection <接続名> --database <DB名>` で生成します。DB名の一覧は `seamless database sqlserver samples` で確認できます。
+
 新しい宛先の `seamless-import.json` にはソースDB、生成コンテナ、スキーマ指紋、UTC時刻、テーブル別行数、テーブル別ストレージ設定を保存します。未対応SQL構文・型は `NotSupportedException` と対象の構文名／SQL型名をCLI診断へ出し、別の意味へ暗黙変換しません。
 
 ## 旧データからの移行
 
-保存形式と検証DBは新規開始です。旧DBを新形式へ自動変換しません。
+コレクションの保存形式は新規開始です。旧コレクションを自動変換しません。測定履歴は原本とバックアップを残し、明示コマンドで共有DBへ移します。
 
 1. 旧アプリとwriterを停止する
 2. 旧ストレージ、旧SQLite、関連成果物を読み取り専用バックアップへコピーする
-3. `seamless-verify init` またはSQL Server importを明示的に実行する
+3. コレクションはSQL Server importなどで新規作成する。Dynamic履歴は `Benchmark.Scalable.Headless migrate --source <旧Dynamic.db> --writers-stopped true` で明示的に移す
 4. マニフェスト、行数、代表クエリ、再起動後の読み取りを確認する
 5. 問題があれば新しい宛先を破棄し、保管した旧データへ戻る
 
 アプリ起動、スキーマ版の増加、自動削除を移行手段にしません。
+
+## 親予算
+
+`ResourceBudget.CreateChild(memoryLimitBytes,temporaryStorageLimitBytes)` で生成後不変の階層を作る。子への増分予約は子と全祖先の上限を検証してから確定し、失敗時は現在量・予約量・ピークを変えない。同じ階層で一つのロックを共有し、Resize/Disposeも同じ同期規則で扱う。予約のDisposeは冪等である。
+
+Storeの各ファクトリの `parentBudget`、`ExecutionOptions.ParentBudget` で親を明示する。単独予算の既存コンストラクタと既定の使い方は維持する。親予算は会計であり、子資源を所有・破棄するオブジェクトではない。
+
+Scalableは標本ごとに親予算を作り、Store、Scope、旧・新Storeの再構成中の同時生存分を合算する。System.Linqの結合・並べ替えは推定作業領域、Native外部ソートはチャンク・I/Oと最大一時領域をまとめて予約する。予約ピークは実メモリ使用量や実ファイル量の測定値ではない。`ScalableRequest.TemporaryDirectory` で保存先を指定した場合、ストアとソート/Scopeの一時領域を同じ保存先に置く。
+
+## 汎用SQL設計への参照
+SQL/ADO.NET/プロトコル/移行の将来の責務分離は[汎用SQL基盤](refactoring-designs/20261029-generic-sql/README.md)を参照する。これは提案仕様であり、この文書に記した現在のExecution・LINQ・Database・保存/取引契約を置き換えない。通常のFLinqへ実行時SQL/IR変換を追加しない。

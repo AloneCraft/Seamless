@@ -1,0 +1,18 @@
+<Project>
+  <Import Project="../Directory.Build.props" />
+  <Import Project="Comparison.Local.props" Condition="Exists('Comparison.Local.props')" />
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework><LangVersion>14</LangVersion><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><IsPackable>false</IsPackable>
+    <SeamlessPackageVersion Condition="'$(SeamlessPackageVersion)'==''">0.0.0-unprepared</SeamlessPackageVersion>
+    <ComparisonPackageRoot Condition="'$(ComparisonPackageRoot)'=='' And '$(SEAMLESS_COMPARISON_PACKAGE_ROOT)'!=''">$(SEAMLESS_COMPARISON_PACKAGE_ROOT)</ComparisonPackageRoot>
+    <ComparisonPackageRoot Condition="'$(ComparisonPackageRoot)'=='' And Exists('F:/')">F:/Seamless/Comparison/packages</ComparisonPackageRoot>
+    <ComparisonPackageRoot Condition="'$(ComparisonPackageRoot)'==''">$(MSBuildThisFileDirectory)../Work/TestSeamless/packages</ComparisonPackageRoot>
+    <RestorePackagesPath>$(ComparisonPackageRoot)/$(SeamlessPackageVersion)</RestorePackagesPath>
+    <GenerationDirectory Condition="'$(GenerationDirectory)'==''">$(MSBuildThisFileDirectory)../Work/TestSeamless/empty-generation</GenerationDirectory>
+    <BaseIntermediateOutputPath Condition="'$(ComparisonBuildRoot)'!=''">$(ComparisonBuildRoot)/obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <BaseOutputPath Condition="'$(ComparisonBuildRoot)'!=''">$(ComparisonBuildRoot)/bin/$(MSBuildProjectName)/</BaseOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/obj/**;**/bin/**</DefaultItemExcludes>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)generated/$(Configuration)</CompilerGeneratedFilesOutputPath>
+  </PropertyGroup>
+</Project>

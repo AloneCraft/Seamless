@@ -106,7 +106,7 @@ public class SerialRandomStressTests {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
                     using var store = Store.Create(CheckpointDir: checkpointDir)
-                        .Create<string,string>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+                        .Create<string,string>(logDevice,objDevice,new global::Seamless.Collections.Serializers.MemoryPack(),new global::Seamless.Collections.Serializers.MemoryPack());
                     using var dict = store.Create();
                     for(var i = 0;i<keys.Length;i++)
                         dict.Add(keys[i],values[i]);
@@ -117,7 +117,7 @@ public class SerialRandomStressTests {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
                     using var store = Store.Create(CheckpointDir: checkpointDir)
-                        .Create<string,string>(logDevice,objDevice,new MemoryPackSerializerStrategy(),new MemoryPackSerializerStrategy());
+                        .Create<string,string>(logDevice,objDevice,new global::Seamless.Collections.Serializers.MemoryPack(),new global::Seamless.Collections.Serializers.MemoryPack());
                     store.Load(token);
                     using var dict = store.Create();
                     foreach(var t in keys)
@@ -219,7 +219,7 @@ public class SerialRandomStressTests {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
                     using var store = Store.Create(CheckpointDir: checkpointDir)
-                        .Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy());
+                        .Create<string>(logDevice,objDevice,new global::Seamless.Collections.Serializers.MemoryPack());
                     using var set = store.Create();
                     for(var i = 0;i<keys.Length;i++)
                         Assert.True(set.Add(keys[i]));
@@ -230,7 +230,7 @@ public class SerialRandomStressTests {
                     using var logDevice = Devices.CreateLogDevice(logPath);
                     using var objDevice = Devices.CreateLogDevice(objPath);
                     using var store = Store.Create(CheckpointDir: checkpointDir)
-                        .Create<string>(logDevice,objDevice,new MemoryPackSerializerStrategy());
+                        .Create<string>(logDevice,objDevice,new global::Seamless.Collections.Serializers.MemoryPack());
                     store.Load(token);
                     using var set = store.Create();
                     for(var i = 0;i<keys.Length;i++)

@@ -50,8 +50,76 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeToArrayInline(destVar,destType)
         ??this.RenderDirectSpanToArrayInline(destVar,destType)
+        ??this.RenderZipToArrayInline(destVar,destType)
+        ??this.RenderConsumeBasedToArrayInline(destVar,destType)
         ??this.RenderDirectEnumerableToArrayHybridInline(source,destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
+    private string? RenderConsumeBasedToArrayInline(string destVar,string destType){
+        if(source is not (Join or GroupJoin or SelectManyBase)){
+            return null;
+        }
+        var placeholder=$"__FLINQ_TOARRAY_{番号}__";
+        string consumeStatement;
+        try{
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        }catch(NotSupportedException){
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")){
+            return null;
+        }
+        var poolBufferVar=$"__consumePoolBuffer{番号}";
+        var poolCountVar=$"__consumePoolCount{番号}";
+        var poolNextVar=$"__consumePoolNext{番号}";
+        var escaped=global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern=$@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced=global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent=match.Groups["indent"].Value;
+            var arg=match.Groups["arg"].Value;
+            var sb = new StringBuilder();
+            sb.AppendLine($"{indent}if({poolCountVar}=={poolBufferVar}.Length) {{");
+            sb.AppendLine($"{indent}    var {poolNextVar}=global::System.Buffers.ArrayPool<{source.ElementType}>.Shared.Rent({poolBufferVar}.Length*2);");
+            sb.AppendLine($"{indent}    global::System.Array.Copy({poolBufferVar},{poolNextVar},{poolCountVar});");
+            sb.AppendLine($"{indent}    global::System.Buffers.ArrayPool<{source.ElementType}>.Shared.Return({poolBufferVar},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{source.ElementType}>());");
+            sb.AppendLine($"{indent}    {poolBufferVar}={poolNextVar};");
+            sb.AppendLine($"{indent}}}");
+            sb.Append($"{indent}{poolBufferVar}[{poolCountVar}++]={arg};");
+            return sb.ToString();
+        });
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{poolBufferVar}}=global::System.Buffers.ArrayPool<{{source.ElementType}}>.Shared.Rent(16);
+                var {{poolCountVar}}=0;
+                try {
+                    {{replaced}}
+                    if({{poolCountVar}}==0) {
+                        {{destVar}}=global::System.Array.Empty<{{source.ElementType}}>();
+                    } else {
+                        {{destVar}}=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>({{poolCountVar}});
+                        global::System.Array.Copy({{poolBufferVar}},{{destVar}},{{poolCountVar}});
+                    }
+                } finally {
+                    global::System.Buffers.ArrayPool<{{source.ElementType}}>.Shared.Return({{poolBufferVar}},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{source.ElementType}}>());
+                }
+            }
+            """;
+    }
+    private string? RenderZipToArrayInline(string destVar,string destType){
+        if(source is Zip zip){
+            return zip.RenderDirectToArrayInline(destVar,destType);
+        }
+        if(source is Zip_resultSelector zipSel){
+            return zipSel.RenderDirectToArrayInline(destVar,destType);
+        }
+        if(source is Zip3 zip3){
+            return zip3.RenderDirectToArrayInline(destVar,destType);
+        }
+        return null;
+    }
     private string? RenderDirectSpanToArrayInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""

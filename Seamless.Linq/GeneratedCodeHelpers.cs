@@ -58,6 +58,88 @@ public static class GeneratedCodeHelpers {
         where TComparer : struct, IComparer<int>
         => indexes.AsSpan(0,count).Sort(comparer);
 
+    // OrderBy/ThenBy の後に Skip/Take が続く場合の部分ソート向け。
+    // 全件 (0..count-1) を完全ソートする代わりに、要求区間 [minIndexInclusive..maxIndexInclusive] だけを
+    // QuickSelect ベースの部分クイックソートで整列させる。
+    // TComparer を struct 制約にすることで Compare 呼び出しが devirtualize + インライン化される。
+    public static void PartialSortIndexes<TComparer>(int[] indexes,int count,int minIndexInclusive,int maxIndexInclusive,TComparer comparer)
+        where TComparer : struct, IComparer<int> {
+        if(count<=1||minIndexInclusive>=count||maxIndexInclusive<minIndexInclusive) {
+            return;
+        }
+        var minIdx = Math.Max(0,minIndexInclusive);
+        var maxIdx = Math.Min(count-1,maxIndexInclusive);
+        if(minIdx>maxIdx) {
+            return;
+        }
+        if(minIdx==0&&maxIdx==0) {
+            var bestPos = 0;
+            var bestVal = indexes[0];
+            for(var i = 1;i<count;i++) {
+                var candidate = indexes[i];
+                if(comparer.Compare(candidate,bestVal)<0) {
+                    bestPos=i;
+                    bestVal=candidate;
+                }
+            }
+            if(bestPos!=0) {
+                indexes[bestPos]=indexes[0];
+                indexes[0]=bestVal;
+            }
+            return;
+        }
+        if(minIdx==0&&maxIdx>=count-1) {
+            indexes.AsSpan(0,count).Sort(comparer);
+            return;
+        }
+        PartialQuickSortIndexes(indexes,comparer,0,count-1,minIdx,maxIdx);
+    }
+
+    private static void PartialQuickSortIndexes<TComparer>(int[] map,TComparer comparer,int left,int right,int minIdx,int maxIdx)
+        where TComparer : struct, IComparer<int> {
+        do {
+            var i = left;
+            var j = right;
+            var x = map[i+((j-i)>>1)];
+            do {
+                while(i<map.Length&&comparer.Compare(x,map[i])>0) {
+                    i++;
+                }
+                while(j>=0&&comparer.Compare(x,map[j])<0) {
+                    j--;
+                }
+                if(i>j) {
+                    break;
+                }
+                if(i<j) {
+                    var temp = map[i];
+                    map[i]=map[j];
+                    map[j]=temp;
+                }
+                i++;
+                j--;
+            } while(i<=j);
+
+            if(minIdx>=i) {
+                left=i+1;
+            } else if(maxIdx<=j) {
+                right=j-1;
+            }
+
+            if(j-left<=right-i) {
+                if(left<j) {
+                    PartialQuickSortIndexes(map,comparer,left,j,minIdx,maxIdx);
+                }
+                left=i;
+            } else {
+                if(i<right) {
+                    PartialQuickSortIndexes(map,comparer,i,right,minIdx,maxIdx);
+                }
+                right=j;
+            }
+        } while(left<right);
+    }
+
     // 型情報を失った IEnumerable<T> ソースを materialize する共通ラダー。
     // 以前は生成器が is T[] / is List<T> / is ICollection<T> / foreach の分岐を
     // 各コール地点へフル展開していたため、1 箇所あたり 25〜36 行を消費していた。

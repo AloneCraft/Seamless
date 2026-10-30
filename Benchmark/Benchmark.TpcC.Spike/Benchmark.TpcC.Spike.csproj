@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    TPC-C の区画並列 SUT の前提を確かめる短い試し(C3)。出荷物ではなく、ソリューションにも登録しない。
+    SeamlessRoot を変えると、別の版の Seamless(例: 修正前のチェックアウト)に対して同じ実験を組み立てられる。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsPackable>false</IsPackable>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <TieredPGO>true</TieredPGO>
+    <SeamlessRoot Condition="'$(SeamlessRoot)'==''">$(MSBuildThisFileDirectory)..\..\</SeamlessRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.IO.Hashing" Version="10.0.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(SeamlessRoot)Seamless.Collections.Tsavorite\Seamless.Collections.Tsavorite.csproj" />
+  </ItemGroup>
+</Project>

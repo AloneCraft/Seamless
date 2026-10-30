@@ -3,7 +3,8 @@ using Microsoft.CodeAnalysis.CSharp;
 using System.Text.RegularExpressions;
 namespace Seamless.FLinq.Generator;
 
-internal readonly record struct HoistedLocal(string Name,string TypeName,string ExpressionText);
+// 評価式にはunchecked等の生成用文脈を含める。元のlambdaを再描画する束縛には、その前の式を使う。
+internal readonly record struct HoistedLocal(string Name,string TypeName,string ExpressionText,string BindingExpressionText);
 
 /*
 FuncFragment は predicate/selector/accumulator などの lambda を Fragment 内でどう呼ぶかを表す。
@@ -127,7 +128,7 @@ internal abstract class FuncFragment {
             } else {
                 // メソッド呼び出し等の副作用のある式は多重評価を避けるため一時変数へ退避する。
                 // 例えば selector(GetValue()) をそのまま展開すると GetValue() が複数回評価されうる。
-                var tempName = $"__arg{number}_{SanitizeLocalName(destination)}_{index}";
+                var tempName = this.ArgumentAliasName(number,destination,index);
                 builder.AppendLine($"var {tempName}={arg};");
                 replacement=tempName;
             }
@@ -140,6 +141,27 @@ internal abstract class FuncFragment {
         builder.Append($"{destination}={rewrittenBody};");
         this.ContainsAnchor|=AnchorAnalysis.LooksLikeAnchorText(rewrittenBody);
         return builder.ToString();
+    }
+
+    private readonly Dictionary<string,string> argumentAliasNames = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// 副作用のある実引数を受ける一時変数の名前。名前の割り当て役があるとき(メソッドの生成の間)は、ラムダ自身の引数名(p・row など)を使う
+    /// (ぶつかるときだけ p2)。ないときは従来の機械的な名前 <c>__arg{N}_{代入先}_{位置}</c>。
+    /// 同じ (番号, 代入先, 位置) には、何度描画しても同じ名前を返す。
+    /// </summary>
+    protected string ArgumentAliasName(int number,string destination,int index) {
+        if(GeneratedNames.Current is not { } names) {
+            return $"__arg{number}_{SanitizeLocalName(destination)}_{index}";
+        }
+        var key = $"{number}|{destination}|{index}";
+        if(this.argumentAliasNames.TryGetValue(key,out var existing)) {
+            return existing;
+        }
+        var preferred = index<this.ParameterNames.Length&&!string.IsNullOrWhiteSpace(this.ParameterNames[index]) ? this.ParameterNames[index] : "arg";
+        var name = names.AllocateLocal(preferred);
+        this.argumentAliasNames.Add(key,name);
+        return name;
     }
 
     // 識別子・ドット区切りメンバーアクセスだけからなる式は副作用がなく一時変数不要。

@@ -1,0 +1,2062 @@
+{
+ "description": "全組み合わせ(段階3)の先頭100件とランダム探索(段階4)の100件。生成器の改善のきっかけになったチェーン。",
+ "origin": "Sample.FLinqChainVerifier の最終実行 (2026-10-21, Work/VerifierReport/results.json) の項目。メソッド名の並びだけを保存し、引数は CoreCorpusChainBuilder が固定する。",
+ "entries": [
+  {
+   "id": "S2_Array_0000_Where_Where_ToArray",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S2_Array_0001_Where_Where_ToList",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "ToList"
+   ]
+  },
+  {
+   "id": "S2_Array_0002_Where_Where_ToHashSet",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "ToHashSet"
+   ]
+  },
+  {
+   "id": "S2_Array_0003_Where_Where_Count",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "Count"
+   ]
+  },
+  {
+   "id": "S2_Array_0004_Where_Where_Count_Pred",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "Count_Pred"
+   ]
+  },
+  {
+   "id": "S2_Array_0005_Where_Where_LongCount",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "LongCount"
+   ]
+  },
+  {
+   "id": "S2_Array_0006_Where_Where_Sum",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S2_Array_0007_Where_Where_Min",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "Min"
+   ]
+  },
+  {
+   "id": "S2_Array_0008_Where_Where_Max",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "Max"
+   ]
+  },
+  {
+   "id": "S2_Array_0009_Where_Where_MinBy",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "MinBy"
+   ]
+  },
+  {
+   "id": "S2_Array_0010_Where_Where_MaxBy",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "MaxBy"
+   ]
+  },
+  {
+   "id": "S2_Array_0011_Where_Where_Average",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "Average"
+   ]
+  },
+  {
+   "id": "S2_Array_0012_Where_Where_Aggregate",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "Aggregate"
+   ]
+  },
+  {
+   "id": "S2_Array_0013_Where_Where_Any",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "Any"
+   ]
+  },
+  {
+   "id": "S2_Array_0014_Where_Where_Any_Pred",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "Any_Pred"
+   ]
+  },
+  {
+   "id": "S2_Array_0015_Where_Where_All",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "All"
+   ]
+  },
+  {
+   "id": "S2_Array_0016_Where_Where_Contains",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "Contains"
+   ]
+  },
+  {
+   "id": "S2_Array_0017_Where_Where_First",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "First"
+   ]
+  },
+  {
+   "id": "S2_Array_0018_Where_Where_FirstOrDefault",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "FirstOrDefault"
+   ]
+  },
+  {
+   "id": "S2_Array_0019_Where_Where_Last",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "Last"
+   ]
+  },
+  {
+   "id": "S2_Array_0020_Where_Where_LastOrDefault",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "LastOrDefault"
+   ]
+  },
+  {
+   "id": "S2_Array_0021_Where_Where_ElementAt",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "ElementAt"
+   ]
+  },
+  {
+   "id": "S2_Array_0022_Where_Where_ElementAtOrDefault",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "ElementAtOrDefault"
+   ]
+  },
+  {
+   "id": "S2_Array_0023_Where_Where_SequenceEqual",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "SequenceEqual"
+   ]
+  },
+  {
+   "id": "S2_Array_0024_Where_Where_CountBy_ToArray",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "CountBy_ToArray"
+   ]
+  },
+  {
+   "id": "S2_Array_0025_Where_Where_AggregateBy_ToArray",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Where",
+    "AggregateBy_ToArray"
+   ]
+  },
+  {
+   "id": "S2_Array_0026_Where_Select_ToArray",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S2_Array_0027_Where_Select_ToList",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "ToList"
+   ]
+  },
+  {
+   "id": "S2_Array_0028_Where_Select_ToHashSet",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "ToHashSet"
+   ]
+  },
+  {
+   "id": "S2_Array_0029_Where_Select_Count",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "Count"
+   ]
+  },
+  {
+   "id": "S2_Array_0030_Where_Select_Count_Pred",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "Count_Pred"
+   ]
+  },
+  {
+   "id": "S2_Array_0031_Where_Select_LongCount",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "LongCount"
+   ]
+  },
+  {
+   "id": "S2_Array_0032_Where_Select_Sum",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S2_Array_0033_Where_Select_Min",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "Min"
+   ]
+  },
+  {
+   "id": "S2_Array_0034_Where_Select_Max",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "Max"
+   ]
+  },
+  {
+   "id": "S2_Array_0035_Where_Select_MinBy",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "MinBy"
+   ]
+  },
+  {
+   "id": "S2_Array_0036_Where_Select_MaxBy",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "MaxBy"
+   ]
+  },
+  {
+   "id": "S2_Array_0037_Where_Select_Average",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "Average"
+   ]
+  },
+  {
+   "id": "S2_Array_0038_Where_Select_Aggregate",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "Aggregate"
+   ]
+  },
+  {
+   "id": "S2_Array_0039_Where_Select_Any",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "Any"
+   ]
+  },
+  {
+   "id": "S2_Array_0040_Where_Select_Any_Pred",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "Any_Pred"
+   ]
+  },
+  {
+   "id": "S2_Array_0041_Where_Select_All",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "All"
+   ]
+  },
+  {
+   "id": "S2_Array_0042_Where_Select_Contains",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "Contains"
+   ]
+  },
+  {
+   "id": "S2_Array_0043_Where_Select_First",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "First"
+   ]
+  },
+  {
+   "id": "S2_Array_0044_Where_Select_FirstOrDefault",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "FirstOrDefault"
+   ]
+  },
+  {
+   "id": "S2_Array_0045_Where_Select_Last",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "Last"
+   ]
+  },
+  {
+   "id": "S2_Array_0046_Where_Select_LastOrDefault",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "LastOrDefault"
+   ]
+  },
+  {
+   "id": "S2_Array_0047_Where_Select_ElementAt",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "ElementAt"
+   ]
+  },
+  {
+   "id": "S2_Array_0048_Where_Select_ElementAtOrDefault",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "ElementAtOrDefault"
+   ]
+  },
+  {
+   "id": "S2_Array_0049_Where_Select_SequenceEqual",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "SequenceEqual"
+   ]
+  },
+  {
+   "id": "S2_Array_0050_Where_Select_CountBy_ToArray",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "CountBy_ToArray"
+   ]
+  },
+  {
+   "id": "S2_Array_0051_Where_Select_AggregateBy_ToArray",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Select",
+    "AggregateBy_ToArray"
+   ]
+  },
+  {
+   "id": "S2_Array_0052_Where_SelectMany_ToArray",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S2_Array_0053_Where_SelectMany_ToList",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "ToList"
+   ]
+  },
+  {
+   "id": "S2_Array_0054_Where_SelectMany_ToHashSet",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "ToHashSet"
+   ]
+  },
+  {
+   "id": "S2_Array_0055_Where_SelectMany_Count",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "Count"
+   ]
+  },
+  {
+   "id": "S2_Array_0056_Where_SelectMany_Count_Pred",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "Count_Pred"
+   ]
+  },
+  {
+   "id": "S2_Array_0057_Where_SelectMany_LongCount",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "LongCount"
+   ]
+  },
+  {
+   "id": "S2_Array_0058_Where_SelectMany_Sum",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S2_Array_0059_Where_SelectMany_Min",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "Min"
+   ]
+  },
+  {
+   "id": "S2_Array_0060_Where_SelectMany_Max",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "Max"
+   ]
+  },
+  {
+   "id": "S2_Array_0061_Where_SelectMany_MinBy",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "MinBy"
+   ]
+  },
+  {
+   "id": "S2_Array_0062_Where_SelectMany_MaxBy",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "MaxBy"
+   ]
+  },
+  {
+   "id": "S2_Array_0063_Where_SelectMany_Average",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "Average"
+   ]
+  },
+  {
+   "id": "S2_Array_0064_Where_SelectMany_Aggregate",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "Aggregate"
+   ]
+  },
+  {
+   "id": "S2_Array_0065_Where_SelectMany_Any",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "Any"
+   ]
+  },
+  {
+   "id": "S2_Array_0066_Where_SelectMany_Any_Pred",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "Any_Pred"
+   ]
+  },
+  {
+   "id": "S2_Array_0067_Where_SelectMany_All",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "All"
+   ]
+  },
+  {
+   "id": "S2_Array_0068_Where_SelectMany_Contains",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "Contains"
+   ]
+  },
+  {
+   "id": "S2_Array_0069_Where_SelectMany_First",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "First"
+   ]
+  },
+  {
+   "id": "S2_Array_0070_Where_SelectMany_FirstOrDefault",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "FirstOrDefault"
+   ]
+  },
+  {
+   "id": "S2_Array_0071_Where_SelectMany_Last",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "Last"
+   ]
+  },
+  {
+   "id": "S2_Array_0072_Where_SelectMany_LastOrDefault",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "LastOrDefault"
+   ]
+  },
+  {
+   "id": "S2_Array_0073_Where_SelectMany_ElementAt",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "ElementAt"
+   ]
+  },
+  {
+   "id": "S2_Array_0074_Where_SelectMany_ElementAtOrDefault",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "ElementAtOrDefault"
+   ]
+  },
+  {
+   "id": "S2_Array_0075_Where_SelectMany_SequenceEqual",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "SequenceEqual"
+   ]
+  },
+  {
+   "id": "S2_Array_0076_Where_SelectMany_CountBy_ToArray",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "CountBy_ToArray"
+   ]
+  },
+  {
+   "id": "S2_Array_0077_Where_SelectMany_AggregateBy_ToArray",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "SelectMany",
+    "AggregateBy_ToArray"
+   ]
+  },
+  {
+   "id": "S2_Array_0078_Where_Join_ToArray",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S2_Array_0079_Where_Join_ToList",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "ToList"
+   ]
+  },
+  {
+   "id": "S2_Array_0080_Where_Join_ToHashSet",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "ToHashSet"
+   ]
+  },
+  {
+   "id": "S2_Array_0081_Where_Join_Count",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "Count"
+   ]
+  },
+  {
+   "id": "S2_Array_0082_Where_Join_Count_Pred",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "Count_Pred"
+   ]
+  },
+  {
+   "id": "S2_Array_0083_Where_Join_LongCount",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "LongCount"
+   ]
+  },
+  {
+   "id": "S2_Array_0084_Where_Join_Sum",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S2_Array_0085_Where_Join_Min",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "Min"
+   ]
+  },
+  {
+   "id": "S2_Array_0086_Where_Join_Max",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "Max"
+   ]
+  },
+  {
+   "id": "S2_Array_0087_Where_Join_MinBy",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "MinBy"
+   ]
+  },
+  {
+   "id": "S2_Array_0088_Where_Join_MaxBy",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "MaxBy"
+   ]
+  },
+  {
+   "id": "S2_Array_0089_Where_Join_Average",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "Average"
+   ]
+  },
+  {
+   "id": "S2_Array_0090_Where_Join_Aggregate",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "Aggregate"
+   ]
+  },
+  {
+   "id": "S2_Array_0091_Where_Join_Any",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "Any"
+   ]
+  },
+  {
+   "id": "S2_Array_0092_Where_Join_Any_Pred",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "Any_Pred"
+   ]
+  },
+  {
+   "id": "S2_Array_0093_Where_Join_All",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "All"
+   ]
+  },
+  {
+   "id": "S2_Array_0094_Where_Join_Contains",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "Contains"
+   ]
+  },
+  {
+   "id": "S2_Array_0095_Where_Join_First",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "First"
+   ]
+  },
+  {
+   "id": "S2_Array_0096_Where_Join_FirstOrDefault",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "FirstOrDefault"
+   ]
+  },
+  {
+   "id": "S2_Array_0097_Where_Join_Last",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "Last"
+   ]
+  },
+  {
+   "id": "S2_Array_0098_Where_Join_LastOrDefault",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "LastOrDefault"
+   ]
+  },
+  {
+   "id": "S2_Array_0099_Where_Join_ElementAt",
+   "stage": "combination",
+   "methods": [
+    "Where",
+    "Join",
+    "ElementAt"
+   ]
+  },
+  {
+   "id": "S3_Array_0000_Where_ExceptBy_SkipLast_Zip_LongCount",
+   "stage": "random",
+   "methods": [
+    "Where",
+    "ExceptBy",
+    "SkipLast",
+    "Zip",
+    "LongCount"
+   ]
+  },
+  {
+   "id": "S3_Array_0001_OrderBy_Zip_TakeWhile_DefaultIfEmpty_Take_Any",
+   "stage": "random",
+   "methods": [
+    "OrderBy",
+    "Zip",
+    "TakeWhile",
+    "DefaultIfEmpty",
+    "Take",
+    "Any"
+   ]
+  },
+  {
+   "id": "S3_Array_0002_Skip_UnionBy_IntersectBy_TakeLast_Reverse_SkipLast_LastOrDefault",
+   "stage": "random",
+   "methods": [
+    "Skip",
+    "UnionBy",
+    "IntersectBy",
+    "TakeLast",
+    "Reverse",
+    "SkipLast",
+    "LastOrDefault"
+   ]
+  },
+  {
+   "id": "S3_Array_0003_UnionBy_SkipLast_SelectMany_Count_Pred",
+   "stage": "random",
+   "methods": [
+    "UnionBy",
+    "SkipLast",
+    "SelectMany",
+    "Count_Pred"
+   ]
+  },
+  {
+   "id": "S3_Array_0004_TakeWhile_SkipWhile_SkipLast_Any_Pred",
+   "stage": "random",
+   "methods": [
+    "TakeWhile",
+    "SkipWhile",
+    "SkipLast",
+    "Any_Pred"
+   ]
+  },
+  {
+   "id": "S3_Array_0005_ExceptBy_Union_Union_OrderBy_Contains",
+   "stage": "random",
+   "methods": [
+    "ExceptBy",
+    "Union",
+    "Union",
+    "OrderBy",
+    "Contains"
+   ]
+  },
+  {
+   "id": "S3_Array_0006_IntersectBy_Concat_UnionBy_Select_Join_DefaultIfEmpty_AggregateBy_ToArray",
+   "stage": "random",
+   "methods": [
+    "IntersectBy",
+    "Concat",
+    "UnionBy",
+    "Select",
+    "Join",
+    "DefaultIfEmpty",
+    "AggregateBy_ToArray"
+   ]
+  },
+  {
+   "id": "S3_Array_0007_OrderByDescending_Except_Where_SelectMany_TakeLast_Where_Max",
+   "stage": "random",
+   "methods": [
+    "OrderByDescending",
+    "Except",
+    "Where",
+    "SelectMany",
+    "TakeLast",
+    "Where",
+    "Max"
+   ]
+  },
+  {
+   "id": "S3_Array_0008_Except_OrderByDescending_SkipLast_Count_Pred",
+   "stage": "random",
+   "methods": [
+    "Except",
+    "OrderByDescending",
+    "SkipLast",
+    "Count_Pred"
+   ]
+  },
+  {
+   "id": "S3_Array_0009_OrderBy_TakeWhile_Reverse_GroupBy_Count_ToList",
+   "stage": "random",
+   "methods": [
+    "OrderBy",
+    "TakeWhile",
+    "Reverse",
+    "GroupBy_Count",
+    "ToList"
+   ]
+  },
+  {
+   "id": "S3_Array_0010_Prepend_OrderByDescending_UnionBy_First",
+   "stage": "random",
+   "methods": [
+    "Prepend",
+    "OrderByDescending",
+    "UnionBy",
+    "First"
+   ]
+  },
+  {
+   "id": "S3_Array_0011_TakeWhile_Zip_TakeLast_Aggregate",
+   "stage": "random",
+   "methods": [
+    "TakeWhile",
+    "Zip",
+    "TakeLast",
+    "Aggregate"
+   ]
+  },
+  {
+   "id": "S3_Array_0012_SkipWhile_Union_GroupBy_Sum_SkipWhile_OrderBy_Prepend_Last",
+   "stage": "random",
+   "methods": [
+    "SkipWhile",
+    "Union",
+    "GroupBy_Sum",
+    "SkipWhile",
+    "OrderBy",
+    "Prepend",
+    "Last"
+   ]
+  },
+  {
+   "id": "S3_Array_0013_Reverse_GroupBy_KeyOnly_Except_Union_Except_Append_CountBy_ToArray",
+   "stage": "random",
+   "methods": [
+    "Reverse",
+    "GroupBy_KeyOnly",
+    "Except",
+    "Union",
+    "Except",
+    "Append",
+    "CountBy_ToArray"
+   ]
+  },
+  {
+   "id": "S3_Array_0014_Reverse_TakeLast_Zip_Append_SelectMany_Last",
+   "stage": "random",
+   "methods": [
+    "Reverse",
+    "TakeLast",
+    "Zip",
+    "Append",
+    "SelectMany",
+    "Last"
+   ]
+  },
+  {
+   "id": "S3_Array_0015_OrderByDescending_SkipWhile_ExceptBy_ExceptBy_CountBy_ToArray",
+   "stage": "random",
+   "methods": [
+    "OrderByDescending",
+    "SkipWhile",
+    "ExceptBy",
+    "ExceptBy",
+    "CountBy_ToArray"
+   ]
+  },
+  {
+   "id": "S3_Array_0016_Except_IntersectBy_Prepend_Reverse_Intersect_ToList",
+   "stage": "random",
+   "methods": [
+    "Except",
+    "IntersectBy",
+    "Prepend",
+    "Reverse",
+    "Intersect",
+    "ToList"
+   ]
+  },
+  {
+   "id": "S3_Array_0017_Reverse_Skip_Where_ElementAtOrDefault",
+   "stage": "random",
+   "methods": [
+    "Reverse",
+    "Skip",
+    "Where",
+    "ElementAtOrDefault"
+   ]
+  },
+  {
+   "id": "S3_Array_0018_OrderBy_SelectMany_Except_Except_ExceptBy_First",
+   "stage": "random",
+   "methods": [
+    "OrderBy",
+    "SelectMany",
+    "Except",
+    "Except",
+    "ExceptBy",
+    "First"
+   ]
+  },
+  {
+   "id": "S3_Array_0019_Reverse_Reverse_Prepend_GroupJoin_ExceptBy_Select_LastOrDefault",
+   "stage": "random",
+   "methods": [
+    "Reverse",
+    "Reverse",
+    "Prepend",
+    "GroupJoin",
+    "ExceptBy",
+    "Select",
+    "LastOrDefault"
+   ]
+  },
+  {
+   "id": "S3_Array_0020_Where_Take_OrderByDescending_IntersectBy_Any_Pred",
+   "stage": "random",
+   "methods": [
+    "Where",
+    "Take",
+    "OrderByDescending",
+    "IntersectBy",
+    "Any_Pred"
+   ]
+  },
+  {
+   "id": "S3_Array_0021_ExceptBy_Reverse_Take_Union_IntersectBy_ElementAt",
+   "stage": "random",
+   "methods": [
+    "ExceptBy",
+    "Reverse",
+    "Take",
+    "Union",
+    "IntersectBy",
+    "ElementAt"
+   ]
+  },
+  {
+   "id": "S3_Array_0022_ExceptBy_Except_IntersectBy_Union_Select_Count",
+   "stage": "random",
+   "methods": [
+    "ExceptBy",
+    "Except",
+    "IntersectBy",
+    "Union",
+    "Select",
+    "Count"
+   ]
+  },
+  {
+   "id": "S3_Array_0023_Prepend_TakeLast_Concat_LongCount",
+   "stage": "random",
+   "methods": [
+    "Prepend",
+    "TakeLast",
+    "Concat",
+    "LongCount"
+   ]
+  },
+  {
+   "id": "S3_Array_0024_Intersect_IntersectBy_GroupBy_Sum_TakeWhile_OrderBy_Join_SequenceEqual",
+   "stage": "random",
+   "methods": [
+    "Intersect",
+    "IntersectBy",
+    "GroupBy_Sum",
+    "TakeWhile",
+    "OrderBy",
+    "Join",
+    "SequenceEqual"
+   ]
+  },
+  {
+   "id": "S3_Array_0025_SkipLast_Union_TakeLast_Select_Except_SelectMany_ElementAt",
+   "stage": "random",
+   "methods": [
+    "SkipLast",
+    "Union",
+    "TakeLast",
+    "Select",
+    "Except",
+    "SelectMany",
+    "ElementAt"
+   ]
+  },
+  {
+   "id": "S3_Array_0026_Skip_Union_IntersectBy_LongCount",
+   "stage": "random",
+   "methods": [
+    "Skip",
+    "Union",
+    "IntersectBy",
+    "LongCount"
+   ]
+  },
+  {
+   "id": "S3_Array_0027_SkipWhile_ExceptBy_Take_DistinctBy_MinBy",
+   "stage": "random",
+   "methods": [
+    "SkipWhile",
+    "ExceptBy",
+    "Take",
+    "DistinctBy",
+    "MinBy"
+   ]
+  },
+  {
+   "id": "S3_Array_0028_Reverse_Except_IntersectBy_Take_GroupBy_Count_SkipLast_All",
+   "stage": "random",
+   "methods": [
+    "Reverse",
+    "Except",
+    "IntersectBy",
+    "Take",
+    "GroupBy_Count",
+    "SkipLast",
+    "All"
+   ]
+  },
+  {
+   "id": "S3_Array_0029_IntersectBy_DefaultIfEmpty_Prepend_Intersect_Count_Pred",
+   "stage": "random",
+   "methods": [
+    "IntersectBy",
+    "DefaultIfEmpty",
+    "Prepend",
+    "Intersect",
+    "Count_Pred"
+   ]
+  },
+  {
+   "id": "S3_Array_0030_GroupBy_Count_OrderByDescending_Intersect_LongCount",
+   "stage": "random",
+   "methods": [
+    "GroupBy_Count",
+    "OrderByDescending",
+    "Intersect",
+    "LongCount"
+   ]
+  },
+  {
+   "id": "S3_Array_0031_Skip_Select_Intersect_Zip_Join_Where_First",
+   "stage": "random",
+   "methods": [
+    "Skip",
+    "Select",
+    "Intersect",
+    "Zip",
+    "Join",
+    "Where",
+    "First"
+   ]
+  },
+  {
+   "id": "S3_Array_0032_GroupJoin_Prepend_GroupBy_KeyOnly_Any",
+   "stage": "random",
+   "methods": [
+    "GroupJoin",
+    "Prepend",
+    "GroupBy_KeyOnly",
+    "Any"
+   ]
+  },
+  {
+   "id": "S3_Array_0033_OrderBy_ExceptBy_SelectMany_TakeLast_Except_OrderBy_ElementAt",
+   "stage": "random",
+   "methods": [
+    "OrderBy",
+    "ExceptBy",
+    "SelectMany",
+    "TakeLast",
+    "Except",
+    "OrderBy",
+    "ElementAt"
+   ]
+  },
+  {
+   "id": "S3_Array_0034_DistinctBy_TakeLast_SelectMany_Zip_SkipLast_ExceptBy_Min",
+   "stage": "random",
+   "methods": [
+    "DistinctBy",
+    "TakeLast",
+    "SelectMany",
+    "Zip",
+    "SkipLast",
+    "ExceptBy",
+    "Min"
+   ]
+  },
+  {
+   "id": "S3_Array_0035_Union_GroupBy_KeyOnly_SkipLast_ElementAtOrDefault",
+   "stage": "random",
+   "methods": [
+    "Union",
+    "GroupBy_KeyOnly",
+    "SkipLast",
+    "ElementAtOrDefault"
+   ]
+  },
+  {
+   "id": "S3_Array_0036_Take_Union_SelectMany_TakeLast_Skip_ToList",
+   "stage": "random",
+   "methods": [
+    "Take",
+    "Union",
+    "SelectMany",
+    "TakeLast",
+    "Skip",
+    "ToList"
+   ]
+  },
+  {
+   "id": "S3_Array_0037_Append_OrderBy_Where_Prepend_TakeLast_GroupBy_Count_Sum",
+   "stage": "random",
+   "methods": [
+    "Append",
+    "OrderBy",
+    "Where",
+    "Prepend",
+    "TakeLast",
+    "GroupBy_Count",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S3_Array_0038_OrderByDescending_Distinct_Union_LongCount",
+   "stage": "random",
+   "methods": [
+    "OrderByDescending",
+    "Distinct",
+    "Union",
+    "LongCount"
+   ]
+  },
+  {
+   "id": "S3_Array_0039_SkipLast_SkipWhile_GroupBy_Count_TakeWhile_GroupBy_KeyOnly_Take_Any",
+   "stage": "random",
+   "methods": [
+    "SkipLast",
+    "SkipWhile",
+    "GroupBy_Count",
+    "TakeWhile",
+    "GroupBy_KeyOnly",
+    "Take",
+    "Any"
+   ]
+  },
+  {
+   "id": "S3_Array_0040_Union_SelectMany_Zip_Any",
+   "stage": "random",
+   "methods": [
+    "Union",
+    "SelectMany",
+    "Zip",
+    "Any"
+   ]
+  },
+  {
+   "id": "S3_Array_0041_Select_UnionBy_Intersect_TakeWhile_ToArray",
+   "stage": "random",
+   "methods": [
+    "Select",
+    "UnionBy",
+    "Intersect",
+    "TakeWhile",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S3_Array_0042_SkipLast_Join_DefaultIfEmpty_GroupJoin_Take_Concat_Contains",
+   "stage": "random",
+   "methods": [
+    "SkipLast",
+    "Join",
+    "DefaultIfEmpty",
+    "GroupJoin",
+    "Take",
+    "Concat",
+    "Contains"
+   ]
+  },
+  {
+   "id": "S3_Array_0043_Concat_Except_Join_OrderByDescending_GroupJoin_GroupJoin_Count_Pred",
+   "stage": "random",
+   "methods": [
+    "Concat",
+    "Except",
+    "Join",
+    "OrderByDescending",
+    "GroupJoin",
+    "GroupJoin",
+    "Count_Pred"
+   ]
+  },
+  {
+   "id": "S3_Array_0044_Prepend_SkipWhile_TakeWhile_Any_Pred",
+   "stage": "random",
+   "methods": [
+    "Prepend",
+    "SkipWhile",
+    "TakeWhile",
+    "Any_Pred"
+   ]
+  },
+  {
+   "id": "S3_Array_0045_GroupBy_Count_GroupBy_Count_UnionBy_Last",
+   "stage": "random",
+   "methods": [
+    "GroupBy_Count",
+    "GroupBy_Count",
+    "UnionBy",
+    "Last"
+   ]
+  },
+  {
+   "id": "S3_Array_0046_Union_Append_ExceptBy_Join_MaxBy",
+   "stage": "random",
+   "methods": [
+    "Union",
+    "Append",
+    "ExceptBy",
+    "Join",
+    "MaxBy"
+   ]
+  },
+  {
+   "id": "S3_Array_0047_SelectMany_GroupBy_KeyOnly_IntersectBy_GroupBy_KeyOnly_Aggregate",
+   "stage": "random",
+   "methods": [
+    "SelectMany",
+    "GroupBy_KeyOnly",
+    "IntersectBy",
+    "GroupBy_KeyOnly",
+    "Aggregate"
+   ]
+  },
+  {
+   "id": "S3_Array_0048_Take_OrderBy_Skip_TakeLast_Any_Pred",
+   "stage": "random",
+   "methods": [
+    "Take",
+    "OrderBy",
+    "Skip",
+    "TakeLast",
+    "Any_Pred"
+   ]
+  },
+  {
+   "id": "S3_Array_0049_Zip_GroupBy_Sum_Concat_Aggregate",
+   "stage": "random",
+   "methods": [
+    "Zip",
+    "GroupBy_Sum",
+    "Concat",
+    "Aggregate"
+   ]
+  },
+  {
+   "id": "S3_Array_0050_Concat_IntersectBy_GroupBy_Count_GroupBy_Sum_Distinct_MinBy",
+   "stage": "random",
+   "methods": [
+    "Concat",
+    "IntersectBy",
+    "GroupBy_Count",
+    "GroupBy_Sum",
+    "Distinct",
+    "MinBy"
+   ]
+  },
+  {
+   "id": "S3_Array_0051_Skip_Except_Except_SelectMany_SkipLast_GroupJoin_LastOrDefault",
+   "stage": "random",
+   "methods": [
+    "Skip",
+    "Except",
+    "Except",
+    "SelectMany",
+    "SkipLast",
+    "GroupJoin",
+    "LastOrDefault"
+   ]
+  },
+  {
+   "id": "S3_Array_0052_Where_OrderBy_OrderByDescending_SelectMany_Union_First",
+   "stage": "random",
+   "methods": [
+    "Where",
+    "OrderBy",
+    "OrderByDescending",
+    "SelectMany",
+    "Union",
+    "First"
+   ]
+  },
+  {
+   "id": "S3_Array_0053_SelectMany_ExceptBy_IntersectBy_MaxBy",
+   "stage": "random",
+   "methods": [
+    "SelectMany",
+    "ExceptBy",
+    "IntersectBy",
+    "MaxBy"
+   ]
+  },
+  {
+   "id": "S3_Array_0054_Join_Join_Reverse_GroupJoin_Append_OrderBy_Average",
+   "stage": "random",
+   "methods": [
+    "Join",
+    "Join",
+    "Reverse",
+    "GroupJoin",
+    "Append",
+    "OrderBy",
+    "Average"
+   ]
+  },
+  {
+   "id": "S3_Array_0055_Append_GroupBy_KeyOnly_Union_TakeWhile_DefaultIfEmpty_SkipLast_Sum",
+   "stage": "random",
+   "methods": [
+    "Append",
+    "GroupBy_KeyOnly",
+    "Union",
+    "TakeWhile",
+    "DefaultIfEmpty",
+    "SkipLast",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S3_Array_0056_DefaultIfEmpty_Where_Where_Join_ExceptBy_TakeWhile_Min",
+   "stage": "random",
+   "methods": [
+    "DefaultIfEmpty",
+    "Where",
+    "Where",
+    "Join",
+    "ExceptBy",
+    "TakeWhile",
+    "Min"
+   ]
+  },
+  {
+   "id": "S3_Array_0057_Append_GroupBy_Sum_ExceptBy_IntersectBy_Skip_ToArray",
+   "stage": "random",
+   "methods": [
+    "Append",
+    "GroupBy_Sum",
+    "ExceptBy",
+    "IntersectBy",
+    "Skip",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S3_Array_0058_Append_GroupJoin_Append_ExceptBy_Reverse_IntersectBy_Any",
+   "stage": "random",
+   "methods": [
+    "Append",
+    "GroupJoin",
+    "Append",
+    "ExceptBy",
+    "Reverse",
+    "IntersectBy",
+    "Any"
+   ]
+  },
+  {
+   "id": "S3_Array_0059_Prepend_Skip_TakeWhile_Contains",
+   "stage": "random",
+   "methods": [
+    "Prepend",
+    "Skip",
+    "TakeWhile",
+    "Contains"
+   ]
+  },
+  {
+   "id": "S3_Array_0060_GroupBy_KeyOnly_Take_DefaultIfEmpty_OrderByDescending_IntersectBy_GroupBy_KeyOnly_Any_Pred",
+   "stage": "random",
+   "methods": [
+    "GroupBy_KeyOnly",
+    "Take",
+    "DefaultIfEmpty",
+    "OrderByDescending",
+    "IntersectBy",
+    "GroupBy_KeyOnly",
+    "Any_Pred"
+   ]
+  },
+  {
+   "id": "S3_Array_0061_Take_Take_Zip_GroupBy_Sum_All",
+   "stage": "random",
+   "methods": [
+    "Take",
+    "Take",
+    "Zip",
+    "GroupBy_Sum",
+    "All"
+   ]
+  },
+  {
+   "id": "S3_Array_0062_Except_GroupBy_Sum_Zip_Zip_Skip_SequenceEqual",
+   "stage": "random",
+   "methods": [
+    "Except",
+    "GroupBy_Sum",
+    "Zip",
+    "Zip",
+    "Skip",
+    "SequenceEqual"
+   ]
+  },
+  {
+   "id": "S3_Array_0063_Append_SkipWhile_ExceptBy_ExceptBy_SelectMany_Contains",
+   "stage": "random",
+   "methods": [
+    "Append",
+    "SkipWhile",
+    "ExceptBy",
+    "ExceptBy",
+    "SelectMany",
+    "Contains"
+   ]
+  },
+  {
+   "id": "S3_Array_0064_Take_UnionBy_Append_UnionBy_Reverse_MaxBy",
+   "stage": "random",
+   "methods": [
+    "Take",
+    "UnionBy",
+    "Append",
+    "UnionBy",
+    "Reverse",
+    "MaxBy"
+   ]
+  },
+  {
+   "id": "S3_Array_0065_GroupBy_Sum_Append_Zip_GroupBy_Count_GroupJoin_ElementAt",
+   "stage": "random",
+   "methods": [
+    "GroupBy_Sum",
+    "Append",
+    "Zip",
+    "GroupBy_Count",
+    "GroupJoin",
+    "ElementAt"
+   ]
+  },
+  {
+   "id": "S3_Array_0066_OrderBy_TakeWhile_Take_Reverse_Concat_ToArray",
+   "stage": "random",
+   "methods": [
+    "OrderBy",
+    "TakeWhile",
+    "Take",
+    "Reverse",
+    "Concat",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S3_Array_0067_TakeWhile_Union_IntersectBy_SelectMany_DefaultIfEmpty_Where_First",
+   "stage": "random",
+   "methods": [
+    "TakeWhile",
+    "Union",
+    "IntersectBy",
+    "SelectMany",
+    "DefaultIfEmpty",
+    "Where",
+    "First"
+   ]
+  },
+  {
+   "id": "S3_Array_0068_Take_TakeWhile_SkipLast_SelectMany_Count_Pred",
+   "stage": "random",
+   "methods": [
+    "Take",
+    "TakeWhile",
+    "SkipLast",
+    "SelectMany",
+    "Count_Pred"
+   ]
+  },
+  {
+   "id": "S3_Array_0069_Append_Reverse_Join_TakeWhile_SequenceEqual",
+   "stage": "random",
+   "methods": [
+    "Append",
+    "Reverse",
+    "Join",
+    "TakeWhile",
+    "SequenceEqual"
+   ]
+  },
+  {
+   "id": "S3_Array_0070_OrderBy_Where_Concat_TakeLast_CountBy_ToArray",
+   "stage": "random",
+   "methods": [
+    "OrderBy",
+    "Where",
+    "Concat",
+    "TakeLast",
+    "CountBy_ToArray"
+   ]
+  },
+  {
+   "id": "S3_Array_0071_Prepend_TakeLast_SelectMany_MaxBy",
+   "stage": "random",
+   "methods": [
+    "Prepend",
+    "TakeLast",
+    "SelectMany",
+    "MaxBy"
+   ]
+  },
+  {
+   "id": "S3_Array_0072_GroupBy_Sum_Except_SkipLast_SelectMany_All",
+   "stage": "random",
+   "methods": [
+    "GroupBy_Sum",
+    "Except",
+    "SkipLast",
+    "SelectMany",
+    "All"
+   ]
+  },
+  {
+   "id": "S3_Array_0073_SelectMany_TakeLast_DistinctBy_Prepend_LastOrDefault",
+   "stage": "random",
+   "methods": [
+    "SelectMany",
+    "TakeLast",
+    "DistinctBy",
+    "Prepend",
+    "LastOrDefault"
+   ]
+  },
+  {
+   "id": "S3_Array_0074_UnionBy_Union_Take_SkipLast_UnionBy_MinBy",
+   "stage": "random",
+   "methods": [
+    "UnionBy",
+    "Union",
+    "Take",
+    "SkipLast",
+    "UnionBy",
+    "MinBy"
+   ]
+  },
+  {
+   "id": "S3_Array_0075_Reverse_OrderByDescending_OrderByDescending_Reverse_Count",
+   "stage": "random",
+   "methods": [
+    "Reverse",
+    "OrderByDescending",
+    "OrderByDescending",
+    "Reverse",
+    "Count"
+   ]
+  },
+  {
+   "id": "S3_Array_0076_Intersect_IntersectBy_Intersect_TakeLast_Distinct_GroupBy_Sum_Count",
+   "stage": "random",
+   "methods": [
+    "Intersect",
+    "IntersectBy",
+    "Intersect",
+    "TakeLast",
+    "Distinct",
+    "GroupBy_Sum",
+    "Count"
+   ]
+  },
+  {
+   "id": "S3_Array_0077_Skip_Skip_Union_ToArray",
+   "stage": "random",
+   "methods": [
+    "Skip",
+    "Skip",
+    "Union",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S3_Array_0078_Intersect_Select_ExceptBy_OrderByDescending_GroupBy_Count_MinBy",
+   "stage": "random",
+   "methods": [
+    "Intersect",
+    "Select",
+    "ExceptBy",
+    "OrderByDescending",
+    "GroupBy_Count",
+    "MinBy"
+   ]
+  },
+  {
+   "id": "S3_Array_0079_Skip_Distinct_SelectMany_Concat_GroupBy_Count_ToArray",
+   "stage": "random",
+   "methods": [
+    "Skip",
+    "Distinct",
+    "SelectMany",
+    "Concat",
+    "GroupBy_Count",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S3_Array_0080_Take_UnionBy_TakeLast_Reverse_AggregateBy_ToArray",
+   "stage": "random",
+   "methods": [
+    "Take",
+    "UnionBy",
+    "TakeLast",
+    "Reverse",
+    "AggregateBy_ToArray"
+   ]
+  },
+  {
+   "id": "S3_Array_0081_Prepend_OrderBy_Take_Except_Take_Contains",
+   "stage": "random",
+   "methods": [
+    "Prepend",
+    "OrderBy",
+    "Take",
+    "Except",
+    "Take",
+    "Contains"
+   ]
+  },
+  {
+   "id": "S3_Array_0082_Reverse_Intersect_GroupBy_Sum_Zip_SkipWhile_Any_Pred",
+   "stage": "random",
+   "methods": [
+    "Reverse",
+    "Intersect",
+    "GroupBy_Sum",
+    "Zip",
+    "SkipWhile",
+    "Any_Pred"
+   ]
+  },
+  {
+   "id": "S3_Array_0083_SelectMany_Distinct_TakeLast_OrderByDescending_Where_Where_Sum",
+   "stage": "random",
+   "methods": [
+    "SelectMany",
+    "Distinct",
+    "TakeLast",
+    "OrderByDescending",
+    "Where",
+    "Where",
+    "Sum"
+   ]
+  },
+  {
+   "id": "S3_Array_0084_SkipWhile_Skip_ExceptBy_GroupBy_Sum_Average",
+   "stage": "random",
+   "methods": [
+    "SkipWhile",
+    "Skip",
+    "ExceptBy",
+    "GroupBy_Sum",
+    "Average"
+   ]
+  },
+  {
+   "id": "S3_Array_0085_Take_Prepend_SkipWhile_GroupBy_KeyOnly_GroupBy_Count_Concat_Count_Pred",
+   "stage": "random",
+   "methods": [
+    "Take",
+    "Prepend",
+    "SkipWhile",
+    "GroupBy_KeyOnly",
+    "GroupBy_Count",
+    "Concat",
+    "Count_Pred"
+   ]
+  },
+  {
+   "id": "S3_Array_0086_Reverse_SkipLast_SkipWhile_Concat_ToArray",
+   "stage": "random",
+   "methods": [
+    "Reverse",
+    "SkipLast",
+    "SkipWhile",
+    "Concat",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S3_Array_0087_GroupBy_Count_TakeLast_SkipWhile_SequenceEqual",
+   "stage": "random",
+   "methods": [
+    "GroupBy_Count",
+    "TakeLast",
+    "SkipWhile",
+    "SequenceEqual"
+   ]
+  },
+  {
+   "id": "S3_Array_0088_TakeWhile_Concat_GroupBy_Sum_Any",
+   "stage": "random",
+   "methods": [
+    "TakeWhile",
+    "Concat",
+    "GroupBy_Sum",
+    "Any"
+   ]
+  },
+  {
+   "id": "S3_Array_0089_Take_TakeWhile_Take_ToHashSet",
+   "stage": "random",
+   "methods": [
+    "Take",
+    "TakeWhile",
+    "Take",
+    "ToHashSet"
+   ]
+  },
+  {
+   "id": "S3_Array_0090_Except_Select_TakeWhile_DistinctBy_Skip_IntersectBy_ElementAt",
+   "stage": "random",
+   "methods": [
+    "Except",
+    "Select",
+    "TakeWhile",
+    "DistinctBy",
+    "Skip",
+    "IntersectBy",
+    "ElementAt"
+   ]
+  },
+  {
+   "id": "S3_Array_0091_Join_GroupJoin_GroupBy_Sum_GroupBy_Sum_Where_SkipLast_LastOrDefault",
+   "stage": "random",
+   "methods": [
+    "Join",
+    "GroupJoin",
+    "GroupBy_Sum",
+    "GroupBy_Sum",
+    "Where",
+    "SkipLast",
+    "LastOrDefault"
+   ]
+  },
+  {
+   "id": "S3_Array_0092_SelectMany_Append_Intersect_Zip_OrderBy_ElementAtOrDefault",
+   "stage": "random",
+   "methods": [
+    "SelectMany",
+    "Append",
+    "Intersect",
+    "Zip",
+    "OrderBy",
+    "ElementAtOrDefault"
+   ]
+  },
+  {
+   "id": "S3_Array_0093_OrderByDescending_Take_OrderBy_Concat_IntersectBy_OrderBy_LastOrDefault",
+   "stage": "random",
+   "methods": [
+    "OrderByDescending",
+    "Take",
+    "OrderBy",
+    "Concat",
+    "IntersectBy",
+    "OrderBy",
+    "LastOrDefault"
+   ]
+  },
+  {
+   "id": "S3_Array_0094_DefaultIfEmpty_SelectMany_IntersectBy_MaxBy",
+   "stage": "random",
+   "methods": [
+    "DefaultIfEmpty",
+    "SelectMany",
+    "IntersectBy",
+    "MaxBy"
+   ]
+  },
+  {
+   "id": "S3_Array_0095_DefaultIfEmpty_SkipLast_OrderBy_Min",
+   "stage": "random",
+   "methods": [
+    "DefaultIfEmpty",
+    "SkipLast",
+    "OrderBy",
+    "Min"
+   ]
+  },
+  {
+   "id": "S3_Array_0096_TakeLast_Take_Where_SelectMany_GroupBy_Sum_ElementAt",
+   "stage": "random",
+   "methods": [
+    "TakeLast",
+    "Take",
+    "Where",
+    "SelectMany",
+    "GroupBy_Sum",
+    "ElementAt"
+   ]
+  },
+  {
+   "id": "S3_Array_0097_Zip_GroupJoin_DistinctBy_SequenceEqual",
+   "stage": "random",
+   "methods": [
+    "Zip",
+    "GroupJoin",
+    "DistinctBy",
+    "SequenceEqual"
+   ]
+  },
+  {
+   "id": "S3_Array_0098_GroupBy_Sum_Skip_GroupBy_KeyOnly_Concat_GroupBy_KeyOnly_Intersect_ToArray",
+   "stage": "random",
+   "methods": [
+    "GroupBy_Sum",
+    "Skip",
+    "GroupBy_KeyOnly",
+    "Concat",
+    "GroupBy_KeyOnly",
+    "Intersect",
+    "ToArray"
+   ]
+  },
+  {
+   "id": "S3_Array_0099_GroupBy_KeyOnly_DistinctBy_GroupBy_Count_OrderByDescending_Any_Pred",
+   "stage": "random",
+   "methods": [
+    "GroupBy_KeyOnly",
+    "DistinctBy",
+    "GroupBy_Count",
+    "OrderByDescending",
+    "Any_Pred"
+   ]
+  }
+ ]
+}

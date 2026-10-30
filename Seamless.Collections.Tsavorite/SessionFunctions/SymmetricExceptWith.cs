@@ -157,7 +157,7 @@ internal readonly struct SymmetricExceptWith:
     }
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input)
         where TSourceLogRecord : ISourceLogRecord {
-        return new() { KeySize=srcLogRecord.Key.Length,ValueSize=Unsafe.SizeOf<EqualityEmpty>() };
+        return new() { KeySize=srcLogRecord.Key.Length,ValueSize=0 };
     }
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref EqualityEmpty input)
 #if NET10_0_OR_GREATER
@@ -165,7 +165,7 @@ internal readonly struct SymmetricExceptWith:
 #else
         where TKey : IKey{
 #endif
-        return new() { KeySize=key.KeyBytes.Length,ValueSize=Unsafe.SizeOf<EqualityEmpty>() };
+        return new() { KeySize=key.KeyBytes.Length,ValueSize=0 };
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref EqualityEmpty input)

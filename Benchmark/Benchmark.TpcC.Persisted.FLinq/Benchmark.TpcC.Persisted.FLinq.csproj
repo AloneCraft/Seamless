@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Benchmark.TpcC.Persisted.FLinq</RootNamespace>
+    <AssemblyName>Benchmark.TpcC.Persisted.FLinq</AssemblyName>
+    <!-- FLinq は LINQ を含むメソッドの呼び出し箇所を Intercept 名前空間のインターセプタへ置き換える。 -->
+    <Features>InterceptorsPreview</Features>
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Intercept</InterceptorsNamespaces>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces>
+    <!-- 展開できない LINQ(実行時に例外)と匿名型による展開漏れは、ビルドの時点で止める。 -->
+    <WarningsAsErrors>$(WarningsAsErrors);FLINQ001;FLINQ002</WarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Benchmark.TpcC.Core\Benchmark.TpcC.Core.csproj" />
+    <ProjectReference Include="..\..\Seamless\Seamless.csproj" />
+    <!-- アナライザー参照は推移しないので、生成器は利用側で直接参照する。 -->
+    <ProjectReference Include="..\..\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
+  </ItemGroup>
+  <Import Project="..\..\Shared\TpcC.Transactions\TpcC.Transactions.projitems" Label="Shared" />
+</Project>

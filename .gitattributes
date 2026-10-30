@@ -61,3 +61,6 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+# SSMS SQLの複数行文字列内のCRLFを、checkout環境に関係なく保持する。
+Seamless.Database.Gateway/Sql/Compatibility/Ssms*.sql -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

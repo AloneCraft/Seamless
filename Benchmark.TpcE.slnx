@@ -1,0 +1,37 @@
+<Solution>
+  <Folder Name="/Benchmark/">
+    <Project Path="Benchmark/Benchmark.TpcE.Core/Benchmark.TpcE.Core.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Tsavorite.Linq/Benchmark.TpcE.Tsavorite.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Tsavorite.FLinq/Benchmark.TpcE.Tsavorite.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Persisted.Linq/Benchmark.TpcE.Persisted.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Persisted.FLinq/Benchmark.TpcE.Persisted.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj" />
+    <Project Path="Benchmark/Benchmark.Tpc.Core/Benchmark.Tpc.Core.csproj" />
+    <Project Path="Benchmark/Benchmark.Tpc.Server/Benchmark.Tpc.Server.csproj" />
+  </Folder>
+  <Folder Name="/Shared/">
+    <Project Path="Shared/TpcE.Transactions/TpcE.Transactions.shproj" />
+    <File Path="Shared/TpcE.Transactions/TpcE.Transactions.projitems" />
+  </Folder>
+  <Folder Name="/SourceGenerator/">
+    <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
+    <Project Path="Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" />
+    <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.Tpc.Tests/Benchmark.Tpc.Tests.csproj" />
+  </Folder>
+  <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
+  <Project Path="Seamless.Execution/Seamless.Execution.csproj" />
+  <Project Path="Seamless.Transactions/Seamless.Transactions.csproj" />
+  <Project Path="Seamless.Transactions.Collections/Seamless.Transactions.Collections.csproj" />
+  <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
+  <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
+  <Project Path="Seamless.Database/Seamless.Database.csproj" />
+  <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
+  <Project Path="Seamless/Seamless.csproj" />
+  <Project Path="Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
+</Solution>

@@ -1,0 +1,87 @@
+[
+  {
+    "index": 0,
+    "worktree": "G:\\GitHub\\Seamless",
+    "disposition": "承認済み470ファイルと追加SQL/SSMS28ファイルを統合。未完成の新規受入テスト4件はheld-protocol-tests.patchに保留。scratch/lock 5ファイルは製品へ入れず保全。正規化差分と後続変更はapproved-source-coverage-current.jsonを参照。"
+  },
+  {
+    "index": 1,
+    "worktree": "C:\\Users\\kazuh\\.codex\\worktrees\\argon-4252-verification\\Seamless",
+    "disposition": "3ファイルの差は親順序修正版4d7f1fc1と同一の検証済み後続実装へ置換。旧マージ6件の固有解決blobも同一。"
+  },
+  {
+    "index": 2,
+    "worktree": "C:\\Users\\kazuh\\.codex\\worktrees\\flinq-demand-baseline\\Seamless",
+    "disposition": "登録のみ残る作業ツリー。pruneや削除は行わない。"
+  },
+  {
+    "index": 3,
+    "worktree": "C:\\Users\\kazuh\\.codex\\worktrees\\ordered-query-fix\\Seamless",
+    "disposition": "12ファイルすべて統合済み。1ファイルは改行形式のみ相違。"
+  },
+  {
+    "index": 4,
+    "worktree": "C:\\Users\\kazuh\\.codex\\worktrees\\seamless-argon-unified\\Seamless",
+    "disposition": "85ファイルは改行差を除き同一。TargetDiscoveryはcaller機能と互換修正、Lastは検証済み後続テストへ置換。"
+  },
+  {
+    "index": 5,
+    "worktree": "D:\\s",
+    "disposition": "未完のverification capability migration設計文書1ファイルを保全・保留。"
+  },
+  {
+    "index": 6,
+    "worktree": "F:\\CodexTemp\\SeamlessWorktreeIntegration-20261029-0902\\ui-worker-integration",
+    "disposition": "比較証拠parent-source-comparison.jsonを保全。製品ソースへは入れない。"
+  },
+  {
+    "index": 7,
+    "worktree": "F:\\WorkTree",
+    "disposition": "コミット済みcaller/statement機能を旧0.1.0の親系列へ戻して統合。作業ツリー利用中の枝は保持。"
+  },
+  {
+    "index": 8,
+    "worktree": "G:\\GitHub\\Seamless\\.claude\\worktrees\\relaxed-cannon-f5276b",
+    "disposition": "利用者指定で実験3コミットと未コミット26ファイルを保留。"
+  },
+  {
+    "index": 9,
+    "worktree": "G:\\GitHub\\Seamless\\.claude\\worktrees\\wf_54218454-e2d-1",
+    "disposition": "旧TPC-E18ファイルを保全・保留。現行EGen harnessが依存するpublic Frame1〜6契約を置換する旧実装であり、現行APIへの移植・受入が必要。"
+  },
+  {
+    "index": 10,
+    "worktree": "G:\\GitHub\\Seamless\\Work\\Orchestration\\worktrees\\ci",
+    "disposition": "23ファイルは改行差を除き同一。差の19ファイルは親順序修正版4d7f1fc1と同一の後続実装、CIはmain/version系列の運用へ更新。古いsource-only phase3候補へ戻さない。"
+  },
+  {
+    "index": 11,
+    "worktree": "G:\\GitHub\\Seamless\\Work\\Orchestration\\worktrees\\ordered-contract",
+    "disposition": "ordered契約変更は統合済み。旧スナップショットの三方向マージは候補と同一tree。差3ファイルは検証済み後続実装。"
+  },
+  {
+    "index": 12,
+    "worktree": "G:\\GitHub\\Seamless\\Work\\Orchestration\\worktrees\\sum-contract",
+    "disposition": "sum契約変更は統合済み。旧スナップショットの三方向マージは候補と同一tree。差2ファイルは検証済み後続実装。"
+  },
+  {
+    "index": 13,
+    "worktree": "G:\\GitHub\\Seamless\\Work\\Orchestration\\worktrees\\tpcc",
+    "disposition": "承認済みC12製品384ファイルを統合。265の同期前backupは保全・製品対象外、focused solution 9ファイルは再生成。"
+  },
+  {
+    "index": 14,
+    "worktree": "G:\\GitHub\\Seamless\\Work\\Orchestration\\worktrees\\ui",
+    "disposition": "88ファイルは改行差を除き同一。TPC-C差は受入済みC12の複数Store対応・ownerライフサイクルへ置換。ソリューションは再生成、Workerは後続のdisposal契約を保持。"
+  },
+  {
+    "index": 15,
+    "worktree": "G:\\GitHub\\Seamless\\Work\\Orchestration\\worktrees\\worker-lifetime",
+    "disposition": "worker-lifetime 5ファイルは改行差を除き同一で統合済み。"
+  },
+  {
+    "index": 16,
+    "worktree": "G:\\wt\\tpcc",
+    "disposition": "TPC-C driver 9ファイルを包含。差4ファイルはC12のthread所有移管、入力検証、fault/reopen状態管理の後続実装。"
+  }
+]

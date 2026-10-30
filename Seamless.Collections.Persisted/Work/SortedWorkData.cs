@@ -16,7 +16,7 @@ internal sealed class SortedWorkData<T,TKey>:IStoreComponent,IPersistedStorageQu
     private readonly long sortMemoryBytes;
     private readonly StorageTuning tuning;
     private readonly WorkSnapshotFiles snapshots;
-    private SerializedList<T,AutoSerializer<T>> records=null!;
+    private SerializedList<T,global::Seamless.Collections.Serializers.Auto<T>> records=null!;
     private ResourceReservation dataDisk=null!;
     private PositionFile index=null!;
     private string working=string.Empty;
@@ -60,7 +60,7 @@ internal sealed class SortedWorkData<T,TKey>:IStoreComponent,IPersistedStorageQu
     internal long Count{get{this.Check();if(this.ready){return this.count;}return this.records.Count;}}
     internal void Add(T value){
         this.Check();
-        var encoded=AutoSerializer<T>.Serialize(ref value);
+        var encoded=global::Seamless.Collections.Serializers.Auto<T>.Serialize(ref value);
         using var memory=this.owner.Budget.ReserveMemory(checked(128+4L*encoded.Length));
         this.ready=false;this.version++;
         this.records.Add(value);
@@ -233,7 +233,7 @@ internal sealed class SortedWorkData<T,TKey>:IStoreComponent,IPersistedStorageQu
         var paths=this.snapshots.GetPaths(saved.Snapshot,3);
         var directory=this.NewWorkingDirectory();
         ResourceReservation? disk=null;
-        SerializedList<T,AutoSerializer<T>>? records=null;
+        SerializedList<T,global::Seamless.Collections.Serializers.Auto<T>>? records=null;
         PositionFile? index=null;
         try{
             disk=this.owner.Budget.ReserveTemporaryStorage(checked(new FileInfo(paths[0]).Length+new FileInfo(paths[1]).Length));

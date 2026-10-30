@@ -1,0 +1,56 @@
+[
+  {
+    "path": "Benchmark/Benchmark.TpcC.Core/Generation/TpcCLoadSinks.cs",
+    "sameNormalizedAsWorktree": true,
+    "matchesAcceptedC12Blob": true,
+    "decision": "already-contained; preserve later C12 ownership and validation improvements"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCDriver.cs",
+    "sameNormalizedAsWorktree": true,
+    "matchesAcceptedC12Blob": true,
+    "decision": "already-contained; preserve later C12 ownership and validation improvements"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCFailure.cs",
+    "sameNormalizedAsWorktree": true,
+    "matchesAcceptedC12Blob": true,
+    "decision": "already-contained; preserve later C12 ownership and validation improvements"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCFaultInjection.cs",
+    "sameNormalizedAsWorktree": false,
+    "matchesAcceptedC12Blob": true,
+    "decision": "already-contained; preserve later C12 ownership and validation improvements"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCLockstepRunner.cs",
+    "sameNormalizedAsWorktree": false,
+    "matchesAcceptedC12Blob": true,
+    "decision": "already-contained; preserve later C12 ownership and validation improvements"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCRunOptions.cs",
+    "sameNormalizedAsWorktree": false,
+    "matchesAcceptedC12Blob": true,
+    "decision": "already-contained; preserve later C12 ownership and validation improvements"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCRunSummary.cs",
+    "sameNormalizedAsWorktree": true,
+    "matchesAcceptedC12Blob": true,
+    "decision": "already-contained; preserve later C12 ownership and validation improvements"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCVariantSession.cs",
+    "sameNormalizedAsWorktree": false,
+    "matchesAcceptedC12Blob": true,
+    "decision": "already-contained; preserve later C12 ownership and validation improvements"
+  },
+  {
+    "path": "Benchmark/Benchmark.TpcC.Core/Running/TpcCWorkDirectory.cs",
+    "sameNormalizedAsWorktree": true,
+    "matchesAcceptedC12Blob": true,
+    "decision": "already-contained; preserve later C12 ownership and validation improvements"
+  }
+]

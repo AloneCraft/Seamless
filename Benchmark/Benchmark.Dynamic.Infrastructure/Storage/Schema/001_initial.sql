@@ -4,7 +4,7 @@ CREATE TABLE "DynamicSchemaInfo"(
 ) STRICT;
 
 INSERT INTO "DynamicSchemaInfo"("version","applied_at")
-VALUES(2,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+VALUES(3,strftime('%Y-%m-%dT%H:%M:%fZ','now'));
 
 CREATE TABLE "DynamicRuns"(
     "run_id" TEXT NOT NULL PRIMARY KEY,
@@ -53,6 +53,7 @@ CREATE TABLE "DynamicQueries"(
     "result_type" TEXT NOT NULL DEFAULT '',
     "order_semantics" TEXT NOT NULL DEFAULT '',
     "ir_generation_ns" INTEGER NOT NULL DEFAULT 0,
+    "element_type" TEXT NOT NULL DEFAULT 'Int',
     "replayed_from_query_id" TEXT NULL,
     FOREIGN KEY("run_id") REFERENCES "DynamicRuns"("run_id") ON DELETE CASCADE,
     FOREIGN KEY("replayed_from_query_id") REFERENCES "DynamicQueries"("query_id") ON DELETE SET NULL,
@@ -216,4 +217,4 @@ CREATE TABLE "DynamicRunEvents"(
 
 CREATE INDEX "index_run_event_run" ON "DynamicRunEvents"("run_id","sequence");
 
-PRAGMA user_version=2;
+PRAGMA user_version=3;

@@ -1,9 +1,9 @@
 namespace Benchmark.Dynamic.Infrastructure;
 
 public static class DynamicInfrastructureSchema{
-    public const int CurrentVersion=2;
-    public const int UserTableCount=11;
-    public const string DatabaseFileName="Benchmark.Dynamic.db";
+    public const int CurrentVersion=4;
+    public const int UserTableCount=20;
+    public const string DatabaseFileName="Benchmark.db";
 }
 
 public sealed record DynamicRunRecord(
@@ -45,7 +45,8 @@ public sealed record DynamicQueryRecord(
     int Depth=0,
     string ResultType="",
     string OrderSemantics="",
-    long IrGenerationNanoseconds=0);
+    long IrGenerationNanoseconds=0,
+    string ElementType="Int");
 
 public sealed record DynamicSourceExecutionRecord(
     string ExecutionID,

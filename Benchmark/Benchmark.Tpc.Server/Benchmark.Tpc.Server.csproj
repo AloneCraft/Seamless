@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Benchmark.Tpc.Server</RootNamespace>
+    <AssemblyName>Benchmark.Tpc.Server</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Benchmark.Tpc.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- 再実行ログの記録の検査値に CRC32 を使う。 -->
+    <PackageReference Include="System.IO.Hashing" Version="10.0.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Benchmark.Tpc.Core\Benchmark.Tpc.Core.csproj" />
+    <ProjectReference Include="..\..\Seamless.Transactions\Seamless.Transactions.csproj" />
+  </ItemGroup>
+</Project>

@@ -58,7 +58,7 @@ public sealed class パラメータスイープ実行器テスト {
     [Theory]
     [InlineData(パラメータスイープバックエンド.メモリ)]
     [InlineData(パラメータスイープバックエンド.ストレージ)]
-    public async Task 実行Async_ログメモリが2ページ未満_構築失敗をメモリ上限超過として捕捉する(パラメータスイープバックエンド バックエンド) {
+    public async Task 実行Async_ログメモリが2ページ未満_明示設定を無効な構成として捕捉する(パラメータスイープバックエンド バックエンド) {
         var ディレクトリ = Directory.CreateTempSubdirectory("SeamlessParameterSweep-").FullName;
         try {
             var オプション = new パラメータスイープ実行オプション { 作業ディレクトリ=ディレクトリ };
@@ -66,7 +66,7 @@ public sealed class パラメータスイープ実行器テスト {
 
             var 結果 = await new パラメータスイープ実行器().ケースを実行Async(ケース,オプション);
 
-            Assert.Equal(パラメータスイープ失敗種別.メモリ上限超過,結果.失敗種別);
+            Assert.Equal(パラメータスイープ失敗種別.無効な構成,結果.失敗種別);
             Assert.Equal(0,結果.最大成功Count);
             Assert.Equal(0,結果.エントリCount);
             Assert.Null(結果.検索平均ナノ秒);
@@ -75,7 +75,7 @@ public sealed class パラメータスイープ実行器テスト {
             Assert.Null(結果.溢れバケット数);
             Assert.Null(結果.メモリログバイト数);
             Assert.Null(結果.ディスクログバイト数);
-            Assert.Contains("ResourceLimitException",結果.失敗メッセージ);
+            Assert.Contains("ArgumentException",結果.失敗メッセージ);
             Assert.Empty(Directory.EnumerateFileSystemEntries(ディレクトリ));
         } finally {
             Directory.Delete(ディレクトリ,true);

@@ -7,7 +7,7 @@ public abstract class ListTestBase<TStrategy, T>
 
     private static string CreatePath([CallerMemberName] string methodName = "") {
         var directoryPath = Path.Combine(
-            Environment.CurrentDirectory,
+            global::Seamless.TestKit.TestPath.Root,
             typeof(TStrategy).Name,
             typeof(T).Name
         );
@@ -319,7 +319,7 @@ public abstract class ListTestBase<TStrategy, T>
             Assert.True(set.Contains(TStrategy.Elem(2)));
 
             var switchPath = path+".switch";
-            using(var switched = new global::Seamless.Collections.Persisted.SerializedSet<T,global::Seamless.Collections.AutoSerializer<T>>(switchPath,initialCapacity: 1,initialDataCapacity: 128,tuning)) {
+            using(var switched = new global::Seamless.Collections.Persisted.SerializedSet<T,global::Seamless.Collections.Serializers.Auto<T>>(switchPath,initialCapacity: 1,initialDataCapacity: 128,tuning)) {
                 switched.Add(TStrategy.Elem(1));
                 switched.Add(TStrategy.Elem(2));
                 if(OperatingSystem.IsWindows()) {
@@ -341,7 +341,7 @@ public abstract class ListTestBase<TStrategy, T>
                     Assert.True(switched.Contains(TStrategy.Elem(2)));
                 }
             }
-            using var reopened = new global::Seamless.Collections.Persisted.SerializedSet<T,global::Seamless.Collections.AutoSerializer<T>>(switchPath);
+            using var reopened = new global::Seamless.Collections.Persisted.SerializedSet<T,global::Seamless.Collections.Serializers.Auto<T>>(switchPath);
             Assert.True(reopened.Contains(TStrategy.Elem(1)));
             Assert.True(reopened.Contains(TStrategy.Elem(2)));
             if(OperatingSystem.IsWindows()) {

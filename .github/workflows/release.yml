@@ -57,7 +57,7 @@ jobs:
         shell: pwsh
         run: |
           $ver = '${{ steps.v.outputs.version }}'
-          $projects = 'Seamless.Execution','Seamless.Collections','Seamless.Collections.Persisted','Seamless.Collections.Tsavorite','Seamless.Linq','Seamless.Database','Seamless.Database.Generator','Seamless.Database.Rdbms','Seamless.FLinq.Generator','Seamless','Seamless.Database.Tool'
+          $projects = 'Seamless.Collections','Seamless.Execution','Seamless.Collections.Persisted','Seamless.Tsavorite.Core','Seamless.Collections.Tsavorite','Seamless.Linq','Seamless.Transactions','Seamless.Transactions.Collections','Seamless.Database','Seamless.Database.Generator','Seamless.Database.Rdbms','Seamless.FLinq.Generator','Seamless','Seamless.Database.SqlServer','Seamless.Database.Tool','Seamless.Database.Client','Seamless.Database.Query','Seamless.Database.Gateway'
           foreach ($p in $projects) {
             dotnet pack ".\$p\$p.csproj" -c Release "-p:Version=$ver" -o artifacts
             if ($LASTEXITCODE -ne 0) { throw "pack failed: $p" }

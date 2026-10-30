@@ -1,4 +1,4 @@
-using Benchmark.Dynamic.Core;
+﻿using Benchmark.Dynamic.Core;
 using System.Diagnostics;
 
 namespace Benchmark.Dynamic.Worker;
@@ -56,8 +56,10 @@ public sealed record BalancedMeasurementResult(
 public sealed class MeasurementEngine {
     private static readonly DynamicImplementationKind[] MeasuredImplementations=[
         DynamicImplementationKind.System,
+        DynamicImplementationKind.FLinqUnoptimized,
         DynamicImplementationKind.FLinq,
         DynamicImplementationKind.ZLinq,
+        DynamicImplementationKind.Ideal,
     ];
     private readonly MeasurementProfile Profile;
 
@@ -73,25 +75,26 @@ public sealed class MeasurementEngine {
         int SourceOrdinal,
         CancellationToken CancellationToken=default) {
         ArgumentNullException.ThrowIfNull(Query);
+        var Implementations=MeasuredImplementations.Where(Query.Has).ToArray();
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
-        foreach(var Implementation in MeasuredImplementations) {
+        foreach(var Implementation in Implementations) {
             for(var WarmupIndex=0;WarmupIndex<this.Profile.WarmupCount;WarmupIndex++) {
                 CancellationToken.ThrowIfCancellationRequested();
                 GC.KeepAlive(Query.Run(Implementation,Primary,Secondary));
             }
         }
-        var OperationCounts=MeasuredImplementations.ToDictionary(
+        var OperationCounts=Implementations.ToDictionary(
             Implementation=>Implementation,
             Implementation=>this.Calibrate(Query.GetDelegate(Implementation),Primary,Secondary,CancellationToken));
 
-        var OrderedSamples=new List<RawMeasurementSample>(this.Profile.SampleCount*MeasuredImplementations.Length);
+        var OrderedSamples=new List<RawMeasurementSample>(this.Profile.SampleCount*Implementations.Length);
         for(var SampleIndex=0;SampleIndex<this.Profile.SampleCount;SampleIndex++) {
-            var Rotation=(QueryIndex+SourceOrdinal+SampleIndex)%MeasuredImplementations.Length;
-            for(var Position=0;Position<MeasuredImplementations.Length;Position++) {
+            var Rotation=(QueryIndex+SourceOrdinal+SampleIndex)%Implementations.Length;
+            for(var Position=0;Position<Implementations.Length;Position++) {
                 CancellationToken.ThrowIfCancellationRequested();
-                var Implementation=MeasuredImplementations[(Rotation+Position)%MeasuredImplementations.Length];
+                var Implementation=Implementations[(Rotation+Position)%Implementations.Length];
                 OrderedSamples.Add(MeasureSample(
                     Query.GetDelegate(Implementation),
                     Implementation,
@@ -103,7 +106,7 @@ public sealed class MeasurementEngine {
             }
         }
 
-        var Summaries=MeasuredImplementations.Select(Implementation=>集計(
+        var Summaries=Implementations.Select(Implementation=>集計(
             Implementation,
             OperationCounts[Implementation],
             OrderedSamples.Where(Sample=>Sample.Implementation==Implementation).OrderBy(Sample=>Sample.SampleIndex).ToArray())).ToArray();

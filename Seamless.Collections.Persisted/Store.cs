@@ -7,7 +7,7 @@ public static class Store {
         long InitialDataCapacity = 4096,
         StorageTuning? StorageTuning = null) =>
         RuntimeHelpers.IsReferenceOrContainsReferences<T>()
-            ? new SerializedList<T,MemoryPackSerializer<T>>(Path,InitialCapacity,InitialDataCapacity,StorageTuning)
+            ? new SerializedList<T,global::Seamless.Collections.Serializers.MemoryPack<T>>(Path,InitialCapacity,InitialDataCapacity,StorageTuning)
             : CreateBlittableList<T>(Path,InitialCapacity,StorageTuning);
 
     public static Set<T> CreateSet<T>(
