@@ -12109,6 +12109,95 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
 
+        var targetIndexVar = $"__targetIndex{this.result}";
+
+
+
+        var sourceItemName = this.SourceItemName();
+
+
+
+        // O(1) Direct Index Access Fusion (Zero-Loop)
+        var hasLeadingSlice = this.TryAnalyzeLeadingSlice(out var leadingSliceStageCount);
+        if(!seenFilter) {
+            var allRemainingAreProjective = true;
+            for(var i = leadingSliceStageCount; i < pipeline.Stages.Count; i++) {
+                var stage = pipeline.Stages[i];
+                if(stage.Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Cast) {
+                    continue;
+                }
+                if(stage.Kind is PipelineStageKind.Select && !stage.UsesIndex && stage.Func is { } func && CanUseDirectSpanPipelineFunc(func)) {
+                    continue;
+                }
+                allRemainingAreProjective = false;
+                break;
+            }
+            if(allRemainingAreProjective) {
+                var o1Builder = new StringBuilder();
+                var startIdxName = $"__startIndex{this.result}";
+                var endIdxName = $"__endIndex{this.result}";
+                var lenName = $"__length{this.result}";
+                var actualIdxName = $"__actualIndex{this.result}";
+
+                o1Builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+                o1Builder.AppendLine($"var {targetIndexVar}={terminalValue};");
+                o1Builder.AppendLine($"if({targetIndexVar}>=0) {{");
+                o1Builder.AppendLine($"    using(var {sourceName}={sourceExpression}) {{");
+                o1Builder.AppendLine($"        var {spanName}={directSpanExpression};");
+                if(hasLeadingSlice) {
+                    o1Builder.AppendLine($"        var {startIdxName}=0;");
+                    o1Builder.AppendLine($"        var {endIdxName}={spanName}.Length;");
+                    for(var i = 0; i < leadingSliceStageCount; i++) {
+                        var stage = pipeline.Stages[i];
+                        switch(stage.Kind) {
+                            case PipelineStageKind.Skip:
+                                o1Builder.AppendLine($"        {startIdxName}=global::System.Math.Min({endIdxName}, {startIdxName} + global::System.Math.Max(0, {stage.Value}));");
+                                break;
+                            case PipelineStageKind.Take:
+                                o1Builder.AppendLine($"        {endIdxName}=global::System.Math.Min({endIdxName}, {startIdxName} + global::System.Math.Max(0, {stage.Value}));");
+                                break;
+                            case PipelineStageKind.SkipLast:
+                                o1Builder.AppendLine($"        {endIdxName}=global::System.Math.Max({startIdxName}, {endIdxName} - global::System.Math.Max(0, {stage.Value}));");
+                                break;
+                            case PipelineStageKind.TakeLast:
+                                o1Builder.AppendLine($"        {startIdxName}=global::System.Math.Max({startIdxName}, {endIdxName} - global::System.Math.Max(0, {stage.Value}));");
+                                break;
+                        }
+                    }
+                    o1Builder.AppendLine($"        var {lenName}=global::System.Math.Max(0, {endIdxName} - {startIdxName});");
+                } else {
+                    o1Builder.AppendLine($"        var {startIdxName}=0;");
+                    o1Builder.AppendLine($"        var {lenName}={spanName}.Length;");
+                    o1Builder.AppendLine($"        var {endIdxName}={spanName}.Length;");
+                }
+                o1Builder.AppendLine($"        if((uint){targetIndexVar} < (uint){lenName}) {{");
+                if(isReversed) {
+                    o1Builder.AppendLine($"            var {actualIdxName}={endIdxName} - 1 - {targetIndexVar};");
+                } else {
+                    o1Builder.AppendLine($"            var {actualIdxName}={startIdxName} + {targetIndexVar};");
+                }
+                o1Builder.AppendLine($"            var {sourceItemName}={spanName}[{actualIdxName}];");
+                var o1CurrentName = this.AppendDirectSpanPipelineStages(o1Builder,sourceItemName,"            ",startIndex: leadingSliceStageCount);
+                o1Builder.AppendLine($"            {actualVariableName}={o1CurrentName};");
+                o1Builder.AppendLine("        } else {");
+                if(!orDefault) {
+                    o1Builder.AppendLine("            throw new global::System.ArgumentOutOfRangeException(\"index\");");
+                } else {
+                    o1Builder.AppendLine($"            {actualVariableName}=default!;");
+                }
+                o1Builder.AppendLine("        }");
+                o1Builder.AppendLine("    }");
+                o1Builder.AppendLine("} else {");
+                if(!orDefault) {
+                    o1Builder.AppendLine("    throw new global::System.ArgumentOutOfRangeException(\"index\");");
+                } else {
+                    o1Builder.AppendLine($"    {actualVariableName}=default!;");
+                }
+                o1Builder.AppendLine("}");
+                return o1Builder.ToString().TrimEnd();
+            }
+        }
+
         var sliceIndices = this.GetPrefixSliceStageIndices();
 
 
@@ -12117,19 +12206,11 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
 
-        var sourceItemName = this.SourceItemName();
-
-
-
         var countName = $"__count{this.result}";
 
 
 
         var foundVar = $"__found{this.result}";
-
-
-
-        var targetIndexVar = $"__targetIndex{this.result}";
 
 
 
