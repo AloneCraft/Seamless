@@ -1,0 +1,10 @@
+title: Seamless ドキュメント
+lang: ja
+url: https://alonecraft.github.io
+baseurl: /Seamless
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+exclude:
+  - publish-documentation.ps1
