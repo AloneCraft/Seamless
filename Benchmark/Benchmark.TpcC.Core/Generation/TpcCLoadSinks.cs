@@ -27,6 +27,54 @@ public sealed class TpcCDatabaseLoadSink<TPartition>(TpcCDatabase<TPartition> db
         }
     }
 }
+/// <summary>1 回の生成を複数の受け口へ配る(4 通りの組み合わせに同じ初期データを入れる)。</summary>
+public sealed class TpcCFanOutLoadSink(IReadOnlyList<ITpcCLoadSink> sinks):ITpcCLoadSink{
+    public void Load(in WarehouseRow row){
+        foreach(var sink in sinks){
+            sink.Load(row);
+        }
+    }
+    public void Load(in DistrictRow row){
+        foreach(var sink in sinks){
+            sink.Load(row);
+        }
+    }
+    public void Load(in CustomerRow row){
+        foreach(var sink in sinks){
+            sink.Load(row);
+        }
+    }
+    public void Load(in HistoryRow row){
+        foreach(var sink in sinks){
+            sink.Load(row);
+        }
+    }
+    public void Load(in NewOrderRow row){
+        foreach(var sink in sinks){
+            sink.Load(row);
+        }
+    }
+    public void Load(in OrderRow row){
+        foreach(var sink in sinks){
+            sink.Load(row);
+        }
+    }
+    public void Load(in OrderLineRow row){
+        foreach(var sink in sinks){
+            sink.Load(row);
+        }
+    }
+    public void Load(in ItemRow row){
+        foreach(var sink in sinks){
+            sink.Load(row);
+        }
+    }
+    public void Load(in StockRow row){
+        foreach(var sink in sinks){
+            sink.Load(row);
+        }
+    }
+}
 /// <summary>件数だけ数える(generate コマンドと試験用)。</summary>
 public sealed class TpcCCountingLoadSink:ITpcCLoadSink{
     public long Warehouses{get;private set;}
