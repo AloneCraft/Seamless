@@ -1,12 +1,23 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
 namespace Benchmark.Dynamic.Worker;
 
 public static class Program{
     public static Task<int> Main(string[] args){
+        if(args.Length>0&&args[0]=="--fixed"){
+            return Task.FromResult(Fixed(args));
+        }
         論理CPUへピン留め(args);
         var Host=new WorkerHost(Console.In,Console.Out,Console.Error);
         return Host.RunAsync();
+    }
+    private static int Fixed(string[] args){
+        try{
+            string Read(string name,string fallback){var index=Array.IndexOf(args,name);if(index<0){return fallback;}return args[index+1];}
+            var database=Read("--database",Benchmark.Infrastructure.BenchmarkDatabase.Resolve(Environment.CurrentDirectory));
+            var result=new FixedCaseRunner(new(new(database))).Run(int.Parse(Read("--count","256")),int.Parse(Read("--seed","42")),int.Parse(Read("--flags","15")),Read("--case","*")=="*"?null:Read("--case","*"));
+            foreach(var item in result){Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new{item.ID,item.RunID,item.Conditions.WorkloadID,item.Conditions.Implementation,item.MedianNanoseconds,item.MedianAllocatedBytes}));}return 0;
+        }catch(Exception exception){Console.Error.WriteLine(exception);return 1;}
     }
 
     private static void 論理CPUへピン留め(string[] args){

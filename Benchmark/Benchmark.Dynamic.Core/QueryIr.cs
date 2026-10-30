@@ -274,8 +274,8 @@ public static class QueryIrValidator{
         QueryIrDocument document,
         int inputElementCount){
         var errors=Validate(document).ToList();
-        if(inputElementCount<1||inputElementCount>MaximumSafeCardinality){
-            errors.Add($"Input element count {inputElementCount} is outside 1..{MaximumSafeCardinality}.");
+        if(inputElementCount<0||inputElementCount>MaximumSafeCardinality){
+            errors.Add($"Input element count {inputElementCount} is outside 0..{MaximumSafeCardinality}.");
             return errors;
         }
         var expected=QueryCardinalityRange.Exact(inputElementCount);

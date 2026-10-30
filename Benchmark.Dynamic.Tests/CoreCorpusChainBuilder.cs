@@ -11,8 +11,9 @@ public sealed record CorpusFile(string Description,string Origin,IReadOnlyList<C
 public sealed class CorpusChainNotConvertibleException(string reason):Exception(reason);
 
 /// <summary>
-/// Sample.FLinqChainVerifier のチェーン(メソッド名の並び)を、Benchmark.Dynamic の IR にする。
-/// 引数は移植元の固定の呼び出しに合わせて固定する(例: Where は偶数、Take は12、キーの <c>x&amp;31</c> は法32)。
+/// 旧チェーンと同じ演算子の並びを使い、DynamicのIRを追加検査する。
+/// 引数はIRで表現できる値へ置き換わるため、旧コードと同じ処理であることは保証しない。
+/// 原式の回帰検査にはLegacyChainCatalogを使う(Selectの加算項やBy演算のキー射影も保持する)。
 /// 移植元のキー射影つき演算(UnionBy など)は、Dynamic に無いので恒等キーの版にする(近似)。
 /// 作り方は、固定した並びで骨組みを生成し、各演算子の引数を差し替えてから
 /// <see cref="QueryIrNormalizer"/> で件数・順序を再計算して検証する。

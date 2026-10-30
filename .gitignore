@@ -391,3 +391,7 @@ FodyWeavers.xsd
 
 # One-off local/AI generated Python scripts
 /*.py
+
+# Local package/generation selection produced after a verified comparison cutover.
+/TestSeamless/Comparison.Local.props
+/TestSeamless/Comparison.Local.props.backup

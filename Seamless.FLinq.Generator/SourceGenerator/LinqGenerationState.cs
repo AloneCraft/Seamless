@@ -56,10 +56,11 @@ internal sealed class FragmentBuildContext(
     internal int UniqueNumber = uniqueNumber;
     public LinqGenerationConfiguration Configuration => this.State.Configuration;
     public string[] MethodTypeParameters => this.State.Target.MethodTypeParameters;
-    internal FragmentRenderContext CreateRenderContext(bool counterInstrumentationEnabled = false) =>
-        new(null,this.MethodTypeParameters.ToImmutableArray(),counterInstrumentationEnabled);
+    // StructMethodは構築中にも文字列化されるため、最初のsnapshotから対象の計測契約を使う。
+    internal FragmentRenderContext CreateRenderContext(bool? counterInstrumentationEnabled = null) =>
+        new(null,this.MethodTypeParameters.ToImmutableArray(),counterInstrumentationEnabled??this.State.Target.CounterInstrumentation);
 
-    internal void ApplyRenderContext(Fragment fragment,bool counterInstrumentationEnabled = false) {
+    internal void ApplyRenderContext(Fragment fragment,bool? counterInstrumentationEnabled = null) {
         fragment.ApplyRenderContext(this.CreateRenderContext(counterInstrumentationEnabled));
     }
 }

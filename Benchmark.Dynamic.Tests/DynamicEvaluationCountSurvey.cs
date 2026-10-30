@@ -39,6 +39,7 @@ public sealed class DynamicEvaluationCountSurvey{
         var examined=0;
         var skipped=0;
         var excess=0;
+        var unloadFailures=0;
         foreach(var count in new[]{1,2}){
             if(only is "1" or "2"&&only!=count.ToString()){
                 continue;
@@ -62,6 +63,7 @@ public sealed class DynamicEvaluationCountSurvey{
                     continue;
                 }
                 var counts=new Dictionary<DynamicImplementationKind,long>();
+                var byLambda=new Dictionary<DynamicImplementationKind,long[]>();
                 if(detailKeys.Count>0){
                     report.AppendLine("=== "+key+"  "+Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(query!));
                     report.AppendLine("primary="+string.Join(",",(int[])fixture.Primary!));
@@ -79,22 +81,36 @@ public sealed class DynamicEvaluationCountSurvey{
                         outcome=exception.GetType().Name;
                     }
                     counts[kind]=EvaluationProbe.Count;
+                    byLambda[kind]=EvaluationProbe.CountsByLambda;
                     if(detailKeys.Count>0){
-                        report.AppendLine($"{kind}: {counts[kind]} 回  結果={outcome}");
+                        report.AppendLine($"{kind}: {counts[kind]} 回 [{string.Join(",",byLambda[kind])}]  結果={outcome}");
                     }
                 }
-                loaded.UnloadAndVerify();
+                try{
+                    if(!loaded.UnloadAndVerify().Unloaded){
+                        unloadFailures++;
+                        report.AppendLine("UNLOAD_FAILURE "+key);
+                    }
+                }catch(Exception exception){
+                    unloadFailures++;
+                    report.AppendLine($"UNLOAD_FAILURE {key}  {exception.GetType().Name}: {exception.Message}");
+                }
                 if(detailKeys.Count>0){
                     report.AppendLine(compiled.ExpandedSource);
                 }
-                if(EvaluationCountComparer.Compare(counts) is not null){
+                if(EvaluationCountComparer.CompareByLambda(byLambda) is not null){
                     excess++;
-                    report.AppendLine($"EXCESS {key}  System={counts[DynamicImplementationKind.System]} FLinq={counts[DynamicImplementationKind.FLinq]}"
+                    report.AppendLine($"EXCESS {key}  System={counts[DynamicImplementationKind.System]} [{string.Join(",",byLambda[DynamicImplementationKind.System])}] FLinq={counts[DynamicImplementationKind.FLinq]} [{string.Join(",",byLambda[DynamicImplementationKind.FLinq])}]"
                         +(counts.TryGetValue(DynamicImplementationKind.ZLinq,out var z)?$" ZLinq={z}":string.Empty));
                 }
             }
         }
-        report.Insert(0,$"examined={examined} skipped={skipped} excess={excess}{Environment.NewLine}");
-        File.WriteAllText(Path.Combine(Path.GetTempPath(),outputName),report.ToString());
+        report.Insert(0,$"examined={examined} skipped={skipped} excess={excess} unloadFailures={unloadFailures}{Environment.NewLine}");
+        var outputPath=Path.Combine(Path.GetTempPath(),outputName);
+        File.WriteAllText(outputPath,report.ToString());
+        if(Environment.GetEnvironmentVariable("EVAL_SURVEY_REQUIRE_CLEAN")=="1"){
+            Assert.True(examined>0&&skipped==0&&excess==0&&unloadFailures==0,
+                $"Survey was not clean: unloadFailures={unloadFailures}, examined={examined}, skipped={skipped}, excess={excess}. Report: {outputPath}");
+        }
     }
 }

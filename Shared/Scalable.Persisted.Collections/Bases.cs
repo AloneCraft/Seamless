@@ -11,6 +11,9 @@ public abstract class PersistedSetScalable<TProvider, T>
     private static readonly ConcurrentDictionary<string,Lazy<global::Seamless.Collections.Persisted.Set<T>>> SharedContainsSets = new(StringComparer.Ordinal);
 
     [Benchmark, BenchTheory]
+#if BENCH_AS_TEST
+    [BenchArguments(65536,1,4096)]
+#else
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -19,6 +22,7 @@ public abstract class PersistedSetScalable<TProvider, T>
     [BenchArguments(2097152,1,4096)]
     [BenchArguments(4194304,1,4096)]
     [BenchArguments(8388608,1,4096)]
+#endif
     public long Add(long Count,long Initial,long Data) {
         var count = checked((int)Count);
         var values = GetSharedValues<PersistedSetScalable<TProvider,T>,T>(count,static index => TProvider.Create(index));
@@ -36,6 +40,9 @@ public abstract class PersistedSetScalable<TProvider, T>
     }
 
     [Benchmark, BenchTheory]
+#if BENCH_AS_TEST
+    [BenchArguments(65536,1,4096)]
+#else
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -44,6 +51,7 @@ public abstract class PersistedSetScalable<TProvider, T>
     [BenchArguments(2097152,1,4096)]
     [BenchArguments(4194304,1,4096)]
     [BenchArguments(8388608,1,4096)]
+#endif
     public int Contains(long Count,long Initial,long Data) {
         var count = checked((int)Count);
         var values = GetSharedValues<PersistedSetScalable<TProvider,T>,T>(count,static index => TProvider.Create(index));
@@ -87,6 +95,9 @@ public abstract class PersistedListScalable<TStrategy, T>
     private static readonly ConcurrentDictionary<string,Lazy<ListHandle<T>>> SharedIndexerLists = new(StringComparer.Ordinal);
 
     [Benchmark, BenchTheory]
+#if BENCH_AS_TEST
+    [BenchArguments(65536,1,4096)]
+#else
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -95,6 +106,7 @@ public abstract class PersistedListScalable<TStrategy, T>
     [BenchArguments(2097152,1,4096)]
     [BenchArguments(4194304,1,4096)]
     [BenchArguments(8388608,1,4096)]
+#endif
     public long Add(long Count,long Initial,long Data) {
         var count = checked((int)Count);
         var values = GetSharedValues<PersistedListScalable<TStrategy,T>,T>(count,static index => TStrategy.Elem(index));
@@ -112,6 +124,9 @@ public abstract class PersistedListScalable<TStrategy, T>
     }
 
     [Benchmark, BenchTheory]
+#if BENCH_AS_TEST
+    [BenchArguments(65536,1,4096)]
+#else
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -120,6 +135,7 @@ public abstract class PersistedListScalable<TStrategy, T>
     [BenchArguments(2097152,1,4096)]
     [BenchArguments(4194304,1,4096)]
     [BenchArguments(8388608,1,4096)]
+#endif
     public long Remove(long Count,long Initial,long Data) {
         var count = checked((int)Count);
         var values = GetSharedValues<PersistedListScalable<TStrategy,T>,T>(count,static index => TStrategy.Elem(index));
@@ -140,6 +156,9 @@ public abstract class PersistedListScalable<TStrategy, T>
     }
 
     [Benchmark, BenchTheory]
+#if BENCH_AS_TEST
+    [BenchArguments(65536,1,4096)]
+#else
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -148,6 +167,7 @@ public abstract class PersistedListScalable<TStrategy, T>
     [BenchArguments(2097152,1,4096)]
     [BenchArguments(4194304,1,4096)]
     [BenchArguments(8388608,1,4096)]
+#endif
     public long Indexer(long Count,long Initial,long Data) {
         var count = checked((int)Count);
         var values = GetSharedValues<PersistedListScalable<TStrategy,T>,T>(count,static index => TStrategy.Elem(index));
@@ -188,6 +208,9 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider, TKey, TVal
     private static readonly ConcurrentDictionary<string,Lazy<global::Seamless.Collections.Persisted.Dictionary<TKey,TValue>>> SharedTryGetValueDictionaries = new(StringComparer.Ordinal);
 
     [Benchmark, BenchTheory]
+#if BENCH_AS_TEST
+    [BenchArguments(65536,1,4096)]
+#else
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -196,6 +219,7 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider, TKey, TVal
     [BenchArguments(2097152,1,4096)]
     [BenchArguments(4194304,1,4096)]
     [BenchArguments(8388608,1,4096)]
+#endif
     public long Add(long Count,long Initial,long Data) {
         var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(this.Add));
@@ -210,6 +234,9 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider, TKey, TVal
     }
 
     [Benchmark, BenchTheory]
+#if BENCH_AS_TEST
+    [BenchArguments(65536,1,4096)]
+#else
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -218,6 +245,7 @@ public abstract class PersistedBlittableDictionaryScalable<TProvider, TKey, TVal
     [BenchArguments(2097152,1,4096)]
     [BenchArguments(4194304,1,4096)]
     [BenchArguments(8388608,1,4096)]
+#endif
     public int TryGetValue(long Count,long Initial,long Data) {
         var count = checked((int)Count);
         var pairs = GetSharedPairs<PersistedBlittableDictionaryScalable<TProvider,TKey,TValue>,TKey,TValue>(
@@ -273,6 +301,9 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider, TKey, TVa
     private static readonly ConcurrentDictionary<string,Lazy<global::Seamless.Collections.Persisted.Dictionary<TKey,TValue>>> SharedTryGetValueDictionaries = new(StringComparer.Ordinal);
 
     [Benchmark, BenchTheory]
+#if BENCH_AS_TEST
+    [BenchArguments(65536,1,4096)]
+#else
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -281,6 +312,7 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider, TKey, TVa
     [BenchArguments(2097152,1,4096)]
     [BenchArguments(4194304,1,4096)]
     [BenchArguments(8388608,1,4096)]
+#endif
     public long Add(long Count,long Initial,long Data) {
         var count = checked((int)Count);
         var path = ScalablePath.Create<TProvider,KeyValuePair<TKey,TValue>>(nameof(this.Add));
@@ -295,6 +327,9 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider, TKey, TVa
     }
 
     [Benchmark, BenchTheory]
+#if BENCH_AS_TEST
+    [BenchArguments(65536,1,4096)]
+#else
     [BenchArguments(65536,1,4096)]
     [BenchArguments(131072,1,4096)]
     [BenchArguments(262144,1,4096)]
@@ -303,6 +338,7 @@ public abstract class PersistedSerializedDictionaryScalable<TProvider, TKey, TVa
     [BenchArguments(2097152,1,4096)]
     [BenchArguments(4194304,1,4096)]
     [BenchArguments(8388608,1,4096)]
+#endif
     public int TryGetValue(long Count,long Initial,long Data) {
         var count = checked((int)Count);
         var pairs = GetSharedPairs<PersistedSerializedDictionaryScalable<TProvider,TKey,TValue>,TKey,TValue>(

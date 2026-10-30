@@ -210,6 +210,26 @@ public sealed class WorkerHostTests{
         Assert.DoesNotContain(result.Messages,static message=>message.MessageType==WorkerMessageTypes.QueryStarted);
     }
 
+    [Fact,Trait("Category","Integration")]
+    public async Task RunAsync_DistinctByの対象変換は順序なし属性を保持する(){
+        var query=new RandomQueryGenerator().Generate(new RandomQueryGenerationOptions{
+            MasterSeed=Seed256.Parse("0x10182026"),QueryIndex=0,SourceTarget=SourceTarget.SystemArray,
+            OperatorCount=2,MaximumDepth=2,InputElementCount=16,
+            ForcedOperatorSequence=[QueryOperatorIds.DistinctBy],ForcedTerminalOperatorId=QueryOperatorIds.ToArray,
+        });
+        var request=new WorkerRunRequest("distinct-by-retarget",Seed256.Parse("0x10182026"),1,2,2,16,
+            OperatorSetMode.Maximum,[SourceTarget.SystemArray,SourceTarget.SystemList,SourceTarget.SystemIEnumerable,SourceTarget.SystemRange],
+            new WorkerMeasurementProfile("test",0,1,0,1),"test","test","test",
+            ReplayQueries:[new(0,QueryIrJson.Serialize(query))]);
+        var result=await RunExhaustiveAsync(request);
+        Assert.Equal(0,result.ExitCode);
+        Assert.DoesNotContain(result.Messages,static message=>message.MessageType==WorkerMessageTypes.Fatal);
+        var completed=result.Messages.Where(static message=>message.MessageType==WorkerMessageTypes.SourceExecutionCompleted)
+            .Select(DynamicWorkerProtocol.DeserializePayload<WorkerSourceExecutionCompletedEvent>).ToArray();
+        Assert.Equal(request.SourceTargets,completed.Select(static item=>item.SourceTarget));
+        Assert.Contains(result.Messages,static message=>message.MessageType==WorkerMessageTypes.RunCompleted);
+    }
+
     private sealed class SucceedingExecutionRunner:IWorkerExecutionRunner{
         public Task<WorkerSourceExecutionCompletedEvent> ExecuteAsync(
             WorkerRunRequest request,

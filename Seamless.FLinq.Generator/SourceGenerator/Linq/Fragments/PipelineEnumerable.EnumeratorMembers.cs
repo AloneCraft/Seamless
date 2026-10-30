@@ -27,6 +27,17 @@ internal sealed partial class PipelineEnumerable {
     public override string GetEnumeratorFields {
         get {
             var builder = new StringBuilder();
+            if(this.SupportsOrderedMaterialization){
+                // ValueEnumerable.Enumeratorのコピーだけへ設定し、元の通常列挙は変更しない。
+                builder.AppendLine($"private bool {OrderedMaterializationFlag}={this.skipSingletonOrderKeyEvaluation.ToString().ToLowerInvariant()};");
+                builder.AppendLine($"private bool {OrderedFirstFlag}={this.useOrderedFirst.ToString().ToLowerInvariant()};");
+                builder.AppendLine($"private bool {OrderedFirstCompletedFlag}=false;");
+                builder.AppendLine($"public void {OrderedMaterializationMethod}(){{this.{OrderedMaterializationFlag}=true;}}");
+                builder.AppendLine($"public void {OrderedConsumerMethod}(bool materialize,bool first){{this.{OrderedMaterializationFlag}=materialize;this.{OrderedFirstFlag}=first;}}");
+                if(source is PipelineEnumerable{SupportsOrderedMaterialization:true}){
+                    builder.AppendLine($"public TEnum {OrderedSourceProperty}{{get=>this.{this.e};set=>this.{this.e}=value;}}");
+                }
+            }
             for(var index = 0;index<stages.Count;index++) {
                 var stage = stages[index];
                 if(stage.Kind is PipelineStageKind.Where or PipelineStageKind.Select&&stage.UsesIndex) {
@@ -158,6 +169,7 @@ internal sealed partial class PipelineEnumerable {
     public override string GetTryGetNextBody {
         get {
             var loop = this.BuildLoop(this.e,"current=this.Current={0};\nreturn true;","current=default!;\nreturn false;");
+            if(this.SupportsOrderedMaterialization){loop=this.BuildOrderedFirstLoop()+"\n"+loop;}
             var guard = this.TakeEntryGuard();
             return guard.Length==0 ? loop : guard+"\n"+loop;
         }
@@ -173,9 +185,7 @@ internal sealed partial class PipelineEnumerable {
             if(stages[index].Kind!=PipelineStageKind.Take||stages[index].UsesIndex||stages[index].Value is null) {
                 continue;
             }
-            if(!stages.Skip(index+1).All(static stage => stage.Kind is PipelineStageKind.Where or PipelineStageKind.Select or PipelineStageKind.Skip
-                or PipelineStageKind.Take or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile or PipelineStageKind.Cast or PipelineStageKind.OfType
-                or PipelineStageKind.AsEnumerable or PipelineStageKind.Distinct or PipelineStageKind.DistinctBy)) {
+            if(!stages.Skip(index+1).All(PipelineStageTraits.IsStreamingAtMostOne)) {
                 continue;
             }
             builder.AppendLine($"if(this.{this.StateName(index)}>=this.{this.CountName(this.CountOrdinal(index))}Value) {{");

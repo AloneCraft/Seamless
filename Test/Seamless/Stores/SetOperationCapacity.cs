@@ -2,7 +2,7 @@ using CommonStore=global::Seamless.Execution.Store;
 namespace Test.Seamless.Stores;
 /// <summary>まとめて書き換える集合演算(UnionWith・SymmetricExceptWith)も、1 件ずつの追加と同じ容量の確認を通る(BUG-0017)。</summary>
 public class SetOperationCapacity{
-    private static readonly TsavoriteTuning Small=new(){PageSize=1L<<12,SegmentSize=1L<<16,LogMemorySize=1L<<16,IndexSize=1L<<14};
+    private static readonly TsavoriteTuning Small=new(){PageSize=1L<<12,SegmentSize=1L<<16,LogMemorySize=1L<<16,IndexSize=1L<<14,Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>()};
     private static void AssertOriginalKept(global::Seamless.Collections.Tsavorite.HashSet<long> set,int count){
         var missing=0;
         for(long i=0;i<count;i++){

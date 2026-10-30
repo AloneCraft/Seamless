@@ -53,7 +53,7 @@ public sealed class WorkerVerticalSliceTests{
     }
 
     [Fact,Trait("Category","Integration")]
-    public async Task SystemArrayを4経路検証し3系列計測してALCを解放する(){
+    public async Task SystemArrayを4経路検証し4系列計測してALCを解放する(){
         var Seed=Seed256.Parse("0x2A");
         var Query=new RandomQueryGenerator().Generate(new RandomQueryGenerationOptions{
             MasterSeed=Seed,
@@ -104,7 +104,7 @@ public sealed class WorkerVerticalSliceTests{
         using var Artifact=JsonDocument.Parse(結果.MeasurementsJson!);
         Assert.True(Artifact.RootElement.GetProperty("reachedFixedPoint").GetBoolean());
         Assert.Equal(
-            3,
+            4,
             Artifact.RootElement
                 .GetProperty("measurement")
                 .GetProperty("measurements")

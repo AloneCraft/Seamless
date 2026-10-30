@@ -1,0 +1,24 @@
+{
+  "capturedUtc": "2026-10-29T04:20:10.693169+00:00",
+  "markdownDocuments": 8,
+  "localLinksResolvedBeforeReview": 12,
+  "codeFencesBalanced": 18,
+  "errors": [],
+  "protectedExistingFilesChecked": 199,
+  "existingSourceChanges": [],
+  "stagedStatusUnchanged": true,
+  "independentReview": {
+    "status": "Reviewed",
+    "findings": [
+      "Trim padded V type code; assert 171 nonempty definitions",
+      "Implement MySQL/PostgreSQL adapters before P3"
+    ],
+    "action": "Corrected in this revision"
+  },
+  "productTests": "NotRun",
+  "parserPerformance": "Unavailable",
+  "p0MeasurementGate": "Incomplete",
+  "localLinksResolvedAfterReview": 15,
+  "workloadCasesChecked": 12,
+  "workloadReview": "W12 deletes Orders to avoid Customer FK violation; arguments have explicit logical types"
+}

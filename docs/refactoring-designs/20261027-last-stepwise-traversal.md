@@ -1,0 +1,24 @@
+# Last走査契約の段階修正
+
+339版の独立System oracle10800比較でmeaning1372/全差3224、CounterOnly差0を確認した。Array/Listの直接Last(predicate)はSystemが末尾matchで止まるのに、生成前方走査が先頭throwを実行していた。
+
+Aは直接ArrayRoot/ListRootのLast_predicateを後方短絡する。Bは既存Root runtime span能力の未利用を直す。A/Bは他spanや一般IList/mutation同等性を主張しない。Cは非同値なWhere.Last/LOD融合を停止し直接Last(predicate)のNoMatchを保つ。Dは元overload/iteratorshape/成功値再読込を内部LastTerminalContractで保持する別段階。新publicinterfaceは必要性を親で判断するまで追加しない。
+
+各段階は元10800の全assert/入力を維持してbuildと実行を別BGOへ分け、残存差と旧固定counter期待20/4の意味を記録する。古い成功を新版の合格へ流用しない。Aは未実行、B/C/Dは未適用。
+
+
+## A版の測定（340入力版）
+
+Aのbuildは0error。同10800 oracleでmeaning差1104、全差2594、CounterOnly差0。旧339版はmeaning1372/全差3224。残存をFailedのまま保存する。Bは次の未実行候補。新loop名と利用者capture名の衝突リスクは別07候補で確認中で、A/B全受入とはしない。
+
+## C段階の取込
+
+Bの10800比較は意味576/全差1304が残った。独立NameSafety4セルは修正前CS0136を修正後全成功で確認。Cではその名前割当を保持し、predicate版Lastの無一致例外をNoMatchへ合わせ、Where(p).Last/LastOrDefaultの無条件融合を停止した。例外messageだけでなく走査形状とmutation時の読込順が異なるためである。C版は未実行で、Where走査の需要制御Dはまだ取り込まない。
+
+## D段階の取込
+
+Cは10800比較で意味144/全差1160が残り、B比で意味480解消/48新規、全差480解消/336新規だった。Where融合停止で新たに観測された走査差とCS0219が2地点あるため受入済みとはしない。Dではterminal predicateを保持し、rootの実array/List/IListとWhere/Selectの順序に応じて需要を描画する内部契約を追加した。公開interfaceや実行時delegateは追加しない。既存B名前割当とC例外契約を保持し、新Dローカルも既存StableLocalで衝突を避ける。rawSelect/customWhereSelectのtail selectorはSystem一次sourceと同じusing内で評価する。unknown内部Iterator/Select.Where.Select等へこの規則を一般化しない。10800、名前4、Dispose16比較の新D版は未実行。
+
+## D10結果とWhere overload登録の修正
+
+D10の10800はAll3600/CounterOnly3600が差0、Noneだけ意味72/全差634。Dispose16もWhere.SelectのNone4比較だけ差が残った。失敗生成のWhereにindexed専用index更新があり、Registryの優先1000 indexed Whereに既存IsApplicableVariantの登録が欠けていた。判定付き優先999 unaryより先に誤選択されていたため、その1引数を登録する。Dの本物indexed拒否やCanInvokeAsDelegate条件は変えない。OrDefault predicateの未使用found flagも別差分で生成しないようにした。次版で既存10800/16/4と追加414、既存Whereを実行し、警告数と意味を独立受入する。いずれも次版は未実行。

@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Seamless.Execution;
 namespace Seamless.Collections.Persisted;
 /// <summary>
@@ -10,18 +10,18 @@ namespace Seamless.Collections.Persisted;
 /// </summary>
 public static partial class StoreExtensions{
     public static Set<T> CreatePersistedSet<T>(this global::Seamless.Execution.Store store,string name,long? initialCapacity=null,long? initialDataCapacity=null,StorageTuning? tuning=null,PersistedMemoryBacking memoryBacking=PersistedMemoryBacking.InMemory,long expectedCount=0){
-        var profile=store.ResolveProfile(name,"Persisted",typeof(T).FullName??typeof(T).Name,expectedCount,explicitSettings:new(){InitialCapacity=initialCapacity,InitialDataBytes=initialDataCapacity});
+        var profile=store.ResolveProfile(name,"Persisted",typeof(T).FullName??typeof(T).Name,expectedCount,explicitSettings:new(){InitialCapacity=initialCapacity,InitialDataBytes=initialDataCapacity},io:ProfileIO.Describe(tuning));
         var place=PreparePlace(store,name,memoryBacking);
         return Attach(store,name,place,()=>new Set<T>(Path.Combine(place.Directory,"items.dat"),profile.Settings.InitialCapacity!.Value,profile.Settings.InitialDataBytes!.Value,tuning),static set=>set.Committable,static (set,action)=>set.SetDisposeAction(action),static (set,action)=>set.SetSaveAction(action));
     }
     public static PersistedList<T> CreatePersistedList<T>(this global::Seamless.Execution.Store store,string name,long? initialCapacity=null,long? initialDataCapacity=null,StorageTuning? tuning=null,PersistedMemoryBacking memoryBacking=PersistedMemoryBacking.InMemory,long expectedCount=0){
-        var profile=store.ResolveProfile(name,"Persisted",typeof(T).FullName??typeof(T).Name,expectedCount,explicitSettings:new(){InitialCapacity=initialCapacity,InitialDataBytes=initialDataCapacity});
+        var profile=store.ResolveProfile(name,"Persisted",typeof(T).FullName??typeof(T).Name,expectedCount,explicitSettings:new(){InitialCapacity=initialCapacity,InitialDataBytes=initialDataCapacity},io:ProfileIO.Describe(tuning));
         var place=PreparePlace(store,name,memoryBacking);
         return Attach(store,name,place,()=>Store.CreateList<T>(Path.Combine(place.Directory,"items.dat"),profile.Settings.InitialCapacity!.Value,profile.Settings.InitialDataBytes!.Value,tuning),static list=>list,static (list,action)=>list.SetDisposeAction(action),static (list,action)=>{});
     }
     public static Dictionary<TKey,TValue> CreatePersistedDictionary<TKey,TValue>(this global::Seamless.Execution.Store store,string name,long? initialCapacity=null,long? initialDataCapacity=null,StorageTuning? tuning=null,PersistedMemoryBacking memoryBacking=PersistedMemoryBacking.InMemory,long expectedCount=0)
         where TKey:notnull{
-        var profile=store.ResolveProfile(name,"Persisted",$"{typeof(TKey).FullName}|{typeof(TValue).FullName}",expectedCount,explicitSettings:new(){InitialCapacity=initialCapacity,InitialDataBytes=initialDataCapacity});
+        var profile=store.ResolveProfile(name,"Persisted",$"{typeof(TKey).FullName}|{typeof(TValue).FullName}",expectedCount,explicitSettings:new(){InitialCapacity=initialCapacity,InitialDataBytes=initialDataCapacity},io:ProfileIO.Describe(tuning));
         var place=PreparePlace(store,name,memoryBacking);
         return Attach(store,name,place,()=>new Dictionary<TKey,TValue>(Path.Combine(place.Directory,"items.dat"),profile.Settings.InitialCapacity!.Value,profile.Settings.InitialDataBytes!.Value,tuning),static dictionary=>dictionary.Committable,static (dictionary,action)=>dictionary.SetDisposeAction(action),static (dictionary,action)=>dictionary.SetSaveAction(action));
     }

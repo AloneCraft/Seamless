@@ -2,10 +2,6 @@
   <Folder Name="/Benchmark/">
     <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep/Benchmark.Tsavorite.ParameterSweep.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj" />
-    <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep.UI/Benchmark.Tsavorite.ParameterSweep.UI.csproj" />
-  </Folder>
-  <Folder Name="/Shared/">
-    <Project Path="Shared/UI.Storage/UI.Storage.csproj" />
   </Folder>
   <Folder Name="/SourceGenerator/">
     <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
@@ -16,6 +12,8 @@
   </Folder>
   <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
   <Project Path="Seamless.Execution/Seamless.Execution.csproj" />
+  <Project Path="Seamless.Transactions/Seamless.Transactions.csproj" />
+  <Project Path="Seamless.Transactions.Collections/Seamless.Transactions.Collections.csproj" />
   <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
   <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
   <Project Path="Seamless.Database/Seamless.Database.csproj" />

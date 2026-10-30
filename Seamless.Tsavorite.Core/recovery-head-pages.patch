@@ -1,0 +1,17 @@
+diff --git a/libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs b/libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs
+index 39cf339a..d48c88cb 100644
+--- a/libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs
++++ b/libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs
+@@ -841,6 +841,12 @@ namespace Tsavorite.core
+                     // We make an extra pass to clear locks when reading every page back into memory
+                     ClearBitsOnPage(p, untilAddress, in options, recoveryStatus.headAddress);
+                     ProcessReadPageAndFlush(scanFromAddress, recoverFromAddress, untilAddress, nextVersion, in options, recoveryStatus, p, pageIndex);
++
++                    // Pages below the resident head were read only to rebuild the index. Release them
++                    // after any undo flush so their circular-buffer slots cannot retain old records
++                    // when later reused for pages beyond the recovered tail.
++                    if (p < hlogBase.GetPage(recoveryStatus.headAddress) && hlogBase.IsAllocated(pageIndex))
++                        FlushIfNeededThenEvictPageForRecovery(recoveryStatus, p);
+                 }
+             }
+ 

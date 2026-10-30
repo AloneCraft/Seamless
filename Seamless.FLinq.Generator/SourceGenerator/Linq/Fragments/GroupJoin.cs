@@ -156,14 +156,11 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             """;
         // 外側の最初の要素を得てから、内側の探索表を作る(外側が空なら、内側のキー選択子を評価しない。System.Linq と同じ)。
         var builtName = $"__groupJoinBuilt{番号}";
-        var lazyOuterBody = $$"""
-            if(!{{builtName}}){
-                {{builtName}}=true;
-                {{IndentLines(this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody),"    ").TrimStart()}}
-                {{lookupName}}={{lookupBuilderName}}.BuildPooledAndClear();
-            }
-            {{outerBody}}
-            """;
+        var buildLookup = $"{this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody)}\n{lookupName}={lookupBuilderName}.BuildPooledAndClear();";
+        // span の外側は、最初の要素を探すループと残りのループに分けて、外側の要素ごとの確認をしない。それ以外は旗で確かめる。
+        var outerLoop = this.RenderRootLoopWithFirst(outerRoot,outerPredicates,outerName,outerItemName,buildLookup,outerBody,null)
+            ??this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,$"if(!{builtName}){{\n    {builtName}=true;\n{IndentGeneratedStatement(buildLookup,"    ")}\n}}\n{outerBody}");
+        var builtDeclaration = outerLoop.Contains(builtName) ? $"var {builtName}=false;" : string.Empty;
 
         return $$"""
             {
@@ -179,11 +176,11 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
                     __initialCapacity{{番号}}=0;
                 }
                 var {{lookupBuilderName}}=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(__initialCapacity{{番号}},(global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>?){{cmpArg}},true);
-                var {{builtName}}=false;
+                {{builtDeclaration}}
                 global::Seamless.Linq.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}>? {{lookupName}}=null;
                 using var {{outerName}}={{outerExpression}};
                 try {
-                    {{IndentLines(this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,lazyOuterBody),"        ").TrimStart()}}
+                    {{IndentLines(outerLoop,"        ").TrimStart()}}
                 } finally {
                     {{lookupName}}?.Dispose();
                 }
@@ -259,14 +256,11 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             """;
         // 外側の最初の要素を得てから、内側の探索表を作る(外側が空なら、内側のキー選択子を評価しない。System.Linq と同じ)。
         var builtName = $"__groupJoinBuilt{番号}";
-        var lazyOuterBody = $$"""
-            if(!{{builtName}}){
-                {{builtName}}=true;
-                {{IndentLines(this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody),"    ").TrimStart()}}
-                {{lookupName}}={{lookupBuilderName}}.BuildPooledAndClear();
-            }
-            {{outerBody}}
-            """;
+        var buildLookup = $"{this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody)}\n{lookupName}={lookupBuilderName}.BuildPooledAndClear();";
+        // span の外側は、最初の要素を探すループと残りのループに分けて、外側の要素ごとの確認をしない。それ以外は旗で確かめる。
+        var outerLoop = this.RenderRootLoopWithFirst(outerRoot,outerPredicates,outerName,outerItemName,buildLookup,outerBody,$"!{foundName}")
+            ??this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,$"if(!{builtName}){{\n    {builtName}=true;\n{IndentGeneratedStatement(buildLookup,"    ")}\n}}\n{outerBody}");
+        var builtDeclaration = outerLoop.Contains(builtName) ? $"var {builtName}=false;" : string.Empty;
 
         string notFoundBlock;
         if(orDefault){
@@ -290,12 +284,12 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
                     __initialCapacity{{番号}}=0;
                 }
                 var {{lookupBuilderName}}=new global::Seamless.Linq.LookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(__initialCapacity{{番号}},(global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>?){{cmpArg}},true);
-                var {{builtName}}=false;
+                {{builtDeclaration}}
                 global::Seamless.Linq.Lookup<{{this.InnerKeyType}},{{this.InnerElementType}}>? {{lookupName}}=null;
                 using var {{outerName}}={{outerExpression}};
                 var {{foundName}}=false;
                 try {
-                    {{IndentLines(this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,lazyOuterBody),"        ").TrimStart()}}
+                    {{IndentLines(outerLoop,"        ").TrimStart()}}
                 } finally {
                     {{lookupName}}?.Dispose();
                 }

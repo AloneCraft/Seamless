@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>true</IsPackable>
+    <PackageId>Seamless.Database.Server</PackageId>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>seamless-server</ToolCommandName>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Seamless.Database.Server</RootNamespace>
+    <AssemblyName>Seamless.Database.Server</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Seamless.Database.Gateway\Seamless.Database.Gateway.csproj" />
+    <ProjectReference Include="..\Samples\Sample.NetShop.Core\Sample.NetShop.Core.csproj" />
+  </ItemGroup>
+</Project>
