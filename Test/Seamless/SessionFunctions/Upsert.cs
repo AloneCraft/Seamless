@@ -33,7 +33,7 @@ public sealed class Upsert:AddTests<int,string> {
         ((global::Seamless.Collections.Tsavorite.IDictionary<int,string>)dict).TryAdd(key,value);
     protected override void DoUpsert() {
         using var store = Store.Create().Create<int,string>();
-        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.Upsert<string,MemoryPackSerializer<string>>>(new());
+        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.Upsert<string,global::Seamless.Collections.Serializers.MemoryPack<string>>>(new());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(200));
         // Upsert writerの動作を検証する。
@@ -47,7 +47,7 @@ public sealed class Upsert:AddTests<int,string> {
     }
     protected override void DoInPlaceWriter() {
         using var store = Store.Create().Create<int,string>();
-        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.Upsert<string,MemoryPackSerializer<string>>>(new());
+        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.Upsert<string,global::Seamless.Collections.Serializers.MemoryPack<string>>>(new());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(200));
         // Upsert writerの動作を検証する。
@@ -81,7 +81,7 @@ public sealed class Upsert:AddTests<int,string> {
     [Fact, Trait("Category","Unit")]
     public void UpsertHeapObject() {
         using var store = Store.Create().Create<int,string>();
-        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.Upsert<string,MemoryPackSerializer<string>>>(new());
+        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.Upsert<string,global::Seamless.Collections.Serializers.MemoryPack<string>>>(new());
         var bc = session.BasicContext;
         var key = MakeKey(SerInt(500));
         // Upsert 経路はこの処理では使用しない。
@@ -96,7 +96,7 @@ public sealed class Upsert:AddTests<int,string> {
         bc.Upsert(key2,(IHeapObject)new DummyHeapObject());
         // Upsert writerの動作を検証する。
         {
-            var f = new global::Seamless.Collections.Tsavorite.Upsert<string,MemoryPackSerializer<string>>();
+            var f = new global::Seamless.Collections.Tsavorite.Upsert<string,global::Seamless.Collections.Serializers.MemoryPack<string>>();
             var lr = default(LogRecord);
             var si = default(RecordSizeInfo);
             string inp = null!;
@@ -113,7 +113,7 @@ public sealed class Upsert:AddTests<int,string> {
             string,//TInput
             bool,
             EqualityEmpty,
-            global::Seamless.Collections.Tsavorite.Upsert<string,MemoryPackSerializer<string>>,
+            global::Seamless.Collections.Tsavorite.Upsert<string,global::Seamless.Collections.Serializers.MemoryPack<string>>,
             StoreFunctions<SpanByteComparer,DefaultRecordTriggers>,
             SpanByteAllocator<
                 StoreFunctions<
@@ -153,7 +153,7 @@ public sealed class Upsert:AddTests<int,string> {
             string,//TInput
             bool,
             EqualityEmpty,
-            global::Seamless.Collections.Tsavorite.Upsert<string,MemoryPackSerializer<string>>
+            global::Seamless.Collections.Tsavorite.Upsert<string,global::Seamless.Collections.Serializers.MemoryPack<string>>
         >(new());
         var addr1 = store.Store.Log.TailAddress;
         session.BasicContext.Upsert(MakeKey(SerInt(600)),SerStr("log"));
@@ -169,7 +169,7 @@ public sealed class Upsert:AddTests<int,string> {
     protected override void DoRMW() {
         using var store = Store.Create().Create<int,string>();
         var key = MakeKey(SerInt(1));
-        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.Upsert<string,MemoryPackSerializer<string>>>(new());
+        using var session = store.Store.NewSession<FixedSpanByteKey,string,bool,EqualityEmpty,global::Seamless.Collections.Tsavorite.Upsert<string,global::Seamless.Collections.Serializers.MemoryPack<string>>>(new());
         var input0 = "v1";
         var input1 = "v2";
         var bc = session.BasicContext;

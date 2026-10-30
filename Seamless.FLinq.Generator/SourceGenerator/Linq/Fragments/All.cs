@@ -52,9 +52,43 @@ internal class All_predicate(int 番号,Enumerable source,FuncFragment predicate
                 ??(TryRenderDirectLambda(predicate) is { } rangeLambda
                     ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"All",rangeLambda)??this.RenderComputeInline(destVar,destType)
                     : this.RenderComputeInline(destVar,destType))
-        : TryRenderDirectLambda(predicate) is { } lambda
+        : this.RenderConsumeBasedAllInline(destVar,destType)
+        ??(TryRenderDirectLambda(predicate) is { } lambda
             ? this.RenderDirectEnumerableCallInline(source,destVar,destType,"All",lambda)??this.RenderComputeInline(destVar,destType)
-            : this.RenderComputeInline(destVar,destType);
+            : this.RenderComputeInline(destVar,destType));
+
+    private string? RenderConsumeBasedAllInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_ALL_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var endLabel = $"__allEnd{番号}";
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            var condName = $"__cond{番号}";
+            return $"{indent}bool {condName}=default!;\n{IndentLines(this.FuncAssignStatic(predicate,nameof(predicate),condName,arg),indent)}\n{indent}if(!{condName}) {{\n{indent}    {destVar}=false;\n{indent}    goto {endLabel};\n{indent}}}";
+        });
+        return $$"""
+            {{destType}} {{destVar}}=true;
+            {{replaced}}
+            {{endLabel}}:;
+            """;
+    }
     protected override string ComputeMembers {
         get {
             var (preCode,condExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,this.item);

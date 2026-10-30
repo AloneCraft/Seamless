@@ -1,91 +1,48 @@
-using System.Diagnostics;
-using System.Text;
+using Benchmark.Infrastructure;
+using Benchmark.Scalable.Core;
+using Seamless.Execution;
 using System.Text.Json;
-using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
-Console.InputEncoding=Encoding.UTF8;
-Console.OutputEncoding=Encoding.UTF8;
-var requestPath=Required(args,"--request");
-var workingDirectory=Path.GetFullPath(Required(args,"--working"));
-Directory.CreateDirectory(workingDirectory);
-var request=JsonSerializer.Deserialize<ScalableRequest>(await File.ReadAllTextAsync(requestPath))
-    ??throw new InvalidDataException("Scalable benchmark request is missing.");
-var workerPath=Path.Combine(AppContext.BaseDirectory,"Worker","Worker.dll");
-if(!File.Exists(workerPath)){throw new FileNotFoundException("Benchmark Worker was not copied.",workerPath);}
-using var process=new Process{StartInfo=new("dotnet"){
-    UseShellExecute=false,
-    RedirectStandardInput=true,
-    RedirectStandardOutput=true,
-    RedirectStandardError=true,
-    CreateNoWindow=true,
-}};
-process.StartInfo.ArgumentList.Add("exec");
-process.StartInfo.ArgumentList.Add(workerPath);
-process.StartInfo.ArgumentList.Add("--logical-cpu");
-process.StartInfo.ArgumentList.Add(request.LogicalCpu.ToString(System.Globalization.CultureInfo.InvariantCulture));
-process.StartInfo.ArgumentList.Add("--run-root");
-process.StartInfo.ArgumentList.Add(workingDirectory);
-process.Start();
-var errorTask=process.StandardError.ReadToEndAsync(CancellationToken.None);
+Console.OutputEncoding=System.Text.Encoding.UTF8;
 try{
-    var ready=await process.StandardOutput.ReadLineAsync();
-    if(ready!="ready"){throw new InvalidOperationException("Benchmark Worker did not become ready.");}
-    var task=new{
-        Command="fast-run",
-        コマンド="fast-run",
-        タスクID=Guid.NewGuid().ToString("N"),
-        アセンブリ名=request.AssemblyName,
-        型完全名=request.TypeName,
-        メソッド名=request.MethodName,
-        引数キー=string.Join(",",request.Arguments.Select(static pair=>pair.Key+"="+pair.Value)),
-        引数=request.Arguments.Select(static pair=>new{名前=pair.Key,値=pair.Value}).ToArray(),
-        ソースタブ=0,
-        準備済み要素数=Array.Empty<int>(),
-        要素数=request.ElementCount,
-        ループ回数=request.LoopCount,
-        要素倍率="1",
-        成果物フォルダー=workingDirectory,
-        割り当て論理CPU=request.LogicalCpu,
-        開放ループ較正か=false,
-        較正閾値ナノ秒=(double?)null,
-        ベンチマーク反復回数=1,
-        ウォームアップ目標ナノ秒=300_000_000d,
-    };
-    await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(task));
-    await process.StandardInput.FlushAsync();
-    var resultTask=process.StandardOutput.ReadLineAsync();
-    long peak=0;
-    while(!resultTask.IsCompleted){
-        try{process.Refresh();peak=Math.Max(peak,process.PrivateMemorySize64);}catch(InvalidOperationException){break;}
-        await Task.Delay(25);
+    var options=new Dictionary<string,string>(StringComparer.Ordinal);
+    for(var index=1;index<args.Length;index+=2){if(index+1>=args.Length){throw new ArgumentException("Each option requires a value.");}options.Add(args[index],args[index+1]);}
+    string Read(string key,string fallback="")=>options.GetValueOrDefault("--"+key,fallback);
+    string Required(string key){var value=Read(key);ArgumentException.ThrowIfNullOrWhiteSpace(value,key);return value;}
+    var directory=new DirectoryInfo(AppContext.BaseDirectory);
+    while(directory is not null&&!File.Exists(Path.Combine(directory.FullName,"Seamless.slnx"))){directory=directory.Parent;}
+    var path=Read("database",BenchmarkDatabase.Resolve(directory?.FullName??Environment.CurrentDirectory));
+    if(args.Length==0){Console.WriteLine("explain --request FILE | run --request FILE [--database FILE] | migrate --source FILE --writers-stopped true | history | baseline --measurement ID | compare --before ID --after ID [--experiment true] | profile --id NAME --training ID --validation ID --output FILE");return 0;}
+    if(args[0]=="explain"){
+        var json=new JsonSerializerOptions{PropertyNameCaseInsensitive=true,Converters={new JsonStringEnumConverter()}};
+        var request=JsonSerializer.Deserialize<ScalableRequest>(await File.ReadAllTextAsync(Required("request")),json)??throw new InvalidDataException("Request required.");
+        Console.WriteLine(JsonSerializer.Serialize(request.Explain(),new JsonSerializerOptions(json){WriteIndented=true}));return 0;
     }
-    var result=await resultTask??throw new InvalidOperationException("Benchmark Worker ended without a result.");
-    var node=JsonNode.Parse(result)?.AsObject()??throw new InvalidDataException("Benchmark Worker returned invalid JSON.");
-    node["ProcessPeakPrivateBytes"]=peak;
-    result=node.ToJsonString();
-    await File.WriteAllTextAsync(Path.Combine(workingDirectory,"result.json"),result);
-    Console.WriteLine(result);
-    await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new{Command="shutdown",コマンド="shutdown"}));
-    await process.StandardInput.FlushAsync();
-    await process.WaitForExitAsync();
-    using var document=JsonDocument.Parse(result);
-    return document.RootElement.GetProperty("終了コード").GetInt32();
-}finally{
-    if(!process.HasExited){process.Kill(entireProcessTree:true);await process.WaitForExitAsync();}
-    await File.WriteAllTextAsync(Path.Combine(workingDirectory,"worker-stderr.log"),await errorTask);
-}
-
-static string Required(string[] arguments,string name){
-    var index=Array.IndexOf(arguments,name);
-    if(index<0||index+1>=arguments.Length){throw new ArgumentException("Missing argument: "+name);}
-    return arguments[index+1];
-}
-
-internal sealed record ScalableRequest(
-    string AssemblyName,
-    string TypeName,
-    string MethodName,
-    IReadOnlyDictionary<string,string> Arguments,
-    int ElementCount,
-    int LoopCount,
-    int LogicalCpu);
+    if(args[0]=="migrate"){
+        Console.WriteLine(BenchmarkDatabase.ImportDynamic(Required("source"),path,bool.Parse(Read("writers-stopped","false"))));return 0;
+    }
+    var repository=new BenchmarkRepository(new(path));
+    switch(args[0]){
+        case "run":{
+            var json=new JsonSerializerOptions{PropertyNameCaseInsensitive=true,Converters={new JsonStringEnumConverter()}};
+            var request=JsonSerializer.Deserialize<ScalableRequest>(await File.ReadAllTextAsync(Required("request")),json)??throw new InvalidDataException("Request required.");
+            using var cancellation=new CancellationTokenSource();
+            Console.CancelKeyPress+=(_,e)=>{e.Cancel=true;cancellation.Cancel();};
+            var result=new ScalableRunner(repository).Run(request,p=>{if(p.Completed==0||p.Completed==p.Count){Console.Error.WriteLine(JsonSerializer.Serialize(p));}},cancellation.Token);
+            Console.WriteLine(JsonSerializer.Serialize(result,BenchmarkRepository.JSON));break;
+        }
+        case "history":
+            foreach(var run in repository.GetRuns(null,int.Parse(Read("offset","0")))){Console.WriteLine(JsonSerializer.Serialize(new{Run=run,Measurements=repository.GetMeasurements(run.ID)},BenchmarkRepository.JSON));}break;
+        case "baseline":repository.SetBaseline(Required("measurement"));break;
+        case "compare":{
+            var mode=ComparisonMode.Regression;if(bool.Parse(Read("experiment","false"))){mode=ComparisonMode.Experiment;}
+            Console.WriteLine(JsonSerializer.Serialize(repository.Compare(Required("before"),Required("after"),mode,double.Parse(Read("tolerance","0.05"),System.Globalization.CultureInfo.InvariantCulture))));break;
+        }
+        case "profile":
+            repository.PublishProfile(Required("id"),Required("training"),Required("validation"));
+            File.WriteAllText(Required("output"),repository.GetProfiles().ToJSON());break;
+        default:throw new ArgumentException("Unknown command.");
+    }
+    return 0;
+}catch(Exception exception){Console.Error.WriteLine(exception);return 1;}

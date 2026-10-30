@@ -31,6 +31,10 @@ internal class Concat(int 番号,Enumerable source,Enumerable second):Enumerable
     }
 
     protected override Enumerable PrimarySource => source;
+    public override string? NonEnumeratedCountExpression =>
+        source.NonEnumeratedCountExpression is { } count1&&second.NonEnumeratedCountExpression is { } count2
+            ? $"({count1}+{count2})"
+            : null;
     public override string StructMethod => string.Empty;
     public override string GetEnumerableExpression =>
         $"global::Seamless.Linq.Enumerable.Concat({source.GetEnumerableExpression}, {second.GetEnumerableExpression})";

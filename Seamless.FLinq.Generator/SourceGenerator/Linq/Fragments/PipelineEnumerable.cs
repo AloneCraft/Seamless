@@ -36,18 +36,65 @@ internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IR
         }
     }
 
+    // stage内の関数も、入れ子scalarへのcontext伝播とAnchor/Accessor探索の子として公開する。
+    protected override IEnumerable<FuncFragment> GetChildFunctions(){
+        foreach(var function in base.GetChildFunctions()){
+            yield return function;
+        }
+        foreach(var function in this.Funcs){
+            yield return function;
+        }
+    }
+
     // 段の並びの根と段(Fragment.TryPeelWheres が Where だけの段の並びを根と述語に分けるのに使う)。
     internal Enumerable PipelineSource => source;
     internal IReadOnlyList<PipelineStage> PipelineStages => stages;
 
     private bool StagesCountPreserving => stages.All(static stage => stage.Kind is PipelineStageKind.Select or PipelineStageKind.AsEnumerable or PipelineStageKind.Cast);
+    private bool StagesElementCountPreserving => stages.All(static stage => stage.Kind is PipelineStageKind.Select or PipelineStageKind.AsEnumerable or PipelineStageKind.Cast or PipelineStageKind.Reverse or PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending or PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending);
     private bool SingleDefaultIfEmpty => stages.Count==1&&stages[0].Kind==PipelineStageKind.DefaultIfEmpty;
     protected override Enumerable PrimarySource => source;
     public Enumerable Source => source;
     public IReadOnlyList<PipelineStage> Stages => stages;
     public override string ElementType => elementType;
-    public override string? NonEnumeratedCountExpression => this.StagesCountPreserving ? source.NonEnumeratedCountExpression : null;
-    public override bool CountPreserving => source.CountPreserving&&this.StagesCountPreserving;
+    public override string? NonEnumeratedCountExpression {
+        get {
+            if(source.NonEnumeratedCountExpression is not { } count) {
+                return null;
+            }
+            var current = count;
+            for(var i = 0;i<stages.Count;i++) {
+                var stage = stages[i];
+                switch(stage.Kind) {
+                    case PipelineStageKind.Select:
+                    case PipelineStageKind.AsEnumerable:
+                    case PipelineStageKind.Cast:
+                    case PipelineStageKind.Reverse:
+                    case PipelineStageKind.OrderBy:
+                    case PipelineStageKind.OrderByDescending:
+                    case PipelineStageKind.ThenBy:
+                    case PipelineStageKind.ThenByDescending:
+                        break;
+                    case PipelineStageKind.Prepend:
+                    case PipelineStageKind.Append:
+                        current=$"({current}+1)";
+                        break;
+                    case PipelineStageKind.Take:
+                    case PipelineStageKind.TakeLast:
+                        current=$"global::System.Math.Min({current},global::System.Math.Max(0,{stage.Value}))";
+                        break;
+                    case PipelineStageKind.Skip:
+                    case PipelineStageKind.SkipLast:
+                        current=$"global::System.Math.Max(0,{current}-global::System.Math.Max(0,{stage.Value}))";
+                        break;
+                    default:
+                        return null;
+                }
+            }
+            return current;
+        }
+    }
+    public override bool CountPreserving => source.CountPreserving&&this.StagesElementCountPreserving;
     public override bool CanTryProvideSpan => this.SingleDefaultIfEmpty&&source.CanTryProvideSpan;
     // SecondSources は stages(PipelineStage の一覧)の中に埋もれているため、Fragment 型フィールドを
     // 走査するリフレクションベースの伝播(基底実装)からは見えない。ここで明示的に伝播しないと、

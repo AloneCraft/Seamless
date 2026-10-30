@@ -30,7 +30,7 @@ internal sealed class BlockFunc:FuncFragment {
                 replacement=arg;
             } else {
                 // 副作用のある式はブロックで複数回参照され得るので一時変数へ退避する。
-                var tempName = $"__arg{number}_{SanitizeLocalName(destination)}_{index}";
+                var tempName = this.ArgumentAliasName(number,destination,index);
                 prelude.AppendLine($"var {tempName}={arg};");
                 replacement=tempName;
             }

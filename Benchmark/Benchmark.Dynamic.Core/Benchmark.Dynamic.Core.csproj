@@ -8,4 +8,5 @@
     <RootNamespace>Benchmark.Dynamic.Core</RootNamespace>
     <AssemblyName>Benchmark.Dynamic.Core</AssemblyName>
   </PropertyGroup>
+  <ItemGroup><EmbeddedResource Include="FixedCases/chains.json" /><EmbeddedResource Include="FixedCases/legacy-operators.json" /></ItemGroup>
 </Project>

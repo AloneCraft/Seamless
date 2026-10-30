@@ -8,6 +8,7 @@ namespace Seamless.FLinq.Generator;
 
 public sealed partial class FLinqIncrementalGenerator {
     internal sealed partial class GenerationPipeline {
+    private readonly Dictionary<string,(string ElementType,string MaterializationName,string FirstName)> orderedLocalMaterializations=new(StringComparer.Ordinal);
 
     /// <summary>
     /// インターセプト対象メソッドの本体を丸ごと再構成し、文中の LINQ 呼び出しを Fragment 実行へ差し替える。
@@ -24,8 +25,15 @@ public sealed partial class FLinqIncrementalGenerator {
     /// </list>
     /// </summary>
     internal bool TryBuildLocalMethodBody(Linq傍受対象型 対象,out string 静的メソッド群,out string 本体,HashSet<string>? emittedUnsafeAccessors = null) {
+        // 生成の間だけ、名前の割り当て役(GeneratedNames.Current)を有効にする。
+        using var names = GeneratedNames.Begin(this.state);
+        return this.TryBuildLocalMethodBodyCore(対象,out 静的メソッド群,out 本体,emittedUnsafeAccessors);
+    }
+
+    private bool TryBuildLocalMethodBodyCore(Linq傍受対象型 対象,out string 静的メソッド群,out string 本体,HashSet<string>? emittedUnsafeAccessors) {
         静的メソッド群=string.Empty;
         this.state.StaticMethods=string.Empty;
+        this.orderedLocalMaterializations.Clear();
         本体=string.Empty;
 
         // 以前は識別子ハッシュから開始番号を作っていたため Struct1144748 のような読みにくい名前になっていた。
@@ -56,7 +64,11 @@ public sealed partial class FLinqIncrementalGenerator {
         var セマンティックモデル = 対象.SemanticModel.Compilation.GetSemanticModel(メソッド構文.SyntaxTree);
         var usedNames=this.state.UsedIdentifiers;
         usedNames.Clear();
-        usedNames.UnionWith(CollectMethodBodyIdentifiers(メソッド構文,対象.Method));
+        this.state.BlockScopeIdentifiers.Clear();
+        GeneratedNames.CollectUserIdentifiers(メソッド構文,対象.Method.Parameters.Select(static parameter => parameter.Name),usedNames,this.state.BlockScopeIdentifiers);
+        this.state.UserIdentifiers.Clear();
+        this.state.UserIdentifiers.UnionWith(usedNames);
+        GeneratedNames.ReserveTemplateNames(usedNames,this.state.BlockScopeIdentifiers);
         var sourceUnsafeAccessorCollector = this.state.UnsafeAccessorCodes;
         sourceUnsafeAccessorCollector.Clear();
         var generatedFragments = this.state.GeneratedFragments;
@@ -101,6 +113,13 @@ public sealed partial class FLinqIncrementalGenerator {
 
         補助メンバーをメソッド専用クラスへ退避(対象.MethodName,ref this.state.StaticMethods,ref 本体);
 
+        // 機械的な名前(__it2_1 など)を、人が書いたような名前に付け替える。UnsafeAccessor の宣言はこのあとで足すので、外部の名前は触らない。
+        this.state.StaticMethods=GeneratedLocalInitializers.Simplify(this.state.StaticMethods);
+        本体=GeneratedLocalInitializers.Simplify(本体,methodBody:true);
+        GeneratedNameRenamer.Rename(ref this.state.StaticMethods,ref 本体,this.state.UserIdentifiers,GeneratedNames.Current?.PreferredLocals);
+        // 構造体の中で自分のメンバーを使うときは this. を付けて揃える(付けると意味が変わる所は付けない)。
+        this.state.StaticMethods=GeneratedThisQualifier.Qualify(this.state.StaticMethods);
+
         // フラグメントツリーおよびソース式から UnsafeAccessor 宣言を収集し、補助クラスの外（クラス直下）に追記する。
         // これにより、インターセプタメソッド本体から短い名前で直接参照できる。
         // emittedUnsafeAccessors が渡された場合はクラスレベルで重複しないようフィルタする。
@@ -135,12 +154,12 @@ public sealed partial class FLinqIncrementalGenerator {
     ///   <item><description><see cref="Enumerable"/>: <c>var {name} = {GetEnumerableExpression};</c> を出力（遅延評価の列挙結果を変数に束縛）。</description></item>
     ///   <item><description>その他の <see cref="Fragment"/>（スカラー等）: <c>GetEnumeratorExpression</c> で enumerator を取得し <c>TryGetNext</c> で 1 要素を取り出すパターンを出力。</description></item>
     /// </list>
-    /// <see cref="GetUniqueIdentifier"/> で enumerator 変数名・current 変数名の衝突を避ける。
+    /// <see cref="AllocateName"/> で enumerator 変数名・current 変数名の衝突を避ける。
     /// </summary>
     private bool フラグメント実行文追加(StringBuilder builder,Fragment fragment,string actualVariableName,string actualTypeName,HashSet<string> usedNames) {
         var suffix = SanitizeIdentifier(actualVariableName);
-        var enumeratorName = GetUniqueIdentifier($"e_{suffix}",usedNames);
-        var currentName = GetUniqueIdentifier($"c_{suffix}",usedNames);
+        var enumeratorName = AllocateName(usedNames,$"{suffix}Enumerator");
+        var currentName = AllocateName(usedNames,$"{suffix}Current");
 
 
         if(fragment is DirectExecutionFragment directExecutionFragment) {
@@ -255,7 +274,8 @@ public sealed partial class FLinqIncrementalGenerator {
         var linqInvocationCountSnapshot = linqInvocationCount;
         var staticMethodsSnapshot = staticMethods;
         var builderLengthSnapshot = builder.Length;
-        var tempName = GetUniqueIdentifier($"__linq{linqInvocationCount++}",usedNames);
+        linqInvocationCount++;
+        var tempName = AllocateName(usedNames,ResultNameFor(linqInvocation));
         var fragmentBuilt=呼び出し式からフラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector);
         if(!fragmentBuilt
             &&TryBuildKnownEnumerableRoot(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var ordinaryRootFragment,unsafeAccessorCollector)) {
@@ -288,7 +308,7 @@ public sealed partial class FLinqIncrementalGenerator {
         staticMethods=静的メソッドコード連結(staticMethods,invocationStaticMethods);
         staticMethods=静的メソッドコード連結(staticMethods,fragment.GetEnumeratorStruct);
 
-        var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
+        var consumerName = AllocateName(usedNames,$"{tempName}Consumer");
         AppendConsumeSetup(
             builder,
             MethodBodyRenderPlan.Statement(enumerableFragment.GetConsumePreparationStatement()),
@@ -388,7 +408,8 @@ public sealed partial class FLinqIncrementalGenerator {
         var linqInvocationCountSnapshot = linqInvocationCount;
         var staticMethodsSnapshot = staticMethods;
         var builderLengthSnapshot = builder.Length;
-        var tempName = GetUniqueIdentifier($"__linq{linqInvocationCount++}",usedNames);
+        linqInvocationCount++;
+        var tempName = AllocateName(usedNames,ResultNameFor(linqInvocation));
         var fragmentBuilt=呼び出し式からフラグメント生成(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector);
         if(!fragmentBuilt
             &&TryBuildKnownEnumerableRoot(semanticModel,linqInvocation,containingType,ref uniqueNumber,out var ordinaryRootFragment,unsafeAccessorCollector)) {
@@ -473,7 +494,7 @@ public sealed partial class FLinqIncrementalGenerator {
             staticMethods=静的メソッドコード連結(staticMethods,fragment.GetEnumeratorStruct);
         }
 
-        var consumerName = GetUniqueIdentifier($"consumer_{SanitizeIdentifier(tempName)}",usedNames);
+        var consumerName = AllocateName(usedNames,$"{tempName}Consumer");
         var consumerAssignment=MethodBodyRenderPlan.ConsumerAssignment(
             consumerName,
             RenderExpressionForGeneratedMethod(consumerExpression,semanticModel,containingType,unsafeAccessorCollector));
@@ -494,7 +515,7 @@ public sealed partial class FLinqIncrementalGenerator {
             } else if(scalarInlineComputation is not null) {
                 scalarEvaluation=MethodBodyRenderPlan.Statement(scalarInlineComputation);
             } else {
-                var scalarEnumeratorName = GetUniqueIdentifier($"e_{SanitizeIdentifier(tempName)}",usedNames);
+                var scalarEnumeratorName = AllocateName(usedNames,$"{tempName}Enumerator");
                 scalarEvaluation=MethodBodyRenderPlan.ScalarRead(scalarResultTypeName,tempName,scalarEnumeratorName,scalarConsumeEnumeratorExpression!);
             }
             AppendConsumeSetup(builder,scalarEvaluation,consumerAssignment,linqIsConsumeReceiver);
@@ -531,7 +552,7 @@ public sealed partial class FLinqIncrementalGenerator {
             if(materializeInlineComputation is not null) {
                 materializeEvaluation=MethodBodyRenderPlan.Statement(materializeInlineComputation);
             } else {
-                var scalarEnumeratorName = GetUniqueIdentifier($"e_{SanitizeIdentifier(tempName)}",usedNames);
+                var scalarEnumeratorName = AllocateName(usedNames,$"{tempName}Enumerator");
                 materializeEvaluation=MethodBodyRenderPlan.ScalarRead(materializeResultTypeName!,tempName,scalarEnumeratorName,materializeEnumeratorExpression!);
             }
 
@@ -1098,8 +1119,10 @@ public sealed partial class FLinqIncrementalGenerator {
         var replacementMap = new Dictionary<string,string>(StringComparer.Ordinal);
         foreach(var invocation in outerLinqInvocations) {
             var snapshot = uniqueNumber;
-            var tempName = GetUniqueIdentifier($"__linq{linqInvocationCount++}",usedNames);
-            if(!呼び出し式からフラグメント生成(semanticModel,invocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector)) {
+            linqInvocationCount++;
+        var tempName = AllocateName(usedNames,ResultNameFor(invocation));
+            if(!this.TryBuildOrderedLocalMaterializer(semanticModel,invocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods)
+                &&!呼び出し式からフラグメント生成(semanticModel,invocation,containingType,ref uniqueNumber,out fragment,out invocationStaticMethods,unsafeAccessorCollector)) {
                 uniqueNumber=snapshot;
                 // 匿名型がソースに含まれる場合 → Fragment化できないが元の System.Linq 式を維持して続行する。
                 // これにより匿名型を返す LINQ の結果に対してチェーンする操作は System.Linq にフォールバックする。
@@ -1119,6 +1142,9 @@ public sealed partial class FLinqIncrementalGenerator {
             if(!フラグメント実行文追加(builder,fragment,tempName,resultTypeName,usedNames)) {
                 return false;
             }
+            if(fragment is PipelineEnumerable orderedPipeline){
+                this.TrackOrderedLocalMaterialization(statement,invocation,orderedPipeline,tempName,semanticModel,builder,usedNames);
+            }
             replacementMap[NormalizeExpressionText(invocation.ToString())]=tempName;
         }
 
@@ -1128,6 +1154,72 @@ public sealed partial class FLinqIncrementalGenerator {
             _ => RenderStatementForGeneratedMethod(statement,replacementMap),
         };
         builder.AppendLine(generatedStatement);
+        return true;
+    }
+
+    private void TrackOrderedLocalMaterialization(StatementSyntax statement,InvocationExpressionSyntax invocation,PipelineEnumerable pipeline,string enumerableName,SemanticModel semanticModel,StringBuilder builder,HashSet<string> usedNames){
+        // 再代入/ref渡しや同名localのないplain ordered値にだけ需要を別束縛する。
+        if(!pipeline.SupportsOrderedMaterialization
+            ||statement is not LocalDeclarationStatementSyntax localDeclaration
+            ||localDeclaration.Declaration.Variables.Count!=1){return;}
+        var variable=localDeclaration.Declaration.Variables[0];
+        if(variable.Initializer?.Value is not { } initializer
+            ||!this.SyntaxExpressionMatches(initializer,invocation)
+            ||semanticModel.GetDeclaredSymbol(variable) is not ILocalSymbol symbol
+            ||!IsStableInvariantReference(symbol,initializer,semanticModel)){return;}
+        var method=variable.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault();
+        if(method is null||method.DescendantNodes().OfType<VariableDeclaratorSyntax>().Count(node=>node.Identifier.ValueText==symbol.Name)!=1){return;}
+        var enumeratorName=AllocateName(usedNames,"orderedMaterializationEnumerator");
+        var materializationName=AllocateName(usedNames,"orderedMaterialization");
+        builder.AppendLine($"var {enumeratorName}={enumerableName}.Enumerator;");
+        AppendOrderedSnapshotDemand(builder,pipeline,enumeratorName,PipelineEnumerable.OrderedConsumerDemand.Materialize,usedNames);
+        builder.AppendLine($"var {materializationName}=new global::Seamless.Linq.ValueEnumerable<{pipeline.EnumeratorTypeName},{pipeline.ElementType}>({enumeratorName});");
+        var firstEnumeratorName=AllocateName(usedNames,"orderedFirstEnumerator");
+        var firstName=AllocateName(usedNames,"orderedFirst");
+        builder.AppendLine($"var {firstEnumeratorName}={enumerableName}.Enumerator;");
+        AppendOrderedSnapshotDemand(builder,pipeline,firstEnumeratorName,PipelineEnumerable.OrderedConsumerDemand.First,usedNames);
+        builder.AppendLine($"var {firstName}=new global::Seamless.Linq.ValueEnumerable<{pipeline.EnumeratorTypeName},{pipeline.ElementType}>({firstEnumeratorName});");
+        this.orderedLocalMaterializations[symbol.Name]=(pipeline.ElementType,materializationName,firstName);
+    }
+
+    private static void AppendOrderedSnapshotDemand(StringBuilder builder,PipelineEnumerable pipeline,string local,PipelineEnumerable.OrderedConsumerDemand demand,HashSet<string> usedNames){
+        var materialize=demand==PipelineEnumerable.OrderedConsumerDemand.Materialize;
+        var first=demand==PipelineEnumerable.OrderedConsumerDemand.First;
+        builder.AppendLine($"{local}.{PipelineEnumerable.OrderedConsumerMethod}({materialize.ToString().ToLowerInvariant()},{first.ToString().ToLowerInvariant()});");
+        if(pipeline.Source is not PipelineEnumerable{SupportsOrderedMaterialization:true} orderedSource){return;}
+        // 閉じた型の local をコピーして内側から戻す。TEnum の解釈変更や source 式の再評価はしない。
+        var sourceLocal=AllocateName(usedNames,"orderedSourceSnapshot");
+        builder.AppendLine($"var {sourceLocal}={local}.{PipelineEnumerable.OrderedSourceProperty};");
+        var sourceDemand=PipelineEnumerable.OrderedConsumerDemand.Materialize;
+        if(first){sourceDemand=PipelineEnumerable.OrderedConsumerDemand.Enumerate;}
+        AppendOrderedSnapshotDemand(builder,orderedSource,sourceLocal,sourceDemand,usedNames);
+        builder.AppendLine($"{local}.{PipelineEnumerable.OrderedSourceProperty}={sourceLocal};");
+    }
+
+    private bool TryBuildOrderedLocalMaterializer(SemanticModel semanticModel,InvocationExpressionSyntax invocation,INamedTypeSymbol containingType,ref int uniqueNumber,out Fragment fragment,out string staticMethods){
+        fragment=null!;
+        staticMethods=string.Empty;
+        if(invocation.ArgumentList.Arguments.Count!=0
+            ||invocation.Expression is not MemberAccessExpressionSyntax{Expression:IdentifierNameSyntax receiver}
+            ||semanticModel.GetSymbolInfo(receiver).Symbol is not ILocalSymbol
+            ||!this.orderedLocalMaterializations.TryGetValue(receiver.Identifier.ValueText,out var binding)
+            ||semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method){return false;}
+        var definition=method.ReducedFrom??method;
+        if(definition.ContainingType.ToDisplayString()!="System.Linq.Enumerable"||definition.Name is not ("ToArray" or "ToList" or "First" or "FirstOrDefault")){return false;}
+        var sourceName=binding.MaterializationName;
+        if(definition.Name is "First" or "FirstOrDefault"){sourceName=binding.FirstName;}
+        var source=new Root(uniqueNumber++,sourceName,binding.ElementType,$"global::System.Collections.Generic.IEnumerator<{binding.ElementType}>",true);
+        if(definition.Name=="ToArray"){
+            fragment=new ToArray(uniqueNumber++,source,$"{binding.ElementType}[]");
+        }else if(definition.Name=="ToList"){
+            fragment=new ToList(uniqueNumber++,source,$"global::System.Collections.Generic.List<{binding.ElementType}>");
+        }else if(definition.Name=="First"){
+            fragment=new First(uniqueNumber++,source,binding.ElementType);
+        }else{
+            fragment=new FirstOrDefault(uniqueNumber++,source,binding.ElementType);
+        }
+        fragment.ApplyRenderContext(FragmentRenderContext.ForOuterTypeParameters(this.state.ResolveOuterTypeParameters(containingType)));
+        staticMethods=fragment.StructMethod;
         return true;
     }
 
@@ -1183,7 +1275,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 linqInvocationCount++;
                 return true;
             }
-            var enumeratorName = GetUniqueIdentifier($"__tryGetCount{linqInvocationCount}",usedNames);
+            var enumeratorName = AllocateName(usedNames,"countEnumerator");
             builder.AppendLine($"bool {resultName}=default;");
             builder.AppendLine($"using var {enumeratorName}={sourceFragment.GetEnumeratorExpression};");
             var counterCall = CounterCallForGeneratedMethod(semanticModel,invocation,"IncrementTryGetNonEnumeratedCount");
@@ -1219,7 +1311,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 linqInvocationCount++;
                 return true;
             }
-            var enumeratorName = GetUniqueIdentifier($"__tryGetCount{linqInvocationCount}",usedNames);
+            var enumeratorName = AllocateName(usedNames,"countEnumerator");
             builder.AppendLine($"using var {enumeratorName}={sourceFragment.GetEnumeratorExpression};");
             var counterCall = CounterCallForGeneratedMethod(semanticModel,expressionInvocation,"IncrementTryGetNonEnumeratedCount");
             if(!string.IsNullOrEmpty(counterCall)) {
@@ -1255,7 +1347,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 linqInvocationCount++;
                 return true;
             }
-            var enumeratorName = GetUniqueIdentifier($"__tryGetCount{linqInvocationCount}",usedNames);
+            var enumeratorName = AllocateName(usedNames,"countEnumerator");
             builder.AppendLine($"using var {enumeratorName}={sourceFragment.GetEnumeratorExpression};");
             var counterCall = CounterCallForGeneratedMethod(semanticModel,returnInvocation,"IncrementTryGetNonEnumeratedCount");
             if(!string.IsNullOrEmpty(counterCall)) {
@@ -1438,7 +1530,8 @@ public sealed partial class FLinqIncrementalGenerator {
         var replacementMap = new Dictionary<string,string>(StringComparer.Ordinal);
         foreach(var invocation in outerLinqInvocations) {
             var snapshot = uniqueNumber;
-            var tempName = GetUniqueIdentifier($"__linq{linqInvocationCount++}",usedNames);
+            linqInvocationCount++;
+        var tempName = AllocateName(usedNames,ResultNameFor(invocation));
             if(!呼び出し式からフラグメント生成(semanticModel,invocation,containingType,ref uniqueNumber,out var fragment,out var invocationStaticMethods,unsafeAccessorCollector)) {
                 uniqueNumber=snapshot;
                 linqInvocationCount--;
@@ -1471,8 +1564,7 @@ public sealed partial class FLinqIncrementalGenerator {
         var rendered = RenderExpressionForGeneratedMethod(
             expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
         // RenderStatementForGeneratedMethod と同じ後処理：this. → @this. への変換
-        rendered=rendered
-            .Replace("this.","@this.",StringComparison.Ordinal);
+        rendered=NormalizeGeneratedExpressionText(rendered);
         builder.AppendLine(methodReturnsVoid ? $"{rendered};" : $"return {rendered};");
         return true;
     }
@@ -1810,8 +1902,13 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
-    private string クエリLowering確認コメント生成(SyntaxNode original,SyntaxNode lowered) =>
-        $"// Tsavorite query lowered: {NormalizeExpressionText(original.ToString())}=>{NormalizeExpressionText(lowered.ToString())}";
+    private string クエリLowering確認コメント生成(SyntaxNode original,SyntaxNode lowered){
+        // 式本体の改行は維持し、診断表示の全行をコメント内に閉じ込める。
+        var text=$"Tsavorite query lowered: {NormalizeExpressionText(original.ToString())}=>{NormalizeExpressionText(lowered.ToString())}";
+        return "// "+text.Replace("\r\n","\n",StringComparison.Ordinal)
+            .Replace('\r','\n').Replace('\u0085','\n').Replace('\u2028','\n').Replace('\u2029','\n')
+            .Replace("\n","\n// ",StringComparison.Ordinal);
+    }
 
     // クエリ式を直接 Fragment チェーンへ変換し "return <result>;" を出力する旧フォールバック。
     // 通常は TryLowerQueriesToExtensionMethods でクエリ式を拡張メソッドチェーンへ下げてから既存の LINQ パスで処理する。
@@ -1928,7 +2025,8 @@ public sealed partial class FLinqIncrementalGenerator {
             }
         }
 
-        var tempName2 = GetUniqueIdentifier($"__linq{linqInvocationCount++}",usedNames);
+        linqInvocationCount++;
+        var tempName2 = AllocateName(usedNames,"queryResult");
         ApplyCounterInstrumentation(currentFragment,semanticModel,queryExpression);
         generatedFragments.Add(currentFragment);
         var returnTypeName = semanticModel.GetTypeInfo(queryExpression).Type?.ToDisplayString(完全修飾形式)

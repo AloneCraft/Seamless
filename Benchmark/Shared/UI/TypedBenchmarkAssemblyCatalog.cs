@@ -46,8 +46,6 @@ internal static class 型付きベンチマークアセンブリカタログ {
         typeof(global::Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq.IEnumerableFLinqInt32),
         typeof(global::Benchmark.Tsavorite.Linq.Enumerable.Linq.LinqInt32),
         typeof(global::Benchmark.Tsavorite.Linq.Enumerable.ValueLinq.ValueLinqInt32),
-        typeof(global::Shared.Persisted.Collections.Set),
-        typeof(global::Shared.Tsavorite.Collections.Set),
         typeof(global::Benchmark.System.Linq.Enumerable.Ideal.IdealInt32),
         typeof(global::Benchmark.System.Linq.Enumerable.IEnumerable.Ideal.IdealInt32),
         typeof(global::Benchmark.System.Linq.Enumerable.Range.Ideal.IdealInt32),

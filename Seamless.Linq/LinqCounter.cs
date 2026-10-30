@@ -136,6 +136,38 @@ public sealed class LinqCounter {
         Interlocked.Increment(ref this.enumerableFallback);
         this.enumerableFallbackDetails.AddOrUpdate(detail,1,static (_,count) => count+1);
     }
+    // 生成された式本体は、引数の評価より先に入口を記録する。
+    public LinqCounter EnterLogicalDelegate(){
+        this.IncrementLogicalDelegate();
+        return this;
+    }
+    public T ReturnValue<T>(T value) where T:allows ref struct{
+        return value;
+    }
+    // 呼出し引数の評価後に到達する。nullには本体入口が存在しない。
+    public TResult InvokePhysicalDelegate<T1,TResult>(Func<T1,TResult>? callback,T1 arg1) where T1:allows ref struct where TResult:allows ref struct{
+        if(callback is not null){
+            this.IncrementLogicalDelegate();
+            this.IncrementPhysicalDelegate();
+        }
+        return callback!.Invoke(arg1);
+    }
+    // 呼出し引数の評価後に到達する。nullには本体入口が存在しない。
+    public TResult InvokePhysicalDelegate<T1,T2,TResult>(Func<T1,T2,TResult>? callback,T1 arg1,T2 arg2) where T1:allows ref struct where T2:allows ref struct where TResult:allows ref struct{
+        if(callback is not null){
+            this.IncrementLogicalDelegate();
+            this.IncrementPhysicalDelegate();
+        }
+        return callback!.Invoke(arg1,arg2);
+    }
+    // 呼出し引数の評価後に到達する。nullには本体入口が存在しない。
+    public TResult InvokePhysicalDelegate<T1,T2,T3,TResult>(Func<T1,T2,T3,TResult>? callback,T1 arg1,T2 arg2,T3 arg3) where T1:allows ref struct where T2:allows ref struct where T3:allows ref struct where TResult:allows ref struct{
+        if(callback is not null){
+            this.IncrementLogicalDelegate();
+            this.IncrementPhysicalDelegate();
+        }
+        return callback!.Invoke(arg1,arg2,arg3);
+    }
     public T RecordLogicalDelegate<T>(T value) {
         this.IncrementLogicalDelegate();
         return value;

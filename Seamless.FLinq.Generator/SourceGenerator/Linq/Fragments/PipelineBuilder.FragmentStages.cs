@@ -14,7 +14,7 @@ internal static partial class PipelineBuilder {
         ref string currentElementType,
         List<string>? unsafeAccessorCollector) {
         var methodName = (method.ReducedFrom??method).Name;
-        if(methodName is not ("Chunk" or "Zip" or "AggregateBy" or "Join" or "GroupJoin")) {
+        if(methodName is not ("Chunk" or "Zip" or "AggregateBy" or "CountBy" or "Join" or "GroupJoin")) {
             return false;
         }
         if(stages.Count>0) {

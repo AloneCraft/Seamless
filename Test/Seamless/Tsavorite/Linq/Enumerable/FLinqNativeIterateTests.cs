@@ -1,4 +1,4 @@
-using Seamless.FLinq;
+﻿using Seamless.FLinq;
 
 using Test.System.Linq.Intercept;
 
@@ -20,7 +20,7 @@ public class FLinqNativeIterateTests {
 
             var generated = GeneratedInterceptorAssert.SourceFor<FLinqNativeIterateTests>(nameof(CountEvenImpl));
             Assert.Contains("TsavoriteHashSetIterateState",generated);
-            Assert.Contains("IHashSetIterateStrategy",generated);
+            Assert.Contains("Seamless.Collections.Iteration.IStrategy",generated);
             Assert.Contains(".Iterate(ref __TsavoriteHashSetIterateState",generated);
             Assert.DoesNotContain("ScanCursor",generated);
             Assert.DoesNotContain("HashSetScanUnsafe",generated);
@@ -145,7 +145,7 @@ public class FLinqNativeIterateTests {
     private static void AssertNativeIterateGenerated(string methodName) {
         var generated = GeneratedInterceptorAssert.SourceFor<FLinqNativeIterateTests>(methodName);
         Assert.Contains("TsavoriteHashSetIterateState",generated);
-        Assert.Contains("IHashSetIterateStrategy",generated);
+        Assert.Contains("Seamless.Collections.Iteration.IStrategy",generated);
         Assert.Contains(".Iterate(ref __TsavoriteHashSetIterateState",generated);
         Assert.DoesNotContain("ScanCursor",generated);
         Assert.DoesNotContain("HashSetScanUnsafe",generated);
@@ -155,7 +155,7 @@ public class FLinqNativeIterateTests {
 
     private static void AssertNativeMaterializeGenerated(string methodName,string shape) {
         var generated = GeneratedInterceptorAssert.SourceFor<FLinqNativeIterateTests>(methodName);
-        Assert.Contains("IHashSetIterateStrategy",generated);
+        Assert.Contains("Seamless.Collections.Iteration.IStrategy",generated);
         Assert.Contains(".Iterate(ref __TsavoriteHashSetIterateState",generated);
         Assert.Contains(shape,generated);
         Assert.DoesNotContain("ScanCursor",generated);

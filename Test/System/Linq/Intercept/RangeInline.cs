@@ -3,7 +3,7 @@ namespace Test.System.Linq.Intercept;
 // Range を入力にした終端の展開が、呼び出し元のメソッドの中でそのまま書ける(コンパイルできる)コードになること。
 // 2026-09-30 の差分ファズで、次の 2 つが生成コードのコンパイルエラー(CS0103)になるのを確認して直した。
 //  - ElementAt の範囲外例外が nameof(index) を使い、呼び出し元に index という名前が無いと失敗する
-//  - 述語の定数式(-2 など)を「不変式の巻き上げ」の対象にし、定義していない __hoistN を参照する
+//  - 述語の定数式(-2 など)を「不変式の巻き上げ」の対象にし、定義していない hoistN を参照する
 public sealed class RangeInline {
     [Fact, Trait("Category","Unit")]
     public void ElementAt_OnRange_CompilesAndMatchesSystemLinq() {

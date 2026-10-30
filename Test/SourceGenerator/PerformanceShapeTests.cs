@@ -29,12 +29,12 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            !generated.Contains("global::System.Math.Min(__span.Length,1999)",StringComparison.Ordinal)
-            &&!generated.Contains("global::System.Math.Min(__count,1999)",StringComparison.Ordinal)
-            &&generated.Contains("var __elementCount=__hasSpan ? __span.Length",StringComparison.Ordinal)
-            &&generated.Contains("new global::Seamless.Linq.ContiguousLookupBuilder<int,int>(__elementCount,global::System.Math.Min(__elementCount,1024),null)",StringComparison.Ordinal)
-            &&generated.Contains("DictionarySlim<int,int>(global::System.Math.Min(__span.Length,1024))",StringComparison.Ordinal)
-            &&generated.Contains("DictionarySlim<int,int>(global::System.Math.Min(__count,1024))",StringComparison.Ordinal),
+            !global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"Math\.Min\(span\d*\.Length,1999\)")
+            &&!global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"Math\.Min\(count\d*,1999\)")
+            &&global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"var elementCount=hasSpan \? span\d*\.Length")
+            &&generated.Contains("new global::Seamless.Linq.ContiguousLookupBuilder<int,int>(elementCount,global::System.Math.Min(elementCount,1024),null)",StringComparison.Ordinal)
+            &&global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"DictionarySlim<int,int>\(global::System\.Math\.Min\(span\d*\.Length,1024\)\)")
+            &&global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"DictionarySlim<int,int>\(global::System\.Math\.Min\(count\d*,1024\)\)"),
             "Modulo key selectors must use the same input-derived capacity as general selectors.",
             generated,
             output);
@@ -70,12 +70,12 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var method = GeneratedMethod(generated,"GroupingFast");
 
         GeneratedSourceAssert.True(
-            !method.Contains("__aggregateBySeen",StringComparison.Ordinal)
-            &&!method.Contains("__countBySeen",StringComparison.Ordinal)
+            !method.Contains("aggregateBySeen",StringComparison.Ordinal)
+            &&!method.Contains("countBySeen",StringComparison.Ordinal)
             &&!method.Contains("global::System.Buffers.ArrayPool<bool>.Shared.Rent(1999)",StringComparison.Ordinal)
-            &&generated.Contains("TryGetSpan(out var __span)",StringComparison.Ordinal)
+            &&global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"TryGetSpan\(out var span\d*\)")
             &&generated.Contains("new global::Seamless.Linq.DictionarySlim<int,int>",StringComparison.Ordinal)
-            &&generated.Contains("__hashKeys",StringComparison.Ordinal),
+            &&generated.Contains("hashKeys",StringComparison.Ordinal),
             "Modulo selectors must not select a dedicated small-range consume implementation.",
             generated,
             output);
@@ -110,7 +110,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var method = GeneratedMethod(generated,"Group");
 
         GeneratedSourceAssert.True(
-            !method.Contains("__groupSlots",StringComparison.Ordinal)
+            !method.Contains("groupSlots",StringComparison.Ordinal)
             &&generated.Contains("LookupBuilder<int",StringComparison.Ordinal),
             "A method name alone must not be treated as a modulo range proof.",
             generated,
@@ -134,9 +134,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var method = GeneratedMethod(generated,"Count");
 
         GeneratedSourceAssert.True(
-            generated.Contains("__hashKeys",StringComparison.Ordinal)
+            generated.Contains("hashKeys",StringComparison.Ordinal)
             &&generated.Contains("ArrayPool<int>.Shared.Rent",StringComparison.Ordinal)
-            &&generated.Contains("__hashOrder",StringComparison.Ordinal)
+            &&generated.Contains("hashOrder",StringComparison.Ordinal)
             &&!method.Contains("new global::System.Collections.Generic.Dictionary<int, int>",StringComparison.Ordinal),
             "Int CountBy enumeration should use a pooled insertion-ordered hash map.",
             generated,
@@ -172,7 +172,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         GeneratedSourceAssert.True(
             !generated.Contains("ArrayPool<bool>.Shared.Rent(1999)",StringComparison.Ordinal)
             &&!generated.Contains("ArrayPool<bool>.Shared.Return",StringComparison.Ordinal)
-            &&!generated.Contains("__seenIndex",StringComparison.Ordinal)
+            &&!generated.Contains("seenIndex",StringComparison.Ordinal)
             &&generated.Contains(".Consume(value)",StringComparison.Ordinal)
             &&generated.Contains("HashSetSlim<int>",StringComparison.Ordinal),
             "DistinctBy modulo keys must use the general hash-based consume path.",
@@ -196,8 +196,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("TryGetSpan(out span)&&span.Length!=0",StringComparison.Ordinal)
-            &&generated.Contains("__span.Slice(__spanStart,destination.Length).CopyTo(destination);",StringComparison.Ordinal)
+            global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"TryGetSpan\(out (?:var )?(span\d*)\)&&\1\.Length!=0")
+            &&global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"span\d*\.Slice\(spanStart,destination\.Length\)\.CopyTo\(destination\);")
             &&generated.Contains("destination[0]=0;",StringComparison.Ordinal),
             "DefaultIfEmpty should expose/copy the source span when non-empty and only synthesize default for empty sources.",
             generated,
@@ -239,11 +239,11 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("__distinctSpan",StringComparison.Ordinal)
-            &&!generated.Contains("__setSrcSpan",StringComparison.Ordinal)
-            &&generated.Contains("__sp___sec0",StringComparison.Ordinal)
-            &&generated.Contains("__sp___src0",StringComparison.Ordinal)
-            &&generated.Contains("__orderSpan",StringComparison.Ordinal),
+            generated.Contains("distinctSpan",StringComparison.Ordinal)
+            &&!generated.Contains("setSrcSpan",StringComparison.Ordinal)
+            &&generated.Contains("sp",StringComparison.Ordinal)
+            &&generated.Contains("sp",StringComparison.Ordinal)
+            &&generated.Contains("orderSpan",StringComparison.Ordinal),
             "Explicit default comparers should use supported fast paths without the removed speculative sorted-set probe.",
             generated,
             output);
@@ -266,9 +266,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("__orderSpan",StringComparison.Ordinal)
-            &&generated.Contains("while(__orderNextIndex",StringComparison.Ordinal)
-            &&generated.Contains("if(!(__it",StringComparison.Ordinal)
+            generated.Contains("orderSpan",StringComparison.Ordinal)
+            &&generated.Contains("while(orderNextIndex",StringComparison.Ordinal)
+            &&global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"if\s*\(!\([^;\r\n]+>1\)\)\s*continue;")
             &&generated.Contains(">1)) continue;",StringComparison.Ordinal),
             "Sorted Order fast path should keep elementwise continuation inside a loop.",
             generated,
@@ -307,9 +307,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("__orderedSource",StringComparison.Ordinal)
-            &&generated.Contains("__orderedHandled",StringComparison.Ordinal)
-            &&generated.Contains("__orderedSpan",StringComparison.Ordinal)
+            generated.Contains("orderedSource",StringComparison.Ordinal)
+            &&generated.Contains("orderedHandled",StringComparison.Ordinal)
+            &&generated.Contains("orderedSpan",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Linq.Enumerable.Order(",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Linq.Enumerable.OrderBy(",StringComparison.Ordinal),
             "Pure Order/OrderBy Consume should use sorted span direct consume instead of delegating back to System.Linq.",
@@ -352,8 +352,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         GeneratedSourceAssert.True(
             !generated.Contains("global::System.Linq.Enumerable.OrderBy(",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Linq.Enumerable.ThenBy(",StringComparison.Ordinal)
-            &&generated.Contains("__residue",StringComparison.Ordinal)
-            &&!generated.Contains("__orderValues",StringComparison.Ordinal)
+            &&generated.Contains("residue",StringComparison.Ordinal)
+            &&!generated.Contains("orderValues",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Buffers.ArrayPool<int>.Shared.Rent",StringComparison.Ordinal),
             "Modulo-keyed ordering over a Range source must walk the residue classes instead of sorting or delegating back to System.Linq.",
             generated,
@@ -388,7 +388,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var method = GeneratedMethod(generated,"RangeReverse");
 
         GeneratedSourceAssert.True(
-            method.Contains("__reverseStart",StringComparison.Ordinal)
+            method.Contains("reverseStart",StringComparison.Ordinal)
             &&!method.Contains("new global::System.Collections.Generic.List<",StringComparison.Ordinal)
             &&!method.Contains("TryGetNext",StringComparison.Ordinal),
             "Reversing a Range for consumption should compute start+index directly instead of buffering every element.",
@@ -455,8 +455,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("global::System.MemoryExtensions.SequenceEqual(__spanL, __spanR);",StringComparison.Ordinal)
-            &&!generated.Contains("SequenceEqual(__spanL, __spanR, comparer)",StringComparison.Ordinal)
+            generated.Contains("global::System.MemoryExtensions.SequenceEqual(spanL, spanR);",StringComparison.Ordinal)
+            &&!generated.Contains("SequenceEqual(spanL, spanR, comparer)",StringComparison.Ordinal)
             &&generated.Contains("global::System.Collections.Generic.EqualityComparer<global::Sample.ClassKey>.Default",StringComparison.Ordinal)
             &&!generated.Contains("comparer.Equals(",StringComparison.Ordinal),
             "SequenceEqual without an explicit comparer must avoid routing through the IEqualityComparer<T>? "
@@ -485,7 +485,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("global::Seamless.Linq.Enumerable.SumSpan<int>(__span",StringComparison.Ordinal)
+            generated.Contains("global::Seamless.Linq.Enumerable.SumSpan<int>(span",StringComparison.Ordinal)
             &&!generated.Contains("global::Seamless.Linq.Enumerable.SumSpan<float>",StringComparison.Ordinal),
             "Sum() over int should use the SIMD SumSpan helper; float must keep the scalar checked loop "
             +"(SumSpan's fallback path does not reproduce System.Linq's double-accumulation semantics for float).",
@@ -692,7 +692,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             &&!sumMethod.Contains(".Compute(",StringComparison.Ordinal)
             &&!sumMethod.Contains("global::System.Linq.Enumerable.Range(",StringComparison.Ordinal)
             &&selectMethod.Contains("for(",StringComparison.Ordinal)
-            &&selectMethod.Contains("+__i",StringComparison.Ordinal)
+            &&selectMethod.Contains("+i",StringComparison.Ordinal)
             &&selectMethod.Contains("new global::System.ArgumentOutOfRangeException(\"count\")",StringComparison.Ordinal)
             &&!selectMethod.Contains("TryGetNext",StringComparison.Ordinal)
             &&!selectMethod.Contains("global::System.Linq.Enumerable.Range(",StringComparison.Ordinal)
@@ -735,11 +735,11 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var method = GeneratedMethod(generated,"RunFast");
 
         GeneratedSourceAssert.True(
-            method.Contains("__whereSpan",StringComparison.Ordinal)
-            &&method.Contains("__selectSpan",StringComparison.Ordinal)
-            &&method.Contains("__appendSpan",StringComparison.Ordinal)
-            &&method.Contains("__defaultSpan",StringComparison.Ordinal)
-            &&!method.Contains("while(__ce",StringComparison.Ordinal),
+            method.Contains("whereSpan",StringComparison.Ordinal)
+            &&method.Contains("selectSpan",StringComparison.Ordinal)
+            &&method.Contains("appendSpan",StringComparison.Ordinal)
+            &&method.Contains("defaultSpan",StringComparison.Ordinal)
+            &&!method.Contains("while(ce",StringComparison.Ordinal),
             "Single-stage array pipelines should consume direct spans without nested generated enumerator loops.",
             generated,
             output);
@@ -778,7 +778,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("global::System.Collections.Generic.Comparer<string>.Default.Compare",StringComparison.Ordinal)
-            &&generated.Contains("__orderedHandled",StringComparison.Ordinal)
+            &&generated.Contains("orderedHandled",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Linq.Enumerable.Order(",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Linq.Enumerable.OrderBy(",StringComparison.Ordinal),
             "String identity Order/OrderBy Consume should avoid sorting when the source is already ordered by the default comparer.",
@@ -804,7 +804,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         GeneratedSourceAssert.True(
             compact.Contains(".Length)!=0",StringComparison.Ordinal)
             &&compact.Contains("=(long)(src.Length);",StringComparison.Ordinal)
-            &&compact.Contains("=__compute",StringComparison.Ordinal)&&compact.Contains("(ref__s",StringComparison.Ordinal)
+            &&global::System.Text.RegularExpressions.Regex.IsMatch(compact,@"=\w+\(ref\w+")
             &&!generated.Contains("global::Seamless.Linq.IValueEnumerator<bool>",StringComparison.Ordinal)
             &&!generated.Contains("global::Seamless.Linq.IValueEnumerator<long>",StringComparison.Ordinal),
             "Scalar terminals should use source facts or static Compute inline without scalar enumerator structs.",
@@ -840,7 +840,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("__compute",StringComparison.Ordinal)&&generated.Contains("(ref __s",StringComparison.Ordinal)
+            generated.Contains("compute",StringComparison.Ordinal)&&generated.Contains("(ref s",StringComparison.Ordinal)
             &&generated.Contains("var count = 0;",StringComparison.Ordinal)
             &&!generated.Contains("long count = 0;",StringComparison.Ordinal)
             &&!generated.Contains("global::Seamless.Linq.IValueEnumerator<long>",StringComparison.Ordinal),
@@ -865,11 +865,11 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("__orderValues",StringComparison.Ordinal)
-            &&generated.Contains("__orderIndexes",StringComparison.Ordinal)
-            &&generated.Contains("global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes(__orderIndexes",StringComparison.Ordinal)
+            generated.Contains("orderValues",StringComparison.Ordinal)
+            &&generated.Contains("orderIndexes",StringComparison.Ordinal)
+            &&generated.Contains("global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes(orderIndexes",StringComparison.Ordinal)
             &&generated.Contains("global::System.Buffers.ArrayPool<int>.Shared.Rent",StringComparison.Ordinal)
-            &&!generated.Contains("global::System.Collections.Generic.List<__sortitem",StringComparison.Ordinal),
+            &&!generated.Contains("global::System.Collections.Generic.List<sortitem",StringComparison.Ordinal),
             "BinarySet followed by Order/ThenBy should materialize accepted values directly into the pooled order buffer.",
             generated,
             output);
@@ -903,7 +903,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             generated.Contains("global::Seamless.Linq.HashSetSlim<int>",StringComparison.Ordinal)
-            &&generated.Contains("using var __lk",StringComparison.Ordinal)
+            &&generated.Contains("using var lookup",StringComparison.Ordinal)
             &&!generated.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal),
             "Distinct fallback should use pooled HashSetSlim for internal duplicate tracking.",
             generated,
@@ -979,11 +979,11 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var normalized = generated.Replace("\r\n","\n",StringComparison.Ordinal);
 
         GeneratedSourceAssert.True(
-            generated.Contains("=__src0.GetSpan();",StringComparison.Ordinal)
-            &&generated.Contains("=__sec0.GetSpan();",StringComparison.Ordinal)
+            generated.Contains("=src.GetSpan();",StringComparison.Ordinal)
+            &&generated.Contains("=sec.GetSpan();",StringComparison.Ordinal)
             &&generated.Contains(".GetSpan();",StringComparison.Ordinal)
-            &&!normalized.Contains("if(__src0.TryGetSpan(out var __setSrcSpan",StringComparison.Ordinal)
-            &&!normalized.Contains("}else{\n    while(__src0.TryGetNext",StringComparison.Ordinal),
+            &&!normalized.Contains("if(src.TryGetSpan(out var setSrcSpan",StringComparison.Ordinal)
+            &&!normalized.Contains("}else{\n    while(src.TryGetNext",StringComparison.Ordinal),
             "Array roots should use direct GetSpan() traversal and avoid runtime TryGetSpan fallback branches.",
             generated,
             output);
@@ -1016,9 +1016,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("CollectionsMarshal.AsSpan(source).Slice",StringComparison.Ordinal)
-            &&generated.Contains("=__src0.GetSpan();",StringComparison.Ordinal)
-            &&generated.Contains("=__sec0.GetSpan();",StringComparison.Ordinal),
+            generated.Contains("CollectionsMarshal.AsSpan(this.source).Slice",StringComparison.Ordinal)
+            &&generated.Contains("=src.GetSpan();",StringComparison.Ordinal)
+            &&generated.Contains("=sec.GetSpan();",StringComparison.Ordinal),
             "List roots should expose a direct GetSpan() backed by CollectionsMarshal.AsSpan.",
             generated,
             output);
@@ -1051,11 +1051,11 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("if(__src0.TryGetSpan(out var __distinctSpan",StringComparison.Ordinal)
+            generated.Contains("if(src.TryGetSpan(out var distinctSpan",StringComparison.Ordinal)
             &&generated.Contains("}else{",StringComparison.Ordinal)
             // span が無いときは、IEnumerable の根の列挙子を局所変数に取って直接回す。
-            &&generated.Contains("var __rest___src0=__src0.GetRemainingEnumerator();",StringComparison.Ordinal)
-            &&generated.Contains("while(__rest___src0.MoveNext())",StringComparison.Ordinal),
+            &&generated.Contains("var rest=src.GetRemainingEnumerator();",StringComparison.Ordinal)
+            &&generated.Contains("while(rest.MoveNext())",StringComparison.Ordinal),
             "IEnumerable<T> roots only have runtime span probing, so the fallback branch must remain.",
             generated,
             output);
@@ -1167,7 +1167,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             method.Contains(".GetSpan();",StringComparison.Ordinal)
             &&method.Contains("[0]",StringComparison.Ordinal)
             &&method.Contains("global::System.Collections.Generic.HashSet<int>",StringComparison.Ordinal)
-            &&method.Contains("new(__hashSetSpan",StringComparison.Ordinal)
+            &&method.Contains("new(hashSetSpan",StringComparison.Ordinal)
             &&!method.Contains(".TryGetSpan(out var",StringComparison.Ordinal)
             &&!method.Contains("global::System.Linq.Enumerable.First",StringComparison.Ordinal)
             &&!method.Contains("global::System.Linq.Enumerable.ToHashSet",StringComparison.Ordinal),
@@ -1205,12 +1205,12 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             methods.Contains(".GetSpan();",StringComparison.Ordinal)
-            &&generated.Contains("CollectionsMarshal.AsSpan(source).Slice",StringComparison.Ordinal)
+            &&generated.Contains("CollectionsMarshal.AsSpan(this.source).Slice",StringComparison.Ordinal)
             &&!methods.Contains("global::System.Linq.Enumerable.ToArray",StringComparison.Ordinal)
             &&!methods.Contains("global::System.Linq.Enumerable.ToList",StringComparison.Ordinal)
-            &&!methods.Contains("TryGetSpan(out var __sourceSpan",StringComparison.Ordinal)
-            &&!methods.Contains("TryGetNonEnumeratedCount(out var __count",StringComparison.Ordinal)
-            &&!methods.Contains("TryCopyTo(global::System.MemoryExtensions.AsSpan(__result)",StringComparison.Ordinal),
+            &&!methods.Contains("TryGetSpan(out var sourceSpan",StringComparison.Ordinal)
+            &&!methods.Contains("TryGetNonEnumeratedCount(out var count",StringComparison.Ordinal)
+            &&!methods.Contains("TryCopyTo(global::System.MemoryExtensions.AsSpan(result)",StringComparison.Ordinal),
             "Array/List ToArray/ToList should use direct GetSpan materialization without runtime count/copy/span probing.",
             generated,
             output);
@@ -1277,9 +1277,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var generated = GeneratedSource(source);
 
         GeneratedSourceAssert.True(
-            generated.Contains("TryGetNonEnumeratedCount(out var __count",StringComparison.Ordinal)
+            generated.Contains("TryGetNonEnumeratedCount(out var count",StringComparison.Ordinal)
             &&generated.Contains("global::Seamless.Linq.GeneratedCodeHelpers.ToArrayFromEnumerable<int>(",StringComparison.Ordinal)
-            &&generated.Contains("TryGetSpan(out var __sourceSpan",StringComparison.Ordinal),
+            &&generated.Contains("TryGetSpan(out var sourceSpan",StringComparison.Ordinal),
             "IEnumerable<T> materialization should keep runtime count/copy/span fallback paths.",
             generated,
             output);
@@ -1287,6 +1287,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
     [Fact]
     public void MinMaxCompute_OwnsTheEnumeratorCopy_CallerDoesNotDisposeAgain() {
+        // (Max は OrderBy を除いて MaxSpan へ直接進むので、Compute を通らなくても、呼び出し元が Dispose しなければよい。)
         // Min/Max(セレクター無し)の Compute は、列挙子の複製をライブラリ関数へ値渡しし、ライブラリが using でその複製を破棄する。
         // 呼び出し元がさらに本体を Dispose すると、コンストラクタでプール配列を借りる列挙子(OrderBy 等)は二重 Return になり、
         // ArrayPool が同じ配列を 2 回貸し出して後続の無関係なクエリのデータが壊れる(2026-09-30 の差分ファズで確認)。所有者は 1 人にする。
@@ -1309,9 +1310,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var max = GeneratedMethod(generated,"MaxAfterOrder");
 
         GeneratedSourceAssert.True(
-            min.Contains("__compute",StringComparison.Ordinal)
+            min.Contains("compute",StringComparison.Ordinal)
             &&!min.Contains(".Dispose();",StringComparison.Ordinal)
-            &&max.Contains("__compute",StringComparison.Ordinal)
+            &&(max.Contains("compute",StringComparison.Ordinal)||max.Contains("MaxSpan",StringComparison.Ordinal))
             &&!max.Contains(".Dispose();",StringComparison.Ordinal),
             "Min/Max の Compute が列挙子の複製を破棄するので、呼び出し元は本体を Dispose してはいけない(二重 Return)。",
             generated,
@@ -1341,14 +1342,15 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         // 列挙子の破棄は呼び出し元の try-finally だけが行う。Compute が複製を破棄すると、コンストラクタでプール配列を借りる
         // 列挙子(OrderBy 等)で呼び出し元の Dispose と二重 Return になる(ScalarTerminalDisposeSemantics / GroupByOrder が実行で確認する)。
         GeneratedSourceAssert.True(
-            global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"global::Seamless\.Linq\.GeneratedCodeHelpers\.ToListFromValueEnumerator<\w+,int>\(ref enumerator\)")
-            &&!generated.Contains("enumerator.Dispose();",StringComparison.Ordinal)
+            global::System.Text.RegularExpressions.Regex.IsMatch(generated,@"global::Seamless\.Linq\.GeneratedCodeHelpers\.ToListFromValueEnumerator<\w+,int>\(ref enumerator\d*\)")
+            &&!plain.Contains("enumerator.Dispose();",StringComparison.Ordinal)
+            &&!fused.Contains("enumerator.Dispose();",StringComparison.Ordinal)
             &&plain.Contains("finally{",StringComparison.Ordinal)
             &&plain.Contains(".Dispose();",StringComparison.Ordinal)
             &&fused.Contains("global::Seamless.Linq.GeneratedCodeHelpers.ToListFromValueEnumerator<",StringComparison.Ordinal)
             &&fused.Contains("(ref ",StringComparison.Ordinal)
-            &&!generated.Contains("__result=new global::System.Collections.Generic.List<int>();",StringComparison.Ordinal)
-            &&!fused.Contains(".Add(__item",StringComparison.Ordinal),
+            &&!generated.Contains("result=new global::System.Collections.Generic.List<int>();",StringComparison.Ordinal)
+            &&!fused.Contains(".Add(item",StringComparison.Ordinal),
             "ToList slow paths must build through the pooled segmented helper instead of List<T>.Add growth, and the caller must keep enumerator ownership via try-finally.",
             generated,
             output);
@@ -1424,8 +1426,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             methods.Contains(".GetSpan();",StringComparison.Ordinal)
-            &&generated.Contains("CollectionsMarshal.AsSpan(source).Slice",StringComparison.Ordinal)
-            &&!methods.Contains(".TryGetSpan(out var __span)",StringComparison.Ordinal),
+            &&generated.Contains("CollectionsMarshal.AsSpan(this.source).Slice",StringComparison.Ordinal)
+            &&!methods.Contains(".TryGetSpan(out var span)",StringComparison.Ordinal),
             "Array/List scalar terminals should read direct GetSpan and avoid runtime TryGetSpan branches.",
             generated,
             output);
@@ -1465,7 +1467,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             &&directMethods.Contains("Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements()",StringComparison.Ordinal)
             &&!directMethods.Contains(".TryGetSpan(out var",StringComparison.Ordinal)
             &&!directMethods.Contains("foreach(var",StringComparison.Ordinal)
-            &&!directMethods.Contains("__first",StringComparison.Ordinal)
+            &&!directMethods.Contains("first",StringComparison.Ordinal)
             &&enumerableMethod.Contains(".TryGetSpan(out var",StringComparison.Ordinal)
             &&enumerableMethod.Contains("}else{",StringComparison.Ordinal),
             "Array/List Aggregate should use direct GetSpan()+for loops while IEnumerable<T> keeps runtime span probing and fallback.",
@@ -1497,11 +1499,11 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             GeneratedMethod(generated,"SelectToList"));
 
         GeneratedSourceAssert.True(
-            methods.Contains("__pipelineSpan",StringComparison.Ordinal)
-            &&methods.Contains("__pipelineDestination",StringComparison.Ordinal)
-            &&methods.Contains("=__pipelineSrc",StringComparison.Ordinal)
-            &&!methods.Contains("TryCopyTo(global::System.MemoryExtensions.AsSpan(__linq",StringComparison.Ordinal)
-            &&!methods.Contains("TryCopyTo(__pipelineDestination",StringComparison.Ordinal),
+            methods.Contains("pipelineSpan",StringComparison.Ordinal)
+            &&methods.Contains("pipelineDestination",StringComparison.Ordinal)
+            &&methods.Contains("=pipelineSrc",StringComparison.Ordinal)
+            &&!methods.Contains("TryCopyTo(global::System.MemoryExtensions.AsSpan(linq",StringComparison.Ordinal)
+            &&!methods.Contains("TryCopyTo(pipelineDestination",StringComparison.Ordinal),
             "Count-preserving Select over a direct span source should materialize with a span index loop, not TryCopyTo.",
             generated,
             output);
@@ -1523,7 +1525,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
 
         GeneratedSourceAssert.True(
             method.Contains("source.Length",StringComparison.Ordinal)
-            &&!method.Contains("__compute",StringComparison.Ordinal)
+            &&!method.Contains("compute",StringComparison.Ordinal)
             &&!method.Contains("TryGetNext",StringComparison.Ordinal),
             "A transparent AsEnumerable before Count must keep the direct array count path instead of creating an empty pipeline enumerator.",
             generated,
@@ -1563,7 +1565,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             method.Contains(".GetEnumerator()",StringComparison.Ordinal)
             &&method.Contains(".MoveNext()",StringComparison.Ordinal)
             &&method.Contains(".Current",StringComparison.Ordinal)
-            &&method.Contains("using var __interfaceEnumerator",StringComparison.Ordinal)
+            &&method.Contains("using var interfaceEnumerator",StringComparison.Ordinal)
             &&!method.Contains("TryGetSpan",StringComparison.Ordinal)
             &&!method.Contains("IValueEnumerator",StringComparison.Ordinal),
             "A statically IEnumerable<T> Consume terminal should lower directly to one IEnumerator<T> loop without runtime span recovery or a value-enumerator wrapper.",
@@ -1650,8 +1652,8 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
             method.Contains(".GetEnumerator()",StringComparison.Ordinal)
             &&method.Contains(".MoveNext()",StringComparison.Ordinal)
             &&method.Contains(".Current",StringComparison.Ordinal)
-            &&method.Contains("if(__defaultIfEmptyEnumerator",StringComparison.Ordinal)
-            &&method.Contains("__defaultIfEmptyValue",StringComparison.Ordinal)
+            &&method.Contains("if(defaultIfEmptyEnumerator",StringComparison.Ordinal)
+            &&method.Contains("defaultIfEmptyValue",StringComparison.Ordinal)
             &&!method.Contains("IValueEnumerator",StringComparison.Ordinal)
             &&!method.Contains("TryGetNext",StringComparison.Ordinal),
             "A statically IEnumerable<T> DefaultIfEmpty Consume terminal should preserve the empty fallback while lowering the non-empty path to one direct IEnumerator<T> loop.",
@@ -1691,10 +1693,10 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var method = GeneratedMethod(generated,"Direct");
 
         GeneratedSourceAssert.True(
-            method.Contains("__selectManyOuterEnumerator",StringComparison.Ordinal)
-            &&method.Contains("__selectManyInnerEnumerator",StringComparison.Ordinal)
-            &&method.Contains("using(var __selectManyOuterEnumerator",StringComparison.Ordinal)
-            &&method.Contains("using(var __selectManyInnerEnumerator",StringComparison.Ordinal)
+            method.Contains("selectManyOuterEnumerator",StringComparison.Ordinal)
+            &&method.Contains("selectManyInnerEnumerator",StringComparison.Ordinal)
+            &&method.Contains("using(var selectManyOuterEnumerator",StringComparison.Ordinal)
+            &&method.Contains("using(var selectManyInnerEnumerator",StringComparison.Ordinal)
             &&!method.Contains("IValueEnumerator",StringComparison.Ordinal)
             &&!method.Contains("TryGetNext",StringComparison.Ordinal),
             "An identity SelectMany Consume terminal should enumerate the outer and inner IEnumerable values directly with deterministic disposal.",
@@ -1739,7 +1741,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
     }
 
     private static string GeneratedMethod(string generated,string methodName) {
-        var summaryMarker = $"<c>{methodName}()</c>";
+        var summaryMarker = $"<c>{methodName}(";
         var summaryIndex = generated.IndexOf(summaryMarker,StringComparison.Ordinal);
         if(summaryIndex<0) {
             return string.Empty;

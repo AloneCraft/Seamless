@@ -74,6 +74,6 @@ public sealed class ConcatThenStatelessConsumeTests {
             (string)probe.GetMethod("RunFLinq")!.Invoke(null,[start,count,second])!,
             (string)probe.GetMethod("RunLinq")!.Invoke(null,[start,count,second])!));
         Assert.Equal(expected.Split('|'),actual.Split('|'));
-        Assert.Contains("__concatSecondRoot",generated);
+        Assert.Contains("concatSecondRoot",generated);
     }
 }

@@ -58,6 +58,6 @@ public sealed class StatelessChainDirectConsumeTests {
         var actual = ExecutableGeneration.Run(compilation,"Sample.Probe",probe => (string)probe.GetMethod("Run")!.Invoke(null,null)!);
         Assert.Equal("20,40,60,102,103,104,105,3,9,15",actual);
         // 配列の2つは直接のループ。Range は Range 専用の最適化(偶奇の刻みなど)を使う既存の経路のまま。
-        Assert.Equal(2,global::System.Text.RegularExpressions.Regex.Matches(generated,@"for\(var __i\w+=0;__i\w+<__chain(Span\w+\.Length|Count\w+);").Count);
+        Assert.Equal(2,global::System.Text.RegularExpressions.Regex.Matches(generated,@"for\(var i\w*=0;i\w*<chain(Span\w*\.Length|Count\w*);").Count);
     }
 }

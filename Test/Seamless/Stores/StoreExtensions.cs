@@ -58,7 +58,7 @@ public class StoreExtensions{
             {
                 //固定した索引は混雑しても拡張せず、要素はすべて読み取れる
                 using var store=CommonStore.CreateMemory();
-                using var data=store.CreateTsavoriteHashSet<long>("fixed",Small with{AutoGrowIndex=false,LogMemorySize=null});
+                using var data=store.CreateTsavoriteHashSet<long>("fixed",Small with{Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>(),LogMemorySize=null});
                 using var set=data.Create();
                 var initialOverflowBuckets=data.Store.OverflowBucketCount;
                 for(long i=0;i<10_000;i++){
@@ -84,7 +84,7 @@ public class StoreExtensions{
                 //保存済みの索引と異なる固定指定は、小さくても大きくても拒否する
                 var directory=Path.Combine(root,"fixed-index");
                 using(var store=CommonStore.Open(directory)){
-                    var data=store.CreateTsavoriteHashSet<long>("ids",Small with{AutoGrowIndex=false});
+                    var data=store.CreateTsavoriteHashSet<long>("ids",Small with{Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>()});
                     using(var set=data.Create()){
                         set.Add(123);
                     }
@@ -92,9 +92,9 @@ public class StoreExtensions{
                 }
                 using(var store=CommonStore.Open(directory)){
                     foreach(var index in new long[]{2048,8192}){
-                        Assert.Throws<InvalidOperationException>(()=>store.CreateTsavoriteHashSet<long>("ids",Small with{AutoGrowIndex=false,IndexSize=index}));
+                        Assert.Throws<InvalidOperationException>(()=>store.CreateTsavoriteHashSet<long>("ids",Small with{Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>(),IndexSize=index}));
                     }
-                    using var data=store.CreateTsavoriteHashSet<long>("ids",Small with{AutoGrowIndex=false});
+                    using var data=store.CreateTsavoriteHashSet<long>("ids",Small with{Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>()});
                     using var set=data.Create();
                     Assert.True(set.Contains(123));
                 }

@@ -182,8 +182,8 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output) {
         this.AssertIntercepted(result.GeneratedSource,nameof(ToArrayConsume));
         GeneratedSourceAssert.True(
             !result.GeneratedSource.Contains("LinqInterceptorFailure",StringComparison.Ordinal)
-            &&result.GeneratedSource.Contains("foreach(var __item in __linq",StringComparison.Ordinal)
-            &&result.GeneratedSource.Contains(".Consume(__item);",StringComparison.Ordinal),
+            &&global::System.Text.RegularExpressions.Regex.IsMatch(result.GeneratedSource,@"foreach\(var item in \w+\)")
+            &&result.GeneratedSource.Contains(".Consume(item);",StringComparison.Ordinal),
             "Scalar materialize terminal followed by Consume should expand to direct item consumption.",
             result.GeneratedSource,
             output);
@@ -224,9 +224,9 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output) {
         GeneratedSourceAssert.True(
             !result.GeneratedSource.Contains("LinqInterceptorFailure",StringComparison.Ordinal)
             &&result.GeneratedSource.Contains("Tsavorite query lowered",StringComparison.Ordinal)
-            // 列挙子のループで流す形(__cv)か、根を直接回してグループを流す形(__groupBuilder)。
-            &&(result.GeneratedSource.Contains(".Consume(__cv",StringComparison.Ordinal)
-                ||result.GeneratedSource.Contains("__groupBuilder",StringComparison.Ordinal)),
+            // 列挙子のループで流す形(cv)か、根を直接回してグループを流す形(groupBuilder)。
+            &&(result.GeneratedSource.Contains(".Consume(cv",StringComparison.Ordinal)
+                ||result.GeneratedSource.Contains("groupBuilder",StringComparison.Ordinal)),
             "Query-lowered GroupBy followed by Consume should expand to direct item consumption.",
             result.GeneratedSource,
             output);
@@ -290,7 +290,7 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output) {
             "global::System.Runtime.InteropServices.CollectionsMarshal.SetCount",
             "global::System.GC.AllocateUninitializedArray<int>",
             "global::System.Buffers.ArrayPool<int>.Shared.Rent",
-            "destination[__i++]",
+            "destination[i++]",
         };
         var missingFragments = expectedFragments
             .Where(fragment => !result.GeneratedSource.Contains(fragment,StringComparison.Ordinal))

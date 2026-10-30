@@ -18,11 +18,15 @@ public sealed class Store:IDisposable{
     private readonly string? directoryPath;
     private Checkpoint? current;
     private bool disposed;
-    private Store(StoreKind kind,string? directoryPath,StoreLimits? limits,FileStream? lockStream,List<Checkpoint> checkpoints){
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string,ProfileResolution> profiles=new(StringComparer.Ordinal);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string,Growth.Event> growthDecisions=new(StringComparer.Ordinal);
+    private readonly System.Collections.Concurrent.ConcurrentQueue<Growth.Event> growthEvents=new();
+    private Store(StoreKind kind,string? directoryPath,StoreLimits? limits,FileStream? lockStream,List<Checkpoint> checkpoints,StoreOptions? options=null,ResourceBudget? parentBudget=null){
         this.Kind=kind;
         this.directoryPath=directoryPath;
         this.Limits=limits??new();
-        this.Budget=new(this.Limits.MemoryBytes,this.Limits.DiskBytes);
+        this.Options=options??new();
+        this.Budget=parentBudget?.CreateChild(this.Limits.MemoryBytes,this.Limits.DiskBytes)??new(this.Limits.MemoryBytes,this.Limits.DiskBytes);
         this.lockStream=lockStream;
         this.checkpoints=checkpoints;
         if(checkpoints.Count>0){
@@ -30,7 +34,7 @@ public sealed class Store:IDisposable{
         }
     }
     /// <summary>一時ストアを作る。フォルダは <paramref name="temporaryDirectory"/>(省略時は %TEMP%/Seamless/Store)の下に作り、破棄で全削除する。</summary>
-    public static Store CreateTemporary(StoreLimits? limits=null,string? temporaryDirectory=null){
+    public static Store CreateTemporary(StoreLimits? limits=null,string? temporaryDirectory=null,StoreOptions? options=null,ResourceBudget? parentBudget=null){
         string root;
         if(string.IsNullOrWhiteSpace(temporaryDirectory)){
             root=Path.Combine(Path.GetTempPath(),"Seamless","Store");
@@ -44,7 +48,7 @@ public sealed class Store:IDisposable{
         try{
             lease=new(Path.Combine(directory,"owner.lock"),FileMode.CreateNew,FileAccess.ReadWrite,FileShare.None);
             File.WriteAllText(Path.Combine(directory,"owner.json"),JsonSerializer.Serialize(new{Format=FormatName,Id=id,ProcessId=Environment.ProcessId,CreatedAt=DateTimeOffset.UtcNow}));
-            return new(StoreKind.Temporary,directory,limits,lease,[]);
+            return new(StoreKind.Temporary,directory,limits,lease,[],options,parentBudget);
         }catch{
             lease?.Dispose();
             Directory.Delete(directory,true);
@@ -52,20 +56,52 @@ public sealed class Store:IDisposable{
         }
     }
     /// <summary>永続ストアを開く。フォルダが無ければ作る。開いている間は排他ロックを持ち、同じフォルダを二重に開くと <see cref="IOException"/>。</summary>
-    public static Store Open(string directory,StoreLimits? limits=null){
+    public static Store Open(string directory,StoreLimits? limits=null,StoreOptions? options=null,ResourceBudget? parentBudget=null){
         ArgumentException.ThrowIfNullOrWhiteSpace(directory);
         var fullPath=Path.GetFullPath(directory);
         Directory.CreateDirectory(fullPath);
         var lease=new FileStream(Path.Combine(fullPath,LockFileName),FileMode.OpenOrCreate,FileAccess.ReadWrite,FileShare.None);
         try{
-            return new(StoreKind.Persistent,fullPath,limits,lease,ReadManifest(fullPath));
+            return new(StoreKind.Persistent,fullPath,limits,lease,ReadManifest(fullPath),options,parentBudget);
         }catch{
             lease.Dispose();
             throw;
         }
     }
     /// <summary>ディスクを使わないストアを作る。保存はできない。</summary>
-    public static Store CreateMemory(StoreLimits? limits=null)=>new(StoreKind.Memory,null,limits,null,[]);
+    public static Store CreateMemory(StoreLimits? limits=null,StoreOptions? options=null,ResourceBudget? parentBudget=null)=>new(StoreKind.Memory,null,limits,null,[],options,parentBudget);
+    public StoreOptions Options{get;}
+    public IReadOnlyDictionary<string,ProfileResolution> ResolvedProfiles=>new Dictionary<string,ProfileResolution>(this.profiles,StringComparer.Ordinal);
+    public IReadOnlyList<Growth.Event> GrowthEvents=>this.growthEvents.ToArray();
+    public IReadOnlyDictionary<string,Growth.Event> GrowthDecisions=>new Dictionary<string,Growth.Event>(this.growthDecisions,StringComparer.Ordinal);
+    public ProfileResolution ResolveProfile(string component,string backend,string elementType,long expectedCount=0,ProfileSettings? explicitSettings=null,Growth.Policy? explicitGrowth=null,string io="BackendDefault"){
+        ValidateName(component);
+        var resolution=ProfileResolver.Resolve(this.Options.Profile,
+            new(backend,this.Kind,elementType,expectedCount,this.Options.Workload,this.Options.Environment,io,StorageKey:ProfileEnvironment.Storage(this.directoryPath)),
+            this.Limits,explicitSettings,this.Options.Profiles,explicitGrowth??this.Options.ExplicitGrowth);
+        this.profiles[component]=resolution;
+        return resolution;
+    }
+    public Growth.Policy GetGrowth(string component){
+        if(this.Options.ExplicitGrowth is not null){return this.Options.ExplicitGrowth;}
+        if(this.profiles.TryGetValue(component,out var profile)&&profile.Growth is not null){
+            return Growth.Policy.FromDescriptor(profile.Growth)??throw new InvalidOperationException("The resolved growth strategy is unavailable.");
+        }
+        return this.Options.Growth;
+    }
+    public ProfileSettings GetCurrentSettings(string component){
+        var settings=this.profiles[component].Settings;
+        foreach(var entry in this.growthEvents.Where(entry=>entry.Component==component||entry.Component==component+".log")){
+            if(entry.Context.Resource==Growth.Resource.Index){settings=settings with{IndexBytes=entry.Decision.TargetBytes};}
+            if(entry.Context.Resource==Growth.Resource.LogMemory){settings=settings with{LogMemoryBytes=entry.Decision.TargetBytes};}
+        }
+        return settings;
+    }
+    public void RecordGrowthDecision(string component,Growth.Context context,Growth.Decision decision,double? elapsedNanoseconds=null){
+        var entry=new Growth.Event(component,DateTimeOffset.UtcNow,context,decision,elapsedNanoseconds);
+        this.growthDecisions[component]=entry;
+        if(decision.Status==Growth.Status.Grow){this.growthEvents.Enqueue(entry);}
+    }
     public StoreKind Kind{get;}
     /// <summary>ストアのフォルダ。メモリストアでは null。</summary>
     public string? DirectoryPath=>this.directoryPath;

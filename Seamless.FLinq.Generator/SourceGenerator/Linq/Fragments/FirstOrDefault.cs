@@ -1,6 +1,7 @@
 namespace Seamless.FLinq.Generator;
 
-internal class FirstOrDefault(int 番号,Enumerable source,string resultType):BufferedScalar(番号,resultType) {
+internal class FirstOrDefault(int 番号,Enumerable sourceFragment,string resultType):BufferedScalar(番号,resultType) {
+    private readonly Enumerable source=OrderingBase.BindFirstConsumer(sourceFragment);
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -18,11 +19,64 @@ internal class FirstOrDefault(int 番号,Enumerable source,string resultType):Bu
     public override string GetEnumeratorExpression => RenderEnumeratorExpression(this.EnumeratorTypeName,source.GetEnumeratorExpression);
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute(ref {this.e})";
-    public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderRangeFirstOrDefaultInline(destVar,destType)
-        ??this.RenderDirectSpanFirstOrDefaultInline(destVar,destType)
-        ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"FirstOrDefault")
-        ??this.RenderComputeInline(destVar,destType);
+    public override string? RenderInlineComputation(string destVar,string destType) {
+        if(source is GroupJoin groupJoin) {
+            return groupJoin.RenderDirectFirstInline(destVar,destType,orDefault: true);
+        }
+        if(source is Join join) {
+            return join.RenderDirectFirstInline(destVar,destType,orDefault: true);
+        }
+        if(source is Zip zip) {
+            return zip.RenderDirectFirstInline(destVar,destType,orDefault: true);
+        }
+        if(source is Zip_resultSelector zipSel) {
+            return zipSel.RenderDirectFirstInline(destVar,destType,orDefault: true);
+        }
+        if(this.RenderRangeFirstOrDefaultInline(destVar,destType) is { } rangeInline) {
+            return rangeInline;
+        }
+        if(this.RenderDirectSpanFirstOrDefaultInline(destVar,destType) is { } spanInline) {
+            return spanInline;
+        }
+        if(this.RenderConsumeBasedFirstOrDefaultInline(destVar,destType) is { } consumeInline) {
+            return consumeInline;
+        }
+        if(this.RenderDirectEnumerableCallInline(source,destVar,destType,"FirstOrDefault") is { } directCall) {
+            return directCall;
+        }
+        return this.RenderComputeInline(destVar,destType);
+    }
+    private string? RenderConsumeBasedFirstOrDefaultInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_FIRSTORDEFAULT_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var endLabel = $"__firstOrDefaultEnd{番号}";
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            return $"{indent}{destVar}={arg};\n{indent}goto {endLabel};";
+        });
+        return $$"""
+            {{destType}} {{destVar}}=default!;
+            {{replaced}}
+            {{endLabel}}:;
+            """;
+    }
     private string? RenderDirectSpanFirstOrDefaultInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
@@ -60,7 +114,8 @@ internal class FirstOrDefault(int 番号,Enumerable source,string resultType):Bu
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-internal class FirstOrDefault_defaultValue(int 番号,Enumerable source,string defaultValue,string resultType):BufferedScalar(番号,resultType) {
+internal class FirstOrDefault_defaultValue(int 番号,Enumerable sourceFragment,string defaultValue,string resultType):BufferedScalar(番号,resultType) {
+    private readonly Enumerable source=OrderingBase.BindFirstConsumer(sourceFragment);
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -82,7 +137,39 @@ internal class FirstOrDefault_defaultValue(int 番号,Enumerable source,string d
     public override string? RenderInlineComputation(string destVar,string destType) =>
         this.RenderRangeFirstOrDefaultDefaultValueInline(destVar,destType)
         ??this.RenderDirectSpanFirstOrDefaultDefaultValueInline(destVar,destType)
+        ??this.RenderConsumeBasedFirstOrDefaultDefaultValueInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,defaultValue);
+    private string? RenderConsumeBasedFirstOrDefaultDefaultValueInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_FIRSTORDEFAULT_DEF_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var endLabel = $"__firstOrDefaultDefEnd{番号}";
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            var arg = match.Groups["arg"].Value;
+            return $"{indent}{destVar}={arg};\n{indent}goto {endLabel};";
+        });
+        return $$"""
+            {{destType}} {{destVar}}={{defaultValue}};
+            {{replaced}}
+            {{endLabel}}:;
+            """;
+    }
     private string? RenderDirectSpanFirstOrDefaultDefaultValueInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""
@@ -120,7 +207,9 @@ internal class FirstOrDefault_defaultValue(int 番号,Enumerable source,string d
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
 }
 
-internal class FirstOrDefault_predicate(int 番号,Enumerable source,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
+internal class FirstOrDefault_predicate(int 番号,Enumerable sourceFragment,FuncFragment predicate,string resultType):BufferedScalar(番号,resultType) {
+    // 述語付きFirst系はordered sourceを列挙するため単一keyも評価する。
+    private readonly Enumerable source=OrderingBase.BindFirstConsumer(sourceFragment);
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {

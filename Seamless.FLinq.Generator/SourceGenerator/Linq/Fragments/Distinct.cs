@@ -74,8 +74,14 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
         var sourceName = $"__src{番号}";
         var builder = new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
-        if(ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)&&IsInt32Type(source.ElementType)&&source.CanTryProvideSpan) {
-            this.AppendSortedIntDistinctFastPath(builder,sourceName,consumerName);
+        // 整列済みの int は集合を使わずそのまま流す。ここは Consume の文なので、メソッドの途中に埋め込まれても良いよう、
+        // return ではなく「処理済み」の旗で残りを飛ばす(return; は値を返すメソッドや、後ろにまだ続きがある文では使えない)。
+        var handledName = $"__distinctHandled{番号}";
+        var hasSortedFastPath = ComparerExpressionSupport.IsDefaultEqualityComparer(comparer,source.ElementType)&&IsInt32Type(source.ElementType)&&source.CanTryProvideSpan;
+        if(hasSortedFastPath) {
+            builder.AppendLine($"var {handledName}=false;");
+            this.AppendSortedIntDistinctFastPath(builder,sourceName,consumerName,handledName);
+            builder.AppendLine($"if(!{handledName}){{");
         }
         TraversalSupport.AppendHashSetInitialization(builder,this.lookup,source.ElementType,sourceName,this.Comparer);
         TraversalSupport.AppendTraversalLoop(builder,sourceName,source.ElementType,"value",$$"""
@@ -83,21 +89,24 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
                 {{consumerName}}.Consume(value);
             }
             """,source.CanTryProvideSpan,source.CanProvideSpan,source.GetDirectSpanExpression(sourceName),source.ProvidesRemainingEnumerator);
+        if(hasSortedFastPath) {
+            builder.AppendLine("}");
+        }
         return builder.ToString().TrimEnd();
     }
 
-    private void AppendSortedIntDistinctFastPath(StringBuilder builder,string sourceName,string consumerName) {
+    private void AppendSortedIntDistinctFastPath(StringBuilder builder,string sourceName,string consumerName,string handledName) {
         var spanName = $"__distinctSpan{番号}";
         var sortedName = $"__distinctSorted{番号}";
         var directSpanExpression = source.GetDirectSpanExpression(sourceName);
         if(directSpanExpression is not null) {
             builder.AppendLine($"var {spanName}={directSpanExpression};");
-            AppendSortedIntDistinctFastPathBody(builder,spanName,sortedName,consumerName,string.Empty);
+            AppendSortedIntDistinctFastPathBody(builder,spanName,sortedName,consumerName,string.Empty,handledName);
             return;
         }
         if(source.CanProvideSpan) {
             builder.AppendLine($"{sourceName}.TryGetSpan(out var {spanName});");
-            AppendSortedIntDistinctFastPathBody(builder,spanName,sortedName,consumerName,string.Empty);
+            AppendSortedIntDistinctFastPathBody(builder,spanName,sortedName,consumerName,string.Empty,handledName);
             return;
         }
         builder.AppendLine($"if({sourceName}.TryGetSpan(out var {spanName})){{");
@@ -112,12 +121,12 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
         builder.AppendLine($"        for(var __i=0;__i<{spanName}.Length;__i++){{");
         builder.AppendLine($"            {consumerName}.Consume({spanName}[__i]);");
         builder.AppendLine("        }");
-        builder.AppendLine("        return;");
+        builder.AppendLine($"        {handledName}=true;");
         builder.AppendLine("    }");
         builder.AppendLine("}");
     }
 
-    private static void AppendSortedIntDistinctFastPathBody(StringBuilder builder,string spanName,string sortedName,string consumerName,string indent) {
+    private static void AppendSortedIntDistinctFastPathBody(StringBuilder builder,string spanName,string sortedName,string consumerName,string indent,string handledName) {
         builder.AppendLine($"{indent}var {sortedName}=true;");
         builder.AppendLine($"{indent}for(var __i=1;__i<{spanName}.Length;__i++){{");
         builder.AppendLine($"{indent}    if({spanName}[__i]<={spanName}[__i-1]){{");
@@ -129,7 +138,7 @@ internal abstract class DistinctBase(int 番号,Enumerable source,string compare
         builder.AppendLine($"{indent}    for(var __i=0;__i<{spanName}.Length;__i++){{");
         builder.AppendLine($"{indent}        {consumerName}.Consume({spanName}[__i]);");
         builder.AppendLine($"{indent}    }}");
-        builder.AppendLine($"{indent}    return;");
+        builder.AppendLine($"{indent}    {handledName}=true;");
         builder.AppendLine($"{indent}}}");
     }
 

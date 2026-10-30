@@ -125,8 +125,8 @@ public class SetOperationStressTests {
             using var objDevA= Devices.CreateLogDevice(objA);
             using var logDevB= Devices.CreateLogDevice(logB);
             using var objDevB= Devices.CreateLogDevice(objB);
-            using var storeA = Store.Create().Create<string>(logDevA,objDevA,new MemoryPackSerializerStrategy());
-            using var storeB = Store.Create().Create<string>(logDevB,objDevB,new MemoryPackSerializerStrategy());
+            using var storeA = Store.Create().Create<string>(logDevA,objDevA,new global::Seamless.Collections.Serializers.MemoryPack());
+            using var storeB = Store.Create().Create<string>(logDevB,objDevB,new global::Seamless.Collections.Serializers.MemoryPack());
             using var setA   = storeA.Create();
             using var setB   = storeB.Create();
             try {

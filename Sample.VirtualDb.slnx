@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/Samples/">
+    <Project Path="Samples/Sample.VirtualDb/Sample.VirtualDb.csproj" />
+  </Folder>
+</Solution>

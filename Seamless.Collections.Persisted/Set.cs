@@ -1,18 +1,13 @@
-namespace Seamless.Collections.Persisted;
-
-public interface ISetIterateStrategy<TSelf, T>
-    where TSelf : struct, ISetIterateStrategy<TSelf,T> {
-    static abstract bool Invoke(ref TSelf self,T item);
-}
+﻿namespace Seamless.Collections.Persisted;
 
 public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
-    // AutoSerializer は固定長の型を BlittableSerializer と同じ生バイトで、それ以外を MemoryPack で書くので、
+    // global::Seamless.Collections.Serializers.Auto は固定長の型を global::Seamless.Collections.Serializers.Blittable と同じ生バイトで、それ以外を MemoryPack で書くので、
     // 型ごとにリフレクションで作り分けなくても従来(BlittableSet / MemoryPack の SerializedSet)と同じレコード本体の形式になる。
-    private readonly SerializedSet<T,AutoSerializer<T>> list;
+    private readonly SerializedSet<T,global::Seamless.Collections.Serializers.Auto<T>> list;
     private readonly IReadOnlySet<T> set;
 
     public Set(string path,long initialCapacity = 16,long initialDataCapacity = 4096,StorageTuning? tuning = null) {
-        this.list=new SerializedSet<T,AutoSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning);
+        this.list=new SerializedSet<T,global::Seamless.Collections.Serializers.Auto<T>>(path,initialCapacity,initialDataCapacity,tuning);
         this.set=this.list;
     }
 
@@ -61,7 +56,7 @@ public sealed class Set<T>:Seamless.Collections.ISet<T>, IDisposable {
     internal IPersistedCommittable Committable => this.list;
 
     public void Iterate<TStrategy>(ref TStrategy strategy)
-        where TStrategy : struct, ISetIterateStrategy<TStrategy,T> {
+        where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,T> {
         foreach(var item in this) {
             if(!TStrategy.Invoke(ref strategy,item))
                 break;
@@ -74,7 +69,7 @@ public class SerializedSet<T>(
     long           initialCapacity    =16,
     long           initialDataCapacity=4096,
     StorageTuning? tuning             =null)
-    :SerializedSet<T,MemoryPackSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning)
+    :SerializedSet<T,global::Seamless.Collections.Serializers.MemoryPack<T>>(path,initialCapacity,initialDataCapacity,tuning)
 where T : struct;
 
 public class SerializedSet<T,TSerializer>(
@@ -83,7 +78,7 @@ public class SerializedSet<T,TSerializer>(
     long           initialDataCapacity=4096,
     StorageTuning? tuning             =null)
     :SerializedList<T,TSerializer>(path,initialCapacity,initialDataCapacity,tuning),IReadOnlySet<T>
-where TSerializer : ISerializer<T> {
+where TSerializer : global::Seamless.Collections.Serializers.IStrategy<T> {
     // 要素の serialize バイト列をキーとするファイル上のハッシュ索引を維持し、Contains を O(1) 化する。
     protected override bool UsesKeyIndex => true;
 
@@ -179,5 +174,5 @@ public sealed class BlittableSet<T>(
     long           initialCapacity    =16,
     long           initialDataCapacity=4096,
     StorageTuning? tuning             =null)
-    :SerializedSet<T,BlittableSerializer<T>>(path,initialCapacity,initialDataCapacity,tuning)
+    :SerializedSet<T,global::Seamless.Collections.Serializers.Blittable<T>>(path,initialCapacity,initialDataCapacity,tuning)
 where T : unmanaged;

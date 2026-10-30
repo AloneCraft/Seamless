@@ -6,19 +6,19 @@ namespace Seamless.Collections.Tsavorite;
 /// データ本体が破棄されるときに、デバイスと予約も一緒に解放する。
 /// </summary>
 internal sealed class TsavoriteLayout:IDisposable{
-    private const long DefaultStorageLogMemorySize=1L<<26;
     /// <summary>集合演算の作業リストを置くフォルダ名(データ本体のフォルダの中)。</summary>
     internal const string WorkListDirectoryName="worklists";
-    private const long MinimumIndexSize=1L<<16;
-    private TsavoriteLayout(global::Seamless.Execution.Store owner,string name,StoreKind kind,long indexSize,TsavoriteTuning tuning,long logMemorySize,IDevice logDevice,DeferredTruncationDevice? deferredLogDevice,IDevice objectLogDevice,string? checkpointDirectory,ResourceReservation memory,ResourceReservation? disk){
+    private const long MinimumIndexSize=64;
+    private TsavoriteLayout(global::Seamless.Execution.Store owner,string name,StoreKind kind,long indexSize,TsavoriteTuning tuning,long logMemorySize,IDevice logDevice,DeferredTruncationDevice? deferredLogDevice,IDevice objectLogDevice,string? checkpointDirectory,ResourceReservation memory,ResourceReservation? disk,long expectedCount){
         this.Owner=owner;
         this.Name=name;
+        this.ExpectedCount=expectedCount;
         this.Kind=kind;
         this.IndexSize=indexSize;
         this.PageSize=tuning.PageSize;
         this.SegmentSize=tuning.SegmentSize;
         this.MutableFraction=tuning.MutableFraction;
-        this.AutoGrowIndex=tuning.AutoGrowIndex;
+        this.Growth=(tuning.Growth??owner.GetGrowth(name)).CreateController();
         this.LogMemorySize=logMemorySize;
         this.LogDevice=logDevice;
         this.DeferredLogDevice=deferredLogDevice;
@@ -30,12 +30,13 @@ internal sealed class TsavoriteLayout:IDisposable{
     /// <summary>このデータ本体を子資源として登録している共通ストア。</summary>
     public global::Seamless.Execution.Store Owner{get;}
     public string Name{get;}
+    public long ExpectedCount{get;}
     public StoreKind Kind{get;}
     public long IndexSize{get;}
     public long PageSize{get;}
     public long SegmentSize{get;}
     public double MutableFraction{get;}
-    public bool AutoGrowIndex{get;}
+    public global::Seamless.Execution.Growth.Controller Growth{get;}
     public long LogMemorySize{get;}
     public IDevice LogDevice{get;}
     /// <summary>ログのデバイスを包んで、ファイルの切り捨てを保存が確定するまで保留する。メモリ種では null。<see cref="LogDevice"/> はこれ自身。</summary>
@@ -46,10 +47,12 @@ internal sealed class TsavoriteLayout:IDisposable{
     public ResourceReservation Memory{get;}
     /// <summary>ディスクの予約。ログ全体。メモリ種では null。</summary>
     public ResourceReservation? Disk{get;}
-    public static TsavoriteLayout Resolve(global::Seamless.Execution.Store store,string name,long expectedCount,TsavoriteTuning tuning){
+    public static TsavoriteLayout Resolve(global::Seamless.Execution.Store store,string name,long expectedCount,TsavoriteTuning tuning,string elementType="*"){
         ArgumentNullException.ThrowIfNull(store);
         ArgumentOutOfRangeException.ThrowIfNegative(expectedCount);
         ArgumentNullException.ThrowIfNull(tuning);
+        var profile=store.ResolveProfile(name,"Tsavorite",elementType,expectedCount,tuning.Overrides,tuning.Growth,ProfileIO.Describe(tuning.Storage));
+        tuning=tuning with{IndexSize=profile.Settings.IndexBytes,PageSize=profile.Settings.PageBytes!.Value,SegmentSize=profile.Settings.SegmentBytes!.Value,LogMemorySize=profile.Settings.LogMemoryBytes,MutableFraction=profile.Settings.MutableFraction!.Value};
         tuning.Validate(store.Kind);
         TsavoriteSavedState? saved=null;
         if(store.TryGetSavedState(name,out var state)){
@@ -57,12 +60,12 @@ internal sealed class TsavoriteLayout:IDisposable{
         }
         long indexSize;
         if(tuning.IndexSize is long explicitIndexSize){
-            if(!tuning.AutoGrowIndex&&saved is not null&&saved.IndexSize!=explicitIndexSize){
+            if((tuning.Growth??store.GetGrowth(name)).Descriptor.ID=="fixed"&&saved is not null&&saved.IndexSize!=explicitIndexSize){
                 throw new InvalidOperationException("The saved index size differs from the explicitly configured fixed index size.");
             }
             indexSize=explicitIndexSize;
         }else{
-            indexSize=GetIndexSize(expectedCount);
+            indexSize=MinimumIndexSize;
         }
         if(saved is not null&&saved.IndexSize>indexSize){
             indexSize=saved.IndexSize;
@@ -70,11 +73,8 @@ internal sealed class TsavoriteLayout:IDisposable{
         long logMemorySize;
         if(tuning.LogMemorySize is long explicitLogMemorySize){
             logMemorySize=explicitLogMemorySize;
-        }else if(store.Kind==StoreKind.Memory){
-            // 実際の上限はストアの予算(索引＋使用中のログ)で掛かる。ここは退避を起こさないための枠。
-            logMemorySize=FloorPowerOfTwo(store.Limits.MemoryBytes);
         }else{
-            logMemorySize=Math.Min(DefaultStorageLogMemorySize,FloorPowerOfTwo(store.Limits.MemoryBytes/2));
+            logMemorySize=8192;
         }
         if(logMemorySize<2*tuning.PageSize){
             throw new ResourceLimitException(ResourceLimitKind.Memory,checked(indexSize+2*tuning.PageSize),store.Limits.MemoryBytes);
@@ -123,7 +123,7 @@ internal sealed class TsavoriteLayout:IDisposable{
                     objectLogDevice=global::Tsavorite.core.Devices.CreateLogDevice(Path.Combine(directory,"obj"));
                 }
             }
-            return new(store,name,store.Kind,indexSize,tuning,logMemorySize,logDevice,deferredLogDevice,objectLogDevice,checkpointDirectory,memory,disk);
+            return new(store,name,store.Kind,indexSize,tuning,logMemorySize,logDevice,deferredLogDevice,objectLogDevice,checkpointDirectory,memory,disk,expectedCount);
         }catch{
             objectLogDevice?.Dispose();
             logDevice?.Dispose();
