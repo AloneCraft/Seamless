@@ -20,4 +20,8 @@
     <!-- exe を参照すると、Core と 4 つの組み合わせも推移で入る。強制終了の検査では出力フォルダの exe を子プロセスとして起動する。 -->
     <ProjectReference Include="..\Benchmark.TpcE\Benchmark.TpcE.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- 共通の部品(表・索引・取り消し記録など)は Benchmark.Tpc.Core にある。 -->
+    <Using Include="Benchmark.Tpc.Core" />
+  </ItemGroup>
 </Project>

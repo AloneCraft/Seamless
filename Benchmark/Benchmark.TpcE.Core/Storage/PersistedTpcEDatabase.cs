@@ -127,28 +127,3 @@ public sealed class PersistedTpcEDatabase:TpcEDatabaseBase{
         return new PersistedKeyValueStore<TKey,TValue>(data,name);
     }
 }
-/// <summary>Persisted の表の生存件数を保存と一緒に記録する子資源。</summary>
-internal sealed class LiveCountComponent(List<ILiveCounter> counters):Seamless.Execution.IStoreComponent{
-    public string Name=>"~persisted-live-counts";
-    public string Save(){
-        var values=new System.Collections.Generic.Dictionary<string,long>(StringComparer.Ordinal);
-        foreach(var counter in counters){
-            values.Add(counter.CounterName,counter.LiveCount);
-        }
-        return System.Text.Json.JsonSerializer.Serialize(values);
-    }
-    public void Flush(){
-    }
-    public void Load(string state){
-        var values=System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string,long>>(state)??[];
-        foreach(var counter in counters){
-            if(values.TryGetValue(counter.CounterName,out var count)){
-                counter.LiveCount=count;
-            }else{
-                counter.LiveCount=0;
-            }
-        }
-    }
-    public void Dispose(){
-    }
-}
