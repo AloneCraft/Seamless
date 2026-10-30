@@ -13,4 +13,5 @@
   <Project Path="Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
   <Project Path="Seamless.Database.Tool/Seamless.Database.Tool.csproj" />
   <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
+  <Project Path="Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
 </Solution>
