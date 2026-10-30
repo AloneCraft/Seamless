@@ -6,6 +6,8 @@
       href: typed-database-guide.md
     - name: ゼロアロケーション LINQ (FLinq)
       href: flinq-quickstart.md
+    - name: ゼロアロケーション・アーキテクチャ
+      href: zero-allocation-architecture.md
     - name: サーバー・クライアント共通アーキテクチャ
       href: universal-architecture.md
     - name: 永続化ストレージの選び方
