@@ -17,7 +17,7 @@ public sealed class ConsistencyChecker{
                 return;
             }
             try{
-                var scale=new TpcEScale{Customers=1000,InitialTradeDays=1,MarketDays=1305,NewsItemBytes=100_000};
+                var scale=new TpcEScale{Customers=1000,InitialTradeDays=1,MarketDays=1305,NewsItemBytes=100_000,TsavoriteSegmentBytes=NativeTestProgress.SegmentBytes};
                 using var store=Store.CreateTemporary();
                 using var engine=OpenEGen(store,flat,scale);
                 var results=Compliance.ConsistencyChecker.Check(engine.Database);
@@ -39,7 +39,7 @@ public sealed class ConsistencyChecker{
                 return;
             }
             try{
-                var scale=new TpcEScale{Customers=1000,InitialTradeDays=1,MarketDays=1305,NewsItemBytes=100_000};
+                var scale=new TpcEScale{Customers=1000,InitialTradeDays=1,MarketDays=1305,NewsItemBytes=100_000,TsavoriteSegmentBytes=NativeTestProgress.SegmentBytes};
                 using var store=Store.CreateTemporary();
                 using var engine=OpenEGen(store,flat,scale);
                 var db=engine.Database;
