@@ -917,8 +917,25 @@ public abstract partial class CollectionStore<
         var log = this.Store.Log;
         var sectorSize = Math.Max(512L,this.Settings.LogDevice.SectorSize);
         var alignedTail = log.TailAddress/sectorSize*sectorSize;
-        if(alignedTail>log.FlushedUntilAddress) {
-            log.ShiftReadOnlyAddress(alignedTail,true);
+        if(alignedTail<=log.FlushedUntilAddress) {
+            return;
+        }
+        // Tsavorite の復元はレコード単位で走査する。セクター境界がレコード途中なら、その境界を復元開始点にすると
+        // 残りの断片をレコードヘッダーとして解釈してしまうため、境界以前の最後の完全なレコード終端までにする。
+        var pageStart=alignedTail/log.PageSizeBytes*log.PageSizeBytes;
+        var scanStart=Math.Max(log.BeginAddress,pageStart);
+        var safeTail=scanStart;
+        using(var iterator=log.Scan(scanStart,alignedTail,DiskScanBufferingMode.DoublePageBuffering)) {
+            while(iterator.GetNext()) {
+                var recordEnd=iterator.CurrentAddress+iterator.AllocatedSize;
+                if(recordEnd>alignedTail) {
+                    break;
+                }
+                safeTail=recordEnd;
+            }
+        }
+        if(safeTail>log.FlushedUntilAddress) {
+            log.ShiftReadOnlyAddress(safeTail,true);
         }
     }
 

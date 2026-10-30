@@ -41,9 +41,37 @@ public static class QueryExpressionFormatter{
             ReverseOperatorArguments=>"Reverse()",
             OrderByOperatorArguments order=>FormatOrderBy(order.Descending),
             ThenByOperatorArguments order=>FormatThenBy(order.Descending),
+            TakeLastOperatorArguments takeLast=>$"TakeLast({Integer(takeLast.Count)})",
+            SkipLastOperatorArguments skipLast=>$"SkipLast({Integer(skipLast.Count)})",
+            TakeWhileOperatorArguments takeWhile=>$"TakeWhile({FormatPredicate(takeWhile.Predicate)})",
+            SkipWhileOperatorArguments skipWhile=>$"SkipWhile({FormatPredicate(skipWhile.Predicate)})",
+            AppendOperatorArguments append=>$"Append({Integer(append.Value)})",
+            PrependOperatorArguments prepend=>$"Prepend({Integer(prepend.Value)})",
+            DefaultIfEmptyOperatorArguments defaultIfEmpty=>$"DefaultIfEmpty({Integer(defaultIfEmpty.Value)})",
+            OrderByKeyOperatorArguments orderBy=>FormatOrderByKey(orderBy),
+            GroupByAggregateOperatorArguments group=>FormatGroupByAggregate(group),
             _=>throw new ArgumentOutOfRangeException(nameof(node)),
         };
         return$"{input}.{operation}";
+    }
+
+    private static string FormatOrderByKey(OrderByKeyOperatorArguments order){
+        var method=order.Descending?"OrderByDescending":"OrderBy";
+        if(order.Modulus==0){
+            return$"{method}(p=>p)";
+        }
+        var modulus=Integer(order.Modulus);
+        return$"{method}(p=>(p%{modulus}+{modulus})%{modulus})";
+    }
+
+    private static string FormatGroupByAggregate(GroupByAggregateOperatorArguments group){
+        var modulus=Integer(group.Modulus);
+        var key=$"p=>(p%{modulus}+{modulus})%{modulus}";
+        return group.Kind switch{
+            GroupByAggregateKind.Sum=>$"GroupBy({key},p=>p).Select(g=>(int)(g.Key+g.Sum(x=>(long)x)))",
+            GroupByAggregateKind.Count=>$"GroupBy({key}).Select(g=>g.Key*10+g.Count())",
+            _=>$"GroupBy({key}).Select(g=>g.Key)",
+        };
     }
 
     private static string FormatOrderBy(bool descending){
@@ -71,6 +99,7 @@ public static class QueryExpressionFormatter{
             QueryBinaryKind.UnionByIdentity=>$"{left}.UnionBy({right},p=>p)",
             QueryBinaryKind.ExceptByIdentity=>$"{left}.ExceptBy({right},p=>p)",
             QueryBinaryKind.IntersectByIdentity=>$"{left}.IntersectBy({right},p=>p)",
+            QueryBinaryKind.Zip=>$"{left}.Zip({right},(p,i)=>p+i)",
             _=>throw new ArgumentOutOfRangeException(nameof(node)),
         };
     }
@@ -114,6 +143,13 @@ public static class QueryExpressionFormatter{
             QueryTerminalKind.ToHashSet=>"ToHashSet()",
             QueryTerminalKind.ToDictionary=>"ToDictionary(p=>p,p=>p).OrderBy(key)",
             QueryTerminalKind.ToLookup=>"ToLookup(p=>p&3,p=>p).OrderBy(key,value)",
+            QueryTerminalKind.CountWhere=>$"Count({FormatPredicate(arguments.Predicate??throw new InvalidOperationException("Count predicate is missing."))})",
+            QueryTerminalKind.AnyWhere=>$"Any({FormatPredicate(arguments.Predicate??throw new InvalidOperationException("Any predicate is missing."))})",
+            QueryTerminalKind.AggregateSum=>"Aggregate(0L,(a,p)=>a+p)",
+            QueryTerminalKind.AverageSelector=>"Average(p=>(long)p)",
+            QueryTerminalKind.CountBy=>$"CountBy(p=>(p%{Integer(arguments.Value??2)}+{Integer(arguments.Value??2)})%{Integer(arguments.Value??2)}).Select(kv=>kv.Key+kv.Value).ToArray()",
+            QueryTerminalKind.AggregateBy=>$"AggregateBy(p=>(p%{Integer(arguments.Value??2)}+{Integer(arguments.Value??2)})%{Integer(arguments.Value??2)},0,(a,p)=>a+p).Select(kv=>kv.Key+kv.Value).ToArray()",
+            QueryTerminalKind.SequenceEqual=>arguments.Value==1?"SequenceEqual(<same chain>)":"SequenceEqual(inner)",
             _=>throw new ArgumentOutOfRangeException(nameof(node)),
         };
     }

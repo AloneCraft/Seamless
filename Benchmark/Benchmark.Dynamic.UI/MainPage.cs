@@ -9,13 +9,15 @@ namespace Benchmark.Dynamic.UI;
 
 public sealed class MainPage:ContentPage {
     private readonly 動的ベンチマーク画面モデル 画面モデル;
+    private readonly 動的ライブ検証画面 ライブ検証;
     private readonly Grid ルート;
     private readonly Grid 詳細領域;
     private readonly List<VisualElement> 設定入力一覧=[];
     private readonly List<VisualElement> 実行中無効化一覧=[];
 
-    public MainPage(動的ベンチマーク画面モデル 画面モデル) {
+    public MainPage(動的ベンチマーク画面モデル 画面モデル,動的ライブ検証サービス ライブ検証サービス) {
         this.画面モデル=画面モデル;
+        this.ライブ検証=new 動的ライブ検証画面(ライブ検証サービス);
         this.BindingContext=画面モデル;
         this.Title="Dynamic LINQ Benchmark";
         this.BackgroundColor=Color.FromArgb("#F4F7FB");
@@ -51,6 +53,10 @@ public sealed class MainPage:ContentPage {
         this.Content=this.ルート;
         this.画面モデル.PropertyChanged+=this.画面モデル変更時;
         this.画面状態を適用();
+    }
+
+    public void ライブ検証を終了する() {
+        this.ライブ検証.終了する();
     }
 
     private View 結果領域を作成() {
@@ -90,6 +96,10 @@ public sealed class MainPage:ContentPage {
             new SfTabItem {
                 Header="ごみ箱",
                 Content=this.履歴グリッドを作成(true),
+            },
+            new SfTabItem {
+                Header="ライブ検証",
+                Content=this.ライブ検証,
             },
         ];
         タブ.SelectedIndex=0;
@@ -370,6 +380,19 @@ public sealed class MainPage:ContentPage {
         設定行.Children.Add(モード行);
         this.設定入力一覧.Add(Common);
         this.設定入力一覧.Add(Maximum);
+
+        var 要素型行=new HorizontalStackLayout {Spacing=4};
+        要素型行.Children.Add(new Label {Text="要素型",VerticalTextAlignment=TextAlignment.Center,FontSize=12});
+        var 要素型選択=new Picker {
+            AutomationId="動的設定.要素型",
+            FontSize=12,
+            WidthRequest=150,
+            ItemsSource=this.画面モデル.要素型一覧.ToList(),
+        };
+        要素型選択.SetBinding(Picker.SelectedItemProperty,nameof(動的ベンチマーク画面モデル.要素型),BindingMode.TwoWay);
+        要素型行.Children.Add(要素型選択);
+        設定行.Children.Add(要素型行);
+        this.設定入力一覧.Add(要素型選択);
 
         var 実行=new Button {
             Text="実行",

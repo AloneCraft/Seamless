@@ -108,7 +108,13 @@ internal sealed partial class PipelineEnumerable {
         var indexesLocal = this.OrderIndexesLocalName(orderIndex);
         var countLocal = this.OrderCountLocalName(orderIndex);
         var valueName = this.OrderValueForKeysLocalName(orderIndex);
-        builder.AppendLine($"        if({countLocal}>0){{");
+        var lastOrderIndex = orderIndex+orderStages.Count-1;
+        var usesPartialSort = this.TryGetOrderSortRange(lastOrderIndex,countLocal,out var minSortIndexExpression,out var maxSortIndexExpression);
+        var useDirectValueSort = !usesPartialSort&&this.CanUseDirectValueOrderSort(orderStages);
+        // 要素が1個のときは並べ替えの鍵を評価しない(System.Linq と同じ)。
+        builder.AppendLine($"        if({countLocal}==1){{");
+        builder.AppendLine($"            {indexesLocal}[0]=0;");
+        builder.AppendLine($"        }}else if({countLocal}>1){{");
         var checksSorted = this.CanCheckBufferedValuesSorted(orderIndex,orderStages);
         if(checksSorted) {
             // 溜めた値が既に並べ替え後の順(昇順なら非減少、降順なら非増加)なら、元の順がそのまま安定な並べ替えの結果なので並べ替えない。
@@ -128,7 +134,7 @@ internal sealed partial class PipelineEnumerable {
             builder.AppendLine("                }");
             builder.AppendLine("            }else{");
         }
-        if(this.CanUseDirectValueOrderSort(orderStages)) {
+        if(useDirectValueSort) {
             var valueType = stages[orderIndex].InputType;
             builder.AppendLine($"            var __orderType{orderIndex}=typeof({valueType});");
             builder.AppendLine($"            if(__orderType{orderIndex}.IsEnum||__orderType{orderIndex}==typeof(sbyte)||__orderType{orderIndex}==typeof(byte)||__orderType{orderIndex}==typeof(bool)||__orderType{orderIndex}==typeof(short)||__orderType{orderIndex}==typeof(ushort)||__orderType{orderIndex}==typeof(char)||__orderType{orderIndex}==typeof(int)||__orderType{orderIndex}==typeof(uint)||__orderType{orderIndex}==typeof(long)||__orderType{orderIndex}==typeof(ulong)||__orderType{orderIndex}==typeof(global::System.Int128)||__orderType{orderIndex}==typeof(global::System.UInt128)||__orderType{orderIndex}==typeof(nint)||__orderType{orderIndex}==typeof(nuint)){{");
@@ -142,10 +148,10 @@ internal sealed partial class PipelineEnumerable {
             builder.AppendLine("            }else{");
         }
         foreach(var orderStage in orderStages) {
-            var indent = this.CanUseDirectValueOrderSort(orderStages) ? "                " : "            ";
+            var indent = useDirectValueSort ? "                " : "            ";
             builder.AppendLine($"{indent}{this.OrderKeysLocalName(orderIndex,orderStage)}=global::System.Buffers.ArrayPool<{ComparerKeyType(orderStage)}>.Shared.Rent({countLocal});");
         }
-        var fallbackIndent = this.CanUseDirectValueOrderSort(orderStages) ? "                " : "            ";
+        var fallbackIndent = useDirectValueSort ? "                " : "            ";
         builder.AppendLine($"{fallbackIndent}for(var __orderKeyIndex{orderIndex}=0;__orderKeyIndex{orderIndex}<{countLocal};__orderKeyIndex{orderIndex}++){{");
         builder.AppendLine($"{fallbackIndent}    {indexesLocal}[__orderKeyIndex{orderIndex}]=__orderKeyIndex{orderIndex};");
         builder.AppendLine($"{fallbackIndent}    var {valueName}={valuesLocal}[__orderKeyIndex{orderIndex}];");
@@ -169,14 +175,54 @@ internal sealed partial class PipelineEnumerable {
                 }
                 return args;
             });
-        builder.AppendLine($"{fallbackIndent}global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes({indexesLocal},{countLocal},new {this.OrderIndexComparerName(orderIndex)}({string.Join(",",comparerArgs)}));");
-        if(this.CanUseDirectValueOrderSort(orderStages)) {
+        if(usesPartialSort) {
+            builder.AppendLine($"{fallbackIndent}global::Seamless.Linq.GeneratedCodeHelpers.PartialSortIndexes({indexesLocal},{countLocal},{minSortIndexExpression},{maxSortIndexExpression},new {this.OrderIndexComparerName(orderIndex)}({string.Join(",",comparerArgs)}));");
+        } else {
+            builder.AppendLine($"{fallbackIndent}global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes({indexesLocal},{countLocal},new {this.OrderIndexComparerName(orderIndex)}({string.Join(",",comparerArgs)}));");
+        }
+        if(useDirectValueSort) {
             builder.AppendLine("            }");
         }
         if(checksSorted) {
             builder.AppendLine("            }");
         }
         builder.AppendLine("        }");
+    }
+
+    // 順序段の直後に Skip/Take があるとき、並べ替えが必要な添字範囲 [minIndex, maxIndex] を求める。
+    private bool TryGetOrderSortRange(int lastOrderIndex,string countLocal,out string minIndexExpression,out string maxIndexExpression) {
+        string? skipExpression = null;
+        string? takeExpression = null;
+        for(var index = lastOrderIndex+1;index<stages.Count;index++) {
+            var stage = stages[index];
+            if(stage.Kind==PipelineStageKind.AsEnumerable) {
+                continue;
+            }
+            if(stage.Kind==PipelineStageKind.Skip&&takeExpression is null) {
+                var countField = $"this.{this.CountName(this.CountOrdinal(index))}Value";
+                skipExpression=skipExpression is null ? countField : $"({skipExpression}+{countField})";
+                continue;
+            }
+            if(stage.Kind==PipelineStageKind.Take) {
+                var countField = $"this.{this.CountName(this.CountOrdinal(index))}Value";
+                takeExpression=takeExpression is null ? countField : $"global::System.Math.Min({takeExpression},{countField})";
+                break;
+            }
+            break;
+        }
+        if(takeExpression is null) {
+            minIndexExpression=string.Empty;
+            maxIndexExpression=string.Empty;
+            return false;
+        }
+        if(skipExpression is null) {
+            minIndexExpression="0";
+            maxIndexExpression=$"{takeExpression}-1";
+        } else {
+            minIndexExpression=skipExpression;
+            maxIndexExpression=$"(int)global::System.Math.Min((long){countLocal}-1,(long){skipExpression}+{takeExpression}-1)";
+        }
+        return true;
     }
 
     // 恒等キー・既定の比較子の1段の並べ替えで、ソースの span を見る昇順高速経路を使わないとき(前に段があるなど)は、

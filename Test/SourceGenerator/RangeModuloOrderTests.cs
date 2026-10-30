@@ -103,8 +103,8 @@ public sealed class RangeModuloOrderTests {
         // Consume へ流す5つは剰余類を回すループ、ToList の2つは列挙子(x => -x の ThenBy は従来の並べ替え)。
         // 同じキーの中が昇順の4つは、キーごとに剰余を求めず前のキーの最初の値から次を求める。ThenByDescending の1つは剰余で求める。
         // 列挙子の構造体は根ごとに出るので7つ。
-        Assert.Equal(4,global::System.Text.RegularExpressions.Regex.Matches(generated,@"__previousFirst\d+=__first\d+;").Count);
-        Assert.Equal(1,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var __residue\d+=__key\d+<0").Count);
-        Assert.Equal(7,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var __residue\d+=this\.key<0").Count);
+        Assert.Equal(4,global::System.Text.RegularExpressions.Regex.Matches(generated,@"previousFirst\d*=first\d*;").Count);
+        Assert.Equal(1,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var residue\d*=key\d*<0").Count);
+        Assert.Equal(7,global::System.Text.RegularExpressions.Regex.Matches(generated,@"var residue\d*=this\.key<0").Count);
     }
 }

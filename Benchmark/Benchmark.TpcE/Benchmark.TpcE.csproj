@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Benchmark.TpcE</RootNamespace>
+    <AssemblyName>Benchmark.TpcE</AssemblyName>
+    <!-- 文字列の比較と書式を文化圏に依らせない(4 通りの突き合わせを決定的にするため)。 -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- 1 スレッドで流すので、裏の GC スレッドを減らす。TieredPGO は既定のまま(切ると本番と違う最適化になる)。 -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Benchmark.TpcE.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Benchmark.TpcE.Core\Benchmark.TpcE.Core.csproj" />
+    <ProjectReference Include="..\Benchmark.TpcE.Tsavorite.Linq\Benchmark.TpcE.Tsavorite.Linq.csproj" />
+    <ProjectReference Include="..\Benchmark.TpcE.Tsavorite.FLinq\Benchmark.TpcE.Tsavorite.FLinq.csproj" />
+    <ProjectReference Include="..\Benchmark.TpcE.Persisted.Linq\Benchmark.TpcE.Persisted.Linq.csproj" />
+    <ProjectReference Include="..\Benchmark.TpcE.Persisted.FLinq\Benchmark.TpcE.Persisted.FLinq.csproj" />
+  </ItemGroup>
+</Project>

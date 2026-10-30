@@ -88,7 +88,56 @@ internal class ToList(int 番号,Enumerable source,string resultType):BufferedSc
         this.RenderArrayToListInline(destVar,destType)
         ??this.RenderRangeToListInline(destVar,destType)
         ??this.RenderDirectSpanToListInline(destVar,destType)
+        ??this.RenderZipToListInline(destVar,destType)
+        ??this.RenderConsumeBasedToListInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
+    private string? RenderConsumeBasedToListInline(string destVar,string destType){
+        if(source is not (Join or GroupJoin or SelectManyBase)){
+            return null;
+        }
+        var placeholder=$"__FLINQ_TOLIST_{番号}__";
+        string consumeStatement;
+        try{
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        }catch(NotSupportedException){
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")){
+            return null;
+        }
+        var escaped=global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern=$@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced=global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent=match.Groups["indent"].Value;
+            var arg=match.Groups["arg"].Value;
+            return $"{indent}{destVar}.Add({arg});";
+        });
+        string capacityArg;
+        if(source.NonEnumeratedCountExpression is { } countExpr){
+            capacityArg=countExpr;
+        }else{
+            capacityArg=string.Empty;
+        }
+        return $$"""
+            {{destType}} {{destVar}}=new({{capacityArg}});
+            {{replaced}}
+            """;
+    }
+    private string? RenderZipToListInline(string destVar,string destType){
+        if(source is Zip zip){
+            return zip.RenderDirectToListAsync(destVar,destType);
+        }
+        if(source is Zip_resultSelector zipSel){
+            return zipSel.RenderDirectToListAsync(destVar,destType);
+        }
+        if(source is Zip3 zip3){
+            return zip3.RenderDirectToListAsync(destVar,destType);
+        }
+        return null;
+    }
     private string? RenderArrayToListInline(string destVar,string destType) {
         if(source is not ArrayRoot { DirectArrayExpression: { } arrayExpression }) {
             return null;

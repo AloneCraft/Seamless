@@ -184,10 +184,10 @@ public sealed class ContiguousLookupGenerationTests {
         Assert.Contains("ContiguousLookupBuilder<",generated);
         Assert.DoesNotContain("LookupBuilder<",generated.Replace("ContiguousLookupBuilder<",""));
         // 結果選択子が内側の要素を使わない Join は、キーごとの件数だけを数える。
-        Assert.Contains("CollectionsMarshal.GetValueRefOrAddDefault(__joinLookup",generated);
+        Assert.Contains("CollectionsMarshal.GetValueRefOrAddDefault(joinLookup",generated);
         // 外側・内側が根(と Where)なら、Join の列挙子の構造体を回さずに根を直接回す。
-        Assert.Contains("__joinOuterRoot",generated);
+        Assert.Contains("joinOuterRoot",generated);
         // 結果がグループを使わない GroupBy は、根を直接回してキーの初出だけ流す。
-        Assert.Contains("__groupKeysSeen",generated);
+        Assert.Contains("groupKeysSeen",generated);
     }
 }

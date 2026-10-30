@@ -4,11 +4,6 @@ using Benchmark.Headless;
 using UI;
 using UI.Storage;
 
-if(args.Contains("--performance-gate",StringComparer.OrdinalIgnoreCase)) {
-    Environment.ExitCode=await PerformanceGateRunner.実行Async(args,CancellationToken.None);
-    return;
-}
-
 if(args.Contains("--verify-db-schema",StringComparer.OrdinalIgnoreCase)) {
     Environment.ExitCode=計測結果取込.スキーマを検査(args);
     return;

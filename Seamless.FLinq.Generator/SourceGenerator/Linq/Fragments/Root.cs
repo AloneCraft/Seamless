@@ -198,6 +198,10 @@ internal class Root(int 番号,string sourceExpression,string elementType,string
             public {{elementType}} Current{get;private set;}=default!;
             {{AggressiveInliningAttribute}}
             public bool TryGetNonEnumeratedCount(out int count){
+                if(source is global::Seamless.Linq.GroupingElements<{{elementType}}> grouping){
+                    count=grouping.Count-(__index+1);
+                    return true;
+                }
                 if(global::System.Linq.Enumerable.TryGetNonEnumeratedCount(source,out var sourceCount)){
                     count = sourceCount - (__index + 1);
                     return true;
@@ -214,6 +218,10 @@ internal class Root(int 番号,string sourceExpression,string elementType,string
                 }
                 if(source is global::System.Collections.Generic.List<{{elementType}}> list){
                     span = global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan(list).Slice(start);
+                    return true;
+                }
+                if(source is global::Seamless.Linq.GroupingElements<{{elementType}}> grouping){
+                    span=grouping.AsSpan(start);
                     return true;
                 }
                 span=default;

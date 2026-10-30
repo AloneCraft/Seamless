@@ -20,6 +20,10 @@ internal class SkipLast(int 番号,Enumerable source,string skipCount):Enumerabl
         ? $"(int)global::System.Math.Min(int.MaxValue,(long)global::System.Math.Max(0,{skipLast.EffectiveSkipCount})+global::System.Math.Max(0,{this.SkipCountExpression}))"
         : this.SkipCountExpression;
     protected override Enumerable PrimarySource => this.RootSource;
+    public override string? NonEnumeratedCountExpression =>
+        this.RootSource.NonEnumeratedCountExpression is { } count
+            ? $"global::System.Math.Max(0,{count}-{this.EffectiveSkipCount})"
+            : null;
     public override string StructMethod => string.Empty;
     public override string GetEnumeratorStruct => $$"""
         {{this.RootSource.GetEnumeratorStruct}}

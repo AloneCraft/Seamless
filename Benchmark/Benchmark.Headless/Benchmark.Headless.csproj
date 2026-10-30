@@ -12,9 +12,6 @@
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)'==''">win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
-    <None Update="Manifests/*.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-  <ItemGroup>
     <InternalsVisibleTo Include="Benchmark.Headless.Tests" />
   </ItemGroup>
   <ItemGroup>
@@ -60,8 +57,6 @@
     <ProjectReference Include="..\Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq\Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark.Tsavorite.Linq.Enumerable.Linq\Benchmark.Tsavorite.Linq.Enumerable.Linq.csproj" />
     <ProjectReference Include="..\Benchmark.Tsavorite.Linq.Enumerable.ValueLinq\Benchmark.Tsavorite.Linq.Enumerable.ValueLinq.csproj" />
-    <ProjectReference Include="..\Benchmark.Persisted.Collections\Benchmark.Persisted.Collections.csproj" />
-    <ProjectReference Include="..\Benchmark.Tsavorite.Collections\Benchmark.Tsavorite.Collections.csproj" />
   </ItemGroup>
   <!--
     Worker は子プロセスとして起動する実行ファイル。正式な依存(アセンブリとしては参照しない)にして、

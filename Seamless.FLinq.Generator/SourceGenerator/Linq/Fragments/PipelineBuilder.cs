@@ -44,8 +44,11 @@ internal static partial class PipelineBuilder {
         FuncFragment? terminalFunc1 = null;
         FuncFragment? terminalFunc2 = null;
         string? terminalComparer = null;
+        string? terminalValue = null;
         for(var index = 0;index<invocations.Count;index++) {
             var currentInvocation = invocations[index];
+            suppressAggregateFusion=false;
+            pendingGroupLimit=null;
             if(semanticModel.GetSymbolInfo(currentInvocation).Symbol is not IMethodSymbol method) {
                 return false;
             }
@@ -55,7 +58,7 @@ internal static partial class PipelineBuilder {
                 if(!isLast) {
                     return false;
                 }
-                if(!TryAppendTerminalArguments(currentTerminalKind,semanticModel,currentInvocation,method,services,ref snapshot,stages,ref currentElementType,out terminalFunc1,out terminalFunc2,out terminalComparer)) {
+                if(!TryAppendTerminalArguments(currentTerminalKind,semanticModel,currentInvocation,method,services,ref snapshot,stages,ref currentElementType,out terminalFunc1,out terminalFunc2,out terminalComparer,out terminalValue)) {
                     return false;
                 }
                 terminalKind=currentTerminalKind;
@@ -64,6 +67,9 @@ internal static partial class PipelineBuilder {
                     ??"object";
                 continue;
             }
+            // この後に途中で止まる・飛ばす演算(First・Any・Take・Skip など)があるときは、GroupBy の集約を融合しない。
+            // 融合した集約は全グループの集約を評価するが、System.Linq は必要なグループだけを評価する(評価回数の検査で見つかった)。
+            suppressAggregateFusion=ConsumesOnlyPartOfSequence(semanticModel,invocations,index,out pendingGroupLimit);
             if(TryAppendStage(semanticModel,currentInvocation,method,services,ref snapshot,stages,ref currentElementType)) {
                 continue;
             }
@@ -104,6 +110,7 @@ internal static partial class PipelineBuilder {
                 terminalFunc1,
                 terminalFunc2,
                 terminalComparer,
+                terminalValue,
                 ref snapshot,
                 out fragment)) {
                 return false;
@@ -135,6 +142,7 @@ internal static partial class PipelineBuilder {
                 terminalFunc1,
                 terminalFunc2,
                 terminalComparer,
+                terminalValue,
                 ref snapshot,
                 out fragment)) {
                 return false;
@@ -148,14 +156,20 @@ internal static partial class PipelineBuilder {
         if(stages.Count==0) {
             // AsEnumerable などの透過stageが正規化で消えた場合は、terminalを持っていても
             // PipelineEnumerable を作らない。通常のFragment経路がsource能力をそのまま使う。
+            // ただし、sourceFragment が二入力/入れ子操作(Join, Zip, GroupJoin, SelectMany 等)で
+            // ConsumeExecutionStatement による直接インライン展開が可能な場合は、
+            // PipelineTerminal を作成してフラットな直接ループ展開を行わせる。
             if(terminalKind is not null) {
-                return false;
+                if(sourceFragment is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase or CountBy or AggregateBy)) {
+                    return false;
+                }
+            } else {
+                fragment=sourceFragment;
+                uniqueNumber=snapshot;
+                services.ApplyRenderContext(fragment);
+                staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
+                return true;
             }
-            fragment=sourceFragment;
-            uniqueNumber=snapshot;
-            services.ApplyRenderContext(fragment);
-            staticMethods=services.JoinStaticMethods(sourceStaticMethods,fragment.StructMethod);
-            return true;
         }
         var pipeline = new PipelineEnumerable(snapshot++,sourceFragment,stages.ToArray(),currentElementType);
         AddUnsafeAccessors(stages,unsafeAccessorCollector);
@@ -163,11 +177,11 @@ internal static partial class PipelineBuilder {
             if(terminalResultType is null) {
                 return false;
             }
-            if(ProviderIterateTerminal.TryCreate(snapshot,pipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer,out var providerIterateTerminal)) {
+            if(ProviderIterateTerminal.TryCreate(snapshot,pipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer,out var providerIterateTerminal,terminalValue)) {
                 fragment=providerIterateTerminal;
                 snapshot++;
             } else {
-                fragment=new PipelineTerminal(snapshot++,pipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer);
+                fragment=new PipelineTerminal(snapshot++,pipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer,terminalValue);
             }
         } else {
             fragment=pipeline;
@@ -200,6 +214,7 @@ internal static partial class PipelineBuilder {
         FuncFragment? terminalFunc1,
         FuncFragment? terminalFunc2,
         string? terminalComparer,
+        string? terminalValue,
         ref int uniqueNumber,
         out Fragment fragment) {
         if(terminalKind is not { } terminal) {
@@ -212,7 +227,7 @@ internal static partial class PipelineBuilder {
         }
 
         var terminalPipeline = new PipelineEnumerable(uniqueNumber++,optimizedSource,Array.Empty<PipelineStage>(),currentElementType);
-        fragment=new PipelineTerminal(uniqueNumber++,terminalPipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer);
+        fragment=new PipelineTerminal(uniqueNumber++,terminalPipeline,terminal,terminalFunc1,terminalFunc2,terminalComparer,terminalValue);
         return true;
     }
 }

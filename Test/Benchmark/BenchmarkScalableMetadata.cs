@@ -35,8 +35,6 @@ public sealed class ベンチマークスケーラブルメタデータ {
             Assert.StartsWith("Benchmark.Scalable.",プロジェクト.アセンブリ名,StringComparison.Ordinal);
             Assert.StartsWith("Shared.Scalable.",プロジェクト.型接頭辞,StringComparison.Ordinal);
         });
-        Assert.DoesNotContain(ベンチマークカタログ.スケーラブルプロジェクト一覧,static プロジェクト => プロジェクト.アセンブリ名=="Benchmark.Persisted.Collections");
-        Assert.DoesNotContain(ベンチマークカタログ.スケーラブルプロジェクト一覧,static プロジェクト => プロジェクト.アセンブリ名=="Benchmark.Tsavorite.Collections");
     }
 
     [Fact]

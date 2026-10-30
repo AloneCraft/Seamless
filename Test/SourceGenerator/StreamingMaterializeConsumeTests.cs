@@ -67,7 +67,7 @@ public sealed class StreamingMaterializeConsumeTests {
     public void System_Linqと同じ結果を返す(int start,int count) {
         var (compilation,generated) = ExecutableGeneration.Generate(Source,"StreamingMaterializeConsumeProbe",5);
         // 恒等キーの辞書2つは作らずに (x, 値) を流す(x%3 のキーの辞書は作る)。
-        Assert.Equal(2,global::System.Text.RegularExpressions.Regex.Matches(generated,@"KeyValuePair<int,int>\(__value").Count);
+        Assert.Equal(2,global::System.Text.RegularExpressions.Regex.Matches(generated,@"KeyValuePair<int,int>\(value").Count);
         var (actual,expected) = ExecutableGeneration.Run(compilation,"Sample.Probe",probe => (
             (string)probe.GetMethod("RunFLinq")!.Invoke(null,[start,count])!,
             (string)probe.GetMethod("RunLinq")!.Invoke(null,[start,count])!));

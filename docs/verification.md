@@ -61,9 +61,9 @@ run開始時に全ケースを `NotRun` として保存し、開始時に `Runni
 
 Dynamicのreplayは保存された `replay-request.json` のSHA-256を照合してから使用します。改変、成果物ルート外へのパス、異なる失敗署名は拒否します。
 
-## 旧性能ゲート
+## 旧性能ゲート（削除済み）
 
-`Shared/UI.Core/BenchmarkPerformanceGate.cs` と `Benchmark.Headless/PerformanceGate*` は旧UI／既存Run 249互換のためだけに残しています。固定run ID、11対象、N=4096という契約は新しい検証フローには使用しません。新しい判定の正本は `Verification.Core.VerificationComparison` と各結果の `ComparisonConditions` です。
+旧Benchmark UIのRun 249性能ゲート（`Shared/UI.Core/BenchmarkPerformanceGate.cs`、`Benchmark.Headless/PerformanceGate*`、`--performance-gate`）は2026-10-22に削除しました。固定run ID、11対象、N=4096という旧契約は使用しません。比較の判定の正本は `Verification.Core.VerificationComparison` と各結果の `ComparisonConditions` です。
 
 ## CIと固定性能環境
 

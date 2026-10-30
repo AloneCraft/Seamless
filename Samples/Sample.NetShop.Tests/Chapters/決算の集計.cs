@@ -26,8 +26,24 @@ public sealed class 決算の集計{
         }
     }
 
-    // FLinqで集計 は、呼び出し元をコンパイルするプロジェクトで FLinq が置き換える。
-    // このテストプロジェクトは FLinq を使わないので、置き換え後の結果は Core から呼ぶ決算章(物語の再生器のテスト)で確かめる。
+    [Fact,Trait("Category","Unit")]public void FLinqで集計(){
+        var 注文=new 注文の生成器(10_000,500,2);
+        var 集計=new 対象();
+        var linq計測=集計.通常LINQで集計を計測(注文,3);
+        var flinq計測=集計.FLinqで集計を計測(注文,3);
+        {
+            //FLinqの集計結果は通常LINQと完全に一致する
+            Assert.True(linq計測.値.一致するか(flinq計測.値));
+        }
+        {
+            //FLinqはDictionarySlimの1パス集計とTop-K部分ソートにより通常LINQよりメモリ確保量が大幅に少ない
+            Assert.True(flinq計測.確保バイト数<linq計測.確保バイト数,$"FLinq ({flinq計測.確保バイト数:N0} bytes) は通常LINQ ({linq計測.確保バイト数:N0} bytes) よりメモリ確保が少ないこと");
+        }
+        {
+            //FLinqの実行時間は通常LINQと同等以上である
+            Assert.True(flinq計測.時間<=linq計測.時間*2.0,$"FLinq ({flinq計測.時間.TotalMilliseconds:F2} ms) は通常LINQ ({linq計測.時間.TotalMilliseconds:F2} ms) と同等以上の速度であること");
+        }
+    }
 
     [Fact,Trait("Category","Unit")]public void スコープで集計(){
         using var フォルダ=new テスト用フォルダ();

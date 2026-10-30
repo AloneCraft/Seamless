@@ -48,15 +48,15 @@ public sealed class FragmentIndentationTests(ITestOutputHelper output) {
 
         this.AssertAssignmentAligned(
             lines,
-            @"^\s*__k\d+=__ov\d+;$",
-            @"^\s*var __ov\d+=",
-            @"^\s*if\((?:this\.)?__lk\d+!?\.GetGroup");
+            @"^\s*key\d*=outer\d*;$",
+            @"^\s*var outer\d*=",
+            @"^\s*if\((?:this\.)?lookup\d*!?\.GetGroup");
 
         this.AssertAssignmentAligned(
             lines,
-            @"^\s*__k\d+=__it\d+;$",
-            @"^\s*int __k\d+=default!;$",
-            @"^\s*__lookupBuilder\.Add");
+            @"^\s*key\d*=item\d*;$",
+            @"^\s*int key\d*=default!;$",
+            @"^\s*lookupBuilder\.Add");
     }
 
     [Fact]

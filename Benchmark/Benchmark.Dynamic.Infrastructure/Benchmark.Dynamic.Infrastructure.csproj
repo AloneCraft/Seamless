@@ -18,6 +18,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Storage\Schema\Migrations\002_element_type.sql"
+                      LogicalName="Benchmark.Dynamic.Infrastructure.Storage.Schema.Migrations.002_element_type.sql" />
     <EmbeddedResource Include="Storage\Schema\001_initial.sql"
                       LogicalName="Benchmark.Dynamic.Infrastructure.Storage.Schema.001_initial.sql" />
   </ItemGroup>

@@ -54,8 +54,40 @@ internal class Count(int 番号,Enumerable source,string resultType):BufferedSca
         if(source.NonEnumeratedCountExpression is { } countExpression&&!source.TreeContainsAnchor()) {
             return $"{destType} {destVar}=({destType})({countExpression});";
         }
+        if(this.RenderConsumeBasedCountInline(destVar,destType) is { } directConsume) {
+            return directConsume;
+        }
         return this.RenderDirectEnumerableCountInline(source,destVar,destType)
             ??this.RenderComputeInline(destVar,destType);
+    }
+
+    private string? RenderConsumeBasedCountInline(string destVar,string destType) {
+        if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
+            return null;
+        }
+        var placeholder = $"__FLINQ_COUNT_{番号}__";
+        string consumeStatement;
+        try {
+            consumeStatement=source.GetConsumeExecutionStatement(placeholder);
+        } catch(NotSupportedException) {
+            return null;
+        }
+        if(string.IsNullOrWhiteSpace(consumeStatement)
+            ||consumeStatement.Contains("TryGetNext")
+            ||consumeStatement.Contains("GetRemainingEnumerator")
+            ||!consumeStatement.Contains($"{placeholder}.Consume(")) {
+            return null;
+        }
+        var escaped = global::System.Text.RegularExpressions.Regex.Escape(placeholder);
+        var pattern = $@"(?<indent>[ \t]*){escaped}\.Consume\((?<arg>.+?)\);";
+        var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
+            var indent = match.Groups["indent"].Value;
+            return $"{indent}{destVar}++;";
+        });
+        return $$"""
+            {{destType}} {{destVar}}=0;
+            {{replaced}}
+            """;
     }
     protected override string ComputeMembers => source.CanProvideSpan
         ? $$"""

@@ -19,12 +19,10 @@
     <Project Path="Benchmark/Benchmark.Optimization.NoPredicatePushdown/Benchmark.Optimization.NoPredicatePushdown.csproj" />
     <Project Path="Benchmark/Benchmark.Optimization.NoProjectionMerge/Benchmark.Optimization.NoProjectionMerge.csproj" />
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.List.FLinq/Benchmark.System.Linq.Enumerable.List.FLinq.csproj" />
-    <Project Path="Benchmark/Benchmark.Persisted.Collections/Benchmark.Persisted.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq/Benchmark.Persisted.Linq.Enumerable.IEnumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.Linq/Benchmark.Persisted.Linq.Enumerable.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.Persisted.Linq.Enumerable.ValueLinq/Benchmark.Persisted.Linq.Enumerable.ValueLinq.csproj" />
-    <Project Path="Benchmark/Benchmark.Tsavorite.Collections/Benchmark.Tsavorite.Collections.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.FLinq/Benchmark.Tsavorite.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq/Benchmark.Tsavorite.Linq.Enumerable.IEnumerable.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.Linq.Enumerable.Linq/Benchmark.Tsavorite.Linq.Enumerable.Linq.csproj" />
@@ -49,6 +47,13 @@
     <Project Path="Benchmark/Benchmark.System.Linq.Enumerable.Range.Ideal/Benchmark.System.Linq.Enumerable.Range.Ideal.csproj" />
     <Project Path="Benchmark/Benchmark.Optimization.Ideal/Benchmark.Optimization.Ideal.csproj" />
     <Project Path="Benchmark/Worker/Worker.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Core/Benchmark.TpcE.Core.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Tsavorite.Linq/Benchmark.TpcE.Tsavorite.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Tsavorite.FLinq/Benchmark.TpcE.Tsavorite.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Persisted.Linq/Benchmark.TpcE.Persisted.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Persisted.FLinq/Benchmark.TpcE.Persisted.FLinq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj" />
   </Folder>
   <Folder Name="/Benchmark/Shared/">
     <Project Path="Benchmark/Shared/UI/UI.shproj" />
@@ -64,6 +69,11 @@
     <Project Path="Samples/Sample.NetShop.Core/Sample.NetShop.Core.csproj" />
     <Project Path="Samples/Sample.NetShop/Sample.NetShop.csproj" />
     <File Path="Samples/Sample.NetShop/README.md" />
+    <Project Path="Samples/Sample.VirtualDb/Sample.VirtualDb.csproj" />
+    <File Path="Samples/Sample.VirtualDb/README.md" />
+    <Project Path="Samples/Sample.FLinqChainVerifier.Core/Sample.FLinqChainVerifier.Core.csproj" />
+    <Project Path="Samples/Sample.FLinqChainVerifier/Sample.FLinqChainVerifier.csproj" />
+    <Project Path="Samples/Sample.FLinqChainVerifier.Cli/Sample.FLinqChainVerifier.Cli.csproj" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="Shared/Collections/Collections.shproj" />
@@ -78,6 +88,7 @@
     <Project Path="Shared/Linq.Optimization/Linq.Optimization.shproj" />
     <Project Path="Shared/Linq.Range/Linq.Range.shproj" />
     <Project Path="Shared/Tsavorite.Collections/Tsavorite.Collections.shproj" />
+    <Project Path="Shared/TpcE.Transactions/TpcE.Transactions.shproj" />
     <Project Path="Shared/UI.Core/UI.Core.shproj" />
     <Project Path="Shared/UI.Widgets/UI.Widgets.shproj" />
     <Project Path="Shared/UI.Storage/UI.Storage.csproj" />
@@ -94,6 +105,7 @@
     <File Path="Shared/Linq.Optimization/Linq.Optimization.projitems" />
     <File Path="Shared/Linq.Range/Linq.Range.projitems" />
     <File Path="Shared/Tsavorite.Collections/Tsavorite.Collections.projitems" />
+    <File Path="Shared/TpcE.Transactions/TpcE.Transactions.projitems" />
     <File Path="Shared/UI.Core/UI.Core.projitems" />
     <File Path="Shared/UI.Widgets/UI.Widgets.projitems" />
   </Folder>
@@ -115,26 +127,21 @@
     <Project Path="Test.Persisted.Collections/Test.Persisted.Collections.csproj" />
     <Project Path="Test.Persisted.Linq.Enumerable.FLinq/Test.Persisted.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Test.Persisted.Linq.Enumerable.IEnumerable.FLinq/Test.Persisted.Linq.Enumerable.IEnumerable.FLinq.csproj" />
-    <Project Path="Test.Persisted.Linq.Enumerable.Linq/Test.Persisted.Linq.Enumerable.Linq.csproj" />
-    <Project Path="Test.Persisted/Test.Persisted.csproj" />
     <Project Path="Test.Scalable.Persisted.Collections/Test.Scalable.Persisted.Collections.csproj" />
     <Project Path="Test.Scalable.Tsavorite.Collections/Test.Scalable.Tsavorite.Collections.csproj" />
     <Project Path="Test.System.Linq.Enumerable.FLinq/Test.System.Linq.Enumerable.FLinq.csproj" />
-    <Project Path="Test.System.Linq.Enumerable.ZLinq/Test.System.Linq.Enumerable.ZLinq.csproj" />
     <Project Path="Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj" />
     <Project Path="Test.Tsavorite.ParameterSweep/Test.Tsavorite.ParameterSweep.csproj" />
     <Project Path="Test.Tsavorite.Linq.Enumerable.FLinq/Test.Tsavorite.Linq.Enumerable.FLinq.csproj" />
     <Project Path="Test.Tsavorite.Linq.Enumerable.IEnumerable.FLinq/Test.Tsavorite.Linq.Enumerable.IEnumerable.FLinq.csproj" />
-    <Project Path="Test.Tsavorite.Linq.Enumerable.Linq/Test.Tsavorite.Linq.Enumerable.Linq.csproj" />
-    <Project Path="Test.Persisted.Linq.Enumerable.ValueLinq/Test.Persisted.Linq.Enumerable.ValueLinq.csproj" />
-    <Project Path="Test.Tsavorite.Linq.Enumerable.ValueLinq/Test.Tsavorite.Linq.Enumerable.ValueLinq.csproj" />
-    <Project Path="Test.Tsavorite/Test.Tsavorite.csproj" />
     <Project Path="Benchmark.UI.UITests/Benchmark.UI.UITests.csproj" />
     <Project Path="Benchmark.Dynamic.Tests/Benchmark.Dynamic.Tests.csproj" />
     <Project Path="Benchmark.Dynamic.UITests/Benchmark.Dynamic.UITests.csproj" />
     <Project Path="Test/Test.csproj" />
     <Project Path="Benchmark/Benchmark.Headless.Tests/Benchmark.Headless.Tests.csproj" />
     <Project Path="Benchmark/Benchmark.Audit.Tests/Benchmark.Audit.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj" />
     <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
     <Project Path="Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj" />
   </Folder>

@@ -18,6 +18,8 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
     private int entryIndex;
     private int resizeThreshold;
 
+    public int Count => this.entryIndex;
+
     public DictionarySlim(IEqualityComparer<TKey>? comparer = null) {
         this.comparer=comparer??EqualityComparer<TKey>.Default;
         this.isDefaultComparer=comparer is null||ReferenceEquals(comparer,EqualityComparer<TKey>.Default);
@@ -41,6 +43,21 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
         this.bucketsLength=actualCapacity;
         this.resizeThreshold=(int)(this.bucketsLength*LoadFactor);
         this.buckets.AsSpan().Clear(); // 0-clear.
+    }
+
+    // 追加せずに探す。無ければ null 参照(Unsafe.IsNullRef で調べる)。GroupBy の集約で、先頭の k グループだけが必要なとき(First・Take)に、
+    // k 個を超えるグループを作らずに、要素がどのグループのものかだけを調べるために使う。
+    public ref TValue? GetValueRefOrNullRef(TKey key) {
+        var hashCode = this.InternalGetHashCode(key);
+        var index = this.buckets[this.GetBucketIndex(hashCode)]-1;
+        while(index!=-1) {
+            ref var entry = ref this.entries[index];
+            if(entry.HashCode==hashCode&&this.KeyEquals(entry.Key,key)) {
+                return ref entry.Value;
+            }
+            index=entry.Next;
+        }
+        return ref Unsafe.NullRef<TValue?>();
     }
 
     public ref TValue? GetValueRefOrAddDefault(TKey key,out bool exists) {
@@ -131,6 +148,13 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
 
     // Since there are no deletions, the order of Entries is completely guaranteed to be in the order of addition.
     public Enumerator GetEnumerator() => new(this);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void GetKeyAndValue(int index,out TKey key,out TValue? value) {
+        ref var entry = ref this.entries[index];
+        key=entry.Key;
+        value=entry.Value;
+    }
 
     // return to pool
     public void Dispose() {

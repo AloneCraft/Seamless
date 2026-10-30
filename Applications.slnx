@@ -1,0 +1,24 @@
+<Solution>
+  <Folder Name="/Samples/">
+    <Project Path="Samples/Sample.NetShop.Core/Sample.NetShop.Core.csproj" />
+    <Project Path="Samples/Sample.NetShop/Sample.NetShop.csproj" />
+    <Project Path="Samples/Sample.VirtualDb/Sample.VirtualDb.csproj" />
+    <Project Path="Samples/Sample.FLinqChainVerifier.Core/Sample.FLinqChainVerifier.Core.csproj" />
+    <Project Path="Samples/Sample.FLinqChainVerifier/Sample.FLinqChainVerifier.csproj" />
+  </Folder>
+  <Folder Name="/SourceGenerator/">
+    <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
+    <Project Path="Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" />
+    <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
+  </Folder>
+  <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
+  <Project Path="Seamless.Execution/Seamless.Execution.csproj" />
+  <Project Path="Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj" />
+  <Project Path="Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj" />
+  <Project Path="Seamless.Database/Seamless.Database.csproj" />
+  <Project Path="Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj" />
+  <Project Path="Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
+  <Project Path="Seamless.Database.Tool/Seamless.Database.Tool.csproj" />
+  <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
+  <Project Path="Seamless/Seamless.csproj" />
+</Solution>
