@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Seamless.Database.Gateway.Tests</RootNamespace>
+    <AssemblyName>Seamless.Database.Gateway.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Seamless.Database.Gateway\Seamless.Database.Gateway.csproj" />
+    <ProjectReference Include="..\..\Seamless.Database\Seamless.Database.csproj" />
+    <ProjectReference Include="..\..\Samples\Sample.NetShop.Core\Sample.NetShop.Core.csproj" />
+  </ItemGroup>
+</Project>

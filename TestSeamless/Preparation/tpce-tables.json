@@ -1,0 +1,1155 @@
+[
+  {
+    "name": "SECTOR",
+    "file": "Sector.txt",
+    "columns": [
+      {
+        "name": "SC_ID",
+        "type": "varchar(2)",
+        "nullable": false
+      },
+      {
+        "name": "SC_NAME",
+        "type": "varchar(30)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "INDUSTRY",
+    "file": "Industry.txt",
+    "columns": [
+      {
+        "name": "IN_ID",
+        "type": "varchar(2)",
+        "nullable": false
+      },
+      {
+        "name": "IN_NAME",
+        "type": "varchar(50)",
+        "nullable": false
+      },
+      {
+        "name": "IN_SC_ID",
+        "type": "varchar(2)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "STATUS_TYPE",
+    "file": "StatusType.txt",
+    "columns": [
+      {
+        "name": "ST_ID",
+        "type": "varchar(4)",
+        "nullable": false
+      },
+      {
+        "name": "ST_NAME",
+        "type": "varchar(10)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "TAXRATE",
+    "file": "TaxRate.txt",
+    "columns": [
+      {
+        "name": "TX_ID",
+        "type": "varchar(4)",
+        "nullable": false
+      },
+      {
+        "name": "TX_NAME",
+        "type": "varchar(50)",
+        "nullable": false
+      },
+      {
+        "name": "TX_RATE",
+        "type": "decimal(6,5)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "TRADE_TYPE",
+    "file": "TradeType.txt",
+    "columns": [
+      {
+        "name": "TT_ID",
+        "type": "varchar(3)",
+        "nullable": false
+      },
+      {
+        "name": "TT_NAME",
+        "type": "varchar(12)",
+        "nullable": false
+      },
+      {
+        "name": "TT_IS_SELL",
+        "type": "bit",
+        "nullable": false
+      },
+      {
+        "name": "TT_IS_MRKT",
+        "type": "bit",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ZIP_CODE",
+    "file": "ZipCode.txt",
+    "columns": [
+      {
+        "name": "ZC_CODE",
+        "type": "varchar(12)",
+        "nullable": false
+      },
+      {
+        "name": "ZC_TOWN",
+        "type": "varchar(80)",
+        "nullable": false
+      },
+      {
+        "name": "ZC_DIV",
+        "type": "varchar(80)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "CHARGE",
+    "file": "Charge.txt",
+    "columns": [
+      {
+        "name": "CH_TT_ID",
+        "type": "varchar(3)",
+        "nullable": false
+      },
+      {
+        "name": "CH_C_TIER",
+        "type": "decimal(1)",
+        "nullable": false
+      },
+      {
+        "name": "CH_CHRG",
+        "type": "decimal(10,2)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "COMMISSION_RATE",
+    "file": "CommissionRate.txt",
+    "columns": [
+      {
+        "name": "CR_C_TIER",
+        "type": "decimal(1)",
+        "nullable": false
+      },
+      {
+        "name": "CR_TT_ID",
+        "type": "varchar(3)",
+        "nullable": false
+      },
+      {
+        "name": "CR_EX_ID",
+        "type": "varchar(6)",
+        "nullable": false
+      },
+      {
+        "name": "CR_FROM_QTY",
+        "type": "int",
+        "nullable": false
+      },
+      {
+        "name": "CR_TO_QTY",
+        "type": "int",
+        "nullable": false
+      },
+      {
+        "name": "CR_RATE",
+        "type": "decimal(5,2)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "EXCHANGE",
+    "file": "Exchange.txt",
+    "columns": [
+      {
+        "name": "EX_ID",
+        "type": "varchar(6)",
+        "nullable": false
+      },
+      {
+        "name": "EX_NAME",
+        "type": "varchar(100)",
+        "nullable": false
+      },
+      {
+        "name": "EX_NUM_SYMB",
+        "type": "decimal(6)",
+        "nullable": false
+      },
+      {
+        "name": "EX_OPEN",
+        "type": "decimal(4)",
+        "nullable": false
+      },
+      {
+        "name": "EX_CLOSE",
+        "type": "decimal(4)",
+        "nullable": false
+      },
+      {
+        "name": "EX_DESC",
+        "type": "varchar(150)",
+        "nullable": true
+      },
+      {
+        "name": "EX_AD_ID",
+        "type": "bigint",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ADDRESS",
+    "file": "Address.txt",
+    "columns": [
+      {
+        "name": "AD_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "AD_LINE1",
+        "type": "varchar(80)",
+        "nullable": true
+      },
+      {
+        "name": "AD_LINE2",
+        "type": "varchar(80)",
+        "nullable": true
+      },
+      {
+        "name": "AD_ZC_CODE",
+        "type": "varchar(12)",
+        "nullable": false
+      },
+      {
+        "name": "AD_CTRY",
+        "type": "varchar(80)",
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "COMPANY",
+    "file": "Company.txt",
+    "columns": [
+      {
+        "name": "CO_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "CO_ST_ID",
+        "type": "varchar(4)",
+        "nullable": false
+      },
+      {
+        "name": "CO_NAME",
+        "type": "varchar(60)",
+        "nullable": false
+      },
+      {
+        "name": "CO_IN_ID",
+        "type": "varchar(2)",
+        "nullable": false
+      },
+      {
+        "name": "CO_SP_RATE",
+        "type": "varchar(4)",
+        "nullable": false
+      },
+      {
+        "name": "CO_CEO",
+        "type": "varchar(46)",
+        "nullable": false
+      },
+      {
+        "name": "CO_AD_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "CO_DESC",
+        "type": "varchar(150)",
+        "nullable": false
+      },
+      {
+        "name": "CO_OPEN_DATE",
+        "type": "date",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "COMPANY_COMPETITOR",
+    "file": "CompanyCompetitor.txt",
+    "columns": [
+      {
+        "name": "CP_CO_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "CP_COMP_CO_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "CP_IN_ID",
+        "type": "varchar(2)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "SECURITY",
+    "file": "Security.txt",
+    "columns": [
+      {
+        "name": "S_SYMB",
+        "type": "varchar(15)",
+        "nullable": false
+      },
+      {
+        "name": "S_ISSUE",
+        "type": "varchar(6)",
+        "nullable": false
+      },
+      {
+        "name": "S_ST_ID",
+        "type": "varchar(4)",
+        "nullable": false
+      },
+      {
+        "name": "S_NAME",
+        "type": "varchar(70)",
+        "nullable": false
+      },
+      {
+        "name": "S_EX_ID",
+        "type": "varchar(6)",
+        "nullable": false
+      },
+      {
+        "name": "S_CO_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "S_NUM_OUT",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "S_START_DATE",
+        "type": "date",
+        "nullable": false
+      },
+      {
+        "name": "S_EXCH_DATE",
+        "type": "date",
+        "nullable": false
+      },
+      {
+        "name": "S_PE",
+        "type": "decimal(10,2)",
+        "nullable": false
+      },
+      {
+        "name": "S_52WK_HIGH",
+        "type": "decimal(8,2)",
+        "nullable": false
+      },
+      {
+        "name": "S_52WK_HIGH_DATE",
+        "type": "date",
+        "nullable": false
+      },
+      {
+        "name": "S_52WK_LOW",
+        "type": "decimal(8,2)",
+        "nullable": false
+      },
+      {
+        "name": "S_52WK_LOW_DATE",
+        "type": "date",
+        "nullable": false
+      },
+      {
+        "name": "S_DIVIDEND",
+        "type": "decimal(10,2)",
+        "nullable": false
+      },
+      {
+        "name": "S_YIELD",
+        "type": "decimal(5,2)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "FINANCIAL",
+    "file": "Financial.txt",
+    "columns": [
+      {
+        "name": "FI_CO_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "FI_YEAR",
+        "type": "decimal(4)",
+        "nullable": false
+      },
+      {
+        "name": "FI_QTR",
+        "type": "decimal(1)",
+        "nullable": false
+      },
+      {
+        "name": "FI_QTR_START_DATE",
+        "type": "date",
+        "nullable": false
+      },
+      {
+        "name": "FI_REVENUE",
+        "type": "decimal(15,2)",
+        "nullable": false
+      },
+      {
+        "name": "FI_NET_EARN",
+        "type": "decimal(15,2)",
+        "nullable": false
+      },
+      {
+        "name": "FI_BASIC_EPS",
+        "type": "decimal(10,2)",
+        "nullable": false
+      },
+      {
+        "name": "FI_DILUT_EPS",
+        "type": "decimal(10,2)",
+        "nullable": false
+      },
+      {
+        "name": "FI_MARGIN",
+        "type": "decimal(10,2)",
+        "nullable": false
+      },
+      {
+        "name": "FI_INVENTORY",
+        "type": "decimal(15,2)",
+        "nullable": false
+      },
+      {
+        "name": "FI_ASSETS",
+        "type": "decimal(15,2)",
+        "nullable": false
+      },
+      {
+        "name": "FI_LIABILITY",
+        "type": "decimal(15,2)",
+        "nullable": false
+      },
+      {
+        "name": "FI_OUT_BASIC",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "FI_OUT_DILUT",
+        "type": "bigint",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "LAST_TRADE",
+    "file": "LastTrade.txt",
+    "columns": [
+      {
+        "name": "LT_S_SYMB",
+        "type": "varchar(15)",
+        "nullable": false
+      },
+      {
+        "name": "LT_DTS",
+        "type": "datetime2(3)",
+        "nullable": false
+      },
+      {
+        "name": "LT_PRICE",
+        "type": "decimal(8,2)",
+        "nullable": false
+      },
+      {
+        "name": "LT_OPEN_PRICE",
+        "type": "decimal(8,2)",
+        "nullable": false
+      },
+      {
+        "name": "LT_VOL",
+        "type": "bigint",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "DAILY_MARKET",
+    "file": "DailyMarket.txt",
+    "columns": [
+      {
+        "name": "DM_DATE",
+        "type": "date",
+        "nullable": false
+      },
+      {
+        "name": "DM_S_SYMB",
+        "type": "varchar(15)",
+        "nullable": false
+      },
+      {
+        "name": "DM_CLOSE",
+        "type": "decimal(8,2)",
+        "nullable": false
+      },
+      {
+        "name": "DM_HIGH",
+        "type": "decimal(8,2)",
+        "nullable": false
+      },
+      {
+        "name": "DM_LOW",
+        "type": "decimal(8,2)",
+        "nullable": false
+      },
+      {
+        "name": "DM_VOL",
+        "type": "bigint",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "NEWS_ITEM",
+    "file": "NewsItem.txt",
+    "columns": [
+      {
+        "name": "NI_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "NI_HEADLINE",
+        "type": "varchar(80)",
+        "nullable": false
+      },
+      {
+        "name": "NI_SUMMARY",
+        "type": "varchar(255)",
+        "nullable": false
+      },
+      {
+        "name": "NI_ITEM",
+        "type": "varbinary(max)",
+        "nullable": false
+      },
+      {
+        "name": "NI_DTS",
+        "type": "datetime2(3)",
+        "nullable": false
+      },
+      {
+        "name": "NI_SOURCE",
+        "type": "varchar(30)",
+        "nullable": false
+      },
+      {
+        "name": "NI_AUTHOR",
+        "type": "varchar(30)",
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "NEWS_XREF",
+    "file": "NewsXRef.txt",
+    "columns": [
+      {
+        "name": "NX_NI_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "NX_CO_ID",
+        "type": "bigint",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "BROKER",
+    "file": "Broker.txt",
+    "columns": [
+      {
+        "name": "B_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "B_ST_ID",
+        "type": "varchar(4)",
+        "nullable": false
+      },
+      {
+        "name": "B_NAME",
+        "type": "varchar(49)",
+        "nullable": false
+      },
+      {
+        "name": "B_NUM_TRADES",
+        "type": "decimal(9)",
+        "nullable": false
+      },
+      {
+        "name": "B_COMM_TOTAL",
+        "type": "decimal(12,2)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "CUSTOMER",
+    "file": "Customer.txt",
+    "columns": [
+      {
+        "name": "C_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "C_TAX_ID",
+        "type": "varchar(20)",
+        "nullable": false
+      },
+      {
+        "name": "C_ST_ID",
+        "type": "varchar(4)",
+        "nullable": false
+      },
+      {
+        "name": "C_L_NAME",
+        "type": "varchar(25)",
+        "nullable": false
+      },
+      {
+        "name": "C_F_NAME",
+        "type": "varchar(20)",
+        "nullable": false
+      },
+      {
+        "name": "C_M_NAME",
+        "type": "varchar(1)",
+        "nullable": true
+      },
+      {
+        "name": "C_GNDR",
+        "type": "varchar(1)",
+        "nullable": true
+      },
+      {
+        "name": "C_TIER",
+        "type": "decimal(1)",
+        "nullable": false
+      },
+      {
+        "name": "C_DOB",
+        "type": "date",
+        "nullable": false
+      },
+      {
+        "name": "C_AD_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "C_CTRY_1",
+        "type": "varchar(3)",
+        "nullable": true
+      },
+      {
+        "name": "C_AREA_1",
+        "type": "varchar(3)",
+        "nullable": true
+      },
+      {
+        "name": "C_LOCAL_1",
+        "type": "varchar(10)",
+        "nullable": true
+      },
+      {
+        "name": "C_EXT_1",
+        "type": "varchar(5)",
+        "nullable": true
+      },
+      {
+        "name": "C_CTRY_2",
+        "type": "varchar(3)",
+        "nullable": true
+      },
+      {
+        "name": "C_AREA_2",
+        "type": "varchar(3)",
+        "nullable": true
+      },
+      {
+        "name": "C_LOCAL_2",
+        "type": "varchar(10)",
+        "nullable": true
+      },
+      {
+        "name": "C_EXT_2",
+        "type": "varchar(5)",
+        "nullable": true
+      },
+      {
+        "name": "C_CTRY_3",
+        "type": "varchar(3)",
+        "nullable": true
+      },
+      {
+        "name": "C_AREA_3",
+        "type": "varchar(3)",
+        "nullable": true
+      },
+      {
+        "name": "C_LOCAL_3",
+        "type": "varchar(10)",
+        "nullable": true
+      },
+      {
+        "name": "C_EXT_3",
+        "type": "varchar(5)",
+        "nullable": true
+      },
+      {
+        "name": "C_EMAIL_1",
+        "type": "varchar(50)",
+        "nullable": true
+      },
+      {
+        "name": "C_EMAIL_2",
+        "type": "varchar(50)",
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "CUSTOMER_TAXRATE",
+    "file": "CustomerTaxrate.txt",
+    "columns": [
+      {
+        "name": "CX_TX_ID",
+        "type": "varchar(4)",
+        "nullable": false
+      },
+      {
+        "name": "CX_C_ID",
+        "type": "bigint",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "CUSTOMER_ACCOUNT",
+    "file": "CustomerAccount.txt",
+    "columns": [
+      {
+        "name": "CA_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "CA_B_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "CA_C_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "CA_NAME",
+        "type": "varchar(50)",
+        "nullable": true
+      },
+      {
+        "name": "CA_TAX_ST",
+        "type": "decimal(1)",
+        "nullable": false
+      },
+      {
+        "name": "CA_BAL",
+        "type": "decimal(12,2)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "ACCOUNT_PERMISSION",
+    "file": "AccountPermission.txt",
+    "columns": [
+      {
+        "name": "AP_CA_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "AP_ACL",
+        "type": "varchar(4)",
+        "nullable": false
+      },
+      {
+        "name": "AP_TAX_ID",
+        "type": "varchar(20)",
+        "nullable": false
+      },
+      {
+        "name": "AP_L_NAME",
+        "type": "varchar(25)",
+        "nullable": false
+      },
+      {
+        "name": "AP_F_NAME",
+        "type": "varchar(20)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "WATCH_LIST",
+    "file": "WatchList.txt",
+    "columns": [
+      {
+        "name": "WL_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "WL_C_ID",
+        "type": "bigint",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "WATCH_ITEM",
+    "file": "WatchItem.txt",
+    "columns": [
+      {
+        "name": "WI_WL_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "WI_S_SYMB",
+        "type": "varchar(15)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "TRADE",
+    "file": "Trade.txt",
+    "columns": [
+      {
+        "name": "T_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "T_DTS",
+        "type": "datetime2(3)",
+        "nullable": false
+      },
+      {
+        "name": "T_ST_ID",
+        "type": "varchar(4)",
+        "nullable": false
+      },
+      {
+        "name": "T_TT_ID",
+        "type": "varchar(3)",
+        "nullable": false
+      },
+      {
+        "name": "T_IS_CASH",
+        "type": "bit",
+        "nullable": false
+      },
+      {
+        "name": "T_S_SYMB",
+        "type": "varchar(15)",
+        "nullable": false
+      },
+      {
+        "name": "T_QTY",
+        "type": "int",
+        "nullable": false
+      },
+      {
+        "name": "T_BID_PRICE",
+        "type": "decimal(8,2)",
+        "nullable": false
+      },
+      {
+        "name": "T_CA_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "T_EXEC_NAME",
+        "type": "varchar(49)",
+        "nullable": false
+      },
+      {
+        "name": "T_TRADE_PRICE",
+        "type": "decimal(8,2)",
+        "nullable": true
+      },
+      {
+        "name": "T_CHRG",
+        "type": "decimal(10,2)",
+        "nullable": false
+      },
+      {
+        "name": "T_COMM",
+        "type": "decimal(10,2)",
+        "nullable": false
+      },
+      {
+        "name": "T_TAX",
+        "type": "decimal(10,2)",
+        "nullable": false
+      },
+      {
+        "name": "T_LIFO",
+        "type": "bit",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "TRADE_HISTORY",
+    "file": "TradeHistory.txt",
+    "columns": [
+      {
+        "name": "TH_T_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "TH_DTS",
+        "type": "datetime2(3)",
+        "nullable": false
+      },
+      {
+        "name": "TH_ST_ID",
+        "type": "varchar(4)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "TRADE_REQUEST",
+    "file": "TradeRequest.txt",
+    "columns": [
+      {
+        "name": "TR_T_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "TR_TT_ID",
+        "type": "varchar(3)",
+        "nullable": false
+      },
+      {
+        "name": "TR_S_SYMB",
+        "type": "varchar(15)",
+        "nullable": false
+      },
+      {
+        "name": "TR_QTY",
+        "type": "int",
+        "nullable": false
+      },
+      {
+        "name": "TR_BID_PRICE",
+        "type": "decimal(8,2)",
+        "nullable": false
+      },
+      {
+        "name": "TR_B_ID",
+        "type": "bigint",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "SETTLEMENT",
+    "file": "Settlement.txt",
+    "columns": [
+      {
+        "name": "SE_T_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "SE_CASH_TYPE",
+        "type": "varchar(40)",
+        "nullable": false
+      },
+      {
+        "name": "SE_CASH_DUE_DATE",
+        "type": "date",
+        "nullable": false
+      },
+      {
+        "name": "SE_AMT",
+        "type": "decimal(10,2)",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "CASH_TRANSACTION",
+    "file": "CashTransaction.txt",
+    "columns": [
+      {
+        "name": "CT_T_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "CT_DTS",
+        "type": "datetime2(3)",
+        "nullable": false
+      },
+      {
+        "name": "CT_AMT",
+        "type": "decimal(10,2)",
+        "nullable": false
+      },
+      {
+        "name": "CT_NAME",
+        "type": "varchar(100)",
+        "nullable": true
+      }
+    ]
+  },
+  {
+    "name": "HOLDING",
+    "file": "Holding.txt",
+    "columns": [
+      {
+        "name": "H_T_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "H_CA_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "H_S_SYMB",
+        "type": "varchar(15)",
+        "nullable": false
+      },
+      {
+        "name": "H_DTS",
+        "type": "datetime2(3)",
+        "nullable": false
+      },
+      {
+        "name": "H_PRICE",
+        "type": "decimal(8,2)",
+        "nullable": false
+      },
+      {
+        "name": "H_QTY",
+        "type": "int",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "HOLDING_HISTORY",
+    "file": "HoldingHistory.txt",
+    "columns": [
+      {
+        "name": "HH_H_T_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "HH_T_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "HH_BEFORE_QTY",
+        "type": "int",
+        "nullable": false
+      },
+      {
+        "name": "HH_AFTER_QTY",
+        "type": "int",
+        "nullable": false
+      }
+    ]
+  },
+  {
+    "name": "HOLDING_SUMMARY",
+    "file": "HoldingSummary.txt",
+    "columns": [
+      {
+        "name": "HS_CA_ID",
+        "type": "bigint",
+        "nullable": false
+      },
+      {
+        "name": "HS_S_SYMB",
+        "type": "varchar(15)",
+        "nullable": false
+      },
+      {
+        "name": "HS_QTY",
+        "type": "int",
+        "nullable": false
+      }
+    ]
+  }
+]

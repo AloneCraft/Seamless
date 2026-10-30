@@ -13,6 +13,8 @@ $Solutions = [ordered]@{
     'Sample.VirtualDb.slnx'                    = @('Samples/Sample.VirtualDb/Sample.VirtualDb.csproj')
     'Benchmark.TpcE.slnx'                      = @('Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj', 'Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj', 'Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj', 'Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj', 'Benchmark/Benchmark.Tpc.Tests/Benchmark.Tpc.Tests.csproj')
     'Tests.slnx'                               = @(
+        'Tests/Seamless.Transactions.Tests/Seamless.Transactions.Tests.csproj',
+        'Tests/Seamless.Database.Transactions.Tests/Seamless.Database.Transactions.Tests.csproj',
         'Execution.Tests/Execution.Tests.csproj',
         'Benchmark/Benchmark.Infrastructure.Tests/Benchmark.Infrastructure.Tests.csproj',
         'Benchmark/Benchmark.Scalable.Tests/Benchmark.Scalable.Tests.csproj',

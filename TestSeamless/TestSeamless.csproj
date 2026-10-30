@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>TestSeamless</AssemblyName><RootNamespace>TestSeamless</RootNamespace><UserSecretsId>Seamless.Comparison.Local</UserSecretsId></PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="Preparation/**/*.cs;Queries/**/*.cs;Schema/**/*.cs;Tests/**/*.cs" />
+    <PackageReference Include="Seamless.Database.SqlServer" Version="$(SeamlessPackageVersion)" />
+    <PackageReference Include="Seamless.Database.Gateway" Version="$(SeamlessPackageVersion)" />
+    <PackageReference Include="Seamless.Database.Client" Version="$(SeamlessPackageVersion)" />
+    <ProjectReference Include="Schema/TestSeamless.Schema.csproj" />
+    <ProjectReference Include="Queries/TestSeamless.Queries.csproj" />
+    <None Include="Cases/**/*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Queries/*.cs.template" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Queries/query-definitions.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

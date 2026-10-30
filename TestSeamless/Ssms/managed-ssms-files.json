@@ -1,0 +1,47 @@
+{
+  "Owner": "Seamless.SsmsWorkspace.v1",
+  "Generation": "LegacyFixtureBootstrap",
+  "TargetRoot": "G:\\GitHub\\Seamless\\TestSeamless\\Ssms",
+  "Files": [
+    {
+      "Path": "SQLServer\\SQLServer.ssmssqlproj",
+      "Sha256": "D1649CFD00E1A825D84D2C61DDBD45EAF9ED0242F4028AD0A6DB2FD071CDC87C"
+    },
+    {
+      "Path": "SQLServer\\Generated\\Seamless_Comparison_Fixture-89e9d6bf\\dbo-a335640b\\Table-FixtureDuplicates-f572839b.sql",
+      "Sha256": "6EBC0910B8BB3963452B1300ECCF67F7B94EDD035B37C38CA20DC996C316AF13"
+    },
+    {
+      "Path": "SQLServer\\Generated\\Seamless_Comparison_Fixture-89e9d6bf\\dbo-a335640b\\Table-FixtureItem-1f3451f3.sql",
+      "Sha256": "CABBC10E20EC3286905E66B55064A890CDDF787DD48AE3D195F0DE522097DDD6"
+    },
+    {
+      "Path": "SQLServer\\Generated\\Seamless_Comparison_Fixture-89e9d6bf\\dbo-a335640b\\Table-FixtureParent-2536a6ac.sql",
+      "Sha256": "E8F4014D1EDDE5D3F376D232AE199C6986301304CAEA39C8B5F7B0623517F858"
+    },
+    {
+      "Path": "SQLServer\\Generated\\Seamless_Comparison_Fixture-89e9d6bf\\dbo-a335640b\\View-vFixtureItemSummary-d5373605.sql",
+      "Sha256": "7D871413F8CA4049A7387407E08E6C4EAC39A9ED4BF66C8404A9F801B5AFC059"
+    },
+    {
+      "Path": "SeamlessDB\\SeamlessDB.ssmssqlproj",
+      "Sha256": "EE163BBDF9305BAF352557C7EE63F838DCF97026DB61048B4EED90E713EDBE95"
+    },
+    {
+      "Path": "SeamlessDB\\Generated\\Seamless_Comparison_Fixture-89e9d6bf\\dbo-a335640b\\Table-FixtureDuplicates-f572839b.sql",
+      "Sha256": "6EBC0910B8BB3963452B1300ECCF67F7B94EDD035B37C38CA20DC996C316AF13"
+    },
+    {
+      "Path": "SeamlessDB\\Generated\\Seamless_Comparison_Fixture-89e9d6bf\\dbo-a335640b\\Table-FixtureItem-1f3451f3.sql",
+      "Sha256": "CABBC10E20EC3286905E66B55064A890CDDF787DD48AE3D195F0DE522097DDD6"
+    },
+    {
+      "Path": "SeamlessDB\\Generated\\Seamless_Comparison_Fixture-89e9d6bf\\dbo-a335640b\\Table-FixtureParent-2536a6ac.sql",
+      "Sha256": "E8F4014D1EDDE5D3F376D232AE199C6986301304CAEA39C8B5F7B0623517F858"
+    },
+    {
+      "Path": "SeamlessDB\\Generated\\Seamless_Comparison_Fixture-89e9d6bf\\dbo-a335640b\\View-vFixtureItemSummary-d5373605.sql",
+      "Sha256": "7D871413F8CA4049A7387407E08E6C4EAC39A9ED4BF66C8404A9F801B5AFC059"
+    }
+  ]
+}
