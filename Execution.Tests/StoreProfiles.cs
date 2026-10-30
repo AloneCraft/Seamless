@@ -62,7 +62,7 @@ public sealed class StoreProfiles{
         }
         using(var owner=global::Seamless.Execution.Store.CreateMemory(limits:new(){MemoryBytes=32768})){
             using var data=owner.CreateTsavorite<int,int>("dictionary");using var items=data.Create();var inserted=0;
-            Assert.Throws<OutOfMemoryException>(()=>{for(;inserted<4096;inserted++){items.Add(inserted,inserted);}});
+            Assert.Throws<ResourceLimitException>(()=>{for(;inserted<4096;inserted++){items.Add(inserted,inserted);}});
             Assert.True(inserted>0);
             for(var index=0;index<inserted;index++){Assert.Equal(index,items[index]);}
             Assert.True(owner.Budget.MemoryBytes<=32768);
