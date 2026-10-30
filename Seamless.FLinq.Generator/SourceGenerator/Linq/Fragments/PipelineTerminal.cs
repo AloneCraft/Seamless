@@ -880,6 +880,8 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
                     break;
                 case PipelineStageKind.Where:
                 case PipelineStageKind.Select:
+                case PipelineStageKind.TakeWhile:
+                case PipelineStageKind.SkipWhile:
                     if(stage.UsesIndex||stage.Func is not { } func||!CanUseDirectScalarFunc(func)) {
                         return false;
                     }
@@ -8480,6 +8482,78 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
                     builder.AppendLine($"{indent}if({skipName}<{stage.Value}) {{ {skipName}++; continue; }}");
+
+
+
+                    break;
+
+
+
+                }
+
+
+
+                case PipelineStageKind.TakeWhile: {
+
+
+
+                    var condName = $"__pipelineTakeWhileCond{this.result}_{index+1}";
+
+
+
+                    builder.AppendLine($"{indent}bool {condName}=default!;");
+
+
+
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.TakeWhile),condName,currentName),indent));
+
+
+
+                    builder.AppendLine($"{indent}if(!{condName}) break;");
+
+
+
+                    break;
+
+
+
+                }
+
+
+
+                case PipelineStageKind.SkipWhile: {
+
+
+
+                    var activeName = $"__pipelineSkipWhileActive{this.result}_{index+1}";
+
+
+
+                    var condName = $"__pipelineSkipWhileCond{this.result}_{index+1}";
+
+
+
+                    builder.AppendLine($"{indent}if({activeName}) {{");
+
+
+
+                    builder.AppendLine($"{indent}    bool {condName}=default!;");
+
+
+
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.SkipWhile),condName,currentName),$"{indent}    "));
+
+
+
+                    builder.AppendLine($"{indent}    if({condName}) continue;");
+
+
+
+                    builder.AppendLine($"{indent}    {activeName}=false;");
+
+
+
+                    builder.AppendLine($"{indent}}}");
 
 
 
@@ -20067,7 +20141,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
             }
             this.TryAnalyzeLeadingSlice(out _, out _, out var leadingSliceStageCount);
             for(var i = leadingSliceStageCount; i < pipeline.Stages.Count; i++) {
-                if(pipeline.Stages[i].Kind is PipelineStageKind.Take or PipelineStageKind.Skip) {
+                if(pipeline.Stages[i].Kind is PipelineStageKind.Take or PipelineStageKind.Skip or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile) {
                     return false;
                 }
             }
@@ -20209,18 +20283,30 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
             if(isReverse) {
                 builder.AppendLine($"    for(var {indexName}={endIdxName}-1;{indexName}>={startIdxName};{indexName}--) {{");
+                builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
             } else {
-                builder.AppendLine($"    for(var {indexName}={startIdxName};{indexName}<{endIdxName};{indexName}++) {{");
+                var ptrName = $"__ptr{this.result}";
+                var endName = $"__end{this.result}";
+                builder.AppendLine($"    ref var {ptrName}=ref global::System.Runtime.CompilerServices.Unsafe.Add(ref global::System.Runtime.InteropServices.MemoryMarshal.GetReference({spanName}), {startIdxName});");
+                builder.AppendLine($"    ref var {endName}=ref global::System.Runtime.CompilerServices.Unsafe.Add(ref global::System.Runtime.InteropServices.MemoryMarshal.GetReference({spanName}), {endIdxName});");
+                builder.AppendLine($"    while(global::System.Runtime.CompilerServices.Unsafe.IsAddressLessThan(ref {ptrName}, ref {endName})) {{");
+                builder.AppendLine($"        var {sourceItemName}={ptrName};");
+                builder.AppendLine($"        {ptrName}=ref global::System.Runtime.CompilerServices.Unsafe.Add(ref {ptrName}, 1);");
             }
         } else {
             if(isReverse) {
                 builder.AppendLine($"    for(var {indexName}={spanName}.Length-1;{indexName}>=0;{indexName}--) {{");
+                builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
             } else {
-                builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+                var ptrName = $"__ptr{this.result}";
+                var endName = $"__end{this.result}";
+                builder.AppendLine($"    ref var {ptrName}=ref global::System.Runtime.InteropServices.MemoryMarshal.GetReference({spanName});");
+                builder.AppendLine($"    ref var {endName}=ref global::System.Runtime.CompilerServices.Unsafe.Add(ref {ptrName}, {spanName}.Length);");
+                builder.AppendLine($"    while(global::System.Runtime.CompilerServices.Unsafe.IsAddressLessThan(ref {ptrName}, ref {endName})) {{");
+                builder.AppendLine($"        var {sourceItemName}={ptrName};");
+                builder.AppendLine($"        {ptrName}=ref global::System.Runtime.CompilerServices.Unsafe.Add(ref {ptrName}, 1);");
             }
         }
-
-        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
         var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices,startIndex: leadingSliceStageCount);
 
         if(isReverse && func1 is not null) {
