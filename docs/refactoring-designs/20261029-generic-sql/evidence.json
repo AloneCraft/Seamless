@@ -1,0 +1,622 @@
+{
+  "head": "481fe149f469751d654588de67740684f2d6d90b",
+  "statusBefore": [
+    " M .github/workflows/dotnet-ci.yml",
+    " M .gitignore",
+    " M Benchmark.Dynamic.Tests/DynamicEvaluationCountSurvey.cs",
+    " M Benchmark.Dynamic.Tests/FixedCaseCatalog.cs",
+    "M  Benchmark.Dynamic.slnx",
+    "M  Benchmark.Headless.slnx",
+    "M  Benchmark.Scalable.slnx",
+    "M  Benchmark.TpcE.slnx",
+    "M  Benchmark.Tsavorite.ParameterSweep.slnx",
+    " M Benchmark/Benchmark.Dynamic.Core/FixedCaseCatalog.cs",
+    " M Benchmark/Benchmark.Dynamic.Worker/FixedCaseRunner.cs",
+    "M  Sample.NetShop.slnx",
+    "AM Seamless.Database.Gateway/GatewayServer.cs",
+    "A  Seamless.Database.Gateway/GlobalUsings.cs",
+    "AM Seamless.Database.Gateway/Hosting/IDatabaseAdapter.cs",
+    "AM Seamless.Database.Gateway/Hosting/InProcessDatabaseAdapter.cs",
+    "AM Seamless.Database.Gateway/Hosting/QueryResult.cs",
+    "AM Seamless.Database.Gateway/Hosting/SessionContext.cs",
+    "AM Seamless.Database.Gateway/Hosting/TableMetadata.cs",
+    "AM Seamless.Database.Gateway/Http/HttpEndpoints.cs",
+    "AM Seamless.Database.Gateway/Http/HttpServer.cs",
+    "AM Seamless.Database.Gateway/Seamless.Database.Gateway.csproj",
+    "A  Seamless.Database.Gateway/Sql/QueryPlanCache.cs",
+    "AM Seamless.Database.Gateway/Sql/ScriptDomParser.cs",
+    "AM Seamless.Database.Gateway/Sql/SqlExecutionEngine.cs",
+    "AM Seamless.Database.Gateway/Sql/SystemCatalogEmulator.cs",
+    "AM Seamless.Database.Gateway/Tds/TdsConstants.cs",
+    "AM Seamless.Database.Gateway/Tds/TdsPacketReader.cs",
+    "AM Seamless.Database.Gateway/Tds/TdsPacketWriter.cs",
+    "AM Seamless.Database.Gateway/Tds/TdsServer.cs",
+    "AM Seamless.Database.Gateway/Tds/TdsSession.cs",
+    "M  Seamless.Database.Generator/DatabaseContainerGenerator.cs",
+    " M Seamless.Database.Rdbms/CSharpDatabaseGenerator.cs",
+    " M Seamless.Database.Rdbms/CSharpIdentifier.cs",
+    " M Seamless.Database.Rdbms/ColumnCatalog.cs",
+    " M Seamless.Database.Rdbms/DatabaseCatalog.cs",
+    " M Seamless.Database.Rdbms/DatabaseType.cs",
+    " M Seamless.Database.Rdbms/GeneratedColumnBinding.cs",
+    " M Seamless.Database.Rdbms/PrimaryKeyCatalog.cs",
+    "A  Seamless.Database.Server/GlobalUsings.cs",
+    "AM Seamless.Database.Server/Program.cs",
+    "AM Seamless.Database.Server/Seamless.Database.Server.csproj",
+    " M Seamless.Database.SqlServer/SqlServerCatalogReader.cs",
+    " M Seamless.Database.SqlServer/SqlServerImportSizer.cs",
+    " M Seamless.Database.SqlServer/SqlServerImportSource.cs",
+    " M Seamless.Database.SqlServer/SqlServerMetadataReader.cs",
+    " M Seamless.Database.SqlServer/SqlServerRoutineCatalogReader.cs",
+    " M Seamless.Database.SqlServer/SqlServerTypeMapper.cs",
+    " M Seamless.Database.SqlServer/SqlServerViewCatalogReader.cs",
+    "M  Seamless.Database.Tool.slnx",
+    "M  Seamless.Database/AssemblyInfo.cs",
+    "M  Seamless.Database/DatabaseContainer.cs",
+    "M  Seamless.Database/DatabaseContainerOptions.cs",
+    "M  Seamless.Database/DatabaseTransaction.cs",
+    "A  Seamless.Database/DatabaseTransactions.cs",
+    "M  Seamless.Database/KeyedTable.cs",
+    "M  Seamless.Database/MaterializedView.cs",
+    "M  Seamless.Database/Seamless.Database.csproj",
+    "M  Seamless.Database/Table.cs",
+    " M Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Helpers/GroupByAggregateFusion.cs",
+    " M Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Helpers/InlinedScalarFunc.cs",
+    "A  Seamless.Transactions.Collections/ReadOnlyTransactionCollection.cs",
+    "A  Seamless.Transactions.Collections/Seamless.Transactions.Collections.csproj",
+    "A  Seamless.Transactions.Collections/TransactionChangeSet.cs",
+    "A  Seamless.Transactions.Collections/TransactionalTable.cs",
+    "A  Seamless.Transactions/FakeWalDevice.cs",
+    "A  Seamless.Transactions/PartitionExecutor.cs",
+    "A  Seamless.Transactions/README.md",
+    "A  Seamless.Transactions/Seamless.Transactions.csproj",
+    "A  Seamless.Transactions/TransactionCoordinator.cs",
+    "A  Seamless.Transactions/TransactionJournal.cs",
+    "A  Seamless.Transactions/WalContract.cs",
+    "A  Seamless.Transactions/WalFileDevice.cs",
+    "A  Seamless.Transactions/WalFormat.cs",
+    "A  Seamless.Transactions/WalWriter.cs",
+    "MM Seamless.slnx",
+    "M  Tests.slnx",
+    "AM Tests/Seamless.Database.Gateway.Tests/GatewayServerTests.cs",
+    "AM Tests/Seamless.Database.Gateway.Tests/InProcessDatabaseAdapterTests.cs",
+    "AM Tests/Seamless.Database.Gateway.Tests/ScriptDomParserTests.cs",
+    "A  Tests/Seamless.Database.Gateway.Tests/Seamless.Database.Gateway.Tests.csproj",
+    "A  Tests/Seamless.Database.Transactions.Tests/BankTests.cs",
+    "A  Tests/Seamless.Database.Transactions.Tests/Seamless.Database.Transactions.Tests.csproj",
+    "A  Tests/Seamless.Transactions.Tests/DurabilityBoundaries.cs",
+    "A  Tests/Seamless.Transactions.Tests/FileAndPartitionTests.cs",
+    "A  Tests/Seamless.Transactions.Tests/ProcessTermination.cs",
+    "A  Tests/Seamless.Transactions.Tests/Seamless.Transactions.Tests.csproj",
+    "A  Tests/Seamless.Transactions.Tests/TransactionTests.cs",
+    "A  Tests/Seamless.Transactions.Tests/WalTests.cs",
+    "MM Update-FocusedSolutions.ps1",
+    "A  docs/refactoring-designs/20261029-generic-transactions-tpc-c12-acceptance.md",
+    "A  docs/refactoring-designs/20261029-generic-transactions-tpc-c12.md",
+    "?? .github/workflows/comparison-packages.yml",
+    "?? Seamless.Database.Client/",
+    "?? Seamless.Database.Gateway/Hosting/ComparisonHost.cs",
+    "?? Seamless.Database.Gateway/Hosting/DatabaseRegistry.cs",
+    "?? Seamless.Database.Gateway/Native/",
+    "?? Seamless.Database.Gateway/Tds/ParameterDeclarations.cs",
+    "?? Seamless.Database.Gateway/Tds/TdsRpcRequest.cs",
+    "?? Seamless.Database.Gateway/Tds/TdsValueWriter.cs",
+    "?? Seamless.Database.Query/",
+    "?? Seamless.Database.Rdbms/ComparisonGeneration.cs",
+    "?? Seamless.Database.Rdbms/GeneratedSqlViewReader.cs",
+    "?? Seamless.Database.SqlServer/ComparisonSource.cs",
+    "?? Seamless.Linq/DeferredGroupSum.cs",
+    "?? TestSeamless.slnx",
+    "?? TestSeamless/",
+    "?? Tests/Database.Query.Tests/",
+    "?? Tests/Seamless.Database.Gateway.Tests/SystemCatalogTests.cs",
+    "?? docs/refactoring-designs/20261026-three-chat-orchestration.md",
+    "?? docs/refactoring-designs/20261029-sqlserver-seamless-comparison.md"
+  ],
+  "sourceHashesBefore": {
+    ".github/workflows/comparison-packages.yml": "d6d6237f2f92cf945b743efc27c9bfe947c0647ac09e3d9ee9ae40ddf74f47e2",
+    ".github/workflows/dotnet-ci.yml": "64c16ec939cb8c0b5e78fcb57889239bd3dae0c6ffce789e23da095a646104b2",
+    ".gitignore": "94d0a56aaceaf9819ac7732a7df915283f5a07811d2bbf74814c71240e7c2ce0",
+    "Benchmark.Dynamic.Tests/DynamicEvaluationCountSurvey.cs": "b7e821286ca0aa9609bd4d7066a5db81885e596d260e1d3602af72f312df710e",
+    "Benchmark.Dynamic.Tests/FixedCaseCatalog.cs": "fcf4132a1a6742ba03af786a3f089c9afbb16dc7a27feef3dce8ff2f0146c7b9",
+    "Benchmark.Dynamic.slnx": "b0765acdaddb83fb084f3328931ba5b97b8e762a5fc67b947ada2f6a5c5438c4",
+    "Benchmark.Headless.slnx": "7631ef3e30ba47962a95410abcfba20188cc307a6395cae7f5f47fd11025524a",
+    "Benchmark.Scalable.slnx": "cebaf40b28a75f35ec38b7883c85b339a8bbe0c8f73db59615dac83dda43c144",
+    "Benchmark.TpcE.slnx": "9ce6dc60633605c64d8eadd4d24c5d3e1911b76444ffde5c666953b10aab23f0",
+    "Benchmark.Tsavorite.ParameterSweep.slnx": "117a9646e37db564816519805bca856f7a5a53481d02c3031260d8fac356ff4c",
+    "Benchmark/Benchmark.Dynamic.Core/FixedCaseCatalog.cs": "5c32183947fe5e88a709a2df4b7a126fe721630175edf6a85ef6d236783037b5",
+    "Benchmark/Benchmark.Dynamic.Worker/FixedCaseRunner.cs": "a2c29d720138781105a37b7ac8059d10426bebfca93a2873fdfdbf9f4e693bee",
+    "Sample.NetShop.slnx": "360302e69dc33a0d9123b9a1e2032a30a9e0ffca3d12a5cbd8a550bafcf65db2",
+    "Seamless.Database.Client/NativeProtocol.cs": "8074ff18164acf7834dd047ff77174601ce2687306bf9f922e7f09608cabd183",
+    "Seamless.Database.Client/NativeQueryClient.cs": "7eee87592dd9dd5492a46475d05c6d5e154e1ce0adcc212dc09eb49f5b72f04b",
+    "Seamless.Database.Client/Seamless.Database.Client.csproj": "a15081b12586719929fe8de9b0c9d518ac08604ad17dae1ae919b49a9bc6d9dd",
+    "Seamless.Database.Gateway/GatewayServer.cs": "d922641439c30ef881969cb83ac31e9cb9c45924dabd981748e10eca454d46ec",
+    "Seamless.Database.Gateway/GlobalUsings.cs": "1722fce7429bf6a97267a9630d97326c94eb1eb1a16667d8c9d7884ac983e398",
+    "Seamless.Database.Gateway/Hosting/ComparisonHost.cs": "6b954a737fbbb4b0ea1eebaf6ce5e3749e8cbf18ca3f0f9b35a409ec2582cc5e",
+    "Seamless.Database.Gateway/Hosting/DatabaseRegistry.cs": "bb8625d0a48fd3c017552a62ca6e1554380742e89a13df5f346db43862896e25",
+    "Seamless.Database.Gateway/Hosting/IDatabaseAdapter.cs": "954e6fc132f4de2e320c018a1838f8f658c52f8e6aad783817c3fe7e66fcab62",
+    "Seamless.Database.Gateway/Hosting/InProcessDatabaseAdapter.cs": "a1fda47014174924e593b0203f6116a6aaaaa9ad59be312e4d89e574ea23fb5d",
+    "Seamless.Database.Gateway/Hosting/QueryResult.cs": "b882fc371630be08733d5caafb330d696eeb0daa9b59806699c79aa548bbe49f",
+    "Seamless.Database.Gateway/Hosting/SessionContext.cs": "70e80d4436769ae82a6eb13ca0d3a3ac1f371c18222e9e0cc4db9560f0fde6b1",
+    "Seamless.Database.Gateway/Hosting/TableMetadata.cs": "44c2b1fb35aead9694f135e91844cb63be9050bbc9928dca4c62e54225babcf8",
+    "Seamless.Database.Gateway/Http/HttpEndpoints.cs": "c888b6c022bece6aa4d1ec73a6dcd8a593d42ca58d005d1e4613b47ca8170eb8",
+    "Seamless.Database.Gateway/Http/HttpServer.cs": "c541e804b4d901f5ed7aa459faa2d1d558ad1bfc0f83033a0e8d33a013aeb992",
+    "Seamless.Database.Gateway/Native/NativeQueryServer.cs": "37f31b77c2f48e3a0e708fa95107ede1a09b84eb02eda0d335b9c42a47fecd26",
+    "Seamless.Database.Gateway/Seamless.Database.Gateway.csproj": "460189052dd7c1ce7e981155bab5dbfc0820facd49a3b769f7b9800aa8a59f9b",
+    "Seamless.Database.Gateway/Sql/QueryPlanCache.cs": "82f098eabbbd2cc9f40f8c440d561624ae505c3bf012e0a64357657a879dd1ca",
+    "Seamless.Database.Gateway/Sql/ScriptDomParser.cs": "48a5a3ebe6521dee84c8bc954cdef1d0a8ed7e43e83f32df4ff815ca27f5a696",
+    "Seamless.Database.Gateway/Sql/SqlExecutionEngine.cs": "96006d37cd56c91afc84ac148a9690708c954b5816ad66b85dc70c8b39b7b54a",
+    "Seamless.Database.Gateway/Sql/SystemCatalogEmulator.cs": "a286b00318e02cb0dcd3206de81262cbb3a5d6be4af2e6476d0e4c8e17982609",
+    "Seamless.Database.Gateway/Tds/ParameterDeclarations.cs": "b8899a9e35430a8d179f93121ee2f3d8b1c5e9353a6c861c1ac8058498036c2d",
+    "Seamless.Database.Gateway/Tds/TdsConstants.cs": "4432a92985842e14d7e4ceac16128bb1c4b71a108a0f4b6c00f3cd6e6dbc042f",
+    "Seamless.Database.Gateway/Tds/TdsPacketReader.cs": "3de6d0a2abd0d8f486af12a4a6f8cd5e50ed3c7673c1a2677f0ab2df9f8c77ec",
+    "Seamless.Database.Gateway/Tds/TdsPacketWriter.cs": "56e7e0af353d1319e254444f4e555398d6a215faf459fe1d42eaa3c75f133e50",
+    "Seamless.Database.Gateway/Tds/TdsRpcRequest.cs": "91a9db3d03484205b5229ef9c8b009d98b1156b8b32d834f35fd62fa5dc2afe2",
+    "Seamless.Database.Gateway/Tds/TdsServer.cs": "24d54a0901732a6328ea84f66fcf36cca042c268855c148783de4eaa3a4935b3",
+    "Seamless.Database.Gateway/Tds/TdsSession.cs": "cc68a1bca13df58ed4a42552417cacc3cbc76b01fb1dd7331bc018966e9d6728",
+    "Seamless.Database.Gateway/Tds/TdsValueWriter.cs": "8135c6723dee19f67025d41ea3116f69a04646594801f2ea07afbbc1f6dc7446",
+    "Seamless.Database.Generator/DatabaseContainerGenerator.cs": "c97c291538394dd0f1b81390e50328e19125c276da23f436271fca3d0aeb4784",
+    "Seamless.Database.Query/AggregateState.cs": "c657671e76fbeb21e0a5d4849e93f232dcc569407ee1d7b9447c1b880fc273f2",
+    "Seamless.Database.Query/QueryBinder.Expressions.cs": "cbc35b477ba08a89111da7e75a3c1437ad1eae78ef95d2591b00db2f5824129d",
+    "Seamless.Database.Query/QueryBinder.Join.cs": "b5e8378444ee3d99ebd67d69c435f6a4057f3b7e8585d08fe6f5af1c4eb52779",
+    "Seamless.Database.Query/QueryBinder.Routines.cs": "8e3b6c97a9647f00fc1e4c24968d56b44dc5e3aa61c5f6bb8a7766f73bda95b1",
+    "Seamless.Database.Query/QueryBinder.Xml.cs": "842305533c3b6af9a93e37c8fdc4dbfc103a4055f6388f62de844f66dd94aa57",
+    "Seamless.Database.Query/QueryBinder.cs": "ebc04e36cb09978a01c31aeab5c5ff272bffa4f31047a1045b78b99ae38ae86e",
+    "Seamless.Database.Query/Seamless.Database.Query.csproj": "cb14429f87b787b1a0f782030ae819196559837323a66f7763d190b4ab0a3ef3",
+    "Seamless.Database.Query/SqlBoundedOperators.cs": "8de3d002e3e7bdac648f96c55ca2fa4c88de665127e3f623d6d053cc0ebf0dab",
+    "Seamless.Database.Query/SqlMetadata.cs": "1a6e6671c98b2b4b3212ad7cca3852feb33d676e8808c86f8d5f373e4bbeade6",
+    "Seamless.Database.Query/SqlQueryEngine.cs": "1f8fcc06b8a7bf94bf6fda4601cc04630be138ec7eed5efc7af542674aed53fe",
+    "Seamless.Database.Query/SqlRowCodec.cs": "275ec38cb0896189d6801f16bb68bd72379cba43a09968abeb1b892c2bd5ecdb",
+    "Seamless.Database.Query/SqlValues.cs": "68809197461c66f9521fcdcb0732fd6741a4e09c7cbd29e7f34805f1e40d978e",
+    "Seamless.Database.Rdbms/CSharpDatabaseGenerator.cs": "2df8e9983d16d76fde5d2f984222667166583276255d224a1fdbc94a7fbec973",
+    "Seamless.Database.Rdbms/CSharpIdentifier.cs": "2d604c3d2ad42b5709cc607ad1b1082bec986fa66be62c610b4f96c88c64b8ba",
+    "Seamless.Database.Rdbms/ColumnCatalog.cs": "39165a5cb64364c449dff514821de6c15c2bb6b8d7a4b02fbe0ca5ec79d89d86",
+    "Seamless.Database.Rdbms/ComparisonGeneration.cs": "a39228fc18b9cc86d48f3457bd3deb318506af140df8b4068e8a4df3e4142944",
+    "Seamless.Database.Rdbms/DatabaseCatalog.cs": "4d36ebeb5c6e586f61004d128f4606d90defdc128f773af6808252d01cf89572",
+    "Seamless.Database.Rdbms/DatabaseType.cs": "a0041c6488ec3e94f93cd8a480c32f2b8d5730fb649cee8a1393a61d03ffc681",
+    "Seamless.Database.Rdbms/GeneratedColumnBinding.cs": "17e53c7756bdfcc8ab458655b069d27926589e62020fccd7fa46ca63b5856ecb",
+    "Seamless.Database.Rdbms/GeneratedSqlViewReader.cs": "389a345e98f01c95b13f25ed3ff48d70dfc34047c8853afc939ec5061b116103",
+    "Seamless.Database.Rdbms/PrimaryKeyCatalog.cs": "bd507d413f1b72d5f7e27d389b5649795bed2d6ef150c8ceba98936aa89727c0",
+    "Seamless.Database.Server/GlobalUsings.cs": "1722fce7429bf6a97267a9630d97326c94eb1eb1a16667d8c9d7884ac983e398",
+    "Seamless.Database.Server/Program.cs": "8e1f497b577aa5888ad1b70facfd1f789d110dfb360208aa476745e040f5e436",
+    "Seamless.Database.Server/Seamless.Database.Server.csproj": "5f1cca13d8af030e8c18ef103ec9fded0740296c084a0f5d090865f81ce8dd82",
+    "Seamless.Database.SqlServer/ComparisonSource.cs": "78250fa16665dbd2de965ebe3ecebddc19f869c70f056cedae6f09644f5247e6",
+    "Seamless.Database.SqlServer/SqlServerCatalogReader.cs": "bea9f75a8f5a7959fefc4b5cf8c9300a6879a44329ba33765dd5cf72928a0d3f",
+    "Seamless.Database.SqlServer/SqlServerImportSizer.cs": "5ad1c9a909c2d94b7deda76807547388d62ebe52c96fb881eeed3e1a99e1294b",
+    "Seamless.Database.SqlServer/SqlServerImportSource.cs": "b8b054cb8ebb793e9f51eba8ad9419c82057fc366253e961e94f2264fff1971c",
+    "Seamless.Database.SqlServer/SqlServerMetadataReader.cs": "76702795df0d932e2c295818c5999cb5d96b5196644def6897fe0ba7ed0d235d",
+    "Seamless.Database.SqlServer/SqlServerRoutineCatalogReader.cs": "4a2cc239425e6e24829d32d0f1718e787e2157d6984bb9aa0acb8df98b48f0e9",
+    "Seamless.Database.SqlServer/SqlServerTypeMapper.cs": "ed41b20ab63839ce6e973615bca5d7cb8a28a43527510acf2eff0f1423e2f8b4",
+    "Seamless.Database.SqlServer/SqlServerViewCatalogReader.cs": "47a6f2699c2ed5e0a150ca25a4fad810c171dc0284eab97c92f5989e56e2aadb",
+    "Seamless.Database.Tool.slnx": "340b23d0608c7f8fa3cf6d759a47450fd25aaa68806c94c70965fd40642ad14c",
+    "Seamless.Database/AssemblyInfo.cs": "da5628a1503a37aeaa396b825b019da6ed293b1f23c7ecc156a303aa2dafa622",
+    "Seamless.Database/DatabaseContainer.cs": "27c3fcb13ae6883f231a2da5f96ea94b02a979be1f8c538d9c252ccca2c78f5a",
+    "Seamless.Database/DatabaseContainerOptions.cs": "28ec3a1ae593dbcf2cf24370a8080d7067a4c08a6261bfa8aca94ea2bccf1b4b",
+    "Seamless.Database/DatabaseTransaction.cs": "fad235ce6bddd32d38e777b06a77f2b6a9bcf31da1983154c711aaff12f5d4e5",
+    "Seamless.Database/DatabaseTransactions.cs": "d107284e663ce0f1b7e30b8518c1bfb9d7d0b4b8bdafcb7a36802f446b9a0e0b",
+    "Seamless.Database/KeyedTable.cs": "30adc5630f97e0751c51efecb89c46a7c8b947540e9e62c2f811c3e4a6a93c0a",
+    "Seamless.Database/MaterializedView.cs": "cb462a4d2d49cf8e0ae13f3abb12d9c2fc74d6af0f57c51643adbe3b6eceb85a",
+    "Seamless.Database/Seamless.Database.csproj": "c662cd0a3573bcee886533a8ded3de15cda4375a24e63e98a447fee54a285a5d",
+    "Seamless.Database/Table.cs": "90bd8795514e0c362c6d3fabfb17d3b03b63072b533adad493902d692970bdcd",
+    "Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Helpers/GroupByAggregateFusion.cs": "bb09807c300b333df1b5ea22521c1f32cfd31cca40e96ab2663d6632a51c869e",
+    "Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Helpers/InlinedScalarFunc.cs": "15cd3288917b3514cde7742649e2e4fe4c4862b188b09476907c3593c3ad5c9e",
+    "Seamless.Linq/DeferredGroupSum.cs": "7b5452f9ffb7e34e9d88bae018911f9526f2e009b5779cf27f4cd23677dae265",
+    "Seamless.Transactions.Collections/ReadOnlyTransactionCollection.cs": "a2a2779daba25d79c290e75d2d6007dbcb9f8eac27c7de9e8071ac0610fa48dd",
+    "Seamless.Transactions.Collections/Seamless.Transactions.Collections.csproj": "4a9ce19698d4cdd98cd93057abb08fc9243336cbf5cfe363b68265ea5a09277c",
+    "Seamless.Transactions.Collections/TransactionChangeSet.cs": "c63d1afdd1bf187fde2363a0284670a7cf360be295f46b62b13684c3dfe4b118",
+    "Seamless.Transactions.Collections/TransactionalTable.cs": "8907e80f39cae90f97ef1bcd31cf3e3c67a8075062b5cfa4e56dec6366555f41",
+    "Seamless.Transactions/FakeWalDevice.cs": "4c28cb8734741ceb3849174359e07128b318457aa8390b170aa142a015f88c23",
+    "Seamless.Transactions/PartitionExecutor.cs": "9fca282e00f80d6209f13ed43f4a5311c4a03bb576b9ca5ccf96d8ad7307f869",
+    "Seamless.Transactions/README.md": "2a613642280ab7d146c1787f21f6cb3751fa3875e409964ca7436c91438ee4a3",
+    "Seamless.Transactions/Seamless.Transactions.csproj": "e38e25718da2e0cb71cdf12395972f2f339f5601458094f3caaaa37e470a8423",
+    "Seamless.Transactions/TransactionCoordinator.cs": "8da81ea91690ef70b16a2b25cc1e007cf400bd266ce7ba5e261c545ac9901f38",
+    "Seamless.Transactions/TransactionJournal.cs": "a7cca2ba4d3e6d31947649729119bce0be4dc428716761db2e9b758f19064323",
+    "Seamless.Transactions/WalContract.cs": "c648e57a56f084fa987278edf1bb07463da3368cdd97904a4b2cc1d8e193bc24",
+    "Seamless.Transactions/WalFileDevice.cs": "65cd0fa1a572155bb6521fbe10dcb81a43975408e7082e83bc1469bc779a98d2",
+    "Seamless.Transactions/WalFormat.cs": "b0fdd8dbf84a7dd5daac35cd443ec7b700879fdec668e7d576d66ecf13e73602",
+    "Seamless.Transactions/WalWriter.cs": "02a633f7f72b9e8353a21096c7465eeeb2dfd427255d22339255f25312fad1f4",
+    "Seamless.slnx": "0efe004091f8faa936dafd0928439c3fe532a14733340e5cab50197ee9698655",
+    "TestSeamless.slnx": "31f4ad82a216543aabb2bf4dd5d6e064a6c92105582eb31babdd220fa6527924",
+    "TestSeamless/Cases/Common/Fixture-CRUD-CommitRollback.sql": "32b23f9a510463eaef04a56eaa76399684fba86ee57b76e549fbb25ba7eeaaaf",
+    "TestSeamless/Cases/Common/Read-AggregateJoinView.sql": "1dfc5ccb93f12de2e236d4dc40bee071dd1f7f41b76365c8ed108e11daf7794a",
+    "TestSeamless/Cases/Common/manifest.json": "cb0b330d676a79181ac37f8ec6df876ed8685f0a361a25031054a0c5b5b3e898",
+    "TestSeamless/CatalogPreflight.cs": "f4e22252d0707d59b28a73d5c75049c87e0179addcc78b1b5801d7114a996efe",
+    "TestSeamless/ComparisonConcurrency.cs": "97a240d92ef9c0be67d8035bcc2cab8b5d29e4caf8de03308912851209c57a1f",
+    "TestSeamless/ComparisonRunner.cs": "8d6328c969c2ee947455727a382605f283c3de612d850a0576ee83397bcce9ee",
+    "TestSeamless/Diagnostics.cs": "4c1b63c97a7626e035feb824c5c5068903380132100b5ed1604e734e00d93513",
+    "TestSeamless/Directory.Build.props": "312cac72b40c891270d649923f2d4413df1257bb4dca7239e172e56dd1ec5980",
+    "TestSeamless/GenerationImport.cs": "00788751d21357170301bcf33b9fe94ca4c686f2aa9526a59a4446e906158343",
+    "TestSeamless/Get-ProductProjects.ps1": "872d0dd70909a054419618756fd2d52b424831c5e9cb79ce389fef9065cbb8b1",
+    "TestSeamless/Initialize-Storage.ps1": "cc957f8313d66ad692e57871064cd3f0ece08fb2d28e7b7617f21118e2a57a0f",
+    "TestSeamless/Invoke-Comparison.ps1": "80c7434879e62dcd74de29438c8372307905f853d831d6f27a29d685262b0d08",
+    "TestSeamless/Pack-Products.ps1": "f9a84c01cbe287c228b80b7e9f4332be2e4ea000b6aadb3b190227af4148e610",
+    "TestSeamless/Preparation/Invoke-Prepare-TpcE.ps1": "95768f7784fde40b5cdc89342ecb456744cb825b329da9e8e02d80e72a76b494",
+    "TestSeamless/Preparation/New-GenerationManifest.ps1": "b85fd4c201430096d6cf4ae8e83832e68c81ad0bc67e128302fb3b4c7c0d8db2",
+    "TestSeamless/Preparation/Prepare-Fixture.ps1": "f7d3b2c2030a85f66d6ce6d2d8c1e9a619b2f280e8f313eb08d33371e6af68c9",
+    "TestSeamless/Preparation/Prepare-TpcE.ps1": "4f5b77ef81e77081cd77f3ba91b84d5b465e74444f7bbbcaee6deb33f9a74c02",
+    "TestSeamless/Preparation/README.md": "19170e3eb8ae83efc25b1c78367efe0730fc766188bd3f1606bae2bba44a3512",
+    "TestSeamless/Preparation/TpcEFlatLoader.cs": "7d0c084a575d340d879250f5d3c170738dd26d50603398eb602f6d4c4daa8c05",
+    "TestSeamless/Preparation/preflight.py": "2fa3d9f7514e1075cc43613df39dd8e5562e00d30658f7a672ffc3c92f54e0da",
+    "TestSeamless/Preparation/tpce-schema.sql": "5589ec8e81a02eef9c51b15719874acc5e21813eea513b4eff543e97b3ead5b7",
+    "TestSeamless/Preparation/tpce-tables.json": "3c084295a90f3ce2fb645ac1dc53b82483fe2129dc32adaa9a7278782ad7fa57",
+    "TestSeamless/ProcessMetrics.cs": "79a1b06b35336449f47c6aa9d3492b1e5468eaee04cfaffe8f0d964420d5e824",
+    "TestSeamless/Program.cs": "95d02255d26aea02d34bd0c37cb1fe8399f72a9fc8542b3a03e4cb9efe70147a",
+    "TestSeamless/Publish-TestWorkspace.ps1": "705f161f682306710b25d162b1705e7537e397c78576b23055fb0d6f6234a5f6",
+    "TestSeamless/Queries/AggregateJoin.cs.template": "5c133d0709d0900819c49bb6d8aa70983c2b286cb7f67b11a5abb3652c039e7f",
+    "TestSeamless/Queries/NativeFixtureCommand.cs": "4061cf82a4fc47de9dc3e8547684b8247731621b21f0a41b8291b89636a19fc1",
+    "TestSeamless/Queries/README.md": "2e112dae100dc3a5e265276bf43eeebb99980981a5f842f256d41e2ceb2386f9",
+    "TestSeamless/Queries/TestSeamless.Queries.csproj": "196d58052588a5feaf57a310bd19883de96fdb6d7bedc80a202aaf82b0d3a775",
+    "TestSeamless/Queries/query-definitions.json": "b466612e17f0662a7b490a0be6643a19458e4613ac36ed998d0eca74ba9d1d0e",
+    "TestSeamless/QueryModuleWriter.cs": "ba94894eed72f03190fedc22faf7bfaf2e1988e2d03a7ebc11c706b103d01d96",
+    "TestSeamless/README.md": "041c31844d3b39f4e53badf0f5853f06375f059e121554b5415de68800c16204",
+    "TestSeamless/ResultBag.cs": "35e940c3ecf6ca7ac72d990d86e3bf89740e06888a9cbf294ab4560130757e72",
+    "TestSeamless/Schema/TestSeamless.Schema.csproj": "df210911d2abcb9f3a027ba7563caacc01c52adc4dcc36ad241609132742029f",
+    "TestSeamless/SqlConsole.cs": "67a71e7f2342bd911e7716c675ccb92c08022292f77dc7426f41a10e0c5eb3be",
+    "TestSeamless/Ssms/.seamless-ssms-owner": "502ccd646437d13e0c07a911413fa92df9a3ee48c2a4d8e48f674b36dec38bbe",
+    "TestSeamless/Ssms/Invoke-CompareSsms.ps1": "6331dba9e3a24930ee64002f5004e9f3e12778b002aaa6b831d4fe15fe39e005",
+    "TestSeamless/Ssms/README.md": "37701102646f37b9c43839d73dc43fd5a513a0495f0e6ceaa4b2a3702faf08cb",
+    "TestSeamless/Ssms/SQLServer/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/Table-FixtureDuplicates-f572839b.sql": "6ebc0910b8bb3963452b1300eccf67f7b94edd035b37c38ca20dc996c316af13",
+    "TestSeamless/Ssms/SQLServer/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/Table-FixtureItem-1f3451f3.sql": "cabbc10e20ec3286905e66b55064a890cddf787dd48ae3d195f0de522097ddd6",
+    "TestSeamless/Ssms/SQLServer/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/Table-FixtureParent-2536a6ac.sql": "e8f4014d1edde5d3f376d232ae199c6986301304caea39c8b5f7b0623517f858",
+    "TestSeamless/Ssms/SQLServer/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/View-vFixtureItemSummary-d5373605.sql": "7d871413f8ca4049a7387407e08e6c4eac39a9ed4bf66c8404a9f801b5afc059",
+    "TestSeamless/Ssms/SQLServer/SQLServer.ssmssqlproj": "d1649cfd00e1a825d84d2c61ddbd45eaf9ed0242f4028ad0a6db2fd071cdc87c",
+    "TestSeamless/Ssms/SeamlessDB/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/Table-FixtureDuplicates-f572839b.sql": "6ebc0910b8bb3963452b1300eccf67f7b94edd035b37c38ca20dc996c316af13",
+    "TestSeamless/Ssms/SeamlessDB/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/Table-FixtureItem-1f3451f3.sql": "cabbc10e20ec3286905e66b55064a890cddf787dd48ae3d195f0de522097ddd6",
+    "TestSeamless/Ssms/SeamlessDB/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/Table-FixtureParent-2536a6ac.sql": "e8f4014d1edde5d3f376d232ae199c6986301304caea39c8b5f7b0623517f858",
+    "TestSeamless/Ssms/SeamlessDB/Generated/Seamless_Comparison_Fixture-89e9d6bf/dbo-a335640b/View-vFixtureItemSummary-d5373605.sql": "7d871413f8ca4049a7387407e08e6c4eac39a9ed4bf66c8404a9f801b5afc059",
+    "TestSeamless/Ssms/SeamlessDB/SeamlessDB.ssmssqlproj": "ee163bbdf9305baf352557c7ee63f838dcf97026db61048b4eed90e713edbe95",
+    "TestSeamless/Ssms/Test-SsmsWorkspace.ps1": "9108ae12b83e6e846b01ede79678e5f259e9e05e7885fa8f0393abfb5a5b8f91",
+    "TestSeamless/Ssms/TestSeamless.Compare.ssmssln": "84293d8b58a746f53f32ff240e60f442e0517826cadfb60a534f24aae687aca9",
+    "TestSeamless/Ssms/Update-SsmsWorkspace.ps1": "7b8408308b2be2bed9583724cbe3536d050a82d0a9276682eef0ce72c1c75f30",
+    "TestSeamless/Ssms/managed-ssms-files.json": "53d1d33871335c293cedd75602d17b43308848aac2aac8aec505757a1a78a983",
+    "TestSeamless/TestSeamless.csproj": "15a8d8dfaf7c473858b8a7ad484854155a131a75e9eb741fdc511a39e6bd231c",
+    "TestSeamless/Tests/ComparisonConcurrency.cs": "d61922ceb7406d8d0f2392e42e17209c2074000f202390090f7c9b8cc88952a9",
+    "TestSeamless/Tests/ComparisonRunner.cs": "377b5ba3b04d818c516bf29446a1e19e7340688e8d68547858e2234011f11609",
+    "TestSeamless/Tests/GenerationSafety.ps1": "0460924bfb698c08f3ba50c2cbcbcd03f91d965c86939e09b8be1d0227072bdb",
+    "TestSeamless/Tests/HttpShutdown.cs": "318a0d3fbecccde74e5dacb13e8217d7409b94b3d99cccd88dfc675972a95e8d",
+    "TestSeamless/Tests/Protocol-Legacy.ps1": "9a9891aa10aebbf7636ecfa71abf260e0e72ee5081701c0e890a954da31fdfe6",
+    "TestSeamless/Tests/ProtocolCipherAndCollation.cs": "ffbde4ec553f2a57ea9476d684290ee3159c0601977e56e7f4d85c0f52b6fbda",
+    "TestSeamless/Tests/ProtocolMetadata.cs": "41670c3af349f73f899be63f84a195feb671f4c5c49572318f304905da756aae",
+    "TestSeamless/Tests/ProtocolSynthetic.cs": "8a2c46e94c9c00c04e9894646ea6708c50719569ca46951bc0d32dca4af16792",
+    "TestSeamless/Tests/ProtocolTests.cs": "23e97122eb3b12f61a16f7b8efe3f77403c6155b74c00f0940f6c84d22f543a4",
+    "TestSeamless/Tests/QueryModuleWriter.cs": "11e6ad2952078aa0c5d945ea478e159f116b38d43580bf93007a92c40d4f80aa",
+    "TestSeamless/Tests/ResultBag.cs": "24a8e831d4cc10ba522f8e9455c067c7e3d4cfdf9605bc69483d60e48f91f2c2",
+    "TestSeamless/Tests/SqlConsole.cs": "53273019c769e6ec1275e43581b45b3ff3da88c5ab2de21cbef70690cf74af80",
+    "TestSeamless/Tests/TestSeamless.Tests.csproj": "9ca6c90f7a9178e4f92cde0bba940902c958f887d7259d850cb4b5dec16a8d72",
+    "TestSeamless/Tests/TestTempDirectory.cs": "3da96def31b0eb31f27e3b2bcdca61b28a2408130d840277b582767f58de40f0",
+    "TestSeamless/Tests/TypedQueryFixture/Bootstrap.cs.template": "69b116b3c8c7e0fdadaa546437bdf5c095e33ebd5adf432adf7b45249532a6d8",
+    "TestSeamless/Tests/TypedQueryFixture/Invoke-TypedQueryFixture.ps1": "483a07b58c7919b9243bce69264a3f8faf020f04e449ae9436f0f7f5c508ac3d",
+    "TestSeamless/Tests/TypedQueryFixture/README.md": "5ec94d0b8fc70e5ac623c2569d9f2b19a252e90a6d0e5a29401577bd9cb70885",
+    "TestSeamless/Tests/TypedQueryFixture/Runtime.cs.template": "17da817e51dc98336fc1c75bceb30fa8716dab9f82785c2cace7992a16d02fc4",
+    "TestSeamless/Write-RestoreConfiguration.ps1": "fcf3684a8a96d7f78d4b9c78411216a3207f32fbf2e7576e6e3558448545bee9",
+    "Tests.slnx": "489943adc0c0a8833236c0571377baf97879d66b8412c832550547aebe247774",
+    "Tests/Database.Query.Tests/Database.Query.Tests.csproj": "64f6792ae1ad40c2f98fdd633c595e303056fb84a837dc1dd15179ad141be584",
+    "Tests/Database.Query.Tests/Fixtures/catalog.json": "33afbdbb1a99c5b1d8328a87f47c4e2087203b446b2055db463cdd9b820e5301",
+    "Tests/Database.Query.Tests/Fixtures/columns.json": "3b821acfd6d8886f549600819335f608ae026752dfe8dc07ccee5235d38fdee2",
+    "Tests/Database.Query.Tests/SqlQueryEngine.Catalog.cs": "9731544dac24a8bfb1be372ac89a6327957654ab3c36bc4db4e8a27961b91d2a",
+    "Tests/Database.Query.Tests/SqlQueryEngine.FloatingPoint.cs": "0dfb5b0b2549187fbbb94e22bc171a6ec8f1b8f38b389795433de6545fb4cc29",
+    "Tests/Database.Query.Tests/SqlQueryEngine.Semantics.cs": "ed0761add0922e472e6c4ce39696e928cd95e625080e72b8e771d97c0f132d3a",
+    "Tests/Database.Query.Tests/SqlQueryEngine.cs": "bd083a3f53e59ce1c08b6db937476d88216ae3c636e99324942e64e4d90bd412",
+    "Tests/Seamless.Database.Gateway.Tests/GatewayServerTests.cs": "ef6895c9172588de295c3b3a90954990bb55b78a4e76a2de43543474ac131009",
+    "Tests/Seamless.Database.Gateway.Tests/InProcessDatabaseAdapterTests.cs": "344a608bf4a1e90c61e68a66f221c802a4614bf44bb6cf233625f4df13bdbf02",
+    "Tests/Seamless.Database.Gateway.Tests/ScriptDomParserTests.cs": "9cdeafa78918441c174a889a82f4846a0bda429c13bfdb46eb4a9d4c0b2dd55c",
+    "Tests/Seamless.Database.Gateway.Tests/Seamless.Database.Gateway.Tests.csproj": "d5a9718addd706ebc756fbb49a1c8d3af1a387a2a5afd8227749fbe7d82177c2",
+    "Tests/Seamless.Database.Gateway.Tests/SystemCatalogTests.cs": "380222b733a7261651996f4ad11950295188ceea8c337ba34b6c0f92ba55e000",
+    "Tests/Seamless.Database.Transactions.Tests/BankTests.cs": "c298aadd7fcfc7cd1c394ed338e05f0360beca7f3f2cadfa3cdbf2288f6a06c6",
+    "Tests/Seamless.Database.Transactions.Tests/Seamless.Database.Transactions.Tests.csproj": "098bb2b228fb953efac1409430697ce1823b32840b2e706ae30541ea8f911c20",
+    "Tests/Seamless.Transactions.Tests/DurabilityBoundaries.cs": "da18b8132f54ff621cd9264961efaf2070c3ee550a36e1890b74bdee3a9a5c7f",
+    "Tests/Seamless.Transactions.Tests/FileAndPartitionTests.cs": "9cc04cc22796dc4c833332e658165826476e6ea9fdcddc1bc881558c996e9b07",
+    "Tests/Seamless.Transactions.Tests/ProcessTermination.cs": "eb6843bf5e9adc6a5d64546ff6b4934d72aae167432be8b64bc0ad926a7f3eb5",
+    "Tests/Seamless.Transactions.Tests/Seamless.Transactions.Tests.csproj": "81da0eaf8fd90e9bec7b9829c241dc04f5f965c58f291efcf2c807bf17bb1524",
+    "Tests/Seamless.Transactions.Tests/TransactionTests.cs": "15c40cfdad1bdd4fb57f0cc3a9e6c4fd8fe8dcfd67b10798b1876b4f48094570",
+    "Tests/Seamless.Transactions.Tests/WalTests.cs": "e50dab8aba1a2b4c774735c39e226d2c704742a632815ea9b9d851b39850f2d6",
+    "Update-FocusedSolutions.ps1": "6ac1763f5852e655f052f59a18404f4de783e1e5c9d610e6cf0f3a99800e6c01",
+    "docs/refactoring-designs/20261026-three-chat-orchestration.md": "d87474de9a02fecab5d04202662b43b9c78c40361216646b4436f24f26edc65d",
+    "docs/refactoring-designs/20261029-generic-transactions-tpc-c12-acceptance.md": "d05ec1ab7697c49d338226ad0f77cd5d4a49198b1238469c6a42b090d393ad67",
+    "docs/refactoring-designs/20261029-generic-transactions-tpc-c12.md": "41529d589972d6af1475687ba099e28d17226f8e90930de68abe032f1a364c3b",
+    "docs/refactoring-designs/20261029-sqlserver-seamless-comparison.md": "96c1b404fcad763be90239e4a014b3ecc6e475c04ff51909af0450e2a4d665aa"
+  },
+  "projectCount": 116,
+  "projectGraph": [
+    {
+      "project": "TestSeamless/TestSeamless.csproj",
+      "references": [
+        "Schema/TestSeamless.Schema.csproj",
+        "Queries/TestSeamless.Queries.csproj"
+      ],
+      "packages": [
+        {
+          "Include": "Seamless.Database.SqlServer",
+          "Version": "$(SeamlessPackageVersion)"
+        },
+        {
+          "Include": "Seamless.Database.Gateway",
+          "Version": "$(SeamlessPackageVersion)"
+        },
+        {
+          "Include": "Seamless.Database.Client",
+          "Version": "$(SeamlessPackageVersion)"
+        }
+      ]
+    },
+    {
+      "project": "TestSeamless/Tests/TestSeamless.Tests.csproj",
+      "references": [
+        "../TestSeamless.csproj"
+      ],
+      "packages": [
+        {
+          "Include": "Microsoft.NET.Test.Sdk",
+          "Version": "17.14.1"
+        },
+        {
+          "Include": "xunit",
+          "Version": "2.9.3"
+        },
+        {
+          "Include": "xunit.runner.visualstudio",
+          "Version": "3.1.4",
+          "PrivateAssets": "all"
+        }
+      ]
+    },
+    {
+      "project": "TestSeamless/Schema/TestSeamless.Schema.csproj",
+      "references": [],
+      "packages": [
+        {
+          "Include": "Seamless.Database",
+          "Version": "$(SeamlessPackageVersion)"
+        },
+        {
+          "Include": "Seamless.Database.Rdbms",
+          "Version": "$(SeamlessPackageVersion)"
+        },
+        {
+          "Include": "Seamless.Database.SqlServer",
+          "Version": "$(SeamlessPackageVersion)"
+        },
+        {
+          "Include": "Seamless.Database.Generator",
+          "Version": "$(SeamlessPackageVersion)",
+          "OutputItemType": "Analyzer",
+          "ReferenceOutputAssembly": "false"
+        }
+      ]
+    },
+    {
+      "project": "TestSeamless/Queries/TestSeamless.Queries.csproj",
+      "references": [
+        "../Schema/TestSeamless.Schema.csproj"
+      ],
+      "packages": [
+        {
+          "Include": "Seamless.Database.Client",
+          "Version": "$(SeamlessPackageVersion)"
+        },
+        {
+          "Include": "Seamless.FLinq.Generator",
+          "Version": "$(SeamlessPackageVersion)",
+          "OutputItemType": "Analyzer",
+          "ReferenceOutputAssembly": "false"
+        }
+      ]
+    },
+    {
+      "project": "Seamless.Database.Tool/Seamless.Database.Tool.csproj",
+      "references": [
+        "..\\Seamless.Database.SqlServer\\Seamless.Database.SqlServer.csproj",
+        "..\\Seamless.Database\\Seamless.Database.csproj"
+      ],
+      "packages": []
+    },
+    {
+      "project": "Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj",
+      "references": [
+        "..\\Seamless.Database\\Seamless.Database.csproj",
+        "..\\Seamless.Database.Rdbms\\Seamless.Database.Rdbms.csproj"
+      ],
+      "packages": [
+        {
+          "Include": "Microsoft.Data.SqlClient",
+          "Version": "7.0.0"
+        },
+        {
+          "Include": "Microsoft.SqlServer.TransactSql.ScriptDom",
+          "Version": "180.102.0"
+        }
+      ]
+    },
+    {
+      "project": "Seamless.Database.Server/Seamless.Database.Server.csproj",
+      "references": [
+        "..\\Seamless.Database.Gateway\\Seamless.Database.Gateway.csproj",
+        "..\\Samples\\Sample.NetShop.Core\\Sample.NetShop.Core.csproj"
+      ],
+      "packages": []
+    },
+    {
+      "project": "Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj",
+      "references": [],
+      "packages": []
+    },
+    {
+      "project": "Seamless.Database.Query/Seamless.Database.Query.csproj",
+      "references": [
+        "../Seamless.Linq/Seamless.Linq.csproj"
+      ],
+      "packages": [
+        {
+          "Include": "Microsoft.SqlServer.TransactSql.ScriptDom",
+          "Version": "180.102.0"
+        }
+      ]
+    },
+    {
+      "project": "Seamless.Database.Generator/Seamless.Database.Generator.csproj",
+      "references": [
+        "..\\Seamless.Database\\Seamless.Database.csproj"
+      ],
+      "packages": [
+        {
+          "Include": "Microsoft.CodeAnalysis.CSharp",
+          "Version": "5.3.0",
+          "PrivateAssets": "all"
+        },
+        {
+          "Include": "Microsoft.CodeAnalysis.Analyzers",
+          "Version": "5.3.0",
+          "PrivateAssets": "all"
+        }
+      ]
+    },
+    {
+      "project": "Seamless.Database.Gateway/Seamless.Database.Gateway.csproj",
+      "references": [
+        "..\\Seamless.Database\\Seamless.Database.csproj",
+        "..\\Seamless.Database.Client\\Seamless.Database.Client.csproj",
+        "..\\Seamless.Database.Query\\Seamless.Database.Query.csproj",
+        "..\\Seamless.Database.Rdbms\\Seamless.Database.Rdbms.csproj",
+        "..\\Seamless.Linq\\Seamless.Linq.csproj"
+      ],
+      "packages": [
+        {
+          "Include": "Microsoft.SqlServer.TransactSql.ScriptDom",
+          "Version": "180.102.0"
+        }
+      ]
+    },
+    {
+      "project": "Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj",
+      "references": [
+        "..\\Seamless.Collections\\Seamless.Collections.csproj",
+        "..\\Seamless.Execution\\Seamless.Execution.csproj"
+      ],
+      "packages": []
+    },
+    {
+      "project": "Seamless.Database.Client/Seamless.Database.Client.csproj",
+      "references": [],
+      "packages": [
+        {
+          "Include": "MemoryPack",
+          "Version": "1.*"
+        }
+      ]
+    },
+    {
+      "project": "Seamless.Database/Seamless.Database.csproj",
+      "references": [
+        "..\\Seamless.Transactions.Collections\\Seamless.Transactions.Collections.csproj",
+        "..\\Seamless.Execution\\Seamless.Execution.csproj",
+        "..\\Seamless.Linq\\Seamless.Linq.csproj",
+        "..\\Seamless.Collections.Persisted\\Seamless.Collections.Persisted.csproj",
+        "..\\Seamless.Collections.Tsavorite\\Seamless.Collections.Tsavorite.csproj"
+      ],
+      "packages": []
+    },
+    {
+      "project": "Seamless.Collections/Seamless.Collections.csproj",
+      "references": [],
+      "packages": [
+        {
+          "Include": "MemoryPack",
+          "Version": "1.*"
+        }
+      ]
+    },
+    {
+      "project": "Seamless.Transactions/Seamless.Transactions.csproj",
+      "references": [
+        "../Seamless.Execution/Seamless.Execution.csproj"
+      ],
+      "packages": [
+        {
+          "Include": "System.IO.Hashing",
+          "Version": "10.0.2"
+        }
+      ]
+    },
+    {
+      "project": "Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj",
+      "references": [
+        "..\\Seamless.Collections\\Seamless.Collections.csproj",
+        "..\\Seamless.Execution\\Seamless.Execution.csproj"
+      ],
+      "packages": [
+        {
+          "Include": "Microsoft.Garnet",
+          "Version": "2.2.1",
+          "GeneratePathProperty": "true"
+        }
+      ]
+    },
+    {
+      "project": "Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj",
+      "references": [],
+      "packages": [
+        {
+          "Include": "Microsoft.CodeAnalysis.CSharp",
+          "Version": "5.3.0",
+          "PrivateAssets": "all"
+        },
+        {
+          "Include": "Microsoft.CodeAnalysis.Analyzers",
+          "Version": "5.3.0",
+          "PrivateAssets": "all"
+        }
+      ]
+    },
+    {
+      "project": "Seamless.Transactions.Collections/Seamless.Transactions.Collections.csproj",
+      "references": [
+        "../Seamless.Transactions/Seamless.Transactions.csproj",
+        "../Seamless.Collections.Persisted/Seamless.Collections.Persisted.csproj",
+        "../Seamless.Collections.Tsavorite/Seamless.Collections.Tsavorite.csproj"
+      ],
+      "packages": []
+    },
+    {
+      "project": "Seamless.Execution/Seamless.Execution.csproj",
+      "references": [
+        "../Seamless.Collections/Seamless.Collections.csproj"
+      ],
+      "packages": []
+    },
+    {
+      "project": "Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj",
+      "references": [],
+      "packages": [
+        {
+          "Include": "Microsoft.CodeAnalysis.CSharp",
+          "Version": "5.6.0",
+          "PrivateAssets": "all"
+        },
+        {
+          "Include": "Microsoft.CodeAnalysis.Analyzers",
+          "Version": "5.6.0",
+          "PrivateAssets": "all"
+        }
+      ]
+    },
+    {
+      "project": "Seamless.Linq/Seamless.Linq.csproj",
+      "references": [
+        "..\\Seamless.Execution\\Seamless.Execution.csproj",
+        "..\\Seamless.Collections.Persisted\\Seamless.Collections.Persisted.csproj",
+        "..\\Seamless.Collections.Tsavorite\\Seamless.Collections.Tsavorite.csproj",
+        "..\\Seamless.Linq.Analyzers\\Seamless.Linq.Analyzers.csproj"
+      ],
+      "packages": []
+    }
+  ],
+  "fixtureSha256": "33afbdbb1a99c5b1d8328a87f47c4e2087203b446b2055db463cdd9b820e5301",
+  "parserMeasurement": {
+    "status": "Unavailable",
+    "reason": "Shared cpu:heavy occupied by another job; no benchmark run or success rate produced",
+    "blockingTaskObserved": "ec9076936d724b7c9c49f0ce8ef10a7b"
+  },
+  "productTests": "NotRun",
+  "guiTests": "NotRun",
+  "p0MeasurementGate": "Incomplete"
+}

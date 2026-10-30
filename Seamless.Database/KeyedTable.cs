@@ -5,7 +5,8 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
     where TKey:struct
     where TRecord:struct {
     private readonly DatabaseContainer database;
-    private readonly global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord> rows;
+    private global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord> rows;
+    private readonly Func<global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>>? sharedFactory;
     private readonly Func<TRecord,TKey> keySelector;
     private readonly IDisposable ownedResources;
     private bool disposed;
@@ -15,7 +16,7 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
         global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord> rows,
         Func<TRecord,TKey> keySelector,
         IDisposable ownedResources,
-        string name) {
+        string name,Func<global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>>? sharedFactory=null) {
         ArgumentNullException.ThrowIfNull(database);
         ArgumentNullException.ThrowIfNull(rows);
         ArgumentNullException.ThrowIfNull(keySelector);
@@ -26,6 +27,7 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
         this.keySelector=keySelector;
         this.ownedResources=ownedResources;
         this.Name=name;
+        this.sharedFactory=sharedFactory;
     }
 
     public string Name { get; }
@@ -123,6 +125,9 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
             return;
         }
         this.disposed=true;
+        if(this.sharedFactory is not null){this.rows.Dispose();}
         this.ownedResources.Dispose();
     }
+    internal void ReleaseSharedHandle()=>this.rows.Dispose();
+    internal void AcquireSharedHandle(){this.rows=this.sharedFactory!();}
 }

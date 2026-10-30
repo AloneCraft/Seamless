@@ -1,0 +1,203 @@
+{
+  "status": "SpecificationOnly",
+  "schemaVersion": 1,
+  "dialects": [
+    "SqlServer",
+    "MySql",
+    "PostgreSql"
+  ],
+  "fixtureDatabase": "Seamless_Sql_Conformance",
+  "ownerMarkerRequired": true,
+  "data": {
+    "seed": 20261029,
+    "generator": "Deterministic formulas below; seed identifies corpus, no PRNG required",
+    "customers": {
+      "count": 1000,
+      "i": "1..1000",
+      "Id": "i",
+      "Name": "'K'+(i%100).ToString(\"D3\",InvariantCulture)",
+      "Age": "18+(i%63)"
+    },
+    "orders": {
+      "count": 10000,
+      "j": "1..10000",
+      "Id": "j",
+      "CustomerId": "1+(j%900)",
+      "Amount": "NULL if j%10==0 else exact decimal (j%100000-50000)/100",
+      "CreatedAt": "UTC 2020-01-01 plus j seconds"
+    },
+    "indexes": [
+      "Customers PRIMARY KEY(Id)",
+      "Orders PRIMARY KEY(Id)",
+      "Orders INDEX(CustomerId)"
+    ],
+    "unmatchedCustomers": 100,
+    "timeZone": "UTC",
+    "baseTextDomain": "ASCII; Unicode/collation boundaries in independent semantic cases"
+  },
+  "cases": [
+    {
+      "id": "W01",
+      "portableSql": "SELECT Id,Name FROM Customers WHERE Id=@id",
+      "arguments": {
+        "id": 42
+      },
+      "mode": "Read",
+      "nativeImplementation": "Planned; otherwise NotImplemented",
+      "argumentTypes": {
+        "id": "Int32"
+      }
+    },
+    {
+      "id": "W02",
+      "portableSql": "SELECT Id,Age FROM Customers WHERE Age>=@minAge AND Age<@maxAge ORDER BY Id",
+      "arguments": {
+        "minAge": 20,
+        "maxAge": 30
+      },
+      "mode": "Read",
+      "nativeImplementation": "Planned; otherwise NotImplemented",
+      "argumentTypes": {
+        "minAge": "Int32",
+        "maxAge": "Int32"
+      }
+    },
+    {
+      "id": "W03",
+      "portableSql": "SELECT Id,Age+@delta AS NextAge FROM Customers WHERE Age>=@age ORDER BY Id",
+      "arguments": {
+        "delta": 1,
+        "age": 60
+      },
+      "mode": "Read",
+      "nativeImplementation": "Planned; otherwise NotImplemented",
+      "argumentTypes": {
+        "delta": "Int32",
+        "age": "Int32"
+      }
+    },
+    {
+      "id": "W04",
+      "portableSql": "SELECT COUNT(*) AS Count FROM Orders WHERE Id<@bound",
+      "arguments": {
+        "bound": 0
+      },
+      "mode": "Read",
+      "nativeImplementation": "Planned; otherwise NotImplemented",
+      "argumentTypes": {
+        "bound": "Int32"
+      }
+    },
+    {
+      "id": "W05",
+      "portableSql": "SELECT SUM(Amount) AS Total,AVG(Amount) AS Average,MIN(Amount) AS Minimum,MAX(Amount) AS Maximum FROM Orders",
+      "arguments": {},
+      "mode": "Read",
+      "nativeImplementation": "Planned; otherwise NotImplemented",
+      "argumentTypes": {}
+    },
+    {
+      "id": "W06",
+      "portableSql": "SELECT CustomerId,COUNT(*) AS Count,SUM(Amount) AS Total FROM Orders GROUP BY CustomerId HAVING COUNT(*)>=@minimum ORDER BY CustomerId",
+      "arguments": {
+        "minimum": 11
+      },
+      "mode": "Read",
+      "nativeImplementation": "Planned; otherwise NotImplemented",
+      "argumentTypes": {
+        "minimum": "Int32"
+      }
+    },
+    {
+      "id": "W07",
+      "portableSql": "SELECT o.Id,c.Id AS CustomerId,o.Amount FROM Orders AS o INNER JOIN Customers AS c ON c.Id=o.CustomerId WHERE o.Id<=@bound ORDER BY o.Id",
+      "arguments": {
+        "bound": 100
+      },
+      "mode": "Read",
+      "nativeImplementation": "Planned; otherwise NotImplemented",
+      "argumentTypes": {
+        "bound": "Int32"
+      }
+    },
+    {
+      "id": "W08",
+      "portableSql": "SELECT c.Id,o.Id AS OrderId,o.Amount FROM Customers AS c LEFT JOIN Orders AS o ON o.CustomerId=c.Id WHERE c.Id>=@bound ORDER BY c.Id,o.Id",
+      "arguments": {
+        "bound": 895
+      },
+      "mode": "Read",
+      "nativeImplementation": "Planned; otherwise NotImplemented",
+      "argumentTypes": {
+        "bound": "Int32"
+      }
+    },
+    {
+      "id": "W09",
+      "portableSql": "SELECT DISTINCT Name FROM Customers ORDER BY Name",
+      "arguments": {},
+      "mode": "Read",
+      "nativeImplementation": "Planned; otherwise NotImplemented",
+      "argumentTypes": {}
+    },
+    {
+      "id": "W10",
+      "portableSql": "SELECT Id,Name FROM Customers ORDER BY Id LIMIT @limit OFFSET @offset",
+      "arguments": {
+        "limit": 20,
+        "offset": 10
+      },
+      "mode": "Read",
+      "nativeImplementation": "Planned; otherwise NotImplemented",
+      "argumentTypes": {
+        "limit": "Int32",
+        "offset": "Int32"
+      }
+    },
+    {
+      "id": "W11",
+      "portableSql": "BEGIN; INSERT INTO Customers(Id,Name,Age) VALUES(@id,@name,@age); UPDATE Customers SET Age=@updatedAge WHERE Id=@id; COMMIT;",
+      "arguments": {
+        "id": -2000000101,
+        "name": "fixture",
+        "age": 20,
+        "updatedAge": 21
+      },
+      "mode": "Commit",
+      "nativeImplementation": "Planned; otherwise NotImplemented",
+      "argumentTypes": {
+        "id": "Int32",
+        "name": "String(100)",
+        "age": "Int32",
+        "updatedAge": "Int32"
+      }
+    },
+    {
+      "id": "W12",
+      "portableSql": "BEGIN; DELETE FROM Orders WHERE Id=@id; ROLLBACK;",
+      "arguments": {
+        "id": 42
+      },
+      "mode": "Rollback",
+      "nativeImplementation": "Planned; otherwise NotImplemented",
+      "argumentTypes": {
+        "id": "Int32"
+      }
+    }
+  ],
+  "dialectOverrides": {
+    "SqlServer": {
+      "count": "COUNT(*) -> COUNT_BIG(*) for integer64 comparison",
+      "W10": "SELECT Id,Name FROM Customers ORDER BY Id OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY",
+      "transactionBegin": "BEGIN TRANSACTION"
+    },
+    "MySql": {
+      "transactionBegin": "START TRANSACTION",
+      "storageEngine": "InnoDB"
+    },
+    "PostgreSql": {
+      "parameters": "Provider named binding may rewrite to positional; save actual SQL and argument types"
+    }
+  },
+  "expectedResults": "Generate golden values with independent integer/decimal loops, not production Query/LINQ operators. Confirm against external DBs. W11 assert committed row, then remove sentinel outside timing; W12 assert all initial rows remain. Verify fixture baseline before every batch."
+}

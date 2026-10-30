@@ -29,9 +29,49 @@ public static class FixedCaseCatalog{
         }
         if(item.IdealBody is not null){
             builder.Append($"public static global::Benchmark.Dynamic.Core.DynamicQueryValue RunIdeal(object? primary,object? secondary){{var result=IdealBody((int[])primary!,(int[])secondary!);return {materialize};}}\n");
-            builder.Append("private static object IdealBody(int[] raw,int[] second){\n").Append(item.IdealBody).AppendLine("\n}");
+            builder.Append("private static object IdealBody(int[] raw,int[] second){\n").Append(EffectiveIdealBody(item)).AppendLine("\n}");
         }
         builder.AppendLine("}");
         return builder.ToString();
+    }
+
+    // 取り込み原文は由来として保持し、比較には意味を修正した参照を使う。
+    public static string? EffectiveIdealBody(FixedCase item){
+        if(item.ID=="chain-20"){
+            return """
+                var groups=new global::System.Collections.Generic.List<int>?[16];
+                var order=new global::System.Collections.Generic.List<int>(16);
+                foreach(var value in raw){
+                    var key=value&15;
+                    if(groups[key] is null){groups[key]=new global::System.Collections.Generic.List<int>();order.Add(key);}
+                    groups[key]!.Add(value);
+                }
+                var items=new int[order.Count];
+                for(var index=0;index<order.Count;index++){
+                    var key=order[index];
+                    var groupSum=0;
+                    foreach(var value in groups[key]!){groupSum=checked(groupSum+value);}
+                    items[index]=unchecked(key+groupSum);
+                }
+                return items.OrderByDescending(x=>x&31).Take(12).ToArray();
+                """;
+        }
+        if(item.ID!="chain-08"){return item.IdealBody;}
+        return """
+            var groups=new global::System.Collections.Generic.List<int>?[16];
+            var order=new global::System.Collections.Generic.List<int>(16);
+            foreach(var value in raw){
+                var key=value&15;
+                if(groups[key] is null){groups[key]=new global::System.Collections.Generic.List<int>();order.Add(key);}
+                groups[key]!.Add(value);
+            }
+            var total=0L;
+            foreach(var key in order){
+                var groupSum=0;
+                foreach(var value in groups[key]!){groupSum=checked(groupSum+value);}
+                total=checked(total+unchecked(key+groupSum));
+            }
+            return total;
+            """;
     }
 }

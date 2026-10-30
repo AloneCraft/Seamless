@@ -1,0 +1,12 @@
+[
+  {
+    "Id": "common/aggregate-join",
+    "Database": "Seamless_Comparison_Fixture",
+    "File": "Read-AggregateJoinView.sql",
+    "Ordered": true,
+    "OrderKeyOrdinals": [
+      0
+    ],
+    "NativeQuery": "fixture/aggregate-join"
+  }
+]
