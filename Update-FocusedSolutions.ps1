@@ -4,6 +4,7 @@
 $ErrorActionPreference = 'Stop'
 
 $Solutions = [ordered]@{
+    'Benchmark.TpcC.slnx' = @('Benchmark/Benchmark.TpcC/Benchmark.TpcC.csproj','Benchmark/Benchmark.TpcC.Tests/Benchmark.TpcC.Tests.csproj')
     'Benchmark.Headless.slnx'                  = @('Benchmark/Benchmark.Headless/Benchmark.Headless.csproj')
     'Benchmark.Scalable.slnx'                  = @('Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj', 'Benchmark/Benchmark.Scalable.Headless/Benchmark.Scalable.Headless.csproj', 'Benchmark/Benchmark.Scalable.Tests/Benchmark.Scalable.Tests.csproj')
     'Benchmark.Tsavorite.ParameterSweep.slnx'  = @('Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj')
@@ -27,6 +28,7 @@ $Solutions = [ordered]@{
         'Test/Test.csproj',
         'Benchmark/Benchmark.Headless.Tests/Benchmark.Headless.Tests.csproj',
         'Benchmark/Benchmark.Audit.Tests/Benchmark.Audit.Tests.csproj',
+        'Benchmark/Benchmark.TpcC.Tests/Benchmark.TpcC.Tests.csproj',
         'Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj',
         'Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj',
         'Benchmark/Benchmark.Tpc.Tests/Benchmark.Tpc.Tests.csproj',

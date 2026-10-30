@@ -14,15 +14,16 @@ public sealed class EGenEngineFixture:IDisposable{
     public EGenEngineFixture(){
         var build=Environment.GetEnvironmentVariable("TPCE_EGEN_BUILD") ?? DefaultBuild;
         var dll=Path.Combine(build,"EGenHarness.dll");
-        this.flat=EGenFixture.Generate(1000,1);
+        using var lifetime=NativeTestProgress.Measure("fixture-create");
+        using(NativeTestProgress.Measure("fixture-generate")){this.flat=EGenFixture.Generate(1000,1);}
         if(this.flat is null||!File.Exists(dll)){
             return;
         }
-        var scale=new TpcEScale{Customers=1000,InitialTradeDays=1,MarketDays=1305,NewsItemBytes=100_000};
+        var scale=new TpcEScale{Customers=1000,InitialTradeDays=1,MarketDays=1305,NewsItemBytes=100_000,TsavoriteSegmentBytes=NativeTestProgress.SegmentBytes};
         this.store=Store.CreateTemporary();
-        this.Engine=Load(this.store,scale,this.flat);
+        using(NativeTestProgress.Measure("fixture-load-engine")){this.Engine=Load(this.store,scale,this.flat);}
         this.twinStore=Store.CreateTemporary();
-        this.Twin=Load(this.twinStore,scale,this.flat);
+        using(NativeTestProgress.Measure("fixture-load-twin")){this.Twin=Load(this.twinStore,scale,this.flat);}
         this.Host=new Compliance.HarnessHost(dll);
     }
     private static ITpcEEngine Load(Store store,TpcEScale scale,string flat){
@@ -49,11 +50,12 @@ public sealed class EGenEngineFixture:IDisposable{
     public ITpcEEngine? Twin{get;}
     internal Compliance.HarnessHost? Host{get;}
     public void Dispose(){
+        using var lifetime=NativeTestProgress.Measure("fixture-dispose");
         this.Host?.Dispose();
         this.Engine?.Dispose();
         this.Twin?.Dispose();
-        this.store?.Dispose();
-        this.twinStore?.Dispose();
+        using(NativeTestProgress.Measure("fixture-close-engine-store")){this.store?.Dispose();}
+        using(NativeTestProgress.Measure("fixture-close-twin-store")){this.twinStore?.Dispose();}
         if(this.flat is not null){
             EGenFixture.Delete(this.flat);
         }

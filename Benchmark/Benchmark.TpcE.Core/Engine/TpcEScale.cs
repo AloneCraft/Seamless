@@ -14,6 +14,9 @@ public sealed record TpcEScale{
     public int NewsItemBytes{get;init;}=1024;
     /// <summary>実行中に流す取引の見込み(索引と予算の見積もりに使う)。</summary>
     public long ExpectedRunTrades{get;init;}=10_000;
+    /// <summary>新規 Tsavorite 領域の明示的なセグメント長。省略時は従来値。既存領域は作成時と同じ値で開く。</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? TsavoriteSegmentBytes{get;init;}
     public long Accounts=>(long)this.Customers*5;
     public long Companies=>Math.Max(1,(long)this.Customers*500/1000);
     public long Securities=>Math.Max(1,(long)this.Customers*685/1000);
@@ -36,13 +39,16 @@ public static class TpcESizing{
             pageSize=PowerOfTwoAtLeast(Math.Max(pageSize,2L*rowBytes));
         }
         var log=Math.Clamp(PowerOfTwoAtLeast(Math.Max(1,expectedRows)*rowBytes),Math.Max(MinimumLog,2*pageSize),Math.Max(MaximumLog,2*pageSize));
-        return TsavoriteTuning.Default with{PageSize=pageSize,LogMemorySize=log};
+        return TsavoriteTuning.Default with{PageSize=pageSize,SegmentSize=SegmentSize(scale,pageSize),LogMemorySize=log};
     }
     public static TsavoriteTuning IndexTuning(string name,TpcEScale scale){
         // 索引のチャンクは 1 個 600 バイト程度。取引の索引(X6〜X8, X10, X11)だけ大きくする。
         long log=MinimumLog;
         if(name.StartsWith("x06",StringComparison.Ordinal)||name.StartsWith("x07",StringComparison.Ordinal)||name.StartsWith("x08",StringComparison.Ordinal)||name.StartsWith("x10",StringComparison.Ordinal)||name.StartsWith("x11",StringComparison.Ordinal)){
             log=Math.Clamp(PowerOfTwoAtLeast(scale.TotalTrades/8*640),MinimumLog,MaximumLog);
+        }
+        if(scale.TsavoriteSegmentBytes is not null){
+            return TsavoriteTuning.Default with{LogMemorySize=log,SegmentSize=SegmentSize(scale,TsavoriteTuning.Default.PageSize)};
         }
         return TsavoriteTuning.Default with{LogMemorySize=log};
     }
@@ -68,6 +74,11 @@ public static class TpcESizing{
             entryBytes=700;
         }
         return (rows,Math.Max(4096,rows*entryBytes));
+    }
+    private static long SegmentSize(TpcEScale scale,long pageSize){
+        var segment=scale.TsavoriteSegmentBytes??TsavoriteTuning.Default.SegmentSize;
+        if(segment<=0||(segment&(segment-1))!=0){throw new ArgumentOutOfRangeException(nameof(scale.TsavoriteSegmentBytes),"Segment bytes must be a positive power of two.");}
+        return Math.Max(segment,pageSize);
     }
     private static long RowBytes(string name,TpcEScale scale){
         return name switch{
