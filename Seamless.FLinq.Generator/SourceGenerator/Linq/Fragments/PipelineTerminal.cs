@@ -15637,6 +15637,84 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
 
+
+    private string? RenderDirectSpanPipelineToDictionary(string actualVariableName,string actualTypeName) {
+        if(func1 is null || !CanUseDirectSpanPipelineFunc(func1)) {
+            return null;
+        }
+        if(func2 is not null && !CanUseDirectSpanPipelineFunc(func2)) {
+            return null;
+        }
+
+        var sourceName = $"__pipelineSrc{this.result}";
+        if(this.TryGetDirectSourceSpanSetup(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
+            return null;
+        }
+
+        var hasLeadingSlice = this.TryAnalyzeLeadingSlice(out var leadingSliceStageCount);
+        var spanName = $"__pipelineSpan{this.result}";
+        var startIdxName = $"__startIndex{this.result}";
+        var endIdxName = $"__endIndex{this.result}";
+        var lenName = $"__length{this.result}";
+        var indexName = $"__pipelineIndex{this.result}";
+        var sourceItemName = this.SourceItemName();
+        var keyName = $"__dKey{this.result}";
+        var valName = $"__dVal{this.result}";
+
+        var keyType = func1.ReturnTypeName ?? "object";
+        var valType = func2?.ReturnTypeName ?? pipeline.ElementType;
+        var cmpArg = string.IsNullOrEmpty(comparerValue) ? string.Empty : $", (global::System.Collections.Generic.IEqualityComparer<{keyType}>?){comparerValue}";
+
+        var builder = new StringBuilder();
+        builder.AppendLine($"{actualTypeName} {actualVariableName};");
+        builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
+        builder.AppendLine($"    var {spanName}={directSpanExpression};");
+
+        if(hasLeadingSlice) {
+            builder.AppendLine($"    var {startIdxName}=0;");
+            builder.AppendLine($"    var {endIdxName}={spanName}.Length;");
+            for(var i = 0; i < leadingSliceStageCount; i++) {
+                var stage = pipeline.Stages[i];
+                switch(stage.Kind) {
+                    case PipelineStageKind.Skip:
+                        builder.AppendLine($"    {startIdxName}=global::System.Math.Min({endIdxName}, {startIdxName} + global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                    case PipelineStageKind.Take:
+                        builder.AppendLine($"    {endIdxName}=global::System.Math.Min({endIdxName}, {startIdxName} + global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                    case PipelineStageKind.SkipLast:
+                        builder.AppendLine($"    {endIdxName}=global::System.Math.Max({startIdxName}, {endIdxName} - global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                    case PipelineStageKind.TakeLast:
+                        builder.AppendLine($"    {startIdxName}=global::System.Math.Max({startIdxName}, {endIdxName} - global::System.Math.Max(0, {stage.Value}));");
+                        break;
+                }
+            }
+            builder.AppendLine($"    var {lenName}=global::System.Math.Max(0, {endIdxName} - {startIdxName});");
+        } else {
+            builder.AppendLine($"    var {startIdxName}=0;");
+            builder.AppendLine($"    var {lenName}={spanName}.Length;");
+        }
+
+        builder.AppendLine($"    {actualVariableName}=new({lenName}{cmpArg});");
+        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{lenName};{indexName}++) {{");
+        builder.AppendLine($"        var {sourceItemName}={spanName}[{startIdxName} + {indexName}];");
+        var currentName = this.AppendDirectSpanPipelineStages(builder,sourceItemName,"        ",startIndex: leadingSliceStageCount);
+        builder.AppendLine($"        {keyType} {keyName}=default!;");
+        AppendIndented(builder,this.FuncAssign(func1,"ToDictionary",keyName,currentName),"        ");
+        if(func2 is not null) {
+            builder.AppendLine($"        {valType} {valName}=default!;");
+            AppendIndented(builder,this.FuncAssign(func2,"ToDictionary",valName,currentName),"        ");
+            builder.AppendLine($"        {actualVariableName}.Add({keyName},{valName});");
+        } else {
+            builder.AppendLine($"        {actualVariableName}.Add({keyName},({valType})(object?){currentName}!);");
+        }
+        builder.AppendLine("    }");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
+
     private string? RenderDirectSpanPipelineToHashSetWithFilter(string actualVariableName,string actualTypeName) {
 
 
@@ -22715,6 +22793,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipelineSou
 
 
         if(terminalKind==PipelineTerminalKind.ToDictionary) {
+            if(this.RenderDirectSpanPipelineToDictionary(actualVariableName,actualTypeName) is { } directSpanDict) {
+                return directSpanDict;
+            }
 
 
 
