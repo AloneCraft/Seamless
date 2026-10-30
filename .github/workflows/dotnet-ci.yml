@@ -3,10 +3,10 @@ name: .NET CI
 on:
   push:
     branches:
-      - master
+      - main
+      - '0.1'
+      - '0.1.0'
   pull_request:
-    branches:
-      - master
   workflow_dispatch:
   schedule:
     - cron: "23 16 * * *"
