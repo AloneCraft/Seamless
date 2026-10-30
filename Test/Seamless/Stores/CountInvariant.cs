@@ -76,7 +76,7 @@ public class CountInvariant{
     public void SetOperation_FailedMidway_CountMatchesContents(){
         //和集合が満杯の判定で途中で止まっても、それまでに足した分だけ件数が増えている
         using var storeA=CommonStore.CreateMemory();
-        using var a=storeA.CreateTsavoriteHashSet<long>("a",new TsavoriteTuning{PageSize=1L<<12,SegmentSize=1L<<16,LogMemorySize=1L<<16,IndexSize=1L<<14});
+        using var a=storeA.CreateTsavoriteHashSet<long>("a",new TsavoriteTuning{PageSize=1L<<12,SegmentSize=1L<<16,LogMemorySize=1L<<16,IndexSize=1L<<14,Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>()});
         using var storeB=CommonStore.CreateMemory();
         using var b=storeB.CreateTsavoriteHashSet<long>("b");
         using var set=a.Create();
