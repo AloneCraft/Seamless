@@ -337,6 +337,14 @@ internal sealed class ListRoot(int 番号,string sourceExpression,string element
     protected override string SpanExpression(string sourceName,string startExpression) => $"global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({sourceName}).Slice({startExpression})";
 }
 
+internal sealed class ImmutableArrayRoot(int 番号,string sourceExpression,string elementType):DirectSpanRootBase(番号,sourceExpression,elementType) {
+    internal override LocalDeclarationStatementSyntax? BindLastSource(string localName)=>this.CreateLastSourceBinding(localName);
+    protected override string SourceTypeName => $"global::System.Collections.Immutable.ImmutableArray<{elementType}>";
+    protected override string CountExpression(string sourceName) => $"{sourceName}.Length";
+    protected override string RemainingCountExpression(string sourceName,string indexName) => $"{sourceName}.Length-({indexName}+1)";
+    protected override string SpanExpression(string sourceName,string startExpression) => $"{sourceName}.AsSpan().Slice({startExpression})";
+}
+
 // IEnumerator<T> を実装しない duck-typing struct エニュメレータ（例: ImmutableArray<T>.Enumerator）向け。
 // 具象エニュメレータ型を直接フィールドとして持つ非ジェネリック struct を生成する（直接展開）。
 // TEnum の struct 制約が不要なため CS0315 が発生しない。

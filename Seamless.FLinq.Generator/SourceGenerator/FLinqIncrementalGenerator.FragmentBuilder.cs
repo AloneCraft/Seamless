@@ -1043,6 +1043,10 @@ public sealed partial class FLinqIncrementalGenerator {
         type is INamedTypeSymbol named
         &&named.OriginalDefinition.ToDisplayString()=="System.Collections.Generic.List<T>";
 
+    private bool IsImmutableArrayType(ITypeSymbol? type) =>
+        type is INamedTypeSymbol named
+        &&named.OriginalDefinition.ToDisplayString()=="System.Collections.Immutable.ImmutableArray<T>";
+
     /// <summary>
     /// 型シンボルから列挙要素型（<c>T</c>）を解決する。
     /// <br/>解決順序:
@@ -2166,6 +2170,9 @@ public sealed partial class FLinqIncrementalGenerator {
         }
         if(IsListType(expressionType)) {
             return new ListRoot(number,sourceExpression,elementTypeName);
+        }
+        if(IsImmutableArrayType(expressionType)) {
+            return new ImmutableArrayRoot(number,sourceExpression,elementTypeName);
         }
         if(IsTsavoriteParallelSetType(expressionType,out _)) {
             return new TsavoriteParallelSetRoot(number,sourceExpression,elementTypeName,enumeratorTypeName);
