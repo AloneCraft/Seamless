@@ -95,6 +95,12 @@ internal sealed partial class QueryBinder{
         if(function.Collation is not null||function.TrimOptions is not null||function.JsonParameters.Count>0||function.JsonOrderByClause is not null||function.WithArrayWrapper||function.OverClause is not null||function.WithinGroupClause is not null||function.IgnoreRespectNulls.Count>0){throw Unsupported(function);}
         var name=function.FunctionName.Value.ToUpperInvariant();
         if(function.CallTarget is not null){return this.BindTargetFunction(function,columns,outer,aggregates);}
+        if(name is "QUOTENAME" or "OBJECTPROPERTYEX"){
+            if(name=="QUOTENAME"&&(function.Parameters.Count<1||function.Parameters.Count>2)||name=="OBJECTPROPERTYEX"&&function.Parameters.Count!=2){throw Unsupported(function);}
+            IList<ScalarExpression>arguments=function.Parameters;
+            if(name=="QUOTENAME"&&arguments.Count==1){arguments=[arguments[0],new StringLiteral{Value="["}];}
+            return this.BindRoutine(new(this.database,"sys",name),arguments,columns,outer,aggregates);
+        }
         if(name is "SCHEMA_NAME" or "SCHEMA_ID" or "OBJECT_NAME" or "OBJECT_ID" or "HAS_DBACCESS"){
             if(function.Parameters.Count>1||(function.Parameters.Count==0&&name is "OBJECT_NAME" or "OBJECT_ID" or "HAS_DBACCESS")){throw Unsupported(function);}
             var routineName=new SqlObjectName(this.database,"sys",name);

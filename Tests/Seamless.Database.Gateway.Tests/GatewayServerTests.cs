@@ -27,7 +27,8 @@ public sealed class GatewayServerTests{
             var httpPort=8089;
             var gatewayOptions=new GatewayServerOptions{
                 TdsPort=tdsPort,
-                HttpPort=httpPort
+                HttpPort=httpPort,
+                NativePort=0
             };
 
             using var server=new GatewayServer(adapter,gatewayOptions);
@@ -53,8 +54,10 @@ public sealed class GatewayServerTests{
                     var res=await http.PostAsync($"http://localhost:{httpPort}/api/sql",content);
                     res.EnsureSuccessStatusCode();
                     var json=await res.Content.ReadAsStringAsync();
-                    Assert.Contains("商品ID",json);
-                    Assert.Contains("単価",json);
+                    using var document=JsonDocument.Parse(json);
+                    var columns=document.RootElement.GetProperty("columns").EnumerateArray().Select(column=>column.GetString()).ToArray();
+                    Assert.Contains("商品ID",columns);
+                    Assert.Contains("単価",columns);
                 }
 
                 // 2. TDS PreLogin ハンドシェイクの検証 (生Socket通信)

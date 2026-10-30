@@ -1,7 +1,31 @@
 # 実クライアントの通信検証
 
 ## 現在の判定
-世代 `20261030T032530680Z-3b7609ad`（package `0.0.0-ssms.20261030031940904`）はValidatedとなり稼働中である。AdventureWorks2016とfixtureの計94対象で取り込み全値とTDS全値・metadataが一致し、基本SQL・生成関数・SQL/native比較も成功した。稼働先でもDB分類、msdb能力照会の整数変換、SMOとBasic.sqlの再照合に成功した。前版では利用者の実SSMS接続・新規クエリ作成・Basic.sql実行が成功したが、DB一覧を補完した現版の実SSMS再接続・表示は利用者の確認待ちである。値を空文字・切り捨てに置き換えない。
+世代 `20261030T032530680Z-3b7609ad`（package `0.0.0-ssms.20261030031940904`）はValidatedとなり稼働中である。AdventureWorks2016とfixtureの計94対象で取り込み全値とTDS全値・metadataが一致し、基本SQL・生成関数・SQL/native比較も成功した。一方、利用者の実SSMSではDB一覧にAdventureWorksが表示されず、`Server/Database/Option` の取得時に `RPC data type 0x63 is not supported` が記録された。既存の限定したSMO API試験の成功を、この画面の合格とは扱わない。値を空文字・切り捨てに置き換えない。
+
+## DB一覧とOption照会の相互運用
+NTEXT（0x63）のRPC入力は、最大バイト長、collation、実バイト長、UTF-16値を順に読み取る。NULL、空文字、長さ不正、後続パラメーター、`sp_executesql` のSQL本文自体をNTEXTにする場合を実SqlClientで検証する。ROW出力のtext pointer形式はRPC入力へ混在させない。
+
+インストール済みのSSMS SDKのSFC Enumeratorが実際に生成するDB一覧とOption照会をembedded SQLへ保存する。`EngineEdition=3` のprofileではAzure Edge専用のデータ保持IF分岐は実行されず、その既知の空一時表の式をfalseへ正規化する。CREATE＋IFとcleanupの全文トークン一致を必要とし、分割送信の状態は接続内だけに保持し、接続resetで破棄する。一般DDLや利用者の書き込みへのread-only制限は維持する。既知のStatus式だけは整数の状態マスクとしてhexリテラルを10進表現へ正規化し、業務SQLのbinary値には適用しない。
+
+`sys.databases` は既存18列を維持して27列の管理属性を加える。ANSI式の既定値と未提供のSQL自動統計・縮小・Broker・full-text・Ledger等の無効状態を返し、元SQL Serverの機能設定を複製したとは扱わない。`sys.database_mirroring` は型を持つ空集合を返す。DB名、read-only、collation、system/snapshot分類は実際の登録DBから評価する。実SFCのOption全30列とStatusを含むDB一覧を、従来の明示した少数フィールドの照会に加えて受け入れ対象とする。
+
+修正前は実SFCのSQLをNTEXTで送る2件がread-only DDLとhex解釈で失敗し、修正後は成功した。接続間分離、分割送信、cleanup、reset、改変IFと後続DELETEの拒否、一般binary値の保持を含むGateway全125件がDebug/Release各125件成功、skip 0。証跡は `F:/CodexTemp/SsmsLockTimeout/database-options-before-03.trx` と `database-options-all-debug-03.trx` / `database-options-all-release.trx`。全回帰で判明したHTTP試験のポート競合はnativeの動的ポートへ分離し、JSONの日本語はUnicode escapeを復号して列名を確認するよう試験を修正した。
+
+package `0.0.0-ssms.20261030055409051` のみを導入したprivate fixtureで、実SSMS SDKのOption全30列、Status付きDB一覧、既存7種のSMO操作、msdb能力照会、接続設定が成功した。製品依存12件が同版のローカルフィード由来であることを検証した。証跡は `F:/CodexTemp/SmoOptionsPackage-v15-process/`。これは14333への反映や実SSMS画面の合格を意味しない。
+
+既定master接続の追加試験では、未修飾の `sys.database_mirroring` を仮想masterに解決できず208となることが判明した。仮想masterでもこの空カタログだけを解決する修正を加えた。通常DB/master×Option/Listの4経路を含むGateway全127件がDebug/Release各127件成功、skip 0。証跡は `F:/CodexTemp/SsmsLockTimeout/database-options-master-before.trx` と `database-options-master-all-{debug,release}.trx`。上記private fixtureの旧成功は通常DB接続の結果であり、master修正の配置済み証拠には使用しない。
+
+## SSMS階層定義が要求するメタデータ
+SSMS 22のObjectExplorer.dllにあるSQL Server 16.0用定義は、DBのOptionに加えて12項目の親DBプロパティを要求する。派生のParentColumns/Columnsは祖先の値を置換し、要求生成時にはName/Urn等の最低限の列、filter/optional列を追加する。祖先のDatabaseGuid等を単純にunionしない。DLLのSHA-256は`49B31E9A7113D155416C7357AE370FF4914B288325BFF306389A256B3EEB22D1`。抽出XMLとILに基づく契約であり、実画面の通信traceと混同しない。
+
+DB一覧の既知HADR setup/cleanupは全トークンで照合する。HADR非提供profileでは、既知の空同期状態temp表への参照を型付きの空derived tableへ正規化し、残りのSELECTを共通エンジンで評価する。一般temp DDL、HAS_PERMS_BY_NAME全般、Always On本体を実装するものではない。分割送信の状態は接続内に限定し、4文のcleanupとresetで破棄する。SQL本文の余分な文や改変setupを隠さない。
+
+SQL Server用カタログの問い合わせでは、SERVERPROPERTYの既知profile値とsysname別名をGatewayで型付きの式へ正規化する。QUOTENAMEと整数属性IsSchemaBoundに限定したOBJECTPROPERTYEXは、既存のISqlCatalog経由で解決する。CoreからGatewayへ依存を追加しない。sql_variant完全対応は含まない。ビューのschema bindingは完全なCREATE/ALTER VIEW定義から取得し、判定不能はNULLを保持する。
+
+表・ビュー・ストアド・関数の表示用に、未提供機能の無効状態と空のextended_properties/system_sql_modules/data_spaces、all_sql_modulesの別名を提供する。元のXML/空間列の有無は列型から評価する。主キーなし表にもheap行を返し、SSMSのsys.indexesとのINNER JOINで表を消さない。既存の主キーID・型の対応は維持する。これらのカタログは互換表示用の論理情報であり、SQL Serverの物理索引・partition・Ledger実装の同一性を示さない。
+
+階層定義相当のSFC要求5種（親DB＋Option、Table160、View160、Procedure120、Functions）は、比較元で成功し、旧候補ではDECLARE/カタログ不足で5種とも失敗した。修正後の実TDS試験とGateway全136件はDebug/Release各136件成功、skip 0。さらに実SSMS SDKが16.0向けに生成する要求5種がsource診断とPackageReferenceだけのfixtureの両方で成功した。製品依存12件がpackage `0.0.0-ssms.20261030070500980` のローカルフィード由来であることを確認した。証跡は`F:/CodexTemp/SfcObjectExplorer-source-01/`、`SfcObjectExplorer-v16-before/`、`SfcObjectExplorer-source-server-01/`、`SmoObjectExplorerPackage-v17-process/`、`SsmsLockTimeout/object-explorer-all-{debug,release}-01.trx`。小fixtureの成功は実データ全件検証・14333反映・利用者の実画面成功と別の判定である。
 
 稼働情報は `D:/Seamless/Comparison/Managed/active.json`、検証結果は同管理領域の `generations/20261030T032530680Z-3b7609ad/validation.json` に保存する。利用者指示により共有調停器を使用せず、所有する比較処理とサーバーは共通のaffinity `0xFF`（最大8論理CPU）で実行する。外部のSQL ServerサービスのCPU制限を変更したという意味ではない。
 
