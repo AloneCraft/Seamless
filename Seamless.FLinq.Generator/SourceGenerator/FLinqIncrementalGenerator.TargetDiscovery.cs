@@ -119,13 +119,11 @@ public sealed partial class FLinqIncrementalGenerator {
         if(containingType is null) {
             return false;
         }
-        if(containingMethod is not null&&!LinqRewrite判定(containingMethod,context.SemanticModel.Compilation)) {
+        // Rewrite属性の優先順位は呼び出し先で解決する。呼び出し側のNoRewriteを
+        // 重ねると、method/inner classの明示指定やCounterOnlyまで無効になってしまう。
+        if(invocation.FirstAncestorOrSelf<MethodDeclarationSyntax>() is { } containingMethodSyntax
+            &&IsLinqInterceptionExplicitlyDisabled(containingMethodSyntax)) {
             return false;
-        }
-        for(var t = containingType;t is not null;t=t.ContainingType) {
-            if(TryGetLinqRewriteOverride(t.GetAttributes(),out var typeOverride)&&!typeOverride) {
-                return false;
-            }
         }
 
         var linqAnalysis = LinqExpressionAnalyzer.Analyze(method,context.SemanticModel.Compilation);
