@@ -15,7 +15,9 @@ namespace Seamless.Linq.Analyzers;
 
 [ExportCodeRefactoringProvider(LanguageNames.CSharp,Name = nameof(YieldStateMachineRefactoringProvider)),Shared]
 public sealed class YieldStateMachineRefactoringProvider:CodeRefactoringProvider {
-    public const string Title = "Seamless: ゼロアロケーション構造体列挙子へ展開";
+    public const string SyncTitle = "Seamless: ゼロアロケーション構造体列挙子へ展開";
+    public const string AsyncTitle = "Seamless: ゼロアロケーション非同期構造体列挙子へ展開";
+    public const string Title = SyncTitle;
 
     public override async Task ComputeRefactoringsAsync(CodeRefactoringContext context){
         var root = await context.Document.GetSyntaxRootAsync(context.CancellationToken).ConfigureAwait(false);
@@ -34,15 +36,33 @@ public sealed class YieldStateMachineRefactoringProvider:CodeRefactoringProvider
             return;
         }
 
+        var returnTypeText = methodDeclaration.ReturnType.ToString();
+        var isAsync = returnTypeText.Contains("IAsyncEnumerable",StringComparison.Ordinal)
+            ||methodDeclaration.Modifiers.Any(static m => m.IsKind(SyntaxKind.AsyncKeyword))
+            ||methodDeclaration.Body.DescendantNodes().Any(static n => n.IsKind(SyntaxKind.AwaitExpression));
+
+        var title = isAsync ? AsyncTitle : SyncTitle;
+
         var action = CodeAction.Create(
-            title: Title,
-            createChangedDocument: c => this.ExpandYieldStateMachineAsync(context.Document,root,methodDeclaration,c),
-            equivalenceKey: Title);
+            title: title,
+            createChangedDocument: c => this.ExpandStateMachineAsync(context.Document,root,methodDeclaration,isAsync,c),
+            equivalenceKey: title);
 
         context.RegisterRefactoring(action);
     }
 
-    private Task<Document> ExpandYieldStateMachineAsync(
+    private Task<Document> ExpandStateMachineAsync(
+        Document document,
+        SyntaxNode root,
+        MethodDeclarationSyntax methodDeclaration,
+        bool isAsync,
+        CancellationToken cancellationToken){
+        return isAsync
+            ? this.ExpandAsyncStateMachineAsync(document,root,methodDeclaration,cancellationToken)
+            : this.ExpandSyncStateMachineAsync(document,root,methodDeclaration,cancellationToken);
+    }
+
+    private Task<Document> ExpandSyncStateMachineAsync(
         Document document,
         SyntaxNode root,
         MethodDeclarationSyntax methodDeclaration,
@@ -76,31 +96,13 @@ public sealed class YieldStateMachineRefactoringProvider:CodeRefactoringProvider
             forwardArgs.Append($"this._{paramNames[i]}");
         }
 
-        // ローカル変数（forループカウンタ等）のフィールド昇格
         var hoistedFields = new StringBuilder();
         var hoistedInit = new StringBuilder();
         var hoistedNames = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach(var forStmt in methodDeclaration.Body!.DescendantNodes().OfType<ForStatementSyntax>()){
-            if(forStmt.Declaration is not null){
-                var varType = forStmt.Declaration.Type.ToString();
-                if(varType=="var"){
-                    varType="int";
-                }
-                foreach(var v in forStmt.Declaration.Variables){
-                    var vName = v.Identifier.ValueText;
-                    if(hoistedNames.Add(vName)){
-                        hoistedFields.AppendLine($"        private {varType} _{vName};");
-                        var initExpr = v.Initializer?.Value.ToString()??"0";
-                        hoistedInit.AppendLine($"            this._{vName}={initExpr};");
-                    }
-                }
-            }
-        }
+        CollectHoistedVariables(methodDeclaration.Body!,hoistedFields,hoistedInit,hoistedNames);
 
-        // AST書換え: yield return -> { this._current = expr; return true; }
-        // 識別子 i -> this._i, count -> this._count
-        var rewriter = new YieldToMoveNextRewriter(paramNames,hoistedNames);
+        var rewriter = new YieldToMoveNextRewriter(paramNames,hoistedNames,false);
         var transformedBody = (BlockSyntax)rewriter.Visit(methodDeclaration.Body!)!;
 
         var moveNextStatements = new List<StatementSyntax>();
@@ -168,6 +170,142 @@ public sealed class YieldStateMachineRefactoringProvider:CodeRefactoringProvider
         }
     """;
 
+        return ReplaceMethodWithGeneratedStructs(document,root,methodDeclaration,enumerableTypeName,paramNames,generatedStructsText);
+    }
+
+    private Task<Document> ExpandAsyncStateMachineAsync(
+        Document document,
+        SyntaxNode root,
+        MethodDeclarationSyntax methodDeclaration,
+        CancellationToken cancellationToken){
+        var methodName = methodDeclaration.Identifier.ValueText;
+        var enumerableTypeName = methodName+"AsyncEnumerable";
+        var enumeratorTypeName = methodName+"AsyncEnumerator";
+
+        var elementType = "object";
+        if(methodDeclaration.ReturnType is GenericNameSyntax genericName&&genericName.TypeArgumentList.Arguments.Count==1){
+            elementType=genericName.TypeArgumentList.Arguments[0].ToString();
+        }
+
+        var parameters = methodDeclaration.ParameterList.Parameters;
+        var paramNames = global::System.Linq.Enumerable.Select(parameters,static p => p.Identifier.ValueText).ToArray();
+        var paramTypes = global::System.Linq.Enumerable.Select(parameters,static p => p.Type?.ToString()??"object").ToArray();
+
+        var structFields = new StringBuilder();
+        var ctorParams = new StringBuilder();
+        var ctorAssigns = new StringBuilder();
+        var forwardArgs = new StringBuilder();
+
+        for(var i = 0;i<paramNames.Length;i++){
+            if(i>0){
+                ctorParams.Append(",");
+                forwardArgs.Append(",");
+            }
+            structFields.AppendLine($"        private readonly {paramTypes[i]} _{paramNames[i]};");
+            ctorParams.Append($"{paramTypes[i]} {paramNames[i]}");
+            ctorAssigns.AppendLine($"            this._{paramNames[i]}={paramNames[i]};");
+            forwardArgs.Append($"this._{paramNames[i]}");
+        }
+
+        var hoistedFields = new StringBuilder();
+        var hoistedInit = new StringBuilder();
+        var hoistedNames = new HashSet<string>(StringComparer.Ordinal);
+
+        CollectHoistedVariables(methodDeclaration.Body!,hoistedFields,hoistedInit,hoistedNames);
+
+        var hasAwait = methodDeclaration.Body!.DescendantNodes().Any(static n => n.IsKind(SyntaxKind.AwaitExpression));
+        var rewriter = new YieldToMoveNextRewriter(paramNames,hoistedNames,true,hasAwait);
+        var transformedBody = (BlockSyntax)rewriter.Visit(methodDeclaration.Body!)!;
+
+        var moveNextStatements = new List<StatementSyntax>();
+        moveNextStatements.AddRange(transformedBody.Statements);
+        var falseExpr = hasAwait
+            ? "false"
+            : "new global::System.Threading.Tasks.ValueTask<bool>(false)";
+        moveNextStatements.Add(SyntaxFactory.ReturnStatement(SyntaxFactory.ParseExpression(falseExpr)));
+
+        var moveNextBody = SyntaxFactory.Block(moveNextStatements).NormalizeWhitespace().ToFullString();
+        var moveNextModifiers = hasAwait ? "public async global::System.Threading.Tasks.ValueTask<bool> MoveNextAsync()" : "public global::System.Threading.Tasks.ValueTask<bool> MoveNextAsync()";
+
+        var generatedStructsText = $$"""
+
+        public readonly struct {{enumerableTypeName}}:global::System.Collections.Generic.IAsyncEnumerable<{{elementType}}>{
+    {{structFields.ToString().TrimEnd()}}
+
+            public {{enumerableTypeName}}({{ctorParams}}){
+    {{ctorAssigns.ToString().TrimEnd()}}
+            }
+
+            public {{enumeratorTypeName}} GetAsyncEnumerator(global::System.Threading.CancellationToken cancellationToken = default){
+                return new {{enumeratorTypeName}}({{forwardArgs}});
+            }
+
+            global::System.Collections.Generic.IAsyncEnumerator<{{elementType}}> global::System.Collections.Generic.IAsyncEnumerable<{{elementType}}>.GetAsyncEnumerator(global::System.Threading.CancellationToken cancellationToken){
+                return this.GetAsyncEnumerator(cancellationToken);
+            }
+        }
+
+        public struct {{enumeratorTypeName}}:global::System.Collections.Generic.IAsyncEnumerator<{{elementType}}>{
+            private int _state;
+            private {{elementType}} _current;
+    {{structFields.ToString().TrimEnd()}}
+    {{hoistedFields.ToString().TrimEnd()}}
+
+            public {{enumeratorTypeName}}({{ctorParams}}){
+                this._state=0;
+                this._current=default!;
+    {{ctorAssigns.ToString().TrimEnd()}}
+    {{hoistedInit.ToString().TrimEnd()}}
+            }
+
+            public {{elementType}} Current{
+                get{
+                    return this._current;
+                }
+            }
+
+            {{moveNextModifiers}}
+    {{moveNextBody}}
+
+            public global::System.Threading.Tasks.ValueTask DisposeAsync(){
+                return default;
+            }
+        }
+    """;
+
+        return ReplaceMethodWithGeneratedStructs(document,root,methodDeclaration,enumerableTypeName,paramNames,generatedStructsText);
+    }
+
+    private static void CollectHoistedVariables(
+        BlockSyntax body,
+        StringBuilder hoistedFields,
+        StringBuilder hoistedInit,
+        HashSet<string> hoistedNames){
+        foreach(var forStmt in body.DescendantNodes().OfType<ForStatementSyntax>()){
+            if(forStmt.Declaration is not null){
+                var varType = forStmt.Declaration.Type.ToString();
+                if(varType=="var"){
+                    varType="int";
+                }
+                foreach(var v in forStmt.Declaration.Variables){
+                    var vName = v.Identifier.ValueText;
+                    if(hoistedNames.Add(vName)){
+                        hoistedFields.AppendLine($"        private {varType} _{vName};");
+                        var initExpr = v.Initializer?.Value.ToString()??"0";
+                        hoistedInit.AppendLine($"            this._{vName}={initExpr};");
+                    }
+                }
+            }
+        }
+    }
+
+    private static Task<Document> ReplaceMethodWithGeneratedStructs(
+        Document document,
+        SyntaxNode root,
+        MethodDeclarationSyntax methodDeclaration,
+        string enumerableTypeName,
+        string[] paramNames,
+        string generatedStructsText){
         var newMethodReturnType = SyntaxFactory.ParseTypeName(enumerableTypeName)
             .WithTrailingTrivia(SyntaxFactory.Space);
 
@@ -180,7 +318,8 @@ public sealed class YieldStateMachineRefactoringProvider:CodeRefactoringProvider
 
         var newMethod = methodDeclaration
             .WithReturnType(newMethodReturnType)
-            .WithBody(newMethodBody);
+            .WithBody(newMethodBody)
+            .WithModifiers(SyntaxFactory.TokenList(methodDeclaration.Modifiers.Where(static m => !m.IsKind(SyntaxKind.AsyncKeyword))));
 
         var parsedGeneratedMembers = SyntaxFactory.ParseCompilationUnit(generatedStructsText).Members;
 
@@ -203,10 +342,14 @@ public sealed class YieldStateMachineRefactoringProvider:CodeRefactoringProvider
     private sealed class YieldToMoveNextRewriter:CSharpSyntaxRewriter {
         private readonly HashSet<string> _paramNames;
         private readonly HashSet<string> _hoistedNames;
+        private readonly bool _isAsync;
+        private readonly bool _hasAwait;
 
-        public YieldToMoveNextRewriter(string[] paramNames,HashSet<string> hoistedNames){
+        public YieldToMoveNextRewriter(string[] paramNames,HashSet<string> hoistedNames,bool isAsync,bool hasAwait = false){
             this._paramNames=new HashSet<string>(paramNames,StringComparer.Ordinal);
             this._hoistedNames=hoistedNames;
+            this._isAsync=isAsync;
+            this._hasAwait=hasAwait;
         }
 
         public override SyntaxNode? VisitYieldStatement(YieldStatementSyntax node){
@@ -219,15 +362,20 @@ public sealed class YieldStateMachineRefactoringProvider:CodeRefactoringProvider
                         expr
                     )
                 );
-                var ret = SyntaxFactory.ReturnStatement(SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression));
+                var retExpr = this._isAsync
+                    ? (this._hasAwait ? "true" : "new global::System.Threading.Tasks.ValueTask<bool>(true)")
+                    : "true";
+                var ret = SyntaxFactory.ReturnStatement(SyntaxFactory.ParseExpression(retExpr));
                 return SyntaxFactory.Block(assign,ret);
             }else{
-                return SyntaxFactory.ReturnStatement(SyntaxFactory.LiteralExpression(SyntaxKind.FalseLiteralExpression));
+                var retExpr = this._isAsync
+                    ? (this._hasAwait ? "false" : "new global::System.Threading.Tasks.ValueTask<bool>(false)")
+                    : "false";
+                return SyntaxFactory.ReturnStatement(SyntaxFactory.ParseExpression(retExpr));
             }
         }
 
         public override SyntaxNode? VisitForStatement(ForStatementSyntax node){
-            // for(var i = 0; i < count; i++) -> for(; this._i < this._count; this._i++)
             var newNode = (ForStatementSyntax)base.VisitForStatement(node)!;
             return newNode.WithDeclaration(null);
         }
