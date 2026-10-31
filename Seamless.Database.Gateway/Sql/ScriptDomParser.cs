@@ -1,287 +1,64 @@
 using System.Globalization;
 using Microsoft.SqlServer.TransactSql.ScriptDom;
 using Seamless.Database.Gateway.Hosting;
+using Seamless.Database.Query;
 
 namespace Seamless.Database.Gateway.Sql;
 
-public enum SqlCommandKind{
-    Select,
-    Insert,
-    Update,
-    Delete,
-    BeginTransaction,
-    CommitTransaction,
-    RollbackTransaction,
-    Other
+public enum SqlCommandKind{Select,Insert,Update,Delete,BeginTransaction,CommitTransaction,RollbackTransaction,Other}
+public sealed class ParsedCommand(SqlCommandKind kind,string tableName,IReadOnlyList<string>? columns,IReadOnlyDictionary<string,object?>? values,Func<object,bool>? predicate){
+    public SqlCommandKind Kind{get;}=kind;public string TableName{get;}=tableName;public IReadOnlyList<string>? Columns{get;}=columns;public IReadOnlyDictionary<string,object?>? Values{get;}=values;public Func<object,bool>? Predicate{get;}=predicate;
+    public IReadOnlyList<IReadOnlyDictionary<string,object?>> InsertRows{get;init;}=[];
+    public IReadOnlyDictionary<string,Func<object,object?>> UpdateValues{get;init;}=new Dictionary<string,Func<object,object?>>();
 }
-
-public sealed class ParsedCommand{
-    public ParsedCommand(
-        SqlCommandKind kind,
-        string tableName,
-        IReadOnlyList<string>? columns,
-        IReadOnlyDictionary<string,object?>? values,
-        Func<object,bool>? predicate){
-        this.Kind=kind;
-        this.TableName=tableName;
-        this.Columns=columns;
-        this.Values=values;
-        this.Predicate=predicate;
-    }
-
-    public SqlCommandKind Kind{get;}
-    public string TableName{get;}
-    public IReadOnlyList<string>? Columns{get;}
-    public IReadOnlyDictionary<string,object?>? Values{get;}
-    public Func<object,bool>? Predicate{get;}
-}
-
+/// <summary>変更対象を事前に完全検査する。未解釈の条件を無条件更新へ変換しない。</summary>
 public static class ScriptDomParser{
-    public static ParsedCommand Parse(string sql,IDatabaseAdapter adapter){
-        var parser=new TSql160Parser(true);
-        using var reader=new StringReader(sql);
-        var fragment=parser.Parse(reader,out var errors);
-        if(errors.Count>0){
-            throw new InvalidOperationException($"SQL parse error: {errors[0].Message}");
-        }else{
+    public static ParsedCommand Parse(string sql,IDatabaseAdapter adapter,IReadOnlyDictionary<string,object?>? parameters=null){
+        var script=new TSql160Parser(true).Parse(new StringReader(sql),out var errors) as TSqlScript;if(errors.Count>0){throw new SqlQueryException(errors[0].Message,102,errors[0].Line);}
+        if(script is null||script.Batches.Sum(b=>b.Statements.Count)!=1){throw new SqlQueryException("One statement is required.");}
+        var statement=script.Batches.SelectMany(b=>b.Statements).Single();var binder=new Binder(adapter,parameters);
+        if(statement is SelectStatement select&&select.QueryExpression is QuerySpecification query&&query.FromClause?.TableReferences.Count==1){var table=binder.BindTable(query.FromClause.TableReferences[0]);var names=new List<string>();foreach(var element in query.SelectElements){if(element is SelectStarExpression){names.Add("*");}else if(element is SelectScalarExpression scalar&&scalar.Expression is ColumnReferenceExpression column){names.Add(binder.Column(column).Name);}else{throw Unsupported(element);}}Func<object,bool>? predicate=null;if(query.WhereClause is not null){var condition=binder.Boolean(query.WhereClause.SearchCondition);predicate=row=>condition(row)==true;}return new(SqlCommandKind.Select,table.FullName,names,null,predicate);}
+        if(statement is InsertStatement insert){
+            var spec=insert.InsertSpecification;if(spec.TopRowFilter is not null||spec.OutputClause is not null||spec.OutputIntoClause is not null||spec.InsertSource is not ValuesInsertSource source||source.IsDefaultValues){throw Unsupported(statement);}
+            var table=binder.BindTable(spec.Target);var names=spec.Columns.Select(c=>binder.Column(c).Name).ToArray();if(names.Length==0){names=table.Columns.Select(c=>c.Name).ToArray();}if(names.Distinct(StringComparer.OrdinalIgnoreCase).Count()!=names.Length){throw new SqlQueryException("An INSERT column is repeated.",264);}
+            var rows=new List<IReadOnlyDictionary<string,object?>>();foreach(var row in source.RowValues){if(row.ColumnValues.Count!=names.Length){throw new SqlQueryException("INSERT column and value counts differ.",213);}var values=new Dictionary<string,object?>(StringComparer.OrdinalIgnoreCase);for(var i=0;i<names.Length;i++){var value=binder.Scalar(row.ColumnValues[i],false)(null!);ValidateNull(table.Columns.Single(c=>c.Name.Equals(names[i],StringComparison.OrdinalIgnoreCase)),value);values.Add(names[i],value);}foreach(var column in table.Columns){if(!column.IsNullable&&!values.ContainsKey(column.Name)){throw new SqlQueryException($"Required column '{column.Name}' has no value.",515);}}rows.Add(values);}
+            return new(SqlCommandKind.Insert,table.FullName,null,rows.FirstOrDefault(),null){InsertRows=rows};
         }
-
-        if(fragment is not TSqlScript script||script.Batches.Count==0||script.Batches[0].Statements.Count==0){
-            return new ParsedCommand(SqlCommandKind.Other,string.Empty,null,null,null);
-        }else{
+        if(statement is UpdateStatement update){
+            var spec=update.UpdateSpecification;if(spec.FromClause is not null||spec.TopRowFilter is not null||spec.OutputClause is not null||spec.OutputIntoClause is not null){throw Unsupported(statement);}var table=binder.BindTable(spec.Target);var values=new Dictionary<string,Func<object,object?>>(StringComparer.OrdinalIgnoreCase);
+            foreach(var clause in spec.SetClauses){if(clause is not AssignmentSetClause assignment||assignment.AssignmentKind!=AssignmentKind.Equals||assignment.Column is null){throw Unsupported(clause);}var column=binder.Column(assignment.Column);if(column.IsPrimaryKey){throw new SqlQueryException("Updating a primary key is not supported by this adapter.");}var expression=binder.Scalar(assignment.NewValue,true);values.Add(column.Name,row=>{var value=expression(row);ValidateNull(column,value);return value;});}
+            Func<object,bool>? predicate=null;if(spec.WhereClause is not null){var condition=binder.Boolean(spec.WhereClause.SearchCondition);predicate=row=>condition(row)==true;}return new(SqlCommandKind.Update,table.FullName,null,null,predicate){UpdateValues=values};
         }
-
-        var statement=script.Batches[0].Statements[0];
-        if(statement is SelectStatement select){
-            return ParseSelect(select,adapter);
-        }else if(statement is InsertStatement insert){
-            return ParseInsert(insert,adapter);
-        }else if(statement is UpdateStatement update){
-            return ParseUpdate(update,adapter);
-        }else if(statement is DeleteStatement delete){
-            return ParseDelete(delete,adapter);
-        }else if(statement is BeginTransactionStatement){
-            return new ParsedCommand(SqlCommandKind.BeginTransaction,string.Empty,null,null,null);
-        }else if(statement is CommitTransactionStatement){
-            return new ParsedCommand(SqlCommandKind.CommitTransaction,string.Empty,null,null,null);
-        }else if(statement is RollbackTransactionStatement){
-            return new ParsedCommand(SqlCommandKind.RollbackTransaction,string.Empty,null,null,null);
-        }else{
-            return new ParsedCommand(SqlCommandKind.Other,string.Empty,null,null,null);
-        }
+        if(statement is DeleteStatement delete){var spec=delete.DeleteSpecification;if(spec.FromClause is not null||spec.TopRowFilter is not null||spec.OutputClause is not null||spec.OutputIntoClause is not null){throw Unsupported(statement);}var table=binder.BindTable(spec.Target);Func<object,bool>? predicate=null;if(spec.WhereClause is not null){var condition=binder.Boolean(spec.WhereClause.SearchCondition);predicate=row=>condition(row)==true;}return new(SqlCommandKind.Delete,table.FullName,null,null,predicate);}
+        if(statement is BeginTransactionStatement){return new(SqlCommandKind.BeginTransaction,"",null,null,null);}if(statement is CommitTransactionStatement){return new(SqlCommandKind.CommitTransaction,"",null,null,null);}if(statement is RollbackTransactionStatement){return new(SqlCommandKind.RollbackTransaction,"",null,null,null);}
+        throw Unsupported(statement);
     }
-
-    private static ParsedCommand ParseSelect(SelectStatement select,IDatabaseAdapter adapter){
-        if(select.QueryExpression is not QuerySpecification qs){
-            return new ParsedCommand(SqlCommandKind.Other,string.Empty,null,null,null);
-        }else{
+    private static SqlQueryException Unsupported(TSqlFragment fragment)=>new($"Unsupported DML syntax: {fragment.GetType().Name}.",40515);
+    private static void ValidateNull(ColumnMetadata column,object? value){if(value is null&&!column.IsNullable){throw new SqlQueryException($"Column '{column.Name}' does not allow NULL.",515);}}
+    private sealed class Binder(IDatabaseAdapter adapter,IReadOnlyDictionary<string,object?>? parameters){
+        private TableMetadata? table;
+        public TableMetadata BindTable(TableReference target){if(target is not NamedTableReference named||named.SchemaObject.ServerIdentifier is not null||named.SchemaObject.DatabaseIdentifier is not null){throw Unsupported(target);}var schema=named.SchemaObject.SchemaIdentifier?.Value??"dbo";var name=schema+"."+named.SchemaObject.BaseIdentifier.Value;this.table=adapter.FindTable(name)??throw new SqlQueryException($"Invalid object name '{name}'.",208);return this.table;}
+        public ColumnMetadata Column(ColumnReferenceExpression reference){if(this.table is null){throw Unsupported(reference);}var name=reference.MultiPartIdentifier.Identifiers.Last().Value;return this.table.Columns.SingleOrDefault(c=>c.Name.Equals(name,StringComparison.OrdinalIgnoreCase))??throw new SqlQueryException($"Invalid column '{name}'.",207);}
+        public Func<object,object?> Scalar(ScalarExpression expression,bool allowColumn){
+            if(expression is NullLiteral){return _=>null;}if(expression is StringLiteral text){return _=>text.Value;}if(expression is IntegerLiteral integer){var number=long.Parse(integer.Value,CultureInfo.InvariantCulture);if(number>=int.MinValue&&number<=int.MaxValue){return _=>(int)number;}return _=>number;}
+            if(expression is NumericLiteral numeric){var number=decimal.Parse(numeric.Value,CultureInfo.InvariantCulture);return _=>number;}if(expression is RealLiteral real){var number=double.Parse(real.Value,CultureInfo.InvariantCulture);return _=>number;}
+            if(expression is BinaryLiteral binary){var bytes=Convert.FromHexString(binary.Value[2..]);return _=>bytes;}
+            if(expression is VariableReference variable){if(parameters is null||!parameters.TryGetValue(variable.Name,out var value)){throw new SqlQueryException($"Parameter '{variable.Name}' is missing.",137);}return _=>value;}
+            if(expression is ColumnReferenceExpression column&&allowColumn){var metadata=this.Column(column);return row=>adapter.GetRecordValue(this.table!.FullName,metadata.Name,row);}
+            if(expression is ParenthesisExpression parenthesis){return this.Scalar(parenthesis.Expression,allowColumn);}
+            if(expression is UnaryExpression unary){var operand=this.Scalar(unary.Expression,allowColumn);if(unary.UnaryExpressionType is not (UnaryExpressionType.Positive or UnaryExpressionType.Negative)){throw Unsupported(unary);}return row=>{var value=operand(row);if(value is null){return null;}var number=Convert.ToDecimal(value,CultureInfo.InvariantCulture);if(unary.UnaryExpressionType==UnaryExpressionType.Negative){return -number;}return number;};}
+            if(expression is BinaryExpression binaryExpression){var left=this.Scalar(binaryExpression.FirstExpression,allowColumn);var right=this.Scalar(binaryExpression.SecondExpression,allowColumn);if(binaryExpression.BinaryExpressionType is not (BinaryExpressionType.Add or BinaryExpressionType.Subtract or BinaryExpressionType.Multiply or BinaryExpressionType.Divide or BinaryExpressionType.Modulo)){throw Unsupported(expression);}return row=>{var a=left(row);var b=right(row);if(a is null||b is null){return null;}if(a is string sa&&b is string sb&&binaryExpression.BinaryExpressionType==BinaryExpressionType.Add){return sa+sb;}var x=Convert.ToDecimal(a,CultureInfo.InvariantCulture);var y=Convert.ToDecimal(b,CultureInfo.InvariantCulture);return binaryExpression.BinaryExpressionType switch{BinaryExpressionType.Add=>checked(x+y),BinaryExpressionType.Subtract=>checked(x-y),BinaryExpressionType.Multiply=>checked(x*y),BinaryExpressionType.Divide=>x/y,BinaryExpressionType.Modulo=>x%y,_=>throw Unsupported(expression)};};}
+            if(expression is CastCall cast&&cast.DataType is SqlDataTypeReference type){var operand=this.Scalar(cast.Parameter,allowColumn);return row=>{var value=operand(row);if(value is null){return null;}return type.SqlDataTypeOption switch{SqlDataTypeOption.Int=>Convert.ToInt32(value,CultureInfo.InvariantCulture),SqlDataTypeOption.BigInt=>Convert.ToInt64(value,CultureInfo.InvariantCulture),SqlDataTypeOption.Decimal or SqlDataTypeOption.Numeric=>Convert.ToDecimal(value,CultureInfo.InvariantCulture),SqlDataTypeOption.Bit=>Convert.ToBoolean(value,CultureInfo.InvariantCulture),_=>throw Unsupported(expression)};};}
+            throw Unsupported(expression);
         }
-
-        var tableName=string.Empty;
-        if(qs.FromClause is not null&&qs.FromClause.TableReferences.Count>0){
-            var tr=qs.FromClause.TableReferences[0];
-            if(tr is NamedTableReference ntr){
-                tableName=ntr.SchemaObject.BaseIdentifier.Value;
-            }else{
-            }
-        }else{
+        public Func<object,bool?> Boolean(BooleanExpression expression){
+            if(expression is BooleanComparisonExpression comparison){var left=this.Scalar(comparison.FirstExpression,true);var right=this.Scalar(comparison.SecondExpression,true);if(comparison.ComparisonType is not (BooleanComparisonType.Equals or BooleanComparisonType.NotEqualToBrackets or BooleanComparisonType.NotEqualToExclamation or BooleanComparisonType.GreaterThan or BooleanComparisonType.GreaterThanOrEqualTo or BooleanComparisonType.LessThan or BooleanComparisonType.LessThanOrEqualTo)){throw Unsupported(expression);}return row=>{var a=left(row);var b=right(row);if(a is null||b is null){return null;}var value=Compare(a,b);return comparison.ComparisonType switch{BooleanComparisonType.Equals=>value==0,BooleanComparisonType.NotEqualToBrackets or BooleanComparisonType.NotEqualToExclamation=>value!=0,BooleanComparisonType.GreaterThan=>value>0,BooleanComparisonType.GreaterThanOrEqualTo=>value>=0,BooleanComparisonType.LessThan=>value<0,BooleanComparisonType.LessThanOrEqualTo=>value<=0,_=>throw Unsupported(expression)};};}
+            if(expression is BooleanIsNullExpression isNull){var operand=this.Scalar(isNull.Expression,true);return row=>(operand(row)is null)!=isNull.IsNot;}
+            if(expression is BooleanParenthesisExpression parenthesis){return this.Boolean(parenthesis.Expression);}
+            if(expression is BooleanNotExpression not){var operand=this.Boolean(not.Expression);return row=>!operand(row);}
+            if(expression is BooleanBinaryExpression binary){var left=this.Boolean(binary.FirstExpression);var right=this.Boolean(binary.SecondExpression);return row=>{var a=left(row);var b=right(row);if(binary.BinaryExpressionType==BooleanBinaryExpressionType.And){return a&b;}return a|b;};}
+            throw Unsupported(expression);
         }
-
-        var columns=new List<string>();
-        foreach(var item in qs.SelectElements){
-            if(item is SelectStarExpression){
-                columns.Add("*");
-            }else if(item is SelectScalarExpression sse){
-                if(sse.Expression is ColumnReferenceExpression cre){
-                    var lastIdent=cre.MultiPartIdentifier.Identifiers.Last();
-                    columns.Add(lastIdent.Value);
-                }else{
-                    columns.Add("*");
-                }
-            }else{
-            }
-        }
-
-        Func<object,bool>? predicate=null;
-        if(qs.WhereClause is not null&&!string.IsNullOrEmpty(tableName)){
-            predicate=BuildPredicate(qs.WhereClause.SearchCondition,tableName,adapter);
-        }else{
-        }
-
-        return new ParsedCommand(SqlCommandKind.Select,tableName,columns,null,predicate);
-    }
-
-    private static ParsedCommand ParseInsert(InsertStatement insert,IDatabaseAdapter adapter){
-        var target=insert.InsertSpecification.Target;
-        var tableName=string.Empty;
-        if(target is NamedTableReference ntr){
-            tableName=ntr.SchemaObject.BaseIdentifier.Value;
-        }else{
-        }
-
-        var colNames=new List<string>();
-        if(insert.InsertSpecification.Columns is not null){
-            foreach(var c in insert.InsertSpecification.Columns){
-                var last=c.MultiPartIdentifier.Identifiers.Last();
-                colNames.Add(last.Value);
-            }
-        }else{
-        }
-
-        var valuesDict=new Dictionary<string,object?>(StringComparer.OrdinalIgnoreCase);
-        if(insert.InsertSpecification.InsertSource is ValuesInsertSource vis&&vis.RowValues.Count>0){
-            var rowVals=vis.RowValues[0];
-            if(colNames.Count>0){
-                for(var i=0;i<colNames.Count&&i<rowVals.ColumnValues.Count;i++){
-                    valuesDict[colNames[i]]=ExtractLiteralValue(rowVals.ColumnValues[i]);
-                }
-            }else{
-                var tableMeta=adapter.FindTable(tableName);
-                if(tableMeta is not null){
-                    for(var i=0;i<tableMeta.Columns.Count&&i<rowVals.ColumnValues.Count;i++){
-                        valuesDict[tableMeta.Columns[i].Name]=ExtractLiteralValue(rowVals.ColumnValues[i]);
-                    }
-                }else{
-                }
-            }
-        }else{
-        }
-
-        return new ParsedCommand(SqlCommandKind.Insert,tableName,null,valuesDict,null);
-    }
-
-    private static ParsedCommand ParseUpdate(UpdateStatement update,IDatabaseAdapter adapter){
-        var target=update.UpdateSpecification.Target;
-        var tableName=string.Empty;
-        if(target is NamedTableReference ntr){
-            tableName=ntr.SchemaObject.BaseIdentifier.Value;
-        }else{
-        }
-
-        var valuesDict=new Dictionary<string,object?>(StringComparer.OrdinalIgnoreCase);
-        foreach(var setClause in update.UpdateSpecification.SetClauses){
-            if(setClause is AssignmentSetClause asc&&asc.Column is not null){
-                var colName=asc.Column.MultiPartIdentifier.Identifiers.Last().Value;
-                valuesDict[colName]=ExtractLiteralValue(asc.NewValue);
-            }else{
-            }
-        }
-
-        Func<object,bool>? predicate=null;
-        if(update.UpdateSpecification.WhereClause is not null&&!string.IsNullOrEmpty(tableName)){
-            predicate=BuildPredicate(update.UpdateSpecification.WhereClause.SearchCondition,tableName,adapter);
-        }else{
-        }
-
-        return new ParsedCommand(SqlCommandKind.Update,tableName,null,valuesDict,predicate);
-    }
-
-    private static ParsedCommand ParseDelete(DeleteStatement delete,IDatabaseAdapter adapter){
-        var target=delete.DeleteSpecification.Target;
-        var tableName=string.Empty;
-        if(target is NamedTableReference ntr){
-            tableName=ntr.SchemaObject.BaseIdentifier.Value;
-        }else{
-        }
-
-        Func<object,bool>? predicate=null;
-        if(delete.DeleteSpecification.WhereClause is not null&&!string.IsNullOrEmpty(tableName)){
-            predicate=BuildPredicate(delete.DeleteSpecification.WhereClause.SearchCondition,tableName,adapter);
-        }else{
-        }
-
-        return new ParsedCommand(SqlCommandKind.Delete,tableName,null,null,predicate);
-    }
-
-    private static Func<object,bool>? BuildPredicate(BooleanExpression expr,string tableName,IDatabaseAdapter adapter){
-        if(expr is BooleanComparisonExpression bce){
-            var left=bce.FirstExpression;
-            var right=bce.SecondExpression;
-            string? colName=null;
-            object? val=null;
-
-            if(left is ColumnReferenceExpression lcre){
-                colName=lcre.MultiPartIdentifier.Identifiers.Last().Value;
-                val=ExtractLiteralValue(right);
-            }else if(right is ColumnReferenceExpression rcre){
-                colName=rcre.MultiPartIdentifier.Identifiers.Last().Value;
-                val=ExtractLiteralValue(left);
-            }else{
-            }
-
-            if(colName is not null){
-                var comparisonType=bce.ComparisonType;
-                return (record)=>{
-                    var prop=record.GetType().GetProperty(colName);
-                    if(prop is null){
-                        return true;
-                    }else{
-                    }
-                    var actualVal=prop.GetValue(record);
-                    if(actualVal is null||val is null){
-                        if(comparisonType==BooleanComparisonType.Equals){
-                            return actualVal is null&&val is null;
-                        }else{
-                            return false;
-                        }
-                    }else{
-                    }
-
-                    var converted=Convert.ChangeType(val,actualVal.GetType(),CultureInfo.InvariantCulture);
-                    var comp=((IComparable)actualVal).CompareTo(converted);
-                    if(comparisonType==BooleanComparisonType.Equals){
-                        return comp==0;
-                    }else if(comparisonType==BooleanComparisonType.GreaterThan){
-                        return comp>0;
-                    }else if(comparisonType==BooleanComparisonType.GreaterThanOrEqualTo){
-                        return comp>=0;
-                    }else if(comparisonType==BooleanComparisonType.LessThan){
-                        return comp<0;
-                    }else if(comparisonType==BooleanComparisonType.LessThanOrEqualTo){
-                        return comp<=0;
-                    }else if(comparisonType==BooleanComparisonType.NotEqualToBrackets||comparisonType==BooleanComparisonType.NotEqualToExclamation){
-                        return comp!=0;
-                    }else{
-                        return true;
-                    }
-                };
-            }else{
-            }
-        }else if(expr is BooleanBinaryExpression bbe){
-            var p1=BuildPredicate(bbe.FirstExpression,tableName,adapter);
-            var p2=BuildPredicate(bbe.SecondExpression,tableName,adapter);
-            if(p1 is not null&&p2 is not null){
-                if(bbe.BinaryExpressionType==BooleanBinaryExpressionType.And){
-                    return (rec)=>p1(rec)&&p2(rec);
-                }else{
-                    return (rec)=>p1(rec)||p2(rec);
-                }
-            }else if(p1 is not null){
-                return p1;
-            }else if(p2 is not null){
-                return p2;
-            }else{
-            }
-        }else{
-        }
-        return null;
-    }
-
-    private static object? ExtractLiteralValue(ScalarExpression expr){
-        if(expr is IntegerLiteral il){
-            if(int.TryParse(il.Value,NumberStyles.Integer,CultureInfo.InvariantCulture,out var iv)){
-                return iv;
-            }else{
-                return long.Parse(il.Value,CultureInfo.InvariantCulture);
-            }
-        }else if(expr is NumericLiteral nl){
-            return double.Parse(nl.Value,CultureInfo.InvariantCulture);
-        }else if(expr is StringLiteral sl){
-            return sl.Value;
-        }else if(expr is NullLiteral){
-            return null;
-        }else{
-            return expr.ToString();
-        }
+        private static int Compare(object a,object b){if(a is string x&&b is string y){return StringComparer.Ordinal.Compare(x.TrimEnd(' '),y.TrimEnd(' '));}if(a is byte[] ax&&b is byte[] bx){return ax.AsSpan().SequenceCompareTo(bx);}if(a is DateTime date){return date.CompareTo(Convert.ToDateTime(b,CultureInfo.InvariantCulture));}if(a is Guid guid){return guid.CompareTo(Guid.Parse(b.ToString()!));}return Convert.ToDecimal(a,CultureInfo.InvariantCulture).CompareTo(Convert.ToDecimal(b,CultureInfo.InvariantCulture));}
     }
 }

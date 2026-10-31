@@ -15,10 +15,11 @@ internal sealed partial class QueryBinder{
             default:throw Unsupported(statement);
         }
     }
+    private static ScalarExpression?SingleRoutineReturn(IList<TSqlStatement>statements){if(statements.Count!=1){return null;}if(statements[0] is BeginEndBlockStatement block){return SingleRoutineReturn(block.StatementList.Statements);}if(statements[0] is ReturnStatement returned){return returned.Expression;}return null;}
     private BoundScalar?BindInitializer(ScalarExpression?expression){if(expression is null){return null;}return this.BindScalar(expression,[],[],null);}
     private static IEnumerable<SqlParameter>RoutineLocals(TSqlFragment fragment){
         if(fragment is DeclareVariableElement variable){yield return new(variable.VariableName.Value,BindType(variable.DataType));yield break;}
-        foreach(var property in fragment.GetType().GetProperties()){if(property.Name=="ScriptTokenStream"||property.GetIndexParameters().Length!=0){continue;}if(property.GetValue(fragment) is TSqlFragment child){foreach(var parameter in RoutineLocals(child)){yield return parameter;}}else if(property.GetValue(fragment) is System.Collections.IEnumerable items){foreach(var item in items){if(item is TSqlFragment descendant){foreach(var parameter in RoutineLocals(descendant)){yield return parameter;}}}}}
+        foreach(var property in fragment.GetType().GetProperties()){if(property.Name=="ScriptTokenStream"||property.GetIndexParameters().Length!=0){continue;}if(property.GetValue(fragment) is TSqlFragment child){foreach(var parameter in RoutineLocals(child)){yield return parameter;}}else if(property.GetValue(fragment) is global::System.Collections.IEnumerable items){foreach(var item in items){if(item is TSqlFragment descendant){foreach(var parameter in RoutineLocals(descendant)){yield return parameter;}}}}}
     }
 }
 

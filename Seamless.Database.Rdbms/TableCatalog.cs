@@ -19,6 +19,7 @@ public sealed record TableCatalog {
     }
 
     public string Name { get; }
+    public DateTime? CreateDate { get; init; }
     public IReadOnlyList<ColumnCatalog> Columns { get; }
     public PrimaryKeyCatalog? PrimaryKey { get; }
     public IReadOnlyList<UniqueKeyCatalog> UniqueKeys { get; }

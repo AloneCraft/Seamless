@@ -112,3 +112,6 @@ Codecを作れない値でも、`Where`や`Select`など退避不要の逐次演
 Storeの各ファクトリの `parentBudget`、`ExecutionOptions.ParentBudget` で親を明示する。単独予算の既存コンストラクタと既定の使い方は維持する。親予算は会計であり、子資源を所有・破棄するオブジェクトではない。
 
 Scalableは標本ごとに親予算を作り、Store、Scope、旧・新Storeの再構成中の同時生存分を合算する。System.Linqの結合・並べ替えは推定作業領域、Native外部ソートはチャンク・I/Oと最大一時領域をまとめて予約する。予約ピークは実メモリ使用量や実ファイル量の測定値ではない。`ScalableRequest.TemporaryDirectory` で保存先を指定した場合、ストアとソート/Scopeの一時領域を同じ保存先に置く。
+
+## 汎用SQL設計への参照
+SQL/ADO.NET/プロトコル/移行の将来の責務分離は[汎用SQL基盤](refactoring-designs/20261029-generic-sql/README.md)を参照する。これは提案仕様であり、この文書に記した現在のExecution・LINQ・Database・保存/取引契約を置き換えない。通常のFLinqへ実行時SQL/IR変換を追加しない。

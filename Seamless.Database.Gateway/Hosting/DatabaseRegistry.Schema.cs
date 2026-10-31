@@ -25,7 +25,7 @@ public sealed partial class DatabaseRegistry{
         return Convert.ToHexString(global::System.Security.Cryptography.SHA256.HashData(global::System.Text.Encoding.UTF8.GetBytes(original+"|RuntimeSqlV1|"+state.Structure)));
     }
     private static (long Revision,string Structure,bool Empty)RuntimeState(InProcessDatabaseAdapter adapter){
-        var database=(RuntimeSqlDatabaseContainer)adapter.Database;using var read=database.BeginReadSession();var revision=database.RuntimeSql.SchemaRevision;
+        var database=(RuntimeSqlDatabaseContainer)adapter.Database;using var read=ReadSqlDatabase(adapter);var revision=database.RuntimeSql.SchemaRevision;
         // Metadata is bounded at 1,024 hashes; table rows remain streamed.
         var hashes=new List<(long Id,byte[] Hash)>();
         foreach(var table in database.RuntimeSql.Tables){if(hashes.Count>=1024){throw new SqlQueryException("Runtime metadata exceeds the table limit.",40515);}hashes.Add((table.ObjectId,global::System.Security.Cryptography.SHA256.HashData(global::System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(table))));}

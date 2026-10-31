@@ -1,4 +1,4 @@
-﻿namespace Seamless.Database.Rdbms;
+namespace Seamless.Database.Rdbms;
 
 public sealed record ColumnCatalog(
     int Ordinal,
@@ -6,4 +6,5 @@ public sealed record ColumnCatalog(
     DatabaseType Type,
     bool IsIdentity,
     string? DefaultDefinition=null,
-    string? ComputedDefinition=null);
+    string? ComputedDefinition=null,
+    bool IsSynthetic=false);

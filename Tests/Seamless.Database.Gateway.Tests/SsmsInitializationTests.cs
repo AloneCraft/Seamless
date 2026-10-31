@@ -6,6 +6,31 @@ using Seamless.Database.Gateway.Tds;
 namespace Seamless.Database.Gateway.Tests;
 
 public sealed class SsmsInitializationTests{
+    [Theory,Trait("Category","Integration")]
+    [InlineData("fixture")]
+    [InlineData("master")]
+    public async Task DatabaseEnumerationClassifiesRegisteredUserDatabases(string initialDatabase){
+        var adapter=new Adapter();var registry=new DatabaseRegistry();registry.Register("fixture",adapter,true);registry.Register("scratch",new Adapter());using var server=new TdsServer(0,adapter,new SqlExecutionEngine(registry));server.Start();
+        try{
+            var settings=new SqlConnectionStringBuilder(Connect(server).ConnectionString){InitialCatalog=initialDatabase};await using var connection=new SqlConnection(settings.ConnectionString);await connection.OpenAsync();using var command=connection.CreateCommand();
+            command.CommandText="SELECT dtb.name AS [Name],CAST(0 AS bit) AS [IsFabricDatabase],dtb.catalog_collation_type AS [CatalogCollation],dtb.collation_name AS [Collation],dtb.database_id AS [ID],CAST(CASE WHEN dtb.name IN ('master','model','msdb','tempdb') THEN 1 ELSE dtb.is_distributor END AS bit) AS [IsSystemObject],CAST(has_dbaccess(dtb.name) AS bit) AS [IsAccessible],dtb.name AS [DatabaseName2] FROM master.sys.databases AS dtb ORDER BY [Name] ASC";
+            await using(var reader=await command.ExecuteReaderAsync()){
+                var names=new List<string>();var ids=new HashSet<int>();
+                while(await reader.ReadAsync()){
+                    var name=reader.GetString(0);names.Add(name);Assert.False(reader.GetBoolean(1));Assert.Equal(typeof(bool),reader.GetFieldType(5));Assert.Equal(name=="master",reader.GetBoolean(5));Assert.True(reader.GetBoolean(6));Assert.Equal(name,reader.GetString(7));Assert.True(ids.Add(reader.GetInt32(4)));if(name!="master"){Assert.True(reader.GetInt32(4)>4);}
+                }
+                Assert.Equal(new[]{"fixture","master","scratch"},names);Assert.False(await reader.NextResultAsync());
+            }
+            command.CommandText="SELECT name,is_distributor,source_database_id,CAST(CASE WHEN source_database_id IS NOT NULL THEN 1 ELSE 0 END AS bit) AS IsDatabaseSnapshot FROM sys.databases WHERE name NOT IN ('master','model','msdb','tempdb') AND source_database_id IS NULL ORDER BY name";
+            await using(var reader=await command.ExecuteReaderAsync()){Assert.False(reader.GetColumnSchema()[1].AllowDBNull);Assert.True(reader.GetColumnSchema()[2].AllowDBNull);Assert.True(await reader.ReadAsync());Assert.Equal("fixture",reader.GetString(0));Assert.False(reader.GetBoolean(1));Assert.True(reader.IsDBNull(2));Assert.False(reader.GetBoolean(3));Assert.True(await reader.ReadAsync());Assert.Equal("scratch",reader.GetString(0));Assert.False(reader.GetBoolean(1));Assert.True(reader.IsDBNull(2));Assert.False(reader.GetBoolean(3));Assert.False(await reader.ReadAsync());}
+            command.CommandText="SELECT name FROM sys.databases WHERE is_read_only=1 AND is_distributor=0 AND database_id>4 ORDER BY name";Assert.Equal("fixture",await command.ExecuteScalarAsync());
+            command.CommandText="SELECT HAS_DBACCESS(N'FIXTURE') AS KnownDatabase,HAS_DBACCESS(N'master') AS MasterDatabase,HAS_DBACCESS(N'not-registered') AS MissingDatabase,HAS_DBACCESS(NULL) AS NullDatabase";
+            await using(var reader=await command.ExecuteReaderAsync()){Assert.True(await reader.ReadAsync());Assert.Equal(1,reader.GetInt32(0));Assert.Equal(1,reader.GetInt32(1));Assert.True(reader.IsDBNull(2));Assert.True(reader.IsDBNull(3));Assert.False(await reader.ReadAsync());}
+            command.CommandText="SELECT HAS_DBACCESS(N'late')";Assert.IsType<DBNull>(await command.ExecuteScalarAsync());registry.Register("late",new Adapter());Assert.Equal(1,await command.ExecuteScalarAsync());
+            command.CommandText="select has_dbaccess('msdb')";Assert.Equal(0,Convert.ToInt32(await command.ExecuteScalarAsync(),global::System.Globalization.CultureInfo.InvariantCulture));
+            registry.Register("msdb",new Adapter());Assert.Equal(1,Convert.ToInt32(await command.ExecuteScalarAsync(),global::System.Globalization.CultureInfo.InvariantCulture));
+        }finally{await server.StopAsync();}
+    }
     private static string ServerInformation(){using var stream=typeof(SqlExecutionEngine).Assembly.GetManifestResourceStream("Seamless.Database.Gateway.Sql.Compatibility.SsmsServerInformation.sql")??throw new InvalidOperationException("Missing captured SQL resource.");using var reader=new StreamReader(stream);return reader.ReadToEnd();}
     private static SqlConnection Connect(TdsServer server)=>new(new SqlConnectionStringBuilder{DataSource=$"127.0.0.1,{server.Port}",InitialCatalog="fixture",UserID="sa",Password="test",Encrypt=false,Pooling=false,ConnectTimeout=5}.ConnectionString);
     [Theory,Trait("Category","Integration")]

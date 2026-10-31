@@ -2,28 +2,32 @@ using Microsoft.SqlServer.TransactSql.ScriptDom;
 using Seamless.Execution;
 namespace Seamless.Database.Query;
 /// <summary>カタログ世代と引数型で分離した有界計画キャッシュ。</summary>
-public sealed class SqlQueryEngine{
+public sealed partial class SqlQueryEngine{
     private readonly ISqlCatalog catalog;
     private readonly int cacheCapacity;
     private readonly object gate=new();
     private readonly Dictionary<CacheKey,SqlQueryPlan>cache=[];
     private readonly Queue<CacheKey>cacheOrder=new();
-    private sealed record CacheKey(long Generation,string Database,string Sql,string Parameters);
+    private sealed record CacheKey(long Generation,string Database,string Sql,string Parameters,string Mode="ScriptDom");
     public SqlQueryEngine(ISqlCatalog catalog,int cacheCapacity=128){ArgumentNullException.ThrowIfNull(catalog);ArgumentOutOfRangeException.ThrowIfNegative(cacheCapacity);this.catalog=catalog;this.cacheCapacity=cacheCapacity;}
     public SqlQueryPlan Prepare(string sql,string database,IReadOnlyList<SqlParameter>? parameters=null){
         ArgumentException.ThrowIfNullOrWhiteSpace(sql);ArgumentException.ThrowIfNullOrWhiteSpace(database);
         parameters??=[];
         parameters=parameters.Select(parameter=>{var type=parameter.Type;if(type.ClrType==typeof(string)&&type.Name!="xml"){type=type with{Collation=type.Collation??this.catalog.GetDatabaseCollation(database),Coercibility=SqlCollationCoercibility.CoercibleDefault};}return parameter with{Type=type};}).ToArray();
         if(sql.Length>1048576||parameters.Count>2100){throw new SqlQueryException("SQL text or parameter count exceeds the query limits.",103);}
-        var key=new CacheKey(this.catalog.Generation,database,sql,string.Join(";",parameters.Select(x=>x.Name+":"+x.Type+":"+x.IsNullable)));
+        var key=new CacheKey(this.catalog.GetGeneration(database),database,sql,string.Join(";",parameters.Select(x=>x.Name+":"+x.Type+":"+x.IsNullable)));
         if(parameters.Any(x=>!x.Name.StartsWith("@",StringComparison.Ordinal))||parameters.Select(x=>x.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=parameters.Count){throw new SqlQueryException("Invalid or duplicate SQL parameter name.",137);}
-        lock(this.gate){if(this.cache.TryGetValue(key,out var cached)){return cached;}}
+        if(this.catalog.CanCachePlans){
+            SqlQueryPlan?cached;lock(this.gate){this.cache.TryGetValue(key,out cached);}
+            if(cached is not null){if(cached.IsCurrent){return cached;}lock(this.gate){this.cache.Clear();this.cacheOrder.Clear();}}
+        }
+        var snapshot=new SqlCatalogSnapshot(this.catalog,database,key.Generation);
         var statement=Parse(sql);
-        var binder=new QueryBinder(this.catalog,database,parameters);
+        var binder=new QueryBinder(snapshot,database,parameters);
         var bound=binder.BindStatement(statement);
-        if(this.catalog.Generation!=key.Generation){throw new SqlQueryException("Catalog generation changed while preparing the SQL statement.",3961);}
-        var plan=new SqlQueryPlan(bound,parameters.ToArray());
-        if(this.cacheCapacity>0){lock(this.gate){if(!this.cache.ContainsKey(key)){while(this.cache.Count>=this.cacheCapacity){this.cache.Remove(this.cacheOrder.Dequeue());}this.cache.Add(key,plan);this.cacheOrder.Enqueue(key);}}}
+        if(snapshot.Generation!=key.Generation){throw new SqlQueryException("Catalog generation changed while preparing the SQL statement.",3961);}
+        var plan=new SqlQueryPlan(bound,parameters.ToArray(),snapshot,key.Generation);
+        if(this.cacheCapacity>0&&this.catalog.CanCachePlans){lock(this.gate){if(!this.cache.ContainsKey(key)){while(this.cache.Count>=this.cacheCapacity){this.cache.Remove(this.cacheOrder.Dequeue());}this.cache.Add(key,plan);this.cacheOrder.Enqueue(key);}}}
         return plan;
     }
     internal static TSqlStatement Parse(string sql){
@@ -37,9 +41,12 @@ public sealed class SqlQueryEngine{
 public sealed class SqlQueryPlan{
     private readonly BoundQuery query;
     private readonly SqlParameter[]parameters;
-    internal SqlQueryPlan(BoundQuery query,SqlParameter[]parameters){this.query=query;this.parameters=parameters;this.Columns=Array.AsReadOnly(query.Columns.ToArray());}
+    private readonly ISqlCatalog catalog;
+    private readonly long generation;
+    internal SqlQueryPlan(BoundQuery query,SqlParameter[]parameters,ISqlCatalog catalog,long generation){this.query=query;this.parameters=parameters;this.catalog=catalog;this.generation=generation;this.Columns=Array.AsReadOnly(query.Columns.ToArray());}
     public IReadOnlyList<SqlColumn>Columns{get;}
     public SqlQueryResult Execute(IReadOnlyDictionary<string,object?>? parameters=null,ExecutionOptions? options=null){
+        this.VerifyGeneration();
         var values=new Dictionary<string,object?>(StringComparer.OrdinalIgnoreCase);
         Dictionary<string,object?> supplied=new(StringComparer.OrdinalIgnoreCase);if(parameters is not null){foreach(var entry in parameters){supplied.Add(entry.Key,entry.Value);}}
         foreach(var parameter in this.parameters){
@@ -53,19 +60,24 @@ public sealed class SqlQueryPlan{
         return new(this.Columns,this.Enumerate(values,options??new()));
     }
     private IEnumerable<object?[]>Enumerate(IReadOnlyDictionary<string,object?> parameters,ExecutionOptions options){
+        this.VerifyGeneration();
         using var scope=new ExecutionScope(options);
         scope.Codecs.Register<object?[]>(new SqlRowCodec());
         var context=new QueryExecution(scope,parameters,options);
         using var iterator=this.query.Rows(context,null).GetEnumerator();
-        while(true){bool next;try{next=iterator.MoveNext();}catch(DivideByZeroException){throw new SqlQueryException("Divide by zero error encountered.",8134);}catch(OverflowException exception){throw new SqlQueryException("Arithmetic overflow: "+exception.Message,8115);}catch(FormatException exception){throw new SqlQueryException("Conversion failed: "+exception.Message,245);}if(!next){yield break;}scope.ThrowIfUnavailable();var row=iterator.Current;using var memory=scope.Budget.ReserveMemory(checked(96L+32L*row.Length+4L*new SqlRowCodec().GetEncodedLength(row)));yield return row;}
+        while(true){this.VerifyGeneration();bool next;try{next=iterator.MoveNext();}catch(DivideByZeroException){throw new SqlQueryException("Divide by zero error encountered.",8134);}catch(OverflowException exception){throw new SqlQueryException("Arithmetic overflow: "+exception.Message,8115);}catch(FormatException exception){throw new SqlQueryException("Conversion failed: "+exception.Message,245);}this.VerifyGeneration();if(!next){yield break;}scope.ThrowIfUnavailable();var row=iterator.Current;using var memory=scope.Budget.ReserveMemory(checked(96L+32L*row.Length+4L*new SqlRowCodec().GetEncodedLength(row)));yield return row;}
     }
+    internal bool IsCurrent=>this.catalog.Generation==this.generation;
+    private void VerifyGeneration(){if(!this.IsCurrent){throw new SqlQueryException("Catalog generation changed; prepare the SQL statement again.",3961);}}
 }
 internal sealed record BoundQuery(IReadOnlyList<SqlColumn>Columns,Func<QueryExecution,object?[]?,IEnumerable<object?[]>>Rows);
 internal sealed record QueryExecution(ExecutionScope Scope,IReadOnlyDictionary<string,object?>Parameters,ExecutionOptions?Options=null){internal DateTime Timestamp{get;}=DateTime.Now;}
 internal sealed record BindingColumn(SqlColumn Column,string? Qualifier);
 internal sealed record BoundSource(IReadOnlyList<BindingColumn>Columns,Func<QueryExecution,object?[]?,IEnumerable<object?[]>>Rows);
 internal sealed record EvalFrame(object?[]Row,object?[]?Outer,QueryExecution Execution,object?[]?Aggregates=null);
-internal sealed record BoundScalar(SqlType Type,bool Nullable,Func<EvalFrame,object?>Value,SqlColumn? Origin=null);
+internal sealed record BoundScalar(SqlType Type,bool Nullable,Func<EvalFrame,object?>Value,SqlColumn? Origin=null){
+    internal bool IsComputedFloatingPoint{get;init;}=Origin?.IsComputedFloatingPoint==true;
+}
 internal sealed record AggregateBinding(string Name,BoundScalar? Value,bool Distinct,SqlType Type);
 
 

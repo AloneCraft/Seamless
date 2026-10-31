@@ -1,3 +1,4 @@
+using global::System.Collections.Concurrent;
 using global::System.Net;
 using Seamless.Database.Gateway.Hosting;
 using Seamless.Database.Gateway.Sql;
@@ -11,6 +12,8 @@ public sealed class HttpServer:IDisposable{
     private HttpListener? listener;
     private CancellationTokenSource? cts;
     private Task? listenTask;
+    private long nextRequestId;
+    private readonly ConcurrentDictionary<long,Task> requests=new();
 
     public HttpServer(int port,IDatabaseAdapter adapter,SqlExecutionEngine sqlEngine){
         this.port=port;
@@ -36,6 +39,7 @@ public sealed class HttpServer:IDisposable{
             this.listener.Start();
         }catch(HttpListenerException){
             // 権限等でワイルドカードプレフィックスに失敗した場合は localhost のみにフォールバック
+            this.listener.Close();
             this.listener=new HttpListener();
             this.listener.Prefixes.Add($"http://localhost:{this.port}/");
             this.listener.Prefixes.Add($"http://127.0.0.1:{this.port}/");
@@ -63,6 +67,8 @@ public sealed class HttpServer:IDisposable{
         }else{
         }
 
+        await Task.WhenAll(this.requests.Values);
+        this.listener.Close();
         this.listener=null;
         this.cts?.Dispose();
         this.cts=null;
@@ -72,11 +78,20 @@ public sealed class HttpServer:IDisposable{
         this.StopAsync().GetAwaiter().GetResult();
     }
 
+    private async Task ServeAsync(HttpListenerContext context,CancellationToken cancellationToken){
+        try{await HttpEndpoints.HandleRequestAsync(context,this.adapter,this.sqlEngine,cancellationToken);}
+        catch(OperationCanceledException) when(cancellationToken.IsCancellationRequested){}
+        catch(HttpListenerException){}
+        catch(IOException){}
+        catch(ObjectDisposedException) when(cancellationToken.IsCancellationRequested){}
+    }
     private async Task AcceptLoopAsync(CancellationToken cancellationToken){
         while(!cancellationToken.IsCancellationRequested){
             try{
                 var context=await this.listener!.GetContextAsync();
-                _ = Task.Run(()=>HttpEndpoints.HandleRequestAsync(context,this.adapter,this.sqlEngine,cancellationToken),cancellationToken);
+                var id=Interlocked.Increment(ref this.nextRequestId);
+                var task=Task.Run(()=>this.ServeAsync(context,cancellationToken));this.requests[id]=task;
+                _=task.ContinueWith(_=>{this.requests.TryRemove(id,out var removed);},CancellationToken.None,TaskContinuationOptions.ExecuteSynchronously,TaskScheduler.Default);
             }catch(OperationCanceledException){
                 break;
             }catch(HttpListenerException){

@@ -4,7 +4,7 @@ namespace Seamless.Database.Query;
 internal static class SqlValues{
     internal static object?ConvertTo(object?value,SqlType type,bool explicitConversion=false){
         if(value is null||value is DBNull){return null;}
-        if(type.ClrType==typeof(string)){string text;if(value is byte[]encoded){text=System.Text.Encoding.Unicode.GetString(encoded);}else{text=Convert.ToString(value,CultureInfo.InvariantCulture)??"";}return ConvertString(text,type,explicitConversion);}
+        if(type.ClrType==typeof(string)){string text;if(value is byte[]encoded){text=global::System.Text.Encoding.Unicode.GetString(encoded);}else if(value is bool bit){if(bit){text="1";}else{text="0";}}else{text=Convert.ToString(value,CultureInfo.InvariantCulture)??"";}return ConvertString(text,type,explicitConversion);}
         if(type.ClrType==typeof(byte[])){if(value is byte[]bytes){if(type.Length is{}length&&length>=0){if(bytes.Length>length){if(!explicitConversion){throw new SqlQueryException("Binary conversion would truncate.",8152);}return bytes[..length];}if(type.Name=="binary"&&bytes.Length<length){var padded=new byte[length];bytes.CopyTo(padded,0);return padded;}}return bytes;}throw new SqlQueryException("Unsupported binary conversion.",245);}
         if(value is string empty&&string.IsNullOrWhiteSpace(empty)&&type.ClrType!=typeof(Guid)&&type.ClrType!=typeof(TimeSpan)&&type.ClrType!=typeof(DateTimeOffset)){if(type.ClrType==typeof(DateTime)){return new DateTime(1900,1,1);}value=0;}
         if(type.ClrType==typeof(bool)){if(value is bool boolean){return boolean;}if(value is string text&&bool.TryParse(text,out var parsed)){return parsed;}return Convert.ToDecimal(value,CultureInfo.InvariantCulture)!=0;}
@@ -23,21 +23,21 @@ internal static class SqlValues{
         try{return Convert.ChangeType(value,type.ClrType,CultureInfo.InvariantCulture);}catch(Exception exception)when(exception is InvalidCastException or FormatException or OverflowException){throw new SqlQueryException("SQL conversion failed: "+exception.Message,245);}
     }
     private static string SupportedCollation(string collation){var name=collation.ToUpperInvariant();if(name is "SQL_LATIN1_GENERAL_CP1_CI_AS" or "JAPANESE_CI_AS" or "LATIN1_GENERAL_100_CI_AS" or "LATIN1_GENERAL_BIN2" or "LATIN1_GENERAL_100_BIN2" or "LATIN1_GENERAL_100_BIN2_UTF8"){return name;}throw new SqlQueryException("Unsupported collation: "+collation,40515);}
-    private static System.Text.Encoding?StringEncoding(SqlType type){
+    private static global::System.Text.Encoding?StringEncoding(SqlType type){
         if(type.Name is not("varchar" or "char" or "text")||type.Collation is null){return null;}
         var name=SupportedCollation(type.Collation);int codePage;
         if(name.StartsWith("JAPANESE",StringComparison.Ordinal)){codePage=932;}
         else if(name.StartsWith("LATIN1_GENERAL",StringComparison.Ordinal)||name.StartsWith("SQL_LATIN1_GENERAL_CP1_",StringComparison.Ordinal)){codePage=1252;}
         else{throw new SqlQueryException("Unsupported collation encoding: "+type.Collation,40515);}
         if(name.EndsWith("_UTF8",StringComparison.Ordinal)){codePage=65001;}
-        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
-        return System.Text.Encoding.GetEncoding(codePage);
+        global::System.Text.Encoding.RegisterProvider(global::System.Text.CodePagesEncodingProvider.Instance);
+        return global::System.Text.Encoding.GetEncoding(codePage);
     }
     internal static int StringLength(string text,SqlType type){var encoding=StringEncoding(type);if(encoding is not null){return encoding.GetByteCount(text);}return text.Length;}
     internal static object?DataLength(object?value,SqlType type){if(value is null){return null;}if(value is byte[]bytes){return bytes.Length;}if(value is string text){if(type.Name is "nvarchar" or "nchar" or "ntext"){return checked(text.Length*2);}if(type.Name is "varchar" or "char" or "text"){return StringLength(text,type);}throw new SqlQueryException("Unsupported DATALENGTH input.",40515);}throw new SqlQueryException("Unsupported DATALENGTH input.",40515);}
     private static string ConvertString(string text,SqlType type,bool explicitConversion){
         var encoding=StringEncoding(type);var size=text.Length;
-        if(encoding is not null){var bytes=encoding.GetBytes(text);size=bytes.Length;text=encoding.GetString(bytes);if(type.Length is{}limit&&limit>=0&&size>limit){if(!explicitConversion){throw new SqlQueryException("String conversion would truncate.",8152);}var count=limit;var strict=System.Text.Encoding.GetEncoding(encoding.CodePage,System.Text.EncoderFallback.ExceptionFallback,System.Text.DecoderFallback.ExceptionFallback);while(true){try{text=strict.GetString(bytes,0,count);break;}catch(System.Text.DecoderFallbackException){count--;}}size=count;}}
+        if(encoding is not null){var bytes=encoding.GetBytes(text);size=bytes.Length;text=encoding.GetString(bytes);if(type.Length is{}limit&&limit>=0&&size>limit){if(!explicitConversion){throw new SqlQueryException("String conversion would truncate.",8152);}var count=limit;var strict=global::System.Text.Encoding.GetEncoding(encoding.CodePage,global::System.Text.EncoderFallback.ExceptionFallback,global::System.Text.DecoderFallback.ExceptionFallback);while(true){try{text=strict.GetString(bytes,0,count);break;}catch(global::System.Text.DecoderFallbackException){count--;}}size=count;}}
         else if(type.Length is{}limit&&limit>=0&&size>limit){if(!explicitConversion){throw new SqlQueryException("String conversion would truncate.",8152);}text=text[..limit];size=text.Length;}
         if(type.Name is "char" or "nchar"&&type.Length is{}length&&length>size){text+=new string(' ',length-size);}
         return text;
@@ -128,8 +128,8 @@ internal static class SqlValues{
         if(left is TimeOnly leftTime){left=leftTime.ToTimeSpan();}if(right is TimeOnly rightTime){right=rightTime.ToTimeSpan();}
         if(ReferenceEquals(left,right)){return 0;}if(left is null){return -1;}if(right is null){return 1;}
         if(left is string a&&right is string b){return CompareText(a.TrimEnd(' '),b.TrimEnd(' '),type?.Collation);}
-        if(left is byte[]first&&right is byte[]second){return new System.Data.SqlTypes.SqlBinary(first).CompareTo(new System.Data.SqlTypes.SqlBinary(second));}
-        if(left is Guid firstGuid&&right is Guid secondGuid){return new System.Data.SqlTypes.SqlGuid(firstGuid).CompareTo(new System.Data.SqlTypes.SqlGuid(secondGuid));}
+        if(left is byte[]first&&right is byte[]second){return new global::System.Data.SqlTypes.SqlBinary(first).CompareTo(new global::System.Data.SqlTypes.SqlBinary(second));}
+        if(left is Guid firstGuid&&right is Guid secondGuid){return new global::System.Data.SqlTypes.SqlGuid(firstGuid).CompareTo(new global::System.Data.SqlTypes.SqlGuid(secondGuid));}
         if(IsNumber(left)&&IsNumber(right)){if(left is double or float||right is double or float){return Convert.ToDouble(left,CultureInfo.InvariantCulture).CompareTo(Convert.ToDouble(right,CultureInfo.InvariantCulture));}return Convert.ToDecimal(left,CultureInfo.InvariantCulture).CompareTo(Convert.ToDecimal(right,CultureInfo.InvariantCulture));}
         if(left is IComparable comparable){return comparable.CompareTo(right);}
         throw new SqlQueryException("Values cannot be compared: "+left.GetType());
@@ -138,8 +138,8 @@ internal static class SqlValues{
         if(string.IsNullOrEmpty(collation)){return string.Compare(left,right,StringComparison.Ordinal);}
         var normalized=SupportedCollation(collation);if(normalized.Contains("_BIN",StringComparison.Ordinal)){return string.Compare(left,right,StringComparison.Ordinal);}
         var culture="en-US";if(normalized.StartsWith("JAPANESE",StringComparison.Ordinal)){culture="ja-JP";}else if(!normalized.Contains("LATIN1_GENERAL",StringComparison.Ordinal)){throw new SqlQueryException("Unsupported collation: "+collation,40515);}
-        var options=System.Globalization.CompareOptions.None;if(normalized.Contains("_CI_",StringComparison.Ordinal)||normalized.EndsWith("_CI",StringComparison.Ordinal)){options|=System.Globalization.CompareOptions.IgnoreCase;}if(normalized.Contains("_AI",StringComparison.Ordinal)){options|=System.Globalization.CompareOptions.IgnoreNonSpace;}if(!normalized.Contains("_KS",StringComparison.Ordinal)){options|=System.Globalization.CompareOptions.IgnoreKanaType;}if(!normalized.Contains("_WS",StringComparison.Ordinal)){options|=System.Globalization.CompareOptions.IgnoreWidth;}
-        return System.Globalization.CultureInfo.GetCultureInfo(culture).CompareInfo.Compare(left,right,options);
+        var options=global::System.Globalization.CompareOptions.None;if(normalized.Contains("_CI_",StringComparison.Ordinal)||normalized.EndsWith("_CI",StringComparison.Ordinal)){options|=global::System.Globalization.CompareOptions.IgnoreCase;}if(normalized.Contains("_AI",StringComparison.Ordinal)){options|=global::System.Globalization.CompareOptions.IgnoreNonSpace;}if(!normalized.Contains("_KS",StringComparison.Ordinal)){options|=global::System.Globalization.CompareOptions.IgnoreKanaType;}if(!normalized.Contains("_WS",StringComparison.Ordinal)){options|=global::System.Globalization.CompareOptions.IgnoreWidth;}
+        return global::System.Globalization.CultureInfo.GetCultureInfo(culture).CompareInfo.Compare(left,right,options);
     }
     internal static object?ConvertDate(object?value,SqlType type,int style){
         if(value is null){return null;}if(value is not string text){return ConvertTo(value,type,true);}DateTime date;if(style==112){if(!DateTime.TryParseExact(text,"yyyyMMdd",CultureInfo.InvariantCulture,DateTimeStyles.AllowWhiteSpaces,out date)){if(!text.Contains('-',StringComparison.Ordinal)){throw new SqlQueryException("Conversion failed for date style 112.",241);}date=ParseDateTime(text);}}else{date=ParseDateTime(text);}if(type.ClrType==typeof(DateOnly)){return DateOnly.FromDateTime(date);}return date;
@@ -162,7 +162,7 @@ internal static class SqlValues{
             case "DATEDIFF":return DateDiff(Convert.ToString(args[0],CultureInfo.InvariantCulture)!,AsDateTime(args[1],true),AsDateTime(args[2],true));
             case "DATEADD":{var part=Convert.ToString(args[0],CultureInfo.InvariantCulture)!;var count=checked((int)decimal.Truncate(Convert.ToDecimal(args[1],CultureInfo.InvariantCulture)));if(args[2] is DateTimeOffset offset){return new DateTimeOffset(DateAdd(part,count,offset.DateTime),offset.Offset);}return DateAdd(part,count,AsDateTime(args[2]));}
             case "DATEPART":{var date=AsDateTime(args[1]);return Convert.ToString(args[0],CultureInfo.InvariantCulture)!.ToUpperInvariant() switch{"YEAR" or "YY" or "YYYY"=>date.Year,"MONTH" or "MM" or "M"=>date.Month,"DAY" or "DD" or "D"=>date.Day,_=>throw new SqlQueryException("Unsupported datepart.",40515)};}
-            case "DECOMPRESS":{using var input=new MemoryStream((byte[])args[0]!);using var gzip=new System.IO.Compression.GZipStream(input,System.IO.Compression.CompressionMode.Decompress);using var output=new MemoryStream();gzip.CopyTo(output);return output.ToArray();}
+            case "DECOMPRESS":{using var input=new MemoryStream((byte[])args[0]!);using var gzip=new global::System.IO.Compression.GZipStream(input,global::System.IO.Compression.CompressionMode.Decompress);using var output=new MemoryStream();gzip.CopyTo(output);return output.ToArray();}
             case "LEFT":{var count=Convert.ToInt32(args[1],CultureInfo.InvariantCulture);if(count<0){throw new SqlQueryException("Invalid length.",537);}return text[..Math.Min(count,text.Length)];}
             case "RIGHT":{var count=Convert.ToInt32(args[1],CultureInfo.InvariantCulture);if(count<0){throw new SqlQueryException("Invalid length.",537);}return text[Math.Max(0,text.Length-count)..];}
             case "SUBSTRING":{var start=Convert.ToInt32(args[1],CultureInfo.InvariantCulture);var count=Convert.ToInt32(args[2],CultureInfo.InvariantCulture);if(count<0){throw new SqlQueryException("Invalid length.",537);}if(start<1){count=Math.Max(0,count+start-1);start=1;}var offset=Math.Min(text.Length,start-1);return text.Substring(offset,Math.Min(count,text.Length-offset));}

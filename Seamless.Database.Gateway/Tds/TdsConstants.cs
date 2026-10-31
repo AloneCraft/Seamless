@@ -40,7 +40,7 @@ public static class TdsConstants{
     public const byte EnvChangeDatabase=0x01;
     public const byte EnvChangePacketSize=0x04;
 
-    // Data Types
+    // Data Types (Fixed & Nullable)
     public const byte TypeInt1=0x30;
     public const byte TypeBit=0x32;
     public const byte TypeInt2=0x34;
@@ -53,6 +53,12 @@ public static class TdsConstants{
     public const byte TypeBigNVarChar=0xE7;
     public const byte TypeBigVarBinary=0xA5;
     public const byte TypeDateTime2=0x2A;
+
+    // Nullable BYTELEN Types (MS-TDS)
+    public const byte TypeIntN=0x26;
+    public const byte TypeBitN=0x68;
+    public const byte TypeFltN=0x6D;
+    public const byte TypeDateTimeN=0x6F;
 
     // TDS Versions
     public const uint TdsVersion74=0x74000004; // SQL Server 2012+

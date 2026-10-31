@@ -41,10 +41,10 @@ SQL Server→スキーマ取得→型/C#生成→データ取り込み→Seamles
 - `SqlServerRoutineCompiler` はOSS tokenizer/ASTを使い、tinyint引数をCASEでnvarcharへ写す厳密なスカラー関数profileだけをC#へ変換する。AdventureWorks2016の3関数が非Stubとして生成された。その他の本体は理由付きStubであり、実装済みと扱わない。
 - `sys.objects`、`sys.procedures`、`sys.parameters`、`sys.sql_modules`とTVF列のカタログを実定義から返す。元のSQL種別を保持し、生成C#は`seamless.generated_methods`で別に照会する。
 - 生成契約・スカラー変換・カタログ・native入口・bit比較の選定試験はDebug/Release合計32件成功。これは全回帰や実SSMSの合格ではない。
-- 世代`20261029T070650156Z-6a4faf46`、package `0.0.0-ssms.20261029064937709`でAdventureWorks2016の760,838行を取り込んだ。71表/20ビューとfixture3表の94対象で全値照合が成功した。`import-checks.jsonl`に対象ごとの件数と結果を記録している。
-- 後続世代`20261029T082930704Z-fd927f1f`、package `0.0.0-ssms.20261029082743678`では、実SqlClientの基本4SQL（20/67/20/290行）と生成3関数の各257入力が元SQL Server・Seamless SQL・保存コピー上のC#直接実行で一致した。21ルーチンのカタログと生成実メンバーの照合も成功した。続く全テーブルTDS検証のDepartmentで非NULL日付型の符号化不整合が発生し、状態はImportedのままで、稼働切替/実UI合格にはしていない。[通信検証](wire-compatibility.md)に失敗と修正状況を記録する。
-- 後続のValidated稼働世代 `20261029T085200772Z-e76f5309`（package `0.0.0-ssms.20261029084842137`）では、非NULL日付型とUnicode PLP修正後の94対象の全TDS検証、基本SQL・生成関数・ルーチン対応・SQL/native比較が成功した。SSMSの接続初期化には別の型不整合が残り、ソース側SMO7操作成功を新パッケージと実UIへ適用する工程が残る。
-- SSMS資産のStage/Publish/削除・編集保護・参照先検証は25件成功。生成プロジェクトの形式検証を実SSMS接続/実行の代替にしない。
+- 稼働世代 `20261030T032530680Z-3b7609ad`、package `0.0.0-ssms.20261030031940904` ではAdventureWorks2016の760,838行とfixture8行を取り込んだ。71表/20ビューとfixture3表の94対象で取り込み全値とTDS全値・metadataが一致した。`import-checks.jsonl` と `wire-validation.json` に対象ごとの結果を記録している。
+- 同世代の実SqlClient基本4SQL（20/67/20/290行）と生成3関数の各257入力が元SQL Server・Seamless SQL・保存コピー上のC#直接実行で一致した。21ルーチンと実メンバーの照合、SQL/native75ケース、CRUD・取引・準備済みRPCも最終検証を通過し、`validation.json` はPassedで元DB一覧も再照合した。SharedV2の直接native変更は明示取引で実行し、Commit/Dispose後に読み取る。
+- SERVERPROPERTYの型、SET ROWCOUNT 0、包含認証確認、SET LOCK_TIMEOUT 10000、実管理バッチと設定一式、DB分類列とHAS_DBACCESSへの修正を含む上記パッケージを配置済み。稼働先でSSMSと同じmsdb照会の整数変換が成功し、ユーザー/非snapshot条件でAdventureWorks2016とfixtureの2件が返った。SMOから設定一式を実行した後、ロック待機10000ミリ秒の状態で元SQL Serverと表71/ビュー20/ストアド10/関数11、生成21メソッドの名前・ソース・Stub状態、共通Basic.sqlの4結果が一致した。PackageReference利用EXEでも20/67/20/290行の値・列情報・行順が一致した。証跡は`F:/CodexTemp/SsmsDatabaseList-v14-live/result.json`、`F:/CodexTemp/SmoAdventureWorks-v14-live/result.json`、`F:/CodexTemp/LiveBasic-v14/result.json`。利用者の実SSMSではDB一覧が表示されず、Option取得時のNTEXT RPC未対応が判明した。限定したSMOの列指定で成功した事実とは区別する。[通信検証](wire-compatibility.md)に修正と実UI受け入れを記録する。
+- SSMS資産のStage/Publish/削除・編集保護・参照先・日本語/英語の認証名・ローカル暗号化設定は、ソリューション基準での参照パス回帰を含む44項目がPowerShell 7/Windows PowerShellのそれぞれで成功した。ソリューション内のSQLファイルオープンは参照基準の不具合を別途修正・再公開し、利用者によるSSMSからのBasic.sqlオープンと実行で確認した。形式検証と実UIの確認結果を区別して記録する。
 - Query/Gateway等のScriptDom依存は残り、OSS完全移行は未完了。関数のOSS変換成功をSQL実行全経路のOSS化と混同しない。
 
 ## 実装順序

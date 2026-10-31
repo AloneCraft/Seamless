@@ -18,7 +18,7 @@ internal sealed partial class QueryBinder{
                 }
                 if(matches==0){throw new SqlQueryException("Star qualifier does not resolve.",4104);}
             }else{
-                var value=this.BindBasicScalar(item.Expression!,source.Columns,aggregates);values.Add(value);columns.Add(new(item.Alias?.Value??value.Origin?.Name??"",value.Type,value.Nullable,value.Origin?.Source,columns.Count));
+                var value=this.BindBasicScalar(item.Expression!,source.Columns,aggregates);values.Add(value);columns.Add(new(item.Alias?.Value??value.Origin?.Name??"",value.Type,value.Nullable,value.Origin?.Source,columns.Count){IsComputedFloatingPoint=IsFloating(value.Type)&&value.IsComputedFloatingPoint});
             }
         }
         Func<EvalFrame,bool?>?having=null;if(query.Having is not null){having=this.BindBasicBoolean(query.Having,source.Columns,aggregates);}
@@ -101,7 +101,7 @@ internal sealed partial class QueryBinder{
                     try{
                         var syntax=new SqlParserCsAdapter().ParseViewDefinition(view,name);var bound=new QueryBinder(this.catalog,name.Database,this.parameters,this.viewStack).BindBasic(syntax);
                         if(bound.Columns.Count!=definition.Columns.Count){throw new SqlQueryException("View column count differs from metadata: "+name,4502);}
-                        return new(definition.Columns.Select(column=>new BindingColumn(column with{Source=name},qualifier)).ToArray(),(execution,outer)=>ReadView(execution,outer));
+                        return new(definition.Columns.Select((column,index)=>new BindingColumn(column with{Source=name,IsComputedFloatingPoint=IsFloating(column.Type)&&bound.Columns[index].IsComputedFloatingPoint},qualifier)).ToArray(),(execution,outer)=>ReadView(execution,outer));
                         IEnumerable<object?[]>ReadView(QueryExecution execution,object?[]?outer){
                             foreach(var row in bound.Rows(execution,outer)){
                                 execution.Scope.ThrowIfUnavailable();var result=new object?[definition.Columns.Count];
@@ -112,7 +112,7 @@ internal sealed partial class QueryBinder{
                     }finally{this.viewStack.Remove(name);}
                 }
                 var read=definition.Rows??throw new SqlQueryException("No row source for "+name);
-                return new(definition.Columns.Select(column=>new BindingColumn(column with{Source=column.Source??definition.Name},qualifier)).ToArray(),(execution,_)=>Read(execution));
+                return new(definition.Columns.Select(column=>new BindingColumn(column with{Source=column.Source??definition.Name,IsComputedFloatingPoint=false},qualifier)).ToArray(),(execution,_)=>Read(execution));
                 IEnumerable<object?[]>Read(QueryExecution execution){
                     execution.Scope.ThrowIfUnavailable();foreach(var row in read(execution.Scope.CancellationToken)){execution.Scope.ThrowIfUnavailable();if(row.Length!=definition.Columns.Count){throw new SqlQueryException("Row column count differs from metadata: "+name);}yield return row;}
                 }
@@ -176,35 +176,35 @@ internal sealed partial class QueryBinder{
                 var match=matches[0];return new(this.GetColumnType(match.column.Column),match.column.Column.IsNullable,frame=>frame.Row[match.index],match.column.Column);
             }
             case SqlParameterSyntax parameter:{var definition=this.parameters.FirstOrDefault(item=>Equal(item.Name,parameter.Name))??throw new SqlQueryException("Undeclared parameter "+parameter.Name,137);return new(this.DefaultStringType(definition.Type),definition.IsNullable,frame=>frame.Execution.Parameters[definition.Name]);}
-            case SqlCastSyntax cast:{var value=this.BindBasicScalar(cast.Value,columns,aggregates);var type=this.DefaultStringType(BasicType(cast.Type),value.Type);return new(type,value.Nullable,frame=>SqlValues.ConvertTo(value.Value(frame),type,true));}
+            case SqlCastSyntax cast:{var value=this.BindBasicScalar(cast.Value,columns,aggregates);var type=this.DefaultStringType(BasicType(cast.Type),value.Type);return new(type,value.Nullable,frame=>SqlValues.ConvertTo(value.Value(frame),type,true)){IsComputedFloatingPoint=FloatingConversion(type,value)};}
             case SqlUnarySyntax{Operator:SqlSyntaxUnaryOperator.Positive}positive:return this.BindBasicScalar(positive.Value,columns,aggregates);
-            case SqlUnarySyntax{Operator:SqlSyntaxUnaryOperator.Negative}negative:{var value=this.BindBasicScalar(negative.Value,columns,aggregates);return new(value.Type,value.Nullable,frame=>SqlValues.Unary(value.Value(frame),SqlUnaryOperator.Negative));}
+            case SqlUnarySyntax{Operator:SqlSyntaxUnaryOperator.Negative}negative:{var value=this.BindBasicScalar(negative.Value,columns,aggregates);return new(value.Type,value.Nullable,frame=>SqlValues.Unary(value.Value(frame),SqlUnaryOperator.Negative)){IsComputedFloatingPoint=IsFloating(value.Type)};}
             case SqlBinarySyntax binary when binary.Operator is SqlSyntaxBinaryOperator.Add or SqlSyntaxBinaryOperator.Subtract or SqlSyntaxBinaryOperator.Multiply or SqlSyntaxBinaryOperator.Divide or SqlSyntaxBinaryOperator.Modulo:{
-                var operation=BasicArithmetic(binary.Operator);var left=this.BindBasicScalar(binary.Left,columns,aggregates);var right=this.BindBasicScalar(binary.Right,columns,aggregates);var type=SqlValues.Promote(left.Type,right.Type,operation);return new(type,left.Nullable||right.Nullable,frame=>SqlValues.Binary(left.Value(frame),right.Value(frame),operation,type));
+                var operation=BasicArithmetic(binary.Operator);var left=this.BindBasicScalar(binary.Left,columns,aggregates);var right=this.BindBasicScalar(binary.Right,columns,aggregates);var type=SqlValues.Promote(left.Type,right.Type,operation);return new(type,left.Nullable||right.Nullable,frame=>SqlValues.Binary(left.Value(frame),right.Value(frame),operation,type)){IsComputedFloatingPoint=IsFloating(type)};
             }
             case SqlCaseSyntax conditional:{
                 BoundScalar?input=null;if(conditional.Operand is not null){input=this.BindBasicScalar(conditional.Operand,columns,aggregates);}
                 var conditions=conditional.Arms.Select(arm=>{if(input is null){return this.BindBasicBoolean(arm.When,columns,aggregates);}return CompareCase(arm.When);}).ToArray();
                 var results=conditional.Arms.Select(arm=>this.BindBasicScalar(arm.Then,columns,aggregates)).ToArray();BoundScalar?otherwise=null;if(conditional.Else is not null){otherwise=this.BindBasicScalar(conditional.Else,columns,aggregates);}
                 var types=results.Where((_,index)=>conditional.Arms[index].Then is not SqlLiteralSyntax{Kind:SqlLiteralKind.Null}).Select(value=>value.Type).ToList();if(otherwise is not null&&conditional.Else is not SqlLiteralSyntax{Kind:SqlLiteralKind.Null}){types.Add(otherwise.Type);}var type=SqlValues.CommonType(types);
-                return new(type,true,frame=>{for(var index=0;index<conditions.Length;index++){if(conditions[index](frame)==true){return SqlValues.ConvertTo(results[index].Value(frame),type,true);}}return SqlValues.ConvertTo(otherwise?.Value(frame),type,true);});
+                return new(type,true,frame=>{for(var index=0;index<conditions.Length;index++){if(conditions[index](frame)==true){return SqlValues.ConvertTo(results[index].Value(frame),type,true);}}return SqlValues.ConvertTo(otherwise?.Value(frame),type,true);}){IsComputedFloatingPoint=AllComputedFloating(type,results,otherwise)};
                 Func<EvalFrame,bool?>CompareCase(SqlExpressionSyntax condition){var value=this.BindBasicScalar(condition,columns,aggregates);var comparison=SqlValues.CommonType([input!.Type,value.Type]);return frame=>SqlValues.Compare(input.Value(frame),value.Value(frame),SqlComparisonOperator.Equals,comparison);}
             }
             case SqlFunctionSyntax function:{
                 if(IsAggregate(function.Name)){
                     if(aggregates is null||!function.Star&&function.Arguments.Count!=1){throw new SqlQueryException("Invalid basic aggregate.",40515);}
-                    BoundScalar?value=null;if(!function.Star){value=this.BindBasicScalar(function.Arguments[0],columns,null);}var type=AggregateType(function.Name,value?.Type??SqlType.Int);var index=aggregates.Count;aggregates.Add(new(function.Name,value,function.Distinct,type));return new(type,true,frame=>frame.Aggregates![index]);
+                    BoundScalar?value=null;if(!function.Star){value=this.BindBasicScalar(function.Arguments[0],columns,null);}var type=AggregateType(function.Name,value?.Type??SqlType.Int);var index=aggregates.Count;aggregates.Add(new(function.Name,value,function.Distinct,type));return new(type,true,frame=>frame.Aggregates![index]){IsComputedFloatingPoint=ComputedFloatingAggregate(function.Name,type,value)};
                 }
                 if(function.Distinct||function.Star){throw new SqlQueryException("Invalid basic scalar function modifier.",40515);}
                 if(function.Name=="COALESCE"&&function.Arguments.Count<2){throw new SqlQueryException("COALESCE requires at least two arguments.",174);}
                 var arguments=function.Arguments.Select(argument=>this.BindBasicScalar(argument,columns,aggregates)).ToArray();
                 if(function.Name=="COALESCE"){
                     var type=SqlValues.CommonType(arguments.Where((_,index)=>function.Arguments[index] is not SqlLiteralSyntax{Kind:SqlLiteralKind.Null}).Select(value=>value.Type));
-                    return new(type,true,frame=>{foreach(var argument in arguments){var value=argument.Value(frame);if(value is not null){return SqlValues.ConvertTo(value,type,true);}}return null;});
+                    return new(type,true,frame=>{foreach(var argument in arguments){var value=argument.Value(frame);if(value is not null){return SqlValues.ConvertTo(value,type,true);}}return null;}){IsComputedFloatingPoint=AllComputedFloating(type,arguments)};
                 }
-                if(function.Name=="NULLIF"&&arguments.Length==2){var comparison=SqlValues.CommonType(arguments.Select(value=>value.Type));return new(arguments[0].Type,true,frame=>{var value=arguments[0].Value(frame);if(SqlValues.Compare(value,arguments[1].Value(frame),SqlComparisonOperator.Equals,comparison)==true){return null;}return value;});}
-                if(function.Name=="ISNULL"&&arguments.Length==2){var type=arguments[0].Type;if(function.Arguments[0] is SqlLiteralSyntax{Kind:SqlLiteralKind.Null}){type=arguments[1].Type;}return new(type,true,frame=>SqlValues.ConvertTo(arguments[0].Value(frame)??arguments[1].Value(frame),type,true));}
-                if(function.Name=="ABS"&&arguments.Length==1){var type=arguments[0].Type with{LiteralPrecision=null};return new(type,true,frame=>SqlValues.ConvertTo(SqlValues.Function("ABS",[arguments[0].Value(frame)],this.database,frame.Execution.Timestamp),type,true));}
+                if(function.Name=="NULLIF"&&arguments.Length==2){var comparison=SqlValues.CommonType(arguments.Select(value=>value.Type));return new(arguments[0].Type,true,frame=>{var value=arguments[0].Value(frame);if(SqlValues.Compare(value,arguments[1].Value(frame),SqlComparisonOperator.Equals,comparison)==true){return null;}return value;}){IsComputedFloatingPoint=arguments[0].IsComputedFloatingPoint};}
+                if(function.Name=="ISNULL"&&arguments.Length==2){var type=arguments[0].Type;if(function.Arguments[0] is SqlLiteralSyntax{Kind:SqlLiteralKind.Null}){type=arguments[1].Type;}return new(type,true,frame=>SqlValues.ConvertTo(arguments[0].Value(frame)??arguments[1].Value(frame),type,true)){IsComputedFloatingPoint=AllComputedFloating(type,arguments)};}
+                if(function.Name=="ABS"&&arguments.Length==1){var type=arguments[0].Type with{LiteralPrecision=null};return new(type,true,frame=>SqlValues.ConvertTo(SqlValues.Function("ABS",[arguments[0].Value(frame)],this.database,frame.Execution.Timestamp),type,true)){IsComputedFloatingPoint=IsFloating(type)};}
                 throw new SqlQueryException("Unsupported basic scalar function: "+function.Name,40515);
             }
             default:throw new SqlQueryException("A basic scalar expression was required.",40515);

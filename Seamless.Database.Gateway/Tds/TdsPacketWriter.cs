@@ -5,7 +5,8 @@ using Seamless.Database.Gateway.Hosting;
 
 namespace Seamless.Database.Gateway.Tds;
 
-public sealed class TdsPacketWriter{
+public sealed partial class TdsPacketWriter{
+    private const int PacketSize=4096;
     private readonly PipeWriter writer;
     private byte packetId=1;
 
@@ -52,7 +53,7 @@ public sealed class TdsPacketWriter{
         await this.WritePacketAsync(TdsConstants.PacketTypeTabularResult,stream.ToArray(),cancellationToken);
     }
 
-    public async ValueTask SendLoginAckAsync(string databaseName,CancellationToken cancellationToken=default){
+    public async ValueTask SendLoginAckAsync(string databaseName,CancellationToken cancellationToken=default,string? collation=null){
         using var stream=new MemoryStream();
 
         // 1. LoginAck Token (0xAD)
@@ -71,6 +72,10 @@ public sealed class TdsPacketWriter{
 
         // 2. EnvChange: Database changed
         WriteEnvChange(stream,TdsConstants.EnvChangeDatabase,databaseName,"master");
+        var packetSize=PacketSize.ToString(global::System.Globalization.CultureInfo.InvariantCulture);WriteEnvChange(stream,TdsConstants.EnvChangePacketSize,packetSize,packetSize);
+
+        // RPCの文字列パラメーターは接続既定collationを参照する（MS-TDS ENVCHANGE type 7）。
+        WriteCollationChange(stream,collation,null);
 
         // 3. Done Token (0xFD)
         WriteDone(stream,TdsConstants.DoneFinal,0);
@@ -79,71 +84,78 @@ public sealed class TdsPacketWriter{
     }
 
     public async ValueTask SendQueryResultAsync(QueryResult result,CancellationToken cancellationToken=default){
-        using var stream=new MemoryStream();
-
-        if(result.Columns.Count>0){
-            // 1. ColMetaData Token (0x81)
-            stream.WriteByte(TdsConstants.TokenColMetaData);
-            WriteUInt16LE(stream,(ushort)result.Columns.Count);
-
-            foreach(var col in result.Columns){
-                WriteUInt32LE(stream,0); // UserType
-                WriteUInt16LE(stream,0); // Flags: Nullable
-
-                var tdsType=GetTdsType(col.ClrType);
-                stream.WriteByte(tdsType);
-
-                if(tdsType==TdsConstants.TypeBigNVarChar){
-                    WriteUInt16LE(stream,8000); // Max length
-                    // Collation (5 bytes)
-                    stream.Write(new byte[]{0x09,0x04,0xD0,0x00,0x34});
-                }else if(tdsType==TdsConstants.TypeBigVarChar){
-                    WriteUInt16LE(stream,8000);
-                    stream.Write(new byte[]{0x09,0x04,0xD0,0x00,0x34});
-                }else if(tdsType==TdsConstants.TypeBigVarBinary){
-                    WriteUInt16LE(stream,8000);
-                }else if(tdsType==TdsConstants.TypeDateTime2){
-                    stream.WriteByte(7); // scale: 7
-                }else{
-                }
-
-                // ColumnName (Length in characters 1 byte, UTF-16LE)
-                stream.WriteByte((byte)col.Name.Length);
-                stream.Write(Encoding.Unicode.GetBytes(col.Name));
-            }
-
-            // 2. Row Tokens (0xD1)
-            foreach(var row in result.Rows){
-                stream.WriteByte(TdsConstants.TokenRow);
-                for(var i=0;i<result.Columns.Count;i++){
-                    var col=result.Columns[i];
-                    var val=row[i];
-                    WriteColumnValue(stream,col.ClrType,val);
-                }
-            }
-
-            // 3. Done Token (0xFD)
-            WriteDone(stream,TdsConstants.DoneFinal|TdsConstants.DoneCount,result.Rows.Count);
-        }else{
-            // DML または SET 文
-            WriteDone(stream,TdsConstants.DoneFinal|TdsConstants.DoneCount,result.RowsAffected);
-        }
-
-        await this.WritePacketAsync(TdsConstants.PacketTypeTabularResult,stream.ToArray(),cancellationToken);
+        await this.SendQueryResultsAsync(new[]{result},cancellationToken);
     }
 
-    public async ValueTask SendErrorAsync(string message,CancellationToken cancellationToken=default){
+    public async ValueTask SendQueryResultsAsync(IReadOnlyList<QueryResult> results,CancellationToken cancellationToken=default,bool rpc=false,IReadOnlyList<TdsRpcParameter>? output=null,Func<CancellationToken,ValueTask>? observe=null,CancellationToken transportCancellation=default){
+        using var token=new MemoryStream();
+        for(var index=0;index<results.Count;index++){
+            var result=results[index];long count=0;
+            _=result.Columns;if(observe is not null){await observe(cancellationToken);}
+            if(result.Information is{}information){WriteInformation(token,information);}
+            if(result.Columns.Count>0){
+                WriteMetadata(token,result.Columns);
+                await this.WriteFragmentAsync(TdsConstants.PacketTypeTabularResult,token.ToArray(),false,transportCancellation);token.SetLength(0);
+                var chunks=new List<(int Start,int Length)>();
+                foreach(var row in result.Rows){
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if(row.Length!=result.Columns.Count){throw new InvalidDataException("A result row does not match its column metadata.");}
+                    long rowBytes=32;foreach(var cell in row){if(cell is string text){rowBytes=checked(rowBytes+global::System.Text.Encoding.Unicode.GetByteCount(text));}else if(cell is byte[] bytes){rowBytes=checked(rowBytes+bytes.Length);}else{rowBytes+=32;}}
+                    if(rowBytes>16L*1024*1024){throw new InvalidDataException("A TDS row exceeds the configured 16 MiB transmission budget.");}
+                    chunks.Clear();token.WriteByte(TdsConstants.TokenRow);
+                    for(var i=0;i<row.Length;i++){WriteValue(token,result.Columns[i],row[i],chunks);}
+                    var rowData=token.GetBuffer().AsMemory(0,checked((int)token.Length));var position=0;
+                    foreach(var chunk in chunks){
+                        if(chunk.Start>position){await this.WriteFragmentAsync(TdsConstants.PacketTypeTabularResult,rowData.Slice(position,chunk.Start-position),false,transportCancellation);}
+                        await this.WriteFragmentAsync(TdsConstants.PacketTypeTabularResult,rowData.Slice(chunk.Start,chunk.Length),false,transportCancellation);position=chunk.Start+chunk.Length;
+                    }
+                    if(position<rowData.Length){await this.WriteFragmentAsync(TdsConstants.PacketTypeTabularResult,rowData[position..],false,transportCancellation);}
+                    token.SetLength(0);count++;
+                }
+            }else{count=result.RowsAffected;}
+            ushort status=0;if(result.Information is null){status=TdsConstants.DoneCount;}if(index+1<results.Count){status|=TdsConstants.DoneMore;}
+            if(rpc){status|=TdsConstants.DoneMore;}
+            var doneOffset=(int)token.Position;WriteDone(token,status,count);if(rpc){token.GetBuffer()[doneOffset]=TdsConstants.TokenDoneInProc;}
+            await this.WriteFragmentAsync(TdsConstants.PacketTypeTabularResult,token.ToArray(),!rpc&&index+1==results.Count,transportCancellation);token.SetLength(0);
+        }
+        if(rpc){
+            token.WriteByte(0x79);WriteInt32LE(token,0);
+            if(output is not null){
+                ushort ordinal=0;
+                foreach(var value in output){
+                    token.WriteByte(0xAC);WriteUInt16LE(token,ordinal++);WriteStringWithLength8(token,value.Name);token.WriteByte(1);WriteUInt32LE(token,0);WriteUInt16LE(token,0);token.WriteByte(0x26);token.WriteByte(4);token.WriteByte(4);WriteInt32LE(token,Convert.ToInt32(value.Value));
+                }
+            }
+            var start=token.Position;WriteDone(token,TdsConstants.DoneFinal,0);token.GetBuffer()[(int)start]=TdsConstants.TokenDoneProc;
+            await this.WriteFragmentAsync(TdsConstants.PacketTypeTabularResult,token.ToArray(),true,transportCancellation);
+        }
+    }
+    public async ValueTask SendDatabaseChangeAsync(string database,string previous,CancellationToken cancellationToken=default,string? collation=null,string? previousCollation=null){
+        using var token=new MemoryStream();WriteEnvChange(token,TdsConstants.EnvChangeDatabase,database,previous);
+        if(ResolveCollation(collation)!=ResolveCollation(previousCollation)){WriteCollationChange(token,collation,previousCollation,true);}
+        await this.WriteFragmentAsync(TdsConstants.PacketTypeTabularResult,token.ToArray(),false,cancellationToken);
+    }
+    public async ValueTask SendTransactionChangeAsync(byte change,ulong descriptor,CancellationToken cancellationToken=default){
+        using var token=new MemoryStream();token.WriteByte(TdsConstants.TokenEnvChange);WriteUInt16LE(token,11);token.WriteByte(change);
+        if(change==8){token.WriteByte(8);WriteInt64LE(token,checked((long)descriptor));token.WriteByte(0);}
+        else{token.WriteByte(0);token.WriteByte(8);WriteInt64LE(token,checked((long)descriptor));}
+        await this.WriteFragmentAsync(TdsConstants.PacketTypeTabularResult,token.ToArray(),false,cancellationToken);
+    }
+    public async ValueTask SendAttentionAckAsync(CancellationToken cancellationToken=default){
+        using var token=new MemoryStream();WriteDone(token,0x20,0);await this.WritePacketAsync(TdsConstants.PacketTypeTabularResult,token.ToArray(),cancellationToken);
+    }
+    public async ValueTask SendErrorAsync(string message,CancellationToken cancellationToken=default,int number=50000,int line=1){
         using var stream=new MemoryStream();
 
         stream.WriteByte(TdsConstants.TokenError);
         var errPayload=new MemoryStream();
-        WriteInt32LE(errPayload,50000); // Error Number
-        errPayload.WriteByte(16);       // State
+        WriteInt32LE(errPayload,number); // Error Number
+        errPayload.WriteByte(1);        // State
         errPayload.WriteByte(16);       // Class (Severity)
-        WriteStringWithLength(errPayload,message);
-        WriteStringWithLength(errPayload,"SeamlessDB");
-        WriteStringWithLength(errPayload,"");
-        WriteInt32LE(errPayload,1);     // LineNumber
+        WriteStringWithLength(errPayload,message);   // US_VARCHAR: USHORT char count + UTF-16LE
+        WriteStringWithLength8(errPayload,"SeamlessDB"); // B_VARCHAR: BYTE char count + UTF-16LE
+        WriteStringWithLength8(errPayload,"");           // B_VARCHAR: BYTE char count + UTF-16LE
+        WriteInt32LE(errPayload,Math.Max(1,line)); // LineNumber (LONG in TDS 7.2+)
 
         var errBytes=errPayload.ToArray();
         WriteUInt16LE(stream,(ushort)errBytes.Length);
@@ -153,24 +165,20 @@ public sealed class TdsPacketWriter{
         await this.WritePacketAsync(TdsConstants.PacketTypeTabularResult,stream.ToArray(),cancellationToken);
     }
 
-    private async ValueTask WritePacketAsync(byte packetType,byte[]payload,CancellationToken cancellationToken){
-        var length=payload.Length+TdsConstants.HeaderSize;
-        var header=new byte[TdsConstants.HeaderSize];
-        header[0]=packetType;
-        header[1]=TdsConstants.StatusEndOfMessage;
-        BinaryPrimitives.WriteUInt16BigEndian(header.AsSpan(2,2),(ushort)length);
-        header[4]=0; header[5]=0; // ChannelId
-        header[6]=this.packetId++;
-        header[7]=0; // Window
-
-        await this.writer.WriteAsync(header,cancellationToken);
-        if(payload.Length>0){
-            await this.writer.WriteAsync(payload,cancellationToken);
-        }else{
-        }
-        await this.writer.FlushAsync(cancellationToken);
+    private ValueTask WritePacketAsync(byte packetType,byte[]payload,CancellationToken cancellationToken)=>this.WriteFragmentAsync(packetType,payload,true,cancellationToken);
+    private async ValueTask WriteFragmentAsync(byte packetType,ReadOnlyMemory<byte> payload,bool end,CancellationToken cancellationToken){
+        var offset=0;
+        do{
+            var size=Math.Min(PacketSize-8,payload.Length-offset);var header=new byte[8];header[0]=packetType;
+            if(end&&offset+size==payload.Length){header[1]=TdsConstants.StatusEndOfMessage;}
+            BinaryPrimitives.WriteUInt16BigEndian(header.AsSpan(2,2),checked((ushort)(size+8)));header[6]=this.packetId++;
+            // 途中取消でも宣言したpacket長を必ず満たす。token全体は呼出し側のtransport tokenで送る。
+            var packet=this.writer.GetMemory(8+size);header.CopyTo(packet);if(size>0){payload.Slice(offset,size).CopyTo(packet[8..]);}this.writer.Advance(8+size);
+            var flushed=await this.writer.FlushAsync(cancellationToken);if(flushed.IsCanceled){throw new OperationCanceledException(cancellationToken);}if(flushed.IsCompleted){throw new IOException("The client disconnected.");}
+            offset+=size;
+        }while(offset<payload.Length);
+        if(end){this.packetId=1;}
     }
-
     private static void WriteOptionHeader(Stream stream,byte token,ushort offset,ushort length){
         stream.WriteByte(token);
         var buf=new byte[2];
@@ -180,6 +188,11 @@ public sealed class TdsPacketWriter{
         stream.Write(buf);
     }
 
+    private static void WriteCollationChange(Stream stream,string? current,string? previous,bool includePrevious=false){
+        var value=ResolveCollation(current);stream.WriteByte(TdsConstants.TokenEnvChange);
+        if(!includePrevious){WriteUInt16LE(stream,8);}else{WriteUInt16LE(stream,13);}stream.WriteByte(7);stream.WriteByte(5);WriteUInt32LE(stream,value.Info);stream.WriteByte(value.SortId);
+        if(!includePrevious){stream.WriteByte(0);}else{var old=ResolveCollation(previous);stream.WriteByte(5);WriteUInt32LE(stream,old.Info);stream.WriteByte(old.SortId);}
+    }
     private static void WriteEnvChange(Stream stream,byte type,string newVal,string oldVal){
         stream.WriteByte(TdsConstants.TokenEnvChange);
         var payload=new MemoryStream();
@@ -192,98 +205,17 @@ public sealed class TdsPacketWriter{
         stream.Write(bytes);
     }
 
-    private static void WriteDone(Stream stream,ushort status,int rowCount){
+    private static void WriteInformation(Stream stream,string message){
+        using var payload=new MemoryStream();WriteInt32LE(payload,0);payload.WriteByte(1);payload.WriteByte(0);
+        WriteStringWithLength(payload,message);WriteStringWithLength8(payload,"SeamlessDB");WriteStringWithLength8(payload,"");WriteInt32LE(payload,0);
+        stream.WriteByte(TdsConstants.TokenInfo);WriteUInt16LE(stream,checked((ushort)payload.Length));payload.Position=0;payload.CopyTo(stream);
+    }
+
+    private static void WriteDone(Stream stream,ushort status,long rowCount){
         stream.WriteByte(TdsConstants.TokenDone);
         WriteUInt16LE(stream,status);
         WriteUInt16LE(stream,0); // CurCmd
         WriteInt64LE(stream,rowCount);
-    }
-
-    private static void WriteColumnValue(Stream stream,Type clrType,object? val){
-        var underlying=Nullable.GetUnderlyingType(clrType)??clrType;
-        if(val is null){
-            if(underlying==typeof(string)||underlying==typeof(byte[])){
-                WriteUInt16LE(stream,0xFFFF); // Null length
-            }else{
-                stream.WriteByte(0xFF); // Null length
-            }
-            return;
-        }else{
-        }
-
-        if(underlying==typeof(int)){
-            WriteInt32LE(stream,(int)val);
-        }else if(underlying==typeof(long)){
-            WriteInt64LE(stream,(long)val);
-        }else if(underlying==typeof(short)){
-            WriteInt16LE(stream,(short)val);
-        }else if(underlying==typeof(byte)){
-            stream.WriteByte((byte)val);
-        }else if(underlying==typeof(bool)){
-            stream.WriteByte((bool)val?(byte)1:(byte)0);
-        }else if(underlying==typeof(string)){
-            var str=(string)val;
-            var bytes=Encoding.Unicode.GetBytes(str);
-            WriteUInt16LE(stream,(ushort)bytes.Length);
-            stream.Write(bytes);
-        }else if(underlying==typeof(DateTime)){
-            var dt=(DateTime)val;
-            var dateVal=(int)(dt.Date-new DateTime(1,1,1)).TotalDays;
-            var timeVal=(long)(dt.TimeOfDay.TotalSeconds*10000000L);
-            stream.WriteByte(8); // Length
-            var timeBytes=new byte[5];
-            timeBytes[0]=(byte)(timeVal&0xFF);
-            timeBytes[1]=(byte)((timeVal>>8)&0xFF);
-            timeBytes[2]=(byte)((timeVal>>16)&0xFF);
-            timeBytes[3]=(byte)((timeVal>>24)&0xFF);
-            timeBytes[4]=(byte)((timeVal>>32)&0xFF);
-            stream.Write(timeBytes);
-            var dateBytes=new byte[3];
-            dateBytes[0]=(byte)(dateVal&0xFF);
-            dateBytes[1]=(byte)((dateVal>>8)&0xFF);
-            dateBytes[2]=(byte)((dateVal>>16)&0xFF);
-            stream.Write(dateBytes);
-        }else if(underlying==typeof(double)){
-            var buf=new byte[8];
-            BinaryPrimitives.WriteDoubleLittleEndian(buf,(double)val);
-            stream.Write(buf);
-        }else if(underlying==typeof(float)){
-            var buf=new byte[4];
-            BinaryPrimitives.WriteSingleLittleEndian(buf,(float)val);
-            stream.Write(buf);
-        }else{
-            var str=val.ToString()??string.Empty;
-            var bytes=Encoding.Unicode.GetBytes(str);
-            WriteUInt16LE(stream,(ushort)bytes.Length);
-            stream.Write(bytes);
-        }
-    }
-
-    private static byte GetTdsType(Type clrType){
-        var underlying=Nullable.GetUnderlyingType(clrType)??clrType;
-        if(underlying==typeof(int)){
-            return TdsConstants.TypeInt4;
-        }else if(underlying==typeof(long)){
-            return TdsConstants.TypeInt8;
-        }else if(underlying==typeof(short)){
-            return TdsConstants.TypeInt2;
-        }else if(underlying==typeof(byte)){
-            return TdsConstants.TypeInt1;
-        }else if(underlying==typeof(bool)){
-            return TdsConstants.TypeBit;
-        }else if(underlying==typeof(string)){
-            return TdsConstants.TypeBigNVarChar;
-        }else if(underlying==typeof(DateTime)){
-            return TdsConstants.TypeDateTime2;
-        }else if(underlying==typeof(double)){
-            return TdsConstants.TypeFloat8;
-        }else if(underlying==typeof(float)){
-            return TdsConstants.TypeFloat4;
-        }else if(underlying==typeof(byte[])){
-            return TdsConstants.TypeBigVarBinary;
-        }else{
-            return TdsConstants.TypeBigNVarChar;
-        }
     }
 
     private static void WriteStringWithLength(Stream stream,string text){

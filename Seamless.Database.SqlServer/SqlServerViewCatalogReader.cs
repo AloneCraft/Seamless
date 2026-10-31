@@ -1,4 +1,4 @@
-﻿namespace Seamless.Database.SqlServer;
+namespace Seamless.Database.SqlServer;
 
 internal static class SqlServerViewCatalogReader {
     private const string Query="""
@@ -15,7 +15,7 @@ internal static class SqlServerViewCatalogReader {
             unique_index.name AS UniqueKeyName,
             key_column.key_ordinal AS UniqueKeyOrdinal,
             key_column.is_descending_key AS UniqueKeyDescending,
-            OBJECT_DEFINITION(view_definition.object_id) AS Definition
+            OBJECT_DEFINITION(view_definition.object_id) AS Definition,column_definition.collation_name,column_definition.encryption_type,USER_NAME(OBJECTPROPERTY(view_definition.object_id,'OwnerId'))
         FROM sys.views AS view_definition
         INNER JOIN sys.schemas AS schema_definition
             ON schema_definition.schema_id=view_definition.schema_id
@@ -72,9 +72,11 @@ internal static class SqlServerViewCatalogReader {
             while(await reader.ReadAsync(cancellationToken).ConfigureAwait(false)) {
             var schemaName=reader.GetString(0);
             var viewName=reader.GetString(1);
+            if(!reader.IsDBNull(14)){throw new NotSupportedException($"Always Encrypted view column '{schemaName}.{viewName}.{reader.GetString(3)}' is not supported.");}
             var key=(schemaName,viewName);
             if(!views.TryGetValue(key,out var view)) {
                 view=new(schemaName,viewName);
+                view.OwnerName=reader.IsDBNull(15)?null:reader.GetString(15);
                 views.Add(key,view);
             }
             var columnName=reader.GetString(3);
@@ -89,7 +91,7 @@ internal static class SqlServerViewCatalogReader {
                     reader.GetBoolean(8),
                     reader.GetInt16(5),
                     reader.GetByte(6),
-                    reader.GetByte(7)),
+                    reader.GetByte(7),collation:reader.IsDBNull(13)?null:reader.GetString(13)),
                 false));
             if(!reader.IsDBNull(9)&&!reader.IsDBNull(10)) {
                 view.UniqueKeyName=reader.GetString(9);
@@ -123,6 +125,7 @@ internal static class SqlServerViewCatalogReader {
         public string? UniqueKeyName { get; set; }
         public List<(int Ordinal,KeyColumnCatalog Column)> UniqueKeyColumns { get; }=[];
         public string? Definition { get; set; }
+        public string? OwnerName { get; set; }
         public HashSet<string> Dependencies { get; }=new(StringComparer.Ordinal);
 
         public SqlServerViewDefinition Build() {
@@ -142,7 +145,7 @@ internal static class SqlServerViewCatalogReader {
                     this.Columns.OrderBy(static value=>value.Ordinal).ToArray(),
                     uniqueKey,
                     this.Definition,
-                    this.Dependencies.OrderBy(static value=>value,StringComparer.Ordinal).ToArray()));
+                    this.Dependencies.OrderBy(static value=>value,StringComparer.Ordinal).ToArray()){OwnerName=this.OwnerName});
         }
     }
 }

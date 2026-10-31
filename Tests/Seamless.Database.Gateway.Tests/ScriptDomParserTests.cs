@@ -32,7 +32,7 @@ public sealed class ScriptDomParserTests{
             // SELECT文のパース
             var cmd=ScriptDomParser.Parse("SELECT * FROM 商品 WHERE 在庫数 > 10;",adapter);
             Assert.Equal(SqlCommandKind.Select,cmd.Kind);
-            Assert.Equal("商品",cmd.TableName);
+            Assert.Equal("dbo.商品",cmd.TableName);
             Assert.NotNull(cmd.Columns);
             Assert.Contains("*",cmd.Columns);
             Assert.NotNull(cmd.Predicate);
@@ -42,7 +42,7 @@ public sealed class ScriptDomParserTests{
             // INSERT文のパース
             var cmd=ScriptDomParser.Parse("INSERT INTO 商品 (商品ID, 名前, 単価, 在庫数) VALUES (100, 'リンゴ', 150, 50);",adapter);
             Assert.Equal(SqlCommandKind.Insert,cmd.Kind);
-            Assert.Equal("商品",cmd.TableName);
+            Assert.Equal("dbo.商品",cmd.TableName);
             Assert.NotNull(cmd.Values);
             Assert.Equal(100,cmd.Values["商品ID"]);
             Assert.Equal("リンゴ",cmd.Values["名前"]);
@@ -52,9 +52,9 @@ public sealed class ScriptDomParserTests{
             // UPDATE文のパース
             var cmd=ScriptDomParser.Parse("UPDATE 商品 SET 在庫数 = 20 WHERE 商品ID = 100;",adapter);
             Assert.Equal(SqlCommandKind.Update,cmd.Kind);
-            Assert.Equal("商品",cmd.TableName);
-            Assert.NotNull(cmd.Values);
-            Assert.Equal(20,cmd.Values["在庫数"]);
+            Assert.Equal("dbo.商品",cmd.TableName);
+            Assert.NotEmpty(cmd.UpdateValues);
+            Assert.Equal(20,cmd.UpdateValues["在庫数"](new object()));
             Assert.NotNull(cmd.Predicate);
         }
 
@@ -62,8 +62,16 @@ public sealed class ScriptDomParserTests{
             // DELETE文のパース
             var cmd=ScriptDomParser.Parse("DELETE FROM 商品 WHERE 商品ID = 100;",adapter);
             Assert.Equal(SqlCommandKind.Delete,cmd.Kind);
-            Assert.Equal("商品",cmd.TableName);
+            Assert.Equal("dbo.商品",cmd.TableName);
             Assert.NotNull(cmd.Predicate);
+        }
+
+        {
+            // 未対応の条件を無条件削除にしてはならない。
+            Assert.Throws<Seamless.Database.Query.SqlQueryException>(()=>ScriptDomParser.Parse("DELETE FROM 商品 WHERE 名前 LIKE N'a%';",adapter));
+            Assert.Throws<Seamless.Database.Query.SqlQueryException>(()=>ScriptDomParser.Parse("DELETE FROM 商品 WHERE 不存在 = 1;",adapter));
+            var cmd=ScriptDomParser.Parse("DELETE FROM 商品 WHERE 名前 = NULL;",adapter);
+            Assert.False(cmd.Predicate!(new {名前=(string?)null}));
         }
 
         {

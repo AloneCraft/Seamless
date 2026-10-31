@@ -28,6 +28,8 @@ public sealed record SqlRoutine(SqlObjectName Name,string? Definition,SqlNativeR
 public sealed record SqlNativeRoutine(IReadOnlyList<SqlParameter> Parameters,SqlType ReturnType,bool IsNullable,Func<IReadOnlyList<object?>,object?> Invoke);
 public interface ISqlCatalog{
     long Generation{get;}
+    long GetGeneration(string database)=>this.Generation;
+    bool CanCachePlans=>true;
     SqlTable? FindTable(SqlObjectName name);
     SqlRoutine? FindRoutine(SqlObjectName name)=>null;
     string? GetDatabaseCollation(string database)=>null;

@@ -54,6 +54,13 @@ internal sealed record TdsRpcRequest(string Procedure,IReadOnlyList<TdsRpcParame
                 var sign=this.Byte();var magnitude=new BigInteger(this.Read(length-1),true,false);var digits=magnitude.ToString(CultureInfo.InvariantCulture).PadLeft(scale+1,'0');
                 if(scale>0){digits=digits.Insert(digits.Length-scale,".");}if(sign==0){digits="-"+digits;}return(type,decimal.Parse(digits,CultureInfo.InvariantCulture));
             }
+            if(code==0x63){
+                var maximum=BinaryPrimitives.ReadInt32LittleEndian(this.Read(4));_=this.Read(5);var length=BinaryPrimitives.ReadInt32LittleEndian(this.Read(4));
+                if(maximum<0){throw new InvalidDataException("Invalid RPC ntext metadata length.");}
+                var type=new SqlType("ntext",typeof(string),-1);if(length==-1){return(type,null);}
+                if(length<0||length>maximum||length>16*1024*1024||(length&1)!=0){throw new InvalidDataException("Invalid RPC ntext size.");}
+                return(type,Encoding.Unicode.GetString(this.Read(length)));
+            }
             if(code is 0xA7 or 0xAF or 0xE7 or 0xEF or 0xA5 or 0xAD or 0xF1){
                 ushort maximum=ushort.MaxValue;byte[] collation=[];
                 if(code==0xF1){if(this.Byte()!=0){throw new NotSupportedException("RPC XML schema collections are not supported.");}}

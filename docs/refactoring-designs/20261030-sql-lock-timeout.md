@@ -16,3 +16,10 @@ SSMSの実接続を診断用TDS転送器で採取したところ、包含認証�
 
 ## 受け入れと配置
 設定・接続隔離・reset・不正値、SharedV2の競合下でSELECT/明示取引/暗黙DMLが1222になること、失敗後の再実行、取消を検証する。Debug/Releaseの関連回帰、LockTimeoutを設定したSMO試験を実行する。NuGetの新しい一意な版で実データを再構築し、全検証が通った世代だけ14333番へ切り替える。実SSMS画面の成功は利用者の再確認まで未検証とする。
+
+## 検証状況
+失敗先行の証跡は `F:/CodexTemp/SsmsLockTimeout/before-corrected-fixture.trx`。未修正版で5件が失敗し、4件は実SSMSと同じSetCommandStatementの40515だった。
+
+独立レビューで重大な欠陥は検出されず、読取列挙の途中破棄、同一SQLの別接続での再利用、取得後の取引寿命も検証した。SSMS・DDL・SharedV2・Runtimeカタログを含む最終回帰はDebug/Release各40件成功、skip 0（同ディレクトリの`review-Debug.trx`、`review-Release.trx`）。途中で読取を止めた際にも次のwriterが取得でき、SQLキャッシュに最初の接続の待機値が保持されず、取引が待機設定時間を超えてもcommitできることを確認した。
+
+元SQL Serverの独立SMO試験でもLockTimeoutプロパティ10秒がSQLの10000ミリ秒になることを確認した（`F:/CodexTemp/SmoSourceLockTimeout/result.json`）。取消は最初の結果受信後に独立スレッドから送り、ロック待機の中断と接続再利用を確認する。

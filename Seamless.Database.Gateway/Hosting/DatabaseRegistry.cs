@@ -30,7 +30,12 @@ public sealed partial class DatabaseRegistry:ISqlCatalog{
             var reference=this.databases.Values.FirstOrDefault();if(reference is null){return null;}if(!SystemCatalogEmulator.TryEmulate("SELECT * FROM sys.databases",reference.Adapter,out var shape)){return null;}
             return new(name,shape.Columns.Select(c=>new SqlColumn(c.Name,new SqlType(c.SqlTypeName,c.ClrType,c.MaximumLength,c.Precision,c.Scale,c.Collation),c.IsNullable,name,c.Ordinal)).ToArray(),_=>DatabaseRows());
         }
+        if(name.Database.Equals("master",StringComparison.OrdinalIgnoreCase)&&name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("database_mirroring",StringComparison.OrdinalIgnoreCase)){
+            var mirroring=SqlServerDatabaseOptionCatalog.Mirroring();
+            return new(name,mirroring.Columns.Select(c=>new SqlColumn(c.Name,new SqlType(c.SqlTypeName,c.ClrType,c.MaximumLength,c.Precision,c.Scale,c.Collation),c.IsNullable,name,c.Ordinal)).ToArray(),_=>mirroring.Rows);
+        }
         if(!this.databases.TryGetValue(name.Database,out var registration)){return null;}
+        using var read=ReadSqlDatabase(registration.Adapter);
         if((name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)||name.Schema.Equals("seamless",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("generated_methods",StringComparison.OrdinalIgnoreCase))&&SystemCatalogEmulator.TryCatalog(name.Name,registration.Adapter,registration.Views,registration.Routines,out var catalog,registration.Name)){
             return new(name,catalog.Columns.Select(c=>new SqlColumn(c.Name,new SqlType(c.SqlTypeName,c.ClrType,c.MaximumLength,c.Precision,c.Scale,c.Collation),c.IsNullable,name,c.Ordinal)).ToArray(),_=>catalog.Rows);
         }
@@ -42,17 +47,77 @@ public sealed partial class DatabaseRegistry:ISqlCatalog{
         var columns=table.Columns.Select(c=>new SqlColumn(c.Name,new SqlType(c.SqlTypeName,c.ClrType,c.MaximumLength,c.Precision,c.Scale,c.Collation),c.IsNullable,name,c.Ordinal)).ToArray();
         return new(new(registration.Name,table.SchemaName,table.TableName),columns,Read);
         IEnumerable<object?[]> Read(CancellationToken cancellation){
-            using var session=new SessionContext(0,registration.Name);
+            using var session=new SessionContext(0,registration.Name){CancellationToken=cancellation,LockTimeoutMilliseconds=sqlSession.Value?.LockTimeoutMilliseconds??-1};
+            using var read=ReadSqlDatabase(registration.Adapter,session);
             foreach(var row in registration.Adapter.ExecuteSelect(registration.Adapter is InProcessDatabaseAdapter?table.IdentifierKey:table.FullName,null,null,session).Rows){cancellation.ThrowIfCancellationRequested();yield return row;}
         }
     }
     private IEnumerable<object?[]> DatabaseRows(){
-        yield return ["master",1,"Japanese_CI_AS",(byte)0,"ONLINE",(byte)160,false,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE"];
-        var id=5;foreach(var database in this.databases.Values){yield return [database.Name,id++,database.DefaultCollation??"Japanese_CI_AS",(byte)0,"ONLINE",(byte)160,database.IsReadOnly,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE"];}
+        yield return SqlServerDatabaseOptionCatalog.Expand(["master",1,"Japanese_CI_AS",(byte)0,"ONLINE",(byte)160,false,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null]);
+        var id=5;foreach(var database in this.databases.Values){yield return SqlServerDatabaseOptionCatalog.Expand([database.Name,id++,database.DefaultCollation??"Japanese_CI_AS",(byte)0,"ONLINE",(byte)160,database.IsReadOnly,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null]);}
     }
     public SqlRoutine? FindRoutine(SqlObjectName name){
         this.RejectForeignDatabaseTransaction(name.Database);
+        if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("SUSER_SNAME",StringComparison.OrdinalIgnoreCase)){
+            return new(name,null,new([new("@sid",new("varbinary",typeof(byte[]),85),true)],new("nvarchar",typeof(string),128),true,arguments=>{
+                if(arguments[0] is byte[] sid&&sid.AsSpan().SequenceEqual(new byte[]{1})){return "sa";}return null;
+            }));
+        }
+        if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("HAS_DBACCESS",StringComparison.OrdinalIgnoreCase)){
+            return new(name,null,new([new("@database",new("nvarchar",typeof(string),128),true)],SqlType.Int,true,arguments=>{
+                if(arguments[0] is null){return null;}var database=(string)arguments[0]!;if(database.Equals("master",StringComparison.OrdinalIgnoreCase)||this.databases.ContainsKey(database)){return 1;}
+                // msdb管理機能はこの互換profileでは利用不可。SSMSの能力照会へ0を返す。
+                if(database.Equals("msdb",StringComparison.OrdinalIgnoreCase)){return 0;}return null;
+            }));
+        }
+        if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("COLLATIONPROPERTY",StringComparison.OrdinalIgnoreCase)){
+            return new(name,null,new([new("@collation",new("nvarchar",typeof(string),128),true),new("@property",new("nvarchar",typeof(string),128),true)],SqlType.Int,true,arguments=>{
+                if(arguments[0] is not string collation||arguments[1] is not string property){return null;}
+                var shape=collation.ToUpperInvariant() switch{
+                    "JAPANESE_CI_AS"=>(Lcid:1041,Style:196609),
+                    "SQL_LATIN1_GENERAL_CP1_CI_AS" or "LATIN1_GENERAL_100_CI_AS"=>(Lcid:1033,Style:196609),
+                    "LATIN1_GENERAL_BIN2" or "LATIN1_GENERAL_100_BIN2" or "LATIN1_GENERAL_100_BIN2_UTF8"=>(Lcid:1033,Style:0),
+                    _=>throw new SqlQueryException("Unsupported collation: "+collation,40515)};
+                return property.ToUpperInvariant() switch{"LCID"=>shape.Lcid,"COMPARISONSTYLE"=>shape.Style,_=>throw new SqlQueryException("Unsupported COLLATIONPROPERTY property: "+property,40515)};
+            }));
+        }
+        if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("QUOTENAME",StringComparison.OrdinalIgnoreCase)){
+            var textType=new SqlType("nvarchar",typeof(string),-1);
+            return new(name,null,new([new("@value",textType,true),new("@delimiter",textType,true)],new("nvarchar",typeof(string),258),true,arguments=>{
+                if(arguments[0] is not string value||arguments[1] is not string delimiter||value.Length>128||delimiter.Length!=1){return null;}
+                char left;char right;
+                switch(delimiter[0]){
+                    case '[':case ']':left='[';right=']';break;
+                    case '(':case ')':left='(';right=')';break;
+                    case '{':case '}':left='{';right='}';break;
+                    case '<':case '>':left='<';right='>';break;
+                    case '\'':left='\'';right='\'';break;
+                    case '"':left='"';right='"';break;
+                    case '`':left='`';right='`';break;
+                    default:return null;
+                }
+                return left+value.Replace(right.ToString(),new string(right,2),StringComparison.Ordinal)+right;
+            }));
+        }
         if(!this.databases.TryGetValue(name.Database,out var registration)){return null;}
+        using var read=ReadSqlDatabase(registration.Adapter);
+        if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&(name.Name.Equals("OBJECTPROPERTYEX",StringComparison.OrdinalIgnoreCase)||name.Name.Equals("OBJECTPROPERTY",StringComparison.OrdinalIgnoreCase))){
+            return new(name,null,new([new("@object_id",SqlType.Int,true),new("@property",new("nvarchar",typeof(string),-1),true)],SqlType.Int,true,arguments=>{
+                if(arguments[0] is not int id||arguments[1] is not string property){return null;}
+                if(!property.Equals("IsSchemaBound",StringComparison.OrdinalIgnoreCase)&&!property.Equals("OwnerId",StringComparison.OrdinalIgnoreCase)){throw new SqlQueryException("Unsupported OBJECTPROPERTY property: "+property,40515);}
+                using var catalogRead=ReadSqlDatabase(registration.Adapter);
+                SystemCatalogEmulator.TryCatalog("objects",registration.Adapter,registration.Views,registration.Routines,out var objects);
+                var found=objects.Rows.FirstOrDefault(row=>Equals(row[1],id));if(found is null){return null;}
+                if(property.Equals("OwnerId",StringComparison.OrdinalIgnoreCase)){return found[15];}
+                SystemCatalogEmulator.TryCatalog("sql_modules",registration.Adapter,registration.Views,registration.Routines,out var modules);
+                var ordinal=Array.FindIndex(modules.Columns.ToArray(),column=>column.Name.Equals("is_schema_bound",StringComparison.OrdinalIgnoreCase));
+                if(ordinal<0){throw new SqlQueryException("sys.sql_modules.is_schema_bound is unavailable.",40515);}
+                var module=modules.Rows.FirstOrDefault(row=>Equals(row[0],id));
+                if(module is null){return 0;}
+                if(module[ordinal] is null){return null;}
+                return Convert.ToInt32(module[ordinal],global::System.Globalization.CultureInfo.InvariantCulture);
+            }));
+        }
         if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.ToUpperInvariant() is "SCHEMA_NAME" or "SCHEMA_ID" or "OBJECT_NAME" or "OBJECT_ID"){
             var function=name.Name.ToUpperInvariant();var schemaFunction=function.StartsWith("SCHEMA_",StringComparison.Ordinal);
             SystemCatalogEmulator.TryCatalog(schemaFunction?"schemas":"objects",registration.Adapter,registration.Views,registration.Routines,out var catalog);
@@ -101,5 +166,5 @@ public sealed record DatabaseRegistration(string Name,IDatabaseAdapter Adapter,b
     private string originalFingerprint=SchemaFingerprint;
     public string SchemaFingerprint{get=>DatabaseRegistry.EffectiveSchemaFingerprint(this.Adapter,this.originalFingerprint);init=>this.originalFingerprint=value;}
 }
-public sealed record DatabaseViewDefinition(string Schema,string Name,string Definition,IReadOnlyList<SqlColumn> Columns,IReadOnlyList<ColumnCatalog>? SourceColumns=null);
+public sealed record DatabaseViewDefinition(string Schema,string Name,string Definition,IReadOnlyList<SqlColumn> Columns,IReadOnlyList<ColumnCatalog>? SourceColumns=null){public string? OwnerName{get;init;}}
 public sealed record DatabaseRoutineDefinition(string Schema,string Name,string? Definition,RoutineCatalog? Catalog=null,GeneratedRoutineBinding? GeneratedMethod=null,SqlNativeRoutine? Native=null);

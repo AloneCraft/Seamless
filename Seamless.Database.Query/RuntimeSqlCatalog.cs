@@ -50,9 +50,10 @@ public sealed class RuntimeSqlCatalog{
         var definition=this.Get(schema,name);foreach(var row in this.rows){if(this.ReadState().Revision!=expectedSchemaRevision){throw new InvalidOperationException("Runtime schema revision changed.");}if(row.Key.ObjectId==definition.ObjectId){yield return new(row.Key.RowId,Decode(row.Payload,definition.Columns));}}if(this.ReadState().Revision!=expectedSchemaRevision){throw new InvalidOperationException("Runtime schema revision changed.");}
     }
     public RuntimeSqlRow ReadRow(string schema,string name,long rowId,long expectedSchemaRevision){using var scope=this.owner.BeginReadSession();if(this.ReadState().Revision!=expectedSchemaRevision){throw new InvalidOperationException("Runtime schema revision changed.");}var definition=this.Get(schema,name);if(!this.rows.TryGetValue(new(definition.ObjectId,rowId),out var row)){throw new KeyNotFoundException("Runtime row not found.");}return new(row.Key.RowId,Decode(row.Payload,definition.Columns));}
-    public RuntimeSqlTransaction BeginTransaction(){
+    public RuntimeSqlTransaction BeginTransaction()=>this.BeginTransaction(CancellationToken.None);
+    public RuntimeSqlTransaction BeginTransaction(CancellationToken cancellationToken){
         if(this.current.Value is not null){throw new InvalidOperationException("A runtime SQL transaction is already active.");}
-        var scope=new RuntimeSqlTransaction(this,this.owner.BeginTransaction());this.current.Value=scope;return scope;
+        var scope=new RuntimeSqlTransaction(this,this.owner.BeginTransaction(cancellationToken));this.current.Value=scope;return scope;
     }
     private void RequireTransaction(){var scope=this.current.Value;if(scope is null||scope.Finished||scope.RollbackOnly){throw new InvalidOperationException("An active RuntimeSql transaction is required.");}}
     private void ApplyMutation(Action action){try{action();}catch{this.current.Value!.AbortAfterWriteFailure();throw;}}

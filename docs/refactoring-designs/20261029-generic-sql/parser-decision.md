@@ -37,7 +37,7 @@ MsSqlDialectがLIMIT、MySQL/PostgreSQL dialectがTOPを受理することを観
 3. 共通12queryと方言別LIMIT/TOP/OFFSET、CTE、UNION、相関、quoted identifier、コメント、無効SQL、複数文、長文/深いネストをcase ID・期待ラベル付きで追加する。構文として合法な意味不正SQLはparserに拒否を要求せずbinderの試験に分ける。
 4. 正しい解析と依存名/投影/スコープ・source位置が期待値を保つかを別々に照合する。既知に失敗するsyntaxは失敗理由を保存する。
 5. Releaseでparse結果を全て消費して測る。各caseを2回warmup、7batch×100回を既定にしてelapsed ticks、per-thread allocated bytes、入力byte数、AST消費方法、GC/ランタイム/版/hashを保存。DB実行時間とは比較しない。
-6. BGO source S / build-dir X / cpu:heavy Xを取得し、競合時は待機。実行できなければUnavailableとし、測定値0や合格にしない。部分的結果から全方言を保証しない。
+6. 現在の比較作業は[直接実行と8論理CPU上限](../20261030-local-cpu-execution.md)に従う。同じmaskを子孫へ継承し、共有調停器を使わない。実行できなければUnavailableとし、測定値0や合格にしない。部分的結果から全方言を保証しない。
 
 ## 採用ゲート
 MIT/noticeと必要依存が確認できること、必須caseの構造と診断を保持すること、外部ASTを製品共通APIに漏らさないことが必須。T-SQLの基本subsetもOSS側へ移してからScriptDomを除去する。後続の目的補正によりXML等のvendor拡張の維持は必須ではない。SqlParserCSの必要構文/位置情報が不足する場合は任意のAST側表で補完可能かを検証し、原文から情報が復元できない場合は採用を保留する。未検証の速度で採用を正当化しない。

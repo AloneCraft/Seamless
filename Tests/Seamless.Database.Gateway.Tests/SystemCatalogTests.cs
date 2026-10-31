@@ -25,7 +25,7 @@ public sealed class SystemCatalogTests{
         Assert.Equal(table[1],title[0]);Assert.Equal((byte)231,title[3]);Assert.Equal(true,title[7]);Assert.Equal("Japanese_CI_AS",title[9]);Assert.Equal((short)-1,title[4]);Assert.Equal((byte)37,title[5]);Assert.Equal((byte)6,title[6]);
         var amount=Assert.Single(columns,r=>Equals(r[1],"Amount"));
         Assert.Equal(view[1],amount[0]);Assert.Equal((byte)106,amount[3]);Assert.Equal((short)9,amount[4]);Assert.Equal((byte)12,amount[5]);Assert.Equal((byte)3,amount[6]);
-        var indexes=Read("indexes").Rows.ToArray();Assert.Single(indexes);Assert.Equal(table[1],indexes[0][0]);Assert.Equal("PK_source",indexes[0][1]);Assert.Equal((byte)2,indexes[0][3]);Assert.Equal("NONCLUSTERED",indexes[0][4]);
+        var indexes=Read("indexes").Rows.ToArray();Assert.Equal(2,indexes.Length);var index=Assert.Single(indexes,row=>Equals(row[0],table[1]));Assert.Equal("PK_source",index[1]);Assert.Equal((byte)2,index[3]);Assert.Equal("NONCLUSTERED",index[4]);var heap=Assert.Single(indexes,row=>!Equals(row[0],table[1]));Assert.Equal(0,heap[2]);Assert.Equal((byte)0,heap[3]);Assert.Null(heap[1]);
         var keys=Read("index_columns").Rows.ToArray();Assert.Equal(2,keys.Length);Assert.Equal(2,keys[0][3]);Assert.Equal(true,keys[0][5]);Assert.Equal(1,keys[1][3]);
         var types=Read("types").Rows.ToArray();Assert.Contains(types,r=>Equals(r[0],"decimal"));Assert.Contains(types,r=>Equals(r[0],"uniqueidentifier"));
         Assert.DoesNotContain(columns,r=>Equals(r[1],"SyntheticRowId"));
@@ -59,7 +59,7 @@ public sealed class SystemCatalogTests{
         var table=Assert.Single(tables.Rows,r=>Equals(r[0],"Orders"));
         Assert.True(SystemCatalogEmulator.TryCatalog("columns",adapter,[],out var columns));
         var visible=columns.Rows.Where(r=>Equals(r[0],table[1])).ToArray();Assert.Single(visible);Assert.Equal("Title",visible[0][1]);Assert.Equal(true,visible[0][7]);
-        Assert.True(SystemCatalogEmulator.TryCatalog("indexes",adapter,[],out var indexes));Assert.DoesNotContain(indexes.Rows,r=>Equals(r[0],table[1]));
+        Assert.True(SystemCatalogEmulator.TryCatalog("indexes",adapter,[],out var indexes));var heap=Assert.Single(indexes.Rows,r=>Equals(r[0],table[1]));Assert.Equal(0,heap[2]);Assert.Null(heap[1]);Assert.Equal(false,heap[6]);
         Assert.True(SystemCatalogEmulator.TryCatalog("index_columns",adapter,[],out var keys));Assert.DoesNotContain(keys.Rows,r=>Equals(r[0],table[1]));
         var realBindings=new[]{new GeneratedTableBinding("商品","sales","Orders",[new("Id","商品ID",new(DatabaseTypeKind.Int32,false,SqlTypeName:"int")),new("Title","名前",new(DatabaseTypeKind.String,true,40,SqlTypeName:"nvarchar"))])};
         var source=new DatabaseCatalog("fixture",[new SchemaCatalog("sales",[new TableCatalog("Orders",[],new PrimaryKeyCatalog("PK_original",[new("Title",true),new("Id",false)],2))])]);

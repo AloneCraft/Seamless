@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 
 namespace Seamless.Database.SqlServer;
 
@@ -65,6 +65,7 @@ public static class SqlServerImportSizer {
     private static string CreateMeasureQuery(GeneratedTableBinding table) {
         var builder=new StringBuilder("SELECT COUNT_BIG(*),COALESCE(MAX(CONVERT(bigint,0)");
         foreach(var column in table.Columns) {
+            if(column.IsSynthetic){builder.Append("+CONVERT(bigint,8)");continue;}
             builder.Append("+COALESCE(CONVERT(bigint,DATALENGTH(")
                 .Append(Quote(column.SourceName))
                 .Append(")),0)");

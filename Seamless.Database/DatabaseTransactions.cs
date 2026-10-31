@@ -138,7 +138,7 @@ public abstract partial class DatabaseContainer{
         this.sharedCoordinator?.StopAccepting();
         if(this.sharedCoordinator is not null){
             using var lease=this.sharedCoordinator.EnterReadForShutdown();
-            if(this.sharedCoordinator.Failure.Error is null){try{this.SaveShared().AsTask().GetAwaiter().GetResult();}catch(Exception error){errors.Add(error);}}
+            if(this.sharedReady&&this.sharedCoordinator.Failure.Error is null){try{this.SaveShared().AsTask().GetAwaiter().GetResult();}catch(Exception error){errors.Add(error);}}
             this.disposed=true;
             foreach(var table in this.tables.Values){try{table.Dispose();}catch(Exception error){errors.Add(error);}}
             this.tables.Clear();

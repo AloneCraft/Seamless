@@ -53,6 +53,28 @@ public sealed class BankTests{
             using(var database=new BankDatabase(Options(path))){Assert.Equal(TransactionOutcomeKind.Unknown,(await database.GetTransactionOutcomeAsync(id)).Kind);Assert.Equal(123,database.Accounts[1].Balance);}
         }finally{if(Directory.Exists(path)){Directory.Delete(path,true);}}
     }
+    [Fact]public void UninitializedPersistentDatabaseClosePreservesCommittedRows(){
+        var path=Path.Combine(Path.GetTempPath(),"Seamless.C12.Bank",Guid.NewGuid().ToString("N"));
+        try{
+            using(var database=new BankDatabase(Options(path))){
+                using var transaction=database.BeginTransaction();database.Accounts.Add(new(1,123));transaction.Commit();
+            }
+            using(var database=new BankDatabase(Options(path))){Assert.Equal(123,database.Accounts[1].Balance);}
+            using(var database=new BankDatabase(Options(path))){Assert.Equal(123,database.Accounts[1].Balance);}
+            using(var database=new BankDatabase(Options(path))){_ = database.Accounts;}
+            using(var database=new BankDatabase(Options(path))){Assert.Equal(123,database.Accounts[1].Balance);}
+        }finally{if(Directory.Exists(path)){Directory.Delete(path,true);}}
+    }
+    [Fact]public void UninitializedNewPersistentDatabaseCanBeReopened(){
+        var path=Path.Combine(Path.GetTempPath(),"Seamless.C12.Bank",Guid.NewGuid().ToString("N"));
+        try{
+            using(var database=new BankDatabase(Options(path))){_ = database.Accounts;}
+            using(var database=new BankDatabase(Options(path))){
+                using var transaction=database.BeginTransaction();database.Accounts.Add(new(1,123));transaction.Commit();
+            }
+            using(var database=new BankDatabase(Options(path))){Assert.Equal(123,database.Accounts[1].Balance);}
+        }finally{if(Directory.Exists(path)){Directory.Delete(path,true);}}
+    }
     [Fact]public async Task LegacyModeRejectsSharedMaintenanceAndPreservesLegacyTransactions(){
         using var database=new BankDatabase(Options() with{Transactions=DatabaseTransactionMode.Legacy});
         await Assert.ThrowsAsync<InvalidOperationException>(async()=>await database.GetTransactionOutcomeAsync(Guid.NewGuid()));

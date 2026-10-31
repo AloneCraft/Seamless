@@ -1,4 +1,4 @@
-﻿namespace Seamless.Database.SqlServer;
+namespace Seamless.Database.SqlServer;
 
 public static class SqlServerTypeMapper {
     public static DatabaseType Map(
@@ -7,7 +7,7 @@ public static class SqlServerTypeMapper {
         short maximumLength,
         byte precision,
         byte scale,
-        bool isEncrypted=false) {
+        bool isEncrypted=false,string? collation=null) {
         ArgumentException.ThrowIfNullOrWhiteSpace(systemTypeName);
         var normalized=systemTypeName.ToLowerInvariant();
         var kind=isEncrypted?DatabaseTypeKind.Binary:normalized switch {
@@ -29,7 +29,7 @@ public static class SqlServerTypeMapper {
             "xml"=>DatabaseTypeKind.Xml,
             _=>throw new NotSupportedException($"SQL Server type '{systemTypeName}' is not supported."),
         };
-        int? length=isEncrypted||maximumLength<0?null:maximumLength;
+        int? length=isEncrypted||maximumLength<0||normalized is "text" or "ntext" or "image"?null:maximumLength;
         if(kind==DatabaseTypeKind.String&&normalized.StartsWith('n')&&length is not null) {
             length/=2;
         }
@@ -41,7 +41,12 @@ public static class SqlServerTypeMapper {
             isNullable,
             MaximumLength:length,
             Precision:kind==DatabaseTypeKind.Decimal?precision:null,
-            Scale:kind==DatabaseTypeKind.Decimal?scale:null,
-            RuntimeType:runtimeType);
+            Scale:kind is DatabaseTypeKind.Decimal or DatabaseTypeKind.Time or DatabaseTypeKind.DateTime or DatabaseTypeKind.DateTimeOffset?scale:null,
+            RuntimeType:runtimeType,
+            SqlTypeName:normalized,
+            Collation:collation,
+            SourceMaximumLength:maximumLength,
+            SourcePrecision:precision,
+            SourceScale:scale);
     }
 }

@@ -30,6 +30,8 @@ public static class HttpEndpoints{
         var path=req.Url?.AbsolutePath??string.Empty;
 
         try{
+            var selected=req.QueryString["database"]??sqlEngine.Databases.DefaultDatabaseName;adapter=sqlEngine.Databases.Resolve(selected).Adapter;
+            if(path=="/api/databases"){await WriteJsonAsync(res,sqlEngine.Databases.Databases.Select(d=>new{d.Name,d.IsReadOnly}),cancellationToken);return;}
             if(path=="/"||path=="/index.html"){
                 await ServeHtmlAsync(res,adapter.DatabaseName,cancellationToken);
             }else if(path=="/api/tables"&&req.HttpMethod=="GET"){
@@ -38,7 +40,7 @@ public static class HttpEndpoints{
                 var tableName=path.Substring("/api/tables/".Length);
                 await HandleGetTableDataAsync(res,tableName,adapter,cancellationToken);
             }else if(path=="/api/sql"&&req.HttpMethod=="POST"){
-                await HandlePostSqlAsync(req,res,adapter,sqlEngine,cancellationToken);
+                await HandlePostSqlAsync(req,res,adapter,sqlEngine,selected,cancellationToken);
             }else{
                 res.StatusCode=404;
                 await WriteJsonAsync(res,new{error="Not Found"},cancellationToken);
@@ -64,15 +66,8 @@ public static class HttpEndpoints{
     private static async Task HandleGetTableDataAsync(global::System.Net.HttpListenerResponse res,string tableName,IDatabaseAdapter adapter,CancellationToken ct){
         using var session=new SessionContext(0,adapter.DatabaseName);
         var result=adapter.ExecuteSelect(tableName,null,null,session);
-        var rows=new List<Dictionary<string,object?>>();
-        foreach(var r in result.Rows){
-            var dict=new Dictionary<string,object?>();
-            for(var i=0;i<result.Columns.Count;i++){
-                dict[result.Columns[i].Name]=r[i];
-            }
-            rows.Add(dict);
-        }
-        await WriteJsonAsync(res,new{table=tableName,total=rows.Count,rows=rows},ct);
+        await StreamResultAsync(res,result,ct,tableName);
+
     }
 
     private static async Task HandlePostSqlAsync(
@@ -80,6 +75,7 @@ public static class HttpEndpoints{
         global::System.Net.HttpListenerResponse res,
         IDatabaseAdapter adapter,
         SqlExecutionEngine sqlEngine,
+        string databaseName,
         CancellationToken ct){
 
         using var sr=new StreamReader(req.InputStream,req.ContentEncoding);
@@ -93,24 +89,16 @@ public static class HttpEndpoints{
         }
 
         var sql=queryProp.GetString()??string.Empty;
-        using var session=new SessionContext(0,adapter.DatabaseName);
+        using var session=new SessionContext(0,databaseName){CancellationToken=ct};
         var result=sqlEngine.Execute(sql,session);
 
-        var colNames=result.Columns.Select(c=>c.Name).ToList();
-        var rows=new List<Dictionary<string,object?>>();
-        foreach(var r in result.Rows){
-            var dict=new Dictionary<string,object?>();
-            for(var i=0;i<result.Columns.Count;i++){
-                dict[result.Columns[i].Name]=r[i];
-            }
-            rows.Add(dict);
-        }
+        await StreamResultAsync(res,result,ct,null);
 
-        await WriteJsonAsync(res,new{
-            columns=colNames,
-            rows=rows,
-            rowsAffected=result.RowsAffected
-        },ct);
+    }
+
+    private static async Task StreamResultAsync(global::System.Net.HttpListenerResponse response,QueryResult result,CancellationToken token,string? table){
+        response.ContentType="application/json; charset=utf-8";response.SendChunked=true;using var writer=new Utf8JsonWriter(response.OutputStream);writer.WriteStartObject();if(table is not null){writer.WriteString("table",table);}writer.WritePropertyName("columns");JsonSerializer.Serialize(writer,result.Columns.Select(c=>c.Name));writer.WritePropertyName("rows");writer.WriteStartArray();long count=0;
+        foreach(var row in result.Rows){token.ThrowIfCancellationRequested();writer.WriteStartObject();for(var i=0;i<row.Length;i++){writer.WritePropertyName(result.Columns[i].Name);JsonSerializer.Serialize(writer,row[i]);}writer.WriteEndObject();await writer.FlushAsync(token);count++;}writer.WriteEndArray();writer.WriteNumber("total",count);writer.WriteNumber("rowsAffected",result.RowsAffected);writer.WriteEndObject();await writer.FlushAsync(token);
     }
 
     private static async Task WriteJsonAsync(global::System.Net.HttpListenerResponse res,object data,CancellationToken ct){

@@ -5,4 +5,6 @@ public sealed record ViewCatalog(
     IReadOnlyList<ColumnCatalog> Columns,
     UniqueKeyCatalog? UniqueKey,
     string? Definition=null,
-    IReadOnlyList<string>? Dependencies=null);
+    IReadOnlyList<string>? Dependencies=null){
+    public string? OwnerName{get;init;}
+}

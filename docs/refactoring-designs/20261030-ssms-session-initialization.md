@@ -16,3 +16,15 @@ LOCK_TIMEOUT修正の反映後、実SSMSのクエリエディターでSetTextSiz
 
 ## 受け入れ
 実採取バッチの単一結果・列名・型・NULL、接続cleanup/reset、改変バッチや#SVerを含むだけのSQLの拒否、読み取り専用維持を確認する。TEXTSIZEは大きなUnicode/binaryの非切捨て・制限値拒否・後続SQL・接続再利用を検証する。新NuGetで同じ実バッチとSSMS相当の接続設定を実行し、データ世代の切り替え前後の確認を行う。実SSMS画面は利用者の確認まで未検証とする。
+
+## ソース検証
+最初の機能試験は修正前2件失敗/1件成功（管理バッチ3906とTEXTSIZE40515）。正常SQL Serverから採取した設定バッチ全体も、QUERY_GOVERNOR未対応で修正前に失敗した。旧初期化の優先順位競合・追加SQL黙殺の試験は修正前2件失敗/7件成功だった。
+
+修正後はSSMS初期化、ロック待機、DDL、SharedV2、Runtimeカタログ、大値送信、元SQL Serverの大値読取を含めDebug/Release各67件成功、skip 0。証跡は `F:/CodexTemp/SsmsLockTimeout/initialization-routing-verified-{Debug,Release}.trx`。独立レビューで指摘された旧Contains分岐の競合も全token照合へ修正し、再レビューで追加の具体的欠陥は指摘されなかった。
+
+## パッケージと稼働確認
+19製品パッケージ`0.0.0-ssms.20261030003108756`から再構築した世代`20261030T003606639Z-0439e74d`はValidatedとなった。94対象の取り込み・TDS全値/列情報、SQL/native75ケース、生成受け入れ8項目、CRUD・取引・準備済みRPC、元DB一覧の再確認が成功した。
+
+2026-10-30 10:04 JSTに14333番へ切り替え、正常性確認とSSMS資産公開が成功した。稼働先にSSMS同梱SMOで接続し、採取した管理バッチと設定一式、表/ビュー/ルーチン一覧、生成メソッドとBasic.sqlの4結果を確認した（`F:/CodexTemp/SmoAdventureWorks-v11-live/result.json`）。PackageReference利用EXEによる同じSQLの比較も成功した（`F:/CodexTemp/LiveBasic-v11/result.json`）。
+
+利用者は同版への実SSMS接続と「新しいクエリ」の作成の両方に成功したと報告した。これにより今回の接続初期化エラーの解消を実UIでも確認した。ソリューション内の相対参照を修正した後、Basic.sqlを開いて4結果（20/67/20/290行）すべての実行にも成功した。オブジェクト展開と生成メソッド表示など、他のGUI受け入れは個別に確認する。

@@ -46,4 +46,4 @@ Discover→権限/状態確認→consistent snapshot内catalog/rows→型付きs
 ## 追加projectと作業管理
 必要projectのみ作成し同じ変更でSeamless.slnxへ登録。既存focused-solution生成を更新。shared sourceはprojitems/shproj/SharedGUIDも同時更新。製品依存は同じ一意版でpack、利用側はPackageReferenceのみ、専用cacheとhashで出自を確認する。P0では製品project・参照・indexを変更しない。
 
-最大3agent、ファイル所有を分け、source Xとstable build SをBGOで調停。C12の実際の実装/公開契約競合時だけ該当変更を止める。他者processを停止しない。DをSSD作業、FをHDD成果物に使いCへの新規書込を行わない。
+最大3agentでファイル所有を分ける。2026-10-30の利用者指示により、比較作業は共有BGOを使わず、子孫を含め共通の最大8論理CPUで直接実行する。同じ管理領域のパイプラインはfile lockで重複を防ぎ、変更時のSHA・文脈照合を維持する。C12の実際の実装/公開契約競合時だけ該当変更を止める。他者processを停止しない。DをSSD作業、FをHDD成果物に使いCへの新規書込を行わない。[直接実行仕様](../20261030-local-cpu-execution.md)を現在の運用基準とする。

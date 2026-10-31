@@ -3,6 +3,7 @@ using Seamless.Database;
 using Seamless.Database.Gateway.Hosting;
 using Seamless.Database.Gateway.Sql;
 using Seamless.Database.Gateway.Tds;
+using Seamless.Database.Query;
 
 namespace Seamless.Database.Gateway.Tests;
 
@@ -23,7 +24,7 @@ public sealed class SessionLockTimeoutTests{
             Assert.Equal(10000,await Scalar(first,"SET LOCK_TIMEOUT 10000; SELECT @@LOCK_TIMEOUT AS LockTimeout"));Assert.Equal(-1,await Scalar(second,"SELECT @@LOCK_TIMEOUT"));
             foreach(var value in new[]{"0","-2","2147483648","@timeout"}){var error=await Assert.ThrowsAsync<SqlException>(()=>Scalar(first,"SET LOCK_TIMEOUT "+value));Assert.Equal(40515,error.Number);Assert.Equal(10000,await Scalar(first,"SELECT @@LOCK_TIMEOUT"));}
             Assert.Equal(-1,await Scalar(first,"SET LOCK_TIMEOUT -1; SELECT @@LOCK_TIMEOUT"));
-            await Scalar(first,"SET LOCK_TIMEOUT 10000");await first.CloseAsync();await first.OpenAsync();Assert.Equal(-1,await Scalar(first,"SELECT @@LOCK_TIMEOUT"));
+            await Scalar(first,"SET LOCK_TIMEOUT 10000");var physical=first.ClientConnectionId;await first.CloseAsync();await first.OpenAsync();Assert.Equal(physical,first.ClientConnectionId);Assert.Equal(-1,await Scalar(first,"SELECT @@LOCK_TIMEOUT"));
         }finally{SqlConnection.ClearAllPools();await server.StopAsync();}
     }
     [Theory,Trait("Category","Integration")]
@@ -61,11 +62,40 @@ public sealed class SessionLockTimeoutTests{
                     Assert.True(await reader.ReadAsync());Assert.Equal(10000,reader.GetInt32(0));
                     // SqlClientの結果切替が同期的に待つ場合も、別スレッドから取消を送る。
                     using var cancel=new Timer(_=>command.Cancel(),null,100,Timeout.Infinite);
-                    var error=await Assert.ThrowsAsync<SqlException>(async()=>await reader.NextResultAsync());Assert.NotEqual(1222,error.Number);Assert.NotEqual(-2,error.Number);
+                    var error=await Assert.ThrowsAsync<SqlException>(async()=>await reader.NextResultAsync());Assert.Equal(0,error.Number);
                 }
                 Assert.Equal(10000,await Scalar(waiting,"SELECT @@LOCK_TIMEOUT"));
             }finally{await Scalar(blocker,"ROLLBACK TRANSACTION");}
             Assert.Equal(0,await Scalar(waiting,"SELECT COUNT(*) FROM dbo.TypedOrders"));
+        }finally{await server.StopAsync();}
+    }
+    [Fact,Trait("Category","Integration")]
+    public void DisposingPartialEnumerationReleasesTheReadLease(){
+        using var database=Database();using(var seed=database.BeginTransaction()){database.TypedOrders.Add(new(1,"one",1));database.TypedOrders.Add(new(2,"two",1));seed.Commit();}
+        var engine=Engine(new(database));using var reading=new SessionContext(1,"fixture");using var writing=new SessionContext(2,"fixture");engine.Execute("SET LOCK_TIMEOUT 100",writing);
+        var result=engine.Execute("SELECT ObjectId FROM dbo.TypedOrders",reading);
+        using(var rows=result.Rows.GetEnumerator()){
+            Assert.True(rows.MoveNext());var blocked=Assert.Throws<SqlQueryException>(()=>engine.Execute("BEGIN TRANSACTION",writing));Assert.Equal(1222,blocked.Number);
+        }
+        engine.Execute("BEGIN TRANSACTION",writing);engine.Execute("ROLLBACK TRANSACTION",writing);
+    }
+    [Fact,Trait("Category","Integration")]
+    public async Task ReusedSqlUsesTheEnumeratingConnectionsWaitBudget(){
+        using var database=Database();var engine=Engine(new(database));using var first=new SessionContext(1,"fixture");using var second=new SessionContext(2,"fixture");using var blocker=new SessionContext(3,"fixture");
+        engine.Execute("SET LOCK_TIMEOUT 10000",first);engine.Execute("SET LOCK_TIMEOUT 100",second);
+        const string sql="SELECT ObjectId FROM dbo.TypedOrders";
+        _=engine.Execute(sql,first);var result=engine.Execute(sql,second);engine.Execute("BEGIN TRANSACTION",blocker);
+        var pending=Task.Run(()=>result.Rows.ToArray());
+        try{var error=await Assert.ThrowsAsync<SqlQueryException>(async()=>await pending.WaitAsync(TimeSpan.FromSeconds(3)));Assert.Equal(1222,error.Number);}
+        finally{engine.Execute("ROLLBACK TRANSACTION",blocker);await pending.ContinueWith(_=>{},TaskScheduler.Default);}
+        Assert.Empty(engine.Execute(sql,second).Rows);
+    }
+    [Fact,Trait("Category","Integration")]
+    public async Task AcquisitionDeadlineDoesNotLimitTheTransactionLifetime(){
+        using var database=Database();var adapter=new InProcessDatabaseAdapter(database);using var server=new TdsServer(0,adapter,Engine(adapter));server.Start();
+        try{
+            await using var connection=Connect(server);await connection.OpenAsync();await Scalar(connection,"SET LOCK_TIMEOUT 100");await Scalar(connection,"BEGIN TRANSACTION");
+            await Task.Delay(200);await Scalar(connection,"INSERT dbo.TypedOrders(ObjectId,Name,Version) VALUES(1,N'after deadline',1)");await Scalar(connection,"COMMIT TRANSACTION");Assert.Equal(1,await Scalar(connection,"SELECT COUNT(*) FROM dbo.TypedOrders"));
         }finally{await server.StopAsync();}
     }
 }

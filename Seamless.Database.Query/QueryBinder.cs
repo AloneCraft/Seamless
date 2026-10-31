@@ -44,7 +44,7 @@ internal sealed partial class QueryBinder{
             }else if(element is SelectScalarExpression scalar){
                 var value=this.BindScalar(scalar.Expression,source.Columns,outer,aggregateBindings);
                 var name=scalar.ColumnName?.Value??value.Origin?.Name??"";
-                projections.Add(value);columns.Add(new(name,value.Type,value.Nullable,value.Origin?.Source,columns.Count));
+                projections.Add(value);columns.Add(new(name,value.Type,value.Nullable,value.Origin?.Source,columns.Count){IsComputedFloatingPoint=IsFloating(value.Type)&&value.IsComputedFloatingPoint});
             }else{throw Unsupported(element);}
         }
         Func<EvalFrame,bool?>?having=null;
@@ -52,7 +52,7 @@ internal sealed partial class QueryBinder{
         var order=new List<(BoundScalar Value,bool Descending)>();
         if(query.OrderByClause is{} orderBy){foreach(var item in orderBy.OrderByElements){
             BoundScalar value;
-            if(item.Expression is IntegerLiteral ordinal){var position=int.Parse(ordinal.Value,System.Globalization.CultureInfo.InvariantCulture)-1;if(position<0||position>=projections.Count){throw new SqlQueryException("ORDER BY position outside select list.",108);}value=projections[position];}
+            if(item.Expression is IntegerLiteral ordinal){var position=int.Parse(ordinal.Value,global::System.Globalization.CultureInfo.InvariantCulture)-1;if(position<0||position>=projections.Count){throw new SqlQueryException("ORDER BY position outside select list.",108);}value=projections[position];}
             else if(item.Expression is ColumnReferenceExpression reference&&reference.MultiPartIdentifier.Identifiers.Count==1&&columns.FindIndex(x=>Equal(x.Name,reference.MultiPartIdentifier.Identifiers[0].Value)) is var aliasIndex&&aliasIndex>=0){value=projections[aliasIndex];}
             else{value=this.BindScalar(item.Expression,source.Columns,outer,aggregateBindings);}
             order.Add((value,item.SortOrder==SortOrder.Descending));
@@ -115,7 +115,7 @@ internal sealed partial class QueryBinder{
         if(binary.BinaryQueryExpressionType!=BinaryQueryExpressionType.Union||binary.OrderByClause is not null||binary.OffsetClause is not null){throw Unsupported(binary);}
         var left=this.BindQuery(binary.FirstQueryExpression,outer);var right=this.BindQuery(binary.SecondQueryExpression,outer);
         if(left.Columns.Count!=right.Columns.Count){throw new SqlQueryException("UNION column count differs.",205);}
-        var columns=left.Columns.Select((column,index)=>column with{Type=SqlValues.CommonType([column.Type,right.Columns[index].Type]),IsNullable=column.IsNullable||right.Columns[index].IsNullable}).ToArray();var types=columns.Select(column=>column.Type).ToArray();var comparer=new SqlRowComparer(types:types);
+        var columns=left.Columns.Select((column,index)=>{var other=right.Columns[index];var type=SqlValues.CommonType([column.Type,other.Type]);var computed=IsFloating(type)&&(column.Type.IsUntypedNull||FloatingConversion(type,column.Type,column.IsComputedFloatingPoint))&&(other.Type.IsUntypedNull||FloatingConversion(type,other.Type,other.IsComputedFloatingPoint));return column with{Type=type,IsNullable=column.IsNullable||other.IsNullable,IsComputedFloatingPoint=computed};}).ToArray();var types=columns.Select(column=>column.Type).ToArray();var comparer=new SqlRowComparer(types:types);
         return new(columns,(execution,outerRow)=>Rows(execution,outerRow));
         IEnumerable<object?[]>Rows(QueryExecution execution,object?[]?outerRow){var rows=ConvertRows(left.Rows(execution,outerRow)).Concat(ConvertRows(right.Rows(execution,outerRow)));if(binary.All){foreach(var row in rows){yield return row;}}else{object?[]?previous=null;var has=false;foreach(var row in SqlBoundedOperators.Sort(execution,rows,x=>x,comparer)){if(!has||comparer.Compare(previous,row)!=0){yield return row;previous=row;has=true;}}}}
         IEnumerable<object?[]>ConvertRows(IEnumerable<object?[]>rows){foreach(var row in rows){var values=new object?[types.Length];for(var index=0;index<types.Length;index++){values[index]=SqlValues.ConvertTo(row[index],types[index],true);}yield return values;}}
@@ -138,11 +138,11 @@ internal sealed partial class QueryBinder{
                         var binder=new QueryBinder(this.catalog,name.Database,this.parameters,this.viewStack);
                         var query=binder.BindStatement(select);
                         if(query.Columns.Count!=definition.Columns.Count){throw new SqlQueryException("View column count differs from metadata: "+name,4502);}
-                        return new(definition.Columns.Select(x=>new BindingColumn(x with{Source=name},alias)).ToArray(),query.Rows);
+                        return new(definition.Columns.Select((column,index)=>new BindingColumn(column with{Source=name,IsComputedFloatingPoint=IsFloating(column.Type)&&query.Columns[index].IsComputedFloatingPoint},alias)).ToArray(),query.Rows);
                     }finally{this.viewStack.Remove(name);}
                 }
                 var read=definition.Rows??throw new SqlQueryException("No row source for "+name);
-                return new(definition.Columns.Select(x=>new BindingColumn(x with{Source=name},alias)).ToArray(),(execution,_)=>Read(execution));
+                return new(definition.Columns.Select(x=>new BindingColumn(x with{Source=name,IsComputedFloatingPoint=false},alias)).ToArray(),(execution,_)=>Read(execution));
                 IEnumerable<object?[]>Read(QueryExecution execution){foreach(var row in read(execution.Scope.CancellationToken)){execution.Scope.ThrowIfUnavailable();if(row.Length!=definition.Columns.Count){throw new SqlQueryException("Row column count differs from metadata: "+name);}yield return row;}}
             }
             case SchemaObjectFunctionTableReference function when Equal(function.SchemaObject.BaseIdentifier.Value,"nodes"):return this.BindXmlNodes(function,outer);
@@ -195,7 +195,7 @@ internal sealed partial class QueryBinder{
         if(fragment is ScalarExpression scalar&&groups.Contains(GroupText(scalar))){return;}
         if(fragment is FunctionCall function&&IsAggregate(function.FunctionName.Value)){return;}
         if(fragment is ColumnReferenceExpression){throw new SqlQueryException("Column must occur in GROUP BY or an aggregate.",8120);}
-        foreach(var property in fragment.GetType().GetProperties()){if(property.Name is "ScriptTokenStream"||property.GetIndexParameters().Length!=0){continue;}if(property.GetValue(fragment) is TSqlFragment child){ValidateGrouping(child,groups);}else if(property.GetValue(fragment) is System.Collections.IEnumerable items){foreach(var item in items){if(item is TSqlFragment descendant){ValidateGrouping(descendant,groups);}}}}
+        foreach(var property in fragment.GetType().GetProperties()){if(property.Name is "ScriptTokenStream"||property.GetIndexParameters().Length!=0){continue;}if(property.GetValue(fragment) is TSqlFragment child){ValidateGrouping(child,groups);}else if(property.GetValue(fragment) is global::System.Collections.IEnumerable items){foreach(var item in items){if(item is TSqlFragment descendant){ValidateGrouping(descendant,groups);}}}}
     }
 }
 

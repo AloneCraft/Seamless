@@ -3,6 +3,33 @@ using Microsoft.SqlServer.TransactSql.ScriptDom;
 namespace Seamless.Database.Gateway.Sql;
 
 internal static class SqlServerConnectionProbes{
+    private const string ServerInformationResource="Seamless.Database.Gateway.Sql.Compatibility.SsmsServerInformation.sql";
+    private static readonly Lazy<string[][]> connectionInitializationTokens=new(()=>{
+        using var stream=typeof(SqlServerConnectionProbes).Assembly.GetManifestResourceStream("Seamless.Database.Gateway.Sql.Compatibility.SsmsConnectionInitialization.sql")??throw new InvalidOperationException("Connection compatibility resource is missing.");using var reader=new StreamReader(stream);var sql=reader.ReadToEnd();
+        return [ParseTokens(sql),ParseTokens(sql.Replace("'DatabaseEngineType'","DatabaseEngineType",StringComparison.Ordinal))];
+    });
+    private static string[] ParseTokens(string sql){var parser=new TSql160Parser(true);var script=parser.Parse(new StringReader(sql),out var errors) as TSqlScript;if(errors.Count!=0||script is null){throw new InvalidOperationException("Connection compatibility resource is invalid.");}return SemanticTokens(script);}
+    internal static bool IsConnectionInitialization(TSqlScript script){
+        if(script.Batches.Count!=1||script.Batches[0].Statements.Count!=5){return false;}
+        var tokens=SemanticTokens(script);return connectionInitializationTokens.Value.Any(expected=>tokens.SequenceEqual(expected,StringComparer.Ordinal));
+    }
+    internal static bool IsConnectionInitializationSql(string sql){var parser=new TSql160Parser(true);var script=parser.Parse(new StringReader(sql),out var errors) as TSqlScript;return errors.Count==0&&script is not null&&IsConnectionInitialization(script);}
+    private static readonly Lazy<string[]> serverInformationTokens=new(()=>{
+        using var stream=typeof(SqlServerConnectionProbes).Assembly.GetManifestResourceStream(ServerInformationResource)??throw new InvalidOperationException("Server-information compatibility resource is missing.");using var reader=new StreamReader(stream);
+        var parser=new TSql160Parser(true);var script=parser.Parse(reader,out var errors) as TSqlScript;
+        if(errors.Count!=0||script is null){throw new InvalidOperationException("Server-information compatibility resource is invalid.");}return SemanticTokens(script);
+    });
+    internal static bool IsServerInformation(TSqlScript script){
+        if(script.Batches.Count!=1||script.Batches[0].Statements.Count!=6||script.Batches[0].Statements[0] is not CreateTableStatement create||!string.Equals(create.SchemaObjectName.BaseIdentifier.Value,"#SVer",StringComparison.OrdinalIgnoreCase)){return false;}
+        return SemanticTokens(script).SequenceEqual(serverInformationTokens.Value,StringComparer.Ordinal);
+    }
+    internal static bool IsServerInformationSql(string sql){var parser=new TSql160Parser(true);var script=parser.Parse(new StringReader(sql),out var errors) as TSqlScript;return errors.Count==0&&script is not null&&IsServerInformation(script);}
+    internal static bool IsServerInformationCleanup(TSqlStatement statement)=>statement is DropTableStatement&&TokensMatch(statement,["DROP","TABLE","#SVer"]);
+    private static string[] SemanticTokens(TSqlScript script){
+        return script.ScriptTokenStream.Where(token=>token.TokenType is not (TSqlTokenType.WhiteSpace or TSqlTokenType.SingleLineComment or TSqlTokenType.MultilineComment or TSqlTokenType.EndOfFile or TSqlTokenType.Semicolon)).Select(token=>{
+            var text=token.Text;if(token.TokenType is not (TSqlTokenType.AsciiStringLiteral or TSqlTokenType.UnicodeStringLiteral)){text=text.ToUpperInvariant();}return ((int)token.TokenType).ToString(global::System.Globalization.CultureInfo.InvariantCulture)+":"+text;
+        }).ToArray();
+    }
     internal static bool TryContainedAuthentication(TSqlScript script,out string database){
         database="";
         if(script.Batches.Count!=1){return false;}

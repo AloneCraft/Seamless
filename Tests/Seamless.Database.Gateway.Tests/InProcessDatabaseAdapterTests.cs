@@ -23,7 +23,7 @@ public sealed class InProcessDatabaseAdapterTests{
         {
             // SELECT 全件
             var result=adapter.ExecuteSelect("商品",null,null,session);
-            Assert.True(result.Rows.Count>0);
+            Assert.True(result.Rows.Count()>0);
             Assert.Equal(4,result.Columns.Count);
         }
 
@@ -82,7 +82,7 @@ public sealed class InProcessDatabaseAdapterTests{
             },session);
             Assert.Single(selectResult.Rows);
             var priceIndex=selectResult.Columns.ToList().FindIndex(c=>c.Name=="単価");
-            Assert.Equal(450,selectResult.Rows[0][priceIndex]);
+            Assert.Equal(450,selectResult.Rows.First()[priceIndex]);
         }
 
         {

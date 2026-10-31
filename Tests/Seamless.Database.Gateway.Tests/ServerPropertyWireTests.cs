@@ -100,6 +100,85 @@ public sealed class ServerPropertyWireTests{
             Assert.True(await reader.ReadAsync());Assert.Equal("fixture",reader.GetString(0));Assert.Equal(0,reader.GetInt32(1));Assert.Equal("DATABASE_DEFAULT",reader.GetString(2));Assert.Equal((byte)0,reader.GetByte(3));Assert.Equal("NONE",reader.GetString(4));Assert.False(await reader.ReadAsync());
         }finally{await server.StopAsync();}
     }
+    [Fact,Trait("Category","Integration")]
+    public async Task ZeroRowCountSettingAllowsFollowingQueryAndConnectionReuse(){
+        var adapter=new Adapter();using var server=new TdsServer(0,adapter,new SqlExecutionEngine(adapter));server.Start();
+        try{
+            var options=new SqlConnectionStringBuilder{DataSource=$"tcp:127.0.0.1,{server.Port}",InitialCatalog="fixture",UserID="sa",Password="test",Encrypt=false,Pooling=false,ConnectTimeout=5};
+            await using var connection=new SqlConnection(options.ConnectionString);await connection.OpenAsync();using var command=connection.CreateCommand();
+            command.CommandText="SET ROWCOUNT 0; SELECT CAST(17 AS int) AS Value;";
+            await using(var reader=await command.ExecuteReaderAsync()){
+                Assert.True(await reader.ReadAsync());Assert.Equal("Value",reader.GetName(0));Assert.Equal(17,reader.GetInt32(0));Assert.False(await reader.ReadAsync());Assert.False(await reader.NextResultAsync());
+            }
+            command.CommandText="SELECT CAST(29 AS int) AS Value";Assert.Equal(29,await command.ExecuteScalarAsync());
+        }finally{await server.StopAsync();}
+    }
+    [Fact,Trait("Category","Integration")]
+    public async Task UnsupportedRowLimitFailsWithoutPoisoningConnection(){
+        var adapter=new Adapter();using var server=new TdsServer(0,adapter,new SqlExecutionEngine(adapter));server.Start();
+        try{
+            var options=new SqlConnectionStringBuilder{DataSource=$"tcp:127.0.0.1,{server.Port}",InitialCatalog="fixture",UserID="sa",Password="test",Encrypt=false,Pooling=false,ConnectTimeout=5};
+            await using var connection=new SqlConnection(options.ConnectionString);await connection.OpenAsync();using var command=connection.CreateCommand();command.CommandText="SET ROWCOUNT 1";
+            var error=await Assert.ThrowsAsync<SqlException>(()=>command.ExecuteNonQueryAsync());Assert.Equal(40515,error.Number);
+            command.CommandText="SELECT CAST(29 AS int) AS Value";Assert.Equal(29,await command.ExecuteScalarAsync());
+        }finally{await server.StopAsync();}
+    }
+    private static string ContainedAuthenticationProbe(string database)=>"USE ["+database.Replace("]","]]")+"]; IF (db_id() = 1) BEGIN -- connected to master\n SELECT 0 END ELSE BEGIN EXEC('select case when authenticating_database_id = 1 then 0 else 1 end from sys.dm_exec_sessions where session_id = @@SPID') END; USE ["+database.Replace("]","]]")+"]; -- resetting the context";
+    [Theory,Trait("Category","Integration")]
+    [InlineData("fixture")]
+    [InlineData("master")]
+    public async Task SsmsContainedAuthenticationProbeReturnsServerLoginAndUpdatesContext(string database){
+        var adapter=new Adapter();using var server=new TdsServer(0,adapter,new SqlExecutionEngine(adapter));server.Start();
+        try{
+            var options=new SqlConnectionStringBuilder{DataSource=$"tcp:127.0.0.1,{server.Port}",InitialCatalog="fixture",UserID="sa",Password="test",Encrypt=false,Pooling=false,ConnectTimeout=5};
+            await using var connection=new SqlConnection(options.ConnectionString);await connection.OpenAsync();using var command=connection.CreateCommand();command.CommandText=ContainedAuthenticationProbe(database);
+            await using(var reader=await command.ExecuteReaderAsync()){
+                Assert.True(await reader.ReadAsync());Assert.Equal(typeof(int),reader.GetFieldType(0));Assert.Equal(0,reader.GetInt32(0));Assert.False(await reader.ReadAsync());Assert.False(await reader.NextResultAsync());
+            }
+            Assert.Equal(database,connection.Database);command.CommandText="SELECT DB_NAME()";Assert.Equal(database,await command.ExecuteScalarAsync());
+        }finally{await server.StopAsync();}
+    }
+    [Theory,Trait("Category","Integration")]
+    [InlineData("condition")]
+    [InlineData("dynamic")]
+    [InlineData("extra")]
+    [InlineData("unrelated")]
+    public async Task ContainedAuthenticationCompatibilityDoesNotIgnoreOtherIfStatements(string change){
+        var sql=ContainedAuthenticationProbe("fixture");
+        sql=change switch{"condition"=>sql.Replace("db_id() = 1","db_id() = 2"),"dynamic"=>sql.Replace("authenticating_database_id = 1","authenticating_database_id = 2"),"extra"=>sql+"\nSELECT 42;",_=>"IF 1=1 SELECT 42"};
+        var adapter=new Adapter();using var server=new TdsServer(0,adapter,new SqlExecutionEngine(adapter));server.Start();
+        try{
+            var options=new SqlConnectionStringBuilder{DataSource=$"tcp:127.0.0.1,{server.Port}",InitialCatalog="fixture",UserID="sa",Password="test",Encrypt=false,Pooling=false,ConnectTimeout=5};
+            await using var connection=new SqlConnection(options.ConnectionString);await connection.OpenAsync();using var command=connection.CreateCommand();command.CommandText=sql;
+            var error=await Assert.ThrowsAsync<SqlException>(()=>command.ExecuteScalarAsync());Assert.Equal(40515,error.Number);
+        }finally{await server.StopAsync();}
+    }
+    [Fact,Trait("Category","Integration")]
+    public async Task ContainedAuthenticationProbeDoesNotAcceptUnknownDatabase(){
+        var adapter=new Adapter();using var server=new TdsServer(0,adapter,new SqlExecutionEngine(adapter));server.Start();
+        try{
+            var options=new SqlConnectionStringBuilder{DataSource=$"tcp:127.0.0.1,{server.Port}",InitialCatalog="fixture",UserID="sa",Password="test",Encrypt=false,Pooling=false,ConnectTimeout=5};
+            await using var connection=new SqlConnection(options.ConnectionString);await connection.OpenAsync();using var command=connection.CreateCommand();command.CommandText=ContainedAuthenticationProbe("missing");
+            var error=await Assert.ThrowsAsync<SqlException>(()=>command.ExecuteScalarAsync());Assert.Equal(4060,error.Number);Assert.Equal("fixture",connection.Database);
+        }finally{await server.StopAsync();}
+    }
+    [Theory,Trait("Category","Integration")]
+    [InlineData("fixture","fixture",1033,196609)]
+    [InlineData("master","fixture",1033,196609)]
+    public async Task Ssms22ServerComparerCollationQueryOverRpc(string initialCatalog,string databaseName,int lcid,int comparisonStyle){
+        // SSMSの表・ストアドのフォルダは、子一覧の連結後にServerComparerを作る。比較器はDB名を@dbnameとしてsp_executesqlで送り、GetInt32で読む。
+        // @dbnameがNULLの経路は、sp_executesqlの引数型を宣言文ではなく値の型情報から決める既知の差で切り詰められるため対象外。
+        const string sql="SELECT COLLATIONPROPERTY((select collation_name from sys.databases where name = ISNULL(@dbname, db_name())), 'LCID'), COLLATIONPROPERTY((select collation_name from sys.databases where name = ISNULL(@dbname, db_name())), 'ComparisonStyle')";
+        var adapter=new Adapter();var registry=new DatabaseRegistry();registry.Register("fixture",adapter,defaultCollation:"SQL_Latin1_General_CP1_CI_AS");
+        using var server=new TdsServer(0,adapter,new SqlExecutionEngine(registry));server.Start();
+        try{
+            var options=new SqlConnectionStringBuilder{DataSource=$"tcp:127.0.0.1,{server.Port}",InitialCatalog=initialCatalog,UserID="sa",Password="test",Encrypt=false,Pooling=false,ConnectTimeout=5};
+            await using var connection=new SqlConnection(options.ConnectionString);await connection.OpenAsync();using var command=connection.CreateCommand();command.CommandText=sql;
+            command.Parameters.Add(new SqlParameter("@dbname",global::System.Data.SqlDbType.NVarChar){Value=databaseName});
+            await using var reader=await command.ExecuteReaderAsync();Assert.True(await reader.ReadAsync());
+            Assert.Equal(lcid,reader.GetInt32(0));Assert.Equal(comparisonStyle,reader.GetInt32(1));Assert.False(await reader.ReadAsync());
+        }finally{await server.StopAsync();}
+    }
     private sealed class Adapter:IDatabaseAdapter{
         public string DatabaseName=>"fixture";public IReadOnlyList<TableMetadata> GetTables()=>[];
         public TableMetadata? FindTable(string name)=>null;
