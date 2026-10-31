@@ -21,6 +21,9 @@ internal static class ParameterDeclarations{
             }
         }catch(TokenizeException e){throw Error("Invalid parameter declaration: "+e.Message);}
     }
+    public static IReadOnlyList<SqlParameter> TryParse(string? declarations){
+        try{return Parse(declarations??string.Empty);}catch(SqlQueryException){return [];}
+    }
     private static SqlQueryException Error(string text,int number=102)=>new(text,number);
     private sealed class Reader(Token[] tokens){
         private int position;

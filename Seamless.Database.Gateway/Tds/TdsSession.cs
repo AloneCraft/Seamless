@@ -90,7 +90,9 @@ public sealed class TdsSession{
         if(rpc.Procedure=="sp_executesql"){
             if(p.Count<1||p[0].Value is not string sql){throw new SqlQueryException("sp_executesql requires SQL text.",201);}
             var values=p.Skip(2).ToDictionary(a=>a.Name,a=>a.Value,StringComparer.OrdinalIgnoreCase);
-            var parameters=p.Skip(2).Select(a=>new SqlParameter(a.Name,a.Type,a.Value is null)).ToArray();
+            // 引数型はSQL Server同様に宣言文(@p nvarchar(4000)等)を優先する。値の型情報はNULLなどで長さが縮む(nvarchar(1)等)。宣言が読めない・無い名前は値の型情報へ戻す。
+            var declared=ParameterDeclarations.TryParse(p.Count>1?p[1].Value as string:null).ToDictionary(d=>d.Name,StringComparer.OrdinalIgnoreCase);
+            var parameters=p.Skip(2).Select(a=>new SqlParameter(a.Name,declared.TryGetValue(a.Name,out var d)?d.Type:a.Type,a.Value is null)).ToArray();
             if(p.Skip(2).Any(a=>a.Output)){throw new NotSupportedException("Dynamic SQL output parameters are not supported.");}
             return(this.sqlEngine.ExecuteBatch(sql,this.sessionContext,parameters,values),[]);
         }

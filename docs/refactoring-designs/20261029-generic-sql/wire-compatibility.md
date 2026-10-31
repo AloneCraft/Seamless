@@ -52,7 +52,7 @@ SQL Server用カタログの問い合わせでは、SERVERPROPERTYの既知profi
 
 SDK試験 `Work/TestSeamless/Probe-SfcObjectExplorerRequests.ps1` は、一覧要求に加えて実画面と同じ新しい接続で比較器を生成し、非公開の `CultureInfo`/`CompareOptions` を反射で記録し、表・ストアドの各フォルダの連結と並べ替えまでを判定する。旧版の比較器記録は非公開プロパティを読めず値が空であり、同じ接続上での生成だったため、実画面の経路とは別物だった。
 
-既知の差: `@dbname` がNULLのとき、SqlClientは値の型情報を1文字の `nvarchar` で送り、宣言文には長い型を書く。SQL Serverは宣言文の型を使うが、Seamlessの `sp_executesql` は値の型情報を使うため、`ISNULL(@dbname, db_name())` が1文字に切り詰められる。表・ストアドのフォルダはDB名を渡すので該当しない。修正はRPC引数の型付け全体に影響するため別件とする。
+`sp_executesql` の引数型は、SQL Serverと同じく宣言文を優先する。`@dbname` がNULLのとき、SqlClientは値の型情報を1文字の `nvarchar` で送り宣言文には長い型を書くため、以前は `ISNULL(@dbname, db_name())` が1文字に切り詰められた。宣言文が読めない・宣言にない名前だけ値の型情報へ戻す。NULLのDB名の経路を試験へ加え、修正前失敗・修正後Debug/Release 161件成功を確認した。
 
 稼働情報は `D:/Seamless/Comparison/Managed/active.json`、検証結果は同管理領域の `generations/20261031T153019615Z-67352304/validation.json` および `wire-validation.json` に保存する。利用者指示により共有調停器を使用せず、所有する比較処理とサーバーは共通のaffinity `0xFF`（最大8論理CPU）で実行する。外部のSQL ServerサービスのCPU制限を変更したという意味ではない。
 

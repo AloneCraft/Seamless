@@ -165,16 +165,17 @@ public sealed class ServerPropertyWireTests{
     [Theory,Trait("Category","Integration")]
     [InlineData("fixture","fixture",1033,196609)]
     [InlineData("master","fixture",1033,196609)]
-    public async Task Ssms22ServerComparerCollationQueryOverRpc(string initialCatalog,string databaseName,int lcid,int comparisonStyle){
+    [InlineData("fixture",null,1033,196609)]
+    public async Task Ssms22ServerComparerCollationQueryOverRpc(string initialCatalog,string? databaseName,int lcid,int comparisonStyle){
         // SSMSの表・ストアドのフォルダは、子一覧の連結後にServerComparerを作る。比較器はDB名を@dbnameとしてsp_executesqlで送り、GetInt32で読む。
-        // @dbnameがNULLの経路は、sp_executesqlの引数型を宣言文ではなく値の型情報から決める既知の差で切り詰められるため対象外。
+        // @dbnameがNULLでも、引数型は宣言文(nvarchar(4000))で決まるため、ISNULLが接続中のDB名を切り詰めずに返す。
         const string sql="SELECT COLLATIONPROPERTY((select collation_name from sys.databases where name = ISNULL(@dbname, db_name())), 'LCID'), COLLATIONPROPERTY((select collation_name from sys.databases where name = ISNULL(@dbname, db_name())), 'ComparisonStyle')";
         var adapter=new Adapter();var registry=new DatabaseRegistry();registry.Register("fixture",adapter,defaultCollation:"SQL_Latin1_General_CP1_CI_AS");
         using var server=new TdsServer(0,adapter,new SqlExecutionEngine(registry));server.Start();
         try{
             var options=new SqlConnectionStringBuilder{DataSource=$"tcp:127.0.0.1,{server.Port}",InitialCatalog=initialCatalog,UserID="sa",Password="test",Encrypt=false,Pooling=false,ConnectTimeout=5};
             await using var connection=new SqlConnection(options.ConnectionString);await connection.OpenAsync();using var command=connection.CreateCommand();command.CommandText=sql;
-            command.Parameters.Add(new SqlParameter("@dbname",global::System.Data.SqlDbType.NVarChar){Value=databaseName});
+            command.Parameters.Add(new SqlParameter("@dbname",global::System.Data.SqlDbType.NVarChar){Value=(object?)databaseName??DBNull.Value});
             await using var reader=await command.ExecuteReaderAsync();Assert.True(await reader.ReadAsync());
             Assert.Equal(lcid,reader.GetInt32(0));Assert.Equal(comparisonStyle,reader.GetInt32(1));Assert.False(await reader.ReadAsync());
         }finally{await server.StopAsync();}
