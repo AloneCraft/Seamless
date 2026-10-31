@@ -7,7 +7,7 @@
 
 反映後の14333でも同じ一覧・比較器・フォルダ並べ替え、SMOカタログ、Basic.sqlの4結果（20・67・20・290行）、生成メソッド21件の対応、パッケージ利用EXEによる共通SQLの比較が成功した（`F:/CodexTemp/claude-ssms-20261101/live/`）。
 
-2026-11-01に利用者が実SSMSで14333へ再接続し、AdventureWorks2016のテーブル一覧、ストアド10件（先頭 `dbo.uspGetBillOfMaterials`）、ビュー20件、テーブル値関数1件・スカラー関数10件の表示を画面で確認した。テーブル一覧は画面に収まる範囲だけを見ており、71件全数は画面では数えていない。接続時の「ポリシーの正常性状態をサーバー レベルで表示できません」は、未提供のmsdb管理機能へ `HAS_DBACCESS('msdb')`=0 を返す仕様どおりの通知である（「msdb管理機能の可用性と接続時のDBNull」）。Basic.sqlと生成メソッドの実SSMSでの実行は利用者から未報告で、上記の自動照合のみである。
+2026-11-01に利用者が実SSMSで14333へ再接続し、AdventureWorks2016のテーブル一覧、ストアド10件（先頭 `dbo.uspGetBillOfMaterials`）、ビュー20件、テーブル値関数1件・スカラー関数10件の表示を画面で確認した。テーブル一覧は画面に収まる範囲だけを見ており、71件全数は画面では数えていない。接続時の「ポリシーの正常性状態をサーバー レベルで表示できません」は、`HAS_DBACCESS('msdb')`=0 に対するSSMSの通知だった。利用者の依頼で、この照会を1にして通知が出ないようにした（「msdb管理機能の可用性と接続時のDBNull」）。Basic.sqlと生成メソッドの実SSMSでの実行は利用者から未報告で、上記の自動照合のみである。
 
 直前世代の実SSMSログでは、テーブル一覧の `create_date` とビュー・ルーチン一覧の `sys.database_principals` が不足していた。SQL Serverから取得した作成日時とオブジェクト所有者を生成世代へ保持し、カタログおよび `OBJECTPROPERTY(..., 'OwnerId')` へ反映した。実SDK要求に該当項目を加え、比較元・候補・14333で照合した。証跡は `F:/CodexTemp/SsmsMetadata-source-values-20261031/`、`F:/CodexTemp/SsmsCandidate-metadata-20261031/`、`F:/CodexTemp/SsmsMetadata-active-20261031/`。
 
@@ -160,7 +160,7 @@ PackageReferenceのみのfixtureは12製品依存の版/フィードを照合し
 
 原因は、正常SQL Serverの実採取にも含まれる`select has_dbaccess('msdb')`だった。インストール済みSSMSの`ObjectExplorer.dll`を読み取り確認すると、`NavigableItem.get_IsMsdbDatabaseAccessible`は同SQLのExecuteScalar結果が参照nullでなければConvert.ToInt32へ渡す。SQL NULLのDBNullはこの条件を通過し、利用者と同じ例外になる。DLL内の観測は`F:/CodexTemp/SsmsMsdbConsumerIl-process/`、修正前の2件のInvalidCast再現は`F:/CodexTemp/SsmsMsdbAccess-source-before-process/`に保存する。
 
-GatewayのSQL Server互換profileでは、未提供のmsdb管理機能へのアクセス照会を0（利用不可）とする。任意の未知DBを0へ変えない。NULL引数と未知のユーザーDB名はNULL、実登録名とmasterは1、未登録msdbだけ0とし、msdbを明示登録した場合は登録状態の1を優先する。これは管理機能の能力照会についての限定互換であり、任意の未登録DBについてSQL Serverの完全な戻り値互換を主張しない。偽のmsdbデータ/カタログ行を追加せず、SQL文字列や別名ごとの応答にも分けない。
+【2026-11-01改訂】GatewayのSQL Server互換profileでは、`HAS_DBACCESS('msdb')` を1とする。理由: インストール済みSSMSの `NavigableItem.IsPolicyHealthStateSupported` は、この値が1でなければ接続のたびに `PolicyHealthStateRequiresMsdbAccess` のエラーを表示する（`F:/CodexTemp/claude-ssms-20261101/pol/oe-src/`の逆コンパイルで確認）。この値を読むのはその判定だけである。msdbの管理機能（ポリシー管理・エージェント等）自体は未提供のままで、利用するとエラーになる。以前の「0（利用不可）」の記述は、この改訂で置き換えた。任意の未知DBは変えない。NULL引数と未知のユーザーDB名はNULL、実登録名・master・msdbは1とする。これは管理機能の能力照会についての限定互換であり、任意の未登録DBについてSQL Serverの完全な戻り値互換を主張しない。偽のmsdbデータ/カタログ行を追加せず、SQL文字列や別名ごとの応答にも分けない。
 
 同じSQL→整数変換と、同一キャッシュ計画でのmsdbの0→登録後1を追加し、Debug/Release各69件成功、skip 0（`F:/CodexTemp/SsmsLockTimeout/msdb-access-final-{Debug,Release}.trx`）。独立レビューでも具体的な追加欠陥は指摘されなかった。19製品パッケージ`0.0.0-ssms.20261030031940904`のPackageReferenceだけのSMO fixtureでも、msdb照会の整数変換・ユーザー/非snapshot列挙・接続設定一式が成功した（`F:/CodexTemp/SmoDatabaseList-v14-process/`）。新世代`20261030T032530680Z-3b7609ad`は取り込み/TDS94対象、SQL/native75ケース、生成受け入れ8項目、CRUD・取引・準備済みRPC、元DB一覧の再確認に成功してValidatedとなった。
 

@@ -27,7 +27,8 @@ public sealed class SsmsInitializationTests{
             command.CommandText="SELECT HAS_DBACCESS(N'FIXTURE') AS KnownDatabase,HAS_DBACCESS(N'master') AS MasterDatabase,HAS_DBACCESS(N'not-registered') AS MissingDatabase,HAS_DBACCESS(NULL) AS NullDatabase";
             await using(var reader=await command.ExecuteReaderAsync()){Assert.True(await reader.ReadAsync());Assert.Equal(1,reader.GetInt32(0));Assert.Equal(1,reader.GetInt32(1));Assert.True(reader.IsDBNull(2));Assert.True(reader.IsDBNull(3));Assert.False(await reader.ReadAsync());}
             command.CommandText="SELECT HAS_DBACCESS(N'late')";Assert.IsType<DBNull>(await command.ExecuteScalarAsync());registry.Register("late",new Adapter());Assert.Equal(1,await command.ExecuteScalarAsync());
-            command.CommandText="select has_dbaccess('msdb')";Assert.Equal(0,Convert.ToInt32(await command.ExecuteScalarAsync(),global::System.Globalization.CultureInfo.InvariantCulture));
+            // SSMSは接続時にこの値が1でないと「ポリシーの正常性状態を表示できません」を出す。msdb管理機能は未提供だが、能力照会は1を返す。
+            command.CommandText="select has_dbaccess('msdb')";Assert.Equal(1,Convert.ToInt32(await command.ExecuteScalarAsync(),global::System.Globalization.CultureInfo.InvariantCulture));
             registry.Register("msdb",new Adapter());Assert.Equal(1,Convert.ToInt32(await command.ExecuteScalarAsync(),global::System.Globalization.CultureInfo.InvariantCulture));
         }finally{await server.StopAsync();}
     }

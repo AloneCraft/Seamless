@@ -66,8 +66,8 @@ public sealed partial class DatabaseRegistry:ISqlCatalog{
         if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("HAS_DBACCESS",StringComparison.OrdinalIgnoreCase)){
             return new(name,null,new([new("@database",new("nvarchar",typeof(string),128),true)],SqlType.Int,true,arguments=>{
                 if(arguments[0] is null){return null;}var database=(string)arguments[0]!;if(database.Equals("master",StringComparison.OrdinalIgnoreCase)||this.databases.ContainsKey(database)){return 1;}
-                // msdb管理機能はこの互換profileでは利用不可。SSMSの能力照会へ0を返す。
-                if(database.Equals("msdb",StringComparison.OrdinalIgnoreCase)){return 0;}return null;
+                // SSMSは接続時にmsdbが1でないと「ポリシーの正常性状態を表示できません」を出す。msdb管理機能自体は未提供だが、能力照会は1を返して通知を避ける。
+                if(database.Equals("msdb",StringComparison.OrdinalIgnoreCase)){return 1;}return null;
             }));
         }
         if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("COLLATIONPROPERTY",StringComparison.OrdinalIgnoreCase)){
