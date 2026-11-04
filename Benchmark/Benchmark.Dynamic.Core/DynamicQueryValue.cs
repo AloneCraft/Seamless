@@ -52,6 +52,17 @@ public static class DynamicQueryMaterializer{
                 throw new InvalidOperationException(
                     $"A dynamic query cannot materialize more than {DynamicQueryValue.MaximumMaterializedItemCount:N0} lookup groups.");
             }
+            if(group is ICollection<int> collection){
+                var count=collection.Count;
+                if(count>=0&&count<=DynamicQueryValue.MaximumMaterializedItemCount-totalValueCount){
+                    var sortedValues=new int[count];
+                    collection.CopyTo(sortedValues,0);
+                    Array.Sort(sortedValues);
+                    totalValueCount+=count;
+                    result.Add(new(group.Key,sortedValues));
+                    continue;
+                }
+            }
             var values=new List<int>();
             foreach(var value in group){
                 if(totalValueCount>=DynamicQueryValue.MaximumMaterializedItemCount){
