@@ -159,7 +159,8 @@ public sealed record DynamicQueryValue(
         if(value is not System.Collections.IEnumerable enumerable){
             throw new ArgumentException("A sequence result must implement IEnumerable.",nameof(value));
         }
-        var items=new List<DynamicQueryAtom>();
+        var capacity=value is Array array&&array.Length<=MaximumMaterializedItemCount?array.Length:0;
+        var items=new List<DynamicQueryAtom>(capacity);
         foreach(var item in enumerable){
             ArgumentNullException.ThrowIfNull(item);
             if(items.Count>=MaximumMaterializedItemCount){
