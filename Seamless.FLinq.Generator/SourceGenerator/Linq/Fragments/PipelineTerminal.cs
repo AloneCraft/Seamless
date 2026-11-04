@@ -5018,6 +5018,39 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } directConsumeHashSet) {
                 return directConsumeHashSet;
             }
+            if(string.IsNullOrEmpty(comparerValue)
+                &&pipeline.ElementType=="int"
+                &&pipeline.Source is ArrayRoot left
+                &&pipeline.Stages.Count==1
+                &&pipeline.Stages[0] is {Kind:PipelineStageKind.Intersect,Value:"null",SecondSource:Intersect_comparer { UsesDefaultComparer:true,FirstArray: { } right,SecondArray: { } repeated }}
+                &&left.SourceExpression==repeated.SourceExpression){
+                var suffix=this.result;
+                var leftName=$"__intersectLeft{suffix}";
+                var rightName=$"__intersectRight{suffix}";
+                var repeatedName=$"__intersectRepeated{suffix}";
+                var leftEnumerator=$"new {left.EnumeratorTypeName}({leftName}!)";
+                var innerEnumerator=$"new {pipeline.Stages[0].SecondSource!.EnumeratorTypeName}(new {right.EnumeratorTypeName}({rightName}!),new {repeated.EnumeratorTypeName}({repeatedName}!),null)";
+                return $$"""
+                    {{actualTypeName}} {{actualVariableName}};
+                    {
+                        var {{leftName}}={{left.SourceExpression}};
+                        var {{rightName}}={{right.SourceExpression}};
+                        var {{repeatedName}}={{repeated.SourceExpression}};
+                        if({{leftName}} is not null&&{{rightName}} is not null&&global::System.Object.ReferenceEquals({{leftName}},{{repeatedName}})){
+                            using var membership=new global::Seamless.Linq.HashSetSlim<int>({{rightName}}.Length,null);
+                            foreach(var value in {{rightName}})membership.Add(value);
+                            {{actualVariableName}}=new();
+                            foreach(var value in {{leftName}}){
+                                if(membership.Remove(value)){{actualVariableName}}.Add(value);
+                            }
+                        }else{
+                            using var fallback=new {{pipeline.EnumeratorTypeName}}({{leftEnumerator}},{{innerEnumerator}},null);
+                            {{actualVariableName}}=new();
+                            while(fallback.TryGetNext(out var value)){{actualVariableName}}.Add(value);
+                        }
+                    }
+                    """;
+            }
             var comparerArg = string.IsNullOrEmpty(comparerValue) ? string.Empty : comparerValue;
             builder.AppendLine($"{actualTypeName} {actualVariableName};");
             builder.AppendLine($"using var {this.EnumeratorName()}={pipeline.GetEnumeratorExpression};");
