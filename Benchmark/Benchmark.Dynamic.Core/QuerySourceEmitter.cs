@@ -454,8 +454,10 @@ public sealed class QuerySourceEmitter{
         if(root.OutputCardinality==QueryCardinality.Sequence){
             return $"global::Benchmark.Dynamic.Core.DynamicQueryValue.FromObject(result,global::Benchmark.Dynamic.Core.QueryValueType.{root.OutputType},global::Benchmark.Dynamic.Core.QueryCardinality.Sequence,global::Benchmark.Dynamic.Core.QueryOrderSemantics.{root.OrderSemantics})";
         }
+        if(root.OutputType==QueryValueType.Int){
+            return "global::Benchmark.Dynamic.Core.DynamicQueryValue.Scalar(result)";
+        }
         var atomType=root.OutputType switch{
-            QueryValueType.Int=>"IntQueryAtom",
             QueryValueType.Long=>"LongQueryAtom",
             QueryValueType.Bool=>"BoolQueryAtom",
             QueryValueType.Double=>"DoubleQueryAtom",

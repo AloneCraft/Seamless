@@ -106,6 +106,14 @@ public sealed record DynamicQueryValue(
     QueryOrderSemantics OrderSemantics,
     IReadOnlyList<DynamicQueryAtom> Items){
     public const int MaximumMaterializedItemCount=100_000;
+    public static DynamicQueryValue Scalar(int value)=>value==0?ZeroScalar.Value:Scalar(new IntQueryAtom(value));
+
+    private static class ZeroScalar{
+        internal static readonly DynamicQueryValue Value=new(
+            QueryValueType.Int,QueryCardinality.Scalar,QueryOrderSemantics.TotalOrdered,
+            Array.AsReadOnly<DynamicQueryAtom>([new IntQueryAtom(0)]));
+    }
+
     public static DynamicQueryValue Scalar(DynamicQueryAtom item){
         ArgumentNullException.ThrowIfNull(item);
         return new(item.Type,QueryCardinality.Scalar,QueryOrderSemantics.TotalOrdered,[item]);
