@@ -120,6 +120,10 @@ public sealed record DynamicQueryValue(
             }
             materialized.Add(item);
         }
+        return ValidateSequence(valueType,orderSemantics,materialized);
+    }
+
+    private static DynamicQueryValue ValidateSequence(QueryValueType valueType,QueryOrderSemantics orderSemantics,List<DynamicQueryAtom> materialized){
         var value=new DynamicQueryValue(valueType,QueryCardinality.Sequence,orderSemantics,materialized);
         value.Validate();
         return value;
@@ -163,7 +167,7 @@ public sealed record DynamicQueryValue(
             }
             items.Add(CreateAtom(item,valueType));
         }
-        return Sequence(valueType,orderSemantics,items);
+        return ValidateSequence(valueType,orderSemantics,items);
     }
 
     private static InvalidOperationException MaterializeLimitException(){
