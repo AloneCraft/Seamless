@@ -53,7 +53,13 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine($"private global::Seamless.Linq.HashSetSlim<{ComparerKeyType(stage)}> {this.SetName(index)};");
                     builder.AppendLine($"private bool {this.StateName(index)} = false;");
                 } else if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy) {
-                    builder.AppendLine($"private global::Seamless.Linq.HashSetSlim<{ComparerKeyType(stage)}> {this.SecondSetName(index)};");
+                    if(this.UsesInlineIntersectSet(stage)){
+                        var setName=this.SecondSetName(index);
+                        builder.AppendLine(InlineIntersectSetDefinition(setName));
+                        builder.AppendLine($"private {setName}Inline {setName};");
+                    }else{
+                        builder.AppendLine($"private global::Seamless.Linq.HashSetSlim<{ComparerKeyType(stage)}> {this.SecondSetName(index)};");
+                    }
                     if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
                         builder.AppendLine($"private global::Seamless.Linq.HashSetSlim<{ComparerKeyType(stage)}> {this.SetName(index)};");
                     }
@@ -140,9 +146,11 @@ internal sealed partial class PipelineEnumerable {
                         : "0";
                     builder.AppendLine($"this.{this.SetName(index)} = new({firstCountExpression}+(this.{this.SecondEnumeratorName(this.SecondOrdinal(index))}.TryGetNonEnumeratedCount(out var {secondCount})?{secondCount}:0),{this.ComparerName(this.ComparerOrdinal(index))});");
                 } else if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy) {
-                    // 第2ソースの件数が列挙せずに分かれば、集合を最初からその大きさで作る(足しながら広げ直さない)。
-                    var secondCount = $"__secondCount{this.item}_{index}";
-                    builder.AppendLine($"this.{this.SecondSetName(index)} = new(this.{this.SecondEnumeratorName(this.SecondOrdinal(index))}.TryGetNonEnumeratedCount(out var {secondCount})?{secondCount}:0,{this.ComparerName(this.ComparerOrdinal(index))});");
+                    if(!this.UsesInlineIntersectSet(stage)){
+                        // 第2ソースの件数が列挙せずに分かれば、集合を最初からその大きさで作る。
+                        var secondCount = $"__secondCount{this.item}_{index}";
+                        builder.AppendLine($"this.{this.SecondSetName(index)} = new(this.{this.SecondEnumeratorName(this.SecondOrdinal(index))}.TryGetNonEnumeratedCount(out var {secondCount})?{secondCount}:0,{this.ComparerName(this.ComparerOrdinal(index))});");
+                    }
                     if(stage.Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
                         // 出したものの集合は第1ソースの要素が入るので、前の段が Where/Select だけなら根の件数で作る
                         // (Take などで途中で止まる並びでは根の件数が集合へ入る数より桁違いに大きくなり得る)。
@@ -306,7 +314,9 @@ internal sealed partial class PipelineEnumerable {
                 } else if(stages[index].Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy or PipelineStageKind.Union or PipelineStageKind.UnionBy) {
                     builder.AppendLine($"this.{this.SetName(index)}.Dispose();");
                 } else if(stages[index].Kind is PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy) {
-                    builder.AppendLine($"this.{this.SecondSetName(index)}.Dispose();");
+                    if(!this.UsesInlineIntersectSet(stages[index])){
+                        builder.AppendLine($"this.{this.SecondSetName(index)}.Dispose();");
+                    }
                     if(stages[index].Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
                         builder.AppendLine($"this.{this.SetName(index)}.Dispose();");
                     }
@@ -374,6 +384,40 @@ internal sealed partial class PipelineEnumerable {
 
     private string OrderComparerExpression(PipelineStage stage) =>
         ComparerExpressionSupport.RenderOrderComparer(stage.Value!,ComparerKeyType(stage));
+
+    private bool UsesInlineIntersectSet(PipelineStage stage)=>
+        stages.Count==1&&stage.Kind==PipelineStageKind.Intersect&&stage.Value=="null"&&ComparerKeyType(stage)=="int"
+        &&stage.SecondSource is PipelineEnumerable {ElementType:"int"} second
+        &&second.PipelineStages.Count==1&&second.UsesInlineParityCounts(second.PipelineStages[0]);
+
+    // 偶奇集計は最大2件を返す。第2列を読み切ってから、左の初出順で一致を取り除く。
+    private static string InlineIntersectSetDefinition(string name)=>$$"""
+        private struct {{name}}Inline {
+            private int first,second,occupied;
+
+            public void Add(int value){
+                if(this.occupied==0){
+                    this.first=value;
+                    this.occupied=1;
+                }else if(this.first!=value){
+                    this.second=value;
+                    this.occupied=3;
+                }
+            }
+
+            public bool Remove(int value){
+                if((this.occupied&1)!=0&&this.first==value){
+                    this.occupied&=~1;
+                    return true;
+                }
+                if((this.occupied&2)!=0&&this.second==value){
+                    this.occupied&=~2;
+                    return true;
+                }
+                return false;
+            }
+        }
+        """;
 
     private static bool IsBinarySetStage(PipelineStageKind kind) =>
         kind is PipelineStageKind.Union
