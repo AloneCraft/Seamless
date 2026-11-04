@@ -11,7 +11,7 @@ internal static class ExternalSort{
         using var diskReservation=budget.ReserveTemporaryStorage(checked(request.Count*12+request.ChunkSize*8L));
         var directory=Path.Combine(request.TemporaryDirectory??Path.Combine(Path.GetTempPath(),"Seamless"),"sort-"+Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
-        var levels=new string?[64];var buffer=new int[request.ChunkSize];var size=0;var sequence=0;long peak=0;
+        var levels=new string?[64];var buffer=new int[request.ChunkSize*2];var size=0;var sequence=0;long peak=0;
         void ObserveDisk()=>peak=Math.Max(peak,Directory.EnumerateFiles(directory).Sum(path=>new FileInfo(path).Length));
         string NewPath()=>Path.Combine(directory,(sequence++).ToString()+".bin");
         void StoreChunk(){
@@ -23,7 +23,11 @@ internal static class ExternalSort{
             levels[level]=path;size=0;
         }
         try{
-            foreach(var value in values){buffer[size++]=value;if(size==buffer.Length){cancellationToken.ThrowIfCancellationRequested();Benchmark.Infrastructure.SystemResources.Check();StoreChunk();}}
+            foreach(var value in values){
+                buffer[size++]=value;
+                if(size%request.ChunkSize==0){cancellationToken.ThrowIfCancellationRequested();Benchmark.Infrastructure.SystemResources.Check();}
+                if(size==buffer.Length){StoreChunk();}
+            }
             if(size!=0){StoreChunk();}
             string? result=null;
             foreach(var path in levels){
