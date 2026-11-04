@@ -70,7 +70,9 @@ internal sealed partial class PipelineEnumerable {
                     var hasPostOrderBy = stages.Skip(index+1).Any(static s => s.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending);
                     if(!hasPostOrderBy) {
                         builder.AppendLine($"private bool {this.GroupBuiltName(index)} = false;");
-                        if(stage.AggregatePlan is { } aggPlan) {
+                        if(this.UsesInlineParityCounts(stage)){
+                            builder.AppendLine($"private (int Zero,int One,int First,int Cursor) {this.GroupAggMapName(index)};");
+                        } else if(stage.AggregatePlan is { } aggPlan) {
                             builder.AppendLine($"private global::Seamless.Linq.DictionarySlim<{ComparerKeyType(stage)},{aggPlan.AccumulatorType}>? {this.GroupAggMapName(index)} = null;");
                             builder.AppendLine($"private global::Seamless.Linq.DictionarySlim<{ComparerKeyType(stage)},{aggPlan.AccumulatorType}>.Enumerator {this.GroupAggEnumName(index)};");
                         } else {
@@ -318,6 +320,7 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine($"    this.{this.OrderIndexesName(index)}=null;");
                     builder.AppendLine("}");
                 } else if(stages[index] is {Kind:PipelineStageKind.GroupBy,AggregatePlan:not null}
+                    &&!this.UsesInlineParityCounts(stages[index])
                     &&!stages.Skip(index+1).Any(static stage=>stage.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending)) {
                     builder.AppendLine($"this.{this.GroupAggMapName(index)}?.Dispose();");
                     builder.AppendLine($"this.{this.GroupAggMapName(index)}=null;");
