@@ -17,28 +17,39 @@ internal sealed partial class PipelineEnumerable {
                 builder.AppendLine($"    var __hasCnt={enumeratorName}.TryGetNonEnumeratedCount(out var __cnt);");
                 builder.AppendLine($"    {map}=new global::Seamless.Linq.DictionarySlim<{ComparerKeyType(stage)},{aggPlan.AccumulatorType}>(__hasCnt ? global::System.Math.Min(__cnt,1024) : 0,{this.ComparerName(this.ComparerOrdinal(groupByIndex))});");
             }
-            builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
-            this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
-            var currentName = this.ItemName(0);
-            for(var index = 0;index<groupByIndex;index++) {
-                currentName=this.AppendStage(builder,stages[index],currentName,index);
-            }
-            var keyName = this.KeyName(groupByIndex);
-            builder.AppendLine($"        {ComparerKeyType(stage)} {keyName}=default!;");
-            builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,nameof(PipelineStageKind.GroupBy),keyName,currentName),"        "));
-            var groupElementName=currentName;
-            if(stage.SecondFunc is { } elementSelector){
-                groupElementName=$"__groupElem_{groupByIndex}";
-                builder.AppendLine($"        {stage.InnerElementType} {groupElementName}=default!;");
-                builder.AppendLine(IndentBlock(this.FuncAssign(elementSelector,nameof(PipelineStageKind.GroupBy),groupElementName,currentName),"        "));
-            }
-            if(useParityCounts){
-                builder.AppendLine($"        if(({map}.Zero|{map}.One)==0){{{map}.First={keyName};}}");
-                builder.AppendLine($"        if({keyName}==0){{{map}.Zero++;}}else{{{map}.One++;}}");
+            if(useParityCounts&&!this.CounterInstrumentationEnabled){
+                // Validate the array before obtaining its span, matching the enumerator's null behavior.
+                builder.AppendLine($"    {enumeratorName}.TryGetNonEnumeratedCount(out _);");
+                builder.AppendLine($"    {enumeratorName}.TryGetSpan(out var __paritySpan);");
+                builder.AppendLine("    int __oddCount=0;");
+                builder.AppendLine("    foreach(var __parityValue in __paritySpan){__oddCount+=__parityValue&1;}");
+                builder.AppendLine($"    {map}.First=__paritySpan.IsEmpty?0:__paritySpan[0]&1;");
+                builder.AppendLine($"    {map}.One=__oddCount;");
+                builder.AppendLine($"    {map}.Zero=__paritySpan.Length-__oddCount;");
             }else{
-                builder.AppendLine(aggPlan.RenderAccumulate($"{map}!",keyName,groupElementName,"        ",this.GroupLimitExpression(aggPlan)));
+                builder.AppendLine($"    while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+                this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
+                var currentName = this.ItemName(0);
+                for(var index = 0;index<groupByIndex;index++) {
+                    currentName=this.AppendStage(builder,stages[index],currentName,index);
+                }
+                var keyName = this.KeyName(groupByIndex);
+                builder.AppendLine($"        {ComparerKeyType(stage)} {keyName}=default!;");
+                builder.AppendLine(IndentBlock(this.FuncAssign(stage.Func!,nameof(PipelineStageKind.GroupBy),keyName,currentName),"        "));
+                var groupElementName=currentName;
+                if(stage.SecondFunc is { } elementSelector){
+                    groupElementName=$"__groupElem_{groupByIndex}";
+                    builder.AppendLine($"        {stage.InnerElementType} {groupElementName}=default!;");
+                    builder.AppendLine(IndentBlock(this.FuncAssign(elementSelector,nameof(PipelineStageKind.GroupBy),groupElementName,currentName),"        "));
+                }
+                if(useParityCounts){
+                    builder.AppendLine($"        if(({map}.Zero|{map}.One)==0){{{map}.First={keyName};}}");
+                    builder.AppendLine($"        if({keyName}==0){{{map}.Zero++;}}else{{{map}.One++;}}");
+                }else{
+                    builder.AppendLine(aggPlan.RenderAccumulate($"{map}!",keyName,groupElementName,"        ",this.GroupLimitExpression(aggPlan)));
+                }
+                builder.AppendLine("    }");
             }
-            builder.AppendLine("    }");
             if(useParityCounts){
                 builder.AppendLine("}");
                 builder.AppendLine($"while({map}.Cursor<2) {{");
