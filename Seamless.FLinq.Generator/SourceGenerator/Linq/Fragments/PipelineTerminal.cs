@@ -1406,6 +1406,41 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                         capExpr=$"{firstSpanName}.Length+{secondSpanName}.Length";
                     }
                     var setArgs=RenderHashSetConstructorArgs(capExpr,binaryStage.Value);
+                    var useBitSet=string.IsNullOrEmpty(this.CounterCall("IncrementLogicalDelegate"))&&actualTypeName=="long"&&unionKeyType=="int"&&binaryStage.Value=="null"
+                        &&binaryStage.Func is {IsIdentity:true}&&binaryStageIndex==0&&pipeline.Stages.Count==2
+                        &&pipeline.Stages[1] is {Kind:PipelineStageKind.Select,Func:{ } selector}
+                        &&selector.RenderInlineExpression("__value").Replace(" ",string.Empty)=="(long)__value";
+                    if(useBitSet){
+                        var trySum=$"__tryBitSum{this.result}";
+                        builder.AppendLine($$"""
+                                    static bool {{trySum}}(global::System.ReadOnlySpan<int> left,global::System.ReadOnlySpan<int> right,out long sum){
+                                        sum=0;
+                                        if(left.IsEmpty&&right.IsEmpty)return true;
+                                        int min=int.MaxValue,max=int.MinValue;
+                                        foreach(var value in left){min=global::System.Math.Min(min,value);max=global::System.Math.Max(max,value);}
+                                        foreach(var value in right){min=global::System.Math.Min(min,value);max=global::System.Math.Max(max,value);}
+                                        long width=(long)max-min;
+                                        if(width>=1024)return false;
+                                        global::System.Span<ulong> seen=stackalloc ulong[(int)(width/64)+1];
+                                        seen.Clear();
+                                        if(Add(left,seen,min,width,ref sum)&&Add(right,seen,min,width,ref sum))return true;
+                                        sum=0;
+                                        return false;
+                                        static bool Add(global::System.ReadOnlySpan<int> input,global::System.Span<ulong> seen,int min,long width,ref long sum){
+                                            foreach(var value in input){
+                                                var delta=(long)value-min;
+                                                if((ulong)delta>(ulong)width)return false;
+                                                var offset=(int)delta;
+                                                var bit=1UL<<(offset&63);
+                                                ref var word=ref seen[offset>>6];
+                                                if((word&bit)==0){word|=bit;sum+=value;}
+                                            }
+                                            return true;
+                                        }
+                                    }
+                                    if(!{{trySum}}({{firstSpanName}},{{secondSpanName}},out {{actualVariableName}})){
+                            """);
+                    }
                     builder.AppendLine($"        var __set{this.result}=new global::System.Collections.Generic.HashSet<{unionKeyType}>({setArgs});");
                     builder.AppendLine($"        for(var __i{this.result}=0;__i{this.result}<{firstSpanName}.Length;__i{this.result}++) {{");
                     builder.AppendLine($"            var __item{this.result}={firstSpanName}[__i{this.result}];");
@@ -1433,6 +1468,7 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                     builder.AppendLine($"                {actualVariableName}+={sumItem2};");
                     builder.AppendLine("            }");
                     builder.AppendLine("        }");
+                    if(useBitSet)builder.AppendLine("        }");
                     builder.AppendLine("    }");
                     builder.AppendLine("}");
                     return builder.ToString().TrimEnd();
