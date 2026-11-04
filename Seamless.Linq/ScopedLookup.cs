@@ -54,7 +54,7 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
                     this.groups!.Add(existing);
                     this.index.Add(new(key,encoded.ToArray()),existing);
                 }
-                existing.Values.Add(element);
+                existing.Add(element);
                 return;
             }
             using var owned=this.scope.Rent(length);
@@ -71,7 +71,7 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
                 group=new(this,key);
                 this.groups!.Add(group);this.index.Add(token,group);
             }
-            group.Values.Add(element);
+            group.Add(element);
         }
     }
     internal IEnumerable<IGrouping<TKey,TElement>> Groups(){
@@ -120,7 +120,7 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
         var disk=new DiskLookup<TKey,TElement>(this.scope,this.comparer);
         try{
             foreach(var group in this.groups!){
-                foreach(var value in group.Values){disk.Add(group.Key,value);}
+                group.WriteTo(disk);
             }
             this.disk=disk;this.groups=null;this.index=null;this.memory.Resize(0);
         }catch{disk.Dispose();throw;}
@@ -155,12 +155,31 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
     private sealed class MemoryGroup(ScopedLookup<TKey,TElement> owner,TKey key):IGrouping<TKey,TElement>{
         private readonly ScopedLookup<TKey,TElement> owner=owner;
         public TKey Key{get;}=key;
-        internal List<TElement> Values{get;}=[];
+        private bool hasFirst;
+        private TElement first=default!;
+        private List<TElement>? remaining;
+        internal void Add(TElement value){
+            if(this.hasFirst){
+                (this.remaining??=[]).Add(value);
+            }else{
+                this.first=value;
+                this.hasFirst=true;
+            }
+        }
+        internal void WriteTo(DiskLookup<TKey,TElement> disk){
+            if(this.hasFirst){disk.Add(this.Key,this.first);}
+            if(this.remaining is not null){
+                foreach(var value in this.remaining){disk.Add(this.Key,value);}
+            }
+        }
         public IEnumerator<TElement> GetEnumerator()=>this.Read().GetEnumerator();
         private IEnumerable<TElement> Read(){
             using var operation=this.owner.scope.EnterDependent();
             this.owner.Check();
-            foreach(var value in this.Values){this.owner.Check();yield return value;}
+            if(this.hasFirst){yield return this.first;}
+            if(this.remaining is not null){
+                foreach(var value in this.remaining){this.owner.Check();yield return value;}
+            }
         }
         IEnumerator IEnumerable.GetEnumerator()=>this.GetEnumerator();
     }
