@@ -334,6 +334,8 @@ public sealed class QuerySourceEmitter{
         if(path==ExecutionPath.ZLinq){
             return node.Arguments.Kind switch{
                 QueryBinaryKind.Concat=>$"({left}).Concat(({right}).ToArray())",
+                QueryBinaryKind.Union when node.Right is SourceNode source&&source.SourceTarget.GetSourceKind()==SourceKind.Array=>
+                    $"({left}).Union({EmitSource(source,ExecutionPath.SystemLinq)})",
                 QueryBinaryKind.Union=>$"({left}).Union(({right}).ToArray())",
                 QueryBinaryKind.Except=>$"({left}).Except(({right}).ToArray())",
                 QueryBinaryKind.Intersect=>$"({left}).Intersect(({right}).ToArray())",
