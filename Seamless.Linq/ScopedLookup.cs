@@ -50,6 +50,28 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
     internal IEnumerable<TElement> Match(TKey key){
         this.Check();
         if(this.disk is not null){return this.disk.Match(key);}
+        if(typeof(TKey)==typeof(int)&&this.comparer is null){
+            var codec=this.scope.Codecs.Get<TKey>();
+            var length=codec.GetEncodedLength(key);
+            if(length is >=0 and <=64){
+                this.scope.ThrowIfUnavailable();
+                var size=length+64L;
+                if(size>this.scope.Budget.MemoryLimitBytes){
+                    throw new ResourceLimitException(ResourceLimitKind.SingleElement,size,this.scope.Budget.MemoryLimitBytes);
+                }
+                using var reservation=this.scope.Budget.ReserveMemory(size);
+                Span<byte> bytes=stackalloc byte[length];
+                bytes.Clear();
+                this.scope.ThrowIfUnavailable();
+                codec.Encode(key,bytes);
+                this.Check();
+                var alternate=this.index!.GetAlternateLookup<ReadOnlySpan<byte>>();
+                return alternate.TryGetValue(bytes,out var match)?match:System.Linq.Enumerable.Empty<TElement>();
+            }
+            using var encoded=this.scope.Rent(length);
+            codec.Encode(key,encoded.Memory.Span);
+            return this.index!.TryGetValue(this.Token(key,encoded),out var fallback)?fallback:System.Linq.Enumerable.Empty<TElement>();
+        }
         using var buffer=this.EncodeKey(key);
         if(this.index!.TryGetValue(this.Token(key,buffer),out var group)){return group;}
         return System.Linq.Enumerable.Empty<TElement>();
@@ -77,7 +99,7 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
         try{this.disk?.Dispose();}finally{this.groups=null;this.index=null;this.memory.Dispose();this.scope.Release(this);}
     }
     private readonly record struct Key(TKey Value,ReadOnlyMemory<byte> Encoded);
-    private sealed class KeyComparer(IEqualityComparer<TKey>? comparer):IEqualityComparer<Key>{
+    private sealed class KeyComparer(IEqualityComparer<TKey>? comparer):IEqualityComparer<Key>,IAlternateEqualityComparer<ReadOnlySpan<byte>,Key>{
         private readonly IEqualityComparer<TKey>? comparer=comparer;
         public bool Equals(Key x,Key y){
             if(this.comparer is not null){return this.comparer.Equals(x.Value,y.Value);}
@@ -88,8 +110,13 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
                 if(key.Value is null){return 0;}
                 return this.comparer.GetHashCode(key.Value);
             }
+            return this.GetHashCode(key.Encoded.Span);
+        }
+        public bool Equals(ReadOnlySpan<byte> bytes,Key key)=>bytes.SequenceEqual(key.Encoded.Span);
+        public Key Create(ReadOnlySpan<byte> bytes)=>throw new NotSupportedException();
+        public int GetHashCode(ReadOnlySpan<byte> bytes){
             uint hash=2166136261;
-            foreach(var value in key.Encoded.Span){hash=unchecked((hash^value)*16777619);}
+            foreach(var value in bytes){hash=unchecked((hash^value)*16777619);}
             return unchecked((int)hash);
         }
     }
