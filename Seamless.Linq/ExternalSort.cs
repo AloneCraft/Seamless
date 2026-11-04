@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Buffers.Binary;
 using Seamless.Execution;
 namespace Seamless.Linq;
@@ -100,11 +100,30 @@ internal static class ExternalSort<T,TKey>{
     }
     private static void Write(ExecutionScope scope,TemporaryFile file,global::Seamless.Execution.Codecs.IAdapter<(long,TKey,T)> codec,Row row){
         var tuple=(row.Position,row.Key,row.Value);
-        using var buffer=scope.Rent(codec.GetEncodedLength(tuple));
+        var size=codec.GetEncodedLength(tuple);
+        if(size is >=0 and <=128){
+            var reserved=size+64L;
+            if(reserved>scope.Budget.MemoryLimitBytes){
+                throw new ResourceLimitException(ResourceLimitKind.SingleElement,reserved,scope.Budget.MemoryLimitBytes);
+            }
+            using var reservation=scope.Budget.ReserveMemory(reserved);
+            Span<byte> record=stackalloc byte[size+sizeof(int)];
+            var bytes=record[sizeof(int)..];
+            bytes.Clear();
+            scope.ThrowIfUnavailable();
+            codec.Encode(tuple,bytes);
+            BinaryPrimitives.WriteInt32LittleEndian(record,size);
+            file.Write(record);
+            return;
+        }
+        using var buffer=scope.Rent(size);
         codec.Encode(tuple,buffer.Memory.Span);
+        WriteRecord(file,buffer.Memory.Span);
+    }
+    private static void WriteRecord(TemporaryFile file,ReadOnlySpan<byte> bytes){
         Span<byte> length=stackalloc byte[4];
-        BinaryPrimitives.WriteInt32LittleEndian(length,buffer.Memory.Length);
-        file.Write(length);file.Write(buffer.Memory.Span);
+        BinaryPrimitives.WriteInt32LittleEndian(length,bytes.Length);
+        file.Write(length);file.Write(bytes);
     }
     private sealed class Cursor:IDisposable{
         private readonly ExecutionScope scope;
