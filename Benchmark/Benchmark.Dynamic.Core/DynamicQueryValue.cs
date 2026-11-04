@@ -163,7 +163,7 @@ public sealed record DynamicQueryValue(
         var items=new List<DynamicQueryAtom>(capacity);
         if(valueType==QueryValueType.Int&&capacity>0&&value.GetType()==typeof(int[])){
             foreach(var integer in (int[])value){
-                items.Add(new IntQueryAtom(integer));
+                items.Add(GetSequenceIntAtom(integer));
             }
             return ValidateSequence(valueType,orderSemantics,items);
         }
@@ -172,7 +172,7 @@ public sealed record DynamicQueryValue(
             if(integers.Count<=MaximumMaterializedItemCount){
                 items.EnsureCapacity(integers.Count);
                 foreach(var integer in integers){
-                    items.Add(new IntQueryAtom(integer));
+                    items.Add(GetSequenceIntAtom(integer));
                 }
                 return ValidateSequence(valueType,orderSemantics,items);
             }
@@ -185,6 +185,21 @@ public sealed record DynamicQueryValue(
             items.Add(CreateAtom(item,valueType));
         }
         return ValidateSequence(valueType,orderSemantics,items);
+    }
+
+    private static IntQueryAtom GetSequenceIntAtom(int value)=>
+        value is >=sbyte.MinValue and <=sbyte.MaxValue?SmallIntAtoms.Values[value-sbyte.MinValue]:new(value);
+
+    private static class SmallIntAtoms{
+        internal static readonly IntQueryAtom[] Values=Create();
+
+        private static IntQueryAtom[] Create(){
+            var result=new IntQueryAtom[256];
+            for(var index=0;index<result.Length;index++){
+                result[index]=new IntQueryAtom(index+sbyte.MinValue);
+            }
+            return result;
+        }
     }
 
     private static InvalidOperationException MaterializeLimitException(){
