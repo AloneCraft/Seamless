@@ -161,6 +161,12 @@ public sealed record DynamicQueryValue(
         }
         var capacity=value is Array array&&array.Length<=MaximumMaterializedItemCount?array.Length:0;
         var items=new List<DynamicQueryAtom>(capacity);
+        if(valueType==QueryValueType.Int&&capacity>0&&value.GetType()==typeof(int[])){
+            foreach(var integer in (int[])value){
+                items.Add(new IntQueryAtom(integer));
+            }
+            return ValidateSequence(valueType,orderSemantics,items);
+        }
         foreach(var item in enumerable){
             ArgumentNullException.ThrowIfNull(item);
             if(items.Count>=MaximumMaterializedItemCount){
