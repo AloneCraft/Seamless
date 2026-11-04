@@ -128,20 +128,22 @@ internal static class ExternalSort<T,TKey>{
     private sealed class Cursor:IDisposable{
         private readonly ExecutionScope scope;
         private readonly TemporaryFile file;
+        private readonly long end;
         private readonly global::Seamless.Execution.Codecs.IAdapter<(long,TKey,T)> codec;
         private readonly ResourceReservation memory;
         public Cursor(ExecutionScope scope,TemporaryFile file,global::Seamless.Execution.Codecs.IAdapter<(long,TKey,T)> codec){
             this.scope=scope;this.file=file;this.codec=codec;
             this.memory=scope.Budget.ReserveMemory(0);
             file.Position=0;
+            this.end=file.Length;
         }
         public Row Current{get;private set;}
         public bool MoveNext(){
             this.Current=default;this.memory.Resize(0);
-            if(this.file.Position==this.file.Length){return false;}
+            if(this.file.Position==this.end){return false;}
             Span<byte> prefix=stackalloc byte[4];this.file.ReadExactly(prefix);
             var length=BinaryPrimitives.ReadInt32LittleEndian(prefix);
-            if(length<0||length>this.file.Length-this.file.Position){throw new InvalidDataException("Invalid sort record length.");}
+            if(length<0||length>this.end-this.file.Position){throw new InvalidDataException("Invalid sort record length.");}
             this.memory.Resize(checked(96+4L*length));
             using var buffer=this.scope.Rent(length);
             this.file.ReadExactly(buffer.Memory.Span);
