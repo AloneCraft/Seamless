@@ -33,14 +33,46 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
             throw new CodecUnavailableException(typeof(TElement));
         }
         this.memory.Resize(checked(this.memory.Bytes+size));
-        using var buffer=this.EncodeKey(key);
-        var token=this.Token(key,buffer);
-        if(!this.index!.TryGetValue(token,out var group)){
-            if(buffer is not null){token=token with{Encoded=buffer.Memory.ToArray()};}
-            group=new(this,key);
-            this.groups!.Add(group);this.index.Add(token,group);
+        if(typeof(TKey)==typeof(int)&&this.comparer is null){
+            var codec=this.scope.Codecs.Get<TKey>();
+            var length=codec.GetEncodedLength(key);
+            if(length is >=0 and <=64){
+                this.scope.ThrowIfUnavailable();
+                var bytes=length+64L;
+                if(bytes>this.scope.Budget.MemoryLimitBytes){
+                    throw new ResourceLimitException(ResourceLimitKind.SingleElement,bytes,this.scope.Budget.MemoryLimitBytes);
+                }
+                using var reservation=this.scope.Budget.ReserveMemory(bytes);
+                Span<byte> encoded=stackalloc byte[length];
+                encoded.Clear();
+                this.scope.ThrowIfUnavailable();
+                codec.Encode(key,encoded);
+                this.Check();
+                var alternate=this.index!.GetAlternateLookup<ReadOnlySpan<byte>>();
+                if(!alternate.TryGetValue(encoded,out var existing)){
+                    existing=new(this,key);
+                    this.groups!.Add(existing);
+                    this.index.Add(new(key,encoded.ToArray()),existing);
+                }
+                existing.Values.Add(element);
+                return;
+            }
+            using var owned=this.scope.Rent(length);
+            codec.Encode(key,owned.Memory.Span);
+            AddOwned(owned);
+            return;
         }
-        group.Values.Add(element);
+        using var buffer=this.EncodeKey(key);
+        AddOwned(buffer);
+        void AddOwned(OwnedBuffer? owned){
+            var token=this.Token(key,owned);
+            if(!this.index!.TryGetValue(token,out var group)){
+                if(owned is not null){token=token with{Encoded=owned.Memory.ToArray()};}
+                group=new(this,key);
+                this.groups!.Add(group);this.index.Add(token,group);
+            }
+            group.Values.Add(element);
+        }
     }
     internal IEnumerable<IGrouping<TKey,TElement>> Groups(){
         this.Check();
