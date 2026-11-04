@@ -167,6 +167,16 @@ public sealed record DynamicQueryValue(
             }
             return ValidateSequence(valueType,orderSemantics,items);
         }
+        if(valueType==QueryValueType.Int&&value.GetType()==typeof(HashSet<int>)){
+            var integers=(HashSet<int>)value;
+            if(integers.Count<=MaximumMaterializedItemCount){
+                items.EnsureCapacity(integers.Count);
+                foreach(var integer in integers){
+                    items.Add(new IntQueryAtom(integer));
+                }
+                return ValidateSequence(valueType,orderSemantics,items);
+            }
+        }
         foreach(var item in enumerable){
             ArgumentNullException.ThrowIfNull(item);
             if(items.Count>=MaximumMaterializedItemCount){
