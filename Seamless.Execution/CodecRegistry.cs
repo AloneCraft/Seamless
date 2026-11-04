@@ -1,4 +1,4 @@
-﻿using System.Buffers.Binary;
+using System.Buffers.Binary;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -9,6 +9,7 @@ public sealed class CodecRegistry{
     private readonly Dictionary<Type,object> codecs=[];
     private readonly Dictionary<Type,MemberInfo[]> members=[];
     private bool frozen;
+    internal bool UsesDefaultInt32Codec=>!this.registered.ContainsKey(typeof(int));
     public void Register<T,TStrategy>(TStrategy strategy) where TStrategy:struct,Codecs.IStrategy<TStrategy,T>{this.Register<T>(new Codecs.Adapter<T,TStrategy>(strategy));}
     public void Register<T>(global::Seamless.Execution.Codecs.IAdapter<T> codec){
         ArgumentNullException.ThrowIfNull(codec);

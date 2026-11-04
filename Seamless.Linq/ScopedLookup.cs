@@ -5,6 +5,7 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
     private readonly IEqualityComparer<TKey>? comparer;
     private readonly ResourceReservation memory;
     private readonly bool canSpill;
+    private readonly long intKeyReservationBytes;
     private readonly long threshold;
     private Dictionary<Key,MemoryGroup>? index;
     private List<MemoryGroup>? groups=[];
@@ -16,7 +17,9 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
         this.canSpill=scope.Codecs.CanEncode<TKey>()&&scope.Codecs.CanEncode<TElement>();
         this.threshold=Math.Max(256,(scope.Budget.MemoryLimitBytes-scope.Budget.MemoryBytes)/3);
         this.memory=scope.Budget.ReserveMemory(256);
-        this.index=new(new KeyComparer(comparer));
+        this.intKeyReservationBytes=typeof(TKey)==typeof(int)&&comparer is null&&scope.Codecs.UsesDefaultInt32Codec
+            ?scope.Codecs.Get<int>().GetEncodedLength(0)+64L:0;
+        this.index=new(new KeyComparer(this.intKeyReservationBytes!=0?EqualityComparer<TKey>.Default:comparer));
         scope.Own(this);
     }
     internal void Add(TKey key,TElement element){
@@ -33,6 +36,11 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
             throw new CodecUnavailableException(typeof(TElement));
         }
         this.memory.Resize(checked(this.memory.Bytes+size));
+        if(this.intKeyReservationBytes!=0){
+            using var reservation=this.ReserveIntKey();
+            AddOwned(null);
+            return;
+        }
         if(typeof(TKey)==typeof(int)&&this.comparer is null){
             var codec=this.scope.Codecs.Get<TKey>();
             var length=codec.GetEncodedLength(key);
@@ -82,6 +90,10 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
     internal IEnumerable<TElement> Match(TKey key){
         this.Check();
         if(this.disk is not null){return this.disk.Match(key);}
+        if(this.intKeyReservationBytes!=0){
+            using var reservation=this.ReserveIntKey();
+            return this.index!.TryGetValue(new(key,ReadOnlyMemory<byte>.Empty),out var match)?match:System.Linq.Enumerable.Empty<TElement>();
+        }
         if(typeof(TKey)==typeof(int)&&this.comparer is null){
             var codec=this.scope.Codecs.Get<TKey>();
             var length=codec.GetEncodedLength(key);
@@ -107,6 +119,14 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
         using var buffer=this.EncodeKey(key);
         if(this.index!.TryGetValue(this.Token(key,buffer),out var group)){return group;}
         return System.Linq.Enumerable.Empty<TElement>();
+    }
+    private ResourceReservation ReserveIntKey(){
+        this.scope.ThrowIfUnavailable();
+        var size=this.intKeyReservationBytes;
+        if(size>this.scope.Budget.MemoryLimitBytes){
+            throw new ResourceLimitException(ResourceLimitKind.SingleElement,size,this.scope.Budget.MemoryLimitBytes);
+        }
+        return this.scope.Budget.ReserveMemory(size);
     }
     private OwnedBuffer? EncodeKey(TKey key){
         if(this.comparer is not null){return null;}

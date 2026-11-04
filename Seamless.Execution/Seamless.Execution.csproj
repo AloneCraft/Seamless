@@ -10,6 +10,7 @@
     <Description>Execution scopes, shared resource budgets and deterministic codecs for Seamless.</Description>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Seamless.Linq" />
     <ProjectReference Include="../Seamless.Collections/Seamless.Collections.csproj" />
     <None Update="Profiles/measured.json" TargetPath="Seamless.Execution.Profiles/measured.json"
           CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"
