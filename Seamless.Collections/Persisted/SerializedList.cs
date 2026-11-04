@@ -114,7 +114,10 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
     }
 
     // キーバイト列からデータオフセットを O(1) で解決する。索引未使用なら false。
-    protected bool TryLookupKey(ReadOnlySpan<byte> keyBytes,out long recordOffset) {
+    protected bool TryLookupKey(ReadOnlySpan<byte> keyBytes,out long recordOffset) =>
+        this.TryLookupKey(keyBytes,out recordOffset,-1);
+
+    internal bool TryLookupKey(ReadOnlySpan<byte> keyBytes,out long recordOffset,long knownOffset) {
         if(this.keyIndex is null) {
             recordOffset=-1;
             return false;
@@ -122,7 +125,7 @@ public class SerializedList<T, TSerializer>:PersistedList<T>, IPersistedKeyMatch
         if(this.keyIndexStale) {
             this.RebuildKeyIndex();
         }
-        return this.keyIndex.TryGetOffset(this.HashKey(keyBytes),this,keyBytes,out recordOffset);
+        return this.keyIndex.TryGetOffset(this.HashKey(keyBytes),this,keyBytes,out recordOffset,this.keyPolicy is null?knownOffset:-1);
     }
 
     private ulong HashKey(ReadOnlySpan<byte> key){

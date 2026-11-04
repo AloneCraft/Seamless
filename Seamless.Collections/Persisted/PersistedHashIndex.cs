@@ -155,7 +155,7 @@ internal sealed class PersistedHashIndex:IDisposable {
         this.PublishPrepared(prepared,dataOffset);
     }
     /// <summary>キーからデータオフセットを解決。tombstone が無いので空きスロット到達=不在。</summary>
-    public bool TryGetOffset(ulong hash,IPersistedKeyMatcher matcher,ReadOnlySpan<byte> keyBytes,out long dataOffset) {
+    public bool TryGetOffset(ulong hash,IPersistedKeyMatcher matcher,ReadOnlySpan<byte> keyBytes,out long dataOffset,long knownOffset=-1) {
         var mask = this.slotCapacity-1;
         var slot = GetInitialSlot(hash,mask);
         while(true) {
@@ -164,7 +164,7 @@ internal sealed class PersistedHashIndex:IDisposable {
                 dataOffset=EmptyOffset;
                 return false;
             }
-            if(this.accessor.ReadUInt64(this.HashPosition(slot))==hash&&matcher.KeyEqualsAt(existingOffset,keyBytes)) {
+            if(this.accessor.ReadUInt64(this.HashPosition(slot))==hash&&(existingOffset==knownOffset||matcher.KeyEqualsAt(existingOffset,keyBytes))) {
                 dataOffset=existingOffset;
                 return true;
             }
