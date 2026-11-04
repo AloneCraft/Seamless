@@ -86,7 +86,7 @@ internal static partial class PipelineBuilder {
 
         // GroupBy の集約を融合するかは、段の並びと終端が揃ってから、下流の要求(DemandAnalysis)を見て決める。
         // 正規化は Select を併合するので、その前に行う(候補を持つ Select が併合されると候補が失われる)。
-        stages=GroupByFusionPass.Apply(stages,new TerminalDemand(terminalKind,terminalFunc1 is not null,false,terminalValue),services.Trace);
+        stages=GroupByFusionPass.Apply(stages,new TerminalDemand(terminalKind,terminalFunc1 is not null,false,terminalValue),services.Trace,allowDeferredArrayCounts:terminalKind is null&&sourceFragment is ArrayRoot&&stages.Count==2);
         stages=LinqOptimizationExecutor.NormalizePipeline(stages,services.JoinStaticMethods,services.Configuration,services.Trace);
         stages=StreamGroupByKeysWhenResultIgnoresGroup(sourceFragment,stages);
         stages=StripRangeNoOpPrefix(ref sourceFragment,stages,ref snapshot);
@@ -119,11 +119,12 @@ internal static partial class PipelineBuilder {
             return true;
         }
         var allowSingleStage = stages.Count==1
-            &&stages[0].Kind is PipelineStageKind.Where
+            &&(stages[0] is {Kind:PipelineStageKind.GroupBy,AggregatePlan:not null}
+                ||stages[0].Kind is PipelineStageKind.Where
                 or PipelineStageKind.Select
                 or PipelineStageKind.Append
                 or PipelineStageKind.Prepend
-                or PipelineStageKind.DefaultIfEmpty;
+                or PipelineStageKind.DefaultIfEmpty);
         if(!ValidateStageCombination(stages,terminalKind,allowSingleStage)) {
             return false;
         }

@@ -317,6 +317,10 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine($"    global::System.Buffers.ArrayPool<int>.Shared.Return(this.{this.OrderIndexesName(index)},clearArray:false);");
                     builder.AppendLine($"    this.{this.OrderIndexesName(index)}=null;");
                     builder.AppendLine("}");
+                } else if(stages[index] is {Kind:PipelineStageKind.GroupBy,AggregatePlan:not null}
+                    &&!stages.Skip(index+1).Any(static stage=>stage.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending)) {
+                    builder.AppendLine($"this.{this.GroupAggMapName(index)}?.Dispose();");
+                    builder.AppendLine($"this.{this.GroupAggMapName(index)}=null;");
                 } else if(stages[index].Kind is PipelineStageKind.Reverse or PipelineStageKind.TakeLast or PipelineStageKind.TakeRange) {
                     builder.AppendLine(PooledBufferSupport.Dispose(stages[index].OutputType,this.ReverseItemsName(index)));
                 } else if(stages[index].Kind==PipelineStageKind.SkipLast) {

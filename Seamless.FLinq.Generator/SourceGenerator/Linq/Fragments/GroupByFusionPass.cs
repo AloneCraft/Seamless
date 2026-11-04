@@ -8,7 +8,7 @@ namespace Seamless.FLinq.Generator;
 /// - それ以外(区間・末尾・途中で止まる Where の後など)→ 融合しない(グループごとに引っぱられた分だけ集約する。System.Linq と同じ)。
 /// </summary>
 internal static class GroupByFusionPass {
-    public static List<PipelineStage> Apply(List<PipelineStage> stages,TerminalDemand terminal,OptimizationTraceCollector? trace=null) {
+    public static List<PipelineStage> Apply(List<PipelineStage> stages,TerminalDemand terminal,OptimizationTraceCollector? trace=null,bool allowDeferredArrayCounts=false) {
         if(!stages.Any(static stage => stage.AggregateCandidate is not null)) {
             return stages;
         }
@@ -40,7 +40,7 @@ internal static class GroupByFusionPass {
                 &&stage.AggregatePlan is null
                 &&index+1<stages.Count
                 &&stages[index+1] is { Kind: PipelineStageKind.Select, AggregateCandidate: { } selectPlan, Func: { } selectFunc }
-                &&GroupByConsumptionPlan.Create(demand.After[index+1]) is {Fuse:true} selectConsumption) {
+                &&SelectConsumption(stage,selectPlan,demand.After[index+1],allowDeferredArrayCounts) is {Fuse:true} selectConsumption) {
                 selectPlan=selectPlan.WithConsumption(selectConsumption);
                 Record(trace,index,selectConsumption);
                 result.Add(new PipelineStage(
@@ -61,6 +61,16 @@ internal static class GroupByFusionPass {
             result.Add(stage);
         }
         return result;
+    }
+
+    private static GroupByConsumptionPlan SelectConsumption(PipelineStage group,GroupByAggregatePlan plan,Demand demand,bool allowDeferredArrayCounts){
+        var consumption=GroupByConsumptionPlan.Create(demand);
+        if(consumption.Fuse||!allowDeferredArrayCounts||group.SecondFunc is not null||group.KeyType!="int"||group.Value!="null"
+            ||!plan.Items.All(static item=>item.InnerFunc is null&&item.Kind is GroupAggregateKind.Count or GroupAggregateKind.LongCount)){
+            return consumption;
+        }
+        // 配列長を超えない件数は例外や副作用なしに集計できる。射影は引き続きグループを取り出す時点で評価する。
+        return new(true,null,true,true,"Count-only projection over an array; preserve deferred projection and group order.");
     }
 
     private static void Record(OptimizationTraceCollector? trace,int index,GroupByConsumptionPlan plan){
