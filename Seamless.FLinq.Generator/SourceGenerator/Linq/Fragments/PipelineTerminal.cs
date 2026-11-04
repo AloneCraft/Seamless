@@ -5039,9 +5039,26 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
                         if({{leftName}} is not null&&{{rightName}} is not null&&global::System.Object.ReferenceEquals({{leftName}},{{repeatedName}})){
                             using var membership=new global::Seamless.Linq.HashSetSlim<int>({{rightName}}.Length,null);
                             foreach(var value in {{rightName}})membership.Add(value);
-                            {{actualVariableName}}=new();
-                            foreach(var value in {{leftName}}){
-                                if(membership.Remove(value)){{actualVariableName}}.Add(value);
+                            if({{leftName}}.Length<=256){
+                                var pool=global::System.Buffers.ArrayPool<int>.Shared;
+                                var matched=pool.Rent({{leftName}}.Length);
+                                try{
+                                    var count=0;
+                                    foreach(var value in {{leftName}}){
+                                        if(membership.Remove(value))matched[count++]=value;
+                                    }
+                                    {{actualVariableName}}=new(count);
+                                    for(var index=0;index<count;index++){
+                                        {{actualVariableName}}.Add(matched[index]);
+                                    }
+                                }finally{
+                                    pool.Return(matched);
+                                }
+                            }else{
+                                {{actualVariableName}}=new();
+                                foreach(var value in {{leftName}}){
+                                    if(membership.Remove(value)){{actualVariableName}}.Add(value);
+                                }
                             }
                         }else{
                             using var fallback=new {{pipeline.EnumeratorTypeName}}({{leftEnumerator}},{{innerEnumerator}},null);
