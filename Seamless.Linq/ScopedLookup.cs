@@ -27,7 +27,8 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
         if(this.disk is not null){this.disk.Add(key,element);return;}
         long size=128L+2L*Unsafe.SizeOf<TElement>();
         if(this.scope.Codecs.CanEncode<TElement>()){size=checked(size+4L*this.scope.Codecs.Get<TElement>().GetEncodedLength(element));}
-        if(this.scope.Codecs.CanEncode<TKey>()){size=checked(size+4L*this.scope.Codecs.Get<TKey>().GetEncodedLength(key));}
+        if(this.intKeyReservationBytes!=0){size=checked(size+4L*(this.intKeyReservationBytes-64));}
+        else if(this.scope.Codecs.CanEncode<TKey>()){size=checked(size+4L*this.scope.Codecs.Get<TKey>().GetEncodedLength(key));}
         if(this.canSpill&&this.memory.Bytes+size>this.threshold){
             this.Spill();this.disk!.Add(key,element);return;
         }
