@@ -3,7 +3,8 @@ namespace Seamless.Database.SqlServer;
 internal static class SqlServerRoutineCatalogReader {
     private const string RoutineQuery="""
         SELECT routine_definition.object_id,schema_definition.name,routine_definition.name,
-            routine_definition.type,OBJECT_DEFINITION(routine_definition.object_id),USER_NAME(OBJECTPROPERTY(routine_definition.object_id,'OwnerId'))
+            routine_definition.type,OBJECT_DEFINITION(routine_definition.object_id),USER_NAME(OBJECTPROPERTY(routine_definition.object_id,'OwnerId')),
+            CAST(OBJECTPROPERTY(routine_definition.object_id,'IsSchemaBound') AS bit)
         FROM sys.objects AS routine_definition
         INNER JOIN sys.schemas AS schema_definition ON schema_definition.schema_id=routine_definition.schema_id
         WHERE routine_definition.is_ms_shipped=0
@@ -52,6 +53,7 @@ internal static class SqlServerRoutineCatalogReader {
                 builders.Add(objectId,new(objectId,reader.GetString(1),reader.GetString(2),
                     MapKind(reader.GetString(3).Trim()),reader.IsDBNull(4)?null:reader.GetString(4),reader.GetString(3).Trim()));
                 builders[objectId].OwnerName=reader.IsDBNull(5)?null:reader.GetString(5);
+                builders[objectId].IsSchemaBound=!reader.IsDBNull(6)&&reader.GetBoolean(6);
             }
         }
         await using(var command=new SqlCommand(ParameterQuery,connection)) {
@@ -120,6 +122,7 @@ internal static class SqlServerRoutineCatalogReader {
         public string SourceObjectType{get;}=sourceObjectType;
         public string? Definition { get; }=definition;
         public string? OwnerName { get; set; }
+        public bool IsSchemaBound {get;set;}
         public DatabaseType? ReturnType { get; set; }
         public List<ParameterCatalog> Parameters { get; }=[];
         public List<ColumnCatalog> ResultColumns { get; }=[];
@@ -131,6 +134,6 @@ internal static class SqlServerRoutineCatalogReader {
         public RoutineCatalog Build()=>new(this.SchemaName,this.Name,this.Kind,this.ReturnType,
             this.Parameters.OrderBy(static value=>value.Ordinal).ToArray(),
             this.ResultColumns.OrderBy(static value=>value.Ordinal).ToArray(),this.Definition,
-            this.HasMutation,this.ResultSetCount,this.ReturnCount,this.RelationalAlgebra){SourceObjectType=this.SourceObjectType,OwnerName=this.OwnerName};
+            this.HasMutation,this.ResultSetCount,this.ReturnCount,this.RelationalAlgebra){SourceObjectType=this.SourceObjectType,OwnerName=this.OwnerName,IsSchemaBound=this.IsSchemaBound};
     }
 }

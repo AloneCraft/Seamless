@@ -55,14 +55,25 @@ public sealed class RuntimeSqlCatalog{
         if(this.current.Value is not null){throw new InvalidOperationException("A runtime SQL transaction is already active.");}
         var scope=new RuntimeSqlTransaction(this,this.owner.BeginTransaction(cancellationToken));this.current.Value=scope;return scope;
     }
+    public RuntimeSqlTransaction BeginGatewayTransaction(GatewayTransactionOwner owner,CancellationToken cancellationToken=default){
+        if(this.current.Value is not null){throw new InvalidOperationException("A runtime SQL transaction is already active.");}
+        var scope=new RuntimeSqlTransaction(this,this.owner.BeginGatewayTransaction(owner,cancellationToken));this.current.Value=scope;return scope;
+    }
     private void RequireTransaction(){var scope=this.current.Value;if(scope is null||scope.Finished||scope.RollbackOnly){throw new InvalidOperationException("An active RuntimeSql transaction is required.");}}
     private void ApplyMutation(Action action){try{action();}catch{this.current.Value!.AbortAfterWriteFailure();throw;}}
-    public sealed class RuntimeSqlTransaction:IDisposable{
+    public sealed class RuntimeSqlTransaction:IGatewayDatabaseTransaction{
         private readonly RuntimeSqlCatalog catalog;private readonly DatabaseTransaction transaction;private bool completed;private bool disposed;private bool closed;private bool rollbackOnly;
         internal RuntimeSqlTransaction(RuntimeSqlCatalog catalog,DatabaseTransaction transaction){this.catalog=catalog;this.transaction=transaction;}
         internal bool IsDisposed=>this.closed;
         internal bool Finished=>this.completed||this.disposed;
         internal bool RollbackOnly=>this.rollbackOnly;
+        public bool IsRollbackOnly=>this.rollbackOnly;
+        public IEnumerable<global::Seamless.Transactions.WalEntry> PrepareGatewayCommit(GatewayTransactionOwner owner){this.Check();return this.transaction.PrepareGatewayCommit(owner);}
+        public void ApplyGatewayCommit(GatewayTransactionOwner owner,long lsn){this.Check();this.transaction.ApplyGatewayCommit(owner,lsn);}
+        public GatewayPreparedSnapshot SealGatewaySnapshot(GatewayTransactionOwner owner){this.Check();return this.transaction.SealGatewaySnapshot(owner);}
+        public void CreateSavepoint(string name){this.Check();this.transaction.CreateSavepoint(name);}
+        public void RollbackToSavepoint(string name){this.Check();this.transaction.RollbackToSavepoint(name);}
+        public void ReleaseSavepoint(string name){this.Check();this.transaction.ReleaseSavepoint(name);}
         internal void MarkRollbackOnly(){this.Check();this.transaction.Rollback();this.rollbackOnly=true;}
         private void Check(){if(this.Finished||!ReferenceEquals(this.catalog.current.Value,this)){throw new InvalidOperationException("Runtime SQL transaction is not active in this context.");}}
         public void Commit(){this.Check();if(this.rollbackOnly){throw new InvalidOperationException("Transaction is rollback-only.");}this.transaction.Commit();this.completed=true;}

@@ -2,25 +2,122 @@ using System.Numerics;
 using System.Globalization;
 namespace Seamless.Database.Query;
 internal static class SqlValues{
+    private static string ConvertXml(object value,bool explicitConversion){
+        if(value is global::System.Data.SqlTypes.SqlXml xml){return xml.Value;}
+        if(value is not string&&value is not byte[]){throw new SqlQueryException("The source SQL type cannot be converted to xml.",explicitConversion?529:206);}
+        var settings=new global::System.Xml.XmlReaderSettings{ConformanceLevel=global::System.Xml.ConformanceLevel.Fragment,IgnoreWhitespace=true,DtdProcessing=global::System.Xml.DtdProcessing.Prohibit,XmlResolver=null};
+        try{
+            using var reader=value is byte[] bytes?global::System.Xml.XmlReader.Create(new MemoryStream(bytes,false),settings):global::System.Xml.XmlReader.Create(new StringReader((string)value),settings);
+            var normalized=new global::System.Data.SqlTypes.SqlXml(reader).Value;
+            var content=global::System.Xml.Linq.XElement.Parse("<gateway_xml_content>"+normalized+"</gateway_xml_content>",global::System.Xml.Linq.LoadOptions.PreserveWhitespace);
+            foreach(var data in content.DescendantNodes().OfType<global::System.Xml.Linq.XCData>().ToArray()){data.ReplaceWith(new global::System.Xml.Linq.XText(data.Value));}
+            foreach(var element in content.Descendants()){if(!element.Nodes().Any()){element.RemoveNodes();}}
+            return string.Concat(content.Nodes().Select(static node=>node.ToString(global::System.Xml.Linq.SaveOptions.DisableFormatting)));
+        }catch(global::System.Xml.XmlException error){throw new SqlQueryException("XML parsing: "+error.Message,error.Message.Contains("DTD",StringComparison.OrdinalIgnoreCase)?6359:9400);}
+    }
     internal static object?ConvertTo(object?value,SqlType type,bool explicitConversion=false){
         if(value is null||value is DBNull){return null;}
+        if(type.Name.Equals("xml",StringComparison.OrdinalIgnoreCase)){return ConvertXml(value,explicitConversion);}
         if(type.ClrType==typeof(string)){string text;if(value is byte[]encoded){text=global::System.Text.Encoding.Unicode.GetString(encoded);}else if(value is bool bit){if(bit){text="1";}else{text="0";}}else{text=Convert.ToString(value,CultureInfo.InvariantCulture)??"";}return ConvertString(text,type,explicitConversion);}
-        if(type.ClrType==typeof(byte[])){if(value is byte[]bytes){if(type.Length is{}length&&length>=0){if(bytes.Length>length){if(!explicitConversion){throw new SqlQueryException("Binary conversion would truncate.",8152);}return bytes[..length];}if(type.Name=="binary"&&bytes.Length<length){var padded=new byte[length];bytes.CopyTo(padded,0);return padded;}}return bytes;}throw new SqlQueryException("Unsupported binary conversion.",245);}
+        if(type.ClrType==typeof(byte[])){if(value is byte[]bytes){if(type.Length is{}length&&length>=0){if(bytes.Length>length){if(!explicitConversion){throw new SqlQueryException("Binary conversion would truncate.",8152);}return bytes[..length];}if(type.Name=="binary"&&bytes.Length<length){var padded=new byte[length];bytes.CopyTo(padded,0);return padded;}}return bytes;}if(value is byte or short or int or long){return SqlBinaryGuidConversions.IntegerBytes(value,type);}throw new SqlQueryException("Unsupported binary conversion.",245);}
+        // 2進値から整数へ。SQL Server と同じく左(上位)側を詰めるか切り捨てる(0x0001 は 1、0xFFFF は int で 65535)。
+        if(value is byte[] binary&&(type.ClrType==typeof(byte)||type.ClrType==typeof(short)||type.ClrType==typeof(int)||type.ClrType==typeof(long))){
+            var width=8;
+            if(type.ClrType==typeof(byte)){width=1;}
+            else if(type.ClrType==typeof(short)){width=2;}
+            else if(type.ClrType==typeof(int)){width=4;}
+            long accumulated=0;
+            for(var i=Math.Max(0,binary.Length-width);i<binary.Length;i++){accumulated=(accumulated<<8)|binary[i];}
+            if(type.ClrType==typeof(byte)){return (byte)accumulated;}
+            if(type.ClrType==typeof(short)){return unchecked((short)accumulated);}
+            if(type.ClrType==typeof(int)){return unchecked((int)accumulated);}
+            return accumulated;
+        }
         if(value is string empty&&string.IsNullOrWhiteSpace(empty)&&type.ClrType!=typeof(Guid)&&type.ClrType!=typeof(TimeSpan)&&type.ClrType!=typeof(DateTimeOffset)){if(type.ClrType==typeof(DateTime)){return new DateTime(1900,1,1);}value=0;}
         if(type.ClrType==typeof(bool)){if(value is bool boolean){return boolean;}if(value is string text&&bool.TryParse(text,out var parsed)){return parsed;}return Convert.ToDecimal(value,CultureInfo.InvariantCulture)!=0;}
         if(type.ClrType==typeof(DateOnly)){if(value is DateOnly dateOnly){return dateOnly;}if(value is DateTime dateValue){return DateOnly.FromDateTime(dateValue);}return DateOnly.FromDateTime(ParseDateTime(Convert.ToString(value,CultureInfo.InvariantCulture)!));}
-        if(type.ClrType==typeof(TimeOnly)){if(value is TimeOnly timeOnly){return timeOnly;}if(value is TimeSpan timeSpan){return TimeOnly.FromTimeSpan(timeSpan);}if(value is DateTime dateValue){return TimeOnly.FromDateTime(dateValue);}return TimeOnly.Parse(Convert.ToString(value,CultureInfo.InvariantCulture)!,CultureInfo.InvariantCulture);}
-        if(type.ClrType==typeof(DateTime)){if(value is DateOnly dateOnly){return dateOnly.ToDateTime(TimeOnly.MinValue);}if(value is TimeOnly timeOnly){return new DateTime(1900,1,1).Add(timeOnly.ToTimeSpan());}if(value is string text){return ParseDateTime(text);}return Convert.ToDateTime(value,CultureInfo.InvariantCulture);}
-        if(type.ClrType==typeof(Guid)){if(value is Guid guid){return guid;}return Guid.Parse(Convert.ToString(value,CultureInfo.InvariantCulture)!);}
+        if(type.ClrType==typeof(TimeOnly)){var time=value switch{TimeOnly clock=>clock,TimeSpan duration=>TimeOnly.FromTimeSpan(duration),DateTime date=>TimeOnly.FromDateTime(date),DateTimeOffset offset=>TimeOnly.FromDateTime(offset.DateTime),_=>TimeOnly.Parse(Convert.ToString(value,CultureInfo.InvariantCulture)!,CultureInfo.InvariantCulture)};var rounded=RoundTemporalTicks(time.Ticks,type.Scale);return new TimeOnly(Math.Min(rounded,TimeSpan.TicksPerDay-TemporalQuantum(type.Scale)));}
+        if(type.ClrType==typeof(DateTime)){var date=value switch{DateOnly day=>day.ToDateTime(TimeOnly.MinValue),TimeOnly clock=>new DateTime(1900,1,1).Add(clock.ToTimeSpan()),DateTimeOffset offset=>offset.DateTime,string text=>ParseDateTime(text),_=>Convert.ToDateTime(value,CultureInfo.InvariantCulture)};return NormalizeDateTime(date,type);}
+        if(type.ClrType==typeof(Guid)){return SqlBinaryGuidConversions.GuidValue(value,explicitConversion);}
         if(type.ClrType==typeof(TimeSpan)){if(value is TimeSpan span){return span;}if(value is TimeOnly timeOnly){return timeOnly.ToTimeSpan();}return TimeSpan.Parse(Convert.ToString(value,CultureInfo.InvariantCulture)!,CultureInfo.InvariantCulture);}
-        if(type.ClrType==typeof(DateTimeOffset)){if(value is DateTimeOffset offset){return offset;}return DateTimeOffset.Parse(Convert.ToString(value,CultureInfo.InvariantCulture)!,CultureInfo.InvariantCulture);}
+        if(type.ClrType==typeof(DateTimeOffset)){var offset=value switch{DateTimeOffset existing=>existing,DateTime date=>new DateTimeOffset(DateTime.SpecifyKind(date,DateTimeKind.Unspecified),TimeSpan.Zero),DateOnly day=>new DateTimeOffset(day.ToDateTime(TimeOnly.MinValue),TimeSpan.Zero),_=>DateTimeOffset.Parse(Convert.ToString(value,CultureInfo.InvariantCulture)!,CultureInfo.InvariantCulture)};try{return new DateTimeOffset(RoundTemporalTicks(offset.Ticks,type.Scale),offset.Offset);}catch(ArgumentOutOfRangeException error){throw new SqlQueryException("Datetimeoffset conversion is outside its valid range: "+error.Message,242);}}
         if(type.ClrType==typeof(decimal)){var number=Convert.ToDecimal(value,CultureInfo.InvariantCulture);if(type.Scale is{}scale&&scale<29&&decimal.Round(number,scale)!=number){if(explicitConversion){number=decimal.Round(number,scale,MidpointRounding.AwayFromZero);}else{throw new SqlQueryException("Decimal conversion would lose scale.",8115);}}CheckDecimalPrecision(number,type);return number;}
         if(type.ClrType==typeof(int)){return checked((int)decimal.Truncate(Convert.ToDecimal(value,CultureInfo.InvariantCulture)));}
         if(type.ClrType==typeof(long)){return checked((long)decimal.Truncate(Convert.ToDecimal(value,CultureInfo.InvariantCulture)));}
         if(type.ClrType==typeof(short)){return checked((short)decimal.Truncate(Convert.ToDecimal(value,CultureInfo.InvariantCulture)));}
         if(type.ClrType==typeof(byte)){return checked((byte)decimal.Truncate(Convert.ToDecimal(value,CultureInfo.InvariantCulture)));}
+        if(type.ClrType==typeof(float)){var number=Convert.ToSingle(value,CultureInfo.InvariantCulture);if(!float.IsFinite(number)){throw new SqlQueryException("A SQL real cannot contain NaN or infinity.",8114);}return number;}
+        if(type.ClrType==typeof(double)){var number=Convert.ToDouble(value,CultureInfo.InvariantCulture);if(!double.IsFinite(number)){throw new SqlQueryException("A SQL float cannot contain NaN or infinity.",8114);}return number;}
+        if(type.ClrType==typeof(object)){return value;}
         if(value.GetType()==type.ClrType){return value;}
-        try{return Convert.ChangeType(value,type.ClrType,CultureInfo.InvariantCulture);}catch(Exception exception)when(exception is InvalidCastException or FormatException or OverflowException){throw new SqlQueryException("SQL conversion failed: "+exception.Message,245);}
+        throw new SqlQueryException("SQL conversion from '"+value.GetType().Name+"' to '"+type.Name+"' is not supported.",245);
+    }
+    private static long TemporalQuantum(byte? scale){var precision=scale??7;if(precision>7){throw new SqlQueryException("Invalid time precision.",2750);}long quantum=1;for(var index=precision;index<7;index++){quantum*=10;}return quantum;}
+    private static long RoundTemporalTicks(long ticks,byte? scale){var quantum=TemporalQuantum(scale);return checked((ticks+quantum/2)/quantum*quantum);}
+    private static DateTime NormalizeDateTime(DateTime value,SqlType type){
+        try{
+            if(type.Name.Equals("datetime",StringComparison.OrdinalIgnoreCase)){return new global::System.Data.SqlTypes.SqlDateTime(value).Value;}
+            if(type.Name.Equals("smalldatetime",StringComparison.OrdinalIgnoreCase)){if(value<new DateTime(1900,1,1)||value>new DateTime(2079,6,6,23,59,59,999)){throw new ArgumentOutOfRangeException(nameof(value));}var minute=value.Ticks/TimeSpan.TicksPerMinute;var remainder=value.Ticks%TimeSpan.TicksPerMinute;if(remainder>=299_990_000){minute++;}var rounded=new DateTime(checked(minute*TimeSpan.TicksPerMinute));if(rounded>new DateTime(2079,6,6,23,59,0)){throw new ArgumentOutOfRangeException(nameof(value));}return rounded;}
+            return new DateTime(RoundTemporalTicks(value.Ticks,type.Scale),DateTimeKind.Unspecified);
+        }catch(Exception error)when(error is ArgumentOutOfRangeException or global::System.Data.SqlTypes.SqlTypeException){throw new SqlQueryException("Datetime conversion is outside its valid range: "+error.Message,242);}
+    }
+    // LIKE。% は任意の長さ、_ は1文字、[abc] [a-c] [^abc] は文字の集まり、ESCAPE で直後の記号を文字として扱う。
+    // 大文字小文字などの扱いは比較と同じ照合順序に従う。どちらかが NULL なら NULL(不明)。
+    internal static bool? Like(object? value,object? pattern,object? escape,bool hasEscape,string? collation){
+        if(value is null||pattern is null||hasEscape&&escape is null){return null;}
+        var text=Convert.ToString(value,CultureInfo.InvariantCulture)!.TrimEnd(' ');var like=Convert.ToString(pattern,CultureInfo.InvariantCulture)!;
+        char? escapeCharacter=null;
+        if(hasEscape){var raw=Convert.ToString(escape,CultureInfo.InvariantCulture)!;if(raw.Length!=1){throw new SqlQueryException("The invalid escape character \""+raw+"\" was specified in a LIKE predicate.",506);}escapeCharacter=raw[0];}
+        var tokens=new List<(char Kind,string Value,bool Negated)>();
+        for(var i=0;i<like.Length;i++){
+            var c=like[i];
+            if(escapeCharacter is char escaped&&c==escaped){
+                if(i+1>=like.Length){throw new SqlQueryException("The escape character in a LIKE pattern must be followed by a character.",8179);}
+                tokens.Add(('L',like[++i].ToString(),false));continue;
+            }
+            if(c=='%'){tokens.Add(('%',"",false));continue;}
+            if(c=='_'){tokens.Add(('_',"",false));continue;}
+            if(c=='['){
+                var close=like.IndexOf(']',i+2<like.Length?i+2:like.Length);
+                if(close<0){tokens.Add(('L',"[",false));continue;}
+                var body=like.Substring(i+1,close-i-1);var negated=body.StartsWith('^');if(negated){body=body.Substring(1);}
+                tokens.Add(('S',body,negated));i=close;continue;
+            }
+            tokens.Add(('L',c.ToString(),false));
+        }
+        bool Same(string a,string b)=>CompareText(a,b,collation)==0;
+        bool InSet(string body,bool negated,string character){
+            var matched=false;
+            for(var i=0;i<body.Length&&!matched;i++){
+                if(i+2<body.Length&&body[i+1]=='-'){
+                    matched=CompareText(character,body[i].ToString(),collation)>=0&&CompareText(character,body[i+2].ToString(),collation)<=0;i+=2;
+                }else{matched=Same(character,body[i].ToString());}
+            }
+            return matched!=negated;
+        }
+        // 後戻りする代わりに、位置ごとの「ここまで合う」集合を進める。
+        var states=new HashSet<int>{0};
+        void Expand(HashSet<int> set){
+            var queue=new Queue<int>(set);
+            while(queue.Count>0){var s=queue.Dequeue();if(s<tokens.Count&&tokens[s].Kind=='%'&&set.Add(s+1)){queue.Enqueue(s+1);}}
+        }
+        Expand(states);
+        foreach(var element in StringInfoElements(text)){
+            var next=new HashSet<int>();
+            foreach(var s in states){
+                if(s>=tokens.Count){continue;}
+                var token=tokens[s];
+                if(token.Kind=='%'){next.Add(s);continue;}
+                if(token.Kind=='_'||token.Kind=='L'&&Same(element,token.Value)||token.Kind=='S'&&InSet(token.Value,token.Negated,element)){next.Add(s+1);}
+            }
+            Expand(next);states=next;
+            if(states.Count==0){return false;}
+        }
+        return states.Contains(tokens.Count);
+    }
+    private static IEnumerable<string> StringInfoElements(string text){
+        var enumerator=StringInfo.GetTextElementEnumerator(text);
+        while(enumerator.MoveNext()){yield return (string)enumerator.Current;}
     }
     private static string SupportedCollation(string collation){var name=collation.ToUpperInvariant();if(name is "SQL_LATIN1_GENERAL_CP1_CI_AS" or "JAPANESE_CI_AS" or "LATIN1_GENERAL_100_CI_AS" or "LATIN1_GENERAL_BIN2" or "LATIN1_GENERAL_100_BIN2" or "LATIN1_GENERAL_100_BIN2_UTF8"){return name;}throw new SqlQueryException("Unsupported collation: "+collation,40515);}
     private static global::System.Text.Encoding?StringEncoding(SqlType type){
@@ -153,7 +250,8 @@ internal static class SqlValues{
     private static bool IsNumber(object value)=>value is byte or short or int or long or decimal or float or double;
     internal static object?Function(string name,object?[]args,string database,DateTime timestamp){
         if(name=="DB_NAME"){return database;}
-        if(name=="GETDATE"){return timestamp;}
+        if(name=="GETDATE"){return NormalizeDateTime(timestamp,new("datetime",typeof(DateTime)));}
+        if(name=="SYSDATETIME"){return timestamp;}if(name is "GETUTCDATE" or "SYSUTCDATETIME"){var utc=DateTime.SpecifyKind(timestamp.ToUniversalTime(),DateTimeKind.Unspecified);return name=="GETUTCDATE"?NormalizeDateTime(utc,new("datetime",typeof(DateTime))):utc;}if(name=="NEWID"){return Guid.NewGuid();}
         if(name=="ISNULL"){return args[0]??args[1];}
         if(name=="CONCAT"){return string.Concat(args.Select(x=>Convert.ToString(x,CultureInfo.InvariantCulture)));}
         if(args.Any(x=>x is null)){return null;}
@@ -169,6 +267,7 @@ internal static class SqlValues{
             case "REPLACE":return text.Replace(Convert.ToString(args[1],CultureInfo.InvariantCulture)!,Convert.ToString(args[2],CultureInfo.InvariantCulture)!,StringComparison.Ordinal);
             case "REPLICATE":{var count=Convert.ToInt32(args[1],CultureInfo.InvariantCulture);if(count<0){return null;}return string.Concat(Enumerable.Repeat(text,count));}
             case "LEN":return text.TrimEnd(' ').Length;case "DATALENGTH":return checked(text.Length*2);
+            case "REVERSE":{var characters=text.ToCharArray();Array.Reverse(characters);return new string(characters);}
             case "UPPER":return text.ToUpperInvariant();case "LOWER":return text.ToLowerInvariant();case "LTRIM":return text.TrimStart(' ');case "RTRIM":return text.TrimEnd(' ');
             case "CHARINDEX":return Convert.ToString(args[1],CultureInfo.InvariantCulture)!.IndexOf(text,StringComparison.Ordinal)+1;
             case "YEAR":return AsDateTime(args[0]).Year;case "MONTH":return AsDateTime(args[0]).Month;case "DAY":return AsDateTime(args[0]).Day;

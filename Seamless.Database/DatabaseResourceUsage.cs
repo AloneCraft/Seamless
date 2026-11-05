@@ -1,6 +1,6 @@
 namespace Seamless.Database;
 
-/// <summary>DBが共有管理するメモリと一時ストレージの計測値。</summary>
+/// <summary>DBが共有管理するメモリとディスクの計測値。TemporaryStorageBytes は永続ストアの課金も含む。</summary>
 public readonly record struct DatabaseResourceUsage(
     long MemoryLimitBytes,
     long TemporaryStorageLimitBytes,

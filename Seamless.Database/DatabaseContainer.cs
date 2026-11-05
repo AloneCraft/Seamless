@@ -36,14 +36,16 @@ public abstract partial class DatabaseContainer:IDisposable {
         }
         global::Seamless.Execution.TemporaryResourceRecovery.RecoverAbandoned(temporaryDirectory);
         this.executionResources=new(new global::Seamless.Execution.ExecutionOptions {
+            ParentBudget=this.Options.ParentBudget,
             MemoryLimitBytes=this.Options.ManagedMemoryLimitBytes,
             TemporaryStorageLimitBytes=this.Options.TemporaryStorageLimitBytes,
             TemporaryDirectory=temporaryDirectory,
+            MaximumQueryWorkers=this.Options.MaximumQueryWorkers,
         });
     }
     /// <summary>実際のコンテナ型名。</summary>
     public string DatabaseName=>this.GetType().Name;
-    /// <summary>DBが共有管理する実行時資源の現在値とピーク値。</summary>
+    /// <summary>DBが共有管理する実行時資源の現在値とピーク値。ディスクには永続ストアも含む。</summary>
     public DatabaseResourceUsage ResourceUsage=>new(
         this.executionResources.Budget.MemoryLimitBytes,
         this.executionResources.Budget.TemporaryStorageLimitBytes,
@@ -52,9 +54,13 @@ public abstract partial class DatabaseContainer:IDisposable {
         this.executionResources.Budget.PeakMemoryBytes,
         this.executionResources.Budget.PeakTemporaryStorageBytes);
     internal global::Seamless.Execution.ExecutionScope ExecutionResources=>this.executionResources;
+    /// <summary>生成する同期取込が、既存の同期writerの変更集合を維持するための状態検査。</summary>
+    protected bool IsLegacyWriteTransactionActive=>this.ambientTransaction.Value is not null;
 
     /// <summary>DB全体writerを直列化し、変更をcommitまでstagingする。</summary>
     public DatabaseTransaction BeginTransaction(global::System.Threading.CancellationToken cancellationToken=default) {
+        if(this.Options.TransactionHistory is not null){throw new NotSupportedException("Use the generated BeginTransactionAsync or BeginReadOnlyTransactionAsync entry for the versioned profile.");}
+        if(this.Options.GatewayProfile is not null){throw new InvalidOperationException("Use the owning Gateway transaction to update this database.");}
         this.EnsureAvailable();
         var state=this.ambientTransaction.Value;
         if(state is null) {
@@ -74,6 +80,10 @@ public abstract partial class DatabaseContainer:IDisposable {
         return new(this,state);
     }
 
+    internal void ValidateTransactionContext(DatabaseTransactionState state){
+        if(!ReferenceEquals(this.ambientTransaction.Value,state)||state.Depth<=0){throw new InvalidOperationException("The transaction scope does not belong to the current database context.");}
+    }
+
     internal void EndTransaction(DatabaseTransactionState state,bool commitRequested) {
         if(!ReferenceEquals(this.ambientTransaction.Value,state)||state.Depth<=0) {
             throw new InvalidOperationException("The transaction scope does not belong to the current database context.");
@@ -87,9 +97,14 @@ public abstract partial class DatabaseContainer:IDisposable {
         }
         try {
             if(!state.Aborted) {
+                try{this.ValidateRelations();}catch{state.Aborted=true;throw;}
+                if(state.GatewayOwner is not null){
+                    if(!state.GatewayApplied){throw new InvalidOperationException("The common Gateway WAL must commit before applying this database.");}
+                    return;
+                }
                 if(state.SharedScope is not null){
                     state.SharedScope.Enlist(new SharedLegacyChanges(this,state.Overlays.Values.ToArray()));
-                    state.SharedScope.CommitAsync().AsTask().GetAwaiter().GetResult();
+                    state.SharedScope.CommitAsync(state.CommitMetadata).AsTask().GetAwaiter().GetResult();
                     return;
                 }
                 IEnumerable<DatabaseWalOperation> Operations() {
@@ -102,6 +117,8 @@ public abstract partial class DatabaseContainer:IDisposable {
                     overlay.Apply();
                 }
             }
+        } catch(global::Seamless.Transactions.TransactionCommitException error)when(error.Outcome==global::Seamless.Transactions.TransactionOutcomeKind.Aborted&&state.SharedScope is{} scope&&error.TransactionId==scope.Id&&this.sharedCoordinator?.Failure.Error is null){
+            state.Aborted=true;throw;
         } catch {
             if(!state.Aborted){this.faulted=true;}
             throw;
@@ -113,11 +130,12 @@ public abstract partial class DatabaseContainer:IDisposable {
 
     public DatabaseReadSession BeginReadSession(global::System.Threading.CancellationToken cancellationToken=default) {
         this.EnsureAvailable();
+        this.EnsureGatewayRecovered();
         var state=this.ambientReadSession.Value;
         if(state is null) {
             IDisposable? lease=null;
-            if(this.ambientTransaction.Value is null&&this.ambientWriteDepth.Value==0){
-                if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){this.EnsureSharedReady();lease=this.sharedCoordinator!.EnterRead(cancellationToken);}
+            if(this.ambientTransaction.Value is null&&this.ambientWriteDepth.Value==0&&this.gatewayVersionedExecution.Value is null){
+                if(this.Options.Transactions==DatabaseTransactionMode.SharedV2&&this.Options.GatewayProfile is null){this.EnsureSharedReady();lease=this.sharedCoordinator!.EnterRead(cancellationToken);}
                 else{lease=this.concurrencyGate.EnterRead(cancellationToken);}
             }
             state=new(lease);
@@ -142,6 +160,7 @@ public abstract partial class DatabaseContainer:IDisposable {
         bool create)
         where TKey:struct
         where TRecord:struct {
+        this.ValidateOverlayWrite(create);
         var state=this.ambientTransaction.Value;
         if(state is null) {
             return null;
@@ -161,6 +180,7 @@ public abstract partial class DatabaseContainer:IDisposable {
         Table<TRecord> table,
         bool create)
         where TRecord:notnull {
+        this.ValidateOverlayWrite(create);
         var state=this.ambientTransaction.Value;
         if(state is null){return null;}
         if(state.Overlays.TryGetValue(table,out var existing)){
@@ -177,6 +197,7 @@ public abstract partial class DatabaseContainer:IDisposable {
         bool create)
         where TKey:struct
         where TRecord:struct {
+        this.ValidateOverlayWrite(create);
         var state=this.ambientTransaction.Value;
         if(state is null) {
             return null;
@@ -198,6 +219,7 @@ public abstract partial class DatabaseContainer:IDisposable {
     }
 
     internal TResult WithWriteGate<TResult>(Func<TResult> action) {
+        this.ValidateOverlayWrite(true);
         if(this.ambientTransaction.Value is not null||this.ambientWriteDepth.Value>0) {
             return action();
         }
@@ -218,8 +240,10 @@ public abstract partial class DatabaseContainer:IDisposable {
         catch{session.Dispose();throw;}
     }
 
+    internal void ValidateQueryAccess()=>this.EnsureAvailable();
     private void EnsureAvailable() {
         ObjectDisposedException.ThrowIf(this.disposed,this);
+        if(this.unpublishedSnapshot is not null){throw new InvalidOperationException("The unpublished database snapshot is still being built.");}
         if(this.faulted){throw new DatabaseFaultedException("The database encountered an error while committing. Dispose and reopen it so committed WAL operations can be recovered.");}
     }
 
@@ -608,6 +632,18 @@ public abstract partial class DatabaseContainer:IDisposable {
 
     private static DatabaseContainerOptions ValidateOptions(DatabaseContainerOptions value) {
         ArgumentNullException.ThrowIfNull(value);
+        if(value.TransactionMetadataConsumer is not null){
+            if(value.Transactions!=DatabaseTransactionMode.SharedV2||value.StorageMode!=DatabaseStorageMode.Storage||value.GatewayProfile is not null){throw new ArgumentException("Metadata retention requires persistent standalone SharedV2 transactions.",nameof(value));}
+            new global::Seamless.Transactions.WalOptions{MetadataConsumer=value.TransactionMetadataConsumer}.Validate();
+        }
+        if(!Enum.IsDefined(value.TransactionConcurrency)||value.TransactionConcurrency!=global::Seamless.Transactions.TransactionConcurrencyMode.Exclusive&&value.Transactions!=DatabaseTransactionMode.SharedV2||value.TransactionHistory is not null&&value.Transactions!=DatabaseTransactionMode.SharedV2){throw new ArgumentException("Versioned concurrency requires the common transaction profile.",nameof(value));}
+        if(value.SharedStoreOptions is not null&&value.Transactions!=DatabaseTransactionMode.SharedV2){throw new ArgumentException("SharedStoreOptions requires SharedV2.",nameof(value));}
+        if(value.TransactionConcurrency==global::Seamless.Transactions.TransactionConcurrencyMode.Optimistic&&value.TransactionHistory is null){throw new ArgumentException("Optimistic transactions require finite history budgets.",nameof(value));}
+        if(value.GatewayProfile is not null&&value.TransactionHistory is not null&&value.GatewayVersionedBinding is null&&value.GatewayVersionedSeed is null){throw new NotSupportedException("The versioned Gateway domain adapter must own this profile; standalone configuration is not supported.");}
+        value.GatewayVersionedBinding?.Validate(value);
+        value.GatewayVersionedSeed?.Validate(value);
+        if(!Enum.IsDefined(value.RecordSerialization)||value.RecordSerialization!=DatabaseRecordSerialization.Default&&value.Transactions!=DatabaseTransactionMode.SharedV2){throw new ArgumentException("Canonical record serialization requires the new SharedV2 storage profile.",nameof(value));}
+        ArgumentNullException.ThrowIfNull(value);
         if(value.TransactionMemoryLimit<0) {
             throw new ArgumentOutOfRangeException(nameof(value.TransactionMemoryLimit));
         }
@@ -722,6 +758,7 @@ public abstract partial class DatabaseContainer:IDisposable {
 
     public void Dispose() {
         if(this.disposed){return;}
+        if(this.unpublishedSnapshot is not null){throw new InvalidOperationException("Dispose the unpublished snapshot builder before disposing its database.");}
         if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){this.DisposeShared();return;}
         if(this.ambientTransaction.Value is not null||this.ambientReadSession.Value is not null) {
             throw new InvalidOperationException("Dispose active database transactions and read sessions before disposing the database.");

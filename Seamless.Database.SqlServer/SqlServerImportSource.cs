@@ -172,6 +172,7 @@ public sealed class SqlServerImportSource:global::Seamless.Database.IDatabaseImp
         if(type.IsInstanceOfType(value)) {
             return value;
         }
+        if(type.IsGenericType&&type.GetGenericTypeDefinition()==typeof(global::Seamless.Collections.FixedText<>)&&value is string text){return Activator.CreateInstance(type,[text])!;}
         if(type==typeof(global::Seamless.Database.SqlServer.Types.Bit)){return new global::Seamless.Database.SqlServer.Types.Bit(Convert.ToInt32(value,global::System.Globalization.CultureInfo.InvariantCulture));}
         if(type==typeof(DateOnly)&&value is DateTime dateTime) {
             return DateOnly.FromDateTime(dateTime);

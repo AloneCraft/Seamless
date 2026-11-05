@@ -8,12 +8,14 @@ public sealed class MaterializedView<TKey,TRecord>:IReadOnlyCollection<TRecord>,
     where TKey:struct
     where TRecord:struct {
     private readonly DatabaseContainer database;
-    private global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord> rows;
+    private global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>? legacyRows;
+    private global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord> rows{get=>this.legacyRows??throw new InvalidOperationException("Use the generated versioned transaction collection.");set=>this.legacyRows=value;}
     private readonly Func<global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>>? sharedFactory;
     private readonly Func<TRecord,TKey> keySelector;
     private readonly IDisposable ownedResources;
     private long count;
     private bool disposed;
+    internal MaterializedView(DatabaseContainer database,Func<TRecord,TKey> keySelector,IDisposable ownedResources,string name){this.database=database;this.keySelector=keySelector;this.ownedResources=ownedResources;this.Name=name;}
 
     internal MaterializedView(
         DatabaseContainer database,
@@ -39,6 +41,7 @@ public sealed class MaterializedView<TKey,TRecord>:IReadOnlyCollection<TRecord>,
     public string Name { get; }
     public long LongCount {
         get {
+            if(this.database.TryGatewayVersionedCollection(this,false,out var native)){return global::System.Linq.Enumerable.LongCount(native.Rows);}
             var overlay=this.database.GetTransactionOverlay(this,create:false);
             if(overlay is not null){return overlay.LongCount;}
             return this.database.WithReadGate(()=>this.count);
@@ -47,8 +50,20 @@ public sealed class MaterializedView<TKey,TRecord>:IReadOnlyCollection<TRecord>,
     public int Count {
         get=>checked((int)this.LongCount);
     }
+    /// <summary>生成query用の読取行ソース。所有Gateway取引または従来の読取保護を維持する。</summary>
+    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    public DatabaseRows<TKey,TRecord> GetQueryRows(){
+        ObjectDisposedException.ThrowIf(this.disposed,this);this.database.ValidateQueryAccess();
+        if(this.database.TryGatewayVersionedCollection(this,false,out var native)){return new(this.database,this,native.Rows);}return new(this.database,this,null);
+    }
+    /// <summary>Gateway共通scopeに属する読取り用native行ソース。</summary>
+    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    public global::Seamless.Transactions.Collections.TransactionRows<TKey,TRecord> GetGatewayTransactionRows(){
+        if(!this.database.TryGatewayVersionedCollection(this,false,out var native)){throw new InvalidOperationException("A versioned Gateway execution is required.");}return native.Rows;
+    }
     public IEnumerable<TKey> Keys {
         get {
+            if(this.database.TryGatewayVersionedCollection(this,false,out var native)){return global::System.Linq.Enumerable.Select(native.Rows,this.keySelector);}
             var overlay=this.database.GetTransactionOverlay(this,create:false);
             if(overlay is not null){return overlay.Keys;}
             return this.EnumerateKeys();
@@ -59,6 +74,7 @@ public sealed class MaterializedView<TKey,TRecord>:IReadOnlyCollection<TRecord>,
     public bool ContainsKey(TKey key)=>this.TryGetValue(key,out _);
 
     public bool TryGetValue(TKey key,[global::System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out TRecord record) {
+        if(this.database.TryGatewayVersionedCollection(this,false,out var native)){return native.TryGetValue(key,out record);}
         var overlay=this.database.GetTransactionOverlay(this,create:false);
         if(overlay is not null){return overlay.TryGetValue(key,out record);}
         TRecord found=default;
@@ -68,6 +84,7 @@ public sealed class MaterializedView<TKey,TRecord>:IReadOnlyCollection<TRecord>,
     }
 
     internal bool Add(TRecord record) {
+        if(this.database.TryGatewayVersionedCollection(this,true,out var native)){return native.Add(record);}
         var key=this.keySelector(record);
         var overlay=this.database.GetTransactionOverlay(this,create:true);
         if(overlay is not null) {
@@ -104,6 +121,7 @@ public sealed class MaterializedView<TKey,TRecord>:IReadOnlyCollection<TRecord>,
     internal TKey DirectKey(TRecord record)=>this.keySelector(record);
 
     public IEnumerator<TRecord> GetEnumerator() {
+        if(this.database.TryGatewayVersionedCollection(this,false,out var native)){return native.Rows.GetEnumerator();}
         var overlay=this.database.GetTransactionOverlay(this,create:false);
         if(overlay is not null){return overlay.Rows.GetEnumerator();}
         return this.database.Stream(()=>this.rows.Values.GetEnumerator());

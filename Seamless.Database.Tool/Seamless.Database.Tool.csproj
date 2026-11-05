@@ -12,6 +12,7 @@
     <PackageId>Seamless.Database.Tool</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../Seamless.Database.Compilation/Seamless.Database.Compilation.csproj" />
     <ProjectReference Include="..\Seamless.Database.SqlServer\Seamless.Database.SqlServer.csproj" />
     <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" />
   </ItemGroup>

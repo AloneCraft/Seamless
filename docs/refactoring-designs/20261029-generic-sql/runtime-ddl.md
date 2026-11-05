@@ -1,5 +1,7 @@
 # 実行時DDLと必要なSQL制御文
 
+> 2026-11-01: 新規保存領域での型付き DDL・共通取引については、利用者承認済みの [Gateway 型付き DDL 設計](../20261101-gateway-typed-ddl.md) が後継となる。本書の固定 backing・限定型・単一 DB の制約は旧プロファイルの現状として残す。後継の計画承認は実装完了を意味しない。
+
 ## 背景・合意状態
 利用者は2026-10-29、必要なvendor拡張を取引・TRY/CATCH・ROLLBACK・RAISERROR・PRINT・DDLに絞り、DDLについて「SSMSから実行時DDLも使う」と明示した。ビルド時のDDL取り込みだけでは満たさない。従来の初期DDL除外をこの合意で置き換える。本書は実装契約であり、DDLや制御文の完成報告ではない。
 
@@ -75,7 +77,7 @@ SharedV2 を明示した新規領域に限り、生成 root の中間基底は c
 
 ## ソース実装と未受入項目（2026-10-29）
 
-OSSパーサーから所有DDLコマンドへ変換し、runtime profileだけにCREATE TABLE、nullable列ADD、DROP TABLEを接続した。独立SqlClient試験はCREATE/INSERT/ALTER/UPDATE/DROP、整数・decimal・文字長の不正値拒否、明示取引のrollback-only、通常再オープンをDebug/Releaseで確認した。生成固定型表のALTER/DROPとread-only DBの変更は拒否する。明示取引のDML失敗後は取引全体をrollback-onlyとする限定動作であり、SQL Serverのすべての文単位エラー回復とは同等でない。
+OSSパーサーから所有DDLコマンドへ変換し、runtime profileだけにCREATE TABLE、nullable列ADD、DROP TABLEを接続している。独立SqlClient試験はCREATE/INSERT/ALTER/UPDATE/DROP、整数・decimal・文字長の不正値拒否、文単位の取消と後続COMMIT、通常再オープンを検証する。生成固定型表のALTER/DROPとread-only DBの変更は拒否する。2026-11-02の取引拡張で、明示取引中のDMLには内部保存点を設け、回復可能な失敗はその文の変更を戻す。XACT_ABORT ONの更新エラーはTRY/CATCH内で取消専用とし、外側で受けた場合は全体を取り消す。取消専用のままバッチが終了した場合は3998と全体取消を行う。すべてのSQLエラー分類、暗黙文内の取引状態、分散取引までの互換を意味しない。
 
 ALTER後に同じSELECTを再実行する旧試験はmetadataと行の列数不一致で失敗した。Registry/schema snapshot修正後のRuntimeDdlWireTestsはDebug/Release各5件成功し、同じSELECTの再実行、動的object IDのsys.tables/sys.columns対応と通常reopen後の一致を確認した。Query回帰はDebug/Release各21件成功した。SharedV2上のnative明示取引によるcommit・rollback・削除後読取もDebug/Release各1件成功した。これらを異常終了回復や実SSMSの合格へ拡大しない。
 

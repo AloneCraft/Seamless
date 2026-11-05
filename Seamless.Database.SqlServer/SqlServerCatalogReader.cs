@@ -10,7 +10,9 @@ public sealed class SqlServerCatalogReader(string connectionString,bool analyzeR
             column_definition.is_nullable,column_definition.is_identity,
             default_definition.definition,computed_definition.definition,
             primary_key.name,primary_key.key_ordinal,primary_key.is_descending_key,
-            column_definition.encryption_type,column_definition.collation_name,primary_key.index_type,table_definition.create_date
+            column_definition.encryption_type,column_definition.collation_name,primary_key.index_type,table_definition.create_date,
+            default_definition.name,computed_definition.is_persisted,identity_definition.seed_value,identity_definition.increment_value,identity_definition.last_value,
+            default_definition.is_system_named,primary_key.is_system_named
         FROM sys.tables AS table_definition
         INNER JOIN sys.schemas AS schema_definition ON schema_definition.schema_id=table_definition.schema_id
         INNER JOIN sys.columns AS column_definition ON column_definition.object_id=table_definition.object_id
@@ -22,13 +24,18 @@ public sealed class SqlServerCatalogReader(string connectionString,bool analyzeR
         LEFT JOIN sys.computed_columns AS computed_definition
             ON computed_definition.object_id=column_definition.object_id
             AND computed_definition.column_id=column_definition.column_id
+        LEFT JOIN sys.identity_columns AS identity_definition
+            ON identity_definition.object_id=column_definition.object_id AND identity_definition.column_id=column_definition.column_id
         LEFT JOIN (
             SELECT index_definition.object_id,index_definition.name,index_column.column_id,
-                index_column.key_ordinal,index_column.is_descending_key,index_definition.type AS index_type
+                index_column.key_ordinal,index_column.is_descending_key,index_definition.type AS index_type,key_definition.is_system_named
             FROM sys.indexes AS index_definition
             INNER JOIN sys.index_columns AS index_column
                 ON index_column.object_id=index_definition.object_id
                 AND index_column.index_id=index_definition.index_id
+            INNER JOIN sys.key_constraints AS key_definition
+                ON key_definition.parent_object_id=index_definition.object_id
+                AND key_definition.unique_index_id=index_definition.index_id
             WHERE index_definition.is_primary_key=1 AND index_column.is_included_column=0
         ) AS primary_key
             ON primary_key.object_id=column_definition.object_id
@@ -90,11 +97,13 @@ public sealed class SqlServerCatalogReader(string connectionString,bool analyzeR
                 SqlServerTypeMapper.Map(reader.GetString(4),reader.GetBoolean(8),reader.GetInt16(5),
                     reader.GetByte(6),reader.GetByte(7),!reader.IsDBNull(15),reader.IsDBNull(16)?null:reader.GetString(16)),
                 reader.GetBoolean(9),reader.IsDBNull(10)?null:reader.GetString(10),
-                reader.IsDBNull(11)?null:reader.GetString(11)));
+                reader.IsDBNull(11)?null:reader.GetString(11)){DefaultConstraintName=reader.IsDBNull(19)?null:reader.GetString(19),IsComputedPersisted=!reader.IsDBNull(20)&&reader.GetBoolean(20),IdentitySeed=IdentityNumber(21),IdentityIncrement=IdentityNumber(22),InitialIdentityValue=reader.IsDBNull(23)?null:IdentityNumber(23),IsDefaultSystemNamed=!reader.IsDBNull(24)&&reader.GetBoolean(24)});
+            decimal IdentityNumber(int ordinal){if(reader.IsDBNull(ordinal)){return 1;}var value=reader.GetSqlValue(ordinal);if(decimal.TryParse(value.ToString(),global::System.Globalization.NumberStyles.Number,global::System.Globalization.CultureInfo.InvariantCulture,out var number)){return number;}throw new NotSupportedException("The identity seed or increment needs a numeric representation wider than CLR decimal.");}
             if(!reader.IsDBNull(15)){encrypted.Add((table,table.Columns.Count-1));}
             if(!reader.IsDBNull(12)) {
                 table.PrimaryKeyName=reader.GetString(12);
                 table.PrimaryKeyIndexType=reader.GetByte(17);
+                table.PrimaryKeySystemNamed=reader.GetBoolean(25);
                 table.PrimaryKeyColumns.Add((Convert.ToInt32(reader.GetValue(13),global::System.Globalization.CultureInfo.InvariantCulture),
                     new(columnName,reader.GetBoolean(14))));
             }
@@ -126,13 +135,14 @@ public sealed class SqlServerCatalogReader(string connectionString,bool analyzeR
         public List<ColumnCatalog> Columns { get; }=[];
         public string? PrimaryKeyName { get; set; }
         public byte? PrimaryKeyIndexType { get; set; }
+        public bool PrimaryKeySystemNamed{get;set;}
         public List<(int Ordinal,KeyColumnCatalog Column)> PrimaryKeyColumns { get; }=[];
 
         public TableCatalog Build(SqlServerTableMetadata? metadata) {
             PrimaryKeyCatalog? primaryKey=null;
             if(this.PrimaryKeyName is not null) {
                 primaryKey=new(this.PrimaryKeyName,this.PrimaryKeyColumns.OrderBy(static value=>value.Ordinal)
-                    .Select(static value=>value.Column).ToArray(),this.PrimaryKeyIndexType);
+                    .Select(static value=>value.Column).ToArray(),this.PrimaryKeyIndexType){IsSystemNamed=this.PrimaryKeySystemNamed};
             }
             return new(this.TableName,this.Columns.OrderBy(static value=>value.Ordinal).ToArray(),primaryKey,
                 metadata?.UniqueKeys,metadata?.ForeignKeys,metadata?.CheckConstraints,metadata?.Triggers){CreateDate=this.CreateDate};

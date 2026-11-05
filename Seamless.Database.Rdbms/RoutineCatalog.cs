@@ -16,4 +16,5 @@ public sealed record RoutineCatalog(
     public string?OwnerName{get;init;}
     public GeneratedRoutineImplementation?Implementation{get;init;}
     public string?CompilationDiagnostic{get;init;}
+    public bool IsSchemaBound{get;init;}
 }

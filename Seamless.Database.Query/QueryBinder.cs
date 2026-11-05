@@ -8,7 +8,8 @@ internal sealed partial class QueryBinder{
     private readonly HashSet<SqlObjectName>viewStack;
     private readonly Dictionary<string,string>xmlNamespaces=new(StringComparer.Ordinal);
     private readonly Dictionary<string,BoundQuery>ctes=new(StringComparer.OrdinalIgnoreCase);
-    internal QueryBinder(ISqlCatalog catalog,string database,IReadOnlyList<SqlParameter>parameters,HashSet<SqlObjectName>?viewStack=null){this.catalog=catalog;this.database=database;this.parameters=parameters;this.viewStack=viewStack??[];}
+    private readonly Dictionary<SqlObjectName,RoutineBinding>routineBindings;
+    internal QueryBinder(ISqlCatalog catalog,string database,IReadOnlyList<SqlParameter>parameters,HashSet<SqlObjectName>?viewStack=null,Dictionary<SqlObjectName,RoutineBinding>?routineBindings=null){this.catalog=catalog;this.database=database;this.parameters=parameters;this.viewStack=viewStack??[];this.routineBindings=routineBindings??[];}
     internal BoundQuery BindStatement(TSqlStatement statement){
         if(statement is not SelectStatement select){throw Unsupported(statement);}
         if(select.Into is not null||select.On is not null||select.ComputeClauses.Count>0||select.OptimizerHints.Count>0){throw Unsupported(select);}
@@ -135,7 +136,8 @@ internal sealed partial class QueryBinder{
                         var parsed=SqlQueryEngine.Parse(view);
                         SelectStatement select;
                         if(parsed is CreateViewStatement create){select=create.SelectStatement;}else if(parsed is AlterViewStatement alter){select=alter.SelectStatement;}else if(parsed is SelectStatement direct){select=direct;}else{throw Unsupported(parsed);}
-                        var binder=new QueryBinder(this.catalog,name.Database,this.parameters,this.viewStack);
+                        var binder=new QueryBinder(this.catalog,name.Database,this.parameters,this.viewStack,this.routineBindings);
+                        using var definitionScope=this.catalog.EnterDefinition(name,SqlDefinitionKind.View);
                         var query=binder.BindStatement(select);
                         if(query.Columns.Count!=definition.Columns.Count){throw new SqlQueryException("View column count differs from metadata: "+name,4502);}
                         return new(definition.Columns.Select((column,index)=>new BindingColumn(column with{Source=name,IsComputedFloatingPoint=IsFloating(column.Type)&&query.Columns[index].IsComputedFloatingPoint},alias)).ToArray(),query.Rows);

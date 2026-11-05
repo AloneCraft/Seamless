@@ -11,6 +11,7 @@ public abstract class DatabaseSchema {
     }
 
     public string Name { get; }
+    protected DatabaseContainer Database=>this.database;
 
     protected Table<TRecord> Table<TRecord>([CallerMemberName] string name="")
         where TRecord:notnull=>

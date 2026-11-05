@@ -23,7 +23,7 @@ internal sealed partial class QueryBinder{
             case RealLiteral literal:{var value=double.Parse(literal.Value,CultureInfo.InvariantCulture);return new(new("float",typeof(double)),false,_=>value);}
             case StringLiteral literal:{var typeName="varchar";if(literal.IsNational){typeName="nvarchar";}var type=this.DefaultStringType(new(typeName,typeof(string)));var value=(string)SqlValues.ConvertTo(literal.Value,type,true)!;type=type with{Length=SqlValues.StringLength(value,type)};return new(type,false,_=>value);}
             case BinaryLiteral literal:{var value=Convert.FromHexString(literal.Value[2..]);return new(new("varbinary",typeof(byte[]),value.Length),false,_=>value);}
-            case VariableReference variable:{var parameter=this.parameters.FirstOrDefault(x=>Equal(x.Name,variable.Name))??throw new SqlQueryException("Undeclared parameter "+variable.Name,137);return new(this.DefaultStringType(parameter.Type),parameter.IsNullable,f=>f.Execution.Parameters[variable.Name]);}
+            case VariableReference variable:{var parameter=this.parameters.FirstOrDefault(x=>Equal(x.Name,variable.Name))??throw new SqlQueryException("Undeclared parameter "+variable.Name,137);return new(this.ParameterType(parameter),parameter.IsNullable,f=>f.Execution.Parameters[variable.Name]);}
             case ColumnReferenceExpression reference:{
                 if(reference.Collation is not null){throw Unsupported(reference);}
                 if(reference.ColumnType!=ColumnType.Regular){throw Unsupported(reference);}
@@ -39,7 +39,7 @@ internal sealed partial class QueryBinder{
             case CastCall cast:{var value=this.BindScalar(cast.Parameter,columns,outer,aggregates);var type=this.DefaultStringType(BindType(cast.DataType),value.Type);return new(type,value.Nullable,f=>SqlValues.ConvertTo(value.Value(f),type,true)){IsComputedFloatingPoint=FloatingConversion(type,value)};}
             case ConvertCall convert:{var value=this.BindScalar(convert.Parameter,columns,outer,aggregates);var type=this.DefaultStringType(BindType(convert.DataType),value.Type);if(convert.Style is not null){if(convert.Style is not IntegerLiteral style||!int.TryParse(style.Value,out var number)||number is not(0 or 100 or 101 or 112 or 120 or 121 or 126 or 127)||type.ClrType!=typeof(DateTime)&&type.ClrType!=typeof(DateOnly)){throw Unsupported(convert);}return new(type,value.Nullable,f=>SqlValues.ConvertDate(value.Value(f),type,number));}return new(type,value.Nullable,f=>SqlValues.ConvertTo(value.Value(f),type,true)){IsComputedFloatingPoint=FloatingConversion(type,value)};}
             case UnaryExpression unary:{var value=this.BindScalar(unary.Expression,columns,outer,aggregates);var operation=BindUnaryOperator(unary);if(operation==SqlUnaryOperator.Positive){return value;}return new(value.Type,value.Nullable,f=>SqlValues.Unary(value.Value(f),operation)){IsComputedFloatingPoint=IsFloating(value.Type)};}
-            case BinaryExpression binary:{var operation=BindBinaryOperator(binary);var left=this.BindScalar(binary.FirstExpression,columns,outer,aggregates);var right=this.BindScalar(binary.SecondExpression,columns,outer,aggregates);var type=SqlValues.Promote(left.Type,right.Type,operation);return new(type,left.Nullable||right.Nullable,f=>SqlValues.Binary(left.Value(f),right.Value(f),operation,type)){IsComputedFloatingPoint=IsFloating(type)};}
+            case BinaryExpression binary:{var operation=BindBinaryOperator(binary);var left=this.BindScalar(binary.FirstExpression,columns,outer,aggregates);var right=this.BindScalar(binary.SecondExpression,columns,outer,aggregates);var type=SqlValues.Promote(left.Type,right.Type,operation);var arithmetic=type.ClrType!=typeof(string)&&operation is SqlBinaryOperator.Add or SqlBinaryOperator.Subtract or SqlBinaryOperator.Multiply or SqlBinaryOperator.Divide or SqlBinaryOperator.Modulo;return new(type,arithmetic||left.Nullable||right.Nullable,f=>SqlValues.Binary(left.Value(f),right.Value(f),operation,type)){IsComputedFloatingPoint=IsFloating(type)};}
             case SearchedCaseExpression conditional:{var items=conditional.WhenClauses.Select(x=>(Condition:this.BindBoolean(x.WhenExpression,columns,outer,aggregates),Value:this.BindScalar(x.ThenExpression,columns,outer,aggregates))).ToArray();BoundScalar?otherwise=null;if(conditional.ElseExpression is not null){otherwise=this.BindScalar(conditional.ElseExpression,columns,outer,aggregates);}var resultTypes=new List<SqlType>();for(var index=0;index<items.Length;index++){if(conditional.WhenClauses[index].ThenExpression is not NullLiteral){resultTypes.Add(items[index].Value.Type);}}if(otherwise is not null&&conditional.ElseExpression is not NullLiteral){resultTypes.Add(otherwise.Type);}var type=SqlValues.CommonType(resultTypes);return new(type,true,f=>{foreach(var item in items){if(item.Condition(f)==true){return SqlValues.ConvertTo(item.Value.Value(f),type,true);}}return SqlValues.ConvertTo(otherwise?.Value(f),type,true);}){IsComputedFloatingPoint=AllComputedFloating(type,items.Select(item=>item.Value),otherwise)};}
             case SimpleCaseExpression conditional:{var input=this.BindScalar(conditional.InputExpression,columns,outer,aggregates);var items=conditional.WhenClauses.Select(x=>(When:this.BindScalar(x.WhenExpression,columns,outer,aggregates),Value:this.BindScalar(x.ThenExpression,columns,outer,aggregates))).ToArray();BoundScalar?otherwise=null;if(conditional.ElseExpression is not null){otherwise=this.BindScalar(conditional.ElseExpression,columns,outer,aggregates);}var resultTypes=new List<SqlType>();for(var index=0;index<items.Length;index++){if(conditional.WhenClauses[index].ThenExpression is not NullLiteral){resultTypes.Add(items[index].Value.Type);}}if(otherwise is not null&&conditional.ElseExpression is not NullLiteral){resultTypes.Add(otherwise.Type);}var type=SqlValues.CommonType(resultTypes);var comparisons=items.Select(item=>SqlValues.CommonType([input.Type,item.When.Type])).ToArray();return new(type,true,f=>{var value=input.Value(f);for(var index=0;index<items.Length;index++){var item=items[index];if(SqlValues.Compare(value,item.When.Value(f),SqlComparisonOperator.Equals,comparisons[index])==true){return SqlValues.ConvertTo(item.Value.Value(f),type,true);}}return SqlValues.ConvertTo(otherwise?.Value(f),type,true);}){IsComputedFloatingPoint=AllComputedFloating(type,items.Select(item=>item.Value),otherwise)};}
             case CoalesceExpression coalesce:{var items=coalesce.Expressions.Select(x=>this.BindScalar(x,columns,outer,aggregates)).ToArray();var type=SqlValues.CommonType(items.Where((_,index)=>coalesce.Expressions[index] is not NullLiteral).Select(x=>x.Type));return new(type,true,f=>{foreach(var item in items){var value=item.Value(f);if(value is not null){return SqlValues.ConvertTo(value,type,true);}}return null;}){IsComputedFloatingPoint=AllComputedFloating(type,items)};}
@@ -60,7 +60,16 @@ internal sealed partial class QueryBinder{
             case BooleanIsNullExpression isNull:{var value=this.BindScalar(isNull.Expression,columns,outer,aggregates);return f=>(value.Value(f) is null)!=isNull.IsNot;}
             case InPredicate predicate:{var value=this.BindScalar(predicate.Expression,columns,outer,aggregates);if(predicate.Subquery is not null){var subquery=this.BindQuery(predicate.Subquery.QueryExpression,columns);if(subquery.Columns.Count!=1){throw new SqlQueryException("IN subquery must return one column.",116);}var type=SqlValues.CommonType([value.Type,subquery.Columns[0].Type]);return f=>EvaluateIn(value.Value(f),subquery.Rows(f.Execution,f.Row).Select(x=>x[0]),predicate.NotDefined,type);}var items=predicate.Values.Select(x=>this.BindScalar(x,columns,outer,aggregates)).ToArray();var comparisonType=SqlValues.CommonType(items.Select(x=>x.Type).Prepend(value.Type));return f=>EvaluateIn(value.Value(f),items.Select(x=>x.Value(f)),predicate.NotDefined,comparisonType);}
             case BooleanTernaryExpression between:{var value=this.BindScalar(between.FirstExpression,columns,outer,aggregates);var low=this.BindScalar(between.SecondExpression,columns,outer,aggregates);var high=this.BindScalar(between.ThirdExpression,columns,outer,aggregates);var lowType=SqlValues.CommonType([value.Type,low.Type]);var highType=SqlValues.CommonType([value.Type,high.Type]);var negate=between.TernaryExpressionType==BooleanTernaryExpressionType.NotBetween;return f=>{var result=SqlValues.Compare(value.Value(f),low.Value(f),SqlComparisonOperator.GreaterThanOrEqualTo,lowType)&SqlValues.Compare(value.Value(f),high.Value(f),SqlComparisonOperator.LessThanOrEqualTo,highType);if(negate){return !result;}return result;};}
-            case LikePredicate like:throw Unsupported(like);
+            case LikePredicate like:{
+                var value=this.BindScalar(like.FirstExpression,columns,outer,aggregates);var pattern=this.BindScalar(like.SecondExpression,columns,outer,aggregates);
+                BoundScalar? escape=null;if(like.EscapeExpression is not null){escape=this.BindScalar(like.EscapeExpression,columns,outer,aggregates);}
+                var type=SqlValues.CommonType([value.Type,pattern.Type]);var negate=like.NotDefined;
+                return f=>{
+                    var result=SqlValues.Like(value.Value(f),pattern.Value(f),escape?.Value(f),escape is not null,type.Collation);
+                    if(result is null||!negate){return result;}
+                    return !result;
+                };
+            }
             case ExistsPredicate exists:{var subquery=this.BindQuery(exists.Subquery.QueryExpression,columns);return f=>{using var enumerator=subquery.Rows(f.Execution,f.Row).GetEnumerator();return enumerator.MoveNext();};}
             default:throw Unsupported(expression);
         }
@@ -88,6 +97,9 @@ internal sealed partial class QueryBinder{
         if(type.ClrType!=typeof(string)||type.Name=="xml"){return type;}
         if(input is{ClrType:var clr}&&clr==typeof(string)&&input.Name!="xml"){return type with{Collation=input.Collation,Coercibility=input.Coercibility};}
         return type with{Collation=type.Collation??this.catalog.GetDatabaseCollation(this.database),Coercibility=SqlCollationCoercibility.CoercibleDefault};
+    }
+    private SqlType ParameterType(SqlParameter parameter){
+        var type=this.DefaultStringType(parameter.Type);if(parameter.IsColumnValue&&type.ClrType==typeof(string)&&type.Name!="xml"){return type with{Coercibility=SqlCollationCoercibility.Implicit};}return type;
     }
     private SqlType GetColumnType(SqlColumn column){var type=column.Type with{IsUntypedNull=false};if(type.ClrType!=typeof(string)||type.Name=="xml"){return type;}return type with{Collation=type.Collation??this.catalog.GetDatabaseCollation(column.Source?.Database??this.database),Coercibility=SqlCollationCoercibility.Implicit};}
     private static bool IsAggregate(string name)=>name.ToUpperInvariant() is "COUNT" or "COUNT_BIG" or "SUM" or "AVG" or "MIN" or "MAX";
@@ -124,6 +136,10 @@ internal sealed partial class QueryBinder{
             var index=aggregates.Count;aggregates.Add(new(name,value,function.UniqueRowFilter==UniqueRowFilter.Distinct,type));return new(type,true,f=>f.Aggregates![index]){IsComputedFloatingPoint=ComputedFloatingAggregate(name,type,value)};
         }
         if(function.UniqueRowFilter!=UniqueRowFilter.NotSpecified){throw Unsupported(function);}
+        // 共通エンジンに組み込まれていない SQL Server の関数は、カタログが sys の関数として持っていればそれを呼ぶ。
+        if(name is not ("ISNULL" or "LEN" or "DATALENGTH" or "YEAR" or "MONTH" or "DAY" or "CHARINDEX" or "DATEPART" or "ABS" or "ROUND" or "LEFT" or "RIGHT" or "REPLICATE" or "SUBSTRING" or "REPLACE" or "UPPER" or "LOWER" or "LTRIM" or "RTRIM" or "REVERSE" or "CONCAT" or "DB_NAME" or "GETDATE" or "GETUTCDATE" or "SYSDATETIME" or "SYSUTCDATETIME" or "NEWID" or "DATEDIFF" or "DATEADD" or "DECOMPRESS")&&this.catalog.FindRoutine(new(this.database,"sys",name)) is not null){
+            return this.BindRoutine(new(this.database,"sys",name),function.Parameters,columns,outer,aggregates);
+        }
         var args=function.Parameters.Select((x,index)=>{
             if(index==0&&name is "DATEDIFF" or "DATEADD" or "DATEPART"){var part=Text(x).Trim().Trim('[',']');return new BoundScalar(SqlType.String,false,_=>part);}
             return this.BindScalar(x,columns,outer,aggregates);
@@ -140,10 +156,13 @@ internal sealed partial class QueryBinder{
             case "REPLICATE":Require(2);resultType=VariableStringType(args[0].Type) with{Length=8000};if(args[0].Type.Length==-1){resultType=resultType with{Length=-1};}break;
             case "SUBSTRING":Require(3);resultType=VariableStringType(args[0].Type);break;
             case "REPLACE":Require(3);resultType=VariableStringType(args[0].Type) with{Length=8000};if(args[0].Type.Length==-1){resultType=resultType with{Length=-1};}break;
-            case "UPPER":case "LOWER":case "LTRIM":case "RTRIM":Require(1);resultType=VariableStringType(args[0].Type);break;
+            case "UPPER":case "LOWER":case "LTRIM":case "RTRIM":case "REVERSE":Require(1);resultType=VariableStringType(args[0].Type);break;
             case "CONCAT":if(args.Length<2){throw Unsupported(function);}break;
             case "DB_NAME":Require(0);break;
             case "GETDATE":Require(0);resultType=new("datetime",typeof(DateTime));break;
+            case "GETUTCDATE":Require(0);resultType=new("datetime",typeof(DateTime));break;
+            case "SYSDATETIME":case "SYSUTCDATETIME":Require(0);resultType=new("datetime2",typeof(DateTime),Scale:7);break;
+            case "NEWID":Require(0);resultType=new("uniqueidentifier",typeof(Guid));break;
             case "DATEDIFF":Require(3);resultType=SqlType.Int;break;
             case "DATEADD":Require(3);resultType=args[2].Type;break;
             case "DECOMPRESS":Require(1);resultType=new("varbinary",typeof(byte[]),-1);break;
@@ -188,19 +207,26 @@ internal sealed partial class QueryBinder{
             });
         }
         if(routine.Definition is null){throw new SqlQueryException("SQL routine definition is unavailable: "+name,40515);}
-        if(SqlQueryEngine.Parse(routine.Definition) is not CreateFunctionStatement definition||definition.ReturnType is not ScalarFunctionReturnType scalar){throw new SqlQueryException("Unsupported SQL routine definition: "+name,40515);}
+        if(SqlQueryEngine.Parse(routine.Definition) is not FunctionStatementBody definition||definition.ReturnType is not ScalarFunctionReturnType scalar){throw new SqlQueryException("Unsupported SQL routine definition: "+name,40515);}
         if(arguments.Count!=definition.Parameters.Count){throw new SqlQueryException("Routine argument count differs: "+name,313);}
+        var key=new SqlObjectName(routine.Name.Database.ToUpperInvariant(),routine.Name.Schema.ToUpperInvariant(),routine.Name.Name.ToUpperInvariant());if(this.routineBindings.TryGetValue(key,out var recursive)){return this.BindRoutineInvocation(recursive,arguments,columns,outer,aggregates);}
 
         var parameters=definition.Parameters.Select(x=>new SqlParameter(x.VariableName.Value,BindType(x.DataType))).ToArray();
         var locals=RoutineLocals(definition.StatementList).ToArray();
-        var binder=new QueryBinder(this.catalog,name.Database,parameters.Concat(locals).ToArray(),this.viewStack);
-        var body=binder.BindRoutineStatements(definition.StatementList.Statements);
-        var values=arguments.Select(x=>this.BindScalar(x,columns,outer,aggregates)).ToArray();var returnType=binder.DefaultStringType(BindType(scalar.DataType));
-        var computed=false;var returnedExpression=SingleRoutineReturn(definition.StatementList.Statements);
-        if(returnedExpression is not null){var returned=binder.BindScalar(returnedExpression,[],[],null);var direct=returnedExpression;while(direct is ParenthesisExpression parenthesis){direct=parenthesis.Expression;}if(direct is VariableReference variable){for(var index=0;index<parameters.Length;index++){if(Equal(parameters[index].Name,variable.Name)){returned=returned with{IsComputedFloatingPoint=FloatingConversion(parameters[index].Type,values[index])};break;}}}computed=FloatingConversion(returnType,returned);}
-        return new(returnType,true,f=>{var variables=new Dictionary<string,object?>(StringComparer.OrdinalIgnoreCase);for(var i=0;i<parameters.Length;i++){variables.Add(parameters[i].Name,SqlValues.ConvertTo(values[i].Value(f),parameters[i].Type,true));}return SqlValues.ConvertTo(body(new([],null,new(f.Execution.Scope,variables,f.Execution.Options))).Value,returnType,true);}){IsComputedFloatingPoint=computed};
+        var binder=new QueryBinder(this.catalog,name.Database,parameters.Concat(locals).ToArray(),this.viewStack,this.routineBindings);
+        var returnType=binder.DefaultStringType(BindType(scalar.DataType));var binding=new RoutineBinding(parameters,returnType){NullOnNullInput=definition.Options.Any(static option=>option.OptionKind==FunctionOptionKind.ReturnsNullOnNullInput)};this.routineBindings.Add(key,binding);
+        var returnedExpression=SingleRoutineReturn(definition.StatementList.Statements);
+        using(this.catalog.EnterDefinition(routine.Name,SqlDefinitionKind.ScalarFunction)){
+            binding.Body=binder.BindRoutineStatements(definition.StatementList.Statements);
+            if(returnedExpression is not null){binding.ReturnedScalar=binder.BindScalar(returnedExpression,[],[],null);}
+        }
+        var values=arguments.Select(x=>this.BindScalar(x,columns,outer,aggregates)).ToArray();
+        var computed=false;
+        if(binding.ReturnedScalar is{} returned){var direct=returnedExpression;while(direct is ParenthesisExpression parenthesis){direct=parenthesis.Expression;}if(direct is VariableReference variable){for(var index=0;index<parameters.Length;index++){if(Equal(parameters[index].Name,variable.Name)){binding.DirectParameter=index;returned=returned with{IsComputedFloatingPoint=FloatingConversion(parameters[index].Type,values[index])};break;}}}computed=FloatingConversion(returnType,returned);}
+        binding.Computed=computed;return this.BindRoutineInvocation(binding,arguments,columns,outer,aggregates);
     }
     private static SqlType BindType(DataTypeReference dataType){
+        if(dataType is XmlDataTypeReference xml){new Sql160ScriptGenerator().GenerateScript(xml,out var declaration);if(!declaration.Trim().Equals("xml",StringComparison.OrdinalIgnoreCase)){throw new SqlQueryException("Typed XML schema collections require an XML schema validator.",40515);}return new("xml",typeof(string));}
         if(dataType is not SqlDataTypeReference sql){throw Unsupported(dataType);}
         int?length=null;byte?precision=null;byte?scale=null;
         if(sql.Parameters.Count>0){if(sql.Parameters[0] is MaxLiteral){length=-1;}else{length=int.Parse(sql.Parameters[0].Value,CultureInfo.InvariantCulture);}}
@@ -219,6 +245,7 @@ internal sealed partial class QueryBinder{
             case SqlDataTypeOption.UniqueIdentifier:type=typeof(Guid);break;
             default:throw Unsupported(dataType);
         }
+        if(sql.SqlDataTypeOption is SqlDataTypeOption.DateTime2 or SqlDataTypeOption.Time or SqlDataTypeOption.DateTimeOffset){if(sql.Parameters.Count>1||length is<0 or>7){throw new SqlQueryException("Invalid time precision.",2750);}scale=(byte)(length??7);length=null;}
         if(sql.SqlDataTypeOption is SqlDataTypeOption.Char or SqlDataTypeOption.VarChar or SqlDataTypeOption.NChar or SqlDataTypeOption.NVarChar or SqlDataTypeOption.Binary or SqlDataTypeOption.VarBinary){var maximum=8000;if(sql.SqlDataTypeOption is SqlDataTypeOption.NChar or SqlDataTypeOption.NVarChar){maximum=4000;}var allowsMax=sql.SqlDataTypeOption is SqlDataTypeOption.VarChar or SqlDataTypeOption.NVarChar or SqlDataTypeOption.VarBinary;if(sql.Parameters.Count>1||length>maximum||length<1&&(length!= -1||!allowsMax)){throw new SqlQueryException("Invalid SQL data type length.",40515);}}
         return new(name,type,length,precision,scale);
     }

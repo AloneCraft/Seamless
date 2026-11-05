@@ -9,8 +9,13 @@
     <IsPackable>true</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="SystemCatalog\SqlServer17\*.tsv;SystemCatalog\SqlServer17\source.txt" LogicalName="Seamless.Database.SqlServer.SystemCatalog.SqlServer17.%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="SqlParserCS" Version="0.6.5" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
+    <!-- SqlClient の間接参照を、CVE-2026-84008 と CVE-2026-70162 が修正された .NET 10 向けの版へ更新する。 -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
     <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="180.102.0" />
     <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" />
     <ProjectReference Include="..\Seamless.Database.Rdbms\Seamless.Database.Rdbms.csproj" />

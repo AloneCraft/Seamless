@@ -1,3 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 
-[assembly: InternalsVisibleTo("Test")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Database.Verification.Tests")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Test")]

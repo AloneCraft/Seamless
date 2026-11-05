@@ -1,4 +1,4 @@
-﻿<Solution>
+<Solution>
   <Folder Name="/Experiments/">
     <Project Path="Benchmark/Experiments/GroupByLazyBench/GroupByLazyBench.csproj" />
   </Folder>
@@ -60,7 +60,6 @@
   </Folder>
   <Folder Name="/Specifications/">
     <File Path="UI.md" />
-    <File Path="FLinq.md" />
     <File Path="Collection.md" />
     <File Path="Database.md" />
   </Folder>
@@ -72,6 +71,8 @@
     <File Path="Samples/Sample.VirtualDb/README.md" />
   </Folder>
   <Folder Name="/Shared/">
+    <Project Path="Shared/Database.Generation/Database.Generation.shproj" />
+    <File Path="Shared/Database.Generation/Database.Generation.projitems" />
     <Project Path="Shared/Collections/Collections.shproj" />
     <Project Path="Shared/Common/Common.shproj" />
     <Project Path="Shared/Persisted.Collections/Persisted.Collections.shproj" />
@@ -117,6 +118,7 @@
     <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="Tests/Database.Query.Tests/Database.Query.Tests.csproj" />
     <Project Path="Tests/Seamless.Transactions.Tests/Seamless.Transactions.Tests.csproj" />
     <Project Path="Tests/Seamless.Database.Transactions.Tests/Seamless.Database.Transactions.Tests.csproj" />
     <Project Path="Execution.Tests/Execution.Tests.csproj" />
@@ -148,9 +150,22 @@
   <Project Path="Seamless.Database/Seamless.Database.csproj" />
   <Project Path="Seamless.Database.Gateway/Seamless.Database.Gateway.csproj" />
   <Project Path="Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj" />
+  <Project Path="Seamless.Database.Compilation/Seamless.Database.Compilation.csproj" />
+  <Project Path="Seamless.Database.Transfer/Seamless.Database.Transfer.csproj" />
   <Project Path="Seamless.Database.Server/Seamless.Database.Server.csproj" />
   <Project Path="Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
   <Project Path="Seamless.Database.Tool/Seamless.Database.Tool.csproj" />
   <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
   <Project Path="Seamless/Seamless.csproj" />
+  <Project Path="Seamless.Database.Query/Seamless.Database.Query.csproj" />
+  <Project Path="Seamless.Database.Client/Seamless.Database.Client.csproj" />
+  <Folder Name="/TestSeamless/">
+    <Project Path="TestSeamless/TestSeamless.csproj" />
+    <Project Path="TestSeamless/Schema/TestSeamless.Schema.csproj" />
+    <Project Path="TestSeamless/Queries/TestSeamless.Queries.csproj" />
+    <Project Path="TestSeamless/Tests/TestSeamless.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="tools/Database.Verification/Database.Verification.csproj" />
+  </Folder>
 </Solution>

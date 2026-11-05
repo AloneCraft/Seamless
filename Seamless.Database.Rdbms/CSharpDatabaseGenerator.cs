@@ -3,9 +3,10 @@ using System.Text;
 
 namespace Seamless.Database.Rdbms;
 
-public static class CSharpDatabaseGenerator {
+public static partial class CSharpDatabaseGenerator {
     public static GeneratedDatabase Generate(DatabaseCatalog catalog,bool preserveSqlRows=false,bool executableViews=false)=>Generate(catalog,preserveSqlRows,executableViews,false);
-    public static GeneratedDatabase Generate(DatabaseCatalog catalog,bool preserveSqlRows,bool executableViews,bool runtimeSql) {
+    public static GeneratedDatabase Generate(DatabaseCatalog catalog,bool preserveSqlRows,bool executableViews,bool runtimeSql)=>Generate(catalog,preserveSqlRows,executableViews,runtimeSql,false);
+    public static GeneratedDatabase Generate(DatabaseCatalog catalog,bool preserveSqlRows,bool executableViews,bool runtimeSql,bool collectible) {
         var originalCatalog=catalog;
         if(preserveSqlRows){catalog=CreateImportCatalog(catalog);}
         ArgumentNullException.ThrowIfNull(catalog);
@@ -18,9 +19,10 @@ public static class CSharpDatabaseGenerator {
         var fingerprint = CreateFingerprint(originalCatalog);
         if(preserveSqlRows||executableViews){fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|"+preserveSqlRows+"|"+executableViews)));}
         if(runtimeSql){fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|RuntimeSqlV1")));}
+        if(collectible){fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|CollectibleV1")));}
         var routines=new List<GeneratedRoutineBinding>();
         var files = new List<GeneratedSourceFile> {
-            new($"{FileName(databaseName)}.cs",CreateDatabaseSource(databaseName,typeNamespace,fingerprint,schemas,executableViews,catalog.Name,routines,runtimeSql)),
+            new($"{FileName(databaseName)}.cs",CreateDatabaseSource(databaseName,typeNamespace,fingerprint,schemas,executableViews,catalog.Name,routines,runtimeSql,collectible)),
         };
         foreach(var schema in schemas) {
             foreach(var table in schema.Tables) {
@@ -65,7 +67,7 @@ public static class CSharpDatabaseGenerator {
                     column.Source.Type,column.Source.IsSynthetic)).ToArray(),
                  GeneratedRelationKind.View)))).ToArray();
         if(executableViews){tables=tables.Where(static table=>table.Kind==GeneratedRelationKind.Table).ToArray();}
-        return new(catalog.Name,FileName(databaseName),fingerprint,files.AsReadOnly(),tables){Routines=routines.AsReadOnly(),RootNamespace=runtimeSql?typeNamespace:null};
+        return new(catalog.Name,FileName(databaseName),fingerprint,files.AsReadOnly(),tables){Routines=routines.AsReadOnly(),RootNamespace=runtimeSql?typeNamespace:null,IsCollectible=collectible};
     }
 
     private static DatabaseCatalog CreateImportCatalog(DatabaseCatalog catalog){
@@ -132,11 +134,12 @@ public static class CSharpDatabaseGenerator {
     private static string CreateDatabaseSource(
         string databaseName,string typeNamespace,
         string fingerprint,
-        IReadOnlyList<SchemaName> schemas,bool executableViews,string sourceDatabaseName,List<GeneratedRoutineBinding> routines,bool runtimeSql) {
+        IReadOnlyList<SchemaName> schemas,bool executableViews,string sourceDatabaseName,List<GeneratedRoutineBinding> routines,bool runtimeSql,bool collectible) {
         var builder = Header();
         builder.AppendLine($"namespace {typeNamespace} {{");
         builder.AppendLine();
-        builder.AppendLine("internal static class DatabaseGenerator;");
+        if(collectible){builder.AppendLine("internal static class DatabaseGenerator{public const bool Collectible=true;}");}
+        else{builder.AppendLine("internal static class DatabaseGenerator;");}
         builder.AppendLine();
         if(runtimeSql){
             builder.AppendLine($"public sealed partial class {databaseName}:global::Seamless.Database.Query.RuntimeSqlDatabaseContainer {{");
@@ -170,6 +173,7 @@ public static class CSharpDatabaseGenerator {
             builder.AppendLine($"    public sealed class {schema.Name}(global::Seamless.Database.DatabaseContainer database):global::Seamless.Database.DatabaseSchema(database,\"{Escape(schema.Source.Name)}\") {{");
             foreach(var table in schema.Tables) {
                 var keyArguments=string.Join(",",TableKeyColumns(table).Select(static column=>$"record.{column.Name}"));
+                builder.AppendLine($"        [global::Seamless.Database.ImportedDatabaseObject({Literal(schema.Source.Name)},{Literal(table.Source.Name)},{Literal(PreservedTableFeatures(table.Source))})]");
                 builder.AppendLine($"        public global::Seamless.Database.Table<global::{typeNamespace}.Keys.{table.TypeName},global::{typeNamespace}.Records.{table.TypeName}> {table.Name}=>this.Table<global::{typeNamespace}.Keys.{table.TypeName},global::{typeNamespace}.Records.{table.TypeName}>(static record=>new({keyArguments}));");
             }
             foreach(var view in schema.Views) {
@@ -199,6 +203,8 @@ public static class CSharpDatabaseGenerator {
         builder.AppendLine();
         builder.AppendLine($"public partial struct {table.TypeName} {{");
         foreach(var column in table.Columns) {
+            builder.AppendLine($"    [global::Seamless.Database.ImportedDatabaseColumn({Literal(column.Source.Name)},{column.Source.Type.MaximumLength??-1},{Literal(column.Source.Type.SqlTypeName)},{Literal(column.Source.Type.Collation)},IsSynthetic={column.Source.IsSynthetic.ToString().ToLowerInvariant()})]");
+            if(column.Source.ComputedDefinition is not null){builder.AppendLine($"    [global::Seamless.Database.ComputedColumn({column.Source.Ordinal})]");}
             builder.AppendLine($"    public partial {TypeName(column.Source.Type)} {column.Name} {{ get; }}");
         }
         builder.AppendLine("}");
@@ -339,8 +345,10 @@ public static class CSharpDatabaseGenerator {
                     Append(canonical,column.Name);
                     AppendType(canonical,column.Type);
                     Append(canonical,column.IsIdentity.ToString());
+                    if(column.IsIdentity){Append(canonical,column.IdentitySeed.ToString(global::System.Globalization.CultureInfo.InvariantCulture));Append(canonical,column.IdentityIncrement.ToString(global::System.Globalization.CultureInfo.InvariantCulture));}
                     Append(canonical,column.DefaultDefinition??string.Empty);
                     Append(canonical,column.ComputedDefinition??string.Empty);
+                    if(column.ComputedDefinition is not null){Append(canonical,column.IsComputedPersisted.ToString());}
                 }
                 Append(canonical,table.PrimaryKey?.Name??string.Empty);
                 Append(canonical,table.PrimaryKey?.IndexType?.ToString(global::System.Globalization.CultureInfo.InvariantCulture)??string.Empty);
@@ -561,9 +569,9 @@ public static class CSharpDatabaseGenerator {
         }
     }
 
-    private static StringBuilder Header() => new("// <auto-generated/>\n#nullable enable\n\n");
+    private static StringBuilder Header() => new("// <auto-generated/>\n#nullable enable\n#pragma warning disable CS8981\n\n");
     private static string Escape(string value)=>value.Replace("\\","\\\\",StringComparison.Ordinal).Replace("\"","\\\"",StringComparison.Ordinal);
-    private static string Literal(string value)=>$"\"{Escape(value)}\"";
+    private static string Literal(string?value){if(value is null){return "null";}return $"\"{Escape(value)}\"";}
     private static string FileName(string identifier)=>identifier.TrimStart('@');
     private static string ParameterName(string name) {
         var normalized=name.StartsWith('@')?name[1..]:name;
@@ -590,7 +598,7 @@ public static class CSharpDatabaseGenerator {
             DatabaseTypeKind.Object=>"object",
                 _=>throw new ArgumentOutOfRangeException(nameof(type)),
             }
-            :$"global::{type.RuntimeType.FullName!.Replace('+','.')}";
+            :RuntimeTypeName(type.RuntimeType);
         return type.IsNullable?$"{name}?":name;
     }
 
