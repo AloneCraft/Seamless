@@ -42,6 +42,13 @@ internal sealed partial class PipelineTerminal(int 番号,PipelineEnumerable pip
         }
     }
 
+    public override string? RenderInlineComputation(string destVar, string destType) {
+        if(terminalKind == PipelineTerminalKind.ToArray && pipeline.Stages.Count == 0 && pipeline.Source is GroupJoin gj) {
+            return gj.RenderDenseArray(destVar, destType);
+        }
+        return base.RenderInlineComputation(destVar, destType);
+    }
+
     protected override Enumerable PrimarySource => pipeline;
     private string ResultType {
         get {
@@ -3651,6 +3658,13 @@ if({{arrayExprFod}}.Length==0) {
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
         this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
         if(!hasFilter) {
+            if(extraCount == 0 && !isReversed && sliceIndices.Count == pipeline.Stages.Count) {
+                builder.AppendLine($"    {actualVariableName}=new({spanName}.Length);");
+                builder.AppendLine($"    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},{spanName}.Length);");
+                builder.AppendLine($"    {spanName}.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({actualVariableName}));");
+                builder.AppendLine("}");
+                return builder.ToString().TrimEnd();
+            }
             if(extraCount>0) {
                 builder.AppendLine($"    {actualVariableName}=new({spanName}.Length+{extraCount});");
             } else {

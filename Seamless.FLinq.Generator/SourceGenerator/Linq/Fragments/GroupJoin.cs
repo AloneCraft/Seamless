@@ -232,8 +232,24 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             }
             """;
 
-        var groupArg = $"new global::Seamless.Linq.GeneratedCodeHelpers.SingleCountGrouping<{this.InnerElementType}>({matchesName})";
-        var selectAssign = this.FuncAssignStaticIndented("",this.resultSelector,nameof(this.resultSelector),resultItemName,outerItemName,groupArg);
+        string selectAssign;
+        if(!string.IsNullOrEmpty(this.resultSelector.InlineBody) && this.resultSelector.ParameterNames.Length >= 2) {
+            var groupParam = this.resultSelector.ParameterNames[1];
+            var outerParam = this.resultSelector.ParameterNames[0];
+            var expr = this.resultSelector.InlineBody;
+            var replaced = global::System.Text.RegularExpressions.Regex.Replace(expr, @"\b" + global::System.Text.RegularExpressions.Regex.Escape(groupParam) + @"\.Count\(\)", matchesName);
+            replaced = global::System.Text.RegularExpressions.Regex.Replace(replaced, @"global::System\.Linq\.Enumerable\.Count\(" + global::System.Text.RegularExpressions.Regex.Escape(groupParam) + @"\)", matchesName);
+            if (!replaced.Contains(groupParam)) {
+                expr = FuncFragment.ReplaceParameterReference(replaced, outerParam, outerItemName);
+                selectAssign = $"{resultItemName} = {expr};";
+            } else {
+                var groupArg = $"new global::Seamless.Linq.GeneratedCodeHelpers.SingleCountGrouping<{this.InnerElementType}>({matchesName})";
+                selectAssign = this.FuncAssignStaticIndented("",this.resultSelector,nameof(this.resultSelector),resultItemName,outerItemName,groupArg);
+            }
+        } else {
+            var groupArg = $"new global::Seamless.Linq.GeneratedCodeHelpers.SingleCountGrouping<{this.InnerElementType}>({matchesName})";
+            selectAssign = this.FuncAssignStaticIndented("",this.resultSelector,nameof(this.resultSelector),resultItemName,outerItemName,groupArg);
+        }
 
         var outerBody = $$"""
             {{this.CounterCall("IncrementLogicalGroupJoinOuter")}}
