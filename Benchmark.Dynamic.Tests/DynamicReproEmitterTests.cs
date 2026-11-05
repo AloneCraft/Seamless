@@ -52,6 +52,23 @@ public sealed class DynamicReproEmitterTests{
         Assert.True(outcome.Unloaded);
     }
 
+    [Fact,Trait("Category","Integration")]
+    public void Reverse_ToIntPairが展開できてSystemLinqと一致する(){
+        var seed=Seed256.Parse("0xFA01");
+        var target=SourceTarget.SystemArray;
+        var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target);
+        var terminals=ExhaustiveQueryEnumerator.GetTerminalOperatorIds(target);
+        var spec=ExhaustiveQueryEnumerator.Enumerate(1,intermediates,terminals)
+            .First(static spec=>spec.Operators.SequenceEqual([QueryOperatorIds.Reverse])&&spec.Terminal==QueryOperatorIds.ToIntPair);
+        Assert.True(ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var document));
+
+        var outcome=CompileAndRun(document!,seed,(int)spec.Ordinal);
+
+        Assert.True(outcome.Compiled,outcome.Diagnostics);
+        Assert.Null(outcome.Failure);
+        Assert.True(outcome.Unloaded);
+    }
+
     private static ReproOutcome CompileAndRun(QueryIrDocument document,Seed256 baseSeed,int queryIndex){
         using var fixture=new SourceFixtureFactory().Create(
             document.SourceTarget,

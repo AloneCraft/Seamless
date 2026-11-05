@@ -3157,9 +3157,7 @@ if({{arrayExprFod}}.Length==0) {
         if(func1 is null) {
             return null;
         }
-        if(pipeline.Stages.Any(static stage => stage.Kind==PipelineStageKind.Reverse)) {
-            return null;
-        }
+        var isReversed = this.IsPipelineReversed();
         var sourceName = $"__pipelineSrc{this.result}";
         if(this.TryGetDirectSourceSpanSetupForScalar(sourceName,out var sourceExpression,out var directSpanExpression) is null) {
             return null;
@@ -3203,16 +3201,30 @@ if({{arrayExprFod}}.Length==0) {
                 builder.AppendLine($"{indent}}}");
             }
         }
-        foreach(var prep in prefixPrepends) {
-            AppendAggregateStep(prep.Value!, "    ");
-        }
-        builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
-        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
-        var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
-        AppendAggregateStep(currentName, "        ");
-        builder.AppendLine("    }");
-        foreach(var app in prefixAppends) {
-            AppendAggregateStep(app.Value!, "    ");
+        if(isReversed) {
+            for(var i = prefixAppends.Count - 1; i >= 0; i--) {
+                AppendAggregateStep(prefixAppends[i].Value!, "    ");
+            }
+            builder.AppendLine($"    for(var {indexName}={spanName}.Length-1;{indexName}>=0;{indexName}--) {{");
+            builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+            var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
+            AppendAggregateStep(currentName, "        ");
+            builder.AppendLine("    }");
+            for(var i = prefixPrepends.Count - 1; i >= 0; i--) {
+                AppendAggregateStep(prefixPrepends[i].Value!, "    ");
+            }
+        } else {
+            foreach(var prep in prefixPrepends) {
+                AppendAggregateStep(prep.Value!, "    ");
+            }
+            builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
+            builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
+            var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
+            AppendAggregateStep(currentName, "        ");
+            builder.AppendLine("    }");
+            foreach(var app in prefixAppends) {
+                AppendAggregateStep(app.Value!, "    ");
+            }
         }
         if(!hasSeed) {
             builder.AppendLine($"    if(!{hasValueName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
