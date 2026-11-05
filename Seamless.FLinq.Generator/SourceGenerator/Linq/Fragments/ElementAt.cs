@@ -228,13 +228,29 @@ internal class ElementAt_index(int 番号,Enumerable source,string index,string 
                     var n=index.Value;
                     if(n==0) throw new global::System.ArgumentOutOfRangeException(nameof(index));
                     var count=0;
-                    var buffer=new {{resultType}}[n];
-                    while(source.TryGetNext(out var __mn26)){
-                        buffer[count%n]=__mn26;
-                        count++;
+                    if(n<=16){
+                        global::System.Span<{{resultType}}> buffer=stackalloc {{resultType}}[16];
+                        buffer=buffer.Slice(0,n);
+                        while(source.TryGetNext(out var __mn26)){
+                            buffer[count%n]=__mn26;
+                            count++;
+                        }
+                        if(count<n) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                        return buffer[(count-n)%n];
+                    }else{
+                        var rented=global::System.Buffers.ArrayPool<{{resultType}}>.Shared.Rent(n);
+                        try{
+                            while(source.TryGetNext(out var __mn26)){
+                                rented[count%n]=__mn26;
+                                count++;
+                            }
+                            if(count<n) throw new global::System.ArgumentOutOfRangeException(nameof(index));
+                            return rented[(count-n)%n];
+                        }finally{
+                            if(global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{resultType}}>()) global::System.MemoryExtensions.AsSpan(rented,0,global::System.Math.Min(count,n)).Clear();
+                            global::System.Buffers.ArrayPool<{{resultType}}>.Shared.Return(rented);
+                        }
                     }
-                    if(count<n) throw new global::System.ArgumentOutOfRangeException(nameof(index));
-                    return buffer[(count-n)%n];
                 }
             }
             """;

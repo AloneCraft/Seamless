@@ -249,13 +249,29 @@ internal class ElementAtOrDefault_index(int 番号,Enumerable source,string inde
                     var n=index.Value;
                     if(n==0) return default!;
                     var count=0;
-                    var buffer=new {{resultType}}[n];
-                    while(source.TryGetNext(out var __mn29)){
-                        buffer[count%n]=__mn29;
-                        count++;
+                    if(n<=16){
+                        global::System.Span<{{resultType}}> buffer=stackalloc {{resultType}}[16];
+                        buffer=buffer.Slice(0,n);
+                        while(source.TryGetNext(out var __mn29)){
+                            buffer[count%n]=__mn29;
+                            count++;
+                        }
+                        if(count<n) return default!;
+                        return buffer[(count-n)%n];
+                    }else{
+                        var rented=global::System.Buffers.ArrayPool<{{resultType}}>.Shared.Rent(n);
+                        try{
+                            while(source.TryGetNext(out var __mn29)){
+                                rented[count%n]=__mn29;
+                                count++;
+                            }
+                            if(count<n) return default!;
+                            return rented[(count-n)%n];
+                        }finally{
+                            if(global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{{resultType}}>()) global::System.MemoryExtensions.AsSpan(rented,0,global::System.Math.Min(count,n)).Clear();
+                            global::System.Buffers.ArrayPool<{{resultType}}>.Shared.Return(rented);
+                        }
                     }
-                    if(count<n) return default!;
-                    return buffer[(count-n)%n];
                 }
             }
             """;
