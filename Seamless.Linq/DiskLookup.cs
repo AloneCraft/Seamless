@@ -26,21 +26,36 @@ internal sealed class DiskLookup<TKey,TElement>:IDisposable{
         var group=this.Find(key,encodedKey.Memory.Span);
         using var encodedValue=this.scope.Encode(value);
         var offset=this.values.Length;
+        Span<byte> header=stackalloc byte[36];
         this.values.Position=offset;
-        WriteLong(this.values,-1);WriteInt(this.values,encodedValue.Memory.Length);this.values.Write(encodedValue.Memory.Span);
+        BinaryPrimitives.WriteInt64LittleEndian(header,-1);
+        BinaryPrimitives.WriteInt32LittleEndian(header[8..],encodedValue.Memory.Length);
+        this.values.Write(header[..12]);
+        this.values.Write(encodedValue.Memory.Span);
         if(group<0){
             group=this.groups.Length;
             long previous=-1;
             this.TryIndex(key,encodedKey.Memory.Span,out previous);
             this.groups.Position=group;
-            WriteLong(this.groups,offset);WriteLong(this.groups,offset);WriteLong(this.groups,1);WriteLong(this.groups,previous);
-            WriteInt(this.groups,encodedKey.Memory.Length);this.groups.Write(encodedKey.Memory.Span);
+            // 既存形式の先頭・末尾・件数・衝突先・キー長を一度に書く。
+            BinaryPrimitives.WriteInt64LittleEndian(header,offset);
+            BinaryPrimitives.WriteInt64LittleEndian(header[8..],offset);
+            BinaryPrimitives.WriteInt64LittleEndian(header[16..],1);
+            BinaryPrimitives.WriteInt64LittleEndian(header[24..],previous);
+            BinaryPrimitives.WriteInt32LittleEndian(header[32..],encodedKey.Memory.Length);
+            this.groups.Write(header);
+            this.groups.Write(encodedKey.Memory.Span);
             this.SetIndex(key,encodedKey.Memory.Span,group);
         }else{
             this.groups.Position=group+8;
-            var last=ReadLong(this.groups);var count=ReadLong(this.groups);
+            this.groups.ReadExactly(header[..16]);
+            var last=BinaryPrimitives.ReadInt64LittleEndian(header);
+            var count=BinaryPrimitives.ReadInt64LittleEndian(header[8..]);
             this.values.Position=last;WriteLong(this.values,offset);
-            this.groups.Position=group+8;WriteLong(this.groups,offset);WriteLong(this.groups,checked(count+1));
+            this.groups.Position=group+8;
+            BinaryPrimitives.WriteInt64LittleEndian(header,offset);
+            BinaryPrimitives.WriteInt64LittleEndian(header[8..],checked(count+1));
+            this.groups.Write(header[..16]);
         }
     }
     internal IEnumerable<IGrouping<TKey,TElement>> Groups(){
@@ -58,6 +73,15 @@ internal sealed class DiskLookup<TKey,TElement>:IDisposable{
         var group=this.Find(key,encoded.Memory.Span);
         if(group<0){return System.Linq.Enumerable.Empty<TElement>();}
         return this.ReadValues(group);
+    }
+    internal IGrouping<TKey,TElement>? FindGroup(TKey key,out long identity){
+        this.Check();
+        using var encoded=this.scope.Encode(key);
+        identity=this.Find(key,encoded.Memory.Span);
+        if(identity<0){
+            return null;
+        }
+        return new Group(this,identity);
     }
     private long Find(TKey key,ReadOnlySpan<byte> encoded){
         if(!this.TryIndex(key,encoded,out var group)){return -1;}
@@ -102,7 +126,8 @@ internal sealed class DiskLookup<TKey,TElement>:IDisposable{
         while(next>=0){
             this.Check();
             this.values.Position=next;
-            next=ReadLong(this.values);var length=ReadInt(this.values);
+            var header=ReadValueHeader(this.values);
+            next=header.Next;var length=header.Length;
             using var decoded=this.scope.Budget.ReserveMemory(checked(96+4L*length));
             TElement value;
             using(var buffer=this.scope.Rent(length)){
@@ -119,12 +144,17 @@ internal sealed class DiskLookup<TKey,TElement>:IDisposable{
     }
     private static int ReadInt(Stream stream){Span<byte> bytes=stackalloc byte[4];stream.ReadExactly(bytes);return BinaryPrimitives.ReadInt32LittleEndian(bytes);}
     private static long ReadLong(Stream stream){Span<byte> bytes=stackalloc byte[8];stream.ReadExactly(bytes);return BinaryPrimitives.ReadInt64LittleEndian(bytes);}
-    private static void WriteInt(Stream stream,int value){Span<byte> bytes=stackalloc byte[4];BinaryPrimitives.WriteInt32LittleEndian(bytes,value);stream.Write(bytes);}
+    private static (long Next,int Length) ReadValueHeader(Stream stream){
+        Span<byte> bytes=stackalloc byte[12];
+        stream.ReadExactly(bytes);
+        return (BinaryPrimitives.ReadInt64LittleEndian(bytes),BinaryPrimitives.ReadInt32LittleEndian(bytes[8..]));
+    }
     private static void WriteLong(Stream stream,long value){Span<byte> bytes=stackalloc byte[8];BinaryPrimitives.WriteInt64LittleEndian(bytes,value);stream.Write(bytes);}
-    private sealed class Group(DiskLookup<TKey,TElement> owner,long offset):IGrouping<TKey,TElement>{
+    private sealed class Group(DiskLookup<TKey,TElement> owner,long offset):IGrouping<TKey,TElement>,IKnownGroupingCount{
         private readonly DiskLookup<TKey,TElement> owner=owner;
         private readonly long offset=offset;
         public TKey Key=>this.owner.ReadKey(this.offset);
+        long IKnownGroupingCount.Count{get{this.owner.Check();this.owner.groups.Position=this.offset+16;return ReadLong(this.owner.groups);}}
         public IEnumerator<TElement> GetEnumerator()=>this.owner.ReadValues(this.offset).GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator()=>this.GetEnumerator();
     }

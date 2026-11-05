@@ -1,30 +1,35 @@
 using Seamless.Execution;
 namespace Seamless.Linq;
 internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
+    private static readonly bool inlineValues=!RuntimeHelpers.IsReferenceOrContainsReferences<TKey>()&&!RuntimeHelpers.IsReferenceOrContainsReferences<TElement>();
     private readonly ExecutionScope scope;
     private readonly IEqualityComparer<TKey>? comparer;
     private readonly ResourceReservation memory;
     private readonly bool canSpill;
     private readonly long intKeyReservationBytes;
+    private readonly bool spillAllowed;
     private readonly long threshold;
+    private readonly bool usesPool;
     private Dictionary<Key,MemoryGroup>? index;
     private List<MemoryGroup>? groups=[];
     private DiskLookup<TKey,TElement>? disk;
     private bool disposed;
-    internal ScopedLookup(ExecutionScope scope,IEqualityComparer<TKey>? comparer){
+    internal ScopedLookup(ExecutionScope scope,IEqualityComparer<TKey>? comparer,bool allowSpill=true,ResourceBudget.MemoryPool? retentionPool=null,long maxRetention=0){
         this.scope=scope;this.comparer=comparer;
         if(comparer is null){scope.Codecs.Get<TKey>();}
-        this.canSpill=scope.Codecs.CanEncode<TKey>()&&scope.Codecs.CanEncode<TElement>();
-        this.threshold=Math.Max(256,(scope.Budget.MemoryLimitBytes-scope.Budget.MemoryBytes)/3);
-        this.memory=scope.Budget.ReserveMemory(256);
+        this.spillAllowed=allowSpill;this.canSpill=allowSpill&&scope.Codecs.CanEncode<TKey>()&&scope.Codecs.CanEncode<TElement>();
+        this.usesPool=retentionPool is not null;
+        this.threshold=this.usesPool?maxRetention:Math.Max(256,(scope.Budget.MemoryLimitBytes-scope.Budget.MemoryBytes)/3);
+        this.memory=retentionPool is null?scope.Budget.ReserveMemory(256):scope.Budget.ReserveMemory(256,retentionPool);
         this.intKeyReservationBytes=typeof(TKey)==typeof(int)&&comparer is null&&scope.Codecs.UsesDefaultInt32Codec
             ?scope.Codecs.Get<int>().GetEncodedLength(0)+64L:0;
-        this.index=new(new KeyComparer(this.intKeyReservationBytes!=0?EqualityComparer<TKey>.Default:comparer));
-        scope.Own(this);
+        try{this.index=new(new KeyComparer(this.intKeyReservationBytes!=0?EqualityComparer<TKey>.Default:comparer));scope.Own(this);}
+        catch{this.memory.Dispose();throw;}
     }
     internal void Add(TKey key,TElement element){
         this.Check();
         if(this.disk is not null){this.disk.Add(key,element);return;}
+        if(inlineValues&&this.comparer is not null){this.AddInline(key,element);return;}
         long size=128L+2L*Unsafe.SizeOf<TElement>();
         if(this.scope.Codecs.CanEncode<TElement>()){size=checked(size+4L*this.scope.Codecs.Get<TElement>().GetEncodedLength(element));}
         if(this.intKeyReservationBytes!=0){size=checked(size+4L*(this.intKeyReservationBytes-64));}
@@ -32,7 +37,7 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
         if(this.canSpill&&this.memory.Bytes+size>this.threshold){
             this.Spill();this.disk!.Add(key,element);return;
         }
-        if(!this.canSpill&&size>this.scope.Budget.MemoryLimitBytes-this.scope.Budget.MemoryBytes){
+        if(this.spillAllowed&&!this.canSpill&&size>this.scope.Budget.MemoryLimitBytes-this.scope.Budget.MemoryBytes){
             if(!this.scope.Codecs.CanEncode<TKey>()){throw new CodecUnavailableException(typeof(TKey));}
             throw new CodecUnavailableException(typeof(TElement));
         }
@@ -59,7 +64,7 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
                 this.Check();
                 var alternate=this.index!.GetAlternateLookup<ReadOnlySpan<byte>>();
                 if(!alternate.TryGetValue(encoded,out var existing)){
-                    existing=new(this,key);
+                    existing=new(this,key,this.groups!.Count);
                     this.groups!.Add(existing);
                     this.index.Add(new(key,encoded.ToArray()),existing);
                 }
@@ -77,11 +82,38 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
             var token=this.Token(key,owned);
             if(!this.index!.TryGetValue(token,out var group)){
                 if(owned is not null){token=token with{Encoded=owned.Memory.ToArray()};}
-                group=new(this,key);
+                group=new(this,key,this.groups!.Count);
                 this.groups!.Add(group);this.index.Add(token,group);
             }
             group.Add(element);
         }
+    }
+    private void AddInline(TKey key,TElement element){
+        // 比較器付きのunmanaged値は既に配列内にある。符号化したobject graphを毎行重ねて予約しない。
+        // group管理費と実capacityを計上し、拡大時は新旧配列の重なりも割当前に予約する。
+        var token=new Key(key,ReadOnlyMemory<byte>.Empty);
+        var found=this.index!.TryGetValue(token,out var group);
+        var previousCapacity=group?.Values.Capacity??0;
+        var nextCapacity=previousCapacity;
+        if(!found||group!.Values.Count==previousCapacity){if(previousCapacity==0){nextCapacity=4;}else{nextCapacity=checked(previousCapacity*2);}}
+        long additional=0;
+        if(!found){additional=checked(256L+8L*Unsafe.SizeOf<TKey>());}
+        if(nextCapacity!=previousCapacity){additional=checked(additional+24L+(long)nextCapacity*Unsafe.SizeOf<TElement>());}
+        var required=checked(this.memory.Bytes+additional);
+        if(this.canSpill&&(required>this.threshold||(this.usesPool&&additional!=0&&!this.memory.TryResize(required)))){
+            this.Spill();this.disk!.Add(key,element);return;
+        }
+        if(this.spillAllowed&&!this.canSpill&&additional>this.scope.Budget.AvailableMemoryBytes){
+            if(!this.scope.Codecs.CanEncode<TKey>()){throw new CodecUnavailableException(typeof(TKey));}
+            throw new CodecUnavailableException(typeof(TElement));
+        }
+        if(additional!=0&&!this.usesPool){this.memory.Resize(required);}
+        if(!found){group=new(this,key,this.groups!.Count);this.groups.Add(group);this.index.Add(token,group);}
+        if(nextCapacity!=previousCapacity){
+            group!.Values.Capacity=nextCapacity;
+            if(previousCapacity!=0){this.memory.Resize(checked(this.memory.Bytes-24L-(long)previousCapacity*Unsafe.SizeOf<TElement>()));}
+        }
+        group!.Values.Add(element);
     }
     internal IEnumerable<IGrouping<TKey,TElement>> Groups(){
         this.Check();
@@ -120,6 +152,19 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
         using var buffer=this.EncodeKey(key);
         if(this.index!.TryGetValue(this.Token(key,buffer),out var group)){return group;}
         return System.Linq.Enumerable.Empty<TElement>();
+    }
+    internal IGrouping<TKey,TElement>? FindGroup(TKey key,out long identity){
+        this.Check();
+        if(this.disk is not null){
+            return this.disk.FindGroup(key,out identity);
+        }
+        using var buffer=this.EncodeKey(key);
+        if(this.index!.TryGetValue(this.Token(key,buffer),out var group)){
+            identity=group.Identity;
+            return group;
+        }
+        identity=-1;
+        return null;
     }
     private ResourceReservation ReserveIntKey(){
         this.scope.ThrowIfUnavailable();
@@ -173,8 +218,9 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
             return unchecked((int)hash);
         }
     }
-    private sealed class MemoryGroup(ScopedLookup<TKey,TElement> owner,TKey key):IGrouping<TKey,TElement>{
+    private sealed class MemoryGroup(ScopedLookup<TKey,TElement> owner,TKey key,int identity):IGrouping<TKey,TElement>,IKnownGroupingCount{
         private readonly ScopedLookup<TKey,TElement> owner=owner;
+        internal int Identity{get;}=identity;
         public TKey Key{get;}=key;
         private bool hasFirst;
         private TElement first=default!;
@@ -193,6 +239,8 @@ internal sealed class ScopedLookup<TKey,TElement>:IDisposable{
                 foreach(var value in this.remaining){disk.Add(this.Key,value);}
             }
         }
+        internal List<TElement> Values=>this.remaining??=[];
+        long IKnownGroupingCount.Count{get{this.owner.Check();return (this.hasFirst?1:0)+(this.remaining?.Count??0);}}
         public IEnumerator<TElement> GetEnumerator()=>this.Read().GetEnumerator();
         private IEnumerable<TElement> Read(){
             using var operation=this.owner.scope.EnterDependent();

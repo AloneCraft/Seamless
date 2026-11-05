@@ -8,6 +8,7 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
 {
     private const int MinimumSize = 16; // minimum arraypool size(power of 2)
     private const double LoadFactor = 0.72;
+    private const int MixAfterProbes=16;
     private readonly IEqualityComparer<TKey> comparer;
     // 既定コンパレータのときは true。値型では typeof(TKey).IsValueType が JIT で畳み込まれ、
     // EqualityComparer<TKey>.Default 経由の静的呼び出しに devirtualize/inline される。
@@ -17,6 +18,7 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
     private int bucketsLength; // power of 2
     private int entryIndex;
     private int resizeThreshold;
+    private bool useMixedBuckets;
 
     public int Count => this.entryIndex;
 
@@ -66,6 +68,7 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
         var index = bucket-1;
 
         // lookup phase
+        var probes=0;
         while(index!=-1) {
             ref var entry = ref this.entries[index];
             if(entry.HashCode==hashCode&&this.KeyEquals(entry.Key,key)) {
@@ -73,13 +76,19 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
                 return ref entry.Value;
             }
             index=entry.Next;
+            probes++;
         }
 
         // add phase
         exists=false;
+        var switchBuckets=probes>=MixAfterProbes&&!this.useMixedBuckets;
         if(this.entryIndex>=this.resizeThreshold) {
-            this.Resize();
+            this.Resize(switchBuckets);
             // Need to recalculate bucket after resize
+            bucket=ref this.buckets[this.GetBucketIndex(hashCode)];
+        }else if(switchBuckets){
+            this.useMixedBuckets=true;
+            this.Rehash(this.entries,this.buckets);
             bucket=ref this.buckets[this.GetBucketIndex(hashCode)];
         }
 
@@ -94,25 +103,15 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
 
         return ref newEntry.Value;
     }
-    private void Resize() {
+    private void Resize(bool switchBuckets) {
         var newSize = BitOperations.RoundUpToPowerOf2((uint)this.entries.Length*2);
         var newEntries = ArrayPool<Entry>.Shared.Rent((int)newSize);
         var newBuckets = ArrayPool<int>.Shared.Rent((int)newSize);
         this.bucketsLength=(int)newSize; // guarantees PowerOf2
         this.resizeThreshold=(int)(this.bucketsLength*LoadFactor);
-        newBuckets.AsSpan().Clear(); // 0-clear.
-
-        // Copy entries
+        this.useMixedBuckets|=switchBuckets;
         Array.Copy(this.entries,newEntries,this.entryIndex);
-
-        for(int i = 0;i<this.entryIndex;i++) {
-            ref var entry = ref newEntries[i];
-            var bucketIndex = this.GetBucketIndex(entry.HashCode);
-
-            ref var bucket = ref newBuckets[bucketIndex];
-            entry.Next=bucket-1;
-            bucket=i+1;
-        }
+        this.Rehash(newEntries,newBuckets);
 
         // return old arrays
         ArrayPool<int>.Shared.Return(this.buckets,clearArray: false);
@@ -121,6 +120,16 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
         // assign new arrays
         this.entries=newEntries;
         this.buckets=newBuckets;
+    }
+
+    private void Rehash(Entry[] entries,int[] buckets){
+        buckets.AsSpan().Clear();
+        for(var index=0;index<this.entryIndex;index++){
+            ref var entry=ref entries[index];
+            ref var bucket=ref buckets[this.GetBucketIndex(entry.HashCode)];
+            entry.Next=bucket-1;
+            bucket=index+1;
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -140,9 +149,12 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
         return (uint)((key is null) ? 0 : this.comparer.GetHashCode(key)&0x7FFFFFFF);
     }
 
-    // バケット番号の計算は HashBucket へ集約している（劣化条件の説明もそちら）。
+    // 下位ビットで衝突が続いた辞書だけ、構築済みのバケットも含めて混合へ切り替える。
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int GetBucketIndex(uint hashCode) {
+        if(this.useMixedBuckets){
+            return HashBucket.Index(hashCode,this.bucketsLength);
+        }
         return (int)(hashCode&(uint)(this.bucketsLength-1));
     }
 

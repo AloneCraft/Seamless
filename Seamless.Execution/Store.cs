@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 namespace Seamless.Execution;
@@ -7,6 +8,7 @@ namespace Seamless.Execution;
 /// 永続ストアは <see cref="Save"/> を呼んだ時点だけが確定し、破棄しただけでは確定しない。
 /// </summary>
 public sealed class Store:IDisposable{
+    private static readonly ActivitySource CheckpointActivities=new("Seamless.Checkpoint.Store");
     internal const string FormatName="seamless-store-v1";
     private const string ManifestFileName="store.json";
     private const string LockFileName="store.lock";
@@ -196,14 +198,25 @@ public sealed class Store:IDisposable{
                 throw new NotSupportedException("A memory store cannot be saved.");
             }
             var states=new Dictionary<string,string>(StringComparer.Ordinal);
-            foreach(var component in this.components){
-                states.Add(component.Name,component.Save());
+            using(var snapshots=CheckpointActivities.StartActivity("Write snapshots")){
+                var ordinal=0;
+                foreach(var component in this.components){
+                    using var componentSnapshot=snapshots?.Source.StartActivity("Write component snapshot");
+                    componentSnapshot?.SetTag("store.component.ordinal",ordinal);
+                    ordinal++;
+                    states.Add(component.Name,component.Save());
+                }
             }
             // 一時ストアは破棄で全削除され、開き直せないので、ディスクへの確実な書き出しは永続ストアだけで行う。
             var durable=this.Kind==StoreKind.Persistent;
             if(durable){
+                using var flush=CheckpointActivities.StartActivity("Flush store data");
                 // 確定点はマニフェストなので、指す先のデータを先に確実にする。全子資源を保存し終えてからまとめて書き出す。
+                var ordinal=0;
                 foreach(var component in this.components){
+                    using var componentFlush=flush?.Source.StartActivity("Flush component data");
+                    componentFlush?.SetTag("store.component.ordinal",ordinal);
+                    ordinal++;
                     component.Flush();
                 }
             }
@@ -223,12 +236,16 @@ public sealed class Store:IDisposable{
                 next=[..this.checkpoints,checkpoint];
             }
             // 書けなければ、記録も子資源の状態も変えずに例外にする(後始末は確定してからにする)。
-            WriteManifest(this.directoryPath,next,durable);
+            using(CheckpointActivities.StartActivity("Publish store manifest")){
+                WriteManifest(this.directoryPath,next,durable);
+            }
             this.checkpoints.Clear();
             this.checkpoints.AddRange(next);
             this.current=checkpoint;
-            foreach(var component in this.components){
-                component.SaveCommitted();
+            using(CheckpointActivities.StartActivity("Finalize store save")){
+                foreach(var component in this.components){
+                    component.SaveCommitted();
+                }
             }
             return checkpoint.Token;
         }
@@ -344,10 +361,13 @@ public sealed class Store:IDisposable{
             stream.Write(bytes);
             if(durable){
                 // 名前を変えたマニフェストの中身が、電源断のあとに空で見えないようにする。
+                using var sync=CheckpointActivities.StartActivity("Sync store manifest");
                 stream.Flush(true);
             }
         }
-        File.Move(temporary,path,overwrite:true);
+        using(CheckpointActivities.StartActivity("Replace store manifest")){
+            File.Move(temporary,path,overwrite:true);
+        }
     }
     private sealed record Checkpoint(Guid Token,DateTimeOffset CreatedAt,Dictionary<string,string> Components);
     private sealed record Manifest(string Format,List<Checkpoint> Checkpoints);

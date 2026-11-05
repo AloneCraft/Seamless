@@ -29,6 +29,7 @@ internal static class Lookup{
                 fixed(byte* pointer=key){
                     status=session.BasicContext.Read((FixedSpanByteKey)key,ref input,ref output,ref options,out metadata);
                     if(status.IsPending){
+                        using var cpu=global::Seamless.Execution.CpuScheduler.SuspendForIo();
                         session.BasicContext.CompletePendingWithOutputs(out var completed,wait:true);
                         try{
                             if(!completed.Next()){throw new InvalidDataException("The liveness read completed without a result.");}

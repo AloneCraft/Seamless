@@ -1,13 +1,9 @@
 namespace Seamless.Linq;
 
 /*
-バケット番号の計算をハッシュ表 3 種で共有する。
+HashSetSlim と、衝突によって混合を選んだ DictionarySlim のバケット番号を計算する。
 
-  - LookupBuilder / Lookup (ToLookup.cs)   Join / GroupJoin / GroupBy / ToLookup
-  - HashSetSlim                            Distinct / Union / Except / Intersect
-  - DictionarySlim                         CountBy / AggregateBy / ToDictionary
-
-どれも bucketsLength が 2 の冪で、バケット番号には下位ビットしか使わない。
+bucketsLength が 2 の冪なので、混合しない場合はバケット番号に下位ビットしか使わない。
 int の既定ハッシュは恒等なので、(v&mask)==0 のような述語で絞られたキー集合は
 下位 k ビットが定数になり、到達できるバケットが 1/2^k へ減って鎖が線形に伸びる。
 述語プッシュダウンは述語をキー生成の前へ動かす変換なので、この形を踏みやすい。

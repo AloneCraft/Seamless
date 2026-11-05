@@ -1,5 +1,28 @@
 namespace Seamless.Linq {
     partial class Enumerable {
+        [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+        public static T[] ParallelUnionToArray<T>(IEnumerable<T> input,int maxExecutionSlots) where T:struct =>
+            ParallelUnionToArray(input,maxExecutionSlots,parentBudget:null);
+
+        internal static T[] ParallelUnionToArray<T>(IEnumerable<T> input,int maxExecutionSlots,
+            global::Seamless.Execution.ResourceBudget? parentBudget) where T:struct {
+            ArgumentNullException.ThrowIfNull(input);
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxExecutionSlots);
+            if(maxExecutionSlots==1){
+                return global::System.Linq.Enumerable.ToArray(global::System.Linq.Enumerable.Distinct(input));
+            }
+            using var scope=new global::Seamless.Execution.ExecutionScope(new(){ParentBudget=parentBudget});
+            using var lookup=new PartitionedLookupBuilder<T,T>(scope,null,maxExecutionSlots);
+            using var result=new global::Seamless.Execution.QueryResultBuffer<T>(scope);
+            lookup.Build(target=>{
+                foreach(var value in input){target.Add(value,value);}
+            });
+            foreach(var group in lookup.Groups(preserveOrder:false)){
+                result.Add(global::System.Linq.Enumerable.First(group));
+            }
+            return result.ToArray();
+        }
+
         public static ValueEnumerable<Union<TEnumerator,TEnumerator2,TSource>,TSource> Union<TEnumerator, TEnumerator2, TSource>(this ValueEnumerable<TEnumerator,TSource> source,ValueEnumerable<TEnumerator2,TSource> second)
             where TEnumerator : struct, IValueEnumerator<TSource>
             where TEnumerator2 : struct, IValueEnumerator<TSource>

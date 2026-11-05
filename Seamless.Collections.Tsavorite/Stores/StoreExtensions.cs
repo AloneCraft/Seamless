@@ -5,6 +5,11 @@ namespace Seamless.Collections.Tsavorite;
 /// 永続ストアで同じ名前を保存済みなら、登録時にその状態へ復元される。
 /// </summary>
 public static class StoreExtensions{
+    /// <summary>版付き共通取引用の新規保存プロファイル。通常辞書の保存形式とは別のschema identityを使う。</summary>
+    public static HistoryStore CreateTsavoriteHistory(this global::Seamless.Execution.Store store,string name,TsavoriteTuning? tuning=null,string schemaIdentity=""){
+        var layout=TsavoriteLayout.Resolve(store,name,0,tuning??TsavoriteTuning.Default,"SeamlessHistoryV1","SeamlessHistoryV1|"+schemaIdentity);HistoryStore? data=null;
+        try{data=new(layout);return store.Register(data);}catch{if(data is not null){data.Dispose();}else{layout.Dispose();}throw;}
+    }
     /// <summary>Tsavorite の辞書のデータ本体を作る。<paramref name="expectedCount"/> はプロファイルの適用条件と拡張時の推定に使う。Minimumの初期容量は増やさない。</summary>
     public static DictionaryStore<TKey,TValue> CreateTsavorite<TKey,TValue>(this global::Seamless.Execution.Store store,string name,long expectedCount=0)=>
         CreateTsavorite<TKey,TValue>(store,name,TsavoriteTuning.Default,expectedCount);

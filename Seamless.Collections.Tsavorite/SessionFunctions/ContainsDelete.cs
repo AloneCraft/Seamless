@@ -8,6 +8,7 @@ public readonly struct ContainsDelete:
     // Contains: キー存在時に output=true で応筁E
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref bool output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {
+        using var cpu=global::Seamless.Execution.CpuScheduler.EnterCallback();
         output=true;
         return true;
     }

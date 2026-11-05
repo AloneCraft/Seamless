@@ -53,17 +53,21 @@ public abstract class Collection<
     public abstract class IterateLookupIteratorFunctions_List<T>:IScanIteratorFunctions {
         private const int MinimumScanChunkLength = 4096;
         private static readonly T[] EmptyChunk = [];
+        // collectible T の SharedArrayPool<T> は collectible thread-static を使用する。
+        // 世代が所有する通常のプールで、アンロード後の TLS index 再利用を避ける。
+        // https://github.com/dotnet/runtime/issues/134928
+        private static readonly ArrayPool<T> ScanChunks=typeof(T).IsCollectible?ArrayPool<T>.Create():ArrayPool<T>.Shared;
         // 走査バッファは列挙 1 回につき 1 本必要になる。new すると int で 16KB、参照型で 32KB を
         // 毎 foreach ごとに確保することになり、Tsavorite ベンチマークの割り当ての大半を占めていた。
         // 列挙子の Dispose で返却する(返却後は EmptyChunk に差し替わるので Accept は書き込まない)。
-        public T[] Chunk = ArrayPool<T>.Shared.Rent(Math.Max(Const.Chunk_Length,MinimumScanChunkLength));
+        public T[] Chunk = ScanChunks.Rent(Math.Max(Const.Chunk_Length,MinimumScanChunkLength));
         public int Count;
         private long LastAcceptedAddress;
         public void ResetChunk() {
             // Dispose 済みの列挙子を Reset() して再利用する経路では返却済みなので、ここで借り直す。
             // 借り直さないと Accept が常に EndBatch を返し、MoveNext の while(true) が抜けられない。
             if(ReferenceEquals(this.Chunk,EmptyChunk)) {
-                this.Chunk=ArrayPool<T>.Shared.Rent(Math.Max(Const.Chunk_Length,MinimumScanChunkLength));
+                this.Chunk=ScanChunks.Rent(Math.Max(Const.Chunk_Length,MinimumScanChunkLength));
             }
             this.Count=0;
             this.LastAcceptedAddress=0;
@@ -76,7 +80,7 @@ public abstract class Collection<
             this.Chunk=EmptyChunk;
             this.Count=0;
             this.LastAcceptedAddress=0;
-            ArrayPool<T>.Shared.Return(rented,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+            ScanChunks.Return(rented,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
         }
         // Reader は 1 レコードにつき 1 回呼ばれる最内ループである。ここから ShouldRead / Deserialize を
         // ジェネリック仮想メソッドとして呼ぶと、レコードごとにジェネリックディクショナリ探索を伴う

@@ -32,7 +32,7 @@ public static class WalFormat{
             if(stream.Length>maximum-HeaderBytes){throw new InvalidDataException("WAL frame exceeds the configured bound.");}
         }
         if(stream.Length>maximum-HeaderBytes){throw new InvalidDataException("WAL frame exceeds the configured bound.");}
-        return Frame(1,transaction.Lsn,stream.ToArray());
+        return Frame(transaction.Draft.IsPreparation?3:1,transaction.Lsn,stream.ToArray());
     }
     private static void ValidateEntry(WalEntry entry,int[] parts){
         if(!parts.Contains(entry.Partition)||entry.TableId<=0||string.IsNullOrEmpty(entry.Codec)||entry.Key.Length==0||!Enum.IsDefined(entry.Mutation)||(entry.Mutation==WalMutation.Delete)!=(entry.Row is null)){
@@ -65,12 +65,12 @@ public static class WalFormat{
         var length=BinaryPrimitives.ReadInt32LittleEndian(header[8..]);
         var body=BinaryPrimitives.ReadInt32LittleEndian(header[12..]);
         var lsn=BinaryPrimitives.ReadInt64LittleEndian(header[16..]);
-        if(type is not (1 or 2)||length<HeaderBytes||length>maximum||body!=length-HeaderBytes||(type==1&&lsn<=0)||(type==2&&lsn!=0)){throw new InvalidDataException("Invalid WAL frame length/type/LSN.");}
+        if(type is not (1 or 2 or 3)||length<HeaderBytes||length>maximum||body!=length-HeaderBytes||(type!=2&&lsn<=0)||(type==2&&lsn!=0)){throw new InvalidDataException("Invalid WAL frame length/type/LSN.");}
         return(type,length,lsn);
     }
     public static WalTransaction Decode(ReadOnlySpan<byte> frame,int maximum=4<<20){
         var header=ReadHeader(frame,maximum);
-        if(header.Type!=1||frame.Length!=header.Length){throw new InvalidDataException("Expected one complete transaction frame.");}
+        if(header.Type is not (1 or 3)||frame.Length!=header.Length){throw new InvalidDataException("Expected one complete transaction frame.");}
         CheckBody(frame);
         var body=frame[HeaderBytes..];var offset=0;
         var id=new Guid(Take(body,ref offset,16));
@@ -91,7 +91,7 @@ public static class WalFormat{
             var entry=new WalEntry(part,table,kind,codec,key,row);ValidateEntry(entry,parts);entries.Add(entry);
         }
         if(offset!=body.Length){throw new InvalidDataException("Trailing WAL bytes.");}
-        return new(header.Lsn,new(id,parts,entries,metadata));
+        return new(header.Lsn,new(id,parts,entries,metadata){IsPreparation=header.Type==3});
     }
     public static void CheckBody(ReadOnlySpan<byte> frame){
         if(BinaryPrimitives.ReadUInt32LittleEndian(frame[24..])!=Crc32.HashToUInt32(frame[HeaderBytes..])){throw new InvalidDataException("WAL body CRC mismatch.");}

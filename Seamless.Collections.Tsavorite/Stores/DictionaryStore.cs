@@ -39,6 +39,12 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
         return (IDictionary<TKey,TValue>)this.CreateAccessor(typeof(Dictionary<,,,>),[this]);
     }
 
+    public IDictionary<TKey,TValue> Create<TKeySerializer,TValueSerializer>()
+        where TKeySerializer:global::Seamless.Collections.Serializers.IStrategy<TKey>
+        where TValueSerializer:global::Seamless.Collections.Serializers.IStrategy<TValue>{
+        return new Dictionary<TKey,TValue,TKeySerializer,TValueSerializer>(this);
+    }
+
     /// <summary>
     /// 並列区間を開く。区間の <see cref="ParallelRegion{TAccessor}.Create"/> で、スレッドごとにマルチ用の操作用オブジェクトを作る。
     /// <paramref name="expectedCount"/> は区間を閉じたときの全体の見込み件数で、索引をその件数に合う大きさまで先に広げる。

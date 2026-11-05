@@ -9,19 +9,32 @@ public sealed class ExecutionScope:IDisposable,IAsyncDisposable{
     private volatile bool disposed;
     private string? directory;
     private FileStream? ownerLock;
+    private ExecutionScope? parentOwner;
+    private Action? validate;
     public ExecutionScope(ExecutionOptions? options=null){
         this.options=options??new();
         ArgumentException.ThrowIfNullOrWhiteSpace(this.options.TemporaryDirectory);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(this.options.MaximumQueryWorkers);
         this.Budget=this.options.ParentBudget?.CreateChild(this.options.MemoryLimitBytes,this.options.TemporaryStorageLimitBytes)
             ??new(this.options.MemoryLimitBytes,this.options.TemporaryStorageLimitBytes);
         this.Codecs=new();
     }
     public ResourceBudget Budget{get;}
-    public CodecRegistry Codecs{get;}
+    public CodecRegistry Codecs{get;private set;}
     public CancellationToken CancellationToken=>this.options.CancellationToken;
+    public int MaximumQueryWorkers=>this.options.MaximumQueryWorkers;
+    /// <summary>親予算を共有し、排他・一時資源・型cacheを分ける。親は子の後始末も所有する。</summary>
+    public ExecutionScope CreateChild(Action? validate=null,long? memoryLimitBytes=null){
+        this.ThrowIfUnavailable();var limit=memoryLimitBytes??this.options.MemoryLimitBytes;ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+        var child=new ExecutionScope(this.options with{ParentBudget=this.Budget,MemoryLimitBytes=limit});
+        try{
+            child.Codecs=this.Codecs.Fork();child.validate=()=>{this.ThrowIfUnavailable();validate?.Invoke();};child.parentOwner=this;this.Own(child);return child;
+        }catch{child.Dispose();throw;}
+    }
     public void ThrowIfUnavailable(){
         ObjectDisposedException.ThrowIf(this.disposed,this);
         this.CancellationToken.ThrowIfCancellationRequested();
+        this.validate?.Invoke();
     }
     public IDisposable Enter(){
         this.ThrowIfUnavailable();
@@ -66,6 +79,7 @@ public sealed class ExecutionScope:IDisposable,IAsyncDisposable{
     }
     public void Release(IDisposable resource){lock(this.gate){this.resources.Remove(resource);}}
     public void Dispose(){
+        try{
         lock(this.gate){
             if(this.disposed){return;}
             this.disposed=true;
@@ -78,6 +92,7 @@ public sealed class ExecutionScope:IDisposable,IAsyncDisposable{
             try{if(this.directory is not null){OwnedDirectory.Delete(this.directory);}}catch(Exception error){(errors??=[]).Add(error);}
             if(errors is not null){throw new AggregateException("Execution scope cleanup failed.",errors);}
         }
+        }finally{this.parentOwner?.Release(this);}
     }
     public ValueTask DisposeAsync(){this.Dispose();return ValueTask.CompletedTask;}
     private sealed class Operation(ExecutionScope scope):IDisposable{

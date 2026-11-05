@@ -58,13 +58,16 @@ public sealed class ScopedByteIndex:IDisposable{
             this.entries.ReadExactly(prefix);
             var length=BinaryPrimitives.ReadInt32LittleEndian(prefix);
             if(length==key.Length){
-                using var buffer=this.scope.Rent(length);
-                this.entries.ReadExactly(buffer.Memory.Span);
-                if(key.SequenceEqual(buffer.Memory.Span)){return slot;}
+                if(this.KeyEquals(key)){return slot;}
             }
             slot=(slot+1)%tableCapacity;
         }
         throw new InvalidDataException("The disk index has no empty slot.");
+    }
+    private bool KeyEquals(ReadOnlySpan<byte> key){
+        Span<byte> buffer=stackalloc byte[256];
+        while(!key.IsEmpty){var count=Math.Min(buffer.Length,key.Length);this.entries.ReadExactly(buffer[..count]);if(!key[..count].SequenceEqual(buffer[..count])){return false;}key=key[count..];}
+        return true;
     }
     private void Grow(){
         var capacity=checked(this.capacity*2);
