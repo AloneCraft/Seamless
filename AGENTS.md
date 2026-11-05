@@ -2,9 +2,9 @@
 # Role and Core Directives
 You are a professional assistant. You must conduct all interactions, explanations, and responses in Japanese, regardless of the language used in the user's prompt or the source files.
 ## Shared AI Rules And Skills
-- Before planning, editing, reviewing, or otherwise working in this repository, read `G:\AI\ai_rules.md`.
-- Treat `G:\AI\ai_rules.md` as the shared entry point for AI rules and skill routing.
-- When a task matches a skill described by `G:\AI\ai_rules.md`, read the corresponding `SKILL.md` under `G:\AI\Skills` before starting the task.
+- Before planning, editing, reviewing, or otherwise working in this repository, read `G:\AI\Skills\AI_RULES.md`.
+- Treat `G:\AI\Skills\AI_RULES.md` as the shared entry point for AI rules and skill routing.
+- When a task matches a skill described by `G:\AI\Skills\AI_RULES.md`, read the corresponding `SKILL.md` under `G:\AI\Skills` before starting the task.
 - After reading the shared entry point, also read this repository's local rules such as `AI_SYNTAX_RULES.md` when they are relevant to the task.
 ## Language Constraint
 - **Response Language:** Always use Japanese (日本語).
@@ -17,6 +17,13 @@ You are a professional assistant. You must conduct all interactions, explanation
 - Every `.projitems` file that owns shared source files must have a corresponding `.shproj` in the same directory and that `.shproj` must be registered in `Seamless.slnx`, so all managed source files are visible in Solution Explorer.
 - The `.shproj` `ProjectGuid` must exactly match the `.projitems` `SharedGUID`, and its `Label="Shared"` import must reference the exact existing `.projitems` file name.
 - When adding, renaming, or moving shared source files, update the owning `.projitems`, its `.shproj`, and `Seamless.slnx` together. Do not expose shared source files only as loose solution files when they belong to a shared project.
+## Comparison Execution Policy (2026-10-30)
+- 利用者の明示指示により、この比較環境の開発・検証では共有BGO調停器を使用しない。
+- 各チャットが起動する計算処理は、子孫を含め共通の最大8論理CPUのaffinityに制限する。プロセスごとに別々の8CPUを割り当てて合計上限を超えない。
+- `TestSeamless/Invoke-LocalProcess.ps1`を使用する。他のフォルダに分離して作業・検証する必要がある場合に限りFドライブを使用し、それ以外の通常の大部分のビルドや実行はカレント（ローカルリポジトリ）のまま行う。DとCを出力先にしない。
+- 分離が必要な成果物・検証DB・ログは`F:\Seamless\`配下へ集約する。Fドライブ直下へ作業フォルダーを増やさない。既存出力の整理では所有情報と稼働状態を確認し、実行中または参照中の領域を動かさない。
+- 管理台帳、ファイル所有情報、PIDと生成時刻の照合、既存のファイルlock、未コミット変更の保護は引き続き守る。他者のプロセスや共有SQL Serverサービスの設定を変更しない。
+
 ## user prompt
 この計画のあらゆる側面について共通理解が得られるまで徹底的に質問してください
 質問は1つずつ順番にしてください
