@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><LangVersion>14</LangVersion><IsPackable>true</IsPackable><AssemblyName>Seamless.Authentication</AssemblyName><RootNamespace>Seamless.Authentication</RootNamespace><Description>OIDC authentication adapters for Seamless.</Description></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Seamless.Security/Seamless.Security.csproj" /></ItemGroup>
+  <ItemGroup><PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.23.0" /><PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.23.0" /><PackageReference Include="Duende.IdentityModel.OidcClient" Version="7.1.1" /></ItemGroup>
+</Project>

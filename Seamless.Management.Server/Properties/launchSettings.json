@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WindowsServer": {
+      "commandName": "Project",
+      "commandLineArgs": "serve --workspace-config --local-ipc"
+    }
+  }
+}

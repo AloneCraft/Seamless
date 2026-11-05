@@ -28,6 +28,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" />
     <ProjectReference Include="..\Seamless.Database.Client\Seamless.Database.Client.csproj" />
+    <ProjectReference Include="..\Seamless.Security\Seamless.Security.csproj" />
     <ProjectReference Include="..\Seamless.Database.Query\Seamless.Database.Query.csproj" />
     <ProjectReference Include="..\Seamless.Database.Rdbms\Seamless.Database.Rdbms.csproj" />
     <ProjectReference Include="..\Seamless.Linq\Seamless.Linq.csproj" />

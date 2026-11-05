@@ -20,11 +20,28 @@ internal class ElementAtOrDefault(int 番号,Enumerable source,string index,stri
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, int index";
     protected override string ComputeExpression => $"Compute(ref {this.e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderRangeElementAtOrDefaultInline(destVar,destType)
+        this.RenderDirectArrayElementAtOrDefaultInline(destVar,destType)
+        ??this.RenderRangeElementAtOrDefaultInline(destVar,destType)
         ??this.RenderDirectSpanElementAtOrDefaultInline(destVar,destType)
         ??this.RenderConsumeBasedElementAtOrDefaultInline(destVar,destType)
         ??this.RenderDirectEnumerableElementAtOrDefaultInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,index);
+
+    private string? RenderDirectArrayElementAtOrDefaultInline(string destVar,string destType) {
+        if(source.DirectArrayExpression is not { } arrayExpr) {
+            return null;
+        }
+        var arrVar = $"__arr{番号}";
+        var idxVar = $"__idx{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{arrVar}}={{arrayExpr}};
+                var {{idxVar}}={{index}};
+                {{destVar}}=(uint){{idxVar}}<(uint){{arrVar}}.Length ? {{arrVar}}[{{idxVar}}] : default!;
+            }
+            """;
+    }
 
     private string? RenderConsumeBasedElementAtOrDefaultInline(string destVar,string destType) {
         if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
@@ -164,9 +181,26 @@ internal class ElementAtOrDefault_index(int 番号,Enumerable source,string inde
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}, global::System.Index index";
     protected override string ComputeExpression => $"Compute(ref {this.e}, index)";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderRangeElementAtOrDefaultIndexInline(destVar,destType)
+        this.RenderDirectArrayElementAtOrDefaultIndexInline(destVar,destType)
+        ??this.RenderRangeElementAtOrDefaultIndexInline(destVar,destType)
         ??this.RenderDirectSpanElementAtOrDefaultIndexInline(destVar,destType)
         ??this.RenderComputeInline(destVar,destType,index);
+
+    private string? RenderDirectArrayElementAtOrDefaultIndexInline(string destVar,string destType) {
+        if(source.DirectArrayExpression is not { } arrayExpr) {
+            return null;
+        }
+        var arrVar = $"__arr{番号}";
+        var idxVar = $"__idx{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{arrVar}}={{arrayExpr}};
+                var {{idxVar}}=({{index}}).GetOffset({{arrVar}}.Length);
+                {{destVar}}=(uint){{idxVar}}<(uint){{arrVar}}.Length ? {{arrVar}}[{{idxVar}}] : default!;
+            }
+            """;
+    }
     private string? RenderDirectSpanElementAtOrDefaultIndexInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""

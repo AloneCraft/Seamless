@@ -46,13 +46,32 @@ internal class Average(int 番号,Enumerable source,string resultType):BufferedS
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        (source is RangeRoot range&&resultType=="double"
+        this.RenderDirectArrayAverageInline(destVar,destType)
+        ??(source is RangeRoot range&&resultType=="double"
             ? RangeArithmeticOptimizer.RenderAverage(range,番号,destVar,destType,doubleElements: false)
             : null)
         ??this.RenderDirectSpanAverageInline(destVar,destType)
         ??this.RenderConsumeBasedAverageInline(destVar,destType)
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Average")
         ??this.RenderComputeInline(destVar,destType);
+
+    private string? RenderDirectArrayAverageInline(string destVar,string destType) {
+        if(source.DirectArrayExpression is not { } arrayExpr) {
+            return null;
+        }
+        var arrVar = $"__arr{番号}";
+        if(this.UseDoubleAccumulator && source.ElementType=="int") {
+            return $$"""
+                {{destType}} {{destVar}};
+                {
+                    var {{arrVar}}={{arrayExpr}};
+                    if({{arrVar}}.Length==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
+                    {{destVar}}=({{resultType}})global::Seamless.Linq.Enumerable.AverageIntSimd({{arrVar}});
+                }
+                """;
+        }
+        return null;
+    }
     private string? RenderDirectSpanAverageInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         if(this.UseDecimalAccumulator) {

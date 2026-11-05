@@ -39,11 +39,37 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderRangeSumInline(destVar,destType)
+        this.RenderDirectArraySumInline(destVar,destType)
+        ??this.RenderRangeSumInline(destVar,destType)
         ??this.RenderDirectSpanSumInline(destVar,destType)
         ??this.RenderConsumeBasedSumInline(destVar,destType)
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum")
         ??this.RenderComputeInline(destVar,destType);
+
+    private string? RenderDirectArraySumInline(string destVar,string destType) {
+        if(source.DirectArrayExpression is not { } arrayExpr) {
+            return null;
+        }
+        if(this.CanUseSumSpan) {
+            return $"{destType} {destVar}=global::Seamless.Linq.Enumerable.SumSpan<{resultType}>({arrayExpr});";
+        }
+        var arrVar = $"__arr{番号}";
+        var sumVar = $"__sum{番号}";
+        var iVar = $"__i{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{arrVar}}={{arrayExpr}};
+                {{resultType}} {{sumVar}}=default!;
+                checked{
+                    for(var {{iVar}}=0;{{iVar}}<{{arrVar}}.Length;{{iVar}}++) {
+                        {{sumVar}}+={{arrVar}}[{{iVar}}];
+                    }
+                }
+                {{destVar}}={{sumVar}};
+            }
+            """;
+    }
 
     private string? RenderConsumeBasedSumInline(string destVar,string destType) {
         if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {

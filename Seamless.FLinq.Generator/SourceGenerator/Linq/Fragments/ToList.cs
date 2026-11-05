@@ -144,18 +144,12 @@ internal class ToList(int 番号,Enumerable source,string resultType):BufferedSc
         }
 
         var sourceName=$"__array{this.result}";
-        var span=$"__span{this.result}";
         return $$"""
             {{destType}} {{destVar}};
             {
                 var {{sourceName}}={{arrayExpression}};
                 global::System.ArgumentNullException.ThrowIfNull({{sourceName}},"source");
-                {{this.CounterCall("IncrementDirectSpanUsed")}}
-                var {{span}}=global::System.MemoryExtensions.AsSpan({{sourceName}});
-                {{destVar}}=new({{span}}.Length);
-                global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({{destVar}},{{span}}.Length);
-                {{this.CounterCall("IncrementFastCopyUsed")}}
-                {{span}}.CopyTo(global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({{destVar}}));
+                {{destVar}}=new global::System.Collections.Generic.List<{{source.ElementType}}>({{sourceName}});
             }
             """;
     }

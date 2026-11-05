@@ -1,0 +1,18 @@
+using Seamless.Management;
+using Seamless.Management.Server;
+
+namespace Management.Tests;
+
+[Collection("AuditStorage")]
+public sealed class ReadAuditExecution{
+    private static string Root()=>Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,Guid.NewGuid().ToString("N"));
+    private static UserAccount Login(Seamless.Management.Server.ManagementService service)=>service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);
+    private static Definition Query(string id,string body,string result="int")=>new(id,"Native",DefinitionKind.Query,"Model.Query","Run",new("1",[new("query.cs","using System.Linq;using System.Collections.Generic;using Seamless.Management.Server;namespace Model;public static class Query{public static "+result+" Run(ManagementExecutionContext context){"+body+"}}")],[]));
+    private static ExecuteRequest Request(string id)=>new(id,null,ManagementJson.Element(new{}));
+    [Fact]public async Task CompletedPublishedReadsUseTheRealArtifactAndExcludeAbandonedOrFailedReads(){
+        using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");using var service=new Seamless.Management.Server.ManagementService(store,new(TimeSpan.FromMinutes(1),TimeSpan.FromDays(1)));var user=Login(service);NativeWorkflow.Publish(service,user,NativeWorkflow.Database());NativeWorkflow.Publish(service,user,Query("count","return context.GetDatabase<Db>().Rows.Count;"));NativeWorkflow.Publish(service,user,Query("fail","throw new System.InvalidOperationException(\"PRIVATE_ARGUMENT\");"));NativeWorkflow.Publish(service,user,Query("enumerate","yield return 1;yield return 2;","IEnumerable<int>"));
+        Assert.Equal(0,Assert.Single(service.Execute(user,Request("count"),CancellationToken.None)).Value.GetInt32());Assert.ThrowsAny<Exception>(()=>service.Execute(user,Request("fail"),CancellationToken.None).ToArray());using(var iterator=service.Execute(user,Request("enumerate"),CancellationToken.None).GetEnumerator()){Assert.True(iterator.MoveNext());}Assert.Equal(1,service.ReadAuditStatus(user).AcceptedCount);Assert.Empty(store.ReadSummaries(new()).Items);await service.FlushReadAuditAsync();var item=Assert.Single(store.ReadSummaries(new()).Items);Assert.Equal(1,item.Count);Assert.Equal("count",item.Key.QueryId);Assert.Equal("ADMIN",item.Key.SubjectId);Assert.Equal(store.InstanceId,item.Key.AuthorityId);Assert.Equal(service.GetDefinition(user,"count").ArtifactHash,item.Key.CodeVersion);Assert.Null(item.Key.PolicyVersion);Assert.Equal(TimeSpan.FromMinutes(1),item.Key.WindowEnd-item.Key.WindowStart);Assert.Equal(0,item.Key.WindowStart.UtcTicks%TimeSpan.FromMinutes(1).Ticks);
+        var validation=service.CreateValidation(user,"db");_=service.Execute(user,Request("count") with{ValidationDatabaseId=validation.Id},CancellationToken.None).ToArray();Assert.Equal(1,service.ReadAuditStatus(user).AcceptedCount);Assert.Equal("Permission",Assert.Throws<ManagementException>(()=>service.ReadAuditStatus(new("viewer","",[new("*",ManagementPermission.View)]))).Code);
+    }
+    [Fact]public void UnconfiguredCollectionIsExplicitAndLegacyOptionsRequireMigration(){using(var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123"))using(var service=new Seamless.Management.Server.ManagementService(store)){var state=service.ReadAuditStatus(Login(service));Assert.False(state.Enabled);Assert.Null(state.WindowSeconds);Assert.Equal("NotConfigured",state.ErrorCode);}using var legacy=ManagementStore.InitializeAuditLegacy(Root(),"admin","TestPassword-123");Assert.Equal("MigrationRequired",Assert.Throws<ManagementException>(()=>new Seamless.Management.Server.ManagementService(legacy,new(TimeSpan.FromMinutes(1)))).Code);Assert.Equal(4,legacy.Format);}
+}

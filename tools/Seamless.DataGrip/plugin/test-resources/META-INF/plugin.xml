@@ -1,0 +1,13 @@
+<idea-plugin>
+  <id>dev.seamless.datagrip.acceptance</id>
+  <name>SeamlessDB acceptance command</name>
+  <version>0.1.0-stage2</version>
+  <vendor>Seamless</vendor>
+  <idea-version since-build="261" until-build="261.*"/>
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.database</depends>
+  <depends>dev.seamless.datagrip</depends>
+  <extensions defaultExtensionNs="com.intellij">
+    <appStarter id="seamless-stage2-check" implementation="dev.seamless.datagrip.HeadlessAcceptance"/>
+  </extensions>
+</idea-plugin>

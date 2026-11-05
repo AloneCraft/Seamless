@@ -48,12 +48,33 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        this.RenderRangeToArrayInline(destVar,destType)
+        this.RenderDirectArrayToArrayInline(destVar,destType)
+        ??this.RenderRangeToArrayInline(destVar,destType)
         ??this.RenderDirectSpanToArrayInline(destVar,destType)
         ??this.RenderZipToArrayInline(destVar,destType)
         ??this.RenderConsumeBasedToArrayInline(destVar,destType)
         ??this.RenderDirectEnumerableToArrayHybridInline(source,destVar,destType)
         ??this.RenderComputeInline(destVar,destType);
+
+    private string? RenderDirectArrayToArrayInline(string destVar,string destType) {
+        if(source.DirectArrayExpression is not { } arrayExpr) {
+            return null;
+        }
+        var arrVar = $"__arr{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{arrVar}}={{arrayExpr}};
+                if({{arrVar}}.Length==0) {
+                    {{destVar}}=global::System.Array.Empty<{{source.ElementType}}>();
+                } else {
+                    {{destVar}}=global::System.GC.AllocateUninitializedArray<{{source.ElementType}}>({{arrVar}}.Length);
+                    global::Seamless.Linq.LinqCounterScope.IncrementFastCopyUsed();
+                    global::System.Array.Copy({{arrVar}},{{destVar}},{{arrVar}}.Length);
+                }
+            }
+            """;
+    }
     private string? RenderConsumeBasedToArrayInline(string destVar,string destType){
         if(source is not (Join or GroupJoin or SelectManyBase)){
             return null;

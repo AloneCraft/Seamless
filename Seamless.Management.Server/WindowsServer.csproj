@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><LangVersion>14</LangVersion><RootNamespace>Seamless.Management.Server</RootNamespace><AssemblyName>Seamless.Management.Server</AssemblyName><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup>
+  <ItemGroup><FrameworkReference Include="Microsoft.AspNetCore.App" /><ProjectReference Include="../Seamless.Management/Seamless.Management.csproj" /><ProjectReference Include="../Seamless.Database/Seamless.Database.csproj" /><ProjectReference Include="../Seamless.Database.Generator/Seamless.Database.Generator.csproj" /><ProjectReference Include="../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" /></ItemGroup>
+  <ItemGroup><PackageReference Include="MemoryPack" Version="1.*" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../Seamless.Authentication/Seamless.Authentication.csproj" /></ItemGroup>
+</Project>

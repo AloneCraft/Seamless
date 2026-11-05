@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Server/Server.csproj" />
+  <Project Path="Schema/Schema.csproj" />
+  <Project Path="ServerSchema/ServerSchema.csproj" />
+  <Project Path="ClientSchema/ClientSchema.csproj" />
+</Solution>

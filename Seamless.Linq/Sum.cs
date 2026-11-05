@@ -341,23 +341,19 @@ partial class Enumerable {
             ref var to = ref Unsafe.Subtract(ref end,Vector<T>.Count);
 
             var vectorSum = Vector<T>.Zero;
+            var overflowAccumulator = Vector<T>.Zero;
             var overflowTest = new Vector<T>(T.MinValue);
             do {
                 var data = Vector.LoadUnsafe(ref current);
                 var sum = vectorSum+data;
-
-                // Check for overflow for each value.
-                // This technique uses the same checks as described in Hacker's Delight.
-                // sum = a + b;
-                // overflow = (sum ^ a) & (sum ^ b);
-                var overflow = (sum^vectorSum)&(sum^data);
-                if((overflow&overflowTest)!=Vector<T>.Zero) {
-                    Throws.Overflow();
-                }
-
+                overflowAccumulator|=(sum^vectorSum)&(sum^data);
                 vectorSum=sum;
                 current=ref Unsafe.Add(ref current,Vector<T>.Count);
-            } while(!Unsafe.IsAddressGreaterThan(ref current,ref to)); // (current <= to) -> !(current > to)
+            } while(!Unsafe.IsAddressGreaterThan(ref current,ref to));
+
+            if((overflowAccumulator&overflowTest)!=Vector<T>.Zero) {
+                Throws.Overflow();
+            }
 
             // Perform the final addition using checked.
             // Do not use Vector.Sum as it does not check for overflow.
@@ -384,19 +380,18 @@ partial class Enumerable {
         if(Vector.IsHardwareAccelerated&&Vector<T>.IsSupported&&span.Length>=Vector<T>.Count) {
             ref var to = ref Unsafe.Subtract(ref end,Vector<T>.Count);
             var vectorSum = Vector<T>.Zero;
+            var overflowAccumulator = Vector<T>.Zero;
             do {
                 var data = Vector.LoadUnsafe(ref current);
                 var sum = vectorSum+data;
-
-                // overflow check: sum < vectorSum
-                var overflow = Vector.LessThan(sum,vectorSum);
-                if(Vector.GreaterThanAny(overflow,Vector<T>.Zero)) {
-                    Throws.Overflow();
-                }
-
+                overflowAccumulator|=Vector.LessThan(sum,vectorSum);
                 vectorSum=sum;
                 current=ref Unsafe.Add(ref current,Vector<T>.Count);
             } while(!Unsafe.IsAddressGreaterThan(ref current,ref to));
+
+            if(Vector.GreaterThanAny(overflowAccumulator,Vector<T>.Zero)) {
+                Throws.Overflow();
+            }
 
             // Perform the final addition using checked.
             // Do not use Vector.Sum as it does not check for overflow.

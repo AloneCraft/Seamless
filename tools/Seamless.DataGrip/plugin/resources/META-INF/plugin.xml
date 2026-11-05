@@ -1,0 +1,15 @@
+<idea-plugin>
+  <id>dev.seamless.datagrip</id>
+  <name>SeamlessDB</name>
+  <version>0.1.0-stage2</version>
+  <vendor>Seamless</vendor>
+  <description>Experimental SeamlessDB identity and DML generation. Requires the separate Seamless JDBC driver. DDL and keyless editing remain unverified.</description>
+  <idea-version since-build="261" until-build="261.*"/>
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.database</depends>
+  <extensions defaultExtensionNs="com.intellij.database">
+    <dbms id="SEAMLESS" instance="dev.seamless.datagrip.SeamlessDbms.INSTANCE"/>
+    <extensionFallback dbms="SEAMLESS" fallbackDbms="UNKNOWN"/>
+    <dmlHelper dbms="SEAMLESS" implementationClass="dev.seamless.datagrip.SeamlessDmlHelper"/>
+  </extensions>
+</idea-plugin>
