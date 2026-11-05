@@ -2037,10 +2037,6 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     private string? TryGetDirectSourceSpanSetupForScalar(string sourceVar,out string sourceExpression,out string directSpanExpression) {
         sourceExpression=string.Empty;
         directSpanExpression=string.Empty;
-        if(terminalKind is PipelineTerminalKind.Aggregate or PipelineTerminalKind.Average or PipelineTerminalKind.All
-            &&pipeline.Stages.Any(static stage => stage.Kind is PipelineStageKind.Append or PipelineStageKind.Prepend)) {
-            return null;
-        }
         if(!this.CanUseDirectSpanPipelineScalarScan()) {
             return null;
         }
@@ -2865,14 +2861,24 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
         this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
         this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
+        var prefixPrepends = this.GetPrefixPrependStages();
+        var prefixAppends = this.GetPrefixAppendStages();
         builder.AppendLine($"    long {countName}=0;");
         builder.AppendLine($"    {accType} {sumName}={zeroLiteral};");
+        foreach(var prep in prefixPrepends) {
+            builder.AppendLine($"    {countName}++;");
+            builder.AppendLine($"    {sumName}+={prep.Value};");
+        }
         builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
         builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
         var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
         builder.AppendLine($"        {countName}++;");
         builder.AppendLine($"        {sumName}+={currentName};");
         builder.AppendLine("    }");
+        foreach(var app in prefixAppends) {
+            builder.AppendLine($"    {countName}++;");
+            builder.AppendLine($"    {sumName}+={app.Value};");
+        }
         builder.AppendLine($"    if({countName}==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
         builder.AppendLine($"    {actualVariableName}=({actualTypeName})({sumName}/{countName});");
         builder.AppendLine("}");
@@ -3106,30 +3112,41 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
         this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
         this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
+        var prefixPrepends = this.GetPrefixPrependStages();
+        var prefixAppends = this.GetPrefixAppendStages();
         if(hasSeed) {
             builder.AppendLine($"    {accType} {accName}={terminalValue};");
+            builder.AppendLine($"    {accType} {nextAccName}=default!;");
         } else {
             builder.AppendLine($"    var {hasValueName}=false;");
             builder.AppendLine($"    {accType} {accName}=default!;");
+            builder.AppendLine($"    {accType} {nextAccName}=default!;");
+        }
+        void AppendAggregateStep(string itemExpr, string indent) {
+            if(hasSeed) {
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"func",nextAccName,accName,itemExpr),indent));
+                builder.AppendLine($"{indent}{accName}={nextAccName};");
+            } else {
+                builder.AppendLine($"{indent}if(!{hasValueName}) {{");
+                builder.AppendLine($"{indent}    {accName}=({accType})(object?){itemExpr}!;");
+                builder.AppendLine($"{indent}    {hasValueName}=true;");
+                builder.AppendLine($"{indent}}} else {{");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"func",nextAccName,accName,itemExpr),$"{indent}    "));
+                builder.AppendLine($"{indent}    {accName}={nextAccName};");
+                builder.AppendLine($"{indent}}}");
+            }
+        }
+        foreach(var prep in prefixPrepends) {
+            AppendAggregateStep(prep.Value!, "    ");
         }
         builder.AppendLine($"    for(var {indexName}=0;{indexName}<{spanName}.Length;{indexName}++) {{");
         builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
         var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
-        if(hasSeed) {
-            builder.AppendLine($"        {accType} {nextAccName}=default!;");
-            builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"func",nextAccName,accName,currentName),"        "));
-            builder.AppendLine($"        {accName}={nextAccName};");
-        } else {
-            builder.AppendLine($"        if(!{hasValueName}) {{");
-            builder.AppendLine($"            {accName}=({accType})(object?){currentName}!;");
-            builder.AppendLine($"            {hasValueName}=true;");
-            builder.AppendLine($"        }} else {{");
-            builder.AppendLine($"            {accType} {nextAccName}=default!;");
-            builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"func",nextAccName,accName,currentName),"            "));
-            builder.AppendLine($"            {accName}={nextAccName};");
-            builder.AppendLine($"        }}");
-        }
+        AppendAggregateStep(currentName, "        ");
         builder.AppendLine("    }");
+        foreach(var app in prefixAppends) {
+            AppendAggregateStep(app.Value!, "    ");
+        }
         if(!hasSeed) {
             builder.AppendLine($"    if(!{hasValueName}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
         }
@@ -3804,16 +3821,34 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
         builder.AppendLine($"    var {spanName}={directSpanExpression};");
         this.AppendDirectSpanPipelineSlices(builder,spanName,"    ",sliceIndices);
         this.AppendDirectSpanPipelineScalarInit(builder,spanName,"    ",sliceIndices);
-        builder.AppendLine($"    {ScanLoopHeader(indexName,spanName,backward)}");
-        builder.AppendLine($"        var {sourceItemName}={spanName}[{indexName}];");
-        var currentItem = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
-        builder.AppendLine($"        bool __allCond{this.result}=default!;");
-        AppendIndented(builder,this.FuncAssign(func1!,"All",$"__allCond{this.result}",currentItem),"        ");
-        builder.AppendLine($"        if(!__allCond{this.result}) {{");
-        builder.AppendLine($"            {actualVariableName}=false;");
-        builder.AppendLine($"            break;");
+        var prefixPrepends = this.GetPrefixPrependStages();
+        var prefixAppends = this.GetPrefixAppendStages();
+        foreach(var prep in prefixPrepends) {
+            builder.AppendLine($"    if({actualVariableName}) {{");
+            builder.AppendLine($"        bool __allCond{this.result}=default!;");
+            AppendIndented(builder,this.FuncAssign(func1!,"All",$"__allCond{this.result}",prep.Value!),"        ");
+            builder.AppendLine($"        if(!__allCond{this.result}) {actualVariableName}=false;");
+            builder.AppendLine("    }");
+        }
+        builder.AppendLine($"    if({actualVariableName}) {{");
+        builder.AppendLine($"        {ScanLoopHeader(indexName,spanName,backward)}");
+        builder.AppendLine($"            var {sourceItemName}={spanName}[{indexName}];");
+        var currentItem = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"            ",sliceIndices);
+        builder.AppendLine($"            bool __allCond{this.result}=default!;");
+        AppendIndented(builder,this.FuncAssign(func1!,"All",$"__allCond{this.result}",currentItem),"            ");
+        builder.AppendLine($"            if(!__allCond{this.result}) {{");
+        builder.AppendLine($"                {actualVariableName}=false;");
+        builder.AppendLine($"                break;");
+        builder.AppendLine($"            }}");
         builder.AppendLine($"        }}");
-        builder.AppendLine($"    }}");
+        builder.AppendLine("    }");
+        foreach(var app in prefixAppends) {
+            builder.AppendLine($"    if({actualVariableName}) {{");
+            builder.AppendLine($"        bool __allCond{this.result}=default!;");
+            AppendIndented(builder,this.FuncAssign(func1!,"All",$"__allCond{this.result}",app.Value!),"        ");
+            builder.AppendLine($"        if(!__allCond{this.result}) {actualVariableName}=false;");
+            builder.AppendLine("    }");
+        }
         builder.AppendLine($"}}");
         return builder.ToString().TrimEnd();
     }
