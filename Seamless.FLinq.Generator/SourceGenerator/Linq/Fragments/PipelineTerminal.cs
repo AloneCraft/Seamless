@@ -3515,6 +3515,8 @@ if({{arrayExprFod}}.Length==0) {
         var nName=$"__pipelineLen{this.result}";
         var indexesName=$"__pipelineIndexes{this.result}";
         var keysName=$"__pipelineKeys{this.result}";
+        var indexesPoolName=$"__pipelineIndexesPool{this.result}";
+        var keysPoolName=$"__pipelineKeysPool{this.result}";
         var iName=$"__pipelineI{this.result}";
         var comparerStructName=$"{this.Struct}_OrderDirectComparer";
         var comparerVarName=$"__orderDirectComp{this.result}";
@@ -3536,8 +3538,12 @@ if({{arrayExprFod}}.Length==0) {
         }
         builder.AppendLine("    } else {");
         builder.AppendLine($"        var {nName}={spanName}.Length;");
-        builder.AppendLine($"        var {indexesName}=global::System.Buffers.ArrayPool<int>.Shared.Rent({nName});");
-        builder.AppendLine($"        var {keysName}=global::System.Buffers.ArrayPool<{keyType}>.Shared.Rent({nName});");
+        builder.AppendLine($"        int[]? {indexesPoolName}=null;");
+        builder.AppendLine($"        {keyType}[]? {keysPoolName}=null;");
+        builder.AppendLine($"        var __indexesInline{this.result}=default(global::Seamless.Linq.GeneratedCodeHelpers.InlineBuffer16<int>);");
+        builder.AppendLine($"        var __keysInline{this.result}=default(global::Seamless.Linq.GeneratedCodeHelpers.InlineBuffer16<{keyType}>);");
+        builder.AppendLine($"        global::System.Span<int> {indexesName}={nName}<=16 ? ((global::System.Span<int>)__indexesInline{this.result}).Slice(0,{nName}) : new global::System.Span<int>({indexesPoolName}=global::System.Buffers.ArrayPool<int>.Shared.Rent({nName}),0,{nName});");
+        builder.AppendLine($"        global::System.Span<{keyType}> {keysName}={nName}<=16 ? ((global::System.Span<{keyType}>)__keysInline{this.result}).Slice(0,{nName}) : new global::System.Span<{keyType}>({keysPoolName}=global::System.Buffers.ArrayPool<{keyType}>.Shared.Rent({nName}),0,{nName});");
         builder.AppendLine("        try {");
         // 要素が1個のときは並べ替えの鍵を評価しない(System.Linq と同じ)。
         builder.AppendLine($"            if({nName}==1) {{");
@@ -3554,8 +3560,16 @@ if({{arrayExprFod}}.Length==0) {
             builder.AppendLine($"                {keysName}[{iName}]=__srcItem{this.result};");
         }
         builder.AppendLine("            }");
-        builder.AppendLine($"            var {comparerVarName}=new {comparerStructName}({keysName},{comparerArg});");
-        builder.AppendLine($"            global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes({indexesName},{nName},{comparerVarName});");
+            builder.AppendLine($"                if({nName}<=16) {{");
+            if(keyType=="int" && string.IsNullOrEmpty(orderStage.Value)){
+                builder.AppendLine($"                    global::Seamless.Linq.GeneratedCodeHelpers.InsertionSortIndexes({indexesName},{keysName},{(isDescending ? "true" : "false")});");
+            }else{
+                builder.AppendLine($"                    global::Seamless.Linq.GeneratedCodeHelpers.InsertionSortIndexes<{keyType}>({indexesName},{keysName},{comparerArg},{(isDescending ? "true" : "false")});");
+            }
+            builder.AppendLine("                } else {");
+            builder.AppendLine($"                    var {comparerVarName}=new {comparerStructName}({keysPoolName}!,{comparerArg});");
+                    builder.AppendLine($"                    global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes({indexesPoolName}!,{nName},{comparerVarName});");
+                    builder.AppendLine("                }");
         builder.AppendLine("            }");
         if(terminalKind==PipelineTerminalKind.ToArray){
             builder.AppendLine($"            {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({nName});");
@@ -3575,8 +3589,8 @@ if({{arrayExprFod}}.Length==0) {
             builder.AppendLine("            }");
         }
         builder.AppendLine("        } finally {");
-        builder.AppendLine($"            global::System.Buffers.ArrayPool<int>.Shared.Return({indexesName});");
-        builder.AppendLine($"            global::System.Buffers.ArrayPool<{keyType}>.Shared.Return({keysName});");
+        builder.AppendLine($"            if({indexesPoolName} is not null) global::System.Buffers.ArrayPool<int>.Shared.Return({indexesPoolName});");
+        builder.AppendLine($"            if({keysPoolName} is not null) global::System.Buffers.ArrayPool<{keyType}>.Shared.Return({keysPoolName});");
         builder.AppendLine("        }");
         builder.AppendLine("    }");
         builder.AppendLine("}");

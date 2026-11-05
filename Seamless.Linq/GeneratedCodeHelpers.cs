@@ -54,6 +54,73 @@ public static class GeneratedCodeHelpers {
     // TComparer を struct 制約にして Span<int>.Sort<T,TComparer> へ渡すことで、
     // 呼び出し地点ごとに専用インスタンス化が作られ Compare が devirtualize + インライン化される。
     // struct 制約は「うっかりクラス comparer に戻す」回帰をコンパイルエラーで防ぐためのもの。
+    [System.Runtime.CompilerServices.InlineArray(16)]
+    public struct InlineBuffer16<T> {
+        public T _element0;
+    }
+
+    public static void SortIndexes<TComparer>(Span<int> indexes,TComparer comparer)
+        where TComparer : struct, IComparer<int>
+        => indexes.Sort(comparer);
+
+    public static void InsertionSortIndexes(Span<int> indexes,ReadOnlySpan<int> keys,bool isDescending) {
+        for(var i = 1;i<indexes.Length;i++) {
+            var currIdx = indexes[i];
+            var currKey = keys[currIdx];
+            var j = i-1;
+            while(j>=0) {
+                var prevIdx = indexes[j];
+                var cmp = currKey.CompareTo(keys[prevIdx]);
+                if(isDescending ? cmp>0 : cmp<0) {
+                    indexes[j+1]=prevIdx;
+                    j--;
+                } else {
+                    break;
+                }
+            }
+            indexes[j+1]=currIdx;
+        }
+    }
+
+    public static void InsertionSortIndexes<TKey>(Span<int> indexes,ReadOnlySpan<TKey> keys,IComparer<TKey>? comparer,bool isDescending) {
+        if(comparer is null) {
+            var defaultComp = Comparer<TKey>.Default;
+            for(var i = 1;i<indexes.Length;i++) {
+                var currIdx = indexes[i];
+                var currKey = keys[currIdx];
+                var j = i-1;
+                while(j>=0) {
+                    var prevIdx = indexes[j];
+                    var cmp = defaultComp.Compare(currKey,keys[prevIdx]);
+                    if(isDescending ? cmp>0 : cmp<0) {
+                        indexes[j+1]=prevIdx;
+                        j--;
+                    } else {
+                        break;
+                    }
+                }
+                indexes[j+1]=currIdx;
+            }
+        } else {
+            for(var i = 1;i<indexes.Length;i++) {
+                var currIdx = indexes[i];
+                var currKey = keys[currIdx];
+                var j = i-1;
+                while(j>=0) {
+                    var prevIdx = indexes[j];
+                    var cmp = comparer.Compare(currKey,keys[prevIdx]);
+                    if(isDescending ? cmp>0 : cmp<0) {
+                        indexes[j+1]=prevIdx;
+                        j--;
+                    } else {
+                        break;
+                    }
+                }
+                indexes[j+1]=currIdx;
+            }
+        }
+    }
+
     public static void SortIndexes<TComparer>(int[] indexes,int count,TComparer comparer)
         where TComparer : struct, IComparer<int>
         => indexes.AsSpan(0,count).Sort(comparer);
