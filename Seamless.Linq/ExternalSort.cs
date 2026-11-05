@@ -145,10 +145,17 @@ internal static class ExternalSort<T,TKey>{
             var length=BinaryPrimitives.ReadInt32LittleEndian(prefix);
             if(length<0||length>this.end-this.file.Position){throw new InvalidDataException("Invalid sort record length.");}
             this.memory.Resize(checked(96+4L*length));
+            if(length is >=0 and <=128){
+                Span<byte> stackBuffer=stackalloc byte[length];
+                this.file.ReadExactly(stackBuffer);
+                var decoded=this.codec.Decode(stackBuffer);
+                this.Current=new(decoded.Item1,decoded.Item2,decoded.Item3);
+                return true;
+            }
             using var buffer=this.scope.Rent(length);
             this.file.ReadExactly(buffer.Memory.Span);
-            var decoded=this.codec.Decode(buffer.Memory.Span);
-            this.Current=new(decoded.Item1,decoded.Item2,decoded.Item3);
+            var decodedLarge=this.codec.Decode(buffer.Memory.Span);
+            this.Current=new(decodedLarge.Item1,decodedLarge.Item2,decodedLarge.Item3);
             return true;
         }
         public void Dispose(){this.Current=default;this.memory.Dispose();}
