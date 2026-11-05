@@ -11,15 +11,19 @@ internal static class ExternalSort{
         using var diskReservation=budget.ReserveTemporaryStorage(checked(request.Count*12+request.ChunkSize*8L));
         var directory=Path.Combine(request.TemporaryDirectory??Path.Combine(Path.GetTempPath(),"Seamless"),"sort-"+Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
-        var levels=new string?[64];var buffer=new int[request.ChunkSize*2];var size=0;var sequence=0;long peak=0;
-        void ObserveDisk()=>peak=Math.Max(peak,Directory.EnumerateFiles(directory).Sum(path=>new FileInfo(path).Length));
+        var levels=new string?[64];var buffer=new int[request.ChunkSize*2];var size=0;var sequence=0;long liveBytes=0,peak=0;
+        void MergeRuns(string first,string second,string output){
+            var mergedBytes=Merge(first,second,output,request.ChunkSize,cancellationToken);
+            // The output coexists with both inputs until they are deleted.
+            peak=Math.Max(peak,liveBytes+mergedBytes);
+        }
         string NewPath()=>Path.Combine(directory,(sequence++).ToString()+".bin");
         void StoreChunk(){
             Array.Sort(buffer,0,size);var path=NewPath();
             using(var output=new BinaryWriter(File.Create(path))){for(var index=0;index<size;index++){output.Write(buffer[index]);}}
-            ObserveDisk();
+            liveBytes+=size*(long)sizeof(int);peak=Math.Max(peak,liveBytes);
             var level=0;
-            while(levels[level] is string old){var next=NewPath();Merge(old,path,next,request.ChunkSize,cancellationToken,ObserveDisk);levels[level]=null;path=next;level++;}
+            while(levels[level] is string old){var next=NewPath();MergeRuns(old,path,next);levels[level]=null;path=next;level++;}
             levels[level]=path;size=0;
         }
         try{
@@ -33,7 +37,7 @@ internal static class ExternalSort{
             foreach(var path in levels){
                 if(path is null){continue;}
                 if(result is null){result=path;}
-                else{var next=NewPath();Merge(result,path,next,request.ChunkSize,cancellationToken,ObserveDisk);result=next;}
+                else{var next=NewPath();MergeRuns(result,path,next);result=next;}
             }
             long count=0,sum=0;var previous=int.MinValue;
             if(result is not null){
@@ -47,18 +51,20 @@ internal static class ExternalSort{
             diskBytes=peak;return sum;
         }finally{Directory.Delete(directory,true);}
     }
-    private static void Merge(string first,string second,string output,int chunk,CancellationToken cancellationToken,Action observeDisk){
+    private static long Merge(string first,string second,string output,int chunk,CancellationToken cancellationToken){
+        long count=0;
         using(var left=new BinaryReader(File.OpenRead(first)))
         using(var right=new BinaryReader(File.OpenRead(second)))
         using(var target=new BinaryWriter(File.Create(output))){
-            var leftPresent=Read(left,out var a);var rightPresent=Read(right,out var b);long count=0;
+            var leftPresent=Read(left,out var a);var rightPresent=Read(right,out var b);
             while(leftPresent||rightPresent){
                 if(count++%chunk==0){cancellationToken.ThrowIfCancellationRequested();Benchmark.Infrastructure.SystemResources.Check();}
                 if(leftPresent&&(!rightPresent||a<=b)){target.Write(a);leftPresent=Read(left,out a);}
                 else{target.Write(b);rightPresent=Read(right,out b);}
             }
         }
-        observeDisk();File.Delete(first);File.Delete(second);
+        File.Delete(first);File.Delete(second);
+        return count*sizeof(int);
     }
     private static bool Read(BinaryReader reader,out int value){
         value=0;if(reader.BaseStream.Position==reader.BaseStream.Length){return false;}

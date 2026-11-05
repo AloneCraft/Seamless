@@ -27,7 +27,8 @@ $result = [ordered]@{
     Task = [ordered]@{ id = [guid]::NewGuid().ToString(); status = 'Unavailable'; exitCode = $null; artifactDirectory = $ArtifactDirectory; pid = $null; creationUtc = $null; affinity = $null }
 }
 try {
-    if (-not $IsWindows -or [IntPtr]::Size -ne 8) { throw 'Unavailable: 64-bit Windows is required.' }
+    $isWin = if ($null -ne (Get-Variable -Name IsWindows -ErrorAction SilentlyContinue)) { $IsWindows } else { [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT }
+    if (-not $isWin -or [IntPtr]::Size -ne 8) { throw 'Unavailable: 64-bit Windows is required.' }
     $machineCount = @(Get-ChildItem -LiteralPath 'HKLM:\HARDWARE\DESCRIPTION\System\CentralProcessor' -ErrorAction Stop).Count
     if ($machineCount -eq 0) { throw 'Unavailable: logical processor count could not be determined.' }
     if ($machineCount -gt 64) { throw 'Unavailable: systems with more than 64 logical processors are not supported.' }
@@ -52,7 +53,8 @@ try {
         [pscustomobject]@{ OriginalAffinityMask = $oldAffinity; AffinityMask = $mask; EffectiveLogicalProcessors = $count }
         return
     }
-    if (-not [IO.Path]::IsPathFullyQualified($Executable) -or -not [IO.Path]::IsPathFullyQualified($WorkingDirectory) -or -not [IO.Path]::IsPathFullyQualified($ArtifactDirectory)) {
+    $isAbs = { param($p) [string]::IsNullOrEmpty($p) -eq $false -and [IO.Path]::IsPathRooted($p) -and ([IO.Path]::GetPathRoot($p) -match '^[a-zA-Z]:[\\/]') }
+    if (-not (& $isAbs $Executable) -or -not (& $isAbs $WorkingDirectory) -or -not (& $isAbs $ArtifactDirectory)) {
         throw 'Executable, WorkingDirectory and ArtifactDirectory must be absolute paths.'
     }
     if ([IO.Path]::GetPathRoot([IO.Path]::GetFullPath($ArtifactDirectory)) -eq 'C:\' -or [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($WorkingDirectory)) -eq 'C:\') { throw 'Comparison work and artifacts must not use the C drive.' }

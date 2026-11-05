@@ -2,6 +2,8 @@
 
 ストレージ backed のコレクションと、コンパイル時 LINQ 書き換えを提供する .NET ライブラリ群。
 
+利用者向けドキュメント: [Seamless ドキュメント](https://alonecraft.github.io/Seamless/)
+
 ## パッケージ
 
 ### ランタイム
