@@ -73,6 +73,46 @@ partial class Enumerable {
 #if NET8_0_OR_GREATER
 
     [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static byte MinSpan(ReadOnlySpan<byte> span) => SimdMinBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static sbyte MinSpan(ReadOnlySpan<sbyte> span) => SimdMinBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static short MinSpan(ReadOnlySpan<short> span) => SimdMinBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ushort MinSpan(ReadOnlySpan<ushort> span) => SimdMinBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int MinSpan(ReadOnlySpan<int> span) => SimdMinBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static uint MinSpan(ReadOnlySpan<uint> span) => SimdMinBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static long MinSpan(ReadOnlySpan<long> span) => SimdMinBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ulong MinSpan(ReadOnlySpan<ulong> span) => SimdMinBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float MinSpan(ReadOnlySpan<float> span) => SimdMinFloat(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static double MinSpan(ReadOnlySpan<double> span) => SimdMinFloat(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public static TSource? MinSpan<TSource>(ReadOnlySpan<TSource> span,IComparer<TSource> comparer) {
         #region generate from FileGen.Commands.Min
         if(typeof(TSource)==typeof(byte)) {

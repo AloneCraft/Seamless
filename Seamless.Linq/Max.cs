@@ -76,6 +76,46 @@ partial class Enumerable {
 #if NET8_0_OR_GREATER
 
     [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static byte MaxSpan(ReadOnlySpan<byte> span) => SimdMaxBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static sbyte MaxSpan(ReadOnlySpan<sbyte> span) => SimdMaxBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static short MaxSpan(ReadOnlySpan<short> span) => SimdMaxBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ushort MaxSpan(ReadOnlySpan<ushort> span) => SimdMaxBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int MaxSpan(ReadOnlySpan<int> span) => SimdMaxBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static uint MaxSpan(ReadOnlySpan<uint> span) => SimdMaxBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static long MaxSpan(ReadOnlySpan<long> span) => SimdMaxBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ulong MaxSpan(ReadOnlySpan<ulong> span) => SimdMaxBinaryInteger(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float MaxSpan(ReadOnlySpan<float> span) => SimdMaxFloat(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static double MaxSpan(ReadOnlySpan<double> span) => SimdMaxFloat(span);
+
+    [EditorBrowsable(EditorBrowsableState.Never)]
     public static TSource? MaxSpan<TSource>(ReadOnlySpan<TSource> span,IComparer<TSource> comparer) {
         #region generate from FileGen.Commands.Max
         if(typeof(TSource)==typeof(byte)) {

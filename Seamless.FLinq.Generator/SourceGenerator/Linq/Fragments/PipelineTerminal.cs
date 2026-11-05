@@ -2666,16 +2666,15 @@ if({{arrayExprFirst}}.Length==0) {
                 builder.AppendLine($"    if({spanName}.Length==0) {{");
                 if(hasDefaultIfEmpty) {
                     builder.AppendLine($"        {actualVariableName}={defaultValue};");
-                    builder.AppendLine("    }");
-                    return builder.ToString().TrimEnd();
                 } else {
                     builder.AppendLine($"        throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
-                    builder.AppendLine("    }");
                 }
+                builder.AppendLine("    } else {");
                 var sourceItemName = this.SourceItemName();
-                builder.AppendLine($"    var {sourceItemName}={spanName}[{spanName}.Length-1];");
-                var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"    ",sliceIndices);
-                builder.AppendLine($"    {actualVariableName}={currentName};");
+                builder.AppendLine($"        var {sourceItemName}={spanName}[{spanName}.Length-1];");
+                var currentName = this.AppendDirectSpanPipelineScalarStages(builder,sourceItemName,"        ",sliceIndices);
+                builder.AppendLine($"        {actualVariableName}={currentName};");
+                builder.AppendLine("    }");
                 builder.AppendLine("}");
                 return builder.ToString().TrimEnd();
             }
@@ -2693,16 +2692,15 @@ if({{arrayExprFirst}}.Length==0) {
             }
             if(hasDefaultIfEmpty) {
                 builder.AppendLine($"        {actualVariableName}={defaultValue};");
-                builder.AppendLine("    }");
-                return builder.ToString().TrimEnd();
             } else {
                 builder.AppendLine($"        throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
-                builder.AppendLine("    }");
             }
+            builder.AppendLine("    } else {");
             var directItemName = this.SourceItemName();
-            builder.AppendLine($"    var {directItemName}={spanName}[0];");
-            var directCurrentName = this.AppendDirectSpanPipelineScalarStages(builder,directItemName,"    ",sliceIndices);
-            builder.AppendLine($"    {actualVariableName}={directCurrentName};");
+            builder.AppendLine($"        var {directItemName}={spanName}[0];");
+            var directCurrentName = this.AppendDirectSpanPipelineScalarStages(builder,directItemName,"        ",sliceIndices);
+            builder.AppendLine($"        {actualVariableName}={directCurrentName};");
+            builder.AppendLine("    }");
             builder.AppendLine("}");
             return builder.ToString().TrimEnd();
         }
