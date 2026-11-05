@@ -5335,7 +5335,7 @@ if({{arrayExprFod}}.Length==0) {
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeCount) {
                 return consumeCount;
             }
-            return $"{actualTypeName} {actualVariableName}=default!;\r\nthrow global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{terminalKind}\",\"Direct execution pipeline could not be fully inlined.\");";
+            return this.RenderFallbackScalarFromEnumerator(actualVariableName,actualTypeName);
         }
         if(terminalKind==PipelineTerminalKind.Any) {
             if(this.RenderDirectSpanPipelineAny(actualVariableName,actualTypeName) is { } directSpanAny) {
@@ -5344,7 +5344,7 @@ if({{arrayExprFod}}.Length==0) {
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeAny) {
                 return consumeAny;
             }
-            return $"{actualTypeName} {actualVariableName}=default!;\r\nthrow global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{terminalKind}\",\"Direct execution pipeline could not be fully inlined.\");";
+            return this.RenderFallbackScalarFromEnumerator(actualVariableName,actualTypeName);
         }
         if(terminalKind==PipelineTerminalKind.All) {
             if(this.RenderDirectSpanPipelineAll(actualVariableName,actualTypeName) is { } directSpanAll) {
@@ -5353,7 +5353,7 @@ if({{arrayExprFod}}.Length==0) {
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeAll) {
                 return consumeAll;
             }
-            return $"{actualTypeName} {actualVariableName}=default!;\r\nthrow global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{terminalKind}\",\"Direct execution pipeline could not be fully inlined.\");";
+            return this.RenderFallbackScalarFromEnumerator(actualVariableName,actualTypeName);
         }
         if(terminalKind==PipelineTerminalKind.Contains) {
             if(this.RenderDirectSpanPipelineContains(actualVariableName,actualTypeName) is { } directSpanContains) {
@@ -5362,7 +5362,7 @@ if({{arrayExprFod}}.Length==0) {
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeContains) {
                 return consumeContains;
             }
-            return $"{actualTypeName} {actualVariableName}=default!;\r\nthrow global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{terminalKind}\",\"Direct execution pipeline could not be fully inlined.\");";
+            return this.RenderFallbackScalarFromEnumerator(actualVariableName,actualTypeName);
         }
         if(terminalKind==PipelineTerminalKind.First) {
             if(this.RenderDirectSpanPipelineFirst(actualVariableName,actualTypeName) is { } directSpanFirst) {
@@ -5371,7 +5371,7 @@ if({{arrayExprFod}}.Length==0) {
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeFirst) {
                 return consumeFirst;
             }
-            return $"{actualTypeName} {actualVariableName}=default!;\r\nthrow global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{terminalKind}\",\"Direct execution pipeline could not be fully inlined.\");";
+            return this.RenderFallbackScalarFromEnumerator(actualVariableName,actualTypeName);
         }
         if(terminalKind==PipelineTerminalKind.FirstOrDefault) {
             if(this.RenderDirectSpanPipelineFirstOrDefault(actualVariableName,actualTypeName) is { } directSpanFirstOrDefault) {
@@ -5380,7 +5380,7 @@ if({{arrayExprFod}}.Length==0) {
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeFirstOrDefault) {
                 return consumeFirstOrDefault;
             }
-            return $"{actualTypeName} {actualVariableName}=default!;\r\nthrow global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{terminalKind}\",\"Direct execution pipeline could not be fully inlined.\");";
+            return this.RenderFallbackScalarFromEnumerator(actualVariableName,actualTypeName);
         }
         if(terminalKind is PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault) {
             var orDefault = terminalKind==PipelineTerminalKind.LastOrDefault;
@@ -5393,7 +5393,7 @@ if({{arrayExprFod}}.Length==0) {
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeLast) {
                 return consumeLast;
             }
-            return $"{actualTypeName} {actualVariableName}=default!;\r\nthrow global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{terminalKind}\",\"Direct execution pipeline could not be fully inlined.\");";
+            return this.RenderFallbackScalarFromEnumerator(actualVariableName,actualTypeName);
         }
         if(terminalKind==PipelineTerminalKind.Sum) {
             if(this.RenderDirectSpanPipelineSum(actualVariableName,actualTypeName) is { } directSpanSum) {
@@ -5402,7 +5402,7 @@ if({{arrayExprFod}}.Length==0) {
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeSum) {
                 return consumeSum;
             }
-            return $"{actualTypeName} {actualVariableName}=default!;\r\nthrow global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{terminalKind}\",\"Direct execution pipeline could not be fully inlined.\");";
+            return this.RenderFallbackScalarFromEnumerator(actualVariableName,actualTypeName);
         }
         if(terminalKind==PipelineTerminalKind.Average) {
             if(this.RenderDirectSpanPipelineAverage(actualVariableName,actualTypeName) is { } directSpanAverage) {
@@ -5411,7 +5411,7 @@ if({{arrayExprFod}}.Length==0) {
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeAverage) {
                 return consumeAverage;
             }
-            return $"{actualTypeName} {actualVariableName}=default!;\r\nthrow global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{terminalKind}\",\"Direct execution pipeline could not be fully inlined.\");";
+            return this.RenderFallbackScalarFromEnumerator(actualVariableName,actualTypeName);
         }
         if(terminalKind is PipelineTerminalKind.Min or PipelineTerminalKind.Max) {
             var isMax = terminalKind==PipelineTerminalKind.Max;
@@ -5421,7 +5421,7 @@ if({{arrayExprFod}}.Length==0) {
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeMinMax) {
                 return consumeMinMax;
             }
-            return $"{actualTypeName} {actualVariableName}=default!;\r\nthrow global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{terminalKind}\",\"Direct execution pipeline could not be fully inlined.\");";
+            return this.RenderFallbackScalarFromEnumerator(actualVariableName,actualTypeName);
         }
         if(terminalKind is PipelineTerminalKind.ElementAt or PipelineTerminalKind.ElementAtOrDefault) {
             var orDefault = terminalKind==PipelineTerminalKind.ElementAtOrDefault;
@@ -5431,7 +5431,7 @@ if({{arrayExprFod}}.Length==0) {
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeElementAt) {
                 return consumeElementAt;
             }
-            return $"{actualTypeName} {actualVariableName}=default!;\r\nthrow global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{terminalKind}\",\"Direct execution pipeline could not be fully inlined.\");";
+            return this.RenderFallbackScalarFromEnumerator(actualVariableName,actualTypeName);
         }
         if(terminalKind is PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy) {
             var isMax = terminalKind==PipelineTerminalKind.MaxBy;
@@ -5441,7 +5441,7 @@ if({{arrayExprFod}}.Length==0) {
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeMinMaxBy) {
                 return consumeMinMaxBy;
             }
-            return $"{actualTypeName} {actualVariableName}=default!;\r\nthrow global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{terminalKind}\",\"Direct execution pipeline could not be fully inlined.\");";
+            return this.RenderFallbackScalarFromEnumerator(actualVariableName,actualTypeName);
         }
         if(terminalKind==PipelineTerminalKind.Aggregate) {
             if(this.RenderDirectSpanPipelineAggregate(actualVariableName,actualTypeName) is { } directSpanAggregate) {
@@ -5450,7 +5450,7 @@ if({{arrayExprFod}}.Length==0) {
             if(this.TryRenderConsumeBasedDirectScalar(actualVariableName,actualTypeName) is { } consumeAggregate) {
                 return consumeAggregate;
             }
-            return $"{actualTypeName} {actualVariableName}=default!;\r\nthrow global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{terminalKind}\",\"Direct execution pipeline could not be fully inlined.\");";
+            return this.RenderFallbackScalarFromEnumerator(actualVariableName,actualTypeName);
         }
         if(terminalKind==PipelineTerminalKind.ToDictionary) {
             var func1Code = func1;
@@ -5490,4 +5490,216 @@ if({{arrayExprFod}}.Length==0) {
     private static void AppendIndented(StringBuilder sb,string text,string indent) {
         GeneratedCodeWriter.AppendIndented(sb,text,indent);
     }
+
+    private string RenderFallbackScalarFromEnumerator(string actualVariableName, string actualTypeName) {
+        var builder = new StringBuilder();
+        var enumName = this.EnumeratorName();
+        var itemVar = $"__item{this.result}";
+        builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
+        builder.AppendLine($"var {enumName}={pipeline.GetEnumeratorExpression};");
+        builder.AppendLine("try {");
+
+        switch(terminalKind) {
+            case PipelineTerminalKind.Count:
+            case PipelineTerminalKind.LongCount:
+                builder.AppendLine($"    {actualVariableName}=0;");
+                builder.AppendLine($"    if({enumName}.TryGetNonEnumeratedCount(out var __nonEnumCount{this.result})) {{");
+                builder.AppendLine($"        {actualVariableName}=({actualTypeName})__nonEnumCount{this.result};");
+                builder.AppendLine($"    }} else {{");
+                builder.AppendLine($"        while({enumName}.TryGetNext(out _)) {actualVariableName}++;");
+                builder.AppendLine($"    }}");
+                break;
+
+            case PipelineTerminalKind.Any:
+                builder.AppendLine($"    {actualVariableName}=false;");
+                if(func1 is not null) {
+                    builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"predicate",$"__matched{this.result}",itemVar),"        "));
+                    builder.AppendLine($"        if(__matched{this.result}) {{ {actualVariableName}=true; break; }}");
+                    builder.AppendLine($"    }}");
+                } else {
+                    builder.AppendLine($"    if({enumName}.TryGetNext(out _)) {actualVariableName}=true;");
+                }
+                break;
+
+            case PipelineTerminalKind.All:
+                builder.AppendLine($"    {actualVariableName}=true;");
+                builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(func1!,"predicate",$"__matched{this.result}",itemVar),"        "));
+                builder.AppendLine($"        if(!__matched{this.result}) {{ {actualVariableName}=false; break; }}");
+                builder.AppendLine($"    }}");
+                break;
+
+            case PipelineTerminalKind.Contains:
+                builder.AppendLine($"    {actualVariableName}=false;");
+                var comparerExpr = string.IsNullOrEmpty(comparerValue) ? $"global::System.Collections.Generic.EqualityComparer<{pipeline.ElementType}>.Default" : comparerValue;
+                builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                builder.AppendLine($"        if({comparerExpr}.Equals({itemVar}, {terminalValue})) {{ {actualVariableName}=true; break; }}");
+                builder.AppendLine($"    }}");
+                break;
+
+            case PipelineTerminalKind.First:
+            case PipelineTerminalKind.FirstOrDefault:
+                var isFod = terminalKind == PipelineTerminalKind.FirstOrDefault;
+                builder.AppendLine($"    bool __found{this.result}=false;");
+                if(func1 is not null) {
+                    builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"predicate",$"__matched{this.result}",itemVar),"        "));
+                    builder.AppendLine($"        if(__matched{this.result}) {{ {actualVariableName}={itemVar}; __found{this.result}=true; break; }}");
+                    builder.AppendLine($"    }}");
+                } else {
+                    builder.AppendLine($"    if({enumName}.TryGetNext(out var {itemVar})) {{ {actualVariableName}={itemVar}; __found{this.result}=true; }}");
+                }
+                if(!isFod) {
+                    builder.AppendLine($"    if(!__found{this.result}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+                }
+                break;
+
+            case PipelineTerminalKind.Last:
+            case PipelineTerminalKind.LastOrDefault:
+                var isLod = terminalKind == PipelineTerminalKind.LastOrDefault;
+                builder.AppendLine($"    bool __found{this.result}=false;");
+                if(func1 is not null) {
+                    builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"predicate",$"__matched{this.result}",itemVar),"        "));
+                    builder.AppendLine($"        if(__matched{this.result}) {{ {actualVariableName}={itemVar}; __found{this.result}=true; }}");
+                    builder.AppendLine($"    }}");
+                } else {
+                    builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{ {actualVariableName}={itemVar}; __found{this.result}=true; }}");
+                }
+                if(!isLod) {
+                    builder.AppendLine($"    if(!__found{this.result}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+                }
+                break;
+
+            case PipelineTerminalKind.Sum:
+                builder.AppendLine($"    {actualVariableName}=default!;");
+                if(func1 is not null) {
+                    builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"selector",$"__val{this.result}",itemVar),"        "));
+                    builder.AppendLine($"        {actualVariableName}+=__val{this.result};");
+                    builder.AppendLine($"    }}");
+                } else {
+                    builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                    builder.AppendLine($"        {actualVariableName}+={itemVar};");
+                    builder.AppendLine($"    }}");
+                }
+                break;
+
+            case PipelineTerminalKind.Average:
+                string accType = actualTypeName == "decimal" ? "decimal" : "double";
+                builder.AppendLine($"    {accType} __sum{this.result}=0;");
+                builder.AppendLine($"    long __count{this.result}=0;");
+                if(func1 is not null) {
+                    builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"selector",$"__val{this.result}",itemVar),"        "));
+                    builder.AppendLine($"        __sum{this.result}+=__val{this.result};");
+                    builder.AppendLine($"        __count{this.result}++;");
+                    builder.AppendLine($"    }}");
+                } else {
+                    builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                    builder.AppendLine($"        __sum{this.result}+={itemVar};");
+                    builder.AppendLine($"        __count{this.result}++;");
+                    builder.AppendLine($"    }}");
+                }
+                builder.AppendLine($"    if(__count{this.result}==0) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+                builder.AppendLine($"    {actualVariableName}=({actualTypeName})(__sum{this.result}/__count{this.result});");
+                break;
+
+            case PipelineTerminalKind.Min:
+            case PipelineTerminalKind.Max:
+                var isMax = terminalKind == PipelineTerminalKind.Max;
+                var compOp = isMax ? ">0" : "<0";
+                var minMaxComparer = string.IsNullOrEmpty(comparerValue) ? $"global::System.Collections.Generic.Comparer<{pipeline.ElementType}>.Default" : comparerValue;
+                builder.AppendLine($"    bool __hasValue{this.result}=false;");
+                if(func1 is not null) {
+                    builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"selector",$"__val{this.result}",itemVar),"        "));
+                    builder.AppendLine($"        if(!__hasValue{this.result}) {{ {actualVariableName}=__val{this.result}; __hasValue{this.result}=true; }}");
+                    builder.AppendLine($"        else if({minMaxComparer}.Compare(__val{this.result},{actualVariableName}){compOp}) {{ {actualVariableName}=__val{this.result}; }}");
+                    builder.AppendLine($"    }}");
+                } else {
+                    builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                    builder.AppendLine($"        if(!__hasValue{this.result}) {{ {actualVariableName}={itemVar}; __hasValue{this.result}=true; }}");
+                    builder.AppendLine($"        else if({minMaxComparer}.Compare({itemVar},{actualVariableName}){compOp}) {{ {actualVariableName}={itemVar}; }}");
+                    builder.AppendLine($"    }}");
+                }
+                builder.AppendLine($"    if(!__hasValue{this.result}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+                break;
+
+            case PipelineTerminalKind.MinBy:
+            case PipelineTerminalKind.MaxBy:
+                var isMaxBy = terminalKind == PipelineTerminalKind.MaxBy;
+                var compOpBy = isMaxBy ? ">0" : "<0";
+                var keyType = func1!.ReturnTypeName;
+                var keyComparer = string.IsNullOrEmpty(comparerValue) ? $"global::System.Collections.Generic.Comparer<{keyType}>.Default" : comparerValue;
+                builder.AppendLine($"    bool __hasValue{this.result}=false;");
+                builder.AppendLine($"    {keyType} __bestKey{this.result}=default!;");
+                builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"keySelector",$"__key{this.result}",itemVar),"        "));
+                builder.AppendLine($"        if(!__hasValue{this.result}) {{ {actualVariableName}={itemVar}; __bestKey{this.result}=__key{this.result}; __hasValue{this.result}=true; }}");
+                builder.AppendLine($"        else if({keyComparer}.Compare(__key{this.result},__bestKey{this.result}){compOpBy}) {{ {actualVariableName}={itemVar}; __bestKey{this.result}=__key{this.result}; }}");
+                builder.AppendLine($"    }}");
+                builder.AppendLine($"    if(!__hasValue{this.result}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+                break;
+
+            case PipelineTerminalKind.ElementAt:
+            case PipelineTerminalKind.ElementAtOrDefault:
+                var isEod = terminalKind == PipelineTerminalKind.ElementAtOrDefault;
+                builder.AppendLine($"    int __targetIndex{this.result}={terminalValue};");
+                builder.AppendLine($"    int __currentIndex{this.result}=0;");
+                builder.AppendLine($"    bool __found{this.result}=false;");
+                builder.AppendLine($"    if(__targetIndex{this.result}>=0) {{");
+                builder.AppendLine($"        while({enumName}.TryGetNext(out var {itemVar})) {{");
+                builder.AppendLine($"            if(__currentIndex{this.result}++==__targetIndex{this.result}) {{ {actualVariableName}={itemVar}; __found{this.result}=true; break; }}");
+                builder.AppendLine($"        }}");
+                builder.AppendLine($"    }}");
+                if(!isEod) {
+                    builder.AppendLine($"    if(!__found{this.result}) throw global::Seamless.Linq.GeneratedCodeHelpers.ArgumentOutOfRange();");
+                }
+                break;
+
+            case PipelineTerminalKind.Aggregate:
+                var aggAccType = func1!.ReturnTypeName;
+                var hasSeed = terminalValue is not null;
+                builder.AppendLine($"    bool __hasValue{this.result}=false;");
+                if(hasSeed) {
+                    builder.AppendLine($"    {aggAccType} __acc{this.result}={terminalValue};");
+                    builder.AppendLine($"    {aggAccType} __nextAcc{this.result}=default!;");
+                    builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"func",$"__nextAcc{this.result}",$"__acc{this.result}",itemVar),"        "));
+                    builder.AppendLine($"        __acc{this.result}=__nextAcc{this.result};");
+                    builder.AppendLine($"    }}");
+                } else {
+                    builder.AppendLine($"    {aggAccType} __acc{this.result}=default!;");
+                    builder.AppendLine($"    {aggAccType} __nextAcc{this.result}=default!;");
+                    builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                    builder.AppendLine($"        if(!__hasValue{this.result}) {{ __acc{this.result}=({aggAccType})(object?){itemVar}!; __hasValue{this.result}=true; }}");
+                    builder.AppendLine($"        else {{");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"func",$"__nextAcc{this.result}",$"__acc{this.result}",itemVar),"            "));
+                    builder.AppendLine($"            __acc{this.result}=__nextAcc{this.result};");
+                    builder.AppendLine($"        }}");
+                    builder.AppendLine($"    }}");
+                    builder.AppendLine($"    if(!__hasValue{this.result}) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");
+                }
+                if(func2 is not null) {
+                    builder.AppendLine($"    {actualTypeName} __finalResult{this.result}=default!;");
+                    builder.AppendLine(IndentLines(this.FuncAssignStatic(func2,"resultSelector",$"__finalResult{this.result}",$"__acc{this.result}"),"    "));
+                    builder.AppendLine($"    {actualVariableName}=__finalResult{this.result};");
+                } else {
+                    builder.AppendLine($"    {actualVariableName}=__acc{this.result};");
+                }
+                break;
+
+            default:
+                return $"{actualTypeName} {actualVariableName}=default!;\r\nthrow global::Seamless.Linq.GeneratedCodeHelpers.UnsupportedLinqExpansion(\"{terminalKind}\",\"Direct execution pipeline could not be fully inlined.\");";
+        }
+
+        builder.AppendLine("}");
+        builder.AppendLine("finally {");
+        builder.AppendLine($"    {enumName}.Dispose();");
+        builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
 }
