@@ -1,6 +1,91 @@
 namespace Seamless.FLinq.Generator;
 
 internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragment outerKeySelector,FuncFragment innerKeySelector,FuncFragment resultSelector,string comparer):JoinBase(番号,outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer) {
+    internal bool BorrowsGroupOnly=>this.resultSelector.BorrowsGroupOnly;
+    internal string? RenderDenseArray(string destination,string resultType){
+        if(this.UseResultTypeParam||this.comparerExpression!="null"
+            ||this.InnerKeyType!="int"||FuncReturnTypeName(this.outerKey)!="int"
+            ||this.innerKey.SmallIntKeyRange is not{} range
+            ||!(this.resultSelector.ReadsGroupCountOnly||this.resultSelector.ReturnsGroupLongCount)
+            ||this.outerSource.TreeContainsAnchor()||this.innerSource.TreeContainsAnchor()
+            ||this.outerKey.ContainsAnchor||this.innerKey.ContainsAnchor||this.resultSelector.ContainsAnchor
+            ||this.outerKey.HoistedLocals.Length!=0||this.innerKey.HoistedLocals.Length!=0||this.resultSelector.HoistedLocals.Length!=0){
+            return null;
+        }
+        var outerArray = this.outerSource.DirectArrayExpression;
+        var innerArray = this.innerSource.DirectArrayExpression;
+        if(outerArray is null || innerArray is null) {
+            return null;
+        }
+        var rangeSpan = range.Maximum - range.Minimum + 1;
+        if(rangeSpan <= 0 || rangeSpan > 256) {
+            return null;
+        }
+        var outerName=$"__denseOuter{番号}";
+        var innerName=$"__denseInner{番号}";
+        var index=$"__denseIndex{番号}";
+        var counts=$"__denseCounts{番号}";
+        var innerItem=$"__denseInnerItem{番号}";
+        var innerKeyName=$"__denseInnerKey{番号}";
+        var outerItem=$"__denseOuterItem{番号}";
+        var outerKeyName=$"__denseOuterKey{番号}";
+        var matches=$"__denseMatches{番号}";
+        var value=$"__denseResult{番号}";
+        string selectResult;
+        var groupArg = $"new global::Seamless.Linq.GeneratedCodeHelpers.SingleCountGrouping<{this.InnerElementType}>({matches})";
+        if(!string.IsNullOrEmpty(this.resultSelector.InlineBody) && this.resultSelector.ParameterNames.Length >= 2) {
+            var groupParam = this.resultSelector.ParameterNames[1];
+            var outerParam = this.resultSelector.ParameterNames[0];
+            var expr = this.resultSelector.InlineBody;
+            var replaced = global::System.Text.RegularExpressions.Regex.Replace(expr, @"\b" + global::System.Text.RegularExpressions.Regex.Escape(groupParam) + @"\.Count\(\)", matches);
+            replaced = global::System.Text.RegularExpressions.Regex.Replace(replaced, @"global::System\.Linq\.Enumerable\.Count\(" + global::System.Text.RegularExpressions.Regex.Escape(groupParam) + @"\)", matches);
+            if (!replaced.Contains(groupParam)) {
+                expr = FuncFragment.ReplaceParameterReference(replaced, outerParam, outerItem);
+                selectResult = $"var {matches} = (uint)({outerKeyName} - ({range.Minimum})) < (uint){counts}.Length ? {counts}[{outerKeyName} - ({range.Minimum})] : 0;\n"
+                    + $"                        {value} = {expr};";
+            } else {
+                selectResult = $"var {matches} = (uint)({outerKeyName} - ({range.Minimum})) < (uint){counts}.Length ? {counts}[{outerKeyName} - ({range.Minimum})] : 0;\n"
+                    + this.FuncAssignStaticIndented("        ",this.resultSelector,nameof(this.resultSelector),value,outerItem,groupArg);
+            }
+        } else {
+            selectResult = $"var {matches} = (uint)({outerKeyName} - ({range.Minimum})) < (uint){counts}.Length ? {counts}[{outerKeyName} - ({range.Minimum})] : 0;\n"
+                + this.FuncAssignStaticIndented("        ",this.resultSelector,nameof(this.resultSelector),value,outerItem,groupArg);
+        }
+        return $$"""
+            {{resultType}} {{destination}};
+            {
+                var {{outerName}}={{outerArray}};
+                var {{innerName}}={{innerArray}};
+                global::System.ArgumentNullException.ThrowIfNull({{outerName}},"outer");
+                global::System.ArgumentNullException.ThrowIfNull({{innerName}},"inner");
+                {{this.StaticDelegateLocalDeclarations(this.outerKey,this.innerKey,this.resultSelector)}}
+                if({{outerName}}.Length==0){
+                    {{destination}}=global::System.Array.Empty<{{this.ElementType}}>();
+                }else{
+                    global::System.Span<int> {{counts}} = stackalloc int[{{rangeSpan}}];
+                    {{counts}}.Clear();
+                    for(var __i{{番号}}=0;__i{{番号}}<{{innerName}}.Length;__i{{番号}}++){
+                        var {{innerItem}}={{innerName}}[__i{{番号}}];
+                        int {{innerKeyName}}=default;
+                        {{this.FuncAssignStaticIndented("        ",this.innerKey,nameof(this.innerKey),innerKeyName,innerItem)}}
+                        var __k{{番号}} = {{innerKeyName}} - ({{range.Minimum}});
+                        if((uint)__k{{番号}} < (uint){{counts}}.Length){
+                            {{counts}}[__k{{番号}}]++;
+                        }
+                    }
+                    {{destination}}=global::System.GC.AllocateUninitializedArray<{{this.ElementType}}>({{outerName}}.Length);
+                    for(var {{index}}=0;{{index}}<{{outerName}}.Length;{{index}}++){
+                        var {{outerItem}}={{outerName}}[{{index}}];
+                        int {{outerKeyName}}=default;
+                        {{this.FuncAssignStaticIndented("        ",this.outerKey,nameof(this.outerKey),outerKeyName,outerItem)}}
+                        {{this.ElementType}} {{value}}=default!;
+                        {{selectResult}}
+                        {{destination}}[{{index}}]={{value}};
+                    }
+                }
+            }
+            """;
+    }
     public override string ElementType => this.UseResultTypeParam ? "TResult" : FuncReturnTypeName(this.resultSelector);
     protected override string StructTypeParameters => this.UseResultTypeParam
         ? this.StructTypeParametersWithOuter("TOuterEnum","TInnerEnum","TResult")
@@ -79,6 +164,9 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             """;
     }
     public override string GetConsumeExecutionStatement(string consumerName) {
+        if(this.CanRenderDenseGroupCountsConsume(out var denseCountsStatement, consumerName)){
+            return denseCountsStatement;
+        }else
         if(this.CanBypassLookupForConsume()){
             return this.outerSource.GetConsumeExecutionStatement(consumerName);
         }else if(this.CanSkipLookup()){
@@ -86,6 +174,95 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         }else{
             return this.RenderLookupConsume(consumerName);
         }
+    }
+
+    private bool CanRenderDenseGroupCountsConsume(out string statement, string consumerName) {
+        statement = string.Empty;
+        if(this.UseResultTypeParam || this.comparerExpression != "null"
+            || this.InnerKeyType != "int" || FuncReturnTypeName(this.outerKey) != "int"
+            || this.innerKey.SmallIntKeyRange is not { } range
+            || !this.resultSelector.ReadsGroupCountOnly
+            || this.outerKey.ContainsAnchor || this.innerKey.ContainsAnchor || this.resultSelector.ContainsAnchor
+            || this.outerKey.HoistedLocals.Length != 0 || this.innerKey.HoistedLocals.Length != 0 || this.resultSelector.HoistedLocals.Length != 0) {
+            return false;
+        }
+        var rangeSpan = range.Maximum - range.Minimum + 1;
+        if(rangeSpan <= 0 || rangeSpan > 256) {
+            return false;
+        }
+        if(!TryPeelWheres(this.outerSource,out var outerRoot,out var outerPredicates)) {
+            outerRoot=this.outerSource;
+            outerPredicates=System.Array.Empty<FuncFragment>();
+        }
+        if(!TryPeelWheres(this.innerSource,out var innerRoot,out var innerPredicates)) {
+            innerRoot=this.innerSource;
+            innerPredicates=System.Array.Empty<FuncFragment>();
+        }
+        string outerExpression;
+        string innerExpression;
+        try {
+            outerExpression=outerRoot.GetEnumeratorExpression;
+            innerExpression=innerRoot.GetEnumeratorExpression;
+        } catch(NotSupportedException) {
+            return false;
+        }
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(this.outerKey,this.innerKey,this.resultSelector),
+            this.StaticDelegateLocalDeclarations(this.outerKey,this.innerKey,this.resultSelector),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+
+        var outerName = $"__groupJoinOuter{番号}";
+        var innerName = $"__groupJoinInner{番号}";
+        var countsName = $"__groupJoinCounts{番号}";
+        var innerItemName = $"__groupJoinInnerItem{番号}";
+        var innerKeyName = $"__groupJoinInnerKey{番号}";
+        var outerItemName = $"__groupJoinOuterItem{番号}";
+        var outerKeyName = $"__groupJoinOuterKey{番号}";
+        var matchesName = $"__groupJoinMatches{番号}";
+        var resultItemName = $"__groupJoinResult{番号}";
+        var builtName = $"__groupJoinBuilt{番号}";
+
+        var innerBody = $$"""
+            {{this.CounterCall("IncrementLogicalGroupJoinInner")}}
+            int {{innerKeyName}}=default;
+            {{this.FuncAssignStaticIndented("",this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
+            var __k{{番号}} = {{innerKeyName}} - ({{range.Minimum}});
+            if((uint)__k{{番号}} < (uint){{countsName}}.Length){
+                {{countsName}}[__k{{番号}}]++;
+            }
+            """;
+
+        var groupArg = $"new global::Seamless.Linq.GeneratedCodeHelpers.SingleCountGrouping<{this.InnerElementType}>({matchesName})";
+        var selectAssign = this.FuncAssignStaticIndented("",this.resultSelector,nameof(this.resultSelector),resultItemName,outerItemName,groupArg);
+
+        var outerBody = $$"""
+            {{this.CounterCall("IncrementLogicalGroupJoinOuter")}}
+            int {{outerKeyName}}=default;
+            {{this.FuncAssignStaticIndented("",this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}}
+            var __ok{{番号}} = {{outerKeyName}} - ({{range.Minimum}});
+            var {{matchesName}} = (uint)__ok{{番号}} < (uint){{countsName}}.Length ? {{countsName}}[__ok{{番号}}] : 0;
+            {{this.ElementType}} {{resultItemName}}=default!;
+            {{selectAssign}}
+            {{consumerName}}.Consume({{resultItemName}});
+            """;
+
+        var buildCounts = this.RenderRootLoop(innerRoot,innerPredicates,innerName,innerItemName,innerBody);
+        var outerLoop = this.RenderRootLoopWithFirst(outerRoot,outerPredicates,outerName,outerItemName,buildCounts,outerBody,null)
+            ??this.RenderRootLoop(outerRoot,outerPredicates,outerName,outerItemName,$"if(!{builtName}){{\n    {builtName}=true;\n{IndentGeneratedStatement(buildCounts,"    ")}\n}}\n{outerBody}");
+        var builtDeclaration = outerLoop.Contains(builtName) ? $"var {builtName}=false;" : string.Empty;
+
+        statement = $$"""
+            {
+                {{localDeclarations}}
+                global::System.Span<int> {{countsName}} = stackalloc int[{{rangeSpan}}];
+                {{countsName}}.Clear();
+                using var {{innerName}}={{innerExpression}};
+                using var {{outerName}}={{outerExpression}};
+                {{builtDeclaration}}
+                {{outerLoop}}
+            }
+            """;
+        return true;
     }
 
     private string RenderLookupConsume(string consumerName) {
@@ -384,7 +561,7 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
 
     // 結果選択子が内側のグループを使わず、キー選択子が恒等で比較子も既定なら、探索表の中身は結果に現れない。
     // そのときは探索表を作らない。ソース式の評価と列挙子の構築は通常と同じ順・同じ時点で行う。
-    private bool CanSkipLookup() =>
+    internal bool CanSkipLookup() =>
         this.comparerExpression=="null"
         &&this.outerKey.IsIdentity
         &&this.innerKey.IsIdentity

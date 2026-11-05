@@ -284,4 +284,24 @@ public static class GeneratedCodeHelpers {
         arrayBuilder.CopyToAndClear(CollectionsMarshal.AsSpan(list));
         return list;
     }
+
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+    public readonly struct SingleCountGrouping<T> : IReadOnlyCollection<T>, ICollection<T>, IReadOnlyList<T> {
+        private readonly int _count;
+        public SingleCountGrouping(int count) => this._count = count;
+        public int Count => this._count;
+        public bool IsReadOnly => true;
+        public T this[int index] => default!;
+        public void Add(T item) => throw new NotSupportedException();
+        public void Clear() => throw new NotSupportedException();
+        public bool Contains(T item) => false;
+        public void CopyTo(T[] array, int arrayIndex) {}
+        public bool Remove(T item) => throw new NotSupportedException();
+        public IEnumerator<T> GetEnumerator() {
+            for (var i = 0; i < this._count; i++) {
+                yield return default!;
+            }
+        }
+        IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
+    }
 }

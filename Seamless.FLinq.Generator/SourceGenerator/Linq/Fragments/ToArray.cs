@@ -48,6 +48,7 @@ internal class ToArray(int 番号,Enumerable source,string resultType):BufferedS
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
+        (source is GroupJoin groupJoinDense ? groupJoinDense.RenderDenseArray(destVar,destType) : null) ??
         this.RenderDirectArrayToArrayInline(destVar,destType)
         ??this.RenderRangeToArrayInline(destVar,destType)
         ??this.RenderDirectSpanToArrayInline(destVar,destType)

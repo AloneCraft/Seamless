@@ -4888,8 +4888,13 @@ if({{arrayExprFod}}.Length==0) {
             var comparerArg = string.IsNullOrEmpty(comparerValue) ? string.Empty : comparerValue;
             builder.AppendLine($"{actualTypeName} {actualVariableName}=new({comparerArg});");
         } else if(terminalKind==PipelineTerminalKind.ToArray) {
+            var rentCapExpr = "16";
+            if(pipeline.Source is GroupJoin gj && gj.TransactionOuter.DirectArrayExpression is { } outerArrExpr
+                && afterStages.All(static s => s.Kind is PipelineStageKind.Select or PipelineStageKind.Cast)) {
+                rentCapExpr = $"global::System.Math.Max(16, {outerArrExpr}.Length)";
+            }
             builder.AppendLine($"{actualTypeName} {actualVariableName};");
-            builder.AppendLine($"var {poolBufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent(16);");
+            builder.AppendLine($"var {poolBufferName}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent({rentCapExpr});");
             builder.AppendLine($"var {poolCountName}=0;");
             builder.AppendLine("try {");
         }
