@@ -2037,6 +2037,10 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
     private string? TryGetDirectSourceSpanSetupForScalar(string sourceVar,out string sourceExpression,out string directSpanExpression) {
         sourceExpression=string.Empty;
         directSpanExpression=string.Empty;
+        if(terminalKind is PipelineTerminalKind.Aggregate or PipelineTerminalKind.Average or PipelineTerminalKind.All
+            &&pipeline.Stages.Any(static stage => stage.Kind is PipelineStageKind.Append or PipelineStageKind.Prepend)) {
+            return null;
+        }
         if(!this.CanUseDirectSpanPipelineScalarScan()) {
             return null;
         }
@@ -3078,6 +3082,9 @@ internal sealed class PipelineTerminal(int 番号,PipelineEnumerable pipeline,Pi
 
     private string? RenderDirectSpanPipelineAggregate(string actualVariableName,string actualTypeName) {
         if(func1 is null) {
+            return null;
+        }
+        if(pipeline.Stages.Any(static stage => stage.Kind==PipelineStageKind.Reverse)) {
             return null;
         }
         var sourceName = $"__pipelineSrc{this.result}";

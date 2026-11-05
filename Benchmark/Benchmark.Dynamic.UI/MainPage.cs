@@ -1,4 +1,4 @@
-﻿using Benchmark.Dynamic.Core;
+using Benchmark.Dynamic.Core;
 using Benchmark.Infrastructure;
 using Syncfusion.Maui.Core.Internals;
 using Syncfusion.Maui.DataGrid;
@@ -42,7 +42,6 @@ public sealed class MainPage:ContentPage {
             Padding=new Thickness(10),
         };
 
-        this.ルート.Add(this.設定ストリップを作成(),0,0);
         this.ルート.Add(this.選択進捗ヘッダーを作成(),0,1);
 
         var 結果領域=this.結果領域を作成();
@@ -112,22 +111,8 @@ public sealed class MainPage:ContentPage {
         AutomationProperties.SetIsInAccessibleTree(タブ,true);
         タブ.Items=[
             new SfTabItem {
-                Header="System",
-                Content=this.ソース群タブを作成([
-                    SourceTarget.SystemArray,
-                    SourceTarget.SystemIEnumerable,
-                    SourceTarget.SystemRange,
-                    SourceTarget.SystemList,
-                    SourceTarget.SystemPersisted,
-                    SourceTarget.SystemTsavorite,
-                ]),
-            },
-            new SfTabItem {
-                Header="Seamless",
-                Content=this.ソース群タブを作成([
-                    SourceTarget.SeamlessPersisted,
-                    SourceTarget.SeamlessTsavorite,
-                ]),
+                Header="ライブ検証",
+                Content=this.ライブ検証,
             },
             new SfTabItem {
                 Header="履歴",
@@ -136,10 +121,6 @@ public sealed class MainPage:ContentPage {
             new SfTabItem {
                 Header="ごみ箱",
                 Content=this.履歴グリッドを作成(true),
-            },
-            new SfTabItem {
-                Header="ライブ検証",
-                Content=this.ライブ検証,
             },
             new SfTabItem{Header="理想コード",Content=this.理想比較},
             new SfTabItem{Header="測定設定",Content=this.測定設定},
