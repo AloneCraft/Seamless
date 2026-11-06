@@ -392,6 +392,51 @@ public sealed class DynamicReproEmitterTests{
         Assert.True(failures.Count==0,$"ExpansionIncomplete occurred in {failures.Count} queries:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
     }
 
+    [Fact,Trait("Category","ExtremeRandomScan")]
+    public async Task ExtremeRandomScan_Depth_17_to_25_Detects_ExpansionIncomplete(){
+        var seed=Seed256.Parse("0x10182026");
+        var runner=new DynamicWorkerExecutionRunner();
+        var targets=Enum.GetValues<SourceTarget>();
+        var failures=new List<string>();
+        var generator=new RandomQueryGenerator();
+
+        // 深さ 17〜25 段の極深層クエリを全8ターゲットで100件検証
+        for(var i=0;i<100;i++){
+            var target=targets[i%targets.Length];
+            var opCount=17+(i%9); // 17〜25段
+            var doc=generator.Generate(new RandomQueryGenerationOptions{
+                MasterSeed=seed,
+                QueryIndex=i+2000,
+                QueryId=$"extreme-scan-{i:D4}",
+                SourceTarget=target,
+                OperatorCount=opCount,
+                MaximumDepth=opCount,
+                InputElementCount=InputElementCount,
+                EnableBinaryOperators=true,
+                EnableNestedOperators=true,
+            });
+            var request=new WorkerRunRequest(
+                $"extreme-scan-{i:D4}",
+                seed,
+                1,
+                doc.RequestedOperatorCount,
+                doc.MaximumDepth,
+                InputElementCount,
+                OperatorSetMode.Maximum,
+                [target],
+                new WorkerMeasurementProfile("ExtremeRandomScan",0,1,0,1),
+                RandomQueryGenerator.GeneratorVersion,
+                QueryCapabilityProfile.CurrentProfileVersion.ToString(),
+                BuiltInOperatorCatalog.OperatorSetVersion.ToString());
+            var result=await runner.ExecuteAsync(request,doc,i+2000,target,0,CancellationToken.None);
+            if(result.Status==WorkerExecutionStatus.ExpansionIncomplete){
+                failures.Add($"#{i} [{target}] {Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(doc)}: {result.DiagnosticsJson}");
+            }
+        }
+
+        Assert.True(failures.Count==0,$"ExpansionIncomplete occurred in {failures.Count} queries:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
+    }
+
     private static ReproOutcome CompileAndRun(QueryIrDocument document,Seed256 baseSeed,int queryIndex){
         using var fixture=new SourceFixtureFactory().Create(
             document.SourceTarget,
