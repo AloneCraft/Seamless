@@ -223,6 +223,49 @@ public sealed class DynamicReproEmitterTests{
         Assert.True(failures.Count==0,$"ExpansionIncomplete occurred in {failures.Count} queries:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
     }
 
+    [Fact,Trait("Category","MultiSourceScan")]
+    public async Task MultiSourcePairScan_Detects_ExpansionIncomplete(){
+        var seed=Seed256.Parse("0xFA01");
+        var runner=new DynamicWorkerExecutionRunner();
+        var testTargets=new[]{
+            SourceTarget.SystemList,
+            SourceTarget.SystemRange,
+            SourceTarget.SeamlessTsavorite,
+        };
+        var failures=new List<string>();
+
+        foreach(var target in testTargets){
+            var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target);
+            var terminals=ExhaustiveQueryEnumerator.GetTerminalOperatorIds(target);
+            var specs=ExhaustiveQueryEnumerator.Enumerate(1,intermediates,terminals).ToArray();
+
+            foreach(var spec in specs){
+                if(!ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var query)||query is null){
+                    continue;
+                }
+                var request=new WorkerRunRequest(
+                    $"multi-{target}-{spec.Ordinal}",
+                    seed,
+                    1,
+                    query.RequestedOperatorCount,
+                    query.MaximumDepth,
+                    InputElementCount,
+                    OperatorSetMode.Maximum,
+                    [target],
+                    new WorkerMeasurementProfile("MultiSourceScan",0,1,0,1),
+                    RandomQueryGenerator.GeneratorVersion,
+                    QueryCapabilityProfile.CurrentProfileVersion.ToString(),
+                    BuiltInOperatorCatalog.OperatorSetVersion.ToString());
+                var result=await runner.ExecuteAsync(request,query,(int)spec.Ordinal,target,0,CancellationToken.None);
+                if(result.Status==WorkerExecutionStatus.ExpansionIncomplete){
+                    failures.Add($"[{target}] #{spec.Ordinal} {string.Join(" > ",spec.Operators)} > {spec.Terminal}: {Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(query)}");
+                }
+            }
+        }
+
+        Assert.True(failures.Count==0,$"ExpansionIncomplete occurred in {failures.Count} queries:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
+    }
+
     private static ReproOutcome CompileAndRun(QueryIrDocument document,Seed256 baseSeed,int queryIndex){
         using var fixture=new SourceFixtureFactory().Create(
             document.SourceTarget,
