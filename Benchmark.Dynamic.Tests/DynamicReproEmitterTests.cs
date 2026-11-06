@@ -150,9 +150,9 @@ public sealed class DynamicReproEmitterTests{
         var failures=new List<string>();
         var generator=new RandomQueryGenerator();
 
-        for(var i=0;i<100;i++){
+        for(var i=0;i<500;i++){
             var target=targets[i%targets.Length];
-            var opCount=3+(i%5); // 3〜7段
+            var opCount=3+(i%7); // 3〜9段
             var doc=generator.Generate(new RandomQueryGenerationOptions{
                 MasterSeed=seed,
                 QueryIndex=i,
