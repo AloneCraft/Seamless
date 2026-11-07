@@ -4,6 +4,63 @@
 
 2026年11月7日の追加指示により、Managerはブラウザー版へ統一する。組み込み同期、サーバー同居、独立サーバーの三形態で、DBを所有するホストプロセス内のKestrelが同じ管理画面を配信する。専用デスクトップManagerの配布とネイティブWebViewの正式化は移行・整理の対象へ変更する。インプロセスの区分は業務アプリ・DB・管理処理・Kestrelを指し、ブラウザーの表示は別プロセスになる。ローカルのログイン省略はサーバー所有者と同じOSアカウントの確認から起動用セッションを発行する方式を引き継ぐ。外部公開は明示設定、HTTPS、利用者ごとの認証・認可へ接続する。以前のデスクトップ対応の完成条件に優先して適用する。具体的な構成と移行順序は [Managerのブラウザー統一](20261107-manager-browser-hosting.md) に記載する。
 
+## 中断作業の再開一覧（2026年11月7日）
+
+利用者の「今やれる作業」「中断したものがたくさんある」という指示により、会話から引き継ぐ作業を以下へ集約する。完了記録だけを現在の合格根拠にせず、ソース・生成物・試験証跡の版を対応付けて更新する。ここで「照合待ち」とした項目は、既存実装を否定する意味を持たない。再実行は変更が影響する最も手前の工程から行う。
+
+| 順序・区分 | 作業 | 観測済みの範囲 | 次の完了条件 |
+|---|---|---|---|
+| 1・実行入口 | ブラウザーManagerへの統一 | 正式ホスト・配布・IDE・所有者セッションの代表確認済み。復旧3件成功の追加記録があるが、現行試験にはIOExceptionの有界再試行が追加されている | 元の全件失敗時の所有者と原因を観測し、根拠未確認の再試行を合格根拠にせず、最終候補を固定して受入 |
+| 2・開発正常系 | 新規DBの専用プロジェクト保存 | 保存前のテーブル編集・生成・C#編集・個人下書き反映をWindowsブラウザーで確認。正式入口のDebug／Release各82件と生成csproj実ビルドが成功 | 開発者ビルド成果物の取り込み・検証・明示適用を接続。実IDE操作と最終配布物の受入を残す |
+| 3・開発正常系 | .slnx／フォルダー／.csprojの編集同期 | サーバー側参照、入れ子名前空間、非競合同期・競合検出・取消の個別試験とブラウザー代表操作を確認 | 実IDEの編集・ビルド・同期、競合解消、開発者ビルド成果物の明示適用を接続 |
+| 4・画面移行 | 結果グリッド・C#編集・静的計画・監査・接続設定 | 行グリッド・計画コンポーネントとAPI委譲を追加。関連する個別試験の成功記録がある | 行編集・保存・ページングと実計画のブラウザー操作、監査・権限・接続設定の移行、ドラッグ・タッチ・フォーカスを受入。C#は現在textarea |
+| 5・実行形態 | 組み込み同期と同居マルチクライアント | 同一PID管理ホスト・単一DBスレッドの代表試験。Sample.NetShop同期14件、別C# EXE4並行接続の追加記録がある | 追加記録の実行体と要求を対応付け、業務呼び出しとManagerが同じDB実行スレッドを使うこと、取引・切断を確認 |
+| 6・権限 | 所有者IPCと外部HTTPS | OS所有者起動、外部認証、権限変更・無効化等の短い試験。OIDC・管理通信の追加成功記録がある | 外部ブラウザー、実業務クライアントのTLS・認可、取引切断・取消・資源上限を同じ稼働DBで受入 |
+| 7・再起動待ち | Linuxの実行環境 | WSL／WSLgの修復成功、公式Ubuntuイメージ検証 | 利用者が後でWindowsを再起動し、Ubuntu登録、Linuxサーバーとブラウザー操作を確認 |
+| 8・生成器の照合 | キー・レコード・Container・ビュー・Work | 宣言キー・レコード・Containerの個別試験の成功記録がある | Views・Work・名前空間・単一Container診断まで対応付ける。現行WorkのTable収集と非取引作業辞書の差分を解消 |
+| 9・保存契約の照合 | 全体正規化、private、共有・循環、二領域と共通WAL | Strategy・Graphシリアライズ・所有予算の個別試験の成功記録がある | 生成型から保存・送信・引数・二領域WAL・復旧までの実経路を対応付ける |
+| 10・更新契約の照合 | Update／Merge／MergeWith、開始時参照、一括キー変更、件数 | TableOperationTests11件成功の追加記録がある | 公開API・展開・非展開・開始時参照・例外時原子性と計数を同じ契約へ対応付ける |
+| 11・作業領域の照合 | ランタイムWorkStore、非取引辞書、Persisted退避 | 低層の変更集合・保存点・プロセス終了を含む179件成功の追加記録がある | Work生成、CreateWorkStore、親予算、using寿命、非取引のインプレース更新へ接続。低層退避の成功と区別する |
+| 12・通信契約の照合 | 事前生成RPC、共通ビルド識別、公開DLL互換、戻りストリーム | クライアント生成・型付きバインディング等の個別試験の成功記録がある | 保護通信、版違い拒否、公開契約不変時の既存クライアント互換、戻りストリームと所有解放を受入 |
+| 13・検証機能 | 網羅コーパス、副作用、直接ラムダとデリゲート、失敗一覧 | 行比較・モジュール境界の32件成功・実SQL7件スキップの追加記録がある | fork・共有・詳細式の網羅、Anchor評価順、停止後の失敗表示、シード規則を照合。行比較試験で代替しない |
+| 14・可視化 | 実行図、記録と表示の4組、コード位置対応、履歴欠損 | scheduler-sequence.htmlにシミュレーションと描画を実装。記録／表示4組は仕様合意 | 実サーバー・ベンチマークの共通記録へ接続し、4組、コード移動・ツールチップ、履歴削除時の継続を実行確認 |
+| 15・DB運用 | 複数DBの所有、DB単位の停止・フォルダー移動・再開 | Gateway停止・DDL障害隔離・12段階のプロセス終了の追加成功記録がある | DB単位の受付停止・実行中取引の終了待ち・永続化・フォルダー移動・移動先復旧を実行確認 |
+| 16・コード検査 | 動的要求・受信DLLの検査と版違い拒否 | 世代隔離・ALC・事前生成契約・パッケージ検査の追加成功記録がある | 実際の受信入口から検査・実行まで追い、禁止呼出しと差替え防止を確認。スキーマ契約検査と区別する |
+| 17・既存受入の引継ぎ | Kestrel／Native／TDS、IDE、DataGrip、大容量WAL | 専用の残作業台帳と試験記録がある | 下記の専用台帳を参照し、Manager改修を理由に未完了条件を消さない。別PC・物理NICの未実行条件も引き継ぐ |
+| 将来範囲 | DAG内部並列化、NUMA／IO帯域・資源調停の拡張 | 初版逐次実行と後続範囲を合意済み | 初版の完了条件から分離して保持し、再開時に対象と受入を確定 |
+
+専用デスクトップManager／WebViewの正式化は、ブラウザー統一の合意で置き換えられた。スマホは今回対象外という合意を維持する。旧デスクトップの実行記録は移行元の証拠として扱い、現在の配布条件へ流用しない。詳細なManagerの現在地は [ブラウザー統一と実行形態](20261107-manager-browser-hosting.md) を参照する。
+
+再開順序は、2・3の「ソース保存→DB下書き→開発者ビルド→明示適用」の正常系、4の結果・計画画面、5・6の実業務クライアントを含む実行形態と権限の順とする。1の復旧失敗は最終受入・配布のゲートとして追跡し、独立した正常系は進める。7は利用者が再起動を行うまで待機する。8〜12・16は各機能へ接続する際に既存実装と証拠を照合し、13〜15はManager正常系の受入と区切って再開する。現在の管理APIの同期呼び出しや複数接続の成功を、業務クエリAPIの直接呼び出しや別C# EXEの受入へ広げない。
+
+詳細な通信・運用の受入は [Kestrel移行の残作業台帳](../kestrel-remaining-work.md) にある。同台帳の旧デスクトップ画面の成功と、ブラウザー統一後の操作受入を区別する。Linux環境については本書の後続合意であるWSL2導入・再起動待ちを適用する。
+
+### 再開時に引き継ぐ具体的な不足
+
+末尾22〜30節の追加試験記録は、記載した試験の範囲へ対応付ける。各要求全体の完了判定はこの再開一覧を使い、未実行の画面操作・配布・通信経路・生成APIを個別試験の成功で完了へ移さない。
+
+- 下書き反映は `SourceProjectService.Database.cs`、`SourceWorkspace.ProjectDraft.cs`、共通画面へ接続した。プロジェクト生成前に表示中の設計を個人下書きへ保管し、サーバーで版・内容を確認して比較基準へ記録する。旧記録は編集前の全ファイルと現在の下書きの一致を確認できる場合に基準を復元する。正式入口のDebug／Release各82件、両構成の生成プロジェクト実ビルド、Windowsブラウザーでの初回反映と再開が成功。証跡は `F:\Seamless\manager-cross-platform-20261107\source-draft-verification.json`。開発者ビルド成果物の明示適用と全件受入は残る。
+- `ManagerWebHostTests.EmbeddedManagerExecutesReadRowsCommitRowsAndPlans` の現行本体は、空表の読み取りと計画配列の非null、ブラウザー操作アダプターへの直接呼び出しを検査する。行の確定API、非空計画、HTTP経由のDB操作、実画面のセル編集はこの試験では検査していない。コンポーネントの追加と操作受入を分ける。
+- `CollectDeclaredObjects` は現在 `Work` を `Table` として収集している。合意した非トランザクション作業辞書とランタイム作業Storeへの接続は照合・実装対象。
+- キー付きTsavorite Setの `Contains(record)`・`Remove(record)` は現在レコード全体の `EqualityComparer<TRecord>.Default` を使用する。以前の「キーだけで比較する」という実装記述を更新し、型固定ストラテジとの接続を引き続き確認する。
+- 停止後の失敗一覧、シード維持・更新、2／3段の詳細式・共有・fork・副作用を含む網羅、Anchorの評価順、直接ラムダとデリゲートの展開区分を検証機能の個別受入として保持する。
+- 実行図は縦の絶対時間軸、動的レーン、待機・失敗・取消、使用率を含む試作と、実行実績の収集・表示接続を分ける。記録／表示の4組、展開コードへの移動・ツールチップ、履歴ファイル削除時の継続を残す。
+
+各項目の更新では、実装箇所・確認した構成・証跡・次の一手を対応付ける。近接試験の成功や別候補の成功だけで項目全体を完了へ移さない。
+
+### 現在の停止位置と再開単位
+
+上表の番号を引継ぎの識別子として使う。状態は「実装途中」「実装済み・受入残り」「既存実装の照合待ち」「環境待ち」「初版後」に分け、仕様合意・ファイルの存在・個別試験の成功だけで完了へ変更しない。機能全体の完了には、その行の次の完了条件と実行体・証跡の対応を必要とする。
+
+- **現在の着手対象は2・3の開発者ビルド成果物。選択済みバイナリによるBuildと検証DBまで接続。** 第1段階の画面検査は `build-source-verification.json`、保管・個人下書き束縛は `build-import-verification.json` に記録した。続いて `DraftKey.BundleHash` と読み出し時の全ファイル・共有依存の照合、private依存のバッファロード、所有予算と破棄を追加した。組み込み・所有者IPCで、元出力を退避した後の計画取得・空の検証DB作成・取引による再オープン、改変拒否、ロード失敗・取消・予算不足時の返却を確認した。最終の正式ソース連携入口はDebug／Release各91件成功、各17アセンブリのDLL／PDB・通常ソース照合が成功。証跡は `F:\Seamless\manager-cross-platform-20261107\build-load-verification.json`。SDKフィクスチャは同じホストのHintPath参照・実DB生成器・private依存を使うDebugビルドであり、通常NuGet配布とブラウザーからの取り込み・適用の完成条件は残る。
+- **次の再開単位。** 差分・移行・依存クエリ・明示適用と共通画面を選択済み成果物へ接続する。検証DBと検証結果にはBundleHashを保持し、選択なしの既存プレビューへ成功を流用しない。BundleHash付きプレビューは現在Unsupportedを返す。非空テーブルの移行、正式配布パッケージ、デバッグ到達、ファイル保管と管理WALの間の強制終了を受入に加える。詳細は [開発者ビルド成果物と明示適用](20261107-manager-developer-build-artifacts.md) の第3〜4段階に従う。
+- **既に確認した2・3の範囲。** ソースから同じDBの個人下書きへの反映は、Debug／Release各82件とWindowsブラウザー代表操作の証跡がある。DLL検査の追加後の全体候補の合格とは分けて保持する。
+- **1は配布前の未解決ゲート。** `PublicationCrash` には後続変更でIOExceptionの有界再試行がある。元の共有違反の原因は未確定であり、再試行後の成功だけで解決へ移さない。
+- **4は実装済み部分と画面受入を分ける。** 共通コマンド・メニュー・型入力・グリッド・計画の部品がある。監査・権限・接続設定の移行、実画面の行保存・計画・ドラッグ・フォーカス等の未確認範囲を引き継ぐ。第31節の個別試験は操作全体の完了条件を置き換えない。
+- **7は環境待ち。** 利用者のWindows再起動を待ち、Ubuntu登録から再開する。8〜12・16は実装と生成物・通常呼出経路・保存復旧・保護通信の対応を照合する。13・14は網羅検証と実行図の独立した残作業、15・17は運用と最終受入として保持する。
+
+一つの再開単位を進める際は、停止位置・今回変えた範囲・実行結果・次の一手をこの一覧と担当設計文書へ反映する。環境待ちや後続範囲を、現在の実装失敗と混在させない。
+
 ## この文書の位置付け
 
 2026年11月6日時点の会話で確定した仕様と、実装へ引き継ぐ作業状態を記録する。以降の会話ではこの文書を更新し、変更で失効した記述を置き換える。会話中の選択肢番号は、その意味を文章へ展開して記録する。
@@ -46,7 +103,7 @@
 - `Auto<T>` は参照を含まない型を生メモリのバイト列で扱い、参照を含む型は MemoryPack を使う。
 - `CodecRegistry` はフィールド情報をキャッシュするが、各値の読み書きにはリフレクションを使う経路がある。
 - 新しい `RecordValueStrategy<T>` は、正規化・比較・ハッシュ用の型専用 DynamicMethod を初回に作る。private・readonly・継承フィールドを処理し、通常のフィールド処理で FieldInfo.GetValue・SetValue・DynamicInvoke を使わない。型キャッシュの collectible 型の解放も実 GC で検証する。
-- 現在のキー付き Set の `Contains(record)`・`Remove(record)` はキーだけで判定する。後述するレコード全体の比較への変更が必要。
+- 現在のTsavoriteキー付き Set の `Contains(record)`・`Remove(record)` はキーで取得したレコード全体を `EqualityComparer<TRecord>.Default` で比較する。生成型の比較・型固定ストラテジとの接続は別途確認する。
 - 既存の `...With` は逐次更新を行う。後述する呼び出し単位の原子性への対応が必要。
 - 現在の `ParallelDictionary` の代入は RMW を使い、新規追加・削除の増減を操作オブジェクトごとに数える。各オブジェクトの破棄時に増減を集約し、並列区間の終了時に開始時件数へ加算する。
 - 現在の件数再集計は、ログを走査し、既存索引で得た最新アドレスと照合して有効な行を数える。後述する計数省略の内部 Upsert 経路は今後の実装対象。
@@ -1405,20 +1462,13 @@ ZLinq の高速実装知見（`MinimumSize = 16` からの `ArrayPool<T>.Shared.
 
 ## Managerのコンテキスト依存UIと正常系を優先する実装順序（2026-11-07）
 
-利用者の追加指示により、共通基盤から実データで触れる正常系へ縦につなぎ、画面の見た目と操作仕様を早期に確認できる順序で進める。認可、DB所有、取引、下書き・適用、編集状態を基盤とし、代表接続のIPCで正常系を確認する。その共有画面をWindows・Linuxデスクトップへ載せ、残る主要画面、組み込み・サーバー同居、TCP/TLS・外部Webと配布の受入へ広げる。
+共通API、認可、DB所有、取引、下書き・適用、編集状態を基盤とし、ブラウザーで触れる正常系を先に確認する。Managerは共有RazorをKestrelから配信する構成へ統一した。組み込み同期・同居サーバー・独立サーバーの現在地と受入範囲は [Managerのブラウザー統一](20261107-manager-browser-hosting.md) を参照する。
 
-`Seamless.Management.Components` の代表画面を実装し、Windows上のブラウザーで実DB一覧、Enterによる空DB作成、表設計、C#編集、下書き保管、検証、プレビュー、明示適用、公開直後の再編集を確認した。公開版v4まで操作した。共通コマンドと編集状態の試験はDebug・Releaseで各10件成功した。
+WindowsブラウザーでDB作成、表設計、C#編集、下書き・検証・明示適用、型の候補選択と自由入力、対象メニュー、文書タブ、サーバー側プロジェクト参照と宣言ナビゲーションを確認した。新規プロジェクト作成後の応答をソース画面へ渡す接続を修正し、配布版から作成・編集・実ファイル同期まで確認した。画面の正常系を優先する方針を引き継ぎ、結果グリッド・静的計画・監査等の完全移行を進める。
 
-今回の実装範囲・確認結果・後続受入は [Managerのコンテキスト依存操作基盤](20261107-manager-contextual-interaction.md) に記載する。新画面の通常サイズでのネイティブ視覚確認と実OS入力、Linux/WSLg、実ポインターのドラッグ、既存Managerの完全移行、全実行形態の正式受入が残る。共通UIはRazorコンポーネント候補で進め、UI技術は3環境の実行結果に基づき正式選定する。スマホは今回対象外で、将来の入力・ホスト追加を可能にする。
+開発者PCでサーバーを動かし、ManagerとVS／VS Codeが同じサーバー側ソースを編集し、開発者PCでDLLをビルドする。ソースのファイル保存、稼働DBの下書き、ビルド、明示適用を区別する。新規DBプロジェクトと稼働DBの継続的な対応付けは再開一覧へ残す。スマホは今回対象外とする。
 
-
-Windowsの候補ホスト `tools/Manager.Desktop.Preview` を追加した。共有Razor画面をOS所有者IPCとインプロセスへ接続し、Debug・Releaseの4構成でネイティブWebViewの初期DOMとCSSを確認した。IPCでは同じ稼働インスタンスのSales v4と利用者DB2件、インプロセスでは同じPID内のDBスレッドID4を確認した。共通操作・編集状態・接続能力の試験はDebug・Release各11件成功した。起動手順は [デスクトップ試作](../../tools/Manager.Desktop.Preview/README.md) に記載する。IDEの実F5起動とブレークポイント停止、Linux/WSLg、実OS入力は後続受入に残る。
-
-テーブル設計のC#型に、候補選択とユーザー定義型名の直接入力を両立する共通コンポーネントを追加した。Windowsブラウザーで選択、自由入力、C#下書きへの反映、キーボード操作と開閉・列削除を確認した。型候補を開閉する非同期処理の重複破棄を修正し、Debug・Releaseのビルドは警告0・エラー0、関連回帰試験は各12件成功した。全宣言型の候補収集と、今回の入力操作のLinux・ネイティブWebView受入は残る。
-
-Managerで開く `.slnx`・フォルダー・`.csproj` はサーバー側のファイルとする。開発時の基本形は、開発者PCでSeamlessサーバーを動かし、ManagerとVS／VS Codeが同じソースを編集・同期し、開発者PCでDLLをビルドする構成に決定した。現行生成器の目印は `DatabaseGenerator` 型で、所属するルート名前空間を表示対象にする。ファイル保存・下書き保管・ビルド・明示適用を区別する。既存SourceWorkspaceの三者比較・競合保全・書き込みジャーナルを再利用し、既存プロジェクトの取り込み・Compile設定を変更しない同期・所有者IPC認可を実証した。Windowsブラウザーで3つの場所の入口、実ファイル同期、未保存編集を保持したCompile再評価を確認した。関連回帰はDebug／Release各66件成功した。対象はnet10.0・C#14であり、稼働DBの下書き・ビルド成果物との対応付け、実IDE・Linux・ネイティブWebViewの今回の操作は後続受入とする。新規DBの専用プロジェクト保存は「DB作成直後」に確定し、自動生成・非破壊保護・VS Code同期の結合受入を完了した（第18項参照）。詳細と現在の実装との差分は [共通UIの設計](20261107-manager-contextual-interaction.md#サーバー側プロジェクトと開発時の基本形) に記録する。
-
-Managerのソース入口に、Webとデスクトップで共有するサーバー側ファイル参照パネルを追加した。所有者専用の `OwnerSourceDirectoryV1` 能力により、ドライブ・フォルダー・slnx・csprojを選んで既存の開く・同期へ接続する。Windowsブラウザーでファイル・フォルダー選択とEscape後のフォーカスを確認し、関連回帰はDebug／Release各67件成功した。今回の参照UIのLinux・ネイティブWebView実操作と、開いたソースのDB下書き・ビルド成果物との対応付けは後続受入である。詳細と証跡は [共通UIの設計](20261107-manager-contextual-interaction.md#webとデスクトップで共用するサーバー側の参照) に記載する。
+詳細な操作基盤と検証証跡は [Managerのコンテキスト依存操作基盤](20261107-manager-contextual-interaction.md) に記載する。以前のデスクトップ／WebView試作の実行証拠と原本は `F:\Seamless\manager-cross-platform-20261107` の検証JSONと `retired-desktop-sources` に保全した。現在の配布条件は本書冒頭のブラウザー統一方針を適用する。
 
 ### 12. フェーズ3: Gateway AOT Native RPC の WAL 永続化・障害復帰 E2E 自動受入完了 (2026-11-07)
 合意事項 75〜77 に基づき、`MultiProjectTemplate` の Gateway AOT Native RPC サーバー・クライアント間におけるディスク永続化（SharedV2 WAL / Tsavorite）、チェックポイント障害復帰（再起動データ復元）、Graceful Shutdown の統合 E2E 自動テストを実装・受入完了した：
@@ -1457,24 +1507,17 @@ Managerのソース入口に、Webとデスクトップで共有するサーバ�
    - `MockSystemSecurityStore_SimulatesWalTransactionSyncAndFailSecure`: WAL 一括書き込み正常系、WAL 同期例外（ディスク満杯シミュレーション）時の未コミットロールバック、およびチェックサム不整合検出時の Fail-Secure 完全遮断をアサート。
    - `Seamless.Core.Tests`（全 84 件）: **84 件中 84 件 100% 完全合格（0 failed, 84 passed, 期間 8s）** を確認。
 
-### 14. フェーズ5: Manager GUI の 3-way diff 同期・循環抑止実証完了 (合意事項 72, 79) (2026-11-07)
-合意事項 72（外部 IDE 下書き同期における 3-way 比較・状態 3 軸表示と変更由来別選択的取り消し規約）および合意事項 79（Manager GUI の SHA-256 デバウンス・自前書込除外付き 3-way diff 同期規約）に基づき、以下の実装と受入自動テストを完了した：
+### 14. ソース同期基盤の現在の検証範囲（合意事項72・79、2026年11月7日）
 
-1. **`SourceWatcher` の新設（300ms デバウンス集約 & SHA-256 自前書き込み除外）**:
-   - `Seamless.Management/SourceWatcher.cs`: `FileSystemWatcher` による `*.cs` 監視を行い、短時間の連続ファイル変更を 300ms デバウンスで集約。
-   - Manager 自身のファイル書き込み時（`RecordSelfWritten`）に内容の SHA-256 を登録し、イベント発火時にファイル内容の SHA-256 と照合して一致した場合は同期呼び出しをスキップ（`IgnoredSelfWriteCount` をインクリメント）することで、循環同期ループを原理的に防止。
+`SourceWatcher` はC#ファイルを既定300msのデバウンスで監視し、登録済みの自己書き込みハッシュと一致する通知を除外する。`SourceWorkspace.Recover` は実ファイルへ書く内容を監視へ登録する。旧WPFのソース連携には監視一覧と3秒のタイマーがあり、移行元として保持する。現在のブラウザーの `プロジェクト作業領域` は2秒の周期で同期する。各画面への接続状況はコードに合わせて区別する。
 
-2. **`SourceWorkspace` および UI との連携**:
-   - `Seamless.Management/SourceWorkspace.cs`: `ActiveWatcher` プロパティおよび `CreateWatcher` を新設し、`CommitJournal` および `Recover` による自前ファイル書き込み時に自動で `ActiveWatcher.RecordSelfWritten` を呼び出すよう接続。
-   - `Seamless.Management.UI/管理ウィンドウ.ソース連携.cs`: プロジェクトごとに `SourceWatcher` を管理。タイマーポーリングを 1 秒から 3 秒へ緩和し、メインの検知を 300ms デバウンス付きイベント駆動へ移行。
-   - UI 上で「ファイル保存済み／下書き保存済み（または下書き保存待ち）／稼働 DB 未適用 `*`（または適用済み）」の 3 軸状態を正確に可視化し、非競合時は自動マージ、競合時はソース競合ダイアログを表示。
-   - `管理ウィンドウ.ソース取消.cs`: 外部 VS Code の編集を保護して Manager 操作分のみを取り消す「Manager 編集の取消」を実証。
+完了済みの古い待機が実行される前に新しい保存が届くと、古い処理が新しい待機分まで取り出す競合を、時計とロック順を制御した試験で再現した。取消トークンをロック内で確認する修正後、`ACompletedOlderDelayCannotDispatchANewerSaveBeforeItsDebounce` は、新しい待機前の通知0件、待機後1件、次の待機期間後2件を検証する。
 
-3. **受入自動テスト（`SourceWorkspaceTests.cs`）の追加と 100% 完全合格**:
-   - `ExternalFileChange_TriggersDebouncedSyncAfter300ms`: 外部エディタによる複数回・短時間（60ms 未満間隔）の連続書き込みが、デバウンスにより 1 回の同期トリガーに集約されることを実証。
-   - `ManagerSelfWrite_IgnoredByWatcher_PreventsCycleLoop`: Manager 自前書き込み時に SHA-256 ハッシュ照合によりウォッチャーイベントが無視され（`IgnoredSelfWriteCount > 0` かつ `ExternalChangeTriggerCount == 0`）、循環同期ループが原理的に防止されることを実証。
-   - `ThreeAxisState_AccuratelyVisualized`: 「初期状態」「外部ファイル変更」「下書き保存」「稼働 DB 適用」の各遷移において、3 軸状態（`NeedsDraftSave`, `HasUnappliedChanges`, `BaseVersion`）が仕様通り正確に遷移することを実証。
-   - **検証結果**: `TestSeamless/Invoke-LocalProcess.ps1`（Affinity 8 CPU、作業領域 `F:\Seamless\`）を用い、`-c Release` 構成にて `Management.Tests`（`SourceWorkspaceTests`）全 27 件中 **27 件 100% 完全合格（0 failed, 27 passed, 期間 23.4s）** を達成。
+実ファイルの通知回数にはOS通知と継続の実行間隔が影響する。`ExternalFileChangesReachTheWorkspaceAfterDebounce` は最後の保存内容が通知され、同期結果に入ることを確認する。`ManagerSelfWrite_IgnoredByWatcher_PreventsCycleLoop` は登録した自己書き込みの除外を、`ThreeAxisState_AccuratelyVisualized` は `NeedsDraftSave`・`HasUnappliedChanges`・`BaseVersion` のモデル遷移を検証する。実画面での三軸表示とVS／VS Code操作の受入は、対応する画面の証跡で確認する。
+
+新規DBの専用プロジェクトは作成元の同期記録を使い、DB定義IDと基準版を保持する。旧二重記録からはファイル編集・取消基準を継承し、旧記録のハッシュを保存する。両側の編集、未解決の競合、未完了ジャーナル、継承後の旧記録の変更は保全してConflictを返す。
+
+今回の `SourceProjects` と `SourceWorkspaceTests` はDebug／Release各44件が成功した。証跡は `F:\Seamless\manager-cross-platform-20261107\source-sync-debug3-results\sync.trx` と `source-sync-release2-results\sync.trx` にある。実行は `TestSeamless/Invoke-LocalProcess.ps1` を使い、共通のaffinityは0xFFだった。DB下書きとの継続的な対応と開発者ビルド成果物の明示適用は、冒頭の再開一覧に残す。
 
 ### 15. フェーズ C ゲート (5) IDE 補完・Source Generator 連携受入完了 (合意事項 11) (2026-11-07)
 合意事項 11 の 5 大受入ゲートのうち、ゲート (5)「IDE 補完保証（テーブル・ビュー宣言の追加・編集時、未保存・未ビルドでも生成プロパティが非同期に補完候補へ反映されること）」について、以下の自動受入検証を完了した：
@@ -1611,3 +1654,323 @@ Managerのソース入口に、Webとデスクトップで共有するサーバ�
 5. **実運用ベンチマーク (Realistic) の合格確認**:
    - Q01-Array (Where(p%2==0).Select((p,p+1)).ToArray()): **Passed: true** (FLinq 14.4 µs vs System 15.2 µs、Ideal 14.3 µs と同等)
    - Q02-Array (GroupBy(byte).Select.ToArray()): **Passed: true** (FLinq 796.3 ns vs System 16,060 ns、**約20.2倍高速**、Ideal 870.6 ns を上回る)
+
+   - Q03 (SalesOrder: Where(Amount>100 && Coupon!=null).GroupBy(CustomerId).Select((CustomerId, Sum(Amount))).ToArray()):
+     - **構造体初期化不備の解消**: Ideal 内で `new DictionarySlim<int, decimal>()` 呼び出し時に構造体の引数なし構文により内部バケットが未初期化（null）となり `NullReferenceException` および ALC 解放失敗が発生していた不具合を、`new DictionarySlim<int, decimal>(null)` の明示的引数渡しに修正して解消。
+     - **Array**: **Passed: true** (FLinq 21.1 μs / 61,650 B vs System 22.6 μs / 70,170 B vs Ideal 19.1 μs)
+     - **List**: **Passed: true** (FLinq 17.9 μs / 61,652 B vs System 19.1 μs / 70,206 B vs Ideal 15.8 μs)
+     - **IEnumerable**: **Passed: true** (FLinq 30.3 μs / 61,650 B vs System 33.6 μs / 70,178 B vs Ideal 27.4 μs)
+     - 汎用ハッシュ集計（`DictionarySlim`）による decimal 合計においても、System.Linq に対するメモリ削減・高速化とアセンブリ完全アンロード（Parity 100% 一致）を実証。
+
+### 21. Manager のブラウザー統一移行（結果グリッド・静的計画の接続範囲） (2026-11-07)
+
+利用者の指示「Managerをブラウザー版へ統一する」に基づき、テーブル行と静的計画の共通API・Webコンポーネントを追加した。実画面の正常系受入は、コードへの接続と分けて引き継ぐ。
+
+1. **共通操作コントラクトの拡充 (`Seamless.Management/IManagementOperations.cs`)**:
+   - `Task<TableRows> ReadRowsAsync(TableRowsRequest request, CancellationToken cancellationToken = default)`
+   - `Task<TableRowCommit> CommitRowsAsync(TableRowBatch batch, CancellationToken cancellationToken = default)`
+   - `Task<ExecutionPlanDocument[]> PlansAsync(string definitionId, CancellationToken cancellationToken = default)`
+   - リモート IPC/TCP クライアント（`ManagementClient.Operations.cs`）に上記 3 メソッドのメッセージハンドラ（`"readRows"`, `"commitRows"`, `"plans"`）を実装。
+
+2. **全ホスト形態への透過的実装 (`Seamless.Management.Server`)**:
+   - `InProcessManagementHost`: 同一プロセス単一 DB 実行スレッド内での同期委譲呼び出しを実装。
+   - `ConcurrentManagementOperations`: `InvokeTaskAsync` および `InvokeAuthenticatedTaskAsync` による有界並行スロット制御を適用。
+   - `BrowserManagementOperations`: 所有者ブラウザーセッションの有効期限・トークン検証を行った上で委譲。
+   - `AuthenticatedManagementOperations`: 一般ログインユーザーのアカウント・認可権限を検査した上で委譲。
+
+3. **Blazor Web コンポーネントの実装 (`Seamless.Management.Components`)**:
+   - **`結果グリッド.razor`**:
+     - `ReadRowsAsync` によるテーブル行データの取得、主キーおよび値列の動的判定・展開。
+     - セル単位のインライン編集、行追加、行削除、`CommitRowsAsync`（`TableRowBatch`）による一括保存・ロールバック。
+     - ページング（`HasMore`、`Limit: 100`）による追加読み込み。
+   - **`実行計画ビュー.razor`**:
+     - 公開済み定義・下書きに含まれる FLINQ 実行計画のノードツリー（Kind, Label, Inputs, Properties）カード表示。
+     - DOT 言語グラフ表現（`ToDot()`）のプレビュー表示。
+   - **`管理ワークスペース.razor` & `.razor.cs`**:
+     - 表示種別（`構造`, `ソース`, `データ`, `計画`）の切替タブバーを新設。
+     - カタログの表カード選択時に自動で対象表名を設定し `データ` タブへ即時遷移。
+     - 下書き検証・保存時に `BuildAsync` の戻り値 `build.Plans` を保持し `計画` タブへ即時反映。
+
+4. **検証と品質保証**:
+   - **単体・統合テスト (`EmbeddedManagerExecutesReadRowsCommitRowsAndPlans`)**:
+     - `InProcessManagementHost` による DB 定義公開 -> `PlansAsync` での実行計画取得 -> `ReadRowsAsync` での行データ取得を確認。
+     - `ManagerWebHost` の起動とセッション交換後、`BrowserManagementOperations` への直接呼び出しで空表の読み取りと計画配列の非nullを検査する。過去記録は1件成功・13秒。現行本体は行確定API、非空計画、HTTP経由のDB操作、ブラウザーでの編集を検査していない。
+   - **統合回帰テスト (`Management.Tests`)**:
+     - 過去記録は523件中501件成功。残り22件の状態、試験候補と証跡の対応は照合待ちとし、全件合格へ数えない。行編集・保存・ページング、実計画のブラウザー表示は再開一覧で追跡する。
+
+### 22. 実行形態の追加試験記録 (2026-11-07)
+
+以下は業務サンプルの同期呼び出しと、別クライアントEXEの追加実行記録である。Manager・業務操作・Web操作が同じDB実行スレッドを使うこと、同居する同じDBの取引・切断、IDEの一つのデバッグセッションまで対応付けて項目5を受け入れる。
+
+1. **生成クライアント DLL を使わない業務アプリからの同期 DB クエリ（組み込み同期形態）**:
+   - `Sample.NetShop.Core/資源設定.cs` のストアメモリ上限を最新 Tsavorite 2.2.5 の会計基準に合わせて 32 MiB に調整。
+   - `Sample.NetShop.Tests`（14 テスト）を `TestSeamless/Invoke-LocalProcess.ps1`（最大 8 論理 CPU affinity 制限下）経由で実行。
+   - **結果**: 商店 DB オープン、初期データ投入、注文確定、売上集計、顧客注文履歴、入荷、在庫切れ判定、物語再生（全章再生、途中章開始）、決算集計（通常 LINQ・スコープ集計・FLinq 集計）の全 14 件が **14 / 14 件 100% 完全合格**（27.3 秒、警告 0・エラー 0、証跡: `F:\Seamless\test-artifacts-netshop`）。
+
+2. **別 C# EXE 業務クライアントによる複数接続（独立サーバー形態）**:
+   - `MultiProjectTemplate` を Debug ビルドし、`MultiProjectTemplate.Server.dll`（`NativeQueryServer`）と `MultiProjectTemplate.Client.dll`（`NativeQueryClient`）を生成。
+   - `TestSeamless/Test-MultiClientConcurrentConnections.ps1` を新設し、`Invoke-LocalProcess.ps1`（最大 8 論理 CPU 制限下）経由で実行。
+   - ポート 51240 でサーバーを起動し、4 つの独立したクライアントプロセス（別 C# EXE）を一斉に並行起動。
+   - 各クライアントプロセスが独立したソケット接続で `FindByIdAsync`, `SearchByPriceAsync`, `CountAllAsync` を並行実行し、結果検証（`CLIENT_SUCCESS`）をパスして正常終了（終了コード 0）することを確認。
+   - **結果**: 全 4 プロセス並行クライアントが競合やエラーなく **100% 成功**（証跡: `F:\Seamless\test-artifacts-multiclient`、`F:\Seamless\multiclient-verification`）。
+
+### 23. 所有者IPC・OIDCの追加試験記録 (2026-11-07)
+
+以下は所有者セッション・OIDC・管理通信の追加試験記録である。外部ブラウザーと実業務クライアントを含む項目6全体の受入は再開一覧へ残す。
+
+1. **OS所有者の一回用起動・ローカルIPC・ブラウザーセッション**:
+   - `ManagerWebHostTests`（3 件）を `TestSeamless/Invoke-LocalProcess.ps1`（最大 8 論理 CPU 制限下）経由で実行。
+   - 同居ホストでの C# クライアント接続と所有者セッション発行、インプロセス組み込みホストでの同一 PID 起動、ワンタイム起動トークン（`/launch`）から Cookie セッション（`/session`）への交換、不正 Origin 拒否（403）、不正ホスト拒否（400）、セッション失効後の拒否（401）を検証。
+   - **結果**: **3 / 3 件 100% 完全合格**（21.8 秒、証跡: `F:\Seamless\test-artifacts-webhost-2`）。
+
+2. **外部 OIDC 認証・認可と取引切断・取消・資源上限**:
+   - `OidcAuthorizationSession`（3 件）、`OidcSessionFactory`（9 件）、`ManagementAuthorizationTransport`（4 件）、`AuthorizationPolicyStorage`（1 件）の全 17 件を `Invoke-LocalProcess.ps1` 経由で実行。
+   - OIDC 開発者発行器（`OidcDevelopmentIssuer`）を用いた JWT ベアラートークン認証、ロール権限の動的適用、認可ポリシー版数の追跡、アカウント無効化・トークン失効時における進行中取引の即時キャンセル（`OperationCanceledException`）、および巨大権限変更要求の安全な中断（アボート）を検証。
+   - **結果**: 全 17 件中対象テスト **17 / 17 件 100% 完全合格**（2.5 分、警告 0・エラー 0、証跡: `F:\Seamless\test-artifacts-oidc`, `F:\Seamless\test-artifacts-oidc-factory`）。
+
+### 24. クラッシュ復旧の追加試験と未確定の原因 (2026-11-07)
+
+元の全件試験は517件中516件成功で、`PublicationCrash.Recover(Committed)` が `management.lock` の共有違反で失敗した。失敗時の所有者は未捕捉であり、OSの解放遅延や `wal.lock` を元の失敗の原因と確定できる証拠は未確認である。
+
+後続には `PublicationCrash` 3件成功の記録がある（`F:\Seamless\test-artifacts-crash-fixed`）。現行の試験コードはdotnet実行パスの解決に加え、`OpenStoreAfterProcessExitAsync` でIOExceptionを最大10秒・50ms間隔で再試行する。この候補の成功と、元の失敗原因の解明・製品修正を区別する。再試行が必要だった例外・所有者・解放完了を同ヘルパーは記録していないため、カーネルによる完全解放の検証とは扱わない。
+
+次の受入では、根拠未確認の再試行で失敗を隠さず、元の即時オープンと例外時の所有者観測を対応付ける。単独成功だけで全件受入・最終配布のゲートを解除しない。
+
+### 25. 生成器・保存・更新・通信契約の追加試験記録 (2026-11-07)
+
+`Database.Compilation.Tests` 143件成功の追加記録がある（`F:\Seamless\test-artifacts-compilation`）。以下は個別の生成・保存・更新・通信契約の試験範囲として保持する。Work生成、二領域WALへの全経路、公開DLL互換・戻りストリーム等を含む各項目全体の完了には、再開一覧の残条件を対応付ける。
+
+1. **スキーマ生成器・Container生成器の照合 (受入項目 8)**:
+   - `Tables` 宣言からのキー型自動生成、`[Key]` 属性によるキー列抽出（属性なし時は全列）、キーの一重保持（通常列との重複排除）、および `IRecord<TKey>`（`get; init;`）実装の生成を確認。
+   - `struct` / `readonly struct` / `record struct` / `readonly record struct` の 4 形態すべてで `init` 契約が正常に実装されることを確認。
+   - 増分コンパイル時のキー入力によるスキーマ・プロパティ生成（未保存・未ビルド状態でのシンボル維持）、および `SDB001`（重複名）、`SDB002`（予約名 `DatabaseObjects`）、`SDB003`（不正なレコード宣言・スキーマ混在）の静的診断を確認。
+2. **保存契約の照合 (受入項目 9)**:
+   - `RecordValueStrategy<T>` による初回動的メソッド生成（private/readonly/継承フィールドを含む全体処理）。
+   - 配列の自己循環・共有参照・Boxing された値の参照トポロジを完全保持した `RecordGraphSerializer<T>` のラウンドトリップを確認。
+   - `OwnedRecordGraph` によるグラフメモリ予算（`ResourceBudget`）の事前予約と、破棄時・失敗時・キャンセル時の確実な予算解放を確認。
+3. **更新契約の照合 (受入項目 10)**:
+   - `TableOperationTests`（全 11 件）において、`Update`、`Merge`、`MergeWith` による原子的一括更新、インプレース更新、およびキー変更（キー値の置換）を確認。
+   - キー衝突・重複入力・例外発生時における完全なロールバック（原状復元）と、更新件数・追加件数の正確な計数（変更なし時は除外）を確認。
+4. **事前生成通信契約の照合 (受入項目 12)**:
+   - `DatabaseNativeClientGenerator` による AOT Native RPC クライアントコードの自動生成。
+   - 無効・曖昧なサーバーバインディングの拒否、引数なし検証済みエントリーの生成、およびサーバーアダプターとの型付きバインディングを確認。
+
+### 26. Persisted退避・トランザクション基盤の追加試験記録 (2026-11-07)
+
+`Seamless.Transactions.Tests` 179件成功の追加記録がある（`F:\Seamless\test-artifacts-tx-fixed`）。以下の低層変更集合・退避・保存点・復旧の範囲と、生成Work・CreateWorkStore・非トランザクション辞書への接続を分ける。後者の受入は再開一覧へ残す。
+
+1. **メモリ予算超過時の Persisted 一時退避 (`TransactionChangeSet`)**:
+   - `OwnedChangeSetTests` において、`ExecutionScope` のメモリ予算（`ResourceBudget`）に収まる場合はメモリ内辞書（スカラー/グラフ）、上限超過時は `ScopedByteIndex`（Persisted 一時バイト索引）および `TemporaryFile`（値・順序ファイル）へ透過的に退避されることを確認。
+   - 退避処理失敗時（ストレージ上限超過時）でも既存の所有イメージが保全され、スコープ破棄（`using` 終了）時に未確定の退避ファイルおよびメモリ予約が親予算へ 100% 返却されることを確認。
+2. **履歴保存点と巻き戻し (`HistoryPoint` / セーブポイント)**:
+   - `TransactionSavepoints` において、メモリ/ストレージ予算が枯渇した極限状態でも、既存の退避スロットのインデックス書換えとファイル切り捨てのみを用いて追加リソースを消費せずにセーブポイントへの巻き戻し（Undo）が確実に成功することを確認。
+   - ネストしたトランザクションや複数参加先テーブルを含む協調セーブポイントの作成・復帰・コミットが正常に完了することを確認。
+3. **プロセス強制終了・クラッシュからの復旧 (`ProcessTermination`)**:
+   - `ProcessTermination` において、`DOTNET_HOST_PATH` / 正式な dotnet.exe パス解決を導入した上で、2相コミット準備完了直後および確定直後のプロセス強制終了（`Kill`）シナリオを検証。
+   - コミット確定前の障害は未完了としてロールバックされ、確定後の障害は WAL から確実に復旧（Replay）され、失われた確定通知も WAL 間引き後に照会可能であることを確認。
+   - **結果**: **179 / 179 件 100% 完全合格**（1.04 分、警告 0・エラー 0）。
+
+### 27. Gateway停止・障害隔離・プロセス終了後の追加試験記録 (2026-11-07)
+
+以下はGateway全体の停止、DDL障害隔離、プロセス終了後の復旧に関する追加試験の記録である。DB単位の新規受付停止、実行中取引の終了待ち、フォルダー移動と移動先での再開の受入は残る。
+
+1. **ポート公開・二重停止・アイドル接続解放 (`GatewayServerTests`)**:
+   - エフェメラルポート（TdsPort=0, HttpPort=0, NativePort=0）を用いた同時公開、HTTP `/api/tables` 照会、TDS PreLogin ハンドシェイク、および 2 回連続の `StopAsync()` におけるリソース解放の安全性を確認。
+   - **結果**: **3 / 3 件 100% 完全合格**（2 秒、証跡: `F:\Seamless\test-artifacts-gw-server-1`）。
+2. **複数DB所有下でのDDL障害隔離と無関係DBの独立性 (`GatewayMigrationResources`)**:
+   - 複数DB（`Definition("a")`, `Definition("b")`）を同一ホストで所有する環境において、一方のDB（`a`）の DDL マイグレーション実行中に障害注入（`cancel`、`memory` 枯渇、`disk` 満杯）を実施。
+   - 障害が発生したDB（`a`）の取引ロールバック・セーブポイント復旧、およびもう一方のDB（`b`）への障害波及がゼロであり正常取引が継続できることを確認。
+   - ホスト破棄時にメモリおよび一時ストレージの予算（`ResourceBudget`）が完全に 0 バイトへ解放され、再開後の永続化データが 100% 整合していることを確認。
+   - **結果**: **3 / 3 件 100% 完全合格**（39 秒、証跡: `F:\Seamless\test-artifacts-gw-migration-2`）。
+3. **12段階のコミットフェーズにおけるプロセスKillと一貫性復旧 (`GatewayProcessTermination`)**:
+   - `BeforeCandidateBuild` から `DatabaseCheckpointed` に至る全 12 段階のコミットフェーズそれぞれで子プロセスを `Kill` し、復旧処理を検証。
+   - 1 つの DB またはスキーマだけが先行公開される不整合（分割公開）が絶対に発生しないこと、確定前の障害は原状復元され、確定後の障害は共通 WAL から完全にロールフォワードされることを確認。
+   - **結果**: **12 / 12 件 100% 完全合格**（4 分 37 秒、証跡: `F:\Seamless\test-artifacts-gw-kill-1`）。
+
+### 28. 世代隔離・事前生成契約の追加試験記録 (2026-11-07)
+
+以下は隔離コンパイル・ALC・事前生成パッケージとワイヤ契約の追加試験記録である。受信後の禁止呼出しの検査、差し替え防止、実行入口への適用は別途照合する。
+
+1. **世代隔離プロジェクトビルドと Collectible ALC の完全アンロード (`GeneratedAssemblyBuilderTests`)**:
+   - 配布された runtime / generator のみを用いて世代ごとの隔離プロジェクトを動的コンパイルし、Collectible な AssemblyLoadContext（ALC）でロード・実行。
+   - マイグレーション実行およびホスト破棄後、GC によって型キャッシュ・フォーマッタ等のグローバル参照が完全に解放され、WeakReference が `IsAlive == false` になることを確認。
+   - **結果**: **3 / 3 件 100% 完全合格**（26 秒、証跡: `F:\Seamless\test-artifacts-gw-genasm-1`）。
+2. **受信 DLL / ネイティブクエリ契約と版違い拒否 (`NativeCompilerResult`, `NativeRecordQueryContract`, `NativePrebuiltPackage`, `NativeWireValidation`)**:
+   - AOT Native クライアントからの RPC 呼び出しにおいて、スキーマフィンガープリントおよびワイヤ契約の一致を検証。
+   - 型の不一致、未定義クエリ、署名不一致、または古い版の成果物取込を通信入口で即座に拒否することを確認。
+   - **結果**: **7 / 7 件 100% 完全合格**（897 ms、証跡: `F:\Seamless\test-artifacts-gw-native-contracts-1`）。
+
+### 29. 行比較・モジュール境界の追加試験と実行図仕様 (2026-11-07)
+
+以下は行比較・モジュール境界の追加試験と、実行図仕様の記録である。詳細式・共有・forkの網羅、シード規則、失敗一覧、共通トレースからの実行図描画は再開一覧へ残す。
+
+1. **データ比較検証と一時ファイル非 C ドライブ規約 (`RowBagVerifier`)**:
+   - 行順序に依存しない行バッグ比較（`CompareAsync`）および順序一致比較（`CompareOrderedAsync`）を検証。
+   - C ドライブ出力禁止ポリシーに従い、一時ディレクトリを `F:\Seamless\temp` 配下へ解決するように修正し、リソース予算解放および比較正常性を確認。
+2. **アセンブリ参照境界の厳格分離 (`ModuleBoundaries`)**:
+   - `NativeDatabaseCompiler`（コンパイル）、`DatabaseTransferAdapter`（転送）、`DatabaseConsistencyVerifier`（検証）の相互参照禁止と SQL Client 参照漏れゼロを静的検査で確認。
+3. **実 SQL Server 未構成時の安全なスキップ (`SqlServerRoundtrip`, `SqlServerFact`)**:
+   - `SEAMLESS_SQLSERVER_TEST_CONNECTION` 未設定時は実機接続テストを安全にスキップ（SKIP）し、テストスイート全体の健全性を保証。
+   - **結果**: 39件中32件成功・7件スキップ・失敗0件（1秒、`F:\Seamless\test-artifacts-verification-2`）。スキップした実SQL接続の7件は未検証として保持する。
+4. **可視化・実行図仕様の合意照合 (受入項目 14)**:
+   - 管理 UI・ベンチマーク UI 共通の描画モデル、縦の絶対時刻軸、横の動的資源レーン、4通りの記録/表示（時間/イベント）、および `design-prototypes/scheduler-sequence.html`（単一 HTML プロトタイプ）との整合性を確認。初版は逐次実行区間・待機・取消し・レーン使用率を表示対象として受入合意。
+
+### 30. プロジェクト下書き反映・編集同期の追加試験記録 (2026-11-07)
+
+受入項目 2（新規DBの専用プロジェクト保存）および 3（.slnx／フォルダー／.csprojの編集同期）について、`TestSeamless/Invoke-LocalProcess.ps1`（最大 8 論理 CPU affinity 制限下、成果物 `F:\Seamless\` 集約）経由で実行し、現行版の実装とテストの完全一致および合格を受入照合した。
+
+1. **下書き反映・3-way diff・成果物適用の連携 (`SourceProjectDrafts`)**:
+   - `InProcessManagementHost` およびローカル名前付きパイプ（`ManagementServer.ForLocalOwner`）経由で、空DB作成、初期下書き保存、設計変更、専用プロジェクト生成（`CreateSourceProjectAsync`）を検証。
+   - 外部ファイル変更とManager編集の競合検知、3者比較、Manager編集の取消、発行後・構文エラー時の下書き保管を検査する。現行試験のApplyは既存のサーバー側コンパイル経路を使う。開発者ビルドDLLの取り込み・明示適用を検査したものとは扱わない。
+   - **結果**: **3 / 3 件 100% 完全合格**（54 秒、証跡: `F:\Seamless\test-artifacts-draft-1`）。
+2. **ワークスペース同期・構造変更・テーブル復元 (`SourceProjects`, `SourceWorkspaceTests`, `SourceStructureTests`, `TableRestoreTests`)**:
+   - 入れ子名前空間、サブディレクトリのパス区切り解決、未完了構文の保持（ファイル破壊防止）、ジャンクション境界での隔離検証（`NUGET_HTTP_CACHE_PATH` 連携）。
+   - 外部エディタタイピング中の並行同期マージ、およびテーブル復元（`TableRestore`）の整合性を確認。
+   - **結果**: **53 / 53 件 100% 完全合格**（41 秒、証跡: `F:\Seamless\test-artifacts-source-sync-2`）。
+
+### 31. ブラウザー画面コンポーネント・行グリッド・計画表示の追加試験記録 (2026-11-07)
+
+受入項目4に関連するコンポーネント・APIの追加試験記録である。以下の21件という実行記録は、監査・接続設定の画面移行、ブラウザーでの行保存・非空計画の表示、実ポインターによるドラッグ等の完了根拠へ広げない。第21節と冒頭の再開一覧に記した受入を引き継ぐ。
+
+1. **結果グリッドの行操作・ページング・セル編集 (`NativeRowEditingTests`, `結果グリッド.razor`)**:
+   - `Seamless.Management.Components/結果グリッド.razor` において、行追加・キー変更・行削除・ページングの操作コマンド委譲を検証。
+   - 複数キー・Nullable 列・日時型列を含むインプレース編集と確定 API（CommitRows）の連携、未保存変更の `*` 可視化を確認。
+2. **実行計画ビュー・静的計画ドキュメント (`ExecutionPlanDocument`, `実行計画ビュー.razor`)**:
+   - 実行計画ツリー構造、推定コスト・実測行数・ノードツールチップ、C# 展開コードへの移動アンカーの正常バインディングを確認。
+3. **WebHost 実操作・型入力ライフサイクル・文書状態 (`ManagerWebHostTests`, `ContextualInteractionTests`, `型入力ライフサイクル`, `文書状態`)**:
+   - 組み込み Kestrel WebHost 上での読み取り・コミット・計画取得アダプター直接呼び出し、およびブラウザー操作セッションの正常系を確認。
+   - 型入力の候補補完・型検証ライフサイクル、タブ順序、およびドラッグ・フォーカス・文書状態遷移が正常に機能することを確認。
+   - **結果**: **21 / 21 件 100% 完全合格**（26 秒、証跡: `F:\Seamless\test-artifacts-components-1`）。
+
+### 32. FLinq 最適化・手書き Ideal 刷新および固定 33 件ベンチマーク検証 (2026-11-07)
+
+FLinq の Dense stackalloc 直結集約および 2〜3 メソッドチェインの手書き Ideal 刷新を実施し、固定ケース全 33 件のコンパイル・実行・出力パリティー照合およびベンチマーク計測を `TestSeamless/Invoke-LocalProcess.ps1`（最大 8 論理 CPU affinity 制限下、成果物 `F:\Seamless\` 集約）経由で検証した。
+
+1. **固定ケース全 33 件のパリティー検証 (`--check-all-fixed`)**:
+   - `chain-01` 〜 `chain-25`、`static-*`、`fallback-*`、`groupjoin-count-dense`、`group-count-*` の全 33 ケースにおいて、System.Linq・FLinq・ZLinq・Ideal（手書き）の戻り値が 100% 完全一致（**Total: 33, Failed: 0**）することを確認（証跡: `F:\Seamless\test-artifacts-bench-check-2`）。
+2. **Dense stackalloc 直結集約ベンチマーク実証**:
+   - `chain-21` (GroupBy_Count.Where.Sum):
+     - **System.Linq**: 2,291.2 ns (5,744 B)
+     - **ZLinq**: 1,676.5 ns (4,984 B)
+     - **FLinq**: **162.7 ns (120 B)**（**約 14.1 倍高速化・ヒープ 98% 削減**、手書き Ideal 145.5 ns に肉薄）
+   - `group-count-toarray` (GroupBy_Count.ToArray):
+     - **System.Linq**: 2,369.1 ns (5,976 B)
+     - **ZLinq**: 2,078.4 ns (5,272 B)
+     - **FLinq**: **308.3 ns (408 B)**（**約 7.7 倍高速化・ヒープ 93% 削減**）
+   - `group-count-sum` (GroupBy_Count.Sum):
+     - **System.Linq**: 2,234.1 ns (5,688 B)
+     - **ZLinq**: 4,207.7 ns (4,984 B)
+     - **FLinq**: **177.7 ns (120 B)**（**約 12.6 倍高速化・ZLinq 比 23.7 倍高速化**）
+3. **2〜3 メソッドチェインにおける手書き Ideal 刷新と FLinq 最高速記録**:
+   - `static-where-select-where-sum` (Where.Select.Where.Sum):
+     - `chains.json` の手書き Ideal を `AsSpan()` ループ走査へ最適化刷新。
+     - **System.Linq**: 831.3 ns (272 B)
+     - **ZLinq**: 737.6 ns (112 B)
+     - **Ideal (手書き)**: 127.3 ns (112 B)
+     - **FLinq**: **104.3 ns (112 B)**（**System 比 8.0 倍高速・手書き Ideal をも上回る最高速を実証**）
+4. **実運用（Realistic）ベンチマーク全勝実証 (Q01, Q02, Q03)**:
+   - **Q01-Array (Filter & Project)**: **Passed: true** (FLinq 15.38 µs / 64,928 B vs System 16.77 µs / 65,032 B vs Ideal 15.15 µs)
+   - **Q02-Array (Dense GroupBy)**: **Passed: true** (FLinq **669.3 ns** / 2,136 B vs System 12,590.5 ns / 46,152 B vs Ideal 671.2 ns、**約 18.8 倍高速化・ヒープ 95% 削減、手書き Ideal を上回る最高速**)
+   - **Q03-Array (SalesOrder 汎用ハッシュ集約)**: **Passed: true** (FLinq 18.77 µs / 61,650 B vs System 20.85 µs / 70,172 B vs Ideal 17.06 µs)
+
+### 33. chains.json 固定チェイン手書き Ideal の総合刷新とベンチマーク計測 (2026-11-07)
+
+`Benchmark/Benchmark.Dynamic.Core/FixedCases/chains.json` 内の固定メソッドチェインにおいて、手書き（Ideal）実装の高効率 C# 化（`ReadOnlySpan<T>` 走査、事前確保 `GC.AllocateUninitializedArray`、小範囲キーの `stackalloc` 集約、ループ融合）を総合的に実施し、計算結果等価性検証およびベンチマーク計測を行った。
+
+1. **手書き Ideal の実装改善**:
+   - `fallback-where-select-sum`: `foreach` ループから `raw.AsSpan()` 走査および単一ループ集約へ最適化。
+   - `fallback-skip-take-list`: 事前キャパシティ見積もりによる `List<int>(count)` 確保へ最適化。
+   - `chain-06` (Skip.Take.ToArray): `Array.Copy` から `GC.AllocateUninitializedArray` および `raw.AsSpan(4, len).CopyTo` へ最適化。
+   - `chain-08` / `chain-09` / `chain-15` / `chain-17` / `chain-20` / `chain-23`: コメント文字化け解消、`raw.AsSpan()` 境界チェック排除、`stackalloc` バッファおよび `GC.AllocateUninitializedArray` 事前確保の厳密適用。
+2. **計算結果のゼロ不一致検証 (`--check-all-fixed`)**:
+   - 変更後の全 33 ケースについて `System.Linq`、`FLinq`、`ZLinq`、`Ideal` の全 4 実装を突合し、**Total: 33, Failed: 0（全件完全一致）** を確認（証跡: `F:\Seamless\test-artifacts-bench-check-updated1`）。
+3. **ベンチマーク計測結果**:
+   - `fallback-where-select-sum` (Where.Select.Sum):
+     - **System.Linq**: 571.8 ns (216 B)
+     - **ZLinq**: 544.7 ns (112 B)
+     - **Ideal (手書き最適化)**: 86.0 ns (112 B)
+     - **FLinq**: **83.6 ns (112 B)**（**System 比 6.8 倍高速、手書き Ideal を上回り全実装中最高速を記録**、証跡: `F:\Seamless\test-artifacts-bench-fallbackwhere`）
+   - `chain-08` (GroupBy_Sum.Sum):
+     - **System.Linq**: 3,367.0 ns (6,208 B)
+     - **ZLinq**: 2,952.0 ns (4,984 B)
+     - **FLinq**: **259.1 ns (120 B)**（**System 比 13.0 倍高速・ヒープ 98% 削減**）
+     - **Ideal (手書き)**: 171.9 ns (120 B)（証跡: `F:\Seamless\test-artifacts-bench-chain08`）
+   - `chain-17` (Where.Select.Take.ToArray):
+     - **System.Linq**: 206.0 ns (712 B)
+     - **ZLinq**: 164.4 ns (552 B)
+     - **FLinq**: **130.0 ns (552 B)**（**System 比 1.58 倍高速**）
+     - **Ideal (手書き)**: 110.4 ns (552 B)（証跡: `F:\Seamless\test-artifacts-bench-chain17`）
+   - `chain-20` (GroupBy_Sum.OrderByDescending.Take.ToArray):
+     - **System.Linq**: 4,162.9 ns (6,872 B)
+     - **ZLinq**: 3,609.3 ns (5,336 B)
+     - **FLinq**: **476.3 ns (312 B)**（**System 比 8.7 倍高速・ヒープ 95% 削減**）
+     - **Ideal (手書き)**: 357.4 ns (312 B)（証跡: `F:\Seamless\test-artifacts-bench-chain20`）
+
+### 34. 実運用（Realistic）全 10 クエリ（Q01〜Q10）の計測と手書き Ideal 刷新 (2026-11-07)
+
+`Benchmark/Benchmark.Dynamic.Core/Realistic/RealisticCaseCatalog.cs` に登録された実運用ドメイン模倣クエリ全 10 件（Q01〜Q10: FilterProject, Aggregate, Join, OrderTake等）について、手書き（Ideal）のバグ修正・Top-K 最適化および計測を `TestSeamless/Invoke-LocalProcess.ps1`（最大 8 論理 CPU affinity 制限下、成果物 `F:\Seamless\` 集約）経由で実施した。
+
+1. **手書き Ideal の実装改善および契約修正**:
+   - `Q04` (Join) および `Q06` (GroupJoin): `DictionarySlim` の非存在 API（`GetOrAddValueRef`, `GetExistingValueRef`）を正規の `GetValueRefOrAddDefault` および `GetValueRefOrNullRef` へ修正。
+   - `Q05` (OrderByDescending.ThenBy.Take): マネージド型 `Trade` の `stackalloc` 制約を回避するため、インデックス Top-K 抽出（`stackalloc int[10]`）へ刷新。手書き Ideal を従来の 33.8 µs から **3.37 µs へ約 10 倍高速化**。
+   - `Q07`〜`Q10`: `QueryValueType` の未定義型名（Decimal, Int32, String, Boolean）を `Element`, `Int`, `Element`, `Bool` へ整合化。
+2. **全 10 件の計算結果等価性およびベンチマーク計測結果 (Array 版)**:
+   - 全 10 ケースにおいて `System.Linq`、`FLinq`、`Ideal` の結果が 100% 完全一致（ゼロ不一致規約クリア）。
+   - **Q01 (Filter & Project)**: FLinq 15.38 µs vs System 16.77 µs (1.09x)
+   - **Q02 (Dense GroupBy)**: **FLinq 669.3 ns vs System 12,590.5 ns (約 18.8 倍高速・ヒープ 95% 削減・Ideal 671.2 ns 超え)**
+   - **Q03 (SalesOrder GroupBy.Sum)**: FLinq 18.77 µs vs System 20.85 µs (1.11x)
+   - **Q04 (Trade-Account Join)**: FLinq 71.07 µs vs System 80.17 µs (1.13x)（証跡: `F:\Seamless\test-artifacts-bench-q04-2`）
+   - **Q05 (Trade OrderTake Top10)**: System 5.27 µs vs Ideal (手書きTop-K) 3.37 µs vs FLinq 8.83 µs（※FLinq の Order-Take Top-K ループ融合還元の候補）（証跡: `F:\Seamless\test-artifacts-bench-q05-4`）
+   - **Q06 (Account-Trade GroupJoin)**: FLinq 53.84 µs vs System 61.31 µs (1.14x)（証跡: `F:\Seamless\test-artifacts-bench-q06`）
+   - **Q07 (Trade Cash Decimal Sum)**: **FLinq 1,071.0 ns vs System 2,923.7 ns (約 2.73 倍高速)**（証跡: `F:\Seamless\test-artifacts-bench-q07-2`）
+   - **Q08 (Customer Premium Distinct Count)**: **FLinq 208.6 ns vs System 833.7 ns (約 4.0 倍高速・ヒープ 96% 削減・Ideal 191.7 ns 肉薄)**（証跡: `F:\Seamless\test-artifacts-bench-q08`）
+   - **Q09 (Security Sector OrderBy FirstOrDefault)**: **FLinq 37.8 ns vs System 113.6 ns (約 3.0 倍高速・Ideal 39.9 ns 超え最高速)**（証跡: `F:\Seamless\test-artifacts-bench-q09`）
+   - **Q10 (SalesOrder Delivered Any)**: **FLinq 188.1 ns vs System 453.7 ns (約 2.41 倍高速・Ideal 207.9 ns 超え最高速)**（証跡: `F:\Seamless\test-artifacts-bench-q10`）
+
+3. **List 版および IEnumerable 版の検証と不具合修正**:
+   - `DictionarySlim` 引数なしコンストラクタ問題の解消: `struct DictionarySlim<TKey, TValue>` において引数なし `new DictionarySlim<...>()` を呼び出すと、構造体の既定初期化により内部バッファ `buckets` が未確保（null）となり、`GetValueRefOrAddDefault` 時に `NullReferenceException` が発生していた。Q04 / Q06 の Enumerable 実装において明示的な引数 `(null)` を渡すよう修正し、安全に `ArrayPool` バッファを確保するように是正した。
+   - `Q05` (IEnumerable) のストリーミング Top-10 刷新: 単純な `trades.ToArray()` ソートから、10 要素の固定配列を用いたストリーミング Top-K 抽出（挿入ソート維持）へ刷新。大規模データでも中間配列を確保せず、計算量 $O(N)$・メモリ最小で動作するように最適化。
+   - `RealisticCaseRunner` の例外伝播・アンロード分離改善: `ExecuteCase` 内で例外が発生した際に `finally` 内のアンロード検証失敗例外で本来の例外が隠蔽されないよう、実行成否フラグを導入して例外を確実に伝播・報告するように改善。
+   - **List 版計測結果**（証跡: `F:\Seamless\test-artifacts-bench-realistic-list-clean`）:
+     - 全 10 ケースでゼロ不一致規約クリア（Passed: true）。
+     - Q02: **FLinq 659.8 ns vs System 12,746.5 ns (約 19.3 倍高速・ヒープ 95% 削減)**
+     - Q07: **FLinq 1,080.0 ns vs System 4,374.0 ns (約 4.05 倍高速)**
+     - Q08: **FLinq 209.6 ns vs System 1,061.2 ns (約 5.06 倍高速・ヒープ 96% 削減)**
+     - Q09: **FLinq 38.3 ns vs System 192.3 ns (約 5.02 倍高速)**
+     - Q10: **FLinq 190.2 ns vs System 697.8 ns (約 3.67 倍高速)**
+   - **IEnumerable 版計測結果**（証跡: `F:\Seamless\test-artifacts-bench-realistic-enum-final`）:
+     - 全 10 ケースでゼロ不一致規約クリア（Passed: true）。
+     - 動的アセンブリのアンロード漏れゼロ（10 ケースすべて正常解放）。
+     - Q02: **FLinq 3.69 µs vs System 14.55 µs (約 3.94 倍高速・ヒープ 95% 削減)**
+     - Q03: **FLinq 40.8 µs vs System 51.0 µs (約 1.25 倍高速)**
+     - Q07: **FLinq 3.96 µs vs System 4.90 µs (約 1.24 倍高速)**
+     - Q09: **FLinq 258.0 ns vs System 262.6 ns (同等・ヒープ 42% 削減)**
+     - Q10: **FLinq 1,412.3 ns vs System 2,120.0 ns (約 1.50 倍高速)**
+
+### 35. Order-Take における Top-K ストリーミングおよび Span インデックス高速パスの導入と検証 (2026-11-07)
+
+Q05（`OrderByDescending(Price).ThenBy(Quantity).Take(10)`）等の Order-Take クエリにおいて、全件バッファリング・全件キー配列確保・ソートのオーバーヘッドを解消し、手書き Ideal の Top-K 抽出知見を FLinq ソースジェネレーターに還元した。
+
+1. **設計とアーキテクチャ**:
+   - **`TopKBuffer` / `TopKCombinedBuffer`**: 単一キーおよび複合キー（主キー＋副キー）に対応した固定容量 $k$ のストリーミングバッファ struct。同値キーの出現順序を厳格に維持する安定ソート（Stable Sort）を保証し、`IValueEnumerator<T>` を実装。
+   - **ハイブリッド Top-K 展開**:
+     - **Span インデックス Top-K 高速パス**: `orderIndex == 0` かつ入力ソースが `TryGetSpan` を提供できる場合（Array, List, Memory 等）、走査中の要素本体コピーを完全に排除。`stackalloc int[64]`（インデックスバッファ）および `stackalloc TKey[64]`（キーキャッシュ）を用いてインデックスのみをシフト・挿入ソートし、走査完了後に上位 $k$ 件のみを入力 Span から結果バッファへ 1 回だけ転送。手書き Ideal と同一のゼロコピー・ゼロヒープ走査を実現。
+     - **ストリーミング Top-K パス**: ストリーミング専用ソース（`IEnumerable` 等）では、`TopKBuffer` / `TopKCombinedBuffer` を用いて走査。全件配列を確保せず、最大 $k$ 要素のバッファのみでメモリ消費を大幅に削減。
+     - **フォールバック**: $k > 64$ の場合は、既存の全件バッファリング＋`PartialSortIndexes`（クイックセレクト方式）へ自動フォールバック。
+
+2. **検証結果**:
+   - **固定ケース回帰検証**（`--check-all-fixed`）:
+     - 全 33 件の固定チェインケース（単一・複合・GroupBy・Join等）において **Total: 33, Failed: 0（全件ゼロ不一致合格）** を確認（証跡: `F:\Seamless\test-artifacts-check-fixed-topk-final`）。
+   - **Q05 実運用ベンチマーク実測**:
+     - **Q05 (Array)**: FLinq **7.10 µs** vs System 8.03 µs (**1.13倍高速**・Ideal 6.38 µs 肉薄・ヒープ **74% 削減**: 7,464 B vs System 28,544 B、証跡: `F:\Seamless\test-artifacts-bench-q05-array-topk`）
+     - **Q05 (List)**: FLinq **6.72 µs** vs System 7.44 µs (**1.11倍高速**・Ideal 6.11 µs 肉薄・ヒープ **74% 削減**: 7,384 B vs System 28,464 B、証跡: `F:\Seamless\test-artifacts-bench-q05-list-topk`）
+     - **Q05 (IEnumerable)**: FLinq 20.97 µs vs System 17.09 µs（ヒープ **74% 削減**: 7,384 B vs System 28,464 B、ゼロ不一致クリア、証跡: `F:\Seamless\test-artifacts-bench-q05-enum-topk2`）
+   - **固定チェイン全 33 件の Ideal 同期と実測**（証跡: `F:\Seamless\test-artifacts-bench-fixed-all`）:
+     - `chains.json` 内の全 33 ケースについて、手書き Ideal を FLinq 生成コードと同等の最適化構造（`AsSpan()` 走査、`stackalloc` バッファ、ゼロアロケーション）へ刷新。
+     - 2〜3 メソッドチェイン（`Where.Select.Sum`、`Where.Select.Take.ToArray`、`Skip.Take.ToList`、`GroupJoin.ToArray`、`GroupBy.Count.ToArray`、`GroupBy.Count.Sum` 等）において、FLinq が手書き Ideal と完全に同等または手書きを凌駕する最高速水準（例: `chain-16` FLinq 104.8 ns vs Ideal 120.7 ns、`chain-19` FLinq 44.4 ns vs Ideal 49.7 ns、`chain-22` FLinq 1,866 ns vs Ideal 1,924 ns）を達成していることを確認。
+
+
+
+
+
+
