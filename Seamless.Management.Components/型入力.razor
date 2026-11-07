@@ -1,0 +1,100 @@
+@implements IAsyncDisposable
+@inject IJSRuntime スクリプト
+<div @ref="根" class="型入力" data-候補表示="@表示中か.ToString().ToLowerInvariant()">
+    <input @ref="入力" role="combobox" aria-label="列の型" aria-autocomplete="list" aria-expanded="@表示中か.ToString().ToLowerInvariant()"
+           aria-controls="@一覧ID" aria-activedescendant="@選択ID" value="@値" @oninput="入力時Async" spellcheck="false" autocomplete="off"/>
+    <button type="button" class="型候補ボタン" tabindex="-1" aria-label="C#型の候補" title="型の候補を開く · Alt+↓" @onclick="開閉時">⌄</button>
+    @if(表示中か){
+        <div @ref="一覧" id="@一覧ID" class="操作ポップ 型候補一覧" role="listbox" aria-label="C#型の候補">
+            @for(var 位置=0;位置<候補一覧.Length;位置++){
+                var 番号=位置;
+                <button type="button" id="@(一覧ID+"-"+番号)" role="option" aria-selected="@((番号==選択位置).ToString().ToLowerInvariant())"
+                        tabindex="-1" class="メニュー項目" @onmousedown:preventDefault="true" @onclick="()=>選択時Async(番号)">@候補一覧[番号]</button>
+            }
+            @if(候補一覧.Length==0){<div class="候補なし">型名を直接入力できます</div>}
+        </div>
+    }
+</div>
+@code{
+    [Parameter]public string 値{get;set;}="";
+    [Parameter]public EventCallback<string> 値変更時{get;set;}
+    [Parameter]public IEnumerable<string> 候補{get;set;}=[];
+    private readonly string 一覧ID="type-"+Guid.NewGuid().ToString("N");
+    private ElementReference 根,入力,一覧;
+    private IJSObjectReference? モジュール,操作,ポップ;
+    private DotNetObjectReference<型入力>? 参照;
+    private readonly SemaphoreSlim 表示更新=new(1,1);
+    private bool 破棄済みか;
+    private bool 表示中か;
+    private string 検索語="";
+    private int 選択位置;
+    private string[] 候補一覧=>this.候補.Distinct(StringComparer.Ordinal).Where(型=>型.Contains(this.検索語,StringComparison.OrdinalIgnoreCase)).ToArray();
+    private string? 選択ID{
+        get{
+            if(this.表示中か&&this.選択位置<this.候補一覧.Length){return this.一覧ID+"-"+this.選択位置;}
+            return null;
+        }
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender){
+        // JS応答待ちの間にも再描画されるため、開閉と破棄の所有権を直列化する。
+        await this.表示更新.WaitAsync();
+        try{
+            if(this.破棄済みか){return;}
+            if(this.モジュール is null){
+                this.参照=DotNetObjectReference.Create(this);
+                this.モジュール=await this.スクリプト.InvokeAsync<IJSObjectReference>("import","./_content/Seamless.Management.Components/interaction.js");
+                this.操作=await this.モジュール.InvokeAsync<IJSObjectReference>("型入力を初期化",this.根,this.参照);
+            }
+            if(this.表示中か&&this.ポップ is null){
+                this.ポップ=await this.モジュール.InvokeAsync<IJSObjectReference>("メニューを開く",this.一覧,this.根,0,0,false,this.参照,this.入力);
+            }else if(!this.表示中か&&this.ポップ is not null){
+                var 閉じる対象=this.ポップ;this.ポップ=null;
+                await 閉じる対象.InvokeVoidAsync("dispose");
+                await 閉じる対象.DisposeAsync();
+            }
+            if(this.表示中か){await this.モジュール.InvokeVoidAsync("型候補を表示",this.一覧);}
+        }finally{
+            this.表示更新.Release();
+        }
+    }
+    private async Task 入力時Async(ChangeEventArgs 引数){
+        var 入力値=引数.Value?.ToString()??"";
+        this.検索語=入力値;this.選択位置=0;this.表示中か=true;
+        await this.値変更時.InvokeAsync(入力値);
+    }
+    private void 全候補を開く(){
+        this.表示中か=true;this.検索語="";
+        this.選択位置=Math.Max(0,Array.IndexOf(this.候補一覧,this.値));
+    }
+    private void 開閉時(){if(this.表示中か){this.表示中か=false;}else{this.全候補を開く();}}
+    private async Task 選択時Async(int 位置){
+        var 一覧=this.候補一覧;
+        this.表示中か=false;
+        if(位置>=0&&位置<一覧.Length){await this.値変更時.InvokeAsync(一覧[位置]);}
+        await this.入力.FocusAsync();
+        await this.InvokeAsync(this.StateHasChanged);
+    }
+    [JSInvokable]public Task 閉じるAsync(){this.表示中か=false;return this.InvokeAsync(this.StateHasChanged);}
+    [JSInvokable]public Task キー入力Async(string キー,bool 全候補か){
+        if(!this.表示中か||全候補か){this.全候補を開く();}
+        else if(キー=="Enter"){return this.選択時Async(this.選択位置);}
+        else if(this.候補一覧.Length>0){
+            var 差=1;if(キー=="ArrowUp"){差=-1;}
+            this.選択位置=(this.選択位置+差+this.候補一覧.Length)%this.候補一覧.Length;
+        }
+        return this.InvokeAsync(this.StateHasChanged);
+    }
+    public async ValueTask DisposeAsync(){
+        this.破棄済みか=true;
+        await this.表示更新.WaitAsync();
+        try{
+            foreach(var 対象 in new[]{this.ポップ,this.操作}){
+                if(対象 is not null){try{await 対象.InvokeVoidAsync("dispose");await 対象.DisposeAsync();}catch(JSDisconnectedException){}}
+            }
+            if(this.モジュール is not null){try{await this.モジュール.DisposeAsync();}catch(JSDisconnectedException){}}
+            this.参照?.Dispose();
+        }finally{
+            this.表示更新.Release();
+        }
+    }
+}

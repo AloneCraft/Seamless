@@ -228,14 +228,20 @@ public struct ValueHashSetSlim<T>:IDisposable {
     }
 
     public ValueHashSetSlim(int capacity,IEqualityComparer<T>? comparer) {
+        var requestedCapacity = Math.Max(capacity,0);
+        var bucketCapacity = requestedCapacity==0
+            ? MinimumSize
+            : (int)Math.Ceiling((requestedCapacity+1)/LoadFactor);
+        var initialCapacity = Math.Max((int)BitOperations.RoundUpToPowerOf2((uint)bucketCapacity),MinimumSize);
+
         this.comparer=comparer??EqualityComparer<T>.Default;
         this.isDefaultComparer=comparer is null||ReferenceEquals(comparer,EqualityComparer<T>.Default);
-        this.buckets=ArrayPool<int>.Shared.Rent(MinimumSize);
-        this.entries=ArrayPool<Entry>.Shared.Rent(MinimumSize);
-        this.bucketsLength=MinimumSize;
-        this.resizeThreshold=(int)(MinimumSize*LoadFactor);
+        this.buckets=ArrayPool<int>.Shared.Rent(initialCapacity);
+        this.entries=ArrayPool<Entry>.Shared.Rent(initialCapacity);
+        this.bucketsLength=initialCapacity;
+        this.resizeThreshold=(int)(initialCapacity*LoadFactor);
         this.entryIndex=0;
-        this.buckets.AsSpan(0,MinimumSize).Clear();
+        this.buckets.AsSpan(0,initialCapacity).Clear();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

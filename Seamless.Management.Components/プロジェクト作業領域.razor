@@ -1,0 +1,114 @@
+@implements IAsyncDisposable
+@inject IManagementOperations 管理操作
+<section class="ソース領域" hidden="@(!表示中か)" aria-label="開発ソース">
+    <header class="ソース見出し"><div><div class="種類ラベル">DEVELOPMENT</div><h1>開発ソース</h1><p>サーバー側のプロジェクトを、IDEと同じファイルで編集します。</p></div><button class="控えめボタン" @onclick="閉じる時">DBへ戻る</button></header>
+    <form class="場所入力" @onsubmit="場所を開く時Async" @onsubmit:preventDefault>
+        <label>ソリューション・フォルダー・プロジェクト<input aria-label="サーバー側のソースパス" placeholder=".slnx / フォルダー / .csproj" @bind="場所" @bind:event="oninput"/></label>
+        <button class="主要ボタン" disabled="@処理中か" type="submit">開く</button>
+    </form>
+    <div class="ソース通知" role="status" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>
+    <div class="ソース構成">
+        <aside class="ソース一覧" aria-label="プロジェクトと名前空間">
+            <h2>プロジェクト</h2>
+            @foreach(var プロジェクト in プロジェクト一覧){<button class="ソース選択" disabled="@処理中か" data-選択中="@((現在?.情報.ProjectPath==プロジェクト).ToString().ToLowerInvariant())" title="@プロジェクト" @onclick="()=>プロジェクトを開く時Async(プロジェクト)"><span>▤</span> @System.IO.Path.GetFileNameWithoutExtension(プロジェクト)</button>}
+            @if(ターゲット待ち is{} 待ち){<label class="ターゲット入力">ターゲット<select aria-label="プロジェクトのターゲット" @onchange="ターゲット変更時Async"><option value="">選択してください</option>@foreach(var 候補 in 待ち.TargetFrameworks){<option value="@候補">@候補</option>}</select></label>}
+            @if(現在 is{} 文書){
+                <h2>名前空間</h2>
+                @foreach(var 名前空間 in 文書.情報.Namespaces){<button class="ソース選択 名前空間選択" data-選択中="@((文書.名前空間==名前空間).ToString().ToLowerInvariant())" @onclick="()=>文書.名前空間=名前空間">@名前空間</button>}
+                @if(文書.情報.Namespaces.Length==0){<p class="小案内">DatabaseGenerator型が見つかりません。</p>}
+                <h2>ソース</h2>
+                @foreach(var ファイル in 文書.現在.Files){<button class="ソース選択 ソースファイル" data-選択中="@((文書.ファイル==ファイル.Path).ToString().ToLowerInvariant())" title="@ファイル.Path" @onclick="()=>文書.ファイル=ファイル.Path">〈〉 @ファイル.Path</button>}
+            }
+        </aside>
+        <div class="ソース編集面">
+            @if(現在 is{} 編集文書){
+                <div class="ソース操作"><div><strong>@編集文書.名前空間</strong><small>@編集文書.ファイル</small></div><span>@保存表示(編集文書)</span>@if(編集文書.同期停止か){<button class="控えめボタン" disabled="@処理中か" @onclick="()=>再評価時Async(編集文書)">プロジェクトを再評価</button>}<button class="控えめボタン" disabled="@処理中か" @onclick="()=>同期時Async(編集文書)">同期</button></div>
+                <textarea class="プロジェクトコード" aria-label="プロジェクトのC#ソース" spellcheck="false" value="@編集文書.現在.Files.FirstOrDefault(ファイル=>ファイル.Path==編集文書.ファイル)?.Text" @oninput="引数=>ソース入力時Async(編集文書,引数)"></textarea>
+                <footer class="ソース保存案内">ファイル保存と稼働DBへの適用は別の操作です。IDEの未保存バッファは、IDEで保存後に同期します。</footer>
+            }else{<div class="ソース空表示"><span>〈〉</span><h2>プロジェクトを開いて始める</h2><p>名前空間とC#ソースを確認し、IDEからの保存も取り込みます。</p></div>}
+        </div>
+    </div>
+</section>
+@code{
+    [Parameter]public bool 表示中か{get;set;}
+    [Parameter]public EventCallback 閉じる時{get;set;}
+    [Parameter]public EventCallback<bool> 未保存変更時{get;set;}
+    private sealed class ソース文書(SourceProjectDocument 情報){
+        public SourceProjectDocument 情報=情報;
+        public SourceSnapshot 基準=情報.Source!;
+        public SourceSnapshot 現在=情報.Source!;
+        public string ファイル=情報.Source!.Files.First().Path;
+        public string 名前空間=情報.Namespaces.FirstOrDefault()??"";
+        public bool 同期停止か;
+        public bool 未保存か=>this.基準.Hash()!=this.現在.Hash();
+    }
+    private string 場所="";
+    private string[] プロジェクト一覧=[];
+    private readonly Dictionary<string,ソース文書> 文書一覧=new(StringComparer.Ordinal);
+    private ソース文書? 現在;
+    private SourceProjectDocument? ターゲット待ち;
+    private bool 処理中か,エラーか;
+    private string 案内="サーバー側の場所を指定してください。";
+    private readonly CancellationTokenSource 寿命=new();
+    private Task? 自動同期;
+    private IManagementSourceOperations 操作=>this.管理操作 as IManagementSourceOperations??throw new ManagementException("Unsupported","この接続は開発ソースに対応していません。");
+    protected override void OnInitialized(){this.自動同期=this.自動同期Async();}
+    private static string 保存表示(ソース文書 文書){if(文書.同期停止か){return "同期を停止・編集を保持";}if(文書.未保存か){return "ファイル未保存";}return "ファイル保存済み";}
+    private async Task 実行Async(Func<Task> 処理){
+        if(this.処理中か){return;}this.処理中か=true;this.エラーか=false;
+        try{await 処理();}
+        catch(OperationCanceledException)when(this.寿命.IsCancellationRequested){}
+        catch(Exception 例外){this.エラーか=true;this.案内=例外.Message;if(this.現在 is{} 文書){文書.同期停止か=true;}}
+        finally{this.処理中か=false;await this.未保存変更時.InvokeAsync(this.文書一覧.Values.Any(文書=>文書.未保存か));}
+    }
+    private Task 場所を開く時Async()=>this.実行Async(async()=>{
+        var 場所=await this.操作.OpenSourceLocationAsync(this.場所,this.寿命.Token);this.プロジェクト一覧=場所.Projects;
+        this.案内=場所.Projects.Length+"件のプロジェクト · "+場所.Path;
+        if(場所.Projects.Length==1){await this.プロジェクトを開くAsync(new(場所.Projects[0]));}
+    });
+    private Task プロジェクトを開く時Async(string パス)=>this.実行Async(()=>this.プロジェクトを開くAsync(new(パス)));
+    private async Task プロジェクトを開くAsync(SourceProjectOpenRequest 要求){
+        var 既存=this.文書一覧.Values.FirstOrDefault(文書=>文書.情報.ProjectPath==要求.Path&&(要求.TargetFramework.Length==0||文書.情報.TargetFramework==要求.TargetFramework));
+        if(既存 is not null){this.現在=既存;return;}
+        var 情報=await this.操作.OpenSourceProjectAsync(要求,this.寿命.Token);
+        if(情報.Source is null){this.ターゲット待ち=情報;this.案内="ターゲットを選択してください。";return;}
+        this.ターゲット待ち=null;this.現在=new(情報);this.文書一覧[情報.Id]=this.現在;
+        this.案内="接続済み · "+情報.ProjectPath+" · "+情報.TargetFramework;
+    }
+    private Task ターゲット変更時Async(ChangeEventArgs 引数){
+        var ターゲット=引数.Value?.ToString()??"";
+        if(this.ターゲット待ち is not{} 待ち||ターゲット.Length==0){return Task.CompletedTask;}
+        return this.実行Async(()=>this.プロジェクトを開くAsync(new(待ち.ProjectPath,ターゲット)));
+    }
+    private async Task ソース入力時Async(ソース文書 文書,ChangeEventArgs 引数){
+        var 入力=引数.Value?.ToString()??"";
+        文書.現在=文書.現在 with{Files=文書.現在.Files.Select(ファイル=>{if(ファイル.Path==文書.ファイル){return ファイル with{Text=入力};}return ファイル;}).ToArray()};
+        await this.未保存変更時.InvokeAsync(true);
+    }
+    private Task 同期時Async(ソース文書 文書)=>this.実行Async(()=>this.同期Async(文書));
+    private Task 再評価時Async(ソース文書 文書)=>this.実行Async(async()=>{
+        var 応答=await this.操作.OpenSourceProjectAsync(new(文書.情報.ProjectPath,文書.情報.TargetFramework),this.寿命.Token);
+        var 統合=SourceWorkspace.Merge(文書.基準,文書.現在,応答.Source!);
+        文書.基準=応答.Source!;文書.現在=応答.Source! with{Files=統合.Files};文書.情報=応答;文書.同期停止か=false;
+        if(!文書.現在.Files.Any(ファイル=>ファイル.Path==文書.ファイル)){文書.ファイル=文書.現在.Files.First().Path;}
+        this.案内="プロジェクトを再評価しました。表示中の編集を保持しています。";
+    });
+    private async Task 同期Async(ソース文書 文書){
+        var 送信=文書.現在.Freeze();var 応答=await this.操作.SynchronizeSourceProjectAsync(new(文書.情報.Id,文書.基準,送信),this.寿命.Token);
+        // 応答待ちの追加入力を保ち、同じ部分の競合では基準も書き換えない。
+        var 統合=SourceWorkspace.Merge(送信,文書.現在,応答.Source!);
+        var 最新=応答.Source! with{Files=統合.Files};
+        文書.基準=応答.Source!;文書.現在=最新;文書.情報=応答;文書.同期停止か=false;
+        if(!最新.Files.Any(ファイル=>ファイル.Path==文書.ファイル)){文書.ファイル=最新.Files.First().Path;}
+        this.案内="ファイル保存済み · IDEと同期しています。稼働DBへの適用は別操作です。";
+    }
+    private async Task 自動同期Async(){
+        using var 時計=new PeriodicTimer(TimeSpan.FromSeconds(2));
+        try{while(await 時計.WaitForNextTickAsync(this.寿命.Token)){
+            await this.InvokeAsync(async()=>{
+                if(this.表示中か&&!this.処理中か&&this.現在 is{同期停止か:false} 文書){await this.同期時Async(文書);this.StateHasChanged();}
+            });
+        }}catch(OperationCanceledException)when(this.寿命.IsCancellationRequested){}
+    }
+    public async ValueTask DisposeAsync(){this.寿命.Cancel();if(this.自動同期 is not null){await this.自動同期;}this.寿命.Dispose();}
+}
