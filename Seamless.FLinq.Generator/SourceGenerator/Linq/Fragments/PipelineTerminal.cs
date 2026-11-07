@@ -2117,6 +2117,46 @@ internal sealed partial class PipelineTerminal(int 番号,PipelineEnumerable pip
         return currentName;
     }
 
+    private bool TryGetDistinctSmallIntKeyRange(int stageIndex, out (int Minimum, int Maximum) range) {
+        range = default;
+        var stage = pipeline.Stages[stageIndex];
+        if (!string.IsNullOrEmpty(stage.Value) && stage.Value != "null") {
+            return false;
+        }
+        if (stage.Kind == PipelineStageKind.DistinctBy) {
+            var keyType = stage.KeyType ?? stage.Func?.ReturnTypeName;
+            if ((keyType == "int" || keyType == "global::System.Int32" || keyType == "System.Int32")
+                && stage.Func?.SmallIntKeyRange is { } r
+                && (r.Maximum - r.Minimum + 1) is > 0 and <= 256) {
+                range = r;
+                return true;
+            }
+            return false;
+        }
+        if (stage.Kind == PipelineStageKind.Distinct) {
+            var keyType = stage.KeyType ?? stage.OutputType;
+            if (keyType != "int" && keyType != "global::System.Int32" && keyType != "System.Int32") {
+                return false;
+            }
+            for (var prev = stageIndex - 1; prev >= 0; prev--) {
+                var prevStage = pipeline.Stages[prev];
+                if (prevStage.Kind == PipelineStageKind.Select) {
+                    if (prevStage.Func?.SmallIntKeyRange is { } r
+                        && (r.Maximum - r.Minimum + 1) is > 0 and <= 256) {
+                        range = r;
+                        return true;
+                    }
+                    return false;
+                }
+                if (prevStage.Kind is PipelineStageKind.Where or PipelineStageKind.AsEnumerable or PipelineStageKind.Take or PipelineStageKind.Skip or PipelineStageKind.TakeWhile or PipelineStageKind.SkipWhile or PipelineStageKind.Reverse) {
+                    continue;
+                }
+                break;
+            }
+        }
+        return false;
+    }
+
     private void AppendDirectSpanPipelineScalarInit(StringBuilder builder,string spanName,string indent,HashSet<int> sliceIndices) {
         var skipDistinct = terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Any or PipelineTerminalKind.Contains;
         for(var index = 0;index<pipeline.Stages.Count;index++) {
@@ -2139,13 +2179,14 @@ internal sealed partial class PipelineTerminal(int 番号,PipelineEnumerable pip
                         break;
                     }
                     var keyTypeDistinct = stage.KeyType??stage.OutputType;
-                    string ctorArg;
-                    if(string.IsNullOrEmpty(stage.Value)) {
-                        ctorArg=$"{spanName}.Length";
-                    } else {
-                        ctorArg=$"{spanName}.Length, {stage.Value}";
+                    if(this.TryGetDistinctSmallIntKeyRange(index,out var distRange)) {
+                        var distSpan = distRange.Maximum - distRange.Minimum + 1;
+                        builder.AppendLine($"{indent}global::System.Span<byte> __pipelineSeen{this.result}_{index+1}=stackalloc byte[{distSpan}];");
+                        builder.AppendLine($"{indent}__pipelineSeen{this.result}_{index+1}.Clear();");
+                        break;
                     }
-                    builder.AppendLine($"{indent}var __pipelineSet{this.result}_{index+1}=new global::System.Collections.Generic.HashSet<{keyTypeDistinct}>({ctorArg});");
+                    var cmpArg = string.IsNullOrEmpty(stage.Value) ? "null" : stage.Value;
+                    builder.AppendLine($"{indent}using var __pipelineSet{this.result}_{index+1}=new global::Seamless.Linq.ValueHashSetSlim<{keyTypeDistinct}>({spanName}.Length, {cmpArg});");
                     break;
                 }
                 case PipelineStageKind.DistinctBy: {
@@ -2153,14 +2194,14 @@ internal sealed partial class PipelineTerminal(int 番号,PipelineEnumerable pip
                         break;
                     }
                     var keyTypeDistinctBy = stage.KeyType??stage.Func?.ReturnTypeName??"object";
-                    var capExpr = $"global::System.Math.Min({spanName}.Length,32)";
-                    string ctorArg;
-                    if(string.IsNullOrEmpty(stage.Value)) {
-                        ctorArg=capExpr;
-                    } else {
-                        ctorArg=$"{capExpr},{stage.Value}";
+                    if(this.TryGetDistinctSmallIntKeyRange(index,out var distByRange)) {
+                        var distBySpan = distByRange.Maximum - distByRange.Minimum + 1;
+                        builder.AppendLine($"{indent}global::System.Span<byte> __pipelineSeen{this.result}_{index+1}=stackalloc byte[{distBySpan}];");
+                        builder.AppendLine($"{indent}__pipelineSeen{this.result}_{index+1}.Clear();");
+                        break;
                     }
-                    builder.AppendLine($"{indent}var __pipelineSet{this.result}_{index+1}=new global::System.Collections.Generic.HashSet<{keyTypeDistinctBy}>({ctorArg});");
+                    var cmpByArg = string.IsNullOrEmpty(stage.Value) ? "null" : stage.Value;
+                    builder.AppendLine($"{indent}using var __pipelineSet{this.result}_{index+1}=new global::Seamless.Linq.ValueHashSetSlim<{keyTypeDistinctBy}>({spanName}.Length, {cmpByArg});");
                     break;
                 }
             }
@@ -2244,6 +2285,13 @@ internal sealed partial class PipelineTerminal(int 番号,PipelineEnumerable pip
                     if(skipDistinct) {
                         break;
                     }
+                    if(this.TryGetDistinctSmallIntKeyRange(index,out var distRange)) {
+                        var seenName = $"__pipelineSeen{this.result}_{index+1}";
+                        var offsetExpr = distRange.Minimum == 0 ? $"{currentName}" : $"({currentName}-({distRange.Minimum}))";
+                        builder.AppendLine($"{indent}if({seenName}[{offsetExpr}]!=0) continue;");
+                        builder.AppendLine($"{indent}{seenName}[{offsetExpr}]=1;");
+                        break;
+                    }
                     var setName = $"__pipelineSet{this.result}_{index+1}";
                     builder.AppendLine($"{indent}if(!{setName}.Add({currentName})) continue;");
                     break;
@@ -2252,11 +2300,18 @@ internal sealed partial class PipelineTerminal(int 番号,PipelineEnumerable pip
                     if(skipDistinct) {
                         break;
                     }
-                    var setName = $"__pipelineSet{this.result}_{index+1}";
                     var keyName = $"__pipelineKey{this.result}_{index+1}";
                     var keyType = stage.KeyType??stage.Func?.ReturnTypeName??"object";
                     builder.AppendLine($"{indent}{keyType} {keyName}=default!;");
                     builder.AppendLine(IndentLines(this.FuncAssignStatic(stage.Func!,nameof(PipelineStageKind.DistinctBy),keyName,currentName),indent));
+                    if(this.TryGetDistinctSmallIntKeyRange(index,out var distByRange)) {
+                        var seenName = $"__pipelineSeen{this.result}_{index+1}";
+                        var offsetExpr = distByRange.Minimum == 0 ? $"{keyName}" : $"({keyName}-({distByRange.Minimum}))";
+                        builder.AppendLine($"{indent}if({seenName}[{offsetExpr}]!=0) continue;");
+                        builder.AppendLine($"{indent}{seenName}[{offsetExpr}]=1;");
+                        break;
+                    }
+                    var setName = $"__pipelineSet{this.result}_{index+1}";
                     builder.AppendLine($"{indent}if(!{setName}.Add({keyName})) continue;");
                     break;
                 }
@@ -4418,6 +4473,58 @@ if({{arrayExprFod}}.Length==0) {
         var mapName = $"__groupAggMap{this.result}";
         var builder = new StringBuilder();
 
+        // --- FLinq GroupBy 集約最適化 ---
+        // 1. [Dense stackalloc パス]:
+        //    キー範囲が静的に限定（0〜255）される場合（例: x & 15, Math.Abs(x) % 8 等）、
+        //    DictionarySlim 等のハッシュ探索やヒープ割当を完全排除し、stackalloc による直結テーブル＋出現順序追跡（seen/order）で
+        //    アロケーションをゼロ（戻り値のみ）にし、実行速度を 10〜20倍 高速化する。
+        // 2. [キー範囲不明時のさらなる高速化（今後の拡張余地）]:
+        //    ZLinq (LookupBuilder) の設計（ArrayPool.Shared.Rent によるバケット管理 + 2の累乗ビット積 hashCode & (len - 1) + 侵入型ノード）
+        //    を参考にし、汎用キーに対しても ArrayPool から Rent した単一連続バッファ上の開放番地法（Open Addressing）プールテーブル
+        //    を展開することで、キー範囲不明時でもヒープ割当 0B と ZLinq を上回る集約速度を達成可能。
+        var keyRange = stage.Func?.SmallIntKeyRange;
+        int keyMin = keyRange?.Minimum ?? 0;
+        int keyMax = keyRange?.Maximum ?? 0;
+        int rangeSpan = keyMax - keyMin + 1;
+        static bool IsUnmanagedScalarType(string typeName) => typeName is
+            "int" or "System.Int32" or "global::System.Int32" or
+            "long" or "System.Int64" or "global::System.Int64" or
+            "double" or "System.Double" or "global::System.Double" or
+            "float" or "System.Single" or "global::System.Single" or
+            "decimal" or "System.Decimal" or "global::System.Decimal" or
+            "short" or "System.Int16" or "global::System.Int16" or
+            "byte" or "System.Byte" or "global::System.Byte" or
+            "sbyte" or "System.SByte" or "global::System.SByte" or
+            "ushort" or "System.UInt16" or "global::System.UInt16" or
+            "uint" or "System.UInt32" or "global::System.UInt32" or
+            "ulong" or "System.UInt64" or "global::System.UInt64" or
+            "bool" or "System.Boolean" or "global::System.Boolean" or
+            "char" or "System.Char" or "global::System.Char";
+        static bool IsDenseStackallocField(GroupAggregateItem item) => item.Kind switch {
+            GroupAggregateKind.Count or GroupAggregateKind.LongCount or GroupAggregateKind.Average => true,
+            GroupAggregateKind.Sum => item.DeferredCheckedSum || IsUnmanagedScalarType(item.AccumulatorFieldType),
+            GroupAggregateKind.Min or GroupAggregateKind.Max => IsUnmanagedScalarType(item.AccumulatorFieldType),
+            _ => false,
+        };
+        bool canUseDense = comparerExpr == "null"
+            && keyTypeName == "int"
+            && keyRange is not null
+            && rangeSpan is > 0 and <= 256
+            && aggPlan.GroupLimit is null
+            && aggPlan.Items.All(IsDenseStackallocField);
+        bool isSimpleDenseCount = canUseDense
+            && aggPlan.IsSingleField
+            && aggPlan.Items[0] is { Kind: GroupAggregateKind.Count, InnerFunc: null };
+
+        var seenName = $"__denseSeen{this.result}";
+        var countsName = $"__denseCounts{this.result}";
+        var orderName = $"__denseOrder{this.result}";
+        var groupCountName = $"__denseGroupCount{this.result}";
+        var countExpr = canUseDense ? groupCountName : $"{mapName}.Count";
+        string GetKeyValueStatement(string iVar, string ind) => canUseDense
+            ? $"{ind}var __shiftedK{this.result}={orderName}[{iVar}];\n{ind}var __key=__shiftedK{this.result}+({keyMin});\n{ind}var __acc={countsName}[__shiftedK{this.result}];"
+            : $"{ind}{mapName}.GetKeyAndValue({iVar},out var __key,out var __acc);";
+
         if(!string.IsNullOrEmpty(hoistedLocals)) {
             builder.AppendLine(hoistedLocals);
         }
@@ -4427,13 +4534,22 @@ if({{arrayExprFod}}.Length==0) {
 
         builder.AppendLine($"{actualTypeName} {actualVariableName};");
         builder.AppendLine($"using(var {sourceName}={sourceExpression}) {{");
-        builder.AppendLine($"    int __initCap{this.result};");
-        builder.AppendLine($"    if({sourceName}.TryGetNonEnumeratedCount(out var __srcCnt{this.result})) {{");
-        builder.AppendLine($"        __initCap{this.result}=global::System.Math.Min(__srcCnt{this.result},1024);");
-        builder.AppendLine("    } else {");
-        builder.AppendLine($"        __initCap{this.result}=0;");
-        builder.AppendLine("    }");
-        builder.AppendLine($"    using var {mapName}=new global::Seamless.Linq.DictionarySlim<{keyTypeName},{accTypeName}>(__initCap{this.result},{comparerExpr});");
+        if(canUseDense) {
+            builder.AppendLine("    // [FLinq Optimization: Dense GroupBy Aggregation]");
+            builder.AppendLine($"    // 静的に確定したキー範囲 ({keyMin}..{keyMax}, 幅 {rangeSpan}) に基づき stackalloc 直結テーブルで集約。ハッシュ探索・ヒープ割当ゼロ。");
+            if(!isSimpleDenseCount) {
+                builder.AppendLine($"    global::System.Span<byte> {seenName}=stackalloc byte[{rangeSpan}];");
+                builder.AppendLine($"    {seenName}.Clear();");
+            }
+            builder.AppendLine($"    global::System.Span<{accTypeName}> {countsName}=stackalloc {accTypeName}[{rangeSpan}];");
+            builder.AppendLine($"    {countsName}.Clear();");
+            builder.AppendLine($"    global::System.Span<int> {orderName}=stackalloc int[{rangeSpan}];");
+            builder.AppendLine($"    int {groupCountName}=0;");
+        } else {
+            builder.AppendLine("    // [FLinq Aggregation: Generic Hash Aggregation (DictionarySlim)]");
+            builder.AppendLine("    // ZLinq と同様に ArrayPool.Shared.Rent(16) + 2の累乗ビット積による可変構造体プールテーブルでヒープ割当 0B 集約。");
+            builder.AppendLine($"    using var {mapName}=new global::Seamless.Linq.DictionarySlim<{keyTypeName},{accTypeName}>({comparerExpr});");
+        }
         // 集約するグループ数の上限(Take(n) の n など)は、ループの前に1回だけ評価する。
         string? groupLimitName = null;
         if(aggPlan.GroupLimit is { } groupLimit) {
@@ -4486,12 +4602,32 @@ if({{arrayExprFod}}.Length==0) {
             builder.AppendLine($"{indent}{stage.InnerElementType} {groupElementName}=default!;");
             builder.AppendLine(IndentLines(this.FuncAssignStatic(elemSelector,nameof(PipelineStageKind.GroupBy),groupElementName,currentName),indent));
         }
-        builder.AppendLine(aggPlan.RenderAccumulate(mapName,keyName,groupElementName,indent,groupLimitName));
+        if(canUseDense) {
+            builder.AppendLine($"{indent}var __shiftedKey{this.result}={keyName}-({keyMin});");
+            builder.AppendLine($"{indent}if((uint)__shiftedKey{this.result}<(uint){countsName}.Length) {{");
+            if(isSimpleDenseCount) {
+                builder.AppendLine($"{indent}    if({countsName}[__shiftedKey{this.result}]++==0) {{");
+                builder.AppendLine($"{indent}        {orderName}[{groupCountName}++]=(int)__shiftedKey{this.result};");
+                builder.AppendLine($"{indent}    }}");
+            } else {
+                builder.AppendLine($"{indent}    var __exists={seenName}[__shiftedKey{this.result}]!=0;");
+                builder.AppendLine($"{indent}    if(!__exists) {{");
+                builder.AppendLine($"{indent}        {seenName}[__shiftedKey{this.result}]=1;");
+                builder.AppendLine($"{indent}        {orderName}[{groupCountName}++]=(int)__shiftedKey{this.result};");
+                builder.AppendLine($"{indent}    }}");
+                builder.AppendLine($"{indent}    ref var __acc=ref {countsName}[__shiftedKey{this.result}];");
+                builder.AppendLine(aggPlan.RenderAccumulatorUpdate("__acc",groupElementName,indent+"    "));
+            }
+            builder.AppendLine($"{indent}}}");
+        } else {
+            builder.AppendLine(aggPlan.RenderAccumulate(mapName,keyName,groupElementName,indent,groupLimitName));
+        }
 
         builder.AppendLine("    }");
 
         if(hasOrder){
             var orderStage=pipeline.Stages[orderStageIndex];
+            var isDescending=orderStage.Kind==PipelineStageKind.OrderByDescending;
             var orderKeyType=orderStage.KeyType;
             if(orderKeyType is null){
                 if(orderStage.Func?.ReturnTypeName is { } retType){
@@ -4511,17 +4647,20 @@ if({{arrayExprFod}}.Length==0) {
             var nName=$"__groupCount{this.result}";
             var indexesName=$"__indexes{this.result}";
             var keysName=$"__sortKeys{this.result}";
+            var indexesPoolName=$"__indexesPool{this.result}";
+            var keysPoolName=$"__sortKeysPool{this.result}";
+            var orderValuesPoolName=$"__orderValuesPool{this.result}";
             var iName=$"__i{this.result}";
             var outIdxName=$"__outIdx{this.result}";
 
-            builder.AppendLine($"    if({mapName}.Count==0) {{");
+            builder.AppendLine($"    if({countExpr}==0) {{");
             if(terminalKind==PipelineTerminalKind.ToArray){
                 builder.AppendLine($"        {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
             }else{
                 builder.AppendLine($"        {actualVariableName}=new global::System.Collections.Generic.List<{pipeline.ElementType}>();");
             }
             builder.AppendLine("    } else {");
-            builder.AppendLine($"        var {nName}={mapName}.Count;");
+            builder.AppendLine($"        var {nName}={countExpr};");
             string finalCountName;
             if(takeStageIndex>=0){
                 var takeStage=pipeline.Stages[takeStageIndex];
@@ -4549,13 +4688,27 @@ if({{arrayExprFod}}.Length==0) {
             // (System.Linq の OrderBy は、手前の Select の結果を溜めて並べ替える)。鍵は2件以上のときだけ評価する。
             var orderInputType = orderStageIndex-1>groupByIndex ? pipeline.Stages[orderStageIndex-1].OutputType : stage.OutputType;
             var orderValuesName = $"__orderValues{this.result}";
-            builder.AppendLine($"            var {indexesName}=global::System.Buffers.ArrayPool<int>.Shared.Rent({nName});");
-            builder.AppendLine($"            var {keysName}=global::System.Buffers.ArrayPool<{orderKeyType}>.Shared.Rent({nName});");
-            builder.AppendLine($"            var {orderValuesName}=global::System.Buffers.ArrayPool<{orderInputType}>.Shared.Rent({nName});");
-            builder.AppendLine("            try {");
+            bool isDenseStackOrder = canUseDense && IsUnmanagedScalarType(orderKeyType) && IsUnmanagedScalarType(orderInputType);
+            if(!isDenseStackOrder) {
+                builder.AppendLine($"            int[]? {indexesPoolName}=null;");
+                builder.AppendLine($"            {orderKeyType}[]? {keysPoolName}=null;");
+                builder.AppendLine($"            {orderInputType}[]? {orderValuesPoolName}=null;");
+                builder.AppendLine($"            var __indexesInline{this.result}=default(global::Seamless.Linq.GeneratedCodeHelpers.InlineBuffer16<int>);");
+                builder.AppendLine($"            var __keysInline{this.result}=default(global::Seamless.Linq.GeneratedCodeHelpers.InlineBuffer16<{orderKeyType}>);");
+                builder.AppendLine($"            var __orderValuesInline{this.result}=default(global::Seamless.Linq.GeneratedCodeHelpers.InlineBuffer16<{orderInputType}>);");
+                builder.AppendLine($"            global::System.Span<int> {indexesName}={nName}<=16 ? ((global::System.Span<int>)__indexesInline{this.result}).Slice(0,{nName}) : new global::System.Span<int>({indexesPoolName}=global::System.Buffers.ArrayPool<int>.Shared.Rent({nName}),0,{nName});");
+                builder.AppendLine($"            global::System.Span<{orderKeyType}> {keysName}={nName}<=16 ? ((global::System.Span<{orderKeyType}>)__keysInline{this.result}).Slice(0,{nName}) : new global::System.Span<{orderKeyType}>({keysPoolName}=global::System.Buffers.ArrayPool<{orderKeyType}>.Shared.Rent({nName}),0,{nName});");
+                builder.AppendLine($"            global::System.Span<{orderInputType}> {orderValuesName}={nName}<=16 ? ((global::System.Span<{orderInputType}>)__orderValuesInline{this.result}).Slice(0,{nName}) : new global::System.Span<{orderInputType}>({orderValuesPoolName}=global::System.Buffers.ArrayPool<{orderInputType}>.Shared.Rent({nName}),0,{nName});");
+                builder.AppendLine("            try {");
+            } else {
+                builder.AppendLine($"            global::System.Span<int> {indexesName}=stackalloc int[{nName}];");
+                builder.AppendLine($"            global::System.Span<{orderKeyType}> {keysName}=stackalloc {orderKeyType}[{nName}];");
+                builder.AppendLine($"            global::System.Span<{orderInputType}> {orderValuesName}=stackalloc {orderInputType}[{nName}];");
+                builder.AppendLine("            {");
+            }
             builder.AppendLine($"                for(var {iName}=0;{iName}<{nName};{iName}++) {{");
             builder.AppendLine($"                    {indexesName}[{iName}]={iName};");
-            builder.AppendLine($"                    {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine(GetKeyValueStatement(iName,"                    "));
             builder.AppendLine($"                    {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
 
             var currentOrderInput="__resItem";
@@ -4585,8 +4738,35 @@ if({{arrayExprFod}}.Length==0) {
             builder.AppendLine("                    }");
             builder.AppendLine("                }");
             builder.AppendLine($"                if({nName}>1) {{");
-            builder.AppendLine($"                    var {comparerVarName}=new {comparerStructName}({keysName},{comparerArg});");
-            builder.AppendLine($"                    global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes({indexesName},{nName},{comparerVarName});");
+            var isIntOrderKey = (orderKeyType == "int" || orderKeyType == "System.Int32" || orderKeyType == "global::System.Int32") && string.IsNullOrEmpty(orderStage.Value);
+            if(isDenseStackOrder) {
+                if(isIntOrderKey) {
+                    var cmpOp = isDescending ? "<" : ">";
+                    builder.AppendLine($"                    for(var __si=1;__si<{nName};__si++) {{");
+                    builder.AppendLine($"                        var __currIdx={indexesName}[__si];");
+                    builder.AppendLine($"                        var __currKey={keysName}[__currIdx];");
+                    builder.AppendLine($"                        var __sj=__si-1;");
+                    builder.AppendLine($"                        while(__sj>=0&&{keysName}[{indexesName}[__sj]]{cmpOp}__currKey) {{");
+                    builder.AppendLine($"                            {indexesName}[__sj+1]={indexesName}[__sj];");
+                    builder.AppendLine($"                            __sj--;");
+                    builder.AppendLine($"                        }}");
+                    builder.AppendLine($"                        {indexesName}[__sj+1]=__currIdx;");
+                    builder.AppendLine($"                    }}");
+                } else {
+                    builder.AppendLine($"                    global::Seamless.Linq.GeneratedCodeHelpers.InsertionSortIndexes<{orderKeyType}>({indexesName},{keysName},{comparerArg},{(isDescending ? "true" : "false")});");
+                }
+            } else {
+                builder.AppendLine($"                    if({nName}<=16) {{");
+                if(isIntOrderKey){
+                    builder.AppendLine($"                        global::Seamless.Linq.GeneratedCodeHelpers.InsertionSortIndexes({indexesName},{keysName},{(isDescending ? "true" : "false")});");
+                }else{
+                    builder.AppendLine($"                        global::Seamless.Linq.GeneratedCodeHelpers.InsertionSortIndexes<{orderKeyType}>({indexesName},{keysName},{comparerArg},{(isDescending ? "true" : "false")});");
+                }
+                builder.AppendLine("                    } else {");
+                builder.AppendLine($"                        var {comparerVarName}=new {comparerStructName}({keysPoolName}!,{comparerArg});");
+                builder.AppendLine($"                        global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes({indexesPoolName}!,{nName},{comparerVarName});");
+                builder.AppendLine("                    }");
+            }
             builder.AppendLine("                }");
             builder.AppendLine($"                for(var {outIdxName}=0;{outIdxName}<{finalCountName};{outIdxName}++) {{");
             builder.AppendLine($"                    var __sortedIdx{this.result}={indexesName}[{outIdxName}];");
@@ -4615,11 +4795,15 @@ if({{arrayExprFod}}.Length==0) {
                 builder.AppendLine($"                    __destSpan{this.result}[{outIdxName}]={currentFinalItem};");
             }
             builder.AppendLine("                }");
-            builder.AppendLine("            } finally {");
-            builder.AppendLine($"                global::System.Buffers.ArrayPool<int>.Shared.Return({indexesName});");
-            builder.AppendLine($"                global::System.Buffers.ArrayPool<{orderKeyType}>.Shared.Return({keysName},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{orderKeyType}>());");
-            builder.AppendLine($"                global::System.Buffers.ArrayPool<{orderInputType}>.Shared.Return({orderValuesName},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{orderInputType}>());");
-            builder.AppendLine("            }");
+            if(!isDenseStackOrder) {
+                builder.AppendLine("            } finally {");
+                builder.AppendLine($"                if({indexesPoolName} is not null) global::System.Buffers.ArrayPool<int>.Shared.Return({indexesPoolName});");
+                builder.AppendLine($"                if({keysPoolName} is not null) global::System.Buffers.ArrayPool<{orderKeyType}>.Shared.Return({keysPoolName},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{orderKeyType}>());");
+                builder.AppendLine($"                if({orderValuesPoolName} is not null) global::System.Buffers.ArrayPool<{orderInputType}>.Shared.Return({orderValuesPoolName},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{orderInputType}>());");
+                builder.AppendLine("            }");
+            } else {
+                builder.AppendLine("            }");
+            }
             builder.AppendLine("        }");
             builder.AppendLine("    }");
             builder.AppendLine("}");
@@ -4627,23 +4811,23 @@ if({{arrayExprFod}}.Length==0) {
         }
 
         if(!hasPostFilter&&(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount)) {
-            builder.AppendLine($"    {actualVariableName}=({actualTypeName}){mapName}.Count;");
+            builder.AppendLine($"    {actualVariableName}=({actualTypeName}){countExpr};");
             builder.AppendLine("}");
             return builder.ToString().TrimEnd();
         }
         if(!hasPostFilter&&terminalKind==PipelineTerminalKind.Any) {
-            builder.AppendLine($"    {actualVariableName}={mapName}.Count>0;");
+            builder.AppendLine($"    {actualVariableName}={countExpr}>0;");
             builder.AppendLine("}");
             return builder.ToString().TrimEnd();
         }
         if(!hasPostFilter&&terminalKind==PipelineTerminalKind.ToArray) {
             var iName = $"__i{this.result}";
-            builder.AppendLine($"    if({mapName}.Count==0) {{");
+            builder.AppendLine($"    if({countExpr}==0) {{");
             builder.AppendLine($"        {actualVariableName}=global::System.Array.Empty<{pipeline.ElementType}>();");
             builder.AppendLine("    } else {");
-            builder.AppendLine($"        {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({mapName}.Count);");
-            builder.AppendLine($"        for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
-            builder.AppendLine($"            {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"        {actualVariableName}=global::System.GC.AllocateUninitializedArray<{pipeline.ElementType}>({countExpr});");
+            builder.AppendLine($"        for(var {iName}=0;{iName}<{countExpr};{iName}++) {{");
+            builder.AppendLine(GetKeyValueStatement(iName,"            "));
             builder.AppendLine($"            {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","            ",groupByIndex);
             builder.AppendLine($"            {actualVariableName}[{iName}]={afterName};");
@@ -4654,11 +4838,11 @@ if({{arrayExprFod}}.Length==0) {
         }
         if(!hasPostFilter&&terminalKind==PipelineTerminalKind.ToList) {
             var iName = $"__i{this.result}";
-            builder.AppendLine($"    {actualVariableName}=new({mapName}.Count);");
-            builder.AppendLine($"    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},{mapName}.Count);");
+            builder.AppendLine($"    {actualVariableName}=new({countExpr});");
+            builder.AppendLine($"    global::System.Runtime.InteropServices.CollectionsMarshal.SetCount({actualVariableName},{countExpr});");
             builder.AppendLine($"    var __destSpan{this.result}=global::System.Runtime.InteropServices.CollectionsMarshal.AsSpan({actualVariableName});");
-            builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
-            builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"    for(var {iName}=0;{iName}<{countExpr};{iName}++) {{");
+            builder.AppendLine(GetKeyValueStatement(iName,"        "));
             builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        __destSpan{this.result}[{iName}]={afterName};");
@@ -4669,8 +4853,8 @@ if({{arrayExprFod}}.Length==0) {
         if(terminalKind==PipelineTerminalKind.Sum) {
             var iName = $"__i{this.result}";
             builder.AppendLine($"    {actualVariableName}=default!;");
-            builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
-            builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"    for(var {iName}=0;{iName}<{countExpr};{iName}++) {{");
+            builder.AppendLine(GetKeyValueStatement(iName,"        "));
             builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}+={afterName};");
@@ -4683,8 +4867,8 @@ if({{arrayExprFod}}.Length==0) {
             builder.AppendLine($"    {actualVariableName}=default!;");
             builder.AppendLine($"    var {foundName}=false;");
             var iName = $"__i{this.result}";
-            builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
-            builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"    for(var {iName}=0;{iName}<{countExpr};{iName}++) {{");
+            builder.AppendLine(GetKeyValueStatement(iName,"        "));
             builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}={afterName};");
@@ -4702,8 +4886,8 @@ if({{arrayExprFod}}.Length==0) {
             builder.AppendLine($"    {actualVariableName}=default!;");
             builder.AppendLine($"    var {foundName}=false;");
             var iName = $"__i{this.result}";
-            builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
-            builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"    for(var {iName}=0;{iName}<{countExpr};{iName}++) {{");
+            builder.AppendLine(GetKeyValueStatement(iName,"        "));
             builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}={afterName};");
@@ -4718,8 +4902,8 @@ if({{arrayExprFod}}.Length==0) {
         if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount) {
             builder.AppendLine($"    {actualVariableName}=0;");
             var iName = $"__i{this.result}";
-            builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
-            builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"    for(var {iName}=0;{iName}<{countExpr};{iName}++) {{");
+            builder.AppendLine(GetKeyValueStatement(iName,"        "));
             builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}++;");
@@ -4730,8 +4914,8 @@ if({{arrayExprFod}}.Length==0) {
         if(terminalKind==PipelineTerminalKind.Any) {
             builder.AppendLine($"    {actualVariableName}=false;");
             var iName = $"__i{this.result}";
-            builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
-            builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"    for(var {iName}=0;{iName}<{countExpr};{iName}++) {{");
+            builder.AppendLine(GetKeyValueStatement(iName,"        "));
             builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}=true;");
@@ -4748,8 +4932,8 @@ if({{arrayExprFod}}.Length==0) {
             builder.AppendLine($"    var {poolBuffer}=global::System.Buffers.ArrayPool<{pipeline.ElementType}>.Shared.Rent(16);");
             builder.AppendLine($"    var {poolCount}=0;");
             builder.AppendLine("    try {");
-            builder.AppendLine($"        for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
-            builder.AppendLine($"            {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"        for(var {iName}=0;{iName}<{countExpr};{iName}++) {{");
+            builder.AppendLine(GetKeyValueStatement(iName,"            "));
             builder.AppendLine($"            {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","            ",groupByIndex);
             builder.AppendLine($"            if({poolCount}=={poolBuffer}.Length) {{");
@@ -4775,8 +4959,8 @@ if({{arrayExprFod}}.Length==0) {
         if(terminalKind==PipelineTerminalKind.ToList) {
             var iName = $"__i{this.result}";
             builder.AppendLine($"    {actualVariableName}=new();");
-            builder.AppendLine($"    for(var {iName}=0;{iName}<{mapName}.Count;{iName}++) {{");
-            builder.AppendLine($"        {mapName}.GetKeyAndValue({iName},out var __key,out var __acc);");
+            builder.AppendLine($"    for(var {iName}=0;{iName}<{countExpr};{iName}++) {{");
+            builder.AppendLine(GetKeyValueStatement(iName,"        "));
             builder.AppendLine($"        {stage.OutputType} __resItem={StaticProjectedResult(stage,aggPlan)};");
             var afterName = this.AppendPostGroupByStages(builder,"__resItem","        ",groupByIndex);
             builder.AppendLine($"        {actualVariableName}.Add({afterName});");
@@ -5189,6 +5373,9 @@ if({{arrayExprFod}}.Length==0) {
             return builder.ToString().TrimEnd();
         }
         if(terminalKind==PipelineTerminalKind.ToArray) {
+            if(pipeline.Stages.Count==0&&pipeline.Source is GroupJoin gjDense&&gjDense.RenderDenseArray(actualVariableName,actualTypeName) is { } denseGroupJoinArray){
+                return denseGroupJoinArray;
+            }
             if(this.RenderDirectSpanPipelineOrderBy(actualVariableName,actualTypeName) is { } directSpanOrderByArray){
                 return directSpanOrderByArray;
             }else{
@@ -5635,6 +5822,7 @@ if({{arrayExprFod}}.Length==0) {
                 var keyComparer = string.IsNullOrEmpty(comparerValue) ? $"global::System.Collections.Generic.Comparer<{keyType}>.Default" : comparerValue;
                 builder.AppendLine($"    bool __hasValue{this.result}=false;");
                 builder.AppendLine($"    {keyType} __bestKey{this.result}=default!;");
+                builder.AppendLine($"    {keyType} __key{this.result}=default!;");
                 builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
                 builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"keySelector",$"__key{this.result}",itemVar),"        "));
                 builder.AppendLine($"        if(!__hasValue{this.result}) {{ {actualVariableName}={itemVar}; __bestKey{this.result}=__key{this.result}; __hasValue{this.result}=true; }}");

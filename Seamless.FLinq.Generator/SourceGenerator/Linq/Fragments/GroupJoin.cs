@@ -33,12 +33,18 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
         var value=$"__denseResult{番号}";
         string selectResult;
         var groupArg = $"new global::Seamless.Linq.GeneratedCodeHelpers.SingleCountGrouping<{this.InnerElementType}>({matches})";
-        if(!string.IsNullOrEmpty(this.resultSelector.InlineBody) && this.resultSelector.ParameterNames.Length >= 2) {
+
+        var inlineBody = !string.IsNullOrEmpty(this.resultSelector.InlineBody)
+            ? this.resultSelector.InlineBody
+            : (this.resultSelector is InlinedScalarFunc isf ? isf.BodyExpression : null);
+        if(!string.IsNullOrEmpty(inlineBody) && this.resultSelector.ParameterNames.Length >= 2) {
             var groupParam = this.resultSelector.ParameterNames[1];
             var outerParam = this.resultSelector.ParameterNames[0];
-            var expr = this.resultSelector.InlineBody;
+            var expr = inlineBody!;
             var replaced = global::System.Text.RegularExpressions.Regex.Replace(expr, @"\b" + global::System.Text.RegularExpressions.Regex.Escape(groupParam) + @"\.Count\(\)", matches);
-            replaced = global::System.Text.RegularExpressions.Regex.Replace(replaced, @"global::System\.Linq\.Enumerable\.Count\(" + global::System.Text.RegularExpressions.Regex.Escape(groupParam) + @"\)", matches);
+            replaced = global::System.Text.RegularExpressions.Regex.Replace(replaced, @"global::System\.Linq\.Enumerable\.Count(?:<[^>]+>)?\(" + global::System.Text.RegularExpressions.Regex.Escape(groupParam) + @"\)", matches);
+            replaced = global::System.Text.RegularExpressions.Regex.Replace(replaced, @"\b" + global::System.Text.RegularExpressions.Regex.Escape(groupParam) + @"\.LongCount\(\)", $"((long){matches})");
+            replaced = global::System.Text.RegularExpressions.Regex.Replace(replaced, @"global::System\.Linq\.Enumerable\.LongCount(?:<[^>]+>)?\(" + global::System.Text.RegularExpressions.Regex.Escape(groupParam) + @"\)", $"((long){matches})");
             if (!replaced.Contains(groupParam)) {
                 expr = FuncFragment.ReplaceParameterReference(replaced, outerParam, outerItem);
                 selectResult = $"var {matches} = (uint)({outerKeyName} - ({range.Minimum})) < (uint){counts}.Length ? {counts}[{outerKeyName} - ({range.Minimum})] : 0;\n"
@@ -233,12 +239,17 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             """;
 
         string selectAssign;
-        if(!string.IsNullOrEmpty(this.resultSelector.InlineBody) && this.resultSelector.ParameterNames.Length >= 2) {
+        var inlineBody = !string.IsNullOrEmpty(this.resultSelector.InlineBody)
+            ? this.resultSelector.InlineBody
+            : (this.resultSelector is InlinedScalarFunc isf ? isf.BodyExpression : null);
+        if(!string.IsNullOrEmpty(inlineBody) && this.resultSelector.ParameterNames.Length >= 2) {
             var groupParam = this.resultSelector.ParameterNames[1];
             var outerParam = this.resultSelector.ParameterNames[0];
-            var expr = this.resultSelector.InlineBody;
+            var expr = inlineBody!;
             var replaced = global::System.Text.RegularExpressions.Regex.Replace(expr, @"\b" + global::System.Text.RegularExpressions.Regex.Escape(groupParam) + @"\.Count\(\)", matchesName);
-            replaced = global::System.Text.RegularExpressions.Regex.Replace(replaced, @"global::System\.Linq\.Enumerable\.Count\(" + global::System.Text.RegularExpressions.Regex.Escape(groupParam) + @"\)", matchesName);
+            replaced = global::System.Text.RegularExpressions.Regex.Replace(replaced, @"global::System\.Linq\.Enumerable\.Count(?:<[^>]+>)?\(" + global::System.Text.RegularExpressions.Regex.Escape(groupParam) + @"\)", matchesName);
+            replaced = global::System.Text.RegularExpressions.Regex.Replace(replaced, @"\b" + global::System.Text.RegularExpressions.Regex.Escape(groupParam) + @"\.LongCount\(\)", $"((long){matchesName})");
+            replaced = global::System.Text.RegularExpressions.Regex.Replace(replaced, @"global::System\.Linq\.Enumerable\.LongCount(?:<[^>]+>)?\(" + global::System.Text.RegularExpressions.Regex.Escape(groupParam) + @"\)", $"((long){matchesName})");
             if (!replaced.Contains(groupParam)) {
                 expr = FuncFragment.ReplaceParameterReference(replaced, outerParam, outerItemName);
                 selectAssign = $"{resultItemName} = {expr};";

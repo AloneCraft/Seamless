@@ -4,7 +4,7 @@ namespace Seamless.Linq;
 // Lightweight dictionary implementation optimized for performance
 // with minimal API surface focused on the specific use case
 [EditorBrowsable(EditorBrowsableState.Never)]
-public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
+public struct DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
 {
     private const int MinimumSize = 16; // minimum arraypool size(power of 2)
     private const double LoadFactor = 0.72;
@@ -28,27 +28,18 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
         this.buckets=ArrayPool<int>.Shared.Rent(MinimumSize);
         this.entries=ArrayPool<Entry>.Shared.Rent(MinimumSize);
         this.bucketsLength=MinimumSize;
-        this.resizeThreshold=(int)(this.bucketsLength*LoadFactor);
-        this.buckets.AsSpan().Clear(); // 0-clear.
+        this.resizeThreshold=(int)(MinimumSize*LoadFactor);
+        this.buckets.AsSpan(0,MinimumSize).Clear(); // 0-clear.
     }
 
-    public DictionarySlim(int capacity,IEqualityComparer<TKey>? comparer = null) {
-        this.comparer=comparer??EqualityComparer<TKey>.Default;
-        this.isDefaultComparer=comparer is null||ReferenceEquals(comparer,EqualityComparer<TKey>.Default);
-        var requestedCapacity = Math.Max(capacity,0);
-        var bucketCapacity = requestedCapacity==0
-            ? MinimumSize
-            : (int)Math.Ceiling((requestedCapacity+1)/LoadFactor);
-        var actualCapacity = Math.Max((int)BitOperations.RoundUpToPowerOf2((uint)bucketCapacity),MinimumSize);
-        this.buckets=ArrayPool<int>.Shared.Rent(actualCapacity);
-        this.entries=ArrayPool<Entry>.Shared.Rent(actualCapacity);
-        this.bucketsLength=actualCapacity;
-        this.resizeThreshold=(int)(this.bucketsLength*LoadFactor);
-        this.buckets.AsSpan().Clear(); // 0-clear.
+    public DictionarySlim(int capacity,IEqualityComparer<TKey>? comparer = null)
+        : this(comparer) {
+        // ZLinq と同様に常に MinimumSize (16) から開始し、実グループ数が閾値を超えた場合のみ倍増させる。
     }
 
     // 追加せずに探す。無ければ null 参照(Unsafe.IsNullRef で調べる)。GroupBy の集約で、先頭の k グループだけが必要なとき(First・Take)に、
     // k 個を超えるグループを作らずに、要素がどのグループのものかだけを調べるために使う。
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref TValue? GetValueRefOrNullRef(TKey key) {
         var hashCode = this.InternalGetHashCode(key);
         var index = this.buckets[this.GetBucketIndex(hashCode)]-1;
@@ -62,6 +53,7 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
         return ref Unsafe.NullRef<TValue?>();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref TValue? GetValueRefOrAddDefault(TKey key,out bool exists) {
         var hashCode = this.InternalGetHashCode(key);
         ref var bucket = ref this.buckets[this.GetBucketIndex(hashCode)];
@@ -82,14 +74,8 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
         // add phase
         exists=false;
         var switchBuckets=probes>=MixAfterProbes&&!this.useMixedBuckets;
-        if(this.entryIndex>=this.resizeThreshold) {
-            this.Resize(switchBuckets);
-            // Need to recalculate bucket after resize
-            bucket=ref this.buckets[this.GetBucketIndex(hashCode)];
-        }else if(switchBuckets){
-            this.useMixedBuckets=true;
-            this.Rehash(this.entries,this.buckets);
-            bucket=ref this.buckets[this.GetBucketIndex(hashCode)];
+        if(this.entryIndex>=this.resizeThreshold||switchBuckets) {
+            return ref this.AddWithResizeOrMix(key,hashCode,switchBuckets);
         }
 
         ref var newEntry = ref this.entries[this.entryIndex];
@@ -103,8 +89,31 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
 
         return ref newEntry.Value;
     }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private ref TValue? AddWithResizeOrMix(TKey key,uint hashCode,bool switchBuckets) {
+        if(this.entryIndex>=this.resizeThreshold) {
+            this.Resize(switchBuckets);
+        } else if(switchBuckets) {
+            this.useMixedBuckets=true;
+            this.Rehash(this.entries,this.buckets);
+        }
+        ref var bucket = ref this.buckets[this.GetBucketIndex(hashCode)];
+        ref var newEntry = ref this.entries[this.entryIndex];
+        newEntry.HashCode=hashCode;
+        newEntry.Key=key;
+        newEntry.Value=default;
+        newEntry.Next=bucket-1;
+
+        bucket=this.entryIndex+1;
+        this.entryIndex++;
+
+        return ref newEntry.Value;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private void Resize(bool switchBuckets) {
-        var newSize = BitOperations.RoundUpToPowerOf2((uint)this.entries.Length*2);
+        var newSize = BitOperations.RoundUpToPowerOf2((uint)this.bucketsLength*2);
         var newEntries = ArrayPool<Entry>.Shared.Rent((int)newSize);
         var newBuckets = ArrayPool<int>.Shared.Rent((int)newSize);
         this.bucketsLength=(int)newSize; // guarantees PowerOf2
@@ -123,7 +132,7 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
     }
 
     private void Rehash(Entry[] entries,int[] buckets){
-        buckets.AsSpan().Clear();
+        buckets.AsSpan(0,this.bucketsLength).Clear();
         for(var index=0;index<this.entryIndex;index++){
             ref var entry=ref entries[index];
             ref var bucket=ref buckets[this.GetBucketIndex(entry.HashCode)];
@@ -159,7 +168,7 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
     }
 
     // Since there are no deletions, the order of Entries is completely guaranteed to be in the order of addition.
-    public Enumerator GetEnumerator() => new(this);
+    public Enumerator GetEnumerator() => new(this.entries,this.entryIndex);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void GetKeyAndValue(int index,out TKey key,out TValue? value) {
@@ -182,7 +191,7 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
 
     [StructLayout(LayoutKind.Auto)]
     [DebuggerDisplay("HashCode = {HashCode}, Key = {Key}, Value =  {Value}, Next = {Next}")]
-    private struct Entry {
+    internal struct Entry {
         public uint HashCode;
         public TKey Key;
         public TValue? Value;
@@ -190,7 +199,14 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
     }
 
     // Since it's only used internally, I won't make it an IEnumerator style.
-    public struct Enumerator(DictionarySlim<TKey,TValue> dictionary) {
+    public struct Enumerator {
+        private readonly Entry[]? entries;
+        private readonly int count;
+        internal Enumerator(Entry[]? entries,int count) {
+            this.entries=entries;
+            this.count=count;
+            this.index=0;
+        }
         private int index;
 
         // no needs ref style in this repository
@@ -233,8 +249,8 @@ public sealed class DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
         //}
 
         public bool TryGetNext(out KeyValuePair<TKey,TValue> current) {
-            if(this.index<dictionary.entryIndex) {
-                ref var entry = ref dictionary.entries[this.index];
+            if(this.entries!=null&&this.index<this.count) {
+                ref var entry = ref this.entries[this.index];
                 this.index++;
                 current=new(entry.Key,entry.Value!);
                 return true;

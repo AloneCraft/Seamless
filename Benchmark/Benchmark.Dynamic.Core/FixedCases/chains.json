@@ -6,6 +6,7 @@
       "Sum"
     ],
     "Expression": "source.Where(x=>(x&1)==0).Sum(x=>(long)x)",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Where(x=>(x&1)==0).Sum(x=>(long)x)",
     "IdealBody": "                var sum=0L;\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        sum+=x;\n                    }\n                }\n                return sum;",
     "ValueType": "Long",
     "Cardinality": "Scalar",
@@ -18,6 +19,7 @@
       "Sum"
     ],
     "Expression": "source.Select(x=>x*3+1).Sum(x=>(long)x)",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Select(x=>x*3+1).Sum(x=>(long)x)",
     "IdealBody": "                var sum=0L;\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    sum+=(long)(x*3+1);\n                }\n                return sum;",
     "ValueType": "Long",
     "Cardinality": "Scalar",
@@ -30,6 +32,7 @@
       "Count"
     ],
     "Expression": "source.Where(x=>(x&1)==0).Count()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Where(x=>(x&1)==0).Count()",
     "IdealBody": "                var count=0;\n                for(var i=0;i<raw.Length;i++){\n                    if((raw[i]&1)==0){\n                        count++;\n                    }\n                }\n                return count;",
     "ValueType": "Int",
     "Cardinality": "Scalar",
@@ -42,6 +45,7 @@
       "Any"
     ],
     "Expression": "source.Where(x=>(x&1)==0).Any()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Where(x=>(x&1)==0).Any()",
     "IdealBody": "                for(var i=0;i<raw.Length;i++){\n                    if((raw[i]&1)==0){\n                        return true;\n                    }\n                }\n                return false;",
     "ValueType": "Bool",
     "Cardinality": "Scalar",
@@ -54,6 +58,7 @@
       "FirstOrDefault"
     ],
     "Expression": "source.Where(x=>(x&1)==0).FirstOrDefault()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Where(x=>(x&1)==0).FirstOrDefault()",
     "IdealBody": "                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        return x;\n                    }\n                }\n                return 0;",
     "ValueType": "Int",
     "Cardinality": "Scalar",
@@ -67,6 +72,7 @@
       "ToArray"
     ],
     "Expression": "source.Skip(4).Take(12).ToArray()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Skip(4).Take(12).ToArray()",
     "IdealBody": "                if(raw.Length<=4){\n                    return Array.Empty<int>();\n                }\n                var len=raw.Length-4;\n                if(len>12){\n                    len=12;\n                }\n                var res=new int[len];\n                Array.Copy(raw,4,res,0,len);\n                return res;",
     "ValueType": "Int",
     "Cardinality": "Sequence",
@@ -79,6 +85,7 @@
       "FirstOrDefault"
     ],
     "Expression": "source.OrderBy(x=>x&31).FirstOrDefault()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).OrderBy(x=>x&31).FirstOrDefault()",
     "IdealBody": "                if(raw.Length==0){\n                    return 0;\n                }\n                var best=raw[0];\n                var bestKey=best&31;\n                for(var i=1;i<raw.Length;i++){\n                    var x=raw[i];\n                    var k=x&31;\n                    if(k<bestKey){\n                        bestKey=k;\n                        best=x;\n                    }\n                }\n                return best;",
     "ValueType": "Int",
     "Cardinality": "Scalar",
@@ -91,7 +98,8 @@
       "Sum"
     ],
     "Expression": "source.GroupBy(x=>x&15,x=>x).Select(g=>g.Key+g.Sum()).Sum(x=>(long)x)",
-    "IdealBody": "                if(raw.Length==0){\n                    return 0L;\n                }\n                Span<long> sums=stackalloc long[16];\n                Span<bool> seen=stackalloc bool[16];\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    var k=x&15;\n                    seen[k]=true;\n                    sums[k]+=x;\n                }\n                var total=0L;\n                for(var k=0;k<16;k++){\n                    if(seen[k]){\n                        total+=k+sums[k];\n                    }\n                }\n                return total;",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).GroupBy(x=>x&15,x=>x).Select(g=>g.Key+global::ZLinq.ValueEnumerable.AsValueEnumerable(g).Sum()).Sum(x=>(long)x)",
+    "IdealBody": "// [Dense GroupBy Sum 最適化] x & 15 の小範囲キー(0..15)を stackalloc 直結テーブルで集約。\n// キー範囲不明時は ArrayPool.Shared.Rent による開放番地法テーブルでヒープ割当 0B 化可能。\nif(raw.Length==0)return 0L;\nSpan<int> sums=stackalloc int[16];\nSpan<byte> seen=stackalloc byte[16];\nSpan<byte> order=stackalloc byte[16];\nint groupCount=0;\nfor(var i=0;i<raw.Length;i++){\n    var x=raw[i];\n    var k=x&15;\n    if(seen[k]==0){\n        seen[k]=1;\n        order[groupCount++]=(byte)k;\n    }\n    sums[k]+=x;\n}\nvar total=0L;\nfor(var i=0;i<groupCount;i++){\n    var k=order[i];\n    total+=(long)(k+sums[k]);\n}\nreturn total;",
     "ValueType": "Long",
     "Cardinality": "Scalar",
     "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
@@ -103,7 +111,8 @@
       "Count"
     ],
     "Expression": "source.GroupBy(x=>x&15).Select(g=>g.Key).Count()",
-    "IdealBody": "                Span<bool> seen=stackalloc bool[16];\n                var count=0;\n                for(var i=0;i<raw.Length;i++){\n                    var k=raw[i]&15;\n                    if(!seen[k]){\n                        seen[k]=true;\n                        count++;\n                    }\n                }\n                return count;",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).GroupBy(x=>x&15).Select(g=>g.Key).Count()",
+    "IdealBody": "uint mask=0;\nfor(var i=0;i<raw.Length;i++){\n    mask|=(1u<<(raw[i]&15));\n}\nreturn System.Numerics.BitOperations.PopCount(mask);",
     "ValueType": "Int",
     "Cardinality": "Scalar",
     "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
@@ -115,7 +124,8 @@
       "Count"
     ],
     "Expression": "source.Distinct().Count()",
-    "IdealBody": "                var set=new HashSet<int>(raw.Length);\n                for(var i=0;i<raw.Length;i++){\n                    set.Add(raw[i]);\n                }\n                return set.Count;",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Distinct().Count()",
+    "IdealBody": "using var set=new global::Seamless.Linq.ValueHashSetSlim<int>(raw.Length,null);\nvar count=0;\nfor(var i=0;i<raw.Length;i++){\n    if(set.Add(raw[i])){\n        count++;\n    }\n}\nreturn count;",
     "ValueType": "Int",
     "Cardinality": "Scalar",
     "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
@@ -127,6 +137,7 @@
       "FirstOrDefault"
     ],
     "Expression": "source.Reverse().FirstOrDefault()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Reverse().FirstOrDefault()",
     "IdealBody": "                if(raw.Length==0){\n                    return 0;\n                }\n                return raw[raw.Length-1];",
     "ValueType": "Int",
     "Cardinality": "Scalar",
@@ -139,6 +150,7 @@
       "Sum"
     ],
     "Expression": "source.Append(77).Sum(x=>(long)x)",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Append(77).Sum(x=>(long)x)",
     "IdealBody": "                var sum=77L;\n                for(var i=0;i<raw.Length;i++){\n                    sum+=raw[i];\n                }\n                return sum;",
     "ValueType": "Long",
     "Cardinality": "Scalar",
@@ -151,6 +163,7 @@
       "First"
     ],
     "Expression": "source.Prepend(11).First()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Prepend(11).First()",
     "IdealBody": "                return 11;",
     "ValueType": "Int",
     "Cardinality": "Scalar",
@@ -163,6 +176,7 @@
       "Count"
     ],
     "Expression": "source.Concat(second).Count()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Concat(second).Count()",
     "IdealBody": "                return raw.Length+second.Length;",
     "ValueType": "Int",
     "Cardinality": "Scalar",
@@ -175,6 +189,7 @@
       "Sum"
     ],
     "Expression": "source.SelectMany(x=>second).Sum(x=>(long)x)",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).SelectMany(x=>second).Sum(x=>(long)x)",
     "IdealBody": "                var secondSum=0L;\n                for(var j=0;j<second.Length;j++){\n                    secondSum+=second[j];\n                }\n                return (long)raw.Length*secondSum;",
     "ValueType": "Long",
     "Cardinality": "Scalar",
@@ -188,6 +203,7 @@
       "Sum"
     ],
     "Expression": "source.Where(x=>(x&1)==0).Select(x=>x*3+1).Sum(x=>(long)x)",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Where(x=>(x&1)==0).Select(x=>x*3+1).Sum(x=>(long)x)",
     "IdealBody": "                // A.B(Where->Select) + B.C(Select->Sum) => 1本のループでフィルタ・射影・加算\n                var sum=0L;\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        var y=x*3+1;\n                        sum+=y;\n                    }\n                }\n                return sum;",
     "ValueType": "Long",
     "Cardinality": "Scalar",
@@ -202,7 +218,8 @@
       "ToArray"
     ],
     "Expression": "source.Where(x=>(x&1)==0).Select(x=>x*3+1).Take(12).ToArray()",
-    "IdealBody": "                // A.B(Where->Select) + B.C(Select->Take) + C.D(Take->ToArray) => 最大12件で即時breakする単一ループ\n                var buf=new List<int>(12);\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        buf.Add(x*3+1);\n                        if(buf.Count>=12){\n                            break;\n                        }\n                    }\n                }\n                return buf.ToArray();",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Where(x=>(x&1)==0).Select(x=>x*3+1).Take(12).ToArray()",
+    "IdealBody": "Span<int> buf=stackalloc int[12];\nvar count=0;\nfor(var i=0;i<raw.Length;i++){\n    var x=raw[i];\n    if((x&1)==0){\n        buf[count++]=x*3+1;\n        if(count==12){\n            break;\n        }\n    }\n}\nvar res=new int[count];\nbuf.Slice(0,count).CopyTo(res);\nreturn res;",
     "ValueType": "Int",
     "Cardinality": "Sequence",
     "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
@@ -216,6 +233,7 @@
       "FirstOrDefault"
     ],
     "Expression": "source.Skip(4).Where(x=>(x&1)==0).Select(x=>x*3+1).FirstOrDefault()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Skip(4).Where(x=>(x&1)==0).Select(x=>x*3+1).FirstOrDefault()",
     "IdealBody": "                // A.B(Skip->Where) + B.C(Where->Select) + C.D(Select->FirstOrDefault) => インデックス4から走査し最初の一致で即return\n                for(var i=4;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        return x*3+1;\n                    }\n                }\n                return 0;",
     "ValueType": "Int",
     "Cardinality": "Scalar",
@@ -230,6 +248,7 @@
       "FirstOrDefault"
     ],
     "Expression": "source.OrderBy(x=>x&31).Where(x=>(x&1)==0).Select(x=>x*3+1).FirstOrDefault()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).OrderBy(x=>x&31).Where(x=>(x&1)==0).Select(x=>x*3+1).FirstOrDefault()",
     "IdealBody": "                // A.B(OrderBy->Where Pushdown) + B.C(Where->Select) + C.D(Select->FirstOrDefault) => 偶数のみから最小キー要素を1パス選択\n                var found=false;\n                var bestVal=0;\n                var bestKey=int.MaxValue;\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        var k=x&31;\n                        if(!found||k<bestKey){\n                            found=true;\n                            bestKey=k;\n                            bestVal=x*3+1;\n                        }\n                    }\n                }\n                if(found){\n                    return bestVal;\n                }else{\n                    return 0;\n                }",
     "ValueType": "Int",
     "Cardinality": "Scalar",
@@ -244,7 +263,8 @@
       "ToArray"
     ],
     "Expression": "source.GroupBy(x=>x&15,x=>x).Select(g=>g.Key+g.Sum()).OrderByDescending(x=>x&31).Take(12).ToArray()",
-    "IdealBody": "                // A.B(GroupBy 1パス集計) + B.C(OrderByDescending直接転送) + C.D(Take Top-K抽出)\n                var dict=new Dictionary<int,int>(16);\n                var order=new List<int>(16);\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    var k=x&15;\n                    if(dict.TryGetValue(k,out var cur)){\n                        dict[k]=cur+x;\n                    }else{\n                        dict[k]=x;\n                        order.Add(k);\n                    }\n                }\n                var items=new int[order.Count];\n                for(var i=0;i<order.Count;i++){\n                    var k=order[i];\n                    items[i]=k+dict[k];\n                }\n                return items.OrderByDescending(x=>x&31).Take(12).ToArray();",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).GroupBy(x=>x&15,x=>x).Select(g=>g.Key+global::ZLinq.ValueEnumerable.AsValueEnumerable(g).Sum()).OrderByDescending(x=>x&31).Take(12).ToArray()",
+    "IdealBody": "Span<int> sums=stackalloc int[16];\nSpan<byte> seen=stackalloc byte[16];\nSpan<byte> order=stackalloc byte[16];\nint groupCount=0;\nfor(var i=0;i<raw.Length;i++){\n    var x=raw[i];\n    var k=x&15;\n    if(seen[k]==0){\n        seen[k]=1;\n        order[groupCount++]=(byte)k;\n    }\n    sums[k]+=x;\n}\nif(groupCount==0)return System.Array.Empty<int>();\nSpan<int> values=stackalloc int[groupCount];\nSpan<int> sortKeys=stackalloc int[groupCount];\nSpan<int> indexes=stackalloc int[groupCount];\nfor(var i=0;i<groupCount;i++){\n    var k=order[i];\n    var val=k+sums[k];\n    values[i]=val;\n    sortKeys[i]=val&31;\n    indexes[i]=i;\n}\nfor(var i=1;i<groupCount;i++){\n    var currIdx=indexes[i];\n    var currKey=sortKeys[currIdx];\n    var j=i-1;\n    while(j>=0&&sortKeys[indexes[j]]<currKey){\n        indexes[j+1]=indexes[j];\n        j--;\n    }\n    indexes[j+1]=currIdx;\n}\nvar takeCount=System.Math.Min(groupCount,12);\nvar result=System.GC.AllocateUninitializedArray<int>(takeCount);\nfor(var i=0;i<takeCount;i++){\n    result[i]=values[indexes[i]];\n}\nreturn result;",
     "ValueType": "Int",
     "Cardinality": "Sequence",
     "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
@@ -257,7 +277,8 @@
       "Sum"
     ],
     "Expression": "source.GroupBy(x=>x&15).Select(g=>g.Key*10+g.Count()).Where(x=>(x&1)==0).Sum(x=>(long)x)",
-    "IdealBody": "                // A.B(GroupBy 1パス件数集計) + B.C(Whereフィルタ) + C.D(Sum直接加算)\n                var counts=new Dictionary<int,int>(16);\n                for(var i=0;i<raw.Length;i++){\n                    var k=raw[i]&15;\n                    if(counts.TryGetValue(k,out var c)){\n                        counts[k]=c+1;\n                    }else{\n                        counts[k]=1;\n                    }\n                }\n                var sum=0L;\n                foreach(var kv in counts){\n                    var val=kv.Key*10+kv.Value;\n                    if((val&1)==0){\n                        sum+=val;\n                    }\n                }\n                return sum;",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).GroupBy(x=>x&15).Select(g=>g.Key*10+global::ZLinq.ValueEnumerable.AsValueEnumerable(g).Count()).Where(x=>(x&1)==0).Sum(x=>(long)x)",
+    "IdealBody": "Span<int> counts=stackalloc int[16];\nSpan<byte> seen=stackalloc byte[16];\nSpan<byte> order=stackalloc byte[16];\nint groupCount=0;\nfor(var i=0;i<raw.Length;i++){\n    var k=raw[i]&15;\n    if(seen[k]==0){\n        seen[k]=1;\n        order[groupCount++]=(byte)k;\n    }\n    counts[k]++;\n}\nvar sum=0L;\nfor(var i=0;i<groupCount;i++){\n    var k=order[i];\n    var val=k*10+counts[k];\n    if((val&1)==0){\n        sum+=val;\n    }\n}\nreturn sum;",
     "ValueType": "Long",
     "Cardinality": "Scalar",
     "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
@@ -271,7 +292,8 @@
       "Count"
     ],
     "Expression": "source.Distinct().Where(x=>(x&1)==0).Select(x=>x*3+1).Count()",
-    "IdealBody": "                // A.B(Distinct<-Where Pushdown) + B.C(Select) + C.D(Count) => 偶数のみHashSet投入して件数取得\n                var set=new HashSet<int>();\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        set.Add(x);\n                    }\n                }\n                return set.Count;",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Distinct().Where(x=>(x&1)==0).Select(x=>x*3+1).Count()",
+    "IdealBody": "using var set=new global::Seamless.Linq.ValueHashSetSlim<int>(raw.Length,null);\nvar count=0;\nfor(var i=0;i<raw.Length;i++){\n    var x=raw[i];\n    if(set.Add(x)&&(x&1)==0){\n        count++;\n    }\n}\nreturn count;",
     "ValueType": "Int",
     "Cardinality": "Scalar",
     "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
@@ -286,7 +308,8 @@
       "ToArray"
     ],
     "Expression": "source.Reverse().Where(x=>(x&1)==0).Select(x=>x*3+1).Take(12).ToArray()",
-    "IdealBody": "                // A.B(Reverse逆順走査) + B.C(Where) + C.D(Select->Take) => 末尾から逆順forループで最大12件収集\n                var list=new List<int>(12);\n                for(var i=raw.Length-1;i>=0;i--){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        list.Add(x*3+1);\n                        if(list.Count>=12){\n                            break;\n                        }\n                    }\n                }\n                return list.ToArray();",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Reverse().Where(x=>(x&1)==0).Select(x=>x*3+1).Take(12).ToArray()",
+    "IdealBody": "Span<int> buf=stackalloc int[12];\nvar count=0;\nfor(var i=raw.Length-1;i>=0;i--){\n    var x=raw[i];\n    if((x&1)==0){\n        buf[count++]=x*3+1;\n        if(count==12){\n            break;\n        }\n    }\n}\nvar res=new int[count];\nbuf.Slice(0,count).CopyTo(res);\nreturn res;",
     "ValueType": "Int",
     "Cardinality": "Sequence",
     "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
@@ -300,6 +323,7 @@
       "Sum"
     ],
     "Expression": "source.Concat(second).Where(x=>(x&1)==0).Select(x=>x*3+1).Sum(x=>(long)x)",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Concat(second).Where(x=>(x&1)==0).Select(x=>x*3+1).Sum(x=>(long)x)",
     "IdealBody": "                // A.B(Concat 2ループ連結) + B.C(Where->Select) + C.D(Sum)\n                var sum=0L;\n                for(var i=0;i<raw.Length;i++){\n                    var x=raw[i];\n                    if((x&1)==0){\n                        sum+=(long)(x*3+1);\n                    }\n                }\n                for(var j=0;j<second.Length;j++){\n                    var y=second[j];\n                    if((y&1)==0){\n                        sum+=(long)(y*3+1);\n                    }\n                }\n                return sum;",
     "ValueType": "Long",
     "Cardinality": "Scalar",
@@ -314,9 +338,97 @@
       "Sum"
     ],
     "Expression": "source.SelectMany(x=>second).Where(x=>(x&1)==0).Select(x=>x*3+1).Sum(x=>(long)x)",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).SelectMany(x=>second).Where(x=>(x&1)==0).Select(x=>x*3+1).Sum(x=>(long)x)",
     "IdealBody": "                // A.B(SelectMany 2重ループ) + B.C(Where->Select) + C.D(Sum)\n                var innerSum=0L;\n                for(var j=0;j<second.Length;j++){\n                    var y=second[j];\n                    if((y&1)==0){\n                        innerSum+=(long)(y*3+1);\n                    }\n                }\n                return (long)raw.Length*innerSum;",
     "ValueType": "Long",
     "Cardinality": "Scalar",
     "OriginalSHA256": "4b914b3315b34dc4f62fed85c37d1f7a933fdace66eb49e5ba7d5f202252571f"
+  },
+  {
+    "ID": "static-where-select-where-sum",
+    "Methods": [
+      "Where",
+      "Select",
+      "Where",
+      "Sum"
+    ],
+    "Expression": "source.Where(x=>(x&1)==0).Select(x=>x*3+1).Where(x=>x>10).Sum()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Where(x=>(x&1)==0).Select(x=>x*3+1).Where(x=>x>10).Sum()",
+    "IdealBody": "var sum=0; foreach(var value in raw){if((value&1)==0){var projected=unchecked(value*3+1);if(projected>10){sum=checked(sum+projected);}}} return sum;",
+    "ValueType": "Int",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "60700d9807d45aecc728e837196180e8c73f5339ca0a0ba69ac82055f1fe2e17"
+  },
+  {
+    "ID": "static-where-select-order-take",
+    "Methods": [
+      "Where",
+      "Select",
+      "OrderBy",
+      "Take",
+      "ToArray"
+    ],
+    "Expression": "source.Where(x=>(x&1)==0).Select(x=>x*3+1).OrderBy(x=>x).Take(5).ToArray()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Where(x=>(x&1)==0).Select(x=>x*3+1).OrderBy(x=>x).Take(5).ToArray()",
+    "IdealBody": "Span<int> top5=stackalloc int[5];\nvar count=0;\nfor(var i=0;i<raw.Length;i++){\n    var x=raw[i];\n    if((x&1)==0){\n        var val=unchecked(x*3+1);\n        if(count<5){\n            var pos=count;\n            while(pos>0 && top5[pos-1]>val){\n                top5[pos]=top5[pos-1];\n                pos--;\n            }\n            top5[pos]=val;\n            count++;\n        }else if(val<top5[4]){\n            var pos=4;\n            while(pos>0 && top5[pos-1]>val){\n                top5[pos]=top5[pos-1];\n                pos--;\n            }\n            top5[pos]=val;\n        }\n    }\n}\nvar res=new int[count];\ntop5.Slice(0,count).CopyTo(res);\nreturn res;",
+    "ValueType": "Int",
+    "Cardinality": "Sequence",
+    "OriginalSHA256": "60700d9807d45aecc728e837196180e8c73f5339ca0a0ba69ac82055f1fe2e17"
+  },
+  {
+    "ID": "static-group-select-where-sum",
+    "Methods": [
+      "GroupBy",
+      "Select",
+      "Where",
+      "Sum"
+    ],
+    "Expression": "source.GroupBy(x=>Math.Abs(x)%8).Select(g=>g.Sum()).Where(x=>x>10).Sum()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).GroupBy(x=>Math.Abs(x)%8).Select(g=>global::ZLinq.ValueEnumerable.AsValueEnumerable(g).Sum()).Where(x=>x>10).Sum()",
+    "IdealBody": "Span<int> sums=stackalloc int[8];\nSpan<byte> seen=stackalloc byte[8];\nSpan<byte> order=stackalloc byte[8];\nint groupCount=0;\nfor(var i=0;i<raw.Length;i++){\n    var value=raw[i];\n    var k=Math.Abs(value)%8;\n    if(seen[k]==0){\n        seen[k]=1;\n        order[groupCount++]=(byte)k;\n    }\n    sums[k]=checked(sums[k]+value);\n}\nvar total=0;\nfor(var i=0;i<groupCount;i++){\n    var s=sums[order[i]];\n    if(s>10){\n        total=checked(total+s);\n    }\n}\nreturn total;",
+    "ValueType": "Int",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "60700d9807d45aecc728e837196180e8c73f5339ca0a0ba69ac82055f1fe2e17"
+  },
+  {
+    "ID": "fallback-where-select-sum",
+    "Methods": [
+      "Where",
+      "Select",
+      "Sum"
+    ],
+    "Expression": "source.Where(value=>value%2==0).Select(value=>value*2).Sum()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Where(value=>value%2==0).Select(value=>value*2).Sum()",
+    "IdealBody": "var sum=0;foreach(var value in raw){if(value%2==0){sum=checked(sum+unchecked(value*2));}}return sum;",
+    "ValueType": "Int",
+    "Cardinality": "Scalar",
+    "OriginalSHA256": "7969b71f4a91a11b7f21147567b7688e4ed4a886057b0cc9699f0be013256dde"
+  },
+  {
+    "ID": "fallback-skip-take-list",
+    "Methods": [
+      "Skip",
+      "Take",
+      "ToList"
+    ],
+    "Expression": "source.Skip(1).Take(2).ToList()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).Skip(1).Take(2).ToList()",
+    "IdealBody": "var result=new System.Collections.Generic.List<int>();for(var i=1;i<raw.Length&&i<3;i++){result.Add(raw[i]);}return result;",
+    "ValueType": "Int",
+    "Cardinality": "Sequence",
+    "OriginalSHA256": "7969b71f4a91a11b7f21147567b7688e4ed4a886057b0cc9699f0be013256dde"
+  },
+  {
+    "ID": "groupjoin-count-dense",
+    "Methods": [
+      "GroupJoin",
+      "ToArray"
+    ],
+    "Expression": "source.GroupJoin(second,static x=>x&15,static y=>y&15,static (x,g)=>x^g.Count()).ToArray()",
+    "ZLinqExpression": "global::ZLinq.ValueEnumerable.AsValueEnumerable(source).GroupJoin(second,static x=>x&15,static y=>y&15,static (x,g)=>x^global::ZLinq.ValueEnumerable.AsValueEnumerable(g).Count()).ToArray()",
+    "IdealBody": "if(raw.Length==0)return System.Array.Empty<int>();System.Span<int> counts=stackalloc int[16];counts.Clear();for(var i=0;i<second.Length;i++){counts[second[i]&15]++;}var result=System.GC.AllocateUninitializedArray<int>(raw.Length);for(var i=0;i<raw.Length;i++){var value=raw[i];result[i]=value^counts[value&15];}return result;",
+    "ValueType": "Int",
+    "Cardinality": "Sequence",
+    "OriginalSHA256": ""
   }
 ]

@@ -164,6 +164,7 @@ namespace Seamless.Linq {
                 this.buckets   =ArrayPool<Grouping<TKey,TElement>>.Shared.Rent(MinimumSize);
                 this.bucketsLength=MinimumSize;
                 this.resizeThreshold=(int)(MinimumSize*LoadFactor);
+                this.buckets.AsSpan(0,MinimumSize).Clear();
             }
 
             var hash=this.InternalGetHashCode(key);
@@ -229,6 +230,7 @@ namespace Seamless.Linq {
                 this.buckets=ArrayPool<Grouping<TKey,TElement>>.Shared.Rent(MinimumSize);
                 this.bucketsLength=MinimumSize;
                 this.resizeThreshold=(int)(MinimumSize*LoadFactor);
+                this.buckets.AsSpan(0,MinimumSize).Clear();
             }
 
             var hash=this.InternalGetHashCode(key);
@@ -373,6 +375,7 @@ namespace Seamless.Linq {
             ArrayPool<Grouping<TKey,TElement>>.Shared.Return(this.buckets,clearArray: true);
 
             var newBuckets = ArrayPool<Grouping<TKey,TElement>>.Shared.Rent((int)newSize);
+            newBuckets.AsSpan(0,(int)newSize).Clear();
             this.buckets   =newBuckets;
             this.bucketsLength=(int)newSize;
             this.resizeThreshold=(int)(this.bucketsLength*LoadFactor);

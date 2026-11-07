@@ -3,9 +3,11 @@ using System.Text.Json;
 
 namespace Benchmark.Dynamic.Core;
 
-public sealed record FixedCase(string ID,string[] Methods,string Expression,string? IdealBody,string ValueType,string Cardinality,string OriginalSHA256,bool Unordered=false);
+public sealed record FixedCase(string ID,string[] Methods,string Expression,string? IdealBody,string ValueType,string Cardinality,string OriginalSHA256,bool Unordered=false){
+    public string? ZLinqExpression{get;init;}
+}
 
-/// <summary>旧検証器の25個の手書き理想を、式と対応させて原文のまま保持する。</summary>
+/// <summary>固定ケースの式と手書き参照を保持する。</summary>
 public static class FixedCaseCatalog{
     public static IReadOnlyList<FixedCase> All{get;}=Load();
     private static FixedCase[] Load(){
@@ -14,7 +16,7 @@ public static class FixedCaseCatalog{
     }
     public static string Emit(FixedCase item,int flags=15){
         if(flags is <0 or >15){throw new ArgumentOutOfRangeException(nameof(flags));}
-        var builder=new StringBuilder("using System;using System.Linq;using System.Collections.Generic;using Benchmark.Dynamic.Core;namespace Benchmark.Dynamic.Generated;public sealed class FixedQuery{\n");
+        var builder=new StringBuilder("using System;using System.Linq;using System.Collections.Generic;using ZLinq;using Benchmark.Dynamic.Core;namespace Benchmark.Dynamic.Generated;public sealed class FixedQuery{\n");
         var order="Ordered";if(item.Unordered){order="Unordered";}
         var materialize=$"global::Benchmark.Dynamic.Core.DynamicQueryValue.FromObject(result,global::Benchmark.Dynamic.Core.QueryValueType.{item.ValueType},global::Benchmark.Dynamic.Core.QueryCardinality.{item.Cardinality},global::Benchmark.Dynamic.Core.QueryOrderSemantics.{order})";
         foreach(var method in new[]{"RunSystem","RunFLinqUnoptimized","RunFLinq"}){
@@ -27,11 +29,17 @@ public static class FixedCaseCatalog{
             }
             builder.Append($"public static global::Benchmark.Dynamic.Core.DynamicQueryValue {core}(object? primary,object? secondary){{var source=(int[])primary!;var second=(int[])secondary!;var result={item.Expression};return {materialize};}}\n");
         }
+        if(item.ZLinqExpression is{} expression){
+            builder.Append($"public static global::Benchmark.Dynamic.Core.DynamicQueryValue RunZLinq(object? primary,object? secondary){{var source=(int[])primary!;var second=(int[])secondary!;var result={expression};return {materialize};}}\n");
+        }
         if(item.IdealBody is not null){
             builder.Append($"public static global::Benchmark.Dynamic.Core.DynamicQueryValue RunIdeal(object? primary,object? secondary){{var result=IdealBody((int[])primary!,(int[])secondary!);return {materialize};}}\n");
-            builder.Append("private static object IdealBody(int[] raw,int[] second){\n").Append(item.IdealBody).AppendLine("\n}");
+            builder.Append("private static object IdealBody(int[] raw,int[] second){\n").Append(EffectiveIdealBody(item)).AppendLine("\n}");
         }
         builder.AppendLine("}");
         return builder.ToString();
     }
+
+    // 取り込み原文は由来として保持し、比較には意味を修正した参照を使う。
+    public static string? EffectiveIdealBody(FixedCase item)=>item.IdealBody;
 }
