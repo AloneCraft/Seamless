@@ -165,13 +165,12 @@ public static class RealisticCaseCatalog {
             """
             ReadOnlySpan<int> span = source.AsSpan();
             int count = 0;
-            for (int i = 0; i < span.Length; i++) {
-                if (span[i] % 2 == 0) count++;
+            foreach (var p in span) {
+                if (p % 2 == 0) count++;
             }
             var res = GC.AllocateUninitializedArray<(int p, int q)>(count);
             int idx = 0;
-            for (int i = 0; i < span.Length; i++) {
-                int p = span[i];
+            foreach (var p in span) {
                 if (p % 2 == 0) {
                     res[idx++] = (p, p + 1);
                 }
@@ -182,13 +181,12 @@ public static class RealisticCaseCatalog {
             """
             ReadOnlySpan<int> span = CollectionsMarshal.AsSpan(source);
             int count = 0;
-            for (int i = 0; i < span.Length; i++) {
-                if (span[i] % 2 == 0) count++;
+            foreach (var p in span) {
+                if (p % 2 == 0) count++;
             }
             var res = GC.AllocateUninitializedArray<(int p, int q)>(count);
             int idx = 0;
-            for (int i = 0; i < span.Length; i++) {
-                int p = span[i];
+            foreach (var p in span) {
                 if (p % 2 == 0) {
                     res[idx++] = (p, p + 1);
                 }
@@ -657,9 +655,9 @@ public static class RealisticCaseCatalog {
             """
             ReadOnlySpan<Trade> span = trades.AsSpan();
             decimal sum = 0m;
-            for (int i = 0; i < span.Length; i++) {
-                if (span[i].IsCash) {
-                    sum += span[i].Price * span[i].Quantity;
+            foreach (var t in span) {
+                if (t.IsCash) {
+                    sum += t.Price * t.Quantity;
                 }
             }
             return sum;
@@ -668,9 +666,9 @@ public static class RealisticCaseCatalog {
             """
             ReadOnlySpan<Trade> span = CollectionsMarshal.AsSpan(trades);
             decimal sum = 0m;
-            for (int i = 0; i < span.Length; i++) {
-                if (span[i].IsCash) {
-                    sum += span[i].Price * span[i].Quantity;
+            foreach (var t in span) {
+                if (t.IsCash) {
+                    sum += t.Price * t.Quantity;
                 }
             }
             return sum;
@@ -753,8 +751,7 @@ public static class RealisticCaseCatalog {
             ReadOnlySpan<Security> span = securities.AsSpan();
             string? bestSymbol = null;
             decimal minPrice = decimal.MaxValue;
-            for (int i = 0; i < span.Length; i++) {
-                var s = span[i];
+            foreach (var s in span) {
                 if (s.Sector == "Technology" && (bestSymbol == null || s.LastPrice < minPrice)) {
                     minPrice = s.LastPrice;
                     bestSymbol = s.Symbol;
@@ -767,8 +764,7 @@ public static class RealisticCaseCatalog {
             ReadOnlySpan<Security> span = CollectionsMarshal.AsSpan(securities);
             string? bestSymbol = null;
             decimal minPrice = decimal.MaxValue;
-            for (int i = 0; i < span.Length; i++) {
-                var s = span[i];
+            foreach (var s in span) {
                 if (s.Sector == "Technology" && (bestSymbol == null || s.LastPrice < minPrice)) {
                     minPrice = s.LastPrice;
                     bestSymbol = s.Symbol;
@@ -803,8 +799,7 @@ public static class RealisticCaseCatalog {
             // Array
             """
             ReadOnlySpan<SalesOrder> span = orders.AsSpan();
-            for (int i = 0; i < span.Length; i++) {
-                var o = span[i];
+            foreach (var o in span) {
                 if (o.Status == OrderStatus.Delivered && o.Amount > 1000m) {
                     return true;
                 }
@@ -814,8 +809,7 @@ public static class RealisticCaseCatalog {
             // List
             """
             ReadOnlySpan<SalesOrder> span = CollectionsMarshal.AsSpan(orders);
-            for (int i = 0; i < span.Length; i++) {
-                var o = span[i];
+            foreach (var o in span) {
                 if (o.Status == OrderStatus.Delivered && o.Amount > 1000m) {
                     return true;
                 }
