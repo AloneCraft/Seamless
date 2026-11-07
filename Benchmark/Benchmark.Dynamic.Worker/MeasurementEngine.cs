@@ -15,6 +15,12 @@ public sealed record MeasurementProfile(
         7,
         TimeSpan.FromMilliseconds(25),
         1_048_576);
+    public static readonly MeasurementProfile ReliableV1=new(
+        "Reliable-v1",
+        5,
+        15,
+        TimeSpan.FromMilliseconds(50),
+        1_048_576);
 }
 
 public sealed record RawMeasurementSample(

@@ -24,6 +24,13 @@ public static class ElementCanonicalizer{
             QuadrupleObject item=>"Q:"+item.Value.ToHex(),
             Order item=>$"O:{item.Id.ToString(CultureInfo.InvariantCulture)},{item.CustomerId.ToString(CultureInfo.InvariantCulture)},{DecimalBits(item.Price)}",
             CollidingKey item=>"K:"+item.Value.ToString(CultureInfo.InvariantCulture),
+            bool item => "b:" + (item ? "1" : "0"),
+            System.Runtime.CompilerServices.ITuple tuple => "T:" + string.Join(";", Enumerable.Range(0, tuple.Length).Select(i => Canonical(tuple[i]))),
+            Realistic.Trade item => $"Tr:{item.Id},{item.AccountId},{item.Symbol},{item.Quantity},{DecimalBits(item.Price)},{(byte)item.Status},{item.TimestampTicks},{item.IsCash}",
+            Realistic.Account item => $"Ac:{item.Id},{item.CustomerId},{item.BrokerId},{item.Name},{DecimalBits(item.Balance)},{item.Tier}",
+            Realistic.Security item => $"Sc:{item.Symbol},{item.Sector},{item.CompanyId},{DecimalBits(item.LastPrice)}",
+            Realistic.Customer item => $"Cu:{item.Id},{item.Name},{item.City},{item.Age},{item.IsPremium}",
+            Realistic.SalesOrder item => $"So:{item.Id},{item.CustomerId},{DecimalBits(item.Amount)},{item.OrderedAtTicks},{(int)item.Status},{item.CouponCode}",
             _=>throw new ArgumentException($"{value.GetType()} is not a supported element type.",nameof(value)),
         };
     }

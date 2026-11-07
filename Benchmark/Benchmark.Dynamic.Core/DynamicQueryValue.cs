@@ -234,6 +234,7 @@ public sealed record DynamicQueryValue(
             QueryValueType.Double when value is double doubleValue=>new DoubleQueryAtom(doubleValue),
             QueryValueType.IntPair when value is IntPair pairValue=>new IntPairQueryAtom(pairValue),
             QueryValueType.IntGroup when value is IntGroup groupValue=>new IntGroupQueryAtom(groupValue),
+            QueryValueType.Element => new ElementQueryAtom(ElementCanonicalizer.Canonical(value)),
             _=>throw new ArgumentException($"Value '{value.GetType()}' is not a closed {valueType} value.",nameof(value)),
         };
     }

@@ -11,6 +11,9 @@ public static class Program{
         if(args.Length>0&&args[0]=="--fixed"){
             return Task.FromResult(Fixed(args));
         }
+        if(args.Length>0&&args[0]=="--realistic"){
+            return Task.FromResult(Realistic(args));
+        }
         if(args.Length>0&&args[0]=="--measure-source"){
             return Task.FromResult(MeasureSource(args));
         }
@@ -43,6 +46,26 @@ public static class Program{
         }catch(Exception exception){Console.Error.WriteLine(exception);return 1;}
         finally{store?.Dispose();}
     }
+    private static int Realistic(string[] args){
+        try{
+            string Read(string name,string fallback){var index=Array.IndexOf(args,name);if(index<0){return fallback;}return args[index+1];}
+            var database=Read("--database",Benchmark.Infrastructure.BenchmarkDatabase.Resolve(Environment.CurrentDirectory));
+            var sourceKindStr=Read("--source-kind","Array");
+            var sourceKind=Enum.Parse<Benchmark.Dynamic.Core.Realistic.RealisticSourceKind>(sourceKindStr,true);
+            var distStr=Read("--distribution","UniformWithDuplicates");
+            var dist=Enum.Parse<Benchmark.Dynamic.Core.Realistic.RealisticDistribution>(distStr,true);
+            var result=new RealisticCaseRunner(new(new(database))).Run(
+                sourceKind,
+                int.Parse(Read("--count","256")),
+                int.Parse(Read("--seed","42")),
+                int.Parse(Read("--flags","15")),
+                Read("--case","*")=="*"?null:Read("--case","*"),
+                dist);
+            foreach(var item in result){Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(item));}
+            return result.All(r=>r.Passed)?0:1;
+        }catch(Exception exception){Console.Error.WriteLine(exception);return 1;}
+    }
+
     private static int Fixed(string[] args){
         try{
             string Read(string name,string fallback){var index=Array.IndexOf(args,name);if(index<0){return fallback;}return args[index+1];}
