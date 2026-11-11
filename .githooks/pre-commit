@@ -9,7 +9,7 @@ staged=$(git diff --cached --name-only --diff-filter=ACDMR)
 printf '%s\n' "$staged" | grep -qiE '\.(csproj|shproj|projitems|slnx|slnLaunch)$|^\.vscode/|(^|/)Directory\.Build\.(props|targets)$|(^|/)launchSettings\.json$|^tools/dev-env/' || exit 0
 
 # 同期の前に、自分で書き換え途中 (まだステージしていない変更がある) の設定ファイルを覚えておく
-dirty_before=$(git diff --name-only)
+dirty_before=$(git diff --name-only 2>/dev/null)
 
 output=$(powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/dev-env/Sync-DevEnvironment.ps1)
 status=$?
@@ -26,7 +26,7 @@ for file in $(printf '%s\n' "$output" | sed -n 's/^更新した: //p' | tr -d '\
         echo "自動更新した $file には、ステージしていない別の変更もあります。中身を確認して git add してから、もう一度コミットしてください。"
         blocked=1
     else
-        git add -- "$file" || exit 1
+        git add -- "$file" 2>/dev/null || exit 1
         echo "自動更新した $file をこのコミットに含めました。"
     fi
 done
