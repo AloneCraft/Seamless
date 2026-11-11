@@ -1,0 +1,17 @@
+#!/bin/sh
+# コミットの件名は平易な日本語で書く。件名に日本語 (ひらがな・カタカナ・漢字) が 1 文字も無ければ止める。
+# git が自動で作る件名 (Merge / Revert / fixup! など) はそのまま通す。
+
+subject=$(grep -v '^#' "$1" | sed '/^[[:space:]]*$/d' | head -n 1)
+case "$subject" in
+    Merge*|Revert*|fixup!*|squash!*|amend!*) exit 0 ;;
+esac
+
+# UTF-8 で日本語の文字は先頭バイトが 0xE3〜0xE9
+if printf '%s' "$subject" | LC_ALL=C grep -q "$(printf '[\343-\351]')"; then
+    exit 0
+fi
+
+echo "コミットの件名に日本語がありません: $subject"
+echo "平易な日本語で、何をしたかが分かる一文にしてください。英語の型名や略語はできるだけ言い換えてください。"
+exit 1

@@ -12,6 +12,138 @@
       "type": "dotnet",
       "request": "launch",
       "projectPath": "${workspaceFolder}\\Seamless.Management.UI\\SeamlessManager.csproj"
+    },
+    {
+      "name": "▶ Benchmark.Audit",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Audit/Benchmark.Audit.csproj"
+    },
+    {
+      "name": "▶ Benchmark.Dynamic.UI",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj"
+    },
+    {
+      "name": "▶ Benchmark.Dynamic.Worker",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.Worker/Benchmark.Dynamic.Worker.csproj"
+    },
+    {
+      "name": "▶ Benchmark.Headless",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Headless/Benchmark.Headless.csproj"
+    },
+    {
+      "name": "▶ Benchmark.Scalable.Headless",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Scalable.Headless/Benchmark.Scalable.Headless.csproj"
+    },
+    {
+      "name": "▶ Benchmark.Scalable.UI",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj"
+    },
+    {
+      "name": "▶ Benchmark.TpcE",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj"
+    },
+    {
+      "name": "▶ Benchmark.TpcE.Compliance",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj"
+    },
+    {
+      "name": "▶ Benchmark.Tsavorite.ParameterSweep.Headless",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj"
+    },
+    {
+      "name": "▶ DataGrip.Stage1.Server",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/tools/Seamless.DataGrip/Server/DataGrip.Stage1.Server.csproj"
+    },
+    {
+      "name": "▶ GroupByLazyBench",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Experiments/GroupByLazyBench/GroupByLazyBench.csproj"
+    },
+    {
+      "name": "▶ HistoryStoreModes",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Experiments/HistoryStoreModes/HistoryStoreModes.csproj"
+    },
+    {
+      "name": "▶ ProductTransactions",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Experiments/ProductTransactions/ProductTransactions.csproj"
+    },
+    {
+      "name": "▶ Sample.NetShop",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Samples/Sample.NetShop/Sample.NetShop.csproj"
+    },
+    {
+      "name": "▶ Sample.VirtualDb",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Samples/Sample.VirtualDb/Sample.VirtualDb.csproj"
+    },
+    {
+      "name": "▶ Seamless.Database.Server",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Seamless.Database.Server/Seamless.Database.Server.csproj"
+    },
+    {
+      "name": "▶ Seamless.Database.Tool",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Seamless.Database.Tool/Seamless.Database.Tool.csproj"
+    },
+    {
+      "name": "▶ SeamlessManager",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Seamless.Management.UI/SeamlessManager.csproj"
+    },
+    {
+      "name": "▶ TestSeamless",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/TestSeamless/TestSeamless.csproj"
+    },
+    {
+      "name": "▶ TransactionModes",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Experiments/TransactionModes/TransactionModes.csproj"
+    },
+    {
+      "name": "▶ WindowsServer",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Seamless.Management.Server/WindowsServer.csproj"
+    },
+    {
+      "name": "▶ Worker",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Worker/Worker.csproj"
     }
   ],
   "compounds": [

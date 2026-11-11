@@ -3,6 +3,10 @@
     <Project Path="Samples/Sample.NetShop.Core/Sample.NetShop.Core.csproj" />
     <Project Path="Samples/Sample.NetShop/Sample.NetShop.csproj" />
   </Folder>
+  <Folder Name="/Shared/">
+    <Project Path="Shared/Database.Generation/Database.Generation.shproj" />
+    <File Path="Shared/Database.Generation/Database.Generation.projitems" />
+  </Folder>
   <Folder Name="/SourceGenerator/">
     <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
     <Project Path="Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" />

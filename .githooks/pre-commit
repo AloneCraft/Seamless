@@ -1,0 +1,33 @@
+#!/bin/sh
+# プロジェクトの追加・移動・削除を含むコミットのとき、VS / VS Code の設定
+# (Seamless.slnx・絞り込み *.slnx・.vscode/launch.json など) を自動で直して、このコミットに含める。
+# 本体: tools/dev-env/Sync-DevEnvironment.ps1
+
+[ "$SKIP_DEVENV_SYNC" = "1" ] && exit 0
+
+staged=$(git diff --cached --name-only --diff-filter=ACDMR)
+printf '%s\n' "$staged" | grep -qiE '\.(csproj|shproj|projitems|slnx|slnLaunch)$|^\.vscode/|(^|/)Directory\.Build\.(props|targets)$|(^|/)launchSettings\.json$|^tools/dev-env/' || exit 0
+
+# 同期の前に、自分で書き換え途中 (まだステージしていない変更がある) の設定ファイルを覚えておく
+dirty_before=$(git diff --name-only)
+
+output=$(powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/dev-env/Sync-DevEnvironment.ps1)
+status=$?
+printf '%s\n' "$output"
+if [ $status -ne 0 ]; then
+    echo ""
+    echo "VS / VS Code の設定を自動で直せませんでした。上のエラーを直してからコミットしてください。"
+    exit 1
+fi
+
+blocked=0
+for file in $(printf '%s\n' "$output" | sed -n 's/^更新した: //p' | tr -d '\r'); do
+    if printf '%s\n' "$dirty_before" | grep -qxF "$file"; then
+        echo "自動更新した $file には、ステージしていない別の変更もあります。中身を確認して git add してから、もう一度コミットしてください。"
+        blocked=1
+    else
+        git add -- "$file" || exit 1
+        echo "自動更新した $file をこのコミットに含めました。"
+    fi
+done
+exit $blocked

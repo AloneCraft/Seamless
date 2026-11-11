@@ -11,6 +11,8 @@
     <Project Path="Shared/UI.Widgets/UI.Widgets.shproj" />
     <File Path="Shared/Benchmark.History/Benchmark.History.projitems" />
     <File Path="Shared/UI.Widgets/UI.Widgets.projitems" />
+    <Project Path="Shared/Database.Generation/Database.Generation.shproj" />
+    <File Path="Shared/Database.Generation/Database.Generation.projitems" />
   </Folder>
   <Folder Name="/SourceGenerator/">
     <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />

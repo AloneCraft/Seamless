@@ -21,7 +21,7 @@
   <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
   <Project Path="Seamless.Security/Seamless.Security.csproj" />
   <Project Path="Seamless.Authentication/Seamless.Authentication.csproj" />
-  <Project Path="Seamless.Management/Seamless.Management.csproj" />
   <Project Path="Seamless.Management.Server/WindowsServer.csproj" />
   <Project Path="Seamless.Management.UI/SeamlessManager.csproj" />
+  <Project Path="Seamless.Management/Seamless.Management.csproj" />
 </Solution>

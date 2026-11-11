@@ -17,6 +17,14 @@ You are a professional assistant. You must conduct all interactions, explanation
 - Every `.projitems` file that owns shared source files must have a corresponding `.shproj` in the same directory and that `.shproj` must be registered in `Seamless.slnx`, so all managed source files are visible in Solution Explorer.
 - The `.shproj` `ProjectGuid` must exactly match the `.projitems` `SharedGUID`, and its `Label="Shared"` import must reference the exact existing `.projitems` file name.
 - When adding, renaming, or moving shared source files, update the owning `.projitems`, its `.shproj`, and `Seamless.slnx` together. Do not expose shared source files only as loose solution files when they belong to a shared project.
+## VS / VS Code の設定を構成に合わせる
+- プロジェクト (`.csproj` / `.shproj` / `.projitems`) を追加・移動・改名・削除したら、`tools/dev-env/Sync-DevEnvironment.ps1` で `Seamless.slnx`・絞り込み `*.slnx`・`.vscode/launch.json`・`.vscode/tasks.json`・`Seamless.slnLaunch`・プロジェクト間の参照を直す。git の pre-commit フック (`.githooks/pre-commit`) が自動で実行し、直した設定をそのコミットに含める。
+- フックはクローンごとに `tools/dev-env/Install-GitHooks.ps1` で 1 回有効にする。フックを飛ばしたときの漏れは CI の `-Check` が見つける。
+- 絞り込みソリューションの起点は `tools/dev-env/focused-solutions.json` に書く。`Tests.slnx` は `IsTestProject=true` の全プロジェクトを自動で含めるので、テストプロジェクトを足すときに一覧を直す必要はない。
+- 起動構成のうち `▶ ` で始まるものは自動生成なので手で直さない。引数付きなどの手書きの構成は残り、`program` と `cwd` は前処理タスクがビルドするプロジェクトの出力先に合わせて自動で直る。
+## コミットメッセージ
+- 件名と本文は平易な日本語で書く。件名は「何をしたか」が分かる一文にし、英語の型名・略語・専門用語はできるだけ言い換える。
+- 件名に日本語が 1 文字も無いコミットは `.githooks/commit-msg` が止める (Merge / Revert など git が自動で作る件名は除く)。
 ## Comparison Execution Policy (2026-10-30)
 - 利用者の明示指示により、この比較環境の開発・検証では共有BGO調停器を使用しない。
 - 各チャットが起動する計算処理は、子孫を含め共通の最大8論理CPUのaffinityに制限する。プロセスごとに別々の8CPUを割り当てて合計上限を超えない。

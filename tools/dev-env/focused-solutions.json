@@ -1,0 +1,42 @@
+{
+  "comment": "絞り込みソリューションの起点。起点から参照をたどって必要なプロジェクトだけを残す。@tests は IsTestProject=true の全プロジェクト。起点を移動すると同期スクリプトがファイル名で探して書き換える。",
+  "solutions": {
+    "Seamless.Management.slnx": [
+      "Seamless.Management.UI/SeamlessManager.csproj",
+      "Seamless.Management.Server/WindowsServer.csproj",
+      "Tests/Management.Tests/Management.Tests.csproj"
+    ],
+    "DataGrip.Stage1.slnx": ["tools/Seamless.DataGrip/Server/DataGrip.Stage1.Server.csproj"],
+    "TestSeamless.slnx": ["TestSeamless/TestSeamless.csproj", "TestSeamless/Tests/TestSeamless.Tests.csproj"],
+    "Benchmark.Headless.slnx": ["Benchmark/Benchmark.Headless/Benchmark.Headless.csproj"],
+    "Benchmark.Scalable.slnx": [
+      "Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj",
+      "Benchmark/Benchmark.Scalable.Headless/Benchmark.Scalable.Headless.csproj",
+      "Benchmark/Benchmark.Scalable.Tests/Benchmark.Scalable.Tests.csproj"
+    ],
+    "Benchmark.Tsavorite.ParameterSweep.slnx": [
+      "Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj"
+    ],
+    "Benchmark.Dynamic.slnx": [
+      "Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj",
+      "Benchmark.Dynamic.Tests/Benchmark.Dynamic.Tests.csproj",
+      "Benchmark/Benchmark.Infrastructure.Tests/Benchmark.Infrastructure.Tests.csproj"
+    ],
+    "Seamless.Database.Tool.slnx": ["Seamless.Database.Tool/Seamless.Database.Tool.csproj"],
+    "Sample.NetShop.slnx": [
+      "Samples/Sample.NetShop/Sample.NetShop.csproj",
+      "Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj"
+    ],
+    "Sample.VirtualDb.slnx": ["Samples/Sample.VirtualDb/Sample.VirtualDb.csproj"],
+    "Benchmark.TpcE.slnx": [
+      "Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj",
+      "Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj",
+      "Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj",
+      "Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj",
+      "Benchmark/Benchmark.Tpc.Tests/Benchmark.Tpc.Tests.csproj"
+    ],
+    "Tests.slnx": ["@tests", "Tests/Seamless.TestKit/Seamless.TestKit.csproj"]
+  },
+  "launchExclude": ["MultiProjectTemplate/", "Template/"],
+  "discoveryExclude": ["scratch/", ".tmp/", "Artifacts/", "TestResults/", "Work/"]
+}

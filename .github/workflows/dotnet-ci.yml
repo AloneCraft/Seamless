@@ -16,6 +16,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dev-environment:
+    name: VS / VS Code の設定がプロジェクト構成と一致しているか
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: 設定のずれを検査
+        shell: powershell
+        run: .\tools\dev-env\Sync-DevEnvironment.ps1 -Check
+
   benchmark-scalable:
     name: Scalable and shared history
     runs-on: windows-latest

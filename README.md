@@ -185,6 +185,14 @@ Console.WriteLine(set.Contains(1));         // True
 - DynamicはFLinqの検証・固定参照コードとの比較、Scalableは大規模コレクションとLINQ・容量探索を受け持ち、共有SQLite履歴へ記録します。
 - 操作方法と比較条件は [測定履歴・比較・プロファイル](docs/verification.md)、利用者向けAPIは [初期設定と拡張](docs/profiles.md)、実行・等値性・DB契約は [Execution、LINQ、Databaseの現在仕様](docs/execution-and-database.md) を参照してください。
 
+## 開発の準備
+
+クローンしたら 1 回だけ次を実行してください。プロジェクトを追加・移動・削除したコミットで、VS / VS Code のソリューションと起動構成が自動で直り、コミットの件名が日本語かどうかも確かめます。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev-env/Install-GitHooks.ps1
+```
+
 ## 連絡先
 
 質問・不具合報告は [Issues](https://github.com/AloneCraft/Seamless/issues) へお願いします。メールの場合は alone.craft.developer@gmail.com まで。
