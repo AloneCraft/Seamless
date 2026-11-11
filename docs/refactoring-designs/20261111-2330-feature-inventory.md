@@ -1,0 +1,399 @@
+# 機能の棚卸し（指示に基づかない機能の確認）
+
+## 背景
+
+2026年11月11日、利用者は、ビューの列挙ごとの遅延評価が想定していない仕様だったこと、「ビューは直接表現し、最適化で呼出元へ展開する」という仕様が伝わっていなかったことを指摘し、ほかにも指示にない機能が追加されていないかを1つずつ確認することを求めた。
+
+本書は、公開されている型・機能を一覧にし、導入時の指示の根拠と利用者の判定を記録する。判定が済んだ項目は、残す・作り直す・削除するの方針を本書と各設計書へ反映する。
+
+## 進め方
+
+1. プロジェクトごとに公開型を機械的に集める（`F:/Seamless/view-generated-row-20261111/inventory-*.json`）。導入コミットは`git log --follow --diff-filter=A`、利用箇所は単語一致のファイル数で、一般的な名前（`View`・`Table`など）は過大に数えられる。
+2. 導入時の利用者の指示に根拠があるかを、設計書・プロンプト・コミット本文で確認する。
+3. 利用者が1件ずつ判定する。判定前は既存の動作を変えない。
+
+## 根拠として確認した利用者の指示
+
+`docs/refactoring-designs/20260702-fable5-seamless-database-flinq-benchmark-overhaul-prompt.md`（2026年7月2日）の「宣言APIイメージ」には次が書かれている。
+
+- `DatabaseContainer`を継承したpartialのコンテナに`Table<T>`のプロパティ。
+- `View<ActiveCustomer> ActiveCustomers=>this.View(()=>this.Customers.Where(...).Select(...))`（ビューはプロパティ）。
+- `TableFunction<SalesOrderSummary> OrdersByCustomer(int customerId)=>this.TableFunction(()=>...)`（テーブル関数はメソッド）。
+- スカラー関数は`public decimal CustomerTotalDue(int customerId)=>...Sum(...)`（戻り値はただの値。`ScalarFunction<T>`はない）。
+- 属性はSQL Server由来の名前（`[Database]`・`[Table]`・`[View]`）を補う補助。
+- メモリ内とストレージを切り替えるコンテナ作成オプション、AdventureWorks2008R2の本物バックアップを後で取り込むための拡張点。
+- 宣言の中身は通常のLINQで書き、FLinqで展開する。
+
+列挙のたびに定義を評価すること、重複を除く集合として扱うこと、`Contains`・`Count`を定義の再評価で実装することは書かれていない。
+
+## Seamless.Database の公開型
+
+判定欄：未＝利用者の確認待ち。
+
+### 宣言するオブジェクト
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `Table<T>`（キーなし） | Tsavorite HashSetを持つ表。取引中かを自分で探して変更を振り分け、取引外はDB全体のゲートで保護する | 7/2 `9cddbcff` | あり（`Table<T>`） | 作り直し：`db.schema.table`は`Tsavorite.Set<T>`、`tx.schema.table`を`Table<T>`とする（11/12利用者） |
+| `Table<TKey,TRecord>`（キー付き） | 主キーで探索できる表 | 9/19 `8f40700c` | 未確認 | 未 |
+| `View<T>` | 定義ラムダを持ち、列挙・`Contains`・`Count`のたびに定義を評価し、重複を除く集合として返す | 7/2 `9cddbcff` | 型とラムダはイメージにある。遅延評価・重複除去・再評価は根拠なし | 置換予定：読取専用の集合`Seamless.Collections.ISet<T>`を直接返す（11/12利用者） |
+| `TableFunction<T>` | 定義ラムダを持ち、列挙のたびに評価する。集合ではない | 7/2 `9cddbcff` | 型とラムダはイメージにある。遅延評価は根拠なし | 置換予定：`ISet<T>`を直接返す（11/12利用者） |
+| `ScalarFunction<T>` | 呼んだ時点の値と名前を持つ入れ物 | 9/19 `8f40700c` | なし（イメージは値をそのまま返す） | 置換予定：値`T`を直接返す（11/12利用者） |
+| `StoredProcedure<T>` | 呼んだ時点で実行した結果の入れ物 | 9/19 `8f40700c` | 未確認 | 未 |
+| `MaterializedView<TKey,T>` | 一度実体化した読取専用の関係。キーで探索できる | 9/19 `8f40700c` | 未確認 | 未 |
+| `SystemTable`・`DatabaseObject`・`DatabaseObjectKind` | 宣言オブジェクトの目録を表として持つ | 9/19 `8f40700c` | 未確認 | 未 |
+
+### コンテナと設定
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `DatabaseContainer` | 宣言コンテナの基底。取引・WAL・Gateway・版付き取引・未公開スナップショットなどの部分を持つ | 7/2、以後拡張 | 基底はあり。拡張部分は個別に確認 | 未 |
+| `DatabaseContainerOptions`・`DatabaseStorageMode` | メモリ内とストレージの切替ほか多数の設定 | 7/2 | 切替はあり。追加設定は個別に確認 | 未 |
+| `DatabaseTransactionMode` | 取引方式の選択 | 7/2 | 未確認 | 未 |
+| `DatabaseRecordSerialization` | レコードの保存形式の選択 | 7/2 | 未確認 | 未 |
+| `DatabaseTableStorageOptions` | 表・実体化ビューごとの保存サイズ | 7/2 | 未確認 | 未 |
+| `DatabaseResourceUsage` | DBが管理するメモリ・ディスクの計測値 | 9/19 | 未確認 | 未 |
+| `DatabaseSchema` | 名前付きスキーマ | 9/19 | DB直下と名前付きスキーマの混在は確定仕様 | 未 |
+
+### 取引・並行制御・Gateway
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `DatabaseTransaction` | DB全体の直列化可能な取引スコープ | 9/19 | 未確認 | 未 |
+| `DatabaseReadSession`・`DatabaseFaultedException` | 読取セッション、障害状態の例外 | 9/19 | 未確認 | 未 |
+| `GatewayDatabaseProfile`・`GatewayTransactionOwner`・`GatewayPreparedSnapshot`・`IGatewayDatabaseTransaction` | Gatewayの共通WALと版付き取引 | 11/5 `179b660c` | 未確認 | 未 |
+| `DatabaseRows` | 生成クエリの行ソース | 11/5 | 未確認 | 未 |
+| `UnpublishedSnapshotBuilder` | 未公開のスナップショットを作る | 11/5 | 未確認 | 未 |
+
+### 属性・取込・その他
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `KeyAttribute` | 宣言型の主キーの列を指定 | 不明 | 未確認 | 未 |
+| `ForeignKeyAttribute`・`ForeignKeyViolationException` | 同一DB内の外部キー | 11/5 | 未確認 | 未 |
+| `ComputedColumnAttribute`・`GeneratedRowExpression` | SQLの計算列 | 11/5 | 未確認 | 未 |
+| `ImportedDatabaseObjectAttribute`・`ImportedDatabaseColumnAttribute` | 取込元の実名 | 11/5 | 取込の拡張点はあり。属性は未確認 | 未 |
+| `GeneratedRecordConstructorAttribute` | 生成レコードのコンストラクター引数と列の対応 | 不明 | 未確認 | 未 |
+| `IDatabaseImportSource` | 既存DBから行を取り込む拡張点 | 7/2 | あり | 未 |
+| `MergeResult`・`SetMergeWithExtensions` | 集合のMerge操作 | 不明・11/7 | 未確認 | 未 |
+| `DatabaseTableDeclaration` | 宣言された表の経路（カタログ列挙用） | 11/5 | 未確認 | 未 |
+
+## Seamless.Management の公開型
+
+2026年11月12日に機械的に集めた公開型は289個（うち175個は未コミットのファイル）。一覧は`F:/Seamless/feature-inventory-20261112/inventory-Seamless.Management.json`、集め方は同じフォルダーの`collect.py`。型は機能のまとまりごとに1行にまとめた。
+
+- 導入：`git log --follow --diff-filter=A`の結果。`0451bb23`（11/6）・`06ecb61d`（11/7）は件名がFLinqの最適化で、管理機能の追加を説明していない（一括で取り込まれた）。コミット本文は根拠にならない。
+- 指示の根拠の書き方：「利用者の指示」＝設計書に利用者の指示・要求・回答として書かれている。「承認した計画」＝AIが作った計画を利用者が承認した（計画に書かれた範囲だけが根拠）。「W番号」＝利用者が11/8に指定した1〜21の一覧（中間仕様書「2026年11月8日に指定された実施順」、`docs/seamless-work-tree.md`の親項目）。一覧は「5. 行編集・ページング・ビュー・関数・静的計画」のような1行の題目だけで、その下の枝と細部はAIが決めた。「根拠なし」＝設計書・プロンプトに利用者の指示が見つからない。
+
+### 管理の基本契約・接続
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `ManagementContracts.cs`の型（`Definition`・`Draft`・`SaveDraftRequest`・`ApplyRequest`・`ValidationDatabase`・`BuildResult`・`ChangePreview`・`UserAccount`・`ManagementPermission`・`RpcRequest`など49個） | SQLなしの管理：個人下書き、検証DB、差分確認、明示適用、利用者・権限、管理RPC | 11/6 `0451bb23` | 承認した計画（11/2 [native-management](20261102-native-management.md)「接続・認証、個人下書き、C#/GUI同期、静的計画、空の検証DB、差分確認、明示適用と結果照会」）。「保存」をビルド・移行・公開の入口にするのは利用者の指示（11/3 [object-tab-drafts](20261103-object-tab-drafts.md)） | 未 |
+| `ManagementClient`（5ファイル・公開メンバー約80）・`ManagementWire`・`LocalServerConnection`・`ManagementLaunchConfiguration` | 管理サーバーへのTCP/TLS・IPC接続とRPC呼出し | 11/6 `0451bb23`、一部未コミット | TLS・Seamless認証は承認した計画（11/2）。ローカルIPCでログインを省くのは利用者の指示（11/3 [local-ipc](20261103-management-usability-local-ipc.md)） || 残す：Manager WebサーバーからSeamlessサーバーへの通信路として使う（11/12利用者） |
+| `ManagementConnectionPolicy`・`ManagementConnectionLifetime` | 接続を保つ・使わないとき5秒で解放・操作ごとに解放の3方式の切替 | 未コミット | 設定を切り替えて接続の維持と解放の得失を比べるのは利用者の方針（11/3 [native-network-scalability](20261103-native-network-scalability.md)）。3方式の分け方と5秒は同書が「設定名・既定値は未確定」とした提案のまま。選ぶ画面は11/7に配布をやめた専用デスクトップManager（`Seamless.Management.UI`）にだけある || 削除：Managerはブラウザーからのアクセスだけを前提とする（11/12利用者） |
+| `IManagementOperations` | 同居・IPC・ブラウザー・組み込みの全入口で共通の管理操作 | 未コミット | ブラウザー統一と3つの実行形態は利用者の指示（11/7・11/11 [browser-hosting](20261107-manager-browser-hosting.md)）。共通インターフェースにする形はAIの設計 | 未 |
+| `BrowserLaunchInfo` | OS確認済みのローカル所有者がブラウザーで開く起動情報 | 未コミット | 利用者の指示（11/7 [local-browser-owner-sessions](20261107-local-browser-owner-sessions.md)）。8時間固定の期限は利用者の回答（11/9） | 未 |
+| `ServerSettingsContracts.cs`（`ManagementServerSettings`・`ServerSettingsEdit`・`ServerSettingsSnapshot`・`ManagementExecutionMode`） | サーバー設定の画面編集、保存版・稼働中・次回起動の区別 | 未コミット | W06（実施順6）。編集できる項目・版の競合・起動引数優先などの細部はAIの設計（[server-settings](20261108-manager-server-settings.md)） || 残す（11/12利用者） |
+
+### 認証・認可・監査・利用者
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `AuthorizationContracts.cs`（`DatabaseAuthorizationEdit`・`AuthorizationScopeEdit`・`AuthorizationRoleRule`など14個） | DB・サーバー全体のロール、許可・拒否、主体への割当て | 未コミット | OS・組織アカウントへの統合は利用者の要望と回答（11/3 [integrated-identities](20261103-integrated-identities.md)）、OIDC先行は利用者の回答（11/3 [authorization-runtime](20261103-authorization-runtime.md)）。画面への接続はW06 | 未 |
+| `UserProfile`・`UserProfileEdit` | 管理用アカウントの作成・編集（版の照合つき） | 未コミット | W06（実施順6）。細部はAIの設計（[user-profiles](20261108-manager-user-profiles.md)） || 残す（11/12利用者。問題がなければ現行どおりとの指示。確認した範囲で問題なし） |
+| `AuditContracts.cs`（`AuditEvent`・`AuditQuery`・`AuditReadKey`・`AuditReadPage`など13個） | 更新・権限変更の個別監査、正常な読み取りの集計 | 11/6 `0451bb23` | 利用者の回答（11/3 [audit-history](20261103-audit-history.md)：読み取りは集計を既定、指定したものだけ詳細）。集計期間1分は利用者の回答（[read-audit-buffer](20261104-read-audit-buffer.md)）。保存間隔5秒・欠落表示などはAIの設計 || 残す（11/12利用者。読み取りを止めず、記録しきれない分は欠落として表示する現行どおり） |
+
+### DB定義の編集（設計器）
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `DatabaseDesigner`（12ファイル）・`TableDesign`・`ColumnDesign`・`ForeignKeyDesign` | 表・列・キー・外部キーをGUIで編集し、C#の宣言へ書き戻す | 未コミット | 空DB作成・GUIとC#のプレビュー・一括移行・参照整合性は承認した計画に利用者が実装を指示（11/3 [batch-schema-migration](20261103-batch-schema-migration.md)）。SSMSのような高密度グリッドは利用者の指定（11/9 [designer-grid](20261109-manager-designer-grid.md)）。左ツリーで列を編集するのは利用者の指示（11/10） | 未 |
+| `DatabaseDesigner.ViewResults`・`DatabaseDesigner.FunctionResults` | ビュー・関数の結果列を処理本体から推論し、行型をソースへ書き込む | 未コミット | 「結果型はC#の処理本体から決める」は利用者の指示（11/10）だったが、11/12の決定で名前付き行型をManagerで編集する方式に置き換わった（[database-access-model](20261112-0017-database-access-model.md)）。推論・書き込みは廃止予定 | 置換予定：行型をテーブルの列と同様に編集する（11/12利用者） |
+| `DatabaseDesigner.Queries`・`QueryDesign`・`ParameterDesign`・`DatabaseQueryKind` | ビュー・関数・クエリの宣言と引数の編集 | 未コミット | 関数の引数を右ペインで編集するのは利用者の指示（11/10）。登録クエリを関数へ統合するのは利用者との追加合意（11/10） | 未 |
+| `MigrationContracts.cs`（`MigrationDefinition`・`ColumnMigration`・`TableMigration`・`RemovedTableDefinition`）・`DatabaseDesigner.MigrationRebase` | 列の初期式による既存行の移行、版をまたぐ移行の付け替え | 未コミット | 一括移行は承認した計画（11/3）。列の初期式を既存行の移行に使うのは利用者の指示（11/10）。`MigrationRebase`は公開APIではなく、サーバー下書きとの統合で稼働版が進んだときに、移行設定をそのまま引き継げなければ拒否して作り直しを求める内部の検査（`internal`）。「対応を確定できない変更は上書きせず競合を示す」という利用者の選択（11/3）に沿う | 未 |
+| `DatabaseDesigner.TableSelection`・`TablePublication`・`PendingTablePublication` | 保存する表と、外部キーで一緒に保存が必要な表の選択、表ごとの公開待ち | 未コミット | 表をオブジェクトタブの下書きとして扱うのは利用者の指示、単独保存に必要な依存タブを一覧してまとめて保存するのは利用者の選択（11/3 object-tab-drafts） | 未 |
+| `DatabaseDesigner.Identities`・`CatalogIdentities`・`CatalogIdentityEntry` | 宣言のコメントに固定するUUIDで、名前変更をまたいで対象を識別 | 未コミット | Core単位の実装を利用者が承認（11/10 [source-object-identities](20261110-source-object-identities.md)）。`/* seamless-id: */`の書式などはAIの設計 || 削除（11/12利用者） |
+| `DatabaseDesigner.Schemas`・`ObjectEditing`（`ObjectDefinitionDesign`・`ObjectDefinitionEdit`・`ObjectDefinitionPart`） | スキーマとオブジェクト定義の編集 | 未コミット | スキーマ混在は確定仕様。オブジェクトタブでの編集は利用者の指示（11/3） | 未 |
+| `CatalogContracts.cs`（`CatalogDatabase`・`CatalogObject`・`CatalogPage<T>`など）・`RenameDatabaseRequest` | DB・スキーマ・オブジェクトの一覧と詳細、DB名の変更 | 11/6 `0451bb23` | 一覧は承認した計画（11/2）。DB名変更は利用者の明示依頼（11/8 [database-rename](20261108-manager-database-rename.md)） | 未 |
+| `RowEditingContracts.cs`（`TableRows`・`TableRowsRequest`・`TableRowBatch`・`TableRowCursor`など8個） | 行の一覧・ページング・キーを含む行の編集 | 未コミット | W05。続き取得のカーソル、既読部分の変更を`RowConflict`にする、ページを開始時点に固定しない、などの細部はAIの設計（[row-pagination](20261108-manager-row-pagination.md)） || 作り直し：一覧を開いた時点のスナップショットで全ページを読む（11/12利用者） |
+
+### 実行・計画・可視化
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `ExecutionPlanDocument`・`ExecutionPlanNode`・`ExecutionPlanEdge`・`ExecutionPlanCallSite` | FLinqの生成時の採用経路を静的な実行計画として記録・表示 | 11/6 `0451bb23` | 承認した計画（11/2「静的計画」） | 未 |
+| `QueryPlanContracts.cs`・`PlanSnapshot`（2ファイル）・`PlanSnapshotComparison`・`PlanSnapshotHeatSettings`・`PlanSnapshotSankeySettings`・`PlanSnapshotViewState` | 計画の取得・保存・比較・表示設定 | 未コミット | 利用者の依頼（11/9 [query-visualization-plan](20261109-query-visualization-plan.md)、419行の添付）。添付の範囲内か個別には未確認 | 未 |
+| `QueryVisualizationData.cs`（`DataFlowLink`・`FlowQuantity`・`VisualizationEvent`など12個） | データサンキー・実行タイムライン・実行DAG | 未コミット | 利用者の添付要求（11/9 [query-visualization-views](20261109-query-visualization-views.md)） | 未 |
+| `GeneratedExecutionCode.cs`（`GeneratedBasicBlock`・`GeneratedControlEdge`など5個） | FLinq展開後のC#構造（型解決済みの制御フロー） | 未コミット | 関係代数・論理処理・展開後C#の三段階表示は利用者の追加要求（11/9） | 未 |
+| `QueryTraceContracts.cs`（9個）・`QueryExecutionHistoryContracts.cs`（5個）・`QueryProfileProjection`・`OptimizationTraceReader`・`PlanOptimization*` | 実行の記録・履歴・最適化の経過の表示 | 未コミット | 実行履歴とアクセス履歴を分けるのは利用者との追加合意（11/10）。記録と表示の時間・イベント方式を別に設定すること（`QueryTraceRecordMode`）、取得済み・推定・サンプリング・未収集などを区別すること（`QueryTraceReliability`）は、承認した計画にある（同上） | 未 |
+| `ObjectExecutionContracts.cs`（`ObjectExecutionRequest`・`ObjectExecutionResult`・`ObjectExecutionStatistics`・`ObjectExecutionMeasurementMode`）・`ObjectExecutionProfile`（4個） | ビュー・関数の実行と計測 | 未コミット | ビュー・関数に紐付く実行計画・履歴は利用者との追加合意（11/10）。計測の無効・軽量・詳細（`MeasurementMode`の`None`・`Summary`・`Profiled`）と、実測を明示操作で取ることは、利用者が実装を承認した計画にある（[query-visualization-plan](20261109-query-visualization-plan.md)「推定・実測・アクセス履歴」） | 未 |
+| `FunctionContracts.cs`（`FunctionSummary`・`FunctionDetails`・`FunctionExecutionRequest`・`FunctionTarget`・`FunctionOrigin`） | 関数の一覧・詳細・実行 | 未コミット | 登録クエリを関数へ統合するのは利用者との追加合意（11/10） | 未 |
+| `ResourceHeatContracts.cs`（7個）・`ResourceHeatHistoryContracts.cs`（4個） | CPU・NUMA・ストレージ・NICの使用率を時間軸で表示し保存 | 未コミット | 利用者の添付指示（11/10 [resource-heat-gantt](20261110-resource-heat-gantt.md)）。添付は第7章「サンプリング値」で切れていたと記録されているが、同書のどの部分が添付由来でどこがAIの補完かは区別されていない。期間別の`Tsavorite.Set`への保存は利用者が承認（11/9 [management-storage-unification](20261109-management-storage-unification.md)） | 未 |
+
+### ソース・開発環境との同期
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `SourceProjectContracts.cs`（21個）・`SourceProjectService`（6ファイル）・`IManagementSourceOperations` | サーバー上の専用C#プロジェクトの作成・保存・SDKビルド・成果物の取り込み | 11/7 `06ecb61d`、一部未コミット | サーバー上にソースを置きManagerから更新するのは利用者の要求（11/3 [server-source-client-contracts](20261103-server-source-client-contracts.md)）。開発者PCでのビルドと明示適用はW03・W04（[developer-build-artifacts](20261107-manager-developer-build-artifacts.md)） | 未 |
+| `SourceWorkspace`（本体・Import・Packages・ProjectDraft・ServerDraft・Conflict）・`WorkspaceState`・`SourceDraftBaseline`・`ServerDraftMerge` | 個人下書きと外部C#プロジェクトの双方向同期、サーバー下書きとの統合 | 11/6 `0451bb23`、一部未コミット | 個人下書きと基準版・競合検出は承認した計画（11/2）。外部.csの保存を下書きへ自動で取り込む、重ならない変更を自動統合し同じ箇所は差分と競合を表示する、GUI編集を外部.csへ自動反映する、は利用者の選択（11/3 [object-tab-drafts](20261103-object-tab-drafts.md)） | 未 |
+| `SourceWorkspace.Restore`（`DatabaseDraftRestore`・`TableDraftRestore`・`DraftRestoreCopy`）・`DatabaseDesigner.TableRestore`（`PrepareTableRestore`） | 個人下書きをDB全体または表1つだけ稼働版の定義へ戻す（外部編集は退避） | 未コミット | 根拠なし。利用者の指示にあるのは保存前の「削除を取り消す」と、それを適用後のデータ復元と区別すること（11/3 object-tab-drafts）だけ。呼び出し元は配布をやめた専用デスクトップManager（`Seamless.Management.UI`の`管理ウィンドウ.DB下書き復元.cs`）とテストだけで、Browser Managerからは使われていない || 削除（11/12利用者） |
+| `SourceWorkspace.Undo`（`ManagerUndoPreview`・`ManagerUndoResult`） | Managerで行った編集だけを取り消す（外部C#が参照する列の取消は拒否） | 未コミット | 根拠なし（同上）。呼び出し元は専用デスクトップManager（`管理ウィンドウ.ソース取消.cs`）とテストだけ || 削除（11/12利用者） |
+| `SourceConflict`・`SourceConflictFile`・`SourceWatcher` | IDEとManagerの同時編集の検出と三者比較 | 未コミット | W03（実施順3、[browser-source-conflict](20261108-browser-source-conflict.md)） | 未 |
+| `SourceEditor`・`SourceArchive`・`DefinitionExport`・`SourceStructure` | Roslynによる宣言の読み書き、エクスポート | 11/6 `0451bb23` | コードを正本としGUIは派生表現、変更対象以外の文字列を保持するのは承認した計画（11/2） | 未 |
+| `SourceLineEndings` | Managerが受け取ったC#本文のCRLF・CRをLFへ書き換える（文字列リテラル内は除く）。字句解析で元の本文を復元できないときは黙って入力をそのまま返す | 未コミット | 根拠なし。承認した計画の「変更対象以外の文字列を保持」と食い違う可能性がある。復元できないときの扱いは規則で禁じたフォールバックにあたる。呼び出し元は`DatabaseDesigner.ObjectEditing`・`Queries`と試験 || 削除（11/12利用者） |
+| `CSharpCodeCompletion`・`CSharpTypeCompletion`（候補・結果の型を含む5個） | C#本文と型セルの補完 | 未コミット | 型の補完を列・引数とC#本文で使えるようにするのは利用者の指示（11/10） | 未 |
+| `GatewayPublicationIdentity.cs`（`GatewayPublicationRequest`・`GatewayPublicationApprovalRequest`など10個） | ネイティブRPCで実行を許す公開クエリの「承認」：公開版の識別（DLL・マニフェストのハッシュ、依存DBの世代）の照会と一覧、承認ファイルへの書き出し・サーバー登録 | 未コミット | コードの検証・公開を信頼するDB開発者に限るのは承認した計画（11/2）。承認ファイル方式・識別の照会・一覧・登録は設計書（[native-authenticated-rpc](20261105-native-authenticated-rpc.md)）にあるが利用者の指示の記録はなく、根拠なし。画面は専用デスクトップManager（`GatewayPublicationWindow`・`GatewayApprovalWindow`）だけで、Browser Managerにはない。サーバー側は`Seamless.Management.Server`・`Seamless.Database.Server`の`GatewayProtection.Native`が使う || 作り直し：承認は開発者がVS・VS Codeでビルドしてサーバーを構築するときに決める。実行権限はTsavoriteの`Set`で実装したシステムテーブルに置く（11/12利用者） |
+
+## Seamless.Management.Server の公開型
+
+2026年11月12日に機械的に集めた公開型は66個（うち44個は未コミットのファイル）。一覧は`F:/Seamless/feature-inventory-20261112/inventory-Seamless.Management.Server.json`。`ManagementService`（23ファイル）は`Seamless.Management`の契約の実装なので、機能の根拠と判定は上の`Seamless.Management`の表に従う。ここではServerに固有の機能だけを挙げる。
+
+### 実行形態・画面の配信
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `ManagementApplicationHost`・`ManagementHostOptions`・`ManagerWebHost`・`ManagerWeb/*.razor` | DBを持つアプリ・サーバーに、Manager画面（Kestrel）・設定・管理受付を組み込む共通ホスト | 未コミット | ブラウザー統一と3つの実行形態は利用者の指示（11/7・11/11 [browser-hosting](20261107-manager-browser-hosting.md)）。Webサーバー→SeamlessサーバーはIPC・TCP・インプロセスの3つ（11/12利用者） | 未 |
+| `InProcessManagementHost`（5ファイル）・`ManagementTraceOperations` | 組み込み同期型：管理操作を同じプロセスの専用DB実行スレッドへ配送 | 未コミット、一部11/7 `06ecb61d` | 組み込み同期型は利用者の指示（11/7）。「同一PID・単一DB実行スレッドの組み込み同期」はW07 | 未 |
+| `ConcurrentManagementOperations` | 同居型：同じプロセスのサーバーの管理処理を同時実行数の上限つきで配送 | 未コミット | 同居型は利用者の指示（11/7）。共通の実行枠はW08（[shared-management-admission](20261108-shared-management-admission.md)） | 未 |
+| `BrowserManagementOperations` | ブラウザーの回線が残っていても、管理操作の受付ごとにセッションの失効を検査 | 未コミット | 利用者が要求したOS確認済みの所有者のブラウザー利用（11/7 [local-browser-owner-sessions](20261107-local-browser-owner-sessions.md)）。受付ごとの検査はAIの設計 | 未 |
+| `ManagementServer`（TCP/TLS・名前付きパイプ） | 管理RPCの受付 | 11/6 `0451bb23`、一部未コミット | 残す：Manager WebサーバーからSeamlessサーバーへの通信路（11/12利用者）。別プロセスでの資格情報の中継ぎは作り直し（11/12利用者） | 残す（11/12利用者） |
+| `QueryResultStream<T>`・`InProcessManagementHost.Business` | 組み込み同期の業務実行入口（`ExecuteStream`・`QueryResultStream`）。確定後の独立したコピーを返す | 未コミット | W07（実施順7、[embedded-business-api](20261108-embedded-business-api.md)）。11/12に決めたDBの入口（`db`・`BeginTransaction`・`BeginRead`）と形が違う | 置換：業務アプリはDB定義.dllの型付きの入口を直接呼ぶ（11/12利用者） |
+
+### 所有者・利用者のブラウザーセッション
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `LocalBrowserSessions`・`LocalBrowserSession`・`LocalManagerConnection`・`ManagerBrowserLauncher`・`IManagerBrowserSessions` | OS所有者を確認して1回限りの起動情報を発行し、8時間固定のセッションへ引き換える | 未コミット | ローカルでログインを省くのは利用者の要求（11/3）、ブラウザーへの接続は利用者の要求（11/7）、8時間固定は利用者の回答（11/9）。別プロセスでもSeamlessサーバーが発行する（11/12利用者） | 残す（11/12利用者） |
+| `UserBrowserSessions`・`UserBrowserSession` | 外部公開したManagerのCookieを、利用者別の認証セッションへ対応付ける | 未コミット | 外部公開は明示設定・HTTPS・利用者ごとの認証という利用者の指示（11/7 browser-hosting）。別プロセスでは資格情報を中継ぎしSeamlessサーバーが確認する形へ作り直し（11/12利用者） | 未 |
+
+### 管理データの保存と移行
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `ManagementStore`（8ファイル）・`ManagementKey`・`ManagementRecord` | 管理データ（定義・下書き・利用者・設定・監査など）をSeamlessの取引テーブルへ保存 | 11/6 `0451bb23`、一部未コミット | 管理データ全体を型付きTableとTsavoriteの永続化へ統一するのは利用者の追加指示（11/9 [management-storage-unification](20261109-management-storage-unification.md)）。権限は共通認可へまとめてTsavoriteの`Set`のシステムテーブルに置く（11/12利用者） | 未 |
+| `ManagementStoreUpgrade`（本体・`PreparedWal`・`Typed`）とCLIの`upgrade-prepared-wal`・`upgrade-managed-types` | 管理領域の形式の明示移行（分割WAL・型付きTable） | 11/6 `0451bb23`、一部未コミット | 分割WALは利用者の選択（11/9 [management-prepared-wal](20261109-management-prepared-wal.md)）。型付きTableは利用者の追加指示（11/9）。起動時に自動変換せず明示移行にするのはAGENTS.mdのDatabase Change Policy | 未 |
+| CLIの`rollback-prepared-wal-upgrade`・`rollback-managed-types-upgrade`・`rollback-audit-upgrade` | 途中で止まった明示移行を取り消し、移行前の状態へ戻す（完了した移行は戻さない） | 未コミット・11/6 | 根拠なし（設計書に利用者の指示なし） | 残す（11/12利用者） |
+| `UpdateAuditUpgrade`とCLIの`enable-update-audit`・`upgrade-audit` | 既存DBへ更新の監査を明示導入 | 11/6 `0451bb23` | データ更新を個別の監査対象にするのは利用者の回答（11/3 audit-history）。導入の手順はAIの設計（[enable-update-audit](20261104-enable-update-audit.md)） | 未 |
+| `ReadAuditOptions` | 読み取り集計の期間・保存間隔 | 11/6 `0451bb23` | 期間1分は利用者の回答、保存間隔5秒などは残す（11/12利用者） | 残す（11/12利用者） |
+| `LocalServerSetup`とCLIの`init`・`setup-local`・`initialize-authorization` | 新しい管理領域を利用者が明示したときだけ初期化 | 11/6 `0451bb23` | 利用者DBを自動で作らないのは利用者の指摘への対応（11/3 local-ipc の非目的）。明示初期化は承認した計画（11/2「新規の管理領域を明示初期化」） | 未 |
+| CLIの`reset-password`・`backup`・`restore` | 停止中の管理領域で、バックアップを取ってから指定した利用者のパスワードだけを再設定する。停止中の管理領域をまるごと空のフォルダーへコピーする（復元はその逆） | 11/6 `0451bb23` | 根拠なし（設計書に利用者の指示なし） | 残す。あわせて復元の手順を明示する仕組みを作る（11/12利用者、判定の記録を参照） |
+| CLIの`get-operation` | 操作IDの結果照会 | 11/6 `0451bb23` | 承認した計画（11/2「明示適用と結果照会」） | 未 |
+
+### コンパイル・その他
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `RuntimeCompiler`・`CompiledSource`・`ManagementExecutionContext` | 利用者のソースをサーバー内のRoslynでコンパイルし、検証・プレビュー・適用、依存クエリの再ビルド、移行コードの生成に使う | 11/6 `0451bb23` | 承認した計画（11/2）にサーバーでのRoslyn解析がある。一方で11/7の設計（[developer-build-artifacts](20261107-manager-developer-build-artifacts.md)）は「DLLは開発者側の通常ビルドで生成」「サーバーでのソース再コンパイルを順次除去」とし、11/12に利用者は「承認はVS・VS Codeでビルドするときに決める」とした。今も成果物を選ばない経路ではサーバーでコンパイルしている || 作り直し：利用者のDB定義・クエリは内蔵Roslynでコンパイルせず、Managerの「保存」がdotnet SDKのビルドを呼ぶ（11/12利用者） |
+| `MigrationDebugSession` | 開発用：本番と同じ移行器を、隔離した新旧DBで実行する | 未コミット | 根拠なし（設計書に記録なし）。利用者はサーバーで実行されるC#をVS・VS Codeでデバッグしたいと求めた（11/3 object-tab-drafts）が、この型との対応は書かれていない。呼び出し元は試験（`Tests/Management.Tests/MigrationDebug.cs`）だけ || 削除（11/12利用者） |
+| `IResourceHeatProvider` | 資源使用ヒートのOS観測の取得 | 未コミット | 利用者の添付指示（11/10 resource-heat-gantt） | 未 |
+
+## Seamless.Management.Components の公開型
+
+2026年11月12日に機械的に集めた公開型は114個（Razor部品を含む。112個は未コミットのファイル）。一覧は`F:/Seamless/feature-inventory-20261112/inventory-Seamless.Management.Components.json`。Browser Managerの画面部品で、機能の多くは`Seamless.Management`の契約に対応する。対応する契約の判定は上の表に従う。
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `管理ワークスペース`（25ファイル）・`対象操作ホスト`・`対象文書ビュー`・`対象文書状態`・`文書タブ順序`・`対象操作要求` | 画面全体の枠。対象ごとの文書タブを下書きとして扱い、保存・すべて保存を行う | 未コミット | タブ群を下書きとし「保存」を一つにするのは利用者の指示（11/3 object-tab-drafts）。対象別の文書・関数統合は利用者が承認（11/10 [object-navigation](20261109-manager-object-navigation.md)）。保存の動きは作り直し（保存でSDKビルドを呼ぶ、11/12利用者） | 未 |
+| `ブラウザー保存文書`・`ブラウザー表示状態`・`ツリー展開状態`・`管理ワークスペース.文書復元`・`表示状態` | 開いていた文書タブ・選択・DBの開閉・スクロール位置を同じブラウザーとoriginで復元 | 未コミット | 対象別UIの一部として利用者が承認（11/10 object-navigation）。保存単位（利用者・インスタンス・origin）などの細部はAIの設計 | 未 |
+| `DBオブジェクトツリー`・`所属オブジェクト一覧`・`ツリー列一覧`・`ツリー列編集要求`・`ツリー対象操作`・`ツリー操作結果`・`追加メニューホスト`・`インライン名前入力` | 左ツリーでのDB・スキーマ・表・列の表示と、追加・名前変更・コピー・削除 | 未コミット | ツリー内のF2編集・対象の近くからの操作は利用者の指摘への対応（11/3 [object-context-commands](20261103-object-context-commands.md)）。左ツリーで列を編集するのは利用者の指示（11/10）。DB名変更は利用者の依頼（11/8） | 未 |
+| `DB表示順序`・`オブジェクト表示順序`・`管理ワークスペース.表示順`・`オブジェクト表示順` | 左ツリーの対象・列の表示順の並べ替え（宣言や保存データの順には適用しない） | 未コミット | 表示順を並べ替えられるようにするのは利用者の指示（11/10） | 未 |
+| `操作メニュー`・`操作コマンド<T>`・`コマンド登録<T>`・`操作アイコン`・`表示文言` | 検索できる操作メニュー、共通アイコン、日本語・英語の表示 | 未コミット | 検索できるコンテキストメニューなどの操作体系は利用者の要求（11/7 [contextual-interaction](20261107-manager-contextual-interaction.md)）。アイコンとブラウザー言語は利用者の追加指示（11/9 [icons-and-languages](20261109-manager-icons-and-languages.md)） | 未 |
+| `対象定義エディター`・`編集グリッド`・`型入力`・`問い合わせ設計` | 表の列・ビュー結果列・関数の引数を高密度のグリッドで編集 | 未コミット | SSMSのような高密度グリッドは利用者の指定（11/9 [designer-grid](20261109-manager-designer-grid.md)）。関数の引数を右ペインで編集するのは利用者の指示（11/10）。ビュー結果列の読取専用表示は置き換え予定（11/12利用者） | 未 |
+| `コードエディター`（補完を含む）・`コード補完範囲`・`コード補完適用結果` | C#の色表示と、型・メンバーの補完 | 未コミット | 型の補完を列・引数とC#本文で使えるのは利用者の指示（11/10） | 未 |
+| `結果グリッド`・`問い合わせ結果`・`問い合わせ結果表`・`行操作`・`関数データ`・`クエリ一覧ビュー`・`公開対象文書` | 行の閲覧・編集、ビュー・関数の実行結果、公開された対象の閲覧 | 未コミット | W05。行のページ送りは作り直し（一覧を開いた時点に固定、11/12利用者）。公開メタデータでの閲覧は[published-metadata-manager](20261110-published-metadata-manager.md)（設計書に利用者の指示の記録はなかったが、11/12に利用者が内容に合意） | 未（公開メタデータでの閲覧は残す、11/12利用者） |
+| `オブジェクト履歴` | 対象を識別した監査記録の表示（テーブルのアクセス履歴） | 未コミット | ビュー・関数の実行履歴とテーブルのアクセス履歴を分けるのは利用者との追加合意（11/10） | 未 |
+| `実行計画ビュー`（4ファイル）・`計画グラフ`・`計画保存`・`計画要素説明`・`グラフ表示操作`・`データサンキー`・`実行Gantt`・`実行時間モデル`ほか配置型・`実績タイムライン`・`実績履歴`・`実行統計表示`・`ノード実測表示`・`クエリトレース`・`トレース設定`・`生成コードフロー` | 実行計画・データサンキー・実行タイムライン・実行DAG・FLinq展開後の構造・実測の表示 | 未コミット | 利用者の依頼と添付（11/9 query-visualization-plan・views）。三段階表示は利用者の追加要求（11/9） | 未 |
+| `資源ヒートガント`・`資源ヒート配置`ほか・`資源折線配置`ほか | CPU・NUMA・ストレージ・NICの使用率の時間軸表示 | 未コミット | 利用者の添付指示（11/10 resource-heat-gantt） | 未 |
+| `生成コード表示`・`I生成ソース取得`・`管理ワークスペース.生成コード` | 下書きのソースからDB生成器・FLinq生成器が作るコードを読取専用で表示 | 未コミット | 利用者の指示（作業ツリー W05-TREE-GENERATED-SOURCE「利用者指示により」） | 未 |
+| `ビュー展開通知` | ビューの展開について、未対応などを赤い太字で知らせる | 未コミット | 未対応を赤く表示するのはAGENTS.mdの規則（11/12）。ビューの扱いは11/12の決定で作り直し | 未 |
+| `サーバー設定ビュー`・`ロール管理ビュー`・`利用者管理ビュー`・`監査ビュー` | サーバー設定・ロール・管理用アカウント・監査の画面 | 未コミット | W06。権限は共通認可へ1つにまとめる作り直し（11/12利用者）に合わせて、利用者管理とロール管理の画面も直す必要がある | 未 |
+| `プロジェクト作業領域`（4ファイル）・`ソース競合表示`・`管理ワークスペース.ソース下書き` | サーバー上のC#プロジェクトとの同期、競合の三者比較、成果物の検査・取り込み・適用 | 未コミット | W03・W04、外部編集の自動取り込みと競合表示は利用者の選択（11/3）。保存でSDKビルドを呼ぶ作り直し（11/12利用者） | 未 |
+| `表示用ID診断`・`管理ワークスペース.表示用ID` | 表示用IDの付与と診断 | 未コミット | 削除と決定済み（11/12利用者） | 削除（11/12利用者） |
+
+## Seamless.Transactions の公開型
+
+2026年11月12日に機械的に集めた公開型は69個（すべてコミット済み：10/30 `14fca747`「wip: snapshot staged」、11/5 `e75f668f`）。一覧は`F:/Seamless/feature-inventory-20261112/inventory-Seamless.Transactions.json`。
+
+主な根拠は次の3つ。(a) 10/29に利用者が承認し実装を指示した改訂計画（[generic-transactions-tpc-c12](20261029-generic-transactions-tpc-c12.md)）：汎用の取引基盤と型付きAPI、Serializable、区画WAL、TPC-C/TPC-Eの接続。初版の汎用取引は全DB排他、TPC-Cは独立区画を並列化。(b) 11/2の利用者の要求（[ConcurrentTransactions](ConcurrentTransactions.md)）：読み取りと更新・複数の更新取引の並行実行、楽観的ロック、FLinqの高速化を活かす、Tsavoriteの前レコードへのリンクの利用。(c) 11/2の利用者の合意（[TransactionModesAcceptance](TransactionModesAcceptance.md)・[DeferredMvccImplementation](DeferredMvccImplementation.md)）：並行方式は遅延更新＋MVCC・楽観的検証・Serializable、直列モードは起動時に選ぶ独立した方式として残す、集計中の物理更新待ちは許容、並行時の全体性能を優先、履歴の回収は案A（回収中は新規取引を待たせる）。
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `TransactionCoordinator`（5ファイル）・`TransactionScope`（3ファイル）・`ITransactionParticipant`・`ITransactionChanges`・`TransactionCommitResult`・`TransactionCommitKind`・`TransactionCommitException`・`TransactionOperation`・`TransactionParticipantSnapshot` | 取引の調停：参加先の変更を集め、検証・WAL・公開を管理する | 10/30・11/5 | (a)(b)(c)。11/12に決めた入口（`BeginTransaction`は常にシリアライザブル、`BeginRead`はスナップショット）はこの上に作る | 未 |
+| `TransactionCoordinatorOptions`・`TransactionConcurrencyMode`（`Exclusive`・`Optimistic`） | 直列（DB全体の排他）と並行（遅延更新＋MVCC）の方式を起動時に選ぶ | 11/5 | (c) 直列モードを起動時に選ぶ独立した方式として残すのは利用者の合意。分離レベルの選択（11/12に用意しないと決定）とは別のもの | 未 |
+| `VersionedTransaction.cs`の型（`IVersionedTransactionParticipant`・`PreparedTransactionParticipant`・`TransactionAbortReason`・`TransactionAbortedException`など11個）・`VersionedTransactionParticipantGroup`・`TransactionContext`（3ファイル）・`IContextualTransactionParticipant` | 版付き取引（遅延更新＋MVCC）：版の選択、変更の凍結と設置、競合時の中止 | 11/5 | (b)(c)。業務処理の自動再実行はしない（DeferredMvcc） | 未 |
+| `TransactionHistoryOptions`・`TransactionHistoryReservation`・`TransactionMaintenance*`・`TransactionDomainDiagnostics` | 旧版の履歴の予算と回収。予算不足では古い読み取り専用取引を明示的なエラーで中止 | 11/5 | 回収方式の案Aは利用者の選択（DeferredMvcc）。予算不足時に読み取り取引を中止する扱いは同書の背景にあるが、利用者の指示かAIの設計かは書き分けられていない || 残す：予算不足では古い読み込みを明示的なエラーで止める（11/12利用者） |
+| `WalContract.cs`の型（`IWalDevice`・`WalEntry`・`WalOptions`・`WalTransaction`・`WalReceipt`・`TransactionFailure`など）・`WalWriter`・`WalFileDevice`（2ファイル）・`WalFormat` | 共通WAL：追記専用のファイル、区切り・起動世代・CRC、最初の障害の保持 | 10/30・11/5 | (a) 区画WALとフレーム形式は承認した計画に記載 | 未 |
+| `TransactionJournal`（2ファイル）・`TransactionOutcome`・`TransactionOutcomeKind` | 確定結果の台帳（更新Commitの永続結果照会） | 10/30・11/5 | (a)「更新Commitの永続結果照会」 | 未 |
+| `PreparedTransactionJournal`・`PreparedTransactionPhase`・`PreparedTransactionReplay` | 新しい保存方式用：準備した変更を最後のcommitとhashに結び付けて再生 | 11/5 | Gatewayの版付き取引（Seamless.Databaseの`GatewayPreparedSnapshot`など、未判定）と一緒に判定する | 未 |
+| `WalMetadataPage`・`WalMetadataRecord` | 確定済みWALの付随情報（更新の監査など）の読み取り | 11/5 | 更新を個別に監査するのは利用者の回答（11/3 audit-history） | 未 |
+| `DatabaseLockManager`・`DatabaseLockMode`・`TransactionDeadlockException` | 取引IDが持つDB単位のRead・Write・Schemaの貸出しと、デッドロックの検出 | 11/5 | 汎用SQLの計画（10/29、利用者が承認）とC12の範囲。細部はAIの設計。呼び出し元はGateway | 未 |
+| `PartitionExecutor`・`PartitionExecution<T>`・`PartitionResult<T>` | TPC-Cの独立区画を並列に実行する | 10/30 | (a)「TPC-Cは独立区画を並列化」。このチェックアウトでの呼び出し元は試験だけで、TPC-C用の作業ツリー（`Work/Orchestration/worktrees/tpcc`）が使う | 未 |
+| `FakeWalDevice` | 試験用：WALの同期待ちと書込み・同期の障害を明示的に起こす装置 | 10/30 | 根拠なし。製品のアセンブリにある公開の試験用部品。呼び出し元は試験とベンチマーク || 試験側へ移す（11/12利用者） |
+
+## Seamless.Database.Gateway の公開型
+
+2026年11月12日に機械的に集めた公開型は100個（60個は未コミットのファイル。コミット済みは10/30 `14fca747`「wip: snapshot staged」と11/6 `0451bb23`）。一覧は`F:/Seamless/feature-inventory-20261112/inventory-Seamless.Database.Gateway.json`。
+
+主な根拠：(d) 10/29に利用者が承認した汎用SQLの計画（[generic-sql](20261029-generic-sql/README.md)）：Seamlessの主力はC#・LINQ・FLinqで、SQLは相互運用・移行・比較・導入の入口。SSMSからの実行時DDLとTRY/CATCHなどは10/29の追加合意。ScriptDom依存を完全に除くOSS移行は利用者が承認。利用者の主目的はFLinqへの導入で、SQLはSSMS・MySQL Workbenchなど慣れたGUIから当面操作できる入口。(e) 10/29に利用者が承認したSQL Serverとの比較計画（[sqlserver-seamless-comparison](20261029-sqlserver-seamless-comparison.md)）。(f) 11/1に利用者が承認した型付きDDLの計画（[gateway-typed-ddl](20261101-gateway-typed-ddl.md)）：SQLのCREATE・ALTER TABLEを型付きC#の表の生成・ビルドと移行へ接続。(g) 11/1のSQL Serverのシステムカタログ（[sqlserver-system-catalog](20261101-sqlserver-system-catalog.md)）：17.0.1000.7を名乗るのは利用者の指示。(h) 11/4に利用者が明示指示したKestrelへの移行（管理TCP/TLS・ネイティブRPC・TDS・HTTP）。
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `GatewayServer`・`GatewayServerOptions` | TDS・HTTP・ネイティブRPCの入口をまとめて起動するホストと設定（設定26項目） | 10/30 | (d)(h)。個々の設定項目は未確認 | 未 |
+| `TdsServer`・`TdsSession`（3ファイル）・`TdsPacketReader`・`TdsMessage`・`TdsPacketWriter`（3ファイル）・`TdsConstants`・`TdsRpcParameter`・`TdsGatewayAuthorization` | SQL Serverの通信方式（TDS）でSSMSなどから接続できる入口 | 10/30、一部未コミット | (d) SSMSは維持する互換対象、SSMSでの基本SQLの結果一致は完成条件。(g) 製品版は利用者の指示 | 未 |
+| `TdsRequestLog` | 設定したときだけ、TDSで受けた要求をファイルへ記録する | 未コミット | 根拠なし。SSMSの実際のSQLを採取するのに使われた（[sql-lock-timeout](20261030-sql-lock-timeout.md)は別の診断用転送器による採取） || 残す：開発・互換調査用。既定は記録しない（11/12利用者） |
+| `ScriptDomParser`・`ParsedCommand`・`SqlCommandKind` | T-SQLの構文解析（MicrosoftのScriptDomを使用） | 10/30 | (d) ScriptDom依存の完全除去を利用者が承認済み。移行中の比較基準としてのみ残す | 置換予定：OSSのパーサーへ（10/29利用者承認） |
+| `SqlExecutionEngine`（5ファイル）・`QueryPlanCache` | SQLのDML・DDL・IDENTITYなどを型付きDBに対して実行。今は構文木を関数（デリゲート）の組み合わせへ組み立てて実行する | 10/30、一部未コミット | (d)(f)。IDENTITYは(f)の計画に記載 | 作り直し：SQLをFLinqのC#へ変換・コンパイルして実行（11/12利用者） |
+| `SystemCatalogEmulator`（2ファイル） | SQL Serverのシステムカタログ（`sys.*`など）を返す | 10/30、一部未コミット | (g)。本物の17.0から形を写し取る方針 | 未 |
+| `DatabaseRegistry`（3ファイル）・`DatabaseRegistration`・`DatabaseViewDefinition`・`DatabaseRoutineDefinition`・`IDatabaseAdapter`・`InProcessDatabaseAdapter`（5ファイル）・`TableMetadata`・`ColumnMetadata`・`QueryResult`・`SessionContext` | 公開中の世代に属するDBを実SQL名で管理し、SQLから型付きDBを読み書きする | 10/30、一部未コミット | (d) | 未 |
+| `GatewayDatabaseHost`・`GatewayGenerationStore`（2ファイル）・`GatewayPreparedGeneration`・`GatewayGenerationCandidate`ほか・`GatewaySchemaCatalog`・`GatewayTableIdentity`・`GatewayColumnIdentity`・`TypedGenerationMigrator`・`GeneratedTableMigration` | SQLのDDLから生成した型付き表の世代を保存し、非公開の新しい世代へ全表を移してから公開する | 未コミット | (f)。表・列の永続IDはSQL名とは別に持つ（`GatewaySchemaCatalog`） | 未 |
+| `GeneratedAssemblyBuilder`（2ファイル）・`GeneratedAssemblyArtifact`・`GeneratedAssemblyBuildOptions`・`LoadedDatabaseGeneration`・`NativeDatabaseAssembly`・`NativeQueryBuildArtifact`ほか | 生成したC#を、配布されたランタイムと生成器だけで世代ごとにビルドし、世代ごとに読み込む | 未コミット | (f)。サーバーが生成するコードのコンパイルは残す（11/12利用者）。ビルドの方法（SDKか組み込みのRoslynか）との関係は未確認 | 未 |
+| `GatewayTransactionManager`（11ファイル）・`GatewayCommitPhase`・`LogicalTransaction` | 接続が持つ論理取引：複数DBの準備と反映を共通WALの1回の確定で束ねる。SQLの入れ子の取引、参照動作（連鎖削除など）、rowversion | 10/30〜未コミット | (d) 既存の取引・WALを再利用する。参照動作とrowversionは(f)の範囲か個別に未確認。11/12に決めたDBの入口（常にシリアライザブル）との関係は未整理 | 未 |
+| `NativeQueryServer`（3ファイル）・`NativeQueryExecution`・`NativeQueryDatabaseBinding`・`NativeGatewayAuthorization`・`NativeServerLimits`・`GatewayNativeQueryStore`・`GatewayNativeQueryVersion`・`GatewayNativeQueryReference`・`LoadedNativeQueryModule`・`NativePrebuiltPackage`・`GatewayNativePublication*`・`GatewayNativeQueryStatus` | ネイティブRPC：管理されたビルド成果物だけを読み込み、DB通信.dllからの呼び出しを実行する。認証・上限・公開版の管理 | 10/30、一部未コミット | 1万クライアント・接続方式は利用者の指示（11/3）、Kestrelは(h)、DB通信.dllは利用者の確認（11/11）。公開版の承認は作り直し（DB定義.csに書く）と承認ファイルの削除（11/12利用者） | 未 |
+| `HttpEndpoints`・`HttpServer`・`HttpServerOptions`・`HttpGatewayAuthorization`・`HttpSqlObjectBinding` | HTTPのAPI：`/api/sql`（SQLの実行）・`/api/tables`（表の読み書き）・`/api/transactions`・`/api/session`・`/api/databases` | 10/30、一部未コミット | HTTPの入口があることはC12の計画（10/29）に「後続」として、Kestrelへの移行は(h)に書かれている。APIの中身（SQL実行・表の読み書き・取引）を求めた利用者の指示は見つからない || 削除（11/12利用者） |
+| `ComparisonHost` | 検証対象と稼働中のサーバーが同じ型付きの保存データを開く（SQL Serverとの比較用） | 10/30 | (e) | 未 |
+
+## Seamless.Linq の公開型
+
+2026年11月12日に機械的に集めた公開型は205個（型名では167種類。未コミットは`Set`と`TopKBuffer`の4個）。一覧は`F:/Seamless/feature-inventory-20261112/inventory-Seamless.Linq.json`。中心部分は2026年5〜6月のコミット（`d096742e`「macで」、`43b7af95`「ベンチマークの性能向上。いまだにzlinqを越えれない」など）からある。7/2のプロンプトは「System.Linq.Enumerableの全メソッドを対象にフォールバック0」「手書きの実行時ライブラリではyield returnを使わず値型のIEnumeratorを使う」「実行時の診断カウンタ」を求めている。
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `Enumerable`・`ValueEnumerable`・`IValueEnumerable`・`IValueEnumerator`・`ValueEnumerator`・`Enumerator`・`EnumeratorHelper`と、各演算の構造体（`Where`・`Select`・`SelectMany`・`GroupBy`・`Join`・`LeftJoin`・`RightJoin`・`OrderBy`・`Distinct`・`Union`・`Zip`・`Chunk`・`CountBy`・`AggregateBy`・`Shuffle`など） | 値型の列挙子によるLINQの実行ライブラリ | 5〜6月 | 5〜6月の開発（ZLinqを超える目標）。7/2のプロンプト（Enumerable全メソッド・値型列挙子） | 未 |
+| `FromArray`・`FromList`・`FromEnumerable`・`FromHashSet`・`FromDictionary`などの入力、`FromRange`・`FromRepeat`・`FromSequence`・`From…InfiniteSequence`（数値・日時の型ごと） | さまざまな入力と、範囲・繰り返し・等差数列・無限数列の作成 | 5〜6月 | 同上。`Sequence`・`InfiniteSequence`は.NET 10の`System.Linq.Enumerable`のメソッドで、7/2のプロンプト（Enumerable全メソッドを対象）の範囲。数値・日時の型ごとの`From…`は、その汎用メソッドを型ごとに速くした実装 | 未 |
+| `ArrayWhere`・`ListSelect`・`WhereSelect`・`SelectWhere`・`RangeSelect`・`TakeSkip`・`OrderBySkipTake`・`ShuffleSkipTake`などの融合型 | 入力の種類や演算の並びごとの専用の高速版 | 5〜7月 | 性能の目標（ZLinqを超える）。FLinqの展開と最適化 | 未 |
+| `Lookup`・`LookupBuilder`・`ContiguousLookupBuilder`・`PartitionedLookupBuilder`・`Grouping`・`GroupingElements`・`HashSetSlim`・`ValueHashSetSlim`・`DictionarySlim`・`DenseGroupCounts`・`DeferredGroupSum`・`PooledArray`・`InlineBuffer16`・`ValueQueue`・`Materializer`・`KeyBudget`・`InputBudget`・`IKeyBudget`・`TopKBuffer`・`TopKCombinedBuffer`・`GeneratedCodeHelpers`ほか | FLinqの生成コードが使う内部のデータ構造と補助（生成コードから呼ぶため公開） | 5月〜未コミット | 性能の目標とFLinqの展開。`TopKBuffer`（OrderBy＋Takeの上位k件）は未コミット | 未 |
+| `LinqCounter`・`LinqCounterKind`・`LinqCounterScope` | 代替経路（フォールバック）の発生などを数える実行時の診断 | 6/15 | 7/2のプロンプト「実行時診断ログ/カウンタでフォールバック未発生を検証」 | 未 |
+| `AnchorExtensions` | 副作用の順序を保つための目印（Anchor） | 6/5 | [flinq-anchor-side-effect](20260616-1333-flinq-anchor-side-effect.md)（利用者の指示の記録は未確認） | 未 |
+| `Internal`の`PersistedSetEnumerator`・`TsavoriteSetEnumerator`・`TsavoriteHashSetEnumerator`・並列版 | Persisted・Tsavoriteの集合を直接走査する列挙子 | 5〜7月 | 7/2のプロンプト（Tsavorite・Persistedのネイティブ走査） | 未 |
+| `Set` | 読取専用の集合（`ISet<T>`）を受け取り集合を返す`Where`・`Select`などの演算。コピーを作らない | 未コミット | 11/12の利用者の決定（[database-access-model](20261112-0017-database-access-model.md)の`Seamless.Linq.Set`、不変条件I12） | 未 |
+| `ScopedQuery<T>`・`ScopedOrderedQuery`・`ScopedQueryExtensions`ほか | 実行の範囲（`ExecutionScope`）に結び付けた遅延評価のクエリ。列挙のたびに範囲の有効性を確かめる | 9/19 `8f40700c` | 根拠なし。中で`yield return`を使っており、7/2のプロンプトの「手書きの実行時ライブラリではyield returnを使わない」に反する。呼び出し元は置き換えが決まった`View<T>`（`Seamless.Database/View.cs`）とサンプルの1章（`Samples/Sample.NetShop.Core/Chapters/決算の集計.cs`）と試験だけ || 削除（11/12利用者） |
+| `UnorderedEnumerableAttribute`・`QueryGrouping`・`QueryOrder`・`QueryOrdering`・`Scope`・`RightBound`・`IOrderByComparable`・`IOrderByComparer`・`SingleCountGrouping`・`Index` | 生成器への順序なしの印、整列・グループ化の補助 | 6〜7月 | `UnorderedEnumerableAttribute`は[flinq-source-common-base-unordered](20260713-flinq-source-common-base-unordered-release-notes.md)。ほかは個別に未確認 | 未 |
+
+## Seamless.FLinq.Generator の公開型
+
+2026年11月12日に機械的に集めた公開型は18個で、すべてソース生成器の入口`FLinqIncrementalGenerator`（partial）とその入れ子。一覧は`F:/Seamless/feature-inventory-20261112/inventory-Seamless.FLinq.Generator.json`。利用者から見える機能は、生成器が利用者のアセンブリへ出力する属性とその設定項目、および展開の対象範囲なので、それを行に分けた。中心部分は5〜6月のコミット（`25d14f0a`「macでインターセプト」など）からある。
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `FLinqIncrementalGenerator`（傍受・Fragment・Pipeline・メソッド本体の書き換え・ネイティブ走査・匿名型の扱いなど） | LINQの呼び出しを傍受し、ループの生成コードへ展開する | 5〜8月 | 5〜6月の開発。7/2のプロンプト（Enumerable全メソッドのフォールバック0、Fragment・Pipelineの全分岐の棚卸しと不要物の削除） | 未 |
+| 出力する属性`LinqInterceptAttribute(bool optimizeLinq[, LinqInstrumentation])`と`LinqInstrumentation.Counter` | アセンブリ・クラス・メソッド単位で傍受と最適化を有効にする。計数の計装を付ける | 6〜7月 | 7/2のプロンプト（実行時の診断カウンタ）。属性の形は利用者の指示の記録を未確認 | 未 |
+| 出力する列挙`LinqOptimizations`（`Rewrite`・`PipelineFusion`・`PredicatePushdown`・`ProjectionMerge`） | 最適化の段階ごとの有効・無効 | 7〜8月 | FLinqの性能改善の作業で追加。段階ごとに切り替える設定はベンチマークでの比較用で、利用者の指示の記録は未確認 | 未 |
+| 出力する`LinqConvergenceMode`（`Legacy`・`GlobalFixedPoint`）・`EmitOptimizationTrace` | 書き換えを全段階で変化がなくなるまで繰り返す方式の選択と、書き換えの経過の記録 | 8月以降 | リポジトリ直下の`Benchmark.Dynamic実装計画.md`（「明示Opt-inの大域固定点モードとトレースを追加し、既存の既定動作は変えない」）。この計画を利用者が承認した記録は未確認 || 作り直し：固定点に一本化し設定をなくす。経過の記録は開発用に残す（11/12利用者） |
+| 出力する`ExecutionPlanAttribute` | 生成時に採用した経路を静的な実行計画としてメタデータへ記録 | 11月 | 承認した計画（11/2 native-management「静的計画」） | 未 |
+| `FLinqIncrementalGenerator.ViewDefinitions`・`ViewDefinitionPredicatePushdown` | ビューの定義を呼出元へ展開し、条件を押し下げる | 未コミット | ビューを呼出元へ展開するのは利用者の設計補足（11/11 [view-function-definition-expansion](20261111-2200-view-function-definition-expansion.md)）。今の実装は旧`View<T>`・`CreateViewDefinition`の形に合わせており、11/12の決定（`IReader`への拡張メンバー、展開できなければコンパイルエラー：不変条件I8・I9）に合わせて作り直す必要がある | 未 |
+| `FLinqIncrementalGenerator.IfConditions`・`ConditionQueries` | if条件の中のスカラー終端の展開 | 11/6〜未コミット | W20（実施順20「FLinqと網羅検証」） | 未 |
+
+## Seamless.Execution の公開型
+
+2026年11月12日に機械的に集めた公開型は67個（14個は未コミット）。一覧は`F:/Seamless/feature-inventory-20261112/inventory-Seamless.Execution.json`。
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| `ExecutionScope`・`ExecutionOptions`・`ResourceBudget`・`ResourceReservation`・`ResourceLimitException`・`ResourceLimitKind`・`OwnedBuffer`・`OwnedValue<T>`・`TemporaryFile`・`TemporaryResourceRecovery`・`QueryResultBuffer<T>`・`QueryDictionaryBuffer`・`CpuScheduler` | 実行の範囲、メモリ・一時ディスク・CPUの予算と予約、上限超過の例外、一時ファイルと異常終了後の回収 | 9/19 `8f40700c`〜未コミット | 利用者の1〜21の一覧の11「メモリ・一時ディスク・資源上限」。中間仕様書「初版のリソース管理」 | 未 |
+| `Store`・`StoreOptions`・`StoreKind`・`StoreLimits`・`IStoreComponent` | 保存場所・寿命・メモリとディスクの上限を持つ共通ストア。TsavoriteとPersistedのデータ本体はその子資源 | 9/21 `eb268701` | 9/19に利用者が承認した共通ストア起点のコレクション再設計（`Work/qa`の記録） | 未 |
+| `CodecRegistry`・`Codecs`の`Adapter`・`IAdapter`・`IStrategy`・`Serializer`・`CanonicalSerializer`・`IOwnedAdapter`・`IResourceSerializer` | 型ごとの符号化（静的ストラテジ） | 9/19・10/25・未コミット | 10/25に利用者が承認したストラテジーの統一（[benchmark-profiles-strategies-consolidation](20261025-benchmark-profiles-strategies-consolidation.md)）。1〜21の15「正規化・比較・シリアライズ」 | 未 |
+| `RecordGraphSerializer`・`RecordGraphCodec`・`RecordGraphValidationLimits`・`RecordValueStrategy` | 参照の共有と循環を保つレコードの保存形式、レコード全体の正規化・比較・ハッシュ | 未コミット | 中間仕様書の合意（「参照共有」「一つの取得レコード内では参照共有・循環を保持する」「正規化・比較・ハッシュの静的ストラテジを生成」） | 未 |
+| `Equalities`の`Binary`・`Default`・`IStrategy`・`Adapter` | 等値比較の静的ストラテジ | 10/25 `030afeb0` | 10/25の承認した設計、中間仕様書「比較・正規化・静的ストラテジ」 | 未 |
+| `Growth`の`Fixed`・`Doubling`・`Estimated`・`IStrategy`・`Policy`・`Controller`・`Context`・`Decision`・`Descriptor`・`Event`・`Resource`・`Status` | ストアの容量の伸ばし方（固定・倍々・見積もり）。利用者定義のストラテジも同じ契約で扱う | 10/25 `ac1da82b` | 10/25に利用者が承認した設計（`Growth.IStrategy<TSelf>`の記載あり） | 未 |
+| `Profile`・`ProfileCatalog`・`ProfileResolver`・`ProfileSettings`・`ProfileRequest`・`ProfileResolution`・`MeasuredProfile`・`StoreOptions`・`ProfileEnvironment`・`ProfileEvidence`・`ProfileExplanation`・`ProfileIO` | 測定済みの標準設定（プロファイル）を同梱し、環境に合うものを選ぶ。コード・条件・証拠が一致しなければMinimumへ戻す | 10/25 | 10/25に利用者が承認した設計（「測定済み標準値を同梱」「コード・条件・証拠の不一致はMinimumへ戻す」）。ただし「Minimumへ戻す」は、11/12のAGENTS.mdの規則（処理できない入力で黙って別の動きへ切り替えない）と食い違う可能性がある || 作り直し：Minimum・見積もり・Optimizedの3種類に分け、黙って切り替えない（11/12利用者） |
+| `QueryProfiler`・`QueryProfileRegionScope`・`QueryProfileSnapshot`ほか | クエリの区間ごとの実測（実行計画の可視化用） | 未コミット | 利用者の依頼（11/9 query-visualization-plan の「推定・実測」） | 未 |
+
+## Seamless.Collections・Seamless.Collections.Persisted・Seamless.Collections.Tsavorite の公開型
+
+2026年11月12日に機械的に集めた公開型は、Seamless.Collectionsが34個、Persistedが24個、Tsavoriteが72個。一覧は`F:/Seamless/feature-inventory-20261112/inventory-Seamless.Collections*.json`。大半は2026年3〜6月のコミット（`05d68c17`「統合した」、`34e333b1`「分離をより進めた」、`e5713732`「DB用のたたき台のManagedSet,UnmanagedSetを作った」、`8db0eb4f`「作業用のメモリマップドファイル」など）から続く、利用者自身の開発の時期のもの。9月以降に入ったものを別の行に分けた。
+
+| 型 | 機能 | 導入 | 指示の根拠 | 判定 |
+|---|---|---|---|---|
+| Seamless.Collectionsの`IRecord<TKey>`・`ISet<T>`・`ISet<TKey,TRecord>`・`IUnorderedEnumerable`、`Serializers`（`Auto`・`Blittable`・`MemoryPack`・`RawByteArray`・`IStrategy`）、`Persisted`（`PersistedList`・`BlittableList`・`SerializedList`・`StorageTuning`など）、`Serialization.ByteRange`、`Iteration.IStrategy` | 集合・レコードの契約、値の符号化、ファイルに置くリスト | 3〜7月、一部10/25 | 3〜6月の利用者自身の開発。符号化の静的ストラテジは10/25の承認した設計。`IRecord<TKey>`の`Key{get;init;}`は中間仕様書の合意 | 未 |
+| Seamless.Collectionsの`FixedText<TBuffer>`・`IFixedText`・`IFixedTextBuffer`・`TextBuffer16`〜`TextBuffer256` | 最大長が決まった文字列を固定容量で持つ値型 | 11/5 `e75f668f` | 11/2の決定（[roslyn-database-roundtrip](20261102-roslyn-database-roundtrip.md)「取り込み時に最大長が分かる文字列列へ固定容量型を自動適用」） | 未 |
+| Seamless.Collectionsの`ScalarNormalization`・`IRecordStrategy<T>` | スカラー値の正規化、レコードの比較・ハッシュの静的ストラテジの契約 | 未コミット | 1〜21の15「正規化・比較・シリアライズ」、中間仕様書の合意（型ごとの正規化・比較） | 未 |
+| Persistedの`Set`・`BlittableSet`・`SerializedSet`・`Dictionary`・`BlittableDictionary`・`SerializedDictionary`・`AppendOnlyList`・`Entry`・`EntrySerializer`・`Store` | ファイルに置く集合・辞書・追記専用リスト | 4〜6月 | 利用者自身の開発の時期 | 未 |
+| Persistedの`StoreExtensions`・`PersistedMemoryBacking` | 共通ストアからPersistedのデータ本体を作る。メモリのストアでもPersistedを使える | 9/21 `eb268701`・10/6 `700ce395` | 9/19に利用者が承認した共通ストア起点の再設計 | 未 |
+| Persistedの`Work`（`HashDictionary`・`HashSet`・`SortedDictionary`・`SortedList`・`SortedSet`） | 取引に入らない一時の作業用コレクション | 9/26 `b48e5890` | 1〜21の17「作業Store・Dictionary・Persisted」。中間仕様書の合意（`db.CreateWorkStore()`、[work-store-ownership](20261109-work-store-ownership.md)） | 未 |
+| Persistedの`ScopedByteIndex`・`ScopedStoredSequence<T>` | 実行の範囲に結び付いた一時のバイト索引と列。予算を超えた変更集合などの退避先 | 9/19 `8f40700c` | 中間仕様書（`TransactionChangeSet`は予算を超えるとPersistedの一時バイト索引と一時ファイルへ退避）、1〜21の11「メモリ・一時ディスク・資源上限」 | 未 |
+| Tsavoriteの`Collections`（`Collection`・`Dictionary`・`HashSet`・`Set`・`DelegateSet`・`DebugView`・各インターフェース）、`SessionFunctions`、`Devices`（`MemoryOnlyDevice`・`TsavoriteStorageDevices`）、`Stores`の`CollectionStore`・`DictionaryStore`・`HashSetStore`・`SetStore`・`Store`・`TsavoriteTuning`・`TsavoriteStatistics`・`TsavoriteLogUsage`・`Const` | Tsavoriteを使う集合・辞書と、そのストア・デバイス・設定 | 3〜6月、一部9月 | 利用者自身の開発の時期。7/2のプロンプト（`Table<T>`はTsavorite/Persisted系） | 未 |
+| Tsavoriteの`StoreExtensions`、`CompactionResult` | 共通ストアからTsavoriteのデータ本体を作る。データ本体の詰め直し | 9/21・10/6 | 9/19の承認した再設計。詰め直しはEXP-0005の調査（利用者の指示の記録は未確認） | 未 |
+| Tsavoriteの`ExclusiveAccess`・`IAccessMode`・`ParallelRegion<TAccessor>`・`IParallelDictionary`ほか | 操作用オブジェクトのシングル用・マルチ用の分離と、並列区間 | 10/6 `e0eb900f`・`303ee933` | 中間仕様書の合意（「将来の並列RMWとローカル計数」、`ParallelDictionary`の件数の扱い）。シングル用・マルチ用の分離の作業目標（利用者の指示の記録は未確認） | 未 |
+| Tsavoriteの`HistoryStore`・`HistoryAccessor`・`HistoryRecord`・`HistoryAddress`・`HistoryAppendReservation`・`HistorySnapshotCursor`・`IHistoryStrategy`・`RetainedHistoryUnavailableException` | MVCCの旧版を保持・読み出す履歴ストア | 11/5 `e75f668f` | 11/2の利用者の要求と合意（Seamless.Transactionsの(b)(c)）。履歴の予算不足では古い読み込みを止める（11/12利用者） | 未 |
+| Tsavoriteの容量の増減（`CollectionStore`の`GrowIndexIfCrowded`・`GrowLog`） | 索引とログのメモリを倍々で広げる | 9〜11月 | 11/12に利用者が指示：ディスクの表でもログのメモリを広げる、縮小を入れる（1/4を下回ったら半分）、縮小の可否はGarnetを最新にしてから判断（判定の記録を参照） | 作り直し（11/12利用者） |
+
+## 判定の記録
+
+- 2026年11月12日：`View<T>`・`TableFunction<T>`は読取専用の集合（`Seamless.Collections.ISet<T>`）、`ScalarFunction<T>`は値`T`で足りるという利用者の指摘により、3つの型とラッパー（`this.View(()=>...)`など）を置き換える方向とした。`ISet`の`Where`・`Select`などが`ISet`を返す拡張は`Seamless.Linq.Set`に置く。ビューはプロパティ、関数はメソッド。変わる点（定義ラムダの再評価・子scope・循環検出の廃止、関数結果の重複除去、`Name`の目録への移動、`.Value`の廃止）は実装前に設計書へまとめる。
+
+- 2026年11月12日：トランザクションの書き方を利用者が決めた。`db.schema.table`はトランザクションではなく、Tsavoriteの`Set<T>`（キー付きは`Set<TKey,T>`）そのものへの書き込みとする。WAL・版の管理・DB全体のゲートを通さず、失敗しても先に書いた分は取り消せない（案2）。`tx.schema.table`（`using var tx=db.BeginTransaction()`）はトランザクションで、`Commit`まで未確定、取消や例外で全体を戻す。この型を`Table<T>`と呼ぶ（現在の生成`TransactionCollection<TKey,T>`）。1件だけ確実に残したい場合は`tx`で書いて`Commit`する。同じ表で`db`側の直接操作と`tx`を混ぜた場合、開いている取引からの見え方と障害時の復旧は保証の外であり、設計書に明記する。現在の「`db`側の`Table`が暗黙の取引を探して振り分ける」書き方（サンプルの注文処理・障害復旧ほか）は廃止して`tx`へ移す。
+
+- 2026年11月12日：`db`側の直接操作と`tx`を同じ表で混ぜられないよう、表ごとに宣言で分けることに決めた。コンテナで`Table<T>`と宣言した表はトランザクションで使う表で、書き込みは`tx.X`（`Table<T>`）だけに生成し、`db.X`には書き込みの入口を生成しない。`Set<T>`と宣言した表は直接使う表で、`db.X`は生の`Tsavorite.Set<T>`、`tx.X`は生成しない。混在はコンパイルエラーになり、実行時の検査は不要。トランザクションの表の読み取りは、開くメソッドで方式を選ぶ：`db.BeginReadCommitted()`（読み取りごとに最新の確定済み、READ COMMITTED相当）と`db.BeginSnapshot()`（開始時点に固定、SNAPSHOT相当）。どちらも`r.X`／`s.X`は読取専用の集合`ISet<T>`。`Table<T>`の表は`db.X`を生成せず、読み書きとも`r`・`s`・`tx`からだけ触れる。どちらの方式でも未確定の変更は見えない（ダーティリードはない）。
+
+- 2026年11月12日：書き込みのトランザクションでも分離の方式を選べるようにする（例：SNAPSHOT・SERIALIZABLE・READ COMMITTED）。方式ごとに型を分け、静的ストラテジ（方式をジェネリックの型引数で渡す）で実装し、使わない方式の分の実行時の負担を増やさない。SERIALIZABLEの読み取り記録と確定時の照合は、その方式のトランザクションにだけかかる。
+
+- 2026年11月12日：上の読み込み・書き込みの方式の選択は取りやめ、`db.BeginTransaction()`（読み書き、常にシリアライザブル）と`db.BeginRead()`（読み込み専用、スナップショット）の2つにした。詳細は[20261112-0017-database-access-model.md](20261112-0017-database-access-model.md)。
+
+- 2026年11月12日：`Seamless.Management`の下書きを稼働版へ戻す機能（`SourceWorkspace.Restore`・`DatabaseDesigner.TableRestore`）とManagerの編集だけを取り消す機能（`SourceWorkspace.Undo`）は、利用者の指示がなく、専用デスクトップManagerとテストからしか呼ばれていないため、削除と決めた。呼び出し元の画面（`Seamless.Management.UI`の`管理ウィンドウ.DB下書き復元.cs`・`管理ウィンドウ.ソース取消.cs`）と試験（`Tests/Management.Tests`の`TableRestoreTests.cs`ほか）も対象。削除の実施は棚卸しとは別の作業で行う（未実施）。
+
+- 2026年11月12日：`SourceLineEndings`（受け取ったC#本文の改行をLFへ書き換え、解析できないときは黙って元のまま返す）は削除と決めた。利用者が書いた改行をそのまま保つ。呼び出し元の`DatabaseDesigner.ObjectEditing`・`Queries`と試験`Tests/Management.Tests/SourceLineEndings.cs`も対象。削除の実施は未実施。
+
+- 2026年11月12日：公開クエリの「承認」（`GatewayPublication`系）について、利用者が次を決めた。承認する人は開発者で、VS・VS Codeでビルドしてサーバーを構築するときに決める。実行する利用者に求める実行権限は、Tsavoriteの`Set`で実装したシステムテーブルに置く。現在との違い（確認した事実）：今は稼働中のGatewayへ承認ファイルで追加し、ManagerからOIDCでサインインした`ManagePermissions`・`ManageServer`を持つ利用者が書き出し・登録する。実行権限を含む共通認可は、管理ストアの`Entries`にポリシー全文のJSON（`authorization/active`ほか）として保存しており、型付きのテーブルではない（[management-storage-unification](20261109-management-storage-unification.md)）。承認はDB定義.csの公開クエリの宣言に書き、ビルドしたDB定義.dllに含める（利用者の決定）。稼働中に承認ファイルで後から承認を追加する仕組み（承認ファイルの読み込み・監視、Managerからの公開版の照会・一覧・書き出し・サーバー登録、専用デスクトップManagerの`GatewayPublicationWindow`・`GatewayApprovalWindow`）は削除する（利用者の決定）。削除の実施は未実施。書き方（属性の名前・委任の指定の形など）は未決。
+
+- 2026年11月12日：Managerの行一覧のページ送りは、一覧を開いた時点の読み込み専用スナップショット（`BeginRead`）で全ページを読むように作り直すと決めた。不変条件I4に合わせる。今の「ページごとに最新の確定済みを読み、読んだ範囲の変更は`RowConflict`」は廃止。開いている間の古い版は、履歴の予算の規則（予算不足で古い読み込みを止める）に従う。
+
+- 2026年11月12日：利用者は「Managerはブラウザーからアクセスする前提しかない」と述べた。これにより管理接続の寿命の切替（`ManagementConnectionPolicy`・`ManagementConnectionLifetime`）は削除と決めた。確認した事実：`ManagementClient`をつくる箇所は、試験を除くと専用デスクトップManager（`Seamless.Management.UI`）と、サーバーの`ManagerBrowserLauncher`（所有者がブラウザーを開くために、稼働中のサーバーへローカルIPCで起動情報を求める）だけ。後者は既定の方式だけを使う。削除の実施は未実施。
+
+- 2026年11月12日：利用者は「Manager WebサーバーからSeamlessサーバーへの接続は、IPC・TCP・インプロセスの3つ」と決めた。管理RPC（`ManagementClient`・`ManagementWire`などのIPC・TCP/TLS）は、別プロセスのManager WebサーバーがSeamlessサーバーへ管理操作を渡す通信路として残す。同じプロセスの場合はインプロセスで呼ぶ。確認した事実：今のサーバー型では、`ManagementApplicationHost`が`ConcurrentManagementOperations`を同じプロセスの`ManagerWebHost`へ直接渡しており、別プロセスのManager Webサーバーが管理RPCで接続する形の動作は確認されていない（[browser-hosting](20261107-manager-browser-hosting.md)）。別プロセスのときは、ブラウザー利用者の資格情報（組織認証のトークンなど）をManager Webサーバーが中継ぎし、Seamlessサーバーが要求ごとに本人確認と権限判定を自分で行う（利用者の決定）。Manager Webサーバーを信用の根拠にしない。今の管理RPCはTCPでパスワードログインした1人、IPCで起動設定の利用者1人として処理しており、この形への作り直しが必要。OS所有者のログイン省略は、別プロセスのときもSeamlessサーバーが行う（利用者の決定）：Seamlessサーバーと同じコンピューターで所有者と同じOS利用者が起動コマンドを実行すると、SeamlessサーバーがIPCでOS利用者を確認して1回限りの起動情報を発行し、ブラウザーがManager Webサーバー経由で所有者セッションへ引き換える。Manager Webサーバーは起動情報とセッションを他の資格情報と同じく中継ぎするだけで、置き場所（同じコンピューター・別のPC）は問わない。接続元やURLが127.0.0.1であることは許可の根拠にしない。Manager Webサーバーが別のPCにあるときは起動情報とセッションがネットワークを通るためHTTPSを必須とする（利用者の決定）。専用デスクトップManagerだけのための部分は、そのManagerの整理で扱う。
+
+- 2026年11月12日：権限の仕組みを1つにまとめると決めた。確認した事実：Managerの管理操作はアカウントに直接付けた`Grants`（DBごとの`ManagementPermission`、`ManagementService.Can`）で判定し、ネイティブRPCなどはロール・許可・拒否・OIDCの主体を持つ共通認可（`StoredAuthorization`）で判定している。管理操作の権限も共通認可へ統合し、Tsavoriteの`Set`で実装したシステムテーブルに置く。アカウントの`Grants`は廃止する。管理用アカウントの編集画面（`UserProfile`）の権限欄と、既存の管理領域の移行が必要。移行の方法（明示移行・バックアップ）は既存の方針（起動時に自動変換しない）に従う前提で、詳細は未決。
+
+- 2026年11月12日：表示用ID（`DatabaseDesigner.Identities`・`CatalogIdentities`・カタログの`StableId`、Managerの「表示用IDを下書きへ付与」、`/* seamless-id: */`のコメント）は削除と決めた。確認した事実：使っているのは表示用ID自身の部品（Core・Server・Components）と試験だけで、データの保存・移行には使われていない。名前変更をまたぐタブ・選択の復元と、版をまたぐ対応（11/10承認の限定単位）は未接続のまま。削除後、Managerは対象を従来どおり名前から作ったIDで見分け、名前を変えると開いていたタブなどは復元されない。既に付けたコメントは普通のコメントとして残る。削除の実施は未実施。
+
+- 2026年11月12日：表の行の物理配置と運用中のデータの移行について、利用者が次を決めた。確認した事実：今の生成器（`Shared/Database.Generation/DatabaseSchemaGeneration.Layout.cs`）は参照型の列を`C`、値型の列を`S`の入れ子構造体にまとめて大きい型から並べるが、同じ大きさの列は宣言順で並べる。生成されるMemoryPackの書き出しは宣言順。適用のたびに配置の変化に関係なく全表の全行を新しい世代へコピーしている（`NativeRuntime.Publish`→`TypedMigration.Copy`）。決定：(1) 同じ大きさの列は名前順で並べ、保存するバイト列もこの決まった順にそろえる（宣言順に依存しない）。これによりプロパティの宣言順を変えただけでは配置も保存形式も変わらない。(2) 適用時に新旧の配置が同じなら全行のコピーを省く。(3) 名前の変更・型の変更・列の追加と削除など配置が変わる場合だけ、今の全行コピーで配置を作り直す（名前の変更は頻繁でないため、前回の配置を生成器へ渡して固定する仕組みは作らない）。未決：保存形式の変更に伴う既存DBの移行方法（起動時に自動変換しない方針に従い、明示移行とする前提）。実装は未実施。
+
+- 2026年11月12日：既存の表へ列を追加するときは、型に関係なく初期式を必須とすると決めた。確認した事実：今は参照型の列だけ初期値を求め、値型の列は初期式がなければ既存行をその型の既定値（`0`など）で埋めている（`TypedMigration.Plan`の「列を追加（既存行は既定値）」）。これはAIの決め事で、利用者の指示は「列の初期式を既存行の移行に使う」（11/10）まで。変更後は、初期式のない追加列は適用前に拒否する。行が1件もない表でも初期式を求める（利用者の決定）。新しく追加する表そのものは既存行がないので対象外。実装は未実施。
+
+- 2026年11月12日：`MigrationDebugSession`（開発用の移行デバッグ）は根拠がなく試験からしか使われていないため削除と決めた。試験`Tests/Management.Tests/MigrationDebug.cs`も対象。削除の実施は未実施。
+
+- 2026年11月12日：Manager（サーバー）に組み込んだRoslynで直接コンパイルする仕組み（`RuntimeCompiler`）は、利用者のDB定義・クエリには使わないと決めた。コンパイルそのものはやめず、VS・VS Codeと同じdotnet SDKのビルドで行う（次の項目）。利用者のコードは、SDKでビルドした成果物を検査・取り込み・明示適用する。移行コードのようにサーバーが生成するコードのコンパイルは残す。影響（確認した事実と推論）：今は成果物を選ばない検証・プレビュー・適用（`NativeRuntime.Compile`）、適用時の依存クエリの再ビルド、下書き版のクエリ実行でサーバーがコンパイルしている。これらは成果物を使う経路へ置き換える必要がある。Managerの「保存」の動きは次の項目で決めた。実装は未実施。
+
+- 2026年11月12日：Managerの「保存」は、サーバー上の専用C#プロジェクトをdotnet SDKでビルドし、その成果物を検査・取り込み・適用まで進めると決めた（11/3の「保存はビルド・検証・移行・公開の入口」を維持）。利用者の考え：DBは本来DBの処理だけを行い、カスタム処理は関数やトリガーで行えばよいので、Managerだけでビルドして適用できてよい。ビルドの道はVS・VS Codeと同じSDKビルドの1本にし、内蔵Roslynによる利用者コードのコンパイル（`RuntimeCompiler`）はやめる。ManagerはdotnetSDKを必須とする（利用者の決定。11/3の「通常の利用者にSDK全体を求めない」を置き換える）。11/12の「承認は開発者がビルド時に決める」のビルドにはManagerからのビルドも含む。確認した事実：Managerは今`dotnet build`を呼んでおらず、プロジェクトの評価に`dotnet msbuild`を使っている（`SourceProjectService.EvaluateAsync`）。トリガー（イベントハンドラーなど）は将来の可能性で、今は作らない（利用者）。DB定義のプロジェクトに表・ビュー・関数以外のコードを書くことは今のところ考えていない（利用者）。実装は未実施。
+
+- 2026年11月12日：SDKのビルドへ移るにあたり、`RuntimeCompiler.ValidatePolicy`のコードの使用制限（ファイル・ネットワーク・リフレクション・スレッド・`async`・`unsafe`・`typeof`・管理用API・取引と永続化の直接操作などの禁止）は、解析器（アナライザー）に移してSDKのビルドでも働かせると決めた。あわせて確認した事実（今の`RuntimeCompiler`にだけあり、SDKのビルドで別に用意が要るもの）：`DatabaseGenerator.Collectible=true`の印の追加、クエリの入口`QueryEntry`の追加、PDBを作らないこと（SDKのビルドではPDBができ、利用者が11/3に求めたブレークポイントでのデバッグが可能になる）。SDKのビルドはNuGetパッケージを取得するため、サーバーからパッケージの置き場所へ届く必要がある。未決：`Collectible`の印と`QueryEntry`をどこで出すか（生成器か.csprojの設定か）。解析器を置くプロジェクト（`Seamless.Linq.Analyzers`の中身は未確認）。実装は未実施。
+
+- 2026年11月12日：CLIの`reset-password`・`backup`・`restore`は残すと決めた。あわせて利用者が次を指示した：復元の流れを明示的に分かる形で示す。手順を明示し、必要なフォルダーを開く・コンソールを開く、またはその手順を伝える。チャットAIに問い合わせるためのプロンプトと、エージェントで自動復元するためのプロンプトを書いて示す。エージェントから扱えるようMCPサーバーも用意する（利用者の指示）。MCPの範囲は復元・保守に限らず管理操作全般とし、Managerと同じ認証・権限で提供する（利用者の決定。認証・権限の付け方は今日決めた資格情報の中継ぎと共通認可に従う前提で、詳細は未決）。示す場所はManagerとCLIの両方（利用者の決定）：Managerに入れるときは画面で、入れないとき（パスワード紛失・サーバーが起動できないなど）はCLIが同じ手順とプロンプトを示し、フォルダーやコンソールを開く。未決：対象とする場面（パスワード紛失・移行の中断・障害からの復元など）、プロンプトに含める情報（管理領域やバックアップの場所。資格情報は含めない）。実装は未実施。
+
+- 2026年11月12日：組み込み同期型の業務実行の入口（`InProcessManagementHost`の`ExecuteStream`・`ExecuteScalar`・`ReadRows`・`CommitRows`・`ExecuteObject`と`QueryResultStream<T>`）は、業務用としては廃止し、DB定義.dllの`db.X`・`db.BeginTransaction()`・`db.BeginRead()`を型付きで直接呼ぶ形へ置き換えると決めた。確認した事実：今は公開クエリを名前の文字列（例：`ExecuteRequest("list-items",…)`）とJSONの引数で呼び、1回の呼び出しを1つの取引として結果のコピー後に確定する。これは11/11の「組み込み同期型は同じ業務アプリがDB定義.dllを同期直接呼び出し」「直接と通信の公開APIを酷似した形へ揃える」、11/12の不変条件I2（入口は3つだけ）と形が違う。Managerの管理操作の経路（行の閲覧・編集、ビュー・関数の実行）としては残す。業務呼び出しとManagerの操作を同じ専用DB実行スレッドで順に実行する仕組み（W07）は、新しい入口でも保つ前提で、詳細は未決。実装は未実施。
+
+- 2026年11月12日：編集権限のない利用者にも、公開済みの定義の情報（ソースは見せない）だけでManagerの文書を表示し、閲覧・行の読み取り・実行の権限に応じて行の閲覧やビュー・関数の実行を許す機能（公開メタデータによる閲覧）に利用者が合意し、残すと決めた。権限は共通認可へまとめる作り直しに合わせる。
+
+- 2026年11月12日：`FakeWalDevice`（試験用のWAL装置）は製品の`Seamless.Transactions`から外し、試験の共通部品へ移すと決めた。ベンチマークも試験側の部品を参照する。実施は未実施。
+
+- 2026年11月12日：旧版を残す履歴の予算（メモリとディスクの上限）が足りなくなったときは、今の動きのとおり、最も古いスナップショットを持つ読み取り専用の取引（`BeginRead`、Managerの行一覧のページ送りを含む）を明示的なエラーで止めて旧版を回収すると決めた。更新は止めない。止められた読み込みは自動ではやり直さず、利用者が始め直す。Managerの行一覧のページ送りを開いた時点に固定する決定（11/12）で「開いている間の古い版をいつまで残すか」を未決としていたが、この規則に従う。
+
+- 2026年11月12日：SQLについて利用者が次を述べた。DataGripからSeamlessへ接続してSQLで実行させたい。実行はSQLをネイティブコードに変換して行い、動的な実行になるのはこのときだけ。HTTPのAPIとしてSQLが必要かは不明。確認した事実：11/2のDataGripの計画（[datagrip-native](20261102-datagrip-native.md)、利用者の指示に基づく）では、DataGripはSeamless専用のJDBCドライバー（`Seamless Native JDBC`、製品名`SeamlessDB`）から専用のホスト（`tools/Seamless.DataGrip`の`DataGrip.Stage1.Server`）へ接続し、GatewayのHTTPのAPIは使わない。今のGatewayのSQL実行（11/12にコードで確認）：SELECTは`Seamless.Database.Query`の`SqlQueryEngine`がSQLの構文木を関数（デリゲート、`Func<EvalFrame,…>`）の組み合わせへ組み立てて実行し、計画をキャッシュする。DMLの式も同様に関数へ組み立てる（`CompileDmlExpression`）。変数・制御文・一時表を含むバッチは`SqlBatchInterpreter`が文ごとに解釈する。ツールが送るシステム問い合わせの一部は`SystemCatalogEmulator`がSQL本文の照合で答える。DDLは型付きC#を生成してビルドする。C#（FLinq）を生成してコンパイルし実行する形ではない。HTTPのAPIの判定は未。続けて利用者は「DataGripなど汎用的なSQL接続ツールに対応する」と指示した。
+
+- 2026年11月12日：GatewayのHTTPのAPI（`HttpEndpoints`・`HttpServer`・`HttpServerOptions`・`HttpGatewayAuthorization`・`HttpSqlObjectBinding`、`/api/sql`・`/api/tables`・`/api/transactions`・`/api/session`・`/api/databases`）は削除と決めた。汎用のSQLツールはJDBC・ODBCのドライバーかDB製品の通信方式で接続し、HTTPのAPIは使わないため。Browser Managerの画面（Kestrel）は別物で影響しない。利用者はJDBCに対応したツールに対応したいと述べた。未決：汎用SQLツール向けにそろえる接続方式（専用JDBCだけか、TDS、PostgreSQL・MySQLの通信方式も加えるか）。11/2の「SQL Serverと偽らない」とSSMS向けTDSの「17.0を名乗る」の関係も含む。削除の実施は未実施。
+
+- 2026年11月12日：汎用SQLツール向けの接続方式は、SQL Server互換のTDSを入口の中心にし、Seamless専用のJDBCドライバーは後回しにすると決めた。理由：利用者がドライバーを入れずに接続できる（SSMSはそのまま、DataGrip・DBeaverなどのJDBCツールは同梱のSQL Server用JDBCドライバーでTDSへ接続できる）。対象の中心は.NET・C#の開発者。互換の範囲は10/29の導入体験の合意どおり、基本的なSQLとツールの一覧表示に必要な最小限にとどめ、MySQL・PostgreSQLの通信方式は今は作らない。製品の魅力は接続の先に置く：既存のSQL ServerのDBを取り込んですぐ試せる、SQLをFLinqの型付きC#でどう書くかを示す、SQL Serverとの性能比較を数字で示す、Browser Managerで実行計画・データの流れを見せる、簡単なインストールと動くサンプル。見直す決定：11/2のDataGripの計画の「SQL Serverだと偽らない」は、TDS経由ではSQL Serverに見えるので置き換える。専用JDBC（`tools/Seamless.DataGrip`の試作）は、Seamlessの名前で見せる段階や独自機能を出す段階になってから進める。
+
+- 2026年11月12日：`TdsRequestLog`（TDSで受けた要求の記録）は、TDSを入口の中心にする方針のもと、ツールが実際に送るSQLを集めて互換を直すための開発用として残すと決めた。既定では記録しない。SQL本文に書かれた値（リテラル）は伏せずに残るため、設定の説明にその旨と「開発・調査のときだけ使う」を明記する（AIの提案、実施は未実施）。
+
+- 2026年11月12日：SQLの実行は、SQLをFLinqのC#へ変換してコンパイルし、ネイティブの型付きクエリと同じ経路で実行する形へ作り直すと決めた（利用者の「SQLをネイティブコードに変換して実行し、動的な実行はこのときだけ」に合わせる）。今の`SqlQueryEngine`・`CompileDmlExpression`による関数の組み合わせでの実行は置き換える。未決：バッチの変数・制御文（`SqlBatchInterpreter`）とシステム問い合わせの模擬（`SystemCatalogEmulator`）の扱い、コンパイル結果のキャッシュ、初回のコンパイル時間の扱い、生成したC#のコンパイル方法（サーバーが生成するコードなので組み込みのコンパイルを使ってよいか）。実装は未実施。
+
+- 2026年11月12日：`ScopedQuery<T>`とその関連型（`ScopedOrderedQuery`・`ScopedQueryExtensions`・`ScopedGrouping`）は、根拠がなく`yield return`を使っているため、`View<T>`の置き換えと一緒に削除すると決めた。サンプルの「決算の集計」の章は新しい入口（`BeginRead`など）で書き直す。試験`Tests/Seamless.Core.Tests/ScopedQuery.cs`も対象。実施は未実施。
+
+- 2026年11月12日：FLinq生成器の収束方式は、全段階で変化がなくなるまで繰り返す方式（今の`GlobalFixedPoint`）に一本化し、`LinqConvergenceMode`の設定をなくすと決めた。今の既定（各段階を最大8回繰り返し、8回目にも変化があれば確認せず終える）は廃止。書き換えの経過の記録（`EmitOptimizationTrace`）は開発用に残す。条件：全演算の意味の試験と固定点の試験が通ること。生成コードが変わるため、FLinqの既存の試験とベンチマークの結果は変わり得る。繰り返しに上限を設けるか（収束しないときはコンパイルエラーにするなど）は未決。実施は未実施。
+
+- 2026年11月12日：Tsavoriteの表の容量の増減について利用者が指示した。(1) ディスクを使う表でも、ログのメモリを広げる。(2) ログのメモリの縮小と、索引の縮小も入れる。(3) 境界の付近で増減を激しく繰り返すことを防ぐ。確認した事実（コード）：既定の成長の方式は倍々（`Growth.Doubling`）。索引は書き込みで新しいページに入るたびに件数を見積もり、1バケットあたり平均4件を超えると`GrowIndexAsync`で2倍にする（メモリ・ディスクとも）。ただし同じ表の操作用オブジェクトが他にも開いているとき・並列区間・予算不足のときは広げない（EXP-0004の回避）。ログのメモリはメモリだけの表（`StoreKind.Memory`）でだけ倍々で広げ、ディスクを使う表では最初の大きさのまま（Minimumでは8KB）。縮小の処理は、ディスクの予約を詰め直し後に戻す`ShrinkReservationCore`以外にはない。縮小の決め方（利用者の決定）：使用が容量の1/4を下回ったときだけ半分にする（広げるのは容量を超えたとき2倍）。縮めた後も使用は1/2未満なので、少し増えただけでは広げ直さない。未決：Tsavoriteに縮小の機能があるかは、Garnetを最新版へ更新してから判断する（利用者の指示）。縮小の機能がなければ、将来サポートされることを期待して今は縮小しない。ログのメモリと索引のうち、縮小できる方があればそれだけ縮小する（利用者の決定）。Garnetの更新は棚卸しを終えてから行う（利用者の指示）。縮小を行う時点（並行中に行えない制約はEXP-0004と同じ）。実装は未実施。
+
+- 2026年11月12日：ストアの初期設定（プロファイル）を3種類に分けると決めた。(1) Minimum：成長の仕組み（オプティマイザ）の性能を測るための最小の設定。明示したときだけ使い、自動では選ばない。(2) 見積もり：通常の既定。想定件数・要素の大きさ・メモリの予算から計算する。(3) Optimized：同梱の測定済みの設定。条件が合わなければ理由を示してエラーにする。どれも黙って別の設定へ切り替えない。今の「Optimizedが合わなければMinimumへ戻す」（10/25の承認した設計）は、これで置き換える。利用者の理由：Minimumはオプティマイザの性能をそのまま測るのに有効だが、合う設定がないときの代役としてMinimumを使うのは違う。確認した事実：同梱の測定済み設定（`Seamless.Execution/Profiles/measured.json`）は2件だけで、Tsavorite・キーと値が`int`・ちょうど4,096件・この開発PCの特定のSSDとHDDの条件。未決：見積もりの計算式（成長の方式`Estimated`を初期設定に使えるか）、今のアプリ・Managerの既定がどれか。実装は未実施。
+
+## 残っている作業
+
+- 対象の10プロジェクト（`Seamless.Database`と、11/12に追加した`Seamless.Management`・`Seamless.Management.Server`・`Seamless.Management.Components`・`Seamless.Transactions`・`Seamless.Database.Gateway`・`Seamless.Linq`・`Seamless.FLinq.Generator`・`Seamless.Execution`・`Seamless.Collections*`）の表は一通りそろった。
+- 判定が「未」の行は、利用者の指示・承認した計画に根拠があるもの、または根拠の確認が残るもの。`Seamless.Database`の表の「未確認」の行も残っている。
+- 判定で決めた削除・作り直し・置換は、どれもコードへの反映が未実施。反映は棚卸しとは別の作業で行う。
+- Garnetを最新版へ更新し、Tsavoriteの縮小の機能の有無を判断するのは、棚卸しを終えてから行う。
+- `Seamless.Transactions.Collections`・`Seamless.Database.*`（Client・Compilation・Generator・Query・Rdbms・Server・SqlServer・Tool・Transfer）・`Seamless.Security`・`Seamless.Authentication`・`Seamless.Transport.Kestrel`・`Seamless.Management.UI`などは、今回の対象に含めていない。
+
+## 合意状態
+
+棚卸しの方法は利用者の依頼に基づく。判定の済んだ行と、判定の記録に書いた決定は、利用者が1件ずつ決めたもの。判定が「未」の行は未了。
