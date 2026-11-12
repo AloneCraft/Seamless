@@ -8,7 +8,17 @@ using Seamless.Database.Rdbms;
 namespace DataGrip.Stage1.Server;
 
 internal static class Program{
-    private static async Task Main(string[]args){
+    private static async Task<int> Main(string[]args){
+        try{
+            await RunAsync(args);
+            return 0;
+        }catch(Exception error){
+            Console.Error.WriteLine(error);
+            return 1;
+        }
+    }
+
+    private static async Task RunAsync(string[]args){
         if(args.Length==1&&args[0]=="--wire-survey"){WireSurvey.Run();return;}
         if(args.Length<3||args.Length>5){throw new ArgumentException("Usage: DataGrip.Stage1.Server <D: run directory> <F: cache directory> <generator.dll> [port] [--reopen]");}
         var reopen=args.Length==5&&args[4]=="--reopen";

@@ -1,0 +1,17 @@
+[CmdletBinding()]
+param([string]$OutputDirectory='D:/CodexTemp/datagrip-native/jdbc',[string]$ArtifactDirectory='F:/CodexTemp/datagrip-native/jdbc-build')
+$ErrorActionPreference='Stop'
+if(-not [IO.Path]::IsPathFullyQualified($OutputDirectory)){throw 'Use an absolute output directory.'}
+$root=Split-Path -Parent $MyInvocation.MyCommand.Path
+$classes=Join-Path $OutputDirectory 'classes'
+[IO.Directory]::CreateDirectory($classes) | Out-Null
+$java=(Get-Command javac -ErrorAction Stop).Source
+$repository=[IO.Path]::GetFullPath((Join-Path $root '../..'))
+& "$repository/TestSeamless/Invoke-LocalProcess.ps1" -Executable $java -Arguments @('--release','21','-encoding','UTF-8','-d',$classes,(Join-Path $root 'jdbc/src/dev/seamless/jdbc/SeamlessDriver.java')) -WorkingDirectory $repository -ArtifactDirectory $ArtifactDirectory -TimeoutSeconds 120 | Out-Host
+if((Get-Content -LiteralPath (Join-Path $ArtifactDirectory 'receipt.json') -Raw | ConvertFrom-Json).Outcome -ne 'Passed'){throw 'JDBC compilation failed.'}
+Copy-Item -LiteralPath (Join-Path $root 'jdbc/resources/META-INF') -Destination $classes -Recurse -Force
+$jar=Join-Path (Split-Path $java -Parent) 'jar.exe'
+$destination=Join-Path $OutputDirectory 'seamless-jdbc.jar'
+& "$repository/TestSeamless/Invoke-LocalProcess.ps1" -Executable $jar -Arguments @('--create','--file',$destination,'-C',$classes,'.') -WorkingDirectory $repository -ArtifactDirectory ($ArtifactDirectory+'-jar') -TimeoutSeconds 60 | Out-Host
+if((Get-Content -LiteralPath (Join-Path ($ArtifactDirectory+'-jar') 'receipt.json') -Raw | ConvertFrom-Json).Outcome -ne 'Passed'){throw 'JDBC packaging failed.'}
+$destination

@@ -1,0 +1,64 @@
+using System.Buffers.Binary;
+using System.Collections.Concurrent;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using Seamless.Database.Gateway.Hosting;
+using Seamless.Database.Gateway.Sql;
+using Seamless.Database.Query;
+using Seamless.Execution;
+
+namespace Seamless.Database.Gateway.Native;
+
+/// <summary>SQL Server の通信・システムカタログに依存しない汎用ツール向け接続。</summary>
+public sealed partial class NativeToolsServer:IDisposable{
+    private readonly DatabaseRegistry registry;
+    private readonly ResourceBudget budget;
+    private readonly ConcurrentDictionary<Guid,Connection> connections=new();
+    private readonly TcpListener listener;
+    private readonly CancellationTokenSource stopping=new();
+    private Task? accepting;
+    private long nextSession;
+    public NativeToolsServer(DatabaseRegistry registry,int port=0,ResourceBudget? budget=null){this.registry=registry;this.listener=new(IPAddress.Loopback,port);this.budget=budget??registry.GatewayTransactions?.QueryExecutionOptions(default).ParentBudget??new(64L<<20,0);}
+    public int Port=>((IPEndPoint)this.listener.LocalEndpoint).Port;
+    public void Start(){if(this.accepting is not null){throw new InvalidOperationException("Already started.");}this.registry.GatewayTransactions?.Recover();this.listener.Start();this.accepting=this.AcceptAsync();}
+    private async Task AcceptAsync(){
+        try{while(!this.stopping.IsCancellationRequested){var socket=await this.listener.AcceptTcpClientAsync(this.stopping.Token);socket.NoDelay=true;var connection=new Connection(socket,new(-Interlocked.Increment(ref this.nextSession),this.registry.DefaultDatabaseName),this.stopping.Token);this.connections[connection.Id]=connection;connection.Completion=Task.Run(()=>this.ServeAsync(connection));}}
+        catch(OperationCanceledException)when(this.stopping.IsCancellationRequested){}catch(SocketException)when(this.stopping.IsCancellationRequested){}
+    }
+    private async Task ServeAsync(Connection connection){
+        using(connection.Socket)using(connection.Session)using(connection.Lifetime){
+            var stream=connection.Socket.GetStream();
+            try{while(!connection.Lifetime.IsCancellationRequested){
+                var header=new byte[4];var count=await stream.ReadAsync(header,connection.Lifetime.Token);if(count==0){break;}await stream.ReadExactlyAsync(header.AsMemory(count),connection.Lifetime.Token);var length=BinaryPrimitives.ReadInt32LittleEndian(header);if(length<1||length>ToolsWire.MaximumFrame){throw new InvalidDataException("Invalid tools frame length.");}
+                using var reservation=this.budget.ReserveMemory(length);var bytes=new byte[length];await stream.ReadExactlyAsync(bytes,connection.Lifetime.Token);using var input=new BinaryReader(new MemoryStream(bytes,false),Encoding.UTF8);var operation=input.ReadByte();
+                if(operation==6){var target=ToolsWire.Text(input);if(Guid.TryParse(target,out var id)&&this.connections.TryGetValue(id,out var running)){running.CancelCurrent();}await Send(stream,5,_=>{},connection.Lifetime.Token);break;}
+                using var request=CancellationTokenSource.CreateLinkedTokenSource(connection.Lifetime.Token);connection.Current=request;connection.Session.CancellationToken=request.Token;
+                try{
+                    switch(operation){
+                        case 1:{if(input.ReadInt32()!=1){throw new NotSupportedException("Unsupported native tools protocol version.");}var name=ToolsWire.Text(input)??throw new InvalidDataException("Missing database.");_=this.registry.Resolve(name);connection.Session.DatabaseName=name;await Send(stream,1,writer=>{ToolsWire.Text(writer,"SeamlessDB");ToolsWire.Text(writer,"1.0");ToolsWire.Text(writer,connection.Id.ToString("D"));},request.Token);break;}
+                        case 2:{var kind=ToolsWire.Text(input)!;var schema=ToolsWire.Text(input);var table=ToolsWire.Text(input);connection.Session.Run(()=>{using var binding=DatabaseRegistry.EnterSqlSession(connection.Session);using var lease=DatabaseRegistry.ReadSqlDatabase(this.registry.Resolve(connection.Session.DatabaseName).Adapter,connection.Session);this.WriteResult(stream,this.Metadata(connection.Session,kind,schema,table),0,request.Token).GetAwaiter().GetResult();return 0;});break;}
+                        case 3:{var sql=ToolsWire.Text(input)??throw new InvalidDataException("Missing SQL.");var maximum=input.ReadInt32();var parametersCount=input.ReadInt32();if(maximum<0||parametersCount<0||parametersCount>2100){throw new InvalidDataException("Invalid execution bounds.");}var parameters=new List<SqlParameter>();var values=new Dictionary<string,object?>();for(var index=0;index<parametersCount;index++){var name="@p"+index;var type=ParameterType(ToolsWire.Text(input)!,input.ReadInt32(),input.ReadByte(),input.ReadByte());parameters.Add(new(name,type));values.Add(name,ToolsWire.Value(input));}var engine=new SqlExecutionEngine(this.registry);connection.Session.Run(()=>{using var binding=DatabaseRegistry.EnterSqlSession(connection.Session);foreach(var result in engine.ExecuteBatch(sql,connection.Session,parameters,values)){this.WriteResult(stream,result,maximum,request.Token).GetAwaiter().GetResult();}return 0;});break;}
+                        case 4:{var action=input.ReadByte();var point=ToolsWire.Text(input);connection.Session.Run(()=>{using var binding=DatabaseRegistry.EnterSqlSession(connection.Session);var manager=this.registry.GatewayTransactions??throw new NotSupportedException("Transactions require the Gateway profile.");switch(action){case 1:manager.Begin(connection.Session);break;case 2:manager.Commit(connection.Session);break;case 3:manager.Rollback(connection.Session);break;case 4:connection.Session.CreateSavepoint(point!);break;case 5:connection.Session.RollbackToSavepoint(point!);break;case 6:connection.Session.ReleaseSavepoint(point!);break;default:throw new NotSupportedException("Unknown transaction action.");}return 0;});await this.WriteResult(stream,QueryResult.NonQuery(0),0,request.Token);break;}
+                        case 5:{var schema=ToolsWire.Text(input)!;var table=ToolsWire.Text(input)!;var maximum=input.ReadInt32();if(maximum<0){throw new InvalidDataException("Invalid row limit.");}connection.Session.Run(()=>{using var binding=DatabaseRegistry.EnterSqlSession(connection.Session);var adapter=this.registry.Resolve(connection.Session.DatabaseName).Adapter;this.WriteResult(stream,adapter.ExecuteSelect("["+schema.Replace("]","]]",StringComparison.Ordinal)+"].["+table.Replace("]","]]",StringComparison.Ordinal)+"]",null,null,connection.Session),maximum,request.Token).GetAwaiter().GetResult();return 0;});break;}
+                        default:throw new NotSupportedException("Unknown native tools operation.");
+                    }
+                    await Send(stream,5,writer=>{ToolsWire.Text(writer,connection.Session.DatabaseName);writer.Write(connection.Session.TransactionCount);},connection.Lifetime.Token);
+                }catch(Exception error){await Send(stream,9,writer=>{writer.Write((error as SqlQueryException)?.Number??0);ToolsWire.Text(writer,error is OperationCanceledException?"HY008":error is NotSupportedException?"0A000":"HY000");ToolsWire.Text(writer,error.Message);},connection.Lifetime.Token);}
+                finally{connection.Current=null;}
+            }}catch(IOException){}catch(SocketException){}catch(OperationCanceledException)when(connection.Lifetime.IsCancellationRequested){}finally{this.connections.TryRemove(connection.Id,out _);}
+        }
+    }
+    private static SqlType ParameterType(string name,int length,byte precision,byte scale){var clr=name switch{"bit"=>typeof(bool),"tinyint"=>typeof(byte),"smallint"=>typeof(short),"int"=>typeof(int),"bigint"=>typeof(long),"real"=>typeof(float),"float"=>typeof(double),"decimal"=>typeof(decimal),"binary" or "varbinary"=>typeof(byte[]),"date"=>typeof(DateOnly),"time"=>typeof(TimeOnly),"datetime2"=>typeof(DateTime),"datetimeoffset"=>typeof(DateTimeOffset),"uniqueidentifier"=>typeof(Guid),"nvarchar" or "varchar"=>typeof(string),_=>throw new NotSupportedException("Unsupported parameter type: "+name)};return new(name,clr,length==0?null:length,precision==0?null:precision,scale);}
+    private async Task WriteResult(Stream stream,QueryResult result,int maximum,CancellationToken token){
+        var columns=result.Columns;await Send(stream,2,writer=>{writer.Write(columns.Count);foreach(var column in columns){ToolsWire.Text(writer,column.Name);ToolsWire.Text(writer,column.SqlTypeName);writer.Write(column.IsNullable);writer.Write(column.MaximumLength??0);writer.Write(column.Precision??0);writer.Write(column.Scale??0);ToolsWire.Text(writer,column.SourceSchema);ToolsWire.Text(writer,column.SourceTable);}},token);
+        using var memory=this.budget.ReserveMemory(128<<10);using var batch=new MemoryStream();using var output=new BinaryWriter(batch,Encoding.UTF8,true);var rows=0;long total=0;output.Write(0);
+        foreach(var row in result.Rows){token.ThrowIfCancellationRequested();if(maximum>0&&total>=maximum){break;}var estimate=row.Sum(ToolsWire.MaximumValueBytes);if(estimate>ToolsWire.MaximumFrame-8){throw new InvalidDataException("A row exceeds the tools frame limit.");}if(batch.Length+estimate>ToolsWire.MaximumFrame-8){await Flush();}memory.Resize(Math.Max(memory.Bytes,checked((batch.Length+estimate)*2+128*1024)));foreach(var value in row){ToolsWire.Value(output,value);}rows++;total++;if(batch.Length>=64*1024){await Flush();}}
+        if(rows!=0){await Flush();}await Send(stream,4,writer=>writer.Write((long)result.RowsAffected),token);
+        async Task Flush(){var position=batch.Position;batch.Position=0;output.Write(rows);batch.Position=position;await Send(stream,3,writer=>writer.Write(batch.GetBuffer(),0,checked((int)batch.Length)),token);batch.SetLength(0);batch.Position=0;output.Write(0);rows=0;}
+    }
+    private async Task Send(Stream stream,byte kind,Action<BinaryWriter> body,CancellationToken token){using var reservation=this.budget.ReserveMemory(ToolsWire.MaximumFrame);using var output=new MemoryStream();using var writer=new BinaryWriter(output,Encoding.UTF8,true);writer.Write(kind);body(writer);if(output.Length>ToolsWire.MaximumFrame){throw new InvalidDataException("Tools output exceeds the frame limit.");}var header=new byte[4];BinaryPrimitives.WriteInt32LittleEndian(header,checked((int)output.Length));await stream.WriteAsync(header,token);await stream.WriteAsync(output.GetBuffer().AsMemory(0,checked((int)output.Length)),token);await stream.FlushAsync(token);}
+    public async Task StopAsync(){this.stopping.Cancel();this.listener.Stop();if(this.accepting is not null){await this.accepting;}var active=this.connections.Values.ToArray();foreach(var connection in active){connection.Lifetime.Cancel();connection.Socket.Dispose();}await Task.WhenAll(active.Select(static connection=>connection.Completion??Task.CompletedTask));}
+    public void Dispose(){this.StopAsync().GetAwaiter().GetResult();this.stopping.Dispose();}
+    private sealed class Connection(TcpClient socket,SessionContext session,CancellationToken stop){private readonly object gate=new();private CancellationTokenSource? current;internal Guid Id{get;}=Guid.NewGuid();internal TcpClient Socket{get;}=socket;internal SessionContext Session{get;}=session;internal CancellationTokenSource Lifetime{get;}=CancellationTokenSource.CreateLinkedTokenSource(stop);internal CancellationTokenSource? Current{set{lock(this.gate){this.current=value;}}}internal void CancelCurrent(){lock(this.gate){this.current?.Cancel();}}internal Task? Completion{get;set;}}
+}

@@ -143,7 +143,7 @@ public static partial class CSharpDatabaseGenerator {
         builder.AppendLine();
         if(runtimeSql){
             builder.AppendLine($"public sealed partial class {databaseName}:global::Seamless.Database.Query.RuntimeSqlDatabaseContainer {{");
-            builder.AppendLine($"    public {databaseName}(global::Seamless.Database.DatabaseContainerOptions? options=null):base(options??(global::Seamless.Database.DatabaseContainerOptions.InMemory with{{Transactions=global::Seamless.Database.DatabaseTransactionMode.SharedV2}}),{Literal(fingerprint)}) {{");
+            builder.AppendLine($"    public {databaseName}(global::Seamless.Database.DatabaseContainerOptions? options=null):base(options??(global::Seamless.Database.DatabaseContainerOptions.InMemory with{{}}),{Literal(fingerprint)}) {{");
             builder.AppendLine("        try {");
         }else{
             builder.AppendLine($"public sealed partial class {databaseName}:global::Seamless.Database.DatabaseContainer {{");

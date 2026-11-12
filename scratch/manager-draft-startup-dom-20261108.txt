@@ -1,0 +1,51 @@
+- complementary:
+  - generic: S
+  - strong: Seamless
+  - button "⌕ コマンドを検索 Ctrl K":
+    - generic: ⌕
+    - text: コマンドを検索
+    - generic: Ctrl K
+  - button "〈〉 ソースを開く"
+  - generic: ワークスペース
+  - group "データベース":
+    - button "新しいデータベース": ＋
+    - button "データベースの操作": ⠿
+    - generic: データベース
+    - generic: "1"
+  - navigation "データベース":
+    - group "PublishedDb":
+      - button "PublishedDbの操作": ⠿
+      - generic: ▤
+      - generic: PublishedDb
+  - generic "システム"
+  - generic: ホスト内の管理API
+  - generic: 14700F\kazuh
+  - button "ログアウト"
+- main:
+  - generic: ワークスペース ／ データベース
+  - generic: ホスト内の管理API
+  - tablist "開いている文書":
+    - group "PublishedDb":
+      - button "PublishedDbの操作": ⠿
+      - generic: ▤
+      - generic: PublishedDb
+  - status: PublishedDb · 公開版 v1
+  - generic: DATABASE
+  - heading "PublishedDb" [level=1]
+  - paragraph: 構造を整え、変更を確認してから公開します。
+  - button "文書の操作": •••
+  - navigation "文書の表示":
+    - button "▦ 構造"
+    - button "〈〉 C#"
+    - button "▤ データ"
+    - button "☡ 計画"
+    - generic: すべての変更を公開済み
+  - heading "テーブル" [level=2]
+  - button "＋ 新しいテーブル"
+  - generic: ▦
+  - heading "テーブルを追加して始める" [level=3]
+  - paragraph: 変更は下書きに保持し、確認後に稼働DBへ適用します。
+  - button "＋ 新しいテーブル"
+  - generic: ホバー・右クリックで対象の操作
+  - generic: Ctrl K コマンド検索
+  - generic: 文書タブはハンドルから移動

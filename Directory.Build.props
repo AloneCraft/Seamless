@@ -1,6 +1,7 @@
 <Project>
   <PropertyGroup>
     <WarningsAsErrors>$(WarningsAsErrors);nullable</WarningsAsErrors>
+    <ShouldUnsetParentConfigurationAndPlatform Condition="'$(ShouldUnsetParentConfigurationAndPlatform)'==''">false</ShouldUnsetParentConfigurationAndPlatform>
   </PropertyGroup>
 
   <!-- NuGet 共通メタデータ。公開する 8 プロジェクトだけが IsPackable=true で上書きする。 -->
@@ -22,7 +23,7 @@
     <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
     <TargetPlatformVersion>10.0.19041.0</TargetPlatformVersion>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(MSBuildProjectFile)'=='Test.csproj' And '$(TargetFramework)'=='net10.0-windows'">
+  <PropertyGroup Condition="'$(MSBuildProjectFile)'=='Benchmark.Infrastructure.Tests.csproj' And '$(TargetFramework)'=='net10.0-windows'">
     <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
     <TargetPlatformVersion>10.0.19041.0</TargetPlatformVersion>
   </PropertyGroup>

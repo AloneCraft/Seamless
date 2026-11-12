@@ -15,7 +15,7 @@
 
 - ソリューションは `Seamless.slnx`、SDKは.NET 10系。既存MAUIアプリは `net10.0-windows`、Roslynは5.3.0、ZLinqは1.5.6、SQLiteはMicrosoft.Data.Sqlite 10.0.9を使用している。
 - `DynamicLinq.Runner` と `Shared/DynamicLinq/EnumerableComparisonCatalog.cs` は存在するが、固定メソッド名から単一演算子を選ぶCSVランナーである。型付きランダムツリー、Roslyn実行時コンパイル、ALC解放、DB、UIは持たないため、新アプリの実装基盤にはしない。
-- `Test/SourceGenerator/GeneratorTestHelpers.cs` には、`LanguageVersion.Preview`、TPA参照、`FLinqIncrementalGenerator`、`RunGeneratorsAndUpdateCompilation`を使う既存Roslyn試験基盤がある。動的コンパイラはこの構成を実運用向けに発展させる。
+- `Tests/Seamless.TestKit/Compilation/GeneratorTestHelpers.cs` には、`LanguageVersion.Preview`、TPA参照、`FLinqIncrementalGenerator`、`RunGeneratorsAndUpdateCompilation`を使う既存Roslyn試験基盤がある。動的コンパイラはこの構成を実運用向けに発展させる。
 - `Seamless.FLinq.Generator.csproj` はRoslyn 5.3.0を参照し、`FLinqIncrementalGenerator` はpublicである。Workerから通常参照してGenerator Driverへ明示登録できる。
 - 新規共有`.projitems`は作らない。したがって`.shproj`追加義務は発生しない。新規プロジェクトはすべて通常の`.csproj`として `Seamless.slnx` へ登録する。
 - 既存 `Work/UI/Benchmark.db` とそのWAL/SHMは変更しない。
@@ -799,8 +799,8 @@ DB:
 | `Seamless.FLinq.Generator/SourceGenerator/FixedPointRunner.cs` | 新規 | cycle／limit／fixed point | FixedPointRunner | 6 | Opt-inのみ |
 | `Seamless.FLinq.Generator/SourceGenerator/OptimizationTrace.cs` | 新規 | trace schema／collector | Trace types | 6 | 通常無効 |
 | `Seamless.FLinq.Generator/Properties/AssemblyInfo.cs` | 新規 | Testへのinternal公開 | InternalsVisibleTo | 6 | Test限定 |
-| `Test/SourceGenerator/OptimizationFixedPointTests.cs` | 新規 | 決定的FLinq試験 | test fixtures | 0,6 | なし |
-| `Test/SourceGenerator/DynamicRouteShapeTests.cs` | 新規 | provider route確定 | test fixtures | 0,8 | なし |
+| `Benchmark.Dynamic.Tests/Migration/SourceGenerator/OptimizationFixedPointTests.cs` | 新規 | 決定的FLinq試験 | test fixtures | 0,6 | なし |
+| `Benchmark.Dynamic.Tests/DynamicRouteShapeTests.cs` | 新規 | provider route確定 | test fixtures | 0,8 | なし |
 | `Benchmark.Dynamic.Tests/Benchmark.Dynamic.Tests.csproj` | 新規 | unit／integration | ― | 1 | なし |
 | `Benchmark.Dynamic.Tests/**/*.cs` | 新規 | Core／Worker／DB／VM試験 | 各test class | 2～9 | なし |
 | `Benchmark.Dynamic.UITests/Benchmark.Dynamic.UITests.csproj` | 新規 | Appium | ― | 1 | なし |
@@ -864,7 +864,7 @@ DB:
   - details
   - history／trash
 - CI主要コマンド:
-  - `dotnet test .\Test\Test.csproj -c Debug -f net10.0-windows --filter "FullyQualifiedName~OptimizationFixedPointTests|FullyQualifiedName~DynamicRouteShapeTests"`
+  - `dotnet test .\Benchmark.Dynamic.Tests\Benchmark.Dynamic.Tests.csproj -c Debug -p:CoreOnly=true --filter "FullyQualifiedName~GeneratorContractTests"`
   - `dotnet test .\Benchmark.Dynamic.Tests\Benchmark.Dynamic.Tests.csproj -c Debug -f net10.0-windows`
   - `dotnet build .\Benchmark\Benchmark.Dynamic\Benchmark.Dynamic.csproj -c Release -f net10.0-windows`
   - `dotnet build .\Benchmark.Dynamic.UITests\Benchmark.Dynamic.UITests.csproj -c Debug`
@@ -917,7 +917,7 @@ DB:
 ## 29. Plan承認後に最初に実行する具体的な作業
 
 1. 既存の関連FLinq／providerテストを変更前baselineとして実行する。
-2. `Test/SourceGenerator/DynamicRouteShapeTests.cs` を先に追加し、Persisted／TsavoriteのSelectMany、ThenBy、Contains、ZLinq完全修飾、FLinq interceptorの実際の可否を固定する。
+2. `Benchmark.Dynamic.Tests/DynamicRouteShapeTests.cs` を先に追加し、Persisted／TsavoriteのSelectMany、ThenBy、Contains、ZLinq完全修飾、FLinq interceptorの実際の可否を固定する。
 3. テスト結果から最初のCapability matrixを確定し、未対応組合せをfalseにする。
 4. その後に6つの新規プロジェクトをscaffoldし、`Seamless.slnx`へ登録する。
 5. Phase 1の独立起動・タブ・ダミーグリッドが通った時点で、Phase 2の最小IRへ進む。

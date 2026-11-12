@@ -1,0 +1,250 @@
+- complementary:
+  - generic: S
+  - strong: Seamless
+  - button "⌕ コマンドを検索 Ctrl K":
+    - generic: ⌕
+    - text: コマンドを検索
+    - generic: Ctrl K
+  - button "〈〉 ソースを開く"
+  - generic: ワークスペース
+  - group "データベース":
+    - button "新しいデータベース": ＋
+    - button "データベースの操作": ⠿
+    - generic: データベース
+    - generic: "1"
+  - navigation "データベース":
+    - group "SchemaUiDemo":
+      - button "SchemaUiDemoに追加": ＋
+      - button "SchemaUiDemoの操作": ⠿
+      - generic: ▤
+      - generic: SchemaUiDemo
+    - group "DBの内容":
+      - group "関数":
+        - button "関数を追加": ＋
+        - button "関数の操作": ⠿
+        - generic: 関数
+        - generic: "2"
+      - group "OrderAmount":
+        - button "OrderAmountの操作": ⠿
+        - generic: ƒ
+        - generic: OrderAmount
+      - group "FindItems":
+        - button "FindItemsの操作": ⠿
+        - generic: ƒ
+        - generic: FindItems
+      - group "テーブル":
+        - button "テーブルを追加": ＋
+        - button "テーブルの操作": ⠿
+        - generic: テーブル
+        - generic: "2"
+      - group "Items":
+        - button "Itemsの操作": ⠿
+        - generic: ▦
+        - generic: Items
+      - group "Orders":
+        - button "Ordersの操作": ⠿
+        - generic: ▦
+        - generic: Orders
+      - group "ビュー":
+        - button "ビューを追加": ＋
+        - button "ビューの操作": ⠿
+        - generic: ビュー
+        - generic: "2"
+      - group "ItemList":
+        - button "ItemListの操作": ⠿
+        - generic: ▤
+        - generic: ItemList
+      - group "OrderTotals":
+        - button "OrderTotalsの操作": ⠿
+        - generic: ▤
+        - generic: OrderTotals
+      - group "dbo0":
+        - button "dbo0に追加": ＋
+        - button "dbo0の操作": ⠿
+        - button "dbo0の表示を切り替え": ▾
+        - generic: dbo0
+      - group "関数":
+        - button "dbo0関数を追加": ＋
+        - button "関数の操作": ⠿
+        - generic: 関数
+        - generic: "2"
+      - group "dbo0 OrderAmount":
+        - button "dbo0 OrderAmountの操作": ⠿
+        - generic: ƒ
+        - generic: OrderAmount
+      - group "dbo0 FindItems":
+        - button "dbo0 FindItemsの操作": ⠿
+        - generic: ƒ
+        - generic: FindItems
+      - group "テーブル":
+        - button "dbo0テーブルを追加": ＋
+        - button "テーブルの操作": ⠿
+        - generic: テーブル
+        - generic: "2"
+      - group "dbo0 Items":
+        - button "dbo0 Itemsの操作": ⠿
+        - generic: ▦
+        - generic: Items
+      - group "dbo0 Orders":
+        - button "dbo0 Ordersの操作": ⠿
+        - generic: ▦
+        - generic: Orders
+      - group "ビュー":
+        - button "dbo0ビューを追加": ＋
+        - button "ビューの操作": ⠿
+        - generic: ビュー
+        - generic: "2"
+      - group "dbo0 ItemList":
+        - button "dbo0 ItemListの操作": ⠿
+        - generic: ▤
+        - generic: ItemList
+      - group "dbo0 OrderTotals":
+        - button "dbo0 OrderTotalsの操作": ⠿
+        - generic: ▤
+        - generic: OrderTotals
+      - group "dbo1":
+        - button "dbo1に追加": ＋
+        - button "dbo1の操作": ⠿
+        - button "dbo1の表示を切り替え": ▾
+        - generic: dbo1
+      - group "関数":
+        - button "dbo1関数を追加": ＋
+        - button "関数の操作": ⠿
+        - generic: 関数
+        - generic: "2"
+      - group "dbo1 OrderAmount":
+        - button "dbo1 OrderAmountの操作": ⠿
+        - generic: ƒ
+        - generic: OrderAmount
+      - group "dbo1 FindItems":
+        - button "dbo1 FindItemsの操作": ⠿
+        - generic: ƒ
+        - generic: FindItems
+      - group "テーブル":
+        - button "dbo1テーブルを追加": ＋
+        - button "テーブルの操作": ⠿
+        - generic: テーブル
+        - generic: "2"
+      - group "dbo1 Items":
+        - button "dbo1 Itemsの操作": ⠿
+        - generic: ▦
+        - generic: Items
+      - group "dbo1 Orders":
+        - button "dbo1 Ordersの操作": ⠿
+        - generic: ▦
+        - generic: Orders
+      - group "ビュー":
+        - button "dbo1ビューを追加": ＋
+        - button "ビューの操作": ⠿
+        - generic: ビュー
+        - generic: "2"
+      - group "dbo1 ItemList":
+        - button "dbo1 ItemListの操作": ⠿
+        - generic: ▤
+        - generic: ItemList
+      - group "dbo1 OrderTotals":
+        - button "dbo1 OrderTotalsの操作": ⠿
+        - generic: ▤
+        - generic: OrderTotals
+  - generic "システム"
+  - generic: ホスト内の管理API
+  - generic: 14700F\kazuh
+  - button "ログアウト"
+- main:
+  - generic: ワークスペース ／ データベース
+  - generic: ホスト内の管理API
+  - tablist "開いている文書":
+    - group "SchemaUiDemo":
+      - button "SchemaUiDemoの操作": ⠿
+      - generic: ▤
+      - generic: SchemaUiDemo
+      - generic "稼働DBへ未適用": "*"
+  - status: 検証しました。変更内容を確認して適用してください。
+  - generic: DATABASE
+  - heading "SchemaUiDemo" [level=1]
+  - paragraph: 構造を整え、変更を確認してから公開します。
+  - generic: 公開版 v1
+  - button "変更を確認"
+  - button "文書の操作": •••
+  - navigation "文書の表示":
+    - button "▦ 構造"
+    - button "〈〉 C#"
+    - button "▤ データ"
+    - button "☡ 計画"
+    - generic: 下書き · 稼働DBへ未適用
+    - generic "A3518AFF6B281D9D4DDA06D003072517FDDF389E92EA1D1E705808167F95E6B8": 取り込み済みDLLで検証・適用
+  - button "SchemaUiDemo"
+  - heading "オブジェクト" [level=2]
+  - button "＋ 新しいテーブル"
+  - group "Items":
+    - button "Itemsの操作": ⠿
+    - generic: ▦
+    - strong: Items
+    - paragraph: テーブル定義 · クリックでデータ表示
+    - button "編集"
+    - generic: ↗
+  - group "Orders":
+    - button "Ordersの操作": ⠿
+    - generic: ▦
+    - strong: Orders
+    - paragraph: テーブル定義 · クリックでデータ表示
+    - button "編集"
+    - generic: ↗
+  - group "OrderAmount":
+    - button "OrderAmountの操作": ⠿
+    - generic: ƒ
+    - strong: OrderAmount
+    - paragraph: 関数
+    - button "編集"
+  - group "FindItems":
+    - button "FindItemsの操作": ⠿
+    - generic: ƒ
+    - strong: FindItems
+    - paragraph: 関数
+    - button "編集"
+  - group "ItemList":
+    - button "ItemListの操作": ⠿
+    - generic: ƒ
+    - strong: ItemList
+    - paragraph: ビュー
+    - button "編集"
+  - group "OrderTotals":
+    - button "OrderTotalsの操作": ⠿
+    - generic: ƒ
+    - strong: OrderTotals
+    - paragraph: ビュー
+    - button "編集"
+  - region "変更の確認":
+    - heading "変更を確認" [level=2]
+    - paragraph: 基準の公開版 v1 → 次の公開版
+    - paragraph: "ファイルを変更: Database.cs --- 変更前 using Seamless.Database; namespace UserCode; internal static partial class DatabaseGenerator; public sealed partial class ManagedDb(DatabaseContainerOptions options):DatabaseContainer(options){ } +++ 変更後 using UserCode.Functions; using System.Linq; using Seamless.Database; namespace UserCode; internal static partial class DatabaseGenerator; public sealed partial class ManagedDb(DatabaseContainerOptions options):DatabaseContainer(options){ public global::UserCode.Schema_dbo0 dbo0=>new(this); public global::UserCode.Schema_dbo1 dbo1=>new(this); public global::Seamless.Database.Table<global::UserCode.Keys.Items,global::UserCode.Records.Items> Items=>this.Table<global::UserCode.Keys.Items,global::UserCode.Records.Items>(row=>new(row.@Id)); public global::Seamless.Database.Table<global::UserCode.Keys.Orders,global::UserCode.Records.Orders> Orders=>this.Table<global::UserCode.Keys.Orders,global::UserCode.Records.Orders>(row=>new(row.@Id)); public global::Seamless.Database.ScalarFunction<decimal> @OrderAmount(int @orderId)=>this.ScalarFunction<decimal>(()=>{var container=this; return container.Orders.Where(order=>order.Id==orderId).Join(container.Items,order=>order.ItemId,item=>item.Id,(order,item)=>item.UnitPrice*order.Quantity).Sum(); }); public global::Seamless.Database.TableFunction<global::UserCode.Functions.@ItemResult> @FindItems(decimal @minPrice)=>this.TableFunction<global::UserCode.Functions.@ItemResult>(()=>{var container=this; return container.Items.Where(item=>item.UnitPrice>=minPrice).Select(item=>new ItemResult(item.Id,item.Title,item.UnitPrice)); }); }"
+    - paragraph: "ファイルを追加: Schemas/Schema_dbo0.cs using UserCode.Functions.dbo0; using System.Linq; namespace UserCode; public sealed partial class Schema_dbo0(global::Seamless.Database.DatabaseContainer db) : global::Seamless.Database.DatabaseSchema(db, \"dbo0\") { public global::Seamless.Database.Table<global::UserCode.Keys.dbo0_Items,global::UserCode.Records.dbo0_Items> Items=>this.Table<global::UserCode.Keys.dbo0_Items,global::UserCode.Records.dbo0_Items>(row=>new(row.@Id)); public global::Seamless.Database.Table<global::UserCode.Keys.dbo0_Orders,global::UserCode.Records.dbo0_Orders> Orders=>this.Table<global::UserCode.Keys.dbo0_Orders,global::UserCode.Records.dbo0_Orders>(row=>new(row.@Id)); public global::Seamless.Database.ScalarFunction<decimal> @OrderAmount(int @orderId)=>this.ScalarFunction<decimal>(()=>{var container=(global::UserCode.ManagedDb)this.Database; return container.dbo0.Orders.Where(order=>order.Id==orderId).Join(container.dbo0.Items,order=>order.ItemId,item=>item.Id,(order,item)=>item.UnitPrice*order.Quantity).Sum(); }); public global::Seamless.Database.TableFunction<global::UserCode.Functions.dbo0.@ItemResult> @FindItems(decimal @minPrice)=>this.TableFunction<global::UserCode.Functions.dbo0.@ItemResult>(()=>{var container=(global::UserCode.ManagedDb)this.Database; return container.dbo0.Items.Where(item=>item.UnitPrice>=minPrice).Select(item=>new ItemResult(item.Id,item.Title,item.UnitPrice)); }); }"
+    - paragraph: "ファイルを追加: Schemas/Schema_dbo1.cs using UserCode.Functions.dbo1; using System.Linq; namespace UserCode; public sealed partial class Schema_dbo1(global::Seamless.Database.DatabaseContainer db) : global::Seamless.Database.DatabaseSchema(db, \"dbo1\") { public global::Seamless.Database.Table<global::UserCode.Keys.dbo1_Items,global::UserCode.Records.dbo1_Items> Items=>this.Table<global::UserCode.Keys.dbo1_Items,global::UserCode.Records.dbo1_Items>(row=>new(row.@Id)); public global::Seamless.Database.Table<global::UserCode.Keys.dbo1_Orders,global::UserCode.Records.dbo1_Orders> Orders=>this.Table<global::UserCode.Keys.dbo1_Orders,global::UserCode.Records.dbo1_Orders>(row=>new(row.@Id)); public global::Seamless.Database.ScalarFunction<decimal> @OrderAmount(int @orderId)=>this.ScalarFunction<decimal>(()=>{var container=(global::UserCode.ManagedDb)this.Database; return container.dbo1.Orders.Where(order=>order.Id==orderId).Join(container.dbo1.Items,order=>order.ItemId,item=>item.Id,(order,item)=>item.UnitPrice*order.Quantity).Sum(); }); public global::Seamless.Database.TableFunction<global::UserCode.Functions.dbo1.@ItemResult> @FindItems(decimal @minPrice)=>this.TableFunction<global::UserCode.Functions.dbo1.@ItemResult>(()=>{var container=(global::UserCode.ManagedDb)this.Database; return container.dbo1.Items.Where(item=>item.UnitPrice>=minPrice).Select(item=>new ItemResult(item.Id,item.Title,item.UnitPrice)); }); }"
+    - paragraph: "ファイルを追加: Tables/Items.cs using System; namespace UserCode.Keys { public partial struct Items { public partial int Id { get; } } } namespace UserCode.Records { public partial struct Items { public partial int Id { get; } public partial string Title { get; } public partial decimal UnitPrice { get; } } }"
+    - paragraph: "ファイルを追加: Tables/Orders.cs using System; namespace UserCode.Keys { public partial struct Orders { public partial int Id { get; } } } namespace UserCode.Records { public partial struct Orders { public partial int Id { get; } public partial int ItemId { get; } public partial int Quantity { get; } } }"
+    - paragraph: "ファイルを追加: Tables/dbo0_Items.cs using System; namespace UserCode.Keys { public partial struct dbo0_Items { public partial int Id { get; } } } namespace UserCode.Records { public partial struct dbo0_Items { public partial int Id { get; } public partial string Title { get; } public partial decimal UnitPrice { get; } } }"
+    - paragraph: "ファイルを追加: Tables/dbo0_Orders.cs using System; namespace UserCode.Keys { public partial struct dbo0_Orders { public partial int Id { get; } } } namespace UserCode.Records { public partial struct dbo0_Orders { public partial int Id { get; } public partial int ItemId { get; } public partial int Quantity { get; } } }"
+    - paragraph: "ファイルを追加: Tables/dbo1_Items.cs using System; namespace UserCode.Keys { public partial struct dbo1_Items { public partial int Id { get; } } } namespace UserCode.Records { public partial struct dbo1_Items { public partial int Id { get; } public partial string Title { get; } public partial decimal UnitPrice { get; } } }"
+    - paragraph: "ファイルを追加: Tables/dbo1_Orders.cs using System; namespace UserCode.Keys { public partial struct dbo1_Orders { public partial int Id { get; } } } namespace UserCode.Records { public partial struct dbo1_Orders { public partial int Id { get; } public partial int ItemId { get; } public partial int Quantity { get; } } }"
+    - paragraph: "ファイルを追加: Views/ItemList.cs using System.Linq; namespace @UserCode{ namespace @Views{ public readonly record struct @ItemList(int @Id,string @Title,decimal @UnitPrice){public static global::Seamless.Collections.ISet<global::UserCode.Views.@ItemList> Query(global::UserCode.ManagedDb container)=>container.CreateView<global::UserCode.Views.@ItemList>(()=>{ return container.Items.Select(item=>new ItemList(item.Id,item.Title,item.UnitPrice)); // ItemList body retained },\"ItemList\");} } }"
+    - paragraph: "ファイルを追加: Views/OrderTotals.cs using System.Linq; namespace @UserCode{ namespace @Views{ public readonly record struct @OrderTotals(int @OrderId,decimal @Amount){public static global::Seamless.Collections.ISet<global::UserCode.Views.@OrderTotals> Query(global::UserCode.ManagedDb container)=>container.CreateView<global::UserCode.Views.@OrderTotals>(()=>{ return container.Orders.Join(container.Items,order=>order.ItemId,item=>item.Id,(order,item)=>new OrderTotals(order.Id,item.UnitPrice*order.Quantity)); },\"OrderTotals\");} } }"
+    - paragraph: "ファイルを追加: Views/dbo0/ItemList.cs using System.Linq; namespace @UserCode{ namespace @Views{ namespace @dbo0{ public readonly record struct @ItemList(int @Id,string @Title,decimal @UnitPrice){public static global::Seamless.Collections.ISet<global::UserCode.Views.dbo0.@ItemList> Query(global::UserCode.ManagedDb container)=>container.CreateView<global::UserCode.Views.dbo0.@ItemList>(()=>{ return container.dbo0.Items.Select(item=>new ItemList(item.Id,item.Title,item.UnitPrice)); },\"dbo0.ItemList\");} } } }"
+    - paragraph: "ファイルを追加: Views/dbo0/OrderTotals.cs using System.Linq; namespace @UserCode{ namespace @Views{ namespace @dbo0{ public readonly record struct @OrderTotals(int @OrderId,decimal @Amount){public static global::Seamless.Collections.ISet<global::UserCode.Views.dbo0.@OrderTotals> Query(global::UserCode.ManagedDb container)=>container.CreateView<global::UserCode.Views.dbo0.@OrderTotals>(()=>{ return container.dbo0.Orders.Join(container.dbo0.Items,order=>order.ItemId,item=>item.Id,(order,item)=>new OrderTotals(order.Id,item.UnitPrice*order.Quantity)); },\"dbo0.OrderTotals\");} } } }"
+    - paragraph: "ファイルを追加: Views/dbo1/ItemList.cs using System.Linq; namespace @UserCode{ namespace @Views{ namespace @dbo1{ public readonly record struct @ItemList(int @Id,string @Title,decimal @UnitPrice){public static global::Seamless.Collections.ISet<global::UserCode.Views.dbo1.@ItemList> Query(global::UserCode.ManagedDb container)=>container.CreateView<global::UserCode.Views.dbo1.@ItemList>(()=>{ return container.dbo1.Items.Select(item=>new ItemList(item.Id,item.Title,item.UnitPrice)); },\"dbo1.ItemList\");} } } }"
+    - paragraph: "ファイルを追加: Views/dbo1/OrderTotals.cs using System.Linq; namespace @UserCode{ namespace @Views{ namespace @dbo1{ public readonly record struct @OrderTotals(int @OrderId,decimal @Amount){public static global::Seamless.Collections.ISet<global::UserCode.Views.dbo1.@OrderTotals> Query(global::UserCode.ManagedDb container)=>container.CreateView<global::UserCode.Views.dbo1.@OrderTotals>(()=>{ return container.dbo1.Orders.Join(container.dbo1.Items,order=>order.ItemId,item=>item.Id,(order,item)=>new OrderTotals(order.Id,item.UnitPrice*order.Quantity)); },\"dbo1.OrderTotals\");} } } }"
+    - paragraph: "ファイルを追加: Functions/FindItems.cs using System.Linq; namespace @UserCode{ namespace @Functions{ public readonly record struct @ItemResult(int @Id,string @Title,decimal @UnitPrice); } }"
+    - paragraph: "ファイルを追加: Functions/dbo0/FindItems.cs using System.Linq; namespace @UserCode{ namespace @Functions{ namespace @dbo0{ public readonly record struct @ItemResult(int @Id,string @Title,decimal @UnitPrice); } } }"
+    - paragraph: "ファイルを追加: Functions/dbo1/FindItems.cs using System.Linq; namespace @UserCode{ namespace @Functions{ namespace @dbo1{ public readonly record struct @ItemResult(int @Id,string @Title,decimal @UnitPrice); } } }"
+    - paragraph: "入口: UserCode.ManagedDb. / 更新取引: False"
+    - paragraph: "空の表を追加: dbo0.Items"
+    - paragraph: "空の表を追加: dbo0.Orders"
+    - paragraph: "空の表を追加: dbo1.Items"
+    - paragraph: "空の表を追加: dbo1.Orders"
+    - paragraph: "空の表を追加: Items"
+    - paragraph: "空の表を追加: Orders"
+    - paragraph: 稼働版を保持したまま非公開世代へ行を逐次移行し、制約を検証してから公開します。
+    - button "閉じる"
+    - button "この変更を適用"
+  - generic: ホバー・右クリックで対象の操作
+  - generic: Ctrl K コマンド検索
+  - generic: 文書タブはハンドルから移動

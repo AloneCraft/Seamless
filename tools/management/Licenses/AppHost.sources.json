@@ -1,0 +1,82 @@
+[
+  {
+    "Package": "Microsoft.NETCore.App.Host.win-x64",
+    "Version": "10.0.12",
+    "Runtime": "win-x64",
+    "Source": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.host.win-x64/10.0.12/microsoft.netcore.app.host.win-x64.10.0.12.nupkg",
+    "ArchiveSha256": "1FBC2FCAE33182F41955DB3391ECF8A1B4AA047429852651D419B6B16EB4A523",
+    "AppHostSourceSha256": "0649F1BEBACEF4F17B6694201ABC6DDE152C333468D2314B4F7104D34D70C7AA",
+    "Notices": [
+      {
+        "Path": "DotNetAppHost-win-x64-10.0.12-LICENSE.TXT",
+        "Name": "LICENSE.TXT",
+        "Sha256": "D7A68596AB69B06F51CA278A6545148E4269A9381C26D597C13DF5D88E08CF5B"
+      },
+      {
+        "Path": "DotNetAppHost-win-x64-10.0.12-THIRD-PARTY-NOTICES.TXT",
+        "Name": "THIRD-PARTY-NOTICES.TXT",
+        "Sha256": "6D15E10A101C6BFFF2AB4429ED061BF76C456FC4B23AD6B03E0D0F8377148A21"
+      }
+    ]
+  },
+  {
+    "Package": "Microsoft.NETCore.App.Host.win-x64",
+    "Version": "10.0.14",
+    "Runtime": "win-x64",
+    "Source": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.host.win-x64/10.0.14/microsoft.netcore.app.host.win-x64.10.0.14.nupkg",
+    "ArchiveSha256": "2A4547B0E6CF0DD15E723531DAA5450D99D4E151105AEC0D31F2B0C7CFB286DB",
+    "AppHostSourceSha256": "DBD60C6DCA3629E09C1869806222878B6E7ADB8AE4AECB64AAF38B7FC9E49B87",
+    "Notices": [
+      {
+        "Path": "DotNetAppHost-win-x64-10.0.12-LICENSE.TXT",
+        "Name": "LICENSE.TXT",
+        "Sha256": "D7A68596AB69B06F51CA278A6545148E4269A9381C26D597C13DF5D88E08CF5B"
+      },
+      {
+        "Path": "DotNetAppHost-win-x64-10.0.12-THIRD-PARTY-NOTICES.TXT",
+        "Name": "THIRD-PARTY-NOTICES.TXT",
+        "Sha256": "6D15E10A101C6BFFF2AB4429ED061BF76C456FC4B23AD6B03E0D0F8377148A21"
+      }
+    ]
+  },
+  {
+    "Package": "Microsoft.NETCore.App.Host.linux-x64",
+    "Version": "10.0.14",
+    "Runtime": "linux-x64",
+    "Source": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.host.linux-x64/10.0.14/microsoft.netcore.app.host.linux-x64.10.0.14.nupkg",
+    "ArchiveSha256": "61CF559C5AC8D26B1D140945C40419886D6D288075C330EDE9E1C1E79E0ABD91",
+    "AppHostSourceSha256": "B9E93E08175583F7FA0BE753DECF8ED0C54953CCCB308BB27D0C3A11BDB5C5DB",
+    "Notices": [
+      {
+        "Path": "DotNetAppHost-linux-x64-10.0.12-LICENSE.TXT",
+        "Name": "LICENSE.TXT",
+        "Sha256": "CFC21F5E8BD655AE997EEC916138B707B1D290B83272C02A95C9F821B8C87310"
+      },
+      {
+        "Path": "DotNetAppHost-linux-x64-10.0.12-THIRD-PARTY-NOTICES.TXT",
+        "Name": "THIRD-PARTY-NOTICES.TXT",
+        "Sha256": "66F1D4E44973185519BB4AA8A9718EB22FC7AF2CC532E3AE9CFC4C127EE7FC54"
+      }
+    ]
+  },
+  {
+    "Package": "Microsoft.NETCore.App.Host.linux-x64",
+    "Version": "10.0.12",
+    "Runtime": "linux-x64",
+    "Source": "https://api.nuget.org/v3-flatcontainer/microsoft.netcore.app.host.linux-x64/10.0.12/microsoft.netcore.app.host.linux-x64.10.0.12.nupkg",
+    "ArchiveSha256": "B62638D76D67A03E7F1F905F64EBA792A4FF1C1EF42875B1AD8F8F8DDEA8DA87",
+    "AppHostSourceSha256": "6A09CB4B3BC09E4A72EAD018A5883E3FC5C78D4324FB016575BFB380CBE88483",
+    "Notices": [
+      {
+        "Path": "DotNetAppHost-linux-x64-10.0.12-LICENSE.TXT",
+        "Name": "LICENSE.TXT",
+        "Sha256": "CFC21F5E8BD655AE997EEC916138B707B1D290B83272C02A95C9F821B8C87310"
+      },
+      {
+        "Path": "DotNetAppHost-linux-x64-10.0.12-THIRD-PARTY-NOTICES.TXT",
+        "Name": "THIRD-PARTY-NOTICES.TXT",
+        "Sha256": "66F1D4E44973185519BB4AA8A9718EB22FC7AF2CC532E3AE9CFC4C127EE7FC54"
+      }
+    ]
+  }
+]
