@@ -114,7 +114,7 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
             var id=Guid.NewGuid();if(requestedId is{} requested){id=requested;}context=new(id,readOnly);
             if(this.versioned is not null){await this.versioned.Start(context,cancellationToken).ConfigureAwait(false);}
             marker.Context=context;return new TransactionScope(this,marker,context);
-        }catch{marker.Active=false;if(context is not null){this.versioned?.End(context);}if(acquired){this.gate.Release();}throw;}
+        }catch{marker.Active=false;marker.Context=null;if(context is not null){this.versioned?.End(context);}if(acquired){this.gate.Release();}throw;}
     }
     public IDisposable EnterRead(CancellationToken cancellationToken=default){
         if(this.versioned is not null){throw new NotSupportedException("Use a versioned read-only transaction; raw reads cannot select a snapshot.");}
@@ -123,7 +123,13 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
         this.failure.ThrowIfFailed();this.gate.Wait(cancellationToken);
         try{ObjectDisposedException.ThrowIf(this.disposed||this.stopping,this);this.failure.ThrowIfFailed();return new ReadLease(this.gate);}catch{this.gate.Release();throw;}
     }
-    internal void Release(Marker marker){marker.Active=false;if(marker.Context is not null){this.versioned?.End(marker.Context);}if(marker.HoldsExclusiveGate){this.gate.Release();}}
+    internal void Release(Marker marker){
+        marker.Active=false;
+        // コピーされた実行フローにもholderが残るため、終了した取引との参照を共有holderから切る。
+        var context=marker.Context;marker.Context=null;
+        if(context is not null){this.versioned?.End(context);}
+        if(marker.HoldsExclusiveGate){this.gate.Release();}
+    }
     public void StopAccepting()=>this.stopping=true;
     /// <summary>外部所有者が分離性と変更集合の凍結を確立した確定要求。版付きscopeの代用にはしない。</summary>
     public async ValueTask<TransactionCommitResult> CommitExternalAsync(Guid id,ICommittedTransactionChanges changes,ReadOnlyMemory<byte> metadata=default,CancellationToken cancellationToken=default){
@@ -166,7 +172,7 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
                 using var iterator=changes.SelectMany(static change=>change.EnumerateEncoded()).GetEnumerator();var hasRows=iterator.MoveNext();
                 if(!hasRows&&metadata.IsEmpty){return new(id,TransactionCommitKind.NoChanges,this.AppliedLsn);}
                 IEnumerable<WalEntry> Rows(){if(hasRows){do{yield return iterator.Current;}while(iterator.MoveNext());}}
-                var committed=await this.preparedJournal.CommitAsync(id,Rows(),metadata).ConfigureAwait(false);lsn=committed.Lsn;durable=true;
+                var committed=await this.preparedJournal.CommitAsync(id,Rows(),metadata,cancellationToken).ConfigureAwait(false);lsn=committed.Lsn;durable=true;
                 foreach(var change in changes){ApplyCommitted(change,lsn);}this.AppliedLsn=Math.Max(this.AppliedLsn,lsn);this.failure.ThrowIfFailed();return committed;
             }
             this.failure.ThrowIfFailed();var entries=new List<WalEntry>();var parts=new SortedSet<int>();long bytes=checked(60L+metadata.Length);
@@ -196,9 +202,9 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
             if(this.preparedJournal is null&&!submissionAttempted&&!installationStarted&&this.failure.Error is null&&(this.journal is null||this.journal.Writer.Failure.Error is null)){
                 this.RecordAborted(id);throw new TransactionCommitException(id,TransactionOutcomeKind.Aborted,error);
             }
-            // 外部adapterの準備失敗は、最終commit未受付とjournal健全性を確認できれば個別中止。
+            // 分割WALの準備失敗は、最終commit未受付とjournal健全性を確認できれば個別中止。
             // durable後の反映失敗、受付済みで結果不明、WAL自体の故障だけをdomain停止へ進める。
-            if(forceCommitRecord&&!durable&&this.preparedJournal!.Failure.Error is null){
+            if(this.preparedJournal is not null&&!durable&&this.preparedJournal.Failure.Error is null){
                 if(error is not TransactionCommitException){outcome=TransactionOutcomeKind.Aborted;}
                 if(outcome==TransactionOutcomeKind.Aborted){this.RecordAborted(id);throw new TransactionCommitException(id,outcome,error);}
             }

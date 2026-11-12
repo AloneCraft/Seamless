@@ -46,7 +46,7 @@ public abstract class TsavoriteSetScalable<TStrategy, T>
         var values = GetSharedValues<TsavoriteSetScalable<TStrategy,T>,T>(count,static index => TStrategy.Elem(index));
         using var handle = TStrategy.CreateTunedSet(
             ScalableTsavoriteConfiguration.CreateTuning(Index,Page,Segment,Memory,Fraction),
-            ScalableTsavoriteConfiguration.CreateLimits(Index,Page,Memory));
+            ScalableTsavoriteConfiguration.CreateLimits(Count,Index,Page,Memory));
         foreach(var value in values) {
             handle.Set.Add(value);
         }
@@ -115,7 +115,7 @@ public abstract class TsavoriteSetScalable<TStrategy, T>
     private static TunedHashSetHandle<T> CreateContainsSet(int count,long index,long page,long segment,long memory,double fraction) {
         var handle = TStrategy.CreateTunedSet(
             ScalableTsavoriteConfiguration.CreateTuning(index,page,segment,memory,fraction),
-            ScalableTsavoriteConfiguration.CreateLimits(index,page,memory));
+            ScalableTsavoriteConfiguration.CreateLimits(count,index,page,memory));
         try {
             foreach(var value in GetSharedValues<TsavoriteSetScalable<TStrategy,T>,T>(count,static sourceIndex => TStrategy.Elem(sourceIndex))) {
                 handle.Set.Add(value);
@@ -179,7 +179,7 @@ public abstract class TsavoriteDictionaryScalable<TStrategy, TKey, TValue>
         var count = checked((int)Count);
         using var store = TStrategy.CreateTunedStore(
             ScalableTsavoriteConfiguration.CreateTuning(Index,Page,Segment,Memory,Fraction),
-            ScalableTsavoriteConfiguration.CreateLimits(Index,Page,Memory));
+            ScalableTsavoriteConfiguration.CreateLimits(Count,Index,Page,Memory));
         using var dictionary = store.NewDict();
         AddRange(dictionary,count);
         Assert.Equal(count,dictionary.Count);
@@ -259,7 +259,7 @@ public abstract class TsavoriteDictionaryScalable<TStrategy, TKey, TValue>
     private static SharedDictionary CreateTryGetValueDictionary(int count,long index,long page,long segment,long memory,double fraction) {
         var store = TStrategy.CreateTunedStore(
             ScalableTsavoriteConfiguration.CreateTuning(index,page,segment,memory,fraction),
-            ScalableTsavoriteConfiguration.CreateLimits(index,page,memory));
+            ScalableTsavoriteConfiguration.CreateLimits(count,index,page,memory));
         global::Seamless.Collections.Tsavorite.IDictionary<TKey,TValue>? dictionary = null;
         try {
             dictionary=store.NewDict();
@@ -307,8 +307,8 @@ file static class ScalableTsavoriteConfiguration {
         Growth=new global::Seamless.Execution.Growth.Policy<global::Seamless.Execution.Growth.Fixed>(),
     };
 
-    public static StoreLimits CreateLimits(long index,long page,long memory) => new() {
-        MemoryBytes=checked(index+memory+2*page),
+    public static StoreLimits CreateLimits(long count,long index,long page,long memory) => new() {
+        MemoryBytes=global::Seamless.TestKit.TsavoriteBenchmarkBudget.MemoryBytes(count,index,page,memory),
     };
 
     public static void DisposeCache<T>(ThreadLocal<global::System.Collections.Generic.Dictionary<string,T>> cache)

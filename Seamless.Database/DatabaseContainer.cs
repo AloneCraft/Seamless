@@ -13,14 +13,12 @@ public abstract partial class DatabaseContainer:IDisposable {
         new([],static record=>record.Key);
 
     private readonly global::System.Collections.Generic.Dictionary<string,IDisposable> tables= new(StringComparer.Ordinal);
-    private readonly global::System.Collections.Generic.Dictionary<string,object>      views = new(StringComparer.Ordinal);
     private readonly object                                                    gate  = new();
     private readonly DatabaseConcurrencyGate concurrencyGate=new();
     private readonly global::System.Threading.AsyncLocal<DatabaseTransactionState?> ambientTransaction=new();
     private readonly global::System.Threading.AsyncLocal<DatabaseReadSessionState?> ambientReadSession=new();
     private readonly global::System.Threading.AsyncLocal<int> ambientWriteDepth=new();
     private readonly global::Seamless.Execution.ExecutionScope executionResources;
-    private DatabaseWriteAheadLog? writeAheadLog;
     private volatile bool faulted;
     private          bool                                                      disposed;
     public           DatabaseContainerOptions                                  Options { get; }
@@ -42,6 +40,9 @@ public abstract partial class DatabaseContainer:IDisposable {
             TemporaryDirectory=temporaryDirectory,
             MaximumQueryWorkers=this.Options.MaximumQueryWorkers,
         });
+        if(this.Options.RecordSerialization==DatabaseRecordSerialization.RecordGraphV1){
+            this.executionResources.Codecs.UseRecordGraphSerialization(this.executionResources.Budget,this.executionResources.CancellationToken);
+        }
     }
     /// <summary>実際のコンテナ型名。</summary>
     public string DatabaseName=>this.GetType().Name;
@@ -54,6 +55,11 @@ public abstract partial class DatabaseContainer:IDisposable {
         this.executionResources.Budget.PeakMemoryBytes,
         this.executionResources.Budget.PeakTemporaryStorageBytes);
     internal global::Seamless.Execution.ExecutionScope ExecutionResources=>this.executionResources;
+    /// <summary>DBの親予算と一時領域に属し、usingまたはDB終了時に解放する作業ストアを作る。</summary>
+    public global::Seamless.Execution.Store CreateWorkStore(global::Seamless.Execution.StoreLimits? limits=null,global::Seamless.Execution.StoreOptions? options=null){
+        this.EnsureAvailable();
+        return this.executionResources.CreateWorkStore(limits,options);
+    }
     /// <summary>生成する同期取込が、既存の同期writerの変更集合を維持するための状態検査。</summary>
     protected bool IsLegacyWriteTransactionActive=>this.ambientTransaction.Value is not null;
 
@@ -67,13 +73,8 @@ public abstract partial class DatabaseContainer:IDisposable {
             if(this.ambientReadSession.Value is not null) {
                 throw new InvalidOperationException("A read session cannot be promoted to a write transaction. Dispose the read session first.");
             }
-            if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){
-                var shared=this.BeginTransactionScopeAsync(cancellationToken).AsTask().GetAwaiter().GetResult();
-                state=new(this.Options.TransactionMemoryLimit,new SharedScopeLease(shared)){SharedScope=shared};
-            }else{
-                var lease=this.concurrencyGate.EnterWrite(cancellationToken);
-                state=new(this.Options.TransactionMemoryLimit,lease);
-            }
+            var shared=this.BeginTransactionScopeAsync(cancellationToken).AsTask().GetAwaiter().GetResult();
+            state=new(this.Options.TransactionMemoryLimit,new SharedScopeLease(shared)){SharedScope=shared};
             this.ambientTransaction.Value=state;
         }
         state.Depth++;
@@ -107,15 +108,7 @@ public abstract partial class DatabaseContainer:IDisposable {
                     state.SharedScope.CommitAsync(state.CommitMetadata).AsTask().GetAwaiter().GetResult();
                     return;
                 }
-                IEnumerable<DatabaseWalOperation> Operations() {
-                    foreach(var overlay in state.Overlays.Values) {
-                        foreach(var operation in overlay.CreateWalOperations()){yield return operation;}
-                    }
-                }
-                this.GetWriteAheadLog()?.Append(Operations());
-                foreach(var overlay in state.Overlays.Values) {
-                    overlay.Apply();
-                }
+                throw new InvalidOperationException("The transaction has no shared scope.");
             }
         } catch(global::Seamless.Transactions.TransactionCommitException error)when(error.Outcome==global::Seamless.Transactions.TransactionOutcomeKind.Aborted&&state.SharedScope is{} scope&&error.TransactionId==scope.Id&&this.sharedCoordinator?.Failure.Error is null){
             state.Aborted=true;throw;
@@ -135,7 +128,7 @@ public abstract partial class DatabaseContainer:IDisposable {
         if(state is null) {
             IDisposable? lease=null;
             if(this.ambientTransaction.Value is null&&this.ambientWriteDepth.Value==0&&this.gatewayVersionedExecution.Value is null){
-                if(this.Options.Transactions==DatabaseTransactionMode.SharedV2&&this.Options.GatewayProfile is null){this.EnsureSharedReady();lease=this.sharedCoordinator!.EnterRead(cancellationToken);}
+                if(this.Options.GatewayProfile is null){this.EnsureSharedReady();lease=this.sharedCoordinator!.EnterRead(cancellationToken);}
                 else{lease=this.concurrencyGate.EnterRead(cancellationToken);}
             }
             state=new(lease);
@@ -224,14 +217,7 @@ public abstract partial class DatabaseContainer:IDisposable {
             return action();
         }
         this.EnsureAvailable();
-        if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){throw new InvalidOperationException("Use a transaction to update a SharedV2 database.");}
-        if(this.ambientReadSession.Value is not null) {
-            throw new InvalidOperationException("A read session cannot be promoted to a write operation. Dispose the read session first.");
-        }
-        using var lease=this.concurrencyGate.EnterWrite(global::System.Threading.CancellationToken.None);
-        this.ambientWriteDepth.Value++;
-        try{return action();}
-        finally{this.ambientWriteDepth.Value--;}
+        throw new InvalidOperationException("Use a transaction to update the database.");
     }
 
     internal IEnumerator<T> Stream<T>(Func<IEnumerator<T>> getEnumerator) {
@@ -282,7 +268,6 @@ public abstract partial class DatabaseContainer:IDisposable {
             }
             var table=this.CreateTable(keySelector,name);
             try {
-                this.RecoverTable(table);
                 this.tables.Add(name,table);
                 return table;
             } catch {
@@ -312,7 +297,6 @@ public abstract partial class DatabaseContainer:IDisposable {
             }
             var view=this.CreateMaterializedView(keySelector,name);
             try {
-                this.RecoverMaterializedView(view);
                 this.tables.Add(name,view);
                 return view;
             } catch {
@@ -338,7 +322,6 @@ public abstract partial class DatabaseContainer:IDisposable {
             }
             var table = this.CreateTable<TRecord>(name);
             try {
-                this.RecoverTable(table);
                 this.tables.Add(name,table);
                 return table;
             } catch {
@@ -348,17 +331,16 @@ public abstract partial class DatabaseContainer:IDisposable {
         }
     }
 
-    /// <summary>宣言プロパティから呼ばれ、ビューを宣言名単位で生成・共有する。</summary>
-    protected View<TResult> View<TResult>(Func<IEnumerable<TResult>> definition,[CallerMemberName] string name = "") {
+    /// <summary>DB生成器が作るビューのRowsから呼ぶ。行の列挙を各列挙の開始時に評価し、重複を除く集合として返す。</summary>
+    /// <remarks>
+    /// 利用者はビューを Views 名前空間の partial 行型の Query に直接書き、この入口は生成コードだけが使う。
+    /// 呼出しごとに新しいViewを作り、名前単位のキャッシュは持たない。循環検出には rows のメソッドを使う。
+    /// </remarks>
+    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    public View<TResult> GeneratedView<TResult>(Func<IEnumerable<TResult>> rows,string name){
+        ArgumentNullException.ThrowIfNull(rows);ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ObjectDisposedException.ThrowIf(this.disposed,this);
-        lock(this.gate) {
-            if(this.views.TryGetValue(name,out var existing)) {
-                return (View<TResult>)existing;
-            }
-            var view = new View<TResult>(definition,name);
-            this.views.Add(name,view);
-            return view;
-        }
+        return new View<TResult>(rows,name,this.executionResources,this);
     }
 
     /// <summary>宣言メソッドから呼ばれ、引数をキャプチャしたテーブル関数を生成する。</summary>
@@ -401,215 +383,15 @@ public abstract partial class DatabaseContainer:IDisposable {
     }
 
     private Table<TRecord> CreateTable<TRecord>(string name)
-        where TRecord:notnull {
-        if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){return this.CreateSharedTable<TRecord>(name);}
-        var sizing=this.ResolveTableStorage(name);
-        var reservation=this.ReserveTableStoreMemory(sizing);
-        var resources=new StackedDisposable(reservation);
-        try {
-        if(this.Options.StorageMode==DatabaseStorageMode.Memory) {
-            var memoryStoreFactory = global::Seamless.Collections.Tsavorite.Store.Create(
-                IndexSize:sizing.IndexSize,
-                PageSize:sizing.PageSize,
-                SegmentSize:sizing.SegmentSize,
-                MemorySize:sizing.MemorySize);
-            var memoryStore = memoryStoreFactory.Create<TRecord>();
-            resources.Push(memoryStore);
-            var rows=new global::Seamless.Collections.Tsavorite.HashSet<TRecord>(memoryStore,resources);
-            return new(this,rows,name);
-        }
-        var directory = Path.Combine(this.ResolveStorageRoot(),SanitizePathSegment(name));
-        Directory.CreateDirectory(directory);
-        var checkpointToken = ReadCheckpointToken(directory);
-        var store = global::Seamless.Collections.Tsavorite.Store.Create(
-            IndexSize:sizing.IndexSize,
-            PageSize:sizing.PageSize,
-            SegmentSize:sizing.SegmentSize,
-            MemorySize:sizing.MemorySize,
-            CheckpointDir: Path.Combine(directory,"checkpoint"));
-        if(checkpointToken is Guid token) {
-            store=store.WithRecoveryIndexSize(token,sizing.IndexSize);
-        }
-        var logDevice = Devices.CreateLogDevice(Path.Combine(directory,"log"));
-        resources.Push(logDevice);
-        var objectDevice = Devices.CreateLogDevice(Path.Combine(directory,"obj"));
-        resources.Push(objectDevice);
-        var storageStore = store.Create<TRecord>(logDevice,objectDevice);
-        resources.Push(storageStore);
-        if(checkpointToken is Guid checkpoint) {
-            storageStore.Load(checkpoint);
-        }
-        var checkpointedStore=new CheckpointedStore<HashSetStore<TRecord>>(
-            storageStore,
-            static store=>store.Save(),
-            static store=>store.Address.TailAddress,
-            directory);
-        resources.Replace(storageStore,checkpointedStore);
-        var storageRows=new global::Seamless.Collections.Tsavorite.HashSet<TRecord>(
-            storageStore,
-            resources);
-        return new(this,storageRows,name);
-        } catch(Exception creationException) {
-            try{resources.Dispose();}
-            catch(Exception cleanupException){throw new AggregateException("Table creation and cleanup both failed.",creationException,cleanupException);}
-            throw;
-        }
-    }
+        where TRecord:notnull=>this.CreateSharedTable<TRecord>(name);
 
-    private Table<TKey,TRecord> CreateTable<TKey,TRecord>(
-        Func<TRecord,TKey> keySelector,
-        string name)
+    private Table<TKey,TRecord> CreateTable<TKey,TRecord>(Func<TRecord,TKey> keySelector,string name)
         where TKey:struct
-        where TRecord:struct {
-        if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){return this.CreateSharedTable(keySelector,name);}
-        var sizing=this.ResolveTableStorage(name);
-        var reservation=this.ReserveTableStoreMemory(sizing);
-        var resources=new StackedDisposable(reservation);
-        try {
-        if(this.Options.StorageMode==DatabaseStorageMode.Memory) {
-            var memoryStoreFactory=global::Seamless.Collections.Tsavorite.Store.Create(
-                IndexSize:sizing.IndexSize,
-                PageSize:sizing.PageSize,
-                SegmentSize:sizing.SegmentSize,
-                MemorySize:sizing.MemorySize);
-            var dictionaryStore=memoryStoreFactory.Create<TKey,TRecord>();
-            resources.Push(dictionaryStore);
-            var dictionary=(global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>)dictionaryStore.Create();
-            resources.Push((IDisposable)dictionary);
-            return new(
-                this,
-                dictionary,
-                keySelector,
-                resources,
-                name);
-        }
-        var directory=Path.Combine(this.ResolveStorageRoot(),SanitizePathSegment(name));
-        Directory.CreateDirectory(directory);
-        var checkpointToken=ReadCheckpointToken(directory);
-        var store=global::Seamless.Collections.Tsavorite.Store.Create(
-            IndexSize:sizing.IndexSize,
-            PageSize:sizing.PageSize,
-            SegmentSize:sizing.SegmentSize,
-            MemorySize:sizing.MemorySize,
-            CheckpointDir:Path.Combine(directory,"checkpoint"));
-        if(checkpointToken is Guid token) {
-            store=store.WithRecoveryIndexSize(token,sizing.IndexSize);
-        }
-        var logDevice=Devices.CreateLogDevice(Path.Combine(directory,"log"));
-        resources.Push(logDevice);
-        var objectDevice=Devices.CreateLogDevice(Path.Combine(directory,"obj"));
-        resources.Push(objectDevice);
-        var storageStore=store.Create<TKey,TRecord>(logDevice,objectDevice);
-        resources.Push(storageStore);
-        if(checkpointToken is Guid checkpoint) {
-            storageStore.Load(checkpoint);
-        }
-        var storageDictionary=(global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>)storageStore.Create();
-        resources.Push((IDisposable)storageDictionary);
-        var checkpointedStore=new CheckpointedStore<DictionaryStore<TKey,TRecord>>(
-            storageStore,
-            static value=>value.Save(),
-            static value=>value.Address.TailAddress,
-            directory);
-        resources.Replace(storageStore,checkpointedStore);
-        return new(
-            this,
-            storageDictionary,
-            keySelector,
-            resources,
-            name);
-        } catch(Exception creationException) {
-            try{resources.Dispose();}
-            catch(Exception cleanupException){throw new AggregateException("Table creation and cleanup both failed.",creationException,cleanupException);}
-            throw;
-        }
-    }
+        where TRecord:struct=>this.CreateSharedTable(keySelector,name);
 
-    private MaterializedView<TKey,TRecord> CreateMaterializedView<TKey,TRecord>(
-        Func<TRecord,TKey> keySelector,
-        string name)
+    private MaterializedView<TKey,TRecord> CreateMaterializedView<TKey,TRecord>(Func<TRecord,TKey> keySelector,string name)
         where TKey:struct
-        where TRecord:struct {
-          if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){return this.CreateSharedMaterializedView(keySelector,name);}
-        var sizing=this.ResolveTableStorage(name);
-        var reservation=this.ReserveTableStoreMemory(sizing);
-        var resources=new StackedDisposable(reservation);
-        try {
-        if(this.Options.StorageMode==DatabaseStorageMode.Memory) {
-            var memoryStoreFactory=global::Seamless.Collections.Tsavorite.Store.Create(
-                IndexSize:sizing.IndexSize,
-                PageSize:sizing.PageSize,
-                SegmentSize:sizing.SegmentSize,
-                MemorySize:sizing.MemorySize);
-            var dictionaryStore=memoryStoreFactory.Create<TKey,TRecord>();
-            resources.Push(dictionaryStore);
-            var dictionary=(global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>)dictionaryStore.Create();
-            resources.Push((IDisposable)dictionary);
-            return new(
-                this,
-                dictionary,
-                keySelector,
-                resources,
-                name);
-        }
-        var directory=Path.Combine(this.ResolveStorageRoot(),SanitizePathSegment(name));
-        Directory.CreateDirectory(directory);
-        var checkpointToken=ReadCheckpointToken(directory);
-        var store=global::Seamless.Collections.Tsavorite.Store.Create(
-            IndexSize:sizing.IndexSize,
-            PageSize:sizing.PageSize,
-            SegmentSize:sizing.SegmentSize,
-            MemorySize:sizing.MemorySize,
-            CheckpointDir: Path.Combine(directory,"checkpoint"));
-        if(checkpointToken is Guid token) {
-            store=store.WithRecoveryIndexSize(token,sizing.IndexSize);
-        }
-        var logDevice=Devices.CreateLogDevice(Path.Combine(directory,"log"));
-        resources.Push(logDevice);
-        var objectDevice=Devices.CreateLogDevice(Path.Combine(directory,"obj"));
-        resources.Push(objectDevice);
-        var storageStore=store.Create<TKey,TRecord>(logDevice,objectDevice);
-        resources.Push(storageStore);
-        if(checkpointToken is Guid checkpoint) {
-            storageStore.Load(checkpoint);
-        }
-        var storageDictionary=(global::Seamless.Collections.Tsavorite.IDictionary<TKey,TRecord>)storageStore.Create();
-        resources.Push((IDisposable)storageDictionary);
-        var checkpointedStore=new CheckpointedStore<DictionaryStore<TKey,TRecord>>(
-            storageStore,
-            static store=>store.Save(),
-            static store=>store.Address.TailAddress,
-            directory);
-        resources.Replace(storageStore,checkpointedStore);
-        return new(
-            this,
-            storageDictionary,
-            keySelector,
-            resources,
-            name);
-        } catch(Exception creationException) {
-            try{resources.Dispose();}
-            catch(Exception cleanupException){throw new AggregateException("Materialized view creation and cleanup both failed.",creationException,cleanupException);}
-            throw;
-        }
-    }
-
-    private void RecoverMaterializedView<TKey,TRecord>(MaterializedView<TKey,TRecord> view)
-        where TKey:struct
-        where TRecord:struct {
-        var log=this.GetWriteAheadLog();
-        if(log is null) {
-            return;
-        }
-        foreach(var operation in log.Read(view.Name)) {
-            if(operation.Deleted||operation.RecordData is null) {
-                continue;
-            }
-            var key=this.DecodeWal<TKey>(operation,operation.KeyData);
-            var record=this.DecodeWal<TRecord>(operation,operation.RecordData);
-            view.DirectSet(key,record);
-        }
-    }
+        where TRecord:struct=>this.CreateSharedMaterializedView(keySelector,name);
 
     private string ResolveStorageRoot() =>
         this.Options.StorageDirectory??Path.Combine(Environment.CurrentDirectory,this.DatabaseName);
@@ -633,16 +415,15 @@ public abstract partial class DatabaseContainer:IDisposable {
     private static DatabaseContainerOptions ValidateOptions(DatabaseContainerOptions value) {
         ArgumentNullException.ThrowIfNull(value);
         if(value.TransactionMetadataConsumer is not null){
-            if(value.Transactions!=DatabaseTransactionMode.SharedV2||value.StorageMode!=DatabaseStorageMode.Storage||value.GatewayProfile is not null){throw new ArgumentException("Metadata retention requires persistent standalone SharedV2 transactions.",nameof(value));}
+            if(value.StorageMode!=DatabaseStorageMode.Storage||value.GatewayProfile is not null){throw new ArgumentException("Metadata retention requires persistent standalone SharedV2 transactions.",nameof(value));}
             new global::Seamless.Transactions.WalOptions{MetadataConsumer=value.TransactionMetadataConsumer}.Validate();
         }
-        if(!Enum.IsDefined(value.TransactionConcurrency)||value.TransactionConcurrency!=global::Seamless.Transactions.TransactionConcurrencyMode.Exclusive&&value.Transactions!=DatabaseTransactionMode.SharedV2||value.TransactionHistory is not null&&value.Transactions!=DatabaseTransactionMode.SharedV2){throw new ArgumentException("Versioned concurrency requires the common transaction profile.",nameof(value));}
-        if(value.SharedStoreOptions is not null&&value.Transactions!=DatabaseTransactionMode.SharedV2){throw new ArgumentException("SharedStoreOptions requires SharedV2.",nameof(value));}
+        if(!Enum.IsDefined(value.TransactionConcurrency)){throw new ArgumentException("Versioned concurrency requires the common transaction profile.",nameof(value));}
         if(value.TransactionConcurrency==global::Seamless.Transactions.TransactionConcurrencyMode.Optimistic&&value.TransactionHistory is null){throw new ArgumentException("Optimistic transactions require finite history budgets.",nameof(value));}
         if(value.GatewayProfile is not null&&value.TransactionHistory is not null&&value.GatewayVersionedBinding is null&&value.GatewayVersionedSeed is null){throw new NotSupportedException("The versioned Gateway domain adapter must own this profile; standalone configuration is not supported.");}
         value.GatewayVersionedBinding?.Validate(value);
         value.GatewayVersionedSeed?.Validate(value);
-        if(!Enum.IsDefined(value.RecordSerialization)||value.RecordSerialization!=DatabaseRecordSerialization.Default&&value.Transactions!=DatabaseTransactionMode.SharedV2){throw new ArgumentException("Canonical record serialization requires the new SharedV2 storage profile.",nameof(value));}
+        if(!Enum.IsDefined(value.RecordSerialization)){throw new ArgumentException("Explicit record serialization requires the new SharedV2 storage profile.",nameof(value));}
         ArgumentNullException.ThrowIfNull(value);
         if(value.TransactionMemoryLimit<0) {
             throw new ArgumentOutOfRangeException(nameof(value.TransactionMemoryLimit));
@@ -672,61 +453,6 @@ public abstract partial class DatabaseContainer:IDisposable {
     }
 
     private readonly record struct TableStorageSizing(long IndexSize,long PageSize,long SegmentSize,long MemorySize);
-
-    private DatabaseWriteAheadLog? GetWriteAheadLog() {
-        if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){return null;}
-        if(this.Options.StorageMode==DatabaseStorageMode.Memory) {
-            return null;
-        }
-        return this.writeAheadLog??=new(Path.Combine(this.ResolveStorageRoot(),"database.wal"));
-    }
-
-    private void RecoverTable<TRecord>(Table<TRecord> table)
-        where TRecord:notnull {
-        var log=this.GetWriteAheadLog();
-        if(log is null){return;}
-        foreach(var operation in log.Read(table.Name)) {
-            var item=this.DecodeWal<TRecord>(operation,operation.KeyData);
-            if(item is null){throw new InvalidDataException($"WAL operation for '{table.Name}' has a null record.");}
-            if(operation.Deleted){_ = table.DirectRemove(item);}
-            else{_ = table.DirectAdd(item);}
-        }
-    }
-
-    private void RecoverTable<TKey,TRecord>(Table<TKey,TRecord> table)
-        where TKey:struct
-        where TRecord:struct {
-        var log=this.GetWriteAheadLog();
-        if(log is null) {
-            return;
-        }
-        foreach(var operation in log.Read(table.Name)) {
-            var key=this.DecodeWal<TKey>(operation,operation.KeyData);
-            if(operation.Deleted) {
-                _=table.DirectRemove(key);
-                continue;
-            }
-            if(operation.RecordData is null) {
-                throw new InvalidDataException($"WAL operation for '{table.Name}' has no record.");
-            }
-            var record=this.DecodeWal<TRecord>(operation,operation.RecordData);
-            table.DirectSet(key,record);
-        }
-    }
-
-    private T DecodeWal<T>(DatabaseWalOperation operation,string data) {
-        if(operation.EncodingVersion==1) {
-            var maximum=checked((data.Length/4+1)*3);
-            using var reservation=this.executionResources.Budget.ReserveMemory(maximum);
-            return global::MemoryPack.MemoryPackSerializer.Deserialize<T>(Convert.FromBase64String(data))!;
-        }
-        var length=checked((data.Length/4+1)*3);
-        using var buffer=this.executionResources.Rent(length);
-        if(!Convert.TryFromBase64String(data,buffer.Memory.Span,out var written)){
-            throw new InvalidDataException("WAL contains invalid base64 data.");
-        }
-        return this.executionResources.Codecs.Get<T>().Decode(buffer.Memory.Span[..written])!;
-    }
 
 
     private static string SanitizePathSegment(string value) {
@@ -759,47 +485,7 @@ public abstract partial class DatabaseContainer:IDisposable {
     public void Dispose() {
         if(this.disposed){return;}
         if(this.unpublishedSnapshot is not null){throw new InvalidOperationException("Dispose the unpublished snapshot builder before disposing its database.");}
-        if(this.Options.Transactions==DatabaseTransactionMode.SharedV2){this.DisposeShared();return;}
-        if(this.ambientTransaction.Value is not null||this.ambientReadSession.Value is not null) {
-            throw new InvalidOperationException("Dispose active database transactions and read sessions before disposing the database.");
-        }
-        using var writeLease=this.concurrencyGate.EnterWrite(global::System.Threading.CancellationToken.None);
-        List<Exception>? exceptions=null;
-        var checkpointedTables=new global::System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
-        lock(this.gate) {
-            if(this.disposed) {
-                return;
-            }
-            this.disposed=true;
-            checkpointedTables.UnionWith(this.tables.Keys);
-            foreach(var table in this.tables.Values) {
-                try {
-                    table.Dispose();
-                } catch(Exception exception) {
-                    exceptions??=[];
-                    exceptions.Add(exception);
-                }
-            }
-            this.tables.Clear();
-            this.views.Clear();
-        }
-        GC.SuppressFinalize(this);
-        if(exceptions is null&&!this.faulted&&this.writeAheadLog is not null) {
-            try {
-                if(this.writeAheadLog.CanArchiveAfterCheckpoint(checkpointedTables)){
-                    _=this.writeAheadLog.ArchiveAfterCheckpoint();
-                }
-            } catch(Exception exception) {
-                exceptions??=[];
-                exceptions.Add(exception);
-            }
-        }
-        try{this.executionResources.Dispose();}
-        catch(Exception exception){
-            exceptions??=[];
-            exceptions.Add(exception);
-        }
-        ThrowCollectedExceptions(exceptions);
+        this.DisposeShared();
     }
 
     private sealed class StackedDisposable(params IDisposable[] resources):IDisposable {

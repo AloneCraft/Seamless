@@ -291,8 +291,14 @@ internal sealed class TableTransactionOverlay<TKey,TRecord>(
         public IEnumerable<DatabaseWalOperation> CreateWalOperations()=>throw new InvalidOperationException("A savepoint cannot be prepared directly.");
         public void Dispose(){if(this.disposed){return;}this.disposed=true;try{point.Dispose();}finally{owner.Dispose();}}
     }
-    private TRecord OwnRecord(TRecord record){if(table.GatewayKeyComparer is null||!global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<TRecord>()){return record;}using var encoded=resources.Encode(record);return resources.Codecs.Get<TRecord>().Decode(encoded.Memory.Span);}
-    private TKey OwnKey(TKey key){if(table.GatewayKeyComparer is null||!global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<TKey>()){return key;}using var encoded=resources.Encode(key);return resources.Codecs.Get<TKey>().Decode(encoded.Memory.Span);}
+    private TRecord OwnRecord(TRecord record){
+        if(!resources.Codecs.UsesRecordGraphSerialization&&(table.GatewayKeyComparer is null||!global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<TRecord>())){return record;}
+        using var encoded=resources.Encode(record);return resources.Codecs.Get<TRecord>().Decode(encoded.Memory.Span);
+    }
+    private TKey OwnKey(TKey key){
+        if(!resources.Codecs.UsesRecordGraphSerialization&&(table.GatewayKeyComparer is null||!global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<TKey>())){return key;}
+        using var encoded=resources.Encode(key);return resources.Codecs.Get<TKey>().Decode(encoded.Memory.Span);
+    }
 
     public ITransactionOverlay CreateSnapshot(){
         if(table.GatewayKeyComparer is not null){var point=this.changes.CreateHistoryPoint();this.references++;return new HistorySnapshot(this,point);}
@@ -398,6 +404,10 @@ internal sealed class MaterializedViewTransactionOverlay<TKey,TRecord>(
     where TKey:struct
     where TRecord:struct {
     private TransactionChangeSet<TKey,TRecord> additions=new(resources,memoryLimit);
+    private TValue Own<TValue>(TValue value){
+        if(!resources.Codecs.UsesRecordGraphSerialization){return value;}
+        using var encoded=resources.Encode(value);return resources.Codecs.Get<TValue>().Decode(encoded.Memory.Span);
+    }
 
     public ITransactionOverlay CreateSnapshot(){
         var snapshot=new MaterializedViewTransactionOverlay<TKey,TRecord>(view,resources,memoryLimit);
@@ -427,7 +437,7 @@ internal sealed class MaterializedViewTransactionOverlay<TKey,TRecord>(
 
     public bool TryGetValue(TKey key,out TRecord record) {
         if(this.additions.TryGetValue(key,out var change)) {
-            record=change.Record;
+            record=this.Own(change.Record);
             return !change.Deleted;
         }
         return view.DirectTryGetValue(key,out record);
@@ -437,7 +447,7 @@ internal sealed class MaterializedViewTransactionOverlay<TKey,TRecord>(
         if(this.TryGetValue(key,out _)) {
             return false;
         }
-        this.additions.Set(key,new(false,record));
+        this.additions.Set(key,new(false,this.Own(record)));
         return true;
     }
 
@@ -464,7 +474,7 @@ internal sealed class MaterializedViewTransactionOverlay<TKey,TRecord>(
         foreach(var pair in view.DirectRows){yield return pair;}
         foreach(var pair in this.additions.Enumerate()) {
             if(!pair.Value.Deleted&&!view.DirectTryGetValue(pair.Key,out _)) {
-                yield return new(pair.Key,pair.Value.Record);
+                yield return new(this.Own(pair.Key),this.Own(pair.Value.Record));
             }
         }
     }

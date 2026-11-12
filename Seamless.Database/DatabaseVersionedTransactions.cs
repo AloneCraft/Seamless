@@ -7,7 +7,9 @@ namespace Seamless.Database;
 public abstract partial class DatabaseContainer{
     private VersionedTransactionalTable<TKey,TRecord> CreateVersionedParticipant<TKey,TRecord>(Func<TRecord,TKey> keySelector,string name) where TKey:notnull{
         this.EnsureSharedStorage();var sizing=this.ResolveTableStorage(name);var identity=this.TransactionCodecIdentity<TKey,TRecord>(name);
+        this.CheckRecordGraphContract(name,identity);
         var encoding=VersionedRecordEncoding.Auto;if(this.Options.RecordSerialization==DatabaseRecordSerialization.CanonicalV1){encoding=VersionedRecordEncoding.Canonical;}
+        if(this.Options.RecordSerialization==DatabaseRecordSerialization.RecordGraphV1){encoding=VersionedRecordEncoding.RecordGraphV1;}
         var storageIdentity=VersionedTransactionalTable<TKey,TRecord>.StorageIdentity(identity,encoding);
         var data=this.sharedStore!.CreateTsavoriteHistory(name,new TsavoriteTuning{IndexSize=checked(sizing.IndexSize*64),PageSize=sizing.PageSize,SegmentSize=sizing.SegmentSize,LogMemorySize=sizing.MemorySize},storageIdentity);
         var id=BinaryPrimitives.ReadInt32LittleEndian(SHA256.HashData(Encoding.UTF8.GetBytes(name)))&int.MaxValue;if(id==0){id=1;}

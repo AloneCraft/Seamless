@@ -3,7 +3,7 @@ using Seamless.Collections.Tsavorite;
 using Seamless.Execution;
 namespace Seamless.Transactions.Collections;
 
-public enum VersionedRecordEncoding{Canonical,Auto}
+public enum VersionedRecordEncoding{Canonical,Auto,RecordGraphV1}
 
 /// <summary>私有変更を確定まで隔離し、Tsavoriteのコピー更新と前リンクでsnapshotを選ぶ表。</summary>
 public sealed partial class VersionedTransactionalTable<TKey,TRecord>:ITransactionalTable<TKey,TRecord>,IReclaimableTransactionParticipant,IRoutedVersionedTransactionParticipant,IDisposable where TKey:notnull{
@@ -38,7 +38,7 @@ public sealed partial class VersionedTransactionalTable<TKey,TRecord>:ITransacti
     public string CodecIdentity{get;}
     public void PrepareForTransactions()=>this.SealUnpublishedSnapshot();
     public long RecoveredVersion{get{this.CheckUnpublishedSnapshot(false);return this.data.MaximumCommittedVersion;}}
-    public TransactionCollection<TKey,TRecord> For(TransactionScope scope)=>new(this,scope);
+    public TransactionCollection<TKey,TRecord> For(TransactionScope scope)=>new(this,scope,this.keyOf);
     internal bool MatchesJoinKey(Func<TRecord,TKey> expectedKey)=>this.supportsJoinKeyEncoding&&this.keyOf==expectedKey;
     public ITransactionChanges CreateChanges()=>throw new NotSupportedException("A versioned transaction context is required.");
     public IVersionedTransactionChanges CreateChanges(TransactionContext context){this.SealUnpublishedSnapshot();return new Changes(this,context);}
@@ -49,7 +49,7 @@ public sealed partial class VersionedTransactionalTable<TKey,TRecord>:ITransacti
         var key=this.keyCodec.Decode(entry.Key);
         if(entry.Mutation!=WalMutation.Delete){
             if(entry.Row is null){throw new InvalidDataException("Missing row.");}
-            if(!EqualityComparer<TKey>.Default.Equals(key,this.keyOf(this.rowCodec.Decode(entry.Row)))){throw new InvalidDataException("WAL row/key mismatch.");}
+            if(!this.resources.Codecs.GetEqualityComparer<TKey>().Equals(key,this.keyOf(this.rowCodec.Decode(entry.Row)))){throw new InvalidDataException("WAL row/key mismatch.");}
         }
         using var access=this.Access();TRecord record=default!;if(entry.Row is not null){record=this.rowCodec.Decode(entry.Row);}this.Append(access,key,record,context.CommitVersion,entry.Mutation==WalMutation.Delete);
     }
@@ -101,7 +101,7 @@ public sealed partial class VersionedTransactionalTable<TKey,TRecord>:ITransacti
             if(!visible.HasValue||visible.Value.Deleted){return(false,default!);}return(true,this.table.DecodeStoreRow(visible.Value.Row));
         }
         public void Set(TKey key,TRecord row){
-            this.context.EnsureWritable();if(!EqualityComparer<TKey>.Default.Equals(key,this.table.keyOf(row))){throw new ArgumentException("Record key does not match the indexer key.",nameof(row));}
+            this.context.EnsureWritable();if(!this.table.resources.Codecs.GetEqualityComparer<TKey>().Equals(key,this.table.keyOf(row))){throw new ArgumentException("Record key does not match the indexer key.",nameof(row));}
             using var encoded=this.table.resources.Encode(key);this.context.ObserveWrite(this.table,encoded.Memory.Span);
             this.changes.Set(this.table.keyCodec.Decode(encoded.Memory.Span),new(false,this.table.Clone(row)));
         }

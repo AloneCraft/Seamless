@@ -38,7 +38,7 @@ public static class SqlDdlParser{
         Guard(x,"Names","ObjectType");if(x.ObjectType.ToString()!="Table"||x.Names.Count!=1){throw Unsupported("Only one table may be dropped.");}var(schema,name)=Name(x.Names[0]);return new SqlDropTableCommand(schema,name);
     }
     private static (string Schema,string Name) Name(ObjectName value){
-        Guard(value,"Values");if(value.Values.Count is <1 or >2){throw Unsupported("Only local one- or two-part names are supported.");}foreach(var id in value.Values){Guard(id,"Value","QuoteStyle");if(id.Value.StartsWith('#')){throw Unsupported("Temporary tables are unsupported.");}}return(value.Values.Count==2?value.Values[0].Value:"dbo",value.Values[value.Values.Count-1].Value);
+        Guard(value,"Values");if(value.Values.Count is <1 or >2){throw Unsupported("Only local one- or two-part names are supported.");}foreach(var id in value.Values){Guard(id,"Value","QuoteStyle");if(id.Value.StartsWith('#')){throw Unsupported("Temporary tables are unsupported.");}}return(value.Values.Count==2?value.Values[0].Value:"",value.Values[value.Values.Count-1].Value);
     }
     private static RuntimeSqlColumn Column(ColumnDef value){
         Guard(value,"Name","DataType","Options");Guard(value.Name,"Value","QuoteStyle");var nullable=true;var sawNull=false;var primary=false;

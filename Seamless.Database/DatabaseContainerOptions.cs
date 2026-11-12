@@ -7,13 +7,12 @@ public enum DatabaseStorageMode {
     /// <summary>ストレージデバイスへ退避しながら運用する。</summary>
     Storage,
 }
-public enum DatabaseTransactionMode{Legacy,SharedV2}
-public enum DatabaseRecordSerialization{Default,CanonicalV1}
+public enum DatabaseRecordSerialization{Default,CanonicalV1,RecordGraphV1}
 
 /// <summary>コンテナ作成オプション。メモリ範囲内運用とストレージ利用をパラメータで切り替える。</summary>
 public sealed record DatabaseContainerOptions {
-    /// <summary>SharedV2は新規保存領域への明示導入。旧DBを自動変換しない。</summary>
-    public DatabaseTransactionMode Transactions{get;init;}=DatabaseTransactionMode.Legacy;
+    [global::System.Text.Json.Serialization.JsonIgnore]
+    internal bool PreparedTransactionWal{get;init;}
     /// <summary>新規の保存用SharedV2で、処理済み保存までWALの付随情報を保持する。</summary>
     public string? TransactionMetadataConsumer{get;init;}
     public global::Seamless.Transactions.TransactionConcurrencyMode TransactionConcurrency{get;init;}=global::Seamless.Transactions.TransactionConcurrencyMode.Exclusive;

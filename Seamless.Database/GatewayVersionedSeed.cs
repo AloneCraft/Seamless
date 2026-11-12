@@ -11,7 +11,7 @@ internal sealed class GatewayVersionedSeed{
     }
     internal bool Sealed{get;private set;}
     internal void Validate(DatabaseContainerOptions options){
-        if(options.GatewayProfile!=this.profile||options.TransactionHistory is null||options.GatewayVersionedBinding is not null||options.Transactions!=DatabaseTransactionMode.SharedV2||options.RecordSerialization!=DatabaseRecordSerialization.CanonicalV1||options.StorageMode!=DatabaseStorageMode.Storage||options.ParentBudget is null){throw new ArgumentException("The private seed requires a finite canonical versioned Gateway profile.",nameof(options));}
+        if(options.GatewayProfile!=this.profile||options.TransactionHistory is null||options.GatewayVersionedBinding is not null||options.RecordSerialization!=DatabaseRecordSerialization.CanonicalV1||options.StorageMode!=DatabaseStorageMode.Storage||options.ParentBudget is null){throw new ArgumentException("The private seed requires a finite canonical versioned Gateway profile.",nameof(options));}
     }
     internal void Bind(DatabaseContainer value){lock(this.gate){if(this.database is not null&&!ReferenceEquals(this.database,value)){throw new InvalidOperationException("A seed capability belongs to one private database instance.");}this.database=value;}}
     internal void CheckOwner(DatabaseContainer value,GatewayTransactionOwner owner){lock(this.gate){if(!ReferenceEquals(this.database,value)||owner!=this.owner||this.Sealed){throw new InvalidOperationException("Only the constructing owner may seal an unfinished private seed.");}}}

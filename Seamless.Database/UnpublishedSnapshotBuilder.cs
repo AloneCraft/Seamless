@@ -10,7 +10,7 @@ public abstract partial class DatabaseContainer{
         lock(this.gate){
             this.EnsureAvailable();
             if(this.Options.GatewayVersionedBinding is not null){throw new InvalidOperationException("Finish the private candidate snapshot before attaching it to the Gateway domain.");}
-            if(this.Options.Transactions!=DatabaseTransactionMode.SharedV2||this.Options.RecordSerialization!=DatabaseRecordSerialization.CanonicalV1){throw new InvalidOperationException("Unpublished snapshots require the canonical SharedV2 profile.");}
+            if(this.Options.RecordSerialization!=DatabaseRecordSerialization.CanonicalV1){throw new InvalidOperationException("Unpublished snapshots require the canonical SharedV2 profile.");}
             this.EnsureTransactionSchema();this.EnsureSharedStorage();
             if(this.sharedReady||this.sharedStore!.CurrentCheckpoint is not null||this.sharedJournal is not null&&this.sharedJournal.Device.RecoveredLsn!=0){throw new InvalidOperationException("Only a fresh unpublished database can be bulk loaded.");}
             var builder=new UnpublishedSnapshotBuilder(this);this.unpublishedSnapshot=builder;return builder;

@@ -23,7 +23,9 @@ internal sealed partial class TpcEEngine:ITpcEEngine{
     }
     public TpcEDatabaseBase Database=>this.db;
     public ILoadSink Loader{get;}
-    public TxnResult Execute(TxnRequest request){
+    public TxnResult Execute(TxnRequest request)=>this.ExecuteCore(request,null);
+    public TxnResult Execute(TxnRequest request,Func<TxnResult,ReadOnlyMemory<byte>> prepareMetadata)=>this.ExecuteCore(request,prepareMetadata);
+    private TxnResult ExecuteCore(TxnRequest request,Func<TxnResult,ReadOnlyMemory<byte>>? prepareMetadata){
         this.db.Log.Begin();
         try{
             TxnResult result=request switch{
@@ -42,8 +44,12 @@ internal sealed partial class TpcEEngine:ITpcEEngine{
                 _=>throw new NotSupportedException($"{request.GetType().Name} is not a TPC-E transaction input."),
             };
             // Trade-Order の巻き戻し(Frame 5)は Frames の中で Rollback 済み。それ以外は確定する。
+            var metadata=ReadOnlyMemory<byte>.Empty;if(this.db.TransactionDomain is not null&&prepareMetadata is not null){metadata=prepareMetadata(result);}
             if(this.db.Log.IsRecording){
-                this.db.Log.Commit();
+                this.db.Log.Commit(metadata);
+            }else if(!metadata.IsEmpty){
+                // 業務rollback後は行を変更せず、処理済みdriver位置だけを独立確定する。
+                this.db.Log.Begin();this.db.Log.Commit(metadata);
             }
             return result;
         }catch{

@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Buffers.Binary;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -12,6 +13,7 @@ public static class NativeWireValidation{
     public static NativeWireValidator For<T>()=>For(typeof(T));
     public static NativeWireValidator For(Type type)=>Validators.GetValue(type,static item=>new(new Builder().Build(item)));
     public static void Validate<T>(ReadOnlySpan<byte> bytes,NativeWireLimits? limits=null)=>For<T>().Validate(bytes,limits);
+    public static void ValidateSequence<T>(ReadOnlySequence<byte> bytes,NativeWireLimits? limits=null)=>For<T>().ValidateSequence(bytes,limits);
 
     private sealed class Builder{
         private readonly HashSet<Type> active=[];
@@ -95,7 +97,7 @@ public static class NativeWireValidation{
         public void Read(ref Reader reader){
             reader.Step();
             switch(kind){
-                case Kind.Fixed:reader.Take(size);return;
+                case Kind.Fixed:reader.Skip(size);return;
                 case Kind.String:reader.String();return;
                 case Kind.Array:
                     var count=reader.Integer();if(count==-1){return;}reader.ArrayCount(count);
@@ -113,26 +115,45 @@ public static class NativeWireValidation{
             foreach(var child in this.children){child.Read(ref reader);}
         }
     }
-    internal ref struct Reader(ReadOnlySpan<byte> bytes,NativeWireLimits limits){
-        private ReadOnlySpan<byte> remaining=bytes;
-        private int nodes=limits.MaximumValueNodes;
-        private int elements=limits.MaximumArrayElements;
+    internal ref struct Reader{
+        private ReadOnlySpan<byte> remaining;
+        private ReadOnlySequence<byte> sequence;
+        private readonly bool segmented;
+        private readonly NativeWireLimits limits;
+        private int nodes;
+        private int elements;
         private static readonly UTF8Encoding StrictUtf8=new(false,true);
+        public Reader(ReadOnlySpan<byte> bytes,NativeWireLimits limits){this.remaining=bytes;this.sequence=default;this.segmented=false;this.limits=limits;this.nodes=limits.MaximumValueNodes;this.elements=limits.MaximumArrayElements;}
+        public Reader(ReadOnlySequence<byte> bytes,NativeWireLimits limits){this.remaining=bytes.FirstSpan;this.sequence=bytes;this.segmented=!bytes.IsSingleSegment;this.limits=limits;this.nodes=limits.MaximumValueNodes;this.elements=limits.MaximumArrayElements;}
+        private long Remaining{get{if(this.segmented){return this.sequence.Length;}return this.remaining.Length;}}
         public void Step(){if(--this.nodes<0){throw Invalid();}}
-        public ReadOnlySpan<byte> Take(int length){if(length<0||length>this.remaining.Length){throw Invalid();}var value=this.remaining[..length];this.remaining=this.remaining[length..];return value;}
-        public byte Byte()=>this.Take(1)[0];
-        public int Integer()=>BinaryPrimitives.ReadInt32LittleEndian(this.Take(4));
-        public void TakeProduct(int count,int width){var length=(long)count*width;if(length<0||length>this.remaining.Length){throw Invalid();}this.Take((int)length);}
+        private ReadOnlySpan<byte> TakeSpan(int length){if(length<0||length>this.remaining.Length){throw Invalid();}var value=this.remaining[..length];this.remaining=this.remaining[length..];return value;}
+        public void Skip(int length){if(length<0||length>this.Remaining){throw Invalid();}if(this.segmented){this.sequence=this.sequence.Slice(length);}else{this.remaining=this.remaining[length..];}}
+        public byte Byte(){if(!this.segmented){return this.TakeSpan(1)[0];}var reader=new SequenceReader<byte>(this.sequence);if(!reader.TryRead(out var value)){throw Invalid();}this.sequence=this.sequence.Slice(reader.Position);return value;}
+        public int Integer(){if(!this.segmented){return BinaryPrimitives.ReadInt32LittleEndian(this.TakeSpan(4));}var reader=new SequenceReader<byte>(this.sequence);if(!reader.TryReadLittleEndian(out int value)){throw Invalid();}this.sequence=this.sequence.Slice(reader.Position);return value;}
+        public void TakeProduct(int count,int width){var length=(long)count*width;if(length<0||length>this.Remaining){throw Invalid();}this.Skip((int)length);}
         public void ArrayCount(int count){if(count<0||count>this.elements){throw Invalid();}this.elements-=count;}
-        public void String(){
-            var header=this.Integer();if(header is -1 or 0){return;}
-            if(header>0){if(header>limits.MaximumStringCharacters){throw Invalid();}this.TakeProduct(header,2);return;}
-            var length=~header;var characters=this.Integer();if(length<0||characters<0||characters>limits.MaximumStringCharacters){throw Invalid();}
-            var data=this.Take(length);int actual;
-            try{actual=StrictUtf8.GetCharCount(data);}catch(DecoderFallbackException){throw Invalid();}
-            if(actual>limits.MaximumStringCharacters||characters!=0&&characters!=actual){throw Invalid();}
+        public bool String(){
+            var header=this.Integer();if(header==-1){return false;}if(header==0){return true;}
+            if(header>0){if(header>this.limits.MaximumStringCharacters){throw Invalid();}this.TakeProduct(header,2);return true;}
+            var length=~header;var characters=this.Integer();if(length<0||length>this.Remaining||characters<0||characters>this.limits.MaximumStringCharacters){throw Invalid();}
+            int actual;
+            try{if(this.segmented){actual=this.CountUtf8(this.sequence.Slice(0,length));this.Skip(length);}else{actual=StrictUtf8.GetCharCount(this.TakeSpan(length));}}catch(DecoderFallbackException){throw Invalid();}
+            if(actual>this.limits.MaximumStringCharacters||characters!=0&&characters!=actual){throw Invalid();}return true;
         }
-        public void Finish(){if(!this.remaining.IsEmpty){throw Invalid();}}
+        private int CountUtf8(ReadOnlySequence<byte> data){
+            if(data.IsSingleSegment){return StrictUtf8.GetCharCount(data.FirstSpan);}
+            var decoder=StrictUtf8.GetDecoder();Span<char> characters=stackalloc char[256];var total=0;long processed=0;
+            foreach(var memory in data){
+                var bytes=memory.Span;
+                while(true){
+                    decoder.Convert(bytes,characters,processed+bytes.Length==data.Length,out var used,out var written,out var completed);processed+=used;total+=written;bytes=bytes[used..];
+                    if(total>this.limits.MaximumStringCharacters){throw Invalid();}if(completed){break;}if(used==0&&written==0){throw Invalid();}
+                }
+            }
+            return total;
+        }
+        public void Finish(){if(this.Remaining!=0){throw Invalid();}}
     }
     private static InvalidDataException Invalid()=>new("The native payload violates its declared type or receive limits.");
 }
@@ -141,6 +162,10 @@ public sealed class NativeWireValidator{
     private readonly NativeWireValidation.Plan plan;
     internal NativeWireValidator(NativeWireValidation.Plan plan)=>this.plan=plan;
     public void Validate(ReadOnlySpan<byte> bytes,NativeWireLimits? limits=null){
+        limits??=NativeWireLimits.Default;limits.CheckProfile();if(bytes.Length>limits.MaximumBytes){throw new InvalidDataException("The native payload exceeds the receive limit.");}
+        var reader=new NativeWireValidation.Reader(bytes,limits);this.plan.Read(ref reader);reader.Finish();
+    }
+    public void ValidateSequence(ReadOnlySequence<byte> bytes,NativeWireLimits? limits=null){
         limits??=NativeWireLimits.Default;limits.CheckProfile();if(bytes.Length>limits.MaximumBytes){throw new InvalidDataException("The native payload exceeds the receive limit.");}
         var reader=new NativeWireValidation.Reader(bytes,limits);this.plan.Read(ref reader);reader.Finish();
     }

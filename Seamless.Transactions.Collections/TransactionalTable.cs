@@ -17,7 +17,7 @@ public sealed class TransactionalTable<TKey,TRecord>:IContextualTransactionParti
     public int Partition{get;}
     public int TableId{get;}
     public string CodecIdentity{get;}
-    public TransactionCollection<TKey,TRecord> For(TransactionScope scope)=>new(this,scope);
+    public TransactionCollection<TKey,TRecord> For(TransactionScope scope)=>new(this,scope,this.keyOf);
     public ITransactionChanges CreateChanges()=>new Changes(this);
     public ITransactionChanges CreateChanges(TransactionContext context)=>new Changes(this,context);
     public TransactionParticipantSnapshot GetCommittedSnapshot(){
@@ -39,7 +39,7 @@ public sealed class TransactionalTable<TKey,TRecord>:IContextualTransactionParti
         if(entry.Mutation==WalMutation.Delete){this.remove(key);return;}
         if(entry.Row is null){throw new InvalidDataException("Missing row.");}
         var row=this.resources.Codecs.Get<TRecord>().Decode(entry.Row);
-        if(!EqualityComparer<TKey>.Default.Equals(key,this.keyOf(row))){throw new InvalidDataException("WAL row/key mismatch.");}
+        if(!this.resources.Codecs.GetEqualityComparer<TKey>().Equals(key,this.keyOf(row))){throw new InvalidDataException("WAL row/key mismatch.");}
         this.write(key,row);
     }
     private TRecord Snapshot(TRecord value){using var bytes=this.resources.Encode(value);return this.resources.Codecs.Get<TRecord>().Decode(bytes.Memory.Span);}
@@ -63,7 +63,7 @@ public sealed class TransactionalTable<TKey,TRecord>:IContextualTransactionParti
         }
         public void Set(TKey key,TRecord row){
             this.context?.EnsureWritable();
-            if(!EqualityComparer<TKey>.Default.Equals(key,this.table.keyOf(row))){throw new ArgumentException("Record key does not match the indexer key.",nameof(row));}
+            if(!this.table.resources.Codecs.GetEqualityComparer<TKey>().Equals(key,this.table.keyOf(row))){throw new ArgumentException("Record key does not match the indexer key.",nameof(row));}
             this.changes.Set(key,new(false,this.table.Snapshot(row)));
         }
         public bool Add(TRecord row){this.context?.EnsureWritable();var key=this.table.keyOf(row);if(this.Read(key).Found){return false;}this.Set(key,row);return true;}
@@ -121,7 +121,8 @@ public sealed class TransactionalTable<TKey,TRecord>:IContextualTransactionParti
 public sealed class TransactionCollection<TKey,TRecord>:IEnumerable<TRecord> where TKey:notnull{
     private readonly ITransactionalTable<TKey,TRecord> table;
     private readonly TransactionScope scope;
-    internal TransactionCollection(ITransactionalTable<TKey,TRecord> table,TransactionScope scope){this.table=table;this.scope=scope;}
+    private readonly Func<TRecord,TKey> keyOf;
+    internal TransactionCollection(ITransactionalTable<TKey,TRecord> table,TransactionScope scope,Func<TRecord,TKey> keyOf){this.table=table;this.scope=scope;this.keyOf=keyOf;}
     private T Use<T>(Func<ITableChanges<TKey,TRecord>,T> action)=>this.scope.Use<T,ITableChanges<TKey,TRecord>>(this.table,action);
     public TransactionRows<TKey,TRecord> Rows=>new(this);
     internal bool MatchesReadOnlyJoinIndex(Func<TRecord,TKey> expectedKey)=>
@@ -152,6 +153,10 @@ public sealed class TransactionCollection<TKey,TRecord>:IEnumerable<TRecord> whe
         return result.Found;
     }
     public bool ContainsKey(TKey key)=>this.Use(changes=>changes.Read(key).Found);
+    // [集合] 同じキーの行が取引から見えていて、行全体が等しいときだけ含む。キーだけの一致では含まない。
+    public bool Contains(TRecord row)=>this.TryGetValue(this.keyOf(row),out var current)&&EqualityComparer<TRecord>.Default.Equals(current,row);
+    // [件数] snapshotと私有変更を反映した行数。走査で数える(O(n))。集合としての Count は読取専用の包みだけが持つ。
+    internal long CountRows(){var count=0L;foreach(var _ in this){count++;}return count;}
     public bool Add(TRecord row)=>this.Use(changes=>changes.Add(row));
     public bool Remove(TKey key)=>this.Use(changes=>changes.Remove(key));
     public IEnumerator<TRecord> GetEnumerator()=>this.Enumerate().GetEnumerator();

@@ -16,8 +16,8 @@ public abstract class Range(int count = 4_096):global::Common.Base<int>(count) {
     // 射影融合を無効にした対照側(NoProjectionMerge)で carrier が残ると __hoist4(outer,inner) という
     // 不正な C# になる。射影融合とは無関係の別バグ。
     // record struct / record carrier の意味保存と融合形状は
-    // Test/System/Linq/Intercept/Optimization/JoinSelectFusion.CarrierShapes と
-    // Test/SourceGenerator/ProjectionMergeShapeTests で固定してある。
+    // Benchmark/Benchmark.Dynamic.Core/RegressionSources/System/Linq/Intercept/Optimization/JoinSelectFusion.CarrierShapes と
+    // Benchmark.Dynamic.Tests/Migration/SourceGenerator/ProjectionMergeShapeTests で固定してある。
     // SelectMany の result selector も同型。collection selector は 1 要素に絞って carrier 構築の有無に寄せる。
     [BenchFact, Benchmark] public void SelectMany_collection_Select_member() => this.SelectMany_collection_Select_member_Impl();
     [LinqIntercept(true,Optimizations = OptimizationSettings.Value)] private void SelectMany_collection_Select_member_Impl() => global::System.Linq.Enumerable.Range(1,this.EffectiveSourceCount(4_096)).SelectMany(static outer => global::System.Linq.Enumerable.Repeat(outer,1),static (outer,inner) => (Outer: outer,Inner: inner)).Select(static pair => pair.Inner).Consume(this.consumer);

@@ -93,7 +93,7 @@ internal sealed partial class QueryBinder{
         switch(source){
             case SqlTableSyntax table:{
                 var parts=table.Name.Parts;if(parts.Count is <1 or >3){throw new SqlQueryException("A basic table name must have one to three parts.",40515);}
-                var schema="dbo";var databaseName=this.database;if(parts.Count>=2){schema=parts[^2].Value;}if(parts.Count==3){databaseName=parts[0].Value;}
+                var schema="";var databaseName=this.database;if(parts.Count>=2){schema=parts[^2].Value;}if(parts.Count==3){databaseName=parts[0].Value;}
                 var name=new SqlObjectName(databaseName,schema,parts[^1].Value);var definition=this.catalog.FindTable(name)??throw new SqlQueryException("Invalid object name '"+name+"'.",208);
                 name=definition.Name;var qualifier=table.Alias?.Value??name.Name;
                 if(definition.ViewDefinition is{}view){

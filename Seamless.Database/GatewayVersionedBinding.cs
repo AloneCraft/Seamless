@@ -30,7 +30,7 @@ internal sealed class GatewayVersionedBinding:IDisposable{
     internal void Validate(DatabaseContainerOptions value){
         lock(this.gate){
             ObjectDisposedException.ThrowIf(this.disposed,this);
-            if(value.Transactions!=DatabaseTransactionMode.SharedV2||value.TransactionHistory!=this.options.History||value.TransactionConcurrency!=this.options.Concurrency||value.RecordSerialization!=DatabaseRecordSerialization.CanonicalV1||value.StorageMode!=DatabaseStorageMode.Storage||!ReferenceEquals(value.ParentBudget,this.options.ParentBudget)||value.GatewayProfile is not{} profile||profile.WalId!=this.WalId||profile.DatabaseId!=this.Group.Partition||profile.GenerationId!=this.GenerationId){throw new ArgumentException("The database must use its owning Gateway versioned domain and generation profile.",nameof(value));}
+            if(value.TransactionHistory!=this.options.History||value.TransactionConcurrency!=this.options.Concurrency||value.RecordSerialization!=DatabaseRecordSerialization.CanonicalV1||value.StorageMode!=DatabaseStorageMode.Storage||!ReferenceEquals(value.ParentBudget,this.options.ParentBudget)||value.GatewayProfile is not{} profile||profile.WalId!=this.WalId||profile.DatabaseId!=this.Group.Partition||profile.GenerationId!=this.GenerationId){throw new ArgumentException("The database must use its owning Gateway versioned domain and generation profile.",nameof(value));}
         }
     }
     internal void Bind(DatabaseContainer owner){lock(this.gate){ObjectDisposedException.ThrowIf(this.disposed,this);if(this.database is not null&&!ReferenceEquals(this.database,owner)){throw new InvalidOperationException("A binding belongs to exactly one physical generation.");}this.database=owner;}}

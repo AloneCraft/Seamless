@@ -3,6 +3,9 @@ using Microsoft.CodeAnalysis.Text;
 namespace Shared.Database.Generation;
 
 internal sealed partial class DatabaseSchemaGeneration:IIncrementalGenerator {
+    private static readonly DiagnosticDescriptor InvalidRecordDeclaration=new(
+        "SDB003","Invalid database record declaration","Database record '{0}': {1}",
+        "Seamless.Database.Generator",DiagnosticSeverity.Error,isEnabledByDefault:true);
     private static readonly SymbolDisplayFormat FullTypeFormat=new(
         globalNamespaceStyle:SymbolDisplayGlobalNamespaceStyle.Included,
         typeQualificationStyle:SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
@@ -57,6 +60,8 @@ internal sealed partial class DatabaseSchemaGeneration:IIncrementalGenerator {
             .Where(static target=>target.Symbol.Name=="DatabaseGenerator"&&target.Symbol.GetMembers("OptimizeFieldLayout").OfType<IFieldSymbol>().Any(static field=>field.IsConst&&field.ConstantValue is true))
             .Select(static target=>NamespaceName(target.Symbol.ContainingNamespace)).ToArray();
 
+        GenerateDeclaredRecords(context,uniqueTargets,markerNamespaces);
+
         var records=uniqueTargets
             .Where(static target=>target.IsPartial
                 &&target.Symbol.TypeKind==TypeKind.Struct
@@ -90,6 +95,195 @@ internal sealed partial class DatabaseSchemaGeneration:IIncrementalGenerator {
         context.AddSource("Seamless.Database.Schema.g.cs",SourceText.From(builder.ToString(),Encoding.UTF8));
     }
 
+    private static void GenerateDeclaredRecords(SourceProductionContext context,TypeTarget[] targets,string[] roots){
+        foreach(var target in targets.OrderBy(static target=>target.Symbol.ToDisplayString(),StringComparer.Ordinal)){
+            var symbol=target.Symbol;
+            var recordNamespace=NamespaceName(symbol.ContainingNamespace);
+            var root=roots.FirstOrDefault(candidate=>{
+                var prefix=candidate.Length==0?"Tables":candidate+".Tables";
+                return recordNamespace==prefix||recordNamespace.StartsWith(prefix+".",StringComparison.Ordinal);
+            });
+            if(root is null){continue;}
+            var tableNamespace=root.Length==0?"Tables":root+".Tables";
+            var keyNamespace=(root.Length==0?"Keys":root+".Keys")+recordNamespace.Substring(tableNamespace.Length);
+            var properties=symbol.GetMembers().OfType<IPropertySymbol>()
+                .Where(static property=>!property.IsStatic&&!property.IsImplicitlyDeclared).ToImmutableArray();
+            var invalidShape=!target.IsPartial||symbol.TypeKind!=TypeKind.Struct||symbol.Arity!=0
+                ||symbol.ContainingType is not null||symbol.IsRefLikeType||properties.IsEmpty;
+            var invalidProperties=properties.Any(static property=>!IsPartialDefinition(property)
+                ||property.DeclaredAccessibility!=Accessibility.Public||property.IsIndexer||property.RefKind!=RefKind.None
+                ||property.Type.IsRefLikeType||property.Type.TypeKind is TypeKind.Pointer or TypeKind.FunctionPointer)
+                ||symbol.GetMembers().OfType<IPropertySymbol>().Any(static property=>property.IsStatic&&IsKeyColumn(property));
+            var instanceFields=symbol.GetMembers().OfType<IFieldSymbol>().Any(static field=>!field.IsStatic&&!field.IsImplicitlyDeclared);
+            var reserved=symbol.GetMembers().Any(static member=>!member.IsImplicitlyDeclared
+                &&member.Name is "Key" or "_Key" or "_C" or "_S" or "C" or "S" or "Create" or "__NormalizeScalars" or "Strategy" or "Equals" or "GetHashCode");
+            var duplicateKey=targets.Any(candidate=>candidate.Symbol.ContainingType is null&&candidate.Symbol.Arity==0&&candidate.Symbol.Name==symbol.Name
+                &&NamespaceName(candidate.Symbol.ContainingNamespace)==keyNamespace);
+            if(invalidShape||invalidProperties||instanceFields||reserved||duplicateKey){
+                var reason="Use a non-generic top-level partial struct with public instance partial get or get/init data properties.";
+                if(instanceFields){reason="Instance fields cannot be persisted by this declaration generator. Use partial data properties.";}
+                if(reserved){reason="The declaration conflicts with a generated storage, factory or strategy member name.";}
+                if(duplicateKey){reason="The generated key type conflicts with an existing type in "+keyNamespace+".";}
+                context.ReportDiagnostic(Diagnostic.Create(InvalidRecordDeclaration,symbol.Locations.FirstOrDefault(),symbol.ToDisplayString(),reason));
+                continue;
+            }
+            var keys=properties.Where(static property=>IsKeyColumn(property)).ToImmutableArray();
+            if(keys.IsEmpty){keys=properties;}
+            var values=properties.Where(property=>!keys.Contains(property,SymbolEqualityComparer.Default)).ToImmutableArray();
+            var builder=new StringBuilder("// <auto-generated/>\n#nullable enable\n");
+            var keyType="global::"+keyNamespace+".@"+symbol.Name;
+            AppendDeclaredType(builder,symbol,keyNamespace,keys,keys,null);
+            AppendDeclaredType(builder,symbol,recordNamespace,properties,values,keyType);
+            context.AddSource(symbol.ToDisplayString()+".Record.g.cs",SourceText.From(builder.ToString(),Encoding.UTF8));
+        }
+    }
+
+    private static bool IsKeyColumn(IPropertySymbol property)=>property.GetAttributes().Any(static attribute=>
+        attribute.AttributeClass?.ToDisplayString()=="Seamless.Database.KeyAttribute");
+
+    private static void AppendDeclaredType(StringBuilder builder,INamedTypeSymbol symbol,string namespaceName,
+        ImmutableArray<IPropertySymbol> properties,ImmutableArray<IPropertySymbol> stored,string? keyType){
+        var isKey=keyType is null;
+        var name="@"+symbol.Name;
+        var type="global::"+namespaceName+"."+name;
+        var keyProperties=properties.Where(property=>!stored.Contains(property,SymbolEqualityComparer.Default)).ToImmutableArray();
+        var parameters=stored.Select((property,index)=>TypeName(property.Type)+" value"+index).ToList();
+        var arguments=stored.Select((_,index)=>"value"+index).ToList();
+        if(!isKey){parameters.Insert(0,keyType+" key");arguments.Insert(0,"key");}
+        builder.AppendLine($"namespace {namespaceName}{{");
+        var accessibility=symbol.DeclaredAccessibility==Accessibility.Public?"public":"internal";
+        var modifiers=isKey?"readonly struct":(symbol.IsReadOnly?"readonly ":string.Empty)+"partial "+(symbol.IsRecord?"record ":string.Empty)+"struct";
+        var recordContract=isKey?string.Empty:$",global::Seamless.Collections.IRecord<{keyType}>";
+        builder.AppendLine($"{accessibility} {modifiers} {name}:global::MemoryPack.IMemoryPackable<{type}>,global::System.IEquatable<{type}>{recordContract}{{");
+        if(!isKey){
+            builder.AppendLine($"    private readonly {keyType} _Key;");
+            builder.AppendLine($"    public {keyType} Key{{get=>this._Key;init=>this._Key={keyType}.__NormalizeScalars(value);}}");
+        }
+        AppendSeparatedFields(builder,stored,"    ");
+        var constructorMembers=stored.Select(static property=>global::Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(property.Name,true)).ToList();
+        if(!isKey){constructorMembers.Insert(0,"\"Key\"");}
+        builder.AppendLine($"    [global::Seamless.Database.GeneratedRecordConstructorAttribute({string.Join(",",constructorMembers)})]");
+        builder.AppendLine($"    public {name}({string.Join(",",parameters)}){{");
+        builder.AppendLine("        this=default;");
+        if(!isKey){builder.AppendLine($"        this._Key={keyType}.__NormalizeScalars(key);");}
+        foreach(var references in new[]{true,false}){
+            var fields=stored.Select((property,index)=>(Property:property,Index:index))
+                .Where(item=>Storage(item.Property.Type,0,true).References==references).ToArray();
+            if(fields.Length==0){continue;}
+            var group=references?"C":"S";
+            builder.AppendLine($"        this._{group}=new {group}{{{string.Join(",",fields.Select(static item=>"@"+item.Property.Name+"="+NormalizeScalar(item.Property.Type,"value"+item.Index)))}}};");
+        }
+        builder.AppendLine("    }");
+        builder.AppendLine($"    public static {type} Create({string.Join(",",parameters)})=>new({string.Join(",",arguments)});");
+        if(isKey){
+            builder.AppendLine($"    internal static {type} __NormalizeScalars({type} value)=>new({string.Join(",",properties.Select(static property=>"value.@"+property.Name))});");
+        }
+        foreach(var property in properties){
+            var isKeyColumn=!isKey&&keyProperties.Contains(property,SymbolEqualityComparer.Default);
+            var group=Storage(property.Type,0,true).References?"C":"S";
+            var field=isKeyColumn?"_Key.@"+property.Name:"_"+group+".@"+property.Name;
+            var accessors=property.DeclaringSyntaxReferences.Select(static reference=>reference.GetSyntax()).OfType<PropertyDeclarationSyntax>()
+                .SelectMany(static declaration=>declaration.AccessorList?.Accessors??default).ToArray();
+            var getterModifiers=isKey?string.Empty:accessors.First(static accessor=>accessor.IsKind(SyntaxKind.GetAccessorDeclaration)).Modifiers.ToString();
+            var init=accessors.FirstOrDefault(static accessor=>accessor.IsKind(SyntaxKind.InitAccessorDeclaration));
+            var partial=isKey?string.Empty:"partial ";
+            builder.AppendLine($"    public {partial}{TypeName(property.Type)} @{property.Name}{{{getterModifiers} get=>this.{field};");
+            if(isKey||init is not null){
+                var initModifiers=isKey?string.Empty:init!.Modifiers.ToString();
+                if(isKeyColumn){builder.AppendLine($"        {initModifiers} init=>this._Key=this._Key with{{@{property.Name}=value}};");}
+                else{
+                    builder.AppendLine($"        {initModifiers} init{{var fields=this._{group};fields.@{property.Name}={NormalizeScalar(property.Type,"value")};this._{group}=fields;}}");
+                }
+            }
+            builder.AppendLine("    }");
+        }
+        AppendDeclaredStrategy(builder,symbol,type,properties,stored,keyType);
+        AppendDeclaredFormatter(builder,type,name,properties,keyProperties,keyType);
+        builder.AppendLine("}");
+        builder.AppendLine("}");
+    }
+
+    private static void AppendDeclaredStrategy(StringBuilder builder,INamedTypeSymbol symbol,string type,
+        ImmutableArray<IPropertySymbol> properties,ImmutableArray<IPropertySymbol> stored,string? keyType){
+        var scalarOnly=properties.All(static property=>IsCanonicalScalar(property.Type));
+        var contract="seamless-record-values-v1|"+type+"|"+string.Join("|",properties.Select(property=>
+            property.Name+":"+TypeName(property.Type)+":"+(keyType is null||!stored.Contains(property,SymbolEqualityComparer.Default)?"key":"value")));
+        var contractLiteral=global::Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(contract,true);
+        builder.AppendLine($"    public readonly bool Equals({type} other)=>Strategy.Equals(this,other);");
+        builder.AppendLine("    public override readonly int GetHashCode()=>Strategy.GetHashCode(this);");
+        if(keyType is null||!symbol.IsRecord){
+            builder.AppendLine($"    public override readonly bool Equals(object? value)=>value is {type} other&&this.Equals(other);");
+            builder.AppendLine($"    public static bool operator ==({type} first,{type} second)=>Strategy.Equals(first,second);");
+            builder.AppendLine($"    public static bool operator !=({type} first,{type} second)=>!Strategy.Equals(first,second);");
+        }
+        builder.AppendLine($"    public readonly struct Strategy:global::Seamless.Collections.IRecordStrategy<{type}>{{");
+        builder.AppendLine($"        public static string ContractId=>{contractLiteral};");
+        builder.AppendLine($"        public static bool IsGraphFree=>{(scalarOnly?"true":"false")};");
+        if(scalarOnly){
+            var arguments=stored.Select(static property=>"value.@"+property.Name).ToList();
+            if(keyType is not null){arguments.Insert(0,"value.Key");}
+            builder.AppendLine($"        public static {type} Normalize({type} value)=>new({string.Join(",",arguments)});");
+            var comparisons=properties.Select(static property=>$"global::Seamless.Execution.RecordValueStrategy<{TypeName(property.Type)}>.Equals(first.@{property.Name},second.@{property.Name})");
+            builder.AppendLine($"        public static bool Equals({type} first,{type} second)=>{string.Join("&&",comparisons)};");
+            builder.AppendLine($"        public static int GetHashCode({type} value){{");
+            builder.AppendLine("            var hash=unchecked((int)2166136261);");
+            foreach(var property in properties){
+                builder.AppendLine($"            hash=unchecked((hash^global::Seamless.Execution.RecordValueStrategy<{TypeName(property.Type)}>.GetHashCode(value.@{property.Name}))*16777619);");
+            }
+            builder.AppendLine("            return hash;");
+            builder.AppendLine("        }");
+        }else{
+            builder.AppendLine($"        public static {type} Normalize({type} value)=>global::Seamless.Execution.RecordValueStrategy<{type}>.Normalize(value);");
+            builder.AppendLine($"        public static bool Equals({type} first,{type} second)=>global::Seamless.Execution.RecordValueStrategy<{type}>.Equals(first,second);");
+            builder.AppendLine($"        public static int GetHashCode({type} value)=>global::Seamless.Execution.RecordValueStrategy<{type}>.GetHashCode(value);");
+        }
+        builder.AppendLine("    }");
+    }
+
+    private static bool IsCanonicalScalar(ITypeSymbol type){
+        if(TryGetNullableValueType(type,out var underlying)){type=underlying;}
+        return type.TypeKind==TypeKind.Enum||type.SpecialType is SpecialType.System_Boolean or SpecialType.System_Byte
+            or SpecialType.System_SByte or SpecialType.System_Char or SpecialType.System_Int16 or SpecialType.System_UInt16
+            or SpecialType.System_Int32 or SpecialType.System_UInt32 or SpecialType.System_Int64 or SpecialType.System_UInt64
+            or SpecialType.System_IntPtr or SpecialType.System_UIntPtr or SpecialType.System_Single or SpecialType.System_Double
+            or SpecialType.System_Decimal or SpecialType.System_DateTime or SpecialType.System_String
+            ||type.ToDisplayString() is "System.DateTimeOffset" or "System.Half" or "System.Guid" or "System.TimeSpan"
+                or "System.DateOnly" or "System.TimeOnly" or "System.Int128" or "System.UInt128";
+    }
+
+    private static string NormalizeScalar(ITypeSymbol type,string expression){
+        if(TryGetNullableValueType(type,out var underlying)){type=underlying;}
+        if(type.SpecialType is SpecialType.System_Single or SpecialType.System_Double or SpecialType.System_Decimal or SpecialType.System_DateTime
+            ||type.ToDisplayString() is "System.DateTimeOffset" or "System.Half"){
+            return "global::Seamless.Collections.ScalarNormalization.Normalize("+expression+")";
+        }
+        return expression;
+    }
+
+    private static void AppendDeclaredFormatter(StringBuilder builder,string type,string name,
+        ImmutableArray<IPropertySymbol> properties,ImmutableArray<IPropertySymbol> keys,string? keyType){
+        builder.AppendLine($"    static {name}()=>global::MemoryPack.MemoryPackFormatterProvider.Register<{type}>();");
+        builder.AppendLine("    static void global::MemoryPack.IMemoryPackFormatterRegister.RegisterFormatter(){");
+        builder.AppendLine($"        if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<{type}>()){{global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.MemoryPackableFormatter<{type}>());}}");
+        builder.AppendLine($"        if(!global::MemoryPack.MemoryPackFormatterProvider.IsRegistered<{type}[]>()){{global::MemoryPack.MemoryPackFormatterProvider.Register(new global::MemoryPack.Formatters.ArrayFormatter<{type}>());}}");
+        builder.AppendLine("    }");
+        builder.AppendLine($"    static void global::MemoryPack.IMemoryPackable<{type}>.Serialize<TBufferWriter>(ref global::MemoryPack.MemoryPackWriter<TBufferWriter> writer,scoped ref {type} value){{");
+        foreach(var property in properties){builder.AppendLine($"        writer.WriteValue(value.@{property.Name});");}
+        builder.AppendLine("    }");
+        builder.AppendLine($"    static void global::MemoryPack.IMemoryPackable<{type}>.Deserialize(ref global::MemoryPack.MemoryPackReader reader,scoped ref {type} value){{");
+        for(var index=0;index<properties.Length;index++){
+            builder.AppendLine($"        var value{index}=reader.ReadValue<{TypeName(properties[index].Type)}>()!;");
+        }
+        var arguments=properties.Select((property,index)=>(Property:property,Argument:"value"+index)).ToArray();
+        var values=arguments.Where(item=>!keys.Contains(item.Property,SymbolEqualityComparer.Default)).Select(static item=>item.Argument).ToList();
+        if(keyType is not null){
+            var keyArguments=arguments.Where(item=>keys.Contains(item.Property,SymbolEqualityComparer.Default)).Select(static item=>item.Argument);
+            values.Insert(0,keyType+".Create("+string.Join(",",keyArguments)+")");
+        }
+        builder.AppendLine($"        value=new {type}({string.Join(",",values)});");
+        builder.AppendLine("    }");
+    }
+
     private static void AppendRecord(StringBuilder builder,INamedTypeSymbol symbol,string indent,bool collectible,bool optimized,bool nativeWire,
         bool replayAvailable,INamedTypeSymbol[] records,string[] collectibleNamespaces) {
         var properties=GetProperties(symbol);
@@ -102,6 +296,7 @@ internal sealed partial class DatabaseSchemaGeneration:IIncrementalGenerator {
         if(nativeWire&&!collectible){builder.AppendLine($"{indent}[global::Seamless.Database.Client.NativeWireLayoutAttribute(1,new string[]{{{string.Join(",",properties.Select(static property=>global::Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(property.Name,true)))}}})]");}
         if(collectible){builder.AppendLine($"{indent}partial struct {symbol.Name} {{");}
         else{builder.AppendLine($"{indent}partial struct {symbol.Name}:global::MemoryPack.IMemoryPackable<{typeName}>{(replay?","+replayContract:string.Empty)} {{");}
+        builder.AppendLine($"{indent}    [global::Seamless.Database.GeneratedRecordConstructorAttribute({string.Join(",",properties.Select(static property=>global::Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(property.Name,true)))})]");
         builder.Append($"{indent}    public {symbol.Name}(");
         for(var index=0;index<properties.Length;index++) {
             if(index>0) {
@@ -122,7 +317,14 @@ internal sealed partial class DatabaseSchemaGeneration:IIncrementalGenerator {
             if(!optimized){builder.AppendLine($"{indent}    private {TypeName(properties[index].Type)} {field};");}
             var computed=properties[index].GetAttributes().FirstOrDefault(static attribute=>attribute.AttributeClass?.ToDisplayString()=="Seamless.Database.ComputedColumnAttribute");
             var getter=computed is not null&&collectible?$"global::Seamless.Database.GeneratedRowExpression<{typeName}>.Read<{TypeName(properties[index].Type)}>(in this,{computed.ConstructorArguments[0].Value},this.{field})":$"this.{field}";
-            builder.AppendLine($"{indent}    public partial {TypeName(properties[index].Type)} {properties[index].Name} {{ get=>{getter}; }}");
+            var accessors=properties[index].DeclaringSyntaxReferences
+                .Select(static reference=>reference.GetSyntax()).OfType<PropertyDeclarationSyntax>()
+                .SelectMany(static declaration=>declaration.AccessorList?.Accessors??default)
+                .ToArray();
+            var getterModifiers=accessors.First(static accessor=>accessor.IsKind(SyntaxKind.GetAccessorDeclaration)).Modifiers;
+            var init=accessors.FirstOrDefault(static accessor=>accessor.IsKind(SyntaxKind.InitAccessorDeclaration));
+            var initializer=init is null?string.Empty:$" {init.Modifiers} init=>this.{field}=value;";
+            builder.AppendLine($"{indent}    public partial {TypeName(properties[index].Type)} {properties[index].Name} {{ {getterModifiers} get=>{getter};{initializer} }}");
         }
         if(collectible){builder.AppendLine($"{indent}}}");return;}
         builder.AppendLine();
@@ -243,13 +445,14 @@ internal sealed partial class DatabaseSchemaGeneration:IIncrementalGenerator {
             if(reference.GetSyntax() is not PropertyDeclarationSyntax syntax
                 ||!syntax.Modifiers.Any(SyntaxKind.PartialKeyword)
                 ||syntax.ExpressionBody is not null
-                ||syntax.AccessorList?.Accessors.Count!=1) {
+                ||syntax.AccessorList is not {} accessorList
+                ||accessorList.Accessors.Count is <1 or >2) {
                 continue;
             }
-            var accessor=syntax.AccessorList.Accessors[0];
-            if(accessor.IsKind(SyntaxKind.GetAccessorDeclaration)
-                &&accessor.Body is null
-                &&accessor.ExpressionBody is null) {
+            if(accessorList.Accessors.Any(static accessor=>accessor.IsKind(SyntaxKind.GetAccessorDeclaration))
+                &&accessorList.Accessors.All(static accessor=>
+                    (accessor.IsKind(SyntaxKind.GetAccessorDeclaration)||accessor.IsKind(SyntaxKind.InitAccessorDeclaration))
+                    &&accessor.Body is null&&accessor.ExpressionBody is null)) {
                 return true;
             }
         }

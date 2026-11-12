@@ -28,7 +28,7 @@ public abstract partial class DatabaseContainer{
     private GatewayDatabaseProfile RequireGatewayProfile(){
         if(this.Options.GatewayVersionedBinding is not null||this.Options.GatewayVersionedSeed is not null){throw new InvalidOperationException("Use the owning versioned Gateway domain instead of the current-value adapter.");}
         var profile=this.Options.GatewayProfile??throw new InvalidOperationException("This database is not in a Gateway profile.");
-        if(profile.WalId==Guid.Empty||profile.DatabaseId<=0||this.Options.Transactions!=DatabaseTransactionMode.SharedV2||this.Options.RecordSerialization!=DatabaseRecordSerialization.CanonicalV1||this.Options.StorageMode!=DatabaseStorageMode.Storage){throw new InvalidOperationException("Gateway storage requires a WAL identity, positive database ID, persistent canonical records and SharedV2 tables.");}
+        if(profile.WalId==Guid.Empty||profile.DatabaseId<=0||this.Options.RecordSerialization!=DatabaseRecordSerialization.CanonicalV1||this.Options.StorageMode!=DatabaseStorageMode.Storage){throw new InvalidOperationException("Gateway storage requires a WAL identity, positive database ID, persistent canonical records and SharedV2 tables.");}
         return profile;
     }
     private void EnsureGatewayRecovered(){if(this.Options.GatewayVersionedBinding is not null||this.Options.GatewayVersionedSeed is not null){_=this.CurrentGatewayVersionedExecution(false);return;}if(this.Options.GatewayProfile is not null&&!this.gatewayRecovered&&this.gatewayInitializing.Value==0&&!(this.gatewayCandidateOwner is{} owner&&this.ambientTransaction.Value?.GatewayOwner==owner)){throw new InvalidOperationException("The Gateway must recover all participating databases before accepting SQL.");}}

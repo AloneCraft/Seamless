@@ -13,5 +13,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)DatabaseLambdaGeneration.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DatabaseGenerationHelpers.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)DatabaseAnalysisCompilation.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DatabaseViewRowGeneration.cs" />
   </ItemGroup>
 </Project>

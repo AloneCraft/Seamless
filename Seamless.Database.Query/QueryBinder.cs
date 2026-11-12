@@ -183,7 +183,7 @@ internal sealed partial class QueryBinder{
             default:throw Unsupported(table);
         }
     }
-    private SqlObjectName ResolveName(SchemaObjectName name){if(name.ServerIdentifier is not null){throw Unsupported(name);}return new(name.DatabaseIdentifier?.Value??this.database,name.SchemaIdentifier?.Value??"dbo",name.BaseIdentifier.Value);}
+    private SqlObjectName ResolveName(SchemaObjectName name){if(name.ServerIdentifier is not null){throw Unsupported(name);}return new(name.DatabaseIdentifier?.Value??this.database,name.SchemaIdentifier?.Value??"",name.BaseIdentifier.Value);}
     private static BoundQuery Rename(BoundQuery query,IList<Identifier>names){if(query.Columns.Count!=names.Count){throw new SqlQueryException("Column alias count differs.",8159);}return query with{Columns=query.Columns.Select((x,i)=>x with{Name=names[i].Value}).ToArray()};}
     private static BoundSource Cross(BoundSource left,BoundSource right){return new(left.Columns.Concat(right.Columns).ToArray(),(execution,outer)=>Rows(execution,outer));IEnumerable<object?[]>Rows(QueryExecution execution,object?[]?outer){foreach(var first in left.Rows(execution,outer)){foreach(var second in right.Rows(execution,outer)){execution.Scope.ThrowIfUnavailable();yield return first.Concat(second).ToArray();}}}}
     private static IEnumerable<object?[]>OneRow(){yield return [];}

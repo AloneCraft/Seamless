@@ -21,7 +21,7 @@ public sealed partial class VersionedTransactionalTable<TKey,TRecord>{
         internal long Count;
         public static bool Invoke(ref SnapshotHash self,ReadOnlySpan<byte> key,ReadOnlySpan<byte> row,long version,bool deleted){
             self.table.resources.ThrowIfUnavailable();if(deleted){return true;}
-            if(self.table.encoding==VersionedRecordEncoding.Canonical){self.Append(key,row);}
+            if(self.table.encoding!=VersionedRecordEncoding.Auto){self.Append(key,row);}
             else{
                 using var canonicalKey=self.table.resources.Encode(self.table.DecodeStoreKey(key));using var canonicalRow=self.table.resources.Encode(self.table.DecodeStoreRow(row));self.Append(canonicalKey.Memory.Span,canonicalRow.Memory.Span);
             }

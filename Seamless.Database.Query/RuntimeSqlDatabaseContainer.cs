@@ -26,7 +26,6 @@ public abstract class RuntimeSqlDatabaseContainer:DatabaseContainer{
     public RuntimeSqlCatalog RuntimeSql{get;}
     private static DatabaseContainerOptions ValidateProfile(DatabaseContainerOptions options,string schemaIdentity){
         ArgumentNullException.ThrowIfNull(options);ArgumentException.ThrowIfNullOrWhiteSpace(schemaIdentity);
-        if(options.Transactions!=DatabaseTransactionMode.SharedV2){throw new InvalidOperationException("Runtime SQL requires SharedV2.");}
         if(options.StorageMode==DatabaseStorageMode.Memory){return options;}
         var path=options.StorageDirectory;if(string.IsNullOrWhiteSpace(path)||!Path.IsPathFullyQualified(path)){throw new InvalidOperationException("Runtime SQL requires an explicit absolute storage directory.");}
         path=Path.GetFullPath(path);var marker=Path.Combine(path,"runtime-sql-v1.profile");var identity="RuntimeSqlV1|"+Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(schemaIdentity)))+"\n";

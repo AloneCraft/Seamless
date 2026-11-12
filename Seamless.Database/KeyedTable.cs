@@ -36,7 +36,7 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
     internal Action<TRecord?,TRecord?>? GatewayChanged{get;set;}
     internal Func<TRecord,TRecord>? GatewayNormalize{get;set;}
     internal IEqualityComparer<TKey>? GatewayKeyComparer{get;set;}
-    internal bool KeysEqual(TKey first,TKey second)=>(this.GatewayKeyComparer??EqualityComparer<TKey>.Default).Equals(first,second);
+    internal bool KeysEqual(TKey first,TKey second)=>(this.GatewayKeyComparer??this.database.ExecutionResources.Codecs.GetEqualityComparer<TKey>()).Equals(first,second);
     internal TKey RecordKey(TRecord record)=>this.keySelector(record);
     public long LongCount {
         get {
@@ -130,8 +130,45 @@ public sealed class Table<TKey,TRecord>:global::System.Collections.Generic.IRead
             if(this.KeysEqual(previousKey,next)){native[next]=record;}else{if(native.ContainsKey(next)){return false;}_=native.Remove(previousKey);if(!native.Add(record)){throw new InvalidOperationException("The replacement key changed during its transaction operation.");}}
             this.GatewayChanged?.Invoke(old,record);return true;
         }
-        if(this.GatewayNormalize is{} normalize){record=normalize(record);}var key=this.keySelector(record);var overlay=this.database.GetTransactionOverlay(this,create:true);if(overlay is not null){return overlay.Replace(previousKey,key,record);}return this.database.WithWriteGate(()=>{if(!this.DirectTryGetValue(previousKey,out _)){return false;}if(EqualityComparer<TKey>.Default.Equals(previousKey,key)){this.DirectSet(key,record);return true;}if(!this.DirectAdd(key,record)){return false;}_=this.DirectRemove(previousKey);return true;});
+        if(this.GatewayNormalize is{} normalize){record=normalize(record);}var key=this.keySelector(record);var overlay=this.database.GetTransactionOverlay(this,create:true);if(overlay is not null){return overlay.Replace(previousKey,key,record);}return this.database.WithWriteGate(()=>{if(!this.DirectTryGetValue(previousKey,out _)){return false;}if(this.KeysEqual(previousKey,key)){this.DirectSet(key,record);return true;}if(!this.DirectAdd(key,record)){return false;}_=this.DirectRemove(previousKey);return true;});
     }
+
+    public void Update(TKey key,Func<TRecord,TRecord> updater){
+        ArgumentNullException.ThrowIfNull(updater);
+        if(!this.TryGetValue(key,out var current)){throw new KeyNotFoundException($"Key '{key}' was not found in table '{this.Name}'.");}
+        var updated=updater(current);var newKey=this.keySelector(updated);
+        if(this.KeysEqual(key,newKey)){this[key]=updated;}
+        else{if(!this.Replace(key,updated)){throw new InvalidOperationException($"Cannot replace key '{key}' with '{newKey}': destination key already exists or conflict occurred.");}}
+    }
+
+    public MergeResult Merge(TKey key,Func<TKey,TRecord> create,Func<TRecord,TRecord> update){
+        ArgumentNullException.ThrowIfNull(create);ArgumentNullException.ThrowIfNull(update);
+        if(this.TryGetValue(key,out var current)){
+            var updated=update(current);var newKey=this.keySelector(updated);
+            if(this.KeysEqual(key,newKey)){this[key]=updated;}
+            else{if(!this.Replace(key,updated)){throw new InvalidOperationException($"Cannot replace key '{key}' with '{newKey}' during merge: destination key already exists.");}}
+            return MergeResult.Updated;
+        }else{
+            var created=create(key);
+            if(!this.Add(created)){throw new InvalidOperationException($"Cannot add created record with key '{key}' during merge.");}
+            return MergeResult.Added;
+        }
+    }
+
+    public bool Contains(TRecord record){
+        var key=this.keySelector(record);
+        if(!this.TryGetValue(key,out var existing)){return false;}
+        return this.database.ExecutionResources.Codecs.GetEqualityComparer<TRecord>().Equals(existing,record);
+    }
+
+    public bool Remove(TRecord record){
+        var key=this.keySelector(record);
+        if(!this.TryGetValue(key,out var existing)){return false;}
+        if(!this.database.ExecutionResources.Codecs.GetEqualityComparer<TRecord>().Equals(existing,record)){return false;}
+        return this.Remove(key);
+    }
+
+    public bool RemoveKey(TKey key)=>this.Remove(key);
 
     internal bool DirectAdd(TKey key,TRecord record)=>
         this.rows.TryAdd(key,record) switch {

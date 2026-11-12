@@ -23,6 +23,7 @@ public sealed class PreparedTransactionJournal:IAsyncDisposable{
     }
     public TransactionOutcome GetOutcome(Guid id)=>this.journal.GetOutcome(id);
     public long DurableLsn=>this.journal.Writer.DurableLsn;
+    internal ValueTask ForgetThroughAsync(long lsn)=>this.journal.ForgetThroughAsync(lsn);
     public Guid WalId=>this.journal.Device.WalId;
     internal TransactionFailure Failure=>this.journal.Writer.Failure;
     internal int MaximumMetadataBytes=>this.journal.Writer.MaximumFrameBytes-64-CommitMetadataBytes;

@@ -1,3 +1,5 @@
+using Seamless.Execution;
+using Seamless.Linq;
 namespace Seamless.Database.Query;
 /// <summary>SQL上の実名。識別子のC#向け変換は行わない。</summary>
 public sealed record SqlObjectName(string Database,string Schema,string Name);
@@ -50,4 +52,9 @@ public sealed class SqlQueryResult{
     internal SqlQueryResult(IReadOnlyList<SqlColumn> columns,IEnumerable<object?[]> rows){this.Columns=columns;this.Rows=rows;}
     public IReadOnlyList<SqlColumn> Columns{get;}
     public IEnumerable<object?[]> Rows{get;}
+    /// <summary>行を一時領域へ保存する。領域の所有者はスコープ。</summary>
+    public static IEnumerable<object?[]> StoreRows(ExecutionScope scope,IEnumerable<object?[]> rows){
+        if(!scope.Codecs.CanEncode<object?[]>()){scope.Codecs.Register<object?[]>(new SqlRowCodec());}
+        return scope.Query(rows).ToStorage();
+    }
 }
