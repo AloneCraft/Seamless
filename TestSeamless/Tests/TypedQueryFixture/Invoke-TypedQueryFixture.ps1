@@ -1,6 +1,11 @@
-param([switch]$Direct,[switch]$UnderLease,[string]$RunId,[string]$PackageVersion,[string]$PackageFeed,[ValidateSet("Debug","Release")][string]$Configuration="Debug")
+param([switch]$InternalRun,[string]$RunId,[string]$PackageVersion,[string]$PackageFeed,[ValidateSet("Debug","Release")][string]$Configuration="Debug")
 $ErrorActionPreference='Stop'
 $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
+$localProcess=Join-Path $repo 'TestSeamless/Invoke-LocalProcess.ps1'
+$previousCount=[Environment]::GetEnvironmentVariable('DOTNET_PROCESSOR_COUNT','Process')
+$previousTelemetry=[Environment]::GetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT','Process')
+$affinity=& $localProcess -InitializeOnly -MaxLogicalProcessors 8
+try{
 & (Join-Path $repo 'TestSeamless/Initialize-Storage.ps1')|Out-Null
 $archive=$env:SEAMLESS_COMPARISON_ARCHIVE_ROOT;$temp=$env:SEAMLESS_COMPARISON_TEMP_ROOT
 if(-not $PackageVersion -or -not $PackageFeed){
@@ -13,18 +18,11 @@ if($RunId -notmatch '^[a-f0-9]{32}$'){throw 'Invalid run ID.'}
 $fixture=Join-Path (Split-Path $temp -Parent) ("TypedQueryFixture/"+$RunId)
 $results=Join-Path $archive ("TypedQueryFixture/"+$RunId)
 New-Item -ItemType Directory -Force -Path $results|Out-Null
-if(-not $UnderLease -and -not $Direct){
-    if(-not $env:BGO_MAILBOX){throw 'BGO_MAILBOX must name the registered private mailbox.'}
-    $bgo=$env:SEAMLESS_BGO_EXE
-    if(-not $bgo){$bgo='G:/GitHub/CodexBackgroundOperations/src/BackgroundOps/bin/Release/net10.0-windows/BackgroundOps.exe'}
-    if(-not (Test-Path -LiteralPath $bgo)){throw 'The BGO CLI is unavailable; use -Direct only on an isolated CI host.'}
+if(-not $InternalRun){
     $shell=(Get-Process -Id $PID).Path
-    $spec=@{policyVersion='1';agent='seamless-typed-query-fixture';application='dotnet';operation="typed-query-fixture-$RunId";classification='A';method='cli';requiresUserInput=$false;mayActivateWindow=$false;executable=$shell;arguments=@('-NoProfile','-File',$PSCommandPath,'-UnderLease','-RunId',$RunId,'-PackageVersion',$PackageVersion,'-PackageFeed',$PackageFeed,'-Configuration',$Configuration);workingDirectory=$repo;resources=@(@{id="workspace:$repo";mode='S'},@{id='cpu:heavy';mode='X'},@{id="build-dir:$fixture";mode='X'},@{id="profile:$archive";mode='X'},@{id='port:35479';mode='X'});waitTimeoutSeconds=7200;runTimeoutSeconds=1800}
-    $specPath=Join-Path $results 'run.spec.json';$spec|ConvertTo-Json -Depth 8|Set-Content -Encoding utf8 $specPath
-    $state=$env:BGO_STATE;if(-not $state){$state='D:\CodexBackgroundOps'}
-    $reply=& $bgo run --spec $specPath --state $state|ConvertFrom-Json
-    $reply|ConvertTo-Json -Depth 12|Set-Content -Encoding utf8 (Join-Path $results 'receipt.json')
-    if($reply.outcome -ne 'Passed'){throw "Fixture failed: $results"}
+    $arguments=@('-NoProfile','-File',$PSCommandPath,'-InternalRun','-RunId',$RunId,'-PackageVersion',$PackageVersion,'-PackageFeed',$PackageFeed,'-Configuration',$Configuration)
+    $reply=& $localProcess -Executable $shell -Arguments $arguments -WorkingDirectory $repo -ArtifactDirectory $results -TimeoutSeconds 1800 -MaxLogicalProcessors 8
+    if($reply.Outcome -ne 'Passed'){throw "Fixture failed ($($reply.Outcome)): $($reply.Error); $results"}
     Write-Output "Passed: $results";return
 }
 New-Item -ItemType Directory -Force -Path $fixture,(Join-Path $fixture 'bootstrap'),(Join-Path $fixture 'runtime')|Out-Null
@@ -57,3 +55,11 @@ $handText=[IO.File]::ReadAllText($hand.FullName);$countText=[IO.File]::ReadAllTe
 if(-not $handText.Contains('InterceptsLocation') -or -not $handText.Contains('OptimizedLinq_CountMatching')){throw 'Handwritten FLinq interceptor is missing.'}
 if(-not $countText.Contains('OptimizedLinq_Query0') -or $countText -notmatch 'while\(rest_source\.MoveNext\(\)\)[\s\S]*?__StaticMethod_TypedQueries_CheckCancellation'){throw 'COUNT per-row cancellation interceptor is missing.'}
 [pscustomobject]@{PackageVersion=$PackageVersion;Configuration=$Configuration;Status='Passed';CountInterceptor=$count.FullName;HandwrittenInterceptor=$hand.FullName;FixtureDirectory=$fixture}|ConvertTo-Json|Set-Content -Encoding utf8 (Join-Path $results 'summary.json')
+}finally{
+    $process=[Diagnostics.Process]::GetCurrentProcess()
+    try{$process.ProcessorAffinity=$affinity.OriginalAffinityMask}finally{
+        $process.Dispose()
+        if($null -eq $previousCount){Remove-Item Env:DOTNET_PROCESSOR_COUNT -ErrorAction SilentlyContinue}else{[Environment]::SetEnvironmentVariable('DOTNET_PROCESSOR_COUNT',$previousCount,'Process')}
+        if($null -eq $previousTelemetry){Remove-Item Env:POWERSHELL_TELEMETRY_OPTOUT -ErrorAction SilentlyContinue}else{[Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT',$previousTelemetry,'Process')}
+    }
+}

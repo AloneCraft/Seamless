@@ -12,6 +12,7 @@ using Seamless.Database.Gateway;
 using Seamless.Database.Gateway.Hosting;
 using Seamless.Database.Query;
 using Seamless.Database.Rdbms;
+using Seamless.Database.SqlServer;
 using TestSeamless.Queries;
 
 namespace TestSeamless;
@@ -35,7 +36,8 @@ public static class ComparisonRunner{
             }
             await VerifyCommonCrudAsync(new SqlConnectionStringBuilder(source){InitialCatalog="Seamless_Comparison_Fixture"}.ConnectionString);await VerifyCommonCrudAsync(Target("Seamless_Comparison_Fixture",14343));await VerifyNativeFixtureAsync(generation,direct,module,native);await VerifySqlClientAsync(Target("Seamless_Comparison_Fixture",14343));await gateway.StopAsync();
             var proof=Path.Combine(directory,"package-provenance.json");if(!File.Exists(proof)){throw new InvalidDataException("Package provenance has not been verified.");}if(!File.Exists(Path.Combine(directory,"flinq-proof.json"))){throw new InvalidDataException("Build-time FLinq application has not been verified.");}
-            await WriteReportAsync(directory,"validation",new{Generation=generation.Id,Checks=checks,FloatingTolerance=FloatingTolerance.FromEnvironment(),Status="Passed"});(generation with{State="Validated"}).Write(directory);
+            await ComparisonSource.VerifySourceAsync(source,generation);
+            await WriteReportAsync(directory,"validation",new{Generation=generation.Id,Checks=checks,FloatingTolerance=FloatingTolerance.FromEnvironment(),SourceInventoryVerified=true,Status="Passed"});(generation with{State="Validated"}).Write(directory);
         }catch(Exception ex){await WriteReportAsync(directory,"validation",new{Generation=generation.Id,Checks=checks,Status="Failed",Reason=ex.Message});throw;}
     }
     private static async Task ValidateWireAsync(string directory,ComparisonGeneration generation,string source,SqlQueryEngine engine){
@@ -69,7 +71,7 @@ public static class ComparisonRunner{
     }
     private static async Task VerifyNativeFixtureAsync(ComparisonGeneration generation,ComparisonHost direct,INativeQueryModule module,NativeQueryClient client){
         const string databaseName="Seamless_Comparison_Fixture";const int id=-2000000201;var registration=direct.Databases.Resolve(databaseName);var fingerprint=registration.SchemaFingerprint;var context=new NativeContext(((InProcessDatabaseAdapter)registration.Adapter).Database,databaseName,CancellationToken.None);var original=new NativeFixtureCommand(id,"native fixture");var updated=new NativeFixtureCommand(id,"updated");
-        long Direct(string operation,NativeFixtureCommand value){var rows=module.Execute("fixture/"+operation,MemoryPackSerializer.Serialize(value),context).Select(bytes=>MemoryPackSerializer.Deserialize<long>(bytes)).ToArray();if(rows.Length!=1){throw new InvalidDataException("Native direct mutation did not return exactly one count.");}return rows[0];}
+        long Direct(string operation,NativeFixtureCommand value){using var transaction=((InProcessDatabaseAdapter)registration.Adapter).Database.BeginTransaction();var rows=module.Execute("fixture/"+operation,MemoryPackSerializer.Serialize(value),context).Select(bytes=>MemoryPackSerializer.Deserialize<long>(bytes)).ToArray();if(rows.Length!=1){throw new InvalidDataException("Native direct mutation did not return exactly one count.");}transaction.Commit();return rows[0];}
         NativeFixtureRow[] DirectRead()=>module.Execute("fixture/read-parent",MemoryPackSerializer.Serialize(original),context).Select(bytes=>MemoryPackSerializer.Deserialize<NativeFixtureRow>(bytes)!).ToArray()!;
         if(DirectRead().Length!=0){throw new InvalidDataException("Native direct sentinel already exists.");}if(Direct("insert-parent",original)!=1||DirectRead().Single().Name!=original.Name||Direct("update-parent",updated)!=1||DirectRead().Single().Name!=updated.Name||Direct("delete-parent",original)!=1||DirectRead().Length!=0){throw new InvalidDataException("Native direct CRUD failed.");}
         async Task<NativeFixtureRow[]> Read(){var rows=new List<NativeFixtureRow>();await foreach(var row in client.QueryAsync<NativeFixtureCommand,NativeFixtureRow>(generation.Id,"fixture/read-parent",databaseName,fingerprint,original)){rows.Add(row);}return rows.ToArray();}

@@ -3,7 +3,8 @@ param(
     [ValidateSet('Update','Stage','Publish','Validate')][string]$Operation='Update',
     [string]$OutputDirectory=$PSScriptRoot,
     [string]$StagingDirectory,
-    [string]$PublishDirectory=$PSScriptRoot
+    [string]$PublishDirectory=$PSScriptRoot,
+    [string]$WindowsAuthenticationName
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version 2.0
@@ -30,7 +31,7 @@ function Add-Element([System.Xml.XmlDocument]$Document,[System.Xml.XmlNode]$Pare
     return $element
 }
 
-function Add-ProjectConnection([System.Xml.XmlDocument]$Document,[System.Xml.XmlNode]$Items,[string]$Server,[string]$Database,[string]$Authentication,[string]$UserName) {
+function Add-ProjectConnection([System.Xml.XmlDocument]$Document,[System.Xml.XmlNode]$Items,[string]$Server,[string]$Database,[string]$Authentication,[string]$UserName,[string]$EncryptionOption) {
     $node=$Document.CreateElement('ConnectionNode')
     $node.SetAttribute('Name',($Server + ':' + $Database + $(if($UserName){':' + $UserName}else{''})))
     [void]$Items.AppendChild($node)
@@ -39,6 +40,8 @@ function Add-ProjectConnection([System.Xml.XmlDocument]$Document,[System.Xml.Xml
     [void](Add-Element $Document $node 'Server' $Server)
     [void](Add-Element $Document $node 'UserName' $UserName)
     [void](Add-Element $Document $node 'Authentication' $Authentication)
+    [void](Add-Element $Document $node 'EncryptionOption' $EncryptionOption)
+    [void](Add-Element $Document $node 'TrustServerCertificate' 'True')
     [void](Add-Element $Document $node 'InitialDB' $Database)
     [void](Add-Element $Document $node 'LoginTimeout' '30')
     [void](Add-Element $Document $node 'ExecutionTimeout' '0')
@@ -76,22 +79,22 @@ function New-SqlProject([string]$ProjectDirectory,[string]$ProjectName,[object[]
         $connectionDatabases+= [pscustomobject]@{Name='Seamless_Comparison_Fixture'}
     }
     foreach($database in $connectionDatabases) {
-        Add-ProjectConnection $document $connectionItems $Server ([string]$database.Name) $(if($WindowsAuthentication){'Windows Authentication'}else{'SQL'}) $UserName
+        Add-ProjectConnection $document $connectionItems $Server ([string]$database.Name) $(if($WindowsAuthentication){$WindowsAuthenticationName}else{'SQL'}) $UserName $(if($Side -ceq 'SeamlessDB'){'Optional'}else{'Mandatory'})
     }
 
     $queries=Add-Element $document $rootItems 'LogicalFolder'
     $queries.SetAttribute('Name','Queries'); $queries.SetAttribute('Type','0'); $queries.SetAttribute('Sorted','true')
     $queryItems=Add-Element $document $queries 'Items'
     foreach($caseName in @('Read-AggregateJoinView.sql','Fixture-CRUD-CommitRollback.sql')) {
-        $relative=Get-RelativePath (Join-Path $script:PublishRoot $ProjectName) (Join-Path $PSScriptRoot ('..\Cases\Common\'+$caseName))
+        $relative=Get-RelativePath $script:PublishRoot (Join-Path $PSScriptRoot ('..\Cases\Common\'+$caseName))
         Add-ProjectFile $document $queryItems $caseName $relative $Server $UserName $WindowsAuthentication
     }
     $hasAdventureWorks=@($Databases | Where-Object { [string]$_.Name -ceq 'AdventureWorks2016' }).Count -gt 0
     if($hasAdventureWorks) {
-        $relative=Get-RelativePath (Join-Path $script:PublishRoot $ProjectName) (Join-Path $PSScriptRoot '..\Cases\AdventureWorks\Basic.sql')
+        $relative=Get-RelativePath $script:PublishRoot (Join-Path $PSScriptRoot '..\Cases\AdventureWorks\Basic.sql')
         Add-ProjectFile $document $queryItems 'AdventureWorks Basic.sql' $relative $Server $UserName $WindowsAuthentication
         if($Side -ceq 'SeamlessDB') {
-            $relative=Get-RelativePath (Join-Path $script:PublishRoot $ProjectName) (Join-Path $PSScriptRoot '..\Cases\AdventureWorks\GeneratedMethods.sql')
+            $relative=Get-RelativePath $script:PublishRoot (Join-Path $PSScriptRoot '..\Cases\AdventureWorks\GeneratedMethods.sql')
             Add-ProjectFile $document $queryItems 'AdventureWorks GeneratedMethods.sql' $relative $Server $UserName $WindowsAuthentication
         }
     }
@@ -107,7 +110,7 @@ function New-SqlProject([string]$ProjectDirectory,[string]$ProjectName,[object[]
             "SELECT s.name AS schema_name,o.name,o.type,m.definition FROM sys.objects AS o JOIN sys.schemas AS s ON s.schema_id=o.schema_id JOIN sys.sql_modules AS m ON m.object_id=o.object_id WHERE o.is_ms_shipped=0 ORDER BY s.name,o.name;`r`nGO`r`n"
         if((Test-Path -LiteralPath $catalogPath -PathType Leaf) -and -not ((Get-Content -LiteralPath $catalogPath -TotalCount 1) -like '-- Generated from the rebuild manifest*')) { throw "Existing handwritten file was protected: $catalogPath" }
         [IO.File]::WriteAllText($catalogPath,$catalogSql,(New-Object Text.UTF8Encoding($false)))
-        Add-ProjectFile $document $queryItems ($databaseName+' Catalog.sql') $catalogRelative $Server $UserName $WindowsAuthentication
+        Add-ProjectFile $document $queryItems ($databaseName+' Catalog.sql') ($ProjectName+'\'+$catalogRelative) $Server $UserName $WindowsAuthentication
         foreach($schema in @($database.Catalog.Schemas)) {
             $schemaName=[string]$schema.Name
             $schemaSegment=ConvertTo-FileSegment $schemaName
@@ -127,7 +130,7 @@ function New-SqlProject([string]$ProjectDirectory,[string]$ProjectName,[object[]
                     }
                     [System.IO.File]::WriteAllText($outputPath,$sql,(New-Object System.Text.UTF8Encoding($false)))
                     $relativePath=$relative.Replace('/','\')
-                    Add-ProjectFile $document $queryItems ((Split-Path -Leaf $relativePath)) $relativePath $Server $UserName $WindowsAuthentication
+                    Add-ProjectFile $document $queryItems ((Split-Path -Leaf $relativePath)) ($ProjectName+'\'+$relativePath) $Server $UserName $WindowsAuthentication
                 }
             }
         }
@@ -222,12 +225,12 @@ function Validate-Stage([string]$Root) {
         $foundBasic=$false;$foundGenerated=$false
         foreach($node in $document.SelectNodes('//FileNode/FullPath')) {
             $value=[string]$node.InnerText
-            if($value.StartsWith('Generated\',[StringComparison]::OrdinalIgnoreCase)) {
-                if(-not $managed.Contains($side+'\'+$value)) { throw "Project references an unmanaged generated file: $value" }
-                [void](Resolve-OwnedPath $Root ($side+'\'+$value))
+            if($value.StartsWith($side+'\Generated\',[StringComparison]::OrdinalIgnoreCase)) {
+                if(-not $managed.Contains($value)) { throw "Project references an unmanaged generated file: $value" }
+                [void](Resolve-OwnedPath $Root $value)
             } else {
                 if([IO.Path]::IsPathRooted($value)) { $resolved=[IO.Path]::GetFullPath($value) }
-                else { $resolved=[IO.Path]::GetFullPath((Join-Path (Join-Path $ledger.TargetRoot $side) $value)) }
+                else { $resolved=[IO.Path]::GetFullPath((Join-Path $ledger.TargetRoot $value)) }
                 $allowed=@(@('Read-AggregateJoinView.sql','Fixture-CRUD-CommitRollback.sql')|ForEach-Object {[IO.Path]::GetFullPath((Join-Path $PSScriptRoot ('..\Cases\Common\'+$_)))})
                 if($hasAdventureWorks) { $allowed+= $basicReference; if($side -ceq 'SeamlessDB') { $allowed+= $generatedReference } }
                 if($allowed -cnotcontains $resolved -or -not (Test-Path -LiteralPath $resolved -PathType Leaf)) { throw "Invalid or missing handwritten SQL reference: $value" }
@@ -243,6 +246,11 @@ function Validate-Stage([string]$Root) {
     return $ledger
 }
 function Build-Stage([string]$Root) {
+    if([string]::IsNullOrWhiteSpace($script:WindowsAuthenticationName)) {
+        if($PSUICulture -like 'ja*') { $script:WindowsAuthenticationName='Windows 認証' }
+        elseif($PSUICulture -like 'en*') { $script:WindowsAuthenticationName='Windows Authentication' }
+        else { throw 'Specify -WindowsAuthenticationName using the Windows authentication name saved by the target SSMS UI language.' }
+    }
     if(-not $GenerationManifest -or -not (Test-Path -LiteralPath $GenerationManifest -PathType Leaf)) { throw 'A generation manifest is required.' }
     Assert-NoReparse $Root
     if((Test-Path -LiteralPath $Root) -and @(Get-ChildItem -LiteralPath $Root -Force).Count -ne 0) { throw 'SSMS staging directory must be new and empty.' }

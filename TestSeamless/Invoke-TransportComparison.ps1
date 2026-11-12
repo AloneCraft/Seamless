@@ -9,8 +9,19 @@ param(
 )
 $ErrorActionPreference='Stop'
 $repository=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-foreach($entry in @(@($WorkDirectory,'D:\'),@($LogDirectory,'F:\'))){
-    if(-not [IO.Path]::IsPathFullyQualified($entry[0]) -or [IO.Path]::GetPathRoot([IO.Path]::GetFullPath($entry[0])) -ne $entry[1]){throw 'WorkDirectoryはD、LogDirectoryはFの絶対パスを指定してください。'}
+foreach($path in @($BaselineGatewayAssembly,$ReleaseTestDirectory)){
+    if(-not [IO.Path]::IsPathFullyQualified($path)){
+        throw '基準DLLとReleaseテスト成果物には絶対パスを指定してください。'
+    }
+    $full=[IO.Path]::GetFullPath($path)
+    if(-not $full.StartsWith($repository+'\',[StringComparison]::OrdinalIgnoreCase) -and [IO.Path]::GetPathRoot($full) -ne 'F:\'){
+        throw '読み取り元はリポジトリ内か、Fドライブに保全した成果物を指定してください。'
+    }
+}
+foreach($path in @($WorkDirectory,$LogDirectory)){
+    if(-not [IO.Path]::IsPathFullyQualified($path) -or -not ([IO.Path]::GetFullPath($path).TrimEnd('\')+'\').StartsWith('F:\Seamless\',[StringComparison]::OrdinalIgnoreCase)){
+        throw '隔離する比較の作業先・ログ先にはF:\Seamless配下の絶対パスを指定してください。'
+    }
 }
 if(-not (Test-Path -LiteralPath $BaselineGatewayAssembly -PathType Leaf)){throw '移行前に凍結したGateway DLLが必要です。'}
 $test=[IO.Path]::GetFullPath($ReleaseTestDirectory)
@@ -19,8 +30,9 @@ $run=[guid]::NewGuid().ToString('N');$work=Join-Path $WorkDirectory $run;$logs=J
 $guard=& 'C:\Python314\python.exe' -B 'G:\AI\Skills\MachineMemoryGuard\MemoryGuard.py' --status | ConvertFrom-Json
 if(!$guard.healthy -or !$guard.lastStatus.codingActive -or $guard.currentUsedPercent -ge 85){throw 'メモリ監視または空きメモリを確認してください。'}
 New-Item -ItemType Directory -Path $work,$logs | Out-Null
-. (Join-Path $repository 'TestSeamless\Invoke-LocalProcess.ps1') -InitializeOnly | Out-Null
+& (Join-Path $repository 'TestSeamless\Invoke-LocalProcess.ps1') -InitializeOnly | Out-Null
 $env:TEMP=Join-Path $work 'temp';$env:TMP=$env:TEMP;New-Item -ItemType Directory -Path $env:TEMP | Out-Null
+$env:DOTNET_CLI_HOME=Join-Path $work 'dotnet-home'
 $manifest=@()
 foreach($variant in $Variants){
     # 前の1万接続が残したTIME_WAITを次の方式の性能差として数えない。

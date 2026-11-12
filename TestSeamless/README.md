@@ -4,9 +4,11 @@ SQL Server を正として、型付きモデル・保存データ・SQL ビュ�
 
 ## 準備と再実行
 
-Windows、.NET 10 SDK、PowerShell、ローカル SQL Server を利用します。通常の入口は PowerShell 7 を推奨します。TPC-E の EGen 1.14.0 は `Work/TpcE/egen` と `Work/TpcE/egen-build/EGenLoader.exe`、SQL Server 用投入処理は `Preparation` にあります。
+Windows、.NET 10 SDK、PowerShell、ローカル SQL Server を利用します。入口スクリプトは PowerShell 7 以降が必要で、Windows PowerShell 5.1 では実行前に拒否します。TPC-E の EGen 1.14.0 は `Work/TpcE/egen` と `Work/TpcE/egen-build/EGenLoader.exe`、SQL Server 用投入処理は `Preparation` にあります。
 
 接続文字列は環境変数、`Seamless.Comparison.Local` のユーザーシークレット、実行ファイル側 `appsettings.json` の順で指定できます。環境変数を最優先します。資格情報は世代ファイルへ保存しません。
+
+この比較環境では [AGENTS.md の実行規約](../AGENTS.md#comparison-execution-policy-2026-10-30) に従い、作業・実データ・キャッシュ・ログを F ドライブに置きます。以下の `Invoke-Comparison.ps1` の各例をローカルで実行する際は、`-ManagedRoot`、`-ArchiveRoot`、`-TemporaryRoot` に F ドライブ上の対象ディレクトリを明示してください。
 
 ```powershell
 $env:ConnectionStrings__Source='Server=localhost;Database=master;Integrated Security=True;Encrypt=False;TrustServerCertificate=True'
@@ -20,6 +22,12 @@ pwsh -File ./TestSeamless/Invoke-Comparison.ps1 -Operation Pack -Configuration R
 # 毎回ユーザーDBを検出し、新しい世代を構築する。
 pwsh -File ./TestSeamless/Invoke-Comparison.ps1 -Operation Rebuild -Configuration Release
 
+# SSMS操作中など、構築・全検証だけ行って切り替えを後にする（PowerShell 7から実行）。
+& ./TestSeamless/Invoke-Comparison.ps1 -Operation Rebuild -DatabaseName @('AdventureWorks2016','Seamless_Comparison_Fixture') -DeferActivation -Configuration Release
+
+# 検証済み世代を再開する。
+pwsh -File ./TestSeamless/Invoke-Comparison.ps1 -Operation Activate -GenerationId <世代ID> -Configuration Release
+
 # 現在の稼働世代で正しさを再確認してから性能測定する。
 pwsh -File ./TestSeamless/Invoke-Comparison.ps1 -Operation Compare -Configuration Release
 
@@ -29,9 +37,15 @@ pwsh -File ./TestSeamless/Invoke-Comparison.ps1 -Operation All -Configuration Re
 
 `-Offline` は外部依存の `.nupkg` が `ArchiveRoot/dependency-feed` にすべてある場合だけ使用します。外部依存が足りなければ復元は失敗します。製品依存は必ず今回のフィードと版から復元します。
 
-通常の再構築は `TPC_E` を作成しません。削除したユーザーDBは次の一覧から外れます。OFFLINE、権限不足、接続失敗は削除に置き換えず構築失敗にします。書き込み試験は `Seamless_Comparison_Fixture` に限定し、元のサンプルDBにデータ変更を行いません。
+各工程は共有調停器を使わず、子孫を含む同じ最大8論理CPUのaffinityで直接実行します。標準出力・標準エラーと終了結果は操作ごとにFへ保存します。同じ管理領域のパイプラインはファイルlockで重複実行を防ぎます。Activate は検証済み世代の証跡と元DB一覧・スキーマを再確認し、同じ製品版の独立 bootstrap を使用してから世代の元EXEを直接起動します。
 
-ローカルの既定保存先は、SSD の `D:/Seamless/Comparison/Managed`（DB・世代別ビルド）、`D:/Seamless/Comparison/Temp`（一時領域）、HDD の `F:/Seamless/Comparison`（フィード・パッケージ・操作ログ）です。C ドライブへの出力は拒否します。ソースコードはリポジトリに維持します。`-ManagedRoot`、`-ArchiveRoot`、`-TemporaryRoot`、環境変数 `SEAMLESS_COMPARISON_ARCHIVE_ROOT`／`SEAMLESS_COMPARISON_TEMP_ROOT` で変更できます。D/F がない CI ではリポジトリ作業領域を使用します。依存パッケージの復元元も F の `dependency-feed` と NuGet 公式フィードにし、新規の復元先は F の専用キャッシュにします。共有 BGO 台帳は `D:/CodexBackgroundOps`、登録情報の実体は `D:/CodexBackgroundOpsRegistry`、比較タスクの private mailbox は `F:/Seamless/Comparison/Mailbox` です。旧 C パスは D への互換ジャンクションだけを残し、台帳・登録情報の実ファイルは D に移管済みです。互換リンクを削除すると古い呼び出しが別台帳を作る危険があるため、単独で削除しません。`generations/<世代>`、`active.json` を管理します。生成されたコード、データ、SQL 定義、パッケージ証跡、クエリ DLL、検証結果は各世代に属します。全検証に成功するまで前の稼働構成を維持し、新サーバーの正常性確認まで失敗した場合は前の構成へ戻します。他者が起動したプロセスは停止しません。
+`Rebuild -DeferActivation` は通常と同じ取り込み・全件検証・証跡確認を行い、Validated世代を残します。稼働サーバー停止、`active.json`更新、SSMS資産公開、旧世代削除は行いません。後で表示された世代IDを指定してActivateします。このオプションはRebuild専用で、All等への誤指定は出力前に拒否します。
+
+取り込み済み世代の検証だけを再実行する場合は `pwsh -File ./TestSeamless/Invoke-Comparison.ps1 -Operation Validate -GenerationId <世代ID> -Offline` を使います。既存の検証コピーとレポートは所有情報・絶対パス・排他lockを確認して `validation-attempts` へ保持し、元データを再取り込みせず利用側EXEの再ビルド・モジュール配置・全検証を行います。成功後の稼働切り替えは別のActivate操作です。
+
+通常の再構築は `TPC_E` を作成しません。削除したユーザーDBは次の一覧から外れます。OFFLINE、権限不足、接続失敗は削除に置き換えず構築失敗にします。検証の最後に元DBの全一覧と対象スキーマを再取得し、変化があれば公開しません。旧世代の削除は、この最終確認済みの全DB一覧を基準にします。`-DatabaseName` で選ばなかったDBを削除済みと扱いません。全一覧または最終確認の証跡がない世代では削除を拒否します。書き込み試験は `Seamless_Comparison_Fixture` に限定し、元のサンプルDBにデータ変更を行いません。
+
+ローカルの既定保存先は、SSD の `D:/Seamless/Comparison/Managed`（DB・世代別ビルド）、`D:/Seamless/Comparison/Temp`（一時領域）、HDD の `F:/Seamless/Comparison`（フィード・パッケージ・操作ログ）です。C ドライブへの出力は拒否します。ソースコードはリポジトリに維持します。`-ManagedRoot`、`-ArchiveRoot`、`-TemporaryRoot`、環境変数 `SEAMLESS_COMPARISON_ARCHIVE_ROOT`／`SEAMLESS_COMPARISON_TEMP_ROOT` で変更できます。D/F がない CI ではリポジトリ作業領域を使用します。依存パッケージの復元元も F の `dependency-feed` と NuGet 公式フィードにし、新規の復元先は F の専用キャッシュにします。比較環境は共有BGOを利用せず、所有する計算処理を共通の最大8論理CPUで直接実行します。以前の共有台帳や互換リンクは他の利用者の資産として扱い、この工程では変更しません。`generations/<世代>`、`active.json` を管理します。生成されたコード、データ、SQL 定義、パッケージ証跡、クエリ DLL、検証結果は各世代に属します。全検証に成功するまで前の稼働構成を維持し、新サーバーの正常性確認まで失敗した場合は前の構成へ戻します。他者が起動したプロセスは停止しません。
 
 ## パッケージとテストソリューション
 
@@ -41,7 +55,7 @@ pwsh -File ./TestSeamless/Invoke-Comparison.ps1 -Operation All -Configuration Re
 
 保存先の環境変数は `Initialize-Storage.ps1` が子プロセスへ設定します。手動のテスト実行でも先にこのスクリプトを呼び、TEMP/TMP・NuGet・dotnet の作業先を適用してください。
 
-型付きクエリの恒久統合テストは [TypedQueryFixture](Tests/TypedQueryFixture/README.md) にあります。共有開発環境では登録済みの `BGO_MAILBOX` を指定して通常の入口を実行します。隔離された CI では `-Direct` を明示し、その実行で作ったパッケージの版とフィードを渡します。COUNT の途中キャンセル、手書き集計の直接・リモート実行、FLinq 生成、上限付きソートのディスク退避を検証します。
+型付きクエリの恒久統合テストは [TypedQueryFixture](Tests/TypedQueryFixture/README.md) にあります。その実行で作ったパッケージの版とフィードを渡し、同じ最大8論理CPUの直接実行helperで起動します。COUNT の途中キャンセル、手書き集計の直接・リモート実行、FLinq 生成、上限付きソートのディスク退避を検証します。
 
 `package-provenance.json` は復元先の専用キャッシュ・版・フィードを検証した結果、`flinq-proof.json` は生成されたインターセプターのハッシュです。型付きクエリ定義から、ビルド前に普通の C# としてサーバー入口とクライアントを生成します。詳細は `Queries/README.md` を参照してください。
 
@@ -77,3 +91,5 @@ dotnet <世代のTestSeamless.dll> sql seamless Seamless_Comparison_Fixture ./Te
 性能は Release でウォームアップ2回、測定7回、同時接続1・4・16を既定にします。SQL送信から全件受信までを測り、照合は区間外です。CPU時間、Working Set／Private Bytesの観測ピーク、プロセスI/O転送量を記録します。I/O転送量は物理ディスク量ではありません。取得不能は `Unavailable` で、SQL Serverの他接続・背景処理の混入も報告します。JSON・CSV・HTMLと分布・倍率を保存します。ネイティブ未定義の任意SQLは `NotImplemented` とし、成功した経路へ数えません。
 
 CIはパッケージを先に作り、小規模の実クライアントfixtureをDebug／Releaseで検証します。ローカルSQL Serverの全DB実データ照合はCIの成功へ含めず、独立した受け入れ工程です。SSMSファイル形式検査と、実アプリでの読み込み・操作確認も別の検証結果です。
+
+同じ稼働世代を再起動する場合は `pwsh ./TestSeamless/Invoke-Comparison.ps1 -Operation Restart` を使います。管理台帳・所有情報・検証証跡・パッケージ/モジュール/スキーマを確認し、記録済みPIDと生成時刻が一致する自分のサーバーだけを停止します。保存済みの同じEXEで再起動し、health成功後に新PIDを記録します。元RDBMSが停止・変更されても検証済みスナップショットの再起動は可能です。元RDBMSと直前の一覧/スキーマを再照合する新世代のActivateとは目的を分けています。サーバーは共有調停器へ依存せず、同じ8論理CPUの制限で直接起動します。起動や正常性確認の失敗は明示し、再取り込みで復旧成功に置き換えません。

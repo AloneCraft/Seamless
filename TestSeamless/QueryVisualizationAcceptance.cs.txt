@@ -1,0 +1,181 @@
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Text.Json;
+using Seamless.Management;
+using Seamless.Management.Server;
+using Designer=Seamless.Management.DatabaseDesigner;
+
+// Fの隔離プロジェクトへコピーしてからビルドする。製品側に試験入口を追加しない。
+if(args.Length<4){throw new ArgumentException("create|open|manual-open root proof-directory stop-file [export-project-directory]");}
+var create=args[0]=="create";
+var manualOpen=args[0]=="manual-open";
+if(!create&&!manualOpen&&args[0]!="open"){throw new ArgumentException("create, open or manual-open is required");}
+var root=Path.GetFullPath(args[1]);
+var proofDirectory=Path.GetFullPath(args[2]);
+var stop=Path.GetFullPath(args[3]);
+if(create&&Directory.Exists(root)){throw new IOException("The isolated root must be new.");}
+if(File.Exists(stop)){throw new IOException("The stop file already exists.");}
+Directory.CreateDirectory(proofDirectory);
+var options=new ManagementHostOptions(root,ManagementExecutionMode.Embedded){Defaults=new(){ManagerPort=0}};
+await using var host=await (create?ManagementApplicationHost.CreateAsync(options):ManagementApplicationHost.OpenAsync(options));
+if(manualOpen){await Serve();return;}
+var operations=host.Operations;
+var definition=Database();
+var query=PublicQuery();
+if(create){
+    await Publish(definition);
+    await operations.CommitRowsAsync(new(definition.Database,1,Guid.NewGuid(),Seed()));
+    await Publish(query);
+    await Publish(ProfileQuery());
+}
+var published=await operations.GetDefinitionAsync(definition.Id);
+var publishedQuery=await operations.GetDefinitionAsync(query.Id);
+var cases=new List<object>();
+foreach(var (scope,factor) in new[]{("",1m),("dbo0.",10m),("dbo1.",100m)}){
+    var list=await Execute(scope+"ItemList",[]);
+    Expect(list.Rows.Length==2,"ItemList row count "+scope);
+    var itemsById=list.Rows.ToDictionary(row=>row.GetProperty("id").GetInt32());
+    Expect(itemsById[1].GetProperty("unitPrice").GetDecimal()==2m*factor,"ItemList price "+scope);
+    Expect(itemsById[2].GetProperty("unitPrice").GetDecimal()==3m*factor,"ItemList second price "+scope);
+    var totals=await Execute(scope+"OrderTotals",[]);
+    Expect(totals.Rows.Length==2,"OrderTotals row count "+scope);
+    var totalsById=totals.Rows.ToDictionary(row=>row.GetProperty("id").GetInt32());
+    Expect(totalsById[1].GetProperty("amount").GetDecimal()==8m*factor,"OrderTotals first amount "+scope);
+    Expect(totalsById[2].GetProperty("amount").GetDecimal()==6m*factor,"OrderTotals second amount "+scope);
+    var amount=await Execute(scope+"Amount",[JsonSerializer.SerializeToElement(10)]);
+    Expect(amount.Value!.Value.GetDecimal()==6m*factor,"Amount scalar "+scope);
+    var find=await Execute(scope+"Find",[JsonSerializer.SerializeToElement(2.5m*factor)]);
+    Expect(find.Rows.Length==1&&find.Rows[0].GetProperty("id").GetInt32()==2,"Find shared fork "+scope);
+    var all=await Execute(scope+"Find",[JsonSerializer.SerializeToElement(0m)]);
+    Expect(all.Rows.Select(row=>row.GetProperty("id").GetInt32()).SequenceEqual(new[]{1,2}),"Find sequence order "+scope);
+}
+var scalar=host.Embedded!.ExecuteScalar<int>(new(query.Id,null,JsonSerializer.SerializeToElement(new{})));
+Expect(scalar==11,"Public query arithmetic and shared fork");
+var queryPlan=await operations.QueryPlansAsync(new(query.Id,query.Id,publishedQuery.Version));
+Expect(queryPlan.Selection.Plans.Length>0,"Public query plan exists");
+Expect(queryPlan.Selection.Plans.SelectMany(plan=>plan.Nodes).Any(node=>node.Layer=="OriginalExpression"&&node.Label=="Multiply"),"Public query Multiply expression");
+Expect(queryPlan.Selection.Plans.SelectMany(plan=>plan.Nodes).Any(node=>node.Layer=="OriginalExpression"&&node.Label=="Equal"),"Public query Equal expression");
+cases.Add(new{ObjectId=query.Id,Expected=11,Actual=scalar,Plan=queryPlan});
+var generator=Assembly.Load("Seamless.FLinq.Generator");
+await Write("proof.json",new{
+    Pid=Environment.ProcessId,DbThread=host.Embedded.ExecutionThreadId,Os=System.Runtime.InteropServices.RuntimeInformation.OSDescription,
+    SourceHash=published.Definition.Source.Hash(),QuerySourceHash=publishedQuery.Definition.Source.Hash(),
+    Generator=Identity(generator),Server=Identity(typeof(ManagementApplicationHost).Assembly),Management=Identity(typeof(Definition).Assembly),UI=Identity(typeof(Seamless.Management.Components.管理ワークスペース).Assembly),
+    PublishedVersion=published.Version,QueryVersion=publishedQuery.Version,Cases=cases,
+    Scopes=new[]{"","dbo0","dbo1"},ExpectedPhysicalImeVerified=false
+});
+await Write("database-definition.json",published.Definition);
+await Write("query-definition.json",publishedQuery.Definition);
+if(args.Length>4){
+    var draft=await operations.GetDraftAsync(definition.Id);
+    var project=await host.Embedded.CreateSourceProjectAsync(new(Path.GetFullPath(args[4]),definition.Database,new(draft.Definition,published.Version,draft.Revision),"QueryVisualizationDb"));
+    await Write("sdk-project.json",project);
+}
+await Serve();
+
+async Task Serve(){
+    // このファイルは所有者だけが読める隔離フォルダーへ出力する。内容をログへ出さない。
+    var proofName="proof.json";
+    if(manualOpen){
+        proofName="manual-host.json";
+        await Write(proofName,new{Pid=Environment.ProcessId,DbThread=host.Embedded!.ExecutionThreadId,ManualResume=true,FixtureChecks="NotRun",Server=Identity(typeof(ManagementApplicationHost).Assembly),UI=Identity(typeof(Seamless.Management.Components.管理ワークスペース).Assembly)});
+    }
+    await Write("private-launch.json",host.Manager.Sessions.CreateLaunch());
+    await Write("ready.json",new{Pid=Environment.ProcessId,Origin=host.Manager.Origin.AbsoluteUri,Root=root,StopFile=stop,Proof=Path.Combine(proofDirectory,proofName),ManualResume=manualOpen});
+    Console.WriteLine(JsonSerializer.Serialize(new{Ready=true,Pid=Environment.ProcessId,Proof=Path.Combine(proofDirectory,proofName),ManualResume=manualOpen}));
+    var lifetime=TimeSpan.FromMinutes(30);
+    if(Environment.GetEnvironmentVariable("SEAMLESS_VISUAL_MANUAL_SESSION")=="1"){lifetime=TimeSpan.FromHours(8);}
+    using var deadline=new CancellationTokenSource(lifetime);
+    try{while(!File.Exists(stop)){await Task.Delay(200,deadline.Token);}}
+    catch(OperationCanceledException) when(deadline.IsCancellationRequested){}
+}
+
+async Task Write(string name,object value)=>await File.WriteAllTextAsync(Path.Combine(proofDirectory,name),JsonSerializer.Serialize(value,ManagementJson.Options));
+static void Expect(bool condition,string name){if(!condition){throw new InvalidOperationException(name);}}
+static object Identity(Assembly assembly)=>new{assembly.FullName,Path=assembly.Location,Sha256=Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(assembly.Location)))};
+async Task Publish(Definition item){
+    var draft=await operations.SaveDraftAsync(new(item,0,0));
+    var build=await operations.BuildAsync(new(item.Id,draft.Revision));
+    Expect(!build.Diagnostics.Any(diagnostic=>diagnostic.Severity=="Error"),"Build "+item.Id+" "+string.Join(" | ",build.Diagnostics.Select(diagnostic=>diagnostic.Message)));
+    var preview=await operations.PreviewAsync(new(item.Id,draft.Revision));
+    Expect(preview.CanApply,"Preview "+item.Id+" "+string.Join(" | ",preview.Diagnostics.Select(diagnostic=>diagnostic.Message)));
+    var applied=await operations.ApplyAsync(new(item.Id,draft.Revision,preview.Token,Guid.NewGuid()));
+    Expect(applied.State==OperationState.Succeeded,"Apply "+item.Id+" "+applied.Error);
+}
+async Task<ObjectExecutionResult> Execute(string id,JsonElement[] arguments){
+    var plan=await operations.QueryPlansAsync(new(definition.Id,id,published.Version));
+    Expect(plan.Selection.Plans.Length==1,"Exactly one bound plan "+id+" "+plan.Selection.UnavailableReason);
+    Expect(plan.Selection.Plans.All(item=>item.SchemaVersion==2),"Plan schema2 "+id);
+    var result=await operations.ExecuteObjectAsync(new(definition.Database,id,arguments,ExpectedVersion:published.Version){MeasurementMode=ObjectExecutionMeasurementMode.Summary});
+    Expect(result.Statistics is not null,"Measured object summary "+id);
+    cases.Add(new{ObjectId=id,Arguments=arguments,Actual=result,Plan=plan});
+    return result;
+}
+static TableRowChange[] Seed(){
+    var rows=new List<TableRowChange>();
+    foreach(var (scope,factor) in new[]{("",1m),("dbo0.",10m),("dbo1.",100m)}){
+        rows.Add(new(scope+"Items",TableRowChangeKind.Insert,Values:JsonSerializer.SerializeToElement(new{Id=1,Title="alpha",UnitPrice=(decimal?)(2m*factor)})));
+        rows.Add(new(scope+"Items",TableRowChangeKind.Insert,Values:JsonSerializer.SerializeToElement(new{Id=2,Title="beta",UnitPrice=(decimal?)(3m*factor)})));
+        rows.Add(new(scope+"Items",TableRowChangeKind.Insert,Values:JsonSerializer.SerializeToElement(new{Id=3,Title=(string?)null,UnitPrice=(decimal?)null})));
+        foreach(var (id,item,quantity) in new[]{(10,1,3),(11,2,2),(12,1,1)}){
+            rows.Add(new(scope+"Orders",TableRowChangeKind.Insert,Values:JsonSerializer.SerializeToElement(new{Id=id,ItemId=item,Quantity=quantity})));
+        }
+    }
+    return rows.ToArray();
+}
+static Definition Database(){
+    var definition=Designer.AddSchema(Designer.AddSchema(Designer.Empty("visual-db","VisualPlanDemo"),"dbo0"),"dbo1");
+    definition=definition with{Source=definition.Source with{Files=[..definition.Source.Files,new("PlanHelpers.cs",Helpers())]}};
+    foreach(var schema in new[]{"","dbo0","dbo1"}){
+        var prefix="container.";if(schema.Length>0){prefix+=schema+".";}
+        definition=Designer.Apply(definition,new("Items",schema,[new("Id","int",true),new("Title","string?",false),new("UnitPrice","decimal?",false)],[]));
+        definition=Designer.Apply(definition,new("Orders",schema,[new("Id","int",true),new("ItemId","int",false),new("Quantity","int",false)],[]));
+        var items=prefix+"Items.Select(row=>new global::PlanAcceptance.ItemInput(row.Id,row.Title,row.UnitPrice)).ToArray()";
+        var orders=prefix+"Orders.Select(row=>new global::PlanAcceptance.OrderInput(row.Id,row.ItemId,row.Quantity)).ToArray()";
+        definition=Designer.ApplyQuery(definition,new("ItemList",schema,DatabaseQueryKind.View,[new("Id","int",false),new("Title","string?",false),new("UnitPrice","decimal?",false)],[],"","return global::PlanAcceptance.PlanHelpers.ItemList("+items+").Select(row=>new ItemList(row.Id,row.Title,row.UnitPrice));"));
+        definition=Designer.ApplyQuery(definition,new("OrderTotals",schema,DatabaseQueryKind.View,[new("Id","int",false),new("Amount","decimal",false)],[],"","return global::PlanAcceptance.PlanHelpers.OrderTotals("+items+","+orders+").Select(row=>new OrderTotals(row.Id,row.Amount));"));
+        definition=Designer.ApplyQuery(definition,new("Amount",schema,DatabaseQueryKind.ScalarFunction,[],[new("orderId","int")],"decimal","return global::PlanAcceptance.PlanHelpers.Amount("+items+","+orders+",orderId);"));
+        definition=Designer.ApplyQuery(definition,new("Find",schema,DatabaseQueryKind.TableFunction,[new("Id","int",false),new("UnitPrice","decimal?",false)],[new("minPrice","decimal")],"IEnumerable<FindResult>","return global::PlanAcceptance.PlanHelpers.Find("+items+",minPrice).Select(row=>new FindResult(row.Id,row.UnitPrice));"));
+    }
+    return definition;
+}
+static string Helpers()=>"""
+    #nullable enable
+    using System.Linq;using Seamless.FLinq;
+    namespace PlanAcceptance;
+    public readonly record struct ItemInput(int Id,string? Title,decimal? UnitPrice);
+    public readonly record struct OrderInput(int Id,int ItemId,int Quantity);
+    public readonly record struct Total(int Id,decimal Amount);
+    public sealed class PlanHelpers{
+        [LinqIntercept(true)] public static ItemInput[] ItemList(ItemInput[] items)=>items.Where(row=>row.UnitPrice.HasValue&&row.UnitPrice.Value*2>=0).OrderBy(row=>row.Title).ToArray();
+        [LinqIntercept(true)] public static Total[] OrderTotals(ItemInput[] items,OrderInput[] orders)=>orders.Join(items,order=>order.ItemId,item=>item.Id,(order,item)=>new{item.Id,Amount=order.Quantity*(item.UnitPrice??0m)}).GroupBy(row=>row.Id).Select(group=>new Total(group.Key,group.Sum(row=>row.Amount))).OrderByDescending(row=>row.Amount).ToArray();
+        [LinqIntercept(true)] public static decimal Amount(ItemInput[] items,OrderInput[] orders,int orderId)=>orders.Where(order=>order.Id==orderId).Join(items,order=>order.ItemId,item=>item.Id,(order,item)=>order.Quantity*(item.UnitPrice??0m)).SingleOrDefault();
+        [LinqIntercept(true)] public static ItemInput[] Find(ItemInput[] items,decimal minPrice){
+            var source=items.Where(row=>row.UnitPrice.HasValue);
+            var left=source.Where(row=>row.UnitPrice!.Value>=minPrice);
+            var right=source.Where(row=>row.Title!=null&&row.Title.Length>1);
+            return left.Intersect(right).OrderBy(row=>row.Id).ToArray();
+        }
+    }
+    """;
+static Definition PublicQuery()=>new("arithmetic-fork","VisualPlanDemo",DefinitionKind.Query,"PlanAcceptance.PublicQuery","Run",new("1",[new("PublicQuery.cs","""
+    using System.Linq;using Seamless.FLinq;using Seamless.Management.Server;
+    namespace PlanAcceptance;
+    public sealed class PublicQuery{
+        public static int Run(ManagementExecutionContext context)=>Compute(new[]{1,2,3,4});
+        [LinqIntercept(true)] private static int Compute(int[] values){
+            var source=values.Where(value=>value>0);
+            var left=source.Where(value=>value%2==1);
+            var right=source.Where(value=>value>=3);
+            return left.Union(right).Sum()+values.Where(value=>value*2==6).Sum();
+        }
+    }
+    """)],[]));
+static Definition ProfileQuery()=>new("profile-sum","VisualPlanDemo",DefinitionKind.Query,"PlanAcceptance.ProfileQuery","Run",new("1",[new("ProfileQuery.cs","""
+    using System.Linq;using Seamless.FLinq;using Seamless.Management.Server;
+    namespace PlanAcceptance;
+    public sealed class ProfileQuery{
+        public static int Run(ManagementExecutionContext context)=>Compute(new[]{1,2,3});
+        [LinqIntercept(true)] private static int Compute(int[] values)=>values.Where(value=>value>1).Sum();
+    }
+    """)],[]));

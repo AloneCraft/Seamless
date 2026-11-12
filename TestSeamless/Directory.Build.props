@@ -11,6 +11,7 @@
     <GenerationDirectory Condition="'$(GenerationDirectory)'==''">$(MSBuildThisFileDirectory)../Work/TestSeamless/empty-generation</GenerationDirectory>
     <BaseIntermediateOutputPath Condition="'$(ComparisonBuildRoot)'!=''">$(ComparisonBuildRoot)/obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
     <BaseOutputPath Condition="'$(ComparisonBuildRoot)'!=''">$(ComparisonBuildRoot)/bin/$(MSBuildProjectName)/</BaseOutputPath>
+    <DefaultItemExcludes>$(DefaultItemExcludes);**/obj/**;**/bin/**;**/generated/**</DefaultItemExcludes>
     <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)generated/$(Configuration)</CompilerGeneratedFilesOutputPath>
   </PropertyGroup>

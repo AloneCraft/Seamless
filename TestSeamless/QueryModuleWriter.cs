@@ -14,7 +14,7 @@ public static class QueryModuleWriter{
         Validate(handwritten,generation);
         var output=Path.Combine(directory,"queries");Directory.CreateDirectory(output);var methods=new StringBuilder();var dispatch=new StringBuilder();var proxy=new StringBuilder();var comparisonArguments=new StringBuilder();var comparisonRows=new StringBuilder();var comparisonRemote=new StringBuilder();var definitions=new List<NativeQueryDefinition>();var cases=new List<object>();var index=0;
         foreach(var database in generation.Databases){foreach(var table in database.Tables){
-            var id="count/"+Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(database.Name+"\0"+table.SourceSchema+"\0"+table.SourceTable)))[..24];var method="Query"+index++;var type="global::"+database.GeneratedName+"."+database.GeneratedName;
+            var id="count/"+Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(database.Name+"\0"+table.SourceSchema+"\0"+table.SourceTable)))[..24];var method="Query"+index++;var type="global::"+database.TypeFullName;
             // LINQ呼出しも入口も通常のソースとして保存し、その後にFLinqを含めてcompileする。
             methods.AppendLine($"public long {method}({type} database,CancellationToken cancellationToken)=>database.{string.Join(".",table.ObjectName.Split('.').Select(part=>"@"+part))}.Where(row=>CheckCancellation(cancellationToken)).LongCount();");
             dispatch.AppendLine($"case {Literal(id)}:yield return MemoryPackSerializer.Serialize(new TypedQueries().{method}(({type})context.Database,context.CancellationToken));context.CancellationToken.ThrowIfCancellationRequested();yield break;");
@@ -23,7 +23,7 @@ public static class QueryModuleWriter{
             definitions.Add(new(id,database.Name,database.Fingerprint,typeof(int).FullName!,typeof(long).FullName!));cases.Add(new{Id=id,Database=database.Name,ClassName="TestSeamless.Queries.TypedQueries",MethodName=method,ClientMethodName=method+"Async",ArgumentsType=typeof(int).FullName,ResultType=typeof(long).FullName,Sql="SELECT COUNT_BIG(*) AS [Count] FROM "+Quote(table.SourceSchema)+"."+Quote(table.SourceTable),NativeQuery=id,Ordered=false});
         }}
         foreach(var query in handwritten){
-            var database=generation.Databases.Single(d=>d.Name==query.Database);var databaseType="global::"+database.GeneratedName+"."+database.GeneratedName;
+            var database=generation.Databases.Single(d=>d.Name==query.Database);var databaseType="global::"+database.TypeFullName;
             var arguments=TypeName(query.ArgumentsType);var result=TypeName(query.ResultType);var target=TypeName(query.ClassName);var method=Identifier(query.MethodName);var clientMethod=Identifier(query.ClientMethodName);
             dispatch.AppendLine($"case {Literal(query.Id)}:{{var args=MemoryPackSerializer.Deserialize<{arguments}>(arguments.Span)!;Func<{databaseType},{arguments},CancellationToken,IEnumerable<{result}>> invoke=new {target}().{method};foreach({result} row in invoke(({databaseType})context.Database,args,context.CancellationToken)){{context.CancellationToken.ThrowIfCancellationRequested();yield return MemoryPackSerializer.Serialize(row);}}yield break;}}");
             proxy.AppendLine($"public IAsyncEnumerable<{result}> {clientMethod}({arguments} arguments,CancellationToken cancellationToken=default)=>this.client.QueryAsync<{arguments},{result}>({Literal(generation.Id)},{Literal(query.Id)},{Literal(database.Name)},{Literal(database.Fingerprint)},arguments,cancellationToken);");
@@ -37,13 +37,13 @@ public static class QueryModuleWriter{
                 var template=File.ReadAllText(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(definitionPath))!,query.SourceFile));
                 if(!template.Contains("{{DatabaseType}}",StringComparison.Ordinal)){throw new InvalidDataException("Query source template has no database type placeholder.");}
                 var name="Handwritten_"+Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(query.Id)))[..24]+".cs";
-                File.WriteAllText(Path.Combine(output,name),template.Replace("{{DatabaseType}}",databaseType,StringComparison.Ordinal).Replace("{{DatabaseNamespace}}","global::"+database.GeneratedName,StringComparison.Ordinal),new UTF8Encoding(false));
+                File.WriteAllText(Path.Combine(output,name),template.Replace("{{DatabaseType}}",databaseType,StringComparison.Ordinal).Replace("{{DatabaseNamespace}}","global::"+database.TypeNamespace,StringComparison.Ordinal),new UTF8Encoding(false));
             }
             definitions.Add(new(query.Id,database.Name,database.Fingerprint,query.ArgumentsType,query.ResultType,query.IsReadOnly));
         }
         var fixture=generation.Databases.SingleOrDefault(d=>d.Name=="Seamless_Comparison_Fixture");
         if(fixture is not null){
-            var databaseType="global::"+fixture.GeneratedName+"."+fixture.GeneratedName;var key="global::"+fixture.GeneratedName+".Keys.FixtureParent";var record="global::"+fixture.GeneratedName+".Records.FixtureParent";
+            var databaseType="global::"+fixture.TypeFullName;var key="global::"+fixture.TypeNamespace+".Keys.FixtureParent";var record="global::"+fixture.TypeNamespace+".Records.FixtureParent";
             dispatch.AppendLine($"case \"fixture/insert-parent\":{{var args=MemoryPackSerializer.Deserialize<NativeFixtureCommand>(arguments.Span)!;var database=({databaseType})context.Database;if(!database.dbo.FixtureParent.Add(new {record}(args.Id,args.Name))){{throw new InvalidOperationException(\"Duplicate fixture key.\");}}yield return MemoryPackSerializer.Serialize(1L);yield break;}}");
             dispatch.AppendLine($"case \"fixture/update-parent\":{{var args=MemoryPackSerializer.Deserialize<NativeFixtureCommand>(arguments.Span)!;var database=({databaseType})context.Database;var key=new {key}(args.Id);long count=0;if(database.dbo.FixtureParent.ContainsKey(key)){{database.dbo.FixtureParent[key]=new {record}(args.Id,args.Name);count=1;}}yield return MemoryPackSerializer.Serialize(count);yield break;}}");
             dispatch.AppendLine($"case \"fixture/delete-parent\":{{var args=MemoryPackSerializer.Deserialize<NativeFixtureCommand>(arguments.Span)!;var database=({databaseType})context.Database;long count=0;if(database.dbo.FixtureParent.Remove(new {key}(args.Id))){{count=1;}}yield return MemoryPackSerializer.Serialize(count);yield break;}}");

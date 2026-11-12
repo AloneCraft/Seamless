@@ -22,8 +22,9 @@ public static class GenerationImport{
         foreach(var item in generation.Databases){
             var settings=new SqlConnectionStringBuilder(connectionString){InitialCatalog=item.Name};var storage=Path.Combine(directory,"data",item.StorageKey);if(Directory.Exists(storage)){throw new IOException("An imported database directory already exists.");}
             var sizing=await SqlServerImportSizer.MeasureTablesAsync(settings.ConnectionString,item.Tables);var options=DatabaseContainerOptions.OnStorage(storage) with{TableStorage=sizing.ToDictionary(p=>p.Key,p=>new DatabaseTableStorageOptions{IndexSize=p.Value.IndexSize,PageSize=p.Value.PageSize,SegmentSize=p.Value.SegmentSize,MemorySize=p.Value.MemorySize},StringComparer.Ordinal)};
-            var type=assembly.GetType(item.GeneratedName+"."+item.GeneratedName,true)!;using var source=new SqlServerImportSource(settings.ConnectionString,item.Tables,true);
-            using(var database=(DatabaseContainer)Activator.CreateInstance(type,[options])!){Invoke(type,database,"EnsureTablesCreated",[]);Invoke(type,database,"ImportTables",[source]);}
+            if(item.RuntimeSqlEnabled){options=options ;}
+            var type=assembly.GetType(item.TypeFullName,true)!;ComparisonHost.ValidateRuntimeProfile(item,type,options);using var source=new SqlServerImportSource(settings.ConnectionString,item.Tables,true);
+            using(var database=(DatabaseContainer)Activator.CreateInstance(type,[options])!){Invoke(type,database,"EnsureTablesCreated",[]);Invoke(type,database,"ImportTables",[item.RuntimeSqlEnabled?new BatchedImportSource(database,source):source]);}
             await File.WriteAllTextAsync(Path.Combine(storage,"storage-options.json"),JsonSerializer.Serialize(options));
             using var reopened=(DatabaseContainer)Activator.CreateInstance(type,[options])!;var adapter=new InProcessDatabaseAdapter(reopened,item.Tables);var registry=new DatabaseRegistry();
             registry.Register(item.Name,adapter,true,item.Fingerprint,item.Catalog.Schemas.SelectMany(s=>s.Views.Select(v=>new DatabaseViewDefinition(s.Name,v.Name,v.Definition??throw new InvalidDataException("A view definition is missing."),v.Columns.Select(c=>new SqlColumn(c.Name,ComparisonHost.ToSqlType(c.Type),c.Type.IsNullable,new(item.Name,s.Name,v.Name),c.Ordinal)).ToArray(),v.Columns))).ToArray(),ComparisonHost.ResolveRoutines(item,assembly,reopened),defaultCollation:item.Catalog.DefaultCollation);
@@ -42,6 +43,18 @@ public static class GenerationImport{
             await File.WriteAllTextAsync(Path.Combine(directory,"import-checks.json"),JsonSerializer.Serialize(checks,new JsonSerializerOptions{WriteIndented=true}));
         }
         await ComparisonSource.VerifySourceAsync(connectionString,generation);(generation with{State="Imported"}).Write(directory);
+    }
+    // The iterator keeps only the current row and commits after at most 1,000 Add calls.
+    // Disposing it on a source/Add failure disposes the active Core transaction, which rolls it back.
+    private sealed class BatchedImportSource(DatabaseContainer database,IDatabaseImportSource source):IDatabaseImportSource{
+        public IEnumerable<TRecord> ReadTable<TRecord>(global::Seamless.Database.System.Keys.DatabaseObject key){
+            using var rows=source.ReadTable<TRecord>(key).GetEnumerator();var hasRow=rows.MoveNext();
+            while(hasRow){
+                using var transaction=database.BeginTransaction();var count=0;
+                do{yield return rows.Current;count++;hasRow=rows.MoveNext();}while(hasRow&&count<1000);
+                transaction.Commit();
+            }
+        }
     }
     private static string Quote(string text)=>"["+text.Replace("]","]]")+"]";
     private static void Invoke(Type type,object target,string name,object?[] args){try{(type.GetMethod(name)??throw new MissingMethodException(type.FullName,name)).Invoke(target,args);}catch(TargetInvocationException ex) when(ex.InnerException is not null){System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw();}}

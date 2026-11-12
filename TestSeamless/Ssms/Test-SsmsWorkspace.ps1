@@ -21,16 +21,38 @@ function Get-Sha256([string]$Path) {
 }
 function Hashes([string]$Root){return (@(Get-ChildItem -LiteralPath $Root -File -Recurse|Sort-Object FullName|ForEach-Object {$_.FullName+'|'+(Get-Sha256 $_.FullName)}) -join "`n")}
 $env:ConnectionStrings__Source=$null
+$relativeStage=Join-Path $TestRoot 'relative-paths'
+$relativeManifest=Manifest 'relative-paths' @('AdventureWorks2016')
+& $update -Operation Stage -GenerationManifest $relativeManifest -OutputDirectory $relativeStage -PublishDirectory $PSScriptRoot|Out-Null
+foreach($side in @('SQLServer','SeamlessDB')) {
+    [xml]$pathProject=[IO.File]::ReadAllText((Join-Path $relativeStage ($side+'\'+$side+'.ssmssqlproj')))
+    $basic=$pathProject.SelectSingleNode('//FileNode[@Name="AdventureWorks Basic.sql"]/FullPath').InnerText
+    $expected=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\Cases\AdventureWorks\Basic.sql'))
+    Check ($side+' AdventureWorks Basic opens relative to the actual solution') ([IO.Path]::GetFullPath([IO.Path]::Combine($PSScriptRoot,$basic)) -ceq $expected)
+}
 $first=Stage 'first' @('first database','keep')
 Check 'Stage has no publication side effect' (-not (Test-Path -LiteralPath $published))
 & $update -Operation Publish -StagingDirectory $first -OutputDirectory $published|Out-Null
 & $update -Operation Validate -OutputDirectory $published|Out-Null
+foreach($side in @('SQLServer','SeamlessDB')) {
+    [xml]$pathProject=[IO.File]::ReadAllText((Join-Path $published ($side+'\'+$side+'.ssmssqlproj')))
+    $common=$pathProject.SelectSingleNode('//FileNode[@Name="Read-AggregateJoinView.sql"]/FullPath').InnerText
+    $expected=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\Cases\Common\Read-AggregateJoinView.sql'))
+    Check ($side+' shared SQL resolves from the SSMS solution directory') ([IO.Path]::GetFullPath([IO.Path]::Combine($published,$common)) -ceq $expected)
+    $generated=@($pathProject.SelectNodes('//FileNode/FullPath')|Where-Object {$_.InnerText -like '*Generated\*'})
+    Check ($side+' generated SQL opens from the SSMS solution directory') ($generated.Count -gt 0 -and @($generated|Where-Object {-not (Test-Path -LiteralPath (Join-Path $published $_.InnerText) -PathType Leaf)}).Count -eq 0)
+}
 Check 'Manifest metadata works without environment connection string' (Test-Path -LiteralPath (Join-Path $published '.seamless-ssms-owner'))
 $old=Get-Content -Raw -LiteralPath (Join-Path $published 'managed-ssms-files.json')|ConvertFrom-Json
 [xml]$firstProject=[IO.File]::ReadAllText((Join-Path $first 'SQLServer\SQLServer.ssmssqlproj'))
+$expectedWindowsAuthentication='Windows Authentication';if($PSUICulture -like 'ja*'){$expectedWindowsAuthentication='Windows 認証'}
+Check 'Windows authentication matches SSMS UI language' (@($firstProject.SelectNodes('//ConnectionNode/Authentication')|Where-Object {$_.InnerText -cne $expectedWindowsAuthentication}).Count -eq 0)
+Check 'Local source retains mandatory encryption and approved certificate trust' ($firstProject.SelectNodes('//ConnectionNode[EncryptionOption="Mandatory" and TrustServerCertificate="True"]').Count -eq $firstProject.SelectNodes('//ConnectionNode').Count)
+[xml]$firstTargetProject=[IO.File]::ReadAllText((Join-Path $first 'SeamlessDB\SeamlessDB.ssmssqlproj'))
+Check 'Local TDS gateway records optional encryption' ($firstTargetProject.SelectNodes('//ConnectionNode[Server="127.0.0.1,14333" and EncryptionOption="Optional" and TrustServerCertificate="True"]').Count -eq $firstTargetProject.SelectNodes('//ConnectionNode').Count)
 $catalogNode=$firstProject.SelectSingleNode('//FileNode[@Name="first database Catalog.sql"]/FullPath')
 if($null -eq $catalogNode){throw 'First database catalog query is missing.'}
-$firstDatabaseSegment=([string]$catalogNode.InnerText).Split('\')[1]
+$firstDatabaseSegment=([string]$catalogNode.InnerText).Split('\')[-2]
 $handwritten=Join-Path $published 'SQLServer\Generated\handwritten.sql'
 [IO.File]::WriteAllText($handwritten,'SELECT 123;')
 $second=Stage 'second' @('keep')
@@ -92,7 +114,7 @@ foreach($side in @('SQLServer','SeamlessDB')) {
     $catalogNodes=@($project.SelectNodes('//FileNode')|Where-Object {$_.GetAttribute('Name') -like '* Catalog.sql'})
     Check ($side+' has a catalog query for every database') ($catalogNodes.Count -eq 2)
     foreach($catalog in $catalogNodes){
-        $catalogSql=[IO.File]::ReadAllText((Join-Path (Join-Path $adventure $side) ($catalog.SelectSingleNode('FullPath').InnerText)))
+        $catalogSql=[IO.File]::ReadAllText((Join-Path $adventure ($catalog.SelectSingleNode('FullPath').InnerText)))
         Check ($side+' catalog names its target database and modules: '+($catalog.GetAttribute('Name'))) ($catalogSql -match 'USE \[' -and $catalogSql -match 'sys\.objects' -and $catalogSql -match 'sys\.sql_modules')
     }
 }
@@ -114,5 +136,29 @@ $targetEntry=@($wrongLedger.Files|Where-Object {$_.Path -ceq 'SQLServer\SQLServe
 $targetEntry.Sha256=Get-Sha256 $targetProjectPath
 $wrongLedger|ConvertTo-Json -Depth 12|Set-Content -LiteralPath $wrongLedgerPath -Encoding UTF8
 Must-Fail 'SQLServer rejects Seamless-only generated method reference' {& $update -Operation Validate -OutputDirectory $wrongSide}
+foreach($language in @(@{Id='english';Name='Windows Authentication'},@{Id='japanese';Name='Windows 認証'})) {
+    $manifest=Manifest ('auth-'+$language.Id) @('fixture')
+    $stage=Join-Path $TestRoot ('auth-'+$language.Id)
+    & $update -Operation Stage -GenerationManifest $manifest -OutputDirectory $stage -PublishDirectory $published -WindowsAuthenticationName $language.Name|Out-Null
+    [xml]$source=[IO.File]::ReadAllText((Join-Path $stage 'SQLServer\SQLServer.ssmssqlproj'))
+    [xml]$target=[IO.File]::ReadAllText((Join-Path $stage 'SeamlessDB\SeamlessDB.ssmssqlproj'))
+    Check ('Explicit SSMS authentication language: '+$language.Id) (@($source.SelectNodes('//ConnectionNode/Authentication')|Where-Object {$_.InnerText -cne $language.Name}).Count -eq 0)
+    Check ('SQL authentication remains invariant: '+$language.Id) (@($target.SelectNodes('//ConnectionNode/Authentication')|Where-Object {$_.InnerText -cne 'SQL'}).Count -eq 0)
+    $previousSource=$env:ConnectionStrings__Source
+    try {
+        $env:ConnectionStrings__Source='Server=localhost;Integrated Security=True'
+        $legacy=Join-Path $TestRoot ('legacy-auth-'+$language.Id)
+        & (Join-Path $PSScriptRoot 'Invoke-CompareSsms.ps1') -ManifestPath $manifest -OutputDirectory $legacy -WindowsAuthenticationName $language.Name|Out-Null
+        [xml]$legacySource=[IO.File]::ReadAllText((Join-Path $legacy 'SQLServer\SQLServer.ssmssqlproj'))
+        Check ('Legacy generator uses SSMS authentication language: '+$language.Id) (@($legacySource.SelectNodes('//ConnectionNode/Authentication')|Where-Object {$_.InnerText -cne $language.Name}).Count -eq 0)
+        foreach($side in @('SQLServer','SeamlessDB')) {
+            [xml]$legacyProject=[IO.File]::ReadAllText((Join-Path $legacy ($side+'\'+$side+'.ssmssqlproj')))
+            $missing=@($legacyProject.SelectNodes('//FileNode/FullPath')|Where-Object {-not (Test-Path -LiteralPath ([IO.Path]::Combine($legacy,$_.InnerText)) -PathType Leaf)})
+            Check ('Legacy SQL files open from the solution directory: '+$language.Id+'/'+$side) ($missing.Count -eq 0)
+        }
+    } finally {
+        if($null -eq $previousSource){Remove-Item Env:ConnectionStrings__Source -ErrorAction SilentlyContinue}else{Set-Item Env:ConnectionStrings__Source $previousSource}
+    }
+}
 $results|ConvertTo-Json -Depth 5|Set-Content -LiteralPath (Join-Path $TestRoot 'results.json') -Encoding UTF8
 Write-Output ('Passed: '+@($results|Where-Object Status -eq 'Passed').Count+'; Unavailable: '+@($results|Where-Object Status -eq 'Unavailable').Count+' SSMS publication checks.')

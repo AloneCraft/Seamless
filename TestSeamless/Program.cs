@@ -24,9 +24,18 @@ public static class Program{
             if(args[0]=="diagnose"){if(args.Length!=4){throw new ArgumentException("Usage: diagnose <generation-directory> <database> <schema.view>");}await Diagnostics.RunAsync(directory,args[2],args[3],SourceConnection());return 0;}
             if(args[0]=="module"){QueryModuleWriter.Deploy(directory);return 0;}
             if(args[0]=="validate"){await ComparisonRunner.ValidateAsync(directory,SourceConnection());return 0;}
+            if(args[0]=="verify-source"){
+                if(args.Length!=2){throw new ArgumentException("Usage: verify-source <generation-directory>");}
+                var generation=ComparisonGeneration.Read(directory);if(generation.State!="Validated"||generation.SourceDatabaseNames.Count==0){throw new InvalidDataException("Validated generation and source inventory required.");}
+                var connection=SourceConnection();var source=new SqlConnectionStringBuilder(connection);
+                if(!string.Equals(source.DataSource,generation.SourceServer,StringComparison.OrdinalIgnoreCase)||source.IntegratedSecurity!=generation.SourceIntegratedSecurity){throw new InvalidDataException("Source identity differs from captured generation.");}
+                await ComparisonSource.VerifySourceAsync(connection,generation);return 0;
+            }
             if(args[0]=="compare"){await ComparisonRunner.MeasureAsync(directory,SourceConnection());return 0;}
             if(args[0]=="serve"){
-                using var host=new ComparisonHost(directory);using var gateway=new GatewayServer(host.Databases);
+                // SEAMLESS_TDS_REQUEST_LOGにフォルダを指定したときだけ、SSMS等が送った要求をそこへ記録する(互換調査用)。
+                using var host=new ComparisonHost(directory);var requestLog=Environment.GetEnvironmentVariable("SEAMLESS_TDS_REQUEST_LOG");
+                using var gateway=new GatewayServer(host.Databases,new(){RequestLogPath=string.IsNullOrWhiteSpace(requestLog)?null:Path.Combine(requestLog,$"tds-requests-{host.Generation.Id}-{Environment.ProcessId}.jsonl")});
                 gateway.Native.Load(ComparisonGeneration.ResolveManagedPath(directory,host.Generation.ModuleManifest??throw new InvalidDataException("Native module is missing.")),host.Generation.ProductVersion);gateway.Start();
                 var identity=new{Generation=host.Generation.Id,Pid=Environment.ProcessId,CreatedUtc=System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime()};await File.WriteAllTextAsync(Path.Combine(directory,"server-ready.json"),JsonSerializer.Serialize(identity));
                 using var exit=new CancellationTokenSource();Console.CancelKeyPress+=(_,e)=>{e.Cancel=true;exit.Cancel();};while(!exit.IsCancellationRequested&&!File.Exists(Path.Combine(directory,"server-stop"))){await Task.Delay(250);}await gateway.StopAsync();return 0;

@@ -6,15 +6,18 @@ param(
     [ValidateSet('Debug','Release')][string]$Configuration='Debug',
     [string]$Filter,
     [switch]$BuildOnly,
-    [switch]$EmitGeneratedSources
+    [switch]$SnapshotOnly,
+    [switch]$EmitGeneratedSources,
+    [switch]$ForceCompile
 )
 $ErrorActionPreference='Stop'
 & (Join-Path $PSScriptRoot 'Invoke-LocalProcess.ps1') -InitializeOnly|Out-Null
 $sourceRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $taskPath=[IO.Path]::GetFullPath($TaskRoot)
 $logPath=[IO.Path]::GetFullPath($LogRoot)
-if([IO.Path]::GetPathRoot($taskPath) -ne 'D:\' -or [IO.Path]::GetPathRoot($logPath) -ne 'F:\'){
-    throw 'TaskRoot must be on D and LogRoot must be on F.'
+$taskDrive=[IO.Path]::GetPathRoot($taskPath)
+if($taskDrive -notin @('D:\','F:\') -or [IO.Path]::GetPathRoot($logPath) -ne 'F:\'){
+    throw 'TaskRoot must be on D or F and LogRoot must be on F.'
 }
 [IO.Directory]::CreateDirectory($taskPath)|Out-Null
 [IO.Directory]::CreateDirectory($logPath)|Out-Null
@@ -45,6 +48,10 @@ function Copy-Source([string]$path){
     if((Test-Path -LiteralPath $target) -and (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -eq $hash){return}
     [IO.Directory]::CreateDirectory((Split-Path $target))|Out-Null
     Copy-Item -LiteralPath $absolute -Destination $target
+    if((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne $hash){
+        throw "Source changed while copying the validation snapshot: $relative"
+    }
+    [IO.File]::SetLastWriteTimeUtc($target,[DateTime]::UtcNow)
 }
 $pending=[Collections.Generic.Queue[string]]::new()
 $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -94,6 +101,10 @@ $memory=$status|ConvertFrom-Json
 if(-not $memory.healthy -or -not $memory.lastStatus.codingActive -or $memory.currentUsedPercent -ge 85){
     throw 'Memory guard is unavailable or memory pressure prevents validation.'
 }
+if($SnapshotOnly){
+    [pscustomobject]@{Outcome='SnapshotReady';SourceSnapshot=$snapshot;SourceManifest=$manifestPath;FileCount=$manifest.Count;SourceManifestSha256=(Get-FileHash -LiteralPath $manifestPath -Algorithm SHA256).Hash}
+    return
+}
 # NuGet fallbackはCを読めても、Native DTO fixtureはFの明示analyzerパスを使う。
 # 新規LogRootでも再現できるよう、既存packageをFへ複製する。Cへrestore/出力しない。
 if($seen.Contains([IO.Path]::GetFullPath((Join-Path $sourceRoot 'Tests/Seamless.Database.Gateway.Tests/Seamless.Database.Gateway.Tests.csproj')))){
@@ -112,15 +123,21 @@ if($seen.Contains([IO.Path]::GetFullPath((Join-Path $sourceRoot 'Tests/Seamless.
 $stage='test'
 if($BuildOnly){$stage='build'}
 $run=Join-Path $logPath ($Configuration+'-'+$stage+'-'+[Guid]::NewGuid().ToString('N'))
-$env:SEAMLESS_TEST_DATA_ROOT=Join-Path 'D:\CodexTemp\m' ([Guid]::NewGuid().ToString('N').Substring(0,12))
+$env:SEAMLESS_TEST_DATA_ROOT=Join-Path (Join-Path $taskDrive 'CodexTemp\m') ([Guid]::NewGuid().ToString('N').Substring(0,12))
 $env:SEAMLESS_TEST_CACHE_ROOT=Join-Path $logPath 'test-cache'
 $env:SEAMLESS_TEST_GENERATOR_ASSEMBLY=Join-Path $snapshot ('Seamless.Database.Generator/bin/'+$Configuration+'/net10.0/Seamless.Database.Generator.dll')
 [IO.Directory]::CreateDirectory($env:SEAMLESS_TEST_CACHE_ROOT)|Out-Null
 [IO.Directory]::CreateDirectory($env:SEAMLESS_TEST_DATA_ROOT)|Out-Null
 [IO.Directory]::CreateDirectory($run)|Out-Null
 Copy-Item -LiteralPath $manifestPath -Destination (Join-Path $run 'source-manifest.json')
-@{Project=$Project;Configuration=$Configuration;Filter=$Filter;EmitGeneratedSources=[bool]$EmitGeneratedSources;DataRoot=$env:SEAMLESS_TEST_DATA_ROOT;SourceManifestSha256=(Get-FileHash -LiteralPath $manifestPath).Hash}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $run 'validation-spec.json') -Encoding utf8
+@{Project=$Project;Configuration=$Configuration;Filter=$Filter;EmitGeneratedSources=[bool]$EmitGeneratedSources;ForceCompile=[bool]$ForceCompile;RunnerSha256=(Get-FileHash -LiteralPath $PSCommandPath).Hash;DataRoot=$env:SEAMLESS_TEST_DATA_ROOT;SourceManifestSha256=(Get-FileHash -LiteralPath $manifestPath).Hash}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $run 'validation-spec.json') -Encoding utf8
 $arguments=@($stage,(Join-Path $snapshot $Project),'-c',$Configuration,'-m:1','-p:UseSharedCompilation=false','-p:NuGetAudit=false','-p:RestoreSources=C:\Users\kazuh\.nuget\packages','-p:RestoreFallbackFolders=C:\Users\kazuh\.nuget\packages','--disable-build-servers')
+if($ForceCompile){
+    # 内容が同じ既存コピーも最終検証では再コンパイルする。コピー元の古い更新時刻で旧DLLを再利用させない。
+    foreach($relative in $manifest.Keys){
+        if([IO.Path]::GetExtension($relative) -eq '.cs'){[IO.File]::SetLastWriteTimeUtc((Join-Path $snapshot $relative),[DateTime]::UtcNow)}
+    }
+}
 if($EmitGeneratedSources){
     $arguments+='-p:EmitCompilerGeneratedFiles=true'
     # 通常ビルドの出力が最新でも、検査対象プロジェクトの生成コードを確実に保存する。

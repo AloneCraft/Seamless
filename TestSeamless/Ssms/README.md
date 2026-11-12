@@ -21,3 +21,11 @@ SeamlessのSQL Server互換profileは、`HAS_DBACCESS('msdb')`照会に整数1�
 SSMS 22のSQLファイルの`FullPath`は、ソリューションを置いたディレクトリを基準に解決されます。`Cases`の参照は`..\Cases\...`、生成SQLは`SQLServer\Generated\...`または`SeamlessDB\Generated\...`とします。プロジェクトのサブディレクトリを基準にしません。Stageでは最終公開先を基準に共通SQLの実パスを確認し、生成SQLはstage内の同じ相対パスで管理台帳と照合します。別ドライブにある手書きSQLは絶対パスで参照します。プロジェクト参照の更新後はSSMSのソリューションを読み直してください。
 
 `Test-SsmsWorkspace.ps1 -TestRoot <新しい検証ディレクトリ>` は公開の回帰確認です。比較環境の `Invoke-LocalProcess.ps1` を通して最大8論理CPUで直接実行します。ソリューション基準での共通/生成SQL参照、削除DBの掃除、手書き保持、編集済み生成物保護、所有情報、台帳、XML参照、リンク拒否、日本語・英語の認証名と旧生成入口を検証します。SSMSアプリ上のロード確認は別の検証項目です。
+
+## SSMSが送る要求の記録（互換調査用）
+
+サーバーを起動する環境で `SEAMLESS_TDS_REQUEST_LOG` にフォルダを指定すると、`TestSeamless serve` はTDSで受けた要求を `tds-requests-<世代ID>-<PID>.jsonl` に1要求1行で追記します。未指定なら記録しません。
+
+記録する内容は、SQL本文、RPC名と引数宣言、引数の名前と型、結果セット数、成否とエラー、所要時間です。引数の値は実データを含み得るため残しません。SQL本文の `PASSWORD=`/`SECRET=` の文字列は `'***'` に置き換え、ログイン要求は記録しません。
+
+`Get-TdsRequestSummary.ps1 -Path <jsonl> -OutputDirectory <出力先>` で集計します。同じ形のSQLをまとめ、失敗をメッセージ別に数え、参照された `sys`/`INFORMATION_SCHEMA` オブジェクト・関数・EXEC/RPCの手続きを一覧にします。結果は `summary.md` と `summary.json` です。記録は互換に足りないものを洗い出す材料であり、記録できたことを互換の合格とは扱いません。

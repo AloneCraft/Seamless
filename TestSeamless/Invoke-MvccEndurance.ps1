@@ -4,11 +4,12 @@ param(
     [Parameter(Mandatory)][string]$LogRoot,
     [ValidateRange(1,512)][int]$Cycles=32,
     [ValidateSet('Debug','Release')][string]$Configuration='Release',
-    [ValidateSet('Update','Churn')][string]$Workload='Update'
+    [ValidateSet('Update','Churn')][string]$Workload='Update',
+    [switch]$ForceCompile
 )
 $ErrorActionPreference='Stop'
 $project='Benchmark/Experiments/ProductTransactions/ProductTransactions.csproj'
-$build=& (Join-Path $PSScriptRoot 'Invoke-MvccValidation.ps1') -TaskRoot $TaskRoot -LogRoot $LogRoot -Project $project -Configuration $Configuration -BuildOnly
+$build=& (Join-Path $PSScriptRoot 'Invoke-MvccValidation.ps1') -TaskRoot $TaskRoot -LogRoot $LogRoot -Project $project -Configuration $Configuration -BuildOnly -ForceCompile:$ForceCompile
 if($build.Outcome -ne 'Passed'){throw 'Endurance build did not pass.'}
 $identity=[Guid]::NewGuid().ToString('N')
 $artifacts=Join-Path $LogRoot ('endurance-'+$Configuration+'-'+$identity)

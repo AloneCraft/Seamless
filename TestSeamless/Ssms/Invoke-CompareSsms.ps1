@@ -1,9 +1,15 @@
 ﻿param(
     [Parameter(Mandatory=$true)][string]$ManifestPath,
-    [string]$OutputDirectory=$PSScriptRoot
+    [string]$OutputDirectory=$PSScriptRoot,
+    [string]$WindowsAuthenticationName
 )
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version 2.0
+if([string]::IsNullOrWhiteSpace($WindowsAuthenticationName)) {
+    if($PSUICulture -like 'ja*') { $WindowsAuthenticationName='Windows 認証' }
+    elseif($PSUICulture -like 'en*') { $WindowsAuthenticationName='Windows Authentication' }
+    else { throw 'Specify -WindowsAuthenticationName using the Windows authentication name saved by the target SSMS UI language.' }
+}
 
 function ConvertTo-SqlIdentifier([string]$Value) {
     return '[' + $Value.Replace(']',']]') + ']'
@@ -27,7 +33,15 @@ function Add-Element([System.Xml.XmlDocument]$Document,[System.Xml.XmlNode]$Pare
     return $element
 }
 
-function Add-ProjectConnection([System.Xml.XmlDocument]$Document,[System.Xml.XmlNode]$Items,[string]$Server,[string]$Database,[string]$Authentication,[string]$UserName) {
+function Get-RelativePath([string]$Root,[string]$Path) {
+    $rootPath=[IO.Path]::GetFullPath($Root);$targetPath=[IO.Path]::GetFullPath($Path)
+    if([IO.Path]::GetPathRoot($rootPath) -ine [IO.Path]::GetPathRoot($targetPath)) { return $targetPath }
+    $base=New-Object Uri ($rootPath.TrimEnd('\')+'\')
+    $target=New-Object Uri $targetPath
+    return [Uri]::UnescapeDataString($base.MakeRelativeUri($target).ToString()).Replace('/','\')
+}
+
+function Add-ProjectConnection([System.Xml.XmlDocument]$Document,[System.Xml.XmlNode]$Items,[string]$Server,[string]$Database,[string]$Authentication,[string]$UserName,[string]$EncryptionOption) {
     $node=$Document.CreateElement('ConnectionNode')
     $node.SetAttribute('Name',($Server + ':' + $Database + $(if($UserName){':' + $UserName}else{''})))
     [void]$Items.AppendChild($node)
@@ -36,6 +50,8 @@ function Add-ProjectConnection([System.Xml.XmlDocument]$Document,[System.Xml.Xml
     [void](Add-Element $Document $node 'Server' $Server)
     [void](Add-Element $Document $node 'UserName' $UserName)
     [void](Add-Element $Document $node 'Authentication' $Authentication)
+    [void](Add-Element $Document $node 'EncryptionOption' $EncryptionOption)
+    [void](Add-Element $Document $node 'TrustServerCertificate' 'True')
     [void](Add-Element $Document $node 'InitialDB' $Database)
     [void](Add-Element $Document $node 'LoginTimeout' '30')
     [void](Add-Element $Document $node 'ExecutionTimeout' '0')
@@ -73,14 +89,14 @@ function New-SqlProject([string]$ProjectDirectory,[string]$ProjectName,[object[]
         $connectionDatabases+= [pscustomobject]@{Name='Seamless_Comparison_Fixture'}
     }
     foreach($database in $connectionDatabases) {
-        Add-ProjectConnection $document $connectionItems $Server ([string]$database.Name) $(if($WindowsAuthentication){'Windows Authentication'}else{'SQL'}) $UserName
+        Add-ProjectConnection $document $connectionItems $Server ([string]$database.Name) $(if($WindowsAuthentication){$WindowsAuthenticationName}else{'SQL'}) $UserName $(if($Side -ceq 'SeamlessDB'){'Optional'}else{'Mandatory'})
     }
 
     $queries=Add-Element $document $rootItems 'LogicalFolder'
     $queries.SetAttribute('Name','Queries'); $queries.SetAttribute('Type','0'); $queries.SetAttribute('Sorted','true')
     $queryItems=Add-Element $document $queries 'Items'
     foreach($caseName in @('Read-AggregateJoinView.sql','Fixture-CRUD-CommitRollback.sql')) {
-        $relative='..\..\Cases\Common\' + $caseName
+        $relative=Get-RelativePath $outputRoot (Join-Path $PSScriptRoot ('..\Cases\Common\'+$caseName))
         Add-ProjectFile $document $queryItems $caseName $relative $Server $UserName $WindowsAuthentication
     }
     foreach($database in $Databases) {
@@ -105,7 +121,7 @@ function New-SqlProject([string]$ProjectDirectory,[string]$ProjectName,[object[]
                     }
                     [System.IO.File]::WriteAllText($outputPath,$sql,(New-Object System.Text.UTF8Encoding($false)))
                     $relativePath=$relative.Replace('/','\')
-                    Add-ProjectFile $document $queryItems ((Split-Path -Leaf $relativePath)) $relativePath $Server $UserName $WindowsAuthentication
+                    Add-ProjectFile $document $queryItems ((Split-Path -Leaf $relativePath)) ($ProjectName+'\'+$relativePath) $Server $UserName $WindowsAuthentication
                 }
             }
         }
@@ -145,5 +161,5 @@ $seamlessProject=Join-Path $outputRoot 'SeamlessDB'
 [void](New-Item -ItemType Directory -Force -Path $sqlServerProject)
 [void](New-Item -ItemType Directory -Force -Path $seamlessProject)
 New-SqlProject $sqlServerProject 'SQLServer' $databases $sourceServer $true '' 'SQLServer'
-New-SqlProject $seamlessProject 'SeamlessDB' $databases 'localhost,14333' $false 'sa' 'SeamlessDB'
+New-SqlProject $seamlessProject 'SeamlessDB' $databases '127.0.0.1,14333' $false 'sa' 'SeamlessDB'
 Write-Output "SSMS project files generated from manifest: $($databases.Count) databases; passwords were not written."

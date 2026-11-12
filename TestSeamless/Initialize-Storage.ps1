@@ -9,7 +9,6 @@ foreach($path in @($ArchiveRoot,$TemporaryRoot)){if([IO.Path]::GetPathRoot($path
 $env:SEAMLESS_COMPARISON_ARCHIVE_ROOT=$ArchiveRoot;$env:SEAMLESS_COMPARISON_TEMP_ROOT=$TemporaryRoot
 $env:SEAMLESS_COMPARISON_PACKAGE_ROOT=Join-Path $ArchiveRoot 'packages'
 $env:TEMP=$TemporaryRoot;$env:TMP=$TemporaryRoot
-if(-not $env:BGO_STATE){$env:BGO_STATE='D:\CodexBackgroundOps'}
 $env:NUGET_PACKAGES=Join-Path $ArchiveRoot 'product-packages';$env:NUGET_HTTP_CACHE_PATH=Join-Path $ArchiveRoot 'nuget-http-cache';$env:NUGET_SCRATCH=Join-Path $TemporaryRoot 'nuget-scratch'
 $env:DOTNET_CLI_HOME=Join-Path $ArchiveRoot 'dotnet-home';$env:DOTNET_BUNDLE_EXTRACT_BASE_DIR=Join-Path $TemporaryRoot 'bundles'
 $env:DOTNET_GENERATE_ASPNET_CERTIFICATE='false';$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false'
