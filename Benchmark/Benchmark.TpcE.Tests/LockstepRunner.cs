@@ -2,10 +2,10 @@ using Benchmark.TpcE.Core;
 namespace Benchmark.TpcE.Tests;
 public sealed class LockstepRunner{
     private static Core.RunOptions Small(string? fault=null)=>new Core.RunOptions{
-        Seed=3,Customers=100,MarketDays=30,NewsItemBytes=64,Transactions=700,Warmup=50,SaveEvery=350,ReopenEvery=1,InjectFault=fault,
+        Seed=3,Customers=100,MarketDays=30,NewsItemBytes=64,Transactions=700,Warmup=50,SaveEvery=350,ReopenEvery=1,InjectFault=fault,MemoryMegabytes=TpcETestStores.MemoryMegabytes,
     };
     private static RunOutcome Run(Core.RunOptions options){
-        var directory=Path.Combine(Path.GetTempPath(),"tpce-test-"+Guid.NewGuid().ToString("N"));
+        var directory=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")??Path.GetTempPath(),"tpce-test-"+Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         try{
             var runner=new Core.LockstepRunner(options,VariantCatalog.All,directory,TextWriter.Null);
@@ -21,7 +21,7 @@ public sealed class LockstepRunner{
         {
             //4通りが一致し、保存→開き直しも一致する(終了コード 0)
             var outcome=Run(Small());
-            Assert.Equal(0,outcome.ExitCode);
+            Assert.True(outcome.ExitCode==0,outcome.Failure+Environment.NewLine+string.Join(Environment.NewLine,outcome.Failure?.Details??[]));
             Assert.NotNull(outcome.FinalState);
             Assert.True(outcome.FinalState!.CeCount>=700);
             // Trade-Cleanup が最初に 1 回、12 種類のうち CE の 8 種類は流れている。
@@ -35,7 +35,7 @@ public sealed class LockstepRunner{
         {
             //出力をずらすと、その取引で出力の不一致として止まる
             var outcome=Run(Small("PF:200:Output"));
-            Assert.Equal(1,outcome.ExitCode);
+            Assert.True(outcome.ExitCode==1,outcome.Failure+Environment.NewLine+string.Join(Environment.NewLine,outcome.Failure?.Details??[]));
             Assert.Equal(FailureKind.Output,outcome.Failure!.Kind);
             Assert.Equal(200,outcome.Failure.TxnIndex);
         }

@@ -1,6 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('Windows'))">net10.0;net10.0-windows</TargetFrameworks>
+    <LangVersion>preview</LangVersion>
+    <Features>InterceptorsPreview</Features>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsTestProject>true</IsTestProject>
@@ -14,4 +18,80 @@
     <Using Include="Xunit" />
     <ProjectReference Include="../Benchmark.Infrastructure/Benchmark.Infrastructure.csproj" />
   </ItemGroup>
+  <PropertyGroup Condition="'$(TargetFramework)'=='net10.0-windows'">
+    <UseMaui>true</UseMaui><WindowsPackageType>None</WindowsPackageType>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion><TargetPlatformVersion>10.0.19041.0</TargetPlatformVersion><TargetPlatformMinVersion>10.0.19041.0</TargetPlatformMinVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Worker/Worker.csproj" />
+    <ProjectReference Include="../../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../Shared/UI.Storage/UI.Storage.csproj" />
+    <ProjectReference Include="../../Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
+    <ProjectReference Include="../Benchmark.Optimization.All/Benchmark.Optimization.All.csproj" />
+    <ProjectReference Include="../Benchmark.Scalable.Persisted.Collections/Benchmark.Scalable.Persisted.Collections.csproj" />
+    <ProjectReference Include="../Benchmark.Scalable.Tsavorite.Collections/Benchmark.Scalable.Tsavorite.Collections.csproj" />
+    <ProjectReference Include="../Benchmark.System.Linq.Enumerable.FLinq/Benchmark.System.Linq.Enumerable.FLinq.csproj" />
+    <ProjectReference Include="../Benchmark.System.Linq.Enumerable.ZLinq/Benchmark.System.Linq.Enumerable.ZLinq.csproj" />
+    <ProjectReference Include="../Benchmark.System.Linq.Enumerable.List.ZLinq/Benchmark.System.Linq.Enumerable.List.ZLinq.csproj" />
+    <ProjectReference Include="../Benchmark.System.Linq.Enumerable.Range.FLinq/Benchmark.System.Linq.Enumerable.Range.FLinq.csproj" />
+    <ProjectReference Include="../Benchmark.System.Linq.Enumerable.Range.ZLinq/Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
+    <Using Include="Seamless.TestKit" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)'=='net10.0'">
+    <Compile Remove="Migration/Benchmark/BenchmarkFastWorkerSession.cs;Migration/Benchmark/WorkerAssemblyResolution.cs;Migration/BenchmarkWorker/BenchmarkGridKeyLogic.cs" />
+    <Compile Remove="Headless/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)'=='net10.0-windows'">
+    <Compile Remove="Audit/**/*.cs;ParameterSweep/**/*.cs" />
+    <ProjectReference Include="../Benchmark.Headless/Benchmark.Headless.csproj" Aliases="Headless" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
+    <PackageReference Include="Syncfusion.Licensing" Version="33.2.15" />
+    <PackageReference Include="Syncfusion.Maui.Buttons" Version="33.2.15" />
+    <PackageReference Include="Syncfusion.Maui.DataGrid" Version="33.2.15" />
+    <PackageReference Include="Syncfusion.Maui.Toolkit" Version="1.0.10" />
+  </ItemGroup>
+  <Import Project="../../Shared/UI.Core/UI.Core.projitems" Label="Shared" Condition="'$(TargetFramework)'=='net10.0'" />
+  <Import Project="../Shared/UI/UI.projitems" Label="Shared" Condition="'$(TargetFramework)'=='net10.0-windows'" />
+  <ItemGroup Condition="'$(TargetFramework)'=='net10.0-windows'">
+    <ApplicationDefinition Remove="../Shared/UI/Platforms/Windows/App.xaml" />
+    <Compile Remove="../Shared/UI/Platforms/Windows/App.xaml.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)'=='net10.0'">
+    <ProjectReference Include="../Benchmark.Audit/Benchmark.Audit.csproj" />
+    <ProjectReference Include="../Benchmark.Tsavorite.ParameterSweep/Benchmark.Tsavorite.ParameterSweep.csproj" />
+    <PackageReference Include="ZLinq" Version="1.5.6" />
+    <AuditBenchmarkProject Include="../Benchmark.System.Linq.Enumerable.FLinq/Benchmark.System.Linq.Enumerable.FLinq.csproj" />
+    <AuditBenchmarkProject Include="../Benchmark.System.Linq.Enumerable.List.FLinq/Benchmark.System.Linq.Enumerable.List.FLinq.csproj" />
+    <AuditBenchmarkProject Include="../Benchmark.System.Linq.Enumerable.IEnumerable.FLinq/Benchmark.System.Linq.Enumerable.IEnumerable.FLinq.csproj" />
+    <AuditBenchmarkProject Include="../Benchmark.System.Linq.Enumerable.Range.FLinq/Benchmark.System.Linq.Enumerable.Range.FLinq.csproj" />
+    <AuditBenchmarkProject Include="../Benchmark.Optimization.All/Benchmark.Optimization.All.csproj" />
+    <AuditBenchmarkProject Include="../Benchmark.System.Linq.Enumerable.ZLinq/Benchmark.System.Linq.Enumerable.ZLinq.csproj" />
+    <AuditBenchmarkProject Include="../Benchmark.System.Linq.Enumerable.List.ZLinq/Benchmark.System.Linq.Enumerable.List.ZLinq.csproj" />
+    <AuditBenchmarkProject Include="../Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq/Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq.csproj" />
+    <AuditBenchmarkProject Include="../Benchmark.System.Linq.Enumerable.Range.ZLinq/Benchmark.System.Linq.Enumerable.Range.ZLinq.csproj" />
+    <AuditBenchmarkProject Include="../Benchmark.System.Linq.Enumerable.Ideal/Benchmark.System.Linq.Enumerable.Ideal.csproj" />
+    <AuditBenchmarkProject Include="../Benchmark.System.Linq.Enumerable.List.Ideal/Benchmark.System.Linq.Enumerable.List.Ideal.csproj" />
+    <AuditBenchmarkProject Include="../Benchmark.System.Linq.Enumerable.IEnumerable.Ideal/Benchmark.System.Linq.Enumerable.IEnumerable.Ideal.csproj" />
+    <AuditBenchmarkProject Include="../Benchmark.System.Linq.Enumerable.Range.Ideal/Benchmark.System.Linq.Enumerable.Range.Ideal.csproj" />
+    <AuditBenchmarkProject Include="../Benchmark.Optimization.Ideal/Benchmark.Optimization.Ideal.csproj" />
+    <ProjectReference Include="../Benchmark.System.Linq.Enumerable.List.FLinq/Benchmark.System.Linq.Enumerable.List.FLinq.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Benchmark.System.Linq.Enumerable.IEnumerable.FLinq/Benchmark.System.Linq.Enumerable.IEnumerable.FLinq.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq/Benchmark.System.Linq.Enumerable.IEnumerable.ZLinq.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Benchmark.System.Linq.Enumerable.Ideal/Benchmark.System.Linq.Enumerable.Ideal.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Benchmark.System.Linq.Enumerable.List.Ideal/Benchmark.System.Linq.Enumerable.List.Ideal.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Benchmark.System.Linq.Enumerable.IEnumerable.Ideal/Benchmark.System.Linq.Enumerable.IEnumerable.Ideal.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Benchmark.System.Linq.Enumerable.Range.Ideal/Benchmark.System.Linq.Enumerable.Range.Ideal.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../Benchmark.Optimization.Ideal/Benchmark.Optimization.Ideal.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <Target Name="WriteAuditedBenchmarkPaths" AfterTargets="Build" Condition="'$(TargetFramework)'=='net10.0'">
+    <MSBuild Projects="@(AuditBenchmarkProject)" Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration);TargetFramework=net10.0"
+             RemoveProperties="RuntimeIdentifier;SelfContained;TargetFramework;TargetFrameworks;TargetPlatformIdentifier;TargetPlatformVersion;TargetPlatformMinVersion;UseMaui">
+      <Output TaskParameter="TargetOutputs" ItemName="AuditedBenchmarkOutput" />
+    </MSBuild>
+    <WriteLinesToFile File="$(TargetDir)AuditedBenchmarkPaths.txt" Lines="@(AuditedBenchmarkOutput->'%(FullPath)')"
+                      Overwrite="true" WriteOnlyWhenDifferent="true" Encoding="UTF-8" />
+  </Target>
 </Project>

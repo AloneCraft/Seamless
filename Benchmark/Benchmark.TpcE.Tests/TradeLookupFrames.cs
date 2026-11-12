@@ -105,7 +105,7 @@ public sealed class TradeLookupFrames{
     private static TradeLookupOutput ExecuteAll(TradeLookupInput input){
         var outputs=new List<TradeLookupOutput>();
         foreach(var variant in VariantCatalog.All){
-            var store=Store.CreateTemporary();
+            var store=TpcETestStores.Temporary();
             try{
                 var engine=variant.Open(store,new TpcEScale{Customers=10});
                 try{

@@ -38,7 +38,7 @@ public sealed record DriverState{
     public int TickerOwn{get;set;}
     public int TickerOther{get;set;}
     public System.Collections.Generic.Dictionary<TxnKind,long> Counts{get;init;}=[];
-    public DriverState DeepClone()=>JsonSerializer.Deserialize<DriverState>(JsonSerializer.Serialize(this,DriverJson.Options),DriverJson.Options)!;
+    public DriverState DeepClone()=>this with{Events=[..this.Events],Ticker=[..this.Ticker],Counts=new(this.Counts)};
 }
 internal static class DriverJson{
     public static readonly JsonSerializerOptions Options=new(){WriteIndented=false,IncludeFields=false};
@@ -84,6 +84,12 @@ public sealed class Driver{
         this.tick=Math.Max(1,56_180L/state.Scale.Customers);
     }
     public DriverState State{get;private set;}
+    /// <summary>発行中の入力の一時情報も保持し、元のdriverを進めずに確定後の状態を作る。</summary>
+    public DriverState PreviewCompleted(TxnRequest request,TxnResult result){var next=new Driver(this,this.State.DeepClone());next.Completed(request,result);return next.State;}
+    private Driver(Driver source,DriverState state){
+        // Completedは私有Stateだけを更新する。入力生成器や決定的な模型を取引ごとに作り直さない。
+        this.State=state;this.model=source.model;this.context=source.context;this.generator=source.generator;this.tick=source.tick;this.lastTradeResult=source.lastTradeResult;
+    }
     public TpcEModel Model=>this.model;
     public CeContext Context=>this.context;
     /// <summary>新しい実行の最初の状態。</summary>

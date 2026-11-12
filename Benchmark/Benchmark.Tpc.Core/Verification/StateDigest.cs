@@ -69,6 +69,7 @@ public sealed record DatabaseDigest(IReadOnlyList<TableDigest> Tables,IReadOnlyL
 /// <summary>DB のダイジェストを取る・食い違う行を探す。</summary>
 public static class StateDigest{
     public static DatabaseDigest Of(TpcDatabaseBase db){
+        using var snapshot=db.BeginReadSnapshot();
         var tables=new List<TableDigest>(db.Tables.Count);
         foreach(var table in db.Tables){
             var builder=new TableDigestBuilder(table.Name);

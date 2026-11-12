@@ -45,7 +45,44 @@ public sealed class RealisticCaseRunner(BenchmarkRepository repository) {
                 }
 
                 var loaded = compiled.LoadedQuery!;
+                bool executedSuccessfully = false;
                 try {
+                    ExecuteCase(loaded, item, source, sourceKind, count, seed, distribution, flags, environment, runId, compiled, repository, gateResults, cancellationToken);
+                    executedSuccessfully = true;
+                } finally {
+                    var unloadResult = loaded.UnloadAndVerify();
+                    if (executedSuccessfully && !unloadResult.Unloaded) {
+                        throw new InvalidOperationException($"Realistic case {item.ID} ({sourceKind}) assembly did not unload.");
+                    }
+                }
+            }
+
+            var allPassed = gateResults.All(g => g.Passed);
+            repository.SaveRun(run with { Status = allPassed ? "Passed" : "Failed", CompletedAt = DateTimeOffset.UtcNow });
+            return gateResults;
+        } catch {
+            repository.SaveRun(run with { Status = "Failed", CompletedAt = DateTimeOffset.UtcNow });
+            throw;
+        }
+    }
+
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void ExecuteCase(
+        LoadedDynamicQuery loaded,
+        RealisticQueryCase item,
+        string source,
+        RealisticSourceKind sourceKind,
+        int count,
+        int seed,
+        RealisticDistribution distribution,
+        int flags,
+        EnvironmentSnapshot environment,
+        string runId,
+        DynamicCompilationResult compiled,
+        BenchmarkRepository repository,
+        List<GateEvaluation> gateResults,
+        CancellationToken cancellationToken) {
                     // 入力データの生成
                     var seed256 = Seed256.Parse(seed.ToString());
                     var (primaryObj, secondaryObj) = CreateInputs(item.PrimaryType, item.SecondaryType, sourceKind, count, seed256, distribution);
@@ -123,20 +160,6 @@ public sealed class RealisticCaseRunner(BenchmarkRepository repository) {
                         var evaluation = BenchmarkGateEvaluator.Evaluate($"{item.ID}-{sourceKind}", flinqSummary, sysSummary, idealSummary);
                         gateResults.Add(evaluation);
                     }
-                } finally {
-                    if (!loaded.UnloadAndVerify().Unloaded) {
-                        throw new InvalidOperationException($"Realistic case {item.ID} ({sourceKind}) assembly did not unload.");
-                    }
-                }
-            }
-
-            var allPassed = gateResults.All(g => g.Passed);
-            repository.SaveRun(run with { Status = allPassed ? "Passed" : "Failed", CompletedAt = DateTimeOffset.UtcNow });
-            return gateResults;
-        } catch {
-            repository.SaveRun(run with { Status = "Failed", CompletedAt = DateTimeOffset.UtcNow });
-            throw;
-        }
     }
 
     private static (object Primary, object? Secondary) CreateInputs(

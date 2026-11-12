@@ -37,6 +37,8 @@ public interface ITpcEEngine:IDisposable{
     ILoadSink Loader{get;}
     /// <summary>取引を 1 件流す。取引の途中で例外になったら書き込みを巻き戻してから投げ直す。</summary>
     TxnResult Execute(TxnRequest request);
+    /// <summary>版付き比較では次のdriver状態を行と同じ確定へ含める。既存方式は保存時に状態を記録する。</summary>
+    TxnResult Execute(TxnRequest request,Func<TxnResult,ReadOnlyMemory<byte>> prepareMetadata)=>this.Execute(request);
 }
 /// <summary>CE/DM が入力を作るときに使う、DB を読まずに分かる情報。</summary>
 public sealed class CeContext(TpcEModel model){

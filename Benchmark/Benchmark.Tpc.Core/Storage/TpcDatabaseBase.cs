@@ -16,6 +16,12 @@ public abstract class TpcDatabaseBase:IDisposable{
     }
     public Store Store{get;}
     public TxnLog Log{get;}=new();
+    public virtual VersionedTpcDomain? TransactionDomain=>null;
+    /// <summary>検証側の複数表読み取りを一つのsnapshotへ束ねる。既存方式では追加の取引を作らない。</summary>
+    public IDisposable? BeginReadSnapshot(){if(this.TransactionDomain is null||this.Log.IsRecording){return null;}this.Log.BeginReadOnly();return new ReadSnapshot(this.Log);}
+    public virtual void Checkpoint()=>this.Store.Save();
+    public virtual void EndBulkLoad(ReadOnlyMemory<byte> metadata){if(!metadata.IsEmpty){throw new NotSupportedException("This database does not publish commit metadata.");}this.EndBulkLoad();}
+    private sealed class ReadSnapshot(TxnLog log):IDisposable{public void Dispose(){if(log.IsRecording){log.Commit();}}}
     public IReadOnlyList<ITableView> Tables=>this.tables;
     public IReadOnlyList<IIndexView> Indexes=>this.indexes;
     protected int NextTableId=>this.tables.Count+1;
@@ -26,7 +32,7 @@ public abstract class TpcDatabaseBase:IDisposable{
         }
         return table;
     }
-    private T Own<T>(T resource) where T:IDisposable{
+    protected T Own<T>(T resource) where T:IDisposable{
         this.owned.Add(resource);
         if(resource is IHandleOwner handleOwner){
             this.handles.Add(handleOwner);
@@ -47,12 +53,12 @@ public abstract class TpcDatabaseBase:IDisposable{
         where TKey:unmanaged
         where TValue:unmanaged;
     /// <summary>初期投入を始める。索引は持ち主ごとの見出しと末尾のチャンクをメモリに溜め、<see cref="EndBulkLoad"/> でまとめて書く。</summary>
-    public void BeginBulkLoad(){
+    public virtual void BeginBulkLoad(){
         foreach(var item in this.bulkLoadables){
             item.BeginBulk();
         }
     }
-    public void EndBulkLoad(){
+    public virtual void EndBulkLoad(){
         foreach(var item in this.bulkLoadables){
             item.EndBulk();
         }

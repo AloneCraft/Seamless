@@ -9,8 +9,11 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../../Seamless.Database/Seamless.Database.csproj" />
+    <ProjectReference Include="../../../Seamless.Database.Client/Seamless.Database.Client.csproj" />
     <ProjectReference Include="../../../Seamless.Linq/Seamless.Linq.csproj" />
     <ProjectReference Include="../../../Seamless.Database.Generator/Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="../../../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <Compile Include="../../../Seamless.Database.Client.Results/ClientResultSpool.cs" Link="ClientResultSpool.cs" />
+    <Using Include="Seamless.Database.Client.Results" />
   </ItemGroup>
 </Project>

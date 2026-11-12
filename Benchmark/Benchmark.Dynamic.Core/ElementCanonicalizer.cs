@@ -13,6 +13,12 @@ public static class ElementCanonicalizer{
         return value switch{
             null=>"null",
             int item=>"i:"+item.ToString(CultureInfo.InvariantCulture),
+            byte item=>"by:"+item.ToString(CultureInfo.InvariantCulture),
+            sbyte item=>"sby:"+item.ToString(CultureInfo.InvariantCulture),
+            short item=>"sh:"+item.ToString(CultureInfo.InvariantCulture),
+            ushort item=>"ush:"+item.ToString(CultureInfo.InvariantCulture),
+            uint item=>"ui:"+item.ToString(CultureInfo.InvariantCulture),
+            ulong item=>"ul:"+item.ToString(CultureInfo.InvariantCulture),
             long item=>"l:"+item.ToString(CultureInfo.InvariantCulture),
             float item=>"f:"+(float.IsNaN(item)?0x7FC00000u:BitConverter.SingleToUInt32Bits(item)).ToString("X8",CultureInfo.InvariantCulture),
             double item=>"d:"+(double.IsNaN(item)?0x7FF8000000000000UL:BitConverter.DoubleToUInt64Bits(item)).ToString("X16",CultureInfo.InvariantCulture),

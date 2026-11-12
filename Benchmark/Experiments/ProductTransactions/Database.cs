@@ -3,7 +3,12 @@ using Seamless.FLinq;
 [assembly:LinqIntercept(false)]
 namespace ProductTransactions;
 
-public readonly record struct Row(int Id,long Balance);
+public readonly record struct Row(int Id,long Balance):global::Seamless.Collections.IRecord<int>{
+    int global::Seamless.Collections.IRecord<int>.Key{
+        get=>this.Id;
+        init=>this.Id=value;
+    }
+}
 internal static partial class DatabaseGenerator;
 public sealed partial class Database(DatabaseContainerOptions options):DatabaseContainer(options){
     public Table<int,Row> Accounts=>this.Table<int,Row>(static row=>row.Id);

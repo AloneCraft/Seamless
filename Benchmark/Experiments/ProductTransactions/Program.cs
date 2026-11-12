@@ -8,6 +8,28 @@ using Seamless.Transactions;
 
 internal sealed partial class Program{
     private static async Task Main(string[] args){
+        if(args.Length==6&&args[0]=="--client-result-socket-comparison"){
+            await CompareClientResultSocket(args[1],args[2],args[3],int.Parse(args[4]),args[5]);
+            return;
+        }
+        if(args.Length==4&&args[0]=="--client-result-socket"){
+            await VerifyClientResultSocket(args[1],args[2],args[3]);
+            return;
+        }
+        if(args.Length==6&&args[0]=="--client-results"){
+            await CompareClientResults(args[1],args[2],args[3],int.Parse(args[4]),args[5]);
+            return;
+        }
+        if(args.Length==7&&args[0]=="--collection-carrier"){
+            await CompareCollectionCarrier(args[1],args[2],args[3],int.Parse(args[4]),args[5],args[6]);
+            return;
+        }
+        if(args.Length==10&&args[0]=="--carrier-comparison"){
+            await CompareOrdered(args[1],args[2],args[3],int.Parse(args[4]),Enum.Parse<DatabaseStorageMode>(args[5]),int.Parse(args[6]),args[7],int.Parse(args[8]),args[9]);
+            return;
+        }
+        if(args.Length==9&&args[0]=="--ordered-comparison"){await CompareOrdered(args[1],args[2],args[3],int.Parse(args[4]),Enum.Parse<DatabaseStorageMode>(args[5]),int.Parse(args[6]),args[7],int.Parse(args[8]));return;}
+        if(args.Length==8&&args[0]=="--comparison"){await CompareSources(args[1],args[2],args[3],int.Parse(args[4]),Enum.Parse<DatabaseStorageMode>(args[5]),int.Parse(args[6]),args[7]);return;}
         if(args.Length==3&&args[0] is "--crash-write" or "--crash-read"){await AbruptRecovery(args[0]=="--crash-write",args[1],args[2]);return;}
         if(args.Length is 5 or 6&&args[0]=="--endurance"){
             var churn=args.Length==6&&args[5]=="Churn";if(args.Length==6&&!churn&&args[5]!="Update"){throw new ArgumentException("Endurance workload must be Update or Churn.");}
@@ -22,7 +44,7 @@ internal sealed partial class Program{
         var records=new List<object>();
         foreach(var mode in new[]{TransactionConcurrencyMode.Exclusive,TransactionConcurrencyMode.Optimistic}){
             foreach(var workers in new[]{1,4}){
-                var options=new DatabaseContainerOptions{Transactions=DatabaseTransactionMode.SharedV2,TransactionConcurrency=mode,MaximumQueryWorkers=workers,
+                var options=new DatabaseContainerOptions{TransactionConcurrency=mode,MaximumQueryWorkers=workers,
                     StorageMode=storage,StorageDirectory=Path.Combine(root,mode+"-"+workers,"database"),IndexSize=1024,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<25,ManagedMemoryLimitBytes=192L<<20,TemporaryStorageLimitBytes=128L<<20,TransactionMemoryLimit=2L<<20,TemporaryDirectory=Path.Combine(root,mode+"-"+workers,"temporary"),
                     TransactionHistory=new(){MaxRetainedMemoryBytes=32L<<20,MaxRetainedStorageBytes=32L<<20,MaxMetadataBytes=64L<<20,MaintenanceReserveMemoryBytes=2L<<20,MaintenanceReserveStorageBytes=2L<<20,MaintenanceWaitTimeout=TimeSpan.FromSeconds(15)}};
                 if(storage==DatabaseStorageMode.Memory){options=options with{IndexSize=16384,PageSize=65536,SegmentSize=1<<26,TransactionHistory=options.TransactionHistory! with{MaxRetainedStorageBytes=0,MaintenanceReserveStorageBytes=0}};}
@@ -83,7 +105,7 @@ internal sealed partial class Program{
     }
     private static async Task AbruptRecovery(bool write,string root,string evidence){
         if(Path.GetPathRoot(Path.GetFullPath(root))!="D:\\"||Path.GetPathRoot(Path.GetFullPath(evidence))!="F:\\"){throw new ArgumentException("Use D data and F evidence.");}
-        var options=new DatabaseContainerOptions{Transactions=DatabaseTransactionMode.SharedV2,TransactionConcurrency=TransactionConcurrencyMode.Optimistic,
+        var options=new DatabaseContainerOptions{TransactionConcurrency=TransactionConcurrencyMode.Optimistic,
             StorageMode=DatabaseStorageMode.Storage,StorageDirectory=root,TemporaryDirectory=Path.Combine(root,"temporary"),IndexSize=16,PageSize=4096,SegmentSize=65536,MemorySize=65536,
             ManagedMemoryLimitBytes=16L<<20,TemporaryStorageLimitBytes=8L<<20,TransactionMemoryLimit=65536,
             TransactionHistory=new(){MaxRetainedMemoryBytes=1L<<20,MaxRetainedStorageBytes=1L<<20,MaxMetadataBytes=1L<<20,MaintenanceReserveMemoryBytes=65536,MaintenanceReserveStorageBytes=65536,MaintenanceWaitTimeout=TimeSpan.FromSeconds(5)}};

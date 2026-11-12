@@ -82,7 +82,7 @@ public sealed class SecurityDetailFrames{
     private static SecurityDetailOutput ExecuteAll(SecurityDetailInput input){
         var outputs=new List<SecurityDetailOutput>();
         foreach(var variant in VariantCatalog.All){
-            var store=Store.CreateTemporary();
+            var store=TpcETestStores.Temporary();
             try{
                 var engine=variant.Open(store,new TpcEScale{Customers=10});
                 try{

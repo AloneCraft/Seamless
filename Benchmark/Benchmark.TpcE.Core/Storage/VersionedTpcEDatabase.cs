@@ -7,6 +7,9 @@ namespace Benchmark.TpcE.Core;
 public sealed class VersionedTpcEDatabase:TpcEDatabaseBase{
     private readonly TsavoriteTuning tuning;
     public VersionedTpcDomain Domain{get;}
+    public override VersionedTpcDomain TransactionDomain=>this.Domain;
+    public override void Checkpoint()=>this.Domain.CheckpointAsync().AsTask().GetAwaiter().GetResult();
+    public override void EndBulkLoad(ReadOnlyMemory<byte> metadata)=>this.Log.Commit(metadata);
     public VersionedTpcEDatabase(Store store,TpcEScale scale,global::Seamless.Transactions.TransactionCoordinatorOptions transactions,global::Seamless.Execution.ExecutionOptions execution,TsavoriteTuning tuning):base(store,scale){
         this.tuning=tuning;this.Domain=this.Own(new VersionedTpcDomain(store,this.Log,transactions,execution));
         try{

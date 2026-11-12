@@ -300,7 +300,7 @@ public sealed class RandomQueryGenerator{
                 .Where(static descriptor=>descriptor.NodeKind==QueryNodeKind.Unary)
                 .Where(descriptor=>this.allowed.Contains(descriptor.OperatorId))
                 .Where(descriptor=>!descriptor.RequiresDeterministicOrder||input.OrderSemantics!=QueryOrderSemantics.Unordered)
-                .Where(descriptor=>descriptor.OperatorId!=QueryOperatorIds.ThenBy||input.OrderSemantics==QueryOrderSemantics.TotalOrdered)
+                .Where(descriptor=>descriptor.OperatorId!=QueryOperatorIds.ThenBy||(input.OrderSemantics==QueryOrderSemantics.TotalOrdered && IsOrderedSequence(input)))
                 .OrderBy(static descriptor=>descriptor.OperatorId,StringComparer.Ordinal)
                 .ToArray();
             if(descriptors.Length==0){
@@ -602,9 +602,12 @@ public sealed class RandomQueryGenerator{
                 QueryOrderSemantics.TotalOrdered);
         }
 
+        private static bool IsOrderedSequence(QueryNode node) =>
+            node is UnaryQueryNode unary && unary.OperatorId is QueryOperatorIds.OrderBy or QueryOperatorIds.ThenBy or QueryOperatorIds.OrderByKey;
+
         private UnaryQueryNode CreateThenBy(QueryNode input){
-            if(input.OrderSemantics!=QueryOrderSemantics.TotalOrdered){
-                throw new InvalidOperationException("ThenBy requires a total-ordered input.");
+            if(input.OrderSemantics!=QueryOrderSemantics.TotalOrdered || !IsOrderedSequence(input)){
+                throw new InvalidOperationException("ThenBy requires an ordered sequence input (OrderBy or ThenBy).");
             }
             return new(
                 this.CreateNodeId(),

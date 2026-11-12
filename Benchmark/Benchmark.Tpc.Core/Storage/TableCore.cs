@@ -15,13 +15,21 @@ public interface IWriteObserver{
 }
 /// <summary>行の変化(索引の更新に使う)。挿入は before が null、削除は after が null。</summary>
 public delegate void TableChange<TRow>(in TRow? before,in TRow? after) where TRow:struct;
-/// <summary>取引ごとの取り消し記録と書き込み通知の受け口。DB ごとに 1 つ。</summary>
+/// <summary>DBごとの取引入口。従来のundo、または明示した共通domainの実行contextごとのscopeと通知を管理する。</summary>
 public sealed class TxnLog{
+    private Seamless.Transactions.TransactionCoordinator? coordinator;
+    private Seamless.Execution.ExecutionScope? resources;
+    private readonly AsyncLocal<SharedFrame?> shared=new();
+    internal void UseShared(Seamless.Transactions.TransactionCoordinator coordinator,Seamless.Execution.ExecutionScope resources){
+        if(this.recording||this.coordinator is not null){throw new InvalidOperationException("Select the transaction domain before starting work.");}this.coordinator=coordinator;this.resources=resources;
+    }
+    internal Seamless.Transactions.TransactionScope SharedScope=>this.shared.Value?.Scope??throw new InvalidOperationException("Begin a TPC transaction before accessing versioned rows or indexes.");
     private readonly List<Action> undo=[];
     private bool recording;
     public IWriteObserver? Observer{get;set;}
     /// <summary>取引を始める。以後の書き込みを取り消し記録に積む。</summary>
     public void Begin(){
+        if(this.coordinator is not null){this.BeginShared(false);return;}
         if(this.recording){
             throw new InvalidOperationException("A transaction is already in progress.");
         }
@@ -29,13 +37,17 @@ public sealed class TxnLog{
         this.recording=true;
     }
     /// <summary>取引を確定する。取り消し記録を捨てる。</summary>
-    public void Commit(){
+    public void Commit()=>this.Commit(ReadOnlyMemory<byte>.Empty);
+    public void Commit(ReadOnlyMemory<byte> metadata){
+        if(this.coordinator is not null){var frame=this.shared.Value??throw new InvalidOperationException("No transaction is in progress.");try{frame.Scope.CommitAsync(metadata).AsTask().GetAwaiter().GetResult();}catch(Seamless.Transactions.TransactionAbortedException){frame.NotifyRollback();throw;}catch(Seamless.Transactions.TransactionCommitException error)when(error.Outcome==Seamless.Transactions.TransactionOutcomeKind.Aborted){frame.NotifyRollback();throw;}finally{this.shared.Value=null;frame.Dispose();}return;}
+        if(!metadata.IsEmpty){throw new NotSupportedException("Commit metadata requires the shared TPC domain.");}
         this.EnsureRecording();
         this.undo.Clear();
         this.recording=false;
     }
     /// <summary>取引の書き込みを逆順に元へ戻す。戻す書き込みも通知する。</summary>
     public void Rollback(){
+        if(this.coordinator is not null){var frame=this.shared.Value??throw new InvalidOperationException("No transaction is in progress.");try{frame.Scope.RollbackAsync().AsTask().GetAwaiter().GetResult();frame.NotifyRollback();}finally{this.shared.Value=null;frame.Dispose();}return;}
         this.EnsureRecording();
         this.recording=false;
         for(var index=this.undo.Count-1;index>=0;index--){
@@ -43,7 +55,15 @@ public sealed class TxnLog{
         }
         this.undo.Clear();
     }
-    public bool IsRecording=>this.recording;
+    public bool IsRecording=>this.shared.Value is not null||this.recording;
+    public void BeginReadOnly(){if(this.coordinator is null){throw new NotSupportedException("Read-only snapshots require the shared TPC domain.");}this.BeginShared(true);}
+    private void BeginShared(bool readOnly){
+        if(this.shared.Value is not null){throw new InvalidOperationException("A transaction is already in progress.");}
+        Seamless.Transactions.TransactionScope scope;if(readOnly){scope=this.coordinator!.BeginReadOnlyAsync().AsTask().GetAwaiter().GetResult();}else{scope=this.coordinator!.BeginAsync().AsTask().GetAwaiter().GetResult();}
+        try{this.shared.Value=new(scope,this.resources!);}catch{scope.DisposeAsync().AsTask().GetAwaiter().GetResult();throw;}
+    }
+    internal bool UsesShared=>this.coordinator is not null;
+    internal void PushNotification(Action notification){var frame=this.shared.Value??throw new InvalidOperationException("No transaction is in progress.");frame.Memory.Resize(checked(frame.Memory.Bytes+256));frame.Notifications.Add(notification);}
     internal void Push(Action restore){
         if(this.recording){
             this.undo.Add(restore);
@@ -53,6 +73,13 @@ public sealed class TxnLog{
         if(!this.recording){
             throw new InvalidOperationException("No transaction is in progress.");
         }
+    }
+    private sealed class SharedFrame(Seamless.Transactions.TransactionScope scope,Seamless.Execution.ExecutionScope resources):IDisposable{
+        internal readonly Seamless.Transactions.TransactionScope Scope=scope;
+        internal readonly List<Action> Notifications=[];
+        internal readonly Seamless.Execution.ResourceReservation Memory=resources.Budget.ReserveMemory(128);
+        internal void NotifyRollback(){try{for(var index=this.Notifications.Count-1;index>=0;index--){this.Notifications[index]();}}finally{this.Notifications.Clear();}}
+        public void Dispose(){try{this.Scope.DisposeAsync().AsTask().GetAwaiter().GetResult();}finally{this.Notifications.Clear();this.Memory.Dispose();}}
     }
 }
 /// <summary>
@@ -127,7 +154,8 @@ public abstract class TableCore<TKey,TRow>:ITableView
         this.InsertRaw(key,row);
         this.RaiseChanged(null,row);
         this.log.Observer?.OnWrite(this.TableId,WriteKind.Insert,key,row);
-        this.log.Push(()=>this.UndoInsert(key,row));
+        if(this.log.UsesShared){if(this.log.Observer is not null){this.log.PushNotification(()=>this.log.Observer?.OnWrite(this.TableId,WriteKind.UndoInsert,key,null));}}
+        else{this.log.Push(()=>this.UndoInsert(key,row));}
     }
     /// <summary>行を置き換える。主キーが無ければ <see cref="KeyNotFoundException"/>。</summary>
     public void Update(TRow row){
@@ -136,7 +164,8 @@ public abstract class TableCore<TKey,TRow>:ITableView
         this.ReplaceRaw(key,row);
         this.RaiseChanged(before,row);
         this.log.Observer?.OnWrite(this.TableId,WriteKind.Update,key,row);
-        this.log.Push(()=>this.UndoUpdate(key,before,row));
+        if(this.log.UsesShared){if(this.log.Observer is not null){this.log.PushNotification(()=>this.log.Observer?.OnWrite(this.TableId,WriteKind.UndoUpdate,key,before));}}
+        else{this.log.Push(()=>this.UndoUpdate(key,before,row));}
     }
     /// <summary>行を消す。主キーが無ければ <see cref="KeyNotFoundException"/>。</summary>
     public void Delete(TKey key){
@@ -144,7 +173,8 @@ public abstract class TableCore<TKey,TRow>:ITableView
         this.DeleteRaw(key);
         this.RaiseChanged(before,null);
         this.log.Observer?.OnWrite(this.TableId,WriteKind.Delete,key,null);
-        this.log.Push(()=>this.UndoDelete(key,before));
+        if(this.log.UsesShared){if(this.log.Observer is not null){this.log.PushNotification(()=>this.log.Observer?.OnWrite(this.TableId,WriteKind.UndoDelete,key,before));}}
+        else{this.log.Push(()=>this.UndoDelete(key,before));}
     }
     /// <summary>初期投入。主キー違反は確かめず、取り消し記録も通知もしない(索引は更新する)。</summary>
     public void Load(TRow row){
@@ -172,8 +202,11 @@ public abstract class TableCore<TKey,TRow>:ITableView
         this.log.Observer?.OnWrite(this.TableId,WriteKind.UndoDelete,key,before);
     }
     private void RaiseChanged(TRow? before,TRow? after){
-        foreach(var hook in this.hooks){
-            hook(before,after);
+        try{foreach(var hook in this.hooks){hook(before,after);}}
+        catch(Exception error){
+            // 主表を変更した後の索引例外をcatchしても、途中までの変更を確定させない。
+            if(this.log.UsesShared&&this.log.IsRecording){try{this.log.Rollback();}catch(Exception cleanup){throw new AggregateException("TPC index update and rollback failed.",error,cleanup);}}
+            throw;
         }
     }
     bool ITableView.TryGetBoxed(object key,out object? row){

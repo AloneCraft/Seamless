@@ -15,7 +15,7 @@ public sealed class VersionedTransactions{
     [InlineData(true)]
     public async Task MainRowsAndAllIndexChunkElementsCommitRollbackAndRecoverTogether(bool persistent){
         var directory=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")!,"tpc-"+Guid.NewGuid().ToString("N")[..6]);
-        using(var store=persistent?Store.Open(directory):Store.CreateMemory()){
+        using(var store=persistent?TpcETestStores.Open(directory):TpcETestStores.Memory()){
             using var db=Open(store);db.BeginBulkLoad();for(var id=1;id<=40;id++){db.CustomerAccount.Load(new(id,1,10,"account",0,100));}db.EndBulkLoad();
             db.Log.BeginReadOnly();Assert.Equal(Enumerable.Range(1,40).Select(static id=>(long)id),db.CustomerAccounts.All(10));Assert.Equal(40,db.CustomerAccount.Count);db.Log.Commit();
             db.Log.Begin();var row=db.CustomerAccount.Get(new(1));db.CustomerAccount.Update(row with{CustomerId=20,Balance=125});Assert.Equal(new long[]{1},db.CustomerAccounts.All(20));db.Log.Rollback();
@@ -29,13 +29,13 @@ public sealed class VersionedTransactions{
             Assert.Equal(0,db.Domain.Coordinator.GetDomainDiagnostics().ActiveTransactions);
         }
         if(persistent){
-            using var store=Store.Open(directory);using var db=Open(store);db.Log.BeginReadOnly();
+            using var store=TpcETestStores.Open(directory);using var db=Open(store);db.Log.BeginReadOnly();
             Assert.Equal(175,db.CustomerAccount.Get(new(1)).Balance);Assert.Empty(db.CustomerAccounts.All(20));Assert.Equal(new long[]{1},db.CustomerAccounts.All(30));Assert.Equal(Enumerable.Range(2,39).Select(static id=>(long)id),db.CustomerAccounts.All(10));db.Log.Commit();
         }
     }
     [Fact]
     public async Task DifferentRowsAndIndexesProceedTogetherAndConflictingUpdatesAbort(){
-        using var store=Store.CreateMemory();using var db=Open(store);
+        using var store=TpcETestStores.Memory();using var db=Open(store);
         db.BeginBulkLoad();db.CustomerAccount.Load(new(1,1,10,"one",0,100));db.CustomerAccount.Load(new(2,1,11,"two",0,100));db.EndBulkLoad();
         using var ready=new CountdownEvent(2);using var release=new ManualResetEventSlim();
         var writers=new[]{1L,2L}.Select(id=>Task.Run(()=>{
@@ -59,7 +59,7 @@ public sealed class VersionedTransactions{
     }
     [Fact]
     public void IndexHookFailureAbortsMainRowsAndBulkWorkWithoutLeakingIntoTheNextTransaction(){
-        using var store=Store.CreateMemory();using var db=Open(store);
+        using var store=TpcETestStores.Memory();using var db=Open(store);
         db.CustomerAccount.AddHook(static(in CustomerAccountRow? before,in CustomerAccountRow? after)=>{if(after is{Id:99}){throw new IOException("index failure");}});
         db.BeginBulkLoad();db.CustomerAccount.Load(new(90,1,90,"before",0,100));
         Assert.Throws<IOException>(()=>db.CustomerAccount.Load(new(99,1,99,"failure",0,100)));Assert.False(db.Log.IsRecording);

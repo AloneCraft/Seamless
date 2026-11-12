@@ -32,12 +32,14 @@ public static class CrashChild{
         var options=arguments.Options;
         Driver? driver=null;
         DriverState? restored=null;
-        var limits=new StoreLimits{MemoryBytes=TpcESizing.DefaultMemoryBytes(options.Scale),DiskBytes=options.DiskGigabytes*1024L*1024*1024};
+        var memory=TpcESizing.DefaultMemoryBytes(options.Scale);if(options.MemoryMegabytes>0){memory=checked(options.MemoryMegabytes*1024L*1024);}
+        var limits=new StoreLimits{MemoryBytes=memory,DiskBytes=options.DiskGigabytes*1024L*1024*1024};
         using var store=Store.Open(arguments.StoreDirectory,limits);
-        store.Register(new DriverStateComponent(()=>driver!.State,state=>restored=state));
+        if(!variant.UsesVersionedTransactions){store.Register(new DriverStateComponent(()=>driver!.State,state=>restored=state));}
         var probes=new KillProbes(arguments,output);
         store.Register(probes.First);
         using var engine=variant.Open(store,options.Scale);
+        if(variant.UsesVersionedTransactions){restored=VersionedDriverState.Restore(engine);}
         store.Register(probes.Last);
         var saves=0;
         void Save(){
@@ -48,7 +50,7 @@ public static class CrashChild{
             }
             output.WriteLine($"@@SAVE_BEGIN {driver!.State.TxnIndex}");
             output.Flush();
-            store.Save();
+            VersionedDriverState.Checkpoint(engine,driver.State);
             output.WriteLine($"@@SAVE_DONE {driver.State.TxnIndex}");
             output.Flush();
             if(arguments.Kill==KillMode.AfterSave&&arguments.KillArgument==saves){
@@ -58,12 +60,14 @@ public static class CrashChild{
         if(restored is null){
             engine.Database.BeginBulkLoad();
             var generation=new TpcEDataGenerator(new TpcEModel(options.Seed,options.Scale)).Generate(engine.Loader);
-            engine.Database.EndBulkLoad();
             driver=new Driver(Driver.Initial(options.Seed,options.Scale,generation));
+            var metadata=ReadOnlyMemory<byte>.Empty;if(variant.UsesVersionedTransactions){metadata=VersionedDriverState.Encode(driver.State);output.WriteLine("@@TX_BEGIN 0");output.Flush();}
+            engine.Database.EndBulkLoad(metadata);
+            if(variant.UsesVersionedTransactions){output.WriteLine("@@TX_DONE 0");output.Flush();}
             // 初期投入の保存は数えない(どの止め方でも、まず投入済みの保存を作る)。
             probes.Disarmed=true;
             output.WriteLine($"@@SAVE_BEGIN {driver.State.TxnIndex}");
-            store.Save();
+            VersionedDriverState.Checkpoint(engine,driver.State);
             output.WriteLine($"@@SAVE_DONE {driver.State.TxnIndex}");
             output.Flush();
             probes.Disarmed=false;
@@ -78,8 +82,10 @@ public static class CrashChild{
         while(driver.State.CeCount<target){
             var request=driver.Next();
             recorder.TxnIndex=driver.State.TxnIndex;
-            var result=engine.Execute(request);
+            if(variant.UsesVersionedTransactions){output.WriteLine($"@@TX_BEGIN {driver.State.TxnIndex}");output.Flush();}
+            var result=engine.Execute(request,completed=>VersionedDriverState.Preview(driver,request,completed));
             driver.Completed(request,result);
+            if(variant.UsesVersionedTransactions){output.WriteLine($"@@TX_DONE {driver.State.TxnIndex}");output.Flush();}
             if(options.SaveEvery>0&&driver.State.CeCount-savedAt>=options.SaveEvery){
                 savedAt=driver.State.CeCount;
                 Save();

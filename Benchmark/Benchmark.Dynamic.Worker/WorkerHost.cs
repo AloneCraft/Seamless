@@ -147,6 +147,13 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                     例外一覧,
                     new Dictionary<DynamicImplementationKind,DynamicQueryComparison>()),
                 DynamicWorkerProtocol.JsonOptions);
+            if(検証.Fallbacks.Count!=0){
+                var 内訳=string.Join(", ",検証.Fallbacks.Select(static 項目=>$"{項目.Key}={項目.Value}"));
+                診断JSON=診断を追加(診断JSON,"Expansion",new WorkerInvocationFailure(
+                    "FLinqRuntimeFallback",$"実行時に EnumerableFallback が数えられました({内訳})。FLinq が展開しきれていません。",null));
+                Status=WorkerExecutionStatus.ExpansionIncomplete;
+                goto 完了;
+            }
             if(例外一覧.Count!=0){
                 if(!Query.ExpectExceptions){
                     Status=WorkerExecutionStatus.ExecutionFailed;
@@ -173,18 +180,6 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
                 DynamicWorkerProtocol.JsonOptions);
             if(比較一覧.Values.Any(static 比較=>!比較.IsMatch)){
                 Status=WorkerExecutionStatus.SemanticMismatch;
-                goto 完了;
-            }
-            if(検証.Fallbacks.Count!=0){
-                var 内訳=string.Join(", ",検証.Fallbacks.Select(static 項目=>$"{項目.Key}={項目.Value}"));
-                診断JSON=診断を追加(
-                    診断JSON,
-                    "Expansion",
-                    new WorkerInvocationFailure(
-                        "FLinqRuntimeFallback",
-                        $"実行時に EnumerableFallback が数えられました({内訳})。FLinq が展開しきれていません。",
-                        null));
-                Status=WorkerExecutionStatus.ExpansionIncomplete;
                 goto 完了;
             }
             IReadOnlyDictionary<DynamicImplementationKind,long>? 評価回数=null;
@@ -383,22 +378,20 @@ public sealed class DynamicWorkerExecutionRunner:IWorkerExecutionRunner{
         var フォールバック=new Dictionary<DynamicImplementationKind,long>();
         foreach(var 実装 in 検証対象.Where(Loaded.Has)){
             キャンセルToken.ThrowIfCancellationRequested();
-            try{
-                // FLinq の実行時フォールバック回数は、検証の実行だけで数える(計測の実行では数えない)。
-                using var カウンタ範囲=global::Seamless.Linq.LinqCounterScope.Start();
+            // 例外の場合もカウンターを取得し、例外一致だけで未展開を成功扱いしない。
+            var 観測=DynamicFallbackCapture.Run(()=>{
                 var 値=Loaded.Run(実装,Primary,Secondary);
                 値.Validate();
-                結果一覧[実装]=値;
-                if(実装 is DynamicImplementationKind.FLinqUnoptimized or DynamicImplementationKind.FLinq
-                    &&カウンタ範囲.Counter.EnumerableFallback>0){
-                    フォールバック[実装]=カウンタ範囲.Counter.EnumerableFallback;
-                }
-            }catch(Exception 例外) when(例外 is not OperationCanceledException){
+                return 値;
+            });
+            if(実装 is DynamicImplementationKind.FLinqUnoptimized or DynamicImplementationKind.FLinq
+                &&観測.FallbackCount>0){フォールバック[実装]=観測.FallbackCount;}
+            if(観測.Exception is{} 例外){
                 例外一覧[実装]=new(
                     例外.GetType().FullName??例外.GetType().Name,
                     例外.Message,
                     例外.StackTrace);
-            }
+            }else{結果一覧[実装]=観測.Value!;}
         }
         return new(結果一覧,例外一覧,フォールバック);
     }

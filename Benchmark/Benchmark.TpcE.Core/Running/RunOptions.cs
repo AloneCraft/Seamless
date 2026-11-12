@@ -13,7 +13,7 @@ public sealed record RunOptions{
     public long Transactions{get;init;}=15_000;
     /// <summary>時間の集計から外す最初の CE の件数(正しさの検査には含める)。</summary>
     public long Warmup{get;init;}=1_000;
-    /// <summary>流す組み合わせ(略称 TL,TF,PL,PF)。</summary>
+    /// <summary>流す組み合わせ(略称 TL,TF,PL,PF,VL,VF)。既定は従来の4通り。</summary>
     public IReadOnlyList<string> Variants{get;init;}=["TL","TF","PL","PF"];
     /// <summary>何件の CE ごとに保存するか(0 は保存しない)。</summary>
     public long SaveEvery{get;init;}=5_000;
@@ -148,8 +148,8 @@ public sealed record RunOptions{
         var result=new List<string>();
         foreach(var part in text.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries)){
             var upper=part.ToUpperInvariant();
-            if(upper is not ("TL" or "TF" or "PL" or "PF")){
-                throw new ArgumentException($"Unknown variant {part}. Use TL, TF, PL, PF or all.");
+            if(upper is not ("TL" or "TF" or "PL" or "PF" or "VL" or "VF")){
+                throw new ArgumentException($"Unknown variant {part}. Use TL, TF, PL, PF, VL, VF or all.");
             }
             if(!result.Contains(upper)){
                 result.Add(upper);

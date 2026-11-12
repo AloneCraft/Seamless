@@ -9,6 +9,15 @@ Tsavorite と Persisted の両方に同じデータを置き、標準 LINQ と F
 | TF | Tsavorite | FLinq |
 | PL | Persisted | 標準 LINQ |
 | PF | Persisted | FLinq |
+| VL | 版付きTsavorite(共通MVCC) | 標準 LINQ |
+| VF | 版付きTsavorite(共通MVCC) | FLinq |
+
+既定と`--variants all`は従来のTL/TF/PL/PFを選ぶ。VL/VFは明示選択する。
+例えば`--variants TL,VL,VF --customers 12 --transactions 32 --warmup 0 --save-every 16 --reopen-every 1 --memory-mb 128`で、小さいデータを使って従来方式と共通MVCCを比較できる。
+
+VL/VFでは主表と索引を同じトランザクションへ登録し、取引の変更とdriverの継続位置を同じprepared WALで確定する。保存は共通checkpointを通し、復旧は最後の耐久化済みcommitまで進む。従来方式の「最後の保存点まで」と復旧点が異なる。VL/VFは新しいv2永続profileで、従来の保存先や実験用v1を自動変換しない。Persistedは従来の比較対象として残す。
+
+VFも共有取引ソースをFLinqで展開し、版付きRowsのnative Iterateを利用する。比較の計測値には、正しさの検査と再起動用driver状態の作成・保存も含まれるため、製品query単体の性能値とは区別する。
 
 主な目的は速さの比較ではなく、次の確認である。
 
@@ -56,7 +65,7 @@ dotnet run -c Release --project Benchmark/Benchmark.TpcE -- describe
 | `--news-item-bytes` | 1024 | ニュース本文の大きさ(仕様の上限は 100,000) |
 | `--transactions` | 15000 | 流す CE 取引の件数 |
 | `--warmup` | 1000 | 時間の集計から外す最初の CE 件数(正しさの検査には含める) |
-| `--variants` | all | `TL,TF,PL,PF` の部分集合。1 つだけだと突き合わせはせず、読み戻しと開き直しだけ |
+| `--variants` | all | `TL,TF,PL,PF,VL,VF`を明示選択できる。allは従来の4通り。1つだけなら読み戻しと開き直しを確認 |
 | `--save-every` | 5000 | 何件の CE ごとに保存するか |
 | `--reopen-every` | 2 | 保存の何回に 1 回、閉じて開き直すか。最後には必ず開き直す |
 | `--stop-at` / `--trace-from` | なし | 再現用。この通し番号の直前で止める / ここから詳しく記録する |

@@ -13,7 +13,7 @@ public sealed class ComparisonPolicy{
         Assert.Equal(ComparisonStatus.Passed,Infrastructure.Comparison.Compare(stable,Make(101,101,101,101,101,101,101)).Status);
         Assert.Equal(ComparisonStatus.Regressed,Infrastructure.Comparison.Compare(stable,Make(120,120,120,120,120,120,120)).Status);
         Assert.Equal("noise-v1",Infrastructure.Comparison.Compare(stable,stable).PolicyVersion);
-        var current=System.Text.Json.JsonSerializer.Serialize(new{Evidence=Seamless.Execution.ProfileEvidence.Current});
+        var current=global::System.Text.Json.JsonSerializer.Serialize(new{Evidence=Seamless.Execution.ProfileEvidence.Current});
         Assert.Equal(ComparisonStatus.Incompatible,Infrastructure.Comparison.Compare(stable,stable with{Conditions=conditions with{ParametersJSON=current}},ComparisonMode.Experiment).Status);
     }
 }

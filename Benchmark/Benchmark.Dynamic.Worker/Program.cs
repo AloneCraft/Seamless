@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
 namespace Benchmark.Dynamic.Worker;
 
@@ -7,6 +7,25 @@ public static class Program{
         Console.OutputEncoding=System.Text.Encoding.UTF8;
         if(args.Length>0&&args[0]=="--regressions"){
             return Task.FromResult(Regressions(args));
+        }
+        if(args.Length>0&&args[0]=="--check-all-fixed"){
+            return Task.FromResult(CheckAllFixed());
+        }
+        if(args.Length>0&&args[0]=="--dump-expanded"){
+            var caseId=args.Length>1?args[1]:"chain-21";
+            var item=Benchmark.Dynamic.Core.FixedCaseCatalog.All.FirstOrDefault(c=>c.ID==caseId);
+            if(item is null){
+                var rItem=Benchmark.Dynamic.Core.Realistic.RealisticCaseCatalog.All.FirstOrDefault(c=>c.ID==caseId);
+                if(rItem is null){Console.Error.WriteLine("Case not found: "+caseId);return Task.FromResult(1);}
+                var rSource=Benchmark.Dynamic.Core.Realistic.RealisticCaseCatalog.Emit(rItem,Benchmark.Dynamic.Core.Realistic.RealisticSourceKind.Array,15);
+                var rCompiled=new DynamicQueryCompiler().Compile(new("dump","Benchmark.Dynamic.Generated.RealisticQuery",rSource,"dump.cs"));
+                Console.WriteLine(rCompiled.ExpandedSource);
+                return Task.FromResult(0);
+            }
+            var source=Benchmark.Dynamic.Core.FixedCaseCatalog.Emit(item,15);
+            var compiled=new DynamicQueryCompiler().Compile(new("dump","Benchmark.Dynamic.Generated.FixedQuery",source,"dump.cs"));
+            Console.WriteLine(compiled.ExpandedSource);
+            return Task.FromResult(0);
         }
         if(args.Length>0&&args[0]=="--fixed"){
             return Task.FromResult(Fixed(args));
@@ -156,9 +175,55 @@ public static class Program{
         return null;
     }
 
+    private static int CheckAllFixed(){
+        var failed = 0;
+        var compiler = new DynamicQueryCompiler();
+        var primary = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 };
+        var secondary = new int[] { 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 };
+        foreach(var item in Benchmark.Dynamic.Core.FixedCaseCatalog.All){
+            var source = Benchmark.Dynamic.Core.FixedCaseCatalog.Emit(item, 15);
+            var compiled = compiler.Compile(new("check-" + item.ID, "Benchmark.Dynamic.Generated.FixedQuery", source, item.ID + ".cs"));
+            if(!compiled.Success){
+                Console.WriteLine($"[FAIL-COMPILE] {item.ID}: {string.Join("; ", compiled.Diagnostics.Where(d => d.Severity == "Error").Select(d => d.Message))}");
+                failed++;
+                continue;
+            }
+            if(compiled.LoadedQuery is { } loaded){
+                try{
+                    var exp = loaded.Run(DynamicImplementationKind.System, primary, secondary);
+                    if(loaded.Has(DynamicImplementationKind.Ideal)){
+                        var act = loaded.Run(DynamicImplementationKind.Ideal, primary, secondary);
+                        var match = Benchmark.Dynamic.Core.DynamicQueryComparer.Compare(exp, act);
+                        if(!match.IsMatch){
+                            Console.WriteLine($"[MISMATCH-IDEAL] {item.ID}");
+                            failed++;
+                            continue;
+                        }
+                    }
+                    if(loaded.Has(DynamicImplementationKind.FLinq)){
+                        var act = loaded.Run(DynamicImplementationKind.FLinq, primary, secondary);
+                        var match = Benchmark.Dynamic.Core.DynamicQueryComparer.Compare(exp, act);
+                        if(!match.IsMatch){
+                            Console.WriteLine($"[MISMATCH-FLINQ] {item.ID}");
+                            failed++;
+                            continue;
+                        }
+                    }
+                    Console.WriteLine($"[OK] {item.ID}");
+                }catch(Exception ex){
+                    Console.WriteLine($"[RUNTIME-ERR] {item.ID}: {ex.Message}");
+                    failed++;
+                }
+            }
+        }
+        Console.WriteLine($"Total: {Benchmark.Dynamic.Core.FixedCaseCatalog.All.Count}, Failed: {failed}");
+        return failed == 0 ? 0 : 1;
+    }
+
     [DllImport("kernel32.dll")]
     private static extern IntPtr GetCurrentThread();
 
     [DllImport("kernel32.dll",SetLastError = true)]
     private static extern UIntPtr SetThreadAffinityMask(IntPtr スレッドハンドル,UIntPtr スレッドアフィニティマスク);
+
 }

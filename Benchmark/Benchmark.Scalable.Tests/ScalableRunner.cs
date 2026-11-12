@@ -69,7 +69,9 @@ public sealed class ScalableRunner{
         var path=Path.Combine(Path.GetTempPath(),"scalable-rebuild-failure-"+Guid.NewGuid().ToString("N")+".db");
         try{
             var repository=new BenchmarkRepository(new(path));
-            var measurement=new Core.ScalableRunner(repository).Run(new(Count:32,Adaptive:true,MemoryLimitBytes:30000,ChunkSize:16));
+            var memory=checked(2*Seamless.TestKit.TsavoriteBenchmarkBudget.MemoryBytes(32,64,4096,8192));
+            var settings=new ProfileSettings{IndexBytes=64,PageBytes=4096,LogMemoryBytes=8192};
+            var measurement=new Core.ScalableRunner(repository).Run(new(Count:32,Adaptive:true,MemoryLimitBytes:memory,ExplicitSettings:settings,ChunkSize:16));
             Assert.Equal("Passed",measurement.Status);
             var failed=repository.GetChanges(measurement.RunID).Where(change=>!change.Applied).ToArray();
             Assert.Equal(7,failed.Length);

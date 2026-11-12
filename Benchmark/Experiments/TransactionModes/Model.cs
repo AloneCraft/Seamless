@@ -14,14 +14,20 @@ public struct Row:IRecord<int>{
     public long Owner;
     public long Previous;
     public long Deleted;
-    public readonly int Key=>this.Id;
+    public int Key{
+        readonly get=>this.Id;
+        init=>this.Id=value;
+    }
 }
 [StructLayout(LayoutKind.Sequential)]
 public struct PlainRow:IRecord<int>{
     public int Id;
     public int Group;
     public long Value;
-    public readonly int Key=>this.Id;
+    public int Key{
+        readonly get=>this.Id;
+        init=>this.Id=value;
+    }
 }
 public readonly record struct ReadResult(Row Row,long Address,long Previous,bool Captured);
 public sealed class ConflictException:Exception;

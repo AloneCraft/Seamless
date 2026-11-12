@@ -13,7 +13,7 @@ internal sealed partial class Program{
         if(Directory.Exists(root)&&Directory.EnumerateFileSystemEntries(root).Any()){throw new InvalidOperationException("Endurance requires a new private data root.");}
         Directory.CreateDirectory(root);Directory.CreateDirectory(Path.GetDirectoryName(report)!);var records=new List<object>();var finalStates=new List<object>();
         foreach(var storage in new[]{DatabaseStorageMode.Memory,DatabaseStorageMode.Storage}){
-            var options=new DatabaseContainerOptions{Transactions=DatabaseTransactionMode.SharedV2,TransactionConcurrency=TransactionConcurrencyMode.Optimistic,
+            var options=new DatabaseContainerOptions{TransactionConcurrency=TransactionConcurrencyMode.Optimistic,
                 StorageMode=storage,StorageDirectory=Path.Combine(root,storage.ToString(),"database"),TemporaryDirectory=Path.Combine(root,storage.ToString(),"temporary"),MaximumQueryWorkers=4,
                 IndexSize=1024,PageSize=4096,SegmentSize=65536,MemorySize=65536,ManagedMemoryLimitBytes=32L<<20,TemporaryStorageLimitBytes=16L<<20,TransactionMemoryLimit=65536,
                 TransactionHistory=new(){MaxRetainedMemoryBytes=1L<<20,MaxRetainedStorageBytes=1L<<20,MaxMetadataBytes=2L<<20,MaintenanceReserveMemoryBytes=65536,MaintenanceReserveStorageBytes=65536,MaintenanceWaitTimeout=TimeSpan.FromSeconds(10)}};
