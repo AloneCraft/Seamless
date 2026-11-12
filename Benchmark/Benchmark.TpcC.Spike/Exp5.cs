@@ -31,7 +31,7 @@ public struct SetRow<TPad>:IRecord<C16> where TPad:unmanaged{
     public C16 K;
     public IH V;
     public TPad Pad;
-    public readonly C16 Key=>this.K;
+    public C16 Key{readonly get=>this.K;init=>this.K=value;}
 }
 /// <summary>
 /// 実験 5: Remove のあとに保存を繰り返し、開き直す(TPC-E found-bugs #2)。

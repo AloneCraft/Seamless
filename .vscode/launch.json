@@ -27,8 +27,8 @@
       "name": "Benchmark.Dynamic.UI (Debug)",
       "type": "coreclr",
       "request": "launch",
-      "program": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Debug/net10.0-windows/Benchmark.Dynamic.UI.exe",
-      "cwd": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Debug/net10.0-windows",
+      "program": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Debug/net10.0-windows/win-x64/Benchmark.Dynamic.UI.exe",
+      "cwd": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Debug/net10.0-windows/win-x64",
       "console": "internalConsole",
       "stopAtEntry": false,
       "preLaunchTask": "build-benchmark-dynamic-ui-debug"
@@ -37,8 +37,8 @@
       "name": "Benchmark.Dynamic.UI (Release)",
       "type": "coreclr",
       "request": "launch",
-      "program": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Release/net10.0-windows/Benchmark.Dynamic.UI.exe",
-      "cwd": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Release/net10.0-windows",
+      "program": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Release/net10.0-windows/win-x64/Benchmark.Dynamic.UI.exe",
+      "cwd": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Release/net10.0-windows/win-x64",
       "console": "internalConsole",
       "stopAtEntry": false,
       "preLaunchTask": "build-benchmark-dynamic-ui-release"

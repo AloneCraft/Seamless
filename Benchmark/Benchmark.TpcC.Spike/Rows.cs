@@ -17,7 +17,7 @@ public struct Row<TPad>:IRecord<K4> where TPad:unmanaged{
     public long X;
     public long Y;
     public TPad Pad;
-    public readonly K4 Key=>this.K;
+    public K4 Key{readonly get=>this.K;init=>this.K=value;}
 }
 /// <summary>索引の値(24 バイト)。</summary>
 public struct V24{

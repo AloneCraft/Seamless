@@ -9,7 +9,10 @@ public readonly record struct WarehouseKey(int Id);
 /// <summary>WAREHOUSE(1.3.1)。</summary>
 [MemoryPackable]
 public partial record struct WarehouseRow(int Id,string Name,string Street1,string Street2,string City,string State,string Zip,decimal Tax,decimal Ytd):IRecord<WarehouseKey>{
-    readonly WarehouseKey IRecord<WarehouseKey>.Key=>new(this.Id);
+    WarehouseKey IRecord<WarehouseKey>.Key{
+        readonly get=>new(this.Id);
+        init=>this.Id=value.Id;
+    }
 }
 public readonly record struct DistrictKey(int WarehouseId,int Id);
 /// <summary>
@@ -18,7 +21,13 @@ public readonly record struct DistrictKey(int WarehouseId,int Id);
 /// </summary>
 [MemoryPackable]
 public partial record struct DistrictRow(int WarehouseId,int Id,string Name,string Street1,string Street2,string City,string State,string Zip,decimal Tax,decimal Ytd,int NextOrderId,int NextHistoryId):IRecord<DistrictKey>{
-    readonly DistrictKey IRecord<DistrictKey>.Key=>new(this.WarehouseId,this.Id);
+    DistrictKey IRecord<DistrictKey>.Key{
+        readonly get=>new(this.WarehouseId,this.Id);
+        init{
+            this.WarehouseId=value.WarehouseId;
+            this.Id=value.Id;
+        }
+    }
 }
 public readonly record struct CustomerKey(int WarehouseId,int DistrictId,int Id);
 /// <summary>CUSTOMER。Credit は "GC" か "BC"。</summary>
@@ -26,35 +35,74 @@ public readonly record struct CustomerKey(int WarehouseId,int DistrictId,int Id)
 public partial record struct CustomerRow(
     int WarehouseId,int DistrictId,int Id,string First,string Middle,string Last,string Street1,string Street2,string City,string State,string Zip,string Phone,
     long Since,string Credit,decimal CreditLimit,decimal Discount,decimal Balance,decimal YtdPayment,int PaymentCount,int DeliveryCount,string Data):IRecord<CustomerKey>{
-    readonly CustomerKey IRecord<CustomerKey>.Key=>new(this.WarehouseId,this.DistrictId,this.Id);
+    CustomerKey IRecord<CustomerKey>.Key{
+        readonly get=>new(this.WarehouseId,this.DistrictId,this.Id);
+        init{
+            this.WarehouseId=value.WarehouseId;
+            this.DistrictId=value.DistrictId;
+            this.Id=value.Id;
+        }
+    }
 }
 public readonly record struct HistoryKey(int WarehouseId,int DistrictId,int Id);
 /// <summary>HISTORY。仕様に主キーが無いので、(支払先の倉庫, 地区, 地区ごとの連番)を代理の鍵にする。</summary>
 [MemoryPackable]
 public partial record struct HistoryRow(int WarehouseId,int DistrictId,int Id,int CustomerWarehouseId,int CustomerDistrictId,int CustomerId,long Date,decimal Amount,string Data):IRecord<HistoryKey>{
-    readonly HistoryKey IRecord<HistoryKey>.Key=>new(this.WarehouseId,this.DistrictId,this.Id);
+    HistoryKey IRecord<HistoryKey>.Key{
+        readonly get=>new(this.WarehouseId,this.DistrictId,this.Id);
+        init{
+            this.WarehouseId=value.WarehouseId;
+            this.DistrictId=value.DistrictId;
+            this.Id=value.Id;
+        }
+    }
 }
 public readonly record struct NewOrderKey(int WarehouseId,int DistrictId,int OrderId);
 /// <summary>NEW-ORDER。</summary>
 public readonly record struct NewOrderRow(int WarehouseId,int DistrictId,int OrderId):IRecord<NewOrderKey>{
-    NewOrderKey IRecord<NewOrderKey>.Key=>new(this.WarehouseId,this.DistrictId,this.OrderId);
+    NewOrderKey IRecord<NewOrderKey>.Key{
+        get=>new(this.WarehouseId,this.DistrictId,this.OrderId);
+        init{
+            this.WarehouseId=value.WarehouseId;
+            this.DistrictId=value.DistrictId;
+            this.OrderId=value.OrderId;
+        }
+    }
 }
 public readonly record struct OrderKey(int WarehouseId,int DistrictId,int Id);
 /// <summary>ORDER。CarrierId は未配送なら 0。</summary>
 public readonly record struct OrderRow(int WarehouseId,int DistrictId,int Id,int CustomerId,long EntryDate,int CarrierId,int LineCount,int AllLocal):IRecord<OrderKey>{
-    OrderKey IRecord<OrderKey>.Key=>new(this.WarehouseId,this.DistrictId,this.Id);
+    OrderKey IRecord<OrderKey>.Key{
+        get=>new(this.WarehouseId,this.DistrictId,this.Id);
+        init{
+            this.WarehouseId=value.WarehouseId;
+            this.DistrictId=value.DistrictId;
+            this.Id=value.Id;
+        }
+    }
 }
 public readonly record struct OrderLineKey(int WarehouseId,int DistrictId,int OrderId,int Number);
 /// <summary>ORDER-LINE。DeliveryDate は未配送なら 0。</summary>
 [MemoryPackable]
 public partial record struct OrderLineRow(int WarehouseId,int DistrictId,int OrderId,int Number,int ItemId,int SupplyWarehouseId,long DeliveryDate,int Quantity,decimal Amount,string DistInfo):IRecord<OrderLineKey>{
-    readonly OrderLineKey IRecord<OrderLineKey>.Key=>new(this.WarehouseId,this.DistrictId,this.OrderId,this.Number);
+    OrderLineKey IRecord<OrderLineKey>.Key{
+        readonly get=>new(this.WarehouseId,this.DistrictId,this.OrderId,this.Number);
+        init{
+            this.WarehouseId=value.WarehouseId;
+            this.DistrictId=value.DistrictId;
+            this.OrderId=value.OrderId;
+            this.Number=value.Number;
+        }
+    }
 }
 public readonly record struct ItemKey(int Id);
 /// <summary>ITEM。倉庫に依らない読み取り専用の表なので、区画ごとに複製する。</summary>
 [MemoryPackable]
 public partial record struct ItemRow(int Id,int ImageId,string Name,decimal Price,string Data):IRecord<ItemKey>{
-    readonly ItemKey IRecord<ItemKey>.Key=>new(this.Id);
+    ItemKey IRecord<ItemKey>.Key{
+        readonly get=>new(this.Id);
+        init=>this.Id=value.Id;
+    }
 }
 public readonly record struct StockKey(int WarehouseId,int ItemId);
 /// <summary>STOCK。Dist01〜Dist10 は S_DIST_01〜S_DIST_10。</summary>
@@ -63,7 +111,13 @@ public partial record struct StockRow(
     int WarehouseId,int ItemId,int Quantity,
     string Dist01,string Dist02,string Dist03,string Dist04,string Dist05,string Dist06,string Dist07,string Dist08,string Dist09,string Dist10,
     long Ytd,int OrderCount,int RemoteCount,string Data):IRecord<StockKey>{
-    readonly StockKey IRecord<StockKey>.Key=>new(this.WarehouseId,this.ItemId);
+    StockKey IRecord<StockKey>.Key{
+        readonly get=>new(this.WarehouseId,this.ItemId);
+        init{
+            this.WarehouseId=value.WarehouseId;
+            this.ItemId=value.ItemId;
+        }
+    }
     /// <summary>地区 d(1〜10)の S_DIST_xx。</summary>
     public string DistInfoOf(int district){
         switch(district){

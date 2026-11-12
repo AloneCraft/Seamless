@@ -25,4 +25,8 @@
     <ProjectReference Include="..\Benchmark.TpcC.Persisted.Linq\Benchmark.TpcC.Persisted.Linq.csproj" />
     <ProjectReference Include="..\Benchmark.TpcC.Persisted.FLinq\Benchmark.TpcC.Persisted.FLinq.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- 試験用のWAL装置は製品のアセンブリから試験側へ移した。この試験も同じファイルを使う。 -->
+    <Compile Include="..\..\Tests\Seamless.Transactions.Tests\FakeWalDevice.cs" Link="FakeWalDevice.cs" />
+  </ItemGroup>
 </Project>
