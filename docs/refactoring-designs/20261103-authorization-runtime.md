@@ -51,7 +51,7 @@
 
 ## 現在の実装範囲
 - `Seamless.Security`に、不変の主体・グループ・リソース・ロール・ポリシー版、継承と拒否優先、操作リース、既定30分の取引取消、アカウント無効化による取消を実装した。通常の権限変更とサインイン期限切れでは開始済みリースの権限を変えない。
-- DB内のロール一括変更には、対象DB・基準版・管理者の操作リースを要求する。管理ロールの編集と任命・解除にはサーバー管理権限も要求する。検査後の永続確定アダプターが失敗した場合はメモリ上のポリシーを進めない。実サーバーのsystem DBへ保存するアダプターと復旧は未接続である。
+- DB内のロール一括変更には、対象DB・基準版・管理者の操作リースを要求する。管理ロールの編集と任命・解除にはサーバー管理権限も要求する。検査または確定前の失敗では旧ポリシーを維持する。`StoredAuthorization`がsystem DBへのポリシー・不変の版・操作結果・監査の一括保存と再起動時の復元を実装する。確定後の応答喪失では保存された新しい版へ再同期し、確認できない場合は新しい操作を拒否する。確定を待つ操作セッションと取引期限の設定を利用できる。詳細は`20261104-authorization-policy-storage.md`を参照する。管理・ネイティブ・SQLの実際の接続経路への組み込みは未完了である。
 - `Seamless.Authentication`はMicrosoft IdentityModelで署名・発行元・対象・期限を検証し、Duende OidcClientで認可コード＋PKCEを処理する。stateとnonceも検証する。IDトークンとAPIアクセストークンの対象を分け、期限切れ直後のトークンも新規認証に使わない。
 - `OidcAuthorizationSession`が本人確認と操作リースを接続する。所属の鮮度内では認証元へ通信せず、5分後に現在のUserInfoの主体・グループを再確認する。同時に到着した要求の成功した再確認を共有し、失敗時は新規操作を拒否する。認証元ごとのUserInfoが実際の現在所属を返すかは、本番アダプター導入時に確認が必要である。
 - `IOidcCredentialStore`とWindows資格情報マネージャーのアダプターを実装した。更新資格情報だけを利用者のOS保管領域へ保存し、接続先・発行元・API対象・アプリ・主体をキーに含める。保存サイズはOSの上限2560バイトまでとし、超過・保管不能を明示的なエラーにする。
@@ -79,6 +79,34 @@ Windows保管方式の根拠は[MicrosoftのCREDENTIALW仕様](https://learn.mic
 
 ## 未決事項
 本番のOIDC接続先、認証元の所属反映の制約、既存主体の明示的な連結、初期ロールの表示等は、実装で必要になった時点で一つずつ確認する。
+
+### TDSの組織認証とドライバー互換性
+
+現在のTDS入口はループバック向けで、LOGIN7からDB名を読む段階では本人確認を行わない。組織認証で保護するGateway構成ではこの入口を起動しない。DataGrip向け保護入口は、先に標準TDSのTLSと認証の互換性を実ドライバーで検証し、その後、SQLの対象解決・取引・取消を共通認可へ接続する。
+
+TDS 8.0はPRELOGINより前にTLSを確立し、標準のALPNで版を識別できる。既存のKestrel接続基盤で独立した保護入口を構成し、公開APIの`OnAuthenticate`でALPNを設定する案を検証する。仕様ではALPNが省略された場合もTDS 8.0として扱う。TDS 7.xの暗号化はPRELOGIN後にTLSハンドシェイクをTDSパケットで包むため、同じ入口構成を前提にしない。[TDS PRELOGIN仕様](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tds/60f56408-0188-4cd5-8b90-25c6f2423868) [TDSの版交渉](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tds/6809de85-1665-44ad-a459-6f6621e02257) [Kestrelの公開API](https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.server.kestrel.https.httpsconnectionadapteroptions.onauthenticate?view=aspnetcore-10.0)
+
+FedAuthでは、検証済みTLS上で受けたAPIアクセストークンを登録済みのOIDC発行元と対象へ束縛する。まずSqlClientの明示アクセストークンでLOGIN7と認可を検証し、JDBCでも独立して確認する。JDBCの`accessToken`は接続URLでは設定できず、DataGripからの資格情報の供給方法は実際のドライバー構成で確認する。DataGripの組み込みMicrosoft Entra用サインインが、任意のOIDC発行元でも利用できるとは仮定しない。[TDS LOGIN7仕様](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tds/773a62b6-ee89-4c02-9e5e-344882630aac) [Microsoft JDBCの接続設定](https://learn.microsoft.com/en-us/sql/connect/jdbc/setting-the-connection-properties?view=sql-server-ver17)
+
+WindowsのSqlClient 7.0.0では、既存のKestrel TLSにALPNを追加しない試験でも、証明書照合後にPRELOGINとFedAuth付きLOGIN7が届き、ログイン拒否をSQLエラーとして受け取れることを確認した。ドライバー間の互換性は、ALPN `tds/8.0` の交渉を含めてJDBCで別途確認する。[Windowsでの検証結果](../kestrel-verification-20261104.md#2026-11-06-sqlclientのtds-80厳格tlsとfedauth受信) [TDSのALPN識別子](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tds/9d8480d7-7c33-4592-a66f-48d8bf927662)
+
+組み込み用の保護TDS入口では、PRELOGINでFedAuthを要求し、LOGIN7で明示アクセストークンを受け付ける。OIDCセッションの生成と対象DBのDiscover確認が成功した接続だけにLOGINACKを返す。取引外のSQLは毎要求で共通認可を取得し、HTTPと同じ認可カタログで許可された単文を評価する。
+
+明示取引は共通のGateway取引に接続し、取引開始時の認可リースを確定・取消まで接続内に保持する。対応するTDS要求は現在の取引記述子を持ち、開始・確定・取消の応答では既存のENVCHANGEを返す。権限版の更新は取引終了後から反映する。アカウント無効化・取引期限超過では接続を終了させ、接続処理の終了時に未確定取引を戻す。切断を確定済み取引の取消として扱わない。
+
+保護TDSのパラメーター付きRPCは、`sp_executesql`、`sp_prepare`、`sp_prepexec`、`sp_execute`、`sp_unprepare`で許可済みの単文を扱う。準備済みハンドルは接続とDBに束縛し、SQLと宣言情報を有界に保持する。実行時は都度の認可リースまたは取引開始時のリースを使い、準備時の許可を持ち越さない。ストアドプロシージャ呼び出しとDataGripのメタデータ操作は別工程。
+
+準備時の結果列は、同じ認可カタログとDB世代のSQLバインドで取得する。対象は `sp_prepare` の `RETURN_METADATA` と、JDBCが送る一つのSELECTを囲む完全な `SET FMTONLY ON … OFF` に限る。SQL計画から列名・型を取得して行データを返さず、単独のSETでセッション状態を変更しない。更新文や複数の実行文はこの経路では拒否する。[sp_prepare仕様](https://learn.microsoft.com/en-us/sql/relational-databases/system-stored-procedures/sp-prepare-transact-sql) [Microsoft JDBCの要求生成](https://github.com/microsoft/mssql-jdbc/blob/v13.4.0/src/main/java/com/microsoft/sqlserver/jdbc/SQLServerPreparedStatement.java#L1309)
+
+Gateway CLIは`Authorization.ProtectTds`と秘密鍵付き`TdsCertificatePath`を明示した場合だけ、同じ認可ストアで保護TDSを起動する。保護TDSはループバックに限定し、他の保護入口と接続・TLS確立・バッファの設定済み共有予算を使う。未保護入口は併設できず、証明書なしで従来TDSに切り替えない。保護TDSでは値を含む互換調査用の要求ログを禁止する。
+
+保護TDSの名前付きRPCとSQLの `EXEC` では、接続中のDBに登録された本文がSELECT・INSERT・UPDATE・DELETEで構成されるSQLプロシージャを最大64文まで扱う。現在のDB世代に対応する `Procedure` リソースの実行権限を検査し、本文は同じ認可付きSQLエンジンで実行する。同一DBの明示的な委任読取を使い、テーブルの明示拒否を優先する。更新は対象テーブルの権限を検査し、呼び出し元の明示取引または通常の暗黙取引で処理する。更新取引内でプロシージャの定義を再照合し、初回の解決から世代が変わった場合は書き込み前に中止する。入力引数は登録された型に束縛する。動的SQLは別工程。[TDSのRPC要求形式](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tds/619c43b6-9495-4a58-9e49-a4950db245b3)
+
+出力引数への `SET @引数 = 式` は、登録済みプロシージャ内のSELECT・更新と混在できる。要求の出力フラグを登録済み宣言と照合し、式の参照権限は既存のSQL計画準備で検査する。式は同じ読取範囲で順に評価し、正常完了時にのみ `RETURNVALUE` へ元の引数位置と宣言型を載せる。`sp_executesql` と準備済みRPCでは、出力付き要求を単一の登録済みプロシージャ呼び出しに限定し、宣言した各出力変数に一意の代入先を要求する。直接SQLバッチはローカル宣言、単一の出力付きEXEC、ローカル変数だけを返すSELECTに限定し、RPCと同じ出力先・型・権限の検査を使う。代入、結果の一時保存、呼び出し元の型への変換は、更新を確定する前に完了させる。[TDSの出力引数仕様](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tds/7091f6f6-b83d-4ed2-afeb-ba5013dfb18f)
+
+SELECTだけで構成される本文では、最初の結果メタデータを送信する前にすべての文を認可・束縛する。行は文の順に逐次列挙する。明示取引がない場合は呼び出し単位で読取範囲を開き、世代管理ありでは同じスナップショット、世代管理なしでは同じDB読取ロックを使う。応答の終了・中断時に呼び出しが開いた資源を解放する。明示取引では呼び出し元の取引を利用する。
+
+更新を含む複数文では、暗黙取引で呼び出し全体を一度で確定し、明示取引では内部セーブポイントで呼び出しの変更を分離する。途中の文が失敗したとき、明示取引が継続可能なら呼び出し直前の状態に戻す。既存の取引全体の中止条件も適用する。SELECTの行は各文の実行時に予算付きの一時領域へ逐次保存し、呼び出し全体の成功後に結果と更新件数を順に返す。応答完了・中断時に一時領域を解放する。[SAVE TRANSACTIONの仕様](https://learn.microsoft.com/en-us/sql/t-sql/language-elements/save-transaction-transact-sql)
 
 ## 合意状態
 利用者はOIDC先行と開発用認証環境での検証を選択した。期限切れは開始済み取引を上限内で継続し、新規操作から再認証する回答を得た。その他の既存合意と「完了まで」の実装指示の範囲で進める。

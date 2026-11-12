@@ -83,7 +83,7 @@ dotnet test .\Test\Test.csproj -c Release -f net10.0 --filter "FullyQualifiedNam
 
 dotnet test .\Verification.Tests\Verification.Tests.csproj -c Release --logger "trx;LogFileName=verification.trx"
 dotnet test .\Benchmark.Dynamic.Tests\Benchmark.Dynamic.Tests.csproj -c Release -f net10.0-windows --filter "FullyQualifiedName~DynamicRouteShapeTests|FullyQualifiedName~DynamicEndToEndTests|FullyQualifiedName~DynamicWorkerRestartTests" --logger "trx;LogFileName=dynamic.trx"
-dotnet test .\Test.Tsavorite.ParameterSweep\Test.Tsavorite.ParameterSweep.csproj -c Release --logger "trx;LogFileName=sweep.trx"
+dotnet test .\Benchmark\Benchmark.Infrastructure.Tests\Benchmark.Infrastructure.Tests.csproj -c Release -f net10.0 --filter "FullyQualifiedName~Test.Tsavorite.ParameterSweep" --logger "trx;LogFileName=sweep.trx"
 ```
 
 生成形状の試験では generator 本体と consumer の再構築後に DLL hash と生成ファイルを確認する。上の選択実行は全回帰の代用ではない。変更影響を広げた場合は該当 LINQ/collection/DB 全 suite も実行する。

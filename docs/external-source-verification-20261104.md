@@ -30,6 +30,6 @@ GUIでは実アプリをTLS・IPC対応の管理サーバーに接続し、空DB
 
 `F:\CodexTemp\SeamlessSource-20261104-01\acceptance`に両構成のTRX、GUI画像、生成プロジェクトの所在、ビルドログを保存した。追加の保存先検査は同領域の`paths-Debug`、`paths-Release`、修正前の失敗は`link-red`に記録した。
 
-再実行は`tools/management/Test-SourceWorkspace.ps1 -Configuration Debug`と`-Configuration Release`を使う。共通の最大8論理CPU、D/Fへの配置、実行中のソースを変更しない規約を維持する。
+再実行は`tools/management/Test-SourceWorkspace.ps1 -Configuration Debug`と`-Configuration Release`を使う。共通の最大8論理CPUを維持し、現在の規約に従って作業・実データ・成果物・キャッシュ・ログをFに配置する。実行中のソースは変更しない。
 
 Linux、VS Codeの実画面操作、運用ZIPのみからの開発用参照の準備、任意の外部プロジェクト構成変更、取消・差分画面一式、統合された表設計タブは今回の合格に含めない。[現在の操作と制限](external-source-workspaces.md)を参照する。

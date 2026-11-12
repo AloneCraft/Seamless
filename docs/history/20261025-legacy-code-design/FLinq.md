@@ -5,7 +5,7 @@
 ---
 phase: code-internal-reverse
 reverse_document: true
-canonical_target: FLinq.md
+canonical_target: docs/FLinq.md
 evidence_sources:
   - FLinq/FLinq.csproj
   - FLinq/SourceGenerator/interceptor.cs

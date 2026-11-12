@@ -7,7 +7,7 @@
 - `G:\GitHub\Seamless\Document\Code\External\CodeModuleInterface.md`
 - `G:\GitHub\Seamless\Document\Code\Basic\ModuleBreakdown.md`
 - `G:\GitHub\Seamless\Collection.md`
-- `G:\GitHub\Seamless\FLinq.md`
+- [FLinq](../../FLinq.md)
 - `G:\GitHub\Seamless\UI.md`
 
 この履歴内のDB削除・起動時の自動再作成の記述は現在の移行手順ではない。現行のAGENTS.mdに従い、バックアップを取って対象DBへ明示的に適用する。
