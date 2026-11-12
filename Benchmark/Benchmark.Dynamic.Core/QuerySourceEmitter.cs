@@ -31,8 +31,11 @@ public sealed class QuerySourceEmitter{
             [ExecutionPath.ZLinq]="RunZLinq",
         };
 
+    [ThreadStatic]private static QueryEmissionStyle currentStyle;
+
     public QuerySourceEmissionResult Emit(QueryIrDocument document,QuerySourceEmissionOptions? options=null){
         ArgumentNullException.ThrowIfNull(document);
+        currentStyle=document.Style;
         QueryIrValidator.ValidateAndThrow(document);
         options??=new();
         if(options.OptimizationFlags<0||options.OptimizationFlags>15){throw new ArgumentOutOfRangeException(nameof(options.OptimizationFlags));}
@@ -45,6 +48,9 @@ public sealed class QuerySourceEmitter{
         var builder=new StringBuilder(8_192);
         builder.AppendLine("#nullable enable");
         builder.AppendLine("using System.Linq;");
+        if(document.Style==QueryEmissionStyle.Consume){
+            builder.AppendLine("using static global::Benchmark.Dynamic.Core.QueryConsumeExtensions;");
+        }
         if(options.IncludeZLinq){
             builder.AppendLine("using ZLinq;");
         }
@@ -113,9 +119,23 @@ public sealed class QuerySourceEmitter{
         builder.Append("        var secondarySource=")
             .Append(EmitFixtureCast(document.SourceTarget,element,path,"secondary"))
             .AppendLine(";");
-        builder.Append("        var result=")
-            .Append(this.EmitTerminal(document.Root,element,path))
-            .AppendLine(";");
+        if(document.Style==QueryEmissionStyle.Consume
+            &&path!=ExecutionPath.ZLinq
+            &&document.Root.Arguments.Kind is QueryTerminalKind.ToArray or QueryTerminalKind.ToList){
+            builder.Append("        var consumer=new global::Benchmark.Dynamic.Core.QueryConsumer<")
+                .Append(element.ClrTypeName)
+                .AppendLine(">();");
+            builder.Append("        (")
+                .Append(this.EmitSequence(document.Root.Input,element,path))
+                .AppendLine(").Consume(consumer);");
+            builder.Append("        var result=")
+                .Append(document.Root.Arguments.Kind==QueryTerminalKind.ToArray?"global::System.Linq.Enumerable.ToArray(consumer.Items)":"global::System.Linq.Enumerable.ToList(consumer.Items)")
+                .AppendLine(";");
+        }else{
+            builder.Append("        var result=")
+                .Append(this.EmitTerminal(document.Root,element,path))
+                .AppendLine(";");
+        }
         builder.Append("        return ")
             .Append(EmitMaterialization(document.Root,element))
             .AppendLine(";");
@@ -145,6 +165,8 @@ public sealed class QuerySourceEmitter{
                 QueryTerminalKind.FirstOrDefault=>$"({input}).FirstOrDefault()",
                 QueryTerminalKind.Last=>$"({input}).Last()",
                 QueryTerminalKind.LastOrDefault=>$"({input}).LastOrDefault()",
+                QueryTerminalKind.Single=>$"({SingleInput(node,input)}).Single()",
+                QueryTerminalKind.SingleOrDefault=>$"({SingleInput(node,input)}).SingleOrDefault()",
                 QueryTerminalKind.ElementAt=>$"({input}).ElementAt({node.Arguments.Value!.Value})",
                 QueryTerminalKind.ElementAtOrDefault=>$"({input}).ElementAtOrDefault({node.Arguments.Value!.Value})",
                 QueryTerminalKind.ToArray=>$"({input}).ToArray()",
@@ -181,6 +203,8 @@ public sealed class QuerySourceEmitter{
             QueryTerminalKind.FirstOrDefault=>$"global::System.Linq.Enumerable.FirstOrDefault({input})",
             QueryTerminalKind.Last=>$"global::System.Linq.Enumerable.Last({input})",
             QueryTerminalKind.LastOrDefault=>$"global::System.Linq.Enumerable.LastOrDefault({input})",
+            QueryTerminalKind.Single=>$"global::System.Linq.Enumerable.Single({SingleInput(node,input,true)})",
+            QueryTerminalKind.SingleOrDefault=>$"global::System.Linq.Enumerable.SingleOrDefault({SingleInput(node,input,true)})",
             QueryTerminalKind.ElementAt=>$"global::System.Linq.Enumerable.ElementAt({input},{node.Arguments.Value!.Value})",
             QueryTerminalKind.ElementAtOrDefault=>$"global::System.Linq.Enumerable.ElementAtOrDefault({input},{node.Arguments.Value!.Value})",
             QueryTerminalKind.ToArray=>$"global::System.Linq.Enumerable.ToArray({input})",
@@ -212,6 +236,11 @@ public sealed class QuerySourceEmitter{
     private string EmitUnary(UnaryQueryNode node,ElementTypeDescriptor element,ExecutionPath path){
         var input=this.EmitSequence(node.Input,element,path);
         if(path!=ExecutionPath.SystemLinq){
+            if(currentStyle==QueryEmissionStyle.QuerySyntax
+                &&path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized
+                &&TryEmitQuerySyntax(node,input,element,out var query)){
+                return query;
+            }
             return node.Arguments switch{
                 WhereOperatorArguments where=>$"({input}).Where({element.EmitPredicate(where.Predicate)})",
                 WhereIndexedOperatorArguments where=>$"({input}).Where((value,index)=>index%{where.Modulus}=={where.Remainder})",
@@ -247,6 +276,31 @@ public sealed class QuerySourceEmitter{
             ExtendedUnaryOperatorArguments extended=>EmitExtendedUnary(extended,input,element,path),
             _=>throw new InvalidOperationException($"Unsupported unary arguments at {node.NodeId}."),
         };
+    }
+
+    // Where / Select / OrderBy(降順を含む)を C# のクエリ構文で書く。ラムダが value=>本体 の形のときだけ。
+    // 恒等の select はコンパイラが消すので、where / orderby の直後は select value で受ける。
+    private static bool TryEmitQuerySyntax(UnaryQueryNode node,string input,ElementTypeDescriptor element,out string query){
+        query=string.Empty;
+        // group は C# のクエリ式の中では予約語として読まれるので、入力に group という名前のラムダ引数があるときはメソッド形のままにする。
+        if(input.Contains("group",StringComparison.Ordinal)){
+            return false;
+        }
+        const string Prefix="value=>";
+        static string? Body(string lambda)=>lambda.StartsWith(Prefix,StringComparison.Ordinal)?lambda[Prefix.Length..]:null;
+        switch(node.Arguments){
+            case WhereOperatorArguments where when Body(element.EmitPredicate(where.Predicate)) is { }body:
+                query=$"(from value in {input} where {body} select value)";
+                return true;
+            case SelectOperatorArguments select when Body(element.EmitSelector(select.Selector)) is { }body:
+                query=$"(from value in {input} select {body})";
+                return true;
+            case OrderByOperatorArguments order:
+                query=$"(from value in {input} orderby value{(order.Descending?" descending":string.Empty)} select value)";
+                return true;
+            default:
+                return false;
+        }
     }
 
     // SequenceEqual の比較相手。Value が 1 なら同じチェーン(同一式を2回評価する)、0 なら副Source。
@@ -307,6 +361,30 @@ public sealed class QuerySourceEmitter{
                 return Call("DefaultIfEmpty",$"({element.Literal(defaultIfEmpty.Value)})");
             case OrderByKeyOperatorArguments orderBy:
                 return Call(orderBy.Descending?"OrderByDescending":"OrderBy",EmitModuloKey(element,orderBy.Modulus));
+            case OrderOperatorArguments order:
+                return Call(order.Descending?"OrderDescending":"Order",string.Empty);
+            case AsEnumerableOperatorArguments:
+                return Call("AsEnumerable",string.Empty);
+            case ShuffleOrderOperatorArguments:
+                return system
+                    ?$"global::System.Linq.Enumerable.Order(global::System.Linq.Enumerable.Shuffle({input}))"
+                    :$"({input}).Shuffle().Order()";
+            case CastOperatorArguments:
+                return system
+                    ?$"global::System.Linq.Enumerable.Cast<{element.ClrTypeName}>(global::System.Linq.Enumerable.Cast<object>({input}))"
+                    :$"({input}).Cast<object>().Cast<{element.ClrTypeName}>()";
+            case OfTypeOperatorArguments:
+                return system
+                    ?$"global::System.Linq.Enumerable.OfType<{element.ClrTypeName}>(global::System.Linq.Enumerable.Cast<object>({input}))"
+                    :$"({input}).Cast<object>().OfType<{element.ClrTypeName}>()";
+            case ChunkFlattenOperatorArguments chunk:
+                return system
+                    ?$"global::System.Linq.Enumerable.SelectMany(global::System.Linq.Enumerable.Chunk({input},{chunk.Size}),chunk=>chunk)"
+                    :$"({input}).Chunk({chunk.Size}).SelectMany(chunk=>chunk)";
+            case IndexXorOperatorArguments:
+                return system
+                    ?$"global::System.Linq.Enumerable.Select(global::System.Linq.Enumerable.Index({input}),pair=>pair.Item^pair.Index)"
+                    :$"({input}).Index().Select(pair=>pair.Item^pair.Index)";
             case GroupByAggregateOperatorArguments group:{
                 var key=EmitModuloKey(element,group.Modulus);
                 if(system){
@@ -396,6 +474,14 @@ public sealed class QuerySourceEmitter{
             }
             return $"global::System.Linq.Enumerable.Join({outer},{inner},outerValue=>outerValue,innerValue=>innerValue,(outerValue,innerValue)=>{element.JoinResult("outerValue","innerValue")})";
         }
+        if(node.Arguments.Kind is QueryNestedKind.LeftJoinXor or QueryNestedKind.RightJoinXor){
+            var method=node.Arguments.Kind==QueryNestedKind.LeftJoinXor?"LeftJoin":"RightJoin";
+            const string Arguments="outerValue=>outerValue,innerValue=>innerValue,(outerValue,innerValue)=>outerValue^innerValue";
+            if(path is ExecutionPath.FLinqNoOptimizations or ExecutionPath.FLinqOptimized){
+                return $"({outer}).{method}({inner},{Arguments})";
+            }
+            return $"global::System.Linq.Enumerable.{method}({outer},{inner},{Arguments})";
+        }
         if(node.Arguments.Kind==QueryNestedKind.SelectManyXor){
             if(path==ExecutionPath.ZLinq){
                 return $"({outer}).SelectMany(outerValue=>({inner}).Select(innerValue=>outerValue^innerValue).ToArray())";
@@ -436,12 +522,24 @@ public sealed class QuerySourceEmitter{
         return $"({type}){parameter}!";
     }
 
+    // Single / SingleOrDefault は要素がちょうど1個(または高々1個)でないと例外になるので、静的に安全でないときは Take(1) を前置する。
+    private static string SingleInput(TerminalQueryNode node,string input,bool system=false){
+        var safe=node.Arguments.Kind==QueryTerminalKind.Single
+            ?node.Input.Cardinality.Minimum==1&&node.Input.Cardinality.Maximum==1
+            :node.Input.Cardinality.Maximum is <=1;
+        if(safe){
+            return input;
+        }
+        return system?$"global::System.Linq.Enumerable.Take({input},1)":$"({input}).Take(1)";
+    }
+
     // 要素そのものを返す終端(int 以外の要素型のとき、結果は要素の正規形で持つ)。
     private static bool ReturnsElements(QueryTerminalKind kind){
         return kind is QueryTerminalKind.ToArray or QueryTerminalKind.ToList or QueryTerminalKind.ToHashSet
             or QueryTerminalKind.Min or QueryTerminalKind.Max or QueryTerminalKind.MinBy or QueryTerminalKind.MaxBy
             or QueryTerminalKind.First or QueryTerminalKind.FirstOrDefault
             or QueryTerminalKind.Last or QueryTerminalKind.LastOrDefault
+            or QueryTerminalKind.Single or QueryTerminalKind.SingleOrDefault
             or QueryTerminalKind.ElementAt or QueryTerminalKind.ElementAtOrDefault;
     }
 

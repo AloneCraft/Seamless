@@ -15,6 +15,13 @@ public static class QueryZLinqSupport{
         if(node is UnaryQueryNode{Arguments:OrderByOperatorArguments or ThenByOperatorArguments or OrderByKeyOperatorArguments}){
             return false;
         }
+        // 後から足した演算子は、ZLinq での動作を確かめていないので System と FLinq だけで比べる。
+        if(node is UnaryQueryNode{Arguments:OrderOperatorArguments or ShuffleOrderOperatorArguments or CastOperatorArguments
+            or OfTypeOperatorArguments or AsEnumerableOperatorArguments or ChunkFlattenOperatorArguments or IndexXorOperatorArguments}
+            or NestedQueryNode{Arguments.Kind:QueryNestedKind.LeftJoinXor or QueryNestedKind.RightJoinXor}
+            or TerminalQueryNode{OperatorId:QueryOperatorIds.Single or QueryOperatorIds.SingleOrDefault}){
+            return false;
+        }
         // ZLinq 1.5.6 は TakeWhile の結果が空のとき、直後の DefaultIfEmpty が既定値のほかに余計な要素を返す
         // (takeWhile > defaultIfEmpty の全組み合わせの検証で見つかった。System.Linq と FLinq は一致している)。
         if(node is UnaryQueryNode{Arguments:DefaultIfEmptyOperatorArguments,Input:UnaryQueryNode{Arguments:TakeWhileOperatorArguments}}){

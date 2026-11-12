@@ -424,6 +424,7 @@ public static class QueryIrNormalizer{
             QueryNestedKind.JoinXor=>new QueryCardinalityRange(0,product.Maximum),
             QueryNestedKind.SelectManyXor=>product,
             QueryNestedKind.GroupJoinXorCount=>outer.Cardinality,
+            QueryNestedKind.LeftJoinXor or QueryNestedKind.RightJoinXor=>ExtendedNestedShape.OuterJoinCardinality(node.Arguments.Kind,outer.Cardinality,inner.Cardinality),
             _=>throw new InvalidOperationException($"Unsupported nested kind: {node.Arguments.Kind}."),
         };
         var order=outer.OrderSemantics==QueryOrderSemantics.Unordered||inner.OrderSemantics==QueryOrderSemantics.Unordered

@@ -1,5 +1,17 @@
 namespace Benchmark.Dynamic.Core;
 
+/// <summary>LeftJoin / RightJoin の件数規則。左(右)の要素は一致が無くても1回は出るので、最小は左(右)の件数。</summary>
+public static class ExtendedNestedShape{
+    public static QueryCardinalityRange OuterJoinCardinality(QueryNestedKind kind,QueryCardinalityRange outer,QueryCardinalityRange inner){
+        var kept=kind==QueryNestedKind.LeftJoinXor?outer:inner;
+        var other=kind==QueryNestedKind.LeftJoinXor?inner:outer;
+        long? maximum=kept.Maximum is { }keptMaximum&&other.Maximum is { }otherMaximum
+            ?QueryCardinalityRange.SaturatingMultiply(keptMaximum,Math.Max(1,otherMaximum))
+            :null;
+        return new(kept.Minimum,maximum);
+    }
+}
+
 /// <summary>Zip の件数規則。順序は <see cref="QueryBinaryKind.Concat"/> と同じく、両方が順序付きのときだけ順序付きとする。</summary>
 public static class ExtendedBinaryShape{
     public static QueryCardinalityRange ZipCardinality(QueryCardinalityRange left,QueryCardinalityRange right){

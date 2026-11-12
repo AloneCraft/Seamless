@@ -50,6 +50,13 @@ public static class QueryExpressionFormatter{
             DefaultIfEmptyOperatorArguments defaultIfEmpty=>$"DefaultIfEmpty({Integer(defaultIfEmpty.Value)})",
             OrderByKeyOperatorArguments orderBy=>FormatOrderByKey(orderBy),
             GroupByAggregateOperatorArguments group=>FormatGroupByAggregate(group),
+            OrderOperatorArguments order=>order.Descending?"OrderDescending()":"Order()",
+            ShuffleOrderOperatorArguments=>"Shuffle().Order()",
+            CastOperatorArguments=>"Cast<object>().Cast<T>()",
+            OfTypeOperatorArguments=>"Cast<object>().OfType<T>()",
+            AsEnumerableOperatorArguments=>"AsEnumerable()",
+            ChunkFlattenOperatorArguments chunk=>$"Chunk({Integer(chunk.Size)}).SelectMany(c=>c)",
+            IndexXorOperatorArguments=>"Index().Select(t=>t.Item^t.Index)",
             _=>throw new ArgumentOutOfRangeException(nameof(node)),
         };
         return$"{input}.{operation}";
@@ -110,6 +117,8 @@ public static class QueryExpressionFormatter{
         return node.Arguments.Kind switch{
             QueryNestedKind.SelectManyXor=>$"{outer}.SelectMany(p=>{inner}.Select(i=>p^i))",
             QueryNestedKind.JoinXor=>$"{outer}.Join({inner},p=>p,i=>i,(p,i)=>p^i)",
+            QueryNestedKind.LeftJoinXor=>$"{outer}.LeftJoin({inner},p=>p,i=>i,(p,i)=>p^i)",
+            QueryNestedKind.RightJoinXor=>$"{outer}.RightJoin({inner},p=>p,i=>i,(p,i)=>p^i)",
             QueryNestedKind.GroupJoinXorCount=>$"{outer}.GroupJoin({inner},p=>(p%8+8)%8,i=>(i%8+8)%8,(p,g)=>p^g.Count())",
             _=>throw new ArgumentOutOfRangeException(nameof(node)),
         };
@@ -136,6 +145,8 @@ public static class QueryExpressionFormatter{
             QueryTerminalKind.FirstOrDefault=>"FirstOrDefault()",
             QueryTerminalKind.Last=>"Last()",
             QueryTerminalKind.LastOrDefault=>"LastOrDefault()",
+            QueryTerminalKind.Single=>"Take(1).Single()",
+            QueryTerminalKind.SingleOrDefault=>"Take(1).SingleOrDefault()",
             QueryTerminalKind.ElementAt=>$"ElementAt({Integer(arguments.Value??0)})",
             QueryTerminalKind.ElementAtOrDefault=>$"ElementAtOrDefault({Integer(arguments.Value??0)})",
             QueryTerminalKind.ToArray=>"ToArray()",

@@ -67,6 +67,17 @@ public static class QueryOperatorIds{
     public const string CountBy="countBy.modulo";
     public const string AggregateBy="aggregateBy.modulo";
     public const string SequenceEqual="sequenceEqual";
+    public const string Order="order";
+    public const string ShuffleOrder="shuffle.order";
+    public const string Cast="cast";
+    public const string OfType="ofType";
+    public const string AsEnumerable="asEnumerable";
+    public const string ChunkFlatten="chunk.flatten";
+    public const string IndexXor="index.xor";
+    public const string LeftJoinXor="leftJoin.xor";
+    public const string RightJoinXor="rightJoin.xor";
+    public const string Single="single";
+    public const string SingleOrDefault="singleOrDefault";
 }
 
 public sealed record OperatorDescriptor(
@@ -82,7 +93,7 @@ public sealed record OperatorDescriptor(
     bool RequiresUniqueInput=false);
 
 public static class BuiltInOperatorCatalog{
-    public const int OperatorSetVersion=15;
+    public const int OperatorSetVersion=16;
     private static readonly OperatorDescriptor[] DescriptorArray=[
         new(QueryOperatorIds.Where,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,true),
         new(QueryOperatorIds.WhereIndexed,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,true,false),
@@ -106,6 +117,13 @@ public static class BuiltInOperatorCatalog{
         new(QueryOperatorIds.GroupBySum,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
         new(QueryOperatorIds.GroupByCount,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
         new(QueryOperatorIds.GroupByKeyOnly,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
+        new(QueryOperatorIds.Order,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
+        new(QueryOperatorIds.ShuffleOrder,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
+        new(QueryOperatorIds.Cast,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
+        new(QueryOperatorIds.OfType,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
+        new(QueryOperatorIds.AsEnumerable,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
+        new(QueryOperatorIds.ChunkFlatten,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
+        new(QueryOperatorIds.IndexXor,QueryNodeKind.Unary,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,true,false),
         new(QueryOperatorIds.Concat,QueryNodeKind.Binary,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,true),
         new(QueryOperatorIds.Union,QueryNodeKind.Binary,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,true),
         new(QueryOperatorIds.Except,QueryNodeKind.Binary,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
@@ -117,6 +135,8 @@ public static class BuiltInOperatorCatalog{
         new(QueryOperatorIds.SelectManyXor,QueryNodeKind.Nested,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,true),
         new(QueryOperatorIds.JoinXor,QueryNodeKind.Nested,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,true),
         new(QueryOperatorIds.GroupJoinXorCount,QueryNodeKind.Nested,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
+        new(QueryOperatorIds.LeftJoinXor,QueryNodeKind.Nested,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
+        new(QueryOperatorIds.RightJoinXor,QueryNodeKind.Nested,2,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
         new(QueryOperatorIds.Count,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Scalar,false,false,true),
         new(QueryOperatorIds.LongCount,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Long,QueryCardinality.Scalar,false,false,true),
         new(QueryOperatorIds.Any,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Bool,QueryCardinality.Scalar,false,false,true),
@@ -148,6 +168,8 @@ public static class BuiltInOperatorCatalog{
         new(QueryOperatorIds.AverageSelector,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Double,QueryCardinality.Scalar,true,false,false),
         new(QueryOperatorIds.CountBy,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
         new(QueryOperatorIds.AggregateBy,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Sequence,false,false,false),
+        new(QueryOperatorIds.Single,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Scalar,true,false,false),
+        new(QueryOperatorIds.SingleOrDefault,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Int,QueryCardinality.Scalar,false,false,false),
         new(QueryOperatorIds.SequenceEqual,QueryNodeKind.Terminal,1,QueryValueType.Int,QueryValueType.Bool,QueryCardinality.Scalar,false,true,false),
     ];
     private static readonly IReadOnlyList<OperatorDescriptor> ReadOnlyDescriptors=Array.AsReadOnly(DescriptorArray);

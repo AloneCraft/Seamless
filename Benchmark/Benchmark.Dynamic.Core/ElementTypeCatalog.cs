@@ -48,10 +48,13 @@ public sealed record ElementTypeDescriptor(
     // 全演算子のうち、この要素型で使えないもの。要素の列を別の型へ変えるもの、int 専用の式を持つもの、比較できない型の順序づけ。
     private static readonly HashSet<string> IntOnlyOperators=new(StringComparer.Ordinal){
         QueryOperatorIds.SelectIndexed,
+        QueryOperatorIds.IndexXor,
         QueryOperatorIds.GroupBySum,
         QueryOperatorIds.GroupByCount,
         QueryOperatorIds.GroupByKeyOnly,
         QueryOperatorIds.GroupJoinXorCount,
+        QueryOperatorIds.LeftJoinXor,
+        QueryOperatorIds.RightJoinXor,
         QueryOperatorIds.SelectManyXor,
         QueryOperatorIds.ToIntPair,
         QueryOperatorIds.ToIntGroup,
@@ -68,6 +71,8 @@ public sealed record ElementTypeDescriptor(
         QueryOperatorIds.MaxBy,
         QueryOperatorIds.OrderBy,
         QueryOperatorIds.ThenBy,
+        QueryOperatorIds.Order,
+        QueryOperatorIds.ShuffleOrder,
     };
 
     public bool IsInt=>this.Id==QueryElementType.Int;

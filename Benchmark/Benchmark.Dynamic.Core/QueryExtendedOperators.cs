@@ -24,6 +24,20 @@ public sealed record OrderByKeyOperatorArguments(int Modulus,bool Descending):Ex
 
 public sealed record GroupByAggregateOperatorArguments(GroupByAggregateKind Kind,int Modulus):ExtendedUnaryOperatorArguments;
 
+/// <summary>Order() / OrderDescending()。要素自身がキーの整列(比較できる要素型だけ)。</summary>
+public sealed record OrderOperatorArguments(bool Descending):ExtendedUnaryOperatorArguments;
+/// <summary>Shuffle().Order()。Shuffle だけでは結果が決まらないので、直後に整列して比べる。</summary>
+public sealed record ShuffleOrderOperatorArguments:ExtendedUnaryOperatorArguments;
+/// <summary>Cast&lt;object&gt;().Cast&lt;T&gt;()。object を経由して元の型へ戻す。</summary>
+public sealed record CastOperatorArguments:ExtendedUnaryOperatorArguments;
+/// <summary>Cast&lt;object&gt;().OfType&lt;T&gt;()。同じ型への OfType なので、null だけが落ちる。</summary>
+public sealed record OfTypeOperatorArguments:ExtendedUnaryOperatorArguments;
+public sealed record AsEnumerableOperatorArguments:ExtendedUnaryOperatorArguments;
+/// <summary>Chunk(Size) の各塊を SelectMany で元の列へ戻す。</summary>
+public sealed record ChunkFlattenOperatorArguments(int Size):ExtendedUnaryOperatorArguments;
+/// <summary>Index() の各組を item^index にする(int の要素だけ)。</summary>
+public sealed record IndexXorOperatorArguments:ExtendedUnaryOperatorArguments;
+
 public static class ExtendedUnaryShape{
     public static string GetOperatorId(ExtendedUnaryOperatorArguments arguments){
         return arguments switch{
@@ -38,6 +52,13 @@ public static class ExtendedUnaryShape{
             GroupByAggregateOperatorArguments{Kind:GroupByAggregateKind.Sum}=>QueryOperatorIds.GroupBySum,
             GroupByAggregateOperatorArguments{Kind:GroupByAggregateKind.Count}=>QueryOperatorIds.GroupByCount,
             GroupByAggregateOperatorArguments{Kind:GroupByAggregateKind.KeyOnly}=>QueryOperatorIds.GroupByKeyOnly,
+            OrderOperatorArguments=>QueryOperatorIds.Order,
+            ShuffleOrderOperatorArguments=>QueryOperatorIds.ShuffleOrder,
+            CastOperatorArguments=>QueryOperatorIds.Cast,
+            OfTypeOperatorArguments=>QueryOperatorIds.OfType,
+            AsEnumerableOperatorArguments=>QueryOperatorIds.AsEnumerable,
+            ChunkFlattenOperatorArguments=>QueryOperatorIds.ChunkFlatten,
+            IndexXorOperatorArguments=>QueryOperatorIds.IndexXor,
             _=>throw new ArgumentOutOfRangeException(nameof(arguments)),
         };
     }
@@ -51,6 +72,7 @@ public static class ExtendedUnaryShape{
             SkipWhileOperatorArguments {Predicate.Kind:QueryPredicateKind.ModuloEquals,Predicate.Modulus:<1}=>"SkipWhile requires a positive modulus.",
             OrderByKeyOperatorArguments {Modulus:<0}=>"OrderByKey requires a non-negative modulus.",
             GroupByAggregateOperatorArguments {Modulus:<1}=>"GroupBy aggregate requires a positive modulus.",
+            ChunkFlattenOperatorArguments {Size:<1}=>"Chunk requires a positive size.",
             _=>null,
         };
     }
@@ -75,8 +97,12 @@ public static class ExtendedUnaryShape{
                 return new(
                     Math.Max(1,input.Minimum),
                     input.Maximum is { }defaultMaximum?Math.Max(1,defaultMaximum):null);
-            case OrderByKeyOperatorArguments:
+            case OrderByKeyOperatorArguments or OrderOperatorArguments or ShuffleOrderOperatorArguments
+                or CastOperatorArguments or AsEnumerableOperatorArguments or ChunkFlattenOperatorArguments or IndexXorOperatorArguments:
                 return input;
+            case OfTypeOperatorArguments:
+                // 同じ型への OfType は null だけを落とす。
+                return new(0,input.Maximum);
             case GroupByAggregateOperatorArguments group:
                 return new(
                     input.Minimum>0?1:0,
@@ -90,6 +116,7 @@ public static class ExtendedUnaryShape{
         return arguments switch{
             // 同じキーの要素の相対順序は安定整列で決まるが、全順序(TotalOrdered)にはならない。
             OrderByKeyOperatorArguments=>input==QueryOrderSemantics.Unordered?QueryOrderSemantics.Unordered:QueryOrderSemantics.Ordered,
+            OrderOperatorArguments or ShuffleOrderOperatorArguments=>QueryOrderSemantics.TotalOrdered,
             _=>input,
         };
     }
@@ -97,6 +124,8 @@ public static class ExtendedUnaryShape{
     /// <summary>入力の要素が一意であれば出力も一意か。</summary>
     public static bool PreservesUniqueness(ExtendedUnaryOperatorArguments arguments){
         return arguments is TakeLastOperatorArguments or SkipLastOperatorArguments
-            or TakeWhileOperatorArguments or SkipWhileOperatorArguments or OrderByKeyOperatorArguments;
+            or TakeWhileOperatorArguments or SkipWhileOperatorArguments or OrderByKeyOperatorArguments
+            or OrderOperatorArguments or ShuffleOrderOperatorArguments or CastOperatorArguments
+            or OfTypeOperatorArguments or AsEnumerableOperatorArguments or ChunkFlattenOperatorArguments;
     }
 }

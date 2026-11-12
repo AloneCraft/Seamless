@@ -255,7 +255,10 @@ public sealed class DynamicLiveVerificationTests:IDisposable{
 
         var shifted=動的ライブ検証サービス.段階の要求を作る(settings,動的ライブ段階.ペア全組み合わせ,10,"run-pair");
         Assert.Equal(10,shifted.QueryIndexOffset);
-        Assert.Equal(pair.QueryCount-10,shifted.QueryCount);
+        // 1回の要求の件数には上限(MaximumQueryCount)があり、演算子を足して総件数が上限を超えたので、総件数から期待値を求める。
+        var total=動的ライブ検証サービス.全組み合わせの件数(settings,1);
+        Assert.Equal(Math.Min(DynamicWorkerProtocol.MaximumQueryCount,total),pair.QueryCount);
+        Assert.Equal(Math.Min(DynamicWorkerProtocol.MaximumQueryCount,total-10),shifted.QueryCount);
 
         var random=動的ライブ検証サービス.段階の要求を作る(settings,動的ライブ段階.ランダム探索,25,"run-random");
         Assert.Equal(QueryGenerationMode.Random,random.GenerationMode);

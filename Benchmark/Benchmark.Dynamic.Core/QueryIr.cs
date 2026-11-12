@@ -5,6 +5,18 @@ using System.Text.Json.Serialization;
 
 namespace Benchmark.Dynamic.Core;
 
+/// <summary>
+/// 同じクエリを書き分ける方法。結果は変わらない。
+/// Method: 拡張メソッドの呼び出し(既定)。
+/// Consume: ToArray / ToList の終端を、<c>列.Consume(consumer)</c> の文で受ける形にする(FLinq の Consume 展開を通す)。
+/// QuerySyntax: Where / Select / OrderBy を C# のクエリ構文(from ... where ... select)で書く(FLinq の2経路だけ)。
+/// </summary>
+public enum QueryEmissionStyle{
+    Method,
+    Consume,
+    QuerySyntax,
+}
+
 public enum QueryNodeKind{
     Source,
     Unary,
@@ -43,6 +55,8 @@ public enum QueryNestedKind{
     SelectManyXor,
     JoinXor,
     GroupJoinXorCount,
+    LeftJoinXor,
+    RightJoinXor,
 }
 
 public enum QueryTerminalKind{
@@ -78,6 +92,8 @@ public enum QueryTerminalKind{
     CountBy,
     AggregateBy,
     SequenceEqual,
+    Single,
+    SingleOrDefault,
 }
 
 public sealed record QueryPredicate(QueryPredicateKind Kind,int Operand=0,int Modulus=2);
@@ -104,6 +120,13 @@ public sealed record QuerySelector(QuerySelectorKind Kind,int Operand=0);
 [JsonDerivedType(typeof(DefaultIfEmptyOperatorArguments),"defaultIfEmpty")]
 [JsonDerivedType(typeof(OrderByKeyOperatorArguments),"orderByKey")]
 [JsonDerivedType(typeof(GroupByAggregateOperatorArguments),"groupByAggregate")]
+[JsonDerivedType(typeof(OrderOperatorArguments),"order")]
+[JsonDerivedType(typeof(ShuffleOrderOperatorArguments),"shuffleOrder")]
+[JsonDerivedType(typeof(CastOperatorArguments),"cast")]
+[JsonDerivedType(typeof(OfTypeOperatorArguments),"ofType")]
+[JsonDerivedType(typeof(AsEnumerableOperatorArguments),"asEnumerable")]
+[JsonDerivedType(typeof(ChunkFlattenOperatorArguments),"chunkFlatten")]
+[JsonDerivedType(typeof(IndexXorOperatorArguments),"indexXor")]
 public abstract record UnaryOperatorArguments;
 
 public sealed record WhereOperatorArguments(QueryPredicate Predicate):UnaryOperatorArguments;
@@ -233,7 +256,10 @@ public sealed record QueryIrDocument(
     // true のとき、空の入力・範囲外の添字・重複キーなどで例外になる並びも静的な安全検査で弾かない。
     // 実行では、System.Linq が例外を投げたら他の実装も同じ型の例外を投げることを確かめる。
     [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingDefault)]
-    bool ExpectExceptions=false){
+    bool ExpectExceptions=false,
+    // 生成するコードの書き方。既定(Method)のときは IR JSON に書かない(既存のハッシュを変えない)。
+    [property:JsonIgnore(Condition=JsonIgnoreCondition.WhenWritingDefault)]
+    QueryEmissionStyle Style=QueryEmissionStyle.Method){
     public const int CurrentSchemaVersion=1;
     [JsonIgnore]public int ActualOperatorCount=>this.Root.OperatorCount;
     [JsonIgnore]public int ActualDepth=>this.Root.Depth;
@@ -385,6 +411,8 @@ public static class QueryIrValidator{
                     QueryNestedKind.SelectManyXor=>QueryOperatorIds.SelectManyXor,
                     QueryNestedKind.JoinXor=>QueryOperatorIds.JoinXor,
                     QueryNestedKind.GroupJoinXorCount=>QueryOperatorIds.GroupJoinXorCount,
+                    QueryNestedKind.LeftJoinXor=>QueryOperatorIds.LeftJoinXor,
+                    QueryNestedKind.RightJoinXor=>QueryOperatorIds.RightJoinXor,
                     _=>null,
                 };
                 if(expectedNestedOperator is null||nested.OperatorId!=expectedNestedOperator){
@@ -398,6 +426,7 @@ public static class QueryIrValidator{
                     QueryNestedKind.JoinXor=>new QueryCardinalityRange(0,product.Maximum),
                     QueryNestedKind.SelectManyXor=>product,
                     QueryNestedKind.GroupJoinXorCount=>nested.Outer.Cardinality,
+                    QueryNestedKind.LeftJoinXor or QueryNestedKind.RightJoinXor=>ExtendedNestedShape.OuterJoinCardinality(nested.Arguments.Kind,nested.Outer.Cardinality,nested.Inner.Cardinality),
                     _=>nested.Cardinality,
                 };
                 var nestedOrder=nested.Outer.OrderSemantics==QueryOrderSemantics.Unordered
@@ -512,7 +541,7 @@ public static class QueryIrValidator{
             errors.Add($"Terminal node {node.NodeId} has output {node.OutputCardinality}/{node.OutputType}, expected {expected.Cardinality}/{expected.Type}.");
         }
         if(node.Arguments.Kind is QueryTerminalKind.Min or QueryTerminalKind.Max or QueryTerminalKind.MinBy or QueryTerminalKind.MaxBy or QueryTerminalKind.Average
-            or QueryTerminalKind.First or QueryTerminalKind.Last or QueryTerminalKind.ElementAt
+            or QueryTerminalKind.First or QueryTerminalKind.Last or QueryTerminalKind.ElementAt or QueryTerminalKind.Single
             ||ExtendedTerminalShape.RequiresNonEmpty(node.Arguments.Kind)){
             if(!expectExceptions&&!node.Input.Cardinality.IsDefinitelyNonEmpty){
                 errors.Add($"Terminal node {node.NodeId} requires a statically non-empty input.");
@@ -558,7 +587,7 @@ public static class QueryIrValidator{
                     :node.Input.OrderSemantics;
         var expectedEmptySafety=node.Arguments.Kind is QueryTerminalKind.Min or QueryTerminalKind.Max
             or QueryTerminalKind.MinBy or QueryTerminalKind.MaxBy or QueryTerminalKind.Average
-            or QueryTerminalKind.First or QueryTerminalKind.Last or QueryTerminalKind.ElementAt
+            or QueryTerminalKind.First or QueryTerminalKind.Last or QueryTerminalKind.ElementAt or QueryTerminalKind.Single
             or QueryTerminalKind.AverageSelector
                 ?QueryEmptySafety.RequiresNonEmpty
                 :QueryEmptySafety.Safe;
@@ -627,6 +656,8 @@ public static class QueryIrValidator{
             QueryTerminalKind.FirstOrDefault=>QueryOperatorIds.FirstOrDefault,
             QueryTerminalKind.Last=>QueryOperatorIds.Last,
             QueryTerminalKind.LastOrDefault=>QueryOperatorIds.LastOrDefault,
+            QueryTerminalKind.Single=>QueryOperatorIds.Single,
+            QueryTerminalKind.SingleOrDefault=>QueryOperatorIds.SingleOrDefault,
             QueryTerminalKind.ElementAt=>QueryOperatorIds.ElementAt,
             QueryTerminalKind.ElementAtOrDefault=>QueryOperatorIds.ElementAtOrDefault,
             QueryTerminalKind.ToArray=>QueryOperatorIds.ToArray,

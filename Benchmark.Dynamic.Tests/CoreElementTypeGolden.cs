@@ -17,7 +17,11 @@ public sealed class ElementTypeGoldenTests{
         "elementAtOrDefault","toArray","toList","toHashSet","toDictionary.identity","toLookup.modulo",
     };
 
-    private const string GoldenDigest="509fcd68c20a2ed47a451c7d4b94516a4d694eb6ee6350cf91fb32635c8459c6";
+    // 2026-11-12 に取り直した。前の基準(509fcd68...)から、意図した変更3つで生成物が変わっていた:
+    // 09e365ec(配列の Union で右辺を ToArray しない)、dfdf10e1(int スカラー結果の生成)、ea9823a3(ThenBy は OrderBy/ThenBy の直後だけ)。
+    // 同じ日に演算子を足したが、この基準は版12の演算子だけを使うので、演算子の追加では変わらないことを確かめた
+    // (追加の前後で同じ 27cb53c9... になる)。
+    private const string GoldenDigest="27cb53c988d7ae4b735a93d95286ecbd298325ee85286c4be4d63d8d1d0c54d6";
 
     [Fact,Trait("Category","Unit")]
     public void int要素のIRハッシュと生成ソースは固定SeedでBit一致する(){
