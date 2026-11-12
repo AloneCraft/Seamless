@@ -1,10 +1,44 @@
-name: Native management
+name: Seamless management
 on:
   pull_request:
-    paths: ['Seamless.Management*/**', 'Seamless.FLinq.Generator/**', 'Tests/Management.Tests/**', '.github/workflows/management.yml']
+    paths: ['Seamless.Management*/**', 'Seamless.FLinq.Generator/**', 'Seamless.Transport.Kestrel/**', 'Seamless.Database.Gateway/**', 'Seamless.Database.Client*/**', 'Tests/Management.Tests/**', 'Tests/Seamless.Database.Gateway.Tests/**', '.github/workflows/management.yml']
   workflow_dispatch:
 jobs:
   management:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        configuration: [Debug, Release]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      DOTNET_PROCESSOR_COUNT: 8
+      DOTNET_CLI_TELEMETRY_OPTOUT: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build shared Manager web host
+        run: dotnet build Seamless.Management.Server/WindowsServer.csproj -c ${{ matrix.configuration }} --artifacts-path "${{ runner.temp }}/management-artifacts" -p:UseSharedCompilation=false -m:1
+      - name: Server contracts, TLS, persistence and publication recovery
+        shell: pwsh
+        run: |
+          $env:SEAMLESS_MANAGEMENT_TEST_ROOT=Join-Path $env:RUNNER_TEMP 'management-data'
+          $env:SEAMLESS_MANAGEMENT_TEST_LOG=Join-Path $env:RUNNER_TEMP 'management-results'
+          $env:SEAMLESS_SOURCE_REPOSITORY=$env:GITHUB_WORKSPACE
+          $env:NUGET_HTTP_CACHE_PATH=Join-Path $env:RUNNER_TEMP 'management-nuget-http'
+          New-Item -ItemType Directory -Force -Path $env:SEAMLESS_MANAGEMENT_TEST_ROOT,$env:SEAMLESS_MANAGEMENT_TEST_LOG,$env:NUGET_HTTP_CACHE_PATH | Out-Null
+          dotnet test Tests/Management.Tests/Management.Tests.csproj -c ${{ matrix.configuration }} --artifacts-path "$env:RUNNER_TEMP/management-artifacts" -p:UseSharedCompilation=false -m:1 --logger 'trx;LogFileName=server.trx' --results-directory $env:SEAMLESS_MANAGEMENT_TEST_LOG -- xUnit.MaxParallelThreads=4
+          if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: management-${{ matrix.os }}-${{ matrix.configuration }}
+          path: ${{ runner.temp }}/management-results
+
+  gateway-transport:
     strategy:
       fail-fast: false
       matrix:
@@ -20,19 +54,17 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
-      - name: Server contracts, TLS, persistence and publication recovery
+      - name: Gateway transport and loopback compatibility
         shell: pwsh
         run: |
-          $env:SEAMLESS_MANAGEMENT_TEST_ROOT=Join-Path $env:RUNNER_TEMP 'management-data'
-          $env:SEAMLESS_MANAGEMENT_TEST_LOG=Join-Path $env:RUNNER_TEMP 'management-results'
-          New-Item -ItemType Directory -Force -Path $env:SEAMLESS_MANAGEMENT_TEST_ROOT,$env:SEAMLESS_MANAGEMENT_TEST_LOG | Out-Null
-          dotnet test Tests/Management.Tests/Management.Tests.csproj -c ${{ matrix.configuration }} --artifacts-path "$env:RUNNER_TEMP/management-artifacts" -p:UseSharedCompilation=false -m:1 --logger trx --results-directory $env:SEAMLESS_MANAGEMENT_TEST_LOG
+          $results=Join-Path $env:RUNNER_TEMP 'gateway-transport-results'
+          $filter='FullyQualifiedName~KestrelTransport|FullyQualifiedName~KestrelHttpHost|FullyQualifiedName~HttpServerTests|(FullyQualifiedName~NativeTransport&FullyQualifiedName!~BufferedScalarResultsReplayAfterDisconnect)|FullyQualifiedName~TdsLoopbackTests|FullyQualifiedName~TdsNtextRpcTests|FullyQualifiedName~TdsVariantTests|FullyQualifiedName~TdsLargeValueTests.WriteDeadlineStopsStreaming'
+          dotnet test Tests/Seamless.Database.Gateway.Tests/Seamless.Database.Gateway.Tests.csproj -c ${{ matrix.configuration }} --artifacts-path "$env:RUNNER_TEMP/gateway-artifacts" -p:UseSharedCompilation=false -m:1 --filter $filter --logger 'trx;LogFileName=gateway-transport.trx' --results-directory $results -- xUnit.MaxParallelThreads=4
           if($LASTEXITCODE -ne 0){exit $LASTEXITCODE}
-      - name: Build Windows GUI
-        if: runner.os == 'Windows'
-        run: dotnet build Seamless.Management.UI/SeamlessManager.csproj -c ${{ matrix.configuration }} --artifacts-path "${{ runner.temp }}/management-artifacts" -p:UseSharedCompilation=false -m:1
+          [xml]$report=Get-Content -LiteralPath (Join-Path $results 'gateway-transport.trx')
+          if([int]$report.TestRun.ResultSummary.Counters.passed -eq 0){throw 'No gateway transport tests passed.'}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: management-${{ matrix.os }}-${{ matrix.configuration }}
-          path: ${{ runner.temp }}/management-results
+          name: gateway-transport-${{ matrix.os }}-${{ matrix.configuration }}
+          path: ${{ runner.temp }}/gateway-transport-results

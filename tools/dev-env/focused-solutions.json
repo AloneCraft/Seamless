@@ -2,7 +2,6 @@
   "comment": "絞り込みソリューションの起点。起点から参照をたどって必要なプロジェクトだけを残す。@tests は IsTestProject=true の全プロジェクト。起点を移動すると同期スクリプトがファイル名で探して書き換える。",
   "solutions": {
     "Seamless.Management.slnx": [
-      "Seamless.Management.UI/SeamlessManager.csproj",
       "Seamless.Management.Server/WindowsServer.csproj",
       "Tests/Management.Tests/Management.Tests.csproj"
     ],

@@ -2,6 +2,7 @@
 # Set default behavior to automatically normalize line endings.
 ###############################################################################
 * text=auto
+tools/management/Prepare-LinuxNativeCompatibility.sh text eol=lf
 .githooks/* text eol=lf
 
 ###############################################################################

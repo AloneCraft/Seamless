@@ -7,6 +7,8 @@
     <Project Path="Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj" />
   </Folder>
   <Folder Name="/Shared/">
+    <Project Path="Shared/Database.Generation/Database.Generation.shproj" />
+    <File Path="Shared/Database.Generation/Database.Generation.projitems" />
     <Project Path="Shared/Collections/Collections.shproj" />
     <Project Path="Shared/Common/Common.shproj" />
     <Project Path="Shared/Scalable.Collections/Scalable.Collections.shproj" />
@@ -19,8 +21,6 @@
     <File Path="Shared/Scalable.Collections/Scalable.Collections.projitems" />
     <File Path="Shared/Scalable.Persisted.Collections/Scalable.Persisted.Collections.projitems" />
     <File Path="Shared/Scalable.Tsavorite.Collections/Scalable.Tsavorite.Collections.projitems" />
-    <Project Path="Shared/Database.Generation/Database.Generation.shproj" />
-    <File Path="Shared/Database.Generation/Database.Generation.projitems" />
   </Folder>
   <Folder Name="/SourceGenerator/">
     <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />

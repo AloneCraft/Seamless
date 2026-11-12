@@ -11,8 +11,10 @@
     "editor.formatOnSave": true
   },
   "dotnet.defaultSolution": "Seamless.slnx",
+  "omnisharp.dotNetCliPaths": ["C:\\Program Files\\dotnet"],
   "dotnet.unitTests.runSettingsPath": "test.runsettings",
   "dotnet.testWindow.enableNextTest": true,
   "dotnet.testWindow.disableAutoDiscovery": false,
-  "workbench.sideBar.location": "left"
+  "workbench.sideBar.location": "left",
+  "git-graph.repository.showCommitsOnlyReferencedByTags": false
 }

@@ -32,6 +32,8 @@
     <Project Path="Benchmark/Worker/Worker.csproj" />
   </Folder>
   <Folder Name="/Shared/">
+    <Project Path="Shared/Database.Generation/Database.Generation.shproj" />
+    <File Path="Shared/Database.Generation/Database.Generation.projitems" />
     <Project Path="Shared/Collections/Collections.shproj" />
     <Project Path="Shared/Common/Common.shproj" />
     <Project Path="Shared/Scalable.Collections/Scalable.Collections.shproj" />
@@ -53,8 +55,6 @@
     <File Path="Shared/Linq.Optimization/Linq.Optimization.projitems" />
     <File Path="Shared/Linq.Range/Linq.Range.projitems" />
     <File Path="Shared/UI.Core/UI.Core.projitems" />
-    <Project Path="Shared/Database.Generation/Database.Generation.shproj" />
-    <File Path="Shared/Database.Generation/Database.Generation.projitems" />
   </Folder>
   <Folder Name="/SourceGenerator/">
     <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />

@@ -2,16 +2,46 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "WindowsServer",
-      "type": "dotnet",
+      "name": "Seamless Server + Browser Manager (Debug)",
+      "type": "coreclr",
       "request": "launch",
-      "projectPath": "${workspaceFolder}\\Seamless.Management.Server\\WindowsServer.csproj"
+      "program": "${workspaceFolder}/Seamless.Management.Server/bin/Debug/net10.0/Seamless.Management.Server.exe",
+      "args": ["serve", "--workspace-config", "--open-manager"],
+      "cwd": "${workspaceFolder}/Seamless.Management.Server/bin/Debug/net10.0",
+      "console": "internalConsole",
+      "stopAtEntry": false,
+      "preLaunchTask": "build-management-server-debug"
     },
     {
-      "name": "SeamlessManager",
-      "type": "dotnet",
+      "name": "Seamless Server + Browser Manager (Release)",
+      "type": "coreclr",
       "request": "launch",
-      "projectPath": "${workspaceFolder}\\Seamless.Management.UI\\SeamlessManager.csproj"
+      "program": "${workspaceFolder}/Seamless.Management.Server/bin/Release/net10.0/Seamless.Management.Server.exe",
+      "args": ["serve", "--workspace-config", "--open-manager"],
+      "cwd": "${workspaceFolder}/Seamless.Management.Server/bin/Release/net10.0",
+      "console": "internalConsole",
+      "stopAtEntry": false,
+      "preLaunchTask": "build-management-server-release"
+    },
+    {
+      "name": "Benchmark.Dynamic.UI (Debug)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Debug/net10.0-windows/Benchmark.Dynamic.UI.exe",
+      "cwd": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Debug/net10.0-windows",
+      "console": "internalConsole",
+      "stopAtEntry": false,
+      "preLaunchTask": "build-benchmark-dynamic-ui-debug"
+    },
+    {
+      "name": "Benchmark.Dynamic.UI (Release)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Release/net10.0-windows/Benchmark.Dynamic.UI.exe",
+      "cwd": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Release/net10.0-windows",
+      "console": "internalConsole",
+      "stopAtEntry": false,
+      "preLaunchTask": "build-benchmark-dynamic-ui-release"
     },
     {
       "name": "▶ Benchmark.Audit",
@@ -116,12 +146,6 @@
       "projectPath": "${workspaceFolder}/Seamless.Database.Tool/Seamless.Database.Tool.csproj"
     },
     {
-      "name": "▶ SeamlessManager",
-      "type": "dotnet",
-      "request": "launch",
-      "projectPath": "${workspaceFolder}/Seamless.Management.UI/SeamlessManager.csproj"
-    },
-    {
       "name": "▶ TestSeamless",
       "type": "dotnet",
       "request": "launch",
@@ -146,11 +170,5 @@
       "projectPath": "${workspaceFolder}/Benchmark/Worker/Worker.csproj"
     }
   ],
-  "compounds": [
-    {
-      "name": "Windows Server + Seamless Manager",
-      "configurations": ["WindowsServer", "SeamlessManager"],
-      "stopAll": true
-    }
-  ]
+  "compounds": []
 }

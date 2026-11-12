@@ -5,6 +5,7 @@
   </Folder>
   <Folder Name="/SourceGenerator/">
     <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
+    <Project Path="Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" />
     <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
   </Folder>
   <Project Path="Seamless.Collections/Seamless.Collections.csproj" />
@@ -16,9 +17,15 @@
   <Project Path="Seamless.Database/Seamless.Database.csproj" />
   <Project Path="Seamless.Database.Gateway/Seamless.Database.Gateway.csproj" />
   <Project Path="Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj" />
+  <Project Path="Seamless.Database.Compilation/Seamless.Database.Compilation.csproj" />
+  <Project Path="Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
   <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
-  <Project Path="Seamless.Security/Seamless.Security.csproj" />
-  <Project Path="Seamless.Database.Client/Seamless.Database.Client.csproj" />
   <Project Path="Seamless.Database.Query/Seamless.Database.Query.csproj" />
-  <Project Path="tools/Seamless.DataGrip/Server/DataGrip.Stage1.Server.csproj" />
+  <Project Path="Seamless.Database.Client/Seamless.Database.Client.csproj" />
+  <Project Path="Seamless.Transport.Kestrel/Seamless.Transport.Kestrel.csproj" />
+  <Project Path="Seamless.Security/Seamless.Security.csproj" />
+  <Project Path="Seamless.Authentication/Seamless.Authentication.csproj" />
+  <Folder Name="/Tools/">
+    <Project Path="tools/Seamless.DataGrip/Server/DataGrip.Stage1.Server.csproj" />
+  </Folder>
 </Solution>

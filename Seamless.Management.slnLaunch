@@ -1,9 +1,11 @@
 [
   {
-    "Name": "Windows Server + Seamless Manager",
+    "Name": "Seamless Server + Browser Manager",
     "Projects": [
-      { "Path": "Seamless.Management.Server\\WindowsServer.csproj", "Action": "Start" },
-      { "Path": "Seamless.Management.UI\\SeamlessManager.csproj", "Action": "Start" }
+      {
+        "Path": "Seamless.Management.Server\\WindowsServer.csproj",
+        "Action": "Start"
+      }
     ]
   }
 ]

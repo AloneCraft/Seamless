@@ -1,6 +1,8 @@
 <Solution>
   <Folder Name="/Benchmark/">
     <Project Path="Benchmark/Benchmark.TpcE.Core/Benchmark.TpcE.Core.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Mvcc.Linq/Benchmark.TpcE.Mvcc.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Mvcc.FLinq/Benchmark.TpcE.Mvcc.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE.Tsavorite.Linq/Benchmark.TpcE.Tsavorite.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE.Tsavorite.FLinq/Benchmark.TpcE.Tsavorite.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE.Persisted.Linq/Benchmark.TpcE.Persisted.Linq.csproj" />
@@ -11,10 +13,10 @@
     <Project Path="Benchmark/Benchmark.Tpc.Server/Benchmark.Tpc.Server.csproj" />
   </Folder>
   <Folder Name="/Shared/">
-    <Project Path="Shared/TpcE.Transactions/TpcE.Transactions.shproj" />
-    <File Path="Shared/TpcE.Transactions/TpcE.Transactions.projitems" />
     <Project Path="Shared/Database.Generation/Database.Generation.shproj" />
     <File Path="Shared/Database.Generation/Database.Generation.projitems" />
+    <Project Path="Shared/TpcE.Transactions/TpcE.Transactions.shproj" />
+    <File Path="Shared/TpcE.Transactions/TpcE.Transactions.projitems" />
   </Folder>
   <Folder Name="/SourceGenerator/">
     <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
