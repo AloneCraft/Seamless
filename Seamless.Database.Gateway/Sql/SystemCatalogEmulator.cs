@@ -638,8 +638,7 @@ public static partial class SystemCatalogEmulator{
         var typedTableCount=tables.Count(table=>table.StableObjectId is null);
         var schemas=new Dictionary<string,int>(StringComparer.OrdinalIgnoreCase){{"dbo",1},{"sys",4}};
         foreach(var schema in tables.Select(t=>t.SchemaName).Concat(views.Select(v=>v.Schema)).Concat(routines.Select(r=>r.Schema))){
-            var actual=string.IsNullOrEmpty(schema)?"dbo":schema;
-            if(!schemas.ContainsKey(actual)){schemas.Add(actual,schemas.Count+3);}
+            if(!schemas.ContainsKey(schema)){schemas.Add(schema,schemas.Count+3);}
         }
         var rows=new List<object?[]>();
         ColumnMetadata[] columns;
@@ -658,16 +657,16 @@ public static partial class SystemCatalogEmulator{
                 columns=[new ColumnMetadata("name",typeof(string),"nvarchar",false,false,0,128),Col("object_id",typeof(int),"int",1),Col("schema_id",typeof(int),"int",2),new ColumnMetadata("type",typeof(string),"char",true,false,3,2),new ColumnMetadata("type_desc",typeof(string),"nvarchar",true,false,4,60),Col("is_ms_shipped",typeof(bool),"bit",5),Col("is_memory_optimized",typeof(bool),"bit",6),Col("is_filetable",typeof(bool),"bit",7),Col("temporal_type",typeof(byte),"tinyint",8),Col("ledger_type",typeof(byte),"tinyint",9),Col("is_external",typeof(bool),"bit",10),Col("is_node",typeof(bool),"bit",11),Col("is_edge",typeof(bool),"bit",12),Col("ledger_view_type",typeof(byte),"tinyint",13),new ColumnMetadata("create_date",typeof(DateTime),"datetime",true,false,14),new ColumnMetadata("principal_id",typeof(int),"int",true,false,15)];
                 if(catalogName=="tables"){columns=[..columns,new ColumnMetadata("history_table_id",typeof(int),"int",true,false,16),Col("durability",typeof(byte),"tinyint",17),Col("is_dropped_ledger_table",typeof(bool),"bit",18)];}
                 if(catalogName=="views"){columns=[..columns,Col("is_dropped_ledger_view",typeof(bool),"bit",16)];}
-                if(catalogName!="views"){for(var i=0;i<tables.Count;i++){var t=tables[i];object?[] row=[t.TableName,TableId(i),schemas[string.IsNullOrEmpty(t.SchemaName)?"dbo":t.SchemaName],"U ","USER_TABLE",false,false,false,(byte)0,(byte)0,false,false,false,(byte)0,t.CreateDate,null];rows.Add(catalogName=="tables"?[..row,null,(byte)0,false]:row);}}
-                if(catalogName!="tables"){for(var i=0;i<views.Count;i++){var v=views[i];object?[] row=[v.Name,ViewId(i),schemas[string.IsNullOrEmpty(v.Schema)?"dbo":v.Schema],"V ","VIEW",false,false,false,(byte)0,(byte)0,false,false,false,(byte)0,null,OwnerId(v.OwnerName)];rows.Add(catalogName=="views"?[..row,false]:row);}}
+                if(catalogName!="views"){for(var i=0;i<tables.Count;i++){var t=tables[i];object?[] row=[t.TableName,TableId(i),schemas[t.SchemaName],"U ","USER_TABLE",false,false,false,(byte)0,(byte)0,false,false,false,(byte)0,t.CreateDate,null];rows.Add(catalogName=="tables"?[..row,null,(byte)0,false]:row);}}
+                if(catalogName!="tables"){for(var i=0;i<views.Count;i++){var v=views[i];object?[] row=[v.Name,ViewId(i),schemas[v.Schema],"V ","VIEW",false,false,false,(byte)0,(byte)0,false,false,false,(byte)0,null,OwnerId(v.OwnerName)];rows.Add(catalogName=="views"?[..row,false]:row);}}
                 if(catalogName=="objects"){
-                    for(var i=0;i<routines.Count;i++){var r=routines[i];var (type,description)=RoutineType(r);rows.Add([r.Name,RoutineId(i),schemas[string.IsNullOrEmpty(r.Schema)?"dbo":r.Schema],type,description,false,false,false,(byte)0,(byte)0,false,false,false,(byte)0,null,OwnerId(r.Catalog?.OwnerName)]);}
+                    for(var i=0;i<routines.Count;i++){var r=routines[i];var (type,description)=RoutineType(r);rows.Add([r.Name,RoutineId(i),schemas[r.Schema],type,description,false,false,false,(byte)0,(byte)0,false,false,false,(byte)0,null,OwnerId(r.Catalog?.OwnerName)]);}
                     columns=[..columns,Col("parent_object_id",typeof(int),"int",16)];for(var index=0;index<rows.Count;index++){rows[index]=[..rows[index],0];}
-                    foreach(var item in ConstraintObjects(adapter,tables)){rows.Add([item.Name,item.Id,schemas[string.IsNullOrEmpty(item.Schema)?"dbo":item.Schema],item.Type,ConstraintDescription(item.Type),false,false,false,(byte)0,(byte)0,false,false,false,(byte)0,item.Table.CreateDate,null,item.ParentId]);}
+                    foreach(var item in ConstraintObjects(adapter,tables)){rows.Add([item.Name,item.Id,schemas[item.Schema],item.Type,ConstraintDescription(item.Type),false,false,false,(byte)0,(byte)0,false,false,false,(byte)0,item.Table.CreateDate,null,item.ParentId]);}
                 }break;
             case "procedures":
                 columns=[new ColumnMetadata("name",typeof(string),"nvarchar",false,false,0,128),Col("object_id",typeof(int),"int",1),Col("schema_id",typeof(int),"int",2),new ColumnMetadata("type",typeof(string),"char",true,false,3,2),new ColumnMetadata("type_desc",typeof(string),"nvarchar",true,false,4,60),Col("is_ms_shipped",typeof(bool),"bit",5)];
-                for(var i=0;i<routines.Count;i++){var r=routines[i];if((r.Catalog?.Kind??r.GeneratedMethod?.Kind)==RoutineKind.StoredProcedure){var (type,description)=RoutineType(r);rows.Add([r.Name,RoutineId(i),schemas[string.IsNullOrEmpty(r.Schema)?"dbo":r.Schema],type,description,false]);}}break;
+                for(var i=0;i<routines.Count;i++){var r=routines[i];if((r.Catalog?.Kind??r.GeneratedMethod?.Kind)==RoutineKind.StoredProcedure){var (type,description)=RoutineType(r);rows.Add([r.Name,RoutineId(i),schemas[r.Schema],type,description,false]);}}break;
             case "sql_modules":
                 columns=[Col("object_id",typeof(int),"int",0),new ColumnMetadata("definition",typeof(string),"nvarchar",true,false,1,-1),new ColumnMetadata("is_schema_bound",typeof(bool),"bit",true,false,2),Col("uses_native_compilation",typeof(bool),"bit",3)];
                 for(var i=0;i<views.Count;i++){rows.Add([ViewId(i),views[i].Definition,SqlServerObjectCatalogProfile.IsSchemaBound(views[i].Definition),false]);}
