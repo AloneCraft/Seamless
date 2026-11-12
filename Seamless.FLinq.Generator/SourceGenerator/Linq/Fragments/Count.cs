@@ -49,6 +49,15 @@ internal class Count(int 番号,Enumerable source,string resultType):BufferedSca
         if(source is RepeatRoot repeat) {
             return $"{destType} {destVar}=({destType})({repeat.CountExpression});";
         }
+        var rangeCount=source switch{
+            RangeExceptRoot except=>except.GetCountExpression,
+            RangeIntersectionRoot intersection=>intersection.GetCountExpression,
+            RangeUnionRoot union=>union.GetLongCountExpression,
+            _=>null
+        };
+        if(rangeCount is not null&&!source.TreeContainsAnchor()){
+            return $"{destType} {destVar}=({destType})checked(({resultType})({rangeCount}));";
+        }
         // 列挙せずに件数を出すと選択子の評価が省かれる。System.Linq の Count は Select の選択子を評価するので、
         // .Anchor を含む連鎖ではこの近道を使わない(Any は System.Linq も評価しないので近道のままでよい)。
         if(source.NonEnumeratedCountExpression is { } countExpression&&!source.TreeContainsAnchor()) {

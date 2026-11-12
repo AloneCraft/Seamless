@@ -223,7 +223,7 @@ public sealed partial class FLinqIncrementalGenerator {
             if(parameter.IsParams&&parameter.Type is IArrayTypeSymbol paramsArray) {
                 slots[i]=$"global::System.Array.Empty<{paramsArray.ElementType.ToDisplayString(完全修飾形式)}>()";
             } else if(parameter.HasExplicitDefaultValue) {
-                slots[i]=RenderConstantValue(parameter.ExplicitDefaultValue);
+                slots[i]=RenderParameterDefault(parameter);
             } else {
                 return false;
             }

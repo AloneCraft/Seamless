@@ -73,7 +73,13 @@ internal sealed partial class PipelineTerminal{
         var more=this.TransactionalContinue(prefix,stages);
         builder.AppendLine("// [呼出し] 終端は直接呼ぶlocal functionへ融合し、結果一件ごとのdelegate呼出しと追加delegate確保を作らない。");
         builder.AppendLine("[global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
-        builder.AppendLine($"bool {prefix}Consume({inputType} __output){{");var value="__output";
+        var modifier=string.Empty;
+        if(Microsoft.CodeAnalysis.CSharp.SyntaxFactory.ParseTypeName(inputType) is Microsoft.CodeAnalysis.CSharp.Syntax.TupleTypeSyntax
+            ||inputType.StartsWith("global::System.ValueTuple",StringComparison.Ordinal)){
+            modifier="in ";
+            builder.AppendLine("// [中間値/参照] producerの局所値を同期終端へ読取り専用参照で渡す。保持する結果は値としてコピーする。");
+        }
+        builder.AppendLine($"bool {prefix}Consume({modifier}{inputType} __output){{");var value="__output";
         for(var index=0;index<stages.Count;index++){
             var stage=stages[index];builder.AppendLine($"// [後段{index}] {stage.Kind}: 評価位置と入力順を維持し、変換/述語をworkerへ移さない。");
             if(terminalKind is PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault&&stage.Kind==PipelineStageKind.Select&&index>=TransactionalLastPrefix(stages)){builder.AppendLine("// [末尾/投影] 後続述語がない投影は、最後に選ばれた値へだけ実行する。");continue;}

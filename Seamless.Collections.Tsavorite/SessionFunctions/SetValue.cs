@@ -10,7 +10,11 @@ using global::System.Diagnostics.CodeAnalysis;
 public readonly struct SetValue<TValue, TStrategy>:
     ISessionFunctions<TValue,bool,EqualityEmpty>,
     ICreate<SetValue<TValue,TStrategy>> where TStrategy : global::Seamless.Collections.Serializers.IStrategy<TValue> {
+    private readonly StoreSerializer<TValue,TStrategy> serializer;
+    public SetValue():this(null){}
+    public SetValue(global::Seamless.Execution.ResourceBudget? budget){this.serializer=new(budget);}
     public static SetValue<TValue,TStrategy> Create() => new();
+    public static SetValue<TValue,TStrategy> Create(global::Seamless.Execution.ResourceBudget? budget)=>new(budget);
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static T ThrowNotRmwEntryPoint<T>() {
@@ -38,14 +42,16 @@ public readonly struct SetValue<TValue, TStrategy>:
         return true;
     }
     public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
-        return dstLogRecord.TrySetValueSpanAndPrepareOptionals(TStrategy.Serialize(ref input),in sizeInfo);
+        using var serialized=this.serializer.Serialize(ref input);
+        return dstLogRecord.TrySetValueSpanAndPrepareOptionals(serialized.Bytes,in sizeInfo);
     }
     public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
         output=true;
     }
     // キーがあるときは値を上書きする(新規ではないので output は false のまま)。
     public bool InPlaceUpdater(ref LogRecord logRecord,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
-        var value = TStrategy.Serialize(ref input);
+        using var serialized=this.serializer.Serialize(ref input);
+        var value=serialized.Bytes;
         RecordSizeInfo sizeInfo = new() { FieldInfo=new() { KeySize=logRecord.KeyBytes.Length,ValueSize=value.Length } };
         logRecord.PopulateRecordSizeInfoForIPU(ref sizeInfo);
         // 入りきらなければ false を返し、末尾への書き直し(CopyUpdater)に回る。
@@ -57,7 +63,8 @@ public readonly struct SetValue<TValue, TStrategy>:
     }
     public bool CopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        return dstLogRecord.TrySetValueSpanAndPrepareOptionals(TStrategy.Serialize(ref input),in sizeInfo);
+        using var serialized=this.serializer.Serialize(ref input);
+        return dstLogRecord.TrySetValueSpanAndPrepareOptionals(serialized.Bytes,in sizeInfo);
     }
     public bool PostCopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo)
         where TSourceLogRecord : ISourceLogRecord {
@@ -76,7 +83,7 @@ public readonly struct SetValue<TValue, TStrategy>:
     }
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input)
         where TSourceLogRecord : ISourceLogRecord {
-        return new() { KeySize=srcLogRecord.KeyBytes.Length,ValueSize=TStrategy.Serialize(ref input).Length };
+        return new() { KeySize=srcLogRecord.KeyBytes.Length,ValueSize=this.serializer.GetEncodedLength(ref input) };
     }
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref TValue input)
 #if NET10_0_OR_GREATER
@@ -84,7 +91,7 @@ public readonly struct SetValue<TValue, TStrategy>:
 #else
         where TKey : IKey{
 #endif
-        return new() { KeySize=key.KeyBytes.Length,ValueSize=TStrategy.Serialize(ref input).Length };
+        return new() { KeySize=key.KeyBytes.Length,ValueSize=this.serializer.GetEncodedLength(ref input) };
     }
 
     [ExcludeFromCodeCoverage]

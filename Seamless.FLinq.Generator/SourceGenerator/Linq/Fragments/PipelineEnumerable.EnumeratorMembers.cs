@@ -20,6 +20,9 @@ internal sealed partial class PipelineEnumerable {
             foreach(var (stage,index) in this.OrderComparerStages().Select(static (stage,index) => (stage,index))) {
                 parameters.Add($"global::System.Collections.Generic.IComparer<{ComparerKeyType(stage)}>? {this.OrderComparerName(index)}");
             }
+            foreach(var (stage,index) in this.ElementStages()){
+                parameters.Add($"{stage.OutputType} {this.ElementArgumentName(index)}");
+            }
             parameters.AddRange(this.ClosureParametersWithoutPrefix());
             return string.Join(", ",parameters);
         }
@@ -68,6 +71,9 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine($"private int {this.StateName(index)} = 0;");
                 } else if(stage.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending) {
                     builder.AppendLine(this.OrderIndexComparerType(index));
+                    if(this.CanUseTopKOrder(index,this.OrderStages(index).ToArray(),out _)) {
+                        builder.AppendLine(this.OrderTopKComparerType(index));
+                    }
                     builder.AppendLine($"private {stage.InputType}[]? {this.OrderValuesName(index)} = null;");
                     builder.AppendLine($"private int[]? {this.OrderIndexesName(index)} = null;");
                     builder.AppendLine($"private int {this.OrderCountName(index)} = 0;");
@@ -79,8 +85,15 @@ internal sealed partial class PipelineEnumerable {
                         if(this.UsesInlineParityCounts(stage)){
                             builder.AppendLine($"private (int Zero,int One,int First,int Cursor) {this.GroupAggMapName(index)};");
                         } else if(stage.AggregatePlan is { } aggPlan) {
-                            builder.AppendLine($"private global::Seamless.Linq.DictionarySlim<{ComparerKeyType(stage)},{aggPlan.AccumulatorType}>? {this.GroupAggMapName(index)} = null;");
-                            builder.AppendLine($"private global::Seamless.Linq.DictionarySlim<{ComparerKeyType(stage)},{aggPlan.AccumulatorType}>.Enumerator {this.GroupAggEnumName(index)};");
+                            if(this.TryGetSmallKeyRange(stage, out _)) {
+                                builder.AppendLine($"private int[]? {this.GroupDirectKeysName(index)} = null;");
+                                builder.AppendLine($"private {aggPlan.AccumulatorType}[]? {this.GroupDirectAccsName(index)} = null;");
+                                builder.AppendLine($"private int {this.GroupDirectCountName(index)} = 0;");
+                                builder.AppendLine($"private int {this.GroupDirectCursorName(index)} = 0;");
+                            } else {
+                                builder.AppendLine($"private global::Seamless.Linq.DictionarySlim<{ComparerKeyType(stage)},{aggPlan.AccumulatorType}> {this.GroupAggMapName(index)};");
+                                builder.AppendLine($"private global::Seamless.Linq.DictionarySlim<{ComparerKeyType(stage)},{aggPlan.AccumulatorType}>.Enumerator {this.GroupAggEnumName(index)};");
+                            }
                         } else {
                             builder.AppendLine($"private global::Seamless.Linq.Grouping<{ComparerKeyType(stage)},{stage.InnerElementType}>? {this.GroupCursorName(index)} = null;");
                             builder.AppendLine($"private global::Seamless.Linq.Grouping<{ComparerKeyType(stage)},{stage.InnerElementType}>? {this.GroupFirstName(index)} = null;");
@@ -332,8 +345,19 @@ internal sealed partial class PipelineEnumerable {
                 } else if(stages[index] is {Kind:PipelineStageKind.GroupBy,AggregatePlan:not null}
                     &&!this.UsesInlineParityCounts(stages[index])
                     &&!stages.Skip(index+1).Any(static stage=>stage.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending)) {
-                    builder.AppendLine($"this.{this.GroupAggMapName(index)}?.Dispose();");
-                    builder.AppendLine($"this.{this.GroupAggMapName(index)}=null;");
+                    if(this.TryGetSmallKeyRange(stages[index], out _)) {
+                        builder.AppendLine($"if(this.{this.GroupDirectKeysName(index)} is not null) {{");
+                        builder.AppendLine($"    global::System.Buffers.ArrayPool<int>.Shared.Return(this.{this.GroupDirectKeysName(index)},clearArray:false);");
+                        builder.AppendLine($"    this.{this.GroupDirectKeysName(index)}=null;");
+                        builder.AppendLine("}");
+                        builder.AppendLine($"if(this.{this.GroupDirectAccsName(index)} is not null) {{");
+                        builder.AppendLine($"    global::System.Buffers.ArrayPool<{stages[index].AggregatePlan!.AccumulatorType}>.Shared.Return(this.{this.GroupDirectAccsName(index)},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{stages[index].AggregatePlan!.AccumulatorType}>());");
+                        builder.AppendLine($"    this.{this.GroupDirectAccsName(index)}=null;");
+                        builder.AppendLine("}");
+                    } else {
+                        builder.AppendLine($"this.{this.GroupAggMapName(index)}.Dispose();");
+                    }
+                    // null reset omitted for struct
                 } else if(stages[index].Kind is PipelineStageKind.Reverse or PipelineStageKind.TakeLast or PipelineStageKind.TakeRange) {
                     builder.AppendLine(PooledBufferSupport.Dispose(stages[index].OutputType,this.ReverseItemsName(index)));
                 } else if(stages[index].Kind==PipelineStageKind.SkipLast) {

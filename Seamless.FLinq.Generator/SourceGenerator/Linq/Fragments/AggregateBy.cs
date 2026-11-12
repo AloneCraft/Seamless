@@ -59,11 +59,13 @@ internal class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector
     public override string GetEnumeratorPrimaryConstructorParameters =>
         $"TEnum {this.e}{this.ClosurePrimaryCtorSuffix(keySelector,func)}";
     public override string GetEnumeratorFields => $$"""
-        private global::Seamless.Linq.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>? {{this.lookup}};
+        private global::Seamless.Linq.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}> {{this.lookup}};
+        private bool {{this.lookup}}Initialized;
         private global::Seamless.Linq.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>.Enumerator {{this.innerEnumerator}};
         """;
     public override string GetTryGetNextBody => $$"""
-        if(this.{{this.lookup}} is null){
+        if(!this.{{this.lookup}}Initialized){
+            this.{{this.lookup}}Initialized=true;
             if({{this.e}}.TryGetSpan(out var __span)){
                 this.{{this.lookup}}=new global::Seamless.Linq.DictionarySlim<{{this.KeyType}},{{FuncReturnTypeName(func)}}>({{CapacityExpression("__span.Length")}});
                 for(var __i=0;__i<__span.Length;__i++){
@@ -103,7 +105,7 @@ internal class AggregateBy(int 番号,Enumerable source,FuncFragment keySelector
         return false;
         """;
     public override string ElementType => resultElementType;
-    protected override string GetEnumeratorDisposeBody => $"this.{this.lookup}?.Dispose(); {this.e}.Dispose();";
+    protected override string GetEnumeratorDisposeBody => $"this.{this.lookup}.Dispose(); {this.e}.Dispose();";
 
     private string? RenderSourceAggregateConsume(string consumerName) {
         var placeholder = $"__FLINQ_AGGBY_SRC_{番号}__";

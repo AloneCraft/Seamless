@@ -33,8 +33,11 @@ internal static partial class PipelineBuilder {
                     ||method.Parameters[0].Type is not INamedTypeSymbol { TypeArguments.Length: 2 or 3 } selectorType) {
                     return false;
                 }
-                if(stages.Count>0&&stages[stages.Count-1].Kind==PipelineStageKind.GroupBy&&stages[stages.Count-1].ThirdFunc is null&&stages[stages.Count-1].AggregatePlan is null) {
-                    var lastGroupBy = stages[stages.Count-1];
+                var groupIndex=stages.Count-1;
+                // 正規化でSkip/Takeが投影前へ移っても、groupの型と非逃避の集計候補を失わない。
+                while(groupIndex>=0&&stages[groupIndex].Kind is PipelineStageKind.AsEnumerable or PipelineStageKind.Skip or PipelineStageKind.Take){groupIndex--;}
+                if(groupIndex>=0&&stages[groupIndex].Kind==PipelineStageKind.GroupBy&&stages[groupIndex].ThirdFunc is null&&stages[groupIndex].AggregatePlan is null) {
+                    var lastGroupBy=stages[groupIndex];
                     if(invocation.ArgumentList.Arguments[0].Expression is LambdaExpressionSyntax selectLambda
                         &&selectorType.TypeArguments.Length==2
                         &&!services.ContainsAnonymousType(selectorType.TypeArguments[1])) {
@@ -46,7 +49,7 @@ internal static partial class PipelineBuilder {
                                 currentElementType=selectFunc.ReturnTypeName;
                                 return true;
                             }
-                            if(GroupBySupport.SelectIgnoresGroup(selectFunc)) {
+                            if(groupIndex==stages.Count-1&&GroupBySupport.SelectIgnoresGroup(selectFunc)) {
                                 stages[stages.Count-1]=new PipelineStage(
                                     PipelineStageKind.GroupBy,
                                     lastGroupBy.Func,
@@ -57,7 +60,9 @@ internal static partial class PipelineBuilder {
                                     thirdFunc: selectFunc,
                                     innerElementType: lastGroupBy.InnerElementType,
                                     keyType: lastGroupBy.KeyType,
-                                    containsAnchor: lastGroupBy.ContainsAnchor||selectFunc.ContainsAnchor);
+                                    containsAnchor: lastGroupBy.ContainsAnchor||selectFunc.ContainsAnchor){
+                                    HasParallelHint=lastGroupBy.HasParallelHint
+                                };
                                 currentElementType=selectFunc.ReturnTypeName;
                                 return true;
                             }

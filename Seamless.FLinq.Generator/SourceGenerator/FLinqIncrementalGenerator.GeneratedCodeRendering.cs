@@ -432,6 +432,15 @@ public sealed partial class FLinqIncrementalGenerator {
         _ => Convert.ToString(value,System.Globalization.CultureInfo.InvariantCulture)??"default!",
     };
 
+    private static string RenderParameterDefault(IParameterSymbol parameter){
+        var type=parameter.Type.ToDisplayString(完全修飾形式);
+        // RoslynはCancellationToken等のdefault(struct)もnullで表す。型情報を失ってnullを渡さない。
+        if(parameter.ExplicitDefaultValue is null){return "default("+type+")";}
+        var literal=RenderConstantValue(parameter.ExplicitDefaultValue);
+        if(parameter.Type.TypeKind==TypeKind.Enum){return "("+type+")("+literal+")";}
+        return literal;
+    }
+
     /// <summary>
     /// <paramref name="type"/> 自身、またはその基底クラスチェーン上に <paramref name="target"/> が存在するかを判定する。
     /// 基底クラスで宣言された static const フィールドの参照をインライン展開するために使用する。
@@ -494,14 +503,15 @@ public sealed partial class FLinqIncrementalGenerator {
         var allIdentifiers = new List<IdentifierNameSyntax>(allNodes.Count);
         var allMemberAccesses = new List<MemberAccessExpressionSyntax>(allNodes.Count);
         var allObjectCreations = new List<ObjectCreationExpressionSyntax>(allNodes.Count);
-        var allParameters = new List<ParameterSyntax>(allNodes.Count);
+        var explicitTypes = new List<TypeSyntax>(allNodes.Count);
         foreach(var node in allNodes) {
             switch(node) {
                 case InvocationExpressionSyntax inv: allInvocations.Add(inv); break;
                 case IdentifierNameSyntax id: allIdentifiers.Add(id); break;
                 case MemberAccessExpressionSyntax ma: allMemberAccesses.Add(ma); break;
                 case ObjectCreationExpressionSyntax oc: allObjectCreations.Add(oc); break;
-                case ParameterSyntax param: allParameters.Add(param); break;
+                case ParameterSyntax {Type:not null} param: explicitTypes.Add(param.Type); break;
+                case CastExpressionSyntax cast: explicitTypes.Add(cast.Type); break;
             }
         }
 
@@ -543,6 +553,12 @@ public sealed partial class FLinqIncrementalGenerator {
 
             if(method.ReducedFrom is null) {
                 if(TryRenderOrdinaryMethodInvocationExpression(method,invocation,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var ordinaryInvocationText)) {
+                    // 本体を別の生成位置へ移すと、元のBegin呼出しのInterceptsLocationは適用されない。
+                    // 同じ境界解析の結果をこの実呼出しへも反映し、引数の評価順と非async入口を保つ。
+                    if(method.Name=="BeginTransactionAsync"&&DatabaseTransactionAccessAnalysis.IsReadOnlyBegin(semanticModel,invocation)){
+                        ordinaryInvocationText="/* [アクセス判定] 取引境界全体で書込みなし。移動したBeginにも同じreadonly判定を反映。 */"
+                            +ordinaryInvocationText.Replace(".BeginTransactionAsync(",".BeginReadOnlyTransactionAsync(",StringComparison.Ordinal);
+                    }
                     text=ReplaceExpressionFragment(text,invocationText,ordinaryInvocationText);
                     foreach(var desc in invocation.DescendantNodes().OfType<InvocationExpressionSyntax>()) processedInvocations.Add(desc);
                     continue;
@@ -579,6 +595,9 @@ public sealed partial class FLinqIncrementalGenerator {
             }
 
             var identifierText = NormalizeExpressionText(identifier.ToString());
+            if(semanticModel.GetSymbolInfo(identifier).Symbol is INamedTypeSymbol namedType){
+                text=ReplaceIdentifierReference(text,identifierText,namedType.ToDisplayString(完全修飾形式));continue;
+            }
             if(semanticModel.GetSymbolInfo(identifier).Symbol is IFieldSymbol instanceField
                 &&!instanceField.IsStatic
                 &&IsSameOrBaseType(containingType,instanceField.ContainingType)) {
@@ -746,12 +765,11 @@ public sealed partial class FLinqIncrementalGenerator {
                 .Replace("this","@this",StringComparison.Ordinal);
             text=text.Replace(memberText,$"{accessorName}({receiverText})",StringComparison.Ordinal);
         }
-        foreach(var param in allParameters) {
-            if(param.Type is null) continue;
-            var typeSymbol = semanticModel.GetTypeInfo(param.Type).Type;
+        foreach(var type in explicitTypes) {
+            var typeSymbol = semanticModel.GetTypeInfo(type).Type;
             if(typeSymbol is null) continue;
             var qualifiedName = typeSymbol.ToDisplayString(完全修飾形式);
-            var originalName = NormalizeExpressionText(param.Type.ToString());
+            var originalName = NormalizeExpressionText(type.ToString());
             if(originalName==qualifiedName||originalName.StartsWith("global::",StringComparison.Ordinal)) continue;
             text=ReplaceTypeNameForGeneratedMethod(text,originalName,qualifiedName);
         }
@@ -778,11 +796,8 @@ public sealed partial class FLinqIncrementalGenerator {
             // キーが括弧などの非単語文字で終わる（メソッド呼び出し式は常にこの形）場合、
             // 直後が `;`/`,`/`)`/文字列終端などの非単語文字だと \b が一致せず置換が無発火になる。
             // source generator の生成コードを検証する。
-            text=System.Text.RegularExpressions.Regex.Replace(
-                text,
-                $@"(?<!\w){System.Text.RegularExpressions.Regex.Escape(normalizedKey)}(?!\w)",
-                pair.Value.Replace("$","$$",StringComparison.Ordinal),
-                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+            var pattern=$@"(?<!\w){System.Text.RegularExpressions.Regex.Escape(normalizedKey)}(?!\w)";
+            text=ReplaceValueReferences(text,pattern,pair.Value);
         }
 
         return text;
@@ -813,12 +828,20 @@ public sealed partial class FLinqIncrementalGenerator {
             &&method.DeclaredAccessibility is not (Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal)) {
             return false;
         }
+        var explicitTypeArgs = InvocationHasExplicitTypeArguments(invocation) ? RenderTypeArgumentList(method) : string.Empty;
+        var declaringType = method.ContainingType.ToDisplayString(完全修飾形式);
+        if(method.IsStatic&&invocation.ArgumentList.Arguments.Any(static argument => argument.NameColon is not null)
+            &&(PipelineBuilder.PreservesSystemUnionCall(semanticModel,invocation,method)||HasReorderedRangeArguments(invocation,method))) {
+            // 名前付き引数の評価と検証の順序を維持する。
+            var originalOrder=invocation.ArgumentList.Arguments.Select(argument =>
+                argument.NameColon?.ToString()+RenderArgumentForGeneratedMethod(argument,semanticModel,containingType,unsafeAccessorCollector,replacementMap));
+            expressionText=$"{declaringType}.{method.Name}{explicitTypeArgs}({string.Join(", ",originalOrder)})";
+            return true;
+        }
         if(!TryCreateOrdinaryActualArgumentList(method,invocation,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var actualArguments)) {
             return false;
         }
-        var explicitTypeArgs = InvocationHasExplicitTypeArguments(invocation) ? RenderTypeArgumentList(method) : string.Empty;
         var argumentList = string.Join(", ",actualArguments);
-        var declaringType = method.ContainingType.ToDisplayString(完全修飾形式);
         var canCallDirectly = method.DeclaredAccessibility is Accessibility.Public or Accessibility.Internal or Accessibility.ProtectedOrInternal;
         if(method.IsStatic) {
             if(canCallDirectly) {
@@ -828,7 +851,16 @@ public sealed partial class FLinqIncrementalGenerator {
             }
             var accessorName = $"__StaticMethod_{SanitizeIdentifier(method.ContainingType.Name)}_{SanitizeIdentifier(method.Name)}";
             var returnTypeName = method.ReturnsVoid ? "void" : method.ReturnType.ToDisplayString(完全修飾形式);
-            var paramParts = new List<string> { $"{declaringType}? _" };
+            string targetType;
+            string targetValue;
+            if(method.ContainingType.IsValueType){
+                targetType=declaringType;
+                targetValue="default";
+            }else{
+                targetType=declaringType+"?";
+                targetValue="null";
+            }
+            var paramParts = new List<string> { $"{targetType} _" };
             foreach(var param in method.Parameters) {
                 paramParts.Add(ParameterDeclarationForAccessor(param));
             }
@@ -836,8 +868,14 @@ public sealed partial class FLinqIncrementalGenerator {
             var (staticAccessorTypeParameters,staticAccessorConstraints)=アクセサ型パラメータ(アクセサ署名型集合(method));
             var accessorCode = $"[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.StaticMethod, Name = \"{method.Name}\")]\nprivate static extern {returnTypeName} {accessorName}{staticAccessorTypeParameters}({string.Join(", ",paramParts)}){staticAccessorConstraints};";
             unsafeAccessorCollector?.Add(accessorCode);
-            expressionText=$"{accessorName}{staticAccessorTypeParameters}(null{(actualArguments.Count>0 ? ", "+argumentList : string.Empty)})";
+            expressionText=$"{accessorName}{staticAccessorTypeParameters}({targetValue}{(actualArguments.Count>0 ? ", "+argumentList : string.Empty)})";
             return true;
+        }
+        if(invocation.Expression is MemberBindingExpressionSyntax) {
+            if(canCallDirectly) {
+                expressionText=$".{method.Name}{explicitTypeArgs}({argumentList})";
+                return true;
+            }
         }
         if(!TryRenderOrdinaryReceiverExpression(invocation,semanticModel,containingType,unsafeAccessorCollector,replacementMap,out var receiverText)) {
             return false;
@@ -934,7 +972,7 @@ public sealed partial class FLinqIncrementalGenerator {
             if(parameter.IsParams&&parameter.Type is IArrayTypeSymbol paramsArray) {
                 slots[i]=$"global::System.Array.Empty<{paramsArray.ElementType.ToDisplayString(完全修飾形式)}>()";
             } else if(parameter.HasExplicitDefaultValue) {
-                slots[i]=RenderConstantValue(parameter.ExplicitDefaultValue);
+                slots[i]=RenderParameterDefault(parameter);
             } else {
                 return false;
             }
@@ -1011,7 +1049,15 @@ public sealed partial class FLinqIncrementalGenerator {
             &&ReferenceEquals(memberAccess.Name,identifier))
         ||(identifier.Parent is MemberBindingExpressionSyntax memberBinding
             &&ReferenceEquals(memberBinding.Name,identifier))
-        ||identifier.Parent is NameColonSyntax or NameEqualsSyntax;
+        ||identifier.Parent is NameColonSyntax or NameEqualsSyntax
+        ||IsInitializerMemberName(identifier);
+
+    private static bool IsInitializerMemberName(IdentifierNameSyntax identifier)=>IsInitializerAssignmentTarget(identifier);
+
+    private static bool IsInitializerAssignmentTarget(ExpressionSyntax expression)=>
+        expression.Parent is AssignmentExpressionSyntax assignment&&ReferenceEquals(assignment.Left,expression)
+        &&assignment.Parent is InitializerExpressionSyntax initializer
+        &&initializer.Kind() is SyntaxKind.ObjectInitializerExpression or SyntaxKind.WithInitializerExpression;
 
     private static bool IsInsideNameof(SyntaxNode node) {
         for(var current = node.Parent;current is not null;current=current.Parent) {
@@ -1024,12 +1070,37 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static string ReplaceIdentifierReference(string text,string identifierText,string replacement) =>
-        System.Text.RegularExpressions.Regex.Replace(
-            text,
-            $@"(?<![\w\.:])\b{System.Text.RegularExpressions.Regex.Escape(identifierText)}\b",
-            replacement,
-            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+    private static string ReplaceIdentifierReference(string text,string identifierText,string replacement) {
+        var pattern=$@"(?<![\w\.:])\b{System.Text.RegularExpressions.Regex.Escape(identifierText)}\b";
+        text=ReplaceValueReferences(text,pattern,replacement);
+        if(!text.Contains(":"+identifierText,StringComparison.Ordinal)){return text;}
+
+        // : に続く識別子は構文で確認し、名前空間の :: や補間文字列の書式と区別する。
+        var root=SyntaxFactory.ParseExpression(text);
+        foreach(var identifier in root.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>().Reverse()){
+            var start=identifier.SpanStart;
+            if(start==0||text[start-1]!=':'||identifier.Parent is AliasQualifiedNameSyntax
+                ||identifier.Identifier.Text!=identifierText||IsInitializerMemberName(identifier)){continue;}
+            text=text.Remove(start,identifier.Span.Length).Insert(start,replacement);
+        }
+        return text;
+    }
+
+    private static string ReplaceValueReferences(string text,string pattern,string replacement){
+        if(text.IndexOf('{')>=0){
+            // { P=P } has an initialized object's member on the left and a captured value on the right.
+            // A replacement selected from the right must not rewrite the left occurrence of the same name.
+            var memberNames=SyntaxFactory.ParseExpression(text).DescendantNodesAndSelf().OfType<IdentifierNameSyntax>()
+                .Where(IsInitializerMemberName).Select(static identifier=>identifier.Span).ToArray();
+            text=System.Text.RegularExpressions.Regex.Replace(text,pattern,
+                match=>memberNames.Any(span=>span.Start==match.Index&&span.Length==match.Length)?match.Value:replacement,
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        }else{
+            text=System.Text.RegularExpressions.Regex.Replace(text,pattern,replacement.Replace("$","$$",StringComparison.Ordinal),
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        }
+        return text;
+    }
 
     private static string RenderPropertyForwardExpression(IPropertySymbol property,string receiverText,List<string>? unsafeAccessorCollector) {
         var accessorName = $"__Property_{SanitizeIdentifier(property.ContainingType.Name)}_{SanitizeIdentifier(property.Name)}";
@@ -1146,7 +1217,7 @@ public sealed partial class FLinqIncrementalGenerator {
             if(parameter.IsParams&&parameter.Type is IArrayTypeSymbol paramsArray) {
                 actualArgumentSlots[i]=$"global::System.Array.Empty<{paramsArray.ElementType.ToDisplayString(完全修飾形式)}>()";
             } else if(parameter.HasExplicitDefaultValue) {
-                actualArgumentSlots[i]=RenderConstantValue(parameter.ExplicitDefaultValue);
+                actualArgumentSlots[i]=RenderParameterDefault(parameter);
             } else {
                 actualArguments=new List<string>();
                 return false;

@@ -22,6 +22,12 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
     private const string LinqRewriteAttributesSource = """
         #nullable enable
         namespace Seamless.FLinq {
+            [global::System.AttributeUsage(global::System.AttributeTargets.Method,AllowMultiple=false)]
+            internal sealed class ExecutionPlanAttribute:global::System.Attribute{
+                public ExecutionPlanAttribute(int schemaVersion,string data){this.SchemaVersion=schemaVersion;this.Data=data;}
+                public int SchemaVersion{get;}
+                public string Data{get;}
+            }
             [global::System.Flags]
             internal enum LinqOptimizations {
                 None=0,
@@ -62,10 +68,30 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
         """;
 
     public void Initialize(IncrementalGeneratorInitializationContext context) {
+        var analysisCompilation=context.CompilationProvider.Select(static (compilation,cancellationToken)=>
+            global::Shared.Database.Generation.DatabaseAnalysisCompilation.Create(compilation,cancellationToken));
+        var declaredJoinKeys=context.SyntaxProvider.CreateSyntaxProvider(
+            static(node,_)=>node is InvocationExpressionSyntax{Parent:ArrowExpressionClauseSyntax{Parent:PropertyDeclarationSyntax}},
+            static(syntaxContext,cancellationToken)=>GenerationPipeline.RenderDeclaredJoinKey(syntaxContext.SemanticModel,(InvocationExpressionSyntax)syntaxContext.Node,cancellationToken))
+            .Where(static source=>source is not null);
+        context.RegisterSourceOutput(declaredJoinKeys,static(productionContext,source)=>
+            productionContext.AddSource(source!.Value.Name+".g.cs",SourceText.From(QueryProbeMarkers.Strip(source.Value.Source),Encoding.UTF8)));
+        var transactionBegins=context.SyntaxProvider.CreateSyntaxProvider(
+            static(node,_)=>node is InvocationExpressionSyntax{Expression:MemberAccessExpressionSyntax{Name.Identifier.ValueText:"BeginTransactionAsync"}},
+            static(syntaxContext,_)=>(InvocationExpressionSyntax)syntaxContext.Node)
+            .Combine(analysisCompilation)
+            .Select(static(input,cancellationToken)=>DatabaseTransactionAccessAnalysis.ReadOnlyInterceptor(input.Right.GetSemanticModel(input.Left.SyntaxTree),input.Left,cancellationToken))
+            .Where(static source=>source is not null);
+        context.RegisterSourceOutput(transactionBegins.Collect(),static(productionContext,sources)=>{
+            var index=0;foreach(var source in sources){productionContext.AddSource("DatabaseTransactionBegin"+index+".g.cs",SourceText.From(GeneratedExecutionAnnotations.Apply(QueryProbeMarkers.Strip(source!)),Encoding.UTF8));index++;}
+        });
         var discoveryResults = context.SyntaxProvider
             .CreateSyntaxProvider(
                 static (node,_) => node is InvocationExpressionSyntax,
-                static (syntaxContext,cancellationToken) => LinqTargetDiscoveryService.Discover(syntaxContext,cancellationToken))
+                static (syntaxContext,_) => (InvocationExpressionSyntax)syntaxContext.Node)
+            .Combine(analysisCompilation)
+            .Select(static (input,cancellationToken)=>LinqTargetDiscoveryService.Discover(
+                input.Right.GetSemanticModel(input.Left.SyntaxTree),input.Left,cancellationToken))
             .Where(static result => result is not null)
             .Select(static (result,_) => result!);
         var interceptTargets = discoveryResults
@@ -84,23 +110,6 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
         context.RegisterSourceOutput(interceptTargets.Collect(),static (productionContext,interceptTargets) => {
             foreach(var error in OperatorRegistry.ValidationErrors) {
                 productionContext.ReportDiagnostic(Diagnostic.Create(RegistryConsistencyDescriptor,Location.None,error));
-            }            if(interceptTargets.IsDefaultOrEmpty) {
-                return;
-            }
-            var reportedMethods = new HashSet<string>(StringComparer.Ordinal);
-            foreach(var target in interceptTargets.Distinct(LinqInterceptTargetComparer.Instance)) {
-                if(!target.LinqAnalysis.HasAnonymousTypeLinq) {
-                    continue;
-                }
-                var methodKey = target.Method.ToDisplayString();
-                if(!reportedMethods.Add(methodKey)) {
-                    continue;
-                }
-                var location = target.Method.Locations.FirstOrDefault()??target.Invocation.GetLocation();
-                productionContext.ReportDiagnostic(Diagnostic.Create(
-                    匿名型警告Descriptor,
-                    location,
-                    target.Method.Name));
             }
         });
 

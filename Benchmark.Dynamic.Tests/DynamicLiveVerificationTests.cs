@@ -54,6 +54,109 @@ public sealed class DynamicLiveVerificationTests:IDisposable{
         Assert.All(history.GetRuns(),static run=>Assert.Equal("Passed",run.Status));
     }
 
+    [Fact,Trait("Category","Unit")]
+    public async Task 有限探索は有効な対象を16件ずつ巡回して指定件数で終了する(){
+        var all=動的ライブ検証サービス.対応対象(Enum.GetValues<SourceTarget>(),Enum.GetValues<QueryElementType>());
+        Assert.Equal(44,all.Length);
+        Assert.DoesNotContain(new 動的ライブ対象(SourceTarget.SystemRange,QueryElementType.Long),all);
+        var targets=new[]{
+            new 動的ライブ対象(SourceTarget.SystemArray,QueryElementType.Int),
+            new 動的ライブ対象(SourceTarget.SystemList,QueryElementType.Long),
+        };
+        var client=new BatchClient();
+        var service=new 動的ライブ検証サービス(WorkerPath,client,Path.Combine(this.directory,"round-robin.db"));
+        var settings=new 動的ライブ設定(SourceTarget.SystemArray,QueryElementType.Int,Seed256.Parse("0x1"),
+            開始段階:動的ライブ段階.ランダム探索,対象集合:targets,探索件数:19);
+        var completed=new List<動的ライブ対象>();
+        await service.実行Async(settings,(_,_)=>Task.CompletedTask,null,CancellationToken.None,(_,target)=>completed.Add(target));
+        Assert.Equal(targets,completed);
+        Assert.Equal([16,16,3,3],client.Requests.Select(static request=>request.QueryCount));
+        Assert.Equal([0,0,16,16],client.Requests.Select(static request=>request.QueryIndexOffset));
+        Assert.Equal([targets[0],targets[1],targets[0],targets[1]],
+            client.Requests.Select(static request=>new 動的ライブ対象(Assert.Single(request.SourceTargets),request.ElementType)));
+        Assert.All(client.Requests,static request=>Assert.Equal(QueryGenerationMode.Random,request.GenerationMode));
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public async Task 探索の番号境界では決定的な次のSeedを使う(){
+        var client=new BatchClient();
+        var service=new 動的ライブ検証サービス(WorkerPath,client,Path.Combine(this.directory,"segments.db"));
+        var seed=Seed256.Parse("0x1");
+        var settings=new 動的ライブ設定(SourceTarget.SystemArray,QueryElementType.Int,seed,
+            開始段階:動的ライブ段階.ランダム探索,開始番号:999_999,
+            対象集合:[new(SourceTarget.SystemArray,QueryElementType.Int)],探索件数:2);
+        await service.実行Async(settings,(_,_)=>Task.CompletedTask,null,CancellationToken.None);
+        Assert.Equal([999_999,0],client.Requests.Select(static request=>request.QueryIndexOffset));
+        Assert.Equal([seed,SeedDerivation.Derive(seed,"live-random",1)],client.Requests.Select(static request=>request.BaseSeed));
+        Assert.All(client.Requests,static request=>Assert.Equal(1,request.QueryCount));
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void 速度の幾何平均は対象ごとの件数に左右されない(){
+        var first=new 動的ライブ対象(SourceTarget.SystemArray,QueryElementType.Int);
+        var second=new 動的ライブ対象(SourceTarget.SystemList,QueryElementType.Int);
+        Assert.Equal(1,動的ライブ集計.速度の幾何平均([(first,2d),(first,0.5d)]),10);
+        Assert.Equal(1,動的ライブ集計.速度の幾何平均([(first,2d),(first,2d),(first,2d),(second,0.5d)]),10);
+    }
+
+    [Theory,Trait("Category","Unit")]
+    [InlineData(0,0,1)]
+    [InlineData(0,32,0)]
+    [InlineData(32,0,double.PositiveInfinity)]
+    [InlineData(32,64,0.5)]
+    public void 割り当て比は0バイトを補正しない(double baseline,double candidate,double ratio){
+        Assert.Equal(ratio,動的ライブ集計.比率(baseline,candidate,true));
+        Assert.Null(動的ライブ集計.比率(0,candidate,false));
+        Assert.Null(動的ライブ集計.比率(baseline,double.NaN,true));
+    }
+
+    [Fact,Trait("Category","Integration")]
+    public async Task 全44対象のランダム探索で実Workerの結果を保存する(){
+        var targets=動的ライブ検証サービス.対応対象(Enum.GetValues<SourceTarget>(),Enum.GetValues<QueryElementType>());
+        var databasePath=Path.Combine(this.directory,"all-targets.db");
+        var service=new 動的ライブ検証サービス(WorkerPath,データベースパス:databasePath);
+        var settings=new 動的ライブ設定(SourceTarget.SystemArray,QueryElementType.Int,Seed256.Parse("0x10182026"),
+            開始段階:動的ライブ段階.ランダム探索,対象集合:targets,探索件数:1);
+        var results=new List<動的ライブ結果>();
+        using var cancellation=new CancellationTokenSource(TimeSpan.FromMinutes(6));
+        await service.実行Async(settings,(result,_)=>{
+            results.Add(result);
+            return Task.CompletedTask;
+        },null,cancellation.Token);
+        Assert.Equal(targets,results.Select(static result=>new 動的ライブ対象(result.対象,result.要素型)));
+        foreach(var result in results){
+            var saved=await service.詳細を読むAsync(result.実行ID,result.QueryId);
+            Assert.NotNull(saved);
+            Assert.Equal(result.状態,saved.状態);
+            Assert.Equal(result.基準シード,saved.基準シード);
+        }
+    }
+
+    [Fact,Trait("Category","Integration")]
+    public async Task ライブ履歴と再実行済み履歴から同じ入力を再現する(){
+        var databasePath=Path.Combine(this.directory,"replay.db");
+        var service=new 動的ライブ検証サービス(WorkerPath,データベースパス:databasePath);
+        var seed=Seed256.Parse("0x10182026");
+        var settings=new 動的ライブ設定(SourceTarget.SystemArray,QueryElementType.Long,seed,
+            開始段階:動的ライブ段階.ランダム探索,開始番号:3,特殊な値を混ぜる:true,
+            対象集合:[new(SourceTarget.SystemArray,QueryElementType.Long)],探索件数:1);
+        動的ライブ結果? original=null;
+        using var cancellation=new CancellationTokenSource(TimeSpan.FromMinutes(3));
+        await service.実行Async(settings,(result,_)=>{original=result;return Task.CompletedTask;},null,cancellation.Token);
+        Assert.NotNull(original);
+        await using var coordinator=new global::Benchmark.Dynamic.UI.動的実行調停サービス(databasePath,WorkerPath);
+        動的結果行? replay=null;
+        var run=await coordinator.Queryを再実行Async(original.QueryId,row=>replay=row,_=>{});
+        Assert.NotNull(replay);
+        Assert.Equal(original.状態.ToString(),replay.状態);
+        var conditions=coordinator.実行条件を取得(run.実行ID);
+        Assert.True(conditions.IncludeSpecialValues);
+        Assert.Equal(QueryElementType.Long,conditions.ElementType);
+        Assert.Equal(SeedDerivation.Derive(seed,"fixture",3),conditions.ReplayInputs![0].FixtureSeed);
+        var repeated=await coordinator.Queryを再実行Async(replay.QueryID,_=>{},_=>{});
+        Assert.Equal(conditions.ReplayInputs[0],coordinator.実行条件を取得(repeated.実行ID).ReplayInputs![0]);
+    }
+
     [Fact,Trait("Category","Integration")]
     public async Task ランダム段階は実Workerで開始し取消後も結果を保存する(){
         var databasePath=Path.Combine(this.directory,"random.db");
@@ -79,6 +182,11 @@ public sealed class DynamicLiveVerificationTests:IDisposable{
         var snapshot=new global::Benchmark.Dynamic.Infrastructure.DynamicRepository(database,writer).GetRunSnapshot(run.ID);
         Assert.NotNull(snapshot);
         Assert.Equal(first.QueryId,Assert.Single(snapshot.Queries).QueryID);
+        var saved=await service.詳細を読むAsync(first.実行ID,first.QueryId);
+        Assert.NotNull(saved);
+        Assert.Equal(first.基準シード,saved.基準シード);
+        Assert.Equal(first.生成コード,saved.生成コード);
+        Assert.NotNull(saved.詳細);
         Assert.Equal(first.状態.ToString(),Assert.Single(snapshot.SourceExecutions).Status);
     }
 

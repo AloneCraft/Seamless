@@ -52,7 +52,7 @@ public sealed class UnorderedEnumerableAnalyzer:DiagnosticAnalyzer {
             return;
         }
         foreach(var argument in invocation.Arguments){
-            if(argument.Parameter is null||HasAttribute(argument.Parameter)||IsExplicitOptIn(argument.Value)||!IsUnordered(argument.Value,new HashSet<ISymbol>(SymbolEqualityComparer.Default))){
+            if(argument.Parameter is null||HasAttribute(argument.Parameter)||IsKnownUnorderedType(argument.Parameter.Type)||IsExplicitOptIn(argument.Value)||!IsUnordered(argument.Value,new HashSet<ISymbol>(SymbolEqualityComparer.Default))){
                 continue;
             }
             context.ReportDiagnostic(Diagnostic.Create(LostOriginRule,argument.Syntax.GetLocation(),argument.Parameter.Name));
@@ -64,7 +64,7 @@ public sealed class UnorderedEnumerableAnalyzer:DiagnosticAnalyzer {
         if(operation.ReturnedValue is null||IsExplicitOptIn(operation.ReturnedValue)||!IsUnordered(operation.ReturnedValue,new HashSet<ISymbol>(SymbolEqualityComparer.Default))){
             return;
         }
-        if(context.ContainingSymbol is IMethodSymbol method&&!HasReturnAttribute(method)){
+        if(context.ContainingSymbol is IMethodSymbol method&&!HasReturnAttribute(method)&&!IsKnownUnorderedType(method.ReturnType)){
             context.ReportDiagnostic(Diagnostic.Create(LostOriginRule,operation.Syntax.GetLocation(),method.Name));
         }
     }
@@ -75,7 +75,8 @@ public sealed class UnorderedEnumerableAnalyzer:DiagnosticAnalyzer {
             return;
         }
         var target=GetReferencedSymbol(assignment.Target);
-        if(target is IFieldSymbol or IPropertySymbol&& !HasAttribute(target)){
+        var targetType=target switch{IFieldSymbol field=>field.Type,IPropertySymbol property=>property.Type,_=>null};
+        if(target is IFieldSymbol or IPropertySymbol&&!HasAttribute(target)&&!IsKnownUnorderedType(targetType)){
             context.ReportDiagnostic(Diagnostic.Create(LostOriginRule,assignment.Syntax.GetLocation(),target.Name));
         }
     }
@@ -213,7 +214,7 @@ public sealed class UnorderedEnumerableAnalyzer:DiagnosticAnalyzer {
 
     private static bool IsTrustedSequenceOperator(IMethodSymbol method){
         var type=method.ContainingType?.ToDisplayString();
-        return type is "System.Linq.Enumerable" or "Seamless.Linq.Enumerable"||type?.StartsWith("ZLinq.",StringComparison.Ordinal)==true;
+        return type is "System.Linq.Enumerable" or "Seamless.Linq.Enumerable" or "Seamless.Linq.Set"||type?.StartsWith("ZLinq.",StringComparison.Ordinal)==true;
     }
 
     private static bool IsKnownUnorderedType(ITypeSymbol? type){

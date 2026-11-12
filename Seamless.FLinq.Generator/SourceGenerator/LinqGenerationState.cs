@@ -15,8 +15,7 @@ internal sealed class GenerationState(FLinqIncrementalGenerator.Linq傍受対象
     public OptimizationTraceCollector? Trace { get; } = target.Configuration.EmitOptimizationTrace
         ? new OptimizationTraceCollector(target.Method.ToDisplayString())
         : null;
-    public FLinqIncrementalGenerator.AnonymousStructRecordRegistry? AnonymousRegistry { get; private set; } = new(
-        FLinqIncrementalGenerator.AnonRecordFileToken(target.SourcePath)+"_"+target.MethodName);
+    public FLinqIncrementalGenerator.AnonymousTupleRegistry? AnonymousRegistry { get; } = new();
     public HashSet<string> EmittedUnsafeAccessors { get; } = new(StringComparer.Ordinal);
     public HashSet<string> UsedIdentifiers { get; } = new(StringComparer.Ordinal);
     // ループなど入れ子のブロックの中だけの名前の衝突相手(ラムダの中だけで宣言される名前を除く)。GeneratedNames を参照。
@@ -24,7 +23,11 @@ internal sealed class GenerationState(FLinqIncrementalGenerator.Linq傍受対象
     // 利用者のメソッドに現れる識別子だけ(割り当てた名前・テンプレートの予約名を含まない)。GeneratedNameRenamer が付け替えの対象から外すために使う。
     public HashSet<string> UserIdentifiers { get; } = new(StringComparer.Ordinal);
     public List<Fragment> GeneratedFragments { get; } = new();
+    public Dictionary<Fragment,string> ProfileResultVariables{get;}=new();
+    public Dictionary<string,string> ProfileBodyRenames{get;}=new(StringComparer.Ordinal);
+public Dictionary<Fragment, ExecutionPlanOrigin> PlanOrigins { get; } = new();
     public List<string> UnsafeAccessorCodes { get; } = new();
+    public string? FailureReason { get; set; }
 
     internal string[] ResolveOuterTypeParameters(INamedTypeSymbol containingType) {
         if(this.Target.MethodTypeParameters.Length>0) {

@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Operations;
 using Microsoft.CodeAnalysis.Text;
 
 using Seamless.FLinq;
@@ -8,6 +9,11 @@ using Enumerable = Seamless.FLinq.Generator.Enumerable;
 namespace Seamless.FLinq.Generator;
 
 public sealed partial class FLinqIncrementalGenerator {
+    private static bool HasReorderedRangeArguments(InvocationExpressionSyntax invocation,IMethodSymbol method)=>
+        method.Name=="Range"&&method.ContainingType.ToDisplayString()=="System.Linq.Enumerable"
+        &&invocation.ArgumentList.Arguments.Count==2
+        &&invocation.ArgumentList.Arguments[0].NameColon?.Name.Identifier.ValueText=="count";
+
     internal sealed partial class GenerationPipeline {
 
     // 呼び出し式から対応する Fragment を選び、再生成に必要な静的補助コードも回収する。
@@ -32,6 +38,13 @@ public sealed partial class FLinqIncrementalGenerator {
 
         if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method) {
             return false;
+        }
+
+        if(PipelineBuilder.PreservesSystemUnionCall(semanticModel,invocation,method)){
+            // 標準の集合演算で引数を検証し、キー選択と列挙順を維持した入力を後段に渡す。
+            var built=単独列挙ソースフラグメント生成(semanticModel,invocation,containingType,ref uniqueNumber,out var unionRoot,out staticMethods,unsafeAccessorCollector);
+            fragment=unionRoot;
+            return built;
         }
 
         var definition = method.ReducedFrom??method;
@@ -68,7 +81,7 @@ public sealed partial class FLinqIncrementalGenerator {
             }
         }
 
-        if((this.state.Configuration.Optimizations&LinqOptimizations.PipelineFusion)!=0&&PipelineBuilder.TryBuild(
+        if(PipelineBuilder.TryBuild(
             semanticModel,
             invocation,
             ref uniqueNumber,
@@ -149,12 +162,16 @@ public sealed partial class FLinqIncrementalGenerator {
         List<string>? unsafeAccessorCollector) {
         fragment=null!;
         staticMethods=string.Empty;
+        var arguments=invocation.ArgumentList.Arguments;
         if(method.ReducedFrom is not null
             ||method.ContainingType.Name!="Enumerable"
             ||method.ContainingNamespace.ToDisplayString()!="System.Linq"
-            ||(method.Name=="Contains"&&invocation.ArgumentList.Arguments.Count is not (2 or 3))
-            ||(method.Name=="Reverse"&&invocation.ArgumentList.Arguments.Count!=1)
-            ||method.Name is not ("Contains" or "Reverse")) {
+            ||(method.Name switch {
+                "Contains" => arguments.Count is not (2 or 3),
+                "Reverse" => arguments.Count!=1,
+                "ToArray" => !PipelineBuilder.IsStaticToArrayOfPreservedUnion(semanticModel,invocation,method),
+                _ => true,
+            })) {
             return false;
         }
 
@@ -174,6 +191,10 @@ public sealed partial class FLinqIncrementalGenerator {
 
         if(method.Name=="Reverse") {
             fragment=new Reverse(uniqueNumber++,source);
+            return true;
+        }
+        if(method.Name=="ToArray") {
+            fragment=new ToArray(uniqueNumber++,source,method.ReturnType.ToDisplayString(完全修飾形式));
             return true;
         }
 
@@ -543,6 +564,10 @@ public sealed partial class FLinqIncrementalGenerator {
     /// </summary>
     private bool 単独列挙ソースフラグメント生成(SemanticModel semanticModel,ExpressionSyntax expression,INamedTypeSymbol containingType,ref int uniqueNumber,out Enumerable fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null) {
         staticMethods=string.Empty;
+        if(this.TryBuildViewDefinitionRoot(semanticModel,expression,containingType,ref uniqueNumber,out fragment,unsafeAccessorCollector)){
+            staticMethods=fragment.StructMethod;
+            return true;
+        }
         if(TryBuildKnownEnumerableRoot(semanticModel,expression,containingType,ref uniqueNumber,out fragment,unsafeAccessorCollector)) {
             return true;
         }
@@ -583,6 +608,7 @@ public sealed partial class FLinqIncrementalGenerator {
             isDuckTyping,
             effectiveUseEnumerableInterface);
         fragment.SourceContainsAnchor=AnchorAnalysis.ContainsAnchor(expression,semanticModel);
+        if(fragment is TransactionRowsRoot transactionRows){transactionRows.DeclaredJoinKey=FindDeclaredJoinKey(expression,semanticModel);}
         return true;
     }
 
@@ -600,6 +626,15 @@ public sealed partial class FLinqIncrementalGenerator {
         hoistedLocals=Array.Empty<HoistedLocal>();
         unsafeAccessorCodes=Array.Empty<string>();
         hoistedExpressions=Array.Empty<ExpressionSyntax>();
+
+        // 書込み先や、その書込みから読み戻す式を一時変数で置き換えない。
+        if(body.DescendantNodesAndSelf(descendIntoChildren:node=>!IsNestedFunctionBoundary(node)).Any(static node=>
+            node is AssignmentExpressionSyntax {Parent:not InitializerExpressionSyntax}
+            ||node.IsKind(SyntaxKind.PreIncrementExpression)||node.IsKind(SyntaxKind.PreDecrementExpression)
+            ||node.IsKind(SyntaxKind.PostIncrementExpression)||node.IsKind(SyntaxKind.PostDecrementExpression)
+            ||node is ArgumentSyntax argument&&argument.RefKindKeyword.Kind() is SyntaxKind.RefKeyword or SyntaxKind.OutKeyword)){
+            return false;
+        }
 
         var parameterSet = new HashSet<string>(parameterNames,StringComparer.Ordinal);
         var candidates = body.DescendantNodesAndSelf(descendIntoChildren: node => !IsNestedFunctionBoundary(node))
@@ -690,6 +725,9 @@ public sealed partial class FLinqIncrementalGenerator {
             .Any(memberAccess => AnchorAnalysis.IsAnchorAccess(memberAccess,semanticModel));
 
     private bool IsMeaningfulHoistCandidate(ExpressionSyntax expression,SemanticModel semanticModel) {
+        if(IsInitializerAssignmentTarget(expression)){
+            return false;
+        }
         if(expression.Parent is InvocationExpressionSyntax invocation
             &&ReferenceEquals(invocation.Expression,expression)) {
             return false;
@@ -1009,10 +1047,124 @@ public sealed partial class FLinqIncrementalGenerator {
             ParameterNames=invoke.Parameters.Select(p => p.Name).ToArray(),
             CanGenerateMethod=false,
             CanInlineAssign=false,
+            ExecutionNote="[delegate] 呼び出し時のデリゲート値を保持し、本体をインライン展開しない。",
             BodyUnsafeAccessorCodes=delegateConstructorAccessorCodes,
             ContainsAnchor=AnchorAnalysis.ContainsAnchor(expression,semanticModel),
+            IsDirectJoinKeyMethod=delegateConstructorAccessorCodes.Length==0&&IsDirectJoinKeyMethod(expression,semanticModel),
         };
         return true;
+    }
+
+    private static bool IsDirectJoinKeyMethod(ExpressionSyntax expression,SemanticModel? model)=>
+        DirectJoinKeyMethodMember(expression,model) is not null;
+
+    private static ISymbol? DirectJoinKeyMethodMember(ExpressionSyntax expression,SemanticModel? model){
+        if(model?.GetSymbolInfo(expression).Symbol is not IMethodSymbol{
+            IsStatic:true,IsGenericMethod:false,Parameters.Length:1,DeclaredAccessibility:Accessibility.Public or Accessibility.Internal
+        } method||!method.Parameters[0].Type.IsValueType||method.ContainingType.StaticConstructors.Any(static constructor=>!constructor.IsImplicitlyDeclared)
+            ||method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax declaration
+            ||declaration.ExpressionBody?.Expression is not{} body){
+            return null;
+        }
+        var declarationModel=model.Compilation.GetSemanticModel(body.SyntaxTree);
+        // 索引と一致する場合、内側全行でのキー関数実行を省略できる直接メンバー読取りに限定する。
+        return DirectJoinKeyMember(declarationModel.GetOperation(body),method.Parameters[0]);
+    }
+
+    private static ISymbol? DirectJoinKeyMember(IOperation? operation,IParameterSymbol parameter){
+        if(!parameter.Type.IsValueType){return null;}
+        if(operation is IFieldReferenceOperation{Instance:IParameterReferenceOperation fieldParameter} field
+            &&SymbolEqualityComparer.Default.Equals(fieldParameter.Parameter,parameter)){return field.Field;}
+        if(operation is IPropertyReferenceOperation{Instance:IParameterReferenceOperation propertyParameter,Property.GetMethod.IsExtern:false} property
+                &&SymbolEqualityComparer.Default.Equals(propertyParameter.Parameter,parameter)
+                &&(property.Property.ContainingType.IsRecord&&property.Property.GetMethod?.IsImplicitlyDeclared==true
+                    ||property.Property.DeclaringSyntaxReferences.Any(reference=>reference.GetSyntax() is ParameterSyntax
+                    ||reference.GetSyntax() is PropertyDeclarationSyntax{AccessorList.Accessors:var accessors}
+                    &&accessors.Any(static accessor=>accessor.IsKind(SyntaxKind.GetAccessorDeclaration)&&accessor.Body is null&&accessor.ExpressionBody is null)))){
+            return property.Property;
+        }
+        return null;
+    }
+
+    private static (ISymbol Member,string Method)? FindDeclaredJoinKey(ExpressionSyntax expression,SemanticModel model){
+        if(expression is MemberAccessExpressionSyntax {Name.Identifier.ValueText:"Rows"} rows){expression=rows.Expression;}
+        if(model.GetSymbolInfo(expression).Symbol is not IPropertySymbol transactionTable
+            ||transactionTable.ContainingType is not {Name:"TypedTransaction",ContainingType:{} owner}){
+            return null;
+        }
+        foreach(var candidate in owner.GetMembers(transactionTable.Name).OfType<IPropertySymbol>()){
+            if(candidate.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not PropertyDeclarationSyntax{
+                ExpressionBody.Expression:InvocationExpressionSyntax declaration
+            }||declaration.ArgumentList.Arguments.Count==0){continue;}
+            var declarationModel=model.Compilation.GetSemanticModel(declaration.SyntaxTree);
+            if(declarationModel.GetSymbolInfo(declaration).Symbol is not IMethodSymbol {Name:"Table"} tableMethod
+                ||tableMethod.ContainingType.ToDisplayString()!="Seamless.Database.DatabaseContainer"){continue;}
+            var key=declaration.ArgumentList.Arguments[0].Expression;
+            if(DirectJoinKeyMethodMember(key,declarationModel) is{} member
+                &&declarationModel.GetSymbolInfo(key).Symbol is IMethodSymbol method
+                &&model.Compilation.IsSymbolAccessibleWithin(method,model.Compilation.Assembly)){
+                return (member,$"{method.ContainingType.ToDisplayString(完全修飾形式)}.@{method.Name}");
+            }
+            if(GetDeclaredLambdaKey(declarationModel,declaration,default) is{} lambda){
+                return (lambda.Member,$"global::Intercept.{lambda.Name}.Key");
+            }
+        }
+        return null;
+    }
+
+    private static (ISymbol Member,string Name,IMethodSymbol Table)? GetDeclaredLambdaKey(
+        SemanticModel model,InvocationExpressionSyntax declaration,CancellationToken cancellationToken){
+        if(declaration.SyntaxTree.Options is not CSharpParseOptions parseOptions
+            ||!parseOptions.Features.Any(static feature=>feature.Key is "InterceptorsNamespaces" or "InterceptorsPreviewNamespaces"
+                &&feature.Value.Split(';').Contains("Intercept",StringComparer.Ordinal))
+            ||declaration.Parent is not ArrowExpressionClauseSyntax{Parent:PropertyDeclarationSyntax property}
+            ||model.GetDeclaredSymbol(property,cancellationToken) is not IPropertySymbol tableProperty
+            ||tableProperty.ContainingType.IsGenericType
+            ||model.GetSymbolInfo(declaration,cancellationToken).Symbol is not IMethodSymbol{ Name:"Table",TypeArguments.Length:2 } table
+            ||table.ContainingType.ToDisplayString()!="Seamless.Database.DatabaseContainer"
+            ||declaration.ArgumentList.Arguments.Count==0
+            ||declaration.ArgumentList.Arguments[0].Expression is not LambdaExpressionSyntax lambda
+            ||lambda.Body is not ExpressionSyntax body
+            ||model.GetOperation(lambda,cancellationToken) is not IAnonymousFunctionOperation{Symbol.Parameters.Length:1} operation
+            ||DirectJoinKeyMember(model.GetOperation(body,cancellationToken),operation.Symbol.Parameters[0]) is not{} member
+            ||member.ContainingType.IsGenericType
+            ||!model.Compilation.IsSymbolAccessibleWithin(member,model.Compilation.Assembly)
+            ||!SymbolEqualityComparer.Default.Equals(model.GetTypeInfo(body,cancellationToken).Type,table.TypeArguments[0])
+            ||table.TypeArguments[0].SpecialType is not (SpecialType.System_Byte or SpecialType.System_SByte or SpecialType.System_Int16 or SpecialType.System_UInt16
+                or SpecialType.System_Int32 or SpecialType.System_UInt32 or SpecialType.System_Int64 or SpecialType.System_UInt64)){
+            return null;
+        }
+        using var hash=global::System.Security.Cryptography.SHA256.Create();
+        var identity=tableProperty.ContainingType.ToDisplayString(完全修飾形式)+"."+tableProperty.MetadataName;
+        var suffix=BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(identity))).Replace("-","");
+        return (member,"DatabaseJoinKey_"+suffix,table);
+    }
+
+    internal static (string Name,string Source)? RenderDeclaredJoinKey(SemanticModel model,InvocationExpressionSyntax declaration,CancellationToken cancellationToken){
+        if(GetDeclaredLambdaKey(model,declaration,cancellationToken) is not{} proof
+            ||global::Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptableLocation(model,declaration,cancellationToken) is not{} location){
+            return null;
+        }
+        var attribute=global::Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptsLocationAttributeSyntax(location);
+        var key=proof.Table.TypeArguments[0].ToDisplayString(完全修飾形式);
+        var row=proof.Table.TypeArguments[1].ToDisplayString(完全修飾形式);
+        return (proof.Name,$$"""
+            // <auto-generated/>
+            #nullable enable
+            namespace Intercept{
+            internal static class {{proof.Name}}{
+                internal static {{key}} Key({{row}} row)=>row.@{{proof.Member.Name}};
+                [global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method,Name="Table")]
+                private static extern global::Seamless.Database.Table<TKey,TRecord> OpenTable<TKey,TRecord>(global::Seamless.Database.DatabaseContainer receiver,global::System.Func<TRecord,TKey> keySelector,string name)
+                    where TKey:struct where TRecord:struct;
+                {{attribute}}
+                public static global::Seamless.Database.Table<{{key}},{{row}}> Open(this global::Seamless.Database.DatabaseContainer receiver,global::System.Func<{{row}},{{key}}> keySelector,string name){
+                    // 表が新規作成された場合だけ、この関数が表実体のキー関数になる。
+                    return OpenTable<{{key}},{{row}}>(receiver,Key,name);
+                }
+            }
+            }
+            """);
     }
 
     /// <summary>
@@ -1021,7 +1173,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// Select や Aggregate に渡せる FuncFragment へ正規化する。
     /// 生成可能な static ラムダなら補助メソッド化し、
     /// 閉包付きラムダならインライン代入だけ許可する。
-    /// delegate 変数がラムダ / anonymous delegate 初期化なら、その初期化式へ戻して同じ規則で処理する。
+    /// delegate 変数・フィールド・キャスト・メソッドグループは呼び出し時の値を保持する。
     /// </summary>
     internal bool 関数式フラグメント生成(
         ExpressionSyntax expression,
@@ -1030,22 +1182,139 @@ public sealed partial class FLinqIncrementalGenerator {
         out FuncFragment fragment,
         SemanticModel? semanticModel = null,
         INamedTypeSymbol? containingType = null) {
-        fragment=null!;
-        // 方針: 直接式へインライン化できるならそれを最優先し、クロージャが必要なら struct primary constructor に閉じ込める。
-        // delegate Invoke へ逃がす経路は作らない。
-        // 仕様: Func<T> f = x=>...; のようなローカル delegate 変数は initializer のラムダへ戻してインライン化する。
-        // 再代入された delegate 変数や method group は inline 対象外。delegate Invoke fallback は生成しない。
-        if(TryGetInlineableDelegateVariableInitializer(expression,semanticModel,out var initializerExpression)) {
-            return 関数式フラグメント生成(
-                initializerExpression,
-                delegateType,
-                ref uniqueNumber,
-                out fragment,
-                semanticModel,
-                containingType);
+        if(!this.BuildFunctionCore(expression,delegateType,ref uniqueNumber,out fragment,semanticModel,containingType)){
+            return false;
         }
+        if(expression is LambdaExpressionSyntax directKey&&TryGetLambdaExpressionBody(directKey,out var directBody)
+            &&括弧除去(directBody) is MemberAccessExpressionSyntax
+            &&semanticModel?.GetOperation(expression) is IAnonymousFunctionOperation {Symbol.Parameters.Length:1} anonymous){
+            fragment.DirectJoinKeyMember=DirectJoinKeyMember(semanticModel.GetOperation(directBody),anonymous.Symbol.Parameters[0]);
+        }
+        if(semanticModel is not null&&expression is LambdaExpressionSyntax lambda
+            &&delegateType is INamedTypeSymbol {TypeArguments.Length:3} function
+            &&function.TypeArguments[1] is INamedTypeSymbol sequence
+            &&sequence.OriginalDefinition.SpecialType==SpecialType.System_Collections_Generic_IEnumerable_T){
+            (fragment.BorrowsGroupOnly,fragment.ReadsGroupCountOnly)=AnalyzeGroupUse(lambda,semanticModel);
+            fragment.ReturnsGroupLongCount=fragment.ReturnTypeName=="long"&&this.ReturnsGroupLongCount(lambda,semanticModel);
+        }
+        if(semanticModel is not null&&expression is LambdaExpressionSyntax keyLambda
+            &&fragment.ParameterTypeNames.Length==1&&TryGetLambdaExpressionBody(keyLambda,out var keyBody)){
+            var keyOp=semanticModel.GetOperation(keyBody);
+            if(keyOp is IBinaryOperation{
+                Type.SpecialType:SpecialType.System_Int32,OperatorMethod:null,IsLifted:false
+            } keyOperation){
+                // 範囲だけを求める。生成するキー式は元の評価順を保つ。
+                fragment.SmallIntKeyRange=keyOperation switch{
+                    {OperatorKind:BinaryOperatorKind.Remainder,RightOperand.ConstantValue:{HasValue:true,Value:int divisor}}
+                        when divisor is >0 and <=128=>IsNonNegativeOperation(keyOperation.LeftOperand)?(0,divisor-1):(1-divisor,divisor-1),
+                    {OperatorKind:BinaryOperatorKind.And,RightOperand.ConstantValue:{HasValue:true,Value:int mask}}
+                        when mask is >=0 and <=255=>(0,mask),
+                    {OperatorKind:BinaryOperatorKind.And,LeftOperand.ConstantValue:{HasValue:true,Value:int mask}}
+                        when mask is >=0 and <=255=>(0,mask),
+                    _=>null,
+                };
+            }else if(keyOp?.Type?.SpecialType==SpecialType.System_Byte){
+                fragment.SmallIntKeyRange=(0,255);
+            }else if(keyOp?.Type?.SpecialType==SpecialType.System_SByte){
+                fragment.SmallIntKeyRange=(-128,127);
+            }
+        }
+        return true;
+    }
+
+    private static bool IsNonNegativeOperation(Microsoft.CodeAnalysis.IOperation? operation){
+        if(operation is null){return false;}
+        if(operation is Microsoft.CodeAnalysis.Operations.IInvocationOperation invocation && invocation.TargetMethod.ContainingType?.ToDisplayString()=="System.Math" && invocation.TargetMethod.Name=="Abs"){
+            return true;
+        }
+        if(operation is Microsoft.CodeAnalysis.Operations.IBinaryOperation {OperatorKind:Microsoft.CodeAnalysis.Operations.BinaryOperatorKind.And,RightOperand.ConstantValue:{HasValue:true,Value:int mask1}} && mask1>=0){
+            return true;
+        }
+        if(operation is Microsoft.CodeAnalysis.Operations.IBinaryOperation {OperatorKind:Microsoft.CodeAnalysis.Operations.BinaryOperatorKind.And,LeftOperand.ConstantValue:{HasValue:true,Value:int mask2}} && mask2>=0){
+            return true;
+        }
+        if(operation.ConstantValue is {HasValue:true,Value:int c} && c>=0){
+            return true;
+        }
+        if(operation is Microsoft.CodeAnalysis.Operations.IConversionOperation {Operand.Type.SpecialType:Microsoft.CodeAnalysis.SpecialType.System_UInt32 or Microsoft.CodeAnalysis.SpecialType.System_UInt16 or Microsoft.CodeAnalysis.SpecialType.System_Byte}){
+            return true;
+        }
+        return false;
+    }
+
+    private bool ReturnsGroupLongCount(LambdaExpressionSyntax lambda,SemanticModel model){
+        if(lambda is not ParenthesizedLambdaExpressionSyntax {ParameterList.Parameters.Count:2} pair
+            ||!TryGetLambdaExpressionBody(lambda,out var body)
+            ||括弧除去(body) is not InvocationExpressionSyntax invocation
+            ||model.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method
+            ||(method.ReducedFrom??method) is not {Name:"LongCount",Parameters.Length:1} definition
+            ||definition.ContainingType.ToDisplayString()!="System.Linq.Enumerable"){
+            return false;
+        }
+        var source=method.ReducedFrom is null
+            ?invocation.ArgumentList.Arguments[0].Expression
+            :(invocation.Expression as MemberAccessExpressionSyntax)?.Expression;
+        return source is not null&&SymbolEqualityComparer.Default.Equals(
+            model.GetSymbolInfo(括弧除去(source)).Symbol,model.GetDeclaredSymbol(pair.ParameterList.Parameters[1]));
+    }
+
+    private static (bool Borrowed,bool CountOnly) AnalyzeGroupUse(LambdaExpressionSyntax lambda,SemanticModel model){
+        if(lambda is not ParenthesizedLambdaExpressionSyntax {ParameterList.Parameters.Count:2} pair
+            ||model.GetDeclaredSymbol(pair.ParameterList.Parameters[1]) is not IParameterSymbol group){
+            return default;
+        }
+        var hasCount=false;
+        var countOnly=true;
+        foreach(var reference in lambda.Body.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>()){
+            if(!SymbolEqualityComparer.Default.Equals(model.GetSymbolInfo(reference).Symbol,group)){
+                continue;
+            }
+            if(reference.Ancestors().OfType<AnonymousFunctionExpressionSyntax>().FirstOrDefault()!=lambda
+                ||reference.Parent is not MemberAccessExpressionSyntax member
+                ||member.Expression!=reference
+                ||member.Parent is not InvocationExpressionSyntax call
+                ||model.GetSymbolInfo(call).Symbol is not IMethodSymbol method
+                ||method.ReducedFrom?.ContainingType.ToDisplayString()!="System.Linq.Enumerable"
+                ||method.Name is not ("Count" or "LongCount" or "Any" or "Sum" or "Min" or "Max" or "Average")){
+                return default;
+            }
+            var isCount=method.Name=="Count"&&method.Parameters.Length==0;
+            hasCount|=isCount;
+            countOnly&=isCount;
+        }
+        return (true,hasCount&&countOnly);
+    }
+
+    private bool BuildFunctionCore(
+        ExpressionSyntax expression,
+        ITypeSymbol delegateType,
+        ref int uniqueNumber,
+        out FuncFragment fragment,
+        SemanticModel? semanticModel = null,
+        INamedTypeSymbol? containingType = null) {
+        fragment=null!;
+        // 直接渡したラムダを展開する。変数・フィールドは再代入やclosureの状態を持つため、
+        // 宣言時の式へ戻さず、既存のDelegateFuncFragmentで呼び出し時の値を保持する。
 
         if(expression is LambdaExpressionSyntax lambda) {
+            // 外側のlocal functionはメソッド内の字句scopeに属し、helper structから名前で呼べない。
+            // callbackの構築を元scopeに残し、local functionが参照するclosureセルも維持する。
+            if(semanticModel is not null&&ReferencesOuterLocalFunction(lambda,semanticModel)
+                &&TryCreateDelegateFuncFragment(expression,delegateType,ref uniqueNumber,out fragment,semanticModel,containingType)){
+                fragment.ExecutionNote="[scope] 外側のlocal functionを参照するcallbackは元の字句scopeでdelegateを構築。helperへの本文持出しを避け、closureセルと呼出し順を維持する。LINQの走査・融合は展開する。";
+                return true;
+            }
+            // 可変の外側local/parameterをstructの値コピーに変えると、元のclosureセルへの書込みが失われる。
+            // このcallbackだけdelegateで同じセルを参照し、外側の走査/演算融合は維持する。
+            if(semanticModel is not null&&!ContainsAnonymousType(delegateType)){
+                var flow=semanticModel.AnalyzeDataFlow(lambda.Body);
+                if(flow?.Succeeded==true&&flow.WrittenInside.Any(symbol=>symbol is ILocalSymbol or IParameterSymbol&&symbol.Name!="this"
+                    &&!symbol.DeclaringSyntaxReferences.Any(reference=>reference.SyntaxTree==lambda.SyntaxTree&&lambda.Span.Contains(reference.Span)))){
+                    if(TryCreateDelegateFuncFragment(expression,delegateType,ref uniqueNumber,out fragment,semanticModel,containingType)){
+                        fragment.ExecutionNote="[capture] 外側の可変local/parameterは元のclosureセルをdelegate経由で共有。値コピーへの変形と自動並列化を行わない。";return true;
+                    }
+                }
+            }
             // 複数文ブロック本体（=>{ ...; return x; ... }、try-catch 含む）は BlockFunc で文インライン化する。
             // source generator の生成コードを検証する。
             if(lambda.Body is BlockSyntax lambdaBlock
@@ -1271,102 +1540,48 @@ public sealed partial class FLinqIncrementalGenerator {
             return true;
         }
 
-        if(expression is AnonymousMethodExpressionSyntax anonymousMethod) {
-            // delegate(){ ...; return x; ... }（try-catch 含む複数文）も BlockFunc で文インライン化する。
-            if(anonymousMethod.Block is BlockSyntax anonymousBlock
-                &&!IsSingleReturnBlock(anonymousBlock)
-                &&TryBuildBlockFunc(anonymousBlock,GetAnonymousMethodParameters(anonymousMethod),delegateType,semanticModel,containingType,out var anonymousBlockFunc)) {
-                fragment=anonymousBlockFunc;
-                return true;
-            }
-
-            if(!TryCreateAnonymousMethodFuncFragment(anonymousMethod,delegateType,out var anonymousSpec,out var bodyExpression)) {
-                // delegate 式が匿名型を返す場合も AnonymousDelegateFuncFragment を生成する。
-                if(delegateType is INamedTypeSymbol { TypeArguments.Length:>0 } anonFuncType
-                    &&anonFuncType.TypeArguments.Any(ContainsAnonymousType)
-                    &&semanticModel is not null&&containingType is not null) {
-                    var anonReturnTypeName = ReplaceAnonymousTypesWithTResult(anonFuncType.TypeArguments[anonFuncType.TypeArguments.Length-1]);
-                    var anonParamTypeNames = anonFuncType.TypeArguments.Take(anonFuncType.TypeArguments.Length-1)
-                        .Select(t => t.ToDisplayString(完全修飾形式)).ToArray();
-                    var anonParamNames = GetAnonymousMethodParameters(anonymousMethod).ToArray();
-                    var anonDelegateTypeName = $"global::System.Func<{string.Join(", ",anonParamTypeNames.Append(anonReturnTypeName))}>";
-                    var anonFieldName = $"_anonDel{uniqueNumber++}";
-                    var anonCtorCollector = new List<string>();
-                    var anonCtorArg = RenderExpressionForGeneratedMethod(anonymousMethod,semanticModel,containingType,anonCtorCollector);
-                    fragment=new AnonymousDelegateFuncFragment(anonDelegateTypeName,anonFieldName,anonCtorArg) {
-                        ReturnTypeName=anonReturnTypeName,
-                        ParameterTypeNames=anonParamTypeNames,
-                        ParameterNames=anonParamNames,
-                        CanGenerateMethod=false,
-                        BodyUnsafeAccessorCodes=anonCtorCollector
-                            .Distinct(StringComparer.Ordinal)
-                            .ToArray(),
-                        ContainsAnchor=AnchorAnalysis.ContainsAnchor(anonymousMethod,semanticModel),
-                    };
-                    return true;
-                }
-                throw new InvalidOperationException($"delegate 式をインライン展開できませんでした。LINQ delegate: '{NormalizeExpressionText(anonymousMethod.ToString())}'。理由: 本体が単一 return 文ではないか、delegate 型を解決できませんでした。");
-            }
-
-            var body = anonymousSpec.Body;
-            var capturedLocals = Array.Empty<(string Name,string TypeName)>();
-            var hoistedLocals = Array.Empty<HoistedLocal>();
-            var bodyAccessorCodes = Array.Empty<string>();
-            var capturesThis = false;
-            IReadOnlyCollection<ExpressionSyntax> hoistedExpressions = Array.Empty<ExpressionSyntax>();
-            IReadOnlyDictionary<string,string>? hoistReplacementMap = null;
-            if(semanticModel is not null&&containingType is not null) {
-                if(TryHoistInvariantSubexpressions(
-                    bodyExpression,
-                    anonymousSpec.ParameterNames,
-                    semanticModel,
-                    containingType,
-                    ref uniqueNumber,
-                    out hoistReplacementMap,
-                    out hoistedLocals,
-                    out var hoistAccessorCodes,
-                    out hoistedExpressions)) {
-                    bodyAccessorCodes=hoistAccessorCodes;
-                }
-                var bodyCollector = new List<string>();
-                body=RenderExpressionForGeneratedMethod(bodyExpression,semanticModel,containingType,bodyCollector,hoistReplacementMap);
-                bodyAccessorCodes=bodyAccessorCodes.Concat(bodyCollector).ToArray();
-
-                var dataFlow = semanticModel.AnalyzeDataFlow(bodyExpression);
-                if(dataFlow?.Succeeded==true) {
-                    var paramSet = new HashSet<string>(anonymousSpec.ParameterNames,StringComparer.Ordinal);
-                    var thisSymbol = dataFlow.DataFlowsIn.FirstOrDefault(sym => sym.Name=="this") as IParameterSymbol;
-                    capturesThis=thisSymbol is not null
-                        &&SymbolReferencedOutsideHoistedExpressions(thisSymbol,bodyExpression,hoistedExpressions,semanticModel);
-                    capturedLocals=dataFlow.DataFlowsIn
-                        .Where(sym => (sym is ILocalSymbol||sym is IParameterSymbol)&&!paramSet.Contains(sym.Name)&&sym.Name!="this")
-                        .Where(sym => SymbolReferencedOutsideHoistedExpressions(sym,bodyExpression,hoistedExpressions,semanticModel))
-                        .Select(sym => (sym.Name,sym is ILocalSymbol loc
-                            ? loc.Type.ToDisplayString(完全修飾形式)
-                            : ((IParameterSymbol)sym).Type.ToDisplayString(完全修飾形式)))
-                        .ToArray();
-                }
-            }
-
-            fragment=new LambdaFunc {
-                ReturnTypeName=anonymousSpec.ReturnTypeName,
-                ParameterTypeNames=anonymousSpec.ParameterTypeNames,
-                ParameterNames=anonymousSpec.ParameterNames,
-                CanGenerateMethod=!capturesThis&&capturedLocals.Length==0,
-                CanInlineAssign=true,
-                InlineBody=body,
-                CapturedLocals=capturedLocals,
-                HoistedLocals=hoistedLocals,
-                BodyUnsafeAccessorCodes=bodyAccessorCodes,
-                ContainsAnchor=AnchorAnalysis.ContainsAnchor(bodyExpression,semanticModel),
+        if(expression is AnonymousMethodExpressionSyntax anonymousMethod
+            &&delegateType is INamedTypeSymbol {TypeArguments.Length:>0} anonFuncType
+            &&anonFuncType.TypeArguments.Any(ContainsAnonymousType)
+            &&semanticModel is not null&&containingType is not null){
+            // 元のdelegateを呼んだ後に内部表現へ写像し、本体はインライン展開しない。
+            var returnType=anonFuncType.TypeArguments[anonFuncType.TypeArguments.Length-1];
+            var registry=this.state.AnonymousRegistry;
+            var projection=registry?.ProjectAnonymousValue(returnType,"result");
+            if(projection is null||anonFuncType.TypeArguments.Take(anonFuncType.TypeArguments.Length-1).Any(ContainsAnonymousType)){return false;}
+            var anonReturnTypeName=registry!.ResolveClosedName(returnType);
+            var anonParamTypeNames=anonFuncType.TypeArguments.Take(anonFuncType.TypeArguments.Length-1)
+                .Select(t=>t.ToDisplayString(完全修飾形式)).ToArray();
+            var anonParamNames=GetAnonymousMethodParameters(anonymousMethod).ToArray();
+            var anonDelegateTypeName=$"global::System.Func<{string.Join(", ",anonParamTypeNames.Append(anonReturnTypeName))}>";
+            var anonFieldName=$"_anonDel{uniqueNumber++}";
+            var anonCtorCollector=new List<string>();
+            var anonCtorArg=RenderExpressionForGeneratedMethod(anonymousMethod,semanticModel,containingType,anonCtorCollector);
+            var adapted=$"global::Seamless.Linq.GeneratedCodeHelpers.MapDelegateResult({anonCtorArg},static result=>{projection})";
+            fragment=new DelegateFuncFragment(anonDelegateTypeName,anonFieldName,adapted){
+                ReturnTypeName=anonReturnTypeName,
+                ParameterTypeNames=anonParamTypeNames,
+                ParameterNames=anonParamNames,
+                CanGenerateMethod=false,
+                CanInlineAssign=false,
+                ExecutionNote="[delegate] delegate構文の本体を保持し、インライン展開しない。",
+                BodyUnsafeAccessorCodes=anonCtorCollector.Distinct(StringComparer.Ordinal).ToArray(),
+                ContainsAnchor=AnchorAnalysis.ContainsAnchor(anonymousMethod,semanticModel),
             };
             return true;
         }
-
         if(TryCreateDelegateFuncFragment(expression,delegateType,ref uniqueNumber,out fragment,semanticModel,containingType)) {
             return true;
         }
 
+        return false;
+    }
+
+    private static bool ReferencesOuterLocalFunction(LambdaExpressionSyntax lambda,SemanticModel model){
+        foreach(var name in lambda.DescendantNodes().OfType<SimpleNameSyntax>()){
+            if(model.GetSymbolInfo(name).Symbol is not IMethodSymbol{MethodKind:MethodKind.LocalFunction} function){continue;}
+            if(!function.DeclaringSyntaxReferences.Any(reference=>reference.SyntaxTree==lambda.SyntaxTree&&lambda.Span.Contains(reference.Span))){return true;}
+        }
         return false;
     }
 
@@ -1406,23 +1621,58 @@ public sealed partial class FLinqIncrementalGenerator {
         var returnTypeSym = funcType.TypeArguments[funcType.TypeArguments.Length-1];
 
         var strippedBody = StripParentheses(body);
-        if(ContainsAnonymousType(returnTypeSym)&&strippedBody is not AnonymousObjectCreationExpressionSyntax) {
-            // identity lambda (p=>p) は引数の struct record をそのまま返せるため通過させる。
-            // それ以外（本体ルートが匿名生成式でも identity でもない）は struct record
-            // ファクトリへ変換できないため、呼び出し元の TryBuildAnonExitDelegateFuncFragment へ委ねる。
-            if(strippedBody is not IdentifierNameSyntax identityId||!parameters.Contains(identityId.Identifier.ValueText)) {
-                return false;
-            }
+        if(ContainsAnonymousType(returnTypeSym)&&!CanRenderTupleValue(strippedBody)){
+            return false;
         }
 
         var parameterTypeNames = paramTypeSyms.Select(registry.ResolveClosedName).ToArray();
         var returnTypeName = registry.ResolveClosedName(returnTypeSym);
 
         var bodyCollector = new List<string>();
-        var bodyText = strippedBody is AnonymousObjectCreationExpressionSyntax anonCreate
-            ? registry.RenderAnonymousCreation(anonCreate,semanticModel,
-                expr => RenderExpressionForGeneratedMethod(expr,semanticModel,containingType,bodyCollector))
-            : RenderExpressionForGeneratedMethod(body,semanticModel,containingType,bodyCollector);
+        var bodyText=RenderTupleValue(strippedBody);
+
+        bool CanRenderTupleValue(ExpressionSyntax expression){
+            expression=StripParentheses(expression);
+            if(semanticModel.GetTypeInfo(expression).Type is not{} type||!ContainsAnonymousType(type)){
+                return true;
+            }
+            if(expression is AnonymousObjectCreationExpressionSyntax anonymous){
+                return anonymous.Initializers.All(item=>CanRenderTupleValue(item.Expression));
+            }
+            if(expression is ImplicitArrayCreationExpressionSyntax array){
+                return array.Initializer.Expressions.All(CanRenderTupleValue);
+            }
+            if(expression is TupleExpressionSyntax tuple){
+                return tuple.Arguments.All(item=>CanRenderTupleValue(item.Expression));
+            }
+            if(expression is IdentifierNameSyntax identifier){
+                return parameters.Contains(identifier.Identifier.ValueText);
+            }
+            if(expression is MemberAccessExpressionSyntax member){
+                return CanRenderTupleValue(member.Expression)&&RootedInParameter(member.Expression);
+            }
+            return false;
+        }
+        bool RootedInParameter(ExpressionSyntax expression){
+            while(expression is MemberAccessExpressionSyntax member){expression=member.Expression;}
+            return expression is IdentifierNameSyntax id&&parameters.Contains(id.Identifier.ValueText);
+        }
+        string RenderTupleValue(ExpressionSyntax expression){
+            expression=StripParentheses(expression);
+            if(expression is AnonymousObjectCreationExpressionSyntax anonymous){
+                return registry.RenderAnonymousCreation(anonymous,semanticModel,RenderTupleValue);
+            }
+            if(expression is ImplicitArrayCreationExpressionSyntax array
+                &&semanticModel.GetTypeInfo(array).Type is{} arrayType&&ContainsAnonymousType(arrayType)){
+                return "new[]{"+string.Join(",",array.Initializer.Expressions.Select(RenderTupleValue))+"}";
+            }
+            if(expression is TupleExpressionSyntax tuple
+                &&semanticModel.GetTypeInfo(tuple).Type is{} tupleType&&ContainsAnonymousType(tupleType)){
+                return "("+string.Join(",",tuple.Arguments.Select(item=>item.NameColon?.ToString()+RenderTupleValue(item.Expression)))+")";
+            }
+            var rendered=RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,bodyCollector);
+            return AnonymousTupleRegistry.RewriteMembers(expression,semanticModel,rendered);
+        }
 
         var capturedLocals = Array.Empty<(string Name,string TypeName)>();
         var capturesThis = false;
@@ -1459,6 +1709,8 @@ public sealed partial class FLinqIncrementalGenerator {
             CapturedLocals=capturedLocals,
             BodyUnsafeAccessorCodes=bodyCollector.ToArray(),
             ContainsAnchor=AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
+            TupleHashMembers=AnonymousTupleRegistry.HashMembers(returnTypeSym),
+            ExecutionNote="[中間値] 匿名型の内部受渡しをValueTupleへ展開。外部署名は元の型を使用。",
         };
         return true;
     }
@@ -1536,37 +1788,6 @@ public sealed partial class FLinqIncrementalGenerator {
             BodyUnsafeAccessorCodes=bodyCollector.ToArray(),
             ContainsAnchor=AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
         };
-        return true;
-    }
-
-    /// <summary>
-    /// LINQ に渡された識別子またはメンバーアクセス式が、宣言時にラムダ／<c>delegate</c> で初期化された
-    /// ローカル変数またはフィールドであるかを判定し、そのイニシャライザ式を返す。
-    /// <br/>成功条件: シンボルが <c>ILocalSymbol</c> または <c>IFieldSymbol</c> であり、
-    /// 宣言の <c>VariableDeclarator.Initializer.Value</c> が <see cref="Microsoft.CodeAnalysis.CSharp.Syntax.LambdaExpressionSyntax"/>
-    /// または <see cref="Microsoft.CodeAnalysis.CSharp.Syntax.AnonymousMethodExpressionSyntax"/> であること。
-    /// <br/><c>field</c> / <c>this.field</c> / <c>Type.field</c> のいずれの参照形でも対象にする。
-    /// <br/>delegate 変数呼び出しを delegate Invoke として残す経路は作らない。
-    /// </summary>
-    private bool TryGetInlineableDelegateVariableInitializer(
-        ExpressionSyntax expression,
-        SemanticModel? semanticModel,
-        out ExpressionSyntax initializerExpression) {
-        initializerExpression=null!;
-        if(semanticModel is null
-            ||expression is not (IdentifierNameSyntax or MemberAccessExpressionSyntax)) {
-            return false;
-        }
-
-        var symbol = semanticModel.GetSymbolInfo(expression).Symbol;
-        if(symbol is not (ILocalSymbol or IFieldSymbol)
-            ||symbol.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not VariableDeclaratorSyntax {
-                Initializer.Value: LambdaExpressionSyntax or AnonymousMethodExpressionSyntax
-            } variableDeclarator) {
-            return false;
-        }
-
-        initializerExpression=variableDeclarator.Initializer.Value;
         return true;
     }
 
@@ -1691,6 +1912,16 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
+        if(HasReorderedRangeArguments(invocation,method)) {
+            // 名前付き引数は束縛先と記述順の両方を保持する。
+            fragment=new Root(uniqueNumber++,
+                RenderExpressionForGeneratedMethod(invocation,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
+                "int","global::System.Collections.Generic.IEnumerator<int>",true) {
+                SourceContainsAnchor=AnchorAnalysis.ContainsAnchor(invocation,semanticModel),
+            };
+            return true;
+        }
+
         var context = new RootFactoryContext(
             semanticModel,
             invocation,
@@ -1706,6 +1937,7 @@ public sealed partial class FLinqIncrementalGenerator {
         uniqueNumber=context.UniqueNumber;
         return true;
     }
+
     private bool TryBuildKnownEnumerableRootFromOrdinaryMethod(
         SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
@@ -2041,6 +2273,18 @@ public sealed partial class FLinqIncrementalGenerator {
         if(IsListType(expressionType)) {
             return new ListRoot(number,sourceExpression,elementTypeName);
         }
+        if(IsTransactionRowsType(expressionType,out _)){
+            return new TransactionRowsRoot(number,sourceExpression,elementTypeName,enumeratorTypeName,((INamedTypeSymbol)expressionType!).TypeArguments[0].ToDisplayString(完全修飾形式));
+        }
+        if(IsDatabaseTableType(expressionType)){
+            return new DatabaseRowsRoot(number,"("+sourceExpression+").GetQueryRows()",elementTypeName,enumeratorTypeName);
+        }
+        if(IsDatabaseRowsType(expressionType)){
+            return new DatabaseRowsRoot(number,sourceExpression,elementTypeName,enumeratorTypeName);
+        }
+        if(IsTransactionCollectionType(expressionType)){
+            return new TransactionRowsRoot(number,"("+sourceExpression+").Rows",elementTypeName,enumeratorTypeName,((INamedTypeSymbol)expressionType!).TypeArguments[0].ToDisplayString(完全修飾形式));
+        }
         if(IsTsavoriteParallelSetType(expressionType,out _)) {
             return new TsavoriteParallelSetRoot(number,sourceExpression,elementTypeName,enumeratorTypeName);
         }
@@ -2358,50 +2602,6 @@ public sealed partial class FLinqIncrementalGenerator {
             parameterTypeNames,
             parameters.ToArray(),
             NormalizeExpressionText(body.ToString()));
-        return true;
-    }
-
-    /// <summary>
-    /// <c>delegate(params) { return expr; }</c> の単一 return 本体から <see cref="LambdaSpec"/> を抽出する。
-    /// 複数文ブロックや戻り値なし本体は失敗する（<see cref="TryBuildBlockFunc"/> の対象になる）。
-    /// </summary>
-    private bool TryCreateAnonymousMethodFuncFragment(
-        AnonymousMethodExpressionSyntax anonymousMethod,
-        ITypeSymbol delegateType,
-        out LambdaSpec fragment,
-        out ExpressionSyntax body) {
-        fragment=null!;
-        body=null!;
-
-        if(anonymousMethod.Block.Statements.Count!=1
-            ||anonymousMethod.Block.Statements[0] is not ReturnStatementSyntax { Expression: { } returnExpression }) {
-            return false;
-        }
-
-        if(delegateType is not INamedTypeSymbol funcType
-            ||!IsInlineDelegateType(funcType)) {
-            return false;
-        }
-
-        if(funcType.TypeArguments.Any(ContainsAnonymousType)) {
-            return false;
-        }
-
-        var parameters = anonymousMethod.ParameterList?.Parameters
-            .Select(parameter => parameter.Identifier.ValueText)
-            .ToArray()??new string[0];
-        var typeArguments = funcType.TypeArguments.Select(typeArgument => typeArgument.ToDisplayString(完全修飾形式)).ToArray();
-        var parameterTypeNames = typeArguments.Take(typeArguments.Length-1).ToArray();
-        if(parameters.Length!=parameterTypeNames.Length) {
-            return false;
-        }
-
-        body=returnExpression;
-        fragment=new LambdaSpec(
-            typeArguments[typeArguments.Length-1],
-            parameterTypeNames,
-            parameters,
-            NormalizeExpressionText(returnExpression.ToString()));
         return true;
     }
 

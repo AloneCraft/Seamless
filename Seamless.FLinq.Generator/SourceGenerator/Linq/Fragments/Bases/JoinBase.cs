@@ -25,6 +25,13 @@ JoinBase は Join/GroupJoin/LeftJoin/RightJoin 系の lookup 構築を共有す�
   - resultSelector が匿名型を返す場合は TResult factory か delegate 保持に寄せる。
 */
 internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,FuncFragment outerKeySelector,FuncFragment innerKeySelector,FuncFragment resultSelector,string comparer):Enumerable(番号) {
+    internal Enumerable TransactionOuter=>this.outerSource;
+    internal Enumerable TransactionInner=>this.innerSource;
+    internal FuncFragment TransactionOuterKey=>this.outerKey;
+    internal FuncFragment TransactionInnerKey=>this.innerKey;
+    internal FuncFragment TransactionResult=>this.resultSelector;
+    internal string TransactionComparer=>this.comparerExpression;
+    internal int TransactionNumber=>番号;
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -57,7 +64,14 @@ internal abstract class JoinBase(int 番号,Enumerable outer,Enumerable inner,Fu
     protected readonly FuncFragment outerKey = outerKeySelector;
     protected readonly FuncFragment innerKey = innerKeySelector;
     protected readonly FuncFragment resultSelector = resultSelector;
-    protected readonly string comparerExpression = comparer;
+    protected readonly string comparerExpression = RenderJoinComparer(comparer,innerKeySelector);
+    private static string RenderJoinComparer(string comparer,FuncFragment key){
+        if(comparer!="null"||key.TupleHashMembers.Length==0){
+            return comparer;
+        }
+        var parts=string.Join("",key.TupleHashMembers.Select(static member=>$"hash.Add(value.{member});"));
+        return $"global::System.Collections.Generic.EqualityComparer<{key.ReturnTypeName}>.Create(static (left,right)=>left.Equals(right),static value=>{{var hash=new global::System.HashCode();{parts}return hash.ToHashCode();}})";
+    }
     protected override Enumerable PrimarySource => this.outerSource;
     protected bool UseResultTypeParam => this.resultSelector.RequiresResultTypeParameter;
     protected string InnerKeyType => FuncReturnTypeName(this.innerKey);

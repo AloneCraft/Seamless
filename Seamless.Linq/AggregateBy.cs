@@ -30,7 +30,8 @@ namespace Seamless.Linq {
         :IValueEnumerator<KeyValuePair<TKey,TAccumulate>>
         where TEnumerator : struct, IValueEnumerator<TSource> {
         private TEnumerator source = source;
-        private DictionarySlim<TKey,TAccumulate>? dictionary;
+        private bool initialized;
+        private DictionarySlim<TKey,TAccumulate> dictionary;
         private DictionarySlim<TKey,TAccumulate>.Enumerator enumerator;
 
         public bool TryGetNonEnumeratedCount(out int count) {
@@ -46,7 +47,7 @@ namespace Seamless.Linq {
         public bool TryCopyTo(scoped Span<KeyValuePair<TKey,TAccumulate>> destination,Index offset) => false;
 
         public bool TryGetNext(out KeyValuePair<TKey,TAccumulate> current) {
-            if(this.dictionary==null) {
+            if(!this.initialized) {
                 // if empty, don't create dictionary.
                 if(this.source.TryGetNonEnumeratedCount(out var count)&&count==0) {
                     Unsafe.SkipInit(out current);
@@ -63,6 +64,7 @@ namespace Seamless.Linq {
             return false;
         }
         private void Initialize() {
+            this.initialized=true;
             using(this.source) {
                 if(this.source.TryGetSpan(out var span)) {
                     var dict = keyComparer!=null
@@ -94,7 +96,9 @@ namespace Seamless.Linq {
         }
 
         public void Dispose() {
-            this.dictionary?.Dispose();
+            if(this.initialized) {
+                this.dictionary.Dispose();
+            }
             this.source.Dispose();
         }
     }
@@ -105,7 +109,8 @@ namespace Seamless.Linq {
         :IValueEnumerator<KeyValuePair<TKey,TAccumulate>>
         where TEnumerator : struct, IValueEnumerator<TSource> {
         private TEnumerator source = source;
-        private DictionarySlim<TKey,TAccumulate>? dictionary;
+        private bool initialized;
+        private DictionarySlim<TKey,TAccumulate> dictionary;
         private DictionarySlim<TKey,TAccumulate>.Enumerator enumerator;
 
         public bool TryGetNonEnumeratedCount(out int count) {
@@ -121,7 +126,7 @@ namespace Seamless.Linq {
         public bool TryCopyTo(scoped Span<KeyValuePair<TKey,TAccumulate>> destination,Index offset) => false;
 
         public bool TryGetNext(out KeyValuePair<TKey,TAccumulate> current) {
-            if(this.dictionary==null) {
+            if(!this.initialized) {
                 // if empty, don't create dictionary.
                 if(this.source.TryGetNonEnumeratedCount(out var count)&&count==0) {
                     Unsafe.SkipInit(out current);
@@ -139,6 +144,7 @@ namespace Seamless.Linq {
             return false;
         }
         private void Initialize() {
+            this.initialized=true;
             using(this.source) {
                 if(this.source.TryGetSpan(out var span)) {
                     var dict = keyComparer!=null
@@ -170,7 +176,9 @@ namespace Seamless.Linq {
         }
 
         public void Dispose() {
-            this.dictionary?.Dispose();
+            if(this.initialized) {
+                this.dictionary.Dispose();
+            }
             this.source.Dispose();
         }
     }

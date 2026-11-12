@@ -165,7 +165,19 @@ internal abstract class SetBase(int 番号,Enumerable source,Enumerable second,s
         var setName = $"__set{番号}";
         var builder = new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
-        builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
+        var secondSource = !operation.PreloadSecondFirst&&this.Comparer=="null" ? second switch{
+            DirectSpanRootBase direct=>direct.SourceExpression,
+            Root {DirectEnumerableExpression:{} expression}=>expression,
+            _=>null
+        } : null;
+        if(secondSource is not null){
+            var captured=$"__secondSource{番号}";
+            builder.AppendLine($"var {captured}={secondSource};");
+            builder.AppendLine($"global::System.ArgumentNullException.ThrowIfNull({captured},\"second\");");
+            builder.AppendLine($"using var {secondName}={RenderEnumeratorExpression(second.EnumeratorTypeName,captured)};");
+        }else{
+            builder.AppendLine($"using var {secondName}={second.GetEnumeratorExpression};");
+        }
         if(this.CanUseSortedDefaultUnionFastPath()) {
             this.AppendSortedDefaultUnionFastPath(builder,sourceName,secondName,consumerName);
         }
@@ -173,7 +185,7 @@ internal abstract class SetBase(int 番号,Enumerable source,Enumerable second,s
             this.AppendSortedIntSetFastPath(builder,sourceName,secondName,consumerName);
         }
         if(!operation.PreloadSecondFirst) {
-            this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName);
+            this.AppendBinaryHashSetInitialization(builder,setName,sourceName,secondName,probeSecond:secondSource is null||second is not Root);
         } else {
             if(operation.SourceAcceptMethod=="Add") {
                 // Except は第1ソースの要素も集合へ足すので、両方の件数の和で作る(足しながら広げ直さない)。
@@ -212,7 +224,7 @@ internal abstract class SetBase(int 番号,Enumerable source,Enumerable second,s
         return $"({source.ElementType})(object?){valueName}!";
     }
 
-    private void AppendBinaryHashSetInitialization(StringBuilder builder,string setName,string sourceName,string secondName) {
+    private void AppendBinaryHashSetInitialization(StringBuilder builder,string setName,string sourceName,string secondName,bool probeSecond=true) {
         var sourceCount = $"__sourceCount_{setName}";
         var secondCount = $"__secondCount_{setName}";
         var sourceHasCount = $"__sourceHasCount_{setName}";
@@ -220,7 +232,9 @@ internal abstract class SetBase(int 番号,Enumerable source,Enumerable second,s
         builder.AppendLine($"var {sourceCount}=0;");
         builder.AppendLine($"var {secondCount}=0;");
         builder.AppendLine($"var {sourceHasCount}={sourceName}.TryGetNonEnumeratedCount(out {sourceCount});");
-        builder.AppendLine($"var {secondHasCount}={secondName}.TryGetNonEnumeratedCount(out {secondCount});");
+        // 任意のIEnumerableではCountプロパティの呼出しも観測できる。
+        var secondCountExpression=probeSecond?$"{secondName}.TryGetNonEnumeratedCount(out {secondCount})":"false";
+        builder.AppendLine($"var {secondHasCount}={secondCountExpression};");
         builder.AppendLine($"if({sourceHasCount}||{secondHasCount}) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();");
         builder.AppendLine($"using var {setName}={sourceHasCount}&&{secondHasCount}");
         builder.AppendLine($"    ? new global::Seamless.Linq.HashSetSlim<{source.ElementType}>({sourceCount}+{secondCount},(global::System.Collections.Generic.IEqualityComparer<{source.ElementType}>?){this.Comparer})");

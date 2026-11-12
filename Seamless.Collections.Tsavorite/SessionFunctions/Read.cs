@@ -5,10 +5,14 @@ using global::System.Diagnostics.CodeAnalysis;
 /// Read 経路はこの処理では使用しない。
 /// Read 経路はこの処理では使用しない。
 /// </summary>
-public readonly struct Read<TValue, TStrategy>():
+public readonly struct Read<TValue, TStrategy>:
     ISessionFunctions<EqualityEmpty,TValue,EqualityEmpty>,
     ICreate<Read<TValue,TStrategy>> where TStrategy : global::Seamless.Collections.Serializers.IStrategy<TValue> {
+    private readonly StoreSerializer<TValue,TStrategy> serializer;
+    public Read():this(null){}
+    public Read(global::Seamless.Execution.ResourceBudget? budget){this.serializer=new(budget);}
     public static Read<TValue,TStrategy> Create() => new();
+    public static Read<TValue,TStrategy> Create(global::Seamless.Execution.ResourceBudget? budget)=>new(budget);
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static void ThrowReadOnlyEntryPoint() {
@@ -24,7 +28,7 @@ public readonly struct Read<TValue, TStrategy>():
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref TValue output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {
         // Read 経路はこの処理では使用しない。
-        output=TStrategy.Deserialize(srcLogRecord.ValueSpan);
+        output=this.serializer.Deserialize(srcLogRecord.ValueSpan);
         return true;
     }
     [ExcludeFromCodeCoverage]
@@ -160,7 +164,7 @@ public readonly struct Read<TValue, TStrategy>():
     }
     public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref EqualityEmpty input,ref TValue output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
         if(status.Found)
-            output=TStrategy.Deserialize(diskLogRecord.ValueSpan);
+            output=this.serializer.Deserialize(diskLogRecord.ValueSpan);
     }
     [ExcludeFromCodeCoverage]
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input)

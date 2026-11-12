@@ -20,14 +20,17 @@ public sealed class QueryDictionaryBuffer<TKey,TValue>:IDisposable where TKey:no
     public int Count=>this.values?.Count??0;
     public void Add(TKey key,TValue value){
         this.Check();var payload=checked(this.payload+128L);
-        if(this.keyCodec is not null){payload=checked(payload+4L*this.keyCodec.GetEncodedLength(key));}if(this.valueCodec is not null){payload=checked(payload+4L*this.valueCodec.GetEncodedLength(value));}
+        if(this.keyCodec is Codecs.IOwnedAdapter<TKey> keyOwned){payload=checked(payload+keyOwned.GetRetainedSize(key));}
+        else if(this.keyCodec is not null){payload=checked(payload+4L*this.keyCodec.GetEncodedLength(key));}
+        if(this.valueCodec is Codecs.IOwnedAdapter<TValue> valueOwned){payload=checked(payload+valueOwned.GetRetainedSize(value));}
+        else if(this.valueCodec is not null){payload=checked(payload+4L*this.valueCodec.GetEncodedLength(value));}
         // entry/bucketの余剰容量と再確保中の旧領域を保守的に予約。件数だけで全件配列を作らない。
         var bytes=checked(128L+(this.values!.Count+1L)*(Unsafe.SizeOf<TKey>()+Unsafe.SizeOf<TValue>()+32L)*6+payload);var previous=this.memory.Bytes;
         this.memory.Resize(bytes);
         try{this.values.Add(key,value);}catch{this.memory.Resize(previous);throw;}
         this.payload=payload;
     }
-    public Dictionary<TKey,TValue> ToDictionary(){this.Check();var result=this.values!;this.values=null;return result;}
+    public Dictionary<TKey,TValue> ToDictionary(){this.Check();var result=this.values!;this.values=null;this.memory.Resize(0);return result;}
     private void Check(){ObjectDisposedException.ThrowIf(this.disposed,this);if(this.values is null){throw new InvalidOperationException("The result has already been transferred.");}this.scope.ThrowIfUnavailable();this.validate?.Invoke();}
     public void Dispose(){if(this.disposed){return;}this.disposed=true;this.values=null;try{this.memory.Dispose();}finally{this.scope.Release(this);}}
 }

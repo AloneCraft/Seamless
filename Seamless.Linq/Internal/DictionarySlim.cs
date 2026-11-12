@@ -22,6 +22,8 @@ public struct DictionarySlim<TKey, TValue>:IDisposable // allows TKey null
 
     public int Count => this.entryIndex;
 
+    public DictionarySlim():this(null){ }
+
     public DictionarySlim(IEqualityComparer<TKey>? comparer = null) {
         this.comparer=comparer??EqualityComparer<TKey>.Default;
         this.isDefaultComparer=comparer is null||ReferenceEquals(comparer,EqualityComparer<TKey>.Default);

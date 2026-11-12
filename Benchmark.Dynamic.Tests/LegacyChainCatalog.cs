@@ -38,7 +38,7 @@ public sealed class LegacyChainCatalog{
     }
     [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static (DynamicQueryValue? Value,string? Exception) Execute(LoadedDynamicQuery query,DynamicImplementationKind implementation,object primary,object secondary){
-        try{return(query.Run(implementation,primary,secondary),null);}
-        catch(Exception exception){return(null,exception.GetType().FullName);}
+        var observed=DirectQueryExecution.Capture(()=>query.Run(implementation,primary,secondary));
+        return(observed.Value,observed.Exception?.GetType().FullName);
     }
 }

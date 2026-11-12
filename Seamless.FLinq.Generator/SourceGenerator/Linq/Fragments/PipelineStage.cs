@@ -38,6 +38,7 @@ internal sealed class PipelineStage(
     // 融合できる集約の候補(段を作るときに解析だけしておく)。融合するかは、段の並びが揃った後で GroupByFusionPass が下流の要求を見て決める。
     // GroupBy の後の Select の段(Select の形)か、結果選択子つきの GroupBy の段(結果選択子の形)に付く。
     public GroupByAggregatePlan? AggregateCandidate { get; } = aggregateCandidate;
+    internal bool HasParallelHint{get;set;}
     public bool ContainsAnchor { get; } = containsAnchor
         ||func?.ContainsAnchor==true
         ||secondFunc?.ContainsAnchor==true

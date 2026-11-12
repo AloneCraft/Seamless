@@ -1,4 +1,4 @@
-﻿namespace Seamless.Collections.Tsavorite;
+namespace Seamless.Collections.Tsavorite;
 
 /// <summary>
 /// Tsavorite のハッシュセット実装。
@@ -289,11 +289,11 @@ public partial class HashSet<TKey> {
         TKey
     > GetEnumerator() {
         this.VerifyThreadAffinity();
-        return new(this.ReadSession,new(),this.Store.Log.TailAddress,this);
+        return new(this.ReadSession,new(this.SerializationBudget),this.Store.Log.TailAddress,this);
     }
     IEnumerator<TKey> IMemoryCollection<TKey>.GetEnumerator() {
         this.VerifyThreadAffinity();
-        return new Enumerator<MemoryKeyIterator,TKey>(this.ReadSession,new(),this.Store.Log.TailAddress,this);
+        return new Enumerator<MemoryKeyIterator,TKey>(this.ReadSession,new(this.SerializationBudget),this.Store.Log.TailAddress,this);
     }
     public partial void ExceptWith(HashSet<TKey> other) {
         ArgumentNullException.ThrowIfNull(other);

@@ -133,21 +133,22 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
             TValue,//TOutput
             EqualityEmpty,//TContext
             Remove_TKey_TValue<TValue,TValueSerializer>//TFunctions
-        >(new());
+        >(new(this.SerializationBudget));
         this.Remove_KeyValuePair_ClientSession=Store.NewSession<
             FixedSpanByteKey,//TKey
             TValue,//TInput
             bool,//TOutput
             EqualityEmpty,//TContext
             Remove_KeyValuePair<TValue,TValueSerializer>//TFunctions
-        >(new());
+        >(new(this.SerializationBudget));
     }
     public unsafe bool Remove(KeyValuePair<TKey,TValue> item) {
         this.VerifyThreadAffinity();
         var Session = this.Remove_KeyValuePair_ClientSession;
         var Key0 = item.Key;
         var Value0 = item.Value;
-        var KeyBytes = TKeySerializer.Serialize(ref Key0);
+        using var serializedKey=this.keySerializer.Serialize(ref Key0);
+        var KeyBytes=serializedKey.Bytes;
         var Output = false;
         Status Status;
         fixed(byte* _ = KeyBytes) {
@@ -163,7 +164,8 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
     public unsafe bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value) {
         this.VerifyThreadAffinity();
         var Session = this.Remove_TKey_TValue_ClientSession;
-        var KeyBytes = TKeySerializer.Serialize(ref key);
+        using var serializedKey=this.keySerializer.Serialize(ref key);
+        var KeyBytes=serializedKey.Bytes;
         var Input = default(EqualityEmpty);
         TValue Output = default!;
         Status Status;
@@ -185,11 +187,11 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         KeyValuePair<TKey,TValue>
     > GetEnumerator() {
         this.VerifyThreadAffinity();
-        return new(this.ReadSession,new(),this.Store.Log.TailAddress,this);
+        return new(this.ReadSession,new(this.SerializationBudget),this.Store.Log.TailAddress,this);
     }
     IEnumerator<KeyValuePair<TKey,TValue>> IMemoryCollection<KeyValuePair<TKey,TValue>>.GetEnumerator() {
         this.VerifyThreadAffinity();
-        return new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadSession,new(),this.Store.Log.TailAddress,this);
+        return new Enumerator<MemoryKeyValueIterator,KeyValuePair<TKey,TValue>>(this.ReadSession,new(this.SerializationBudget),this.Store.Log.TailAddress,this);
     }
     private ReadOnlyCollectionView<TIterator,T> CreateCollectionView<TIterator, T>()
         where TIterator : IterateLookupIteratorFunctions_List<T>, ICreate<TIterator> =>
@@ -225,7 +227,7 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         }
         public Enumerator<TIterator,T> GetEnumerator() {
             dictionary.VerifyThreadAffinity();
-            return new(dictionary.ReadSession,TIterator.Create(),dictionary.Store.Log.TailAddress,dictionary);
+            return new(dictionary.ReadSession,TIterator.Create(dictionary.SerializationBudget),dictionary.Store.Log.TailAddress,dictionary);
         }
         IEnumerator<T> IEnumerable<T>.GetEnumerator() => this.GetEnumerator();
         IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
@@ -239,8 +241,9 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
         }
         set {
             this.VerifyThreadAffinity("Item");
-            var KeyBytes = TKeySerializer.Serialize(ref key);
-            var ValueLength = TValueSerializer.Serialize(ref value).Length;
+            using var serializedKey=this.keySerializer.Serialize(ref key);
+            var KeyBytes=serializedKey.Bytes;
+            var ValueLength = this.valueSerializer.GetEncodedLength(ref value);
             if(this.WouldOverflowMutable(KeyBytes.Length,ValueLength))
                 throw this.ThrowLogFull();
             // Upsert は挿入か上書きかを返さないので、RMW で書いて新規かどうかを受け取り、件数を保つ。
@@ -250,7 +253,7 @@ public partial class Dictionary<TKey, TValue, TKeySerializer, TValueSerializer> 
                 bool,//TOutput
                 EqualityEmpty,//TContext
                 SetValue<TValue,TValueSerializer>//TFunctions
-            >(new());
+            >(new(this.SerializationBudget));
             var Output = false;
             Status Status;
             unsafe {

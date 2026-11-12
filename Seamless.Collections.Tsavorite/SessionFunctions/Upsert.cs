@@ -9,7 +9,11 @@ using global::System.Diagnostics.CodeAnalysis;
 public readonly struct Upsert<TValue, TStrategy>:
     ISessionFunctions<TValue,bool,EqualityEmpty>,
     ICreate<Upsert<TValue,TStrategy>> where TStrategy : global::Seamless.Collections.Serializers.IStrategy<TValue> {
+    private readonly StoreSerializer<TValue,TStrategy> serializer;
+    public Upsert():this(null){}
+    public Upsert(global::Seamless.Execution.ResourceBudget? budget){this.serializer=new(budget);}
     public static Upsert<TValue,TStrategy> Create() => new();
+    public static Upsert<TValue,TStrategy> Create(global::Seamless.Execution.ResourceBudget? budget)=>new(budget);
     [ExcludeFromCodeCoverage]
     [DoesNotReturn]
     private static void ThrowReadDeleteEntryPoint() {
@@ -123,7 +127,8 @@ public readonly struct Upsert<TValue, TStrategy>:
 
     public bool InitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
         // TValueをStrategy側でシリアライズしてログレコードに書き込む。
-        return dstLogRecord.TrySetValueSpanAndPrepareOptionals(TStrategy.Serialize(ref input),in sizeInfo);
+        using var serialized=this.serializer.Serialize(ref input);
+        return dstLogRecord.TrySetValueSpanAndPrepareOptionals(serialized.Bytes,in sizeInfo);
     }
 
     public void PostInitialUpdater(ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
@@ -203,7 +208,7 @@ public readonly struct Upsert<TValue, TStrategy>:
 
     public RecordFieldInfo GetRMWModifiedFieldInfo<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input)
         where TSourceLogRecord : ISourceLogRecord {
-        return new() { KeySize=srcLogRecord.KeyBytes.Length,ValueSize=TStrategy.Serialize(ref input).Length };
+        return new() { KeySize=srcLogRecord.KeyBytes.Length,ValueSize=this.serializer.GetEncodedLength(ref input) };
     }
 
     public RecordFieldInfo GetRMWInitialFieldInfo<TKey>(TKey key,ref TValue input)
@@ -212,7 +217,7 @@ public readonly struct Upsert<TValue, TStrategy>:
 #else
         where TKey : IKey{
 #endif
-        return new() { KeySize=key.KeyBytes.Length,ValueSize=TStrategy.Serialize(ref input).Length };
+        return new() { KeySize=key.KeyBytes.Length,ValueSize=this.serializer.GetEncodedLength(ref input) };
     }
 
     public RecordFieldInfo GetUpsertFieldInfo<TKey>(TKey key,ReadOnlySpan<byte> value,ref TValue input)

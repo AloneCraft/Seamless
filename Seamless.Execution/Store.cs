@@ -17,9 +17,11 @@ public sealed class Store:IDisposable{
     private readonly List<IStoreComponent> components=[];
     private readonly List<Checkpoint> checkpoints;
     private readonly FileStream? lockStream;
+    private FileStream? manifestReadLease;
     private readonly string? directoryPath;
     private Checkpoint? current;
     private bool disposed;
+    private ExecutionScope? parentOwner;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string,ProfileResolution> profiles=new(StringComparer.Ordinal);
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string,Growth.Event> growthDecisions=new(StringComparer.Ordinal);
     private readonly System.Collections.Concurrent.ConcurrentQueue<Growth.Event> growthEvents=new();
@@ -70,8 +72,31 @@ public sealed class Store:IDisposable{
             throw;
         }
     }
+    /// <summary>
+    /// 既存のロックとマニフェストを必須として開く読取復旧用の入口。欠損した保存先を新規ストアとして作らない。
+    /// マニフェストの読取handleを破棄まで保持するため、書込・Saveを行う用途では<see cref="Open"/>を使用する。
+    /// </summary>
+    public static Store OpenExisting(string directory,StoreLimits? limits=null,StoreOptions? options=null,ResourceBudget? parentBudget=null){
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+        var fullPath=Path.GetFullPath(directory);
+        var lease=new FileStream(Path.Combine(fullPath,LockFileName),FileMode.Open,FileAccess.ReadWrite,FileShare.None);
+        FileStream? manifestFile=null;
+        try{
+            // Windowsでは開いている間のマニフェスト削除・差替えも防ぐ。Linuxのunlinkはこの共有指定では防げない。
+            manifestFile=new(Path.Combine(fullPath,ManifestFileName),FileMode.Open,FileAccess.Read,FileShare.Read);
+            var manifest=JsonSerializer.Deserialize<Manifest>(manifestFile);
+            if(manifest is null||manifest.Format!=FormatName||manifest.Checkpoints is null){throw new InvalidDataException($"'{fullPath}' is not a Seamless store manifest.");}
+            return new(StoreKind.Persistent,fullPath,limits,lease,manifest.Checkpoints,options,parentBudget){manifestReadLease=manifestFile};
+        }catch{manifestFile?.Dispose();lease.Dispose();throw;}
+    }
     /// <summary>ディスクを使わないストアを作る。保存はできない。</summary>
     public static Store CreateMemory(StoreLimits? limits=null,StoreOptions? options=null,ResourceBudget? parentBudget=null)=>new(StoreKind.Memory,null,limits,null,[],options,parentBudget);
+    internal static Store CreateWork(ExecutionScope owner,StoreLimits limits,string temporaryDirectory,StoreOptions? options){
+        var store=CreateTemporary(limits,temporaryDirectory,options,owner.Budget);
+        store.parentOwner=owner;
+        try{owner.Own(store);return store;}
+        catch{store.Dispose();throw;}
+    }
     public StoreOptions Options{get;}
     public IReadOnlyDictionary<string,ProfileResolution> ResolvedProfiles=>new Dictionary<string,ProfileResolution>(this.profiles,StringComparer.Ordinal);
     public IReadOnlyList<Growth.Event> GrowthEvents=>this.growthEvents.ToArray();
@@ -305,6 +330,7 @@ public sealed class Store:IDisposable{
     }
     /// <summary>登録済みの子資源を破棄する。保存はしない。一時ストアはフォルダを全削除する。</summary>
     public void Dispose(){
+        try{
         lock(this.gate){
             if(this.disposed){
                 return;
@@ -320,6 +346,11 @@ public sealed class Store:IDisposable{
             }
             this.components.Clear();
             try{
+                this.manifestReadLease?.Dispose();
+            }catch(Exception error){
+                (errors??=[]).Add(error);
+            }
+            try{
                 this.lockStream?.Dispose();
             }catch(Exception error){
                 (errors??=[]).Add(error);
@@ -334,6 +365,10 @@ public sealed class Store:IDisposable{
             if(errors is not null){
                 throw new AggregateException("Store cleanup failed.",errors);
             }
+        }
+        }finally{
+            // 親は子のDisposeを呼ぶため、Storeのロックを解放してから所有参照を外す。
+            Interlocked.Exchange(ref this.parentOwner,null)?.Release(this);
         }
     }
     private static void ValidateName(string name){

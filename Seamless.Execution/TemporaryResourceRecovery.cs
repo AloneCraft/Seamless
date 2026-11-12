@@ -26,6 +26,10 @@ public static class TemporaryResourceRecovery{
         if((File.GetAttributes(directory)&FileAttributes.ReparsePoint)!=0){return;}
         var name=Path.GetFileName(directory);
         if(name.Length!=prefix.Length+32||!Guid.TryParseExact(name[prefix.Length..],"N",out _)){return;}
+        var metadata=Path.Combine(directory,"owner.json");
+        // owner.jsonは所有者ロックの取得後に作られる。存在するまでは作成中の領域へロックを取りに行かない。
+        // 内容は排他取得後に読む。存在確認だけなら、破棄中のファイルを開いたままにしない。
+        if(!File.Exists(metadata)){return;}
         // 使用中のスコープ・ストアの owner.json には触れない。先に所有者ロックを取り、取れなければ(使用中なので)飛ばす。
         // 先に owner.json を読むと、使用中のスコープが破棄で owner.json を削除するのと競合して、破棄の側が共有違反で失敗する。
         var ownerLock=Path.Combine(directory,"owner.lock");
@@ -34,7 +38,6 @@ public static class TemporaryResourceRecovery{
         try{lease=new(ownerLock,FileMode.Open,FileAccess.ReadWrite,FileShare.None);}
         catch(IOException){return;}
         using(lease){
-            var metadata=Path.Combine(directory,"owner.json");
             if(!File.Exists(metadata)){return;}
             JsonDocument document;
             try{document=JsonDocument.Parse(File.ReadAllText(metadata));}

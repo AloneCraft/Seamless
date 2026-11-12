@@ -26,6 +26,8 @@ PipelineEnumerable は Where/Select/Take/OrderBy など複数 stage を1つの e
   1つの Struct に state field と loop 分岐を集め、CountPreserving な場合は TryCopyTo もまとめて生成する。
 */
 internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IReadOnlyList<PipelineStage> stages,string elementType):Enumerable(番号) {
+    internal string? ParallelSlots{get;init;}
+    internal string? OrderHint{get;init;}
     // Explicit Fragment child visitor
     protected override IEnumerable<Fragment> GetChildFragments() {
         foreach(var child in base.GetChildFragments()) {
@@ -163,24 +165,41 @@ internal sealed partial class PipelineEnumerable(int 番号,Enumerable source,IR
         RenderEnumeratorExpression(this.EnumeratorTypeName,this.EnumeratorArguments(sourceEnumeratorExpression).ToArray());
 
     // 列挙子の構造体のコンストラクタへ渡す引数(GetEnumeratorPrimaryConstructorParameters と同じ順)。
-    private List<string> EnumeratorArguments(string sourceEnumeratorExpression) {
-        var args = new List<string> { sourceEnumeratorExpression };
-        foreach(var second in this.SecondSources) {
-            args.Add(second.GetEnumeratorExpression);
+    private List<string> EnumeratorArguments(string sourceEnumeratorExpression) =>
+        this.EnumeratorArgumentEntries(sourceEnumeratorExpression)
+            .Select(static e => e.IsNamed ? $"{e.Name}: {e.Value}" : e.Value)
+            .ToList();
+
+    internal List<(string Name, string Value, bool IsNamed)> EnumeratorArgumentEntries(string sourceEnumeratorExpression) {
+        var args=new List<(string Name, string Value, bool IsNamed)>{(this.e, sourceEnumeratorExpression, false)};
+        var names=new HashSet<string>(StringComparer.Ordinal);
+        var comparerStages=new HashSet<PipelineStage>(this.ComparerStages());
+        var orderComparerStages=new HashSet<PipelineStage>(this.OrderComparerStages());
+        void Add(string name,string value){
+            if(names.Add(name)){args.Add((name, value, true));}
         }
-        foreach(var stage in this.CountStages()) {
-            args.Add(stage.Value!);
+        // 名前付き引数で宣言順と評価順を分け、元のチェインの引数を段の順に一度だけ評価する。
+        for(var index=0;index<stages.Count;index++){
+            var stage=stages[index];
+            if(stage.SecondSource is not null){
+                Add(this.SecondEnumeratorName(this.SecondOrdinal(index)),stage.SecondSource.GetEnumeratorExpression);
+            }
+            var functions=new[]{stage.Func,stage.SecondFunc,stage.ThirdFunc}.Where(static function=>function is not null);
+            if(stage.AggregatePlan is { } aggregate){functions=functions.Concat(aggregate.Items.Select(static item=>item.InnerFunc).Where(static function=>function is not null));}
+            foreach(var function in functions){
+                var plan=ClosureRenderPlan.Create(function!);
+                foreach(var capture in plan.Captures){Add(capture.Name,capture.Name);}
+                foreach(var local in plan.HoistedLocals){Add(local.Name,local.ExpressionText);}
+                foreach(var callback in plan.Delegates){Add(callback.DelegateFieldName!,callback.DelegateConstructorArg!);}
+            }
+            if(stage.Kind is PipelineStageKind.Take or PipelineStageKind.Skip or PipelineStageKind.SkipLast or PipelineStageKind.TakeLast){
+                Add(this.CountName(this.CountOrdinal(index)),stage.Value!);
+            }
+            if(stage.Kind==PipelineStageKind.TakeRange){Add(this.RangeName(this.RangeOrdinal(index)),stage.Value!);}
+            if(comparerStages.Contains(stage)){Add(this.ComparerName(this.ComparerOrdinal(index)),this.EqualityComparerExpression(stage));}
+            if(orderComparerStages.Contains(stage)){Add(this.OrderComparerName(this.OrderComparerOrdinal(index)),this.OrderComparerExpression(stage));}
+            if(stage.Kind is PipelineStageKind.Append or PipelineStageKind.Prepend){Add(this.ElementArgumentName(index),stage.Value!);}
         }
-        foreach(var stage in this.RangeStages()) {
-            args.Add(stage.Value!);
-        }
-        foreach(var stage in this.ComparerStages()) {
-            args.Add(this.EqualityComparerExpression(stage));
-        }
-        foreach(var stage in this.OrderComparerStages()) {
-            args.Add(this.OrderComparerExpression(stage));
-        }
-        args.AddRange(this.ClosureArgsWithoutPrefix());
         return args;
     }
 }

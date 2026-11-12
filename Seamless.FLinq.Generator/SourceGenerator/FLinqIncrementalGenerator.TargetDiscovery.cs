@@ -9,11 +9,15 @@ public sealed partial class FLinqIncrementalGenerator {
             return null;
         }
 
-        if(context.SemanticModel.GetSymbolInfo(invocation,cancellationToken).Symbol is not IMethodSymbol method) {
+        return Linq傍受対象生成(context.SemanticModel,invocation,cancellationToken);
+    }
+
+    internal static Linq傍受探索結果? Linq傍受対象生成(SemanticModel semanticModel,InvocationExpressionSyntax invocation,CancellationToken cancellationToken){
+        if(semanticModel.GetSymbolInfo(invocation,cancellationToken).Symbol is not IMethodSymbol method) {
             return null;
         }
 
-        if(TryCreateLocalMethodInterceptionTarget(context,invocation,method,cancellationToken,out var localMethodTarget,out var diagnostic)) {
+        if(TryCreateLocalMethodInterceptionTarget(semanticModel,invocation,method,cancellationToken,out var localMethodTarget,out var diagnostic)) {
             return new(localMethodTarget,null);
         }
         if(diagnostic is not null) {
@@ -41,7 +45,7 @@ public sealed partial class FLinqIncrementalGenerator {
     }
 
     private static bool TryCreateLocalMethodInterceptionTarget(
-        GeneratorSyntaxContext context,
+        SemanticModel semanticModel,
         InvocationExpressionSyntax invocation,
         IMethodSymbol method,
         CancellationToken cancellationToken,
@@ -110,7 +114,12 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        var containingMethod = context.SemanticModel.GetDeclaredSymbol(containingMethodSyntax,cancellationToken);
+        if(OwnsDatabaseTransaction(method,semanticModel.Compilation,cancellationToken)
+            &&(!CanReconstructAsyncBody(method)||!HasStandaloneLinqQuery(method,semanticModel.Compilation,cancellationToken))){
+            return false;
+        }
+
+        var containingMethod = semanticModel.GetDeclaredSymbol(containingMethodSyntax,cancellationToken);
         if(containingMethod is null) {
             return false;
         }
@@ -119,14 +128,14 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        var linqAnalysis = LinqExpressionAnalyzer.Analyze(method,context.SemanticModel.Compilation);
+        var linqAnalysis = LinqExpressionAnalyzer.Analyze(method,semanticModel.Compilation);
         if(!linqAnalysis.HasEnumerableCall) {
             return false;
         }
 
-        var configuration = LinqConfigurationResolver.Resolve(method,context.SemanticModel.Compilation);
-        var optimizeLinq = LinqRewrite判定(method,context.SemanticModel.Compilation);
-        var counterInstrumentation = LinqInstrumentation判定(method,context.SemanticModel.Compilation);
+        var configuration = LinqConfigurationResolver.Resolve(method,semanticModel.Compilation);
+        var optimizeLinq = LinqRewrite判定(method,semanticModel.Compilation);
+        var counterInstrumentation = LinqInstrumentation判定(method,semanticModel.Compilation);
         if(!optimizeLinq&&!counterInstrumentation) {
             return false;
         }
@@ -136,7 +145,7 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        var interceptableLocation = Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptableLocation(context.SemanticModel,invocation,cancellationToken);
+        var interceptableLocation = Microsoft.CodeAnalysis.CSharp.CSharpExtensions.GetInterceptableLocation(semanticModel,invocation,cancellationToken);
         if(interceptableLocation is null) {
             return false;
         }
@@ -171,7 +180,7 @@ public sealed partial class FLinqIncrementalGenerator {
             method,
             invocation,
             containingMethod.ContainingType,
-            context.SemanticModel,
+            semanticModel,
             parameterSpecs,
             configuration,
             linqAnalysis,
@@ -256,11 +265,61 @@ public sealed partial class FLinqIncrementalGenerator {
             if(typeParameter.HasConstructorConstraint) {
                 parts.Add("new()");
             }
+            if(typeParameter.AllowsRefLikeType){
+                parts.Add("allows ref struct");
+            }
             if(parts.Count>0) {
                 clauses.Add($"where {typeParameter.Name} : {string.Join(", ",parts)}");
             }
         }
         return clauses.Count==0 ? string.Empty : " "+string.Join(" ",clauses);
+    }
+
+    private static bool CanReconstructAsyncBody(IMethodSymbol method)=>method.IsAsync&&method.ReturnType is INamedTypeSymbol returned
+        &&returned.ContainingNamespace.ToDisplayString()=="System.Threading.Tasks"&&returned.Name is "Task" or "ValueTask";
+    private static bool HasStandaloneLinqQuery(IMethodSymbol method,Compilation compilation,CancellationToken cancellationToken){
+        // 条件は元の位置で呼ぶ局所関数へ展開できる場合だけ対象にする。先行評価は行わない。
+        foreach(var reference in method.DeclaringSyntaxReferences){
+            var syntax=reference.GetSyntax(cancellationToken);var model=compilation.GetSemanticModel(syntax.SyntaxTree);
+            foreach(var call in syntax.DescendantNodes().OfType<InvocationExpressionSyntax>()){
+                var statement=call.FirstAncestorOrSelf<StatementSyntax>();
+                if(statement is not(LocalDeclarationStatementSyntax or ReturnStatementSyntax or ExpressionStatementSyntax)){
+                    ExpressionSyntax? condition=statement switch{IfStatementSyntax branch=>branch.Condition,WhileStatementSyntax loop=>loop.Condition,DoStatementSyntax loop=>loop.Condition,SwitchStatementSyntax branch=>branch.Expression,_=>null};
+                    if(condition is null||!condition.Span.Contains(call.Span)||!GenerationPipeline.CanLiftConditionQueries(condition,model,method)){continue;}
+                }
+                if(model.GetSymbolInfo(call,cancellationToken).Symbol is IMethodSymbol invoked
+                    &&(invoked.ReducedFrom??invoked).ContainingType.ToDisplayString() is "System.Linq.Enumerable" or "Seamless.Linq.Enumerable"){return true;}
+            }
+        }
+        return false;
+    }
+    private static bool OwnsDatabaseTransaction(IMethodSymbol method,Compilation compilation,CancellationToken cancellationToken){
+        foreach(var reference in method.DeclaringSyntaxReferences){
+            var syntax=reference.GetSyntax(cancellationToken);
+            var model=compilation.GetSemanticModel(syntax.SyntaxTree);
+            foreach(var call in syntax.DescendantNodes().OfType<InvocationExpressionSyntax>()){
+                if(model.GetSymbolInfo(call,cancellationToken).Symbol is not IMethodSymbol invoked){continue;}
+                var returned=invoked.ReturnType as INamedTypeSymbol;
+                if(returned is {IsGenericType:true,TypeArguments.Length:1}
+                    &&returned.ContainingNamespace.ToDisplayString()=="System.Threading.Tasks"
+                    &&returned.Name is "Task" or "ValueTask"){
+                    returned=returned.TypeArguments[0] as INamedTypeSymbol;
+                }
+                if(returned?.ToDisplayString()=="Seamless.Transactions.TransactionScope"){return true;}
+                if(returned?.Name=="TypedTransaction"){
+                    for(var type=returned.ContainingType;type is not null;type=type.BaseType){
+                        if(type.ToDisplayString()=="Seamless.Database.DatabaseContainer"){return true;}
+                    }
+                }
+                if(invoked.Name is not ("BeginAsync" or "BeginReadOnlyAsync" or "BeginTransactionAsync" or "BeginReadOnlyTransactionAsync" or "BeginNested")){continue;}
+                var owner=invoked.ContainingType;
+                if(owner.ToDisplayString() is "Seamless.Transactions.TransactionCoordinator" or "Seamless.Transactions.TransactionScope"){return true;}
+                for(var type=owner;type is not null;type=type.BaseType){
+                    if(type.ToDisplayString()=="Seamless.Database.DatabaseContainer"){return true;}
+                }
+            }
+        }
+        return false;
     }
 
     // [LinqIntercept(true/false)] によるLINQ最適化可否の判定。
@@ -519,6 +578,8 @@ public sealed partial class FLinqIncrementalGenerator {
             }
             if(invokedMethod.ReducedFrom is null
                 &&!GenerationPipeline.IsKnownEnumerableRootMethod(definition)
+                &&!PipelineBuilder.IsStaticToArrayOfPreservedUnion(semanticModel,invocation,invokedMethod)
+                &&!PipelineBuilder.IsStaticRangeUnionCount(semanticModel,invocation,invokedMethod)
                 &&definition.Name!="TryGetNonEnumeratedCount") {
                 continue;
             }

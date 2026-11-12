@@ -162,7 +162,7 @@ public sealed class DynamicDatabase {
     }
 
     // テスト一式を回すと、閉じた直後の DB ファイルを外部(ウイルス対策や索引付け)が短い間つかんで、削除が使用中の IOException になることがある
-    // (単独では通る。接続は Pooling=false で閉じている)。少し待って数回やり直す(Test/Benchmark/Pattern.cs の 一時パスを削除Async と同じ形)。
+    // (単独では通る。接続は Pooling=false で閉じている)。少し待って数回やり直す(Benchmark/Benchmark.Infrastructure.Tests/Migration/Benchmark/Pattern.cs の 一時パスを削除Async と同じ形)。
     internal static void 一時ルートを削除(string ルート) {
         const int 最大試行回数 = 40;
         for(var 試行 = 1;試行<=最大試行回数;試行++) {

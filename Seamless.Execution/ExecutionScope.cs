@@ -23,12 +23,18 @@ public sealed class ExecutionScope:IDisposable,IAsyncDisposable{
     public CodecRegistry Codecs{get;private set;}
     public CancellationToken CancellationToken=>this.options.CancellationToken;
     public int MaximumQueryWorkers=>this.options.MaximumQueryWorkers;
+    /// <summary>親予算と一時領域を共有し、親の終了時にも回収する作業ストアを作る。</summary>
+    public Store CreateWorkStore(StoreLimits? limits=null,StoreOptions? options=null){
+        this.ThrowIfUnavailable();
+        limits??=new(){MemoryBytes=this.Budget.MemoryLimitBytes,DiskBytes=this.Budget.TemporaryStorageLimitBytes};
+        return Store.CreateWork(this,limits,this.options.TemporaryDirectory,options);
+    }
     /// <summary>親予算を共有し、排他・一時資源・型cacheを分ける。親は子の後始末も所有する。</summary>
     public ExecutionScope CreateChild(Action? validate=null,long? memoryLimitBytes=null){
         this.ThrowIfUnavailable();var limit=memoryLimitBytes??this.options.MemoryLimitBytes;ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
         var child=new ExecutionScope(this.options with{ParentBudget=this.Budget,MemoryLimitBytes=limit});
         try{
-            child.Codecs=this.Codecs.Fork();child.validate=()=>{this.ThrowIfUnavailable();validate?.Invoke();};child.parentOwner=this;this.Own(child);return child;
+            child.Codecs=this.Codecs.Fork(child.Budget,child.CancellationToken);child.validate=()=>{this.ThrowIfUnavailable();validate?.Invoke();};child.parentOwner=this;this.Own(child);return child;
         }catch{child.Dispose();throw;}
     }
     public void ThrowIfUnavailable(){
@@ -58,6 +64,12 @@ public sealed class ExecutionScope:IDisposable,IAsyncDisposable{
         var buffer=this.Rent(codec.GetEncodedLength(value));
         try{codec.Encode(value,buffer.Memory.Span);return buffer;}
         catch{buffer.Dispose();throw;}
+    }
+    public OwnedValue<T> DecodeOwned<T>(ReadOnlySpan<byte> source){
+        this.ThrowIfUnavailable();
+        if(this.Codecs.Get<T>() is not Codecs.IOwnedAdapter<T> codec){throw new NotSupportedException("The codec does not provide retained value ownership.");}
+        var owner=codec.DecodeOwned(source);
+        try{owner.Attach(this);this.Own(owner);return owner;}catch{owner.Dispose();throw;}
     }
     public TemporaryFile CreateTemporaryFile(){
         lock(this.gate){

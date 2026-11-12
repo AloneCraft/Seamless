@@ -71,6 +71,7 @@ public sealed partial class FLinqIncrementalGenerator {
         sourceUnsafeAccessorCollector.Clear();
         var generatedFragments = this.state.GeneratedFragments;
         generatedFragments.Clear();
+        this.state.PlanOrigins.Clear();
         var 本体ビルダー = new StringBuilder();
         this.state.LinqInvocationCount=0;
         foreach(var 文 in statements) {
@@ -114,7 +115,7 @@ public sealed partial class FLinqIncrementalGenerator {
         // 機械的な名前(__it2_1 など)を、人が書いたような名前に付け替える。UnsafeAccessor の宣言はこのあとで足すので、外部の名前は触らない。
         this.state.StaticMethods=GeneratedLocalInitializers.Simplify(this.state.StaticMethods);
         本体=GeneratedLocalInitializers.Simplify(本体,methodBody:true);
-        GeneratedNameRenamer.Rename(ref this.state.StaticMethods,ref 本体,this.state.UserIdentifiers,GeneratedNames.Current?.PreferredLocals);
+        GeneratedNameRenamer.Rename(ref this.state.StaticMethods,ref 本体,this.state.UserIdentifiers,GeneratedNames.Current?.PreferredLocals,this.state.ProfileBodyRenames);
         // 構造体の中で自分のメンバーを使うときは this. を付けて揃える(付けると意味が変わる所は付けない)。
         this.state.StaticMethods=GeneratedThisQualifier.Qualify(this.state.StaticMethods);
 
@@ -155,6 +156,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <see cref="AllocateName"/> で enumerator 変数名・current 変数名の衝突を避ける。
     /// </summary>
     private bool フラグメント実行文追加(StringBuilder builder,Fragment fragment,string actualVariableName,string actualTypeName,HashSet<string> usedNames) {
+        if(fragment is Scalar){this.state.ProfileResultVariables[fragment]=actualVariableName;}
         var suffix = SanitizeIdentifier(actualVariableName);
         var enumeratorName = AllocateName(usedNames,$"{suffix}Enumerator");
         var currentName = AllocateName(usedNames,$"{suffix}Current");
@@ -302,7 +304,7 @@ public sealed partial class FLinqIncrementalGenerator {
             fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),this.state.ResolveOuterTypeParameters(containingType).ToImmutableArray()));
         }
         ApplyCounterInstrumentation(fragment,semanticModel,linqInvocation);
-        generatedFragments.Add(fragment);
+        this.生成フラグメントを記録(fragment,linqInvocation,generatedFragments);
         staticMethods=静的メソッドコード連結(staticMethods,invocationStaticMethods);
         staticMethods=静的メソッドコード連結(staticMethods,fragment.GetEnumeratorStruct);
 
@@ -482,7 +484,7 @@ public sealed partial class FLinqIncrementalGenerator {
             }
         }
 
-        generatedFragments.Add(fragment);
+        this.生成フラグメントを記録(fragment,linqInvocation,generatedFragments);
         staticMethods=静的メソッドコード連結(staticMethods,invocationStaticMethods);
         if(materializeInlineComputation is not null) {
             staticMethods=静的メソッドコード連結(staticMethods,((Scalar)fragment).InlineSupportingMembers);
@@ -776,7 +778,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <summary>
     /// <c>try { … } catch(…) { … } finally { … }</c> 文を生成する。
     /// try ブロック・各 catch ブロック・finally ブロックをそれぞれ <see cref="文を生成コードへ変換"/> で再帰処理する。
-    /// catch 宣言・catch フィルター (<c>when</c>) はソーステキストをそのまま出力する。
+    /// catch の型を元の意味解析で完全修飾し、識別子とフィルター (<c>when</c>) のソース表現を保持する。
     /// </summary>
     private bool Try文生成(
         TryStatementSyntax statement,
@@ -798,7 +800,12 @@ public sealed partial class FLinqIncrementalGenerator {
         foreach(var catchClause in statement.Catches) {
             builder.Append("catch");
             if(catchClause.Declaration is not null) {
-                builder.Append(catchClause.Declaration.ToString());
+                var declaration=catchClause.Declaration;
+                var catchType=semanticModel.GetTypeInfo(declaration.Type).Type;
+                if(catchType is not null){
+                    declaration=declaration.WithType(SyntaxFactory.ParseTypeName(catchType.ToDisplayString(完全修飾形式)).WithTriviaFrom(declaration.Type));
+                }
+                builder.Append(declaration.ToString());
             }
             if(catchClause.Filter is not null) {
                 builder.Append(catchClause.Filter.ToString());
@@ -822,6 +829,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// <c>using (declaration) { … }</c> または <c>using (expression) { … }</c> 文を生成する。
     /// 変数宣言がある場合は <see cref="変数宣言生成"/> で型名を完全修飾し、
     /// 式の場合は <see cref="RenderExpressionForGeneratedMethod"/> でレンダリングする。
+    /// await キーワードは宣言・式の両形式で保持する。
     /// 本体は <see cref="文を生成コードへ変換"/> で再帰処理する。
     /// </summary>
     private bool Using文生成(
@@ -836,6 +844,9 @@ public sealed partial class FLinqIncrementalGenerator {
         StringBuilder builder,
         ref int linqInvocationCount,
         HashSet<string> usedNames) {
+        if(!statement.AwaitKeyword.IsKind(SyntaxKind.None)){
+            builder.Append("await ");
+        }
         if(statement.Declaration is not null) {
             builder.AppendLine($"using({変数宣言生成(statement.Declaration,semanticModel,containingType,unsafeAccessorCollector)})");
         } else if(statement.Expression is not null) {
@@ -949,7 +960,7 @@ public sealed partial class FLinqIncrementalGenerator {
 
     /// <summary>
     /// <c>if (cond) { … } else { … }</c> 文を生成する。
-    /// 条件式を <see cref="RenderExpressionForGeneratedMethod"/> でレンダリングし、
+    /// 条件内の終端は元の評価位置で呼ぶローカル関数にし、短絡評価を保持する。
     /// then 節・else 節をそれぞれ <see cref="文を生成コードへ変換"/> で再帰処理する。
     /// </summary>
     private bool If文生成(
@@ -964,7 +975,9 @@ public sealed partial class FLinqIncrementalGenerator {
         StringBuilder builder,
         ref int linqInvocationCount,
         HashSet<string> usedNames) {
-        var condText = RenderExpressionForGeneratedMethod(statement.Condition,semanticModel,containingType,unsafeAccessorCollector);
+        if(!this.TryRenderIfCondition(statement.Condition,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames,out var condText)){
+            return false;
+        }
         builder.AppendLine($"if({condText})");
         if(!本体文生成(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) return false;
         if(statement.Else is not null) {
@@ -1129,7 +1142,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),this.state.ResolveOuterTypeParameters(containingType).ToImmutableArray()));
             }
             ApplyCounterInstrumentation(fragment,semanticModel,invocation);
-            generatedFragments.Add(fragment);
+            this.生成フラグメントを記録(fragment,invocation,generatedFragments);
 
             staticMethods=静的メソッドコード連結(staticMethods,invocationStaticMethods);
             var resultTypeName = semanticModel.GetTypeInfo(invocation).Type?.ToDisplayString(完全修飾形式)
@@ -1145,6 +1158,7 @@ public sealed partial class FLinqIncrementalGenerator {
         var generatedStatement = statement switch {
             LocalDeclarationStatementSyntax localDeclaration => ローカル変数宣言生成(localDeclaration,semanticModel,containingType,replacementMap,unsafeAccessorCollector),
             ExpressionStatementSyntax expressionStatement2 => $"{RenderExpressionForGeneratedMethod(expressionStatement2.Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap)};",
+            ThrowStatementSyntax => RenderStatementForGeneratedMethod(statement,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
             _ => RenderStatementForGeneratedMethod(statement,replacementMap),
         };
         builder.AppendLine(generatedStatement);
@@ -1309,10 +1323,16 @@ public sealed partial class FLinqIncrementalGenerator {
             sourceFragment.ApplyRenderContext(sourceFragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),this.state.ResolveOuterTypeParameters(containingType).ToImmutableArray()));
         }
         ApplyCounterInstrumentation(sourceFragment,semanticModel,sourceExpression);
-        generatedFragments.Add(sourceFragment);
+        this.生成フラグメントを記録(sourceFragment,sourceExpression,generatedFragments);
         staticMethods=静的メソッドコード連結(staticMethods,sourceStaticMethods);
         staticMethods=静的メソッドコード連結(staticMethods,sourceFragment.GetEnumeratorStruct);
         return true;
+    }
+
+    private void 生成フラグメントを記録(Fragment fragment,SyntaxNode source,List<Fragment> generatedFragments){
+        generatedFragments.Add(fragment);
+        var path=source.SyntaxTree.FilePath;
+        this.state.PlanOrigins[fragment]=new(path+":"+source.SpanStart+":"+source.Span.Length,path,source.SpanStart,source.Span.Length,"Expression",source.ToString());
     }
 
     private bool TryGetNonEnumeratedCountInvocation(
@@ -1477,7 +1497,7 @@ public sealed partial class FLinqIncrementalGenerator {
                 fragment.ApplyRenderContext(fragment.RenderContext.WithContainingTypeName(containingType.ToDisplayString(完全修飾形式),this.state.ResolveOuterTypeParameters(containingType).ToImmutableArray()));
             }
             ApplyCounterInstrumentation(fragment,semanticModel,invocation);
-            generatedFragments.Add(fragment);
+            this.生成フラグメントを記録(fragment,invocation,generatedFragments);
             staticMethods=静的メソッドコード連結(staticMethods,invocationStaticMethods);
             var resultTypeName = semanticModel.GetTypeInfo(invocation).Type?.ToDisplayString(完全修飾形式)
                 ??semanticModel.GetTypeInfo(invocation).ConvertedType?.ToDisplayString(完全修飾形式)
@@ -1952,7 +1972,7 @@ public sealed partial class FLinqIncrementalGenerator {
         linqInvocationCount++;
         var tempName2 = AllocateName(usedNames,"queryResult");
         ApplyCounterInstrumentation(currentFragment,semanticModel,queryExpression);
-        generatedFragments.Add(currentFragment);
+        this.生成フラグメントを記録(currentFragment,queryExpression,generatedFragments);
         var returnTypeName = semanticModel.GetTypeInfo(queryExpression).Type?.ToDisplayString(完全修飾形式)
             ??semanticModel.GetTypeInfo(queryExpression).ConvertedType?.ToDisplayString(完全修飾形式)
             ??"object";
@@ -1967,6 +1987,7 @@ public sealed partial class FLinqIncrementalGenerator {
     /// 型名はセマンティックモデルで解決して完全修飾し、初期化式は
     /// <see cref="RenderExpressionForGeneratedMethod"/> と <paramref name="replacementMap"/> で LINQ 一時変数に置換する。
     /// <c>var</c> はそのまま出力する。
+    /// using / await using 宣言のキーワードを保持し、元のブロック末尾で解放する。
     /// </summary>
     private string ローカル変数宣言生成(
         LocalDeclarationStatementSyntax statement,
@@ -1990,7 +2011,14 @@ public sealed partial class FLinqIncrementalGenerator {
                 ? typeSymbol.ToDisplayString(完全修飾形式)
                 : NormalizeExpressionText(declType.ToString());
         }
-        return $"{typeName} {string.Join(", ",variables)};";
+        var prefix=string.Empty;
+        if(!statement.AwaitKeyword.IsKind(SyntaxKind.None)){
+            prefix+="await ";
+        }
+        if(!statement.UsingKeyword.IsKind(SyntaxKind.None)){
+            prefix+="using ";
+        }
+        return $"{prefix}{typeName} {string.Join(", ",variables)};";
     }
 
     /// <summary>
@@ -2008,7 +2036,8 @@ public sealed partial class FLinqIncrementalGenerator {
             // 拡張メソッド呼び出し、または Range/Repeat/Empty root を対象とし、out/ref パラメータ持ちは除外する
             .Where(invocation => SystemLinqEnumerable呼び出し判定(invocation,semanticModel)
                 &&semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol method
-                &&(method.ReducedFrom is not null||IsKnownEnumerableRootMethod(method)||IsStaticSystemEnumerableLowerable(method))
+                &&(method.ReducedFrom is not null||IsKnownEnumerableRootMethod(method)||IsStaticSystemEnumerableLowerable(method)
+                    ||PipelineBuilder.IsStaticRangeUnionCount(semanticModel,invocation,method))
                 &&!(method.ReducedFrom??method).Parameters.Any(static p => p.RefKind!=RefKind.None))
             .Where(invocation => !invocation.Ancestors()
                 .TakeWhile(ancestor => ancestor!=statement)
@@ -2051,7 +2080,8 @@ public sealed partial class FLinqIncrementalGenerator {
             .OfType<InvocationExpressionSyntax>()
             .Where(invocation => SystemLinqEnumerable呼び出し判定(invocation,semanticModel)
                 &&semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol method
-                &&(method.ReducedFrom is not null||IsKnownEnumerableRootMethod(method)||IsStaticSystemEnumerableLowerable(method))
+                &&(method.ReducedFrom is not null||IsKnownEnumerableRootMethod(method)||IsStaticSystemEnumerableLowerable(method)
+                    ||PipelineBuilder.IsStaticRangeUnionCount(semanticModel,invocation,method))
                 &&!(method.ReducedFrom??method).Parameters.Any(static p => p.RefKind!=RefKind.None))
             .Where(invocation => !invocation.Ancestors()
                 .TakeWhile(ancestor => ancestor!=boundary)

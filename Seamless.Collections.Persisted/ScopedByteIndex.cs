@@ -40,12 +40,17 @@ public sealed class ScopedByteIndex:IDisposable{
             slot=this.FindSlot(this.slots,this.capacity,key,out _);
         }
         offset=this.entries.Length;
-        this.entries.Position=offset;
-        Span<byte> prefix=stackalloc byte[4];
-        BinaryPrimitives.WriteInt32LittleEndian(prefix,key.Length);
-        this.entries.Write(prefix);this.entries.Write(key);WriteInt64(this.entries,value);
-        this.slots.Position=slot*8;WriteInt64(this.slots,checked(offset+1));
-        this.LongCount=checked(this.LongCount+1);
+        var count=checked(this.LongCount+1);
+        try{
+            // Reserve the complete entry before publishing its slot.
+            this.entries.SetLength(checked(offset+12+key.Length));
+            this.entries.Position=offset;
+            Span<byte> prefix=stackalloc byte[4];
+            BinaryPrimitives.WriteInt32LittleEndian(prefix,key.Length);
+            this.entries.Write(prefix);this.entries.Write(key);WriteInt64(this.entries,value);
+            this.slots.Position=slot*8;WriteInt64(this.slots,checked(offset+1));
+        }catch{this.entries.SetLength(offset);throw;}
+        this.LongCount=count;
     }
     private long FindSlot(TemporaryFile table,long tableCapacity,ReadOnlySpan<byte> key,out long offset){
         var slot=(long)(Hash(key)%(ulong)tableCapacity);

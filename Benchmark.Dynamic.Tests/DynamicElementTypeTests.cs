@@ -5,13 +5,20 @@ namespace Benchmark.Dynamic.Tests;
 
 /// <summary>
 /// int 以外の要素型のランダムなチェーンを、実Worker経路(System / FLinq 最適化なし・あり / ZLinq)で比べる。
-/// 要素型の次元を足して初めて見つかった FLinq の不具合は、直さずに「既知の不具合」として記録している
-/// (パターンと、最小の再現)。直ったら、対応する表と再現テストを直す。
+/// 修正済みの固定6ケースも同じ生成条件でこの試験から実行する。
 /// </summary>
 [Collection(DynamicWorkerTestCollection.Name)]
 public sealed class DynamicElementTypeTests{
     private const int InputElementCount=16;
     private const int QueriesPerType=30;
+
+    // CS1526、with式、Allの巻上げ、Append/Prepend/Union融合で見つかった固定回帰。
+    private static readonly IReadOnlyDictionary<QueryElementType,int[]> FixedRegressions=new Dictionary<QueryElementType,int[]>{
+        [QueryElementType.CollidingKey]=[0],
+        [QueryElementType.Int256Struct]=[27],
+        [QueryElementType.Order]=[0,27],
+        [QueryElementType.String]=[0,2],
+    };
 
     public static TheoryData<QueryElementType> NonIntTypes=>new(
         Enum.GetValues<QueryElementType>().Where(static type=>type!=QueryElementType.Int));
@@ -61,9 +68,17 @@ public sealed class DynamicElementTypeTests{
     public async Task 要素型ごとのランダムなチェーンが全経路で一致する(QueryElementType type){
         var runner=new DynamicWorkerExecutionRunner();
         var failures=new List<string>();
+        var fixedIndexes=FixedRegressions.GetValueOrDefault(type,[]);
+        Assert.All(fixedIndexes,index=>Assert.InRange(index,0,QueriesPerType-1));
+        var fixedExecuted=0;
         for(var index=0;index<QueriesPerType;index++){
             var query=new RandomQueryGenerator().Generate(Options(type,index));
             var result=await runner.ExecuteAsync(Request(type),query,index,SourceTarget.SystemArray,0,CancellationToken.None);
+            if(fixedIndexes.Contains(index)){
+                Assert.True(result.Status==WorkerExecutionStatus.Succeeded&&result.AssemblyUnloaded,
+                    $"Fixed regression {type} #{index}: {result.Status}, ALC={result.AssemblyUnloaded}{Environment.NewLine}{result.DiagnosticsJson}{Environment.NewLine}{result.ResultJson}");
+                fixedExecuted++;
+            }
             if(result.Status==WorkerExecutionStatus.Succeeded&&result.AssemblyUnloaded){
                 continue;
             }
@@ -73,6 +88,7 @@ public sealed class DynamicElementTypeTests{
             }
             failures.Add($"#{index} Status={result.Status}{Environment.NewLine}  {key}{Environment.NewLine}  {ExtractDifference(result)}");
         }
+        Assert.Equal(fixedIndexes.Length,fixedExecuted);
         Assert.True(
             failures.Count==0,
             $"{type}: {failures.Count}/{QueriesPerType} failed:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");

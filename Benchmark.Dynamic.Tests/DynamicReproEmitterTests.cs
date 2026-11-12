@@ -478,4 +478,100 @@ public sealed class DynamicReproEmitterTests{
     }
 
     private sealed record ReproOutcome(bool Compiled,string Diagnostics,string? Failure,bool Unloaded);
+
+    [Fact,Trait("Category","DumpChain21")]
+    public void Dump_Chain21(){
+        var item = Benchmark.Dynamic.Core.FixedCaseCatalog.All.First(static x => x.ID == "chain-21");
+        var source = Benchmark.Dynamic.Core.FixedCaseCatalog.Emit(item, 15);
+        var compiler = new DynamicQueryCompiler();
+        var cr = compiler.Compile(new DynamicCompilationRequest(
+            "Benchmark.Dynamic.Generated." + Guid.NewGuid().ToString("N"),
+            "Benchmark.Dynamic.Generated.FixedQuery",
+            source,
+            "FixedQuery.cs"));
+        var dumpPath = @"C:\Users\kazuh\.gemini\antigravity\brain\8d6e01a6-59bd-4137-8302-b998808edf07\scratch\chain21_dump.txt";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("=== INPUT SOURCE ===");
+        sb.AppendLine(source);
+        sb.AppendLine("=== EXPANDED SOURCE ===");
+        sb.AppendLine(cr.ExpandedSource);
+        sb.AppendLine("=== DIAGNOSTICS ===");
+        foreach(var d in cr.Diagnostics) {
+            sb.AppendLine($"[{d.Stage}] {d.Severity} {d.ID}: {d.Message} @ {d.Location}");
+        }
+        System.IO.File.WriteAllText(dumpPath, sb.ToString());
+        Assert.True(cr.Success, string.Join("; ", cr.Diagnostics.Select(static d => d.Message)));
+    }
+
+    [Fact,Trait("Category","DumpChain20")]
+    public void Dump_Chain20(){
+        var item = Benchmark.Dynamic.Core.FixedCaseCatalog.All.First(static x => x.ID == "chain-20");
+        var source = Benchmark.Dynamic.Core.FixedCaseCatalog.Emit(item, 15);
+        var compiler = new DynamicQueryCompiler();
+        var cr = compiler.Compile(new DynamicCompilationRequest(
+            "Benchmark.Dynamic.Generated." + Guid.NewGuid().ToString("N"),
+            "Benchmark.Dynamic.Generated.FixedQuery",
+            source,
+            "FixedQuery.cs"));
+        var dumpPath = @"C:\Users\kazuh\.gemini\antigravity\brain\8d6e01a6-59bd-4137-8302-b998808edf07\scratch\chain20_dump.txt";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("=== INPUT SOURCE ===");
+        sb.AppendLine(source);
+        sb.AppendLine("=== EXPANDED SOURCE ===");
+        sb.AppendLine(cr.ExpandedSource);
+        sb.AppendLine("=== DIAGNOSTICS ===");
+        foreach(var d in cr.Diagnostics) {
+            sb.AppendLine($"[{d.Stage}] {d.Severity} {d.ID}: {d.Message} @ {d.Location}");
+        }
+        System.IO.File.WriteAllText(dumpPath, sb.ToString());
+        Assert.True(cr.Success, string.Join("; ", cr.Diagnostics.Select(static d => d.Message)));
+    }
+
+    [Fact,Trait("Category","DumpChain08")]
+    public void Dump_Chain08(){
+        var item = Benchmark.Dynamic.Core.FixedCaseCatalog.All.First(static x => x.ID == "chain-08");
+        var source = Benchmark.Dynamic.Core.FixedCaseCatalog.Emit(item, 15);
+        var compiler = new DynamicQueryCompiler();
+        var cr = compiler.Compile(new DynamicCompilationRequest(
+            "Benchmark.Dynamic.Generated." + Guid.NewGuid().ToString("N"),
+            "Benchmark.Dynamic.Generated.FixedQuery",
+            source,
+            "FixedQuery.cs"));
+        var dumpPath = @"C:\Users\kazuh\.gemini\antigravity\brain\8d6e01a6-59bd-4137-8302-b998808edf07\scratch\chain08_dump.txt";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("=== INPUT SOURCE ===");
+        sb.AppendLine(source);
+        sb.AppendLine("=== EXPANDED SOURCE ===");
+        sb.AppendLine(cr.ExpandedSource);
+        sb.AppendLine("=== DIAGNOSTICS ===");
+        foreach(var d in cr.Diagnostics) {
+            sb.AppendLine($"[{d.Stage}] {d.Severity} {d.ID}: {d.Message} @ {d.Location}");
+        }
+        System.IO.File.WriteAllText(dumpPath, sb.ToString());
+        Assert.True(cr.Success, string.Join("; ", cr.Diagnostics.Select(static d => d.Message)));
+    }
+
+    [Fact,Trait("Category","DumpGroupJoin")]
+    public void Dump_GroupJoin_Count_Dense(){
+        var item = Benchmark.Dynamic.Core.FixedCaseCatalog.All.First(static x => x.ID == "groupjoin-count-dense");
+        var source = Benchmark.Dynamic.Core.FixedCaseCatalog.Emit(item, 15);
+        var compiler = new DynamicQueryCompiler();
+        var cr = compiler.Compile(new DynamicCompilationRequest(
+            "Benchmark.Dynamic.Generated." + Guid.NewGuid().ToString("N"),
+            "Benchmark.Dynamic.Generated.FixedQuery",
+            source,
+            "FixedQuery.cs"));
+        var dumpPath = @"C:\Users\kazuh\.gemini\antigravity\brain\8d6e01a6-59bd-4137-8302-b998808edf07\scratch\groupjoin_dump.txt";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("=== INPUT SOURCE ===");
+        sb.AppendLine(source);
+        sb.AppendLine("=== EXPANDED SOURCE ===");
+        sb.AppendLine(cr.ExpandedSource);
+        sb.AppendLine("=== DIAGNOSTICS ===");
+        foreach(var d in cr.Diagnostics) {
+            sb.AppendLine($"[{d.Stage}] {d.Severity} {d.ID}: {d.Message} @ {d.Location}");
+        }
+        System.IO.File.WriteAllText(dumpPath, sb.ToString());
+        Assert.True(cr.Success, string.Join("; ", cr.Diagnostics.Select(static d => d.Message)));
+    }
 }

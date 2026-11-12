@@ -1,6 +1,18 @@
 namespace Seamless.Linq;
 
 public static class GeneratedCodeHelpers {
+    /// <summary>デリゲート本体を保持して、戻り値の内部表現だけを変換する。</summary>
+    public static Func<TSource,TResult> MapDelegateResult<TSource,TOriginal,TResult>(Func<TSource,TOriginal> callback,Func<TOriginal,TResult> map){
+        ArgumentNullException.ThrowIfNull(callback);
+        ArgumentNullException.ThrowIfNull(map);
+        return value=>map(callback(value));
+    }
+    /// <summary>インデックス付きデリゲートの本体を保持して、戻り値の内部表現だけを変換する。</summary>
+    public static Func<TSource,int,TResult> MapDelegateResult<TSource,TOriginal,TResult>(Func<TSource,int,TOriginal> callback,Func<TOriginal,TResult> map){
+        ArgumentNullException.ThrowIfNull(callback);
+        ArgumentNullException.ThrowIfNull(map);
+        return (value,index)=>map(callback(value,index));
+    }
     /// <summary>
     /// System.Linq の Take(Range) と同じ意味で、範囲が件数を超えても例外にせず [0, count] へ切り詰めた開始位置と長さを返す。
     /// <see cref="Range.GetOffsetAndLength(int)"/> は範囲が件数を超えると ArgumentOutOfRangeException になる。

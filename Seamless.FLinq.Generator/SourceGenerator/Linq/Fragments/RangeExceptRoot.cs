@@ -5,22 +5,21 @@ internal sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<
     internal IReadOnlyList<RangeRoot> Exclusions => exclusions;
     public override string StructMethod => string.Empty;
     public override string ElementType => "int";
+    internal string GetCountExpression=>$"{this.GetEnumeratorExpression}.CountDifference()";
     public override string GetEnumeratorExpression {
         get {
-            var args = new List<string> { source.StartExpression,source.CountExpression };
+            var args = new List<string> { this.GetValidatedRangeExpression(source) };
             foreach(var exclusion in exclusions) {
-                args.Add(exclusion.StartExpression);
-                args.Add(exclusion.CountExpression);
+                args.Add(this.GetValidatedRangeExpression(exclusion));
             }
             return RenderEnumeratorExpression(this.EnumeratorTypeName,args.ToArray());
         }
     }
     public override string GetEnumeratorPrimaryConstructorParameters {
         get {
-            var parameters = new List<string> { "int start","int count" };
+            var parameters = new List<string> { "(int Start,int Count) sourceRange" };
             for(var index = 0;index<exclusions.Count;index++) {
-                parameters.Add($"int excludedStart{index}");
-                parameters.Add($"int excludedCount{index}");
+                parameters.Add($"(int Start,int Count) excluded{index}");
             }
             return string.Join(", ",parameters);
         }
@@ -51,11 +50,18 @@ internal sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<
             {{this.ExclusionFields}}
             private int {{this.e}} = -1;
             public {{this.Struct}}({{this.GetEnumeratorPrimaryConstructorParameters}}){
-                this.start = start;
-                this.count = count;
+                this.start = sourceRange.Start;
+                this.count = sourceRange.Count;
                 {{this.ExclusionAssignments}}
             }
+            public static (int Start,int Count) ValidateRange(int start,int count){
+                if(count<0||(long)start+count-1>int.MaxValue){
+                    throw new global::System.ArgumentOutOfRangeException("count");
+                }
+                return (start,count);
+            }
             public int Current{get;private set;}=default!;
+            {{this.CountExecution}}
             public bool TryGetNonEnumeratedCount(out int count) { count = 0; return false; }
             public bool TryGetSpan(out global::System.ReadOnlySpan<int> span) { span = default; return false; }
             public bool TryCopyTo(scoped global::System.Span<int> destination,global::System.Index offset) => false;
@@ -67,6 +73,48 @@ internal sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<
             public void Dispose(){}
         }
         """;
+    private string CountExecution {
+        get {
+            if(exclusions.Count==1) {
+                return """
+                    public int CountDifference(){
+                        var start=global::System.Math.Max(this.start,this.excludedStart0);
+                        var end=global::System.Math.Min((long)this.start+this.count,(long)this.excludedStart0+this.excludedCount0);
+                        return this.count-(int)global::System.Math.Max(0L,end-start);
+                    }
+                    """;
+            }
+
+            var storage=$"new (long Start,long End)[{exclusions.Count}]";
+            if(exclusions.Count<=16) {
+                storage=$"stackalloc (long Start,long End)[{exclusions.Count}]";
+            }
+            var assignments=new StringBuilder();
+            for(var index=0;index<exclusions.Count;index++) {
+                assignments.AppendLine($"    ranges[{index}]=(this.excludedStart{index},(long)this.excludedStart{index}+this.excludedCount{index});");
+            }
+            return $$"""
+                public int CountDifference(){
+                    global::System.Span<(long Start,long End)> ranges={{storage}};
+                {{assignments.ToString().TrimEnd()}}
+                    global::System.MemoryExtensions.Sort(ranges);
+                    var leftEnd=(long)this.start+this.count;
+                    long coveredEnd=this.start;
+                    long removed=0;
+                    foreach(var range in ranges){
+                        var begin=global::System.Math.Max(coveredEnd,range.Start);
+                        var end=global::System.Math.Min(leftEnd,range.End);
+                        if(begin<end){
+                            removed+=end-begin;
+                            coveredEnd=end;
+                        }
+                    }
+                    return this.count-(int)removed;
+                }
+                """;
+        }
+    }
+
     public override string GetConsumeExecutionStatement(string consumerName) {
         var start = $"__start{番号}";
         var count = $"__count{番号}";
@@ -74,12 +122,10 @@ internal sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<
         var value = $"__value{番号}";
         var builder = new StringBuilder();
         builder.AppendLine("{");
-        builder.AppendLine($"    var {start}={source.StartExpression};");
-        builder.AppendLine($"    var {count}={source.CountExpression};");
+        builder.AppendLine(source.RenderArgumentPreparation(start,count));
         for(var exclusionIndex = 0;exclusionIndex<exclusions.Count;exclusionIndex++) {
             var exclusion = exclusions[exclusionIndex];
-            builder.AppendLine($"    var __excludedStart{番号}_{exclusionIndex}={exclusion.StartExpression};");
-            builder.AppendLine($"    var __excludedCount{番号}_{exclusionIndex}={exclusion.CountExpression};");
+            builder.AppendLine(exclusion.RenderArgumentPreparation($"__excludedStart{番号}_{exclusionIndex}",$"__excludedCount{番号}_{exclusionIndex}"));
             builder.AppendLine($"    var __excludedEnd{番号}_{exclusionIndex}=(long)__excludedStart{番号}_{exclusionIndex} + __excludedCount{番号}_{exclusionIndex};");
         }
         if(exclusions.Count==1) {
@@ -136,24 +182,20 @@ internal sealed class RangeExceptRoot(int 番号,RangeRoot source,IReadOnlyList<
         get {
             var builder = new StringBuilder();
             for(var index = 0;index<exclusions.Count;index++) {
-                builder.AppendLine($"this.excludedStart{index} = excludedStart{index};");
-                builder.AppendLine($"this.excludedCount{index} = excludedCount{index};");
+                builder.AppendLine($"this.excludedStart{index} = excluded{index}.Start;");
+                builder.AppendLine($"this.excludedCount{index} = excluded{index}.Count;");
             }
             return builder.ToString().TrimEnd();
         }
     }
 
+    private string GetValidatedRangeExpression(RangeRoot range) =>
+        $"{this.Struct}.ValidateRange({range.StartExpression},{range.CountExpression})";
+
     internal RangeExceptRoot AddExclusion(int number,RangeRoot exclusion) {
         var next = new List<RangeRoot>(exclusions.Count+1);
         next.AddRange(exclusions);
-        if(!next.Any(existing =>
-            string.Equals(NormalizeExpression(existing.StartExpression),NormalizeExpression(exclusion.StartExpression),StringComparison.Ordinal)
-            &&string.Equals(NormalizeExpression(existing.CountExpression),NormalizeExpression(exclusion.CountExpression),StringComparison.Ordinal))) {
-            next.Add(exclusion);
-        }
+        next.Add(exclusion);
         return new RangeExceptRoot(number,source,next);
     }
-
-    private static string NormalizeExpression(string expression) =>
-        new(expression.Where(static c => !char.IsWhiteSpace(c)).ToArray());
 }

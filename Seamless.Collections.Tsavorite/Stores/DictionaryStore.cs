@@ -52,6 +52,13 @@ public class DictionaryStore<TKey, TValue>:CollectionStore<TKey,TValue> {
     public ParallelRegion<IParallelDictionary<TKey,TValue>> BeginParallel(long expectedCount = 0) =>
         this.BeginParallelCore(expectedCount,this.CreateParallel);
 
+    /// <summary>指定した serializer を全ワーカーへ引き継ぐ並列区間。</summary>
+    public ParallelRegion<IParallelDictionary<TKey,TValue>> BeginParallel<TKeySerializer,TValueSerializer>(long expectedCount=0)
+        where TKeySerializer:global::Seamless.Collections.Serializers.IStrategy<TKey>
+        where TValueSerializer:global::Seamless.Collections.Serializers.IStrategy<TValue>{
+        return this.BeginParallelCore<IParallelDictionary<TKey,TValue>>(expectedCount,region=>new ParallelDictionary<TKey,TValue,TKeySerializer,TValueSerializer>(this,region));
+    }
+
     private IParallelDictionary<TKey,TValue> CreateParallel(ParallelRegionState region) {
         if(this.keyUsesMemoryPackSerializer&&this.valueUsesMemoryPackSerializer) {
             return new ParallelDictionary<TKey,TValue,global::Seamless.Collections.Serializers.MemoryPack<TKey>,global::Seamless.Collections.Serializers.MemoryPack<TValue>>(this,region);

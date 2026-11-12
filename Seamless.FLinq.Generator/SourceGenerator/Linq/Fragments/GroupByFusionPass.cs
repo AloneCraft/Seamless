@@ -32,7 +32,7 @@ internal static class GroupByFusionPass {
                     innerElementType: stage.InnerElementType,
                     keyType: stage.KeyType,
                     containsAnchor: stage.ContainsAnchor,
-                    aggregatePlan: resultSelectorPlan));
+                    aggregatePlan: resultSelectorPlan){HasParallelHint=stage.HasParallelHint});
                 continue;
             }
             if(stage.Kind==PipelineStageKind.GroupBy
@@ -54,7 +54,7 @@ internal static class GroupByFusionPass {
                     innerElementType: stage.InnerElementType,
                     keyType: stage.KeyType,
                     containsAnchor: stage.ContainsAnchor||selectFunc.ContainsAnchor,
-                    aggregatePlan: selectPlan));
+                    aggregatePlan: selectPlan){HasParallelHint=stage.HasParallelHint});
                 index++;
                 continue;
             }

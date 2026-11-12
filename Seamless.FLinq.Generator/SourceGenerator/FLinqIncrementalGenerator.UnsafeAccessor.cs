@@ -132,7 +132,16 @@ public sealed partial class FLinqIncrementalGenerator {
             var methodName = SanitizeIdentifier(method.Name);
             var accessorName = $"__StaticMethod_{typeName}_{methodName}";
             var returnTypeName = method.ReturnType.ToDisplayString(完全修飾形式);
-            var paramParts = new List<string> { $"{declaringType}? _" };
+            string targetType;
+            string targetValue;
+            if(method.ContainingType.IsValueType){
+                targetType=declaringType;
+                targetValue="default";
+            }else{
+                targetType=declaringType+"?";
+                targetValue="null";
+            }
+            var paramParts = new List<string> { $"{targetType} _" };
             foreach(var param in method.Parameters) {
                 paramParts.Add($"{param.Type.ToDisplayString(完全修飾形式)} {param.Name}");
             }
@@ -141,7 +150,7 @@ public sealed partial class FLinqIncrementalGenerator {
             unsafeAccessorCollector?.Add(accessorCode);
             var paramNames = method.Parameters.Select(static (_,i) => $"__a{i}").ToArray();
             var lambdaParams = string.Join(", ",paramNames);
-            var lambdaArgs = "null"+(paramNames.Length>0 ? ", "+string.Join(", ",paramNames) : string.Empty);
+            var lambdaArgs = targetValue+(paramNames.Length>0 ? ", "+string.Join(", ",paramNames) : string.Empty);
             return $"(({delegateTypeName})(({lambdaParams})=>{accessorName}{accessorTypeParameters}({lambdaArgs})))";
         }
     }

@@ -1,4 +1,4 @@
-using Microsoft.CodeAnalysis.CSharp;
+﻿using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Seamless.FLinq.Generator;
@@ -10,10 +10,16 @@ internal sealed partial class PipelineEnumerable {
         var builder = new StringBuilder();
         if(stage.AggregatePlan is { } aggPlan) {
             var useParityCounts=this.UsesInlineParityCounts(stage);
+            var useSmallKey=this.TryGetSmallKeyRange(stage, out var keyCount);
             var map=$"this.{this.GroupAggMapName(groupByIndex)}";
             builder.AppendLine($"if(!this.{this.GroupBuiltName(groupByIndex)}) {{");
             builder.AppendLine($"    this.{this.GroupBuiltName(groupByIndex)}=true;");
-            if(!useParityCounts){
+            if(useSmallKey){
+                builder.AppendLine($"    global::System.Span<{aggPlan.AccumulatorType}> __directAcc=stackalloc {aggPlan.AccumulatorType}[{keyCount}];");
+                builder.AppendLine($"    global::System.Span<byte> __directSeen=stackalloc byte[{keyCount}];");
+                builder.AppendLine($"    global::System.Span<int> __directOrder=stackalloc int[{keyCount}];");
+                builder.AppendLine("    int __directCount=0;");
+            }else if(!useParityCounts){
                 builder.AppendLine($"    var __hasCnt={enumeratorName}.TryGetNonEnumeratedCount(out var __cnt);");
                 builder.AppendLine($"    {map}=new global::Seamless.Linq.DictionarySlim<{ComparerKeyType(stage)},{aggPlan.AccumulatorType}>(__hasCnt ? global::System.Math.Min(__cnt,1024) : 0,{this.ComparerName(this.ComparerOrdinal(groupByIndex))});");
             }
@@ -42,7 +48,15 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine($"        {stage.InnerElementType} {groupElementName}=default!;");
                     builder.AppendLine(IndentBlock(this.FuncAssign(elementSelector,nameof(PipelineStageKind.GroupBy),groupElementName,currentName),"        "));
                 }
-                if(useParityCounts){
+                if(useSmallKey){
+                    builder.AppendLine($"        int __uKey=(int){keyName};");
+                    builder.AppendLine($"        if((uint)__uKey < (uint){keyCount}) {{");
+                    builder.AppendLine("            var __exists=__directSeen[__uKey]!=0;");
+                    builder.AppendLine("            if(!__exists){__directSeen[__uKey]=1;__directOrder[__directCount++]=__uKey;}");
+                    builder.AppendLine("            ref var __acc=ref __directAcc[__uKey];");
+                    builder.AppendLine(aggPlan.RenderAccumulatorUpdate("__acc",groupElementName,"            "));
+                    builder.AppendLine("        }");
+                }else if(useParityCounts){
                     builder.AppendLine($"        if(({map}.Zero|{map}.One)==0){{{map}.First={keyName};}}");
                     builder.AppendLine($"        if({keyName}==0){{{map}.Zero++;}}else{{{map}.One++;}}");
                 }else{
@@ -50,7 +64,23 @@ internal sealed partial class PipelineEnumerable {
                 }
                 builder.AppendLine("    }");
             }
-            if(useParityCounts){
+            if(useSmallKey){
+                builder.AppendLine($"    this.{this.GroupDirectCountName(groupByIndex)}=__directCount;");
+                builder.AppendLine("    if(__directCount>0){");
+                builder.AppendLine($"        this.{this.GroupDirectKeysName(groupByIndex)}=global::System.Buffers.ArrayPool<int>.Shared.Rent(__directCount);");
+                builder.AppendLine($"        this.{this.GroupDirectAccsName(groupByIndex)}=global::System.Buffers.ArrayPool<{aggPlan.AccumulatorType}>.Shared.Rent(__directCount);");
+                builder.AppendLine("        for(int __i=0;__i<__directCount;__i++){");
+                builder.AppendLine("            int __k=__directOrder[__i];");
+                builder.AppendLine($"            this.{this.GroupDirectKeysName(groupByIndex)}[__i]=__k;");
+                builder.AppendLine($"            this.{this.GroupDirectAccsName(groupByIndex)}[__i]=__directAcc[__k];");
+                builder.AppendLine("        }");
+                builder.AppendLine("    }");
+                builder.AppendLine("}");
+                builder.AppendLine($"while(this.{this.GroupDirectCursorName(groupByIndex)}<this.{this.GroupDirectCountName(groupByIndex)}) {{");
+                builder.AppendLine($"    int __idx=this.{this.GroupDirectCursorName(groupByIndex)}++;");
+                builder.AppendLine($"    var __key=this.{this.GroupDirectKeysName(groupByIndex)}![__idx];");
+                builder.AppendLine($"    var __acc=this.{this.GroupDirectAccsName(groupByIndex)}![__idx];");
+            }else if(useParityCounts){
                 builder.AppendLine("}");
                 builder.AppendLine($"while({map}.Cursor<2) {{");
                 builder.AppendLine($"    var __key={map}.Cursor++==0?{map}.First:1-{map}.First;");

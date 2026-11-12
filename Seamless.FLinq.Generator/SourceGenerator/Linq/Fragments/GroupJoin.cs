@@ -2,6 +2,8 @@ namespace Seamless.FLinq.Generator;
 
 internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragment outerKeySelector,FuncFragment innerKeySelector,FuncFragment resultSelector,string comparer):JoinBase(番号,outer,inner,outerKeySelector,innerKeySelector,resultSelector,comparer) {
     internal bool BorrowsGroupOnly=>this.resultSelector.BorrowsGroupOnly;
+    // 結果へ group が逃げる場合、Lookup の Dispose 後も生きる所有 group を取る(借用 group は Dispose で消える)。
+    private string GroupAccessor=>this.BorrowsGroupOnly?"GetGroup":"GetOwnedGroup";
     internal string? RenderDenseArray(string destination,string resultType){
         if(this.UseResultTypeParam||this.comparerExpression!="null"
             ||this.InnerKeyType!="int"||FuncReturnTypeName(this.outerKey)!="int"
@@ -351,7 +353,7 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             {{this.FuncAssignStaticIndented("",this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}}
             {{this.CounterCall("IncrementHashProbe")}}
             {{this.ElementType}} {{resultItemName}}=default!;
-            if({{lookupName}}!.GetGroup({{outerKeyName}}) is { } {{groupName}}){
+            if({{lookupName}}!.{{this.GroupAccessor}}({{outerKeyName}}) is { } {{groupName}}){
                 {{this.FuncAssignStaticIndented("    ",this.resultSelector,nameof(this.resultSelector),resultItemName,outerItemName,groupName)}}
             }else{
                 {{this.FuncAssignStaticIndented("    ",this.resultSelector,nameof(this.resultSelector),resultItemName,outerItemName,$"(global::System.Collections.Generic.IEnumerable<{this.InnerElementType}>)global::System.Array.Empty<{this.InnerElementType}>()")}}
@@ -450,7 +452,7 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             {{FuncReturnTypeName(this.outerKey)}} {{outerKeyName}}=default!;
             {{this.FuncAssignStaticIndented("",this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}}
             {{this.CounterCall("IncrementHashProbe")}}
-            if({{lookupName}}!.GetGroup({{outerKeyName}}) is { } {{groupName}}){
+            if({{lookupName}}!.{{this.GroupAccessor}}({{outerKeyName}}) is { } {{groupName}}){
                 {{this.FuncAssignStaticIndented("    ",this.resultSelector,nameof(this.resultSelector),destVar,outerItemName,groupName)}}
             }else{
                 {{this.FuncAssignStaticIndented("    ",this.resultSelector,nameof(this.resultSelector),destVar,outerItemName,$"(global::System.Collections.Generic.IEnumerable<{this.InnerElementType}>)global::System.Array.Empty<{this.InnerElementType}>()")}}
@@ -569,7 +571,7 @@ internal class GroupJoin(int 番号,Enumerable outer,Enumerable inner,FuncFragme
             {{FuncReturnTypeName(this.outerKey)}} {{this.key}}=default!;
             {{this.FuncAssignIndented("    ",this.outerKey,nameof(this.outerKey),this.key,this.outerValue)}}
             {{this.CounterCall("IncrementHashProbe")}}
-            if({{this.lookup}}!.GetGroup({{this.key}}) is { } {{this.group}}){
+            if({{this.lookup}}!.{{this.GroupAccessor}}({{this.key}}) is { } {{this.group}}){
                 {{this.FuncAssignCurrentIndented("        ",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,this.group)}}
             }else{
                 {{this.FuncAssignCurrentIndented("        ",this.resultSelector,nameof(this.resultSelector),$"this.{this.currentValue}",this.outerValue,$"(global::System.Collections.Generic.IEnumerable<{this.innerSource.ElementType}>)global::System.Array.Empty<{this.innerSource.ElementType}>()")}}

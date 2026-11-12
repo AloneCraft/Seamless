@@ -456,6 +456,93 @@ internal sealed class RangeRoot(int 番号,string startExpression,string countEx
         """;
 }
 
+internal sealed class RangeIntersectionRoot(int 番号,RangeRoot left,RangeRoot right):Enumerable(番号) {
+    private readonly RangeRoot iterator=new(番号+1,"0","0");
+    public override string ElementType=>"int";
+    public override string StructMethod=>string.Empty;
+    public override string EnumeratorTypeName=>this.iterator.EnumeratorTypeName;
+    public override string GetTryGetNextBody=>this.iterator.GetTryGetNextBody;
+    private string ValidatedRanges=>
+        $"{this.Struct}.Validate({left.StartExpression},{left.CountExpression}),{this.Struct}.Validate({right.StartExpression},{right.CountExpression})";
+    public override string GetEnumeratorExpression=>
+        $"{this.Struct}.CreateIntersection({this.ValidatedRanges})";
+    public string GetCountExpression=>$"{this.Struct}.CountIntersection({this.ValidatedRanges})";
+    public override string GetEnumeratorStruct=>$$"""
+        {{this.iterator.GetEnumeratorStruct}}
+        private static class {{this.Struct}}{
+            // [評価/例外] 左を検証してから右を評価する。開始と件数は各1回。
+            public static (int Start,long End) Validate(int start,int count){
+                var end=(long)start+count;
+                if(count<0||end>1L+int.MaxValue){
+                    throw new global::System.ArgumentOutOfRangeException("count");
+                }
+                return (start,end);
+            }
+            // [変形] 共通区間だけを昇順に走査する。キー集合は不要。
+            public static {{this.EnumeratorTypeName}} CreateIntersection((int Start,long End) left,(int Start,long End) right){
+                var start=global::System.Math.Max(left.Start,right.Start);
+                return new {{this.EnumeratorTypeName}}(start,CountIntersection(left,right));
+            }
+            public static int CountIntersection((int Start,long End) left,(int Start,long End) right)=>
+                (int)global::System.Math.Max(0L,global::System.Math.Min(left.End,right.End)-global::System.Math.Max(left.Start,right.Start));
+        }
+        """;
+}
+
+internal sealed class RangeUnionRoot(int 番号,RangeRoot left,RangeRoot right):Enumerable(番号) {
+    public override string ElementType=>"int";
+    public override string StructMethod=>string.Empty;
+    public override string EnumeratorTypeName=>this.Struct;
+    internal string GetLongCountExpression=>$"{this.GetEnumeratorExpression}.GetLongCount()";
+    public override string GetEnumeratorExpression=>
+        $"new {this.Struct}({this.Struct}.Validate({left.StartExpression},{left.CountExpression}),{this.Struct}.Validate({right.StartExpression},{right.CountExpression}))";
+    public override string GetTryGetNextBody=>"""
+        if(this.leftNext<this.leftEnd){current=this.Current=(int)this.leftNext++;return true;}
+        if(this.prefixNext<this.prefixEnd){current=this.Current=(int)this.prefixNext++;return true;}
+        if(this.suffixNext<this.suffixEnd){current=this.Current=(int)this.suffixNext++;return true;}
+        current=default;
+        return false;
+        """;
+    public override string GetEnumeratorStruct=>$$"""
+        private struct {{this.Struct}}:global::Seamless.Linq.IValueEnumerator<int>{
+            private long leftNext,leftEnd,prefixNext,prefixEnd,suffixNext,suffixEnd;
+            public int Current{get;private set;}
+            // [評価/例外] 左の検証を済ませてから右の開始と件数を評価する。
+            public static (long Start,long End) Validate(int start,int count){
+                var end=(long)start+count;
+                if(count<0||end>1L+int.MaxValue){
+                    throw new global::System.ArgumentOutOfRangeException("count");
+                }
+                return (start,end);
+            }
+            public {{this.Struct}}((long Start,long End) left,(long Start,long End) right){
+                // [変形/順序] 左全体の後に、右の未出部分を元順で走査する。重複確認用の集合は不要。
+                this.leftNext=left.Start;
+                this.leftEnd=left.End;
+                this.prefixNext=right.Start;
+                this.prefixEnd=global::System.Math.Max(right.Start,global::System.Math.Min(left.Start,right.End));
+                this.suffixNext=global::System.Math.Min(right.End,global::System.Math.Max(left.End,right.Start));
+                this.suffixEnd=right.End;
+            }
+            public long GetLongCount()=>
+                (this.leftEnd-this.leftNext)+(this.prefixEnd-this.prefixNext)+(this.suffixEnd-this.suffixNext);
+            public bool TryGetNonEnumeratedCount(out int count){
+                var remaining=this.GetLongCount();
+                if(remaining>int.MaxValue){count=0;return false;}
+                count=(int)remaining;
+                return true;
+            }
+            public bool TryGetSpan(out global::System.ReadOnlySpan<int> span){span=default;return false;}
+            public bool TryCopyTo(scoped global::System.Span<int> destination,global::System.Index offset)=>false;
+            {{AggressiveInliningAttribute}}
+            public bool TryGetNext(out int current){
+                {{this.GetTryGetNextBody}}
+            }
+            public void Dispose(){}
+        }
+        """;
+}
+
 internal sealed class DescendingRangeRoot(int 番号,string startExpression,string countExpression):Enumerable(番号) {
     internal string StartExpression => startExpression;
     internal string CountExpression => countExpression;

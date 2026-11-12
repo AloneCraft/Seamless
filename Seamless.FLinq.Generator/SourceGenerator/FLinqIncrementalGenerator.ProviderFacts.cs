@@ -46,6 +46,17 @@ public sealed partial class FLinqIncrementalGenerator {
         elementType=null!;
         return false;
     }
+    internal static bool IsDatabaseExecutionSourceType(ITypeSymbol? type)=>IsTransactionRowsType(type,out _)||IsDatabaseRowsType(type)||IsDatabaseTableType(type);
+    private static bool IsTransactionRowsType(ITypeSymbol? type,out ITypeSymbol elementType){
+        if(TryMatchGenericNamedType(type,"Seamless.Transactions.Collections","TransactionRows`2",2,out var named)){elementType=named.TypeArguments[1];return true;}
+        elementType=null!;return false;
+    }
+    private static bool IsTransactionCollectionType(ITypeSymbol? type)=>
+        TryMatchGenericNamedType(type,"Seamless.Transactions.Collections","TransactionCollection`2",2,out _)
+        ||TryMatchGenericNamedType(type,"Seamless.Transactions.Collections","ReadOnlyTransactionCollection`2",2,out _);
+    private static bool IsDatabaseRowsType(ITypeSymbol? type)=>TryMatchGenericNamedType(type,"Seamless.Database","DatabaseRows`2",2,out _);
+    private static bool IsDatabaseTableType(ITypeSymbol? type)=>TryMatchGenericNamedType(type,"Seamless.Database","Table`2",2,out _)
+        ||TryMatchGenericNamedType(type,"Seamless.Database","MaterializedView`2",2,out _);
 
     private static bool IsTsavoriteConcreteSetType(ITypeSymbol? type,out ITypeSymbol elementType) {
         if(TryMatchGenericNamedType(type,"Seamless.Collections.Tsavorite","Set`2",2,out var named)) {

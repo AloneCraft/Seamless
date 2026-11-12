@@ -18,7 +18,9 @@ public sealed class QueryResultBuffer<T>:IDisposable{
     }
     public int Count{get;private set;}
     public void Add(T value){
-        this.Check();var payload=checked(this.payload+64L);if(this.codec is not null){payload=checked(payload+4L*this.codec.GetEncodedLength(value));}
+        this.Check();var payload=checked(this.payload+64L);
+        if(this.codec is Codecs.IOwnedAdapter<T> owned){payload=checked(payload+owned.GetRetainedSize(value));}
+        else if(this.codec is not null){payload=checked(payload+4L*this.codec.GetEncodedLength(value));}
         var capacity=this.values.Length;if(this.Count==capacity){capacity=Math.Max(4,checked(capacity*2));}
         var steady=checked(64L+capacity*(long)Unsafe.SizeOf<T>()+payload);
         if(capacity!=this.values.Length){
@@ -33,12 +35,12 @@ public sealed class QueryResultBuffer<T>:IDisposable{
         else{
             this.memory.Resize(checked(this.memory.Bytes+32L+this.Count*(long)Unsafe.SizeOf<T>()));result=new T[this.Count];this.values.AsSpan(0,this.Count).CopyTo(result);
         }
-        this.Check();this.values=[];this.finished=true;return result;
+        this.Check();this.values=[];this.finished=true;this.memory.Resize(0);return result;
     }
     public List<T> ToList(){
         this.Check();this.memory.Resize(checked(this.memory.Bytes+64L+this.Count*(long)Unsafe.SizeOf<T>()));
         var result=new List<T>(this.Count);CollectionsMarshal.SetCount(result,this.Count);this.values.AsSpan(0,this.Count).CopyTo(CollectionsMarshal.AsSpan(result));
-        this.Check();this.values=[];this.finished=true;return result;
+        this.Check();this.values=[];this.finished=true;this.memory.Resize(0);return result;
     }
     private void Check(){ObjectDisposedException.ThrowIf(this.disposed,this);if(this.finished){throw new InvalidOperationException("The result has already been transferred.");}this.scope.ThrowIfUnavailable();this.validate?.Invoke();}
     public void Dispose(){if(this.disposed){return;}this.disposed=true;this.values=[];try{this.memory.Dispose();}finally{this.scope.Release(this);}}

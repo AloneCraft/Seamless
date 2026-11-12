@@ -6,6 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>preview</LangVersion>
+    <Features>InterceptorsPreview</Features>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <UseMaui Condition="'$(CoreOnly)'!='true'">true</UseMaui>
     <WindowsPackageType>None</WindowsPackageType>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
@@ -29,6 +33,12 @@
   <ItemGroup Condition="'$(CoreOnly)'=='true'">
     <Compile Remove="**\*.cs" />
     <Compile Include="Core*.cs" />
+    <Compile Include="Migration/**/*.cs;MigrationGlobalUsings.cs;RegressionSuiteTests.cs;ArchitectureContract.cs" />
+    <Compile Include="DynamicFallbackCaptureTests.cs" />
+    <Compile Include="DynamicFixedDefectTests.cs" />
+    <Compile Include="DynamicWorkerTestCollection.cs" />
+    <Compile Include="StaticBuild*.cs" />
+    <Compile Include="RegressionRunStoreTests.cs" />
     <Compile Include="QueryExpressionFormatter.cs" />
   </ItemGroup>
 
@@ -39,9 +49,12 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <ProjectReference Include="../Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
+    <ProjectReference Include="../Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
+    <ProjectReference Include="../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
     <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.UI\Benchmark.Dynamic.UI.csproj" Condition="'$(CoreOnly)'!='true'" />
     <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Core\Benchmark.Dynamic.Core.csproj" />
     <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Infrastructure\Benchmark.Dynamic.Infrastructure.csproj" Condition="'$(CoreOnly)'!='true'" />
-    <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Worker\Benchmark.Dynamic.Worker.csproj" Condition="'$(CoreOnly)'!='true'" />
+    <ProjectReference Include="..\Benchmark\Benchmark.Dynamic.Worker\Benchmark.Dynamic.Worker.csproj" />
   </ItemGroup>
 </Project>

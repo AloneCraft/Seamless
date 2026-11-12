@@ -1,4 +1,4 @@
-﻿namespace Seamless.Collections.Tsavorite;
+namespace Seamless.Collections.Tsavorite;
 
 /// <summary>
 /// キーを持つレコードの集合のマルチ用の操作用オブジェクト。並列区間(<see cref="SetStore{TKey,TRecord}.BeginParallel"/>)の中で、スレッドごとに作る。
@@ -22,8 +22,16 @@ public sealed class ParallelSet<TKey, TRecord>:Collection<TKey,TRecord,global::S
                 throw this.ThrowLogFull();
         }
     }
-    public bool Contains(TRecord item) => this.ContainsKey(item.Key);
-    public bool Remove(TRecord item) => this.Remove(item.Key);
+    public bool Contains(TRecord item) {
+        if(!this.TryGetValue(item.Key,out var existing)){return false;}
+        return global::System.Collections.Generic.EqualityComparer<TRecord>.Default.Equals(existing,item);
+    }
+    public bool Remove(TRecord item) {
+        if(!this.TryGetValue(item.Key,out var existing)){return false;}
+        if(!global::System.Collections.Generic.EqualityComparer<TRecord>.Default.Equals(existing,item)){return false;}
+        return this.Remove(item.Key);
+    }
+    public bool RemoveKey(TKey key) => this.Remove(key);
     /// <summary>全件を数える(毎回全走査)。他のスレッドが書いている途中でも呼べるが、その時点の値ではない。</summary>
     public long ScanCount() => this.ScanCountCore();
     /// <summary>レコードを 1 つずつ <typeparamref name="TStrategy"/> へ渡す。FLinq の生成コードが呼ぶ。</summary>
@@ -31,7 +39,7 @@ public sealed class ParallelSet<TKey, TRecord>:Collection<TKey,TRecord,global::S
         where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TRecord> => this.IterateValuesCore(ref strategy);
     public IEnumerator<TRecord> GetEnumerator() {
         this.VerifyThreadAffinity();
-        return new Enumerator<ValueIterator,TRecord>(this.ReadSession,new(),this.Store.Log.TailAddress,this);
+        return new Enumerator<ValueIterator,TRecord>(this.ReadSession,new(this.SerializationBudget),this.Store.Log.TailAddress,this);
     }
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     public override bool IsDisposed => this.disposed;

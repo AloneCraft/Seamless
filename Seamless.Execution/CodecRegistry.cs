@@ -6,19 +6,35 @@ using System.Text;
 namespace Seamless.Execution;
 public sealed class CodecRegistry{
     /// <summary>登録契約を引き継ぎ、query固有型の解決cacheは子だけが所有する。</summary>
-    public CodecRegistry Fork(){
-        lock(this.gate){var child=new CodecRegistry();foreach(var pair in this.registered){child.registered.Add(pair.Key,pair.Value);}return child;}
+    public CodecRegistry Fork()=>this.Fork(null,null);
+    public CodecRegistry Fork(ResourceBudget? budget,CancellationToken? cancellationToken){
+        lock(this.gate){
+            var child=new CodecRegistry();foreach(var pair in this.registered){child.registered.Add(pair.Key,pair.Value);}
+            if(this.graphBudget is not null){child.graphBudget=budget??this.graphBudget;child.graphCancellation=cancellationToken??this.graphCancellation;}
+            return child;
+        }
     }
     private readonly object gate=new();
     private readonly Dictionary<Type,RegisteredCodec> registered=[];
     private readonly global::System.Collections.Concurrent.ConcurrentDictionary<Type,object> codecs=new();
     private readonly global::System.Collections.Concurrent.ConcurrentDictionary<Type,MemberInfo[]> members=new();
     private bool frozen;
-    internal bool UsesDefaultInt32Codec=>!this.registered.ContainsKey(typeof(int));
-    public bool HasCustomCodecs{get{lock(this.gate){return this.registered.Count!=0;}}}
+    private ResourceBudget? graphBudget;
+    private CancellationToken graphCancellation;
+    public bool UsesRecordGraphSerialization{get{lock(this.gate){return this.graphBudget is not null;}}}
+    internal bool UsesDefaultInt32Codec=>this.graphBudget is null&&!this.registered.ContainsKey(typeof(int));
+    public bool HasCustomCodecs{get{lock(this.gate){return this.graphBudget is not null||this.registered.Count!=0;}}}
+    /// <summary>最初の型解決前に、全データを同じ版付き参照形式へ固定する。</summary>
+    public void UseRecordGraphSerialization(ResourceBudget budget,CancellationToken cancellationToken=default){
+        ArgumentNullException.ThrowIfNull(budget);
+        lock(this.gate){
+            if(this.frozen||this.registered.Count!=0||this.graphBudget is not null){throw new InvalidOperationException("Select the record graph profile before resolving or registering codecs.");}
+            this.graphBudget=budget;this.graphCancellation=cancellationToken;
+        }
+    }
     /// <summary>既定codecがscalarと値型のfieldだけを読むことを確認する。参照graph/独自policyは逐次へ戻す。</summary>
     public bool CanUseParallelCodec<T>(){
-        lock(this.gate){if(this.registered.Count!=0){return false;}}
+        lock(this.gate){if(this.graphBudget is not null||this.registered.Count!=0){return false;}}
         return this.ParallelValue(typeof(T),new HashSet<Type>());
     }
     private bool ParallelValue(Type type,HashSet<Type> visiting){
@@ -36,12 +52,16 @@ public sealed class CodecRegistry{
     public void Register<T>(global::Seamless.Execution.Codecs.IAdapter<T> codec){
         ArgumentNullException.ThrowIfNull(codec);
         ArgumentException.ThrowIfNullOrWhiteSpace(codec.FormatId);
-        lock(this.gate){if(this.frozen){throw new InvalidOperationException("Codecs cannot change after a scope has resolved its first codec.");}this.registered[typeof(T)]=new RegisteredCodec<T>(codec);}
+        lock(this.gate){if(this.frozen||this.graphBudget is not null){throw new InvalidOperationException("Codecs cannot change after selecting a fixed profile or resolving the first codec.");}this.registered[typeof(T)]=new RegisteredCodec<T>(codec);}
     }
     public global::Seamless.Execution.Codecs.IAdapter<T> Get<T>(){
         if(this.codecs.TryGetValue(typeof(T),out var cached)){return(global::Seamless.Execution.Codecs.IAdapter<T>)cached;}
         lock(this.gate){
             if(this.codecs.TryGetValue(typeof(T),out cached)){return(global::Seamless.Execution.Codecs.IAdapter<T>)cached;}
+            if(this.graphBudget is not null){
+                var graph=new Codecs.RecordGraphCodec<T>(this.graphBudget,this.graphCancellation);_=graph.FormatId;
+                this.frozen=true;this.codecs[typeof(T)]=graph;return graph;
+            }
             var schema=this.Schema(typeof(T),new HashSet<Type>());this.frozen=true;
             var codec=new CanonicalCodec<T>(this,SHA256.HashData(Encoding.UTF8.GetBytes("seamless-binary-v1|"+schema)));
             this.codecs[typeof(T)]=codec;return codec;
@@ -50,6 +70,12 @@ public sealed class CodecRegistry{
     public bool CanEncode<T>(){
         try{this.Get<T>();return true;}
         catch(CodecUnavailableException){return false;}
+        catch(NotSupportedException)when(this.UsesRecordGraphSerialization){return false;}
+    }
+    /// <summary>保存形式と同じ型固定の等価性。旧形式は従来の既定比較を使う。</summary>
+    public IEqualityComparer<T> GetEqualityComparer<T>(){
+        lock(this.gate){if(this.graphBudget is null){return EqualityComparer<T>.Default;}}
+        return(Codecs.RecordGraphCodec<T>)this.Get<T>();
     }
     private string Schema(Type type,HashSet<Type> visiting){
         if(this.registered.TryGetValue(type,out var custom)){return type.FullName+"|custom:"+custom.FormatId;}

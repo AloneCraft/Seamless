@@ -138,6 +138,7 @@ public abstract partial class CollectionStore<
     public readonly TsavoriteKV<TStoreFunctions,TAllocator> Store;
     // 共通ストアから作ったときだけ設定される。旧 API で作ったときは null で、予算の確認はしない。
     private TsavoriteLayout? layout;
+    internal global::Seamless.Execution.ResourceBudget? SerializationBudget=>this.layout?.Owner.Budget;
     // 予算を予約済みのログ末尾アドレス。旧 API では long.MaxValue にして確認を 1 回の比較で済ませる。
     private long reservedTailAddress = long.MaxValue;
     // ディスク上のログの先頭(ここより前のセグメントは物理的に消えている)。切り捨ては保存が確定するまで保留するので、論理的な先頭(Log.BeginAddress)より小さい。
@@ -243,13 +244,14 @@ public abstract partial class CollectionStore<
     /// チェックポイントの書き込みをバッファ付きにする。Tsavorite 既定のバッファなし書き込みは長さがセクター
     /// (通常 512 バイト)の倍数でないと Win32 エラー 87 で失敗するが、索引は 64 バイトから始まり、主索引の書き込み長は
     /// 索引と同じ長さになる。2.0.1-beta.5 ではこの失敗が黙って捨てられ主索引が保存されていなかった(2.1.8 は例外にする)。
+    /// メタデータもRandomAccessを明示し、Windows Native device独自の短いパス長制限を保存・復旧の両方から除く。
     /// </summary>
     private static DeviceLogCommitCheckpointManager? CreateCheckpointManager(string? checkpointDir) {
         if(string.IsNullOrEmpty(checkpointDir)) {
             return null;
         }
         return new DeviceLogCommitCheckpointManager(
-            new LocalStorageNamedDeviceFactoryCreator(disableFileBuffering: false),
+            new LocalStorageNamedDeviceFactoryCreator(disableFileBuffering: false,deviceType:DeviceType.RandomAccess),
             new DefaultCheckpointNamingScheme(new DirectoryInfo(checkpointDir).FullName),
             removeOutdated: false
         );

@@ -9,7 +9,12 @@ internal sealed class InlinedScalarFunc(Fragment scalarFragment):LambdaFunc {
     public string ScalarStaticMethods { get; init; } = string.Empty;
 
     public override string SupportingMemberSources {
-        get => Fragment.JoinStaticMethods(this.ScalarStaticMethods,scalarFragment.GetEnumeratorStruct);
+        get {
+            if(scalarFragment is Scalar scalar){
+                return Fragment.JoinStaticMethods(this.ScalarStaticMethods,scalar.InlineSupportingMembers);
+            }
+            return Fragment.JoinStaticMethods(this.ScalarStaticMethods,scalarFragment.GetEnumeratorStruct);
+        }
         set { }
     }
 
@@ -34,28 +39,7 @@ internal sealed class InlinedScalarFunc(Fragment scalarFragment):LambdaFunc {
         if(!string.IsNullOrWhiteSpace(this.BodyExpression)
             &&!string.IsNullOrWhiteSpace(this.ScalarExpression)
             &&this.BodyExpression!=this.ScalarExpression) {
-            var scalarValueName = $"__scalarValue_{number}_{SanitizeLocalName(destination)}";
-            string scalarType;
-            if(string.IsNullOrWhiteSpace(this.ScalarReturnTypeName)) {
-                scalarType="var";
-            } else {
-                scalarType=this.ScalarReturnTypeName;
-            }
-            var rewrittenBody = this.BodyExpression.Replace(this.ScalarExpression,scalarValueName);
-            rewrittenBody=ReplaceParameterReferences(rewrittenBody,this.OuterParameterNames,arguments);
-            if(this.TryRenderInlineScalarStatement(scalarValueName,scalarType,number,arguments) is { } inlinedScalar) {
-                return $$"""
-                    {{inlinedScalar}}
-                    {{destination}}={{rewrittenBody}};
-                    """;
-            }
-            return $$"""
-                {{scalarType}} {{scalarValueName}}=default!;
-                using(var {{enumeratorName}}={{enumeratorExpression}}){
-                    {{enumeratorName}}.TryGetNext(out {{scalarValueName}});
-                }
-                {{destination}}={{rewrittenBody}};
-                """;
+            return this.RenderCompositeAssign(destination,number,arguments);
         }
 
         // RenderInlineComputation は出力先の変数を自分で宣言する。destination は呼び出し側が宣言済みなので、
@@ -74,6 +58,42 @@ internal sealed class InlinedScalarFunc(Fragment scalarFragment):LambdaFunc {
                 {{enumeratorName}}.TryGetNext(out var {{tempName}});
                 {{destination}}={{tempName}};
             }
+            """;
+    }
+
+    // スカラーを式の前へ巻き上げると、条件分岐・短絡・左からの評価順が変わる。
+    // 明示引数を取る static ローカル関数を元の式位置で呼び、closure の割当ても避ける。
+    private string RenderCompositeAssign(string destination,int number,string[] arguments){
+        var suffix=$"{number}_{SanitizeLocalName(destination)}";
+        var function=$"__scalarCompute_{suffix}";
+        var result=$"__scalarResult_{suffix}";
+        var aliases=this.OuterParameterNames.Select((_,index)=>$"__scalarInput_{suffix}_{index}").ToArray();
+        var parameters=aliases.Select((name,index)=>$"{this.ParameterTypeNames[index]} {name}").ToList();
+        var calls=this.OuterParameterNames.ToList();
+        var scalarType=this.ScalarReturnTypeName;
+        var computation=this.TryRenderInlineScalarStatement(result,scalarType,number,aliases);
+        if(computation is null){
+            var enumerator=$"__scalarEnumerator_{suffix}";
+            computation=$"{scalarType} {result}=default!;\nusing(var {enumerator}={this.RenderScalarEnumeratorExpression(aliases)}){{{enumerator}.TryGetNext(out {result});}}";
+        }
+        for(var index=0;index<this.CapturedLocals.Length;index++){
+            var capture=this.CapturedLocals[index];
+            var alias=$"__scalarCapture_{suffix}_{index}";
+            parameters.Add($"{capture.TypeName} {alias}");
+            calls.Add(capture.Name);
+            computation=computation.Replace("this."+capture.Name,alias);
+            computation=System.Text.RegularExpressions.Regex.Replace(computation,$@"(?<![\w.]){System.Text.RegularExpressions.Regex.Escape(capture.Name)}(?!\w)",alias);
+        }
+        var invocation=function+"("+string.Join(",",calls)+")";
+        var body=this.BodyExpression.Replace(this.ScalarExpression,invocation);
+        body=ReplaceParameterReferences(body,this.OuterParameterNames,arguments);
+        return $$"""
+            [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+            static {{scalarType}} {{function}}({{string.Join(",",parameters)}}){
+                {{computation}}
+                return {{result}};
+            }
+            {{destination}}={{body}};
             """;
     }
 

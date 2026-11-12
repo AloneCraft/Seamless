@@ -179,7 +179,7 @@ internal sealed partial class PipelineEnumerable {
             builder.AppendLine($"    if(this.{this.StateName(concatIndex)}==0) {{");
             builder.AppendLine($"        this.{this.StateName(concatIndex)}=1;");
             var prependName = this.ItemName(concatIndex+1);
-            builder.AppendLine($"        var {prependName}=({stage.OutputType})({stage.Value});");
+            builder.AppendLine($"        var {prependName}=({stage.OutputType})({this.ElementArgumentName(concatIndex)});");
             var currentName = prependName;
             for(var index = concatIndex+1;index<stages.Count;index++) {
                 currentName=this.AppendStage(builder,stages[index],currentName,index,breakStatement);
@@ -219,7 +219,7 @@ internal sealed partial class PipelineEnumerable {
             builder.AppendLine($"    if(this.{this.StateName(concatIndex)}==2) {{");
             builder.AppendLine($"        this.{this.StateName(concatIndex)}=3;");
             var appendName = this.ItemName(concatIndex+1);
-            builder.AppendLine($"        var {appendName}=({stage.OutputType})({stage.Value});");
+            builder.AppendLine($"        var {appendName}=({stage.OutputType})({this.ElementArgumentName(concatIndex)});");
             var currentName = appendName;
             for(var index = concatIndex+1;index<stages.Count;index++) {
                 currentName=this.AppendStage(builder,stages[index],currentName,index,breakStatement);

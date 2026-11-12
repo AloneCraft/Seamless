@@ -1,4 +1,4 @@
-﻿namespace Seamless.Collections.Tsavorite;
+namespace Seamless.Collections.Tsavorite;
 
 /// <summary>
 /// Tsavorite のハッシュセットのマルチ用の操作用オブジェクト。並列区間(<see cref="HashSetStore{TKey}.BeginParallel"/>)の中で、スレッドごとに作る。
@@ -29,7 +29,7 @@ public sealed class ParallelHashSet<TKey>:Collection<TKey,EqualityEmpty,global::
         where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TKey> => this.IterateKeysCore(ref strategy);
     public Enumerator<KeyIterator,TKey> GetEnumerator() {
         this.VerifyThreadAffinity();
-        return new(this.ReadSession,new(),this.Store.Log.TailAddress,this);
+        return new(this.ReadSession,new(this.SerializationBudget),this.Store.Log.TailAddress,this);
     }
     IEnumerator<TKey> IEnumerable<TKey>.GetEnumerator() => this.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();

@@ -2,7 +2,7 @@ namespace Seamless.FLinq.Generator;
 
 // 段の組み合わせ検証と補助宣言の出力。
 internal static partial class PipelineBuilder {
-    private static bool ValidateStageCombination(IReadOnlyList<PipelineStage> stages,PipelineTerminalKind? terminalKind,bool allowSingleStage = false) {
+    private static bool ValidateStageCombination(IReadOnlyList<PipelineStage> stages,PipelineTerminalKind? terminalKind,bool allowSingleStage = false,bool allowTransactionalOrderBlocks=false) {
         var selectManyStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.SelectMany);
         var binarySetStageCount = stages.Count(static stage => IsBinarySetStage(stage.Kind));
         var concatLikeStageCount = stages.Count(static stage => stage.Kind is PipelineStageKind.Concat or PipelineStageKind.Append or PipelineStageKind.Prepend);
@@ -36,9 +36,13 @@ internal static partial class PipelineBuilder {
             if(stages[orderIndexes[0]].Kind is PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending) return false;
             // OrderBy を重ねると、後の OrderBy が主キーで、前の順序は「キーが等しいときの並び」として残る(LINQ は安定ソート)。
             // 後の OrderBy だけで並べると、キーが等しい要素の順が変わるので最適化しない。
-            if(stages.Count(static stage => IsPrimaryOrderStage(stage.Kind))>1) return false;
-            for(var i = 1;i<orderIndexes.Length;i++) {
-                if(orderIndexes[i]!=orderIndexes[i-1]+1) return false;
+            // 取引用の専用終端はBCLの各整列をそのまま接続し、複数ブロックを一つへ畳まない。
+            // その経路で処理できることを確認済みの場合だけ、一般の融合制限を外す。
+            if(!allowTransactionalOrderBlocks){
+                if(stages.Count(static stage => IsPrimaryOrderStage(stage.Kind))>1) return false;
+                for(var i = 1;i<orderIndexes.Length;i++) {
+                    if(orderIndexes[i]!=orderIndexes[i-1]+1) return false;
+                }
             }
         }
         // 単段でも順序ステージ（Order/OrderDescending）は実バッファ＋ソートを伴うので許可する。

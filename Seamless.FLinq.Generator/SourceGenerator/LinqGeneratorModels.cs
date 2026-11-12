@@ -39,18 +39,15 @@ public sealed partial class FLinqIncrementalGenerator {
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.UseSpecialTypes);
     private static readonly ConditionalWeakTable<Compilation,System.Collections.Concurrent.ConcurrentDictionary<IMethodSymbol,ローカルメソッドLinq解析結果>> ローカルメソッドLinq解析キャッシュ = new();
 
-    // 匿名型を含む LINQ が検出されたとき、インターセプト元のメソッドに対して発行する警告。
-    // 匿名型は生成メソッドの署名に出せないため完全なフラグメント最適化ができず、
-    // 匿名型を含む LINQ 呼び出しのみ IEnumerable<T> 汎用ヘルパーへ委譲する部分最適化になる。
-    // ValueTuple や struct record を使えば完全最適化が可能になることをユーザーに伝える。
+    // 匿名型の外部利用を検出して、内部ValueTupleへの変換を見送ったときの警告。
     private static readonly DiagnosticDescriptor 匿名型警告Descriptor = new(
         id: "FLINQ001",
-        title: "匿名型が検出されました",
-        messageFormat: "'{0}' に匿名型を含む LINQ 式が検出されました。最適化可能な部分だけインターセプトします。ValueTuple または struct record を使用することを検討してください。",
+        title: "匿名型を使用する元の経路を維持します",
+        messageFormat: "'{0}' は元の経路を使用します。{1}",
         category: "Tsavorite.Performance",
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "匿名型を含む LINQ 式は、生成メソッドの署名に匿名型を記述できないため完全なフラグメント最適化が適用できません。ValueTuple (例: (int x, int y)) または struct record を使うことで最適化が有効になります.");
+        description: "匿名型の公開された挙動や外部の比較契約を保持するため、内部ValueTupleへの変換を見送りました.");
 
     // LINQ インターセプト対象メソッドで展開に失敗し、生成コードが例外を throw する形になるとき発行する警告。
     // これにより「インターセプトはされたが展開できなかった」ことをコンパイル時に検出できる。
@@ -86,7 +83,7 @@ public sealed partial class FLinqIncrementalGenerator {
         /// 匿名型は生成メソッドの署名に出せないため完全なフラグメント最適化ができず、
         /// 該当 LINQ 呼び出しは IEnumerable&lt;T&gt; 汎用ヘルパーへ委譲する部分最適化になる。
         /// ValueTuple や struct record を使えば完全最適化が可能になるため、
-        /// この値が true のとき FLINQ001 警告を発行してユーザーに通知する。
+        /// この値が true のとき、ValueTupleへの変換と外部利用の有無を確認する。
         /// </summary>
         public bool HasAnonymousTypeLinq { get; } = hasAnonymousTypeLinq;
     }

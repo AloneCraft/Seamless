@@ -20,6 +20,7 @@ internal sealed class GroupAggregateItem {
     public FuncFragment? InnerFunc { get; set; }
     public string OriginalInvocationText { get; set; } = string.Empty;
     public string RawInvocationText { get; set; } = string.Empty;
+    public bool DeferredCheckedSum{get;set;}
 }
 
 internal sealed class GroupByAggregatePlan {
@@ -54,7 +55,7 @@ internal sealed class GroupByAggregatePlan {
         };
         snapshot.Items.AddRange(this.Items.Select(static item=>new GroupAggregateItem{
             Kind=item.Kind,FieldName=item.FieldName,AccumulatorFieldType=item.AccumulatorFieldType,ResultExpressionType=item.ResultExpressionType,
-            InnerFunc=item.InnerFunc,OriginalInvocationText=item.OriginalInvocationText,RawInvocationText=item.RawInvocationText
+            InnerFunc=item.InnerFunc,OriginalInvocationText=item.OriginalInvocationText,RawInvocationText=item.RawInvocationText,DeferredCheckedSum=item.DeferredCheckedSum
         }));
         snapshot.ReceiverNames.AddRange(this.ReceiverNames);
         return snapshot;
@@ -113,7 +114,11 @@ internal sealed class GroupByAggregatePlan {
                     }
                     break;
                 case GroupAggregateKind.Sum:
-                    sb.AppendLine($"{indent}{fieldAccess}+={valueExpr};");
+                    if(item.DeferredCheckedSum){
+                        sb.AppendLine($"{indent}{fieldAccess}.Add({valueExpr});");
+                    }else{
+                        sb.AppendLine($"{indent}{fieldAccess}+={valueExpr};");
+                    }
                     break;
                 case GroupAggregateKind.Min:
                     sb.AppendLine($"{indent}if(!__exists || {valueExpr} < {fieldAccess}) {fieldAccess}={valueExpr};");
@@ -240,6 +245,10 @@ internal static class GroupByAggregateFusion {
                 return false; // Group parameter used in unsupported way
             }
 
+            if(IsConditionallyEvaluated(invocation,bodyExpr)) {
+                return false;
+            }
+
             if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method
                 ||(method.ReducedFrom??method).ContainingType?.ToDisplayString()!="System.Linq.Enumerable") {
                 return false;
@@ -329,6 +338,8 @@ internal static class GroupByAggregateFusion {
             string replacementExpr;
             if(item.Kind==GroupAggregateKind.Average){
                 replacementExpr=$"(({item.ResultExpressionType})({fieldAccess}.Sum)/{fieldAccess}.Count)";
+            }else if(item.DeferredCheckedSum){
+                replacementExpr=fieldAccess+".Value";
             }else{
                 replacementExpr=fieldAccess;
             }
@@ -367,6 +378,23 @@ internal static class GroupByAggregateFusion {
         aggPlan.ProjectedResultExpression=bodyText;
         plan=aggPlan;
         return true;
+    }
+
+    // 融合は要素走査中に集約するため、元の条件が評価を抑止する呼出しは通常の射影へ残す。
+    private static bool IsConditionallyEvaluated(ExpressionSyntax expression,ExpressionSyntax body) {
+        for(SyntaxNode current=expression;current!=body&&current.Parent is{} parent;current=parent) {
+            if(parent is ConditionalExpressionSyntax conditional&&current!=conditional.Condition) {
+                return true;
+            }
+            if(parent is BinaryExpressionSyntax binary&&current==binary.Right
+                &&(binary.IsKind(SyntaxKind.LogicalAndExpression)||binary.IsKind(SyntaxKind.LogicalOrExpression)||binary.IsKind(SyntaxKind.CoalesceExpression))) {
+                return true;
+            }
+            if(parent is ConditionalAccessExpressionSyntax access&&current==access.WhenNotNull) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static bool TryMapAggregateKind(string methodName,out GroupAggregateKind kind) {
@@ -409,6 +437,10 @@ internal static class GroupByAggregateFusion {
             case GroupAggregateKind.Sum:
                 item.AccumulatorFieldType=inputType;
                 item.ResultExpressionType=inputType;
+                if(inputType is "int" or "System.Int32" or "global::System.Int32" or "long" or "System.Int64" or "global::System.Int64" or "decimal" or "System.Decimal" or "global::System.Decimal"){
+                    item.DeferredCheckedSum=true;
+                    item.AccumulatorFieldType=$"global::Seamless.Linq.DeferredGroupSum<{inputType}>";
+                }
                 break;
             case GroupAggregateKind.Min:
             case GroupAggregateKind.Max:

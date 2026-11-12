@@ -81,12 +81,25 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
     // 結果選択子が内側の要素を使わない(第2引数が本体に現れない)なら、一致の件数だけが結果を決める。
     // 内側の要素を溜めず、キーごとの件数だけを数える(内側の列挙・キー選択子の評価の回数と順は変わらない)。
     private bool CountsOnly()=>this.ConsumptionPlan.Lookup==JoinLookupKind.KeyCounts;
-    private string CountsType => $"global::System.Collections.Generic.Dictionary<{this.InnerKeyType},int>";
+    private (int Minimum,int Maximum)? BoundedKeys=>this.comparerExpression=="null"?this.innerKey.SmallIntKeyRange:null;
+    private string CountsType => this.BoundedKeys is not null?"int[]":$"global::System.Collections.Generic.Dictionary<{this.InnerKeyType},int>";
+    private string NewCounts(string rowCapacity,string comparer)=>this.BoundedKeys is{} range
+        ?$"/* [Join/件数配列] キー範囲 {range.Minimum}..{range.Maximum}。行を保持せず、内側を走査するスレッドが件数を加算する。 */ new int[{range.Maximum-range.Minimum+1}]"
+        :$"new {this.CountsType}({rowCapacity},{comparer})";
+    private string IncrementCount(string counts,string key)=>this.BoundedKeys is{} range
+        ?$"{counts}[{key}-({range.Minimum})]++;"
+        :$"global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({counts},{key},out _)++;";
+    private string ReadCount(string counts,string key,string target,bool declare=false)=>this.BoundedKeys is{} range
+        ?$"{(declare?"var ":"")}{target}={key}>=({range.Minimum})&&{key}<=({range.Maximum})?{counts}[{key}-({range.Minimum})]:0;"
+        :$"{counts}.TryGetValue({key},out {(declare?"var ":"")}{target});";
+    private string GroupCapacity(string rowCapacity)=>this.BoundedKeys is{} range
+        ?$"/* [Join/キー容量] キー範囲 {range.Minimum}..{range.Maximum} でグループ数の初期容量を抑える。 */ global::System.Math.Min({rowCapacity},{range.Maximum-range.Minimum+1})"
+        :rowCapacity;
     private string BuildCountsBody() => $$"""
         private static {{this.CountsType}} BuildCounts(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
             var __hasCnt=inner.TryGetNonEnumeratedCount(out var __cnt);
             if(__hasCnt) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();
-            var __counts=new {{this.CountsType}}(__hasCnt ? __cnt : 0,comparer);
+            var __counts={{this.NewCounts("__hasCnt ? __cnt : 0","comparer")}};
             using var {{this.innerEnumerator}}=inner;
             while({{this.innerEnumerator}}.TryGetNext(out var __mn102)){
                 {{this.CounterCall("IncrementLogicalJoinInner")}}
@@ -96,8 +109,8 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
                 if(IsNullKey({{this.key}})){
                     continue;
                 }
-                {{this.CounterCall("IncrementHashBuild")}}
-                global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault(__counts,{{this.key}},out _)++;
+                {{(this.BoundedKeys is null?this.CounterCall("IncrementHashBuild"):string.Empty)}}
+                {{this.IncrementCount("__counts",this.key)}}
             }
             return __counts;
         }
@@ -136,7 +149,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         private static global::Seamless.Linq.ContiguousLookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}> BuildLookup(TInnerEnum inner,global::System.Collections.Generic.IEqualityComparer<{{this.InnerKeyType}}>? comparer{{this.ClosureMethodParameterSuffix(this.outerKey,this.innerKey,this.resultSelector)}}){
             var __hasCnt=inner.TryGetNonEnumeratedCount(out var __cnt);
             if(__hasCnt) global::Seamless.Linq.LinqCounterScope.IncrementHashCapacityHintUsed();
-            var __lookupBuilder=new global::Seamless.Linq.ContiguousLookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(__hasCnt ? __cnt : 0,__hasCnt ? __cnt : 0,comparer);
+            var __lookupBuilder=new global::Seamless.Linq.ContiguousLookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>(__hasCnt ? __cnt : 0,{{this.GroupCapacity("__hasCnt ? __cnt : 0")}},comparer);
             using var {{this.innerEnumerator}}=inner;
             while({{this.innerEnumerator}}.TryGetNext(out var __mn102)){
                 {{this.CounterCall("IncrementLogicalJoinInner")}}
@@ -174,8 +187,8 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         if(IsNullKey({{this.key}})){
             goto {{this.Start}};
         }
-        {{this.CounterCall("IncrementHashProbe")}}
-        {{this.lookup}}.TryGetValue({{this.key}},out {{this.groupIndex}});
+        {{(this.BoundedKeys is null?this.CounterCall("IncrementHashProbe"):string.Empty)}}
+        {{this.ReadCount(this.lookup,this.key,this.groupIndex)}}
         goto {{this.Start}};
         """
         : this.ProbesInnerRange()
@@ -257,7 +270,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             static bool {{hasKeyName}}<TKey>(TKey key) => key is not null;
             var {{outerArrayName}}={{outerArrayExpression}};
             var {{innerArrayName}}={{innerArrayExpression}};
-            var {{lookupBuilderName}}=new global::Seamless.Linq.ContiguousLookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>({{innerArrayName}}.Length,{{innerArrayName}}.Length,{{this.comparerExpression}});
+            var {{lookupBuilderName}}=new global::Seamless.Linq.ContiguousLookupBuilder<{{this.InnerKeyType}},{{this.InnerElementType}}>({{innerArrayName}}.Length,{{this.GroupCapacity($"{innerArrayName}.Length")}},{{this.comparerExpression}});
             try {
             // 外側が空なら、内側のキー選択子を評価しない(System.Linq と同じ)。
             if({{outerArrayName}}.Length!=0){
@@ -329,18 +342,18 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         }.Where(static text => !string.IsNullOrEmpty(text)));
         var countsOnly = this.CountsOnly();
         var innerAdd = countsOnly
-            ? $"global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({builderName},{innerKeyName},out _)++;"
+            ? this.IncrementCount(builderName,innerKeyName)
             : $"{builderName}.Add({innerKeyName},{innerItemName});";
         var innerBody = $"{this.InnerKeyType} {innerKeyName}=default!;\n{this.FuncAssignStatic(this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}\nif({hasKeyName}({innerKeyName})){{\n    {innerAdd}\n}}";
         var matchedInner = countsOnly ? $"default({this.InnerElementType})!" : $"{arrangedName}[{startName}]";
         var emit = $"{this.ElementType} {resultName}=default!;\n{this.FuncAssignStatic(this.resultSelector,nameof(this.resultSelector),resultName,outerItemName,matchedInner)}\n{consumerName}.Consume({resultName});";
         var probe = countsOnly
-            ? $"if(!{builderName}.TryGetValue({outerKeyName},out var {endName})) continue;\nfor(var {startName}=0;{startName}<{endName};{startName}++){{\n{IndentGeneratedStatement(emit,"    ")}\n}}"
+            ? $"{this.ReadCount(builderName,outerKeyName,endName,declare:true)}\nfor(var {startName}=0;{startName}<{endName};{startName}++){{\n{IndentGeneratedStatement(emit,"    ")}\n}}"
             : $"if(!{builderName}.TryGetRange({outerKeyName},out var {startName},out var {endName})) continue;\nfor(;{startName}<{endName};{startName}++){{\n{IndentGeneratedStatement(emit,"    ")}\n}}";
         var outerBody = $"{this.InnerKeyType} {outerKeyName}=default!;\n{this.FuncAssignStatic(this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}\nif(!{hasKeyName}({outerKeyName})) continue;\n{probe}";
         var builderDeclaration = countsOnly
-            ? $"var {builderName}=new {this.CountsType}({countName},{this.comparerExpression});"
-            : $"var {builderName}=new global::Seamless.Linq.ContiguousLookupBuilder<{this.InnerKeyType},{this.InnerElementType}>({countName},{countName},{this.comparerExpression});";
+            ? $"var {builderName}={this.NewCounts(countName,this.comparerExpression)};"
+            : $"var {builderName}=new global::Seamless.Linq.ContiguousLookupBuilder<{this.InnerKeyType},{this.InnerElementType}>({countName},{this.GroupCapacity(countName)},{this.comparerExpression});";
         var prepare = countsOnly ? string.Empty : $"{builderName}.PrepareProbe();\n{arrangedName}={builderName}.Arranged;";
         var dispose = countsOnly ? string.Empty : $"{builderName}.Dispose();";
         // 外側の最初の要素を得てから、内側の探索表を作る(外側が空なら、内側のキー選択子を評価しない。System.Linq と同じ)。
@@ -391,7 +404,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
             static bool {{hasKeyName}}<TKey>(TKey key) => key is not null;
             var {{outerArrayName}}={{outerArrayExpression}};
             var {{innerArrayName}}={{innerArrayExpression}};
-            var {{countsName}}=new {{this.CountsType}}({{innerArrayName}}.Length,{{this.comparerExpression}});
+            var {{countsName}}={{this.NewCounts($"{innerArrayName}.Length",this.comparerExpression)}};
             // 外側が空なら、内側のキー選択子を評価しない(System.Linq と同じ)。
             if({{outerArrayName}}.Length!=0){
                 for(var {{innerIndexName}}=0;{{innerIndexName}}<{{innerArrayName}}.Length;{{innerIndexName}}++){
@@ -399,7 +412,7 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
                     {{this.InnerKeyType}} {{innerKeyName}}=default!;
                     {{this.FuncAssignStaticIndented("        ",this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}}
                     if({{hasKeyName}}({{innerKeyName}})){
-                        global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({{countsName}},{{innerKeyName}},out _)++;
+                        {{this.IncrementCount(countsName,innerKeyName)}}
                     }
                 }
             }
@@ -407,7 +420,8 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
                 var {{outerItemName}}={{outerArrayName}}[{{outerIndexName}}];
                 {{this.InnerKeyType}} {{outerKeyName}}=default!;
                 {{this.FuncAssignStaticIndented("    ",this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}}
-                if(!{{hasKeyName}}({{outerKeyName}})||!{{countsName}}.TryGetValue({{outerKeyName}},out var {{matchCountName}})) continue;
+                if(!{{hasKeyName}}({{outerKeyName}})) continue;
+                {{this.ReadCount(countsName,outerKeyName,matchCountName,declare:true)}}
                 for(var {{matchName}}=0;{{matchName}}<{{matchCountName}};{{matchName}}++){
                     {{this.ElementType}} {{resultName}}=default!;
                     {{this.FuncAssignStaticIndented("        ",this.resultSelector,nameof(this.resultSelector),resultName,outerItemName,$"default({this.InnerElementType})!")}}
@@ -546,18 +560,18 @@ internal class Join(int 番号,Enumerable outer,Enumerable inner,FuncFragment ou
         }
         var countsOnly=this.CountsOnly();
         var innerAdd=countsOnly
-            ? $"global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({builderName},{innerKeyName},out _)++;"
+            ? this.IncrementCount(builderName,innerKeyName)
             : $"{builderName}.Add({innerKeyName},{innerItemName});";
         var innerBody=$"{this.InnerKeyType} {innerKeyName}=default!;\n{this.FuncAssignStatic(this.innerKey,nameof(this.innerKey),innerKeyName,innerItemName)}\nif({hasKeyName}({innerKeyName})){{\n    {innerAdd}\n}}";
         var matchedInner=countsOnly ? $"default({this.InnerElementType})!" : $"{arrangedName}[{startName}]";
         var assignGeneral=this.FuncAssignStatic(this.resultSelector,nameof(this.resultSelector),destVar,outerItemName,matchedInner);
         var probe=countsOnly
-            ? $"if(!{builderName}.TryGetValue({outerKeyName},out var {endName})||{endName}<=0) continue;\n{assignGeneral}\n{foundName}=true;\nbreak;"
+            ? $"{this.ReadCount(builderName,outerKeyName,endName,declare:true)}\nif({endName}<=0) continue;\n{assignGeneral}\n{foundName}=true;\nbreak;"
             : $"if(!{builderName}.TryGetRange({outerKeyName},out var {startName},out var {endName})) continue;\n{assignGeneral}\n{foundName}=true;\nbreak;";
         var outerBody=$"{this.InnerKeyType} {outerKeyName}=default!;\n{this.FuncAssignStatic(this.outerKey,nameof(this.outerKey),outerKeyName,outerItemName)}\nif(!{hasKeyName}({outerKeyName})) continue;\n{probe}";
         var builderDeclaration=countsOnly
-            ? $"var {builderName}=new {this.CountsType}({countName},{this.comparerExpression});"
-            : $"var {builderName}=new global::Seamless.Linq.ContiguousLookupBuilder<{this.InnerKeyType},{this.InnerElementType}>({countName},{countName},{this.comparerExpression});";
+            ? $"var {builderName}={this.NewCounts(countName,this.comparerExpression)};"
+            : $"var {builderName}=new global::Seamless.Linq.ContiguousLookupBuilder<{this.InnerKeyType},{this.InnerElementType}>({countName},{this.GroupCapacity(countName)},{this.comparerExpression});";
         var prepare=countsOnly ? string.Empty : $"{builderName}.PrepareProbe();\n{arrangedName}={builderName}.Arranged;";
         var dispose=countsOnly ? string.Empty : $"{builderName}.Dispose();";
         var builtName=$"__joinBuilt{番号}";
