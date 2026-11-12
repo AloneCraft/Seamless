@@ -4,7 +4,7 @@ using Store=Seamless.Execution.Store;
 namespace Benchmark.TpcC.Tests;
 public sealed class TpcWalFailure{
     [Fact]public async Task SyncFailureStopsUpdatesReadsRollbackAndCheckpoints(){
-        var stores=new[]{Store.CreateTemporary(),Store.CreateTemporary()};var scale=TestDatabases.Mini(2,2);
+        var stores=new[]{TpcCTestStores.Temporary(),TpcCTestStores.Temporary()};var scale=TestDatabases.Mini(2,2);
         using var engine=TestDatabases.Variants[0].Open(stores,scale,Core.TpcCMode.Spec);
         engine.Database.BeginBulkLoad();new Core.TpcCDataGenerator(scale,Core.TpcCLoadRules.For(Core.TpcCMode.Spec),1).Generate(engine.Loader);engine.Database.EndBulkLoad();
         using var device=new FakeWalDevice();device.BlockSync();await using var writer=new WalWriter(device);

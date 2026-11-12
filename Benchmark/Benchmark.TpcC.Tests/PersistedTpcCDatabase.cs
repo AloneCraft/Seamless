@@ -6,7 +6,7 @@ public sealed class PersistedTpcCDatabase{
             //Persisted に流し込んだ DB は、Tsavorite の DB と全表・全索引のダイジェストが一致し、一貫性の条件にも合格する(区画は 2 つ、全区画を 1 つの Store に置く)
             var scale=TestDatabases.Mini(3,2);
             var (tsavoriteStore,tsavorite)=TestDatabases.Load(scale);
-            using var persistedStore=Store.CreateTemporary();
+            using var persistedStore=TpcCTestStores.Temporary();
             using var persisted=new Core.PersistedTpcCDatabase(persistedStore,scale);
             try{
                 persisted.BeginBulkLoad();
@@ -24,7 +24,7 @@ public sealed class PersistedTpcCDatabase{
         {
             //区画ごとに別の Store に置いても同じ
             var scale=TestDatabases.Mini(3,2);
-            var stores=new List<Store>{Store.CreateTemporary(),Store.CreateTemporary()};
+            var stores=new List<Store>{TpcCTestStores.Temporary(),TpcCTestStores.Temporary()};
             var (sharedStore,shared)=TestDatabases.Load(scale);
             var separate=new Core.PersistedTpcCDatabase(stores,scale);
             try{
@@ -45,7 +45,7 @@ public sealed class PersistedTpcCDatabase{
     [Fact,Trait("Category","Unit")]public void Constructor(){
         {
             //区画の数と Store の数が合わなければ、区画を作る前に例外にする
-            var stores=new List<Store>{Store.CreateTemporary()};
+            var stores=new List<Store>{TpcCTestStores.Temporary()};
             try{
                 Assert.Throws<ArgumentException>(()=>new Core.PersistedTpcCDatabase(stores,TestDatabases.Mini(3,2)));
                 Assert.Throws<ArgumentException>(()=>new Core.TsavoriteTpcCDatabase(stores,TestDatabases.Mini(3,2)));

@@ -18,7 +18,7 @@ public sealed class ConsistencyChecker{
             }
             try{
                 var scale=new TpcEScale{Customers=1000,InitialTradeDays=1,MarketDays=1305,NewsItemBytes=100_000,TsavoriteSegmentBytes=NativeTestProgress.SegmentBytes};
-                using var store=Store.CreateTemporary();
+                using var store=ComplianceTestStores.Temporary();
                 using var engine=OpenEGen(store,flat,scale);
                 var results=Compliance.ConsistencyChecker.Check(engine.Database);
                 Assert.Equal(3,results.Count);
@@ -40,7 +40,7 @@ public sealed class ConsistencyChecker{
             }
             try{
                 var scale=new TpcEScale{Customers=1000,InitialTradeDays=1,MarketDays=1305,NewsItemBytes=100_000,TsavoriteSegmentBytes=NativeTestProgress.SegmentBytes};
-                using var store=Store.CreateTemporary();
+                using var store=ComplianceTestStores.Temporary();
                 using var engine=OpenEGen(store,flat,scale);
                 var db=engine.Database;
                 var broker=db.Broker.EnumerateRows().OrderBy(static row=>row.Id).First();

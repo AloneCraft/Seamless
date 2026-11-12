@@ -1,7 +1,7 @@
 using System.Text.Json;
 namespace Benchmark.TpcC.Tests;
 public sealed class TpcCLockstepRunner{
-    internal static Core.TpcCRunOptions Mini=>new(){Warehouses=2,Partitions=2,Items=200,CustomersPerDistrict=30,Terminals=4,Transactions=80,Warmup=5,SaveEvery=20,ReopenEvery=1,KeepStores=true};
+    internal static Core.TpcCRunOptions Mini=>new(){Warehouses=2,Partitions=2,Items=200,CustomersPerDistrict=30,Terminals=4,Transactions=80,Warmup=5,SaveEvery=20,ReopenEvery=1,KeepStores=true,MemoryMegabytes=TpcCTestStores.MemoryMegabytes};
     [Fact,Trait("Category","Integration")]public void Run(){
         foreach(var hopping in new[]{false,true}){
             foreach(var mode in new[]{Core.TpcCMode.Spec,Core.TpcCMode.HammerDbMssql}){

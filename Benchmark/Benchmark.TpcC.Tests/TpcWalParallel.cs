@@ -5,7 +5,7 @@ namespace Benchmark.TpcC.Tests;
 public sealed class TpcWalParallel{
     [Fact]public async Task FourVariantsExecuteIndependentPaymentsBeforeEitherSyncCompletes(){
         foreach(var variant in TestDatabases.Variants){
-            var stores=new[]{Store.CreateTemporary(),Store.CreateTemporary()};var scale=TestDatabases.Mini(2,2);
+            var stores=new[]{TpcCTestStores.Temporary(),TpcCTestStores.Temporary()};var scale=TestDatabases.Mini(2,2);
             using var engine=variant.Open(stores,scale,Core.TpcCMode.Spec);
             engine.Database.BeginBulkLoad();new Core.TpcCDataGenerator(scale,Core.TpcCLoadRules.For(Core.TpcCMode.Spec),1).Generate(engine.Loader);engine.Database.EndBulkLoad();
             var before0=engine.Database.PartitionBases[0].Customer.Get(new Core.CustomerKey(1,1,1)).Balance;

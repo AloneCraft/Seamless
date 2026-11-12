@@ -16,8 +16,8 @@ public sealed class RedoLogReader{
             var directory=Path.Combine(Path.GetTempPath(),"tpce-redo-"+Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
             var path=Path.Combine(directory,"redo.log");
-            using var storeA=Store.CreateTemporary();
-            using var storeB=Store.CreateTemporary();
+            using var storeA=ComplianceTestStores.Temporary();
+            using var storeB=ComplianceTestStores.Temporary();
             using var a=OpenLoaded(storeA);
             using var b=OpenLoaded(storeB);
             try{

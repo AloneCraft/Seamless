@@ -27,7 +27,7 @@ public sealed class TpcCStateDigest{
             //区画ごとに別の Store に置いても、1 つの Store に置いたときと同じダイジェスト
             var scale=TestDatabases.Mini(4,2);
             var (storeShared,shared)=TestDatabases.Load(scale);
-            var stores=new List<Seamless.Execution.Store>{Seamless.Execution.Store.CreateTemporary(),Seamless.Execution.Store.CreateTemporary()};
+            var stores=new List<Seamless.Execution.Store>{TpcCTestStores.Temporary(),TpcCTestStores.Temporary()};
             var separate=new Core.TsavoriteTpcCDatabase(stores,scale);
             try{
                 separate.BeginBulkLoad();

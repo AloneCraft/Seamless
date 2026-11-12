@@ -34,7 +34,7 @@ public sealed class EGenFlatFileImporter{
                     Assert.Equal(0,process.ExitCode);
                 }
                 var scale=new TpcEScale{Customers=1000,InitialTradeDays=1,MarketDays=1305,NewsItemBytes=100_000,TsavoriteSegmentBytes=NativeTestProgress.SegmentBytes};
-                using var store=Store.CreateTemporary();
+                using var store=ComplianceTestStores.Temporary();
                 using var engine=new Benchmark.TpcE.Tsavorite.FLinq.TsavoriteFLinqVariant().Open(store,scale);
                 engine.Database.BeginBulkLoad();
                 var counts=new Compliance.EGenFlatFileImporter(output).Import(engine.Loader);

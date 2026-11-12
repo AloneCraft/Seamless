@@ -12,7 +12,7 @@ internal static class TestDatabases{
     ];
     /// <summary>組み合わせを開いて初期データを流し込む。</summary>
     public static (Store Store,Core.ITpcCEngine Engine) Open(Core.ITpcCVariant variant,Core.TpcCScale scale,Core.TpcCMode mode,ulong seed=1){
-        var store=Store.CreateTemporary();
+        var store=TpcCTestStores.Temporary();
         var engine=variant.Open(store,scale,mode);
         engine.Database.BeginBulkLoad();
         new Core.TpcCDataGenerator(scale,Core.TpcCLoadRules.For(mode),seed).Generate(engine.Loader);
@@ -45,7 +45,7 @@ internal static class TestDatabases{
         ((ITableView)table).DeleteRawBoxed(key);
     }
     public static (Store Store,Core.TsavoriteTpcCDatabase Database) Load(Core.TpcCScale scale,Core.TpcCMode mode=Core.TpcCMode.Spec,ulong seed=1){
-        var store=Store.CreateTemporary();
+        var store=TpcCTestStores.Temporary();
         var database=new Core.TsavoriteTpcCDatabase(store,scale);
         database.BeginBulkLoad();
         new Core.TpcCDataGenerator(scale,Core.TpcCLoadRules.For(mode),seed).Generate(new Core.TpcCDatabaseLoadSink<Core.TsavoriteTpcCPartition>(database));

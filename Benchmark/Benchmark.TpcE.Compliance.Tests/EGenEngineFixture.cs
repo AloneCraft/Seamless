@@ -20,9 +20,9 @@ public sealed class EGenEngineFixture:IDisposable{
             return;
         }
         var scale=new TpcEScale{Customers=1000,InitialTradeDays=1,MarketDays=1305,NewsItemBytes=100_000,TsavoriteSegmentBytes=NativeTestProgress.SegmentBytes};
-        this.store=Store.CreateTemporary();
+        this.store=ComplianceTestStores.Temporary();
         using(NativeTestProgress.Measure("fixture-load-engine")){this.Engine=Load(this.store,scale,this.flat);}
-        this.twinStore=Store.CreateTemporary();
+        this.twinStore=ComplianceTestStores.Temporary();
         using(NativeTestProgress.Measure("fixture-load-twin")){this.Twin=Load(this.twinStore,scale,this.flat);}
         this.Host=new Compliance.HarnessHost(dll);
     }

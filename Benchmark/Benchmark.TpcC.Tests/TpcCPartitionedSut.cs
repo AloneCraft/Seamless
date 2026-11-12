@@ -9,7 +9,7 @@ public sealed class TpcCPartitionedSutTests{
         foreach(var variant in TestDatabases.Variants){
             var path=Path.Combine(Path.GetTempPath(),"Seamless.C12.TpcC",Guid.NewGuid().ToString("N"));var scale=TestDatabases.Mini(2,partitions);
             DatabaseDigest? expected=null;Guid id;
-            Store[] Open()=>Enumerable.Range(0,partitions).Select(part=>Store.Open(Path.Combine(path,"p"+part))).ToArray();
+            Store[] Open()=>Enumerable.Range(0,partitions).Select(part=>TpcCTestStores.Open(Path.Combine(path,"p"+part))).ToArray();
             try{
                 await using(var sut=new Server.TpcCPartitionedSut(variant,Open(),scale,TpcCMode.Spec,Path.Combine(path,"wal"),engine=>{
                     engine.Database.BeginBulkLoad();new Core.TpcCDataGenerator(scale,TpcCLoadRules.For(TpcCMode.Spec),1).Generate(engine.Loader);engine.Database.EndBulkLoad();
@@ -41,13 +41,13 @@ public sealed class TpcCPartitionedSutTests{
     [Fact]public async Task AuditModeRecordsReadsAndRollbackAndRejectsNormalModeReuse(){
         var path=Path.Combine(Path.GetTempPath(),"Seamless.C12.Audit",Guid.NewGuid().ToString("N"));var scale=TestDatabases.Mini(1,1);
         try{
-            await using(var sut=new Server.TpcCPartitionedSut(TestDatabases.Variants[0],[Store.Open(Path.Combine(path,"store"))],scale,TpcCMode.Spec,Path.Combine(path,"wal"),engine=>{
+            await using(var sut=new Server.TpcCPartitionedSut(TestDatabases.Variants[0],[TpcCTestStores.Open(Path.Combine(path,"store"))],scale,TpcCMode.Spec,Path.Combine(path,"wal"),engine=>{
                 engine.Database.BeginBulkLoad();new Core.TpcCDataGenerator(scale,TpcCLoadRules.For(TpcCMode.Spec),1).Generate(engine.Loader);engine.Database.EndBulkLoad();
             },auditMode:true)){
                 var read=await sut.ExecuteAsync(new StockLevelRequest(1,123,1,20));Assert.Equal(1,read.FenceLsn);
                 var rollback=await sut.ExecuteAsync(new NewOrderRequest(1,124,1,1,[new(1,1,1),new(scale.Items+1,1,1)],0));Assert.True(rollback.Result.RolledBack);Assert.Equal(2,rollback.FenceLsn);
             }
-            Assert.Throws<InvalidDataException>(()=>new Server.TpcCPartitionedSut(TestDatabases.Variants[0],[Store.Open(Path.Combine(path,"store"))],scale,TpcCMode.Spec,Path.Combine(path,"wal")));
+            Assert.Throws<InvalidDataException>(()=>new Server.TpcCPartitionedSut(TestDatabases.Variants[0],[TpcCTestStores.Open(Path.Combine(path,"store"))],scale,TpcCMode.Spec,Path.Combine(path,"wal")));
         }finally{if(Directory.Exists(path)){Directory.Delete(path,true);}}
     }
 }

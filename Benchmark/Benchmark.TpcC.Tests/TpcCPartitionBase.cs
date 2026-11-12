@@ -73,7 +73,7 @@ public sealed class TpcCPartitionBase{
     [Fact,Trait("Category","Unit")]public void Owns(){
         {
             //区画が持つ倉庫の範囲と物理名
-            using var store=Seamless.Execution.Store.CreateTemporary();
+            using var store=TpcCTestStores.Temporary();
             using var db=new Core.TsavoriteTpcCDatabase(store,TestDatabases.Mini(5,2));
             //倉庫 5・区画 2 は [1〜3] と [4〜5] に分かれる
             Assert.True(db.Partition(0).Owns(1));

@@ -16,7 +16,7 @@ public sealed class SharedRecovery{
         DatabaseDigest? expected=null;Guid id;
         try{
             using(NativeTestProgress.Measure("recovery-"+backend+"-initial-lifetime"))
-            using(var store=Store.Open(Path.Combine(root,"store")))
+            using(var store=ComplianceTestStores.Open(Path.Combine(root,"store")))
             using(var engine=variant.Open(store,scale)){
                 using(NativeTestProgress.Measure("recovery-"+backend+"-load")){engine.Database.BeginBulkLoad();new Compliance.EGenFlatFileImporter(flat!).Import(engine.Loader);engine.Database.EndBulkLoad();}
                 using var transactionPhase=NativeTestProgress.Measure("recovery-"+backend+"-wal-commit-and-digest");
@@ -32,7 +32,7 @@ public sealed class SharedRecovery{
             }
             for(var attempt=0;attempt<3;attempt++){
                 using var attemptPhase=NativeTestProgress.Measure("recovery-"+backend+"-reopen-"+attempt);
-                using var store=Store.Open(Path.Combine(root,"store"));using var engine=variant.Open(store,scale);
+                using var store=ComplianceTestStores.Open(Path.Combine(root,"store"));using var engine=variant.Open(store,scale);
                 await using var sut=new Compliance.TpcETransactionalSut(engine,scale,Path.Combine(root,"wal"),dll);
                 using(NativeTestProgress.Measure("recovery-"+backend+"-digest-"+attempt)){Assert.Empty(expected!.Differences(StateDigest.Of(engine.Database)));}
                 Assert.Equal(TransactionOutcomeKind.Committed,sut.GetTransactionOutcome(id).Kind);

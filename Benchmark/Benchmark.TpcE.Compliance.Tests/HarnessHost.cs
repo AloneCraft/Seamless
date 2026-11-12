@@ -53,7 +53,7 @@ public sealed class HarnessHost{
             if(dll is null){
                 return;
             }
-            using var store=Store.CreateTemporary();
+            using var store=ComplianceTestStores.Temporary();
             using var engine=OpenLoaded(store);
             var frames=(IHarnessFrameEngine)engine;
             var account=engine.Database.Trade.EnumerateRows()
