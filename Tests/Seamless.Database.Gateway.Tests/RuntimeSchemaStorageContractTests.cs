@@ -57,23 +57,25 @@ public sealed class RuntimeSchemaStorageContractTests{
         if(string.IsNullOrWhiteSpace(testRoot)||!Path.IsPathFullyQualified(testRoot)){throw new InvalidOperationException("SEAMLESS_TEST_DATA_ROOT must be an absolute D: or F: test directory.");}
         var root=Path.GetFullPath(testRoot);if(!root.StartsWith("D:\\",StringComparison.OrdinalIgnoreCase)&&!root.StartsWith("F:\\",StringComparison.OrdinalIgnoreCase)){throw new InvalidOperationException("The test directory must be on D: or F:.");}
         var path=Path.Combine(root,"runtime-generated-contract-"+Guid.NewGuid().ToString("N"));
-        var options=DatabaseContainerOptions.OnStorage(path) with{Transactions=DatabaseTransactionMode.SharedV2,IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20,TemporaryDirectory=Path.Combine(path,"scratch")};
+        var options=DatabaseContainerOptions.OnStorage(path) with{IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20,TemporaryDirectory=Path.Combine(path,"scratch")};
         var typedKey=new RuntimeTypedKey(5);var catalogKey=new RuntimeSchemaKey(17);var rowKey=new RuntimeDataKey(17,1);
-        var typed=new RuntimeTypedRecord(typedKey.ObjectId,"typed",1);var catalog=new RuntimeSchemaRecord(catalogKey,"dynamic",1);var row=new RuntimeDataRecord(rowKey,[1,2,3]);
+        var typed=new RuntimeTypedRecord(typedKey.ObjectId,"typed",1);var standalone=new RuntimeTypedRecord(6,"standalone-import",1);var catalog=new RuntimeSchemaRecord(catalogKey,"dynamic",1);var row=new RuntimeDataRecord(rowKey,[1,2,3]);
         using(var database=new RuntimeGeneratedFixture(options)){
             Assert.False(database.RootReadyDuringIdentity);Assert.True(database.RootReady);Assert.Contains("RuntimeGeneratedFixture|typed-v2",database.IdentityInBaseConstructor);Assert.Equal(database.IdentityInBaseConstructor,database.CurrentIdentity());
             Assert.Equal(typeof(RuntimeGeneratedFixture),typeof(RuntimeGeneratedFixture).GetMethod("EnsureTransactionSchema",global::System.Reflection.BindingFlags.Instance|global::System.Reflection.BindingFlags.NonPublic)!.DeclaringType);
             Assert.True(database.DatabaseObjects.ContainsKey(new("TypedOrders")));Assert.False(database.DatabaseObjects.ContainsKey(new("~runtime.catalog.v1")));Assert.False(database.DatabaseObjects.ContainsKey(new("~runtime.rows.v1")));
             var tables=new Seamless.Database.Gateway.Hosting.InProcessDatabaseAdapter(database).GetTables();Assert.Single(tables);Assert.Equal("TypedOrders",tables[0].TableName);
-            database.EnsureTablesCreated();Assert.Throws<InvalidOperationException>(()=>database.ImportTables(new RuntimeGeneratedImport(typed)));
-            using(var transaction=database.BeginTransaction()){database.ImportTables(new RuntimeGeneratedImport(typed));Assert.True(database.RuntimeCatalog().Add(catalog));Assert.True(database.RuntimeRows().Add(row));transaction.Commit();}
-            using(var transaction=database.BeginTransaction()){database.TypedOrders[typedKey]=new(typedKey.ObjectId,"typed-rollback",2);database.RuntimeCatalog()[catalogKey]=new(catalogKey,"dynamic-rollback",2);database.RuntimeRows()[rowKey]=new(rowKey,[9]);transaction.Rollback();}
+            database.EnsureTablesCreated();database.ImportTables(new RuntimeGeneratedImport(standalone));
+            Assert.Equal(standalone,database.TypedOrders[new(standalone.ObjectId)]);Assert.False(database.TypedOrders.ContainsKey(typedKey));Assert.Empty(database.RuntimeCatalog());Assert.Empty(database.RuntimeRows());
+            // 実行時SQLの動的な表は暗黙の取引(DatabaseTransaction)で書く。型付きの取引へ移すまでは基底の入口を使う。
+            using(var transaction=((DatabaseContainer)database).BeginTransaction()){database.ImportTables(new RuntimeGeneratedImport(typed));Assert.True(database.RuntimeCatalog().Add(catalog));Assert.True(database.RuntimeRows().Add(row));transaction.Commit();}
+            using(var transaction=((DatabaseContainer)database).BeginTransaction()){database.TypedOrders[typedKey]=new(typedKey.ObjectId,"typed-rollback",2);database.RuntimeCatalog()[catalogKey]=new(catalogKey,"dynamic-rollback",2);database.RuntimeRows()[rowKey]=new(rowKey,[9]);transaction.Rollback();}
             using var read=database.BeginReadSession();Assert.Equal(typed,database.TypedOrders[typedKey]);Assert.Equal(catalog,database.RuntimeCatalog()[catalogKey]);Assert.Equal(row.Payload,database.RuntimeRows()[rowKey].Payload);
         }
         using(var reopened=new RuntimeGeneratedFixture(options)){
             Assert.Equal(reopened.IdentityInBaseConstructor,reopened.CurrentIdentity());using var read=reopened.BeginReadSession();
-            Assert.Equal(typed,reopened.TypedOrders[typedKey]);Assert.Equal(catalog,reopened.RuntimeCatalog()[catalogKey]);Assert.Equal(row.Payload,reopened.RuntimeRows()[rowKey].Payload);
-            Assert.Single(reopened.TypedOrders);Assert.Single(reopened.RuntimeCatalog());Assert.Single(reopened.RuntimeRows());
+            Assert.Equal(typed,reopened.TypedOrders[typedKey]);Assert.Equal(standalone,reopened.TypedOrders[new(standalone.ObjectId)]);Assert.Equal(catalog,reopened.RuntimeCatalog()[catalogKey]);Assert.Equal(row.Payload,reopened.RuntimeRows()[rowKey].Payload);
+            Assert.Equal(2,reopened.TypedOrders.Count);Assert.Single(reopened.RuntimeCatalog());Assert.Single(reopened.RuntimeRows());
         }
     }
 
@@ -84,7 +86,7 @@ public sealed class RuntimeSchemaStorageContractTests{
         var root=Path.GetFullPath(testRoot);
         if(!root.StartsWith("D:\\",StringComparison.OrdinalIgnoreCase)&&!root.StartsWith("F:\\",StringComparison.OrdinalIgnoreCase)){throw new InvalidOperationException("The test directory must be on D: or F:.");}
         var path=Path.Combine(root,"runtime-schema-contract-"+Guid.NewGuid().ToString("N"));
-        var options=DatabaseContainerOptions.OnStorage(path) with{Transactions=DatabaseTransactionMode.SharedV2,IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20,TemporaryDirectory=Path.Combine(path,"scratch")};
+        var options=DatabaseContainerOptions.OnStorage(path) with{IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20,TemporaryDirectory=Path.Combine(path,"scratch")};
         var objectKey=new RuntimeSchemaKey(17);var rowKey=new RuntimeDataKey(17,1);
         var firstSchema=new RuntimeSchemaRecord(objectKey,"orders",1);var firstRow=new RuntimeDataRecord(rowKey,[1,2,3]);
         using(var database=new RuntimeSchemaFixture(options)){

@@ -6,7 +6,6 @@ public sealed class BankReadOnlyTests{
     [Fact]
     public async Task GeneratedReadOnlyEntryRejectsWritesAndLeavesNormalEntryUsable(){
         using var database=new BankDatabase(DatabaseContainerOptions.InMemory with{
-            Transactions=DatabaseTransactionMode.SharedV2,
             IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20
         });
         await using(var seed=await database.BeginTransactionAsync()){

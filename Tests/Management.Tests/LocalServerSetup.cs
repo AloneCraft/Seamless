@@ -1,4 +1,4 @@
-using System.Security.Cryptography.X509Certificates;
+﻿using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Seamless.Management;
 using Seamless.Management.Server;
@@ -16,10 +16,20 @@ public sealed class LocalServerSetup{
         using(var store=new ManagementStore(root))using(var service=new Seamless.Management.Server.ManagementService(store)){Assert.Equal("admin",service.Login(new("admin","SetupPassword-123")).User.Name);}
         var ready=Path.Combine(directory,"ready.json");var stop=Path.Combine(directory,"stop");var server=ServerProgram.Main(["serve","--config",config,"--port","0","--ready-file",ready,"--stop-file",stop]);
         try{
+            using var startup=new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            while(!File.Exists(ready)&&!server.IsCompleted){await Task.Delay(10,startup.Token);}
             Assert.True(File.Exists(ready),"初期設定した起動設定でサーバーが起動しませんでした。");var local=Seamless.Management.LocalServerConnection.Read(root);Assert.NotNull(local);
             using var certificate=X509CertificateLoader.LoadCertificateFromFile(Path.Combine(root,Seamless.Management.LocalServerConnection.CertificateFileName));Assert.False(certificate.HasPrivateKey);
             var client=new ManagementClient("localhost",local.Port,certificate);var info=await client.InfoAsync();Assert.Equal(local.InstanceId,info.InstanceId);Assert.Equal("admin",(await client.LoginAsync("admin","SetupPassword-123")).User.Name);
-        }finally{File.WriteAllText(stop,"stop");Assert.Equal(0,await server.WaitAsync(TimeSpan.FromSeconds(10)));}
+            var collection=await client.ReadAuditStatusAsync();Assert.True(collection.Enabled);Assert.Equal(60,collection.WindowSeconds);Assert.Equal(5,collection.SaveIntervalSeconds);
+        }finally{
+            File.WriteAllText(stop,"stop");
+            try{Assert.Equal(0,await server.WaitAsync(TimeSpan.FromSeconds(10)));}
+            catch(TimeoutException error){
+                var connectionPublished=File.Exists(Path.Combine(root,Seamless.Management.LocalServerConnection.FileName));
+                throw new TimeoutException($"停止ファイル作成後にサーバーが終了しませんでした。接続情報ファイルの有無={connectionPublished}。",error);
+            }
+        }
         Assert.Null(Seamless.Management.LocalServerConnection.Read(root));
         Assert.Equal(0,await ServerProgram.Main(["serve","--config",config,"--port","0","--owner-pid",Environment.ProcessId.ToString(),"--owner-start","0"]).WaitAsync(TimeSpan.FromSeconds(10)));Assert.Null(Seamless.Management.LocalServerConnection.Read(root));
         var second=Path.Combine(directory,"second.json");File.WriteAllText(second,JsonSerializer.Serialize(new ManagementLaunchConfiguration("instance","instance/server.pfx",LocalUser:settings.LocalUser),ManagementJson.Options));Assert.Equal(settings,ManagementLaunchConfiguration.Read(second));

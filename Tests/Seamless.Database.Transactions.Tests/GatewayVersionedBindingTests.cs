@@ -6,6 +6,35 @@ namespace Seamless.Database.Transactions.Tests;
 
 public sealed class GatewayVersionedBindingTests{
     [Fact]
+    public async Task ReclamationDiagnosticsUseTheCommonOwnerAcrossDatabaseBindings(){
+        await using var fixture=new Fixture(PathForTest());
+        Assert.Equal(TransactionMaintenancePhase.None,fixture.A.Database.GetTransactionDomainDiagnostics().Maintenance.Phase);
+        await fixture.Owner.CheckpointVersionedAsync();var expected=fixture.Owner.GetDomainDiagnostics().Maintenance;
+        Assert.Equal(TransactionMaintenancePhase.Completed,expected.Phase);Assert.True(expected.PhysicalStarted);
+        Assert.Equal(expected,fixture.A.Database.GetTransactionDomainDiagnostics().Maintenance);
+        Assert.Equal(expected,fixture.B.Database.GetTransactionDomainDiagnostics().Maintenance);
+        await fixture.Owner.ReclaimHistoryAsync();
+        Assert.Equal(expected.Sequence+1,fixture.A.Database.GetTransactionDomainDiagnostics().Maintenance.Sequence);
+        Assert.Equal(fixture.A.Database.GetTransactionDomainDiagnostics().Maintenance,fixture.B.Database.GetTransactionDomainDiagnostics().Maintenance);
+        // 旧current-value adapterのFaultGatewayは使わず、DBの停止状態だけを注入する。
+        typeof(DatabaseContainer).GetField("faulted",global::System.Reflection.BindingFlags.Instance|global::System.Reflection.BindingFlags.NonPublic)!.SetValue(fixture.A.Database,true);
+        Assert.Throws<DatabaseFaultedException>(()=>fixture.A.Database.Accounts.Count);
+        Assert.Equal(fixture.Owner.GetDomainDiagnostics().Maintenance,fixture.A.Database.GetTransactionDomainDiagnostics().Maintenance);
+    }
+    [Fact]
+    public async Task CapturedQueryRowsKeepTheirScopeAndRejectAnotherTransaction(){
+        await using var fixture=new Fixture(PathForTest());global::Seamless.Database.DatabaseRows<int,Account> captured;
+        await using(var seed=await fixture.Owner.BeginAsync()){
+            using var execution=fixture.A.Database.EnterGatewayVersionedExecution(new(seed.Id,1),seed);fixture.A.Database.Accounts.Add(new(1,100));await seed.CommitAsync();
+        }
+        await using(var read=await fixture.Owner.BeginReadOnlyAsync()){
+            using var execution=fixture.A.Database.EnterGatewayVersionedExecution(new(read.Id,1),read);captured=fixture.A.Database.Accounts.GetQueryRows();Assert.Equal(1,captured.GetLongCount());
+            await OutsideCurrent(async()=>{await using var update=await fixture.Owner.BeginAsync();using var current=fixture.A.Database.EnterGatewayVersionedExecution(new(update.Id,2),update);fixture.A.Database.Accounts[1]=new(1,200);await update.CommitAsync();});
+            Assert.Equal(100,Assert.Single(captured).Balance);await read.CommitAsync();
+        }
+        await using var next=await fixture.Owner.BeginReadOnlyAsync();using var active=fixture.A.Database.EnterGatewayVersionedExecution(new(next.Id,1),next);Assert.ThrowsAny<InvalidOperationException>(()=>captured.GetLongCount());Assert.Equal(200,Assert.Single(fixture.A.Database.Accounts.GetQueryRows()).Balance);await next.CommitAsync();
+    }
+    [Fact]
     public async Task CompletedExecutionCanBeReleasedFromAnotherCapturedContextWithoutLeavingItsOwnerUnusable(){
         await using var fixture=new Fixture(PathForTest());await using(var read=await fixture.Owner.BeginReadOnlyAsync()){
             var execution=fixture.A.Database.EnterGatewayVersionedExecution(new(read.Id,1),read);await read.CommitAsync();await OutsideCurrent(()=>{execution.Dispose();return Task.CompletedTask;});Assert.Throws<ObjectDisposedException>(()=>fixture.A.Database.Accounts.Count);execution.Dispose();
@@ -86,7 +115,7 @@ public sealed class GatewayVersionedBindingTests{
             var owner=new GatewayTransactionOwner(tx.Id,1);using var a=fixture.A.Database.EnterGatewayVersionedExecution(owner,tx);using var b=fixture.B.Database.EnterGatewayVersionedExecution(owner,tx);
             Assert.True(fixture.A.Database.Accounts.Add(new(1,100)));Assert.True(fixture.B.Database.Accounts.Add(new(1,200)));fixture.A.Database.LoadSummary(new(1,300));
             tx.CreateSavepoint("before");fixture.A.Database.Accounts[1]=new(1,90);Assert.True(fixture.B.Database.Accounts.Replace(1,new(2,180)));Assert.Equal(new[]{2},fixture.B.Database.Accounts.Keys);tx.RollbackToSavepoint("before");
-            Assert.Equal(100,fixture.A.Database.Accounts[1].Balance);Assert.Equal(200,fixture.B.Database.Accounts[1].Balance);Assert.Equal(300,fixture.A.Database.Summaries[1].Balance);Assert.Equal(1,fixture.A.Database.Summaries.LongCount);Assert.Equal(new[]{1},fixture.A.Database.Summaries.Keys);Assert.Equal(400,new NativeReport().Total(fixture.A.Database));await tx.CommitAsync();
+            Assert.Equal(100,fixture.A.Database.Accounts[1].Balance);Assert.Equal(200,fixture.B.Database.Accounts[1].Balance);Assert.Equal(300,fixture.A.Database.Summaries[1].Balance);Assert.Equal(1,fixture.A.Database.Summaries.LongCount);Assert.Equal(new[]{1},fixture.A.Database.Summaries.Keys);Assert.Equal(400,new NativeReport().Total(fixture.A.Database));Assert.Equal(500,new NativeReport().Shapes(fixture.A.Database));await tx.CommitAsync();
         }
         Assert.Throws<InvalidOperationException>(()=>fixture.A.Database.Accounts.Count);
         await using(var read=await fixture.Owner.BeginReadOnlyAsync()){
@@ -116,7 +145,12 @@ public sealed class GatewayVersionedBindingTests{
     }
     [global::Seamless.FLinq.LinqIntercept(true)]
     internal sealed class NativeReport{
-        internal decimal Total(BankDatabase database)=>database.Accounts.GetGatewayTransactionRows().Where(static row=>row.Id>0).Sum(static row=>row.Balance)+database.Summaries.GetGatewayTransactionRows().Sum(static row=>row.Balance);
+        internal decimal Total(BankDatabase database)=>database.Accounts.Where(static row=>row.Id>0).Sum(static row=>row.Balance)+database.Summaries.Sum(static row=>row.Balance);
+        internal decimal Shapes(BankDatabase database){
+            var groups=database.Accounts.GroupBy(static row=>row.Id%2).Select(static group=>group.Sum(static row=>row.Balance)).ToArray();
+            var joined=database.Accounts.Join(database.Summaries,static row=>row.Id,static row=>row.Id,static(account,summary)=>account.Balance+summary.Balance).ToArray();
+            return groups.Sum()+joined.Sum();
+        }
     }
     private sealed class Fixture:IAsyncDisposable{
         private readonly ExecutionScope resources;
@@ -132,7 +166,7 @@ public sealed class GatewayVersionedBindingTests{
         internal readonly Generation A,B;
         internal Guid OwnerWalId=>this.journal.WalId;
         internal Fixture(string path){
-            this.path=path;Directory.CreateDirectory(path);this.resources=new(new(){MemoryLimitBytes=32<<20,TemporaryStorageLimitBytes=64<<20,TemporaryDirectory=Path.Combine(path,"work")});this.metadata=this.resources.Budget.CreateChild(2<<20,0);
+            this.path=path;Directory.CreateDirectory(path);this.resources=new(new(){MemoryLimitBytes=64<<20,TemporaryStorageLimitBytes=64<<20,TemporaryDirectory=Path.Combine(path,"work")});this.metadata=this.resources.Budget.CreateChild(2<<20,0);
             this.journal=new(Path.Combine(path,"common-wal"),new(){MaxFrameBytes=4096,QueueBytes=16384,SegmentBytes=65536,CatalogIdentity="binding-tests-v1"},this.resources.Budget);
             this.options=new(){Concurrency=TransactionConcurrencyMode.Optimistic,ParentBudget=this.resources.Budget,History=new(){MaxRetainedMemoryBytes=1<<20,MaxRetainedStorageBytes=4<<20,MaxMetadataBytes=1<<20,MaintenanceReserveMemoryBytes=64<<10,MaintenanceReserveStorageBytes=1<<20,MaintenanceWaitTimeout=TimeSpan.FromSeconds(5)}};
             this.Owner=new(null,null,this.journal,this.options);this.One=new(1,0,"database-a",this.metadata);this.Two=new(2,0,"database-b",this.metadata);this.Owner.Register(this.One);this.Owner.Register(this.Two);
@@ -152,7 +186,8 @@ public sealed class GatewayVersionedBindingTests{
             var options=this.DatabaseOptions(new(this.journal.WalId,group.Partition){GenerationId=generationId},name) with{GatewayVersionedBinding=binding};
             BankDatabase? database=null;try{database=new(options);var generation=new Generation(database,binding);this.generations.Add(generation);database.InitializeGatewayVersionedStorage();return generation;}catch{if(database is null){binding.Dispose();}throw;}
         }
-        internal DatabaseContainerOptions DatabaseOptions(GatewayDatabaseProfile profile,string name)=>DatabaseContainerOptions.OnStorage(Path.Combine(this.path,name)) with{Transactions=DatabaseTransactionMode.SharedV2,TransactionConcurrency=this.options.Concurrency,TransactionHistory=this.options.History,RecordSerialization=DatabaseRecordSerialization.CanonicalV1,ParentBudget=this.resources.Budget,GatewayProfile=profile,IndexSize=16,PageSize=4096,SegmentSize=65536,MemorySize=65536,ManagedMemoryLimitBytes=8<<20,TemporaryStorageLimitBytes=16<<20,TransactionMemoryLimit=1024,TemporaryDirectory=Path.Combine(this.path,name,"work")};
+        // 各DBのnative固定poolを含める。保持する行数や履歴圧迫の閾値は増やさない。
+        internal DatabaseContainerOptions DatabaseOptions(GatewayDatabaseProfile profile,string name)=>DatabaseContainerOptions.OnStorage(Path.Combine(this.path,name)) with{TransactionConcurrency=this.options.Concurrency,TransactionHistory=this.options.History,RecordSerialization=DatabaseRecordSerialization.CanonicalV1,ParentBudget=this.resources.Budget,GatewayProfile=profile,IndexSize=16,PageSize=4096,SegmentSize=65536,MemorySize=65536,ManagedMemoryLimitBytes=32<<20,TemporaryStorageLimitBytes=16<<20,TransactionMemoryLimit=1024,TemporaryDirectory=Path.Combine(this.path,name,"work")};
         public async ValueTask DisposeAsync(){
             if(this.disposed){return;}this.disposed=true;List<Exception>? errors=null;
             foreach(var generation in this.generations){try{generation.Binding.AllowDisposeForShutdown();generation.Database.Dispose();}catch(Exception error){(errors??=[]).Add(error);}}

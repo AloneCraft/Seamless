@@ -1,6 +1,7 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text.Json;
+using Seamless.Authentication;
 using Seamless.Management;
 using Seamless.Management.Server;
 using Seamless.Security;
@@ -18,6 +19,90 @@ public sealed class AuthorizationPolicyStorage{
     private static Policy Initial(Guid server)=>new(1,[new(server,null,SecurityResourceKind.Server,"server"),new(Database,server,SecurityResourceKind.Database,"db"),new(Schema,Database,SecurityResourceKind.Schema,"sales"),new(Table,Schema,SecurityResourceKind.Table,"orders")],[new(RootRole,"root",[new(server,SecurityPermission.All)]),new(AdminRole,"administrator",[new(Database,SecurityPermission.ManagePermissions)]),new(Reader,"reader",[new(Database,SecurityPermission.Read|SecurityPermission.Discover)])],[new(RootUser,SecurityPrincipalKind.User,RootRole),new(Admin,SecurityPrincipalKind.User,AdminRole),new(User,SecurityPrincipalKind.User,Reader)]);
     private static Change RemoveReader(long version)=>new(Database,version,unassign:[new(User,SecurityPrincipalKind.User,Reader)]);
     private static StoredAuthorization Create(ManagementStore store)=>StoredAuthorization.Initialize(store,Initial(store.InstanceId),Identity(RootUser));
+    [Fact]public async Task EmergencyDisableCompletesWhileSiblingPolicyEditIsWaitingToSave(){
+        using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");
+        using var writer=Create(store);using var sibling=StoredAuthorization.Open(store);
+        using var editor=sibling.CreateSession(Identity(RootUser)).BeginOperation();
+        using var admin=writer.CreateSession(Identity(RootUser)).BeginOperation();
+        using var target=sibling.CreateSession(Identity(User));
+        using var transaction=target.BeginTransaction();
+        var preparing=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        sibling.Checkpoint=phase=>{
+            if(phase!="Saving"){return;}
+            preparing.TrySetResult();
+            release.Task.WaitAsync(TimeSpan.FromSeconds(20)).GetAwaiter().GetResult();
+        };
+        var edit=Task.Run(()=>sibling.ApplyDatabaseChange(editor,RemoveReader(1)));
+        try{
+            await preparing.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var disabled=await Task.Run(()=>writer.ApplySubjectStatusAsync(admin,User,true,Guid.NewGuid())).WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.True(disabled.Disabled);Assert.True(transaction.CancellationToken.IsCancellationRequested);
+        }finally{release.TrySetResult();}
+        Assert.Equal(2,(await edit.WaitAsync(TimeSpan.FromSeconds(10))).Version);
+    }
+
+    [Fact]public async Task OidcSessionFactoryObservesPersistedPolicyWithoutReplacingAnExistingTransaction(){
+        await using var issuer=await OidcDevelopmentIssuer.StartAsync();using var verifier=new OidcTokenVerifier(issuer.Settings);using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");
+        var administrator=Identity(new(issuer.Id,"bootstrap"));var group=new RoleBinding(new(issuer.Id,"developers"),SecurityPrincipalKind.Group,Reader);
+        var policy=new Policy(1,[new(store.InstanceId,null,SecurityResourceKind.Server,"server"),new(Database,store.InstanceId,SecurityResourceKind.Database,"db")],[new(RootRole,"bootstrap",[new(store.InstanceId,SecurityPermission.All)]),new(Reader,"reader",[new(Database,SecurityPermission.Read)])],[new(administrator.Subject,SecurityPrincipalKind.User,RootRole),group]);
+        using var writer=StoredAuthorization.Initialize(store,policy,administrator);using var observer=StoredAuthorization.Open(store);
+        using var session=await Seamless.Authentication.OidcAuthorizationSession.AuthenticateWithSessionFactoryAsync(verifier,(identity,_)=>ValueTask.FromResult<IAuthorizationSession>(observer.CreateSession(identity)),issuer.CreateToken(OidcDevelopmentIssuer.Audience,scope:"seamless.database"));
+        using var transaction=await session.BeginTransactionAsync();transaction.Demand(Database,SecurityPermission.Read);
+        using(var edit=writer.CreateSession(administrator).BeginOperation()){writer.ApplyDatabaseChange(edit,new(Database,1,unassign:[group]));}
+        using(var next=await session.BeginOperationAsync()){Assert.Equal(2,next.Audit.PolicyVersion);Assert.Throws<AuthorizationException>(()=>next.Demand(Database,SecurityPermission.Read));}
+        Assert.Equal(1,transaction.Audit.PolicyVersion);transaction.Demand(Database,SecurityPermission.Read);session.Dispose();
+        using var sibling=observer.CreateSession(administrator);using var operation=sibling.BeginOperation();Assert.Equal(2,operation.Audit.PolicyVersion);operation.Demand(store.InstanceId,SecurityPermission.ManageServer);
+    }
+    [Fact]public async Task InitializeCommandRequiresVerifiedAdministratorAndOfflineBackup(){
+        await using var issuer=await OidcDevelopmentIssuer.StartAsync();
+        var directory=Root();var root=Path.Combine(directory,"active");var backup=Path.Combine(directory,"backup");
+        var policyPath=Path.Combine(directory,"policy.json");var providerPath=Path.Combine(directory,"oidc.json");
+        long revision;var invocation=0;var admin=new SecuritySubjectId(issuer.Id,"policy-admin");
+        var valid=issuer.CreateToken(OidcDevelopmentIssuer.Audience,admin.Value,scope:"seamless.database");
+        using(var store=ManagementStore.Initialize(root,"admin","TestPassword-123")){
+            var instance=store.InstanceId;revision=store.Revision;
+            var policy=new Policy(1,[new(instance,null,SecurityResourceKind.Server,"server")],
+                [new(RootRole,"root",[new(instance,SecurityPermission.ManageServer)])],[new(admin,SecurityPrincipalKind.User,RootRole)]);
+            await File.WriteAllTextAsync(policyPath,JsonSerializer.Serialize(AuthorizationPolicyDocument.Capture(policy),ManagementJson.Options));
+            await File.WriteAllTextAsync(providerPath,JsonSerializer.Serialize(issuer.Settings,ManagementJson.Options));
+            Assert.Equal(1,await RunAsync(valid));
+            Assert.False(Directory.Exists(backup));
+            Assert.Equal(revision,store.Revision);
+        }
+        Assert.Equal(1,await RunAsync(issuer.CreateToken(OidcDevelopmentIssuer.ClientId,admin.Value,scope:"seamless.database")));
+        Assert.Equal(1,await RunAsync(issuer.CreateToken(OidcDevelopmentIssuer.Audience,"reader",scope:"seamless.database")));
+        Assert.False(Directory.Exists(backup));
+        var occupied=Path.Combine(directory,"occupied");Directory.CreateDirectory(occupied);await File.WriteAllTextAsync(Path.Combine(occupied,"existing"),"keep");
+        Assert.Equal(1,await RunAsync(valid,occupied));
+        using(var unchanged=new ManagementStore(root)){
+            Assert.Equal(revision,unchanged.Revision);
+            Assert.Equal("InitializationRequired",Assert.Throws<ManagementException>(()=>StoredAuthorization.Open(unchanged)).Code);
+        }
+        Assert.Equal(0,await RunAsync(valid));
+        using(var saved=new ManagementStore(root))using(var authorization=StoredAuthorization.Open(saved)){
+            Assert.Equal(1,authorization.Policy.Version);
+            Assert.Equal(admin.Value,Assert.Single(saved.AuditEvents(new(Action:AuditAction.PermissionChange)).Items).SubjectId);
+        }
+        using var previous=new ManagementStore(backup);
+        Assert.Equal(revision,previous.Revision);
+        Assert.Equal("InitializationRequired",Assert.Throws<ManagementException>(()=>StoredAuthorization.Open(previous)).Code);
+
+        async Task<int> RunAsync(string token,string? destination=null){
+            var start=new ProcessStartInfo("dotnet"){UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden,RedirectStandardInput=true,RedirectStandardOutput=true,RedirectStandardError=true};
+            foreach(var argument in new[]{typeof(CrashProbe).Assembly.Location,"--management-cli","initialize-authorization","--root",root,"--backup",destination??backup,"--policy",policyPath,"--oidc",providerPath}){start.ArgumentList.Add(argument);}
+            using var process=Process.Start(start)!;var created=process.StartTime.ToUniversalTime();
+            var output=process.StandardOutput.ReadToEndAsync();var error=process.StandardError.ReadToEndAsync();
+            try{
+                await process.StandardInput.WriteLineAsync(token);process.StandardInput.Close();
+                await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(45));
+                var waitReturned=Stopwatch.GetTimestamp();var nativeSignal=RecoveryLockDiagnostic.ProcessSignal(process);
+                await File.WriteAllTextAsync(Path.Combine(directory,$"authorization-cli-{++invocation}.handoff.json"),JsonSerializer.Serialize(new{Invocation=invocation,ChildPid=process.Id,ChildCreatedUtc=created,Runtime=System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,process.ExitCode,NativeSignalAfterAsync=nativeSignal,StopwatchFrequency=Stopwatch.Frequency,WaitReturned=waitReturned,BackupDestination=Path.GetFileName(destination??backup)}));
+                Assert.False(((await output)+(await error)).Contains(token,StringComparison.Ordinal),"CLI output contained the access token.");
+                return process.ExitCode;
+            }finally{if(!process.HasExited){process.Kill(entireProcessTree:true);Assert.True(process.WaitForExit(60000));}}
+        }
+    }
     [Fact]public void DocumentRoundTripPreservesResourcesRolesBindingsAndDenials(){var policy=Initial(Guid.NewGuid());using var manager=new AuthorizationManager(policy);using var admin=manager.CreateSession(Identity(Admin)).BeginOperation();var deny=Guid.NewGuid();var changed=manager.ApplyDatabaseChange(admin,new(Database,1,upsertRoles:[new(deny,"deny",[new(Table,SecurityPermission.None,SecurityPermission.Read)])],assign:[new(User,SecurityPrincipalKind.User,deny)]));var json=JsonSerializer.Serialize(AuthorizationPolicyDocument.Capture(changed),ManagementJson.Options);var restored=JsonSerializer.Deserialize<AuthorizationPolicyDocument>(json,ManagementJson.Options)!.Restore();Assert.Equal(2,restored.Version);Assert.Equal("orders",restored.Resource(Table)!.Name);Assert.False(restored.Resolve(Identity(User)).Evaluate(Table,SecurityPermission.Read).Allowed);Assert.True(restored.Resolve(Identity(User)).Evaluate(Database,SecurityPermission.Read).Allowed);}
     [Fact]public void DocumentHasDeterministicOrdering(){var first=Initial(Guid.NewGuid());var document=AuthorizationPolicyDocument.Capture(first);var other=new Policy(first.Version,document.Resources.Reverse(),document.Roles.Reverse().Select(role=>new SecurityRole(role.Id,role.Name,role.Rules.Reverse())),document.Bindings.Reverse());Assert.Equal(JsonSerializer.Serialize(document,ManagementJson.Options),JsonSerializer.Serialize(AuthorizationPolicyDocument.Capture(other),ManagementJson.Options));}
     [Theory][InlineData("format")][InlineData("resources")][InlineData("roles")][InlineData("bindings")][InlineData("version")][InlineData("parent")]
@@ -43,6 +128,6 @@ public sealed class AuthorizationPolicyStorage{
     [Fact]public void PolicyReadsAreCachedAcrossOperationsAndUnrelatedWrites(){using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");using var first=Create(store);using var second=StoredAuthorization.Open(store);var user=second.CreateSession(Identity(User));var reads=second.PolicyReadCount;for(var index=0;index<1000;index++){using var operation=user.BeginOperation();operation.Demand(Table,SecurityPermission.Read);}store.Write(()=>store.Put("unrelated","value",42));using(var operation=user.BeginOperation()){operation.Demand(Table,SecurityPermission.Read);}Assert.Equal(reads,second.PolicyReadCount);using(var edit=first.CreateSession(Identity(Admin)).BeginOperation()){first.ApplyDatabaseChange(edit,RemoveReader(1));}using(var operation=user.BeginOperation()){Assert.Throws<AuthorizationException>(()=>operation.Demand(Table,SecurityPermission.Read));}Assert.Equal(reads+1,second.PolicyReadCount);}
     [Fact]public void LargePolicyUsesChunkedPersistenceAndHistoryRemainsPaged(){var root=Root();using(var store=ManagementStore.Initialize(root,"admin","TestPassword-123"))using(var host=Create(store)){using var operation=host.CreateSession(Identity(Admin)).BeginOperation();var roles=Enumerable.Range(0,2000).Select(index=>new SecurityRole(Guid.NewGuid(),"role-"+index,[new(Database,SecurityPermission.Read)])).ToArray();host.ApplyDatabaseChange(operation,new(Database,1,upsertRoles:roles));Assert.Equal(2003,AuthorizationPolicyDocument.Capture(host.Policy).Roles.Length);}using var reopened=new ManagementStore(root);using var restored=StoredAuthorization.Open(reopened);Assert.Equal(2003,AuthorizationPolicyDocument.Capture(restored.Policy).Roles.Length);Assert.Equal(2,restored.History().Items.Length);}
     [Theory][InlineData("Prepared",1)][InlineData("Committed",2)]
-    public async Task ProcessExitRecoversOneCompleteVersion(string phase,long expected){var root=Root();long expectedAffinity;using(var parent=Process.GetCurrentProcess()){if(OperatingSystem.IsWindows()||OperatingSystem.IsLinux()){expectedAffinity=parent.ProcessorAffinity.ToInt64();}else{throw new PlatformNotSupportedException();}}var start=new ProcessStartInfo("dotnet"){UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden,RedirectStandardOutput=true,RedirectStandardError=true};foreach(var argument in new[]{typeof(CrashProbe).Assembly.Location,"--authorization-policy-probe",root,phase}){start.ArgumentList.Add(argument);}using var process=Process.Start(start)!;var created=process.StartTime.ToUniversalTime();using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(60));try{await process.WaitForExitAsync(timeout.Token);}catch{Assert.Equal(created,process.StartTime.ToUniversalTime());process.Kill(entireProcessTree:true);await process.WaitForExitAsync();throw;}Assert.Equal(137,process.ExitCode);using var evidence=JsonDocument.Parse(await process.StandardOutput.ReadToEndAsync());Assert.Equal(process.Id,evidence.RootElement.GetProperty("pid").GetInt32());Assert.Equal(expectedAffinity,evidence.RootElement.GetProperty("affinity").GetInt64());Assert.InRange(System.Numerics.BitOperations.PopCount(unchecked((ulong)expectedAffinity)),1,8);using var store=new ManagementStore(root);using var host=StoredAuthorization.Open(store);Assert.Equal(expected,host.Policy.Version);Assert.Equal(expected,host.History().Items.Length);Assert.Equal(expected,store.AuditEvents(new(Action:AuditAction.PermissionChange)).Items.Length);}
+    public async Task ProcessExitRecoversOneCompleteVersion(string phase,long expected){var root=Root();long expectedAffinity;using(var parent=Process.GetCurrentProcess()){if(OperatingSystem.IsWindows()||OperatingSystem.IsLinux()){expectedAffinity=parent.ProcessorAffinity.ToInt64();}else{throw new PlatformNotSupportedException();}}var start=new ProcessStartInfo("dotnet"){UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden,RedirectStandardOutput=true,RedirectStandardError=true};foreach(var argument in new[]{typeof(CrashProbe).Assembly.Location,"--authorization-policy-probe",root,phase}){start.ArgumentList.Add(argument);}using var process=Process.Start(start)!;var created=process.StartTime.ToUniversalTime();using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(60));try{Assert.True(process.WaitForExit(60000));}catch{Assert.Equal(created,process.StartTime.ToUniversalTime());process.Kill(entireProcessTree:true);Assert.True(process.WaitForExit(60000));throw;}Assert.Equal(137,process.ExitCode);using var evidence=JsonDocument.Parse(await process.StandardOutput.ReadToEndAsync());Assert.Equal(process.Id,evidence.RootElement.GetProperty("pid").GetInt32());Assert.Equal(expectedAffinity,evidence.RootElement.GetProperty("affinity").GetInt64());Assert.InRange(System.Numerics.BitOperations.PopCount(unchecked((ulong)expectedAffinity)),1,8);using var store=new ManagementStore(root);using var host=StoredAuthorization.Open(store);Assert.Equal(expected,host.Policy.Version);Assert.Equal(expected,host.History().Items.Length);Assert.Equal(expected,store.AuditEvents(new(Action:AuditAction.PermissionChange)).Items.Length);}
     public static int RunProbe(string root,string phase){using var store=ManagementStore.Initialize(root,"admin","TestPassword-123");using var host=Create(store);host.Checkpoint=current=>{if(current!=phase){return;}using var process=Process.GetCurrentProcess();long affinity;if(OperatingSystem.IsWindows()||OperatingSystem.IsLinux()){affinity=process.ProcessorAffinity.ToInt64();}else{throw new PlatformNotSupportedException();}Console.WriteLine(JsonSerializer.Serialize(new{pid=process.Id,created=process.StartTime.ToUniversalTime(),affinity},ManagementJson.Options));Console.Out.Flush();Environment.Exit(137);};using var operation=host.CreateSession(Identity(Admin)).BeginOperation();host.ApplyDatabaseChange(operation,RemoveReader(1));return 3;}
 }

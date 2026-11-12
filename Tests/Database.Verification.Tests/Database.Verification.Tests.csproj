@@ -10,5 +10,8 @@
     <ProjectReference Include="../../Seamless.Database.Compilation/Seamless.Database.Compilation.csproj" />
     <ProjectReference Include="../../Seamless.Database.Transfer/Seamless.Database.Transfer.csproj" />
     <ProjectReference Include="../../Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
+    <ProjectReference Include="../Seamless.TestKit/Seamless.TestKit.csproj" />
+    <!-- 試験用の DB コンテナに取引・読み込みの入口を生成させる。 -->
+    <ProjectReference Include="../../Seamless.Database.Generator/Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

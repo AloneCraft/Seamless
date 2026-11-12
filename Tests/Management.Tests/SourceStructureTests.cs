@@ -51,7 +51,7 @@ public sealed class SourceStructureTests{
         Assert.DoesNotContain(outline.Types,type=>type.Contains("Hidden",StringComparison.Ordinal));
         Assert.Equal(source.Hash(),source.Freeze().Hash());
     }
-    [Fact]public void TypeCandidatesExcludeInaccessibleAndOpenGenericTypesAndSupportGlobalRoot(){
+    [Fact]public void TypeCandidatesIncludeGenericTemplatesAndExcludeInaccessibleTypes(){
         var outline=SourceStructure.Read(Source("""
             class DatabaseGenerator{}
             public static class Utility{}
@@ -67,7 +67,9 @@ public sealed class SourceStructureTests{
         Assert.Contains("global::Kind",outline.Types);
         Assert.Contains("global::Selector",outline.Types);
         Assert.Contains("global::Outer.Visible",outline.Types);
-        Assert.DoesNotContain(outline.Types,type=>type.Contains("Hidden",StringComparison.Ordinal)||type.Contains("Generic",StringComparison.Ordinal)||type.Contains("Utility",StringComparison.Ordinal));
+        Assert.Contains("global::Generic<T>",outline.Types);
+        Assert.Contains("global::Generic<T>.Nested",outline.Types);
+        Assert.DoesNotContain(outline.Types,type=>type.Contains("Hidden",StringComparison.Ordinal)||type.Contains("Utility",StringComparison.Ordinal));
     }
     private static SourceSnapshot Source(string text)=>new("1",[new("Database.cs",text)],[]);
     [Fact]public void SourceRangesUseUtf16AndColumnTypeAliasesRemainReadable(){

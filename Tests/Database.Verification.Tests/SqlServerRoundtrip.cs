@@ -11,7 +11,7 @@ using TransferAdapter=Seamless.Database.Transfer.DatabaseTransferAdapter;
 namespace Database.Verification.Tests;
 
 public sealed class SqlServerRoundtrip{
-    [Fact,Trait("Category","LiveSqlServer")]public async Task VerifyDataAsync(){
+    [SqlServerFact,Trait("Category","LiveSqlServer")]public async Task VerifyDataAsync(){
         var run=Guid.NewGuid().ToString("N");
         var sourceName="Seamless_Roundtrip_Source_"+run;
         var targetName="Seamless_Roundtrip_Target_"+run;

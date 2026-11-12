@@ -5,6 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsTestProject>true</IsTestProject>
+    <OutputType>Exe</OutputType>
+    <GenerateProgramFile>false</GenerateProgramFile>
     <RootNamespace>Seamless.Database.Gateway.Tests</RootNamespace>
     <AssemblyName>Seamless.Database.Gateway.Tests</AssemblyName>
   </PropertyGroup>
@@ -21,6 +23,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Seamless.Database.Gateway\Seamless.Database.Gateway.csproj" />
     <ProjectReference Include="..\..\Seamless.Database\Seamless.Database.csproj" />
+    <ProjectReference Include="..\..\Seamless.Database.Client.Results\Seamless.Database.Client.Results.csproj" />
+    <ProjectReference Include="..\..\Seamless.Database.SqlServer\Seamless.Database.SqlServer.csproj" />
     <ProjectReference Include="..\..\Seamless.Database.Generator\Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\..\Samples\Sample.NetShop.Core\Sample.NetShop.Core.csproj" />
   </ItemGroup>

@@ -15,5 +15,7 @@ public sealed partial class GatewayVersionedTransactions{
     [InlineData(GatewayCommitPhase.AfterPublication,true)]
     [InlineData(GatewayCommitPhase.AllDatabasesApplied,true)]
     [InlineData(GatewayCommitPhase.DatabaseCheckpointed,true)]
+    [InlineData(GatewayCommitPhase.BeforeCommonCheckpointPublication,true)]
+    [InlineData(GatewayCommitPhase.AfterCommonCheckpointPublication,true)]
     public Task VersionedProcessKillNeverPublishesOnlyOneDatabaseOrSchema(GatewayCommitPhase phase,bool committed)=>GatewayProcessTermination.VerifyProcessKill(phase,committed,true);
 }

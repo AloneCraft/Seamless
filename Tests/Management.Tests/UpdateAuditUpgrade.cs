@@ -39,11 +39,51 @@ public sealed class UpdateAuditUpgrade{
         ManagementStoreUpgrade.Upgrade(root,root+"-system-backup");var result=Seamless.Management.Server.UpdateAuditUpgrade.Enable(root,"Native",root+"-backup");Assert.Equal(OperationState.Succeeded,result.State);using var reopened=new ManagementStore(root);using var current=new Seamless.Management.Server.ManagementService(reopened);var actor=Login(current);Assert.Equal(6,Assert.Single(current.Execute(actor,Request("count"),CancellationToken.None)).Value.GetInt32());var unchanged=current.GetDefinition(actor,"other");Assert.Equal(other.Version,unchanged.Version);Assert.Equal(other.StoragePath,unchanged.StoragePath);Assert.Equal(other.ArtifactHash,unchanged.ArtifactHash);Assert.Equal(other.Definition.Hash(),unchanged.Definition.Hash());Assert.Equal(21,Assert.Single(current.Execute(actor,Request("otherSum"),CancellationToken.None)).Value.GetInt32());NativeWorkflow.Publish(current,actor,query("orphan","db.Self.Add(new Records.Row(3,99,100));return 1;",true));Assert.ThrowsAny<Exception>(()=>current.Execute(actor,Request("orphan"),CancellationToken.None).ToArray());Assert.Equal(6,Assert.Single(current.Execute(actor,Request("count"),CancellationToken.None)).Value.GetInt32());
     }
     private static async Task<(int ExitCode,System.Text.Json.JsonElement[] Output)> Child(params string[] arguments){
-        var start=new System.Diagnostics.ProcessStartInfo("dotnet"){UseShellExecute=false,CreateNoWindow=true,WindowStyle=System.Diagnostics.ProcessWindowStyle.Hidden,RedirectStandardOutput=true,RedirectStandardError=true};start.ArgumentList.Add(typeof(CrashProbe).Assembly.Location);foreach(var argument in arguments){start.ArgumentList.Add(argument);}using var process=System.Diagnostics.Process.Start(start)!;var created=process.StartTime.ToUniversalTime();using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(90));try{var output=process.StandardOutput.ReadToEndAsync(timeout.Token);var error=process.StandardError.ReadToEndAsync(timeout.Token);await process.WaitForExitAsync(timeout.Token);Assert.Empty(await error);var rows=(await output).Split('\n',StringSplitOptions.RemoveEmptyEntries).Select(static line=>JsonSerializer.Deserialize<JsonElement>(line)).ToArray();foreach(var row in rows){if(row.TryGetProperty("Pid",out var pid)){Assert.Equal(process.Id,pid.GetInt32());Assert.Equal(created,row.GetProperty("Created").GetDateTime());}}return(process.ExitCode,rows);}finally{if(!process.HasExited){process.Kill(entireProcessTree:true);await process.WaitForExitAsync();}}
+        var probe=arguments[0]=="--update-audit-upgrade-probe";
+        var start=new System.Diagnostics.ProcessStartInfo("dotnet"){
+            UseShellExecute=false,CreateNoWindow=true,WindowStyle=System.Diagnostics.ProcessWindowStyle.Hidden,
+            RedirectStandardOutput=true,RedirectStandardError=true,RedirectStandardInput=probe
+        };
+        start.ArgumentList.Add(typeof(CrashProbe).Assembly.Location);
+        foreach(var argument in arguments){start.ArgumentList.Add(argument);}
+        using var process=System.Diagnostics.Process.Start(start)!;
+        using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(90));
+        try{
+            var error=process.StandardError.ReadToEndAsync(timeout.Token);
+            string? ready=null;
+            if(probe){
+                ready=await process.StandardOutput.ReadLineAsync(timeout.Token);
+                var receipt=JsonSerializer.Deserialize<JsonElement>(Assert.IsType<string>(ready));
+                Assert.Equal(process.Id,receipt.GetProperty("Pid").GetInt32());
+                Assert.True(LocalProcessIdentity.Matches(process.Id,receipt.GetProperty("Created").GetDateTime(),receipt.GetProperty("ProcessIdentity").GetString()));
+                await process.StandardInput.WriteLineAsync("exit").WaitAsync(timeout.Token);
+                await process.StandardInput.FlushAsync(timeout.Token);
+            }
+            var output=process.StandardOutput.ReadToEndAsync(timeout.Token);
+            Assert.True(process.WaitForExit(90000));Assert.Empty(await error);
+            var rows=((ready??"")+"\n"+await output).Split('\n',StringSplitOptions.RemoveEmptyEntries).Select(static line=>JsonSerializer.Deserialize<JsonElement>(line)).ToArray();
+            return(process.ExitCode,rows);
+        }finally{
+            if(!process.HasExited){process.Kill(entireProcessTree:true);Assert.True(process.WaitForExit(90000));}
+        }
     }
     [Fact]public async Task CliReportsTheOperationIdAndCanQueryItsDurableResult(){var root=Legacy();var id=Guid.NewGuid();var enabled=await Child("--management-cli","enable-update-audit","--root",root,"--database","Native","--backup",root+"-backup","--operation-id",id.ToString());Assert.Equal(0,enabled.ExitCode);Assert.Equal(2,enabled.Output.Length);Assert.Equal(id,enabled.Output[0].GetProperty("operationId").GetGuid());Assert.Equal("Requested",enabled.Output[0].GetProperty("phase").GetString());var result=enabled.Output[1].Deserialize<OperationInfo>(ManagementJson.Options)!;Assert.Equal(OperationState.Succeeded,result.State);var queried=await Child("--management-cli","get-operation","--root",root,"--operation-id",id.ToString());Assert.Equal(0,queried.ExitCode);Assert.Equal(result,Assert.Single(queried.Output).Deserialize<OperationInfo>(ManagementJson.Options));}
     [Theory][InlineData("Prepared",false)][InlineData("Committed",true)]public async Task AbruptTerminationKeepsPublicationAndOperationResultTogether(string phase,bool committed){
         var root=Legacy();var id=Guid.NewGuid();var stopped=await Child("--update-audit-upgrade-probe",root,phase,id.ToString());Assert.Equal(137,stopped.ExitCode);var receipt=Assert.Single(stopped.Output);Assert.Equal(phase,receipt.GetProperty("Phase").GetString());if(OperatingSystem.IsWindows()||OperatingSystem.IsLinux()){using var current=System.Diagnostics.Process.GetCurrentProcess();Assert.Equal(current.ProcessorAffinity.ToInt64(),receipt.GetProperty("Affinity").GetInt64());}var result=Seamless.Management.Server.UpdateAuditUpgrade.GetOperation(root,id);var state=OperationState.OutcomeUnknown;var version=1L;if(committed){state=OperationState.Succeeded;version=2;}Assert.Equal(state,result.State);using var store=new ManagementStore(root);using var service=new Seamless.Management.Server.ManagementService(store);var user=Login(service);Assert.Equal(version,service.GetDefinition(user,"db").Version);Assert.Equal(version,service.GetDefinition(user,"sum").Version);Assert.Equal(9,Assert.Single(service.Execute(user,Request("sum"),CancellationToken.None)).Value.GetInt32());Assert.Equal(version-1,store.List<AuditOrigin>("auditOrigin").Items.LongLength);
     }
-    internal static int RunStopProbe(string root,string phase,Guid id){Seamless.Management.Server.UpdateAuditUpgrade.Checkpoint=(current,operation)=>{if(current!=phase){return;}using var process=System.Diagnostics.Process.GetCurrentProcess();long? affinity=null;if(OperatingSystem.IsWindows()||OperatingSystem.IsLinux()){affinity=process.ProcessorAffinity.ToInt64();}Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new{Id=operation,Pid=process.Id,Created=process.StartTime.ToUniversalTime(),Affinity=affinity,Phase=phase}));Console.Out.Flush();Environment.Exit(137);};_=Seamless.Management.Server.UpdateAuditUpgrade.Enable(root,"Native",root+"-backup",id);return 3;}
+    internal static int RunStopProbe(string root,string phase,Guid id){
+        Seamless.Management.Server.UpdateAuditUpgrade.Checkpoint=(current,operation)=>{
+            if(current!=phase){return;}
+            using var process=System.Diagnostics.Process.GetCurrentProcess();long? affinity=null;
+            if(OperatingSystem.IsWindows()||OperatingSystem.IsLinux()){affinity=process.ProcessorAffinity.ToInt64();}
+            var created=process.StartTime.ToUniversalTime();
+            var identity=LocalProcessIdentity.Capture(process.Id,created);
+            Console.WriteLine(JsonSerializer.Serialize(new{Id=operation,Pid=process.Id,Created=created,ProcessIdentity=identity,Affinity=affinity,Phase=phase}));
+            Console.Out.Flush();
+            // OS識別を生存中に親が照合した後、同じ確定境界で強制終了する。
+            if(Console.ReadLine()!="exit"){Environment.Exit(2);}
+            Environment.Exit(137);
+        };
+        _=Seamless.Management.Server.UpdateAuditUpgrade.Enable(root,"Native",root+"-backup",id);return 3;
+    }
 }

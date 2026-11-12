@@ -37,14 +37,16 @@ internal sealed class OidcDevelopmentIssuer:IAsyncDisposable{
     public TaskCompletionSource RefreshEntered{get;}=new(TaskCreationOptions.RunContinuationsAsynchronously);
     public TimeSpan AccessTokenLifetime{get;set;}=TimeSpan.FromMinutes(30);
     public int RefreshCount=>Volatile.Read(ref this.refreshCount);
-    public int MembershipChecks{get;private set;}
+    private int membershipChecks;
+    public int MembershipChecks=>Volatile.Read(ref this.membershipChecks);
+    public Func<CancellationToken,Task>? MembershipHook{get;set;}
     public const string ClientId="seamless-manager-dev",Audience="seamless-dev-api";
     public OidcProviderSettings Settings=>new(this.Id,this.Authority,Audience,ClientId,DevelopmentLoopback:true);
     public Guid Id{get;}=Guid.NewGuid();
 
     public static async Task<OidcDevelopmentIssuer> StartAsync(){
         var root=Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")??throw new InvalidOperationException("A test root is required.");
-        if(!Path.IsPathFullyQualified(root)||!(root.StartsWith("D:\\",StringComparison.OrdinalIgnoreCase)||root.StartsWith("F:\\",StringComparison.OrdinalIgnoreCase))){throw new InvalidOperationException("A D: or F: test root is required.");}
+        if(!Path.IsPathFullyQualified(root)||(OperatingSystem.IsWindows()&&!(root.StartsWith("D:\\",StringComparison.OrdinalIgnoreCase)||root.StartsWith("F:\\",StringComparison.OrdinalIgnoreCase)))){throw new InvalidOperationException("An absolute test root is required, on D: or F: when running on Windows.");}
         var directory=Path.Combine(root,"oidc-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(directory);
         var issuer=new OidcDevelopmentIssuer();issuer.key=new(issuer.rsa){KeyId=Guid.NewGuid().ToString("N")};
         var builder=WebApplication.CreateSlimBuilder(new WebApplicationOptions{ContentRootPath=directory,ApplicationName=typeof(OidcDevelopmentIssuer).Assembly.FullName,EnvironmentName="Development",Args=[]});builder.Logging.ClearProviders();builder.WebHost.ConfigureKestrel(static server=>server.Listen(IPAddress.Loopback,0));
@@ -85,10 +87,11 @@ internal sealed class OidcDevelopmentIssuer:IAsyncDisposable{
             return Results.Json(new{access_token=accessToken,id_token=identityToken,refresh_token=refresh,token_type="Bearer",expires_in=1800});
         });
         issuer.application.MapGet("/userinfo",async(HttpContext context)=>{
-            issuer.MembershipChecks++;if(issuer.MembershipUnavailable){return Results.StatusCode(503);}
+            Interlocked.Increment(ref issuer.membershipChecks);if(issuer.MembershipUnavailable){return Results.StatusCode(503);}
             var header=context.Request.Headers.Authorization.ToString();if(!header.StartsWith("Bearer ",StringComparison.Ordinal)){return Results.Unauthorized();}
             var result=await issuer.tokens.ValidateTokenAsync(header[7..],new TokenValidationParameters{ValidIssuer=issuer.Authority,ValidAudience=Audience,IssuerSigningKey=issuer.key,ClockSkew=TimeSpan.Zero,RequireSignedTokens=true,RequireExpirationTime=true,ValidateLifetime=true,ValidateIssuer=true,ValidateAudience=true,ValidAlgorithms=[SecurityAlgorithms.RsaSha256]});
             if(!result.IsValid||result.SecurityToken is not JsonWebToken token){return Results.Unauthorized();}
+            if(issuer.MembershipHook is{} hook){await hook(context.RequestAborted);}
             return Results.Json(new{sub=token.Subject,name="開発用利用者",groups=issuer.Groups});
         });
         try{await issuer.application.StartAsync();issuer.Authority=issuer.application.Urls.Single().TrimEnd('/');return issuer;}catch{await issuer.DisposeAsync();throw;}

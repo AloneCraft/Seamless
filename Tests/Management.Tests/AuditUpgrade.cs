@@ -10,7 +10,7 @@ public sealed class AuditUpgrade{
         var root=Root();var backup=root+"-backup";Guid instance;var text=new string('x',150000);
         using(var store=ManagementStore.InitializeLegacy(root,"admin","TestPassword-123")){instance=store.InstanceId;store.Write(()=>{store.Put("probe","source",new SourceFile("Definition.cs",text));store.AddHistory("admin","sales","DraftSaved","d1",7);});}
         ManagementStoreUpgrade.Upgrade(root,backup);
-        using(var store=new ManagementStore(root))using(var service=new Seamless.Management.Server.ManagementService(store)){Assert.Equal(4,store.Format);Assert.Equal(instance,store.InstanceId);Assert.Equal(text,store.Read<SourceFile>("probe","source")!.Text);Assert.Equal("admin",service.Login(new("admin","TestPassword-123")).User.Name);Assert.Contains(store.AuditEvents(new()).Items,item=>item.ResultCode=="DraftSaved");}
+        using(var store=new ManagementStore(root))using(var service=new Seamless.Management.Server.ManagementService(store)){Assert.Equal(5,store.Format);Assert.Equal(instance,store.InstanceId);Assert.Equal(text,store.Read<SourceFile>("probe","source")!.Text);Assert.Equal("admin",service.Login(new("admin","TestPassword-123")).User.Name);Assert.Contains(store.AuditEvents(new()).Items,item=>item.ResultCode=="DraftSaved");}
         using var original=new ManagementStore(backup);Assert.Equal(3,original.Format);Assert.Equal(instance,original.InstanceId);Assert.Equal(text,original.Read<SourceFile>("probe","source")!.Text);
     }
     [Fact]public void LiveServerAndFailedBackupDoNotChangeTheSource(){

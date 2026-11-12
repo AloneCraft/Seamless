@@ -5,11 +5,20 @@ namespace Management.Tests;
 
 [Collection("AuditStorage")]
 public sealed class AuditStorage{
+    [Fact]public void EqualAuditValuesWithDifferentUnusedBytesAreIdempotent(){
+        var original=Event();var time=original.StartedAt;var bytes=System.Runtime.InteropServices.MemoryMarshal.AsBytes(System.Runtime.InteropServices.MemoryMarshal.CreateReadOnlySpan(ref time,1)).ToArray();DateTimeOffset? variant=null;
+        for(var index=0;index<bytes.Length;index++){var changed=bytes.ToArray();changed[index]^=0x55;try{var candidate=System.Runtime.InteropServices.MemoryMarshal.Read<DateTimeOffset>(changed);if(candidate.EqualsExact(original.StartedAt)){variant=candidate;break;}}catch(ArgumentException){}}
+        Assert.NotNull(variant);var same=original with{StartedAt=variant!.Value};Assert.Equal(original,same);
+        using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");var sequence=store.AppendAudit(original);
+        // JITがコピー時にpaddingを正規化する場合にも、旧raw表現のハッシュとの不一致を固定して再現する。
+        var database=Assert.IsType<ManagementAuditDatabase>(typeof(ManagementStore).GetField("database",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.GetValue(store));store.Write(()=>{var key=new ManagementKey(original.EventId);var index=database.AuditEventIds[key];var alternate="0";if(index.Hash[0]=='0'){alternate="1";}database.AuditEventIds[key]=index with{Hash=alternate+index.Hash[1..]};});
+        Assert.Equal(sequence,store.AppendAudit(same));Assert.Single(store.AuditEvents(new()).Items);Assert.Equal("Conflict",Assert.Throws<ManagementException>(()=>store.AppendAudit(same with{Message="different"})).Code);Assert.Equal("Conflict",Assert.Throws<ManagementException>(()=>store.AppendAudit(same with{StartedAt=original.StartedAt.ToOffset(TimeSpan.FromHours(1))})).Code);
+    }
     private static string Root(){var root=Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")??throw new InvalidOperationException("A test root is required.");return Path.Combine(root,"audit-"+Guid.NewGuid().ToString("N"));}
     private static AuditEvent Event(string message="注文の失敗",string subject="user",DateTimeOffset? at=null){var time=at??DateTimeOffset.UtcNow;return new(Guid.NewGuid(),Guid.NewGuid(),time,time,Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),subject,"sales","orders",AuditAction.DataChange,AuditOutcome.Failed,7,"code-v1",null,"Constraint",message,"Company.Sales","OrderQueries","Save","Save(Order)","Orders.Where(x=>x.Id==@p0)");}
     [Fact]public void NativeAuditPersistsAndRejectsDuplicateEventContent(){
         var root=Root();var item=Event();using(var store=ManagementStore.Initialize(root,"admin","TestPassword-123")){
-            Assert.Equal(4,store.Format);Assert.True(store.HasAudit);var sequence=store.AppendAudit(item);Assert.Equal(sequence,store.AppendAudit(item));Assert.Single(store.AuditEvents(new()).Items);
+            Assert.Equal(6,store.Format);Assert.True(store.HasAudit);var sequence=store.AppendAudit(item);Assert.Equal(sequence,store.AppendAudit(item));Assert.Single(store.AuditEvents(new()).Items);
             Assert.Equal("Conflict",Assert.Throws<ManagementException>(()=>store.AppendAudit(item with{Message="different"})).Code);
         }
         using var reopened=new ManagementStore(root);var saved=Assert.Single(reopened.AuditEvents(new()).Items);Assert.Equal(item,saved);

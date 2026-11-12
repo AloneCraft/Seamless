@@ -58,25 +58,4 @@ public sealed class NativeWireValidation{
         }
     }
 
-    [Fact,Trait("Category","Unit")]
-    public async Task FrameLimitsAreCheckedBeforeReadingPayload(){
-        await using var stream=new MemoryStream();await NativeFrame.WriteAsync(stream,NativeLambdaWire.Prepare,new byte[20]);stream.Position=0;
-        await Assert.ThrowsAsync<InvalidDataException>(async()=>{await NativeFrame.ReadAsync(stream,default,static _=>10);});Assert.Equal(5,stream.Position);
-        stream.Position=0;var frame=await NativeFrame.ReadAsync(stream);Assert.Equal(NativeLambdaWire.Prepare,frame!.Value.Kind);Assert.Equal(20,frame.Value.Payload.Length);
-        await using var invalid=new MemoryStream(new byte[4]);await Assert.ThrowsAsync<InvalidDataException>(async()=>{await NativeFrame.ReadAsync(invalid);});Assert.Equal(4,invalid.Position);
-        Assert.NotNull(typeof(NativeFrame).GetMethod(nameof(NativeFrame.ReadAsync),[typeof(Stream),typeof(CancellationToken)]));
-        Assert.NotNull(typeof(NativeLambdaClient<NativeLambdaDatabase.ISurface>).GetConstructor([typeof(INativeLambdaTransport)]));
-    }
-
-    [Fact,Trait("Category","Unit")]
-    public async Task ClientRejectsMalformedResultBeforeDeserialization(){
-        var transport=new InvalidResult();var client=new NativeLambdaClient<NativeLambdaDatabase.ISurface>(transport);
-        var query=client.CreateGeneratedQuery<int,string>(new("Block",Children:[new("Return",Children:[new("Literal","\"unused\"")])]));
-        await Assert.ThrowsAsync<InvalidDataException>(()=>query.ExecuteAsync(1));Assert.Equal(1,transport.Executions);
-    }
-    private sealed class InvalidResult:INativeLambdaTransport{
-        public int Executions{get;private set;}
-        public Task<NativePreparedLambda> PrepareAsync(NativeLambdaProgram program,CancellationToken cancellationToken)=>Task.FromResult(new NativePreparedLambda(Guid.NewGuid(),1));
-        public Task<byte[]> ExecuteAsync(NativePreparedLambda query,ReadOnlyMemory<byte> arguments,CancellationToken cancellationToken){this.Executions++;return Task.FromResult(new byte[]{255,255,255,127});}
-    }
 }

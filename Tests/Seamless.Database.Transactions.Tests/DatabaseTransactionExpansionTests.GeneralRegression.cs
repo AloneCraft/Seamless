@@ -6,7 +6,7 @@ namespace Seamless.Database.Transactions.Tests;
 
 public sealed partial class DatabaseTransactionExpansionTests{
     [Fact]
-    public void GeneralGroupingAndLazyEvaluationRegressionsKeepTheirExpectedDiagnostic(){
+    public void GeneralGroupingAndLazyEvaluationRegressionsUseInternalTuplesWithoutWarnings(){
         var source="using System;using System.Collections.Generic;using System.Linq;using Xunit;namespace Test.System.Linq.Intercept;";
         foreach(var resource in new[]{"GeneratorRegression.GroupByOrder.cs","GeneratorRegression.LazyEvaluationCounts.cs"}){
             using var stream=typeof(DatabaseTransactionExpansionTests).Assembly.GetManifestResourceStream(resource)??throw new InvalidOperationException("Missing regression source: "+resource);using var reader=new StreamReader(stream);
@@ -34,9 +34,11 @@ public sealed partial class DatabaseTransactionExpansionTests{
 #endif
         var(output,generated)=Generate(source,"GeneralGroupingRegression",debug,generatedEvidencePath:Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")!,"general-grouping.g.cs"),observeDiagnostics:diagnostics=>observed=diagnostics);
         var warnings=observed.Where(static diagnostic=>diagnostic.Severity==DiagnosticSeverity.Warning).ToArray();
-        // 匿名型を意図的に使う元の回帰は、部分最適化の診断も含めて検証する。抑制や他の警告の許容はしない。
-        var expected=Assert.Single(warnings);Assert.Equal("FLINQ001",expected.Id);Assert.Contains("SelectAnonymousOrderBy_Optimized",expected.GetMessage());
+        // 中間匿名型のValueTuple化ができる形は、元の部分最適化の警告を必要としない。
+        Assert.Empty(warnings);
         var proof=string.Join(Environment.NewLine,generated);Assert.Contains("OptimizedLinq_SelectOrderBy_Optimized",proof);Assert.Contains("OptimizedLinq_JoinEmptyOuterImpl",proof);Assert.Contains("OptimizedLinq_CustomFirst",proof);
+        Assert.Contains("OptimizedLinq_SelectAnonymousOrderBy_Optimized",proof);
+        Assert.DoesNotContain("__TsavoriteAnonRecords_",proof);
         using var image=new MemoryStream();var emitted=output.Emit(image);Assert.True(emitted.Success,string.Join(Environment.NewLine,emitted.Diagnostics));image.Position=0;
         var load=new AssemblyLoadContext("general-grouping-"+Guid.NewGuid(),isCollectible:true);load.Resolving+=static(_,name)=>AssemblyLoadContext.Default.LoadFromAssemblyName(name);
         try{
@@ -48,7 +50,7 @@ public sealed partial class DatabaseTransactionExpansionTests{
                 }
             }
             Assert.Equal(30,executed);
-            File.WriteAllText(Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")!,"general-grouping-regression.json"),global::System.Text.Json.JsonSerializer.Serialize(new{Executed=executed,ExpectedWarning=expected.Id,OtherWarnings=warnings.Length-1,GeneratedFiles=generated.Length}));
+            File.WriteAllText(Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")!,"general-grouping-regression.json"),global::System.Text.Json.JsonSerializer.Serialize(new{Executed=executed,Warnings=warnings.Length,GeneratedFiles=generated.Length}));
         }finally{load.Unload();}
     }
 }

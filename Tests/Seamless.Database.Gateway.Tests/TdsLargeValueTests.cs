@@ -6,6 +6,47 @@ using Seamless.Database.Gateway.Tds;
 namespace Seamless.Database.Gateway.Tests;
 
 public sealed class TdsLargeValueTests{
+    [Fact,Trait("Category","Integration")]
+    public async Task WriteDeadlineStopsStreamingToAPeerThatDoesNotRead(){
+        var released=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var rowsStarted=0;
+        var adapter=new LargeValueAdapter("varbinary",Rows);
+        using var server=new TdsServer(0,adapter,new SqlExecutionEngine(adapter),null,null,null,TimeSpan.FromMilliseconds(300));
+        server.Start();
+        using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        using var stalled=new global::System.Net.Sockets.TcpClient{ReceiveBufferSize=4096};
+        await stalled.ConnectAsync(global::System.Net.IPAddress.Loopback,server.Port,timeout.Token);
+        var stream=stalled.GetStream();
+        await Send(0x10,new byte[72]);
+        var header=new byte[8];
+        do{
+            await stream.ReadExactlyAsync(header,timeout.Token);
+            var size=global::System.Buffers.Binary.BinaryPrimitives.ReadUInt16BigEndian(header.AsSpan(2));
+            Assert.InRange(size,8,4096);
+            await stream.ReadExactlyAsync(new byte[size-8],timeout.Token);
+        }while((header[1]&1)==0);
+        await Send(1,global::System.Text.Encoding.Unicode.GetBytes("SELECT payload,marker FROM dbo.LargeValues"));
+        await released.Task.WaitAsync(timeout.Token);
+        Assert.InRange(Volatile.Read(ref rowsStarted),1,7);
+
+        var options=new SqlConnectionStringBuilder{DataSource=$"tcp:127.0.0.1,{server.Port}",InitialCatalog="fixture",UserID="sa",Password="test",Encrypt=false,Pooling=false,ConnectTimeout=5};
+        await using var other=new SqlConnection(options.ConnectionString);
+        await other.OpenAsync(timeout.Token);
+        using var command=other.CreateCommand();command.CommandText="SELECT DB_NAME()";
+        Assert.Equal("fixture",await command.ExecuteScalarAsync(timeout.Token));
+
+        async Task Send(byte type,byte[] body){
+            var packet=new byte[8+body.Length];packet[0]=type;packet[1]=1;packet[6]=1;
+            global::System.Buffers.Binary.BinaryPrimitives.WriteUInt16BigEndian(packet.AsSpan(2),checked((ushort)packet.Length));
+            body.CopyTo(packet,8);
+            await stream.WriteAsync(packet,timeout.Token);
+        }
+        IEnumerable<object?[]> Rows(){
+            var value=new byte[8*1024*1024];
+            try{for(var index=0;index<8;index++){Interlocked.Increment(ref rowsStarted);yield return [value,index];}}
+            finally{released.TrySetResult();}
+        }
+    }
     [Theory,Trait("Category","Integration")]
     [InlineData("nvarchar")]
     [InlineData("varchar")]
@@ -116,7 +157,9 @@ public sealed class TdsLargeValueTests{
 
     private sealed class LargeValueAdapter:IDatabaseAdapter{
         private readonly TableMetadata table;
-        public LargeValueAdapter(string sqlType){
+        private readonly Func<IEnumerable<object?[]>>? rows;
+        public LargeValueAdapter(string sqlType,Func<IEnumerable<object?[]>>? rows=null){
+            this.rows=rows;
             var binary=sqlType=="varbinary";
             this.Values=binary?[Array.Empty<byte>(),null,Enumerable.Range(0,20000).Select(i=>(byte)i).ToArray(),new byte[]{7}]:["",null,new string('x',20000),"end"];
             this.table=new("dbo","LargeValues",[new("payload",binary?typeof(byte[]):typeof(string),sqlType,true,false,0,-1,collation:binary?null:"SQL_Latin1_General_CP1_CI_AS"),new("marker",typeof(int),"int",false,false,1)]);
@@ -125,7 +168,7 @@ public sealed class TdsLargeValueTests{
         public string DatabaseName=>"fixture";
         public IReadOnlyList<TableMetadata> GetTables()=>[this.table];
         public TableMetadata? FindTable(string name)=>name.Equals("dbo.LargeValues",StringComparison.OrdinalIgnoreCase)?this.table:null;
-        public QueryResult ExecuteSelect(string tableName,IReadOnlyList<string>? columns,Func<object,bool>? predicate,SessionContext session)=>new(this.table.Columns,this.Values.Select((value,index)=>new object?[]{value,100+index}),0);
+        public QueryResult ExecuteSelect(string tableName,IReadOnlyList<string>? columns,Func<object,bool>? predicate,SessionContext session)=>new(this.table.Columns,this.rows?.Invoke()??this.Values.Select((value,index)=>new object?[]{value,100+index}),0);
         public int ExecuteInsert(string tableName,IReadOnlyDictionary<string,object?>values,SessionContext session)=>throw new NotSupportedException();
         public int ExecuteUpdate(string tableName,IReadOnlyDictionary<string,object?>values,Func<object,bool>? predicate,SessionContext session)=>throw new NotSupportedException();
         public int ExecuteDelete(string tableName,Func<object,bool>? predicate,SessionContext session)=>throw new NotSupportedException();

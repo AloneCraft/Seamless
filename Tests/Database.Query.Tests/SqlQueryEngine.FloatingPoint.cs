@@ -25,7 +25,7 @@ public sealed partial class SqlQueryEngine{
         AssertFlags("SELECT Direct+CAST(1 AS real) AS Value FROM dbo.Floating UNION SELECT Direct/CAST(3 AS real) FROM dbo.Floating",[true]);
         AssertFlags("SELECT Direct,[1] FROM(SELECT Direct,Id,[Double] FROM dbo.Floating) d PIVOT(SUM([Double]) FOR Id IN([1])) p",[false,true]);
         AssertFlags("SELECT Formula,[1] FROM(SELECT Direct+CAST(1 AS real) AS Formula,Id,[Double] FROM dbo.Floating) d PIVOT(MIN([Double]) FOR Id IN([1])) p",[true,false]);
-        var captured=new Seamless.Database.Query.SqlQueryEngine(new CapturedCatalog());foreach(var view in new[]{"Invoices","Order Details Extended"}){var plan=captured.Prepare("SELECT * FROM dbo.["+view+"]","Northwind");Assert.False(Assert.Single(plan.Columns.Where(column=>column.Name=="Discount")).IsComputedFloatingPoint);}
+        var captured=new Seamless.Database.Query.SqlQueryEngine(new CapturedCatalog());foreach(var view in new[]{"Invoices","Order Details Extended"}){var plan=captured.Prepare("SELECT * FROM dbo.["+view+"]","Northwind");Assert.False(Assert.Single(plan.Columns,column=>column.Name=="Discount").IsComputedFloatingPoint);}
         void AssertFlags(string sql,bool[]expected)=>Assert.Equal(expected,engine.Prepare(sql,"Original DB").Columns.Select(column=>column.IsComputedFloatingPoint));
     }
     [Fact]public void BasicFloatingPointProvenance(){

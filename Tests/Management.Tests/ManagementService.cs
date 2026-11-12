@@ -58,6 +58,23 @@ public sealed class ManagementService{
         Assert.Equal(applied,service.Apply(user,new("query",draft.Revision,qp.Token,id)));
         Assert.Equal(0,Assert.Single(service.Execute(user,new("query",null,JsonSerializer.SerializeToElement(new{})),CancellationToken.None)).Value.GetInt32());
     }
+    [Fact]public void SaveDraftChecksPublishedVersion(){
+        using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");
+        using var service=new Seamless.Management.Server.ManagementService(store);
+        var user=service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);
+        var definition=Schema();
+        var version=new DefinitionVersion(definition,3,user.Name,DateTimeOffset.UtcNow);
+        store.Write(()=>store.Put("active",definition.Id,version));
+        var original=service.SaveDraft(user,new(definition,0,2));
+        Assert.Equal("Conflict",Assert.Throws<ManagementException>(()=>service.SaveDraft(user,new(definition,original.Revision,2,2))).Code);
+        var unchanged=service.GetDraft(user,definition.Id);
+        Assert.Equal(original.Revision,unchanged.Revision);
+        Assert.Equal(original.Definition.Hash(),unchanged.Definition.Hash());
+        var restored=service.SaveDraft(user,new(definition,original.Revision,3,3));
+        Assert.Equal(3,restored.BaseVersion);
+        Assert.Equal(original.Revision+1,restored.Revision);
+        Assert.Equal(version.Version,service.GetDefinition(user,definition.Id).Version);
+    }
     [Fact]public void StablePages(){
         using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");store.Write(()=>{for(var index=0;index<205;index++){store.Put("fixture",index.ToString(),new UserInfo("user"+index,[],false));}});
         var first=store.List<UserInfo>("fixture");Assert.Equal(100,first.Items.Length);Assert.True(first.HasMore);store.Write(()=>{store.Put("fixture","0",new UserInfo("changed",[],false));store.Put("fixture","205",new UserInfo("user205",[],false));});

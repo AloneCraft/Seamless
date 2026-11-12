@@ -37,9 +37,9 @@ public sealed class ServerPropertyWireTests{
             command.CommandText="SELECT CAST(SERVERPROPERTY('EngineEdition') AS nvarchar(8)) AS Renamed, CAST(SERVERPROPERTY('ProductMajorVersion') AS int) AS Different, CASE WHEN SERVERPROPERTY('EngineEdition') = 3 THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS Flag, SERVERPROPERTY('UnknownXYZ') AS Unknown, SERVERPROPERTY('ProductMajorVersion') AS IsMisleading, SERVERPROPERTY('IsClustered') AS Edition";
             await using var reader=await command.ExecuteReaderAsync();Assert.True(await reader.ReadAsync());
             Assert.Equal(typeof(string),reader.GetFieldType(0));Assert.Equal("nvarchar",reader.GetDataTypeName(0));Assert.Equal("3",reader.GetString(0));
-            Assert.Equal(typeof(int),reader.GetFieldType(1));Assert.Equal(16,reader.GetInt32(1));
+            Assert.Equal(typeof(int),reader.GetFieldType(1));Assert.Equal(17,reader.GetInt32(1));
             Assert.Equal(typeof(bool),reader.GetFieldType(2));Assert.True(reader.GetBoolean(2));Assert.True(await reader.IsDBNullAsync(3));
-            Assert.Equal(typeof(string),reader.GetFieldType(4));Assert.Equal("16",reader.GetString(4));Assert.Equal(typeof(int),reader.GetFieldType(5));Assert.Equal(0,reader.GetInt32(5));Assert.False(await reader.ReadAsync());
+            Assert.Equal(typeof(string),reader.GetFieldType(4));Assert.Equal("17",reader.GetString(4));Assert.Equal(typeof(int),reader.GetFieldType(5));Assert.Equal(0,reader.GetInt32(5));Assert.False(await reader.ReadAsync());
         }finally{await server.StopAsync();}
     }
     [Fact,Trait("Category","Integration")]
@@ -82,7 +82,7 @@ public sealed class ServerPropertyWireTests{
             var options=new SqlConnectionStringBuilder{DataSource=$"tcp:127.0.0.1,{server.Port}",InitialCatalog="fixture",UserID="sa",Password="test",Encrypt=false,Pooling=false,ConnectTimeout=5};
             await using var connection=new SqlConnection(options.ConnectionString);await connection.OpenAsync();using var command=connection.CreateCommand();command.CommandText=sql;
             await using var reader=await command.ExecuteReaderAsync();Assert.True(await reader.ReadAsync());
-            Assert.Equal(1,reader.GetInt32(0));Assert.Equal(3,reader.GetInt32(1));Assert.Equal("16.0.1000.6",reader.GetString(2));Assert.Equal(0x100003E8,reader.GetInt32(3));Assert.Equal(0,reader.GetInt32(4));Assert.Equal("Japanese_CI_AS",reader.GetString(5));
+            Assert.Equal(1,reader.GetInt32(0));Assert.Equal(3,reader.GetInt32(1));Assert.Equal("17.0.1000.7",reader.GetString(2));Assert.Equal(0x100003E8,reader.GetInt32(3));Assert.Equal(0,reader.GetInt32(4));Assert.Equal("Japanese_CI_AS",reader.GetString(5));
             Assert.True(await reader.NextResultAsync());Assert.True(await reader.ReadAsync());Assert.Equal("Windows",reader.GetString(0));
             Assert.True(await reader.NextResultAsync());Assert.True(await reader.ReadAsync());Assert.Equal("TCP",reader.GetString(0));Assert.False(await reader.NextResultAsync());
         }finally{await server.StopAsync();}
@@ -150,7 +150,12 @@ public sealed class ServerPropertyWireTests{
         try{
             var options=new SqlConnectionStringBuilder{DataSource=$"tcp:127.0.0.1,{server.Port}",InitialCatalog="fixture",UserID="sa",Password="test",Encrypt=false,Pooling=false,ConnectTimeout=5};
             await using var connection=new SqlConnection(options.ConnectionString);await connection.OpenAsync();using var command=connection.CreateCommand();command.CommandText=sql;
-            var error=await Assert.ThrowsAsync<SqlException>(()=>command.ExecuteScalarAsync());Assert.Equal(40515,error.Number);
+            if(change=="unrelated"){
+                // 関係の無い IF は、模擬の対象外でも、ふつうの制御文として実行できる(以前は未対応として拒否していた)。
+                Assert.Equal(42,await command.ExecuteScalarAsync());
+            }else{
+                var error=await Assert.ThrowsAsync<SqlException>(()=>command.ExecuteScalarAsync());Assert.Equal(40515,error.Number);
+            }
         }finally{await server.StopAsync();}
     }
     [Fact,Trait("Category","Integration")]

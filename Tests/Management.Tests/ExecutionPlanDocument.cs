@@ -18,7 +18,7 @@ public sealed class ExecutionPlanDocument{
         Assert.DoesNotContain(compiled.Result.Diagnostics,item=>item.Severity=="Error");
         using var pe=new MemoryStream(compiled.AssemblyBytes);
         var plans=Seamless.Management.ExecutionPlanDocument.Read(pe);
-        var plan=Assert.Single(plans);Assert.Equal(1,plan.SchemaVersion);
+        var plan=Assert.Single(plans);Assert.Equal(2,plan.SchemaVersion);
         Assert.Equal(typeof(global::Seamless.FLinq.Generator.FLinqIncrementalGenerator).Module.ModuleVersionId.ToString("D"),plan.GeneratorBuild);
         Assert.Contains(plan.Nodes,node=>node.Kind=="Fragment");
         Assert.Contains(plan.Nodes,node=>node.Kind=="SourceOperator"&&node.Label=="Where");

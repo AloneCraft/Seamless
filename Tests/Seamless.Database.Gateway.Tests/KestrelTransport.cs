@@ -8,8 +8,93 @@ using Seamless.Transport.Kestrel;
 namespace Seamless.Database.Gateway.Tests;
 
 public sealed class KestrelTransport{
+    [Fact]
+    public async Task BlockedFrameWriteTimesOutAndCannotAppendAnotherFrame(){
+        var incoming=new Pipe();
+        var outgoing=new Pipe(new(pauseWriterThreshold:32,resumeWriterThreshold:16));
+        var frames=new LengthPrefixedPipe(new Duplex(incoming.Reader,outgoing.Writer),8192,false,null,TimeSpan.FromMilliseconds(100));
+        using var safety=new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        try{
+            await Assert.ThrowsAsync<IOException>(async()=>await frames.WriteAsync(1,new byte[4096],safety.Token));
+            Assert.True(frames.OutputTimedOut);
+            await Assert.ThrowsAsync<IOException>(async()=>await frames.WriteAsync(2,new byte[1],safety.Token));
+            var received=await outgoing.Reader.ReadAsync(safety.Token);
+            try{Assert.Equal(4101,received.Buffer.Length);}
+            finally{outgoing.Reader.AdvanceTo(received.Buffer.End);}
+        }finally{
+            await incoming.Writer.CompleteAsync();await incoming.Reader.CompleteAsync();
+            await outgoing.Writer.CompleteAsync();await outgoing.Reader.CompleteAsync();
+        }
+    }
     private sealed record Frame(byte[] Bytes);
     private sealed record Duplex(PipeReader Input,PipeWriter Output):IDuplexPipe;
+    [Fact,Trait("Category","Unit")]
+    public async Task ReceiveQuotaOnlyLimitsRentedFrameBuffers(){
+        const int length=129;
+        var quota=new FrameBufferQuota(128);
+        using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var complete=new Pipe();
+        var fragmented=new Pipe();
+        var output=new Pipe();
+        LengthPrefixedPipe Create(Pipe input)=>new(new Duplex(input.Reader,output.Writer),length,false,null,null,quota);
+        var bytes=new byte[4+length];
+        BinaryPrimitives.WriteInt32LittleEndian(bytes,length);
+        try{
+            await complete.Writer.WriteAsync(bytes,timeout.Token);
+            var borrowed=Assert.IsType<Frame>(await Create(complete).ReadAsync(body=>new Frame(body.ToArray()),timeout.Token));
+            Assert.Equal(length,borrowed.Bytes.Length);
+
+            await fragmented.Writer.WriteAsync(bytes.AsMemory(0,5),timeout.Token);
+            await Assert.ThrowsAsync<IOException>(async()=>await Create(fragmented).ReadAsync(body=>new Frame(body.ToArray()),timeout.Token));
+        }finally{
+            foreach(var pipe in new[]{complete,fragmented,output}){
+                await pipe.Writer.CompleteAsync();
+                await pipe.Reader.CompleteAsync();
+            }
+        }
+    }
+    [Fact]
+    public async Task FragmentedFrameQuotaIsSharedAndReleasedAfterCancellationAndParseFailure(){
+        var quota=new FrameBufferQuota(64);
+        using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var disconnect=CancellationTokenSource.CreateLinkedTokenSource(timeout.Token);
+        var first=new Pipe();
+        var second=new Pipe();
+        var third=new Pipe();
+        var fourth=new Pipe();
+        var output=new Pipe();
+        var fragment=new byte[]{33,0,0,0,7};
+        LengthPrefixedPipe Create(Pipe input)=>new(new Duplex(input.Reader,output.Writer),64,false,null,null,quota);
+        try{
+            await first.Writer.WriteAsync(fragment,timeout.Token);
+            var held=Create(first).ReadAsync(bytes=>new Frame(bytes.ToArray()),disconnect.Token).AsTask();
+            Assert.False(held.IsCompleted);
+            await second.Writer.WriteAsync(fragment,timeout.Token);
+            await Assert.ThrowsAsync<IOException>(async()=>await Create(second).ReadAsync(bytes=>new Frame(bytes.ToArray()),timeout.Token));
+
+            disconnect.Cancel();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(()=>held);
+            await third.Writer.WriteAsync(fragment,timeout.Token);
+            var rejected=Create(third).ReadAsync<Frame>(_=>throw new FormatException("invalid payload"),timeout.Token).AsTask();
+            Assert.False(rejected.IsCompleted);
+            await third.Writer.WriteAsync(new byte[32],timeout.Token);
+            await Assert.ThrowsAsync<FormatException>(()=>rejected);
+
+            await fourth.Writer.WriteAsync(fragment,timeout.Token);
+            var restored=Create(fourth).ReadAsync(bytes=>new Frame(bytes.ToArray()),timeout.Token).AsTask();
+            Assert.False(restored.IsCompleted);
+            await fourth.Writer.WriteAsync(new byte[32],timeout.Token);
+            var frame=Assert.IsType<Frame>(await restored);
+            Assert.Equal(33,frame.Bytes.Length);
+            Assert.Equal(7,frame.Bytes[0]);
+        }finally{
+            foreach(var pipe in new[]{first,second,third,fourth,output}){
+                await pipe.Writer.CompleteAsync();
+                await pipe.Reader.CompleteAsync();
+            }
+        }
+    }
+
     [Fact,Trait("Category","Unit")]
     public void QuotaReleasesExactlyOnce(){
         var quota=new ConnectionQuota(2);var first=quota.TryEnter()!;var second=quota.TryEnter()!;Assert.Null(quota.TryEnter());Assert.Equal(2,quota.Count);first.Dispose();first.Dispose();Assert.Equal(1,quota.Count);second.Dispose();Assert.Equal(0,quota.Count);

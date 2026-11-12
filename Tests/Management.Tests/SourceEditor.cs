@@ -3,6 +3,14 @@ using Seamless.Management;
 namespace Management.Tests;
 
 public sealed class SourceEditor{
+    [Fact]public void PlatformReferencesShareMetadataAndKeepCallerOwnedArrays(){
+        var first=Seamless.Management.SourceEditor.PlatformReferences();
+        var second=Seamless.Management.SourceEditor.PlatformReferences();
+        Assert.NotEmpty(first);Assert.NotSame(first,second);
+        Assert.All(first.Zip(second),pair=>Assert.Same(pair.First,pair.Second));
+        var original=second[0];first[0]=null!;
+        Assert.Same(original,Seamless.Management.SourceEditor.PlatformReferences()[0]);
+    }
     [Fact]public void Apply(){
         const string text="using System.Linq; // keep\nclass C{int Extra()=>42;int[] Q(int[] xs)=>xs.Where(x=>x>0).Select(x=>x+1).ToArray();}";
         var snapshot=new SourceSnapshot("1",[new("query.cs",text)],[]);

@@ -47,7 +47,8 @@ public sealed class SsmsCatalogScalarFunctionTests{
         Assert.Null(Value("OBJECTPROPERTYEX(-1,N'IsSchemaBound')"));
         Assert.Null(Value("OBJECTPROPERTYEX(NULL,N'IsSchemaBound')"));
         Assert.Null(Value("OBJECTPROPERTYEX(OBJECT_ID(N'dbo.Bound'),NULL)"));
-        var failure=Assert.Throws<SqlQueryException>(()=>Value("OBJECTPROPERTYEX(OBJECT_ID(N'dbo.Bound'),N'Unknown')"));Assert.Equal(40515,failure.Number);
+        // 本物のSQL Serverは未知のプロパティ名にNULLを返す(実機確認済み)。エラーにはしない。
+        Assert.Null(Value("OBJECTPROPERTYEX(OBJECT_ID(N'dbo.Bound'),N'Unknown')"));
         var result=engine.Execute("SELECT OBJECTPROPERTYEX(OBJECT_ID(N'dbo.Bound'),N'IsSchemaBound')",session);Assert.Equal("int",result.Columns[0].SqlTypeName);
     }
     private sealed class MetadataAdapter:IDatabaseAdapter{

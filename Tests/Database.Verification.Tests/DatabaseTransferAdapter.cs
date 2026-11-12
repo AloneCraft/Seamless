@@ -1,5 +1,6 @@
 using Seamless.Database;
 using Seamless.Database.Rdbms;
+using Database.Verification.Tests.TransferAdapterFixture;
 
 namespace Database.Verification.Tests;
 
@@ -7,7 +8,7 @@ public sealed class DatabaseTransferAdapter{
     [Fact]public async Task ReadRowsAsync(){
         using var database=new Fixture();
         using(var transaction=database.BeginTransaction()){
-            for(var id=0;id<4;id++){database.Items.Add(new(id));}
+            for(var id=0;id<4;id++){transaction.Items.Add(new(id));}
             transaction.Commit();
         }
         var table=new NativeTable("dbo","Items","Fixture.Items",[new("Id","System.Int32",false)],["Id"]);
@@ -31,13 +32,9 @@ public sealed class DatabaseTransferAdapter{
             var count=0;
             await foreach(var row in global::Seamless.Database.Transfer.DatabaseTransferAdapter.ReadRowsAsync(database,table)){count++;}
             Assert.Equal(4,count);
-            using var write=database.BeginTransaction();database.Items.Add(new(4));write.Commit();
+            using var write=database.BeginTransaction();write.Items.Add(new(4));write.Commit();
         }
     }
 
-    private readonly record struct Row(int Id);
-    private sealed class Fixture():DatabaseContainer(DatabaseContainerOptions.InMemory){
-        [ImportedDatabaseObject("dbo","Items")]
-        public Table<Row,Row>Items=>this.Table<Row,Row>(row=>row);
-    }
 }
+

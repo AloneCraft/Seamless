@@ -1,4 +1,4 @@
-using System.Reflection.Metadata;
+﻿using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using Seamless.Management;
@@ -25,7 +25,7 @@ public sealed class QueryAuditMetadata{
             var admin=service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);NativeWorkflow.Publish(service,admin,NativeWorkflow.Database());NativeWorkflow.Publish(service,admin,Query());hash=service.GetDefinition(admin,"audit-query").ArtifactHash;
             var record=Assert.Single(service.AuditEvents(admin,new(Text:"Model.Queries.Run")).Items);Assert.Equal(hash,record.CodeVersion);Assert.Equal("Run",record.MethodName);Assert.Contains("Where",record.QueryTemplate!);foreach(var text in new[]{"PRIVATE_DEFAULT","PRIVATE_LITERAL","1234567","RUNTIME_SECRET"}){Assert.DoesNotContain(text,record.QueryTemplate!);Assert.DoesNotContain(text,record.MethodSignature!);}
             Assert.Equal(0,Assert.Single(service.Execute(admin,new("audit-query",null,ManagementJson.Element(new{token="RUNTIME_SECRET"})),CancellationToken.None)).Value.GetInt32());
-            var viewer=new UserAccount("viewer","",[new("Native",ManagementPermission.View)]);Assert.DoesNotContain("queryTemplate",System.Text.Json.JsonSerializer.Serialize(service.Plans(viewer,"audit-query"),ManagementJson.Options),StringComparison.OrdinalIgnoreCase);
+            var viewer=new UserAccount("viewer","",[new("Native",ManagementPermission.View)]);Assert.Equal("Permission",Assert.Throws<ManagementException>(()=>service.Plans(viewer,"audit-query")).Code);Assert.DoesNotContain("queryTemplate",System.Text.Json.JsonSerializer.Serialize(service.Plans(admin,"audit-query"),ManagementJson.Options),StringComparison.OrdinalIgnoreCase);
         }
         using var reopened=new ManagementStore(root);var metadata=reopened.Read<Seamless.Management.Server.QueryAuditMetadata>("queryAudit",hash);Assert.NotNull(metadata);Assert.Equal(hash,metadata.ArtifactHash);Assert.Contains(reopened.AuditEvents(new(Text:"Model.Queries.Run")).Items,item=>item.MethodModuleId==metadata.ModuleId&&item.MethodMetadataToken==metadata.MetadataToken);
     }

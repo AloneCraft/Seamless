@@ -19,12 +19,13 @@ internal static class ProcessEntryPoint{
     }
 }
 public sealed class ProcessTermination{
+    private static string DotNetExecutable=>Environment.GetEnvironmentVariable("DOTNET_HOST_PATH")??(OperatingSystem.IsWindows()?Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),"dotnet","dotnet.exe"):"dotnet");
     [Theory]
     [InlineData("prepared-stop-preparation",false)]
     [InlineData("prepared-stop-commit",true)]
     public async Task PreparedTransactionSurvivesProcessKillOnlyIfFinalCommitWasDurable(string mode,bool committed){
         var path=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")??throw new InvalidOperationException("Missing isolated test root."),"prepared-process-"+Guid.NewGuid().ToString("N"));var id=Guid.NewGuid();
-        var start=new ProcessStartInfo("dotnet"){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
+        var start=new ProcessStartInfo(DotNetExecutable){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
         foreach(var argument in new[]{typeof(ProcessEntryPoint).Assembly.Location,mode,path,id.ToString("D")}){start.ArgumentList.Add(argument);}
         using var child=Process.Start(start)!;var stdout=child.StandardOutput.ReadToEndAsync();var stderr=child.StandardError.ReadToEndAsync();
         try{await child.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30));}catch{if(!child.HasExited){child.Kill(entireProcessTree:true);}throw;}
@@ -35,7 +36,7 @@ public sealed class ProcessTermination{
     [Fact]public async Task LostCommitNotificationIsQueryableAfterProcessExitAndWalPruning(){
         var path=Path.Combine(Path.GetTempPath(),"Seamless.C12.ProcessStop",Guid.NewGuid().ToString("N"));var id=Guid.NewGuid();
         try{
-            var start=new ProcessStartInfo("dotnet"){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
+            var start=new ProcessStartInfo(DotNetExecutable){UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
             foreach(var argument in new[]{typeof(ProcessEntryPoint).Assembly.Location,"commit-and-exit",path,id.ToString("D")}){start.ArgumentList.Add(argument);}
             using var child=Process.Start(start)!;
             var stdout=child.StandardOutput.ReadToEndAsync();var stderr=child.StandardError.ReadToEndAsync();

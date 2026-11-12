@@ -13,10 +13,10 @@ namespace Seamless.Database.Gateway.Tests;
 public sealed class ParameterDeclarationsTests{
     [Fact,Trait("Category","Integration")]
     public async Task SqlClientPreparedRpcUsesMultipleDeclaredTypes(){
-        using var database=new RuntimeSqlGeneratedRoot(DatabaseContainerOptions.InMemory with{Transactions=DatabaseTransactionMode.SharedV2});
+        using var database=new RuntimeSqlGeneratedRoot(DatabaseContainerOptions.InMemory );
         var adapter=new InProcessDatabaseAdapter(database);var registry=new DatabaseRegistry();registry.Register("fixture",adapter);
-        using var server=new TdsServer(35482,adapter,new SqlExecutionEngine(registry));server.Start();
-        var options=new SqlConnectionStringBuilder{DataSource="127.0.0.1,35482",InitialCatalog="fixture",UserID="sa",Password="local-test",Encrypt=false,TrustServerCertificate=true,Pooling=false,ConnectTimeout=10};
+        using var server=new TdsServer(0,adapter,new SqlExecutionEngine(registry));server.Start();
+        var options=new SqlConnectionStringBuilder{DataSource="127.0.0.1,"+server.Port,InitialCatalog="fixture",UserID="sa",Password="local-test",Encrypt=false,TrustServerCertificate=true,Pooling=false,ConnectTimeout=10};
         using var connection=new SqlConnection(options.ConnectionString);await connection.OpenAsync();using var command=connection.CreateCommand();
         command.CommandText="SELECT @id AS n, @name AS s, @amount AS amount";
         command.Parameters.Add("@id",SqlDbType.Int).Value=7;command.Parameters.Add("@name",SqlDbType.NVarChar,40).Value="hello";
@@ -25,7 +25,7 @@ public sealed class ParameterDeclarationsTests{
     }
     private static IReadOnlyList<SqlParameter> Parse(string text){
         var type=typeof(TdsServer).Assembly.GetType("Seamless.Database.Gateway.Tds.ParameterDeclarations",true)!;
-        try{return (IReadOnlyList<SqlParameter>)type.GetMethod("Parse",BindingFlags.Public|BindingFlags.Static)!.Invoke(null,[text])!;}
+        try{return (IReadOnlyList<SqlParameter>)type.GetMethod("Parse",BindingFlags.Public|BindingFlags.Static)!.Invoke(null,[text,null])!;}
         catch(TargetInvocationException error) when(error.InnerException is not null){global::System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error.InnerException).Throw();throw;}
     }
     [Fact]

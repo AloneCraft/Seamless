@@ -1,4 +1,5 @@
 using Seamless.Database;
+using Seamless.Database.Gateway.Hosting;
 using Seamless.Database.Query;
 
 namespace Seamless.Database.Gateway.Tests;
@@ -13,6 +14,33 @@ internal sealed partial class RuntimeSqlGeneratedRoot:RuntimeSqlDatabaseContaine
 
 
 public sealed class RuntimeSqlCatalogTests{
+    [Fact,Trait("Category","Integration")]
+    public void AdapterCanReadOneRuntimeTableWithoutMaterializingTheCatalog(){
+        using var database=new RuntimeSqlGeneratedRoot(Options());
+        const int tableCount=256;
+        var runtime=database.RuntimeSql;
+        using(var transaction=runtime.BeginTransaction()){
+            var columns=Columns();
+            for(var index=0;index<tableCount;index++){runtime.CreateTable("dbo",$"Runtime_{index}",columns);}
+            transaction.Commit();
+        }
+        var adapter=new InProcessDatabaseAdapter(database);
+        static bool IsRuntime(TableMetadata table)=>table.TableName.StartsWith("Runtime_",StringComparison.Ordinal);
+        _=adapter.EnumerateTables().First(IsRuntime);
+        _=adapter.GetTables();
+        var beforeFirst=GC.GetAllocatedBytesForCurrentThread();
+        var first=adapter.EnumerateTables().First(IsRuntime);
+        var firstBytes=GC.GetAllocatedBytesForCurrentThread()-beforeFirst;
+        var beforeAll=GC.GetAllocatedBytesForCurrentThread();
+        var all=adapter.GetTables();
+        var allBytes=GC.GetAllocatedBytesForCurrentThread()-beforeAll;
+        Assert.Contains(all,table=>table.TableName=="TypedOrders");
+        Assert.Equal(tableCount,all.Count(IsRuntime));
+        Assert.Equal(all.First(IsRuntime).TableName,first.TableName);
+        Assert.Equal(all.Select(table=>table.IdentifierKey),adapter.EnumerateTables().Select(table=>table.IdentifierKey));
+        Assert.True(firstBytes*4<allBytes,$"First runtime table allocated {firstBytes} bytes; full catalog allocated {allBytes} bytes.");
+    }
+
     [Fact,Trait("Category","Integration")]
     public void RuntimeScopeSharesGeneratedTypedTransactionAndRecovery(){
         var options=Options();using(var first=new RuntimeSqlGeneratedRoot(options)){}using(var db=new RuntimeSqlGeneratedRoot(options)){
@@ -46,7 +74,7 @@ public sealed class RuntimeSqlCatalogTests{
         Assert.Equal(new object?[]{1,"a",1m},Assert.Single(api.ReadRows("dbo","t",api.SchemaRevision)).Values);
     }
 
-    private static DatabaseContainerOptions Options(){var root=Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT");if(string.IsNullOrWhiteSpace(root)||!Path.IsPathFullyQualified(root)||!(root.StartsWith("D:\\",StringComparison.OrdinalIgnoreCase)||root.StartsWith("F:\\",StringComparison.OrdinalIgnoreCase))){throw new InvalidOperationException("An absolute D: or F: test root is required.");}var path=Path.Combine(root,"runtime-sql-api-"+Guid.NewGuid().ToString("N"));return DatabaseContainerOptions.OnStorage(path) with{Transactions=DatabaseTransactionMode.SharedV2,IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20,TemporaryDirectory=Path.Combine(path,"scratch")};}
+    private static DatabaseContainerOptions Options(){var root=Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT");if(string.IsNullOrWhiteSpace(root)||!Path.IsPathFullyQualified(root)||!(root.StartsWith("D:\\",StringComparison.OrdinalIgnoreCase)||root.StartsWith("F:\\",StringComparison.OrdinalIgnoreCase))){throw new InvalidOperationException("An absolute D: or F: test root is required.");}var path=Path.Combine(root,"runtime-sql-api-"+Guid.NewGuid().ToString("N"));return DatabaseContainerOptions.OnStorage(path) with{IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20,TemporaryDirectory=Path.Combine(path,"scratch")};}
     private static RuntimeSqlColumn[] Columns()=>[new("id","int",false,IsPrimaryKey:true),new("title","nvarchar",true,Length:8,Collation:"Japanese_CI_AS"),new("price","decimal",false,Precision:5,Scale:2)];
     [Fact,Trait("Category","Integration")]
     public void TransactionsRecoveryAlterAndRecreate(){

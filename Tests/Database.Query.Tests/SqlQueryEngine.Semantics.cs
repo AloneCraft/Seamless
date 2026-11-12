@@ -1,6 +1,13 @@
 using Seamless.Database.Query;
 namespace Database.Query.Tests;
 public sealed partial class SqlQueryEngine{
+    [Fact]public void BoundColumnValuesPreserveCollationPrecedenceWithoutChangingVariableParameters(){
+        var engine=new Seamless.Database.Query.SqlQueryEngine(new SemanticCatalog("Japanese_CI_AS"));var type=new SqlType("varchar",typeof(string),8,Collation:"Latin1_General_100_CI_AS");var values=new Dictionary<string,object?>{{"@text","a "}};const string sql="SELECT CASE WHEN @text='A' THEN 1 ELSE 0 END";
+        foreach(var basic in new[]{false,true}){
+            SqlQueryPlan Prepare(bool column){var parameter=new SqlParameter("@text",type){IsColumnValue=column};if(basic){return engine.PrepareBasic(sql,"Original DB",SqlDialect.SqlServer,[parameter]);}return engine.Prepare(sql,"Original DB",[parameter]);}
+            Assert.Equal(new object?[]{1},Assert.Single(Prepare(true).Execute(values).Rows));Assert.Equal(468,Assert.Throws<SqlQueryException>(()=>Prepare(false)).Number);Assert.Equal(new object?[]{1},Assert.Single(Prepare(true).Execute(values).Rows));
+        }
+    }
     [Fact]public void ComparisonTypeAndCollation(){
         var engine=new Seamless.Database.Query.SqlQueryEngine(new SemanticCatalog());
         foreach(var condition in new[]{"'a'=Ci","@text=Ci","N'あ'=Japanese","'a' IN(Ci)","'a' IN(SELECT Ci FROM dbo.Strings)","'a' BETWEEN Ci AND Ci","'2'=Id","CAST(Ci AS nvarchar(10))='a'","CASE 'a' WHEN Ci THEN 1 ELSE 0 END=1","NULLIF('a',Ci) IS NULL"}){

@@ -4,7 +4,8 @@ public sealed partial class SqlQueryEngine{
     [Fact]public void Prepare(){
         var catalog=new Catalog();var engine=new Seamless.Database.Query.SqlQueryEngine(catalog);
         Assert.Throws<SqlQueryException>(()=>engine.Prepare("SELECT Unknown FROM dbo.Data","Original DB"));
-        Assert.Throws<SqlQueryException>(()=>engine.Prepare("SELECT Id FROM dbo.Data WHERE CAST(Id AS varchar(10)) LIKE '[0-9]'","Original DB"));
+        // LIKE は対応済み(以前は未対応として拒否していた)。
+        engine.Prepare("SELECT Id FROM dbo.Data WHERE CAST(Id AS varchar(10)) LIKE '[0-9]'","Original DB");
         Assert.Throws<SqlQueryException>(()=>engine.Prepare("SELECT [Wrong DB].dbo.Data.Id FROM dbo.Data","Original DB"));
         Assert.Throws<SqlQueryException>(()=>engine.Prepare("SELECT SUM(CAST(Id AS varchar(20))) FROM dbo.Data","Original DB"));
         Assert.Throws<SqlQueryException>(()=>engine.Prepare("SELECT Id FROM dbo.Data OPTION (RECOMPILE)","Original DB"));

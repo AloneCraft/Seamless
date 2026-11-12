@@ -21,10 +21,10 @@ public sealed class ComparisonRuntimeProfileTests{
     public void RuntimeManifestRequiresSharedV2AndMatchingType(){
         var type=typeof(Seamless.Generated.Profile_RuntimeSqlV1.Profile_RuntimeSqlV1);
         var item=new ComparisonDatabase("fixture",type.Name,"fingerprint",false,new DatabaseCatalog("fixture",[]),[]){GeneratedNamespace=type.Namespace,RuntimeSqlEnabled=true};
-        ComparisonHost.ValidateRuntimeProfile(item,type,DatabaseContainerOptions.InMemory with{Transactions=DatabaseTransactionMode.SharedV2});
+        ComparisonHost.ValidateRuntimeProfile(item,type,DatabaseContainerOptions.InMemory );
         Assert.Throws<InvalidDataException>(()=>ComparisonHost.ValidateRuntimeProfile(item,type,DatabaseContainerOptions.InMemory));
         Assert.Throws<InvalidDataException>(()=>ComparisonHost.ValidateRuntimeProfile(item with{RuntimeSqlEnabled=false},type,DatabaseContainerOptions.InMemory));
-        Assert.Throws<InvalidDataException>(()=>ComparisonHost.ValidateRuntimeProfile(item with{GeneratedNamespace="wrong"},type,DatabaseContainerOptions.InMemory with{Transactions=DatabaseTransactionMode.SharedV2}));
+        Assert.Throws<InvalidDataException>(()=>ComparisonHost.ValidateRuntimeProfile(item with{GeneratedNamespace="wrong"},type,DatabaseContainerOptions.InMemory ));
     }
 }
 }

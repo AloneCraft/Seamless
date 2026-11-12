@@ -2,7 +2,8 @@ namespace Database.Verification.Tests;
 
 public sealed class RowBagVerifier{
     [Fact]public async Task CompareAsync(){
-        var root=Path.Combine(Path.GetTempPath(),"SeamlessVerificationTests");
+        var tempRoot=Environment.GetEnvironmentVariable("SEAMLESS_COMPARISON_TEMP_ROOT")??Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")??(Directory.Exists(@"F:\Seamless")?@"F:\Seamless\temp":Path.GetTempPath());
+        var root=Path.Combine(tempRoot,"SeamlessVerificationTests");
         static async IAsyncEnumerable<object?[]>Rows(int count,bool reverse,bool change){
             for(var i=0;i<count;i++){
                 var index=i;if(reverse){index=count-1-i;}

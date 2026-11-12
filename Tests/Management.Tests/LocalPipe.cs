@@ -1,4 +1,5 @@
 using System.Net;
+using System.IO.Pipes;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Seamless.Management;
@@ -18,6 +19,29 @@ public sealed class LocalPipe{
         Assert.Equal("Permission",(await Assert.ThrowsAsync<ManagementException>(()=>client.CallAsync<Draft>("saveDraft","Native",new SaveDraftRequest(NativeWorkflow.Database(),1,1)))).Code);
         var query=new Definition("ipc-query","Native",DefinitionKind.Query,"Model.Query","Run",new("1",[new("query.cs","namespace Model;public static class Query{public static int Run()=>42;}")],[]));NativeWorkflow.Publish(service,admin,query);
         var rows=new List<ExecutionRow>();await foreach(var row in client.ExecuteAsync("Native",new("ipc-query",null,ManagementJson.Element(new{})))){rows.Add(row);}Assert.Equal(42,Assert.Single(rows).Value.GetInt32());
-        service.ChangeUser(admin,new("reader",null,[new("Native",ManagementPermission.View)],true));Assert.Equal("Authentication",(await Assert.ThrowsAsync<ManagementException>(()=>client.LocalIdentityAsync())).Code);
+        using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        await using var pipe=new NamedPipeClientStream(".",server.PipeName!,PipeDirection.InOut,PipeOptions.Asynchronous|PipeOptions.CurrentUserOnly);
+        await pipe.ConnectAsync(5000,deadline.Token);
+        var execute=new RpcRequest(Guid.NewGuid(),"execute",null,"Native",ManagementJson.Element(new ExecuteRequest("ipc-query",null,ManagementJson.Element(new{})))){ReuseConnection=true};
+        await ManagementWire.WriteAsync(pipe,execute,deadline.Token);
+        var rowResponse=await ManagementWire.ReadAsync<RpcResponse>(pipe,deadline.Token);
+        Assert.Equal(execute.Id,rowResponse.Id);
+        Assert.Equal("row",rowResponse.Kind);
+        Assert.Equal(42,ManagementJson.Read<ExecutionRow>(rowResponse.Payload).Value.GetInt32());
+        Assert.Null(rowResponse.ReuseIdleMilliseconds);
+        var complete=await ManagementWire.ReadAsync<RpcResponse>(pipe,deadline.Token);
+        Assert.Equal(execute.Id,complete.Id);
+        Assert.Equal("complete",complete.Kind);
+        Assert.Equal(15000,complete.ReuseIdleMilliseconds);
+
+        service.ChangeUser(admin,new("reader",null,[new("Native",ManagementPermission.View)],true));
+        var next=new RpcRequest(Guid.NewGuid(),"localIdentity",null,"",ManagementJson.Element(new{})){ReuseConnection=true};
+        await ManagementWire.WriteAsync(pipe,next,deadline.Token);
+        var denied=await ManagementWire.ReadAsync<RpcResponse>(pipe,deadline.Token);
+        Assert.Equal(next.Id,denied.Id);
+        Assert.Equal("Authentication",denied.ErrorCode);
+        Assert.Null(denied.ReuseIdleMilliseconds);
+        Assert.Equal(0,await pipe.ReadAsync(new byte[1],deadline.Token));
+        Assert.Equal("Authentication",(await Assert.ThrowsAsync<ManagementException>(()=>client.LocalIdentityAsync(deadline.Token))).Code);
     }
 }

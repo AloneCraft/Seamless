@@ -6,6 +6,32 @@ namespace Seamless.Transactions.Tests;
 
 public sealed class PreparedTransactions{
     [Fact]
+    public async Task AbortedPreparationAllowsAnotherStandaloneTransactionAndReplaysOnlyCommittedRows(){
+        var path=PathForTest();var values=new Dictionary<int,(int Id,byte[] Payload)>();var injected=false;
+        using var resources=new ExecutionScope(new(){MemoryLimitBytes=4<<20,TemporaryStorageLimitBytes=16<<20,TemporaryDirectory=Path.Combine(path,"temporary")});
+        TransactionalTable<int,(int Id,byte[] Payload)> Table()=>new(0,1,"prepared-table-v1",resources,1,key=>{var found=values.TryGetValue(key,out var row);return(found,row);},(key,row)=>values[key]=row,key=>values.Remove(key),row=>row.Id,()=>values);
+        await using(var journal=new PreparedTransactionJournal(path,Options(),resources.Budget,phase=>{
+            if(phase==PreparedTransactionPhase.PreparationDurable&&!injected){injected=true;throw new OperationCanceledException();}
+        })){
+            await using var coordinator=new TransactionCoordinator(preparedJournal:journal);var table=Table();coordinator.Register(table);
+            await using(var transaction=await coordinator.BeginAsync()){
+                for(var index=0;index<100;index++){table.For(transaction).Add((index,new byte[150]));}
+                var error=await Assert.ThrowsAsync<TransactionCommitException>(async()=>await transaction.CommitAsync());
+                Assert.Equal(TransactionOutcomeKind.Aborted,error.Outcome);Assert.Empty(values);Assert.Null(coordinator.Failure.Error);
+            }
+            await using(var transaction=await coordinator.BeginAsync()){
+                table.For(transaction).Add((999,new byte[]{9}));await transaction.CommitAsync();
+            }
+        }
+        values.Clear();
+        await using(var journal=new PreparedTransactionJournal(path,Options(),resources.Budget)){
+            await using var coordinator=new TransactionCoordinator(preparedJournal:journal);coordinator.Register(Table());coordinator.Recover();
+            var row=Assert.Single(values);Assert.Equal(999,row.Key);Assert.Equal(new byte[]{9},row.Value.Payload);
+        }
+        Assert.Equal(0,resources.Budget.MemoryBytes);Assert.Equal(0,resources.Budget.TemporaryStorageBytes);
+    }
+
+    [Fact]
     public async Task CoordinatorRecoversAfterCoveredWalSegmentsHaveBeenPruned(){
         var path=PathForTest();long covered=0;
         for(var generation=0;generation<4;generation++){
