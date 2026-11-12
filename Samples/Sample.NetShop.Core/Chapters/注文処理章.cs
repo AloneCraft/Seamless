@@ -18,10 +18,10 @@ public sealed class 注文処理章:物語の章{
         using var 取引=this.BeginTransaction();
         foreach(var 行 in 行一覧){
             if(商品.在庫数<行.数量) return 失敗;          // Commit せずに抜ける → 全部取り消し
-            this.商品[キー]=在庫を減らした商品;
-            this.注文明細.Add(明細);
+            取引.商品[キー]=在庫を減らした商品;          // 表へは取引からだけ書ける
+            取引.注文明細.Add(明細);
         }
-        this.注文.Add(注文);
+        取引.注文.Add(注文);
         取引.Commit();
         """;
 

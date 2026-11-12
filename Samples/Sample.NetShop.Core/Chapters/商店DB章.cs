@@ -14,14 +14,17 @@ public sealed class 商店DB章:物語の章{
     public override string コード=>
         """
         public Table<Keys.商品,Records.商品>商品=>this.Table<Keys.商品,Records.商品>(行=>new(行.商品ID));
-        public View<Records.商品>在庫切れ商品()=>this.View(()=>this.商品.Where(行=>行.在庫数==0));
+        namespace Shop.Views;  // ビューは行型の Query に直接書き、プロパティで読む
+        public readonly partial record struct 在庫切れ商品{
+            public static IEnumerable<object> Query(商店DB db)=>db.商品.Where(行=>行.在庫数==0).Select(行=>new{行.商品ID,行.名前,行.在庫数});
+        }
         public TableFunction<Records.注文>顧客の注文履歴(int 顧客ID)=>this.TableFunction(...);
         public ScalarFunction<long>売上合計()=>this.ScalarFunction(()=>this.注文.Sum(行=>行.合計金額));
 
         using var 商店=商店DB.開く(データフォルダ,資源);   // ストレージ方式
         商店.初期データを登録する();                       // 空のときだけ
         foreach(var 物 in 商店.DatabaseObjects){ ... }     // 生成された目録
-        var 切れ=商店.在庫切れ商品().ToList();
+        var 切れ=商店.在庫切れ商品.ToList();
         var 履歴=商店.顧客の注文履歴(3).Count();
         var 売上=商店.売上合計().Value;
         """;
@@ -51,8 +54,8 @@ public sealed class 商店DB章:物語の章{
         }
 
         在庫を描く(文脈,商店);
-        文脈.コードを指す("在庫切れ商品()");
-        var 切れ=商店.在庫切れ商品().ToList();
+        文脈.コードを指す("在庫切れ商品");
+        var 切れ=商店.在庫切れ商品.ToList();
         if(切れ.Count==0){
             文脈.ログ("ビュー 在庫切れ商品: ありません。");
         }else{

@@ -29,8 +29,7 @@ public sealed partial class 商店DB(DatabaseContainerOptions オプション):D
     public Table<Keys.注文,Records.注文>注文=>this.Table<Keys.注文,Records.注文>(static 行=>new(行.注文ID));
     public Table<Keys.注文明細,Records.注文明細>注文明細=>this.Table<Keys.注文明細,Records.注文明細>(static 行=>new(行.注文ID,行.行番号));
 
-    // ---- ビュー: 列挙するたびに定義を評価する ----
-    public View<Records.商品>在庫切れ商品()=>this.View(()=>this.在庫切れ商品を探す());
+    // ---- ビュー: Views 名前空間の 在庫切れ商品 で宣言し、プロパティ 在庫切れ商品 で読む(生成) ----
     public IEnumerable<Records.商品>在庫切れ商品を探す()=>
         this.商品.Where(行=>行.在庫数==0).OrderBy(行=>行.商品ID);
 
@@ -52,36 +51,47 @@ public sealed partial class 商店DB(DatabaseContainerOptions オプション):D
     /// 途中で在庫が足りなければ Commit せずに抜けるので、それまでに減らした在庫も含めて全部取り消される。
     /// </summary>
     private 注文結果 注文を確定する(int 顧客ID,IReadOnlyList<注文行>行一覧,DateTime 注文日時){
-        if(!this.顧客.ContainsKey(new(顧客ID))){
+        using var 取引=this.BeginTransaction();
+        var 結果=this.注文を書き込む(取引,顧客ID,行一覧,注文日時);
+        if(結果.成功か){
+            取引.Commit();
+            this.最後の注文ID=結果.注文ID;
+        }
+        return 結果;
+    }
+
+    /// <summary>
+    /// 渡された取引の中で在庫を引き当て、注文と明細を書き込む。確定(Commit)は呼び出し側が行う。
+    /// 表の読み書きはすべて取引(取引.商品 など)を通す。取引の外(this.商品)からは書けない。
+    /// </summary>
+    public 注文結果 注文を書き込む(TypedTransaction 取引,int 顧客ID,IReadOnlyList<注文行>行一覧,DateTime 注文日時){
+        if(!取引.顧客.ContainsKey(new(顧客ID))){
             return 注文結果.失敗($"顧客{顧客ID}は登録されていません");
         }
-        var 注文ID=this.次の注文IDを見る();
-        using var 取引=this.BeginTransaction();
+        var 注文ID=this.次の注文IDを見る(取引);
         long 合計=0;
         for(var 番号=0;番号<行一覧.Count;番号++){
             var 行=行一覧[番号];
-            if(!this.商品.TryGetValue(new(行.商品ID),out var 商品)){
+            if(!取引.商品.TryGetValue(new(行.商品ID),out var 商品)){
                 return 注文結果.失敗($"商品{行.商品ID}は登録されていません");
             }
             if(商品.在庫数<行.数量){
                 return 注文結果.失敗($"{商品.名前}の在庫が足りません(在庫{商品.在庫数}、注文{行.数量})");
             }
-            this.商品[new(商品.商品ID)]=new Records.商品(商品.商品ID,商品.名前,商品.単価,商品.在庫数-行.数量);
+            取引.商品[new(商品.商品ID)]=new Records.商品(商品.商品ID,商品.名前,商品.単価,商品.在庫数-行.数量);
             long 小計=(long)商品.単価*行.数量;
-            this.注文明細.Add(new Records.注文明細(注文ID,番号+1,商品.商品ID,行.数量,小計));
+            取引.注文明細.Add(new Records.注文明細(注文ID,番号+1,商品.商品ID,行.数量,小計));
             合計+=小計;
         }
-        this.注文.Add(new Records.注文(注文ID,顧客ID,注文日時,合計));
-        取引.Commit();
-        this.最後の注文ID=注文ID;
+        取引.注文.Add(new Records.注文(注文ID,顧客ID,注文日時,合計));
         return 注文結果.成功(注文ID,合計);
     }
 
     /// <summary>入荷。在庫を増やす。</summary>
     public void 入荷(int 商品ID,int 数量){
         using var 取引=this.BeginTransaction();
-        var 商品=this.商品[new(商品ID)];
-        this.商品[new(商品ID)]=new Records.商品(商品.商品ID,商品.名前,商品.単価,商品.在庫数+数量);
+        var 商品=取引.商品[new(商品ID)];
+        取引.商品[new(商品ID)]=new Records.商品(商品.商品ID,商品.名前,商品.単価,商品.在庫数+数量);
         取引.Commit();
     }
 
@@ -93,24 +103,24 @@ public sealed partial class 商店DB(DatabaseContainerOptions オプション):D
         }
         using var 取引=this.BeginTransaction();
         foreach(var 商品 in 初期データ.商品一覧){
-            this.商品.Add(商品);
+            取引.商品.Add(商品);
         }
         foreach(var 顧客 in 初期データ.顧客一覧){
-            this.顧客.Add(顧客);
+            取引.顧客.Add(顧客);
         }
         取引.Commit();
         return true;
     }
 
-    private long 次の注文IDを見る(){
+    private long 次の注文IDを見る(TypedTransaction 取引){
         if(this.最後の注文ID<0){
             // 開き直した直後だけ、保存済みの最大値から続きを決める。
-            this.最後の注文ID=this.保存済みの最大注文ID();
+            this.最後の注文ID=this.保存済みの最大注文ID(取引);
         }
         return this.最後の注文ID+1;
     }
 
     // LINQ と非公開フィールドの読み書きを同じメソッドに書くと、FLinq の展開がコンパイルエラーになる(生成器の既知不具合)。
     // そのため LINQ はフィールドに触れないこのメソッドへ分けている。
-    public long 保存済みの最大注文ID()=>this.注文.Select(行=>行.注文ID).DefaultIfEmpty(0).Max();
+    public long 保存済みの最大注文ID(TypedTransaction 取引)=>取引.注文.Select(行=>行.注文ID).DefaultIfEmpty(0).Max();
 }

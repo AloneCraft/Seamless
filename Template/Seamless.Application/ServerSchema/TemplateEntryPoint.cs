@@ -12,22 +12,31 @@ namespace Seamless.Application.ServerSchema;
 
 public static class TemplateEntryPoint{
     public static async Task<int> RunAsync(string[] args){
+        if(args.Length==2&&args[0]=="--export-native"){
+            var path=NativePrebuiltPackage.Publish(args[1],new ApplicationQueriesModule(),[NativeDatabaseAssembly.From<ApplicationDatabase>("application")]);
+            Console.WriteLine("Native artifact: "+path);return 0;
+        }
         if(args.Any(arg=>arg is not "--self-test")){
-            Console.Error.WriteLine("使用方法: Server [--self-test]。このテンプレートはローカルのメモリDBを起動します。");
+            Console.Error.WriteLine("使用方法: Server [--self-test] または Server --export-native <出力フォルダー>。このテンプレートはローカルのメモリDBを起動します。");
             return 2;
         }
         var options=DatabaseContainerOptions.InMemory with{IndexSize=128,PageSize=4096,SegmentSize=65536,MemorySize=65536};
         using var database=new ApplicationDatabase(options);
         var registry=new DatabaseRegistry();
-        var fingerprint=NativeWireContract.For<Schema.Records.Item>();
+        var fingerprint=NativeDatabaseAssembly.From<ApplicationDatabase>("application").SchemaFingerprint;
         registry.Register("application",new InProcessDatabaseAdapter(database),schemaFingerprint:fingerprint);
+        var exported=NativePrebuiltPackage.Read(Path.Combine(AppContext.BaseDirectory,"native","native-build.json"));
+        using var published=new LoadedNativeQueryModule(exported,new Dictionary<string,Assembly>{{"application",typeof(ApplicationDatabase).Assembly}});
         var version=typeof(INativeQueryModule).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
-        var definition=new NativeQueryDefinition(nameof(IApplicationQueries.Read),"application",fingerprint,"long",typeof(Schema.Records.Item).FullName!){ArgumentsContract=NativeWireContract.For<long>(),ResultContract=fingerprint};
         using var server=new NativeQueryServer(registry,0);
-        server.Register(new("application","","","",version,[definition]),new Module(),version);
+        server.Register(exported.Manifest,published.Module,version);
         server.Start();
         try{
             if(args.Contains("--self-test")){
+                if(!ReferenceEquals(published.Module.GetType().Assembly,typeof(ApplicationDatabase).Assembly)
+                    ||exported.Manifest.Queries.Any(query=>query.SchemaFingerprint!=fingerprint)){
+                    throw new InvalidOperationException("ビルド時のNativeメタデータと実行中のDBが一致しません。");
+                }
                 var row=new Schema.Records.Item(2,7,3);
                 database.Items.Add(row);
                 var restored=MemoryPackSerializer.Deserialize<Schema.Records.Item>(MemoryPackSerializer.Serialize(row));
@@ -44,7 +53,7 @@ public static class TemplateEntryPoint{
                 var clientAssembly=context.LoadFromAssemblyName(new("Seamless.Application.ClientSchema"));
                 var smoke=clientAssembly.GetType("Seamless.Application.ClientSchema.ClientSmoke",throwOnError:true)!.GetMethod("RunAsync")!;
                 await(Task)smoke.Invoke(null,[server.Port,fingerprint])!;
-                Console.WriteLine("PASS: generated properties, optimized F, MemoryPack and generated native client RPC");
+                Console.WriteLine("PASS: optimized F, MemoryPack, exported native package RPC, generated aggregation, transactions and rollback");
                 return 0;
             }
             Console.WriteLine($"Seamless template: localhost:{server.Port} / application / 空のメモリDB。Ctrl+Cで停止します。");
@@ -56,15 +65,4 @@ public static class TemplateEntryPoint{
         }finally{await server.StopAsync();}
     }
 
-    private sealed class Module:INativeQueryModule{
-        public IEnumerable<byte[]> Execute(string queryId,ReadOnlyMemory<byte> arguments,INativeQueryContext context){
-            if(queryId!=nameof(IApplicationQueries.Read)){throw new InvalidOperationException("公開されていない操作です。");}
-            var minimum=MemoryPackSerializer.Deserialize<long>(arguments.Span);
-            var queries=new ApplicationQueries((ApplicationDatabase)context.Database);
-            foreach(var row in queries.Read(minimum)){
-                context.CancellationToken.ThrowIfCancellationRequested();
-                yield return MemoryPackSerializer.Serialize(row);
-            }
-        }
-    }
 }

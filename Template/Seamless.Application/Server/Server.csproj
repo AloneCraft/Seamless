@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>Seamless.Application.Server</AssemblyName><RootNamespace>Seamless.Application.Server</RootNamespace></PropertyGroup>
+  <PropertyGroup><OutputType>Exe</OutputType><AssemblyName>Seamless.Application.Server</AssemblyName><RootNamespace>Seamless.Application.Server</RootNamespace><SeamlessNativeExport>true</SeamlessNativeExport></PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../ServerSchema/ServerSchema.csproj" />
     <ProjectReference Include="../ClientSchema/ClientSchema.csproj" />

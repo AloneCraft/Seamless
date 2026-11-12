@@ -2,9 +2,11 @@
   <PropertyGroup><AssemblyName>Seamless.Application.Schema</AssemblyName><RootNamespace>Seamless.Application.Schema</RootNamespace></PropertyGroup>
   <ItemGroup><PackageReference Include="MemoryPack" Version="1.*" /></ItemGroup>
   <ItemGroup Condition="'$(SeamlessRepositoryRoot)'!=''">
+    <ProjectReference Include="$(SeamlessRepositoryRoot)/Seamless.Database.Client/Seamless.Database.Client.csproj" />
     <ProjectReference Include="$(SeamlessRepositoryRoot)/Seamless.Database.Generator/Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup Condition="'$(SeamlessRepositoryRoot)'==''">
+    <PackageReference Include="Seamless.Database.Client" Version="$(SeamlessPackageVersion)" />
     <PackageReference Include="Seamless.Database.Generator" Version="$(SeamlessPackageVersion)" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

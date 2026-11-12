@@ -14,13 +14,24 @@ public static class ClientSmoke{
             count++;
         }
         if(count!=1){throw new InvalidOperationException("RPCの行数が一致しません。");}
-        var lambdas=connection.Lambda<Schema.IApplicationDatabase>("application");
-        var aggregates=lambdas.DefineQuery<long,long>(static(db,min)=>{
-            var rows=db.Items.Where(row=>row.Id>=min);
-            var count=rows.Count();var sum=rows.Sum(row=>row.Id);return count*100+sum;
-        });
-        await aggregates.PrepareAsync();
-        if(await aggregates.ExecuteAsync(7)!=107){throw new InvalidOperationException("クライアント専用DLLからのラムダ実行が一致しません。");}
+        if(await client.AggregateAsync(7)!=107){throw new InvalidOperationException("生成クライアントの集約結果が一致しません。");}
+        if(await client.InsertAsync(8)!=2){throw new InvalidOperationException("生成クライアントの更新結果が一致しません。");}
+        try{await client.FailAsync(9);throw new InvalidOperationException("更新例外がありません。");}
+        catch(NativeQueryException error)when(error.Message=="rollback"){}
+        await using(var transaction=await connection.BeginTransactionAsync("application")){
+            var transactional=new ApplicationQueriesClient(transaction,fingerprint);
+            if(await transactional.InsertAsync(10)!=3){throw new InvalidOperationException("取引内の更新結果が一致しません。");}
+            try{await transactional.FailAsync(11);throw new InvalidOperationException("取引内の更新例外がありません。");}
+            catch(NativeQueryException error)when(error.Message=="rollback"){}
+            if(await transactional.InsertAsync(12)!=4){throw new InvalidOperationException("失敗した文の取消結果が一致しません。");}
+            await transaction.RollbackAsync();
+        }
+        await using(var transaction=await connection.BeginTransactionAsync("application")){
+            var transactional=new ApplicationQueriesClient(transaction,fingerprint);
+            if(await transactional.InsertAsync(13)!=3){throw new InvalidOperationException("取引全体の取消結果が一致しません。");}
+            await transaction.CommitAsync();
+        }
+        if(await client.AggregateAsync(0)!=328){throw new InvalidOperationException("取引確定後の集約結果が一致しません。");}
         var mixed=new NamedItem(2,"template",7,3);
         NativeWireValidation.Validate<NamedItem>(MemoryPackSerializer.Serialize(mixed));
         NativeWireValidation.Validate<NamedItem[]>(MemoryPackSerializer.Serialize(new[]{mixed}));

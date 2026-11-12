@@ -1,0 +1,14 @@
+<Project>
+  <Target Name="ExportSeamlessNativeMetadata" AfterTargets="Build"
+          Condition="'$(SeamlessNativeExport)'=='true' And '$(DesignTimeBuild)'!='true' And '$(IsCrossTargetingBuild)'!='true'">
+    <PropertyGroup>
+      <SeamlessNativeExportDirectory Condition="'$(SeamlessNativeExportDirectory)'==''">$(TargetDir)native</SeamlessNativeExportDirectory>
+      <SeamlessNativeDotNetHost Condition="'$(SeamlessNativeDotNetHost)'==''">$(DOTNET_HOST_PATH)</SeamlessNativeDotNetHost>
+      <_SeamlessNativeHostFileName>dotnet</_SeamlessNativeHostFileName>
+      <_SeamlessNativeHostFileName Condition="'$(OS)'=='Windows_NT'">dotnet.exe</_SeamlessNativeHostFileName>
+      <SeamlessNativeDotNetHost Condition="'$(SeamlessNativeDotNetHost)'==''">$([MSBuild]::NormalizePath('$(NetCoreRoot)','$(_SeamlessNativeHostFileName)'))</SeamlessNativeDotNetHost>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(SeamlessNativeDotNetHost)')" Text="The .NET host for Native metadata export is missing." />
+    <Exec Command="&quot;$(SeamlessNativeDotNetHost)&quot; &quot;$(TargetPath)&quot; --export-native &quot;$(SeamlessNativeExportDirectory)&quot;" />
+  </Target>
+</Project>
