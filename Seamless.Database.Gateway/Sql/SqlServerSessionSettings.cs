@@ -7,6 +7,7 @@ namespace Seamless.Database.Gateway.Sql;
 internal static class SqlServerSessionSettings{
     internal static bool TryExecute(TSqlStatement statement,SessionContext session,out QueryResult result){
         result=QueryResult.Empty;
+        if(statement is PredicateSetStatement predicate&&(predicate.Options&SetOptions.XactAbort)!=0){session.XactAbort=predicate.IsOn;return true;}
         if(statement is SetTextSizeStatement textSize){
             if(textSize.TextSize is IntegerLiteral{Value:"2147483647"}){return true;}
             throw new SqlQueryException("SET TEXTSIZE supports only the unlimited profile value 2147483647. Values that would truncate results are not supported.",40515);

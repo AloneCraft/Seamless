@@ -2,44 +2,46 @@ using System.Buffers.Binary;
 using System.IO.Pipelines;
 using System.Text;
 using Seamless.Database.Gateway.Hosting;
+using Seamless.Database.Gateway.Sql;
+using Seamless.Transport.Kestrel;
 
 namespace Seamless.Database.Gateway.Tds;
 
 public sealed partial class TdsPacketWriter{
     private const int PacketSize=4096;
     private readonly PipeWriter writer;
+    private readonly TimeSpan? writeTimeout;
+    private readonly FrameBufferQuota? pendingWrites;
     private byte packetId=1;
 
-    public TdsPacketWriter(PipeWriter writer){
-        this.writer=writer;
-    }
+    public TdsPacketWriter(PipeWriter writer):this(writer,null){}
+    internal TdsPacketWriter(PipeWriter writer,TimeSpan? writeTimeout,FrameBufferQuota? pendingWrites=null){this.writer=writer;this.writeTimeout=writeTimeout;this.pendingWrites=pendingWrites;}
+    internal abstract class WriteAborted(string message,Exception? cause=null):IOException(message,cause);
+    internal sealed class WriteDeadlineExceeded(OperationCanceledException cause):WriteAborted("The TDS transport output has timed out.",cause);
+    internal sealed class WriteBudgetExceeded():WriteAborted("The pending TDS write limit has been reached.");
 
-    public async ValueTask SendPreLoginResponseAsync(CancellationToken cancellationToken=default){
-        // PreLogin オプション構成:
-        // Version (Token: 0x00, Offset: 21, Length: 6) -> 16.0.1000.6
-        // Encryption (Token: 0x01, Offset: 27, Length: 1) -> 0x02 (Not supported / Encrypt off)
-        // InstOpt (Token: 0x02, Offset: 28, Length: 1) -> 0x00
-        // ThreadId (Token: 0x03, Offset: 29, Length: 4) -> 0x00000000
-        // Mars (Token: 0x04, Offset: 33, Length: 1) -> 0x00 (Mars off)
-        // Terminator (0xFF)
+    public ValueTask SendPreLoginResponseAsync(CancellationToken cancellationToken=default)=>this.SendPreLoginResponseAsync(false,cancellationToken);
+    internal async ValueTask SendPreLoginResponseAsync(bool federated,CancellationToken cancellationToken){
         using var stream=new MemoryStream();
 
         // オプショントークンヘッダ (各5バイト: token 1B, offset 2B BE, length 2B BE)
-        WriteOptionHeader(stream,0x00,26,6); // Version
-        WriteOptionHeader(stream,0x01,32,1); // Encryption
-        WriteOptionHeader(stream,0x02,33,1); // InstOpt
-        WriteOptionHeader(stream,0x03,34,4); // ThreadId
-        WriteOptionHeader(stream,0x04,38,1); // Mars
+        var offset=federated?31:26;
+        WriteOptionHeader(stream,0x00,(ushort)offset,6); // Version
+        WriteOptionHeader(stream,0x01,(ushort)(offset+6),1); // Encryption
+        WriteOptionHeader(stream,0x02,(ushort)(offset+7),1); // InstOpt
+        WriteOptionHeader(stream,0x03,(ushort)(offset+8),4); // ThreadId
+        WriteOptionHeader(stream,0x04,(ushort)(offset+12),1); // Mars
+        if(federated){WriteOptionHeader(stream,0x06,(ushort)(offset+13),1);} // FedAuthRequired
         stream.WriteByte(0xFF);              // Terminator
 
         // ペイロードデータ
-        // Version: 16.0.1000, sub-build 6
-        stream.WriteByte(0x10); stream.WriteByte(0x00);
-        stream.WriteByte(0x03); stream.WriteByte(0xE8);
-        stream.WriteByte(0x00); stream.WriteByte(0x06);
+        // Version: 17.0.1000, sub-build 7
+        stream.WriteByte(SqlServerVersion.Major); stream.WriteByte(SqlServerVersion.Minor);
+        WriteUInt16BE(stream,SqlServerVersion.Build);
+        WriteUInt16BE(stream,SqlServerVersion.Revision);
 
-        // Encryption: 0x02 (Certificate Not Supported)
-        stream.WriteByte(0x02);
+        // 保護入口ではTLSを確立した後にPRELOGINを受ける。
+        stream.WriteByte(federated?(byte)0x01:(byte)0x02);
 
         // InstOpt: 0x00
         stream.WriteByte(0x00);
@@ -49,11 +51,14 @@ public sealed partial class TdsPacketWriter{
 
         // Mars: 0x00
         stream.WriteByte(0x00);
+        if(federated){stream.WriteByte(0x01);}
 
         await this.WritePacketAsync(TdsConstants.PacketTypeTabularResult,stream.ToArray(),cancellationToken);
     }
 
-    public async ValueTask SendLoginAckAsync(string databaseName,CancellationToken cancellationToken=default,string? collation=null){
+    public ValueTask SendLoginAckAsync(string databaseName,CancellationToken cancellationToken=default,string? collation=null)
+        =>this.SendLoginAckAsync(databaseName,cancellationToken,collation,false);
+    internal async ValueTask SendLoginAckAsync(string databaseName,CancellationToken cancellationToken,string? collation,bool federated){
         using var stream=new MemoryStream();
 
         // 1. LoginAck Token (0xAD)
@@ -62,9 +67,9 @@ public sealed partial class TdsPacketWriter{
         ackPayload.WriteByte(0x01); // Interface: SQL_DFLT
         WriteInt32BE(ackPayload,(int)TdsConstants.TdsVersion74); // TDS Version 7.4
         WriteStringWithLength8(ackPayload,"SeamlessDB"); // B_VARCHAR: 1 byte char count + UTF-16LE
-        ackPayload.WriteByte(16); // Major: 16
-        ackPayload.WriteByte(0);  // Minor: 0
-        WriteUInt16BE(ackPayload,1000); // Build: 1000
+        ackPayload.WriteByte(SqlServerVersion.Major);
+        ackPayload.WriteByte(SqlServerVersion.Minor);
+        WriteUInt16BE(ackPayload,SqlServerVersion.Build);
 
         var ackBytes=ackPayload.ToArray();
         WriteUInt16LE(stream,(ushort)ackBytes.Length);
@@ -76,6 +81,13 @@ public sealed partial class TdsPacketWriter{
 
         // RPCの文字列パラメーターは接続既定collationを参照する（MS-TDS ENVCHANGE type 7）。
         WriteCollationChange(stream,collation,null);
+        if(federated){
+            // Security TokenでクライアントのPRELOGINにnonceがない場合のFEATUREEXTACK。
+            stream.WriteByte(0xae);
+            stream.WriteByte(0x02);
+            WriteInt32LE(stream,0);
+            stream.WriteByte(0xff);
+        }
 
         // 3. Done Token (0xFD)
         WriteDone(stream,TdsConstants.DoneFinal,0);
@@ -89,6 +101,7 @@ public sealed partial class TdsPacketWriter{
 
     public async ValueTask SendQueryResultsAsync(IReadOnlyList<QueryResult> results,CancellationToken cancellationToken=default,bool rpc=false,IReadOnlyList<TdsRpcParameter>? output=null,Func<CancellationToken,ValueTask>? observe=null,CancellationToken transportCancellation=default){
         using var token=new MemoryStream();
+        var combineDoneTokens=results.Any(static result=>result.StatementKind==SqlCommandKind.Select);
         for(var index=0;index<results.Count;index++){
             var result=results[index];long count=0;
             _=result.Columns;if(observe is not null){await observe(cancellationToken);}
@@ -99,9 +112,7 @@ public sealed partial class TdsPacketWriter{
                 var chunks=new List<(int Start,int Length)>();
                 foreach(var row in result.Rows){
                     cancellationToken.ThrowIfCancellationRequested();
-                    if(row.Length!=result.Columns.Count){throw new InvalidDataException("A result row does not match its column metadata.");}
-                    long rowBytes=32;foreach(var cell in row){if(cell is string text){rowBytes=checked(rowBytes+global::System.Text.Encoding.Unicode.GetByteCount(text));}else if(cell is byte[] bytes){rowBytes=checked(rowBytes+bytes.Length);}else{rowBytes+=32;}}
-                    if(rowBytes>16L*1024*1024){throw new InvalidDataException("A TDS row exceeds the configured 16 MiB transmission budget.");}
+                    ValidateRow(row,result.Columns.Count);
                     chunks.Clear();token.WriteByte(TdsConstants.TokenRow);
                     for(var i=0;i<row.Length;i++){WriteValue(token,result.Columns[i],row[i],chunks);}
                     var rowData=token.GetBuffer().AsMemory(0,checked((int)token.Length));var position=0;
@@ -115,20 +126,41 @@ public sealed partial class TdsPacketWriter{
             }else{count=result.RowsAffected;}
             ushort status=0;if(result.Information is null){status=TdsConstants.DoneCount;}if(index+1<results.Count){status|=TdsConstants.DoneMore;}
             if(rpc){status|=TdsConstants.DoneMore;}
-            var doneOffset=(int)token.Position;WriteDone(token,status,count);if(rpc){token.GetBuffer()[doneOffset]=TdsConstants.TokenDoneInProc;}
+            ushort command=result.StatementKind switch{
+                SqlCommandKind.Select=>TdsConstants.SelectCommand,
+                SqlCommandKind.Insert=>TdsConstants.InsertCommand,
+                SqlCommandKind.Delete=>TdsConstants.DeleteCommand,
+                SqlCommandKind.Update=>TdsConstants.UpdateCommand,
+                _=>0
+            };
+            var doneOffset=(int)token.Position;WriteDone(token,status,count,command);if(rpc){token.GetBuffer()[doneOffset]=TdsConstants.TokenDoneInProc;}
+            // 混在プロシージャでは、中間の件数を次のメタデータまたはRPC終端と同じ断片へ送る。
+            if(combineDoneTokens&&(rpc||index+1<results.Count)){continue;}
             await this.WriteFragmentAsync(TdsConstants.PacketTypeTabularResult,token.ToArray(),!rpc&&index+1==results.Count,transportCancellation);token.SetLength(0);
         }
         if(rpc){
             token.WriteByte(0x79);WriteInt32LE(token,0);
             if(output is not null){
-                ushort ordinal=0;
-                foreach(var value in output){
-                    token.WriteByte(0xAC);WriteUInt16LE(token,ordinal++);WriteStringWithLength8(token,value.Name);token.WriteByte(1);WriteUInt32LE(token,0);WriteUInt16LE(token,0);token.WriteByte(0x26);token.WriteByte(4);token.WriteByte(4);WriteInt32LE(token,Convert.ToInt32(value.Value));
+                for(var index=0;index<output.Count;index++){
+                    var value=output[index];
+                    var type=value.Type;
+                    var column=new ColumnMetadata(value.Name,type.ClrType,type.Name,true,false,0,type.Length,type.Precision,type.Scale,type.Collation);
+                    token.WriteByte(0xAC);WriteUInt16LE(token,checked((ushort)(value.Ordinal??index)));WriteStringWithLength8(token,value.Name);token.WriteByte(1);WriteUInt32LE(token,0);WriteUInt16LE(token,0);
+                    WriteTypeInfo(token,column);
+                    WriteValue(token,column,value.Value,[]);
                 }
             }
             var start=token.Position;WriteDone(token,TdsConstants.DoneFinal,0);token.GetBuffer()[(int)start]=TdsConstants.TokenDoneProc;
             await this.WriteFragmentAsync(TdsConstants.PacketTypeTabularResult,token.ToArray(),true,transportCancellation);
         }
+    }
+    internal static void ValidateRow(object?[] row,int columnCount){
+        if(row.Length!=columnCount){throw new InvalidDataException("A result row does not match its column metadata.");}
+        long rowBytes=32;
+        foreach(var cell in row){
+            rowBytes=checked(rowBytes+(cell switch{string text=>global::System.Text.Encoding.Unicode.GetByteCount(text),byte[] bytes=>bytes.Length,_=>32}));
+        }
+        if(rowBytes>16L*1024*1024){throw new InvalidDataException("A TDS row exceeds the configured 16 MiB transmission budget.");}
     }
     public async ValueTask SendDatabaseChangeAsync(string database,string previous,CancellationToken cancellationToken=default,string? collation=null,string? previousCollation=null){
         using var token=new MemoryStream();WriteEnvChange(token,TdsConstants.EnvChangeDatabase,database,previous);
@@ -169,12 +201,24 @@ public sealed partial class TdsPacketWriter{
     private async ValueTask WriteFragmentAsync(byte packetType,ReadOnlyMemory<byte> payload,bool end,CancellationToken cancellationToken){
         var offset=0;
         do{
-            var size=Math.Min(PacketSize-8,payload.Length-offset);var header=new byte[8];header[0]=packetType;
+            var size=Math.Min(PacketSize-8,payload.Length-offset);
+            using var reservation=this.pendingWrites?.TryReserve(size+8);
+            if(this.pendingWrites is not null&&reservation is null){throw new WriteBudgetExceeded();}
+            var header=new byte[8];header[0]=packetType;
             if(end&&offset+size==payload.Length){header[1]=TdsConstants.StatusEndOfMessage;}
             BinaryPrimitives.WriteUInt16BigEndian(header.AsSpan(2,2),checked((ushort)(size+8)));header[6]=this.packetId++;
             // 途中取消でも宣言したpacket長を必ず満たす。token全体は呼出し側のtransport tokenで送る。
             var packet=this.writer.GetMemory(8+size);header.CopyTo(packet);if(size>0){payload.Slice(offset,size).CopyTo(packet[8..]);}this.writer.Advance(8+size);
-            var flushed=await this.writer.FlushAsync(cancellationToken);if(flushed.IsCanceled){throw new OperationCanceledException(cancellationToken);}if(flushed.IsCompleted){throw new IOException("The client disconnected.");}
+            using var deadline=this.writeTimeout.HasValue?CancellationTokenSource.CreateLinkedTokenSource(cancellationToken):null;
+            if(this.writeTimeout is{} timeout){deadline!.CancelAfter(timeout);}
+            try{
+                var token=deadline?.Token??cancellationToken;
+                var flushed=await this.writer.FlushAsync(token);
+                if(flushed.IsCanceled){throw new OperationCanceledException(token);}
+                if(flushed.IsCompleted){throw new IOException("The client disconnected.");}
+            }catch(OperationCanceledException error)when(deadline?.IsCancellationRequested==true&&!cancellationToken.IsCancellationRequested){
+                throw new WriteDeadlineExceeded(error);
+            }
             offset+=size;
         }while(offset<payload.Length);
         if(end){this.packetId=1;}
@@ -211,10 +255,10 @@ public sealed partial class TdsPacketWriter{
         stream.WriteByte(TdsConstants.TokenInfo);WriteUInt16LE(stream,checked((ushort)payload.Length));payload.Position=0;payload.CopyTo(stream);
     }
 
-    private static void WriteDone(Stream stream,ushort status,long rowCount){
+    private static void WriteDone(Stream stream,ushort status,long rowCount,ushort command=0){
         stream.WriteByte(TdsConstants.TokenDone);
         WriteUInt16LE(stream,status);
-        WriteUInt16LE(stream,0); // CurCmd
+        WriteUInt16LE(stream,command);
         WriteInt64LE(stream,rowCount);
     }
 

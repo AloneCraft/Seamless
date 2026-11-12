@@ -26,11 +26,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Seamless.Transport.Kestrel\Seamless.Transport.Kestrel.csproj" />
+    <ProjectReference Include="..\Seamless.Authentication\Seamless.Authentication.csproj" />
     <ProjectReference Include="..\Seamless.Database\Seamless.Database.csproj" />
     <ProjectReference Include="..\Seamless.Database.Client\Seamless.Database.Client.csproj" />
     <ProjectReference Include="..\Seamless.Security\Seamless.Security.csproj" />
     <ProjectReference Include="..\Seamless.Database.Query\Seamless.Database.Query.csproj" />
+    <ProjectReference Include="..\Seamless.Database.Compilation\Seamless.Database.Compilation.csproj" />
+    <ProjectReference Include="..\Seamless.FLinq.Generator\Seamless.FLinq.Generator.csproj" />
     <ProjectReference Include="..\Seamless.Database.Rdbms\Seamless.Database.Rdbms.csproj" />
+    <ProjectReference Include="..\Seamless.Database.SqlServer\Seamless.Database.SqlServer.csproj" />
     <ProjectReference Include="..\Seamless.Linq\Seamless.Linq.csproj" />
   </ItemGroup>
 </Project>

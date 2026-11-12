@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Seamless.Collections.Tsavorite;
 using Seamless.Execution;
@@ -7,6 +8,7 @@ using ExecutionStore=Seamless.Execution.Store;
 namespace Seamless.Database.Gateway.Hosting;
 
 public sealed partial class GatewayTransactionManager{
+    private static readonly ActivitySource CheckpointActivities=new("Seamless.Checkpoint.Gateway");
     private VersionedState? versioned;
     internal bool IsVersioned=>this.versioned is not null;
     internal GatewayVersionedBinding CreateVersionedBinding(GatewayDatabaseProfile profile)=>this.versioned!.CreateBinding(profile);
@@ -76,11 +78,50 @@ public sealed partial class GatewayTransactionManager{
         public void Dispose(){}
     }
     private sealed record CatalogueSave(int Version,Guid WalId,long Lsn,long CommitVersion);
-    private ValueTask SaveVersionedCheckpoint()=>this.journal.CheckpointAsync((walId,lsn)=>{
+    private async ValueTask SaveVersionedCheckpoint(){
+        using var checkpoint=CheckpointActivities.StartActivity("Save common checkpoint");
+        checkpoint?.SetCustomProperty("TransactionDirectory",this.directory);
+        checkpoint?.SetTag("maintenance.sequence",this.commitCoordinator.GetDomainDiagnostics().Maintenance.Sequence);
+        await this.journal.CheckpointAsync(this.SaveVersionedParticipants).ConfigureAwait(false);
+    }
+    private ValueTask SaveVersionedParticipants(Guid walId,long lsn){
         var state=this.versioned!;var version=this.commitCoordinator.GetDomainDiagnostics().PublishedVersion;
-        foreach(var handle in state.Generations.Values){if(handle.Binding.NeedsCheckpoint){handle.Prepared!.Loaded.Database.SaveGatewayVersionedCheckpoint(lsn,version);this.failureInjection?.Invoke(GatewayCommitPhase.DatabaseCheckpointed,handle.Prepared.Reference.DatabaseId);}}
-        state.Save(lsn,version);ValueReservation[] values;lock(this.valueGate){values=this.values.Values.ToArray();}
-        var checkpoint=new CheckpointData(2,walId,lsn,this.databases.Values.Select(static registration=>new DatabaseIdentity(registration.Id,registration.Name)).OrderBy(static item=>item.Id).ToArray(),this.published.Values.Select(static item=>item.State).ToArray(),values,this.nativePublished.Values.Select(static item=>item.State).ToArray(),version,state.Generations.Where(pair=>pair.Value.Prepared is not null&&!this.retiringGenerations.Contains(pair.Key)).Select(static pair=>pair.Value.Prepared!.Reference).ToArray());
-        var payload=JsonSerializer.SerializeToUtf8Bytes(checkpoint);var envelope=new CheckpointEnvelope("seamless-gateway-checkpoint-v2",Convert.ToHexString(global::System.Security.Cryptography.SHA256.HashData(payload)),payload);var path=Path.Combine(this.directory,"common-checkpoint.json");using(var output=new FileStream(path+".new",FileMode.Create,FileAccess.Write,FileShare.None)){JsonSerializer.Serialize(output,envelope);output.Flush(true);}File.Move(path+".new",path,true);this.checkpoint=checkpoint;this.CaptureVersionedCollectionPlans();return ValueTask.CompletedTask;
-    });
+        IReadOnlySet<string>? retiring=null;
+        lock(this.gate){if(this.collectingVersioned){retiring=this.retiringGenerations.ToHashSet(StringComparer.Ordinal);}}
+        // 保存中に合流した退役要求は、このチェックポイントの保持対象を変えない。
+        foreach(var pair in state.Generations){
+            var handle=pair.Value;
+            if(retiring?.Contains(pair.Key)!=true&&handle.Binding.NeedsCheckpoint){
+                using var save=CheckpointActivities.StartActivity("Save database");
+                save?.SetTag("database.id",handle.Prepared!.Reference.DatabaseId);
+                handle.Prepared!.Loaded.Database.SaveGatewayVersionedCheckpoint(lsn,version);
+                this.failureInjection?.Invoke(GatewayCommitPhase.DatabaseCheckpointed,handle.Prepared.Reference.DatabaseId);
+            }
+        }
+        using(CheckpointActivities.StartActivity("Save catalogue")){
+            state.Save(lsn,version);
+        }
+        ValueReservation[] values;lock(this.valueGate){values=this.values.Values.ToArray();}
+        var retained=state.Generations.Where(pair=>pair.Value.Prepared is not null&&retiring?.Contains(pair.Key)!=true).Select(static pair=>pair.Value.Prepared!.Reference).ToArray();
+        var checkpoint=new CheckpointData(2,walId,lsn,this.databases.Values.Select(static registration=>new DatabaseIdentity(registration.Id,registration.Name)).OrderBy(static item=>item.Id).ToArray(),this.published.Values.Select(static item=>item.State).ToArray(),values,this.nativePublished.Values.Select(static item=>item.State).ToArray(),version,retained);
+        var path=Path.Combine(this.directory,"common-checkpoint.json");
+        using(CheckpointActivities.StartActivity("Write common manifest")){
+            var payload=JsonSerializer.SerializeToUtf8Bytes(checkpoint);
+            var envelope=new CheckpointEnvelope("seamless-gateway-checkpoint-v2",Convert.ToHexString(global::System.Security.Cryptography.SHA256.HashData(payload)),payload);
+            using var output=new FileStream(path+".new",FileMode.Create,FileAccess.Write,FileShare.None);
+            JsonSerializer.Serialize(output,envelope);
+            output.Flush(true);
+        }
+        this.failureInjection?.Invoke(GatewayCommitPhase.BeforeCommonCheckpointPublication,0);
+        using(CheckpointActivities.StartActivity("Publish common manifest")){
+            File.Move(path+".new",path,true);
+        }
+        this.failureInjection?.Invoke(GatewayCommitPhase.AfterCommonCheckpointPublication,0);
+        this.checkpoint=checkpoint;
+        if(retiring is not null){
+            using var plan=CheckpointActivities.StartActivity("Plan generation collection");
+            this.CaptureVersionedCollectionPlans(retained);
+        }
+        return ValueTask.CompletedTask;
+    }
 }

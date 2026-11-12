@@ -4,6 +4,7 @@ using Seamless.Transactions;
 namespace Seamless.Database.Gateway.Hosting;
 
 public sealed partial class GatewayTransactionManager{
+    internal TransactionDomainDiagnostics? VersionedDiagnostics=>this.versioned?.Coordinator.GetDomainDiagnostics();
     private LogicalTransaction NewVersionedTransaction(SessionContext session,Guid? requestedId,bool readOnly,bool statement){
         LogicalTransaction transaction;
         lock(this.gate){this.EnsureReady();transaction=new(session.SessionId,requestedId){Manager=this,Session=session,Statement=statement};if(transaction.Id==Guid.Empty||this.active.Contains(transaction.Id)||this.journal.GetOutcome(transaction.Id).Kind!=TransactionOutcomeKind.Unknown){throw new InvalidOperationException("The Gateway transaction identity has already been used.");}transaction.Memory=this.budget.ReserveMemory(512);this.active.Add(transaction.Id);}
@@ -21,15 +22,41 @@ public sealed partial class GatewayTransactionManager{
         if(session.StatementTransaction is not null){throw new InvalidOperationException("Finish the current statement result before starting another transaction.");}var transaction=this.NewVersionedTransaction(session,requestedId,false,false);session.AttachGatewayTransaction(transaction);
     }
     private LogicalTransaction StartReadStatement(SessionContext session){
-        if(session.SnapshotTransaction is not null){throw new InvalidOperationException("A statement already owns this execution context.");}var transaction=this.NewVersionedTransaction(session,null,true,true);session.StatementTransaction=transaction;return transaction;
+        if(session.SnapshotTransaction is not null){throw new InvalidOperationException("A statement already owns this execution context.");}
+        LogicalTransaction transaction;
+        if(this.versioned is not null){transaction=this.NewVersionedTransaction(session,null,true,true);}
+        else{lock(this.gate){this.EnsureReady();transaction=this.NewLegacyTransaction(session,null,true);}}
+        session.StatementTransaction=transaction;
+        return transaction;
     }
-    internal QueryResult ExecuteReadStatement(SessionContext session,Func<QueryResult> execute){
+    internal QueryResult ExecuteReadStatement(SessionContext session,Func<QueryResult> execute,bool metadataOnly=false){
         var transaction=this.StartReadStatement(session);
-        try{var result=transaction.Scope!.ExecuteOwnedOperation(execute);if(result.Columns.Count==0){this.EndReadStatement(session,transaction);return result;}return new(result.Columns,session.Enumerate(Rows()),result.RowsAffected);IEnumerable<object?[]> Rows(){using var iterator=result.Rows.GetEnumerator();try{while(transaction.Scope.ExecuteOwnedOperation(iterator.MoveNext)){yield return iterator.Current;}}finally{this.EndReadStatement(session,transaction);}}}
+        try{var result=transaction.Scope!.ExecuteOwnedOperation(execute);if(metadataOnly||result.Columns.Count==0){this.EndReadStatement(session,transaction);return result;}return new(result.Columns,session.Enumerate(Rows()),result.RowsAffected);IEnumerable<object?[]> Rows(){using var iterator=result.Rows.GetEnumerator();try{while(transaction.Scope.ExecuteOwnedOperation(iterator.MoveNext)){yield return iterator.Current;}}finally{this.EndReadStatement(session,transaction);}}}
         catch{this.EndReadStatement(session,transaction);throw;}
     }
     internal void EndReadStatement(SessionContext session,LogicalTransaction transaction){
-        if(transaction.Closed){return;}transaction.Completing=true;try{transaction.Scope!.DisposeAsync().AsTask().GetAwaiter().GetResult();}finally{this.CloseVersioned(session,transaction);}
+        if(transaction.Closed){return;}
+        if(transaction.Scope is not{} scope){this.Close(session,transaction,false);return;}
+        transaction.Completing=true;try{scope.DisposeAsync().AsTask().GetAwaiter().GetResult();}finally{this.CloseVersioned(session,transaction);}
+    }
+    // 逐次結果では応答終了まで取引を維持し、保存済みの結果では送信前に閉じる。
+    internal IReadOnlyList<QueryResult> ExecuteReadResults(SessionContext session,Func<IReadOnlyList<QueryResult>> execute,bool materialized=false){
+        var transaction=this.StartReadStatement(session);
+        var scope=transaction.Scope;
+        try{
+            var results=scope is null?execute():scope.ExecuteOwnedOperation(execute);
+            if(materialized){this.EndReadStatement(session,transaction);return results;}
+            if(scope is null){return results;}
+            return results.Select(result=>new QueryResult(result.Columns,session.Enumerate(Rows(result)),result.RowsAffected)).ToArray();
+        }catch{
+            this.EndReadStatement(session,transaction);
+            throw;
+        }
+        IEnumerable<object?[]> Rows(QueryResult result){
+            using var iterator=result.Rows.GetEnumerator();
+            Func<bool> moveNext=iterator.MoveNext;
+            while(scope!.ExecuteOwnedOperation(moveNext)){yield return iterator.Current;}
+        }
     }
     private GatewayParticipant EnlistVersioned(SessionContext session,InProcessDatabaseAdapter adapter){
         var transaction=this.Own(session);var id=adapter.Database.Options.GatewayProfile!.DatabaseId;if(transaction.Participants.TryGetValue(id,out var previous)){if(!ReferenceEquals(previous.Adapter,adapter)){throw new SqlQueryException("The SQL binding belongs to another snapshot generation.",3961);}return previous;}

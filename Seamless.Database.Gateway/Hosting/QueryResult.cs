@@ -1,3 +1,4 @@
+using Seamless.Database.Gateway.Sql;
 namespace Seamless.Database.Gateway.Hosting;
 
 public sealed class QueryResult{
@@ -13,8 +14,11 @@ public sealed class QueryResult{
     public static QueryResult Defer(Func<QueryResult> execute)=>new(execute);
     public static QueryResult Empty=>new(Array.Empty<ColumnMetadata>(),Array.Empty<object?[]>(),0);
     public static QueryResult NonQuery(int rowsAffected)=>new(Array.Empty<ColumnMetadata>(),Array.Empty<object?[]>(),rowsAffected);
+    internal static QueryResult NonQuery(int rowsAffected,SqlCommandKind statementKind)
+        =>new(Array.Empty<ColumnMetadata>(),Array.Empty<object?[]>(),rowsAffected){StatementKind=statementKind};
     public string?Information=>this.deferred is null?this.information:this.deferred.Value.Information;
     public IReadOnlyList<ColumnMetadata>Columns=>this.deferred?.Value.Columns??this.columns!;
     public IEnumerable<object?[]>Rows=>this.deferred?.Value.Rows??this.rows!;
     public int RowsAffected=>this.deferred?.Value.RowsAffected??this.affected;
+    internal SqlCommandKind? StatementKind{get;init;}
 }

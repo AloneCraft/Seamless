@@ -6,25 +6,50 @@ namespace Seamless.Database.Gateway.Hosting;
 
 /// <summary>公開中の世代に属するDBを実SQL名で管理する。</summary>
 public sealed partial class DatabaseRegistry:ISqlCatalog{
-    private readonly Dictionary<string,DatabaseRegistration> databases=new(StringComparer.OrdinalIgnoreCase);
-    public DatabaseRegistry(long generation=0){this.Generation=generation;}
+    private Dictionary<string,DatabaseRegistration> databases=new(StringComparer.OrdinalIgnoreCase);
+    private readonly object publicationGate=new();
+    private readonly List<WeakReference<SqlQueryPlan>>plans=[];
+    public void TrackPlan(SqlQueryPlan plan){lock(this.publicationGate){if(this.plans.Count>256){this.plans.RemoveAll(static entry=>!entry.TryGetTarget(out _));}this.plans.Add(new(plan));}}
+    internal void ReleaseObsoletePlans(){WeakReference<SqlQueryPlan>[] snapshot;lock(this.publicationGate){snapshot=this.plans.ToArray();}foreach(var weak in snapshot){if(weak.TryGetTarget(out var plan)){plan.ReleaseIfObsolete();}}}
+    public DatabaseRegistry(long generation=0,GatewayTransactionManager? transactions=null){this.Generation=generation;this.GatewayTransactions=transactions;}
+    public GatewayTransactionManager? GatewayTransactions{get;}
     public long Generation{get;}
     public string DefaultDatabaseName{get;private set;}="master";
     public IReadOnlyCollection<DatabaseRegistration> Databases=>this.databases.Values;
     public void Register(string name,IDatabaseAdapter adapter,bool readOnly=false,string schemaFingerprint="",IReadOnlyList<DatabaseViewDefinition>? views=null,IReadOnlyList<DatabaseRoutineDefinition>? routines=null,string? defaultCollation=null){
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(adapter);
-        if(!this.databases.TryAdd(name,new(name,adapter,readOnly,schemaFingerprint,views??[],routines??[],defaultCollation))){throw new InvalidOperationException($"Database '{name}' is already registered.");}
+        lock(this.publicationGate){
+        if(this.databases.ContainsKey(name)){throw new InvalidOperationException($"Database '{name}' is already registered.");}
+        if(adapter is InProcessDatabaseAdapter candidate){
+            if(this.GatewayTransactions is not null){if(candidate.Database.Options.GatewayProfile is null){throw new InvalidOperationException("All registered Gateway databases must use the common storage profile.");}this.GatewayTransactions.Register(name,candidate);}
+            else if(candidate.Database.Options.GatewayProfile is not null){throw new InvalidOperationException("The database requires its owning Gateway transaction manager.");}
+        }
+        var next=new Dictionary<string,DatabaseRegistration>(this.databases,StringComparer.OrdinalIgnoreCase){{name,new(name,adapter,readOnly,schemaFingerprint,views??[],routines??[],defaultCollation)}};
         if(adapter is InProcessDatabaseAdapter inProcess){inProcess.SetViews(views??[]);inProcess.SetRoutines(routines??[]);}
-        if(this.databases.Count==1){this.DefaultDatabaseName=name;}
+        if(next.Count==1){this.DefaultDatabaseName=name;}Volatile.Write(ref this.databases,next);
+        }
     }
-    public string? GetDatabaseCollation(string database)=>this.Resolve(database).DefaultCollation;
+    public string? GetDatabaseCollation(string database){
+        // msdb などの値を持たないシステムデータベースは、サーバーの既定の照合順序を使う。
+        if(!this.databases.ContainsKey(database)&&Sql.SqlServerSystemShape.IsSystemDatabase(database)){return "Japanese_CI_AS";}
+        return this.Resolve(database).DefaultCollation;
+    }
     public DatabaseRegistration Resolve(string name){
-        if(this.databases.TryGetValue(name,out var database)){return database;}
+        if(this.databases.TryGetValue(name,out var database)){return this.GatewayTransactions?.ResolveGeneration(database)??database;}
         if(name.Equals("master",StringComparison.OrdinalIgnoreCase)){return new("master",new MasterAdapter(),true,"",[],[]);}
         throw new SqlQueryException($"Cannot open database '{name}'.",4060);
     }
+    internal void Publish(IReadOnlyList<DatabaseRegistration> replacements){
+        lock(this.publicationGate){var next=new Dictionary<string,DatabaseRegistration>(this.databases,StringComparer.OrdinalIgnoreCase);foreach(var replacement in replacements){if(!next.ContainsKey(replacement.Name)){throw new InvalidOperationException("A generation publication cannot add a database.");}next[replacement.Name]=replacement;}Volatile.Write(ref this.databases,next);}if(this.GatewayTransactions?.IsVersioned!=true){this.ReleaseObsoletePlans();}
+    }
     public SqlTable? FindTable(SqlObjectName name){
+        if(name.Name.StartsWith('#')){
+            // 一時表は現在の接続のものだけを見る。行は実行のたびにその時点の内容を返す。
+            var temporary=sqlSession.Value?.TemporaryTables.GetValueOrDefault(name.Name);
+            if(temporary is null){return null;}
+            return new(name,temporary.Columns,_=>temporary.Rows.ToArray());
+        }
         this.RejectForeignDatabaseTransaction(name.Database);
         if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("databases",StringComparison.OrdinalIgnoreCase)){
             var reference=this.databases.Values.FirstOrDefault();if(reference is null){return null;}if(!SystemCatalogEmulator.TryEmulate("SELECT * FROM sys.databases",reference.Adapter,out var shape)){return null;}
@@ -34,27 +59,89 @@ public sealed partial class DatabaseRegistry:ISqlCatalog{
             var mirroring=SqlServerDatabaseOptionCatalog.Mirroring();
             return new(name,mirroring.Columns.Select(c=>new SqlColumn(c.Name,new SqlType(c.SqlTypeName,c.ClrType,c.MaximumLength,c.Precision,c.Scale,c.Collation),c.IsNullable,name,c.Ordinal)).ToArray(),_=>mirroring.Rows);
         }
+        if(!this.databases.ContainsKey(name.Database)&&SqlServerSystemShape.IsSystemDatabase(name.Database)){
+            // master・msdb などのシステムデータベースは値を持たないので、本物と同じ形の0行を返す。
+            var systemObject=SqlServerSystemShape.Find(name);
+            if(systemObject is not null){return SqlServerSystemShape.Empty(name,systemObject);}
+        }
         if(!this.databases.TryGetValue(name.Database,out var registration)){return null;}
+        registration=this.GatewayTransactions?.ResolveGeneration(registration)??registration;
         using var read=ReadSqlDatabase(registration.Adapter);
-        if((name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)||name.Schema.Equals("seamless",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("generated_methods",StringComparison.OrdinalIgnoreCase))&&SystemCatalogEmulator.TryCatalog(name.Name,registration.Adapter,registration.Views,registration.Routines,out var catalog,registration.Name)){
+        var isSys=name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase);
+        if((isSys||name.Schema.Equals("seamless",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("generated_methods",StringComparison.OrdinalIgnoreCase))&&SystemCatalogEmulator.TryCatalog(name.Name,registration.Adapter,registration.Views,registration.Routines,out var catalog,registration.Name)){
+            if(isSys){
+                // Seamless が値を持つ列だけを入れ、本物の列は全部そろえる。
+                var shaped=SqlServerSystemShape.Find(name);
+                if(shaped is not null){return SqlServerSystemShape.Widen(name,shaped,catalog);}
+            }
             return new(name,catalog.Columns.Select(c=>new SqlColumn(c.Name,new SqlType(c.SqlTypeName,c.ClrType,c.MaximumLength,c.Precision,c.Scale,c.Collation),c.IsNullable,name,c.Ordinal)).ToArray(),_=>catalog.Rows);
         }
-        var view=registration.Views.FirstOrDefault(v=>string.Equals(v.Schema,name.Schema,StringComparison.OrdinalIgnoreCase)&&string.Equals(v.Name,name.Name,StringComparison.OrdinalIgnoreCase));
-        if(view is not null){return new(new(registration.Name,view.Schema,view.Name),view.Columns,null,view.Definition);}
+        if(isSys){
+            // Seamless が持たない機能のシステムビューは0行で返す。
+            var missing=SqlServerSystemShape.Find(name);
+            if(missing is not null){return SqlServerSystemShape.Empty(name,missing);}
+        }
+        var view=FindView(registration,name);
+        if(view is not null){return BindView(registration,view);}
+        return FindPhysicalTable(registration,name);
+    }
+
+    internal SqlTable? FindAuthorizedTable(SqlObjectName name,Action<string,IDatabaseAdapter,TableMetadata> demand,Action<IDatabaseAdapter,SqlObjectName> demandView){
+        if(name.Name.StartsWith('#')||name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)
+            ||name.Schema.Equals("seamless",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("generated_methods",StringComparison.OrdinalIgnoreCase)){
+            return null;
+        }
+        this.RejectForeignDatabaseTransaction(name.Database);
+        if(!this.databases.TryGetValue(name.Database,out var registration)){return null;}
+        registration=this.GatewayTransactions?.ResolveGeneration(registration)??registration;
+        using var read=ReadSqlDatabase(registration.Adapter);
+        if(FindView(registration,name) is{} view){
+            var table=BindView(registration,view);demandView(registration.Adapter,table.Name);return table;
+        }
+        return FindPhysicalTable(registration,name,demand);
+    }
+
+    private static DatabaseViewDefinition? FindView(DatabaseRegistration registration,SqlObjectName name)=>registration.Views.FirstOrDefault(view=>string.Equals(view.Schema,name.Schema,StringComparison.OrdinalIgnoreCase)&&string.Equals(view.Name,name.Name,StringComparison.OrdinalIgnoreCase));
+    private static SqlTable BindView(DatabaseRegistration registration,DatabaseViewDefinition view)=>new(new(registration.Name,view.Schema,view.Name),view.Columns,null,view.Definition);
+
+    internal SqlRoutine? FindAuthorizedScalarFunction(SqlObjectName name,Action<IDatabaseAdapter,SqlObjectName> demand){
+        var routine=this.FindAuthorizedSqlRoutine(name,RoutineKind.ScalarFunction,demand);
+        if(routine is null){return null;}
+        return new(routine.Value.Name,routine.Value.Definition.Definition);
+    }
+
+    internal (SqlObjectName Name,DatabaseRoutineDefinition Definition)? FindAuthorizedSqlRoutine(SqlObjectName name,RoutineKind kind,Action<IDatabaseAdapter,SqlObjectName> demand){
+        if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)){return null;}
+        this.RejectForeignDatabaseTransaction(name.Database);
+        if(!this.databases.TryGetValue(name.Database,out var registration)){return null;}
+        registration=this.GatewayTransactions?.ResolveGeneration(registration)??registration;
+        using var read=ReadSqlDatabase(registration.Adapter);
+        if(FindRegisteredRoutine(registration,name) is not{Catalog:{} catalog,Definition:not null,Native:null,GeneratedMethod:null} routine
+            ||catalog.Kind!=kind||catalog.HasMutation&&kind!=RoutineKind.StoredProcedure){return null;}
+        var resolved=new SqlObjectName(registration.Name,routine.Schema,routine.Name);demand(registration.Adapter,resolved);
+        return(resolved,routine);
+    }
+
+    private static DatabaseRoutineDefinition? FindRegisteredRoutine(DatabaseRegistration registration,SqlObjectName name)=>registration.Routines.FirstOrDefault(routine=>string.Equals(routine.Schema,name.Schema,StringComparison.OrdinalIgnoreCase)&&string.Equals(routine.Name,name.Name,StringComparison.OrdinalIgnoreCase));
+
+    private static SqlTable? FindPhysicalTable(DatabaseRegistration registration,SqlObjectName name,Action<string,IDatabaseAdapter,TableMetadata>? demand=null){
         var identifier=new TableMetadata(name.Schema,name.Name,[]).IdentifierKey;
         var table=registration.Adapter.FindTable(registration.Adapter is InProcessDatabaseAdapter?identifier:name.Schema+"."+name.Name);
         if(table is null){return null;}
+        demand?.Invoke(registration.Name,registration.Adapter,table);
         var columns=table.Columns.Select(c=>new SqlColumn(c.Name,new SqlType(c.SqlTypeName,c.ClrType,c.MaximumLength,c.Precision,c.Scale,c.Collation),c.IsNullable,name,c.Ordinal)).ToArray();
         return new(new(registration.Name,table.SchemaName,table.TableName),columns,Read);
         IEnumerable<object?[]> Read(CancellationToken cancellation){
-            using var session=new SessionContext(0,registration.Name){CancellationToken=cancellation,LockTimeoutMilliseconds=sqlSession.Value?.LockTimeoutMilliseconds??-1};
+            SessionContext? ownedSession=null;var session=sqlSession.Value;
+            if(session is null){ownedSession=new(0,registration.Name){CancellationToken=cancellation};session=ownedSession;}
+            using var owned=ownedSession;
             using var read=ReadSqlDatabase(registration.Adapter,session);
             foreach(var row in registration.Adapter.ExecuteSelect(registration.Adapter is InProcessDatabaseAdapter?table.IdentifierKey:table.FullName,null,null,session).Rows){cancellation.ThrowIfCancellationRequested();yield return row;}
         }
     }
     private IEnumerable<object?[]> DatabaseRows(){
-        yield return SqlServerDatabaseOptionCatalog.Expand(["master",1,"Japanese_CI_AS",(byte)0,"ONLINE",(byte)160,false,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null]);
-        var id=5;foreach(var database in this.databases.Values){yield return SqlServerDatabaseOptionCatalog.Expand([database.Name,id++,database.DefaultCollation??"Japanese_CI_AS",(byte)0,"ONLINE",(byte)160,database.IsReadOnly,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null]);}
+        yield return SqlServerDatabaseOptionCatalog.Expand(["master",1,"Japanese_CI_AS",(byte)0,"ONLINE",SqlServerVersion.CompatibilityLevel,false,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null]);
+        var id=5;foreach(var database in this.databases.Values){yield return SqlServerDatabaseOptionCatalog.Expand([database.Name,id++,database.DefaultCollation??"Japanese_CI_AS",(byte)0,"ONLINE",SqlServerVersion.CompatibilityLevel,database.IsReadOnly,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null]);}
     }
     public SqlRoutine? FindRoutine(SqlObjectName name){
         this.RejectForeignDatabaseTransaction(name.Database);
@@ -62,6 +149,35 @@ public sealed partial class DatabaseRegistry:ISqlCatalog{
             return new(name,null,new([new("@sid",new("varbinary",typeof(byte[]),85),true)],new("nvarchar",typeof(string),128),true,arguments=>{
                 if(arguments[0] is byte[] sid&&sid.AsSpan().SequenceEqual(new byte[]{1})){return "sa";}return null;
             }));
+        }
+        if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.ToUpperInvariant() is "SUSER_SID" or "SID_BINARY"){
+            // Windows のアカウントやグループを解決する機能は持たないので、本物で該当が無いときと同じく NULL を返す。
+            IReadOnlyList<SqlParameter> parameters=[new("@login",new("nvarchar",typeof(string),128),true)];
+            if(name.Name.Equals("SUSER_SID",StringComparison.OrdinalIgnoreCase)){parameters=[..parameters,new("@param",SqlType.Int,true)];}
+            return new(name,null,new(parameters,new("varbinary",typeof(byte[]),85),true,_=>null));
+        }
+        if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("USER_NAME",StringComparison.OrdinalIgnoreCase)){
+            // 利用者は所有者(dbo, principal_id 1)だけを持つ。sys.database_principals と同じ番号で引く。
+            return new(name,null,new([new("@id",SqlType.Int,true)],new("nvarchar",typeof(string),128),true,arguments=>{
+                if(arguments[0] is not int id){return null;}
+                if(id==1){return "dbo";}
+                return null;
+            }));
+        }
+        if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("LOGINPROPERTY",StringComparison.OrdinalIgnoreCase)){
+            // パスワードの方針(期限・ロック)は持たないので、本物で対象外のときと同じく NULL を返す。
+            return new(name,null,new([new("@login",new("nvarchar",typeof(string),128),true),new("@property",new("nvarchar",typeof(string),128),true)],SqlType.Int,true,_=>null));
+        }
+        if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("HAS_PERMS_BY_NAME",StringComparison.OrdinalIgnoreCase)){
+            // 接続は sa だけなので、本物の sysadmin と同じく権限ありの 1 を返す。対象名が NULL なら NULL。
+            return new(name,null,new([new("@securable",new("nvarchar",typeof(string),-1),true),new("@class",new("nvarchar",typeof(string),60),true),new("@permission",new("nvarchar",typeof(string),60),true)],SqlType.Int,true,arguments=>{
+                if(arguments[1] is null||arguments[2] is null){return null;}
+                return 1;
+            }));
+        }
+        if(name.Database.Equals("msdb",StringComparison.OrdinalIgnoreCase)&&name.Schema.Equals("dbo",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("fn_syspolicy_is_automation_enabled",StringComparison.OrdinalIgnoreCase)){
+            // ポリシー管理は提供しないので、自動化は無効の 0。
+            return new(name,null,new([],SqlType.Int,true,_=>0));
         }
         if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&name.Name.Equals("HAS_DBACCESS",StringComparison.OrdinalIgnoreCase)){
             return new(name,null,new([new("@database",new("nvarchar",typeof(string),128),true)],SqlType.Int,true,arguments=>{
@@ -100,11 +216,13 @@ public sealed partial class DatabaseRegistry:ISqlCatalog{
             }));
         }
         if(!this.databases.TryGetValue(name.Database,out var registration)){return null;}
+        registration=this.GatewayTransactions?.ResolveGeneration(registration)??registration;
         using var read=ReadSqlDatabase(registration.Adapter);
         if(name.Schema.Equals("sys",StringComparison.OrdinalIgnoreCase)&&(name.Name.Equals("OBJECTPROPERTYEX",StringComparison.OrdinalIgnoreCase)||name.Name.Equals("OBJECTPROPERTY",StringComparison.OrdinalIgnoreCase))){
             return new(name,null,new([new("@object_id",SqlType.Int,true),new("@property",new("nvarchar",typeof(string),-1),true)],SqlType.Int,true,arguments=>{
                 if(arguments[0] is not int id||arguments[1] is not string property){return null;}
-                if(!property.Equals("IsSchemaBound",StringComparison.OrdinalIgnoreCase)&&!property.Equals("OwnerId",StringComparison.OrdinalIgnoreCase)){throw new SqlQueryException("Unsupported OBJECTPROPERTY property: "+property,40515);}
+                // 本物のSQL Serverは、未知または対象外のプロパティ名にはNULLを返す(エラーにしない)。実機で確認済み。
+                if(!property.Equals("IsSchemaBound",StringComparison.OrdinalIgnoreCase)&&!property.Equals("OwnerId",StringComparison.OrdinalIgnoreCase)){return null;}
                 using var catalogRead=ReadSqlDatabase(registration.Adapter);
                 SystemCatalogEmulator.TryCatalog("objects",registration.Adapter,registration.Views,registration.Routines,out var objects);
                 var found=objects.Rows.FirstOrDefault(row=>Equals(row[1],id));if(found is null){return null;}
@@ -139,7 +257,7 @@ public sealed partial class DatabaseRegistry:ISqlCatalog{
             return new(name,$"CREATE FUNCTION sys.{function}(@value {argument}) RETURNS {output} AS BEGIN RETURN {expression}; END");
         }
         static string Literal(string value)=>"N'"+value.Replace("'","''",StringComparison.Ordinal)+"'";
-        var routine=registration.Routines.FirstOrDefault(r=>string.Equals(r.Schema,name.Schema,StringComparison.OrdinalIgnoreCase)&&string.Equals(r.Name,name.Name,StringComparison.OrdinalIgnoreCase));
+        var routine=FindRegisteredRoutine(registration,name);
         if(routine is null){return null;}
         if(routine.GeneratedMethod is{}method&&routine.Native is null){
             if(method.IsStub){throw new SqlQueryException($"Generated routine '{name.Schema}.{name.Name}' is a stub and cannot execute.",40515);}

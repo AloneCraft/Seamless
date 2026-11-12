@@ -10,7 +10,7 @@ using MemoryPack;
 
 namespace Seamless.Database.Gateway.Hosting;
 
-public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
+public sealed partial class InProcessDatabaseAdapter:IDatabaseAdapter{
     private readonly DatabaseContainer database;
     private readonly Dictionary<string,TableBinding>tables=new(StringComparer.OrdinalIgnoreCase);
     private readonly List<TableMetadata>tableMetadataList=new();
@@ -20,22 +20,45 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
         ArgumentNullException.ThrowIfNull(database);
         this.database=database;
         this.DatabaseName=database.GetType().Name;
+        this.SourceCatalog=catalog;
         this.InitializeTables(bindings,catalog);
     }
 
     public DatabaseContainer Database=>this.database;
-    internal IDisposable AcquireReadSession(SessionContext? session){if(session is null){return this.database.BeginReadSession();}return session.AcquireLock(token=>this.database.BeginReadSession(token));}
+    internal DatabaseCatalog? SourceCatalog{get;private set;}
+    internal void ApplyPersistentIdentities(GatewaySchemaCatalog schema){
+        this.SourceCatalog=schema.Definition;
+        foreach(var table in this.tableMetadataList){var identity=schema.Tables.Single(item=>item.Schema==table.SchemaName&&item.Name==table.TableName);table.StableObjectId=identity.Id;foreach(var column in table.Columns){column.StableColumnId=identity.Columns.Single(item=>item.Name==column.Name).SqlColumnId;}}
+    }
+    internal GatewayTransactionManager? GatewayTransactions{get;set;}
+    internal IGatewayDatabaseTransaction BeginGatewayDatabaseTransaction(GatewayTransactionOwner owner,CancellationToken cancellationToken){
+        if(this.Runtime is{} runtime){return runtime.BeginGatewayTransaction(owner,cancellationToken);}
+        return this.database.BeginGatewayTransaction(owner,cancellationToken);
+    }
+    internal IDisposable AcquireReadSession(SessionContext? session){
+        if(this.GatewayTransactions is not null){return this.GatewayTransactions.AcquireRead(session??DatabaseRegistry.CurrentSqlSession,this);}
+        if(session is null){return this.database.BeginReadSession();}return session.AcquireLock(token=>this.database.BeginReadSession(token));
+    }
+    internal void PrepareGatewayWrite(SessionContext session)=>this.GatewayTransactions?.EnsureWrite(session,this);
     public string DatabaseName{get;}
 
     private IReadOnlyList<DatabaseViewDefinition>views=[];
     private IReadOnlyList<DatabaseRoutineDefinition>routines=[];
-    public IReadOnlyList<TableMetadata>GetTables()=>this.tableMetadataList.Concat(this.Runtime?.Tables.Select(RuntimeMetadata)??[]).ToArray();
+    public IReadOnlyList<TableMetadata>GetTables()=>this.EnumerateTables().ToArray();
+    internal IEnumerable<TableMetadata> EnumerateTables(){
+        using var read=this.GatewayTransactions?.AcquireRead(DatabaseRegistry.CurrentSqlSession,this);
+        foreach(var table in this.tableMetadataList){yield return table;}
+        if(this.Runtime is{} runtime){
+            foreach(var table in runtime.Tables){yield return RuntimeMetadata(table);}
+        }
+    }
     public IReadOnlyList<DatabaseViewDefinition>GetViews()=>this.views;
     internal void SetViews(IReadOnlyList<DatabaseViewDefinition>views){this.views=views;}
     public IReadOnlyList<DatabaseRoutineDefinition>GetRoutines()=>this.routines;
     internal void SetRoutines(IReadOnlyList<DatabaseRoutineDefinition>routines){this.routines=routines;}
 
     public TableMetadata? FindTable(string name){
+        using var read=this.GatewayTransactions?.AcquireRead(DatabaseRegistry.CurrentSqlSession,this);
         var dynamic=this.FindRuntime(name);if(dynamic is not null){return RuntimeMetadata(dynamic);}
         if(this.ambiguousNames.Contains(name)){throw new InvalidOperationException($"Ambiguous relation name '{name}'. Use a quoted schema and table name.");}
         if(this.tables.TryGetValue(name,out var binding)){
@@ -46,7 +69,8 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
     }
 
     public QueryResult ExecuteSelect(string tableName,IReadOnlyList<string>? columnNames,Func<object,bool>? predicate,SessionContext session){
-        var dynamic=this.FindRuntime(tableName);if(dynamic is not null){return this.SelectRuntime(dynamic,columnNames,predicate);}
+        using var lookup=this.GatewayTransactions?.AcquireRead(session,this);
+        var dynamic=this.FindRuntime(tableName);if(dynamic is not null){return this.SelectRuntime(dynamic,columnNames,predicate,session);}
         if(!this.tables.TryGetValue(tableName,out var binding)){
             throw new InvalidOperationException($"Table '{tableName}' not found in database '{this.DatabaseName}'.");
         }else{
@@ -81,6 +105,7 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
 
         return new QueryResult(selectedColumns,ReadRows(),-1);
         IEnumerable<object?[]> ReadRows(){
+            using var read=this.GatewayTransactions?.AcquireRead(session,this);
             foreach(var item in binding.GetRows(this.database)){
                 if(predicate is not null&&!predicate(item)){continue;}
                 var values=new object?[selectedColumns.Count];
@@ -91,17 +116,21 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
     }
 
     public int ExecuteInsert(string tableName,IReadOnlyDictionary<string,object?>values,SessionContext session){
+        session.CancellationToken.ThrowIfCancellationRequested();
+        this.PrepareGatewayWrite(session);
         var dynamic=this.FindRuntime(tableName);if(dynamic is not null){this.Runtime!.InsertRow(dynamic.Schema,dynamic.Name,RuntimeValues(dynamic,values));return 1;}
         if(!this.tables.TryGetValue(tableName,out var binding)){
             throw new InvalidOperationException($"Table '{tableName}' not found in database '{this.DatabaseName}'.");
         }else{
         }
-        var record=binding.CreateRecord(binding.MapValues(values));
+        values=this.GatewayTransactions?.CompleteInsert(session,this,binding.Metadata,values)??values;
+        var record=binding.CreateRecord(this.database,binding.MapValues(values));
         binding.InsertRecord(this.database,record);
         return 1;
     }
 
     public int ExecuteUpdate(string tableName,IReadOnlyDictionary<string,object?>values,Func<object,bool>? predicate,SessionContext session){
+        this.PrepareGatewayWrite(session);
         var dynamic=this.FindRuntime(tableName);if(dynamic is not null){return this.UpdateRuntime(dynamic,values.ToDictionary(p=>p.Key,p=>(Func<object,object?>)(_=>p.Value),StringComparer.OrdinalIgnoreCase),predicate,session);}
         if(!this.tables.TryGetValue(tableName,out var binding)){
             throw new InvalidOperationException($"Table '{tableName}' not found in database '{this.DatabaseName}'.");
@@ -121,6 +150,7 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
     }
 
     public int ExecuteDelete(string tableName,Func<object,bool>? predicate,SessionContext session){
+        this.PrepareGatewayWrite(session);
         var dynamic=this.FindRuntime(tableName);if(dynamic is not null){return this.DeleteRuntime(dynamic,predicate,session);}
         if(!this.tables.TryGetValue(tableName,out var binding)){
             throw new InvalidOperationException($"Table '{tableName}' not found in database '{this.DatabaseName}'.");
@@ -140,20 +170,24 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
 
     public object? GetRecordValue(string table,string column,object row){var dynamic=this.FindRuntime(table);if(dynamic is not null){var runtimeIndex=Index(dynamic,column);return ((RuntimeSqlRow)row).Values[runtimeIndex];}var binding=this.tables[table];var index=binding.Metadata.Columns.ToList().FindIndex(c=>c.Name.Equals(column,StringComparison.OrdinalIgnoreCase));if(index<0){throw new InvalidOperationException("Column mapping is missing.");}return NormalizeValue(binding.ColumnGetters[index](row));}
     public int ExecuteUpdateExpressions(string table,IReadOnlyDictionary<string,Func<object,object?>> values,Func<object,bool>? predicate,SessionContext session){
+        this.PrepareGatewayWrite(session);
         var dynamic=this.FindRuntime(table);if(dynamic is not null){return this.UpdateRuntime(dynamic,values,predicate,session);}
         var binding=this.tables[table];using var scope=new ExecutionScope(new(){CancellationToken=session.CancellationToken});using var rows=scope.Query(binding.GetRows(this.database).Cast<object>()).Where(row=>predicate is null||predicate(row)).Select(binding.Encode).ToStorage();var count=0;
-        foreach(var encoded in rows){session.CancellationToken.ThrowIfCancellationRequested();var old=binding.Decode(encoded);var evaluated=values.ToDictionary(p=>p.Key,p=>p.Value(old),StringComparer.OrdinalIgnoreCase);var updated=binding.UpdateRecord(old,binding.MapValues(evaluated));binding.SetOrUpdateRecord(this.database,old,updated);count++;}return count;
+        foreach(var encoded in rows){session.CancellationToken.ThrowIfCancellationRequested();var old=binding.Decode(encoded);IReadOnlyDictionary<string,object?> evaluated=values.ToDictionary(p=>p.Key,p=>p.Value(old),StringComparer.OrdinalIgnoreCase);if(this.GatewayTransactions is{} manager){evaluated=manager.CompleteUpdate(session,this,binding.Metadata,evaluated);}var updated=binding.UpdateRecord(old,binding.MapValues(evaluated));binding.SetOrUpdateRecord(this.database,old,updated);count++;}return count;
     }
 
     public void BeginTransaction(SessionContext session){
-        if(session.IsInTransaction){throw new InvalidOperationException("Nested SQL transactions are not supported in this session.");}
+        if(this.GatewayTransactions is not null){this.GatewayTransactions.Begin(session);return;}
+        if(session.IsInTransaction){session.BeginNestedTransaction();return;}
         var tx=session.AcquireLock<IDisposable>(token=>{if(this.Runtime is{}runtime){return runtime.BeginTransaction(token);}return this.database.BeginTransaction(token);});
         session.AttachTransaction(tx);
     }
 
     public void CommitTransaction(SessionContext session){
+        if(this.GatewayTransactions is not null){this.GatewayTransactions.Commit(session);return;}
         if(!session.IsInTransaction){throw new InvalidOperationException("There is no active transaction.");}
-        if(this.Runtime?.IsRollbackOnly==true){throw new SqlQueryException("Transaction is rollback-only; ROLLBACK is required.",3930);}
+        if(session.TransactionState<0){throw new SqlQueryException("Transaction is rollback-only; ROLLBACK is required.",3930);}
+        if(session.CommitNestedTransaction()){return;}
         var tx=session.DetachTransaction();
         if(tx is RuntimeSqlCatalog.RuntimeSqlTransaction runtimeTx){
             runtimeTx.Commit();runtimeTx.Dispose();
@@ -167,6 +201,7 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
     }
 
     public void RollbackTransaction(SessionContext session){
+        if(this.GatewayTransactions is not null){this.GatewayTransactions.Rollback(session);return;}
         if(!session.IsInTransaction){throw new InvalidOperationException("There is no active transaction.");}
         var tx=session.DetachTransaction();
         if(tx is not null){
@@ -175,7 +210,7 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
         }
     }
 
-    public void MarkTransactionFailed(){this.Runtime?.MarkRollbackOnly();}
+    public void MarkTransactionFailed(SessionContext? session=null){if(this.GatewayTransactions is null){this.Runtime?.MarkRollbackOnly();}session?.MarkRollbackOnly();}
     private RuntimeSqlCatalog? Runtime=>(this.database as RuntimeSqlDatabaseContainer)?.RuntimeSql;
     public void ExecuteDdl(SqlDdlCommand command){
         var runtime=this.Runtime??throw new SqlQueryException("Runtime SQL is not enabled.",40515);
@@ -190,16 +225,16 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
     }
     private RuntimeSqlTable? FindRuntime(string name){
         if(this.Runtime is not{}runtime){return null;}RuntimeSqlTable? found=null;
-        foreach(var item in runtime.Tables){var meta=RuntimeMetadata(item);if(meta.IdentifierKey.Equals(name,StringComparison.OrdinalIgnoreCase)||meta.FullName.Equals(name,StringComparison.OrdinalIgnoreCase)||item.Schema.Equals("dbo",StringComparison.OrdinalIgnoreCase)&&item.Name.Equals(name,StringComparison.OrdinalIgnoreCase)){if(found is not null){throw new SqlQueryException("Ambiguous table name.",40515);}found=item;}}
+        foreach(var item in runtime.Tables){var meta=RuntimeMetadata(item);if(meta.IdentifierKey.Equals(name,StringComparison.OrdinalIgnoreCase)||meta.FullName.Equals(name,StringComparison.OrdinalIgnoreCase)){if(found is not null){throw new SqlQueryException("Ambiguous table name.",40515);}found=item;}}
         return found;
     }
     private static TableMetadata RuntimeMetadata(RuntimeSqlTable table){
         var columns=table.Columns.Select((c,i)=>new ColumnMetadata(c.Name,c.SqlTypeName switch{"int"=>typeof(int),"bigint"=>typeof(long),"bit"=>typeof(bool),"nvarchar"=>typeof(string),"varbinary"=>typeof(byte[]),"decimal"=>typeof(decimal),_=>throw new InvalidDataException("Unsupported runtime type.")},c.SqlTypeName,c.IsNullable,c.IsPrimaryKey,i,c.Length,c.Precision,c.Scale,c.Collation)).ToArray();
         return new(table.Schema,table.Name,columns,null,checked((int)(1_000_000_000L+table.ObjectId)));
     }
-    private QueryResult SelectRuntime(RuntimeSqlTable table,IReadOnlyList<string>? names,Func<object,bool>? predicate){
+    private QueryResult SelectRuntime(RuntimeSqlTable table,IReadOnlyList<string>? names,Func<object,bool>? predicate,SessionContext session){
         var all=RuntimeMetadata(table);var indices=names is null||names.Count==0||names.Count==1&&names[0]=="*"?global::System.Linq.Enumerable.Range(0,table.Columns.Count).ToArray():names.Select(name=>Index(table,name)).ToArray();var revision=this.Runtime!.SchemaRevision;
-        IEnumerable<object?[]> Read(){foreach(var row in this.Runtime.ReadRows(table.Schema,table.Name,revision)){if(predicate is null||predicate(row)){yield return indices.Select(index=>row.Values[index]).ToArray();}}}
+        IEnumerable<object?[]> Read(){using var read=this.GatewayTransactions?.AcquireRead(session,this);foreach(var row in this.Runtime.ReadRows(table.Schema,table.Name,revision)){if(predicate is null||predicate(row)){yield return indices.Select(index=>row.Values[index]).ToArray();}}}
         return new(indices.Select(i=>all.Columns[i]).ToArray(),Read(),-1);
     }
     private static int Index(RuntimeSqlTable table,string name){for(var i=0;i<table.Columns.Count;i++){if(table.Columns[i].Name.Equals(name,StringComparison.OrdinalIgnoreCase)){return i;}}throw new SqlQueryException("Unknown column: "+name,207);}
@@ -253,11 +288,12 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
                 var nullable=bound?.Type.IsNullable??(Nullable.GetUnderlyingType(rp.PropertyType) is not null||(!actual.IsValueType&&nullability.Create(rp).ReadState!=NullabilityState.NotNull));
                 var primary=sourceTable is not null?sourceTable.PrimaryKey?.Columns.Any(c=>string.Equals(c.Name,bound?.SourceName??rp.Name,StringComparison.OrdinalIgnoreCase))==true:keyType?.GetProperty(rp.Name) is not null;
                 columns.Add(new(bound?.SourceName??rp.Name,clr,bound?.Type.ResultSqlTypeName??bound?.Type.SqlTypeName??this.GetSqlTypeName(clr),nullable,primary,columns.Count,bound?.Type.ResultMaximumLength??bound?.Type.MaximumLength,bound?.Type.Precision,bound?.Type.Scale,bound?.Type.Collation,bound?.Type.SourceMaximumLength,bound?.Type.SourcePrecision,bound?.Type.SourceScale,sourceSqlTypeName:bound?.Type.SqlTypeName));
+                var definition=sourceTable?.Columns.SingleOrDefault(column=>column.Name==(bound?.SourceName??rp.Name));columns[^1].DefaultDefinition=definition?.DefaultDefinition;columns[^1].IsIdentity=definition?.IsIdentity??false;columns[^1].ComputedDefinition=definition?.ComputedDefinition;columns[^1].IsComputedPersisted=definition?.IsComputedPersisted??false;columns[^1].IdentitySeed=definition?.IdentitySeed??1;columns[^1].IdentityIncrement=definition?.IdentityIncrement??1;
                 propertyNames.Add(rp.Name);
             }
             object GetTable(DatabaseContainer db){object current=db;foreach(var item in member.Path){current=item.GetValue(current)??throw new InvalidOperationException("A schema relation returned null.");}return current;}
             var metadata=new TableMetadata(schema,name,columns,sourceTable?.PrimaryKey){CreateDate=sourceTable?.CreateDate};
-            var binding=new TableBinding(prop,GetTable,recordType,keyType,metadata,columns,propertyNames);
+            var binding=new TableBinding(prop,GetTable,recordType,keyType,metadata,columns,propertyNames,this.database.Options.RecordSerialization==DatabaseRecordSerialization.CanonicalV1,source?.Columns.Where(static column=>column.IsSynthetic).Select(static column=>column.PropertyName).ToArray()??[],this.database.Options.GatewayVersionedBinding is not null);
             if(!this.tables.TryAdd(metadata.IdentifierKey,binding)){throw new InvalidOperationException($"Duplicate relation '{metadata.IdentifierKey}'.");}
             this.tableMetadataList.Add(metadata);
         }
@@ -265,7 +301,7 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
         var aliases=new Dictionary<string,List<TableBinding>>(StringComparer.OrdinalIgnoreCase);
         foreach(var binding in this.tables.Values.ToArray()){
             AddAlias(binding.Metadata.FullName,binding);
-            if(string.Equals(binding.Metadata.SchemaName,"dbo",StringComparison.OrdinalIgnoreCase)){AddAlias(binding.Metadata.TableName,binding);}
+            if(binding.Metadata.SchemaName.Length==0){AddAlias(binding.Metadata.TableName,binding);}
         }
         foreach(var alias in aliases){if(alias.Value.Distinct().Count()==1){this.tables.TryAdd(alias.Key,alias.Value[0]);}else{this.ambiguousNames.Add(alias.Key);}}
         void AddAlias(string name,TableBinding binding){if(!aliases.TryGetValue(name,out var matches)){matches=[];aliases.Add(name,matches);}matches.Add(binding);}
@@ -276,7 +312,7 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
                 if(typeof(DatabaseSchema).IsAssignableFrom(prop.PropertyType)){
                     if(prop.GetValue(owner) is DatabaseSchema child){foreach(var item in Relations(child,next)){yield return item;}}
                 }else if(prop.PropertyType.IsGenericType&&(prop.PropertyType.GetGenericTypeDefinition().Name is "Table`1" or "Table`2")){
-                    var schema=owner is DatabaseSchema named?named.Name:"dbo";
+                    var schema=owner is DatabaseSchema named?named.Name:"";
                     yield return(next.ToArray(),schema);
                 }
             }
@@ -286,8 +322,10 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
         if(value?.GetType().FullName=="Seamless.Database.SqlServer.Types.Bit"){return Convert.ToByte(value.GetType().GetProperty("Value")!.GetValue(value))!=0;}
         return value;
     }
-    private static byte[] EncodeRecord<T>(object record)=>MemoryPackSerializer.Serialize((T)record);
-    private static object DecodeRecord<T>(byte[] bytes)=>MemoryPackSerializer.Deserialize<T>(bytes)!;
+    private static byte[] EncodeRecord<T>(CodecRegistry codecs,object record){var codec=codecs.Get<T>();var typed=(T)record;var bytes=new byte[codec.GetEncodedLength(typed)];codec.Encode(typed,bytes);return bytes;}
+    private static object DecodeRecord<T>(CodecRegistry codecs,byte[] bytes)=>codecs.Get<T>().Decode(bytes)!;
+    private static byte[] EncodeLegacyRecord<T>(object record)=>MemoryPackSerializer.Serialize((T)record);
+    private static object DecodeLegacyRecord<T>(byte[] bytes)=>MemoryPackSerializer.Deserialize<T>(bytes)!;
 
     private string GetSqlTypeName(Type clrType){
         var underlying=Nullable.GetUnderlyingType(clrType)??clrType;
@@ -318,22 +356,37 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
         }
     }
 
-    private sealed class TableBinding{
+    private sealed partial class TableBinding{
         private readonly Func<DatabaseContainer,object> getTable;
-        private readonly ConstructorInfo constructor;
+        private readonly ConstructorInfo? constructor;
         private readonly MethodInfo addMethod;
         private readonly MethodInfo? removeMethod;
+        private readonly MethodInfo? replaceMethod;
         private readonly PropertyInfo? indexerProperty;
         private readonly ConstructorInfo? keyConstructor;
         private readonly PropertyInfo[]? keyProperties;
         private readonly PropertyInfo[] recordProperties;
+        private readonly Func<object,object?>?[] computedStoredGetters;
         private readonly Type? keyType;
         private readonly IReadOnlyList<string> propertyNames;
+        private readonly Dictionary<string,(ColumnMetadata Column,SqlType Type)> assignmentColumns;
+        private readonly PropertyInfo? internalRowId;
+        private readonly object internalRowIdGate=new();
+        private long? lastInternalRowId;
 
-        public TableBinding(PropertyInfo property,Func<DatabaseContainer,object> getTable,Type recordType,Type? keyType,TableMetadata metadata,IReadOnlyList<ColumnMetadata>columns,IReadOnlyList<string> propertyNames){
+        public TableBinding(PropertyInfo property,Func<DatabaseContainer,object> getTable,Type recordType,Type? keyType,TableMetadata metadata,IReadOnlyList<ColumnMetadata>columns,IReadOnlyList<string> propertyNames,bool canonical,IReadOnlyList<string> syntheticProperties,bool nativeVersioned){
             this.getTable=getTable;this.propertyNames=propertyNames;
-            this.Encode=typeof(InProcessDatabaseAdapter).GetMethod("EncodeRecord",BindingFlags.Static|BindingFlags.NonPublic)!.MakeGenericMethod(recordType).CreateDelegate<Func<object,byte[]>>();
-            this.Decode=typeof(InProcessDatabaseAdapter).GetMethod("DecodeRecord",BindingFlags.Static|BindingFlags.NonPublic)!.MakeGenericMethod(recordType).CreateDelegate<Func<byte[],object>>();
+            this.assignmentColumns=propertyNames.Select((name,index)=>(Name:name,Column:columns[index])).ToDictionary(static pair=>pair.Name,static pair=>(pair.Column,new SqlType(pair.Column.SqlTypeName,pair.Column.ClrType,pair.Column.MaximumLength,pair.Column.Precision,pair.Column.Scale,pair.Column.Collation)),StringComparer.Ordinal);
+            if(syntheticProperties.Count>1){throw new InvalidDataException("A generated table must have at most one internal row ID.");}
+            if(syntheticProperties.Count==1){this.internalRowId=recordType.GetProperty(syntheticProperties[0])??throw new InvalidDataException("The internal row ID member is missing.");if(this.internalRowId.PropertyType!=typeof(long)&&this.internalRowId.PropertyType!=typeof(int)){throw new InvalidDataException("The internal row ID must be Int32 or Int64.");}}
+            if(canonical){
+                var codecs=new CodecRegistry();
+                this.Encode=typeof(InProcessDatabaseAdapter).GetMethod("EncodeRecord",BindingFlags.Static|BindingFlags.NonPublic)!.MakeGenericMethod(recordType).CreateDelegate<Func<object,byte[]>>(codecs);
+                this.Decode=typeof(InProcessDatabaseAdapter).GetMethod("DecodeRecord",BindingFlags.Static|BindingFlags.NonPublic)!.MakeGenericMethod(recordType).CreateDelegate<Func<byte[],object>>(codecs);
+            }else{
+                this.Encode=typeof(InProcessDatabaseAdapter).GetMethod("EncodeLegacyRecord",BindingFlags.Static|BindingFlags.NonPublic)!.MakeGenericMethod(recordType).CreateDelegate<Func<object,byte[]>>();
+                this.Decode=typeof(InProcessDatabaseAdapter).GetMethod("DecodeLegacyRecord",BindingFlags.Static|BindingFlags.NonPublic)!.MakeGenericMethod(recordType).CreateDelegate<Func<byte[],object>>();
+            }
             this.RecordType=recordType;
             this.keyType=keyType;
             this.Metadata=metadata;
@@ -343,6 +396,7 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
 
             if(keyType is not null){
                 this.removeMethod=tableObjType.GetMethod("Remove",new[]{keyType});
+                this.replaceMethod=tableObjType.GetMethod("Replace",new[]{keyType,recordType});
                 this.indexerProperty=tableObjType.GetProperty("Item",new[]{keyType});
                 var kProps=keyType.GetProperties(BindingFlags.Public|BindingFlags.Instance);
                 this.keyProperties=new PropertyInfo[kProps.Length];
@@ -369,6 +423,7 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
                 var p=recordType.GetProperty(propertyNames[i])??throw new InvalidOperationException($"Property {columns[i].Name} not found on {recordType.Name}");
                 this.recordProperties[i]=p;
             }
+            this.computedStoredGetters=new Func<object,object?>?[this.recordProperties.Length];for(var index=0;index<this.recordProperties.Length;index++){if(this.recordProperties[index].GetCustomAttribute<ComputedColumnAttribute>() is null){continue;}var field=recordType.GetField("_value"+index,BindingFlags.NonPublic|BindingFlags.Instance)??throw new InvalidDataException("A computed column has no canonical backing field.");var value=Expression.Parameter(typeof(object));this.computedStoredGetters[index]=Expression.Lambda<Func<object,object?>>(Expression.Convert(Expression.Field(Expression.Convert(value,recordType),field),typeof(object)),value).Compile();}
 
             var ctors=recordType.GetConstructors(BindingFlags.Public|BindingFlags.Instance);
             ConstructorInfo? matchedCtor=null;
@@ -380,7 +435,7 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
                 }else{
                 }
             }
-            this.constructor=matchedCtor??throw new InvalidOperationException($"Constructor not found on {recordType.Name}");
+            this.constructor=matchedCtor??(recordType.IsValueType?null:throw new InvalidOperationException($"Constructor not found on {recordType.Name}"));
 
             var getters=new Func<object,object?>[columns.Count];
             for(var i=0;i<columns.Count;i++){
@@ -389,6 +444,7 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
                 getters[i]=Expression.Lambda<Func<object,object?>>(Expression.Convert(Expression.Property(Expression.Convert(obj,recordType),p),typeof(object)),obj).Compile();
             }
             this.ColumnGetters=getters;
+            if(nativeVersioned){this.BindIntegerPrimaryKey(tableObjType);}
         }
 
         public Func<object,byte[]> Encode{get;}
@@ -396,6 +452,7 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
         public Type RecordType{get;}
         public TableMetadata Metadata{get;}
         public IReadOnlyList<Func<object,object?>>ColumnGetters{get;}
+        public object GetTable(DatabaseContainer database)=>this.getTable(database);
 
         public IEnumerable GetRows(DatabaseContainer db){
             var tableObj=this.getTable(db);
@@ -409,7 +466,7 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
         public void InsertRecord(DatabaseContainer db,object record){
             var tableObj=this.getTable(db);
             var added=this.addMethod.Invoke(tableObj,new[]{record});
-            if(added is false){throw new InvalidOperationException("Duplicate primary key.");}
+            if(added is false){throw new SqlQueryException("Duplicate primary key.",2627);}
         }
 
         public void RemoveRecord(DatabaseContainer db,object record){
@@ -427,7 +484,7 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
             var tableObj=this.getTable(db);
             if(this.indexerProperty is not null&&this.keyType is not null){
                 var key=this.CreateKeyFromRecord(updatedRecord);
-                this.indexerProperty.SetValue(tableObj,updatedRecord,new[]{key});
+                var oldKey=this.CreateKeyFromRecord(oldRecord);if(!Equals(oldKey,key)){if(this.replaceMethod is null){throw new NotSupportedException("This table cannot replace an indexed key atomically.");}try{if(this.replaceMethod.Invoke(tableObj,[oldKey,updatedRecord]) is false){throw new SqlQueryException("Duplicate primary key.",2627);}}catch(TargetInvocationException error)when(error.InnerException is not null){global::System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error.InnerException).Throw();throw;}}else{this.indexerProperty.SetValue(tableObj,updatedRecord,new[]{key});}
             }else{
                 this.RemoveRecord(db,oldRecord);
                 this.InsertRecord(db,updatedRecord);
@@ -436,17 +493,25 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
 
         public IReadOnlyDictionary<string,object?> MapValues(IReadOnlyDictionary<string,object?> values){var mapped=new Dictionary<string,object?>(StringComparer.OrdinalIgnoreCase);foreach(var pair in values){var index=this.Metadata.Columns.ToList().FindIndex(c=>c.Name.Equals(pair.Key,StringComparison.OrdinalIgnoreCase));if(index<0){throw new InvalidOperationException("Unknown SQL column.");}mapped.Add(this.propertyNames[index],pair.Value);}return mapped;}
 
-        public object CreateRecord(IReadOnlyDictionary<string,object?>values){
+        public object CreateRecord(DatabaseContainer database,IReadOnlyDictionary<string,object?>values){
             var args=new object?[this.recordProperties.Length];
             for(var i=0;i<this.recordProperties.Length;i++){
                 var p=this.recordProperties[i];
                 if(values.TryGetValue(p.Name,out var val)){
-                    args[i]=ConvertValue(val,p.PropertyType);
+                    args[i]=this.ConvertColumn(val,p);
+                }else if(p==this.internalRowId){
+                    lock(this.internalRowIdGate){
+                        this.lastInternalRowId??=this.GetRows(database).Cast<object>().Select(row=>p.GetValue(row) switch{long id=>id,int id=>id,_=>throw new InvalidDataException("Invalid internal row ID.")}).DefaultIfEmpty().Max();
+                        this.lastInternalRowId=checked(this.lastInternalRowId.Value+1);args[i]=p.PropertyType==typeof(long)?(object)this.lastInternalRowId.Value:checked((int)this.lastInternalRowId.Value);
+                    }
                 }else{
                     args[i]=p.PropertyType.IsValueType?Activator.CreateInstance(p.PropertyType):null;
                 }
             }
-            return this.constructor.Invoke(args);
+            if(this.constructor is not null){return this.constructor.Invoke(args);}
+            var instance=Activator.CreateInstance(this.RecordType)!;
+            for(var i=0;i<this.recordProperties.Length;i++){if(this.recordProperties[i].CanWrite){this.recordProperties[i].SetValue(instance,args[i]);}}
+            return instance;
         }
 
         public object UpdateRecord(object existing,IReadOnlyDictionary<string,object?>newValues){
@@ -454,12 +519,15 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
             for(var i=0;i<this.recordProperties.Length;i++){
                 var p=this.recordProperties[i];
                 if(newValues.TryGetValue(p.Name,out var val)){
-                    args[i]=ConvertValue(val,p.PropertyType);
+                    args[i]=this.ConvertColumn(val,p);
                 }else{
-                    args[i]=p.GetValue(existing);
+                    args[i]=this.computedStoredGetters[i] is{} stored?stored(existing):p.GetValue(existing);
                 }
             }
-            return this.constructor.Invoke(args);
+            if(this.constructor is not null){return this.constructor.Invoke(args);}
+            var instance=Activator.CreateInstance(this.RecordType)!;
+            for(var i=0;i<this.recordProperties.Length;i++){if(this.recordProperties[i].CanWrite){this.recordProperties[i].SetValue(instance,args[i]);}}
+            return instance;
         }
 
         private object CreateKeyFromRecord(object record){
@@ -474,6 +542,10 @@ public sealed class InProcessDatabaseAdapter:IDatabaseAdapter{
             return this.keyConstructor.Invoke(keyArgs);
         }
 
+        private object? ConvertColumn(object? val,PropertyInfo property){
+            if(this.assignmentColumns.TryGetValue(property.Name,out var assignment)){var column=assignment.Column;if(val is null||val is DBNull){if(!column.IsNullable){throw new SqlQueryException("Cannot insert NULL into column '"+column.Name+"'.",515);}return null;}val=SqlScalarConversion.Assign(val,assignment.Type);}
+            return ConvertValue(val,property.PropertyType);
+        }
         private static object? ConvertValue(object? val,Type targetType){
             if(val is null){
                 return null;

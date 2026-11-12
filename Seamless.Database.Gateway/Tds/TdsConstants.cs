@@ -35,6 +35,10 @@ public static class TdsConstants{
     public const ushort DoneMore=0x0001;
     public const ushort DoneError=0x0002;
     public const ushort DoneCount=0x0010;
+    internal const ushort SelectCommand=0x00C1;
+    internal const ushort InsertCommand=0x00C3;
+    internal const ushort DeleteCommand=0x00C4;
+    internal const ushort UpdateCommand=0x00C5;
 
     // EnvChange Types
     public const byte EnvChangeDatabase=0x01;

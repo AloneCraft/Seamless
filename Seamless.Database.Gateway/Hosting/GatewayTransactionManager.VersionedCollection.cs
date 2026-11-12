@@ -13,8 +13,7 @@ public sealed partial class GatewayTransactionManager{
             if(this.active.Count!=0){return;}
             var state=this.versioned!;
             foreach(var entry in state.Generations.Where(static pair=>pair.Value.Prepared is null&&pair.Value.Binding.IsDisposed).ToArray()){entry.Value.Memory.Dispose();state.Generations.Remove(entry.Key);}
-            var current=this.nativePublished.Values.Select(static item=>item.Version.Reference.Id).ToHashSet(StringComparer.Ordinal);
-            if(!state.Generations.Values.Any(static handle=>handle.Retired||handle.Abandoned)&&!state.NativeVersions.Keys.Any(id=>!current.Contains(id))){return;}
+            if(!this.HasPendingVersionedCollection()){return;}
             // 終了した接続のAsyncLocalを回収workerへ持ち込まない。
             if(ExecutionContext.IsFlowSuppressed()){Start();}else{using(ExecutionContext.SuppressFlow()){Start();}}
             void Start()=>this.versionedCollectionTask=Task.Run(()=>{
@@ -23,6 +22,19 @@ public sealed partial class GatewayTransactionManager{
                 catch(Exception error){lock(this.gate){this.LastGenerationCollection=new([],[new(this.directory,error.Message)]);}}
             });
         }
+    }
+    private bool HasPendingVersionedCollection(){
+        var state=this.versioned!;
+        if(state.Generations.Values.Any(static handle=>handle.Retired||handle.Abandoned)){return true;}
+        var current=this.nativePublished.Values.Select(static item=>item.Version.Reference.Id).ToHashSet(StringComparer.Ordinal);
+        return state.NativeVersions.Keys.Any(id=>!current.Contains(id));
+    }
+    internal void CompleteStartupCollection(){
+        lock(this.gate){
+            if(this.versioned is null||!this.HasPendingVersionedCollection()){return;}
+        }
+        // 復旧で判明した回収待ちを、最初の要求から起動時へ移す。
+        this.CheckpointVersioned();
     }
     private void WaitForVersionedCollection(){Task? pending;lock(this.gate){pending=this.versionedCollectionTask;}pending?.GetAwaiter().GetResult();}
     private void CheckpointVersioned(){
@@ -52,11 +64,9 @@ public sealed partial class GatewayTransactionManager{
             if(errors.Count!=0){throw new AggregateException("Versioned Gateway collection failed after its common checkpoint.",errors);}
         }finally{lock(this.gate){this.collectingVersioned=false;this.retiringGenerations.Clear();this.versionedGenerationPlan=null;this.versionedNativePlan=null;}this.versionedCollection.Release();}
     }
-    private void CaptureVersionedCollectionPlans(){
+    private void CaptureVersionedCollectionPlans(IReadOnlyList<GatewayGenerationReference> retained){
         lock(this.gate){
-            if(!this.collectingVersioned){return;}
-            var retained=this.versioned!.Generations.Where(pair=>!this.retiringGenerations.Contains(pair.Key)&&pair.Value.Prepared is not null).Select(static pair=>pair.Value.Prepared!.Reference).Concat(this.published.Values.SelectMany(static item=>Previous(item.State)));
-            this.versionedGenerationPlan=this.generationStore!.PlanCollection(retained);
+            this.versionedGenerationPlan=this.generationStore!.PlanCollection(retained.Concat(this.published.Values.SelectMany(static item=>Previous(item.State))));
             this.versionedNativePlan=this.nativeStore!.PlanCollection(this.nativePublished.Values.SelectMany(static item=>NativeRetained(item.State)));
         }
         static IEnumerable<GatewayGenerationReference> Previous(PublishedGenerationState state){if(state.Previous is{} previous){yield return previous.Reference;}}

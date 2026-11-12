@@ -6,18 +6,24 @@ using Seamless.Database.Query;
 
 namespace Seamless.Database.Gateway.Tds;
 
-public sealed record TdsRpcParameter(string Name,SqlType Type,object? Value,bool Output);
+public sealed record TdsRpcParameter(string Name,SqlType Type,object? Value,bool Output){
+    internal int? Ordinal{get;init;}
+}
 internal sealed record TdsRpcRequest(string Procedure,IReadOnlyList<TdsRpcParameter> Parameters){
-    public static TdsRpcRequest Parse(byte[] payload){
+    public bool HasExtendedParameterFlags{get;private init;}
+    public static TdsRpcRequest Parse(byte[] payload)=>ParseBounded(payload,int.MaxValue);
+    internal static TdsRpcRequest ParseBounded(byte[] payload,int maximumParameters){
         var reader=new ValueReader(payload,HeadersLength(payload));
         var chars=reader.UInt16();string procedure;
         if(chars==ushort.MaxValue){procedure=reader.UInt16() switch{10=>"sp_executesql",11=>"sp_prepare",12=>"sp_execute",13=>"sp_prepexec",15=>"sp_unprepare",_=>throw new NotSupportedException("The requested system RPC is not supported.")};}
         else{procedure=reader.Unicode(chars);}
-        _=reader.UInt16();var parameters=new List<TdsRpcParameter>();
+        _=reader.UInt16();var parameters=new List<TdsRpcParameter>();var hasExtendedParameterFlags=false;
         while(!reader.End){
+            if(parameters.Count>=maximumParameters){throw new SqlQueryException("SQL parameter count exceeds the query limit.",103);}
             var name=reader.Unicode(reader.Byte());var flags=reader.Byte();var value=reader.Value();parameters.Add(new(name,value.Type,value.Value,(flags&1)!=0));
+            hasExtendedParameterFlags|=(flags&~1)!=0;
         }
-        return new(procedure.ToLowerInvariant(),parameters);
+        return new(procedure.ToLowerInvariant(),parameters){HasExtendedParameterFlags=hasExtendedParameterFlags};
     }
     internal static int HeadersLength(byte[] payload){
         if(payload.Length<4){return 0;}var length=BinaryPrimitives.ReadInt32LittleEndian(payload);

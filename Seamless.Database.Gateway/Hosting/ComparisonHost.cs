@@ -39,7 +39,7 @@ public sealed class ComparisonHost:IDisposable{
         if(type.FullName!=item.TypeFullName||type.GetField("GeneratedSchemaFingerprint")?.GetRawConstantValue() as string!=item.Fingerprint){throw new InvalidDataException("Schema assembly mismatch: "+item.Name);}
         var runtime=typeof(RuntimeSqlDatabaseContainer).IsAssignableFrom(type);
         if(runtime!=item.RuntimeSqlEnabled){throw new InvalidDataException("Runtime SQL manifest and generated type disagree: "+item.Name);}
-        if(runtime&&(options.Transactions!=DatabaseTransactionMode.SharedV2||item.GeneratedNamespace!="Seamless.Generated."+item.GeneratedName||!item.GeneratedName.EndsWith("_RuntimeSqlV1",StringComparison.Ordinal))){throw new InvalidDataException("Invalid runtime SQL storage profile: "+item.Name);}
+        if(runtime&&(item.GeneratedNamespace!="Seamless.Generated."+item.GeneratedName||!item.GeneratedName.EndsWith("_RuntimeSqlV1",StringComparison.Ordinal))){throw new InvalidDataException("Invalid runtime SQL storage profile: "+item.Name);}
     }
     /// <summary>生成時の対応表を実アセンブリの署名と照合する。古い世代は再生成を要求する。</summary>
     public static IReadOnlyList<DatabaseRoutineDefinition>ResolveRoutines(ComparisonDatabase item,Assembly assembly,DatabaseContainer? database=null){

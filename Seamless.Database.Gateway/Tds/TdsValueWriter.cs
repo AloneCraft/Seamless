@@ -14,21 +14,25 @@ public sealed partial class TdsPacketWriter{
         foreach(var column in columns){
             var sql=column.SqlTypeName.ToLowerInvariant();WriteUInt32LE(stream,sql is "timestamp" or "rowversion"?80u:0u);
             ushort flags=0;if(column.IsNullable){flags=1;}if(sql=="xml"||column.ClrType==typeof(string)&&column.Collation is not null&&(ResolveCollation(column.Collation).Info&0x00100000)==0){flags|=2;}WriteUInt16LE(stream,flags);
-            var type=WireType(column);stream.WriteByte(type);
-            if(type is 0x26 or 0x68 or 0x6D or 0x24 or 0x6F or 0x6E){stream.WriteByte(WireLength(column));}
-            else if(type==0x6C){stream.WriteByte(17);stream.WriteByte(column.Precision??38);stream.WriteByte(column.Scale??6);}
-            else if(type is 0x29 or 0x2A or 0x2B){stream.WriteByte(column.Scale??7);}
-            else if(type is 0xA7 or 0xAF or 0xE7 or 0xEF or 0xA5 or 0xAD){
-                var maximum=MaximumWireLength(column,type);WriteUInt16LE(stream,maximum);
-                if(type is 0xA7 or 0xAF or 0xE7 or 0xEF){var collation=ResolveCollation(column.Collation);WriteUInt32LE(stream,collation.Info);stream.WriteByte(collation.SortId);}
-            }else if(type is 0x22 or 0x23 or 0x63){
-                var maximum=int.MaxValue;if(type==0x63){maximum=int.MaxValue-1;}WriteInt32LE(stream,maximum);
-                if(type is 0x23 or 0x63){var collation=ResolveCollation(column.Collation);WriteUInt32LE(stream,collation.Info);stream.WriteByte(collation.SortId);}
-                WriteLegacyTableName(stream,column);
-            }else if(type==0xF0){WriteUdtMetadata(stream,column);}else if(type==0xF1){stream.WriteByte(0);}
+            WriteTypeInfo(stream,column);
             if(column.Name.Length>255){throw new InvalidOperationException("TDS column names must not exceed 255 characters.");}
             WriteStringWithLength8(stream,column.Name);
         }
+    }
+    private static void WriteTypeInfo(Stream stream,ColumnMetadata column){
+        var type=WireType(column);stream.WriteByte(type);
+        if(type is 0x26 or 0x68 or 0x6D or 0x24 or 0x6F or 0x6E){stream.WriteByte(WireLength(column));}
+        else if(type==0x6C){stream.WriteByte(17);stream.WriteByte(column.Precision??38);stream.WriteByte(column.Scale??6);}
+        else if(type==0x62){WriteInt32LE(stream,8016);}
+        else if(type is 0x29 or 0x2A or 0x2B){stream.WriteByte(column.Scale??7);}
+        else if(type is 0xA7 or 0xAF or 0xE7 or 0xEF or 0xA5 or 0xAD){
+            var maximum=MaximumWireLength(column,type);WriteUInt16LE(stream,maximum);
+            if(type is 0xA7 or 0xAF or 0xE7 or 0xEF){var collation=ResolveCollation(column.Collation);WriteUInt32LE(stream,collation.Info);stream.WriteByte(collation.SortId);}
+        }else if(type is 0x22 or 0x23 or 0x63){
+            var maximum=int.MaxValue;if(type==0x63){maximum=int.MaxValue-1;}WriteInt32LE(stream,maximum);
+            if(type is 0x23 or 0x63){var collation=ResolveCollation(column.Collation);WriteUInt32LE(stream,collation.Info);stream.WriteByte(collation.SortId);}
+            WriteLegacyTableName(stream,column);
+        }else if(type==0xF0){WriteUdtMetadata(stream,column);}else if(type==0xF1){stream.WriteByte(0);}
     }
     private static (uint Info,byte SortId,int CodePage) ResolveCollation(string? name){
         if(name is null||name.Equals("SQL_Latin1_General_CP1_CI_AS",StringComparison.OrdinalIgnoreCase)){return(0x00D00409,52,1252);}
@@ -68,9 +72,10 @@ public sealed partial class TdsPacketWriter{
             "decimal" or "numeric" or "money" or "smallmoney"=>type==typeof(decimal),"real"=>type==typeof(float),"float"=>type==typeof(double),
             "char" or "varchar" or "text" or "nchar" or "nvarchar" or "ntext" or "sysname" or "xml"=>type==typeof(string),
             "binary" or "varbinary" or "image" or "timestamp" or "rowversion" or "hierarchyid" or "geometry" or "geography"=>type==typeof(byte[]),
-            "uniqueidentifier"=>type==typeof(Guid),"date"=>type==typeof(DateOnly),"time"=>type==typeof(TimeOnly)||type==typeof(TimeSpan),
+            "uniqueidentifier"=>type==typeof(Guid),"sql_variant"=>type==typeof(object),"date"=>type==typeof(DateOnly),"time"=>type==typeof(TimeOnly)||type==typeof(TimeSpan),
             "datetime" or "smalldatetime" or "datetime2"=>type==typeof(DateTime),"datetimeoffset"=>type==typeof(DateTimeOffset),_=>false};
         if(!compatible){throw new NotSupportedException($"TDS type '{column.SqlTypeName}'/'{type}' is not supported.");}
+        if(sql=="sql_variant"){return 0x62;}
         if(sql=="xml"){return 0xF1;}
         if(sql=="text"){return 0x23;}if(sql=="ntext"){return 0x63;}if(sql=="image"){return 0x22;}
         if(sql is "hierarchyid" or "geometry" or "geography"){return 0xF0;}
@@ -115,6 +120,7 @@ public sealed partial class TdsPacketWriter{
     }
     private static void WriteValue(Stream stream,ColumnMetadata column,object? value,List<(int Start,int Length)> chunks){
         var type=WireType(column);
+        if(type==0x62){WriteVariant(stream,value);return;}
         if(value is null||value is DBNull){
             if(!column.IsNullable){throw new InvalidOperationException($"NULL supplied for non-nullable column '{column.Name}'.");}
             if(type is 0x22 or 0x23 or 0x63){stream.WriteByte(0);return;}
