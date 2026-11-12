@@ -12,7 +12,7 @@
 - lambda の capture 変数は Enumerator の constructor 引数/field として渡す。
 - loop invariant な部分式は hoist して Enumerator construction 時に 1 回評価する。
 - `.Anchor` は評価回数・評価順を変え得る hoist/merge/reorder の禁止境界にする。
-- 匿名型は内部表現で `record struct` 化し、名指し不能な匿名型と GC allocation を避ける。
+- 匿名型の中間値は、型や文字列表現の観測がない範囲で `ValueTuple` に置き換える。
 - 既存実装から自然に拡張できる Pipeline/Fragment 仕様候補を整理する。
 
 ## 根拠
@@ -27,7 +27,7 @@
 | carrier 逆解析（共有） | `Seamless.FLinq.Generator/SourceGenerator/CarrierAnalysis.cs` |
 | 射影融合 | `Seamless.FLinq.Generator/SourceGenerator/ProjectionMergeVisitor.cs` |
 | Anchor 判定 | `Seamless.FLinq.Generator/SourceGenerator/AnchorAnalysis.cs` |
-| 匿名型 record struct registry | `Seamless.FLinq.Generator/SourceGenerator/AnonymousStructRecord.cs` |
+| 匿名型からValueTupleへの対応表 | `Seamless.FLinq.Generator/SourceGenerator/FLinqIncrementalGenerator.AnonymousStructRecord.cs` |
 | Pipeline IR / stage fusion | `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Pipeline.cs` |
 | lambda inline / capture / hoist | `Seamless.FLinq.Generator/SourceGenerator/Linq/Fragments/Func.cs`, `Fragment.cs`, `LambdaFunc.cs` |
 | buffer 特性 | `FLinq.md` |
@@ -438,7 +438,7 @@ flowchart TD
     C --> D[Qualify hoisted locals with this.]
     D --> E[Emit expression in loop]
     B -->|statement required| F[Emit statement inline helper path]
-    B -->|anonymous/type-name impossible| G[Delegate or record struct escape path]
+    B -->|anonymous carrier| G[ValueTuple mapping or original path]
 ```
 
 ### 引数置換
@@ -640,51 +640,15 @@ Anchor は「最適化全停止」ではなく「評価回数・評価順を変�
 
 現在の `PipelineStage.ContainsAnchor` は、stage の `FuncFragment`、second/third func、value text から Anchor を集約する。
 
-## 匿名型を record struct に変換する仕様
+## 匿名型の中間値をValueTupleへ変換する仕様
 
-匿名型は生成コード上で型名を書けない。また通常の匿名型は class であり、中間 carrier として大量に作ると GC pressure が増える。内部最適化では匿名型 shape を `record struct` holder へ登録し、名指し可能な value type に変換する。
+生成器は、FLinqの内部に閉じた匿名型を、対応する要素型のValueTupleへ変換する。`new { O=o.Id, I=i.Id }` は `(O:o.Id,I:i.Id)` になる。メンバー参照をシンボルから解決し、1項目や予約名との衝突では位置に対応するItemプロパティ名で展開する。0項目と1項目にはValueTuple.Createを使う。
 
-```mermaid
-flowchart TD
-    A[new { O=o.Id, I=i.Id }] --> B[AnonymousStructRecordRegistry]
-    B --> C{Shape key: O|I exists?}
-    C -->|no| D[Define record struct __Anon2_O_I<T0,T1>]
-    C -->|yes| E[Reuse existing shape]
-    D --> F[Render factory __New2_O_I(o.Id,i.Id)]
-    E --> F
-    F --> G[Pipeline/Fragment uses named struct type]
-    G --> H{Escapes as anonymous result?}
-    H -->|yes| I[Reconstruct new { O=rec.O, I=rec.I }]
-    H -->|no| J[Keep record struct internally]
-```
+複合Joinキーで入れ子を含む幅の広い形は、生成した比較器のハッシュ処理に全項目を含める。利用者の匿名型を外部で観測する処理や独自比較器には元の型を使う。公開される結果が匿名型の場合は、必要な出口で元の匿名型を構築する。変換を見送る場合は理由を生成コメントとFLINQ001へ出す。
 
-### 生成 holder の概念形
+DBの同期終端では、生成した局所ValueTupleを`in`で渡してコピーを減らす。安定した領域と評価順が確認できる範囲に参照を留める。所有結果へ格納するときは値をコピーする。
 
-```csharp
-internal static class __TsavoriteAnonRecords_FileToken {
-    internal readonly record struct __Anon2_O_I<T0,T1>(T0 O,T1 I);
-
-    internal static __Anon2_O_I<T0,T1> __New2_O_I<T0,T1>(T0 O,T1 I) =>
-        new __Anon2_O_I<T0,T1>(O,I);
-}
-```
-
-### GC 防止の扱い
-
-内部 chain の carrier として record struct を使う場合、匿名 class instance の allocation を避けられる。最終的に public API として匿名型を返す必要がある出口では、元の匿名型へ再構成する。
-
-```mermaid
-sequenceDiagram
-    participant Join
-    participant Record as record struct carrier
-    participant Where
-    participant SelectExit as anonymous exit
-
-    Join->>Record: create value carrier
-    Record->>Where: pass by value
-    Where->>Record: inspect fields
-    Record->>SelectExit: reconstruct only if anonymous escapes
-```
+以前の実装は、同じ中間値を専用のreadonly record structとfactoryへ展開していた。移行とGroupJoinの契約は[中間ValueTuple化とGroupJoin](20261104-flinq-intermediate-tuples-groupjoin.md)を参照する。
 
 ## Pipeline stage 正規化仕様
 
@@ -1092,7 +1056,7 @@ foreach(var o in outer) {
 }
 ```
 
-追加候補では、`Join` の result carrier が匿名型である場合は record struct carrier に置換しつつ、`GroupBy` の `keySelector` / `elementSelector` が片側のみへ分解できるなら carrier 生成前へ部分的に押し込む余地がある。ただし v1 では `Join` 自体は lookup を持つ Fragment boundary として残し、`GroupBy` は buffering stage として扱う。
+追加候補では、`Join` の匿名型からValueTupleへの変換に加え、`GroupBy` の `keySelector` / `elementSelector` が片側のみへ分解できるなら、中間値の生成前へ部分的に押し込む余地がある。現在の `Join` は lookup を持つ Fragment boundary として残し、`GroupBy` は buffering stage として扱う。
 
 </details>
 
@@ -1425,7 +1389,7 @@ flowchart TD
 - capture 変数が Enumerator constructor/field 経由で参照される。
 - hoist 値が Enumerator construction 時に 1 回評価される。
 - `.Anchor` 付き hoist 対象は hoist されない。
-- 匿名型中間 carrier が record struct registry へ置換される。
+- 安全に内部へ閉じる匿名型中間値が `ValueTuple` に置換される。
 - Anchor を含む stage を跨いで merge/reorder/remove しない。
 - buffering stage は stage 特性どおりの buffer を 1 系統だけ持ち、不要な二重 list を作らない。
 - Fragment-backed boundary では Pipeline を flush し、責務を Fragment 側へ渡す。

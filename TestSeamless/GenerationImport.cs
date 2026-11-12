@@ -22,7 +22,7 @@ public static class GenerationImport{
         foreach(var item in generation.Databases){
             var settings=new SqlConnectionStringBuilder(connectionString){InitialCatalog=item.Name};var storage=Path.Combine(directory,"data",item.StorageKey);if(Directory.Exists(storage)){throw new IOException("An imported database directory already exists.");}
             var sizing=await SqlServerImportSizer.MeasureTablesAsync(settings.ConnectionString,item.Tables);var options=DatabaseContainerOptions.OnStorage(storage) with{TableStorage=sizing.ToDictionary(p=>p.Key,p=>new DatabaseTableStorageOptions{IndexSize=p.Value.IndexSize,PageSize=p.Value.PageSize,SegmentSize=p.Value.SegmentSize,MemorySize=p.Value.MemorySize},StringComparer.Ordinal)};
-            if(item.RuntimeSqlEnabled){options=options with{Transactions=DatabaseTransactionMode.SharedV2};}
+            if(item.RuntimeSqlEnabled){options=options ;}
             var type=assembly.GetType(item.TypeFullName,true)!;ComparisonHost.ValidateRuntimeProfile(item,type,options);using var source=new SqlServerImportSource(settings.ConnectionString,item.Tables,true);
             using(var database=(DatabaseContainer)Activator.CreateInstance(type,[options])!){Invoke(type,database,"EnsureTablesCreated",[]);Invoke(type,database,"ImportTables",[item.RuntimeSqlEnabled?new BatchedImportSource(database,source):source]);}
             await File.WriteAllTextAsync(Path.Combine(storage,"storage-options.json"),JsonSerializer.Serialize(options));

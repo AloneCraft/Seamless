@@ -1,0 +1,5 @@
+[data-db-order-enabled="true"] [data-db-order-handle]{cursor:grab}
+.DB表示移動中{user-select:none}
+.DB表示移動中,.DB表示移動中 *{cursor:grabbing!important}
+.DB表示移動中.DB表示移動禁止,.DB表示移動中.DB表示移動禁止 *{cursor:not-allowed!important}
+.DB表示移動元{opacity:.55}

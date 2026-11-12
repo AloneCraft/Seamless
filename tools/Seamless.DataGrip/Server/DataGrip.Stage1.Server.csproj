@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>14</LangVersion>
+    <AssemblyName>DataGrip.Stage1.Server</AssemblyName>
+    <RootNamespace>DataGrip.Stage1.Server</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../Seamless.Database.Gateway/Seamless.Database.Gateway.csproj" />
+    <ProjectReference Include="../../../Seamless.Database.Generator/Seamless.Database.Generator.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

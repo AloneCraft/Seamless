@@ -48,14 +48,14 @@ public sealed class ParallelDictionary<TKey, TValue, TKeySerializer, TValueSeria
             TValue,//TOutput
             EqualityEmpty,//TContext
             Remove_TKey_TValue<TValue,TValueSerializer>//TFunctions
-        >(new());
+        >(new(this.SerializationBudget));
         this.SetValue_ClientSession=this.Store.NewSession<
             FixedSpanByteKey,//TKey
             TValue,//TInput
             bool,//TOutput
             EqualityEmpty,//TContext
             SetValue<TValue,TValueSerializer>//TFunctions
-        >(new());
+        >(new(this.SerializationBudget));
     }
     public TValue this[TKey key] {
         get {
@@ -66,8 +66,9 @@ public sealed class ParallelDictionary<TKey, TValue, TKeySerializer, TValueSeria
         }
         set {
             this.VerifyThreadAffinity("Item");
-            var KeyBytes = TKeySerializer.Serialize(ref key);
-            var ValueLength = TValueSerializer.Serialize(ref value).Length;
+            using var serializedKey=this.keySerializer.Serialize(ref key);
+            var KeyBytes=serializedKey.Bytes;
+            var ValueLength = this.valueSerializer.GetEncodedLength(ref value);
             if(this.WouldOverflowMutable(KeyBytes.Length,ValueLength))
                 throw this.ThrowLogFull();
             // Upsert は挿入か上書きかを返さないので、RMW で書いて新規かどうかを受け取る。同じキーを複数のスレッドが同時に足しても、新規になるのは 1 つだけ。
@@ -90,7 +91,8 @@ public sealed class ParallelDictionary<TKey, TValue, TKeySerializer, TValueSeria
     public unsafe bool Remove(TKey key,[MaybeNullWhen(false)] out TValue value) {
         this.VerifyThreadAffinity();
         var Session = this.Remove_TKey_TValue_ClientSession;
-        var KeyBytes = TKeySerializer.Serialize(ref key);
+        using var serializedKey=this.keySerializer.Serialize(ref key);
+        var KeyBytes=serializedKey.Bytes;
         var Input = default(EqualityEmpty);
         TValue Output = default!;
         Status Status;
@@ -111,7 +113,7 @@ public sealed class ParallelDictionary<TKey, TValue, TKeySerializer, TValueSeria
     public long ScanCount() => this.ScanCountCore();
     public Enumerator<KeyValueIterator,KeyValuePair<TKey,TValue>> GetEnumerator() {
         this.VerifyThreadAffinity();
-        return new(this.ReadSession,new(),this.Store.Log.TailAddress,this);
+        return new(this.ReadSession,new(this.SerializationBudget),this.Store.Log.TailAddress,this);
     }
     IEnumerator<KeyValuePair<TKey,TValue>> IEnumerable<KeyValuePair<TKey,TValue>>.GetEnumerator() => this.GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();

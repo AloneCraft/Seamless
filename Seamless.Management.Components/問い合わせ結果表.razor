@@ -1,0 +1,18 @@
+@using System.Text.Json
+<div class="結果表スクロール"><table class="設計表" aria-label="@表示文言.取得("問い合わせ結果")">
+    <thead><tr>@if(this.単一列か){<th>@表示文言.取得("値")</th>}else{@foreach(var 列 in this.結果.Columns){<th>@(列.DisplayName??列.Name)</th>}}</tr></thead>
+    <tbody>@foreach(var 行 in this.結果.Rows){<tr>@if(this.単一列か){<td>@セル文字列(行)</td>}else{@foreach(var 列 in this.結果.Columns){<td>@セル値(行,列.Name)</td>}}</tr>}</tbody>
+</table></div>
+<p class="小案内">@表示文言.取得("{0} 行を表示",this.結果.Rows.Length)@if(this.結果.HasMore){<span>@表示文言.取得("· 表示上限に達しました")</span>}</p>
+@code{
+    [Parameter,EditorRequired]public ObjectExecutionResult 結果{get;set;}=default!;
+    private bool 単一列か=>this.結果.Columns.Length==0||this.結果.Rows.Any(行=>行.ValueKind is not(JsonValueKind.Object or JsonValueKind.Null));
+    private static string セル値(JsonElement 行,string 名前){
+        if(行.ValueKind==JsonValueKind.Object&&行.TryGetProperty(名前,out var 値)){return セル文字列(値);}
+        return "";
+    }
+    private static string セル文字列(JsonElement 値){
+        if(値.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined){return "";}
+        return 値.ToString();
+    }
+}

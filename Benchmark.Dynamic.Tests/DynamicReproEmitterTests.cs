@@ -52,6 +52,391 @@ public sealed class DynamicReproEmitterTests{
         Assert.True(outcome.Unloaded);
     }
 
+    [Fact,Trait("Category","Integration")]
+    public void Reverse_ToIntPairが展開できてSystemLinqと一致する(){
+        var seed=Seed256.Parse("0xFA01");
+        var target=SourceTarget.SystemArray;
+        var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target);
+        var terminals=ExhaustiveQueryEnumerator.GetTerminalOperatorIds(target);
+        var spec=ExhaustiveQueryEnumerator.Enumerate(1,intermediates,terminals)
+            .First(static spec=>spec.Operators.SequenceEqual([QueryOperatorIds.Reverse])&&spec.Terminal==QueryOperatorIds.ToIntPair);
+        Assert.True(ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var document));
+
+        var outcome=CompileAndRun(document!,seed,(int)spec.Ordinal);
+
+        Assert.True(outcome.Compiled,outcome.Diagnostics);
+        Assert.Null(outcome.Failure);
+        Assert.True(outcome.Unloaded);
+    }
+
+    [Fact,Trait("Category","ExhaustiveScan")]
+    public async Task ペア全組み合わせでExpansionIncompleteが発生しないことを検証する(){
+        var seed=Seed256.Parse("0xFA01");
+        var target=SourceTarget.SystemArray;
+        var runner=new DynamicWorkerExecutionRunner();
+        var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target);
+        var terminals=ExhaustiveQueryEnumerator.GetTerminalOperatorIds(target);
+        var specs=ExhaustiveQueryEnumerator.Enumerate(1,intermediates,terminals).ToArray();
+        var failures=new List<string>();
+
+        foreach(var spec in specs){
+            if(!ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var query)||query is null){
+                continue;
+            }
+            var request=new WorkerRunRequest(
+                $"pair-{spec.Ordinal}",
+                seed,
+                1,
+                query.RequestedOperatorCount,
+                query.MaximumDepth,
+                InputElementCount,
+                OperatorSetMode.Maximum,
+                [target],
+                new WorkerMeasurementProfile("PairScan",0,1,0,1),
+                RandomQueryGenerator.GeneratorVersion,
+                QueryCapabilityProfile.CurrentProfileVersion.ToString(),
+                BuiltInOperatorCatalog.OperatorSetVersion.ToString());
+            var result=await runner.ExecuteAsync(request,query,(int)spec.Ordinal,target,0,CancellationToken.None);
+            if(result.Status==WorkerExecutionStatus.ExpansionIncomplete){
+                failures.Add($"#{spec.Ordinal} {string.Join(" > ",spec.Operators)} > {spec.Terminal}: {Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(query!)}");
+            }
+        }
+
+        Assert.True(failures.Count==0,$"ExpansionIncomplete occurred in {failures.Count} queries:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
+    }
+
+    [Fact,Trait("Category","TripleScan")]
+    public async Task 三段全組み合わせ網羅スキャン前半でExpansionIncompleteを検出する(){
+        var seed=Seed256.Parse("0xFA01");
+        var target=SourceTarget.SystemArray;
+        var runner=new DynamicWorkerExecutionRunner();
+        var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target);
+        var terminals=ExhaustiveQueryEnumerator.GetTerminalOperatorIds(target);
+        // 三段全組み合わせの先頭300件をスキャン
+        var specs=ExhaustiveQueryEnumerator.Enumerate(2,intermediates,terminals).Take(300).ToArray();
+        var failures=new List<string>();
+
+        foreach(var spec in specs){
+            if(!ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var query)||query is null){
+                continue;
+            }
+            var request=new WorkerRunRequest(
+                $"triple-{spec.Ordinal}",
+                seed,
+                1,
+                query.RequestedOperatorCount,
+                query.MaximumDepth,
+                InputElementCount,
+                OperatorSetMode.Maximum,
+                [target],
+                new WorkerMeasurementProfile("TripleScan",0,1,0,1),
+                RandomQueryGenerator.GeneratorVersion,
+                QueryCapabilityProfile.CurrentProfileVersion.ToString(),
+                BuiltInOperatorCatalog.OperatorSetVersion.ToString());
+            var result=await runner.ExecuteAsync(request,query,(int)spec.Ordinal,target,0,CancellationToken.None);
+            if(result.Status==WorkerExecutionStatus.ExpansionIncomplete){
+                failures.Add($"#{spec.Ordinal} {string.Join(" > ",spec.Operators)} > {spec.Terminal}: {Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(query)}");
+            }
+        }
+
+        Assert.True(failures.Count==0,$"ExpansionIncomplete occurred in {failures.Count} queries:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
+    }
+
+    [Fact,Trait("Category","RandomScan")]
+    public async Task ランダム探索複合クエリでExpansionIncompleteが発生しないことを検証する(){
+        var seed=Seed256.Parse("0x10182026");
+        var runner=new DynamicWorkerExecutionRunner();
+        var targets=Enum.GetValues<SourceTarget>();
+        var failures=new List<string>();
+        var generator=new RandomQueryGenerator();
+
+        for(var i=0;i<500;i++){
+            var target=targets[i%targets.Length];
+            var opCount=3+(i%7); // 3〜9段
+            var doc=generator.Generate(new RandomQueryGenerationOptions{
+                MasterSeed=seed,
+                QueryIndex=i,
+                QueryId=$"random-scan-{i:D4}",
+                SourceTarget=target,
+                OperatorCount=opCount,
+                MaximumDepth=opCount,
+                InputElementCount=InputElementCount,
+                EnableBinaryOperators=true,
+                EnableNestedOperators=true,
+            });
+            var request=new WorkerRunRequest(
+                $"random-scan-{i:D4}",
+                seed,
+                1,
+                doc.RequestedOperatorCount,
+                doc.MaximumDepth,
+                InputElementCount,
+                OperatorSetMode.Maximum,
+                [target],
+                new WorkerMeasurementProfile("RandomScan",0,1,0,1),
+                RandomQueryGenerator.GeneratorVersion,
+                QueryCapabilityProfile.CurrentProfileVersion.ToString(),
+                BuiltInOperatorCatalog.OperatorSetVersion.ToString());
+            var result=await runner.ExecuteAsync(request,doc,i,target,0,CancellationToken.None);
+            if(result.Status==WorkerExecutionStatus.ExpansionIncomplete){
+                failures.Add($"#{i} [{target}] {Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(doc)}: {result.DiagnosticsJson}");
+            }
+        }
+
+        Assert.True(failures.Count==0,$"ExpansionIncomplete occurred in {failures.Count} queries:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
+    }
+
+    [Fact,Trait("Category","TripleScan")]
+    public async Task 三段全組み合わせ網羅スキャン後半でExpansionIncompleteを検出する(){
+        var seed=Seed256.Parse("0xFA01");
+        var target=SourceTarget.SystemArray;
+        var runner=new DynamicWorkerExecutionRunner();
+        var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target);
+        var terminals=ExhaustiveQueryEnumerator.GetTerminalOperatorIds(target);
+        // 三段全組み合わせの300〜600件目をスキャン
+        var specs=ExhaustiveQueryEnumerator.Enumerate(2,intermediates,terminals).Skip(300).Take(300).ToArray();
+        var failures=new List<string>();
+
+        foreach(var spec in specs){
+            if(!ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var query)||query is null){
+                continue;
+            }
+            var request=new WorkerRunRequest(
+                $"triple-{spec.Ordinal}",
+                seed,
+                1,
+                query.RequestedOperatorCount,
+                query.MaximumDepth,
+                InputElementCount,
+                OperatorSetMode.Maximum,
+                [target],
+                new WorkerMeasurementProfile("TripleScan",0,1,0,1),
+                RandomQueryGenerator.GeneratorVersion,
+                QueryCapabilityProfile.CurrentProfileVersion.ToString(),
+                BuiltInOperatorCatalog.OperatorSetVersion.ToString());
+            var result=await runner.ExecuteAsync(request,query,(int)spec.Ordinal,target,0,CancellationToken.None);
+            if(result.Status==WorkerExecutionStatus.ExpansionIncomplete){
+                failures.Add($"#{spec.Ordinal} {string.Join(" > ",spec.Operators)} > {spec.Terminal}: {Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(query)}");
+            }
+        }
+
+        Assert.True(failures.Count==0,$"ExpansionIncomplete occurred in {failures.Count} queries:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
+    }
+
+    [Fact,Trait("Category","MultiSourceScan")]
+    public async Task MultiSourcePairScan_Detects_ExpansionIncomplete(){
+        var seed=Seed256.Parse("0xFA01");
+        var runner=new DynamicWorkerExecutionRunner();
+        var testTargets=new[]{
+            SourceTarget.SystemList,
+            SourceTarget.SystemRange,
+            SourceTarget.SeamlessTsavorite,
+        };
+        var failures=new List<string>();
+
+        foreach(var target in testTargets){
+            var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target);
+            var terminals=ExhaustiveQueryEnumerator.GetTerminalOperatorIds(target);
+            var specs=ExhaustiveQueryEnumerator.Enumerate(1,intermediates,terminals).ToArray();
+
+            foreach(var spec in specs){
+                if(!ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var query)||query is null){
+                    continue;
+                }
+                var request=new WorkerRunRequest(
+                    $"multi-{target}-{spec.Ordinal}",
+                    seed,
+                    1,
+                    query.RequestedOperatorCount,
+                    query.MaximumDepth,
+                    InputElementCount,
+                    OperatorSetMode.Maximum,
+                    [target],
+                    new WorkerMeasurementProfile("MultiSourceScan",0,1,0,1),
+                    RandomQueryGenerator.GeneratorVersion,
+                    QueryCapabilityProfile.CurrentProfileVersion.ToString(),
+                    BuiltInOperatorCatalog.OperatorSetVersion.ToString());
+                var result=await runner.ExecuteAsync(request,query,(int)spec.Ordinal,target,0,CancellationToken.None);
+                if(result.Status==WorkerExecutionStatus.ExpansionIncomplete){
+                    failures.Add($"[{target}] #{spec.Ordinal} {string.Join(" > ",spec.Operators)} > {spec.Terminal}: {Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(query)}");
+                }
+            }
+        }
+
+        Assert.True(failures.Count==0,$"ExpansionIncomplete occurred in {failures.Count} queries:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
+    }
+
+    [Fact,Trait("Category","TripleScan_Part3")]
+    public async Task TripleScan_600_to_1200(){
+        var seed=Seed256.Parse("0xFA01");
+        var target=SourceTarget.SystemArray;
+        var runner=new DynamicWorkerExecutionRunner();
+        var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target);
+        var terminals=ExhaustiveQueryEnumerator.GetTerminalOperatorIds(target);
+        // 三段全組み合わせの600〜1200件目をスキャン
+        var specs=ExhaustiveQueryEnumerator.Enumerate(2,intermediates,terminals).Skip(600).Take(600).ToArray();
+        var failures=new List<string>();
+
+        foreach(var spec in specs){
+            if(!ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var query)||query is null){
+                continue;
+            }
+            var request=new WorkerRunRequest(
+                $"triple-{spec.Ordinal}",
+                seed,
+                1,
+                query.RequestedOperatorCount,
+                query.MaximumDepth,
+                InputElementCount,
+                OperatorSetMode.Maximum,
+                [target],
+                new WorkerMeasurementProfile("TripleScan",0,1,0,1),
+                RandomQueryGenerator.GeneratorVersion,
+                QueryCapabilityProfile.CurrentProfileVersion.ToString(),
+                BuiltInOperatorCatalog.OperatorSetVersion.ToString());
+            var result=await runner.ExecuteAsync(request,query,(int)spec.Ordinal,target,0,CancellationToken.None);
+            if(result.Status==WorkerExecutionStatus.ExpansionIncomplete){
+                failures.Add($"#{spec.Ordinal} {string.Join(" > ",spec.Operators)} > {spec.Terminal}: {Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(query)}");
+            }
+        }
+
+        Assert.True(failures.Count==0,$"ExpansionIncomplete occurred in {failures.Count} queries:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
+    }
+
+    [Fact,Trait("Category","MultiSourceTripleScan")]
+    public async Task MultiSourceTripleScan_Detects_ExpansionIncomplete(){
+        var seed=Seed256.Parse("0xFA01");
+        var runner=new DynamicWorkerExecutionRunner();
+        var testTargets=new[]{
+            SourceTarget.SystemList,
+            SourceTarget.SystemRange,
+            SourceTarget.SeamlessTsavorite,
+        };
+        var failures=new List<string>();
+
+        foreach(var target in testTargets){
+            var intermediates=ExhaustiveQueryEnumerator.GetIntermediateOperatorIds(target);
+            var terminals=ExhaustiveQueryEnumerator.GetTerminalOperatorIds(target);
+            // 各異種ソースの三段全組み合わせ先頭200件ずつ（計600件）をスキャン
+            var specs=ExhaustiveQueryEnumerator.Enumerate(2,intermediates,terminals).Take(200).ToArray();
+
+            foreach(var spec in specs){
+                if(!ExhaustiveQueryEnumerator.TryGenerate(spec,seed,target,InputElementCount,out var query)||query is null){
+                    continue;
+                }
+                var request=new WorkerRunRequest(
+                    $"multi-triple-{target}-{spec.Ordinal}",
+                    seed,
+                    1,
+                    query.RequestedOperatorCount,
+                    query.MaximumDepth,
+                    InputElementCount,
+                    OperatorSetMode.Maximum,
+                    [target],
+                    new WorkerMeasurementProfile("MultiSourceTripleScan",0,1,0,1),
+                    RandomQueryGenerator.GeneratorVersion,
+                    QueryCapabilityProfile.CurrentProfileVersion.ToString(),
+                    BuiltInOperatorCatalog.OperatorSetVersion.ToString());
+                var result=await runner.ExecuteAsync(request,query,(int)spec.Ordinal,target,0,CancellationToken.None);
+                if(result.Status==WorkerExecutionStatus.ExpansionIncomplete){
+                    failures.Add($"[{target}] #{spec.Ordinal} {string.Join(" > ",spec.Operators)} > {spec.Terminal}: {Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(query)}: {result.DiagnosticsJson}");
+                }
+            }
+        }
+
+        Assert.True(failures.Count==0,$"ExpansionIncomplete occurred in {failures.Count} queries:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
+    }
+
+    [Fact,Trait("Category","DeepRandomScan")]
+    public async Task DeepRandomScan_Depth_10_to_16_Detects_ExpansionIncomplete(){
+        var seed=Seed256.Parse("0x10182026");
+        var runner=new DynamicWorkerExecutionRunner();
+        var targets=Enum.GetValues<SourceTarget>();
+        var failures=new List<string>();
+        var generator=new RandomQueryGenerator();
+
+        // 深さ 10〜16 段の超深層クエリを全8ターゲットで100件検証
+        for(var i=0;i<100;i++){
+            var target=targets[i%targets.Length];
+            var opCount=10+(i%7); // 10〜16段
+            var doc=generator.Generate(new RandomQueryGenerationOptions{
+                MasterSeed=seed,
+                QueryIndex=i+1000,
+                QueryId=$"deep-scan-{i:D4}",
+                SourceTarget=target,
+                OperatorCount=opCount,
+                MaximumDepth=opCount,
+                InputElementCount=InputElementCount,
+                EnableBinaryOperators=true,
+                EnableNestedOperators=true,
+            });
+            var request=new WorkerRunRequest(
+                $"deep-scan-{i:D4}",
+                seed,
+                1,
+                doc.RequestedOperatorCount,
+                doc.MaximumDepth,
+                InputElementCount,
+                OperatorSetMode.Maximum,
+                [target],
+                new WorkerMeasurementProfile("DeepRandomScan",0,1,0,1),
+                RandomQueryGenerator.GeneratorVersion,
+                QueryCapabilityProfile.CurrentProfileVersion.ToString(),
+                BuiltInOperatorCatalog.OperatorSetVersion.ToString());
+            var result=await runner.ExecuteAsync(request,doc,i+1000,target,0,CancellationToken.None);
+            if(result.Status==WorkerExecutionStatus.ExpansionIncomplete){
+                failures.Add($"#{i} [{target}] {Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(doc)}: {result.DiagnosticsJson}");
+            }
+        }
+
+        Assert.True(failures.Count==0,$"ExpansionIncomplete occurred in {failures.Count} queries:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
+    }
+
+    [Fact,Trait("Category","ExtremeRandomScan")]
+    public async Task ExtremeRandomScan_Depth_17_to_25_Detects_ExpansionIncomplete(){
+        var seed=Seed256.Parse("0x10182026");
+        var runner=new DynamicWorkerExecutionRunner();
+        var targets=Enum.GetValues<SourceTarget>();
+        var failures=new List<string>();
+        var generator=new RandomQueryGenerator();
+
+        // 深さ 17〜25 段の極深層クエリを全8ターゲットで100件検証
+        for(var i=0;i<100;i++){
+            var target=targets[i%targets.Length];
+            var opCount=17+(i%9); // 17〜25段
+            var doc=generator.Generate(new RandomQueryGenerationOptions{
+                MasterSeed=seed,
+                QueryIndex=i+2000,
+                QueryId=$"extreme-scan-{i:D4}",
+                SourceTarget=target,
+                OperatorCount=opCount,
+                MaximumDepth=opCount,
+                InputElementCount=InputElementCount,
+                EnableBinaryOperators=true,
+                EnableNestedOperators=true,
+            });
+            var request=new WorkerRunRequest(
+                $"extreme-scan-{i:D4}",
+                seed,
+                1,
+                doc.RequestedOperatorCount,
+                doc.MaximumDepth,
+                InputElementCount,
+                OperatorSetMode.Maximum,
+                [target],
+                new WorkerMeasurementProfile("ExtremeRandomScan",0,1,0,1),
+                RandomQueryGenerator.GeneratorVersion,
+                QueryCapabilityProfile.CurrentProfileVersion.ToString(),
+                BuiltInOperatorCatalog.OperatorSetVersion.ToString());
+            var result=await runner.ExecuteAsync(request,doc,i+2000,target,0,CancellationToken.None);
+            if(result.Status==WorkerExecutionStatus.ExpansionIncomplete){
+                failures.Add($"#{i} [{target}] {Benchmark.Dynamic.Core.QueryExpressionFormatter.Format(doc)}: {result.DiagnosticsJson}");
+            }
+        }
+
+        Assert.True(failures.Count==0,$"ExpansionIncomplete occurred in {failures.Count} queries:{Environment.NewLine}{string.Join(Environment.NewLine,failures)}");
+    }
+
     private static ReproOutcome CompileAndRun(QueryIrDocument document,Seed256 baseSeed,int queryIndex){
         using var fixture=new SourceFixtureFactory().Create(
             document.SourceTarget,
@@ -93,4 +478,100 @@ public sealed class DynamicReproEmitterTests{
     }
 
     private sealed record ReproOutcome(bool Compiled,string Diagnostics,string? Failure,bool Unloaded);
+
+    [Fact,Trait("Category","DumpChain21")]
+    public void Dump_Chain21(){
+        var item = Benchmark.Dynamic.Core.FixedCaseCatalog.All.First(static x => x.ID == "chain-21");
+        var source = Benchmark.Dynamic.Core.FixedCaseCatalog.Emit(item, 15);
+        var compiler = new DynamicQueryCompiler();
+        var cr = compiler.Compile(new DynamicCompilationRequest(
+            "Benchmark.Dynamic.Generated." + Guid.NewGuid().ToString("N"),
+            "Benchmark.Dynamic.Generated.FixedQuery",
+            source,
+            "FixedQuery.cs"));
+        var dumpPath = @"C:\Users\kazuh\.gemini\antigravity\brain\8d6e01a6-59bd-4137-8302-b998808edf07\scratch\chain21_dump.txt";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("=== INPUT SOURCE ===");
+        sb.AppendLine(source);
+        sb.AppendLine("=== EXPANDED SOURCE ===");
+        sb.AppendLine(cr.ExpandedSource);
+        sb.AppendLine("=== DIAGNOSTICS ===");
+        foreach(var d in cr.Diagnostics) {
+            sb.AppendLine($"[{d.Stage}] {d.Severity} {d.ID}: {d.Message} @ {d.Location}");
+        }
+        System.IO.File.WriteAllText(dumpPath, sb.ToString());
+        Assert.True(cr.Success, string.Join("; ", cr.Diagnostics.Select(static d => d.Message)));
+    }
+
+    [Fact,Trait("Category","DumpChain20")]
+    public void Dump_Chain20(){
+        var item = Benchmark.Dynamic.Core.FixedCaseCatalog.All.First(static x => x.ID == "chain-20");
+        var source = Benchmark.Dynamic.Core.FixedCaseCatalog.Emit(item, 15);
+        var compiler = new DynamicQueryCompiler();
+        var cr = compiler.Compile(new DynamicCompilationRequest(
+            "Benchmark.Dynamic.Generated." + Guid.NewGuid().ToString("N"),
+            "Benchmark.Dynamic.Generated.FixedQuery",
+            source,
+            "FixedQuery.cs"));
+        var dumpPath = @"C:\Users\kazuh\.gemini\antigravity\brain\8d6e01a6-59bd-4137-8302-b998808edf07\scratch\chain20_dump.txt";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("=== INPUT SOURCE ===");
+        sb.AppendLine(source);
+        sb.AppendLine("=== EXPANDED SOURCE ===");
+        sb.AppendLine(cr.ExpandedSource);
+        sb.AppendLine("=== DIAGNOSTICS ===");
+        foreach(var d in cr.Diagnostics) {
+            sb.AppendLine($"[{d.Stage}] {d.Severity} {d.ID}: {d.Message} @ {d.Location}");
+        }
+        System.IO.File.WriteAllText(dumpPath, sb.ToString());
+        Assert.True(cr.Success, string.Join("; ", cr.Diagnostics.Select(static d => d.Message)));
+    }
+
+    [Fact,Trait("Category","DumpChain08")]
+    public void Dump_Chain08(){
+        var item = Benchmark.Dynamic.Core.FixedCaseCatalog.All.First(static x => x.ID == "chain-08");
+        var source = Benchmark.Dynamic.Core.FixedCaseCatalog.Emit(item, 15);
+        var compiler = new DynamicQueryCompiler();
+        var cr = compiler.Compile(new DynamicCompilationRequest(
+            "Benchmark.Dynamic.Generated." + Guid.NewGuid().ToString("N"),
+            "Benchmark.Dynamic.Generated.FixedQuery",
+            source,
+            "FixedQuery.cs"));
+        var dumpPath = @"C:\Users\kazuh\.gemini\antigravity\brain\8d6e01a6-59bd-4137-8302-b998808edf07\scratch\chain08_dump.txt";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("=== INPUT SOURCE ===");
+        sb.AppendLine(source);
+        sb.AppendLine("=== EXPANDED SOURCE ===");
+        sb.AppendLine(cr.ExpandedSource);
+        sb.AppendLine("=== DIAGNOSTICS ===");
+        foreach(var d in cr.Diagnostics) {
+            sb.AppendLine($"[{d.Stage}] {d.Severity} {d.ID}: {d.Message} @ {d.Location}");
+        }
+        System.IO.File.WriteAllText(dumpPath, sb.ToString());
+        Assert.True(cr.Success, string.Join("; ", cr.Diagnostics.Select(static d => d.Message)));
+    }
+
+    [Fact,Trait("Category","DumpGroupJoin")]
+    public void Dump_GroupJoin_Count_Dense(){
+        var item = Benchmark.Dynamic.Core.FixedCaseCatalog.All.First(static x => x.ID == "groupjoin-count-dense");
+        var source = Benchmark.Dynamic.Core.FixedCaseCatalog.Emit(item, 15);
+        var compiler = new DynamicQueryCompiler();
+        var cr = compiler.Compile(new DynamicCompilationRequest(
+            "Benchmark.Dynamic.Generated." + Guid.NewGuid().ToString("N"),
+            "Benchmark.Dynamic.Generated.FixedQuery",
+            source,
+            "FixedQuery.cs"));
+        var dumpPath = @"C:\Users\kazuh\.gemini\antigravity\brain\8d6e01a6-59bd-4137-8302-b998808edf07\scratch\groupjoin_dump.txt";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("=== INPUT SOURCE ===");
+        sb.AppendLine(source);
+        sb.AppendLine("=== EXPANDED SOURCE ===");
+        sb.AppendLine(cr.ExpandedSource);
+        sb.AppendLine("=== DIAGNOSTICS ===");
+        foreach(var d in cr.Diagnostics) {
+            sb.AppendLine($"[{d.Stage}] {d.Severity} {d.ID}: {d.Message} @ {d.Location}");
+        }
+        System.IO.File.WriteAllText(dumpPath, sb.ToString());
+        Assert.True(cr.Success, string.Join("; ", cr.Diagnostics.Select(static d => d.Message)));
+    }
 }

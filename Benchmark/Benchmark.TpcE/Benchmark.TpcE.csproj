@@ -18,6 +18,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Benchmark.TpcE.Core\Benchmark.TpcE.Core.csproj" />
+    <ProjectReference Include="..\Benchmark.TpcE.Mvcc.Linq\Benchmark.TpcE.Mvcc.Linq.csproj" />
+    <ProjectReference Include="..\Benchmark.TpcE.Mvcc.FLinq\Benchmark.TpcE.Mvcc.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark.TpcE.Tsavorite.Linq\Benchmark.TpcE.Tsavorite.Linq.csproj" />
     <ProjectReference Include="..\Benchmark.TpcE.Tsavorite.FLinq\Benchmark.TpcE.Tsavorite.FLinq.csproj" />
     <ProjectReference Include="..\Benchmark.TpcE.Persisted.Linq\Benchmark.TpcE.Persisted.Linq.csproj" />

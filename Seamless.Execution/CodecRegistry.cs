@@ -5,28 +5,77 @@ using System.Security.Cryptography;
 using System.Text;
 namespace Seamless.Execution;
 public sealed class CodecRegistry{
+    /// <summary>登録契約を引き継ぎ、query固有型の解決cacheは子だけが所有する。</summary>
+    public CodecRegistry Fork()=>this.Fork(null,null);
+    public CodecRegistry Fork(ResourceBudget? budget,CancellationToken? cancellationToken){
+        lock(this.gate){
+            var child=new CodecRegistry();foreach(var pair in this.registered){child.registered.Add(pair.Key,pair.Value);}
+            if(this.graphBudget is not null){child.graphBudget=budget??this.graphBudget;child.graphCancellation=cancellationToken??this.graphCancellation;}
+            return child;
+        }
+    }
+    private readonly object gate=new();
     private readonly Dictionary<Type,RegisteredCodec> registered=[];
-    private readonly Dictionary<Type,object> codecs=[];
-    private readonly Dictionary<Type,MemberInfo[]> members=[];
+    private readonly global::System.Collections.Concurrent.ConcurrentDictionary<Type,object> codecs=new();
+    private readonly global::System.Collections.Concurrent.ConcurrentDictionary<Type,MemberInfo[]> members=new();
     private bool frozen;
+    private ResourceBudget? graphBudget;
+    private CancellationToken graphCancellation;
+    public bool UsesRecordGraphSerialization{get{lock(this.gate){return this.graphBudget is not null;}}}
+    internal bool UsesDefaultInt32Codec=>this.graphBudget is null&&!this.registered.ContainsKey(typeof(int));
+    public bool HasCustomCodecs{get{lock(this.gate){return this.graphBudget is not null||this.registered.Count!=0;}}}
+    /// <summary>最初の型解決前に、全データを同じ版付き参照形式へ固定する。</summary>
+    public void UseRecordGraphSerialization(ResourceBudget budget,CancellationToken cancellationToken=default){
+        ArgumentNullException.ThrowIfNull(budget);
+        lock(this.gate){
+            if(this.frozen||this.registered.Count!=0||this.graphBudget is not null){throw new InvalidOperationException("Select the record graph profile before resolving or registering codecs.");}
+            this.graphBudget=budget;this.graphCancellation=cancellationToken;
+        }
+    }
+    /// <summary>既定codecがscalarと値型のfieldだけを読むことを確認する。参照graph/独自policyは逐次へ戻す。</summary>
+    public bool CanUseParallelCodec<T>(){
+        lock(this.gate){if(this.graphBudget is not null||this.registered.Count!=0){return false;}}
+        return this.ParallelValue(typeof(T),new HashSet<Type>());
+    }
+    private bool ParallelValue(Type type,HashSet<Type> visiting){
+        var nullable=Nullable.GetUnderlyingType(type);if(nullable is not null){return this.ParallelValue(nullable,visiting);}
+        if(type.IsEnum||IsScalar(type)){return true;}
+        if(!type.IsValueType||IsFixedText(type)||!visiting.Add(type)){return false;}
+        try{
+            foreach(var member in this.GetMembers(type)){
+                if(member is not FieldInfo field||!this.ParallelValue(field.FieldType,visiting)){return false;}
+            }
+            return true;
+        }finally{visiting.Remove(type);}
+    }
     public void Register<T,TStrategy>(TStrategy strategy) where TStrategy:struct,Codecs.IStrategy<TStrategy,T>{this.Register<T>(new Codecs.Adapter<T,TStrategy>(strategy));}
     public void Register<T>(global::Seamless.Execution.Codecs.IAdapter<T> codec){
         ArgumentNullException.ThrowIfNull(codec);
-        if(this.frozen){throw new InvalidOperationException("Codecs cannot change after a scope has resolved its first codec.");}
         ArgumentException.ThrowIfNullOrWhiteSpace(codec.FormatId);
-        this.registered[typeof(T)]=new RegisteredCodec<T>(codec);
+        lock(this.gate){if(this.frozen||this.graphBudget is not null){throw new InvalidOperationException("Codecs cannot change after selecting a fixed profile or resolving the first codec.");}this.registered[typeof(T)]=new RegisteredCodec<T>(codec);}
     }
     public global::Seamless.Execution.Codecs.IAdapter<T> Get<T>(){
         if(this.codecs.TryGetValue(typeof(T),out var cached)){return(global::Seamless.Execution.Codecs.IAdapter<T>)cached;}
-        var schema=this.Schema(typeof(T),new HashSet<Type>());
-        this.frozen=true;
-        var codec=new CanonicalCodec<T>(this,SHA256.HashData(Encoding.UTF8.GetBytes("seamless-binary-v1|"+schema)));
-        this.codecs.Add(typeof(T),codec);
-        return codec;
+        lock(this.gate){
+            if(this.codecs.TryGetValue(typeof(T),out cached)){return(global::Seamless.Execution.Codecs.IAdapter<T>)cached;}
+            if(this.graphBudget is not null){
+                var graph=new Codecs.RecordGraphCodec<T>(this.graphBudget,this.graphCancellation);_=graph.FormatId;
+                this.frozen=true;this.codecs[typeof(T)]=graph;return graph;
+            }
+            var schema=this.Schema(typeof(T),new HashSet<Type>());this.frozen=true;
+            var codec=new CanonicalCodec<T>(this,SHA256.HashData(Encoding.UTF8.GetBytes("seamless-binary-v1|"+schema)));
+            this.codecs[typeof(T)]=codec;return codec;
+        }
     }
     public bool CanEncode<T>(){
         try{this.Get<T>();return true;}
         catch(CodecUnavailableException){return false;}
+        catch(NotSupportedException)when(this.UsesRecordGraphSerialization){return false;}
+    }
+    /// <summary>保存形式と同じ型固定の等価性。旧形式は従来の既定比較を使う。</summary>
+    public IEqualityComparer<T> GetEqualityComparer<T>(){
+        lock(this.gate){if(this.graphBudget is null){return EqualityComparer<T>.Default;}}
+        return(Codecs.RecordGraphCodec<T>)this.Get<T>();
     }
     private string Schema(Type type,HashSet<Type> visiting){
         if(this.registered.TryGetValue(type,out var custom)){return type.FullName+"|custom:"+custom.FormatId;}
@@ -35,6 +84,7 @@ public sealed class CodecRegistry{
             var nullable=Nullable.GetUnderlyingType(type);
             if(nullable is not null){return "nullable:"+this.Schema(nullable,visiting);}
             if(type.IsEnum){return type.FullName+"|enum:"+this.Schema(Enum.GetUnderlyingType(type),visiting);}
+            if(IsFixedText(type)){return type.FullName+"|fixed-text-utf16-v1";}
             if(IsScalar(type)){return type.FullName!;}
             if(type.IsArray&&type.GetArrayRank()==1){return "array:"+this.Schema(type.GetElementType()!,visiting);}
             var anonymous=IsAnonymous(type);
@@ -50,12 +100,13 @@ public sealed class CodecRegistry{
         }finally{visiting.Remove(type);}
     }
     private static bool IsScalar(Type type)=>type==typeof(string)||type==typeof(Guid)||type==typeof(decimal)||Type.GetTypeCode(type) is TypeCode.Boolean or TypeCode.Byte or TypeCode.SByte or TypeCode.Int16 or TypeCode.UInt16 or TypeCode.Int32 or TypeCode.UInt32 or TypeCode.Int64 or TypeCode.UInt64 or TypeCode.Char or TypeCode.Single or TypeCode.Double or TypeCode.DateTime;
+    private static bool IsFixedText(Type type)=>type.IsGenericType&&type.GetGenericTypeDefinition()==typeof(global::Seamless.Collections.FixedText<>);
     private static bool IsAnonymous(Type type)=>type.IsDefined(typeof(CompilerGeneratedAttribute),false)&&type.Name.Contains("AnonymousType",StringComparison.Ordinal);
     private MemberInfo[] GetMembers(Type type){
         if(this.members.TryGetValue(type,out var result)){return result;}
         if(IsAnonymous(type)){result=type.GetProperties(BindingFlags.Public|BindingFlags.Instance).OrderBy(static p=>p.MetadataToken).Cast<MemberInfo>().ToArray();}
         else{result=type.GetFields(BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic).OrderBy(static p=>p.Name,StringComparer.Ordinal).Cast<MemberInfo>().ToArray();}
-        this.members.Add(type,result);
+        this.members[type]=result;
         return result;
     }
     private static Type MemberType(MemberInfo member){
@@ -73,6 +124,11 @@ public sealed class CodecRegistry{
         var nullable=Nullable.GetUnderlyingType(type);
         if(nullable is not null){this.Write(nullable,value,ref writer);return;}
         if(type.IsEnum){this.Write(Enum.GetUnderlyingType(type),Convert.ChangeType(value,Enum.GetUnderlyingType(type),System.Globalization.CultureInfo.InvariantCulture),ref writer);return;}
+        if(IsFixedText(type)){
+            var text=(global::Seamless.Collections.IFixedText)value;writer.Int32(text.Length);
+            for(var index=0;index<text.Length;index++){writer.Int16(unchecked((short)text[index]));}
+            return;
+        }
         if(type==typeof(Guid)){
             Span<byte> bytes=stackalloc byte[16];((Guid)value).TryWriteBytes(bytes);writer.Bytes(bytes);return;
         }
@@ -141,6 +197,12 @@ public sealed class CodecRegistry{
             var array=Array.CreateInstance(elementType,count);
             for(var i=0;i<count;i++){array.SetValue(this.Read(elementType,ref reader),i);}
             return array;
+        }
+        if(IsFixedText(type)){
+            var count=reader.Int32();var capacity=(int)type.GetProperty("Capacity",BindingFlags.Public|BindingFlags.Static)!.GetValue(null)!;
+            if(count<0||count>capacity||count>reader.Remaining/2){throw new InvalidDataException("Invalid fixed text length.");}
+            var characters=new char[count];for(var index=0;index<count;index++){characters[index]=unchecked((char)reader.Int16());}
+            return Activator.CreateInstance(type,[new string(characters)]);
         }
         var members=this.GetMembers(type);
         if(IsAnonymous(type)){

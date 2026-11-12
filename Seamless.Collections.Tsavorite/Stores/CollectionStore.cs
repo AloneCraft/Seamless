@@ -2,6 +2,25 @@
 namespace Seamless.Collections.Tsavorite;
 
 public abstract class CollectionStore {
+    private protected static readonly global::System.Diagnostics.ActivitySource CheckpointActivities=new("Seamless.Checkpoint.Tsavorite");
+    internal static void FlushFiles(IReadOnlyCollection<string> targets,Action<string> flush) {
+        var distinct=new global::System.Collections.Generic.HashSet<string>(targets,StringComparer.Ordinal);
+        if(distinct.Count<=1) {
+            foreach(var path in distinct) {
+                flush(path);
+            }
+            return;
+        }
+
+        // 同一ファイルの重複を避け、開始した処理を合流してから確定処理へ戻る。
+        var files=new List<string>(distinct);
+        try {
+            global::System.Threading.Tasks.Parallel.ForEach(files,new global::System.Threading.Tasks.ParallelOptions{MaxDegreeOfParallelism=2},flush);
+        } catch(AggregateException error) when(error.InnerExceptions.Count==1) {
+            global::System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw(error.InnerExceptions[0]);
+        }
+    }
+
     /// <summary>CollectionStoreの境界条件を検証する。</summary>
     [Conditional("DEBUG")]
     private protected static void AssertIsPowerOfTwo(long value,string paramName) {
@@ -68,17 +87,8 @@ public abstract partial class CollectionStore<TKey, TValue> {
 
     /// <summary>共通ストアから決めた配置で作る。デバイスと予算の予約はこのデータ本体が所有する。</summary>
     private protected CollectionStore(TsavoriteLayout layout) :
-        this(layout.IndexSize,layout.PageSize,layout.SegmentSize,layout.LogMemorySize,layout.MutableFraction,layout.LogDevice,layout.ObjectLogDevice,layout.CheckpointDirectory,ResolveOverflowKind(layout),NativeMemoryLimit:ResolveNativeMemoryLimit(layout)) {
+        this(layout.IndexSize,layout.PageSize,layout.SegmentSize,layout.LogMemorySize,layout.MutableFraction,layout.LogDevice,layout.ObjectLogDevice,layout.CheckpointDirectory,ResolveOverflowKind(layout),NativeMemoryLimit:layout.NativeMemoryLimit) {
         this.AttachLayout(layout);
-    }
-
-    // Nativeのリング上限と初期に常駐させる量を分離する。ページ本体は遅延確保され、初期は2ページ。
-    private static long ResolveNativeMemoryLimit(TsavoriteLayout layout){
-        if(layout.Kind!=global::Seamless.Execution.StoreKind.Memory||layout.Growth.Descriptor.ID=="fixed"){return layout.LogMemorySize;}
-        var limit=layout.Owner.Limits.MemoryBytes-layout.Owner.Budget.MemoryBytes+layout.Memory.Bytes-layout.IndexSize;
-        long capacity=layout.PageSize*2;
-        while(capacity<=limit/2){capacity*=2;}
-        return Math.Max(layout.LogMemorySize,capacity);
     }
 
     private static OverflowMutableStrategyKind ResolveOverflowKind(TsavoriteLayout layout) {
@@ -128,6 +138,7 @@ public abstract partial class CollectionStore<
     public readonly TsavoriteKV<TStoreFunctions,TAllocator> Store;
     // 共通ストアから作ったときだけ設定される。旧 API で作ったときは null で、予算の確認はしない。
     private TsavoriteLayout? layout;
+    internal global::Seamless.Execution.ResourceBudget? SerializationBudget=>this.layout?.Owner.Budget;
     // 予算を予約済みのログ末尾アドレス。旧 API では long.MaxValue にして確認を 1 回の比較で済ませる。
     private long reservedTailAddress = long.MaxValue;
     // ディスク上のログの先頭(ここより前のセグメントは物理的に消えている)。切り捨ては保存が確定するまで保留するので、論理的な先頭(Log.BeginAddress)より小さい。
@@ -227,19 +238,21 @@ public abstract partial class CollectionStore<
             StoreFunctions,
             allocatorFactory
         );
+        this.overflowReservationBytes=TsavoriteMemoryAccounting.OverflowBytes(0,IndexSize);
     }
 
     /// <summary>
     /// チェックポイントの書き込みをバッファ付きにする。Tsavorite 既定のバッファなし書き込みは長さがセクター
     /// (通常 512 バイト)の倍数でないと Win32 エラー 87 で失敗するが、索引は 64 バイトから始まり、主索引の書き込み長は
     /// 索引と同じ長さになる。2.0.1-beta.5 ではこの失敗が黙って捨てられ主索引が保存されていなかった(2.1.8 は例外にする)。
+    /// メタデータもRandomAccessを明示し、Windows Native device独自の短いパス長制限を保存・復旧の両方から除く。
     /// </summary>
     private static DeviceLogCommitCheckpointManager? CreateCheckpointManager(string? checkpointDir) {
         if(string.IsNullOrEmpty(checkpointDir)) {
             return null;
         }
         return new DeviceLogCommitCheckpointManager(
-            new LocalStorageNamedDeviceFactoryCreator(disableFileBuffering: false),
+            new LocalStorageNamedDeviceFactoryCreator(disableFileBuffering: false,deviceType:DeviceType.RandomAccess),
             new DefaultCheckpointNamingScheme(new DirectoryInfo(checkpointDir).FullName),
             removeOutdated: false
         );
@@ -362,6 +375,7 @@ public abstract partial class CollectionStore<
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal void EnsureCapacity(long tailAddress,int keyLength,int valueLength) {
+        this.EnsureOverflowCapacity();
         var requiredTailAddress = tailAddress+MemoryOverflowMutableStrategy.GetRequiredBytes(keyLength,valueLength);
         if(this.layout is not null&&this.layout.Kind==global::Seamless.Execution.StoreKind.Memory){
             var required=checked((long)Math.Ceiling((requiredTailAddress-this.Store.Log.BeginAddress)/this.MutableFraction));
@@ -380,7 +394,9 @@ public abstract partial class CollectionStore<
     private void GrowLogCore(long required,int payloadBytes,bool throwIfRejected=false){
         var layout=this.layout;
         if(layout is null||required<=this.LogMemorySize){return;}
-        var limit=Math.Min(this.Settings.LogMemorySize,layout.Owner.Limits.MemoryBytes-layout.Owner.Budget.MemoryBytes+this.LogMemorySize);
+        var fixedBytes=TsavoriteMemoryAccounting.Required(this.indexBytes,this.overflowReservationBytes,this.Settings.LogMemorySize,this.Settings.PageSize,this.Settings.LogDevice.SectorSize,0);
+        var available=Math.Max(0,layout.Owner.Budget.AvailableMemoryBytes+layout.Memory.Bytes-fixedBytes);
+        var limit=Math.Min(this.Settings.LogMemorySize,available/TsavoriteMemoryAccounting.PageBytes(this.Settings.PageSize,this.Settings.LogDevice.SectorSize)*this.Settings.PageSize);
         // ログ拡張は事前確保したNativeリングの論理上限だけを変え、storeGate内で予算確保後に公開する。
         var context=new global::Seamless.Execution.Growth.Context(global::Seamless.Execution.Growth.Resource.LogMemory,this.LogMemorySize,required,limit,
             ExpectedCount:layout.ExpectedCount,BytesPerItem:payloadBytes+MemoryOverflowMutableStrategy.RecordOverheadBytes,
@@ -390,7 +406,7 @@ public abstract partial class CollectionStore<
         var started=global::System.Diagnostics.Stopwatch.GetTimestamp();
         if(decision.Status==global::Seamless.Execution.Growth.Status.Grow){
             // 資源予約を済ませてから論理容量を公開する。Nativeのページは書き込みに伴い遅延確保される。
-            layout.Memory.Resize(checked(layout.Memory.Bytes+decision.TargetBytes-this.LogMemorySize));
+            layout.Memory.Resize(Math.Max(layout.Memory.Bytes,this.RequiredNativeMemory(decision.TargetBytes)));
             this.LogMemorySize=decision.TargetBytes;
         }
         layout.Owner.RecordGrowthDecision(layout.Name+".log",context,decision,global::System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalNanoseconds);
@@ -426,12 +442,7 @@ public abstract partial class CollectionStore<
         var pageSize = this.Settings.PageSize;
         var target = checked((requiredTailAddress+pageSize-1)/pageSize*pageSize);
         var logBytes = target-this.Store.Log.BeginAddress;
-        long memoryBytes;
-        if(layout.Disk is null) {
-            memoryBytes=checked(this.indexBytes+logBytes);
-        } else {
-            memoryBytes=checked(this.indexBytes+Math.Min(logBytes,this.LogMemorySize));
-        }
+        var memoryBytes=this.RequiredNativeMemory(layout.Disk is null?logBytes:Math.Min(logBytes,this.LogMemorySize));
         var previousMemoryBytes = layout.Memory.Bytes;
         layout.Memory.Resize(Math.Max(previousMemoryBytes,memoryBytes));
         if(layout.Disk is not null) {
@@ -471,8 +482,8 @@ public abstract partial class CollectionStore<
 
     private void ApplyIndexGrowth(TsavoriteLayout layout,long requiredBytes,long expectedCount){
         var budget=layout.Owner.Budget;
-        // Nativeは新旧の索引を同時に保持してから切り替える。最終段のピークは新容量の1.5倍。
-        var available=checked(this.indexBytes+Math.Max(0,budget.MemoryLimitBytes-budget.MemoryBytes));
+        // 新旧の索引だけでなく、溢れpoolも切替えまで同時に保持する。
+        var available=checked(this.indexBytes+Math.Max(0,budget.AvailableMemoryBytes-this.overflowReservationBytes));
         var limit=Math.Max(this.indexBytes,available/3*2);
         var context=new global::Seamless.Execution.Growth.Context(
             global::Seamless.Execution.Growth.Resource.Index,this.indexBytes,requiredBytes,limit,
@@ -498,25 +509,34 @@ public abstract partial class CollectionStore<
 
     /// <summary>索引を倍にする。拡張分のメモリを予算から先に予約し、予約できなければ拡張せずに false。関所の中で、他の操作が無いときに呼ぶ。</summary>
     private bool TryDoubleIndex(TsavoriteLayout layout) {
+        if(this.failedGrowthOverlap is not null){throw new InvalidOperationException("The native index growth failed; dispose the store before reusing its resources.");}
         var grownBytes = checked(this.indexBytes*2);
         var previousMemoryBytes = layout.Memory.Bytes;
+        var overflowBound=checked(this.Store.OverflowBucketCount*2+16);
+        var nextOverflow=TsavoriteMemoryAccounting.OverflowBytes(overflowBound,grownBytes);
         global::Seamless.Execution.ResourceReservation? overlap=null;
         try {
-            overlap=layout.Owner.Budget.ReserveMemory(this.indexBytes);
-            layout.Memory.Resize(checked(previousMemoryBytes+grownBytes-this.indexBytes));
+            overlap=layout.Owner.Budget.ReserveMemory(checked(TsavoriteMemoryAccounting.IndexBytes(this.indexBytes,this.Settings.LogDevice.SectorSize)+this.overflowReservationBytes));
+            var logBytes=this.Store.Log.TailAddress-this.Store.Log.BeginAddress;
+            layout.Memory.Resize(Math.Max(previousMemoryBytes,this.RequiredNativeMemory(logBytes,grownBytes,nextOverflow)));
         } catch(global::Seamless.Execution.ResourceLimitException) {
             overlap?.Dispose();
             return false;
         }
+        var completed=false;
         try{
-            if(!this.Store.GrowIndexAsync().GetAwaiter().GetResult()) {
+            var grown=this.Store.GrowIndexAsync().GetAwaiter().GetResult();completed=true;
+            if(!grown) {
                 layout.Memory.Resize(previousMemoryBytes);
                 return false;
             }
             this.indexBytes=grownBytes;
+            this.overflowReservationBytes=nextOverflow;
+            this.overflowBucketLimit=TsavoriteMemoryAccounting.OverflowBucketLimit(overflowBound);
             return true;
         }finally{
-            overlap.Dispose();
+            // 例外時は新旧のnative参照が残る可能性がある。所有Storeの終了確認まで返さない。
+            if(completed){overlap.Dispose();}else{this.failedGrowthOverlap=overlap;}
         }
     }
 
@@ -604,7 +624,7 @@ public abstract partial class CollectionStore<
         }
     }
 
-    /// <summary>全削除などでログを捨てたあとに呼ぶ。予約を索引分だけに戻す。</summary>
+    /// <summary>全削除などでログを捨てたあとに呼ぶ。残る索引・pool・ページの予約は維持する。</summary>
     internal void ResetCapacity() {
         var layout = this.layout;
         if(layout is null) {
@@ -612,7 +632,7 @@ public abstract partial class CollectionStore<
         }
         this.storeGate.Wait();
         try {
-            layout.Memory.Resize(this.indexBytes);
+            layout.Memory.Resize(this.RequiredNativeMemory(0));
             if(layout.Disk is not null){
                 // 古い世代のファイルは、新しい保存が確定するまで残る。その分を予約に残す。
                 this.retiredDiskBytes+=layout.Disk.Bytes;
@@ -716,6 +736,8 @@ public abstract partial class CollectionStore<
     internal int AccessorCount => Volatile.Read(ref this.accessorCount);
 
     string global::Seamless.Execution.IStoreComponent.Name => this.layout?.Name??string.Empty;
+    protected virtual long? RecordCommitVersion=>null;
+    protected virtual void RestoreRecordCommitVersion(long? version){}
 
     string global::Seamless.Execution.IStoreComponent.Save() {
         this.AssertCheckpointDir();
@@ -739,7 +761,9 @@ public abstract partial class CollectionStore<
         // 保存が戻った時点で復元できるよう、ログを書き出す。ただし末尾(セクターの途中)まで書くと、次の書き出しが末尾を含むセクターを頭から書き直し、
         // その間に更新・削除で無効化された古いレコードが書き込まれて、この保存の復元で見えなくなる。セクター境界までに限れば、末尾を含む
         // セクターはスナップショット(保存時点の不変のコピー)に残る。
-        this.FlushLogToSectorBoundary();
+        using(CheckpointActivities.StartActivity("Flush log to sector boundary")) {
+            this.FlushLogToSectorBoundary();
+        }
         // 件数は、操作用オブジェクトが無い(=保存の間に書き込みが無い)ときだけ記録する。あれば開き直したあとに数え直す。
         // 書き込みと件数の増減の間に保存が入ると、保存した中身と件数がずれるため。関所の中なので新しい操作用オブジェクトは作られない。
         long? count = null;
@@ -749,7 +773,7 @@ public abstract partial class CollectionStore<
         // この保存が必要とするログの先頭と、前の保存を外す必要があるか。関所の中で、チェックポイントを取った直後なので、先頭はチェックポイントのものと同じ。
         var generation = this.layout?.DeferredLogDevice?.Generation??0;
         this.pendingCommit=new(this.Store.Log.BeginAddress,this.olderSavesInvalid,this.invalidationSerial,generation);
-        return new TsavoriteSavedState(token,this.Store.IndexSize*64,count,generation).Serialize();
+        return new TsavoriteSavedState(token,this.Store.IndexSize*64,count,generation,this.layout?.RecordFormat,this.RecordCommitVersion).Serialize();
     }
 
     bool global::Seamless.Execution.IStoreComponent.InvalidatesOlderSaves => this.pendingCommit is { InvalidatesOlder: true };
@@ -800,6 +824,7 @@ public abstract partial class CollectionStore<
     // 全削除でログのファイルを別の世代へ切り替えたあと、保存せずに全削除より前の保存へは戻せない(前の世代のデバイスの状態を安全に戻せない)。
     // 何も変えずに例外にする。ストアを開き直せば、前の保存へ戻れる。
     private void ThrowIfOtherGeneration(TsavoriteSavedState saved) {
+        if(saved.RecordFormat!=this.layout?.RecordFormat){throw new InvalidDataException("The saved record format differs from the current store profile.");}
         var truncation = this.layout?.DeferredLogDevice;
         if(truncation is not null&&truncation.Generation!=saved.Generation) {
             throw new InvalidOperationException("The checkpoint was saved before Clear() switched the log files and cannot be loaded in this session. Save first, or reopen the store to return to it.");
@@ -833,9 +858,10 @@ public abstract partial class CollectionStore<
         this.storeGate.Wait();
         try {
             this.LoadCoreAsync(saved.Token,default).GetAwaiter().GetResult();
+            this.RestoreRecordCommitVersion(saved.CommittedVersion);
             if(this.layout is not null) {
                 this.indexBytes=this.Store.IndexSize*64;
-                this.layout.Memory.Resize(this.indexBytes);
+                this.layout.Memory.Resize(this.RequiredNativeMemory(0));
             }
             this.reservedTailAddress=0;
             var requiredTailAddress = this.Store.Log.TailAddress+MemoryOverflowMutableStrategy.GetRequiredBytes(0,0);
@@ -882,8 +908,14 @@ public abstract partial class CollectionStore<
             if(writeRecoveryIndexMetadata) {
                 recoveryEntryCount=this.GetRecoveryEntryCount();
             }
-            var (success,token)=await this.Store.TakeFullCheckpointAsync(CheckpointType,ct);
-            await this.Store.CompleteCheckpointAsync(ct);
+            bool success;
+            Guid token;
+            using(CheckpointActivities.StartActivity("Take Tsavorite full checkpoint")) {
+                (success,token)=await this.Store.TakeFullCheckpointAsync(CheckpointType,ct);
+            }
+            using(CheckpointActivities.StartActivity("Complete Tsavorite checkpoint")) {
+                await this.Store.CompleteCheckpointAsync(ct);
+            }
             if(success) {
                 this.CheckpointFailed=false;
                 if(writeRecoveryIndexMetadata) {
@@ -1025,9 +1057,7 @@ public abstract partial class CollectionStore<
         lock(this.unflushedTokens) {
             tokens=[..this.unflushedTokens];
         }
-        foreach(var path in this.GetFlushTargets(tokens)) {
-            FlushFile(path);
-        }
+        FlushFiles(this.GetFlushTargets(tokens),FlushFile);
         lock(this.unflushedTokens) {
             this.unflushedTokens.ExceptWith(tokens);
         }
@@ -1079,9 +1109,13 @@ public abstract partial class CollectionStore<
     }
 
     private static void FlushFile(string path) {
+        using var file=CheckpointActivities.StartActivity("Write durable file");
         try {
             // デバイスが開いているのと同じファイルなので、読み書きと削除の共有を許して開く(一時ファイルは閉じると削除されるので削除も許す)。
+            using var open=CheckpointActivities.StartActivity("Open durable file");
             using var handle = File.OpenHandle(path,FileMode.Open,FileAccess.Write,FileShare.ReadWrite|FileShare.Delete);
+            open?.Stop();
+            using var flush=CheckpointActivities.StartActivity("Sync durable file");
             RandomAccess.FlushToDisk(handle);
         } catch(FileNotFoundException) {
         } catch(DirectoryNotFoundException) {
@@ -1113,8 +1147,12 @@ public abstract partial class CollectionStore<
         this.AssertCheckpointDir();
         if(this.parallelRegion is not null)
             throw new InvalidOperationException("Dispose the parallel region and the collections created from it before loading a checkpoint.");
+        // Recoverは既存allocatorを保持したまま新しい溢れpoolと索引を構築する。
+        // 交換中の固定配列を先に予約し、Recover完了までは返さない。
+        using var overlap=this.layout?.Owner.Budget.ReserveMemory(checked(this.overflowReservationBytes+TsavoriteMemoryAccounting.IndexBytes(this.indexBytes,this.Settings.LogDevice.SectorSize)));
         this.retiredDiskBytes=0;
         await this.RecoverWithSizeTrackerAsync(token,ct);
+        this.EnsureOverflowCapacityCore();
         this.ThrowIfRecoveredTailCollidesWithHead();
         this.CheckpointFailed=false;
         // ログを保存した状態へ戻したので、保留していた切り捨ては、戻した先が必要とするファイルを消してしまう。捨てる。
@@ -1222,6 +1260,7 @@ public abstract partial class CollectionStore<
             throw new InvalidOperationException("Dispose the collections created by Create() before compacting.");
         if(this.parallelRegion is not null)
             throw new InvalidOperationException("Dispose the parallel region and the collections created from it before compacting.");
+        using var pageRelease=this.TrackNativePageRelease();
         var log = this.Store.Log;
         var beginBefore = log.BeginAddress;
         var tailBefore = log.TailAddress;
@@ -1287,12 +1326,7 @@ public abstract partial class CollectionStore<
         var requiredTail = log.TailAddress+MemoryOverflowMutableStrategy.GetRequiredBytes(0,0);
         var target = checked((requiredTail+pageSize-1)/pageSize*pageSize);
         var logBytes = target-log.BeginAddress;
-        long memoryBytes;
-        if(layout.Disk is null) {
-            memoryBytes=checked(this.indexBytes+logBytes);
-        } else {
-            memoryBytes=checked(this.indexBytes+Math.Min(logBytes,this.LogMemorySize));
-        }
+        var memoryBytes=this.RequiredNativeMemory(layout.Disk is null?logBytes:Math.Min(logBytes,this.LogMemorySize));
         layout.Memory.Resize(memoryBytes);
         layout.Disk?.Resize(Math.Max(0,this.retiredDiskBytes+target-this.diskBaseAddress));
         this.reservedTailAddress=target;
@@ -1312,6 +1346,7 @@ public abstract partial class CollectionStore<
     }
 
     private void CompactWithLookupCore() {
+        using var pageRelease=this.TrackNativePageRelease();
         var store = this.Store;
         var beginAddress = store.Log.BeginAddress;
         var segmentSize = this.Settings.SegmentSize;
@@ -1349,6 +1384,7 @@ public abstract partial class CollectionStore<
             }
         }
         this.Store?.Dispose();
+        this.failedGrowthOverlap?.Dispose();
         this.checkpointManager?.Dispose();
         this.Settings?.Dispose();
         if(disposing&&this.layout is not null) {

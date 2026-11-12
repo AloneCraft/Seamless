@@ -6,7 +6,7 @@ namespace TestSeamless.Tests;
 
 public sealed class GenerationImportBatch{
     private sealed class Fixture:RuntimeSqlDatabaseContainer{
-        public Fixture():base(DatabaseContainerOptions.InMemory with{Transactions=DatabaseTransactionMode.SharedV2},"batch-test"){this.EnsureTransactionSchema();}
+        public Fixture():base(DatabaseContainerOptions.InMemory ,"batch-test"){this.EnsureTransactionSchema();}
         public Table<int,int> Items=>this.Table<int,int>(static value=>value,"items");
         protected override void EnsureTransactionSchema(){_=this.Items;}
     }

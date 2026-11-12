@@ -1,0 +1,52 @@
+@implements IDisposable
+@inject IManagementOperations 管理操作
+
+<section class="文書領域 監査画面" aria-label="@表示文言.取得("監査")">
+    <div class="種類ラベル">SYSTEM</div>
+    <追加メニューホスト ID="audit" 名前="@表示文言.取得("監査")" 登録="追加コマンド" 実行時="@(ID=>追加コマンド.実行Async(ID,"audit"))" 追加可能か="@(!読込中か&&追加コマンド.検索("audit","").Any())"><h1>@表示文言.取得("監査")</h1></追加メニューホスト>
+    <p class="文書説明">@(表示文言.取得("操作の記録、参照の集計、WALからの転記状況を確認します。"))</p>
+    <div class="監査表示切替" role="group" aria-label="@表示文言.取得("監査の表示")">
+        @foreach(var 種類 in Enum.GetValues<監査種別>()){
+            <button class="テキストボタン" aria-pressed="@((表示種類==種類).ToString().ToLowerInvariant())" @onclick="()=>表示変更時Async(種類)"><操作アイコン 種類="監査"/>@表示文言.取得(種類.ToString())</button>
+        }
+    </div>
+    @if(表示種類!=監査種別.転記状態){
+        <form class="監査検索" @onsubmit="検索Async" @onsubmit:preventDefault>
+            <label class="監査検索語">@(表示文言.取得("検索"))<input aria-label="@表示文言.取得("監査の検索語")" placeholder="@表示文言.取得("メソッド・対象・結果コード")" @bind="検索語" @bind:event="oninput" disabled="@読込中か"/></label>
+            @if(条件表示か("database")){<label>@(表示文言.取得("データベース"))<input aria-label="@表示文言.取得("監査のデータベース")" placeholder="@表示文言.取得("すべて")" @bind="DB条件" @bind:event="oninput" disabled="@読込中か"/></label>}
+            @if(条件表示か("user")){<label>@(表示文言.取得("利用者"))<input aria-label="@表示文言.取得("監査の利用者")" placeholder="@表示文言.取得("すべて")" @bind="利用者条件" @bind:event="oninput" disabled="@読込中か"/></label>}
+            @if(条件表示か("period")){<label>@(表示文言.取得("開始日時 (UTC)"))<input type="datetime-local" step="1" aria-label="@表示文言.取得("監査の開始日時 UTC")" @bind="開始日時" disabled="@読込中か"/></label>}
+            @if(条件表示か("period")){<label>@(表示文言.取得("終了日時 (UTC)"))<input type="datetime-local" step="1" aria-label="@表示文言.取得("監査の終了日時 UTC")" @bind="終了日時" disabled="@読込中か"/></label>}
+            @if(条件表示か("action")){<label>@(表示文言.取得("操作"))<select aria-label="@表示文言.取得("監査の操作")" @bind="選択操作" disabled="@読込中か"><option value="">@(表示文言.取得("すべて"))</option>@foreach(var 操作 in Enum.GetValues<AuditAction>()){<option value="@操作">@操作名(操作)</option>}</select></label>}
+            @if(条件表示か("outcome")){<label>@(表示文言.取得("結果"))<select aria-label="@表示文言.取得("監査の結果")" @bind="選択結果" disabled="@読込中か"><option value="">@(表示文言.取得("すべて"))</option>@foreach(var 結果 in Enum.GetValues<AuditOutcome>()){<option value="@結果">@結果名(結果)</option>}</select></label>}
+            <button class="主要ボタン" type="submit" disabled="@読込中か"><操作アイコン 種類="検索"/>@(表示文言.取得("検索"))</button>
+        </form>
+    }else{
+        <button class="控えめボタン" disabled="@読込中か" @onclick="検索Async"><操作アイコン 種類="状態を更新"/>@(表示文言.取得("状態を更新"))</button>
+    }
+    @if(案内.Length>0){<div class="状態通知" role="status" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>}
+    @if(読込中か){<p role="status">@(表示文言.取得("読み込み中…"))</p>}
+    @if(表示種類==監査種別.イベント){
+        <div class="グリッド枠"><table class="データ表 監査表"><caption>@表示文言.取得("操作イベント · {0} 件",イベント一覧.Length)</caption><thead><tr><th>@(表示文言.取得("日時 (UTC)"))</th><th>@(表示文言.取得("DB・利用者"))</th><th>@(表示文言.取得("操作"))</th><th>@(表示文言.取得("結果"))</th><th>@(表示文言.取得("対象と詳細"))</th></tr></thead><tbody>
+            @foreach(var 記録 in イベント一覧){
+                <tr @key="記録.EventId"><td><time>@時刻(記録.CompletedAt)</time></td><td><strong>@記録.Database</strong><small>@記録.SubjectId</small></td><td>@操作名(記録.Action)</td><td><span class="監査結果" data-結果="@記録.Outcome">@結果名(記録.Outcome)</span><small>@記録.ResultCode</small></td>
+                    <td><span>@(記録.ObjectId??"—")</span><details><summary>@(表示文言.取得("詳細"))</summary><dl><dt>@表示文言.取得("イベントID")</dt><dd>@記録.EventId</dd><dt>@表示文言.取得("操作ID")</dt><dd>@記録.OperationId</dd><dt>@表示文言.取得("取引ID")</dt><dd>@記録.TransactionId</dd><dt>@表示文言.取得("開始 (UTC)")</dt><dd>@時刻(記録.StartedAt)</dd><dt>@表示文言.取得("コード版")</dt><dd>@記録.CodeVersion</dd><dt>@表示文言.取得("権限版")</dt><dd>@記録.PolicyVersion</dd><dt>@表示文言.取得("メソッド")</dt><dd>@記録.Namespace @記録.TypeName @記録.MethodName @記録.MethodSignature</dd></dl>@if(記録.Message is{} 説明){<p>@説明</p>}@if(記録.QueryTemplate is{} 問い合わせ){<pre>@問い合わせ</pre>}</details></td>
+                </tr>
+            }
+        </tbody></table></div>
+    }else if(表示種類==監査種別.参照集計){
+        @if(参照状態 is{} 状態){
+            <div class="監査状態枠"><div><small>@(表示文言.取得("記録"))</small><strong>@表示文言.取得(状態.Enabled?"有効":"無効")</strong></div><div><small>@(表示文言.取得("受付 / 保存"))</small><strong>@状態.AcceptedCount / @状態.SavedCount</strong></div><div><small>@(表示文言.取得("未保存 / 不明"))</small><strong>@状態.PendingKeys / @状態.UnconfirmedCount</strong></div><div><small>@(表示文言.取得("欠落 / 保存失敗"))</small><strong>@状態.DroppedCount / @状態.SaveFailures</strong></div><div><small>@(表示文言.取得("最終保存 (UTC)"))</small><strong>@時刻(状態.LastSavedAt)</strong></div>@if(状態.ErrorCode is{} エラー){<p>@エラー</p>}</div>
+        }
+        <div class="グリッド枠"><table class="データ表 監査表"><caption>@表示文言.取得("参照集計 · {0} 件",集計一覧.Length)</caption><thead><tr><th>@(表示文言.取得("期間 (UTC)"))</th><th>@(表示文言.取得("DB・利用者"))</th><th>@(表示文言.取得("クエリ"))</th><th>@(表示文言.取得("件数"))</th><th>@(表示文言.取得("保存 (UTC)"))</th></tr></thead><tbody>
+            @foreach(var 集計 in 集計一覧){<tr @key="集計.Sequence"><td>@時刻(集計.Key.WindowStart)<small>〜 @時刻(集計.Key.WindowEnd)</small></td><td>@集計.Key.Database<small>@集計.Key.SubjectId</small></td><td>@集計.Key.QueryId @if(集計.Method is{} メソッド){<details><summary>@(メソッド.QualifiedName??表示文言.取得("メソッド詳細"))</summary><p>@メソッド.MethodSignature</p><pre>@メソッド.QueryTemplate</pre></details>}</td><td>@集計.Count</td><td>@時刻(集計.SavedAt)</td></tr>}
+        </tbody></table></div>
+    }else{
+        <p class="小案内">@表示文言.取得("転記ワーカー") · @表示文言.取得(転記中か?"稼働中":"停止中") @転記エラー</p>
+        <div class="グリッド枠"><table class="データ表 監査表"><caption>@表示文言.取得("WAL転記 · {0} 件",転記一覧.Length)</caption><thead><tr><th>@(表示文言.取得("データベース"))</th><th>@(表示文言.取得("定義・WAL"))</th><th>@(表示文言.取得("状態"))</th><th>@(表示文言.取得("永続 / 転記済LSN"))</th><th>@(表示文言.取得("最終更新 (UTC)"))</th></tr></thead><tbody>
+            @foreach(var 転記 in 転記一覧){<tr @key="転記.WalId"><td>@転記.Database</td><td>@転記.DefinitionId<small>@転記.WalId</small></td><td>@表示文言.取得(転記.Archived?"旧世代":"現行世代") · @表示文言.取得(転記.Drained?"転記済み":"残りあり")<small>@転記.ErrorCode</small></td><td>@転記.DurableLsn / @転記.AcknowledgedLsn</td><td>@時刻(転記.StateUpdatedUtc)</td></tr>}
+        </tbody></table></div>
+    }
+    @if(!読込中か&&表示件数==0&&!エラーか){<p class="グリッド案内">@(表示文言.取得("該当する記録はありません。"))</p>}
+    <div class="監査ページ操作"><span class="小案内">@表示文言.取得("1ページ最大100件") @if(走査件数>0){<span>· @表示文言.取得("{0} 件を検索",走査件数)</span>}</span>@if(続きありか){<button class="控えめボタン" disabled="@読込中か" @onclick="続き取得Async"><操作アイコン 種類="続きを表示"/>@(表示文言.取得("続きを表示"))</button>}</div>
+</section>

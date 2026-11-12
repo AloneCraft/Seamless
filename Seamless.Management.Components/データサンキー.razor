@@ -1,0 +1,119 @@
+@implements IAsyncDisposable
+@inject IJSRuntime スクリプト
+<link rel="stylesheet" href="./_content/Seamless.Management.Components/execution-plan.css"/>
+<link rel="stylesheet" href="./_content/Seamless.Management.Components/data-sankey.css"/>
+<section @ref="根" class="データサンキー 計画グラフ" aria-label="@表示文言.取得("データサンキー")">
+    <h3>@表示文言.取得("データサンキー")</h3>
+    <p class="小案内">@表示文言.取得("帯は入力と出力で独立した量を示します。未知の量は破線です。論理参照は実転送を意味しません。")</p>
+    @if(エラー is not null){<p role="alert">@エラー</p>}
+    else if(データ is not null){
+        <div class="計画グラフ操作">
+            <グラフ表示操作/>
+            <label>@表示文言.取得("量の単位")<select aria-label="@表示文言.取得("量の単位")" @bind="単位" @bind:after="再配置"><option value="Rows">@表示文言.取得("行数")</option><option value="Bytes">@表示文言.取得("バイト数")</option></select></label>
+            <label>@表示文言.取得("数量の出所")<select aria-label="@表示文言.取得("数量の出所")" @bind="表示量" @bind:after="再配置"><option value="Observed">@表示文言.取得("実測値")</option><option value="Estimated">@表示文言.取得("推定値")</option><option value="Compare">@表示文言.取得("推定と実測を比較")</option></select></label>
+            <label>@表示文言.取得("帯幅の尺度")<select aria-label="@表示文言.取得("帯幅の尺度")" @bind="尺度" @bind:after="再配置"><option value="Linear">@表示文言.取得("線形")</option><option value="Log1p">@表示文言.取得("対数 log(1+x)")</option></select></label>
+            <label>@表示文言.取得("ノードを検索")<input value="@検索" @oninput="検索入力時Async" aria-label="@表示文言.取得("ノードを検索")"/></label>
+            <button type="button" class="控えめボタン" @onclick="()=>全体か=!全体か">@倍率名</button>
+        </div>
+        @if(尺度=="Log1p"){<p role="status">@表示文言.取得("対数尺度を適用しています。数値の比と帯幅の比は一致しません。")</p>}
+        @if(配置.Any(item=>item.値.幅補正か)){<p role="status">@表示文言.取得("正の小さい量には最小表示幅を適用しています。正確な値はラベルで確認できます。")</p>}
+        @if(配置.Any(item=>item.値.循環か)){<p role="status">@表示文言.取得("循環する論理接続があります。配置順は実行順を表しません。")</p>}
+        <p class="小案内">@表示文言.取得("クエリ全体の観測件数は演算や帯へ割り振りません。未計測とゼロを区別します。")</p>
+        <div class="計画グラフ配置">
+            <div class="計画グラフ画面 サンキー画面">
+                @foreach(var 図 in 配置){
+                    <figure><figcaption>@表示文言.取得(出所名(図.出所))</figcaption>
+                        <svg class="サンキー図" viewBox="@図範囲(図.値)" style="@図寸法(図.値)" role="group" aria-label="@表示文言.取得("演算間の論理データフロー")">
+                            @foreach(var 接続 in 図.値.接続){
+                                var 未知か=接続.始量.DecimalValue is null||接続.終量.DecimalValue is null;
+                                var ゼロか=接続.始量.DecimalValue=="0"&&接続.終量.DecimalValue=="0";
+                                <path class="サンキー帯" data-未知="@未知か.ToString().ToLowerInvariant()" data-ゼロ="@ゼロか.ToString().ToLowerInvariant()" d="@帯経路(接続,未知か,ゼロか)"><title>@接続.元.Id · @接続.元.Relation · @数量名(接続.始量) → @数量名(接続.終量)</title></path>
+                            }
+                            @foreach(var 項目 in 図.値.ノード){
+                                <foreignObject x="@数(項目.X)" y="@数(項目.Y)" width="@サンキー配置.ノード幅" height="@数(項目.高さ)"><button xmlns="http://www.w3.org/1999/xhtml" type="button" class="サンキーノード" data-ノード-id="@項目.元.Id" title="@入出力名(項目.元.Id,図.出所)" data-選択中="@((選択ノード?.PlanKey==データ.Identity.PlanKey&&選択ノード?.NodeId==項目.元.Id).ToString().ToLowerInvariant())" data-検索一致="@一致か(項目.元).ToString().ToLowerInvariant()" @onclick="()=>選択変更時.InvokeAsync(new PlanNodeRef(データ.Identity.PlanKey,項目.元.Id))"><strong>@項目.元.Label</strong><small>@項目.元.Id</small><span>@入出力名(項目.元.Id,図.出所)</span></button></foreignObject>
+                            }
+                        </svg>
+                    </figure>
+                }
+            </div>
+            <aside class="計画グラフ詳細">
+                @if(選択 is{} ノード){
+                    <h4>@ノード.Label</h4><計画要素説明 ノード="ノード"/>
+                    @foreach(var ポート in ノードポート.GetValueOrDefault(ノード.Id,[])){
+                        <h5>@表示文言.取得(方向名(ポート.Direction)) @ポート.Index · @ポート.Role</h5>
+                        @foreach(var 出所 in 表示基準){var 数量=ポート量(ポート.Id,出所);<p>@表示文言.取得(出所名(出所)) · @数量名(数量)<br/><small>@数量.Scope · @数量.Evidence · @数量.ByteFormat</small></p>}
+                    }
+                }else{<p>@表示文言.取得("ノードを選択すると入力と出力を個別に確認できます。")</p>}
+            </aside>
+        </div>
+        @foreach(var 診断 in データ.Diagnostics){<p role="status">@診断</p>}
+    }
+</section>
+@code{
+    [Parameter,EditorRequired]public QueryVisualizationData? データ{get;set;}
+    [Parameter]public PlanNodeRef? 選択ノード{get;set;}
+    [Parameter]public EventCallback<PlanNodeRef?> 選択変更時{get;set;}
+    [Parameter]public string 検索{get;set;}="";
+    [Parameter]public EventCallback<string> 検索変更時{get;set;}
+    [Parameter]public PlanSnapshotSankeySettings? 初期保存設定{get;set;}
+    public PlanSnapshotSankeySettings 保存設定=>new(this.単位,this.表示量,this.尺度,this.全体か);
+    private PlanSnapshotSankeySettings? 適用済み設定;
+    private ElementReference 根;
+    private IJSObjectReference? モジュール,表示操作;
+    private readonly SemaphoreSlim 初期化=new(1,1);
+    private readonly CancellationTokenSource 寿命=new();
+    private bool 全体か=true,破棄済みか;
+    private string 単位="Rows",表示量="Observed",尺度="Linear";
+    private string? エラー;
+    private QueryVisualizationData? 前データ;
+    private Dictionary<string,DataFlowPort[]> ノードポート=new(StringComparer.Ordinal);
+    private Dictionary<string,PortQuantities> ポート数量=new(StringComparer.Ordinal);
+    private (string 出所,サンキー配置 値)[] 配置=[];
+    private IEnumerable<string> 表示基準{get{if(this.表示量=="Compare"){return ["Estimated","Observed"];}return [this.表示量];}}
+    private string 倍率名{get{if(this.全体か){return 表示文言.取得("100%表示");}return 表示文言.取得("全体表示");}}
+    private ExecutionPlanNode? 選択{get{if(this.選択ノード?.PlanKey!=this.データ?.Identity.PlanKey){return null;}return this.データ?.Plan.Nodes.FirstOrDefault(item=>item.Id==this.選択ノード?.NodeId);}}
+    protected override void OnParametersSet(){
+        if(this.初期保存設定 is{} 設定&&設定!=this.適用済み設定){this.適用済み設定=設定;this.単位=設定.Unit;this.表示量=設定.Basis;this.尺度=設定.Scale;this.全体か=設定.Fit;this.前データ=null;}
+        if(!ReferenceEquals(this.前データ,this.データ)){this.前データ=this.データ;this.再配置();}
+    }
+    private void 再配置(){
+        this.エラー=null;this.配置=[];this.ノードポート.Clear();this.ポート数量.Clear();
+        if(this.データ is null){return;}
+        try{
+            this.データ.Validate();
+            this.ノードポート=this.データ.Ports.GroupBy(port=>port.Node.NodeId).ToDictionary(group=>group.Key,group=>group.OrderBy(port=>port.Index).ToArray(),StringComparer.Ordinal);
+            this.ポート数量=this.データ.PortQuantities.ToDictionary(value=>value.PortId,StringComparer.Ordinal);
+            this.配置=this.表示基準.Select(basis=>(出所:basis,値:サンキー配置.作成(this.データ,this.単位,basis,this.尺度))).ToArray();
+        }
+        catch(InvalidDataException 例外){this.エラー=例外.Message;}
+    }
+    private Task 検索入力時Async(ChangeEventArgs 引数)=>this.検索変更時.InvokeAsync(引数.Value?.ToString()??"");
+    private bool 一致か(ExecutionPlanNode node)=>string.IsNullOrWhiteSpace(this.検索)||node.Id.Contains(this.検索,StringComparison.OrdinalIgnoreCase)||node.Label.Contains(this.検索,StringComparison.OrdinalIgnoreCase);
+    private FlowQuantity ポート量(string id,string basis){
+        if(!this.ポート数量.TryGetValue(id,out var value)){return FlowQuantity.Unknown();}
+        return サンキー配置.Quantity(value.EstimatedRows,value.ObservedRows,value.EstimatedBytes,value.ObservedBytes,this.単位,basis);
+    }
+    private string 入出力名(string node,string basis)=>string.Join(" · ",this.ノードポート.GetValueOrDefault(node,[]).Select(port=>表示文言.取得(方向名(port.Direction))+port.Index+" "+this.数量名(this.ポート量(port.Id,basis))));
+    private string 数量名(FlowQuantity value){if(value.DecimalValue is null){return 表示文言.取得("未計測");}var text=value.DecimalValue+" "+表示文言.取得(単位名(this.単位));if(!value.Complete){text+=" · "+表示文言.取得("部分観測");}return text;}
+    private static string 方向名(string value){if(value=="Input"){return "入力";}return "出力";}
+    private static string 出所名(string value){if(value=="Observed"){return "実測値";}return "推定値";}
+    private static string 単位名(string value){if(value=="Bytes"){return "バイト数";}return "行数";}
+    private static string 帯経路(サンキー配置接続 item,bool unknown,bool zero){if(unknown||zero){return item.中心線;}return item.帯;}
+    private static string 数(double value)=>value.ToString("0.###",System.Globalization.CultureInfo.InvariantCulture);
+    private static string 図範囲(サンキー配置 value)=>"0 0 "+数(value.幅)+" "+数(value.高さ);
+    private string 図寸法(サンキー配置 value){if(this.全体か){return "width:100%;height:100%";}return "width:"+数(value.幅)+"px;height:"+数(value.高さ)+"px";}
+    protected override async Task OnAfterRenderAsync(bool firstRender){
+        await this.初期化.WaitAsync();
+        try{
+            if(this.破棄済みか||this.表示操作 is not null||this.データ is null||this.エラー is not null){return;}
+            this.モジュール??=await this.スクリプト.InvokeAsync<IJSObjectReference>("import",this.寿命.Token,"./_content/Seamless.Management.Components/execution-plan.js");
+            this.表示操作=await this.モジュール.InvokeAsync<IJSObjectReference>("グラフ表示を初期化",this.寿命.Token,this.根);
+        }catch(JSDisconnectedException){}catch(OperationCanceledException)when(this.寿命.IsCancellationRequested){}
+        finally{this.初期化.Release();}
+    }
+    public async ValueTask DisposeAsync(){
+        if(this.破棄済みか){return;}this.破棄済みか=true;this.寿命.Cancel();await this.初期化.WaitAsync();
+        try{await スクリプト参照.解放Async(this.表示操作,this.モジュール);}
+        finally{this.初期化.Release();this.寿命.Dispose();}
+    }
+}

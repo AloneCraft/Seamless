@@ -1,5 +1,5 @@
 namespace Seamless.Collections;
 
-public interface IRecord<out TKey> {
-    TKey Key { get; }
+public interface IRecord<TKey>{
+    TKey Key{get;init;}
 }

@@ -7,6 +7,17 @@ namespace Seamless.Database.Gateway.Tests;
 
 public sealed class SsmsCatalogScalarFunctionTests{
     [Fact,Trait("Category","Unit")]
+    public void CollationPropertiesForSsmsNameComparison(){
+        var registry=new DatabaseRegistry();registry.Register("fixture",new MetadataAdapter(),defaultCollation:"SQL_Latin1_General_CP1_CI_AS");
+        var engine=new SqlExecutionEngine(registry);using var session=new SessionContext(1,"fixture");
+        var result=engine.Execute("SELECT COLLATIONPROPERTY((SELECT collation_name FROM sys.databases WHERE name=ISNULL(N'fixture',DB_NAME())), 'LCID'), COLLATIONPROPERTY((SELECT collation_name FROM sys.databases WHERE name=ISNULL(N'fixture',DB_NAME())), 'ComparisonStyle')",session);
+        Assert.Equal(new object?[]{1033,196609},Assert.Single(result.Rows));Assert.All(result.Columns,column=>Assert.Equal("int",column.SqlTypeName));
+        object? Value(string expression)=>Assert.Single(engine.Execute("SELECT "+expression,session).Rows)[0];
+        Assert.Equal(1041,Value("COLLATIONPROPERTY(N'Japanese_CI_AS',N'LCID')"));
+        Assert.Equal(0,Value("COLLATIONPROPERTY(N'Latin1_General_100_BIN2_UTF8',N'ComparisonStyle')"));
+        Assert.Null(Value("COLLATIONPROPERTY(NULL,N'LCID')"));Assert.Null(Value("COLLATIONPROPERTY(N'Japanese_CI_AS',NULL)"));
+    }
+    [Fact,Trait("Category","Unit")]
     public void QuoteName(){
         var registry=new DatabaseRegistry();registry.Register("fixture",new MetadataAdapter());
         var engine=new SqlExecutionEngine(registry);using var session=new SessionContext(1,"fixture");
@@ -36,7 +47,8 @@ public sealed class SsmsCatalogScalarFunctionTests{
         Assert.Null(Value("OBJECTPROPERTYEX(-1,N'IsSchemaBound')"));
         Assert.Null(Value("OBJECTPROPERTYEX(NULL,N'IsSchemaBound')"));
         Assert.Null(Value("OBJECTPROPERTYEX(OBJECT_ID(N'dbo.Bound'),NULL)"));
-        var failure=Assert.Throws<SqlQueryException>(()=>Value("OBJECTPROPERTYEX(OBJECT_ID(N'dbo.Bound'),N'Unknown')"));Assert.Equal(40515,failure.Number);
+        // 本物のSQL Serverは未知のプロパティ名にNULLを返す(実機確認済み)。エラーにはしない。
+        Assert.Null(Value("OBJECTPROPERTYEX(OBJECT_ID(N'dbo.Bound'),N'Unknown')"));
         var result=engine.Execute("SELECT OBJECTPROPERTYEX(OBJECT_ID(N'dbo.Bound'),N'IsSchemaBound')",session);Assert.Equal("int",result.Columns[0].SqlTypeName);
     }
     private sealed class MetadataAdapter:IDatabaseAdapter{

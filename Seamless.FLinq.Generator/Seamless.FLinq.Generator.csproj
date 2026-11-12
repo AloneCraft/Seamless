@@ -33,4 +33,6 @@
     <PropertyGroup>
       <NuspecProperties>version=$(Version);targetPath=$(TargetPath)</NuspecProperties>
     </PropertyGroup>
-  </Target></Project>
+  </Target>
+  <Import Project="..\Shared\Database.Generation\Database.Generation.projitems" Label="Shared" />
+</Project>

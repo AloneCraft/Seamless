@@ -33,6 +33,14 @@ internal static class NetStandardJson {
             builder.Append(Convert.ToString(value,System.Globalization.CultureInfo.InvariantCulture));
             return;
         }
+        if(value is System.Collections.IDictionary dictionary){
+            builder.Append('{');var firstEntry=true;
+            foreach(System.Collections.DictionaryEntry entry in dictionary){
+                if(entry.Key is not string key){throw new InvalidOperationException("JSON object keys must be strings.");}
+                if(!firstEntry){builder.Append(',');}AppendString(builder,key);builder.Append(':');AppendValue(builder,entry.Value);firstEntry=false;
+            }
+            builder.Append('}');return;
+        }
         if(value is System.Collections.IEnumerable enumerable) {
             builder.Append('[');
             var first=true;

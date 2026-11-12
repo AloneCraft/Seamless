@@ -1,0 +1,36 @@
+<link rel="stylesheet" href="./_content/Seamless.Management.Components/query-trace.css"/>
+<fieldset class="トレース設定" disabled="@this.操作禁止か">
+    <legend>@表示文言.取得("クエリ境界の記録")</legend>
+    <label>@表示文言.取得("記録方式")<select aria-label="@表示文言.取得("トレースの記録方式")" value="@this.記録方式" @onchange="this.方式変更時Async"><option value="None">@表示文言.取得("追加記録なし")</option><option value="TimeSampled">@表示文言.取得("時間サンプリング")</option><option value="BoundaryEvents">@表示文言.取得("境界イベント")</option></select></label>
+    @if(this.記録方式!="None"){
+        <label>@表示文言.取得("記録の完全性")<select aria-label="@表示文言.取得("トレースの完全性")" value="@this.完全性" @onchange="this.完全性変更時Async"><option value="BestEffort">@表示文言.取得("速度優先・欠落を許可")</option><option value="Complete" disabled="@(this.記録方式=="TimeSampled")">@表示文言.取得("完全記録・容量を待機")</option></select></label>
+        @if(this.記録方式=="TimeSampled"){
+            <p class="小案内">@表示文言.取得("100msごとに観測します。短い処理や遅延したサンプルの取り逃しがあります。時間サンプリングの完全記録は未対応です。")</p>
+        }else if(this.完全性=="Complete"){
+            <p role="status">@表示文言.取得("記録容量が空くまでクエリを待たせます。保存障害時は欠落を表示してDB処理を継続します。")</p>
+        }
+        <p class="小案内">@表示文言.取得("ノード別時間、CPU、I/O、詳細イベントは未収集です。")</p>
+    }
+    <p class="小案内">@表示文言.取得("記録設定は次に実行するクエリへ適用します。表示方式の変更では実行しません。")</p>
+</fieldset>
+
+@code{
+    [Parameter]public QueryTraceOptions? 値{get;set;}
+    [Parameter]public EventCallback<QueryTraceOptions?> 値変更時{get;set;}
+    [Parameter]public bool 操作禁止か{get;set;}
+    private string 記録方式="None",完全性="BestEffort";
+    protected override void OnParametersSet(){this.記録方式=this.値?.RecordMode.ToString()??"None";this.完全性=this.値?.Reliability.ToString()??"BestEffort";}
+    private async Task 方式変更時Async(ChangeEventArgs 引数){
+        this.記録方式=引数.Value?.ToString()??"None";
+        if(this.記録方式=="TimeSampled"){this.完全性="BestEffort";}
+        await this.通知Async();
+    }
+    private async Task 完全性変更時Async(ChangeEventArgs 引数){this.完全性=引数.Value?.ToString()??"BestEffort";await this.通知Async();}
+    private async Task 通知Async(){
+        QueryTraceOptions? 設定=null;
+        if(this.記録方式!="None"){
+            設定=new(Enum.Parse<QueryTraceRecordMode>(this.記録方式),Enum.Parse<QueryTraceReliability>(this.完全性));設定.Validate();
+        }
+        await this.値変更時.InvokeAsync(設定);
+    }
+}

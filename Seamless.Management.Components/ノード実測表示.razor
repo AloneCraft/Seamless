@@ -1,0 +1,26 @@
+@using System.Globalization
+@if(数量.Length>0){
+    <section class="ノード実測表示" aria-label="@表示文言.取得("物理消費区間の実測")">
+        <h4>@表示文言.取得("物理消費区間の実測")</h4>
+        <p class="小案内">@表示文言.取得("入力値数はこの演算が受け取った件数です。元ソースの走査数とは区別します。包含時間を個別の論理演算へ割り振りません。")</p>
+        <div class="結果表スクロール"><table class="設計表"><thead><tr><th>@表示文言.取得("実行レーン")</th><th>@表示文言.取得("開始")</th><th>@表示文言.取得("経過時間")</th><th>@表示文言.取得("入力値数")</th><th>@表示文言.取得("出力値数")</th><th>@表示文言.取得("状態")</th></tr></thead><tbody>
+        @foreach(var 値 in 数量){
+            var 区間=データ?.Intervals.FirstOrDefault(項目=>項目.InstanceId==値.InstanceId&&項目.Node==値.Node);
+            var 時計=データ?.Clocks.FirstOrDefault(項目=>項目.Id==区間?.ClockId);
+            <tr data-ノード="@値.Node.NodeId" data-区間="@値.InstanceId" title="@値.Scope"><td>@区間?.LaneId</td><td>@時間(区間?.StartTicks,時計)</td><td>@時間差(区間,時計)</td><td>@数量表示(値.InputRows)</td><td>@数量表示(値.OutputRows)</td><td>@表示文言.取得(状態名(区間?.Outcome))</td></tr>
+        }
+        </tbody></table></div>
+    </section>
+}
+@code{
+    [Parameter]public QueryVisualizationData? データ{get;set;}
+    [Parameter]public NodeQuantities[] 数量{get;set;}=[];
+    private static string 数量表示(FlowQuantity 値){
+        if(値.DecimalValue is null){return 表示文言.取得("未収集");}
+        if(!値.Complete){return 値.DecimalValue+" · "+表示文言.取得("部分取得");}
+        return 値.DecimalValue;
+    }
+    private static string 時間(long? 値,VisualizationClock? 時計){if(値 is null||時計 is null||時計.TicksPerSecond<=0){return 表示文言.取得("未収集");}return ((decimal)値.Value*1000/時計.TicksPerSecond).ToString("0.###",CultureInfo.CurrentCulture)+" ms";}
+    private static string 時間差(VisualizationInterval? 区間,VisualizationClock? 時計){if(区間 is null||時計 is null||時計.TicksPerSecond<=0){return 表示文言.取得("未収集");}return (((decimal)区間.EndTicks-区間.StartTicks)*1000/時計.TicksPerSecond).ToString("0.###",CultureInfo.CurrentCulture)+" ms";}
+    private static string 状態名(string? 値)=>値 switch{"Succeeded"=>"正常完了","Failed"=>"失敗","Cancelled"=>"取消済み",_=>"部分取得"};
+}

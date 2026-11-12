@@ -79,6 +79,7 @@ public sealed class DynamicChainCorpusTests{
                 QueryCapabilityProfile.CurrentProfileVersion.ToString(),
                 BuiltInOperatorCatalog.OperatorSetVersion.ToString());
             var result=await runner.ExecuteAsync(request,query,(int)spec.Ordinal,target,0,CancellationToken.None);
+            ChainCorpusProgress.Record(intermediateCount,stride,spec.Ordinal,spec.Operators,spec.Terminal,result.Status,result.AssemblyUnloaded);
             executed++;
             var key=$"{string.Join(" > ",spec.Operators)} > {spec.Terminal}";
             if(result.Status!=WorkerExecutionStatus.Succeeded||!result.AssemblyUnloaded){

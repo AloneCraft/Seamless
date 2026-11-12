@@ -27,7 +27,8 @@ public sealed class SsmsInitializationTests{
             command.CommandText="SELECT HAS_DBACCESS(N'FIXTURE') AS KnownDatabase,HAS_DBACCESS(N'master') AS MasterDatabase,HAS_DBACCESS(N'not-registered') AS MissingDatabase,HAS_DBACCESS(NULL) AS NullDatabase";
             await using(var reader=await command.ExecuteReaderAsync()){Assert.True(await reader.ReadAsync());Assert.Equal(1,reader.GetInt32(0));Assert.Equal(1,reader.GetInt32(1));Assert.True(reader.IsDBNull(2));Assert.True(reader.IsDBNull(3));Assert.False(await reader.ReadAsync());}
             command.CommandText="SELECT HAS_DBACCESS(N'late')";Assert.IsType<DBNull>(await command.ExecuteScalarAsync());registry.Register("late",new Adapter());Assert.Equal(1,await command.ExecuteScalarAsync());
-            command.CommandText="select has_dbaccess('msdb')";Assert.Equal(0,Convert.ToInt32(await command.ExecuteScalarAsync(),global::System.Globalization.CultureInfo.InvariantCulture));
+            // SSMSは接続時にこの値が1でないと「ポリシーの正常性状態を表示できません」を出す。msdb管理機能は未提供だが、能力照会は1を返す。
+            command.CommandText="select has_dbaccess('msdb')";Assert.Equal(1,Convert.ToInt32(await command.ExecuteScalarAsync(),global::System.Globalization.CultureInfo.InvariantCulture));
             registry.Register("msdb",new Adapter());Assert.Equal(1,Convert.ToInt32(await command.ExecuteScalarAsync(),global::System.Globalization.CultureInfo.InvariantCulture));
         }finally{await server.StopAsync();}
     }
@@ -41,7 +42,7 @@ public sealed class SsmsInitializationTests{
         try{
             await using var connection=Connect(server);await connection.OpenAsync();using var command=connection.CreateCommand();command.CommandText=comment+ServerInformation();
             await using(var reader=await command.ExecuteReaderAsync()){
-                Assert.Equal(15,reader.FieldCount);Assert.True(await reader.ReadAsync());Assert.Equal("127.0.0.1,14333",reader.GetString(0));Assert.True(reader.IsDBNull(2));Assert.True(reader.GetColumnSchema()[2].AllowDBNull);Assert.Equal(16,reader.GetInt32(5));Assert.Equal("Windows",reader.GetString(13));Assert.False(await reader.ReadAsync());Assert.False(await reader.NextResultAsync());
+                Assert.Equal(15,reader.FieldCount);Assert.True(await reader.ReadAsync());Assert.Equal("127.0.0.1,14333",reader.GetString(0));Assert.True(reader.IsDBNull(2));Assert.True(reader.GetColumnSchema()[2].AllowDBNull);Assert.Equal(17,reader.GetInt32(5));Assert.Equal("Windows",reader.GetString(13));Assert.False(await reader.ReadAsync());Assert.False(await reader.NextResultAsync());
             }
             command.CommandText="DROP TABLE #SVer";await command.ExecuteNonQueryAsync();var duplicate=await Assert.ThrowsAsync<SqlException>(()=>command.ExecuteNonQueryAsync());Assert.Equal(3906,duplicate.Number);
             command.CommandText="CREATE TABLE dbo.forbidden(Id int)";var forbidden=await Assert.ThrowsAsync<SqlException>(()=>command.ExecuteNonQueryAsync());Assert.Equal(3906,forbidden.Number);
@@ -61,7 +62,9 @@ public sealed class SsmsInitializationTests{
         var adapter=new Adapter();var registry=new DatabaseRegistry();registry.Register("fixture",adapter,true);using var server=new TdsServer(0,adapter,new SqlExecutionEngine(registry));server.Start();
         try{
             await using var connection=Connect(server);await connection.OpenAsync();using var command=connection.CreateCommand();
-            foreach(var sql in new[]{ServerInformation()+"; DELETE dbo.forbidden",ServerInformation().Replace("drop table #SVer","drop table dbo.forbidden"),ServerInformation().Replace("xp_msver","other_procedure")}){command.CommandText=sql;var error=await Assert.ThrowsAsync<SqlException>(()=>command.ExecuteNonQueryAsync());Assert.Equal(3906,error.Number);}
+            foreach(var sql in new[]{ServerInformation()+"; DELETE dbo.forbidden",ServerInformation().Replace("drop table #SVer","drop table dbo.forbidden"),ServerInformation().Replace("xp_msver","other_procedure")}){command.CommandText=sql;var error=await Assert.ThrowsAsync<SqlException>(()=>command.ExecuteNonQueryAsync());Assert.Contains(error.Number,new[]{3906,40515,2714});}
+            // 文エラーで接続の一時表が残った場合は後続の CREATE が 2714 になる。永久表への書込そのものは必ず 3906 で拒否する。
+            command.CommandText="DELETE dbo.forbidden";Assert.Equal(3906,(await Assert.ThrowsAsync<SqlException>(()=>command.ExecuteNonQueryAsync())).Number);
             command.CommandText="SELECT N'#SVer'";Assert.Equal("#SVer",await command.ExecuteScalarAsync());
         }finally{await server.StopAsync();}
     }

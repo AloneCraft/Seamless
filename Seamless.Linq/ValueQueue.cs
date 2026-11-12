@@ -1,8 +1,14 @@
+using System.Buffers;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
 namespace Seamless.Linq;
 
 /// <summary>
-/// ArrayPool&lt;T&gt;.Shared から借りた配列で回すリングキュー。
-/// SkipLast のような「直近 N 件のスライディングウィンドウ」向けで、
+/// 小ウィンドウ（capacity <= 16）は [InlineArray(16)] のスタック/構造体内バッファ、
+/// それを超える場合は ArrayPool&lt;T&gt;.Shared から借りた配列で回すリングキュー。
+/// SkipLast/TakeLast のような「直近 N 件のスライディングウィンドウ」向けで、
 /// Count/Enqueue/Dequeue は System.Collections.Generic.Queue&lt;T&gt; と同義。
 /// PooledArray&lt;T&gt; と同じく struct なので、コピーやボクシングをすると
 /// 同じ配列を複数回 ArrayPool へ返す危険がある。単一の所有者が持ち、
@@ -11,54 +17,94 @@ namespace Seamless.Linq;
 /// （生成コードは「未初期化でも無条件に Dispose を呼べる」性質に依存している）。
 /// </summary>
 [EditorBrowsable(EditorBrowsableState.Never)]
-public struct ValueQueue<T>(int capacity):IDisposable {
-    private T[] items = ArrayPool<T>.Shared.Rent(capacity);
-    private int head = 0;
-    private int tail = 0;
-    private int size = 0;
+public struct ValueQueue<T> : IDisposable {
+    [InlineArray(16)]
+    private struct InlineBuffer {
+        public T _element0;
+    }
+
+    private InlineBuffer inlineBuffer;
+    private T[]? poolItems;
+    private int head;
+    private int tail;
+    private int size;
+    private int capacity;
+
+    public ValueQueue(int capacity) {
+        this.head = 0;
+        this.tail = 0;
+        this.size = 0;
+        this.capacity = capacity;
+        if(capacity <= 16) {
+            this.poolItems = null;
+        } else {
+            this.poolItems = ArrayPool<T>.Shared.Rent(capacity);
+        }
+    }
 
     public int Count => this.size;
 
+    private Span<T> Buffer {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => this.poolItems is not null
+            ? this.poolItems.AsSpan()
+            : MemoryMarshal.CreateSpan(ref this.inlineBuffer._element0, 16);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Enqueue(T item) {
-        if(this.items.Length==this.size) {
+        var buffer = this.Buffer;
+        if(this.size == buffer.Length) {
             this.Grow();
+            buffer = this.Buffer;
         }
 
-        this.items[this.tail]=item;
-        this.tail=(this.tail+1)%this.items.Length;
+        buffer[this.tail] = item;
+        this.tail = (this.tail + 1) % buffer.Length;
         this.size++;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public T Dequeue() {
-        if(this.size==0) Throw();
+        if(this.size == 0) Throw();
 
-        T removed = this.items[this.head];
-        this.items[this.head]=default!;
-        this.head=(this.head+1)%this.items.Length;
+        var buffer = this.Buffer;
+        T removed = buffer[this.head];
+        if(RuntimeHelpers.IsReferenceOrContainsReferences<T>()) {
+            buffer[this.head] = default!;
+        }
+        this.head = (this.head + 1) % buffer.Length;
         this.size--;
         return removed;
     }
+
     private static void Throw() => throw new InvalidOperationException("Queue is empty.");
+
     private void Grow() {
-        T[] newArray = ArrayPool<T>.Shared.Rent(this.items.Length*2);
-        if(this.size>0) {
-            if(this.head<this.tail) {
-                Array.Copy(this.items,this.head,newArray,0,this.size);
+        var oldBuffer = this.Buffer;
+        var newCap = Math.Max(32, oldBuffer.Length * 2);
+        T[] newArray = ArrayPool<T>.Shared.Rent(newCap);
+        if(this.size > 0) {
+            if(this.head < this.tail) {
+                oldBuffer.Slice(this.head, this.size).CopyTo(newArray.AsSpan());
             } else {
-                Array.Copy(this.items,this.head,newArray,0,this.items.Length-this.head);
-                Array.Copy(this.items,0,newArray,this.items.Length-this.head,this.tail);
+                var firstPart = oldBuffer.Length - this.head;
+                oldBuffer.Slice(this.head, firstPart).CopyTo(newArray.AsSpan());
+                oldBuffer.Slice(0, this.tail).CopyTo(newArray.AsSpan(firstPart));
             }
         }
-        ArrayPool<T>.Shared.Return(this.items,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
-        this.items=newArray;
-        this.head=0;
-        this.tail=this.size;
+        if(this.poolItems != null) {
+            ArrayPool<T>.Shared.Return(this.poolItems, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+        }
+        this.poolItems = newArray;
+        this.head = 0;
+        this.tail = this.size;
     }
 
     public void Dispose() {
-        if(this.items!=null) {
-            ArrayPool<T>.Shared.Return(this.items,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
-            this.items=null!;
+        if(this.poolItems != null) {
+            ArrayPool<T>.Shared.Return(this.poolItems, clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+            this.poolItems = null;
         }
     }
 }

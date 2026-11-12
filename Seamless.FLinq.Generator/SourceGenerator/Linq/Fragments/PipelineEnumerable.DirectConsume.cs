@@ -81,9 +81,13 @@ internal sealed partial class PipelineEnumerable {
             return null;
         }
         var parameters = EnumeratorDefinitionRenderModel.ParseCtorParams(this.GetEnumeratorPrimaryConstructorParameters).ToArray();
-        var arguments = this.EnumeratorArguments(sourceExpression);
-        if(parameters.Length!=arguments.Count) {
+        var argumentEntries = this.EnumeratorArgumentEntries(sourceExpression);
+        if(parameters.Length!=argumentEntries.Count) {
             return null;
+        }
+        var parameterTypes = new Dictionary<string, string>(parameters.Length, StringComparer.Ordinal);
+        foreach(var (typeExpression, name) in parameters) {
+            parameterTypes[name] = typeExpression;
         }
         // バッファを作る段などは「フィールドと同じ名前の局所変数を宣言して、最後に this.フィールド へ移す」形を使う。
         // this. を外すと同じ名前になるので、本体で同じ名前の局所変数を宣言するフィールドだけ、外側の局所変数の名前を付け替える。
@@ -91,19 +95,20 @@ internal sealed partial class PipelineEnumerable {
         string Rename(string name) => global::System.Text.RegularExpressions.Regex.IsMatch(allText,$@"\bvar\s+{name}\b") ? name+"__field" : name;
         var renamedNames = new List<string>();
         var locals = new StringBuilder();
-        for(var index = 0;index<parameters.Length;index++) {
-            var (typeExpression,name) = parameters[index];
+        foreach(var (name, value, _) in argumentEntries) {
+            if(!parameterTypes.TryGetValue(name, out var typeExpression)) {
+                return null;
+            }
             var localName = Rename(name);
             if(localName!=name) {
                 renamedNames.Add(name);
             }
-            if(localName==arguments[index]){
+            if(localName==value){
                 continue;
-            }else{
             }
             locals.AppendLine(StructTypeParameterReference.IsMatch(typeExpression)
-                ? $"var {localName}={arguments[index]};"
-                : $"{typeExpression} {localName}={arguments[index]};");
+                ? $"var {localName}={value};"
+                : $"{typeExpression} {localName}={value};");
         }
         foreach(var line in fields.Replace("\r\n","\n").Split('\n').Select(static line => line.Trim()).Where(static line => line.Length!=0)) {
             var match = SimpleFieldDeclaration.Match(line);
@@ -473,6 +478,19 @@ internal sealed partial class PipelineEnumerable {
         var value = $"__unionValue{this.result}";
         var itemName = $"__unionItem{this.result}";
         var secondName = $"__unionSecond{this.result}";
+        var secondSourceName = $"__unionSecondSource{this.result}";
+        var capturedSecond = secondRoot switch{
+            DirectSpanRootBase direct=>direct.SourceExpression,
+            Root {DirectEnumerableExpression:{} expression}=>expression,
+            _=>null
+        };
+        var secondSetup=$"using var {secondName}={secondExpression};";
+        var secondEnumeration=string.Empty;
+        if(capturedSecond is not null){
+            var parameter=secondPredicates.Length==0?"second":"source";
+            secondSetup=$"var {secondSourceName}={capturedSecond};\nglobal::System.ArgumentNullException.ThrowIfNull({secondSourceName},\"{parameter}\");";
+            secondEnumeration=$"using var {secondName}={RenderEnumeratorExpression(secondRoot.EnumeratorTypeName,secondSourceName)};";
+        }
         var secondItemName = $"__unionSecondItem{this.result}";
         var seenName = $"__unionSeen{this.result}";
         var functions = wheres.Select(static stage => stage.Func!).ToArray();
@@ -483,9 +501,14 @@ internal sealed partial class PipelineEnumerable {
         string PassesAll(string item) => functions.Length==0
             ? "true"
             : string.Join("&&",functions.Select(function => "("+function.RenderInlineExpression(item)+")"));
-        var secondBody = $"if({secondItemName}>={start}&&{secondItemName}<{end}&&{PassesAll(secondItemName)}) continue;\nif({seenName}.Add({secondItemName})){{\n    {consumerName}.Consume({secondItemName});\n}}";
+        var wantEven=false;
+        var parity=functions.Length==1&&RangePredicateOptimizer.TryExtractParity(functions[0],false,out wantEven);
+        var rememberLeft=functions.Length!=0&&!parity;
+        var skipLeft=rememberLeft?string.Empty:$"if({secondItemName}>={start}&&{secondItemName}<{end}&&{PassesAll(secondItemName)}) continue;\n";
+        var secondBody = $"{skipLeft}if({seenName}.Add({secondItemName})){{\n    {consumerName}.Consume({secondItemName});\n}}";
+        var seenDeclaration=$"var {seenName}=new global::System.Collections.Generic.HashSet<int>();";
         string firstLoop;
-        if(functions.Length==1&&RangePredicateOptimizer.TryExtractParity(functions[0],false,out var wantEven)) {
+        if(parity) {
             var wanted = wantEven ? "0" : "1";
             firstLoop=$$"""
                 for(var {{value}}=(long){{start}}+((((long){{start}}&1)=={{wanted}}) ? 0 : 1);{{value}}<{{end}};{{value}}+=2){
@@ -493,10 +516,12 @@ internal sealed partial class PipelineEnumerable {
                 }
                 """;
         } else {
+            var remember=rememberLeft?$"{seenName}.Add({itemName});":string.Empty;
             firstLoop=$$"""
                 for(var {{value}}=(long){{start}};{{value}}<{{end}};{{value}}++){
                     var {{itemName}}=(int){{value}};
                     if({{PassesAll(itemName)}}){
+                        {{remember}}
                         {{consumerName}}.Consume({{itemName}});
                     }
                 }
@@ -507,9 +532,11 @@ internal sealed partial class PipelineEnumerable {
                 {{localDeclarations}}
                 {{IndentLines(range.RenderArgumentPreparation(start,count),"    ").TrimStart()}}
                 var {{end}}=(long){{start}}+{{count}};
-                using var {{secondName}}={{secondExpression}};
+                {{IndentLines(secondSetup,"    ").TrimStart()}}
+                {{(rememberLeft?seenDeclaration:string.Empty)}}
                 {{IndentLines(firstLoop,"    ").TrimStart()}}
-                var {{seenName}}=new global::System.Collections.Generic.HashSet<int>();
+                {{secondEnumeration}}
+                {{(rememberLeft?string.Empty:seenDeclaration)}}
                 {{IndentLines(this.RenderRootLoop(secondRoot,secondPredicates,secondName,secondItemName,secondBody),"    ").TrimStart()}}
             }
             """;

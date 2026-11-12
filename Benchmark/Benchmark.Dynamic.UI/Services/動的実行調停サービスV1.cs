@@ -22,7 +22,8 @@ public sealed record 動的実行設定(
     IReadOnlyList<WorkerReplayQuery>? 再実行Query一覧=null,
     WorkerMeasurementProfile? 計測ProfileOverride=null,
     QueryElementType 要素型=QueryElementType.Int,
-    int 最適化フラグ=15,WorkerStorageSettings? ストレージ設定=null);
+    int 最適化フラグ=15,WorkerStorageSettings? ストレージ設定=null,
+    bool 特殊な値を混ぜる=false);
 
 public sealed record 動的実行進捗(
     int QueryIndex,
@@ -52,7 +53,9 @@ public sealed record 動的実行条件Snapshot(
     string CapabilityId,
     string? ReplayedFromRunId=null,
     QueryElementType ElementType=QueryElementType.Int,
-    int OptimizationFlags=15,WorkerStorageSettings? StorageSettings=null);
+    int OptimizationFlags=15,WorkerStorageSettings? StorageSettings=null,
+    bool IncludeSpecialValues=false,
+    IReadOnlyList<WorkerReplayQuery>? ReplayInputs=null);
 
 public interface I動的実行調停サービス{
     Task<動的履歴項目> 実行Async(
@@ -170,7 +173,9 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
                 Capability.OperatorSetVersion,
                 Capability.CapabilityId,
                 設定.親実行ID,
-                設定.要素型,設定.最適化フラグ,設定.ストレージ設定),
+                設定.要素型,設定.最適化フラグ,設定.ストレージ設定,
+                IncludeSpecialValues:設定.特殊な値を混ぜる,
+                ReplayInputs:設定.再実行Query一覧),
             DynamicWorkerProtocol.JsonOptions);
         var Run=new DynamicRunRecord(
             設定.実行ID,
@@ -655,7 +660,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
         var Query=Snapshot.Queries.Single(Query=>Query.QueryID==親QueryID);
         var 条件=保存条件を読む(Snapshot.Run);
         var Seed=Seed256.Parse(条件.BaseSeed);
-        var Replay=ReplayQueryを作成(Query,0,Seed);
+        var Replay=ReplayQueryを作成(Query,0,Seed,条件);
         return this.実行Async(
             再実行設定を作成(条件,Snapshot.Run.RunID,[Replay]),
             結果受信時,
@@ -679,7 +684,7 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
             if(!QueryByID.TryGetValue(QueryID,out var Query)){
                 throw new KeyNotFoundException($"Queryが見つかりません: {QueryID}");
             }
-            return ReplayQueryを作成(Query,Index,Seed);
+            return ReplayQueryを作成(Query,Index,Seed,条件);
         }).ToArray();
         return this.実行Async(
             再実行設定を作成(条件,Snapshot.Run.RunID,Replay一覧),
@@ -817,8 +822,17 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
     private static WorkerReplayQuery ReplayQueryを作成(
         DynamicQueryRecord Query,
         int QueryIndex,
-        Seed256 BaseSeed){
+        Seed256 BaseSeed,
+        動的実行条件Snapshot? 条件=null){
         _=QueryIrJson.Deserialize(Query.CanonicalIRJSON);
+        if(条件?.ReplayInputs is{Count:>0} 既存一覧){
+            var 既存=既存一覧.FirstOrDefault(r=>r.QueryIndex==Query.Ordinal)
+                ??既存一覧.FirstOrDefault(r=>r.IrJson==Query.CanonicalIRJSON)
+                ??(Query.Ordinal<既存一覧.Count?既存一覧[Query.Ordinal]:既存一覧[0]);
+            if(既存 is not null){
+                return 既存 with{QueryIndex=QueryIndex};
+            }
+        }
         return new(
             QueryIndex,
             Query.CanonicalIRJSON,
@@ -914,19 +928,43 @@ public sealed class 動的実行調停サービス:I動的実行調停サービ�
             親実行ID,
             Replay一覧,
             条件.MeasurementProfile,
-            条件.ElementType,条件.OptimizationFlags,条件.StorageSettings);
+            条件.ElementType,条件.OptimizationFlags,条件.StorageSettings,
+            特殊な値を混ぜる:条件.IncludeSpecialValues);
     }
 
     private static 動的実行条件Snapshot 保存条件を読む(DynamicRunRecord Run){
         try{
-            var 条件=JsonSerializer.Deserialize<動的実行条件Snapshot>(
-                Run.SettingsJSON,
-                DynamicWorkerProtocol.JsonOptions)
-                ??throw new InvalidDataException("保存実行条件がJSON nullです。");
-            if(条件.SchemaVersion!=1){
-                throw new InvalidDataException($"保存実行条件のschema versionを実行できません: {条件.SchemaVersion}");
+            using var doc=JsonDocument.Parse(Run.SettingsJSON);
+            var root=doc.RootElement;
+            if(root.TryGetProperty("schemaVersion",out _)){
+                var options=new JsonSerializerOptions(DynamicWorkerProtocol.JsonOptions){
+                    UnmappedMemberHandling=System.Text.Json.Serialization.JsonUnmappedMemberHandling.Skip,
+                };
+                return JsonSerializer.Deserialize<動的実行条件Snapshot>(Run.SettingsJSON,options)
+                    ??throw new InvalidDataException("保存実行条件がJSON nullです。");
             }
-            return 条件;
+            var req=JsonSerializer.Deserialize<WorkerRunRequest>(Run.SettingsJSON,DynamicWorkerProtocol.JsonOptions)
+                ??throw new InvalidDataException("WorkerRunRequestがnullです。");
+            return new 動的実行条件Snapshot(
+                1,
+                req.QueryCount,
+                req.OperatorCount,
+                req.InputElementCount,
+                req.MaximumDepth,
+                req.BaseSeed.ToString(),
+                req.OperatorSetMode,
+                req.SourceTargets,
+                req.MeasurementProfile,
+                req.GeneratorVersion,
+                int.TryParse(req.CapabilityProfileVersion,out var cpv)?cpv:1,
+                int.TryParse(req.OperatorSetVersion,out var osv)?osv:1,
+                "",
+                null,
+                req.ElementType,
+                req.OptimizationFlags,
+                req.StorageSettings,
+                req.IncludeSpecialValues,
+                req.ReplayQueries);
         }catch(JsonException 例外){
             throw new InvalidDataException("保存実行条件を読み取れないため再実行できません。",例外);
         }

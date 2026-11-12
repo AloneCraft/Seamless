@@ -8,6 +8,15 @@ internal static class SqlServerDatabaseQueryProfile{
     private static readonly Lazy<TSqlScript> list=new(()=>Read("SsmsDatabaseList.sql"));
     internal static TSqlScript Read(string name){using var stream=typeof(SqlServerDatabaseQueryProfile).Assembly.GetManifestResourceStream("Seamless.Database.Gateway.Sql.Compatibility."+name)??throw new InvalidOperationException("Missing database query profile.");using var text=new StreamReader(stream);var parser=new TSql160Parser(true);var result=parser.Parse(text,out var errors) as TSqlScript;if(result is null||errors.Count!=0){throw new InvalidOperationException("Invalid database query profile.");}return result;}
     internal static bool Same(TSqlFragment first,TSqlFragment second)=>Tokens(first).SequenceEqual(Tokens(second),StringComparer.Ordinal);
+    internal static bool SameWithIntegerParameters(TSqlFragment first,TSqlFragment second){
+        var actual=Tokens(first).ToArray();var expected=Tokens(second).ToArray();if(actual.Length!=expected.Length){return false;}
+        for(var i=0;i<actual.Length;i++){
+            if(actual[i]==expected[i]){continue;}
+            var actualText=actual[i][(actual[i].IndexOf(':')+1)..];var expectedText=expected[i][(expected[i].IndexOf(':')+1)..];
+            if(!actualText.StartsWith('@')||!int.TryParse(expectedText,out _)){return false;}
+        }
+        return true;
+    }
     private static IEnumerable<string> Tokens(TSqlFragment fragment){foreach(var token in fragment.ScriptTokenStream.Skip(fragment.FirstTokenIndex).Take(fragment.LastTokenIndex-fragment.FirstTokenIndex+1)){
         if(token.TokenType is TSqlTokenType.WhiteSpace or TSqlTokenType.SingleLineComment or TSqlTokenType.MultilineComment or TSqlTokenType.Semicolon or TSqlTokenType.EndOfFile){continue;}
         var text=token.Text;if(token.TokenType is not(TSqlTokenType.AsciiStringLiteral or TSqlTokenType.UnicodeStringLiteral)){text=text.ToUpperInvariant();}yield return ((int)token.TokenType)+":"+text;

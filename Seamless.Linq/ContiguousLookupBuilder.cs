@@ -166,8 +166,7 @@ namespace Seamless.Linq {
                 var key = this.keys![group];
                 var hashCode = this.InternalGetHashCode(key);
                 var grouping = new Grouping<TKey,TElement>(key,hashCode,sorted,groupStarts[group],this.counts![group]);
-                // 【重要】Lookup.GetBucketIndex と同じ式にする。
-                ref var bucket = ref buckets[(int)(hashCode&(uint)(bucketCount-1))];
+                ref var bucket = ref buckets[LookupBuckets.Index(hashCode,bucketCount)];
                 grouping.NextGroupInSameHashCode=bucket;
                 bucket=grouping;
                 if(last is null) {

@@ -11,6 +11,13 @@ internal static class LinqConfigurationResolver {
 
 internal static class LinqTargetDiscoveryService {
     public static FLinqIncrementalGenerator.Linq傍受探索結果? Discover(
+        SemanticModel semanticModel,
+        InvocationExpressionSyntax invocation,
+        CancellationToken cancellationToken){
+        return FLinqIncrementalGenerator.Linq傍受対象生成(semanticModel,invocation,cancellationToken);
+    }
+
+    public static FLinqIncrementalGenerator.Linq傍受探索結果? Discover(
         GeneratorSyntaxContext context,
         CancellationToken cancellationToken) {
         return FLinqIncrementalGenerator.Linq傍受対象生成(context,cancellationToken);

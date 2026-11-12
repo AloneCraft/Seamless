@@ -26,7 +26,7 @@ public sealed class ComparisonHost:IDisposable{
                 var sizing=Path.Combine(options.StorageDirectory!,"storage-options.json");if(!Directory.Exists(options.StorageDirectory)||!File.Exists(sizing)){throw new InvalidDataException($"Imported storage is missing for '{item.Name}'.");}if(File.Exists(sizing)){options=global::System.Text.Json.JsonSerializer.Deserialize<DatabaseContainerOptions>(File.ReadAllText(sizing))??throw new InvalidDataException("Invalid storage options.");options=options with{StorageDirectory=ComparisonGeneration.ResolveManagedPath(directory,"data/"+item.StorageKey)};}
                 ValidateRuntimeProfile(item,type,options);
                 var database=(DatabaseContainer)Activator.CreateInstance(type,[options])!;this.opened.Add(database);
-                var adapter=new InProcessDatabaseAdapter(database,item.Tables,item.Catalog);var views=item.Catalog.Schemas.SelectMany(s=>s.Views.Select(v=>new DatabaseViewDefinition(s.Name,v.Name,v.Definition??throw new InvalidDataException($"Encrypted or missing view: {item.Name}.{s.Name}.{v.Name}"),v.Columns.Select(c=>new SqlColumn(c.Name,ToSqlType(c.Type),c.Type.IsNullable,new(item.Name,s.Name,v.Name),c.Ordinal)).ToArray(),v.Columns))).ToArray();
+                var adapter=new InProcessDatabaseAdapter(database,item.Tables,item.Catalog);var views=item.Catalog.Schemas.SelectMany(s=>s.Views.Select(v=>new DatabaseViewDefinition(s.Name,v.Name,v.Definition??throw new InvalidDataException($"Encrypted or missing view: {item.Name}.{s.Name}.{v.Name}"),v.Columns.Select(c=>new SqlColumn(c.Name,ToSqlType(c.Type),c.Type.IsNullable,new(item.Name,s.Name,v.Name),c.Ordinal)).ToArray(),v.Columns){OwnerName=v.OwnerName})).ToArray();
                 var routines=ResolveRoutines(item,assembly,database);
                 this.Databases.Register(item.Name,adapter,item.ReadOnly,item.Fingerprint,views,routines,item.Catalog.DefaultCollation);
                 var engine=new SqlQueryEngine(this.Databases);type.GetProperty("SqlViewRows")?.SetValue(database,(Func<string,IEnumerable<object?[]>>)(name=>engine.Prepare("SELECT * FROM "+name,item.Name).Execute().Rows));
@@ -39,7 +39,7 @@ public sealed class ComparisonHost:IDisposable{
         if(type.FullName!=item.TypeFullName||type.GetField("GeneratedSchemaFingerprint")?.GetRawConstantValue() as string!=item.Fingerprint){throw new InvalidDataException("Schema assembly mismatch: "+item.Name);}
         var runtime=typeof(RuntimeSqlDatabaseContainer).IsAssignableFrom(type);
         if(runtime!=item.RuntimeSqlEnabled){throw new InvalidDataException("Runtime SQL manifest and generated type disagree: "+item.Name);}
-        if(runtime&&(options.Transactions!=DatabaseTransactionMode.SharedV2||item.GeneratedNamespace!="Seamless.Generated."+item.GeneratedName||!item.GeneratedName.EndsWith("_RuntimeSqlV1",StringComparison.Ordinal))){throw new InvalidDataException("Invalid runtime SQL storage profile: "+item.Name);}
+        if(runtime&&(item.GeneratedNamespace!="Seamless.Generated."+item.GeneratedName||!item.GeneratedName.EndsWith("_RuntimeSqlV1",StringComparison.Ordinal))){throw new InvalidDataException("Invalid runtime SQL storage profile: "+item.Name);}
     }
     /// <summary>生成時の対応表を実アセンブリの署名と照合する。古い世代は再生成を要求する。</summary>
     public static IReadOnlyList<DatabaseRoutineDefinition>ResolveRoutines(ComparisonDatabase item,Assembly assembly,DatabaseContainer? database=null){

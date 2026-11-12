@@ -21,7 +21,8 @@ internal static partial class PipelineBuilder {
             if(!ValidateStageCombination(stages,null,allowSingleStage: true)) {
                 return false;
             }
-            var pipeline = new PipelineEnumerable(uniqueNumber++,sourceFragment,stages.ToArray(),currentElementType);
+            var flushElementType = stages.Count>0 ? stages[stages.Count-1].OutputType : currentElementType;
+            var pipeline = new PipelineEnumerable(uniqueNumber++,sourceFragment,stages.ToArray(),flushElementType);
             AddUnsafeAccessors(stages,unsafeAccessorCollector);
             sourceStaticMethods=services.JoinStaticMethods(sourceStaticMethods,pipeline.StructMethod);
             sourceFragment=pipeline;

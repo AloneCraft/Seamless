@@ -1,0 +1,9 @@
+.管理ワークスペース>.ナビゲーション{width:min(var(--sidebar-width,320px),max(200px,calc(100vw - 160px)));min-width:0;flex-shrink:0;position:sticky;top:0;height:100dvh;overflow:auto}
+.管理ワークスペース>.サイドバー幅調整{position:sticky;top:0;width:6px;flex:0 0 6px;height:100dvh;cursor:col-resize;touch-action:none;background:transparent;outline-offset:-2px}
+.サイドバー幅調整:hover,.サイドバー幅調整:focus-visible,.管理ワークスペース[data-sidebar-resizing=true]>.サイドバー幅調整{background:#bad5cd}
+.管理ワークスペース[data-sidebar-resizing=true]{user-select:none}
+.管理ワークスペース[data-sidebar-collapsed=true]>.ナビゲーション,.管理ワークスペース[data-sidebar-collapsed=true]>.サイドバー幅調整{display:none}
+.管理ワークスペース .サイドバー開閉{display:inline-flex;align-items:center;justify-content:center;width:32px;min-width:32px;min-height:32px;padding:5px;border-radius:5px;color:var(--補助)}
+.管理ワークスペース .サイドバー開閉:hover{background:#e7ece5}
+.管理ワークスペース .ブランド>.サイドバー開閉{margin-left:2px}
+.管理ワークスペース .ページ位置{display:flex;align-items:center;gap:12px;min-width:0}

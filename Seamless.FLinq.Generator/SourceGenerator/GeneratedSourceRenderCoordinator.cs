@@ -11,9 +11,13 @@ internal static class GeneratedSourceRenderCoordinator {
         var source=FLinqIncrementalGenerator.インターセプターソース構築(
             model.Targets,
             diagnostics,
-            out var traceDocuments);
+            out var traceDocuments,
+            out var planDrafts);
+        // 目印は計測版の組み立てで使い終わっている。ほかの経路に残った目印も出力しない。
+        var annotated=GeneratedExecutionAnnotations.Apply(QueryProbeMarkers.Strip(source));
+        var completed=GeneratedControlFlowCapture.Complete(annotated,model.Targets,planDrafts);
         return new GeneratedSourceRenderResult(
-            source,
+            completed,
             diagnostics.ToImmutableArray(),
             traceDocuments.ToImmutableArray());
     }

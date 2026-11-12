@@ -1,0 +1,324 @@
+@implements IAsyncDisposable
+@inject IManagementOperations 管理操作
+@inject IJSRuntime スクリプト
+<section class="ソース領域" hidden="@(!表示中か)" aria-label="@表示文言.取得("開発ソース")">
+    <header class="ソース見出し"><div><div class="種類ラベル">DEVELOPMENT</div><h1>@(表示文言.取得("開発ソース"))</h1><p>@(表示文言.取得("サーバー側のプロジェクトを、IDEと同じファイルで編集します。"))</p></div><button class="控えめボタン" @onclick="閉じる時"><操作アイコン 種類="DBへ戻る"/>@(表示文言.取得("DBへ戻る"))</button></header>
+    <form class="場所入力" @onsubmit="場所を開く時Async" @onsubmit:preventDefault>
+        <label>@(表示文言.取得("ソリューション・フォルダー・プロジェクト"))<input aria-label="@表示文言.取得("サーバー側のソースパス")" placeholder="@表示文言.取得(".slnx / フォルダー / .csproj")" @bind="場所" @bind:event="oninput"/></label>
+        @if(参照可能か){<button @ref="参照ボタン" class="控えめボタン" disabled="@処理中か" type="button" aria-expanded="@参照中か.ToString().ToLowerInvariant()" @onclick="参照を開く時Async"><操作アイコン 種類="参照"/>@(表示文言.取得("参照"))</button>}
+        <button class="主要ボタン" disabled="@処理中か" type="submit"><操作アイコン 種類="開く"/>@(表示文言.取得("開く"))</button>
+    </form>
+    @if(参照中か){
+        <section class="サーバー参照" aria-label="@表示文言.取得("サーバー側のファイルを選択")" @onkeydown="参照キー時Async">
+            <header><div><strong>@(表示文言.取得("サーバー上のソースを選択"))</strong><small>@(表示文言.取得("Seamlessサーバーが動作しているPCのファイルです。"))</small></div><button class="控えめボタン" type="button" @onclick="参照を閉じる時"><操作アイコン 種類="閉じる &#183; Esc"/>@(表示文言.取得("閉じる · Esc"))</button></header>
+            <form class="参照パス" @onsubmit="()=>フォルダーへ移動時Async(参照パス)" @onsubmit:preventDefault>
+                <input @ref="参照入力" aria-label="@表示文言.取得("参照するサーバー側のフォルダー")" placeholder="@表示文言.取得("パスを入力、または一覧から選択")" @bind="参照パス" @bind:event="oninput"/>
+                <button type="submit" class="控えめボタン" disabled="@処理中か"><操作アイコン 種類="移動"/>@(表示文言.取得("移動"))</button>
+            </form>
+            @if(参照先 is{} フォルダー){
+                <div class="参照案内"><span class="参照現在地">@現在地表示</span><input aria-label="@表示文言.取得("サーバー側のファイル名を絞り込む")" placeholder="@表示文言.取得("名前で絞り込む…")" @bind="参照検索" @bind:event="oninput"/></div>
+                <div class="参照一覧" aria-label="@表示文言.取得("サーバー側のフォルダーとプロジェクト")">
+                    @if(フォルダー.Parent is{} 親){<button type="button" class="参照項目" disabled="@処理中か" @onclick="()=>フォルダーへ移動時Async(親)"><操作アイコン 種類="フォルダー"/><span>@(表示文言.取得("上の階層へ"))</span></button>}
+                    @foreach(var 項目 in フォルダー.Entries.Where(項目=>項目.Name.Contains(参照検索,StringComparison.OrdinalIgnoreCase))){
+                        <button @key="項目.Path" type="button" class="参照項目" disabled="@処理中か" title="@項目.Path" @onclick="()=>参照項目を選ぶ時Async(項目)"><操作アイコン 種類="@項目アイコン(項目)"/><span>@項目.Name</span><small>@表示文言.取得(項目種類(項目))</small></button>
+                    }
+                    @if(!フォルダー.Entries.Any(項目=>項目.Name.Contains(参照検索,StringComparison.OrdinalIgnoreCase))){<p class="小案内">@(表示文言.取得("該当するフォルダー・ソリューション・プロジェクトはありません。"))</p>}
+                </div>
+                <footer><span>@(表示文言.取得(".slnx / .csproj は選択すると開きます。"))</span>@if(フォルダー.Path.Length>0){<button type="button" class="主要ボタン" disabled="@処理中か" @onclick="()=>参照場所を開く時Async(フォルダー.Path)"><操作アイコン 種類="このフォルダーを開く"/>@(表示文言.取得("このフォルダーを開く"))</button>}</footer>
+            }
+        </section>
+    }
+    <div class="ソース通知" role="status" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>
+    <div class="ソース構成">
+        <aside class="ソース一覧" aria-label="@表示文言.取得("プロジェクトと名前空間")">
+            <h2>@(表示文言.取得("プロジェクト"))</h2>
+            @foreach(var プロジェクト in プロジェクト一覧){<button class="ソース選択" disabled="@処理中か" data-選択中="@((現在?.情報.ProjectPath==プロジェクト).ToString().ToLowerInvariant())" title="@プロジェクト" @onclick="()=>プロジェクトを開く時Async(プロジェクト)"><操作アイコン 種類="文書"/> @System.IO.Path.GetFileNameWithoutExtension(プロジェクト)</button>}
+            @if(ターゲット待ち is{} 待ち){<label class="ターゲット入力">@(表示文言.取得("ターゲット"))<select aria-label="@表示文言.取得("プロジェクトのターゲット")" @onchange="ターゲット変更時Async"><option value="">@(表示文言.取得("選択してください"))</option>@foreach(var 候補 in 待ち.TargetFrameworks){<option value="@候補">@候補</option>}</select></label>}
+            @if(現在 is{} 文書){
+                <h2>@(表示文言.取得("名前空間"))</h2>
+                @foreach(var 名前空間 in 文書.構造.Namespaces){<button class="ソース選択 名前空間選択" data-選択中="@((文書.表示名前空間==名前空間).ToString().ToLowerInvariant())" @onclick="()=>名前空間を選ぶ時(文書,名前空間)">@名前空間表示(名前空間)</button>}
+                @if(文書.構造.Namespaces.Length==0){<p class="小案内">@(表示文言.取得("DatabaseGenerator型が見つかりません。"))</p>}
+                @foreach(var 分類 in 文書.構造.Objects.Where(対象=>対象.Root==文書.表示名前空間).GroupBy(対象=>対象.Kind)){
+                    <h2>@表示文言.取得(宣言分類表示(分類.Key))</h2>
+                    @foreach(var 組 in 分類.GroupBy(対象=>対象.Schema)){
+                        @if(組.Key.Length>0){<div class="宣言スキーマ">@組.Key</div>}
+                        @foreach(var 対象 in 組){<button class="ソース選択 宣言選択" data-選択中="@((文書.選択型==対象.Type).ToString().ToLowerInvariant())" title="@(対象.Type+" · "+対象.File)" @onclick="()=>宣言を選ぶ時(文書,対象)"><操作アイコン 種類="型"/> @対象.Name <small>@表示文言.取得("{0} 列",対象.Columns.Length)</small></button>}
+                    }
+                }
+                <h2>@(表示文言.取得("ソース"))</h2>
+                @foreach(var ファイル in 文書.現在.Files){<button class="ソース選択 ソースファイル" data-選択中="@((文書.ファイル==ファイル.Path).ToString().ToLowerInvariant())" title="@ファイル.Path" @onclick="()=>ファイルを選ぶ時(文書,ファイル.Path)"><操作アイコン 種類="ソース"/> @ファイル.Path</button>}
+            }
+        </aside>
+        <div class="ソース編集面">
+            @if(現在 is{} 編集文書){
+                @if(下書き反映可能か&&編集文書.情報.Database is{} DB){
+                    <div class="ソース操作" aria-label="@表示文言.取得("作成元DBの下書き")"><div><strong>@DB.Name</strong><small>@表示文言.取得("同期基準 v{0} · 保管記録 r{1}",DB.BaseVersion,DB.DraftRevision)</small></div><button class="主要ボタン" disabled="@処理中か" title="@表示文言.取得("同期したファイルをDBの個人下書きへ反映")" @onclick="()=>DB下書きへ反映時Async(編集文書)"><操作アイコン 種類="DB下書きへ反映"/>@(表示文言.取得("DB下書きへ反映"))</button></div>
+                    @if(編集文書.下書き案内 is{} 結果){<p class="状態通知" role="status" data-エラー="@編集文書.下書きエラーか.ToString().ToLowerInvariant()">@結果</p>}
+                }
+                @if(成果物検査可能か&&編集文書.情報.Database is not null){
+                    <details class="成果物検査">
+                        <summary>@(表示文言.取得("ビルド成果物を検査"))</summary>
+                        <p class="小案内">@(表示文言.取得("DB下書きへ反映後、IDEでビルドしたDLLのサーバー上の絶対パスを指定します。"))</p>
+                        <div class="成果物入力"><input aria-label="@表示文言.取得("ビルド済みDLLのパス")" placeholder="@表示文言.取得("サーバー上のDLLの絶対パス")" @bind="編集文書.成果物パス" @bind:event="oninput" @bind:after="()=>{編集文書.成果物=null;編集文書.成果物案内=null;編集文書.成果物エラーか=false;}" disabled="@処理中か"/><button type="button" class="控えめボタン" disabled="@(処理中か||string.IsNullOrWhiteSpace(編集文書.成果物パス))" @onclick="()=>成果物検査時Async(編集文書)"><操作アイコン 種類="検査"/>@(表示文言.取得("検査"))</button></div>
+                        @if(編集文書.成果物案内 is{} 案内){<p class="状態通知" role="status" data-エラー="@編集文書.成果物エラーか.ToString().ToLowerInvariant()">@案内</p>}
+                        @if(編集文書.成果物 is{} 成果物){
+                            @if(成果物.SourceHash==編集文書.現在.Hash()){
+                                <dl><dt>@表示文言.取得("対応する下書き")</dt><dd>@表示文言.取得("r{0} · 基準 v{1}",成果物.DraftRevision,成果物.BaseVersion)</dd><dt>DLL SHA-256</dt><dd><code>@成果物.AssemblySha256</code></dd><dt>@表示文言.取得("依存DLL")</dt><dd>@表示文言.取得("{0} 件",成果物.Dependencies.Length)</dd></dl>
+                                @if(成果物取込可能か){<button type="button" class="控えめボタン" disabled="@処理中か" @onclick="()=>成果物取込時Async(編集文書)"><操作アイコン 種類="この成果物を取り込む"/>@(表示文言.取得("この成果物を取り込む"))</button>}
+                            }else{<p class="小案内">@(表示文言.取得("検査後にソースが変更されています。下書き反映とビルド後に再検査してください。"))</p>}
+                        }
+                    </details>
+                }
+                <div class="ソース操作"><div><strong>@名前空間表示(編集文書.表示名前空間)</strong><small>@編集文書.ファイル</small></div><span>@表示文言.取得(保存表示(編集文書))</span>
+                    @if(構成選択可能か){<label class="ビルド構成入力">@(表示文言.取得("ビルド構成"))<select aria-label="@表示文言.取得("プロジェクトのビルド構成")" disabled="@(処理中か||編集文書.競合ありか)" @bind:get="編集文書.情報.Configuration" @bind:set="値=>構成変更時Async(編集文書,値)">@foreach(var 候補 in 編集文書.情報.Configurations){<option value="@候補">@候補</option>}</select></label>}
+                    @if(編集文書.同期停止か){<button class="控えめボタン" disabled="@処理中か" @onclick="()=>再評価時Async(編集文書)"><操作アイコン 種類="プロジェクトを再評価"/>@(表示文言.取得("プロジェクトを再評価"))</button>}<button class="控えめボタン" disabled="@処理中か" @onclick="()=>同期時Async(編集文書)"><操作アイコン 種類="同期"/>@(表示文言.取得("同期"))</button></div>
+                @if(編集文書.情報.TypeCompletionDiagnostic is{} 型補完案内){<p class="小案内" role="status" aria-label="@表示文言.取得("型補完の状態")">@型補完案内</p>}
+                @if(編集文書.構造.Objects.FirstOrDefault(対象=>対象.Type==編集文書.選択型) is{} 選択宣言){
+                    <div class="宣言概要" aria-label="@表示文言.取得("選択した宣言の列")"><strong>@選択宣言.Name</strong>@foreach(var 列 in 選択宣言.Columns){<span><b>@列.Name</b><code>@列.Type</code></span>}</div>
+                }
+                @if(競合解消可能か&&編集文書.競合ありか){<button class="控えめボタン" disabled="@処理中か" @onclick="()=>競合を確認時Async(編集文書)"><操作アイコン 種類="C#同期の競合を確認"/>@(表示文言.取得("C#同期の競合を確認"))</button>}
+                @if(編集文書.競合 is{Conflict:{} 比較} 詳細){<ソース競合表示 競合="比較" 追加入力か="詳細.AdditionalEditorChanges" 処理中か="処理中か" 取消時="()=>編集文書.競合=null" 保存時="解決=>競合を保存時Async(編集文書,解決)"/>}
+                <コードエディター @ref="コード入力" 追加クラス="プロジェクトコード枠" 読み取り専用か="@(構成変更中か||編集文書.競合?.Conflict is not null)" ラベル="プロジェクトのC#ソース" 値="@編集文書.現在.Files.FirstOrDefault(ファイル=>ファイル.Path==編集文書.ファイル)?.Text" 値変更時="値=>ソース入力時Async(編集文書,new ChangeEventArgs{Value=値})"/>
+                <footer class="ソース保存案内">@(表示文言.取得("ファイル保存と稼働DBへの適用は別の操作です。IDEの未保存バッファは、IDEで保存後に同期します。"))</footer>
+            }else{<div class="ソース空表示"><span>〈〉</span><h2>@(表示文言.取得("プロジェクトを開いて始める"))</h2><p>@(表示文言.取得("名前空間とC#ソースを確認し、IDEからの保存も取り込みます。"))</p></div>}
+        </div>
+    </div>
+</section>
+@code{
+    [Parameter]public bool 表示中か{get;set;}
+    [Parameter]public bool 参照可能か{get;set;}
+    [Parameter]public bool 下書き反映可能か{get;set;}
+    [Parameter]public bool 競合解消可能か{get;set;}
+    [Parameter]public bool 構成選択可能か{get;set;}
+    [Parameter]public bool 成果物検査可能か{get;set;}
+    [Parameter]public bool 成果物取込可能か{get;set;}
+    [Parameter]public EventCallback<ImportedSourceBuild> 成果物取込後{get;set;}
+    [Parameter]public SourceProjectDocument? 作成済みプロジェクト{get;set;}
+    [Parameter]public EventCallback 閉じる時{get;set;}
+    [Parameter]public EventCallback<bool> 未保存変更時{get;set;}
+    [Parameter]public EventCallback<string[]> 型候補変更時{get;set;}
+    [Parameter]public EventCallback<string> 下書き反映前{get;set;}
+    [Parameter]public EventCallback<Draft> 下書き反映後{get;set;}
+    [Parameter]public EventCallback<bool> 下書き反映中変更時{get;set;}
+    private sealed class ソース文書(SourceProjectDocument 情報){
+        public SourceProjectDocument 情報=情報;
+        public SourceSnapshot 基準=情報.Source!;
+        public SourceSnapshot 現在=情報.Source!;
+        public string ファイル=情報.Source!.Files.First().Path;
+        public string 名前空間=情報.Namespaces.FirstOrDefault()??"";
+        public bool 同期停止か=情報.HasConflict,競合ありか=情報.HasConflict;
+        public SourceProjectConflict? 競合;
+        public string? 下書き案内;
+        public bool 下書きエラーか;
+        public string 成果物パス="";
+        public SourceProjectBuild? 成果物;
+        public string? 成果物案内;
+        public bool 成果物エラーか;
+        public bool 未保存か=>this.基準.Hash()!=this.現在.Hash();
+        public string? 選択型;
+        private SourceSnapshot? 解析基準;
+        private SourceStructure? 解析結果;
+        public SourceStructure 構造{
+            get{
+                if(!ReferenceEquals(this.解析基準,this.現在)){this.解析結果=SourceStructure.Read(this.現在);this.解析基準=this.現在;}
+                return this.解析結果!;
+            }
+        }
+        public string 表示名前空間{get{if(this.構造.Namespaces.Contains(this.名前空間,StringComparer.Ordinal)){return this.名前空間;}return this.構造.Namespaces.FirstOrDefault()??"";}}
+    }
+    private string 場所="";
+    private string[] プロジェクト一覧=[];
+    private readonly Dictionary<string,ソース文書> 文書一覧=new(StringComparer.Ordinal);
+    private ソース文書? 現在;
+    private SourceProjectDocument? ターゲット待ち;
+    private SourceProjectDocument? 取込済みプロジェクト;
+    private bool 処理中か,エラーか;
+    private readonly SemaphoreSlim 操作ゲート=new(1,1);
+    private bool 参照中か,参照へフォーカスか,参照ボタンへフォーカスか;
+    private ElementReference 参照ボタン,参照入力;
+    private SourceDirectory? 参照先;
+    private string 参照パス="",参照検索="";
+    private コードエディター? コード入力;
+    private Task<IJSObjectReference>? コード操作初期化;
+    private bool 破棄済みか;
+    private long 宣言選択世代;
+    private (ソース文書 文書,SourceSnapshot 基準,SourceObject 宣言,long 世代)? 宣言フォーカス待ち;
+    private string[] 通知済み型候補=[];
+    private string 現在地表示{get{if(this.参照先?.Path.Length>0){return this.参照先.Path;}return "サーバーのドライブ";}}
+    private string 案内=表示文言.取得("サーバー側の場所を指定してください。");
+    private readonly CancellationTokenSource 寿命=new();
+    private Task? 自動同期;
+    private IManagementSourceOperations 操作=>this.管理操作 as IManagementSourceOperations??throw new ManagementException("Unsupported","この接続は開発ソースに対応していません。");
+    protected override void OnInitialized(){this.自動同期=this.自動同期Async();}
+    protected override void OnParametersSet(){
+        if(this.作成済みプロジェクト is not{Source:not null} 情報||ReferenceEquals(情報,this.取込済みプロジェクト)){return;}
+        this.取込済みプロジェクト=情報;
+        if(!this.文書一覧.TryGetValue(情報.Id,out var 文書)){文書=new(情報);this.文書一覧.Add(情報.Id,文書);}
+        this.現在=文書;
+        this.場所=情報.ProjectPath;
+        this.プロジェクト一覧=[..this.プロジェクト一覧.Append(情報.ProjectPath).Distinct(StringComparer.Ordinal)];
+        this.案内=表示文言.取得("接続済み · ")+情報.ProjectPath+" · "+情報.TargetFramework;
+    }
+    private static string 保存表示(ソース文書 文書){if(文書.同期停止か){return "同期を停止・編集を保持";}if(文書.未保存か){return "ファイル未保存";}return "ファイル保存済み";}
+    private async Task 実行Async(Func<Task> 処理,bool 同期を止めるか=true,bool 案内を維持するか=false){
+        if(this.破棄済みか){return;}
+        try{await this.操作ゲート.WaitAsync(this.寿命.Token);}
+        catch(OperationCanceledException)when(this.寿命.IsCancellationRequested){return;}
+        if(this.破棄済みか){this.操作ゲート.Release();return;}
+        var 前の案内=this.案内;var 前のエラー=this.エラーか;
+        this.処理中か=true;this.エラーか=false;
+        try{
+            await 処理();
+            if(案内を維持するか){this.案内=前の案内;this.エラーか=前のエラー;}
+        }
+        catch(OperationCanceledException)when(this.寿命.IsCancellationRequested){}
+        catch(Exception 例外){this.エラーか=true;this.案内=例外.Message;if(同期を止めるか&&this.現在 is{} 文書){文書.同期停止か=true;if(例外 is ManagementException{Code:"SourceConflict"}){文書.競合ありか=true;}}}
+        finally{
+            this.処理中か=false;
+            try{
+                if(!this.破棄済みか){
+                    await this.未保存変更時.InvokeAsync(this.文書一覧.Values.Any(文書=>文書.未保存か));
+                    var 候補=(this.現在?.構造.Types??[]).Concat(this.現在?.情報.ReferenceTypes??[]).Distinct(StringComparer.Ordinal).ToArray();
+                    if(!候補.SequenceEqual(this.通知済み型候補)){this.通知済み型候補=候補;await this.型候補変更時.InvokeAsync(候補);}
+                }
+            }finally{this.操作ゲート.Release();}
+        }
+    }
+    private Task 場所を開く時Async()=>this.実行Async(()=>this.場所を開くAsync(this.場所));
+    private async Task 場所を開くAsync(string パス){
+        var 場所=await this.操作.OpenSourceLocationAsync(パス,this.寿命.Token);this.プロジェクト一覧=場所.Projects;
+        this.案内=表示文言.取得("{0}件のプロジェクト · {1}",場所.Projects.Length,場所.Path);
+        if(場所.Projects.Length==1){await this.プロジェクトを開くAsync(new(場所.Projects[0]));}
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender){
+        if(this.参照へフォーカスか){this.参照へフォーカスか=false;await this.参照入力.FocusAsync();}
+        else if(this.参照ボタンへフォーカスか){this.参照ボタンへフォーカスか=false;await this.参照ボタン.FocusAsync();}
+        if(this.宣言フォーカス待ち is{} 待ち){
+            this.宣言フォーカス待ち=null;
+            this.コード操作初期化??=this.スクリプト.InvokeAsync<IJSObjectReference>("import","./_content/Seamless.Management.Components/interaction.js").AsTask();
+            var 操作=await this.コード操作初期化;
+            if(!this.破棄済みか&&this.表示中か&&待ち.世代==this.宣言選択世代&&ReferenceEquals(this.現在,待ち.文書)&&ReferenceEquals(待ち.文書.現在,待ち.基準)){
+                var ソース=待ち.基準.Files.Single(ファイル=>ファイル.Path==待ち.宣言.File).Text;
+                var 範囲=入力範囲(ソース,待ち.宣言.Start,待ち.宣言.Length);
+                await 操作.InvokeVoidAsync("コード位置へ移動",this.コード入力!.入力要素,範囲.開始,範囲.長さ);
+            }
+        }
+    }
+    internal static (int 開始,int 長さ) 入力範囲(string ソース,int 開始,int 長さ){
+        // textareaはCRLFをLFへ正規化するため、RoslynのUTF-16範囲を入力欄へ合わせる。
+        var 入力開始=ソース[..開始].Replace("\r\n","\n",StringComparison.Ordinal).Length;
+        var 入力終了=ソース[..(開始+長さ)].Replace("\r\n","\n",StringComparison.Ordinal).Length;
+        return(入力開始,入力終了-入力開始);
+    }
+    private void 宣言を選ぶ時(ソース文書 文書,SourceObject 宣言){
+        文書.ファイル=宣言.File;文書.選択型=宣言.Type;
+        this.宣言フォーカス待ち=(文書,文書.現在,宣言,++this.宣言選択世代);
+    }
+    private void ファイルを選ぶ時(ソース文書 文書,string パス){文書.ファイル=パス;文書.選択型=null;this.宣言フォーカス待ち=null;this.宣言選択世代++;}
+    private void 名前空間を選ぶ時(ソース文書 文書,string 名前空間){文書.名前空間=名前空間;文書.選択型=null;this.宣言フォーカス待ち=null;this.宣言選択世代++;}
+    private static string 名前空間表示(string 名前空間){if(名前空間.Length==0){return 表示文言.取得("グローバル");}return 名前空間;}
+    private static string 宣言分類表示(string 分類)=>分類 switch{"Tables"=>"テーブル","Views"=>"ビュー","Work"=>"作業辞書",_=>分類};
+    private Task 参照を開く時Async()=>this.実行Async(async()=>{
+        this.参照中か=true;this.参照へフォーカスか=true;
+        this.参照パス=this.場所;
+        await this.フォルダーへ移動Async(this.参照パス);
+    },false);
+    private Task フォルダーへ移動時Async(string パス)=>this.実行Async(()=>this.フォルダーへ移動Async(パス),false);
+    private async Task フォルダーへ移動Async(string パス){
+        var 結果=await this.操作.BrowseSourceDirectoryAsync(パス,this.寿命.Token);
+        this.参照先=結果;this.参照パス=結果.Path;this.参照検索="";
+        this.案内=表示文言.取得("サーバー上のフォルダー・ソリューション・プロジェクトを選択してください。");
+    }
+    private Task 参照項目を選ぶ時Async(SourceDirectoryEntry 項目){
+        if(項目.IsDirectory){return this.フォルダーへ移動時Async(項目.Path);}
+        return this.参照場所を開く時Async(項目.Path);
+    }
+    private Task 参照場所を開く時Async(string パス)=>this.実行Async(async()=>{
+        this.場所=パス;await this.場所を開くAsync(パス);this.参照を閉じる時();
+    },false);
+    private void 参照を閉じる時(){this.参照中か=false;this.参照へフォーカスか=false;this.参照ボタンへフォーカスか=true;}
+    private Task 参照キー時Async(KeyboardEventArgs 引数){
+        if(引数.Key=="Escape"){this.参照を閉じる時();}
+        return Task.CompletedTask;
+    }
+    private static string 項目アイコン(SourceDirectoryEntry 項目){if(項目.IsDirectory){return "フォルダー";}return "ソース";}
+    private static string 項目種類(SourceDirectoryEntry 項目){if(項目.IsDirectory){return "フォルダー";}return System.IO.Path.GetExtension(項目.Path);}
+    private Task プロジェクトを開く時Async(string パス)=>this.実行Async(()=>this.プロジェクトを開くAsync(new(パス)));
+    private async Task プロジェクトを開くAsync(SourceProjectOpenRequest 要求){
+        var 既存=this.文書一覧.Values.FirstOrDefault(文書=>文書.情報.ProjectPath==要求.Path&&文書.情報.Configuration==要求.Configuration&&(要求.TargetFramework.Length==0||文書.情報.TargetFramework==要求.TargetFramework));
+        if(既存 is not null){this.現在=既存;return;}
+        var 情報=await this.操作.OpenSourceProjectAsync(要求,this.寿命.Token);
+        if(情報.Source is null){this.ターゲット待ち=情報;this.案内=表示文言.取得("ターゲットを選択してください。");return;}
+        this.ターゲット待ち=null;this.現在=new(情報);this.文書一覧[情報.Id]=this.現在;
+        this.案内=表示文言.取得("接続済み · ")+情報.ProjectPath+" · "+情報.TargetFramework;
+    }
+    private Task ターゲット変更時Async(ChangeEventArgs 引数){
+        var ターゲット=引数.Value?.ToString()??"";
+        if(this.ターゲット待ち is not{} 待ち||ターゲット.Length==0){return Task.CompletedTask;}
+        return this.実行Async(()=>this.プロジェクトを開くAsync(new(待ち.ProjectPath,ターゲット){Configuration=待ち.Configuration}));
+    }
+    private async Task ソース入力時Async(ソース文書 文書,ChangeEventArgs 引数){
+        var 入力=引数.Value?.ToString()??"";
+        文書.現在=文書.現在 with{Files=文書.現在.Files.Select(ファイル=>{if(ファイル.Path==文書.ファイル){return ファイル with{Text=入力};}return ファイル;}).ToArray()};
+        await this.未保存変更時.InvokeAsync(true);
+    }
+    private Task 同期時Async(ソース文書 文書,bool 自動か=false)=>this.実行Async(()=>this.同期Async(文書),案内を維持するか:自動か);
+    private Task 再評価時Async(ソース文書 文書)=>this.実行Async(async()=>{
+        var 応答=await this.操作.OpenSourceProjectAsync(new(文書.情報.ProjectPath,文書.情報.TargetFramework){Configuration=文書.情報.Configuration},this.寿命.Token);
+        var 統合=SourceWorkspace.Merge(文書.基準,文書.現在,応答.Source!);
+        文書.基準=応答.Source!;文書.現在=応答.Source! with{Files=統合.Files};文書.情報=応答;文書.同期停止か=false;
+        if(!文書.現在.Files.Any(ファイル=>ファイル.Path==文書.ファイル)){文書.ファイル=文書.現在.Files.First().Path;}
+        this.案内=表示文言.取得("プロジェクトを再評価しました。表示中の編集を保持しています。");
+    });
+    private async Task 同期Async(ソース文書 文書){
+        var 送信=文書.現在.Freeze();var 応答=await this.操作.SynchronizeSourceProjectAsync(new(文書.情報.Id,文書.基準,送信),this.寿命.Token);
+        // 応答待ちの追加入力を保ち、同じ部分の競合では基準も書き換えない。
+        var 統合=SourceWorkspace.Merge(送信,文書.現在,応答.Source!);
+        var 最新=応答.Source! with{Files=統合.Files};
+        文書.基準=応答.Source!;文書.現在=最新;文書.情報=応答;文書.同期停止か=false;
+        if(!最新.Files.Any(ファイル=>ファイル.Path==文書.ファイル)){文書.ファイル=最新.Files.First().Path;}
+        this.案内=表示文言.取得("ファイル保存済み · IDEと同期しています。稼働DBへの適用は別操作です。");
+    }
+    private Task DB下書きへ反映時Async(ソース文書 文書)=>this.実行Async(async()=>{
+        var DB=文書.情報.Database??throw new InvalidOperationException("作成元DBの同期記録が必要です。");
+        await this.下書き反映中変更時.InvokeAsync(true);
+        Draft? 保管済み=null;
+        文書.下書き案内=null;文書.下書きエラーか=false;
+        try{
+            await this.下書き反映前.InvokeAsync(DB.DefinitionId);
+            await this.同期Async(文書);
+            var 送信基準=文書.基準;
+            保管済み=await this.操作.SaveSourceProjectDraftAsync(文書.情報.Id,this.寿命.Token);
+            文書.情報=文書.情報 with{Database=new(保管済み.Definition.Id,保管済み.Definition.Database,保管済み.BaseVersion,保管済み.Revision)};
+            await this.下書き反映後.InvokeAsync(保管済み);
+            var 保存ソース=保管済み.Definition.Source.Freeze();
+            var 統合=SourceWorkspace.Merge(送信基準,文書.現在,保存ソース);
+            文書.基準=保存ソース;文書.現在=保存ソース with{Files=統合.Files};
+            文書.情報=文書.情報 with{Source=保存ソース,Namespaces=SourceStructure.Read(保存ソース).Namespaces};
+            文書.下書き案内=表示文言.取得("{0} · DB下書き r{1}へ反映しました。DB画面から変更を確認できます。",保管済み.Definition.Database,保管済み.Revision);
+            this.案内=文書.下書き案内;
+        }catch(Exception 例外){
+            文書.下書きエラーか=true;文書.下書き案内=例外.Message;
+            if(保管済み is not null){
+                文書.下書き案内=表示文言.取得("DB下書き r{0}は保管済みです。画面または追加入力を確認してください。 {1}",保管済み.Revision,例外.Message);
+                throw new ManagementException("Conflict",文書.下書き案内);
+            }
+            throw;
+        }finally{await this.下書き反映中変更時.InvokeAsync(false);}
+    },false);
+    private async Task 自動同期Async(){
+        using var 時計=new PeriodicTimer(TimeSpan.FromSeconds(2));
+        try{while(await 時計.WaitForNextTickAsync(this.寿命.Token)){
+            await this.InvokeAsync(async()=>{
+                if(this.表示中か&&!this.参照中か&&!this.処理中か&&this.現在 is{同期停止か:false} 文書){var 同期=this.同期時Async(文書,自動か:true);this.StateHasChanged();await 同期;this.StateHasChanged();}
+            });
+        }}catch(OperationCanceledException)when(this.寿命.IsCancellationRequested){}
+    }
+    public async ValueTask DisposeAsync(){
+        this.破棄済みか=true;
+        this.寿命.Cancel();
+        if(this.自動同期 is not null){await this.自動同期;}
+        if(this.コード操作初期化 is not null){try{await(await this.コード操作初期化).DisposeAsync();}catch(JSDisconnectedException){}}
+        this.寿命.Dispose();
+    }
+}

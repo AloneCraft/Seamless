@@ -9,6 +9,6 @@
     <AssemblyName>Benchmark.Audit</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Benchmark.Audit.Tests" />
+    <InternalsVisibleTo Include="Benchmark.Infrastructure.Tests" />
   </ItemGroup>
 </Project>

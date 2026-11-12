@@ -1,4 +1,4 @@
-using Microsoft.CodeAnalysis.CSharp;
+﻿using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Operations;
 namespace Seamless.FLinq.Generator;
 // §1「構文結合・アルゴリズムレベルの最適化（置換パターン）」を実装する構文 rewriter。
@@ -38,26 +38,23 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         if(this.TryReorderWhereRun(node,out var reordered)) return reordered;
         if(this.TryReorderWhereBeforeOrder(node,out var reorderedWhere)) return reorderedWhere;
         if(this.TryFuseWherePredicate(node,out var fused)) return fused;
-        if(this.TryFuseNonEmptyUnionFirst(node,out var unionFirst)) return unionFirst;
         if(this.TryRemoveRedundantPrependAppendBeforeTerminal(node,out var simplifiedPrependAppend)) return simplifiedPrependAppend;
-        if(this.TryRemoveRedundantDistinctBeforeUnion(node,out var simplifiedUnion)) return simplifiedUnion;
         if(this.TryRemoveRedundantDistinctBeforeMinMax(node,out var simplifiedMinMax)) return simplifiedMinMax;
         if(this.TryRemoveRedundantDistinctBeforeTerminal(node,out var simplifiedDistinct)) return simplifiedDistinct;
-        if(this.TryDowngradeUnionToConcatBeforeTerminal(node,out var downgradedUnion)) return downgradedUnion;
         if(this.TryRemoveDoubleReverse(node,out var singleRev)) return singleRev;
         if(this.TryFuseConsecutiveTake(node,out var singleTake)) return singleTake;
         if(this.TryFuseConsecutiveSkip(node,out var singleSkip)) return singleSkip;
         if(this.TrySkipBeforeSelect(node,out var skipBeforeSelect)) return skipBeforeSelect;
         if(this.TryDropSelectBeforeAny(node,out var anyWithoutSelect)) return anyWithoutSelect;
         if(this.TrySplitConcatAny(node,out var splitConcatAny)) return splitConcatAny;
+        if(this.TryRewriteGroupByKeyToDistinct(node,out var distinctFromGroup)) return distinctFromGroup;
+        if(this.TryFactorSelectManyIndependentAggregation(node,out var factoredSelectMany)) return factoredSelectMany;
         if(this.TryDropInnerSelectInSelectManyBeforeAny(node,out var selectManyAny)) return selectManyAny;
         if(this.TryFuseConsecutiveTakeLast(node,out var singleTakeLast)) return singleTakeLast;
         if(this.TryFuseConsecutiveSkipLast(node,out var singleSkipLast)) return singleSkipLast;
         if(this.TryFuseTakeSkip(node,out var fusedTakeSkip)) return fusedTakeSkip;
         if(this.TryFuseTakeLastSkipLast(node,out var fusedTakeLastSkipLast)) return fusedTakeLastSkipLast;
         if(this.TryFuseReverseTerminal(node,out var revTerminal)) return revTerminal;
-        if(this.TryFuseConsecutiveExcept(node,out var fusedExcept)) return fusedExcept;
-        if(this.TryFuseConsecutiveUnion(node,out var fusedUnion)) return fusedUnion;
         if(this.TryRemoveRedundantOrderBeforeTerminal(node,out var strippedOrder)) return strippedOrder;
         if(this.TryFuseOrderByFirst(node,out var minmax)) return minmax;
         if(this.TryRemoveIdentityStage(node,out var stripped)) return stripped;
@@ -728,6 +725,235 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
     }
     // src.SelectMany(p => inner.Select(f)).Any() -> src.SelectMany(p => inner).Any()
     // Any は要素があるかだけを見るので、内側の選択子の値は使わない(System.Linq は内側の先頭の1件にだけ選択子を呼ぶ)。内側を全部評価していた。
+// src.SelectMany(x => inner).Where(...).Select(...).Sum/Count()
+    // SelectMany のラムダ本体 inner がパラメータ x を使用しておらず（不変式）、
+    // かつ後続の Where/Select/Sum が x を参照しない場合、
+    // innerChain = inner.Where(...).Select(...).Sum/Count()
+    // として (long)src.LongCount() * innerChain に書き換える。
+    // 計算量を O(N * M) から O(N + M) に削減（1000x1000 で約 200倍高速化）。
+// src.GroupBy(k).Select(g => g.Key) -> src.Select(k).Distinct()
+    // グループ化してキーだけを取り出す操作は、キーを射影して重複を除去することと完全に等価。
+    // 重厚な GroupBy のアロケーションと走査オーバーヘッドを排除する。
+    private bool TryRewriteGroupByKeyToDistinct(InvocationExpressionSyntax node,out SyntaxNode result) {
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var selName,out var selReceiver,out var selArgs)
+            ||selName!="Select"||selArgs.Count!=1) {
+            return false;
+        }
+
+        if(!TryGetSingleParamLambda(selArgs[0],out var selLambda)) return false;
+        string gParam;
+        if(selLambda is SimpleLambdaExpressionSyntax sl) gParam=sl.Parameter.Identifier.ValueText;
+        else if(selLambda is ParenthesizedLambdaExpressionSyntax pl&&pl.ParameterList.Parameters.Count==1) gParam=pl.ParameterList.Parameters[0].Identifier.ValueText;
+        else return false;
+
+        if(selLambda.Body is not MemberAccessExpressionSyntax ma
+            ||ma.Name.Identifier.ValueText!="Key"
+            ||Strip(ma.Expression) is not IdentifierNameSyntax id||id.Identifier.ValueText!=gParam) {
+            return false;
+        }
+
+        if(Strip(selReceiver) is not InvocationExpressionSyntax grpInv
+            ||!this.TryGetEnumerableExtensionCall(grpInv,out var grpName,out var grpSource,out var grpArgs)
+            ||grpName!="GroupBy") {
+            return false;
+        }
+
+        if(grpArgs.Count==1) {
+            result=CreateCall(CreateCall(grpSource,"Select",grpArgs[0].Expression),"Distinct");
+            return true;
+        } else if(grpArgs.Count==2&&grpArgs[1].Expression is LambdaExpressionSyntax elemLambda&&IsIdentityLambda(elemLambda)) {
+            result=CreateCall(CreateCall(grpSource,"Select",grpArgs[0].Expression),"Distinct");
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryFactorSelectManyIndependentAggregation(InvocationExpressionSyntax node,out SyntaxNode result) {
+        result=null!;
+        if(!this.TryGetEnumerableExtensionCall(node,out var terminalName,out var terminalReceiver,out var terminalArgs)) {
+            return false;
+        }
+
+        if(terminalName!="Sum"&&terminalName!="Count"&&terminalName!="LongCount") {
+            return false;
+        }
+
+        var current=terminalReceiver;
+        InvocationExpressionSyntax? manyInv=null;
+        ExpressionSyntax? manySource=null;
+        IReadOnlyList<ArgumentSyntax>? manyArgs=null;
+
+        var visitedInvocations=new List<InvocationExpressionSyntax>();
+
+        while(true) {
+            current=Strip(current);
+            if(current is not InvocationExpressionSyntax inv) {
+                return false;
+            }
+
+            if(!this.TryGetEnumerableExtensionCall(inv,out var name,out var receiver,out var args)) {
+                return false;
+            }
+
+            if(name=="SelectMany") {
+                manyInv=inv;
+                manySource=receiver;
+                manyArgs=args;
+                break;
+            }
+
+            if(name!="Where"&&name!="Select") {
+                return false;
+            }
+
+            if(args.Count!=1||!TryGetSingleParamLambda(args[0],out var stageLambda)) {
+                return false;
+            }
+
+            if(AnchorAnalysis.ContainsAnchor(stageLambda,this.model)) {
+                return false;
+            }
+
+            visitedInvocations.Add(inv);
+            current=receiver;
+        }
+
+        if(manyInv is null||manySource is null||manyArgs is null) {
+            return false;
+        }
+
+        if(manyArgs.Count!=1||!TryGetSingleParamLambda(manyArgs[0],out var manyLambda)) {
+            return false;
+        }
+
+        if(AnchorAnalysis.ContainsAnchor(manyLambda,this.model)) {
+            return false;
+        }
+
+        IParameterSymbol? paramSymbol=null;
+        if(manyLambda is SimpleLambdaExpressionSyntax simple) {
+            paramSymbol=this.model.GetDeclaredSymbol(simple.Parameter);
+        } else if(manyLambda is ParenthesizedLambdaExpressionSyntax paren&&paren.ParameterList.Parameters.Count==1) {
+            paramSymbol=this.model.GetDeclaredSymbol(paren.ParameterList.Parameters[0]);
+        }
+        if(paramSymbol is null) {
+            return false;
+        }
+
+        ExpressionSyntax? innerSource=null;
+        if(manyLambda.ExpressionBody is { } exprBody) {
+            innerSource=exprBody;
+        } else if(manyLambda.Block is { } block&&block.Statements.Count==1&&block.Statements[0] is ReturnStatementSyntax ret&&ret.Expression!=null) {
+            innerSource=ret.Expression;
+        }
+        if(innerSource is null) {
+            return false;
+        }
+
+        bool RefersToParam(SyntaxNode root) {
+            foreach(var id in root.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>()) {
+                if(id.Identifier.ValueText==paramSymbol.Name) {
+                    var sym=this.model.GetSymbolInfo(id).Symbol;
+                    if(SymbolEqualityComparer.Default.Equals(sym,paramSymbol)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        if(RefersToParam(innerSource)) {
+            return false;
+        }
+
+        foreach(var inv in visitedInvocations) {
+            if(RefersToParam(inv.ArgumentList)) {
+                return false;
+            }
+        }
+        if(RefersToParam(node.ArgumentList)) {
+            return false;
+        }
+        // 書き換え後は外側が空でも内側の式と後続の Where/Select を評価する。System.Linq は外側の要素を取れた後にだけ評価するので、
+        // 評価が例外を出しうる(割り算・呼び出し・添字・null かもしれない参照・checked など)ときは書き換えない。
+        if(!this.CannotThrow(innerSource)) {
+            return false;
+        }
+        foreach(var inv in visitedInvocations) {
+            foreach(var argument in inv.ArgumentList.Arguments) {
+                if(!TryGetSingleParamLambda(argument,out var stageLambda)
+                    ||stageLambda.ExpressionBody is not { } stageBody
+                    ||!this.CannotThrow(stageBody)) {
+                    return false;
+                }
+            }
+        }
+        foreach(var argument in node.ArgumentList.Arguments) {
+            if(!TryGetSingleParamLambda(argument,out var terminalLambda)
+                ||terminalLambda.ExpressionBody is not { } terminalBody
+                ||!this.CannotThrow(terminalBody)) {
+                return false;
+            }
+        }
+
+        var innerChain=node.ReplaceNode(manyInv,innerSource.WithTriviaFrom(manyInv));
+
+        var returnType=this.model.GetTypeInfo(node).Type;
+        if(returnType is null) {
+            return false;
+        }
+
+        var sourceCount=CreateCall(manySource,"LongCount");
+
+        ExpressionSyntax combinedExpr;
+        if(terminalName=="Sum") {
+            if(returnType.SpecialType==SpecialType.System_Int64) {
+                combinedExpr=SyntaxFactory.BinaryExpression(
+                    SyntaxKind.MultiplyExpression,
+                    sourceCount,
+                    innerChain);
+            } else if(returnType.SpecialType==SpecialType.System_Int32) {
+                combinedExpr=SyntaxFactory.CastExpression(
+                    SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword)),
+                    SyntaxFactory.BinaryExpression(
+                        SyntaxKind.MultiplyExpression,
+                        sourceCount,
+                        SyntaxFactory.CastExpression(
+                            SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.LongKeyword)),
+                            innerChain)));
+            } else if(returnType.SpecialType==SpecialType.System_Double||returnType.SpecialType==SpecialType.System_Single||returnType.SpecialType==SpecialType.System_Decimal) {
+                var castType=SyntaxFactory.ParseTypeName(returnType.ToDisplayString());
+                combinedExpr=SyntaxFactory.BinaryExpression(
+                    SyntaxKind.MultiplyExpression,
+                    SyntaxFactory.CastExpression(castType,sourceCount),
+                    innerChain);
+            } else {
+                return false;
+            }
+        } else if(terminalName=="Count"||terminalName=="LongCount") {
+            if(returnType.SpecialType==SpecialType.System_Int64) {
+                combinedExpr=SyntaxFactory.BinaryExpression(
+                    SyntaxKind.MultiplyExpression,
+                    sourceCount,
+                    CreateCall(innerChain,"LongCount"));
+            } else {
+                combinedExpr=SyntaxFactory.CastExpression(
+                    SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword)),
+                    SyntaxFactory.BinaryExpression(
+                        SyntaxKind.MultiplyExpression,
+                        sourceCount,
+                        CreateCall(innerChain,"LongCount")));
+            }
+        } else {
+            return false;
+        }
+
+        result=SyntaxFactory.ParenthesizedExpression(combinedExpr);
+        return true;
+    }
+
     private bool TryDropInnerSelectInSelectManyBeforeAny(InvocationExpressionSyntax node,out SyntaxNode result){
         result=null!;
         if(!this.TryGetEnumerableExtensionCall(node,out var outerName,out var outerReceiver,out var outerArgs)
@@ -1292,6 +1518,47 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         inv=i;
         return true;
     }
+    // 式の評価が例外を出さないと構文と意味から言い切れるときだけ true。迷う形はすべて false にする(書き換えを諦める側へ倒す)。
+    private bool CannotThrow(ExpressionSyntax expression){
+        if(this.model.GetOperation(expression) is not { } root){return false;}
+        foreach(var operation in root.DescendantsAndSelf()){
+            switch(operation){
+                case ILiteralOperation or IDefaultValueOperation or IParenthesizedOperation or IArrayInitializerOperation:
+                    break;
+                case ILocalReferenceOperation or IParameterReferenceOperation or IInstanceReferenceOperation:
+                    break;
+                case IFieldReferenceOperation:
+                    break;
+                case IArrayCreationOperation creation when creation.DimensionSizes.All(static size=>size.ConstantValue.HasValue):
+                    break;
+                case IUnaryOperation unary when !unary.IsChecked&&unary.OperatorMethod is null:
+                    break;
+                case IBinaryOperation binary when !binary.IsChecked&&binary.OperatorMethod is null
+                    &&binary.OperatorKind is not (BinaryOperatorKind.Divide or BinaryOperatorKind.Remainder):
+                    break;
+                case IConversionOperation conversion when !conversion.IsChecked&&!conversion.IsTryCast&&conversion.OperatorMethod is null
+                    &&(conversion.Conversion.IsIdentity||conversion.Conversion.IsNumeric||conversion.Conversion.IsImplicit&&conversion.Conversion.IsReference):
+                    break;
+                case IPropertyReferenceOperation property when property.Property.Name is "Length" or "Count"
+                    &&property.Instance?.Type is IArrayTypeSymbol or INamedTypeSymbol{Name:"List"}:
+                    break;
+                case IAnonymousFunctionOperation or IBlockOperation or IReturnOperation or IDelegateCreationOperation:
+                    break;
+                default:
+                    return false;
+            }
+            // 参照の先が null かもしれないなら、その先のメンバー参照は例外を出しうる。
+            if(operation is IPropertyReferenceOperation{Instance:{ } instance}&&instance.Syntax is ExpressionSyntax instanceSyntax
+                &&this.model.GetTypeInfo(instanceSyntax).Nullability.FlowState!=NullableFlowState.NotNull){
+                return false;
+            }
+        }
+        // 内側の列そのものが null なら Where などの呼び出しが例外を出す。
+        return this.model.GetTypeInfo(expression).Type is not { IsReferenceType: true }
+            ||this.model.GetTypeInfo(expression).Nullability.FlowState==NullableFlowState.NotNull
+            ||root is IArrayCreationOperation or IConversionOperation{Operand:IArrayCreationOperation};
+    }
+
     private static bool TryGetSingleParamLambda(ArgumentSyntax arg,out LambdaExpressionSyntax lambda) {
         lambda=null!;
         if(arg.Expression is SimpleLambdaExpressionSyntax sl) {

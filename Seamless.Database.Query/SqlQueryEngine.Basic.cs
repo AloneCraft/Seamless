@@ -10,10 +10,10 @@ public sealed partial class SqlQueryEngine{
         if(parameters.Any(parameter=>!parameter.Name.StartsWith("@",StringComparison.Ordinal))||parameters.Select(parameter=>parameter.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=parameters.Count){throw new SqlQueryException("Invalid or duplicate SQL parameter name.",137);}
         parameters=parameters.Select(parameter=>{
             var type=parameter.Type;
-            if(type.ClrType==typeof(string)&&type.Name!="xml"){type=type with{Collation=type.Collation??this.catalog.GetDatabaseCollation(database),Coercibility=SqlCollationCoercibility.CoercibleDefault};}
+            if(type.ClrType==typeof(string)&&type.Name!="xml"){type=type with{Collation=type.Collation??this.catalog.GetDatabaseCollation(database),Coercibility=parameter.IsColumnValue?SqlCollationCoercibility.Implicit:SqlCollationCoercibility.CoercibleDefault};}
             return parameter with{Type=type};
         }).ToArray();
-        var key=new CacheKey(this.catalog.GetGeneration(database),database,sql,string.Join(";",parameters.Select(parameter=>parameter.Name+":"+parameter.Type+":"+parameter.IsNullable)),"OssSqlServerBasicV1");
+        var key=new CacheKey(this.catalog.Generation,database,sql,string.Join(";",parameters.Select(parameter=>parameter.Name+":"+parameter.Type+":"+parameter.IsNullable+":"+parameter.IsColumnValue)),"OssSqlServerBasicV1");
         if(this.catalog.CanCachePlans){
             SqlQueryPlan?cached;lock(this.gate){this.cache.TryGetValue(key,out cached);}
             if(cached is not null){if(cached.IsCurrent){return cached;}lock(this.gate){this.cache.Clear();this.cacheOrder.Clear();}}

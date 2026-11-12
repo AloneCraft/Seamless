@@ -1,3 +1,0 @@
-# 固定上流入力は改行を含むbyte列を保持する。
-Upstream/** -text
-recovery-head-pages.patch -text

@@ -13,9 +13,9 @@ public sealed partial class SqlQueryEngine{
     public SqlQueryPlan Prepare(string sql,string database,IReadOnlyList<SqlParameter>? parameters=null){
         ArgumentException.ThrowIfNullOrWhiteSpace(sql);ArgumentException.ThrowIfNullOrWhiteSpace(database);
         parameters??=[];
-        parameters=parameters.Select(parameter=>{var type=parameter.Type;if(type.ClrType==typeof(string)&&type.Name!="xml"){type=type with{Collation=type.Collation??this.catalog.GetDatabaseCollation(database),Coercibility=SqlCollationCoercibility.CoercibleDefault};}return parameter with{Type=type};}).ToArray();
+        parameters=parameters.Select(parameter=>{var type=parameter.Type;if(type.ClrType==typeof(string)&&type.Name!="xml"){type=type with{Collation=type.Collation??this.catalog.GetDatabaseCollation(database),Coercibility=parameter.IsColumnValue?SqlCollationCoercibility.Implicit:SqlCollationCoercibility.CoercibleDefault};}return parameter with{Type=type};}).ToArray();
         if(sql.Length>1048576||parameters.Count>2100){throw new SqlQueryException("SQL text or parameter count exceeds the query limits.",103);}
-        var key=new CacheKey(this.catalog.GetGeneration(database),database,sql,string.Join(";",parameters.Select(x=>x.Name+":"+x.Type+":"+x.IsNullable)));
+        var key=new CacheKey(this.catalog.Generation,database,sql,string.Join(";",parameters.Select(x=>x.Name+":"+x.Type+":"+x.IsNullable+":"+x.IsColumnValue)));
         if(parameters.Any(x=>!x.Name.StartsWith("@",StringComparison.Ordinal))||parameters.Select(x=>x.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=parameters.Count){throw new SqlQueryException("Invalid or duplicate SQL parameter name.",137);}
         if(this.catalog.CanCachePlans){
             SqlQueryPlan?cached;lock(this.gate){this.cache.TryGetValue(key,out cached);}
@@ -39,11 +39,11 @@ public sealed partial class SqlQueryEngine{
     }
 }
 public sealed class SqlQueryPlan{
-    private readonly BoundQuery query;
+    private BoundQuery? query;
     private readonly SqlParameter[]parameters;
     private readonly ISqlCatalog catalog;
     private readonly long generation;
-    internal SqlQueryPlan(BoundQuery query,SqlParameter[]parameters,ISqlCatalog catalog,long generation){this.query=query;this.parameters=parameters;this.catalog=catalog;this.generation=generation;this.Columns=Array.AsReadOnly(query.Columns.ToArray());}
+    internal SqlQueryPlan(BoundQuery query,SqlParameter[]parameters,ISqlCatalog catalog,long generation){this.query=query;this.parameters=parameters;this.catalog=catalog;this.generation=generation;this.Columns=Array.AsReadOnly(query.Columns.ToArray());this.catalog.TrackPlan(this);}
     public IReadOnlyList<SqlColumn>Columns{get;}
     public SqlQueryResult Execute(IReadOnlyDictionary<string,object?>? parameters=null,ExecutionOptions? options=null){
         this.VerifyGeneration();
@@ -60,18 +60,21 @@ public sealed class SqlQueryPlan{
         return new(this.Columns,this.Enumerate(values,options??new()));
     }
     private IEnumerable<object?[]>Enumerate(IReadOnlyDictionary<string,object?> parameters,ExecutionOptions options){
+        using var read=this.catalog.AcquireRead([],options.CancellationToken);
         this.VerifyGeneration();
         using var scope=new ExecutionScope(options);
         scope.Codecs.Register<object?[]>(new SqlRowCodec());
         var context=new QueryExecution(scope,parameters,options);
-        using var iterator=this.query.Rows(context,null).GetEnumerator();
+        using var iterator=(Volatile.Read(ref this.query)??throw new SqlQueryException("The SQL plan was invalidated by a schema change.",3961)).Rows(context,null).GetEnumerator();
         while(true){this.VerifyGeneration();bool next;try{next=iterator.MoveNext();}catch(DivideByZeroException){throw new SqlQueryException("Divide by zero error encountered.",8134);}catch(OverflowException exception){throw new SqlQueryException("Arithmetic overflow: "+exception.Message,8115);}catch(FormatException exception){throw new SqlQueryException("Conversion failed: "+exception.Message,245);}this.VerifyGeneration();if(!next){yield break;}scope.ThrowIfUnavailable();var row=iterator.Current;using var memory=scope.Budget.ReserveMemory(checked(96L+32L*row.Length+4L*new SqlRowCodec().GetEncodedLength(row)));yield return row;}
     }
-    internal bool IsCurrent=>this.catalog.Generation==this.generation;
+    internal bool IsCurrent=>Volatile.Read(ref this.query) is not null&&this.catalog.Generation==this.generation;
+    /// <summary>世代が変わった保持済み計画から、型・デリゲート・行ソースへの参照を解放する。</summary>
+    public void ReleaseIfObsolete(){if(this.catalog.Generation!=this.generation){Interlocked.Exchange(ref this.query,null);}}
     private void VerifyGeneration(){if(!this.IsCurrent){throw new SqlQueryException("Catalog generation changed; prepare the SQL statement again.",3961);}}
 }
 internal sealed record BoundQuery(IReadOnlyList<SqlColumn>Columns,Func<QueryExecution,object?[]?,IEnumerable<object?[]>>Rows);
-internal sealed record QueryExecution(ExecutionScope Scope,IReadOnlyDictionary<string,object?>Parameters,ExecutionOptions?Options=null){internal DateTime Timestamp{get;}=DateTime.Now;}
+internal sealed record QueryExecution(ExecutionScope Scope,IReadOnlyDictionary<string,object?>Parameters,ExecutionOptions?Options=null,int RoutineDepth=0,DateTime?InheritedTimestamp=null){internal DateTime Timestamp{get;}=InheritedTimestamp??Options?.StatementTimestamp??DateTime.Now;}
 internal sealed record BindingColumn(SqlColumn Column,string? Qualifier);
 internal sealed record BoundSource(IReadOnlyList<BindingColumn>Columns,Func<QueryExecution,object?[]?,IEnumerable<object?[]>>Rows);
 internal sealed record EvalFrame(object?[]Row,object?[]?Outer,QueryExecution Execution,object?[]?Aggregates=null);

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Label="Globals">
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>{B9C4A407-BADC-46B3-935C-914F24CD8EC2}</SharedGUID>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)DatabaseContainerGeneration.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DatabaseSchemaGeneration.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DatabaseSchemaGeneration.Layout.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DatabaseNativeClientGeneration.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DatabaseLambdaGeneration.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DatabaseGenerationHelpers.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DatabaseAnalysisCompilation.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)DatabaseViewRowGeneration.cs" />
+  </ItemGroup>
+</Project>

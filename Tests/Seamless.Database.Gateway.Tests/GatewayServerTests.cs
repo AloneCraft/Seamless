@@ -12,6 +12,19 @@ namespace Seamless.Database.Gateway.Tests;
 
 public sealed class GatewayServerTests{
     [Fact,Trait("Category","Integration")]
+    public async Task NativeShutdownReleasesIdleConnectionsWhileAcceptIsPending(){
+        for(var attempt=0;attempt<32;attempt++){
+            using var native=new Seamless.Database.Gateway.Native.NativeQueryServer(new DatabaseRegistry(),0);native.Start();using var client=new TcpClient();await client.ConnectAsync("127.0.0.1",native.Port);await native.StopAsync();await native.StopAsync();
+        }
+    }
+    [Fact,Trait("Category","Integration")]
+    public async Task EphemeralPortsExposeTheActualListenersAndCanBeStoppedTwice(){
+        var data=Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")??throw new InvalidOperationException("Missing isolated data root.");
+        using var database=商店DB.開く(Path.Combine(data,"gateway-ports-"+Guid.NewGuid().ToString("N")),資源設定.標準);using var gateway=new GatewayServer(new InProcessDatabaseAdapter(database),new(){TdsPort=0,HttpPort=0,NativePort=0});gateway.Start();
+        Assert.True(gateway.TdsPort>0);Assert.True(gateway.HttpPort>0);Assert.True(gateway.NativePort>0);using var http=new HttpClient();using var response=await http.GetAsync("http://127.0.0.1:"+gateway.HttpPort+"/api/tables");response.EnsureSuccessStatusCode();await gateway.StopAsync();await gateway.StopAsync();
+    }
+
+    [Fact,Trait("Category","Integration")]
     public async Task HttpAndTdsIntegration(){
         var tempRoot=Environment.GetEnvironmentVariable("SEAMLESS_COMPARISON_TEMP_ROOT");
         if(string.IsNullOrWhiteSpace(tempRoot)){
@@ -43,8 +56,7 @@ public sealed class GatewayServerTests{
                     var res=await http.GetAsync($"http://localhost:{httpPort}/api/tables");
                     res.EnsureSuccessStatusCode();
                     var json=await res.Content.ReadAsStringAsync();
-                    Assert.Contains("商品",json);
-                    Assert.Contains("顧客",json);
+                    using var document=JsonDocument.Parse(json);var names=document.RootElement.EnumerateArray().Select(table=>table.GetProperty("name").GetString()).ToArray();Assert.Contains("商品",names);Assert.Contains("顧客",names);
                 }
 
                 {
@@ -74,7 +86,7 @@ public sealed class GatewayServerTests{
                         0x03, 0x00, 0x22, 0x00, 0x04, // ThreadId (offset 34)
                         0x04, 0x00, 0x26, 0x00, 0x01, // Mars (offset 38)
                         0xFF,                         // Terminator
-                        0x10, 0x00, 0x03, 0xE8, 0x00, 0x06, // Version 16.0.1000.6
+                        0x11, 0x00, 0x03, 0xE8, 0x00, 0x07, // Version 17.0.1000.7
                         0x02,                         // Encryption Not Supported
                         0x00,
                         0x00, 0x00, 0x00, 0x00,

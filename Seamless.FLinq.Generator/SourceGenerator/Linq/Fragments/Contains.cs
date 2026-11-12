@@ -135,9 +135,12 @@ internal class Contains(int 番号,Enumerable source,string value,string resultT
             """;
     }
     private string? RenderDirectSpanContainsInline(string destVar,string destType) {
+        var isPrimitiveEquatable = source.ElementType is "byte" or "sbyte" or "short" or "ushort" or "int" or "uint" or "long" or "ulong" or "float" or "double" or "char" or "bool" or "string";
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName =>
-            $"{destVar}=global::Seamless.Linq.Enumerable.ContainsSpan({spanName},{value});");
+            isPrimitiveEquatable
+                ? $"{destVar}=global::System.MemoryExtensions.Contains((global::System.ReadOnlySpan<{source.ElementType}>){spanName},{value});"
+                : $"{destVar}=global::Seamless.Linq.Enumerable.ContainsSpan({spanName},{value});");
     }
     private string? RenderRangeContainsInline(string destVar,string destType) {
         if(source is not RangeRoot range||source.ElementType!="int") {

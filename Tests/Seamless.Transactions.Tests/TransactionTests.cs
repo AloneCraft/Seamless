@@ -21,6 +21,23 @@ public sealed class TransactionTests{
         Assert.Equal(100,data[1].Item2+data[2].Item2);
         Assert.Equal(60,data[1].Item2);
     }
+    [Fact]public async Task DefaultConcurrencyHoldsExclusionUntilTheRootTransactionEnds(){
+        using var resources=new ExecutionScope();await using var coordinator=new TransactionCoordinator();
+        var data=new Dictionary<int,(int,long)>{{1,(1,100)}};var table=Accounts(coordinator,resources,data);
+        await using var read=await coordinator.BeginReadOnlyAsync();Assert.Equal(100,table.For(read)[1].Balance);
+        var queued=new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);Task writer;
+        using(global::System.Threading.ExecutionContext.SuppressFlow()){
+            writer=Task.Run(async()=>{
+                var pending=coordinator.BeginAsync().AsTask();queued.TrySetResult(pending.IsCompleted);
+                await using var update=await pending;table.For(update)[1]=(1,80);await update.CommitAsync();
+            });
+        }
+        try{
+            Assert.False(await queued.Task.WaitAsync(TimeSpan.FromSeconds(5)));Assert.False(writer.IsCompleted);
+            Assert.Equal(100,table.For(read)[1].Balance);Assert.Equal(100,data[1].Item2);await read.CommitAsync();
+        }finally{await read.DisposeAsync();await writer.WaitAsync(TimeSpan.FromSeconds(5));}
+        Assert.Equal(80,data[1].Item2);Assert.Null(coordinator.Failure.Error);
+    }
     [Fact]public async Task JoinedVoteIsNotDurableAndRollbackAbortsParent(){
         using var resources=new ExecutionScope();await using var coordinator=new TransactionCoordinator();
         var data=new Dictionary<int,(int,long)>{{1,(1,100)}};var table=Accounts(coordinator,resources,data);

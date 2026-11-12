@@ -66,16 +66,14 @@ internal abstract class MinMaxBase(int number,Enumerable source,string resultTyp
             return RangePredicateOptimizer.RenderMinMax(range,number,destVar,destType,direction=="greater");
         }
         var methodName = direction=="greater" ? "MaxSpan" : "MinSpan";
-        if(source.DirectArrayExpression is { } arrayExpression) {
-            return $$"""
-                {{destType}} {{destVar}}=global::Seamless.Linq.Enumerable.{{methodName}}<{{source.ElementType}}>({{arrayExpression}},global::System.Collections.Generic.Comparer<{{source.ElementType}}>.Default);
-                """;
-        }
+        var isPrimitive = source.ElementType is "byte" or "sbyte" or "short" or "ushort" or "int" or "uint" or "long" or "ulong" or "float" or "double";
         // ArrayRoot 以外(List<T> 等)でも GetDirectSpanExpression を持つ source なら
         // span 経由で MaxSpan/MinSpan(SIMD 実装)に乗せられる。TryGetSpan の実行時プローブを
         // 経由しない DirectSpanRootBase 派生(ListRoot 等)全般に適用される。
         if(this.RenderSpanInline(source,destVar,destType,$"__span{number}",spanName =>
-            $"{destVar}=global::Seamless.Linq.Enumerable.{methodName}<{source.ElementType}>({spanName},global::System.Collections.Generic.Comparer<{source.ElementType}>.Default);"
+            isPrimitive
+                ? $"{destVar}=global::Seamless.Linq.Enumerable.{methodName}<{source.ElementType}>({spanName});"
+                : $"{destVar}=global::Seamless.Linq.Enumerable.{methodName}<{source.ElementType}>({spanName},global::System.Collections.Generic.Comparer<{source.ElementType}>.Default);"
         ) is { } spanResult) {
             return spanResult;
         }

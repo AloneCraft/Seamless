@@ -3,6 +3,12 @@
 internal static class Program {
     public static async Task<int> Main(string[] args) {
         try {
+            if(args.Length>=3&&args[0]=="database"&&args[1]=="sql"&&args[2]=="convert"){
+                return await NativeDefinitionCommand.RunSqlAsync(args[3..]).ConfigureAwait(false);
+            }
+            if(args.Length>=3&&args[0]=="database"&&args[1]=="csharp"&&args[2]=="export"){
+                return await NativeDefinitionCommand.RunAsync(args[3..]).ConfigureAwait(false);
+            }
             if(args.Length<3
                 ||args[0]!="database"
                 ||args[1]!="sqlserver"
@@ -161,6 +167,8 @@ internal static class Program {
     }
 
     private static void WriteUsage() {
+        Console.Error.WriteLine("       seamless database csharp export --snapshot <snapshot.json> --type <type> --vendor sqlserver|mysql --output <new directory> [--reference <assembly>]");
+        Console.Error.WriteLine("       seamless database sql convert --sql <definition.sql> --name <database> --vendor sqlserver|mysql --output <new directory>");
         Console.Error.WriteLine("Usage: seamless database sqlserver generate --project <project.csproj> --connection <name> [--configuration Debug|Release]");
         Console.Error.WriteLine("       seamless database sqlserver generate --project <project.csproj> --connection <name> --database <name> [--database <name> ...] [--configuration Debug|Release]");
         Console.Error.WriteLine("       seamless database sqlserver import --project <project.csproj> --connection <name> --storage <directory> [--configuration Debug|Release]");

@@ -52,6 +52,17 @@ public static class DynamicQueryMaterializer{
                 throw new InvalidOperationException(
                     $"A dynamic query cannot materialize more than {DynamicQueryValue.MaximumMaterializedItemCount:N0} lookup groups.");
             }
+            if(group is ICollection<int> collection){
+                var count=collection.Count;
+                if(count>=0&&count<=DynamicQueryValue.MaximumMaterializedItemCount-totalValueCount){
+                    var sortedValues=new int[count];
+                    collection.CopyTo(sortedValues,0);
+                    Array.Sort(sortedValues);
+                    totalValueCount+=count;
+                    result.Add(new(group.Key,sortedValues));
+                    continue;
+                }
+            }
             var values=new List<int>();
             foreach(var value in group){
                 if(totalValueCount>=DynamicQueryValue.MaximumMaterializedItemCount){
@@ -95,6 +106,14 @@ public sealed record DynamicQueryValue(
     QueryOrderSemantics OrderSemantics,
     IReadOnlyList<DynamicQueryAtom> Items){
     public const int MaximumMaterializedItemCount=100_000;
+    public static DynamicQueryValue Scalar(int value)=>value==0?ZeroScalar.Value:Scalar(new IntQueryAtom(value));
+
+    private static class ZeroScalar{
+        internal static readonly DynamicQueryValue Value=new(
+            QueryValueType.Int,QueryCardinality.Scalar,QueryOrderSemantics.TotalOrdered,
+            Array.AsReadOnly<DynamicQueryAtom>([new IntQueryAtom(0)]));
+    }
+
     public static DynamicQueryValue Scalar(DynamicQueryAtom item){
         ArgumentNullException.ThrowIfNull(item);
         return new(item.Type,QueryCardinality.Scalar,QueryOrderSemantics.TotalOrdered,[item]);
@@ -109,6 +128,10 @@ public sealed record DynamicQueryValue(
             }
             materialized.Add(item);
         }
+        return ValidateSequence(valueType,orderSemantics,materialized);
+    }
+
+    private static DynamicQueryValue ValidateSequence(QueryValueType valueType,QueryOrderSemantics orderSemantics,List<DynamicQueryAtom> materialized){
         var value=new DynamicQueryValue(valueType,QueryCardinality.Sequence,orderSemantics,materialized);
         value.Validate();
         return value;
@@ -144,7 +167,24 @@ public sealed record DynamicQueryValue(
         if(value is not System.Collections.IEnumerable enumerable){
             throw new ArgumentException("A sequence result must implement IEnumerable.",nameof(value));
         }
-        var items=new List<DynamicQueryAtom>();
+        var capacity=value is Array array&&array.Length<=MaximumMaterializedItemCount?array.Length:0;
+        var items=new List<DynamicQueryAtom>(capacity);
+        if(valueType==QueryValueType.Int&&capacity>0&&value.GetType()==typeof(int[])){
+            foreach(var integer in (int[])value){
+                items.Add(GetSequenceIntAtom(integer));
+            }
+            return ValidateSequence(valueType,orderSemantics,items);
+        }
+        if(valueType==QueryValueType.Int&&value.GetType()==typeof(HashSet<int>)){
+            var integers=(HashSet<int>)value;
+            if(integers.Count<=MaximumMaterializedItemCount){
+                items.EnsureCapacity(integers.Count);
+                foreach(var integer in integers){
+                    items.Add(GetSequenceIntAtom(integer));
+                }
+                return ValidateSequence(valueType,orderSemantics,items);
+            }
+        }
         foreach(var item in enumerable){
             ArgumentNullException.ThrowIfNull(item);
             if(items.Count>=MaximumMaterializedItemCount){
@@ -152,7 +192,22 @@ public sealed record DynamicQueryValue(
             }
             items.Add(CreateAtom(item,valueType));
         }
-        return Sequence(valueType,orderSemantics,items);
+        return ValidateSequence(valueType,orderSemantics,items);
+    }
+
+    private static IntQueryAtom GetSequenceIntAtom(int value)=>
+        value is >=sbyte.MinValue and <=sbyte.MaxValue?SmallIntAtoms.Values[value-sbyte.MinValue]:new(value);
+
+    private static class SmallIntAtoms{
+        internal static readonly IntQueryAtom[] Values=Create();
+
+        private static IntQueryAtom[] Create(){
+            var result=new IntQueryAtom[256];
+            for(var index=0;index<result.Length;index++){
+                result[index]=new IntQueryAtom(index+sbyte.MinValue);
+            }
+            return result;
+        }
     }
 
     private static InvalidOperationException MaterializeLimitException(){
@@ -179,6 +234,7 @@ public sealed record DynamicQueryValue(
             QueryValueType.Double when value is double doubleValue=>new DoubleQueryAtom(doubleValue),
             QueryValueType.IntPair when value is IntPair pairValue=>new IntPairQueryAtom(pairValue),
             QueryValueType.IntGroup when value is IntGroup groupValue=>new IntGroupQueryAtom(groupValue),
+            QueryValueType.Element => new ElementQueryAtom(ElementCanonicalizer.Canonical(value)),
             _=>throw new ArgumentException($"Value '{value.GetType()}' is not a closed {valueType} value.",nameof(value)),
         };
     }

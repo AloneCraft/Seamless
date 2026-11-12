@@ -8,6 +8,8 @@ Windows、.NET 10 SDK、PowerShell、ローカル SQL Server を利用します�
 
 接続文字列は環境変数、`Seamless.Comparison.Local` のユーザーシークレット、実行ファイル側 `appsettings.json` の順で指定できます。環境変数を最優先します。資格情報は世代ファイルへ保存しません。
 
+この比較環境では [AGENTS.md の実行規約](../AGENTS.md#comparison-execution-policy-2026-10-30) に従い、作業・実データ・キャッシュ・ログを F ドライブに置きます。以下の `Invoke-Comparison.ps1` の各例をローカルで実行する際は、`-ManagedRoot`、`-ArchiveRoot`、`-TemporaryRoot` に F ドライブ上の対象ディレクトリを明示してください。
+
 ```powershell
 $env:ConnectionStrings__Source='Server=localhost;Database=master;Integrated Security=True;Encrypt=False;TrustServerCertificate=True'
 

@@ -6,9 +6,14 @@ public sealed partial class DatabaseRegistry{
     private readonly object schemaGate=new();
     private readonly Dictionary<string,(string Stamp,long Version)>schemaVersions=new(StringComparer.OrdinalIgnoreCase);
     private long nextSchemaVersion;
-    public bool CanCachePlans=>!this.databases.Values.Any(registration=>registration.Adapter is InProcessDatabaseAdapter{Database:RuntimeSqlDatabaseContainer runtime}&&runtime.RuntimeSql.HasActiveTransaction);
+    // 一時表は接続ごとに形が違い得るので、使っている接続では実行計画を共有しない。
+    public bool CanCachePlans=>sqlSession.Value is not {TemporaryTables.Count:>0}&&sqlSession.Value?.Transaction?.Participants.Values.Any(static participant=>participant.Candidate is not null)!=true&&!this.databases.Values.Any(registration=>registration.Adapter is InProcessDatabaseAdapter{Database:RuntimeSqlDatabaseContainer runtime}&&runtime.RuntimeSql.HasActiveTransaction);
     public long GetGeneration(string database){
-        this.RejectForeignDatabaseTransaction(database);var registration=this.Resolve(database);
+        this.RejectForeignDatabaseTransaction(database);
+        // msdb などの値を持たないシステムデータベースは、登録が無くても形だけ引ける。
+        if(!this.databases.ContainsKey(database)&&Sql.SqlServerSystemShape.IsSystemDatabase(database)){return this.Generation;}
+        var registration=this.Resolve(database);
+        if(registration.Adapter is InProcessDatabaseAdapter managed&&this.GatewayTransactions?.GenerationEpoch(managed) is{} epoch){return epoch;}
         if(registration.Adapter is not InProcessDatabaseAdapter{Database:RuntimeSqlDatabaseContainer}){return this.Generation;}
         var state=RuntimeState((InProcessDatabaseAdapter)registration.Adapter);var stamp=state.Revision.ToString(global::System.Globalization.CultureInfo.InvariantCulture)+":"+state.Structure;
         lock(this.schemaGate){
@@ -17,7 +22,8 @@ public sealed partial class DatabaseRegistry{
         }
     }
     private void RejectForeignDatabaseTransaction(string database){
-        foreach(var registration in this.databases.Values){if(registration.Adapter is InProcessDatabaseAdapter{Database:RuntimeSqlDatabaseContainer runtime}&&runtime.RuntimeSql.HasActiveTransaction&&!string.Equals(registration.Name,database,StringComparison.OrdinalIgnoreCase)){throw new SqlQueryException("A SQL write transaction cannot reference another database.",40515);}}
+        this.databases.TryGetValue(database,out var target);
+        foreach(var registration in this.databases.Values){if(registration.Adapter is InProcessDatabaseAdapter{Database:RuntimeSqlDatabaseContainer runtime}&&runtime.Options.GatewayProfile is null&&runtime.RuntimeSql.HasActiveTransaction&&!string.Equals(registration.Name,database,StringComparison.OrdinalIgnoreCase)&&!(target?.Adapter is InProcessDatabaseAdapter destination&&ReferenceEquals(destination.Database,runtime))){throw new SqlQueryException("A SQL write transaction cannot reference another database.",40515);}}
     }
     internal static string EffectiveSchemaFingerprint(IDatabaseAdapter adapter,string original){
         if(adapter is not InProcessDatabaseAdapter{Database:RuntimeSqlDatabaseContainer}){return original;}

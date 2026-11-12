@@ -4,7 +4,7 @@ using Seamless.Database.Rdbms;
 
 namespace Seamless.Database.Gateway.Sql;
 
-public static class SystemCatalogEmulator{
+public static partial class SystemCatalogEmulator{
     internal const int ProfileEngineEdition=3;
     internal const int ProfileHadrEnabled=0;
     internal static string PropertySqlLiteral(string name){
@@ -96,14 +96,14 @@ public static class SystemCatalogEmulator{
                     null, // CAST(NULL AS int) in the captured management query
                     1,
                     0,
-                    16,
-                    0,
-                    1000,
+                    (int)SqlServerVersion.Major,
+                    (int)SqlServerVersion.Minor,
+                    (int)SqlServerVersion.Build,
                     false,
                     "Enterprise Edition (64-bit)",
                     3,
                     false,
-                    "16.0.1000.6",
+                    SqlServerVersion.ProductVersion,
                     "Windows",
                     false
                 }
@@ -157,7 +157,7 @@ public static class SystemCatalogEmulator{
 
         if(normalized.Contains("@@VERSION",StringComparison.OrdinalIgnoreCase)){
             var cols=new[]{new ColumnMetadata("",typeof(string),"nvarchar",false,false,0)};
-            var rows=new[]{new object?[]{"Microsoft SQL Server 2022 (RTM) - 16.0.1000.6 (X64) - SeamlessDB Server 1.0"}};
+            var rows=new[]{new object?[]{SqlServerVersion.Banner}};
             result=new QueryResult(cols,rows,1);
             return true;
         }else{
@@ -319,12 +319,13 @@ public static class SystemCatalogEmulator{
                 new ColumnMetadata("source_database_id",typeof(int),"int",true,false,17),
                 ..SqlServerDatabaseOptionCatalog.Columns,
                 new ColumnMetadata("is_fulltext_enabled",typeof(bool),"bit",false,false,43),
-                new ColumnMetadata("is_ledger_on",typeof(bool),"bit",false,false,44)
+                new ColumnMetadata("is_ledger_on",typeof(bool),"bit",false,false,44),
+                new ColumnMetadata("owner_sid",typeof(byte[]),"varbinary",false,false,45,85)
             ];
             var rows=new List<object?[]>{
-                new object?[]{"master",1,"Japanese_CI_AS",(byte)0,"ONLINE",(byte)160,false,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null},
-                new object?[]{"tempdb",2,"Japanese_CI_AS",(byte)0,"ONLINE",(byte)160,false,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null},
-                new object?[]{adapter.DatabaseName,5,"Japanese_CI_AS",(byte)0,"ONLINE",(byte)160,false,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null}
+                new object?[]{"master",1,"Japanese_CI_AS",(byte)0,"ONLINE",SqlServerVersion.CompatibilityLevel,false,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null},
+                new object?[]{"tempdb",2,"Japanese_CI_AS",(byte)0,"ONLINE",SqlServerVersion.CompatibilityLevel,false,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null},
+                new object?[]{adapter.DatabaseName,5,"Japanese_CI_AS",(byte)0,"ONLINE",SqlServerVersion.CompatibilityLevel,false,(byte)0,"MULTI_USER",true,(byte)1,"FULL",0,"DATABASE_DEFAULT",(byte)0,"NONE",false,null}
             };
             result=new QueryResult(cols,rows.Select(SqlServerDatabaseOptionCatalog.Expand),rows.Count);
             return true;
@@ -427,7 +428,7 @@ public static class SystemCatalogEmulator{
             case IntegerLiteral integer:return new(typeof(int),"int",int.Parse(integer.Value,global::System.Globalization.CultureInfo.InvariantCulture));
             case VariableReference variable:return this.variables.TryGetValue(variable.Name,out var value)?value:throw new NotSupportedException("Unknown server property variable.");
             case GlobalVariableExpression global when string.Equals(global.Name,"@@MICROSOFTVERSION",StringComparison.OrdinalIgnoreCase):return new(typeof(int),"int",0x100003E8);
-            case GlobalVariableExpression global when string.Equals(global.Name,"@@VERSION",StringComparison.OrdinalIgnoreCase):return new(typeof(string),"nvarchar","Microsoft SQL Server 2022 (RTM) - 16.0.1000.6 (X64) - SeamlessDB Server 1.0",128);
+            case GlobalVariableExpression global when string.Equals(global.Name,"@@VERSION",StringComparison.OrdinalIgnoreCase):return new(typeof(string),"nvarchar",SqlServerVersion.Banner,128);
             case FunctionCall function when string.Equals(function.FunctionName.Value,"SERVERPROPERTY",StringComparison.OrdinalIgnoreCase):
                 if(function.Parameters.Count!=1||function.Parameters[0] is not StringLiteral property){throw new NotSupportedException("SERVERPROPERTY requires a literal property name.");}
                 return Property(property.Value);
@@ -454,10 +455,10 @@ public static class SystemCatalogEmulator{
     }
     private static PropertyValue Property(string name)=>name.ToUpperInvariant() switch{
         "ENGINEEDITION"=>new(typeof(int),"int",ProfileEngineEdition),
-        "PRODUCTVERSION"=>new(typeof(string),"nvarchar","16.0.1000.6",128),
-        "PRODUCTMAJORVERSION"=>new(typeof(string),"nvarchar","16",128),
-        "PRODUCTMINORVERSION"=>new(typeof(string),"nvarchar","0",128),
-        "PRODUCTBUILD"=>new(typeof(string),"nvarchar","1000",128),
+        "PRODUCTVERSION"=>new(typeof(string),"nvarchar",SqlServerVersion.ProductVersion,128),
+        "PRODUCTMAJORVERSION"=>new(typeof(string),"nvarchar",SqlServerVersion.Major.ToString(),128),
+        "PRODUCTMINORVERSION"=>new(typeof(string),"nvarchar",SqlServerVersion.Minor.ToString(),128),
+        "PRODUCTBUILD"=>new(typeof(string),"nvarchar",SqlServerVersion.Build.ToString(),128),
         "PRODUCTLEVEL"=>new(typeof(string),"nvarchar","RTM",128),
         "EDITION"=>new(typeof(string),"nvarchar","Enterprise Edition (64-bit)",128),
         "INSTANCENAME"=>new(typeof(string),"nvarchar",null,128),
@@ -618,7 +619,7 @@ public static class SystemCatalogEmulator{
         }else if(expr is GlobalVariableExpression gve){
             var varName=gve.Name;
             if(string.Equals(varName,"@@version",StringComparison.OrdinalIgnoreCase)){
-                return "Microsoft SQL Server 2022 (RTM) - 16.0.1000.6 (X64) - SeamlessDB Server 1.0";
+                return SqlServerVersion.Banner;
             }else if(string.Equals(varName,"@@options",StringComparison.OrdinalIgnoreCase)){
                 return 5496;
             }else{
@@ -642,16 +643,28 @@ public static class SystemCatalogEmulator{
         }
         var rows=new List<object?[]>();
         ColumnMetadata[] columns;
+        var ownerNames=views.Select(v=>v.OwnerName).Concat(routines.Select(r=>r.Catalog?.OwnerName)).Where(n=>n is not null).Distinct(StringComparer.Ordinal).OrderBy(n=>n,StringComparer.Ordinal).ToArray();
+        int? OwnerId(string? owner){if(owner is null){return null;}return Array.IndexOf(ownerNames,owner)+1;}
         var catalogName=name.ToLowerInvariant() switch{"all_objects"=>"objects","all_views"=>"views","all_columns"=>"columns","all_sql_modules"=>"sql_modules",_=>name.ToLowerInvariant()};
+        if(TryConstraintCatalog(catalogName,adapter,tables,schemas,out result)){return true;}
         switch(catalogName){
+            case "database_principals":
+                columns=[new ColumnMetadata("name",typeof(string),"nvarchar",false,false,0,128),Col("principal_id",typeof(int),"int",1)];
+                foreach(var owner in ownerNames){rows.Add([owner,OwnerId(owner)]);}break;
             case "schemas":
                 columns=[new ColumnMetadata("name",typeof(string),"nvarchar",false,false,0,128),Col("schema_id",typeof(int),"int",1)];
                 foreach(var schema in schemas){rows.Add([schema.Key,schema.Value]);}break;
             case "tables":case "views":case "objects":
-                columns=[new ColumnMetadata("name",typeof(string),"nvarchar",false,false,0,128),Col("object_id",typeof(int),"int",1),Col("schema_id",typeof(int),"int",2),new ColumnMetadata("type",typeof(string),"char",true,false,3,2),new ColumnMetadata("type_desc",typeof(string),"nvarchar",true,false,4,60),Col("is_ms_shipped",typeof(bool),"bit",5),Col("is_memory_optimized",typeof(bool),"bit",6),Col("is_filetable",typeof(bool),"bit",7),Col("temporal_type",typeof(byte),"tinyint",8),Col("ledger_type",typeof(byte),"tinyint",9),Col("is_external",typeof(bool),"bit",10),Col("is_node",typeof(bool),"bit",11),Col("is_edge",typeof(bool),"bit",12),Col("ledger_view_type",typeof(byte),"tinyint",13)];
-                if(catalogName!="views"){for(var i=0;i<tables.Count;i++){var t=tables[i];rows.Add([t.TableName,TableId(i),schemas[string.IsNullOrEmpty(t.SchemaName)?"dbo":t.SchemaName],"U ","USER_TABLE",false,false,false,(byte)0,(byte)0,false,false,false,(byte)0]);}}
-                if(catalogName!="tables"){for(var i=0;i<views.Count;i++){var v=views[i];rows.Add([v.Name,ViewId(i),schemas[string.IsNullOrEmpty(v.Schema)?"dbo":v.Schema],"V ","VIEW",false,false,false,(byte)0,(byte)0,false,false,false,(byte)0]);}}
-                if(catalogName=="objects"){for(var i=0;i<routines.Count;i++){var r=routines[i];var (type,description)=RoutineType(r);rows.Add([r.Name,RoutineId(i),schemas[string.IsNullOrEmpty(r.Schema)?"dbo":r.Schema],type,description,false,false,false,(byte)0,(byte)0,false,false,false,(byte)0]);}}break;
+                columns=[new ColumnMetadata("name",typeof(string),"nvarchar",false,false,0,128),Col("object_id",typeof(int),"int",1),Col("schema_id",typeof(int),"int",2),new ColumnMetadata("type",typeof(string),"char",true,false,3,2),new ColumnMetadata("type_desc",typeof(string),"nvarchar",true,false,4,60),Col("is_ms_shipped",typeof(bool),"bit",5),Col("is_memory_optimized",typeof(bool),"bit",6),Col("is_filetable",typeof(bool),"bit",7),Col("temporal_type",typeof(byte),"tinyint",8),Col("ledger_type",typeof(byte),"tinyint",9),Col("is_external",typeof(bool),"bit",10),Col("is_node",typeof(bool),"bit",11),Col("is_edge",typeof(bool),"bit",12),Col("ledger_view_type",typeof(byte),"tinyint",13),new ColumnMetadata("create_date",typeof(DateTime),"datetime",true,false,14),new ColumnMetadata("principal_id",typeof(int),"int",true,false,15)];
+                if(catalogName=="tables"){columns=[..columns,new ColumnMetadata("history_table_id",typeof(int),"int",true,false,16),Col("durability",typeof(byte),"tinyint",17),Col("is_dropped_ledger_table",typeof(bool),"bit",18)];}
+                if(catalogName=="views"){columns=[..columns,Col("is_dropped_ledger_view",typeof(bool),"bit",16)];}
+                if(catalogName!="views"){for(var i=0;i<tables.Count;i++){var t=tables[i];object?[] row=[t.TableName,TableId(i),schemas[string.IsNullOrEmpty(t.SchemaName)?"dbo":t.SchemaName],"U ","USER_TABLE",false,false,false,(byte)0,(byte)0,false,false,false,(byte)0,t.CreateDate,null];rows.Add(catalogName=="tables"?[..row,null,(byte)0,false]:row);}}
+                if(catalogName!="tables"){for(var i=0;i<views.Count;i++){var v=views[i];object?[] row=[v.Name,ViewId(i),schemas[string.IsNullOrEmpty(v.Schema)?"dbo":v.Schema],"V ","VIEW",false,false,false,(byte)0,(byte)0,false,false,false,(byte)0,null,OwnerId(v.OwnerName)];rows.Add(catalogName=="views"?[..row,false]:row);}}
+                if(catalogName=="objects"){
+                    for(var i=0;i<routines.Count;i++){var r=routines[i];var (type,description)=RoutineType(r);rows.Add([r.Name,RoutineId(i),schemas[string.IsNullOrEmpty(r.Schema)?"dbo":r.Schema],type,description,false,false,false,(byte)0,(byte)0,false,false,false,(byte)0,null,OwnerId(r.Catalog?.OwnerName)]);}
+                    columns=[..columns,Col("parent_object_id",typeof(int),"int",16)];for(var index=0;index<rows.Count;index++){rows[index]=[..rows[index],0];}
+                    foreach(var item in ConstraintObjects(adapter,tables)){rows.Add([item.Name,item.Id,schemas[string.IsNullOrEmpty(item.Schema)?"dbo":item.Schema],item.Type,ConstraintDescription(item.Type),false,false,false,(byte)0,(byte)0,false,false,false,(byte)0,item.Table.CreateDate,null,item.ParentId]);}
+                }break;
             case "procedures":
                 columns=[new ColumnMetadata("name",typeof(string),"nvarchar",false,false,0,128),Col("object_id",typeof(int),"int",1),Col("schema_id",typeof(int),"int",2),new ColumnMetadata("type",typeof(string),"char",true,false,3,2),new ColumnMetadata("type_desc",typeof(string),"nvarchar",true,false,4,60),Col("is_ms_shipped",typeof(bool),"bit",5)];
                 for(var i=0;i<routines.Count;i++){var r=routines[i];if((r.Catalog?.Kind??r.GeneratedMethod?.Kind)==RoutineKind.StoredProcedure){var (type,description)=RoutineType(r);rows.Add([r.Name,RoutineId(i),schemas[string.IsNullOrEmpty(r.Schema)?"dbo":r.Schema],type,description,false]);}}break;
@@ -676,23 +689,34 @@ public static class SystemCatalogEmulator{
                 columns=[Col("object_id",typeof(int),"int",0),Col("source_database_name",typeof(string),"nvarchar",1),Col("source_schema_name",typeof(string),"nvarchar",2),Col("source_name",typeof(string),"nvarchar",3),new ColumnMetadata("routine_kind",typeof(string),"nvarchar",true,false,4),new ColumnMetadata("declaring_type_name",typeof(string),"nvarchar",true,false,5),new ColumnMetadata("method_name",typeof(string),"nvarchar",true,false,6),new ColumnMetadata("source_file",typeof(string),"nvarchar",true,false,7),new ColumnMetadata("csharp_source",typeof(string),"nvarchar",true,false,8,-1),new ColumnMetadata("is_stub",typeof(bool),"bit",true,false,9)];
                 for(var i=0;i<routines.Count;i++){var r=routines[i];var method=r.GeneratedMethod;rows.Add([RoutineId(i),sourceDatabase??adapter.DatabaseName,r.Schema,r.Name,(r.Catalog?.Kind??method?.Kind)?.ToString(),method?.DeclaringTypeName,method?.MethodName,method?.SourceFile,method?.CSharpSource,method?.IsStub]);}break;
             case "columns":
-                columns=[Col("object_id",typeof(int),"int",0),Col("name",typeof(string),"nvarchar",1),Col("column_id",typeof(int),"int",2),Col("system_type_id",typeof(byte),"tinyint",3),Col("max_length",typeof(short),"smallint",4),Col("precision",typeof(byte),"tinyint",5),Col("scale",typeof(byte),"tinyint",6),Col("is_nullable",typeof(bool),"bit",7),Col("user_type_id",typeof(int),"int",8),new ColumnMetadata("collation_name",typeof(string),"nvarchar",true,false,9),Col("is_sparse",typeof(bool),"bit",10)];
+                columns=[Col("object_id",typeof(int),"int",0),Col("name",typeof(string),"nvarchar",1),Col("column_id",typeof(int),"int",2),Col("system_type_id",typeof(byte),"tinyint",3),Col("max_length",typeof(short),"smallint",4),Col("precision",typeof(byte),"tinyint",5),Col("scale",typeof(byte),"tinyint",6),Col("is_nullable",typeof(bool),"bit",7),Col("user_type_id",typeof(int),"int",8),new ColumnMetadata("collation_name",typeof(string),"nvarchar",true,false,9),Col("is_sparse",typeof(bool),"bit",10),Col("is_identity",typeof(bool),"bit",11),Col("is_computed",typeof(bool),"bit",12)];
                 for(var i=0;i<tables.Count;i++){foreach(var c in tables[i].Columns){AddColumn(TableId(i),c);}}
                 for(var i=0;i<views.Count;i++){foreach(var c in views[i].Columns){var source=views[i].SourceColumns?.FirstOrDefault(x=>x.Ordinal==c.Ordinal)?.Type;AddColumn(ViewId(i),new(c.Name,c.Type.ClrType,c.Type.Name,c.IsNullable,false,c.Ordinal,c.Type.Length,c.Type.Precision,c.Type.Scale,c.Type.Collation,source?.SourceMaximumLength,source?.SourcePrecision,source?.SourceScale,sourceSqlTypeName:source?.SqlTypeName));}}
                 for(var i=0;i<routines.Count;i++){
                     var routine=routines[i].Catalog;if(routine?.Kind!=RoutineKind.TableFunction){continue;}
                     foreach(var c in routine.ResultColumns){var type=ComparisonHost.ToSqlType(c.Type);AddColumn(RoutineId(i),new(c.Name,type.ClrType,type.Name,c.Type.IsNullable,false,c.Ordinal,type.Length,type.Precision,type.Scale,type.Collation,c.Type.SourceMaximumLength,c.Type.SourcePrecision,c.Type.SourceScale,sourceSqlTypeName:c.Type.SqlTypeName));}
                 }break;
+            case "computed_columns":
+                columns=[Col("object_id",typeof(int),"int",0),Col("name",typeof(string),"nvarchar",1),Col("column_id",typeof(int),"int",2),Col("is_nullable",typeof(bool),"bit",3),Col("definition",typeof(string),"nvarchar",4),Col("is_persisted",typeof(bool),"bit",5)];for(var index=0;index<tables.Count;index++){foreach(var column in tables[index].Columns.Where(static column=>column.ComputedDefinition is not null)){rows.Add([TableId(index),column.Name,column.StableColumnId??column.Ordinal+1,column.IsNullable,column.ComputedDefinition,column.IsComputedPersisted]);}}break;
+            case "identity_columns":
+                columns=[Col("object_id",typeof(int),"int",0),Col("name",typeof(string),"nvarchar",1),Col("column_id",typeof(int),"int",2),Col("seed_value",typeof(object),"sql_variant",3),Col("increment_value",typeof(object),"sql_variant",4),Col("last_value",typeof(object),"sql_variant",5)];
+                for(var index=0;index<tables.Count;index++){foreach(var column in tables[index].Columns.Where(static column=>column.IsIdentity)){
+                    var type=new Seamless.Database.Query.SqlType(column.SqlTypeName,column.ClrType,column.MaximumLength,column.Precision,column.Scale,column.Collation);object? last=null;
+                    if(adapter is InProcessDatabaseAdapter{GatewayTransactions:{TypedDdlEnabled:true} manager}){var session=DatabaseRegistry.CurrentSqlSession??new SessionContext(0,sourceDatabase??adapter.DatabaseName);var current=manager.IdentityCurrent(session,sourceDatabase??adapter.DatabaseName,tables[index].SchemaName,tables[index].TableName,false);last=Seamless.Database.Query.SqlScalarConversion.Assign(current,type);}
+                    rows.Add([TableId(index),column.Name,column.StableColumnId??column.Ordinal+1,Seamless.Database.Query.SqlScalarConversion.Assign(column.IdentitySeed,type),Seamless.Database.Query.SqlScalarConversion.Assign(column.IdentityIncrement,type),last]);
+                }}break;
             case "types":
                 columns=[Col("name",typeof(string),"nvarchar",0),Col("system_type_id",typeof(byte),"tinyint",1),Col("user_type_id",typeof(int),"int",2),Col("schema_id",typeof(int),"int",3),Col("max_length",typeof(short),"smallint",4),Col("precision",typeof(byte),"tinyint",5),Col("scale",typeof(byte),"tinyint",6),Col("is_nullable",typeof(bool),"bit",7),Col("is_user_defined",typeof(bool),"bit",8),Col("is_assembly_type",typeof(bool),"bit",9)];
                 foreach(var type in TypeShapes){rows.Add([type.Name,type.Id,UserTypeId(type.Name,type.Id),4,type.Length,type.Precision,type.Scale,true,false,type.Id==240]);}
                 rows.Add(["sysname",(byte)231,256,4,(short)256,(byte)0,(byte)0,false,false,false]);break;
             case "indexes":
                 columns=[Col("object_id",typeof(int),"int",0),new ColumnMetadata("name",typeof(string),"nvarchar",true,false,1,128),Col("index_id",typeof(int),"int",2),Col("type",typeof(byte),"tinyint",3),Col("type_desc",typeof(string),"nvarchar",4),Col("is_unique",typeof(bool),"bit",5),Col("is_primary_key",typeof(bool),"bit",6),Col("data_space_id",typeof(int),"int",7),Col("is_unique_constraint",typeof(bool),"bit",8),Col("is_hypothetical",typeof(bool),"bit",9)];
-                for(var i=0;i<tables.Count;i++){var key=tables[i].PrimaryKey;if(key is not null){var type=key.IndexType;string? description=type switch{1=>"CLUSTERED",2=>"NONCLUSTERED",_=>null};rows.Add([TableId(i),key.Name,1,type,description,true,true,0,false,false]);}else{rows.Add([TableId(i),null,0,(byte)0,"HEAP",false,false,0,false,false]);}}break;
+                for(var i=0;i<tables.Count;i++){var key=tables[i].PrimaryKey;if(key is not null){var type=key.IndexType;string? description=type switch{1=>"CLUSTERED",2=>"NONCLUSTERED",_=>null};rows.Add([TableId(i),key.Name,1,type,description,true,true,0,false,false]);}else{rows.Add([TableId(i),null,0,(byte)0,"HEAP",false,false,0,false,false]);}}
+                foreach(var item in ConstraintObjects(adapter,tables).Where(static item=>item.Type=="UQ")){rows.Add([item.ParentId,item.Name,item.IndexId,(byte)2,"NONCLUSTERED",true,false,0,true,false]);}break;
             case "index_columns":
                 columns=[Col("object_id",typeof(int),"int",0),Col("index_id",typeof(int),"int",1),Col("index_column_id",typeof(int),"int",2),Col("column_id",typeof(int),"int",3),Col("key_ordinal",typeof(byte),"tinyint",4),Col("is_descending_key",typeof(bool),"bit",5)];
-                for(var i=0;i<tables.Count;i++){var table=tables[i];var key=table.PrimaryKey;if(key is null){continue;}for(var j=0;j<key.Columns.Count;j++){var column=table.Columns.FirstOrDefault(c=>string.Equals(c.Name,key.Columns[j].Name,StringComparison.OrdinalIgnoreCase))??throw new InvalidDataException($"Primary key column missing: {key.Columns[j].Name}.");rows.Add([TableId(i),1,j+1,column.Ordinal+1,(byte)(j+1),key.Columns[j].IsDescending]);}}break;
+                for(var i=0;i<tables.Count;i++){var table=tables[i];var key=table.PrimaryKey;if(key is null){continue;}for(var j=0;j<key.Columns.Count;j++){var column=table.Columns.FirstOrDefault(c=>string.Equals(c.Name,key.Columns[j].Name,StringComparison.OrdinalIgnoreCase))??throw new InvalidDataException($"Primary key column missing: {key.Columns[j].Name}.");rows.Add([TableId(i),1,j+1,column.StableColumnId??column.Ordinal+1,(byte)(j+1),key.Columns[j].IsDescending]);}}
+                foreach(var item in ConstraintObjects(adapter,tables).Where(static item=>item.Type=="UQ")){var keys=KeyColumns(item);for(var index=0;index<keys.Count;index++){var column=item.Metadata.Columns.Single(column=>column.Name.Equals(keys[index].Name,StringComparison.OrdinalIgnoreCase));rows.Add([item.ParentId,item.IndexId,index+1,column.StableColumnId??column.Ordinal+1,checked((byte)(index+1)),keys[index].IsDescending]);}}break;
             default:result=QueryResult.Empty;return false;
         }
         result=new(columns,rows,rows.Count);return true;
@@ -716,7 +740,7 @@ public static class SystemCatalogEmulator{
                 if(max<0){length=-1;}else{var bytes=max;if(type.Name is "nvarchar" or "nchar"){bytes=checked(bytes*2);}length=checked((short)bytes);}
             }
             if(type.Name is "decimal" or "numeric"){length=(short)(precision<=9?5:precision<=19?9:precision<=28?13:17);}
-            rows.Add([objectId,c.Name,c.Ordinal+1,type.Id,c.SourceMaximumLength??length,c.SourcePrecision??precision,c.SourceScale??scale,c.IsNullable,UserTypeId(type.Name,type.Id),c.Collation,false]);
+            rows.Add([objectId,c.Name,c.StableColumnId??c.Ordinal+1,type.Id,c.SourceMaximumLength??length,c.SourcePrecision??precision,c.SourceScale??scale,c.IsNullable,UserTypeId(type.Name,type.Id),c.Collation,false,c.IsIdentity,c.ComputedDefinition is not null]);
         }
     }
     private static (string? Type,string? Description) RoutineType(DatabaseRoutineDefinition routine){
@@ -733,7 +757,7 @@ public static class SystemCatalogEmulator{
     private static readonly (string Name,byte Id,short Length,byte Precision,byte Scale)[] TypeShapes=[
         ("tinyint",48,1,3,0),("smallint",52,2,5,0),("int",56,4,10,0),("bigint",127,8,19,0),("bit",104,1,1,0),
         ("char",175,8000,0,0),("varchar",167,8000,0,0),("nchar",239,8000,0,0),("nvarchar",231,8000,0,0),
-        ("binary",173,8000,0,0),("varbinary",165,8000,0,0),("decimal",106,17,18,0),("numeric",108,17,18,0),
+        ("binary",173,8000,0,0),("varbinary",165,8000,0,0),("timestamp",189,8,0,0),("decimal",106,17,18,0),("numeric",108,17,18,0),
         ("float",62,8,53,0),("real",59,4,24,0),("date",40,3,10,0),("time",41,5,16,7),("datetime2",42,8,27,7),
         ("datetimeoffset",43,10,34,7),("smalldatetime",58,4,16,0),("datetime",61,8,23,3),("uniqueidentifier",36,16,0,0),
         ("money",60,8,19,4),("smallmoney",122,4,10,4),("xml",241,-1,0,0),("text",35,16,0,0),("ntext",99,16,0,0),("image",34,16,0,0),

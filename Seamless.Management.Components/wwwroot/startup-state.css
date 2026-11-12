@@ -1,0 +1,3 @@
+.起動状態案内{position:fixed;top:12px;right:16px;z-index:9000;max-width:min(460px,calc(100vw - 32px));padding:16px 20px;background:#fffef7;color:#3f5147;border:1px solid #cbdacf;border-radius:8px;box-shadow:0 5px 20px #233c2524;font:13px/1.6 Inter,"Segoe UI",sans-serif}
+.起動状態案内 p{margin:0 0 8px}.起動状態案内 a{display:inline-block;padding:5px 10px;border:1px solid #99b2a5;border-radius:4px;color:#236b58;background:#fff;text-decoration:none}.起動状態案内 a:focus-visible{outline:2px solid #267768;outline-offset:2px}
+.管理ワークスペース[data-interactive-ready=false]{opacity:.65;cursor:progress}

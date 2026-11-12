@@ -20,6 +20,7 @@ public sealed class OwnedBuffer:IMemoryOwner<byte>{
             return this.bytes;
         }
     }
+    public long MemoryBytes=>this.reservation.Bytes;
     public void Dispose(){
         if(this.bytes is null){return;}
         this.bytes=null;

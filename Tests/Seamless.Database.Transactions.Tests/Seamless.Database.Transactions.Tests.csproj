@@ -1,12 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><IsTestProject>true</IsTestProject><AllowUnsafeBlocks>true</AllowUnsafeBlocks><LangVersion>preview</LangVersion><Features>InterceptorsPreview</Features><InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces><AssemblyName>Database.Transactions.Tests</AssemblyName></PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" /><PackageReference Include="xunit" Version="2.9.3" /><PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" /><PackageReference Include="MemoryPack" Version="1.*" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" /><PackageReference Include="xunit" Version="2.9.3" /><PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all" /><PackageReference Include="MemoryPack" Version="1.21.4" /><PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.6.0" />
     <Using Include="Xunit" /><ProjectReference Include="../../Seamless.Database/Seamless.Database.csproj" />
-    <ProjectReference Include="../../Seamless.Database.Generator/Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-    <ProjectReference Include="../../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../Seamless.Database.Generator/Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="../../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
     <ProjectReference Include="../../Seamless.Linq/Seamless.Linq.csproj" />
-    <Compile Include="../../Test/Seamless/Database/Spec/SpecDatabase.cs" Link="Legacy/SpecDatabase.cs" />
-    <Compile Include="../../Test/Seamless/Database/Spec/DatabaseTransactionTests.cs" Link="Legacy/DatabaseTransactionTests.cs" />
+    <ProjectReference Include="../Seamless.TestKit/Seamless.TestKit.csproj" />
+    <!-- 元の回帰ソースをRoslynで生成/実行し、意図した匿名型診断も期待値として検証する。 -->
+    <EmbeddedResource Include="../../Benchmark/Benchmark.Dynamic.Core/RegressionSources/System/Linq/Intercept/GroupByOrder.cs" LogicalName="GeneratorRegression.GroupByOrder.cs" />
+    <EmbeddedResource Include="../../Benchmark/Benchmark.Dynamic.Core/RegressionSources/System/Linq/Intercept/LazyEvaluationCounts.cs" LogicalName="GeneratorRegression.LazyEvaluationCounts.cs" />
   </ItemGroup>
 </Project>

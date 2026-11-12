@@ -1,0 +1,1 @@
+using System.IO; class P { static void Main() { File.AppendAllText("docs/refactoring-designs/20261106-seamless-intermediate-spec.md, \n + File.ReadAllText(scratch/section39.md)); } }

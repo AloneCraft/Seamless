@@ -1,0 +1,533 @@
+# Seamless 作業ツリー
+
+更新日 2026年11月11日
+
+利用者が指定した1〜21を親項目として、作業中に判明した実装・検証・依存関係を枝へ追加する作業台帳。仕様は [中間仕様書](refactoring-designs/20261106-seamless-intermediate-spec.md)、通信・運用の詳細受入は [Kestrel残作業台帳](kestrel-remaining-work.md) を参照する。
+
+初版の状態は既存の仕様書・確認記録から引き継いだ。記録のある限定範囲と、現在の候補で再確認が必要な範囲を分ける。各親項目の全面的なコード監査・再試験は今後の着手枝に含める。
+
+## 読み方と更新規則
+
+- `W01`〜`W21`は利用者指定の項目番号へ対応する固定ID。子の英字IDも固定し、表示順を変更しても維持する。依存関係と優先度は別に記録する。
+- 状態は `[確認済み]`、`[実装済み・未検証]`、`[記録あり・照合待ち]`、`[要対応]`、`[未検証]`、`[未分解]`、`[環境待ち]`、`[初版後]`を使う。
+- `[確認済み]`は葉に書いた条件・構成・操作の範囲へ適用する。上位項目は、その配下の必須の葉と共通依存の完了条件を満たしてから完了へ移す。
+- 正常系、異常系、基盤、環境・統合受入を枝として分ける。必要な枝を省く場合は適用外の根拠を残す。
+- 原因調査で問題が見つかったら、その場で該当箇所の下へ枝を追加する。仮説には「仮説」と付け、観測・実験・修正・回帰確認を必要な深さまで展開する。
+- `[未分解]`は調査を必要とする残作業。着手時に具体的な子へ分ける。未分解の枝を含む親は完了判定を保留する。
+- 同じ機能を複数の枝が使う場合は、実装と工数を担当枝へ集約し、利用側からIDを参照する。共通基盤と各機能の結合確認をそれぞれ記録する。
+- 意味のある作業単位の終了、失敗、新しい分岐の発見、受入条件の変更時に更新する。微小なファイル編集やコマンド実行ごとの更新は省略できる。
+- 完了へ移す葉には成果物、確認した構成・入力、試験または実操作、証拠へのリンクを付ける。合格工程は入力・依存関係・候補が一致する範囲で再利用する。
+- 古くなった状態は現在の状態へ置き換える。再発防止に必要な理由と有効な証拠を残し、失効した仮説を整理する。
+- 見積もりは分解した葉へ範囲と不確実性を付ける。未分解部分の存在と、発見により増えた作業を表示する。枝の件数から全体の完成率を算出しない。
+
+### 枝を追加するときの書式
+
+```text
+- [状態] 固定ID 作業名
+  - 成果物・守る契約
+  - 依存する枝と着手条件
+  - 完了条件と検証方法
+  - 確認した候補・入力・環境・証拠
+  - 次の一手、未分解部分、見積もり幅と不確実性
+```
+
+## 現在の優先順
+
+- [合意反映・境界確認途中] W18-HOST-BOUNDARIES 現在はDB定義.dllを使用するスタンドアロン/Seamlessサーバーと、Managerサーバー・複数C#クライアント。DB通信.dllは業務クライアントの通信実装を担う。将来のBackend/Frontend分離(1万接続/認証/圧縮/暗号化/監査/入出力buffer)は現在実装しない。既存のTransport/認証境界と、DB実行・確定・wire出力の残る結合を区別して[実行形態の正本](refactoring-designs/20261107-manager-browser-hosting.md)へ記録する。
+- [確認済み・描画と隔離GUI] W20-EXPANSION-NOTICE ビュー展開状態と理由を計画へ明示記録し、実行計画画面へ赤太字の通知を接続した。日英・未知理由・採用/不採用・点検索未採用・SDKパスの対応コード表示/曖昧拒否を含むフルUIのRelease12件が成功。通知styleをホストが配信する既存manager.cssへ接続し、ACE059 UIのWindows／Linux隔離ManagerでSDK実計画・赤通知・対応コードを同一画像で確認した。SDKとGUIの版はW05-PLAN-SDK-GUI／LINUXを参照し、固定URLへの配布は残る。描画証拠は`F:/Seamless/view-expansion-warning-20261111/full-test-results-r4`、実画像は各SDK受入葉へ集約する。
+
+
+- [実装済み・検証途中] W05-TREE-INLINE 左ツリーの列を行内編集し、移行用初期式を下書きへ接続する。列編集・式の保存と解除はRelease近接11件成功。候補03で所有者起動、計画案内、既存列の行内編集・型候補表示・取消を実ブラウザーで確認した。候補03のdraggable属性不具合は候補04で修正し、別Linuxサーバー・実ブラウザーでドラッグ操作、DOM順序変更、DBの未保管状態不変を確認した。その修正を含む候補05を正常停止・バックアップ後に固定URLへ反映した。正式r3のWindows／Linux隔離GUIではW05-FORMAL-COLUMN-R3で列追加・移行式・SDK適用・正常再起動まで後続確認した。固定URLの操作、列ドラッグの再確認と再起動後の表示順復元は継続する。新規行の既定値は移行式とは別に実装が必要。
+  - [実装済み・隔離Windows実ブラウザー確認] W05-TREE-INPLACE-ACTIONS 11月11日の利用者指示で、左ツリーの操作をインプレースへ統一した。DBのメニューは「名前の変更」だけ、分類（関数・テーブル・ビュー）・スキーマ・「データベース」見出しはメニューとボタンなし。作成はメニューから外し、「＋列を追加」と同じ形の「＋データベース／スキーマ／テーブル／ビュー／関数を追加」行で、その場の名前入力（Enter確定・Esc取消・空欄取消・IME保護）から行う。テーブルは主キーId付きで作成して開く。作成したテーブル・ビュー・関数の右端に名前変更・コピー・削除（行のホバー・フォーカス・選択時に表示）。列の編集は同じ1行・同じ高さで行い、初期値・変換式は行の上へ重ねて開く。既存列の編集中も「＋列を追加」を残して下の行を動かさない。コマンドパレットは従来どおり全操作を検索できる。テーブルの名前変更・コピー（構造のみ）、ビュー・関数のコピーは実装。ビュー・関数の名前変更と、全種類の削除は、行データの扱いと確認手順が未設計のため赤い太字の未対応表示にした（仮の実装）。近接42件成功（`F:/Seamless/tree-inline-edit-20261111/results-r4/checks.trx`）。旧方針（メニューからの作成）を確認していた試験3件と、公開メタデータ試験のメニュー項目の検査を新方針へ更新した。隔離サーバー（新規保存先、開発モード）と実ブラウザーで、追加行と入力欄・列の表示行と編集行と取消後・名前変更前後のx/y/高さの一致、DBメニュー1項目、分類のメニュー0件、削除の未対応表示の赤（163,36,36）・太字700、ビューに「＋列を追加」がないことを確認した（`host/gui-tree-proof.json`、画像`host/0*.png`）。途中で、既存列の編集中に「＋列を追加」が消えて下の行が30px詰まる不具合を見つけて直した。ビューの匿名型を生成した型へ置き換え、型名を省略した`new(...)`にする指示は未着手。固定15337への反映は未実施。
+  - [実装済み・隔離Windows実ブラウザー確認] W05-TREE-GENERATED-SOURCE 利用者指示により、左ツリーの「データベース」見出し・各DB・分類・スキーマ・テーブル・ビュー・関数のメニューボタンを維持し、そのメニューから生成コードを読取専用で表示する。見出し(全DB)と各DBは「全ソースを表示」(利用者ファイル＋DB生成器・FLinq生成器のファイル)、分類・スキーマ・個々の対象は「生成コードを表示」(対象名を識別子単位で含む生成ファイルに絞る)。表示は作業領域に重ねるパネルでEscで閉じる。公開の管理通信契約は変えず、画面用サービス`I生成ソース取得`をManagerのウェブホストだけが登録し、未登録のホストと編集権限がなく下書きを読めないDBは赤い大きな太字で未対応と表示する。生成は`RuntimeCompiler.GenerateSources`(コンパイルと同じ準備を共通化し、Emitと利用者コードの実行はしない)。表示するのは稼働DBではなく下書きから生成した結果。近接47件成功(`F:/Seamless/view-generated-row-20261111/results-r13`)、隔離サーバー＋headless Edgeで見出し・DB・ビュー・分類のメニュー項目、全ソースの4ファイル、ビューRecentの生成2ファイルとEsc閉じを確認(`gui/gui-generated-proof.json`、`01-all-source.png`、`02-view-generated.png`)。分岐側で外していた分類・スキーマ・見出しのメニューボタンは戻し、試験期待値を更新した。固定15337には未反映。
+- [部分確認・継続] W05-QUERY-TYPE 関数本体の戻り型推論とfactory／公開戻り型の同期、引数編集、結果型の読取専用表示をW05-FUNCTION-RESULTで確認した。通常ビューの本体から行型を再生成する接続はW05-VIEW-RESULT-INFERENCEで実装し、未証明の形だけ赤太字通知を表示する。通常struct／別partialのQuery本体読取と非同期型の明示拒否はW05-FORMAL-WEB-PUBLISH-R2で確認した。
+- [手順1済み・手順2は途中] W05-DB-ACCESS-MODEL 11月12日の利用者の決定による作り直し：表は宣言で`Table<T>`（トランザクション用）と`Set<T>`（直接操作）に分け、入口は`db.BeginTransaction()`（常にシリアライザブル）と`db.BeginRead()`（スナップショット）、ビュー・関数は`IReader`への拡張メンバーで`ISet<T>`／`T`を返し、FLinqが呼出元で展開する（展開できなければコンパイルエラー）。手順1として`Seamless.Linq.Set`（`ISet`を受け`ISet`を返す`Where`・`Select`・`SelectMany`・`Join`・`Union`・`Intersect`・`Except`・`Distinct`、コピーなし・読んだ時点で計算・`Select`系は重複除去）と単体試験8件を追加し、Core.Tests 98/98成功。既存の呼び出しで`Set`へ結び付くものは0件（Tests・Sample.NetShop・Benchmark.Headlessの各slnxを一時的な廃止警告付きでビルドして確認。Seamless.slnxはパッケージ参照のサンプルの復元失敗で未確認）。暫定の制約：重複除去と`Join`の索引はメモリ上で`EqualityComparer.Default`を使い、大きな結果のディスク退避とDBの符号化に基づく等しさは未接続。FLinqは`Set`の呼び出しをまだ展開しない（手順3で対応）。手順2は、旧方式（Legacy）を廃止する利用者の決定（11月12日）のもとで、版付き方式の上に`IReader`・`Reader`・`BeginRead`・同期の`Commit`と、直接使う表`Set<T>`・`Set<TKey,T>`を追加した（Transactions.Testsで新規7件を含め122件成功、失敗15件は変更前と同一の既存失敗、生成器の試験151件成功）。続けて旧方式（Legacy）を削除した（方式の選択・旧WAL・表ごとの保存領域を削除、生成コンテナの`db.BeginTransaction()`は型付きの取引を返す。試験・サンプル・テンプレートを`tx.X`へ移行、旧方式の内部だけの試験16件を削除）。近接試験：Transactions 105件成功（失敗15件は変更前と同一）、生成器151件、Query 114件（失敗2件はSQL目録だけを使う既存失敗）、NetShop 14件すべて成功。暗黙の取引（`DatabaseTransaction`）と`db.X`からの読み書きの廃止は、Gateway・実行時SQL・Managerの管理用ストアの移行が必要なため未着手。[設計](refactoring-designs/20261112-0017-database-access-model.md)
+- [置換予定] W05-VIEW-GENERATED-ROW 利用者の指示（11月11日）により、ビューはpartial行型の`Query`へ本体を直接書き、行型の列と実行用Rowsは生成器が作る方式へ移る。`CreateViewDefinition`は削除し互換を持たない。結果は重複を除く集合（展開後の中間結果では最適化が省く場合がある）。関数にも同じ書き方を適用する。生成器とManager設計器の切替、ランタイム入口の`GeneratedView`への置換、DB取引試験の移行まで近接試験で確認済み（Manager105/107で残りは既存失敗とMemoryPack固定で解消した1件、取引25＋6件）。コンテナのメソッドで書く`View()`形も利用者の決定で廃止し、ビューはプロパティ・関数はメソッドに統一した（サンプルと既存試験を移行、5プロジェクト146/147、残りは既存失敗）。関数への適用・取引snapshot・正式候補への反映は未了。下のW05-VIEW-RESULT-INFERENCE（生成投影をユーザーソースへ書く方式）はこの方式で置き換える。既存失敗として関数`Amount`／`Find`のFLINQ002（`ViewsAndFunctionsCompileAndExecuteAcrossMixedSchemas`、正式r5の製品でも同一）を別途追跡する。[設計と進捗](refactoring-designs/20261111-2141-view-generated-row-type.md) 11月12日の決定（W05-DB-ACCESS-MODEL）で、生成器が行型を作る方式と`GeneratedView`は廃止予定。
+- [実装済み・Windows隔離GUIと再起動確認、Linux受入・固定配布は未了] W05-VIEW-RESULT-INFERENCE ビューの匿名型の戻り値から名前付き公開行型の列を生成し、繰り返し編集で同期する。`CreateViewDefinition<TSource,TResult>(definition,projection,name)`で元本文と生成投影を分離し、解析は元本文だけを使う。対象はreadonly positional record structと証明できる匿名結果形状で、手書き投影・特殊な行宣言・宣言依存の空集合・異形状分岐は赤太字案内と元入力を保持する（全面対応ではない）。ランタイム近接27件、FLinq新旧生成器対照（旧で新5件失敗・新399C6Aで成功）、通常リポジトリのRelease17件（ランタイム3＋FLinq5形状＋既存View回帰9）が成功。管理近接は79件中1件失敗だったが、原因は試験の確認用クラスが`static class`で、FLinqが意図的に傍受対象外とする形（`FLinqIncrementalGenerator.TargetDiscovery.cs`）だったため。`sealed class`へ直した同じCore/UI/DB/生成器で79件成功（`F:/Seamless/view-result-sync-20261111/results-r5/checks.trx`）。Windows隔離GUIで作成→C#再編集2回→SDK Release（警告0・エラー0）→検査・取り込み・変更確認・明示適用で公開v2、読取再確認、正常停止→DB157ファイルSHAバックアップ→正常再起動後も結果[2,row2][3,row3]・列Amount/Title(decimal/string,読取専用)・元コメントと生成投影・公開定義の完全一致を確認（`gui-windows-r1/restart-summary.json`）。旧`gui-apply-proof.json`のFailedは、結果見出しを`Amount/Title`と期待したハーネス側の誤りで、適用自体は成功。結果表の見出しが管理JSONの命名規則で`amount/title`（先頭小文字）になり構造の列名と食い違う点は、利用者判断により画面表示を宣言名へ揃えた。値のJSONキーは公開契約として維持し、`CatalogField.DisplayName`（キーと宣言名が異なる場合だけ送る任意項目）を問い合わせ結果表とテーブルのデータグリッドの見出し・読み上げ名に使う。通常リポジトリのManagement.Tests Release build（エラー0）で関連37件成功（`F:/Seamless/result-header-names-20261111/results-r4/checks.trx`）。同じbuildで、単独projectでしか通っていなかった試験ファイルの型名衝突7件（試験クラス`SourceEditor`／`ExecutionPlanDocument`による隠蔽）と、表グリッド試験のIJSRuntime未登録を直した。この表示変更を含むcohortのGUI確認は未実施。同じ旧cohort（UI 3E4E）のLinux隔離GUIは、新規DBで作成→再編集2回→SDK Release（警告0・エラー0）→検査・取り込み・変更確認・明示適用で公開v2→正常停止・157ファイルSHAバックアップ→正常再起動まで合格し、公開定義はバイト一致した。固定15337（PID170114・開始tick14559705）は前後同一（`F:/Seamless/view-result-sync-20261111/gui-linux-r1/summary.json`）。ハーネス側の失敗2件（proofフォルダ未作成とChromeソケットのパス長、scope停止によるChromeのexit134）は製品失敗と区別した。この受入で、ビュー作成時のソースだけがWindowsで末尾にCRLFを含み、両OSで公開本文とArtifactHashが一致しないことが分かった。`DatabaseDesigner.WriteQueryRecord`の`AppendLine`が原因で、LF固定へ修正し、新規作成ソースにCRを含まない確認を加えて近接37件成功（`results-r5`）。監査要約・DOT出力の`AppendLine`は保存ソースではないため対象外。利用者判断により、Managerが受け取る本文（`ApplyQuery`の処理本体、`ApplyObjectSource`のC#部分）も`SourceLineEndings.Normalize`でLFへ揃える。行をまたぐ文字列リテラル（逐語的・生文字列・補間・UTF8）の中の改行は値なので保持し、字句で元本文を復元できない場合は入力をそのまま返す。IDEが保存したファイルはSDKのPDBチェックサム照合のため対象外。近接70件成功・警告0（`F:/Seamless/result-header-names-20261111/results-r6`）。正式r4はWindows publishの警告MSB3277で停止した：`Seamless.Collections`と`Seamless.Database.Client`の`MemoryPack Version="1.*"`が、共有キャッシュに入った1.22.0を選び、1.21.4固定のManagement・Serverと食い違った。両者を1.21.4へ固定して再現性を戻した（試験・ベンチマーク・テンプレートの`1.*`は未変更）。r4の記録は`F:/Seamless/manager-formal-publish-20261111/r4-summary.json`。正式r5（ソース973ファイル、manifest 2544EF96…）は両OS publish警告0・エラー0、OS別feed（同じソースでもOS間でDLLバイトが異なりManagerが他OSのfeedを拒否するため）、両OSの代表GUI（見出しAmount/Title、公開本文の両OS一致・CRなし、正常再起動後の一致）がPassed。near試験は両OSとも管理86/87・条件9/9で、1件はr3時点の試験写しが置換前の案内文を期待するもの（現行試験は新文言を確認）で退行ではない（`r5-summary.json`、`r5-near-summary.json`）。11月11日に承認範囲で固定15337をr5へ切替えた：旧PID170114をstop-file通知で自然終了（18.3秒、exit0）、DB317ファイル・15,306,159バイトを全SHA一致でバックアップ、Linux出力を配置しlibaioの対応付けを付属スクリプトで作成、新PID197156が同じInstanceIdで起動、保守drop-in撤去後Restart=on-failure。読取確認（info・一覧・Items・NewView、公開v2）と所有者起動→認証済みworkspace200を確認し、利用者Chrome（PID149670）の新しいタブへ起動URLを渡した。旧runtimeは`~/.local/lib/Seamless/fixed-manager-before-r5-a8d9415fd1dd`、DBバックアップは`~/.local/share/Seamless/fixed-manager-backups/switch-r5-a8d9415fd1dd/store`。証拠は`F:/Seamless/fixed-manager-switch-r5-20261111`。本人ブラウザーのDOMでの確認、入力直後の最初のクリックが反応しない現象（DOM操作時に2回観測、未確認）は残る。Linux隔離GUI、正式再publish、固定URL反映は未了。設計と証拠は[ビューの結果列同期の実装](refactoring-designs/20261110-view-query-integration.md#ビューの結果列同期の実装)。
+- [確認済み・小UI候補とLinux隔離GUI] W05-GRID-ACTION-SVG Linux列移行の画面で行削除の絵文字が欠落文字に見えた。結果グリッドの削除・新規行取消の2ボタンを既存操作SVGと日英のaria-labelへ接続し、title／click／disabledは既存契約を保持する。同一TestDLLの旧r3 UI赤2→新UI9DE4E96Cで新2＋既存行操作5の7件成功、単独Release build警告・エラー0。Linux正式r3の他DLLとWindows製新UIを合わせた独立cloneで、SVG18×18・可視・読み上げ名、削除予定→戻す、新規行のid/value/notes入力→取消、未保管操作0と既存2行を確認した。修正前の欠落画像、初回の入力名大小文字によるハーネス停止と訂正後の成功を保持する。正式r3原本と固定URLは別扱い。証拠は`F:/Seamless/grid-action-icons-20261111/summary.json`と`F:/Seamless/result-grid-icons-20261111/linux-r1/gui-proof.json`、`delete-icons.png`／`cancel-icon.png`／`execution-proof.json`。
+- [実装済み・隔離GUI確認] W05-OBJECT-ORDER 同じDB・所属・分類のテーブル／ビュー／関数の表示順を画面内で変更する。候補05のLinux隔離環境で各分類のドラッグ、選択維持、Esc取消、入力保持、再読込で既定順へ戻る動作と公開テーブル・ビューの読取を確認した。候補05は固定URLへ反映済み。固定URLでの表示順操作は未再確認で、ブラウザー再起動後の順序復元と所属をまたぐ移動は未対応。
+- [実装済み・隔離GUI確認] W05-CS-COMPLETION C#本文の意味解析補完はユーザーコードを実行せず、入力ハッシュで古い候補を拒否する。候補04で対象C#のCtrl+Space、候補選択、入力保持を実ブラウザーで確認した。候補05はドット入力時の自動表示と入力競合防止を追加し、Release統合近接42件と独立DOMを確認した。固有0700 TMPDIR・別IPCのLinux隔離Managerとheadless Chromeで、ドット自動表示→Substring選択→部分置換・focus維持、Ctrl+Space再表示→Esc入力保持を確認した。同候補の型セル候補str→stringと取消後int保持、Title/string・Price/decimalの列追加、Priceを先頭へドラッグする表示順変更も成功。物理入力、SDK検証・下書き保管・公開適用と再読込後の列順保持は今回の範囲に含めない。試験hostとChromeはともに正常exit0で終了し、固定PID170114は維持した。証拠は`F:/Seamless/manager-code-completion-20261110/gui05-linux-r1`の`completion-auto-r7.json`、`type-column-drag.json`、画像2件、`stop-proof.json`。初期のselector・未保管fixture・描画待ちの試験失敗も保持する。固定URL本人画面での補完操作は未確認。対象C#以外の新規クエリ本文・プロジェクト全体エディター、外部参照DLLと生成済みメンバーの解決は未接続。
+- [実装済み・隔離GUI確認] W04-REVIEW-NAV 対象のメニューから「変更を確認」を実行すると、DB文書だけに描画される確認カードへ自動遷移せず結果が見えない。成功時に対象が途中で変わっていなければDB文書へ移動する修正を追加し、成功・失敗・途中で他文書を選択した場合の近接3件と候補05のLinux実GUIで確認カードの表示を確認した。候補05は固定URLへ反映済みで、固定URLでの同操作は未再確認。メニューが一時的に無効だった原因は未確定。
+- [要対応] W20-VIEW-EXPANSION 通常ビューと関数を名前付きクエリ定義として呼出元へ統合し、FLinqで全体最適化する。[ビュー定義・専用型・最適化の確定仕様](refactoring-designs/20261110-view-query-integration.md#ビュー定義専用型最適化の確定仕様)へ追加合意と受入対象を記録した。結果の一行を表す公開型と列挙・実行用の型の役割を明確にし、生成投影を越えた列・キー由来、条件移動・射影合成、キー検索、Boolean関係代数と複数Joinの最適化を進める。物理的な重複除去は一意性と比較の意味から選択する。必要な評価回数、Anchorの副作用順、例外、集合／シーケンス契約、遅延・Dispose・資源・取引を保持する。専用型やfactoryの配置は各経路の必要性から判断する。呼出元を含む実生成コード・実行結果・評価イベント・計画の対応を受入証拠とする。下の子項目は限定範囲の進捗を示し、列同期・限定条件移動の成功と全体最適化の達成を別々に追跡する。マテリアライズドビューは将来の検討範囲とする。
+  - [確認済み・限定修正] W20-JOIN-CONNECTION 既存の専用Joinレンダーとprovider補助型の登録が未接続だった。内側が空でも外側キーを評価する不一致を再現し、`PipelineTerminal.cs`の2箇所を接続した。同じ70行で点照合64回からLookupへ移る前後の結果・全イベント順・Where／キー／結果の65回目の例外・内外の空入力を、非展開LINQと照合した。実G生成器・試験のReleaseビルドは警告0・エラー0で成功し、新しい2回帰と既存PK試験の3件が成功した。周辺4件は修正前後とも同一のCS0246／CS4032で失敗し、7件全体は未合格。証拠は`F:/Seamless/view-boundary-probe-20261110/product-summary.json`、最終3件は`results-product-r4`、共通失敗は`results-product-r2`／`results-product-control-r3`。固定URLと利用者DBは変更していない。
+  - [限定修正・近接確認] W20-GENERATED-STATEMENTS throw文の型名を意味解析付きで完全修飾し、async本文の生成成功経路へasync修飾子を追加した。通常DB providerと新async回帰、既存PK・View境界・評価順のRelease近接5件が成功。生成器と試験は警告0・エラー0。Reader.skipの誤変換と条件付き集約のcallback順は既存の限定修正・回帰で確認済み。取引2モードの展開失敗はW20-IF-STATEMENTSで再現・修正し、元の値・寿命の最後まで確認した。残るコメント／境界解析の広域失敗は継続する。証拠はF:/Seamless/view-boundary-probe-20261110/results-product-r10とrun-product-r10。[捕捉変数と条件評価](refactoring-designs/20261110-view-query-integration.md#groupby集約の捕捉変数と条件評価)
+  - [確認済み・限定修正と両OS正式試験] W20-IF-STATEMENTS if条件内Sum／Countの置換0によるstubを再現し、同じ位置で呼ぶスカラー終端local functionへ接続した。独立stateで試行し、元の短絡・callback／例外順・同式2回を維持。未証明条件は元条件と理由commentを保持して既存の混在成功も保つ。露出したawait using文・using宣言のtoken／寿命喪失とcatch型未修飾を修正し、元symbolのallows ref struct制約も署名末尾へ伝搬した。最終Gen6AC862BFはRelease build警告0・エラー0、同一TestDLLの6件（条件73比較＋混在6比較＋guard2＋通常取引2）と既存async／throw・PK Join・DB provider3件が成功。70／100・競合80・ScopeProbe解放の元assertを保持した。genericはEmit／未対応理由の検査で、ref-like捕捉実行は残る。同ソースを含む正式r3のLinux SDK製DLLではW05-FORMAL-WEB-PUBLISH-R3で既存9件を再ビルド・実行し成功した。Windows正式r3も同じ9件とSDK／GUI適用を確認し、両OSのSDK生成で実helperと計画を照合した。詳細はW05-FORMAL-SDK-R3へ集約し、他制御文・filter内LINQ・広域別失敗・固定配布は別工程。証拠は`F:/Seamless/flinq-remaining-statements-20261111/final-summary.json`、`final-results-r2/checks.trx`、`final-regression-results-r1/checks.trx`。[実装と境界](refactoring-designs/20261110-view-query-integration.md#if条件内の終端と文の寿命)
+  - [進行中・限定近接] W20-VIEW-INLINE 11月11日に専用`CreateViewDefinition`と生成getter→静的Queryの認識を追加した。DB引数1個・式または単一returnの定義で、内側の実列挙コードを呼出元の補助メソッドへ生成し、Distinct・子scope・遅延を持つView境界で実行する。実Gの3回帰と同じ最新生成器のGroupConditions1件がRelease4件成功、各build警告0・エラー0。値・receiver1回・helperイベント順・legacy cache・同名別定義・再帰解除・yield中の別列挙・親予算返却0を確認した。Managerテンプレート/計画認識は接続済み、Core/SDKの後続確認はW05-PLAN-SDK-PATHへ集約する。旧CreateViewは互換維持し、明示snapshotへの束縛、Join条件の移動と点検索への置換、関数展開は残る。一部索引計画のCFGはCS0234のUnknownを維持。証拠は`F:/Seamless/view-boundary-probe-20261110/definition/summary.json`と`integration-results-r2`。[確認範囲と設計](refactoring-designs/20261110-view-query-integration.md)
+  - [確認済み・限定生成] W20-VIEW-PREDICATE 外側の直接キー列と同型の整数literalの等値条件を、内側の直接列投影直前へ移す専用passを実装した。表の宣言キーsymbolと投影引数を照合し、元Where callback順とDistinct・子scopeを保持する。readonly位置引数recordの全partialを検査し、明示constructor/equality・initializer等は理由付きで拒否する。実生成コードのcallback→条件→newと、明示constructor例外・値/イベント順の対照を新1件で確認し、既存4件と同一生成器のRelease5件成功、build警告0・エラー0。これはscan内の条件移動で、物理点検索は未選択。捕捉キー・合成キー・Join・明示snapshot・関数・Linux/SDKへの配布は未確認または未対応。証拠は`F:/Seamless/view-boundary-probe-20261110/definition/pushdown/summary.json`と`integrated-results-r5/checks.trx`。追加initializer形状の既存生成エラーは次の独立修正へ分離し、元の5件中1失敗を保持した。
+  - [確認済み・限定修正] W20-INITIALIZER 同名のinitializer代入先と右辺を文字列置換・巻上げで混同し、this修飾やindexerの型不整合を生成する不具合を修正した。旧生成器219Dの単独回帰でCS1922/CS0747/CS0103を再現し、代入先だけを構文で保護した。新2件と既存5件のWindows Release7件成功、生成器/試験ビルド警告0・エラー0。View列上書き、同名field/property/parameter、ネスト・collection・indexer initializer、通常instance代入の値を元と比較した。同じ固定0BE7でwith式の右辺instance捕捉を追加1件成功し、生成器無変更と実行SHA一致を確認。非public setter・Linux・SDK適用・実Manager受入は未確認。固定Managerは変更しない。証拠は`F:/Seamless/view-boundary-probe-20261110/definition/initializer/summary.json`、`baseline-results/checks.trx`、`product-results-r3/checks.trx`、`with-summary.json`。生成器0BE7F793の固定パス/SHAをSDK担当へ共有済み。
+  - [確認済み・限定転送] W20-VIEW-PRIVATE View結果structのprivate static helperがNullable型から探索されMissingMethodExceptionとなる不具合を旧0BE7で再現。非generic helperの呼出式とmethod groupで、static UnsafeAccessorの対象引数を値型なら実型/default、参照型なら従来の型/nullとした。helper宣言struct/class×2呼出形状の新4件で値[10,20,30]、callback順、元helper3例外を比較し、既存7件と同一生成器8BA2でRelease11件成功、各build警告0・エラー0。構文規約に沿うif/elseへ揃えた最終E0DDと新DB FBAAも同11件成功、両DLLの実行SHAを照合した。同じ最終Release試験一式179ファイルをSHA照合した独立Linuxコピーでも11件成功、専用scope inactive・残存PID0を確認。Linux証拠は同private-helper配下のsyntax-linux-r1。通常helperの本文はインライン化しない。generic／private instance／関数展開／明示snapshotは未確認または未実装。最終E0DD／FBAAの正式feed同梱と通常SDK ReleaseのGUI適用・再起動は、Core98AF／UI ACE059の同一cohortに限りW05-PLAN-SDK-RELEASE-COHORTとW05-PLAN-SDK-RELEASE-LINUXで確認済み。private helper形状専用のGUI受入は未確認。旧0BE7/8BA2/3BF2と固定Managerは維持。最終path/SHAはSDK担当へ共有済み。証拠は`F:/Seamless/view-boundary-probe-20261110/definition/private-helper/summary.json`、`baseline-results/checks.trx`、`product-results-r4/checks.trx`、`syntax-final/summary.json`と`syntax-final/results/checks.trx`。
+- [要対応] W13-CLONE-IPC 隔離DBコピーは元とInstanceIdを共有するため、固定Managerと同じTMPDIRで別hostを起動するとUnix IPCのpathが衝突する。固定hostのsocket pathname消失と所有者接続タイムアウトを確認した。ユーザーの保存確認を受けて固定hostを再起動し、所有者起動とFormalLinuxDemo.Itemsの公開データ画面を読取確認した。コピーごとに専用の所有者限定TMPDIRを設け、serverとowner CLIで同一の設定を使い、起動前に固定hostとIPC endpointが異なることを確認する。新規検証入口への強制と回帰確認を残す。[隔離条件](refactoring-designs/20261110-cloned-manager-fixture-isolation.md)
+- [要対応] W10-CATALOG-V2 固定Managerで利用者が適用した公開版v2は、候補05と切戻し候補03の両方で初回`catalogObjects`が15秒Timeoutした。両版の`info`・DB一覧は成功し、時間をおいた候補03の一覧は約1.2秒、ItemsとNewViewの各1回の読み取りも成功した。TPA初回参照準備の遅延が原因候補だが、固定hostのTimeout原因は未確定。以前のsystemctl停止はjournalにより期限後KILLと判明し、当時の終了後バックアップはクラッシュ後の状態として扱う。今回の正常切替後の読取成功と、この未解明の初回遅延・停止原因を分ける。
+  - [確認済み・隔離比較] 同じv2バックアップの別ext4コピーと候補03で、初回一覧は約0.45秒、停止は約19秒で正常終了した。主要4DLLと公開v2成果物は固定hostと一致し、Root・TMPDIR・ポートを分離した。StoreやDB復旧を開かない純メタデータprobeでは30秒Timeoutを1回観測し、段階分解した別実行ではTPA369参照の準備に約12.1秒、全体約15.6秒を要した。コピー・SHA照合によるキャッシュ条件差があり、固定hostの因果確定とは扱わない。証拠は`F:/Seamless/catalog-v2-isolation-20261110`。
+  - [確認済み・停止手順] 隔離cloneでstop-file通知だけの自然終了を約2.510秒・終了コード0で確認した。終了後の不要なsystemctl stopが既に消えた一時unitに対してexit5を返したため、同ハーネス全体のFailedと自然終了の成功は区別する。固定unitはExecStop直後にSIGTERM・45秒期限へ進むため、更新時はRestart=no・期限120秒の一時drop-inを検証し、stop-file通知後の自然終了を待ってからバックアップする。以前のKILL原因自体は未確定。
+  - [確認済み・固定05切替] 保存済み承認後、旧PID169254はstop-file通知から約9.133秒で終了コード0・Result=successとなった。停止後の290ファイル・13,941,316バイトを`/home/kazuh/.local/share/Seamless/fixed-manager-backups/graceful05-aff22c0d6aa6/store`へコピーし、コピー前後の全SHA一致を確認。旧runtimeは`/home/kazuh/.local/lib/Seamless/fixed-manager-before-graceful05-aff22c0d6aa6`へ保持した。候補05を同じDB・InstanceIdで起動し、新PID170114・固定15337を確認。公開v2の一覧は約0.673秒、Items読取は約0.929秒、NewView実行は約0.064秒で成功し、各0行・追加ページなし。今回の確認でDB更新・保存形式移行は行っていない。保守drop-in撤去後も同PID稼働、Restart=on-failure・停止期限45秒を確認した。正規所有者IPCと認証HTTPを確認し、本人Chromeの既存PID149670へ同一profileで起動URLを引き渡した。本人ブラウザーのDOMとドット補完実GUIは未確認。証拠は`F:/Seamless/fixed-manager-graceful-switch05-20261110`の`switch-proof.json`、`post-switch-proof.json`、`cleanup-proof.json`、`user-browser-open-proof.json`。
+
+- 11月9日の継続目標解除後、利用者は可視化計画の実装と以前の残作業の並行再開を指示した。可視化の対象別取得・描画・生成メタデータを分担し、以前のW04/W13の固定候補による残確認も進める。各葉の未検証・未分解を保持し、部分成功から親全体の完了を推定しない。
+- Managerの正常系を触れる状態を優先し、関係する保存・認可・取引・取消の基盤を一緒に接続する。
+- `W05-PAGING`、`W05-PLAN`、`W06-USERS-ACCOUNTS`、`W06-SETTINGS-NORMAL`、DB内ロールと共通ホストの通常操作を確認した。監査・計画の取得中の状態と反復破棄、復旧試験の終了条件を追加確認した。Manager正常系の残る共通ロール・実IDE連携を優先し、`W07` の集合ストリームと `W08` の正式な実業務クライアントへ接続する。
+- 配布前の必須ゲートは `W10-LOCK`、`W10-COMMIT`、`W11-OOM`、`W13-ACCEPT`。
+- `W14`〜`W21`は既存の実装・生成物・試験を照合して通常の呼び出し経路へ接続する。
+
+## Managerの正常系と各機能の異常系
+
+### W01 DB名変更
+
+- [確認済み] W01-NORMAL 名前変更の通常操作
+  - 専用API、左ツリーのメニュー・F2・入力から変更する。
+  - 新名で表・ビュー・関数へアクセスし、再起動後の名前と既存行を確認。
+- [確認済み] W01-ERROR 競合と失敗時の整合性
+  - 重複・予約名・権限不足・同時変更・取消・管理取引の途中失敗を近接試験で確認。
+  - 旧名の再利用、履歴の権限、監査有効化時の名前保持を確認。
+- [確認済み・近接と固定配置] W01-TRANSPORT 結果不明からの回復
+  - 現行Browser Managerはサーバー内の共通APIを呼ぶ。ブラウザーへの描画応答の欠落と、管理IPCの応答喪失をそれぞれ確認する。最終配布候補の受入はW13へ残す。
+  - [確認済み] W01-TRANSPORT-IPC 実IPCを確定前のバリア中と確定後の未読応答で切断した。同じ操作IDの再送、履歴一件、再起動後の結果保持をLinux Debug・Releaseで確認した。呼出主体はOS確認済み本人に揃える。DLL回収と既存問い合わせ回収を含む各4件が成功した。証跡は`F:/Seamless/linux-desktop-recovery-20261109/manager-transport-lifetime2`。ブラウザーは別枝で確認する。
+  - [確認済み] W01-TRANSPORT-BROWSER 固定Releaseの隔離DBで実WebSocketのmessage配信を遮断し、別ページでDB名の確定を確認した。元ページの入力が残ったまま応答3フレームが欠落し、接続を閉じて再接続すると変更後の名前一件と入力終了を確認した。試験後は元のDB名へ戻し、再読み込みでも一件を確認した。同じ操作IDの再送はIPCの試験で扱い、ブラウザーの再接続と区別する。画像は`rename-browser-recovered.png`、DOMと操作条件は`rename-browser-recovery.json`。実利用DBは操作していない。
+- [確認済み・近接と実配置] W01-HISTORY 大量履歴での変更
+  - 旧形式の内部IDなし履歴1万件を100件ずつ準備した隔離DBで、名前変更取引が4MiBのWALフレーム上限に達して失敗した。走査は線形で、メモリ予算不足とは異なる。依存は `W10`・`W11`。
+  - 利用者が分割WAL基盤の利用を選択した。管理DBへの接続とバックアップ付き明示移行を実装し、Windows Debugで旧形式5の履歴1万件を形式6へ移行して名前変更・再送・再起動後の保持が成功した。名前変更本体は約586ms、Windows Releaseでは約355msで成功した。Linux Debugでも管理21件に含めて履歴保持を確認した。Linux Releaseの固定DLLによる管理21件でも履歴の移行・名前変更・再送・再起動が成功した。[履歴走査と上限](refactoring-designs/20261109-manager-rename-history.md)、[分割WALの確認](refactoring-designs/20261109-management-prepared-wal.md)
+  - [確認済み] W01-HISTORY-CANCEL 既存の公開3引数署名を維持し、名前変更の内部走査へ取消トークンを接続した。該当行なしの走査途中と終端の取消、既存の名前変更・権限・管理取引・再起動をLinux Debug・Release各14件で確認した。1万件のWAL上限は親枝へ残す。
+- 証拠はDebug／Release各52件とWindowsブラウザー16項目。[DB名変更の確認記録](refactoring-designs/20261108-manager-database-rename.md)
+
+- [確認済み・Core近接] W01-OBJECT-IDENTITY-CORE 元宣言の明示UUIDとoptional StableIdを実装し、旧JSON/旧Id、マーカー保持・喪失・コピー重複・共有宣言拒否、実生成カタログ、明示下書き適用と5管理経路を先行Windows Release9件で確認。保持修正とGUI付与の部品検証は下位枝に記載し、スキーマ改名と跨版文書復元は未接続。宣言の自己申告性と未対応マーカーを診断し、稼働中DBは更新していない。[Core設計と証拠](refactoring-designs/20261110-source-object-identities.md)
+  - [確認済み・近接] W01-OBJECT-IDENTITY-KEY-TRIVIA 手書きTableのpositional recordを構造編集するとKey属性差分でIDコメントが消失する欠陥を独立再現。引数先頭triviaを属性差分の前後で保持し、ID有無×無変更・PK変更・列名/型変更の6件と既存9件の合計15件が生成・C#コンパイルを含め成功した。証拠は`manager-object-identities-review-20261110`とCore候補`near-r8/results-r7`。
+  - [確認済み・部品] W01-OBJECT-IDENTITY-GUI DBメニュー「その他」の「表示用IDを下書きへ付与」を接続。対応capability・View/Editを確認し、対象・行・左列・新規作成・Project入力を保持して拒否、待機中の権限/定義/版変化も保護する。直接コマンドは未保管下書きのみ更新し、既存保存・差分確認・明示適用へ進む。Core15＋GUI10のRelease25件、UI/Server/Tests0警告0エラー。固定候補は`manager-identity-ui-20261110/runtime`、`near-r4-tests-only/results-r2`。通常ブラウザー受入は別担当が進行中。スキーマ改名と跨版復元は未接続。
+
+### W02 名前入力の確定・取消
+
+- [確認済み] W02-NORMAL DB作成・DB名変更・スキーマ作成
+  - Enter・フォーカス移動で確定、Esc・空欄で取消、重複からの修正をブラウザーで確認。
+- [確認済み] W02-STATE 処理中・結果不明時の入力競合
+  - 近接試験で新規入力との競合を再現し、修正後の状態遷移を確認。
+- [未検証] W02-ENV 環境別の操作
+  - 最終配布物・Linuxで同じ入力状態を確認する。依存は `W13`。
+  - [確認済み] W02-ENV-LINUX Linuxの実ブラウザーで新規DB名のEnter確定、Esc取消、空欄からのフォーカス移動取消、左ツリーのDB名変更のEnter確定を確認した。名前変更後のサーバー再起動でも新名を保持した。スキーマ名入力と正式配布物は親枝へ残す。証跡は`F:/Seamless/linux-desktop-recovery-20261109`。
+- [未分解] W02-INPUT 入力操作の追加境界
+  - IME確定、キーボードのみの操作、処理中の画面切替について既存証拠を照合し、必要な葉を追加する。
+  - [確認済み・近接とDOM] W02-INPUT-IME 名前入力と操作メニューでIME変換中のEnter・Escapeをアプリの確定・取消へ流さない。共通JSでcompositionイベント・isComposing・終了キー229を扱い、固定待ち時間を設けない。既存InlineNamesのWindows Debug11ケースと、Windowsヘッドレスブラウザーの合成composition/keyイベントのDOM試験が成功した。OSのIMEを用いた物理入力とLinuxは未検証。[入力の契約と検証範囲](refactoring-designs/20261109-manager-ime-input.md)
+  - [確認済み・近接] W02-INPUT-LOAD DB定義の読み込みを重ねたときは先に接続した文書と編集中の値を保持する。別DBの遅い完了でも選択・表示・現在の案内を戻さない。TCSで順序を固定する3ケースがWindows Debug近接46件に含めて成功した。実ブラウザーの遅延条件と最新候補Releaseは未検証。[共通操作と読込状態](refactoring-designs/20261109-contextual-additions.md)
+- 証拠と入力共通化は `W01` の確認記録を参照する。
+
+### W03 ソースと開発環境の同期
+
+- [確認済み] W03-OPEN ソースを開く
+  - サーバー側の.slnx・フォルダー・.csprojから対象プロジェクトと名前空間を表示する。
+- [確認済み] W03-CONFLICT 競合の比較・解消
+  - 基準・Manager・外部の比較、採用元の選択、手動編集、保存と再読込。
+  - 古い比較の拒否、取消、追加入力の退避、未解消の競合からの再開。
+  - Debug／Release各13件、Windowsブラウザー8項目。比較画面には共通APIの試験が保持した競合を使用。[ソース競合の確認記録](refactoring-designs/20261108-browser-source-conflict.md)
+- [確認済み] W03-CONFIG ビルド構成を選ぶ
+  - [確認済み] W03-CONFIG-DESIGN 共通APIとUIに構成選択を接続した。
+  - [確認済み] W03-CONFIG-EVALUATE Debug／Release／QA TestのCompile対象・条件定義・名前空間を評価した。
+  - [確認済み] W03-CONFIG-UI ブラウザーのドロップダウンから構成を切り替えた。
+  - [確認済み] W03-CONFIG-PRESERVE 未保存編集・同期中の追加入力・対象外になったファイルを保持した。
+  - [確認済み] W03-CONFIG-ERROR 無効な構成名、同期失敗、比較後の変更を拒否・保留した。
+  - Debug／Release各47件とWindowsブラウザーでRelease成果物の検査・取り込み・v4公開を確認。[構成選択の記録](refactoring-designs/20261108-source-build-configuration.md)
+- [要対応] W03-IDE 実IDEの保存・ビルド
+  - [確認済み] W03-IDE-CODE-SYNC VS Code 1.145.2の分離プロファイルで公式の編集・保存APIを使い、同じファイルの12をブラウザーManagerへ反映した。Manager入力20・IDE保存30の競合を通常UIで発生させ、基準12との三者比較、閉じて入力保持、手動40の保存、実IDEでの40の再読込を確認した。.slnx・フォルダー・.csprojの表示と再読込後の名前空間・コメント保持も確認した。
+  - [環境待ち] W03-IDE-CODE-BUILD 分離したVS Codeのworkspace.isTrustedがfalseだった。初回の保存11後のfetchTasksが完了せず所有IDEを正規の取消経路で停止した。改訂した試験は未信頼状態をUnavailableとして記録し、保護設定を維持する。IDEのタスクビルドは合格に含めない。
+  - [未検証] W03-IDE-VS Visual Studio 18 Communityの保存・ビルド・Manager同期。以前のCOM呼出し拒否の記録を保持し、今回のVS Code確認をVisual Studioの合格へ含めない。
+  - 証拠は `F:\Seamless\ide-live-1108` と [実IDE同期の確認範囲](refactoring-designs/20261108-browser-source-conflict.md)。今回の入力・保存は拡張APIとブラウザーDOM操作で行い、物理キー・マウス操作は未検証。正式なSDK成果物の検査・適用はW04の既存証拠と区別する。
+- [未分解] W03-PROJECT プロジェクト編集の境界
+  - 条件付きCompile、参照・ターゲット変更、ファイル追加・削除、開き直しの既存試験を照合して展開する。
+- [確認済み] W03-PACKAGE-FEED 新規プロジェクト生成からWindows固定のフィードパスを除き、明示フィード・ホスト配置・リポジトリを解決する。特殊文字のあるパスのXMLと無効な明示フィードを修正前3失敗で再現し、修正後の保存・同期21件がLinux Debug・Releaseで成功した。参照未準備時の型補完案内も共通画面へ表示し、関連30件が両構成で成功した。既存プロジェクトは自動変更しない。[フィード解決](refactoring-designs/20261109-source-package-feed.md)
+  - [確認済み] W03-PACKAGE-FEED-LINUX GUIで新規専用プロジェクトを作り、Ubuntu SDKでDebug・Releaseビルド、Releaseの検査・取り込み・明示適用を確認した。再起動後の継続編集・コメント保持・最新公開版への基準更新・再ビルド・v3適用と既存行の保持も確認した。再オープンの既定DebugとRelease DLLの不一致を検査で拒否し、構成を明示的に揃えると成功した。[Linux GUIの確認](refactoring-designs/20261109-linux-manager-acceptance.md)
+
+### W04 ビルド成果物の取り込み・適用
+
+- [部分確認] 対象別UIから列を追加し、初期値を指定してSDK成果物を再ビルド・検査・取り込み・明示適用した。既存3行は適用後の手動再読込で保持を確認し、停止済みバックアップの別コピーを再起動して追加列3件のJSON nullも確認した。起動待機との当初観測は生ログとの照合で訂正した。データ画面の公開版変更時の再取得は近接試験で確認済み。詳細は[対象別UIの検証状態](refactoring-designs/20261109-manager-object-navigation.md#検証状態)。
+
+- [確認済み] W04-NORMAL SDK成果物を公開する
+  - ビルド、DLL・PDB・依存の検査、取り込み、プレビュー、明示適用、再起動を確認。
+- [確認済み] W04-VALUES カスタム列を世代間で移行する
+  - private/readonly、enum、nullable、配列、入れ子ジェネリックを確認。
+  - RecordGraphV1で一行内の共有・循環を確認。
+  - private依存DLLの1.0→2.0変更、既存値保持、正常停止後の再オープンを確認。
+- [確認済み] W04-ERROR 保存フィールド不一致・キー衝突・取消・予算不足
+  - 拒否・取消後の旧データ保持と資源予約の返却を確認。
+- [確認済み] W04-CONFIG 構成に対応した成果物の検査
+  - 固定条件定義の回避を外したSDK試験がDebug／Releaseで成功した。
+  - ブラウザーでRelease選択・SDK DLL検査・取り込み・v4公開と値保持を確認。証拠は `W03-CONFIG`。
+  - [未決・由来と保存契約] W04-CONFIG-PROVENANCE `SourceProjectService.Defines`はSDK由来の条件定数を含む評価済み集合をSourceSnapshotへ記録し、`SourceWorkspace.Create/CreatePackageProject`は全件を新csprojのDefineConstantsへ転記する。Debug SDK由来の下書きから生成したprojectがReleaseでもDEBUGを明示定数として保持することを確認した。Windows SDK10.0.403の独立評価API probeはbuild警告0・エラー0、9checks成功。プロパティ代入履歴・未評価式・相対Importと通常CLI一致、ユーザー明示DEBUG/NET10_0の保持を確認した。SDK追加DEBUGを参照した後続user条件式からDERIVED_FROM_DEBUGが生成される反例では、履歴からSDK操作だけを除いたuser評価値の再出力でもReleaseへDERIVEDが固定され、元と不一致だった。未評価projectと相対props/targetsを保持したコピーのRelease評価は一致した。新規専用project保存で凍結コンパイル契約を優先するか元project/Import構造を優先するかは製品判断が必要で、由来定数配列による再構成と無条件Import全copyは採用保留。由来不明の旧snapshotやユーザー同名定数を推測で除去しない。既存project同期は原構造を維持する。製品コード・wire/hash・CompilationContext追加は未実装、実SDK build/PDB/#if動作の新回帰は未実行。証拠は`F:/Seamless/config-provenance-probe-20261111/proof-r2.json`、`run-r2/receipt.json`、`summary.json`。[SDK保存時の判断境界](refactoring-designs/20261107-manager-developer-build-artifacts.md#条件定数の由来と新規project保存の判断境界)
+- [確認済み・Linux配布候補] W04-PACKAGE-COHORT 通常配布の対応パッケージ
+  - 通常の固定Linux配置ではフィード未同梱により新規プロジェクト保存がPackageFeedで失敗することを再現した。配布時の一式作成、内容識別による固定版、サーバーDLLとの照合を接続する。
+  - 新規生成の自動版選択・不正な一式の拒否・従来フィードと明示版の維持を含むWindows Debug・Release各58件が成功した。正式publishの両OS ZIP、各12パッケージ・13DLL・固定推移依存を確認した。Linux初期化で見つかったネイティブ配置差を修正し、新候補で既存キャッシュを使う両構成SDK、API経由の検査・取り込み・v2適用、GUIからの保存・コメント編集・下書きr4・両構成SDKが成功した。続く固定候補でGUIからr4成果物を検査・取り込み・明示適用してv3を確認し、正常再起動後もソース・Itemsの1行と価格147.25を保持した。Windows最終ZIP164ファイル・Linux163ファイルとmanifestをハッシュ・長さで照合した。証跡はF:/Seamless/linux-desktop-recovery-20261109/cohort-resume-20261109-144022-11ee1b。新可視化候補とWindows実配布起動の受入は別に残す。依存はW13。[対応パッケージ](refactoring-designs/20261109-source-package-cohort.md)
+- [要対応] W04-SHAPE カスタム型内部の構造変更
+  - 保存フィールドが変わるケースの変換方法と入力契約を具体化する。
+- [未検証] W04-UNLOAD DLLの回収
+  - Dispose・Unload後に弱参照とGCで実際の回収を確認する。
+  - [確認済み] W04-UNLOAD-DATABASE 通常の公開・行書込・再公開・行読取・ホスト停止を通し、DBを含む実ロードコンテキストを弱参照で観測した。生成された全DBコンテキストの回収と既存の問い合わせ結果の回収をLinux Debug・Releaseで確認した。参照切断を隠す製品変更は不要だった。SDK取り込みのprivate依存DLLと正式配布候補は親枝へ残す。証跡はW01-TRANSPORT-IPCと共通。
+- [未検証] W04-CRASH 成果物保管・管理WAL・公開の途中障害
+  - 共通の確定・復旧方式は `W10-COMMIT`。ここでは取り込み・適用からの結合確認を行う。
+- 証拠は移行22件と固定条件のSDK1件が両構成で成功した範囲。[列値移行の確認記録](refactoring-designs/20261108-migration-record-values.md)
+
+### W05 結果・問い合わせ操作
+
+- [確認済み・限定範囲] W05-FUNCTION-RESULT 関数のC#本体からRoslynで戻り型を推論し、引数編集・単一値／列挙の変更を既存factoryと戻り宣言へ同期した。参照型のnullable指定が落ちる2形状を再現して修正。暗黙ユーザー変換・既存の単一値としての列挙・特殊factoryは宣言依存を保持し、赤太字で制約を示す。結果型は読取専用、引数型は補完付き編集を維持した。Windowsの型推論・既存編集・表示回帰はDebug／Release各65件、最終共通結果表の追加6件を含む同一Core C7DEE029／UI9BDE92FAのReleaseはWindows／Linux各71件成功。通常Windowsブラウザーでint→long→列挙、引数longへの変更、コメント保持、下書き、SDK Release警告0・エラー0、DLL／PDB／依存のGUI検査・取り込み・明示適用v2を確認した。Rowsが整数2件・Columns空の場合に表が不可視になる不具合も実GUIで再現し、共通結果表の単一値列表示へ修正。正常再起動後の4／5の2行、IEnumerable<long>、元本文を照合した。公開ArtifactHash BA624722と定義全体の再起動照合は専用証跡へ集約する。通常ビューの本体から行型を再生成する接続、非同期戻り値のawait、最終候補のLinuxブラウザーと正式配布・固定URL切替は残る。証拠は`F:/Seamless/function-result-inference-20261111/summary.json`、`published-result-near-summary.json`、`linux-published-result-near-r1/summary.json`、`gui-r3/gui-restart-proof.json`。[関数型同期の仕様](refactoring-designs/20261109-manager-object-navigation.md#処理本体からの関数戻り型同期)
+  - [確認済み・小UI別候補] W05-UNAPPLIED-NOTICE 未適用対象のデータタブで共通案内がテーブルとデータ編集を約束していたため、対象種別に中立な「この定義は下書きにあります。変更を確認して稼働DBへ適用してください。」へ日英resourceを置換した。Table／View／ScalarFunction×JA／ENの純描画6件は旧正式r2 UIで6失敗、新UI E51C2B9D／英語衛星DEAA80EBで6成功、UI build警告0・エラー0。同じTestDLLとCore CC45を使用し、正式r2 source/outputを変更しない別UI候補とする。実ブラウザーと正式再publish・固定URL配布は未実施。証拠は`F:/Seamless/unapplied-object-notice-20261111/summary.json`、`before-results/before.trx`、`after-results/after.trx`。
+- [実装・受入中] W05-INTERACTION 利用者の保存完了確認後、手動Windows Managerを固定R4のPID3660へ切り替え、専用`cfg-windows-db`を引き継いだ。旧ホスト停止後の293ファイルをバックアップしSHA一致を確認した。開閉・Access型セル操作・共通コントロール・アイコン・表示モードの排他選択・横幅活用と最大化を実装。R4 Windows Releaseは生成39件・UI近接38件、通常ブラウザーは表示モードの排他選択と3対象の生成コード・hash照合が成功した。ツリー・グリッド・最大化の実画面受入を継続する。利用者が報告した型セル上下矢印と子オブジェクト選択表示を追加の修正単位とする。稼働候補の出力と編集・検証出力を分離する。
+- [実装・受入継続] W05-OBJECT-NAV 承認済みの対象別文書と共通関数APIを実装した。Debug近接88件と固定UI候補のReleaseビルド、隔離Windowsブラウザーでセル移動・構造C#往復・不正入力保持・対象再訪・DB内／登録関数の実結果が成功した。深パスのチェックポイントI/Oを修正し、Heat実収集・形式2と両OSの環境受入を確認した。外部IDEと今回UIからのSDK再取り込み/適用の一連受入を継続する。[対象別ナビゲーション](refactoring-designs/20261109-manager-object-navigation.md)
+  - [固定候補確認済み] r2bはWindows Release128件成功、同候補Ubuntu Release publish/試験DLLビルドと資源収集・描画・保存形式・再生27件成功。実資源ヒートと同実行ID・形式2の三形式出力/オフライン表示も隔離Windows DOMで確認した。r3はノード実測・資源履歴・Wait開始offsetの統合を継続し、r3dの警告・エラー0件ビルドと共通129件、Windows実DOMの対象編集・資源実収集・保存履歴復元が成功した。r3gでは警告・エラー0件のビルドと共通129件、新規48件が成功し、Ubuntu同ソースのRelease publishを確認した。Ubuntu177件と実DOMの対象編集・ノード実測・OSヒート・出力と再起動後の保存履歴復元が成功した。表示3ファイル補正後のr3hでWindows129/40/11/39件とDOM正常系/英語、Ubuntu publishを確認した。保存済み承認と検証backupの後、両OSの実利用Managerを新版へ切替・表示した。Source IDE実受入と完全保存・高度なノード/資源帰属は残す。[資源ヒートの範囲](refactoring-designs/20261110-resource-heat-gantt.md)
+
+- [確認済み・Windows DOMと近接] W05-TABLE-ADD 左ツリーのテーブル行の＋から列追加・主キー編集・外部キーのC#編集を開く。反復追加・明示下書き反映の近接に加え、固定R3のWindows通常Browser Managerで追加・取消・キーボードを確認した。両Releaseの共通UI近接も成功。Linux固有の追加メニューDOM・物理入力は継続する。共通UIはW06-UI-ADDを参照する。
+
+- [確認済み・近接] W05-PRESENTATION 主要操作・メニュー・ハンドル・型候補へ共通SVGを接続し、564文言とブラウザー言語による日本語／英語を追加した。重み0の除外、優先順位、地域指定、フォールバック、独立した要求、英語検索とアイコン指定を初回の確認後、件数・版・監査・設定詳細を追加し、最終候補はWindows・LinuxのDebug／Release各42件で確認した。publish出力とバックアップ付き隔離コピーの照合後、PID86914で実利用DBを再開し、一つのChrome画面で両言語の操作と8メニュー全項目のSVGを確認した。設定詳細は更新前の未翻訳と更新後の英語ラベルをDOMで照合した。管理形式5とDB・下書きを保持した。技術診断の原文と全体受入を分ける。[共通表示の設計](refactoring-designs/20261109-manager-icons-and-languages.md)
+- [確認済み・近接] W05-PRESENTATION-ACCESSIBLE セル入力の読み上げ名とコード位置ツールチップの3文言を追加し、合計564文言とした。Linux両構成18件、同じAnyCPU候補のWindows両構成17件が成功した。変更のないHTTP言語選択はWindows固有資産での先行42件を再利用する。PID86914の最終配置で両言語・英語設定ラベルの日本語0・元の未適用案内と一画面を確認した。詳細はW05-PRESENTATIONの設計へ集約する。
+- [確認済み] W05-DRAFT-TABLE 下書きにだけあるテーブルを公開済み定義と区別し、左ツリーの「未適用」とデータ画面の適用案内へ接続した。Linuxの実ブラウザーで再読み込み後のItems表示を確認し、「表がありません」が出ないことを照合した。近接の公開前後・再オープン試験を含む17件がDebugで成功した。[共通編集UI](refactoring-designs/20261109-manager-designer-grid.md)
+- [確認済み] W05-DESIGNER-UI テーブル列・ビュー結果列・関数引数を28pxの共通編集グリッドへ接続した。C#の色付き編集と階層型補完を実装し、近接試験はDebug21件とRelease20件、実SDK参照解決は両構成で確認した。専用WindowsホストのGUI作成DBで13項目の操作と下書き保存・再読み込み・列設定の一致を確認した。Esc復元による候補の再表示も修正した。Linuxの未適用表示の実画面確認、メモリ圧迫、正式配布の未検証範囲を分けて記録する。[共通編集UI](refactoring-designs/20261109-manager-designer-grid.md)
+  - [確認済み] W05-DESIGNER-DISPOSE ブラウザー終了時にJS参照の破棄がTaskCanceledExceptionとなる実ログを確認した。再現8件が修正前に失敗し、破棄専用ヘルパーで通信取消を扱い、エディター・編集グリッド・型入力の一回限りの解放を共通化した。Debug・Releaseの新旧14件が成功した。通常のJSExceptionを公開する既存試験も成功した。修正後の固定配置LinuxホストでC#画面からデータ画面への切替、C#画面の読取専用タブ終了、別のManager画面の継続利用を確認し、通信期限経過後にも未処理例外がないことを確認した。編集値は変更していない。証跡は`F:/Seamless/linux-desktop-recovery-20261109`。
+- [確認済み] W05-ROWS 通常列とカスタム列のデータ操作
+  - ブラウザーで更新・追加・再読込・サーバー再起動後の保持を確認。
+- [確認済み] W05-JSON JSONセルの保存
+  - オブジェクトをGetStringで読む保存エラーを再現して修正。
+  - 未編集値の保持、構造値・配列・文字列・数値・真偽値・null、数値精度の近接9件を両構成で確認。[セル編集の確認記録](refactoring-designs/20261108-migration-record-values.md)
+- [確認済み] W05-OBJECTS スキーマ混在の実行
+  - 直下・dbo0・dbo1の6ビュー・6関数と、所属先ごとの異なる結果を確認。[スキーマ混在の確認記録](refactoring-designs/20261108-schema-mixed-manager.md)
+- [要対応] W05-PAGING 大量結果とページング
+  - [確認済み] W05-PAGING-NORMAL 行の続き取得と空テーブル
+    - 単一行検索のKeyと続き取得のCursorを分離。205行を100・100・5行で取得し、全キーの重複・欠落なしと終端を近接試験・Windowsブラウザーで確認。
+    - 空表のPK表示、行追加、キー変更、再読込をブラウザーで確認。Debug／Release各16件。[行ページングの確認記録](refactoring-designs/20261108-manager-row-pagination.md)
+  - [確認済み] W05-PAGING-STATE 読込中の対象切替と失敗時の編集保持
+    - 共通画面の描画試験で同名表の別DB切替、旧応答の除外、取消通知、続き取得失敗後の編集保持と再試行を確認。
+  - [要対応] W05-PAGING-SCALE 大量結果の走査と表示予算
+    - 既読部分の再走査を使うため、深いページのI/Oと画面の蓄積量・仮想化を測定し、走査再開位置と資源上限へ接続する。依存は `W11`。
+- [未分解] W05-ERROR 行編集と実行の異常系
+  - 型変換、NULL、主キー・参照制約、古い行の上書き、実行エラー、結果上限の試験を照合して枝を追加する。
+- [要対応] W05-PLAN 実クエリの静的計画
+  - [実装・受入継続] W05-PLAN-VISUAL DBのクエリ一覧、対象別計画、式、元コード、実績と保存を共通UIへ接続した。固定R3はsource1498ファイルを維持し、Windows／Linux各Releaseで99実行・93固有ケース、Windows DebugとLinux Releaseの実ブラウザーで実クエリ・対応計画・元コード・記録表示4組・保存3形式と再読込が成功した。2,048ノードを保持する倍率簡略表示・可視範囲描画、狭幅100%と矢印移動、密集トレースの一覧対応も確認。CSS404・共通button規則・版表示・組込publish時manifest選択の修正を含む。最終生成C#の三段階構造、ノード別詳細・ベンチマーク共通収集、厳密な一時ディスク上限と残るP7条件を継続する。旧JSON候補の109件と新Tsavorite保存候補の証拠を区別する。[候補と全受入範囲](refactoring-designs/20261109-query-visualization-plan.md)
+  - [確認済み] W05-PLAN-NORMAL 管理コンパイラーのDB二重生成とIPC受取型を修正。実データの結果60、Where・Select・Sumを含む計画を同居・IPC・組み込みで確認。ブラウザーで9ノード・元ファイル位置・DOTを表示した。
+  - [確認済み・CoreとSDK] W05-PLAN-SDK-PATH SDK計画の絶対CallSite.Pathと保存SourceSnapshotの相対Pathが一致せず、同じMethodKey／SourceHashでも対象別計画が空になる不一致を実SDKで確認した。共通`DatabaseDesigner.ResolvePlanSourceFile`でseparatorを正規化し、相対パス全体の一意なsuffix対応だけを許可する。Windows drive／UNCはcaseを区別せず、Unix絶対パスは区別し、caller・範囲・method hashの既存照合も保持する。曖昧suffix、他dir同名ファイル、他所属同名Query、caller／範囲／hash不一致の拒否と元SourceFile保持を含む新14件、既存フォーム保持6件がWindows Releaseで成功。ManagerのApplyQueryでroot／dbo0／dbo1に同名Sharedを作成・編集したソースから専用.NET SDKをDebug／Release各0警告0エラーでビルドし、getter・Query・実呼出しの11／22／33と各所属のhelper計画・ViewDefinitionRootを確認した。初回の実行プロジェクトの証拠と、後続W05-PLAN-SDK-GUI／LINUXの正式feed・library・隔離GUI受入を分ける。証拠は`F:/Seamless/manager-view-definition-sdk-20261111`。[SDKと取り込みの境界](refactoring-designs/20261110-view-query-integration.md#managerテンプレートからsdkへの確認)
+  - [確認済み・隔離Windows GUI] W05-PLAN-SDK-GUI 正式なno-build packで12パッケージ・13 DLLをサーバーとSHA照合し、DB由来の通常library／C#14／下書きDefines同期へ接続した。Core98AF・DB3BF2・initializer修正生成器0BE7を固定し、SDK Debug／Release各0警告0エラー、通常検査APIとGUIの検査→取り込み→変更確認→明示適用が成功した。公開v2のShared／dbo0.Shared／dbo1.SharedはGUI実行で11／22／33を各1行取得。通常フォームから既存ViewCallsを呼ぶFirstShared関数1個を追加したv3も同工程が成功し、実行値11、SDK絶対pathのコードtooltip／選択本文、ACE059 UIの赤太字通知を同一画像で確認した。v2バックアップ125ファイル全SHA一致、v3の他6ソースはv2とbyte一致。所有2hostとheadless profileは正常終了し残存0。Debug DLLを検査・適用した証拠で、Releaseはbuildのみ、v3再起動後・固定URL切替は未確認。Linuxは次葉の別DB・別公開版で確認した。初回500×320のsummary幅0、旧文書locator／重複status等の試験失敗は保持し、通常1800×1100の最終証拠と区別した。固定15337と利用者DBは変更していない。証拠は`F:/Seamless/manager-view-definition-sdk-20261111/library-gui-r1/summary.json`、`stop-proof.json`、`view-plan-v3.png`。
+  - [確認済み・隔離Linux GUI] W05-PLAN-SDK-LINUX Windows受入済みのCore98AF／UI ACE059／DB3BF2／生成器0BE7／Server7A66と同一SHAのportable managed DLLをLinuxで再利用し、実ロード5DLLを`/proc/<pid>/maps`の各1パスとSHAで照合した。Linux nativeを含む隔離配置であり、新たな正式Linux再publishとは分ける。Windows最終v3と同じ7ソースを新規Linux DBへ同期し、SDK Debug／Release各0警告0エラー、通常検査API、GUI検査→取込→明示適用の公開v2が成功。3所属のSharedは11／22／33各1行、FirstSharedは11、Linux絶対pathのコードtooltip／選択本文と赤太字通知も同一画像で確認した。固有0700 TMPDIR・8CPU・scopeメモリ上限を使用し、host172244／専用Chromeは正常終了・残存0、停止後125ファイル全SHA一致バックアップ。固定15337のPID170114／開始tick14559705を前後保持した。Release DLL取込、適用後再起動、後続のContains／private helper修正、固定URL配布はこの証拠に含めない。受入shellのCRLFによるbuild前失敗は保持しLF修正後の成功と分けた。証拠は`F:/Seamless/manager-view-definition-sdk-20261111/library-linux-r1/summary.json`、`runtime-linux-proof.json`、`view-plan-linux.png`、`stop-proof.json`。
+  - [確認済み・Windows Release統合候補] W05-PLAN-SDK-RELEASE-COHORT Core98AF／UI ACE059／Server7A66を維持し、Contains修正DB FBAAと最終private helper生成器E0DDを新しい`release-cohort-r1`へ固定した。正式feed12パッケージ・13 DLLをruntimeとSHA照合、通常library／C#14をGUI Release構成へ評価・下書きr4へ同期し、SDK Release警告0・エラー0、通常検査APIとGUI検査→取込→明示適用の公開v2が成功した。Shared／FirstSharedは各11、赤通知とSDK絶対pathのコードtooltip／選択本文を確認。正常停止・157ファイル全SHAバックアップ後に同候補で正常再開し、公開版／ArtifactHash62EE／定義全体の完全一致と同じ結果／計画／コードを再確認した。host71880・63264・72676と専用headlessはすべて終了・残存0。fixtureの7ソースに#if等がなく、転記DefineConstantsが旧SDK由来と一致する根拠を残して専用csprojだけ除去し、最終PDB／下書きはRELEASEあり・DEBUGなしで一致した。製品の定数由来契約はW04-CONFIG-PROVENANCEへ残す。拡張の別pageによる誤対象F5はManager自身の200／readyと区別し、clean profile／origin一件選択へ変更した。Embedded capacity1でbrowser終了後の旧sessionが残り復元401となった境界は、host再起動なしowner再開の独立残件。新cohortのLinux GUIは次葉へ記録し、固定15337への切替・物理入力は別工程。証拠は`F:/Seamless/manager-view-definition-sdk-20261111/release-cohort-r1/summary.json`と`restart-view-plan.png`。
+  - [確認済み・Linux Release統合候補] W05-PLAN-SDK-RELEASE-LINUX `release-cohort-r1`のDB FBAA／生成器E0DD／Core98AF／UI ACE059／Server7A66とfeed hefaab392の12pkg・13DLLを独立`release-linux-r1`で再利用した。実ロード5DLLを再起動前後のmaps各1パス／SHAで確認し、7ソースと公開定義はWindows最終と一致した。fixtureは定数由来を記録して明示定数を空から通常SDK Release評価へ整え、初回からRELEASEあり・DEBUGなし。SDK Release警告0・エラー0、通常検査APIとGUI同期→検査→取込→明示適用で公開v2が成功し、Shared／FirstShared各11、赤通知／計画／Linux絶対pathのコードtooltipと選択本文を確認した。正常停止・125ファイル全SHAバックアップ後の同候補再起動でも公開版・ArtifactHash3CEC01B2・定義全体が完全一致し、同結果と表示を再確認。最終156ファイル全SHAバックアップ、host173765／174696・専用Chromeは正常終了・残存0。固有0700 TMPDIR／CPU0〜7／scopeメモリ上限を使用し、固定170114／開始tick14559705は前後維持。正式Linux再publish・固定URL切替・物理入力と、定数由来／Embedded owner再開の製品境界は別工程。証拠は`F:/Seamless/manager-view-definition-sdk-20261111/release-linux-r1/summary.json`、`runtime-reopen-proof.json`、`restart-view-plan.png`、`stop-proof.json`。
+  - [確認済み・正式Windows publishと新規CLI GUI] W05-FORMAL-WEB-PUBLISH `Seamless.Management.Server/WindowsServer.csproj`を正式SDK Web起点に、参照閉包953ソースをSHA固定し、全18 ProjectReferenceを通常Release publishでビルドした。警告0・エラー0、output199ファイル、元UI静的asset18件と配信manifest200 endpointの実体、英語衛星と生成元DLLの一致を確認。新Core9E1F3C07／UI45F82C1D／Server121D4F59／DB87D44FD7／生成器3EB0B078は旧手動cohortと別候補として扱う。新規隔離管理領域でsetup-local→serveのTCP／Manager各port0→同一Windows所有者SIDのmanager IPC→通常ブラウザーDOMのinteractive-ready、DB名入力とEsc取消を確認した後、停止済み86ファイルを全SHA保全して同outputを正常再開し、FormalPublishCheckをEnter確定して公開v1を作成した。同origin再読込後のツリー1件・DB選択・公開v1と公開済み状態を確認。ソースプロジェクト保存先はEscでスキップし、SDK成果物は使用しない。正規/manager/_contentのCSS／JSはHTTP200と配布SHA一致。SDK成果物・旧適用済みDB互換・正式Linux publish・固定URL切替は未実施。初回ハーネスの/_content要求404は保持し、PathBaseに合わせた訂正後と分ける。所有host16476と追加57404はstop-fileで正常exit0、専用ブラウザー残存0。作成後123ファイルの保存SHAと作成前backupを保持。証拠は`F:/Seamless/manager-formal-publish-20261111/windows-r1/summary.json`、`cli-gui-r1/gui-proof.json`、`create-gui-proof.json`、`created-v1-reload.png`、各stop-proofへ分離した。
+  - [確認済み・正式Windows r2と限定GUI] W05-FORMAL-WEB-PUBLISH-R2 Viewの通常struct／別partial Query読取、非同期戻り型の赤通知と推論診断、RuntimeCompilerの非同期列挙型拒否を含む953ソースをmanifest2A421E7Aで固定。18 ProjectReferenceのRelease publishは警告0・エラー0、配布199ファイルとUI asset18件／200 endpointを照合した。Core CC45／UI F5A6／Server7422／DB133F／生成器1454を参照するWindows Release87件は全成功し、全製品DLL55個の実行SHAが一致。同じWindows製試験・DLLのLinux実行も87件成功した。隔離Windows実ブラウザーで通常struct Viewの7／別partial Viewの9、両本文とコメント、非同期型の赤20px・太字800通知、診断後のC#入力保持を確認。fixtureの初期公開は共通APIを用いた。所有host52912・専用browser10592は正常終了し、停止済みDB104ファイルを全SHA一致で保全した。SDK成果物取り込み・適用はW05-FORMAL-SDK-WINDOWS-R2へ集約し、旧DB互換・固定URL切替は別工程。証拠は`F:/Seamless/manager-formal-publish-20261111/windows-r2/summary.json`と`gui-boundary-r1/summary.json`、87件は`F:/Seamless/function-result-inference-20261111/formal-r2-near/summary.json`と`linux-formal-r2-near-r1/summary.json`。
+  - [確認済み・Linux独立SDK候補] W05-FORMAL-WEB-PUBLISH-LINUX-R2 Windows r2と同じ953ソースからUbuntu SDK10.0.403で18 ProjectReferenceを独立Release publishし、警告0・エラー0、199ファイルと元asset／manifestを照合。Core6807／UI FEAE／Server19BD／DBC141／生成器E7F9はWindows製DLLと区別する。実Linux Chrome157の通常CLI setup-local→serve→OS所有者IPC managerからFormalLinuxCheckをEnter作成、公開v1・F5後の選択保持と配信3assetのSHA一致を確認。さらに、このLinux製DLL55個を参照して同じ87件をLinux SDKでビルド・実行し全成功、試験build警告0・エラー0。原本199ファイルと試験11ソースは不変、各所有scope inactive・残存PID0。SDK成果物適用、旧DB互換、固定配布は別工程。証拠は`F:/Seamless/manager-formal-publish-20261111/linux-r2/summary.json`と`cli-gui-r3/summary.json`、`F:/Seamless/function-result-inference-20261111/linux-built-formal-r2-near-r1/result-summary.json`／`execution-proof.json`。
+  - [確認済み・正式r3の両OSビルドと限定試験] W05-FORMAL-WEB-PUBLISH-R3 if条件の生成・文の寿命修正と中立な未適用通知を含む同一971ソースをmanifest2AC25354で固定した。Windows／Ubuntu SDK10.0.403の18 ProjectReference独立Release publishは各警告0・エラー0。各配布200ファイル、元UI asset18件／200 endpoint、英語衛星、Linux互換準備スクリプト同梱SHAを照合した。Windows Core526C／UI9A98／ServerA0E3／DB294A／DB生成器EDF7／FLinq70EA、Linux Core29D6／UIF478／Server3372／DB7D18／DB生成器2CB8／FLinq9434は別の実ビルド群とする。Linux製55DLLを参照・実行する既存管理87件と条件／取引9件は全成功、build警告・エラー0、原本200ファイル不変、所有scope残存0。9件初回は試験DLLパス誤記でvstest未起動となり、同じ既成DLLを正しいパスで実行して確認した。Windowsも同じ87＋9件を正式r3で確認し、各build警告・エラー0。初回の条件3失敗は証拠保存先dataの未作成で、同TestDLLと55DLLを保ったままディレクトリを作成して9件だけ再実行した。初回失敗TRXを保持する。SDK／GUIはW05-FORMAL-SDK-R3へ集約し、全ZIP／旧DB互換／固定URL切替は含めない。証拠は`F:/Seamless/manager-formal-publish-20261111/windows-r3/summary.json`、`linux-r3/summary.json`、`linux-r3/near-management/result-summary.json`、`linux-r3/near-conditions/result-summary.json`、`windows-r3/near/summary.json`。
+  - [確認済み・正式r3両OS SDK適用と再起動] W05-FORMAL-SDK-R3 Windows／Linuxの独立r3 DLLを各feed12pkg／13DLLへ固定し、実ロード6DLLとSDK依存SHAを照合した。通常GUIで関数の本体・引数を編集保管し、通常library／C#14／Releaseを警告・エラー0でSDKビルド。GUIの検査→取込→変更確認→明示適用v2→4/5の結果とIEnumerable<long>読取専用表示を確認した。今回のConditionValues(long)のif内Sum/CountがSDK生成の実local function2個になり、元条件位置・MethodKey・埋込Planとも対応する。Windows SDK5B047B75／ArtifactA888CC05、Linux SDK5B75293D／ArtifactD58C3122は各実世代module.dllと一致。各DBを正常停止して125ファイルを全SHAバックアップし、同runtimeの正常再起動後も公開Definition全体・版・Artifact・値・本文コメントを保持。最終ソースは改行正規化後に両OS一致し、byte一致とは区別する。初期DB／SourceProject準備はAPI、編集・保管・検査・取込・適用・結果確認はDOM、SDKはCLIと分ける。各正式原本200ファイルは不変、所有host／ブラウザー／scopeは終了確認済み。GUIでの計画図閲覧、列移行、物理入力、異常系、旧DB互換、固定URL切替はこの枝の合格へ含めない。証拠は`F:/Seamless/formal-r3-sdk-acceptance-20261111/windows-r1/summary.json`と`linux-r1/summary.json`、各`condition-helper-selection-proof.json`・GUI proof・終了証拠。
+  - [確認済み・正式r3両OS列追加と移行] W05-FORMAL-COLUMN-R3 初期Itemsの2行はAPIで準備し、その後の左ツリー開閉・Notes/string?・既存行の初期式「"initial"」入力・構造／C#往復・保管はDOMから通常操作した。同一正式feed12pkg／13DLLで通常library／C#14のSDK Releaseを警告0・エラー0でビルドし、GUIの検査→取込→変更確認→明示適用で公開v2へ移行した。SDK DLLと世代moduleのEEF354F2が一致し、既存Id/Valueの1/10・2/20とNotes=initialをGUIと保存データで照合。正常停止後147ファイルを全SHAバックアップし、同じr3で再起動して公開定義全体・ArtifactHash6A173C77・行・C#が保持された。実ロード6DLL、製品原本200ファイル、feed内13DLL（サーバー由来11とメタ／Analyzer2を区別）をSHA照合し、所有host／Node／ブラウザー残存0。初回のクリック直後判定はBlazorの応答前で失敗し、同じ入力で非表示DOMを待つ観測へ訂正して成功した。Linux独立SDK製r3／専用Chromeでも同操作・SDK Release・GUI適用v2と正常再起動を後続確認した。SDK／実世代47FEE9EC、ArtifactF6CDCC71、公開Definition全体と同じ2行を照合し、147ファイルを全SHAバックアップ、原本200・実ロード6・feed13一致と全scope inactive／残存0を確認。Linux初回はWindows側proofパスが残るハーネス不備でGUI開始前に待機し、元証拠を保持してパスだけ修正した。新規行の既定値は未対応の赤太字案内を維持し、異常系・物理IME・固定URL反映は継続する。証拠は`F:/Seamless/formal-r3-column-acceptance-20261111/windows-r1/summary.json`、`gui-proof-r2.json`、`gui-apply-proof.json`、`gui-restart-proof.json`、`process-exit-proof.json`、同親配下`linux-r1/summary.json`と`execution-proof.json`。
+  - [確認済み・正式Windows r2 SDK適用] W05-FORMAL-SDK-WINDOWS-R2 正式r2 Core CC45／UI F5A6／Server7422／DB133F／DB生成器1151／FLinq1454の6DLLを実ロードSHA照合し、正式feed12pkg／13DLLとSDK依存を同一cohortで固定した。GUIでAnswerをint→long→列挙、引数longへ変更・本文コメントを保持して下書き保管。通常library／C#14／初回Release同期のRELEASEあり・DEBUGなし、SDK Release警告0・エラー0を確認し、GUI検査→取込→変更確認→明示適用で公開v2の4／5の2行を得た。SDK DLL6D9A7074と実世代module.dllが一致し、ArtifactHash74E47885と公開定義全体は正常停止前・再open後・再停止後で完全一致。125ファイル全SHAバックアップ、原本199ファイル不変、所有host／browser残存0。初期DB／公開v1とSourceProject準備にはAPIハーネスを使い、後続編集・適用はGUI操作と区別した。小UI E51Cは含めない。Linux独立SDK候補はW05-FORMAL-SDK-LINUX-R2へ集約し、旧DB互換・固定配布は残る。証拠は`F:/Seamless/formal-r2-sdk-acceptance-20261111/windows-r1/summary.json`、`applied-assembly-proof.json`、`gui-restart-proof.json`、`published-result-final.png`。
+  - [確認済み・正式Linux r2 SDK適用] W05-FORMAL-SDK-LINUX-R2 Linux SDK製Core6807／UI FEAE／Server19BD／DBC141／DB生成器07DF／FLinqE7F9を独立ext4配置へ固定し、Linux由来feed12pkg／13DLL・SDK依存・実ロード6DLLをSHA照合。Windowsと同じ最終ソースをGUIで編集して下書き保管し、通常library／C#14／ReleaseのRELEASEあり・DEBUGなしを同期、Linux SDK Release警告0・エラー0。実Linux Chromeで検査→取込→変更確認→明示適用の公開v2、4／5の2行と型・本文・コメントを確認し、正常停止・125ファイル全SHAバックアップ後の再openでも全定義・ArtifactHash86B2F761・同じ表示が一致した。SDK DLL FA57E26Fと実世代module.dllは同一。最終ソース1ファイルはWindows最終とbyte一致、正式199ファイル不変、host179117／179695・Chrome179028はexit0、pack／build／GUI全scope inactive・残存0。API初期準備と後続GUI操作を区別する。小UI E51C・旧DB移行・固定配布・物理入力は別工程。証拠は`F:/Seamless/formal-r2-sdk-acceptance-20261111/linux-r1/summary.json`、`gui-proof.json`、`execution-proof.json`、`published-result-final.png`。
+  - [確認済み] W05-PLAN-DRAFT 下書きと公開計画の表示切替を共通描画試験で確認した。
+  - [要対応] W05-PLAN-STATE 実行中の対象切替、取得失敗、取消の画面境界
+    - [確認済み] W05-PLAN-STATE-RENDER 共通描画で同じ定義IDの別DB切替、旧成功／失敗応答の除外、破棄時の取消と反復破棄、権限・認証失効時の公開計画消去、通信失敗時の保持と再取得を確認。監査と合わせた新規15件・既存破棄6件がDebug・Release各21件成功した。
+    - [未検証] W05-PLAN-STATE-BROWSER 実ブラウザーでの回線断と画面切替の結合確認。共通描画では制御した操作アダプターを使用した。
+  - 関連13件と最終代表1件が両構成で成功。[監査・実計画の確認記録](refactoring-designs/20261108-manager-audit-and-plans.md)
+
+### W06 管理機能のBrowser Manager移行
+
+- [記録あり・照合待ち] W06-BASE 監査・利用者・権限・接続設定の共通管理API。監査の4操作をIManagementOperationsへ接続した。
+- [要対応] W06-UI 画面と共通APIを接続する。
+  - [実装済み・限定確認] W06-UI-ADD 共通の追加メニューホストを、左システムと管理画面のロール・規則・割り当て、利用者・DB権限、設定の任意項目、監査検索条件へ接続した。現在の8件がWindows Debug近接46件内で成功し、うち7件は先行Release統合でも成功。WindowsヘッドレスDOMでテーブルの反復追加・取消、キーボード、システムと子4入口、利用者の非submit、監査条件保持を確認した。ロール規則は共通認可未初期化でUnavailable。空メニュー防止の実ブラウザー、最新候補Release、物理入力、Linuxを残す。[追加操作の設計と接続](refactoring-designs/20261109-contextual-additions.md)
+  - [要対応] W06-AUDIT 監査検索・表示・転記状態
+    - [確認済み] W06-AUDIT-NORMAL イベント検索・100件単位のページ置換・行内詳細・参照集計・WAL転記・記録状態を共通画面とAPIへ接続。Windowsブラウザーで125件・絞り込み1件・集計7件・転記1件を確認した。
+    - [確認済み] W06-AUDIT-ENTRY 同居・IPC・所有者セッション・利用者セッション・組み込みで同じ記録を取得。セッション失効と、権限変更後の4操作拒否を確認した。
+    - [要対応] W06-AUDIT-STATE 検索中の回線断・取消・画面切替・権限不足表示
+      - [確認済み] W06-AUDIT-STATE-RENDER イベント・参照集計・WAL転記の権限／認証エラーで既存結果と続き取得を消去する。通信失敗では表示を保持して再取得する。表示切替・破棄で前要求を取り消し、旧応答のエラーを除外する。監査の反復破棄時の例外も修正した。証拠はW05-PLAN-STATE-RENDERと共通。
+      - [未検証] W06-AUDIT-STATE-BROWSER 実回線断・ブラウザー遷移・外部HTTPSの結合確認と、組織認可側との監査統合。
+    - 証拠は `W05-PLAN` と同じ [監査・実計画の確認記録](refactoring-designs/20261108-manager-audit-and-plans.md)。利用者・ロール編集は `W06-USERS`へ続く。
+  - [要対応] W06-USERS 利用者・ロール・権限の表示と編集
+    - [確認済み] W06-USERS-ACCOUNTS 管理用アカウントの作成、DB権限、有効・無効、パスワード変更を共通APIと画面へ接続。Debug3件・Release6件、Windowsブラウザーで権限保存・編集保持・取消・無効化・別PID再起動後の保持を確認した。
+    - [確認済み] W06-USERS-CONFLICT 取得時のStampで同時更新を検出し、作成専用の経路で既存名の上書きを拒否。競合時の入力保持と206アカウントのページングを確認した。
+    - [確認済み] W06-USERS-ENTRY 同居・IPC・所有者セッション・利用者セッション・組み込みで同じ操作を実行。パスワード変更による旧接続失効、自己無効化の拒否、権限変更後の一覧・更新拒否を確認した。
+    - [要対応] W06-USERS-ROLES StoredAuthorizationの共通ロール・割り当て・資源別権限
+      - [確認済み] W06-USERS-ROLES-NORMAL DB内ロールの作成・編集・削除、資源別の許可／拒否、利用者・グループ割り当てと解除を共通APIと画面へ接続。近接3件がDebug・Releaseで成功した。
+      - [確認済み] W06-USERS-ROLES-ENTRY 同居・IPC・所有者ブラウザー・管理用アカウントのブラウザー・組み込みで保存と結果照会を確認。現在の全DBのManage権限と監査主体を検査し、既存OIDC4試験も両構成で成功した。
+      - [確認済み] W06-USERS-ROLES-BROWSER 隔離した共通認可ポリシーでロール名保存、画面移動後の未保存入力、取消、別PID再起動後の名前・参照権限・既存グループ割り当て保持を確認した。
+      - [確認済み] W06-USERS-ROLES-RECEIPT 共通描画試験で確定後の応答喪失を注入し、入力・操作IDを保持して結果照会で確定済み保存を回収した。
+      - [要対応] W06-USERS-ROLES-GLOBAL サーバー全体・複数DBにまたがるロール
+        - [確認済み] W06-USERS-ROLES-GLOBAL-API スコープ照会・変更を共通入口とOIDCへ接続。DB内APIの範囲制限、サーバー管理権限、版競合、操作結果、複数DB規則の再オープン後の保持を確認。新規4件・既存11件を両構成で確認し、永続化の追加検査は1件だけ再実行した。
+        - [確認済み] W06-USERS-ROLES-GLOBAL-RENDER 共通画面でサーバー全体の選択、複数DB規則、サーバー管理、割り当て、保存・削除・取消を確認。実ブラウザーでは対象切替と3規則の入力を確認した。
+        - [要対応] W06-USERS-ROLES-GLOBAL-BROWSER 隔離DBのBrowserCrossDatabaseへの権限付与・保存を、自動承認レビューが具体的承認不足で拒否した。利用者へ許可を確認中。保存・ブラウザー再起動後の保持は未検証。入力はWorkのJSON・画面へ保持した。server-run1は実行期限前に正常停止し、タブ36を閉じた。再開時は同じ隔離DBを開いて入力記録を復元する。
+      - [未検証] W06-USERS-ROLES-INTEGRATION 実業務DB・C#クライアント・SQL・Managerでの共通資源と主体の対応。W09・W18・W19へ接続する。
+      - [要対応] W06-USERS-ROLES-SCALE 選択DBの全メタデータ取得の大規模化、実回線断・再送、外部HTTPS・Linuxの画面受入。資源予算はW11へ接続する。
+      - 証拠は [共通ロール管理](refactoring-designs/20261108-manager-roles.md)。ブラウザーからの権限追加・割り当て追加・削除は未検証。
+    - [未検証] W06-USERS-BROWSER-CREDENTIAL ブラウザーのパスワード入力を含む作成・変更。今回の作成・パスワード変更はAPIと共通描画試験で確認した。
+    - [未検証] W06-USERS-STATE 実通信障害と自己権限変更後の画面への即時反映を確認する。
+    - 詳細は [管理用アカウントの確認記録](refactoring-designs/20261108-manager-user-profiles.md)。
+  - [要対応] W06-SETTINGS 接続・サーバー設定の保存と再起動反映
+    - [確認済み] W06-SETTINGS-NORMAL 共通API、版照合、管理WAL、稼働値と次回値の表示、起動引数の優先と一時値の保存除外を接続。Debug・Release各3件、既存初期設定のRelease1件が成功した。
+    - [確認済み] W06-SETTINGS-BROWSER Windowsの隔離DBで設定保存、画面移動後の入力保持、取消、別PID再起動後のManagerポート・通信予算・監査間隔の反映を確認した。保存版のRazor表示不具合も修正した。
+    - [確認済み] W06-SETTINGS-ENTRY 同居・IPC・所有者ブラウザー・利用者ブラウザー・組み込みの共通APIで保存を確認。組み込みは試験コンテキストを接続し、未接続時に能力を広告しないことを確認した。
+    - [確認済み] W06-SETTINGS-HOST ManagementApplicationHost.CreateAsync・OpenAsyncで組み込み同期／サーバー型の起動と保存設定を接続。標準serveも同じ処理を使用する。Debugホスト4件・Release関連19件、Windowsの公開API起動でブラウザー保存・別PID再起動反映を確認した。実業務API全体と各環境の受入はW07・W08・W13へ続ける。[共通ホストの記録](refactoring-designs/20261108-management-application-host.md)
+    - [未検証] W06-SETTINGS-FAILURE ポート衝突・証明書不整合の表示、保存中の強制終了、外部HTTPSの画面設定、Linux・配布受入。保存復旧はW10へ接続する。
+    - 証拠は [サーバー設定の確認記録](refactoring-designs/20261108-manager-server-settings.md)。標準serve入口の確認と任意の組み込みホストの接続を分ける。
+- [未検証] W06-ERROR 入力不正、権限不足、認証失効、保存失敗、取消。
+- 認証・認可の共通処理は `W09`、保存・復旧は `W10` を参照し、画面からの結合を確認する。
+
+## 実行・保存・通信の基盤
+
+### W07 組み込み同期の実行保証
+
+- [記録あり・照合待ち] W07-BASE 同一PID・専用DBスレッドの管理ホストと代表試験。
+  - [確認済み] W07-HOST 公開共通ホストの組み込み同期を接続し、Manager・直接API・保存設定・参照監査の定期保存と最終保存を同じ所有領域へ接続した。実クエリの参照集計保存が専用DBスレッドで行われ、再読込後にも残ることを確認した。証拠はW06-SETTINGS-HOSTを参照する。
+- [要対応] W07-BUSINESS 生成クライアントDLLを参照しない業務アプリからの同期直接呼び出し。
+  - [確認済み] W07-BUSINESS-SCALAR 公開ExecuteScalar<TResult>で単一値の検査・型変換・取引確定まで同期実行する。行の参照・更新とビュー／関数の同期入口も接続した。別PIDの試験用C#アプリから公開APIで9行を取得し、DB実行スレッドと生成クライアントDLLの未ロードを確認した。
+  - [要対応] W07-BUSINESS-STREAM 集合の所有型ストリーム、部分読取・破棄・予算・退避をW17・W18と接続する。
+    - [確認済み] W07-BUSINESS-STREAM-COPY 公開ExecuteStream<TResult>で独立したコピーを構築し、確定後に一回列挙の所有型を返す。共通親予算とTemporaryFileへ接続した。両構成各12件と独立C#プローブで40行・5行での終了・次クエリ・予約0を確認した。[集合の検証](refactoring-designs/20261108-embedded-business-api.md)
+    - [要対応] W07-BUSINESS-STREAM-FORMAL 事前生成業務RPCとグラフ表現へ所有型を統合する。現行管理JSONの型契約と件数上限を引き継ぐ入口の成功を、W15・W18の全面受入へ広げない。
+- [要対応] W07-SERIAL Manager・業務API・ローカルWebのDB操作を一つのDB実行スレッドで逐次処理する。
+  - [確認済み] W07-SERIAL-SCALAR 同期の追加・参照・更新・関数、6並行投入と所有者ブラウザー操作アダプター、WAL監査転記が同じ専用DBスレッドを使う。実画面の共通ホスト操作はW06-SETTINGS-HOSTの証拠を再利用する。
+  - [要対応] W07-SERIAL-STREAM 集合と非同期継続を含む残りの業務経路の所有・スレッドを確認する。
+    - [確認済み] W07-SERIAL-STREAM-COPY 管理公開クエリの集合列挙後の観測で40行すべてが専用DBスレッドに一致した。同期呼出し内でコピーを確定し、読取中にDB取引・ゲートを保持しない。正式RPCと非同期継続は親枝へ残す。
+- [要対応] W07-ERROR 例外・取消・受付上限後も次の操作へ進み、資源を返す。
+  - [確認済み] W07-ERROR-SCALAR 本体例外・0件・複数結果・型変換失敗の書込取消、容量1で待機中の取消、受付後の入力変更・JsonDocument破棄からの分離、取消後の次操作を確認した。
+  - [要対応] W07-ERROR-STREAM 集合途中の例外・取消・破棄・ホスト停止と資源回収を確認する。
+    - [確認済み] W07-ERROR-STREAM-COPY 列挙例外・型不一致・2行目生成時の取消・件数／予算超過の書込取消、列挙前／途中の解放、ホスト停止時の回収・取得済み値の保持・再起動後3行を確認した。列挙開始前の取消で4240バイトが残るケースは修正前失敗・修正後成功を確認した。
+    - [未検証] W07-ERROR-STREAM-SCALE 実ディスク障害、大規模結果、正式RPCの切断・所有権、停止と読取の全競合をW11・W17・W18で確認する。
+- [未検証] W07-DEBUG 一つのデバッグセッションで業務呼び出しからDB処理へ到達する。
+- [要対応] W07-AUDIT 通常の業務経路と既存代表試験の対象を照合する。
+  - [確認済み] W07-AUDIT-WAL 組み込みの定期・最終転記、参照監査無効時の転記、投影失敗後の再起動で業務クエリを追加せずWALを回収する経路を確認した。転記先確定・ACK・転記元状態の保存を専用DBスレッドへ配送する。
+  - [未検証] W07-AUDIT-SCALE 大量の旧世代、転記予算上限と終了時の残量、強制終了を含む組み込み全体受入をW10・W11と確認する。
+- 証拠はDebug・Release各30件と別PIDの直接呼び出し。[組み込み同期業務API](refactoring-designs/20261108-embedded-business-api.md)
+
+### W08 複数C#クライアントの同居実行
+
+- [未分解・将来範囲] W08-FRONTEND-BOUNDARY Transport／TLS／bufferと認証leaseには既存の分離がある一方、NativeQueryServerは実DBadapter・取引・確定・結果保管とwire送信を同じ処理で所有する。IDatabaseAdapterのdelegateとSessionContextの実取引／ExecutionContextもinproc契約であり、Backend別PIDへ差替できる責務分離は未完了。subject・policy版・監査operationと確定結果の対応、親予算と取消契約を保持する。読取点検のみで、新Frontendは実装していない。Frontend実装と1万接続受入を現行1〜21の完了条件へ追加せず、その受入後の別設計単位へ残す。[hosting正本の具体接点](refactoring-designs/20261107-manager-browser-hosting.md#現在の配布対象と将来のfrontend分離)
+- [記録あり・照合待ち] W08-CONNECTION 別C# EXEの4並行接続などの試験記録。
+- [要対応] W08-NORMAL 同居Managerと複数クライアントが同じ稼働DBを利用する。
+  - [確認済み] W08-NORMAL-RPC 同居ホストに独立4プロセスのC#実行入口からTCP/TLS・認証付き公開クエリRPCで接続し、各5回の更新の戻り件数1〜20、Managerの所有者操作アダプターによる20行の一致、通常再起動後の保持を確認した。Debug・Release各1件、子プロセスは共通0xFFを継承する。
+  - [未検証] W08-NORMAL-GENERATED 正式な事前生成業務クライアントと実画面での結合はW18・W06と接続する。今回の子プロセスはManagement.Testsの専用実行入口である。
+- [要対応] W08-SLOTS 同居Manager操作と外部要求の共通実行枠
+  - Browser Managerは同居Kestrelから管理APIを直接呼ぶ。TCP／IPCは別プロセスのC#クライアントの接続として扱い、既存管理RPCの試験と正式な事前生成業務プロトコルの受入を区別する。
+  - [確認済み] W08-SLOTS-RPC ManagementApplicationHostのConcurrentCapacityを同居・外部ManagerとTCP／IPCの通常管理RPCで共有する。既存の32接続上限とDBごとのゲートを維持し、容量1で両方向の待機を確認した。
+  - [確認済み] W08-SLOTS-CANCEL 待機中の更新取消・切断で追加を実行せず、後続の更新が成功する。満杯の実行枠に取消要求が阻まれず、処理中Applyを取り消せることを確認した。
+  - [確認済み] W08-SLOTS-STOP 停止開始時に新規受付・待機を取り消し、受理済み処理と接続・リースの終了後に保存領域を閉じて再オープンする。
+  - [未検証] W08-SLOTS-GENERATED 正式な事前生成業務プロトコルと共通資源枠の接続はW18・W11へ続ける。Linux・配布物の実行はW13へ続ける。
+  - 新規7ケースと既存回帰15ケースがDebug・Release各22件成功。実装と証跡は [共通要求実行枠](refactoring-designs/20261108-shared-management-admission.md)。
+- [要対応] W08-ERROR ロック、切断した未確定取引、取消、タイムアウト、受付上限、停止後の回収。
+  - [確認済み] W08-ERROR-DISCONNECT 独立した第5プロセスで更新結果を1件受け取って切断し、未確定の追加が残らず、別接続・Manager・再起動後の件数20を確認した。
+  - [未分解] W08-ERROR-LIMIT 受付上限、タイムアウト、停止中、残る資源回収をW08-SLOTS・W11と照合する。
+- [未検証] W08-DEBUG 同一PIDの管理・受付・DB処理をデバッグする。
+- 共通認可は `W09`、資源管理は `W11` に依存する。
+- 証拠は [独立C#プロセスと同居Manager](refactoring-designs/20261108-multiple-csharp-clients.md)。
+
+### W09 IPC・TCP/TLS・Webの認証と認可
+
+- [記録あり・照合待ち] W09-BASE 所有者IPC、ブラウザー起動セッション、TLS、外部認証の基盤と個別試験。
+- [未検証] W09-IPC OSが確認した同じ所有者アカウントを許可し、別アカウントを拒否する。
+  - [確認済み] W09-IPC-LINUX 固定Releaseの実サーバーに対し、所有者UID1000の公式Manager起動と直接IPCの本人取得が成功し、別UID65534は起動ファイル未発行・IPC接続EACCESで拒否された。拒否後の所有者要求も成功した。設定・権限・ソケットモードを変更していない。接続後の資格情報検査単独とWindowsの正式配布候補は親枝へ残す。[Linuxの接続確認](refactoring-designs/20261109-linux-manager-acceptance.md)
+  - [確認済み・近接] W09-IPC-TMPDIR 同一所有者でもクライアントだけのTMPDIR変更で公式Manager起動がタイムアウトした。Linux待受けパスの固定と一時接続情報へのパス追加、Managerでの解決を実装した。別プロセスの両探索経路・旧形式・不正パス拒否を含む管理37ケースがLinux両構成で成功した。Windowsは短い保存先でDebug34件の成功を再利用し、失敗3件の成功とRelease37件を確認した。長い保存先はW10-PATHへ残す。既存利用者DBは移行・再起動していない。[IPC接続先](refactoring-designs/20261109-linux-ipc-endpoint.md)
+- [未検証] W09-TLS 証明書、ホスト名、認証、認可を実C#クライアントから確認する。
+- [未検証] W09-WEB 所有者ブラウザーと外部利用者の認証・権限・失効を確認する。
+  - [確認済み・独立候補] W09-WEB-FIXED-ADDRESS ローカル画面を`/manager/`へ固定し、一回限りの所有者IPC起動能力・8時間固定期限・既存Cookie認可を維持。Server Release0警告0エラー、期限・他session・同ポート再起動の2近接が成功。実ブラウザーで匿名401→所有者認証200→別session401→専用サービス正常再起動→旧Cookie401→同URL再認証200を確認した。Ubuntuの新規確認用サービスとショートカットは`http://127.0.0.1:15337/manager/`を使用し、稼働継続する。既存デモ・利用者DBを停止変更していない。Ubuntuのuser manager開始時に自動起動し、Windows単体のWSL自動起動とOS再起動試験は含めない。証拠は`F:/Seamless/manager-fixed-url-20261110`、詳細は[ローカル確認用の固定URL](refactoring-designs/20261109-manager-object-navigation.md#ローカル確認用の固定url)。
+    - [確認済み・候補05反映] 上記は初期の独立導入条件。現在の固定サービスは利用者の保存済み承認後に候補05・PID170114へ更新した。正常停止と全SHAバックアップ、公開v2のItems／NewView読取、所有者CLI・認証後HTTP200、既存本人Chromeへの起動URL引渡しを確認した。新しい本人ChromeのDOM操作は未実施。バックアップ先・設定復帰・証拠と未確定の初回Timeout／旧KILL原因はW10-CATALOG-V2へ集約する。
+  - [確認済み] W09-WEB-OWNER-LIFETIME 利用者の回答により、OS所有者向けの既定を8時間固定へ変更した。期限後は所有者の起動操作で開き直す。期限直前・境界・再発行と既存の所有者セッション11件がWindows・Linuxの両構成で成功した。Ubuntuの所有中サーバーを正常停止し、既存CLIでバックアップと隔離コピーを作ってDB一覧・下書きのハッシュ一致を確認した。固定候補runtime-owner-eight-hoursでPID50746へ更新し、LinuxUiDemoとItemsの未適用表示を再確認した。この段階は形式5で確認した。現在の形式6での再開はW10-PREPARED-LIVEへ引き継ぐ。証跡はowner-session-eight-hours-windows・linuxとowner-eight-hours-rollout.json。
+- [未検証] W09-SEPARATION 各入口の権限が別の入口へ誤って流用されないことを確認する。
+  - [確認済み] W09-SEPARATION-QUEUED TCP要求が共有枠を待つ間にアカウントを無効化し、実行開始時の再認証で拒否することを確認した。OS所有者IPCの確認と接続元の認証方法を維持する。証拠はW08-SLOTS。
+- [未分解] W09-ACCEPT Windows・Linux、同居・別プロセスの実接続へ試験を対応付ける。
+
+### W10 障害時の保存・復旧
+
+- [一部実装・継続] W10-MANAGEMENT-TYPED 利用者・共通認可・設定・定義対応等の管理データ全体を型付きTableとTsavorite永続化へ統一する。現行EntriesのJSON payload、SharedV2の現在値と分割WAL、CAS・参照・名前契約を維持して移行する。形式6を明示backupしoffline stageでexport/import・再open・install/rollbackを検証する。共通認可・定義対応と物理Set化は継続する。[承認された保存設計](refactoring-designs/20261109-management-storage-unification.md)
+  - [確認済み・Windows Debug／Windows・Linux Release近接] W10-MANAGEMENT-USERS-SETTINGS 形式7のUsers・UserGrants・ManagedTextParts・ServerSettingsを共通取引へ登録した。旧6の型と起動を維持し、明示offline upgrade／rollbackを追加。順序付きGrant、null／空、typed text overflow、generic Read投影、stamp/catalog/CAS、header・auditを含む原子取消を確認した。typed-first-r2〜r5とnear-debug-r30の13固有ケースへ、通常設定標準化・全物理copy・再実行・未知形式・catalog欠損の4件を加えた。固定candidate-p7-r3のWindows・Linux Release各環境でtyped14件とtyped-crash3件が同DLLで成功し、3点の実プロセス強制終了・明示復旧を含む。source1498集合／hash、Windowsの既存Debug／Release出力、Linuxの通常PID90899は前後一致。形式6／HTTPの4回帰はtyped-first-r6で成功。形式7の再export、64Mi文字実境界・高負荷と実画面の受入を残す。稼働管理領域は移行していない。[現在の実装と証拠](refactoring-designs/20261109-management-storage-unification.md)
+  - [確認済み・近接] W10-MANAGEMENT-TYPED-INTEGRITY 移行元の実体とcatalog経由件数を照合し、欠損catalogによるデータ消失を切替前に拒否する。通常設定APIの巨大入力の標準化・7への移行・全物理copy／再実行、未知形式、user／settings各catalog欠損の新4件がr31で成功した。固有17ケースの分割証拠を保持し、最新固定候補の一括受入は継続する。
+
+- [記録あり・照合待ち] W10-BASE 障害試験・ジャーナル・WALの既存実装と試験。
+- [要対応] W10-LOCK 共有違反・復旧ロック
+  - [確認済み] W10-LOCK-REPRO 再試行を除去した逐次反復の3回目でmanagement.lock共有違反を再現。別プロセスが保持する対照試験で所有PID・作成時刻を照合した。元の再現時にはRestart Managerで所有者を捕捉しなかった。
+  - [確認済み] W10-LOCK-CAUSE .NET 10.0.14のWaitForExitAsync完了直後も12回すべてでWindowsハンドルがWAIT_TIMEOUT（258）だった。同じ候補の交互比較で、旧条件は12回中共有違反1回、カーネル終了待ちは12回すべて即時復旧成功。所有ハンドルは非継承だった。
+  - [確認済み] W10-LOCK-FIX PublicationCrashの終了待ちを保持ハンドルのWaitForExitへ変更し、IOExceptionの再試行を除去。保存領域を再オープンする監査・移行・認可の関連試験も同じ待機へ揃えた。Debugの関連48件とReleaseの終了待ち・即時復旧4件が成功し、両構成のPrepared／Committedでシグナル0と一度目のオープン成功を記録した。
+  - [確認済み・独立Windows Release] W10-LOCK-NORMAL-CLI 自作seedの正規backupコピーで実CLI reset-password／upgrade-managed-typesの終了と即時再openを2件確認した。両方の非同期待機直後・保持ハンドル待機後のWindowsシグナルは0で、共有違反は再現しなかった。元InstanceId・設定・利用者・形式6のbackup、移行後形式7を保持。証拠は`manager-object-ui-20261110/w10-handoff`のTRX・PID/作成時刻付きhandoff JSON・verification.json。強制終了の既存原因や最終候補の受入へ一般化しない。
+  - [確認済み・独立Windows Release] W10-LOCK-GATEWAY NativeTlsの既存同一storage再起動代表1件が23秒で成功。2子プロセスの非同期待機直後シグナル0・終了コード0を記録し、2回ともTLS接続・取引rollback・同一GatewayWalIdを確認した。共有違反の再試行や待機は追加せず、製品修正なし。証拠は`manager-object-ui-20261110/w10-gateway-handoff`のTRX・各handoff JSON・verification.json。管理CLI2件とは別の受入範囲とする。
+  - [確認済み・独立Windows Release] W10-LOCK-AUTH-CLI AuthorizationPolicyStorageの通常初期登録代表1件が11秒で成功。意図した拒否4回と正常登録1回の計5子CLIで非同期待機直後シグナル0を観測し、拒否後Revision／backup非作成、正常登録後の同rootの認可版・監査主体とbackupの未登録状態を照合した。製品・待機順序・再試行条件は不変。証拠は`manager-object-ui-20261110/w10-authorization-handoff`のTRX・5handoff JSON・verification.json。期限切れ／強制終了cleanupは未検証。
+  - [確認済み・独立Windows Release] W10-LOCK-SUBJECT GatewaySubjectStatus代表1件が58秒で成功。HTTP／Nativeの未確定書込みを管理APIの無効化で取り消し、同じstorageの再起動後も無効状態・操作結果・sales／ledger初期行が保持された。2子プロセスとも非同期待機直後シグナル0・終了コード0、GatewayWalId一致。製品・待機順序・再試行条件は不変。証拠は`manager-object-ui-20261110/w10-subject-handoff`のTRX・2handoff JSON・verification.json。任意Manager画面検証は対象外。
+  - [監査済み・代表実行は未検証] W10-LOCK-OTHER-WAITS GatewayHttpAuthorization、NativeGatewayCommandAuthorization等のその他起動経路と、認可CLI／NativeTls／GatewaySubjectStatusの期限切れ・強制終了cleanupは残る。正常return前のDisposeと、保持ハンドルの終了確定を分ける。PublicationCrash旧条件比較の意図的な非同期待機、失敗時cleanup、Invoke-Comparisonの起動失敗分岐も区別する。[終了条件の監査](refactoring-designs/20261108-recovery-lock-observation.md)
+  - [未検証] W10-LOCK-ACCEPT 他のプロセス利用箇所の終了条件と、最終候補の全件・配布受入を照合する。Releaseの関連48件は480秒制限で打ち切られ、結果TRXがなく合格に数えていない。終了直前まで保存先の更新を観測した。対象4件の切り出し結果と広域の打切りを区別する。
+  - 根拠と証跡は [復旧終了条件の観測](refactoring-designs/20261108-recovery-lock-observation.md)。
+- [要対応] W10-COMMIT 成果物と管理WALの確定境界
+  - [確認済み・近接] W10-PREPARED 管理形式6と分割WAL
+    - 利用者の選択により、既存PreparedTransactionJournalを内部オプションから共通DB取引へ接続した。新規管理領域は形式6、既存形式3・4・5の起動は従来経路とする。形式5からのバックアップ付き明示移行と中断時取消のCLIを追加した。
+    - Windows DebugのDB近接2件、ジャーナル10件、管理近接45件、分割記録の強制終了2件と移行の強制終了13件が成功した。管理Release50件も成功した。形式5の履歴1万件を移行後に名前変更し、保持と再送・再起動を確認した。公開済みの行・下書き・利用者・監査の保持、切り替え例外と取消も成功した。Windowsの基盤Release各2件・10件と、Linux Debugの管理21件も成功した。Linux ReleaseもDB基盤2件・ジャーナル10件と、固定DLLの管理21件が成功した。広域の期限切れと近接成功を分ける。実利用管理領域も全領域バックアップ・隔離コピーの移行と照合後に形式6へ明示移行し、PID90899で再開した。[分割WALの境界](refactoring-designs/20261109-management-prepared-wal.md)
+  - [確認済み・実配置] W10-PREPARED-LIVE 稼働中の形式5管理領域を正常停止し、既存CLIの全領域バックアップ・隔離コピー・コピーの形式6移行・再開照合後に実領域を形式6へ明示移行した。PID90899で再開し、DB1件・利用者1件・従来履歴9件・公開定義と下書きのハッシュが一致した。移行履歴1件の追加、一つの実ブラウザーでLinuxUiDemoとItemsの未適用表示を確認した。manager-prepared-wal-rollout.jsonに所有・バックアップ先・照合、manager-prepared-wal-live.pngに画面を保存した。
+  - [未分解] W10-COMMIT-POINTS 保存・適用の中断点と旧世代／新世代の判定を列挙する。
+  - [未検証] W10-COMMIT-CRASH 各段階で強制終了し、整合した世代へ復旧する。
+  - [未検証] W10-COMMIT-RETRY 再起動後の同一操作照会・再実行で重複確定を防ぐ。
+- [未検証] W10-REGRESSION 既存DB、正常停止、複数DBへの影響を確認する。
+- [要対応] W10-PATH 長い保存先への対応と作成前診断
+  - SDK試験でTsavoriteのsnapshot.datのパス長上限を観測。短い隔離保存先で同じ候補は合格。制約の解消・早期診断を継続する。[構成選択の記録](refactoring-designs/20261108-source-build-configuration.md)
+  - Windowsの管理回帰でも長い検証ルートからsnapshot.obj.dat・ht.datの上限を再現し、37件中3件が失敗した。同じ候補で短い`F:/Seamless/m9/db`へ切り替えると該当Debug3件とRelease37件が成功した。通常の名前変更・回収と、長いパスの未解決条件を分離する。証跡は`F:/Seamless/linux-desktop-recovery-20261109/manager-boundary-windows`と`manager-boundary-windows2`。
+- 配布前の必須ゲート。具体的な通信・運用条件は [Kestrel残作業台帳](kestrel-remaining-work.md) を参照する。
+
+### W11 メモリ・一時ディスク・資源上限
+
+- [記録あり・照合待ち] W11-BASE 予算・退避・予約返却の低層実装と個別試験。
+- [要対応] W11-OOM Release試験のメモリ不足
+  - [要対応] W11-OOM-WSL4 4GBのWSLで複数Chromeとサーバーを動かし、GUIから検証DBを追加すると参照DLLの読み込みでCannot allocate memoryを観測した。追加検証ブラウザーの終了とサーバーの正常停止後に空きメモリが戻った。UI試験は独立Windows保存先へ分離した。LinuxのDB追加の合格や資源問題の解消へ含めない。[共通編集UIの確認範囲](refactoring-designs/20261109-manager-designer-grid.md)
+  - [確認済み・試験環境] W11-OOM-TEST-SCOPE systemdの新規試験スコープだけにMemoryMax1468006400・MemorySwapMax268435456を適用し、プローブ自身のcgroupから値を照合した。CPUは既存の0〜7を併用する。既存サーバー・デスクトップの制限は維持する。製品側のメモリ上限・Roslyn会計とは分けて扱う。証跡は`F:/Seamless/linux-desktop-recovery-20261109/memory-scope-probe`。
+  - [確認済み・限定測定] W11-OOM-METADATA SourceEditorのTPA参照の再生成とRuntimeCompilerによる二重生成を修正した。配列の所有を分離する新規試験が修正前に失敗し、Debug17件とReleaseの管理101件を含む118件が成功した。同じ177参照・20回コンパイルの別プロセス測定で、専有メモリの観測ピークは628215808→220868608バイト、割当量は141778160→23903888バイトだった。実Linux GUIで新規DBを作成し、検査・適用・行保存を含む専用サーバースコープのピークは425316352バイト、スワップ0を確認した。旧OOMと並行条件が異なるためW11全体の解消とは扱わない。[参照共有の設計と測定](refactoring-designs/20261109-compiler-metadata-memory.md)
+  - [確認済み・限定測定] W11-OOM-FOCUSED 旧Releaseの失敗候補17アセンブリを保存済みSHAへ照合し、`NativeRowEditingTests.StaleRowsAndGenerationsCannotOverwriteCurrentData`だけを隔離DB・8CPU・120秒上限で実行した。旧候補は1件成功・13.13秒、250ms周期の62観測点で所有プロセスのprivate commit合計の観測ピーク741269504バイト、testhost単体710070272バイトだった。Core `73F5F8309119C6342AABAC1E9570D71C0D07E78783AC56A0C12EFE4B4E402288`の固定候補も1件成功・7.67秒、33観測点で合計366010368バイト、testhost単体335675392バイトだった。Windows物理使用率は旧67.39〜68.67%・新67.15〜67.70%。同じケース名・入力fixtureヘルパーのPDBチェックサム・観測条件を揃えたが、テストファイル全体のチェックサムと比較21アセンブリ中18件が異なる。旧PDBに埋込ソースがないため選択メソッド本文の厳密同一性も未確定であり、測定差を参照共有だけの因果倍率へ広げない。値はRoslyn・DB・nativeを含むプロセス合計。単独OOMは未再現、元94件の順序・並行圧迫とW11全体は未解決。全所有PIDは生成時刻付きで終了確認した。初回のCLI誤りと観測器の引数不足は失敗証拠を保持し、非試験コントロール成功後の各候補1回だけを有効測定とした。証跡は`F:/Seamless/manager-object-ui-20261110/w11-oom-audit/comparison.json`、旧`focused-r3`・新`current-r1`のTRXと`test-run/memory-observations.json`。
+  - [確認済み・限定測定] W11-OOM-COMPILE-ONLY 同じ固定Core73F5・Server8F0228・.NET10.0.14・TPA400個のハッシュとソースハッシュを揃え、参照取得だけ・通常Roslyn Emit・RuntimeCompilerの通常入力・同コンパイラーのDB定義入力を各5回、4個の独立プロセスで計測した。DBを開かず生成アセンブリもロードしない。通常測定終了時のprivate commitは順に158896128／178434048／185696256／197398528バイト、参照取得後のmanaged累積割当ては71232／24750216／27152704／53571792バイトだった。初回TPA取得でprivate commitが約140MB増え、managed割当ては約0.73MB、5回の共有参照取得では追加増加が約64KBだった。診断用FullGC後のprivate commitは162205696／182894592／186273792／194228224バイト、推定live managedは1543192／10130640／11836680／12253824バイト。GC committedは最後のGC時点の値であり、private commitとの残差を全てnativeメタデータやリークと断定しない。診断FullGCはプローブ内の終了境界だけで行い製品への対処として導入しない。参照だけの短いピークは外部250ms観測が捉えず、プローブ内チェックポイント値と分けた。5回で長期の安定・OOM後復帰・DB/WAL/ALC所有を証明せずW11未解決を維持する。小プローブのビルドは警告0・エラー0、全4モード正常終了、Windows物理使用率の観測最大66.71%、全所有PID終了を確認した。証跡は`F:/Seamless/manager-object-ui-20261110/w11-oom-audit/compile-probe/summary.json`と各モードの`stages.json`・`stages.json.identity.json`・`operation/memory-observations.json`。
+  - [確認済み・環境観測] W11-OOM-HOST-PRESSURE 2026年11月10日07:54:45 UTCの共有メモリガード履歴はWindows物理使用率95.411%を記録し、同時期snapshotのUnity.exe PID36720は約24GBだった。このホスト全体圧迫を旧Seamless Roslyn OOMの再現として扱わない。現在のWSL観測は4GB、利用可能約1.6GB、運用・2デモの各scopeは約249〜265MBでOOMイベント0、デスクトップsessionは約1.46GB・swap約128MBだった。現在値から過去の原因は確定しない。稼働プロセスと制限は変更していない。証跡は同根の`audit.json`・`linux-baseline.json`。
+  - [確認済み・限定修正] W11-OOM-ALC-AMBIENT 終了した取引の共有AsyncLocal holderが`TransactionContext`を保持し、Retireデリゲートからscope・参加DB・生成型へ参照が残る経路を再現した。空DB、型だけの利用、実行スレッド終了の対照では回収され、終了済みholderのContextだけを切る隔離実験でも回収された。根本修正は取得失敗時とroot終了時に共有holderのContextを切り、既存の版付きEndにはローカルへ取り出したContextを渡す。製品へ診断GCや待ち時間を追加しない。commit／rollback・元／コピー実行フローの新4件は旧DLLで4件失敗、新DLLで既存17件と合わせRelease21件成功。版付きの並行書込み・競合・スナップショット・読取り終了回収の既存4代表も成功し、製品・専用試験ビルドは警告・エラー0件。同一プローブDLL・400参照・同一DB入力で取引DLLとPDBだけを差し替えた書込み専用3反復は、診断GC後のALC／assembly残留が3／3から0／0へ変わった。書込み＋読戻しも新DLLで0／0だが旧対照はプローブv2、新はv3で全体SHAが異なるため厳密比較は書込み専用に置く。参照の集約hashには変更した取引DLLも含まれるため前後で異なる。専用プローブ2個は正常終了し、予算返却は全反復でメモリ・一時領域とも0。元94件OOMの原因全体、長期使用量、今回差分のWindows Debug／全体統合は未確認。Linux Debug／Releaseの後続確認は次項を参照する。稼働デモ・運用DBは変更していない。証跡は`F:/Seamless/manager-object-ui-20261110/w11-oom-audit/ambient-fix/summary.json`、同`fixed-results-r2/fixed.trx`・`versioned-results/versioned.trx`、`alc-probe-fixed`配下の各モード記録。
+  - [確認済み・Linux限定回帰] W11-OOM-ALC-LINUX 前項と同じ取引修正ソースSHA747A87CBを専用候補へ固定し、Linux SDK10.0.403で取引プロジェクトと選択試験をDebug／Releaseビルドした。両構成とも警告0・エラー0、新寿命4件、commit／rollback・async・nested／savepointなど既存17件、版付き4代表の各25件が成功した。同一の実行済みプローブDLL EAA2E298を再利用し、旧取引DLL・Linux修正Debug・同Releaseの独立3プロセスで各3回書込を比較した。診断GC後のALC／assembly残留は旧3／3、修正両構成0／0で、実値[1,1,1]と全DBのメモリ・一時領域予約返却0を照合した。各候補の変更ファイルは取引DLL／PDBのみ。既存管理DLL等の依存を再利用した限定ビルドであり、サーバー全体の再publishではない。CPU0〜7、試験scope MemoryMax1100MiB・180秒、プローブ900MiB・90秒を個別設定し、全5scopeのhigh／max／oomイベント0と生成時刻付きPID終了を確認した。運用・固定URLサービス・デモは変更していない。元94件条件と長期安定の未解決は維持する。証跡は`F:/Seamless/manager-object-ui-20261110/w11-oom-audit/linux-ambient-r1/summary.json`、同`debug/results/ambient.trx`・`release/results/ambient.trx`・`process-exit-proof.json`。
+  - [要対応] W11-OOM-REPRO 元94件の入力・順序・並行条件での再現と工程別使用量は未確定。参照取得・コンパイル単独・取引終了後ALCの限定測定と修正を根拠に、残る実行条件と所有を分けて確認する。ホストの空きを意図的に埋める負荷や全件の無制限反復は行わない。
+  - [一部確認済み] W11-OOM-CAUSE 取引holder経由のDB生成型保持を上記で特定した。Roslyn、変更集合、他のロード済みDLLなど残る所有と解放の切分けは継続する。
+  - [一部確認済み] W11-OOM-FIX 参照共有と取引holder解放の限定修正は確認済み。上限・退避・残る解放経路と同候補での全体回帰は未完了。
+- [未分解] W11-LIMIT 実クエリと管理処理へメモリ・一時領域の予算を接続する。
+  - [確認済み] W11-LIMIT-NATIVE-TLS-OPTIONS ForTls／ForAuthenticatedTlsへ既存署名を保持した予算・型制限指定のオーバーロードを追加し、プールのOptionsから貸出しにも引き継ぐ。親予算不足時の未送信・予約返却・再試行、型制限違反、再貸出し、null・不正値の拒否を新規3件で確認した。回帰はDebug・Release各64件、認証付き新旧APIの実接続・主体保持・権限変更各2件が成功し、Clientビルドは警告・エラー0件。[TLSのレコード資源指定](refactoring-designs/20261108-native-stream-cancellation.md)
+  - [要対応] W11-LIMIT-IPC IPC受信の予算・資源制御
+    - [確認済み] W11-LIMIT-IPC-BUFFERS 管理DBのResourceBudgetを親とする専用スコープへ、先読みPipeと分割フレームの復元を接続した。既存OwnedBufferで容量と管理費64バイトを確保前に予約する。解析成功・失敗・取消・途中終了・親予算不足、接続拒否後の再接続、切断・停止時の返却を近接11件で確認した。
+    - [確認済み] W11-LIMIT-IPC-AGGREGATE 6接続の不完全フレームを共通親予算へ計上し、追加フレームの予算不足を拒否した後に全予約の返却・再接続を確認した。
+    - [未検証] W11-LIMIT-IPC-CONTROL 接続上限32・制御要求・親予算不足の組合せと、正式配布物・Linuxでの受入。
+    - [要対応] W11-LIMIT-IPC-JSON 受信後のJSON復元・管理処理の追加メモリを共通予算へ接続する。今回の計上はIPC入力と復元バッファを対象とする。
+    - 最終候補は新規12ケースと既存回帰12ケースがDebug・Release各24件成功。実装と証跡は [IPC親予算会計](refactoring-designs/20261108-ipc-memory-budget.md)。
+- [未検証] W11-ERROR ディスク満杯、退避失敗、途中切断、取消、失敗後の再実行。
+- [未検証] W11-RELEASE メモリ・一時ファイル・ハンドルを回収する。
+- 配布前の必須ゲート。各機能側ではこの基盤を使う結合試験を持つ。
+
+### W12 DB単位の停止・移動・再開
+
+- [記録あり・照合待ち] W12-BASE DB所有、停止、DDL障害隔離などの既存基盤。
+- [未検証] W12-STOP 新規受付停止から、実行中処理の終了待ち・永続化・停止まで通す。
+- [未検証] W12-MOVE 停止したDBのフォルダーをコピーし、別ホストのサーバーで復旧・再開する。
+- [未検証] W12-ERROR 処理中の停止、停止中の要求、移動失敗、二重所有の拒否。
+- [未検証] W12-OTHER 他DBの継続利用を確認する。
+- [未分解] W12-RECOVERY 移動前後の成果物・WAL・所有情報の範囲を照合する。依存は `W10`。
+
+### W13 Linuxと正式配布物
+
+- [確認済み] W13-WSL Windows再起動後、Ubuntu 24.04.5 LTSをFドライブへ登録・実起動し、WSL2・8仮想CPU・WSLgの存在を確認した。[Linux検証環境](refactoring-designs/20261108-linux-wsl-validation.md)
+- [要対応] W13-LINUX SDK 10.0.403でLinux専用出力へのサーバーDebug・Releaseビルドが警告・エラー0件。kazuhの通常CLI起動、所有者IPCによるManager起動セッション、Windowsからの認証済み管理ページと静的資産の取得を確認した。対話操作と配布受入へ進める。
+  - [確認済み] W13-LINUX-IDENTITY Linuxで別プロセスのUTC開始日時が約9.95秒ずれる事象を観測した。boot_id・開始クロックを使う照合へ変更し、Linux接続情報2件とWindows関連Debug・Release各9件を確認した。
+  - [確認済み] W13-LINUX-DESKTOP Xfceとローカル限定xrdpを導入した。GTKがWSLgの表示先を自動選択する黒画面を比較実験で特定し、セッション内のGDK_BACKEND=x11指定で修正した。再ログイン後のデスクトップ・パネルと、LinuxサーバーPID22017が配信する認証済みBrowser ManagerのDB一覧0件を利用者の画像で確認した。DB作成以降と起動アイコン操作は未検証。[Linux検証環境](refactoring-designs/20261108-linux-wsl-validation.md)
+    - [確認済み] W13-LINUX-DESKTOP-REOPEN systemd・DBus・xrdpの復帰を実測し、既存RDPファイルでXfceへ再接続した。Linux Chromeを専用プロファイル・X11指定で起動し、Linux PID336のManagerと既存LinuxUiDemoを表示した。DOMでItemsの未適用案内を照合し、Managerウィンドウだけを取得した。証跡は`F:/Seamless/linux-desktop-recovery-20261109`。標準URI起動の画面到達と、終了時キャンセルの実ブラウザー再確認は別に追跡する。
+      - [確認済み] W13-LINUX-DESKTOP-FIXED 固定Debug配置の既存サーバーへOS所有者IPCで新しい利用セッションを発行し、同じ専用Chromeプロファイルで開き直した。LinuxUiDemoのデータ画面でItemsの未適用案内をDOMと画面画像で再確認した。
+      - [実装済み・未検証] W13-LINUX-LAUNCHER UbuntuのSeamless.desktopが参照するseamless-serverをバックアップし、DLLの参照先をビルド用出力から確認済みの固定Debug配置へ変更した。sh -nで構文を確認した。desktop-launcher-before-pin.sh・desktop-launcher-pin.jsonを保存した。アイコンのクリックからの起動と配布候補への切り替えは残す。
+  - [確認済み] W13-LINUX-NATIVE 正式生成RPC・通信・接続ポリシー・プールのLinux Debug・Release各102件。IPCとTLSの別PID、取引回収、取消、資源返却を含む。証跡はlinux-20261108/native-regression-Debug・Release。
+  - [確認済み・Linux x64配布準備] W13-LINUX-NATIVE-PREP 実Garnet2.2.8では導入済みlibaio1t64へのアプリローカルaliasを既存resolverが必要とし、書込禁止の未準備配置で初回writeのDllNotFoundExceptionを再現した。対象Linuxホストで実行する`Prepare-LinuxNativeCompatibility.sh`を追加し、PublishのServerLinux同梱だけを接続した。ELF／symbol version確認、既解決no-op、readonly未準備の具体拒否、準備後readonly再実行、既存regular／dangling／異target拒否の6操作と、readonlyのNative4096B write/read/closeが成功。alias inode／ctime／mtime、正式199ファイル、OSライブラリーは不変。所有scope inactive・残存0。Bash／PowerShell構文とscript SHA4B519EF4を照合し、GitのLF属性を固定した。全体再publish／ZIP配布受入と他archは別工程。証拠は`F:/Seamless/formal-r2-readonly-native-20261111/script-validation/summary.json`。[準備手順](refactoring-designs/20261108-linux-wsl-validation.md#2026年11月11日の正式sdk候補)
+  - [確認済み] W13-LINUX-MANAGEMENT 管理ホスト・IPC・認証付きTLSの元の101件がLinux Debugで101件成功し、Releaseでもソース解析・破棄17件を加えた118件が成功した。試験領域のLinux絶対パス、完了済み要求の取消トークンを接続通知に使っていた試験、子プロセス開始UTCのLinux差を修正した。切断後のロールバック・キー再利用・再起動後の保持は通常の接続から照合する。試験コレクションを逐次実行し、専用cgroupのメモリ上限を適用した。証跡は`F:/Seamless/linux-desktop-recovery-20261109/management-host-green`・`management-host-release`。正式配布と未実施のGUI操作の受入は継続する。
+  - [確認済み・固定配置] W13-LINUX-GUI Linuxの固定Release配置を使い、GUIでDB作成・テーブル編集・下書き保管・専用C#プロジェクト保存、Ubuntu SDKの両構成ビルド、DLL検査・取り込み・明示適用、行追加・更新、別DB作成・名前変更、サーバー正常再起動後の保持を確認した。公開版v2・価格150.75・新名の保持をDOMと画像で照合した。継続編集後のv3でも行を保持した。既存共有フィードのDLLが現在候補と異なったため、新規フィード・専用NuGetキャッシュを使用し13個のDLLをハッシュ照合した。正式配布物・通常の既存キャッシュを含む全体受入は親枝へ残す。[実施条件と証拠](refactoring-designs/20261109-linux-manager-acceptance.md)
+- [確認済み] W13-BROWSER-REUSE 利用者の指示で確認用Chromeの古い画面7つを閉じ、LinuxUiDemoの現在画面1つを残した。未保存警告はなく、DOMで残数とDB名を確認した。Chromeのプロセス数は14から7へ減った。以降の検証はこの画面を再利用し、一時画面を終了時に閉じる。
+- [確認済み・起動設定とヘッドレス] W13-BROWSER-LANGUAGE Linux Chrome本体の表示言語について、固定日本語指定を利用者の追加指示で撤回し、Chromeの優先言語設定を読むユーザー用ランチャーへ接続した。日本語・英語・未指定など5条件、実プロファイルの英語優先と起動引数en-USの一致、Chrome一窓とManagerの再表示を確認した。後続の隔離LinuxヘッドレスChromeで設定画面から日本語追加・最優先・英語へ復帰を操作し、実ヘッダーとManagerの応答・html・操作ラベルが追従し、価格を保持した。ヘッダー上書きは使用していない。表示中の通常プロファイルの手動往復とは区別する。[Linuxでの操作条件](refactoring-designs/20261109-linux-manager-acceptance.md)
+- [部分確認・継続] W13-ACCEPT 正式Windows r2／Linux独立SDK r2のpublish、起動、限定ブラウザーはW05-FORMAL-WEB-PUBLISH-R2／LINUX-R2を参照。Windows正式r2のSDK検査・適用・正常再起動はW05-FORMAL-SDK-WINDOWS-R2で限定確認。Linux独立SDK候補の同工程はW05-FORMAL-SDK-LINUX-R2で限定確認。後続の正式r3は両OSの96件とSDK適用・正常再起動をW05-FORMAL-WEB-PUBLISH-R3／W05-FORMAL-SDK-R3で確認し、両OSの列移行をW05-FORMAL-COLUMN-R3で確認した。旧DB互換と正式配布物の全GUI操作を継続する。旧混成cohortの成功を新正式候補へ自動継承しない。
+- [未分解] W13-ERROR パス・ファイル権限・依存DLL・IPC・証明書の環境差を展開する。
+- `W07`〜`W12`の対応する環境別受入と証拠を共有する。
+
+## 生成・保存・更新・通信・検証の公開契約
+
+### W14 DB生成器
+
+- [記録あり・照合待ち] W14-BASE キー・レコード・Container・スキーマ混在の生成・コンパイル試験。
+- [未分解] W14-CONTRACT Tables・Views・Work、単一Container、生成キーの公開契約を実生成物と照合する。
+  - 宣言キーあり／なし、全データプロパティキー、get／init、名前衝突、通常struct・record struct・partialプロパティを展開する。
+  - [確認済み・Linux] W14-CONTRACT-DECLARED 宣言キー・全列キー、get／initとコピー更新、S／Cのメモリ配置、スカラー正規化と生成ストラテジ、混在スキーマ、別所属の同名、名前衝突、ビューと取込の生成・コンパイル・実行を既存43件で両構成確認した。証跡は`F:/Seamless/linux-desktop-recovery-20261109/generator-contract`。単一Containerの全条件とWorkは親枝へ残す。
+- [要対応] W14-WORK WorkをTableとして収集する箇所と、非取引作業辞書の契約を揃える。実体は `W17` と接続する。
+- [未検証] W14-ERROR 不正な宣言を診断し、再生成でユーザー処理本体を保持する。
+- [未検証] W14-ENTRY 生成コードをコンパイルし、通常のContainerから実行する。
+
+### W15 正規化・比較・シリアライズ
+
+- [記録あり・照合待ち] W15-BASE 型固定ストラテジ、privateフィールド、参照共有・循環、Graph形式の個別実装と試験。
+- [未分解] W15-NORMALIZE ±0、decimal、DateTimeOffset、DateTime、入れ子型、文字列の規則を保存・送信・引数へ接続する。
+  - [確認済み・Linux] W15-NORMALIZE-CODEC スカラー正規化、private・readonly・入れ子・配列・boxed値の正規化、文字列の内容比較、参照共有・循環、比較とハッシュ、RecordGraphの往復・検査・所有・予算・取消・収集可能型の解放を既存66件で両構成確認した。生成ストラテジの実行はW14-CONTRACT-DECLAREDにも含む。証跡は`F:/Seamless/linux-desktop-recovery-20261109/record-contract`。通常の全保存・送信入口への接続と二領域WALは別に確認する。
+- [未検証] W15-EQUALITY 比較とハッシュ、正規化後の衝突、参照構造、保存・送信往復を確認する。
+  - [確認済み・Windows両構成とLinux Release] W15-RECORD-MEMBERSHIP `View.Contains`と`Table<TKey,TRecord>.Contains/Remove(record)`を既存Codecsの型固定比較へ接続した。RecordGraphV1の正規化値・共有・循環が等しい別インスタンスを旧DB3BF2が拒否する6ケースを再現し、既定profileの対照1ケースは旧DLLでも成功。修正後は新7＋保存・復旧の既存15件がWindows Debug・Release各22件成功、各build警告0・エラー0。共有の分裂・異なる列値・異なるキーを拒否し、削除の確定後も件数0を確認した。Release DB FBAA279Aを含む186ファイルを独立Linux出力へSHA照合コピーし、同じ試験DLLの22件も成功。同じFBAAを正式feedへ同梱し、Windows SDK ReleaseのGUI適用と正常再起動をW05-PLAN-SDK-RELEASE-COHORTで確認した。Core98AF／UI ACE059／DB FBAA／生成器E0DDの同一cohortは、Linux SDK ReleaseのGUI適用と正常再起動もW05-PLAN-SDK-RELEASE-LINUXで確認済み。固定Manager配布と後続の関数型推論新Core／UIの受入は別工程。証拠は`F:/Seamless/view-contains-equality-20261111`の`baseline-final-results/checks.trx`、`release-integrated-results/checks.trx`、`debug-integrated-results/checks.trx`、`linux-integrated-r1/results/checks.trx`。
+- [未分解] W15-REGIONS 値型／参照型の二領域と共通WALを通常の生成型へ接続する。
+  - [未分解] W15-REGIONS-STORAGE 生成型のS／Cというメモリ配置と、物理的な二領域保存を区別する。現在のVersionedTransactionalTableは行コーデックの出力全体をHistoryStoreへ渡し、SpanByteのログへ保存する。S／Cの生成試験やRecordGraph往復の成功を、二つの保存領域と共通WALの受入へ含めない。保存プロファイル・移行・可視性・取消・復旧を具体化する。
+- [未検証] W15-ERROR 不正データ、版違い、予算不足、中断時の両領域の整合性。共通復旧は `W10`。
+- `W04-VALUES`の列値移行の成功範囲も参照し、保存・送信全体の受入条件へ対応付ける。
+
+### W16 更新・Merge・並列RMW・件数
+
+- [記録あり・照合待ち] W16-BASE 更新操作の実装とTableOperationTestsの試験記録。
+- [未分解] W16-API Update・Merge・MergeWith、キー操作、戻り値の公開APIを照合する。
+  - [確認済み] W16-API-TABLE Updateのキー維持・変更・対象なし・衝突、Mergeの追加／更新enum、全レコードのContains／Remove、MergeWithの件数・同一入力重複・競合入力拒否・循環キー交換・追加衝突時取消を既存13件でWindows・Linuxの両構成確認した。W17のDB14件はこの13件と作業Store1件。並列RMW、展開／非展開と残る開始時参照は別枝で確認する。
+- [未検証] W16-START 開始時の行を基準に更新し、一括キー変更の最終配置を検査する。
+- [未検証] W16-COUNT 並列RMWとワーカー単位のローカル計数をDisposeで集約する。
+- [未検証] W16-FLINQ 展開・非展開の通常経路で同じ契約を満たす。
+- [未分解] W16-ERROR キー衝突、対象なし、コールバック例外、取消、全体取消後の件数を展開する。
+
+### W17 作業Store・Dictionary・Persisted
+
+- [記録あり・照合待ち] W17-BASE 低層の変更集合・退避・保存点・プロセス終了の試験記録。
+- [未分解] W17-WORK ランタイム作業Storeの生成・作成入口とDBの資源管理を接続する。
+  - [確認済み] W17-WORK-RUNTIME DatabaseContainer・ExecutionScopeのCreateWorkStoreを既存の一時Store・親予算・Own／Releaseへ接続した。辞書・集合・キー付き集合の名前不要入口を追加した。通常読み書き、親予算合算・不足、明示解放・親終了・反復／並行Dispose、失敗・取消時の作成を近接7件と既存を含むWindows・LinuxのDebug・Release各46件で確認した。新規試験のAssert診断を修正し、最終試験記述のLinux6件も両構成で成功した。生成Work・型固定方針と残る環境受入は継続する。[所有の設計](refactoring-designs/20261109-work-store-ownership.md)
+- [未分解] W17-DICTIONARY 非取引辞書の静的ストラテジとインプレース更新を接続する。
+- [未検証] W17-LIFETIME using、Dispose、親予算、一時領域の所有を保証する。
+- [未検証] W17-ERROR 退避失敗、取消、例外、プロセス終了後の資源回収。
+  - [確認済み] W17-RECOVERY-CREATE 既存の3秒並行試験で、作成直後のowner.lockを回収処理が排他確立前に開く共有違反を再現した。所有者ロックの取得後に生成するowner.jsonの存在を先に確認し、内容は従来どおり排他取得後に読む。待機・再試行を追加せず、同じ並行試験を含むWindows・LinuxのDebug・Release各32件と、Linuxの同じ3秒の独立再実行各3回が成功した。証跡は`work-store-regression`の修正前失敗、`work-store-regression2`、`work-store-race-repeat`とWindows正式入口。
+- [未検証] W17-RESTRICTION Persistedに許可した作業領域APIと禁止した更新APIを検査する。
+
+### W18 事前生成RPC・DLL検査・戻りストリーム
+
+- [記録あり・照合待ち] W18-BASE クライアント生成、型付きバインディング、DLL・パッケージ検査の個別実装と試験。
+- [未分解] W18-CONTRACT 共通ビルド識別、サーバー展開、公開契約、戻り値の通信経路を照合する。
+- [未検証] W18-COMPAT 公開契約不変時に既存クライアントで接続する。
+- [未検証] W18-SECURITY 受信後の版違い・禁止呼び出し・差し替えを拒否する。保護通信は `W09`。
+- [要対応] W18-STREAM 部分読取、全件読取、大量結果、途中切断、所有・解放を確認する。資源管理は `W11`。
+  - [確認済み] W18-STREAM-CANCEL 通常要求の取消・終了確認フレームを既存の受信ループへ接続した。途中列挙20回、実行中取消、8MiB送信中の取消、生成済みグラフRPCの明示取引、更新取消の4組で同一接続を再利用した。取消送信タスクも回収する。新規15件と回帰53件が両構成各68件成功した。[取消と再利用](refactoring-designs/20261108-native-stream-cancellation.md)
+  - [確認済み] W18-STREAM-OWNER 生成集合をNativeResultStream<T>へ接続し、await using・一回列挙・読取中解放を管理する。ToResultAsyncは既存の受信列投影とNativeResultを再利用する。新規12ケース、Debugの関連79件＋空結果1件、Release80件、生成・呼出側コンパイル各9件が成功した。従来QueryRecordsAsyncの公開署名を維持する。[結果所有の記録](refactoring-designs/20261108-native-result-ownership.md)
+  - [確認済み] W18-STREAM-ACK WindowsのループバックTCPで、クライアント側の取消確認の期限・不正応答・途中切断と接続破棄を確認した。サーバー側の処理終了と各入口の統合はW18-STREAM-ENVへ引き継ぐ。
+    - [確認済み] W18-STREAM-ACK-INVALID 応答の通番・長さ不正と確認前の切断で元の接続を破棄し、新しい接続の次クエリで値9を受信した。
+    - [確認済み] W18-STREAM-ACK-TIMEOUT 所有型を使った応答なし・ヘッダー途中切断・本文途中切断・本文途中停止の4組が両構成で成功した。期限は実時間で約15秒、解放後は同じクライアントで新しい接続の次要求が成功し、レコード予算は0へ戻った。[確認記録](refactoring-designs/20261108-native-stream-cancellation.md)
+  - [要対応] W18-STREAM-ENV 保護通信・IPC・別PID・Linux・配布物での部分読取と取引回収をW08・W09・W13と確認する。
+    - [確認済み] W18-STREAM-ENV-TLS WindowsのループバックTLSで、生成所有型の部分読取・実行中解放・保存点取消・同一SslStream継続・レコード予算0をGateway有無×明示取引有無の4組で確認した。信頼不足・ホスト名不一致の拒否2組も成功した。
+    - [確認済み] W18-STREAM-ENV-PROCESS Gateway有無の2組で、別PIDの正式生成クライアントを実行した。親が書込中を観測してから子が所有型を解放し、先行2行を保持して同じTLS接続で確定、子終了後に別接続でも2行を確認した。CPU affinity 0xFFと双方のレコード予算回収を確認した。新規8＋既存36の両構成各44件、OS分岐修正後の別PID各2件が成功した。[TLSと別PIDの確認](refactoring-designs/20261108-native-stream-cancellation.md)
+    - [未検証] W18-STREAM-ENV-AUTH 外部利用者の認証・認可付きTLSと共通ApplicationHostの業務受付枠を、正式生成クライアントへ接続する。専用テスト入口での成功と分ける。
+    - [要対応] W18-STREAM-ENV-IPC 正式業務RPCのOS所有者IPCを共通ホスト・各環境へ接続する。
+      - [確認済み] W18-STREAM-ENV-IPC-WINDOWS CreateLocalOwner／ForLocalOwnerを追加し、管理IPCのOS確認をLocalPipeOwnerへ共通化した。生成グラフRPCの取消・部分読取・切断時取引回収・停止再開8ケースと、別PID生成クライアント2ケースを確認した。再起動後の共通TCP/TLS・プールを含む回帰はDebug・Release各102件が成功した。[正式業務IPC](refactoring-designs/20261108-native-owner-ipc.md)
+      - [未検証] W18-STREAM-ENV-IPC-INTEGRATION 共通ApplicationHost、異なるOSアカウントの拒否、Linux・配布物を確認する。
+    - [未検証] W18-STREAM-ENV-DISTRIBUTION Linux・配布物、サーバー停止と残る資源上限の統合をW11・W13と確認する。
+
+### W19 SQLとC#オブジェクトの対応
+
+- [確認済み] W19-NAMES DB直下と明示dboの分離を含むSQL名前解決・保存復旧の記録。[スキーマ混在の確認記録](refactoring-designs/20261108-schema-mixed-manager.md)
+- [要対応] W19-REGISTER C#ビュー・関数をGatewayのSQLオブジェクトへ自動登録する。
+- [未検証] W19-RESULT 直下・dbo・dbo0・dbo1の同名オブジェクトでC#とSQLの結果を照合する。
+- [未検証] W19-REBIND 再適用後の束縛と既存データ・問い合わせを確認する。
+- [未分解] W19-ERROR 引数・戻り型・NULL・権限・存在しない名前の条件を展開する。
+
+### W20 FLinqと網羅検証
+
+- [記録あり・照合待ち] W20-BASE 最適化、結果比較、行比較、ベンチマークの既存実装と試験。
+- [未分解] W20-CORPUS ペア・3段の入力値・詳細式・source共有・チェインforkを含む網羅生成を照合する。
+- [未検証] W20-LAMBDA 直接ラムダの展開、キャスト・変数・メソッド経由のデリゲートの扱いを確認する。
+  - [確認済み] W20-LAMBDA-CALLSITE 変数・フィールドの宣言時初期化式へ戻す処理を削除し、再代入後のデリゲートを保持する。キャスト型の完全修飾、delegate構文の保持、匿名戻り値の内部写像、生成コメントを実生成・コンパイル・実行で確認した。追加値の保持・一回評価・共有クロージャ・遅延列挙・Anchor付き引数順序を含む新規16件と既存契約27件がWindows Debug・Release各43件で成功した。同じAnyCPU候補をUbuntuで実行しDebug・Release各43件も成功した。Linux用配布ビルドと追加の型境界は継続する。[設計と確認](refactoring-designs/20261109-delegate-inline-boundary.md)
+  - [要対応] W20-CARRIER-REGRESSION 初回のCoreCarrierOptimizationTests照合は31件中10件成功・21件失敗。固定済み旧生成器DLLを専用の試験配置へ入れた比較でも失敗名は全件一致した。その後、下の辞書1件と範囲件数4件を修正し、生成名の固定に依存した照合も採用経路へ揃えた。残る既存最適化・実行時構造を継続する。初回比較のdelegate-boundary-regression-debugとdelegate-boundary-baselineのTRX・DLLハッシュを保存した。全体の合格には含めない。
+    - [確認済み] W20-CARRIER-DICTIONARY 引数なしnewがstructの既定初期化を選び、比較子と配列が未初期化だった。明示的な引数なしコンストラクターから既存の初期化を共用した。既存の衝突・追加順・検索1件と関連43件がWindows Debug・Release各44件成功した。dictionary-construction-regressionのTRXを保存した。[構築の修正](refactoring-designs/20261109-dictionary-slim-construction.md)
+    - [確認済み] W20-CARRIER-RANGE 範囲集合の件数計算を通常のCount・LongCountへ接続した。正規化後のUnion内部Concatも入力順に収集し、静的形式・集合外のConcat・objectへ返すintを確認した。既存4件と新規4件、共有44契約を合わせてWindows Debug・Release各52件が成功した。同じAnyCPU候補のUbuntu実行も両構成各52件成功した。range-count-regression・range-count-linux-regressionのTRXと、近接試験の生成C#を保存した。Linux配布物の受入はW13へ残す。[件数計算の接続](refactoring-designs/20261109-range-set-count-wiring.md)
+  - [未検証] W20-LAMBDA-ANON-BOUNDARY 匿名型を配列・任意のジェネリック型へ入れたデリゲートや匿名型の引数境界を照合する。今回の戻り値アダプターは匿名プロパティの再帰的な内部写像を扱う。単純な匿名戻り値の成功から全匿名型の対応を推定しない。
+- [未検証] W20-EFFECT 副作用なしの既定、画面で追加した副作用あり、Anchorと発生順を確認する。
+  - [確認済み・限定修正] W20-EFFECT-GROUP-CAPTURE 静的なGroupBy集約終端で捕捉引数へ付いたthisを外し忘れ、元Readerのメンバーへ誤変換するCS1061を旧生成器のAsyncOwner単独で再現した。既存のReceiverNamesに基づく除去を再利用した。さらに条件枝のSumを無条件に融合し、skip=trueでもcallbackが128回動く別欠陥を実再現。?:の選択枝、&&／||／??の右辺、条件付きアクセス内の集約は融合候補にせず、元のGroupBy＋Select評価位置へ残す。新1件は旧生成器で失敗、新生成器で11分岐の結果・callback順が成功し、無条件の捕捉引数も保持した。生成器・新試験buildは警告0・エラー0。既存終端2モードは新旧で同じGroupCountの採用経路assertに失敗し、元AsyncOwnerもコメントassert・Condition未展開の残件があるため全体合格には含めない。固定Managerは無操作。証拠は`F:/Seamless/async-owner-skip-20261110`、詳細は[集約の評価境界](refactoring-designs/20261110-view-query-integration.md#groupby集約の捕捉変数と条件評価)。Linux・Debug・新View展開との統合は未確認。
+- [未検証] W20-FAILURE 停止後の失敗一覧、失敗記録、同一条件での再現を確認する。
+- [未分解] W20-SEED エラー・改善・改善なしの判定と開始シードの維持・更新規則を実装・試験へ対応付ける。
+- [未検証] W20-RESULT LINQ・ZLinq・FLinqを固定比較し、値・要素順序・副作用を各契約で照合する。
+  - [部分確認] W20-NULLABLE-SUM nullable `Sum`の空・全null・混在および整数overflowで標準LINQとの差を再現し、通常と配列向けの`Where`・`Concat`・集合演算などの生成経路を修正した。空・全null・混在・overflow、selectorの評価コンテキストと既存計測を含む52件がWindows Releaseの隔離試験で成功。残る型・演算子・副作用と全網羅の結果は未確認。証拠は `F:\Seamless\manager-object-ui-20261110\nullable-sum-regression\checked-results\checked.trx`。
+
+### W21 実行記録と履歴
+
+- [確認済み・Windows Debug近接] W21-PERIOD-SET 実績履歴をExecution.Storeの期間別独立Tsavorite.Setへ接続した。period seal・必須file事前検査・行hash、MemoryPack payload、反復読取、manifest欠損の空再生成拒否、健全期間の継続、保持数、未完stagingの書込停止をr17〜r19で確認した。raw期間共用・種類付きsealと旧seal互換をr23で再確認した。旧JSONの自動移行は行わず、JSON／HTML交換を維持する。固定R3の両Release・実ブラウザーは下の共通受入枝へ引き継ぎ、稼働中削除の受入を残す。厳密な瞬間最大disk量と未完領域の自動回収はW11へ接続する。[保存設計と証拠](refactoring-designs/20261109-management-storage-unification.md)
+- [確認済み・Windows Debug近接] W21-TRACE-WRITER 有界queue・親予算・Completeの同期容量待ち、取消／停止・BestEffort欠落を独立native期間writerへ接続した。Recorder8ケースはr23、実100msタイマー・正常／失敗／取消・通常枠を解放するIPC通知・返却時認可はr27の4ケースが成功。BestEffortの3dropを観測し、保存保証の試験はCompleteで確認した。r25複合試験の高I/O条件600秒打切りは合格に含めず、同DLLの分割成功と区別する。[収集と表示](refactoring-designs/20261109-query-visualization-plan.md)
+  - [確認済み・両Releaseと実ブラウザー] 固定R3でWindows／Linux同じRecorder8・Native／Timer4・History17が成功。全99実行・93固有ケースへ含め、sourceとDLLの前後一致を確認した。通常UIでは4組と終端・Summary・保存・コード対応を両OSで確認し、Linuxの旧4実行20frameの起動間復元も先行候補で確認。負荷上限と稼働中削除は別の残件とする。
+
+- [記録あり・照合待ち] W21-SIM 垂直時間軸・動的レーン・使用率を持つシミュレーターと図の試作。
+- [未分解] W21-COLLECT サーバーとインプロセス・マルチスレッドのベンチマークへ共通収集を接続する。
+- [確認済み・Windows Debug近接] W21-MODES 記録／表示それぞれの時間ベース・イベントベースの4組を共通トレースUIへ接続した。座標方式を独立に選び、観測UTCと単調時計の経過時間から境界・サンプルを縦に投影する。whole-query Scope、設定変更による非実行、TraceID解除、アクセス失効、古い応答の破棄、取消を無視したAPI待機からの旧UIループ回収、英語表示を含む12ケースがr26で成功。実タイマー／APIの結合をr27で確認した。固定R3の実ブラウザー・両Releaseの受入は下の枝へ集約する。[UIと測定の現在地](refactoring-designs/20261109-query-visualization-plan.md)
+  - [確認済み・実ブラウザー] Windows Debugの`browser-v4-trace-r2`と固定Linux Releaseの`linux-browser-trace-r1`で4組を確認。実結果・独立した実行ID・境界と終端・履歴・コードtooltipを照合した。Linuxの正常停止・再起動後に同じ4実行・20frameを復元した。短いクエリのSampleは0、実100ms Sampleはr27へ分ける。ノード別詳細計測・ベンチマークとの共通収集は継続する。
+  - [確認済み・近接] 密集ラベルを実測点の位置から退避し、共通目盛・説明集約・全観測一覧への移動を追加。新6ケースを含むr30の38ケースが成功し、固定R3の実ブラウザー確認は下の枝へ引き継ぐ。
+  - [確認済み・固定R3] Windows／Linux実ブラウザーで密集説明の集約・対応行強調・focus循環、時刻点位置の不変、選択実行と全対象実行、今回Sessionの収集カウンタと表示記録件数を確認。短いクエリのtimer Sample0と、実タイマーの近接発火を分ける。候補の全証拠はW05-PLAN-VISUALへ集約する。
+- [確認済み・対象クエリのソース対応] W21-CODE 元ソースのhashと範囲を照合するノードtooltipと全文選択をWindows／Linuxの実ブラウザーで確認した。版・hash・認可の不一致とマスク済み資料の保護、100%倍率復帰を含む30近接ケースはWindows Debugのr29で成功。FLinq展開後の全文・生成範囲と三段階構造の相互対応は追加実装へ残す。固定候補と証拠は[可視化計画](refactoring-designs/20261109-query-visualization-plan.md)のP7節へ集約する。
+  - [生成・契約確認済み／UI実装中] W21-CODE-CFG 最終生成本文の別hash・UTF16相対範囲と、実署名を型解決したCFGの基本ブロック・操作・戻り辺・領域をschema2の省略可能情報へ追加した。Windows Debugの`cfg-debug-r1`は生成と実行、PE、範囲／hash検査、対象別明示取得・IPC・認証失効・既定マスクを含む60近接が成功。三段階UI、Linux・Release、構文別goto対応、補助本文の展開、段階間の多対多対応と実ブラウザー確認は後続とする。[実装単位と証跡](refactoring-designs/20261109-query-visualization-plan.md#三段階の構造表示)
+- [未検証] W21-ERROR 失敗・取消、記録上限、記録負荷、完全性を確認する。
+- [未検証] W21-FILES 履歴ファイルの途中削除・欠損後も通常処理と残存履歴の表示を継続する。
+
+## 初版後の枝
+
+- [初版後] FUTURE-DAG クエリ内部のDAG分割と自動並列ディスパッチ。
+- [初版後] FUTURE-TOPOLOGY NUMA・独立I/Oコントローラー・帯域を意識した割り当て。
+- [初版後] FUTURE-ARBITRATION 長時間処理の優先、他処理の退避・ロールバックを含む高度な調停。
+
+## 次に更新する箇所
+
+- 対象別UIは隔離ブラウザーでツリー開閉・列追加とSDK成果物の検査・取込・明示適用を確認した。DBの表示順変更と同一originでの部分的な状態復元も確認済み。表示用IDの明示付与はWindowsの隔離ブラウザーで、未保存入力の保護・保管・F5保持・旧Server非表示を確認した。スキーマ以下の名前変更・所属変更をまたぐ復元と並べ替え、正式Linux配布物、物理IMEは未完了。詳細は[対象別UI](refactoring-designs/20261109-manager-object-navigation.md#検証状態)と[表示用ID](refactoring-designs/20261110-source-object-identities.md)。
+- 定義取得APIのView・Edit要求を維持し、Viewのみの公開メタデータ取得・文書復元を別経路で実装した。近接72件、既存の権限回帰16件、表示状態DOM18件に加え、空名スキーマと復元競合の修正を近接確認した。隔離HTTPSの4利用者で表の表示・権限を、View系3利用者でF5復元とビュー・関数実行権限を実ブラウザーで確認した。手書き式本体のビュー・関数を開けない不具合を修正し、近接23件とEdit利用者の実HTTPS画面で選択・データ・構造・元C#表示を確認した。Edit利用者による実行と最新候補のLinux正式再publishは未実施。証拠は `F:\Seamless\manager-object-ui-20261110\published-metadata\`。
+- 既存ビュー・関数のフォーム保存では宣言全体の置換で属性等が失われたため差分編集へ修正し、保持・コンパイルを近接31件で確認した。現行GUIで既存対象を編集すると構造画面の `ApplyObjectStructure` を通り、`ApplyQuery` の既存対象更新には到達しない。構造画面は修正前候補の実HTTPSで下書き保存と属性・コメント・別メンバー保持を確認した。フォームは新規作成に使われ、既存対象更新についてGUI成功とは扱わない。最新候補の正式配布物は未確認。証拠は同フォルダーの `query-preservation-final-results` と `expression-edit-acceptance-r1`。
+- [部分確認] W03-QUERY-BOUNDARIES 名前付き引数の順序を変えると問い合わせ本体の取得が失敗し、条件コンパイル内の `container` 宣言が本文変更で欠落・移動することを旧候補で再現した。引数名による本体の特定と条件付き宣言の保持を実装し、新11件・既存31件・同名型を含む参照3件の隔離Release試験45件が成功した。Core・試験ビルドは警告・エラー0件。隔離HTTPSの通常Managerで名前付き引数のビュー・条件コンパイル付き関数の構造変更、下書き保存とソース保持を確認し、公開v1不変を照合した。既存対象の `ApplyQuery` 本文更新は通常GUIから未到達、正式配布物での確認も残る。証拠は `F:\Seamless\manager-object-ui-20261110\published-metadata\query-boundaries-before-results\before.trx`、`query-boundaries-after-results\after.trx` と `query-boundaries-gui-r1\source-preservation-proof.json`。
+  - 同じ隔離下書きから作成したプロジェクトをLinux SDKでDebug・Releaseビルドし、実Release DLLを通常GUIで検査・取り込み・明示適用して公開v2にした。GUIでビュー1行と関数42、再起動後にAPIでソース・DLL・同じ結果を確認した。プロジェクト作成はAPI、取り込み・適用・初回実行はGUI、再起動後照合はAPI。証拠は `F:\Seamless\manager-object-ui-20261110\published-metadata\query-boundaries-gui-r1\sdk-final-proof.json`。
+- Linux正式Release候補r2はSDKの同一cohort生成、GUI適用、行保存と正常再起動後の読戻しまで確認した。候補固定後の権限・nullable整数overflow修正とView専用画面は未含有で、最新版の再publish・受入は残る。証拠は `F:\Seamless\manager-object-ui-20261110\formal-linux-r2\acceptance-summary.json`。
+
+- `W05-PAGING-SCALE`は資源測定へ接続する。次の通常画面の接続は `W06-UI`、実クエリの静的計画は `W05-PLAN`へ進める。
+- `W10`・`W11`へ着手するときは、再現条件と観測対象を最初に子へ分解する。
+- 既存試験の成功範囲が親の契約へ届かない場合は、接続不足・未検証の子を追加する。
+- 状態を変えた作業単位の報告では、更新した枝IDと次の一手を示す。

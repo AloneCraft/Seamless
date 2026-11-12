@@ -1,0 +1,35 @@
+<section class="ソース競合" aria-label="@表示文言.取得("C#同期の競合")">
+    <header><div><h2>@(表示文言.取得("C#同期の競合を解消"))</h2><p>@(表示文言.取得("競合箇所の採用元を選び、保存する内容を確認してください。"))</p></div><button class="控えめボタン" disabled="@処理中か" @onclick="取消時"><操作アイコン 種類="閉じる &#183; 入力を保持"/>@(表示文言.取得("閉じる · 入力を保持"))</button></header>
+    @if(追加入力か){<p role="status">@(表示文言.取得("競合の記録後にも入力があります。保存時に追加の入力を復旧用フォルダーへ退避します。"))</p>}
+    @foreach(var ファイル in 一覧){
+        <article @key="ファイル.元.Path" class="競合ファイル">
+            <h3>@ファイル.元.Path</h3>
+            <div class="競合比較">
+                <label>@(表示文言.取得("同期の基準"))<textarea aria-label="@表示文言.取得("基準 {0}",ファイル.元.Path)" readonly value="@ファイル.元.Baseline"/></label>
+                <label>@(表示文言.取得("Managerの入力"))<textarea aria-label="@("Manager "+ファイル.元.Path)" readonly value="@ファイル.元.Manager"/></label>
+                <label>@(表示文言.取得("外部の保存"))<textarea aria-label="@表示文言.取得("外部 {0}",ファイル.元.Path)" readonly value="@ファイル.元.Disk"/></label>
+            </div>
+            <div class="競合採用"><button class="控えめボタン" disabled="@(処理中か||ファイル.元.PreferManager is null)" @onclick="()=>採用時(ファイル,ファイル.元.PreferManager)"><操作アイコン 種類="Managerを優先"/>@(表示文言.取得("Managerを優先"))</button><button class="控えめボタン" disabled="@(処理中か||ファイル.元.PreferDisk is null)" @onclick="()=>採用時(ファイル,ファイル.元.PreferDisk)"><操作アイコン 種類="外部を優先"/>@(表示文言.取得("外部を優先"))</button><span>@表示文言.取得(選択表示(ファイル))</span></div>
+            <label>@(表示文言.取得("保存する内容"))<textarea class="競合候補" aria-label="@表示文言.取得("保存候補 {0}",ファイル.元.Path)" value="@ファイル.候補" disabled="@処理中か" spellcheck="false" @oninput="引数=>入力時(ファイル,引数)"/></label>
+        </article>
+    }
+    <footer><span>@(表示文言.取得("保存後、DB下書きへの反映・公開を既存の操作から行えます。"))</span><button class="主要ボタン" disabled="@(処理中か||一覧.Any(項目=>!項目.選択済みか))" @onclick="保存時Async"><操作アイコン 種類="解消してファイルへ保存"/>@(表示文言.取得("解消してファイルへ保存"))</button></footer>
+</section>
+@code{
+    [Parameter,EditorRequired]public SourceConflict 競合{get;set;}=default!;
+    [Parameter]public bool 追加入力か{get;set;}
+    [Parameter]public bool 処理中か{get;set;}
+    [Parameter]public EventCallback 取消時{get;set;}
+    [Parameter]public EventCallback<Dictionary<string,string?>> 保存時{get;set;}
+    private SourceConflict? 読込済み;
+    private 競合入力[] 一覧=[];
+    protected override void OnParametersSet(){
+        if(ReferenceEquals(this.読込済み,this.競合)){return;}
+        this.読込済み=this.競合;this.一覧=this.競合.Files.Select(元=>new 競合入力(元)).ToArray();
+    }
+    private static void 採用時(競合入力 項目,string? 内容){項目.候補=内容??"";項目.選択済みか=true;}
+    private static void 入力時(競合入力 項目,ChangeEventArgs 引数){項目.候補=引数.Value?.ToString()??"";項目.選択済みか=true;}
+    private static string 選択表示(競合入力 項目){if(項目.選択済みか){return "選択済み";}return "採用元の選択または手動編集が必要です";}
+    private Task 保存時Async()=>this.保存時.InvokeAsync(this.一覧.ToDictionary(項目=>項目.元.Path,項目=>(string?)項目.候補,StringComparer.Ordinal));
+    private sealed class 競合入力(SourceConflictFile 元){public SourceConflictFile 元=元;public string 候補=元.PreferManager??元.PreferDisk??"";public bool 選択済みか;}
+}

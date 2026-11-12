@@ -24,6 +24,8 @@ OrderingBase は OrderBy/ThenBy 系を、全件 buffer + stable sort + buffer en
   - descending=true なら比較結果の符号を反転する。
   - source が既に OrderingBase の場合、一次 key と二次 key を SortItem に同居させる。
   - originalIndex を最後に比較し、System.Linq と同じ安定ソートの結果にする。
+  - MaxTakeCountExpression があり、かつ k <= 64 の場合は、全件バッファリングを完全にバイパスし、
+    TopKBuffer / TopKCombinedBuffer によるストリーミング Top-K 抽出（ゼロ全件確保・最小バッファ）を行う。
 */
 internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment keySelector,string comparer,bool descending,bool isThenBy = false,bool evaluateSingletonKeys=false):Enumerable(番号) {
     // Explicit Fragment child visitor
@@ -128,6 +130,9 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
     public override string ElementType => this.UnorderedSource.ElementType;
     public override string? NonEnumeratedCountExpression => this.UnorderedSource.NonEnumeratedCountExpression;
 
+    public override bool CanProvideSpan => this.MaxTakeCountExpression is not null || base.CanProvideSpan;
+    public override bool CanTryProvideSpan => this.MaxTakeCountExpression is not null || base.CanTryProvideSpan;
+
     public override string StructMethod =>
         this.PrimaryOrdering is { } po
             ? JoinStaticMethods(this.FuncSupport(keySelector,nameof(keySelector)),this.FuncSupport(po.OwnKeySelector,"primaryKeySelector"))
@@ -165,26 +170,64 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
 
     private string BuildMembersSingle() {
         var keyType = FuncReturnTypeName(keySelector);
-        var useDirectCompare=CanUseDirectDefaultCompare(comparer,keyType);
-        var indexComparerParameters=$"global::System.Collections.Generic.IComparer<{keyType}> comparer,{keyType}[] keys";
-        var indexComparerArguments="comparer,this.keys!";
-        if(useDirectCompare){
-            indexComparerParameters=$"{keyType}[] keys";
-            indexComparerArguments="this.keys!";
+        var directComparison=CanUseDirectDefaultCompare(comparer,keyType);
+        var comparerParameter=string.Empty;var comparerArgument=string.Empty;
+        var topKComparerParam=string.Empty;var topKComparerArg=string.Empty;
+        if(!directComparison){
+            comparerParameter=$"global::System.Collections.Generic.IComparer<{keyType}> comparer,";
+            comparerArgument="comparer,";
+            topKComparerParam=$"global::System.Collections.Generic.IComparer<{keyType}> comparer";
+            topKComparerArg="comparer";
         }
-        var compareExpr = useDirectCompare
+        var compareExpr = directComparison
             ? "keys[left].CompareTo(keys[right])"
             : "comparer.Compare(keys[left],keys[right])";
+        var compareExprDirect = directComparison
+            ? "left.CompareTo(right)"
+            : "this.comparer.Compare(left,right)";
         var sortCall = this.MaxTakeCountExpression is not null
-            ? $"global::Seamless.Linq.GeneratedCodeHelpers.PartialSortIndexes(this.indexMap!,this.count,0,global::System.Math.Max(0,__maxTakeCount)-1,new IndexComparer({indexComparerArguments}));"
-            : $"global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes(this.indexMap!,this.count,new IndexComparer({indexComparerArguments}));";
+            ? $"global::Seamless.Linq.GeneratedCodeHelpers.PartialSortIndexes(this.indexMap!,this.count,0,global::System.Math.Max(0,__maxTakeCount)-1,new IndexComparer({comparerArgument}this.keys!));"
+            : $"global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes(this.indexMap!,this.count,new IndexComparer({comparerArgument}this.keys!));";
+
+        var topKFields = this.MaxTakeCountExpression is not null
+            ? $$"""
+            private bool useTopK;
+            private global::Seamless.Linq.Internal.TopKBuffer<{{this.ElementType}}, {{keyType}}, TopKComparer> topK;
+            private readonly struct TopKComparer({{topKComparerParam}}) : global::System.Collections.Generic.IComparer<{{keyType}}> {
+                {{(directComparison ? "" : $"private readonly global::System.Collections.Generic.IComparer<{keyType}> comparer = comparer;")}}
+                public int Compare({{keyType}} left,{{keyType}} right){
+                    var compare={{compareExprDirect}};
+                    return {{(descending ? "-compare" : "compare")}};
+                }
+            }
+            """
+            : string.Empty;
+
+        var topKBuildBranch = this.MaxTakeCountExpression is not null
+            ? $$"""
+            if (__maxTakeCount <= 64) {
+                this.useTopK = true;
+                this.topK = new global::Seamless.Linq.Internal.TopKBuffer<{{this.ElementType}}, {{keyType}}, TopKComparer>(__maxTakeCount, new TopKComparer({{topKComparerArg}}));
+                try {
+                    {{this.SortLoopTopKSingle}}
+                } catch {
+                    this.topK.Dispose();
+                    this.source.Dispose();
+                    throw;
+                }
+                return;
+            }
+            """
+            : string.Empty;
+
         return $$"""
         private {{this.ElementType}}[]? values;
         private {{keyType}}[]? keys;
         private int[]? indexMap;
         private int count;
         private int position = -1;
-        private readonly struct IndexComparer({{indexComparerParameters}}) : global::System.Collections.Generic.IComparer<int> {
+        {{topKFields}}
+        private readonly struct IndexComparer({{comparerParameter}}{{keyType}}[] keys) : global::System.Collections.Generic.IComparer<int> {
             public int Compare(int left,int right){
                 var compare={{compareExpr}};
                 if(compare!=0) return {{(descending ? "-compare" : "compare")}};
@@ -241,6 +284,7 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
         }
         private void Build(global::System.Collections.Generic.IComparer<{{keyType}}>? comparer,bool {{this.SingletonKeyParameter}}{{this.MaxTakeCtorParamSuffix}}{{this.ClosureMethodParameterSuffix(keySelector)}}){
             comparer ??= global::System.Collections.Generic.Comparer<{{keyType}}>.Default;
+            {{topKBuildBranch}}
             try {
                 if(this.source.TryGetNonEnumeratedCount(out var __count) && __count>0){
                     this.EnsureCapacity(__count);
@@ -275,6 +319,24 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
                 }
             """;
 
+    private string SortLoopTopKSingle => this.UnorderedSource.CanProvideSpan
+        ? $$"""
+                this.source.TryGetSpan(out var __span);
+                for(var __i = 0; __i < __span.Length; __i++){
+                    var {{this.item}} = __span[__i];
+                    {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
+                    {{this.FuncAssignIndented("                    ", keySelector, nameof(keySelector), this.key, this.item)}}
+                    this.topK.Push({{this.item}}, {{this.key}});
+                }
+            """
+        : $$"""
+                while(this.source.TryGetNext(out var {{this.item}})){
+                    {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
+                    {{this.FuncAssignIndented("                    ", keySelector, nameof(keySelector), this.key, this.item)}}
+                    this.topK.Push({{this.item}}, {{this.key}});
+                }
+            """;
+
     private string KeyLoopSingle => $$"""
                     for(var __keyIndex=0;__keyIndex<this.count;__keyIndex++){
                         var {{this.item}}=this.values![__keyIndex];
@@ -287,15 +349,77 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
     private string BuildMembersCombined(OrderingBase po) {
         var primaryKeyType = FuncReturnTypeName(po.OwnKeySelector);
         var keyType = FuncReturnTypeName(keySelector);
-        var primaryCompareExpr = CanUseDirectDefaultCompare(po.OwnRawComparer,primaryKeyType)
+        var directPrimary=CanUseDirectDefaultCompare(po.OwnRawComparer,primaryKeyType);var directSecondary=CanUseDirectDefaultCompare(comparer,keyType);
+        var parameters=new List<string>();var arguments=new List<string>();
+        var topKParams=new List<string>();var topKArgs=new List<string>();
+        if(!directPrimary){
+            parameters.Add($"global::System.Collections.Generic.IComparer<{primaryKeyType}> primaryComparer");
+            arguments.Add("primaryComparer");
+            topKParams.Add($"global::System.Collections.Generic.IComparer<{primaryKeyType}> primaryComparer");
+            topKArgs.Add("primaryComparer");
+        }
+        if(!directSecondary){
+            parameters.Add($"global::System.Collections.Generic.IComparer<{keyType}> comparer");
+            arguments.Add("comparer");
+            topKParams.Add($"global::System.Collections.Generic.IComparer<{keyType}> comparer");
+            topKArgs.Add("comparer");
+        }
+        parameters.Add($"{primaryKeyType}[] primaryKeys");parameters.Add($"{keyType}[] keys");arguments.Add("this.primaryKeys!");arguments.Add("this.keys!");
+        var constructorParameters=string.Join(",",parameters);var constructorArguments=string.Join(",",arguments);
+        var topKConstructorParams=string.Join(",",topKParams);var topKConstructorArgs=string.Join(",",topKArgs);
+
+        var primaryCompareExpr = directPrimary
             ? "primaryKeys[left].CompareTo(primaryKeys[right])"
             : "primaryComparer.Compare(primaryKeys[left],primaryKeys[right])";
-        var compareExpr = CanUseDirectDefaultCompare(comparer,keyType)
+        var compareExpr = directSecondary
             ? "keys[left].CompareTo(keys[right])"
             : "comparer.Compare(keys[left],keys[right])";
+
+        var primaryCompareExprDirect = directPrimary
+            ? "lp.CompareTo(rp)"
+            : "this.primaryComparer.Compare(lp,rp)";
+        var compareExprDirect = directSecondary
+            ? "ls.CompareTo(rs)"
+            : "this.comparer.Compare(ls,rs)";
+
         var sortCall = this.MaxTakeCountExpression is not null
-            ? "global::Seamless.Linq.GeneratedCodeHelpers.PartialSortIndexes(this.indexMap!,this.count,0,global::System.Math.Max(0,__maxTakeCount)-1,new IndexComparer(primaryComparer,comparer,this.primaryKeys!,this.keys!));"
-            : "global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes(this.indexMap!,this.count,new IndexComparer(primaryComparer,comparer,this.primaryKeys!,this.keys!));";
+            ? $"global::Seamless.Linq.GeneratedCodeHelpers.PartialSortIndexes(this.indexMap!,this.count,0,global::System.Math.Max(0,__maxTakeCount)-1,new IndexComparer({constructorArguments}));"
+            : $"global::Seamless.Linq.GeneratedCodeHelpers.SortIndexes(this.indexMap!,this.count,new IndexComparer({constructorArguments}));";
+
+        var topKCombinedFields = this.MaxTakeCountExpression is not null
+            ? $$"""
+            private bool useTopK;
+            private global::Seamless.Linq.Internal.TopKCombinedBuffer<{{this.ElementType}}, {{primaryKeyType}}, {{keyType}}, TopKCombinedComparer> topKCombined;
+            private readonly struct TopKCombinedComparer({{topKConstructorParams}}) : global::Seamless.Linq.Internal.ITopKCombinedComparer<{{primaryKeyType}}, {{keyType}}> {
+                {{(directPrimary ? "" : $"private readonly global::System.Collections.Generic.IComparer<{primaryKeyType}> primaryComparer = primaryComparer;")}}
+                {{(directSecondary ? "" : $"private readonly global::System.Collections.Generic.IComparer<{keyType}> comparer = comparer;")}}
+                public int Compare({{primaryKeyType}} lp, {{keyType}} ls, {{primaryKeyType}} rp, {{keyType}} rs){
+                    var primaryCompare = {{primaryCompareExprDirect}};
+                    if(primaryCompare != 0) return {{(po.OwnDescending ? "-primaryCompare" : "primaryCompare")}};
+                    var compare = {{compareExprDirect}};
+                    return {{(descending ? "-compare" : "compare")}};
+                }
+            }
+            """
+            : string.Empty;
+
+        var topKCombinedBuildBranch = this.MaxTakeCountExpression is not null
+            ? $$"""
+            if (__maxTakeCount <= 64) {
+                this.useTopK = true;
+                this.topKCombined = new global::Seamless.Linq.Internal.TopKCombinedBuffer<{{this.ElementType}}, {{primaryKeyType}}, {{keyType}}, TopKCombinedComparer>(__maxTakeCount, new TopKCombinedComparer({{topKConstructorArgs}}));
+                try {
+                    {{this.SortLoopTopKCombined(po)}}
+                } catch {
+                    this.topKCombined.Dispose();
+                    this.source.Dispose();
+                    throw;
+                }
+                return;
+            }
+            """
+            : string.Empty;
+
         return $$"""
         private {{this.ElementType}}[]? values;
         private {{primaryKeyType}}[]? primaryKeys;
@@ -303,11 +427,8 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
         private int[]? indexMap;
         private int count;
         private int position = -1;
-        private readonly struct IndexComparer(
-            global::System.Collections.Generic.IComparer<{{primaryKeyType}}> primaryComparer,
-            global::System.Collections.Generic.IComparer<{{keyType}}> comparer,
-            {{primaryKeyType}}[] primaryKeys,
-            {{keyType}}[] keys) : global::System.Collections.Generic.IComparer<int> {
+        {{topKCombinedFields}}
+        private readonly struct IndexComparer({{constructorParameters}}) : global::System.Collections.Generic.IComparer<int> {
             public int Compare(int left,int right){
                 var primaryCompare={{primaryCompareExpr}};
                 if(primaryCompare!=0) return {{(po.OwnDescending ? "-primaryCompare" : "primaryCompare")}};
@@ -373,6 +494,7 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
         private void Build(global::System.Collections.Generic.IComparer<{{keyType}}>? comparer,global::System.Collections.Generic.IComparer<{{primaryKeyType}}>? primaryComparer,bool {{this.SingletonKeyParameter}}{{this.MaxTakeCtorParamSuffix}}{{this.ClosureMethodParameterSuffix(keySelector,po.OwnKeySelector)}}){
             comparer ??= global::System.Collections.Generic.Comparer<{{keyType}}>.Default;
             primaryComparer ??= global::System.Collections.Generic.Comparer<{{primaryKeyType}}>.Default;
+            {{topKCombinedBuildBranch}}
             try {
                 if(this.source.TryGetNonEnumeratedCount(out var __count) && __count>0){
                     this.EnsureCapacity(__count);
@@ -407,6 +529,28 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
                 }
             """;
 
+    private string SortLoopTopKCombined(OrderingBase po) => this.UnorderedSource.CanProvideSpan
+        ? $$"""
+                this.source.TryGetSpan(out var __span);
+                for(var __i = 0; __i < __span.Length; __i++){
+                    var {{this.item}} = __span[__i];
+                    {{FuncReturnTypeName(po.OwnKeySelector)}} {{this.a}} = default!;
+                    {{this.FuncAssignIndented("                    ", po.OwnKeySelector, "primaryKeySelector", this.a, this.item)}}
+                    {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
+                    {{this.FuncAssignIndented("                    ", keySelector, nameof(keySelector), this.key, this.item)}}
+                    this.topKCombined.Push({{this.item}}, {{this.a}}, {{this.key}});
+                }
+            """
+        : $$"""
+                while(this.source.TryGetNext(out var {{this.item}})){
+                    {{FuncReturnTypeName(po.OwnKeySelector)}} {{this.a}} = default!;
+                    {{this.FuncAssignIndented("                    ", po.OwnKeySelector, "primaryKeySelector", this.a, this.item)}}
+                    {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
+                    {{this.FuncAssignIndented("                    ", keySelector, nameof(keySelector), this.key, this.item)}}
+                    this.topKCombined.Push({{this.item}}, {{this.a}}, {{this.key}});
+                }
+            """;
+
     private string KeyLoopCombined(OrderingBase po) => $$"""
                     for(var __keyIndex=0;__keyIndex<this.count;__keyIndex++){
                         var {{this.item}}=this.values![__keyIndex];
@@ -419,27 +563,123 @@ internal abstract class OrderingBase(int 番号,Enumerable source,FuncFragment k
                     }
             """;
 
-    protected override string GetTryGetNonEnumeratedCountBody => $$"""
-        count=this.count-(this.position+1);
-        if(count<0){
-            count=0;
-        }
-        return true;
-        """;
+    protected override string GetTryGetSpanBody => this.MaxTakeCountExpression is not null
+        ? (this.PrimaryOrdering is { }
+            ? $$"""
+                if(this.useTopK) return this.topKCombined.TryGetSpan(out span);
+                span = default;
+                return false;
+                """
+            : $$"""
+                if(this.useTopK) return this.topK.TryGetSpan(out span);
+                span = default;
+                return false;
+                """)
+        : "span = default; return false;";
 
-    public override string GetTryGetNextBody => $$"""
-        var next=this.position+1;
-        if(next>=this.count || this.values is null || this.indexMap is null){
-            current=default!;
-            return false;
-        }
-        this.position=next;
-        current=this.Current=this.values[this.indexMap[next]];
-        return true;
-        """;
+    protected override string GetTryCopyToBody => this.MaxTakeCountExpression is not null
+        ? (this.PrimaryOrdering is { }
+            ? $$"""
+                if(this.useTopK) return this.topKCombined.TryCopyTo(destination, __offset);
+                return false;
+                """
+            : $$"""
+                if(this.useTopK) return this.topK.TryCopyTo(destination, __offset);
+                return false;
+                """)
+        : "return false;";
 
-    protected override string GetEnumeratorDisposeBody => $$"""
-        this.DisposeBuffers();
-        this.source.Dispose();
-        """;
+    protected override string GetTryGetNonEnumeratedCountBody => this.MaxTakeCountExpression is not null
+        ? (this.PrimaryOrdering is { }
+            ? $$"""
+                if(this.useTopK) return this.topKCombined.TryGetNonEnumeratedCount(out count);
+                count=this.count-(this.position+1);
+                if(count<0) count=0;
+                return true;
+                """
+            : $$"""
+                if(this.useTopK) return this.topK.TryGetNonEnumeratedCount(out count);
+                count=this.count-(this.position+1);
+                if(count<0) count=0;
+                return true;
+                """)
+        : $$"""
+            count=this.count-(this.position+1);
+            if(count<0) count=0;
+            return true;
+            """;
+
+    public override string GetTryGetNextBody => this.MaxTakeCountExpression is not null
+        ? (this.PrimaryOrdering is { }
+            ? $$"""
+                if(this.useTopK) {
+                    if(this.topKCombined.TryGetNext(out var __item)) {
+                        current = this.Current = __item;
+                        return true;
+                    }
+                    current = default!;
+                    return false;
+                }
+                var next=this.position+1;
+                if(next>=this.count || this.values is null || this.indexMap is null){
+                    current=default!;
+                    return false;
+                }
+                this.position=next;
+                current=this.Current=this.values[this.indexMap[next]];
+                return true;
+                """
+            : $$"""
+                if(this.useTopK) {
+                    if(this.topK.TryGetNext(out var __item)) {
+                        current = this.Current = __item;
+                        return true;
+                    }
+                    current = default!;
+                    return false;
+                }
+                var next=this.position+1;
+                if(next>=this.count || this.values is null || this.indexMap is null){
+                    current=default!;
+                    return false;
+                }
+                this.position=next;
+                current=this.Current=this.values[this.indexMap[next]];
+                return true;
+                """)
+        : $$"""
+            var next=this.position+1;
+            if(next>=this.count || this.values is null || this.indexMap is null){
+                current=default!;
+                return false;
+            }
+            this.position=next;
+            current=this.Current=this.values[this.indexMap[next]];
+            return true;
+            """;
+
+    protected override string GetEnumeratorDisposeBody => this.MaxTakeCountExpression is not null
+        ? (this.PrimaryOrdering is { }
+            ? $$"""
+                if(this.useTopK) {
+                    this.topKCombined.Dispose();
+                    this.source.Dispose();
+                    return;
+                }
+                this.DisposeBuffers();
+                this.source.Dispose();
+                """
+            : $$"""
+                if(this.useTopK) {
+                    this.topK.Dispose();
+                    this.source.Dispose();
+                    return;
+                }
+                this.DisposeBuffers();
+                this.source.Dispose();
+                """)
+        : $$"""
+            this.DisposeBuffers();
+            this.source.Dispose();
+            """;
 }

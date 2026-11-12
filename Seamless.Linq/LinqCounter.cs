@@ -133,6 +133,7 @@ public sealed class LinqCounter {
     public void IncrementFastCopyUsed() => Interlocked.Increment(ref this.fastCopyUsed);
     public void IncrementHashCapacityHintUsed() => Interlocked.Increment(ref this.hashCapacityHintUsed);
     public void IncrementEnumerableFallback(string detail) {
+        LinqFallbackObservation.Record();
         Interlocked.Increment(ref this.enumerableFallback);
         this.enumerableFallbackDetails.AddOrUpdate(detail,1,static (_,count) => count+1);
     }
@@ -209,6 +210,18 @@ public sealed class LinqCounter {
         Interlocked.Exchange(ref this.hashCapacityHintUsed,0);
         this.enumerableFallbackDetails.Clear();
     }
+}
+
+/// <summary>入れ子の計数範囲でもフォールバックを失わない、検証Worker用の観測範囲。</summary>
+internal sealed class LinqFallbackObservation:IDisposable{
+    private static readonly AsyncLocal<LinqFallbackObservation?> current=new();
+    private readonly LinqFallbackObservation? parent;
+    private long count;
+    private LinqFallbackObservation(){this.parent=current.Value;current.Value=this;}
+    internal static LinqFallbackObservation Start()=>new();
+    internal long Count=>Interlocked.Read(ref this.count);
+    internal static void Record(){for(var item=current.Value;item is not null;item=item.parent){Interlocked.Increment(ref item.count);}}
+    public void Dispose()=>current.Value=this.parent;
 }
 
 public static class LinqCounterScope {

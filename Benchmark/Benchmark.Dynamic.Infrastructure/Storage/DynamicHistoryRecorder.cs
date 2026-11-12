@@ -21,7 +21,7 @@ public sealed class DynamicHistoryRecorder:IAsyncDisposable{
         this.run=new(request.RunId,"Running",0,request.MeasurementProfile.ProfileId,JsonSerializer.Serialize(request,DynamicWorkerProtocol.JsonOptions),now,now,StartedAt:now);
         await this.repository.SaveRunPlanAsync(this.run,request.SourceTargets.Select((source,index)=>new DynamicRunSourceRecord(request.RunId,source.ToString(),true,index)).ToArray(),[],cancellationToken);
     }
-    public async Task RecordAsync(WorkerQueryStartedEvent query,WorkerSourceExecutionCompletedEvent result,CancellationToken cancellationToken=default){
+    public async Task RecordAsync(WorkerQueryStartedEvent query,WorkerSourceExecutionCompletedEvent result,CancellationToken cancellationToken=default,string? liveDetails=null){
         var ir=QueryIrJson.Deserialize(query.IrJson);
         var executionID=$"{result.QueryId}-{result.SourceTarget}-a1";
         var queryRecord=new DynamicQueryRecord(result.QueryId,this.run.RunID,result.QueryIndex,"live",0,query.IrJson,result.SourceText,QueryIrJson.ComputeHash(ir),result.Status.ToString(),IrSchemaVersion:ir.IrSchemaVersion,OperatorCount:ir.ActualOperatorCount,Depth:ir.ActualDepth,ElementType:ir.ElementType.ToString());
@@ -44,7 +44,11 @@ public sealed class DynamicHistoryRecorder:IAsyncDisposable{
         }
         var metadata=new DynamicMeasurementConditions(result.InputHash??"",result.EnvironmentJSON??"",result.ParametersJSON??"{}",result.GrowthJSON??"{}",result.StoreKind??"Unknown",this.request.OptimizationFlags.ToString(),result.CodeFingerprint??"",result.StorageChangesJSON,result.IO,result.StorageKey);
         var diagnostic=new DynamicDiagnosticRecord(Guid.NewGuid().ToString("N"),executionID,"MeasurementConditions",JsonSerializer.Serialize(metadata),result.CompletedAtUtc);
-        await this.repository.SaveCheckpointAsync(new(this.run with{UpdatedAt=result.CompletedAtUtc},Queries:[queryRecord],SourceExecutions:[execution],Measurements:measurements,Diagnostics:[diagnostic]),cancellationToken);
+        var diagnostics=new List<DynamicDiagnosticRecord>{diagnostic};
+        if(liveDetails is not null){diagnostics.Add(new(Guid.NewGuid().ToString("N"),executionID,"LiveResult",liveDetails,result.CompletedAtUtc));}
+        if(result.ResultJson is{} validation){diagnostics.Add(new(Guid.NewGuid().ToString("N"),executionID,"ValidationResults",validation,result.CompletedAtUtc));}
+        if(result.OptimizationTraceJson is{} trace){diagnostics.Add(new(Guid.NewGuid().ToString("N"),executionID,"OptimizationTrace",trace,result.CompletedAtUtc));}
+        await this.repository.SaveCheckpointAsync(new(this.run with{UpdatedAt=result.CompletedAtUtc},Queries:[queryRecord],SourceExecutions:[execution],Measurements:measurements,Diagnostics:diagnostics),cancellationToken);
     }
     public Task CompleteAsync(string status,CancellationToken cancellationToken=default){
         this.run=this.run with{Status=status,UpdatedAt=DateTimeOffset.UtcNow,CompletedAt=DateTimeOffset.UtcNow};

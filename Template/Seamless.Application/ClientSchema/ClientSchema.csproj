@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><AssemblyName>Seamless.Application.ClientSchema</AssemblyName><RootNamespace>Seamless.Application.ClientSchema</RootNamespace></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Schema/Schema.csproj" /></ItemGroup>
+  <ItemGroup Condition="'$(SeamlessRepositoryRoot)'!=''">
+    <ProjectReference Include="$(SeamlessRepositoryRoot)/Seamless.Database.Client/Seamless.Database.Client.csproj" />
+    <ProjectReference Include="$(SeamlessRepositoryRoot)/Seamless.Database.Generator/Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(SeamlessRepositoryRoot)'==''">
+    <PackageReference Include="Seamless.Database.Client" Version="$(SeamlessPackageVersion)" />
+    <PackageReference Include="Seamless.Database.Generator" Version="$(SeamlessPackageVersion)" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

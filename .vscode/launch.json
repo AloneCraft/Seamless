@@ -1,33 +1,186 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Benchmark.Scalable.UI Debug",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build-benchmark-scalable-ui-debug",
-            "program": "${workspaceFolder}/Benchmark/Benchmark.Scalable.UI/bin/Debug/net10.0-windows/win-x64/Benchmark.Scalable.UI.exe",
-            "args": [],
-            "env": {
-                "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
-            },
-            "cwd": "${workspaceFolder}/Benchmark/Benchmark.Scalable.UI/bin/Debug/net10.0-windows/win-x64",
-            "console": "internalConsole",
-            "stopAtEntry": false
-        },
-        {
-            "name": "Benchmark.Scalable.UI Release",
-            "type": "coreclr",
-            "request": "launch",
-            "preLaunchTask": "build-benchmark-scalable-ui-release",
-            "program": "${workspaceFolder}/Benchmark/Benchmark.Scalable.UI/bin/Release/net10.0-windows/win-x64/Benchmark.Scalable.UI.exe",
-            "args": [],
-            "env": {
-                "DOTNET_MODIFIABLE_ASSEMBLIES": "debug"
-            },
-            "cwd": "${workspaceFolder}/Benchmark/Benchmark.Scalable.UI/bin/Release/net10.0-windows/win-x64",
-            "console": "internalConsole",
-            "stopAtEntry": false
-        }
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Seamless Server + Browser Manager (Debug)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/Seamless.Management.Server/bin/Debug/net10.0/Seamless.Management.Server.exe",
+      "args": ["serve", "--workspace-config", "--open-manager"],
+      "cwd": "${workspaceFolder}/Seamless.Management.Server/bin/Debug/net10.0",
+      "console": "internalConsole",
+      "stopAtEntry": false,
+      "preLaunchTask": "build-management-server-debug"
+    },
+    {
+      "name": "Seamless Server + Browser Manager (Release)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/Seamless.Management.Server/bin/Release/net10.0/Seamless.Management.Server.exe",
+      "args": ["serve", "--workspace-config", "--open-manager"],
+      "cwd": "${workspaceFolder}/Seamless.Management.Server/bin/Release/net10.0",
+      "console": "internalConsole",
+      "stopAtEntry": false,
+      "preLaunchTask": "build-management-server-release"
+    },
+    {
+      "name": "Benchmark.Dynamic.UI (Debug)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Debug/net10.0-windows/Benchmark.Dynamic.UI.exe",
+      "cwd": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Debug/net10.0-windows",
+      "console": "internalConsole",
+      "stopAtEntry": false,
+      "preLaunchTask": "build-benchmark-dynamic-ui-debug"
+    },
+    {
+      "name": "Benchmark.Dynamic.UI (Release)",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Release/net10.0-windows/Benchmark.Dynamic.UI.exe",
+      "cwd": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/bin/Release/net10.0-windows",
+      "console": "internalConsole",
+      "stopAtEntry": false,
+      "preLaunchTask": "build-benchmark-dynamic-ui-release"
+    },
+    {
+      "name": "▶ Benchmark.Audit",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Audit/Benchmark.Audit.csproj"
+    },
+    {
+      "name": "▶ Benchmark.Dynamic.UI",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj"
+    },
+    {
+      "name": "▶ Benchmark.Dynamic.Worker",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Dynamic.Worker/Benchmark.Dynamic.Worker.csproj"
+    },
+    {
+      "name": "▶ Benchmark.Headless",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Headless/Benchmark.Headless.csproj"
+    },
+    {
+      "name": "▶ Benchmark.Scalable.Headless",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Scalable.Headless/Benchmark.Scalable.Headless.csproj"
+    },
+    {
+      "name": "▶ Benchmark.Scalable.UI",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Scalable.UI/Benchmark.Scalable.UI.csproj"
+    },
+    {
+      "name": "▶ Benchmark.TpcC",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.TpcC/Benchmark.TpcC.csproj"
+    },
+    {
+      "name": "▶ Benchmark.TpcC.Spike",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.TpcC.Spike/Benchmark.TpcC.Spike.csproj"
+    },
+    {
+      "name": "▶ Benchmark.TpcE",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.TpcE/Benchmark.TpcE.csproj"
+    },
+    {
+      "name": "▶ Benchmark.TpcE.Compliance",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.TpcE.Compliance/Benchmark.TpcE.Compliance.csproj"
+    },
+    {
+      "name": "▶ Benchmark.Tsavorite.ParameterSweep.Headless",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj"
+    },
+    {
+      "name": "▶ DataGrip.Stage1.Server",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/tools/Seamless.DataGrip/Server/DataGrip.Stage1.Server.csproj"
+    },
+    {
+      "name": "▶ GroupByLazyBench",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Experiments/GroupByLazyBench/GroupByLazyBench.csproj"
+    },
+    {
+      "name": "▶ HistoryStoreModes",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Experiments/HistoryStoreModes/HistoryStoreModes.csproj"
+    },
+    {
+      "name": "▶ ProductTransactions",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Experiments/ProductTransactions/ProductTransactions.csproj"
+    },
+    {
+      "name": "▶ Sample.NetShop",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Samples/Sample.NetShop/Sample.NetShop.csproj"
+    },
+    {
+      "name": "▶ Sample.VirtualDb",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Samples/Sample.VirtualDb/Sample.VirtualDb.csproj"
+    },
+    {
+      "name": "▶ Seamless.Database.Server",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Seamless.Database.Server/Seamless.Database.Server.csproj"
+    },
+    {
+      "name": "▶ Seamless.Database.Tool",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Seamless.Database.Tool/Seamless.Database.Tool.csproj"
+    },
+    {
+      "name": "▶ TestSeamless",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/TestSeamless/TestSeamless.csproj"
+    },
+    {
+      "name": "▶ TransactionModes",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Experiments/TransactionModes/TransactionModes.csproj"
+    },
+    {
+      "name": "▶ WindowsServer",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Seamless.Management.Server/WindowsServer.csproj"
+    },
+    {
+      "name": "▶ Worker",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/Benchmark/Worker/Worker.csproj"
+    }
+  ],
+  "compounds": []
 }

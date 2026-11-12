@@ -50,6 +50,8 @@ internal static partial class OperatorRegistry {
             Profile("Contains","",ProviderIterateTerminalKind.Contains,null,ProviderNativePredicateBinding.None,usesNativeLookup:true,containsValueIndex:2),
             Profile("Count","predicate",ProviderIterateTerminalKind.Count,null,ProviderNativePredicateBinding.Filter),
             Profile("Count","",ProviderIterateTerminalKind.Count,null,ProviderNativePredicateBinding.None),
+            Profile("LongCount","predicate",ProviderIterateTerminalKind.LongCount,null,ProviderNativePredicateBinding.Filter),
+            Profile("LongCount","",ProviderIterateTerminalKind.LongCount,null,ProviderNativePredicateBinding.None),
             Profile("First","predicate",ProviderIterateTerminalKind.First,null,ProviderNativePredicateBinding.Filter),
             Profile("First","",ProviderIterateTerminalKind.First,null,ProviderNativePredicateBinding.None),
             Profile("FirstOrDefault","predicate",ProviderIterateTerminalKind.FirstOrDefault,null,ProviderNativePredicateBinding.Filter),

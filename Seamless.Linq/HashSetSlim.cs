@@ -34,7 +34,7 @@ public sealed class HashSetSlim<T>:IDisposable {
         this.entries=ArrayPool<Entry>.Shared.Rent(capacity);
         this.bucketsLength=capacity;
         this.resizeThreshold=(int)(this.bucketsLength*LoadFactor);
-        this.buckets.AsSpan().Clear(); // 0-clear.
+        this.buckets.AsSpan(0,this.bucketsLength).Clear(); // 0-clear.
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -54,11 +54,24 @@ public sealed class HashSetSlim<T>:IDisposable {
 
         // add phase
         if(this.entryIndex>=this.resizeThreshold) {
-            this.Resize();
-            // Need to recalculate bucket after resize
-            bucket=ref this.buckets[this.GetBucketIndex(hashCode)];
+            return this.AddWithResize(item,hashCode);
         }
 
+        ref var newEntry = ref this.entries[this.entryIndex];
+        newEntry.HashCode=hashCode;
+        newEntry.Value=item;
+        newEntry.Next=bucket-1;
+
+        bucket=this.entryIndex+1;
+        this.entryIndex++;
+
+        return true;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private bool AddWithResize(T item,uint hashCode) {
+        this.Resize();
+        ref var bucket = ref this.buckets[this.GetBucketIndex(hashCode)];
         ref var newEntry = ref this.entries[this.entryIndex];
         newEntry.HashCode=hashCode;
         newEntry.Value=item;
@@ -90,7 +103,7 @@ public sealed class HashSetSlim<T>:IDisposable {
         var newBuckets = ArrayPool<int>.Shared.Rent((int)newSize);
         this.bucketsLength=(int)newSize; // guarantees PowerOf2
         this.resizeThreshold=(int)(this.bucketsLength*LoadFactor);
-        newBuckets.AsSpan().Clear(); // 0-clear.
+        newBuckets.AsSpan(0,this.bucketsLength).Clear(); // 0-clear.
 
         // Copy entries
         Array.Copy(this.entries,newEntries,this.entryIndex);
@@ -190,5 +203,153 @@ public sealed class HashSetSlim<T>:IDisposable {
         public uint HashCode;
         public T Value;
         public int Next; // next is index of entries, -1 is end of chain
+    }
+}
+
+/// <summary>
+/// DirectSpan パイプラインなどの局所スコープ内で重複排除を行うための、ヒープ割当 0B の値型 HashSet。
+/// ArrayPool.Shared.Rent と 2の累乗ビット積を用い、初期容量は MinimumSize (16) から開始して必要時のみ拡張する。
+/// </summary>
+[StructLayout(LayoutKind.Auto)]
+[EditorBrowsable(EditorBrowsableState.Never)]
+public struct ValueHashSetSlim<T>:IDisposable {
+    private const int MinimumSize = 16;
+    private const double LoadFactor = 0.72;
+    private readonly IEqualityComparer<T> comparer;
+    private readonly bool isDefaultComparer;
+    private Entry[]? entries;
+    private int[]? buckets;
+    private int bucketsLength;
+    private int entryIndex;
+    private int resizeThreshold;
+
+    public ValueHashSetSlim(IEqualityComparer<T>? comparer)
+        : this(MinimumSize,comparer) {
+    }
+
+    public ValueHashSetSlim(int capacity,IEqualityComparer<T>? comparer) {
+        var requestedCapacity = Math.Max(capacity,0);
+        var bucketCapacity = requestedCapacity==0
+            ? MinimumSize
+            : (int)Math.Ceiling((requestedCapacity+1)/LoadFactor);
+        var initialCapacity = Math.Max((int)BitOperations.RoundUpToPowerOf2((uint)bucketCapacity),MinimumSize);
+
+        this.comparer=comparer??EqualityComparer<T>.Default;
+        this.isDefaultComparer=comparer is null||ReferenceEquals(comparer,EqualityComparer<T>.Default);
+        this.buckets=ArrayPool<int>.Shared.Rent(initialCapacity);
+        this.entries=ArrayPool<Entry>.Shared.Rent(initialCapacity);
+        this.bucketsLength=initialCapacity;
+        this.resizeThreshold=(int)(initialCapacity*LoadFactor);
+        this.entryIndex=0;
+        this.buckets.AsSpan(0,initialCapacity).Clear();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Add(T item) {
+        var hashCode = this.InternalGetHashCode(item);
+        ref var bucket = ref this.buckets![this.GetBucketIndex(hashCode)];
+        var index = bucket-1;
+
+        while(index!=-1) {
+            ref var entry = ref this.entries![index];
+            if(entry.HashCode==hashCode&&this.KeyEquals(entry.Value,item)) {
+                return false;
+            }
+            index=entry.Next;
+        }
+
+        if(this.entryIndex>=this.resizeThreshold) {
+            return this.AddWithResize(item,hashCode);
+        }
+
+        ref var newEntry = ref this.entries![this.entryIndex];
+        newEntry.HashCode=hashCode;
+        newEntry.Value=item;
+        newEntry.Next=bucket-1;
+
+        bucket=this.entryIndex+1;
+        this.entryIndex++;
+
+        return true;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private bool AddWithResize(T item,uint hashCode) {
+        this.Resize();
+        ref var bucket = ref this.buckets![this.GetBucketIndex(hashCode)];
+        ref var newEntry = ref this.entries![this.entryIndex];
+        newEntry.HashCode=hashCode;
+        newEntry.Value=item;
+        newEntry.Next=bucket-1;
+
+        bucket=this.entryIndex+1;
+        this.entryIndex++;
+
+        return true;
+    }
+
+    private void Resize() {
+        var newSize = BitOperations.RoundUpToPowerOf2((uint)this.bucketsLength*2);
+        var newEntries = ArrayPool<Entry>.Shared.Rent((int)newSize);
+        var newBuckets = ArrayPool<int>.Shared.Rent((int)newSize);
+        this.bucketsLength=(int)newSize;
+        this.resizeThreshold=(int)(this.bucketsLength*LoadFactor);
+        newBuckets.AsSpan(0,this.bucketsLength).Clear();
+
+        Array.Copy(this.entries!,newEntries,this.entryIndex);
+
+        for(int i = 0;i<this.entryIndex;i++) {
+            ref var entry = ref newEntries[i];
+            var bucketIndex = this.GetBucketIndex(entry.HashCode);
+
+            ref var bucket = ref newBuckets[bucketIndex];
+            entry.Next=bucket-1;
+            bucket=i+1;
+        }
+
+        ArrayPool<int>.Shared.Return(this.buckets!,clearArray: false);
+        ArrayPool<Entry>.Shared.Return(this.entries!,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<Entry>());
+
+        this.entries=newEntries;
+        this.buckets=newBuckets;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private readonly bool KeyEquals(T x,T y) {
+        if(typeof(T).IsValueType&&this.isDefaultComparer) {
+            return EqualityComparer<T>.Default.Equals(x,y);
+        }
+        return this.comparer.Equals(x,y);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private readonly uint InternalGetHashCode(T key) {
+        if(typeof(T).IsValueType&&this.isDefaultComparer) {
+            return (uint)(EqualityComparer<T>.Default.GetHashCode(key!)&0x7FFFFFFF);
+        }
+        return (uint)((key is null) ? 0 : this.comparer.GetHashCode(key)&0x7FFFFFFF);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private readonly int GetBucketIndex(uint hashCode) {
+        return HashBucket.Index(hashCode,this.bucketsLength);
+    }
+
+    public void Dispose() {
+        if(this.buckets!=null) {
+            ArrayPool<int>.Shared.Return(this.buckets,clearArray: false);
+            this.buckets=null;
+        }
+        if(this.entries!=null) {
+            ArrayPool<Entry>.Shared.Return(this.entries,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<Entry>());
+            this.entries=null;
+        }
+    }
+
+    [StructLayout(LayoutKind.Auto)]
+    private struct Entry {
+        public uint HashCode;
+        public T Value;
+        public int Next;
     }
 }

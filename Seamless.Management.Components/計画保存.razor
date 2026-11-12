@@ -1,0 +1,180 @@
+@using System.Text
+@using Microsoft.AspNetCore.Components.Forms
+@implements IAsyncDisposable
+@inject IJSRuntime スクリプト
+
+<section class="計画保存" aria-label="@表示文言.取得("計画の保存と比較")">
+    <details>
+        <summary><操作アイコン 種類="保存"/>@表示文言.取得("保存・読込・比較と最適化追跡")</summary>
+        <p class="小案内">@表示文言.取得("保存と表示の操作は問い合わせを実行しません。")</p>
+        <label class="設定チェック"><input type="checkbox" checked="@this.コード含むか" disabled="@(!this.コード出力許可か||this.保存中か)" @onchange="this.コード選択時"/>@表示文言.取得("コードとリテラルを出力に含める")</label>
+        @if(this.コード含むか){<p role="status">@表示文言.取得("このファイルにはコードやリテラルが含まれます。共有先を確認してください。")</p>}
+        else{<p class="小案内">@表示文言.取得("コード・リテラル・ソースパスは出力していません。")</p>}
+        <div class="設定操作">
+            @foreach(var 形式 in new[]{"JSON","SVG","HTML"}){<button type="button" class="控えめボタン" disabled="@(this.現在保存 is null||this.保存中か||!this.図出力可能か&&形式!="JSON"||this.表示設定?.StructureLevel=="Generated"&&形式!="JSON")" @onclick="()=>this.保存時Async(形式)"><操作アイコン 種類="保存"/>@表示文言.取得("{0}を保存",形式)</button>}
+        </div>
+        @if(!this.図出力可能か){<p role="status">@表示文言.取得("この表示のSVG・HTML出力は未対応です。別の図へ置き換えて保存しません。")</p><p class="小案内">@表示文言.取得("JSON形式1には静的計画と適合する全体実測を保存します。サンキーの数量やGanttの表示設定・任意区間は含みません。")</p>}
+        @if(this.表示設定?.StructureLevel=="Generated"){<p role="status">@表示文言.取得("展開コードのSVG・HTML出力は未対応です。JSONで構造を保存できます。")</p>}
+        <p class="小案内">@表示文言.取得("保存内容のハッシュは署名やDLLの真正性を保証しません。")</p>
+        @if(this.可視化データ is not null){<p class="小案内">@表示文言.取得("形式2には数量、時計、実区間、資源記録、表示状態を保存します。コードを除く場合は検索語と自由文も除きます。")</p>}
+        @if(this.案内 is not null){<p role="status">@this.案内</p>}
+        <div class="引数入力"><label>@表示文言.取得("保存済み計画を開く")<InputFile OnChange="this.読込時Async" accept=".json,application/json" aria-label="@表示文言.取得("保存済み計画を開く")"/></label></div>
+        @if(this.読込済み is{} 保存){
+            <section aria-label="@表示文言.取得("保存済みの実行計画")">
+                <h4>@表示文言.取得("保存済み資料") · @保存.Data.ObjectId · v@(保存.Data.Version)</h4>
+                <p class="小案内">@表示文言.取得("保存済み資料は稼働DBの現在状態や認証済みの成果物を証明しません。")</p>
+                @if(保存.Data.IncludesCode){<p role="status">@表示文言.取得("このファイルにはコードやリテラルが含まれます。共有先を確認してください。")</p>}
+                <label>@表示文言.取得("構造の段階")<select aria-label="@表示文言.取得("保存資料の構造の段階")" @bind="this.読込構造"><option value="Relational">@表示文言.取得("関係代数")</option><option value="Logical">@表示文言.取得("論理処理")</option><option value="Generated">@表示文言.取得("FLinq生成C#構造")</option></select></label>
+                @if(this.読込構造=="Generated"){
+                    @if(this.読込生成コード is{} 生成){<生成コードフロー コード="@生成"/>}
+                    else{<p role="status">@表示文言.取得("保存資料には生成C#構造が含まれていません。コードを含める保存設定と記録方式を確認してください。")</p>}
+                }else if(this.読込表示!.Data.Extension is{} 拡張&&this.読込可視化 is{} 可視化){
+                    <label>@表示文言.取得("表示方式")<select @bind="this.読込表示方式">@foreach(var 方式 in new[]{"DAG","Sankey","Gantt","Heat","Tree","DOT"}){<option value="@方式">@方式</option>}</select></label>
+                    @if(this.読込表示方式=="Sankey"){<データサンキー @key="保存.ContentHash" データ="@可視化" 初期保存設定="@拡張.View.Sankey" 選択ノード="@this.読込選択" 選択変更時="this.読込選択時" 検索="@this.読込検索" 検索変更時="this.読込検索時"/>}
+                    else if(this.読込表示方式=="Gantt"){<実行Gantt @key="保存.ContentHash" データ="@可視化" 初期倍率="@拡張.View.GanttZoom" 選択ノード="@this.読込選択" 選択時="this.読込選択時" 検索="@this.読込検索" 検索変更時="this.読込検索時"/>}
+                    else if(this.読込表示方式=="Heat"){<資源ヒートガント @key="保存.ContentHash" 記録="@拡張.ResourceHeat" 実行データ="@可視化" 初期保存設定="@拡張.View.Heat" 選択ノード="@this.読込選択" 選択時="this.読込選択時" 検索="@this.読込検索" 検索変更時="this.読込検索時"/>}
+                    else if(this.読込表示方式=="DOT"){<pre>@this.読込表示.Data.Plan.ToDot()</pre>}
+                    else if(this.読込表示方式=="Tree"){@foreach(var ノード in this.読込表示.Data.Plan.Nodes){<details><summary>@ノード.Kind · @ノード.Label</summary><計画要素説明 ノード="@ノード"/></details>}}
+                    else{<計画グラフ @key="保存.ContentHash" 計画="@this.読込表示.Data.Plan" 初期表示層="@this.読込初期層" 選択制御か="true" 共有選択ID="@this.読込選択?.NodeId" 共有検索語="@this.読込検索" ノード選択時="this.読込グラフ選択時" 共有検索変更時="this.読込検索時" 実測データ="this.読込可視化"/>}
+                }else{<計画グラフ 計画="@this.読込表示!.Data.Plan" 初期表示層="@this.読込初期層"/>}
+                @if(保存.Data.Statistics is{} 実測){<実行統計表示 実測="@実測"/>}
+                @if(保存.Data.Observation is{} 終端){<p role="status">@表示文言.取得("実行結果") · @終端.Outcome · @終端.Phase</p>}
+                <button type="button" class="控えめボタン" @onclick="this.読込を閉じる時">@表示文言.取得("保存済み資料を閉じる")</button>
+                @if(this.比較 is{} 比較){
+                    <h4>@表示文言.取得("現在の計画との比較")</h4>
+                    <p>@表示文言.取得(比較.SameTarget?"対象が一致しています。":"異なる対象の資料です。")</p>
+                    <p>@表示文言.取得(比較.SameArtifact?"公開版と成果物が一致しています。":"公開版または成果物が異なります。")</p>
+                    <p class="小案内">@表示文言.取得(比較.NodeCorrespondenceKnown?"同じ保存計画のノード識別子を比較できます。":"異なる計画間のノード対応は未確定です。IDの一致だけで対応付けません。")</p>
+                    <table class="設計表" aria-label="@表示文言.取得("計画の構造件数比較")"><thead><tr><th>@表示文言.取得("種類")</th><th>@表示文言.取得("現在")</th><th>@表示文言.取得("保存済み")</th></tr></thead><tbody>
+                        @foreach(var 差分 in 比較.NodeKinds.Concat(比較.EdgeKinds)){<tr><td>@差分.Kind</td><td>@差分.Left</td><td>@差分.Right</td></tr>}
+                    </tbody></table>
+                    <p>@表示文言.取得("記録された書換回数") · @this.記録値(比較.LeftRewrites) / @this.記録値(比較.RightRewrites)</p>
+                }
+            </section>
+        }
+        <section aria-label="@表示文言.取得("最適化追跡")">
+            <h4>@表示文言.取得("最適化追跡")</h4>
+            @if(this.追跡 is{Available:true} 追跡){
+                @if(!追跡.Complete||this.計画?.MetadataComplete==false){<p role="status">@表示文言.取得("最適化追跡の一部が欠けています。")</p>}
+                @if(追跡.Summary is{} 集計){<p>@表示文言.取得("記録された書換回数") · @this.記録値(集計.RewriteCount) · @表示文言.取得("最適化パス") @this.記録値(集計.OptimizationPassCount)</p>}
+                @foreach(var 変更 in 追跡.Events){
+                    <details><summary>#@変更.Sequence · @変更.Layer · @変更.RuleId</summary><p>@変更.Phase · @表示文言.取得("反復") @変更.Round · @表示文言.取得("最適化パス") @変更.Pass · @表示文言.取得("変更") @this.記録値(変更.Changed) · @表示文言.取得("再訪") @this.記録値(変更.Revisited)</p>
+                        @if(this.コード含むか){<pre>@変更.Before</pre><pre>@変更.After</pre>}
+                    </details>
+                }
+                @foreach(var 終了 in 追跡.LayerTerminations){<p>@終了.Layer · @表示文言.取得("反復") @終了.RoundCount · @終了.Termination</p>}
+            }else{<p class="小案内">@表示文言.取得("最適化追跡の記録がありません。")</p>}
+        </section>
+    </details>
+</section>
+
+@code{
+    [Parameter]public QueryPlanResult? 対象{get;set;}
+    [Parameter]public ExecutionPlanDocument? 計画{get;set;}
+    [Parameter]public ObjectExecutionStatistics? 実測{get;set;}
+    [Parameter]public QueryExecutionObservation? 観測{get;set;}
+    [Parameter]public PlanSnapshotDisplaySettings? 表示設定{get;set;}
+    [Parameter]public bool コード出力許可か{get;set;}
+    [Parameter]public bool 図出力可能か{get;set;}=true;
+    [Parameter]public QueryVisualizationData? 可視化データ{get;set;}
+    [Parameter]public ResourceHeatTrace? 資源記録{get;set;}
+    [Parameter]public Func<PlanSnapshotViewState>? 表示状態取得{get;set;}
+    private PlanSnapshot? 現在保存,読込済み,読込表示;
+    private PlanSnapshotComparison? 比較;
+    private PlanOptimizationTrace? 追跡;
+    private bool コード含むか,保存中か,破棄済みか;
+    private string 読込構造="Relational";
+    private string 読込表示方式="DAG",読込検索="";
+    private QueryVisualizationData? 読込可視化;
+    private GeneratedExecutionCode? 読込生成コード{get{
+        if(this.読込表示 is not{} 保存){return null;}
+        if(保存.Data.Display.GeneratedVariant=="Profiled"||保存.Data.Display.GeneratedVariant is null&&this.読込可視化?.NodeQuantities is{Length:>0}){return 保存.Data.Plan.ProfiledGeneratedCode;}
+        return 保存.Data.Plan.GeneratedCode;
+    }}
+    private PlanNodeRef? 読込選択;
+    private string? 読込初期層{get{if(this.読込構造=="Logical"){return "Logical";}if(this.読込表示?.Data.Display.StructureLevel is null){return null;}if(this.読込表示.Data.Plan.Nodes.Any(項目=>計画グラフ配置.層を取得(項目)==計画表示層.元のクエリ)){return "Original";}return "Selected";}}
+    private string? 案内;
+    private QueryPlanResult? 前対象;
+    private ExecutionPlanDocument? 前計画;
+    private ObjectExecutionStatistics? 前実測;
+    private QueryExecutionObservation? 前観測;
+    private PlanSnapshotDisplaySettings? 前表示設定;
+    private bool 前コード許可か;
+    private QueryVisualizationData? 前可視化;
+    private ResourceHeatTrace? 前資源;
+    private long 読込世代;
+    private IJSObjectReference? モジュール;
+    private readonly CancellationTokenSource 取消=new();
+    protected override void OnParametersSet(){
+        if(ReferenceEquals(this.前対象,this.対象)&&ReferenceEquals(this.前計画,this.計画)&&ReferenceEquals(this.前実測,this.実測)&&ReferenceEquals(this.前観測,this.観測)&&this.前表示設定==this.表示設定&&this.前コード許可か==this.コード出力許可か&&ReferenceEquals(this.前可視化,this.可視化データ)&&ReferenceEquals(this.前資源,this.資源記録)){return;}
+        this.前可視化=this.可視化データ;this.前資源=this.資源記録;
+        if(!ReferenceEquals(this.前対象,this.対象)){this.読込世代++;this.コード含むか=false;this.前対象=this.対象;this.読込済み=null;}
+        this.前計画=this.計画;this.前実測=this.実測;this.前観測=this.観測;this.前表示設定=this.表示設定;this.前コード許可か=this.コード出力許可か;
+        if(!this.コード出力許可か){this.コード含むか=false;}
+        this.更新();
+    }
+    private void コード選択時(ChangeEventArgs 引数){this.コード含むか=this.コード出力許可か&&引数.Value is true;this.更新();}
+    private void 更新(){
+        this.現在保存=null;this.案内=null;
+        this.追跡=this.計画 is null?null:OptimizationTraceReader.Read(this.計画.Trace,this.コード含むか);
+        if(this.対象 is not null&&this.計画 is not null){
+            try{
+                if(this.可視化データ is{} データ){this.現在保存=PlanSnapshot.CreateVisualization(this.対象,this.計画,データ,this.資源記録,this.表示状態取得?.Invoke(),this.実測,this.表示設定,this.コード含むか,this.観測);}
+                else{this.現在保存=PlanSnapshot.Create(this.対象,this.計画,this.実測,this.表示設定,this.コード含むか,this.観測);}
+            }
+            catch(InvalidDataException 例外){this.案内=例外.Message;}
+        }
+        this.読込表示=this.読込済み;
+        if(!this.コード含むか&&this.読込済み is not null){this.読込表示=this.読込済み.WithoutCode();}
+        this.読込可視化=this.読込表示?.Visualization();
+        this.比較=this.現在保存 is not null&&this.読込表示 is not null?PlanSnapshot.Compare(this.現在保存,this.読込表示):null;
+    }
+    private async Task 保存時Async(string 形式){
+        this.更新();
+        if(this.現在保存 is not{} 保存||this.保存中か||this.破棄済みか||!this.図出力可能か&&形式!="JSON"||this.表示設定?.StructureLevel=="Generated"&&形式!="JSON"){return;}
+        this.保存中か=true;this.案内=null;
+        try{
+            string 内容,MIME,拡張子;
+            switch(形式){
+                case "JSON":内容=Encoding.UTF8.GetString(保存.ToJson());MIME="application/json";拡張子="json";break;
+                case "SVG":内容=計画保存出力.SVG(保存,値=>表示文言.取得(値));MIME="image/svg+xml";拡張子="svg";break;
+                case "HTML":内容=計画保存出力.HTML(保存,値=>表示文言.取得(値));MIME="text/html";拡張子="html";break;
+                default:throw new InvalidDataException("未対応の保存形式です。");
+            }
+            if(this.モジュール is null){
+                var 読込=await this.スクリプト.InvokeAsync<IJSObjectReference>("import",this.取消.Token,"./_content/Seamless.Management.Components/plan-snapshot.js");
+                if(this.破棄済みか){await スクリプト参照.解放Async(null,読込);return;}this.モジュール=読込;
+            }
+            await this.モジュール.InvokeVoidAsync("計画を保存",this.取消.Token,"seamless-plan."+拡張子,MIME,内容);
+        }catch(OperationCanceledException)when(this.取消.IsCancellationRequested){}
+        catch(JSDisconnectedException){if(!this.破棄済みか){this.案内=表示文言.取得("ブラウザーとの接続が切れました。");}}
+        catch(Exception 例外){if(!this.破棄済みか){this.案内=例外.Message;}}
+        finally{this.保存中か=false;}
+    }
+    private async Task 読込時Async(InputFileChangeEventArgs 引数){
+        if(this.破棄済みか){return;}
+        var 世代=++this.読込世代;
+        this.案内=null;
+        try{
+            await using var 入力=引数.File.OpenReadStream(PlanSnapshot.MaximumBytes,this.取消.Token);using var 内容=new MemoryStream();
+            await 入力.CopyToAsync(内容,this.取消.Token);var 保存=PlanSnapshot.Read(内容.ToArray());
+            if(this.破棄済みか||世代!=this.読込世代){return;}
+            this.読込を設定(保存);
+        }catch(OperationCanceledException)when(this.取消.IsCancellationRequested){}
+        catch(Exception 例外){if(!this.破棄済みか&&世代==this.読込世代){this.案内=例外.Message;}}
+    }
+    private void 読込を設定(PlanSnapshot 保存){
+        this.読込済み=保存;this.読込構造=保存.Data.Display.StructureLevel??"Relational";this.更新();
+        var 設定=this.読込表示?.Data.Extension?.View;this.読込表示方式=設定?.Mode??"DAG";this.読込検索=設定?.Search??"";this.読込選択=null;
+        if(設定?.SelectedNodeId is{} ID&&this.読込可視化 is{} データ){this.読込選択=new(データ.Identity.PlanKey,ID);}
+    }
+    private void 読込選択時(PlanNodeRef? 値)=>this.読込選択=値;
+    private void 読込グラフ選択時(ExecutionPlanNode? 値){this.読込選択=null;if(値 is not null&&this.読込可視化 is{} データ){this.読込選択=new(データ.Identity.PlanKey,値.Id);}}
+    private void 読込検索時(string 値)=>this.読込検索=値;
+    private void 読込を閉じる時(){this.読込世代++;this.読込済み=null;this.読込表示=null;this.比較=null;}
+    private string 記録値(object? 値){if(値 is null){return 表示文言.取得("未収集");}return Convert.ToString(値,System.Globalization.CultureInfo.CurrentCulture)??"";}
+    public async ValueTask DisposeAsync(){
+        if(this.破棄済みか){return;}this.破棄済みか=true;this.取消.Cancel();
+        await スクリプト参照.解放Async(null,this.モジュール);this.取消.Dispose();
+    }
+}

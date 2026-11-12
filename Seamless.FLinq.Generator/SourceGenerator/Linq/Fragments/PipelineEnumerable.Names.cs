@@ -1,17 +1,10 @@
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+
 namespace Seamless.FLinq.Generator;
 
 // 生成コード内で使う名前と型の決定。
 internal sealed partial class PipelineEnumerable {
-    private IEnumerable<string> ClosureArgsWithoutPrefix() {
-        var suffix = this.ClosureArgsSuffix(this.Funcs.ToArray());
-        if(string.IsNullOrEmpty(suffix)) {
-            yield break;
-        }
-        foreach(var part in SplitTopLevelComma(suffix.Substring(2))) {
-            yield return part.Trim();
-        }
-    }
-
     private IEnumerable<string> ClosureParametersWithoutPrefix() {
         var suffix = this.ClosurePrimaryCtorSuffix(this.Funcs.ToArray());
         if(string.IsNullOrEmpty(suffix)) {
@@ -126,6 +119,9 @@ internal sealed partial class PipelineEnumerable {
     private string StateName(int index) => $"{this.state}_{index}";
     private string IndexName(int index) => $"__idx{this.item}_{index}";
     private string CountName(int index) => $"__cnt{this.item}_{index}";
+    private string ElementArgumentName(int index) => $"__element{this.item}_{index}";
+    private IEnumerable<(PipelineStage Stage,int Index)> ElementStages() =>
+        stages.Select(static (stage,index)=>(stage,index)).Where(static pair=>pair.stage.Kind is PipelineStageKind.Append or PipelineStageKind.Prepend);
     // 融合した集約の上限を、列挙子の中で描く。Take / Skip の値は、構築のときに 0 以上へ直したフィールド(__cnt…Value)に入っている。
     // 段は参照で探し、見つからなければ同じ値の式の Take / Skip を探す(正規化で段が作り直された場合)。
     private string? GroupLimitExpression(GroupByAggregatePlan plan) =>
@@ -158,8 +154,13 @@ internal sealed partial class PipelineEnumerable {
     private string OuterName(int index) => $"{this.outerValue}_{index}";
     private string SetName(int index) => $"__set{this.item}_{index}";
     private string SecondSetName(int index) => $"__set2{this.item}_{index}";
+    private string GroupDirectKeysName(int index) => $"__groupKeys{this.item}_{index}";
+    private string GroupDirectAccsName(int index) => $"__groupAccs{this.item}_{index}";
+    private string GroupDirectCountName(int index) => $"__groupCount{this.item}_{index}";
+    private string GroupDirectCursorName(int index) => $"__groupCursor{this.item}_{index}";
     private string SortItemName(int index) => $"__sortitem{this.item}_{index}";
     private string OrderIndexComparerName(int index) => $"__orderIndexComparer{this.item}_{index}";
+    private string OrderTopKComparerName(int index) => $"__orderTopKComparer{this.item}_{index}";
     private string SortedItemsName(int index) => $"__sorted{this.item}_{index}";
     private string OrderValuesName(int index) => $"__orderValues{this.item}_{index}";
     private string OrderIndexesName(int index) => $"__orderIndexes{this.item}_{index}";
@@ -319,6 +320,112 @@ internal sealed partial class PipelineEnumerable {
         builder.AppendLine("        return left.CompareTo(right);");
         builder.AppendLine("    }");
         builder.AppendLine("}");
+        return builder.ToString().TrimEnd();
+    }
+
+    private bool TryGetSmallKeyRange(PipelineStage stage, out int keyCount) {
+        keyCount = 0;
+        if(stage.Func is not { InlineBody: { } inlineBody } selector) {
+            return false;
+        }
+        if(stage.Value != "null") {
+            return false;
+        }
+        var expr = Unwrap(SyntaxFactory.ParseExpression(inlineBody));
+        // パターン 1: x & MASK (例: x & 15)
+        if(expr is BinaryExpressionSyntax andExpr && andExpr.IsKind(SyntaxKind.BitwiseAndExpression)) {
+            if(Unwrap(andExpr.Right) is LiteralExpressionSyntax lit && lit.Token.Value is int maskVal && maskVal >= 1 && maskVal < 64) {
+                if((maskVal & (maskVal + 1)) == 0) {
+                    keyCount = maskVal + 1;
+                    return true;
+                }
+            }
+        }
+        // パターン 2: Math.Abs(x) % M または (x % M + M) % M
+        if(expr is BinaryExpressionSyntax modExpr && modExpr.IsKind(SyntaxKind.ModuloExpression)) {
+            if(Unwrap(modExpr.Right) is LiteralExpressionSyntax lit && lit.Token.Value is int modVal && modVal >= 2 && modVal <= 64) {
+                var left = Unwrap(modExpr.Left);
+                if(left is InvocationExpressionSyntax inv && inv.Expression is MemberAccessExpressionSyntax mem && mem.Name.Identifier.ValueText == "Abs") {
+                    keyCount = modVal;
+                    return true;
+                }
+                if(left is BinaryExpressionSyntax addExpr && addExpr.IsKind(SyntaxKind.AddExpression)) {
+                    if(Unwrap(addExpr.Right) is LiteralExpressionSyntax addLit && addLit.Token.Value is int addVal && addVal == modVal) {
+                        if(Unwrap(addExpr.Left) is BinaryExpressionSyntax innerMod && innerMod.IsKind(SyntaxKind.ModuloExpression)) {
+                            if(Unwrap(innerMod.Right) is LiteralExpressionSyntax innerModLit && innerModLit.Token.Value is int innerModVal && innerModVal == modVal) {
+                                keyCount = modVal;
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+
+        static ExpressionSyntax Unwrap(ExpressionSyntax expression) {
+            while(expression is ParenthesizedExpressionSyntax parentheses) { expression = parentheses.Expression; }
+            return expression;
+        }
+    }
+
+    private string OrderTopKComparerType(int orderIndex) {
+        var orderStages = this.OrderStages(orderIndex).ToArray();
+        var primaryOrder = orderStages[0];
+        var comparerName = this.OrderTopKComparerName(orderIndex);
+        var builder = new StringBuilder();
+        if(orderStages.Length==1) {
+            var keyType = ComparerKeyType(primaryOrder);
+            var canDirect = CanUseDirectDefaultOrderCompare(primaryOrder);
+            builder.AppendLine($"private readonly struct {comparerName} : global::System.Collections.Generic.IComparer<{keyType}> {{");
+            if(!canDirect) {
+                builder.AppendLine($"    private readonly global::System.Collections.Generic.IComparer<{keyType}> __comparer;");
+                builder.AppendLine($"    public {comparerName}(global::System.Collections.Generic.IComparer<{keyType}>? comparer) {{");
+                builder.AppendLine($"        this.__comparer = comparer ?? global::System.Collections.Generic.Comparer<{keyType}>.Default;");
+                builder.AppendLine("    }");
+            } else {
+                builder.AppendLine($"    public {comparerName}() {{ }}");
+            }
+            builder.AppendLine($"    public int Compare({keyType} left,{keyType} right) {{");
+            var comparerExpr = canDirect ? string.Empty : "this.__comparer";
+            var compareCall = this.OrderCompareCall(primaryOrder,"left","right",comparerExpr);
+            var compareExpr = this.OrderCompareExpression(primaryOrder,compareCall);
+            builder.AppendLine($"        return {compareExpr};");
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+        } else if(orderStages.Length==2) {
+            var secondaryOrder = orderStages[1];
+            var primaryKeyType = ComparerKeyType(primaryOrder);
+            var secondaryKeyType = ComparerKeyType(secondaryOrder);
+            var primaryCanDirect = CanUseDirectDefaultOrderCompare(primaryOrder);
+            var secondaryCanDirect = CanUseDirectDefaultOrderCompare(secondaryOrder);
+            builder.AppendLine($"private readonly struct {comparerName} : global::Seamless.Linq.Internal.ITopKCombinedComparer<{primaryKeyType},{secondaryKeyType}> {{");
+            if(!primaryCanDirect) {
+                builder.AppendLine($"    private readonly global::System.Collections.Generic.IComparer<{primaryKeyType}> __primaryComparer;");
+            }
+            if(!secondaryCanDirect) {
+                builder.AppendLine($"    private readonly global::System.Collections.Generic.IComparer<{secondaryKeyType}> __secondaryComparer;");
+            }
+            var ctorParams = new List<string>();
+            if(!primaryCanDirect) ctorParams.Add($"global::System.Collections.Generic.IComparer<{primaryKeyType}>? primaryComparer");
+            if(!secondaryCanDirect) ctorParams.Add($"global::System.Collections.Generic.IComparer<{secondaryKeyType}>? secondaryComparer");
+            builder.AppendLine($"    public {comparerName}({string.Join(",",ctorParams)}) {{");
+            if(!primaryCanDirect) builder.AppendLine($"        this.__primaryComparer = primaryComparer ?? global::System.Collections.Generic.Comparer<{primaryKeyType}>.Default;");
+            if(!secondaryCanDirect) builder.AppendLine($"        this.__secondaryComparer = secondaryComparer ?? global::System.Collections.Generic.Comparer<{secondaryKeyType}>.Default;");
+            builder.AppendLine("    }");
+            builder.AppendLine($"    public int Compare({primaryKeyType} leftPrimary,{secondaryKeyType} leftSecondary,{primaryKeyType} rightPrimary,{secondaryKeyType} rightSecondary) {{");
+            var primaryComparerExpr = primaryCanDirect ? string.Empty : "this.__primaryComparer";
+            var primaryCall = this.OrderCompareCall(primaryOrder,"leftPrimary","rightPrimary",primaryComparerExpr);
+            var primaryExpr = this.OrderCompareExpression(primaryOrder,primaryCall);
+            builder.AppendLine($"        var __p = {primaryExpr};");
+            builder.AppendLine("        if(__p != 0) return __p;");
+            var secondaryComparerExpr = secondaryCanDirect ? string.Empty : "this.__secondaryComparer";
+            var secondaryCall = this.OrderCompareCall(secondaryOrder,"leftSecondary","rightSecondary",secondaryComparerExpr);
+            var secondaryExpr = this.OrderCompareExpression(secondaryOrder,secondaryCall);
+            builder.AppendLine($"        return {secondaryExpr};");
+            builder.AppendLine("    }");
+            builder.AppendLine("}");
+        }
         return builder.ToString().TrimEnd();
     }
 

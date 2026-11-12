@@ -37,13 +37,32 @@ internal class Single(int 番号,Enumerable source,string resultType):BufferedSc
     public override string GetEnumeratorPrimaryConstructorParameters => $"TEnum {this.e}";
     protected override string ComputeExpression => $"Compute(ref {this.e})";
     public override string? RenderInlineComputation(string destVar,string destType) =>
-        source is RangeRoot range
+        this.RenderDirectArraySingleInline(destVar,destType)
+        ??(source is RangeRoot range
             ? RangePredicateOptimizer.RenderSingle(range,番号,destVar,destType)
         : source is RepeatRoot repeat
             ? RangePredicateOptimizer.RenderSingle(repeat,番号,destVar,destType)
             : this.RenderDirectSpanSingleInline(destVar,destType)
             ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Single")
-        ??this.RenderComputeInline(destVar,destType);
+        ??this.RenderComputeInline(destVar,destType));
+
+    private string? RenderDirectArraySingleInline(string destVar,string destType) {
+        if(source.DirectArrayExpression is not { } arrayExpr) {
+            return null;
+        }
+        var arrVar = $"__arr{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{arrVar}}={{arrayExpr}};
+                {{destVar}}={{arrVar}}.Length switch {
+                    1 => {{arrVar}}[0],
+                    0 => throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements(),
+                    _ => throw new global::System.InvalidOperationException("Sequence contains more than one element")
+                };
+            }
+            """;
+    }
     private string? RenderDirectSpanSingleInline(string destVar,string destType) {
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => $$"""

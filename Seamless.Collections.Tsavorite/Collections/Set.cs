@@ -1,4 +1,4 @@
-﻿namespace Seamless.Collections.Tsavorite;
+namespace Seamless.Collections.Tsavorite;
 
 public class Set<TKey, TRecord>:Collection<TKey,TRecord,global::Seamless.Collections.Serializers.Auto<TKey>,global::Seamless.Collections.Serializers.Auto<TRecord>,ExclusiveAccess>, ISet<TKey,TRecord>, IMemoryCollection<TRecord>
     where TRecord : IRecord<TKey> {
@@ -27,9 +27,18 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,global::Seamless.Collect
         }
     }
     void ICollection<TRecord>.Add(TRecord item) => this.Add(item);
-    public bool Contains(TRecord item) => this.ContainsKey(item.Key);
+    public bool Contains(TRecord item) {
+        if(!this.TryGetValue(item.Key,out var existing)){return false;}
+        return global::System.Collections.Generic.EqualityComparer<TRecord>.Default.Equals(existing,item);
+    }
     public new bool ContainsKey(TKey key) => base.ContainsKey(key);
-    public bool Remove(TRecord item) => this.Remove(item.Key);
+    public bool Remove(TRecord item) {
+        if(!this.TryGetValue(item.Key,out var existing)){return false;}
+        if(!global::System.Collections.Generic.EqualityComparer<TRecord>.Default.Equals(existing,item)){return false;}
+        return this.Remove(item.Key);
+    }
+    public bool RemoveKey(TKey key) => this.Remove(key);
+    public bool RemoveKey(TKey key,[MaybeNullWhen(false)] out TRecord value) => this.Remove(key,out value);
     public bool Remove(TKey key,[MaybeNullWhen(false)] out TRecord value) {
         if(!this.TryGetValue(key,out value)) {
             value=default;
@@ -210,7 +219,7 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,global::Seamless.Collect
             if(!this.initialized) {
                 var source=this.source!;
                 source.VerifyThreadAffinity();
-                this.enumerator=new(source.ReadSession,new(),source.Store.Log.TailAddress,source);
+                this.enumerator=new(source.ReadSession,new(source.SerializationBudget),source.Store.Log.TailAddress,source);
                 this.initialized=true;
             }
             if(this.enumerator.MoveNext()) {
@@ -233,7 +242,7 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,global::Seamless.Collect
     public ValueEnumerator GetValueEnumerator() => new(this);
     public IEnumerator<TRecord> GetEnumerator() {
         this.VerifyThreadAffinity();
-        return new Enumerator<ValueIterator,TRecord>(this.ReadSession,new(),this.Store.Log.TailAddress,this);
+        return new Enumerator<ValueIterator,TRecord>(this.ReadSession,new(this.SerializationBudget),this.Store.Log.TailAddress,this);
     }
     /// <summary>値を 1 つずつ <typeparamref name="TStrategy"/> へ渡す。FLinq の生成コードが呼ぶ。</summary>
     public void Iterate<TStrategy>(ref TStrategy strategy)
@@ -242,7 +251,7 @@ public class Set<TKey, TRecord>:Collection<TKey,TRecord,global::Seamless.Collect
     IEnumerator IEnumerable.GetEnumerator() => this.GetEnumerator();
     IEnumerator<TRecord> IMemoryCollection<TRecord>.GetEnumerator() {
         this.VerifyThreadAffinity();
-        return new Enumerator<MemoryValueIterator,TRecord>(this.ReadSession,new(),this.Store.Log.TailAddress,this);
+        return new Enumerator<MemoryValueIterator,TRecord>(this.ReadSession,new(this.SerializationBudget),this.Store.Log.TailAddress,this);
     }
 
 }

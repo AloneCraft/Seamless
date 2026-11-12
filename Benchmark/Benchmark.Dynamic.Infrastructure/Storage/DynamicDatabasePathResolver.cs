@@ -2,6 +2,10 @@ namespace Benchmark.Dynamic.Infrastructure;
 
 public static class DynamicDatabasePathResolver{
     public static string Resolve(string? solutionRoot=null){
+        var dataRoot=Environment.GetEnvironmentVariable("SEAMLESS_BENCHMARK_DATA_ROOT");
+        if(!string.IsNullOrWhiteSpace(dataRoot)){
+            return Path.Combine(Path.GetFullPath(dataRoot),DynamicInfrastructureSchema.DatabaseFileName);
+        }
         var root=solutionRoot;
         if(string.IsNullOrWhiteSpace(root)){
             root=FindSolutionRoot();

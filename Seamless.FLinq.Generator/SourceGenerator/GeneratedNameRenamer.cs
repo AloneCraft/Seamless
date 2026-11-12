@@ -57,7 +57,8 @@ internal static class GeneratedNameRenamer {
     /// 補助の構造体の群(<paramref name="helpers"/>)と、メソッドの本体(<paramref name="body"/>)の中の機械的な名前を付け替える。
     /// <paramref name="userIdentifiers"/> に含まれる名前は利用者のコードの名前なので付け替えない。
     /// </summary>
-    internal static void Rename(ref string helpers,ref string body,HashSet<string> userIdentifiers,IReadOnlyDictionary<string,string>? preferredLocals=null) {
+    internal static void Rename(ref string helpers,ref string body,HashSet<string> userIdentifiers,IReadOnlyDictionary<string,string>? preferredLocals=null,IDictionary<string,string>? bodyRenames=null) {
+        bodyRenames?.Clear();
         var helperTokens = Tokenize(helpers,0);
         var bodyTokens = Tokenize(body,int.MaxValue/2);
 
@@ -140,6 +141,17 @@ internal static class GeneratedNameRenamer {
             local[(entry.Unit,text)]=candidate;
         }
 
+        if(bodyRenames is not null){
+            var ambiguous=new HashSet<string>(StringComparer.Ordinal);
+            foreach(var entry in bodyTokens){
+                if(!entry.Token.IsKind(SyntaxKind.IdentifierToken)){continue;}
+                var original=entry.Token.ValueText;
+                if(ambiguous.Contains(original)){continue;}
+                if(!shared.TryGetValue(original,out var renamed)&&!local.TryGetValue((entry.Unit,original),out renamed)){continue;}
+                if(bodyRenames.TryGetValue(original,out var previous)&&previous!=renamed){bodyRenames.Remove(original);ambiguous.Add(original);}
+                else{bodyRenames[original]=renamed;}
+            }
+        }
         helpers=Rewrite(helperTokens,shared,local);
         body=Rewrite(bodyTokens,shared,local);
     }

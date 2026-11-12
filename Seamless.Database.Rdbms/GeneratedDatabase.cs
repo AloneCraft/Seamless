@@ -8,5 +8,6 @@ public sealed record GeneratedDatabase(
     IReadOnlyList<GeneratedTableBinding> Tables){
     public IReadOnlyList<GeneratedRoutineBinding> Routines{get;init;}=[];
     public string? RootNamespace{get;init;}
+    public bool IsCollectible{get;init;}
     public string TypeNamespace=>this.RootNamespace??this.DatabaseName;
 }

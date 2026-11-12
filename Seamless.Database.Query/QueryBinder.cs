@@ -8,7 +8,8 @@ internal sealed partial class QueryBinder{
     private readonly HashSet<SqlObjectName>viewStack;
     private readonly Dictionary<string,string>xmlNamespaces=new(StringComparer.Ordinal);
     private readonly Dictionary<string,BoundQuery>ctes=new(StringComparer.OrdinalIgnoreCase);
-    internal QueryBinder(ISqlCatalog catalog,string database,IReadOnlyList<SqlParameter>parameters,HashSet<SqlObjectName>?viewStack=null){this.catalog=catalog;this.database=database;this.parameters=parameters;this.viewStack=viewStack??[];}
+    private readonly Dictionary<SqlObjectName,RoutineBinding>routineBindings;
+    internal QueryBinder(ISqlCatalog catalog,string database,IReadOnlyList<SqlParameter>parameters,HashSet<SqlObjectName>?viewStack=null,Dictionary<SqlObjectName,RoutineBinding>?routineBindings=null){this.catalog=catalog;this.database=database;this.parameters=parameters;this.viewStack=viewStack??[];this.routineBindings=routineBindings??[];}
     internal BoundQuery BindStatement(TSqlStatement statement){
         if(statement is not SelectStatement select){throw Unsupported(statement);}
         if(select.Into is not null||select.On is not null||select.ComputeClauses.Count>0||select.OptimizerHints.Count>0){throw Unsupported(select);}
@@ -135,7 +136,8 @@ internal sealed partial class QueryBinder{
                         var parsed=SqlQueryEngine.Parse(view);
                         SelectStatement select;
                         if(parsed is CreateViewStatement create){select=create.SelectStatement;}else if(parsed is AlterViewStatement alter){select=alter.SelectStatement;}else if(parsed is SelectStatement direct){select=direct;}else{throw Unsupported(parsed);}
-                        var binder=new QueryBinder(this.catalog,name.Database,this.parameters,this.viewStack);
+                        var binder=new QueryBinder(this.catalog,name.Database,this.parameters,this.viewStack,this.routineBindings);
+                        using var definitionScope=this.catalog.EnterDefinition(name,SqlDefinitionKind.View);
                         var query=binder.BindStatement(select);
                         if(query.Columns.Count!=definition.Columns.Count){throw new SqlQueryException("View column count differs from metadata: "+name,4502);}
                         return new(definition.Columns.Select((column,index)=>new BindingColumn(column with{Source=name,IsComputedFloatingPoint=IsFloating(column.Type)&&query.Columns[index].IsComputedFloatingPoint},alias)).ToArray(),query.Rows);
@@ -181,7 +183,7 @@ internal sealed partial class QueryBinder{
             default:throw Unsupported(table);
         }
     }
-    private SqlObjectName ResolveName(SchemaObjectName name){if(name.ServerIdentifier is not null){throw Unsupported(name);}return new(name.DatabaseIdentifier?.Value??this.database,name.SchemaIdentifier?.Value??"dbo",name.BaseIdentifier.Value);}
+    private SqlObjectName ResolveName(SchemaObjectName name){if(name.ServerIdentifier is not null){throw Unsupported(name);}return new(name.DatabaseIdentifier?.Value??this.database,name.SchemaIdentifier?.Value??"",name.BaseIdentifier.Value);}
     private static BoundQuery Rename(BoundQuery query,IList<Identifier>names){if(query.Columns.Count!=names.Count){throw new SqlQueryException("Column alias count differs.",8159);}return query with{Columns=query.Columns.Select((x,i)=>x with{Name=names[i].Value}).ToArray()};}
     private static BoundSource Cross(BoundSource left,BoundSource right){return new(left.Columns.Concat(right.Columns).ToArray(),(execution,outer)=>Rows(execution,outer));IEnumerable<object?[]>Rows(QueryExecution execution,object?[]?outer){foreach(var first in left.Rows(execution,outer)){foreach(var second in right.Rows(execution,outer)){execution.Scope.ThrowIfUnavailable();yield return first.Concat(second).ToArray();}}}}
     private static IEnumerable<object?[]>OneRow(){yield return [];}

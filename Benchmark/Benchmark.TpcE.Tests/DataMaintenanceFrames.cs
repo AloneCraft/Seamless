@@ -25,7 +25,7 @@ public sealed class DataMaintenanceFrames{
         var engines=new List<Core.ITpcEEngine>();
         try{
             foreach(var variant in VariantCatalog.All){
-                var store=Store.CreateTemporary();
+                var store=TpcETestStores.Temporary();
                 stores.Add(store);
                 engines.Add(variant.Open(store,DataMaintenanceFrames.Scale));
             }

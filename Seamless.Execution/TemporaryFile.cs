@@ -16,16 +16,16 @@ public sealed class TemporaryFile:Stream{
     public override long Length{get{this.Check();return this.stream.Length;}}
     public override long Position{get{this.Check();return this.stream.Position;}set{this.Check();this.stream.Position=value;}}
     private void Check(){ObjectDisposedException.ThrowIf(this.disposed,this);this.scope.ThrowIfUnavailable();}
-    public override void Flush(){this.Check();this.stream.Flush();}
+    public override void Flush(){this.Check();using var cpu=CpuScheduler.SuspendForIo();this.stream.Flush();}
     public override long Seek(long offset,SeekOrigin origin){this.Check();return this.stream.Seek(offset,origin);}
     public override int Read(byte[] buffer,int offset,int count)=>this.Read(buffer.AsSpan(offset,count));
-    public override int Read(Span<byte> buffer){this.Check();return this.stream.Read(buffer);}
+    public override int Read(Span<byte> buffer){this.Check();using var cpu=CpuScheduler.SuspendForIo();return this.stream.Read(buffer);}
     public override void Write(byte[] buffer,int offset,int count)=>this.Write(buffer.AsSpan(offset,count));
     public override void Write(ReadOnlySpan<byte> buffer){
         this.Check();
         var previous=this.reservation.Bytes;
         this.reservation.Resize(Math.Max(previous,checked(this.stream.Position+buffer.Length)));
-        try{this.stream.Write(buffer);}
+        try{using var cpu=CpuScheduler.SuspendForIo();this.stream.Write(buffer);}
         catch{this.reservation.Resize(this.stream.Length);throw;}
     }
     public override void SetLength(long value){

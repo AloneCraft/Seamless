@@ -1,0 +1,11 @@
+<Project>
+  <Import Project="../Directory.Build.props" />
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <SeamlessPackageVersion Condition="'$(SeamlessPackageVersion)'==''">0.0.0</SeamlessPackageVersion>
+  </PropertyGroup>
+</Project>

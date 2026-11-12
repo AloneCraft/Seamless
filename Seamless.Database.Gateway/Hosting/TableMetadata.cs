@@ -14,6 +14,15 @@ public sealed class ColumnMetadata{
     public bool IsNullable{get;}
     public bool IsPrimaryKey{get;}
     public int Ordinal{get;}
+    public int? StableColumnId{get;internal set;}
+    public string? DefaultDefinition{get;internal set;}
+    public bool IsIdentity{get;internal set;}
+    public decimal IdentitySeed{get;internal set;}=1;
+    public decimal IdentityIncrement{get;internal set;}=1;
+    public bool IsComputedPersisted{get;internal set;}
+    public string? ComputedDefinition{get;internal set;}
+    public bool IsRowVersion=>this.SqlTypeName is "timestamp" or "rowversion";
+    public bool HasInsertDefault=>this.DefaultDefinition is not null||this.IsIdentity||this.IsRowVersion||this.ComputedDefinition is not null;
     public int? MaximumLength{get;}
     public byte? Precision{get;}
     public byte? Scale{get;}
@@ -36,7 +45,8 @@ public sealed class TableMetadata{
     }
 
     public TableMetadata(string schemaName,string tableName,IReadOnlyList<ColumnMetadata>columns,PrimaryKeyCatalog? primaryKey,int? stableObjectId):this(schemaName,tableName,columns,primaryKey){this.StableObjectId=stableObjectId;}
-    public int? StableObjectId{get;}
+    public int? StableObjectId{get;internal set;}
+    public DateTime? CreateDate{get;init;}
     public string SchemaName{get;}
     public string TableName{get;}
     public string FullName{

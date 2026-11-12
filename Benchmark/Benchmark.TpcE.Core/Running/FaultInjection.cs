@@ -32,7 +32,7 @@ public static class FaultInjection{
         if(spec.Kind=="DropWrite"){
             foreach(var record in session.Recorder.Records){
                 if(record.Kind is WriteKind.Insert or WriteKind.Update){
-                    session.RequireEngine.Database.Tables[record.TableId-1].DeleteRawBoxed(record.Key);
+                    Mutate(session,()=>session.RequireEngine.Database.Tables[record.TableId-1].DeleteRawBoxed(record.Key));
                     break;
                 }
             }
@@ -50,10 +50,13 @@ public static class FaultInjection{
                 return;
             }
         }
-        var table=session.RequireEngine.Database.Tables[0];
-        foreach(var row in table.EnumerateRowsBoxed()){
-            table.DeleteRawBoxed(table.KeyOf(row));
-            break;
-        }
+        Mutate(session,()=>{
+            var table=session.RequireEngine.Database.Tables[0];
+            foreach(var row in table.EnumerateRowsBoxed()){table.DeleteRawBoxed(table.KeyOf(row));break;}
+        });
+    }
+    private static void Mutate(VariantSession session,Action action){
+        var db=session.RequireEngine.Database;if(db.TransactionDomain is null){action();return;}
+        db.Log.Begin();try{action();db.Log.Commit();}finally{if(db.Log.IsRecording){db.Log.Rollback();}}
     }
 }

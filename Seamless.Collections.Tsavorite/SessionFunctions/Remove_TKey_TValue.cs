@@ -6,6 +6,9 @@ namespace Seamless.Collections.Tsavorite;
 /// </summary>
 public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
     ISessionFunctions<EqualityEmpty,TValue,EqualityEmpty> where TStrategy : global::Seamless.Collections.Serializers.IStrategy<TValue> {
+    private readonly StoreSerializer<TValue,TStrategy> serializer;
+    public Remove_TKey_TValue():this(null){}
+    public Remove_TKey_TValue(global::Seamless.Execution.ResourceBudget? budget){this.serializer=new(budget);}
     [ExcludeFromCodeCoverage]
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref EqualityEmpty input,ref TValue output,ref ReadInfo readInfo)
         where TSourceLogRecord : ISourceLogRecord {
@@ -26,7 +29,7 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
         throw new NotSupportedException();
     }
     public bool InPlaceUpdater(ref LogRecord logRecord,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo) {
-        output=TStrategy.Deserialize(logRecord.ValueSpan);
+        output=this.serializer.Deserialize(logRecord.ValueSpan);
         rmwInfo.Action=RMWAction.ExpireAndStop;
         return false;
     }
@@ -41,7 +44,7 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
     }
     public bool CopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref EqualityEmpty input,ref TValue output,ref RMWInfo rmwInfo)
         where TSourceLogRecord : ISourceLogRecord {
-        output=TStrategy.Deserialize(srcLogRecord.ValueSpan);
+        output=this.serializer.Deserialize(srcLogRecord.ValueSpan);
         rmwInfo.Action=RMWAction.ExpireAndStop;
         return false;
     }
@@ -153,7 +156,7 @@ public readonly struct Remove_TKey_TValue<TValue, TStrategy>:
     }
     public void RMWCompletionCallback(ref DiskLogRecord diskLogRecord,ref EqualityEmpty input,ref TValue output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {
         if(!status.NotFound)
-            output=TStrategy.Deserialize(diskLogRecord.ValueSpan);
+            output=this.serializer.Deserialize(diskLogRecord.ValueSpan);
     }
     [ExcludeFromCodeCoverage]
     public void ReadCompletionCallback(ref DiskLogRecord diskLogRecord,ref EqualityEmpty input,ref TValue output,EqualityEmpty ctx,Status status,RecordMetadata recordMetadata) {

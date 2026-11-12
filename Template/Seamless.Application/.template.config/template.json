@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/template",
+  "author": "Seamless",
+  "classifications": ["Database", "Seamless"],
+  "identity": "Seamless.Application.CSharp",
+  "name": "Seamlessプロジェクト",
+  "description": "Server、Schema、ServerSchema、ClientSchemaを含むSeamlessソリューション。",
+  "shortName": "seamless",
+  "sourceName": "Seamless.Application",
+  "preferNameDirectory": true,
+  "tags": {"language": "C#", "type": "solution"},
+  "primaryOutputs": [{"path": "Seamless.Application.slnx"}],
+  "sources": [{"exclude": ["**/bin/**", "**/obj/**", ".template.config/**", "**/*.user"]}]
+}

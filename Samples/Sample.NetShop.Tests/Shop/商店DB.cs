@@ -40,15 +40,15 @@ public sealed class 商店DB{
         商店.初期データを登録する();
         {
             //在庫がある間は空
-            Assert.Empty(商店.在庫切れ商品());
+            Assert.Empty(商店.在庫切れ商品);
         }
         {
             //在庫を使い切った商品だけが商品ID順に出る
             var 抹茶=初期データ.商品一覧[2];
             var 急須=初期データ.商品一覧[5];
             Assert.True(商店.注文確定(1,[new 注文行(急須.商品ID,急須.在庫数),new 注文行(抹茶.商品ID,抹茶.在庫数)],DateTime.Now).Result.成功か);
-            Assert.Equal([抹茶.商品ID,急須.商品ID],商店.在庫切れ商品().Select(行=>行.商品ID).ToArray());
-            Assert.Equal("在庫切れ商品",商店.在庫切れ商品().Name);
+            Assert.Equal([抹茶.商品ID,急須.商品ID],商店.在庫切れ商品.Select(行=>行.商品ID).ToArray());
+            Assert.Equal("在庫切れ商品",((global::Seamless.Database.View<global::Sample.NetShop.Core.Shop.Views.在庫切れ商品>)商店.在庫切れ商品).Name);
         }
     }
 

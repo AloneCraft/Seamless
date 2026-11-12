@@ -1,0 +1,112 @@
+@implements IAsyncDisposable
+@inject IJSRuntime スクリプト
+
+<link rel="stylesheet" href="./_content/Seamless.Management.Components/execution-plan.css"/>
+<section class="計画グラフ" aria-label="@表示文言.取得("実行計画グラフ")" data-モデルノード数="@this.配置.ノード.Length" data-モデル接続数="@this.配置.接続.Length" data-詳細ノード数="@this.詳細ノード.Length" data-簡略ノード数="@this.簡略ノード.Length" data-描画接続数="@this.描画接続.Length" data-簡略表示="@this.簡略表示か.ToString().ToLowerInvariant()">
+    <details class="図の読み方"><summary>@表示文言.取得("図の読み方")</summary><p>@表示文言.取得("ノードを選ぶと、この要素の意味、型、入力参照、記録されたC#式を確認できます。説明は演算の一般的な意味で、実際の条件・キーは対応コードに従います。")</p><p>@表示文言.取得("矢印は静的な依存関係です。線の色・破線は接続種別、太さは固定です。実行アニメーションはありません。")</p><p>@表示文言.取得("Resultは表示用のまとめです。実際の配列や戻り値の生成はToArrayなどの記録された演算で確認します。")</p></details>
+    <div class="計画グラフ操作">
+        <グラフ表示操作/>
+        <label>@表示文言.取得("表示層")
+            <select aria-label="@表示文言.取得("計画の表示層")" value="@this.表示層" @onchange="this.表示層変更時Async">
+                @foreach(var 層 in Enum.GetValues<計画表示層>()){
+                    <option value="@層">@表示文言.取得(層名(層))</option>
+                }
+            </select>
+        </label>
+        <label class="計画グラフ検索">@表示文言.取得("ノードを検索")<input type="search" aria-label="@表示文言.取得("ノードを検索")" value="@this.検索" @oninput="this.検索変更時" @onkeydown="this.検索キー時Async"/></label>
+        <button type="button" class="控えめボタン" disabled="@(this.一致.Count==0)" @onclick="this.次の一致時Async">@表示文言.取得("次の一致") <span>@this.一致.Count</span></button>
+        <div class="計画グラフ拡大">
+            <button type="button" class="控えめボタン" aria-label="@表示文言.取得("縮小")" title="@表示文言.取得("縮小")" disabled="@(!this.全体表示か&&this.倍率<=1)" @onclick="()=>this.倍率変更時Async(0.8)">−</button>
+            <span>@this.倍率表示</span>
+            <button type="button" class="控えめボタン" aria-label="@表示文言.取得("拡大")" title="@表示文言.取得("拡大")" disabled="@(!this.全体表示か&&this.倍率>=400)" @onclick="()=>this.倍率変更時Async(1.25)">＋</button>
+            <button type="button" class="控えめボタン" aria-label="@表示文言.取得("標準倍率100%に戻す")" title="@表示文言.取得("標準倍率100%に戻す")" @onclick="this.標準倍率時">100%</button>
+            <button type="button" class="控えめボタン" @onclick="this.全体表示時">@表示文言.取得("全体表示")</button>
+        </div>
+    </div>
+    @if(this.大規模か){
+        <p class="計画描画案内" role="status">@表示文言.取得("全{0}ノード・{1}接続。詳細{2}件、簡略{3}件を表示。検索と保存は全件が対象です。",this.配置.ノード.Length,this.配置.接続.Length,this.詳細ノード.Length,this.簡略ノード.Length) @表示文言.取得("接続は種別ごとの合成表示です。入力番号は詳細一覧で確認できます。")</p>
+    }
+    <div class="計画グラフ設定">
+        @foreach(var 種類 in this.利用接続種別){
+            <label><input type="checkbox" checked="@this.接続表示か(種類)" @onchange="引数=>this.接続表示変更時Async(種類,引数)"/>@表示文言.取得(接続名(種類))</label>
+        }
+        <label><input type="checkbox" @bind="this.補助線表示か" @bind:after="this.設定変更時Async"/>@表示文言.取得("表示用の集約線")</label>
+        <label><input type="checkbox" @bind="this.入力番号表示か" @bind:after="this.設定変更時Async"/>@表示文言.取得("入力番号")</label>
+        @if(this.計画.SchemaVersion<2){<span>@表示文言.取得("接続種別は未記録")</span>}
+    </div>
+    @if(this.配置.識別子重複か){<p class="計画グラフ警告" role="status">@表示文言.取得("識別子が重複した計画です。")</p>}
+    @if(this.配置.循環を含むか){<p class="計画グラフ警告" role="status">@表示文言.取得("循環を含むため、一部の配置順序は未確定です。")</p>}
+    @if(this.配置.不明な入力数>0){<p class="計画グラフ警告" role="status">@表示文言.取得("参照先のない入力が{0}件あります。",this.配置.不明な入力数)</p>}
+    @if(!this.計画.MetadataComplete){<p class="計画グラフ警告" role="status">@表示文言.取得("計画メタデータは一部です。省略ノード{0}件。",this.計画.OmittedNodeCount)</p>}
+    @foreach(var 診断 in this.計画.Diagnostics){<p class="計画グラフ警告" role="status">@診断</p>}
+    <div class="計画グラフ配置">
+        <div class="計画グラフ画面" @ref="this.画面" tabindex="0" role="region" aria-label="@表示文言.取得("計画キャンバス。背景をドラッグして移動できます。")">
+            <svg class="計画グラフ図" viewBox="@this.表示範囲" style="@this.図寸法" preserveAspectRatio="xMidYMin meet" role="group" aria-label="@表示文言.取得("上から下へ進む計画グラフ")">
+                <defs>
+                    <marker id="@this.入力矢印ID" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="none" stroke="#8a9684" stroke-width="1.2"/></marker>
+                    <marker id="@this.集約記号ID" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5"><circle cx="3.5" cy="3.5" r="2.5" fill="white" stroke="#6c8b7a"/></marker>
+                </defs>
+                @foreach(var 領域 in this.配置.領域){
+                    <g class="計画グラフ層">
+                        <rect x="@領域.X" y="8" width="@領域.幅" height="@領域.高さ" rx="12"/>
+                        <text x="@(領域.X+20)" y="36">@表示文言.取得(層名(領域.層))</text>
+                    </g>
+                }
+                @if(this.大規模か){
+                    @foreach(var 接続 in this.合成接続){
+                        <g class="計画入力参照 計画合成接続"><path class="@接続クラス(接続.種類)" d="@接続.経路" data-合成接続数="@接続.件数"><title>@表示文言.取得("{0}・{1}接続の合成表示",表示文言.取得(接続名(接続.種類)),接続.件数)</title></path></g>
+                    }
+                }else{
+                @foreach(var 接続 in this.描画接続){
+                        <g class="計画入力参照">
+                            <path class="@接続クラス(接続.種類)" d="@入力線(接続)" marker-end="@("url(#"+this.入力矢印ID+")")"><title>@表示文言.取得("{0} · {1} → {2}",表示文言.取得(接続名(接続.種類)),接続.入力.元.Id,接続.出力.元.Id)</title></path>
+                            @if(this.入力番号表示か){<g><text x="@(接続.出力.中心X+8)" y="@(接続.出力.Y-10-接続.入力番号*12)">@this.入力名(接続)</text></g>}
+                        </g>
+                }
+                }
+                @if(this.補助線表示か){
+                    @if(this.大規模か){<path class="計画集約参照" d="@this.集約経路"><title>@表示文言.取得("表示用の集約線")</title></path>}
+                    else{@foreach(var 元 in this.描画集約元){<path class="計画集約参照" d="@this.集約線(元)" marker-end="@("url(#"+this.集約記号ID+")")"><title>@表示文言.取得("表示用の集約線")</title></path>}}
+                }
+                @foreach(var ノード in this.簡略ノード){
+                    <rect @key="ノード.元.Id" class="計画簡略ノード" x="@ノード.X" y="@ノード.Y" width="@計画配置ノード.幅" height="@計画配置ノード.高さ" rx="8" role="button" tabindex="-1" data-ノード-id="@ノード.元.Id" data-選択中="@((this.選択ID==ノード.元.Id).ToString().ToLowerInvariant())" data-検索一致="@this.検索状態(ノード.元.Id)" aria-label="@表示文言.取得("{0}、ノード{1}",ノード.元.Label,ノード.元.Id)" @onclick="()=>this.ノード選択時Async(ノード.元)"><title>@this.ノード説明(ノード.元)</title></rect>
+                }
+                @foreach(var ノード in this.詳細ノード){
+                    <foreignObject @key="ノード.元.Id" x="@ノード.X" y="@ノード.Y" width="@計画配置ノード.幅" height="@計画配置ノード.高さ">
+                        <button xmlns="http://www.w3.org/1999/xhtml" type="button" class="計画グラフノード" data-ノード-id="@ノード.元.Id" data-選択中="@((this.選択ID==ノード.元.Id).ToString().ToLowerInvariant())" data-検索一致="@this.検索状態(ノード.元.Id)" aria-pressed="@((this.選択ID==ノード.元.Id).ToString().ToLowerInvariant())" aria-label="@表示文言.取得("{0}、ノード{1}",ノード.元.Label,ノード.元.Id)" title="@this.ノード説明(ノード.元)" @onclick="()=>this.ノード選択時Async(ノード.元)">
+                            <small>@ノード.元.Kind <code>#@ノード.元.Id</code></small>
+                            <strong>@ノード.元.Label</strong>
+                            <span>@this.型表示(ノード.元)</span>
+                        </button>
+                    </foreignObject>
+                }
+                <foreignObject x="@this.配置.結果X" y="@this.配置.結果Y" width="@計画配置ノード.幅" height="@計画配置ノード.高さ">
+                    <button xmlns="http://www.w3.org/1999/xhtml" type="button" class="計画グラフノード 計画表示結果" aria-label="@表示文言.取得("表示用Result")" @onclick="()=>this.ノード選択時Async(null)"><small>@表示文言.取得("表示用の補助ノード")</small><strong>Result</strong><span>@表示文言.取得("入力参照グラフの表示上のまとめ")</span></button>
+                </foreignObject>
+            </svg>
+        </div>
+        <aside class="計画グラフ詳細" aria-label="@表示文言.取得("ノード詳細")">
+            @if(this.選択ノード is{} 選択){
+                <header><small>@選択.Kind · #@選択.Id</small><h4>@選択.Label</h4></header>
+                <計画要素説明 ノード="選択"/>
+                @if(選択.SourcePath is{} パス){<p class="計画グラフソース"><code>@パス</code><span>@表示文言.取得("開始 {0} · 長さ {1}",選択.Start,選択.Length)</span></p>}
+                <dl><dt>@表示文言.取得("出力型")</dt><dd>@this.型表示(選択)</dd><dt>@表示文言.取得("NULL許容性")</dt><dd>@表示文言.取得(NULL許容名(選択))</dd><dt>@表示文言.取得("推定コスト")</dt><dd>@表示文言.取得("計画に記録なし")</dd><dt>@表示文言.取得("ノード別実績")</dt><dd>@if(実測データ?.NodeQuantities?.Any(値=>値.Node.NodeId==選択.Id)==true){@表示文言.取得("物理消費区間の実測")}else{@表示文言.取得(計測状態名(選択))}</dd></dl>
+                <ノード実測表示 データ="実測データ" 数量="@(実測データ?.NodeQuantities?.Where(値=>値.Node.NodeId==選択.Id).ToArray()??[])"/>
+                @if(選択.Inputs.Length>0){<h5>@表示文言.取得("記録された入力参照")</h5><ul>@foreach(var ID in 選択.Inputs){<li><code>#@ID</code></li>}</ul>}
+                @if(this.大規模か){
+                    var 入力接続=this.配置.接続.Where(接続=>接続.出力.元.Id==選択.Id).ToArray();
+                    @if(入力接続.Length>0){<h5>@表示文言.取得("記録された入力参照")</h5><ul>@foreach(var 接続 in 入力接続.Take(128)){<li>@接続.入力.元.Id · @this.入力名(接続) · @表示文言.取得(接続名(接続.種類))</li>}</ul>}
+                    @if(入力接続.Length>128){<p>@表示文言.取得("入力接続は先頭128件を表示しています。全件は保存資料で確認できます。")</p>}
+                }
+                @if(選択.Properties.Count>0){<h5>@表示文言.取得("記録されたプロパティ")</h5><dl class="計画グラフプロパティ">@foreach(var 項目 in 選択.Properties){<dt>@項目.Key</dt><dd>@項目.Value</dd>}</dl>}
+            }else{
+                <h4>@表示文言.取得("表示用Result")</h4><p>@表示文言.取得("入力参照グラフを表示上でまとめます。実際の出力対応は未記録です。")</p><p>@表示文言.取得("ノードを選択すると、型・入力参照・ソース位置を確認できます。")</p>
+            }
+        </aside>
+    </div>
+    <div class="計画グラフ凡例" aria-label="@表示文言.取得("凡例")">
+        <span>@表示文言.取得("矢印は静的な依存関係です。線の色・破線は接続種別、太さは固定です。実行アニメーションはありません。")</span>
+        @foreach(var 種類 in this.利用接続種別){<span class="計画凡例入力"><svg class="計画入力参照" aria-hidden="true" viewBox="0 0 30 12"><path class="@接続クラス(種類)" d="M2 6 H28"/></svg>@表示文言.取得(接続名(種類))</span>}
+        <span class="計画凡例集約"><svg aria-hidden="true" viewBox="0 0 30 12"><path class="計画集約参照" d="M2 6 H25"/><circle cx="26" cy="6" r="2.5" fill="white" stroke="#6c8b7a"/></svg>@表示文言.取得("点線と丸は表示用の集約")</span><span>@表示文言.取得("左右は記録順。配置は実行時刻を表しません。")</span>
+    </div>
+</section>

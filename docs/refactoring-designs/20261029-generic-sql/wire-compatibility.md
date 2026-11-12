@@ -1,7 +1,23 @@
 # 実クライアントの通信検証
 
 ## 現在の判定
-世代 `20261030T032530680Z-3b7609ad`（package `0.0.0-ssms.20261030031940904`）はValidatedとなり稼働中である。AdventureWorks2016とfixtureの計94対象で取り込み全値とTDS全値・metadataが一致し、基本SQL・生成関数・SQL/native比較も成功した。一方、利用者の実SSMSではDB一覧にAdventureWorksが表示されず、`Server/Database/Option` の取得時に `RPC data type 0x63 is not supported` が記録された。既存の限定したSMO API試験の成功を、この画面の合格とは扱わない。値を空文字・切り捨てに置き換えない。
+利用者の実SSMSではビュー、スカラー関数、テーブル値関数の表示が確認された（旧世代 `20261030T170515471Z-f029782f`）。ストアドとテーブルの展開は、2026-10-31 06:54 JSTの実ログで6一覧SQLの成功後に `ServerComparer` 初期化の `COLLATIONPROPERTY` が未対応となり失敗していた。両フォルダだけが比較器を使うことは「並べ替え比較器を必要とするフォルダ」に記す。旧版パッケージを参照する小fixtureでは、実画面と同じ新しい接続で比較器を作ると同じ `FunctionCall` エラーで表・ストアド両フォルダが失敗し、`COLLATIONPROPERTY` 対応版では両フォルダが成功することを確認した（`F:/CodexTemp/claude-ssms-20261101/fixture-202610310215/`、`fixture-202610310710/`）。
+
+修正版世代 `20261031T153019615Z-67352304`（package `0.0.0-ssms.comparer.202610310710`）を2026-11-01 01:03 JSTに14333へ反映した（サーバーPID 5004）。実データ94対象のTDS全値照合、SQL・ネイティブ75ケース、生成DB受け入れ8項目、元DB一覧の再確認が成功した。候補14343番では別プロセスで2回起動・正常終了し、どちらも次を確認した。実SSMS SDKの一覧27要求と比較器・フォルダ並べ替えが、master開始とAdventureWorks2016指定開始の両方で比較元と一致した。比較器はLCID 1033とIgnoreCase/IgnoreKanaType/IgnoreWidthで、表71件・ストアド10件の並べ替え順も一致した。SMOの表71/ビュー20/ストアド10/関数11、共通Basic.sqlの4結果、生成メソッド21件（実装済み3件、残りはスタブ）も一致した。ストアド一覧の `CreateDate` は、生成世代がルーチンの作成日時を保持しないためNULLであり、元SQL Serverと異なる。ObjectExplorer.dllのストアドノード構築はこの列を読まないので表示条件ではないが、値の差として比較から明示的に除外して記録した。証跡は `F:/CodexTemp/claude-ssms-20261101/candidate-03/`、`candidate-04/`。
+
+反映後の14333でも同じ一覧・比較器・フォルダ並べ替え、SMOカタログ、Basic.sqlの4結果（20・67・20・290行）、生成メソッド21件の対応、パッケージ利用EXEによる共通SQLの比較が成功した（`F:/CodexTemp/claude-ssms-20261101/live/`）。
+
+2026-11-01に利用者が実SSMSで14333へ再接続し、AdventureWorks2016のテーブル一覧、ストアド10件（先頭 `dbo.uspGetBillOfMaterials`）、ビュー20件、テーブル値関数1件・スカラー関数10件の表示を画面で確認した。テーブル一覧は画面に収まる範囲だけを見ており、71件全数は画面では数えていない。接続時の「ポリシーの正常性状態をサーバー レベルで表示できません」は、`HAS_DBACCESS('msdb')`=0 に対するSSMSの通知だった。利用者の依頼で、この照会を1にして通知が出ないようにした（「msdb管理機能の可用性と接続時のDBNull」）。Basic.sqlと生成メソッドの実SSMSでの実行は利用者から未報告で、上記の自動照合のみである。
+
+直前世代の実SSMSログでは、テーブル一覧の `create_date` とビュー・ルーチン一覧の `sys.database_principals` が不足していた。SQL Serverから取得した作成日時とオブジェクト所有者を生成世代へ保持し、カタログおよび `OBJECTPROPERTY(..., 'OwnerId')` へ反映した。実SDK要求に該当項目を加え、比較元・候補・14333で照合した。証跡は `F:/CodexTemp/SsmsMetadata-source-values-20261031/`、`F:/CodexTemp/SsmsCandidate-metadata-20261031/`、`F:/CodexTemp/SsmsMetadata-active-20261031/`。
+
+前世代 `20261030T133801165Z-bfb6f96b` の実画面ではDB一覧の `dtb.owner_sid` 欠落が判明した。旧SDK試験は親DBのOwnerを要求しておらず、画面と同等ではなかった。所有者SIDとその名前解決を対応し、Ownerを追加した実SDK要求とTDS回帰を修正前失敗・修正後成功で検証した。Seamlessの現行profileでは所有者をsaとする。証跡は `F:/CodexTemp/SsmsOwner-repro-20261030/`、`SsmsCandidate-owner-20261030/`、`SsmsOwner-live-20261030/`。
+
+旧候補 `20261030T072449547Z-3ea483bf` はSharedV2復旧で失敗したため `Rejected` を維持する。復旧前に開いただけのDBを閉じる際のチェックポイント保存を抑制し、修正前に失敗する永続化回帰を追加した。取引テストはDebug/Release各32件、Gatewayは各136件が成功した。新世代はSDK診断サーバーの停止後に再起動して切替を完了した。証跡は `F:/CodexTemp/ssms-c12-regression-20261030/` と `F:/CodexTemp/SsmsC12fix-live-20261030/`。
+
+候補のfixtureではcheckpoint LSNが9から0へ後退し、保持WALの復旧可能範囲3～9を外れていた。別の新規隔離DBで1行commit後に正常再開を2回確認し、Tableハンドルの準備だけを行ってread/transactionなしでDisposeしたところ、checkpoint LSNが1から0へ後退した。その次の独立プロセスで同じWAL coverageエラーを再現した。基準データは排他確認とSHA256照合を行ってバックアップし、既存DBは変更していない。証跡は `F:/Seamless/Comparison/Diagnostics/wal-uninitialized-dispose-20261030-0904/`。候補世代の個々のDispose呼び出しを追跡したわけではないが、観測した記録と再現した経路は一致する。SQL runtimeの早期storage初期化とC12のSharedV2ライフサイクルの境界として扱い、WAL coverage検査を緩和したり候補データを書き換えたりしない。
+
+旧世代 `20261030T032530680Z-3b7609ad`（package `0.0.0-ssms.20261030031940904`）では、利用者の実SSMSのDB一覧にAdventureWorksが表示されず、`Server/Database/Option` の取得時に `RPC data type 0x63 is not supported` が記録された。SDK試験の成功を実画面の合格とは扱わない。値を空文字・切り捨てに置き換えない。
 
 ## DB一覧とOption照会の相互運用
 NTEXT（0x63）のRPC入力は、最大バイト長、collation、実バイト長、UTF-16値を順に読み取る。NULL、空文字、長さ不正、後続パラメーター、`sp_executesql` のSQL本文自体をNTEXTにする場合を実SqlClientで検証する。ROW出力のtext pointer形式はRPC入力へ混在させない。
@@ -25,9 +41,20 @@ SQL Server用カタログの問い合わせでは、SERVERPROPERTYの既知profi
 
 表・ビュー・ストアド・関数の表示用に、未提供機能の無効状態と空のextended_properties/system_sql_modules/data_spaces、all_sql_modulesの別名を提供する。元のXML/空間列の有無は列型から評価する。主キーなし表にもheap行を返し、SSMSのsys.indexesとのINNER JOINで表を消さない。既存の主キーID・型の対応は維持する。これらのカタログは互換表示用の論理情報であり、SQL Serverの物理索引・partition・Ledger実装の同一性を示さない。
 
+現行profileがテンポラル、メモリ最適化、Ledger、FileTableを提供しないことに対応し、`sys.tables` の履歴IDはNULL、durabilityと削除済みLedgerフラグは0、`sys.views` の削除済みLedgerフラグは0とする。FileTable一覧の既知の準備・SELECT・後片付けは全体の形を確認し、空の型付き導出表を用いてSELECTを共通エンジンで評価する。一般的な一時表DDLを許可するものではない。実SSMS SDK由来の各一覧のSQLは製品内テンプレートとは別の `Tests/Seamless.Database.Gateway.Tests/SsmsCorpus` に保持し、空結果でも実SqlClientで実行する。Debug/Release各156件成功（skip 0）後、SELECT改変拒否の追加回帰も両構成で成功した。SDKの結果は `F:/CodexTemp/SsmsHierarchy-candidate-restart-20261031/`、`F:/CodexTemp/SsmsHierarchy-live-comparison-20261031.json`、`F:/CodexTemp/SsmsHierarchy-live-initial-db-comparison-20261031.json` に保存する。
+
 階層定義相当のSFC要求5種（親DB＋Option、Table160、View160、Procedure120、Functions）は、比較元で成功し、旧候補ではDECLARE/カタログ不足で5種とも失敗した。修正後の実TDS試験とGateway全136件はDebug/Release各136件成功、skip 0。さらに実SSMS SDKが16.0向けに生成する要求5種がsource診断とPackageReferenceだけのfixtureの両方で成功した。製品依存12件がpackage `0.0.0-ssms.20261030070500980` のローカルフィード由来であることを確認した。証跡は`F:/CodexTemp/SfcObjectExplorer-source-01/`、`SfcObjectExplorer-v16-before/`、`SfcObjectExplorer-source-server-01/`、`SmoObjectExplorerPackage-v17-process/`、`SsmsLockTimeout/object-explorer-all-{debug,release}-01.trx`。小fixtureの成功は実データ全件検証・14333反映・利用者の実画面成功と別の判定である。
 
-稼働情報は `D:/Seamless/Comparison/Managed/active.json`、検証結果は同管理領域の `generations/20261030T032530680Z-3b7609ad/validation.json` に保存する。利用者指示により共有調停器を使用せず、所有する比較処理とサーバーは共通のaffinity `0xFF`（最大8論理CPU）で実行する。外部のSQL ServerサービスのCPU制限を変更したという意味ではない。
+### 並べ替え比較器を必要とするフォルダ
+同じ定義では、`ItemComparer` を持つフォルダだけが子要求の結果を連結した後に `ServerComparer(new ServerConnection(新しいSqlConnection), DB名)` を作り、表示名（`Schema.Name`）を並べ替える。SQL Server 16.0向けでは表（`UserTableSchemaView160` の6子要求）とストアド（`UserStoredProcedureSchemaView120` の通常・ネイティブ2子要求）が該当し、ビューと関数の各フォルダは該当しない。`NonContextFilterNavigableItemBuilder.Build` は比較器生成時の `SqlTypeException` しか捕捉しないため、比較器のSQLが失敗するとフォルダ全体が展開できない。2026-10-31 06:54 JSTの実ログの `FunctionCall` 失敗と「ビュー・関数は表示されるがストアドは表示されない」という利用者の観測は、この構造と一致する。
+
+比較器は `COLLATIONPROPERTY((select collation_name from sys.databases where name = ISNULL(@dbname, db_name())), 'LCID'/'ComparisonStyle')` を `@dbname` 付きの `sp_executesql` で送り、`GetInt32` で読む。Seamlessは `COLLATIONPROPERTY` を既存のルーチン解決（`sys`）へ接続し、共通エンジンが扱う6照合順序についてSQL Server実機の値（Japanese_CI_AS=1041/196609、SQL_Latin1_General_CP1_CI_ASとLatin1_General_100_CI_AS=1033/196609、BIN2系3種=1033/0）を返す。NULL入力はNULL、それ以外の照合順序・属性は40515で拒否する。SQL Serverの戻り値は `sql_variant` だがSeamlessは `int` を返し、SQL Serverが未知の名前にNULLを返す場合も明示拒否とする。全属性対応ではない。
+
+SDK試験 `Work/TestSeamless/Probe-SfcObjectExplorerRequests.ps1` は、一覧要求に加えて実画面と同じ新しい接続で比較器を生成し、非公開の `CultureInfo`/`CompareOptions` を反射で記録し、表・ストアドの各フォルダの連結と並べ替えまでを判定する。旧版の比較器記録は非公開プロパティを読めず値が空であり、同じ接続上での生成だったため、実画面の経路とは別物だった。
+
+`sp_executesql` の引数型は、SQL Serverと同じく宣言文を優先する。`@dbname` がNULLのとき、SqlClientは値の型情報を1文字の `nvarchar` で送り宣言文には長い型を書くため、以前は `ISNULL(@dbname, db_name())` が1文字に切り詰められた。宣言文が読めない・宣言にない名前だけ値の型情報へ戻す。NULLのDB名の経路を試験へ加え、修正前失敗・修正後Debug/Release 161件成功を確認した。この修正を含む世代 `20261031T194841947Z-dc9298b8`（package `0.0.0-ssms.nulldb.202611010100`）を2026-11-01に14333へ反映した（サーバーPID 42444）。候補14343番と反映後の14333の両方で、実SSMS SDKの一覧・比較器・フォルダ並べ替え、SMOカタログ、Basic.sqlの4結果（20・67・20・290行）、パッケージ利用EXEの比較が成功した（`F:/CodexTemp/claude-ssms-20261101/candidate-05/`、`live/`）。この世代の実SSMS画面は利用者の再確認待ち。さらに `HAS_DBACCESS('msdb')`=1 の改訂を含む世代 `20261031T225058762Z-75394071`（package `0.0.0-ssms.msdb.202611010800`）を同日14333へ反映した（サーバーPID 51380）。候補14343番と反映後の14333で、一覧・比較器・Basic.sql 4結果・生成メソッド21件の照合が成功した（`F:/CodexTemp/claude-ssms-20261101/candidate-06/`、`live/`）。接続時の通知が消えたかは実SSMSで未確認。
+
+稼働情報は `D:/Seamless/Comparison/Managed/active.json`、検証結果は同管理領域の `generations/20261031T153019615Z-67352304/validation.json` および `wire-validation.json` に保存する。利用者指示により共有調停器を使用せず、所有する比較処理とサーバーは共通のaffinity `0xFF`（最大8論理CPU）で実行する。外部のSQL ServerサービスのCPU制限を変更したという意味ではない。
 
 ## 修正・確認済み
 | 項目 | 観測した原因と変更 | 検証 |
@@ -133,7 +160,7 @@ PackageReferenceのみのfixtureは12製品依存の版/フィードを照合し
 
 原因は、正常SQL Serverの実採取にも含まれる`select has_dbaccess('msdb')`だった。インストール済みSSMSの`ObjectExplorer.dll`を読み取り確認すると、`NavigableItem.get_IsMsdbDatabaseAccessible`は同SQLのExecuteScalar結果が参照nullでなければConvert.ToInt32へ渡す。SQL NULLのDBNullはこの条件を通過し、利用者と同じ例外になる。DLL内の観測は`F:/CodexTemp/SsmsMsdbConsumerIl-process/`、修正前の2件のInvalidCast再現は`F:/CodexTemp/SsmsMsdbAccess-source-before-process/`に保存する。
 
-GatewayのSQL Server互換profileでは、未提供のmsdb管理機能へのアクセス照会を0（利用不可）とする。任意の未知DBを0へ変えない。NULL引数と未知のユーザーDB名はNULL、実登録名とmasterは1、未登録msdbだけ0とし、msdbを明示登録した場合は登録状態の1を優先する。これは管理機能の能力照会についての限定互換であり、任意の未登録DBについてSQL Serverの完全な戻り値互換を主張しない。偽のmsdbデータ/カタログ行を追加せず、SQL文字列や別名ごとの応答にも分けない。
+【2026-11-01改訂】GatewayのSQL Server互換profileでは、`HAS_DBACCESS('msdb')` を1とする。理由: インストール済みSSMSの `NavigableItem.IsPolicyHealthStateSupported` は、この値が1でなければ接続のたびに `PolicyHealthStateRequiresMsdbAccess` のエラーを表示する（`F:/CodexTemp/claude-ssms-20261101/pol/oe-src/`の逆コンパイルで確認）。この値を読むのはその判定だけである。msdbの管理機能（ポリシー管理・エージェント等）自体は未提供のままで、利用するとエラーになる。以前の「0（利用不可）」の記述は、この改訂で置き換えた。任意の未知DBは変えない。NULL引数と未知のユーザーDB名はNULL、実登録名・master・msdbは1とする。これは管理機能の能力照会についての限定互換であり、任意の未登録DBについてSQL Serverの完全な戻り値互換を主張しない。偽のmsdbデータ/カタログ行を追加せず、SQL文字列や別名ごとの応答にも分けない。
 
 同じSQL→整数変換と、同一キャッシュ計画でのmsdbの0→登録後1を追加し、Debug/Release各69件成功、skip 0（`F:/CodexTemp/SsmsLockTimeout/msdb-access-final-{Debug,Release}.trx`）。独立レビューでも具体的な追加欠陥は指摘されなかった。19製品パッケージ`0.0.0-ssms.20261030031940904`のPackageReferenceだけのSMO fixtureでも、msdb照会の整数変換・ユーザー/非snapshot列挙・接続設定一式が成功した（`F:/CodexTemp/SmoDatabaseList-v14-process/`）。新世代`20261030T032530680Z-3b7609ad`は取り込み/TDS94対象、SQL/native75ケース、生成受け入れ8項目、CRUD・取引・準備済みRPC、元DB一覧の再確認に成功してValidatedとなった。
 

@@ -6,6 +6,9 @@ namespace Seamless.Collections.Tsavorite;
 /// </summary>
 public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
     ISessionFunctions<TValue,bool,EqualityEmpty> where TStrategy : global::Seamless.Collections.Serializers.IStrategy<TValue> {
+    private readonly StoreSerializer<TValue,TStrategy> serializer;
+    public Remove_KeyValuePair():this(null){}
+    public Remove_KeyValuePair(global::Seamless.Execution.ResourceBudget? budget){this.serializer=new(budget);}
     [ExcludeFromCodeCoverage]
     public bool Reader<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input,ref bool output,ref ReadInfo readInfo) where TSourceLogRecord : ISourceLogRecord =>
     // Read 経路はこの処理では使用しない。
@@ -25,7 +28,7 @@ public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
     }
     // 削除操作の動作を検証する。
     public bool InPlaceUpdater(ref LogRecord logRecord,ref TValue input,ref bool output,ref RMWInfo rmwInfo) {
-        var storedValue = TStrategy.Deserialize(logRecord.ValueSpan);
+        var storedValue = this.serializer.Deserialize(logRecord.ValueSpan);
         if(EqualityComparer<TValue>.Default.Equals(storedValue,input)) {
             output=true;
             rmwInfo.Action=RMWAction.ExpireAndStop;
@@ -39,7 +42,7 @@ public readonly struct Remove_KeyValuePair<TValue, TStrategy>:
     }
     // CopyUpdater は false を返すため到達しない。
     public bool NeedCopyUpdate<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref TValue input,ref bool output,ref RMWInfo rmwInfo) where TSourceLogRecord : ISourceLogRecord {
-        var storedValue = TStrategy.Deserialize(srcLogRecord.ValueSpan);
+        var storedValue = this.serializer.Deserialize(srcLogRecord.ValueSpan);
         return EqualityComparer<TValue>.Default.Equals(storedValue,input);
     }
     public bool CopyUpdater<TSourceLogRecord>(in TSourceLogRecord srcLogRecord,ref LogRecord dstLogRecord,in RecordSizeInfo sizeInfo,ref TValue input,ref bool output,ref RMWInfo rmwInfo) where TSourceLogRecord : ISourceLogRecord {

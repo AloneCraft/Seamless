@@ -1,0 +1,23 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Seamless.Database.Gateway.Hosting;
+using Seamless.Database.Gateway.Native;
+using Seamless.Database.Rdbms;
+
+if(args.Length!=1){throw new ArgumentException("Usage: Seamless.DataGrip.Server <configuration.json>");}
+var json=new JsonSerializerOptions{PropertyNameCaseInsensitive=true,Converters={new JsonStringEnumConverter()}};
+var configuration=JsonSerializer.Deserialize<Configuration>(await File.ReadAllTextAsync(args[0]),json)??throw new InvalidDataException("Missing configuration.");
+foreach(var path in new[]{configuration.StorageDirectory,configuration.WorkingDirectory,configuration.CacheDirectory,configuration.ReadyFile,configuration.StopFile}){if(!Path.IsPathFullyQualified(path)){throw new ArgumentException("Use absolute storage, work, cache, ready and stop paths.");}}
+var references=Directory.EnumerateFiles(AppContext.BaseDirectory,"*.dll").Where(static path=>Path.GetFileName(path).StartsWith("Seamless.",StringComparison.Ordinal)&&!Path.GetFileName(path).Contains("Generator",StringComparison.Ordinal)||Path.GetFileName(path).StartsWith("MemoryPack",StringComparison.Ordinal)).ToArray();
+var builder=new GeneratedAssemblyBuilder(new(configuration.WorkingDirectory,configuration.CacheDirectory,configuration.DotNetExecutable,configuration.GeneratorAssemblyPath,references));
+using var host=await GatewayDatabaseHost.OpenAsync(configuration.StorageDirectory,builder,configuration.DatabaseOptions,configuration.InitialCatalogs);
+using var server=new NativeToolsServer(host.Databases,configuration.Port);server.Start();
+await File.WriteAllTextAsync(configuration.ReadyFile,JsonSerializer.Serialize(new{pid=Environment.ProcessId,createdUtc=System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime(),port=server.Port,url="jdbc:seamless://127.0.0.1:"+server.Port+"/"+configuration.InitialCatalogs[0].Name}));
+Console.WriteLine("Seamless native tools: "+server.Port);
+while(!File.Exists(configuration.StopFile)){await Task.Delay(250);}
+
+internal sealed record Configuration(string StorageDirectory,string WorkingDirectory,string CacheDirectory,string GeneratorAssemblyPath,string ReadyFile,string StopFile,IReadOnlyList<DatabaseCatalog> InitialCatalogs){
+    public int Port{get;init;}
+    public string DotNetExecutable{get;init;}="C:/Program Files/dotnet/dotnet.exe";
+    public Seamless.Database.DatabaseContainerOptions DatabaseOptions{get;init;}=new(){IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20};
+}

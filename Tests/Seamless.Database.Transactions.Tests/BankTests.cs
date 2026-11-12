@@ -7,13 +7,18 @@ internal static partial class DatabaseGenerator;
 public sealed partial class BankDatabase(DatabaseContainerOptions options):DatabaseContainer(options){
     public Table<int,Account> Accounts=>this.Table<int,Account>(static account=>account.Id);
     public MaterializedView<int,Account> Summaries=>this.MaterializedView<int,Account>(static account=>account.Id);
+    // Gatewayの版付き実行(共通の取引の中)で実体化ビューへ行を入れるための入口。
     public void LoadSummary(Account row)=>AddMaterializedViewRow(this.Summaries,row);
+}
+// 実体化ビュー(Summaries)の行は取込で入れる。
+internal sealed class SummarySource(params Account[] rows):IDatabaseImportSource{
+    public IEnumerable<TRecord> ReadTable<TRecord>(global::Seamless.Database.System.Keys.DatabaseObject key)=>key.Name=="Summaries"?(IEnumerable<TRecord>)(object)rows:[];
 }
 public sealed class BankTests{
     private static DatabaseContainerOptions Options(string? directory=null){
         var options=DatabaseContainerOptions.InMemory;
         if(directory is not null){options=DatabaseContainerOptions.OnStorage(directory);}
-        return options with{Transactions=DatabaseTransactionMode.SharedV2,IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20};
+        return options with{IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20};
     }
     [Fact]public async Task GeneratedIndexerTransferAndJoinedScopes(){
         using var database=new BankDatabase(Options());
@@ -32,7 +37,7 @@ public sealed class BankTests{
         }
         Assert.Equal(60,database.Accounts[1].Balance);Assert.Equal(100,database.Accounts.Sum(static row=>row.Balance));
         using(var transaction=database.BeginTransaction()){
-            database.Accounts[1]=new(1,50);transaction.Commit();
+            transaction.Accounts[1]=new(1,50);transaction.Commit();
         }
         Assert.Equal(50,database.Accounts[1].Balance);
     }
@@ -40,7 +45,7 @@ public sealed class BankTests{
         var path=Path.Combine(Path.GetTempPath(),"Seamless.C12.Bank",Guid.NewGuid().ToString("N"));Guid id;long lsn;
         try{
             using(var database=new BankDatabase(Options(path))){
-                using(var load=database.BeginTransaction()){database.LoadSummary(new(1,10));load.Commit();}
+                using(var load=database.BeginTransaction()){load.ImportTablesAsync(new SummarySource(new Account(1,10))).GetAwaiter().GetResult();load.Commit();}
                 await using var transaction=await database.BeginTransactionAsync();id=transaction.Id;transaction.Accounts.Add(new(1,123));lsn=(await transaction.CommitAsync()).Lsn;
                 await database.CheckpointTransactionsAsync();
             }
@@ -53,14 +58,27 @@ public sealed class BankTests{
             using(var database=new BankDatabase(Options(path))){Assert.Equal(TransactionOutcomeKind.Unknown,(await database.GetTransactionOutcomeAsync(id)).Kind);Assert.Equal(123,database.Accounts[1].Balance);}
         }finally{if(Directory.Exists(path)){Directory.Delete(path,true);}}
     }
-    [Fact]public async Task LegacyModeRejectsSharedMaintenanceAndPreservesLegacyTransactions(){
-        using var database=new BankDatabase(Options() with{Transactions=DatabaseTransactionMode.Legacy});
-        await Assert.ThrowsAsync<InvalidOperationException>(async()=>await database.GetTransactionOutcomeAsync(Guid.NewGuid()));
-        await Assert.ThrowsAsync<InvalidOperationException>(async()=>await database.ForgetTransactionOutcomesThroughAsync(0));
-        await Assert.ThrowsAsync<InvalidOperationException>(async()=>await database.CheckpointTransactionsAsync());
-        await Assert.ThrowsAsync<InvalidOperationException>(async()=>await database.BeginTransactionAsync());
-        using(var transaction=database.BeginTransaction()){database.Accounts.Add(new(1,100));transaction.Commit();}
-        Assert.Equal(100,database.Accounts[1].Balance);
+    [Fact]public void UninitializedPersistentDatabaseClosePreservesCommittedRows(){
+        var path=Path.Combine(Path.GetTempPath(),"Seamless.C12.Bank",Guid.NewGuid().ToString("N"));
+        try{
+            using(var database=new BankDatabase(Options(path))){
+                using var transaction=database.BeginTransaction();transaction.Accounts.Add(new(1,123));transaction.Commit();
+            }
+            using(var database=new BankDatabase(Options(path))){Assert.Equal(123,database.Accounts[1].Balance);}
+            using(var database=new BankDatabase(Options(path))){Assert.Equal(123,database.Accounts[1].Balance);}
+            using(var database=new BankDatabase(Options(path))){_ = database.Accounts;}
+            using(var database=new BankDatabase(Options(path))){Assert.Equal(123,database.Accounts[1].Balance);}
+        }finally{if(Directory.Exists(path)){Directory.Delete(path,true);}}
+    }
+    [Fact]public void UninitializedNewPersistentDatabaseCanBeReopened(){
+        var path=Path.Combine(Path.GetTempPath(),"Seamless.C12.Bank",Guid.NewGuid().ToString("N"));
+        try{
+            using(var database=new BankDatabase(Options(path))){_ = database.Accounts;}
+            using(var database=new BankDatabase(Options(path))){
+                using var transaction=database.BeginTransaction();transaction.Accounts.Add(new(1,123));transaction.Commit();
+            }
+            using(var database=new BankDatabase(Options(path))){Assert.Equal(123,database.Accounts[1].Balance);}
+        }finally{if(Directory.Exists(path)){Directory.Delete(path,true);}}
     }
     [Fact]public async Task CompetingUpdatesAreSerializedAndIncompleteJoinedScopeAborts(){
         using var database=new BankDatabase(Options());

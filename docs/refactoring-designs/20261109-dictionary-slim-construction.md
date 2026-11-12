@@ -1,0 +1,15 @@
+# DictionarySlimの引数なし構築
+
+## 観察と契約
+
+CoreCarrierOptimizationTests.DictionarySlimRetainsOrderWhenLateCollisionsSwitchBucketsは、固定済み旧生成器と修正後生成器の両方で、最初の追加時にNullReferenceExceptionとなった。DictionarySlimはstructで、比較子を省略可能とするコンストラクターだけを宣言している。引数なしのnewは値型の既定の初期化を選び、比較子・配列・しきい値が未初期化となる。
+
+## 修正方針
+
+明示的な引数なしコンストラクターから、既存の比較子指定コンストラクターへnullを渡す。既存のArrayPool・既定比較子・バケット初期化を共用する。追加順、検索、衝突時のバケット切り替え、プール返却を既存の試験で確認する。
+
+## 確認方法と合意
+
+W01〜W21の全残件実装指示に含まれる既存の失敗修正として実施する。修正前の二つのTRXを証拠とし、同じテストをDebug・Releaseで再実行する。既存の最適化全体の失敗と、この構築経路の修正を分けて記録する。
+
+修正後は近接1件が成功し、関連43件を加えたWindows Debug・Release各44件も成功した。dictionary-construction-debugとdictionary-construction-regressionへTRXを保存した。Linuxのこの構築経路は別の確認として残す。

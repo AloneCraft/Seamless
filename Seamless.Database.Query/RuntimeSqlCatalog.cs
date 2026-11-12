@@ -25,9 +25,9 @@ public sealed class RuntimeSqlCatalog{
     public long SchemaRevision{get{using var scope=this.owner.BeginReadSession();return this.ReadState().Revision;}}
     public IEnumerable<RuntimeSqlTable> Tables=>this.EnumerateTables();
     private IEnumerable<RuntimeSqlTable> EnumerateTables(){using var scope=this.owner.BeginReadSession();_=this.ReadState();foreach(var record in this.catalog){if(record.Key.Id==0){continue;}var definition=DecodeDefinition(record);if(!definition.Dropped){yield return Public(definition);}}}
-    public RuntimeSqlTable? FindTable(string schema,string name){ValidateName(schema);ValidateName(name);using var scope=this.owner.BeginReadSession();_=this.ReadState();var found=this.Lookup(schema,name);return found is null?null:Public(found);}
+    public RuntimeSqlTable? FindTable(string schema,string name){ValidateSchema(schema);ValidateName(name);using var scope=this.owner.BeginReadSession();_=this.ReadState();var found=this.Lookup(schema,name);return found is null?null:Public(found);}
     public RuntimeSqlTable CreateTable(string schema,string name,IReadOnlyList<RuntimeSqlColumn> columns){
-        this.RequireTransaction();ValidateName(schema);ValidateName(name);var validated=ValidateColumns(columns);if(this.Lookup(schema,name) is not null){throw new InvalidOperationException("Table already exists.");}
+        this.RequireTransaction();ValidateSchema(schema);ValidateName(name);var validated=ValidateColumns(columns);if(this.Lookup(schema,name) is not null){throw new InvalidOperationException("Table already exists.");}
         var count=0;foreach(var item in this.catalog){if(item.Key.Id!=0&&!DecodeDefinition(item).Dropped&&++count>=MaxTables){throw new InvalidOperationException("Runtime table limit reached.");}}
         var state=this.ReadState();var id=state.NextObjectId;if(id>1_000_000_000L){throw new InvalidOperationException("Runtime SQL object ID limit reached.");}var definition=new Definition(1,id,schema,name,validated,false);var next=state with{NextObjectId=checked(id+1),Revision=checked(state.Revision+1)};this.ApplyMutation(()=>{this.PutDefinition(definition);this.PutState(next);});return Public(definition);
     }
@@ -55,14 +55,25 @@ public sealed class RuntimeSqlCatalog{
         if(this.current.Value is not null){throw new InvalidOperationException("A runtime SQL transaction is already active.");}
         var scope=new RuntimeSqlTransaction(this,this.owner.BeginTransaction(cancellationToken));this.current.Value=scope;return scope;
     }
+    public RuntimeSqlTransaction BeginGatewayTransaction(GatewayTransactionOwner owner,CancellationToken cancellationToken=default){
+        if(this.current.Value is not null){throw new InvalidOperationException("A runtime SQL transaction is already active.");}
+        var scope=new RuntimeSqlTransaction(this,this.owner.BeginGatewayTransaction(owner,cancellationToken));this.current.Value=scope;return scope;
+    }
     private void RequireTransaction(){var scope=this.current.Value;if(scope is null||scope.Finished||scope.RollbackOnly){throw new InvalidOperationException("An active RuntimeSql transaction is required.");}}
     private void ApplyMutation(Action action){try{action();}catch{this.current.Value!.AbortAfterWriteFailure();throw;}}
-    public sealed class RuntimeSqlTransaction:IDisposable{
+    public sealed class RuntimeSqlTransaction:IGatewayDatabaseTransaction{
         private readonly RuntimeSqlCatalog catalog;private readonly DatabaseTransaction transaction;private bool completed;private bool disposed;private bool closed;private bool rollbackOnly;
         internal RuntimeSqlTransaction(RuntimeSqlCatalog catalog,DatabaseTransaction transaction){this.catalog=catalog;this.transaction=transaction;}
         internal bool IsDisposed=>this.closed;
         internal bool Finished=>this.completed||this.disposed;
         internal bool RollbackOnly=>this.rollbackOnly;
+        public bool IsRollbackOnly=>this.rollbackOnly;
+        public IEnumerable<global::Seamless.Transactions.WalEntry> PrepareGatewayCommit(GatewayTransactionOwner owner){this.Check();return this.transaction.PrepareGatewayCommit(owner);}
+        public void ApplyGatewayCommit(GatewayTransactionOwner owner,long lsn){this.Check();this.transaction.ApplyGatewayCommit(owner,lsn);}
+        public GatewayPreparedSnapshot SealGatewaySnapshot(GatewayTransactionOwner owner){this.Check();return this.transaction.SealGatewaySnapshot(owner);}
+        public void CreateSavepoint(string name){this.Check();this.transaction.CreateSavepoint(name);}
+        public void RollbackToSavepoint(string name){this.Check();this.transaction.RollbackToSavepoint(name);}
+        public void ReleaseSavepoint(string name){this.Check();this.transaction.ReleaseSavepoint(name);}
         internal void MarkRollbackOnly(){this.Check();this.transaction.Rollback();this.rollbackOnly=true;}
         private void Check(){if(this.Finished||!ReferenceEquals(this.catalog.current.Value,this)){throw new InvalidOperationException("Runtime SQL transaction is not active in this context.");}}
         public void Commit(){this.Check();if(this.rollbackOnly){throw new InvalidOperationException("Transaction is rollback-only.");}this.transaction.Commit();this.completed=true;}
@@ -70,13 +81,14 @@ public sealed class RuntimeSqlCatalog{
         internal void AbortAfterWriteFailure(){this.transaction.Rollback();this.rollbackOnly=true;}
         public void Dispose(){if(this.disposed){return;}if(!ReferenceEquals(this.catalog.current.Value,this)){throw new InvalidOperationException("Runtime SQL transaction does not belong to this context.");}this.disposed=true;try{this.transaction.Dispose();}finally{this.closed=true;this.catalog.current.Value=null;}}
     }
-    private Definition Get(string schema,string name){ValidateName(schema);ValidateName(name);return this.Lookup(schema,name)??throw new KeyNotFoundException("Runtime table not found.");}
+    private Definition Get(string schema,string name){ValidateSchema(schema);ValidateName(name);return this.Lookup(schema,name)??throw new KeyNotFoundException("Runtime table not found.");}
     private Definition? Lookup(string schema,string name){foreach(var item in this.catalog){if(item.Key.Id==0){continue;}var definition=DecodeDefinition(item);if(!definition.Dropped&&string.Equals(definition.Schema,schema,StringComparison.OrdinalIgnoreCase)&&string.Equals(definition.Name,name,StringComparison.OrdinalIgnoreCase)){return definition;}}return null;}
     private State ReadState(){if(!this.catalog.TryGetValue(new(0),out var record)){if(this.catalog.Any()||this.rows.Any()){throw new InvalidDataException("Runtime state is missing.");}return new(1,1,1,0);}if(record.Payload is null||record.Payload.Length>4096){throw new InvalidDataException("Invalid runtime state.");}var state=JsonSerializer.Deserialize<State>(record.Payload)??throw new InvalidDataException("Missing runtime state.");if(state.Version!=1||state.NextObjectId<1||state.NextRowId<1||state.Revision<0){throw new InvalidDataException("Invalid runtime state.");}return state;}
     private void PutState(State state)=>this.catalog[new(0)]=new(new(0),JsonSerializer.SerializeToUtf8Bytes(state));
     private void PutDefinition(Definition value){var bytes=JsonSerializer.SerializeToUtf8Bytes(value);if(bytes.Length>1024*1024){throw new InvalidOperationException("Runtime definition is too large.");}var key=new RuntimeCatalogKey(value.ObjectId);this.catalog[key]=new(key,bytes);}
-    private static Definition DecodeDefinition(RuntimeCatalogRecord record){if(record.Key.Id<=0||record.Payload is null||record.Payload.Length>1024*1024){throw new InvalidDataException("Invalid runtime definition.");}var value=JsonSerializer.Deserialize<Definition>(record.Payload)??throw new InvalidDataException("Missing runtime definition.");if(value.Version!=1||value.ObjectId!=record.Key.Id){throw new InvalidDataException("Invalid runtime definition identity.");}try{ValidateName(value.Schema);ValidateName(value.Name);value=value with{Columns=ValidateColumns(value.Columns)};}catch(Exception e)when(e is ArgumentException or InvalidOperationException){throw new InvalidDataException("Invalid runtime definition.",e);}return value;}
+    private static Definition DecodeDefinition(RuntimeCatalogRecord record){if(record.Key.Id<=0||record.Payload is null||record.Payload.Length>1024*1024){throw new InvalidDataException("Invalid runtime definition.");}var value=JsonSerializer.Deserialize<Definition>(record.Payload)??throw new InvalidDataException("Missing runtime definition.");if(value.Version!=1||value.ObjectId!=record.Key.Id){throw new InvalidDataException("Invalid runtime definition identity.");}try{ValidateSchema(value.Schema);ValidateName(value.Name);value=value with{Columns=ValidateColumns(value.Columns)};}catch(Exception e)when(e is ArgumentException or InvalidOperationException){throw new InvalidDataException("Invalid runtime definition.",e);}return value;}
     private static RuntimeSqlTable Public(Definition definition)=>new(definition.ObjectId,definition.Schema,definition.Name,Array.AsReadOnly(definition.Columns.ToArray()));
+    private static void ValidateSchema(string schema){ArgumentNullException.ThrowIfNull(schema);if(schema.Length>0){ValidateName(schema);}}
     private static void ValidateName(string name){if(string.IsNullOrWhiteSpace(name)||name.Length>128||name.Contains('\0')){throw new ArgumentException("Invalid SQL identifier.");}}
     private static RuntimeSqlColumn[] ValidateColumns(IReadOnlyList<RuntimeSqlColumn> columns){
         ArgumentNullException.ThrowIfNull(columns);if(columns.Count is <1 or >MaxColumns){throw new InvalidOperationException("Runtime column count is outside the supported limit.");}

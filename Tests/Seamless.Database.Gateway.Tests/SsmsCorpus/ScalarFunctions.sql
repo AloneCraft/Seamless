@@ -1,0 +1,32 @@
+use [AdventureWorks2016]
+SELECT
+udf.name AS [Name],
+'Server[@Name=' + quotename(CAST(
+        serverproperty(N'Servername')
+       AS sysname),'''') + ']' + '/Database[@Name=' + quotename(db_name(),'''') + ']' + '/UserDefinedFunction[@Name=' + quotename(udf.name,'''') + ' and @Schema=' + quotename(SCHEMA_NAME(udf.schema_id),'''') + ']' AS [Urn],
+SCHEMA_NAME(udf.schema_id) AS [Schema],
+ISNULL(sudf.name, N'') AS [Owner],
+(case when 'FN' = udf.type then 1 when 'FS' = udf.type then 1 when 'IF' = udf.type then 3 when 'TF' = udf.type then 2 when 'FT' = udf.type then 2 else 0 end) AS [FunctionType],
+ISNULL(sm.uses_native_compilation,0) AS [IsNativelyCompiled]
+FROM
+sys.all_objects AS udf
+LEFT OUTER JOIN sys.database_principals AS sudf ON sudf.principal_id = ISNULL(udf.principal_id, (OBJECTPROPERTY(udf.object_id, 'OwnerId')))
+LEFT OUTER JOIN sys.all_sql_modules AS sm ON sm.object_id = udf.object_id
+WHERE
+(udf.type in ('TF', 'FN', 'IF', 'FS', 'FT'))and((case when 'FN' = udf.type then 1 when 'FS' = udf.type then 1 when 'IF' = udf.type then 3 when 'TF' = udf.type then 2 when 'FT' = udf.type then 2 else 0 end)=<msparam>1</msparam> and CAST(
+ case 
+    when udf.is_ms_shipped = 1 then 1
+    when exists (
+        select 
+            1
+        from 
+            sys.extended_properties 
+        where 
+            major_id = udf.object_id and 
+            minor_id = 0 and 
+            class = 1 and 
+            name = N'microsoft_database_tools_support') 
+        then 1
+    else 0
+end          
+             AS bit)=<msparam>0</msparam> and ISNULL(sm.uses_native_compilation,0)=<msparam>0</msparam>)

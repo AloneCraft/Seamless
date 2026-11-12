@@ -1,0 +1,51 @@
+@inject IManagementOperations 管理操作
+@implements IDisposable
+
+<section aria-label="@表示文言.取得("クエリ一覧")">
+    <div class="構造見出し"><h2>@表示文言.取得("クエリ一覧")</h2><input aria-label="@表示文言.取得("クエリを検索")" placeholder="@表示文言.取得("名前・スキーマで検索")" @bind="検索語" @bind:event="oninput"/></div>
+    <p class="小案内">@表示文言.取得("対象を選択して、結果・実行計画・実行履歴を確認します。")</p>
+    <div class="オブジェクト一覧">
+        @foreach(var 項目 in オブジェクト.Where(対象か)){
+            <button @key="項目.Id" class="控えめボタン" @onclick="()=>選択時.InvokeAsync(項目)"><操作アイコン 種類="@(項目.Kind=="View"?"ビュー":"関数")"/><strong>@項目.Id</strong><small>@表示文言.取得(項目.Kind=="View"?"ビュー":"関数")</small></button>
+        }
+        @foreach(var 項目 in 公開クエリ.Where(項目=>一致か(項目.Definition.EntryType+"."+項目.Definition.EntryMember))){
+            <button @key="項目.Definition.Id" class="控えめボタン" @onclick="()=>公開選択時.InvokeAsync(項目)"><操作アイコン 種類="計画"/><strong>@項目.Definition.EntryType.@項目.Definition.EntryMember</strong><small>@表示文言.取得("公開クエリ") · v@(項目.Version)</small></button>
+        }
+    </div>
+    @if(読込中か){<p role="status">@表示文言.取得("クエリ一覧を読み込んでいます…")</p>}
+    @if(案内.Length>0){<p role="status">@案内</p>}
+    @if(続きありか){<button class="控えめボタン" disabled="@読込中か" @onclick="()=>読込Async(true)">@表示文言.取得("公開クエリの続きを取得")</button>}
+    @if(!読込中か&&!オブジェクト.Any(対象か)&&!公開クエリ.Any(項目=>一致か(項目.Definition.EntryType+"."+項目.Definition.EntryMember))){<p class="空の構造">@表示文言.取得("該当するクエリがありません。")</p>}
+</section>
+
+@code{
+    [Parameter]public string DB識別子{get;set;}="";
+    [Parameter]public CatalogObject[] オブジェクト{get;set;}=[];
+    [Parameter]public EventCallback<CatalogObject> 選択時{get;set;}
+    [Parameter]public EventCallback<DefinitionSummary> 公開選択時{get;set;}
+    private string 検索語="",案内="",前DB="",版="";
+    private DefinitionSummary[] 公開クエリ=[];
+    private bool 読込中か,続きありか;
+    private long 次位置,世代;
+    private CancellationTokenSource? 取消;
+    private bool 一致か(string 名前)=>名前.Contains(this.検索語,StringComparison.OrdinalIgnoreCase);
+    private bool 対象か(CatalogObject 項目)=>項目.Kind is "View" or "ScalarFunction" or "TableFunction" or "StoredProcedure"&&this.一致か(項目.Id);
+    protected override async Task OnParametersSetAsync(){
+        if(this.前DB==this.DB識別子){return;}
+        this.前DB=this.DB識別子;this.公開クエリ=[];this.次位置=0;this.版="";this.続きありか=false;
+        await this.読込Async(false);
+    }
+    private async Task 読込Async(bool 続きか){
+        this.取消?.Cancel();this.取消?.Dispose();this.取消=new();var 取消=this.取消.Token;var 世代=++this.世代;
+        this.読込中か=true;this.案内="";
+        try{
+            var 結果=await this.管理操作.QueriesAsync(new(this.DB識別子,続きか?this.版:"",続きか?this.次位置:0),取消);
+            if(世代!=this.世代){return;}
+            this.公開クエリ=結果.Items;
+            this.次位置=結果.NextCursor;this.版=結果.VersionToken;this.続きありか=結果.HasMore;
+        }catch(OperationCanceledException)when(取消.IsCancellationRequested){}
+        catch(Exception 例外){if(世代==this.世代){if(例外 is ManagementException{Code:"Authentication" or "Permission"}){this.公開クエリ=[];this.続きありか=false;}this.案内=表示文言.取得("公開クエリ一覧の取得に失敗しました。")+例外.Message;}}
+        finally{if(世代==this.世代){this.読込中か=false;}}
+    }
+    public void Dispose(){this.世代++;this.取消?.Cancel();this.取消?.Dispose();this.取消=null;}
+}

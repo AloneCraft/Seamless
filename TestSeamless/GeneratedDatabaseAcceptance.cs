@@ -83,8 +83,9 @@ internal static class GeneratedDatabaseAcceptance{
     }
     private static string Display(object?value)=>value is null?"NULL":Convert.ToString(value,System.Globalization.CultureInfo.InvariantCulture)??"NULL";
     private static void VerifyCatalog(ComparisonDatabase database,string connection){
-        var schemas=Read(connection,"sys.schemas");var objects=Read(connection,"sys.objects");var procedures=Read(connection,"sys.procedures");
-        var modules=Read(connection,"sys.sql_modules");var parameters=Read(connection,"sys.parameters");var columns=Read(connection,"sys.columns");var methods=Read(connection,"seamless.generated_methods");var types=Read(connection,"sys.types");
+        // 列を位置で読むため、本物の列順に依存しないよう列名を明示する。
+        var schemas=Read(connection,"sys.schemas","name,schema_id");var objects=Read(connection,"sys.objects","name,object_id,schema_id,type");var procedures=Read(connection,"sys.procedures","name,object_id");
+        var modules=Read(connection,"sys.sql_modules","object_id,definition");var parameters=Read(connection,"sys.parameters","object_id,name,parameter_id,system_type_id,user_type_id,max_length,precision,scale,is_output");var columns=Read(connection,"sys.columns","object_id,name,column_id,system_type_id,max_length,precision,scale,is_nullable");var methods=Read(connection,"seamless.generated_methods","*");var types=Read(connection,"sys.types","name,system_type_id");
         var schemaNames=schemas.ToDictionary(row=>Int(row[1]),row=>Text(row[0]));
         var catalog=database.Catalog.Schemas.SelectMany(schema=>schema.Routines.Select(routine=>(Schema:schema.Name,Routine:routine))).ToArray();
         Require(catalog.Length==database.Routines.Count,"Generated binding count differs from catalog.");
@@ -131,8 +132,8 @@ internal static class GeneratedDatabaseAcceptance{
         if(type.SourcePrecision is{}precision){Require(Int(row[precisionIndex])==precision,label+" precision mismatch.");}
         if(type.SourceScale is{}scale){Require(Int(row[scaleIndex])==scale,label+" scale mismatch.");}
     }
-    private static object?[][]Read(string connection,string name){
-        try{return ComparisonRunner.ReadSql(connection,"SELECT * FROM "+name).ToArray();}
+    private static object?[][]Read(string connection,string name,string columns){
+        try{return ComparisonRunner.ReadSql(connection,"SELECT "+columns+" FROM "+name).ToArray();}
         catch(Exception error)when(error is not OperationCanceledException){throw new InvalidDataException("Failed to read catalog '"+name+"'.",error);}
     }
     private static int Int(object?value)=>Convert.ToInt32(value??throw new InvalidDataException("Unexpected NULL integer metadata."),System.Globalization.CultureInfo.InvariantCulture);

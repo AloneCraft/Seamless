@@ -1,0 +1,12 @@
+{
+  "Apache2Source": "https://raw.githubusercontent.com/DuendeSoftware/foss/47a77f2dbda08f418ec95af04fc75529768dc1e2/LICENSE",
+  "DiskAnnLicense": "https://raw.githubusercontent.com/microsoft/DiskANN/d6ef533ffce6b8d0b4e726a215f7559d534f37e0/LICENSE.txt",
+  "DiskAnnNotice": "https://raw.githubusercontent.com/microsoft/DiskANN/d6ef533ffce6b8d0b4e726a215f7559d534f37e0/NOTICE.txt",
+  "DiskAnnPackage": "8.0.0",
+  "DiskAnnBuildCommitAvailableInPackage": false,
+  "DiskAnn9Release": "https://github.com/microsoft/DiskANN/releases/tag/diskann-garnet-v9.0.0",
+  "DiskAnn9LicenseBlob": "b2f52a2bad4e27e2d9c68a755abb74cb8943f2fa",
+  "DiskAnn9NoticeBlob": "faf70aa99f51f9bdd98c82b8949ba2826d408a23",
+  "DiskAnn9FilesMatchExistingNotices": true,
+  "RetrievedUtc": "2026-11-04T00:23:49.6601997+00:00"
+}

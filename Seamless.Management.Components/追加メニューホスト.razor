@@ -1,0 +1,32 @@
+<対象操作ホスト ID="@ID" 名前="@名前" 選択時="選択時" 選択中か="選択中か" 追加可能か="@(追加可能か&&追加候補があるか)" メニュー表示中か="@(要求 is not null)" 追加の説明="@表示文言.取得("{0}に追加",名前)" 追加メニュー要求時="開く時" メニュー要求時="開く時">
+    @ChildContent
+</対象操作ホスト>
+@if(要求 is{} 起点){
+    <操作メニュー @key="世代" T対象="string" 登録="登録" 対象="@ID" 見出し="@表示文言.取得("{0}に追加",名前)" 起点="起点.起点" X="起点.X" Y="起点.Y" 選択時="実行Async" 閉鎖時="閉じる時"/>
+}
+@if(案内.Length>0){<div class="状態通知" role="@通知ロール" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>}
+@code{
+    [Parameter,EditorRequired]public string ID{get;set;}="";
+    [Parameter,EditorRequired]public string 名前{get;set;}="";
+    [Parameter,EditorRequired]public コマンド登録<string> 登録{get;set;}=default!;
+    [Parameter,EditorRequired]public EventCallback<string> 実行時{get;set;}
+    [Parameter]public EventCallback 選択時{get;set;}
+    [Parameter]public bool 追加可能か{get;set;}=true;
+    [Parameter]public bool 選択中か{get;set;}
+    [Parameter]public RenderFragment? ChildContent{get;set;}
+    private 対象操作要求? 要求;
+    private long 世代;
+    private string 案内="";
+    private bool エラーか;
+    private bool 追加候補があるか=>this.登録.検索(this.ID,"").Any();
+    private string 通知ロール{get{if(this.エラーか){return "alert";}return "status";}}
+    protected override void OnParametersSet(){if(!this.追加候補があるか){this.要求=null;}}
+    private void 開く時(対象操作要求 値){if(!this.追加可能か||!this.追加候補があるか){return;}this.要求=値;this.案内="";this.世代++;}
+    private void 閉じる時(){this.要求=null;this.案内="";}
+    private async Task 実行Async(string ID){
+        this.案内="";this.エラーか=false;
+        try{await this.実行時.InvokeAsync(ID);this.要求=null;}
+        catch(OperationCanceledException){this.案内=表示文言.取得("操作を取り消しました。");}
+        catch(Exception 例外)when(例外 is ManagementException or InvalidOperationException or KeyNotFoundException){this.案内=表示文言.取得(例外.Message);this.エラーか=true;}
+    }
+}

@@ -8,9 +8,9 @@ SSMS 22のプロジェクト内のWindows認証名はUI言語に依存します�
 
 ローカル比較用プロファイルには暗号化設定も明記します。比較元のlocalhostは `EncryptionOption=Mandatory`、TDSゲートウェイは `EncryptionOption=Optional` です。利用者が許可したローカル接続の `TrustServerCertificate=True` も保存します。この設定は現在のlocalhost/loopback専用生成経路のものであり、任意の外部サーバーへの接続設定ではありません。認証方式と暗号化方式は別々に設定します。
 
-SeamlessのSQL Server互換profileは、未提供のmsdb管理機能への`HAS_DBACCESS('msdb')`照会に整数0（利用不可）を返します。SSMSは接続時にこの値を整数へ変換するため、能力照会として明示します。実登録DBとmasterは1、未知のユーザーDB名とNULL引数はNULLです。msdbを実DBとして明示登録した場合は登録状態の1を優先します。管理機能の可用性は比較元と異なり、AdventureWorks等の業務データの一致検証とは分けて扱います。
+SeamlessのSQL Server互換profileは、`HAS_DBACCESS('msdb')`照会に整数1を返します。SSMSは接続時にこの値が1でないと「ポリシーの正常性状態をサーバー レベルで表示できません」を出し、値を整数へ変換するため、能力照会として明示します。msdbの管理機能（ポリシー管理・SQL Server エージェント等）自体は未提供で、使うとエラーになります。実登録DBとmasterとmsdbは1、未知のユーザーDB名とNULL引数はNULLです。管理機能の可用性は比較元と異なり、AdventureWorks等の業務データの一致検証とは分けて扱います。
 
-「ポリシーの正常性状態を表示できません」という通知は、未提供のmsdb管理機能についてのものです。比較元SQL Serverの権限を変更する必要はありません。DB一覧にAdventureWorksが出ない場合は別途、出力ウィンドウの失敗URNとSQLエラーを確認します。実際に`Server/Database/Option`がNTEXT RPC（0x63）で失敗したため、NTEXT入力と実SDKが生成するOption全30列・Status付きDB一覧を回帰検証の対象にしています。限定した列指定のSMO照会や接続成功だけを、オブジェクトエクスプローラーの表示成功とは扱いません。
+以前は上記照会が0だったため、接続のたびに「ポリシーの正常性状態を表示できません」という通知が出ていました。現在は出ません。比較元SQL Serverの権限を変更する必要はありません。DB一覧にAdventureWorksが出ない場合は別途、出力ウィンドウの失敗URNとSQLエラーを確認します。実際に`Server/Database/Option`がNTEXT RPC（0x63）で失敗したため、NTEXT入力と実SDKが生成するOption全30列・Status付きDB一覧を回帰検証の対象にしています。限定した列指定のSMO照会や接続成功だけを、オブジェクトエクスプローラーの表示成功とは扱いません。
 
 世代の切替成功後に `-Operation Publish -StagingDirectory <stageディレクトリ> -OutputDirectory <公開先>` で公開します。公開先とstageの所有情報・相対パス・SHA256を照合してから変更し、削除DBの旧生成SQLは台帳にあるファイルだけを削除します。空になった旧DB用ディレクトリも削除します。編集された生成ファイル、パス逸脱、リンクを介した参照、所有情報の不整合があれば処理を中止します。手書きSQLを削除しません。複数の公開処理はファイルロックで排他し、公開途中の失敗時は変更したファイルをバックアップから戻します。バックアップはstage内に残ります。
 
@@ -21,3 +21,11 @@ SeamlessのSQL Server互換profileは、未提供のmsdb管理機能への`HAS_D
 SSMS 22のSQLファイルの`FullPath`は、ソリューションを置いたディレクトリを基準に解決されます。`Cases`の参照は`..\Cases\...`、生成SQLは`SQLServer\Generated\...`または`SeamlessDB\Generated\...`とします。プロジェクトのサブディレクトリを基準にしません。Stageでは最終公開先を基準に共通SQLの実パスを確認し、生成SQLはstage内の同じ相対パスで管理台帳と照合します。別ドライブにある手書きSQLは絶対パスで参照します。プロジェクト参照の更新後はSSMSのソリューションを読み直してください。
 
 `Test-SsmsWorkspace.ps1 -TestRoot <新しい検証ディレクトリ>` は公開の回帰確認です。比較環境の `Invoke-LocalProcess.ps1` を通して最大8論理CPUで直接実行します。ソリューション基準での共通/生成SQL参照、削除DBの掃除、手書き保持、編集済み生成物保護、所有情報、台帳、XML参照、リンク拒否、日本語・英語の認証名と旧生成入口を検証します。SSMSアプリ上のロード確認は別の検証項目です。
+
+## SSMSが送る要求の記録（互換調査用）
+
+サーバーを起動する環境で `SEAMLESS_TDS_REQUEST_LOG` にフォルダを指定すると、`TestSeamless serve` はTDSで受けた要求を `tds-requests-<世代ID>-<PID>.jsonl` に1要求1行で追記します。未指定なら記録しません。
+
+記録する内容は、SQL本文、RPC名と引数宣言、引数の名前と型、結果セット数、成否とエラー、所要時間です。引数の値は実データを含み得るため残しません。SQL本文の `PASSWORD=`/`SECRET=` の文字列は `'***'` に置き換え、ログイン要求は記録しません。
+
+`Get-TdsRequestSummary.ps1 -Path <jsonl> -OutputDirectory <出力先>` で集計します。同じ形のSQLをまとめ、失敗をメッセージ別に数え、参照された `sys`/`INFORMATION_SCHEMA` オブジェクト・関数・EXEC/RPCの手続きを一覧にします。結果は `summary.md` と `summary.json` です。記録は互換に足りないものを洗い出す材料であり、記録できたことを互換の合格とは扱いません。

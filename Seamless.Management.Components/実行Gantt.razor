@@ -1,0 +1,97 @@
+@using System.Globalization
+<link rel="stylesheet" href="_content/Seamless.Management.Components/query-gantt.css"/>
+<section class="実行ガント" aria-label="@表示文言.取得("実行タイムライン")">
+    <div class="ガント操作">
+        <label>@表示文言.取得("ノードを検索")<input type="search" aria-label="@表示文言.取得("タイムラインを検索")" value="@this.検索" @oninput="this.検索時Async"/></label>
+        <button type="button" class="控えめボタン" aria-label="@表示文言.取得("縮小")" disabled="@(this.倍率<=1)" @onclick="()=>this.拡大時(0.8)">−</button>
+        <button type="button" class="控えめボタン" aria-label="@表示文言.取得("拡大")" disabled="@(this.倍率>=8)" @onclick="()=>this.拡大時(1.25)">＋</button>
+        <button type="button" class="控えめボタン" @onclick="()=>this.倍率=1">@表示文言.取得("全体表示")</button>
+    </div>
+    <p class="小案内">@表示文言.取得("横軸は各実行の単調時計による経過時間です。包含区間を合算せず、CPU時間と区別します。")</p>
+    <p class="小案内">@表示文言.取得("演算別・Worker別の実区間とCPU・I/Oは、対応する記録がある場合だけ表示します。")</p>
+    @if(this.データ.Intervals.Any(区間=>区間.Evidence!="Observed")||this.データ.Events.Any(点=>点.Evidence!="Observed")){<p class="ガント欠測">@表示文言.取得("推定・算出された区間は実測タイムラインへ配置していません。")</p>}
+    @if(this.配置.Length==0){<p class="ガント空">@表示文言.取得("実行区間は未収集です。")</p>}
+    @if(this.選択ノード is not null&&!this.配置.Any(時計=>時計.区間.Any(区間=>区間.値.Node==this.選択ノード)||時計.イベント.Any(点=>点.値.Node==this.選択ノード))){
+        <p class="ガント欠測" role="status">@表示文言.取得("選択ノードに対応する実行区間は未収集です。")</p>
+    }
+    @if(this.データ.Intervals.Length>実行時間モデル.最大区間||this.データ.Events.Length>実行時間モデル.最大イベント){<p class="ガント欠測">@表示文言.取得("表示上限を超えた区間・イベントは省略しています。")</p>}
+    @foreach(var 時計 in this.配置){
+        <article @key="時計.時計.Id" class="ガント時計" data-時計="@時計.時計.Id" data-実行="@時計.時計.ExecutionId">
+            <header><strong>@表示文言.取得("実行ID") @時計.時計.ExecutionId</strong><small>@表示文言.取得("時計原点") · @時計.時計.Origin · @時計.時計.TicksPerSecond @表示文言.取得("ticks/秒")</small></header>
+            @if(時計.時計.StartedAtUtc is{} 開始){<p class="小案内">@表示文言.取得("開始UTC") @開始.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss.ffffff 'UTC'",CultureInfo.InvariantCulture)</p>}
+            <div class="ガント画面" tabindex="0" role="region" aria-label="@表示文言.取得("タイムラインのスクロール領域")">
+                <svg viewBox="@($"0 0 {実行時間モデル.幅} {時計.高さ}")" style="@($"width:{(this.倍率*100).ToString(CultureInfo.InvariantCulture)}%")" role="img" aria-label="@表示文言.取得("実際の経過時間と観測境界")">
+                    <title>@表示文言.取得("実際の経過時間と観測境界")</title>
+                    @for(var 番号=0;番号<=4;番号++){
+                        var X=実行時間モデル.左端+実行時間モデル.描画幅*番号/4.0;
+                        var ticks=時計.開始Ticks+時計.経過Ticks/4*番号+時計.経過Ticks%4*番号/4;
+                        <g class="ガント目盛"><path d="@($"M{数(X)} 45 V{時計.高さ-30}")"/><text x="@数(X)" y="28">@時間(ticks,時計.時計.TicksPerSecond)</text></g>
+                    }
+                    @foreach(var レーン in 時計.レーン){
+                        <g class="ガントレーン"><text x="10" y="@(レーン.Y+17)">@レーン名(レーン)</text><path d="@($"M{実行時間モデル.左端} {レーン.Y+31} H{実行時間モデル.左端+実行時間モデル.描画幅}")"/></g>
+                    }
+                    @foreach(var 区間 in 時計.区間){
+                        <g class="@区間クラス(区間.値)" data-区間="@区間.値.Id" data-選択="@this.選択か(区間.値.Node).ToString().ToLowerInvariant()" tabindex="@タブ番号(区間.値.Node)" role="@操作種別(区間.値.Node)" aria-label="@区間説明(区間.値,時計.時計.TicksPerSecond)" @onclick="()=>this.選ぶ時Async(区間.値.Node)" @onkeydown="引数=>this.キー時Async(引数,区間.値.Node)">
+                            <title>@区間説明(区間.値,時計.時計.TicksPerSecond)</title>
+                            @if(区間.値.StartTicks==区間.値.EndTicks){<path d="@($"M{数(区間.X)} {区間.Y+3} v24")" class="ガントゼロ"/>}
+                            else{<rect x="@数(区間.X)" y="@(区間.Y+3)" width="@数(区間.幅)" height="24" rx="3"/>}
+                        </g>
+                    }
+                    @foreach(var 点 in 時計.イベント){
+                        <g class="ガントイベント" data-イベント="@点.値.Kind" data-選択="@this.選択か(点.値.Node).ToString().ToLowerInvariant()" tabindex="@タブ番号(点.値.Node)" role="@操作種別(点.値.Node)" aria-label="@イベント説明(点.値,時計.時計.TicksPerSecond)" @onclick="()=>this.選ぶ時Async(点.値.Node)" @onkeydown="引数=>this.キー時Async(引数,点.値.Node)">
+                            <title>@イベント説明(点.値,時計.時計.TicksPerSecond)</title><path d="@($"M{数(点.X)} {点.Y-3} l5 6 -5 6 -5 -6 Z")"/>
+                        </g>
+                    }
+                </svg>
+            </div>
+            <p class="ガント凡例"><span class="凡例全体">@表示文言.取得("包含する実行区間")</span><span class="凡例待機">@表示文言.取得("DBゲート待機")</span><span class="凡例失敗">@表示文言.取得("失敗")</span><span class="凡例部分">@表示文言.取得("部分取得・取消")</span><span>◇ @表示文言.取得("観測イベント")</span></p>
+            @if(時計.区間.Any(区間=>区間.値.Scope=="TaskExecution")){
+                <p class="小案内">@表示文言.取得("観測範囲の経過時間") @時間(時計.経過Ticks,時計.時計.TicksPerSecond) · @表示文言.取得("独立タスク区間の合計") @合計時間(時計) · @表示文言.取得("実CPU時間は未収集です。")</p>
+            }
+            <details><summary>@表示文言.取得("観測イベント") (@時計.イベント.Length)</summary><ol>@foreach(var 点 in 時計.イベント){<li>@イベント説明(点.値,時計.時計.TicksPerSecond)</li>}</ol></details>
+        </article>
+    }
+</section>
+
+@code{
+    [Parameter,EditorRequired]public QueryVisualizationData データ{get;set;}=default!;
+    [Parameter]public PlanNodeRef? 選択ノード{get;set;}
+    [Parameter]public EventCallback<PlanNodeRef?> 選択時{get;set;}
+    [Parameter]public string 検索{get;set;}="";
+    [Parameter]public EventCallback<string> 検索変更時{get;set;}
+    [Parameter]public double? 初期倍率{get;set;}
+    public double 保存倍率=>this.倍率;
+    private double? 適用済み倍率;
+    private 実行時計配置[] 配置=[];
+    private Dictionary<string,string> ノード検索=[];
+    private double 倍率=1;
+    protected override void OnParametersSet(){if(this.初期倍率 is{} 値&&this.適用済み倍率!=値){this.倍率=Math.Clamp(値,1,8);this.適用済み倍率=値;}this.配置=実行時間モデル.作成(this.データ);this.ノード検索=this.データ.Plan.Nodes.ToDictionary(ノード=>ノード.Id,ノード=>ノード.Id+" "+ノード.Label+" "+ノード.Kind,StringComparer.Ordinal);}
+    private Task 検索時Async(ChangeEventArgs 引数){this.検索=引数.Value?.ToString()??"";return this.検索変更時.InvokeAsync(this.検索);}
+    private void 拡大時(double 比率)=>this.倍率=Math.Clamp(this.倍率*比率,1,8);
+    private bool 選択か(PlanNodeRef? 参照)=>参照 is not null&&参照==this.選択ノード;
+    private Task 選ぶ時Async(PlanNodeRef? 参照){if(参照 is null){return Task.CompletedTask;}return this.選択時.InvokeAsync(参照);}
+    private Task キー時Async(KeyboardEventArgs 引数,PlanNodeRef? 参照){if(引数.Key is "Enter" or " "){return this.選ぶ時Async(参照);}return Task.CompletedTask;}
+    private static int タブ番号(PlanNodeRef? 参照){if(参照 is null){return -1;}return 0;}
+    private static string 操作種別(PlanNodeRef? 参照){if(参照 is null){return "img";}return "button";}
+    private string 区間クラス(VisualizationInterval 区間){
+        var 名前="ガント区間";
+        if(区間.Scope=="DatabaseGateWait"){名前+=" ガント待機";}
+        if(区間.Outcome=="Failed"){名前+=" ガント失敗";}
+        else if(区間.Outcome=="Cancelled"||!区間.Complete){名前+=" ガント部分";}
+        if(!string.IsNullOrWhiteSpace(this.検索)&&(区間.Id.Contains(this.検索,StringComparison.OrdinalIgnoreCase)||区間.InstanceId.Contains(this.検索,StringComparison.OrdinalIgnoreCase)||区間.Node is{} ノード&&this.ノード検索.GetValueOrDefault(ノード.NodeId,"").Contains(this.検索,StringComparison.OrdinalIgnoreCase))){名前+=" ガント検索一致";}
+        return 名前;
+    }
+    private static string レーン名(実行レーン配置 値){if(値.ID=="query"&&値.種類=="Query"){return 表示文言.取得("問い合わせ全体");}if(値.ID=="gate"&&値.種類=="Wait"){return 表示文言.取得("DBゲート待機");}return 値.ID;}
+    private static string 区間説明(VisualizationInterval 値,long 周波数){
+        var 状態="取得完了";if(!値.Complete){状態="部分取得";}if(値.Outcome=="Failed"){状態="失敗";}else if(値.Outcome=="Cancelled"){状態="取消";}
+        var 範囲=値.Scope;switch(値.Scope){case "QueryInclusive":範囲="問い合わせ全体";break;case "DatabaseGateWait":範囲="DBゲート待機";break;case "TaskExecution":範囲="独立タスク実行";break;}
+        return 表示文言.取得(範囲)+" · "+時間(値.StartTicks,周波数)+" → "+時間(値.EndTicks,周波数)+" · "+時間(値.EndTicks-値.StartTicks,周波数)+" · "+表示文言.取得(状態);
+    }
+    private static string イベント説明(VisualizationEvent 値,long 周波数){
+        var 名前=値.Kind;switch(値.Kind){case "Started":名前="計測開始";break;case "GateAcquired":名前="DBゲート取得";break;case "FirstOutput":名前="最初の出力を観測";break;case "Completed":名前="観測終了";break;}
+        return 表示文言.取得(名前)+" · "+時間(値.AtTicks,周波数);
+    }
+    private static string 時間(long ticks,long 周波数)=>(ticks/(double)周波数*1000).ToString("0.######",CultureInfo.CurrentCulture)+" ms";
+    private static string 合計時間(実行時計配置 値)=>((double)値.タスク合計Ticks/値.時計.TicksPerSecond*1000).ToString("0.######",CultureInfo.CurrentCulture)+" ms";
+    private static string 数(double 値)=>値.ToString("0.###",CultureInfo.InvariantCulture);
+}

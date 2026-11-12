@@ -33,7 +33,7 @@ internal static class SqlServerDatabaseOptionCatalog{
 
     internal static object?[] Expand(object?[] row){
         if(row.Length!=18){throw new ArgumentException("The sys.databases row must contain 18 base columns.",nameof(row));}
-        return [..row,false,false,true,true,true,true,true,false,false,false,false,true,false,true,false,false,(byte)0,(byte)0,false,false,false,false,false,false,false,false,false];
+        return [..row,false,false,true,true,true,true,true,false,false,false,false,true,false,true,false,false,(byte)0,(byte)0,false,false,false,false,false,false,false,false,false,new byte[]{1}];
     }
 
     internal static QueryResult Mirroring()=>new([

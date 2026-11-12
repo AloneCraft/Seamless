@@ -15,7 +15,7 @@ internal static class SqlServerViewCatalogReader {
             unique_index.name AS UniqueKeyName,
             key_column.key_ordinal AS UniqueKeyOrdinal,
             key_column.is_descending_key AS UniqueKeyDescending,
-            OBJECT_DEFINITION(view_definition.object_id) AS Definition,column_definition.collation_name,column_definition.encryption_type
+            OBJECT_DEFINITION(view_definition.object_id) AS Definition,column_definition.collation_name,column_definition.encryption_type,USER_NAME(OBJECTPROPERTY(view_definition.object_id,'OwnerId'))
         FROM sys.views AS view_definition
         INNER JOIN sys.schemas AS schema_definition
             ON schema_definition.schema_id=view_definition.schema_id
@@ -76,6 +76,7 @@ internal static class SqlServerViewCatalogReader {
             var key=(schemaName,viewName);
             if(!views.TryGetValue(key,out var view)) {
                 view=new(schemaName,viewName);
+                view.OwnerName=reader.IsDBNull(15)?null:reader.GetString(15);
                 views.Add(key,view);
             }
             var columnName=reader.GetString(3);
@@ -124,6 +125,7 @@ internal static class SqlServerViewCatalogReader {
         public string? UniqueKeyName { get; set; }
         public List<(int Ordinal,KeyColumnCatalog Column)> UniqueKeyColumns { get; }=[];
         public string? Definition { get; set; }
+        public string? OwnerName { get; set; }
         public HashSet<string> Dependencies { get; }=new(StringComparer.Ordinal);
 
         public SqlServerViewDefinition Build() {
@@ -143,7 +145,7 @@ internal static class SqlServerViewCatalogReader {
                     this.Columns.OrderBy(static value=>value.Ordinal).ToArray(),
                     uniqueKey,
                     this.Definition,
-                    this.Dependencies.OrderBy(static value=>value,StringComparer.Ordinal).ToArray()));
+                    this.Dependencies.OrderBy(static value=>value,StringComparer.Ordinal).ToArray()){OwnerName=this.OwnerName});
         }
     }
 }

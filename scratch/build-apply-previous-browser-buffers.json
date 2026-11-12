@@ -1,0 +1,6 @@
+[
+  {
+    "label": "プロジェクトのC#ソース",
+    "value": "using Seamless.Database;\nnamespace UserCode;\ninternal static partial class DatabaseGenerator;\npublic sealed partial class ManagedDb(DatabaseContainerOptions options):DatabaseContainer(options){\n}\n\npublic static class InspectionSentinel{[System.Runtime.CompilerServices.ModuleInitializer]public static void Initialize()=>System.IO.File.WriteAllText(\"F:\\\\Seamless\\\\mw12build-binding\\\\source-build-293bd794697f4668b7eaf00c02f72b32\\\\assembly-executed.txt\",\"executed\");}\n\n// server draft edit\n"
+  }
+]

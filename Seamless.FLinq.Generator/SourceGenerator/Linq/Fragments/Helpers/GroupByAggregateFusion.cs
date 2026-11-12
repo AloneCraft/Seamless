@@ -245,6 +245,10 @@ internal static class GroupByAggregateFusion {
                 return false; // Group parameter used in unsupported way
             }
 
+            if(IsConditionallyEvaluated(invocation,bodyExpr)) {
+                return false;
+            }
+
             if(semanticModel.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method
                 ||(method.ReducedFrom??method).ContainingType?.ToDisplayString()!="System.Linq.Enumerable") {
                 return false;
@@ -374,6 +378,23 @@ internal static class GroupByAggregateFusion {
         aggPlan.ProjectedResultExpression=bodyText;
         plan=aggPlan;
         return true;
+    }
+
+    // 融合は要素走査中に集約するため、元の条件が評価を抑止する呼出しは通常の射影へ残す。
+    private static bool IsConditionallyEvaluated(ExpressionSyntax expression,ExpressionSyntax body) {
+        for(SyntaxNode current=expression;current!=body&&current.Parent is{} parent;current=parent) {
+            if(parent is ConditionalExpressionSyntax conditional&&current!=conditional.Condition) {
+                return true;
+            }
+            if(parent is BinaryExpressionSyntax binary&&current==binary.Right
+                &&(binary.IsKind(SyntaxKind.LogicalAndExpression)||binary.IsKind(SyntaxKind.LogicalOrExpression)||binary.IsKind(SyntaxKind.CoalesceExpression))) {
+                return true;
+            }
+            if(parent is ConditionalAccessExpressionSyntax access&&current==access.WhenNotNull) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static bool TryMapAggregateKind(string methodName,out GroupAggregateKind kind) {

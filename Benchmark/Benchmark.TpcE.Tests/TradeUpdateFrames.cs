@@ -117,7 +117,7 @@ public sealed class TradeUpdateFrames{
         var outputs=new List<TradeUpdateOutput>();
         var digests=new List<DatabaseDigest>();
         foreach(var variant in VariantCatalog.All){
-            var store=Store.CreateTemporary();
+            var store=TpcETestStores.Temporary();
             try{
                 var engine=variant.Open(store,new TpcEScale{Customers=10});
                 try{
@@ -142,7 +142,7 @@ public sealed class TradeUpdateFrames{
     /// <summary>T_EXEC_NAME の切り替えを、Frame 1 を 1 件だけ流して確かめる。</summary>
     private static string Toggle(string execName){
         var variant=VariantCatalog.All[0];
-        var store=Store.CreateTemporary();
+        var store=TpcETestStores.Temporary();
         try{
             var engine=variant.Open(store,new TpcEScale{Customers=10});
             try{

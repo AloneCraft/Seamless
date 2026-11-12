@@ -1,0 +1,110 @@
+@using System.Text.Json
+@implements IDisposable
+@inject IManagementOperations 管理
+<section class="問い合わせ結果" aria-label="@表示文言.取得("問い合わせの実行")">
+    @if(読込中か){<p role="status">@表示文言.取得("読み込み中...")</p>}
+    @foreach(var 引数 in 引数一覧){<label class="引数入力">@引数.名前 <small>@引数.型</small><input aria-label="@表示文言.取得("引数 {0}",引数.名前)" @bind="引数.値" @bind:event="oninput" disabled="@実行中か"/></label>}
+    @if(計測設定可能か){
+    <label class="引数入力">@表示文言.取得("実行時の計測")<select aria-label="@表示文言.取得("実行時の計測")" @bind="計測" disabled="@実行中か"><option value="@ObjectExecutionMeasurementMode.None">@表示文言.取得("計測なし")</option><option value="@ObjectExecutionMeasurementMode.Summary">@表示文言.取得("軽量実測")</option>@if(ノード実測可能か){<option value="@ObjectExecutionMeasurementMode.Profiled">@表示文言.取得("ノード実測")</option>}</select></label>
+    <トレース設定 値="記録設定" 値変更時="値=>記録設定=値" 操作禁止か="実行中か"/>
+    @if(資源計測可能か){
+        <label class="設定チェック"><input type="checkbox" @bind="資源計測か" disabled="@実行中か"/>@表示文言.取得("資源使用を計測")</label>
+        @if(資源計測か){<label class="引数入力">@表示文言.取得("収集間隔")<select aria-label="@表示文言.取得("収集間隔")" @bind="資源間隔ミリ秒" disabled="@実行中か"><option value="100">100 ms</option><option value="250">250 ms</option><option value="1000">1 s</option><option value="5000">5 s</option></select></label>}
+    }
+    }
+    <button class="主要ボタン" disabled="@(読込中か||実行中か||!実行可能か)" @onclick="実行時Async"><操作アイコン 種類="実行"/>@表示文言.取得("実行")</button>
+    @if(実行中か){<button class="控えめボタン" @onclick="取消時"><操作アイコン 種類="取消"/>@表示文言.取得("実行を取り消す")</button>}
+    @if(案内 is not null){<p role="status">@案内</p>}
+    @if(結果 is{} 値){
+        @if(値.Statistics is{} 実測){<実行統計表示 実測="実測"/>}
+        @if(!値.IsSequence){<output aria-label="@表示文言.取得("戻り値")">@単一値表示(値.Value)</output>}
+        else{
+            <問い合わせ結果表 結果="値"/>
+        }
+    }
+</section>
+@code{
+    [Parameter]public string DB名{get;set;}="";
+    [Parameter]public CatalogObject 対象{get;set;}=default!;
+    [Parameter]public FunctionTarget? 関数{get;set;}
+    [Parameter]public QueryDesign? ビュー{get;set;}
+    [Parameter]public long 公開版{get;set;}
+    [Parameter]public bool 表示中か{get;set;}=true;
+    [Parameter]public bool 実行可能か{get;set;}=true;
+    [Parameter]public bool 資源計測可能か{get;set;}
+    [Parameter]public bool ノード実測可能か{get;set;}
+    [Parameter]public bool 計測設定可能か{get;set;}=true;
+    [Parameter]public EventCallback<ObjectExecutionStatistics?> 実測完了時{get;set;}
+    [Parameter]public EventCallback<Guid?> トレース実行時{get;set;}
+    [Parameter]public EventCallback<ResourceHeatTrace?> 資源記録時{get;set;}
+    [Parameter]public EventCallback<ObjectExecutionProfile?> ノード実測時{get;set;}
+    private readonly List<引数値> 引数一覧=[];
+    private string 読込キー="";
+    private FunctionDetails? 詳細;
+    private ObjectExecutionResult? 結果;
+    private bool 読込中か,実行中か,破棄済みか;
+    private long 世代;
+    private string? 案内;
+    private ObjectExecutionMeasurementMode 計測;
+    private QueryTraceOptions? 記録設定;
+    private bool 資源計測か;
+    private int 資源間隔ミリ秒=100;
+    private CancellationTokenSource? 取消;
+    protected override async Task OnParametersSetAsync(){
+        if(!this.表示中か){if(this.実行中か||this.読込中か){this.取消時();}return;}
+        var キー=this.DB名+"|"+this.対象.Id+"|"+this.公開版;
+        if(this.読込キー==キー){return;}
+        this.取消時();var 世代=++this.世代;this.取消=new();var 取消=this.取消.Token;
+        this.読込中か=true;this.案内=null;
+        try{
+            CatalogField[] 引数=[];
+            if(this.関数 is{} 関数){this.詳細=await this.管理.GetFunctionDetailsAsync(関数,取消);引数=this.詳細.Parameters;}
+            else if(this.ビュー is{} ビュー){引数=ビュー.Parameters.Select(値=>new CatalogField(値.Name,値.Type)).ToArray();}
+            if(取消.IsCancellationRequested||世代!=this.世代){return;}
+            this.引数一覧.Clear();this.引数一覧.AddRange(引数.Select(値=>new 引数値{名前=値.Name,型=値.Type}));
+            this.結果=null;this.読込キー=キー;
+        }catch(OperationCanceledException)when(取消.IsCancellationRequested){}
+        catch(Exception 例外){if(世代==this.世代){this.案内=例外.Message;}}
+        finally{if(世代==this.世代){this.読込中か=false;}}
+    }
+    private async Task 実行時Async(){
+        if(this.実行中か||!this.実行可能か||this.破棄済みか){return;}
+        this.取消時();this.取消=new();var 取消=this.取消.Token;var 世代=++this.世代;this.実行中か=true;this.案内=null;
+        try{
+            this.結果=null;
+            await this.実測完了時.InvokeAsync(null);
+            await this.資源記録時.InvokeAsync(null);
+            await this.ノード実測時.InvokeAsync(null);
+            await this.トレース実行時.InvokeAsync(null);
+            var 引数=this.引数一覧.Select(値=>引数JSON(値.値,値.型)).ToArray();
+            ObjectExecutionResult 結果;
+            ResourceHeatOptions? 資源設定=null;if(this.資源計測か){資源設定=new(){SampleInterval=TimeSpan.FromMilliseconds(this.資源間隔ミリ秒)};}
+            if(this.関数 is{} 関数){
+                結果=await this.管理.ExecuteFunctionAsync(new(関数,引数,ExpectedVersion:this.詳細?.Function.Version??this.公開版,ExpectedArtifactHash:this.詳細?.Function.ArtifactHash){MeasurementMode=this.計測,TraceOptions=this.記録設定,ResourceHeatOptions=資源設定},取消);
+            }else{
+                結果=await this.管理.ExecuteObjectAsync(new(this.DB名,this.対象.Id,引数,ExpectedVersion:this.公開版){MeasurementMode=this.計測,TraceOptions=this.記録設定,ResourceHeatOptions=資源設定},取消);
+            }
+            if(this.破棄済みか||取消.IsCancellationRequested||世代!=this.世代){return;}
+            this.結果=結果;
+            await this.実測完了時.InvokeAsync(結果.Statistics);
+            await this.資源記録時.InvokeAsync(結果.ResourceHeat);
+            await this.ノード実測時.InvokeAsync(結果.Profile);
+            await this.トレース実行時.InvokeAsync(結果.TraceExecutionId??結果.ResourceHeat?.ExecutionId);
+        }catch(OperationCanceledException)when(取消.IsCancellationRequested){}
+        catch(Exception 例外){if(世代==this.世代){this.案内=例外.Message;}}
+        finally{if(世代==this.世代){this.実行中か=false;}}
+    }
+    private void 取消時(){this.世代++;this.取消?.Cancel();this.取消?.Dispose();this.取消=null;this.実行中か=false;this.読込中か=false;}
+    private static JsonElement 引数JSON(string 値,string 型){
+        if(型 is "string" or "System.String" or "global::System.String"){return JsonSerializer.SerializeToElement(値);}
+        if(string.IsNullOrWhiteSpace(値)){return JsonSerializer.SerializeToElement<object?>(null);}
+        try{using var JSON=JsonDocument.Parse(値);return JSON.RootElement.Clone();}catch(JsonException){return JsonSerializer.SerializeToElement(値);}
+    }
+    private static string 単一値表示(JsonElement? 値){
+        if(値 is null||値.Value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined){return "NULL";}
+        if(値.Value.ValueKind==JsonValueKind.String&&値.Value.GetString()==""){return "\"\"";}
+        return 値.Value.ToString();
+    }
+    public void Dispose(){this.破棄済みか=true;this.取消時();}
+    private sealed class 引数値{public string 名前="",型="",値="";}
+}

@@ -293,6 +293,7 @@ internal sealed class OptimizeVisitor:CSharpSyntaxRewriter {
                 return null;
             }
         }
+        // 並べ替えの前へも押し下げる(並べ替える要素が減る)。ソースが既に並んでいるときは、並べ替えの段が溜めた値を確かめて並べ替えを省く。
         if(PushWhereThroughUnaryMethods.Contains(uc.MethodName)||PushWhereThroughFirstSourceMethods.Contains(uc.MethodName)) {
             return PushWhereBeforeSource(uc,wl);
         }

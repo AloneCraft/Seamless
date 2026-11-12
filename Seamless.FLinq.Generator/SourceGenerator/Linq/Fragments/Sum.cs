@@ -64,6 +64,31 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
         ??this.RenderDirectEnumerableCallInline(source,destVar,destType,"Sum")
         ??this.RenderComputeInline(destVar,destType);
 
+    private string? RenderDirectArraySumInline(string destVar,string destType) {
+        if(source.DirectArrayExpression is not { } arrayExpr) {
+            return null;
+        }
+        if(this.CanUseSumSpan) {
+            return $"{QueryProbeMarkers.Unknown}{destType} {destVar}=global::Seamless.Linq.Enumerable.SumSpan<{resultType}>({arrayExpr});";
+        }
+        var arrVar = $"__arr{番号}";
+        var sumVar = $"__sum{番号}";
+        var iVar = $"__i{番号}";
+        return $$"""
+            {{destType}} {{destVar}};
+            {
+                var {{arrVar}}={{arrayExpr}};
+                {{resultType}} {{sumVar}}={{InitialValue(resultType)}};
+                checked{
+                    for(var {{iVar}}=0;{{iVar}}<{{arrVar}}.Length;{{iVar}}++) {
+                        {{sumVar}}+={{Addend(resultType,arrVar+"["+iVar+"]")}};
+                    }
+                }
+                {{destVar}}={{sumVar}};
+            }
+            """;
+    }
+
     private string? RenderConsumeBasedSumInline(string destVar,string destType) {
         if(source is not (Join or Zip or Zip_resultSelector or GroupJoin or SelectManyBase)) {
             return null;
@@ -86,10 +111,11 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
         var replaced = global::System.Text.RegularExpressions.Regex.Replace(consumeStatement,pattern,match => {
             var indent = match.Groups["indent"].Value;
             var arg = match.Groups["arg"].Value;
-            return indent+RenderAccumulation(destVar,arg,destType,番号);
+            // 計測点の目印(ブランチ側)と、checked の加算・引数の一回評価(main 側)を両方保つ。
+            return indent+QueryProbeMarkers.Input+RenderAccumulation(destVar,Addend(resultType,arg),destType,番号);
         });
         return $$"""
-            {{destType}} {{destVar}}=default!;
+            {{destType}} {{destVar}}={{InitialValue(resultType)}};
             {{replaced}}
             """;
     }
@@ -106,12 +132,12 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
         var span = $"__span{this.result}";
         return this.RenderSpanInline(source,destVar,destType,span,spanName => this.CanUseSumSpan
             ? $$"""
-                {{destVar}}=global::Seamless.Linq.Enumerable.SumSpan<{{resultType}}>({{spanName}});
+                {{QueryProbeMarkers.Unknown}}{{destVar}}=global::Seamless.Linq.Enumerable.SumSpan<{{resultType}}>({{spanName}});
                 """
             : $$"""
-                {{resultType}} sum=default!;
+                {{resultType}} sum={{InitialValue(resultType)}};
                 checked{
-                    for(var __i=0;__i<{{spanName}}.Length;__i++) sum+={{spanName}}[__i];
+                    for(var __i=0;__i<{{spanName}}.Length;__i++) {{QueryProbeMarkers.Input}}sum+={{Addend(resultType,spanName+"[__i]")}};
                 }
                 {{destVar}}=sum;
                 """);
@@ -122,16 +148,16 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
                 {{AggressiveInliningAttribute}}
                 private static {{resultType}} Compute(ref TEnum source){
                     source.TryGetSpan(out var __span);
-                    return global::Seamless.Linq.Enumerable.SumSpan<{{resultType}}>(__span);
+                    {{QueryProbeMarkers.Unknown}}return global::Seamless.Linq.Enumerable.SumSpan<{{resultType}}>(__span);
                 }
                 """
             : $$"""
                 {{AggressiveInliningAttribute}}
                 private static {{resultType}} Compute(ref TEnum source){
-                    {{resultType}} sum = default!;
+                    {{resultType}} sum = {{InitialValue(resultType)}};
                     checked{
                         source.TryGetSpan(out var __span);
-                        for(var __i=0;__i<__span.Length;__i++) sum+=__span[__i];
+                        for(var __i=0;__i<__span.Length;__i++) {{QueryProbeMarkers.Input}}sum+={{Addend(resultType,"__span[__i]")}};
                     }
                     return sum;
                 }
@@ -142,11 +168,11 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
                 {{AggressiveInliningAttribute}}
                 private static {{resultType}} Compute(ref TEnum source){
                     if(source.TryGetSpan(out var __span)){
-                        return global::Seamless.Linq.Enumerable.SumSpan<{{resultType}}>(__span);
+                        {{QueryProbeMarkers.Unknown}}return global::Seamless.Linq.Enumerable.SumSpan<{{resultType}}>(__span);
                     }
-                    {{resultType}} sum = default!;
+                    {{resultType}} sum = {{InitialValue(resultType)}};
                     checked{
-                        while(source.TryGetNext(out var __mn71)) sum+=__mn71;
+                        while(source.TryGetNext(out var __mn71)) {{QueryProbeMarkers.Input}}sum+={{Addend(resultType,"__mn71")}};
                     }
                     return sum;
                 }
@@ -154,12 +180,12 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
             : $$"""
                 {{AggressiveInliningAttribute}}
                 private static {{resultType}} Compute(ref TEnum source){
-                    {{resultType}} sum = default!;
+                    {{resultType}} sum = {{InitialValue(resultType)}};
                     checked{
                         if(source.TryGetSpan(out var __span)){
-                            for(var __i=0;__i<__span.Length;__i++) sum+=__span[__i];
+                            for(var __i=0;__i<__span.Length;__i++) {{QueryProbeMarkers.Input}}sum+={{Addend(resultType,"__span[__i]")}};
                         }else{
-                            while(source.TryGetNext(out var __mn71)) sum+=__mn71;
+                            while(source.TryGetNext(out var __mn71)) {{QueryProbeMarkers.Input}}sum+={{Addend(resultType,"__mn71")}};
                         }
                     }
                     return sum;
@@ -168,14 +194,22 @@ internal class Sum(int 番号,Enumerable source,string resultType):BufferedScala
         : $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(ref TEnum source){
-                {{resultType}} sum = default!;
+                {{resultType}} sum = {{InitialValue(resultType)}};
                 checked{
-                    while(source.TryGetNext(out var __mn72)) sum+=__mn72;
+                    while(source.TryGetNext(out var __mn72)) {{QueryProbeMarkers.Input}}sum+={{Addend(resultType,"__mn72")}};
                 }
                 return sum;
             }
             """;
     protected override string GetEnumeratorDisposeBody => $"{this.e}.Dispose();";
+
+    // Nullable Sum returns a non-null zero for an empty or all-null input.
+    // GetValueOrDefault reads each input once and keeps checked numeric addition.
+    internal static string InitialValue(string typeName){if(IsNullableResult(typeName)){return "0";}return "default!";}
+    internal static string Addend(string typeName,string expression){if(IsNullableResult(typeName)){return "("+expression+").GetValueOrDefault()";}return expression;}
+    // 集計が値を1件受け取って足し込む文。計測点の目印(入力1件)を先頭に付ける(PipelineTerminal の全経路がこれを使う)。
+    internal static string Accumulate(string typeName,string target,string expression)=>$"{QueryProbeMarkers.Input}checked {{ {target}+={Addend(typeName,expression)}; }}";
+    private static bool IsNullableResult(string typeName)=>typeName.EndsWith("?",StringComparison.Ordinal)||typeName.StartsWith("global::System.Nullable<",StringComparison.Ordinal)||typeName.StartsWith("System.Nullable<",StringComparison.Ordinal);
 
     private static bool IsKnownSimdSumType(string typeName) =>
         // SumSpan(Seamless.Linq)の SIMD 対応型と一致させる。float は除外(コメント参照)。
@@ -242,18 +276,18 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
         ? $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
-                {{resultType}} sum = default!;
+                {{resultType}} sum = {{Sum.InitialValue(resultType)}};
                 checked{
                     source.TryGetSpan(out var __span);
                     for(var __i=0;__i<__span.Length;__i++){
-                        var {{this.item}}=__span[__i];
+                        {{QueryProbeMarkers.Input}}var {{this.item}}=__span[__i];
                         {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
                         // System.Linq は選択子を呼び出し側の文脈(通常は unchecked)で実行し、checked なのは足し算だけ。
                         // 選択子の中の縮小変換などを checked にすると OverflowException になり、System.Linq と食い違う。
                         unchecked{
                         {{this.FuncAssignIndented("                ",selector,nameof(selector),this.temp,this.item)}}
                         }
-                        sum+={{this.temp}};
+                        sum+={{Sum.Addend(resultType,this.temp)}};
                     }
                 }
                 return sum;
@@ -263,29 +297,29 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
         ? $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
-                {{resultType}} sum = default!;
+                {{resultType}} sum = {{Sum.InitialValue(resultType)}};
                 checked{
                     if(source.TryGetSpan(out var __span)){
                         for(var __i=0;__i<__span.Length;__i++){
-                            var {{this.item}}=__span[__i];
+                            {{QueryProbeMarkers.Input}}var {{this.item}}=__span[__i];
                             {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
                             // System.Linq は選択子を呼び出し側の文脈(通常は unchecked)で実行し、checked なのは足し算だけ。
                             // 選択子の中の縮小変換などを checked にすると OverflowException になり、System.Linq と食い違う。
                             unchecked{
                             {{this.FuncAssignIndented("                ",selector,nameof(selector),this.temp,this.item)}}
                             }
-                            sum+={{this.temp}};
+                            sum+={{Sum.Addend(resultType,this.temp)}};
                         }
                     }else{
                         while(source.TryGetNext(out var __mn73)){
-                            var {{this.item}}=__mn73;
+                            {{QueryProbeMarkers.Input}}var {{this.item}}=__mn73;
                             {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
                             // System.Linq は選択子を呼び出し側の文脈(通常は unchecked)で実行し、checked なのは足し算だけ。
                             // 選択子の中の縮小変換などを checked にすると OverflowException になり、System.Linq と食い違う。
                             unchecked{
                             {{this.FuncAssignIndented("                ",selector,nameof(selector),this.temp,this.item)}}
                             }
-                            sum+={{this.temp}};
+                            sum+={{Sum.Addend(resultType,this.temp)}};
                         }
                     }
                 }
@@ -295,17 +329,17 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
         : $$"""
             {{AggressiveInliningAttribute}}
             private static {{resultType}} Compute(ref TEnum source{{this.ClosureMethodParameterSuffix(selector)}}){
-                {{resultType}} sum = default!;
+                {{resultType}} sum = {{Sum.InitialValue(resultType)}};
                 checked{
                     while(source.TryGetNext(out var __mn74)){
-                        var {{this.item}}=__mn74;
+                        {{QueryProbeMarkers.Input}}var {{this.item}}=__mn74;
                         {{FuncReturnTypeName(selector)}} {{this.temp}}=default!;
                         // System.Linq は選択子を呼び出し側の文脈(通常は unchecked)で実行し、checked なのは足し算だけ。
                         // 選択子の中の縮小変換などを checked にすると OverflowException になり、System.Linq と食い違う。
                         unchecked{
                         {{this.FuncAssignIndented("            ",selector,nameof(selector),this.temp,this.item)}}
                         }
-                        sum+={{this.temp}};
+                        sum+={{Sum.Addend(resultType,this.temp)}};
                     }
                 }
                 return sum;

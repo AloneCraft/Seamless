@@ -1,3 +1,5 @@
+using Seamless.Execution;
+using Seamless.Linq;
 namespace Seamless.Database.Query;
 /// <summary>SQL上の実名。識別子のC#向け変換は行わない。</summary>
 public sealed record SqlObjectName(string Database,string Schema,string Name);
@@ -24,17 +26,24 @@ public sealed record SqlColumn(string Name,SqlType Type,bool IsNullable,SqlObjec
 /// </summary>
 public sealed record SqlTable(SqlObjectName Name,IReadOnlyList<SqlColumn> Columns,Func<CancellationToken,IEnumerable<object?[]>>? Rows=null,string? ViewDefinition=null);
 public sealed record SqlRoutine(SqlObjectName Name,string? Definition,SqlNativeRoutine? Native=null);
+public enum SqlDefinitionKind{View,ScalarFunction}
 /// <summary>生成済みスカラー関数の型契約と、世代に固定された呼出し先。</summary>
 public sealed record SqlNativeRoutine(IReadOnlyList<SqlParameter> Parameters,SqlType ReturnType,bool IsNullable,Func<IReadOnlyList<object?>,object?> Invoke);
 public interface ISqlCatalog{
     long Generation{get;}
     long GetGeneration(string database)=>this.Generation;
     bool CanCachePlans=>true;
+    IDisposable? AcquireRead(IReadOnlyCollection<string> databases,CancellationToken cancellationToken=default)=>null;
+    void TrackPlan(SqlQueryPlan plan){}
     SqlTable? FindTable(SqlObjectName name);
     SqlRoutine? FindRoutine(SqlObjectName name)=>null;
+    IDisposable? EnterDefinition(SqlObjectName name,SqlDefinitionKind kind)=>null;
     string? GetDatabaseCollation(string database)=>null;
 }
-public sealed record SqlParameter(string Name,SqlType Type,bool IsNullable=true);
+public sealed record SqlParameter(string Name,SqlType Type,bool IsNullable=true){
+    /// <summary>生成した行の列値を束縛するときだけ true。列の照合優先度を保持し、変数・RPC 引数と区別する。</summary>
+    public bool IsColumnValue{get;init;}
+}
 public sealed class SqlQueryException(string message,int number=50000,int line=0):InvalidOperationException(message){
     public int Number{get;}=number;
     public int Line{get;}=line;
@@ -43,4 +52,9 @@ public sealed class SqlQueryResult{
     internal SqlQueryResult(IReadOnlyList<SqlColumn> columns,IEnumerable<object?[]> rows){this.Columns=columns;this.Rows=rows;}
     public IReadOnlyList<SqlColumn> Columns{get;}
     public IEnumerable<object?[]> Rows{get;}
+    /// <summary>行を一時領域へ保存する。領域の所有者はスコープ。</summary>
+    public static IEnumerable<object?[]> StoreRows(ExecutionScope scope,IEnumerable<object?[]> rows){
+        if(!scope.Codecs.CanEncode<object?[]>()){scope.Codecs.Register<object?[]>(new SqlRowCodec());}
+        return scope.Query(rows).ToStorage();
+    }
 }

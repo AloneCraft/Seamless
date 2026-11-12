@@ -12,7 +12,7 @@
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)'==''">win-x64</RuntimeIdentifier>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="Benchmark.Headless.Tests" />
+    <InternalsVisibleTo Include="Benchmark.Infrastructure.Tests" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />

@@ -7,8 +7,12 @@ using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 namespace Seamless.Transactions;
 /// <summary>区切りと起動世代を持つ追記専用WAL。検証後の修復以外で旧sectorを書き直さない。</summary>
-public sealed class WalFileDevice:IWalDevice{
+public sealed partial class WalFileDevice:IWalDevice{
+    private static readonly global::System.Diagnostics.ActivitySource CheckpointActivities=new("Seamless.Checkpoint.Wal");
     private static readonly byte[] SegmentMagic=Encoding.ASCII.GetBytes("SLWAL002");
+    private static readonly byte[] MetadataSegmentMagic=Encoding.ASCII.GetBytes("SLWAL003");
+    private byte[] CurrentSegmentMagic{get{if(this.options.MetadataConsumer is not null){return MetadataSegmentMagic;}return SegmentMagic;}}
+    private int SegmentFormat{get{if(this.options.MetadataConsumer is not null){return 3;}return 2;}}
     private readonly string directory;
     private readonly WalOptions options;
     private readonly FileStream lease;
@@ -64,6 +68,7 @@ public sealed class WalFileDevice:IWalDevice{
                 if(this.firstSegment!=0||this.baseLsn!=1){throw new InvalidDataException("Retained WAL prefix is missing.");}
                 this.walId=Guid.NewGuid();this.ordinal=-1;
             }
+            if(this.options.MetadataConsumer is{} consumer){var ack=WalMetadataAcknowledgement.GetPath(this.directory);if(File.Exists(ack)){_=WalMetadataAcknowledgement.Read(this.directory,this.walId,consumer,this.lastLsn,this.baseLsn-1);}else if(this.lastLsn!=0||this.baseLsn!=1){throw new InvalidDataException("The required metadata acknowledgement is missing.");}}
             foreach(var obsolete in Directory.GetFiles(this.directory,"segment-*.wal")){
                 if(long.Parse(Path.GetFileNameWithoutExtension(obsolete).AsSpan(8),System.Globalization.CultureInfo.InvariantCulture)<this.firstSegment){File.Delete(obsolete);}
             }
@@ -115,12 +120,12 @@ public sealed class WalFileDevice:IWalDevice{
         this.ordinal=checked(this.ordinal+1);
         this.current=new FileStream(this.SegmentPath(this.ordinal),FileMode.CreateNew,FileAccess.ReadWrite,FileShare.Read,4096,FileOptions.WriteThrough);
         var header=new byte[this.options.SectorBytes];var span=header.AsSpan();
-        SegmentMagic.CopyTo(span);BinaryPrimitives.WriteInt32LittleEndian(span[8..],2);
+        this.CurrentSegmentMagic.CopyTo(span);BinaryPrimitives.WriteInt32LittleEndian(span[8..],this.SegmentFormat);
         BinaryPrimitives.WriteInt32LittleEndian(span[12..],header.Length);this.walId.TryWriteBytes(span[16..32]);
         BinaryPrimitives.WriteInt64LittleEndian(span[32..],this.epoch);BinaryPrimitives.WriteInt64LittleEndian(span[40..],this.ordinal);
         BinaryPrimitives.WriteInt64LittleEndian(span[48..],checked(this.lastLsn+1));BinaryPrimitives.WriteInt32LittleEndian(span[56..],this.options.SectorBytes);
         BinaryPrimitives.WriteInt64LittleEndian(span[60..],this.options.SegmentBytes);
-        SHA256.HashData(Encoding.UTF8.GetBytes(this.options.CatalogIdentity)).CopyTo(span[68..100]);
+        SHA256.HashData(Encoding.UTF8.GetBytes(this.options.StorageCatalogIdentity)).CopyTo(span[68..100]);
         BinaryPrimitives.WriteUInt32LittleEndian(span[^4..],Crc32.HashToUInt32(span[..^4]));
         this.WriteCurrent(header);this.current.Flush(true);this.segmentEnds[this.ordinal]=this.lastLsn;
     }
@@ -129,7 +134,7 @@ public sealed class WalFileDevice:IWalDevice{
         var header=new byte[this.options.SectorBytes];
         try{stream.ReadExactly(header);}catch(EndOfStreamException error){throw new InvalidDataException("Incomplete WAL segment header.",error);}
         var span=header.AsSpan();
-        if(!span[..8].SequenceEqual(SegmentMagic)||BinaryPrimitives.ReadInt32LittleEndian(span[8..])!=2||BinaryPrimitives.ReadInt32LittleEndian(span[12..])!=header.Length||BinaryPrimitives.ReadInt32LittleEndian(span[56..])!=this.options.SectorBytes||BinaryPrimitives.ReadInt64LittleEndian(span[60..])!=this.options.SegmentBytes||!span[68..100].SequenceEqual(SHA256.HashData(Encoding.UTF8.GetBytes(this.options.CatalogIdentity)))||span[100..^4].IndexOfAnyExcept((byte)0)>=0||BinaryPrimitives.ReadUInt32LittleEndian(span[^4..])!=Crc32.HashToUInt32(span[..^4])){throw new InvalidDataException("WAL segment format/catalog/CRC mismatch.");}
+        if(!span[..8].SequenceEqual(this.CurrentSegmentMagic)||BinaryPrimitives.ReadInt32LittleEndian(span[8..])!=this.SegmentFormat||BinaryPrimitives.ReadInt32LittleEndian(span[12..])!=header.Length||BinaryPrimitives.ReadInt32LittleEndian(span[56..])!=this.options.SectorBytes||BinaryPrimitives.ReadInt64LittleEndian(span[60..])!=this.options.SegmentBytes||!span[68..100].SequenceEqual(SHA256.HashData(Encoding.UTF8.GetBytes(this.options.StorageCatalogIdentity)))||span[100..^4].IndexOfAnyExcept((byte)0)>=0||BinaryPrimitives.ReadUInt32LittleEndian(span[^4..])!=Crc32.HashToUInt32(span[..^4])){throw new InvalidDataException("WAL segment format/catalog/CRC mismatch.");}
         var result=(new Guid(span[16..32]),BinaryPrimitives.ReadInt64LittleEndian(span[32..]),BinaryPrimitives.ReadInt64LittleEndian(span[40..]),BinaryPrimitives.ReadInt64LittleEndian(span[48..]));
         if(result.Item1==Guid.Empty||result.Item2<=0||result.Item3<0||result.Item4<=0){throw new InvalidDataException("Invalid segment identity.");}
         return result;
@@ -145,7 +150,7 @@ public sealed class WalFileDevice:IWalDevice{
             if(info.Length-WalFormat.HeaderBytes>stream.Length-stream.Position){if(final){yield break;}throw new InvalidDataException("Incomplete nonfinal WAL body.");}
             var frame=new byte[info.Length];header.CopyTo(frame,0);stream.ReadExactly(frame.AsSpan(WalFormat.HeaderBytes));WalFormat.CheckBody(frame);
             if(info.Type==2&&(info.Length>this.options.SectorBytes+WalFormat.HeaderBytes-1||stream.Position%this.options.SectorBytes!=0)){throw new InvalidDataException("Invalid PAD sector boundary.");}
-            if(info.Type==1){
+            if(info.Type is 1 or 3){
                 if(info.Lsn!=expected++){throw new InvalidDataException("WAL LSN gap/duplicate.");}
                 yield return(WalFormat.Decode(frame,this.options.MaxFrameBytes),stream.Position);
             }
@@ -198,7 +203,11 @@ public sealed class WalFileDevice:IWalDevice{
     /// <summary>全参加区画・結果台帳のcheckpointがcoverするprefixだけを、次の起動世代で削除する。</summary>
     public void PruneThrough(long checkpointLsn){
         using(this.EnterDevice()){
-            ObjectDisposedException.ThrowIf(this.disposed,this);this.SyncCore();
+            ObjectDisposedException.ThrowIf(this.disposed,this);
+            using(CheckpointActivities.StartActivity("Synchronize WAL for pruning")){
+                this.SyncCore();
+            }
+            if(this.options.MetadataConsumer is{} consumer){var acknowledged=WalMetadataAcknowledgement.Read(this.directory,this.walId,consumer,this.lastLsn,this.baseLsn-1);checkpointLsn=Math.Min(checkpointLsn,acknowledged);}
             var prior=this.ReadRetention();
             var candidate=this.firstSegment;
             foreach(var pair in this.segmentEnds.OrderBy(static p=>p.Key)){
@@ -216,8 +225,10 @@ public sealed class WalFileDevice:IWalDevice{
             BinaryPrimitives.WriteInt64LittleEndian(span[24..],next.FirstSegment);BinaryPrimitives.WriteInt64LittleEndian(span[32..],next.BaseLsn);
             BinaryPrimitives.WriteInt64LittleEndian(span[40..],next.CandidateEpoch);BinaryPrimitives.WriteInt64LittleEndian(span[48..],next.CandidateSegment);
             BinaryPrimitives.WriteUInt32LittleEndian(span[60..],Crc32.HashToUInt32(span[..60]));
-            using(var file=new FileStream(temporary,FileMode.Create,FileAccess.Write,FileShare.None)){file.Write(bytes);file.Flush(true);}
-            File.Move(temporary,path,true);
+            using(CheckpointActivities.StartActivity("Publish WAL retention")){
+                using(var file=new FileStream(temporary,FileMode.Create,FileAccess.Write,FileShare.None)){file.Write(bytes);file.Flush(true);}
+                File.Move(temporary,path,true);
+            }
             this.firstSegment=removeBefore;this.baseLsn=nextBase;
             foreach(var number in this.segmentEnds.Keys.Where(p=>p<removeBefore).ToArray()){File.Delete(this.SegmentPath(number));this.segmentEnds.Remove(number);}
             this.RefreshStorage();

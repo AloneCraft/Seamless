@@ -181,7 +181,7 @@ internal class CountBy(int 番号,Enumerable source,FuncFragment keySelector):En
             var indent = match.Groups["indent"].Value;
             var arg = match.Groups["arg"].Value;
             var assign = this.FuncAssignStatic(keySelector,nameof(keySelector),keyName,arg);
-            return $"{indent}{keyType} {keyName}=default!;\n{indent}{assign}\n{indent}global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({mapName},{keyName},out _)++;";
+            return $"{indent}{{\n{indent}{keyType} {keyName}=default!;\n{indent}{assign}\n{indent}global::System.Runtime.InteropServices.CollectionsMarshal.GetValueRefOrAddDefault({mapName},{keyName},out _)++;\n{indent}}}";
         });
         // 根が Range で間に Select などがあるとき、上流の消費が使う __rangeStart / __rangeCount の宣言(準備文)を先に出す。
         // 出さないと、これらが未宣言のまま使われて CS0103 になる(2026-10-22)。

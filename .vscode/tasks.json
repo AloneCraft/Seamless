@@ -2,6 +2,20 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "開発環境を同期 (ソリューション・起動構成を直す)",
+            "command": "powershell.exe",
+            "type": "process",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/dev-env/Sync-DevEnvironment.ps1"],
+            "problemMatcher": []
+        },
+        {
+            "label": "開発環境を検査 (書き換えない)",
+            "command": "powershell.exe",
+            "type": "process",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/tools/dev-env/Sync-DevEnvironment.ps1", "-Check"],
+            "problemMatcher": []
+        },
+        {
             "label": "build",
             "command": "dotnet",
             "type": "process",
@@ -101,6 +115,50 @@
             ],
             "problemMatcher": "$msCompile",
             "group": "test"
+        },
+        {
+            "label": "build-management-server-debug",
+            "command": "${env:ProgramFiles}\\dotnet\\dotnet.exe",
+            "type": "process",
+            "args": ["build", "${workspaceFolder}/Seamless.Management.Server/WindowsServer.csproj", "-m:1", "/property:GenerateFullPaths=true", "/consoleloggerparameters:NoSummary"],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-management-server-release",
+            "command": "${env:ProgramFiles}\\dotnet\\dotnet.exe",
+            "type": "process",
+            "args": ["build", "${workspaceFolder}/Seamless.Management.Server/WindowsServer.csproj", "-c", "Release", "-m:1", "/property:GenerateFullPaths=true", "/consoleloggerparameters:NoSummary"],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-benchmark-dynamic-ui-debug",
+            "command": "${env:ProgramFiles}\\dotnet\\dotnet.exe",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj",
+                "-c",
+                "Debug",
+                "-m:1",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build-benchmark-dynamic-ui-release",
+            "command": "${env:ProgramFiles}\\dotnet\\dotnet.exe",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/Benchmark/Benchmark.Dynamic.UI/Benchmark.Dynamic.UI.csproj",
+                "-c",
+                "Release",
+                "-m:1",
+                "/property:GenerateFullPaths=true",
+                "/consoleloggerparameters:NoSummary"
+            ],
+            "problemMatcher": "$msCompile"
         }
     ]
 }

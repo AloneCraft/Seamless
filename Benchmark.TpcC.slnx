@@ -11,6 +11,8 @@
     <Project Path="Benchmark/Benchmark.TpcC.Tsavorite.Linq/Benchmark.TpcC.Tsavorite.Linq.csproj" />
   </Folder>
   <Folder Name="/Shared/">
+    <Project Path="Shared/Database.Generation/Database.Generation.shproj" />
+    <File Path="Shared/Database.Generation/Database.Generation.projitems" />
     <Project Path="Shared/TpcC.Transactions/TpcC.Transactions.shproj" />
     <File Path="Shared/TpcC.Transactions/TpcC.Transactions.projitems" />
   </Folder>
@@ -31,5 +33,4 @@
   <Project Path="Seamless.Database/Seamless.Database.csproj" />
   <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
   <Project Path="Seamless/Seamless.csproj" />
-  <Project Path="Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
 </Solution>

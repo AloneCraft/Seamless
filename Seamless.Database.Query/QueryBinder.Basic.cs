@@ -93,13 +93,15 @@ internal sealed partial class QueryBinder{
         switch(source){
             case SqlTableSyntax table:{
                 var parts=table.Name.Parts;if(parts.Count is <1 or >3){throw new SqlQueryException("A basic table name must have one to three parts.",40515);}
-                var schema="dbo";var databaseName=this.database;if(parts.Count>=2){schema=parts[^2].Value;}if(parts.Count==3){databaseName=parts[0].Value;}
+                var schema="";var databaseName=this.database;if(parts.Count>=2){schema=parts[^2].Value;}if(parts.Count==3){databaseName=parts[0].Value;}
                 var name=new SqlObjectName(databaseName,schema,parts[^1].Value);var definition=this.catalog.FindTable(name)??throw new SqlQueryException("Invalid object name '"+name+"'.",208);
                 name=definition.Name;var qualifier=table.Alias?.Value??name.Name;
                 if(definition.ViewDefinition is{}view){
                     if(this.viewStack.Count>=32||!this.viewStack.Add(name)){throw new SqlQueryException("Recursive or excessively deep view dependency: "+name,4429);}
                     try{
-                        var syntax=new SqlParserCsAdapter().ParseViewDefinition(view,name);var bound=new QueryBinder(this.catalog,name.Database,this.parameters,this.viewStack).BindBasic(syntax);
+                        var syntax=new SqlParserCsAdapter().ParseViewDefinition(view,name);
+                        using var definitionScope=this.catalog.EnterDefinition(name,SqlDefinitionKind.View);
+                        var bound=new QueryBinder(this.catalog,name.Database,this.parameters,this.viewStack,this.routineBindings).BindBasic(syntax);
                         if(bound.Columns.Count!=definition.Columns.Count){throw new SqlQueryException("View column count differs from metadata: "+name,4502);}
                         return new(definition.Columns.Select((column,index)=>new BindingColumn(column with{Source=name,IsComputedFloatingPoint=IsFloating(column.Type)&&bound.Columns[index].IsComputedFloatingPoint},qualifier)).ToArray(),(execution,outer)=>ReadView(execution,outer));
                         IEnumerable<object?[]>ReadView(QueryExecution execution,object?[]?outer){
@@ -175,7 +177,7 @@ internal sealed partial class QueryBinder{
                 if(matches.Length>1){throw new SqlQueryException("Ambiguous column name '"+parts[^1].Value+"'.",209);}if(matches.Length==0){throw new SqlQueryException("Invalid column name '"+string.Join(".",parts.Select(part=>part.Value))+"'.",207);}
                 var match=matches[0];return new(this.GetColumnType(match.column.Column),match.column.Column.IsNullable,frame=>frame.Row[match.index],match.column.Column);
             }
-            case SqlParameterSyntax parameter:{var definition=this.parameters.FirstOrDefault(item=>Equal(item.Name,parameter.Name))??throw new SqlQueryException("Undeclared parameter "+parameter.Name,137);return new(this.DefaultStringType(definition.Type),definition.IsNullable,frame=>frame.Execution.Parameters[definition.Name]);}
+            case SqlParameterSyntax parameter:{var definition=this.parameters.FirstOrDefault(item=>Equal(item.Name,parameter.Name))??throw new SqlQueryException("Undeclared parameter "+parameter.Name,137);return new(this.ParameterType(definition),definition.IsNullable,frame=>frame.Execution.Parameters[definition.Name]);}
             case SqlCastSyntax cast:{var value=this.BindBasicScalar(cast.Value,columns,aggregates);var type=this.DefaultStringType(BasicType(cast.Type),value.Type);return new(type,value.Nullable,frame=>SqlValues.ConvertTo(value.Value(frame),type,true)){IsComputedFloatingPoint=FloatingConversion(type,value)};}
             case SqlUnarySyntax{Operator:SqlSyntaxUnaryOperator.Positive}positive:return this.BindBasicScalar(positive.Value,columns,aggregates);
             case SqlUnarySyntax{Operator:SqlSyntaxUnaryOperator.Negative}negative:{var value=this.BindBasicScalar(negative.Value,columns,aggregates);return new(value.Type,value.Nullable,frame=>SqlValues.Unary(value.Value(frame),SqlUnaryOperator.Negative)){IsComputedFloatingPoint=IsFloating(value.Type)};}

@@ -41,7 +41,7 @@ public sealed class NativeSharedTransactionTests{
         var root=Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT");
         if(string.IsNullOrWhiteSpace(root)||!Path.IsPathFullyQualified(root)||!(root.StartsWith("D:\\",StringComparison.OrdinalIgnoreCase)||root.StartsWith("F:\\",StringComparison.OrdinalIgnoreCase))){throw new InvalidOperationException("An absolute D: or F: test root is required.");}
         var path=Path.Combine(root,"native-shared-"+Guid.NewGuid().ToString("N"));
-        var options=DatabaseContainerOptions.OnStorage(path) with{Transactions=DatabaseTransactionMode.SharedV2,IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20,TemporaryDirectory=Path.Combine(path,"scratch")};
+        var options=DatabaseContainerOptions.OnStorage(path) with{IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20,TemporaryDirectory=Path.Combine(path,"scratch")};
         using var database=new RuntimeSqlGeneratedRoot(options);
         var registry=new DatabaseRegistry();registry.Register("fixture",new InProcessDatabaseAdapter(database),schemaFingerprint:Fingerprint);
         var version=typeof(INativeQueryModule).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
@@ -49,7 +49,7 @@ public sealed class NativeSharedTransactionTests{
             new NativeQueryDefinition("insert","fixture",Fingerprint,"int","int",false),
             new NativeQueryDefinition("update","fixture",Fingerprint,"int","int",false),
             new NativeQueryDefinition("delete","fixture",Fingerprint,"int","int",false),
-            new NativeQueryDefinition("read","fixture",Fingerprint,"int","string")
+            new NativeQueryDefinition("read","fixture",Fingerprint,"int","string"){ArgumentsContract=NativeWireContract.For<int>(),ResultContract=NativeWireContract.For<string>()}
         };
         using var server=new NativeQueryServer(registry,35483);server.Register(new NativeModuleManifest("test","","","",version,definitions),new Module(),version);server.Start();
         using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -61,6 +61,7 @@ public sealed class NativeSharedTransactionTests{
             var rows=new List<string>();await foreach(var value in client.QueryAsync<int,string>("test","read","fixture",Fingerprint,7,timeout.Token)){rows.Add(value);}return rows.ToArray();
         }
         Assert.Empty(await Read());
+        var mismatch=await Assert.ThrowsAsync<NativeQueryException>(async()=>{await foreach(var value in client.QueryAsync<int,int>("test","read","fixture",Fingerprint,7,timeout.Token)){}});Assert.True(mismatch.IsRecoverable);Assert.Empty(await Read());
         await using(var tx=await client.BeginTransactionAsync("fixture",timeout.Token)){Assert.Equal(1,await Mutate(tx,"insert"));await tx.CommitAsync(timeout.Token);}
         Assert.Equal(new[]{"created"},await Read());
         await using(var tx=await client.BeginTransactionAsync("fixture",timeout.Token)){Assert.Equal(1,await Mutate(tx,"update"));await tx.RollbackAsync(timeout.Token);}

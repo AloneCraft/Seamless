@@ -1,4 +1,4 @@
-﻿namespace Seamless.Collections.Tsavorite;
+namespace Seamless.Collections.Tsavorite;
 
 /// <summary>
 /// 操作用オブジェクトの共通基底。<typeparamref name="TMode"/> はシングル用(<see cref="ExclusiveAccess"/>)か
@@ -53,17 +53,21 @@ public abstract class Collection<
     public abstract class IterateLookupIteratorFunctions_List<T>:IScanIteratorFunctions {
         private const int MinimumScanChunkLength = 4096;
         private static readonly T[] EmptyChunk = [];
+        // collectible T の SharedArrayPool<T> は collectible thread-static を使用する。
+        // 世代が所有する通常のプールで、アンロード後の TLS index 再利用を避ける。
+        // https://github.com/dotnet/runtime/issues/134928
+        private static readonly ArrayPool<T> ScanChunks=typeof(T).IsCollectible?ArrayPool<T>.Create():ArrayPool<T>.Shared;
         // 走査バッファは列挙 1 回につき 1 本必要になる。new すると int で 16KB、参照型で 32KB を
         // 毎 foreach ごとに確保することになり、Tsavorite ベンチマークの割り当ての大半を占めていた。
         // 列挙子の Dispose で返却する(返却後は EmptyChunk に差し替わるので Accept は書き込まない)。
-        public T[] Chunk = ArrayPool<T>.Shared.Rent(Math.Max(Const.Chunk_Length,MinimumScanChunkLength));
+        public T[] Chunk = ScanChunks.Rent(Math.Max(Const.Chunk_Length,MinimumScanChunkLength));
         public int Count;
         private long LastAcceptedAddress;
         public void ResetChunk() {
             // Dispose 済みの列挙子を Reset() して再利用する経路では返却済みなので、ここで借り直す。
             // 借り直さないと Accept が常に EndBatch を返し、MoveNext の while(true) が抜けられない。
             if(ReferenceEquals(this.Chunk,EmptyChunk)) {
-                this.Chunk=ArrayPool<T>.Shared.Rent(Math.Max(Const.Chunk_Length,MinimumScanChunkLength));
+                this.Chunk=ScanChunks.Rent(Math.Max(Const.Chunk_Length,MinimumScanChunkLength));
             }
             this.Count=0;
             this.LastAcceptedAddress=0;
@@ -76,7 +80,7 @@ public abstract class Collection<
             this.Chunk=EmptyChunk;
             this.Count=0;
             this.LastAcceptedAddress=0;
-            ArrayPool<T>.Shared.Return(rented,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
+            ScanChunks.Return(rented,clearArray: RuntimeHelpers.IsReferenceOrContainsReferences<T>());
         }
         // Reader は 1 レコードにつき 1 回呼ばれる最内ループである。ここから ShouldRead / Deserialize を
         // ジェネリック仮想メソッドとして呼ぶと、レコードごとにジェネリックディクショナリ探索を伴う
@@ -147,6 +151,7 @@ public abstract class Collection<
         TStoreFunctions,
         TAllocator
     > CollectionStore;
+    internal global::Seamless.Execution.ResourceBudget? SerializationBudget=>this.CollectionStore.SerializationBudget;
     private protected TsavoriteKV<TStoreFunctions,TAllocator> Store => this.CollectionStore.Store;
     public TryAddResult TryAdd(TKey Key,TValue Value) {
         this.VerifyThreadAffinity();
@@ -189,6 +194,7 @@ public abstract class Collection<
     }
     private long parallelCountDelta;
     private protected unsafe bool PrivateProtectedContainsKey(ReadOnlySpan<byte> KeyBytes) {
+        using var operation=this.BeginContainsRead();
         var Session = this.ContainsDeleteSession;
         var Output = false;
         Status Status;
@@ -268,21 +274,21 @@ public abstract class Collection<
             TReadOutput,
             EqualityEmpty,
             TReadFunctions
-        >(TReadFunctions.Create());
+        >(TReadFunctions.Create(this.SerializationBudget));
         this.Add_ClientSession=Store.NewSession<
             FixedSpanByteKey,
             TAddInput,
             bool,
             EqualityEmpty,
             TAddFunctions
-        >(TAddFunctions.Create());
+        >(TAddFunctions.Create(this.SerializationBudget));
         this.ContainsDeleteSession=Store.NewSession<
             FixedSpanByteKey,
             EqualityEmpty,
             bool,
             EqualityEmpty,
             TContainsDeleteFunctions
-        >(TContainsDeleteFunctions.Create());
+        >(TContainsDeleteFunctions.Create(this.SerializationBudget));
     }
     private void DisposeCoreSessions() {
         CompletePendingAndDispose(this.ReadSession);
@@ -668,13 +674,16 @@ public abstract class Collection<
             _ => throw new UnreachableException(),
         };
     }
-    // 共有の読み取りセッションで走査している間を示す。Debug ビルドで、シングル用を別のスレッドが同時に走査したら例外にする(BUG-0016)。Release では何もしない。
+    private readonly object readSessionGate=new();
+    private readonly object containsSessionGate=new();
+
+    // DatabaseContainer は読取を並行に実行できる。共有セッションを使う区間だけ排他し、列挙子の呼び出し間には持ち越さない。
     internal ScanScope BeginScan() {
-#if DEBUG
-        if(TMode.IsExclusive) {
-            return new(this.CollectionStore);
-        }
-#endif
+        if(TMode.IsExclusive){return new(this.readSessionGate,this.CollectionStore);}
+        return default;
+    }
+    private ScanScope BeginContainsRead(){
+        if(TMode.IsExclusive){return new(this.containsSessionGate,null);}
         return default;
     }
     // 容量を超えるなら、書く前に例外にする(1 件ずつの追加と同じ判定)。まとめて書き換える集合演算が使う。
@@ -1126,56 +1135,78 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
     where TValueSerializer : global::Seamless.Collections.Serializers.IStrategy<TValue>
     where TMode : struct, IAccessMode {
     public sealed class KeyIterator:IterateLookupIteratorFunctions_List<TKey>, ICreate<KeyIterator> {
+        public KeyIterator():this(null){}
+        public KeyIterator(global::Seamless.Execution.ResourceBudget? budget){this.keySerializer=new(budget);}
+        private readonly StoreSerializer<TKey,TKeySerializer> keySerializer;
         public static KeyIterator Create() => new();
+        public static KeyIterator Create(global::Seamless.Execution.ResourceBudget? budget)=>new(budget);
         public override bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             if(logRecord.Info.Tombstone) {
                 return Skip(out cursorRecordResult);
             }
-            return this.Accept(TKeySerializer.Deserialize(logRecord.Key),recordMetadata,out cursorRecordResult);
+            return this.Accept(this.keySerializer.Deserialize(logRecord.Key),recordMetadata,out cursorRecordResult);
         }
     }
     private protected sealed class MemoryKeyIterator:IterateLookupIteratorFunctions_List<TKey> {
+        public MemoryKeyIterator():this(null){}
+        public MemoryKeyIterator(global::Seamless.Execution.ResourceBudget? budget){this.keySerializer=new(budget);}
+        private readonly StoreSerializer<TKey,TKeySerializer> keySerializer;
         public override bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             if(typeof(TSourceLogRecord)==typeof(DiskLogRecord)||logRecord.Info.Tombstone) {
                 return Skip(out cursorRecordResult);
             }
-            return this.Accept(TKeySerializer.Deserialize(logRecord.Key),recordMetadata,out cursorRecordResult);
+            return this.Accept(this.keySerializer.Deserialize(logRecord.Key),recordMetadata,out cursorRecordResult);
         }
     }
     private protected sealed class ValueIterator:IterateLookupIteratorFunctions_List<TValue>, ICreate<ValueIterator> {
+        public ValueIterator():this(null){}
+        public ValueIterator(global::Seamless.Execution.ResourceBudget? budget){this.valueSerializer=new(budget);}
+        private readonly StoreSerializer<TValue,TValueSerializer> valueSerializer;
         public static ValueIterator Create() => new();
+        public static ValueIterator Create(global::Seamless.Execution.ResourceBudget? budget)=>new(budget);
         public override bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             if(logRecord.Info.Tombstone) {
                 return Skip(out cursorRecordResult);
             }
-            return this.Accept(TValueSerializer.Deserialize(logRecord.ValueSpan),recordMetadata,out cursorRecordResult);
+            return this.Accept(this.valueSerializer.Deserialize(logRecord.ValueSpan),recordMetadata,out cursorRecordResult);
         }
     }
     private protected sealed class MemoryValueIterator:IterateLookupIteratorFunctions_List<TValue> {
+        public MemoryValueIterator():this(null){}
+        public MemoryValueIterator(global::Seamless.Execution.ResourceBudget? budget){this.valueSerializer=new(budget);}
+        private readonly StoreSerializer<TValue,TValueSerializer> valueSerializer;
         public override bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             if(typeof(TSourceLogRecord)==typeof(DiskLogRecord)||logRecord.Info.Tombstone) {
                 return Skip(out cursorRecordResult);
             }
-            return this.Accept(TValueSerializer.Deserialize(logRecord.ValueSpan),recordMetadata,out cursorRecordResult);
+            return this.Accept(this.valueSerializer.Deserialize(logRecord.ValueSpan),recordMetadata,out cursorRecordResult);
         }
     }
     public sealed class KeyValueIterator:IterateLookupIteratorFunctions_List<KeyValuePair<TKey,TValue>> {
+        public KeyValueIterator():this(null){}
+        public KeyValueIterator(global::Seamless.Execution.ResourceBudget? budget){this.keySerializer=new(budget);this.valueSerializer=new(budget);}
+        private readonly StoreSerializer<TValue,TValueSerializer> valueSerializer;
+        private readonly StoreSerializer<TKey,TKeySerializer> keySerializer;
         public override bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             if(logRecord.Info.Tombstone) {
                 return Skip(out cursorRecordResult);
             }
-            var Key = TKeySerializer.Deserialize(logRecord.Key);
-            var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
+            var Key = this.keySerializer.Deserialize(logRecord.Key);
+            var Value = this.valueSerializer.Deserialize(logRecord.ValueSpan);
             return this.Accept(new(Key,Value),recordMetadata,out cursorRecordResult);
         }
     }
     private protected sealed class MemoryKeyValueIterator:IterateLookupIteratorFunctions_List<KeyValuePair<TKey,TValue>> {
+        public MemoryKeyValueIterator():this(null){}
+        public MemoryKeyValueIterator(global::Seamless.Execution.ResourceBudget? budget){this.keySerializer=new(budget);this.valueSerializer=new(budget);}
+        private readonly StoreSerializer<TValue,TValueSerializer> valueSerializer;
+        private readonly StoreSerializer<TKey,TKeySerializer> keySerializer;
         public override bool Reader<TSourceLogRecord>(in TSourceLogRecord logRecord,RecordMetadata recordMetadata,long numberOfRecords,out CursorRecordResult cursorRecordResult) {
             if(typeof(TSourceLogRecord)==typeof(DiskLogRecord)||logRecord.Info.Tombstone) {
                 return Skip(out cursorRecordResult);
             }
-            var Key = TKeySerializer.Deserialize(logRecord.Key);
-            var Value = TValueSerializer.Deserialize(logRecord.ValueSpan);
+            var Key = this.keySerializer.Deserialize(logRecord.Key);
+            var Value = this.valueSerializer.Deserialize(logRecord.ValueSpan);
             return this.Accept(new(Key,Value),recordMetadata,out cursorRecordResult);
         }
     }
@@ -1304,9 +1335,13 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
             this._iterator.ReturnChunk();
         }
     }
-    private protected Collection(CollectionStore<TKey,TValue> CollectionStore) : base(CollectionStore) {
+    private protected readonly StoreSerializer<TKey,TKeySerializer> keySerializer;
+    private protected readonly StoreSerializer<TValue,TValueSerializer> valueSerializer;
+    private protected Collection(CollectionStore<TKey,TValue> CollectionStore) : this(CollectionStore,null) {
     }
     private protected Collection(CollectionStore<TKey,TValue> CollectionStore,ParallelRegionState? region) : base(CollectionStore,region) {
+        this.keySerializer=new(CollectionStore.SerializationBudget);
+        this.valueSerializer=new(CollectionStore.SerializationBudget);
     }
     // Reader から TStrategy.Invoke を直接呼ぶ push 型実装は、通常の列挙経路
     // (Enumerator<KeyIterator,TKey>、ArrayPool チャンクへ Accept で詰めてから配る pull 型)より
@@ -1318,7 +1353,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
     private protected void IterateKeysCore<TStrategy>(ref TStrategy strategy)
         where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TKey> {
         this.VerifyThreadAffinity(nameof(this.IterateKeysCore));
-        var iterator = new KeyIterator();
+        var iterator = new KeyIterator(this.SerializationBudget);
         var cursor = 0L;
         try {
             while(true) {
@@ -1345,7 +1380,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
     private protected void IterateValuesCore<TStrategy>(ref TStrategy strategy)
         where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TValue> {
         this.VerifyThreadAffinity(nameof(this.IterateValuesCore));
-        var iterator = new IterateValuesAdapter<TStrategy>(strategy);
+        var iterator = new IterateValuesAdapter<TStrategy>(strategy,this.SerializationBudget);
         var cursor = 0L;
         using(this.BeginScan()) {
             this.ScanNext(ref iterator,ref cursor);
@@ -1353,9 +1388,10 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
         }
         strategy=iterator.Strategy;
     }
-    private sealed class IterateValuesAdapter<TStrategy>(TStrategy strategy):IScanIteratorFunctions
+    private sealed class IterateValuesAdapter<TStrategy>(TStrategy strategy,global::Seamless.Execution.ResourceBudget? budget):IScanIteratorFunctions
         where TStrategy : struct, global::Seamless.Collections.Iteration.IStrategy<TStrategy,TValue> {
         public TStrategy Strategy = strategy;
+        private readonly StoreSerializer<TValue,TValueSerializer> valueSerializer=new(budget);
         public bool Reader<TSourceLogRecord>(
             in TSourceLogRecord logRecord,
             RecordMetadata recordMetadata,
@@ -1366,7 +1402,7 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
                 cursorRecordResult=CursorRecordResult.Skip;
                 return true;
             }
-            var item = TValueSerializer.Deserialize(logRecord.ValueSpan);
+            var item = this.valueSerializer.Deserialize(logRecord.ValueSpan);
             if(TStrategy.Invoke(ref this.Strategy,item)) {
                 cursorRecordResult=CursorRecordResult.Accept;
                 return true;
@@ -1380,15 +1416,19 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
     }
     public bool ContainsKey(TKey Key) {
         this.VerifyThreadAffinity(nameof(this.ContainsKey));
-        return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
+        using var serialized=this.keySerializer.Serialize(ref Key);
+        return this.PrivateProtectedContainsKey(serialized.Bytes);
     }
     public bool Contains(TKey Key) {
         this.VerifyThreadAffinity(nameof(this.Contains));
-        return this.PrivateProtectedContainsKey(TKeySerializer.Serialize(ref Key));
+        using var serialized=this.keySerializer.Serialize(ref Key);
+        return this.PrivateProtectedContainsKey(serialized.Bytes);
     }
     private protected override unsafe Status Read(TKey Key,out TValue Value) {
         this.VerifyThreadAffinity(nameof(this.Read));
-        var KeyBytes = TKeySerializer.Serialize(ref Key);
+        using var serializedKey=this.keySerializer.Serialize(ref Key);
+        var KeyBytes=serializedKey.Bytes;
+        using var operation=this.BeginScan();
         var Session = this.ReadSession;
         TValue Output = default!;
         Status Status;
@@ -1407,7 +1447,8 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
     public unsafe bool Remove(TKey key) {
         this.VerifyThreadAffinity();
         var ClientSession = this.ContainsDeleteSession;
-        var KeyBytes = TKeySerializer.Serialize(ref key);
+        using var serializedKey=this.keySerializer.Serialize(ref key);
+        var KeyBytes=serializedKey.Bytes;
         var Input = default(EqualityEmpty);
         var Output = false;
         Status Status;
@@ -1423,8 +1464,9 @@ public abstract class Collection<TKey, TValue, TKeySerializer, TValueSerializer,
     }
     private protected override unsafe TryAddResult PrivateTryAdd(TKey key,TValue value) {
         this.VerifyThreadAffinity(nameof(this.PrivateTryAdd));
-        var KeyBytes = TKeySerializer.Serialize(ref key);
-        var serializedValueSize = TValueSerializer.Serialize(ref value).Length;
+        using var serializedKey=this.keySerializer.Serialize(ref key);
+        var KeyBytes=serializedKey.Bytes;
+        var serializedValueSize = this.valueSerializer.GetEncodedLength(ref value);
         if(this.WouldOverflowMutable(KeyBytes.Length,serializedValueSize))
             return TryAddResult.LogFull;
         var ClientSession = this.Add_ClientSession;

@@ -9,4 +9,8 @@
     <AssemblyName>Benchmark.Dynamic.Core</AssemblyName>
   </PropertyGroup>
   <ItemGroup><EmbeddedResource Include="FixedCases/chains.json" /><EmbeddedResource Include="FixedCases/legacy-operators.json" /></ItemGroup>
+  <ItemGroup>
+    <Compile Remove="RegressionSources/**/*.cs" />
+    <EmbeddedResource Include="RegressionSources/**/*.cs" LogicalName="RegressionSources/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

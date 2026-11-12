@@ -8,4 +8,5 @@
     <PackageId>Seamless.Database.Rdbms</PackageId>
     <IsPackable>true</IsPackable>
   </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Seamless.Collections/Seamless.Collections.csproj" /></ItemGroup>
 </Project>

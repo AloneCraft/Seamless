@@ -1,0 +1,57 @@
+@implements IAsyncDisposable
+@inject IJSRuntime スクリプト
+
+<link rel="stylesheet" href="./_content/Seamless.Management.Components/execution-plan.css"/>
+<section class="生成コード構造 計画グラフ" aria-label="@表示文言.取得("生成C#の制御フロー")" data-モデルノード数="@this.配置.ブロック.Length" data-モデル接続数="@this.配置.接続.Length" data-詳細ノード数="@this.詳細.Length">
+    <h3>@表示文言.取得("FLinq生成C#の構造")</h3>
+    <p class="小案内">@this.コード.MethodKey · @this.コード.Status</p>
+    <p class="小案内">@表示文言.取得("配置は基本ブロック番号順です。矢印は静的な制御フローです。")</p>
+    <p class="小案内">@表示文言.取得("ヘルパー呼出しの内部と、元演算から生成ブロックへの対応は未収集です。")</p>
+    <p class="小案内">@表示文言.取得("ノード別時間、CPU、I/O、詳細イベントは未収集です。")</p>
+    @if(this.コード.BodyText is not null&&!this.ハッシュ適合か){<p class="計画グラフ警告" role="alert">@表示文言.取得("生成本文のハッシュが一致しないため、コード対応を表示できません。")</p>}
+    @if(this.コード.Status!="Available"){<p role="status">@表示文言.取得("生成構造の収集状態") · @this.コード.Status · @表示文言.取得("省略ブロック{0}件・操作{1}件",this.コード.OmittedBlockCount,this.コード.OmittedOperationCount)</p>}
+    @foreach(var 診断 in this.コード.Diagnostics){<p role="status">@診断</p>}
+    @if(this.配置.不正な識別子か){<p role="alert">@表示文言.取得("生成ブロックの識別子または接続が不正です。")</p>}
+    <div class="計画グラフ操作">
+        <グラフ表示操作/>
+        <label class="計画グラフ検索">@表示文言.取得("ブロックと操作を検索")<input aria-label="@表示文言.取得("ブロックと操作を検索")" @bind="this.検索" @bind:event="oninput" @onkeydown="this.検索キー時Async"/></label>
+        <button type="button" class="控えめボタン" @onclick="this.検索時Async">@表示文言.取得("次の一致")</button>
+        <div class="計画グラフ拡大"><button type="button" class="控えめボタン" aria-label="@表示文言.取得("縮小")" @onclick="()=>this.倍率変更時Async(0.8)">−</button><span>@this.倍率名</span><button type="button" class="控えめボタン" aria-label="@表示文言.取得("拡大")" @onclick="()=>this.倍率変更時Async(1.25)">＋</button><button type="button" class="控えめボタン" @onclick="this.標準倍率時">100%</button><button type="button" class="控えめボタン" @onclick="this.全体表示時">@表示文言.取得("全体表示")</button></div>
+    </div>
+    <p class="小案内">@表示文言.取得("全{0}ブロック・{1}制御接続。詳細{2}件を表示しています。",this.配置.ブロック.Length,this.配置.接続.Length,this.詳細.Length)</p>
+    <p class="小案内">@表示文言.取得("矢印は静的な制御フローです。戻り辺は破線、太さは固定です。実行アニメーションはありません。")</p>
+    <div class="計画グラフ配置">
+        <div @ref="this.画面" class="計画グラフ画面" tabindex="0" role="region" aria-label="@表示文言.取得("生成制御フローのキャンバス")">
+            <svg class="計画グラフ図" viewBox="@($"0 0 {this.配置.幅} {this.配置.高さ}")" style="@this.図寸法" preserveAspectRatio="xMidYMin meet" role="group" aria-label="@表示文言.取得("生成C#の基本ブロック")">
+                <defs><marker id="@this.矢印ID" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="none" stroke="#54836c" stroke-width="1.2"/></marker></defs>
+                @foreach(var 組 in this.表示接続.GroupBy(項目=>(項目.元.Kind,項目.元.Semantics,項目.戻りか))){
+                    <path class="生成制御接続" data-戻り辺="@組.Key.戻りか.ToString().ToLowerInvariant()" d="@string.Join(' ',組.Select(項目=>項目.経路))" marker-end="@("url(#"+this.矢印ID+")")"><title>@組.Key.Kind · @組.Key.Semantics · @組.Count()</title></path>
+                }
+                @foreach(var ブロック in this.簡略){<rect @key="ブロック.元.Id" class="計画簡略ノード" x="@生成配置ブロック.X" y="@ブロック.Y" width="@生成配置ブロック.幅" height="@生成配置ブロック.高さ" role="button" tabindex="-1" data-ノード-id="@("b"+ブロック.元.Id)" data-選択中="@((this.選択ID==ブロック.元.Id).ToString().ToLowerInvariant())" aria-label="@($"B{ブロック.元.Id} {ブロック.元.Kind}")" @onclick="()=>this.ブロック選択時(ブロック.元.Id)"><title>@this.説明一覧[ブロック.元.Id]</title></rect>}
+                @foreach(var ブロック in this.詳細){
+                    <foreignObject @key="ブロック.元.Id" x="@生成配置ブロック.X" y="@ブロック.Y" width="@生成配置ブロック.幅" height="@生成配置ブロック.高さ"><button type="button" xmlns="http://www.w3.org/1999/xhtml" class="計画グラフノード" data-ノード-id="@("b"+ブロック.元.Id)" data-選択中="@((this.選択ID==ブロック.元.Id).ToString().ToLowerInvariant())" aria-label="@($"B{ブロック.元.Id} {ブロック.元.Kind}")" title="@this.説明一覧[ブロック.元.Id]" @onclick="()=>this.ブロック選択時(ブロック.元.Id)"><small>B@(ブロック.元.Id) · @ブロック.元.Kind</small><strong>@ブロック.元.ConditionKind</strong><span>@表示文言.取得("操作{0}件",ブロック.元.Operations.Length) · @表示文言.取得(到達性名(ブロック.元.IsReachable))</span></button></foreignObject>
+                }
+            </svg>
+        </div>
+        <aside class="計画グラフ詳細" aria-label="@表示文言.取得("生成ブロックの詳細")">
+            @if(this.選択 is{} 選択){
+                <h4>B@(選択.元.Id) · @選択.元.Kind</h4><p>@選択.元.ConditionKind</p>
+                <h5>@表示文言.取得("ブロック内の操作")</h5>
+                @foreach(var 項目 in 選択.元.Operations.Skip(this.操作頁*128).Take(128)){<button type="button" class="生成操作" aria-pressed="@(ReferenceEquals(this.選択操作,項目).ToString().ToLowerInvariant())" @onclick="()=>this.選択操作=項目">@項目.Id · @項目.Kind <small>@項目.OutputType</small></button>}
+                @if(選択.元.Operations.Length>128){<div class="設定操作"><button type="button" class="控えめボタン" disabled="@(this.操作頁==0)" @onclick="()=>this.操作頁--">@表示文言.取得("前のページ")</button><button type="button" class="控えめボタン" disabled="@((this.操作頁+1)*128>=選択.元.Operations.Length)" @onclick="()=>this.操作頁++">@表示文言.取得("次のページ")</button></div>}
+                @if(選択.元.BranchValue is{} 分岐){<h5>@表示文言.取得("分岐の値")</h5><button type="button" class="生成操作" @onclick="()=>this.選択操作=分岐">@分岐.Id · @分岐.Kind · @分岐.OutputType</button>}
+                <h5>@表示文言.取得("制御接続")</h5>
+                @foreach(var 接続 in this.コード.Edges.Where(項目=>項目.From==選択.元.Id).Take(128)){<p>B@(接続.From) → @接続.To · @接続.Kind · @接続.Semantics</p>}
+                @foreach(var 領域 in this.コード.Regions.Where(項目=>項目.FirstBlock<=選択.元.Id&&項目.LastBlock>=選択.元.Id).Take(64)){<details><summary>@領域.Kind · #@領域.Id</summary>@foreach(var 変数 in 領域.Locals.Take(128)){<p>@変数</p>}</details>}
+            }
+        </aside>
+    </div>
+    @if(this.選択操作 is{} 操作){
+        <section aria-label="@表示文言.取得("生成操作に対応するコード")"><h4>@操作.Kind · @操作.Id</h4>
+            @if(this.ハッシュ適合か&&操作.Symbol is{} 記号){<p><code>@記号</code></p>}
+            @if(this.範囲本文(操作) is{} 断片){<p>@表示文言.取得("本文UTF16範囲 {0}・長さ {1}",操作.Start,操作.Length)</p><コードエディター 値="@断片" 読み取り専用か="true" ラベル="生成操作の対応コード"/><button type="button" class="控えめボタン" @onclick="this.本文へ移動時">@表示文言.取得("生成本文へ移動")</button>}
+            else{<p role="status">@表示文言.取得("この操作の本文範囲は記録されていません。")</p>}
+        </section>
+    }
+    @if(this.ハッシュ適合か){<button type="button" class="控えめボタン" @onclick="()=>this.全文表示か=!this.全文表示か">@表示文言.取得("最終生成本文の表示を切り替え")</button>@if(this.全文表示か){<p class="小案内">SHA-256 · @this.コード.BodyHash</p><コードエディター @ref="this.全文" 値="@this.コード.BodyText" 読み取り専用か="true" ラベル="最終生成C#本文" 行数="24"/>}}
+</section>

@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Server の起動確認",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "テンプレートをビルド",
+      "program": "${workspaceFolder}/Server/bin/Debug/net10.0/MultiProjectTemplate.Server.dll",
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole"
+    },
+    {
+      "name": "Client の起動確認",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "テンプレートをビルド",
+      "program": "${workspaceFolder}/Client/bin/Debug/net10.0/MultiProjectTemplate.Client.dll",
+      "cwd": "${workspaceFolder}",
+      "console": "internalConsole"
+    }
+  ]
+}

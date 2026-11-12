@@ -1,0 +1,40 @@
+# 生成業務クライアントの結果所有
+
+## 背景と引き継ぐ仕様
+
+W18-STREAM-OWNERを実装する。集合は一度だけ列挙する所有型、実体化した結果は繰り返し読める独立コピーとする。途中解放は既存の要求取消・完了確認へ接続する。グラフ形式、正規化、共有・循環参照、親予算、一時ディスクを引き継ぐ。
+
+## 変更前の観察
+
+生成器はIAsyncEnumerableを返し、QueryRecordsAsyncへ接続する。NativeResultExtensionsのCollectとClientResultSpoolは、行を復元する前のバイト列から予算付きの結果コピーを作り、ディスクへ退避できる。既存QueryRecordsAsyncの公開署名は既存バイナリが利用する。
+
+## 実装設計
+
+ClientへNativeResultStream<T>とQueryRecordsStreamを追加し、生成クライアントの集合メソッドを接続する。従来のQueryRecordsAsyncは既存署名を引き継ぐ。サーバー側の宣言・wire契約は同じIEnumerable／ISetの要素型から生成する。
+
+所有型はIAsyncEnumerableとIAsyncDisposableを実装する。一回の列挙、列挙前の解放、正常完了、例外、取消、読取中のDisposeAsyncを管理する。実行開始は従来どおり最初のMoveNextとする。DisposeAsyncは進行中の読取へ取消を伝え、読取終了と下位列挙子の破棄を待つ。繰り返しのDisposeは同じ終了処理を待ち、引数・行・受信器への参照も解放する。
+
+ToResultAsync拡張を既存の結果ライブラリへ追加する。内部のバイト列投影入口とCollectを再利用し、行ごとの復元・再符号化を挟まずClientResultSpoolへ格納する。所有型の通常列挙と実体化は同じ一回の列挙権を使う。実体化後のNativeResultは通信から独立し、usingで破棄する。
+
+## 検証と移行
+
+生成・コンパイル、通常接続と明示取引、完了／途中終了／失敗、二重列挙、列挙前解放、読取中解放と反復解放、メモリ／ディスク実体化、共有・循環・正規化、予算超過後の次操作を確認する。生成器を使う代表プロジェクトを依存順にビルドし、Debug・Releaseで近接試験と既存のRPC回帰を実行する。
+
+生成済みクライアントの再生成時には集合メソッドの戻り型が所有型になる。IAsyncEnumerableとしての利用は継続でき、await usingによる明示所有も利用できる。既存生成バイナリは従来のQueryRecordsAsyncを利用する。
+
+## 実行結果
+
+所有型の新規12ケースを確認した。Debugは関連RPC79件と追加した空結果1件、Releaseは関連RPC80件が成功した。生成・コンパイルは両構成各9件で成功し、集合の所有型・単一値のTask・wire契約と、呼出側のawait using／ConfigureAwaitのコンパイルまで確認した。Client・Client.Results・Generator・Compilationの両構成ビルドは警告・エラー0件。生成器試験のテストプロジェクトには、今回変更していないTableOperationTests.csの既存xUnit2013警告1件が残る。
+
+- 列挙開始前と反復解放、二重列挙と実体化の競合、正常終了後の再列挙拒否、空結果を確認した。競合した実体化は、先に取得した列挙権を破棄しない。
+- 読取中の解放は取消しと読取終了を待ち、反復DisposeAsyncも同じ終了処理を待った。並行MoveNextを拒否し、その後の解放・次クエリが成功した。
+- Gatewayの有無とメモリ／ディスクの4組で、型付き行のデコーダーを呼ぶと失敗する観測を入れ、実体化が生の受信列を使うことを確認した。接続を閉じた後も共有・循環・正規化を保持して繰り返し読め、一回の再生で変更した値が次の再生へ混入しなかった。
+- 予算超過とサーバー本体の失敗で所有型と一時領域を解放し、次のクエリへ進んだ。共有した結果予算は破棄後にメモリ・ディスクとも0へ戻った。
+
+変更前DLLでは、列挙前のDispose後も再列挙できる失敗を再現した。呼出側のコンパイル確認ではIAsyncEnumerableとIAsyncDisposableのConfigureAwaitが曖昧になるCS0121も検出し、既存の列挙用の呼出しをインスタンスから接続して修正した。Releaseの生成器試験は初回にTestKitの参照DLLが不足して未実行となり、依存DLLを補完して再実行した。元の失敗記録は保持する。
+
+証跡は `F:\Seamless\native-result-owner-20261108` のbefore-tests、configure-before-tests、final-Debug-rpc-tests・empty-Debug-tests・final-Release-rpc-tests、final-Debug-generator-tests・ready-Release-generator-testsのTRXとreceipt.json、verification.json。Debugの79件は空結果の専用入力を加える前の同じ製品DLLでの結果で、追加後の空結果は1件を再実行した。Releaseは追加後の80件をまとめて実行した。
+
+## 合意状態
+
+合意済みの所有型・拡張メソッドによる実体化を実装する。TLS・IPC・別PID・Linux、旧クライアントバイナリでの実接続はW09・W13・W18の対応枝へ引き継ぐ。

@@ -15,7 +15,7 @@ public static class Program{
             FaultInjection.Parse(options.InjectFault);
         }catch(Exception error) when(error is ArgumentException or FormatException or OverflowException){
             Console.Error.WriteLine(error.Message);
-            Console.Error.WriteLine("使い方: Benchmark.TpcE [run|generate|describe|replay] [--seed N] [--customers N] [--initial-trade-days N] [--transactions N] [--variants TL,TF,PL,PF] ...(README.md)");
+            Console.Error.WriteLine("使い方: Benchmark.TpcE [run|generate|describe|replay|crash] [--seed N] [--customers N] [--initial-trade-days N] [--transactions N] [--variants TL,TF,PL,PF,VL,VF] ...(README.md)");
             return 3;
         }
         ApplyProcessSettings(options);
@@ -107,7 +107,7 @@ public static class Program{
             Console.WriteLine("  - "+assumption);
         }
         Console.WriteLine("FLinq を止めた問い合わせ([LinqIntercept(false)]):");
-        foreach(var variant in VariantCatalog.All){
+        foreach(var variant in VariantCatalog.Available){
             if(!variant.Name.EndsWith("-flinq",StringComparison.Ordinal)){
                 continue;
             }

@@ -33,7 +33,9 @@ public static class Program{
             }
             if(args[0]=="compare"){await ComparisonRunner.MeasureAsync(directory,SourceConnection());return 0;}
             if(args[0]=="serve"){
-                using var host=new ComparisonHost(directory);using var gateway=new GatewayServer(host.Databases);
+                // SEAMLESS_TDS_REQUEST_LOGにフォルダを指定したときだけ、SSMS等が送った要求をそこへ記録する(互換調査用)。
+                using var host=new ComparisonHost(directory);var requestLog=Environment.GetEnvironmentVariable("SEAMLESS_TDS_REQUEST_LOG");
+                using var gateway=new GatewayServer(host.Databases,new(){RequestLogPath=string.IsNullOrWhiteSpace(requestLog)?null:Path.Combine(requestLog,$"tds-requests-{host.Generation.Id}-{Environment.ProcessId}.jsonl")});
                 gateway.Native.Load(ComparisonGeneration.ResolveManagedPath(directory,host.Generation.ModuleManifest??throw new InvalidDataException("Native module is missing.")),host.Generation.ProductVersion);gateway.Start();
                 var identity=new{Generation=host.Generation.Id,Pid=Environment.ProcessId,CreatedUtc=System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime()};await File.WriteAllTextAsync(Path.Combine(directory,"server-ready.json"),JsonSerializer.Serialize(identity));
                 using var exit=new CancellationTokenSource();Console.CancelKeyPress+=(_,e)=>{e.Cancel=true;exit.Cancel();};while(!exit.IsCancellationRequested&&!File.Exists(Path.Combine(directory,"server-stop"))){await Task.Delay(250);}await gateway.StopAsync();return 0;

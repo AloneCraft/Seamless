@@ -3,8 +3,13 @@
     <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep/Benchmark.Tsavorite.ParameterSweep.csproj" />
     <Project Path="Benchmark/Benchmark.Tsavorite.ParameterSweep.Headless/Benchmark.Tsavorite.ParameterSweep.Headless.csproj" />
   </Folder>
+  <Folder Name="/Shared/">
+    <Project Path="Shared/Database.Generation/Database.Generation.shproj" />
+    <File Path="Shared/Database.Generation/Database.Generation.projitems" />
+  </Folder>
   <Folder Name="/SourceGenerator/">
     <Project Path="Seamless.Database.Generator/Seamless.Database.Generator.csproj" />
+    <Project Path="Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" />
     <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
   </Folder>
   <Folder Name="/Tests/">
@@ -19,5 +24,4 @@
   <Project Path="Seamless.Database/Seamless.Database.csproj" />
   <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
   <Project Path="Seamless/Seamless.csproj" />
-  <Project Path="Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
 </Solution>

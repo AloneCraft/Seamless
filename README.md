@@ -2,6 +2,8 @@
 
 ストレージ backed のコレクションと、コンパイル時 LINQ 書き換えを提供する .NET ライブラリ群。
 
+利用者向けドキュメント: [Seamless ドキュメント](https://alonecraft.github.io/Seamless/)
+
 ## パッケージ
 
 ### ランタイム
@@ -182,6 +184,14 @@ Console.WriteLine(set.Contains(1));         // True
 - [`Seamless.Linq`](Seamless.Linq/) の `scope.Query(source)` は、外部ソート、退避可能なGroupBy／Join／集合演算、バイト一致の既定等値性を提供します。
 - DynamicはFLinqの検証・固定参照コードとの比較、Scalableは大規模コレクションとLINQ・容量探索を受け持ち、共有SQLite履歴へ記録します。
 - 操作方法と比較条件は [測定履歴・比較・プロファイル](docs/verification.md)、利用者向けAPIは [初期設定と拡張](docs/profiles.md)、実行・等値性・DB契約は [Execution、LINQ、Databaseの現在仕様](docs/execution-and-database.md) を参照してください。
+
+## 開発の準備
+
+クローンしたら 1 回だけ次を実行してください。プロジェクトを追加・移動・削除したコミットで、VS / VS Code のソリューションと起動構成が自動で直り、コミットの件名が日本語かどうかも確かめます。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tools/dev-env/Install-GitHooks.ps1
+```
 
 ## 連絡先
 

@@ -1,0 +1,19 @@
+{
+  "baselineCases": 2250,
+  "baselineMethods": 2004,
+  "missingCases": 0,
+  "missingMethods": {},
+  "unverifiedCases": 0,
+  "unverifiedMethods": {},
+  "checks": {
+    "dynamic-core-debug-current-final1": "Passed",
+    "compilation-moved-debug": "Passed",
+    "query-moved-debug3": "Passed",
+    "transactions-moved-debug": "Passed",
+    "live-sql-debug1": "Passed",
+    "execution-moved-debug4": "Passed",
+    "tsavorite-moved-debug3": "Passed",
+    "persisted-moved-debug": "Passed",
+    "infrastructure-windows-debug-final1": "Passed"
+  }
+}

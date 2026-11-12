@@ -25,7 +25,8 @@ internal sealed record SqlServerTableMetadata(
 internal static class SqlServerMetadataReader {
     private const string UniqueKeyQuery="""
         SELECT schema_definition.name,table_definition.name,index_definition.name,
-            index_column.key_ordinal,column_definition.name,index_column.is_descending_key
+            index_column.key_ordinal,column_definition.name,index_column.is_descending_key,
+            COALESCE(key_definition.is_system_named,CONVERT(bit,0))
         FROM sys.tables AS table_definition
         INNER JOIN sys.schemas AS schema_definition ON schema_definition.schema_id=table_definition.schema_id
         INNER JOIN sys.indexes AS index_definition ON index_definition.object_id=table_definition.object_id
@@ -34,6 +35,8 @@ internal static class SqlServerMetadataReader {
             AND index_column.is_included_column=0
         INNER JOIN sys.columns AS column_definition
             ON column_definition.object_id=index_column.object_id AND column_definition.column_id=index_column.column_id
+        LEFT JOIN sys.key_constraints AS key_definition
+            ON key_definition.parent_object_id=index_definition.object_id AND key_definition.unique_index_id=index_definition.index_id
         WHERE table_definition.is_ms_shipped=0 AND index_definition.is_unique=1
             AND index_definition.is_primary_key=0 AND index_definition.is_hypothetical=0
             AND index_definition.is_disabled=0
@@ -44,7 +47,7 @@ internal static class SqlServerMetadataReader {
         SELECT parent_schema.name,parent_table.name,foreign_key.name,
             referenced_schema.name,referenced_table.name,parent_column.name,referenced_column.name,
             foreign_key_column.constraint_column_id,foreign_key.delete_referential_action_desc,
-            foreign_key.update_referential_action_desc
+            foreign_key.update_referential_action_desc,foreign_key.is_system_named
         FROM sys.foreign_keys AS foreign_key
         INNER JOIN sys.foreign_key_columns AS foreign_key_column
             ON foreign_key_column.constraint_object_id=foreign_key.object_id
@@ -64,10 +67,11 @@ internal static class SqlServerMetadataReader {
 
     private const string CheckQuery="""
         SELECT schema_definition.name,table_definition.name,check_definition.name,
-            check_definition.definition,check_definition.is_disabled
+            check_definition.definition,check_definition.is_disabled,check_definition.is_system_named,column_definition.name
         FROM sys.check_constraints AS check_definition
         INNER JOIN sys.tables AS table_definition ON table_definition.object_id=check_definition.parent_object_id
         INNER JOIN sys.schemas AS schema_definition ON schema_definition.schema_id=table_definition.schema_id
+        LEFT JOIN sys.columns AS column_definition ON column_definition.object_id=table_definition.object_id AND column_definition.column_id=check_definition.parent_column_id
         WHERE table_definition.is_ms_shipped=0
         ORDER BY schema_definition.name,table_definition.name,check_definition.name;
         """;
@@ -108,7 +112,7 @@ internal static class SqlServerMetadataReader {
             var table=GetTable(tables,reader.GetString(0),reader.GetString(1));
             var name=reader.GetString(2);
             if(!table.UniqueKeys.TryGetValue(name,out var key)) {
-                key=new(name);
+                key=new(name){IsSystemNamed=reader.GetBoolean(6)};
                 table.UniqueKeys.Add(name,key);
             }
             key.Columns.Add((Convert.ToInt32(reader.GetValue(3),global::System.Globalization.CultureInfo.InvariantCulture),new(reader.GetString(4),reader.GetBoolean(5))));
@@ -125,7 +129,7 @@ internal static class SqlServerMetadataReader {
             var table=GetTable(tables,reader.GetString(0),reader.GetString(1));
             var name=reader.GetString(2);
             if(!table.ForeignKeys.TryGetValue(name,out var key)) {
-                key=new(name,reader.GetString(3),reader.GetString(4),reader.GetString(8),reader.GetString(9));
+                key=new(name,reader.GetString(3),reader.GetString(4),reader.GetString(8),reader.GetString(9)){IsSystemNamed=reader.GetBoolean(10)};
                 table.ForeignKeys.Add(name,key);
             }
             key.Columns.Add((reader.GetString(5),reader.GetString(6),reader.GetInt32(7)));
@@ -140,7 +144,7 @@ internal static class SqlServerMetadataReader {
         await using var reader=await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while(await reader.ReadAsync(cancellationToken).ConfigureAwait(false)) {
             GetTable(tables,reader.GetString(0),reader.GetString(1)).CheckConstraints.Add(new(
-                reader.GetString(2),reader.GetString(3),reader.GetBoolean(4)));
+                reader.GetString(2),reader.GetString(3),reader.GetBoolean(4)){IsSystemNamed=reader.GetBoolean(5),ParentColumn=reader.IsDBNull(6)?null:reader.GetString(6)});
         }
     }
 
@@ -178,22 +182,24 @@ internal static class SqlServerMetadataReader {
         public SqlServerTableMetadata Build()=>new(
             this.UniqueKeys.Values.OrderBy(static value=>value.Name,StringComparer.Ordinal)
                 .Select(static value=>new UniqueKeyCatalog(value.Name,value.Columns.OrderBy(static item=>item.Ordinal)
-                    .Select(static item=>item.Column).ToArray())).ToArray(),
+                    .Select(static item=>item.Column).ToArray()){IsSystemNamed=value.IsSystemNamed}).ToArray(),
             this.ForeignKeys.Values.OrderBy(static value=>value.Name,StringComparer.Ordinal)
                 .Select(static value=>new ForeignKeyCatalog(value.Name,value.ReferencedSchema,value.ReferencedTable,
                     value.Columns.OrderBy(static item=>item.Ordinal).Select(static item=>(item.Column,item.ReferencedColumn)).ToArray(),
-                    value.DeleteAction,value.UpdateAction)).ToArray(),
+                    value.DeleteAction,value.UpdateAction){IsSystemNamed=value.IsSystemNamed}).ToArray(),
             this.CheckConstraints.OrderBy(static value=>value.Name,StringComparer.Ordinal).ToArray(),
             this.Triggers.OrderBy(static value=>value.Name,StringComparer.Ordinal).ToArray());
     }
 
     private sealed class UniqueKeyBuilder(string name) {
         public string Name { get; }=name;
+        public bool IsSystemNamed{get;init;}
         public List<(int Ordinal,KeyColumnCatalog Column)> Columns { get; }=[];
     }
 
     private sealed class ForeignKeyBuilder(string name,string referencedSchema,string referencedTable,string deleteAction,string updateAction) {
         public string Name { get; }=name;
+        public bool IsSystemNamed{get;init;}
         public string ReferencedSchema { get; }=referencedSchema;
         public string ReferencedTable { get; }=referencedTable;
         public string DeleteAction { get; }=deleteAction;

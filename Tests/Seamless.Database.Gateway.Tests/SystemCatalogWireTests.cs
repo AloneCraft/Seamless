@@ -16,9 +16,9 @@ public sealed class SystemCatalogWireTests{
             using var command=connection.CreateCommand();command.CommandText="SELECT * FROM sys.columns ORDER BY column_id";
             await using var reader=await command.ExecuteReaderAsync();
             var schema=reader.GetColumnSchema();
-            Assert.True(await reader.ReadAsync());Assert.Equal("Id",reader.GetString(1));Assert.True(await reader.IsDBNullAsync(9));
-            Assert.True(await reader.ReadAsync());Assert.Equal("Title",reader.GetString(1));Assert.Equal("Japanese_CI_AS",reader.GetString(9));
-            Assert.False(await reader.ReadAsync());Assert.False(await reader.NextResultAsync());Assert.True(schema[9].AllowDBNull);
+            Assert.True(await reader.ReadAsync());Assert.Equal("Id",reader.GetString(1));Assert.True(await reader.IsDBNullAsync(8));
+            Assert.True(await reader.ReadAsync());Assert.Equal("Title",reader.GetString(1));Assert.Equal("Japanese_CI_AS",reader.GetString(8));
+            Assert.False(await reader.ReadAsync());Assert.False(await reader.NextResultAsync());Assert.True(schema[8].AllowDBNull);
         }finally{await server.StopAsync();}
     }
     private sealed class CatalogAdapter:IDatabaseAdapter{

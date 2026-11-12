@@ -115,13 +115,13 @@ public sealed class LockstepRunner{
             sinks.Add(session.RequireEngine.Loader);
         }
         var generation=generator.Generate(new FanOutLoadSink(sinks));
+        this.driver=new Driver(Driver.Initial(this.options.Seed,this.options.Scale,generation));
         foreach(var session in this.sessions){
             var watch=Stopwatch.StartNew();
-            session.RequireEngine.Database.EndBulkLoad();
+            var metadata=ReadOnlyMemory<byte>.Empty;if(session.Variant.UsesVersionedTransactions){metadata=VersionedDriverState.Encode(this.driver.State);}session.RequireEngine.Database.EndBulkLoad(metadata);
             session.AddPhase("load-flush",watch.Elapsed.TotalSeconds);
         }
         this.Log($"初期データ: 取引 {generation.LastInitialTradeId:N0} 件、未約定 {generation.UnfinishedTrades} 件、{loadWatch.Elapsed.TotalSeconds:F1} 秒");
-        this.driver=new Driver(Driver.Initial(this.options.Seed,this.options.Scale,generation));
         this.CompareDigests("初期データ");
         if(this.options.SaveEvery>0){
             this.SaveAll(false);
@@ -132,8 +132,9 @@ public sealed class LockstepRunner{
         var store=Store.Open(session.Directory,this.Limits);
         session.Store=store;
         // 運転状態は最初に登録する(保存済みなら登録時に読み戻され、ここで照合する)。
-        store.Register(new DriverStateComponent(()=>this.driver!.State,state=>this.CheckRestoredState(session,state)));
+        if(!session.Variant.UsesVersionedTransactions){store.Register(new DriverStateComponent(()=>this.driver!.State,state=>this.CheckRestoredState(session,state)));}
         session.Engine=session.Variant.Open(store,this.options.Scale);
+        if(session.Variant.UsesVersionedTransactions&&VersionedDriverState.Restore(session.Engine) is{} state){this.CheckRestoredState(session,state);}
         session.AddPhase("open",watch.Elapsed.TotalSeconds);
     }
     private void CheckRestoredState(VariantSession session,DriverState restored){
@@ -203,7 +204,7 @@ public sealed class LockstepRunner{
             var started=Stopwatch.GetTimestamp();
             TxnResult result;
             try{
-                result=engine.Execute(request);
+                result=engine.Execute(request,completed=>VersionedDriverState.Preview(this.driver!,request,completed));
             }catch(Exception error){
                 var kind=FailureKind.Exception;
                 if(IsResourceLimit(error)){
@@ -302,6 +303,7 @@ public sealed class LockstepRunner{
     // ---- L3: 読み戻し ----
     private void ReadBack(TxnRequest request,long txnIndex){
         foreach(var session in this.sessions){
+            using var snapshot=session.RequireEngine.Database.BeginReadSnapshot();
             var tables=session.RequireEngine.Database.Tables;
             var last=new System.Collections.Generic.Dictionary<(int,string),WriteRecord>();
             foreach(var record in session.Recorder.Records){
@@ -351,6 +353,7 @@ public sealed class LockstepRunner{
         var details=new List<string>{$"{when}: {this.sessions[left].Variant.Name} と {this.sessions[right].Variant.Name} で食い違う表と索引: {string.Join(", ",differences)}"};
         var leftDb=this.sessions[left].RequireEngine.Database;
         var rightDb=this.sessions[right].RequireEngine.Database;
+        using var leftSnapshot=leftDb.BeginReadSnapshot();using var rightSnapshot=rightDb.BeginReadSnapshot();
         foreach(var name in differences){
             var leftTable=leftDb.Tables.FirstOrDefault(table=>table.Name==name);
             var rightTable=rightDb.Tables.FirstOrDefault(table=>table.Name==name);
@@ -380,7 +383,7 @@ public sealed class LockstepRunner{
             if(release){
                 session.RequireEngine.Database.ReleaseHandles();
             }
-            session.Store!.Save();
+            VersionedDriverState.Checkpoint(session.RequireEngine,this.driver!.State);
             if(release){
                 session.RequireEngine.Database.AcquireHandles();
             }

@@ -27,7 +27,9 @@ public sealed class FixedCaseRunner(BenchmarkRepository repository){
                     foreach(var implementation in ValidationImplementations){
                         if(!loaded.Has(implementation)){throw new InvalidDataException(item.ID+": missing "+implementation);}
                     }
-                    var validation=DynamicQueryValidator.Validate(loaded,fixture.Primary,fixture.Secondary,ValidationImplementations,true,cancellationToken);
+                    // ZLinq の式を持つケースは、ZLinq 実装も同じ検証(結果・例外の一致)に含める。
+                    DynamicImplementationKind[] implementations=loaded.Has(DynamicImplementationKind.ZLinq)?[..ValidationImplementations,DynamicImplementationKind.ZLinq]:ValidationImplementations;
+                    var validation=DynamicQueryValidator.Validate(loaded,fixture.Primary,fixture.Secondary,implementations,true,cancellationToken);
                     string? skipReason=null;
                     if(!validation.ShouldMeasure){skipReason=validation.Status.ToString();}
                     if(validation.Status==WorkerExecutionStatus.Succeeded&&validation.Exceptions.Count!=0){skipReason="MatchingExceptions";}

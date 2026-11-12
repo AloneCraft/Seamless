@@ -7,7 +7,7 @@ using SqlParser.Tokens;
 namespace Seamless.Database.Gateway.Tds;
 
 internal static class ParameterDeclarations{
-    public static IReadOnlyList<SqlParameter> Parse(string declarations){
+    public static IReadOnlyList<SqlParameter> Parse(string declarations,ISet<string>? outputs=null){
         if(string.IsNullOrWhiteSpace(declarations)){return [];}
         try{
             var tokens=new Tokenizer().Tokenize(declarations.AsSpan(),new MsSqlDialect()).Where(static t=>t is not Whitespace).ToArray();
@@ -15,11 +15,18 @@ internal static class ParameterDeclarations{
             var reader=new Reader(tokens);var result=new List<SqlParameter>();var names=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             while(true){
                 var name=reader.Variable();if(!names.Add(name)){throw Error("Duplicate parameter: "+name,134);}
-                var type=reader.Type();if(reader.Keyword("OUT")||reader.Keyword("OUTPUT")){throw Error("Output parameters are not supported.",40515);}
+                var type=reader.Type();
+                if(reader.Keyword("OUT")||reader.Keyword("OUTPUT")){
+                    if(outputs is null){throw Error("Output parameters are not supported.",40515);}
+                    outputs.Add(name);
+                }
                 result.Add(new SqlParameter(name,type));
                 if(reader.End){return result;}reader.Comma();if(reader.End){throw Error("Parameter declaration expected after comma.");}
             }
         }catch(TokenizeException e){throw Error("Invalid parameter declaration: "+e.Message);}
+    }
+    public static IReadOnlyList<SqlParameter> TryParse(string? declarations){
+        try{return Parse(declarations??string.Empty);}catch(SqlQueryException){return [];}
     }
     private static SqlQueryException Error(string text,int number=102)=>new(text,number);
     private sealed class Reader(Token[] tokens){

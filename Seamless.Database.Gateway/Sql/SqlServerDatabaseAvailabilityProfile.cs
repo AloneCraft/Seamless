@@ -34,3 +34,23 @@ internal static class SqlServerDatabaseAvailabilityProfile{
         public override void ExplicitVisit(NamedTableReference table){if(table.SchemaObject.Identifiers.Count==1&&table.SchemaObject.BaseIdentifier.Value.Equals("#tmp_sync_states",StringComparison.OrdinalIgnoreCase)){this.Tables.Add(table.SchemaObject);}}
     }
 }
+
+internal static class SqlServerFileTableProfile{
+    private static readonly Lazy<TSqlScript> template=new(()=>SqlServerDatabaseQueryProfile.Read("SsmsFileTable.sql"));
+    internal static bool TryBatch(TSqlScript script,string sql,out string? databaseUse,out string result){
+        databaseUse=null;result="";if(script.Batches.Count!=1){return false;}
+        var statements=script.Batches[0].Statements;var offset=statements.Count>0&&statements[0] is UseStatement?1:0;
+        if(statements.Count!=offset+4){return false;}
+        var expected=template.Value.Batches[0].Statements;
+        if(!SqlServerDatabaseQueryProfile.Same(statements[offset],expected[1])||!SqlServerDatabaseQueryProfile.Same(statements[offset+1],expected[2])||!SqlServerDatabaseQueryProfile.Same(statements[offset+3],expected[4])||statements[offset+2] is not SelectStatement select||select.Into is not null){return false;}
+        if(!SqlServerDatabaseQueryProfile.SameWithIntegerParameters(select,expected[3])){return false;}
+        var visitor=new FileTableReferences();select.Accept(visitor);if(visitor.Tables.Count!=1){return false;}
+        var table=visitor.Tables[0];result=sql.Substring(select.StartOffset,select.FragmentLength);var index=table.StartOffset-select.StartOffset;
+        result=result.Remove(index,table.FragmentLength).Insert(index,"(SELECT CAST(NULL AS int) AS object_id,CAST(NULL AS bit) AS is_enabled WHERE 1=0)");
+        if(offset==1){databaseUse=sql.Substring(statements[0].StartOffset,statements[0].FragmentLength);}return true;
+    }
+    private sealed class FileTableReferences:TSqlFragmentVisitor{
+        internal readonly List<SchemaObjectName> Tables=[];
+        public override void ExplicitVisit(NamedTableReference table){if(table.SchemaObject.Identifiers.Count==1&&table.SchemaObject.BaseIdentifier.Value.Equals("#file_tables",StringComparison.OrdinalIgnoreCase)){this.Tables.Add(table.SchemaObject);}}
+    }
+}

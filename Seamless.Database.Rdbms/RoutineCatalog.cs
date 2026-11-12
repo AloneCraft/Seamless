@@ -13,6 +13,8 @@ public sealed record RoutineCatalog(
     int ReturnCount,
     RelationalAlgebraPlan? RelationalAlgebra=null){
     public string?SourceObjectType{get;init;}
+    public string?OwnerName{get;init;}
     public GeneratedRoutineImplementation?Implementation{get;init;}
     public string?CompilationDiagnostic{get;init;}
+    public bool IsSchemaBound{get;init;}
 }

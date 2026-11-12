@@ -1,0 +1,319 @@
+:root{font-family:Inter,"Segoe UI","Noto Sans JP",system-ui,sans-serif;color:#353631;background:#fff;font-synthesis:none}
+.操作アイコン{width:16px;height:16px;display:inline-block;flex:0 0 auto;vertical-align:-3px;pointer-events:none}
+.主要ボタン,.控えめボタン,.テキストボタン,.階層戻り,.ソース入口,.操作ハンドル{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.主要ボタン,.控えめボタン{min-height:32px}
+.コマンドアイコン{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.メニュー項目[data-破壊的=true] .コマンドアイコン{color:inherit}
+.ソース入口{justify-content:flex-start}
+.表アイコン .操作アイコン{width:21px;height:21px}
+.DB子一覧{margin-left:12px;border-left:1px solid var(--線);padding-left:4px}.スキーマ子一覧,.オブジェクト子一覧{margin-left:12px}.分類名{font-size:11px;color:var(--補助)}.枝の開閉{display:inline-flex;align-items:center;justify-content:center;flex:0 0 20px;min-height:24px;padding:0!important;width:20px;color:var(--補助)!important;border-radius:4px}.枝の開閉:hover{background:#dce5d8}.枝の開閉:focus-visible{outline:2px solid var(--強調);outline-offset:1px}.所属パンくず{display:flex;gap:6px;align-items:center;color:var(--補助);margin:16px 0 8px}.処理本体ラベル{display:block;margin-top:16px}.問い合わせ本体{display:block;width:100%;min-height:190px;padding:12px;border:1px solid var(--線);border-radius:6px;font-family:Consolas,monospace;font-size:12px;line-height:1.6;resize:vertical;background:#fafbf8;color:var(--文字)}
+body:has(.管理ワークスペース){margin:0}
+.管理ワークスペース{--線:#e9e8e3;--薄:#f7f7f3;--文字:#373832;--補助:#697164;--強調:#267768;display:flex;min-height:100vh;background:#fff;color:var(--文字);font-size:13px;line-height:1.5}
+.管理ワークスペース *{box-sizing:border-box}
+.管理ワークスペース button,.操作ポップ button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+.管理ワークスペース button:disabled,.操作ポップ button:disabled{opacity:.4;cursor:default}
+.管理ワークスペース button:focus-visible,.管理ワークスペース [tabindex]:focus-visible,.操作ポップ button:focus-visible{outline:2px solid #7eb3a8;outline-offset:2px;border-radius:5px}
+.管理ワークスペース select:not([multiple]){box-sizing:border-box;max-width:100%;min-height:32px;padding:6px 10px;border:1px solid #d8e2d3;border-radius:5px;background-color:#fff;color:#354b41;font:inherit;font-size:12px;line-height:1.4;vertical-align:middle;cursor:pointer}
+.管理ワークスペース select:not([multiple]):hover{border-color:#a4bba9}.管理ワークスペース select:not([multiple]):focus-visible,.管理ワークスペース input[type=file]:focus-visible{outline:2px solid #7eb3a8;outline-offset:2px}
+.管理ワークスペース select:not([multiple]):disabled{background-color:#f3f5f0;color:#82907e;cursor:default}
+.管理ワークスペース :where(button:not([class]),button[class=""]),.管理ワークスペース input[type=file]::file-selector-button{min-height:32px;padding:6px 11px;border:1px solid #d8e2d3;border-radius:5px;background:#fff;color:#52684f;font:inherit;font-size:12px;line-height:1.4;cursor:pointer}
+.管理ワークスペース :where(button:not([class]):hover,button[class=""]:hover),.管理ワークスペース input[type=file]::file-selector-button:hover{background:#f3f7f1;border-color:#a4bba9}
+.管理ワークスペース input[type=file]{max-width:100%;font:inherit;font-size:12px;color:var(--補助)}.管理ワークスペース input[type=file]::file-selector-button{margin-right:10px}.管理ワークスペース input[type=file]:disabled::file-selector-button{opacity:.4;cursor:default}
+.管理ワークスペース input:is([type=checkbox],[type=radio]){accent-color:var(--強調)}.構造段階 label{display:inline-flex;align-items:center;flex-wrap:wrap;gap:8px}
+.ナビゲーション{width:254px;min-width:254px;background:#f7f6f2;border-right:1px solid var(--線);padding:22px 12px 12px;display:flex;flex-direction:column;gap:5px}
+.ブランド{display:flex;align-items:center;gap:10px;padding:0 12px 26px;font-size:16px;letter-spacing:-.3px}
+.ブランド印{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:#286d60;color:#fff;font-size:17px;font-weight:650;box-shadow:0 2px 4px #203a2020}
+.接続点{display:inline-block;width:6px;height:6px;background:#579b80;border-radius:50%;margin-left:auto}
+.検索入口{display:flex;gap:8px;align-items:center;width:100%;padding:9px 12px!important;border-radius:6px;color:#73756c!important;text-align:left;font-size:12px!important}
+.検索入口:hover{background:#ecece5}.検索入口>span{font-size:22px;line-height:16px}.検索入口 kbd{margin-left:auto;font-size:10px;color:#9a9b92}
+.ナビ区分{color:#999a90;text-transform:uppercase;font-size:10px;letter-spacing:1.4px;padding:25px 12px 9px}
+.対象行{position:relative;display:flex;align-items:center;min-height:35px;border-radius:5px;cursor:pointer;margin:1px 0;outline:none}
+.対象行:hover{background:#eeeee8}.対象行[data-選択中=true]{background:#e7ece5;color:#286c5c}
+.対象行:focus-visible{outline:2px solid #82afa3;outline-offset:-2px}
+.DB一覧 .対象行>.対象内容{order:0;flex:1;min-width:0}
+.DB一覧 .対象行>.操作帯{order:1}
+.ツリー列一覧{padding:2px 8px 5px 22px;min-width:0}
+.ツリー列行{display:flex;align-items:center;gap:6px;width:100%;border:0;background:transparent;text-align:left;padding:4px;color:inherit}
+.ツリー列行:hover,.ツリー列行:focus-visible{background:#eeeee8}
+.ツリー列行 span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ツリー列行 small{margin-left:auto;color:#879578;overflow:hidden;text-overflow:ellipsis}
+.ツリー列入力 fieldset{display:grid;gap:6px;min-width:0;border:0;padding:4px 0}
+.ツリー列入力 label{display:grid;gap:3px;min-width:0}
+.ツリー列入力 input{min-width:0;width:100%}
+.ツリー列入力 input[type=checkbox]{width:auto}
+.ツリー列診断{color:#a33;white-space:pre-wrap}
+.操作帯{display:flex;gap:0;width:44px;flex-shrink:0;opacity:0;pointer-events:none;transition:opacity 80ms}
+.対象行:hover>.操作帯,.対象行:focus-within>.操作帯,.対象行[data-選択中=true]>.操作帯,.対象行[data-メニュー中=true]>.操作帯{opacity:1;pointer-events:auto}
+.操作ハンドル,.ハンドル余白{width:22px;height:25px;display:inline-flex;align-items:center;justify-content:center;color:#a2a397!important;font-size:16px!important;border-radius:4px;padding:0!important}
+.操作ハンドル:hover{background:#dedfd5;color:#5e6256!important}.操作ハンドル[data-ドラッグ-id]{cursor:grab;touch-action:none}
+.対象内容{display:flex;gap:8px;align-items:center;min-width:0;flex:1;padding:5px 9px 5px 0}
+.対象名{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.区分見出し{font-weight:600;font-size:12px}.件数{font-size:10px;color:#a2a397;margin-left:auto}
+.DB一覧>.対象行 .対象内容{font-size:12px}.DBアイコン{color:#90978a;font-size:16px;font-weight:400}.小案内{font-size:10px;color:#96998e;padding-left:44px;margin:4px 0}
+.インライン作成,.インライン保存先{display:flex;align-items:center;gap:7px;padding:5px 8px 0 44px}.インライン作成 input,.インライン保存先 input{min-width:0;width:100%;border:1px solid #b2c9b9;border-radius:4px;padding:5px;font:inherit;outline-color:#559c83}
+.システム区分{margin-top:25px;color:#8a8e80;font-size:11px}.システム区分 summary{cursor:pointer;padding:7px 13px}.接続フッター{margin-top:auto;border-top:1px solid #e5e4dc;padding:16px 10px 1px;display:flex;flex-wrap:wrap;align-items:center;gap:7px;font-size:10px;color:#83887a}.接続フッター .接続点{margin:0}.利用者名{display:block;width:100%;padding-left:12px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.作業領域{min-width:0;flex:1;display:flex;flex-direction:column}.上部バー{display:flex;justify-content:space-between;align-items:center;min-height:57px;border-bottom:1px solid var(--線);padding:0 30px;color:#6d7266;font-size:11px}.パンくず>span{padding:0 10px;color:#b4b9ad}.環境ラベル{font-size:10px;color:#909486;border:1px solid #e9ebe4;border-radius:20px;padding:3px 10px}
+.文書タブ帯{display:flex;min-height:43px;border-bottom:1px solid var(--線);padding:0 22px;gap:4px;overflow:auto}.文書タブ{flex-shrink:0;border-bottom:2px solid transparent;min-width:145px;padding:3px 4px 0}.文書タブ:has([data-選択中=true]){border-bottom-color:#427d67}.文書タブ .対象行{min-height:35px;font-size:11px;background:transparent}.文書タブ .操作帯{width:24px}.文書タブ .ハンドル余白{display:none}.文書タブ .対象内容{gap:6px}.変更印{color:#be8e43;font-weight:700}
+.状態通知{min-height:26px;padding:6px 34px 0;font-size:11px;color:#697563}.状態通知[data-エラー=true]{color:#a64d43;background:#fff7f4;padding-bottom:6px}
+.文書領域{max-width:1140px;width:100%;margin:0 auto;padding:34px 65px 60px;flex:1}.文書見出し{display:flex;justify-content:space-between;align-items:center;gap:20px}.種類ラベル{font-size:9px;font-weight:600;letter-spacing:2px;color:#9ca68e;margin:0 0 9px}h1{font-size:34px;line-height:1.25;font-weight:650;letter-spacing:-1.3px;margin:0 0 10px}.文書説明{font-size:13px;color:#727b6b;margin:0 0 12px}.文書操作{display:flex;align-items:center;gap:10px;flex-shrink:0}.版ラベル{color:#979e8c;font-size:10px;white-space:nowrap}.省略ボタン{font-size:17px!important;color:#8b9382!important;padding:5px 8px!important;border-radius:5px}.省略ボタン:hover{background:#f0f2eb!important}
+.表示切替{display:flex;align-items:center;gap:22px;border-bottom:1px solid var(--線);margin-top:26px;min-height:39px}.表示切替 button{height:39px;font-size:12px;color:#969d8a;padding:0 0 11px;border-bottom:2px solid transparent}.表示切替 button[data-選択中=true]{color:#407258;border-bottom-color:#407258}.下書き状態{margin-left:auto;font-size:11px;color:#69775b}
+.構造見出し{display:flex;align-items:center;justify-content:space-between;margin:30px 0 13px}h2{font-size:14px;letter-spacing:-.2px;margin:0}h3{font-size:13px;font-weight:600}.テキストボタン{font-size:11px!important;color:#7d8973!important;padding:5px 8px!important;border-radius:4px}.テキストボタン:hover{background:#f1f3ec!important}
+.控えめボタン{font-size:11px!important;padding:6px 11px!important;border:1px solid #e1e5d9!important;border-radius:5px;background:#fff!important;color:#65745a!important;white-space:nowrap}.控えめボタン:hover{background:#f6f8f1!important}.主要ボタン{font-size:11px!important;padding:7px 13px!important;border-radius:5px;background:#326f5b!important;color:white!important;white-space:nowrap}.主要ボタン:hover{background:#275e4b!important}
+.表カード{display:flex;align-items:center;gap:14px;border:1px solid var(--線);border-radius:7px;padding:17px 20px;margin:10px 0;box-shadow:0 1px 2px #232b0010}.表アイコン{width:36px;height:36px;display:grid;place-items:center;border-radius:7px;background:#f0f4e9;color:#829570;font-size:20px}.表カード strong{font-size:12px;font-weight:600}.表カード p{font-size:10px;color:#a0a58f;margin:3px 0 0}.表カード button{margin-left:auto}
+.空の構造{border:1px dashed #dfe5d4;border-radius:8px;margin-top:10px;min-height:245px;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#96a486;background:#fcfdf9}.空の構造>span{font-size:30px;color:#c4ceb9}.空の構造 h3{color:#879878;margin:10px 0 2px}.空の構造 p{font-size:11px;color:#a4ae96;margin:5px 10px 18px}
+.概要カード{border:1px solid var(--線);border-radius:9px;width:310px;margin-top:35px;padding:25px}.概要カード>span{display:block;font-size:26px;color:#8b9c78}.概要カード strong{font-size:36px;font-weight:500}.概要カード p{font-size:11px;color:#9da68d;margin:0 0 22px}
+.表入力カード{border:1px solid #dce5d1;background:#fcfdf9;border-radius:8px;padding:22px;margin:15px 0}.表入力カード h3{margin:0 0 18px}.名前入力列{display:flex;gap:20px}.名前入力列 label{display:flex;flex-direction:column;gap:5px;font-size:10px;color:#879674;flex:1}.名前入力列 input,.設計表 input{width:100%;font:inherit;font-size:12px;border:1px solid #e3e8da;border-radius:4px;padding:7px 9px;background:white;color:#556247;outline-color:#7aa97a}.設計表{border-collapse:collapse;width:100%;margin:22px 0 12px}.設計表 th{text-align:left;font-size:10px;font-weight:500;color:#93a17f;padding:7px}.設計表 td{padding:5px}.設計表 input[type=checkbox]{width:15px;accent-color:#518567}.表入力操作{display:flex;align-items:center;gap:10px}.表入力操作>span{flex:1}
+.コード見出し{display:flex;gap:15px;align-items:center;margin-top:24px;background:#fafbf7;border:1px solid var(--線);border-bottom:0;padding:10px 15px;border-radius:7px 7px 0 0}.コード見出し select{border:0;background:transparent;color:#69795a;font:inherit;font-size:11px;max-width:55%}.コード見出し>span{font-size:9px;color:#9ba88a;margin-left:auto}.コード面{display:flex;border:1px solid var(--線);border-radius:0 0 7px 7px;min-height:430px;overflow:hidden;background:#fdfefb}.行番号{font:12px/22px Consolas,monospace;padding:20px 12px 20px 17px;text-align:right;user-select:none;color:#c4cdb8;background:#fafbf7;min-width:48px;max-height:530px;overflow:hidden}.コード面 textarea{flex:1;width:100%;min-height:430px;max-height:530px;resize:vertical;border:0;padding:20px 15px;font:12px/22px Consolas,"Cascadia Code",monospace;background:transparent;color:#526347;outline:none;white-space:pre;tab-size:4}.構造診断{font-size:11px;color:#a16b4d;padding:10px}
+.適用カード{margin-top:25px;border:1px solid #cbdcc0;border-radius:8px;padding:22px;background:#fcfef9}.適用カード>div>p{font-size:10px;color:#91a47e}.変更内容{font-size:11px;white-space:pre-wrap;max-height:180px;overflow:auto;color:#7c8c6d}.適用操作{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.作業フッター{display:flex;gap:25px;font-size:10px;color:#78846b;border-top:1px solid #f1f3ea;padding:11px 30px}
+.操作ポップ{position:fixed;z-index:10000;visibility:hidden;background:#fff;color:#3d4238;min-width:280px;max-width:min(360px,calc(100vw - 24px));border:1px solid #e5e9de;border-radius:9px;box-shadow:0 12px 38px #293c2026,0 2px 7px #293c2014;font:12px/1.5 Inter,"Segoe UI",system-ui,sans-serif;overflow:auto;padding:7px}.メニュー見出し{display:flex;align-items:center;justify-content:space-between;padding:5px 7px;color:#a0a994;font-size:10px}.操作ポップ kbd{font:10px Inter,"Segoe UI",sans-serif;color:#a0ab91}.操作検索{box-sizing:border-box;width:100%;padding:8px 10px;margin:4px 0 7px;border:1px solid #d9e3ce;border-radius:5px;font:inherit;outline-color:#7fa177;background:#fcfef9;color:#5a684d}.メニュー候補{display:flex;flex-direction:column;gap:2px}.メニュー項目{display:flex;align-items:center;gap:11px;text-align:left;padding:8px 10px;border-radius:5px;min-height:34px;white-space:nowrap}.メニュー項目:hover,.メニュー項目:focus-visible{background:#f0f4e9;outline:none}.メニュー項目>span:nth-child(2){flex:1}.メニュー項目[data-破壊的=true]{color:#ad6250}.コマンドアイコン{width:18px;color:#91a77c;text-align:center;font-size:16px}.階層戻り{padding:6px 9px;font-size:10px!important;color:#8da278!important}.メニューフッター{border-top:1px solid #edf1e6;font-size:9px;color:#a9b49a;margin-top:6px;padding:7px 7px 0}.候補なし{font-size:11px;color:#a5ae98;padding:15px}
+.移動中{user-select:none}.移動プレビュー{position:fixed;z-index:11000;pointer-events:none;background:#fff;border:1px solid #cbdabb;border-radius:6px;padding:8px 16px;box-shadow:0 8px 24px #253d2026;color:#5c754b;font:12px system-ui;opacity:.95}.挿入位置{position:fixed;z-index:11001;pointer-events:none;width:3px;background:#65934b;border-radius:3px}
+@media(max-width:1000px){.ナビゲーション{width:218px;min-width:218px}.文書領域{padding:28px 30px 45px}.文書操作{gap:6px}.版ラベル{display:none}.上部バー{padding:0 23px}}
+@media(prefers-reduced-motion:reduce){.操作帯{transition:none}}
+.型入力{position:relative;display:flex;align-items:center}.設計表 .型入力 input{padding-right:30px}.型候補ボタン{position:absolute;right:1px;top:1px;bottom:1px;width:29px;border-radius:0 3px 3px 0;background:#f3f6ee!important;color:#718265!important;font-size:16px!important}.型候補ボタン:hover{background:#e7eddf!important}.型候補一覧{min-width:230px;max-height:260px!important;padding:5px;overflow:auto}.型候補一覧 .メニュー項目{width:100%;font-family:Consolas,"Cascadia Code",monospace;min-height:30px}.型候補一覧 [aria-selected=true]{background:#edf3e6;outline:1px solid #c8d8bb;outline-offset:-1px}
+.型候補一覧 .メニュー項目{display:flex;gap:12px;justify-content:space-between}.型候補一覧 .メニュー項目 small{font:10px system-ui;color:#8b967f;white-space:nowrap}
+.編集グリッド枠{overflow:auto;max-height:340px;margin:14px 0 4px;border:1px solid #d6dfd1;border-radius:4px;background:#fff}
+.編集グリッド{width:100%;min-width:440px;margin:0;table-layout:fixed;border-collapse:separate;border-spacing:0}
+.編集グリッド th{position:sticky;top:0;z-index:1;height:28px;padding:4px 8px;background:#f1f4ee;border-right:1px solid #dfe5db;border-bottom:1px solid #d6dfd1;color:#65745c;font-size:11px;white-space:nowrap;box-sizing:border-box}
+.編集グリッド th:nth-child(2){width:48%}.編集グリッド th.選択列{width:60px;text-align:center}
+.編集グリッド td{height:28px;padding:0;border-right:1px solid #e3e8df;border-bottom:1px solid #e3e8df;box-sizing:border-box;outline:none;background:#fff}
+.編集グリッド th:last-child,.編集グリッド td:last-child{border-right:0}.編集グリッド tr:last-child td{border-bottom:0}
+.編集グリッド td[aria-selected=true]{background:#eef4ed;box-shadow:inset 0 0 0 1.5px #669473}
+.編集グリッド td[data-編集中=true]{background:#fff;box-shadow:inset 0 0 0 2px #4e8064}
+.編集グリッド input:not([type=checkbox]):not([type=radio]),.編集グリッド select,.編集グリッド textarea{width:100%;min-width:0;height:27px;margin:0;padding:4px 7px;border:0;border-radius:0;outline:none;background:transparent;font-size:12px;line-height:19px;box-sizing:border-box}
+.編集グリッド input[type=checkbox],.編集グリッド input[type=radio]{width:14px;height:14px;margin:0;padding:0;vertical-align:middle;accent-color:#518567}
+.編集グリッド td:has(>input[type=checkbox]),.編集グリッド td:has(>input[type=radio]){text-align:center}
+.編集グリッド .型入力{height:27px;min-width:0}.編集グリッド .型入力 input{padding-right:27px}
+.編集グリッド .型候補ボタン{right:0;top:0;bottom:0;width:25px;border-left:1px solid #e3e8df;border-radius:0}
+.編集グリッド .行操作列{width:44px;min-width:44px;padding:0;background:#f6f8f3}
+.編集グリッド .行操作列 .対象行{min-height:27px;height:27px;margin:0;border-radius:0}
+.グリッド操作案内{margin:4px 0 12px;color:#89927f;font-size:10px;line-height:1.5}
+.未適用印{display:inline-block;padding:1px 5px;border-radius:3px;background:#f5ecd6;color:#8b692b;font-size:10px;font-weight:400;white-space:nowrap}
+.未適用テーブル{margin-top:22px;padding:18px;border:1px solid #e4dbc5;border-radius:5px;background:#fffdf7}.未適用テーブル p{font-size:12px;line-height:1.8}.未適用テーブル button+button{margin-left:8px}
+.色付きコード{display:grid;grid-template-columns:auto minmax(0,1fr);min-width:0;border:1px solid var(--線);border-radius:0 0 6px 6px;background:#fdfefb;overflow:hidden}
+.コード行番号{position:relative;width:max(48px,calc(var(--コード番号桁,2)*1ch + 20px));min-height:0;overflow:hidden;background:#fafbf7;color:#a9b59d;text-align:right;user-select:none;font:12px/22px Consolas,"Cascadia Code",monospace}
+.コード行番号 pre,.コード色表示,.コード編集枠 textarea{margin:0;border:0;font:12px/22px Consolas,"Cascadia Code",monospace;font-variant-ligatures:none;tab-size:4;box-sizing:border-box;white-space:pre}
+.コード行番号 pre{position:absolute;top:0;right:0;min-width:100%;padding:16px 10px}.コード編集枠{position:relative;min-width:0;min-height:0;overflow:hidden}
+.コード色表示{position:absolute;top:0;left:0;width:100%;height:100%;padding:16px 12px;overflow:hidden;pointer-events:none;color:#334039}
+.コード色表示 code{display:block;font:inherit;transform-origin:top left}.コード色表示 .keyword{color:#2356a7}.コード色表示 .string{color:#9b472c}.コード色表示 .number{color:#784f99}.コード色表示 .comment{color:#52814a}.コード色表示 .directive{color:#865399}
+.コード編集枠 textarea{display:block;width:100%;height:calc(var(--コード行数)*22px + 32px);min-height:120px;max-height:560px;padding:16px 12px;outline:none;resize:vertical;background:transparent;color:transparent;caret-color:#263e32;overflow:auto}
+.色付きコード[data-待機中=true] .コード色表示{visibility:hidden}.色付きコード[data-待機中=true] textarea{color:#334039}
+.コード編集枠 textarea::selection{background:#b8d3ef80}.プロジェクトコード枠{flex:1;border:0;border-radius:0}.プロジェクトコード枠 .コード編集枠 textarea{height:100%;min-height:360px}
+.文書領域:has(.DBコード枠){padding-bottom:12px}.DBコード枠 .コード編集枠 textarea{height:var(--DBコード高さ,calc(var(--コード行数)*22px + 32px));max-height:none;resize:none}
+@media(forced-colors:active){.コード色表示{display:none}.コード編集枠 textarea{color:CanvasText;caret-color:CanvasText}}
+
+.表カード{padding:0;display:block}.表カード>.対象行{margin:0;min-height:76px;border-radius:7px}.表カード .対象内容{gap:14px;padding:17px 20px 17px 0}.表カード .操作帯{width:38px}.表カード .ハンドル余白{width:16px}.表を開く印{margin-left:auto;color:#879578;opacity:0}.表カード:hover .表を開く印,.表カード:focus-within .表を開く印{opacity:1}.DB作成照会{padding:8px 10px;overflow-wrap:anywhere}.DB作成照会 small{display:block;margin-bottom:8px;color:#6f7a63;font-size:10px}
+.ソース入口{margin:0 14px 12px;padding:8px 12px;text-align:left;border-radius:5px;color:#77856b!important;font-size:12px!important}.ソース入口:hover{background:#edf1e7}.ソース領域{padding:35px 40px;display:flex;flex:1;min-height:0;flex-direction:column;overflow:auto}.ソース領域[hidden]{display:none}.ソース見出し{display:flex;justify-content:space-between;align-items:center}.ソース見出し h1{margin:8px 0;font-size:30px}.ソース見出し p{color:#8a967c;font-size:12px}.場所入力{display:flex;align-items:end;gap:10px;margin:20px 0 12px}.場所入力 label{flex:1;font-size:11px;color:#7c8d6d}.場所入力 input{display:block;width:100%;box-sizing:border-box;margin-top:7px;padding:10px 12px;border:1px solid #dce4d4;border-radius:5px;font:12px Consolas,monospace;background:#fcfdf9;color:#4e6043}.ソース通知{font-size:11px;color:#7c8b6b;min-height:20px;overflow-wrap:anywhere}.ソース通知[data-エラー=true]{color:#aa594b}.ソース構成{display:flex;flex:1;min-height:480px;margin-top:16px;border:1px solid #e2e7da;border-radius:8px;overflow:hidden}.ソース一覧{width:225px;flex-shrink:0;padding:15px 8px;background:#f8faf5;overflow:auto}.ソース一覧 h2{font-size:10px;color:#94a485;padding:0 10px;margin:18px 0 10px}.ソース選択{display:block;width:100%;text-align:left;padding:8px 10px;border-radius:4px;font-size:11px!important;overflow-wrap:anywhere;color:#68795a!important}.ソース選択:hover{background:#eef3e6}.ソース選択[data-選択中=true]{background:#e6eee0;color:#32624c!important}.名前空間選択,.ソースファイル{font-family:Consolas,monospace!important}.ソース編集面{min-width:0;flex:1;display:flex;flex-direction:column;background:white}.ソース操作{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #e8eddf;font-size:10px;color:#91a17f}.ソース操作>div{flex:1;min-width:0;overflow-wrap:anywhere}.ソース操作 strong{display:block;color:#526944;font-size:12px}.ソース操作 small{display:block;margin-top:5px}.プロジェクトコード{resize:vertical;flex:1;min-height:360px;box-sizing:border-box;width:100%;border:0;outline:none;padding:20px;font:12px/1.7 Consolas,"Cascadia Code",monospace;tab-size:4;color:#425738;background:#fdfefa}.ソース保存案内{font-size:10px;color:#9aa88d;padding:12px 16px;border-top:1px solid #edf1e7}.ソース空表示{margin:auto;padding:30px;text-align:center;color:#a1ae94;font-size:12px}.ソース空表示>span{font-size:30px}.ソース空表示 h2{font-size:15px}.ターゲット入力{display:block;padding:10px;font-size:11px}.ターゲット入力 select{width:100%;margin-top:8px}
+.サーバー参照{margin:0 0 14px;padding:18px;border:1px solid #dce5d4;border-radius:8px;background:#fbfdf8;box-shadow:0 8px 24px #4257380a}
+.サーバー参照 header,.サーバー参照 footer,.参照パス,.参照案内{display:flex;align-items:center;gap:12px}
+.サーバー参照 header{justify-content:space-between;margin-bottom:14px}
+.サーバー参照 header strong{display:block;color:#4e6342;font-size:13px}
+.サーバー参照 header small{display:block;color:#8b997e;font-size:11px;margin-top:6px}
+.参照パス input{flex:1;min-width:0}
+.サーバー参照 input{box-sizing:border-box;padding:9px 11px;border:1px solid #dce4d4;border-radius:5px;background:white;color:#4e6043;font-size:12px}
+.参照パス input,.参照現在地{font-family:Consolas,monospace}
+.参照案内{margin:12px 0;justify-content:space-between}
+.参照現在地{overflow-wrap:anywhere;color:#849574;font-size:10px}
+.参照案内 input{width:180px;flex-shrink:0}
+.参照一覧{max-height:240px;overflow:auto;border-top:1px solid #e6ecde;border-bottom:1px solid #e6ecde;padding:5px 0}
+.参照項目{display:flex;align-items:center;gap:10px;width:100%;text-align:left;min-height:36px;padding:8px 10px;border-radius:4px;color:#61744f!important;font-size:12px!important}
+.参照項目:hover,.参照項目:focus-visible{background:#edf3e5}
+.参照項目>span:nth-child(2){flex:1;overflow-wrap:anywhere}
+.参照項目 small{font-size:10px;color:#96a487}
+.サーバー参照 footer{justify-content:space-between;margin-top:12px;color:#8b997e;font-size:10px}
+@media(max-width:650px){.参照案内{align-items:stretch;flex-direction:column}.参照案内 input{width:100%}.サーバー参照{padding:12px}}
+.宣言スキーマ{margin:12px 12px 4px;font:10px Consolas,monospace;color:#9aa88d}
+.宣言選択{display:flex;align-items:center;gap:7px;padding-left:18px}
+.宣言選択 small{margin-left:auto;color:#a2af97;font-size:9px;white-space:nowrap}
+.宣言概要{display:flex;flex-wrap:wrap;gap:10px;padding:12px 16px;border-bottom:1px solid #e7eddf;background:#f8fbf4;font-size:10px;color:#7b8e6a}
+.宣言概要>strong{align-self:center;margin-right:5px;color:#526a43}
+.宣言概要>span{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:4px;background:#edf3e5}
+.宣言概要 b{font-weight:500;color:#5f754e}
+.宣言概要 code{color:#92a181;font:10px Consolas,monospace}
+.ログイン画面{max-width:340px;margin:12vh auto;padding:32px;color:#536b43;font-family:system-ui,sans-serif}
+.ログイン画面>small{font-size:10px;letter-spacing:3px;color:#91a07f}
+.ログイン画面 h1{font-size:30px;font-weight:600;margin:12px 0 28px}
+.ログイン画面 form,.ログイン画面 label{display:flex;flex-direction:column;gap:10px}
+.ログイン画面 form{gap:20px}
+.ログイン画面 label{font-size:12px;color:#82916e}
+.ログイン画面 input{padding:12px;border:1px solid #dce5d3;border-radius:5px;background:#fcfef9;color:#4c6440;font:14px system-ui}
+.ログイン画面 button{padding:12px;cursor:pointer}
+.ログイン画面 [role=alert]{font-size:12px;color:#a35546}
+
+/* 結果グリッド & 実行計画スタイル */
+.結果グリッド領域, .実行計画領域{display:flex;flex-direction:column;flex:1;min-height:0;padding:16px 20px;overflow:auto}
+.グリッド見出し, .計画見出し{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #e2ebd8}
+.グリッド情報, .計画情報{display:flex;align-items:center;gap:10px}
+.グリッド情報 h3, .計画情報 h3{margin:0;font-size:16px;font-weight:600;color:#3b4d2f}
+.グリッド操作, .計画操作{display:flex;align-items:center;gap:8px}
+.件数バッジ{padding:3px 8px;border-radius:12px;background:#e5f0dc;color:#506e3d;font-size:11px;font-weight:500}
+.グリッド枠{flex:1;overflow:auto;border:1px solid #dce5d3;border-radius:6px;background:white}
+.データ表{width:100%;border-collapse:collapse;font-size:12px;text-align:left}
+.データ表 th{position:sticky;top:0;background:#f5f9f0;padding:8px 10px;border-bottom:1px solid #dce5d3;border-right:1px solid #eef3e9;font-weight:600;color:#4c633c;z-index:1}
+.列見出し{display:flex;flex-direction:column;gap:2px}
+.列見出し small{font-size:10px;color:#859a75;font-weight:normal}
+.PK印{align-self:flex-start;padding:1px 4px;border-radius:3px;background:#4c633c;color:white;font-size:9px;font-weight:bold}
+.データ表 td{padding:4px 8px;border-bottom:1px solid #edf3e7;border-right:1px solid #edf3e7;color:#3b4d2f}
+.操作列{width:36px;text-align:center;padding:4px}
+.セル入力{width:100%;box-sizing:border-box;padding:5px 7px;border:1px solid transparent;border-radius:4px;background:transparent;color:#3b4d2f;font-size:12px}
+.セル入力:hover{border-color:#d4e0cb;background:#fafcf8}
+.セル入力:focus{border-color:#5c7849;background:white;outline:none}
+.セル入力.セル変更{background:#fff9e6;border-color:#ecd992}
+.新規行{background:#f3f9ed}
+.変更行{background:#fffcf0}
+.削除行{background:#fdf2f2;opacity:0.7}
+.削除セル{text-decoration:line-through;color:#a85353}
+.主キー値{font-family:Consolas,monospace;font-weight:600;color:#2e4024}
+.次ページ枠{padding:12px;text-align:center}
+.計画セレクター帯{margin-bottom:14px}
+.計画セレクター帯 select{padding:6px 10px;border:1px solid #dce5d3;border-radius:5px;background:white;color:#3b4d2f;font-size:12px}
+.計画メタデータ{display:flex;flex-wrap:wrap;gap:12px;padding:8px 12px;margin-bottom:14px;border-radius:5px;background:#f5f9f0;font-size:11px;color:#506e3d}
+.計画メタデータ code{font-family:Consolas,monospace;background:#e5edd9;padding:2px 5px;border-radius:3px}
+.計画表示切替{display:flex;gap:6px;margin-bottom:12px}
+.計画表示切替 button{padding:6px 12px;border:1px solid #dce5d3;border-radius:4px;background:white;color:#506e3d;font-size:11px;cursor:pointer}
+.計画表示切替 button[data-選択中="true"]{background:#4c633c;border-color:#4c633c;color:white;font-weight:600}
+.ノード一覧{display:flex;flex-direction:column;gap:10px}
+.ノードカード{padding:10px 14px;border:1px solid #dce5d3;border-radius:6px;background:white;border-left:4px solid #73945d}
+.ノードカード.terminal, .ノードカード.pipeline{border-left-color:#385227}
+.ノード頭部{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.ノード種別{padding:2px 6px;border-radius:3px;background:#edf5e5;color:#506e3d;font-size:10px;font-weight:bold}
+.ノードID{margin-left:auto;font-family:Consolas,monospace;color:#859a75;font-size:11px}
+.ノード入力{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:11px;color:#6d855a}
+.入力ノードタグ{padding:1px 6px;border-radius:3px;background:#f0f5e8;border:1px solid #dce5d3;font-family:Consolas,monospace;font-size:10px}
+.ノードプロパティ{display:flex;flex-direction:column;gap:3px;padding:6px 8px;border-radius:4px;background:#fafcf8;font-size:11px}
+.プロパティ行{display:flex;gap:8px}
+.プロパティ名{font-weight:600;color:#5c7849;min-width:90px}
+.プロパティ値{font-family:Consolas,monospace;color:#2e4024;word-break:break-all}
+.DOT枠{border:1px solid #dce5d3;border-radius:6px;background:#1e1e1e;padding:12px;overflow:auto}
+.DOTコード{margin:0;color:#d4d4d4;font-family:Consolas,monospace;font-size:11px;line-height:1.4}
+.成果物検査{margin:0 18px 12px;padding:10px 12px;border:1px solid #dce5d3;border-radius:6px;background:#fafcf8}
+.成果物検査 summary{cursor:pointer;font-size:12px;font-weight:600}
+.成果物入力{display:flex;gap:8px;align-items:center}
+.成果物入力 input{flex:1;min-width:0}
+.成果物検査 dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:6px 12px;font-size:11px}
+.成果物検査 dd{margin:0;overflow-wrap:anywhere}
+.設計表 .行操作列{width:44px;min-width:44px;padding:0}.行操作列 .対象行{margin:0;min-height:34px}.行操作列 .対象内容{display:none}.設計表 tr:hover .操作帯,.設計表 tr:focus-within .操作帯{opacity:1;pointer-events:auto}.設計表 tr:focus-within{background:#f1f5ee}.問い合わせ結果 .引数入力{display:inline-flex;flex-direction:column;gap:5px;margin:0 12px 12px 0}.問い合わせ結果 output{display:block;margin:18px 0;padding:16px;background:#f1f5ee;border-radius:6px;overflow-wrap:anywhere}.結果表スクロール{overflow:auto}
+
+.DB名前変更{display:block;flex:1;min-width:0}.DB名前入力{box-sizing:border-box;width:100%;min-width:0;padding:2px 4px;border:1px solid #79a48b;border-radius:3px;font:inherit;background:#fff;color:inherit}.DB名前入力:focus{outline:2px solid #d9e9df;outline-offset:0}
+
+.ソース競合{margin:12px 0;padding:18px;border:1px solid #dbc8a4;border-radius:8px;background:#fffdf7}.ソース競合 header,.ソース競合 footer,.競合採用{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}.ソース競合 h2{margin:0;font-size:18px}.競合ファイル{margin:18px 0}.競合ファイル h3{font-size:13px;overflow-wrap:anywhere}.競合比較{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.競合比較 label,.競合ファイル>label{display:flex;flex-direction:column;gap:6px;font-size:12px}.競合比較 textarea,.競合候補{box-sizing:border-box;width:100%;min-height:180px;border:1px solid #dce5d3;border-radius:4px;padding:8px;font:12px/1.5 Consolas,monospace;white-space:pre;resize:vertical}.競合比較 textarea{background:#f7f8f5}.競合候補{min-height:220px}.競合採用{justify-content:flex-start;margin:10px 0;font-size:12px}.競合採用 label{display:flex;gap:6px;align-items:center}@media(max-width:900px){.競合比較{grid-template-columns:1fr}}
+
+.ビルド構成入力{display:flex;align-items:center;gap:6px;white-space:nowrap}.ビルド構成入力 select{background:#fdfefa;border:1px solid #dce5d1;border-radius:4px;padding:5px 8px;color:#526944;font:inherit}.ソース操作{flex-wrap:wrap}
+
+.監査表示切替{display:flex;gap:12px;border-bottom:1px solid #e3e7df;margin:28px 0 20px;padding-bottom:8px}
+.監査表示切替 [aria-pressed=true]{color:#2f705d;box-shadow:0 2px #2f705d}
+.監査検索{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin-bottom:24px}
+.監査検索 label{display:flex;flex-direction:column;gap:6px;font-size:11px;color:#7a8970}
+.監査検索 input,.監査検索 select{box-sizing:border-box;min-width:140px;max-width:100%;padding:8px;border:1px solid #dce5d1;border-radius:4px;background:#fff;color:#354535;font:inherit;font-size:12px}
+.監査検索語{flex:1 1 240px}.監査検索語 input{width:100%}
+.監査表{width:100%;font-size:12px}.監査表 caption{text-align:left;color:#7a8970;padding:12px 0}.監査表 td{vertical-align:top;white-space:normal;padding:12px}
+.監査表 time{white-space:nowrap;font-variant-numeric:tabular-nums}.監査表 small{display:block;color:#84907e;margin-top:5px;overflow-wrap:anywhere}
+.監査表 details{margin-top:6px;max-width:460px}.監査表 summary{cursor:pointer;color:#527760}.監査表 dl{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:11px}.監査表 dd{margin:0;overflow-wrap:anywhere}.監査表 dt{color:#84907e}.監査表 pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f7f8f5;padding:10px}
+.監査結果{display:inline-block;border-radius:4px;padding:3px 7px;background:#edf3e8}.監査結果[data-結果=Failed],.監査結果[data-結果=Rejected]{background:#fbece7;color:#9c3c31}
+.監査状態枠{display:flex;flex-wrap:wrap;gap:24px;background:#f7f9f3;padding:18px;margin:20px 0;border-radius:6px}.監査状態枠 small,.監査状態枠 strong{display:block}.監査状態枠 small{color:#84907e;font-size:11px;margin-bottom:6px}.監査状態枠 strong{font-size:13px;font-weight:500}
+.監査ページ操作{display:flex;justify-content:space-between;align-items:center;margin:18px 0}.監査画面 input:focus-visible,.監査画面 select:focus-visible{outline:2px solid #7ba78d;outline-offset:2px}
+
+.利用者操作{display:flex;gap:10px;margin:24px 0}.利用者編集配置{display:grid;grid-template-columns:minmax(160px,230px) minmax(0,1fr);gap:28px;align-items:start}.利用者一覧{display:flex;flex-direction:column;gap:6px}
+.利用者行{display:flex;flex-direction:column;gap:6px;text-align:left;padding:12px;background:transparent;border:1px solid transparent;border-radius:5px;cursor:pointer;color:#354535}.利用者行 span{font-size:11px;color:#83917a}.利用者行:hover,.利用者行:focus-visible{background:#f3f6ed}.利用者行[aria-pressed=true]{background:#eaf0e5;border-color:#dce6d3}
+.利用者編集{border:1px solid #dce5d1;border-radius:6px;padding:22px;min-width:0}.利用者編集 h2{font-size:18px;margin:0 0 22px}.利用者編集 h3{font-size:13px}.利用者編集>label,.利用者編集 details label{display:flex;flex-direction:column;gap:7px;margin:14px 0;font-size:12px;color:#728565}
+.利用者編集 input:not([type=checkbox]){box-sizing:border-box;width:100%;min-width:0;padding:9px;border:1px solid #dce5d1;border-radius:4px;font:inherit;color:#354535;background:#fff}.利用者編集 input:read-only{background:#f8f9f5}.利用者編集 input:focus-visible{outline:2px solid #7ba78d;outline-offset:2px}.利用者編集 details{font-size:12px;margin:20px 0}.利用者編集 summary{cursor:pointer;color:#647c54}
+.利用者編集 .利用者無効{flex-direction:row;align-items:center;gap:8px}.権限見出し{display:flex;align-items:center;justify-content:space-between;margin-top:28px}.利用者権限{border:1px solid #e0e7d9;border-radius:5px;padding:14px;margin:10px 0}.権限DB行{display:flex;gap:10px;align-items:end}.権限DB行 label{flex:1;font-size:11px;color:#728565}.権限DB行 input{margin-top:7px}.権限選択{display:flex;flex-wrap:wrap;gap:12px 18px;margin-top:16px}.権限選択 label{display:flex;align-items:center;gap:5px;font-size:12px}.利用者保存操作{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
+@media(max-width:850px){.利用者編集配置{grid-template-columns:1fr}.利用者一覧{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.利用者編集{padding:16px}}
+
+.システム操作{display:flex;flex-direction:column;align-items:stretch;gap:3px}.システム操作 .ソース入口[aria-pressed=true]{background:#eaf0e5;color:#2f705d}
+.設定稼働情報{display:flex;flex-wrap:wrap;gap:20px 32px;padding:20px;background:#f6f8f1;border-radius:6px;margin:24px 0}.設定稼働情報 small,.設定稼働情報 strong{display:block}.設定稼働情報 small{font-size:11px;color:#7a8970;margin-bottom:6px}.設定稼働情報 strong{font-size:13px;font-weight:500}
+.設定保存先{font-size:12px;margin-bottom:24px}.設定保存先 summary,.設定詳細>summary{cursor:pointer;color:#617a50}.設定保存先 dl{display:grid;grid-template-columns:auto 1fr;gap:8px 18px}.設定保存先 dt{color:#84907e}.設定保存先 dd{margin:0;overflow-wrap:anywhere}
+.設定見出し{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:28px}.設定見出し h2{font-size:18px}.設定入力枠{border:1px solid #dce5d1;border-radius:6px;padding:20px;margin:18px 0}.設定入力枠 legend{font-size:13px;color:#526944}.設定入力一覧{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}.設定入力一覧 label{display:flex;flex-direction:column;gap:7px;font-size:12px;color:#728565}.設定入力一覧 input{box-sizing:border-box;width:100%;min-width:0;padding:9px;border:1px solid #dce5d1;border-radius:4px;font:inherit;color:#354535;background:#fff}.設定入力一覧 input:read-only{background:#f1f3ed;color:#7e8b75}.設定入力一覧 input:focus-visible{outline:2px solid #7ba78d;outline-offset:2px}.設定チェック{display:flex;align-items:center;gap:7px;margin-bottom:18px;font-size:12px}.設定詳細{margin:20px 0;font-size:13px}.設定保存操作{display:flex;gap:10px;justify-content:flex-end;margin:24px 0}
+
+.ロール作業領域{display:grid;grid-template-columns:minmax(180px,240px) minmax(0,1fr);gap:28px;margin-top:24px}.ロール一覧{border-right:1px solid var(--border,#e4e7df);padding-right:16px}.ロール選択{display:block;width:100%;text-align:left;border:0;background:transparent;padding:10px 12px;border-radius:5px;cursor:pointer}.ロール選択:hover,.ロール選択[aria-pressed="true"]{background:#e9eee5}.ロール編集{min-width:0}.ロール編集 fieldset>label{display:grid;gap:8px}.ロール規則{margin:22px 0;padding:16px;border:1px solid #e4e7df;border-radius:6px}.ロール規則 .設計表{width:100%;margin-top:12px}.ロール割当{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:8px 0}.ロール割当 small{color:#7c8576}.破壊的操作{color:#a43c37}@media(max-width:900px){.ロール作業領域{grid-template-columns:1fr}.ロール一覧{border-right:0;border-bottom:1px solid #e4e7df;padding-bottom:16px}}
+
+.文書領域:has(.計画グラフ){max-width:none;padding-inline:clamp(20px,3vw,60px)}
+/* 対象文書を保持したまま切り替え、各エディターの入力と選択を保つ。 */
+.管理ワークスペース [hidden]{display:none!important}
+.対象情報{display:grid;grid-template-columns:minmax(100px,160px) minmax(0,1fr);gap:12px 20px;margin:24px 0 32px}
+.対象情報 dt{color:var(--muted,#81917d);font-size:12px}
+.対象情報 dd{margin:0;overflow-wrap:anywhere}
+.DB情報{padding:12px 0 24px;border-bottom:1px solid var(--line,#e0e7db);margin-bottom:24px}
+.対象定義エディター{padding:20px 0;min-width:0}
+.対象文書 [role=tabpanel]{min-width:0}
+.問い合わせ結果>output{white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* サイドバーの列は表示位置で編集し、型候補と主キーを同じ行に置く。 */
+.ツリー列編集行{display:grid;grid-template-columns:minmax(65px,1fr) minmax(90px,1.15fr) 20px;gap:4px;align-items:center;min-width:0}
+.ツリー列外枠{display:flex;align-items:center;min-width:0}.ツリー列外枠[data-移動先=true]{box-shadow:inset 0 -2px #267768}.ツリー列ドラッグ{width:20px;flex:0 0 20px;cursor:grab;color:#536454;display:inline-flex;align-items:center;justify-content:center}.ツリー列ドラッグ:active{cursor:grabbing}.ツリー列外枠 .ツリー列行{min-width:0;flex:1}
+.ツリー列編集行>input:not([type=checkbox]),.ツリー列編集行 .型入力 input{width:100%;min-width:0;min-height:30px;border:1px solid #b5c8b7;border-radius:4px;padding:4px 6px;background:#fff;color:#26372e;font:inherit}
+.ツリー列編集行 .型入力 input{padding-right:30px}.ツリー列編集行 input[type=checkbox]{justify-self:center}
+.ツリー列編集操作{display:flex;justify-content:flex-end;gap:5px;flex-wrap:wrap}
+.ツリー列未対応{margin:2px 0;color:#a32424;font-size:13px;font-weight:700}
+
+/* 小さな補助文字と操作アイコンを読み取りやすくする。 */
+.管理ワークスペース{--文字:#252e28;--補助:#46574a;font-size:15px}
+.検索入口,.ソース入口,.DB一覧>.対象行 .対象内容,.区分見出し,.表示切替 button,.管理ワークスペース select:not([multiple]),.管理ワークスペース input[type=file]{font-size:14px!important}
+.ナビ区分,.件数,.小案内,.接続フッター,.環境ラベル,.版ラベル,.種類ラベル{font-size:12px;color:#536454}
+.状態通知,.上部バー,.文書タブ .対象行,.下書き状態,.テキストボタン,.控えめボタン,.主要ボタン,.グリッド操作案内{font-size:13px!important}
+.分類名,.システム区分{font-size:13px;color:#536454}.文書説明{font-size:15px;color:#46574a}
+.検索入口,.ソース入口,.テキストボタン,.控えめボタン{color:#405b49!important}
+.表示切替 button{color:#526552}.表示切替 button[data-選択中=true]{color:#245e45}
+.ツリー列行 small{font-size:13px;color:#526552}.操作ハンドル,.省略ボタン{color:#416451!important}
+.操作ハンドル .操作アイコン,.省略ボタン .操作アイコン{width:18px;height:18px}
+.操作ポップ{font-size:14px;color:#26372e}.メニュー見出し,.操作ポップ kbd,.メニューフッター{font-size:12px;color:#536454}
+.管理ワークスペース .操作アイコン[data-操作アイコン="テーブル"],.管理ワークスペース .操作アイコン[data-操作アイコン="構造"]{color:#267b75}
+.管理ワークスペース .操作アイコン[data-操作アイコン="ビュー"],.管理ワークスペース .操作アイコン[data-操作アイコン="表示"]{color:#5378b0}
+.管理ワークスペース .操作アイコン[data-操作アイコン="関数"],.管理ワークスペース .操作アイコン[data-操作アイコン="ƒ"]{color:#8a61a6}
+.管理ワークスペース .操作アイコン[data-操作アイコン="DB"],.管理ワークスペース .操作アイコン[data-操作アイコン="データベース"]{color:#b07838}
+.管理ワークスペース .操作アイコン[data-操作アイコン="計画"],.管理ワークスペース .操作アイコン[data-操作アイコン="グラフ"]{color:#38876b}
+.管理ワークスペース .主要ボタン .操作アイコン{color:inherit}
+.ビュー展開通知,.型推論通知 {
+    margin: 16px 0;
+    padding: 16px 20px;
+    border: 2px solid #b91c1c;
+    border-radius: 8px;
+    background: #fff1f2;
+    color: #991b1b;
+    overflow-wrap: anywhere;
+}
+.ビュー展開通知 > strong,.型推論通知 > strong {
+    font-size: 20px;
+    font-weight: 800;
+}
+.ビュー展開通知 li {
+    margin: 8px 0;
+    font-size: 16px;
+    font-weight: 700;
+}
+.型推論通知 p{font-size:16px;font-weight:700;margin:8px 0}
+.対象定義エディター > fieldset > label{display:flex;flex-direction:column;gap:6px;max-width:100%}
+.対象定義エディター > fieldset > label > input[readonly]{box-sizing:border-box;width:100%;min-height:36px;padding:8px 10px;border:1px solid #d8e2d3;border-radius:5px;background:#f6f8f4;color:#354b41;font:inherit;cursor:text}
+/* 左ツリーのインプレース編集(2026-11-11): 表示行と編集行・追加行を同じ高さに固定し、編集の開始・終了で位置を1pxも動かさない。 */
+.ツリー列外枠{position:relative;height:30px;box-sizing:border-box}
+.ツリー列外枠>.ツリー列行{height:100%;box-sizing:border-box;padding:2px 4px}
+.ツリー列一覧>.ツリー列追加{display:flex;align-items:center;gap:6px;height:30px;box-sizing:border-box;padding:0 8px!important}
+.ツリー列外枠>.ツリー列編集行{display:flex;align-items:center;gap:3px;min-width:0}
+.ツリー列外枠>.ツリー列編集行>input:not([type=checkbox]),.ツリー列外枠>.ツリー列編集行 .型入力 input{height:24px;min-height:0;box-sizing:border-box;padding:2px 5px;font-size:12px}
+.ツリー列外枠>.ツリー列編集行>input:not([type=checkbox]){flex:1 1 70px;width:auto}
+.ツリー列外枠>.ツリー列編集行 .型入力{height:24px;flex:1 1 80px}
+.ツリー列外枠>.ツリー列編集行 .型入力 input{padding-right:24px}
+.ツリー列外枠>.ツリー列編集行 .型候補ボタン{height:22px}
+.ツリー列外枠>.ツリー列編集行 input[type=checkbox]{margin:0 2px;flex:0 0 auto}
+.ツリー列式ポップ{position:absolute;top:calc(100% + 2px);left:20px;right:0;z-index:40;display:grid;gap:6px;padding:8px;background:#fff;border:1px solid #d6e0d0;border-radius:6px;box-shadow:0 8px 24px #293c2026}
+.ツリー列式ポップ label{display:grid;gap:3px}
+.ツリー列式ポップ input{min-width:0;width:100%;box-sizing:border-box;border:1px solid #b5c8b7;border-radius:4px;padding:4px 6px;font:inherit}
+.行右操作{display:flex;align-items:center;gap:1px;margin-left:auto;padding-right:4px;flex-shrink:0;order:2}
+.行右ボタン{width:24px;height:24px;flex:0 0 24px;display:inline-flex;align-items:center;justify-content:center;padding:0;border:0;border-radius:4px;background:transparent;color:#7b8a79;cursor:pointer}
+.行右ボタン:hover,.行右ボタン:focus-visible{background:#e7ece1;color:#26372e}
+.行右ボタン:disabled{opacity:.45;cursor:default}
+.ツリー追加行{display:flex;align-items:center;gap:7px;width:100%;height:35px;margin:1px 0;box-sizing:border-box;padding:0 8px 0 30px!important;text-align:left;border:0;background:transparent}
+.ツリー追加行 .ツリー追加入力,.ツリー名前入力{height:24px;min-width:0;flex:1;box-sizing:border-box;border:1px solid #b2c9b9;border-radius:4px;padding:2px 6px;font:inherit;font-size:12px;outline-color:#559c83;background:#fff}
+.ツリー名前変更{display:flex;flex:1;min-width:0}
+.ツリー追加行{justify-content:flex-start}
+/* 名前・コピー・削除は、行にマウスを乗せたとき・フォーカス時・選択中に表示し、通常は名前を読めるようにする。行の高さと位置は変えない。 */
+.対象行 .行右操作{display:none}
+.対象行:hover .行右操作,.対象行:focus-within .行右操作,.対象行[data-選択中=true] .行右操作{display:flex}
+/* 生成コード表示: 左ツリーのメニューから開く読取専用のパネル。Escで閉じる。未対応の案内は赤い大きな太字。 */
+.生成コード表示{position:fixed;inset:5vh 4vw;z-index:60;background:#fff;border:1px solid #d6d6cf;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:8px;padding:12px 16px}
+.生成コード見出し{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.生成コード本体{display:flex;gap:12px;flex:1;min-height:0}
+.生成コード一覧{display:flex;flex-direction:column;overflow:auto;min-width:220px;max-width:30%}
+.生成コード項目{text-align:left;border:0;background:none;padding:4px 6px;border-radius:4px;cursor:pointer;font-size:13px;overflow-wrap:anywhere}
+.生成コード項目 small{display:block;color:#6b6b63;font-size:11px}
+.生成コード項目[aria-current=true]{background:#e7efe3}
+.生成コード内容{flex:1;min-width:0;overflow:auto}
+.生成コード表示 .未対応通知{color:#d00000;font-size:20px;font-weight:800;margin:4px 0}

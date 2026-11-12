@@ -1,0 +1,178 @@
+@implements IAsyncDisposable
+@inject IManagementOperations 管理操作
+@inject IJSRuntime スクリプト
+<link rel="stylesheet" href="_content/Seamless.Management.Components/manager.css"/>
+<link rel="stylesheet" href="_content/Seamless.Management.Components/sidebar-layout.css"/>
+<link rel="stylesheet" href="_content/Seamless.Management.Components/startup-state.css"/>
+<link rel="stylesheet" href="_content/Seamless.Management.Components/db-order.css"/>
+<link rel="stylesheet" href="_content/Seamless.Management.Components/object-order.css"/>
+@if(!操作受付中か){
+    <section class="起動状態案内" role="@起動状態ロール" aria-label="@表示文言.取得("Managerへの接続")">
+        <p>@表示文言.取得(起動状態メッセージ)</p>
+        <p>@表示文言.取得("接続できない場合は再読み込みしてください。ホストが停止した場合や期限切れの場合は、ホストから開き直してください。")</p>
+        <a href="./" data-enhance-nav="false">@表示文言.取得("再読み込み")</a>
+    </section>
+}
+<div @ref="根" class="管理ワークスペース" data-interactive-ready="@操作受付中か.ToString().ToLowerInvariant()" aria-busy="@((!操作受付中か).ToString().ToLowerInvariant())" inert="@(!操作受付中か)" data-未保管="@未保管の作業があるか.ToString().ToLowerInvariant()">
+    <aside id="@サイドバーID" class="ナビゲーション">
+        <div class="ブランド"><span class="ブランド印">S</span><strong>Seamless</strong><span class="接続点"></span><button type="button" class="サイドバー開閉" data-sidebar-toggle aria-controls="@サイドバーID" aria-expanded="true" aria-label="@表示文言.取得("サイドバーを閉じる")" title="@表示文言.取得("サイドバーを閉じる")"><操作アイコン 種類="左"/></button></div>
+        <button class="検索入口" @onclick="パレットを開くAsync"><操作アイコン 種類="検索"/>@(表示文言.取得("コマンドを検索"))<kbd>Ctrl K</kbd></button>
+        @if(ソース操作できるか){<button class="ソース入口" @onclick="()=>{ロール表示か=false;設定表示か=false;利用者管理表示か=false;監査表示か=false;プロジェクト表示か=true;}"><操作アイコン 種類="ソースを開く"/>@(表示文言.取得("ソースを開く"))</button>}
+        <div class="ナビ区分">@(表示文言.取得("ワークスペース"))</div>
+        <対象操作ホスト 追加ボタンを表示するか="false" ID="databases" 名前="@表示文言.取得("データベース")" メニュー要求時="メニュー要求時Async">
+            <span class="区分見出し">@(表示文言.取得("データベース"))</span><span class="件数">@DB一覧.Count(項目=>!項目.IsSystem)</span>
+        </対象操作ホスト>
+        <div class="DB一覧" role="navigation" aria-label="@表示文言.取得("データベース")">
+            @foreach(var DB in 表示DB一覧){
+                <対象操作ホスト DB表示順対象か="true" 表示順ドラッグ可能か="DB表示順を保存できるか(DB.Id)" 追加ボタンを表示するか="false" @key="DB.Id" ID="@DB.Id" 名前="@DB.Name" 展開中か="DBツリー状態(DB.Id).展開中か" 展開変更時="展開=>DBツリー開閉時Async(DB.Id,展開)" 選択中か="@(選択DBID==DB.Id&&ツリー選択オブジェクト(DB.Id) is null&&選択スキーマ名.Length==0)" メニュー表示中か="@(メニューID==DB.Id)" 選択時="()=>DBを開く時Async(DB.Id)" 名前変更時="()=>DB名前変更開始時(DB)" メニュー要求時="メニュー要求時Async" 追加メニュー要求時="追加メニュー要求時Async" 追加の説明="@表示文言.取得("{0}に追加",DB.Name)" 追加可能か="@(権限があるか(DB.Name,ManagementPermission.Edit)&&!操作中か)">
+                    <span class="DBアイコン"><操作アイコン 種類="DB"/></span>
+                    @if(DB名前変更ID==DB.Id){
+                        <span class="DB名前変更" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><インライン名前入力 名前="データベース名を変更" 初期値="@(DB名前変更要求?.Name??DB.Name)" クラス="DB名前入力" 無効か="DB名前変更中か" 確定時="DB名前変更確定時Async" 取消時="DB名前変更取消時"/></span>
+                    }else{<span class="対象名">@DB.Name</span>}
+                </対象操作ホスト>
+                @if(公開情報表示か(DB.Id)){
+                    var 公開=公開DB一覧[DB.Id];
+                    <div @key="@("tree:"+DB.Id)" data-tree-children data-db-tree="@DB.Id" hidden="@(!DBツリー状態(DB.Id).展開中か)">
+                        <DBオブジェクトツリー @ref="DBツリー画面[DB.Id]" DBID="@DB.Id" 表示版="@カタログ版" 表示順可能か="オブジェクト表示順を使えるか(DB.Id)" スキーマ="公開.スキーマ" オブジェクト="公開ツリー項目(公開)" 展開状態="DBツリー状態(DB.Id)" 選択オブジェクト="ツリー選択オブジェクト(DB.Id)" 選択スキーマ="@ツリー選択スキーマ(DB.Id)" 編集可能か="false" 公開済みか="@(_=>true)" 選択時="項目=>ツリー項目選択時(DB.Id,項目)" 所属選択時="名前=>ツリースキーマ選択時(DB.Id,名前)" メニュー要求時="要求=>ツリーメニュー要求時Async(DB.Id,要求)"/>
+                    </div>
+                }else if(文書一覧.TryGetValue(DB.Id,out var 木文書)){
+                    <div @key="@("tree:"+DB.Id)" data-tree-children data-db-tree="@DB.Id" hidden="@(!DBツリー状態(DB.Id).展開中か)">
+                    @if(スキーマ入力中か&&スキーマ作成DBID==DB.Id){
+                        <div class="DB子一覧"><div class="インライン作成" role="group" aria-label="@表示文言.取得("スキーマを作成")"><span>▱</span><インライン名前入力 名前="新しいスキーマ名" プレースホルダー="スキーマ名" 確定時="スキーマ名確定時" 取消時="作成入力を閉じる"/></div><p class="小案内">@(表示文言.取得("Enter・フォーカス移動で確定 · Escで取消"))</p></div>
+                    }
+                    <DBオブジェクトツリー @key="木文書" @ref="DBツリー画面[DB.Id]" DBID="@DB.Id" 表示版="@カタログ版" 表示順可能か="オブジェクト表示順を使えるか(DB.Id)" 定義="木文書.定義" 型候補="型候補" 列確定時="要求=>ツリー列確定時Async(DB.Id,要求)" 未保存変更時="()=>InvokeAsync(StateHasChanged)" 選択オブジェクト="ツリー選択オブジェクト(DB.Id)" 展開状態="DBツリー状態(DB.Id)" スキーマ="木文書.スキーマ" オブジェクト="ツリーオブジェクト(木文書)" 公開済みか="@(項目=>項目.Kind=="RegisteredFunction"||木文書.公開済みか(項目.Kind,項目.Id))" 選択スキーマ="@ツリー選択スキーマ(DB.Id)" 編集可能か="@(権限があるか(DB.Name,ManagementPermission.Edit)&&!操作中か)" 所属選択時="名前=>ツリースキーマ選択時(DB.Id,名前)" 選択時="項目=>ツリー項目選択時(DB.Id,項目)" 作成要求時="要求=>ツリー追加要求時Async(DB.Id,要求)" メニュー要求時="要求=>ツリーメニュー要求時Async(DB.Id,要求)" 対象操作="ツリー操作(DB.Id)"/>
+                    </div>
+                }
+            }
+            @if(DB名編集中か){
+                <div class="ツリー追加行" role="group" aria-label="@表示文言.取得("データベースを追加")"><操作アイコン 種類="DB"/><インライン名前入力 名前="新しいデータベース名" プレースホルダー="データベース名" クラス="ツリー追加入力" 無効か="DB作成中か" 確定時="DB名確定時Async" 取消時="()=>DB名編集中か=false"/></div>
+            }else if(DB作成できるか){
+                <button type="button" class="テキストボタン ツリー追加行" disabled="@操作中か" @onclick="新規DB開始時"><操作アイコン 種類="追加"/>@表示文言.取得("データベースを追加")</button>
+            }
+            @if(DB名前変更要求 is not null&&!DB名前変更中か){<button class="控えめボタン" @onclick="DB名前変更再照会時Async"><操作アイコン 種類="名前変更の結果を照会"/>@(表示文言.取得("名前変更の結果を照会"))</button>}
+            @if(DB保存先指定中か){
+                <div class="インライン保存先"><span>〈〉</span><input @ref="新保存先入力" aria-label="@表示文言.取得("プロジェクト保存先フォルダー")" placeholder="@表示文言.取得("プロジェクト保存先フォルダー")" @bind="新プロジェクト保存先" @bind:event="oninput" @onkeydown="保存先入力時Async" disabled="@プロジェクト生成中か"/><button class="主要ボタン" disabled="@(プロジェクト生成中か||string.IsNullOrWhiteSpace(新プロジェクト保存先))" @onclick="プロジェクト生成実行Async"><操作アイコン 種類="作成"/>@(表示文言.取得("作成"))</button><button class="控えめボタン" disabled="@プロジェクト生成中か" @onclick="プロジェクト生成スキップ"><操作アイコン 種類="後で"/>@(表示文言.取得("後で"))</button></div>
+                <p class="小案内">@(表示文言.取得("Enterで専用C#プロジェクトを生成 · Escでスキップ"))</p>
+            }
+            @if(次ページがあるか){<button class="控えめボタン" @onclick="次ページ時Async"><操作アイコン 種類="続きを取得"/>@(表示文言.取得("続きを取得"))</button>}
+            @if(新DB未確定操作 is{} 作成操作){<div class="DB作成照会"><small>@表示文言.取得("操作ID {0}",作成操作.OperationId)</small><button class="控えめボタン" disabled="@操作中か" @onclick="DB作成結果照会時Async"><操作アイコン 種類="作成結果を照会"/>@(表示文言.取得("作成結果を照会"))</button></div>}
+        </div>
+        <p class="小案内">@表示文言.取得("DBの表示順はこのブラウザーに保存します。テーブル・ビュー・関数の同じ所属・分類内の表示順は、この画面内のみで未保存です。再読み込みや定義変更で戻ります。所属をまたぐ移動は未対応です。")</p>
+        <p class="小案内">@表示文言.取得("文書は同じ定義版・成果物・下書きで復元します。構造変更や名前変更をまたぐ復元には対応していません。入力内容や実行結果は保存しません。")</p>
+        @foreach(var 診断 in 文書復元案内){<p class="小案内" role="status">@表示文言.取得(診断)</p>}
+        @if(文書復元待ち.Count>0){<p class="小案内" role="status">@表示文言.取得("未読込のDBに属する文書は、一覧の次ページを読み込んだ後に復元します。")</p>}
+        @if(文書保存診断 is not null){<p class="小案内" role="status">@表示文言.取得(文書保存診断)</p>}
+        <div class="システム区分">
+        <追加メニューホスト ID="system" 名前="@表示文言.取得("システム")" 登録="システム追加" 実行時="@(ID=>システム追加.実行Async(ID,"system"))" 選択時="()=>システム展開か=!システム展開か" 追加可能か="@(ロールを利用できるか||設定を利用できるか||利用者管理を利用できるか||監査を利用できるか)"><button class="枝の開閉" aria-expanded="@システム展開か.ToString().ToLowerInvariant()" aria-label="@表示文言.取得("システム")" @onclick:stopPropagation="true" @onclick="()=>システム展開か=!システム展開か">@(システム展開か?"▾":"▸")</button><span>@表示文言.取得("システム")</span></追加メニューホスト>
+        @if(システム展開か){
+            <div class="システム操作">
+            @if(ロールを利用できるか){<追加メニューホスト ID="roles" 名前="@表示文言.取得("ロールと権限")" 登録="システム追加" 実行時="@(ID=>システム追加.実行Async(ID,"roles"))" 選択時="ロールを開く"><操作アイコン 種類="ロールと権限"/><span>@表示文言.取得("ロールと権限")</span></追加メニューホスト>}
+            @if(設定を利用できるか){<追加メニューホスト ID="settings" 名前="@表示文言.取得("サーバー設定")" 登録="システム追加" 実行時="@(ID=>システム追加.実行Async(ID,"settings"))" 選択時="設定を開く"><操作アイコン 種類="サーバー設定"/><span>@表示文言.取得("サーバー設定")</span></追加メニューホスト>}
+            @if(利用者管理を利用できるか){<追加メニューホスト ID="users" 名前="@表示文言.取得("利用者")" 登録="システム追加" 実行時="@(ID=>システム追加.実行Async(ID,"users"))" 選択時="利用者管理を開く"><操作アイコン 種類="利用者"/><span>@表示文言.取得("利用者")</span></追加メニューホスト>}
+            @if(監査を利用できるか){<追加メニューホスト ID="audit" 名前="@表示文言.取得("監査")" 登録="システム追加" 実行時="@(ID=>システム追加.実行Async(ID,"audit"))" 選択時="監査を開く"><操作アイコン 種類="監査"/><span>@表示文言.取得("監査")</span></追加メニューホスト>}
+            </div>
+            @foreach(var DB in DB一覧.Where(項目=>項目.IsSystem)){
+                <対象操作ホスト ID="@DB.Id" 名前="system" 選択中か="@(選択DBID==DB.Id)" 選択時="()=>DBを開く時Async(DB.Id)" メニュー要求時="メニュー要求時Async"><span class="DBアイコン"><操作アイコン 種類="ロール"/></span><span>system</span></対象操作ホスト>
+            }
+        }
+        </div>
+        <p class="小案内" data-browser-state="@表示状態初期化済みか.ToString().ToLowerInvariant()">@表示文言.取得("表示状態は同じブラウザー・同じ接続先で復元します。自動ポートでは、再起動で引き継がれない場合があります。")</p>
+        @if(表示状態診断 is not null){<p class="小案内" role="status">@表示文言.取得(表示状態診断)</p>}
+        <footer class="接続フッター"><span class="接続点"></span><span>@接続方式</span><span class="利用者名">@利用者?.Name</span>@if(ログアウト先 is not null){<form method="post" action="@ログアウト先"><button class="テキストボタン" type="submit"><操作アイコン 種類="ログアウト"/>@(表示文言.取得("ログアウト"))</button></form>}</footer>
+    </aside>
+    <div class="サイドバー幅調整" data-sidebar-resize role="separator" tabindex="0" aria-orientation="vertical" aria-controls="@サイドバーID" aria-label="@表示文言.取得("サイドバーの幅")" aria-valuemin="200" aria-valuemax="600" aria-valuenow="254" title="@表示文言.取得("ドラッグまたは左右矢印で幅を変更 · Home・Endで最小・最大 · Escで取消")"></div>
+    <main class="作業領域">
+        <header class="上部バー"><div class="ページ位置"><button type="button" class="サイドバー開閉" data-sidebar-toggle aria-controls="@サイドバーID" aria-expanded="true" aria-label="@表示文言.取得("サイドバーを開閉")" title="@表示文言.取得("サイドバーを開閉")"><操作アイコン 種類="右"/></button><span class="パンくず">@(表示文言.取得("ワークスペース"))<span>／</span> @表示文言.取得(作業場所)</span></div><span class="環境ラベル">@接続方式</span></header>
+        <div class="文書タブ帯" role="tablist" aria-label="@表示文言.取得("開いている文書")">
+            @foreach(var ID in タブ順序.順序){
+                @if(対象文書一覧.TryGetValue(ID,out var 開いた文書)&&(文書一覧.ContainsKey(開いた文書.DBID)||公開情報表示か(開いた文書.DBID))){
+                    var 名前=開いた文書.名前;if(開いた文書.DBか){名前=文書DB名(開いた文書);}
+                    <div @key="ID" class="文書タブ" data-文書-id="@("tab:"+ID)">
+                        <対象操作ホスト ID="@("tab:"+ID)" 名前="@名前" ドラッグ可能か="true" 選択中か="@(選択作業文書ID==ID)" メニュー表示中か="@(メニューID=="tab:"+ID)" 選択時="()=>作業文書を選ぶ(ID)" メニュー要求時="メニュー要求時Async">
+                            <span class="DBアイコン"><操作アイコン 種類="@開いた文書.アイコン"/></span><span>@名前</span>@if(開いた文書.編集中か||開いた文書.データ編集中か||文書は未適用か(開いた文書)){<span class="変更印">*</span>}
+                        </対象操作ホスト>
+                    </div>
+                }
+            }
+        </div>
+        @if(!ロール表示か&&!設定表示か&&!監査表示か&&!利用者管理表示か){<div class="状態通知" role="status" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>}
+        @if(表示用ID報告DBID is{} ID報告対象&&選択DBID==ID報告対象&&文書一覧.TryGetValue(ID報告対象,out var ID報告文書)&&ID報告文書.定義.Hash()==表示用ID報告ハッシュ){
+            <表示用ID診断 DB名="@ID報告文書.DB.Name" 件数="表示用ID報告件数" 保存状態="@ID報告文書.状態" 診断一覧="表示用ID報告診断"/>
+        }
+        @if(ロールを利用できるか){<ロール管理ビュー @ref="ロール画面" 表示中か="ロール表示か" 未保存変更時="値=>ロール未保存か=値"/>}
+        @if(設定を利用できるか){<サーバー設定ビュー 表示中か="設定表示か" 未保存変更時="値=>設定未保存か=値"/>}
+        @if(利用者管理を利用できるか){<利用者管理ビュー @ref="利用者画面" 表示中か="利用者管理表示か" DB候補="@(DB一覧.Where(DB=>!DB.IsSystem).Select(DB=>DB.Name).ToArray())" 未保存変更時="値=>管理未保存か=値"/>}
+        <プロジェクト作業領域 構成選択可能か="ソース構成できるか" 競合解消可能か="ソース競合できるか" 表示中か="プロジェクト表示か" 参照可能か="ソース参照できるか" 下書き反映可能か="ソース下書きできるか" 成果物検査可能か="ソース成果物できるか" 成果物取込可能か="ソース成果物取込できるか" 成果物取込後="ソース成果物取込後Async" 作成済みプロジェクト="作成済みプロジェクト" 閉じる時="()=>プロジェクト表示か=false" 未保存変更時="値=>プロジェクト未保存か=値" 型候補変更時="候補=>プロジェクト型候補=候補" 下書き反映前="ソース下書き反映前Async" 下書き反映後="ソース下書き反映後Async" 下書き反映中変更時="値=>ソース下書き処理中か=値"/>
+        @if(監査表示か){
+            <監査ビュー @ref="監査画面"/>
+        }else if(!ロール表示か&&!設定表示か&&!利用者管理表示か&&!プロジェクト表示か&&現在文書 is{} 文書&&現在対象文書?.対象 is null){
+            <section class="文書領域">
+                <div class="文書見出し"><div><div class="種類ラベル">@表示文言.取得(現在対象文書?.アイコン??"DB")</div><h1>@(現在対象文書?.スキーマ??文書.DB.Name)</h1><p class="文書説明">@(表示文言.取得("構造を整え、変更を確認してから公開します。"))</p></div>
+                    <div class="文書操作"><span class="版ラベル">@表示文言.取得("公開版 v{0}",文書.基準版)</span>
+                        <button @ref="文書操作起点" class="省略ボタン" aria-label="@表示文言.取得("文書の操作")" @onclick="文書のメニュー時Async"><操作アイコン 種類="その他"/></button>
+                    </div>
+                </div>
+                <section class="DB情報" aria-label="@表示文言.取得("DB情報")">
+                    <dl class="対象情報"><dt>@表示文言.取得("データベース")</dt><dd>@文書.DB.Name</dd>
+                    @if(現在対象文書?.スキーマ is{} 所属){<dt>@表示文言.取得("スキーマ")</dt><dd>@所属</dd>}
+                    <dt>@表示文言.取得("公開版")</dt><dd>v@(文書.基準版)</dd><dt>@表示文言.取得("下書き")</dt><dd>@表示文言.取得(対象の保存状態(文書))</dd>
+                    <dt>@表示文言.取得("ソースプロジェクト")</dt><dd>@文書.定義.Source.TargetFramework · @文書.定義.Source.Files.Length @表示文言.取得("ファイル")</dd></dl>
+                    <div class="適用操作"><button class="控えめボタン" disabled="@(操作中か||!権限があるか(文書.DB.Name,ManagementPermission.Edit))" @onclick="()=>下書きを保管Async(文書)"><操作アイコン 種類="保存"/>@表示文言.取得("下書きを保管")</button>
+                    @if(ソース操作できるか){<button class="控えめボタン" @onclick="()=>プロジェクト表示か=true"><操作アイコン 種類="ソース"/>@表示文言.取得("ソースプロジェクトを開く")</button>}</div>
+                </section>
+                    @if(作成入力表示中か&&問い合わせ入力 is{} 問い合わせ){var 作成ID=新規作成入力?.ID;<問い合わせ設計 @key="作成ID" 定義="問い合わせ" 型候補="型候補" 入力変更時="値=>問い合わせ入力変更時(作成ID,値)" 確定時="問い合わせを下書きに追加時Async" 取消時="作成入力を取消す"/>}
+                    @if(作成入力表示中か&&表入力中か){
+                        <div class="表入力カード"><h3>@(表示文言.取得("テーブルの下書き"))</h3><div class="名前入力列"><label>@(表示文言.取得("テーブル名"))<input aria-label="@表示文言.取得("テーブル名")" @bind="表名" @bind:event="oninput"/></label></div>
+                            <編集グリッド 名前="テーブルの列">
+                                <見出し><th class="行操作列"></th><th>@(表示文言.取得("列名"))</th><th>@(表示文言.取得("C#型"))</th><th class="選択列">@(表示文言.取得("主キー"))</th></見出し>
+                                <行>
+                                @foreach(var 列 in 入力列){<tr @key="列"><td class="行操作列"><行操作 名前="@表示文言.取得("{0}列",列.名前)" 前へ追加時="()=>入力列.Insert(入力列.IndexOf(列),new())" 後へ追加時="()=>入力列.Insert(入力列.IndexOf(列)+1,new())" 削除時="()=>入力列.Remove(列)"/></td><td><input aria-label="@表示文言.取得("列名")" @bind="列.名前" @bind:event="oninput"/></td><td><型入力 値="@列.型" 候補="型候補" 値変更時="型=>列.型=型"/></td><td><input type="checkbox" aria-label="@表示文言.取得("主キー")" @bind="列.主キーか"/></td></tr>}
+                                </行>
+                            </編集グリッド>
+                            <div class="表入力操作"><button class="テキストボタン" @onclick="()=>入力列.Add(new())"><操作アイコン 種類="列を追加"/>@(表示文言.取得("列を追加"))</button><span></span><button class="控えめボタン" @onclick="作成入力を取消す"><操作アイコン 種類="取消"/>@(表示文言.取得("取消"))</button><button class="主要ボタン" @onclick="()=>表を下書きに追加時(文書)"><操作アイコン 種類="下書きに反映"/>@(表示文言.取得("下書きに反映"))</button></div>
+                        </div>
+                    }
+                @if(文書.構造診断 is not null){<p role="status">@文書.構造診断</p>}
+                @foreach(var 適用文書 in new[]{文書}.Concat(関数定義文書.Values.Where(項目=>項目.DB.Id==文書.DB.Id&&項目.未適用か))){
+                    <section class="変更対象" aria-label="@適用文書.定義.Id">
+                    @if(適用文書.定義.Kind==DefinitionKind.Query){<h2><操作アイコン 種類="関数"/>@適用文書.定義.Id</h2>}
+                    <div class="適用操作">
+                    @if(適用文書.未適用か){<button class="主要ボタン" disabled="@(操作中か||!権限があるか(文書.DB.Name,ManagementPermission.Apply))" @onclick="()=>変更を確認Async(適用文書)"><操作アイコン 種類="変更を確認"/>@表示文言.取得("変更を確認")</button>}
+                    @if(適用文書.定義.Kind==DefinitionKind.Query){<button class="控えめボタン" disabled="@(操作中か||!権限があるか(文書.DB.Name,ManagementPermission.Edit))" @onclick="()=>下書きを保管Async(適用文書)"><操作アイコン 種類="保存"/>@表示文言.取得("下書きを保管")</button>}
+                    </div>
+                @if(適用文書.未確定操作 is{} 未確定){<section class="適用カード"><p>@表示文言.取得("操作ID {0}",未確定.OperationId)</p><button class="控えめボタン" @onclick="()=>操作結果照会Async(適用文書)"><操作アイコン 種類="操作結果を照会"/>@(表示文言.取得("操作結果を照会"))</button></section>}
+                @if(適用文書.プレビュー is{} 確認){
+                    <section class="適用カード" aria-label="@表示文言.取得("変更の確認")"><div><h2>@(表示文言.取得("変更を確認"))</h2><p>@表示文言.取得("基準の公開版 v{0} → 次の公開版",確認.CurrentVersion)</p></div>
+                        @foreach(var 変更 in 確認.Changes){<p class="変更内容">@変更</p>}
+                        @foreach(var 診断 in 確認.Diagnostics){<p>@診断.Message</p>}
+                        <div class="適用操作"><button class="控えめボタン" @onclick="()=>適用文書.プレビュー=null"><操作アイコン 種類="閉じる"/>@(表示文言.取得("閉じる"))</button><button class="主要ボタン" disabled="@(!確認.CanApply||操作中か)" @onclick="()=>変更を適用Async(適用文書)"><操作アイコン 種類="この変更を適用"/>@(表示文言.取得("この変更を適用"))</button></div>
+                    </section>
+                }
+                    </section>
+                }
+            </section>
+        }else if(!ロール表示か&&!設定表示か&&!利用者管理表示か&&!プロジェクト表示か&&現在対象文書?.対象 is null){
+            <section class="文書領域"><div class="種類ラベル">WORKSPACE</div><h1>@(表示文言.取得("データベース"))</h1><p class="文書説明">@(表示文言.取得("左からデータベースを選択してください。"))</p><div class="概要カード"><span>▤</span><strong>@DB一覧.Count(項目=>!項目.IsSystem)</strong><p>@(表示文言.取得("利用者データベース"))</p><button class="控えめボタン" @onclick="新規DB開始時"><操作アイコン 種類="データベースを作成"/>@(表示文言.取得("データベースを作成"))</button></div></section>
+        }
+        @if(現在対象文書 is{対象:null} 公開文書&&公開情報表示か(公開文書.DBID)&&!ロール表示か&&!設定表示か&&!利用者管理表示か&&!監査表示か&&!プロジェクト表示か){
+            <公開対象文書 DB="公開DB一覧[公開文書.DBID].DB" 状態="公開文書" 表示中か="true"/>
+        }
+        @foreach(var 開いた文書 in 対象文書一覧.Values.Where(項目=>項目.対象 is not null)){
+            if(公開情報表示か(開いた文書.DBID)){
+                var 公開=公開DB一覧[開いた文書.DBID];
+                <div @key="開いた文書.ID" hidden="@(選択作業文書ID!=開いた文書.ID||ロール表示か||設定表示か||利用者管理表示か||監査表示か||プロジェクト表示か)">
+                    <公開対象文書 DB="公開.DB" 状態="開いた文書" カタログ版="@公開.カタログ版" 表示中か="@(選択作業文書ID==開いた文書.ID)" 行参照可能か="権限があるか(公開.DB.Name,ManagementPermission.ReadRows)" 実行可能か="権限があるか(公開.DB.Name,ManagementPermission.Execute)"/>
+                </div>
+            }else{
+            var 所有=対象の定義文書(開いた文書);
+            var 表示中=選択作業文書ID==開いた文書.ID&&!ロール表示か&&!設定表示か&&!利用者管理表示か&&!監査表示か&&!プロジェクト表示か;
+            <div @key="開いた文書.ID" hidden="@(!表示中)">
+                <対象文書ビュー データ編集可能か="行変更権限があるか(所有.DB.Name)" 表示変更通知="()=>InvokeAsync(StateHasChanged)" @ref="対象画面[開いた文書.ID]" 状態="開いた文書" 定義="所有.定義" DB名="@所有.DB.Name" 公開版="所有.基準版" 下書き版="適用前の版(所有)" 成果物ハッシュ="@所有.選択成果物?.BundleHash" 保存状態="@対象の保存状態(所有)" 公開済みか="対象公開済みか(開いた文書)" 未保管か="所有.未保管か" 表示中か="表示中" 編集可能か="@(権限があるか(所有.DB.Name,ManagementPermission.Edit)&&所有.未確定操作 is null)" 実行可能か="権限があるか(所有.DB.Name,ManagementPermission.Execute)" 資源計測可能か="@(資源計測対応か&&権限があるか(所有.DB.Name,ManagementPermission.Manage))" 型候補="型候補" 定義変更時="値=>対象定義変更時Async(開いた文書,値)" 変更確認時="()=>対象の変更確認時Async(開いた文書)" 未保存変更時="()=>InvokeAsync(StateHasChanged)"/>
+            </div>
+            }
+        }
+        <footer class="作業フッター"><span>@(表示文言.取得("ホバー・右クリックで対象の操作"))</span><span>@(表示文言.取得("Ctrl K コマンド検索"))</span><span>@(表示文言.取得("文書タブはハンドルから移動"))</span></footer>
+    </main>
+    @if(生成コード is{} 生成表示){<生成コード表示 題名="@生成表示.題名" ファイル="生成表示.ファイル" 読込中か="生成表示.読込中か" 案内="@生成表示.案内" 未対応か="生成表示.未対応か" 閉じる時="生成コードを閉じる時"/>}
+    @if(メニュー対象 is not null&&コマンド is not null){<操作メニュー @key="メニュー世代" T対象="管理対象" 登録="コマンド" 対象="メニュー対象" 見出し="@メニュー見出し" 起点="メニュー起点" X="メニューX" Y="メニューY" 中央か="パレットか" 選択時="コマンド選択時Async" 閉鎖時="メニューを閉じる時"/>}
+</div>

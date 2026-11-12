@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>14</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Version>0.0.0</Version>
+    <IsPackable>false</IsPackable>
+    <ShouldUnsetParentConfigurationAndPlatform>false</ShouldUnsetParentConfigurationAndPlatform>
+    <SeamlessPackageVersion Condition="'$(SeamlessPackageVersion)'==''">0.0.0</SeamlessPackageVersion>
+    <SeamlessRepositoryRoot Condition="'$(SeamlessRepositoryRoot)'==''">$([MSBuild]::GetDirectoryNameOfFileAbove('$(MSBuildThisFileDirectory)','Seamless.slnx'))</SeamlessRepositoryRoot>
+    <Features>InterceptorsPreview</Features>
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Intercept</InterceptorsNamespaces>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces>
+  </PropertyGroup>
+</Project>

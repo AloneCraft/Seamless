@@ -51,7 +51,7 @@ public sealed class TpcEDataGenerator{
             var engines=new List<ITpcEEngine>();
             try{
                 foreach(var variant in VariantCatalog.All){
-                    var store=Store.CreateTemporary();
+                    var store=TpcETestStores.Temporary();
                     stores.Add(store);
                     engines.Add(variant.Open(store,Small));
                 }

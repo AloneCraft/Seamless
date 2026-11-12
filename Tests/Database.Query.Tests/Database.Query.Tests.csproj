@@ -2,5 +2,19 @@
   <PropertyGroup><TargetFramework>net10.0</TargetFramework><LangVersion>14</LangVersion><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><IsTestProject>true</IsTestProject><AssemblyName>Database.Query.Tests</AssemblyName><RootNamespace>Database.Query.Tests</RootNamespace></PropertyGroup>
   <ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1"/><PackageReference Include="xunit" Version="2.9.3"/><PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" PrivateAssets="all"/><Using Include="Xunit"/><ProjectReference Include="../../Seamless.Database.Query/Seamless.Database.Query.csproj"/></ItemGroup>
   <ItemGroup><EmbeddedResource Include="Fixtures/*.json"/></ItemGroup>
+  <PropertyGroup>
+    <LangVersion>preview</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Features>InterceptorsPreview</Features>
+    <InterceptorsPreviewNamespaces>$(InterceptorsPreviewNamespaces);Intercept</InterceptorsPreviewNamespaces>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Seamless.TestKit/Seamless.TestKit.csproj" />
+    <ProjectReference Include="../../Seamless.Database.Generator/Seamless.Database.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="../../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <Using Include="Seamless.Collections" />
+    <Using Include="Seamless.Collections.Tsavorite" />
+    <Using Include="Seamless.TestKit" />
+  </ItemGroup>
 </Project>
 

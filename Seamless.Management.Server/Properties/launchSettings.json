@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Server + Browser Manager": {
+      "commandName": "Project",
+      "commandLineArgs": "serve --workspace-config --open-manager"
+    }
+  }
+}

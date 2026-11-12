@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 namespace Seamless.Execution;
@@ -7,6 +8,7 @@ namespace Seamless.Execution;
 /// 永続ストアは <see cref="Save"/> を呼んだ時点だけが確定し、破棄しただけでは確定しない。
 /// </summary>
 public sealed class Store:IDisposable{
+    private static readonly ActivitySource CheckpointActivities=new("Seamless.Checkpoint.Store");
     internal const string FormatName="seamless-store-v1";
     private const string ManifestFileName="store.json";
     private const string LockFileName="store.lock";
@@ -15,9 +17,11 @@ public sealed class Store:IDisposable{
     private readonly List<IStoreComponent> components=[];
     private readonly List<Checkpoint> checkpoints;
     private readonly FileStream? lockStream;
+    private FileStream? manifestReadLease;
     private readonly string? directoryPath;
     private Checkpoint? current;
     private bool disposed;
+    private ExecutionScope? parentOwner;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string,ProfileResolution> profiles=new(StringComparer.Ordinal);
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string,Growth.Event> growthDecisions=new(StringComparer.Ordinal);
     private readonly System.Collections.Concurrent.ConcurrentQueue<Growth.Event> growthEvents=new();
@@ -68,8 +72,31 @@ public sealed class Store:IDisposable{
             throw;
         }
     }
+    /// <summary>
+    /// 既存のロックとマニフェストを必須として開く読取復旧用の入口。欠損した保存先を新規ストアとして作らない。
+    /// マニフェストの読取handleを破棄まで保持するため、書込・Saveを行う用途では<see cref="Open"/>を使用する。
+    /// </summary>
+    public static Store OpenExisting(string directory,StoreLimits? limits=null,StoreOptions? options=null,ResourceBudget? parentBudget=null){
+        ArgumentException.ThrowIfNullOrWhiteSpace(directory);
+        var fullPath=Path.GetFullPath(directory);
+        var lease=new FileStream(Path.Combine(fullPath,LockFileName),FileMode.Open,FileAccess.ReadWrite,FileShare.None);
+        FileStream? manifestFile=null;
+        try{
+            // Windowsでは開いている間のマニフェスト削除・差替えも防ぐ。Linuxのunlinkはこの共有指定では防げない。
+            manifestFile=new(Path.Combine(fullPath,ManifestFileName),FileMode.Open,FileAccess.Read,FileShare.Read);
+            var manifest=JsonSerializer.Deserialize<Manifest>(manifestFile);
+            if(manifest is null||manifest.Format!=FormatName||manifest.Checkpoints is null){throw new InvalidDataException($"'{fullPath}' is not a Seamless store manifest.");}
+            return new(StoreKind.Persistent,fullPath,limits,lease,manifest.Checkpoints,options,parentBudget){manifestReadLease=manifestFile};
+        }catch{manifestFile?.Dispose();lease.Dispose();throw;}
+    }
     /// <summary>ディスクを使わないストアを作る。保存はできない。</summary>
     public static Store CreateMemory(StoreLimits? limits=null,StoreOptions? options=null,ResourceBudget? parentBudget=null)=>new(StoreKind.Memory,null,limits,null,[],options,parentBudget);
+    internal static Store CreateWork(ExecutionScope owner,StoreLimits limits,string temporaryDirectory,StoreOptions? options){
+        var store=CreateTemporary(limits,temporaryDirectory,options,owner.Budget);
+        store.parentOwner=owner;
+        try{owner.Own(store);return store;}
+        catch{store.Dispose();throw;}
+    }
     public StoreOptions Options{get;}
     public IReadOnlyDictionary<string,ProfileResolution> ResolvedProfiles=>new Dictionary<string,ProfileResolution>(this.profiles,StringComparer.Ordinal);
     public IReadOnlyList<Growth.Event> GrowthEvents=>this.growthEvents.ToArray();
@@ -196,14 +223,25 @@ public sealed class Store:IDisposable{
                 throw new NotSupportedException("A memory store cannot be saved.");
             }
             var states=new Dictionary<string,string>(StringComparer.Ordinal);
-            foreach(var component in this.components){
-                states.Add(component.Name,component.Save());
+            using(var snapshots=CheckpointActivities.StartActivity("Write snapshots")){
+                var ordinal=0;
+                foreach(var component in this.components){
+                    using var componentSnapshot=snapshots?.Source.StartActivity("Write component snapshot");
+                    componentSnapshot?.SetTag("store.component.ordinal",ordinal);
+                    ordinal++;
+                    states.Add(component.Name,component.Save());
+                }
             }
             // 一時ストアは破棄で全削除され、開き直せないので、ディスクへの確実な書き出しは永続ストアだけで行う。
             var durable=this.Kind==StoreKind.Persistent;
             if(durable){
+                using var flush=CheckpointActivities.StartActivity("Flush store data");
                 // 確定点はマニフェストなので、指す先のデータを先に確実にする。全子資源を保存し終えてからまとめて書き出す。
+                var ordinal=0;
                 foreach(var component in this.components){
+                    using var componentFlush=flush?.Source.StartActivity("Flush component data");
+                    componentFlush?.SetTag("store.component.ordinal",ordinal);
+                    ordinal++;
                     component.Flush();
                 }
             }
@@ -223,12 +261,16 @@ public sealed class Store:IDisposable{
                 next=[..this.checkpoints,checkpoint];
             }
             // 書けなければ、記録も子資源の状態も変えずに例外にする(後始末は確定してからにする)。
-            WriteManifest(this.directoryPath,next,durable);
+            using(CheckpointActivities.StartActivity("Publish store manifest")){
+                WriteManifest(this.directoryPath,next,durable);
+            }
             this.checkpoints.Clear();
             this.checkpoints.AddRange(next);
             this.current=checkpoint;
-            foreach(var component in this.components){
-                component.SaveCommitted();
+            using(CheckpointActivities.StartActivity("Finalize store save")){
+                foreach(var component in this.components){
+                    component.SaveCommitted();
+                }
             }
             return checkpoint.Token;
         }
@@ -288,6 +330,7 @@ public sealed class Store:IDisposable{
     }
     /// <summary>登録済みの子資源を破棄する。保存はしない。一時ストアはフォルダを全削除する。</summary>
     public void Dispose(){
+        try{
         lock(this.gate){
             if(this.disposed){
                 return;
@@ -303,6 +346,11 @@ public sealed class Store:IDisposable{
             }
             this.components.Clear();
             try{
+                this.manifestReadLease?.Dispose();
+            }catch(Exception error){
+                (errors??=[]).Add(error);
+            }
+            try{
                 this.lockStream?.Dispose();
             }catch(Exception error){
                 (errors??=[]).Add(error);
@@ -317,6 +365,10 @@ public sealed class Store:IDisposable{
             if(errors is not null){
                 throw new AggregateException("Store cleanup failed.",errors);
             }
+        }
+        }finally{
+            // 親は子のDisposeを呼ぶため、Storeのロックを解放してから所有参照を外す。
+            Interlocked.Exchange(ref this.parentOwner,null)?.Release(this);
         }
     }
     private static void ValidateName(string name){
@@ -344,10 +396,13 @@ public sealed class Store:IDisposable{
             stream.Write(bytes);
             if(durable){
                 // 名前を変えたマニフェストの中身が、電源断のあとに空で見えないようにする。
+                using var sync=CheckpointActivities.StartActivity("Sync store manifest");
                 stream.Flush(true);
             }
         }
-        File.Move(temporary,path,overwrite:true);
+        using(CheckpointActivities.StartActivity("Replace store manifest")){
+            File.Move(temporary,path,overwrite:true);
+        }
     }
     private sealed record Checkpoint(Guid Token,DateTimeOffset CreatedAt,Dictionary<string,string> Components);
     private sealed record Manifest(string Format,List<Checkpoint> Checkpoints);

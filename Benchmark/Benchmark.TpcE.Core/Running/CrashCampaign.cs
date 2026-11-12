@@ -55,10 +55,15 @@ public sealed class CrashCampaign(RunOptions options,IReadOnlyList<ITpcEVariant>
             }
             var lastDone=committed;
             long inProgress=-1;
+            var transactionDone=committed;long transactionInProgress=-1;
             var killed=false;
             var ended=false;
             foreach(var line in lines){
-                if(line.StartsWith("@@SAVE_BEGIN ",StringComparison.Ordinal)){
+                if(line.StartsWith("@@TX_BEGIN ",StringComparison.Ordinal)){
+                    transactionInProgress=long.Parse(line[11..],CultureInfo.InvariantCulture);
+                }else if(line.StartsWith("@@TX_DONE ",StringComparison.Ordinal)){
+                    transactionDone=long.Parse(line[10..],CultureInfo.InvariantCulture);transactionInProgress=-1;
+                }else if(line.StartsWith("@@SAVE_BEGIN ",StringComparison.Ordinal)){
                     inProgress=long.Parse(line[13..],CultureInfo.InvariantCulture);
                 }else if(line.StartsWith("@@SAVE_DONE ",StringComparison.Ordinal)){
                     lastDone=long.Parse(line[12..],CultureInfo.InvariantCulture);
@@ -74,7 +79,10 @@ public sealed class CrashCampaign(RunOptions options,IReadOnlyList<ITpcEVariant>
             }
             // 許される復旧点。
             var allowed=new List<long>();
-            if(mode==KillMode.AfterManifest&&killed){
+            if(variant.UsesVersionedTransactions){
+                allowed.Add(transactionDone);
+                if(transactionInProgress>=0&&!(mode==KillMode.MidTransaction&&killed)){allowed.Add(transactionInProgress);}
+            }else if(mode==KillMode.AfterManifest&&killed){
                 allowed.Add(inProgress);
             }else if(mode==KillMode.Timed){
                 allowed.Add(lastDone);
@@ -167,18 +175,25 @@ public sealed class CrashCampaign(RunOptions options,IReadOnlyList<ITpcEVariant>
             }
         };
         process.Start();
+        var creation=process.StartTime.ToUniversalTime();
+        void StopOwnedChild(bool descendants){
+            if(process.HasExited){return;}
+            using var identity=Process.GetProcessById(process.Id);
+            if(identity.StartTime.ToUniversalTime()!=creation){throw new InvalidOperationException("The child process identity changed before cancellation.");}
+            process.Kill(descendants);
+        }
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
         if(mode==KillMode.Timed){
             Thread.Sleep(rng.Range(300,4000));
             try{
-                process.Kill();
+                StopOwnedChild(false);
             }catch(InvalidOperationException){
             }
         }
         var timedOut=!process.WaitForExit(TimeSpan.FromMinutes(10));
         if(timedOut){
-            process.Kill(true);
+            StopOwnedChild(true);
         }
         process.WaitForExit();
         lock(lines){
@@ -187,10 +202,12 @@ public sealed class CrashCampaign(RunOptions options,IReadOnlyList<ITpcEVariant>
     }
     private static DriverState? Recover(ITpcEVariant variant,string directory,RunOptions options,out DatabaseDigest? digest,out long digestMilliseconds){
         DriverState? state=null;
-        var limits=new StoreLimits{MemoryBytes=TpcESizing.DefaultMemoryBytes(options.Scale),DiskBytes=options.DiskGigabytes*1024L*1024*1024};
+        var memory=TpcESizing.DefaultMemoryBytes(options.Scale);if(options.MemoryMegabytes>0){memory=checked(options.MemoryMegabytes*1024L*1024);}
+        var limits=new StoreLimits{MemoryBytes=memory,DiskBytes=options.DiskGigabytes*1024L*1024*1024};
         using var store=OpenWithRetry(directory,limits);
-        store.Register(new DriverStateComponent(()=>throw new InvalidOperationException("The checker does not save."),restored=>state=restored));
+        if(!variant.UsesVersionedTransactions){store.Register(new DriverStateComponent(()=>throw new InvalidOperationException("The checker does not save."),restored=>state=restored));}
         using var engine=variant.Open(store,options.Scale);
+        if(variant.UsesVersionedTransactions){state=VersionedDriverState.Restore(engine);}
         var watch=Stopwatch.StartNew();
         digest=null;
         if(state is not null){
@@ -238,7 +255,8 @@ public sealed class CrashCampaign(RunOptions options,IReadOnlyList<ITpcEVariant>
         private readonly ITpcEEngine engine;
         private readonly Driver driver;
         public ReferenceTrack(ITpcEVariant variant,RunOptions options){
-            this.store=Store.CreateTemporary(new StoreLimits{MemoryBytes=TpcESizing.DefaultMemoryBytes(options.Scale),DiskBytes=options.DiskGigabytes*1024L*1024*1024});
+            var memory=TpcESizing.DefaultMemoryBytes(options.Scale);if(options.MemoryMegabytes>0){memory=checked(options.MemoryMegabytes*1024L*1024);}
+            this.store=Store.CreateTemporary(new StoreLimits{MemoryBytes=memory,DiskBytes=options.DiskGigabytes*1024L*1024*1024});
             this.engine=variant.Open(this.store,options.Scale);
             this.engine.Database.BeginBulkLoad();
             var generation=new TpcEDataGenerator(new TpcEModel(options.Seed,options.Scale)).Generate(this.engine.Loader);

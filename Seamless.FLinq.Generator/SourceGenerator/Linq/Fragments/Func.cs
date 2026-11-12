@@ -60,6 +60,15 @@ internal abstract class FuncFragment {
     public bool RequiresStatementInlining;
     // Anchor を含む式は生成コード上では identity だが、評価回数・評価順を変え得る最適化では境界として扱う。
     public bool ContainsAnchor;
+    public string? ExecutionNote;
+    // 二番目の引数を同期的な標準LINQ集計の入力にしか使わない。
+    public bool BorrowsGroupOnly;
+    public bool ReadsGroupCountOnly;
+    public bool ReturnsGroupLongCount;
+    public (int Minimum,int Maximum)? SmallIntKeyRange;
+    public bool IsDirectJoinKeyMethod;
+    public ISymbol? DirectJoinKeyMember;
+    public string[] TupleHashMembers=[];
     // 代入文として inline 展開する具体実装を派生型に任せる。
     public virtual string RenderInlineAssign(string destination,int number,params string[] arguments) {
         throw new InvalidOperationException("Inline assign is not supported.");
@@ -230,12 +239,26 @@ internal abstract class FuncFragment {
             and not QueryExpressionSyntax;
     }
 
-    private static string ReplaceParameterReference(string text,string parameterName,string replacement) =>
-        Regex.Replace(
-            text,
-            $@"\b{Regex.Escape(parameterName)}\b(?!\s*:)",
-            replacement,
-            RegexOptions.CultureInvariant);
+    internal static string ReplaceParameterReference(string text,string parameterName,string replacement){
+        HashSet<int>? colonReferences=null;
+        return Regex.Replace(text,$@"\b{Regex.Escape(parameterName)}\b",match=>{
+            var next=match.Index+match.Length;while(next<text.Length&&char.IsWhiteSpace(text[next])){next++;}
+            if(next<text.Length&&text[next]==':'){
+                // value:というnamed argument/tuple名と、condition?(int?)value:nullの値はregexだけでは区別できない。
+                // 従来置換しなかったcolon直前だけを構文で照合し、文字列・ラベル・メンバー名には拡張しない。
+                if(colonReferences is null){
+                    global::Microsoft.CodeAnalysis.SyntaxNode root=SyntaxFactory.ParseExpression(text);
+                    if(root.ContainsDiagnostics){root=SyntaxFactory.ParseSyntaxTree(text).GetRoot();}
+                    colonReferences=new(root.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>()
+                        .Where(node=>node.Identifier.ValueText==parameterName&&node.Parent is not NameColonSyntax
+                            &&!(node.Parent is MemberAccessExpressionSyntax member&&member.Name==node)
+                            &&!(node.Parent is MemberBindingExpressionSyntax binding&&binding.Name==node)).Select(static node=>node.SpanStart));
+                }
+                if(!colonReferences.Contains(match.Index)){return match.Value;}
+            }
+            return replacement;
+        },RegexOptions.CultureInvariant);
+    }
 
     protected static string SanitizeLocalName(string value) {
         var builder = new StringBuilder(value.Length);

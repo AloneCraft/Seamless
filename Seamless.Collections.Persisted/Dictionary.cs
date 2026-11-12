@@ -224,7 +224,7 @@ public class SerializedDictionary<TKey, TValue, TKeySerializer, TValueSerializer
         for(var index = 0L;index<count;index++) {
             var recordOffset = this.GetRecordOffset(index);
             var payload = this.ReadRecordPayload(recordOffset);
-            if(this.TryLookupKey(this.ExtractKeyBytes(payload),out var latestOffset)&&latestOffset==recordOffset) {
+            if(this.TryLookupKey(this.ExtractKeyBytes(payload),out var latestOffset,recordOffset)&&latestOffset==recordOffset) {
                 var entry = EntrySerializer.Deserialize(payload);
                 yield return new(entry.Key,entry.Value);
             }

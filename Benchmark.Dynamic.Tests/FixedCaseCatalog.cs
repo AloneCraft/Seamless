@@ -28,7 +28,7 @@ public sealed class FixedCaseCatalog{
             try{
                 foreach(var values in inputs){
                     var expected=Capture(loaded,DynamicImplementationKind.System,values);
-                    foreach(var implementation in new[]{DynamicImplementationKind.Ideal,DynamicImplementationKind.FLinqUnoptimized,DynamicImplementationKind.FLinq}){
+                    foreach(var implementation in new[]{DynamicImplementationKind.Ideal,DynamicImplementationKind.FLinqUnoptimized,DynamicImplementationKind.FLinq,DynamicImplementationKind.ZLinq}){
                         if(!loaded.Has(implementation)){continue;}
                         var actual=Capture(loaded,implementation,values);
                         var context=item.ID+" "+implementation+" ["+string.Join(",",values)+"]";
@@ -49,8 +49,8 @@ public sealed class FixedCaseCatalog{
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static (DynamicQueryValue? Value,Type? Exception) Capture(LoadedDynamicQuery query,DynamicImplementationKind implementation,int[] values,int[]? secondary=null){
-        try{return(query.Run(implementation,values,secondary??new[]{-1,0,1,16,int.MaxValue}),null);}
-        catch(Exception exception){return(null,exception.GetType());}
+        var observed=DirectQueryExecution.Capture(()=>query.Run(implementation,values,secondary??new[]{-1,0,1,16,int.MaxValue}));
+        return(observed.Value,observed.Exception?.GetType());
     }
 
     [Fact,Trait("Category","FixedReference")]
@@ -121,16 +121,10 @@ public sealed class FixedCaseCatalog{
                         if(exceptions[implementation]!=exceptions[DynamicImplementationKind.System]){
                             failures.Add(item.ID+" count="+count+" "+implementation+": expected exception "+exceptions[DynamicImplementationKind.System]+", actual "+exceptions[implementation]);
                         }
-                        var expected=counts[DynamicImplementationKind.System];
-                        var actual=counts[implementation];
-                        for(var lambda=0;lambda<Math.Max(expected.Length,actual.Length);lambda++){
-                            var expectedCount=0L;
-                            var actualCount=0L;
-                            if(lambda<expected.Length){expectedCount=expected[lambda];}
-                            if(lambda<actual.Length){actualCount=actual[lambda];}
-                            if(actualCount>expectedCount){failures.Add(item.ID+" count="+count+" "+implementation+" lambda#"+lambda+": System="+expectedCount+", actual="+actualCount);}
-                        }
                     }
+                    // 評価回数の合否は Worker と同じ比較規則に従う(最適化なしの FLinq は参考値)。
+                    var problem=EvaluationCountComparer.CompareByLambda(counts);
+                    if(problem is not null){failures.Add(item.ID+" count="+count+": "+problem);}
                 }
             }finally{
                 File.WriteAllText(Path.Combine(Path.GetTempPath(),"fixed-reference-evaluation.json"),System.Text.Json.JsonSerializer.Serialize(records));
@@ -214,8 +208,8 @@ public sealed class FixedCaseCatalog{
 
     [Fact]
     public void PreservesAllHandwrittenLoops(){
-        Assert.Equal(25,Core.FixedCaseCatalog.All.Count);
-        Assert.Equal(25,Core.FixedCaseCatalog.All.Select(item=>item.ID).Distinct().Count());
+        Assert.Equal(31,Core.FixedCaseCatalog.All.Count);
+        Assert.Equal(31,Core.FixedCaseCatalog.All.Select(item=>item.ID).Distinct().Count());
         foreach(var item in Core.FixedCaseCatalog.All){
             var compilation=new DynamicQueryCompiler().Compile(new("ideal-"+Guid.NewGuid().ToString("N"),"Benchmark.Dynamic.Generated.FixedQuery",Core.FixedCaseCatalog.Emit(item),item.ID+".cs"));
             Assert.True(compilation.Success,item.ID+": "+string.Join("\n",compilation.Diagnostics.Where(d=>d.Severity=="Error").Select(d=>d.Message)));
@@ -226,6 +220,34 @@ public sealed class FixedCaseCatalog{
                     var expected=loaded.Run(DynamicImplementationKind.System,fixture.Primary,fixture.Secondary);
                     var ideal=loaded.Run(DynamicImplementationKind.Ideal,fixture.Primary,fixture.Secondary);
                     Assert.True(DynamicQueryComparer.Compare(expected,ideal).IsMatch,item.ID+" count="+count);
+                    foreach(var implementation in new[]{DynamicImplementationKind.FLinqUnoptimized,DynamicImplementationKind.FLinq}){
+                        var observed=DynamicFallbackCapture.Run(()=>loaded.Run(implementation,fixture.Primary,fixture.Secondary));
+                        Assert.Null(observed.Exception);
+                        Assert.Equal(0,observed.FallbackCount);
+                        Assert.True(DynamicQueryComparer.Compare(ideal,observed.Value!).IsMatch,item.ID+" "+implementation+" count="+count);
+                    }
+                }
+            }finally{Assert.True(loaded.UnloadAndVerify().Unloaded);}
+        }
+    }
+
+    [Fact]
+    public void 静的チェーンの元入力で理想コードと展開結果が一致する(){
+        var values=Enumerable.Range(0,256).Select(i=>(i*37+13)%97-20).ToArray();
+        var cases=Core.FixedCaseCatalog.All.Where(item=>item.ID.StartsWith("static-",StringComparison.Ordinal)).ToArray();
+        Assert.Equal(3,cases.Length);
+        foreach(var item in cases){
+            var compilation=new DynamicQueryCompiler().Compile(new("static-"+Guid.NewGuid().ToString("N"),"Benchmark.Dynamic.Generated.FixedQuery",Core.FixedCaseCatalog.Emit(item),item.ID+".cs"));
+            Assert.True(compilation.Success,item.ID+": "+string.Join("\n",compilation.Diagnostics.Where(d=>d.Severity=="Error").Select(d=>d.Message)));
+            var loaded=compilation.LoadedQuery!;
+            try{
+                var ideal=loaded.Run(DynamicImplementationKind.Ideal,values,Array.Empty<int>());
+                Assert.True(loaded.Has(DynamicImplementationKind.ZLinq));
+                foreach(var implementation in new[]{DynamicImplementationKind.System,DynamicImplementationKind.FLinqUnoptimized,DynamicImplementationKind.FLinq,DynamicImplementationKind.ZLinq}){
+                    var observed=DynamicFallbackCapture.Run(()=>loaded.Run(implementation,values,Array.Empty<int>()));
+                    Assert.Null(observed.Exception);
+                    Assert.Equal(0,observed.FallbackCount);
+                    Assert.True(DynamicQueryComparer.Compare(ideal,observed.Value!).IsMatch,item.ID+" "+implementation);
                 }
             }finally{Assert.True(loaded.UnloadAndVerify().Unloaded);}
         }

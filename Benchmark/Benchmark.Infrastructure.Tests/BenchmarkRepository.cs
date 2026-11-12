@@ -9,11 +9,11 @@ public sealed class BenchmarkRepository{
             var environment=EnvironmentSnapshot.Capture("scalable-content-v2");
             var minimum=Seamless.Execution.ProfileResolver.Minimum("Tsavorite");
             var candidate=minimum with{IndexBytes=4096};
-            var growth=System.Text.Json.JsonSerializer.Serialize(new Seamless.Execution.Growth.Descriptor("doubling",1,"{}"));
+            var growth=global::System.Text.Json.JsonSerializer.Serialize(new Seamless.Execution.Growth.Descriptor("doubling",1,"{}"));
             var application="Scalable";var implementation="Native";var workload="FilterAggregate";
             Measurement Save(string id,string input,Seamless.Execution.ProfileSettings settings,double time,Seamless.Execution.ProfileSettings? initial=null){
-                repository.SaveRun(new(id,application,"Passed","{}",System.Text.Json.JsonSerializer.Serialize(environment),"build",DateTimeOffset.UtcNow));
-                var conditions=new Conditions(workload,input,4096,"System.Int32|System.Int32","Tsavorite","Temporary",implementation,"Native",System.Text.Json.JsonSerializer.Serialize(new ProfileParameters(null,settings,Initial:initial,Evidence:Seamless.Execution.ProfileEvidence.Current)),growth,environment.Key,"scalable-content-v2",StorageKey:"test-volume");
+                repository.SaveRun(new(id,application,"Passed","{}",global::System.Text.Json.JsonSerializer.Serialize(environment),"build",DateTimeOffset.UtcNow));
+                var conditions=new Conditions(workload,input,4096,"System.Int32|System.Int32","Tsavorite","Temporary",implementation,"Native",global::System.Text.Json.JsonSerializer.Serialize(new ProfileParameters(null,settings,Initial:initial,Evidence:Seamless.Execution.ProfileEvidence.Current)),growth,environment.Key,"scalable-content-v2",StorageKey:"test-volume");
                 var measurement=Measurement.Create(id,id,conditions,"digest-"+input,Enumerable.Repeat(new Sample(time,1,0),7).ToArray());repository.SaveMeasurement(measurement);return measurement;
             }
             var before=Save("control","training-input",minimum,100);var training=Save("candidate","training-input",candidate,80);
@@ -33,7 +33,7 @@ public sealed class BenchmarkRepository{
             repository.Compare(dynamicBefore.ID,dynamicCandidate.ID,ComparisonMode.Experiment);repository.Compare(dynamicValidationBefore.ID,dynamicValidation.ID,ComparisonMode.Experiment);
             var dynamicProfile=repository.PublishProfile("dynamic",dynamicCandidate.ID,dynamicValidation.ID);
             Assert.Equal("query-hash",dynamicProfile.Conditions.Workload);Assert.Equal(4096,dynamicProfile.Settings.IndexBytes);
-            growth=System.Text.Json.JsonSerializer.Serialize(new Seamless.Execution.Growth.Descriptor("fixed",1,"{}"));
+            growth=global::System.Text.Json.JsonSerializer.Serialize(new Seamless.Execution.Growth.Descriptor("fixed",1,"{}"));
             application="Scalable";implementation="Native";workload="FilterAggregate";
             var fixedControl=Save("fixed-control","fixed-training",minimum,100);
             var fixedCandidate=Save("fixed-candidate","fixed-training",candidate,80);

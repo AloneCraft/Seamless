@@ -13,6 +13,14 @@ public sealed class SsmsObjectCatalogMetadataTests{
             new("dbo","Unbound","CREATE VIEW dbo.Unbound AS SELECT 1 AS n",[]),
             new("dbo","Unknown","SELECT 1 AS n",[])]);
         var engine=new SqlExecutionEngine(registry);using var session=new SessionContext(1,"fixture");
+        var temporal=engine.Execute("SELECT t.name, h.name FROM sys.tables t LEFT JOIN sys.tables h ON h.object_id=t.history_table_id WHERE t.temporal_type=2",session);
+        Assert.Empty(temporal.Rows);
+        var histories=engine.Execute("SELECT name, history_table_id FROM sys.tables",session).Rows.ToArray();
+        Assert.Equal(2,histories.Length);Assert.All(histories,row=>Assert.Null(row[1]));
+        var capabilities=engine.Execute("SELECT name, durability, is_dropped_ledger_table FROM sys.tables",session).Rows.ToArray();
+        Assert.Equal(2,capabilities.Length);Assert.All(capabilities,row=>{Assert.Equal((byte)0,row[1]);Assert.Equal(false,row[2]);});
+        var viewCapabilities=engine.Execute("SELECT name, is_dropped_ledger_view FROM sys.views",session).Rows.ToArray();
+        Assert.Equal(3,viewCapabilities.Length);Assert.All(viewCapabilities,row=>Assert.Equal(false,row[1]));
         var tables=engine.Execute("SELECT t.name, i.index_id, i.type, i.name, t.is_memory_optimized, t.temporal_type, t.ledger_type, t.is_filetable, t.is_external, t.is_node, t.is_edge, i.is_hypothetical, i.is_unique_constraint FROM sys.tables t JOIN sys.indexes i ON t.object_id=i.object_id",session).Rows.ToArray();
         var heap=Assert.Single(tables,row=>Equals(row[0],"Heap"));Assert.Equal(0,heap[1]);Assert.Equal((byte)0,heap[2]);Assert.Null(heap[3]);
         Assert.Equal(false,heap[4]);Assert.Equal((byte)0,heap[5]);Assert.Equal((byte)0,heap[6]);
@@ -29,6 +37,11 @@ public sealed class SsmsObjectCatalogMetadataTests{
         foreach(var name in new[]{"extended_properties","system_sql_modules","data_spaces"}){
             Assert.True(SystemCatalogEmulator.TryCatalog(name,new MetadataAdapter(),[],out var result));Assert.Empty(result.Rows);Assert.NotEmpty(result.Columns);
         }
+        Assert.True(SystemCatalogEmulator.TryCatalog("objects",new MetadataAdapter(),[],out var objects));
+        Assert.DoesNotContain(objects.Columns,column=>column.Name is "history_table_id" or "durability" or "is_dropped_ledger_table" or "is_dropped_ledger_view");
+        Assert.True(SystemCatalogEmulator.TryCatalog("views",new MetadataAdapter(),[],out var views));
+        Assert.DoesNotContain(views.Columns,column=>column.Name is "history_table_id" or "durability" or "is_dropped_ledger_table");
+        Assert.Contains(views.Columns,column=>column.Name=="is_dropped_ledger_view");
     }
     private sealed class MetadataAdapter:IDatabaseAdapter{
         public string DatabaseName=>"fixture";

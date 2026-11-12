@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net10.0</TargetFramework><OutputType>Exe</OutputType><StartupObject>Management.Tests.CrashProbe</StartupObject><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><IsTestProject>true</IsTestProject><IsPackable>false</IsPackable><AssemblyName>Management.Tests</AssemblyName><RootNamespace>Management.Tests</RootNamespace></PropertyGroup>
+  <ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" /><PackageReference Include="xunit" Version="2.9.3" /><PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" /><Using Include="Xunit" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../../Seamless.Management/Seamless.Management.csproj" /><ProjectReference Include="../../Seamless.Management.Server/WindowsServer.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../../Seamless.Management.Components/Seamless.Management.Components.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../../Seamless.Database.Gateway/Seamless.Database.Gateway.csproj" /></ItemGroup>
+  <ItemGroup><ProjectReference Include="../../Seamless.Database.Server/Seamless.Database.Server.csproj" /></ItemGroup>
+  <ItemGroup><PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" /></ItemGroup>
+</Project>

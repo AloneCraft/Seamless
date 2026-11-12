@@ -1,5 +1,29 @@
-<Solution>
+﻿<Solution>
+  <Folder Name="/MultiProjectTemplate/">
+    <File Path="MultiProjectTemplate/README.md" />
+    <File Path="MultiProjectTemplate/MultiProjectTemplate.slnx" />
+    <File Path="MultiProjectTemplate/Directory.Build.props" />
+    <File Path="MultiProjectTemplate/NuGet.Config" />
+    <Project Path="MultiProjectTemplate/Database/MultiProjectTemplate.Database.csproj" />
+    <Project Path="MultiProjectTemplate/Server/MultiProjectTemplate.Server.csproj" />
+    <Project Path="MultiProjectTemplate/Client/MultiProjectTemplate.Client.csproj" />
+  </Folder>
+  <Folder Name="/Template/">
+    <File Path="Template/README.md" />
+    <File Path="Template/Verify.ps1" />
+    <File Path="Template/Seamless.Application/Seamless.Application.slnx" />
+    <File Path="Template/Seamless.Application/Directory.Build.props" />
+    <File Path="Template/Seamless.Application/global.json" />
+    <File Path="Template/Seamless.Application/.template.config/template.json" />
+    <Project Path="Template/Seamless.Application/Server/Server.csproj" />
+    <Project Path="Template/Seamless.Application/Schema/Schema.csproj" />
+    <Project Path="Template/Seamless.Application/ServerSchema/ServerSchema.csproj" />
+    <Project Path="Template/Seamless.Application/ClientSchema/ClientSchema.csproj" />
+  </Folder>
   <Folder Name="/Experiments/">
+    <Project Path="Benchmark/Experiments/HistoryStoreModes/HistoryStoreModes.csproj" />
+    <Project Path="Benchmark/Experiments/ProductTransactions/ProductTransactions.csproj" />
+    <Project Path="Benchmark/Experiments/TransactionModes/TransactionModes.csproj" />
     <Project Path="Benchmark/Experiments/GroupByLazyBench/GroupByLazyBench.csproj" />
   </Folder>
   <Folder Name="/Benchmark/">
@@ -45,6 +69,8 @@
     <Project Path="Benchmark/Benchmark.Optimization.Ideal/Benchmark.Optimization.Ideal.csproj" />
     <Project Path="Benchmark/Worker/Worker.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE.Core/Benchmark.TpcE.Core.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Mvcc.Linq/Benchmark.TpcE.Mvcc.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcE.Mvcc.FLinq/Benchmark.TpcE.Mvcc.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE.Tsavorite.Linq/Benchmark.TpcE.Tsavorite.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE.Tsavorite.FLinq/Benchmark.TpcE.Tsavorite.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE.Persisted.Linq/Benchmark.TpcE.Persisted.Linq.csproj" />
@@ -60,6 +86,7 @@
     <Project Path="Benchmark/Benchmark.TpcC.Persisted.Linq/Benchmark.TpcC.Persisted.Linq.csproj" />
     <Project Path="Benchmark/Benchmark.TpcC.Tsavorite.FLinq/Benchmark.TpcC.Tsavorite.FLinq.csproj" />
     <Project Path="Benchmark/Benchmark.TpcC.Tsavorite.Linq/Benchmark.TpcC.Tsavorite.Linq.csproj" />
+    <Project Path="Benchmark/Benchmark.TpcC.Spike/Benchmark.TpcC.Spike.csproj" />
   </Folder>
   <Folder Name="/Benchmark/Shared/">
     <Project Path="Benchmark/Shared/UI/UI.shproj" />
@@ -67,7 +94,6 @@
   </Folder>
   <Folder Name="/Specifications/">
     <File Path="UI.md" />
-    <File Path="FLinq.md" />
     <File Path="Collection.md" />
     <File Path="Database.md" />
   </Folder>
@@ -79,6 +105,8 @@
     <File Path="Samples/Sample.VirtualDb/README.md" />
   </Folder>
   <Folder Name="/Shared/">
+    <Project Path="Shared/Database.Generation/Database.Generation.shproj" />
+    <File Path="Shared/Database.Generation/Database.Generation.projitems" />
     <Project Path="Shared/Collections/Collections.shproj" />
     <Project Path="Shared/Common/Common.shproj" />
     <Project Path="Shared/Persisted.Collections/Persisted.Collections.shproj" />
@@ -126,26 +154,23 @@
     <Project Path="Seamless.Linq.Analyzers/Seamless.Linq.Analyzers.csproj" />
   </Folder>
   <Folder Name="/Tests/">
+    <Project Path="Tests/Management.Tests/Management.Tests.csproj" />
+    <Project Path="Tests/Database.Compilation.Tests/Database.Compilation.Tests.csproj" />
+    <Project Path="Tests/Database.Verification.Tests/Database.Verification.Tests.csproj" />
     <Project Path="Tests/Database.Query.Tests/Database.Query.Tests.csproj" />
     <Project Path="Tests/Seamless.Transactions.Tests/Seamless.Transactions.Tests.csproj" />
     <Project Path="Tests/Seamless.Database.Transactions.Tests/Seamless.Database.Transactions.Tests.csproj" />
-    <Project Path="Execution.Tests/Execution.Tests.csproj" />
     <Project Path="Test.Persisted.Collections/Test.Persisted.Collections.csproj" />
-    <Project Path="Test.Scalable.Persisted.Collections/Test.Scalable.Persisted.Collections.csproj" />
-    <Project Path="Test.Scalable.Tsavorite.Collections/Test.Scalable.Tsavorite.Collections.csproj" />
     <Project Path="Test.Tsavorite.Collections/Test.Tsavorite.Collections.csproj" />
-    <Project Path="Test.Tsavorite.ParameterSweep/Test.Tsavorite.ParameterSweep.csproj" />
     <Project Path="Benchmark.Dynamic.Tests/Benchmark.Dynamic.Tests.csproj" />
     <Project Path="Benchmark.Dynamic.UITests/Benchmark.Dynamic.UITests.csproj" />
-    <Project Path="Test/Test.csproj" />
-    <Project Path="Benchmark/Benchmark.Headless.Tests/Benchmark.Headless.Tests.csproj" />
-    <Project Path="Benchmark/Benchmark.Audit.Tests/Benchmark.Audit.Tests.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE.Tests/Benchmark.TpcE.Tests.csproj" />
     <Project Path="Benchmark/Benchmark.TpcE.Compliance.Tests/Benchmark.TpcE.Compliance.Tests.csproj" />
     <Project Path="Benchmark/Benchmark.Infrastructure.Tests/Benchmark.Infrastructure.Tests.csproj" />
     <Project Path="Benchmark/Benchmark.Scalable.Tests/Benchmark.Scalable.Tests.csproj" />
     <Project Path="Benchmark/Benchmark.Tpc.Tests/Benchmark.Tpc.Tests.csproj" />
     <Project Path="Tests/Seamless.TestKit/Seamless.TestKit.csproj" />
+    <Project Path="Tests/Seamless.Core.Tests/Seamless.Core.Tests.csproj" />
     <Project Path="Samples/Sample.NetShop.Tests/Sample.NetShop.Tests.csproj" />
     <Project Path="Tests/Seamless.Database.Gateway.Tests/Seamless.Database.Gateway.Tests.csproj" />
     <Project Path="Benchmark/Benchmark.TpcC.Tests/Benchmark.TpcC.Tests.csproj" />
@@ -159,6 +184,8 @@
   <Project Path="Seamless.Database/Seamless.Database.csproj" />
   <Project Path="Seamless.Database.Gateway/Seamless.Database.Gateway.csproj" />
   <Project Path="Seamless.Database.Rdbms/Seamless.Database.Rdbms.csproj" />
+  <Project Path="Seamless.Database.Compilation/Seamless.Database.Compilation.csproj" />
+  <Project Path="Seamless.Database.Transfer/Seamless.Database.Transfer.csproj" />
   <Project Path="Seamless.Database.Server/Seamless.Database.Server.csproj" />
   <Project Path="Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
   <Project Path="Seamless.Database.Tool/Seamless.Database.Tool.csproj" />
@@ -166,11 +193,21 @@
   <Project Path="Seamless/Seamless.csproj" />
   <Project Path="Seamless.Database.Query/Seamless.Database.Query.csproj" />
   <Project Path="Seamless.Database.Client/Seamless.Database.Client.csproj" />
+  <Project Path="Seamless.Database.Client.Results/Seamless.Database.Client.Results.csproj" />
+  <Project Path="Seamless.Transport.Kestrel/Seamless.Transport.Kestrel.csproj" />
+  <Project Path="Seamless.Security/Seamless.Security.csproj" />
+  <Project Path="Seamless.Authentication/Seamless.Authentication.csproj" />
+  <Project Path="Seamless.Management/Seamless.Management.csproj" />
+  <Project Path="Seamless.Management.Components/Seamless.Management.Components.csproj" />
+  <Project Path="Seamless.Management.Server/WindowsServer.csproj" />
   <Folder Name="/TestSeamless/">
     <Project Path="TestSeamless/TestSeamless.csproj" />
     <Project Path="TestSeamless/Schema/TestSeamless.Schema.csproj" />
     <Project Path="TestSeamless/Queries/TestSeamless.Queries.csproj" />
     <Project Path="TestSeamless/Tests/TestSeamless.Tests.csproj" />
   </Folder>
-  <Project Path="Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
+  <Folder Name="/Tools/">
+    <Project Path="tools/Database.Verification/Database.Verification.csproj" />
+    <Project Path="tools/Seamless.DataGrip/Server/DataGrip.Stage1.Server.csproj" />
+  </Folder>
 </Solution>

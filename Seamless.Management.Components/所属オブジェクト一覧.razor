@@ -1,0 +1,114 @@
+@foreach(var 組 in 分類一覧()){
+    <div @key="組.Key" class="オブジェクト分類">
+        <対象操作ホスト 追加ボタンを表示するか="false" メニュー要求時="メニュー要求時" ID="@("group:"+組.Key+":"+所属)" 名前="@表示文言.取得(表示名(組.Key))" 展開中か="展開状態.分類展開中か(所属,組.Key)" 展開変更時="展開=>展開状態.分類を開閉(所属,組.Key,展開)">
+            <span class="分類名">@表示文言.取得(表示名(組.Key))</span><span class="件数">@組.Count()</span>
+        </対象操作ホスト>
+        <div data-tree-children class="オブジェクト子一覧" hidden="@(!展開状態.分類展開中か(所属,組.Key))">
+            @foreach(var 項目 in 展開状態.表示順序.適用(組,所属,組.Key)){
+                <div @key="項目.Id" class="所属並び項目">
+                <対象操作ホスト 追加ボタンを表示するか="false" ID="@項目ID(項目)" 名前="@(項目.Schema+" "+項目.Name)" オブジェクト表示順グループ="@並びグループ(組.Key)" オブジェクト表示順可能か="表示順可能か" 展開中か="@表展開状態(項目)" 展開変更時="展開=>展開状態.テーブルを開閉(項目.Id,展開)" 選択中か="@(選択オブジェクト is{} 選択&&選択.Id==項目.Id&&選択.Kind==項目.Kind&&選択.Schema==項目.Schema)" 選択時="()=>選択時.InvokeAsync(項目)" メニュー要求時="メニュー要求時" 名前変更時="()=>名前変更を開始(項目)" 行操作="@行操作(項目)">
+                    <span class="DBアイコン"><操作アイコン 種類="@アイコン(項目.Kind)"/></span>
+                    @if(名前変更中ID==項目.Id){
+                        <span class="ツリー名前変更" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><インライン名前入力 名前="名前の変更" 初期値="@項目.Name" クラス="ツリー名前入力" 無効か="処理中か" 確定時="名前=>名前変更確定Async(項目,名前)" 取消時="名前変更を閉じる"/></span>
+                    }else{<span class="対象名">@項目.Name</span>}
+                    @if(公開済みか is not null&&!公開済みか(項目)){<span class="未適用印" title="@表示文言.取得("下書きの定義 · 稼働DBへ未適用")">@(表示文言.取得("未適用"))</span>}
+                </対象操作ホスト>
+                @if(項目.Kind=="Table"){
+                    <div data-tree-children hidden="@(!展開状態.テーブル展開中か(項目.Id))"><ツリー列一覧 @key="項目.Id" @ref="列画面[項目.Id]" 定義="定義" 対象="項目" 表示中か="展開状態.テーブル展開中か(項目.Id)" 編集可能か="編集可能か" 型候補="型候補" 確定時="列確定時" 未保存変更時="未保存変更時"/></div>
+                }
+                </div>
+            }
+            @if(追加できる分類か(組.Key)){
+                @if(作成中分類==組.Key){
+                    <div class="ツリー追加行" role="group" aria-label="@表示文言.取得(追加文言(組.Key))"><操作アイコン 種類="@アイコン(組.Key)"/><インライン名前入力 名前="@新しい名前の説明(組.Key)" プレースホルダー="@新しい名前の説明(組.Key)" クラス="ツリー追加入力" 無効か="処理中か" 確定時="名前=>作成確定Async(組.Key,名前)" 取消時="作成を閉じる"/></div>
+                }else{
+                    <button type="button" class="テキストボタン ツリー追加行" disabled="@処理中か" @onclick="()=>作成を開始(組.Key)"><操作アイコン 種類="追加"/>@表示文言.取得(追加文言(組.Key))</button>
+                }
+            }
+        </div>
+    </div>
+}
+@if(案内 is not null){<p class="@案内クラス" role="status">@案内</p>}
+@code{
+    [Parameter]public ツリー展開状態 展開状態{get;set;}=new();
+    [Parameter]public string 所属{get;set;}="";
+    [Parameter]public IEnumerable<CatalogObject> オブジェクト{get;set;}=[];
+    [Parameter]public CatalogObject? 選択オブジェクト{get;set;}
+    [Parameter]public Func<CatalogObject,bool>? 公開済みか{get;set;}
+    [Parameter]public bool 編集可能か{get;set;}
+    [Parameter]public EventCallback<CatalogObject> 選択時{get;set;}
+    [Parameter]public EventCallback<対象操作要求> 作成要求時{get;set;}
+    [Parameter]public EventCallback<対象操作要求> メニュー要求時{get;set;}
+    [Parameter]public Definition? 定義{get;set;}
+    [Parameter]public IEnumerable<string> 型候補{get;set;}=[];
+    [Parameter]public Func<ツリー列編集要求,Task<ObjectDefinitionEdit>>? 列確定時{get;set;}
+    [Parameter]public EventCallback 未保存変更時{get;set;}
+    [Parameter]public string DBID{get;set;}="";
+    [Parameter]public string 表示順世代{get;set;}="";
+    [Parameter]public bool 表示順可能か{get;set;}
+    /// <summary>ツリー上の作成・名前変更・コピー・削除。失敗時は利用者へ表示する文を返す。</summary>
+    [Parameter]public ツリー対象操作? 対象操作{get;set;}
+    private string? 並びグループ(string 種類){if(this.DBID.Length==0){return null;}return System.Text.Json.JsonSerializer.Serialize(new[]{this.DBID,this.所属,種類,this.表示順世代});}
+    public bool 未保存か=>this.列画面.Values.Any(画面=>画面.未保存か)||this.作成中分類 is not null||this.名前変更中ID is not null;
+    private readonly Dictionary<string,ツリー列一覧> 列画面=new(StringComparer.Ordinal);
+    private string? 作成中分類,名前変更中ID,案内;
+    private bool 処理中か,未対応案内か;
+    private string 案内クラス{get{if(this.未対応案内か){return "ツリー列未対応";}return "ツリー列診断";}}
+    private static readonly string[] 追加分類=["Function","Table","View"];
+    private bool 追加できる分類か(string 分類)=>this.編集可能か&&this.対象操作 is not null&&追加分類.Contains(分類,StringComparer.Ordinal);
+    // 編集できる場合は、まだ1件もない分類も「＋…を追加」の置き場所として表示する。
+    private IEnumerable<IGrouping<string,CatalogObject>> 分類一覧(){
+        var 組=this.オブジェクト.GroupBy(項目=>分類(項目.Kind)).ToList();
+        if(this.編集可能か&&this.対象操作 is not null){
+            foreach(var 種類 in 追加分類){
+                if(!組.Any(既存=>既存.Key==種類)){
+                    組.Add(new 空の分類(種類));
+                }else{
+                }
+            }
+        }else{
+        }
+        return 組.OrderBy(項目=>{var 位置=Array.IndexOf(追加分類,項目.Key);if(位置<0){return 追加分類.Length;}return 位置;});
+    }
+    private sealed class 空の分類(string 種類):IGrouping<string,CatalogObject>{
+        public string Key=>種類;
+        public IEnumerator<CatalogObject> GetEnumerator(){yield break;}
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()=>this.GetEnumerator();
+    }
+    private RenderFragment? 行操作(CatalogObject 項目){
+        if(!this.編集可能か||this.対象操作 is null||項目.Kind=="RegisteredFunction"){return null;}
+        return @<text>
+            <button type="button" class="行右ボタン" title="@表示文言.取得("名前の変更")" aria-label="@表示文言.取得("{0}の名前を変更",項目.Name)" disabled="@処理中か" @onclick="()=>名前変更を開始(項目)"><操作アイコン 種類="名前の変更"/></button>
+            <button type="button" class="行右ボタン" title="@表示文言.取得("コピー")" aria-label="@表示文言.取得("{0}をコピー",項目.Name)" disabled="@処理中か" @onclick="()=>操作Async(()=>this.対象操作!.コピー(項目))"><操作アイコン 種類="コピー"/></button>
+            <button type="button" class="行右ボタン" title="@表示文言.取得("削除")" aria-label="@表示文言.取得("{0}を削除",項目.Name)" disabled="@処理中か" @onclick="()=>操作Async(()=>this.対象操作!.削除(項目))"><操作アイコン 種類="削除"/></button>
+        </text>;
+    }
+    private void 作成を開始(string 分類){this.名前変更中ID=null;this.案内=null;this.展開状態.分類を開閉(this.所属,分類,true);this.作成中分類=分類;}
+    private void 作成を閉じる(){this.作成中分類=null;}
+    public void 名前変更を開始(CatalogObject 項目){if(!this.編集可能か||this.対象操作 is null||項目.Kind=="RegisteredFunction"){return;}this.作成中分類=null;this.案内=null;this.展開状態.分類を開閉(this.所属,分類(項目.Kind),true);this.名前変更中ID=項目.Id;this.StateHasChanged();}
+    private void 名前変更を閉じる(){this.名前変更中ID=null;}
+    private async Task 作成確定Async(string 分類,string 名前){
+        await this.操作Async(()=>this.対象操作!.作成(this.所属,分類,名前));
+        if(!this.未対応案内か&&this.案内 is null){this.作成中分類=null;}
+    }
+    private async Task 名前変更確定Async(CatalogObject 項目,string 名前){
+        if(名前==項目.Name){this.名前変更中ID=null;return;}
+        await this.操作Async(()=>this.対象操作!.名前変更(項目,名前));
+        if(this.案内 is null){this.名前変更中ID=null;}
+    }
+    private async Task 操作Async(Func<Task<ツリー操作結果>> 操作){
+        if(this.処理中か){return;}
+        this.処理中か=true;this.案内=null;this.未対応案内か=false;
+        try{var 結果=await 操作();this.案内=結果.案内;this.未対応案内か=結果.未対応か;await this.未保存変更時.InvokeAsync();}
+        catch(ManagementException 例外){this.案内=例外.Message;}
+        finally{this.処理中か=false;await this.InvokeAsync(this.StateHasChanged);}
+    }
+    private bool? 表展開状態(CatalogObject 項目){if(項目.Kind=="Table"){return this.展開状態.テーブル展開中か(項目.Id);}return null;}
+    public async Task 列追加を開始Async(string ID){this.展開状態.分類を開閉(this.所属,"Table",true);this.展開状態.テーブルを開閉(ID,true);if(this.列画面.TryGetValue(ID,out var 画面)){await 画面.追加開始Async();}await this.InvokeAsync(this.StateHasChanged);}
+    private static string 分類(string 種類){if(種類 is "ScalarFunction" or "TableFunction" or "RegisteredFunction"){return "Function";}return 種類;}
+    private static string 表示名(string 種類)=>種類 switch{"Table"=>"テーブル","View"=>"ビュー","Function"=>"関数",_=>"その他"};
+    private static string 追加文言(string 種類)=>種類 switch{"Table"=>"テーブルを追加","View"=>"ビューを追加",_=>"関数を追加"};
+    private static string 新しい名前の説明(string 種類)=>種類 switch{"Table"=>"新しいテーブル名","View"=>"新しいビュー名",_=>"新しい関数名"};
+    private static string アイコン(string 種類)=>種類 switch{"Table"=>"テーブル","View"=>"ビュー",_=>"関数"};
+    private static string 項目ID(CatalogObject 項目){if(項目.Kind=="Table"){return "table:"+項目.Id;}return "query:"+項目.Id;}
+}

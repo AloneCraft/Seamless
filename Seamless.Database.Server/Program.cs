@@ -5,7 +5,7 @@ using Seamless.Database.Gateway.Hosting;
 
 namespace Seamless.Database.Server;
 
-public static class Program{
+public static partial class Program{
     public static async Task ServeGenerationAsync(string[] args){
         if(args.Length<2||args[0]!="--generation"){throw new ArgumentException("Usage: --generation <directory> [--stop-file <path>] [--ready-file <path>]");}
         using var host=new ComparisonHost(args[1]);using var gateway=new GatewayServer(host.Databases);
@@ -23,7 +23,18 @@ public static class Program{
         Console.WriteLine("       SeamlessDB Server - Starting...           ");
         Console.WriteLine("=================================================");
 
-        if(args.Length>0){await ServeGenerationAsync(args);return;}
+        if(args.Length>0){
+            if(args[0]=="--gateway"){
+                try{await ServeGatewayAsync(args);}
+                catch(Exception error){
+                    Console.Error.WriteLine(error.Message);
+                    Environment.ExitCode=1;
+                }
+            }else{
+                await ServeGenerationAsync(args);
+            }
+            return;
+        }
 
         // 1. 商店DB を初期化
         var dbFolder=Path.Combine(AppContext.BaseDirectory,"ShopDbData");

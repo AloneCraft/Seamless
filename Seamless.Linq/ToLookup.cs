@@ -1,5 +1,14 @@
 #pragma warning disable
 namespace Seamless.Linq {
+    internal static class LookupBuckets {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int Index(uint hashCode,int length) {
+            // 2の累乗のバケット数では、上位だけが異なるハッシュも下位へ混ぜる。
+            var mixed=unchecked((hashCode^(hashCode>>16))*0x7feb352du);
+            return (int)((mixed^(mixed>>15))&(uint)(length-1));
+        }
+    }
+
     partial class Enumerable {
         public static ILookup<TKey,TSource> ToLookup<TEnumerator, TSource, TKey>(this ValueEnumerable<TEnumerator,TSource> source,Func<TSource,TKey> keySelector)
             where TEnumerator : struct, IValueEnumerator<TSource> {
@@ -127,12 +136,10 @@ namespace Seamless.Linq {
             this.poolElements=poolElements;
         }
 
-        // 【重要】Lookup.GetBucketIndex と必ず同じ式にすること。片方だけ変えると
-        // 構築したバケットと参照するバケットがずれ、GetGroup が静かに取りこぼす。
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetBucketIndex(uint hashCode) {
             Debug.Assert(this.buckets is not null);
-            return (int)(hashCode&(uint)(this.bucketsLength-1));
+            return LookupBuckets.Index(hashCode,this.bucketsLength);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -157,6 +164,7 @@ namespace Seamless.Linq {
                 this.buckets   =ArrayPool<Grouping<TKey,TElement>>.Shared.Rent(MinimumSize);
                 this.bucketsLength=MinimumSize;
                 this.resizeThreshold=(int)(MinimumSize*LoadFactor);
+                this.buckets.AsSpan(0,MinimumSize).Clear();
             }
 
             var hash=this.InternalGetHashCode(key);
@@ -222,6 +230,7 @@ namespace Seamless.Linq {
                 this.buckets=ArrayPool<Grouping<TKey,TElement>>.Shared.Rent(MinimumSize);
                 this.bucketsLength=MinimumSize;
                 this.resizeThreshold=(int)(MinimumSize*LoadFactor);
+                this.buckets.AsSpan(0,MinimumSize).Clear();
             }
 
             var hash=this.InternalGetHashCode(key);
@@ -366,6 +375,7 @@ namespace Seamless.Linq {
             ArrayPool<Grouping<TKey,TElement>>.Shared.Return(this.buckets,clearArray: true);
 
             var newBuckets = ArrayPool<Grouping<TKey,TElement>>.Shared.Rent((int)newSize);
+            newBuckets.AsSpan(0,(int)newSize).Clear();
             this.buckets   =newBuckets;
             this.bucketsLength=(int)newSize;
             this.resizeThreshold=(int)(this.bucketsLength*LoadFactor);
@@ -397,6 +407,7 @@ namespace Seamless.Linq {
     [DebuggerDisplay("Count = {Count}")]
     [DebuggerTypeProxy(typeof(LookupDebugView<,>))]
     public sealed class Lookup<TKey, TElement>:ILookup<TKey,TElement>, ICollection<IGrouping<TKey,TElement>>, IReadOnlyCollection<IGrouping<TKey,TElement>>, IDisposable {
+        private Dictionary<Grouping<TKey,TElement>,IGrouping<TKey,TElement>>? ownedGroups;
         internal static readonly Lookup<TKey,TElement> Empty = new Lookup<TKey,TElement>();
         private Grouping<TKey,TElement>?[]? groups;
         private readonly Grouping<TKey,TElement>? last;
@@ -463,6 +474,22 @@ namespace Seamless.Linq {
             return this.GetGroup(key) is not null;
         }
 
+        /// <summary>同じLookup内で、外へ返すgroupの所有配列を一度だけ作る。</summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public IGrouping<TKey,TElement>? GetOwnedGroup(TKey key) {
+            var group=this.GetGroup(key);
+            if(group is null){
+                return null;
+            }
+            var cache=this.ownedGroups??=new(ReferenceEqualityComparer.Instance);
+            if(cache.TryGetValue(group,out var owned)){
+                return owned;
+            }
+            owned=QueryGrouping.CopyLookupGroup(group);
+            cache.Add(group,owned);
+            return owned;
+        }
+
         public Grouping<TKey,TElement>? GetGroup(TKey key) {
             if(this.groups is null) return null;
 
@@ -506,17 +533,16 @@ namespace Seamless.Linq {
             return this.GetEnumerator();
         }
 
-        // 【重要】LookupBuilder.GetBucketIndex と必ず同じ式にすること。片方だけ変えると
-        // 構築したバケットと参照するバケットがずれ、GetGroup が静かに取りこぼす。
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int GetBucketIndex(uint hashCode) {
             var buckets =this.groups;
             Debug.Assert(buckets is not null);
             var length =this.bucketCount<0 ? -this.bucketCount : this.bucketCount;
-            return (int)(hashCode&(uint)(length-1));
+            return LookupBuckets.Index(hashCode,length);
         }
 
         public void Dispose() {
+            this.ownedGroups=null;
             if(this.bucketCount>=0) return;
             var pooledGroups = Interlocked.Exchange(ref this.groups,null);
             if(pooledGroups is not null) {

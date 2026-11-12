@@ -10,7 +10,7 @@ namespace Seamless.Database.Gateway.Tests;
 public sealed class SessionLockTimeoutTests{
     private static RuntimeSqlGeneratedRoot Database(){
         var root=Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")??throw new InvalidOperationException("Set the D/F test root.");
-        return new(DatabaseContainerOptions.InMemory with{Transactions=DatabaseTransactionMode.SharedV2,IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20,TemporaryDirectory=Path.Combine(root,"lock-timeout-"+Guid.NewGuid().ToString("N"))});
+        return new(DatabaseContainerOptions.InMemory with{IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20,TemporaryDirectory=Path.Combine(root,"lock-timeout-"+Guid.NewGuid().ToString("N"))});
     }
     private static SqlConnection Connect(TdsServer server,bool pooling=false)=>new(new SqlConnectionStringBuilder{DataSource=$"127.0.0.1,{server.Port}",InitialCatalog="fixture",UserID="sa",Password="test",Encrypt=false,Pooling=pooling,MaxPoolSize=1,ConnectTimeout=5}.ConnectionString);
     private static SqlExecutionEngine Engine(InProcessDatabaseAdapter adapter){var registry=new DatabaseRegistry();registry.Register("fixture",adapter);return new(registry);}

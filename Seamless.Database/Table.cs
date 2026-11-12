@@ -11,9 +11,12 @@ public sealed class Table<TRecord>:
     IDisposable
     where TRecord:notnull {
     private readonly DatabaseContainer database;
-    private global::Seamless.Collections.Tsavorite.HashSet<TRecord> rows;
+    private global::Seamless.Collections.Tsavorite.HashSet<TRecord>? legacyRows;
+    private global::Seamless.Collections.Tsavorite.HashSet<TRecord> rows{get=>this.legacyRows??throw new InvalidOperationException("Use the generated versioned transaction collection.");set=>this.legacyRows=value;}
+    private readonly IDisposable? versionedOwner;
     private readonly Func<global::Seamless.Collections.Tsavorite.HashSet<TRecord>>? sharedFactory;
     private bool disposed;
+    internal Table(DatabaseContainer database,IDisposable versionedOwner,string name){this.database=database;this.versionedOwner=versionedOwner;this.Name=name;}
 
     internal Table(
         DatabaseContainer database,
@@ -189,6 +192,6 @@ public sealed class Table<TRecord>:
     public void Dispose() {
         if(this.disposed){return;}
         this.disposed=true;
-        this.rows.Dispose();
+        if(this.versionedOwner is not null){this.versionedOwner.Dispose();}else{this.rows.Dispose();}
     }
 }

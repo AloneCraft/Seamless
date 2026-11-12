@@ -6,4 +6,6 @@ public sealed record ForeignKeyCatalog(
     string ReferencedTable,
     IReadOnlyList<(string Column,string ReferencedColumn)> Columns,
     string DeleteAction,
-    string UpdateAction);
+    string UpdateAction){
+    public bool IsSystemNamed{get;init;}
+}

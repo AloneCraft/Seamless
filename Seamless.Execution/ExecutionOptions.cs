@@ -5,6 +5,8 @@ public sealed record ExecutionOptions{
     public long TemporaryStorageLimitBytes{get;init;}=16L*1024*1024*1024;
     public string TemporaryDirectory{get;init;}=Path.Combine(Path.GetTempPath(),"Seamless","Execution");
     public CancellationToken CancellationToken{get;init;}
+    public int MaximumQueryWorkers{get;init;}=Math.Max(1,Environment.ProcessorCount);
+    public DateTime? StatementTimestamp{get;init;}
 }
 public enum ResourceLimitKind{Memory,TemporaryStorage,SingleElement}
 public sealed class ResourceLimitException(ResourceLimitKind kind,long requestedBytes,long limitBytes):InvalidOperationException($"Resource limit exceeded: {kind}; requested={requestedBytes}; limit={limitBytes}."){

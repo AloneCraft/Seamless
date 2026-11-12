@@ -13,9 +13,9 @@ internal sealed partial class PipelineEnumerable {
     internal enum OrderedConsumerDemand{Enumerate,Materialize,First}
     internal bool SupportsOrderedMaterialization=>stages.Count>0&&stages.All(static stage=>stage.Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending or PipelineStageKind.ThenBy or PipelineStageKind.ThenByDescending);
 
-    internal static PipelineEnumerable CreateWithOrderSourceDemand(int index,Enumerable source,IReadOnlyList<PipelineStage> stages,string elementType){
+    internal static PipelineEnumerable CreateWithOrderSourceDemand(int index,Enumerable source,IReadOnlyList<PipelineStage> stages,string elementType,string? parallelSlots=null,string? orderHint=null){
         var boundSource=BindOrderedSource(source,stages,OrderedConsumerDemand.Enumerate);
-        return new PipelineEnumerable(index,boundSource,stages,elementType);
+        return new PipelineEnumerable(index,boundSource,stages,elementType){ParallelSlots=parallelSlots,OrderHint=orderHint};
     }
 
     private static Enumerable BindOrderedSource(Enumerable source,IReadOnlyList<PipelineStage> stages,OrderedConsumerDemand demand){
@@ -38,7 +38,9 @@ internal sealed partial class PipelineEnumerable {
         var pipeline=new PipelineEnumerable(this.FragmentIndex,boundSource,stages,elementType){
             skipSingletonOrderKeyEvaluation=demand==OrderedConsumerDemand.Materialize,
             useOrderedFirst=demand==OrderedConsumerDemand.First,
-            SourceContainsAnchor=this.SourceContainsAnchor
+            SourceContainsAnchor=this.SourceContainsAnchor,
+            ParallelSlots=this.ParallelSlots,
+            OrderHint=this.OrderHint
         };
         pipeline.ApplyRenderContext(this.RenderContext);
         return pipeline;
@@ -120,20 +122,29 @@ internal sealed partial class PipelineEnumerable {
         if(this.CanUseSortedDefaultOrderFastPath(orderIndex,primaryOrder,orderStages)) {
             this.AppendSortedDefaultOrderFastPath(builder,enumeratorName,successStatement,endStatement,orderIndex,lastOrderIndex,primaryOrder);
         }
-        builder.AppendLine($"    var {this.OrderInitialCapacityLocalName(orderIndex)}=16;");
-        builder.AppendLine($"    if({enumeratorName}.TryGetNonEnumeratedCount(out var __orderSourceCount{orderIndex}) && __orderSourceCount{orderIndex}>16) {{");
-        builder.AppendLine($"        {this.OrderInitialCapacityLocalName(orderIndex)}=__orderSourceCount{orderIndex};");
+        var hasTopK = this.CanUseTopKOrder(orderIndex,orderStages,out var takeCountExpression);
+        if(hasTopK) {
+            this.AppendTopKOrderFastPath(builder,enumeratorName,orderIndex,orderStages,takeCountExpression);
+            builder.AppendLine("    else {");
+        }
+        var indent = hasTopK ? "    " : "";
+        builder.AppendLine($"{indent}    var {this.OrderInitialCapacityLocalName(orderIndex)}=16;");
+        builder.AppendLine($"{indent}    if({enumeratorName}.TryGetNonEnumeratedCount(out var __orderSourceCount{orderIndex}) && __orderSourceCount{orderIndex}>16) {{");
+        builder.AppendLine($"{indent}        {this.OrderInitialCapacityLocalName(orderIndex)}=__orderSourceCount{orderIndex};");
         builder.AppendLine("    }");
-        this.AppendOrderBufferBuildStart(builder,orderIndex);
-        builder.AppendLine($"        while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
-        this.AppendCounterCall(builder,"        ","IncrementPhysicalMoveNext");
+        this.AppendOrderBufferBuildStart(builder,orderIndex,indent);
+        builder.AppendLine($"{indent}        while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+        this.AppendCounterCall(builder,$"{indent}        ","IncrementPhysicalMoveNext");
         var currentName = this.ItemName(0);
         for(var index = 0;index<orderIndex;index++) {
             currentName=this.AppendStage(builder,stages[index],currentName,index);
         }
-        this.AppendOrderBufferedValue(builder,orderIndex,currentName,"            ");
-        builder.AppendLine("        }");
-        this.AppendOrderBufferBuildEnd(builder,orderIndex,orderStages);
+        this.AppendOrderBufferedValue(builder,orderIndex,currentName,$"{indent}            ");
+        builder.AppendLine($"{indent}        }}");
+        this.AppendOrderBufferBuildEnd(builder,orderIndex,orderStages,indent);
+        if(hasTopK) {
+            builder.AppendLine("    }");
+        }
         builder.AppendLine("}");
         builder.AppendLine($"while(this.{this.StateName(orderIndex)}<this.{this.OrderCountName(orderIndex)}) {{");
         var sortedCurrentName = this.ItemName(lastOrderIndex+1);
@@ -148,44 +159,44 @@ internal sealed partial class PipelineEnumerable {
         return builder.ToString().TrimEnd();
     }
 
-    private void AppendOrderBufferBuildStart(StringBuilder builder,int orderIndex) {
+    private void AppendOrderBufferBuildStart(StringBuilder builder,int orderIndex,string indent="") {
         var valueType = stages[orderIndex].InputType;
         var valuesLocal = this.OrderValuesLocalName(orderIndex);
         var indexesLocal = this.OrderIndexesLocalName(orderIndex);
         var returnValuesLocal = this.OrderReturnValuesLocalName(orderIndex);
         var returnIndexesLocal = this.OrderReturnIndexesLocalName(orderIndex);
-        builder.AppendLine($"    var {valuesLocal}=global::System.Buffers.ArrayPool<{valueType}>.Shared.Rent({this.OrderInitialCapacityLocalName(orderIndex)});");
-        builder.AppendLine($"    var {indexesLocal}=global::System.Buffers.ArrayPool<int>.Shared.Rent({this.OrderInitialCapacityLocalName(orderIndex)});");
-        builder.AppendLine($"    var {returnValuesLocal}=true;");
-        builder.AppendLine($"    var {returnIndexesLocal}=true;");
-        builder.AppendLine($"    var {this.OrderCountLocalName(orderIndex)}=0;");
+        builder.AppendLine($"{indent}    var {valuesLocal}=global::System.Buffers.ArrayPool<{valueType}>.Shared.Rent({this.OrderInitialCapacityLocalName(orderIndex)});");
+        builder.AppendLine($"{indent}    var {indexesLocal}=global::System.Buffers.ArrayPool<int>.Shared.Rent({this.OrderInitialCapacityLocalName(orderIndex)});");
+        builder.AppendLine($"{indent}    var {returnValuesLocal}=true;");
+        builder.AppendLine($"{indent}    var {returnIndexesLocal}=true;");
+        builder.AppendLine($"{indent}    var {this.OrderCountLocalName(orderIndex)}=0;");
         foreach(var orderStage in this.OrderStages(orderIndex)) {
-            builder.AppendLine($"    {ComparerKeyType(orderStage)}[]? {this.OrderKeysLocalName(orderIndex,orderStage)}=null;");
+            builder.AppendLine($"{indent}    {ComparerKeyType(orderStage)}[]? {this.OrderKeysLocalName(orderIndex,orderStage)}=null;");
         }
-        builder.AppendLine("    try{");
+        builder.AppendLine($"{indent}    try{{");
     }
 
-    private void AppendOrderBufferBuildEnd(StringBuilder builder,int orderIndex,IReadOnlyList<PipelineStage> orderStages) {
+    private void AppendOrderBufferBuildEnd(StringBuilder builder,int orderIndex,IReadOnlyList<PipelineStage> orderStages,string indent="") {
         this.AppendOrderSort(builder,orderIndex,orderStages);
-        builder.AppendLine($"        this.{this.OrderValuesName(orderIndex)}={this.OrderValuesLocalName(orderIndex)};");
-        builder.AppendLine($"        this.{this.OrderIndexesName(orderIndex)}={this.OrderIndexesLocalName(orderIndex)};");
-        builder.AppendLine($"        this.{this.OrderCountName(orderIndex)}={this.OrderCountLocalName(orderIndex)};");
-        builder.AppendLine($"        this.{this.StateName(orderIndex)}=0;");
-        builder.AppendLine($"        {this.OrderReturnValuesLocalName(orderIndex)}=false;");
-        builder.AppendLine($"        {this.OrderReturnIndexesLocalName(orderIndex)}=false;");
-        builder.AppendLine("    }finally{");
+        builder.AppendLine($"{indent}        this.{this.OrderValuesName(orderIndex)}={this.OrderValuesLocalName(orderIndex)};");
+        builder.AppendLine($"{indent}        this.{this.OrderIndexesName(orderIndex)}={this.OrderIndexesLocalName(orderIndex)};");
+        builder.AppendLine($"{indent}        this.{this.OrderCountName(orderIndex)}={this.OrderCountLocalName(orderIndex)};");
+        builder.AppendLine($"{indent}        this.{this.StateName(orderIndex)}=0;");
+        builder.AppendLine($"{indent}        {this.OrderReturnValuesLocalName(orderIndex)}=false;");
+        builder.AppendLine($"{indent}        {this.OrderReturnIndexesLocalName(orderIndex)}=false;");
+        builder.AppendLine($"{indent}    }}finally{{");
         foreach(var orderStage in orderStages) {
             var keysLocal = this.OrderKeysLocalName(orderIndex,orderStage);
-            builder.AppendLine($"        if({keysLocal} is not null) {{");
-            builder.AppendLine($"            global::System.Buffers.ArrayPool<{ComparerKeyType(orderStage)}>.Shared.Return({keysLocal},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{ComparerKeyType(orderStage)}>());");
-            builder.AppendLine("        }");
+            builder.AppendLine($"{indent}        if({keysLocal} is not null) {{");
+            builder.AppendLine($"{indent}            global::System.Buffers.ArrayPool<{ComparerKeyType(orderStage)}>.Shared.Return({keysLocal},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{ComparerKeyType(orderStage)}>());");
+            builder.AppendLine($"{indent}        }}");
         }
-        builder.AppendLine($"        if({this.OrderReturnIndexesLocalName(orderIndex)}) {{");
-        builder.AppendLine($"            global::System.Buffers.ArrayPool<int>.Shared.Return({this.OrderIndexesLocalName(orderIndex)},clearArray:false);");
-        builder.AppendLine("        }");
-        builder.AppendLine($"        if({this.OrderReturnValuesLocalName(orderIndex)}) {{");
-        builder.AppendLine($"            global::System.Buffers.ArrayPool<{stages[orderIndex].InputType}>.Shared.Return({this.OrderValuesLocalName(orderIndex)},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{stages[orderIndex].InputType}>());");
-        builder.AppendLine("        }");
+        builder.AppendLine($"{indent}        if({this.OrderReturnIndexesLocalName(orderIndex)}) {{");
+        builder.AppendLine($"{indent}            global::System.Buffers.ArrayPool<int>.Shared.Return({this.OrderIndexesLocalName(orderIndex)},clearArray:false);");
+        builder.AppendLine($"{indent}        }}");
+        builder.AppendLine($"{indent}        if({this.OrderReturnValuesLocalName(orderIndex)}) {{");
+        builder.AppendLine($"{indent}            global::System.Buffers.ArrayPool<{stages[orderIndex].InputType}>.Shared.Return({this.OrderValuesLocalName(orderIndex)},clearArray:global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<{stages[orderIndex].InputType}>());");
+        builder.AppendLine($"{indent}        }}");
         builder.AppendLine("    }");
     }
 
@@ -549,4 +560,250 @@ internal sealed partial class PipelineEnumerable {
         IsInt32Type(stage.InputType)
             ? $"{spanName}[{indexName}]<{spanName}[{indexName}-1]"
             : $"global::System.Collections.Generic.Comparer<{stage.InputType}>.Default.Compare({spanName}[{indexName}],{spanName}[{indexName}-1])<0";
+
+    private bool CanUseTopKOrder(int orderIndex,IReadOnlyList<PipelineStage> orderStages,out string takeCountExpression) {
+        takeCountExpression = string.Empty;
+        if(orderStages.Count < 1 || orderStages.Count > 2) {
+            return false;
+        }
+        var lastOrderIndex = orderIndex + orderStages.Count - 1;
+        for(var index = lastOrderIndex + 1; index < stages.Count; index++) {
+            var stage = stages[index];
+            if(stage.Kind == PipelineStageKind.AsEnumerable) {
+                continue;
+            }
+            if(stage.Kind == PipelineStageKind.Take) {
+                takeCountExpression = $"this.{this.CountName(this.CountOrdinal(index))}Value";
+                return true;
+            }
+            break;
+        }
+        return false;
+    }
+
+    private void AppendTopKOrderFastPath(
+        StringBuilder builder,
+        string enumeratorName,
+        int orderIndex,
+        IReadOnlyList<PipelineStage> orderStages,
+        string takeCountExpression) {
+        var valueType = stages[orderIndex].InputType;
+        var primaryOrder = orderStages[0];
+        var comparerType = this.OrderTopKComparerName(orderIndex);
+        builder.AppendLine($"    if({takeCountExpression}<=64) {{");
+        if(orderStages.Count == 1) {
+            var keyType = ComparerKeyType(primaryOrder);
+            var canDirect = CanUseDirectDefaultOrderCompare(primaryOrder);
+            var comparerArg = canDirect ? string.Empty : this.OrderComparerName(this.OrderComparerOrdinal(orderIndex));
+            builder.AppendLine($"        var __topKComparer{orderIndex} = new {comparerType}({comparerArg});");
+            if(orderIndex == 0) {
+                builder.AppendLine($"        if({enumeratorName}.TryGetSpan(out var __topKSpan{orderIndex})) {{");
+                builder.AppendLine($"            var __topKCap = {takeCountExpression};");
+                builder.AppendLine($"            if(__topKCap <= 0 || __topKSpan{orderIndex}.Length == 0) {{");
+                builder.AppendLine($"                this.{this.OrderValuesName(orderIndex)} = global::System.Array.Empty<{valueType}>();");
+                builder.AppendLine($"                this.{this.OrderIndexesName(orderIndex)} = global::System.Array.Empty<int>();");
+                builder.AppendLine($"                this.{this.OrderCountName(orderIndex)} = 0;");
+                builder.AppendLine($"                this.{this.StateName(orderIndex)} = 0;");
+                builder.AppendLine("            } else {");
+                builder.AppendLine("                global::System.Span<int> __topIndices = stackalloc int[64];");
+                builder.AppendLine($"                global::System.Span<{keyType}> __topKeys = stackalloc {keyType}[64];");
+                builder.AppendLine("                var __topKCount = 0;");
+                builder.AppendLine($"                for(var __i = 0; __i < __topKSpan{orderIndex}.Length; __i++) {{");
+                builder.AppendLine($"                    ref readonly var __item = ref __topKSpan{orderIndex}[__i];");
+                builder.AppendLine($"                    {keyType} __key = default!;");
+                if(primaryOrder.Func is null) {
+                    builder.AppendLine("                    __key = __item;");
+                } else {
+                    builder.AppendLine(IndentBlock(this.FuncAssign(primaryOrder.Func,primaryOrder.Kind.ToString(),"__key","__item"),"                    "));
+                }
+                builder.AppendLine("                    if(__topKCount < __topKCap) {");
+                builder.AppendLine("                        int __pos = __topKCount;");
+                builder.AppendLine($"                        while(__pos > 0 && __topKComparer{orderIndex}.Compare(__key, __topKeys[__pos - 1]) < 0) {{");
+                builder.AppendLine("                            __topIndices[__pos] = __topIndices[__pos - 1];");
+                builder.AppendLine("                            __topKeys[__pos] = __topKeys[__pos - 1];");
+                builder.AppendLine("                            __pos--;");
+                builder.AppendLine("                        }");
+                builder.AppendLine("                        __topIndices[__pos] = __i;");
+                builder.AppendLine("                        __topKeys[__pos] = __key;");
+                builder.AppendLine("                        __topKCount++;");
+                builder.AppendLine("                    } else {");
+                builder.AppendLine($"                        if(__topKComparer{orderIndex}.Compare(__key, __topKeys[__topKCap - 1]) >= 0) continue;");
+                builder.AppendLine("                        int __pos = __topKCap - 1;");
+                builder.AppendLine($"                        while(__pos > 0 && __topKComparer{orderIndex}.Compare(__key, __topKeys[__pos - 1]) < 0) {{");
+                builder.AppendLine("                            __topIndices[__pos] = __topIndices[__pos - 1];");
+                builder.AppendLine("                            __topKeys[__pos] = __topKeys[__pos - 1];");
+                builder.AppendLine("                            __pos--;");
+                builder.AppendLine("                        }");
+                builder.AppendLine("                        __topIndices[__pos] = __i;");
+                builder.AppendLine("                        __topKeys[__pos] = __key;");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                }");
+                builder.AppendLine($"                var __topKValues{orderIndex} = global::System.Buffers.ArrayPool<{valueType}>.Shared.Rent(__topKCount);");
+                builder.AppendLine($"                var __topKIndexes{orderIndex} = global::System.Buffers.ArrayPool<int>.Shared.Rent(__topKCount);");
+                builder.AppendLine("                for(var __i = 0; __i < __topKCount; __i++) {");
+                builder.AppendLine($"                    __topKValues{orderIndex}[__i] = __topKSpan{orderIndex}[__topIndices[__i]];");
+                builder.AppendLine($"                    __topKIndexes{orderIndex}[__i] = __i;");
+                builder.AppendLine("                }");
+                builder.AppendLine($"                this.{this.OrderValuesName(orderIndex)} = __topKValues{orderIndex};");
+                builder.AppendLine($"                this.{this.OrderIndexesName(orderIndex)} = __topKIndexes{orderIndex};");
+                builder.AppendLine($"                this.{this.OrderCountName(orderIndex)} = __topKCount;");
+                builder.AppendLine($"                this.{this.StateName(orderIndex)} = 0;");
+                builder.AppendLine("            }");
+                builder.AppendLine("        } else {");
+            }
+            builder.AppendLine($"        var __topK{orderIndex} = new global::Seamless.Linq.Internal.TopKBuffer<{valueType},{keyType},{comparerType}>({takeCountExpression},__topKComparer{orderIndex});");
+            builder.AppendLine("        try {");
+            builder.AppendLine($"            while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+            this.AppendCounterCall(builder,"                ","IncrementPhysicalMoveNext");
+            var currentName = this.ItemName(0);
+            for(var index = 0;index<orderIndex;index++) {
+                currentName=this.AppendStage(builder,stages[index],currentName,index);
+            }
+            var keyName = this.OrderKeyLocalName(orderIndex,primaryOrder);
+            builder.AppendLine($"                {keyType} {keyName} = default!;");
+            if(primaryOrder.Func is null) {
+                builder.AppendLine($"                {keyName} = {currentName};");
+            } else {
+                builder.AppendLine(IndentBlock(this.FuncAssign(primaryOrder.Func,primaryOrder.Kind.ToString(),keyName,currentName),"                "));
+            }
+            builder.AppendLine($"                __topK{orderIndex}.Push({currentName},{keyName});");
+            builder.AppendLine("            }");
+            builder.AppendLine($"            var __topKCount{orderIndex} = __topK{orderIndex}.Count;");
+            builder.AppendLine($"            var __topKValues{orderIndex} = global::System.Buffers.ArrayPool<{valueType}>.Shared.Rent(__topKCount{orderIndex});");
+            builder.AppendLine($"            var __topKIndexes{orderIndex} = global::System.Buffers.ArrayPool<int>.Shared.Rent(__topKCount{orderIndex});");
+            builder.AppendLine($"            __topK{orderIndex}.GetSpan().CopyTo(__topKValues{orderIndex});");
+            builder.AppendLine($"            for(var __i = 0; __i < __topKCount{orderIndex}; __i++) {{");
+            builder.AppendLine($"                __topKIndexes{orderIndex}[__i] = __i;");
+            builder.AppendLine("            }");
+            builder.AppendLine($"            this.{this.OrderValuesName(orderIndex)} = __topKValues{orderIndex};");
+            builder.AppendLine($"            this.{this.OrderIndexesName(orderIndex)} = __topKIndexes{orderIndex};");
+            builder.AppendLine($"            this.{this.OrderCountName(orderIndex)} = __topKCount{orderIndex};");
+            builder.AppendLine($"            this.{this.StateName(orderIndex)} = 0;");
+            builder.AppendLine("        } finally {");
+            builder.AppendLine($"            __topK{orderIndex}.Dispose();");
+            builder.AppendLine("        }");
+            if(orderIndex == 0) {
+                builder.AppendLine("        }");
+            }
+        } else if(orderStages.Count == 2) {
+            var secondaryOrder = orderStages[1];
+            var primaryKeyType = ComparerKeyType(primaryOrder);
+            var secondaryKeyType = ComparerKeyType(secondaryOrder);
+            var primaryCanDirect = CanUseDirectDefaultOrderCompare(primaryOrder);
+            var secondaryCanDirect = CanUseDirectDefaultOrderCompare(secondaryOrder);
+            var ctorArgs = new List<string>();
+            if(!primaryCanDirect) ctorArgs.Add(this.OrderComparerName(this.OrderComparerOrdinal(orderIndex)));
+            if(!secondaryCanDirect) ctorArgs.Add(this.OrderComparerName(this.OrderComparerOrdinal(this.OrderStageAbsoluteIndex(orderIndex,secondaryOrder))));
+            var ctorArgsStr = string.Join(",",ctorArgs);
+            builder.AppendLine($"        var __topKComparer{orderIndex} = new {comparerType}({ctorArgsStr});");
+            if(orderIndex == 0) {
+                builder.AppendLine($"        if({enumeratorName}.TryGetSpan(out var __topKSpan{orderIndex})) {{");
+                builder.AppendLine($"            var __topKCap = {takeCountExpression};");
+                builder.AppendLine($"            if(__topKCap <= 0 || __topKSpan{orderIndex}.Length == 0) {{");
+                builder.AppendLine($"                this.{this.OrderValuesName(orderIndex)} = global::System.Array.Empty<{valueType}>();");
+                builder.AppendLine($"                this.{this.OrderIndexesName(orderIndex)} = global::System.Array.Empty<int>();");
+                builder.AppendLine($"                this.{this.OrderCountName(orderIndex)} = 0;");
+                builder.AppendLine($"                this.{this.StateName(orderIndex)} = 0;");
+                builder.AppendLine("            } else {");
+                builder.AppendLine("                global::System.Span<int> __topIndices = stackalloc int[64];");
+                builder.AppendLine($"                global::System.Span<{primaryKeyType}> __topPKeys = stackalloc {primaryKeyType}[64];");
+                builder.AppendLine($"                global::System.Span<{secondaryKeyType}> __topSKeys = stackalloc {secondaryKeyType}[64];");
+                builder.AppendLine("                var __topKCount = 0;");
+                builder.AppendLine($"                for(var __i = 0; __i < __topKSpan{orderIndex}.Length; __i++) {{");
+                builder.AppendLine($"                    ref readonly var __item = ref __topKSpan{orderIndex}[__i];");
+                builder.AppendLine($"                    {primaryKeyType} __pkey = default!;");
+                if(primaryOrder.Func is null) {
+                    builder.AppendLine("                    __pkey = __item;");
+                } else {
+                    builder.AppendLine(IndentBlock(this.FuncAssign(primaryOrder.Func,primaryOrder.Kind.ToString(),"__pkey","__item"),"                    "));
+                }
+                builder.AppendLine($"                    {secondaryKeyType} __skey = default!;");
+                if(secondaryOrder.Func is null) {
+                    builder.AppendLine("                    __skey = __item;");
+                } else {
+                    builder.AppendLine(IndentBlock(this.FuncAssign(secondaryOrder.Func,secondaryOrder.Kind.ToString(),"__skey","__item"),"                    "));
+                }
+                builder.AppendLine("                    if(__topKCount < __topKCap) {");
+                builder.AppendLine("                        int __pos = __topKCount;");
+                builder.AppendLine($"                        while(__pos > 0 && __topKComparer{orderIndex}.Compare(__pkey, __skey, __topPKeys[__pos - 1], __topSKeys[__pos - 1]) < 0) {{");
+                builder.AppendLine("                            __topIndices[__pos] = __topIndices[__pos - 1];");
+                builder.AppendLine("                            __topPKeys[__pos] = __topPKeys[__pos - 1];");
+                builder.AppendLine("                            __topSKeys[__pos] = __topSKeys[__pos - 1];");
+                builder.AppendLine("                            __pos--;");
+                builder.AppendLine("                        }");
+                builder.AppendLine("                        __topIndices[__pos] = __i;");
+                builder.AppendLine("                        __topPKeys[__pos] = __pkey;");
+                builder.AppendLine("                        __topSKeys[__pos] = __skey;");
+                builder.AppendLine("                        __topKCount++;");
+                builder.AppendLine("                    } else {");
+                builder.AppendLine($"                        if(__topKComparer{orderIndex}.Compare(__pkey, __skey, __topPKeys[__topKCap - 1], __topSKeys[__topKCap - 1]) >= 0) continue;");
+                builder.AppendLine("                        int __pos = __topKCap - 1;");
+                builder.AppendLine($"                        while(__pos > 0 && __topKComparer{orderIndex}.Compare(__pkey, __skey, __topPKeys[__pos - 1], __topSKeys[__pos - 1]) < 0) {{");
+                builder.AppendLine("                            __topIndices[__pos] = __topIndices[__pos - 1];");
+                builder.AppendLine("                            __topPKeys[__pos] = __topPKeys[__pos - 1];");
+                builder.AppendLine("                            __topSKeys[__pos] = __topSKeys[__pos - 1];");
+                builder.AppendLine("                            __pos--;");
+                builder.AppendLine("                        }");
+                builder.AppendLine("                        __topIndices[__pos] = __i;");
+                builder.AppendLine("                        __topPKeys[__pos] = __pkey;");
+                builder.AppendLine("                        __topSKeys[__pos] = __skey;");
+                builder.AppendLine("                    }");
+                builder.AppendLine("                }");
+                builder.AppendLine($"                var __topKValues{orderIndex} = global::System.Buffers.ArrayPool<{valueType}>.Shared.Rent(__topKCount);");
+                builder.AppendLine($"                var __topKIndexes{orderIndex} = global::System.Buffers.ArrayPool<int>.Shared.Rent(__topKCount);");
+                builder.AppendLine("                for(var __i = 0; __i < __topKCount; __i++) {");
+                builder.AppendLine($"                    __topKValues{orderIndex}[__i] = __topKSpan{orderIndex}[__topIndices[__i]];");
+                builder.AppendLine($"                    __topKIndexes{orderIndex}[__i] = __i;");
+                builder.AppendLine("                }");
+                builder.AppendLine($"                this.{this.OrderValuesName(orderIndex)} = __topKValues{orderIndex};");
+                builder.AppendLine($"                this.{this.OrderIndexesName(orderIndex)} = __topKIndexes{orderIndex};");
+                builder.AppendLine($"                this.{this.OrderCountName(orderIndex)} = __topKCount;");
+                builder.AppendLine($"                this.{this.StateName(orderIndex)} = 0;");
+                builder.AppendLine("            }");
+                builder.AppendLine("        } else {");
+            }
+            builder.AppendLine($"        var __topK{orderIndex} = new global::Seamless.Linq.Internal.TopKCombinedBuffer<{valueType},{primaryKeyType},{secondaryKeyType},{comparerType}>({takeCountExpression},__topKComparer{orderIndex});");
+            builder.AppendLine("        try {");
+            builder.AppendLine($"            while({enumeratorName}.TryGetNext(out var {this.ItemName(0)})) {{");
+            this.AppendCounterCall(builder,"                ","IncrementPhysicalMoveNext");
+            var currentName = this.ItemName(0);
+            for(var index = 0;index<orderIndex;index++) {
+                currentName=this.AppendStage(builder,stages[index],currentName,index);
+            }
+            var pKeyName = this.OrderKeyLocalName(orderIndex,primaryOrder);
+            builder.AppendLine($"                {primaryKeyType} {pKeyName} = default!;");
+            if(primaryOrder.Func is null) {
+                builder.AppendLine($"                {pKeyName} = {currentName};");
+            } else {
+                builder.AppendLine(IndentBlock(this.FuncAssign(primaryOrder.Func,primaryOrder.Kind.ToString(),pKeyName,currentName),"                "));
+            }
+            var sKeyName = this.OrderKeyLocalName(orderIndex,secondaryOrder);
+            builder.AppendLine($"                {secondaryKeyType} {sKeyName} = default!;");
+            if(secondaryOrder.Func is null) {
+                builder.AppendLine($"                {sKeyName} = {currentName};");
+            } else {
+                builder.AppendLine(IndentBlock(this.FuncAssign(secondaryOrder.Func,secondaryOrder.Kind.ToString(),sKeyName,currentName),"                "));
+            }
+            builder.AppendLine($"                __topK{orderIndex}.Push({currentName},{pKeyName},{sKeyName});");
+            builder.AppendLine("            }");
+            builder.AppendLine($"            var __topKCount{orderIndex} = __topK{orderIndex}.Count;");
+            builder.AppendLine($"            var __topKValues{orderIndex} = global::System.Buffers.ArrayPool<{valueType}>.Shared.Rent(__topKCount{orderIndex});");
+            builder.AppendLine($"            var __topKIndexes{orderIndex} = global::System.Buffers.ArrayPool<int>.Shared.Rent(__topKCount{orderIndex});");
+            builder.AppendLine($"            __topK{orderIndex}.GetSpan().CopyTo(__topKValues{orderIndex});");
+            builder.AppendLine($"            for(var __i = 0; __i < __topKCount{orderIndex}; __i++) {{");
+            builder.AppendLine($"                __topKIndexes{orderIndex}[__i] = __i;");
+            builder.AppendLine("            }");
+            builder.AppendLine($"            this.{this.OrderValuesName(orderIndex)} = __topKValues{orderIndex};");
+            builder.AppendLine($"            this.{this.OrderIndexesName(orderIndex)} = __topKIndexes{orderIndex};");
+            builder.AppendLine($"            this.{this.OrderCountName(orderIndex)} = __topKCount{orderIndex};");
+            builder.AppendLine($"            this.{this.StateName(orderIndex)} = 0;");
+            builder.AppendLine("        } finally {");
+            builder.AppendLine($"            __topK{orderIndex}.Dispose();");
+            builder.AppendLine("        }");
+            if(orderIndex == 0) {
+                builder.AppendLine("        }");
+            }
+        }
+        builder.AppendLine("    }");
+    }
 }

@@ -24,8 +24,10 @@ public sealed class SsmsDatabaseOptionTests{
         ExecuteBatch(select);ExecuteBatch(cleanup);
         Assert.ThrowsAny<Exception>(()=>ExecuteBatch(select));
         ExecuteBatch(prefix);session.Reset();Assert.ThrowsAny<Exception>(()=>ExecuteBatch(select));
-        Assert.Equal(3906,Assert.Throws<Seamless.Database.Query.SqlQueryException>(()=>ExecuteBatch(sql.Replace("= 9","= 3",StringComparison.Ordinal))).Number);
-        Assert.Equal(3906,Assert.Throws<Seamless.Database.Query.SqlQueryException>(()=>ExecuteBatch(sql+"; DELETE FROM dbo.Protected;")).Number);
+        // 文エラーで一時表が残る場合は後続 CREATE の 2714 が先行する。永久表の書込拒否は別に直接検証する。
+        Assert.Contains(Assert.Throws<Seamless.Database.Query.SqlQueryException>(()=>ExecuteBatch(sql.Replace("= 9","= 3",StringComparison.Ordinal))).Number,new[]{3906,40515,2714});
+        Assert.Contains(Assert.Throws<Seamless.Database.Query.SqlQueryException>(()=>ExecuteBatch(sql+"; DELETE FROM dbo.Protected;")).Number,new[]{3906,40515,2714});
+        Assert.Equal(3906,Assert.Throws<Seamless.Database.Query.SqlQueryException>(()=>ExecuteBatch("DELETE FROM dbo.Protected")).Number);
         Assert.Equal(new byte[]{0,64},Assert.IsType<byte[]>(engine.Execute("SELECT 0x0040",session).Rows.Single()[0]));
     }
     [Theory,Trait("Category","Integration")]

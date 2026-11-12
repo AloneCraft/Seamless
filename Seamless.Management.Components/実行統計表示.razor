@@ -1,0 +1,26 @@
+﻿@using System.Globalization
+
+<section class="軽量実測表示" aria-label="@表示文言.取得("実行の軽量実測")">
+    <h4>@表示文言.取得("軽量実測")</h4>
+    <div class="設定稼働情報 軽量実測">
+        <div><small>@表示文言.取得("経過時間")</small><strong>@時間表示(this.実測.Elapsed)</strong></div>
+        <div><small>@表示文言.取得("DBゲート待機")</small><strong>@時間表示(this.実測.DatabaseGateWait)</strong></div>
+        <div><small>@表示文言.取得("最初の値・行まで")</small><strong>@初回出力表示(this.実測.TimeToFirstOutput)</strong></div>
+        <div><small>@表示文言.取得("観測出力数")</small><strong>@this.実測.ObservedOutputCount</strong></div>
+        <div><small>@表示文言.取得("返却出力数")</small><strong>@this.実測.ReturnedOutputCount</strong></div>
+        <div><small>@表示文言.取得("取得状態")</small><strong>@表示文言.取得(取得状態名(this.実測.IsPartial))</strong></div>
+        <div><small>@表示文言.取得("実行ID")</small><strong>@this.実測.ExecutionId</strong></div>
+        <div><small>@表示文言.取得("対象の公開版")</small><strong>v@(this.実測.Version)</strong></div>
+        <div><small>@表示文言.取得("開始UTC")</small><strong>@時刻表示(this.実測.StartedAtUtc)</strong></div>
+        <div><small>@表示文言.取得("終了UTC")</small><strong>@時刻表示(this.実測.CompletedAtUtc)</strong></div>
+    </div>
+    <details><summary>@表示文言.取得("計測範囲と未収集項目")</summary><p class="小案内">@表示文言.取得("経過時間はDBゲートの待機開始から結果構築・読取セッション解放までです。通信と上位受付枠の待機は範囲外です。")</p><p class="小案内">@表示文言.取得("初回出力までの時間はDBゲート待機を含みます。観測出力数には上限判定の先読みを含みます。")</p><p class="小案内">@表示文言.取得("この集計はクエリ全体の境界です。演算や資源ごとの実測は実行計画に記録がある場合だけ表示します。")</p><code>@this.実測.DefinitionId · @this.実測.ObjectId · @this.実測.ArtifactHash</code></details>
+</section>
+
+@code{
+    [Parameter,EditorRequired]public ObjectExecutionStatistics 実測{get;set;}=default!;
+    private static string 時間表示(TimeSpan 値)=>値.TotalMilliseconds.ToString("0.###",CultureInfo.CurrentCulture)+" ms";
+    private static string 初回出力表示(TimeSpan? 値){if(値 is{} 時間){return 時間表示(時間);}return 表示文言.取得("出力なし");}
+    private static string 時刻表示(DateTimeOffset 値)=>値.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss.fff 'UTC'",CultureInfo.InvariantCulture);
+    private static string 取得状態名(bool 部分か){if(部分か){return "応答上限による部分取得";}return "取得完了";}
+}

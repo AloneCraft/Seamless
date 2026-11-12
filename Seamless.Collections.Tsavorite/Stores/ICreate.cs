@@ -5,4 +5,5 @@ namespace Seamless.Collections.Tsavorite;
 /// <typeparam name="TSelf">実装する型自身</typeparam>
 public interface ICreate<out TSelf> where TSelf : ICreate<TSelf> {
     static abstract TSelf Create();
+    static virtual TSelf Create(global::Seamless.Execution.ResourceBudget? budget)=>TSelf.Create();
 }

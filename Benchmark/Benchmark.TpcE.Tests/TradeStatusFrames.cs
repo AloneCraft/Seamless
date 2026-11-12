@@ -102,7 +102,7 @@ public sealed class TradeStatusFrames{
     private static TxnResult[] RunEverywhere(Action<ILoadSink> load,TxnRequest[] inputs){
         var results=new List<(string Name,TxnResult[] Outputs)>();
         foreach(var variant in VariantCatalog.All){
-            using var store=Store.CreateTemporary();
+            using var store=TpcETestStores.Temporary();
             using var engine=variant.Open(store,new TpcEScale{Customers=10});
             load(engine.Loader);
             var before=StateDigest.Of(engine.Database);

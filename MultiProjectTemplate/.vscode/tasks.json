@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "テンプレートをビルド",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "${workspaceFolder}/MultiProjectTemplate.slnx", "-c", "Debug"],
+      "options": {"cwd": "${workspaceFolder}"},
+      "problemMatcher": "$msCompile",
+      "group": {"kind": "build", "isDefault": true}
+    }
+  ]
+}

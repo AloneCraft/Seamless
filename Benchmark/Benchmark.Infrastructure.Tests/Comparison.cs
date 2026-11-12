@@ -5,9 +5,9 @@ public sealed class Comparison{
     public void DifferentStorageIsNotAPerformanceComparison(){
         Conditions Read(string storage){
             var original=new Conditions("sum","input",100,"Int32","Tsavorite","Temporary","Native","Native","{}","{}","host");
-            var json=System.Text.Json.JsonSerializer.SerializeToNode(original)!;
+            var json=global::System.Text.Json.JsonSerializer.SerializeToNode(original)!;
             json["StorageKey"]=storage;
-            return System.Text.Json.JsonSerializer.Deserialize<Conditions>(json.ToJsonString())!;
+            return global::System.Text.Json.JsonSerializer.Deserialize<Conditions>(json.ToJsonString())!;
         }
         var before=Measurement.Create("before","run",Read("volume-ssd"),"same",Enumerable.Repeat(new Sample(100,1,0),7).ToArray());
         var after=before with{ID="after",Conditions=Read("volume-hdd")};

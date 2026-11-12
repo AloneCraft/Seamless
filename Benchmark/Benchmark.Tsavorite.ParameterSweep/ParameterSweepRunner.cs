@@ -457,7 +457,7 @@ internal abstract class ワークロード基底:IDisposable {
     protected ワークロード基底(パラメータスイープケース ケース,パラメータスイープ実行オプション オプション) {
         var 設定 = ケース.設定;
         var 上限 = new StoreLimits {
-            MemoryBytes=checked(設定.Indexサイズ+設定.Memoryサイズ+2*設定.Pageサイズ),
+            MemoryBytes=TsavoriteBenchmarkBudget.MemoryBytes(オプション.最大成功Count,設定.Indexサイズ,設定.Pageサイズ,設定.Memoryサイズ),
         };
         if(オプション.ストレージデバイス容量>0) {
             上限=上限 with { DiskBytes=オプション.ストレージデバイス容量 };

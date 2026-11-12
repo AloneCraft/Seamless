@@ -137,14 +137,14 @@ public sealed class LoadedDynamicQuery {
 
 public sealed class DynamicQueryCompiler {
     private static readonly HashSet<string> QueryMethodNames=new(StringComparer.Ordinal){
-        "AsValueEnumerable","Range",
-        "Where","Select","Distinct","DistinctBy","Take","Skip","Reverse",
+        "AsValueEnumerable","Range","Repeat","Empty",
+        "Where","Select","Distinct","DistinctBy","Take","Skip","TakeWhile","SkipWhile","TakeLast","SkipLast","Reverse","Append","Prepend","DefaultIfEmpty",
         "OrderBy","OrderByDescending","ThenBy","ThenByDescending",
         "Concat","Union","Except","Intersect","UnionBy","ExceptBy","IntersectBy",
-        "SelectMany","Join","GroupJoin",
+        "SelectMany","Join","GroupJoin","Zip",
         "Count","LongCount","Any","All","Contains","Sum","Min","Max","MinBy","MaxBy","Average","Aggregate",
-        "First","FirstOrDefault","Last","LastOrDefault","ElementAt","ElementAtOrDefault",
-        "ToArray","ToList","ToHashSet","ToDictionary","ToLookup",
+        "First","FirstOrDefault","Last","LastOrDefault","Single","SingleOrDefault","ElementAt","ElementAtOrDefault",
+        "ToArray","ToList","ToHashSet","ToDictionary","ToLookup","SequenceEqual",
     };
     private static readonly CSharpParseOptions 解析設定=new CSharpParseOptions(
         LanguageVersion.Preview,

@@ -2,11 +2,58 @@ using MemoryPack;
 namespace Shared.Tsavorite.Collections;
 
 [MemoryPackable]
-public partial record struct ManagedSetRecord(int Key,string Name):global::Seamless.Collections.IRecord<int>;
+public partial record struct ManagedSetRecord(int Key,string Name):global::Seamless.Collections.IRecord<int>{
+    public int Key{get;init;}=Key;
+}
 
 public readonly record struct UnmanagedSetRecord(int Key,long Value):global::Seamless.Collections.IRecord<int>;
 
 public class Set {
+    [BenchFact,Benchmark]
+    public void ManagedRecord_CopyWithKey_UsesUpdatedKeyWithoutChangingOriginal(){
+        var original=new ManagedSetRecord(1,"alpha");
+        var updated=CopyWithKey(original,2);
+
+        Assert.Equal(1,original.Key);
+        Assert.Equal(2,updated.Key);
+        Assert.Equal(original.Name,updated.Name);
+
+        using var store=Store.Create().CreateSet<int,ManagedSetRecord>();
+        using var set=store.Create();
+        Assert.True(set.Add(original));
+        Assert.True(set.Add(updated));
+        Assert.True(set.TryGetValue(1,out var first));
+        Assert.True(set.TryGetValue(2,out var second));
+        Assert.Equal(original,first);
+        Assert.Equal(updated,second);
+        Assert.Equal(2,set.Count);
+    }
+
+    [BenchFact,Benchmark]
+    public void UnmanagedRecord_CopyWithKey_UsesUpdatedKeyWithoutChangingOriginal(){
+        var original=new UnmanagedSetRecord(0,99);
+        var updated=CopyWithKey(original,-1);
+
+        Assert.Equal(0,original.Key);
+        Assert.Equal(-1,updated.Key);
+        Assert.Equal(original.Value,updated.Value);
+
+        using var store=Store.Create().CreateSet<int,UnmanagedSetRecord>();
+        using var set=store.Create();
+        Assert.True(set.Add(original));
+        Assert.True(set.Add(updated));
+        Assert.True(set.TryGetValue(0,out var first));
+        Assert.True(set.TryGetValue(-1,out var second));
+        Assert.Equal(original,first);
+        Assert.Equal(updated,second);
+        Assert.Equal(2,set.Count);
+    }
+
+    private static TRecord CopyWithKey<TKey,TRecord>(TRecord record,TKey key)
+        where TRecord:struct,global::Seamless.Collections.IRecord<TKey>{
+        return record with{Key=key};
+    }
+
     [BenchFact, Benchmark]
     public void ManagedSet_AddTryGetRemove_UsesRecordKey() {
         using var store = Store.Create().CreateSet<int,ManagedSetRecord>();
@@ -17,8 +64,10 @@ public class Set {
         Assert.True(set.Add(record));
         Assert.False(set.Add(new ManagedSetRecord(1,"beta")));
         Assert.True(set.ContainsKey(1));
-        var containsDuplicateKey = set.Contains(new ManagedSetRecord(1,"ignored"));
-        Assert.True(containsDuplicateKey);
+        Assert.True(set.Contains(record));
+        Assert.False(set.Contains(new ManagedSetRecord(1,"ignored")));
+        Assert.False(set.Remove(new ManagedSetRecord(1,"ignored")));
+        Assert.True(set.ContainsKey(1));
         Assert.True(set.TryGetValue(1,out var found));
         Assert.Equal(record,found);
         Assert.True(set.Remove(1,out var removed));
@@ -60,6 +109,9 @@ public class Set {
         Assert.True(set.Add(record));
         Assert.False(set.Add(new UnmanagedSetRecord(7,100)));
         Assert.True(set.ContainsKey(7));
+        Assert.True(set.Contains(record));
+        Assert.False(set.Contains(new UnmanagedSetRecord(7,100)));
+        Assert.False(set.Remove(new UnmanagedSetRecord(7,100)));
         Assert.True(set.TryGetValue(7,out var found));
         Assert.Equal(record,found);
         Assert.True(set.Remove(7,out var removed));

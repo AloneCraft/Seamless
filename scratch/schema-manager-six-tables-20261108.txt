@@ -1,0 +1,116 @@
+- complementary:
+  - generic: S
+  - strong: Seamless
+  - button "⌕ コマンドを検索 Ctrl K":
+    - generic: ⌕
+    - text: コマンドを検索
+    - generic: Ctrl K
+  - button "〈〉 ソースを開く"
+  - generic: ワークスペース
+  - group "データベース":
+    - button "新しいデータベース": ＋
+    - button "データベースの操作": ⠿
+    - generic: データベース
+    - generic: "1"
+  - navigation "データベース":
+    - group "SchemaUiDemo":
+      - button "SchemaUiDemoに追加": ＋
+      - button "SchemaUiDemoの操作": ⠿
+      - generic: ▤
+      - generic: SchemaUiDemo
+    - group "DBの内容":
+      - group "テーブル":
+        - button "テーブルを追加": ＋
+        - button "テーブルの操作": ⠿
+        - generic: テーブル
+        - generic: "2"
+      - group "Items":
+        - button "Itemsの操作": ⠿
+        - generic: ▦
+        - generic: Items
+      - group "Orders":
+        - button "Ordersの操作": ⠿
+        - generic: ▦
+        - generic: Orders
+      - group "dbo0":
+        - button "dbo0に追加": ＋
+        - button "dbo0の操作": ⠿
+        - button "dbo0の表示を切り替え": ▾
+        - generic: dbo0
+      - group "テーブル":
+        - button "dbo0テーブルを追加": ＋
+        - button "テーブルの操作": ⠿
+        - generic: テーブル
+        - generic: "2"
+      - group "dbo0 Items":
+        - button "dbo0 Itemsの操作": ⠿
+        - generic: ▦
+        - generic: Items
+      - group "dbo0 Orders":
+        - button "dbo0 Ordersの操作": ⠿
+        - generic: ▦
+        - generic: Orders
+      - group "dbo1":
+        - button "dbo1に追加": ＋
+        - button "dbo1の操作": ⠿
+        - button "dbo1の表示を切り替え": ▾
+        - generic: dbo1
+      - group "テーブル":
+        - button "dbo1テーブルを追加": ＋
+        - button "テーブルの操作": ⠿
+        - generic: テーブル
+        - generic: "2"
+      - group "dbo1 Items":
+        - button "dbo1 Itemsの操作": ⠿
+        - generic: ▦
+        - generic: Items
+      - group "dbo1 Orders":
+        - button "dbo1 Ordersの操作": ⠿
+        - generic: ▦
+        - generic: Orders
+  - generic "システム"
+  - generic: ホスト内の管理API
+  - generic: 14700F\kazuh
+  - button "ログアウト"
+- main:
+  - generic: ワークスペース ／ データベース
+  - generic: ホスト内の管理API
+  - tablist "開いている文書":
+    - group "SchemaUiDemo":
+      - button "SchemaUiDemoの操作": ⠿
+      - generic: ▤
+      - generic: SchemaUiDemo
+      - generic "稼働DBへ未適用": "*"
+  - status: 下書きを保管しました · r2
+  - generic: DATABASE
+  - heading "SchemaUiDemo" [level=1]
+  - paragraph: 構造を整え、変更を確認してから公開します。
+  - generic: 公開版 v1
+  - button "変更を確認"
+  - button "文書の操作": •••
+  - navigation "文書の表示":
+    - button "▦ 構造"
+    - button "〈〉 C#"
+    - button "▤ データ"
+    - button "☡ 計画"
+    - generic: 下書き · 稼働DBへ未適用
+  - button "SchemaUiDemo"
+  - heading "オブジェクト" [level=2]
+  - button "＋ 新しいテーブル"
+  - group "Items":
+    - button "Itemsの操作": ⠿
+    - generic: ▦
+    - strong: Items
+    - paragraph: テーブル定義 · クリックでデータ表示
+    - button "編集"
+    - generic: ↗
+  - group "Orders":
+    - button "Ordersの操作": ⠿
+    - generic: ▦
+    - strong: Orders
+    - paragraph: テーブル定義 · クリックでデータ表示
+    - button "編集"
+    - generic: ↗
+  - generic: ホバー・右クリックで対象の操作
+  - generic: Ctrl K コマンド検索
+  - generic: 文書タブはハンドルから移動
