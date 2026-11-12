@@ -1,0 +1,21 @@
+<対象操作ホスト ID="@ID" 名前="@名前" メニュー表示中か="@(メニュー is not null)" 追加時="後へ追加時" 追加の説明="@表示文言.取得("{0}の下に追加",名前)" メニュー要求時="メニュー要求時">
+</対象操作ホスト>
+@if(メニュー is{} 要求){<操作メニュー T対象="string" 登録="登録" 対象="@ID" 見出し="@名前" 起点="要求.起点" X="要求.X" Y="要求.Y" 選択時="選択時Async" 閉鎖時="閉鎖時"/>}
+@code{
+    [Parameter]public string 名前{get;set;}="列";
+    [Parameter]public EventCallback 前へ追加時{get;set;}
+    [Parameter]public EventCallback 後へ追加時{get;set;}
+    [Parameter]public EventCallback 削除時{get;set;}
+    private readonly string ID="row-"+Guid.NewGuid().ToString("N");
+    private コマンド登録<string> 登録=default!;
+    private 対象操作要求? メニュー;
+    protected override void OnInitialized(){
+        this.登録=new([
+            new("前に追加","上に追加",_=>true,_=>this.前へ追加時.HasDelegate,_=>this.前へ追加時.InvokeAsync(),["insert","追加","上"],アイコン:"＋"),
+            new("後に追加","下に追加",_=>true,_=>this.後へ追加時.HasDelegate,_=>this.後へ追加時.InvokeAsync(),["insert","追加","下"],アイコン:"＋"),
+            new("削除","削除",_=>true,_=>this.削除時.HasDelegate,_=>this.削除時.InvokeAsync(),["delete","削除"],破壊的か:true,アイコン:"−")]);
+    }
+    private void メニュー要求時(対象操作要求 要求)=>this.メニュー=要求;
+    private void 閉鎖時()=>this.メニュー=null;
+    private async Task 選択時Async(string 操作){this.メニュー=null;await this.登録.実行Async(操作,this.ID);}
+}

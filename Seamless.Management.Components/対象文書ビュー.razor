@@ -1,0 +1,105 @@
+﻿<section class="文書領域 対象文書" aria-label="@状態.名前" data-文書対象="@状態.名前">
+    <div class="文書見出し"><div><div class="種類ラベル">@表示文言.取得(状態.アイコン)</div><h1>@状態.名前</h1><p class="文書説明">@DB名@if(状態.対象?.Schema.Length>0){<span> ／ @状態.対象.Schema</span>}</p></div><div class="文書操作"><span class="版ラベル">@表示文言.取得("公開版 v{0}",公開版)</span><span class="下書き状態">@表示文言.取得(保存状態)</span></div></div>
+    <nav class="表示切替" aria-label="@表示文言.取得("文書の表示")">
+        @foreach(var 項目 in 表示項目){<button role="tab" aria-selected="@((状態.表示==項目).ToString().ToLowerInvariant())" data-選択中="@((状態.表示==項目).ToString().ToLowerInvariant())" @onclick="()=>表示変更時Async(項目)"><操作アイコン 種類="@表示アイコン(項目)"/>@表示文言.取得(項目)</button>}
+    </nav>
+    @if(状態.データを開いたか){
+        <div hidden="@(状態.表示!="データ")">
+        @if(!公開済みか){
+            <section class="未適用テーブル"><h3>@状態.名前 <span class="未適用印">@表示文言.取得("未適用")</span></h3><p>@表示文言.取得("この定義は下書きにあります。変更を確認して稼働DBへ適用してください。")</p><button class="控えめボタン" @onclick="@(()=>表示変更時Async("構造"))"><操作アイコン 種類="編集"/>@表示文言.取得("定義を編集")</button><button class="主要ボタン" @onclick="変更確認時"><操作アイコン 種類="変更を確認"/>@表示文言.取得("変更を確認")</button></section>
+        }else if(状態.対象?.Kind=="Table"){
+            <結果グリッド DB名="@DB名" テーブル名="@状態.対象.Id" 公開版="公開版" 表示中か="@(表示中か&&状態.表示=="データ")" 編集可能か="データ編集可能か" 未保存変更時="データ未保存時"/>
+        }else{
+            <関数データ DB名="@DB名" 対象="状態.対象!" 関数="関数対象" ビュー="ビュー定義" 公開版="公開版" 表示中か="@(表示中か&&状態.表示=="データ")" 実行可能か="実行可能か" 資源計測可能か="資源計測可能か" ノード実測可能か="編集可能か" ノード実測時="ノード実測時" 実測完了時="実測時" トレース実行時="トレース時" 資源記録時="資源記録時"/>
+        }
+        </div>
+    }
+    @if(状態.編集部品を開いたか){
+        <div hidden="@(状態.表示 is not ("構造" or "C#"))"><対象定義エディター @ref="エディター" 定義="定義" 対象="状態.対象!" 表示モード="@編集表示" 表示モード変更時="編集表示変更時" 定義変更時="定義変更時" 未保存変更時="未保存時" 型候補="型候補" 編集可能か="編集可能か"/></div>
+    }
+    @if(状態.計画を開いたか){
+        <div hidden="@(状態.表示!="実行計画")">
+            @if(!計画を表示できるか){<p role="status">@表示文言.取得("実行計画を取得する前に下書きを保存してください。")</p><button class="控えめボタン" @onclick="変更確認時"><操作アイコン 種類="変更を確認"/>@表示文言.取得("変更を確認")</button>}
+            <div hidden="@(!計画を表示できるか)"><実行計画ビュー DB名="@DB名" 定義ID="@状態.定義ID" 対象="計画要求" ソース="定義.Source" 実測="状態.実測" 実績記録="状態.実績" トレース実行ID="状態.トレース実行ID" 資源記録="状態.資源記録" ノード実測="状態.ノード実測" 表示中か="@(表示中か&&状態.表示=="実行計画"&&計画を表示できるか)"/></div>
+        </div>
+    }
+    @if(状態.履歴を開いたか){
+        <div hidden="@(状態.表示 is not ("実行履歴" or "アクセス履歴"))">
+        @if(状態.対象?.Kind!="Table"){<実績履歴 DB定義ID="@状態.定義ID" 対象ID="@実行対象ID" 実績選択時="実績選択時Async"/>}
+        <オブジェクト履歴 DB名="@DB名" 対象ID="@実行対象ID" テーブルか="@(状態.対象?.Kind=="Table")"/>
+        </div>
+    }
+</section>
+@code{
+    [Parameter,EditorRequired]public 対象文書状態 状態{get;set;}=default!;
+    [Parameter,EditorRequired]public Definition 定義{get;set;}=default!;
+    [Parameter]public string DB名{get;set;}="";
+    [Parameter]public long 公開版{get;set;}
+    [Parameter]public long? 下書き版{get;set;}
+    [Parameter]public string? 成果物ハッシュ{get;set;}
+    [Parameter]public string 保存状態{get;set;}="";
+    [Parameter]public bool 公開済みか{get;set;}
+    [Parameter]public bool 未保管か{get;set;}
+    [Parameter]public bool 表示中か{get;set;}
+    [Parameter]public bool 編集可能か{get;set;}
+    [Parameter]public bool データ編集可能か{get;set;}=true;
+    [Parameter]public bool 実行可能か{get;set;}
+    [Parameter]public bool 資源計測可能か{get;set;}
+    [Parameter]public string[] 型候補{get;set;}=[];
+    [Parameter]public EventCallback<Definition> 定義変更時{get;set;}
+    [Parameter]public EventCallback 変更確認時{get;set;}
+    [Parameter]public EventCallback 未保存変更時{get;set;}
+    [Parameter]public EventCallback 表示変更通知{get;set;}
+    private 対象定義エディター? エディター;
+    private Definition? ビュー読取定義;
+    private QueryDesign? 読取ビュー;
+    private bool 計画を表示できるか=>!this.未保管か&&!this.状態.編集中か;
+    private string[] 表示項目{get{if(this.状態.対象?.Kind=="Table"){return ["データ","構造","C#","アクセス履歴"];}return ["データ","構造","C#","実行計画","実行履歴"];}}
+    private string 編集表示{get{if(this.状態.表示=="C#"){return "Source";}return "Structure";}}
+    private string 実行対象ID{get{if(this.状態.関数?.Target.Origin==FunctionOrigin.RegisteredEntry){return this.状態.関数.Target.ObjectId;}return this.状態.対象!.Id;}}
+    private FunctionTarget? 関数対象{get{if(this.状態.関数 is{} 関数){return 関数.Target;}if(this.状態.対象?.Kind is "ScalarFunction" or "TableFunction"){return new(FunctionOrigin.DatabaseMember,this.状態.DBID,this.状態.定義ID,this.状態.対象.Id);}return null;}}
+    private QueryDesign? ビュー定義=>this.読取ビュー;
+    private QueryPlanRequest 計画要求=>this.状態.履歴計画??new(this.状態.定義ID,this.実行対象ID,this.公開版,this.下書き版,this.成果物ハッシュ);
+    protected override void OnParametersSet(){
+        if(!ReferenceEquals(this.ビュー読取定義,this.定義)){
+            this.ビュー読取定義=this.定義;this.読取ビュー=null;
+            if(this.状態.対象?.Kind=="View"){try{this.読取ビュー=DatabaseDesigner.ReadQuery(this.定義,this.状態.対象.Id);}catch(ManagementException){}}
+        }
+        this.表示を準備();
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender){
+        while(this.状態.追加列数>0&&this.エディター is not null){this.状態.追加列数--;await this.エディター.列を追加Async();}
+    }
+    public async Task<bool> 同期Async(){if(this.エディター is not null){return await this.エディター.同期Async();}return true;}
+    public async Task 列を追加Async(){
+        await this.表示変更時Async("構造");
+        this.状態.追加列数++;
+        await this.InvokeAsync(this.StateHasChanged);
+    }
+    private Task 編集表示変更時(string 表示){if(表示=="Source"){this.状態.表示="C#";}else{this.状態.表示="構造";}return this.表示変更通知.InvokeAsync();}
+    public async Task 表示変更時Async(string 表示){
+        if(this.状態.表示==表示){return;}
+        if(this.状態.表示 is "構造" or "C#"&&!await this.同期Async()){return;}
+        this.状態.表示=表示;this.表示を準備();await this.表示変更通知.InvokeAsync();
+    }
+    private void 表示を準備(){
+        if(this.状態.表示=="データ"){this.状態.データを開いたか=true;}
+        else if(this.状態.表示 is "構造" or "C#"){this.状態.編集部品を開いたか=true;}
+        else if(this.状態.表示=="実行計画"){this.状態.計画を開いたか=true;}
+        else{this.状態.履歴を開いたか=true;}
+    }
+    private async Task 未保存時(bool 値){this.状態.編集中か=値;await this.未保存変更時.InvokeAsync();}
+    private async Task データ未保存時(bool 値){this.状態.データ編集中か=値;await this.未保存変更時.InvokeAsync();}
+    private void 実測時(ObjectExecutionStatistics? 実測){this.状態.実測=実測;this.状態.実績=null;this.状態.履歴計画=null;}
+    private void トレース時(Guid? ID){this.状態.トレース実行ID=ID;}
+    private void 資源記録時(ResourceHeatTrace? 記録){this.状態.資源記録=記録;}
+    private void ノード実測時(ObjectExecutionProfile? 記録){this.状態.ノード実測=記録;}
+    private async Task 実績選択時Async(QueryExecutionObservation 実績){
+        if(!実績.IdentityResolved||実績.Version is not{} 版||実績.ArtifactHash is null){return;}
+        this.状態.実績=実績;this.状態.トレース実行ID=実績.ExecutionId;
+        this.状態.履歴計画=new(実績.DefinitionId,実績.ObjectId,版){HistoricalVersion=版};
+        this.状態.実測=new(実績.ExecutionId,実績.DefinitionId,実績.ObjectId,版,実績.ArtifactHash,実績.StartedAtUtc,実績.CompletedAtUtc,実績.Elapsed,実績.DatabaseGateWait,実績.TimeToFirstOutput,実績.ObservedOutputCount,実績.ReturnedOutputCount,実績.IsPartial){GateWaitStartedOffset=実績.GateWaitStartedOffset};
+        await this.表示変更時Async("実行計画");
+    }
+    private static string 表示アイコン(string 表示)=>表示 switch{"C#"=>"ソース","実行計画"=>"計画","実行履歴" or "アクセス履歴"=>"監査",_=>表示};
+}

@@ -1,0 +1,54 @@
+@implements IAsyncDisposable
+@inject IJSRuntime スクリプト
+<input @ref="入力" class="@クラス" aria-label="@表示文言.取得(名前)" placeholder="@表示文言.取得(プレースホルダー)" value="@編集値" @oninput="入力時" @onkeydown="キー時Async" @onblur="確定Async" disabled="@(無効か||確定中か)" autocomplete="off"/>
+@code{
+    [Parameter]public string 名前{get;set;}="名前";
+    [Parameter]public string プレースホルダー{get;set;}="名前";
+    [Parameter]public string 初期値{get;set;}="";
+    [Parameter]public string? クラス{get;set;}
+    [Parameter]public bool 無効か{get;set;}
+    [Parameter]public EventCallback<string> 確定時{get;set;}
+    [Parameter]public EventCallback 取消時{get;set;}
+    private ElementReference 入力;
+    private IJSObjectReference? モジュール,IME保護;
+    private readonly SemaphoreSlim 表示更新=new(1,1);
+    private string 編集値="";
+    private bool 確定中か,取消済みか,破棄済みか;
+    protected override void OnInitialized()=>this.編集値=this.初期値;
+    protected override async Task OnAfterRenderAsync(bool firstRender){
+        if(!firstRender){return;}
+        await this.表示更新.WaitAsync();
+        try{
+            if(this.破棄済みか){return;}
+            this.モジュール=await this.スクリプト.InvokeAsync<IJSObjectReference>("import","./_content/Seamless.Management.Components/interaction.js");
+            this.IME保護=await this.モジュール.InvokeAsync<IJSObjectReference>("IME入力を保護",this.入力);
+            if(!this.無効か){await this.入力.FocusAsync();}
+        }catch(JSDisconnectedException){}
+        finally{this.表示更新.Release();}
+    }
+    private void 入力時(ChangeEventArgs 引数)=>this.編集値=引数.Value?.ToString()??"";
+    private Task キー時Async(KeyboardEventArgs 引数){
+        if(引数.Key=="Escape"){return this.取消Async();}
+        if(引数.Key=="Enter"){return this.確定Async();}
+        return Task.CompletedTask;
+    }
+    private async Task 取消Async(){
+        if(this.無効か||this.確定中か||this.取消済みか){return;}
+        this.取消済みか=true;await this.取消時.InvokeAsync();
+    }
+    private async Task 確定Async(){
+        if(this.無効か||this.確定中か||this.取消済みか){return;}
+        var 名前=this.編集値.Trim();
+        if(名前.Length==0){await this.取消Async();return;}
+        this.確定中か=true;
+        try{await this.確定時.InvokeAsync(名前);}
+        finally{this.確定中か=false;}
+    }
+    public async ValueTask DisposeAsync(){
+        if(this.破棄済みか){return;}
+        this.破棄済みか=true;
+        await this.表示更新.WaitAsync();
+        try{await スクリプト参照.解放Async(this.IME保護,this.モジュール);}
+        finally{this.表示更新.Release();}
+    }
+}

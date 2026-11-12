@@ -16,7 +16,10 @@ public sealed record OidcProviderSettings(Guid Id,string Authority,string Audien
         throw new ArgumentException("OIDC requires HTTPS; development HTTP is restricted to a literal loopback address.");
     }
 }
-public sealed class OidcAuthenticationException(string code,string message):InvalidOperationException(message){public string Code{get;}=code;}
+public sealed class OidcAuthenticationException(string code,string message):InvalidOperationException(message){
+    public const string BusyCode="AuthenticationBusy";
+    public string Code{get;}=code;
+}
 
 internal sealed class OidcEndpointHandler(OidcProviderSettings settings):DelegatingHandler(new HttpClientHandler{AllowAutoRedirect=false}){
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken cancellationToken){settings.ValidateEndpoint(request.RequestUri??throw new ArgumentException("An endpoint is required."));return base.SendAsync(request,cancellationToken);}

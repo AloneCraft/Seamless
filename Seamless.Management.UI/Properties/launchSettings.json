@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "SeamlessManager": {
-      "commandName": "Project",
-      "commandLineArgs": "--workspace-config"
-    }
-  }
-}

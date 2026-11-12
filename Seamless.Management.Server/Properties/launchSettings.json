@@ -1,8 +1,8 @@
 {
   "profiles": {
-    "WindowsServer": {
+    "Server + Browser Manager": {
       "commandName": "Project",
-      "commandLineArgs": "serve --workspace-config --local-ipc"
+      "commandLineArgs": "serve --workspace-config --open-manager"
     }
   }
 }

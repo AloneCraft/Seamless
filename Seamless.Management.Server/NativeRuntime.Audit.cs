@@ -20,9 +20,11 @@ internal sealed partial class NativeRuntime{
     private string? auditError;
     internal bool AuditDeliveryPaused{get=>this.auditPaused;set{this.auditPaused=value;this.SignalAudit();}}
     internal string? AuditDeliveryError=>Volatile.Read(ref this.auditError);
-    internal bool AuditDeliveryRunning=>this.store.HasAudit&&!this.auditWorker.IsCompleted;
+    internal bool AuditDeliveryExternallyScheduled{get;set;}
+    internal Action<string>? AuditTransferCheckpoint{get;set;}
+    internal bool AuditDeliveryRunning=>this.store.HasAudit&&(!this.auditWorker.IsCompleted||this.AuditDeliveryExternallyScheduled);
     private void StartAuditDelivery(){if(this.store.HasAudit){this.auditWorker=Task.Run(this.RunAuditDeliveryAsync);}}
-    private void StopAuditDelivery(){this.auditStopping.Cancel();this.auditWorker.GetAwaiter().GetResult();}
+    private void StopAuditDelivery(){this.AuditDeliveryExternallyScheduled=false;this.auditStopping.Cancel();this.auditWorker.GetAwaiter().GetResult();}
     private void SignalAudit(){lock(this.auditWakeGate){if(!this.auditStopping.IsCancellationRequested&&this.auditSignal.CurrentCount==0){this.auditSignal.Release();}}}
     private void NotifyAudit(Guid walId){lock(this.auditWakeGate){if(this.auditStopping.IsCancellationRequested){return;}if(this.auditPending.Count<256&&this.auditPending.Add(walId)){this.auditWake.Enqueue(walId);}if(this.auditSignal.CurrentCount==0){this.auditSignal.Release();}}}
     private async Task RunAuditDeliveryAsync(){
@@ -34,12 +36,12 @@ internal sealed partial class NativeRuntime{
             catch(Exception error){Volatile.Write(ref this.auditError,AuditErrorCode(error));}
         }}catch(OperationCanceledException)when(cancellation.IsCancellationRequested){}
     }
-    internal async Task DrainAuditOnceAsync(CancellationToken cancellation=default){
-        if(!this.store.HasAudit){return;}await this.auditPass.WaitAsync(cancellation).ConfigureAwait(false);
+    internal async Task DrainAuditOnceAsync(CancellationToken cancellation=default,bool synchronous=false){
+        if(!this.store.HasAudit){return;}if(synchronous){this.auditPass.Wait(cancellation);}else{await this.auditPass.WaitAsync(cancellation).ConfigureAwait(false);}
         try{
-            for(var index=0;index<8;index++){Guid id;lock(this.auditWakeGate){if(!this.auditWake.TryDequeue(out id)){break;}this.auditPending.Remove(id);}var origin=this.store.Read<AuditOrigin>("auditOrigin",id.ToString("N"));if(origin is not null){await this.DeliverOriginAsync(origin,cancellation).ConfigureAwait(false);}}
+            for(var index=0;index<8;index++){Guid id;lock(this.auditWakeGate){if(!this.auditWake.TryDequeue(out id)){break;}this.auditPending.Remove(id);}var origin=this.store.Read<AuditOrigin>("auditOrigin",id.ToString("N"));if(origin is not null){await this.DeliverOriginAsync(origin,cancellation,synchronous).ConfigureAwait(false);}}
             var page=this.store.SelectPage<AuditOrigin,AuditOrigin>("auditOrigin",this.auditCursor,4,null,static value=>value,64);this.auditCursor=page.NextCursor;if(!page.HasMore){this.auditCursor=0;}
-            foreach(var origin in page.Items){await this.DeliverOriginAsync(origin,cancellation).ConfigureAwait(false);}
+            foreach(var origin in page.Items){await this.DeliverOriginAsync(origin,cancellation,synchronous).ConfigureAwait(false);}
         }finally{this.auditPass.Release();}
     }
     private AuditOrigin? CreateAuditOrigin(PreparedDefinition prepared,DatabaseInstance instance){
@@ -54,16 +56,16 @@ internal sealed partial class NativeRuntime{
     }
     private AuditEvent CreateUpdateAudit(Definition definition,CompiledSource query,UserAccount user,Guid transaction,DateTimeOffset started){
         var metadata=this.store.Read<QueryAuditMetadata>("queryAudit",query.Result.ArtifactHash);if(metadata is not null){QueryAuditMetadataBuilder.Validate(metadata,definition.Source.Hash(),query.Result.ArtifactHash);}
-        return new(Guid.NewGuid(),null,started,DateTimeOffset.UtcNow,this.store.InstanceId,ManagementStore.Normalize(user.Name),definition.Database,definition.Id,AuditAction.DataChange,AuditOutcome.Succeeded,null,query.Result.ArtifactHash,transaction,"Committed",null,metadata?.Namespace,metadata?.TypeName,metadata?.MethodName,metadata?.MethodSignature,metadata?.QueryTemplate,metadata?.ModuleId,metadata?.MetadataToken);
+        return new(Guid.NewGuid(),null,started,DateTimeOffset.UtcNow,this.store.InstanceId,ManagementStore.Normalize(user.Name),this.store.CurrentDatabase(definition),definition.Id,AuditAction.DataChange,AuditOutcome.Succeeded,null,query.Result.ArtifactHash,transaction,"Committed",null,metadata?.Namespace,metadata?.TypeName,metadata?.MethodName,metadata?.MethodSignature,metadata?.QueryTemplate,metadata?.ModuleId,metadata?.MetadataToken);
     }
-    private async Task DeliverOriginAsync(AuditOrigin origin,CancellationToken cancellation){
-        if(origin.Drained){return;}var gate=this.Gate(origin.Database);await gate.WaitAsync(cancellation).ConfigureAwait(false);
+    private async Task DeliverOriginAsync(AuditOrigin origin,CancellationToken cancellation,bool synchronous=false){
+        if(origin.Drained){return;}var gate=this.Gate("db:"+origin.DefinitionId);if(synchronous){gate.Wait(cancellation);}else{await gate.WaitAsync(cancellation).ConfigureAwait(false);}
         try{
             var stored=this.store.Read<AuditOrigin>("auditOrigin",origin.WalId.ToString("N"));if(stored is null||stored.Drained){return;}origin=stored;
             try{
                 if(origin.Format!=1||origin.WalId==Guid.Empty||origin.Options.MetadataConsumer!="audit-v1"){throw new InvalidDataException("Invalid audit origin.");}
                 var current=this.store.Read<DefinitionVersion>("active",origin.DefinitionId);var archived=current is null||current.StoragePath!=origin.StoragePath;
-                var live=this.databases.TryGetValue(origin.Database,out var instance)&&instance.Path==this.Full(System.IO.Path.Combine(origin.StoragePath,"data"));
+                var live=this.databases.TryGetValue(origin.DefinitionId,out var instance)&&instance.Path==this.Full(System.IO.Path.Combine(origin.StoragePath,"data"));
                 if(live&&instance!.Compiled.Result.ArtifactHash!=origin.ArtifactHash){throw new InvalidDataException("Active audit artifact mismatch.");}
                 if(!live&&!archived&&origin.RecoveredSession==this.auditSession){return;}
                 TransactionJournal? detached=null;AuditDeliveryReceipt receipt;long acknowledged;
@@ -71,8 +73,9 @@ internal sealed partial class NativeRuntime{
                     TransactionJournal journal;if(live){journal=instance!.Database.MetadataJournal??throw new InvalidDataException("The active metadata journal is missing.");}
                     else{detached=new(this.AuditOriginPath(origin),origin.Options);journal=detached;}
                     if(journal.Device.WalId!=origin.WalId||journal.Options!=origin.Options){throw new InvalidDataException("Audit WAL identity/profile mismatch.");}
-                    receipt=await new AuditDelivery().DeliverOnceAsync(journal,this.store,cancellation).ConfigureAwait(false);acknowledged=journal.MetadataAcknowledgedLsn;
-                }finally{if(detached is not null){await detached.DisposeAsync().ConfigureAwait(false);}}
+                    var delivery=new AuditDelivery{Checkpoint=this.AuditTransferCheckpoint};
+                    if(synchronous){receipt=delivery.DeliverOnce(journal,this.store,cancellation);}else{receipt=await delivery.DeliverOnceAsync(journal,this.store,cancellation).ConfigureAwait(false);}acknowledged=journal.MetadataAcknowledgedLsn;
+                }finally{if(detached is not null){if(synchronous){detached.DisposeAsync().AsTask().GetAwaiter().GetResult();}else{await detached.DisposeAsync().ConfigureAwait(false);}}}
                 var session=origin.RecoveredSession;if(!live&&!receipt.HasMore){session=this.auditSession;}
                 var next=origin with{RecoveredSession=session,Drained=archived&&!receipt.HasMore,DurableLsn=receipt.DurableCeiling,AcknowledgedLsn=acknowledged,ErrorCode=null};
                 if(next!=origin){next=next with{StateUpdatedUtc=DateTimeOffset.UtcNow};this.store.Write(()=>this.store.Put("auditOrigin",origin.WalId.ToString("N"),next));}

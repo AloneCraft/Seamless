@@ -1,8 +1,8 @@
 namespace Seamless.Management.Server;
 
 public sealed partial class ManagementStore{
-    private AuditQueryInfo? ReadAuditMethod(string? artifact){
-        if(string.IsNullOrEmpty(artifact)){return null;}var value=this.Read<QueryAuditMetadata>("queryAudit",artifact);if(value is null){return null;}QueryAuditMetadataBuilder.Validate(value,value.SourceHash,artifact);
+    internal AuditQueryInfo? ReadAuditMethod(string? artifact,string? sourceHash=null){
+        if(string.IsNullOrEmpty(artifact)){return null;}var value=this.Read<QueryAuditMetadata>("queryAudit",artifact);if(value is null){return null;}QueryAuditMetadataBuilder.Validate(value,sourceHash??value.SourceHash,artifact);
         if(value.SourceHash is null||value.SourceHash.Length!=64||!value.SourceHash.All(static character=>Uri.IsHexDigit(character))||value.ArtifactHash.Length!=64||!value.ArtifactHash.All(static character=>Uri.IsHexDigit(character))||(value.MetadataToken&0x00ffffff)==0){throw new InvalidDataException("集計に対応する問い合わせの監査情報が不正です。");}
         TextBound(value.Namespace,1024);TextBound(value.TypeName,1024);TextBound(value.MethodName,512);TextBound(value.MethodSignature,2048);TextBound(value.QueryTemplate,8192);return new(value.Namespace,value.TypeName,value.MethodName,value.MethodSignature,value.ModuleId,value.MetadataToken,value.QueryTemplate);
     }

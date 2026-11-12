@@ -12,7 +12,10 @@ public sealed class DatabaseAuthorizationChange{
     public ImmutableArray<RoleBinding> Unassign{get;}
     public DatabaseAuthorizationChange(Guid databaseId,long expectedVersion,IEnumerable<SecurityRole>? upsertRoles=null,IEnumerable<Guid>? removeRoles=null,IEnumerable<RoleBinding>? assign=null,IEnumerable<RoleBinding>? unassign=null){
         this.DatabaseId=databaseId;this.ExpectedVersion=expectedVersion;this.UpsertRoles=(upsertRoles??[]).ToImmutableArray();this.RemoveRoles=(removeRoles??[]).ToImmutableArray();this.Assign=(assign??[]).ToImmutableArray();this.Unassign=(unassign??[]).ToImmutableArray();
-        if(this.UpsertRoles.Length+this.RemoveRoles.Length+this.Assign.Length+this.Unassign.Length>100000){throw new ArgumentException("The authorization change exceeds the supported limit.");}
-        if(this.UpsertRoles.Select(static role=>role.Id).Distinct().Count()!=this.UpsertRoles.Length||this.RemoveRoles.Distinct().Count()!=this.RemoveRoles.Length||this.UpsertRoles.Any(role=>this.RemoveRoles.Contains(role.Id))||this.Assign.Intersect(this.Unassign).Any()){throw new ArgumentException("The authorization change contains duplicate or contradictory edits.");}
+        ValidateEdits(this.UpsertRoles,this.RemoveRoles,this.Assign,this.Unassign);
+    }
+    internal static void ValidateEdits(ImmutableArray<SecurityRole> roles,ImmutableArray<Guid> remove,ImmutableArray<RoleBinding> assign,ImmutableArray<RoleBinding> unassign){
+        if(roles.Length+remove.Length+assign.Length+unassign.Length>100000){throw new ArgumentException("The authorization change exceeds the supported limit.");}
+        if(roles.Select(static role=>role.Id).Distinct().Count()!=roles.Length||remove.Distinct().Count()!=remove.Length||roles.Any(role=>remove.Contains(role.Id))||assign.Intersect(unassign).Any()){throw new ArgumentException("The authorization change contains duplicate or contradictory edits.");}
     }
 }

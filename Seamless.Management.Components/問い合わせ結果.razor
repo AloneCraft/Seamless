@@ -1,0 +1,80 @@
+@using System.Text.Json
+@implements IDisposable
+@inject IManagementOperations 管理
+<section class="問い合わせ結果" aria-label="@表示文言.取得("問い合わせの実行")">
+    <h2>@定義.Path</h2>
+    <p class="小案内">@表示文言.取得("公開版 v{0} の問い合わせを実行します。",公開版)</p>
+    @foreach(var 引数 in 引数一覧){<label class="引数入力">@引数.名前 <small>@引数.型</small><input aria-label="@表示文言.取得("引数 {0}",引数.名前)" @bind="引数.値" @bind:event="oninput"/></label>}
+    <label class="引数入力">@表示文言.取得("実行時の計測")<select aria-label="@表示文言.取得("実行時の計測")" @bind="this.計測モード" disabled="@this.実行中か"><option value="@ObjectExecutionMeasurementMode.None">@表示文言.取得("計測なし")</option><option value="@ObjectExecutionMeasurementMode.Summary">@表示文言.取得("軽量実測")</option></select></label>
+    <p class="小案内">@表示文言.取得("計測設定は次回の実行に適用します。")</p>
+    <トレース設定 値="@this.トレース設定値" 値変更時="値=>this.トレース設定値=値" 操作禁止か="@this.実行中か"/>
+    <button class="主要ボタン" disabled="@実行中か" @onclick="実行時Async"><操作アイコン 種類="実行"/>@(表示文言.取得("実行"))</button>
+    @if(this.実行中か){<button type="button" class="控えめボタン" @onclick="this.実行取消時"><操作アイコン 種類="取消"/>@表示文言.取得("実行を取り消す")</button>}
+    @if(案内 is not null){<p role="status">@案内</p>}
+    @if(結果 is{} 表示){
+        @if(表示.Statistics is{} 実測){
+            <label class="設定チェック"><input type="checkbox" @bind="this.統計表示か"/>@表示文言.取得("統計を表示")</label>
+            @if(this.統計表示か){
+                <実行統計表示 実測="@実測"/>
+            }
+        }
+        @if(!表示.IsSequence){<output aria-label="@表示文言.取得("戻り値")">@表示.Value</output>}
+        else{
+            <問い合わせ結果表 結果="表示"/>
+        }
+    }
+</section>
+@code{
+    [Parameter,EditorRequired]public QueryDesign 定義{get;set;}=default!;
+    [Parameter,EditorRequired]public string DB名{get;set;}="";
+    [Parameter]public long 公開版{get;set;}
+    [Parameter]public EventCallback<ObjectExecutionStatistics> 実測完了時{get;set;}
+    [Parameter]public EventCallback<Guid?> トレース実行時{get;set;}
+    private QueryDesign? 読込済み;
+    private string? 読込DB;
+    private long 読込版;
+    private readonly List<引数値> 引数一覧=[];
+    private ObjectExecutionResult? 結果;
+    private bool 実行中か,破棄済みか;
+    private bool 統計表示か=true;
+    private ObjectExecutionMeasurementMode 計測モード;
+    private QueryTraceOptions? トレース設定値;
+    private CancellationTokenSource? 実行取消;
+    private long 実行世代;
+    private string? 案内;
+    protected override void OnParametersSet(){
+        if(ReferenceEquals(this.読込済み,this.定義)&&this.読込DB==this.DB名&&this.読込版==this.公開版){return;}
+        this.実行世代++;var 前取消=this.実行取消;this.実行取消=null;前取消?.Cancel();this.実行中か=false;
+        this.読込済み=this.定義;this.読込DB=this.DB名;this.読込版=this.公開版;this.結果=null;this.案内=null;this.引数一覧.Clear();
+        foreach(var 引数 in this.定義.Parameters){this.引数一覧.Add(new(){名前=引数.Name,型=引数.Type});}
+    }
+    private async Task 実行時Async(){
+        if(this.実行中か||this.破棄済みか){return;}
+        var 世代=++this.実行世代;
+        using var 取消=new CancellationTokenSource();this.実行取消=取消;
+        this.実行中か=true;this.案内=null;this.結果=null;
+        try{
+            await this.トレース実行時.InvokeAsync((Guid?)null);
+            if(this.破棄済みか||世代!=this.実行世代){return;}
+            var 引数=this.引数一覧.Select(値=>引数JSON(値.値,値.型)).ToArray();
+            var 計測=this.計測モード;
+            var 結果=await this.管理.ExecuteObjectAsync(new(this.DB名,this.定義.Path,引数,ExpectedVersion:this.公開版){MeasurementMode=計測,TraceOptions=this.トレース設定値},取消.Token);
+            if(this.破棄済みか||世代!=this.実行世代){return;}
+            this.結果=結果;
+            if(計測==ObjectExecutionMeasurementMode.Summary&&結果.Statistics is{} 実測){await this.実測完了時.InvokeAsync(実測);}
+            if(!this.破棄済みか&&世代==this.実行世代){await this.トレース実行時.InvokeAsync(結果.TraceExecutionId);}
+        }catch(OperationCanceledException)when(取消.IsCancellationRequested){
+            if(!this.破棄済みか&&世代==this.実行世代){this.案内=表示文言.取得("実行を取り消しました。");}
+        }catch(Exception 例外){if(!this.破棄済みか&&世代==this.実行世代){this.案内=例外.Message;}}
+        finally{if(世代==this.実行世代){this.実行中か=false;this.実行取消=null;}}
+    }
+    private void 実行取消時()=>this.実行取消?.Cancel();
+    private static JsonElement 引数JSON(string 値,string 型){
+        if(型 is "string" or "global::System.String" or "System.String" or "char" or "global::System.Char" or "System.Char"||型.Contains("Date",StringComparison.Ordinal)||型.Contains("Time",StringComparison.Ordinal)||型.Contains("Guid",StringComparison.Ordinal)){
+            return JsonSerializer.SerializeToElement(値);
+        }
+        using var 文書=JsonDocument.Parse(値);return 文書.RootElement.Clone();
+    }
+    private sealed class 引数値{public string 名前="",型="",値="";}
+    public void Dispose(){if(this.破棄済みか){return;}this.破棄済みか=true;this.実行世代++;var 取消=this.実行取消;this.実行取消=null;取消?.Cancel();}
+}

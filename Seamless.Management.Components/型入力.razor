@@ -1,24 +1,27 @@
 @implements IAsyncDisposable
 @inject IJSRuntime スクリプト
 <div @ref="根" class="型入力" data-候補表示="@表示中か.ToString().ToLowerInvariant()">
-    <input @ref="入力" role="combobox" aria-label="列の型" aria-autocomplete="list" aria-expanded="@表示中か.ToString().ToLowerInvariant()"
+    <input @ref="入力" role="combobox" aria-label="@表示文言.取得(ラベル)" aria-autocomplete="list" aria-expanded="@表示中か.ToString().ToLowerInvariant()"
            aria-controls="@一覧ID" aria-activedescendant="@選択ID" value="@値" @oninput="入力時Async" spellcheck="false" autocomplete="off"/>
-    <button type="button" class="型候補ボタン" tabindex="-1" aria-label="C#型の候補" title="型の候補を開く · Alt+↓" @onclick="開閉時">⌄</button>
+    <button type="button" class="型候補ボタン" tabindex="-1" aria-label="@表示文言.取得("C#型の候補")" title="@表示文言.取得("型を補完 · Ctrl+Space / Alt+↓ · 型名を直接入力できます")" @onclick="開閉時"><操作アイコン 種類="下"/></button>
     @if(表示中か){
-        <div @ref="一覧" id="@一覧ID" class="操作ポップ 型候補一覧" role="listbox" aria-label="C#型の候補">
+        <div @ref="一覧" id="@一覧ID" class="操作ポップ 型候補一覧" role="listbox" aria-label="@表示文言.取得("C#型の候補")">
             @for(var 位置=0;位置<候補一覧.Length;位置++){
                 var 番号=位置;
                 <button type="button" id="@(一覧ID+"-"+番号)" role="option" aria-selected="@((番号==選択位置).ToString().ToLowerInvariant())"
-                        tabindex="-1" class="メニュー項目" @onmousedown:preventDefault="true" @onclick="()=>選択時Async(番号)">@候補一覧[番号]</button>
+                        tabindex="-1" aria-label="@候補一覧[番号].Label" class="メニュー項目" @onmousedown:preventDefault="true" @onclick="()=>選択時Async(番号)">@if(候補一覧[番号].IsNamespace){<操作アイコン 種類="フォルダー"/>}else{<操作アイコン 種類="型"/>}<span>@候補一覧[番号].Label</span>@if(候補一覧[番号].IsNamespace){<small>@(表示文言.取得("名前空間"))</small>}</button>
             }
-            @if(候補一覧.Length==0){<div class="候補なし">型名を直接入力できます</div>}
+            @if(候補一覧.Length==0){<div class="候補なし">@(表示文言.取得("型名を直接入力できます"))</div>}
+            @if(候補一覧.Length==100){<div class="候補なし">@(表示文言.取得("入力を続けると候補を絞れます"))</div>}
         </div>
     }
 </div>
 @code{
     [Parameter]public string 値{get;set;}="";
+    [Parameter]public string ラベル{get;set;}="列の型";
     [Parameter]public EventCallback<string> 値変更時{get;set;}
     [Parameter]public IEnumerable<string> 候補{get;set;}=[];
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IEnumerable<string>,CSharpTypeCompletion> 共有候補=new();
     private readonly string 一覧ID="type-"+Guid.NewGuid().ToString("N");
     private ElementReference 根,入力,一覧;
     private IJSObjectReference? モジュール,操作,ポップ;
@@ -26,9 +29,25 @@
     private readonly SemaphoreSlim 表示更新=new(1,1);
     private bool 破棄済みか;
     private bool 表示中か;
-    private string 検索語="";
+    private string 補完値="";
+    private int 補完位置;
+    private long 入力世代;
+    private IEnumerable<string>? 前の候補;
+    private CSharpTypeCompletion? カタログ;
+    private TypeCompletionItem[] 候補一覧=[];
+    private sealed record 入力状態(int Caret,bool Focused);
+    private (int 開始,int 長さ)? 選択待ち;
     private int 選択位置;
-    private string[] 候補一覧=>this.候補.Distinct(StringComparer.Ordinal).Where(型=>型.Contains(this.検索語,StringComparison.OrdinalIgnoreCase)).ToArray();
+    protected override void OnParametersSet(){
+        if(ReferenceEquals(this.候補,this.前の候補)){return;}
+        this.前の候補=this.候補;this.カタログ=共有候補.GetValue(this.候補,static 候補=>new(候補));
+        if(this.表示中か){this.候補を更新(false);}
+    }
+    private void 候補を更新(bool 全候補か){
+        this.カタログ??=共有候補.GetValue(this.候補,static 候補=>new(候補));
+        this.候補一覧=this.カタログ.Complete(this.補完値,this.補完位置,全候補か);
+        this.選択位置=Math.Clamp(this.選択位置,0,Math.Max(0,this.候補一覧.Length-1));
+    }
     private string? 選択ID{
         get{
             if(this.表示中か&&this.選択位置<this.候補一覧.Length){return this.一覧ID+"-"+this.選択位置;}
@@ -53,30 +72,53 @@
                 await 閉じる対象.DisposeAsync();
             }
             if(this.表示中か){await this.モジュール.InvokeVoidAsync("型候補を表示",this.一覧);}
+            if(this.選択待ち is{} 範囲){
+                this.選択待ち=null;
+                await this.操作!.InvokeVoidAsync("select",範囲.開始,範囲.長さ);
+            }
         }finally{
             this.表示更新.Release();
         }
     }
     private async Task 入力時Async(ChangeEventArgs 引数){
         var 入力値=引数.Value?.ToString()??"";
-        this.検索語=入力値;this.選択位置=0;this.表示中か=true;
+        var 世代=++this.入力世代;this.選択待ち=null;
+        var 状態=new 入力状態(入力値.Length,true);
+        if(this.操作 is not null){状態=await this.操作.InvokeAsync<入力状態>("inputState");}
+        if(世代!=this.入力世代||this.破棄済みか){return;}
+        this.補完値=入力値;this.補完位置=状態.Caret;this.選択位置=0;this.表示中か=状態.Focused;this.候補を更新(false);
         await this.値変更時.InvokeAsync(入力値);
     }
-    private void 全候補を開く(){
-        this.表示中か=true;this.検索語="";
-        this.選択位置=Math.Max(0,Array.IndexOf(this.候補一覧,this.値));
+    private void 全候補を開く(int 位置){
+        this.表示中か=true;this.補完値=this.値;this.補完位置=位置;this.選択位置=0;this.候補を更新(true);
+        var 選択=Array.FindIndex(this.候補一覧,候補=>this.値.Substring(候補.Start,候補.Length)==候補.InsertText);
+        if(選択>=0){this.選択位置=選択;}
     }
-    private void 開閉時(){if(this.表示中か){this.表示中か=false;}else{this.全候補を開く();}}
+    private async Task 開閉時(){
+        if(this.表示中か){this.表示中か=false;return;}
+        var 位置=this.値.Length;if(this.操作 is not null){位置=await this.操作.InvokeAsync<int>("caret");}
+        this.全候補を開く(位置);
+    }
     private async Task 選択時Async(int 位置){
         var 一覧=this.候補一覧;
-        this.表示中か=false;
-        if(位置>=0&&位置<一覧.Length){await this.値変更時.InvokeAsync(一覧[位置]);}
-        await this.入力.FocusAsync();
+        if(位置<0||位置>=一覧.Length){return;}
+        var 候補=一覧[位置];
+        var 新値=this.補完値[..候補.Start]+候補.InsertText+this.補完値[(候補.Start+候補.Length)..];
+        this.入力世代++;this.補完値=新値;this.補完位置=候補.Start+候補.InsertText.Length;this.値=新値;
+        this.表示中か=候補.IsNamespace;this.選択位置=0;
+        this.選択待ち=(this.補完位置,0);
+        var 型引数=候補.InsertText.IndexOf('<');
+        if(!候補.IsNamespace&&型引数>=0){
+            var 終了=候補.InsertText.IndexOfAny([',','>'],型引数+1);
+            if(終了>型引数){this.選択待ち=(候補.Start+型引数+1,終了-型引数-1);}
+        }
+        if(this.表示中か){this.候補を更新(true);}
+        await this.値変更時.InvokeAsync(新値);
         await this.InvokeAsync(this.StateHasChanged);
     }
     [JSInvokable]public Task 閉じるAsync(){this.表示中か=false;return this.InvokeAsync(this.StateHasChanged);}
-    [JSInvokable]public Task キー入力Async(string キー,bool 全候補か){
-        if(!this.表示中か||全候補か){this.全候補を開く();}
+    [JSInvokable]public Task キー入力Async(string キー,bool 全候補か,int 位置){
+        if(!this.表示中か||全候補か){this.全候補を開く(位置);}
         else if(キー=="Enter"){return this.選択時Async(this.選択位置);}
         else if(this.候補一覧.Length>0){
             var 差=1;if(キー=="ArrowUp"){差=-1;}
@@ -85,15 +127,14 @@
         return this.InvokeAsync(this.StateHasChanged);
     }
     public async ValueTask DisposeAsync(){
+        if(this.破棄済みか){return;}
         this.破棄済みか=true;
         await this.表示更新.WaitAsync();
         try{
-            foreach(var 対象 in new[]{this.ポップ,this.操作}){
-                if(対象 is not null){try{await 対象.InvokeVoidAsync("dispose");await 対象.DisposeAsync();}catch(JSDisconnectedException){}}
-            }
-            if(this.モジュール is not null){try{await this.モジュール.DisposeAsync();}catch(JSDisconnectedException){}}
-            this.参照?.Dispose();
+            try{await スクリプト参照.解放Async(this.ポップ,null);}
+            finally{await スクリプト参照.解放Async(this.操作,this.モジュール);}
         }finally{
+            this.参照?.Dispose();
             this.表示更新.Release();
         }
     }

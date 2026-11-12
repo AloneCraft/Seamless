@@ -1,0 +1,365 @@
+@using System.Text.Json
+@inject IManagementOperations 管理操作
+@implements IDisposable
+
+<div class="結果グリッド領域">
+    <div class="グリッド見出し">
+        <div class="グリッド情報">
+            <span class="表アイコン"><操作アイコン 種類="テーブル"/></span>
+            <h3>@(string.IsNullOrEmpty(テーブル名) ? 表示文言.取得("テーブル未選択") : テーブル名)</h3>
+            @if(読込完了か){
+                <span class="件数バッジ">@表示文言.取得("{0} 行",行一覧.Count) @if(さらにあるか){@表示文言.取得("（続きあり）")}</span>
+                <span class="版ラベル">v@(版)</span>
+            }
+        </div>
+        <div class="グリッド操作">
+            @if(!string.IsNullOrEmpty(テーブル名)){
+                @if(編集可能か){<button class="テキストボタン" disabled="@(読込中か||保存中か)" @onclick="()=>行追加開始()"><操作アイコン 種類="行を追加"/>@(表示文言.取得("行を追加"))</button>}
+                @if(変更件数 > 0){
+                    <button class="控えめボタン" disabled="@(読込中か||保存中か)" @onclick="変更取消"><操作アイコン 種類="戻す"/>@表示文言.取得("元に戻す ({0})",変更件数)</button>
+                    <button class="主要ボタン" disabled="@(読込中か||保存中か||!編集可能か)" @onclick="保存実行Async"><操作アイコン 種類="保存"/>@表示文言.取得("変更を保存 ({0})",変更件数)</button>
+                }
+                <button class="控えめボタン" disabled="@(読込中か||保存中か)" @onclick="再読込Async"><操作アイコン 種類="再読込"/>@(表示文言.取得("再読込"))</button>
+                @if(版更新待ちか&&変更件数>0){<button class="控えめボタン" disabled="@(読込中か||保存中か)" @onclick="破棄再読込Async">@表示文言.取得("未保存の変更を破棄して再読込")</button>}
+            }
+        </div>
+    </div>
+
+    @if(!string.IsNullOrEmpty(案内)){
+        <div class="状態通知" role="status" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>
+    }
+
+    @if(読込中か&&行一覧.Count==0){
+        <div class="グリッド案内">@(表示文言.取得("データを読み込んでいます..."))</div>
+    }else if(string.IsNullOrEmpty(テーブル名)){
+        <div class="空の構造"><span>▦</span><h3>@(表示文言.取得("テーブルを選択してください"))</h3><p>@(表示文言.取得("構造画面からテーブルを選択すると、行データの閲覧と編集が行えます。"))</p></div>
+    }else if(列一覧.Count==0){
+        <div class="空の構造"><span>▦</span><h3>@(表示文言.取得("列が定義されていません"))</h3><p>@(表示文言.取得("テーブルの定義を確認してください。"))</p></div>
+    }else{
+        <編集グリッド 名前="@(テーブル名!)" 表クラス="データ表" 枠クラス="グリッド枠">
+                <見出し>
+                        <th class="操作列 行操作列"></th>
+                        @foreach(var 列 in 列一覧){
+                            <th class="@(列.主キーか ? "主キー列" : "")">
+                                <div class="列見出し">
+                                    <span>@列.表示名</span>
+                                    @if(列.主キーか){<span class="PK印">PK</span>}
+                                    <small>@列.型</small>
+                                </div>
+                            </th>
+                        }
+                </見出し>
+                <行>
+                    @foreach(var 新規 in 新規行){
+                        <tr @key="新規" class="新規行">
+                            <td class="操作列 行操作列"><button class="省略ボタン" title="@表示文言.取得("取消")" aria-label="@表示文言.取得("取消")" disabled="@(読込中か||保存中か)" @onclick="()=>新規行.Remove(新規)"><操作アイコン 種類="取消"/></button></td>
+                            @foreach(var 列 in 列一覧){
+                                <td>
+                                    <input class="セル入力" aria-label="@表示文言.取得("新規行 {0}",列.表示名)" readonly="@(読込中か||保存中か||!編集可能か)" value="@新規.Values.GetValueOrDefault(列.名前, "")" @oninput="引数=>セル変更(新規.Values, 列.名前, 引数.Value?.ToString())"/>
+                                </td>
+                            }
+                        </tr>
+                    }
+                    @for(var i=0; i<行一覧.Count; i++){
+                        var 行 = 行一覧[i];
+                        <tr @key="行" class="@(行.削除予定か ? "削除行" : 行.変更ありか ? "変更行" : "")">
+                            <td class="操作列 行操作列">
+                                @if(行.削除予定か){
+                                    <button class="テキストボタン" title="@表示文言.取得("復元")" disabled="@(読込中か||保存中か)" @onclick="()=>行.削除予定か=false"><操作アイコン 種類="戻す"/>@(表示文言.取得("戻す"))</button>
+                                }else{
+                                    <button class="省略ボタン" title="@表示文言.取得("削除")" aria-label="@表示文言.取得("削除")" disabled="@(読込中か||保存中か||!編集可能か)" @onclick="()=>行.削除予定か=true"><操作アイコン 種類="削除"/></button>
+                                }
+                            </td>
+                            @foreach(var 列 in 列一覧){
+                                <td>
+                                    @if(行.削除予定か){
+                                        <span class="削除セル">@行.GetDisplayValue(列.名前)</span>
+                                    }else{
+                                        <input class="セル入力 @(行.Values.ContainsKey(列.名前) ? "セル変更" : "")" aria-label="@表示文言.取得("行{0} {1}",i+1,列.表示名)" readonly="@(読込中か||保存中か||!編集可能か)" value="@行.GetDisplayValue(列.名前)" @oninput="引数=>行セル変更(行, 列.名前, 引数.Value?.ToString())"/>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                </行>
+        </編集グリッド>
+        @if(さらにあるか){
+            <div class="次ページ枠">
+                <button class="控えめボタン" disabled="@(読込中か||保存中か)" @onclick="次ページ読込Async">@(読込中か ? "読み込み中..." : "さらに読み込む")</button>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public string DB名 { get; set; } = "";
+    [Parameter] public string? テーブル名 { get; set; }
+    [Parameter] public bool 表示中か { get; set; } = true;
+    [Parameter]public bool 編集可能か{get;set;}=true;
+    [Parameter] public long? 公開版 { get; set; }
+    [Parameter] public EventCallback<bool> 未保存変更時 { get; set; }
+    private bool? 通知済み変更か;
+    private bool 再開読込か;
+    private long? 前公開版;
+    private bool 版更新待ちか;
+
+    private string? 前テーブル;
+    private string? 前DB;
+    private long 読込世代;
+    private CancellationTokenSource? 読込取消;
+    private TableRowCursor? 次カーソル;
+    private long 版;
+    private bool 読込中か;
+    private bool 保存中か;
+    private bool 読込完了か;
+    private bool さらにあるか;
+    private string 案内 = "";
+    private bool エラーか;
+
+    private readonly List<列情報> 列一覧 = [];
+    private readonly List<行モデル> 行一覧 = [];
+    private readonly List<新規行モデル> 新規行 = [];
+
+    private int 変更件数 => 新規行.Count + 行一覧.Count(r => r.変更ありか || r.削除予定か);
+    protected override async Task OnAfterRenderAsync(bool firstRender){
+        if(this.版更新待ちか&&this.表示中か&&this.変更件数==0&&!this.読込中か&&!this.保存中か){await this.再読込Async();return;}
+        var 変更か=this.変更件数>0;
+        if(this.通知済み変更か!=変更か){this.通知済み変更か=変更か;await this.未保存変更時.InvokeAsync(変更か);}
+    }
+
+    protected override async Task OnParametersSetAsync(){
+        if(!this.表示中か){
+            if(this.読込中か){this.再開読込か=!this.読込完了か;this.読込世代++;this.読込取消?.Cancel();this.読込中か=false;}
+            return;
+        }
+        var 対象変更か=this.DB名!=this.前DB||this.テーブル名!=this.前テーブル;
+        var 版変更か=this.公開版!=this.前公開版;
+        if(対象変更か||版変更か||this.再開読込か||this.版更新待ちか){
+            this.前公開版=this.公開版;
+            if(!対象変更か&&(this.変更件数>0||this.保存中か)){
+                this.版更新待ちか=true;if(!this.保存中か){this.読込世代++;this.読込取消?.Cancel();this.読込中か=false;}
+                this.案内=表示文言.取得("公開版が更新されました。未保存の行編集を保持しています。変更を破棄してから最新のデータを読み込んでください。");return;
+            }
+            this.再開読込か=false;
+            this.前DB=this.DB名;this.前テーブル=this.テーブル名;
+            await this.再読込Async();
+        }
+    }
+
+    public async Task 再読込Async(){
+        if(this.版更新待ちか&&this.変更件数>0){this.案内=表示文言.取得("公開版が更新されました。未保存の行編集を保持しています。変更を破棄してから最新のデータを読み込んでください。");return;}
+        this.読込世代++;var 世代=this.読込世代;
+        var 要求版=this.公開版;this.前公開版=要求版;this.版更新待ちか=false;
+        this.読込取消?.Cancel();this.読込取消?.Dispose();this.読込取消=new();var 取消=this.読込取消.Token;
+        読込中か = true;
+        this.保存中か=false;this.読込完了か=false;this.さらにあるか=false;this.次カーソル=null;
+        案内 = "";
+        エラーか = false;
+        新規行.Clear();
+        行一覧.Clear();
+        列一覧.Clear();
+        if(string.IsNullOrEmpty(this.DB名)||string.IsNullOrEmpty(this.テーブル名)){this.読込中か=false;return;}
+        StateHasChanged();
+
+        try {
+            var res=await this.管理操作.ReadRowsAsync(new TableRowsRequest(this.DB名,this.テーブル名,100,ExpectedVersion:要求版),取消);
+            if(世代!=this.読込世代){return;}
+            if(要求版 is >0&&res.Version!=要求版){throw new ManagementException("Conflict",表示文言.取得("取得したデータの公開版が一致しません。再読込してください。"));}
+            版 = res.Version;
+            さらにあるか = res.HasMore;
+            this.次カーソル=res.NextCursor;
+
+            // 列の判定
+            if(res.Columns is { Length: > 0 } cols){
+                foreach(var c in cols){
+                    列一覧.Add(new 列情報(c.Name,c.Type,res.KeyMembers.Any(キー=>キー.Name==c.Name)){表示名=c.DisplayName??c.Name});
+                }
+            }
+
+            foreach(var row in res.Rows){
+                var model = new 行モデル(row);
+                行一覧.Add(model);
+
+                // 列がまだなければ最初の行から補完
+                if(列一覧.Count == 0){
+                    補完列(row);
+                }
+            }
+            読込完了か = true;
+        }catch(OperationCanceledException)when(取消.IsCancellationRequested){
+        }catch(Exception ex){
+            if(世代==this.読込世代){this.エラーか=true;this.案内=表示文言.取得("データの読み込みに失敗しました: ")+ex.Message;}
+        }finally{
+            if(世代==this.読込世代){this.読込中か=false;this.StateHasChanged();}
+        }
+    }
+
+    private void 補完列(TableRowSnapshot row){
+        if(row.Key.ValueKind == JsonValueKind.Object){
+            foreach(var prop in row.Key.EnumerateObject()){
+                if(!列一覧.Any(c => c.名前 == prop.Name)){
+                    列一覧.Add(new 列情報(prop.Name, prop.Value.ValueKind.ToString(), true));
+                }
+            }
+        }
+        if(row.Values.ValueKind == JsonValueKind.Object){
+            foreach(var prop in row.Values.EnumerateObject()){
+                if(!列一覧.Any(c => c.名前 == prop.Name)){
+                    列一覧.Add(new 列情報(prop.Name, prop.Value.ValueKind.ToString(), false));
+                }
+            }
+        }
+    }
+
+    public async Task 次ページ読込Async(){
+        if(this.版更新待ちか){return;}
+        if(this.読込中か||this.保存中か||!this.さらにあるか||this.行一覧.Count==0){return;}
+        if(this.次カーソル is null){this.エラーか=true;this.案内=表示文言.取得("接続先が続き取得に対応していません。サーバーを更新してください。");return;}
+        var 世代=this.読込世代;var 取消=this.読込取消!.Token;
+        読込中か = true;
+        StateHasChanged();
+        try {
+            var res=await this.管理操作.ReadRowsAsync(new TableRowsRequest(this.DB名,this.テーブル名!,100,ExpectedVersion:this.版){Cursor=this.次カーソル},取消);
+            if(世代!=this.読込世代){return;}
+            さらにあるか = res.HasMore;
+            this.次カーソル=res.NextCursor;this.エラーか=false;this.案内="";
+            foreach(var row in res.Rows){
+                行一覧.Add(new 行モデル(row));
+            }
+        }catch(OperationCanceledException)when(取消.IsCancellationRequested){
+        }catch(Exception ex){
+            if(世代==this.読込世代){this.エラーか=true;this.案内=表示文言.取得("続きの読み込みに失敗しました: ")+ex.Message;}
+        }finally{
+            if(世代==this.読込世代){this.読込中か=false;this.StateHasChanged();}
+        }
+    }
+
+    private void 行追加開始(){
+        if(!this.編集可能か){return;}
+        新規行.Add(new 新規行モデル());
+    }
+
+    private async Task 変更取消(){
+        新規行.Clear();
+        foreach(var row in 行一覧){
+            row.Values.Clear();
+            row.削除予定か = false;
+        }
+        案内 = "";
+        if(this.版更新待ちか){await this.再読込Async();}
+    }
+    private Task 破棄再読込Async(){this.新規行.Clear();foreach(var 行 in this.行一覧){行.Values.Clear();行.削除予定か=false;}return this.再読込Async();}
+
+    private void セル変更(Dictionary<string, string> dict, string key, string? val){
+        if(!this.編集可能か){return;}
+        dict[key] = val ?? "";
+    }
+
+    private void 行セル変更(行モデル row, string key, string? val){
+        if(!this.編集可能か){return;}
+        var value=val??"";
+        if(value==row.GetOriginalDisplayValue(key)){row.Values.Remove(key);}else{row.Values[key]=value;}
+    }
+
+    public async Task 保存実行Async(){
+        if(!this.編集可能か){this.案内=表示文言.取得("行を変更する権限がありません。");return;}
+        if(string.IsNullOrEmpty(this.テーブル名)||this.変更件数==0||this.保存中か||this.読込中か){return;}
+        if(this.版更新待ちか){this.案内=表示文言.取得("公開版が更新されました。未保存の行編集を保持しています。変更を破棄してから最新のデータを読み込んでください。");return;}
+        var 世代=this.読込世代;
+        保存中か = true;
+        案内 = "";
+        エラーか = false;
+        StateHasChanged();
+
+        try {
+            var changes = new List<TableRowChange>();
+            var 型一覧=列一覧.ToDictionary(列=>列.名前,列=>列.型,StringComparer.Ordinal);
+            // 新規追加
+            foreach(var n in 新規行){
+                var vals=JsonSerializer.SerializeToElement(n.Values.ToDictionary(値=>値.Key,値=>セル値(値.Value,型一覧.GetValueOrDefault(値.Key,"")),StringComparer.Ordinal));
+                changes.Add(new TableRowChange(テーブル名, TableRowChangeKind.Insert, Values: vals));
+            }
+            // 更新・削除
+            foreach(var r in 行一覧){
+                if(r.削除予定か){
+                    changes.Add(new TableRowChange(テーブル名, TableRowChangeKind.Delete, Key: r.Snapshot.Key, ExpectedStamp: r.Snapshot.Stamp));
+                }else if(r.変更ありか){
+                    // 既存値に変更差分をマージ
+                    var merged = r.CreateMergedValues(型一覧);
+                    changes.Add(new TableRowChange(テーブル名, TableRowChangeKind.Replace, Key: r.Snapshot.Key, ExpectedStamp: r.Snapshot.Stamp, Values: merged));
+                }
+            }
+
+            var batch = new TableRowBatch(DB名, 版, Guid.NewGuid(), [..changes]);
+            var commit = await 管理操作.CommitRowsAsync(batch);
+            if(世代!=this.読込世代){return;}
+            this.版更新待ちか=false;
+            var 再読込世代=世代+1;
+            await 再読込Async();
+            if(再読込世代==this.読込世代){
+                世代=再読込世代;
+                this.案内=表示文言.取得("{0} 行の変更を保存しました (v{1})。",commit.ChangedRows,commit.Version)+this.案内;
+            }
+        }catch(Exception ex){
+            if(世代==this.読込世代){this.エラーか=true;this.案内=表示文言.取得("保存に失敗しました: ")+ex.Message;}
+        }finally{
+            if(世代==this.読込世代){this.保存中か=false;this.StateHasChanged();}
+        }
+    }
+
+    // 名前は値のJSONキー、表示名は見出し・読み上げに使う宣言名。
+    private sealed record 列情報(string 名前, string 型, bool 主キーか){public string 表示名{get;init;}=名前;}
+
+    public void Dispose(){this.読込世代++;this.読込取消?.Cancel();this.読込取消?.Dispose();}
+
+    private static JsonElement セル値(string 値,string 型,JsonValueKind 元種類=JsonValueKind.Undefined){
+        if(元種類==JsonValueKind.String||型 is "string" or "string?" or "System.String" or "char" or "System.Char"){
+            return JsonSerializer.SerializeToElement(値);
+        }
+        if(bool.TryParse(値,out var 真偽)){return JsonSerializer.SerializeToElement(真偽);}
+        try{using var 文書=JsonDocument.Parse(値);return 文書.RootElement.Clone();}
+        catch(JsonException)when(元種類 is not JsonValueKind.Object and not JsonValueKind.Array){return JsonSerializer.SerializeToElement(値);}
+    }
+
+    private sealed class 新規行モデル {
+        public Dictionary<string, string> Values { get; } = new(StringComparer.Ordinal);
+    }
+
+    private sealed class 行モデル(TableRowSnapshot snapshot){
+        public TableRowSnapshot Snapshot { get; } = snapshot;
+        public Dictionary<string, string> Values { get; } = new(StringComparer.Ordinal);
+        public bool 削除予定か { get; set; }
+        public bool 変更ありか => Values.Count > 0;
+
+        public string GetDisplayValue(string name){
+            if(Values.TryGetValue(name, out var modified)){
+                return modified;
+            }
+            return this.GetOriginalDisplayValue(name);
+        }
+
+        public string GetOriginalDisplayValue(string name){
+            if(Snapshot.Key.ValueKind == JsonValueKind.Object && Snapshot.Key.TryGetProperty(name, out var kProp)){
+                return kProp.ToString();
+            }
+            if(Snapshot.Values.ValueKind == JsonValueKind.Object && Snapshot.Values.TryGetProperty(name, out var vProp)){
+                return vProp.ToString();
+            }
+            return "";
+        }
+
+        public JsonElement CreateMergedValues(IReadOnlyDictionary<string,string>? 型一覧=null){
+            var dict = new Dictionary<string,JsonElement>(StringComparer.Ordinal);
+            if(Snapshot.Values.ValueKind == JsonValueKind.Object){
+                foreach(var prop in Snapshot.Values.EnumerateObject()){
+                    dict[prop.Name]=prop.Value.Clone();
+                }
+            }
+            foreach(var kv in Values){
+                var 種類=JsonValueKind.Undefined;if(dict.TryGetValue(kv.Key,out var 元値)){種類=元値.ValueKind;}
+                dict[kv.Key]=セル値(kv.Value,型一覧?.GetValueOrDefault(kv.Key,"")??"",種類);
+            }
+            return JsonSerializer.SerializeToElement(dict);
+        }
+    }
+}

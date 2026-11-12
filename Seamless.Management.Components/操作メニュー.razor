@@ -1,0 +1,69 @@
+@typeparam T対象
+@implements IAsyncDisposable
+@inject IJSRuntime スクリプト
+<div @ref="要素" class="操作ポップ" role="dialog" aria-label="@表示文言.取得("操作メニュー")" data-操作メニュー>
+    <header class="メニュー見出し"><span>@見出し</span><kbd>esc</kbd></header>
+    <input class="操作検索" aria-label="@表示文言.取得("アクションを検索")" placeholder="@表示文言.取得("アクションを検索…")" value="@検索語" @oninput="検索変更時"/>
+    @if(階層.Length>0){<button type="button" class="階層戻り" @onclick="戻る時"><操作アイコン 種類="左"/> @階層表示</button>}
+    <div role="menu" aria-label="@表示文言.取得("対象の操作")" class="メニュー候補">
+        @foreach(var 組 in 表示グループ()){
+            <button type="button" role="menuitem" data-サブメニュー class="メニュー項目" @onclick="()=>階層へ移動(組)"><span class="コマンドアイコン"><操作アイコン 種類="@組"/></span><span>@表示文言.取得(組)</span><操作アイコン 種類="右"/></button>
+        }
+        @foreach(var 操作 in 表示コマンド()){
+            <button type="button" role="menuitem" class="メニュー項目" data-破壊的="@操作.破壊的か.ToString().ToLowerInvariant()" disabled="@(!操作.実行できるか(対象)||登録.実行中か)"
+                    @onclick="()=>選択時.InvokeAsync(操作.ID)">
+                <span class="コマンドアイコン"><操作アイコン 種類="@アイコン名(操作)"/></span><span>@表示文言.取得(操作.表示名)</span><kbd>@操作.ショートカット</kbd>
+            </button>
+        }
+        @if(!表示グループ().Any()&&!表示コマンド().Any()){<p class="候補なし">@(表示文言.取得("該当する操作がありません"))</p>}
+    </div>
+    <footer class="メニューフッター">@(表示文言.取得("↑↓ 選択　Enter 実行"))</footer>
+</div>
+@code{
+    [Parameter,EditorRequired]public コマンド登録<T対象> 登録{get;set;}=default!;
+    [Parameter,EditorRequired]public T対象 対象{get;set;}=default!;
+    [Parameter]public string 見出し{get;set;}="操作";
+    [Parameter]public ElementReference 起点{get;set;}
+    [Parameter]public double X{get;set;}
+    [Parameter]public double Y{get;set;}
+    [Parameter]public bool 中央か{get;set;}
+    [Parameter]public EventCallback<string> 選択時{get;set;}
+    [Parameter]public EventCallback 閉鎖時{get;set;}
+    private ElementReference 要素;
+    private string 検索語="";
+    private string 階層="";
+    private string 階層表示=>string.Join(" / ",this.階層.Split('/').Select(項目=>表示文言.取得(項目)));
+    private IJSObjectReference? モジュール;
+    private IJSObjectReference? 表示;
+    private bool 破棄済みか;
+    private DotNetObjectReference<操作メニュー<T対象>>? 参照;
+    protected override async Task OnAfterRenderAsync(bool firstRender){
+        if(firstRender){
+            this.参照=DotNetObjectReference.Create(this);
+            this.モジュール=await this.スクリプト.InvokeAsync<IJSObjectReference>("import","./_content/Seamless.Management.Components/interaction.js");
+            this.表示=await this.モジュール.InvokeAsync<IJSObjectReference>("メニューを開く",this.要素,this.起点,this.X,this.Y,this.中央か,this.参照);
+        }else if(this.モジュール is not null){
+            await this.モジュール.InvokeVoidAsync("メニュー内へフォーカス",this.要素);
+        }
+    }
+    private IEnumerable<操作コマンド<T対象>> 候補()=>this.登録.検索(this.対象,this.検索語);
+    private static string アイコン名(操作コマンド<T対象> 操作){if(操作.アイコン.Length>0){return 操作.アイコン;}return 操作.表示名;}
+    private IEnumerable<操作コマンド<T対象>> 表示コマンド()=>this.候補().Where(項目=>this.検索語.Length>0||(項目.グループ??"")==this.階層);
+    private IEnumerable<string> 表示グループ(){
+        if(this.検索語.Length>0){return [];}
+        var 接頭辞="";if(this.階層.Length>0){接頭辞=this.階層+"/";}
+        return this.候補().Select(項目=>項目.グループ??"").Where(組=>組.StartsWith(接頭辞,StringComparison.Ordinal)&&組.Length>接頭辞.Length)
+            .Select(組=>組[接頭辞.Length..].Split('/')[0]).Distinct(StringComparer.Ordinal);
+    }
+    private void 検索変更時(ChangeEventArgs 引数){this.検索語=引数.Value?.ToString()??"";this.階層="";}
+    private void 階層へ移動(string 組){if(this.階層.Length>0){this.階層+="/";}this.階層+=組;}
+    private void 戻る時(){var 現在=this.階層;var 位置=現在.LastIndexOf('/');this.階層="";if(位置>=0){this.階層=現在[..位置];}}
+    [JSInvokable]public Task 閉じるAsync()=>this.閉鎖時.InvokeAsync();
+    [JSInvokable]public Task 戻るAsync(){this.戻る時();return this.InvokeAsync(this.StateHasChanged);}
+    public async ValueTask DisposeAsync(){
+        if(this.破棄済みか){return;}
+        this.破棄済みか=true;
+        try{await スクリプト参照.解放Async(this.表示,this.モジュール);}
+        finally{this.参照?.Dispose();}
+    }
+}

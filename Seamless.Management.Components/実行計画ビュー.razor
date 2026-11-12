@@ -1,0 +1,310 @@
+﻿@inject IManagementOperations 管理操作
+@implements IDisposable
+
+<div class="実行計画領域">
+    <div class="計画見出し">
+        <div class="計画情報">
+            <span class="計画アイコン"><操作アイコン 種類="計画"/></span>
+            <h3>@(表示文言.取得("FLINQ 静的実行計画"))</h3>
+            @if(現在計画一覧 is { Length: > 0 } plans){
+                <span class="件数バッジ">@表示文言.取得("{0} 件の最適化計画",plans.Length)</span>
+            }
+        </div>
+        <div class="計画操作">
+            @if(!string.IsNullOrEmpty(定義ID)){
+                <button class="控えめボタン" disabled="@読込中か" @onclick="再取得Async"><操作アイコン 種類="公開済み計画を取得"/>@取得名</button>
+                @if(対象?.DraftRevision is not null){<button class="テキストボタン" disabled="@読込中か" @onclick="()=>読込Async(対象 with{DraftRevision=null,BundleHash=null})">@表示文言.取得("公開済み計画を取得")</button>}
+            }
+            @if(外部計画 is not null&&公開計画か){<button class="テキストボタン" disabled="@読込中か" @onclick="()=>{公開計画か=false;選択インデックス=0;}"><操作アイコン 種類="下書きの計画を表示"/>@(表示文言.取得("下書きの計画を表示"))</button>}
+        </div>
+    </div>
+
+    @if(!string.IsNullOrEmpty(案内)){
+        <div class="状態通知" role="status" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>
+    }
+
+    @if(読込中か){
+        <div class="グリッド案内">@(表示文言.取得("実行計画を読み込んでいます..."))</div>
+    }else if(現在計画一覧 is null or { Length: 0 }){
+        <div class="空の構造">
+            <span>☡</span>
+            <h3>@(表示文言.取得("実行計画がありません"))</h3>
+            @if(取得結果?.Selection.UnavailableReason is null){<p>@(表示文言.取得("下書きをビルドまたは検証するか、公開済み定義を選択して実行計画を取得してください。"))</p>}
+        </div>
+    }else{
+        <div class="計画セレクター帯">
+            <label>@表示文言.取得("対象クエリ / メソッド")
+                <select @bind="選択インデックス">
+                    @for(var i=0; i<現在計画一覧.Length; i++){
+                        var p = 現在計画一覧[i];
+                        <option value="@i">@p.MethodKey · @表示文言.取得("ノード数 {0}",p.Nodes.Length)</option>
+                    }
+                </select>
+            </label>
+        </div>
+
+        @if(選択計画 is{} plan){
+            <ビュー展開通知 計画="@plan"/>
+            <div class="構造段階"><label>@表示文言.取得("構造の段階")<select aria-label="@表示文言.取得("構造の段階")" value="@this.構造段階" @onchange="this.構造変更時Async"><option value="Relational">@表示文言.取得("関係代数")</option><option value="Logical">@表示文言.取得("論理処理")</option><option value="Generated">@表示文言.取得("FLinq生成C#構造")</option></select></label></div>
+            @if(this.構造段階=="Relational"){
+                <p class="小案内">@表示文言.取得("元クエリの演算を表示します。列の問い合わせには順序と重複を含むシーケンス契約が適用されます。")</p>
+                @if(!plan.Nodes.Any(項目=>計画グラフ配置.層を取得(項目)==計画表示層.元のクエリ)){<p role="status">@表示文言.取得("元クエリの関係演算は未収集です。論理処理の段階で採用処理を確認できます。")</p>}
+            }
+            @if(this.構造段階=="Logical"){<p class="小案内">@表示文言.取得("採用された処理と元の式を、記録された層と接続種別で表示します。")</p>}
+            <div class="計画メタデータ">
+                <span>@計画区分</span>
+                @if(取得結果 is{} 結果){<span>@表示文言.取得("公開版 v{0}",結果.Version) · <code>@結果.ArtifactHash</code></span>}
+                @if(取得結果?.DraftRevision is{} 下書き版){<span>@表示文言.取得("下書き r{0}",下書き版)</span>}
+                <span>@(表示文言.取得("メソッド:"))<strong>@plan.MethodKey</strong></span>
+                <span>@(表示文言.取得("スキーマ:"))<code>v@(plan.SchemaVersion)</code></span>
+                <span>@(表示文言.取得("ジェネレーター:"))<code>@plan.GeneratorVersion</code></span>
+                <span>@(表示文言.取得("ノード数:"))<strong>@plan.Nodes.Length</strong></span>
+                <span>@string.Join(" · ",plan.Nodes.Select(項目=>項目.SourcePath).Where(項目=>項目 is not null).Distinct())</span>
+            </div>
+
+            @if(適合実測 is{} 表示実測){<実行統計表示 実測="@表示実測"/>}
+            @if(this.現在実行ID is not null&&this.適合実測 is null){<p role="status">@表示文言.取得("選択した実行IDに一致する全体実測はありません。別の実行の値は表示しません。")</p>}
+            @if(適合観測 is{} 終端){
+                <div class="状態通知" role="status" data-エラー="@((終端.Outcome=="Failed").ToString().ToLowerInvariant())">@表示文言.取得(実績状態名(終端.Outcome)) · @表示文言.取得("実行段階") @終端.Phase · @終端.ErrorCode</div>
+            }
+
+            <計画保存 対象="@取得結果" 計画="@plan" 実測="@適合実測" 観測="@適合観測" コード出力許可か="@(取得結果 is not null)" 表示設定="@保存表示設定" 可視化データ="@this.共通可視化" 資源記録="@this.適合資源" 表示状態取得="this.保存状態を取得"/>
+            @if(this.構造段階=="Generated"){
+                <button type="button" class="控えめボタン" disabled="@this.生成取得中か" @onclick="this.生成構造取得時Async">@表示文言.取得("生成構造を再取得")</button>
+                @if(this.生成取得中か){<p role="status">@表示文言.取得("最終生成C#構造を読み込み中…")</p>}
+                @if(this.生成案内 is not null){<p role="status">@this.生成案内</p>}
+                @if(plan.ProfiledGeneratedCode is not null){<label>@表示文言.取得("生成コードの経路")<select aria-label="@表示文言.取得("生成コードの経路")" @bind="コード経路" @bind:after="コード経路変更時"><option value="Auto">@表示文言.取得("実行に対応")</option><option value="Normal">@表示文言.取得("通常")</option><option value="Profiled">@表示文言.取得("ノード計測用")</option></select></label>}
+                @if(表示生成コード(plan) is{} 生成){<生成コードフロー @key="生成.BodyHash" コード="@生成"/>}
+                else if(!this.生成取得中か&&this.生成案内 is null){<p role="status">@表示文言.取得("この計画には最終生成C#構造の記録がありません。")</p>}
+            }else{
+            <div class="計画表示切替">
+                @foreach(var 方式 in Enum.GetValues<計画描画方式>()){
+                    <button type="button" data-表示方式="@方式" data-選択中="@((this.描画方式==方式).ToString().ToLowerInvariant())" @onclick="()=>this.可視化選択時Async(方式.ToString())"><操作アイコン 種類="@表示アイコン(方式)"/>@表示文言.取得(表示方式名(方式))</button>
+                }
+            </div>
+
+            @if(this.描画方式==計画描画方式.Heat){
+                <div class="設定操作"><button class="控えめボタン" disabled="@(this.資源読込中か||this.現在実行ID is null)" @onclick="()=>this.資源履歴を読むAsync(true)"><操作アイコン 種類="再読込"/>@表示文言.取得("資源記録を再読込")</button></div>
+                @if(this.資源履歴案内 is not null){<p role="status">@this.資源履歴案内</p>}
+                @if(this.資源履歴状態 is{} 資源状態){<p class="小案内">@表示文言.取得("この収集セッション") · @表示文言.取得("保存済み {0}・保存待ち {1}・欠落 {2}・保存失敗 {3}",資源状態.Status.Saved,資源状態.Status.PendingCount,資源状態.Status.Dropped,資源状態.Status.SaveFailures) · @表示文言.取得("無効な履歴期間 {0}",資源状態.InvalidPeriods)</p>@if(資源状態.ScanLimited){<p role="status">@表示文言.取得("資源履歴の探索上限に達しました。")</p>}}
+            }
+
+            <div hidden="@(this.描画方式!=計画描画方式.DAG)"><計画グラフ @key="plan" 計画="@plan" 初期表示層="@this.グラフ初期層" 対応コード一覧="@this.ノード対応コード" ノード選択時="ノード選択時Async" 表示設定変更時="this.表示設定時" 選択制御か="true" 共有選択ID="@this.選択ノード?.Id" 共有検索語="@this.共通検索" 共有検索変更時="this.検索を共有する時" 実測データ="this.共通可視化"/></div>
+            @if(this.共通可視化 is{} 可視化){
+                @if(this.描画方式!=計画描画方式.DAG){<ノード実測表示 データ="可視化" 数量="@(可視化.NodeQuantities?.Where(値=>this.選択ノード is null||値.Node.NodeId==this.選択ノード.Id).ToArray()??[])"/>}
+                @if(this.サンキー作成済みか){<div hidden="@(this.描画方式!=計画描画方式.Sankey)"><データサンキー @ref="this.保存用サンキー" データ="@可視化" 選択ノード="@this.共通選択" 選択変更時="this.共有ノード選択時Async" 検索="@this.共通検索" 検索変更時="this.検索を共有する時"/></div>}
+                @if(this.ガント作成済みか){<div hidden="@(this.描画方式!=計画描画方式.Gantt)"><実行Gantt @ref="this.保存用ガント" データ="@可視化" 選択ノード="@this.共通選択" 選択時="this.共有ノード選択時Async" 検索="@this.共通検索" 検索変更時="this.検索を共有する時"/></div>}
+                @if(this.ヒート作成済みか){<div hidden="@(this.描画方式!=計画描画方式.Heat)"><資源ヒートガント @ref="this.保存用ヒート" 記録="@this.適合資源" 実行データ="@可視化" 選択ノード="@this.共通選択" 選択時="this.共有ノード選択時Async" 検索="@this.共通検索" 検索変更時="this.検索を共有する時" 表示中か="@(this.表示中か&&this.描画方式==計画描画方式.Heat&&this.構造段階!="Generated")"/></div>}
+            }else if(this.描画方式 is 計画描画方式.Sankey or 計画描画方式.Gantt){<p role="status">@表示文言.取得("対象・版・成果物に対応する計画情報がないため、この表示の実測は不明です。") @this.可視化案内</p>}
+            @if(this.描画方式==計画描画方式.DOT){
+                <div class="DOT枠">
+                    <pre class="DOTコード">@plan.ToDot()</pre>
+                </div>
+            }else if(this.描画方式!=計画描画方式.Tree){
+                @if(選択ノード is{} ノード){
+                    <section aria-label="@表示文言.取得("対応コード")">
+                        <h4>@表示文言.取得("対応コード") · @ノード.SourcePath</h4>
+                        @if(対応コード is not null){<コードエディター 値="@対応コード" 行数="@Math.Clamp(対応コード.Count(文字=>文字=='\n')+1,4,18)" 読み取り専用か="true" ラベル="計画ノードの元ソース"/>}
+                        @if(対応案内.Length>0){<p role="status">@対応案内</p>}
+                        @if(ノード.Properties.TryGetValue("LoweredExpression",out var 展開式)&&展開式.Length>0){<h4>@表示文言.取得("記録された展開式")</h4><コードエディター 値="@展開式" 行数="@Math.Clamp(展開式.Count(文字=>文字=='\n')+1,4,18)" 読み取り専用か="true" ラベル="記録された展開式"/>}
+                    </section>
+                }
+            }else{
+                <div class="ノード一覧">
+                    @foreach(var node in plan.Nodes){
+                        <div class="ノードカード @node.Kind.ToLowerInvariant()">
+                            <div class="ノード頭部">
+                                <span class="ノード種別">@node.Kind</span>
+                                <strong>@node.Label</strong>
+                                <code class="ノードID">#@node.Id</code>
+                            </div>
+                            @if(node.SourcePath is{} 元ファイル){<div class="ノード入力" title="@表示文言.取得("{0} · 開始 {1} · 長さ {2}",元ファイル,node.Start,node.Length)"><small>@元ファイル · @node.Start〜@(node.Start+node.Length)</small></div>}
+                            @if(node.Inputs is { Length: > 0 } ins){
+                                <div class="ノード入力">
+                                    <small>@(表示文言.取得("入力元:"))</small>
+                                    @foreach(var input in ins){
+                                        <span class="入力ノードタグ">#@input</span>
+                                    }
+                                </div>
+                            }
+                            @if(node.Properties is { Count: > 0 } props){
+                                <div class="ノードプロパティ">
+                                    @foreach(var kv in props){
+                                        <div class="プロパティ行">
+                                            <span class="プロパティ名">@kv.Key:</span>
+                                            <span class="プロパティ値">@kv.Value</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+            }
+        }
+    }
+    @if(this.取得結果 is{FromDraft:false} トレース対象){
+        <クエリトレース DB定義ID="@トレース対象.DefinitionId" 対象ID="@トレース対象.Selection.ObjectId" 実行ID="@this.現在実行ID" 表示中か="@this.表示中か"/>
+    }
+</div>
+
+@code {
+    [Parameter] public string DB名 { get; set; } = "";
+    [Parameter] public string? 定義ID { get; set; }
+    [Parameter] public ExecutionPlanDocument[]? 外部計画 { get; set; }
+    [Parameter] public QueryPlanRequest? 対象 { get; set; }
+    [Parameter] public SourceSnapshot? ソース { get; set; }
+    [Parameter] public ObjectExecutionStatistics? 実測 { get; set; }
+    [Parameter] public QueryExecutionObservation? 実績記録 { get; set; }
+    [Parameter] public Guid? トレース実行ID { get; set; }
+    [Parameter] public bool 表示中か { get; set; } = true;
+    [Parameter] public ResourceHeatTrace? 資源記録 { get; set; }
+    [Parameter] public ObjectExecutionProfile? ノード実測 { get; set; }
+
+    private ExecutionPlanDocument[]? 読込済み計画;
+    private ExecutionPlanDocument[]? 現在計画一覧{get{if(!this.公開計画か&&this.外部計画 is not null){return this.外部計画;}return this.読込済み計画;}}
+    private int 選択値;
+    private int 選択インデックス{get=>this.選択値;set{if(this.選択値!=value){this.選択値=value;this.選択世代++;this.選択ノード=null;this.共通検索="";this.対応コード=null;this.対応案内="";}}}
+    private ExecutionPlanDocument? 選択計画 => (現在計画一覧 is { Length: > 0 } plans && 選択インデックス < plans.Length) ? plans[選択インデックス] : null;
+
+    private bool 読込中か;
+    private string 案内 = "";
+    private bool エラーか;
+    private static string 実績状態名(string 状態)=>状態 switch{"Succeeded"=>"正常完了","Failed"=>"失敗","Cancelled"=>"取消済み",_=>"不明"};
+    private PlanSnapshotDisplaySettings 保存表示設定=new("Selected");
+    private QueryPlanRequest? 前対象;
+    private QueryPlanResult? 取得結果;
+    private ExecutionPlanNode? 選択ノード;
+    private string? 対応コード;
+    private string 対応案内="";
+    private SourceSnapshot? 計画ソース;
+    private readonly Dictionary<SourceSnapshot,string> ソースハッシュ一覧=new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<string,string> コードツールチップ=new(StringComparer.Ordinal);
+    private ExecutionPlanDocument? コード対応計画;
+    private SourceSnapshot? コード対応ソース;
+    private const int コード説明上限=512;
+    private bool ソース読取拒否か;
+    private SourceSnapshot? 適合するソース(){
+        if(this.取得結果 is not{} 結果||this.ソース読取拒否か){return null;}
+        var 候補=new[]{this.計画ソース,結果.HistoricalSource,this.ソース}.OfType<SourceSnapshot>().Distinct<SourceSnapshot>(ReferenceEqualityComparer.Instance).ToArray();
+        foreach(var 前 in this.ソースハッシュ一覧.Keys.ToArray()){if(!候補.Any(項目=>ReferenceEquals(項目,前))){this.ソースハッシュ一覧.Remove(前);}}
+        foreach(var 項目 in 候補){
+            if(!this.ソースハッシュ一覧.TryGetValue(項目,out var ハッシュ)){ハッシュ=項目.Hash();this.ソースハッシュ一覧.Add(項目,ハッシュ);}
+            if(ハッシュ==結果.SourceHash){return 項目;}
+        }
+        return null;
+    }
+    private IReadOnlyDictionary<string,string> ノード対応コード{
+        get{
+            var 計画=this.選択計画;var ソース=this.適合するソース();
+            if(ReferenceEquals(計画,this.コード対応計画)&&ReferenceEquals(ソース,this.コード対応ソース)){return this.コードツールチップ;}
+            this.コード対応計画=計画;this.コード対応ソース=ソース;this.コードツールチップ.Clear();
+            if(計画 is null||ソース is null){return this.コードツールチップ;}
+            foreach(var ノード in 計画.Nodes){
+                if(ノードコード(ソース,ノード,コード説明上限) is not{} コード){continue;}
+                if(コード.Length<ノード.Length){コード+="\n"+表示文言.取得("全文はノードを選択して確認できます。");}
+                this.コードツールチップ[ノード.Id]=コード;
+            }
+            return this.コードツールチップ;
+        }
+    }
+    private static string? ノードコード(SourceSnapshot ソース,ExecutionPlanNode ノード,int 上限=int.MaxValue){
+        if(ノード.SourcePath is null){return null;}
+        var ファイル=DatabaseDesigner.ResolvePlanSourceFile(ソース,ノード.SourcePath);
+        if(ファイル is null||ノード.Start<0||ノード.Length<=0||ノード.Start>ファイル.Text.Length-ノード.Length){return null;}
+        var 長さ=Math.Min(ノード.Length,上限);
+        if(長さ<ノード.Length&&長さ>0&&char.IsHighSurrogate(ファイル.Text[ノード.Start+長さ-1])&&char.IsLowSurrogate(ファイル.Text[ノード.Start+長さ])){長さ--;}
+        return ファイル.Text.Substring(ノード.Start,長さ);
+    }
+    private async Task<SourceSnapshot?> ソースを用意Async(QueryPlanResult 結果,long 世代,CancellationToken 取消){
+        if(this.適合するソース() is{} 適合){return 適合;}
+        SourceSnapshot? ソース=null;
+        if(結果.FromDraft){var 下書き=await this.管理操作.GetDraftAsync(結果.DefinitionId,取消);if(下書き.Revision==結果.DraftRevision){ソース=下書き.Definition.Source;}}
+        else{var 公開=await this.管理操作.GetDefinitionAsync(結果.DefinitionId,取消);if(公開.Version==結果.Version){ソース=公開.Definition.Source;}}
+        if(世代!=this.読込世代||!ReferenceEquals(結果,this.取得結果)){return null;}
+        this.計画ソース=ソース;this.ソース読取拒否か=false;return this.適合するソース();
+    }
+    private long 選択世代;
+    private QueryExecutionObservation? 対象適合観測{get{if(this.取得結果 is{FromDraft:false} 結果&&this.実績記録 is{} 観測&&観測.IdentityResolved&&観測.DefinitionId==結果.DefinitionId&&観測.ObjectId==結果.Selection.ObjectId&&観測.Version==結果.Version&&観測.ArtifactHash==結果.ArtifactHash){return 観測;}return null;}}
+    private QueryExecutionObservation? 適合観測{get{var 観測=this.対象適合観測;if(観測?.ExecutionId==this.現在実行ID){return 観測;}return null;}}
+    private ObjectExecutionStatistics? 適合実測{
+        get{
+            if(this.対象適合実測 is{} 実測&&実測.ExecutionId==this.現在実行ID){return 実測;}
+            if(this.適合観測 is{} 観測){return this.観測から実測(観測);}
+            return null;
+        }
+    }
+    private ObjectExecutionStatistics? 対象適合実測{get{if(this.取得結果 is{FromDraft:false} 結果&&this.実測 is{} 値&&値.DefinitionId==結果.DefinitionId&&値.ObjectId==結果.Selection.ObjectId&&値.Version==結果.Version&&値.ArtifactHash==結果.ArtifactHash){return 値;}return null;}}
+    private string 取得名{get{if(this.対象 is not null){return 表示文言.取得("対象の計画を取得");}return 表示文言.取得("公開済み計画を取得");}}
+    private string 計画区分{get{if(this.公開計画か){return 表示文言.取得("公開済み定義の計画");}return 表示文言.取得("検証中の下書きの計画");}}
+    private string? 前定義ID;
+    private string? 前DB;
+    private ExecutionPlanDocument[]? 前外部計画;
+    private bool 公開計画か;
+    private long 読込世代;
+    private CancellationTokenSource? 読込取消;
+
+    protected override async Task OnParametersSetAsync(){
+        if(!this.表示中か){this.読取を停止();}
+        if(this.DB名!=this.前DB||this.定義ID!=this.前定義ID||this.対象!=this.前対象||!ReferenceEquals(this.外部計画,this.前外部計画)){
+            this.資源読込を止める();this.前資源要求=null;
+            this.構造を初期化();
+            this.読込世代++;this.読込取消?.Cancel();this.前DB=this.DB名;this.前定義ID=this.定義ID;this.前外部計画=this.外部計画;
+            this.前対象=this.対象;this.取得結果=null;this.計画ソース=null;this.ソース読取拒否か=false;this.ソースハッシュ一覧.Clear();this.選択世代++;this.選択ノード=null;this.対応コード=null;this.対応案内="";this.読込済み計画=null;this.公開計画か=false;this.選択インデックス=0;this.読込中か=false;this.案内="";
+            if(this.表示中か&&this.外部計画 is null){await this.再取得Async();}
+        }
+        else if(this.表示中か&&this.外部計画 is null&&this.読込済み計画 is null&&!this.読込中か){await this.再取得Async();}
+        if(this.表示中か&&this.描画方式==計画描画方式.Heat){await this.資源履歴を読むAsync();}
+    }
+
+    public Task 再取得Async()=>this.読込Async(this.対象);
+    private async Task 読込Async(QueryPlanRequest? 対象){
+        if(!this.表示中か||string.IsNullOrEmpty(this.定義ID)){return;}
+        this.資源読込を止める();this.前資源要求=null;
+        this.構造を初期化();
+        this.読込取消?.Cancel();this.読込取消?.Dispose();this.読込取消=new();var 取消=this.読込取消.Token;var 世代=++this.読込世代;
+        読込中か = true;
+        案内 = "";
+        エラーか = false;
+        StateHasChanged();
+        try {
+            ExecutionPlanDocument[] 計画;
+            QueryPlanResult? 結果=null;
+            if(対象 is null){計画=await this.管理操作.PlansAsync(this.定義ID,取消).WaitAsync(取消);}
+            else{結果=await this.管理操作.QueryPlansAsync(対象,取消).WaitAsync(取消);計画=結果.Selection.Plans;}
+            if(世代!=this.読込世代){return;}
+            this.取得結果=結果;this.計画ソース=null;this.ソース読取拒否か=false;this.選択世代++;this.選択ノード=null;this.対応コード=null;this.対応案内="";this.読込済み計画=計画;this.公開計画か=結果?.FromDraft!=true;this.選択インデックス=0;
+            this.取得要求=対象;
+            if(結果?.Selection.UnavailableReason is{} 理由){this.案内=表示文言.取得(理由);}
+            if(結果 is not null&&計画.Any(項目=>項目.Nodes.Any(ノード=>ノード.SourcePath is not null))){
+                try{await this.ソースを用意Async(結果,世代,取消);}
+                catch(OperationCanceledException)when(取消.IsCancellationRequested){}
+                catch(Exception 例外){if(世代==this.読込世代){this.ソース読取拒否か=true;this.計画ソース=null;this.対応案内=例外.Message;}}
+            }
+        }catch(OperationCanceledException)when(取消.IsCancellationRequested){
+        }catch(Exception ex){
+            if(世代==this.読込世代){
+                if(ex is ManagementException{Code:"Authentication" or "Permission"}){this.読込済み計画=null;this.取得結果=null;this.計画ソース=null;this.ソース読取拒否か=true;this.コードツールチップ.Clear();}
+                this.エラーか=true;this.案内=表示文言.取得("計画の取得に失敗しました: ")+ex.Message;
+            }
+        }finally{
+            if(世代==this.読込世代){this.読込中か=false;this.StateHasChanged();}
+        }
+    }
+    private async Task ノード選択時Async(ExecutionPlanNode? ノード){
+        var 世代=++this.選択世代;this.選択ノード=ノード;this.対応コード=null;this.対応案内="";
+        if(ノード?.SourcePath is null){return;}
+        try{
+            var 結果=this.取得結果;
+            if(結果 is null){this.対応案内=表示文言.取得("この計画には元ソースの版との対応情報がありません。");return;}
+            var ソース=await this.ソースを用意Async(結果,this.読込世代,this.読込取消?.Token??default);
+            if(世代!=this.選択世代){return;}
+            if(ソース is null){this.対応案内=表示文言.取得("ソースの版が計画と異なります。計画を再取得してください。");return;}
+            this.対応コード=ノードコード(ソース,ノード);
+            if(this.対応コード is null){this.対応案内=表示文言.取得("対応するソース範囲を取得できません。");}
+        }catch(OperationCanceledException)when(世代!=this.選択世代){}
+        catch(Exception 例外){if(世代==this.選択世代){this.対応案内=例外.Message;}}
+    }
+    public void Dispose(){this.資源読込を止める();this.構造を初期化();this.読込世代++;this.選択世代++;using var 取消=this.読込取消;this.読込取消=null;取消?.Cancel();}
+}

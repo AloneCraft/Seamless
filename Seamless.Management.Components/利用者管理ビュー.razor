@@ -1,0 +1,39 @@
+@implements IDisposable
+@inject IManagementOperations 管理操作
+
+<section class="文書領域 利用者管理画面" hidden="@(!表示中か)" aria-label="@表示文言.取得("利用者管理")">
+    <div class="種類ラベル">SYSTEM</div><h1>@(表示文言.取得("利用者"))</h1>
+    <p class="文書説明">@(表示文言.取得("管理用アカウントの接続とデータベースごとの操作権限を設定します。"))</p>
+    <div class="利用者操作"><追加メニューホスト ID="users" 名前="@表示文言.取得("利用者")" 登録="追加コマンド" 実行時="@(ID=>追加コマンド.実行Async(ID,"users"))" 追加可能か="@(!処理中か&&!編集ありか)"><span>@表示文言.取得("利用者")</span></追加メニューホスト><button class="控えめボタン" disabled="@処理中か" @onclick="()=>一覧取得Async(false)"><操作アイコン 種類="一覧を再読込"/>@(表示文言.取得("一覧を再読込"))</button></div>
+    @if(案内.Length>0){<div class="状態通知" role="status" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>}
+    <div class="利用者編集配置">
+        <div class="利用者一覧">
+            @if(読込中か){<p role="status">@(表示文言.取得("読み込み中…"))</p>}
+            @foreach(var 項目 in 一覧){
+                <追加メニューホスト ID="@("user:"+項目.User.Name)" 名前="@表示文言.取得("利用者 {0}",項目.User.Name)" 選択中か="@(原本?.User.Name==項目.User.Name)" 登録="追加コマンド" 実行時="@(ID=>追加コマンド.実行Async(ID,"user:"+項目.User.Name))" 選択時="()=>編集開始時Async(項目)" 追加可能か="@(!処理中か&&(!編集ありか||原本?.User.Name==項目.User.Name))"><strong>@項目.User.Name</strong><span>@表示文言.取得(項目.User.Disabled?"無効":"有効") · @表示文言.取得("{0} 件のDB権限",項目.User.Grants.Length)</span></追加メニューホスト>
+            }
+            @if(続きありか){<button class="控えめボタン" disabled="@処理中か" @onclick="()=>一覧取得Async(true)"><操作アイコン 種類="次の利用者を表示"/>@(表示文言.取得("次の利用者を表示"))</button>}
+        </div>
+        @if(編集中か){
+            <form class="利用者編集" @onsubmit="保存Async" @onsubmit:preventDefault>
+                <h2>@(新規か?表示文言.取得("利用者を作成"):名前)</h2>
+                <label>@(表示文言.取得("利用者名"))<input aria-label="@表示文言.取得("利用者名")" @bind="名前" @bind:event="oninput" @bind:after="編集変更時Async" readonly="@(!新規か||処理中か)" required maxlength="128" autocomplete="off"/></label>
+                @if(新規か){
+                    <label>@(表示文言.取得("初期パスワード"))<input type="password" aria-label="@表示文言.取得("初期パスワード")" @bind="パスワード" @bind:event="oninput" @bind:after="編集変更時Async" readonly="@処理中か" required minlength="12" autocomplete="new-password"/></label><p class="小案内">@(表示文言.取得("12文字以上で設定してください。"))</p>
+                }else{
+                    <details><summary>@(表示文言.取得("パスワードを変更"))</summary><label>@(表示文言.取得("新しいパスワード"))<input type="password" aria-label="@表示文言.取得("新しいパスワード")" @bind="パスワード" @bind:event="oninput" @bind:after="編集変更時Async" readonly="@処理中か" minlength="12" autocomplete="new-password"/></label><p class="小案内">@(表示文言.取得("変更すると、この利用者の現在の接続セッションは失効します。"))</p></details>
+                }
+                <label class="利用者無効"><input type="checkbox" aria-label="@表示文言.取得("利用者を無効にする")" @bind="無効か" @bind:after="編集変更時Async" disabled="@処理中か"/>@(表示文言.取得("この利用者を無効にする"))</label>
+                <div class="権限見出し"><追加メニューホスト ID="editing" 名前="@表示文言.取得("データベースの権限")" 登録="追加コマンド" 実行時="@(ID=>追加コマンド.実行Async(ID,"editing"))" 追加可能か="@(!処理中か)"><h3>@表示文言.取得("データベースの権限")</h3></追加メニューホスト></div>
+                <datalist id="管理DB候補"><option value="*">@(表示文言.取得("すべてのデータベース"))</option>@foreach(var DB in DB候補){<option value="@DB"/>}</datalist>
+                @foreach(var 行 in 権限一覧){
+                    <fieldset class="利用者権限" disabled="@処理中か"><div class="権限DB行"><label>@(表示文言.取得("データベース"))<input aria-label="@表示文言.取得("権限のデータベース")" list="管理DB候補" @bind="行.DB" @bind:event="oninput" @bind:after="編集変更時Async" required maxlength="128" placeholder="@表示文言.取得("DB名 または *")"/></label><button type="button" class="省略ボタン" aria-label="@表示文言.取得("権限を削除 {0}",行.DB)" title="@表示文言.取得("このDB権限を取り除く")" @onclick="()=>権限削除時Async(行)"><操作アイコン 種類="削除"/></button></div>
+                        <div class="権限選択">@foreach(var 許可 in 権限候補){<label><input type="checkbox" aria-label="@(行.DB+" "+表示文言.文脈("権限",許可.名前))" checked="@((行.許可&許可.値)!=0)" @onchange="引数=>権限変更時Async(行,許可.値,引数.Value is true)"/>@表示文言.文脈("権限",許可.名前)</label>}</div>
+                    </fieldset>
+                }
+                @if(権限一覧.Count==0){<p class="小案内">@(表示文言.取得("DB権限はまだありません。"))</p>}
+                <div class="利用者保存操作"><button type="button" class="控えめボタン" disabled="@処理中か" @onclick="編集取消時Async"><操作アイコン 種類="編集を取り消す"/>@(表示文言.取得("編集を取り消す"))</button><button type="submit" class="主要ボタン" disabled="@(処理中か||!編集ありか)"><操作アイコン 種類="保存"/>@(表示文言.取得("保存"))</button></div>
+            </form>
+        }else{<div class="空の構造"><h3>@(表示文言.取得("利用者を選択してください"))</h3><p>@(表示文言.取得("作成または選択すると、ここで権限を編集できます。"))</p></div>}
+    </div>
+</section>

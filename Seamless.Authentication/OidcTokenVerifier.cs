@@ -16,9 +16,18 @@ public sealed class OidcTokenVerifier:IDisposable{
     private readonly ConfigurationManager<OpenIdConnectConfiguration> configuration;
     private readonly JsonWebTokenHandler tokens=new(){MaximumTokenSizeInBytes=65536};
     private readonly TimeProvider time;
-    public OidcTokenVerifier(OidcProviderSettings settings,TimeProvider? time=null){
+    private readonly SemaphoreSlim? verifications;
+    public OidcTokenVerifier(OidcProviderSettings settings,TimeProvider? time=null):this(settings,time,null){}
+    private OidcTokenVerifier(OidcProviderSettings settings,TimeProvider? time,SemaphoreSlim? verifications){
         settings.Validate();this.settings=settings;this.time=time??TimeProvider.System;this.http=new(new OidcEndpointHandler(settings)){Timeout=TimeSpan.FromSeconds(15),MaxResponseContentBufferSize=262144};
+        this.verifications=verifications;
         this.configuration=new(settings.Authority.TrimEnd('/')+"/.well-known/openid-configuration",new OpenIdConnectConfigurationRetriever(),new HttpDocumentRetriever(this.http){RequireHttps=!settings.DevelopmentLoopback});
+    }
+    /// <summary>初回認証と所属再確認で共有する、検証器単位の同時実行枠を設ける。</summary>
+    public static OidcTokenVerifier ForServer(OidcProviderSettings settings,int maximumConcurrentVerifications,TimeProvider? time=null){
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximumConcurrentVerifications);
+        // Wait(0)だけを使い、待機列やOS待機ハンドルを作らない。
+        return new(settings,time,new(maximumConcurrentVerifications,maximumConcurrentVerifications));
     }
     internal async Task<(ClaimsPrincipal Principal,JsonWebToken Token,OpenIdConnectConfiguration Configuration)> ValidateAsync(string encoded,string audience,CancellationToken cancellationToken){
         if(string.IsNullOrWhiteSpace(encoded)||encoded.Length>65536||encoded.Any(char.IsWhiteSpace)){throw Rejected();}
@@ -44,10 +53,17 @@ public sealed class OidcTokenVerifier:IDisposable{
         if(!scopes.Contains(this.settings.RequiredApiScope,StringComparer.Ordinal)){throw Rejected();}return verified;
     }
     public async Task<AuthenticatedIdentity> AuthenticateAsync(string accessToken,CancellationToken cancellationToken=default){
-        using var deadline=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);deadline.CancelAfter(TimeSpan.FromSeconds(15));
-        try{return await this.AuthenticateCoreAsync(accessToken,deadline.Token).ConfigureAwait(false);}
+        var slots=this.verifications;
+        if(slots is not null&&!slots.Wait(0,cancellationToken)){
+            throw new OidcAuthenticationException(OidcAuthenticationException.BusyCode,"The identity verification limit has been reached.");
+        }
+        try{
+            using var deadline=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);deadline.CancelAfter(TimeSpan.FromSeconds(15));
+            return await this.AuthenticateCoreAsync(accessToken,deadline.Token).ConfigureAwait(false);
+        }
         catch(OperationCanceledException)when(!cancellationToken.IsCancellationRequested){throw new OidcAuthenticationException("IdentityProviderUnavailable","The identity provider did not respond within the authentication deadline.");}
         catch(JsonException){throw new OidcAuthenticationException("MembershipUnavailable","The current membership response is invalid.");}
+        finally{slots?.Release();}
     }
     private async Task<AuthenticatedIdentity> AuthenticateCoreAsync(string accessToken,CancellationToken cancellationToken){
         var verified=await this.ValidateAccessAsync(accessToken,cancellationToken).ConfigureAwait(false);

@@ -1,0 +1,63 @@
+@implements IDisposable
+@inject IManagementOperations 管理
+
+<section class="実績履歴" aria-label="@表示文言.取得("クエリの実績履歴")">
+    <h2><操作アイコン 種類="監査"/>@表示文言.取得("実績履歴")</h2>
+    <p class="小案内">@表示文言.取得("軽量実測またはトレースを指定した実行の終端を速度優先で履歴へ記録します。両方とも指定しない実行は記録しません。")</p>
+    <p class="小案内">@表示文言.取得("ノード別時間、CPU、I/O、詳細イベントは未収集です。")</p>
+    <button type="button" class="控えめボタン" disabled="@this.読込中か" @onclick="()=>this.読むAsync(null)"><操作アイコン 種類="更新"/>@表示文言.取得("履歴を更新")</button>
+    @if(this.案内 is not null){<p role="status">@this.案内</p>}
+    @if(this.ページ is{} ページ){
+        <p class="小案内" title="@ページ.Status.SessionId">@表示文言.取得("今回起動の収集状況")</p>
+        <p class="小案内">@表示文言.取得("受付 {0}・保存 {1}・欠落 {2}・保存失敗 {3}・記録待ち {4}",ページ.Status.Accepted,ページ.Status.Saved,ページ.Status.Dropped,ページ.Status.SaveFailures,ページ.Status.PendingCount)</p>
+        <p class="小案内">@表示文言.取得("表示中の記録{0}件",ページ.Items.Length)</p>
+        @if(ページ.Status.ErrorCode is{} 異常){<p role="status">@表示文言.取得("履歴の保存診断") · @異常</p>}
+        @if(ページ.MissingSequences>0||ページ.InvalidFiles>0||ページ.ScanLimited||ページ.DirectoryMissing){
+            <p role="status">@表示文言.取得("履歴には削除・欠落・未取得の可能性があります。残っている記録を表示します。") · @ページ.MissingSequences / @ページ.InvalidFiles</p>
+        }
+        <p class="小案内">@表示文言.取得("速度優先の履歴は完全性を保証しません。保存先の障害はDB処理を停止させません。")</p>
+        <div class="結果表スクロール"><table class="設計表" aria-label="@表示文言.取得("クエリの実績履歴")"><thead><tr><th>@表示文言.取得("開始UTC")</th><th>@表示文言.取得("状態")</th><th>@表示文言.取得("対象の公開版")</th><th>@表示文言.取得("経過時間")</th><th>@表示文言.取得("観測出力数")</th><th>@表示文言.取得("返却出力数")</th></tr></thead><tbody>
+            @foreach(var 記録 in ページ.Items){var 実績=記録.Observation;
+                <tr @key="実績.ExecutionId"><td><button type="button" class="文字ボタン" @onclick="()=>this.選択Async(実績)">@実績.StartedAtUtc.ToString("yyyy-MM-dd HH:mm:ss.fff 'UTC'",System.Globalization.CultureInfo.InvariantCulture)</button></td><td>@表示文言.取得(状態名(実績.Outcome)) @if(実績.ErrorCode is not null){<small>@実績.ErrorCode</small>}</td><td>@if(実績.IdentityResolved){<span>v@(実績.Version)</span>}else{<span>@表示文言.取得("実行版未確定")</span>}</td><td>@実績.Elapsed.TotalMilliseconds.ToString("0.###") ms</td><td>@実績.ObservedOutputCount</td><td>@実績.ReturnedOutputCount</td></tr>
+            }
+        </tbody></table></div>
+        @if(ページ.HasMore){<button type="button" class="控えめボタン" disabled="@this.読込中か" @onclick="()=>this.読むAsync(ページ.NextBefore)">@表示文言.取得("続きを表示")</button>}
+    }
+    @if(this.選択 is{} 選択){
+        <details open><summary>@表示文言.取得("実行ID") · @選択.ExecutionId</summary><p>@選択.DefinitionId · @選択.ObjectId · @選択.ArtifactHash</p><p>@表示文言.取得("実行段階") · @選択.Phase</p>
+            @if(選択.IdentityResolved){<p>@表示文言.取得("この記録の版と成果物に一致する計画だけを対応付けてください。")</p>}
+            else{<p>@表示文言.取得("DBゲート待機や版確認中に終了したため、実行した公開版は確定していません。")</p>}
+        </details>
+    }
+</section>
+
+@code{
+    [Parameter]public string DB定義ID{get;set;}="";
+    [Parameter]public string 対象ID{get;set;}="";
+    [Parameter]public EventCallback<QueryExecutionObservation> 実績選択時{get;set;}
+    private QueryExecutionHistoryPage? ページ;
+    private QueryExecutionObservation? 選択;
+    private string? 前DB,前対象,案内;
+    private bool 読込中か,破棄済みか;
+    private long 世代;
+    private CancellationTokenSource? 読込取消;
+    protected override async Task OnParametersSetAsync(){
+        if(this.前DB==this.DB定義ID&&this.前対象==this.対象ID){return;}
+        this.前DB=this.DB定義ID;this.前対象=this.対象ID;this.ページ=null;this.選択=null;
+        await this.読むAsync(null);
+    }
+    public async Task 読むAsync(string? 続き=null){
+        this.読込取消?.Cancel();this.読込取消?.Dispose();this.読込取消=new();var 取消=this.読込取消.Token;var 今=++this.世代;
+        if(this.破棄済みか||this.DB定義ID.Length==0||this.対象ID.Length==0){return;}
+        this.読込中か=true;this.案内=null;
+        try{
+            var 応答=await this.管理.QueryExecutionHistoryAsync(new(this.DB定義ID,this.対象ID,Before:続き),取消);
+            if(!this.破棄済みか&&今==this.世代){this.ページ=応答;this.選択=null;}
+        }catch(OperationCanceledException)when(取消.IsCancellationRequested){}
+        catch(Exception 例外){if(!this.破棄済みか&&今==this.世代){this.案内=例外.Message;if(例外 is ManagementException{Code:"Permission" or "Authentication"}){this.ページ=null;this.選択=null;}}}
+        finally{if(今==this.世代){this.読込中か=false;}}
+    }
+    private async Task 選択Async(QueryExecutionObservation 値){this.選択=値;await this.実績選択時.InvokeAsync(値);}
+    private static string 状態名(string 値)=>値 switch{"Succeeded"=>"正常完了","Failed"=>"失敗","Cancelled"=>"取消",_=>"不明"};
+    public void Dispose(){if(this.破棄済みか){return;}this.破棄済みか=true;this.世代++;this.読込取消?.Cancel();this.読込取消?.Dispose();}
+}

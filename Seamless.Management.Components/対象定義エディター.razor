@@ -1,0 +1,150 @@
+<section class="対象定義エディター" aria-label="@表示文言.取得("対象の定義編集")">
+    @if(this.案内 is not null){<p role="alert">@this.案内</p>}
+    @foreach(var 診断 in this.診断一覧){<p class="構造診断" role="alert"><code>@診断.Code</code> @診断.Message</p>}
+    @if(this.基準 is{} 設計){
+        @if(設計.ResultTypeInferenceReason is{} 理由){
+            <section class="型推論通知" role="status" aria-label="@表示文言.取得("結果型の決定方法")"><strong>@表示文言.取得("結果型の自動決定に制限があります")</strong><p>@this.型推論の説明(理由)</p></section>
+        }
+        @if(this.内部表示=="Source"){
+            <div class="コード見出し"><select aria-label="@表示文言.取得("対象の部分宣言")" disabled="@this.同期中か" value="@this.選択部分ID" @onchange="this.部分選択時Async">@foreach(var 部分 in 設計.Parts){<option value="@部分.Id">@部分.Path · @表示文言.取得(部分.Role) · @部分.Start</option>}</select><span>@表示文言.取得("対象の宣言だけを編集します。usingと名前空間は保持します。")</span></div>
+            <コードエディター 追加クラス="DBコード枠" ラベル="対象のC#" 値="@this.入力コード" 補完範囲="this.選択補完範囲" 読み取り専用か="@(!this.編集可能か||this.同期中か)" 値変更時="this.コード変更時Async"/>
+        }else if(!設計.StructureAvailable){
+            <p class="小案内">@設計.StructureUnavailableReason</p>
+        }else{
+            <fieldset disabled="@(!this.編集可能か||this.同期中か)" style="border:0;margin:0;padding:0;min-width:0">
+            @if(this.対象.Kind=="Table"||設計.Columns.Length>0){
+                <h4>@表示文言.取得("列")</h4>
+                <編集グリッド 名前="対象の列">
+                    <見出し><th class="行操作列"></th><th>@表示文言.取得("列名")</th><th>@表示文言.取得("C#型")</th>@if(this.対象.Kind=="Table"){<th>@表示文言.取得("主キー")</th><th>@表示文言.取得("初期値・変換式")</th>}</見出し>
+                    <行>@foreach(var 列 in this.列一覧){
+                        <tr @key="列">
+                            <td class="行操作列">@if(this.対象.Kind!="View"){<行操作 名前="@列.名前" 前へ追加時="()=>this.列追加時Async(this.列一覧.IndexOf(列))" 後へ追加時="()=>this.列追加時Async(this.列一覧.IndexOf(列)+1)" 削除時="()=>this.列削除時Async(列)"/>}</td>
+                            <td><input aria-label="@表示文言.取得("列名")" value="@列.名前" readonly="@(this.対象.Kind=="View")" disabled="@(!this.編集可能か||this.同期中か)" @oninput="引数=>this.列名変更時Async(列,引数)"/></td>
+                            <td>@if(this.対象.Kind=="Table"){
+                                <型入力 ラベル="列の型" 値="@列.型" 候補="this.型候補" 値変更時="型=>this.列型変更時Async(列,型)"/>
+                            }else{
+                                <input aria-label="@表示文言.取得("結果列の型")" value="@列.型" readonly title="@表示文言.取得("結果列の型はC#の処理本体から決まります。")"/>
+                            }</td>
+                            @if(this.対象.Kind=="Table"){
+                                <td><input type="checkbox" aria-label="@表示文言.取得("主キー")" checked="@列.主キーか" disabled="@(!this.編集可能か||this.同期中か)" @onchange="引数=>this.キー変更時Async(列,引数)"/></td>
+                                <td><input aria-label="@表示文言.取得("初期値・変換式")" title="@表示文言.取得("既存行へ設定するC#式。nullも明示できます。")" value="@列.式" @oninput="引数=>this.列式変更時Async(列,引数)"/></td>
+                            }
+                        </tr>
+                    }</行>
+                </編集グリッド>
+                @if(this.対象.Kind!="View"){<button type="button" class="テキストボタン" disabled="@(!this.編集可能か||this.同期中か)" @onclick="()=>this.列追加時Async(this.列一覧.Count)"><操作アイコン 種類="列を追加"/>@表示文言.取得("列を追加")</button>}
+            }
+            @if(this.対象.Kind!="Table"&&this.対象.Kind!="View"){
+                <label>@表示文言.取得("戻り型")<input aria-label="@表示文言.取得("戻り型")" value="@this.戻り型" readonly title="@表示文言.取得("戻り型はC#の処理本体から決まります。")"/></label>
+                <h4>@表示文言.取得("引数")</h4>
+                <編集グリッド 名前="関数の引数">
+                    <見出し><th class="行操作列"></th><th>@表示文言.取得("名前")</th><th>@表示文言.取得("C#型")</th></見出し>
+                    <行>@foreach(var 引数 in this.引数一覧){<tr @key="引数"><td class="行操作列"><行操作 名前="@引数.名前" 前へ追加時="()=>this.引数追加時Async(this.引数一覧.IndexOf(引数))" 後へ追加時="()=>this.引数追加時Async(this.引数一覧.IndexOf(引数)+1)" 削除時="()=>this.引数削除時Async(引数)"/></td><td><input aria-label="@表示文言.取得("引数名")" value="@引数.名前" disabled="@(!this.編集可能か||this.同期中か)" @oninput="値=>this.引数名変更時Async(引数,値)"/></td><td><型入力 ラベル="引数の型" 値="@引数.型" 候補="this.型候補" 値変更時="型=>this.引数型変更時Async(引数,型)"/></td></tr>}</行>
+                </編集グリッド>
+                <button type="button" class="テキストボタン" disabled="@(!this.編集可能か||this.同期中か)" @onclick="()=>this.引数追加時Async(this.引数一覧.Count)"><操作アイコン 種類="引数を追加"/>@表示文言.取得("引数を追加")</button>
+            }
+            </fieldset>
+        }
+        <p class="小案内">@表示文言.取得("タブ切替時に定義を同期します。型の意味と生成コードは既存の検証で確認します。")</p>
+    }
+</section>
+
+@code{
+    [Parameter,EditorRequired]public Definition 定義{get;set;}=default!;
+    [Parameter,EditorRequired]public CatalogObject 対象{get;set;}=default!;
+    [Parameter]public string 表示モード{get;set;}="Structure";
+    [Parameter]public bool 編集可能か{get;set;}=true;
+    [Parameter]public IEnumerable<string> 型候補{get;set;}=[];
+    [Parameter]public EventCallback<Definition> 定義変更時{get;set;}
+    [Parameter]public EventCallback<bool> 未保存変更時{get;set;}
+    [Parameter]public EventCallback<string> 表示モード変更時{get;set;}
+    private ObjectDefinitionDesign? 基準;
+    private Definition? 読取定義;
+    private string 内部表示="Structure",選択部分ID="",入力コード="",戻り型="";
+    private string? 案内;
+    private DiagnosticInfo[] 診断一覧=[];
+    private bool 変更ありか,同期中か;
+    private readonly List<列入力> 列一覧=[];
+    private readonly List<引数入力> 引数一覧=[];
+    private コード補完範囲? 選択補完範囲{get{
+        var 部分=this.基準?.Parts.SingleOrDefault(部分=>部分.Id==this.選択部分ID);
+        if(部分 is null){return null;}
+        return new(this.定義.Source,部分.Path,部分.Start,部分.Length);
+    }}
+    protected override void OnParametersSet(){
+        if(this.基準 is null||!this.変更ありか&&!ReferenceEquals(this.読取定義,this.定義)){
+            try{this.読み込む(this.定義);}catch(ManagementException 例外){this.案内=例外.Message;}
+        }
+        if(!this.変更ありか){this.内部表示=this.表示モード;}
+    }
+    private void 読み込む(Definition 定義){
+        var 次=DatabaseDesigner.ReadObjectDefinition(定義,this.対象);
+        this.基準=次;this.読取定義=定義;
+        if(!次.Parts.Any(部分=>部分.Id==this.選択部分ID)){
+            var 初期=次.Parts.FirstOrDefault(部分=>部分.Role=="Member");if(this.対象.Kind is "Table" or "View"){初期=次.Parts.FirstOrDefault(部分=>部分.Role=="Record");}
+            this.選択部分ID=(初期??次.Parts[0]).Id;
+        }
+        this.入力コード=次.Parts.Single(部分=>部分.Id==this.選択部分ID).Text;
+        this.列一覧.Clear();this.列一覧.AddRange(次.Columns.Select(列=>new 列入力{名前=列.Name,型=列.Type,主キーか=列.PrimaryKey,元名=列.OriginalName,式=列.Expression}));
+        this.引数一覧.Clear();this.引数一覧.AddRange(次.Parameters.Select(引数=>new 引数入力{名前=引数.Name,型=引数.Type}));
+        this.戻り型=次.ReturnType;this.案内=null;this.診断一覧=[];
+    }
+    public async Task<bool> 同期Async(){
+        if(this.同期中か){return false;}
+        if(!this.変更ありか){return true;}
+        if(!this.編集可能か){this.案内=表示文言.取得("編集権限がありません。入力は保持しています。");return false;}
+        if(this.基準 is null){return false;}
+        this.同期中か=true;
+        try{
+            ObjectDefinitionEdit 結果;
+            if(this.内部表示=="Source"){結果=DatabaseDesigner.ApplyObjectSource(this.定義,this.基準,this.選択部分ID,this.入力コード);}
+            else{結果=DatabaseDesigner.ApplyObjectStructure(this.定義,this.基準,this.列一覧.Select(列=>new ColumnDesign(列.名前,列.型,列.主キーか,列.元名,列.式)).ToArray(),this.引数一覧.Select(引数=>new ParameterDesign(引数.名前,引数.型)).ToArray(),this.戻り型);}
+            this.診断一覧=結果.Diagnostics;
+            if(!結果.Succeeded){return false;}
+            await this.定義変更時.InvokeAsync(結果.Definition!);
+            this.読み込む(結果.Definition!);this.変更ありか=false;
+            await this.未保存変更時.InvokeAsync(false);return true;
+        }catch(ManagementException 例外){this.案内=例外.Message;return false;}
+        finally{this.同期中か=false;await this.InvokeAsync(this.StateHasChanged);}
+    }
+    public async Task 列を追加Async(){
+        if(!this.編集可能か||!await this.同期Async()||this.基準?.StructureAvailable!=true){return;}
+        if(!this.基準.Parts.Any(部分=>部分.Role=="Record")){this.案内=表示文言.取得("引数は構造画面で編集し、戻り型はC#の処理本体で指定します。");await this.InvokeAsync(this.StateHasChanged);return;}
+        this.内部表示="Structure";var 名前="Column";var 番号=1;
+        while(this.列一覧.Any(列=>列.名前==名前)){名前="Column"+番号++;}
+        this.列一覧.Add(new(){名前=名前});
+        await this.変更通知Async();await this.表示モード変更時.InvokeAsync("Structure");await this.InvokeAsync(this.StateHasChanged);
+    }
+    private async Task 部分選択時Async(ChangeEventArgs 引数){
+        var ID=引数.Value?.ToString();
+        if(ID is null||!await this.同期Async()||this.基準 is null){return;}
+        var 部分=this.基準.Parts.SingleOrDefault(部分=>部分.Id==ID);if(部分 is null){return;}
+        this.選択部分ID=ID;this.入力コード=部分.Text;
+    }
+    private Task 変更通知Async(){if(!this.編集可能か||this.同期中か){return Task.CompletedTask;}this.変更ありか=true;this.案内=null;this.診断一覧=[];return this.未保存変更時.InvokeAsync(true);}
+    private Task コード変更時Async(string 値){this.入力コード=値;return this.変更通知Async();}
+    private Task 列名変更時Async(列入力 列,ChangeEventArgs 値){列.名前=値.Value?.ToString()??"";return this.変更通知Async();}
+    private Task 列型変更時Async(列入力 列,string 型){if(this.対象.Kind!="Table"){return Task.CompletedTask;}列.型=型;return this.変更通知Async();}
+    private Task キー変更時Async(列入力 列,ChangeEventArgs 値){列.主キーか=値.Value is true;return this.変更通知Async();}
+    private Task 列式変更時Async(列入力 列,ChangeEventArgs 値){
+        var 式=値.Value?.ToString();
+        列.式=式;
+        return this.変更通知Async();
+    }
+    private Task 列追加時Async(int 位置){if(!this.編集可能か||this.同期中か){return Task.CompletedTask;}this.列一覧.Insert(位置,new());return this.変更通知Async();}
+    private Task 列削除時Async(列入力 列){if(!this.編集可能か||this.同期中か){return Task.CompletedTask;}this.列一覧.Remove(列);return this.変更通知Async();}
+    private Task 引数名変更時Async(引数入力 引数,ChangeEventArgs 値){引数.名前=値.Value?.ToString()??"";return this.変更通知Async();}
+    private Task 引数型変更時Async(引数入力 引数,string 型){引数.型=型;return this.変更通知Async();}
+    private Task 引数追加時Async(int 位置){if(!this.編集可能か||this.同期中か){return Task.CompletedTask;}this.引数一覧.Insert(位置,new());return this.変更通知Async();}
+    private Task 引数削除時Async(引数入力 引数){if(!this.編集可能か||this.同期中か){return Task.CompletedTask;}this.引数一覧.Remove(引数);return this.変更通知Async();}
+    private string 型推論の説明(string 理由)=>理由 switch{
+        "AsyncResultUnsupported"=>表示文言.取得("非同期の戻り値を待機する実行は未対応です。同期的な値を返す処理を指定してください。"),
+        "ViewDeclaredResult"=>表示文言.取得("このビューはC#宣言の列を使用しています。匿名型の結果列を自動生成できる形では、処理本体から列を更新します。"),
+        "DeclaredResultTypeRequired"=>表示文言.取得("この処理本体だけでは戻り型を決められません。現在のC#宣言の型を使います。"),
+        "DeclaredReturnConversionRequired"=>表示文言.取得("戻り値の暗黙変換を保持するため、C#宣言の型を使います。"),
+        "DeclaredScalarSequence"=>表示文言.取得("この関数は列挙を単一値として返す宣言です。呼び出し時の評価を保持しています。"),
+        _=>表示文言.取得("この関数の形式は自動推論の対象外です。C#宣言の戻り型を使います。")
+    };
+    private sealed class 列入力{public string 名前{get;set;}="Column";public string 型{get;set;}="int";public bool 主キーか{get;set;}public string? 元名{get;set;}public string? 式{get;set;}}
+    private sealed class 引数入力{public string 名前{get;set;}="parameter";public string 型{get;set;}="int";}
+}

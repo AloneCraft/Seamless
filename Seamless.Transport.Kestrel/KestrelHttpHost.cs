@@ -18,15 +18,34 @@ public sealed class KestrelHttpHost:IAsyncDisposable{
     private bool started;
     private bool disposed;
     public int Port{get;private set;}
-    public KestrelHttpHost(IPEndPoint endpoint,RequestDelegate request,X509Certificate2? certificate=null){
+    public ConnectionQuota? SharedConnectionQuota{get;init;}
+    public ConnectionQuota? SharedTlsHandshakeQuota{get;init;}
+    public KestrelHttpHost(IPEndPoint endpoint,RequestDelegate request,X509Certificate2? certificate=null):this(endpoint,request,certificate,null){}
+    public KestrelHttpHost(IPEndPoint endpoint,RequestDelegate request,X509Certificate2? certificate,long? maximumRequestBodyBytes):this(endpoint,request,certificate,maximumRequestBodyBytes,null){}
+    public KestrelHttpHost(IPEndPoint endpoint,RequestDelegate request,X509Certificate2? certificate,long? maximumRequestBodyBytes,int? maximumConcurrentRequests):this(endpoint,request,certificate,maximumRequestBodyBytes,maximumConcurrentRequests,null){}
+    public KestrelHttpHost(IPEndPoint endpoint,RequestDelegate request,X509Certificate2? certificate,long? maximumRequestBodyBytes,int? maximumConcurrentRequests,long? maximumConnections){
         ArgumentNullException.ThrowIfNull(endpoint);ArgumentNullException.ThrowIfNull(request);this.Port=endpoint.Port;
+        if(maximumRequestBodyBytes is{} maximum){ArgumentOutOfRangeException.ThrowIfNegative(maximum);}
+        if(maximumConnections is{} connectionLimit){ArgumentOutOfRangeException.ThrowIfNegativeOrZero(connectionLimit,nameof(maximumConnections));}
+        ConnectionQuota? requests=null;
+        if(maximumConcurrentRequests is{} limit){requests=new(limit);}
         this.host=new HostBuilder().ConfigureLogging(logging=>logging.ClearProviders()).ConfigureWebHost(web=>{
             web.UseKestrel(options=>{
-                // 旧HTTP APIには本文長の上限がなかった。新たな契約上限は別途設定・検証する。
-                options.Limits.MaxRequestBodySize=null;
-                options.Listen(endpoint,listen=>{if(certificate is not null){listen.UseHttps(certificate,https=>https.HandshakeTimeout=TimeSpan.FromSeconds(15));}});
+                options.Limits.MaxRequestBodySize=maximumRequestBodyBytes;
+                options.Limits.MaxConcurrentConnections=maximumConnections;
+                options.Listen(endpoint,listen=>{
+                    if(this.SharedConnectionQuota is{} shared){listen.Use(shared.Limit);}
+                    if(certificate is not null){KestrelTls.Use(listen,certificate,null,this.SharedTlsHandshakeQuota);}
+                });
             }).UseSockets(options=>{options.NoDelay=true;options.MaxReadBufferSize=65536;options.MaxWriteBufferSize=65536;});
-            web.Configure(app=>app.Run(async context=>{if(!this.applications.TryEnter()){context.Abort();return;}try{await request(context).ConfigureAwait(false);}finally{this.applications.Exit();}}));
+            web.Configure(app=>app.Run(async context=>{
+                if(!this.applications.TryEnter()){context.Abort();return;}
+                try{
+                    using var permit=requests?.TryEnter();
+                    if(requests is not null&&permit is null){context.Response.StatusCode=StatusCodes.Status503ServiceUnavailable;return;}
+                    await request(context).ConfigureAwait(false);
+                }finally{this.applications.Exit();}
+            }));
         }).Build();
     }
     public async Task StartAsync(CancellationToken cancellationToken=default){

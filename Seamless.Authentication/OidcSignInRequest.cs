@@ -17,6 +17,7 @@ public sealed class OidcSignInRequest:IDisposable{
     private readonly Uri redirect;
     private int completed;
     public Uri StartUrl{get;}
+    internal string CallbackState=>this.state.State;
     private OidcSignInRequest(OidcClient client,AuthorizeState state,OidcTokenVerifier verifier,OidcEndpointHandler backchannel,Uri redirect,OidcProviderSettings settings){this.client=client;this.state=state;this.verifier=verifier;this.backchannel=backchannel;this.redirect=redirect;this.settings=settings;this.StartUrl=new(state.StartUrl);}
     public static async Task<OidcSignInRequest> PrepareAsync(OidcProviderSettings settings,Uri redirect,CancellationToken cancellationToken=default){
         settings.Validate();

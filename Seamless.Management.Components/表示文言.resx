@@ -1,0 +1,2563 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <data name=".slnx / .csproj は選択すると開きます。" xml:space="preserve">
+    <value>.slnx / .csproj は選択すると開きます。</value>
+  </data>
+  <data name=".slnx / フォルダー / .csproj" xml:space="preserve">
+    <value>.slnx / フォルダー / .csproj</value>
+  </data>
+  <data name="· 表示上限に達しました" xml:space="preserve">
+    <value>· 表示上限に達しました</value>
+  </data>
+  <data name="↑↓ 選択　Enter 実行" xml:space="preserve">
+    <value>↑↓ 選択　Enter 実行</value>
+  </data>
+  <data name="12文字以上で設定してください。" xml:space="preserve">
+    <value>12文字以上で設定してください。</value>
+  </data>
+  <data name="C#でその他の定義を追加" xml:space="preserve">
+    <value>C#でその他の定義を追加</value>
+  </data>
+  <data name="C#で表示・編集" xml:space="preserve">
+    <value>C#で表示・編集</value>
+  </data>
+  <data name="C#の定義を開く" xml:space="preserve">
+    <value>C#の定義を開く</value>
+  </data>
+  <data name="C#型" xml:space="preserve">
+    <value>C#型</value>
+  </data>
+  <data name="C#型の候補" xml:space="preserve">
+    <value>C#型の候補</value>
+  </data>
+  <data name="C#処理本体" xml:space="preserve">
+    <value>C#処理本体</value>
+  </data>
+  <data name="C#同期の競合" xml:space="preserve">
+    <value>C#同期の競合</value>
+  </data>
+  <data name="C#同期の競合を解消" xml:space="preserve">
+    <value>C#同期の競合を解消</value>
+  </data>
+  <data name="C#同期の競合を確認" xml:space="preserve">
+    <value>C#同期の競合を確認</value>
+  </data>
+  <data name="container からDB直下と各スキーマを参照できます。" xml:space="preserve">
+    <value>container からDB直下と各スキーマを参照できます。</value>
+  </data>
+  <data name="Ctrl K コマンド検索" xml:space="preserve">
+    <value>Ctrl K コマンド検索</value>
+  </data>
+  <data name="DatabaseGenerator型が見つかりません。" xml:space="preserve">
+    <value>DatabaseGenerator型が見つかりません。</value>
+  </data>
+  <data name="DB・利用者" xml:space="preserve">
+    <value>DB・利用者</value>
+  </data>
+  <data name="DBの内容" xml:space="preserve">
+    <value>DBの内容</value>
+  </data>
+  <data name="DBへ戻る" xml:space="preserve">
+    <value>DBへ戻る</value>
+  </data>
+  <data name="DBまたはサーバー全体の共通ポリシーを編集し、利用者やグループに割り当てます。" xml:space="preserve">
+    <value>DBまたはサーバー全体の共通ポリシーを編集し、利用者やグループに割り当てます。</value>
+  </data>
+  <data name="DB下書きへ反映" xml:space="preserve">
+    <value>DB下書きへ反映</value>
+  </data>
+  <data name="DB下書きへ反映後、IDEでビルドしたDLLのサーバー上の絶対パスを指定します。" xml:space="preserve">
+    <value>DB下書きへ反映後、IDEでビルドしたDLLのサーバー上の絶対パスを指定します。</value>
+  </data>
+  <data name="DB権限はまだありません。" xml:space="preserve">
+    <value>DB権限はまだありません。</value>
+  </data>
+  <data name="DB名 または *" xml:space="preserve">
+    <value>DB名 または *</value>
+  </data>
+  <data name="DOT グラフ" xml:space="preserve">
+    <value>DOT グラフ</value>
+  </data>
+  <data name="Enter・フォーカス移動で確定 · Escで取消" xml:space="preserve">
+    <value>Enter・フォーカス移動で確定 · Escで取消</value>
+  </data>
+  <data name="Enter・フォーカス移動で作成 · Escで取消" xml:space="preserve">
+    <value>Enter・フォーカス移動で作成 · Escで取消</value>
+  </data>
+  <data name="Enterで専用C#プロジェクトを生成 · Escでスキップ" xml:space="preserve">
+    <value>Enterで専用C#プロジェクトを生成 · Escでスキップ</value>
+  </data>
+  <data name="FLINQ 静的実行計画" xml:space="preserve">
+    <value>FLINQ 静的実行計画</value>
+  </data>
+  <data name="HTTPSと利用者ごとの認証・認可を使います。" xml:space="preserve">
+    <value>HTTPSと利用者ごとの認証・認可を使います。</value>
+  </data>
+  <data name="HTTPSの公開起点" xml:space="preserve">
+    <value>HTTPSの公開起点</value>
+  </data>
+  <data name="Managerの入力" xml:space="preserve">
+    <value>Managerの入力</value>
+  </data>
+  <data name="Managerを優先" xml:space="preserve">
+    <value>Managerを優先</value>
+  </data>
+  <data name="Seamlessサーバーが動作しているPCのファイルです。" xml:space="preserve">
+    <value>Seamlessサーバーが動作しているPCのファイルです。</value>
+  </data>
+  <data name="アクションを検索" xml:space="preserve">
+    <value>アクションを検索</value>
+  </data>
+  <data name="アクションを検索…" xml:space="preserve">
+    <value>アクションを検索…</value>
+  </data>
+  <data name="オブジェクト" xml:space="preserve">
+    <value>オブジェクト</value>
+  </data>
+  <data name="オブジェクトを追加して始める" xml:space="preserve">
+    <value>オブジェクトを追加して始める</value>
+  </data>
+  <data name="クエリ" xml:space="preserve">
+    <value>クエリ</value>
+  </data>
+  <data name="グループ" xml:space="preserve">
+    <value>グループ</value>
+  </data>
+  <data name="このDB権限を取り除く" xml:space="preserve">
+    <value>このDB権限を取り除く</value>
+  </data>
+  <data name="このタブを閉じる" xml:space="preserve">
+    <value>このタブを閉じる</value>
+  </data>
+  <data name="この定義は下書きにあります。変更を確認して稼働DBへ適用してください。" xml:space="preserve">
+    <value>この定義は下書きにあります。変更を確認して稼働DBへ適用してください。</value>
+  </data>
+  <data name="このフォルダーを開く" xml:space="preserve">
+    <value>このフォルダーを開く</value>
+  </data>
+  <data name="この成果物を取り込む" xml:space="preserve">
+    <value>この成果物を取り込む</value>
+  </data>
+  <data name="この変更を適用" xml:space="preserve">
+    <value>この変更を適用</value>
+  </data>
+  <data name="この利用者を無効にする" xml:space="preserve">
+    <value>この利用者を無効にする</value>
+  </data>
+  <data name="コマンドを検索" xml:space="preserve">
+    <value>コマンドを検索</value>
+  </data>
+  <data name="サーバー上のDLLの絶対パス" xml:space="preserve">
+    <value>サーバー上のDLLの絶対パス</value>
+  </data>
+  <data name="サーバー上のソースを選択" xml:space="preserve">
+    <value>サーバー上のソースを選択</value>
+  </data>
+  <data name="サーバー設定" xml:space="preserve">
+    <value>サーバー設定</value>
+  </data>
+  <data name="サーバー設定を表示" xml:space="preserve">
+    <value>サーバー設定を表示</value>
+  </data>
+  <data name="サーバー側のソースパス" xml:space="preserve">
+    <value>サーバー側のソースパス</value>
+  </data>
+  <data name="サーバー側のファイルを選択" xml:space="preserve">
+    <value>サーバー側のファイルを選択</value>
+  </data>
+  <data name="サーバー側のファイル名を絞り込む" xml:space="preserve">
+    <value>サーバー側のファイル名を絞り込む</value>
+  </data>
+  <data name="サーバー側のフォルダーとプロジェクト" xml:space="preserve">
+    <value>サーバー側のフォルダーとプロジェクト</value>
+  </data>
+  <data name="サーバー側のプロジェクトを、IDEと同じファイルで編集します。" xml:space="preserve">
+    <value>サーバー側のプロジェクトを、IDEと同じファイルで編集します。</value>
+  </data>
+  <data name="ジェネレーター:" xml:space="preserve">
+    <value>ジェネレーター:</value>
+  </data>
+  <data name="システム" xml:space="preserve">
+    <value>システム</value>
+  </data>
+  <data name="すべて" xml:space="preserve">
+    <value>すべて</value>
+  </data>
+  <data name="すべてのデータベース" xml:space="preserve">
+    <value>すべてのデータベース</value>
+  </data>
+  <data name="スキーマ" xml:space="preserve">
+    <value>スキーマ</value>
+  </data>
+  <data name="スキーマ:" xml:space="preserve">
+    <value>スキーマ:</value>
+  </data>
+  <data name="スキーマを作成" xml:space="preserve">
+    <value>スキーマを作成</value>
+  </data>
+  <data name="ソース" xml:space="preserve">
+    <value>ソース</value>
+  </data>
+  <data name="ソースファイル" xml:space="preserve">
+    <value>ソースファイル</value>
+  </data>
+  <data name="ソースプロジェクトを開く" xml:space="preserve">
+    <value>ソースプロジェクトを開く</value>
+  </data>
+  <data name="ソースを開く" xml:space="preserve">
+    <value>ソースを開く</value>
+  </data>
+  <data name="ソリューション・フォルダー・プロジェクト" xml:space="preserve">
+    <value>ソリューション・フォルダー・プロジェクト</value>
+  </data>
+  <data name="ターゲット" xml:space="preserve">
+    <value>ターゲット</value>
+  </data>
+  <data name="タブ" xml:space="preserve">
+    <value>タブ</value>
+  </data>
+  <data name="タブを右へ移動" xml:space="preserve">
+    <value>タブを右へ移動</value>
+  </data>
+  <data name="タブを左へ移動" xml:space="preserve">
+    <value>タブを左へ移動</value>
+  </data>
+  <data name="データ" xml:space="preserve">
+    <value>データ</value>
+  </data>
+  <data name="データベース" xml:space="preserve">
+    <value>データベース</value>
+  </data>
+  <data name="データベースの権限" xml:space="preserve">
+    <value>データベースの権限</value>
+  </data>
+  <data name="データベースを作成" xml:space="preserve">
+    <value>データベースを作成</value>
+  </data>
+  <data name="データを読み込んでいます..." xml:space="preserve">
+    <value>データを読み込んでいます...</value>
+  </data>
+  <data name="テーブル" xml:space="preserve">
+    <value>テーブル</value>
+  </data>
+  <data name="テーブルの下書き" xml:space="preserve">
+    <value>テーブルの下書き</value>
+  </data>
+  <data name="テーブルの定義を確認してください。" xml:space="preserve">
+    <value>テーブルの定義を確認してください。</value>
+  </data>
+  <data name="テーブルを選択してください" xml:space="preserve">
+    <value>テーブルを選択してください</value>
+  </data>
+  <data name="テーブルを編集" xml:space="preserve">
+    <value>テーブルを編集</value>
+  </data>
+  <data name="テーブル定義 · クリックでデータ表示" xml:space="preserve">
+    <value>テーブル定義 · クリックでデータ表示</value>
+  </data>
+  <data name="テーブル名" xml:space="preserve">
+    <value>テーブル名</value>
+  </data>
+  <data name="ノードツリー" xml:space="preserve">
+    <value>ノードツリー</value>
+  </data>
+  <data name="ノード数:" xml:space="preserve">
+    <value>ノード数:</value>
+  </data>
+  <data name="パスワードを変更" xml:space="preserve">
+    <value>パスワードを変更</value>
+  </data>
+  <data name="パスを入力、または一覧から選択" xml:space="preserve">
+    <value>パスを入力、または一覧から選択</value>
+  </data>
+  <data name="ビュー" xml:space="preserve">
+    <value>ビュー</value>
+  </data>
+  <data name="ビルド構成" xml:space="preserve">
+    <value>ビルド構成</value>
+  </data>
+  <data name="ビルド済みDLLのパス" xml:space="preserve">
+    <value>ビルド済みDLLのパス</value>
+  </data>
+  <data name="ビルド成果物を検査" xml:space="preserve">
+    <value>ビルド成果物を検査</value>
+  </data>
+  <data name="ファイル保存と稼働DBへの適用は別の操作です。IDEの未保存バッファは、IDEで保存後に同期します。" xml:space="preserve">
+    <value>ファイル保存と稼働DBへの適用は別の操作です。IDEの未保存バッファは、IDEで保存後に同期します。</value>
+  </data>
+  <data name="ブラウザー · 実行中" xml:space="preserve">
+    <value>ブラウザー · 実行中</value>
+  </data>
+  <data name="プロジェクト" xml:space="preserve">
+    <value>プロジェクト</value>
+  </data>
+  <data name="プロジェクトと名前空間" xml:space="preserve">
+    <value>プロジェクトと名前空間</value>
+  </data>
+  <data name="プロジェクトのターゲット" xml:space="preserve">
+    <value>プロジェクトのターゲット</value>
+  </data>
+  <data name="プロジェクトのビルド構成" xml:space="preserve">
+    <value>プロジェクトのビルド構成</value>
+  </data>
+  <data name="プロジェクトを開いて始める" xml:space="preserve">
+    <value>プロジェクトを開いて始める</value>
+  </data>
+  <data name="プロジェクトを再評価" xml:space="preserve">
+    <value>プロジェクトを再評価</value>
+  </data>
+  <data name="プロジェクト保存先フォルダー" xml:space="preserve">
+    <value>プロジェクト保存先フォルダー</value>
+  </data>
+  <data name="プロセス" xml:space="preserve">
+    <value>プロセス</value>
+  </data>
+  <data name="ポート0は自動割り当てです。ローカルManagerは同じPCから接続できます。" xml:space="preserve">
+    <value>ポート0は自動割り当てです。ローカルManagerは同じPCから接続できます。</value>
+  </data>
+  <data name="ホバー・右クリックで対象の操作" xml:space="preserve">
+    <value>ホバー・右クリックで対象の操作</value>
+  </data>
+  <data name="ホスト内の管理API" xml:space="preserve">
+    <value>ホスト内の管理API</value>
+  </data>
+  <data name="メソッド・対象・結果コード" xml:space="preserve">
+    <value>メソッド・対象・結果コード</value>
+  </data>
+  <data name="メソッド:" xml:space="preserve">
+    <value>メソッド:</value>
+  </data>
+  <data name="ローカルManagerと参照監査を設定できます。ネイティブTCPと外部受付の設定はサーバー型で編集します。" xml:space="preserve">
+    <value>ローカルManagerと参照監査を設定できます。ネイティブTCPと外部受付の設定はサーバー型で編集します。</value>
+  </data>
+  <data name="ローカルManagerのポート" xml:space="preserve">
+    <value>ローカルManagerのポート</value>
+  </data>
+  <data name="ロール" xml:space="preserve">
+    <value>ロール</value>
+  </data>
+  <data name="ロールと権限" xml:space="preserve">
+    <value>ロールと権限</value>
+  </data>
+  <data name="ロールと権限を表示" xml:space="preserve">
+    <value>ロールと権限を表示</value>
+  </data>
+  <data name="ロールの対象" xml:space="preserve">
+    <value>ロールの対象</value>
+  </data>
+  <data name="ロールを削除" xml:space="preserve">
+    <value>ロールを削除</value>
+  </data>
+  <data name="ロールを選択するか、新しいロールを作成してください。" xml:space="preserve">
+    <value>ロールを選択するか、新しいロールを作成してください。</value>
+  </data>
+  <data name="ロールを保存" xml:space="preserve">
+    <value>ロールを保存</value>
+  </data>
+  <data name="ロール名" xml:space="preserve">
+    <value>ロール名</value>
+  </data>
+  <data name="ログアウト" xml:space="preserve">
+    <value>ログアウト</value>
+  </data>
+  <data name="ワークスペース" xml:space="preserve">
+    <value>ワークスペース</value>
+  </data>
+  <data name="移動" xml:space="preserve">
+    <value>移動</value>
+  </data>
+  <data name="一覧を更新" xml:space="preserve">
+    <value>一覧を更新</value>
+  </data>
+  <data name="一覧を再読込" xml:space="preserve">
+    <value>一覧を再読込</value>
+  </data>
+  <data name="引数" xml:space="preserve">
+    <value>引数</value>
+  </data>
+  <data name="引数を追加" xml:space="preserve">
+    <value>引数を追加</value>
+  </data>
+  <data name="引数名" xml:space="preserve">
+    <value>引数名</value>
+  </data>
+  <data name="永続 / 転記済LSN" xml:space="preserve">
+    <value>永続 / 転記済LSN</value>
+  </data>
+  <data name="応答送信期限" xml:space="preserve">
+    <value>応答送信期限</value>
+  </data>
+  <data name="応答送信期限（ミリ秒）" xml:space="preserve">
+    <value>応答送信期限（ミリ秒）</value>
+  </data>
+  <data name="下に追加" xml:space="preserve">
+    <value>下に追加</value>
+  </data>
+  <data name="下書きに反映" xml:space="preserve">
+    <value>下書きに反映</value>
+  </data>
+  <data name="下書きの計画を表示" xml:space="preserve">
+    <value>下書きの計画を表示</value>
+  </data>
+  <data name="下書きの定義 · 稼働DBへ未適用" xml:space="preserve">
+    <value>下書きの定義 · 稼働DBへ未適用</value>
+  </data>
+  <data name="下書きをビルドまたは検証するか、公開済み定義を選択して実行計画を取得してください。" xml:space="preserve">
+    <value>下書きをビルドまたは検証するか、公開済み定義を選択して実行計画を取得してください。</value>
+  </data>
+  <data name="下書きを保管" xml:space="preserve">
+    <value>下書きを保管</value>
+  </data>
+  <data name="下書きを保存" xml:space="preserve">
+    <value>下書きを保存</value>
+  </data>
+  <data name="稼働DBへ未適用" xml:space="preserve">
+    <value>稼働DBへ未適用</value>
+  </data>
+  <data name="解消してファイルへ保存" xml:space="preserve">
+    <value>解消してファイルへ保存</value>
+  </data>
+  <data name="開いている文書" xml:space="preserve">
+    <value>開いている文書</value>
+  </data>
+  <data name="開く" xml:space="preserve">
+    <value>開く</value>
+  </data>
+  <data name="開始日時 (UTC)" xml:space="preserve">
+    <value>開始日時 (UTC)</value>
+  </data>
+  <data name="開発ソース" xml:space="preserve">
+    <value>開発ソース</value>
+  </data>
+  <data name="外部ManagerのHTTPS起点" xml:space="preserve">
+    <value>外部ManagerのHTTPS起点</value>
+  </data>
+  <data name="外部ManagerのIPアドレス" xml:space="preserve">
+    <value>外部ManagerのIPアドレス</value>
+  </data>
+  <data name="外部Managerを有効にする" xml:space="preserve">
+    <value>外部Managerを有効にする</value>
+  </data>
+  <data name="外部の保存" xml:space="preserve">
+    <value>外部の保存</value>
+  </data>
+  <data name="外部ブラウザーの受付" xml:space="preserve">
+    <value>外部ブラウザーの受付</value>
+  </data>
+  <data name="外部を優先" xml:space="preserve">
+    <value>外部を優先</value>
+  </data>
+  <data name="該当するフォルダー・ソリューション・プロジェクトはありません。" xml:space="preserve">
+    <value>該当するフォルダー・ソリューション・プロジェクトはありません。</value>
+  </data>
+  <data name="該当する記録はありません。" xml:space="preserve">
+    <value>該当する記録はありません。</value>
+  </data>
+  <data name="該当する操作がありません" xml:space="preserve">
+    <value>該当する操作がありません</value>
+  </data>
+  <data name="割り当てる主体ID" xml:space="preserve">
+    <value>割り当てる主体ID</value>
+  </data>
+  <data name="割り当てる主体の種類" xml:space="preserve">
+    <value>割り当てる主体の種類</value>
+  </data>
+  <data name="割り当てる認証元ID" xml:space="preserve">
+    <value>割り当てる認証元ID</value>
+  </data>
+  <data name="割り当てを外す" xml:space="preserve">
+    <value>割り当てを外す</value>
+  </data>
+  <data name="割り当てを追加" xml:space="preserve">
+    <value>割り当てを追加</value>
+  </data>
+  <data name="監査" xml:space="preserve">
+    <value>監査</value>
+  </data>
+  <data name="監査のデータベース" xml:space="preserve">
+    <value>監査のデータベース</value>
+  </data>
+  <data name="監査の開始日時 UTC" xml:space="preserve">
+    <value>監査の開始日時 UTC</value>
+  </data>
+  <data name="監査の結果" xml:space="preserve">
+    <value>監査の結果</value>
+  </data>
+  <data name="監査の検索語" xml:space="preserve">
+    <value>監査の検索語</value>
+  </data>
+  <data name="監査の終了日時 UTC" xml:space="preserve">
+    <value>監査の終了日時 UTC</value>
+  </data>
+  <data name="監査の操作" xml:space="preserve">
+    <value>監査の操作</value>
+  </data>
+  <data name="監査の表示" xml:space="preserve">
+    <value>監査の表示</value>
+  </data>
+  <data name="監査の利用者" xml:space="preserve">
+    <value>監査の利用者</value>
+  </data>
+  <data name="監査を表示" xml:space="preserve">
+    <value>監査を表示</value>
+  </data>
+  <data name="管理TCP · 実行中" xml:space="preserve">
+    <value>管理TCP · 実行中</value>
+  </data>
+  <data name="管理TCPのIPアドレス" xml:space="preserve">
+    <value>管理TCPのIPアドレス</value>
+  </data>
+  <data name="管理TCPのポート" xml:space="preserve">
+    <value>管理TCPのポート</value>
+  </data>
+  <data name="管理接続と通信予算、参照監査の設定をサーバーへ保存します。" xml:space="preserve">
+    <value>管理接続と通信予算、参照監査の設定をサーバーへ保存します。</value>
+  </data>
+  <data name="管理用アカウントの接続とデータベースごとの操作権限を設定します。" xml:space="preserve">
+    <value>管理用アカウントの接続とデータベースごとの操作権限を設定します。</value>
+  </data>
+  <data name="管理領域と起動元" xml:space="preserve">
+    <value>管理領域と起動元</value>
+  </data>
+  <data name="関数" xml:space="preserve">
+    <value>関数</value>
+  </data>
+  <data name="既定" xml:space="preserve">
+    <value>既定</value>
+  </data>
+  <data name="期間 (UTC)" xml:space="preserve">
+    <value>期間 (UTC)</value>
+  </data>
+  <data name="規則を削除" xml:space="preserve">
+    <value>規則を削除</value>
+  </data>
+  <data name="記録" xml:space="preserve">
+    <value>記録</value>
+  </data>
+  <data name="起動引数で指定した項目は読み取り専用です。" xml:space="preserve">
+    <value>起動引数で指定した項目は読み取り専用です。</value>
+  </data>
+  <data name="拒否" xml:space="preserve">
+    <value>拒否</value>
+  </data>
+  <data name="許可" xml:space="preserve">
+    <value>許可</value>
+  </data>
+  <data name="競合の記録後にも入力があります。保存時に追加の入力を復旧用フォルダーへ退避します。" xml:space="preserve">
+    <value>競合の記録後にも入力があります。保存時に追加の入力を復旧用フォルダーへ退避します。</value>
+  </data>
+  <data name="競合箇所の採用元を選び、保存する内容を確認してください。" xml:space="preserve">
+    <value>競合箇所の採用元を選び、保存する内容を確認してください。</value>
+  </data>
+  <data name="型を補完 · Ctrl+Space / Alt+↓ · 型名を直接入力できます" xml:space="preserve">
+    <value>型を補完 · Ctrl+Space / Alt+↓ · 型名を直接入力できます</value>
+  </data>
+  <data name="型補完の状態" xml:space="preserve">
+    <value>型補完の状態</value>
+  </data>
+  <data name="型名を直接入力できます" xml:space="preserve">
+    <value>型名を直接入力できます</value>
+  </data>
+  <data name="計画" xml:space="preserve">
+    <value>計画</value>
+  </data>
+  <data name="欠落 / 保存失敗" xml:space="preserve">
+    <value>欠落 / 保存失敗</value>
+  </data>
+  <data name="結果" xml:space="preserve">
+    <value>結果</value>
+  </data>
+  <data name="結果列" xml:space="preserve">
+    <value>結果列</value>
+  </data>
+  <data name="結果列を追加" xml:space="preserve">
+    <value>結果列を追加</value>
+  </data>
+  <data name="結果列名" xml:space="preserve">
+    <value>結果列名</value>
+  </data>
+  <data name="件数" xml:space="preserve">
+    <value>件数</value>
+  </data>
+  <data name="検査" xml:space="preserve">
+    <value>検査</value>
+  </data>
+  <data name="検査後にソースが変更されています。下書き反映とビルド後に再検査してください。" xml:space="preserve">
+    <value>検査後にソースが変更されています。下書き反映とビルド後に再検査してください。</value>
+  </data>
+  <data name="検索" xml:space="preserve">
+    <value>検索</value>
+  </data>
+  <data name="権限のデータベース" xml:space="preserve">
+    <value>権限のデータベース</value>
+  </data>
+  <data name="権限の対象資源" xml:space="preserve">
+    <value>権限の対象資源</value>
+  </data>
+  <data name="権限を追加" xml:space="preserve">
+    <value>権限を追加</value>
+  </data>
+  <data name="後で" xml:space="preserve">
+    <value>後で</value>
+  </data>
+  <data name="公開済み計画を取得" xml:space="preserve">
+    <value>公開済み計画を取得</value>
+  </data>
+  <data name="構造" xml:space="preserve">
+    <value>構造</value>
+  </data>
+  <data name="構造を整え、変更を確認してから公開します。" xml:space="preserve">
+    <value>構造を整え、変更を確認してから公開します。</value>
+  </data>
+  <data name="構造画面からテーブルを選択すると、行データの閲覧と編集が行えます。" xml:space="preserve">
+    <value>構造画面からテーブルを選択すると、行データの閲覧と編集が行えます。</value>
+  </data>
+  <data name="行データを参照・編集" xml:space="preserve">
+    <value>行データを参照・編集</value>
+  </data>
+  <data name="行データを表示" xml:space="preserve">
+    <value>行データを表示</value>
+  </data>
+  <data name="行を追加" xml:space="preserve">
+    <value>行を追加</value>
+  </data>
+  <data name="左からデータベースを選択してください。" xml:space="preserve">
+    <value>左からデータベースを選択してください。</value>
+  </data>
+  <data name="左の＋からテーブル・ビュー・関数を作成できます。" xml:space="preserve">
+    <value>左の＋からテーブル・ビュー・関数を作成できます。</value>
+  </data>
+  <data name="再読込" xml:space="preserve">
+    <value>再読込</value>
+  </data>
+  <data name="最終更新 (UTC)" xml:space="preserve">
+    <value>最終更新 (UTC)</value>
+  </data>
+  <data name="最終保存 (UTC)" xml:space="preserve">
+    <value>最終保存 (UTC)</value>
+  </data>
+  <data name="最新のポリシーを取得" xml:space="preserve">
+    <value>最新のポリシーを取得</value>
+  </data>
+  <data name="最新の設定を取得" xml:space="preserve">
+    <value>最新の設定を取得</value>
+  </data>
+  <data name="作成" xml:space="preserve">
+    <value>作成</value>
+  </data>
+  <data name="作成または選択すると、ここで権限を編集できます。" xml:space="preserve">
+    <value>作成または選択すると、ここで権限を編集できます。</value>
+  </data>
+  <data name="作成結果を照会" xml:space="preserve">
+    <value>作成結果を照会</value>
+  </data>
+  <data name="作成元DBの下書き" xml:space="preserve">
+    <value>作成元DBの下書き</value>
+  </data>
+  <data name="削除" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="参照" xml:space="preserve">
+    <value>参照</value>
+  </data>
+  <data name="参照するサーバー側のフォルダー" xml:space="preserve">
+    <value>参照するサーバー側のフォルダー</value>
+  </data>
+  <data name="参照監査" xml:space="preserve">
+    <value>参照監査</value>
+  </data>
+  <data name="参照監査の集計期間" xml:space="preserve">
+    <value>参照監査の集計期間</value>
+  </data>
+  <data name="参照監査の保存間隔" xml:space="preserve">
+    <value>参照監査の保存間隔</value>
+  </data>
+  <data name="参照監査を有効にする" xml:space="preserve">
+    <value>参照監査を有効にする</value>
+  </data>
+  <data name="次の100件" xml:space="preserve">
+    <value>次の100件</value>
+  </data>
+  <data name="次の利用者を表示" xml:space="preserve">
+    <value>次の利用者を表示</value>
+  </data>
+  <data name="次回起動時の設定" xml:space="preserve">
+    <value>次回起動時の設定</value>
+  </data>
+  <data name="実行" xml:space="preserve">
+    <value>実行</value>
+  </data>
+  <data name="実行形態" xml:space="preserve">
+    <value>実行形態</value>
+  </data>
+  <data name="実行計画がありません" xml:space="preserve">
+    <value>実行計画がありません</value>
+  </data>
+  <data name="実行計画を読み込んでいます..." xml:space="preserve">
+    <value>実行計画を読み込んでいます...</value>
+  </data>
+  <data name="実行計画を表示" xml:space="preserve">
+    <value>実行計画を表示</value>
+  </data>
+  <data name="主キー" xml:space="preserve">
+    <value>主キー</value>
+  </data>
+  <data name="主体ID" xml:space="preserve">
+    <value>主体ID</value>
+  </data>
+  <data name="取り込み済みDLLで検証・適用" xml:space="preserve">
+    <value>取り込み済みDLLで検証・適用</value>
+  </data>
+  <data name="取消" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="種類" xml:space="preserve">
+    <value>種類</value>
+  </data>
+  <data name="受信バッファ予算" xml:space="preserve">
+    <value>受信バッファ予算</value>
+  </data>
+  <data name="受信バッファ予算（バイト）" xml:space="preserve">
+    <value>受信バッファ予算（バイト）</value>
+  </data>
+  <data name="受付 / 保存" xml:space="preserve">
+    <value>受付 / 保存</value>
+  </data>
+  <data name="終了日時 (UTC)" xml:space="preserve">
+    <value>終了日時 (UTC)</value>
+  </data>
+  <data name="集計期間（秒）" xml:space="preserve">
+    <value>集計期間（秒）</value>
+  </data>
+  <data name="初期パスワード" xml:space="preserve">
+    <value>初期パスワード</value>
+  </data>
+  <data name="詳細" xml:space="preserve">
+    <value>詳細</value>
+  </data>
+  <data name="上に追加" xml:space="preserve">
+    <value>上に追加</value>
+  </data>
+  <data name="上の階層へ" xml:space="preserve">
+    <value>上の階層へ</value>
+  </data>
+  <data name="状態" xml:space="preserve">
+    <value>状態</value>
+  </data>
+  <data name="状態を更新" xml:space="preserve">
+    <value>状態を更新</value>
+  </data>
+  <data name="新しいデータベース" xml:space="preserve">
+    <value>新しいデータベース</value>
+  </data>
+  <data name="新しいテーブル" xml:space="preserve">
+    <value>新しいテーブル</value>
+  </data>
+  <data name="新しいパスワード" xml:space="preserve">
+    <value>新しいパスワード</value>
+  </data>
+  <data name="新しいロール" xml:space="preserve">
+    <value>新しいロール</value>
+  </data>
+  <data name="接続" xml:space="preserve">
+    <value>接続</value>
+  </data>
+  <data name="設定を読み込み中…" xml:space="preserve">
+    <value>設定を読み込み中…</value>
+  </data>
+  <data name="専用C#プロジェクトとして保存" xml:space="preserve">
+    <value>専用C#プロジェクトとして保存</value>
+  </data>
+  <data name="選択した宣言の列" xml:space="preserve">
+    <value>選択した宣言の列</value>
+  </data>
+  <data name="選択してください" xml:space="preserve">
+    <value>選択してください</value>
+  </data>
+  <data name="前の100件" xml:space="preserve">
+    <value>前の100件</value>
+  </data>
+  <data name="組み込み同期" xml:space="preserve">
+    <value>組み込み同期</value>
+  </data>
+  <data name="操作" xml:space="preserve">
+    <value>操作</value>
+  </data>
+  <data name="操作の記録、参照の集計、WALからの転記状況を確認します。" xml:space="preserve">
+    <value>操作の記録、参照の集計、WALからの転記状況を確認します。</value>
+  </data>
+  <data name="操作メニュー" xml:space="preserve">
+    <value>操作メニュー</value>
+  </data>
+  <data name="操作結果を照会" xml:space="preserve">
+    <value>操作結果を照会</value>
+  </data>
+  <data name="送信待ち予算" xml:space="preserve">
+    <value>送信待ち予算</value>
+  </data>
+  <data name="送信待ち予算（バイト）" xml:space="preserve">
+    <value>送信待ち予算（バイト）</value>
+  </data>
+  <data name="続きを取得" xml:space="preserve">
+    <value>続きを取得</value>
+  </data>
+  <data name="続きを表示" xml:space="preserve">
+    <value>続きを表示</value>
+  </data>
+  <data name="対象" xml:space="preserve">
+    <value>対象</value>
+  </data>
+  <data name="対象と詳細" xml:space="preserve">
+    <value>対象と詳細</value>
+  </data>
+  <data name="対象の操作" xml:space="preserve">
+    <value>対象の操作</value>
+  </data>
+  <data name="対象資源" xml:space="preserve">
+    <value>対象資源</value>
+  </data>
+  <data name="対象資源の規則を追加" xml:space="preserve">
+    <value>対象資源の規則を追加</value>
+  </data>
+  <data name="待受けIPアドレス" xml:space="preserve">
+    <value>待受けIPアドレス</value>
+  </data>
+  <data name="通信予算" xml:space="preserve">
+    <value>通信予算</value>
+  </data>
+  <data name="定義・WAL" xml:space="preserve">
+    <value>定義・WAL</value>
+  </data>
+  <data name="定義を編集" xml:space="preserve">
+    <value>定義を編集</value>
+  </data>
+  <data name="同じ操作を再送" xml:space="preserve">
+    <value>同じ操作を再送</value>
+  </data>
+  <data name="同期" xml:space="preserve">
+    <value>同期</value>
+  </data>
+  <data name="同期したファイルをDBの個人下書きへ反映" xml:space="preserve">
+    <value>同期したファイルをDBの個人下書きへ反映</value>
+  </data>
+  <data name="同期の基準" xml:space="preserve">
+    <value>同期の基準</value>
+  </data>
+  <data name="読み込み中…" xml:space="preserve">
+    <value>読み込み中…</value>
+  </data>
+  <data name="日時 (UTC)" xml:space="preserve">
+    <value>日時 (UTC)</value>
+  </data>
+  <data name="入力を続けると候補を絞れます" xml:space="preserve">
+    <value>入力を続けると候補を絞れます</value>
+  </data>
+  <data name="入力元:" xml:space="preserve">
+    <value>入力元:</value>
+  </data>
+  <data name="認証元ID" xml:space="preserve">
+    <value>認証元ID</value>
+  </data>
+  <data name="復元" xml:space="preserve">
+    <value>復元</value>
+  </data>
+  <data name="文書タブはハンドルから移動" xml:space="preserve">
+    <value>文書タブはハンドルから移動</value>
+  </data>
+  <data name="文書の操作" xml:space="preserve">
+    <value>文書の操作</value>
+  </data>
+  <data name="文書の表示" xml:space="preserve">
+    <value>文書の表示</value>
+  </data>
+  <data name="閉じる" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="閉じる · Esc" xml:space="preserve">
+    <value>閉じる · Esc</value>
+  </data>
+  <data name="閉じる · 入力を保持" xml:space="preserve">
+    <value>閉じる · 入力を保持</value>
+  </data>
+  <data name="変更すると、この利用者の現在の接続セッションは失効します。" xml:space="preserve">
+    <value>変更すると、この利用者の現在の接続セッションは失効します。</value>
+  </data>
+  <data name="変更の確認" xml:space="preserve">
+    <value>変更の確認</value>
+  </data>
+  <data name="変更を確認" xml:space="preserve">
+    <value>変更を確認</value>
+  </data>
+  <data name="編集" xml:space="preserve">
+    <value>編集</value>
+  </data>
+  <data name="編集を取り消す" xml:space="preserve">
+    <value>編集を取り消す</value>
+  </data>
+  <data name="保存" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="保存 (UTC)" xml:space="preserve">
+    <value>保存 (UTC)</value>
+  </data>
+  <data name="保存（再起動時に反映）" xml:space="preserve">
+    <value>保存（再起動時に反映）</value>
+  </data>
+  <data name="保存する内容" xml:space="preserve">
+    <value>保存する内容</value>
+  </data>
+  <data name="保存間隔（秒）" xml:space="preserve">
+    <value>保存間隔（秒）</value>
+  </data>
+  <data name="保存結果を照会" xml:space="preserve">
+    <value>保存結果を照会</value>
+  </data>
+  <data name="保存後、DB下書きへの反映・公開を既存の操作から行えます。" xml:space="preserve">
+    <value>保存後、DB下書きへの反映・公開を既存の操作から行えます。</value>
+  </data>
+  <data name="保存版" xml:space="preserve">
+    <value>保存版</value>
+  </data>
+  <data name="未適用" xml:space="preserve">
+    <value>未適用</value>
+  </data>
+  <data name="未適用のテーブル" xml:space="preserve">
+    <value>未適用のテーブル</value>
+  </data>
+  <data name="未保存 / 不明" xml:space="preserve">
+    <value>未保存 / 不明</value>
+  </data>
+  <data name="名前" xml:space="preserve">
+    <value>名前</value>
+  </data>
+  <data name="名前で絞り込む…" xml:space="preserve">
+    <value>名前で絞り込む…</value>
+  </data>
+  <data name="名前の変更" xml:space="preserve">
+    <value>名前の変更</value>
+  </data>
+  <data name="名前空間" xml:space="preserve">
+    <value>名前空間</value>
+  </data>
+  <data name="名前空間とC#ソースを確認し、IDEからの保存も取り込みます。" xml:space="preserve">
+    <value>名前空間とC#ソースを確認し、IDEからの保存も取り込みます。</value>
+  </data>
+  <data name="名前変更の結果を照会" xml:space="preserve">
+    <value>名前変更の結果を照会</value>
+  </data>
+  <data name="戻す" xml:space="preserve">
+    <value>戻す</value>
+  </data>
+  <data name="戻り型" xml:space="preserve">
+    <value>戻り型</value>
+  </data>
+  <data name="戻り値" xml:space="preserve">
+    <value>戻り値</value>
+  </data>
+  <data name="問い合わせの下書き" xml:space="preserve">
+    <value>問い合わせの下書き</value>
+  </data>
+  <data name="問い合わせの実行" xml:space="preserve">
+    <value>問い合わせの実行</value>
+  </data>
+  <data name="問い合わせを編集" xml:space="preserve">
+    <value>問い合わせを編集</value>
+  </data>
+  <data name="問い合わせ結果" xml:space="preserve">
+    <value>問い合わせ結果</value>
+  </data>
+  <data name="問い合わせ名" xml:space="preserve">
+    <value>問い合わせ名</value>
+  </data>
+  <data name="矢印キーでセル移動 · Enter / F2で編集 · Escで取消 · Spaceで切替" xml:space="preserve">
+    <value>矢印キーでセル移動 · Enter / F2で編集 · Escで取消 · Spaceで切替</value>
+  </data>
+  <data name="利用者" xml:space="preserve">
+    <value>利用者</value>
+  </data>
+  <data name="利用者データベース" xml:space="preserve">
+    <value>利用者データベース</value>
+  </data>
+  <data name="利用者を管理" xml:space="preserve">
+    <value>利用者を管理</value>
+  </data>
+  <data name="利用者を作成" xml:space="preserve">
+    <value>利用者を作成</value>
+  </data>
+  <data name="利用者を選択してください" xml:space="preserve">
+    <value>利用者を選択してください</value>
+  </data>
+  <data name="利用者を無効にする" xml:space="preserve">
+    <value>利用者を無効にする</value>
+  </data>
+  <data name="利用者管理" xml:space="preserve">
+    <value>利用者管理</value>
+  </data>
+  <data name="利用者名" xml:space="preserve">
+    <value>利用者名</value>
+  </data>
+  <data name="列が定義されていません" xml:space="preserve">
+    <value>列が定義されていません</value>
+  </data>
+  <data name="列を追加" xml:space="preserve">
+    <value>列を追加</value>
+  </data>
+  <data name="列名" xml:space="preserve">
+    <value>列名</value>
+  </data>
+  <data name="その他" xml:space="preserve">
+    <value>その他</value>
+  </data>
+  <data name="接続済み" xml:space="preserve">
+    <value>接続済み</value>
+  </data>
+  <data name="公開版 v{0}" xml:space="preserve">
+    <value>公開版 v{0}</value>
+  </data>
+  <data name="{0}に追加" xml:space="preserve">
+    <value>{0}に追加</value>
+  </data>
+  <data name="{0}の操作" xml:space="preserve">
+    <value>{0}の操作</value>
+  </data>
+  <data name="{0}の表示を切り替え" xml:space="preserve">
+    <value>{0}の表示を切り替え</value>
+  </data>
+  <data name="{0}の下に追加" xml:space="preserve">
+    <value>{0}の下に追加</value>
+  </data>
+  <data name="操作メニュー · Shift+F10" xml:space="preserve">
+    <value>操作メニュー · Shift+F10</value>
+  </data>
+  <data name="ドラッグで移動、クリックまたはShift+F10で操作" xml:space="preserve">
+    <value>ドラッグで移動、クリックまたはShift+F10で操作</value>
+  </data>
+  <data name="データベース名" xml:space="preserve">
+    <value>データベース名</value>
+  </data>
+  <data name="スキーマ名" xml:space="preserve">
+    <value>スキーマ名</value>
+  </data>
+  <data name="列の型" xml:space="preserve">
+    <value>列の型</value>
+  </data>
+  <data name="ログイン" xml:space="preserve">
+    <value>ログイン</value>
+  </data>
+  <data name="所有者の起動セッションを確認しています。" xml:space="preserve">
+    <value>所有者の起動セッションを確認しています。</value>
+  </data>
+  <data name="起動セッションが無効です。ホストから開き直してください。" xml:space="preserve">
+    <value>起動セッションが無効です。ホストから開き直してください。</value>
+  </data>
+  <data name="サーバーへ接続できません。ホストから開き直してください。" xml:space="preserve">
+    <value>サーバーへ接続できません。ホストから開き直してください。</value>
+  </data>
+  <data name="利用者名またはパスワードを確認してください。" xml:space="preserve">
+    <value>利用者名またはパスワードを確認してください。</value>
+  </data>
+  <data name="パスワード" xml:space="preserve">
+    <value>パスワード</value>
+  </data>
+  <data name="表示" xml:space="preserve">
+    <value>表示</value>
+  </data>
+  <data name="コマンド" xml:space="preserve">
+    <value>コマンド</value>
+  </data>
+  <data name="フォルダー" xml:space="preserve">
+    <value>フォルダー</value>
+  </data>
+  <data name="ソリューション" xml:space="preserve">
+    <value>ソリューション</value>
+  </data>
+  <data name="グローバル" xml:space="preserve">
+    <value>グローバル</value>
+  </data>
+  <data name="テーブルの列" xml:space="preserve">
+    <value>テーブルの列</value>
+  </data>
+  <data name="関数の引数" xml:space="preserve">
+    <value>関数の引数</value>
+  </data>
+  <data name="問い合わせの結果列" xml:space="preserve">
+    <value>問い合わせの結果列</value>
+  </data>
+  <data name="引数の型" xml:space="preserve">
+    <value>引数の型</value>
+  </data>
+  <data name="結果列の型" xml:space="preserve">
+    <value>結果列の型</value>
+  </data>
+  <data name="有効" xml:space="preserve">
+    <value>有効</value>
+  </data>
+  <data name="無効" xml:space="preserve">
+    <value>無効</value>
+  </data>
+  <data name="DB作成の権限が必要です。" xml:space="preserve">
+    <value>DB作成の権限が必要です。</value>
+  </data>
+  <data name="DLL・PDB・元ソース・依存DLLの検査に成功しました。" xml:space="preserve">
+    <value>DLL・PDB・元ソース・依存DLLの検査に成功しました。</value>
+  </data>
+  <data name="system · システム定義は参照専用です。" xml:space="preserve">
+    <value>system · システム定義は参照専用です。</value>
+  </data>
+  <data name="サーバー上のフォルダー・ソリューション・プロジェクトを選択してください。" xml:space="preserve">
+    <value>サーバー上のフォルダー・ソリューション・プロジェクトを選択してください。</value>
+  </data>
+  <data name="サーバー側の場所を指定してください。" xml:space="preserve">
+    <value>サーバー側の場所を指定してください。</value>
+  </data>
+  <data name="スキーマを下書きへ反映しました。" xml:space="preserve">
+    <value>スキーマを下書きへ反映しました。</value>
+  </data>
+  <data name="スキーマを作成する権限または操作状態を確認してください。" xml:space="preserve">
+    <value>スキーマを作成する権限または操作状態を確認してください。</value>
+  </data>
+  <data name="ターゲットを選択してください。" xml:space="preserve">
+    <value>ターゲットを選択してください。</value>
+  </data>
+  <data name="データの読み込みに失敗しました: " xml:space="preserve">
+    <value>データの読み込みに失敗しました: </value>
+  </data>
+  <data name="テーブルを下書きへ反映しました。稼働DBへ未適用です。" xml:space="preserve">
+    <value>テーブルを下書きへ反映しました。稼働DBへ未適用です。</value>
+  </data>
+  <data name="ファイル保存済み · IDEと同期しています。稼働DBへの適用は別操作です。" xml:space="preserve">
+    <value>ファイル保存済み · IDEと同期しています。稼働DBへの適用は別操作です。</value>
+  </data>
+  <data name="プロジェクトを再評価しました。表示中の編集を保持しています。" xml:space="preserve">
+    <value>プロジェクトを再評価しました。表示中の編集を保持しています。</value>
+  </data>
+  <data name="監査の取得に失敗しました。" xml:space="preserve">
+    <value>監査の取得に失敗しました。</value>
+  </data>
+  <data name="管理できるDB資源がありません。" xml:space="preserve">
+    <value>管理できるDB資源がありません。</value>
+  </data>
+  <data name="競合を解消してファイルへ保存しました。DB下書きへの反映・公開は別の操作です。" xml:space="preserve">
+    <value>競合を解消してファイルへ保存しました。DB下書きへの反映・公開は別の操作です。</value>
+  </data>
+  <data name="計画の取得に失敗しました: " xml:space="preserve">
+    <value>計画の取得に失敗しました: </value>
+  </data>
+  <data name="検証しました。変更内容を確認して適用してください。" xml:space="preserve">
+    <value>検証しました。変更内容を確認して適用してください。</value>
+  </data>
+  <data name="検証中に追加の編集がありました。変更をもう一度確認してください。" xml:space="preserve">
+    <value>検証中に追加の編集がありました。変更をもう一度確認してください。</value>
+  </data>
+  <data name="現在このテーブルを編集できません。" xml:space="preserve">
+    <value>現在このテーブルを編集できません。</value>
+  </data>
+  <data name="現在の編集を保存するか取り消してください。" xml:space="preserve">
+    <value>現在の編集を保存するか取り消してください。</value>
+  </data>
+  <data name="作成中の操作結果を照会してください。" xml:space="preserve">
+    <value>作成中の操作結果を照会してください。</value>
+  </data>
+  <data name="成果物を取り込みました。DB画面の「変更を確認」から検証・明示適用へ進めます。" xml:space="preserve">
+    <value>成果物を取り込みました。DB画面の「変更を確認」から検証・明示適用へ進めます。</value>
+  </data>
+  <data name="成果物を選択しました · 「変更を確認」から検証・明示適用へ進めます。" xml:space="preserve">
+    <value>成果物を選択しました · 「変更を確認」から検証・明示適用へ進めます。</value>
+  </data>
+  <data name="接続しています…" xml:space="preserve">
+    <value>接続しています…</value>
+  </data>
+  <data name="接続先が続き取得に対応していません。サーバーを更新してください。" xml:space="preserve">
+    <value>接続先が続き取得に対応していません。サーバーを更新してください。</value>
+  </data>
+  <data name="設定の取得に失敗しました。" xml:space="preserve">
+    <value>設定の取得に失敗しました。</value>
+  </data>
+  <data name="前の名前変更の結果が不明です。同じ名前で確定して結果を再確認してください。" xml:space="preserve">
+    <value>前の名前変更の結果が不明です。同じ名前で確定して結果を再確認してください。</value>
+  </data>
+  <data name="操作に失敗しました。編集内容は保持しています。" xml:space="preserve">
+    <value>操作に失敗しました。編集内容は保持しています。</value>
+  </data>
+  <data name="続きの読み込みに失敗しました: " xml:space="preserve">
+    <value>続きの読み込みに失敗しました: </value>
+  </data>
+  <data name="入力中の定義を下書きへ反映してからプロジェクトを保存してください。" xml:space="preserve">
+    <value>入力中の定義を下書きへ反映してからプロジェクトを保存してください。</value>
+  </data>
+  <data name="認証元のGUIDと主体IDを指定してください。" xml:space="preserve">
+    <value>認証元のGUIDと主体IDを指定してください。</value>
+  </data>
+  <data name="閉じた文書の作業はこの画面内に保持しています。" xml:space="preserve">
+    <value>閉じた文書の作業はこの画面内に保持しています。</value>
+  </data>
+  <data name="編集を保存するか取り消してから、一覧を切り替えてください。" xml:space="preserve">
+    <value>編集を保存するか取り消してから、一覧を切り替えてください。</value>
+  </data>
+  <data name="編集を保存するか取り消してから、別の利用者を開いてください。" xml:space="preserve">
+    <value>編集を保存するか取り消してから、別の利用者を開いてください。</value>
+  </data>
+  <data name="編集を保存するか取り消してからDBを切り替えてください。" xml:space="preserve">
+    <value>編集を保存するか取り消してからDBを切り替えてください。</value>
+  </data>
+  <data name="編集を保存するか取り消してからロールを切り替えてください。" xml:space="preserve">
+    <value>編集を保存するか取り消してからロールを切り替えてください。</value>
+  </data>
+  <data name="編集を保存するか取り消してから再取得してください。" xml:space="preserve">
+    <value>編集を保存するか取り消してから再取得してください。</value>
+  </data>
+  <data name="保管中に追加の編集がありました。変更をもう一度確認してください。" xml:space="preserve">
+    <value>保管中に追加の編集がありました。変更をもう一度確認してください。</value>
+  </data>
+  <data name="保存に失敗しました: " xml:space="preserve">
+    <value>保存に失敗しました: </value>
+  </data>
+  <data name="保存に失敗しました。入力は保持しています。" xml:space="preserve">
+    <value>保存に失敗しました。入力は保持しています。</value>
+  </data>
+  <data name="保存結果を照会してから編集を続けてください。" xml:space="preserve">
+    <value>保存結果を照会してから編集を続けてください。</value>
+  </data>
+  <data name="未解決のC#同期の競合はありません。同期して最新内容を確認できます。" xml:space="preserve">
+    <value>未解決のC#同期の競合はありません。同期して最新内容を確認できます。</value>
+  </data>
+  <data name="名前変更の結果が不明です。「名前変更の結果を照会」で結果を再確認してください。" xml:space="preserve">
+    <value>名前変更の結果が不明です。「名前変更の結果を照会」で結果を再確認してください。</value>
+  </data>
+  <data name="名前変更の結果を先に照会してください。" xml:space="preserve">
+    <value>名前変更の結果を先に照会してください。</value>
+  </data>
+  <data name="問い合わせを下書きへ反映しました。" xml:space="preserve">
+    <value>問い合わせを下書きへ反映しました。</value>
+  </data>
+  <data name="利用者の取得に失敗しました。" xml:space="preserve">
+    <value>利用者の取得に失敗しました。</value>
+  </data>
+  <data name="両側の内容を保持しています。保存する内容を選択してください。" xml:space="preserve">
+    <value>両側の内容を保持しています。保存する内容を選択してください。</value>
+  </data>
+  <data name="利用者を保存しました。" xml:space="preserve">
+    <value>利用者を保存しました。</value>
+  </data>
+  <data name="設定を保存しました。" xml:space="preserve">
+    <value>設定を保存しました。</value>
+  </data>
+  <data name="DB名を変更しました · " xml:space="preserve">
+    <value>DB名を変更しました · </value>
+  </data>
+  <data name="下書きを保管しました · r" xml:space="preserve">
+    <value>下書きを保管しました · r</value>
+  </data>
+  <data name="変更を公開しました · v" xml:space="preserve">
+    <value>変更を公開しました · v</value>
+  </data>
+  <data name="操作状態 · " xml:space="preserve">
+    <value>操作状態 · </value>
+  </data>
+  <data name="DB作成 · " xml:space="preserve">
+    <value>DB作成 · </value>
+  </data>
+  <data name="ロールを保存しました。ポリシー v" xml:space="preserve">
+    <value>ロールを保存しました。ポリシー v</value>
+  </data>
+  <data name="接続済み · " xml:space="preserve">
+    <value>接続済み · </value>
+  </data>
+  <data name="{0} · 下書き r{1}に反映しました。" xml:space="preserve">
+    <value>{0} · 下書き r{1}に反映しました。</value>
+  </data>
+  <data name="{0} · 公開版 v{1}" xml:space="preserve">
+    <value>{0} · 公開版 v{1}</value>
+  </data>
+  <data name="データベース「{0}」を作成しました。" xml:space="preserve">
+    <value>データベース「{0}」を作成しました。</value>
+  </data>
+  <data name="データベース「{0}」の専用C#プロジェクトを保存しました。" xml:space="preserve">
+    <value>データベース「{0}」の専用C#プロジェクトを保存しました。</value>
+  </data>
+  <data name="ビルド構成を {0} に変更しました。{1} ファイルを評価しました。下書きへ反映後、この構成でビルドしたDLLを検査してください。" xml:space="preserve">
+    <value>ビルド構成を {0} に変更しました。{1} ファイルを評価しました。下書きへ反映後、この構成でビルドしたDLLを検査してください。</value>
+  </data>
+  <data name="{0}件のプロジェクト · {1}" xml:space="preserve">
+    <value>{0}件のプロジェクト · {1}</value>
+  </data>
+  <data name="{0} · DB下書き r{1}へ反映しました。DB画面から変更を確認できます。" xml:space="preserve">
+    <value>{0} · DB下書き r{1}へ反映しました。DB画面から変更を確認できます。</value>
+  </data>
+  <data name="DB下書き r{0}は保管済みです。画面または追加入力を確認してください。 {1}" xml:space="preserve">
+    <value>DB下書き r{0}は保管済みです。画面または追加入力を確認してください。 {1}</value>
+  </data>
+  <data name="{0} 行の変更を保存しました (v{1})。" xml:space="preserve">
+    <value>{0} 行の変更を保存しました (v{1})。</value>
+  </data>
+  <data name="{0}の下書き" xml:space="preserve">
+    <value>{0}の下書き</value>
+  </data>
+  <data name="{0}を追加" xml:space="preserve">
+    <value>{0}を追加</value>
+  </data>
+  <data name="{0}を許可" xml:space="preserve">
+    <value>{0}を許可</value>
+  </data>
+  <data name="{0}を拒否" xml:space="preserve">
+    <value>{0}を拒否</value>
+  </data>
+  <data name="未保管の変更" xml:space="preserve">
+    <value>未保管の変更</value>
+  </data>
+  <data name="下書き · 稼働DBへ未適用" xml:space="preserve">
+    <value>下書き · 稼働DBへ未適用</value>
+  </data>
+  <data name="すべての変更を公開済み" xml:space="preserve">
+    <value>すべての変更を公開済み</value>
+  </data>
+  <data name="次回起動時に反映されます。" xml:space="preserve">
+    <value>次回起動時に反映されます。</value>
+  </data>
+  <data name="取り込んだ後、DB画面で変更を確認して適用できます。" xml:space="preserve">
+    <value>取り込んだ後、DB画面で変更を確認して適用できます。</value>
+  </data>
+  <data name=" 追加の入力の退避先 · " xml:space="preserve">
+    <value> 追加の入力の退避先 · </value>
+  </data>
+  <data name="作業辞書" xml:space="preserve">
+    <value>作業辞書</value>
+  </data>
+  <data name="ビューの下書き" xml:space="preserve">
+    <value>ビューの下書き</value>
+  </data>
+  <data name="関数の下書き" xml:space="preserve">
+    <value>関数の下書き</value>
+  </data>
+  <data name="公開済み" xml:space="preserve">
+    <value>公開済み</value>
+  </data>
+  <data name="入力あり" xml:space="preserve">
+    <value>入力あり</value>
+  </data>
+  <data name="未保存" xml:space="preserve">
+    <value>未保存</value>
+  </data>
+  <data name="変更なし" xml:space="preserve">
+    <value>変更なし</value>
+  </data>
+  <data name="直下" xml:space="preserve">
+    <value>直下</value>
+  </data>
+  <data name="スキーマなし" xml:space="preserve">
+    <value>スキーマなし</value>
+  </data>
+  <data name="列" xml:space="preserve">
+    <value>列</value>
+  </data>
+  <data name="一覧" xml:space="preserve">
+    <value>一覧</value>
+  </data>
+  <data name="更新" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="検証" xml:space="preserve">
+    <value>検証</value>
+  </data>
+  <data name="適用" xml:space="preserve">
+    <value>適用</value>
+  </data>
+  <data name="主体の種類" xml:space="preserve">
+    <value>主体の種類</value>
+  </data>
+  <data name="無効化" xml:space="preserve">
+    <value>無効化</value>
+  </data>
+  <data name="参照の集計" xml:space="preserve">
+    <value>参照の集計</value>
+  </data>
+  <data name="転記状態" xml:space="preserve">
+    <value>転記状態</value>
+  </data>
+  <data name="イベント" xml:space="preserve">
+    <value>イベント</value>
+  </data>
+  <data name="参照集計" xml:space="preserve">
+    <value>参照集計</value>
+  </data>
+  <data name="更新・監査" xml:space="preserve">
+    <value>更新・監査</value>
+  </data>
+  <data name="権限.一覧" xml:space="preserve">
+    <value>一覧</value>
+  </data>
+  <data name="権限.参照" xml:space="preserve">
+    <value>参照</value>
+  </data>
+  <data name="権限.追加" xml:space="preserve">
+    <value>追加</value>
+  </data>
+  <data name="権限.更新" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="権限.削除" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="権限.実行" xml:space="preserve">
+    <value>実行</value>
+  </data>
+  <data name="権限.ソース参照" xml:space="preserve">
+    <value>ソース参照</value>
+  </data>
+  <data name="権限.設計編集" xml:space="preserve">
+    <value>設計編集</value>
+  </data>
+  <data name="権限.検証" xml:space="preserve">
+    <value>検証</value>
+  </data>
+  <data name="権限.適用" xml:space="preserve">
+    <value>適用</value>
+  </data>
+  <data name="権限.権限管理" xml:space="preserve">
+    <value>権限管理</value>
+  </data>
+  <data name="権限.サーバー管理" xml:space="preserve">
+    <value>サーバー管理</value>
+  </data>
+  <data name="C#ソース" xml:space="preserve">
+    <value>C#ソース</value>
+  </data>
+  <data name="同期を停止・編集を保持" xml:space="preserve">
+    <value>同期を停止・編集を保持</value>
+  </data>
+  <data name="ファイル未保存" xml:space="preserve">
+    <value>ファイル未保存</value>
+  </data>
+  <data name="ファイル保存済み" xml:space="preserve">
+    <value>ファイル保存済み</value>
+  </data>
+  <data name="{0}列" xml:space="preserve">
+    <value>{0}列</value>
+  </data>
+  <data name="{0}引数" xml:space="preserve">
+    <value>{0}引数</value>
+  </data>
+  <data name="{0}結果列" xml:space="preserve">
+    <value>{0}結果列</value>
+  </data>
+  <data name="基準の公開版 v{0} → 次の公開版" xml:space="preserve">
+    <value>基準の公開版 v{0} → 次の公開版</value>
+  </data>
+  <data name="{0} 件の最適化計画" xml:space="preserve">
+    <value>{0} 件の最適化計画</value>
+  </data>
+  <data name="監査.参照" xml:space="preserve">
+    <value>参照</value>
+  </data>
+  <data name="監査.データ更新" xml:space="preserve">
+    <value>データ更新</value>
+  </data>
+  <data name="監査.定義変更" xml:space="preserve">
+    <value>定義変更</value>
+  </data>
+  <data name="監査.権限変更" xml:space="preserve">
+    <value>権限変更</value>
+  </data>
+  <data name="監査.アカウント変更" xml:space="preserve">
+    <value>アカウント変更</value>
+  </data>
+  <data name="監査.ソース参照" xml:space="preserve">
+    <value>ソース参照</value>
+  </data>
+  <data name="監査.検証" xml:space="preserve">
+    <value>検証</value>
+  </data>
+  <data name="監査.その他" xml:space="preserve">
+    <value>その他</value>
+  </data>
+  <data name="監査.成功" xml:space="preserve">
+    <value>成功</value>
+  </data>
+  <data name="監査.失敗" xml:space="preserve">
+    <value>失敗</value>
+  </data>
+  <data name="監査.取消" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="監査.拒否" xml:space="preserve">
+    <value>拒否</value>
+  </data>
+  <data name="監査.不明" xml:space="preserve">
+    <value>不明</value>
+  </data>
+  <data name="権限.表示" xml:space="preserve">
+    <value>表示</value>
+  </data>
+  <data name="権限.クエリ実行" xml:space="preserve">
+    <value>クエリ実行</value>
+  </data>
+  <data name="権限.行参照" xml:space="preserve">
+    <value>行参照</value>
+  </data>
+  <data name="権限.行更新" xml:space="preserve">
+    <value>行更新</value>
+  </data>
+  <data name="権限.定義編集" xml:space="preserve">
+    <value>定義編集</value>
+  </data>
+  <data name="権限.明示適用" xml:space="preserve">
+    <value>明示適用</value>
+  </data>
+  <data name="権限.管理" xml:space="preserve">
+    <value>管理</value>
+  </data>
+  <data name="権限を削除 {0}" xml:space="preserve">
+    <value>権限を削除 {0}</value>
+  </data>
+  <data name="選択済み" xml:space="preserve">
+    <value>選択済み</value>
+  </data>
+  <data name="採用元の選択または手動編集が必要です" xml:space="preserve">
+    <value>採用元の選択または手動編集が必要です</value>
+  </data>
+  <data name="基準 {0}" xml:space="preserve">
+    <value>基準 {0}</value>
+  </data>
+  <data name="外部 {0}" xml:space="preserve">
+    <value>外部 {0}</value>
+  </data>
+  <data name="保存候補 {0}" xml:space="preserve">
+    <value>保存候補 {0}</value>
+  </data>
+  <data name="{0} 行" xml:space="preserve">
+    <value>{0} 行</value>
+  </data>
+  <data name="元に戻す ({0})" xml:space="preserve">
+    <value>元に戻す ({0})</value>
+  </data>
+  <data name="変更を保存 ({0})" xml:space="preserve">
+    <value>変更を保存 ({0})</value>
+  </data>
+  <data name="公開版 v{0} の問い合わせを実行します。" xml:space="preserve">
+    <value>公開版 v{0} の問い合わせを実行します。</value>
+  </data>
+  <data name="引数 {0}" xml:space="preserve">
+    <value>引数 {0}</value>
+  </data>
+  <data name="{0} 行を表示" xml:space="preserve">
+    <value>{0} 行を表示</value>
+  </data>
+  <data name="· 再起動待ち" xml:space="preserve">
+    <value>· 再起動待ち</value>
+  </data>
+  <data name="管理領域" xml:space="preserve">
+    <value>管理領域</value>
+  </data>
+  <data name="証明書" xml:space="preserve">
+    <value>証明書</value>
+  </data>
+  <data name="起動ファイル" xml:space="preserve">
+    <value>起動ファイル</value>
+  </data>
+  <data name="起動引数の指定" xml:space="preserve">
+    <value>起動引数の指定</value>
+  </data>
+  <data name="実行中の集計期間 {0} 秒 · 保存間隔 {1} 秒" xml:space="preserve">
+    <value>実行中の集計期間 {0} 秒 · 保存間隔 {1} 秒</value>
+  </data>
+  <data name="{0} 列" xml:space="preserve">
+    <value>{0} 列</value>
+  </data>
+  <data name="同期基準 v{0} · 保管記録 r{1}" xml:space="preserve">
+    <value>同期基準 v{0} · 保管記録 r{1}</value>
+  </data>
+  <data name="対応する下書き" xml:space="preserve">
+    <value>対応する下書き</value>
+  </data>
+  <data name="r{0} · 基準 v{1}" xml:space="preserve">
+    <value>r{0} · 基準 v{1}</value>
+  </data>
+  <data name="依存DLL" xml:space="preserve">
+    <value>依存DLL</value>
+  </data>
+  <data name="{0} 件" xml:space="preserve">
+    <value>{0} 件</value>
+  </data>
+  <data name="ポリシー v{0}" xml:space="preserve">
+    <value>ポリシー v{0}</value>
+  </data>
+  <data name="利用者・グループへの割り当て（{0}）" xml:space="preserve">
+    <value>利用者・グループへの割り当て（{0}）</value>
+  </data>
+  <data name="操作ID {0}" xml:space="preserve">
+    <value>操作ID {0}</value>
+  </data>
+  <data name="利用者 {0}" xml:space="preserve">
+    <value>利用者 {0}</value>
+  </data>
+  <data name="{0} 件のDB権限" xml:space="preserve">
+    <value>{0} 件のDB権限</value>
+  </data>
+  <data name="操作イベント · {0} 件" xml:space="preserve">
+    <value>操作イベント · {0} 件</value>
+  </data>
+  <data name="イベントID" xml:space="preserve">
+    <value>イベントID</value>
+  </data>
+  <data name="操作ID" xml:space="preserve">
+    <value>操作ID</value>
+  </data>
+  <data name="取引ID" xml:space="preserve">
+    <value>取引ID</value>
+  </data>
+  <data name="開始 (UTC)" xml:space="preserve">
+    <value>開始 (UTC)</value>
+  </data>
+  <data name="コード版" xml:space="preserve">
+    <value>コード版</value>
+  </data>
+  <data name="権限版" xml:space="preserve">
+    <value>権限版</value>
+  </data>
+  <data name="メソッド" xml:space="preserve">
+    <value>メソッド</value>
+  </data>
+  <data name="参照集計 · {0} 件" xml:space="preserve">
+    <value>参照集計 · {0} 件</value>
+  </data>
+  <data name="メソッド詳細" xml:space="preserve">
+    <value>メソッド詳細</value>
+  </data>
+  <data name="転記ワーカー" xml:space="preserve">
+    <value>転記ワーカー</value>
+  </data>
+  <data name="稼働中" xml:space="preserve">
+    <value>稼働中</value>
+  </data>
+  <data name="停止中" xml:space="preserve">
+    <value>停止中</value>
+  </data>
+  <data name="WAL転記 · {0} 件" xml:space="preserve">
+    <value>WAL転記 · {0} 件</value>
+  </data>
+  <data name="旧世代" xml:space="preserve">
+    <value>旧世代</value>
+  </data>
+  <data name="現行世代" xml:space="preserve">
+    <value>現行世代</value>
+  </data>
+  <data name="転記済み" xml:space="preserve">
+    <value>転記済み</value>
+  </data>
+  <data name="残りあり" xml:space="preserve">
+    <value>残りあり</value>
+  </data>
+  <data name="1ページ最大100件" xml:space="preserve">
+    <value>1ページ最大100件</value>
+  </data>
+  <data name="{0} 件を検索" xml:space="preserve">
+    <value>{0} 件を検索</value>
+  </data>
+  <data name="テーブル未選択" xml:space="preserve">
+    <value>テーブル未選択</value>
+  </data>
+  <data name="（続きあり）" xml:space="preserve">
+    <value>（続きあり）</value>
+  </data>
+  <data name="管理TCPのIP" xml:space="preserve">
+    <value>管理TCPのIP</value>
+  </data>
+  <data name="外部Managerの起点" xml:space="preserve">
+    <value>外部Managerの起点</value>
+  </data>
+  <data name="外部ManagerのIP" xml:space="preserve">
+    <value>外部ManagerのIP</value>
+  </data>
+  <data name="受信予算" xml:space="preserve">
+    <value>受信予算</value>
+  </data>
+  <data name="応答期限" xml:space="preserve">
+    <value>応答期限</value>
+  </data>
+  <data name="参照監査の有効設定" xml:space="preserve">
+    <value>参照監査の有効設定</value>
+  </data>
+  <data name="集計期間" xml:space="preserve">
+    <value>集計期間</value>
+  </data>
+  <data name="保存間隔" xml:space="preserve">
+    <value>保存間隔</value>
+  </data>
+  <data name="新規行 {0}" xml:space="preserve">
+    <value>新規行 {0}</value>
+  </data>
+  <data name="行{0} {1}" xml:space="preserve">
+    <value>行{0} {1}</value>
+  </data>
+  <data name="{0} · 開始 {1} · 長さ {2}" xml:space="preserve">
+    <value>{0} · 開始 {1} · 長さ {2}</value>
+  </data>
+  <data name="クエリ一覧" xml:space="preserve">
+    <value>クエリ一覧</value>
+  </data>
+  <data name="クエリ一覧を表示" xml:space="preserve">
+    <value>クエリ一覧を表示</value>
+  </data>
+  <data name="クエリを検索" xml:space="preserve">
+    <value>クエリを検索</value>
+  </data>
+  <data name="名前・スキーマで検索" xml:space="preserve">
+    <value>名前・スキーマで検索</value>
+  </data>
+  <data name="対象を選択して、結果・実行計画・実行履歴を確認します。" xml:space="preserve">
+    <value>対象を選択して、結果・実行計画・実行履歴を確認します。</value>
+  </data>
+  <data name="公開クエリ" xml:space="preserve">
+    <value>公開クエリ</value>
+  </data>
+  <data name="クエリ一覧を読み込んでいます…" xml:space="preserve">
+    <value>クエリ一覧を読み込んでいます…</value>
+  </data>
+  <data name="公開クエリの続きを取得" xml:space="preserve">
+    <value>公開クエリの続きを取得</value>
+  </data>
+  <data name="該当するクエリがありません。" xml:space="preserve">
+    <value>該当するクエリがありません。</value>
+  </data>
+  <data name="公開クエリ一覧の取得に失敗しました。" xml:space="preserve">
+    <value>公開クエリ一覧の取得に失敗しました。</value>
+  </data>
+  <data name="アクセス履歴" xml:space="preserve">
+    <value>アクセス履歴</value>
+  </data>
+  <data name="実行履歴" xml:space="preserve">
+    <value>実行履歴</value>
+  </data>
+  <data name="実行計画" xml:space="preserve">
+    <value>実行計画</value>
+  </data>
+  <data name="この対象を識別した監査記録を表示します。集計だけの参照や未記録のアクセスは含みません。" xml:space="preserve">
+    <value>この対象を識別した監査記録を表示します。集計だけの参照や未記録のアクセスは含みません。</value>
+  </data>
+  <data name="履歴を読み込んでいます…" xml:space="preserve">
+    <value>履歴を読み込んでいます…</value>
+  </data>
+  <data name="この対象の監査記録はありません。" xml:space="preserve">
+    <value>この対象の監査記録はありません。</value>
+  </data>
+  <data name="履歴の取得に失敗しました。" xml:space="preserve">
+    <value>履歴の取得に失敗しました。</value>
+  </data>
+  <data name="時刻" xml:space="preserve">
+    <value>時刻</value>
+  </data>
+  <data name="対象の計画を取得" xml:space="preserve">
+    <value>対象の計画を取得</value>
+  </data>
+  <data name="対象クエリ / メソッド" xml:space="preserve">
+    <value>対象クエリ / メソッド</value>
+  </data>
+  <data name="ノード数 {0}" xml:space="preserve">
+    <value>ノード数 {0}</value>
+  </data>
+  <data name="公開済み定義の計画" xml:space="preserve">
+    <value>公開済み定義の計画</value>
+  </data>
+  <data name="検証中の下書きの計画" xml:space="preserve">
+    <value>検証中の下書きの計画</value>
+  </data>
+  <data name="グラフ" xml:space="preserve">
+    <value>グラフ</value>
+  </data>
+  <data name="実行計画を取得する前に下書きを保存してください。" xml:space="preserve">
+    <value>実行計画を取得する前に下書きを保存してください。</value>
+  </data>
+  <data name="対象メソッドと元ソースの対応を取得できません。" xml:space="preserve">
+    <value>対象メソッドと元ソースの対応を取得できません。</value>
+  </data>
+  <data name="この対象に対応する展開済みの実行計画がありません。未展開の処理やソース版の相違を確認してください。" xml:space="preserve">
+    <value>この対象に対応する展開済みの実行計画がありません。未展開の処理やソース版の相違を確認してください。</value>
+  </data>
+  <data name="{0}、ノード{1}" xml:space="preserve">
+    <value>{0}、ノード{1}</value>
+  </data>
+  <data name="すべての層" xml:space="preserve">
+    <value>すべての層</value>
+  </data>
+  <data name="その他のノード" xml:space="preserve">
+    <value>その他のノード</value>
+  </data>
+  <data name="ソース位置の記録なし" xml:space="preserve">
+    <value>ソース位置の記録なし</value>
+  </data>
+  <data name="ノードを検索" xml:space="preserve">
+    <value>ノードを検索</value>
+  </data>
+  <data name="ノードを選択すると、型・入力参照・ソース位置を確認できます。" xml:space="preserve">
+    <value>ノードを選択すると、型・入力参照・ソース位置を確認できます。</value>
+  </data>
+  <data name="ノード詳細" xml:space="preserve">
+    <value>ノード詳細</value>
+  </data>
+  <data name="ノード別実績" xml:space="preserve">
+    <value>ノード別実績</value>
+  </data>
+  <data name="開始 {0} · 長さ {1}" xml:space="preserve">
+    <value>開始 {0} · 長さ {1}</value>
+  </data>
+  <data name="拡大" xml:space="preserve">
+    <value>拡大</value>
+  </data>
+  <data name="記録されたプロパティ" xml:space="preserve">
+    <value>記録されたプロパティ</value>
+  </data>
+  <data name="記録された入力参照" xml:space="preserve">
+    <value>記録された入力参照</value>
+  </data>
+  <data name="計画キャンバス。背景をドラッグして移動できます。" xml:space="preserve">
+    <value>計画キャンバス。背景をドラッグして移動できます。</value>
+  </data>
+  <data name="計画に記録なし" xml:space="preserve">
+    <value>計画に記録なし</value>
+  </data>
+  <data name="計画の表示層" xml:space="preserve">
+    <value>計画の表示層</value>
+  </data>
+  <data name="元のクエリ" xml:space="preserve">
+    <value>元のクエリ</value>
+  </data>
+  <data name="左右は記録順。配置は実行時刻を表しません。" xml:space="preserve">
+    <value>左右は記録順。配置は実行時刻を表しません。</value>
+  </data>
+  <data name="採用された処理" xml:space="preserve">
+    <value>採用された処理</value>
+  </data>
+  <data name="参照先のない入力が{0}件あります。" xml:space="preserve">
+    <value>参照先のない入力が{0}件あります。</value>
+  </data>
+  <data name="次の一致" xml:space="preserve">
+    <value>次の一致</value>
+  </data>
+  <data name="識別子が重複した計画です。" xml:space="preserve">
+    <value>識別子が重複した計画です。</value>
+  </data>
+  <data name="実行計画グラフ" xml:space="preserve">
+    <value>実行計画グラフ</value>
+  </data>
+  <data name="縮小" xml:space="preserve">
+    <value>縮小</value>
+  </data>
+  <data name="循環を含むため、一部の配置順序は未確定です。" xml:space="preserve">
+    <value>循環を含むため、一部の配置順序は未確定です。</value>
+  </data>
+  <data name="上から下へ進む計画グラフ" xml:space="preserve">
+    <value>上から下へ進む計画グラフ</value>
+  </data>
+  <data name="推定コスト" xml:space="preserve">
+    <value>推定コスト</value>
+  </data>
+  <data name="接続種別は未記録" xml:space="preserve">
+    <value>接続種別は未記録</value>
+  </data>
+  <data name="全体表示" xml:space="preserve">
+    <value>全体表示</value>
+  </data>
+  <data name="点線と丸は表示用の集約" xml:space="preserve">
+    <value>点線と丸は表示用の集約</value>
+  </data>
+  <data name="入力{0}" xml:space="preserve">
+    <value>入力{0}</value>
+  </data>
+  <data name="入力参照 {0} → {1}" xml:space="preserve">
+    <value>入力参照 {0} → {1}</value>
+  </data>
+  <data name="入力参照グラフの表示上のまとめ" xml:space="preserve">
+    <value>入力参照グラフの表示上のまとめ</value>
+  </data>
+  <data name="入力参照グラフを表示上でまとめます。実際の出力対応は未記録です。" xml:space="preserve">
+    <value>入力参照グラフを表示上でまとめます。実際の出力対応は未記録です。</value>
+  </data>
+  <data name="入力番号" xml:space="preserve">
+    <value>入力番号</value>
+  </data>
+  <data name="破線の矢印は記録された入力参照" xml:space="preserve">
+    <value>破線の矢印は記録された入力参照</value>
+  </data>
+  <data name="判断と条件" xml:space="preserve">
+    <value>判断と条件</value>
+  </data>
+  <data name="表示層" xml:space="preserve">
+    <value>表示層</value>
+  </data>
+  <data name="表示用Result" xml:space="preserve">
+    <value>表示用Result</value>
+  </data>
+  <data name="表示用の集約線" xml:space="preserve">
+    <value>表示用の集約線</value>
+  </data>
+  <data name="表示用の補助ノード" xml:space="preserve">
+    <value>表示用の補助ノード</value>
+  </data>
+  <data name="凡例" xml:space="preserve">
+    <value>凡例</value>
+  </data>
+  <data name="未収集" xml:space="preserve">
+    <value>未収集</value>
+  </data>
+  <data name="元の数式" xml:space="preserve">
+    <value>元の数式</value>
+  </data>
+  <data name="型の記録なし" xml:space="preserve">
+    <value>型の記録なし</value>
+  </data>
+  <data name="NULL許容性" xml:space="preserve">
+    <value>NULL許容性</value>
+  </data>
+  <data name="NULL非許容" xml:space="preserve">
+    <value>NULL非許容</value>
+  </data>
+  <data name="NULL許容" xml:space="preserve">
+    <value>NULL許容</value>
+  </data>
+  <data name="NULL許容性不明" xml:space="preserve">
+    <value>NULL許容性不明</value>
+  </data>
+  <data name="独立計測なし" xml:space="preserve">
+    <value>独立計測なし</value>
+  </data>
+  <data name="計測状態不明" xml:space="preserve">
+    <value>計測状態不明</value>
+  </data>
+  <data name="元クエリのデータフロー" xml:space="preserve">
+    <value>元クエリのデータフロー</value>
+  </data>
+  <data name="元の数式の依存" xml:space="preserve">
+    <value>元の数式の依存</value>
+  </data>
+  <data name="採用処理の入力参照" xml:space="preserve">
+    <value>採用処理の入力参照</value>
+  </data>
+  <data name="ソース対応" xml:space="preserve">
+    <value>ソース対応</value>
+  </data>
+  <data name="種別未記録の接続" xml:space="preserve">
+    <value>種別未記録の接続</value>
+  </data>
+  <data name="{0} · {1} → {2}" xml:space="preserve">
+    <value>{0} · {1} → {2}</value>
+  </data>
+  <data name="計画メタデータは一部です。省略ノード{0}件。" xml:space="preserve">
+    <value>計画メタデータは一部です。省略ノード{0}件。</value>
+  </data>
+  <data name="出力型" xml:space="preserve">
+    <value>出力型</value>
+  </data>
+  <data name="プロジェクトのC#ソース" xml:space="preserve">
+    <value>プロジェクトのC#ソース</value>
+  </data>
+  <data name="対応コード" xml:space="preserve"><value>対応コード</value></data>
+  <data name="計画ノードの元ソース" xml:space="preserve"><value>計画ノードの元ソース</value></data>
+  <data name="記録された展開式" xml:space="preserve"><value>記録された展開式</value></data>
+  <data name="この計画には元ソースの版との対応情報がありません。" xml:space="preserve"><value>この計画には元ソースの版との対応情報がありません。</value></data>
+  <data name="ソースの版が計画と異なります。計画を再取得してください。" xml:space="preserve"><value>ソースの版が計画と異なります。計画を再取得してください。</value></data>
+  <data name="対応するソース範囲を取得できません。" xml:space="preserve"><value>対応するソース範囲を取得できません。</value></data>
+  <data name="実行時の計測" xml:space="preserve"><value>実行時の計測</value></data>
+  <data name="計測なし" xml:space="preserve"><value>計測なし</value></data>
+  <data name="軽量実測" xml:space="preserve"><value>軽量実測</value></data>
+  <data name="計測設定は次回の実行に適用します。" xml:space="preserve"><value>計測設定は次回の実行に適用します。</value></data>
+  <data name="実行を取り消す" xml:space="preserve"><value>実行を取り消す</value></data>
+  <data name="実行を取り消しました。" xml:space="preserve"><value>実行を取り消しました。</value></data>
+  <data name="統計を表示" xml:space="preserve"><value>統計を表示</value></data>
+  <data name="実行の軽量実測" xml:space="preserve"><value>実行の軽量実測</value></data>
+  <data name="経過時間" xml:space="preserve"><value>経過時間</value></data>
+  <data name="DBゲート待機" xml:space="preserve"><value>DBゲート待機</value></data>
+  <data name="最初の値・行まで" xml:space="preserve"><value>最初の値・行まで</value></data>
+  <data name="観測出力数" xml:space="preserve"><value>観測出力数</value></data>
+  <data name="返却出力数" xml:space="preserve"><value>返却出力数</value></data>
+  <data name="取得状態" xml:space="preserve"><value>取得状態</value></data>
+  <data name="実行ID" xml:space="preserve"><value>実行ID</value></data>
+  <data name="対象の公開版" xml:space="preserve"><value>対象の公開版</value></data>
+  <data name="開始UTC" xml:space="preserve"><value>開始UTC</value></data>
+  <data name="終了UTC" xml:space="preserve"><value>終了UTC</value></data>
+  <data name="計測範囲と未収集項目" xml:space="preserve"><value>計測範囲と未収集項目</value></data>
+  <data name="出力なし" xml:space="preserve"><value>出力なし</value></data>
+  <data name="応答上限による部分取得" xml:space="preserve"><value>応答上限による部分取得</value></data>
+  <data name="取得完了" xml:space="preserve"><value>取得完了</value></data>
+  <data name="経過時間はDBゲートの待機開始から結果構築・読取セッション解放までです。通信と上位受付枠の待機は範囲外です。" xml:space="preserve"><value>経過時間はDBゲートの待機開始から結果構築・読取セッション解放までです。通信と上位受付枠の待機は範囲外です。</value></data>
+  <data name="初回出力までの時間はDBゲート待機を含みます。観測出力数には上限判定の先読みを含みます。" xml:space="preserve"><value>初回出力までの時間はDBゲート待機を含みます。観測出力数には上限判定の先読みを含みます。</value></data>
+  <data name="ノード別時間、CPU、I/O、詳細イベントは未収集です。" xml:space="preserve"><value>ノード別時間、CPU、I/O、詳細イベントは未収集です。</value></data>
+  <data name="{0}を保存" xml:space="preserve"><value>{0}を保存</value></data>
+  <data name="このファイルにはコードやリテラルが含まれます。共有先を確認してください。" xml:space="preserve"><value>このファイルにはコードやリテラルが含まれます。共有先を確認してください。</value></data>
+  <data name="コード・リテラル・ソースパスは出力していません。" xml:space="preserve"><value>コード・リテラル・ソースパスは出力していません。</value></data>
+  <data name="コードとリテラルを出力に含める" xml:space="preserve"><value>コードとリテラルを出力に含める</value></data>
+  <data name="ブラウザーとの接続が切れました。" xml:space="preserve"><value>ブラウザーとの接続が切れました。</value></data>
+  <data name="下書き r{0}" xml:space="preserve"><value>下書き r{0}</value></data>
+  <data name="記録された書換回数" xml:space="preserve"><value>記録された書換回数</value></data>
+  <data name="計画の構造件数比較" xml:space="preserve"><value>計画の構造件数比較</value></data>
+  <data name="計画の保存と比較" xml:space="preserve"><value>計画の保存と比較</value></data>
+  <data name="現在" xml:space="preserve"><value>現在</value></data>
+  <data name="現在の計画との比較" xml:space="preserve"><value>現在の計画との比較</value></data>
+  <data name="再訪" xml:space="preserve"><value>再訪</value></data>
+  <data name="最適化パス" xml:space="preserve"><value>最適化パス</value></data>
+  <data name="最適化追跡" xml:space="preserve"><value>最適化追跡</value></data>
+  <data name="最適化追跡の一部が欠けています。" xml:space="preserve"><value>最適化追跡の一部が欠けています。</value></data>
+  <data name="最適化追跡の記録がありません。" xml:space="preserve"><value>最適化追跡の記録がありません。</value></data>
+  <data name="対象の履歴には管理権限が必要です。" xml:space="preserve"><value>対象の履歴には管理権限が必要です。</value></data>
+  <data name="反復" xml:space="preserve"><value>反復</value></data>
+  <data name="変更" xml:space="preserve"><value>変更</value></data>
+  <data name="保存・読込・比較と最適化追跡" xml:space="preserve"><value>保存・読込・比較と最適化追跡</value></data>
+  <data name="保存と表示の操作は問い合わせを実行しません。" xml:space="preserve"><value>保存と表示の操作は問い合わせを実行しません。</value></data>
+  <data name="保存済み" xml:space="preserve"><value>保存済み</value></data>
+  <data name="保存済みの実行計画" xml:space="preserve"><value>保存済みの実行計画</value></data>
+  <data name="保存済み計画を開く" xml:space="preserve"><value>保存済み計画を開く</value></data>
+  <data name="保存済み資料" xml:space="preserve"><value>保存済み資料</value></data>
+  <data name="保存済み資料は稼働DBの現在状態や認証済みの成果物を証明しません。" xml:space="preserve"><value>保存済み資料は稼働DBの現在状態や認証済みの成果物を証明しません。</value></data>
+  <data name="保存済み資料を閉じる" xml:space="preserve"><value>保存済み資料を閉じる</value></data>
+  <data name="保存内容のハッシュは署名やDLLの真正性を保証しません。" xml:space="preserve"><value>保存内容のハッシュは署名やDLLの真正性を保証しません。</value></data>
+  <data name="対象が一致しています。" xml:space="preserve"><value>対象が一致しています。</value></data>
+  <data name="異なる対象の資料です。" xml:space="preserve"><value>異なる対象の資料です。</value></data>
+  <data name="公開版と成果物が一致しています。" xml:space="preserve"><value>公開版と成果物が一致しています。</value></data>
+  <data name="公開版または成果物が異なります。" xml:space="preserve"><value>公開版または成果物が異なります。</value></data>
+  <data name="同じ保存計画のノード識別子を比較できます。" xml:space="preserve"><value>同じ保存計画のノード識別子を比較できます。</value></data>
+  <data name="異なる計画間のノード対応は未確定です。IDの一致だけで対応付けません。" xml:space="preserve"><value>異なる計画間のノード対応は未確定です。IDの一致だけで対応付けません。</value></data>
+  <data name="成果物" xml:space="preserve"><value>成果物</value></data>
+  <data name="保存内容ハッシュ" xml:space="preserve"><value>保存内容ハッシュ</value></data>
+  <data name="表示用の集約" xml:space="preserve"><value>表示用の集約</value></data>
+  <data name="実行計画の対象メンバーが複数あります。オーバーロードを区別できる宣言を指定してください。" xml:space="preserve"><value>実行計画の対象メンバーが複数あります。オーバーロードを区別できる宣言を指定してください。</value></data>
+  <data name="実行計画の対象メソッドが複数あります。オーバーロードを区別できる宣言を指定してください。" xml:space="preserve"><value>実行計画の対象メソッドが複数あります。オーバーロードを区別できる宣言を指定してください。</value></data>
+  <data name="呼び出し先のオーバーロードが未確定のため、一部の元ソースとの対応を取得できません。" xml:space="preserve"><value>呼び出し先のオーバーロードが未確定のため、一部の元ソースとの対応を取得できません。</value></data>
+  <data name="主キーを編集" xml:space="preserve"><value>主キーを編集</value></data>
+  <data name="外部キーをC#で追加" xml:space="preserve"><value>外部キーをC#で追加</value></data>
+  <data name="追加できる設定を表示" xml:space="preserve"><value>追加できる設定を表示</value></data>
+  <data name="検索条件を追加" xml:space="preserve"><value>検索条件を追加</value></data>
+  <data name="権限と割り当て" xml:space="preserve"><value>権限と割り当て</value></data>
+  <data name="入力中の定義を下書きへ反映してから、別の追加操作を開始してください。" xml:space="preserve"><value>入力中の定義を下書きへ反映してから、別の追加操作を開始してください。</value></data>
+  <data name="クエリの実績履歴" xml:space="preserve"><value>クエリの実績履歴</value></data>
+  <data name="実績履歴" xml:space="preserve"><value>実績履歴</value></data>
+  <data name="軽量実測またはトレースを指定した実行の終端を速度優先で履歴へ記録します。両方とも指定しない実行は記録しません。" xml:space="preserve"><value>軽量実測またはトレースを指定した実行の終端を速度優先で履歴へ記録します。両方とも指定しない実行は記録しません。</value></data>
+  <data name="履歴を更新" xml:space="preserve"><value>履歴を更新</value></data>
+  <data name="受付 {0}・保存 {1}・欠落 {2}・保存失敗 {3}・記録待ち {4}" xml:space="preserve"><value>受付 {0}・保存 {1}・欠落 {2}・保存失敗 {3}・記録待ち {4}</value></data>
+  <data name="履歴の保存診断" xml:space="preserve"><value>履歴の保存診断</value></data>
+  <data name="履歴には削除・欠落・未取得の可能性があります。残っている記録を表示します。" xml:space="preserve"><value>履歴には削除・欠落・未取得の可能性があります。残っている記録を表示します。</value></data>
+  <data name="速度優先の履歴は完全性を保証しません。保存先の障害はDB処理を停止させません。" xml:space="preserve"><value>速度優先の履歴は完全性を保証しません。保存先の障害はDB処理を停止させません。</value></data>
+  <data name="実行版未確定" xml:space="preserve"><value>実行版未確定</value></data>
+  <data name="実行段階" xml:space="preserve"><value>実行段階</value></data>
+  <data name="この記録の版と成果物に一致する計画だけを対応付けてください。" xml:space="preserve"><value>この記録の版と成果物に一致する計画だけを対応付けてください。</value></data>
+  <data name="DBゲート待機や版確認中に終了したため、実行した公開版は確定していません。" xml:space="preserve"><value>DBゲート待機や版確認中に終了したため、実行した公開版は確定していません。</value></data>
+  <data name="正常完了" xml:space="preserve"><value>正常完了</value></data>
+  <data name="失敗" xml:space="preserve"><value>失敗</value></data>
+  <data name="不明" xml:space="preserve"><value>不明</value></data>
+  <data name="実行結果" xml:space="preserve"><value>実行結果</value></data>
+  <data name="この実績は実行版が未確定のため、計画へ対応付けできません。" xml:space="preserve"><value>この実績は実行版が未確定のため、計画へ対応付けできません。</value></data>
+  <data name="実績タイムライン" xml:space="preserve"><value>実績タイムライン</value></data>
+  <data name="表示方式" xml:space="preserve"><value>表示方式</value></data>
+  <data name="実績の表示方式" xml:space="preserve"><value>実績の表示方式</value></data>
+  <data name="時間に比例" xml:space="preserve"><value>時間に比例</value></data>
+  <data name="観測イベント順" xml:space="preserve"><value>観測イベント順</value></data>
+  <data name="問い合わせ全体の観測境界です。ノードやハードウェア資源の占有時間は未収集です。" xml:space="preserve"><value>問い合わせ全体の観測境界です。ノードやハードウェア資源の占有時間は未収集です。</value></data>
+  <data name="問い合わせの実績区間" xml:space="preserve"><value>問い合わせの実績区間</value></data>
+  <data name="問い合わせ全体" xml:space="preserve"><value>問い合わせ全体</value></data>
+  <data name="実行から観測終了まで" xml:space="preserve"><value>実行から観測終了まで</value></data>
+  <data name="時刻目盛は開始UTCと単調時計の経過時間から求めています。" xml:space="preserve"><value>時刻目盛は開始UTCと単調時計の経過時間から求めています。</value></data>
+  <data name="計測開始" xml:space="preserve"><value>計測開始</value></data>
+  <data name="DBゲート取得" xml:space="preserve"><value>DBゲート取得</value></data>
+  <data name="最初の出力を観測" xml:space="preserve"><value>最初の出力を観測</value></data>
+  <data name="観測終了" xml:space="preserve"><value>観測終了</value></data>
+  <data name="時刻範囲外" xml:space="preserve"><value>時刻範囲外</value></data>
+  <data name="呼び出し位置が未収集の計画を含みます。対象への対応はメソッド単位です。" xml:space="preserve"><value>呼び出し位置が未収集の計画を含みます。対象への対応はメソッド単位です。</value></data>
+  <data name="呼び出し位置が未収集のため、同じメソッドの複数計画を対象へ一意に対応付けできません。" xml:space="preserve"><value>呼び出し位置が未収集のため、同じメソッドの複数計画を対象へ一意に対応付けできません。</value></data>
+  <data name="操作を取り消しました。" xml:space="preserve"><value>操作を取り消しました。</value></data>
+  <data name="現在の対象では実行できません。" xml:space="preserve"><value>現在の対象では実行できません。</value></data>
+  <data name="操作を実行中です。" xml:space="preserve"><value>操作を実行中です。</value></data>
+  <data name="クエリ境界の記録" xml:space="preserve"><value>クエリ境界の記録</value></data>
+  <data name="記録方式" xml:space="preserve"><value>記録方式</value></data>
+  <data name="トレースの記録方式" xml:space="preserve"><value>トレースの記録方式</value></data>
+  <data name="追加記録なし" xml:space="preserve"><value>追加記録なし</value></data>
+  <data name="時間サンプリング" xml:space="preserve"><value>時間サンプリング</value></data>
+  <data name="境界イベント" xml:space="preserve"><value>境界イベント</value></data>
+  <data name="記録の完全性" xml:space="preserve"><value>記録の完全性</value></data>
+  <data name="トレースの完全性" xml:space="preserve"><value>トレースの完全性</value></data>
+  <data name="速度優先・欠落を許可" xml:space="preserve"><value>速度優先・欠落を許可</value></data>
+  <data name="完全記録・容量を待機" xml:space="preserve"><value>完全記録・容量を待機</value></data>
+  <data name="100msごとに観測します。短い処理や遅延したサンプルの取り逃しがあります。時間サンプリングの完全記録は未対応です。" xml:space="preserve"><value>100msごとに観測します。短い処理や遅延したサンプルの取り逃しがあります。時間サンプリングの完全記録は未対応です。</value></data>
+  <data name="記録容量が空くまでクエリを待たせます。保存障害時は欠落を表示してDB処理を継続します。" xml:space="preserve"><value>記録容量が空くまでクエリを待たせます。保存障害時は欠落を表示してDB処理を継続します。</value></data>
+  <data name="記録設定は次に実行するクエリへ適用します。表示方式の変更では実行しません。" xml:space="preserve"><value>記録設定は次に実行するクエリへ適用します。表示方式の変更では実行しません。</value></data>
+  <data name="クエリ境界のトレース" xml:space="preserve"><value>クエリ境界のトレース</value></data>
+  <data name="表示の更新方式" xml:space="preserve"><value>表示の更新方式</value></data>
+  <data name="トレース表示の更新方式" xml:space="preserve"><value>トレース表示の更新方式</value></data>
+  <data name="時間ベース・1秒ごと" xml:space="preserve"><value>時間ベース・1秒ごと</value></data>
+  <data name="イベントベース・記録到着時" xml:space="preserve"><value>イベントベース・記録到着時</value></data>
+  <data name="更新方式とタイムラインの座標投影は別の設定です。表示操作で記録やクエリを開始しません。" xml:space="preserve"><value>更新方式とタイムラインの座標投影は別の設定です。表示操作で記録やクエリを開始しません。</value></data>
+  <data name="観測 {0}・保存 {1}・欠落 {2}・保存失敗 {3}" xml:space="preserve"><value>観測 {0}・保存 {1}・欠落 {2}・保存失敗 {3}</value></data>
+  <data name="保存待ち {0} バイト・遅延したサンプル間隔 {1}・容量待機 {2} ms" xml:space="preserve"><value>保存待ち {0} バイト・遅延したサンプル間隔 {1}・容量待機 {2} ms</value></data>
+  <data name="トレースの診断" xml:space="preserve"><value>トレースの診断</value></data>
+  <data name="一部のトレースが欠落または表示範囲外です。" xml:space="preserve"><value>一部のトレースが欠落または表示範囲外です。</value></data>
+  <data name="時刻範囲外の観測は一覧で確認できます。" xml:space="preserve"><value>時刻範囲外の観測は一覧で確認できます。</value></data>
+  <data name="タイムラインの座標" xml:space="preserve"><value>タイムラインの座標</value></data>
+  <data name="トレースの座標方式" xml:space="preserve"><value>トレースの座標方式</value></data>
+  <data name="時刻・UTCと経過時間" xml:space="preserve"><value>時刻・UTCと経過時間</value></data>
+  <data name="実行内の観測順" xml:space="preserve"><value>実行内の観測順</value></data>
+  <data name="各レーンは実行IDに対応し、点は記録された境界とサンプルを示します。" xml:space="preserve"><value>各レーンは実行IDに対応し、点は記録された境界とサンプルを示します。</value></data>
+  <data name="クエリ境界のタイムライン" xml:space="preserve"><value>クエリ境界のタイムライン</value></data>
+  <data name="上から下へ進むクエリ観測" xml:space="preserve"><value>上から下へ進むクエリ観測</value></data>
+  <data name="この対象のトレース記録はありません。次回実行時に記録を指定できます。" xml:space="preserve"><value>この対象のトレース記録はありません。次回実行時に記録を指定できます。</value></data>
+  <data name="トレースの記録一覧" xml:space="preserve"><value>トレースの記録一覧</value></data>
+  <data name="観測順" xml:space="preserve"><value>観測順</value></data>
+  <data name="観測" xml:space="preserve"><value>観測</value></data>
+  <data name="観測開始" xml:space="preserve"><value>観測開始</value></data>
+  <data name="実行版確定" xml:space="preserve"><value>実行版確定</value></data>
+  <data name="サンプル" xml:space="preserve"><value>サンプル</value></data>
+  <data name="実行版の照合" xml:space="preserve"><value>実行版の照合</value></data>
+  <data name="実行の準備" xml:space="preserve"><value>実行の準備</value></data>
+  <data name="クエリの実行" xml:space="preserve"><value>クエリの実行</value></data>
+  <data name="観測範囲はクエリ全体の境界とサンプルです。" xml:space="preserve"><value>観測範囲はクエリ全体の境界とサンプルです。</value></data>
+  <data name="標準倍率100%に戻す" xml:space="preserve"><value>標準倍率100%に戻す</value></data>
+  <data name="全文はノードを選択して確認できます。" xml:space="preserve"><value>全文はノードを選択して確認できます。</value></data>
+  <data name="時刻または観測順が範囲外の記録は一覧で確認できます。" xml:space="preserve"><value>時刻または観測順が範囲外の記録は一覧で確認できます。</value></data>
+  <data name="画面は先頭1024観測までを表示しています。残り{0}観測は表示範囲外です。" xml:space="preserve"><value>画面は先頭1024観測までを表示しています。残り{0}観測は表示範囲外です。</value></data>
+  <data name="密集した観測は説明だけをまとめています。個々の観測は記録一覧で確認できます。" xml:space="preserve"><value>密集した観測は説明だけをまとめています。個々の観測は記録一覧で確認できます。</value></data>
+  <data name="説明を選択すると対応する観測を一覧で強調します。繰り返すと次の対応観測へ進みます。" xml:space="preserve"><value>説明を選択すると対応する観測を一覧で強調します。繰り返すと次の対応観測へ進みます。</value></data>
+  <data name="説明に対応する{0}観測を一覧で強調しています。" xml:space="preserve"><value>説明に対応する{0}観測を一覧で強調しています。</value></data>
+  <data name="{0} ほか{1}観測" xml:space="preserve"><value>{0} ほか{1}観測</value></data>
+  <data name="全{0}観測は記録一覧で確認できます。" xml:space="preserve"><value>全{0}観測は記録一覧で確認できます。</value></data>
+  <data name="全{0}ノード・{1}接続。詳細{2}件、簡略{3}件を表示。検索と保存は全件が対象です。" xml:space="preserve"><value>全{0}ノード・{1}接続。詳細{2}件、簡略{3}件を表示。検索と保存は全件が対象です。</value></data>
+  <data name="接続は種別ごとの合成表示です。入力番号は詳細一覧で確認できます。" xml:space="preserve"><value>接続は種別ごとの合成表示です。入力番号は詳細一覧で確認できます。</value></data>
+  <data name="今回起動の収集状況" xml:space="preserve"><value>今回起動の収集状況</value></data>
+  <data name="入力接続は先頭128件を表示しています。全件は保存資料で確認できます。" xml:space="preserve"><value>入力接続は先頭128件を表示しています。全件は保存資料で確認できます。</value></data>
+  <data name="{0}・{1}接続の合成表示" xml:space="preserve"><value>{0}・{1}接続の合成表示</value></data>
+  <data name="表示中の記録{0}件" xml:space="preserve"><value>表示中の記録{0}件</value></data>
+  <data name="生成構造を再取得" xml:space="preserve"><value>生成構造を再取得</value></data>
+  <data name="生成操作に対応するコード" xml:space="preserve"><value>生成操作に対応するコード</value></data>
+  <data name="生成ブロックの詳細" xml:space="preserve"><value>生成ブロックの詳細</value></data>
+  <data name="採用処理と式" xml:space="preserve"><value>採用処理と式</value></data>
+  <data name="生成本文へ移動" xml:space="preserve"><value>生成本文へ移動</value></data>
+  <data name="生成本文のハッシュが一致しないため、コード対応を表示できません。" xml:space="preserve"><value>生成本文のハッシュが一致しないため、コード対応を表示できません。</value></data>
+  <data name="ブロックと操作を検索" xml:space="preserve"><value>ブロックと操作を検索</value></data>
+  <data name="採用された処理と元の式を、記録された層と接続種別で表示します。" xml:space="preserve"><value>採用された処理と元の式を、記録された層と接続種別で表示します。</value></data>
+  <data name="次のページ" xml:space="preserve"><value>次のページ</value></data>
+  <data name="制御接続" xml:space="preserve"><value>制御接続</value></data>
+  <data name="元クエリの演算を表示します。列の問い合わせには順序と重複を含むシーケンス契約が適用されます。" xml:space="preserve"><value>元クエリの演算を表示します。列の問い合わせには順序と重複を含むシーケンス契約が適用されます。</value></data>
+  <data name="生成構造の収集状態" xml:space="preserve"><value>生成構造の収集状態</value></data>
+  <data name="生成C#の制御フロー" xml:space="preserve"><value>生成C#の制御フロー</value></data>
+  <data name="前のページ" xml:space="preserve"><value>前のページ</value></data>
+  <data name="対象と版を特定したクエリを選択すると、生成構造を取得できます。" xml:space="preserve"><value>対象と版を特定したクエリを選択すると、生成構造を取得できます。</value></data>
+  <data name="FLinq生成C#構造" xml:space="preserve"><value>FLinq生成C#構造</value></data>
+  <data name="省略ブロック{0}件・操作{1}件" xml:space="preserve"><value>省略ブロック{0}件・操作{1}件</value></data>
+  <data name="生成構造の版が現在の計画と異なります。対象の計画を再取得してください。" xml:space="preserve"><value>生成構造の版が現在の計画と異なります。対象の計画を再取得してください。</value></data>
+  <data name="構造の段階" xml:space="preserve"><value>構造の段階</value></data>
+  <data name="最終生成C#本文" xml:space="preserve"><value>最終生成C#本文</value></data>
+  <data name="現在のメソッドに一致する生成構造を特定できません。" xml:space="preserve"><value>現在のメソッドに一致する生成構造を特定できません。</value></data>
+  <data name="この計画には最終生成C#構造の記録がありません。" xml:space="preserve"><value>この計画には最終生成C#構造の記録がありません。</value></data>
+  <data name="生成ブロックの識別子または接続が不正です。" xml:space="preserve"><value>生成ブロックの識別子または接続が不正です。</value></data>
+  <data name="操作{0}件" xml:space="preserve"><value>操作{0}件</value></data>
+  <data name="全{0}ブロック・{1}制御接続。詳細{2}件を表示しています。" xml:space="preserve"><value>全{0}ブロック・{1}制御接続。詳細{2}件を表示しています。</value></data>
+  <data name="保存資料の構造の段階" xml:space="preserve"><value>保存資料の構造の段階</value></data>
+  <data name="分岐の値" xml:space="preserve"><value>分岐の値</value></data>
+  <data name="本文UTF16範囲 {0}・長さ {1}" xml:space="preserve"><value>本文UTF16範囲 {0}・長さ {1}</value></data>
+  <data name="最終生成C#構造を読み込み中…" xml:space="preserve"><value>最終生成C#構造を読み込み中…</value></data>
+  <data name="生成制御フローのキャンバス" xml:space="preserve"><value>生成制御フローのキャンバス</value></data>
+  <data name="FLinq生成C#の構造" xml:space="preserve"><value>FLinq生成C#の構造</value></data>
+  <data name="この操作の本文範囲は記録されていません。" xml:space="preserve"><value>この操作の本文範囲は記録されていません。</value></data>
+  <data name="元クエリの関係演算は未収集です。論理処理の段階で採用処理を確認できます。" xml:space="preserve"><value>元クエリの関係演算は未収集です。論理処理の段階で採用処理を確認できます。</value></data>
+  <data name="配置は基本ブロック番号順です。矢印は静的な制御フローです。" xml:space="preserve"><value>配置は基本ブロック番号順です。矢印は静的な制御フローです。</value></data>
+  <data name="ヘルパー呼出しの内部と、元演算から生成ブロックへの対応は未収集です。" xml:space="preserve"><value>ヘルパー呼出しの内部と、元演算から生成ブロックへの対応は未収集です。</value></data>
+  <data name="生成C#の基本ブロック" xml:space="preserve"><value>生成C#の基本ブロック</value></data>
+  <data name="静的に到達可能" xml:space="preserve"><value>静的に到達可能</value></data>
+  <data name="静的に到達不能" xml:space="preserve"><value>静的に到達不能</value></data>
+  <data name="展開コードのSVG・HTML出力は未対応です。JSONで構造を保存できます。" xml:space="preserve"><value>展開コードのSVG・HTML出力は未対応です。JSONで構造を保存できます。</value></data>
+  <data name="ブロック内の操作" xml:space="preserve"><value>ブロック内の操作</value></data>
+  <data name="論理処理" xml:space="preserve"><value>論理処理</value></data>
+  <data name="生成操作の対応コード" xml:space="preserve"><value>生成操作の対応コード</value></data>
+  <data name="最終生成本文の表示を切り替え" xml:space="preserve"><value>最終生成本文の表示を切り替え</value></data>
+  <data name="関係代数" xml:space="preserve"><value>関係代数</value></data>
+  <data name="保存資料には生成C#構造が含まれていません。コードを含める保存設定と記録方式を確認してください。" xml:space="preserve"><value>保存資料には生成C#構造が含まれていません。コードを含める保存設定と記録方式を確認してください。</value></data>
+  <data name="展開・折り畳み · 左右矢印キー" xml:space="preserve"><value>展開・折り畳み · 左右矢印キー</value></data>
+  <data name="グラフを最大化" xml:space="preserve"><value>グラフを最大化</value></data>
+  <data name="最大化" xml:space="preserve"><value>最大化</value></data>
+  <data name="元の表示に戻す · Esc" xml:space="preserve"><value>元の表示に戻す · Esc</value></data>
+  <data name="元に戻す" xml:space="preserve"><value>元に戻す</value></data>
+  <data name="矢印は静的な依存関係です。線の色・破線は接続種別、太さは固定です。実行アニメーションはありません。" xml:space="preserve"><value>矢印は静的な依存関係です。線の色・破線は接続種別、太さは固定です。実行アニメーションはありません。</value></data>
+  <data name="矢印は静的な制御フローです。戻り辺は破線、太さは固定です。実行アニメーションはありません。" xml:space="preserve"><value>矢印は静的な制御フローです。戻り辺は破線、太さは固定です。実行アニメーションはありません。</value></data>
+  <data name="全文選択中は矢印キーでセル移動 · F2で文字編集 · Tabで次のセル · Escで取消" xml:space="preserve"><value>全文選択中は矢印キーでセル移動 · F2で文字編集 · Tabで次のセル · Escで取消</value></data>
+  <data name="この要素の意味" xml:space="preserve"><value>この要素の意味</value></data>
+  <data name="図の読み方" xml:space="preserve"><value>図の読み方</value></data>
+  <data name="識別子・型・未収集の読み方" xml:space="preserve"><value>識別子・型・未収集の読み方</value></data>
+  <data name="SourceOperatorは元クエリの演算です。具体的な条件・選択列・キーは、記録されたExpressionと対応コードで確認できます。" xml:space="preserve"><value>SourceOperatorは元クエリの演算です。具体的な条件・選択列・キーは、記録されたExpressionと対応コードで確認できます。</value></data>
+  <data name="sourceで始まるIDは元ソース位置に基づく識別子です。数値はUTF16の開始位置と長さで、実行順や所要時間ではありません。" xml:space="preserve"><value>sourceで始まるIDは元ソース位置に基づく識別子です。数値はUTF16の開始位置と長さで、実行順や所要時間ではありません。</value></data>
+  <data name="出力型は型解析の結果です。NULL許容性の不明は未記録を示します。未収集の時間・CPU・I/Oをゼロとは扱いません。" xml:space="preserve"><value>出力型は型解析の結果です。NULL許容性の不明は未記録を示します。未収集の時間・CPU・I/Oをゼロとは扱いません。</value></data>
+  <data name="FLinqが採用した処理の構成要素です。具体的な実装情報は記録されたプロパティで確認できます。" xml:space="preserve"><value>FLinqが採用した処理の構成要素です。具体的な実装情報は記録されたプロパティで確認できます。</value></data>
+  <data name="FLinqが採用したパイプラインの一段階です。入力と出力、処理の設定は記録されたプロパティで確認できます。" xml:space="preserve"><value>FLinqが採用したパイプラインの一段階です。入力と出力、処理の設定は記録されたプロパティで確認できます。</value></data>
+  <data name="元クエリ内の式です。演算の依存関係を示し、独立した実行タスクを意味しません。" xml:space="preserve"><value>元クエリ内の式です。演算の依存関係を示し、独立した実行タスクを意味しません。</value></data>
+  <data name="生成コードが実行時に判定する条件として記録された要素です。条件が今回成立したかは実測が必要です。" xml:space="preserve"><value>生成コードが実行時に判定する条件として記録された要素です。条件が今回成立したかは実測が必要です。</value></data>
+  <data name="生成器による書き換え判断の記録です。Before・After・規則IDで内容を確認できます。" xml:space="preserve"><value>生成器による書き換え判断の記録です。Before・After・規則IDで内容を確認できます。</value></data>
+  <data name="この種類の一般説明は未登録です。Kind・Label・記録されたプロパティと対応コードを確認してください。" xml:space="preserve"><value>この種類の一般説明は未登録です。Kind・Label・記録されたプロパティと対応コードを確認してください。</value></data>
+  <data name="条件を満たす要素を選びます。" xml:space="preserve"><value>条件を満たす要素を選びます。</value></data>
+  <data name="各要素から必要な値や列を取り出して変換します。" xml:space="preserve"><value>各要素から必要な値や列を取り出して変換します。</value></data>
+  <data name="指定したキーで昇順に並べます。ThenByは前の並び順に次のキーを追加します。" xml:space="preserve"><value>指定したキーで昇順に並べます。ThenByは前の並び順に次のキーを追加します。</value></data>
+  <data name="指定したキーで降順に並べます。ThenByDescendingは前の並び順に次のキーを追加します。" xml:space="preserve"><value>指定したキーで降順に並べます。ThenByDescendingは前の並び順に次のキーを追加します。</value></data>
+  <data name="一致するキーを持つ入力同士を結びます。" xml:space="preserve"><value>一致するキーを持つ入力同士を結びます。</value></data>
+  <data name="キーに一致する要素をグループとして結びます。" xml:space="preserve"><value>キーに一致する要素をグループとして結びます。</value></data>
+  <data name="同じキーを持つ要素をグループにまとめます。" xml:space="preserve"><value>同じキーを持つ要素をグループにまとめます。</value></data>
+  <data name="数値を合計します。" xml:space="preserve"><value>数値を合計します。</value></data>
+  <data name="該当する要素が存在するかを判定します。" xml:space="preserve"><value>該当する要素が存在するかを判定します。</value></data>
+  <data name="要素数を求めます。条件がある場合は条件を満たす要素を数えます。" xml:space="preserve"><value>要素数を求めます。条件がある場合は条件を満たす要素を数えます。</value></data>
+  <data name="結果を配列として実体化します。" xml:space="preserve"><value>結果を配列として実体化します。</value></data>
+  <data name="結果をリストとして実体化します。" xml:space="preserve"><value>結果をリストとして実体化します。</value></data>
+  <data name="先頭から指定した件数の要素を取り出します。" xml:space="preserve"><value>先頭から指定した件数の要素を取り出します。</value></data>
+  <data name="先頭から指定した件数の要素を読み飛ばします。" xml:space="preserve"><value>先頭から指定した件数の要素を読み飛ばします。</value></data>
+  <data name="等価な要素の重複を除きます。" xml:space="preserve"><value>等価な要素の重複を除きます。</value></data>
+  <data name="いずれかの入力に含まれる要素を返します。" xml:space="preserve"><value>いずれかの入力に含まれる要素を返します。</value></data>
+  <data name="両方の入力に含まれる要素を返します。" xml:space="preserve"><value>両方の入力に含まれる要素を返します。</value></data>
+  <data name="左の入力に含まれ、右の入力には含まれない要素を返します。" xml:space="preserve"><value>左の入力に含まれ、右の入力には含まれない要素を返します。</value></data>
+  <data name="入力の列を連結します。" xml:space="preserve"><value>入力の列を連結します。</value></data>
+  <data name="元クエリに書かれた演算です。実際の処理は対応コードの呼び出し先と記録されたプロパティで確認できます。" xml:space="preserve"><value>元クエリに書かれた演算です。実際の処理は対応コードの呼び出し先と記録されたプロパティで確認できます。</value></data>
+  <data name="ノードを選ぶと、この要素の意味、型、入力参照、記録されたC#式を確認できます。説明は演算の一般的な意味で、実際の条件・キーは対応コードに従います。" xml:space="preserve"><value>ノードを選ぶと、この要素の意味、型、入力参照、記録されたC#式を確認できます。説明は演算の一般的な意味で、実際の条件・キーは対応コードに従います。</value></data>
+  <data name="Resultは表示用のまとめです。実際の配列や戻り値の生成はToArrayなどの記録された演算で確認します。" xml:space="preserve"><value>Resultは表示用のまとめです。実際の配列や戻り値の生成はToArrayなどの記録された演算で確認します。</value></data>
+  <data name="データサンキー" xml:space="preserve"><value>データサンキー</value></data>
+  <data name="帯は入力と出力で独立した量を示します。未知の量は破線です。論理参照は実転送を意味しません。" xml:space="preserve"><value>帯は入力と出力で独立した量を示します。未知の量は破線です。論理参照は実転送を意味しません。</value></data>
+  <data name="量の単位" xml:space="preserve"><value>量の単位</value></data>
+  <data name="行数" xml:space="preserve"><value>行数</value></data>
+  <data name="バイト数" xml:space="preserve"><value>バイト数</value></data>
+  <data name="数量の出所" xml:space="preserve"><value>数量の出所</value></data>
+  <data name="実測値" xml:space="preserve"><value>実測値</value></data>
+  <data name="推定値" xml:space="preserve"><value>推定値</value></data>
+  <data name="推定と実測を比較" xml:space="preserve"><value>推定と実測を比較</value></data>
+  <data name="帯幅の尺度" xml:space="preserve"><value>帯幅の尺度</value></data>
+  <data name="線形" xml:space="preserve"><value>線形</value></data>
+  <data name="対数 log(1+x)" xml:space="preserve"><value>対数 log(1+x)</value></data>
+  <data name="対数尺度を適用しています。数値の比と帯幅の比は一致しません。" xml:space="preserve"><value>対数尺度を適用しています。数値の比と帯幅の比は一致しません。</value></data>
+  <data name="正の小さい量には最小表示幅を適用しています。正確な値はラベルで確認できます。" xml:space="preserve"><value>正の小さい量には最小表示幅を適用しています。正確な値はラベルで確認できます。</value></data>
+  <data name="循環する論理接続があります。配置順は実行順を表しません。" xml:space="preserve"><value>循環する論理接続があります。配置順は実行順を表しません。</value></data>
+  <data name="クエリ全体の観測件数は演算や帯へ割り振りません。未計測とゼロを区別します。" xml:space="preserve"><value>クエリ全体の観測件数は演算や帯へ割り振りません。未計測とゼロを区別します。</value></data>
+  <data name="演算間の論理データフロー" xml:space="preserve"><value>演算間の論理データフロー</value></data>
+  <data name="入力" xml:space="preserve"><value>入力</value></data>
+  <data name="出力" xml:space="preserve"><value>出力</value></data>
+  <data name="未計測" xml:space="preserve"><value>未計測</value></data>
+  <data name="部分観測" xml:space="preserve"><value>部分観測</value></data>
+  <data name="100%表示" xml:space="preserve"><value>100%表示</value></data>
+  <data name="ノードを選択すると入力と出力を個別に確認できます。" xml:space="preserve"><value>ノードを選択すると入力と出力を個別に確認できます。</value></data>
+  <data name="DB情報" xml:space="preserve"><value>DB情報</value></data>
+  <data name="公開版" xml:space="preserve"><value>公開版</value></data>
+  <data name="ソースプロジェクト" xml:space="preserve"><value>ソースプロジェクト</value></data>
+  <data name="ファイル" xml:space="preserve"><value>ファイル</value></data>
+  <data name="対象の定義編集" xml:space="preserve"><value>対象の定義編集</value></data>
+  <data name="対象の部分宣言" xml:space="preserve"><value>対象の部分宣言</value></data>
+  <data name="対象のC#" xml:space="preserve"><value>対象のC#</value></data>
+  <data name="対象の列" xml:space="preserve"><value>対象の列</value></data>
+  <data name="対象の宣言だけを編集します。usingと名前空間は保持します。" xml:space="preserve"><value>対象の宣言だけを編集します。usingと名前空間は保持します。</value></data>
+  <data name="タブ切替時に定義を同期します。型の意味と生成コードは既存の検証で確認します。" xml:space="preserve"><value>タブ切替時に定義を同期します。型の意味と生成コードは既存の検証で確認します。</value></data>
+  <data name="編集権限がありません。入力は保持しています。" xml:space="preserve"><value>編集権限がありません。入力は保持しています。</value></data>
+  <data name="C#の入力を確認してください。" xml:space="preserve"><value>C#の入力を確認してください。</value></data>
+  <data name="Record" xml:space="preserve"><value>Record</value></data>
+  <data name="Key" xml:space="preserve"><value>Key</value></data>
+  <data name="Member" xml:space="preserve"><value>Member</value></data>
+  <data name="RegisteredFunction" xml:space="preserve"><value>RegisteredFunction</value></data>
+  <data name="DB" xml:space="preserve"><value>DB</value></data>
+  <data name="実行タイムライン" xml:space="preserve"><value>実行タイムライン</value></data>
+  <data name="タイムラインを検索" xml:space="preserve"><value>タイムラインを検索</value></data>
+  <data name="横軸は各実行の単調時計による経過時間です。包含区間を合算せず、CPU時間と区別します。" xml:space="preserve"><value>横軸は各実行の単調時計による経過時間です。包含区間を合算せず、CPU時間と区別します。</value></data>
+  <data name="演算別・Worker別の実区間とCPU・I/Oは、対応する記録がある場合だけ表示します。" xml:space="preserve"><value>演算別・Worker別の実区間とCPU・I/Oは、対応する記録がある場合だけ表示します。</value></data>
+  <data name="実行区間は未収集です。" xml:space="preserve"><value>実行区間は未収集です。</value></data>
+  <data name="選択ノードに対応する実行区間は未収集です。" xml:space="preserve"><value>選択ノードに対応する実行区間は未収集です。</value></data>
+  <data name="推定・算出された区間は実測タイムラインへ配置していません。" xml:space="preserve"><value>推定・算出された区間は実測タイムラインへ配置していません。</value></data>
+  <data name="表示上限を超えた区間・イベントは省略しています。" xml:space="preserve"><value>表示上限を超えた区間・イベントは省略しています。</value></data>
+  <data name="時計原点" xml:space="preserve"><value>時計原点</value></data>
+  <data name="ticks/秒" xml:space="preserve"><value>ticks/秒</value></data>
+  <data name="タイムラインのスクロール領域" xml:space="preserve"><value>タイムラインのスクロール領域</value></data>
+  <data name="実際の経過時間と観測境界" xml:space="preserve"><value>実際の経過時間と観測境界</value></data>
+  <data name="包含する実行区間" xml:space="preserve"><value>包含する実行区間</value></data>
+  <data name="部分取得・取消" xml:space="preserve"><value>部分取得・取消</value></data>
+  <data name="観測イベント" xml:space="preserve"><value>観測イベント</value></data>
+  <data name="観測範囲の経過時間" xml:space="preserve"><value>観測範囲の経過時間</value></data>
+  <data name="独立タスク区間の合計" xml:space="preserve"><value>独立タスク区間の合計</value></data>
+  <data name="実CPU時間は未収集です。" xml:space="preserve"><value>実CPU時間は未収集です。</value></data>
+  <data name="独立タスク実行" xml:space="preserve"><value>独立タスク実行</value></data>
+  <data name="部分取得" xml:space="preserve"><value>部分取得</value></data>
+  <data name="実行DAG" xml:space="preserve"><value>実行DAG</value></data>
+  <data name="選択した実行IDに一致する全体実測はありません。別の実行の値は表示しません。" xml:space="preserve"><value>選択した実行IDに一致する全体実測はありません。別の実行の値は表示しません。</value></data>
+  <data name="対象・版・成果物に対応する計画情報がないため、この表示の実測は不明です。" xml:space="preserve"><value>対象・版・成果物に対応する計画情報がないため、この表示の実測は不明です。</value></data>
+  <data name="この表示のSVG・HTML出力は未対応です。別の図へ置き換えて保存しません。" xml:space="preserve"><value>この表示のSVG・HTML出力は未対応です。別の図へ置き換えて保存しません。</value></data>
+  <data name="JSON形式1には静的計画と適合する全体実測を保存します。サンキーの数量やGanttの表示設定・任意区間は含みません。" xml:space="preserve"><value>JSON形式1には静的計画と適合する全体実測を保存します。サンキーの数量やGanttの表示設定・任意区間は含みません。</value></data>
+  <data name="資源使用ヒートガント" xml:space="preserve"><value>資源使用ヒートガント</value></data>
+  <data name="帰属範囲" xml:space="preserve"><value>帰属範囲</value></data>
+  <data name="資源の帰属範囲" xml:space="preserve"><value>資源の帰属範囲</value></data>
+  <data name="資源の種類" xml:space="preserve"><value>資源の種類</value></data>
+  <data name="配色" xml:space="preserve"><value>配色</value></data>
+  <data name="ヒートマップの配色" xml:space="preserve"><value>ヒートマップの配色</value></data>
+  <data name="連続" xml:space="preserve"><value>連続</value></data>
+  <data name="段階" xml:space="preserve"><value>段階</value></data>
+  <data name="モノクロ" xml:space="preserve"><value>モノクロ</value></data>
+  <data name="色覚対応" xml:space="preserve"><value>色覚対応</value></data>
+  <data name="数値を重ねる" xml:space="preserve"><value>数値を重ねる</value></data>
+  <data name="ホスト全体、プロセス、クエリ寄与、ノード寄与を区別します。色は各レーンの百分率の分母に従います。" xml:space="preserve"><value>ホスト全体、プロセス、クエリ寄与、ノード寄与を区別します。色は各レーンの百分率の分母に従います。</value></data>
+  <data name="資源サンプルは未収集です。次回の実行で資源計測を指定できます。" xml:space="preserve"><value>資源サンプルは未収集です。次回の実行で資源計測を指定できます。</value></data>
+  <data name="収集間隔" xml:space="preserve"><value>収集間隔</value></data>
+  <data name="欠落サンプル {0}" xml:space="preserve"><value>欠落サンプル {0}</value></data>
+  <data name="共通時計への対応が不明な実行区間 {0}" xml:space="preserve"><value>共通時計への対応が不明な実行区間 {0}</value></data>
+  <data name="表示上限によるサンプル省略 {0}" xml:space="preserve"><value>表示上限によるサンプル省略 {0}</value></data>
+  <data name="この帰属範囲の資源レーンは未収集です。" xml:space="preserve"><value>この帰属範囲の資源レーンは未収集です。</value></data>
+  <data name="選択ノードへ帰属する資源サンプルは未収集です。" xml:space="preserve"><value>選択ノードへ帰属する資源サンプルは未収集です。</value></data>
+  <data name="資源使用の共通時間軸" xml:space="preserve"><value>資源使用の共通時間軸</value></data>
+  <data name="共通の経過時間軸" xml:space="preserve"><value>共通の経過時間軸</value></data>
+  <data name="クエリ区間と資源サンプル" xml:space="preserve"><value>クエリ区間と資源サンプル</value></data>
+  <data name="表示時刻" xml:space="preserve"><value>表示時刻</value></data>
+  <data name="不明・未対応・欠落は状態と理由で区別します。" xml:space="preserve"><value>不明・未対応・欠落は状態と理由で区別します。</value></data>
+  <data name="帯は観測窓、ひし形は時点観測です。窓の外は未観測です。100%を超える値は数値に残し、配色は100%を上限とします。" xml:space="preserve"><value>帯は観測窓、ひし形は時点観測です。窓の外は未観測です。100%を超える値は数値に残し、配色は100%を上限とします。</value></data>
+  <data name="指標・百分率の分母・トポロジー" xml:space="preserve"><value>指標・百分率の分母・トポロジー</value></data>
+  <data name="システム全体" xml:space="preserve"><value>システム全体</value></data>
+  <data name="プロセス全体" xml:space="preserve"><value>プロセス全体</value></data>
+  <data name="クエリ寄与" xml:space="preserve"><value>クエリ寄与</value></data>
+  <data name="ノード寄与" xml:space="preserve"><value>ノード寄与</value></data>
+  <data name="資源使用を計測" xml:space="preserve"><value>資源使用を計測</value></data>
+  <data name="形式2には数量、時計、実区間、資源記録、表示状態を保存します。コードを除く場合は検索語と自由文も除きます。" xml:space="preserve"><value>形式2には数量、時計、実区間、資源記録、表示状態を保存します。コードを除く場合は検索語と自由文も除きます。</value></data>
+  <data name="観測窓の折線を重ねる" xml:space="preserve"><value>観測窓の折線を重ねる</value></data>
+  <data name="再生速度" xml:space="preserve"><value>再生速度</value></data>
+  <data name="全時間範囲" xml:space="preserve"><value>全時間範囲</value></data>
+  <data name="表示範囲の開始" xml:space="preserve"><value>表示範囲の開始</value></data>
+  <data name="表示範囲の終了" xml:space="preserve"><value>表示範囲の終了</value></data>
+  <data name="折線は各レーンの独立尺度です。観測窓の値だけを結び、欠落区間を補間しません。時点観測は点で表示します。" xml:space="preserve"><value>折線は各レーンの独立尺度です。観測窓の値だけを結び、欠落区間を補間しません。時点観測は点で表示します。</value></data>
+  <data name="再生" xml:space="preserve"><value>再生</value></data>
+  <data name="ノード実測" xml:space="preserve"><value>ノード実測</value></data>
+  <data name="物理消費区間の実測" xml:space="preserve"><value>物理消費区間の実測</value></data>
+  <data name="入力値数はこの演算が受け取った件数です。元ソースの走査数とは区別します。包含時間を個別の論理演算へ割り振りません。" xml:space="preserve"><value>入力値数はこの演算が受け取った件数です。元ソースの走査数とは区別します。包含時間を個別の論理演算へ割り振りません。</value></data>
+  <data name="実行レーン" xml:space="preserve"><value>実行レーン</value></data>
+  <data name="入力値数" xml:space="preserve"><value>入力値数</value></data>
+  <data name="出力値数" xml:space="preserve"><value>出力値数</value></data>
+  <data name="生成コードの経路" xml:space="preserve"><value>生成コードの経路</value></data>
+  <data name="実行に対応" xml:space="preserve"><value>実行に対応</value></data>
+  <data name="ノード計測用" xml:space="preserve"><value>ノード計測用</value></data>
+  <data name="資源記録を再読込" xml:space="preserve"><value>資源記録を再読込</value></data>
+  <data name="この収集セッション" xml:space="preserve"><value>この収集セッション</value></data>
+  <data name="保存済み {0}・保存待ち {1}・欠落 {2}・保存失敗 {3}" xml:space="preserve"><value>保存済み {0}・保存待ち {1}・欠落 {2}・保存失敗 {3}</value></data>
+  <data name="無効な履歴期間 {0}" xml:space="preserve"><value>無効な履歴期間 {0}</value></data>
+  <data name="資源履歴の探索上限に達しました。" xml:space="preserve"><value>資源履歴の探索上限に達しました。</value></data>
+  <data name="この集計はクエリ全体の境界です。演算や資源ごとの実測は実行計画に記録がある場合だけ表示します。" xml:space="preserve"><value>この集計はクエリ全体の境界です。演算や資源ごとの実測は実行計画に記録がある場合だけ表示します。</value></data>
+  <data name="収集診断 {0} 件" xml:space="preserve"><value>収集診断 {0} 件</value></data>
+  <data name="資源記録の状態" xml:space="preserve"><value>資源記録の状態</value></data>
+  <data name="保存待ち" xml:space="preserve"><value>保存待ち</value></data>
+  <data name="記録を破棄" xml:space="preserve"><value>記録を破棄</value></data>
+  <data name="保存失敗" xml:space="preserve"><value>保存失敗</value></data>
+  <data name="この記録は実行結果の応答だけに保持されています。" xml:space="preserve"><value>この記録は実行結果の応答だけに保持されています。</value></data>
+  <data name="ホストとプロセスの観測には同時実行された別の処理も含まれます。クエリ・ノードへの寄与は推定していません。" xml:space="preserve"><value>ホストとプロセスの観測には同時実行された別の処理も含まれます。クエリ・ノードへの寄与は推定していません。</value></data>
+  <data name="観測コストを経過時間に含みます。実際の観測窓とOSカウンターの分解能を確認してください。" xml:space="preserve"><value>観測コストを経過時間に含みます。実際の観測窓とOSカウンターの分解能を確認してください。</value></data>
+  <data name="PCIe使用率、NUMA帯域、ハードウェア性能カウンターは未収集です。" xml:space="preserve"><value>PCIe使用率、NUMA帯域、ハードウェア性能カウンターは未収集です。</value></data>
+  <data name="トポロジーはこのOS環境の情報です。仮想資源とOSのメモリ領域を物理ホストの構成として扱いません。" xml:space="preserve"><value>トポロジーはこのOS環境の情報です。仮想資源とOSのメモリ領域を物理ホストの構成として扱いません。</value></data>
+  <data name="収集件数の上限に達した後の観測は省略されています。" xml:space="preserve"><value>収集件数の上限に達した後の観測は省略されています。</value></data>
+  <data name="応答の容量上限に合わせて資源資料を省略しました。" xml:space="preserve"><value>応答の容量上限に合わせて資源資料を省略しました。</value></data>
+  <data name="下書き" xml:space="preserve"><value>下書き</value></data>
+  <data name="初期値・変換式" xml:space="preserve"><value>初期値・変換式</value></data>
+  <data name="既存行へ設定するC#式。nullも明示できます。" xml:space="preserve"><value>既存行へ設定するC#式。nullも明示できます。</value></data>
+  <data name="新規行の既定値は未対応です。初期式は既存行の移行時に使用します。" xml:space="preserve"><value>新規行の既定値は未対応です。初期式は既存行の移行時に使用します。</value></data>
+  <data name="ドラッグして表示順を変更" xml:space="preserve"><value>ドラッグして表示順を変更</value></data>
+  <data name="{0}の列" xml:space="preserve"><value>{0}の列</value></data>
+  <data name="列を編集" xml:space="preserve"><value>列を編集</value></data>
+  <data name="列の定義を読み取るソースがありません。" xml:space="preserve"><value>列の定義を読み取るソースがありません。</value></data>
+  <data name="この画面では列の変更を反映できません。" xml:space="preserve"><value>この画面では列の変更を反映できません。</value></data>
+  <data name="テーブルを展開してから列を追加してください。" xml:space="preserve"><value>テーブルを展開してから列を追加してください。</value></data>
+  <data name="編集対象が一致しません。" xml:space="preserve"><value>編集対象が一致しません。</value></data>
+  <data name="処理が完了してから再度操作してください。" xml:space="preserve"><value>処理が完了してから再度操作してください。</value></data>
+  <data name="データベースがありません。" xml:space="preserve"><value>データベースがありません。</value></data>
+  <data name="権限がありません。" xml:space="preserve"><value>権限がありません。</value></data>
+  <data name="未保存の変更を破棄して再読込" xml:space="preserve"><value>未保存の変更を破棄して再読込</value></data>
+  <data name="公開版が更新されました。未保存の行編集を保持しています。変更を破棄してから最新のデータを読み込んでください。" xml:space="preserve"><value>公開版が更新されました。未保存の行編集を保持しています。変更を破棄してから最新のデータを読み込んでください。</value></data>
+  <data name="取得したデータの公開版が一致しません。再読込してください。" xml:space="preserve"><value>取得したデータの公開版が一致しません。再読込してください。</value></data>
+  <data name="表示状態は同じブラウザー・同じ接続先で復元します。自動ポートでは、再起動で引き継がれない場合があります。" xml:space="preserve"><value>表示状態は同じブラウザー・同じ接続先で復元します。自動ポートでは、再起動で引き継がれない場合があります。</value></data>
+  <data name="このブラウザーの表示状態を保存・復元できません。" xml:space="preserve"><value>このブラウザーの表示状態を保存・復元できません。</value></data>
+  <data name="一部のデータベースの表示状態を復元できませんでした。" xml:space="preserve"><value>一部のデータベースの表示状態を復元できませんでした。</value></data>
+  <data name="認証済み利用者とインスタンスIDを確認できないため、表示状態を保存・復元できません。" xml:space="preserve"><value>認証済み利用者とインスタンスIDを確認できないため、表示状態を保存・復元できません。</value></data>
+  <data name="サイドバーを閉じる" xml:space="preserve"><value>サイドバーを閉じる</value></data>
+  <data name="サイドバーを開閉" xml:space="preserve"><value>サイドバーを開閉</value></data>
+  <data name="サイドバーの幅" xml:space="preserve"><value>サイドバーの幅</value></data>
+  <data name="ドラッグまたは左右矢印で幅を変更 · Home・Endで最小・最大 · Escで取消" xml:space="preserve"><value>ドラッグまたは左右矢印で幅を変更 · Home・Endで最小・最大 · Escで取消</value></data>
+  <data name="サイドバーの操作を初期化できません。" xml:space="preserve"><value>サイドバーの操作を初期化できません。</value></data>
+  <data name="Managerへの接続" xml:space="preserve"><value>Managerへの接続</value></data>
+  <data name="接続を準備しています。操作できるまでお待ちください。" xml:space="preserve"><value>接続を準備しています。操作できるまでお待ちください。</value></data>
+  <data name="画面の初期化に失敗しました。再読み込みしてください。" xml:space="preserve"><value>画面の初期化に失敗しました。再読み込みしてください。</value></data>
+  <data name="接続できない場合は再読み込みしてください。ホストが停止した場合や期限切れの場合は、ホストから開き直してください。" xml:space="preserve"><value>接続できない場合は再読み込みしてください。ホストが停止した場合や期限切れの場合は、ホストから開き直してください。</value></data>
+  <data name="再読み込み" xml:space="preserve"><value>再読み込み</value></data>
+  <data name="上へ移動" xml:space="preserve"><value>上へ移動</value></data>
+  <data name="下へ移動" xml:space="preserve"><value>下へ移動</value></data>
+  <data name="表示順（このブラウザー）" xml:space="preserve"><value>表示順（このブラウザー）</value></data>
+  <data name="既定の表示順に戻す" xml:space="preserve"><value>既定の表示順に戻す</value></data>
+  <data name="このブラウザーでは表示順を保存できません。" xml:space="preserve"><value>このブラウザーでは表示順を保存できません。</value></data>
+  <data name="DBの表示順は操作ハンドルのドラッグまたはメニューで変更できます。スキーマ以下のドラッグ移動と並べ替えは未対応です。" xml:space="preserve"><value>DBの表示順は操作ハンドルのドラッグまたはメニューで変更できます。スキーマ以下のドラッグ移動と並べ替えは未対応です。</value></data>
+  <data name="ドラッグでDBの表示順を変更、クリックまたはShift+F10で操作" xml:space="preserve"><value>ドラッグでDBの表示順を変更、クリックまたはShift+F10で操作</value></data>
+  <data name="文書は同じ定義版・成果物・下書きで復元します。構造変更や名前変更をまたぐ復元には対応していません。入力内容や実行結果は保存しません。" xml:space="preserve"><value>文書は同じ定義版・成果物・下書きで復元します。構造変更や名前変更をまたぐ復元には対応していません。入力内容や実行結果は保存しません。</value></data>
+  <data name="未読込のDBに属する文書は、一覧の次ページを読み込んだ後に復元します。" xml:space="preserve"><value>未読込のDBに属する文書は、一覧の次ページを読み込んだ後に復元します。</value></data>
+  <data name="画面操作または未保存の変更があるため、残りの文書復元を中止しました。" xml:space="preserve"><value>画面操作または未保存の変更があるため、残りの文書復元を中止しました。</value></data>
+  <data name="保存された文書のDBが見つからないため、復元しませんでした。" xml:space="preserve"><value>保存された文書のDBが見つからないため、復元しませんでした。</value></data>
+  <data name="定義版・成果物または下書きが変わった文書は復元しませんでした。" xml:space="preserve"><value>定義版・成果物または下書きが変わった文書は復元しませんでした。</value></data>
+  <data name="文書の参照権限が不足しているため、復元しませんでした。" xml:space="preserve"><value>文書の参照権限が不足しているため、復元しませんでした。</value></data>
+  <data name="保存された文書の対象が見つからないため、復元しませんでした。" xml:space="preserve"><value>保存された文書の対象が見つからないため、復元しませんでした。</value></data>
+  <data name="保存された文書を取得できませんでした。対象を選び直してください。" xml:space="preserve"><value>保存された文書を取得できませんでした。対象を選び直してください。</value></data>
+  <data name="選択されていた文書を復元できませんでした。対象を選び直してください。" xml:space="preserve"><value>選択されていた文書を復元できませんでした。対象を選び直してください。</value></data>
+  <data name="未保存の変更がある文書は復元情報に含めません。" xml:space="preserve"><value>未保存の変更がある文書は復元情報に含めません。</value></data>
+  <data name="版と成果物を確認できない文書は復元情報に含めません。" xml:space="preserve"><value>版と成果物を確認できない文書は復元情報に含めません。</value></data>
+  <data name="文書の復元情報は32件まで保存できます。タブを閉じてください。" xml:space="preserve"><value>文書の復元情報は32件まで保存できます。タブを閉じてください。</value></data>
+  <data name="公開メタデータ・読取専用" xml:space="preserve"><value>公開メタデータ・読取専用</value></data>
+  <data name="データの参照にはReadRows権限が必要です。" xml:space="preserve"><value>データの参照にはReadRows権限が必要です。</value></data>
+  <data name="ビューと関数の実行にはExecute権限が必要です。" xml:space="preserve"><value>ビューと関数の実行にはExecute権限が必要です。</value></data>
+  <data name="公開情報が変わりました。一覧を更新してください。" xml:space="preserve"><value>公開情報が変わりました。一覧を更新してください。</value></data>
+  <data name="行を変更する権限がありません。" xml:space="preserve"><value>行を変更する権限がありません。</value></data>
+  <data name="公開文書の表示権限が変わりました。対象を選び直してください。" xml:space="preserve"><value>公開文書の表示権限が変わりました。対象を選び直してください。</value></data>
+  <data name="公開カタログの表示件数が上限を超えています。" xml:space="preserve"><value>公開カタログの表示件数が上限を超えています。</value></data>
+  <data name="公開文書は公開版と成果物を確認して復元します。" xml:space="preserve"><value>公開文書は公開版と成果物を確認して復元します。</value></data>
+  <data name="表示用IDを下書きへ付与" xml:space="preserve"><value>表示用IDを下書きへ付与</value></data>
+  <data name="この接続先は表示用IDの付与に対応していません。" xml:space="preserve"><value>この接続先は表示用IDの付与に対応していません。</value></data>
+  <data name="表示用IDの付与にはDBの参照・編集権限が必要です。" xml:space="preserve"><value>表示用IDの付与にはDBの参照・編集権限が必要です。</value></data>
+  <data name="入力中の編集を下書きへ反映してから、表示用IDを付与してください。入力内容は保持しています。" xml:space="preserve"><value>入力中の編集を下書きへ反映してから、表示用IDを付与してください。入力内容は保持しています。</value></data>
+  <data name="ID付与中に定義・公開版または入力状態が変わりました。現在の編集を保持したまま処理を中止しました。" xml:space="preserve"><value>ID付与中に定義・公開版または入力状態が変わりました。現在の編集を保持したまま処理を中止しました。</value></data>
+  <data name="{0}の表示用IDを下書きへ付与しています。" xml:space="preserve"><value>{0}の表示用IDを下書きへ付与しています。</value></data>
+  <data name="{0}の表示用IDを下書きへ反映しました。保存・変更確認・明示適用へ進んでください。" xml:space="preserve"><value>{0}の表示用IDを下書きへ反映しました。保存・変更確認・明示適用へ進んでください。</value></data>
+  <data name="{0}の表示用IDは付与済みです。現在の下書きを継続します。" xml:space="preserve"><value>{0}の表示用IDは付与済みです。現在の下書きを継続します。</value></data>
+  <data name="表示用IDは元宣言のマーカーです。IDの転用や別版との同一性には別途検証が必要です。" xml:space="preserve"><value>表示用IDは元宣言のマーカーです。IDの転用や別版との同一性には別途検証が必要です。</value></data>
+  <data name="管理対象へ対応しないIDマーカーがあります。名前からの補完は行いません。" xml:space="preserve"><value>管理対象へ対応しないIDマーカーがあります。名前からの補完は行いません。</value></data>
+  <data name="複数の対象が同じ元宣言を共有しているため、一意の表示用IDを提供できません。" xml:space="preserve"><value>複数の対象が同じ元宣言を共有しているため、一意の表示用IDを提供できません。</value></data>
+  <data name="表示用IDの状態" xml:space="preserve"><value>表示用IDの状態</value></data>
+  <data name="{0}の表示用ID" xml:space="preserve"><value>{0}の表示用ID</value></data>
+  <data name="{0}件 · {1}" xml:space="preserve"><value>{0}件 · {1}</value></data>
+  <data name="名前変更をまたぐ文書復元への接続は準備中です。現在の復元条件は同じ版・成果物です。" xml:space="preserve"><value>名前変更をまたぐ文書復元への接続は準備中です。現在の復元条件は同じ版・成果物です。</value></data>
+  <data name="同じ元宣言を複数のスキーマ・表で共有しているため、表示用IDを一意に付与できません。共有する宣言を分けてください。" xml:space="preserve"><value>同じ元宣言を複数のスキーマ・表で共有しているため、表示用IDを一意に付与できません。共有する宣言を分けてください。</value></data>
+  <data name="表示用IDの重複または件数超過があります。コピーした宣言には新しいIDを付与してください。" xml:space="preserve"><value>表示用IDの重複または件数超過があります。コピーした宣言には新しいIDを付与してください。</value></data>
+  <data name="表示用IDマーカーの形式または配置が不正です。宣言直前のC#コメントを確認してください。" xml:space="preserve"><value>表示用IDマーカーの形式または配置が不正です。宣言直前のC#コメントを確認してください。</value></data>
+  <data name="同じ対象に複数の表示用IDがあります。C#のマーカーを確認してください。" xml:space="preserve"><value>同じ対象に複数の表示用IDがあります。C#のマーカーを確認してください。</value></data>
+  <data name="{0}に表示用IDを付与する対象がありません。スキーマまたはテーブルを定義してください。" xml:space="preserve"><value>{0}に表示用IDを付与する対象がありません。スキーマまたはテーブルを定義してください。</value></data>
+  <data name="この対象に対応するFLinq展開計画がありません。定数を返す処理などは生成対象外です。対応するLINQ演算を含む場合は、ソース版とSDKでのビルド・取り込み・明示適用を確認してください。" xml:space="preserve">
+    <value>この対象に対応するFLinq展開計画がありません。定数を返す処理などは生成対象外です。対応するLINQ演算を含む場合は、ソース版とSDKでのビルド・取り込み・明示適用を確認してください。</value>
+  </data>
+  <data name="ドット入力またはCtrl+Spaceで意味解析補完。外部参照DLLの補完は未対応です。" xml:space="preserve"><value>ドット入力またはCtrl+Spaceで意味解析補完。外部参照DLLの補完は未対応です。</value></data>
+  <data name="補完候補を解析中" xml:space="preserve"><value>補完候補を解析中</value></data>
+  <data name="C#補完候補" xml:space="preserve"><value>C#補完候補</value></data>
+  <data name="候補は先頭100件です。入力を絞って再取得してください。" xml:space="preserve"><value>候補は先頭100件です。入力を絞って再取得してください。</value></data>
+  <data name="この位置で解決できる補完候補がありません。" xml:space="preserve"><value>この位置で解決できる補完候補がありません。</value></data>
+  <data name="入力が変わったため補完を取り消しました。再取得してください。" xml:space="preserve"><value>入力が変わったため補完を取り消しました。再取得してください。</value></data>
+  <data name="補完操作に失敗しました。入力は保持しています。" xml:space="preserve"><value>補完操作に失敗しました。入力は保持しています。</value></data>
+  <data name="ドラッグで同じ分類の表示順を変更 · この画面内のみ、未保存" xml:space="preserve"><value>ドラッグで同じ分類の表示順を変更 · この画面内のみ、未保存</value></data>
+  <data name="表示順（この画面内・未保存）" xml:space="preserve"><value>表示順（この画面内・未保存）</value></data>
+  <data name="DBの表示順はこのブラウザーに保存します。テーブル・ビュー・関数の同じ所属・分類内の表示順は、この画面内のみで未保存です。再読み込みや定義変更で戻ります。所属をまたぐ移動は未対応です。" xml:space="preserve"><value>DBの表示順はこのブラウザーに保存します。テーブル・ビュー・関数の同じ所属・分類内の表示順は、この画面内のみで未保存です。再読み込みや定義変更で戻ります。所属をまたぐ移動は未対応です。</value></data>
+  <data name="ビュー展開の対応状況" xml:space="preserve"><value>ビュー展開の対応状況</value></data>
+  <data name="ビュー展開に対応範囲の制限があります" xml:space="preserve"><value>ビュー展開に対応範囲の制限があります</value></data>
+  <data name="定義本体は展開済みです。外側の条件を内部のキー検索へ反映する最適化は未対応です。" xml:space="preserve"><value>定義本体は展開済みです。外側の条件を内部のキー検索へ反映する最適化は未対応です。</value></data>
+  <data name="旧形式のビュー定義です。専用の定義経路への変更とSDKでの再ビルド・適用が必要です。" xml:space="preserve"><value>旧形式のビュー定義です。専用の定義経路への変更とSDKでの再ビルド・適用が必要です。</value></data>
+  <data name="明示取引のsnapshotへビュー定義を束縛する展開は未対応です。" xml:space="preserve"><value>明示取引のsnapshotへビュー定義を束縛する展開は未対応です。</value></data>
+  <data name="再帰するビュー定義は展開していません。循環呼び出しは実行時に拒否されます。" xml:space="preserve"><value>再帰するビュー定義は展開していません。循環呼び出しは実行時に拒否されます。</value></data>
+  <data name="このビュー本体は単一のreturn式による展開形式に対応していません。" xml:space="preserve"><value>このビュー本体は単一のreturn式による展開形式に対応していません。</value></data>
+  <data name="このビュー本体の展開は未対応です。" xml:space="preserve"><value>このビュー本体の展開は未対応です。</value></data>
+  <data name="未対応のビュー展開理由: {0}" xml:space="preserve"><value>未対応のビュー展開理由: {0}</value></data>
+  <data name="ビュー内部への条件移動を適用できません: {0}" xml:space="preserve"><value>ビュー内部への条件移動を適用できません: {0}</value></data>
+  <data name="ビュー内部へ条件を移動しました。点検索への置換は未対応です。" xml:space="preserve"><value>ビュー内部へ条件を移動しました。点検索への置換は未対応です。</value></data>
+  <data name="直接の列投影として解析できません。" xml:space="preserve"><value>直接の列投影として解析できません。</value></data>
+  <data name="構築処理や等値比較の副作用・例外を保持できることを確認できません。" xml:space="preserve"><value>構築処理や等値比較の副作用・例外を保持できることを確認できません。</value></data>
+  <data name="対応する条件はAnchorと捕捉値を含まない単一引数の直接ラムダです。" xml:space="preserve"><value>対応する条件はAnchorと捕捉値を含まない単一引数の直接ラムダです。</value></data>
+  <data name="対応する条件は組込みのキー等値比較です。" xml:space="preserve"><value>対応する条件は組込みのキー等値比較です。</value></data>
+  <data name="キーに対応する列と同じ型のリテラルとの等値比較に対応しています。" xml:space="preserve"><value>キーに対応する列と同じ型のリテラルとの等値比較に対応しています。</value></data>
+  <data name="入力テーブルのキーと投影先の列の対応を確定できません。" xml:space="preserve"><value>入力テーブルのキーと投影先の列の対応を確定できません。</value></data>
+  <data name="結果型の決定方法" xml:space="preserve"><value>結果型の決定方法</value></data>
+  <data name="結果型の自動決定に制限があります" xml:space="preserve"><value>結果型の自動決定に制限があります</value></data>
+  <data name="戻り型はC#の処理本体から決まります。" xml:space="preserve"><value>戻り型はC#の処理本体から決まります。</value></data>
+  <data name="結果列の型はC#の処理本体から決まります。" xml:space="preserve"><value>結果列の型はC#の処理本体から決まります。</value></data>
+  <data name="このビューはC#宣言の列を使用しています。匿名型の結果列を自動生成できる形では、処理本体から列を更新します。" xml:space="preserve"><value>このビューはC#宣言の列を使用しています。匿名型の結果列を自動生成できる形では、処理本体から列を更新します。</value></data>
+  <data name="この処理本体だけでは戻り型を決められません。現在のC#宣言の型を使います。" xml:space="preserve"><value>この処理本体だけでは戻り型を決められません。現在のC#宣言の型を使います。</value></data>
+  <data name="この関数の形式は自動推論の対象外です。C#宣言の戻り型を使います。" xml:space="preserve"><value>この関数の形式は自動推論の対象外です。C#宣言の戻り型を使います。</value></data>
+  <data name="反映時に処理本体から戻り型を決定します。" xml:space="preserve"><value>反映時に処理本体から戻り型を決定します。</value></data>
+  <data name="戻り値の暗黙変換を保持するため、C#宣言の型を使います。" xml:space="preserve"><value>戻り値の暗黙変換を保持するため、C#宣言の型を使います。</value></data>
+  <data name="この関数は列挙を単一値として返す宣言です。呼び出し時の評価を保持しています。" xml:space="preserve"><value>この関数は列挙を単一値として返す宣言です。呼び出し時の評価を保持しています。</value></data>
+  <data name="引数は構造画面で編集し、戻り型はC#の処理本体で指定します。" xml:space="preserve"><value>引数は構造画面で編集し、戻り型はC#の処理本体で指定します。</value></data>
+  <data name="値" xml:space="preserve"><value>値</value></data>
+  <data name="非同期の戻り値を待機する実行は未対応です。同期的な値を返す処理を指定してください。" xml:space="preserve"><value>非同期の戻り値を待機する実行は未対応です。同期的な値を返す処理を指定してください。</value></data>
+  <data name="匿名型の列挙を返すと、反映時に結果列を更新します。" xml:space="preserve"><value>匿名型の列挙を返すと、反映時に結果列を更新します。</value></data>
+  <data name="スキーマを追加" xml:space="preserve">
+    <value>スキーマを追加</value>
+  </data>
+  <data name="テーブルを追加" xml:space="preserve">
+    <value>テーブルを追加</value>
+  </data>
+  <data name="ビューを追加" xml:space="preserve">
+    <value>ビューを追加</value>
+  </data>
+  <data name="関数を追加" xml:space="preserve">
+    <value>関数を追加</value>
+  </data>
+  <data name="データベースを追加" xml:space="preserve">
+    <value>データベースを追加</value>
+  </data>
+  <data name="コピー" xml:space="preserve">
+    <value>コピー</value>
+  </data>
+  <data name="{0}の名前を変更" xml:space="preserve">
+    <value>{0}の名前を変更</value>
+  </data>
+  <data name="{0}をコピー" xml:space="preserve">
+    <value>{0}をコピー</value>
+  </data>
+  <data name="{0}を削除" xml:space="preserve">
+    <value>{0}を削除</value>
+  </data>
+  <data name="新しいテーブル名" xml:space="preserve">
+    <value>新しいテーブル名</value>
+  </data>
+  <data name="新しいビュー名" xml:space="preserve">
+    <value>新しいビュー名</value>
+  </data>
+  <data name="新しい関数名" xml:space="preserve">
+    <value>新しい関数名</value>
+  </data>
+  <data name="新しいスキーマ名" xml:space="preserve">
+    <value>新しいスキーマ名</value>
+  </data>
+  <data name="新しいデータベース名" xml:space="preserve">
+    <value>新しいデータベース名</value>
+  </data>
+  <data name="DBの下書きを読み込んでから操作してください。" xml:space="preserve">
+    <value>DBの下書きを読み込んでから操作してください。</value>
+  </data>
+  <data name="現在この操作はできません。権限または実行中の操作を確認してください。" xml:space="preserve">
+    <value>現在この操作はできません。権限または実行中の操作を確認してください。</value>
+  </data>
+  <data name="ビュー・関数の名前変更は未対応です。C#タブで型名とメソッド名を変更してください。" xml:space="preserve">
+    <value>ビュー・関数の名前変更は未対応です。C#タブで型名とメソッド名を変更してください。</value>
+  </data>
+  <data name="削除は未対応です。稼働DBの行データの扱いと確認手順を設計中です。" xml:space="preserve">
+    <value>削除は未対応です。稼働DBの行データの扱いと確認手順を設計中です。</value>
+  </data>
+  <data name="下書きに反映 · Enter" xml:space="preserve">
+    <value>下書きに反映 · Enter</value>
+  </data>
+  <data name="生成コードを作成しています…" xml:space="preserve">
+    <value>生成コードを作成しています…</value>
+  </data>
+  <data name="表示できるファイルがありません。" xml:space="preserve">
+    <value>表示できるファイルがありません。</value>
+  </data>
+  <data name="DB生成器" xml:space="preserve">
+    <value>DB生成器</value>
+  </data>
+  <data name="FLinq生成器" xml:space="preserve">
+    <value>FLinq生成器</value>
+  </data>
+  <data name="全データベースのソース" xml:space="preserve">
+    <value>全データベースのソース</value>
+  </data>
+  <data name="全ソース" xml:space="preserve">
+    <value>全ソース</value>
+  </data>
+  <data name="生成コード" xml:space="preserve">
+    <value>生成コード</value>
+  </data>
+  <data name="このホストは生成コードの表示に対応していません（未対応）。" xml:space="preserve">
+    <value>このホストは生成コードの表示に対応していません（未対応）。</value>
+  </data>
+  <data name="編集権限がないため下書きを読めないDBは表示していません（未対応）: {0}" xml:space="preserve">
+    <value>編集権限がないため下書きを読めないDBは表示していません（未対応）: {0}</value>
+  </data>
+  <data name="生成コードを作成できません: " xml:space="preserve">
+    <value>生成コードを作成できません: </value>
+  </data>
+  <data name="全ソースを表示" xml:space="preserve">
+    <value>全ソースを表示</value>
+  </data>
+  <data name="生成コードを表示" xml:space="preserve">
+    <value>生成コードを表示</value>
+  </data>
+</root>

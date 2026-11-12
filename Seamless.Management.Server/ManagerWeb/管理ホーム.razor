@@ -1,0 +1,13 @@
+@page "/"
+@inject AuthenticationStateProvider 認証状態
+@inject IManagerBrowserSessions セッション
+<管理ワークスペース @rendermode="InteractiveServer" 利用者="利用者" 接続方式="@表示文言.取得("ホスト内の管理API")" ログアウト先="ログアウト先"/>
+@code{
+    private UserInfo? 利用者;
+    private string? ログアウト先;
+    protected override async Task OnInitializedAsync(){
+        var 主体=(await this.認証状態.GetAuthenticationStateAsync()).User;
+        this.利用者=this.セッション.Authenticate(主体.FindFirst("browserSession")?.Value);
+        if(this.セッション is UserBrowserSessions){this.ログアウト先=this.セッション.PathBase+"logout";}
+    }
+}

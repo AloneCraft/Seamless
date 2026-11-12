@@ -1,4 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF><OutputType>WinExe</OutputType><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><LangVersion>14</LangVersion><RootNamespace>Seamless.Management.UI</RootNamespace><AssemblyName>Seamless.Management.UI</AssemblyName></PropertyGroup>
-  <ItemGroup><ProjectReference Include="../Seamless.Management/Seamless.Management.csproj" /><PackageReference Include="AvalonEdit" Version="6.3.1.120" /><PackageReference Include="Msagl.WpfGraphControl" Version="1.2.1" /></ItemGroup>
-</Project>

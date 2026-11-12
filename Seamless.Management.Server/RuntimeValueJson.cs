@@ -3,11 +3,22 @@ using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Seamless.Database;
 
 namespace Seamless.Management.Server;
 
 /// <summary>生成型を共有JSONメタデータへ登録せず、安定した値の木へ投影してから送信する。</summary>
 internal static class RuntimeValueJson{
+    internal static CatalogField[] Columns(Type type)=>Members(type).Select(Column).ToArray();
+    // 値のキーは管理JSONの命名規則に従う公開契約なので変えず、画面には構造画面と同じ宣言名を出す。
+    private static CatalogField Column(MemberInfo member){
+        var key=Name(member);var column=new CatalogField(key,MemberType(member).ToString());
+        if(key!=member.Name){
+            column=column with{DisplayName=member.Name};
+        }else{
+        }
+        return column;
+    }
     internal static JsonElement Serialize(object? value)=>JsonSerializer.SerializeToElement(Project(value,new HashSet<object>(ReferenceEqualityComparer.Instance),0),ManagementJson.Options);
     internal static object? Deserialize(JsonElement value,Type type,int depth=0){
         if(depth>64){throw new ManagementException("Validation","引数の入れ子が深すぎます。");}
@@ -22,7 +33,19 @@ internal static class RuntimeValueJson{
         if(value.ValueKind!=JsonValueKind.Object){throw new ManagementException("Validation","オブジェクトの引数が必要です: "+type.Name);}
         var values=new Dictionary<string,JsonElement>(StringComparer.OrdinalIgnoreCase);foreach(var item in value.EnumerateObject()){if(!values.TryAdd(item.Name,item.Value)){throw new ManagementException("Validation","引数の列名が重複しています: "+item.Name);}}
         var properties=type.GetProperties(BindingFlags.Public|BindingFlags.Instance).Where(property=>property.GetIndexParameters().Length==0).ToArray();var fields=type.GetFields(BindingFlags.Public|BindingFlags.Instance);var constructors=type.GetConstructors();var constructor=constructors.FirstOrDefault(item=>item.GetCustomAttribute<JsonConstructorAttribute>() is not null)??constructors.OrderByDescending(item=>item.GetParameters().Length).FirstOrDefault();var parameters=constructor?.GetParameters()??[];var arguments=new object?[parameters.Length];
-        for(var index=0;index<parameters.Length;index++){var parameter=parameters[index];MemberInfo? member=properties.FirstOrDefault(item=>string.Equals(item.Name,parameter.Name,StringComparison.OrdinalIgnoreCase));member??=fields.FirstOrDefault(item=>string.Equals(item.Name,parameter.Name,StringComparison.OrdinalIgnoreCase));var name=parameter.Name!;if(member is not null){name=Name(member);}if(values.Remove(name,out var item)){arguments[index]=Deserialize(item,parameter.ParameterType,depth+1);}else if(parameter.HasDefaultValue){arguments[index]=parameter.DefaultValue;}else{throw new ManagementException("Validation","値が必要な列です: "+name);}}
+        var constructorMembers=constructor?.GetCustomAttribute<GeneratedRecordConstructorAttribute>()?.Members;
+        if(constructorMembers is not null&&constructorMembers.Count!=parameters.Length){throw new ManagementException("Validation","生成コンストラクターと列の対応が不正です。");}
+        for(var index=0;index<parameters.Length;index++){
+            var parameter=parameters[index];var name=parameter.Name!;
+            if(constructorMembers is not null){name=constructorMembers[index];}
+            MemberInfo? member=properties.FirstOrDefault(item=>string.Equals(item.Name,name,StringComparison.OrdinalIgnoreCase));
+            member??=fields.FirstOrDefault(item=>string.Equals(item.Name,name,StringComparison.OrdinalIgnoreCase));
+            if(member is not null){name=Name(member);}
+            else if(constructorMembers is not null){throw new ManagementException("Validation","生成コンストラクターの列がありません: "+name);}
+            if(values.Remove(name,out var item)){arguments[index]=Deserialize(item,parameter.ParameterType,depth+1);}
+            else if(parameter.HasDefaultValue){arguments[index]=parameter.DefaultValue;}
+            else{throw new ManagementException("Validation","値が必要な列です: "+name);}
+        }
         object result;if(constructor is not null){result=constructor.Invoke(arguments);}else{result=Activator.CreateInstance(type)??throw new ManagementException("Validation","引数を構築できません。");}
         foreach(var item in values){var property=properties.FirstOrDefault(candidate=>string.Equals(Name(candidate),item.Key,StringComparison.OrdinalIgnoreCase));if(property?.SetMethod?.IsPublic==true){property.SetValue(result,Deserialize(item.Value,property.PropertyType,depth+1));continue;}var field=fields.FirstOrDefault(candidate=>string.Equals(Name(candidate),item.Key,StringComparison.OrdinalIgnoreCase));if(field is not null&&!field.IsInitOnly){field.SetValue(result,Deserialize(item.Value,field.FieldType,depth+1));continue;}throw new ManagementException("Validation","不明または書き込めない列です: "+item.Key);}
         return result;
@@ -36,10 +59,23 @@ internal static class RuntimeValueJson{
             if(value is IDictionary dictionary){var result=new Dictionary<string,object?>();foreach(DictionaryEntry item in dictionary){var key=Convert.ToString(item.Key,CultureInfo.InvariantCulture)??throw new ManagementException("Validation","JSONのキーがありません。");result.Add(key,Project(item.Value,path,depth+1));}return result;}
             if(value is IEnumerable sequence){var result=new List<object?>();foreach(var item in sequence){if(result.Count>=10000){throw new ManagementException("ResultLimit","1セルの配列は10000要素以下にしてください。");}result.Add(Project(item,path,depth+1));}return result;}
             var record=new Dictionary<string,object?>();
-            foreach(var property in type.GetProperties(BindingFlags.Public|BindingFlags.Instance)){if(property.GetMethod is null||property.GetIndexParameters().Length>0||property.GetCustomAttribute<JsonIgnoreAttribute>()?.Condition==JsonIgnoreCondition.Always){continue;}record.Add(Name(property),Project(property.GetValue(value),path,depth+1));}
-            foreach(var field in type.GetFields(BindingFlags.Public|BindingFlags.Instance)){if(field.GetCustomAttribute<JsonIgnoreAttribute>()?.Condition==JsonIgnoreCondition.Always){continue;}record.Add(Name(field),Project(field.GetValue(value),path,depth+1));}
+            foreach(var member in Members(type)){
+                object? memberValue;
+                if(member is PropertyInfo property){memberValue=property.GetValue(value);}
+                else{memberValue=((FieldInfo)member).GetValue(value);}
+                record.Add(Name(member),Project(memberValue,path,depth+1));
+            }
             return record;
         }finally{if(!type.IsValueType){path.Remove(value);}}
     }
+    private static IEnumerable<MemberInfo> Members(Type type){
+        foreach(var property in type.GetProperties(BindingFlags.Public|BindingFlags.Instance)){
+            if(property.GetMethod is not null&&property.GetIndexParameters().Length==0&&property.GetCustomAttribute<JsonIgnoreAttribute>()?.Condition!=JsonIgnoreCondition.Always){yield return property;}
+        }
+        foreach(var field in type.GetFields(BindingFlags.Public|BindingFlags.Instance)){
+            if(field.GetCustomAttribute<JsonIgnoreAttribute>()?.Condition!=JsonIgnoreCondition.Always){yield return field;}
+        }
+    }
+    private static Type MemberType(MemberInfo member)=>member switch{PropertyInfo property=>property.PropertyType,FieldInfo field=>field.FieldType,_=>throw new InvalidOperationException()};
     private static string Name(MemberInfo member)=>member.GetCustomAttribute<JsonPropertyNameAttribute>()?.Name??ManagementJson.Options.PropertyNamingPolicy?.ConvertName(member.Name)??member.Name;
 }

@@ -20,6 +20,10 @@ public sealed class KestrelTcpHost:IAsyncDisposable{
     private bool started;
     private bool disposed;
     public int Port{get;private set;}
+    /// <summary>TLS確立中だけ保持する枠。枠が埋まっている場合は接続を閉じる。</summary>
+    public ConnectionQuota? TlsHandshakeQuota{get;init;}
+    public ConnectionQuota? SharedTlsHandshakeQuota{get;init;}
+    public ConnectionQuota? SharedConnectionQuota{get;init;}
     public KestrelTcpHost(IPEndPoint endpoint,Func<ConnectionContext,Task> connection,X509Certificate2? certificate=null,ConnectionQuota? quota=null,Action<Exception>? failed=null,int backlog=int.MaxValue,long readBufferBytes=65536,long writeBufferBytes=65536){
         ArgumentNullException.ThrowIfNull(endpoint);ArgumentNullException.ThrowIfNull(connection);ArgumentOutOfRangeException.ThrowIfNegativeOrZero(backlog);ArgumentOutOfRangeException.ThrowIfNegativeOrZero(readBufferBytes);ArgumentOutOfRangeException.ThrowIfNegativeOrZero(writeBufferBytes);
         this.Port=endpoint.Port;
@@ -30,7 +34,12 @@ public sealed class KestrelTcpHost:IAsyncDisposable{
                 options.Listen(endpoint,listen=>{
                     listen.Protocols=HttpProtocols.None;
                     listen.Use(next=>async context=>{using var closing=this.closing.Token.Register(()=>context.Abort());IDisposable? permit=null;try{if(quota is not null){permit=quota.TryEnter();if(permit is null){context.Abort();return;}}await next(context).ConfigureAwait(false);}catch(Exception error){failed?.Invoke(error);}finally{permit?.Dispose();}});
-                    if(certificate is not null){listen.UseHttps(certificate,https=>https.HandshakeTimeout=TimeSpan.FromSeconds(15));}
+                    if(this.SharedConnectionQuota is{} shared){listen.Use(shared.Limit);}
+                    if(certificate is not null){
+                        KestrelTls.Use(listen,certificate,this.TlsHandshakeQuota,this.SharedTlsHandshakeQuota);
+                    }else if(this.TlsHandshakeQuota is not null){
+                        throw new InvalidOperationException("A TLS handshake quota requires a server certificate.");
+                    }
                     listen.UseConnectionHandler<Handler>();
                 });
             }).UseSockets(options=>{options.NoDelay=true;options.Backlog=backlog;options.MaxReadBufferSize=readBufferBytes;options.MaxWriteBufferSize=writeBufferBytes;});

@@ -6,10 +6,18 @@ namespace Seamless.Management;
 
 /// <summary>ソースが正本。GUIの編集は版を照合した文字列範囲の置換だけに限定する。</summary>
 public sealed class SourceEditor{
+    private static readonly object platformReferencesGate=new();
+    private static MetadataReference[]? platformReferences;
     private readonly MetadataReference[] references;
     public SourceEditor(IEnumerable<MetadataReference>? references=null){this.references=references?.ToArray()??PlatformReferences();}
-    public static MetadataReference[] PlatformReferences()=>((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")??throw new InvalidOperationException("実行環境の参照一覧がありません。"))
-        .Split(Path.PathSeparator).Distinct(StringComparer.OrdinalIgnoreCase).Select(path=>MetadataReference.CreateFromFile(path)).ToArray();
+    public static MetadataReference[] PlatformReferences(){
+        lock(platformReferencesGate){
+            // ホスト更新時に再起動するTPAのメタデータを共有し、配列の所有は呼出しごとに分ける。
+            platformReferences??=((string?)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")??throw new InvalidOperationException("実行環境の参照一覧がありません。"))
+                .Split(Path.PathSeparator).Distinct(StringComparer.OrdinalIgnoreCase).Select(path=>(MetadataReference)MetadataReference.CreateFromFile(path)).ToArray();
+            return (MetadataReference[])platformReferences.Clone();
+        }
+    }
     public AnalysisResult Analyze(SourceSnapshot source){
         Validate(source);var options=new CSharpParseOptions(LanguageVersion.CSharp14,preprocessorSymbols:source.Defines??[]);
         var trees=source.Files.Select(file=>CSharpSyntaxTree.ParseText(file.Text,options,file.Path)).ToArray();
@@ -50,6 +58,7 @@ public sealed class SourceEditor{
         if(source.TargetFramework!="net10.0"||source.LanguageVersion!="14"){throw new ManagementException("Unsupported","net10.0 / C# 14 のスナップショットを指定してください。");}
         if(source.Files.Length is 0 or >256||source.Files.Sum(file=>(long)file.Text.Length)>4*1024*1024||source.Files.Select(file=>file.Path).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=source.Files.Length){throw new ManagementException("InvalidRequest","ソースの件数・容量・パスが不正です。");}
         foreach(var file in source.Files){if(string.IsNullOrWhiteSpace(file.Path)||Path.IsPathRooted(file.Path)||file.Path.IndexOfAny([':','\0','*','?','"','<','>','|'])>=0||file.Path.Split('/','\\').Any(part=>part is ".." or "." or ""||part.EndsWith(' ')||part.EndsWith('.'))||!file.Path.EndsWith(".cs",StringComparison.OrdinalIgnoreCase)){throw new ManagementException("InvalidRequest","相対的なC#ソースパスが必要です。");}}
+        SourceIdentityMarkers.Validate(source);
     }
     private static string Id(string path,int start,int length)=>path+"#"+start+":"+length;
 }

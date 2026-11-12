@@ -1,0 +1,75 @@
+<div class="DB子一覧" role="group" aria-label="@表示文言.取得("DBの内容")">
+    <所属オブジェクト一覧 @ref="所属一覧[固定所属]" DBID="@DBID" 表示順世代="@表示順世代" 表示順可能か="表示順可能か" 定義="定義" 型候補="型候補" 列確定時="列確定時" 未保存変更時="未保存変更時" 選択オブジェクト="選択オブジェクト" 展開状態="展開状態" オブジェクト="オブジェクト.Where(項目=>項目.Schema.Length==0)" 公開済みか="公開済みか" 編集可能か="編集可能か" 選択時="選択時" 作成要求時="作成要求時" メニュー要求時="メニュー要求時" 対象操作="対象操作"/>
+    @foreach(var 名前 in スキーマ){
+        <div @key="名前" class="スキーマ枝">
+            <対象操作ホスト 追加ボタンを表示するか="false" メニュー要求時="メニュー要求時" ID="@("schema:"+名前)" 名前="@名前" 選択中か="@(選択オブジェクト is null&&選択スキーマ==名前)" 展開中か="展開状態.スキーマ展開中か(名前)" 展開変更時="展開=>展開状態.スキーマを開閉(名前,展開)" 選択時="()=>所属選択時.InvokeAsync(名前)">
+                <span class="対象名">@名前</span>
+            </対象操作ホスト>
+                <div data-tree-children class="スキーマ子一覧" hidden="@(!展開状態.スキーマ展開中か(名前))"><所属オブジェクト一覧 @ref="所属一覧[名前]" DBID="@DBID" 表示順世代="@表示順世代" 表示順可能か="表示順可能か" 定義="定義" 型候補="型候補" 列確定時="列確定時" 未保存変更時="未保存変更時" 選択オブジェクト="選択オブジェクト" 展開状態="展開状態" 所属="@名前" オブジェクト="オブジェクト.Where(項目=>項目.Schema==名前)" 公開済みか="公開済みか" 編集可能か="編集可能か" 選択時="選択時" 作成要求時="作成要求時" メニュー要求時="メニュー要求時" 対象操作="対象操作"/></div>
+        </div>
+    }
+    @if(編集可能か&&対象操作 is not null){
+        @if(スキーマ作成中か){
+            <div class="ツリー追加行" role="group" aria-label="@表示文言.取得("スキーマを追加")"><操作アイコン 種類="スキーマ"/><インライン名前入力 名前="新しいスキーマ名" プレースホルダー="新しいスキーマ名" クラス="ツリー追加入力" 無効か="スキーマ処理中か" 確定時="スキーマ確定Async" 取消時="()=>スキーマ作成中か=false"/></div>
+        }else{
+            <button type="button" class="テキストボタン ツリー追加行" @onclick="()=>{スキーマ作成中か=true;スキーマ案内=null;}"><操作アイコン 種類="追加"/>@表示文言.取得("スキーマを追加")</button>
+        }
+        @if(スキーマ案内 is not null){<p class="ツリー列診断" role="status">@スキーマ案内</p>}
+    }
+</div>
+@code{
+    [Parameter]public ツリー対象操作? 対象操作{get;set;}
+    private bool スキーマ作成中か,スキーマ処理中か;
+    private string? スキーマ案内;
+    private async Task スキーマ確定Async(string 名前){
+        if(this.対象操作 is null||this.スキーマ処理中か){return;}
+        this.スキーマ処理中か=true;
+        try{var 結果=await this.対象操作.スキーマ作成(名前);this.スキーマ案内=結果.案内;if(結果.案内 is null){this.スキーマ作成中か=false;}}
+        catch(ManagementException 例外){this.スキーマ案内=例外.Message;}
+        finally{this.スキーマ処理中か=false;}
+    }
+    [Parameter]public string[] スキーマ{get;set;}=[];
+    [Parameter]public CatalogObject[] オブジェクト{get;set;}=[];
+    [Parameter]public CatalogObject? 選択オブジェクト{get;set;}
+    [Parameter]public Func<CatalogObject,bool>? 公開済みか{get;set;}
+    [Parameter]public string 選択スキーマ{get;set;}="";
+    [Parameter]public bool 編集可能か{get;set;}
+    [Parameter]public EventCallback<string> 所属選択時{get;set;}
+    [Parameter]public EventCallback<CatalogObject> 選択時{get;set;}
+    [Parameter]public EventCallback<対象操作要求> 作成要求時{get;set;}
+    [Parameter]public EventCallback<対象操作要求> メニュー要求時{get;set;}
+    [Parameter]public ツリー展開状態 展開状態{get;set;}=new();
+    [Parameter]public Definition? 定義{get;set;}
+    [Parameter]public IEnumerable<string> 型候補{get;set;}=[];
+    [Parameter]public Func<ツリー列編集要求,Task<ObjectDefinitionEdit>>? 列確定時{get;set;}
+    [Parameter]public EventCallback 未保存変更時{get;set;}
+    [Parameter]public string DBID{get;set;}="";
+    [Parameter]public string 表示版{get;set;}="";
+    [Parameter]public bool 表示順可能か{get;set;}
+    private string 表示順世代=Guid.NewGuid().ToString("N"),読取DBID="",読取版="";
+    private Definition? 順序の定義;
+    private CatalogObject[] 順序の対象=[];
+    protected override void OnParametersSet(){
+        if(this.読取DBID!=this.DBID||this.読取版!=this.表示版||!ReferenceEquals(this.順序の定義,this.定義)||!this.順序の対象.SequenceEqual(this.オブジェクト)){
+            this.展開状態.表示順序.既定順に戻す();this.表示順世代=Guid.NewGuid().ToString("N");this.読取DBID=this.DBID;this.読取版=this.表示版;this.順序の定義=this.定義;this.順序の対象=this.オブジェクト.ToArray();
+        }
+    }
+    public bool 表示順を変更できるか(string ID,int 差)=>this.表示順可能か&&this.展開状態.表示順序.移動できるか(this.オブジェクト,ID,差);
+    public Task 表示順を変更Async(string ID,int 差){if(this.表示順可能か){this.展開状態.表示順序.移動(this.オブジェクト,ID,差);}return this.InvokeAsync(this.StateHasChanged);}
+    public Task 表示順を戻すAsync(string ID){this.展開状態.表示順序.既定順に戻す(this.オブジェクト,ID);return this.InvokeAsync(this.StateHasChanged);}
+    public Task 表示順をドロップAsync(string 所属,string 種類,string 世代,string ID,string 対象ID,bool 前か){
+        if(this.表示順可能か&&this.表示順世代==世代){this.展開状態.表示順序.対象位置へ移動(this.オブジェクト,所属,種類,ID,対象ID,前か);}return this.InvokeAsync(this.StateHasChanged);
+    }
+    public bool 未保存か=>this.スキーマ作成中か||this.所属一覧.Values.Any(一覧=>一覧.未保存か);
+    private const string 固定所属="";
+    private readonly Dictionary<string,所属オブジェクト一覧> 所属一覧=new(StringComparer.Ordinal);
+    public async Task 名前変更を開始Async(CatalogObject 項目){
+        if(項目.Schema.Length>0){this.展開状態.スキーマを開閉(項目.Schema,true);}
+        if(this.所属一覧.TryGetValue(項目.Schema,out var 一覧)){一覧.名前変更を開始(項目);}
+        await this.InvokeAsync(this.StateHasChanged);
+    }
+    public async Task 列追加を開始Async(string ID){
+        var 項目=this.オブジェクト.Single(項目=>項目.Kind=="Table"&&項目.Id==ID);if(項目.Schema.Length>0){this.展開状態.スキーマを開閉(項目.Schema,true);}
+        if(this.所属一覧.TryGetValue(項目.Schema,out var 一覧)){await 一覧.列追加を開始Async(ID);}await this.InvokeAsync(this.StateHasChanged);
+    }
+}

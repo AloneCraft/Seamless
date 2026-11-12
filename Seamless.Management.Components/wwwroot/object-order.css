@@ -1,0 +1,4 @@
+.対象行[data-object-order-enabled="true"] [data-object-order-handle]{cursor:grab}
+.対象行.オブジェクト表示順ドラッグ中{opacity:.45}
+.対象行[data-object-drop-position="before"]{box-shadow:inset 0 2px var(--強調色,#377b63)}
+.対象行[data-object-drop-position="after"]{box-shadow:inset 0 -2px var(--強調色,#377b63)}

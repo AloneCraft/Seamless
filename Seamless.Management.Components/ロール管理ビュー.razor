@@ -1,0 +1,31 @@
+@using Seamless.Security
+@implements IDisposable
+@inject IManagementOperations 管理操作
+
+<section class="文書領域 ロール管理画面" hidden="@(!表示中か)" aria-label="@表示文言.取得("ロールと権限")">
+    <div class="種類ラベル">SYSTEM</div><h1>@(表示文言.取得("ロールと権限"))</h1><p class="文書説明">@(表示文言.取得("DBまたはサーバー全体の共通ポリシーを編集し、利用者やグループに割り当てます。"))</p>
+    @if(案内.Length>0){<div class="状態通知" role="status" data-エラー="@エラーか.ToString().ToLowerInvariant()">@案内</div>}
+    <div class="設定見出し"><label>@(表示文言.取得("対象"))<select aria-label="@表示文言.取得("ロールの対象")" value="@DBID" disabled="@(処理中か||編集ありか||未確定操作 is not null)" @onchange="DB変更時Async">@foreach(var DB in DB一覧){<option value="@DB.Id">@DB.Name</option>}</select></label><button class="控えめボタン" disabled="@処理中か" @onclick="一覧取得Async"><操作アイコン 種類="最新のポリシーを取得"/>@(表示文言.取得("最新のポリシーを取得"))</button></div>
+    @if(DBID is not null){
+        <div class="ロール作業領域"><aside class="ロール一覧"><div class="設定見出し"><追加メニューホスト ID="roles" 名前="@表示文言.取得("ロール")" 登録="追加コマンド" 実行時="@(ID=>追加コマンド.実行Async(ID,"roles"))" 追加可能か="@(!処理中か)"><h2>@表示文言.取得("ロール")</h2></追加メニューホスト></div>
+            @foreach(var ロール in 表示ロール){<追加メニューホスト ID="@ロール.Id.ToString()" 名前="@ロール.Name" 選択中か="@(ロールID==ロール.Id)" 登録="追加コマンド" 実行時="@(ID=>追加コマンド.実行Async(ID,ロール.Id.ToString()))" 選択時="()=>ロール行選択Async(ロール)" 追加可能か="追加対象を選べるか(ロール.Id.ToString())"><span>@ロール.Name</span></追加メニューホスト>}
+            @if(ロールページ>0){<button class="テキストボタン" disabled="@(処理中か||編集ありか)" @onclick="()=>ロールページ--"><操作アイコン 種類="前の100件"/>@(表示文言.取得("前の100件"))</button>}
+            @if(全ロール.Skip((ロールページ+1)*100).Any()){<button class="テキストボタン" disabled="@(処理中か||編集ありか)" @onclick="()=>ロールページ++"><操作アイコン 種類="次の100件"/>@(表示文言.取得("次の100件"))</button>}
+        </aside><div class="ロール編集">
+            @if(ロールID is not null){
+                <form @onsubmit="保存Async" @onsubmit:preventDefault><fieldset class="設定入力枠" disabled="@(処理中か||未確定操作 is not null)"><legend>@表示文言.取得(新規か?"新しいロール":"ロールの編集") · @表示文言.取得("ポリシー v{0}",版)</legend>
+                    <label>@(表示文言.取得("名前"))<input aria-label="@表示文言.取得("ロール名")" @bind="名前" @bind:event="oninput" @bind:after="変更時Async" required/></label>
+                    @foreach(var 入力 in 規則){<div class="ロール規則" @key="入力"><div class="設定見出し"><label>@(表示文言.取得("対象資源"))<select aria-label="@表示文言.取得("権限の対象資源")" @bind="入力.資源ID" @bind:after="()=>資源変更時Async(入力)">@foreach(var 対象 in 資源){<option value="@対象.Id">@資源表示名(対象) · @対象.Kind</option>}</select></label><button type="button" class="控えめボタン" @onclick="()=>規則削除時Async(入力)"><操作アイコン 種類="規則を削除"/>@(表示文言.取得("規則を削除"))</button></div>
+                        <table class="設計表"><thead><tr><th>@(表示文言.取得("操作"))</th><th>@(表示文言.取得("許可"))</th><th>@(表示文言.取得("拒否"))</th></tr></thead><tbody>@foreach(var 操作 in 権限.Where(値=>値!=SecurityPermission.ManageServer||サーバー資源か(入力))){<tr><td>@権限名(操作)</td><td><input type="checkbox" aria-label="@表示文言.取得("{0}を許可",権限名(操作))" checked="@((入力.許可&操作)!=0)" @onchange="引数=>権限変更時Async(入力,操作,false,引数.Value is true)"/></td><td><input type="checkbox" aria-label="@表示文言.取得("{0}を拒否",権限名(操作))" checked="@((入力.拒否&操作)!=0)" @onchange="引数=>権限変更時Async(入力,操作,true,引数.Value is true)"/></td></tr>}</tbody></table>
+                    </div>}
+                    <追加メニューホスト ID="@ロールID.Value.ToString()" 名前="@表示文言.取得("権限と割り当て")" 登録="追加コマンド" 実行時="@(ID=>追加コマンド.実行Async(ID,ロールID.Value.ToString()))" 追加可能か="@(!処理中か&&未確定操作 is null)"><span>@表示文言.取得("権限と割り当て")</span></追加メニューホスト>
+                    <details @key="割当展開世代" class="設定詳細" open="@割当展開か"><summary>@表示文言.取得("利用者・グループへの割り当て（{0}）",割当.Count)</summary>
+                        @foreach(var 値 in 割当){<div class="ロール割当"><span>@値.Kind · @値.Subject.Value</span><small>@値.Subject.AuthorityId</small><button type="button" class="控えめボタン" @onclick="()=>割当解除時Async(値)"><操作アイコン 種類="割り当てを外す"/>@(表示文言.取得("割り当てを外す"))</button></div>}
+                        <div class="設定入力一覧"><label>@(表示文言.取得("認証元ID"))<input aria-label="@表示文言.取得("割り当てる認証元ID")" @bind="主体認証元" placeholder="GUID"/></label><label>@(表示文言.取得("主体ID"))<input aria-label="@表示文言.取得("割り当てる主体ID")" @bind="主体名"/></label><label>@(表示文言.取得("種類"))<select aria-label="@表示文言.取得("割り当てる主体の種類")" @bind="主体種別"><option value="@SecurityPrincipalKind.User">@(表示文言.取得("利用者"))</option><option value="@SecurityPrincipalKind.Group">@(表示文言.取得("グループ"))</option></select></label></div><button type="button" class="控えめボタン" @onclick="割当追加時Async"><操作アイコン 種類="割り当てを追加"/>@(表示文言.取得("割り当てを追加"))</button>
+                    </details>
+                </fieldset><div class="設定保存操作"><button type="button" class="控えめボタン" disabled="@処理中か" @onclick="取消時Async"><操作アイコン 種類="編集を取り消す"/>@(表示文言.取得("編集を取り消す"))</button>@if(!新規か){<button type="button" class="控えめボタン 破壊的操作" disabled="@(処理中か||編集ありか||未確定操作 is not null)" @onclick="削除時Async"><操作アイコン 種類="ロールを削除"/>@(表示文言.取得("ロールを削除"))</button>}<button type="submit" class="主要ボタン" disabled="@(処理中か||!編集ありか||未確定操作 is not null)"><操作アイコン 種類="ロールを保存"/>@(表示文言.取得("ロールを保存"))</button></div></form>
+            }else{<p>@(表示文言.取得("ロールを選択するか、新しいロールを作成してください。"))</p>}
+            @if(未確定操作 is{} 要求){<div role="status" class="状態通知"><small>@表示文言.取得("操作ID {0}",要求.OperationId)</small><button class="控えめボタン" disabled="@処理中か" @onclick="結果照会Async"><操作アイコン 種類="保存結果を照会"/>@(表示文言.取得("保存結果を照会"))</button><button class="控えめボタン" disabled="@処理中か" @onclick="送信Async"><操作アイコン 種類="同じ操作を再送"/>@(表示文言.取得("同じ操作を再送"))</button></div>}
+        </div></div>
+    }
+</section>

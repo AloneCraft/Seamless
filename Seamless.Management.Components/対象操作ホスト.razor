@@ -1,0 +1,75 @@
+<div class="対象行" data-対象-id="@ID" data-選択中="@選択中か.ToString().ToLowerInvariant()" data-メニュー中="@メニュー表示中か.ToString().ToLowerInvariant()"
+     data-db-order-row="@DB表示順ID" data-db-order-enabled="@表示順ドラッグ可能か.ToString().ToLowerInvariant()" data-object-order-group="@オブジェクト表示順グループ" data-object-order-enabled="@オブジェクト表示順可能か.ToString().ToLowerInvariant()" tabindex="0" role="group" aria-label="@名前" @onclick="選択時" @onkeydown="キー押下時Async" @oncontextmenu="右クリック時Async" @oncontextmenu:preventDefault="true">
+    <span class="操作帯">
+        @if(追加ボタンを表示するか&&(追加時.HasDelegate||追加メニュー要求時.HasDelegate)){
+            <button type="button" @ref="追加ハンドル" class="操作ハンドル" title="@表示文言.取得(追加の説明)" aria-label="@表示文言.取得(追加の説明)" aria-haspopup="@追加メニュー種別" disabled="@(!追加可能か)" @onclick="追加押下時Async" @onclick:stopPropagation="true"><操作アイコン 種類="追加"/></button>
+        }else if(追加ボタンを表示するか){<span class="ハンドル余白"></span>}
+        @if(メニューを表示するか){
+        <button type="button" @ref="ハンドル" class="操作ハンドル" data-メニュー起点="@ID" data-ドラッグ-id="@ドラッグID" data-db-order-handle="@DB表示順ID" data-object-order-handle="@オブジェクト表示順ID" draggable="@オブジェクトドラッグ属性" title="@操作の説明"
+                aria-label="@表示文言.取得("{0}の操作",名前)" aria-haspopup="menu" aria-expanded="@メニュー表示中か.ToString().ToLowerInvariant()"
+                @onclick="ハンドル押下時Async" @onclick:stopPropagation="true"><操作アイコン 種類="@メニューアイコン"/></button>
+        }
+    </span>
+    <div class="対象内容">
+        @if(展開中か is{} 展開){
+            <button type="button" class="枝の開閉" aria-label="@表示文言.取得("{0}の表示を切り替え",名前)" aria-expanded="@展開.ToString().ToLowerInvariant()" title="@表示文言.取得("展開・折り畳み · 左右矢印キー")" @onclick="()=>展開変更時.InvokeAsync(!展開)" @onclick:stopPropagation="true" @onkeydown="枝キー押下時Async" @onkeydown:stopPropagation="true">@開閉記号</button>
+        }
+        @ChildContent
+    </div>
+    @if(行操作 is not null){<span class="行右操作" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">@行操作</span>}
+</div>
+@code{
+    [Parameter,EditorRequired]public string ID{get;set;}="";
+    [Parameter,EditorRequired]public string 名前{get;set;}="";
+    [Parameter]public bool 選択中か{get;set;}
+    [Parameter]public bool メニュー表示中か{get;set;}
+    [Parameter]public bool ドラッグ可能か{get;set;}
+    [Parameter]public bool 表示順ドラッグ可能か{get;set;}
+    [Parameter]public bool DB表示順対象か{get;set;}
+    [Parameter]public string? オブジェクト表示順グループ{get;set;}
+    [Parameter]public bool オブジェクト表示順可能か{get;set;}
+    [Parameter]public bool 追加可能か{get;set;}=true;
+    [Parameter]public bool 追加ボタンを表示するか{get;set;}=true;
+    [Parameter]public bool? 展開中か{get;set;}
+    [Parameter]public EventCallback<bool> 展開変更時{get;set;}
+    [Parameter]public string 追加の説明{get;set;}=表示文言.取得("作成");
+    [Parameter]public RenderFragment? ChildContent{get;set;}
+    /// <summary>falseなら操作メニュー(ボタン・右クリック・Shift+F10)を出さない。分類やスキーマの見出し行で使う。</summary>
+    [Parameter]public bool メニューを表示するか{get;set;}=true;
+    /// <summary>行の右端に常に表示する操作ボタン。</summary>
+    [Parameter]public RenderFragment? 行操作{get;set;}
+    [Parameter]public EventCallback 選択時{get;set;}
+    [Parameter]public EventCallback 名前変更時{get;set;}
+    [Parameter]public EventCallback 追加時{get;set;}
+    [Parameter]public EventCallback<対象操作要求> 追加メニュー要求時{get;set;}
+    [Parameter]public EventCallback<対象操作要求> メニュー要求時{get;set;}
+    private ElementReference ハンドル;
+    private ElementReference 追加ハンドル;
+    private string? 追加メニュー種別{get{if(this.追加メニュー要求時.HasDelegate){return "menu";}return null;}}
+    private Task 追加押下時Async(){
+        if(!this.追加可能か){return Task.CompletedTask;}
+        if(this.追加メニュー要求時.HasDelegate){return this.追加メニュー要求時.InvokeAsync(new(this.ID,this.追加ハンドル,0,0));}
+        return this.追加時.InvokeAsync();
+    }
+    private string? ドラッグID{get{if(this.ドラッグ可能か){return this.ID;}return null;}}
+    private string? DB表示順ID{get{if(this.DB表示順対象か){return this.ID;}return null;}}
+    private string? オブジェクト表示順ID{get{if(this.オブジェクト表示順グループ is not null){return this.ID;}return null;}}
+    private string? オブジェクトドラッグ属性{get{if(this.オブジェクト表示順グループ is null){return null;}return this.オブジェクト表示順可能か.ToString().ToLowerInvariant();}}
+    private string メニューアイコン{get{if(this.ドラッグ可能か){return "ドラッグ";}return "その他";}}
+    private string 操作の説明{get{if(this.オブジェクト表示順可能か){return 表示文言.取得("ドラッグで同じ分類の表示順を変更 · この画面内のみ、未保存");}if(this.表示順ドラッグ可能か){return 表示文言.取得("ドラッグでDBの表示順を変更、クリックまたはShift+F10で操作");}if(this.ドラッグ可能か){return 表示文言.取得("ドラッグで移動、クリックまたはShift+F10で操作");}return 表示文言.取得("操作メニュー · Shift+F10");}}
+    private Task メニューを要求Async(対象操作要求 要求){if(!this.メニューを表示するか){return Task.CompletedTask;}if(this.メニュー要求時.HasDelegate){return this.メニュー要求時.InvokeAsync(要求);}return this.追加メニュー要求時.InvokeAsync(要求);}
+    private Task ハンドル押下時Async(MouseEventArgs 引数)=>this.メニューを要求Async(new(this.ID,this.ハンドル,0,0));
+    private Task 右クリック時Async(MouseEventArgs 引数)=>this.メニューを要求Async(new(this.ID,this.ハンドル,引数.ClientX,引数.ClientY));
+    private Task キー押下時Async(KeyboardEventArgs 引数){
+        if(引数.Key=="ContextMenu"||引数.Key=="F10"&&引数.ShiftKey){return this.メニューを要求Async(new(this.ID,this.ハンドル,0,0));}
+        if(引数.Key=="F2"&&this.名前変更時.HasDelegate){return this.名前変更時.InvokeAsync();}
+        return this.枝キー押下時Async(引数);
+    }
+    private string 開閉記号{get{if(this.展開中か is true){return "▾";}return "▸";}}
+    private Task 枝キー押下時Async(KeyboardEventArgs 引数){
+        if(this.展開中か is null){return Task.CompletedTask;}
+        if(引数.Key=="ArrowRight"&&this.展開中か is false){return this.展開変更時.InvokeAsync(true);}
+        if(引数.Key=="ArrowLeft"&&this.展開中か is true){return this.展開変更時.InvokeAsync(false);}
+        return Task.CompletedTask;
+    }
+}

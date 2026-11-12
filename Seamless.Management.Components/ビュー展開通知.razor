@@ -1,0 +1,53 @@
+@if(this.通知対象.Length>0){
+    <section class="ビュー展開通知" role="status" aria-label="@表示文言.取得("ビュー展開の対応状況")">
+        <strong>@表示文言.取得("ビュー展開に対応範囲の制限があります")</strong>
+        <ul>
+            @foreach(var ノード in this.通知対象){
+                <li data-node-id="@ノード.Id"><b>@ノード.Label</b> · @this.理由(ノード)</li>
+            }
+        </ul>
+    </section>
+}
+
+@code{
+    [Parameter,EditorRequired]public ExecutionPlanDocument 計画{get;set;}=null!;
+    private ExecutionPlanNode[] 通知対象=>this.計画.Nodes.Where(通知するか).ToArray();
+    private static bool 通知するか(ExecutionPlanNode ノード){
+        var 状態=ノード.Properties.GetValueOrDefault("ExpansionStatus");
+        if(状態=="ExpandedDefinitionWithSetBoundary"&&ノード.Properties.GetValueOrDefault("PredicatePushdownStatus")=="Applied"){
+            return ノード.Properties.GetValueOrDefault("PredicatePushdownReason")?.Contains("PointLookupNotSelected",StringComparison.Ordinal)==true;
+        }
+        return 状態 is "NotExpanded" or "ExpandedDefinitionWithSetBoundary";
+    }
+    private string 理由(ExecutionPlanNode ノード){
+        if(ノード.Properties.GetValueOrDefault("ExpansionStatus")=="ExpandedDefinitionWithSetBoundary"){
+            if(ノード.Properties.GetValueOrDefault("PredicatePushdownStatus")=="Applied"){
+                return 表示文言.取得("ビュー内部へ条件を移動しました。点検索への置換は未対応です。");
+            }
+            if(ノード.Properties.GetValueOrDefault("PredicatePushdownStatus")=="NotApplied"&&ノード.Properties.TryGetValue("PredicatePushdownReason",out var 条件理由)){
+                var 説明=条件理由 switch{
+                    "DirectColumnProjectionNotProven" or "OnlyWhereThenDirectSelectIsSupported"=>"直接の列投影として解析できません。",
+                    "ProjectionConstructorOrEqualityNotProvenTotal"=>"構築処理や等値比較の副作用・例外を保持できることを確認できません。",
+                    "PredicateMustBeUnanchoredSingleParameterLambda"=>"対応する条件はAnchorと捕捉値を含まない単一引数の直接ラムダです。",
+                    "PredicateMustBeBuiltinKeyEquality"=>"対応する条件は組込みのキー等値比較です。",
+                    "PredicateMustCompareMappedKeyWithSameTypeLiteral"=>"キーに対応する列と同じ型のリテラルとの等値比較に対応しています。",
+                    "DirectTableKeyNotProven" or "ProjectedSourceKeyNotProven"=>"入力テーブルのキーと投影先の列の対応を確定できません。",
+                    _=>条件理由
+                };
+                return 表示文言.取得("ビュー内部への条件移動を適用できません: {0}",表示文言.取得(説明));
+            }
+            return 表示文言.取得("定義本体は展開済みです。外側の条件を内部のキー検索へ反映する最適化は未対応です。");
+        }
+        var 理由コード=ノード.Properties.GetValueOrDefault("ExpansionReason")??"Unknown";
+        var 文言=理由コード switch{
+            "LegacyCreateViewCacheBoundary"=>"旧形式のビュー定義です。専用の定義経路への変更とSDKでの再ビルド・適用が必要です。",
+            "ExplicitSnapshotNotBoundToDefinition"=>"明示取引のsnapshotへビュー定義を束縛する展開は未対応です。",
+            "RecursiveDefinitionNotExpanded"=>"再帰するビュー定義は展開していません。循環呼び出しは実行時に拒否されます。",
+            "DefinitionRequiresSingleReturn"=>"このビュー本体は単一のreturn式による展開形式に対応していません。",
+            "DefinitionBodyUnsupported"=>"このビュー本体の展開は未対応です。",
+            _=>null
+        };
+        if(文言 is not null){return 表示文言.取得(文言);}
+        return 表示文言.取得("未対応のビュー展開理由: {0}",理由コード);
+    }
+}

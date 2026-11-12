@@ -13,7 +13,7 @@ namespace Seamless.Management.Server;
 [MemoryPackable]internal partial record struct AuditBatchRow(Guid Id,string Hash);
 [MemoryPackable]internal partial record struct AuditStateRow(long Id,long EventSequence,long SummarySequence);
 
-internal sealed class ManagementAuditDatabase(DatabaseContainerOptions options):ManagementDatabase(options){
+internal class ManagementAuditDatabase(DatabaseContainerOptions options):ManagementDatabase(options){
     internal static readonly string[] TableNames=["AuditEvents","AuditEventIds","AuditDays","ReadSummaries","ReadSummaryIds","AuditBatches","AuditState"];
     internal Table<AuditSequenceKey,AuditEventRow> AuditEvents=>this.Table<AuditSequenceKey,AuditEventRow>(static row=>new(row.Sequence));
     internal Table<ManagementKey,AuditEventIdRow> AuditEventIds=>this.Table<ManagementKey,AuditEventIdRow>(static row=>new(row.Id));

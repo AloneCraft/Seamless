@@ -53,7 +53,7 @@ public sealed record SourceStructure(string[] Namespaces,string[] Types,SourceOb
     private static bool IsTypeCandidate(INamedTypeSymbol symbol){
         if(symbol.IsStatic){return false;}
         for(var current=symbol;current is not null;current=current.ContainingType){
-            if(current.Arity>0||current.DeclaredAccessibility is not(Accessibility.Public or Accessibility.Internal)){return false;}
+            if(current.DeclaredAccessibility is not(Accessibility.Public or Accessibility.Internal)){return false;}
         }
         return true;
     }

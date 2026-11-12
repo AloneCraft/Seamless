@@ -1,0 +1,51 @@
+@implements IDisposable
+@inject IManagementOperations 管理
+<section class="文書領域 対象文書 公開対象文書" aria-label="@見出し" data-文書対象="@見出し">
+    <div class="文書見出し"><div><div class="種類ラベル">@表示文言.取得(状態.アイコン)</div><h1>@見出し</h1><p>@DB.Name · @表示文言.取得("公開メタデータ・読取専用")</p></div><span class="版ラベル">v@(DB.Version)</span></div>
+    @if(状態.対象 is null){<section aria-label="@表示文言.取得("DB情報")"><dl><dt>@表示文言.取得("公開版")</dt><dd>v@(DB.Version)</dd><dt>@表示文言.取得("成果物")</dt><dd>@DB.ArtifactHash</dd></dl></section>}
+    else{
+        <nav class="表示切替" aria-label="@表示文言.取得("文書の表示")"><button role="tab" aria-selected="true">@表示文言.取得("データ")</button></nav>
+        @if(案内 is not null){<p role="status">@案内</p>}
+        @if(読込中か){<p role="status">@表示文言.取得("読み込み中...")</p>}
+        @if(詳細 is not null){
+            <dl class="対象情報"><dt>@表示文言.取得("種類")</dt><dd>@状態.対象.Kind</dd><dt>@表示文言.取得("列")</dt><dd>@string.Join(", ",詳細.Columns.Select(列=>列.Name+" ("+列.Type+")"))</dd></dl>
+            @if(!行参照可能か){<p role="status">@表示文言.取得("データの参照にはReadRows権限が必要です。")</p>}
+            else if(状態.対象.Kind=="Table"){
+                <結果グリッド DB名="@DB.Name" テーブル名="@状態.対象.Id" 公開版="DB.Version" 表示中か="表示中か" 編集可能か="false"/>
+            }else if(!実行可能か){<p role="status">@表示文言.取得("ビューと関数の実行にはExecute権限が必要です。")</p>}
+            else{
+                <関数データ DB名="@DB.Name" 対象="状態.対象" 関数="関数対象" 公開版="対象版" 表示中か="表示中か" 実行可能か="true" 計測設定可能か="false"/>
+            }
+        }
+    }
+</section>
+@code{
+    [Parameter,EditorRequired]public CatalogDatabase DB{get;set;}=default!;
+    [Parameter,EditorRequired]public 対象文書状態 状態{get;set;}=default!;
+    [Parameter]public string カタログ版{get;set;}="";
+    [Parameter]public bool 表示中か{get;set;}
+    [Parameter]public bool 行参照可能か{get;set;}
+    [Parameter]public bool 実行可能か{get;set;}
+    private CatalogObjectDetails? 詳細;
+    private string? 案内,読込キー;
+    private bool 読込中か,破棄済みか;
+    private CancellationTokenSource? 取消;
+    private long 世代;
+    private string 見出し{get{if(this.状態.DBか){return this.DB.Name;}return this.状態.名前;}}
+    private long 対象版=>this.状態.関数?.Version??this.DB.Version;
+    private FunctionTarget? 関数対象{get{if(this.状態.関数 is{} 関数){return 関数.Target;}if(this.状態.対象?.Kind is "ScalarFunction" or "TableFunction"){return new(FunctionOrigin.DatabaseMember,this.DB.Id,this.DB.DefinitionId,this.状態.対象.Id);}return null;}}
+    protected override async Task OnParametersSetAsync(){
+        if(!this.表示中か||this.状態.対象 is null){if(this.読込中か){this.取消?.Cancel();this.読込キー=null;}return;}
+        var キー=this.DB.Id+"|"+this.DB.Version+"|"+this.DB.ArtifactHash+"|"+this.状態.対象.Id+"|"+this.対象版;
+        if(this.読込キー==キー){return;}this.読込キー=キー;this.取消?.Cancel();this.取消?.Dispose();this.取消=new();var 取消=this.取消.Token;var 世代=++this.世代;this.読込中か=true;this.詳細=null;this.案内=null;
+        try{
+            CatalogObjectDetails 詳細;
+            if(this.状態.登録関数か){var 関数=await this.管理.GetFunctionDetailsAsync(this.関数対象!,取消);if(関数.Function.Version!=this.対象版||関数.Function.ArtifactHash!=this.状態.関数!.ArtifactHash){throw new ManagementException("CatalogChanged",表示文言.取得("公開情報が変わりました。一覧を更新してください。"));}詳細=new(this.状態.対象,関数.Columns,[],関数.Parameters,関数.ReturnType,関数.Source);}
+            else{詳細=await this.管理.GetObjectDetailsAsync(new(this.DB.Id,this.カタログ版,ObjectId:this.状態.対象.Id),取消);if(詳細.Source.Version!=this.DB.Version||詳細.Source.ArtifactHash!=this.DB.ArtifactHash||詳細.Object.Id!=this.状態.対象.Id||詳細.Object.Kind!=this.状態.対象.Kind||詳細.Object.Schema!=this.状態.対象.Schema){throw new ManagementException("CatalogChanged",表示文言.取得("公開情報が変わりました。一覧を更新してください。"));}}
+            if(this.破棄済みか||取消.IsCancellationRequested||世代!=this.世代){return;}this.詳細=詳細;
+        }catch(OperationCanceledException)when(取消.IsCancellationRequested){}
+        catch(Exception 例外){if(!this.破棄済みか&&世代==this.世代){this.案内=例外.Message;}}
+        finally{if(!this.破棄済みか&&世代==this.世代){this.読込中か=false;}}
+    }
+    public void Dispose(){this.破棄済みか=true;this.世代++;this.取消?.Cancel();this.取消?.Dispose();}
+}

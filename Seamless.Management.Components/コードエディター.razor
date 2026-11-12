@@ -1,0 +1,73 @@
+@implements IAsyncDisposable
+@inject IJSRuntime スクリプト
+<div @ref="根" class="色付きコード @追加クラス" style="--コード行数:@行数">
+    <div class="コード行番号" aria-hidden="true"><pre @ref="番号">@番号文字列</pre></div>
+    <div class="コード編集枠">
+        <pre @ref="色表示" class="コード色表示" aria-hidden="true"><code>@foreach(var 断片 in 色一覧){<span class="@断片.Style">@断片.Text</span>}@("\n")</code></pre>
+        <textarea @ref="入力" aria-label="@表示文言.取得(ラベル)" readonly="@読み取り専用か" spellcheck="false" wrap="off" value="@値" @oninput="入力時Async"></textarea>
+    </div>
+    @if(this.補完範囲 is not null&&!this.読み取り専用か){
+        <div class="コード補完" data-code-completion>
+            <p class="小案内">@表示文言.取得("ドット入力またはCtrl+Spaceで意味解析補完。外部参照DLLの補完は未対応です。")</p>
+            @if(this.補完中か){<p role="status">@表示文言.取得("補完候補を解析中")</p>}
+            @if(this.補完案内 is not null){<p role="status">@this.補完案内</p>}
+            @if(this.補完結果 is{} 結果&&結果.Items.Length>0){
+                <div class="コード補完候補" role="listbox" aria-label="@表示文言.取得("C#補完候補")">
+                    @for(var 番号=0;番号<結果.Items.Length;番号++){var 候補=結果.Items[番号];<button type="button" role="option" tabindex="-1" data-code-completion-index="@番号" aria-selected="@(番号==0)"><span>@候補.InsertText</span><small>@候補.Kind</small><span class="コード補完詳細">@候補.DisplayText</span></button>}
+                </div>
+                @if(結果.Limited){<p class="小案内">@表示文言.取得("候補は先頭100件です。入力を絞って再取得してください。")</p>}
+            }
+        </div>
+    }
+</div>
+@if(this.補完範囲 is not null){<link rel="stylesheet" href="./_content/Seamless.Management.Components/code-completion.css"/>}
+@code{
+    [Parameter]public string? 値{get;set;}
+    [Parameter]public string ラベル{get;set;}="C#ソース";
+    [Parameter]public bool 読み取り専用か{get;set;}
+    [Parameter]public EventCallback<string> 値変更時{get;set;}
+    [Parameter]public int 行数{get;set;}=18;
+    [Parameter]public string 追加クラス{get;set;}="";
+    public ElementReference 入力要素=>this.入力;
+    private ElementReference 根,入力,色表示,番号;
+    private string? 解析済み;
+    private string 番号文字列="1";
+    private CSharpHighlighting.Segment[] 色一覧=[];
+    private readonly SemaphoreSlim 初期化=new(1,1);
+    private IJSObjectReference? モジュール,操作;
+    private bool 破棄済みか;
+    protected override void OnParametersSet(){
+        this.補完の入力を照合();
+        var text=this.値??"";
+        if(this.解析済み==text){return;}
+        this.解析済み=text;this.色一覧=CSharpHighlighting.Parse(text);
+        this.番号文字列=string.Join('\n',Enumerable.Range(1,text.Count(文字=>文字=='\n')+1));
+    }
+    private Task 入力時Async(ChangeEventArgs 引数){
+        var 入力値=引数.Value?.ToString()??"";
+        if(this.直前補完入力!=入力値){this.補完を取消();}
+        this.直前補完入力=入力値;
+        return this.値変更時.InvokeAsync(入力値);
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender){
+        await this.初期化.WaitAsync();
+        try{
+            if(this.破棄済みか){return;}
+            if(this.操作 is null){
+                this.モジュール=await this.スクリプト.InvokeAsync<IJSObjectReference>("import","./_content/Seamless.Management.Components/interaction.js");
+                this.操作=await this.モジュール.InvokeAsync<IJSObjectReference>("コード表示を初期化",this.根,this.入力,this.色表示,this.番号);
+            }
+            await this.操作.InvokeVoidAsync("update");
+            await this.補完を初期化Async();
+        }catch(JSDisconnectedException){}
+        finally{this.初期化.Release();}
+    }
+    public async ValueTask DisposeAsync(){
+        if(this.破棄済みか){return;}
+        this.破棄済みか=true;this.補完を取消();await this.初期化.WaitAsync();
+        try{
+            await this.補完を破棄Async();
+            await スクリプト参照.解放Async(this.操作,this.モジュール);
+        }finally{this.初期化.Release();}
+    }
+}

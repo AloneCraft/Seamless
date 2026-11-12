@@ -1,0 +1,56 @@
+<div class="生成コード表示" role="dialog" aria-modal="true" aria-label="@題名" tabindex="-1" @ref="枠" @onkeydown="キー押下時Async">
+    <header class="生成コード見出し">
+        <strong>@題名</strong>
+        <button type="button" class="省略ボタン" title="@表示文言.取得("閉じる")" aria-label="@表示文言.取得("閉じる")" @onclick="()=>閉じる時.InvokeAsync()"><操作アイコン 種類="閉じる"/></button>
+    </header>
+    @if(案内 is not null){<p class="@案内クラス" role="status">@案内</p>}
+    @if(読込中か){
+        <p class="小案内" role="status">@表示文言.取得("生成コードを作成しています…")</p>
+    }else if(ファイル.Length==0){
+        <p class="小案内">@表示文言.取得("表示できるファイルがありません。")</p>
+    }else{
+        <div class="生成コード本体">
+            <nav class="生成コード一覧" aria-label="@表示文言.取得("ファイル")">
+                @foreach(var (項目,番号) in ファイル.Select((項目,番号)=>(項目,番号))){
+                    <button type="button" class="生成コード項目" aria-current="@現在(番号)" @onclick="()=>選択=番号"><small>@区分名(項目.Kind)</small>@項目.Path</button>
+                }
+            </nav>
+            <div class="生成コード内容">
+                <コードエディター 値="@ファイル[Math.Min(選択,ファイル.Length-1)].Text" 読み取り専用か="true" 行数="30" ラベル="@ファイル[Math.Min(選択,ファイル.Length-1)].Path"/>
+            </div>
+        </div>
+    }
+</div>
+@code{
+    [Parameter,EditorRequired]public string 題名{get;set;}="";
+    [Parameter]public GeneratedSourceFile[] ファイル{get;set;}=[];
+    [Parameter]public bool 読込中か{get;set;}
+    [Parameter]public string? 案内{get;set;}
+    [Parameter]public bool 未対応か{get;set;}
+    [Parameter]public EventCallback 閉じる時{get;set;}
+    private ElementReference 枠;
+    private int 選択;
+    private bool 初回か=true;
+    protected override async Task OnAfterRenderAsync(bool 初回){
+        if(this.初回か){
+            this.初回か=false;
+            // 開いたらEscで閉じられるようにパネルへフォーカスを移す。描画先がない静的描画では移せないため、その場合は何もしない。
+            try{await this.枠.FocusAsync();}catch(InvalidOperationException){}
+        }else{
+        }
+    }
+    private Task キー押下時Async(KeyboardEventArgs 引数){
+        if(引数.Key=="Escape"){return this.閉じる時.InvokeAsync();}
+        return Task.CompletedTask;
+    }
+    private string 案内クラス{get{if(this.未対応か){return "未対応通知";}return "小案内";}}
+    private string? 現在(int 番号){
+        if(番号==this.選択){return "true";}
+        return null;
+    }
+    private static string 区分名(string 区分){
+        if(区分=="User"){return 表示文言.取得("利用者");}
+        if(区分=="Database"){return 表示文言.取得("DB生成器");}
+        return 表示文言.取得("FLinq生成器");
+    }
+}

@@ -10,21 +10,29 @@ internal sealed class AuditDelivery{
     private static readonly ConditionalWeakTable<TransactionJournal,SemaphoreSlim> Gates=new();
     internal Action<string>? Checkpoint{get;set;}
     internal async Task<AuditDeliveryReceipt> DeliverOnceAsync(TransactionJournal source,ManagementStore target,CancellationToken cancellationToken=default){
+        var gate=SourceGate(source,target);await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try{return this.DeliverBatch(source,target,cancellationToken);}finally{gate.Release();}
+    }
+    internal AuditDeliveryReceipt DeliverOnce(TransactionJournal source,ManagementStore target,CancellationToken cancellationToken=default){
+        var gate=SourceGate(source,target);gate.Wait(cancellationToken);
+        try{return this.DeliverBatch(source,target,cancellationToken);}finally{gate.Release();}
+    }
+    private static SemaphoreSlim SourceGate(TransactionJournal source,ManagementStore target){
         if(source.MetadataConsumer!="audit-v1"){throw new NotSupportedException("The audit-v1 metadata profile is required.");}
         if(!target.HasAudit){throw new ManagementException("MigrationRequired","監査テーブルを明示導入してください。");}
-        var gate=Gates.GetValue(source,static _=>new(1,1));await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try{
-            cancellationToken.ThrowIfCancellationRequested();using var page=source.ReadMetadataBatch();
-            using var decoded=source.Budget.ReserveMemory(checked(page.PayloadBytes*3L+page.Records.Count*512L));
-            var events=new List<AuditEvent>(page.Records.Count);foreach(var record in page.Records){cancellationToken.ThrowIfCancellationRequested();events.Add(AuditWalPayload.Decode(record.Payload.Span,target.InstanceId,source.Device.WalId,record.TransactionId));}
-            if(events.Count>0){
-                this.Checkpoint?.Invoke("BeforeTargetCommit");
-                target.Write(()=>{foreach(var value in events){cancellationToken.ThrowIfCancellationRequested();target.AppendAuditInside(value);}});
-                this.Checkpoint?.Invoke("TargetCommitted");
-            }
-            cancellationToken.ThrowIfCancellationRequested();source.AcknowledgeMetadataThrough(page.ThroughLsn);this.Checkpoint?.Invoke("Acknowledged");
-            return new(page.AfterLsn,page.ThroughLsn,page.DurableCeiling,events.Count,page.HasMore);
-        }finally{gate.Release();}
+        return Gates.GetValue(source,static _=>new(1,1));
+    }
+    private AuditDeliveryReceipt DeliverBatch(TransactionJournal source,ManagementStore target,CancellationToken cancellationToken){
+        cancellationToken.ThrowIfCancellationRequested();using var page=source.ReadMetadataBatch();
+        using var decoded=source.Budget.ReserveMemory(checked(page.PayloadBytes*3L+page.Records.Count*512L));
+        var events=new List<AuditEvent>(page.Records.Count);foreach(var record in page.Records){cancellationToken.ThrowIfCancellationRequested();events.Add(AuditWalPayload.Decode(record.Payload.Span,target.InstanceId,source.Device.WalId,record.TransactionId));}
+        if(events.Count>0){
+            this.Checkpoint?.Invoke("BeforeTargetCommit");
+            target.Write(()=>{foreach(var value in events){cancellationToken.ThrowIfCancellationRequested();target.AppendAuditInside(value);}});
+            this.Checkpoint?.Invoke("TargetCommitted");
+        }
+        cancellationToken.ThrowIfCancellationRequested();source.AcknowledgeMetadataThrough(page.ThroughLsn);this.Checkpoint?.Invoke("Acknowledged");
+        return new(page.AfterLsn,page.ThroughLsn,page.DurableCeiling,events.Count,page.HasMore);
     }
 }
 internal static class AuditWalPayload{

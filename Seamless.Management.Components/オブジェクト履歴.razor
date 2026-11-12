@@ -1,0 +1,45 @@
+@inject IManagementOperations 管理操作
+@implements IDisposable
+
+<section aria-label="@見出し">
+    <div class="構造見出し"><h2>@見出し · @対象ID</h2><button class="控えめボタン" disabled="@読込中か" @onclick="()=>読込Async(false)"><操作アイコン 種類="再読込"/>@表示文言.取得("再読込")</button></div>
+    <p class="小案内">@表示文言.取得("この対象を識別した監査記録を表示します。集計だけの参照や未記録のアクセスは含みません。")</p>
+    @if(案内.Length>0){<p role="status">@案内</p>}
+    @if(読込中か){<p role="status">@表示文言.取得("履歴を読み込んでいます…")</p>}
+    <div class="結果表スクロール"><table class="設計表"><thead><tr><th>@表示文言.取得("時刻")</th><th>@表示文言.取得("利用者")</th><th>@表示文言.取得("操作")</th><th>@表示文言.取得("結果")</th><th>@表示文言.取得("メソッド")</th><th>@表示文言.取得("コード版")</th></tr></thead><tbody>
+        @foreach(var 項目 in 一覧){<tr @key="項目.EventId"><td>@項目.CompletedAt.ToString("O")</td><td>@項目.SubjectId</td><td>@項目.Action</td><td>@項目.Outcome</td><td>@項目.MethodName</td><td>@項目.CodeVersion</td></tr>}
+    </tbody></table></div>
+    @if(!読込中か&&一覧.Length==0&&案内.Length==0){<p class="空の構造">@表示文言.取得("この対象の監査記録はありません。")</p>}
+    @if(続きありか){<button class="控えめボタン" disabled="@読込中か" @onclick="()=>読込Async(true)">@表示文言.取得("続きを取得")</button>}
+</section>
+
+@code{
+    [Parameter]public string DB名{get;set;}="";
+    [Parameter]public string 対象ID{get;set;}="";
+    [Parameter]public bool テーブルか{get;set;}
+    private string 見出し{get{if(this.テーブルか){return 表示文言.取得("アクセス履歴");}return 表示文言.取得("実行履歴");}}
+    private string 前DB="",前対象="",案内="";
+    private AuditEvent[] 一覧=[];
+    private bool 読込中か,続きありか;
+    private long 次位置,上限位置,世代;
+    private CancellationTokenSource? 取消;
+    protected override async Task OnParametersSetAsync(){
+        if(this.前DB==this.DB名&&this.前対象==this.対象ID){return;}
+        this.前DB=this.DB名;this.前対象=this.対象ID;this.一覧=[];this.続きありか=false;
+        await this.読込Async(false);
+    }
+    private async Task 読込Async(bool 続きか){
+        this.取消?.Cancel();this.取消?.Dispose();this.取消=new();var 取消=this.取消.Token;var 世代=++this.世代;
+        this.読込中か=true;this.案内="";
+        try{
+            var 条件=new AuditQuery(Database:this.DB名){ObjectId=this.対象ID};
+            if(続きか){条件=条件 with{Before=this.次位置,Ceiling=this.上限位置};}
+            var 結果=await this.管理操作.AuditEventsAsync(条件,取消);
+            if(世代!=this.世代){return;}
+            this.一覧=結果.Items;this.次位置=結果.NextBefore;this.上限位置=結果.Ceiling;this.続きありか=結果.HasMore;
+        }catch(OperationCanceledException)when(取消.IsCancellationRequested){}
+        catch(Exception 例外){if(世代==this.世代){this.一覧=[];this.続きありか=false;this.案内=表示文言.取得("履歴の取得に失敗しました。")+例外.Message;}}
+        finally{if(世代==this.世代){this.読込中か=false;}}
+    }
+    public void Dispose(){this.世代++;this.取消?.Cancel();this.取消?.Dispose();this.取消=null;}
+}

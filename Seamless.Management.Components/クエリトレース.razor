@@ -1,0 +1,176 @@
+@implements IAsyncDisposable
+@inject IManagementOperations 管理
+@using System.Globalization
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.JSInterop
+
+<link rel="stylesheet" href="./_content/Seamless.Management.Components/query-trace.css"/>
+<section class="クエリトレース" aria-label="@表示文言.取得("クエリ境界のトレース")">
+    <h3>@表示文言.取得("クエリ境界のトレース")</h3>
+    <div class="トレース操作">
+    <label>@表示文言.取得("表示の更新方式")<select aria-label="@表示文言.取得("トレース表示の更新方式")" value="@this.イベント更新か.ToString()" @onchange="this.更新方式変更時Async"><option value="False">@表示文言.取得("時間ベース・1秒ごと")</option><option value="True">@表示文言.取得("イベントベース・記録到着時")</option></select></label>
+    <label>@表示文言.取得("タイムラインの座標")<select aria-label="@表示文言.取得("トレースの座標方式")" value="@this.観測順座標か.ToString()" @onchange="this.座標変更時"><option value="False">@表示文言.取得("時刻・UTCと経過時間")</option><option value="True">@表示文言.取得("実行内の観測順")</option></select></label>
+    <button type="button" class="控えめボタン" @onclick="this.再取得Async"><操作アイコン 種類="再読込"/>@表示文言.取得("再読込")</button>
+    </div>
+    <p class="小案内">@表示文言.取得("更新方式とタイムラインの座標投影は別の設定です。表示操作で記録やクエリを開始しません。")</p>
+    <p class="小案内">@表示文言.取得("ノード別時間、CPU、I/O、詳細イベントは未収集です。")</p>
+    @if(this.案内 is not null){<p role="status">@this.案内</p>}
+    @if(this.ページ is{} ページ){
+        <p class="小案内" title="@ページ.Status.SessionId">@表示文言.取得("今回起動の収集状況")</p>
+        <p class="小案内" data-トレース範囲="@ページ.Scope">@表示文言.取得("観測範囲はクエリ全体の境界とサンプルです。")</p>
+        <p class="小案内">@表示文言.取得("観測 {0}・保存 {1}・欠落 {2}・保存失敗 {3}",ページ.Status.Captured,ページ.Status.Saved,ページ.Status.Dropped,ページ.Status.SaveFailures)</p>
+        <p class="小案内">@表示文言.取得("保存待ち {0} バイト・遅延したサンプル間隔 {1}・容量待機 {2} ms",ページ.Status.PendingBytes,ページ.Status.LateSampleIntervals,TimeSpan.FromTicks(ページ.Status.BackpressureTicks).TotalMilliseconds.ToString("0.###",CultureInfo.CurrentCulture))</p>
+        <p class="小案内">@表示文言.取得("表示中の記録{0}件",ページ.Frames.Length)</p>
+        @if(ページ.Status.ErrorCode is{} 異常){<p role="status">@表示文言.取得("トレースの診断") · @異常</p>}
+        @if(ページ.InvalidFiles>0||ページ.ScanLimited||ページ.HasMore){<p role="status">@表示文言.取得("一部のトレースが欠落または表示範囲外です。")</p>}
+        @if(this.配置.範囲外数>0){<p role="status">@表示文言.取得("時刻または観測順が範囲外の記録は一覧で確認できます。")</p>}
+        @if(this.配置.表示省略数>0){<p role="status">@表示文言.取得("画面は先頭1024観測までを表示しています。残り{0}観測は表示範囲外です。",this.配置.表示省略数)</p>}
+        @if(this.配置.集約観測数>0){<p class="小案内">@表示文言.取得("密集した観測は説明だけをまとめています。個々の観測は記録一覧で確認できます。")</p>}
+        @if(this.描画点.Length>0){
+            <p class="小案内">@表示文言.取得("各レーンは実行IDに対応し、点は記録された境界とサンプルを示します。")</p>
+            <p class="小案内">@表示文言.取得("時刻目盛は開始UTCと単調時計の経過時間から求めています。")</p>
+            <p class="小案内">@表示文言.取得("説明を選択すると対応する観測を一覧で強調します。繰り返すと次の対応観測へ進みます。")</p>
+            <div class="トレース画面" tabindex="0" aria-label="@表示文言.取得("クエリ境界のタイムライン")">
+                <svg class="トレース図" width="@this.図幅" height="@this.図高さ" viewBox="@($"0 0 {this.図幅} {this.図高さ}")" role="img" aria-label="@表示文言.取得("上から下へ進むクエリ観測")">
+                    @foreach(var レーン in this.配置.レーン.Select((ID,番号)=>(ID,X:260+番号*トレース配置.レーン幅))){
+                        <g><line x1="@レーン.X" x2="@レーン.X" y1="55" y2="@(this.図高さ-24)" class="トレースレーン"/><text x="@(レーン.X-20)" y="24">@(レーン.ID.ToString("N")[..8])<title>@レーン.ID</title></text></g>
+                    }
+                    @foreach(var 目盛 in this.配置.目盛){
+                        <g><text x="12" y="@数値(目盛.Y+4)" class="トレース時刻">@this.目盛名(目盛.値)</text><line x1="242" x2="250" y1="@数値(目盛.Y)" y2="@数値(目盛.Y)" class="トレースレーン"/></g>
+                    }
+                    @foreach(var 点 in this.描画点){
+                        <g data-トレース実行="@点.値.ExecutionId" data-トレース順="@点.値.Sequence">
+                            <circle cx="@点.X" cy="@数値(点.Y)" r="5" class="@点状態(点.値)"><title>@時刻名(点.値) · +@点.値.Elapsed.TotalMilliseconds.ToString("0.###",CultureInfo.CurrentCulture) ms · @表示文言.取得(観測名(点.値.Kind)) · @点.値.ExecutionId</title></circle>
+                        </g>
+                    }
+                    @foreach(var 説明 in this.配置.説明){
+                        <g>
+                            @foreach(var 元 in 説明.観測){<line x1="@(元.X+5)" y1="@数値(元.Y)" x2="@(説明.X-2)" y2="@数値(説明.Y)" class="トレース引出線"/>}
+                            <foreignObject x="@説明.X" y="@数値(説明.Y-10)" width="@トレース配置.説明幅" height="20"><button xmlns="http://www.w3.org/1999/xhtml" type="button" class="トレース説明" title="@説明詳細(説明)" aria-controls="@this.記録一覧ID" data-説明観測数="@説明.観測.Length" @onclick="()=>this.説明を選ぶ(説明)">@説明名(説明)</button></foreignObject>
+                        </g>
+                    }
+                </svg>
+            </div>
+        }else{<p role="status">@表示文言.取得("この対象のトレース記録はありません。次回実行時に記録を指定できます。")</p>}
+        <details open="@this.一覧表示か"><summary @onclick:preventDefault="true" @onclick="()=>this.一覧表示か=!this.一覧表示か">@表示文言.取得("トレースの記録一覧")</summary>
+        @if(this.対応観測.Count>0){<p role="status">@表示文言.取得("説明に対応する{0}観測を一覧で強調しています。",this.対応観測.Count)</p>}
+        <div class="結果表スクロール"><table id="@this.記録一覧ID" class="設計表" aria-label="@表示文言.取得("トレースの記録一覧")"><thead><tr><th>@表示文言.取得("実行ID")</th><th>@表示文言.取得("観測順")</th><th>UTC</th><th>@表示文言.取得("経過時間")</th><th>@表示文言.取得("記録方式")</th><th>@表示文言.取得("観測")</th><th>@表示文言.取得("実行段階")</th><th>@表示文言.取得("対象の公開版")</th></tr></thead><tbody>
+            @foreach(var 項目 in this.配置.記録){
+                <tr @key="(項目.ExecutionId,項目.Sequence)" @ref="this.行参照[(項目.ExecutionId,項目.Sequence)]" tabindex="0" data-対応観測="@this.対応観測.Contains((項目.ExecutionId,項目.Sequence)).ToString().ToLowerInvariant()"><td>@項目.ExecutionId</td><td>@項目.Sequence</td><td>@時刻名(項目)</td><td>@項目.Elapsed.TotalMilliseconds.ToString("0.###") ms</td><td>@表示文言.取得(項目.RecordMode==QueryTraceRecordMode.TimeSampled?"時間サンプリング":"境界イベント")</td><td>@表示文言.取得(観測名(項目.Kind))</td><td>@表示文言.取得(段階名(項目.Phase))</td><td>@if(項目.IdentityResolved){<span>v@(項目.Version)</span>}else{<span>@表示文言.取得("実行版未確定")</span>}</td></tr>
+            }
+        </tbody></table></div></details>
+    }
+</section>
+
+@code{
+    [Parameter]public string DB定義ID{get;set;}="";
+    [Parameter]public string 対象ID{get;set;}="";
+    [Parameter]public Guid? 実行ID{get;set;}
+    [Parameter]public bool 表示中か{get;set;}=true;
+    private bool 前表示中か;
+    private QueryTracePage? ページ;
+    private string? 案内,前DB,前対象;
+    private Guid? 前実行;
+    private bool イベント更新か,破棄済みか;
+    private bool 観測順座標か;
+    private トレース配置 配置=new();
+    private トレース配置点[] 描画点=>this.配置.点;
+    private int 図幅=>this.配置.幅;
+    private int 図高さ=>this.配置.高さ;
+    private readonly string 記録一覧ID="trace-records-"+Guid.NewGuid().ToString("N");
+    private readonly HashSet<(Guid,long)> 対応観測=[],表示キー=[];
+    private readonly Dictionary<(Guid,long),ElementReference> 行参照=[];
+    private (Guid,long)? フォーカス対象;
+    private bool 一覧表示か,行フォーカス待ちか;
+    private long 世代;
+    private Guid 通知セッション;
+    private long 通知版;
+    private CancellationTokenSource? 更新取消;
+    private Task 更新Task=Task.CompletedTask;
+    protected override async Task OnParametersSetAsync(){
+        var 対象変更か=this.前DB!=this.DB定義ID||this.前対象!=this.対象ID||this.前実行!=this.実行ID;
+        var 再開か=this.表示中か&&!this.前表示中か;this.前表示中か=this.表示中か;
+        if(対象変更か){this.前DB=this.DB定義ID;this.前対象=this.対象ID;this.前実行=this.実行ID;this.ページ=null;this.対応観測.Clear();this.フォーカス対象=null;this.行フォーカス待ちか=false;this.一覧表示か=false;this.図を更新();}
+        if(!this.表示中か){await this.停止Async();return;}
+        if(対象変更か||再開か){await this.再開Async();}
+    }
+    public Task 再取得Async(){if(!this.表示中か){return Task.CompletedTask;}return this.読むAsync(this.世代,this.更新取消?.Token??default);}
+    private async Task 更新方式変更時Async(ChangeEventArgs 引数){this.イベント更新か=string.Equals(引数.Value?.ToString(),"True",StringComparison.OrdinalIgnoreCase);await this.再開Async();}
+    private void 座標変更時(ChangeEventArgs 引数){this.観測順座標か=string.Equals(引数.Value?.ToString(),"True",StringComparison.OrdinalIgnoreCase);this.図を更新();}
+    private async Task 再開Async(){
+        if(this.破棄済みか||!this.表示中か){return;}
+        var 今=++this.世代;var 前取消=this.更新取消;var 前Task=this.更新Task;
+        前取消?.Cancel();await 前Task;前取消?.Dispose();
+        if(this.破棄済みか||!this.表示中か||今!=this.世代){return;}
+        this.更新取消=null;
+        this.通知セッション=Guid.Empty;this.通知版=0;this.案内=null;
+        if(this.破棄済みか||!this.表示中か||string.IsNullOrWhiteSpace(this.DB定義ID)||string.IsNullOrWhiteSpace(this.対象ID)){return;}
+        this.更新取消=new();var 取消=this.更新取消.Token;
+        await this.読むAsync(今,取消);
+        if(this.案内 is null&&!取消.IsCancellationRequested){this.更新Task=this.更新ループAsync(今,取消);}
+    }
+    private async Task 読むAsync(long 今,CancellationToken 取消){
+        if(this.破棄済みか||!this.表示中か||今!=this.世代){return;}
+        try{
+            var 応答=await this.管理.QueryTraceAsync(new(this.DB定義ID,this.対象ID,this.実行ID),取消).WaitAsync(取消);
+            if(!this.破棄済みか&&今==this.世代){this.ページ=応答;this.案内=null;this.図を更新();}
+        }catch(OperationCanceledException)when(取消.IsCancellationRequested){}
+        catch(Exception 例外){if(!this.破棄済みか&&今==this.世代){this.案内=例外.Message;if(例外 is ManagementException{Code:"Permission" or "Authentication"}){this.ページ=null;this.図を更新();}}}
+    }
+    private async Task 停止Async(){
+        if(this.更新取消 is not{} 取消){return;}
+        this.世代++;this.更新取消=null;取消.Cancel();await this.更新Task;取消.Dispose();
+    }
+    private async Task 更新ループAsync(long 今,CancellationToken 取消){
+        try{
+            while(!取消.IsCancellationRequested){
+                if(this.イベント更新か){
+                    var 変更=await this.管理.WatchQueryTraceAsync(new(this.DB定義ID,this.対象ID,this.通知セッション,this.通知版),取消).WaitAsync(取消);
+                    if(今!=this.世代){return;}this.通知セッション=変更.HubSession;this.通知版=変更.Revision;if(!変更.Changed){continue;}
+                }else{await Task.Delay(TimeSpan.FromSeconds(1),取消);}
+                if(this.破棄済みか||今!=this.世代){return;}
+                await this.InvokeAsync(async()=>{await this.読むAsync(今,取消);if(!this.破棄済みか&&今==this.世代){this.StateHasChanged();}});
+                if(this.案内 is not null){return;}
+            }
+        }catch(OperationCanceledException)when(取消.IsCancellationRequested){}
+        catch(Exception 例外){if(!this.破棄済みか&&今==this.世代){await this.InvokeAsync(()=>{if(this.破棄済みか||今!=this.世代){return;}this.案内=例外.Message;if(例外 is ManagementException{Code:"Permission" or "Authentication"}){this.ページ=null;this.図を更新();}this.StateHasChanged();});}}
+    }
+    private void 図を更新(){
+        this.配置=トレース配置.作成(this.ページ?.Frames??[],this.観測順座標か);
+        this.表示キー.Clear();this.表示キー.UnionWith(this.配置.記録.Select(項目=>(項目.ExecutionId,項目.Sequence)));
+        this.対応観測.IntersectWith(this.表示キー);
+        foreach(var キー in this.行参照.Keys.ToArray()){if(!this.表示キー.Contains(キー)){this.行参照.Remove(キー);}}
+    }
+    private static string 説明名(トレース説明配置 説明){
+        var 先頭=説明.観測[0].値;var 名前=表示文言.取得(観測名(先頭.Kind));
+        if(説明.観測.Length>1){return 表示文言.取得("{0} ほか{1}観測",名前,説明.観測.Length-1);}
+        return 名前+" · +"+先頭.Elapsed.TotalMilliseconds.ToString("0.###",CultureInfo.CurrentCulture)+" ms";
+    }
+    private static string 説明詳細(トレース説明配置 説明){
+        var 詳細=string.Join("\n",説明.観測.Take(8).Select(項目=>"#"+項目.値.Sequence+" · "+表示文言.取得(観測名(項目.値.Kind))+" · "+時刻名(項目.値)));
+        return 詳細+"\n"+表示文言.取得("全{0}観測は記録一覧で確認できます。",説明.観測.Length);
+    }
+    private void 説明を選ぶ(トレース説明配置 説明){
+        var 候補=説明.観測.Select(項目=>(項目.値.ExecutionId,項目.値.Sequence)).Where(this.表示キー.Contains).ToArray();if(候補.Length==0){return;}
+        var 位置=-1;if(this.フォーカス対象 is{} 前){位置=Array.IndexOf(候補,前);}
+        this.対応観測.Clear();this.対応観測.UnionWith(候補);this.フォーカス対象=候補[(位置+1)%候補.Length];this.一覧表示か=true;this.行フォーカス待ちか=true;
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender){
+        if(!this.行フォーカス待ちか||this.破棄済みか){return;}
+        this.行フォーカス待ちか=false;
+        if(this.フォーカス対象 is{} キー&&this.行参照.TryGetValue(キー,out var 行)){
+            try{await 行.FocusAsync();}catch(JSDisconnectedException){}catch(OperationCanceledException)when(this.破棄済みか){}
+        }
+    }
+    private string 目盛名(long 時刻値){if(this.観測順座標か){return "#"+時刻値;}return new DateTimeOffset(時刻値,TimeSpan.Zero).ToString("yyyy-MM-dd HH:mm:ss.ffffff 'UTC'",CultureInfo.InvariantCulture);}
+    private static string 時刻名(QueryTraceFrame 値){try{return 値.StartedAtUtc.Add(値.Elapsed).UtcDateTime.ToString("yyyy-MM-dd HH:mm:ss.ffffff",CultureInfo.InvariantCulture)+" UTC";}catch(ArgumentOutOfRangeException){return 表示文言.取得("時刻範囲外");}}
+    private static string 数値(double 値)=>値.ToString("0.###",CultureInfo.InvariantCulture);
+    private static string 点状態(QueryTraceFrame 値){
+        if(値.Outcome is "Failed" or "Cancelled"){return "トレース失敗";}
+        if(値.Kind=="Completed"){return "トレース完了";}
+        return "トレース観測";
+    }
+    private static string 段階名(string 値)=>値 switch{"DatabaseGate"=>"DBゲート待機","VersionBinding"=>"実行版の照合","Preparation"=>"実行の準備","Execution"=>"クエリの実行",_=>"不明"};
+    private static string 観測名(string 値)=>値 switch{"Started"=>"観測開始","GateAcquired"=>"DBゲート取得","IdentityBound"=>"実行版確定","FirstOutput"=>"最初の出力を観測","Sample"=>"サンプル","Completed"=>"観測終了",_=>"不明"};
+    public async ValueTask DisposeAsync(){if(this.破棄済みか){return;}this.破棄済みか=true;this.世代++;var 取消=this.更新取消;this.更新取消=null;取消?.Cancel();await this.更新Task;取消?.Dispose();}
+}

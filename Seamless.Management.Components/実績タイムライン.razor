@@ -1,0 +1,48 @@
+<section class="実績タイムライン" aria-label="@表示文言.取得("実績タイムライン")">
+    <h4>@表示文言.取得("実績タイムライン")</h4>
+    <label>@表示文言.取得("表示方式")<select aria-label="@表示文言.取得("実績の表示方式")" @bind="イベント順か"><option value="false">@表示文言.取得("時間に比例")</option><option value="true">@表示文言.取得("観測イベント順")</option></select></label>
+    <p class="小案内">@表示文言.取得("問い合わせ全体の観測境界です。ノードやハードウェア資源の占有時間は未収集です。")</p>
+    <svg viewBox="0 0 680 390" role="img" aria-label="@表示文言.取得("問い合わせの実績区間")" style="width:100%;max-height:420px">
+        <title>@表示文言.取得("問い合わせの実績区間")</title>
+        <g fill="currentColor" font-size="12"><text x="12" y="22">@実測.StartedAtUtc.ToUniversalTime().ToString("yyyy-MM-dd 'UTC'")</text><text x="260" y="22">@表示文言.取得("問い合わせ全体")</text></g>
+        <path d="M235 50 V330" stroke="currentColor" opacity=".4"/>
+        @if(!イベント順か){
+            @for(var 目盛=0;目盛<5;目盛++){
+                var 経過=TimeSpan.FromTicks(実測.Elapsed.Ticks/4*目盛);var Y=50+70*目盛;
+                <g><path d="@($"M225 {Y} H240")" stroke="currentColor"/><text x="12" y="@(Y+4)" fill="currentColor" font-size="11">@時刻(経過) · @時間(経過)</text></g>
+            }
+        }
+        @if(!イベント順か){
+            <g><rect x="260" y="50" width="190" height="@(位置(実測.DatabaseGateWait)-50)" fill="#d5dadd"><title>@表示文言.取得("DBゲート待機") · @時間(実測.DatabaseGateWait)</title></rect><rect x="260" y="@位置(実測.DatabaseGateWait)" width="190" height="@(位置(実測.Elapsed)-位置(実測.DatabaseGateWait))" fill="@色"><title>@表示文言.取得("実行から観測終了まで") · @時間(実測.Elapsed-実測.DatabaseGateWait)</title></rect></g>
+        }
+        @for(var 番号=0;番号<境界.Length;番号++){
+            var 項目=境界[番号];var Y=位置(項目.経過,番号);var 説明Y=65+番号*72;
+            <g><path d="@($"M450 {Y} H462 L490 {説明Y}")" stroke="currentColor" fill="none" opacity=".4"/><circle cx="450" cy="@Y" r="4" fill="@色"/><text x="500" y="@説明Y" fill="currentColor" font-size="12">@表示文言.取得(項目.名前)</text><text x="500" y="@(説明Y+18)" fill="currentColor" font-size="11">@時間(項目.経過)</text></g>
+            @if(イベント順か){<g><text x="12" y="@(Y+4)" fill="currentColor" font-size="11">@時刻(項目.経過) · @時間(項目.経過)</text></g>}
+        }
+        <g fill="currentColor" font-size="11"><text x="12" y="365">@表示文言.取得("時刻目盛は開始UTCと単調時計の経過時間から求めています。")</text></g>
+    </svg>
+</section>
+
+@code{
+    [Parameter,EditorRequired]public ObjectExecutionStatistics 実測{get;set;}=default!;
+    [Parameter]public QueryExecutionObservation? 観測{get;set;}
+    private bool イベント順か;
+    private (TimeSpan 経過,string 名前)[] 境界=[];
+    private string 色{get{if(this.観測?.Outcome=="Failed"){return "#c95e58";}if(this.観測?.Outcome=="Cancelled"){return "#bc8a38";}return "#387e71";}}
+    protected override void OnParametersSet(){
+        var 項目=new List<(TimeSpan,string)>{(TimeSpan.Zero,"計測開始"),(this.実測.DatabaseGateWait,"DBゲート取得")};
+        if(this.実測.TimeToFirstOutput is{} 初回){項目.Add((初回,"最初の出力を観測"));}
+        項目.Add((this.実測.Elapsed,"観測終了"));this.境界=項目.ToArray();
+    }
+    private int 位置(TimeSpan 経過,int 番号=0){
+        if(this.イベント順か){return 50+番号*280/Math.Max(1,this.境界.Length-1);}
+        return 50+(int)Math.Round(Math.Clamp(経過.Ticks/(double)Math.Max(1,this.実測.Elapsed.Ticks),0,1)*280);
+    }
+    private static string 時間(TimeSpan 値){if(値.TotalMilliseconds<1){return (値.Ticks/10.0).ToString("0.###",System.Globalization.CultureInfo.CurrentCulture)+" μs";}return 値.TotalMilliseconds.ToString("0.###",System.Globalization.CultureInfo.CurrentCulture)+" ms";}
+    private string 時刻(TimeSpan 経過){
+        var 開始=this.実測.StartedAtUtc.UtcTicks;
+        if(経過.Ticks<0||経過.Ticks>DateTimeOffset.MaxValue.UtcTicks-開始){return 表示文言.取得("時刻範囲外");}
+        return this.実測.StartedAtUtc.Add(経過).ToUniversalTime().ToString("HH:mm:ss.ffffff",System.Globalization.CultureInfo.InvariantCulture);
+    }
+}

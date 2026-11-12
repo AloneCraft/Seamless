@@ -62,6 +62,7 @@ public sealed class AuthorizationSnapshot{
     public DateTimeOffset MembershipVerifiedAt{get;}
     public ImmutableArray<Guid> Roles{get;}
     internal AuthorizationSnapshot(AuthorizationPolicySnapshot policy,SecuritySubjectId subject,DateTimeOffset verified,ImmutableArray<Guid> roles,FrozenDictionary<Guid,(SecurityPermission,SecurityPermission)> permissions){this.policy=policy;this.Subject=subject;this.MembershipVerifiedAt=verified;this.Roles=roles;this.permissions=permissions;}
+    public SecurityResource? Resource(Guid id)=>this.policy.Resource(id);
     public PermissionDecision Evaluate(Guid resource,SecurityPermission required){
         var path=this.policy.Path(resource);if(path.IsEmpty||required==SecurityPermission.None||(required&~SecurityPermission.All)!=0){return new(false,"UnknownTargetOrOperation",SecurityPermission.None,SecurityPermission.None);}
         var allow=SecurityPermission.None;var deny=SecurityPermission.None;
