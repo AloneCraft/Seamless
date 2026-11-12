@@ -142,7 +142,9 @@ public sealed class RandomQueryGenerator{
             this.nestedAvailable=options.EnableNestedOperators
                 &&(this.allowed.Contains(QueryOperatorIds.SelectManyXor)
                     ||this.allowed.Contains(QueryOperatorIds.JoinXor)
-                    ||this.allowed.Contains(QueryOperatorIds.GroupJoinXorCount))
+                    ||this.allowed.Contains(QueryOperatorIds.GroupJoinXorCount)
+                    ||this.allowed.Contains(QueryOperatorIds.LeftJoinXor)
+                    ||this.allowed.Contains(QueryOperatorIds.RightJoinXor))
                 &&worstNestedForestCardinality<=options.MaximumCardinality;
             var maximumNodes=GetMaximumSequenceNodes(
                 options.MaximumDepth-1,
@@ -325,7 +327,9 @@ public sealed class RandomQueryGenerator{
                     or QueryOperatorIds.SkipWhile or QueryOperatorIds.Append or QueryOperatorIds.Prepend
                     or QueryOperatorIds.DefaultIfEmpty or QueryOperatorIds.OrderByKey
                     or QueryOperatorIds.GroupBySum or QueryOperatorIds.GroupByCount
-                    or QueryOperatorIds.GroupByKeyOnly=>this.CreateExtendedUnary(input,descriptor.OperatorId),
+                    or QueryOperatorIds.GroupByKeyOnly or QueryOperatorIds.Order or QueryOperatorIds.ShuffleOrder
+                    or QueryOperatorIds.Cast or QueryOperatorIds.OfType or QueryOperatorIds.AsEnumerable
+                    or QueryOperatorIds.ChunkFlatten or QueryOperatorIds.IndexXor=>this.CreateExtendedUnary(input,descriptor.OperatorId),
                 _=>throw new InvalidOperationException($"Unsupported unary operator: {descriptor.OperatorId}."),
             };
         }
@@ -406,6 +410,8 @@ public sealed class RandomQueryGenerator{
                 QueryOperatorIds.SelectManyXor=>QueryNestedKind.SelectManyXor,
                 QueryOperatorIds.JoinXor=>QueryNestedKind.JoinXor,
                 QueryOperatorIds.GroupJoinXorCount=>QueryNestedKind.GroupJoinXorCount,
+                QueryOperatorIds.LeftJoinXor=>QueryNestedKind.LeftJoinXor,
+                QueryOperatorIds.RightJoinXor=>QueryNestedKind.RightJoinXor,
                 _=>throw new InvalidOperationException($"Unsupported nested operator: {descriptor.OperatorId}."),
             };
             var product=QueryCardinalityRange.Multiply(outer.Cardinality,inner.Cardinality);
@@ -413,6 +419,7 @@ public sealed class RandomQueryGenerator{
                 QueryNestedKind.JoinXor=>new QueryCardinalityRange(0,product.Maximum),
                 QueryNestedKind.SelectManyXor=>product,
                 QueryNestedKind.GroupJoinXorCount=>outer.Cardinality,
+                QueryNestedKind.LeftJoinXor or QueryNestedKind.RightJoinXor=>ExtendedNestedShape.OuterJoinCardinality(kind,outer.Cardinality,inner.Cardinality),
                 _=>throw new InvalidOperationException($"Unsupported nested kind: {kind}."),
             };
             var order=outer.OrderSemantics==QueryOrderSemantics.Unordered||inner.OrderSemantics==QueryOrderSemantics.Unordered
@@ -568,6 +575,13 @@ public sealed class RandomQueryGenerator{
                 QueryOperatorIds.GroupBySum=>new GroupByAggregateOperatorArguments(GroupByAggregateKind.Sum,this.argumentRandom.NextInt32(2,9)),
                 QueryOperatorIds.GroupByCount=>new GroupByAggregateOperatorArguments(GroupByAggregateKind.Count,this.argumentRandom.NextInt32(2,9)),
                 QueryOperatorIds.GroupByKeyOnly=>new GroupByAggregateOperatorArguments(GroupByAggregateKind.KeyOnly,this.argumentRandom.NextInt32(2,9)),
+                QueryOperatorIds.Order=>new OrderOperatorArguments(this.argumentRandom.NextInt32(0,2)==1),
+                QueryOperatorIds.ShuffleOrder=>new ShuffleOrderOperatorArguments(),
+                QueryOperatorIds.Cast=>new CastOperatorArguments(),
+                QueryOperatorIds.OfType=>new OfTypeOperatorArguments(),
+                QueryOperatorIds.AsEnumerable=>new AsEnumerableOperatorArguments(),
+                QueryOperatorIds.ChunkFlatten=>new ChunkFlattenOperatorArguments(this.argumentRandom.NextInt32(1,9)),
+                QueryOperatorIds.IndexXor=>new IndexXorOperatorArguments(),
                 _=>throw new InvalidOperationException($"Unsupported extended unary operator: {operatorId}."),
             };
             return new(
@@ -603,7 +617,7 @@ public sealed class RandomQueryGenerator{
         }
 
         private static bool IsOrderedSequence(QueryNode node) =>
-            node is UnaryQueryNode unary && unary.OperatorId is QueryOperatorIds.OrderBy or QueryOperatorIds.ThenBy or QueryOperatorIds.OrderByKey;
+            node is UnaryQueryNode unary && unary.OperatorId is QueryOperatorIds.OrderBy or QueryOperatorIds.ThenBy or QueryOperatorIds.OrderByKey or QueryOperatorIds.Order;
 
         private UnaryQueryNode CreateThenBy(QueryNode input){
             if(input.OrderSemantics!=QueryOrderSemantics.TotalOrdered || !IsOrderedSequence(input)){
@@ -683,6 +697,8 @@ public sealed class RandomQueryGenerator{
                 QueryOperatorIds.FirstOrDefault=>QueryTerminalKind.FirstOrDefault,
                 QueryOperatorIds.Last=>QueryTerminalKind.Last,
                 QueryOperatorIds.LastOrDefault=>QueryTerminalKind.LastOrDefault,
+                QueryOperatorIds.Single=>QueryTerminalKind.Single,
+                QueryOperatorIds.SingleOrDefault=>QueryTerminalKind.SingleOrDefault,
                 QueryOperatorIds.ElementAt=>QueryTerminalKind.ElementAt,
                 QueryOperatorIds.ElementAtOrDefault=>QueryTerminalKind.ElementAtOrDefault,
                 QueryOperatorIds.ToArray=>QueryTerminalKind.ToArray,

@@ -54,6 +54,12 @@ dotnet <Worker.dll> --regressions
 - 速度の短い順序固定測定を機能テストの合否にしない。値と割当量を検証し、時間はTimingObservationに保持する。速度比較は独立した測定経路で行う。
 - 容量不足を試すfixtureは固定成長を明示する。見込み件数なしの並列区間で通常の大量書込みを試すfixtureは、ログ容量を開始前に確保する。
 
+## LINQメソッドの網羅と連鎖の検証
+
+- チェイン1(`Chain1`)は `Enumerable` の公開メソッドを1メソッド1ファイルで持つ。`CoreEnumerableSurfaceCoverageTests` がリフレクションで数えるので、.NET を上げて `Enumerable` に新メソッド(例: .NET 11 の `FullJoin`)が増えると失敗する。失敗したら、チェイン1にファイルを足し、`EnumerableComparisonCatalog` へ足し、ランダム生成の演算子表(`OperatorCatalog.cs`)へ載せるか、載せない理由を同テストの `NotInRandomGeneration` に書く。
+- 連鎖(チェイン2相当)は手書きせず、`DynamicChainCorpusTests` が演算子表から組み合わせを列挙して、System / FLinq(最適化なし・あり) / ZLinq で比べる。書き方は IR の `Style` で切り替える(メソッド形、`列.Consume(consumer)` で受ける Consume 形、Where / Select / OrderBy のクエリ構文)。
+- 演算子表に載せていないもの: `TryGetNonEnumeratedCount`(列の作り方で結果が正当に変わる)、`Empty` / `Repeat` / `Sequence` / `InfiniteSequence`(元の列の種類)。手書きで残している連鎖は `CountBy_Select` と `AggregateBy_Select` だけ(IR では `CountBy` / `AggregateBy` が終端のため表せない)。
+
 ## 環境依存の確認
 
 実SQL Server連携には `SEAMLESS_SQLSERVER_TEST_CONNECTION` が必要。未設定の場合は明示的なSkipとなる。2026-11-04の実接続試験では既存SQL Serverに専用DBを作り、データ・ログ・COPY_ONLYバックアップをFへ配置した。接続先と配置の記録は `F:/CodexTemp/test-retirement-20261104/live-acceptance/sql-environment.json`。CLI連携の追加DBと子ビルドも `SEAMLESS_TEST_DATA_ROOT` 配下を使う。

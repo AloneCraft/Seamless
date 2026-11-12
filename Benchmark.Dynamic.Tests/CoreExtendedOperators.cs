@@ -16,6 +16,13 @@ public sealed class ExtendedOperatorTests{
         {QueryOperatorIds.GroupBySum,"GroupBy("},
         {QueryOperatorIds.GroupByCount,"GroupBy("},
         {QueryOperatorIds.GroupByKeyOnly,"GroupBy("},
+        {QueryOperatorIds.Order,"Order"},
+        {QueryOperatorIds.ShuffleOrder,"Shuffle("},
+        {QueryOperatorIds.Cast,"Cast<"},
+        {QueryOperatorIds.OfType,"OfType<"},
+        {QueryOperatorIds.AsEnumerable,"AsEnumerable("},
+        {QueryOperatorIds.ChunkFlatten,"Chunk("},
+        {QueryOperatorIds.IndexXor,"Index("},
     };
 
     [Theory,Trait("Category","Unit")]

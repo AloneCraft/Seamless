@@ -196,6 +196,15 @@ public static class QueryCapabilityProfiles{
                     verification=CapabilityVerification.RuntimeVerified;
                     limitation="ZLinq 1.5.6 OrderBy materialization throws because its comparer reports inconsistent results on the deterministic integer fixture.";
                 }
+                if(descriptor.OperatorId is QueryOperatorIds.Order or QueryOperatorIds.ShuffleOrder or QueryOperatorIds.Cast
+                    or QueryOperatorIds.OfType or QueryOperatorIds.AsEnumerable or QueryOperatorIds.ChunkFlatten or QueryOperatorIds.IndexXor
+                    or QueryOperatorIds.LeftJoinXor or QueryOperatorIds.RightJoinXor
+                    or QueryOperatorIds.Single or QueryOperatorIds.SingleOrDefault
+                    &&path==ExecutionPath.ZLinq){
+                    supported=false;
+                    verification=CapabilityVerification.ApiShapeOnly;
+                    limitation="ZLinq での動作は未確認なので、System と FLinq だけで比べる。";
+                }
                 if(isProvider&&descriptor.RequiresDeterministicOrder){
                     supported=false;
                     verification=CapabilityVerification.ApiShapeOnly;
