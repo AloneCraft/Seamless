@@ -131,13 +131,14 @@ public sealed class RuntimeSqlCatalogTests{
     }
     [Fact,Trait("Category","Integration")]
     public void GeneratedRootDisposedBeforeFirstTransactionCanReopen(){
-        var options=Options();using(var first=new RuntimeGeneratedFixture(options)){}using(var reopened=new RuntimeGeneratedFixture(options)){using(var tx=reopened.BeginTransaction()){Assert.True(reopened.dbo.TypedOrders.Add(new(7,"after-reopen",1)));tx.Commit();}using var read=reopened.BeginReadSession();Assert.Equal("after-reopen",reopened.dbo.TypedOrders[new(7)].Name);}
+        var options=Options();using(var first=new RuntimeGeneratedFixture(options)){}using(var reopened=new RuntimeGeneratedFixture(options)){using(var tx=reopened.BeginTransaction()){Assert.True(tx.dbo.TypedOrders.Add(new(7,"after-reopen",1)));tx.Commit();}using var read=reopened.BeginReadSession();Assert.Equal("after-reopen",reopened.dbo.TypedOrders[new(7)].Name);}
     }
     [Fact,Trait("Category","Integration")]
     public void RejectsLegacyAndMismatchedStorageBeforeOpening(){
         var options=Options();Directory.CreateDirectory(options.StorageDirectory!);File.WriteAllText(Path.Combine(options.StorageDirectory!,"existing.bin"),"unchanged");
         Assert.Throws<InvalidDataException>(()=>new RuntimeSqlCatalogFixture(options));Assert.Equal("unchanged",File.ReadAllText(Path.Combine(options.StorageDirectory!,"existing.bin")));Assert.False(File.Exists(Path.Combine(options.StorageDirectory!,"runtime-sql-v1.profile")));
         var fresh=Options();using(var db=new RuntimeSqlCatalogFixture(fresh)){}Assert.Throws<InvalidDataException>(()=>new RuntimeSqlCatalogFixture(fresh,"different-schema"));
-        Assert.Throws<InvalidOperationException>(()=>new RuntimeSqlCatalogFixture(DatabaseContainerOptions.InMemory));
+        // [保存先] メモリ上の DB は保存先の検査をせずに開ける(比較ホストも実行時 SQL をメモリで開く)。
+        using(var memory=new RuntimeSqlCatalogFixture(DatabaseContainerOptions.InMemory)){}
     }
 }

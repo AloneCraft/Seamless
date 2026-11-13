@@ -18,11 +18,11 @@ public sealed class ComparisonRuntimeProfileTests{
         Assert.Equal("legacy.legacy",new ComparisonDatabase("legacy","legacy","f",true,new DatabaseCatalog("legacy",[]),[]).TypeFullName);
     }
     [Fact]
-    public void RuntimeManifestRequiresSharedV2AndMatchingType(){
+    // 旧方式(DatabaseTransactionMode)は 2026-11-12 に削除したので、取引の方式を確かめる検査はもう無い。
+    public void RuntimeManifestRequiresRuntimeSqlAndMatchingType(){
         var type=typeof(Seamless.Generated.Profile_RuntimeSqlV1.Profile_RuntimeSqlV1);
         var item=new ComparisonDatabase("fixture",type.Name,"fingerprint",false,new DatabaseCatalog("fixture",[]),[]){GeneratedNamespace=type.Namespace,RuntimeSqlEnabled=true};
         ComparisonHost.ValidateRuntimeProfile(item,type,DatabaseContainerOptions.InMemory );
-        Assert.Throws<InvalidDataException>(()=>ComparisonHost.ValidateRuntimeProfile(item,type,DatabaseContainerOptions.InMemory));
         Assert.Throws<InvalidDataException>(()=>ComparisonHost.ValidateRuntimeProfile(item with{RuntimeSqlEnabled=false},type,DatabaseContainerOptions.InMemory));
         Assert.Throws<InvalidDataException>(()=>ComparisonHost.ValidateRuntimeProfile(item with{GeneratedNamespace="wrong"},type,DatabaseContainerOptions.InMemory ));
     }

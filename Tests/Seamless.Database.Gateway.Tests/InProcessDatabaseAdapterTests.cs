@@ -36,7 +36,10 @@ public sealed class InProcessDatabaseAdapterTests{
                 {"単価",300},
                 {"在庫数",15}
             };
+            // [取引] アダプターは呼び出し側の取引の中で書く(SQL では実行エンジンが文ごとに取引を始める)。
+            adapter.BeginTransaction(session);
             var affected=adapter.ExecuteInsert("商品",values,session);
+            adapter.CommitTransaction(session);
             Assert.Equal(1,affected);
 
             // 追加確認
@@ -59,6 +62,7 @@ public sealed class InProcessDatabaseAdapterTests{
                 {"単価",450},
                 {"在庫数",30}
             };
+            adapter.BeginTransaction(session);
             var affected=adapter.ExecuteUpdate("商品",updateValues,(rec)=>{
                 var idProp=rec.GetType().GetProperty("商品ID");
                 if(idProp is not null){
@@ -68,6 +72,7 @@ public sealed class InProcessDatabaseAdapterTests{
                     return false;
                 }
             },session);
+            adapter.CommitTransaction(session);
             Assert.Equal(1,affected);
 
             // 更新確認
@@ -88,6 +93,7 @@ public sealed class InProcessDatabaseAdapterTests{
         {
             // DELETE
             var newId=9999;
+            adapter.BeginTransaction(session);
             var affected=adapter.ExecuteDelete("商品",(rec)=>{
                 var idProp=rec.GetType().GetProperty("商品ID");
                 if(idProp is not null){
@@ -97,6 +103,7 @@ public sealed class InProcessDatabaseAdapterTests{
                     return false;
                 }
             },session);
+            adapter.CommitTransaction(session);
             Assert.Equal(1,affected);
 
             // 削除確認

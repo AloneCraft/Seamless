@@ -71,7 +71,7 @@ public sealed class SessionLockTimeoutTests{
     }
     [Fact,Trait("Category","Integration")]
     public void DisposingPartialEnumerationReleasesTheReadLease(){
-        using var database=Database();using(var seed=database.BeginTransaction()){database.dbo.TypedOrders.Add(new(1,"one",1));database.dbo.TypedOrders.Add(new(2,"two",1));seed.Commit();}
+        using var database=Database();using(var seed=database.BeginTransaction()){seed.dbo.TypedOrders.Add(new(1,"one",1));seed.dbo.TypedOrders.Add(new(2,"two",1));seed.Commit();}
         var engine=Engine(new(database));using var reading=new SessionContext(1,"fixture");using var writing=new SessionContext(2,"fixture");engine.Execute("SET LOCK_TIMEOUT 100",writing);
         var result=engine.Execute("SELECT ObjectId FROM dbo.TypedOrders",reading);
         using(var rows=result.Rows.GetEnumerator()){
