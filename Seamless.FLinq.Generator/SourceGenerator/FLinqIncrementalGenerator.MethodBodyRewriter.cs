@@ -2113,7 +2113,8 @@ public sealed partial class FLinqIncrementalGenerator {
             .Where(invocation => SystemLinqEnumerable呼び出し判定(invocation,semanticModel)
                 &&semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol method
                 &&(method.ReducedFrom is not null||IsKnownEnumerableRootMethod(method)||IsStaticSystemEnumerableLowerable(method)
-                    ||PipelineBuilder.IsStaticRangeUnionCount(semanticModel,invocation,method))
+                    ||PipelineBuilder.IsStaticRangeUnionCount(semanticModel,invocation,method)
+                    ||PipelineBuilder.IsStaticToArrayOfPreservedUnion(semanticModel,invocation,method))
                 &&!(method.ReducedFrom??method).Parameters.Any(static p => p.RefKind!=RefKind.None))
             .Where(invocation => !invocation.Ancestors()
                 .TakeWhile(ancestor => ancestor!=statement)
@@ -2133,7 +2134,9 @@ public sealed partial class FLinqIncrementalGenerator {
                 &&semanticModel.GetSymbolInfo(receiverInvocation).Symbol is IMethodSymbol { ReducedFrom: null } receiverMethod
                 &&SystemLinqEnumerableメソッド判定(receiverMethod)
                 &&!IsKnownEnumerableRootMethod(receiverMethod)
-                &&Enumerableメソッドがフラグメント対応済みか(receiverMethod.Name)))
+                &&Enumerableメソッドがフラグメント対応済みか(receiverMethod.Name)
+                // 検証と評価の順序を保つため元の呼び出しのまま残す静的な Union は、受け手として傍受を続ける(TargetDiscovery と同じ判定)。
+                &&!PipelineBuilder.PreservesSystemUnionCall(semanticModel,receiverInvocation,receiverMethod)))
             .OrderBy(static invocation => invocation.SpanStart)
             .ToList();
     }
@@ -2157,7 +2160,8 @@ public sealed partial class FLinqIncrementalGenerator {
             .Where(invocation => SystemLinqEnumerable呼び出し判定(invocation,semanticModel)
                 &&semanticModel.GetSymbolInfo(invocation).Symbol is IMethodSymbol method
                 &&(method.ReducedFrom is not null||IsKnownEnumerableRootMethod(method)||IsStaticSystemEnumerableLowerable(method)
-                    ||PipelineBuilder.IsStaticRangeUnionCount(semanticModel,invocation,method))
+                    ||PipelineBuilder.IsStaticRangeUnionCount(semanticModel,invocation,method)
+                    ||PipelineBuilder.IsStaticToArrayOfPreservedUnion(semanticModel,invocation,method))
                 &&!(method.ReducedFrom??method).Parameters.Any(static p => p.RefKind!=RefKind.None))
             .Where(invocation => !invocation.Ancestors()
                 .TakeWhile(ancestor => ancestor!=boundary)
@@ -2175,7 +2179,9 @@ public sealed partial class FLinqIncrementalGenerator {
                 &&semanticModel.GetSymbolInfo(receiverInvocation).Symbol is IMethodSymbol { ReducedFrom: null } receiverMethod
                 &&SystemLinqEnumerableメソッド判定(receiverMethod)
                 &&!IsKnownEnumerableRootMethod(receiverMethod)
-                &&Enumerableメソッドがフラグメント対応済みか(receiverMethod.Name)))
+                &&Enumerableメソッドがフラグメント対応済みか(receiverMethod.Name)
+                // 検証と評価の順序を保つため元の呼び出しのまま残す静的な Union は、受け手として傍受を続ける(TargetDiscovery と同じ判定)。
+                &&!PipelineBuilder.PreservesSystemUnionCall(semanticModel,receiverInvocation,receiverMethod)))
             .OrderBy(static invocation => invocation.SpanStart)
             .ToList();
     }

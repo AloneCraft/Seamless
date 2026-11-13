@@ -177,10 +177,11 @@ public sealed partial class OptimizationFixedPointTests{
             .Where(static termination=>termination.GetProperty("Layer").GetString()=="Pipeline")
             .ToArray();
         Assert.NotEmpty(pipelineTerminations);
-        Assert.Contains(
-            pipelineTerminations,
-            static termination=>termination.GetProperty("RoundCount").GetInt32()>=2
-                &&termination.GetProperty("Termination").GetString()=="FixedPoint");
+        // 失敗したときは記録全体を出し、どの段がどの周で書き換わったかを見られるようにする。
+        Assert.True(
+            pipelineTerminations.Any(static termination=>termination.GetProperty("RoundCount").GetInt32()>=2
+                &&termination.GetProperty("Termination").GetString()=="FixedPoint"),
+            result.Traces[0]);
         Assert.Contains(
             document.RootElement.GetProperty("Events").EnumerateArray(),
             static traceEvent=>traceEvent.GetProperty("RuleId").GetString() is "Pipeline.Reverse" or "Algebraic.Reverse"); // Reverse の打ち消しは、構文の層(Algebraic)が先に行うことがある。

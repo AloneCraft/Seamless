@@ -137,6 +137,13 @@ public sealed partial class FLinqIncrementalGenerator {
         var emittedMethodNames = new HashSet<string>(StringComparer.Ordinal);
         var emittedUnsafeAccessors = new HashSet<string>(StringComparer.Ordinal);
         foreach(var target in targets) {
+            // [中間値] 匿名型を名前のある構造体へ置き換えると、null・参照の同一性・文字列表現・既定値の意味が変わる。
+            // それを観測するメソッドは差し替えず、元の System.Linq の経路で動かし、理由を生成コードに残す。
+            if(target.IsLocalMethodInterception&&target.OptimizeLinq
+                &&!AnonymousTupleRegistry.IsSafeTarget(target,out var anonymousReason)){
+                builder.AppendLine($"    // [中間値/元の経路] {target.Method.ToDisplayString()}: {anonymousReason}");
+                continue;
+            }
             var state=new GenerationState(target);
             state.EmittedUnsafeAccessors.UnionWith(emittedUnsafeAccessors);
             var pipeline=new GenerationPipeline(state);

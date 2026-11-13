@@ -17,16 +17,9 @@ internal static partial class PipelineBuilder {
         if(methodName is not ("Chunk" or "Zip" or "AggregateBy" or "CountBy" or "Join" or "GroupJoin")) {
             return false;
         }
-        if(stages.Count>0) {
-            if(!ValidateStageCombination(stages,null,allowSingleStage: true)) {
-                return false;
-            }
-            var flushElementType = stages.Count>0 ? stages[stages.Count-1].OutputType : currentElementType;
-            var pipeline = new PipelineEnumerable(uniqueNumber++,sourceFragment,stages.ToArray(),flushElementType);
-            AddUnsafeAccessors(stages,unsafeAccessorCollector);
-            sourceStaticMethods=services.JoinStaticMethods(sourceStaticMethods,pipeline.StructMethod);
-            sourceFragment=pipeline;
-            stages.Clear();
+        // 手前の段は他の切り出しと同じく正規化してから切り出す(Reverse().Reverse() の打ち消しなどを経ずに段を作ると、描けない並びが残る)。
+        if(!FlushPipelineStages(ref uniqueNumber,ref sourceFragment,ref sourceStaticMethods,stages,currentElementType,services,unsafeAccessorCollector)) {
+            return false;
         }
         if(!TryBuildFragmentBackedStage(semanticModel,invocation,method,services,ref uniqueNumber,sourceFragment,out var nextSource,out var nextStaticMethods,ref currentElementType)) {
             throw Unsupported($"method '{methodName}' could not be built as a Fragment-backed Chain IR stage.");

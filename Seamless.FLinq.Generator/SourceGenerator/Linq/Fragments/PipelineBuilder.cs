@@ -380,6 +380,11 @@ internal static partial class PipelineBuilder {
         if(stages.Count==0) return true;
         var normalizedStages = GroupByFusionPass.Apply(stages,new TerminalDemand(null,false,false,null),services.Trace,allowDeferredArrayCounts:false);
         normalizedStages = LinqOptimizationExecutor.NormalizePipeline(normalizedStages,services.JoinStaticMethods,services.Configuration,services.Trace);
+        if(normalizedStages.Count==0) {
+            // Reverse().Reverse() のように正規化で段がすべて消えたら、元の並びをそのまま使う(段の無いパイプラインは作らない)。
+            stages.Clear();
+            return true;
+        }
         if(!ValidateStageCombination(normalizedStages,null,allowSingleStage:true)) {
             return false;
         }

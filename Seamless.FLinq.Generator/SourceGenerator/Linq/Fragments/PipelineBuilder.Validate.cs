@@ -8,7 +8,10 @@ internal static partial class PipelineBuilder {
         var concatLikeStageCount = stages.Count(static stage => stage.Kind is PipelineStageKind.Concat or PipelineStageKind.Append or PipelineStageKind.Prepend);
         var orderStageCount = stages.Count(static stage => IsOrderStage(stage.Kind));
         var groupByStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.GroupBy);
-        var reverseStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.Reverse);
+        // 隣り合う Reverse の組は正規化で必ず打ち消すので、ため込む段として数えない。
+        // 数えると Distinct().Reverse().Reverse().Distinct() が二つのパイプラインに切れ、打ち消しも Distinct の併合も起きない。
+        // 切り出しと最後の組み立ては正規化の後にもう一度この検査を通るので、打ち消せない並びはそこで弾かれる。
+        var reverseStageCount = CancelReverseStages(stages.ToList()).Count(static stage => stage.Kind==PipelineStageKind.Reverse);
         var defaultIfEmptyStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.DefaultIfEmpty);
         var skipLastStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.SkipLast);
         var takeLastStageCount = stages.Count(static stage => stage.Kind==PipelineStageKind.TakeLast);

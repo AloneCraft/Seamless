@@ -386,7 +386,8 @@ public sealed class CoreCarrierOptimizationTests{
         var (compilation,generated)=ExecutableGeneration.Generate(source,"DenseArrayGroupJoin",4);
         var result=ExecutableGeneration.Run(compilation,"Sample.Container",container=>container.GetMethod("Run")!.Invoke(null,null));
         Assert.Equal("0|9900,202,1600|-1,2,-9,10,199,102,116|2,2,0|2,0,0|inner",result);
-        Assert.Contains("DenseGroupCounts",generated);
+        // 配列の GroupJoin は、件数だけを読む集計を整数キーの範囲(x%8 なら -7..7 の15個)の件数表で数える(行を格納しない)。
+        Assert.Contains("stackalloc int[15]",generated);
     }
 
     [Fact]
@@ -404,7 +405,8 @@ public sealed class CoreCarrierOptimizationTests{
             }
             """;
         var (compilation,generated)=ExecutableGeneration.Generate(source,"DenseArrayGroupJoinLeftMask",1);
-        Assert.Contains("new global::Seamless.Linq.DenseGroupCounts",generated);
+        // 定数のマスクが左にあっても範囲(0..15)を求め、件数表で数える。
+        Assert.Contains("stackalloc int[16]",generated);
         var result=ExecutableGeneration.Run(compilation,"Sample.Container",container=>
             container.GetMethod("Run")!.Invoke(null,null));
         Assert.Equal(new[]{3,0,2,0,3},Assert.IsType<int[]>(result));
