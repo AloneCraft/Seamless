@@ -517,8 +517,9 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var listMethod = GeneratedMethod(generated,"ListMinMax");
 
         GeneratedSourceAssert.True(
-            listMethod.Contains("global::Seamless.Linq.Enumerable.MaxSpan<int>",StringComparison.Ordinal)
-            &&listMethod.Contains("global::Seamless.Linq.Enumerable.MinSpan<int>",StringComparison.Ordinal)
+            // int などの基本の型は比べ方を渡さない SIMD 専用の版(型引数なし)を呼ぶ。型引数を付けると比べ方が要る汎用版になる。
+            listMethod.Contains("global::Seamless.Linq.Enumerable.MaxSpan(",StringComparison.Ordinal)
+            &&listMethod.Contains("global::Seamless.Linq.Enumerable.MinSpan(",StringComparison.Ordinal)
             &&!listMethod.Contains(".TryGetSpan(out var",StringComparison.Ordinal),
             "Max/Min over a List<T> source should use the SIMD MaxSpan/MinSpan helpers via the direct span path, "
             +"not the runtime TryGetSpan probe.",
@@ -1313,12 +1314,16 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var min = GeneratedMethod(generated,"MinAfterOrder");
         var max = GeneratedMethod(generated,"MaxAfterOrder");
 
+        // 所有者が 1 人であること: Compute に任せる形なら呼び出し元は Dispose しない。その場でループを回す形なら呼び出し元の Dispose は 1 回だけ。
+        static bool SingleOwner(string method){
+            var disposes=method.Split(".Dispose();").Length-1;
+            return method.Contains("compute",StringComparison.Ordinal) ? disposes==0 : disposes<=1;
+        }
         GeneratedSourceAssert.True(
-            min.Contains("compute",StringComparison.Ordinal)
-            &&!min.Contains(".Dispose();",StringComparison.Ordinal)
+            SingleOwner(min)
             &&(max.Contains("compute",StringComparison.Ordinal)||max.Contains("MaxSpan",StringComparison.Ordinal))
-            &&!max.Contains(".Dispose();",StringComparison.Ordinal),
-            "Min/Max の Compute が列挙子の複製を破棄するので、呼び出し元は本体を Dispose してはいけない(二重 Return)。",
+            &&SingleOwner(max),
+            "Min/Max の列挙子を破棄するのは 1 か所だけ(Compute が複製を破棄するなら呼び出し元は本体を Dispose しない。二重 Return になる)。",
             generated,
             output);
     }
@@ -1754,6 +1759,21 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         if(start<0) {
             return string.Empty;
         }
+        var method = MethodText(generated,start);
+        // 計測点を持つ終端は、入口が計測しない本体(…__Normal<TProbe>)と計測版(…__Profiled)へ振り分けるだけになる。
+        // 形を確かめたいのは計測しない本体なので、入口が振り分けていればその本体も含めて返す。
+        var normalCall = method.IndexOf("__Normal<",StringComparison.Ordinal);
+        if(normalCall>=0) {
+            var nameStart = method.LastIndexOf(' ',normalCall)+1;
+            var declaration = generated.IndexOf(" "+method[nameStart..normalCall]+"__Normal<__TFlinqProbe>(",StringComparison.Ordinal);
+            if(declaration>=0) {
+                method += Environment.NewLine+MethodText(generated,declaration+1);
+            }
+        }
+        return method;
+    }
+
+    private static string MethodText(string generated,int start) {
         var openBrace = generated.IndexOf('{',start);
         if(openBrace<0) {
             return string.Empty;
@@ -1776,7 +1796,7 @@ public sealed class PerformanceShapeTests(ITestOutputHelper output) {
         var comp = GeneratorTestHelpers.CreateCompilation([("Container.cs",source)]);
         GeneratorDriver driver = GeneratorTestHelpers.CreateDriver();
         driver=driver.RunGeneratorsAndUpdateCompilation(comp,out var outputCompilation,out var generatorDiagnostics);
-        var generated = string.Concat(driver.GetRunResult().Results.SelectMany(static r => r.GeneratedSources).Select(static s => s.SourceText.ToString()));
+        var generated = global::Benchmark.Dynamic.Worker.GeneratedCodeText.WithoutExecutionPlans(string.Concat(driver.GetRunResult().Results.SelectMany(static r => r.GeneratedSources).Select(static s => s.SourceText.ToString())));
         var diagnostics = generatorDiagnostics
             .Concat(outputCompilation.GetDiagnostics())
             .Where(static d => d.Severity==DiagnosticSeverity.Error)

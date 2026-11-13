@@ -285,7 +285,7 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
                         // System.Linq は選択子を呼び出し側の文脈(通常は unchecked)で実行し、checked なのは足し算だけ。
                         // 選択子の中の縮小変換などを checked にすると OverflowException になり、System.Linq と食い違う。
                         unchecked{
-                        {{this.FuncAssignIndented("                ",selector,nameof(selector),this.temp,this.item)}}
+                        {{this.FuncAssignStaticIndented("                ",selector,nameof(selector),this.temp,this.item)}}
                         }
                         sum+={{Sum.Addend(resultType,this.temp)}};
                     }
@@ -306,7 +306,7 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
                             // System.Linq は選択子を呼び出し側の文脈(通常は unchecked)で実行し、checked なのは足し算だけ。
                             // 選択子の中の縮小変換などを checked にすると OverflowException になり、System.Linq と食い違う。
                             unchecked{
-                            {{this.FuncAssignIndented("                ",selector,nameof(selector),this.temp,this.item)}}
+                            {{this.FuncAssignStaticIndented("                ",selector,nameof(selector),this.temp,this.item)}}
                             }
                             sum+={{Sum.Addend(resultType,this.temp)}};
                         }
@@ -317,7 +317,7 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
                             // System.Linq は選択子を呼び出し側の文脈(通常は unchecked)で実行し、checked なのは足し算だけ。
                             // 選択子の中の縮小変換などを checked にすると OverflowException になり、System.Linq と食い違う。
                             unchecked{
-                            {{this.FuncAssignIndented("                ",selector,nameof(selector),this.temp,this.item)}}
+                            {{this.FuncAssignStaticIndented("                ",selector,nameof(selector),this.temp,this.item)}}
                             }
                             sum+={{Sum.Addend(resultType,this.temp)}};
                         }
@@ -337,7 +337,7 @@ internal class Sum_selector(int 番号,Enumerable source,FuncFragment selector,s
                         // System.Linq は選択子を呼び出し側の文脈(通常は unchecked)で実行し、checked なのは足し算だけ。
                         // 選択子の中の縮小変換などを checked にすると OverflowException になり、System.Linq と食い違う。
                         unchecked{
-                        {{this.FuncAssignIndented("            ",selector,nameof(selector),this.temp,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",selector,nameof(selector),this.temp,this.item)}}
                         }
                         sum+={{Sum.Addend(resultType,this.temp)}};
                     }

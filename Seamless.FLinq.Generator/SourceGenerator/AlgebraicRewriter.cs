@@ -915,14 +915,11 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
                     sourceCount,
                     innerChain);
             } else if(returnType.SpecialType==SpecialType.System_Int32) {
-                combinedExpr=SyntaxFactory.CastExpression(
-                    SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword)),
-                    SyntaxFactory.BinaryExpression(
-                        SyntaxKind.MultiplyExpression,
-                        sourceCount,
-                        SyntaxFactory.CastExpression(
-                            SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.LongKeyword)),
-                            innerChain)));
+                combinedExpr=CheckedIntProduct(
+                    sourceCount,
+                    SyntaxFactory.CastExpression(
+                        SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.LongKeyword)),
+                        innerChain));
             } else if(returnType.SpecialType==SpecialType.System_Double||returnType.SpecialType==SpecialType.System_Single||returnType.SpecialType==SpecialType.System_Decimal) {
                 var castType=SyntaxFactory.ParseTypeName(returnType.ToDisplayString());
                 combinedExpr=SyntaxFactory.BinaryExpression(
@@ -933,18 +930,15 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
                 return false;
             }
         } else if(terminalName=="Count"||terminalName=="LongCount") {
+            // innerChain は終端の Count() まで含むので、件数は終端の手前の内側の列に LongCount を1回だけ呼んで数える。
+            var innerCount=CreateCall(terminalReceiver.ReplaceNode(manyInv,innerSource.WithTriviaFrom(manyInv)),"LongCount",node.ArgumentList.Arguments.Select(static argument=>argument.Expression).ToArray());
             if(returnType.SpecialType==SpecialType.System_Int64) {
                 combinedExpr=SyntaxFactory.BinaryExpression(
                     SyntaxKind.MultiplyExpression,
                     sourceCount,
-                    CreateCall(innerChain,"LongCount"));
+                    innerCount);
             } else {
-                combinedExpr=SyntaxFactory.CastExpression(
-                    SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword)),
-                    SyntaxFactory.BinaryExpression(
-                        SyntaxKind.MultiplyExpression,
-                        sourceCount,
-                        CreateCall(innerChain,"LongCount")));
+                combinedExpr=CheckedIntProduct(sourceCount,innerCount);
             }
         } else {
             return false;
@@ -953,6 +947,16 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         result=SyntaxFactory.ParenthesizedExpression(combinedExpr);
         return true;
     }
+
+    // checked((int)(left*right))。かっこが無いと (int) が左の項だけに掛かり、式全体が long のままになる。
+    // 外側の各要素で同じ値を足すので途中の和は単調で、System.Linq が途中で桁あふれするのは最後の値が int を超えるときだけ。checked で同じ例外にする。
+    private static ExpressionSyntax CheckedIntProduct(ExpressionSyntax left,ExpressionSyntax right)=>
+        SyntaxFactory.CheckedExpression(
+            SyntaxKind.CheckedExpression,
+            SyntaxFactory.CastExpression(
+                SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword)),
+                SyntaxFactory.ParenthesizedExpression(
+                    SyntaxFactory.BinaryExpression(SyntaxKind.MultiplyExpression,left,right))));
 
     private bool TryDropInnerSelectInSelectManyBeforeAny(InvocationExpressionSyntax node,out SyntaxNode result){
         result=null!;

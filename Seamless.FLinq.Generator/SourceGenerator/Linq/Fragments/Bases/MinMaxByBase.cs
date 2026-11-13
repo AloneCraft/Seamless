@@ -153,11 +153,11 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
             // 最初の要素で初期化し、残りだけを比べる(ループの中で「最初か」を判定しない)。
             {{resultType}} bestElement=__span[0];
             {{FuncReturnTypeName(keySelector)}} bestKey=default!;
-            {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
+            {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
             for(var __index=1;__index<__span.Length;__index++){
                 var {{this.item}}=__span[__index];
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignStaticIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
                 if({{this.Better(this.key,"bestKey")}}){
                     bestElement={{this.item}};
                     bestKey={{this.key}};
@@ -175,11 +175,11 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
                 // 最初の要素で初期化し、残りだけを比べる(ループの中で「最初か」を判定しない)。
                 {{resultType}} bestElement=__span[0];
                 {{FuncReturnTypeName(keySelector)}} bestKey=default!;
-                {{this.FuncAssignIndented("                ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
+                {{this.FuncAssignStaticIndented("                ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
                 for(var __index=1;__index<__span.Length;__index++){
                     var {{this.item}}=__span[__index];
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     if({{this.Better(this.key,"bestKey")}}){
                         bestElement={{this.item}};
                         bestKey={{this.key}};
@@ -187,7 +187,7 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
                 }
                 return bestElement;
             }
-            return ComputeEnumerator(source{{this.ClosureArgsSuffix(keySelector)}});
+            return ComputeEnumerator(source{{this.ClosureArgsSuffixForFactory(keySelector)}});
         }
         {{AggressiveInliningAttribute}}
         private static {{resultType}} ComputeEnumerator(TEnum source{{this.ClosureMethodParameterSuffix(keySelector)}}){
@@ -195,11 +195,11 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
             if(!source.TryGetNext(out var __mn104)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
             {{resultType}} bestElement=__mn104;
             {{FuncReturnTypeName(keySelector)}} bestKey=default!;
-            {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
+            {{this.FuncAssignStaticIndented("    ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
             while(source.TryGetNext(out var __mn105)){
                 var {{this.item}}=__mn105;
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignStaticIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
                 if({{this.Better(this.key,"bestKey")}}){
                     bestElement={{this.item}};
                     bestKey={{this.key}};
@@ -215,11 +215,11 @@ internal abstract class MinMaxByBase(int 番号,Enumerable source,FuncFragment k
             if(!source.TryGetNext(out var __mn106)) throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();
             {{resultType}} bestElement=__mn106;
             {{FuncReturnTypeName(keySelector)}} bestKey=default!;
-            {{this.FuncAssignIndented("    ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
+            {{this.FuncAssignStaticIndented("    ",keySelector,nameof(keySelector),"bestKey","bestElement")}}
             while(source.TryGetNext(out var __mn107)){
                 var {{this.item}}=__mn107;
                 {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                {{this.FuncAssignIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
+                {{this.FuncAssignStaticIndented("        ",keySelector,nameof(keySelector),this.key,this.item)}}
                 if({{this.Better(this.key,"bestKey")}}){
                     bestElement={{this.item}};
                     bestKey={{this.key}};

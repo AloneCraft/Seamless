@@ -63,7 +63,8 @@ public sealed class AiReviewQueryDumpWriterTests : IDisposable {
             writer.Write(item);
         }
 
-        var files = Directory.GetFiles(writer.OutputDirectory, "part_*.txt").OrderBy(x => x).ToArray();
+        // ファイル名の頭には実行ごとの印(run_日時_)が付く。
+        var files = Directory.GetFiles(writer.OutputDirectory, "*part_*.txt").OrderBy(x => x).ToArray();
         Assert.Equal(3, files.Length);
 
         // part_0001: 1..2, part_0002: 3..4, part_0003: 5..6

@@ -236,9 +236,11 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
         var keyName = $"__key{番号}";
         var builder = new StringBuilder();
         builder.AppendLine($"using var {sourceName}={source.GetEnumeratorExpression};");
-        var hoistedDeclarations = this.HoistedLocalDeclarations(keySelector);
-        if(!string.IsNullOrEmpty(hoistedDeclarations)) {
-            builder.AppendLine(hoistedDeclarations);
+        // Consume の文は static メソッドの本体に置くので、デリゲートは列挙子のフィールド(this.)ではなく局所変数で受けて呼ぶ。
+        foreach(var declarations in new[]{this.HoistedLocalDeclarations(keySelector),this.StaticDelegateLocalDeclarations(keySelector)}) {
+            if(!string.IsNullOrEmpty(declarations)) {
+                builder.AppendLine(declarations);
+            }
         }
         TraversalSupport.AppendHashSetInitialization(builder,this.lookup,FuncReturnTypeName(keySelector),sourceName,this.Comparer,null);
         TraversalSupport.AppendTraversalLoop(
@@ -248,7 +250,7 @@ internal abstract class DistinctByBase(int 番号,Enumerable source,FuncFragment
             "value",
             $$"""
             {{FuncReturnTypeName(keySelector)}} {{keyName}}=default!;
-            {{this.FuncAssignIndented("",keySelector,nameof(keySelector),keyName,"value")}}
+            {{this.FuncAssignStaticIndented("",keySelector,nameof(keySelector),keyName,"value")}}
             if({{this.lookup}}.Add({{keyName}})){
                 {{consumerName}}.Consume(value);
             }

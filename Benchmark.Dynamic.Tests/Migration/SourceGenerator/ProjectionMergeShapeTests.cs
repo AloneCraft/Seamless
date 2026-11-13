@@ -134,7 +134,7 @@ public sealed class ProjectionMergeShapeTests(ITestOutputHelper output) {
         var comp = GeneratorTestHelpers.CreateCompilation([("Container.cs",source)]);
         GeneratorDriver driver = GeneratorTestHelpers.CreateDriver();
         driver=driver.RunGeneratorsAndUpdateCompilation(comp,out var outputCompilation,out var generatorDiagnostics);
-        var generated = string.Concat(driver.GetRunResult().Results.SelectMany(static r => r.GeneratedSources).Select(static s => s.SourceText.ToString()));
+        var generated = global::Benchmark.Dynamic.Worker.GeneratedCodeText.WithoutExecutionPlans(string.Concat(driver.GetRunResult().Results.SelectMany(static r => r.GeneratedSources).Select(static s => s.SourceText.ToString())));
         var diagnostics = generatorDiagnostics
             .Concat(outputCompilation.GetDiagnostics())
             .Where(static d => d.Severity==DiagnosticSeverity.Error)

@@ -161,14 +161,24 @@ public sealed class SetOperationPushdownShapeTests(ITestOutputHelper output) {
         Assert.True(binaryStage.Success,"Expected to find a binary set-operation struct declaration in the generated source.");
         var predicateIndex = generated.IndexOf("777",StringComparison.Ordinal);
         Assert.True(predicateIndex>=0,"Expected the predicate literal 777 to appear in the generated source.");
-        return predicateIndex<binaryStage.Index;
+        if(predicateIndex<binaryStage.Index) {
+            return true;
+        }
+        // 述語が二項の段の構造体へ融合された形: 最初の列の要素を取った直後、集合を引く前に述語を判定していれば押し下げ済み。
+        var firstSource = generated.IndexOf("this.enumerator.TryGetNext(",binaryStage.Index,StringComparison.Ordinal);
+        if(firstSource<0) {
+            return false;
+        }
+        var fusedPredicate = generated.IndexOf("777",firstSource,StringComparison.Ordinal);
+        var setLookup = generated.IndexOf("this.setValue",firstSource,StringComparison.Ordinal);
+        return fusedPredicate>=0&&setLookup>=0&&fusedPredicate<setLookup;
     }
 
     private static string GeneratedSource(string source) {
         var comp = GeneratorTestHelpers.CreateCompilation([("Container.cs",source)]);
         GeneratorDriver driver = GeneratorTestHelpers.CreateDriver();
         driver=driver.RunGeneratorsAndUpdateCompilation(comp,out var outputCompilation,out var generatorDiagnostics);
-        var generated = string.Concat(driver.GetRunResult().Results.SelectMany(static r => r.GeneratedSources).Select(static s => s.SourceText.ToString()));
+        var generated = global::Benchmark.Dynamic.Worker.GeneratedCodeText.WithoutExecutionPlans(string.Concat(driver.GetRunResult().Results.SelectMany(static r => r.GeneratedSources).Select(static s => s.SourceText.ToString())));
         var diagnostics = generatorDiagnostics
             .Concat(outputCompilation.GetDiagnostics())
             .Where(static d => d.Severity==DiagnosticSeverity.Error)

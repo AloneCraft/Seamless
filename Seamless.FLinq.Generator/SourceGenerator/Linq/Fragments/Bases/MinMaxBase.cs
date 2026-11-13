@@ -72,7 +72,7 @@ internal abstract class MinMaxBase(int number,Enumerable source,string resultTyp
         // 経由しない DirectSpanRootBase 派生(ListRoot 等)全般に適用される。
         if(this.RenderSpanInline(source,destVar,destType,$"__span{number}",spanName =>
             isPrimitive
-                ? $"{destVar}=global::Seamless.Linq.Enumerable.{methodName}<{source.ElementType}>({spanName});"
+                ? $"{destVar}=global::Seamless.Linq.Enumerable.{methodName}({spanName});"
                 : $"{destVar}=global::Seamless.Linq.Enumerable.{methodName}<{source.ElementType}>({spanName},global::System.Collections.Generic.Comparer<{source.ElementType}>.Default);"
         ) is { } spanResult) {
             return spanResult;

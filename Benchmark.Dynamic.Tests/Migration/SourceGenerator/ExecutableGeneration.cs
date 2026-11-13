@@ -51,7 +51,7 @@ internal static class ExecutableGeneration {
             })));
         }
         // static class の中や反射で直接呼んだメソッドは差し替わらず、テストが空振りする。差し替えが生成されたことを確かめる。
-        var generated = string.Concat(outputCompilation.SyntaxTrees.Skip(1).Select(static tree => tree.ToString()));
+        var generated = global::Benchmark.Dynamic.Worker.GeneratedCodeText.WithoutExecutionPlans(string.Concat(outputCompilation.SyntaxTrees.Skip(1).Select(static tree => tree.ToString())));
         var generatedRoot=Environment.GetEnvironmentVariable("SEAMLESS_TEST_GENERATED_ROOT");
         if(!string.IsNullOrWhiteSpace(generatedRoot)){
             Directory.CreateDirectory(generatedRoot);

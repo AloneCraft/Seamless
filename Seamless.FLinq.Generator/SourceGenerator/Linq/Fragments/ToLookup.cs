@@ -144,14 +144,14 @@ internal class ToLookup_keySelector(int 番号,Enumerable source,FuncFragment ke
                     for(var __i=0;__i<__span.Length;__i++){
                         var {{this.item}} = __span[__i];
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                        {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         builder.Add({{this.key}},{{this.item}});
                     }
                 }else{
                     while(source.TryGetNext(out var __mn90)){
                         var {{this.item}} = __mn90;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                        {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         builder.Add({{this.key}},{{this.item}});
                     }
                 }
@@ -219,18 +219,18 @@ internal class ToLookup_keySelector_elementSelector(int 番号,Enumerable source
                     for(var __i=0;__i<__span.Length;__i++){
                         var {{this.item}} = __span[__i];
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                        {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
-                        {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
                         builder.Add({{this.key}},{{this.temp}});
                     }
                 }else{
                     while(source.TryGetNext(out var __mn91)){
                         var {{this.item}} = __mn91;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                        {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
-                        {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
                         builder.Add({{this.key}},{{this.temp}});
                     }
                 }
@@ -278,14 +278,14 @@ internal class ToLookup_keySelector_comparer(int 番号,Enumerable source,FuncFr
                     for(var __i=0;__i<__span.Length;__i++){
                         var {{this.item}} = __span[__i];
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                        {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         builder.Add({{this.key}},{{this.item}});
                     }
                 }else{
                     while(source.TryGetNext(out var __mn92)){
                         var {{this.item}} = __mn92;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                        {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         builder.Add({{this.key}},{{this.item}});
                     }
                 }
@@ -336,18 +336,18 @@ internal class ToLookup_keySelector_elementSelector_comparer(int 番号,Enumerab
                     for(var __i=0;__i<__span.Length;__i++){
                         var {{this.item}} = __span[__i];
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                        {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
-                        {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
                         builder.Add({{this.key}},{{this.temp}});
                     }
                 }else{
                     while(source.TryGetNext(out var __mn93)){
                         var {{this.item}} = __mn93;
                         {{FuncReturnTypeName(keySelector)}} {{this.key}} = default!;
-                        {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                         {{FuncReturnTypeName(elementSelector)}} {{this.temp}} = default!;
-                        {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
+                        {{this.FuncAssignStaticIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
                         builder.Add({{this.key}},{{this.temp}});
                     }
                 }

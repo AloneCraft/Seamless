@@ -1253,7 +1253,18 @@ internal sealed partial class PipelineTerminal(int 番号,PipelineEnumerable pip
         return true;
     }
 
+    // 二項の段をその場で回す形は static メソッドの本体に置き、段の関数を FuncAssignStatic で呼ぶ。
+    // デリゲートのまま呼ぶ関数(カウンタ版など)は局所変数で受けるので、その宣言を先頭にまとめて置く。
     private string? RenderDirectSpanPipelineBinaryScalar(string actualVariableName,string actualTypeName) {
+        if(this.RenderDirectSpanPipelineBinaryScalarCore(actualVariableName,actualTypeName) is not { } body) {
+            return null;
+        }
+        var allFuncs = pipeline.Stages.SelectMany(static st => new[] { st.Func,st.SecondFunc,st.ThirdFunc }).Append(func1).Append(func2).OfType<FuncFragment>().Distinct().ToArray();
+        var staticDelegates = this.StaticDelegateLocalDeclarations(allFuncs);
+        return string.IsNullOrEmpty(staticDelegates) ? body : staticDelegates+"\n"+body;
+    }
+
+    private string? RenderDirectSpanPipelineBinaryScalarCore(string actualVariableName,string actualTypeName) {
         if(this.RenderDirectSpanPipelineUnionIntersect(actualVariableName,actualTypeName) is { } unionIntersectResult) {
             return unionIntersectResult;
         }
@@ -6082,6 +6093,11 @@ if({{arrayExprFod}}.Length==0) {
 
     private string RenderFallbackScalarFromEnumerator(string actualVariableName, string actualTypeName) {
         var builder = new StringBuilder();
+        // 終端の関数は FuncAssignStatic で呼ぶので、デリゲートのまま呼ぶもの(カウンタ版など)は局所変数で受ける。
+        var terminalDelegates = this.StaticDelegateLocalDeclarations(new[]{func1,func2}.OfType<FuncFragment>().ToArray());
+        if(!string.IsNullOrEmpty(terminalDelegates)) {
+            builder.AppendLine(terminalDelegates);
+        }
         var enumName = this.EnumeratorName();
         var itemVar = $"__item{this.result}";
         builder.AppendLine($"{actualTypeName} {actualVariableName}=default!;");
@@ -6103,6 +6119,7 @@ if({{arrayExprFod}}.Length==0) {
                 builder.AppendLine($"    {actualVariableName}=false;");
                 if(func1 is not null) {
                     builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                    builder.AppendLine($"        bool __matched{this.result};");
                     builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"predicate",$"__matched{this.result}",itemVar),"        "));
                     builder.AppendLine($"        if(__matched{this.result}) {{ {actualVariableName}=true; break; }}");
                     builder.AppendLine($"    }}");
@@ -6114,6 +6131,7 @@ if({{arrayExprFod}}.Length==0) {
             case PipelineTerminalKind.All:
                 builder.AppendLine($"    {actualVariableName}=true;");
                 builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                builder.AppendLine($"        bool __matched{this.result};");
                 builder.AppendLine(IndentLines(this.FuncAssignStatic(func1!,"predicate",$"__matched{this.result}",itemVar),"        "));
                 builder.AppendLine($"        if(!__matched{this.result}) {{ {actualVariableName}=false; break; }}");
                 builder.AppendLine($"    }}");
@@ -6133,6 +6151,7 @@ if({{arrayExprFod}}.Length==0) {
                 builder.AppendLine($"    bool __found{this.result}=false;");
                 if(func1 is not null) {
                     builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                    builder.AppendLine($"        bool __matched{this.result};");
                     builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"predicate",$"__matched{this.result}",itemVar),"        "));
                     builder.AppendLine($"        if(__matched{this.result}) {{ {actualVariableName}={itemVar}; __found{this.result}=true; break; }}");
                     builder.AppendLine($"    }}");
@@ -6150,6 +6169,7 @@ if({{arrayExprFod}}.Length==0) {
                 builder.AppendLine($"    bool __found{this.result}=false;");
                 if(func1 is not null) {
                     builder.AppendLine($"    while({enumName}.TryGetNext(out var {itemVar})) {{");
+                    builder.AppendLine($"        bool __matched{this.result};");
                     builder.AppendLine(IndentLines(this.FuncAssignStatic(func1,"predicate",$"__matched{this.result}",itemVar),"        "));
                     builder.AppendLine($"        if(__matched{this.result}) {{ {actualVariableName}={itemVar}; __found{this.result}=true; }}");
                     builder.AppendLine($"    }}");
@@ -6245,7 +6265,7 @@ if({{arrayExprFod}}.Length==0) {
                 builder.AppendLine($"        }}");
                 builder.AppendLine($"    }}");
                 if(!isEod) {
-                    builder.AppendLine($"    if(!__found{this.result}) throw global::Seamless.Linq.GeneratedCodeHelpers.ArgumentOutOfRange();");
+                    builder.AppendLine($"    if(!__found{this.result}) throw new global::System.ArgumentOutOfRangeException(\"index\");");
                 }
                 break;
 

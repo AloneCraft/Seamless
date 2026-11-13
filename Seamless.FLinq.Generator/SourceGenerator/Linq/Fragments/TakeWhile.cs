@@ -78,6 +78,113 @@ internal class TakeWhile_predicate(int 番号,Enumerable source,FuncFragment pre
                 """;
         }
     }
+    // 添字付きの版は (要素, 添字) を、添字なしの版は要素だけをデリゲートへ渡す。
+    protected virtual string[] PredicateArguments(string item,string index)=>[item];
+    public override string GetConsumeExecutionStatement(string consumerName) {
+        if(source is RangeRoot range) {
+            return this.RenderRangeConsume(consumerName,range);
+        }
+        var sourceName = $"__takeWhileSource{番号}";
+        var spanName = $"__takeWhileSpan{番号}";
+        var itemName = $"__takeWhileItem{番号}";
+        var indexName = $"__takeWhileIndex{番号}";
+        var directSpanExpression = source.GetDirectSpanExpression(sourceName);
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(predicate),
+            this.StaticDelegateLocalDeclarations(predicate),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var localDeclarationBlock = string.IsNullOrEmpty(localDeclarations)
+            ? string.Empty
+            : localDeclarations+"\n";
+        var (spanPreCode,spanCondExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,this.PredicateArguments(itemName,indexName));
+        var spanPredicate = string.IsNullOrEmpty(spanPreCode)
+            ? $"if(!{WrapConditionExpression(spanCondExpr)})"
+            : $"{spanPreCode}\n            if(!{WrapConditionExpression(spanCondExpr)})";
+        var (loopPreCode,loopCondExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,this.PredicateArguments(itemName,indexName));
+        var loopPredicate = string.IsNullOrEmpty(loopPreCode)
+            ? $"if(!{WrapConditionExpression(loopCondExpr)})"
+            : $"{loopPreCode}\n            if(!{WrapConditionExpression(loopCondExpr)})";
+
+        if(directSpanExpression is not null) {
+            return $$"""
+                {{localDeclarationBlock}}
+                using var {{sourceName}}={{source.GetEnumeratorExpression}};
+                var {{indexName}}=-1;
+                global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
+                var {{spanName}}={{directSpanExpression}};
+                for(var __i{{番号}}=0;__i{{番号}}<{{spanName}}.Length;__i{{番号}}++){
+                    var {{itemName}}={{spanName}}[__i{{番号}}];
+                    {{indexName}}++;
+                    {{spanPredicate}} {
+                        break;
+                    }
+                    {{consumerName}}.Consume({{itemName}});
+                }
+                """;
+        }
+
+        return $$"""
+            {{localDeclarationBlock}}
+            using var {{sourceName}}={{source.GetEnumeratorExpression}};
+            var {{indexName}}=-1;
+            global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
+            if({{sourceName}}.TryGetSpan(out var {{spanName}})){
+                global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
+                for(var __i{{番号}}=0;__i{{番号}}<{{spanName}}.Length;__i{{番号}}++){
+                    var {{itemName}}={{spanName}}[__i{{番号}}];
+                    {{indexName}}++;
+                    {{spanPredicate}} {
+                        break;
+                    }
+                    {{consumerName}}.Consume({{itemName}});
+                }
+            }else{
+                global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanFailed();
+                global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+                while({{sourceName}}.TryGetNext(out {{source.ElementType}} {{itemName}})){
+                    {{indexName}}++;
+                    {{loopPredicate}} {
+                        break;
+                    }
+                    {{consumerName}}.Consume({{itemName}});
+                }
+            }
+            """;
+    }
+
+    // RangeRoot は start+i で値を計算できるので状態機械を経由せず直列 for ループにできる。
+    private string RenderRangeConsume(string consumerName,RangeRoot range) {
+        var rangeStartName = $"__takeWhileRangeStart{番号}";
+        var rangeCountName = $"__takeWhileRangeCount{番号}";
+        var rangeItemName = $"__takeWhileRangeItem{番号}";
+        var rangeIndexName = $"__takeWhileRangeIndex{番号}";
+        var localDeclarations = string.Join("\n",new[]{
+            this.HoistedLocalDeclarations(predicate),
+            this.StaticDelegateLocalDeclarations(predicate),
+        }.Where(static text => !string.IsNullOrEmpty(text)));
+        var localDeclarationBlock = string.IsNullOrEmpty(localDeclarations)
+            ? string.Empty
+            : localDeclarations+"\n";
+        var (preCode,condExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,this.PredicateArguments(rangeItemName,rangeIndexName));
+        var predicateCheck = string.IsNullOrEmpty(preCode)
+            ? $"if(!{WrapConditionExpression(condExpr)})"
+            : $"{preCode}\n            if(!{WrapConditionExpression(condExpr)})";
+
+        return $$"""
+            {{localDeclarationBlock}}
+            {{range.RenderArgumentPreparation(rangeStartName,rangeCountName)}}
+            global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
+            var {{rangeIndexName}}=-1;
+            for(var __i{{番号}}=0;__i{{番号}}<{{rangeCountName}};__i{{番号}}++){
+                var {{rangeItemName}}={{rangeStartName}}+__i{{番号}};
+                {{rangeIndexName}}++;
+                {{predicateCheck}} {
+                    break;
+                }
+                {{consumerName}}.Consume({{rangeItemName}});
+            }
+            """;
+    }
     public override string ElementType => source.ElementType;
 }
 
@@ -117,109 +224,5 @@ internal class TakeWhile_indexPredicate(int id,Enumerable source,FuncFragment pr
                 """;
         }
     }
-    public override string GetConsumeExecutionStatement(string consumerName) {
-        if(source is RangeRoot range) {
-            return this.RenderRangeConsume(consumerName,range);
-        }
-        var sourceName = $"__takeWhileSource{id}";
-        var spanName = $"__takeWhileSpan{id}";
-        var itemName = $"__takeWhileItem{id}";
-        var indexName = $"__takeWhileIndex{id}";
-        var directSpanExpression = source.GetDirectSpanExpression(sourceName);
-        var localDeclarations = string.Join("\n",new[]{
-            this.HoistedLocalDeclarations(predicate),
-            this.StaticDelegateLocalDeclarations(predicate),
-        }.Where(static text => !string.IsNullOrEmpty(text)));
-        var localDeclarationBlock = string.IsNullOrEmpty(localDeclarations)
-            ? string.Empty
-            : localDeclarations+"\n";
-        var (spanPreCode,spanCondExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,itemName,indexName);
-        var spanPredicate = string.IsNullOrEmpty(spanPreCode)
-            ? $"if(!{WrapConditionExpression(spanCondExpr)})"
-            : $"{spanPreCode}\n            if(!{WrapConditionExpression(spanCondExpr)})";
-        var (loopPreCode,loopCondExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,itemName,indexName);
-        var loopPredicate = string.IsNullOrEmpty(loopPreCode)
-            ? $"if(!{WrapConditionExpression(loopCondExpr)})"
-            : $"{loopPreCode}\n            if(!{WrapConditionExpression(loopCondExpr)})";
-
-        if(directSpanExpression is not null) {
-            return $$"""
-                {{localDeclarationBlock}}
-                using var {{sourceName}}={{source.GetEnumeratorExpression}};
-                var {{indexName}}=-1;
-                global::Seamless.Linq.LinqCounterScope.IncrementDirectSpanUsed();
-                var {{spanName}}={{directSpanExpression}};
-                for(var __i{{id}}=0;__i{{id}}<{{spanName}}.Length;__i{{id}}++){
-                    var {{itemName}}={{spanName}}[__i{{id}}];
-                    {{indexName}}++;
-                    {{spanPredicate}} {
-                        break;
-                    }
-                    {{consumerName}}.Consume({{itemName}});
-                }
-                """;
-        }
-
-        return $$"""
-            {{localDeclarationBlock}}
-            using var {{sourceName}}={{source.GetEnumeratorExpression}};
-            var {{indexName}}=-1;
-            global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanCalled();
-            if({{sourceName}}.TryGetSpan(out var {{spanName}})){
-                global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanSucceeded();
-                for(var __i{{id}}=0;__i{{id}}<{{spanName}}.Length;__i{{id}}++){
-                    var {{itemName}}={{spanName}}[__i{{id}}];
-                    {{indexName}}++;
-                    {{spanPredicate}} {
-                        break;
-                    }
-                    {{consumerName}}.Consume({{itemName}});
-                }
-            }else{
-                global::Seamless.Linq.LinqCounterScope.IncrementTryGetSpanFailed();
-                global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
-                while({{sourceName}}.TryGetNext(out {{source.ElementType}} {{itemName}})){
-                    {{indexName}}++;
-                    {{loopPredicate}} {
-                        break;
-                    }
-                    {{consumerName}}.Consume({{itemName}});
-                }
-            }
-            """;
-    }
-
-    // RangeRoot は start+i で値を計算できるので状態機械を経由せず直列 for ループにできる。
-    private string RenderRangeConsume(string consumerName,RangeRoot range) {
-        var rangeStartName = $"__takeWhileRangeStart{id}";
-        var rangeCountName = $"__takeWhileRangeCount{id}";
-        var rangeItemName = $"__takeWhileRangeItem{id}";
-        var rangeIndexName = $"__takeWhileRangeIndex{id}";
-        var localDeclarations = string.Join("\n",new[]{
-            this.HoistedLocalDeclarations(predicate),
-            this.StaticDelegateLocalDeclarations(predicate),
-        }.Where(static text => !string.IsNullOrEmpty(text)));
-        var localDeclarationBlock = string.IsNullOrEmpty(localDeclarations)
-            ? string.Empty
-            : localDeclarations+"\n";
-        var (preCode,condExpr)=this.FuncInvokeConditionStatic(predicate,nameof(predicate),this.temp,rangeItemName,rangeIndexName);
-        var predicateCheck = string.IsNullOrEmpty(preCode)
-            ? $"if(!{WrapConditionExpression(condExpr)})"
-            : $"{preCode}\n            if(!{WrapConditionExpression(condExpr)})";
-
-        return $$"""
-            {{localDeclarationBlock}}
-            {{range.RenderArgumentPreparation(rangeStartName,rangeCountName)}}
-            global::Seamless.Linq.LinqCounterScope.IncrementEnumerationLoopUsed();
-            var {{rangeIndexName}}=-1;
-            for(var __i{{id}}=0;__i{{id}}<{{rangeCountName}};__i{{id}}++){
-                var {{rangeItemName}}={{rangeStartName}}+__i{{id}};
-                {{rangeIndexName}}++;
-                {{predicateCheck}} {
-                    break;
-                }
-                {{consumerName}}.Consume({{rangeItemName}});
-            }
-            """;
-    }
+    protected override string[] PredicateArguments(string item,string index)=>[item,index];
 }

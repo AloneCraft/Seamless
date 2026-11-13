@@ -208,8 +208,9 @@ public sealed class FixedCaseCatalog{
 
     [Fact]
     public void PreservesAllHandwrittenLoops(){
-        Assert.Equal(31,Core.FixedCaseCatalog.All.Count);
-        Assert.Equal(31,Core.FixedCaseCatalog.All.Select(item=>item.ID).Distinct().Count());
+        // 2026-11-12 に group-count-toarray・group-count-sum を加えて 33 件。
+        Assert.Equal(33,Core.FixedCaseCatalog.All.Count);
+        Assert.Equal(33,Core.FixedCaseCatalog.All.Select(item=>item.ID).Distinct().Count());
         foreach(var item in Core.FixedCaseCatalog.All){
             var compilation=new DynamicQueryCompiler().Compile(new("ideal-"+Guid.NewGuid().ToString("N"),"Benchmark.Dynamic.Generated.FixedQuery",Core.FixedCaseCatalog.Emit(item),item.ID+".cs"));
             Assert.True(compilation.Success,item.ID+": "+string.Join("\n",compilation.Diagnostics.Where(d=>d.Severity=="Error").Select(d=>d.Message)));

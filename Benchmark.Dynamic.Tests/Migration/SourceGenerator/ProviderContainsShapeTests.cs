@@ -49,7 +49,8 @@ public sealed class ProviderContainsShapeTests {
             """;
         var generated=Generate(source);
         GeneratedSourceAssert.True(
-            generated.Contains("ContainsSpan",StringComparison.Ordinal)
+            // int などは BCL の SIMD 版 MemoryExtensions.Contains を直接呼び、それ以外は ContainsSpan を呼ぶ。どちらも span を直接探す。
+            (generated.Contains("ContainsSpan",StringComparison.Ordinal)||generated.Contains("global::System.MemoryExtensions.Contains((global::System.ReadOnlySpan<int>)",StringComparison.Ordinal))
             &&!generated.Contains("IEnumerator<int>",StringComparison.Ordinal),
             "Static array Contains must use the direct span terminal.",generated,null);
     }
@@ -226,7 +227,7 @@ public sealed class ProviderContainsShapeTests {
         var compilation=GeneratorTestHelpers.CreateCompilation([("Container.cs",source)]);
         GeneratorDriver driver=GeneratorTestHelpers.CreateDriver();
         driver=driver.RunGeneratorsAndUpdateCompilation(compilation,out var outputCompilation,out var generatorDiagnostics);
-        var generated=string.Concat(driver.GetRunResult().Results.SelectMany(static result => result.GeneratedSources).Select(static generatedSource => generatedSource.SourceText.ToString()));
+        var generated=global::Benchmark.Dynamic.Worker.GeneratedCodeText.WithoutExecutionPlans(string.Concat(driver.GetRunResult().Results.SelectMany(static result => result.GeneratedSources).Select(static generatedSource => generatedSource.SourceText.ToString())));
         var errors=generatorDiagnostics.Concat(outputCompilation.GetDiagnostics()).Where(static diagnostic => diagnostic.Severity==DiagnosticSeverity.Error).Where(static diagnostic => diagnostic.Id!="CS9137").ToArray();
         GeneratedSourceAssert.NoErrors(errors,generated,null);
         return GeneratedSourceAssert.ExecutableText(generated);

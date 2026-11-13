@@ -86,6 +86,12 @@ public sealed class RegressionSuite:IDisposable{
         driver=driver.RunGeneratorsAndUpdateCompilation(compilation,out var output,out var diagnostics,cancellationToken);
         var generatedSources=driver.GetRunResult().Results.SelectMany(result=>result.GeneratedSources).Select(source=>source.SourceText.ToString()).ToArray();
         var generated=string.Join(Environment.NewLine,generatedSources);
+        // [調査] 生成コードのコンパイルエラーは行番号しか出ないので、指定があれば生成ファイルを書き出す。
+        var generatedRoot=Environment.GetEnvironmentVariable("SEAMLESS_TEST_GENERATED_ROOT");
+        if(!string.IsNullOrWhiteSpace(generatedRoot)){
+            Directory.CreateDirectory(generatedRoot);
+            foreach(var source in driver.GetRunResult().Results.SelectMany(result=>result.GeneratedSources)){File.WriteAllText(Path.Combine(generatedRoot,source.HintName),source.SourceText.ToString());}
+        }
         using var stream=new MemoryStream();var emit=output.Emit(stream,cancellationToken:cancellationToken);
         var errors=diagnostics.Concat(emit.Diagnostics).Where(diagnostic=>diagnostic.Severity==DiagnosticSeverity.Error).ToArray();
         if(!emit.Success||errors.Length!=0){throw new InvalidDataException(string.Join(Environment.NewLine,errors.Select(error=>error.ToString())));}

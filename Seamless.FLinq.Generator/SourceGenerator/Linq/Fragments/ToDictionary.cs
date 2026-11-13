@@ -174,7 +174,7 @@ internal class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragmen
                 for(var __i=0; __i<__span.Length; __i++){
                     var {{this.item}}=__span[__i];
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     result.Add({{this.key}},{{this.item}});
                 }
             }else if(source.TryGetNonEnumeratedCount(out var __count)){
@@ -186,7 +186,7 @@ internal class ToDictionary_keySelector(int 番号,Enumerable source,FuncFragmen
                 while(source.TryGetNext(out var __mn82)){
                     var {{this.item}}=__mn82;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     result.Add({{this.key}},{{this.item}});
                 }
             }
@@ -287,9 +287,9 @@ internal class ToDictionary_keySelector_elementSelector(int 番号,Enumerable so
                 for(var __i=0; __i<__span.Length; __i++){
                     var {{this.item}}=__span[__i];
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     {{FuncReturnTypeName(elementSelector)}} {{this.temp}}=default!;
-                    {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
+                    {{this.FuncAssignStaticIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
                     result.Add({{this.key}},{{this.temp}});
                 }
             }else if(source.TryGetNonEnumeratedCount(out var __count)){
@@ -301,9 +301,9 @@ internal class ToDictionary_keySelector_elementSelector(int 番号,Enumerable so
                 while(source.TryGetNext(out var __mn83)){
                     var {{this.item}}=__mn83;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     {{FuncReturnTypeName(elementSelector)}} {{this.temp}}=default!;
-                    {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
+                    {{this.FuncAssignStaticIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
                     result.Add({{this.key}},{{this.temp}});
                 }
             }
@@ -367,7 +367,7 @@ internal class ToDictionary_keySelector_comparer(int 番号,Enumerable source,Fu
                 for(var __i=0; __i<__span.Length; __i++){
                     var {{this.item}}=__span[__i];
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     result.Add({{this.key}},{{this.item}});
                 }
             }else if(source.TryGetNonEnumeratedCount(out var __count)){
@@ -379,7 +379,7 @@ internal class ToDictionary_keySelector_comparer(int 番号,Enumerable source,Fu
                 while(source.TryGetNext(out var __mn84)){
                     var {{this.item}}=__mn84;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     result.Add({{this.key}},{{this.item}});
                 }
             }
@@ -419,9 +419,9 @@ internal class ToDictionary_keySelector_elementSelector_comparer(int 番号,Enum
                 for(var __i=0; __i<__span.Length; __i++){
                     var {{this.item}}=__span[__i];
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     {{FuncReturnTypeName(elementSelector)}} {{this.temp}}=default!;
-                    {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
+                    {{this.FuncAssignStaticIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
                     result.Add({{this.key}},{{this.temp}});
                 }
             }else if(source.TryGetNonEnumeratedCount(out var __count)){
@@ -433,9 +433,9 @@ internal class ToDictionary_keySelector_elementSelector_comparer(int 番号,Enum
                 while(source.TryGetNext(out var __mn85)){
                     var {{this.item}}=__mn85;
                     {{FuncReturnTypeName(keySelector)}} {{this.key}}=default!;
-                    {{this.FuncAssignIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
+                    {{this.FuncAssignStaticIndented("            ",keySelector,nameof(keySelector),this.key,this.item)}}
                     {{FuncReturnTypeName(elementSelector)}} {{this.temp}}=default!;
-                    {{this.FuncAssignIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
+                    {{this.FuncAssignStaticIndented("            ",elementSelector,nameof(elementSelector),this.temp,this.item)}}
                     result.Add({{this.key}},{{this.temp}});
                 }
             }
