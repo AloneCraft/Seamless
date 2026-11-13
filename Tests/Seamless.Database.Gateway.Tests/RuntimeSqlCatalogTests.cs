@@ -9,7 +9,12 @@ internal sealed class RuntimeSqlCatalogFixture(DatabaseContainerOptions options,
 }
 internal sealed partial class RuntimeSqlGeneratedRoot:RuntimeSqlDatabaseContainer{
     public RuntimeSqlGeneratedRoot(DatabaseContainerOptions options):base(options,"generated-root-v1"){this.EnsureTablesCreated();}
-    public Table<RuntimeTypedKey,RuntimeTypedRecord> TypedOrders=>this.Table<RuntimeTypedKey,RuntimeTypedRecord>(static value=>new(value.ObjectId),"TypedOrders");
+    private RuntimeTypedDbo? dboSchema;
+    // [名前] SQL Server と同じく、試験の表は dbo スキーマに置く。基底の構築中に表を作ることがあるので、初めて使う時に作る。
+    public RuntimeTypedDbo dbo=>this.dboSchema??=new(this);
+}
+internal sealed class RuntimeTypedDbo(DatabaseContainer database):DatabaseSchema(database,"dbo"){
+    public Table<RuntimeTypedKey,RuntimeTypedRecord> TypedOrders=>this.Table<RuntimeTypedKey,RuntimeTypedRecord>(static value=>new(value.ObjectId));
 }
 
 
@@ -44,11 +49,11 @@ public sealed class RuntimeSqlCatalogTests{
     [Fact,Trait("Category","Integration")]
     public void RuntimeScopeSharesGeneratedTypedTransactionAndRecovery(){
         var options=Options();using(var first=new RuntimeSqlGeneratedRoot(options)){}using(var db=new RuntimeSqlGeneratedRoot(options)){
-            var api=db.RuntimeSql;using(var tx=api.BeginTransaction()){Assert.True(db.TypedOrders.Add(new(11,"typed",1)));api.CreateTable("dbo","t",Columns());api.InsertRow("dbo","t",[7,"seven",12.34m]);tx.Commit();Assert.Throws<InvalidOperationException>(()=>api.DropTable("dbo","t"));}
-            using(var tx=api.BeginTransaction()){db.TypedOrders[new(11)]=new(11,"rollback",2);api.DropTable("dbo","t");tx.Rollback();}
-            using var read=db.BeginReadSession();Assert.Equal("typed",db.TypedOrders[new(11)].Name);Assert.Single(api.ReadRows("dbo","t",api.SchemaRevision));
+            var api=db.RuntimeSql;using(var tx=api.BeginTransaction()){Assert.True(db.dbo.TypedOrders.Add(new(11,"typed",1)));api.CreateTable("dbo","t",Columns());api.InsertRow("dbo","t",[7,"seven",12.34m]);tx.Commit();Assert.Throws<InvalidOperationException>(()=>api.DropTable("dbo","t"));}
+            using(var tx=api.BeginTransaction()){db.dbo.TypedOrders[new(11)]=new(11,"rollback",2);api.DropTable("dbo","t");tx.Rollback();}
+            using var read=db.BeginReadSession();Assert.Equal("typed",db.dbo.TypedOrders[new(11)].Name);Assert.Single(api.ReadRows("dbo","t",api.SchemaRevision));
         }
-        using(var reopened=new RuntimeSqlGeneratedRoot(options)){using var read=reopened.BeginReadSession();Assert.Equal("typed",reopened.TypedOrders[new(11)].Name);Assert.Single(reopened.RuntimeSql.ReadRows("dbo","t",reopened.RuntimeSql.SchemaRevision));}
+        using(var reopened=new RuntimeSqlGeneratedRoot(options)){using var read=reopened.BeginReadSession();Assert.Equal("typed",reopened.dbo.TypedOrders[new(11)].Name);Assert.Single(reopened.RuntimeSql.ReadRows("dbo","t",reopened.RuntimeSql.SchemaRevision));}
     }
     [Fact,Trait("Category","Integration")]
     public async Task SchemaAndRowsBecomeVisibleTogetherOnCommit(){
@@ -126,7 +131,7 @@ public sealed class RuntimeSqlCatalogTests{
     }
     [Fact,Trait("Category","Integration")]
     public void GeneratedRootDisposedBeforeFirstTransactionCanReopen(){
-        var options=Options();using(var first=new RuntimeGeneratedFixture(options)){}using(var reopened=new RuntimeGeneratedFixture(options)){using(var tx=reopened.BeginTransaction()){Assert.True(reopened.TypedOrders.Add(new(7,"after-reopen",1)));tx.Commit();}using var read=reopened.BeginReadSession();Assert.Equal("after-reopen",reopened.TypedOrders[new(7)].Name);}
+        var options=Options();using(var first=new RuntimeGeneratedFixture(options)){}using(var reopened=new RuntimeGeneratedFixture(options)){using(var tx=reopened.BeginTransaction()){Assert.True(reopened.dbo.TypedOrders.Add(new(7,"after-reopen",1)));tx.Commit();}using var read=reopened.BeginReadSession();Assert.Equal("after-reopen",reopened.dbo.TypedOrders[new(7)].Name);}
     }
     [Fact,Trait("Category","Integration")]
     public void RejectsLegacyAndMismatchedStorageBeforeOpening(){

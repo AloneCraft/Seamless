@@ -129,9 +129,9 @@ public sealed class GatewayTransactionManager{
     private sealed class NativeModule:INativeQueryModule{
         public IEnumerable<byte[]> Execute(string queryId,ReadOnlyMemory<byte> arguments,INativeQueryContext context){
             var database=(RuntimeSqlGeneratedRoot)context.Database;var id=MemoryPackSerializer.Deserialize<int>(arguments.Span);
-            if(queryId=="read"){var found=0;if(database.TypedOrders.ContainsKey(new(id))){found=1;}yield return MemoryPackSerializer.Serialize(found);yield break;}
+            if(queryId=="read"){var found=0;if(database.dbo.TypedOrders.ContainsKey(new(id))){found=1;}yield return MemoryPackSerializer.Serialize(found);yield break;}
             if(queryId is not ("insert" or "readonly-write")){throw new InvalidOperationException("Unexpected query.");}
-            if(!database.TypedOrders.Add(new(id,"native",1))){throw new InvalidOperationException("Duplicate native row.");}yield return MemoryPackSerializer.Serialize(1);
+            if(!database.dbo.TypedOrders.Add(new(id,"native",1))){throw new InvalidOperationException("Duplicate native row.");}yield return MemoryPackSerializer.Serialize(1);
         }
     }
 
@@ -212,7 +212,7 @@ public sealed class GatewayTransactionManager{
     [Fact]
     public void CapturedContextCannotWriteAfterItsLogicalTransactionEnded(){
         using var fixture=new Fixture(NewPath());Execute(fixture.Engine,fixture.Session,"BEGIN TRANSACTION; INSERT dbo.TypedOrders(ObjectId,Name,Version) VALUES(1,N'pending',1)");var database=(RuntimeSqlGeneratedRoot)((InProcessDatabaseAdapter)fixture.Engine.Databases.Resolve("a").Adapter).Database;var context=fixture.Session.Run(ExecutionContext.Capture)!;Execute(fixture.Engine,fixture.Session,"ROLLBACK TRANSACTION");
-        Assert.Throws<InvalidOperationException>(()=>ExecutionContext.Run(context,_=>database.TypedOrders.Add(new(2,"orphan",1)),null));Assert.Equal(0,Count(fixture.Engine,fixture.Session,"a"));
+        Assert.Throws<InvalidOperationException>(()=>ExecutionContext.Run(context,_=>database.dbo.TypedOrders.Add(new(2,"orphan",1)),null));Assert.Equal(0,Count(fixture.Engine,fixture.Session,"a"));
     }
 
     [Theory]
@@ -223,7 +223,7 @@ public sealed class GatewayTransactionManager{
         using(var fixture=new Fixture(path,fail?(phase,id)=>{if(phase==GatewayCommitPhase.PreparationDurable){throw new IOException("stopped before the final commit");}}:null)){
             Execute(fixture.Engine,fixture.Session,"BEGIN TRANSACTION; INSERT a.dbo.TypedOrders(ObjectId,Name,Version) VALUES(0,N'a',0); INSERT b.dbo.TypedOrders(ObjectId,Name,Version) VALUES(0,N'b',0)");
             var first=(RuntimeSqlGeneratedRoot)((InProcessDatabaseAdapter)fixture.Engine.Databases.Resolve("a").Adapter).Database;var second=(RuntimeSqlGeneratedRoot)((InProcessDatabaseAdapter)fixture.Engine.Databases.Resolve("b").Adapter).Database;
-            fixture.Session.Run(()=>{for(var index=1;index<2000;index++){Assert.True(first.TypedOrders.Add(new(index,new string('a',96),index)));Assert.True(second.TypedOrders.Add(new(index,new string('b',96),index)));}return 0;});
+            fixture.Session.Run(()=>{for(var index=1;index<2000;index++){Assert.True(first.dbo.TypedOrders.Add(new(index,new string('a',96),index)));Assert.True(second.dbo.TypedOrders.Add(new(index,new string('b',96),index)));}return 0;});
             Assert.NotEmpty(Directory.EnumerateFiles(first.Options.TemporaryDirectory!,"*.tmp",SearchOption.AllDirectories));Assert.NotEmpty(Directory.EnumerateFiles(second.Options.TemporaryDirectory!,"*.tmp",SearchOption.AllDirectories));Execute(fixture.Engine,fixture.Session,"SAVE TRANSACTION spilled; INSERT a.dbo.TypedOrders(ObjectId,Name,Version) VALUES(3000,N'cancel',1); ROLLBACK TRANSACTION spilled");
             if(fail){var failure=Assert.Throws<TransactionCommitException>(()=>Execute(fixture.Engine,fixture.Session,"COMMIT TRANSACTION"));Assert.Equal(TransactionOutcomeKind.Aborted,failure.Outcome);}else{Execute(fixture.Engine,fixture.Session,"COMMIT TRANSACTION");}
             Assert.Empty(Directory.EnumerateFiles(first.Options.TemporaryDirectory!,"*.tmp",SearchOption.AllDirectories));Assert.Empty(Directory.EnumerateFiles(second.Options.TemporaryDirectory!,"*.tmp",SearchOption.AllDirectories));

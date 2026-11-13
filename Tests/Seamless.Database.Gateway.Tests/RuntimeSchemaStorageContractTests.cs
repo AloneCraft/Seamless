@@ -39,12 +39,13 @@ internal abstract class RuntimePreRegisteredContainer:DatabaseContainer{
 internal sealed partial class RuntimeGeneratedFixture:RuntimePreRegisteredContainer{
     public RuntimeGeneratedFixture(DatabaseContainerOptions options):base(options){this.RootReady=true;}
     public bool RootReady{get;}
-    public Table<RuntimeTypedKey,RuntimeTypedRecord> TypedOrders=>this.Table<RuntimeTypedKey,RuntimeTypedRecord>(static item=>new(item.ObjectId),"TypedOrders");
+    private RuntimeTypedDbo? dboSchema;
+    public RuntimeTypedDbo dbo=>this.dboSchema??=new(this);
 }
 
 internal sealed class RuntimeGeneratedImport(RuntimeTypedRecord record):IDatabaseImportSource{
     public IEnumerable<TRecord> ReadTable<TRecord>(global::Seamless.Database.System.Keys.DatabaseObject key){
-        if(key.Name!="TypedOrders"||typeof(TRecord)!=typeof(RuntimeTypedRecord)){throw new InvalidOperationException("Unexpected import table.");}
+        if(key.Name!="dbo.TypedOrders"||typeof(TRecord)!=typeof(RuntimeTypedRecord)){throw new InvalidOperationException("Unexpected import table.");}
         yield return (TRecord)(object)record;
     }
 }
@@ -63,19 +64,19 @@ public sealed class RuntimeSchemaStorageContractTests{
         using(var database=new RuntimeGeneratedFixture(options)){
             Assert.False(database.RootReadyDuringIdentity);Assert.True(database.RootReady);Assert.Contains("RuntimeGeneratedFixture|typed-v2",database.IdentityInBaseConstructor);Assert.Equal(database.IdentityInBaseConstructor,database.CurrentIdentity());
             Assert.Equal(typeof(RuntimeGeneratedFixture),typeof(RuntimeGeneratedFixture).GetMethod("EnsureTransactionSchema",global::System.Reflection.BindingFlags.Instance|global::System.Reflection.BindingFlags.NonPublic)!.DeclaringType);
-            Assert.True(database.DatabaseObjects.ContainsKey(new("TypedOrders")));Assert.False(database.DatabaseObjects.ContainsKey(new("~runtime.catalog.v1")));Assert.False(database.DatabaseObjects.ContainsKey(new("~runtime.rows.v1")));
+            Assert.True(database.DatabaseObjects.ContainsKey(new("dbo.TypedOrders")));Assert.False(database.DatabaseObjects.ContainsKey(new("~runtime.catalog.v1")));Assert.False(database.DatabaseObjects.ContainsKey(new("~runtime.rows.v1")));
             var tables=new Seamless.Database.Gateway.Hosting.InProcessDatabaseAdapter(database).GetTables();Assert.Single(tables);Assert.Equal("TypedOrders",tables[0].TableName);
             database.EnsureTablesCreated();database.ImportTables(new RuntimeGeneratedImport(standalone));
-            Assert.Equal(standalone,database.TypedOrders[new(standalone.ObjectId)]);Assert.False(database.TypedOrders.ContainsKey(typedKey));Assert.Empty(database.RuntimeCatalog());Assert.Empty(database.RuntimeRows());
+            Assert.Equal(standalone,database.dbo.TypedOrders[new(standalone.ObjectId)]);Assert.False(database.dbo.TypedOrders.ContainsKey(typedKey));Assert.Empty(database.RuntimeCatalog());Assert.Empty(database.RuntimeRows());
             // 実行時SQLの動的な表は暗黙の取引(DatabaseTransaction)で書く。型付きの取引へ移すまでは基底の入口を使う。
             using(var transaction=((DatabaseContainer)database).BeginTransaction()){database.ImportTables(new RuntimeGeneratedImport(typed));Assert.True(database.RuntimeCatalog().Add(catalog));Assert.True(database.RuntimeRows().Add(row));transaction.Commit();}
-            using(var transaction=((DatabaseContainer)database).BeginTransaction()){database.TypedOrders[typedKey]=new(typedKey.ObjectId,"typed-rollback",2);database.RuntimeCatalog()[catalogKey]=new(catalogKey,"dynamic-rollback",2);database.RuntimeRows()[rowKey]=new(rowKey,[9]);transaction.Rollback();}
-            using var read=database.BeginReadSession();Assert.Equal(typed,database.TypedOrders[typedKey]);Assert.Equal(catalog,database.RuntimeCatalog()[catalogKey]);Assert.Equal(row.Payload,database.RuntimeRows()[rowKey].Payload);
+            using(var transaction=((DatabaseContainer)database).BeginTransaction()){database.dbo.TypedOrders[typedKey]=new(typedKey.ObjectId,"typed-rollback",2);database.RuntimeCatalog()[catalogKey]=new(catalogKey,"dynamic-rollback",2);database.RuntimeRows()[rowKey]=new(rowKey,[9]);transaction.Rollback();}
+            using var read=database.BeginReadSession();Assert.Equal(typed,database.dbo.TypedOrders[typedKey]);Assert.Equal(catalog,database.RuntimeCatalog()[catalogKey]);Assert.Equal(row.Payload,database.RuntimeRows()[rowKey].Payload);
         }
         using(var reopened=new RuntimeGeneratedFixture(options)){
             Assert.Equal(reopened.IdentityInBaseConstructor,reopened.CurrentIdentity());using var read=reopened.BeginReadSession();
-            Assert.Equal(typed,reopened.TypedOrders[typedKey]);Assert.Equal(standalone,reopened.TypedOrders[new(standalone.ObjectId)]);Assert.Equal(catalog,reopened.RuntimeCatalog()[catalogKey]);Assert.Equal(row.Payload,reopened.RuntimeRows()[rowKey].Payload);
-            Assert.Equal(2,reopened.TypedOrders.Count);Assert.Single(reopened.RuntimeCatalog());Assert.Single(reopened.RuntimeRows());
+            Assert.Equal(typed,reopened.dbo.TypedOrders[typedKey]);Assert.Equal(standalone,reopened.dbo.TypedOrders[new(standalone.ObjectId)]);Assert.Equal(catalog,reopened.RuntimeCatalog()[catalogKey]);Assert.Equal(row.Payload,reopened.RuntimeRows()[rowKey].Payload);
+            Assert.Equal(2,reopened.dbo.TypedOrders.Count);Assert.Single(reopened.RuntimeCatalog());Assert.Single(reopened.RuntimeRows());
         }
     }
 

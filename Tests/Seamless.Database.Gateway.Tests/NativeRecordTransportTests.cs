@@ -45,9 +45,9 @@ public sealed class RecordNode{
 }
 internal sealed class RecordQueries(RuntimeSqlGeneratedRoot database):IRecordQueries{
     public IEnumerable<RecordPayload> Echo(RecordInput input){yield return new(input.First,input.Second);}
-    public IEnumerable<RecordPayload> Write(RecordInput input){database.TypedOrders.Add(new(input.Id,"record",1));yield return new(input.First,input.Second);}
-    public IEnumerable<RecordPayload> Fail(RecordInput input){database.TypedOrders.Add(new(input.Id,"fail",1));yield return new(input.First,input.Second);throw new InvalidOperationException("injected record statement failure");}
-    public int Count(RecordInput input)=>database.TypedOrders.Count;
+    public IEnumerable<RecordPayload> Write(RecordInput input){database.dbo.TypedOrders.Add(new(input.Id,"record",1));yield return new(input.First,input.Second);}
+    public IEnumerable<RecordPayload> Fail(RecordInput input){database.dbo.TypedOrders.Add(new(input.Id,"fail",1));yield return new(input.First,input.Second);throw new InvalidOperationException("injected record statement failure");}
+    public int Count(RecordInput input)=>database.dbo.TypedOrders.Count;
 }
 
 public sealed class NativeRecordTransportTests{
@@ -516,7 +516,7 @@ public sealed class NativeRecordTransportTests{
             if(queryId=="Empty"){yield break;}
             state.BlockBudget=context.Budget;
             using var input=NativeRecordCodec<RecordInput>.DeserializeOwned(arguments.Span,context.Budget,context.CancellationToken);
-            ((RuntimeSqlGeneratedRoot)context.Database).TypedOrders.Add(new(input.Value.Id,"cancelled",1));state.BlockEntered.TrySetResult();
+            ((RuntimeSqlGeneratedRoot)context.Database).dbo.TypedOrders.Add(new(input.Value.Id,"cancelled",1));state.BlockEntered.TrySetResult();
             try{Task.Delay(Timeout.Infinite,context.CancellationToken).GetAwaiter().GetResult();}
             finally{state.BlockReleased.TrySetResult();}
             yield break;
@@ -525,7 +525,7 @@ public sealed class NativeRecordTransportTests{
     private sealed class InvalidResultModule:INativeRecordQueryModule{
         public NativeRecordQueryContract GetContract(string queryId)=>NativeRecordQueryContract.For<RecordInput,RecordPayload>();
         public IEnumerable<byte[]> Execute(string queryId,ReadOnlyMemory<byte> arguments,INativeQueryContext context){
-            ((RuntimeSqlGeneratedRoot)context.Database).TypedOrders.Add(new(99,"invalid-result",1));yield return [0];
+            ((RuntimeSqlGeneratedRoot)context.Database).dbo.TypedOrders.Add(new(99,"invalid-result",1));yield return [0];
         }
     }
     private sealed class Fixture:IDisposable{

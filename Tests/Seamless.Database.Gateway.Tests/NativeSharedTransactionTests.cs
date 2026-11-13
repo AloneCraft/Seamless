@@ -16,20 +16,20 @@ public sealed class NativeSharedTransactionTests{
             var key=new RuntimeTypedKey(id);
             switch(queryId){
                 case "insert":
-                    if(!database.TypedOrders.Add(new(id,"created",1))){throw new InvalidOperationException("Duplicate test row.");}
+                    if(!database.dbo.TypedOrders.Add(new(id,"created",1))){throw new InvalidOperationException("Duplicate test row.");}
                     yield return MemoryPackSerializer.Serialize(1);
                     yield break;
                 case "update":
-                    if(!database.TypedOrders.TryGetValue(key,out var existing)){throw new InvalidOperationException("Test row is missing.");}
-                    database.TypedOrders[key]=existing with{Name="updated",Version=2};
+                    if(!database.dbo.TypedOrders.TryGetValue(key,out var existing)){throw new InvalidOperationException("Test row is missing.");}
+                    database.dbo.TypedOrders[key]=existing with{Name="updated",Version=2};
                     yield return MemoryPackSerializer.Serialize(1);
                     yield break;
                 case "delete":
-                    if(!database.TypedOrders.Remove(key)){throw new InvalidOperationException("Test row is missing.");}
+                    if(!database.dbo.TypedOrders.Remove(key)){throw new InvalidOperationException("Test row is missing.");}
                     yield return MemoryPackSerializer.Serialize(1);
                     yield break;
                 case "read":
-                    if(database.TypedOrders.TryGetValue(key,out var row)){yield return MemoryPackSerializer.Serialize(row.Name);}
+                    if(database.dbo.TypedOrders.TryGetValue(key,out var row)){yield return MemoryPackSerializer.Serialize(row.Name);}
                     yield break;
                 default:throw new InvalidOperationException("Unexpected test query.");
             }

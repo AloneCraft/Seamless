@@ -42,11 +42,11 @@ public sealed class NativeDisconnectedTransaction{
         public IEnumerable<byte[]> Execute(string queryId,ReadOnlyMemory<byte> arguments,INativeQueryContext context){
             var database=(RuntimeSqlGeneratedRoot)context.Database;var id=MemoryPackSerializer.Deserialize<int>(arguments.Span);
             if(queryId=="insert"){
-                if(!database.TypedOrders.Add(new(id,"created",1))){throw new InvalidOperationException("The disconnected transaction did not release its key.");}
+                if(!database.dbo.TypedOrders.Add(new(id,"created",1))){throw new InvalidOperationException("The disconnected transaction did not release its key.");}
                 yield return MemoryPackSerializer.Serialize(1);yield break;
             }
             if(queryId!="exists"){throw new InvalidOperationException("Unknown test query.");}
-            var exists=0;if(database.TypedOrders.TryGetValue(new(id),out _)){exists=1;}yield return MemoryPackSerializer.Serialize(exists);
+            var exists=0;if(database.dbo.TypedOrders.TryGetValue(new(id),out _)){exists=1;}yield return MemoryPackSerializer.Serialize(exists);
         }
     }
 }
