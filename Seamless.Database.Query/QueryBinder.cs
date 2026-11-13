@@ -128,7 +128,7 @@ internal sealed partial class QueryBinder{
                 var name=this.ResolveName(named.SchemaObject);
                 var alias=named.Alias?.Value??name.Name;
                 if(named.SchemaObject.Identifiers.Count==1&&this.ctes.TryGetValue(name.Name,out var cte)){return new(cte.Columns.Select(x=>new BindingColumn(x,alias)).ToArray(),cte.Rows);}
-                var definition=this.catalog.FindTable(name)??throw new SqlQueryException("Invalid object name '"+name+"'.",208);
+                var definition=this.catalog.SchemaResolution.Find(name,named.SchemaObject.SchemaIdentifier is not null,this.catalog.FindTable,out name)??throw new SqlQueryException("Invalid object name '"+name+"'.",208);
                 name=definition.Name;
                 if(definition.ViewDefinition is{} view){
                     if(!this.viewStack.Add(name)){throw new SqlQueryException("Recursive view dependency: "+name,4429);}

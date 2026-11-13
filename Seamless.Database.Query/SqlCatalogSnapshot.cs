@@ -15,6 +15,7 @@ internal sealed class SqlCatalogSnapshot:ISqlCatalog{
     }
     public long GetGeneration(string database)=>this.source.GetGeneration(database);
     public bool CanCachePlans=>this.source.CanCachePlans;
+    public SqlSchemaResolution SchemaResolution=>this.source.SchemaResolution;
     public void TrackPlan(SqlQueryPlan plan)=>this.source.TrackPlan(plan);
     public IDisposable? AcquireRead(IReadOnlyCollection<string> databases,CancellationToken cancellationToken=default)=>this.source.AcquireRead(this.dependencies.Keys,cancellationToken);
     public SqlTable?FindTable(SqlObjectName name){this.Capture(name.Database);return this.source.FindTable(name);}

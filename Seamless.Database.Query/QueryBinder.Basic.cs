@@ -94,7 +94,7 @@ internal sealed partial class QueryBinder{
             case SqlTableSyntax table:{
                 var parts=table.Name.Parts;if(parts.Count is <1 or >3){throw new SqlQueryException("A basic table name must have one to three parts.",40515);}
                 var schema="";var databaseName=this.database;if(parts.Count>=2){schema=parts[^2].Value;}if(parts.Count==3){databaseName=parts[0].Value;}
-                var name=new SqlObjectName(databaseName,schema,parts[^1].Value);var definition=this.catalog.FindTable(name)??throw new SqlQueryException("Invalid object name '"+name+"'.",208);
+                var name=new SqlObjectName(databaseName,schema,parts[^1].Value);var definition=this.catalog.SchemaResolution.Find(name,parts.Count>=2&&schema.Length>0,this.catalog.FindTable,out name)??throw new SqlQueryException("Invalid object name '"+name+"'.",208);
                 name=definition.Name;var qualifier=table.Alias?.Value??name.Name;
                 if(definition.ViewDefinition is{}view){
                     if(this.viewStack.Count>=32||!this.viewStack.Add(name)){throw new SqlQueryException("Recursive or excessively deep view dependency: "+name,4429);}

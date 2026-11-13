@@ -369,7 +369,7 @@ DB のルート名前空間を `Sample`、SQL Server 的なスキーマを `dbo`
 - スキーマを定義する場合は、用途を示す `Tables`・`Views`・`Keys`・`Schemas` を先に置き、その下へ SQL スキーマ名を置く。
 - スキーマを定義する場合は、Container のスキーマと対応コレクションを自動生成する。スキーマが一つだけでも `container.SchemaName.TableName`・`container.SchemaName.ViewName` の形とし、例えば `container.dbo.Item`・`container.dbo.Summary` で利用する。
 - スキーマを定義しない場合は、`container.TableName`・`container.ViewName` の形で直接利用する。アクセス時にスキーマ名を挟むかどうかは、スキーマの個数ではなく定義の有無で決める。
-- 2026年11月8日の合意で、同じDBの `Tables`・`Views`・`Work` はDB直下と名前付きスキーマ配下へ混在できる。新規DBは直下から始め、既存オブジェクトを保持してスキーマを追加できる。同じ所属先の名前重複と、DB直下のオブジェクト名・スキーマ名の衝突を拒否する。SQLのスキーマ省略名はDB直下を参照し、名前付きスキーマは明示する。具体的なGUIと受入は [スキーマ混在とGUI作成・実行検証](20261108-schema-mixed-manager.md) に従う。
+- 2026年11月8日の合意で、同じDBの `Tables`・`Views`・`Work` はDB直下と名前付きスキーマ配下へ混在できる。新規DBは直下から始め、既存オブジェクトを保持してスキーマを追加できる。同じ所属先の名前重複と、DB直下のオブジェクト名・スキーマ名の衝突を拒否する。SQLのスキーマ省略名は方言の設定に従う(2026年11月13日決定。既定は T-SQL と同じく dbo→DB直下の順に探し、作るときは dbo。従来の直下だけの探し方は `RootOnly`)。具体的なGUIと受入は [スキーマ混在とGUI作成・実行検証](20261108-schema-mixed-manager.md) に従う。
 - Container に名前付きプロパティとして公開する作業辞書は、専用の `Work` 名前空間の型定義から生成する。`Tables`・`Views` と宣言スタイルを揃え、例えば `Sample.Work.dbo.ItemCache` から `container.dbo.ItemCache` を生成する。生成キーはテーブルと共通の `Keys` にまとめ、`Sample.Keys.dbo.ItemCache` とする。汎用の作業辞書本体はランタイムライブラリ側で提供する。
 - 現行のビューの問い合わせ本体は、ビュー型の static メソッド `Query` から生成 getter へ接続する。名前の規約で識別し、`Summary.Query(container)` の形を使う。戻り型は `Seamless.Collections.ISet<Summary>` のように、そのビュー型の関係を表す。現行の `View<TResult>` は `ISet<TResult>` を実装している。呼出元と定義本体を統合してFLinqで展開する方針は未実装であり、上記の最新方針に従う。
 - 型引数に関する方針は、Tsavorite.Set 等にテーブルのレコード型を渡す既存のコレクション構造を土台にすることを指す。

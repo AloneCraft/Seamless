@@ -12,6 +12,7 @@ internal sealed class HttpAuthorizedSqlCatalog(DatabaseRegistry registry,HttpGat
     private (string Database,IReadOnlyList<Guid> Resources)? delegatedRead;
     public long Generation=>registry.Generation;
     public bool CanCachePlans=>false;
+    public SqlSchemaResolution SchemaResolution=>registry.SchemaResolution;
 
     public long GetGeneration(string database){
         this.DemandDatabase(database);

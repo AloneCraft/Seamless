@@ -7,6 +7,7 @@ namespace Seamless.Database.Gateway.Hosting;
 internal sealed class GatewayExpressionCatalog(DatabaseCatalog definition,ISqlCatalog? fallback=null,InProcessDatabaseAdapter? adapter=null):ISqlCatalog{
     public long Generation=>0;
     public bool CanCachePlans=>false;
+    public SqlSchemaResolution SchemaResolution=>fallback?.SchemaResolution??SqlSchemaResolution.SqlServer;
     public void TrackPlan(SqlQueryPlan plan)=>fallback?.TrackPlan(plan);
     public long GetGeneration(string database)=>database.Equals(definition.Name,StringComparison.OrdinalIgnoreCase)?0:fallback?.GetGeneration(database)??0;
     public IDisposable? AcquireRead(IReadOnlyCollection<string> databases,CancellationToken cancellationToken=default)=>fallback?.AcquireRead(databases,cancellationToken);

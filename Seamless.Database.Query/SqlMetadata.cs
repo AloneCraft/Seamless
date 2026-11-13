@@ -3,6 +3,25 @@ using Seamless.Linq;
 namespace Seamless.Database.Query;
 /// <summary>SQL上の実名。識別子のC#向け変換は行わない。</summary>
 public sealed record SqlObjectName(string Database,string Schema,string Name);
+/// <summary>スキーマを書かない名前をどの置き場から探すか。作る表や関数の置き場もこれで決まる。</summary>
+public enum SqlSchemaResolution{
+    /// <summary>SQL Server と同じ。dbo を先に探し、無ければ根(スキーマ名が空の置き場)を探す。作るときは dbo。</summary>
+    SqlServer,
+    /// <summary>根だけを探す。作るときも根。dbo へは dbo. と書いたときだけ届く。</summary>
+    RootOnly
+}
+public static class SqlSchemaResolutionRules{
+    /// <summary>スキーマを書かずに作るときの置き場。</summary>
+    public static string CreateSchema(this SqlSchemaResolution resolution)=>resolution==SqlSchemaResolution.SqlServer?"dbo":"";
+    /// <summary>スキーマを書かない名前を探す置き場の順。</summary>
+    public static IReadOnlyList<string> LookupSchemas(this SqlSchemaResolution resolution)=>resolution==SqlSchemaResolution.SqlServer?["dbo",""]:[""];
+    /// <summary>書かれたスキーマがあればそれだけ、無ければ探す順に、最初に見つかった置き場の名前を返す。どこにも無ければ作るときの置き場の名前を返す。</summary>
+    public static T? Find<T>(this SqlSchemaResolution resolution,SqlObjectName name,bool schemaWritten,Func<SqlObjectName,T?> find,out SqlObjectName resolved) where T:class{
+        if(schemaWritten){resolved=name;return find(name);}
+        foreach(var schema in resolution.LookupSchemas()){var candidate=name with{Schema=schema};var found=find(candidate);if(found is not null){resolved=candidate;return found;}}
+        resolved=name with{Schema=resolution.CreateSchema()};return null;
+    }
+}
 /// <summary>SQL型と元の列順/照合順序を保持する。</summary>
 public sealed record SqlType(string Name,Type ClrType,int? Length=null,byte? Precision=null,byte? Scale=null,string? Collation=null){
     internal bool IsUntypedNull{get;init;}
@@ -35,6 +54,8 @@ public interface ISqlCatalog{
     bool CanCachePlans=>true;
     IDisposable? AcquireRead(IReadOnlyCollection<string> databases,CancellationToken cancellationToken=default)=>null;
     void TrackPlan(SqlQueryPlan plan){}
+    /// <summary>スキーマを書かない名前の探し方。既定は SQL Server と同じ。</summary>
+    SqlSchemaResolution SchemaResolution=>SqlSchemaResolution.SqlServer;
     SqlTable? FindTable(SqlObjectName name);
     SqlRoutine? FindRoutine(SqlObjectName name)=>null;
     IDisposable? EnterDefinition(SqlObjectName name,SqlDefinitionKind kind)=>null;

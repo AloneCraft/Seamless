@@ -13,6 +13,8 @@ public sealed partial class DatabaseRegistry:ISqlCatalog{
     internal void ReleaseObsoletePlans(){WeakReference<SqlQueryPlan>[] snapshot;lock(this.publicationGate){snapshot=this.plans.ToArray();}foreach(var weak in snapshot){if(weak.TryGetTarget(out var plan)){plan.ReleaseIfObsolete();}}}
     public DatabaseRegistry(long generation=0,GatewayTransactionManager? transactions=null){this.Generation=generation;this.GatewayTransactions=transactions;}
     public GatewayTransactionManager? GatewayTransactions{get;}
+    /// <summary>SQL でスキーマを書かない名前の探し方と、作るときの置き場。既定は SQL Server と同じ(dbo→根、作るのは dbo)。</summary>
+    public SqlSchemaResolution SchemaResolution{get;init;}=SqlSchemaResolution.SqlServer;
     public long Generation{get;}
     public string DefaultDatabaseName{get;private set;}="master";
     public IReadOnlyCollection<DatabaseRegistration> Databases=>this.databases.Values;

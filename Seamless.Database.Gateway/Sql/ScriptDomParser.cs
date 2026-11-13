@@ -16,10 +16,10 @@ public sealed class ParsedCommand(SqlCommandKind kind,string tableName,IReadOnly
 /// <summary>変更対象を事前に完全検査する。未解釈の条件を無条件更新へ変換しない。</summary>
 public static class ScriptDomParser{
     public static ParsedCommand Parse(string sql,IDatabaseAdapter adapter,IReadOnlyDictionary<string,object?>? parameters=null)=>Parse(sql,adapter,parameters,null);
-    internal static ParsedCommand Parse(string sql,IDatabaseAdapter adapter,IReadOnlyDictionary<string,object?>? parameters,string? database,Func<ScalarExpression,TableMetadata?,bool,Func<object,object?>>? scalarCompiler=null,Func<BooleanExpression,TableMetadata,Func<object,bool?>>? predicateCompiler=null,Action<TableMetadata>? demand=null){
+    internal static ParsedCommand Parse(string sql,IDatabaseAdapter adapter,IReadOnlyDictionary<string,object?>? parameters,string? database,Func<ScalarExpression,TableMetadata?,bool,Func<object,object?>>? scalarCompiler=null,Func<BooleanExpression,TableMetadata,Func<object,bool?>>? predicateCompiler=null,Action<TableMetadata>? demand=null,SqlSchemaResolution resolution=SqlSchemaResolution.SqlServer){
         var script=new TSql160Parser(true).Parse(new StringReader(sql),out var errors) as TSqlScript;if(errors.Count>0){throw new SqlQueryException(errors[0].Message,102,errors[0].Line);}
         if(script is null||script.Batches.Sum(b=>b.Statements.Count)!=1){throw new SqlQueryException("One statement is required.");}
-        var statement=script.Batches.SelectMany(b=>b.Statements).Single();var binder=new Binder(adapter,parameters,database,scalarCompiler,predicateCompiler,demand);
+        var statement=script.Batches.SelectMany(b=>b.Statements).Single();var binder=new Binder(adapter,parameters,database,scalarCompiler,predicateCompiler,demand,resolution);
         if(statement is SelectStatement select&&select.QueryExpression is QuerySpecification query&&query.FromClause?.TableReferences.Count==1){var table=binder.BindTable(query.FromClause.TableReferences[0]);var names=new List<string>();foreach(var element in query.SelectElements){if(element is SelectStarExpression){names.Add("*");}else if(element is SelectScalarExpression scalar&&scalar.Expression is ColumnReferenceExpression column){names.Add(binder.Column(column).Name);}else{throw Unsupported(element);}}Func<object,bool>? predicate=null;if(query.WhereClause is not null){var condition=binder.Boolean(query.WhereClause.SearchCondition);predicate=row=>condition(row)==true;}return new(SqlCommandKind.Select,table.FullName,names,null,predicate);}
         if(statement is InsertStatement insert){
             var spec=insert.InsertSpecification;if(spec.TopRowFilter is not null||spec.OutputClause is not null||spec.OutputIntoClause is not null||spec.InsertSource is not ValuesInsertSource source){throw Unsupported(statement);}
@@ -40,15 +40,20 @@ public static class ScriptDomParser{
     }
     private static SqlQueryException Unsupported(TSqlFragment fragment)=>new($"Unsupported DML syntax: {fragment.GetType().Name}.",40515);
     private static void ValidateNull(ColumnMetadata column,object? value){if(value is null&&!column.IsNullable){throw new SqlQueryException($"Column '{column.Name}' does not allow NULL.",515);}}
-    private sealed class Binder(IDatabaseAdapter adapter,IReadOnlyDictionary<string,object?>? parameters,string? database,Func<ScalarExpression,TableMetadata?,bool,Func<object,object?>>? scalarCompiler,Func<BooleanExpression,TableMetadata,Func<object,bool?>>? predicateCompiler,Action<TableMetadata>? demand){
+    private sealed class Binder(IDatabaseAdapter adapter,IReadOnlyDictionary<string,object?>? parameters,string? database,Func<ScalarExpression,TableMetadata?,bool,Func<object,object?>>? scalarCompiler,Func<BooleanExpression,TableMetadata,Func<object,bool?>>? predicateCompiler,Action<TableMetadata>? demand,SqlSchemaResolution resolution){
         private TableMetadata? table;
         public string TargetName(TableMetadata metadata)=>demand is not null&&adapter is InProcessDatabaseAdapter?metadata.IdentifierKey:metadata.FullName;
         public TableMetadata BindTable(TableReference target){
             if(target is not NamedTableReference named||named.SchemaObject.ServerIdentifier is not null||named.SchemaObject.DatabaseIdentifier is{} owner&&!string.Equals(owner.Value,database,StringComparison.OrdinalIgnoreCase)){throw Unsupported(target);}
-            var schema=named.SchemaObject.SchemaIdentifier?.Value??"";var name=named.SchemaObject.BaseIdentifier.Value;
-            var metadata=new TableMetadata(schema,name,[]);
-            var key=demand is not null&&adapter is InProcessDatabaseAdapter?metadata.IdentifierKey:metadata.FullName;
-            this.table=adapter.FindTable(key)??throw new SqlQueryException($"Invalid object name '{key}'.",208);
+            var written=named.SchemaObject.SchemaIdentifier?.Value;var name=named.SchemaObject.BaseIdentifier.Value;
+            // [名前] スキーマを書かなければ、方言の探し方(SQL Server なら dbo→根)の順に探す。
+            string? missing=null;
+            foreach(var schema in written is not null?[written]:resolution.LookupSchemas()){
+                var metadata=new TableMetadata(schema,name,[]);
+                var key=demand is not null&&adapter is InProcessDatabaseAdapter?metadata.IdentifierKey:metadata.FullName;
+                missing??=key;this.table=adapter.FindTable(key);if(this.table is not null){break;}
+            }
+            if(this.table is null){throw new SqlQueryException($"Invalid object name '{missing}'.",208);}
             demand?.Invoke(this.table);return this.table;
         }
         public ColumnMetadata Column(ColumnReferenceExpression reference){if(this.table is null){throw Unsupported(reference);}var name=reference.MultiPartIdentifier.Identifiers.Last().Value;return this.table.Columns.SingleOrDefault(c=>c.Name.Equals(name,StringComparison.OrdinalIgnoreCase))??throw new SqlQueryException($"Invalid column '{name}'.",207);}

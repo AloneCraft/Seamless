@@ -18,7 +18,18 @@ public sealed partial class SqlExecutionEngine{
         if(errors.Count!=0||parsed is not TSqlScript{Batches.Count:1} script||script.Batches[0].Statements is not{Count:1} statements||statements[0] is not SelectStatement{QueryExpression:QuerySpecification{FromClause.TableReferences.Count:1} query}||query.FromClause.TableReferences[0] is not NamedTableReference reference||reference.SchemaObject.ServerIdentifier is not null){return null;}
         var table=reference.SchemaObject;
         if(reference.Alias is not null||reference.TableHints.Count!=0||query.WhereClause is not null||query.OrderByClause is not null||query.GroupByClause is not null||query.HavingClause is not null||table.FragmentLength!=name.Trim().Length){return null;}
-        try{return manager.IdentityCurrent(session,table.DatabaseIdentifier?.Value??session.DatabaseName,table.SchemaIdentifier?.Value??"",table.BaseIdentifier.Value);}
-        catch(SqlQueryException error)when(error.Number is 208 or 911){return null;}
+        // [名前] スキーマを書かなければ、方言の探す順に最初に見つかった表の値を返す。
+        foreach(var schema in table.SchemaIdentifier is{} written?[written.Value]:this.registry.SchemaResolution.LookupSchemas()){
+            try{return manager.IdentityCurrent(session,table.DatabaseIdentifier?.Value??session.DatabaseName,schema,table.BaseIdentifier.Value);}
+            catch(SqlQueryException error)when(error.Number is 208 or 911){}
+        }
+        return null;
+    }
+    /// <summary>[名前] 書かれたスキーマ、無ければ方言の探す順で、最初に見つかった表。</summary>
+    private TableMetadata? FindTable(IDatabaseAdapter adapter,SchemaObjectName name){
+        foreach(var schema in name.SchemaIdentifier is{} written?[written.Value]:this.registry.SchemaResolution.LookupSchemas()){
+            var found=adapter.FindTable(new TableMetadata(schema,name.BaseIdentifier.Value,[]).IdentifierKey);if(found is not null){return found;}
+        }
+        return null;
     }
 }

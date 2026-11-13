@@ -6,6 +6,7 @@ using MemoryPack;
 
 namespace Management.Tests;
 
+    // 根と dbo が別の置き場であることを確かめるため、スキーマ省略を根だけで探す設定(RootOnly)を明示する。既定(SQL Server と同じ dbo→根)は Database.Query.Tests で確かめる。
 public sealed partial class MixedSchemaSql{
     [Fact]public void RootAndNamedDboHaveIndependentRowsAndCatalogEntries(){
         var options=DatabaseContainerOptions.InMemory with{IndexSize=128,PageSize=4096,MemorySize=1<<20,SegmentSize=1<<20};
@@ -13,7 +14,7 @@ public sealed partial class MixedSchemaSql{
         using(var write=database.BeginTransaction()){
             database.Rows.Add(new(1,10));database.dbo.Rows.Add(new(1,20));database.dbo0.Rows.Add(new(1,30));database.dbo1.Rows.Add(new(1,40));database.dbo.OnlyDbo.Add(new(1,50));write.Commit();
         }
-        var adapter=new InProcessDatabaseAdapter(database);var registry=new DatabaseRegistry();registry.Register("Mixed",adapter);
+        var adapter=new InProcessDatabaseAdapter(database);var registry=new DatabaseRegistry(){SchemaResolution=SqlSchemaResolution.RootOnly};registry.Register("Mixed",adapter);
         var engine=new SqlExecutionEngine(registry);using var session=new SessionContext(1,"Mixed");
         foreach(var (name,value) in new[]{("Rows",10),("dbo.Rows",20),("dbo0.Rows",30),("dbo1.Rows",40)}){
             Assert.Equal(value,Assert.Single(engine.Execute("SELECT Value FROM "+name,session).Rows)[0]);
@@ -33,7 +34,7 @@ public sealed partial class MixedSchemaSql{
         var root=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,"runtime-root-"+Guid.NewGuid().ToString("N"));
         var options=DatabaseContainerOptions.OnStorage(root) with{IndexSize=128,PageSize=4096,MemorySize=1<<20,SegmentSize=1<<20};
         using(var database=new RuntimeDb(options)){
-            var adapter=new InProcessDatabaseAdapter(database);var engine=new SqlExecutionEngine(adapter);using var session=new SessionContext(1,adapter.DatabaseName);
+            var adapter=new InProcessDatabaseAdapter(database);var engine=new SqlExecutionEngine(adapter,SqlSchemaResolution.RootOnly);using var session=new SessionContext(1,adapter.DatabaseName);
             engine.Execute("CREATE TABLE Rows(Id int PRIMARY KEY, Value int)",session);
             engine.Execute("CREATE TABLE dbo.Rows(Id int PRIMARY KEY, Value int)",session);
             engine.Execute("INSERT INTO Rows VALUES(1,10)",session);engine.Execute("INSERT INTO dbo.Rows VALUES(1,20)",session);
@@ -42,7 +43,7 @@ public sealed partial class MixedSchemaSql{
             engine.Execute("UPDATE Rows SET Value=11 WHERE Id=1",session);
         }
         using(var reopened=new RuntimeDb(options)){
-            var adapter=new InProcessDatabaseAdapter(reopened);var engine=new SqlExecutionEngine(adapter);using var session=new SessionContext(2,adapter.DatabaseName);
+            var adapter=new InProcessDatabaseAdapter(reopened);var engine=new SqlExecutionEngine(adapter,SqlSchemaResolution.RootOnly);using var session=new SessionContext(2,adapter.DatabaseName);
             Assert.Equal(11,Assert.Single(engine.Execute("SELECT Value FROM Rows",session).Rows)[0]);
             Assert.Equal(20,Assert.Single(engine.Execute("SELECT Value FROM dbo.Rows",session).Rows)[0]);
         }

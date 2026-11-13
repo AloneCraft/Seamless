@@ -11,7 +11,7 @@ public sealed partial class SqlExecutionEngine{
     private const int MaximumProcedureStatements=64;
     private readonly DatabaseRegistry registry;
     private readonly SqlQueryEngine queries;
-    public SqlExecutionEngine(IDatabaseAdapter adapter):this(CreateRegistry(adapter)){}
+    public SqlExecutionEngine(IDatabaseAdapter adapter,SqlSchemaResolution resolution=SqlSchemaResolution.SqlServer):this(CreateRegistry(adapter,resolution)){}
     public SqlExecutionEngine(DatabaseRegistry registry){this.registry=registry;this.queries=new(registry);}
     public DatabaseRegistry Databases=>this.registry;
     private Seamless.Execution.ExecutionOptions QueryOptions(SessionContext session)=>this.registry.GatewayTransactions?.QueryExecutionOptions(session.CancellationToken,session.StatementTimestamp)??new(){CancellationToken=session.CancellationToken,StatementTimestamp=session.StatementTimestamp};
@@ -291,7 +291,7 @@ public sealed partial class SqlExecutionEngine{
         }
         var current=this.Resolve(session);
         if(statement is SetIdentityInsertStatement identityInsert){
-            if(this.registry.GatewayTransactions is not{TypedDdlEnabled:true} manager){throw new SqlQueryException("IDENTITY_INSERT requires the typed Gateway profile.",40515);}if(identityInsert.Table.ServerIdentifier is not null){throw new SqlQueryException("IDENTITY_INSERT cannot target another server.",40515);}var registration=this.registry.Resolve(identityInsert.Table.DatabaseIdentifier?.Value??session.DatabaseName);if(registration.Adapter is not InProcessDatabaseAdapter adapter){throw new SqlQueryException("The identity table is unavailable.",208);}using var read=manager.AcquireRead(session,adapter);var table=adapter.FindTable(new TableMetadata(identityInsert.Table.SchemaIdentifier?.Value??"",identityInsert.Table.BaseIdentifier.Value,[]).IdentifierKey)??throw new SqlQueryException("The table does not exist.",208);if(!table.Columns.Any(static column=>column.IsIdentity)){throw new SqlQueryException("The table has no identity column.",8106);}var selected=(adapter.Database.Options.GatewayProfile!.DatabaseId,table.StableObjectId??throw new InvalidDataException("Missing table identity."));if(identityInsert.IsOn){if(session.IdentityInsertTarget is{} previous&&previous!=selected){throw new SqlQueryException("IDENTITY_INSERT is already ON for another table.",8107);}session.IdentityInsertTarget=selected;}else if(session.IdentityInsertTarget==selected){session.IdentityInsertTarget=null;}return QueryResult.NonQuery(0);
+            if(this.registry.GatewayTransactions is not{TypedDdlEnabled:true} manager){throw new SqlQueryException("IDENTITY_INSERT requires the typed Gateway profile.",40515);}if(identityInsert.Table.ServerIdentifier is not null){throw new SqlQueryException("IDENTITY_INSERT cannot target another server.",40515);}var registration=this.registry.Resolve(identityInsert.Table.DatabaseIdentifier?.Value??session.DatabaseName);if(registration.Adapter is not InProcessDatabaseAdapter adapter){throw new SqlQueryException("The identity table is unavailable.",208);}using var read=manager.AcquireRead(session,adapter);var table=this.FindTable(adapter,identityInsert.Table)??throw new SqlQueryException("The table does not exist.",208);if(!table.Columns.Any(static column=>column.IsIdentity)){throw new SqlQueryException("The table has no identity column.",8106);}var selected=(adapter.Database.Options.GatewayProfile!.DatabaseId,table.StableObjectId??throw new InvalidDataException("Missing table identity."));if(identityInsert.IsOn){if(session.IdentityInsertTarget is{} previous&&previous!=selected){throw new SqlQueryException("IDENTITY_INSERT is already ON for another table.",8107);}session.IdentityInsertTarget=selected;}else if(session.IdentityInsertTarget==selected){session.IdentityInsertTarget=null;}return QueryResult.NonQuery(0);
         }
         if(statement is SelectStatement){
             if(TryDatabaseName(sql,session,out var databaseName)){return databaseName;}
@@ -376,7 +376,7 @@ public sealed partial class SqlExecutionEngine{
                 }
                 var command=ScriptDomParser.Parse(sql,current.Adapter,values,current.Name,
                     (expression,table,allowColumn)=>this.CompileDmlScalar(expression,sql,current,table,allowColumn,session,parameters,values,()=>executing=true,protectedQueries),
-                    (condition,table)=>this.CompileDmlPredicate(condition,sql,current,table,session,parameters,values,()=>executing=true,protectedQueries),demand);executing=true;
+                    (condition,table)=>this.CompileDmlPredicate(condition,sql,current,table,session,parameters,values,()=>executing=true,protectedQueries),demand,this.registry.SchemaResolution);executing=true;
                 var count=0;IReadOnlyDictionary<string,Func<object,object?>>? pointUpdates=null;if(statement is UpdateStatement){pointUpdates=command.UpdateValues;}
                 if(current.Adapter is InProcessDatabaseAdapter point&&this.registry.GatewayTransactions?.IsVersioned==true&&TryIntegerPoint(statement,values,out var keyColumn,out var key)&&point.TryExecutePointMutation(command.TableName,keyColumn,key,pointUpdates,command.Predicate,session,out var changed)){count=changed;}
                 else if(statement is InsertStatement){foreach(var row in command.InsertRows){count=checked(count+current.Adapter.ExecuteInsert(command.TableName,row,session));}}
@@ -449,7 +449,7 @@ public sealed partial class SqlExecutionEngine{
     private static bool HasDatabaseCatalog(TSqlStatement statement){var visitor=new DatabaseCatalogVisitor();statement.Accept(visitor);return visitor.Found;}
     private sealed class DatabaseCatalogVisitor:TSqlFragmentVisitor{public bool Found{get;private set;}public override void ExplicitVisit(NamedTableReference node){if(string.Equals(node.SchemaObject.SchemaIdentifier?.Value,"sys",StringComparison.OrdinalIgnoreCase)&&string.Equals(node.SchemaObject.BaseIdentifier.Value,"databases",StringComparison.OrdinalIgnoreCase)){this.Found=true;}}}
     private static bool IsSystemQuery(TSqlStatement statement){var visitor=new SystemVisitor();statement.Accept(visitor);return visitor.Found;}
-    private static DatabaseRegistry CreateRegistry(IDatabaseAdapter adapter){var registry=new DatabaseRegistry();registry.Register(adapter.DatabaseName,adapter);return registry;}
+    private static DatabaseRegistry CreateRegistry(IDatabaseAdapter adapter,SqlSchemaResolution resolution){var registry=new DatabaseRegistry(){SchemaResolution=resolution};registry.Register(adapter.DatabaseName,adapter);return registry;}
     private sealed class SystemVisitor:TSqlFragmentVisitor{
         public bool Found{get;private set;}
         public override void ExplicitVisit(NamedTableReference node){
