@@ -160,4 +160,5 @@
   <Folder Name="/Tools/">
     <Project Path="tools/Database.Verification/Database.Verification.csproj" />
   </Folder>
+  <Project Path="Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
 </Solution>

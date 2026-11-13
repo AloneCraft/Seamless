@@ -1,0 +1,2455 @@
+{
+    "schemaVersion":  1,
+    "repository":  "https://github.com/microsoft/garnet",
+    "commit":  "5cc8f3f50aa57ed694dfda928e4467593e073656",
+    "upstreamVersion":  "2.2.8",
+    "assemblyIdentity":  "Tsavorite.core, Version=2.2.8.0, Culture=neutral, PublicKeyToken=b93f59e18c9c8d6b",
+    "packageId":  "Seamless.Tsavorite.Core",
+    "packageVersion":  "$(Version)",
+    "patch":  {
+                  "path":  "recovery-head-pages.patch",
+                  "sha256":  "BD808C7CA8246755B6DDA0E6D33304F4ECD2F0A9D5057A8044E9B902AC5E7FCD",
+                  "changedFileCount":  1,
+                  "addedLines":  6,
+                  "reason":  "復旧時にresident head未満の一時読込ページをundo flush後に解放し、循環bufferの旧record残存を防ぐ。2.2.8でも残っており、次の保存に古いバイトが混ざってスナップショット復元が壊れる(TPC-C の Run で確認)。"
+              },
+    "acquisitionPackage":  {
+                               "id":  "Microsoft.Garnet",
+                               "version":  "2.2.8",
+                               "nupkgSha256":  "07F25E67875FE7AF17456E332F90A15E72BCEC613C1288E60C5BC40530C6CC37",
+                               "privateAssets":  "all",
+                               "excludeAssets":  "all"
+                           },
+    "counts":  {
+                   "snapshotFiles":  261,
+                   "managedSources":  255,
+                   "vendoredFiles":  258,
+                   "nativeFiles":  10
+               },
+    "files":  [
+                  {
+                      "upstreamPath":  ".editorconfig",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/.editorconfig",
+                      "baselineSha256":  "60B0A168CC9D24DC17E988C055CF07C6491C271E1FA93F19E68AE1273962B883",
+                      "patchedSha256":  "60B0A168CC9D24DC17E988C055CF07C6491C271E1FA93F19E68AE1273962B883",
+                      "bytes":  12510,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "Garnet.snk",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/Garnet.snk",
+                      "baselineSha256":  "7ADBE203E242848E0D3532B685DAE2AA445F424244CA37F545EF7DEC7810DC6B",
+                      "patchedSha256":  "7ADBE203E242848E0D3532B685DAE2AA445F424244CA37F545EF7DEC7810DC6B",
+                      "bytes":  596,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "LICENSE",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/LICENSE",
+                      "baselineSha256":  "9906940F61B1F0B533FA7D99BAF55178B2808FBE113EA51DFBFAD8572CCD5F2B",
+                      "patchedSha256":  "9906940F61B1F0B533FA7D99BAF55178B2808FBE113EA51DFBFAD8572CCD5F2B",
+                      "bytes":  1162,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorBase.cs",
+                      "baselineSha256":  "8963F7523038D0C62538617D3AA1C30566F6CFEB31EAD08DDF41504FAE04C38A",
+                      "patchedSha256":  "8963F7523038D0C62538617D3AA1C30566F6CFEB31EAD08DDF41504FAE04C38A",
+                      "bytes":  179408,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorScan.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorScan.cs",
+                      "baselineSha256":  "B101792345E774BDFEA71C1A08A35A3D918A71188558FF65904717D6BDEF2174",
+                      "patchedSha256":  "B101792345E774BDFEA71C1A08A35A3D918A71188558FF65904717D6BDEF2174",
+                      "bytes":  22442,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorSettings.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/AllocatorSettings.cs",
+                      "baselineSha256":  "652AB5731E69EFE17EE7E265706039E27F26783182CBFD0D478B744BA88964BE",
+                      "patchedSha256":  "652AB5731E69EFE17EE7E265706039E27F26783182CBFD0D478B744BA88964BE",
+                      "bytes":  1698,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/AsyncIOContext.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/AsyncIOContext.cs",
+                      "baselineSha256":  "05832A8E2DAF95CFE60BC5C71BC3898FE39440D076E00ED4702AF4B4124AC757",
+                      "patchedSha256":  "05832A8E2DAF95CFE60BC5C71BC3898FE39440D076E00ED4702AF4B4124AC757",
+                      "bytes":  6537,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/AtomicOwner.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/AtomicOwner.cs",
+                      "baselineSha256":  "4C232370DAE336F60FBA308A95101381FFDA1FD5F1BF3DDFAA30033C4C96CC05",
+                      "patchedSha256":  "4C232370DAE336F60FBA308A95101381FFDA1FD5F1BF3DDFAA30033C4C96CC05",
+                      "bytes":  2491,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/BlittableFrame.cs",
+                      "baselineSha256":  "5138D55CA0DA76F0FCFA1D6660E0D4279B80FDD456FB50343482E440E54189D6",
+                      "patchedSha256":  "5138D55CA0DA76F0FCFA1D6660E0D4279B80FDD456FB50343482E440E54189D6",
+                      "bytes":  3959,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ConditionallyHoistedKey.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ConditionallyHoistedKey.cs",
+                      "baselineSha256":  "EEC44D404825CBE18553C3531BD40CFEBACB34F3D24338536AA34544CFC571C4",
+                      "patchedSha256":  "EEC44D404825CBE18553C3531BD40CFEBACB34F3D24338536AA34544CFC571C4",
+                      "bytes":  12095,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/CountdownWrapper.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/CountdownWrapper.cs",
+                      "baselineSha256":  "8A3DF07B11D91AE7515B58DEADE36D72E10731D75A092FB23865FF698105D714",
+                      "patchedSha256":  "8A3DF07B11D91AE7515B58DEADE36D72E10731D75A092FB23865FF698105D714",
+                      "bytes":  2245,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/DiskLogRecord.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/DiskLogRecord.cs",
+                      "baselineSha256":  "09670E2A7A900D0B5AD9806808DE12EFE61C842C8B9EDCFCF78C132FC573044B",
+                      "patchedSha256":  "09670E2A7A900D0B5AD9806808DE12EFE61C842C8B9EDCFCF78C132FC573044B",
+                      "bytes":  39890,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ErrorList.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ErrorList.cs",
+                      "baselineSha256":  "70FCC17DCED270E27A0E4B36C5961E84DEB1D6FBD16B6E754C50F642DA274804",
+                      "patchedSha256":  "70FCC17DCED270E27A0E4B36C5961E84DEB1D6FBD16B6E754C50F642DA274804",
+                      "bytes":  1378,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/HeapObjectBase.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/HeapObjectBase.cs",
+                      "baselineSha256":  "42B6BAFF97544B6023AC24B23FA5708A03BFC9B147B2FEC1E0B5E507BF1359F4",
+                      "patchedSha256":  "42B6BAFF97544B6023AC24B23FA5708A03BFC9B147B2FEC1E0B5E507BF1359F4",
+                      "bytes":  10410,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/IAllocator.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/IAllocator.cs",
+                      "baselineSha256":  "0FB7A827639E7E0E066082C64D11898A689F6BBC8BB94A170882C2705100C6A0",
+                      "patchedSha256":  "0FB7A827639E7E0E066082C64D11898A689F6BBC8BB94A170882C2705100C6A0",
+                      "bytes":  8175,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/IHeapObject.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/IHeapObject.cs",
+                      "baselineSha256":  "72FD706766ADAC5A718AE3BAC7261CF22D85AD2F33C129E34A6C7F14F955D7EC",
+                      "patchedSha256":  "72FD706766ADAC5A718AE3BAC7261CF22D85AD2F33C129E34A6C7F14F955D7EC",
+                      "bytes":  3001,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/IScanIteratorFunctions.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/IScanIteratorFunctions.cs",
+                      "baselineSha256":  "4BC63485F6A17387E7D7C1A3DE26D76B272C682ADCC70DB07F718AF01E0F0160",
+                      "patchedSha256":  "4BC63485F6A17387E7D7C1A3DE26D76B272C682ADCC70DB07F718AF01E0F0160",
+                      "bytes":  3844,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ISourceLogRecord.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ISourceLogRecord.cs",
+                      "baselineSha256":  "341A74136A9F3C01F5D86B41562CCD4DD2C22E423B1A1C08549D62182D83CC76",
+                      "patchedSha256":  "341A74136A9F3C01F5D86B41562CCD4DD2C22E423B1A1C08549D62182D83CC76",
+                      "bytes":  8570,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/IStreamingSnapshotIteratorFunctions.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/IStreamingSnapshotIteratorFunctions.cs",
+                      "baselineSha256":  "95C6E4233A8C5826993049472ECABBB58BD1294305A372A4CAB77CFA4CB6EAE7",
+                      "patchedSha256":  "95C6E4233A8C5826993049472ECABBB58BD1294305A372A4CAB77CFA4CB6EAE7",
+                      "bytes":  2117,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ITsavoriteScanIterator.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ITsavoriteScanIterator.cs",
+                      "baselineSha256":  "75AA87C23ADA53F176CB1A5EC0A5218A94C694D29144B5CACB1B0B05E444A47D",
+                      "patchedSha256":  "75AA87C23ADA53F176CB1A5EC0A5218A94C694D29144B5CACB1B0B05E444A47D",
+                      "bytes":  2108,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/LogField.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/LogField.cs",
+                      "baselineSha256":  "BCBC3CDE9BB68581E0BB573447279321AC446F04802C03D2969D43CB8C0C4AD4",
+                      "patchedSha256":  "BCBC3CDE9BB68581E0BB573447279321AC446F04802C03D2969D43CB8C0C4AD4",
+                      "bytes":  13040,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/LogRecord.cs",
+                      "baselineSha256":  "AA3C0B2483235FD6DF087D5D7D7EA961A98249C54ACBBC03A601AF51505900F2",
+                      "patchedSha256":  "AA3C0B2483235FD6DF087D5D7D7EA961A98249C54ACBBC03A601AF51505900F2",
+                      "bytes":  108905,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/MallocFixedPageSize.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/MallocFixedPageSize.cs",
+                      "baselineSha256":  "6F10F671B1417089A8E2BA09C0D3C883F90238DDA4F0769909B18A0AA03DF6F8",
+                      "patchedSha256":  "6F10F671B1417089A8E2BA09C0D3C883F90238DDA4F0769909B18A0AA03DF6F8",
+                      "bytes":  42896,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectAllocator.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectAllocator.cs",
+                      "baselineSha256":  "610B52FC23AAA4B708F85A11FD1A4B4D06C1BAA3770C17183664372F850E341C",
+                      "patchedSha256":  "610B52FC23AAA4B708F85A11FD1A4B4D06C1BAA3770C17183664372F850E341C",
+                      "bytes":  7267,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectAllocatorImpl.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectAllocatorImpl.cs",
+                      "baselineSha256":  "FA78D9C85413F32B783D99CF418583444B077F18A3C9CEF00A7DB71B49A8005D",
+                      "patchedSha256":  "FA78D9C85413F32B783D99CF418583444B077F18A3C9CEF00A7DB71B49A8005D",
+                      "bytes":  99037,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectIdMap.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectIdMap.cs",
+                      "baselineSha256":  "6F4A77F4F8D751B32BB85D57CA177BEEEA4EFC643DAED761E330C10500E92DEE",
+                      "patchedSha256":  "6F4A77F4F8D751B32BB85D57CA177BEEEA4EFC643DAED761E330C10500E92DEE",
+                      "bytes":  6013,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectScanIterator.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectScanIterator.cs",
+                      "baselineSha256":  "2C259C4EBD3392B1A0A65C374806F61B11B2FDA9D3DDA380A9093061A0A9FBF7",
+                      "patchedSha256":  "2C259C4EBD3392B1A0A65C374806F61B11B2FDA9D3DDA380A9093061A0A9FBF7",
+                      "bytes":  22176,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ChunkedObjectSerializer.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ChunkedObjectSerializer.cs",
+                      "baselineSha256":  "089DB1786413113A173E1496DD5961DE619639F6631042A2D5AC05B38FA542C6",
+                      "patchedSha256":  "089DB1786413113A173E1496DD5961DE619639F6631042A2D5AC05B38FA542C6",
+                      "bytes":  22527,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ChunkedRecordConstants.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ChunkedRecordConstants.cs",
+                      "baselineSha256":  "931AA97344E46E78FC1F16FA5070E1EE955EB4CA271BC156F8531F16274C8C68",
+                      "patchedSha256":  "931AA97344E46E78FC1F16FA5070E1EE955EB4CA271BC156F8531F16274C8C68",
+                      "bytes":  804,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ChunkHeader.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ChunkHeader.cs",
+                      "baselineSha256":  "F2EA6F0FBF6E24BB1AE1F5AD51EE0B0282F49410F6458CA2A6F0175FAC79F75E",
+                      "patchedSha256":  "F2EA6F0FBF6E24BB1AE1F5AD51EE0B0282F49410F6458CA2A6F0175FAC79F75E",
+                      "bytes":  796,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/CircularDiskReadBuffer.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/CircularDiskReadBuffer.cs",
+                      "baselineSha256":  "14A20BA265AAA257B056A9AD8851D0A31BB332605BCE68F5125FA9BB139C5EAC",
+                      "patchedSha256":  "14A20BA265AAA257B056A9AD8851D0A31BB332605BCE68F5125FA9BB139C5EAC",
+                      "bytes":  14658,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/CircularDiskWriteBuffer.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/CircularDiskWriteBuffer.cs",
+                      "baselineSha256":  "60209C35B41EC0D2178B1251EB5622595FDF002376F13B8A5C85C4C6CD7A0969",
+                      "patchedSha256":  "60209C35B41EC0D2178B1251EB5622595FDF002376F13B8A5C85C4C6CD7A0969",
+                      "bytes":  19881,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/DiskReadBuffer.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/DiskReadBuffer.cs",
+                      "baselineSha256":  "CCB5379B1F18BBF20ED55B3A4E836107B3B5BBD814F860F55465CEDD6E9E8666",
+                      "patchedSha256":  "CCB5379B1F18BBF20ED55B3A4E836107B3B5BBD814F860F55465CEDD6E9E8666",
+                      "bytes":  5593,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/DiskWriteBuffer.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/DiskWriteBuffer.cs",
+                      "baselineSha256":  "A36EF735BECE52683194042F2C5120893DA03487B1C2E6E27BF6A005FD812463",
+                      "patchedSha256":  "A36EF735BECE52683194042F2C5120893DA03487B1C2E6E27BF6A005FD812463",
+                      "bytes":  7305,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/IChunkedObjectSerializerConsumer.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/IChunkedObjectSerializerConsumer.cs",
+                      "baselineSha256":  "47C2148880F298D563EAB6874CC4CC7731AFB796431020CA8A0B4C4B7C12EF57",
+                      "patchedSha256":  "47C2148880F298D563EAB6874CC4CC7731AFB796431020CA8A0B4C4B7C12EF57",
+                      "bytes":  3323,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/IStreamBuffer.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/IStreamBuffer.cs",
+                      "baselineSha256":  "4AC12CB4D47FC467EAAA6957E111368F6B3F64ABA6F21BEAD2FA243BC1445DD1",
+                      "patchedSha256":  "4AC12CB4D47FC467EAAA6957E111368F6B3F64ABA6F21BEAD2FA243BC1445DD1",
+                      "bytes":  4059,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ObjectLogFilePositionInfo.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ObjectLogFilePositionInfo.cs",
+                      "baselineSha256":  "51B9E716999467A4390B54153A4973D906449860A0BCF65D9BFFA0112BC21B0B",
+                      "patchedSha256":  "51B9E716999467A4390B54153A4973D906449860A0BCF65D9BFFA0112BC21B0B",
+                      "bytes":  7974,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ObjectLogReader.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ObjectLogReader.cs",
+                      "baselineSha256":  "AAB6306879587C2F19E800C6903E88C089EC645EE386EBF2947E62FA9E501151",
+                      "patchedSha256":  "AAB6306879587C2F19E800C6903E88C089EC645EE386EBF2947E62FA9E501151",
+                      "bytes":  12102,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ObjectLogWriter.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/ObjectLogWriter.cs",
+                      "baselineSha256":  "A7089F182075176D697D5C260E4A8C909C59616DC816B0FD0AB0391FA4705388",
+                      "patchedSha256":  "A7089F182075176D697D5C260E4A8C909C59616DC816B0FD0AB0391FA4705388",
+                      "bytes":  22797,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/PinnedMemoryStream.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ObjectSerialization/PinnedMemoryStream.cs",
+                      "baselineSha256":  "0DBD6096E142FD37562B9D0A26524326196DE1F0D579C0E90049E23DEF7A426E",
+                      "patchedSha256":  "0DBD6096E142FD37562B9D0A26524326196DE1F0D579C0E90049E23DEF7A426E",
+                      "bytes":  8835,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/OptionalFieldsShift.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/OptionalFieldsShift.cs",
+                      "baselineSha256":  "8629F81C67B2C5FA63785A66E745D3E30992A44E6252E62474EA097C597FE9D4",
+                      "patchedSha256":  "8629F81C67B2C5FA63785A66E745D3E30992A44E6252E62474EA097C597FE9D4",
+                      "bytes":  2064,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/OverflowByteArray.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/OverflowByteArray.cs",
+                      "baselineSha256":  "3EF07EA39FBF98DAB9D8E43A318E2F36864ED1B87C63DAF636D87AEEF31E3082",
+                      "patchedSha256":  "3EF07EA39FBF98DAB9D8E43A318E2F36864ED1B87C63DAF636D87AEEF31E3082",
+                      "bytes":  9052,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/PageHeader.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/PageHeader.cs",
+                      "baselineSha256":  "D761DB0D60BF41AC5D266029B274FA4E90745E7BC8A7655CC0E78EE6C50742A8",
+                      "patchedSha256":  "D761DB0D60BF41AC5D266029B274FA4E90745E7BC8A7655CC0E78EE6C50742A8",
+                      "bytes":  3810,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/PageUnit.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/PageUnit.cs",
+                      "baselineSha256":  "3B0FF85CFDFC6A6C07C9E9130B0338CAD378C49CBDEB9E131050E5425AF671C2",
+                      "patchedSha256":  "3B0FF85CFDFC6A6C07C9E9130B0338CAD378C49CBDEB9E131050E5425AF671C2",
+                      "bytes":  1591,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/PendingFlushList.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/PendingFlushList.cs",
+                      "baselineSha256":  "C0F82A3556C890EDD869AE7DBF6B57172F1DF2C008981AE0CD2F481C678C6AC2",
+                      "patchedSha256":  "C0F82A3556C890EDD869AE7DBF6B57172F1DF2C008981AE0CD2F481C678C6AC2",
+                      "bytes":  1980,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/RecordDataHeader.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/RecordDataHeader.cs",
+                      "baselineSha256":  "1B693B368DE2F1F0BB4F93AE9B604C3F0D8726DD1FDE60A07F7E703F15094453",
+                      "patchedSha256":  "1B693B368DE2F1F0BB4F93AE9B604C3F0D8726DD1FDE60A07F7E703F15094453",
+                      "bytes":  48417,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/RecordNamespace.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/RecordNamespace.cs",
+                      "baselineSha256":  "719E7148347438E2299EA1F2AEABB79AFA8C2A45125D477E6537C5DED941288D",
+                      "patchedSha256":  "719E7148347438E2299EA1F2AEABB79AFA8C2A45125D477E6537C5DED941288D",
+                      "bytes":  3529,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ScanCursorState.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ScanCursorState.cs",
+                      "baselineSha256":  "B3DB33A8F09D798F10A31052549169A14ABD3389726AB3F43EB1133ABFCA0D89",
+                      "patchedSha256":  "B3DB33A8F09D798F10A31052549169A14ABD3389726AB3F43EB1133ABFCA0D89",
+                      "bytes":  957,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/ScanIteratorBase.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/ScanIteratorBase.cs",
+                      "baselineSha256":  "557232620DC3645F2529F8036CD7FADB87A0B3276410D5A4426C0E1468F1766D",
+                      "patchedSha256":  "557232620DC3645F2529F8036CD7FADB87A0B3276410D5A4426C0E1468F1766D",
+                      "bytes":  31996,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/SerializationPhase.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/SerializationPhase.cs",
+                      "baselineSha256":  "4434567B8AC0E5F04D1AE42265B515DE27233BEAC8C49F03AA7CE39726676A6E",
+                      "patchedSha256":  "4434567B8AC0E5F04D1AE42265B515DE27233BEAC8C49F03AA7CE39726676A6E",
+                      "bytes":  509,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteAllocator.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteAllocator.cs",
+                      "baselineSha256":  "DDF0C74E166DE7B2E5E35F3D4FA6821E6AB704A44B71746CC467AF44FBD7255E",
+                      "patchedSha256":  "DDF0C74E166DE7B2E5E35F3D4FA6821E6AB704A44B71746CC467AF44FBD7255E",
+                      "bytes":  6965,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteAllocatorImpl.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteAllocatorImpl.cs",
+                      "baselineSha256":  "EABD7A66B935F02BF20053F39C56C581F0A9441F48F0D13DD58D9F5408987FAB",
+                      "patchedSha256":  "EABD7A66B935F02BF20053F39C56C581F0A9441F48F0D13DD58D9F5408987FAB",
+                      "bytes":  17105,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteScanIterator.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/SpanByteScanIterator.cs",
+                      "baselineSha256":  "CCE80F1B7CBCCEF481ADCD7DF4C63006E78B3F2342BFBB9BC27C15BF19133668",
+                      "patchedSha256":  "CCE80F1B7CBCCEF481ADCD7DF4C63006E78B3F2342BFBB9BC27C15BF19133668",
+                      "bytes":  21967,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/TsavoriteLogAllocator.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/TsavoriteLogAllocator.cs",
+                      "baselineSha256":  "BA87EAE0EA55BE9733FD9477F44004DF34AED92BDE78FB9C4E85F7E6BA3D2BF9",
+                      "patchedSha256":  "BA87EAE0EA55BE9733FD9477F44004DF34AED92BDE78FB9C4E85F7E6BA3D2BF9",
+                      "bytes":  7425,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/TsavoriteLogAllocatorImpl.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/TsavoriteLogAllocatorImpl.cs",
+                      "baselineSha256":  "7454957EB1C5116F981ABEB8809613A4FE62B3980A2F563C3ACCA8273C317B11",
+                      "patchedSha256":  "7454957EB1C5116F981ABEB8809613A4FE62B3980A2F563C3ACCA8273C317B11",
+                      "bytes":  11235,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/WorkQueueFIFO.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/WorkQueueFIFO.cs",
+                      "baselineSha256":  "134BFD28C613DFF33C470FF75179C0C21AA7A8EEF8B0490F76C3B24FF158C605",
+                      "patchedSha256":  "134BFD28C613DFF33C470FF75179C0C21AA7A8EEF8B0490F76C3B24FF158C605",
+                      "bytes":  3324,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Allocator/WorkQueueLIFO.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Allocator/WorkQueueLIFO.cs",
+                      "baselineSha256":  "3E7374A100D9E183F29F4D43EE482D36888AA11B025AF375A3043CE6659E36A1",
+                      "patchedSha256":  "3E7374A100D9E183F29F4D43EE482D36888AA11B025AF375A3043CE6659E36A1",
+                      "bytes":  2013,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Async/CompletePendingAsync.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Async/CompletePendingAsync.cs",
+                      "baselineSha256":  "6A7369B2EAEF81C272C3CF6790ABC07DF0CF399B38114A131E3819ECC7801B8C",
+                      "patchedSha256":  "6A7369B2EAEF81C272C3CF6790ABC07DF0CF399B38114A131E3819ECC7801B8C",
+                      "bytes":  2241,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/ClientSession/BasicContext.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/ClientSession/BasicContext.cs",
+                      "baselineSha256":  "FDC13D150B6FBF322079B2171EEAE07894CDA9EC9DC104DA7C672FE9E108ED2E",
+                      "patchedSha256":  "FDC13D150B6FBF322079B2171EEAE07894CDA9EC9DC104DA7C672FE9E108ED2E",
+                      "bytes":  26420,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/ClientSession/ClientSession.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/ClientSession/ClientSession.cs",
+                      "baselineSha256":  "78FA056461291A162199E95945B2B8072D44C00E297F54ABDFE683BF89D68429",
+                      "patchedSha256":  "78FA056461291A162199E95945B2B8072D44C00E297F54ABDFE683BF89D68429",
+                      "bytes":  33447,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/ClientSession/ConsistentReadContext.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/ClientSession/ConsistentReadContext.cs",
+                      "baselineSha256":  "9B960CB019EACA10D7D7655602E390355B3A5121DC39AE4FB6512FAFCBEA86F1",
+                      "patchedSha256":  "9B960CB019EACA10D7D7655602E390355B3A5121DC39AE4FB6512FAFCBEA86F1",
+                      "bytes":  15184,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/ClientSession/IClientSession.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/ClientSession/IClientSession.cs",
+                      "baselineSha256":  "AFBCF3A9F7A53BE2865F80F9B70EBCB2596D49469918E5A00F206557CDDE9327",
+                      "patchedSha256":  "AFBCF3A9F7A53BE2865F80F9B70EBCB2596D49469918E5A00F206557CDDE9327",
+                      "bytes":  410,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/ClientSession/ITransactionalContext.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/ClientSession/ITransactionalContext.cs",
+                      "baselineSha256":  "3AF194FF768AB9AA3FF23A1FAA242B2F1CF803F6A341BE69C84C86356C0E9E78",
+                      "patchedSha256":  "3AF194FF768AB9AA3FF23A1FAA242B2F1CF803F6A341BE69C84C86356C0E9E78",
+                      "bytes":  8212,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/ClientSession/ITsavoriteContext.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/ClientSession/ITsavoriteContext.cs",
+                      "baselineSha256":  "5D35BB61303233D8B4229995B2A987E6024346E971ED4E64D310B4A48998D1B5",
+                      "patchedSha256":  "5D35BB61303233D8B4229995B2A987E6024346E971ED4E64D310B4A48998D1B5",
+                      "bytes":  23074,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/ClientSession/IUnsafeContext.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/ClientSession/IUnsafeContext.cs",
+                      "baselineSha256":  "84D965774EEFE8EC285058DC39D80D616FC400309A1BB8AA44F65A69DA17CE06",
+                      "patchedSha256":  "84D965774EEFE8EC285058DC39D80D616FC400309A1BB8AA44F65A69DA17CE06",
+                      "bytes":  859,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/ClientSession/ManageClientSessions.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/ClientSession/ManageClientSessions.cs",
+                      "baselineSha256":  "99B94F2744527AB6D592112568EE92481BB522049B8F11FC803AF333EED8970F",
+                      "patchedSha256":  "99B94F2744527AB6D592112568EE92481BB522049B8F11FC803AF333EED8970F",
+                      "bytes":  4539,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/ClientSession/NoOpSessionFunctions.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/ClientSession/NoOpSessionFunctions.cs",
+                      "baselineSha256":  "D710E827F08A101394E468841BAE60368E8F547190B3BBDC59A2BD5387402DB8",
+                      "patchedSha256":  "D710E827F08A101394E468841BAE60368E8F547190B3BBDC59A2BD5387402DB8",
+                      "bytes":  10297,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/ClientSession/SessionFunctionsWrapper.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/ClientSession/SessionFunctionsWrapper.cs",
+                      "baselineSha256":  "506C690F7D72BFC6225E9D36CD00A955B16DE9483E47E239046FE76CFE7F0D7C",
+                      "patchedSha256":  "506C690F7D72BFC6225E9D36CD00A955B16DE9483E47E239046FE76CFE7F0D7C",
+                      "bytes":  18298,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalConsistentReadContext.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalConsistentReadContext.cs",
+                      "baselineSha256":  "B3A7468FC83477BE55AE526CF0A40467CE0E79E4878D041CAD2013727DB57C68",
+                      "patchedSha256":  "B3A7468FC83477BE55AE526CF0A40467CE0E79E4878D041CAD2013727DB57C68",
+                      "bytes":  21446,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalContext.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalContext.cs",
+                      "baselineSha256":  "34F55D517D66570C2AF84B1EF646956012B5E7AF54F5AED63C1CDB6F5AB5A63E",
+                      "patchedSha256":  "34F55D517D66570C2AF84B1EF646956012B5E7AF54F5AED63C1CDB6F5AB5A63E",
+                      "bytes":  41830,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalUnsafeContext.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/ClientSession/TransactionalUnsafeContext.cs",
+                      "baselineSha256":  "030EF0ED63F9C6FCA38B649AF8B1FF7A9F6E9AA3D5E48300A5289A75957966AA",
+                      "patchedSha256":  "030EF0ED63F9C6FCA38B649AF8B1FF7A9F6E9AA3D5E48300A5289A75957966AA",
+                      "bytes":  27942,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/ClientSession/UnsafeContext.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/ClientSession/UnsafeContext.cs",
+                      "baselineSha256":  "012A6FB857D5C20BB1E13F1E9DCFA198B72BCF8F4A5147CD74E6FA7C8C228647",
+                      "patchedSha256":  "012A6FB857D5C20BB1E13F1E9DCFA198B72BCF8F4A5147CD74E6FA7C8C228647",
+                      "bytes":  22025,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Compaction/CompactionType.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Compaction/CompactionType.cs",
+                      "baselineSha256":  "42D7C57F8586A9392C0DC22F9C5A4D5721E4DF66BD25669C94CAF4733C29152D",
+                      "patchedSha256":  "42D7C57F8586A9392C0DC22F9C5A4D5721E4DF66BD25669C94CAF4733C29152D",
+                      "bytes":  551,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Compaction/ICompactionFunctions.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Compaction/ICompactionFunctions.cs",
+                      "baselineSha256":  "7AD99433C88E3D79C9198251E7F51BF807811FAC0BD3731EB1CEC03C856D88B8",
+                      "patchedSha256":  "7AD99433C88E3D79C9198251E7F51BF807811FAC0BD3731EB1CEC03C856D88B8",
+                      "bytes":  1156,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Compaction/TsavoriteCompaction.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Compaction/TsavoriteCompaction.cs",
+                      "baselineSha256":  "2929C06273C841A77D0E29C424C3C32F73E1386B259946D7FE6602584203920C",
+                      "patchedSha256":  "2929C06273C841A77D0E29C424C3C32F73E1386B259946D7FE6602584203920C",
+                      "bytes":  13386,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/AsyncPool.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/AsyncPool.cs",
+                      "baselineSha256":  "4CA466B99344E58B2ADB6728A52C42E44D80B49D585463918380791EADDF0888",
+                      "patchedSha256":  "4CA466B99344E58B2ADB6728A52C42E44D80B49D585463918380791EADDF0888",
+                      "bytes":  4815,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/DeviceOptions.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/DeviceOptions.cs",
+                      "baselineSha256":  "CE092E8F95EE4D6F5A7A29DBE171303ADEE87F54B72A497313FD70DABB55B001",
+                      "patchedSha256":  "CE092E8F95EE4D6F5A7A29DBE171303ADEE87F54B72A497313FD70DABB55B001",
+                      "bytes":  3434,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/Devices.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/Devices.cs",
+                      "baselineSha256":  "F7E9EE5553AE4009F1D4DC0015E9C82B30C0CCD832E7CD844F800234226C7CDC",
+                      "patchedSha256":  "F7E9EE5553AE4009F1D4DC0015E9C82B30C0CCD832E7CD844F800234226C7CDC",
+                      "bytes":  7437,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/DeviceType.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/DeviceType.cs",
+                      "baselineSha256":  "D066BEF224FED58CD7606F862599545BFE90184E3F79FDDCA0D67C9AE85B137E",
+                      "patchedSha256":  "D066BEF224FED58CD7606F862599545BFE90184E3F79FDDCA0D67C9AE85B137E",
+                      "bytes":  1909,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/IDevice.cs",
+                      "baselineSha256":  "2A13F8E7EDCD8D8830F6EC97F5DCB8FF7D46F7C1119C9A32625BF46DAF994EFC",
+                      "patchedSha256":  "2A13F8E7EDCD8D8830F6EC97F5DCB8FF7D46F7C1119C9A32625BF46DAF994EFC",
+                      "bytes":  13288,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/LinuxFileExtensions.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/LinuxFileExtensions.cs",
+                      "baselineSha256":  "EBAF106DCAB01525ADECCE84084EBE9D8AF4FC196776E7D27ED6F075062BAA18",
+                      "patchedSha256":  "EBAF106DCAB01525ADECCE84084EBE9D8AF4FC196776E7D27ED6F075062BAA18",
+                      "bytes":  8988,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/LocalMemoryDevice.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/LocalMemoryDevice.cs",
+                      "baselineSha256":  "4CB0C3FE31E4B2DC323695F21C3979FB3F624F2E91A770E0C2E62A127820D193",
+                      "patchedSha256":  "4CB0C3FE31E4B2DC323695F21C3979FB3F624F2E91A770E0C2E62A127820D193",
+                      "bytes":  22079,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/LocalStorageDevice.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/LocalStorageDevice.cs",
+                      "baselineSha256":  "837EBCF503931862831D679F6836145B93FC7E8CDF1F3CDB6AC300C27EFAED7B",
+                      "patchedSha256":  "837EBCF503931862831D679F6836145B93FC7E8CDF1F3CDB6AC300C27EFAED7B",
+                      "bytes":  25606,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/ManagedLocalStorageDevice.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/ManagedLocalStorageDevice.cs",
+                      "baselineSha256":  "34979581DB19621D5FE96F13B2B406D467E0F07ED676DF9E24C4665130094C81",
+                      "patchedSha256":  "34979581DB19621D5FE96F13B2B406D467E0F07ED676DF9E24C4665130094C81",
+                      "bytes":  18870,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/NativeStorageDevice.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/NativeStorageDevice.cs",
+                      "baselineSha256":  "3E30E72F013E785CD00A1130F2CFBB7F4F391ED29BF36F5CE24FDE4DBCE8535B",
+                      "patchedSha256":  "3E30E72F013E785CD00A1130F2CFBB7F4F391ED29BF36F5CE24FDE4DBCE8535B",
+                      "bytes":  151684,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/NullDevice.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/NullDevice.cs",
+                      "baselineSha256":  "CBECB96F8DD1A671D2806D407C7C535F8EE62BE8602C33E10B755EE42E2B3B9E",
+                      "patchedSha256":  "CBECB96F8DD1A671D2806D407C7C535F8EE62BE8602C33E10B755EE42E2B3B9E",
+                      "bytes":  2544,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/RandomAccessLocalStorageDevice.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/RandomAccessLocalStorageDevice.cs",
+                      "baselineSha256":  "F7DC4762BA76FBEF920CFA0327A671DA755DF1A154CE5816FFBCE3B6E1770904",
+                      "patchedSha256":  "F7DC4762BA76FBEF920CFA0327A671DA755DF1A154CE5816FFBCE3B6E1770904",
+                      "bytes":  22965,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/ShardedStorageDevice.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/ShardedStorageDevice.cs",
+                      "baselineSha256":  "FBFF6D19351146A9DCB6612C9430FA700F83E0552D09382AB5C2D92D348EAF95",
+                      "patchedSha256":  "FBFF6D19351146A9DCB6612C9430FA700F83E0552D09382AB5C2D92D348EAF95",
+                      "bytes":  20326,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/SpscRing.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/SpscRing.cs",
+                      "baselineSha256":  "FE5F9653CBD80E6EC1BE57DBCBCF49659AFC270EF73B87F4F6C61A61D6ABD1D1",
+                      "patchedSha256":  "FE5F9653CBD80E6EC1BE57DBCBCF49659AFC270EF73B87F4F6C61A61D6ABD1D1",
+                      "bytes":  14954,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/StorageDeviceBase.cs",
+                      "baselineSha256":  "CB68A588041305B0ACDAF5D24B7F60410F7E8E5C5557930534E9295A29BDCD74",
+                      "patchedSha256":  "CB68A588041305B0ACDAF5D24B7F60410F7E8E5C5557930534E9295A29BDCD74",
+                      "bytes":  18384,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Device/TieredStorageDevice.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Device/TieredStorageDevice.cs",
+                      "baselineSha256":  "FE9137139A4E98085EBE49D270DB2A2812D5C8B34B059882AAA2B19545F3A0F9",
+                      "patchedSha256":  "FE9137139A4E98085EBE49D270DB2A2812D5C8B34B059882AAA2B19545F3A0F9",
+                      "bytes":  8912,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Epochs/IEpochAccessor.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Epochs/IEpochAccessor.cs",
+                      "baselineSha256":  "838F87EF3D350530E7D9890BDD78F5E4FA6FD657FC2C51756931ACB21AC6B26F",
+                      "patchedSha256":  "838F87EF3D350530E7D9890BDD78F5E4FA6FD657FC2C51756931ACB21AC6B26F",
+                      "bytes":  703,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.cs",
+                      "baselineSha256":  "B000A3960D6FB9386B354774223FE8FC888D530D57ED13609EC5051A9F3773AE",
+                      "patchedSha256":  "B000A3960D6FB9386B354774223FE8FC888D530D57ED13609EC5051A9F3773AE",
+                      "bytes":  40767,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.EntryTable.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.EntryTable.cs",
+                      "baselineSha256":  "4C02A1A61F1D41257D172A97235F7E97F6F27FB9DB283E99C5D5D2A96BEDCEA4",
+                      "patchedSha256":  "4C02A1A61F1D41257D172A97235F7E97F6F27FB9DB283E99C5D5D2A96BEDCEA4",
+                      "bytes":  1861,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.TestHooks.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Epochs/LightEpoch.TestHooks.cs",
+                      "baselineSha256":  "F968739C7E398C027C015742EE0A8948C6BE43AE0AFE3950FEA4DE7B8707FBA5",
+                      "patchedSha256":  "F968739C7E398C027C015742EE0A8948C6BE43AE0AFE3950FEA4DE7B8707FBA5",
+                      "bytes":  2611,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/Checkpoint.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/Checkpoint.cs",
+                      "baselineSha256":  "19598FE921810AA294703CE23722DA251A9016979306679A9938CC633C3764E0",
+                      "patchedSha256":  "19598FE921810AA294703CE23722DA251A9016979306679A9938CC633C3764E0",
+                      "bytes":  8254,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/FoldOverSMTask.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/FoldOverSMTask.cs",
+                      "baselineSha256":  "3EA1D85A894FA1938CA0F3ECC6B562C5107484778E68C6F069CF7C472C781101",
+                      "patchedSha256":  "3EA1D85A894FA1938CA0F3ECC6B562C5107484778E68C6F069CF7C472C781101",
+                      "bytes":  3148,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/FullCheckpointSM.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/FullCheckpointSM.cs",
+                      "baselineSha256":  "ED3B6A924F531F0886CE3FE8A47CD40BD2647E85C925F13B1CEBABBE96C4A53C",
+                      "patchedSha256":  "ED3B6A924F531F0886CE3FE8A47CD40BD2647E85C925F13B1CEBABBE96C4A53C",
+                      "bytes":  1231,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/HybridLogCheckpointSM.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/HybridLogCheckpointSM.cs",
+                      "baselineSha256":  "70C3F9C74C7B264F14A912E68CE401666C79C93901B7D5438E4B06BC9FABEAB7",
+                      "patchedSha256":  "70C3F9C74C7B264F14A912E68CE401666C79C93901B7D5438E4B06BC9FABEAB7",
+                      "bytes":  1377,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/HybridLogCheckpointSMTask.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/HybridLogCheckpointSMTask.cs",
+                      "baselineSha256":  "E002CEDAFD72F349AF93687D6F27761DEF029EA30E31D1B8332FD44592064333",
+                      "patchedSha256":  "E002CEDAFD72F349AF93687D6F27761DEF029EA30E31D1B8332FD44592064333",
+                      "bytes":  8221,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexCheckpointSM.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexCheckpointSM.cs",
+                      "baselineSha256":  "058C7C5DD1B55B6A9632DA6616EDA77095C959DB9CEB315683B43EB8F0AFDD31",
+                      "patchedSha256":  "058C7C5DD1B55B6A9632DA6616EDA77095C959DB9CEB315683B43EB8F0AFDD31",
+                      "bytes":  1503,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexCheckpointSMTask.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexCheckpointSMTask.cs",
+                      "baselineSha256":  "7746BC79CB089F844919811A7BC5BBB6DFC8D64F743580A2A79CA525AB12819D",
+                      "patchedSha256":  "7746BC79CB089F844919811A7BC5BBB6DFC8D64F743580A2A79CA525AB12819D",
+                      "bytes":  3352,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexResizeSM.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexResizeSM.cs",
+                      "baselineSha256":  "FC3D783E8F9117F0B5B156167F9FEC3F4F25FED2A4C370DF76240A9E664AD9C9",
+                      "patchedSha256":  "FC3D783E8F9117F0B5B156167F9FEC3F4F25FED2A4C370DF76240A9E664AD9C9",
+                      "bytes":  1207,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexResizeSMTask.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IndexResizeSMTask.cs",
+                      "baselineSha256":  "92AAC2F10418EE0F86EA3D33F27F65327A7DC1E9BBF366A8075610D815E1FCEF",
+                      "patchedSha256":  "92AAC2F10418EE0F86EA3D33F27F65327A7DC1E9BBF366A8075610D815E1FCEF",
+                      "bytes":  4343,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IStateMachine.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IStateMachine.cs",
+                      "baselineSha256":  "FAD4B7F107FFBA918AADD410730D4C1E1646F5CE714D9662EEF82078FD25FB6F",
+                      "patchedSha256":  "FAD4B7F107FFBA918AADD410730D4C1E1646F5CE714D9662EEF82078FD25FB6F",
+                      "bytes":  525,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IStateMachineCallback.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IStateMachineCallback.cs",
+                      "baselineSha256":  "2DAEC919B9555200B648A0001F5DF0D71AB6BC6C6010C63207CEA19EB9E93132",
+                      "patchedSha256":  "2DAEC919B9555200B648A0001F5DF0D71AB6BC6C6010C63207CEA19EB9E93132",
+                      "bytes":  463,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IStateMachineTask.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/IStateMachineTask.cs",
+                      "baselineSha256":  "1F45B03479F06A13215E584F71CACC40E3AF58D90C421433C06F051349428D5D",
+                      "patchedSha256":  "1F45B03479F06A13215E584F71CACC40E3AF58D90C421433C06F051349428D5D",
+                      "bytes":  2021,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/SemaphoreWaiterMonitor.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/SemaphoreWaiterMonitor.cs",
+                      "baselineSha256":  "69D41559C7D0F594E200527475D5C2253F23BB841F9017A7B3E0FCC9F6CFE96B",
+                      "patchedSha256":  "69D41559C7D0F594E200527475D5C2253F23BB841F9017A7B3E0FCC9F6CFE96B",
+                      "bytes":  1253,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/SnapshotCheckpointSMTask.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/SnapshotCheckpointSMTask.cs",
+                      "baselineSha256":  "4033CA73EAF79F9055C5181C82EBFEE899F859D8CCE7730563FB1AAC1C5E3D0E",
+                      "patchedSha256":  "4033CA73EAF79F9055C5181C82EBFEE899F859D8CCE7730563FB1AAC1C5E3D0E",
+                      "bytes":  5996,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateMachineBase.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateMachineBase.cs",
+                      "baselineSha256":  "603B631EC84E745703A7883DD3FC148D46145BE510DB5B878C519F38CD87468B",
+                      "patchedSha256":  "603B631EC84E745703A7883DD3FC148D46145BE510DB5B878C519F38CD87468B",
+                      "bytes":  1733,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateMachineDriver.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateMachineDriver.cs",
+                      "baselineSha256":  "9BC7B0FD1AEC8600E6E759B53BE7AE7F397C4027A315A841AECD3BB645541388",
+                      "patchedSha256":  "9BC7B0FD1AEC8600E6E759B53BE7AE7F397C4027A315A841AECD3BB645541388",
+                      "bytes":  19282,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateMachineTaskType.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateMachineTaskType.cs",
+                      "baselineSha256":  "A82BC5C97D2D06422BA6AE1EDE3891B5ACC37EA106FA44C354100CB77D6CFD2F",
+                      "patchedSha256":  "A82BC5C97D2D06422BA6AE1EDE3891B5ACC37EA106FA44C354100CB77D6CFD2F",
+                      "bytes":  1244,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateTransitions.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StateTransitions.cs",
+                      "baselineSha256":  "B53F9F9D3679B2632DBB94A3DB874564B69BC8AE7E696D8F5967C165929A6ED4",
+                      "patchedSha256":  "B53F9F9D3679B2632DBB94A3DB874564B69BC8AE7E696D8F5967C165929A6ED4",
+                      "bytes":  5761,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StreamingSnapshotCheckpointSM.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StreamingSnapshotCheckpointSM.cs",
+                      "baselineSha256":  "455382053023A8DEC5A442B32C9B6AD1AFFDF17CEA32D719745ADD1772C0D52A",
+                      "patchedSha256":  "455382053023A8DEC5A442B32C9B6AD1AFFDF17CEA32D719745ADD1772C0D52A",
+                      "bytes":  1240,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StreamingSnapshotCheckpointSMTask.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StreamingSnapshotCheckpointSMTask.cs",
+                      "baselineSha256":  "5B8742B5566E59DBE98E21B858F327E1B205F5FA4C8E934B1BE3C90DFD4305A0",
+                      "patchedSha256":  "5B8742B5566E59DBE98E21B858F327E1B205F5FA4C8E934B1BE3C90DFD4305A0",
+                      "bytes":  2695,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StreamingSnapshotTsavoriteKV.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/StreamingSnapshotTsavoriteKV.cs",
+                      "baselineSha256":  "A2D33527100D91A0027504D785C53FFB3F4207182E7A63900AB0E8F47EBC8624",
+                      "patchedSha256":  "A2D33527100D91A0027504D785C53FFB3F4207182E7A63900AB0E8F47EBC8624",
+                      "bytes":  6113,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/TsavoriteStateMachineProperties.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/TsavoriteStateMachineProperties.cs",
+                      "baselineSha256":  "BAD9448548F2B1200E40CCA0601FCED08B367217F09EDAAD6714CB7E9BD6C6A7",
+                      "patchedSha256":  "BAD9448548F2B1200E40CCA0601FCED08B367217F09EDAAD6714CB7E9BD6C6A7",
+                      "bytes":  1129,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/VersionChangeSM.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Checkpointing/VersionChangeSM.cs",
+                      "baselineSha256":  "4472A0053D827E62793599864DAC73DC393746AA68E48430C393E78742BAC2B3",
+                      "patchedSha256":  "4472A0053D827E62793599864DAC73DC393746AA68E48430C393E78742BAC2B3",
+                      "bytes":  1459,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DefaultCheckpointNamingScheme.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DefaultCheckpointNamingScheme.cs",
+                      "baselineSha256":  "91E8C29BB7F2699527DCFFD9E19D08C434E5610E81F150F507CFA8ED04525286",
+                      "patchedSha256":  "91E8C29BB7F2699527DCFFD9E19D08C434E5610E81F150F507CFA8ED04525286",
+                      "bytes":  2786,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DeviceLogCommitCheckpointManager.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/DeviceLogCommitCheckpointManager.cs",
+                      "baselineSha256":  "B855A92BE790048D1B281E90D81E4039D332CD29EEF7634B8C7A9026C46F6D01",
+                      "patchedSha256":  "B855A92BE790048D1B281E90D81E4039D332CD29EEF7634B8C7A9026C46F6D01",
+                      "bytes":  24280,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/ICheckpointNamingScheme.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/ICheckpointNamingScheme.cs",
+                      "baselineSha256":  "23A1B004F6D0475B73BEA951B45F52956959A1EF9CFB05AC881C9187156CFC18",
+                      "patchedSha256":  "23A1B004F6D0475B73BEA951B45F52956959A1EF9CFB05AC881C9187156CFC18",
+                      "bytes":  2451,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/INamedDeviceFactory.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/INamedDeviceFactory.cs",
+                      "baselineSha256":  "757DA166AD20C79F89C89F6A5AC910D630A27717E56259748D6F024D7EDA50CD",
+                      "patchedSha256":  "757DA166AD20C79F89C89F6A5AC910D630A27717E56259748D6F024D7EDA50CD",
+                      "bytes":  1566,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/INamedDeviceFactoryCreator.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/INamedDeviceFactoryCreator.cs",
+                      "baselineSha256":  "AE7CC43749F6E7E8CF6D6557B52887E421AD07BF562463ADE4125BC19EC15895",
+                      "patchedSha256":  "AE7CC43749F6E7E8CF6D6557B52887E421AD07BF562463ADE4125BC19EC15895",
+                      "bytes":  585,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/LocalStorageNamedDeviceFactory.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/LocalStorageNamedDeviceFactory.cs",
+                      "baselineSha256":  "CFABFD5427E37458C0D2D1938FF7621731A5C09C0F2EE19849F82ACC0F42FF65",
+                      "patchedSha256":  "CFABFD5427E37458C0D2D1938FF7621731A5C09C0F2EE19849F82ACC0F42FF65",
+                      "bytes":  7989,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/LocalStorageNamedDeviceFactoryCreator.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/LocalStorageNamedDeviceFactoryCreator.cs",
+                      "baselineSha256":  "A17A4A09516CC5C311755394A875118E1A971DACCCCCC6298DBA7C252F706539",
+                      "patchedSha256":  "A17A4A09516CC5C311755394A875118E1A971DACCCCCC6298DBA7C252F706539",
+                      "bytes":  3119,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/NullNamedDeviceFactory.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/NullNamedDeviceFactory.cs",
+                      "baselineSha256":  "5AD0A18D76CF0BE75CF39D15860F4A2702B65823D336E3A1C59FF29B44CD5B76",
+                      "patchedSha256":  "5AD0A18D76CF0BE75CF39D15860F4A2702B65823D336E3A1C59FF29B44CD5B76",
+                      "bytes":  900,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/NullNamedDeviceFactoryCreator.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/NullNamedDeviceFactoryCreator.cs",
+                      "baselineSha256":  "0EAA4A003A14DD8EB87FD77E24B742E6F9AB19BFB88773AA920AACC83EEAE7D5",
+                      "patchedSha256":  "0EAA4A003A14DD8EB87FD77E24B742E6F9AB19BFB88773AA920AACC83EEAE7D5",
+                      "bytes":  512,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/RecoveryInfo.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/CheckpointManagement/RecoveryInfo.cs",
+                      "baselineSha256":  "F510789A56341663AFB65AE420EA8D0E9FED0A8DAED5CD5E7AE5D1BAE077DAD5",
+                      "patchedSha256":  "F510789A56341663AFB65AE420EA8D0E9FED0A8DAED5CD5E7AE5D1BAE077DAD5",
+                      "bytes":  19783,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/CheckpointSettings.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/CheckpointSettings.cs",
+                      "baselineSha256":  "34F7A649874D608DA03A65EC6E73748A9AEBFBAED6BAD966BCAE9489788BA645",
+                      "patchedSha256":  "34F7A649874D608DA03A65EC6E73748A9AEBFBAED6BAD966BCAE9489788BA645",
+                      "bytes":  1673,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/CompletedOutput.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/CompletedOutput.cs",
+                      "baselineSha256":  "959764DE15BD93E8CD3C3ED9D26FA7A8748C288257FFFC5C1E8583E6AF279B70",
+                      "patchedSha256":  "959764DE15BD93E8CD3C3ED9D26FA7A8748C288257FFFC5C1E8583E6AF279B70",
+                      "bytes":  6899,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/ConcurrentCounter.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/ConcurrentCounter.cs",
+                      "baselineSha256":  "FAFF903C48E42F02A8551D6DD15776E1BA64DBCCBCE0F7113EAC8B7EC577970C",
+                      "patchedSha256":  "FAFF903C48E42F02A8551D6DD15776E1BA64DBCCBCE0F7113EAC8B7EC577970C",
+                      "bytes":  2694,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/ExecutionContext.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/ExecutionContext.cs",
+                      "baselineSha256":  "978A0919587D2EB4A512E36B2BBB8CF9C234CC1923F38F25C4CB289844AD16B4",
+                      "patchedSha256":  "978A0919587D2EB4A512E36B2BBB8CF9C234CC1923F38F25C4CB289844AD16B4",
+                      "bytes":  9115,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/HeapContainer.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/HeapContainer.cs",
+                      "baselineSha256":  "5BDDFF65A0F7CA39D51EDB1AC7C2F482556EF05D6D42ECFDE6B86CA3B34A4BF8",
+                      "patchedSha256":  "5BDDFF65A0F7CA39D51EDB1AC7C2F482556EF05D6D42ECFDE6B86CA3B34A4BF8",
+                      "bytes":  2047,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/KVSettings.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/KVSettings.cs",
+                      "baselineSha256":  "58CFADFC8871BE99A2FC9895FDA747F3F8E3CDE59B26D7D6FC4CC99DD2E4603B",
+                      "patchedSha256":  "58CFADFC8871BE99A2FC9895FDA747F3F8E3CDE59B26D7D6FC4CC99DD2E4603B",
+                      "bytes":  17151,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/LogAddress.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/LogAddress.cs",
+                      "baselineSha256":  "FC8AA4A3ADB39A7753C9FE8BD7512DA042A0EADAB412330E5B948E1CB2BC3C4A",
+                      "patchedSha256":  "FC8AA4A3ADB39A7753C9FE8BD7512DA042A0EADAB412330E5B948E1CB2BC3C4A",
+                      "bytes":  3232,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/LogSettings.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/LogSettings.cs",
+                      "baselineSha256":  "EDFD31D075125712FE5E7B6FDF464D7C03102619A7F4B986C312D1A88A14A2E2",
+                      "patchedSha256":  "EDFD31D075125712FE5E7B6FDF464D7C03102619A7F4B986C312D1A88A14A2E2",
+                      "bytes":  9895,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/LogSizeTracker.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/LogSizeTracker.cs",
+                      "baselineSha256":  "7F30C792E2FDCA6FE0472D1B1454C151CB1C68F123DB953174D517C044CDE3FD",
+                      "patchedSha256":  "7F30C792E2FDCA6FE0472D1B1454C151CB1C68F123DB953174D517C044CDE3FD",
+                      "bytes":  39312,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/OperationOptions.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/OperationOptions.cs",
+                      "baselineSha256":  "25B07C2A88BFAEFD949C64FF8A0CC9072DBC23753F74A0A5C3154D29B124DA8B",
+                      "patchedSha256":  "25B07C2A88BFAEFD949C64FF8A0CC9072DBC23753F74A0A5C3154D29B124DA8B",
+                      "bytes":  6069,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/OperationState.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/OperationState.cs",
+                      "baselineSha256":  "DF257EF101DB31D5106CFA1F8C6AE94C9A679DA72E374820C6BF2A622262A8BF",
+                      "patchedSha256":  "DF257EF101DB31D5106CFA1F8C6AE94C9A679DA72E374820C6BF2A622262A8BF",
+                      "bytes":  6485,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/OperationStatus.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/OperationStatus.cs",
+                      "baselineSha256":  "9FE31134A22C99EB543C8FA95E385601CDE3A94FA715E5235E1AC2E0E66D3001",
+                      "patchedSha256":  "9FE31134A22C99EB543C8FA95E385601CDE3A94FA715E5235E1AC2E0E66D3001",
+                      "bytes":  6685,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/PendingIoContext.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/PendingIoContext.cs",
+                      "baselineSha256":  "22D09DE6C3FD68B1FFF5119049A8BCDE311353EB05C59019A6BA39BA680FEC95",
+                      "patchedSha256":  "22D09DE6C3FD68B1FFF5119049A8BCDE311353EB05C59019A6BA39BA680FEC95",
+                      "bytes":  1909,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/PendingState.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/PendingState.cs",
+                      "baselineSha256":  "BDF787E0FCC64EF4EA668C143CDB282CD6024B8FB0BC9379F33E1A7BA982C087",
+                      "patchedSha256":  "BDF787E0FCC64EF4EA668C143CDB282CD6024B8FB0BC9379F33E1A7BA982C087",
+                      "bytes":  12029,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/ReadCacheSettings.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/ReadCacheSettings.cs",
+                      "baselineSha256":  "1F0CA5C0056B597C7713B2BD977D4D80125968CA6C5122304AC7D87E9CEF2EA6",
+                      "patchedSha256":  "1F0CA5C0056B597C7713B2BD977D4D80125968CA6C5122304AC7D87E9CEF2EA6",
+                      "bytes":  1178,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/RecordInfo.cs",
+                      "baselineSha256":  "625C519BFB4663C29AEBB12F1E4B827620B0E831A6DB647B2E771679F8245C76",
+                      "patchedSha256":  "625C519BFB4663C29AEBB12F1E4B827620B0E831A6DB647B2E771679F8245C76",
+                      "bytes":  15413,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/RecordMetadata.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/RecordMetadata.cs",
+                      "baselineSha256":  "4D350FD3C644739A2A4B4D11ABC9E51319A8A9CBBFAC5A99D07A186CCF944AAE",
+                      "patchedSha256":  "4D350FD3C644739A2A4B4D11ABC9E51319A8A9CBBFAC5A99D07A186CCF944AAE",
+                      "bytes":  670,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Common/SingleWaiterAutoResetEvent.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Common/SingleWaiterAutoResetEvent.cs",
+                      "baselineSha256":  "0605BEC785A9C8304863F61B7BC99D9F391122253D2C45C498C6593A1383FFEA",
+                      "patchedSha256":  "0605BEC785A9C8304863F61B7BC99D9F391122253D2C45C498C6593A1383FFEA",
+                      "bytes":  5127,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Interfaces/CallbackInfos.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/CallbackInfos.cs",
+                      "baselineSha256":  "301FBEECDB9A340B5E355E6F12BA7374791E7AD6D20CB2ED490B0D16D392D44C",
+                      "patchedSha256":  "301FBEECDB9A340B5E355E6F12BA7374791E7AD6D20CB2ED490B0D16D392D44C",
+                      "bytes":  9487,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IKey.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IKey.cs",
+                      "baselineSha256":  "8A6F8A5EEE185F115D56E7F6D104EDF397ABBDABBAC8CBDA4D9CEC95F546DF1D",
+                      "patchedSha256":  "8A6F8A5EEE185F115D56E7F6D104EDF397ABBDABBAC8CBDA4D9CEC95F546DF1D",
+                      "bytes":  1862,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IKeyComparer.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IKeyComparer.cs",
+                      "baselineSha256":  "EDBEB7D04C02CEAAE6D0C14AB95778AB4CC00A12C2EEDA180EEFA3B3298FAC5A",
+                      "patchedSha256":  "EDBEB7D04C02CEAAE6D0C14AB95778AB4CC00A12C2EEDA180EEFA3B3298FAC5A",
+                      "bytes":  1035,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IObjectSerializer.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IObjectSerializer.cs",
+                      "baselineSha256":  "98E606EA60AE921B36EA101B8F0E72A2351FEF617B20EA0F30DF01C1CC7EB168",
+                      "patchedSha256":  "98E606EA60AE921B36EA101B8F0E72A2351FEF617B20EA0F30DF01C1CC7EB168",
+                      "bytes":  3478,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IReadArgBatch.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/IReadArgBatch.cs",
+                      "baselineSha256":  "D8C9FA053BDF8A4BA116FE5C316FC8D979D3BF3BB435E8968B26FE496C31163D",
+                      "patchedSha256":  "D8C9FA053BDF8A4BA116FE5C316FC8D979D3BF3BB435E8968B26FE496C31163D",
+                      "bytes":  2640,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionFunctions.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionFunctions.cs",
+                      "baselineSha256":  "4CD091F54D488B11FB13D85D68AD50E7A8581DFD52CDC095F9309BB2251873BE",
+                      "patchedSha256":  "4CD091F54D488B11FB13D85D68AD50E7A8581DFD52CDC095F9309BB2251873BE",
+                      "bytes":  26159,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionFunctionsWrapper.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionFunctionsWrapper.cs",
+                      "baselineSha256":  "27771D8E2BEE8AF2288897DDE6C65008FA727D341D1F68DADE367E770529B82E",
+                      "patchedSha256":  "27771D8E2BEE8AF2288897DDE6C65008FA727D341D1F68DADE367E770529B82E",
+                      "bytes":  7087,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionLocker.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/ISessionLocker.cs",
+                      "baselineSha256":  "042B732BBA8BF819DAC2E578C1927F8684E1BA215346300D7EE1E461380D6FDD",
+                      "patchedSha256":  "042B732BBA8BF819DAC2E578C1927F8684E1BA215346300D7EE1E461380D6FDD",
+                      "bytes":  6434,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Interfaces/SessionFunctionsBase.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Interfaces/SessionFunctionsBase.cs",
+                      "baselineSha256":  "9DBC34EFE6DF95CA4C4353AE49D58B41DBE4172E9693D5FD82C97FC74E996DEE",
+                      "patchedSha256":  "9DBC34EFE6DF95CA4C4353AE49D58B41DBE4172E9693D5FD82C97FC74E996DEE",
+                      "bytes":  10800,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Recovery/Checkpoint.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Recovery/Checkpoint.cs",
+                      "baselineSha256":  "14ABFE1DBDDC25DB59EF287F66A7EC26759220A186A262A4576FEB2AB789EC84",
+                      "patchedSha256":  "14ABFE1DBDDC25DB59EF287F66A7EC26759220A186A262A4576FEB2AB789EC84",
+                      "bytes":  3119,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Recovery/FileDescriptor.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Recovery/FileDescriptor.cs",
+                      "baselineSha256":  "90EC9608D135B3E00EF27B9A19DDF3E478841F74DEE9E7DBBEF5E7F49E22B8E3",
+                      "patchedSha256":  "90EC9608D135B3E00EF27B9A19DDF3E478841F74DEE9E7DBBEF5E7F49E22B8E3",
+                      "bytes":  886,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Recovery/ICheckpointManager.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Recovery/ICheckpointManager.cs",
+                      "baselineSha256":  "B09CAA37838EACFF791B17243B689399268CABE8E83F467A9E20A21955AE8B36",
+                      "patchedSha256":  "B09CAA37838EACFF791B17243B689399268CABE8E83F467A9E20A21955AE8B36",
+                      "bytes":  7146,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Recovery/IndexCheckpoint.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Recovery/IndexCheckpoint.cs",
+                      "baselineSha256":  "298F46563566A0E64E2DF1D242F4B9DC71B3A85716E0689517E99EF5D9856933",
+                      "patchedSha256":  "298F46563566A0E64E2DF1D242F4B9DC71B3A85716E0689517E99EF5D9856933",
+                      "bytes":  23383,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Recovery/IndexRecovery.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Recovery/IndexRecovery.cs",
+                      "baselineSha256":  "22978AE7E3DF99F22502F1F33C276370EBE33908611133AEF1FC1D0EAC4132AA",
+                      "patchedSha256":  "22978AE7E3DF99F22502F1F33C276370EBE33908611133AEF1FC1D0EAC4132AA",
+                      "bytes":  14434,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Recovery/Recovery.cs",
+                      "baselineSha256":  "E38156516E649C1EFB825B909FC99D2C531BDD8EA664AAAD5F869FF4E788CA88",
+                      "patchedSha256":  "2E949D6F70BB37691514791AD2BA0423E72EEBEBF84253CEC6C05D3CA40336DF",
+                      "bytes":  96199,
+                      "modified":  true,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/CheckpointTrigger.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/CheckpointTrigger.cs",
+                      "baselineSha256":  "06F8FBBD40B22EF136B42A159A6197588BF29D31C89DE8959F2AEE7A5395E068",
+                      "patchedSha256":  "06F8FBBD40B22EF136B42A159A6197588BF29D31C89DE8959F2AEE7A5395E068",
+                      "bytes":  1694,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/DisposeReason.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/DisposeReason.cs",
+                      "baselineSha256":  "49F629C5241049718729898C5BBB81F0F1823FB432500C8631B07AA3C4305079",
+                      "patchedSha256":  "49F629C5241049718729898C5BBB81F0F1823FB432500C8631B07AA3C4305079",
+                      "bytes":  2380,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/IRecordTriggers.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/IRecordTriggers.cs",
+                      "baselineSha256":  "A9072128C3D93A478C6E2683D11212987F5469B58562EB6C1897DB9A27C55576",
+                      "patchedSha256":  "A9072128C3D93A478C6E2683D11212987F5469B58562EB6C1897DB9A27C55576",
+                      "bytes":  16485,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/IStoreFunctions.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/IStoreFunctions.cs",
+                      "baselineSha256":  "250DA6A03031C82D55C7CA6ABB6BA5208C3C568FD449864F75F126B0E5A620D7",
+                      "patchedSha256":  "250DA6A03031C82D55C7CA6ABB6BA5208C3C568FD449864F75F126B0E5A620D7",
+                      "bytes":  4400,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/StoreFunctions.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/StoreFunctions/StoreFunctions.cs",
+                      "baselineSha256":  "68EF79D1EFDC72CF14864CC69925971C9A442B880827E918A40DD8E9A8C89BA9",
+                      "patchedSha256":  "68EF79D1EFDC72CF14864CC69925971C9A442B880827E918A40DD8E9A8C89BA9",
+                      "bytes":  9290,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Constants.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Constants.cs",
+                      "baselineSha256":  "C36486DF436C7405C1D2B1B0AE9AA6D7E496A7A1C268C4C6ABC1500C7B8EC26A",
+                      "patchedSha256":  "C36486DF436C7405C1D2B1B0AE9AA6D7E496A7A1C268C4C6ABC1500C7B8EC26A",
+                      "bytes":  3636,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucket.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucket.cs",
+                      "baselineSha256":  "1D28EE0105EFD4CDA34E198978FBA76A6D482ED75C5C1DDC82BC66CE412DE47D",
+                      "patchedSha256":  "1D28EE0105EFD4CDA34E198978FBA76A6D482ED75C5C1DDC82BC66CE412DE47D",
+                      "bytes":  9463,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucketEntry.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/HashBucketEntry.cs",
+                      "baselineSha256":  "A45A3F5C2CD714200A3F817450E098D17406251182B1AADFAE111C56F157D729",
+                      "patchedSha256":  "A45A3F5C2CD714200A3F817450E098D17406251182B1AADFAE111C56F157D729",
+                      "bytes":  3124,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/BlockAllocate.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/BlockAllocate.cs",
+                      "baselineSha256":  "21BCF0592E26670224D38D7B68A843FA45F97AD2AA11D94EB718D2C59F470098",
+                      "patchedSha256":  "21BCF0592E26670224D38D7B68A843FA45F97AD2AA11D94EB718D2C59F470098",
+                      "bytes":  12453,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ConditionalCopyToTail.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ConditionalCopyToTail.cs",
+                      "baselineSha256":  "8829E590B101F0F887A8E289329C9A3A4D8C451060C101ADC1AA143E9E2F1332",
+                      "patchedSha256":  "8829E590B101F0F887A8E289329C9A3A4D8C451060C101ADC1AA143E9E2F1332",
+                      "bytes":  10347,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ContainsKeyInMemory.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ContainsKeyInMemory.cs",
+                      "baselineSha256":  "6583D8FEA48A3E14D9DA2B267D31E8AE99D6B76B9A0479215662612AB7CC720F",
+                      "patchedSha256":  "6583D8FEA48A3E14D9DA2B267D31E8AE99D6B76B9A0479215662612AB7CC720F",
+                      "bytes":  2166,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ContinuePending.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ContinuePending.cs",
+                      "baselineSha256":  "FCAB122B2502B2098B9799EF0C0BDE788845ACB42DB07DCA8E5FA4FB63B64B54",
+                      "patchedSha256":  "FCAB122B2502B2098B9799EF0C0BDE788845ACB42DB07DCA8E5FA4FB63B64B54",
+                      "bytes":  30169,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/EpochOperations.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/EpochOperations.cs",
+                      "baselineSha256":  "E98DB3BDA6EA25DE6FFBDEBA757A79CDB825B0481F7414B536390E734F8BCCBA",
+                      "patchedSha256":  "E98DB3BDA6EA25DE6FFBDEBA757A79CDB825B0481F7414B536390E734F8BCCBA",
+                      "bytes":  4100,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/FindRecord.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/FindRecord.cs",
+                      "baselineSha256":  "A0FAB1B0BC4A14C42B818AC4B270B766B26092700BFBFC7972400569EA4EF94B",
+                      "patchedSha256":  "A0FAB1B0BC4A14C42B818AC4B270B766B26092700BFBFC7972400569EA4EF94B",
+                      "bytes":  13820,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/HandleOperationStatus.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/HandleOperationStatus.cs",
+                      "baselineSha256":  "06C6871CD36E7014A8FE835A0E9933E86E63633794F405D201548E75304F41DE",
+                      "patchedSha256":  "06C6871CD36E7014A8FE835A0E9933E86E63633794F405D201548E75304F41DE",
+                      "bytes":  13825,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/HashEntryInfo.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/HashEntryInfo.cs",
+                      "baselineSha256":  "AB15643E40BAE947D90893A1813AA45F70EF1FB5CFFFB3DDF9FC07D3CC4C5DBC",
+                      "patchedSha256":  "AB15643E40BAE947D90893A1813AA45F70EF1FB5CFFFB3DDF9FC07D3CC4C5DBC",
+                      "bytes":  4310,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Helpers.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Helpers.cs",
+                      "baselineSha256":  "AFCD7D5134CCDF07A7C2E3B4583276ED61C5E05FAC08B983FBB8352747E31366",
+                      "patchedSha256":  "AFCD7D5134CCDF07A7C2E3B4583276ED61C5E05FAC08B983FBB8352747E31366",
+                      "bytes":  22501,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalDelete.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalDelete.cs",
+                      "baselineSha256":  "D5E48736AE177EA1167D6C6E55A5AD350BB4A8164A0341AC52E2024CDFAA1AC7",
+                      "patchedSha256":  "D5E48736AE177EA1167D6C6E55A5AD350BB4A8164A0341AC52E2024CDFAA1AC7",
+                      "bytes":  18229,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalLock.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalLock.cs",
+                      "baselineSha256":  "7C77B79473D60BB931C1D23950E9BD59348236AD768BF629E450161F2AAF0F01",
+                      "patchedSha256":  "7C77B79473D60BB931C1D23950E9BD59348236AD768BF629E450161F2AAF0F01",
+                      "bytes":  3100,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRead.cs",
+                      "baselineSha256":  "8E254E72A665FCAD8B6D07C3EC652605F6D3E5D6C6110460FEC3C321C2627F81",
+                      "patchedSha256":  "8E254E72A665FCAD8B6D07C3EC652605F6D3E5D6C6110460FEC3C321C2627F81",
+                      "bytes":  20436,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRMW.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalRMW.cs",
+                      "baselineSha256":  "4D7EBC20A1A4A8AB658A406C178EE8128C79160FB8447870E5AA400018413473",
+                      "patchedSha256":  "4D7EBC20A1A4A8AB658A406C178EE8128C79160FB8447870E5AA400018413473",
+                      "bytes":  49129,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalUpsert.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/InternalUpsert.cs",
+                      "baselineSha256":  "BC3F3798C2658A23175D88902A967EC48453DC1DA34EAA760F9D17269D74DAB2",
+                      "patchedSha256":  "BC3F3798C2658A23175D88902A967EC48453DC1DA34EAA760F9D17269D74DAB2",
+                      "bytes":  24532,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/ILockTable.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/ILockTable.cs",
+                      "baselineSha256":  "F1521FCD027930C49005B522103D3A4AD7D071334CFA913F2DCD58AC6A8FCB5F",
+                      "patchedSha256":  "F1521FCD027930C49005B522103D3A4AD7D071334CFA913F2DCD58AC6A8FCB5F",
+                      "bytes":  2165,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/OverflowBucketLockTable.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/OverflowBucketLockTable.cs",
+                      "baselineSha256":  "BE1935CF1CD2621BD3D62EB92FAF35A886A6CA9DF557D0A9DED0EC0C9B57028A",
+                      "patchedSha256":  "BE1935CF1CD2621BD3D62EB92FAF35A886A6CA9DF557D0A9DED0EC0C9B57028A",
+                      "bytes":  6073,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/TransientLocking.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Locking/TransientLocking.cs",
+                      "baselineSha256":  "FA07947CC8A47649C5AA5BD29B0497EF595CD84882D29D86D27D67D7A03249E9",
+                      "patchedSha256":  "FA07947CC8A47649C5AA5BD29B0497EF595CD84882D29D86D27D67D7A03249E9",
+                      "bytes":  4298,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ModifiedBitOperation.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ModifiedBitOperation.cs",
+                      "baselineSha256":  "4728FB69D97E1A010B13D0BAA2BED1A2E8343A2C92DDC79852BC6512629578EE",
+                      "patchedSha256":  "4728FB69D97E1A010B13D0BAA2BED1A2E8343A2C92DDC79852BC6512629578EE",
+                      "bytes":  2731,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/OperationStackContext.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/OperationStackContext.cs",
+                      "baselineSha256":  "1A137AB8104D251B0BCD5F92C475D951ABEF8A3724679DE7F5017081CD8C2DA7",
+                      "patchedSha256":  "1A137AB8104D251B0BCD5F92C475D951ABEF8A3724679DE7F5017081CD8C2DA7",
+                      "bytes":  4231,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/ReadCache.cs",
+                      "baselineSha256":  "C47F5CB55FD7627F9B456AA1903589CC7F2061C9C8279624960FAAA07164B710",
+                      "patchedSha256":  "C47F5CB55FD7627F9B456AA1903589CC7F2061C9C8279624960FAAA07164B710",
+                      "bytes":  17297,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/RecordSource.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/RecordSource.cs",
+                      "baselineSha256":  "146F0F52A20DD5F8AAB331E14438DFC3F994AD9A2F17D08D6455084CD6038C0F",
+                      "patchedSha256":  "146F0F52A20DD5F8AAB331E14438DFC3F994AD9A2F17D08D6455084CD6038C0F",
+                      "bytes":  9609,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/CheckEmptyWorker.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/CheckEmptyWorker.cs",
+                      "baselineSha256":  "9855EF65DF2EBF67B25869F428AFD6190E64D34817D2C19FBA60BE8F598E28F5",
+                      "patchedSha256":  "9855EF65DF2EBF67B25869F428AFD6190E64D34817D2C19FBA60BE8F598E28F5",
+                      "bytes":  2825,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/FreeRecordPool.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/FreeRecordPool.cs",
+                      "baselineSha256":  "79EBD20B3236D79E0AAC948CC02A0963B1905EC5E58066E9AC37DCA49C25CA64",
+                      "patchedSha256":  "79EBD20B3236D79E0AAC948CC02A0963B1905EC5E58066E9AC37DCA49C25CA64",
+                      "bytes":  27402,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationManager.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationManager.cs",
+                      "baselineSha256":  "8F75BD0FC15ECE5FA29464C27972BB8F297EC8A854F2DB6B10972410C08CC30D",
+                      "patchedSha256":  "8F75BD0FC15ECE5FA29464C27972BB8F297EC8A854F2DB6B10972410C08CC30D",
+                      "bytes":  3174,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationSettings.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationSettings.cs",
+                      "baselineSha256":  "F602C3A24B7AD0ECE4FD0573C2A12C63A1BB2E22D3014FB90848657C5E769EB0",
+                      "patchedSha256":  "F602C3A24B7AD0ECE4FD0573C2A12C63A1BB2E22D3014FB90848657C5E769EB0",
+                      "bytes":  10568,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationStats.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/Revivification/RevivificationStats.cs",
+                      "baselineSha256":  "E9FE58EE26294D02FAC107B3CCBCFC7B87D8EBF777F43388B1AD306AB7D845B2",
+                      "patchedSha256":  "E9FE58EE26294D02FAC107B3CCBCFC7B87D8EBF777F43388B1AD306AB7D845B2",
+                      "bytes":  3311,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/SplitIndex.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/SplitIndex.cs",
+                      "baselineSha256":  "A1B524D1EABFC72ED8D105FC79D74C5FE1F3E959BCB03719FF3CF92BC92D955C",
+                      "patchedSha256":  "A1B524D1EABFC72ED8D105FC79D74C5FE1F3E959BCB03719FF3CF92BC92D955C",
+                      "bytes":  11188,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/TryCopyToReadCache.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/TryCopyToReadCache.cs",
+                      "baselineSha256":  "311DD5F480E4300D38B13A69FB7E2CE0D4234DD2B415D7DFAE7D017CAC989405",
+                      "patchedSha256":  "311DD5F480E4300D38B13A69FB7E2CE0D4234DD2B415D7DFAE7D017CAC989405",
+                      "bytes":  4294,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/TryCopyToTail.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/TryCopyToTail.cs",
+                      "baselineSha256":  "04FC2937C7AACB3EE6ED3B774027255E2D52F34373CE505EAF885E970279F8C2",
+                      "patchedSha256":  "04FC2937C7AACB3EE6ED3B774027255E2D52F34373CE505EAF885E970279F8C2",
+                      "bytes":  4659,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/UpsertValueSelector.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Implementation/UpsertValueSelector.cs",
+                      "baselineSha256":  "E40EA84AB15D2550CFD2FAECAA94AC48BFEF3AB8339C0084C032EB12B70B3656",
+                      "patchedSha256":  "E40EA84AB15D2550CFD2FAECAA94AC48BFEF3AB8339C0084C032EB12B70B3656",
+                      "bytes":  14571,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/LogAccessor.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/LogAccessor.cs",
+                      "baselineSha256":  "93DFFF23B57AD9BC92E4459F29A69DD08F13E004F6D37CC57590DFFC9E63761E",
+                      "patchedSha256":  "93DFFF23B57AD9BC92E4459F29A69DD08F13E004F6D37CC57590DFFC9E63761E",
+                      "bytes":  18656,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Tsavorite.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/Tsavorite.cs",
+                      "baselineSha256":  "73316E5D77C91B3855C9ED401CB8D8B88E55D2823D89733D3D30C134A9C3E349",
+                      "patchedSha256":  "73316E5D77C91B3855C9ED401CB8D8B88E55D2823D89733D3D30C134A9C3E349",
+                      "bytes":  58723,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteBase.cs",
+                      "baselineSha256":  "A8ECCD47F658E853AA60689982552875CB36D99C37A11AEDFD8EF43907AE92D2",
+                      "patchedSha256":  "A8ECCD47F658E853AA60689982552875CB36D99C37A11AEDFD8EF43907AE92D2",
+                      "bytes":  29107,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteIterator.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteIterator.cs",
+                      "baselineSha256":  "A333AFE9CDB8BE6E45B432FFD266BFF27A6101045FDDF189343B614C5493DABE",
+                      "patchedSha256":  "A333AFE9CDB8BE6E45B432FFD266BFF27A6101045FDDF189343B614C5493DABE",
+                      "bytes":  16247,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteThread.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Index/Tsavorite/TsavoriteThread.cs",
+                      "baselineSha256":  "E92E3FB78B69E1B1162FB4E056F9E14D12A3EC10098A91B7EDFD4467832B6701",
+                      "patchedSha256":  "E92E3FB78B69E1B1162FB4E056F9E14D12A3EC10098A91B7EDFD4467832B6701",
+                      "bytes":  14268,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Native/DirectVirtualMemory.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Native/DirectVirtualMemory.cs",
+                      "baselineSha256":  "D0397387E6FD0185A5020FBBEDABC5B097A19F169246F8E7D5066EB40C324185",
+                      "patchedSha256":  "D0397387E6FD0185A5020FBBEDABC5B097A19F169246F8E7D5066EB40C324185",
+                      "bytes":  7960,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Native/DirectVmBlockOwner.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Native/DirectVmBlockOwner.cs",
+                      "baselineSha256":  "D09177C1841E431EB56844291D833C3780AFF1C053A0E43D84A4B5B205B45331",
+                      "patchedSha256":  "D09177C1841E431EB56844291D833C3780AFF1C053A0E43D84A4B5B205B45331",
+                      "bytes":  6594,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Native/NativeAllocatorInitializer.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Native/NativeAllocatorInitializer.cs",
+                      "baselineSha256":  "ADC0C68F47876F0C7E9E95802BB8E7189479D8C14428EB047154F59C5001C356",
+                      "patchedSha256":  "ADC0C68F47876F0C7E9E95802BB8E7189479D8C14428EB047154F59C5001C356",
+                      "bytes":  2267,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Native/NativeMemoryTracker.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Native/NativeMemoryTracker.cs",
+                      "baselineSha256":  "45CE3BBEC7CB1E1D36362556315D9ACA56AB63A4F953CD66188226EDC158BF94",
+                      "patchedSha256":  "45CE3BBEC7CB1E1D36362556315D9ACA56AB63A4F953CD66188226EDC158BF94",
+                      "bytes":  2874,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Native/NativePageBlockRegistry.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Native/NativePageBlockRegistry.cs",
+                      "baselineSha256":  "1A3148CB68113FA020D6166DF5007FE08BDC52B530CAA133B309EF6964BB4E36",
+                      "patchedSha256":  "1A3148CB68113FA020D6166DF5007FE08BDC52B530CAA133B309EF6964BB4E36",
+                      "bytes":  2063,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/TsavoriteLog/CommitFailureException.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/CommitFailureException.cs",
+                      "baselineSha256":  "521E1143CF45B4BB587B3F945428B0FE959FA06EDE965B6DFF6CF798129F1F02",
+                      "patchedSha256":  "521E1143CF45B4BB587B3F945428B0FE959FA06EDE965B6DFF6CF798129F1F02",
+                      "bytes":  895,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/TsavoriteLog/CommitInfo.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/CommitInfo.cs",
+                      "baselineSha256":  "3A8C084008465D26FE0325B8AEBFE55EB3F85B889B034D29781E02A95154B947",
+                      "patchedSha256":  "3A8C084008465D26FE0325B8AEBFE55EB3F85B889B034D29781E02A95154B947",
+                      "bytes":  1522,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogCommitManager.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogCommitManager.cs",
+                      "baselineSha256":  "FA88951ED1A6E675321D5A664DFD46BA9577DF30653F02057056BB48AE33CCF6",
+                      "patchedSha256":  "FA88951ED1A6E675321D5A664DFD46BA9577DF30653F02057056BB48AE33CCF6",
+                      "bytes":  2115,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogEnqueueEntry.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogEnqueueEntry.cs",
+                      "baselineSha256":  "42FFFC3D596E80258F4210E1BA00B569388A9788F94A75E0DBADBD5E0D3562F4",
+                      "patchedSha256":  "42FFFC3D596E80258F4210E1BA00B569388A9788F94A75E0DBADBD5E0D3562F4",
+                      "bytes":  779,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogEntryConsumer.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/ILogEntryConsumer.cs",
+                      "baselineSha256":  "88DEC152A3B9EB5F614688AFD6EF2A88A453A5EABBB115E3E74BC8B28B8E08DF",
+                      "patchedSha256":  "88DEC152A3B9EB5F614688AFD6EF2A88A453A5EABBB115E3E74BC8B28B8E08DF",
+                      "bytes":  1803,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/TsavoriteLog/IReadOnlySpanBatch.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/IReadOnlySpanBatch.cs",
+                      "baselineSha256":  "F6E9073FE443ED225DC6A0977F50D97FCF198409DCD6AE622FAEDEE36FAC07FD",
+                      "patchedSha256":  "F6E9073FE443ED225DC6A0977F50D97FCF198409DCD6AE622FAEDEE36FAC07FD",
+                      "bytes":  702,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/TsavoriteLog/IStoreInput.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/IStoreInput.cs",
+                      "baselineSha256":  "2C06BEF404EE77B1C35F1E8468F2CA8A62D4C98771E29D0DA7CC9CA3F1AD9BBC",
+                      "patchedSha256":  "2C06BEF404EE77B1C35F1E8468F2CA8A62D4C98771E29D0DA7CC9CA3F1AD9BBC",
+                      "bytes":  1241,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/TsavoriteLog/LogCommitPolicy.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/LogCommitPolicy.cs",
+                      "baselineSha256":  "CC283CAC75D7B09AD4503B3350CC5C4014FB98AEA98226841E3CF1C7D991EF04",
+                      "patchedSha256":  "CC283CAC75D7B09AD4503B3350CC5C4014FB98AEA98226841E3CF1C7D991EF04",
+                      "bytes":  8549,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.Chunked.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.Chunked.cs",
+                      "baselineSha256":  "B1FA22035D7839FFCDBCD6AB3FD19F01C742476340AEE1CB950B110B2AC218AF",
+                      "patchedSha256":  "B1FA22035D7839FFCDBCD6AB3FD19F01C742476340AEE1CB950B110B2AC218AF",
+                      "bytes":  34006,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLog.cs",
+                      "baselineSha256":  "56C2EEE9B1D0692356E24F1CA208583A5DDBD75FD488DBE12985130806977F06",
+                      "patchedSha256":  "56C2EEE9B1D0692356E24F1CA208583A5DDBD75FD488DBE12985130806977F06",
+                      "bytes":  162436,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogRecoveryInfo.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogRecoveryInfo.cs",
+                      "baselineSha256":  "D6FC84A9DEFE096BBD4DAC48BB423C18D741D4E8950BC4B2FA7923A161D1C047",
+                      "patchedSha256":  "D6FC84A9DEFE096BBD4DAC48BB423C18D741D4E8950BC4B2FA7923A161D1C047",
+                      "bytes":  5880,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanIterator.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanIterator.cs",
+                      "baselineSha256":  "96E143BDDEAD22B4E94A1E5573ACB985B31075DD9223BB6ABE45732D3C0C0554",
+                      "patchedSha256":  "96E143BDDEAD22B4E94A1E5573ACB985B31075DD9223BB6ABE45732D3C0C0554",
+                      "bytes":  43969,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanSingleIterator.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogScanSingleIterator.cs",
+                      "baselineSha256":  "CA495DCD9A98F127F261FED044458587BF1C9896EC31E9C1C4757C84CE659CF7",
+                      "patchedSha256":  "CA495DCD9A98F127F261FED044458587BF1C9896EC31E9C1C4757C84CE659CF7",
+                      "bytes":  2263,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogSettings.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/TsavoriteLog/TsavoriteLogSettings.cs",
+                      "baselineSha256":  "DF28DD0BABF90658E23193D3EAECEE369E0CD3E0B85273286B1B9706FFD68A1B",
+                      "patchedSha256":  "DF28DD0BABF90658E23193D3EAECEE369E0CD3E0B85273286B1B9706FFD68A1B",
+                      "bytes":  8747,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/AsyncCountDown.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/AsyncCountDown.cs",
+                      "baselineSha256":  "7D5BEC6BBC8863633B8927EB29F8739D2B5B6417037F08C87DE649C5DED28D06",
+                      "patchedSha256":  "7D5BEC6BBC8863633B8927EB29F8739D2B5B6417037F08C87DE649C5DED28D06",
+                      "bytes":  2879,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/AsyncQueue.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/AsyncQueue.cs",
+                      "baselineSha256":  "1077E2341578AFC04761ECBDD8F6C4406858972E76368C65D3C1E22096CC75B5",
+                      "patchedSha256":  "1077E2341578AFC04761ECBDD8F6C4406858972E76368C65D3C1E22096CC75B5",
+                      "bytes":  7012,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/AsyncResultTypes.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/AsyncResultTypes.cs",
+                      "baselineSha256":  "AF8C5FD59259675DFBC330456C032382D61D01FFC23C40AEA7899526EBED846E",
+                      "patchedSha256":  "AF8C5FD59259675DFBC330456C032382D61D01FFC23C40AEA7899526EBED846E",
+                      "bytes":  4850,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.cs",
+                      "baselineSha256":  "0BF56F254B67E970BB3EFA3EA9730229226736D38E5382B15434548417F12D36",
+                      "patchedSha256":  "0BF56F254B67E970BB3EFA3EA9730229226736D38E5382B15434548417F12D36",
+                      "bytes":  22030,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.Legacy.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.Legacy.cs",
+                      "baselineSha256":  "EF12B687C4403BF052BB66B8BA0A51D634CB474A6E30DDFABAF086EDE40167A3",
+                      "patchedSha256":  "EF12B687C4403BF052BB66B8BA0A51D634CB474A6E30DDFABAF086EDE40167A3",
+                      "bytes":  7429,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/BufferPool.OriginReturn.cs",
+                      "baselineSha256":  "7ACDEE0C92FCFCDAF23D94880AF3D6C9F006FDA207F954F64C845414077554B0",
+                      "patchedSha256":  "7ACDEE0C92FCFCDAF23D94880AF3D6C9F006FDA207F954F64C845414077554B0",
+                      "bytes":  69883,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/CompletionEvent.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/CompletionEvent.cs",
+                      "baselineSha256":  "8220EB6483AA4C5DA36E623EBFD14E794C8939A7958F6C713C5C61A32F25CD64",
+                      "patchedSha256":  "8220EB6483AA4C5DA36E623EBFD14E794C8939A7958F6C713C5C61A32F25CD64",
+                      "bytes":  4892,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/ConcurrencySharding.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/ConcurrencySharding.cs",
+                      "baselineSha256":  "328B27BB8D8F009F31888510E0A2ED1CD692479798BE991A57CD76C4F7E91DCA",
+                      "patchedSha256":  "328B27BB8D8F009F31888510E0A2ED1CD692479798BE991A57CD76C4F7E91DCA",
+                      "bytes":  2844,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/EmptyKey.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/EmptyKey.cs",
+                      "baselineSha256":  "27083FC63BB1C4D147D12C28D7C16B115168C8BAF0FCFD6AC412B2132D85A7A4",
+                      "patchedSha256":  "27083FC63BB1C4D147D12C28D7C16B115168C8BAF0FCFD6AC412B2132D85A7A4",
+                      "bytes":  746,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/FlushCompletionTracker.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/FlushCompletionTracker.cs",
+                      "baselineSha256":  "E56379CDF4E3B404894B4B08E0602BEA17E7F53451202827237975D3E4428A0B",
+                      "patchedSha256":  "E56379CDF4E3B404894B4B08E0602BEA17E7F53451202827237975D3E4428A0B",
+                      "bytes":  2795,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/IoFailure.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/IoFailure.cs",
+                      "baselineSha256":  "B0C9527D429638D2241B87E48D7776B9A62A5C0CA000FFF9CFABCA9A3F07B21A",
+                      "patchedSha256":  "B0C9527D429638D2241B87E48D7776B9A62A5C0CA000FFF9CFABCA9A3F07B21A",
+                      "bytes":  1769,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/LockType.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/LockType.cs",
+                      "baselineSha256":  "9223AE3567710B1FFD8D6DECFA22B990C5DEEF78D555AE45C776FF7E68FBDD68",
+                      "patchedSha256":  "9223AE3567710B1FFD8D6DECFA22B990C5DEEF78D555AE45C776FF7E68FBDD68",
+                      "bytes":  1761,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/MemoryUtils.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/MemoryUtils.cs",
+                      "baselineSha256":  "AA2B4F41AFC6976CE260978C8CC4ABA13AF8F7C7F847B7957A79E0C7D047ED29",
+                      "patchedSha256":  "AA2B4F41AFC6976CE260978C8CC4ABA13AF8F7C7F847B7957A79E0C7D047ED29",
+                      "bytes":  2196,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/MultiLevelPageArray.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/MultiLevelPageArray.cs",
+                      "baselineSha256":  "5F03CD2EF157FD98A979ADD2B7668116A6C7EFC0483E06231530938922C1913B",
+                      "patchedSha256":  "5F03CD2EF157FD98A979ADD2B7668116A6C7EFC0483E06231530938922C1913B",
+                      "bytes":  26478,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/Native32.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/Native32.cs",
+                      "baselineSha256":  "1F54ED0511926F16F8E82E8D78C6F16491D01F9429FAD986C256B73B41ECA032",
+                      "patchedSha256":  "1F54ED0511926F16F8E82E8D78C6F16491D01F9429FAD986C256B73B41ECA032",
+                      "bytes":  23783,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/OverflowPool.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/OverflowPool.cs",
+                      "baselineSha256":  "053E2934491D08D3CB73A3B7DC704B22877F03F15D9629F664756D5343BCD4F8",
+                      "patchedSha256":  "053E2934491D08D3CB73A3B7DC704B22877F03F15D9629F664756D5343BCD4F8",
+                      "bytes":  2017,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/PageAsyncResultTypes.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/PageAsyncResultTypes.cs",
+                      "baselineSha256":  "C87786FB3D3933FF56CB147C3AE45F5F63E8B130E750B9E98BA45555B357AB73",
+                      "patchedSha256":  "C87786FB3D3933FF56CB147C3AE45F5F63E8B130E750B9E98BA45555B357AB73",
+                      "bytes":  22193,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/SafeConcurrentDictionary.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/SafeConcurrentDictionary.cs",
+                      "baselineSha256":  "821BF4C8E09CF49DA02401B1D70B7966A0EBA77DA831DCE9569803DA9F3D9FD9",
+                      "patchedSha256":  "821BF4C8E09CF49DA02401B1D70B7966A0EBA77DA831DCE9569803DA9F3D9FD9",
+                      "bytes":  8899,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/SimpleConcurrentStack.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/SimpleConcurrentStack.cs",
+                      "baselineSha256":  "61ED67F4A7363F15CA92B04A2C35D0222E728C5FA1525E9C4F840646B5F1FEFF",
+                      "patchedSha256":  "61ED67F4A7363F15CA92B04A2C35D0222E728C5FA1525E9C4F840646B5F1FEFF",
+                      "bytes":  8647,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/Status.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/Status.cs",
+                      "baselineSha256":  "162FCA51377419A5FA5F4998A40542C54CF39F91B3CCD6182A38C883FDE46DD4",
+                      "patchedSha256":  "162FCA51377419A5FA5F4998A40542C54CF39F91B3CCD6182A38C883FDE46DD4",
+                      "bytes":  5923,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/StatusCode.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/StatusCode.cs",
+                      "baselineSha256":  "1319B84CA1BE7E666FB71B7EDA3F7EB51CFDDEA7ABD92CCC6B3F0E9866F5789B",
+                      "patchedSha256":  "1319B84CA1BE7E666FB71B7EDA3F7EB51CFDDEA7ABD92CCC6B3F0E9866F5789B",
+                      "bytes":  6422,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/ThreadLocalCache.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/ThreadLocalCache.cs",
+                      "baselineSha256":  "B133B6D48AA260C2E89D69B42B5FEF570D9F8D83A9AC2AF738F1C0E494413EC9",
+                      "patchedSha256":  "B133B6D48AA260C2E89D69B42B5FEF570D9F8D83A9AC2AF738F1C0E494413EC9",
+                      "bytes":  3969,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/TsavoriteException.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/TsavoriteException.cs",
+                      "baselineSha256":  "D34F58F056DE25E51A114269E8C7BDD695F7DB2B2E633B39CC8A1498EC59B835",
+                      "patchedSha256":  "D34F58F056DE25E51A114269E8C7BDD695F7DB2B2E633B39CC8A1498EC59B835",
+                      "bytes":  3379,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Utilities/Utility.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Utilities/Utility.cs",
+                      "baselineSha256":  "57C86436260E55C9120EDA870B887F638F02E91EEA099A6369F9706A4A05A06A",
+                      "patchedSha256":  "57C86436260E55C9120EDA870B887F638F02E91EEA099A6369F9706A4A05A06A",
+                      "bytes":  24510,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/VarLen/BorrowedMemoryOwner.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/VarLen/BorrowedMemoryOwner.cs",
+                      "baselineSha256":  "FAAAE33D12751B8423B4581EF317260D11AB75322FBDE9E9BED90E5F81A91C00",
+                      "patchedSha256":  "FAAAE33D12751B8423B4581EF317260D11AB75322FBDE9E9BED90E5F81A91C00",
+                      "bytes":  1205,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/VarLen/IVariableLengthInput.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/VarLen/IVariableLengthInput.cs",
+                      "baselineSha256":  "91EC6A6BEC1B6D906819A51AAB905A6BD4AC76C80720E0DF4C38287F660C6CC2",
+                      "patchedSha256":  "91EC6A6BEC1B6D906819A51AAB905A6BD4AC76C80720E0DF4C38287F660C6CC2",
+                      "bytes":  1741,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/VarLen/PinnedSpanByte.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/VarLen/PinnedSpanByte.cs",
+                      "baselineSha256":  "02480434F04E9F4328DF399ACDB51D8AD23B88DDE7F041346A4AC4BFA29AE75A",
+                      "patchedSha256":  "02480434F04E9F4328DF399ACDB51D8AD23B88DDE7F041346A4AC4BFA29AE75A",
+                      "bytes":  8227,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/VarLen/RecordFieldInfo.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/VarLen/RecordFieldInfo.cs",
+                      "baselineSha256":  "0D76FD4E32E3FBA04E5BDD018ED921FFABB60D4F3708291E8D02BA36EB6EA894",
+                      "patchedSha256":  "0D76FD4E32E3FBA04E5BDD018ED921FFABB60D4F3708291E8D02BA36EB6EA894",
+                      "bytes":  2785,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/VarLen/RecordSizeInfo.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/VarLen/RecordSizeInfo.cs",
+                      "baselineSha256":  "45BD9D9449DC0ABC5255FF73D0ACCB01C1DDDF6905E4DFCFA87AA6F22E05D7AB",
+                      "patchedSha256":  "45BD9D9449DC0ABC5255FF73D0ACCB01C1DDDF6905E4DFCFA87AA6F22E05D7AB",
+                      "bytes":  9084,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/VarLen/SpanByte.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByte.cs",
+                      "baselineSha256":  "D0E6113033D70EAC26B70D028A0DFCF811E43126D6B13E577E85D30B9A22C5B5",
+                      "patchedSha256":  "D0E6113033D70EAC26B70D028A0DFCF811E43126D6B13E577E85D30B9A22C5B5",
+                      "bytes":  6539,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteAndMemory.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteAndMemory.cs",
+                      "baselineSha256":  "382EBD2394AE6427DCB576D41635BFAF34EA3A9F0D3764B7CEBCC2F2B3B503F5",
+                      "patchedSha256":  "382EBD2394AE6427DCB576D41635BFAF34EA3A9F0D3764B7CEBCC2F2B3B503F5",
+                      "bytes":  7109,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteComparer.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteComparer.cs",
+                      "baselineSha256":  "F32E98E1418586A18C5632DC978C353A5FE66DC6486A88C23D148D5468C63D99",
+                      "patchedSha256":  "F32E98E1418586A18C5632DC978C353A5FE66DC6486A88C23D148D5468C63D99",
+                      "bytes":  1654,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteFunctions.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteFunctions.cs",
+                      "baselineSha256":  "5BB59733753A765B135B6E095F7F8BD5E42B6B396DFBC3F49B012397CD679DAD",
+                      "patchedSha256":  "5BB59733753A765B135B6E095F7F8BD5E42B6B396DFBC3F49B012397CD679DAD",
+                      "bytes":  2778,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteHeapContainer.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/VarLen/SpanByteHeapContainer.cs",
+                      "baselineSha256":  "7839730911F68C5B7E53F767CEEDFFEA40D33AB57EBD9936E062D134A019C3E1",
+                      "patchedSha256":  "7839730911F68C5B7E53F767CEEDFFEA40D33AB57EBD9936E062D134A019C3E1",
+                      "bytes":  2370,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/VarLen/UnmanagedMemoryManager.cs",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/VarLen/UnmanagedMemoryManager.cs",
+                      "baselineSha256":  "6FBF7C7C141C74E0059DD26AD895F74F7862E9334C1D26C90971569492ACC9CE",
+                      "patchedSha256":  "6FBF7C7C141C74E0059DD26AD895F74F7862E9334C1D26C90971569492ACC9CE",
+                      "bytes":  2193,
+                      "modified":  false,
+                      "vendored":  true
+                  },
+                  {
+                      "upstreamPath":  "Directory.Build.props",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/Directory.Build.props",
+                      "baselineSha256":  "8D4C2E0D97BDDFCFE2C6BAEC354E71EA69FB3FE19F4136C9459AA6CD7DF7371D",
+                      "patchedSha256":  "8D4C2E0D97BDDFCFE2C6BAEC354E71EA69FB3FE19F4136C9459AA6CD7DF7371D",
+                      "bytes":  2541,
+                      "modified":  false,
+                      "vendored":  false
+                  },
+                  {
+                      "upstreamPath":  "Directory.Packages.props",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/Directory.Packages.props",
+                      "baselineSha256":  "FE43F1658FCC7A8F338EC41CD6269B0784BB5FA89640FD2F19E2601B96E6D280",
+                      "patchedSha256":  "FE43F1658FCC7A8F338EC41CD6269B0784BB5FA89640FD2F19E2601B96E6D280",
+                      "bytes":  2559,
+                      "modified":  false,
+                      "vendored":  false
+                  },
+                  {
+                      "upstreamPath":  "libs/storage/Tsavorite/cs/src/core/Tsavorite.core.csproj",
+                      "url":  "https://raw.githubusercontent.com/microsoft/garnet/5cc8f3f50aa57ed694dfda928e4467593e073656/libs/storage/Tsavorite/cs/src/core/Tsavorite.core.csproj",
+                      "baselineSha256":  "CF3E6E4333234F7CA2512F7B5E81327E8D48B6DFE6D952F022FECBBC0EBD60E1",
+                      "patchedSha256":  "CF3E6E4333234F7CA2512F7B5E81327E8D48B6DFE6D952F022FECBBC0EBD60E1",
+                      "bytes":  6132,
+                      "modified":  false,
+                      "vendored":  false
+                  }
+              ],
+    "supportFiles":  [
+                         {
+                             "packagePath":  "lib/net10.0/Garnet.common.dll",
+                             "sha256":  "247CA0F2296D68AEDE443963482E47C16684F53F9A6469CA7D30C2A9227FA214",
+                             "bytes":  228152
+                         },
+                         {
+                             "packagePath":  "lib/net10.0/Tsavorite.devices.AzureStorageDevice.dll",
+                             "sha256":  "28789D8ED4FDAC071F8BF689DF03A0419A7AB917328738E7507DFB7CB2E9B67D",
+                             "bytes":  104248
+                         },
+                         {
+                             "packagePath":  "lib/net10.0/Garnet.common.xml",
+                             "sha256":  "46B1D5F650B877C9D7FA0A57A47B2827A9E5D12FF675B54482A8B7D12B631C7D",
+                             "bytes":  335893
+                         },
+                         {
+                             "packagePath":  "lib/net10.0/Tsavorite.devices.AzureStorageDevice.xml",
+                             "sha256":  "4C4ADFCC0C83C19F9A33CA6E1B9DB1EB0834D8098137E569E6A263669FB428D4",
+                             "bytes":  24636
+                         }
+                     ],
+    "nativeFiles":  [
+                        {
+                            "PackagePath":  "runtimes/linux-arm64/native/libnative_device.so",
+                            "Length":  2251793,
+                            "SHA256":  "A0AB7679508FBDFB7FB19A9055615D45931D10DEFC8F19B0CCF26157612933C6"
+                        },
+                        {
+                            "PackagePath":  "runtimes/linux-arm64/native/libnative_device_libaio.so",
+                            "Length":  1520761,
+                            "SHA256":  "D7368A92AAE0984F15CA26016A19512B4D8E8DAC08C585C1E5F30B6C5A2E591A"
+                        },
+                        {
+                            "PackagePath":  "runtimes/linux-musl-arm64/native/libnative_device.so",
+                            "Length":  2380592,
+                            "SHA256":  "6128B4F8E50CDA29C9FFAC84B5D3FAA255A65662A0551A033017E1B9F1CF888D"
+                        },
+                        {
+                            "PackagePath":  "runtimes/linux-musl-arm64/native/libnative_device_libaio.so",
+                            "Length":  1662296,
+                            "SHA256":  "621FB7611E109FDDF01C330A664A93B8D5E2A047B80A4745CA85FB009D073229"
+                        },
+                        {
+                            "PackagePath":  "runtimes/linux-musl-x64/native/libnative_device.so",
+                            "Length":  2374832,
+                            "SHA256":  "CD69C34CDE34FE6D268AFC38826923E124EC6A9274ABE9FE54F1C71B2F4C5C2B"
+                        },
+                        {
+                            "PackagePath":  "runtimes/linux-musl-x64/native/libnative_device_libaio.so",
+                            "Length":  1681120,
+                            "SHA256":  "14A720CC812B8CA1C717456FA38FAB1F684CD1B554704A0C56BCD20A2D081492"
+                        },
+                        {
+                            "PackagePath":  "runtimes/linux-x64/native/libnative_device.so",
+                            "Length":  2210897,
+                            "SHA256":  "053ED531BCD3AC1E7C244FFD540CF6FFDA9BC290C8934BDDCFF7E61052F2F67D"
+                        },
+                        {
+                            "PackagePath":  "runtimes/linux-x64/native/libnative_device_libaio.so",
+                            "Length":  1512641,
+                            "SHA256":  "CA06D13F18132E6A154A3C587F966634E89500AEA4A9647D47667F85F4BB9E0E"
+                        },
+                        {
+                            "PackagePath":  "runtimes/win-arm64/native/native_device.dll",
+                            "Length":  311608,
+                            "SHA256":  "14759090845853CF364984DAB956B06A6DAD4EC6DF289A71AE1F869D1DD0DFBE"
+                        },
+                        {
+                            "PackagePath":  "runtimes/win-x64/native/native_device.dll",
+                            "Length":  356192,
+                            "SHA256":  "A44F4B5D390804958A61B92E24BF1DCBFF6EE227B15B4A2E08D8174932ADC9C3"
+                        }
+                    ],
+    "validation":  "source copy and input hashes verified; formal build, pack and runtime acceptance are separate evidence"
+}

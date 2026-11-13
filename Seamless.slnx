@@ -210,4 +210,5 @@
     <Project Path="tools/Database.Verification/Database.Verification.csproj" />
     <Project Path="tools/Seamless.DataGrip/Server/DataGrip.Stage1.Server.csproj" />
   </Folder>
+  <Project Path="Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
 </Solution>

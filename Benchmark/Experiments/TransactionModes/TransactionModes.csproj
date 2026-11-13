@@ -16,4 +16,18 @@
     <Compile Include="../../../Tests/Seamless.Transactions.Tests/FakeWalDevice.cs" Link="FakeWalDevice.cs" />
     <ProjectReference Include="../../../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <!-- 試作が Garnet.common の型を直接使う。元packageはsupport DLLの取得専用。Coreは修正済みprojectを参照する。 -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Garnet" Version="[2.2.8]" PrivateAssets="all" ExcludeAssets="all" GeneratePathProperty="true" />
+    <ProjectReference Include="../../../Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
+    <Reference Include="Garnet.common">
+      <HintPath>$(PkgMicrosoft_Garnet)/lib/net10.0/Garnet.common.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Tsavorite.devices.AzureStorageDevice">
+      <HintPath>$(PkgMicrosoft_Garnet)/lib/net10.0/Tsavorite.devices.AzureStorageDevice.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+  <Import Project="../../../Seamless.Tsavorite.Core/buildTransitive/Seamless.Tsavorite.Core.targets" />
 </Project>

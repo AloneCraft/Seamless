@@ -36,4 +36,5 @@
   <Project Path="Seamless.Management/Seamless.Management.csproj" />
   <Project Path="Seamless.Management.Components/Seamless.Management.Components.csproj" />
   <Project Path="Seamless.Management.Server/WindowsServer.csproj" />
+  <Project Path="Seamless.Tsavorite.Core/Seamless.Tsavorite.Core.csproj" />
 </Solution>
