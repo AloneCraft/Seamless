@@ -46,7 +46,7 @@ SQL Server から初期データを入れるプログラムでは、`GatewayData
 
 NativeでもFLinqを使う場合は、`NativeAnalyzerPaths`に配布した`Seamless.FLinq.Generator.dll`の絶対パスを設定する。実サーバーのJSON設定も同じ名前で受け取る。生成器の探索や別バージョンへの自動切替えは行わない。Nativeの独立プロジェクトにはinterceptorのcompiler設定を渡し、生成したコードをそのビルドの`LogDirectory/generated`へ保存する。
 
-FLinqの対象メソッドでは、通常のキー付き`Table`と`MaterializedView`をそのまま入力にできる。例えば`db.dbo.Items.Where(row=>row.Id>0).Sum(row=>row.N)`は、対応する形状なら`GetQueryRows()`を介して走査と演算を融合する。版付きGatewayではNativeの呼出しが所有する取引へ委譲し、その読取り時点と自己変更を使う。従来方式では既存の読取sessionと自己overlayを使う。単純なCountもこの区別を保ち、従来方式の現在値件数をMVCCの件数へ流用しない。新しい取引や独立したcoordinatorをこの変換で開始しない。全てのLINQ形状のnative化・並列化を保証するものではなく、生成コードのアクセス・並列・資源・同期コメントで採用した経路を確認する。
+FLinqの対象メソッドでは、通常のキー付き`Table`と`MaterializedView`をそのまま入力にできる（`MaterializedView`は廃止予定。マテリアライズドビューは採用しない、2026-11-15 利用者）。例えば`db.dbo.Items.Where(row=>row.Id>0).Sum(row=>row.N)`は、対応する形状なら`GetQueryRows()`を介して走査と演算を融合する。版付きGatewayではNativeの呼出しが所有する取引へ委譲し、その読取り時点と自己変更を使う。従来方式では既存の読取sessionと自己overlayを使う。単純なCountもこの区別を保ち、従来方式の現在値件数をMVCCの件数へ流用しない。新しい取引や独立したcoordinatorをこの変換で開始しない。全てのLINQ形状のnative化・並列化を保証するものではなく、生成コードのアクセス・並列・資源・同期コメントで採用した経路を確認する。
 
 依存 DB のスキーマ変更では同じソースを新 DLL に対して再ビルドする。列の削除などでビルドできない場合は、そのモジュールをコンパイル診断付きで無効化する。ソースを自動修正しない。`NativeQueries` で公開中の定義と診断を取得できる。必要な列を戻して再ビルドに成功すれば有効に戻る。
 

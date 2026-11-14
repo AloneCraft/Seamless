@@ -159,6 +159,7 @@
     <Project Path="Tests/Database.Compilation.Tests/Database.Compilation.Tests.csproj" />
     <Project Path="Tests/Database.Verification.Tests/Database.Verification.Tests.csproj" />
     <Project Path="Tests/Database.Query.Tests/Database.Query.Tests.csproj" />
+    <Project Path="Tests/Database.SqlServer.Functions.Tests/Database.SqlServer.Functions.Tests.csproj" />
     <Project Path="Tests/Seamless.Transactions.Tests/Seamless.Transactions.Tests.csproj" />
     <Project Path="Tests/Seamless.Database.Transactions.Tests/Seamless.Database.Transactions.Tests.csproj" />
     <Project Path="Test.Persisted.Collections/Test.Persisted.Collections.csproj" />
@@ -189,6 +190,7 @@
   <Project Path="Seamless.Database.Transfer/Seamless.Database.Transfer.csproj" />
   <Project Path="Seamless.Database.Server/Seamless.Database.Server.csproj" />
   <Project Path="Seamless.Database.SqlServer/Seamless.Database.SqlServer.csproj" />
+  <Project Path="Seamless.Database.SqlServer.Functions/Seamless.Database.SqlServer.Functions.csproj" />
   <Project Path="Seamless.Database.Tool/Seamless.Database.Tool.csproj" />
   <Project Path="Seamless.Linq/Seamless.Linq.csproj" />
   <Project Path="Seamless/Seamless.csproj" />
