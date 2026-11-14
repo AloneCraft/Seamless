@@ -202,7 +202,7 @@ public sealed class UI実行ストア{
             ディレクトリ=ディレクトリ.Parent;
         }
         Assert.NotNull(ディレクトリ);
-        return Path.Combine(ディレクトリ.FullName,"docs","db-migrations","20261002-benchmark-db-v27.py");
+        return Path.Combine(ディレクトリ.FullName,"Document","db-migrations","20261002-benchmark-db-v27.py");
     }
 
     private static string Pythonを実行(string スクリプト,string DBパス){

@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([switch]$ValidateOnly)
 
 $ErrorActionPreference = 'Stop'
@@ -24,11 +24,11 @@ function Invoke-GitHub([string]$Endpoint, [string]$Method = 'GET', $Body = $null
 
 $pages = @(
     @{ Source = 'README.md'; Target = 'index.md'; Title = 'はじめに' }
-    @{ Source = 'docs/FLinq.md'; Target = 'flinq.md'; Title = 'FLinq' }
-    @{ Source = 'docs/execution-and-database.md'; Target = 'execution-and-database.md'; Title = '実行・データベース' }
-    @{ Source = 'docs/profiles.md'; Target = 'profiles.md'; Title = '初期設定と拡張' }
-    @{ Source = 'docs/verification.md'; Target = 'verification.md'; Title = '検証方法' }
-    @{ Source = 'docs/クエリ一時作業コレクション.md'; Target = 'query-collections.md'; Title = 'クエリ一時作業コレクション' }
+    @{ Source = 'Document/FLinq仕様.md'; Target = 'flinq.md'; Title = 'FLinq' }
+    @{ Source = 'Document/実行基盤とデータベース仕様.md'; Target = 'execution-and-database.md'; Title = '実行・データベース' }
+    @{ Source = 'Document/ストア初期設定と拡張.md'; Target = 'profiles.md'; Title = '初期設定と拡張' }
+    @{ Source = 'Document/測定履歴と比較検証.md'; Target = 'verification.md'; Title = '検証方法' }
+    @{ Source = 'Document/クエリ一時作業コレクション.md'; Target = 'query-collections.md'; Title = 'クエリ一時作業コレクション' }
 )
 $files = [ordered]@{}
 foreach ($page in $pages) {

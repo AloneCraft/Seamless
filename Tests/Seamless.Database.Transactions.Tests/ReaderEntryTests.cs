@@ -3,7 +3,7 @@ using Seamless.Transactions;
 namespace Seamless.Database.Transactions.Tests;
 
 // 読み込み専用の入口 BeginRead と、読み書きの取引が共有する IReader の外から見える振る舞い。
-// 設計：docs/refactoring-designs/20261112-0017-database-access-model.md の I2〜I4。
+// 設計：Document/refactoring-designs/20261112-DBアクセスモデル.md の I2〜I4。
 public sealed class ReaderEntryTests{
     // 並行する読み書きを確かめるため、版付きの楽観方式(Optimistic)で作る。既定のExclusiveは読み込みを含めて取引を1つずつ通す。
     private static BankDatabase Create()=>new(DatabaseContainerOptions.InMemory with{

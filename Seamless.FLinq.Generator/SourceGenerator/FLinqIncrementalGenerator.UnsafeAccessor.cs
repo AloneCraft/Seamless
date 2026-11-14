@@ -40,7 +40,7 @@ public sealed partial class FLinqIncrementalGenerator {
         // この拒否を含む直接傍受は展開不可として出力され、通常のSystem.Linqへ戻る保証はない。
         // このガードの存在だけでは、実行環境のUnsafeAccessor対応可否を証明したことにはならない。
         // 対象の非公開メンバーを internal 以上に上げれば UnsafeAccessor を介さず直接呼べるようになり、
-        // この制限を回避して傍受を有効化できる（Database.md 参照）。
+        // この制限を回避して傍受を有効化できる（Document/FLinq仕様.md 参照）。
         throw new global::System.NotSupportedException(
             "UnsafeAccessor cannot resolve non-public members of a generic type on this runtime; "
             +"skip interception and fall back to the original method.");

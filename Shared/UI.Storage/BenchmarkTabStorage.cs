@@ -9,7 +9,7 @@ internal static class BenchmarkTabStorage {
     private const string 理想見出し="理想";
 
     private static readonly 定義[] 定義一覧 = [
-        // 3列目の「理想」は手書き理想版。既存 DB は列を末尾に足すだけで移行できる(docs/db-migrations)。
+        // 3列目の「理想」は手書き理想版。既存 DB は列を末尾に足すだけで移行できる(Document/db-migrations)。
         new("Optimization.Rewrite","書き換え",["全最適化","書き換え無効",理想見出し]),
         new("Optimization.PipelineFusion","パイプライン融合",["全最適化","パイプライン融合無効",理想見出し]),
         new("Optimization.PredicatePushdown","述語プッシュダウン",["全最適化","述語プッシュダウン無効",理想見出し]),

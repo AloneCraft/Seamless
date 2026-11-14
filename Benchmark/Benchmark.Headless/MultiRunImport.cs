@@ -6,7 +6,7 @@ namespace Benchmark.Headless;
 
 /// <summary>
 /// --verify-db-schema と --import-jsonl。
-/// どちらも DB を作り直さない。版や形状が合わないときは、移行スクリプト(docs/db-migrations)を先に実行するよう促して失敗する。
+/// どちらも DB を作り直さない。版や形状が合わないときは、移行スクリプト(Document/db-migrations)を先に実行するよう促して失敗する。
 /// </summary>
 internal static class 計測結果取込 {
     /// <summary>--verify-db-schema [--db &lt;path&gt;]: Benchmark.db が現行の版・形状と一致するかだけを調べる。</summary>
@@ -14,7 +14,7 @@ internal static class 計測結果取込 {
         var DBパス = DBパスを取得(引数);
         var ストア = new UI実行ストア(DBパス,UI実行アプリ種別.ベンチマーク);
         if(!ストア.既存スキーマが一致するか()) {
-            Console.Error.WriteLine("Benchmark.db の版または形状が現行と一致しません(移行スクリプト docs/db-migrations を確認): "+DBパス);
+            Console.Error.WriteLine("Benchmark.db の版または形状が現行と一致しません(移行スクリプト Document/db-migrations を確認): "+DBパス);
             return 1;
         }
         Console.WriteLine("Benchmark.db は現行の版・形状と一致しています: "+DBパス);
@@ -37,7 +37,7 @@ internal static class 計測結果取込 {
         var DBパス = DBパスを取得(引数);
         var ストア = new UI実行ストア(DBパス,UI実行アプリ種別.ベンチマーク);
         if(!ストア.既存スキーマが一致するか()) {
-            Console.Error.WriteLine("Benchmark.db の版または形状が現行と一致しないため取り込みません(移行スクリプト docs/db-migrations を先に実行): "+DBパス);
+            Console.Error.WriteLine("Benchmark.db の版または形状が現行と一致しないため取り込みません(移行スクリプト Document/db-migrations を先に実行): "+DBパス);
             return 1;
         }
 

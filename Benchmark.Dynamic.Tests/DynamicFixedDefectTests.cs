@@ -6,7 +6,7 @@ namespace Benchmark.Dynamic.Tests;
 /// <summary>
 /// 2026-10-22 に見つけて同じ日に直した FLinq の不具合が、直ったままであることを確かめる。
 /// 3段の全組み合わせ(夜間の実行)で見つかった124件(最初の実行で110件、SelectMany・DefaultIfEmpty の対応後の再実行で14件)は <c>Corpus/fixed-triple-defects.txt</c> に並びを記録してある。
-/// 直した内容は設計書(docs/refactoring-designs/20261022-dynamic-verifier-consolidation.md)の「FLinq の不具合の修正」を参照。
+/// 直した内容は設計書(Document/20261114Argon.md)を参照。
 /// </summary>
 [Collection(DynamicWorkerTestCollection.Name)]
 public sealed class DynamicFixedDefectTests{

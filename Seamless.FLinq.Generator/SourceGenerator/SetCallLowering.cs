@@ -4,7 +4,7 @@ namespace Seamless.FLinq.Generator;
 
 /// <summary>
 /// Seamless.Linq.Set の呼び出し(ISet を受けて ISet を返す Where・Select など)を、System.Linq の同じ演算へ下げる。
-/// ビュー・関数の本体はこの形で書く(docs/refactoring-designs/20261112-0017-database-access-model.md の手順3)。
+/// ビュー・関数の本体はこの形で書く(Document/refactoring-designs/20261112-DBアクセスモデル.md の手順3)。
 /// <list type="bullet">
 /// <item><description>集合の連鎖の先頭に IEnumerable<T> への変換を挟み、以降を System.Linq.Enumerable の演算へ結び付ける。</description></item>
 /// <item><description>Set の Select・SelectMany・Join は結果の重複を除くので、下げた後に Distinct() を足す。Where・Union・Intersect・Except・Distinct は System.Linq も同じ結果になる。</description></item>

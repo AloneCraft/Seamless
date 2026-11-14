@@ -408,8 +408,8 @@ FodyWeavers.xsd
 /user-path-backup-*.txt
 
 # DocFX build output
-docs/_site/
-docs/api/*.yml
-docs/api/toc.yml
-!docs/api/index.md
-docs/api/.manifest
+Document/_site/
+Document/api/*.yml
+Document/api/toc.yml
+!Document/api/index.md
+Document/api/.manifest

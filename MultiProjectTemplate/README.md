@@ -44,4 +44,4 @@ dotnet run --project MultiProjectTemplate/Client/MultiProjectTemplate.Client.csp
 
 現在の段階の受入対象は、パッケージ復元・ビルド・両 EXE の起動。クライアントとサーバーの通信、テーブル・ビューの自動生成、正規化ストラテジ等は、中間仕様書に従う後続の実装対象。
 
-中間仕様書は `docs/refactoring-designs/20261106-seamless-intermediate-spec.md` にある。
+中間仕様書は `Document/20261114Argon.md` にある。

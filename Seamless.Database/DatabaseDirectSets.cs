@@ -5,7 +5,7 @@ using global::Seamless.Collections.Tsavorite;
 // 直接使う表（Set<T>・Set<TKey,T>）。Tsavorite の集合そのものを返し、取引・WAL・版の管理・DB全体のゲートを通さない。
 // 書き込みは取り消せず、保存はDBを閉じたときのチェックポイントだけで行う。異常終了後の復旧は保証しない。
 // 宣言はトランザクションで使う表（Table<T>）と分け、同じ表を両方の書き方で使えないようにする（生成器が入口を分ける）。
-// 設計：docs/refactoring-designs/20261112-0017-database-access-model.md の I1・I6。
+// 設計：Document/refactoring-designs/20261112-DBアクセスモデル.md の I1・I6。
 public abstract partial class DatabaseContainer {
     private const string DirectSetDirectoryName="direct";
     private readonly global::System.Collections.Generic.Dictionary<string,IDisposable> directSets=new(StringComparer.Ordinal);

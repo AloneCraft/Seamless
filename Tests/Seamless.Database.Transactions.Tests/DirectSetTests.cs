@@ -10,7 +10,7 @@ public sealed partial class DirectSetDatabase(DatabaseContainerOptions options):
     public Seamless.Collections.Tsavorite.Set<int,AccessLogEntry> Logs=>this.Set<int,AccessLogEntry>();
 }
 
-// 設計：docs/refactoring-designs/20261112-0017-database-access-model.md の I1・I6。
+// 設計：Document/refactoring-designs/20261112-DBアクセスモデル.md の I1・I6。
 public sealed class DirectSetTests{
     private static DatabaseContainerOptions Options(string? directory=null){
         var options=DatabaseContainerOptions.InMemory;

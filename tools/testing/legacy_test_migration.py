@@ -8,7 +8,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[2]
-MANIFEST=ROOT/'docs/refactoring-designs/20261104-test-migration.json'
+MANIFEST=ROOT/'Document/refactoring-designs/20261104-test-migration.json'
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()

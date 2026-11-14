@@ -130,7 +130,7 @@ public sealed class DynamicEvaluationCountTests{
     }
 
     // 厳密な比較から外す個別の並び(FLinq が System.Linq より多く評価する既知の差。直したらここから外す)。
-    // 2026-10-25: 中間演算子 1〜2 個の全並び(2222)をラムダごとに比べて、既知の差は無い(docs/refactoring-designs/20261024-2208-flinq-demand-analysis.md)。
+    // 2026-10-25: 中間演算子 1〜2 個の全並び(2222)をラムダごとに比べて、既知の差は無い(Document/20261114Argon.md)。
     private static readonly HashSet<string> NotStrictKeys=new(StringComparer.Ordinal);
 
     [Fact]

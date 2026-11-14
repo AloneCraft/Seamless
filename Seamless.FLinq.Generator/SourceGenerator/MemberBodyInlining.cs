@@ -6,7 +6,7 @@ namespace Seamless.FLinq.Generator;
 /// <summary>
 /// 名前を付けて書いたメンバー(プロパティ・メソッド)の本体を、呼び出し側の式へ取り込む(利用者の判断 2026-11-14)。
 /// ビューはプロパティ、関数はメソッドとして IReader への拡張メンバーに書くので、取り込めば呼び出し側の LINQ と1つのループになる
-/// (docs/refactoring-designs/20261112-0017-database-access-model.md の手順3)。
+/// (Document/refactoring-designs/20261112-DBアクセスモデル.md の手順3)。
 /// <list type="bullet">
 /// <item><description>対象: 拡張メンバー(C# 14 の extension ブロック)・従来の拡張メソッド・同じ型のメンバーで、本体が式1つ(または return 1文)、
 /// 中に LINQ の呼び出しかほかの取り込み対象があるもの。仮想・総称・ref/out・params・async は対象外。[LinqIntercept(false)] を付けたものも対象外。</description></item>

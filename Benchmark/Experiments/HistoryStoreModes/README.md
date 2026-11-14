@@ -53,7 +53,7 @@ arenaはheadと同じStore manifestのcomponentで、参照先とheadをflushし
 
 append、最新/最古の読取り、保存、再open、静止回収を別々に記録する。読取りは128要求のp50/p95/p99を各反復で測る。Storageにはアプリ側cacheを一度排出した後のbatchもある。OS cacheは消さず、すべての要求がcoldであるとは扱わない。
 
-監査の`OwnerPeakMemory`は、各caseの再open前後のownerの予約ピークの最大値から求め、回収中も含む。追加時だけのピークとは区別する。[実測結果と採用判断](../../../docs/refactoring-designs/20261103-history-store-comparison.md)を参照する。
+監査の`OwnerPeakMemory`は、各caseの再open前後のownerの予約ピークの最大値から求め、回収中も含む。追加時だけのピークとは区別する。[中間仕様書](../../../Document/20261114Argon.md)を参照する。
 
 `Before/After`は各時点のnative索引payload、nativeログ確保量、arena buffer、Store予約を分ける。予約量とプロセス全体のメモリは別で、プロセスprivate bytes/working setは20ms周期の観測ピークである。managed割当は各区間の累積値。OS転送量は検証や保存・回収を含むcase全体のプロセス転送カウンターで、物理ディスクI/Oではない。arenaのRead/WriteCallsは各時点のarena世代の値である。
 

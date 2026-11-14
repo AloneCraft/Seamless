@@ -1,7 +1,7 @@
 namespace Seamless.FLinq.Generator;
 
 /*
-DemandAnalysis は「下流が列のどこまで、どう使うか」を、段の並びと終端から逆向きに求める(docs/refactoring-designs/20261024-2208-flinq-demand-analysis.md)。
+DemandAnalysis は「下流が列のどこまで、どう使うか」を、段の並びと終端から逆向きに求める(Document/20261114Argon.md)。
 FLinq は System.Linq が評価しない要素に利用者のラムダを評価しない。先に計算する段(GroupBy の集約・並べ替えの鍵・集合の先読み)は、
 ここで求めた範囲だけを計算し、範囲が正確に分からないときは引っぱられた分だけ計算する(System.Linq と同じ)。
 - Window: 使う範囲。All(全部)/ None(使わない)/ Prefix(先頭 End 個)/ Range([Start,End)。End が null なら最後まで)/ Suffix(末尾 End 個)/ Unknown。

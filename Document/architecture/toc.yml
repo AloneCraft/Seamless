@@ -1,0 +1,20 @@
+- name: アーキテクチャ (Architecture)
+  items:
+    - name: 全体アーキテクチャ
+      href: 全体アーキテクチャ.md
+    - name: レイヤー依存関係
+      href: レイヤー依存関係.md
+    - name: ORマッパーとの根本的相違
+      href: ORマッパーとの相違.md
+    - name: コレクション内部構造とメモリモデル
+      href: コレクション内部構造とメモリモデル.md
+    - name: 共通ストアと実行スコープ
+      href: 共通ストアと実行スコープ.md
+    - name: データベースエンジン内部構造
+      href: データベースエンジン内部構造.md
+    - name: FLinq 内部設計とパイプライン融合
+      href: FLinq内部設計とパイプライン融合.md
+    - name: FLinq レジストリ内部設計
+      href: FLinqレジストリ内部設計.md
+    - name: ベンチマーク測定仕様
+      href: ベンチマーク測定仕様.md

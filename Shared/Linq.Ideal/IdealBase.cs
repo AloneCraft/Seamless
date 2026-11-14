@@ -3,7 +3,7 @@ namespace Shared.Linq.Ideal;
 /// <summary>
 /// 手書きの理想ループ版ベンチの基底。定数・補助関数・ベンチの枠は Shared/Linq.Enumerable/Base.cs の写しで、
 /// FLinq/ZLinq と同じ仕事量になるようにする(写しのずれは Benchmark.Audit.Tests で検査する)。
-/// 理想版の書き方の規則は docs/flinq-ideal/理想版の記述規則.md。
+/// 理想版の書き方の規則は Document/flinq-ideal/理想版の記述規則.md。
 /// </summary>
 public abstract partial class IdealBase<T>:global::Common.Base<T> where T : notnull {
     private static void ExecuteOrderDependent(Action action) {

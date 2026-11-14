@@ -93,9 +93,10 @@
     <File Path="Benchmark/Shared/UI/UI.projitems" />
   </Folder>
   <Folder Name="/Specifications/">
-    <File Path="UI.md" />
-    <File Path="Collection.md" />
-    <File Path="Database.md" />
+    <File Path="Document/20261114Argon.md" />
+    <File Path="Document/FLinq仕様.md" />
+    <File Path="Document/実行基盤とデータベース仕様.md" />
+    <File Path="Document/測定履歴と比較検証.md" />
   </Folder>
   <Folder Name="/Samples/">
     <Project Path="Samples/Sample.NetShop.Core/Sample.NetShop.Core.csproj" />

@@ -11,17 +11,17 @@ You are a professional assistant. You must conduct all interactions, explanation
 - **Exceptions:** Technical terms, code snippets, or error logs may remain in their original language, but their explanations must be in Japanese.
 - Never reply in English unless explicitly requested by the user.
 ## Current Design Checkpoint
-- 設計・実装の続きに入る前に、`docs/refactoring-designs/20261106-seamless-intermediate-spec.md` を読む。
-- この中間仕様書の合意済み仕様・未決事項・現在の作業状態を引き継ぎ、実装状況はコードと検証結果で照合する。新しい合意や進捗は同文書へ反映する。
+- 設計・実装の続きに入る前に、`Document/20261114Argon.md` を読む。
+- この統合仕様書の合意済み仕様・未決事項・現在の作業状態を引き継ぎ、実装状況はコードと検証結果で照合する。新しい合意や進捗は同文書へ反映する。
 ## Living Work Tree
-- 作業を継続するときは `docs/seamless-work-tree.md` を読み、1〜21の担当枝・依存関係・未分解部分を引き継ぐ。
+- 作業を継続するときは `Document/作業ツリー.md` を読み、1〜21の担当枝・依存関係・未分解部分を引き継ぐ。
 - 意味のある作業単位の終了、失敗、新たな分岐の発見時に同文書を更新する。正常系・異常系・基盤・環境受入の状態と証拠を分け、微小な編集ごとの更新は省略できる。
 - 親の完了は必須の子と共通依存の完了条件から判断する。共有作業は担当枝に集約して参照し、既存IDと他の作業者の変更を保護する。
 ## 機能を追加するときの規則 (2026-11-12)
 - 利用者の指示に根拠のある機能だけを作る。指示が例やイメージ（「APIイメージ」など）だけで細部が書かれていないとき、細部の仕様（遅延評価・重複除去・自動の振り分け・追加の設定など）を勝手に決めて足さない。
 - 指示が曖昧なときは、仕様を決めずに利用者へ確認する。確認を待つ間に進める必要がある部分は、仮の動きを作らず、画面や結果に赤い「未対応」表示を出す（またはコンパイルエラー・例外で明示する）。
 - 処理できない入力に出会ったときに、黙って別の動きへ切り替える回避（フォールバック）を入れない。
-- 新しい公開型・公開メンバーを足すときは、その根拠（利用者の指示・設計書）をコミット本文か設計書に書く。根拠を確認した結果は `docs/refactoring-designs/20261111-2330-feature-inventory.md` の棚卸し表と同じ形で残す。
+- 新しい公開型・公開メンバーを足すときは、その根拠（利用者の指示・設計書）をコミット本文か設計書に書く。根拠を確認した結果は `Document/refactoring-designs/20261111-機能の棚卸し.md` の棚卸し表と同じ形で残す。
 ## Database Change Policy
 - When changing local database schema or persisted data such as `Work\UI\runs.db`, apply the database change directly to the target database with an explicit backup.
 - Do not rely on application startup, schema version bumps, automatic deletion, or automatic migration code to perform local DB changes unless the user explicitly requests that approach.
@@ -50,7 +50,7 @@ You are a professional assistant. You must conduct all interactions, explanation
 - 子枝を親へ戻すマージはfast-forwardで省略せず、必ず2親のマージコミットを残す。第1親を親枝、第2親を子枝とする。
 - 子枝は直接の分岐元へ戻す。`A → B → C → D` は `D → C → B → A` の順で統合し、親を飛ばさない。
 - 利用中の旧枝と未コミット変更を保護し、旧トポロジーを現行mainへ再導入しない。対応する修正済み親系列へ移植してから戻す。
-- 詳細は `docs/git-branch-policy.md` と `docs/git-branch-parents.json`、旧ID対応は `docs/history/branch-integration-20261030/` を参照する。
+- 詳細は `Document/Gitブランチ統合規約.md` と `Document/git-branch-parents.json`、旧ID対応は `Document/history/branch-integration-20261030/` を参照する。
 
 ## user prompt
 この計画のあらゆる側面について共通理解が得られるまで徹底的に質問してください

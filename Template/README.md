@@ -13,7 +13,7 @@ ServerのProjectReferenceはモジュールのビルド・配置にも使いま�
 
 ## 開発と生成
 
-VS Codeでテンプレートまたは生成したアプリのフォルダーを開くと、`.vscode/tasks.json`の「ビルド (Debug)」「ビルド (Release)」で四プロジェクトをビルドできる。既定のビルドタスクはDebugとする。必要なのは.NET 10 SDKであり、ManagerからのDB定義のコンパイルや稼働版への適用とは別の操作である。外部保存の自動取り込み・Managerの未適用タブ表示は[外部ソースの設計](../docs/refactoring-designs/20261104-external-source-draft-state.md)を参照し、テンプレートのビルド成功だけでその同期機能が実装済みとは扱わない。
+VS Codeでテンプレートまたは生成したアプリのフォルダーを開くと、`.vscode/tasks.json`の「ビルド (Debug)」「ビルド (Release)」で四プロジェクトをビルドできる。既定のビルドタスクはDebugとする。必要なのは.NET 10 SDKであり、ManagerからのDB定義のコンパイルや稼働版への適用とは別の操作である。外部保存の自動取り込み・Managerの未適用タブ表示は[外部ソースの設計](../Document/DB定義のCSharpプロジェクト連携.md)を参照し、テンプレートのビルド成功だけでその同期機能が実装済みとは扱わない。
 
 .NET 10 SDKを使用します。リポジトリ内では既存のSeamlessプロジェクトを参照します。リポジトリ外へ生成した場合は、`SeamlessRepositoryRoot`で開発リポジトリを指定するか、対応版のSeamlessパッケージを取得できるNuGetフィードと`SeamlessPackageVersion`を設定してください。未公開版が公開NuGetフィードに存在すると仮定しません。
 

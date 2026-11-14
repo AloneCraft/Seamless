@@ -130,7 +130,7 @@ store.Save();
 
 `CreatePersistedSortedSet` / `CreatePersistedSortedDictionary` / `CreatePersistedSortedList` は一括追加後に `CompleteAdding()` で確定します。確定前のキー検索は例外となり、確定後は比較順の列挙と二分探索を使います。`SortedList` は JOIN 等に必要な重複行を保持します。
 
-`CreatePersistedHashSet` / `CreatePersistedHashDictionary` は追加中にも検索でき、クエリの等価規則を指定できます。両方式とも共通 Store が寿命・予算・保存世代を所有します。既存 API のバイト等価性は維持します。ファイル上のハッシュ索引 `.hindex` は新形式を使い、旧形式の索引は読み込まず明確に拒否します。この拒否を理由とする自動移行や削除は行いません。API 対応、状態、比較器、保存互換性と利用例は [クエリ一時作業コレクション](docs/クエリ一時作業コレクション.md) を参照してください。
+`CreatePersistedHashSet` / `CreatePersistedHashDictionary` は追加中にも検索でき、クエリの等価規則を指定できます。両方式とも共通 Store が寿命・予算・保存世代を所有します。既存 API のバイト等価性は維持します。ファイル上のハッシュ索引 `.hindex` は新形式を使い、旧形式の索引は読み込まず明確に拒否します。この拒否を理由とする自動移行や削除は行いません。API 対応、状態、比較器、保存互換性と利用例は [クエリ一時作業コレクション](Document/クエリ一時作業コレクション.md) を参照してください。
 
 ### ファイル backed のコレクション（旧 API）
 
@@ -183,7 +183,7 @@ Console.WriteLine(set.Contains(1));         // True
 - [`Seamless.Execution`](Seamless.Execution/) は実行スコープ、256 MiB／16 GiBの既定共有予算、決定的Codec、一時資源所有を提供します。
 - [`Seamless.Linq`](Seamless.Linq/) の `scope.Query(source)` は、外部ソート、退避可能なGroupBy／Join／集合演算、バイト一致の既定等値性を提供します。
 - DynamicはFLinqの検証・固定参照コードとの比較、Scalableは大規模コレクションとLINQ・容量探索を受け持ち、共有SQLite履歴へ記録します。
-- 操作方法と比較条件は [測定履歴・比較・プロファイル](docs/verification.md)、利用者向けAPIは [初期設定と拡張](docs/profiles.md)、実行・等値性・DB契約は [Execution、LINQ、Databaseの現在仕様](docs/execution-and-database.md) を参照してください。
+- 操作方法と比較条件は [測定履歴・比較・プロファイル](Document/測定履歴と比較検証.md)、利用者向けAPIは [初期設定と拡張](Document/ストア初期設定と拡張.md)、実行・等値性・DB契約は [Execution、LINQ、Databaseの現在仕様](Document/実行基盤とデータベース仕様.md) を参照してください。
 
 ## 開発の準備
 

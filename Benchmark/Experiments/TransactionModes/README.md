@@ -1,6 +1,6 @@
 # Tsavorite トランザクション方式の採用判断試験
 
-製品に方式を採用する前に、Tsavorite の履歴と既存 FLinq を組み合わせるコストを比較する独立した実験。対象の仕様は [TransactionModesAcceptance.md](../../../docs/refactoring-designs/TransactionModesAcceptance.md)。通常の製品 API や既存データは変更しない。
+製品に方式を採用する前に、Tsavorite の履歴と既存 FLinq を組み合わせるコストを比較する独立した実験。対象の仕様は [中間仕様書](../../../Document/20261114Argon.md)。通常の製品 API や既存データは変更しない。
 
 ## 比較する方式
 

@@ -1,7 +1,7 @@
 namespace Test.System.Linq.Intercept;
 
 /// <summary>
-/// 「下流がどこまで使うか」の判定の見直し(2026-10-24、docs/refactoring-designs/20261024-2208-flinq-demand-analysis.md)で見つかった、
+/// 「下流がどこまで使うか」の判定の見直し(2026-10-24、Document/20261114Argon.md)で見つかった、
 /// System.Linq と結果・例外が食い違う形。
 /// - UnionBy の Consume は、第 2 引数の要素もキー選択子を通して出す(Except/Intersect 系のように、第 2 引数をキーの列として先に読まない)。
 /// - GroupJoin は、null キーの内側も外側も結合しない。

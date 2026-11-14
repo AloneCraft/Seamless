@@ -1,6 +1,6 @@
 # DataGrip接続の段階実装
 
-`docs/refactoring-designs/20261102-datagrip-native.md` に対する実装・検証用。2026-11-02 の実装指示を合意根拠とする。
+`Document/20261114Argon.md` に対する実装・検証用。2026-11-02 の実装指示を合意根拠とする。
 
 ## 段階2の着手結果
 

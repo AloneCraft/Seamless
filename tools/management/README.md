@@ -1,10 +1,10 @@
 # Seamless管理ホストとブラウザーManager
 
-Windows/Linuxのサーバーと同じプロセス内のKestrelが、共通のRazor管理画面を配信する。業務クライアントはC# EXEからネイティブTCP/TLSを利用する。Managerの組み込み同期・サーバー同居・独立サーバーの構成と現在の受入範囲は [ブラウザー統一と実行形態](../../docs/refactoring-designs/20261107-manager-browser-hosting.md) を参照する。
+Windows/Linuxのサーバーと同じプロセス内のKestrelが、共通のRazor管理画面を配信する。業務クライアントはC# EXEからネイティブTCP/TLSを利用する。Managerの組み込み同期・サーバー同居・独立サーバーの構成と現在の受入範囲は [ブラウザー統一と実行形態](../../Document/20261114Argon.md) を参照する。
 
 ## プロジェクト
 
-`Publish.ps1`の配布物は、専用DBプロジェクト用の`packages`を同梱する。同じビルドの12パッケージを内容識別付きの版へ固定し、サーバーDLLとの対応を`source-packages.json`で確認する。新規プロジェクトはこの版を選ぶ。既存のプロジェクト参照は明示した設定に従う。[パッケージ対応の契約と確認範囲](../../docs/refactoring-designs/20261109-source-package-cohort.md)
+`Publish.ps1`の配布物は、専用DBプロジェクト用の`packages`を同梱する。同じビルドの12パッケージを内容識別付きの版へ固定し、サーバーDLLとの対応を`source-packages.json`で確認する。新規プロジェクトはこの版を選ぶ。既存のプロジェクト参照は明示した設定に従う。[パッケージ対応の契約と確認範囲](../../Document/20261114Argon.md)
 
 ネイティブ資産はpublishの直下出力に加え、deps.jsonの`runtimes/<RID>/native`階層を保持する。TsavoriteのP/Invokeがこの相対名を使うため、Linuxの通常起動にも必要である。
 
@@ -48,7 +48,7 @@ Seamless・.NETホスト・VSTest・NuGet関連の環境変数は、名前と値
 
 固定回帰と配布を対応付けるときは `-RegressionStage <元の合格工程フォルダー>` を追加する。合格記録に結び付いた入力ハッシュ、TRXと開始・終了記録のハッシュ、VSTestが実行したテストDLLの配置先またはManagerの配置先を確認する。そのうえで、照合対象の参照DLLとPDBが工程の入力記録にあるパスとハッシュに一致することを検査する。再利用フォルダーを使った場合は `stage-reuse.json` の `OriginalAttempt` を指定する。照合で検査した回帰範囲は元の工程の範囲に従う。
 
-管理TCP/TLSはKestrelを使い、同一OS利用者のIPCは既存NamedPipeを維持する。[通信基盤の仕様と制限](../../docs/kestrel-transport.md)を参照する。クライアントにASP.NET Core依存は追加しない。
+管理TCP/TLSはKestrelを使い、同一OS利用者のIPCは既存NamedPipeを維持する。[通信基盤の仕様と制限](../../Document/Kestrel通信基盤.md)を参照する。クライアントにASP.NET Core依存は追加しない。
 
 ローカルManagerは `manager --root <稼働中サーバーの保存先>` で開く。OS所有者を確認したIPCから短時間・一回用の起動情報を取得し、ブラウザーのセッションへ交換する。同じOSアカウントの利用者はSeamless独自パスワードの入力を省ける。Managerの起動情報は `manager-connection.json` に保存し、ネイティブTCPの待受け先から独立させる。
 

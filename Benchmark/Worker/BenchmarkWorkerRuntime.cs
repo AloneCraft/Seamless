@@ -8,7 +8,7 @@ using System.Globalization;
 using System.Runtime;
 
 #if NET12_0_OR_GREATER
-#error .NET 12以降を対象にしました。dotnet/runtime#129020(RuntimeHelpers.GetMethodCompilationStatus や WaitForFinalCompilationOrCallCountingReadyAsync など、メソッドが最終段階まで昇格したことを待つAPIの提案)が採用されたか確認してください。採用済みなら、ベンチマークワーカーランタイム.ウォームアップを実行 の「JITコンパイル数の静穏と呼出速度の安定」による判定を公式APIによる最終段階の待機へ置き換え、この#errorを削除してください(仕様は Document/UI/BenchmarkMeasurementSpecification.md の「JIT最適化完了待機」)。未採用なら、この条件を NET13_0_OR_GREATER へ更新してください。
+#error .NET 12以降を対象にしました。dotnet/runtime#129020(RuntimeHelpers.GetMethodCompilationStatus や WaitForFinalCompilationOrCallCountingReadyAsync など、メソッドが最終段階まで昇格したことを待つAPIの提案)が採用されたか確認してください。採用済みなら、ベンチマークワーカーランタイム.ウォームアップを実行 の「JITコンパイル数の静穏と呼出速度の安定」による判定を公式APIによる最終段階の待機へ置き換え、この#errorを削除してください(仕様は Document/architecture/ベンチマーク測定仕様.md の「JIT最適化完了待機」)。未採用なら、この条件を NET13_0_OR_GREATER へ更新してください。
 #endif
 
 public static class ベンチマークワーカーランタイム {
