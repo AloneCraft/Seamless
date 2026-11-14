@@ -61,30 +61,16 @@ internal sealed partial class NativeRuntime{
             if(descriptor is null||descriptor.Object.Kind is not ("View" or "ScalarFunction" or "TableFunction")){
                 throw new ManagementException("NotFound","公開された問い合わせがありません: "+request.ObjectId);
             }
-            object owner=database;
-            var parts=request.ObjectId.Split('.');
-            foreach(var part in parts[..^1]){
-                var property=owner.GetType().GetProperty(part,BindingFlags.Public|BindingFlags.Instance);
-                if(property is null||!typeof(DatabaseSchema).IsAssignableFrom(property.PropertyType)){throw new ManagementException("NotFound","スキーマがありません。");}
-                owner=property.GetValue(owner)??throw new ManagementException("NotFound","スキーマがありません。");
-            }
-            using var read=database.BeginReadSession(cancellation);
+            // ビュー・関数は IReader への拡張メンバー。DB生成器が作る入口(Queries)を名前で選び、読み込み専用の入口を開いて呼ぶ。
+            var query=database.Queries.SingleOrDefault(item=>item.Name==request.ObjectId)??throw new ManagementException("NotFound","公開された問い合わせがありません: "+request.ObjectId);
+            if(query.Parameters.Count!=request.Arguments.Length){throw new ManagementException("InvalidRequest","引数の数が一致しません。");}
+            var arguments=query.Parameters.Select((parameter,index)=>RuntimeValueJson.Deserialize(request.Arguments[index],parameter.Type)).ToArray();
+            cancellation.ThrowIfCancellationRequested();
             trace?.Invoking();
-            object? result;
-            Type resultType;
-            var member=owner.GetType().GetProperty(parts[^1],BindingFlags.Public|BindingFlags.Instance);
-            if(member is not null&&request.Arguments.Length==0){result=member.GetValue(owner);resultType=member.PropertyType;}
-            else{
-                var method=owner.GetType().GetMethods(BindingFlags.Public|BindingFlags.Instance).SingleOrDefault(method=>method.Name==parts[^1]&&!method.ContainsGenericParameters&&!method.IsSpecialName)
-                    ??throw new ManagementException("NotFound","関数がありません。");
-                var parameters=method.GetParameters();
-                if(parameters.Length!=request.Arguments.Length){throw new ManagementException("InvalidRequest","引数の数が一致しません。");}
-                var arguments=parameters.Select((parameter,index)=>RuntimeValueJson.Deserialize(request.Arguments[index],parameter.ParameterType)).ToArray();
-                cancellation.ThrowIfCancellationRequested();
-                result=method.Invoke(owner,arguments);resultType=method.ReturnType;
-            }
+            using var invocation=query.Execute(database,arguments);
+            var result=invocation.Value;
             if(descriptor.Object.Kind=="ScalarFunction"){
-                var output=resultType.GetProperty("Value")!.GetValue(result);measurement?.ObservedOutput();trace?.Output();
+                var output=result;measurement?.ObservedOutput();trace?.Output();
                 var value=RuntimeValueJson.Serialize(output);
                 if(Encoding.UTF8.GetByteCount(value.GetRawText())>responseBytes){throw new ManagementException("Limit","戻り値が応答上限を超えています。");}
                 response=new(version.Version,false,value,[],[],false);
@@ -105,7 +91,7 @@ internal sealed partial class NativeRuntime{
                         rows.Add(row);bytes+=size;
                     }
                 }finally{(enumerator as IDisposable)?.Dispose();}
-                var rowType=resultType.GetGenericArguments()[^1];
+                var rowType=query.ResultType;
                 response=new(version.Version,true,null,rows.ToArray(),RuntimeValueJson.Columns(rowType),more);
             }
             authorize?.Invoke();

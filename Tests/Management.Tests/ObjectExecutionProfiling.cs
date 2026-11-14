@@ -51,7 +51,7 @@ public sealed class ObjectExecutionProfiling{
             var root=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,"profile-api-"+Guid.NewGuid().ToString("N"));
             this.store=ManagementStore.Initialize(root,"admin","TestPassword-123");this.Service=new(this.store,null,startAuditWorker:false);
             try{
-                var database=NativeWorkflow.Database();database=database with{Source=database.Source with{Files=database.Source.Files.Select(file=>file with{Text="using System.Linq;using Seamless.FLinq;"+file.Text.Replace("public Table<","public ScalarFunction<int> Amount()=>this.ScalarFunction(()=>this.ProfileSum(new[]{1,2,3}));[LinqIntercept(true)] private int ProfileSum(int[] values)=>values.Where(value=>value>1).Sum();public Table<",StringComparison.Ordinal)}).ToArray()}};
+                var database=NativeWorkflow.Database();database=database with{Source=database.Source with{Files=database.Source.Files.Select(file=>file with{Text="using System.Linq;using Seamless.FLinq;"+file.Text+"\nnamespace Model{public sealed class ProfileHelpers{[LinqIntercept(true)] internal static int ProfileSum(int[] values)=>values.Where(value=>value>1).Sum();}public static class DbQueries{extension(Db.IReader q){public int Amount()=>ProfileHelpers.ProfileSum(new[]{1,2,3});}}}"}).ToArray()}};
                 NativeWorkflow.Publish(this.Service,this.Owner,database);
                 var entry="public static int Run(ManagementExecutionContext context)=>Compute(new[]{1,2,3});";
                 if(sequence){entry="public static System.Collections.Generic.IEnumerable<int> Run(ManagementExecutionContext context){yield return Compute(new[]{1,2,3});}";}

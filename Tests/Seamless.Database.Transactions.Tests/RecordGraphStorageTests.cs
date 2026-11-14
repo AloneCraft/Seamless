@@ -5,40 +5,6 @@ using Seamless.Transactions.Collections;
 namespace Test.Seamless.Database.RecordGraphs;
 
 public sealed class RecordGraphStorageTests{
-    [Theory,InlineData(false),InlineData(true)]
-    public void ViewContains_UsesNormalizedValuesAndReferenceTopology(bool versioned){
-        using var database=new GraphDatabase(Options(versioned));
-        object[] first=[-0.0,12.00m,null!];first[2]=first;
-        object[] equal=[0.0,12m,null!];equal[2]=equal;
-        var evaluations=0;
-        IEnumerable<GraphRow> Rows(){evaluations++;return new[]{new GraphRow(1,first,first),new GraphRow(1,equal,equal)};}
-        var view=database.GeneratedView<GraphRow>(Rows,"GraphEquality");
-        Assert.Single(view);
-        Assert.Equal(1,evaluations);
-        object[] argument=[0.0,12m,null!];argument[2]=argument;
-        Assert.True(view.Contains(new(1,argument,argument)));
-        Assert.Equal(2,evaluations);
-        object[] separate=[0.0,12m,null!];separate[2]=separate;
-        Assert.False(view.Contains(new(1,argument,separate)));
-        Assert.False(view.Contains(new(2,argument,argument)));
-        argument[0]=1.0;
-        Assert.False(view.Contains(new(1,argument,argument)));
-        Assert.Equal(0,database.ResourceUsage.MemoryBytes);
-        Assert.Equal(0,database.ResourceUsage.TemporaryStorageBytes);
-    }
-
-    [Fact]
-    public void ViewContains_DefaultProfileKeepsScalarEqualityAndEmptyResults(){
-        using var database=new GraphDatabase(DatabaseContainerOptions.InMemory);
-        var view=database.GeneratedView<double>(()=>new[]{-0.0,double.NaN},"ScalarEquality");
-        Assert.True(view.Contains(0.0));
-        Assert.True(view.Contains(double.NaN));
-        Assert.False(view.Contains(1.0));
-        var empty=database.GeneratedView<double>(()=>[],"Empty");
-        Assert.False(empty.Contains(0.0));
-        Assert.Equal(0,database.ResourceUsage.MemoryBytes);
-        Assert.Equal(0,database.ResourceUsage.TemporaryStorageBytes);
-    }
 
     [Theory,InlineData(false),InlineData(true)]
     public void RecordOperations_UseNormalizedValuesAndReferenceTopology(bool removeOnly){

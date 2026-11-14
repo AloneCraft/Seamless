@@ -12,16 +12,16 @@ namespace Management.Tests;
 
 public sealed class QueryPlanSdkPaths{
     [Theory]
-    [InlineData("C:\\build\\Views\\dbo0\\Shared.cs",true)]
-    [InlineData("C:\\build\\VIEWS\\DBO0\\SHARED.cs",true)]
-    [InlineData("\\\\server\\build\\Views\\dbo0\\Shared.cs",true)]
-    [InlineData("/srv/build/Views/dbo0/Shared.cs",true)]
-    [InlineData("/srv/build/views/dbo0/Shared.cs",false)]
+    [InlineData("C:\\build\\Queries\\dbo0\\Shared.cs",true)]
+    [InlineData("C:\\build\\QUERIES\\DBO0\\SHARED.cs",true)]
+    [InlineData("\\\\server\\build\\Queries\\dbo0\\Shared.cs",true)]
+    [InlineData("/srv/build/Queries/dbo0/Shared.cs",true)]
+    [InlineData("/srv/build/queries/dbo0/Shared.cs",false)]
     [InlineData("/srv/build/Other/dbo0/Shared.cs",false)]
     [InlineData("/srv/build/Other/Shared.cs",false)]
-    [InlineData("relative/Views/dbo0/Shared.cs",false)]
-    [InlineData("Views\\dbo0\\Shared.cs",true)]
-    [InlineData("/srv/build/../Views/dbo0/Shared.cs",false)]
+    [InlineData("relative/Queries/dbo0/Shared.cs",false)]
+    [InlineData("Queries\\dbo0\\Shared.cs",true)]
+    [InlineData("/srv/build/../Queries/dbo0/Shared.cs",false)]
     public void SdkPathsMatchTheWholeUniqueSourcePath(string path,bool matches){
         var(definition,plan)=Fixture("dbo0.Shared");
         var selection=Designer.SelectQueryPlans(definition,"dbo0.Shared",[plan with{CallSite=plan.CallSite! with{Path=path}}]);
@@ -31,7 +31,7 @@ public sealed class QueryPlanSdkPaths{
     [Fact]
     public void SdkPathMappingKeepsScopeCallerSpanAndMethodHashes(){
         var(definition,original)=Fixture("dbo0.Shared");
-        var plan=original with{CallSite=original.CallSite! with{Path="C:/build/Views/dbo0/Shared.cs"}};
+        var plan=original with{CallSite=original.CallSite! with{Path="C:/build/Queries/dbo0/Shared.cs"}};
         Assert.Single(Designer.SelectQueryPlans(definition,"dbo0.Shared",[plan]).Plans);
         Assert.Empty(Designer.SelectQueryPlans(definition,"Shared",[plan]).Plans);
         Assert.Empty(Designer.SelectQueryPlans(definition,"dbo1.Shared",[plan]).Plans);
@@ -51,7 +51,7 @@ public sealed class QueryPlanSdkPaths{
         var(definition,plan)=Fixture("dbo0.Shared");
         definition=definition with{Source=definition.Source with{Files=[..definition.Source.Files,new("Shared.cs","namespace Extra;public readonly record struct Other(int Value);")]}};
         Assert.Single(Designer.SelectQueryPlans(definition,"dbo0.Shared",[plan]).Plans);
-        var absolute=plan with{CallSite=plan.CallSite! with{Path="C:/build/Views/dbo0/Shared.cs"}};
+        var absolute=plan with{CallSite=plan.CallSite! with{Path="C:/build/Queries/dbo0/Shared.cs"}};
         Assert.Empty(Designer.SelectQueryPlans(definition,"dbo0.Shared",[absolute]).Plans);
     }
 
@@ -78,9 +78,10 @@ public sealed class QueryPlanSdkPaths{
         var method=helperTree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>().Single();
         var methodKey=compilation.GetSemanticModel(helperTree).GetDeclaredSymbol(method)!.ToDisplayString();
         var sourceHash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(method.ToFullString())));
-        var path="Views/"+objectId.Replace('.', '/')+".cs";
+        var path="Queries/"+objectId.Replace('.','/')+".cs";
         var tree=trees.Single(tree=>tree.FilePath==path);
-        var query=tree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>().Single();
+        // ビューは IReader への拡張プロパティ。呼び出し元は getter。
+        var query=tree.GetRoot().DescendantNodes().OfType<AccessorDeclarationSyntax>().Single();
         var call=query.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(node=>node.Expression.ToString()=="global::PlanPaths.SharedHelper.Rows");
         var caller=compilation.GetSemanticModel(tree).GetDeclaredSymbol(query)!.ToDisplayString();
         var plan=new PlanDocument(2,methodKey,"test",sourceHash,new string('1',64),[],JsonSerializer.SerializeToElement(new{})){

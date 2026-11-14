@@ -3,7 +3,7 @@
 using global::System.Linq;
 /// <summary>
 /// 宣言的データベースコンテナの基底。
-/// 派生 partial クラスの Table/View/TableFunction/スカラー関数宣言から、
+/// 派生 partial クラスの表の宣言と、生成される IReader への拡張メンバー(ビュー・関数)から、
 /// Seamless.Database の source generator がスキーマメタデータと取り込み配線を生成する。
 /// Table 実体は Tsavorite ストアで、<see cref="DatabaseContainerOptions"/> により
 /// メモリ範囲内運用とストレージ利用を切り替える。
@@ -236,6 +236,9 @@ public abstract partial class DatabaseContainer:IDisposable {
     /// <summary>generator が宣言メンバーから生成するオブジェクト一覧。生成前は空。</summary>
     public virtual global::Seamless.Database.System.SystemTable<global::Seamless.Database.System.Keys.DatabaseObject,global::Seamless.Database.System.Records.DatabaseObject> DatabaseObjects=>EmptyDatabaseObjects;
 
+    /// <summary>generator が <c>IReader</c> への拡張メンバーから作るビュー・関数の入口(名前で呼ぶ Manager・Gateway 用)。生成前は空。</summary>
+    public virtual IReadOnlyList<DatabaseQuery> Queries=>[];
+
     /// <summary>source generatorが読み取り専用システムテーブルを構築する。</summary>
     protected static global::Seamless.Database.System.SystemTable<TKey,TRecord> CreateSystemTable<TKey,TRecord>(
         IEnumerable<TRecord> rows,Func<TRecord,TKey> keySelector)
@@ -329,44 +332,6 @@ public abstract partial class DatabaseContainer:IDisposable {
                 throw;
             }
         }
-    }
-
-    /// <summary>DB生成器が作るビューのRowsから呼ぶ。行の列挙を各列挙の開始時に評価し、重複を除く集合として返す。</summary>
-    /// <remarks>
-    /// 利用者はビューを Views 名前空間の partial 行型の Query に直接書き、この入口は生成コードだけが使う。
-    /// 呼出しごとに新しいViewを作り、名前単位のキャッシュは持たない。循環検出には rows のメソッドを使う。
-    /// </remarks>
-    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
-    public View<TResult> GeneratedView<TResult>(Func<IEnumerable<TResult>> rows,string name){
-        ArgumentNullException.ThrowIfNull(rows);ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ObjectDisposedException.ThrowIf(this.disposed,this);
-        return new View<TResult>(rows,name,this.executionResources,this);
-    }
-
-    /// <summary>宣言メソッドから呼ばれ、引数をキャプチャしたテーブル関数を生成する。</summary>
-    protected TableFunction<TResult> TableFunction<TResult>(Func<IEnumerable<TResult>> definition,[CallerMemberName] string name = "") {
-        return this.CreateTableFunction(definition,name);
-    }
-
-    internal TableFunction<TResult> CreateTableFunction<TResult>(
-        Func<IEnumerable<TResult>> definition,
-        string name) {
-        ArgumentNullException.ThrowIfNull(definition);
-        ObjectDisposedException.ThrowIf(this.disposed,this);
-        return new(definition,name);
-    }
-
-    /// <summary>スカラー関数を直ちに評価し、実行済み結果を返す。</summary>
-    protected ScalarFunction<TResult> ScalarFunction<TResult>(
-        Func<TResult> definition,
-        [CallerMemberName] string name="")=>this.CreateScalarFunction(definition,name);
-
-    internal ScalarFunction<TResult> CreateScalarFunction<TResult>(
-        Func<TResult> definition,
-        string name) {
-        ArgumentNullException.ThrowIfNull(definition);
-        ObjectDisposedException.ThrowIf(this.disposed,this);
-        return new(definition(),name);
     }
 
     /// <summary>ストアドプロシージャを直ちに実行し、実行済み結果を返す。</summary>

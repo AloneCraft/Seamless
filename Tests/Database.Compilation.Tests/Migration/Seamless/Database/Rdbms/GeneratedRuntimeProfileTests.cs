@@ -15,7 +15,7 @@ public sealed class GeneratedRuntimeProfileTests{
         Assert.EndsWith("_RuntimeSqlV1",runtime.DatabaseName);Assert.Equal("Seamless.Generated."+runtime.DatabaseName,runtime.TypeNamespace);Assert.NotEqual(legacy.SchemaFingerprint,runtime.SchemaFingerprint);
         var root=Assert.Single(runtime.Files,file=>file.RelativePath==runtime.DatabaseName+".cs").Content;
         Assert.Contains("RuntimeSqlDatabaseContainer",root);Assert.Contains(runtime.SchemaFingerprint,root);Assert.Contains("this.EnsureTablesCreated()",root);Assert.Contains("this.Dispose()",root);
-        var binding=Assert.Single(runtime.Routines);Assert.Equal(runtime.TypeNamespace+".Schemas.dbo",binding.DeclaringTypeName);Assert.Contains(binding.CSharpSource,root);
+        var binding=Assert.Single(runtime.Routines);Assert.Equal(runtime.TypeNamespace+".Functions.dbo",binding.DeclaringTypeName);Assert.Contains(binding.CSharpSource,root);
         Assert.All(runtime.Files,file=>Assert.DoesNotContain("global::class.",file.Content));
         var oldManifest=new RdbmsApi.ComparisonDatabase(catalog.Name,legacy.DatabaseName,legacy.SchemaFingerprint,false,catalog,legacy.Tables);
         Assert.Equal(legacy.DatabaseName+"."+legacy.DatabaseName,oldManifest.TypeFullName);Assert.False(oldManifest.RuntimeSqlEnabled);

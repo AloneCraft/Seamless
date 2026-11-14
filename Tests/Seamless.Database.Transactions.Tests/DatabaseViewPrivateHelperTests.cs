@@ -4,29 +4,30 @@ namespace Seamless.Database.Transactions.Tests;
 
 public sealed partial class DatabaseTransactionExpansionTests{
     [Theory]
-    // QueryはpartialのView行型(struct)に置くため、helperの宣言型は常にstructになる。classに置く旧形式は書けない。
+    // ビューの本体が、拡張メンバーと同じ静的クラスの補助を呼ぶ形。取り込んだ後も補助を呼び、その例外もそのまま出す。
+    // 本体は呼び出し側に置くので、補助は呼び出し側から見える internal 以上にする(private なら FLINQ007 で知らせる)。
     [InlineData(false)]
     [InlineData(true)]
-    public async Task DeclaredViewKeepsPrivateStructHelperCallsAndTheirExceptions(bool methodGroup){
+    public async Task DeclaredViewKeepsHelperCallsAndTheirExceptions(bool methodGroup){
         var source="""
-            using System;using System.Linq;using System.Collections.Generic;using System.Text.Json;using Seamless.Database;using Seamless.FLinq;
+            using System;using System.Linq;using System.Collections.Generic;using System.Text.Json;using Seamless.Database;using Seamless.FLinq;using Seamless.Linq;
             namespace PrivateViewHelperCase{
              internal static partial class DatabaseGenerator;
              public readonly record struct Input(int Id,int Value);
              public sealed partial class Database(DatabaseContainerOptions options):DatabaseContainer(options){public Table<int,Input> Inputs=>this.Table<int,Input>(static row=>row.Id);}
              public static class Probe{public static bool Fail;public static readonly List<string> Events=new();}
              public sealed class Entry{
-              [LinqIntercept(true)]private int[] Query(Database db)=>db.PrivateRows.Select(static row=>row.Value).ToArray();
-              [LinqIntercept(false)]private int[] Reference(Database db)=>db.PrivateRows.Select(static row=>row.Value).ToArray();
+              [LinqIntercept(true)]private int[] Query(Database.Reader r)=>r.PrivateRows.Select(static row=>row.Value).ToArray();
+              [LinqIntercept(false)]private int[] Reference(Database.Reader r)=>r.PrivateRows.Select(static row=>row.Value).ToArray();
               public static string Run(){
                using var db=new Database(DatabaseContainerOptions.InMemory with{IndexSize=128,PageSize=4096,SegmentSize=65536,MemorySize=65536,TemporaryDirectory=Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")!});
                using(var tx=db.BeginTransaction()){for(var i=1;i<=3;i++)tx.Inputs.Add(new(i,i*10));tx.Commit();}
-               var entry=new Entry();var observations=new List<object>();
+               using var r=db.BeginRead();var entry=new Entry();var observations=new List<object>();
                foreach(var fail in new[]{false,true}){
                 Probe.Fail=fail;
                 object Observe(bool expanded){
                  Probe.Events.Clear();int[] values=[];string? error=null;
-                 try{values=expanded?entry.Query(db):entry.Reference(db);}catch(Exception exception){error=exception.GetType().FullName+":"+exception.Message;}
+                 try{values=expanded?entry.Query(r):entry.Reference(r);}catch(Exception exception){error=exception.GetType().FullName+":"+exception.Message;}
                  return new{values,error,events=Probe.Events.ToArray()};
                 }
                 var expected=Observe(false);var actual=Observe(true);
@@ -36,18 +37,23 @@ public sealed partial class DatabaseTransactionExpansionTests{
               }
              }
             }
-            namespace PrivateViewHelperCase.Views{
-             public readonly partial record struct PrivateRows(int Value){
-              [LinqIntercept(false)]private static int Project(global::PrivateViewHelperCase.Input row){
+            namespace PrivateViewHelperCase{
+             public static class Queries{
+              [LinqIntercept(false)]internal static int Project(global::PrivateViewHelperCase.Input row){
                global::PrivateViewHelperCase.Probe.Events.Add("project:"+row.Id);
                if(global::PrivateViewHelperCase.Probe.Fail&&row.Id==3)throw new InvalidOperationException("helper3");
                return row.Value;
               }
-              public static global::System.Collections.Generic.IEnumerable<PrivateRows> Query(global::PrivateViewHelperCase.Database container)=>container.Inputs.Select(static row=>new PrivateRows(Project(row)));
+              extension(Database.IReader q){
+               public Seamless.Collections.ISet<Views.PrivateRows> PrivateRows=>q.Inputs.Select(static row=>new Views.PrivateRows(Project(row)));
+              }
              }
             }
+            namespace PrivateViewHelperCase.Views{
+             public readonly record struct PrivateRows(int Value);
+            }
             """;
-        if(methodGroup){source=source.Replace(".Select(static row=>new PrivateRows(Project(row)))",".Select(Project).Select(static value=>new PrivateRows(value))",StringComparison.Ordinal);}
+        if(methodGroup){source=source.Replace(".Select(static row=>new Views.PrivateRows(Project(row)))",".Select(Project).Select(static value=>new Views.PrivateRows(value))",StringComparison.Ordinal);}
         var evidence=Environment.GetEnvironmentVariable("VIEW_BOUNDARY_PROOF_ROOT");
         var caseName=$"private-helper-{methodGroup}";
         var(result,generated)=await RunBoundarySourceAsync(source,"PrivateViewHelperCase",evidence is null?null:Path.Combine(evidence,caseName+"-generated.cs.txt"));
@@ -66,10 +72,6 @@ public sealed partial class DatabaseTransactionExpansionTests{
                 Assert.Equal(JsonValueKind.Null,actual.GetProperty("error").ValueKind);
             }
         }
-        var code=string.Join(Environment.NewLine,generated);
-        Assert.Contains("Name = \"Project\"",code,StringComparison.Ordinal);
-        // 定義は呼出元へ融合し、View境界(ExpandDefinition)を通らない。private helperの転送は融合後も維持する。
-        Assert.Contains("InlinedIntoCaller",code,StringComparison.Ordinal);
-        Assert.DoesNotContain(".ExpandDefinition<",code,StringComparison.Ordinal);
+
     }
 }

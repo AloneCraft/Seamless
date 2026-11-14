@@ -42,6 +42,28 @@ public sealed partial class FLinqIncrementalGenerator {
         if(対象.Method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not MethodDeclarationSyntax メソッド構文) {
             return false;
         }
+        var セマンティックモデル = 対象.SemanticModel.Compilation.GetSemanticModel(メソッド構文.SyntaxTree);
+        var 包含型 = 対象.EnclosingType;
+        // [取り込み] ビュー(プロパティ)・関数(メソッド)など、名前を付けて書いたメンバーの本体を呼び出し側の式へ取り込む。
+        // 取り込めなかったビュー・関数は InlineFailures に残り、呼び出し側でコンパイルエラーになる(展開せずに実行時へ回さない)。
+        this.state.InlineFailures.Clear();
+        if(MemberBodyInlining.TryInline(メソッド構文,セマンティックモデル,this.state.InlineFailures,out var 取り込んだメソッド,out var 取り込んだモデル)
+            &&取り込んだモデル.GetDeclaredSymbol(取り込んだメソッド)?.ContainingType is {} 取り込んだ包含型){
+            メソッド構文=取り込んだメソッド;
+            セマンティックモデル=取り込んだモデル;
+            包含型=取り込んだ包含型;
+        }
+        if(this.state.InlineFailures.Count>0){
+            return false;
+        }
+        // [集合] Seamless.Linq.Set の呼び出し(ビュー・関数の本体の書き方)は、System.Linq の同じ演算へ下げてから展開する。
+        // 重複を除く演算(Select・SelectMany・Join)の後には Distinct を足すので、結果は Set と同じ。
+        if(SetCallLowering.TryLower(メソッド構文,セマンティックモデル,out var 下げたメソッド,out var 下げたモデル)
+            &&下げたモデル.GetDeclaredSymbol(下げたメソッド)?.ContainingType is {} 下げた包含型){
+            メソッド構文=下げたメソッド;
+            セマンティックモデル=下げたモデル;
+            包含型=下げた包含型;
+        }
 
         ExpressionSyntax? 式本体式 = null;
         IEnumerable<StatementSyntax> statements;
@@ -61,7 +83,6 @@ public sealed partial class FLinqIncrementalGenerator {
             return false;
         }
 
-        var セマンティックモデル = 対象.SemanticModel.Compilation.GetSemanticModel(メソッド構文.SyntaxTree);
         var usedNames=this.state.UsedIdentifiers;
         usedNames.Clear();
         this.state.BlockScopeIdentifiers.Clear();
@@ -77,13 +98,13 @@ public sealed partial class FLinqIncrementalGenerator {
         var 本体ビルダー = new StringBuilder();
         this.state.LinqInvocationCount=0;
         foreach(var 文 in statements) {
-            if(!文を生成コードへ変換(文,セマンティックモデル,対象.EnclosingType,ref this.state.FragmentNumber,対象.Method.IsStatic,ref this.state.StaticMethods,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref this.state.LinqInvocationCount,usedNames)) {
+            if(!文を生成コードへ変換(文,セマンティックモデル,包含型,ref this.state.FragmentNumber,対象.Method.IsStatic,ref this.state.StaticMethods,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref this.state.LinqInvocationCount,usedNames)) {
                 return false;
             }
         }
 
         if(式本体式 is not null) {
-            if(!LINQ呼び出し差し替え式本体生成(式本体式,セマンティックモデル,対象.EnclosingType,ref this.state.FragmentNumber,対象.Method.IsStatic,対象.Method.ReturnsVoid,ref this.state.StaticMethods,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref this.state.LinqInvocationCount,usedNames)) {
+            if(!LINQ呼び出し差し替え式本体生成(式本体式,セマンティックモデル,包含型,ref this.state.FragmentNumber,対象.Method.IsStatic,対象.Method.ReturnsVoid,ref this.state.StaticMethods,sourceUnsafeAccessorCollector,generatedFragments,本体ビルダー,ref this.state.LinqInvocationCount,usedNames)) {
                 return false;
             }
         }
@@ -142,7 +163,8 @@ public sealed partial class FLinqIncrementalGenerator {
     private bool UnsafeAccessorIsReferenced(string accessorCode,string generatedCode) {
         var match = System.Text.RegularExpressions.Regex.Match(
             accessorCode,
-            @"\b(__[A-Za-z0-9_]+)(?:<[^>\r\n]+>)?\s*\(",
+            // 補助の名前には利用者の型名やメンバー名(日本語を含む)が入るので、英数字だけでなく Unicode の文字で読む。
+            @"\b(__\w+)(?:<[^>\r\n]+>)?\s*\(",
             System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         return match.Success&&generatedCode.Contains(match.Groups[1].Value,StringComparison.Ordinal);
     }
@@ -747,6 +769,116 @@ public sealed partial class FLinqIncrementalGenerator {
     }
 
     /// <summary>
+    /// 文や式の中にある、LINQ の引数ではないラムダ・delegate 構文(Task.Run(()=>…) に渡すものなど)の本体の LINQ を展開する。
+    /// 展開した本体は目印に置き換えて <paramref name="replacementMap"/> へ入れ、文を描いた後に <see cref="CompleteNestedFunctionBodies"/> で戻す。
+    /// LINQ の引数のラムダは各演算子の部品が扱うので、ここでは触らない。
+    /// </summary>
+    private List<(string Placeholder,string Body)> ExpandNestedFunctionBodies(
+        SyntaxNode node,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        List<string> unsafeAccessorCollector,
+        Dictionary<string,string> replacementMap){
+        var bodies=new List<(string Placeholder,string Body)>();
+        var functions=node.DescendantNodesAndSelf(static child=>child is not AnonymousFunctionExpressionSyntax).OfType<AnonymousFunctionExpressionSyntax>().ToArray();
+        foreach(var function in functions){
+            if(function.Ancestors().TakeWhile(ancestor=>ancestor!=node.Parent).OfType<InvocationExpressionSyntax>()
+                .Any(invocation=>IsSupportedLinqInvocation(invocation,semanticModel))){
+                continue;
+            }
+            var key=NormalizeExpressionText(function.ToString());
+            if(replacementMap.ContainsKey(key)){continue;}
+            if(function is LambdaExpressionSyntax{AttributeLists.Count:>0} attributed){
+                // 属性は生成コードの中では名前を解決できないので、写す前に取り除く。[LinqIntercept(false)] のラムダは本体を展開しない。
+                replacementMap[key]=NormalizeExpressionText(attributed.WithAttributeLists(default).ToString());
+                if(IsExpansionDisabledLambda(attributed,semanticModel)){continue;}
+            }
+            if(this.TryRenderKeptDelegateWithExpandedBody(function,semanticModel,containingType,ref uniqueNumber,unsafeAccessorCollector) is not {} body){continue;}
+            var placeholder=$"__FLINQ_NESTED_BODY_{uniqueNumber++}__";
+            replacementMap[key]=placeholder;
+            bodies.Add((placeholder,body));
+        }
+        return bodies;
+    }
+
+    private static string CompleteNestedFunctionBodies(string rendered,List<(string Placeholder,string Body)> bodies){
+        foreach(var (placeholder,body) in bodies){
+            rendered=rendered.Replace(placeholder,body,StringComparison.Ordinal);
+        }
+        return rendered;
+    }
+
+    /// <summary>
+    /// デリゲートのまま呼ぶ関数(ラムダ・delegate 構文。キャストや括弧で包んだものを含む)でも、本体の中の LINQ は展開する。
+    /// 本体を、差し替えメソッドの本体と同じ手順(文は <see cref="文を生成コードへ変換"/>、式は <see cref="LINQ呼び出し差し替え式本体生成"/>)で組み立て直し、
+    /// 同じ引数のラムダとして返す。本体に対象の LINQ が無い、または展開できない形なら null を返す(呼び出し側は元の本文のまま使う)。
+    /// </summary>
+    private string? TryRenderKeptDelegateWithExpandedBody(
+        ExpressionSyntax expression,
+        SemanticModel semanticModel,
+        INamedTypeSymbol containingType,
+        ref int uniqueNumber,
+        List<string> unsafeAccessorCollector){
+        var prefix=string.Empty;
+        var current=expression;
+        while(true){
+            if(current is ParenthesizedExpressionSyntax parenthesized){current=parenthesized.Expression;continue;}
+            if(current is CastExpressionSyntax cast&&semanticModel.GetTypeInfo(cast.Type).Type is {TypeKind:TypeKind.Delegate} castType
+                &&!ContainsAnonymousType(castType)){
+                prefix+="("+castType.ToDisplayString(完全修飾形式)+")";current=cast.Expression;continue;
+            }
+            break;
+        }
+        // 式木(Expression<Func<…>>)へ変換されるラムダは、本体を文にできないので対象にしない。
+        if(current is not AnonymousFunctionExpressionSyntax function||function.Modifiers.Any(SyntaxKind.AsyncKeyword)
+            ||semanticModel.GetTypeInfo(function).ConvertedType is not {TypeKind:TypeKind.Delegate}
+            ||semanticModel.GetSymbolInfo(function).Symbol is not IMethodSymbol symbol
+            ||symbol.Parameters.Any(static parameter=>parameter.RefKind!=RefKind.None)){
+            return null;
+        }
+        // 利用者が [LinqIntercept(false)] を付けたラムダは、本体も展開しない。
+        if(function is LambdaExpressionSyntax marked&&IsExpansionDisabledLambda(marked,semanticModel)){return null;}
+        var body=(SyntaxNode?)function.Block??function.ExpressionBody;
+        if(body is null||!body.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>().Any(invocation=>IsSupportedLinqInvocation(invocation,semanticModel))){
+            return null;
+        }
+        var numberSnapshot=uniqueNumber;
+        var staticsSnapshot=this.state.StaticMethods;
+        var countSnapshot=this.state.LinqInvocationCount;
+        var fragmentsSnapshot=this.state.GeneratedFragments.Count;
+        var accessorsSnapshot=unsafeAccessorCollector.Count;
+        var builder=new StringBuilder();
+        var built=true;
+        try{
+            if(function.Block is {} block){
+                foreach(var statement in block.Statements){
+                    if(!文を生成コードへ変換(statement,semanticModel,containingType,ref uniqueNumber,this.state.Target.Method.IsStatic,ref this.state.StaticMethods,
+                        unsafeAccessorCollector,this.state.GeneratedFragments,builder,ref this.state.LinqInvocationCount,this.state.UsedIdentifiers)){built=false;break;}
+                }
+            }else{
+                built=LINQ呼び出し差し替え式本体生成(function.ExpressionBody!,semanticModel,containingType,ref uniqueNumber,this.state.Target.Method.IsStatic,symbol.ReturnsVoid,
+                    ref this.state.StaticMethods,unsafeAccessorCollector,this.state.GeneratedFragments,builder,ref this.state.LinqInvocationCount,this.state.UsedIdentifiers);
+            }
+        }catch(Exception exception) when(exception is NotSupportedException or InvalidOperationException){
+            built=false;
+        }
+        if(!built||this.state.LinqInvocationCount==countSnapshot){
+            // 途中まで組み立てた部品を捨て、元の本文のまま使う。
+            uniqueNumber=numberSnapshot;
+            this.state.StaticMethods=staticsSnapshot;
+            this.state.LinqInvocationCount=countSnapshot;
+            this.state.GeneratedFragments.RemoveRange(fragmentsSnapshot,this.state.GeneratedFragments.Count-fragmentsSnapshot);
+            unsafeAccessorCollector.RemoveRange(accessorsSnapshot,unsafeAccessorCollector.Count-accessorsSnapshot);
+            return null;
+        }
+        // 型を名指しできる引数は型を書く(型推論に頼る呼び出しへ渡すことがある)。匿名型を含むときは名前だけにする。
+        var typed=!symbol.Parameters.Any(static parameter=>ContainsAnonymousType(parameter.Type));
+        var parameters=string.Join(",",symbol.Parameters.Select(parameter=>typed?parameter.Type.ToDisplayString(完全修飾形式)+" @"+parameter.Name:"@"+parameter.Name));
+        return prefix+"(("+parameters+")=>{\n"+builder.ToString().TrimEnd()+"\n})";
+    }
+
+    /// <summary>
     /// for/while/do/foreach/if/using などの本体文を生成する。
     /// <c>statement</c> が <see cref="BlockSyntax"/> でない場合、複数文への展開時に
     /// 親構文（for等）のヘッダ直後に裸の文が並んで構文エラーになるのを防ぐため、
@@ -1161,13 +1293,16 @@ public sealed partial class FLinqIncrementalGenerator {
             replacementMap[NormalizeExpressionText(invocation.ToString())]=tempName;
         }
 
+        // LINQ の引数ではないラムダ(DB の関数定義など)の本体にある LINQ も展開する。
+        var nestedStatementBodies=this.ExpandNestedFunctionBodies(statement,semanticModel,containingType,ref uniqueNumber,unsafeAccessorCollector,replacementMap);
         var generatedStatement = statement switch {
             LocalDeclarationStatementSyntax localDeclaration => ローカル変数宣言生成(localDeclaration,semanticModel,containingType,replacementMap,unsafeAccessorCollector),
             ExpressionStatementSyntax expressionStatement2 => $"{RenderExpressionForGeneratedMethod(expressionStatement2.Expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap)};",
             ThrowStatementSyntax => RenderStatementForGeneratedMethod(statement,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
-            _ => RenderStatementForGeneratedMethod(statement,replacementMap),
+            // return など LINQ の無い文も、非公開のメンバー(フィールドなど)を補助経由で読むよう、意味を見て書き出す。
+            _ => RenderStatementForGeneratedMethod(statement,semanticModel,containingType,unsafeAccessorCollector,replacementMap),
         };
-        builder.AppendLine(generatedStatement);
+        builder.AppendLine(CompleteNestedFunctionBodies(generatedStatement,nestedStatementBodies));
         return true;
     }
 
@@ -1581,10 +1716,13 @@ public sealed partial class FLinqIncrementalGenerator {
             replacementMap[NormalizeExpressionText(invocation.ToString())]=tempName;
         }
 
+        // LINQ の引数ではないラムダ(DB の関数定義など)の本体にある LINQ も展開する。
+        var nestedBodies=this.ExpandNestedFunctionBodies(expression,semanticModel,containingType,ref uniqueNumber,unsafeAccessorCollector,replacementMap);
         var rendered = RenderExpressionForGeneratedMethod(
             expression,semanticModel,containingType,unsafeAccessorCollector,replacementMap);
         // RenderStatementForGeneratedMethod と同じ後処理：this. → @this. への変換
         rendered=NormalizeGeneratedExpressionText(rendered);
+        rendered=CompleteNestedFunctionBodies(rendered,nestedBodies);
         builder.AppendLine(methodReturnsVoid ? $"{rendered};" : $"return {rendered};");
         return true;
     }

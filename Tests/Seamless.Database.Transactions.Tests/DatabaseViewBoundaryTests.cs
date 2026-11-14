@@ -15,20 +15,22 @@ public sealed partial class DatabaseTransactionExpansionTests{
             public sealed partial class Database(DatabaseContainerOptions options):DatabaseContainer(options){
                 public Table<int,Row> Outer=>this.Table<int,Row>(ReadId);
                 public Table<int,Row> Inner=>this.Table<int,Row>(static row=>row.Id);
-                public View<Row> Identity(Database.TypedTransaction tx)=>this.GeneratedView(()=>tx.Inner.Rows,nameof(Identity));
+
                 public Table<int,Row> Alias=>this.Table<int,Row>(ReadValue,nameof(Inner));
                 public static int ReadId(Row row)=>row.Id;public static int ReadValue(Row row)=>row.Value;
             }
+            // ビューは生成される入口(Database.IReader)への拡張プロパティ。
+            public static class Queries{extension(Database.IReader q){public Seamless.Collections.ISet<Row> Identity=>q.Inner;}}
             public sealed class Entry{
                 private int calls;private int Key(Row row){this.calls++;return row.Value;}
                 [LinqIntercept(true)] private int[] Query(Database.TypedTransaction tx,int limit)=>tx.Outer.Rows.Where(row=>row.Id<limit).Join(tx.Inner.Rows,row=>this.Key(row),static row=>row.Id,static(a,b)=>a.Id*100+b.Value).ToArray();
-                [LinqIntercept(true)] private int[] ThroughView(Database db,Database.TypedTransaction tx,int limit)=>tx.Outer.Rows.Where(row=>row.Id<limit).Join(db.Identity(tx),row=>this.Key(row),static row=>row.Id,static(a,b)=>a.Id*100+b.Value).ToArray();
+                [LinqIntercept(true)] private int[] ThroughView(Database.TypedTransaction tx,int limit)=>tx.Outer.Rows.Where(row=>row.Id<limit).Join(tx.Identity,row=>this.Key(row),static row=>row.Id,static(a,b)=>a.Id*100+b.Value).ToArray();
                 public static async Task<string> Run(){
                     using var db=new Database(DatabaseContainerOptions.InMemory with{TransactionConcurrency=TransactionConcurrencyMode.Optimistic,RecordSerialization=DatabaseRecordSerialization.CanonicalV1,IndexSize=128,PageSize=4096,SegmentSize=1<<20,MemorySize=1<<20,TemporaryDirectory=Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")!,TransactionHistory=new(){MaxRetainedMemoryBytes=1<<20,MaxRetainedStorageBytes=0,MaxMetadataBytes=1<<20,MaintenanceReserveMemoryBytes=1<<20,MaintenanceReserveStorageBytes=0,MaintenanceWaitTimeout=TimeSpan.FromSeconds(5)}});
                     _=db.Inner;await using(var seed=await db.BeginTransactionAsync()){for(var i=1;i<=3;i++)seed.Inner.Add(new(i,i*10));for(var i=0;i<80;i++)seed.Outer.Add(new(i,i%3+1));await seed.CommitAsync();}
                     await using var read=await db.BeginReadOnlyTransactionAsync();
                     var keyType=typeof(Database).Assembly.GetTypes().Single(type=>type.Name.StartsWith("DatabaseJoinKey_",StringComparison.Ordinal));var key=keyType.GetMethod("Key",System.Reflection.BindingFlags.Static|System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<Func<Row,int>>();var available=read.Inner.Rows.TryGetJoinIndex(key,out _);
-                    var entry=new Entry();var values=entry.Query(read,80);var calls=entry.calls;entry.calls=0;var viewValues=entry.ThroughView(db,read,80);var viewCalls=entry.calls;await read.CommitAsync();return JsonSerializer.Serialize(new{count=values.Length,calls,indexAvailable=available,values,viewValues,viewCalls});
+                    var entry=new Entry();var values=entry.Query(read,80);var calls=entry.calls;entry.calls=0;var viewValues=entry.ThroughView(read,80);var viewCalls=entry.calls;await read.CommitAsync();return JsonSerializer.Serialize(new{count=values.Length,calls,indexAvailable=available,values,viewValues,viewCalls});
                 }
             }
             """;
@@ -42,7 +44,8 @@ public sealed partial class DatabaseTransactionExpansionTests{
             value.GetProperty("viewValues").EnumerateArray().Select(static item=>item.GetInt32()));
         var code=string.Join(Environment.NewLine,generated);
         Assert.Single(Regex.Matches(code,@"(?m)^\s*\w+\s*=\s*\w+\.TryGetJoinIndex\("));
-        Assert.Contains("db.Identity(tx)",code,StringComparison.Ordinal);
+        // 本体に LINQ の無いビュー(q.Inner をそのまま返す)は取り込まず、呼び出しのまま残る。
+        Assert.Contains("tx.Identity",code,StringComparison.Ordinal);
     }
 
     [Fact]
@@ -109,79 +112,46 @@ public sealed partial class DatabaseTransactionExpansionTests{
     [Fact]
     public async Task DeclaredViewBodyRunsInCallerCodeAndKeepsSetSemantics(){
         const string source="""
-            using System;using System.Linq;using System.Collections.Generic;using System.Text.Json;using Seamless.Database;using Seamless.FLinq;
+            using System;using System.Linq;using System.Collections.Generic;using System.Text.Json;using Seamless.Database;using Seamless.FLinq;using Seamless.Linq;
             namespace DeclarationBoundary{
              internal static partial class DatabaseGenerator;
              public readonly record struct Row(int Id,int Value);
              public sealed partial class Database(DatabaseContainerOptions options):DatabaseContainer(options){public Table<int,Row> Items=>this.Table<int,Row>(static row=>row.Id);}
+             // ビューは生成される入口(Database.IReader)への拡張プロパティ。
+             public static class Queries{extension(Database.IReader q){public Seamless.Collections.ISet<Views.Positive> Positive=>q.Items.Where(global::DeclarationBoundary.Probe.Include).Select(static row=>new Views.Positive(row.Value));}}
              public static class Probe{
-              public static readonly List<string> Events=new();public static int Receivers;
-              [LinqIntercept(false)]public static Database Receiver(Database db){Receivers++;return db;}
+              public static readonly List<string> Events=new();
               [LinqIntercept(false)]public static bool Include(Row row){Events.Add("inner:"+row.Id);return row.Value>0;}
              }
-             public sealed class Entry{
-              [LinqIntercept(true)]private IEnumerable<int> Query(Database db)=>Probe.Receiver(db).Positive.Where(static row=>row.Value>1).Select(static row=>row.Value);
-              [LinqIntercept(false)]private IEnumerable<int> Reference(Database db)=>Probe.Receiver(db).Positive.Where(static row=>row.Value>1).Select(static row=>row.Value);
+            public sealed class Entry{
+              [LinqIntercept(true)]private IEnumerable<int> Query(Database.Reader r)=>r.Positive.Where(static row=>row.Value>1).Select(static row=>row.Value);
+              [LinqIntercept(false)]private IEnumerable<int> Reference(Database.Reader r)=>r.Positive.Where(static row=>row.Value>1).Select(static row=>row.Value);
               public static string Run(){
                using var db=new Database(DatabaseContainerOptions.InMemory with{IndexSize=128,PageSize=4096,SegmentSize=65536,MemorySize=65536,TemporaryDirectory=Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")!});using(var tx=db.BeginTransaction()){tx.Items.Add(new(1,1));tx.Items.Add(new(2,1));tx.Items.Add(new(3,3));tx.Commit();}
-               Probe.Events.Clear();Probe.Receivers=0;var entry=new Entry();var expected=entry.Reference(db).ToArray();var expectedEvents=Probe.Events.ToArray();Probe.Events.Clear();Probe.Receivers=0;
-               var pending=entry.Query(db);var before=Probe.Events.Count;var receiversBefore=Probe.Receivers;var actual=pending.ToArray();var events=Probe.Events.ToArray();var receivers=Probe.Receivers;Probe.Events.Clear();var again=pending.ToArray();var againEvents=Probe.Events.ToArray();
-               return JsonSerializer.Serialize(new{expected,actual,again,expectedEvents,events,againEvents,before,receiversBefore,receivers});
+               using var r=db.BeginRead();
+               Probe.Events.Clear();var entry=new Entry();int[] expected;try{expected=entry.Reference(r).Order().ToArray();}catch(Exception error){throw new InvalidOperationException("reference: "+error,error);}var expectedEvents=Probe.Events.Order().ToArray();Probe.Events.Clear();
+               var pending=entry.Query(r);var before=Probe.Events.Count;int[] actual;try{actual=pending.Order().ToArray();}catch(Exception error){throw new InvalidOperationException("expanded: "+error,error);}var events=Probe.Events.Order().ToArray();Probe.Events.Clear();int[] again;try{again=pending.Order().ToArray();}catch(Exception error){throw new InvalidOperationException("again: "+error,error);}var againEvents=Probe.Events.Order().ToArray();
+               return JsonSerializer.Serialize(new{expected,actual,again,expectedEvents,events,againEvents,before});
               }
              }
             }
             namespace DeclarationBoundary.Views{
-             public readonly partial record struct Positive(int Value){public static global::System.Collections.Generic.IEnumerable<Positive> Query(global::DeclarationBoundary.Database container)=>container.Items.Where(global::DeclarationBoundary.Probe.Include).Select(static row=>new Positive(row.Value));}
+             public readonly record struct Positive(int Value);
             }
             """;
         var(result,generated)=await RunBoundarySourceAsync(source,"DeclarationBoundary");
         using var document=JsonDocument.Parse(result);
         var value=document.RootElement;
+        // 呼び出した時点では評価しない(列挙するたびに評価する)。
         Assert.Equal(0,value.GetProperty("before").GetInt32());
-        Assert.Equal(1,value.GetProperty("receiversBefore").GetInt32());
-        Assert.Equal(1,value.GetProperty("receivers").GetInt32());
+        // ビューは集合: Select の結果の重複(Value=1 が2行)を除く。傍受しない実行(Seamless.Linq.Set)と同じ結果になる。
+        Assert.Equal([3],value.GetProperty("actual").EnumerateArray().Select(static item=>item.GetInt32()));
         Assert.Equal(value.GetProperty("expected").EnumerateArray().Select(static item=>item.GetInt32()),value.GetProperty("actual").EnumerateArray().Select(static item=>item.GetInt32()));
         Assert.Equal(value.GetProperty("actual").EnumerateArray().Select(static item=>item.GetInt32()),value.GetProperty("again").EnumerateArray().Select(static item=>item.GetInt32()));
         Assert.Equal(value.GetProperty("expectedEvents").EnumerateArray().Select(static item=>item.GetString()),value.GetProperty("events").EnumerateArray().Select(static item=>item.GetString()));
         Assert.Equal(value.GetProperty("events").EnumerateArray().Select(static item=>item.GetString()),value.GetProperty("againEvents").EnumerateArray().Select(static item=>item.GetString()));
+        // ビューの本体は呼び出し側へ取り込んで展開する(ビューの呼び出しは生成コードに残らない)。
         var code=string.Join(Environment.NewLine,generated);
-        Assert.Contains(".ExpandDefinition<",code,StringComparison.Ordinal);
-        Assert.Matches(@"(?m)^\s*private static global::System.Collections.Generic.IEnumerable<[^\r\n]+> \w+_ViewDefinition\(",code);
-    }
-
-    private sealed class ViewDefinitionOwner():DatabaseContainer(DatabaseContainerOptions.InMemory);
-
-    [Fact]
-    public void GeneratedViewsWithTheSameNameKeepSeparateDefinitions(){
-        using var owner=new ViewDefinitionOwner();
-        var inner=owner.GeneratedView<int>(()=>new[]{2,2},"Shared");
-        var outer=owner.GeneratedView<int>(()=>inner.Select(value=>value+1),"Shared");
-        Assert.NotSame(inner,outer);
-        Assert.Equal(new[]{3},outer.ToArray());
-        Assert.Equal(new[]{3},outer.ExpandDefinition<ViewDefinitionOwner>(_=>inner.ExpandDefinition<ViewDefinitionOwner>(_=>new[]{2,2}).Select(value=>value+1)).ToArray());
-        Assert.Equal(0,owner.ResourceUsage.MemoryBytes);
-        Assert.Equal(0,owner.ResourceUsage.TemporaryStorageBytes);
-    }
-
-    [Fact]
-    public void DefinitionCycleGuardUnwindsAfterFailureAndBeforeYield(){
-        using var owner=new ViewDefinitionOwner();
-        var cycle=true;
-        View<int> loop=null!;
-        loop=owner.GeneratedView<int>(()=>cycle?loop:new[]{9},"Loop");
-        Assert.Throws<InvalidOperationException>(()=>loop.ToArray());
-        cycle=false;
-        Assert.Equal(new[]{9},loop.ToArray());
-        using(var first=loop.GetEnumerator()){
-            Assert.True(first.MoveNext());
-            using var second=loop.GetEnumerator();
-            Assert.True(second.MoveNext());
-            Assert.Equal(9,first.Current);
-            Assert.Equal(9,second.Current);
-            Assert.False(first.MoveNext());
-            Assert.False(second.MoveNext());
-        }
-        Assert.Equal(0,owner.ResourceUsage.MemoryBytes);
-        Assert.Equal(0,owner.ResourceUsage.TemporaryStorageBytes);
+        Assert.DoesNotMatch(@"\br\.Positive",code);
     }
 }

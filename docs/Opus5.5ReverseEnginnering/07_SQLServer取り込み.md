@@ -90,7 +90,7 @@ CLI：`seamless database sqlserver <generate|import|prepare|samples> --project .
 
 ## 8. 移行条件
 
-- ルーチン実行を入れる場合、生成コードの形（`TableFunction<T>`/`ScalarFunction<T>`/`StoredProcedure<T>` の署名）は変えず、中身だけを例外から実行へ差し替える。
+- ルーチン実行を入れる場合、生成コードの形（関数は `I<スキーマ>Reader` への拡張メソッドで、テーブル関数は `ISet<行>`、スカラー関数は値を返す。ストアドプロシージャは `StoredProcedure<T>`）は変えず、中身だけを例外から実行へ差し替える。
 - 取り込み済みの DB は作り直す（自動変換しない）。
 
 ## 9. ロールバック条件

@@ -184,7 +184,7 @@ public static partial class CSharpDatabaseGenerator {
                 builder.AppendLine($"        public global::Seamless.Database.MaterializedView<global::{typeNamespace}.Keys.{view.TypeName},global::{typeNamespace}.Records.{view.TypeName}> {view.Name}=>this.MaterializedView<global::{typeNamespace}.Keys.{view.TypeName},global::{typeNamespace}.Records.{view.TypeName}>(static record=>new({keyArguments}));");
                 }
             }
-            foreach(var routine in schema.Routines) {
+            foreach(var routine in schema.Routines.Where(static routine=>routine.Source.Kind==RoutineKind.StoredProcedure)) {
                 var start=builder.Length;
                 AppendRoutineSource(builder,typeNamespace,routine);
                 routines.Add(new(sourceDatabaseName,schema.Source.Name,routine.Source.Name,routine.Source.Kind,
@@ -194,6 +194,27 @@ public static partial class CSharpDatabaseGenerator {
             builder.AppendLine("    }");
         }
         builder.AppendLine("}");
+        // [関数/形] 関数はスキーマの入口(I<スキーマ>Reader)への拡張メンバー。スキーマごとの静的クラス <名前空間>.Functions.<スキーマ> に置く。
+        // 呼び出し側は r.<スキーマ>.<関数>(…)・tx.<スキーマ>.<関数>(…) と書く。
+        var functionSchemas=schemas.Where(static schema=>schema.Routines.Any(static routine=>routine.Source.Kind!=RoutineKind.StoredProcedure)).ToArray();
+        if(functionSchemas.Length>0){
+            builder.AppendLine();
+            builder.AppendLine($"namespace {typeNamespace}.Functions {{");
+            foreach(var schema in functionSchemas){
+                builder.AppendLine($"    public static partial class {schema.Name} {{");
+                builder.AppendLine($"        extension(global::{typeNamespace}.{databaseName}.I{FileName(schema.Name)}Reader q) {{");
+                foreach(var routine in schema.Routines.Where(static routine=>routine.Source.Kind!=RoutineKind.StoredProcedure)){
+                    var start=builder.Length;
+                    AppendRoutineSource(builder,typeNamespace,routine);
+                    routines.Add(new(sourceDatabaseName,schema.Source.Name,routine.Source.Name,routine.Source.Kind,
+                        $"{FileName(typeNamespace)}.Functions.{FileName(schema.Name)}",FileName(routine.Name),
+                        $"{FileName(databaseName)}.cs",builder.ToString(start,builder.Length-start),!HasRoutineImplementation(routine.Source)));
+                }
+                builder.AppendLine("        }");
+                builder.AppendLine("    }");
+            }
+            builder.AppendLine("}");
+        }
         return builder.ToString();
     }
 
@@ -240,24 +261,25 @@ public static partial class CSharpDatabaseGenerator {
             .Select(parameter=>$"{(parameter.IsOutput?"out ":string.Empty)}{TypeName(parameter.Type)} {ParameterName(parameter.Name)}"));
         var outputParameters=routine.Source.Parameters.Where(static parameter=>parameter.IsOutput).ToArray();
         switch(routine.Source.Kind) {
+            // [関数/形] 関数は、生成される入口(I<スキーマ>Reader)への拡張メソッドとして書く(拡張ブロックの中に置く。CreateDatabaseSource)。
             case RoutineKind.TableFunction:
                 if(routine.Columns.Count==0) {
                     throw new NotSupportedException($"Table function '{routine.Source.SchemaName}.{routine.Source.Name}' has no result columns.");
                 }
-                AppendRoutineMethod(builder,
-                    $"        public global::Seamless.Database.TableFunction<global::{databaseName}.Records.{routine.TypeName}> {routine.Name}({parameters})",
-                    $"this.TableFunction<global::{databaseName}.Records.{routine.TypeName}>(()=>throw new global::System.NotSupportedException({Literal($"Imported SQL Server table function '{routine.Source.SchemaName}.{routine.Source.Name}' requires relational-algebra execution.")}))",
+                AppendFunctionMethod(builder,
+                    $"        public global::Seamless.Collections.ISet<global::{databaseName}.Records.{routine.TypeName}> {routine.Name}({parameters})",
+                    $"throw new global::System.NotSupportedException({Literal($"Imported SQL Server table function '{routine.Source.SchemaName}.{routine.Source.Name}' requires relational-algebra execution.")});",
                     outputParameters);
                 break;
             case RoutineKind.ScalarFunction:
                 var scalarType=routine.Source.ReturnType is null
                     ?"object?"
                     :TypeName(routine.Source.ReturnType);
-                var scalarExpression=$"this.ScalarFunction<{scalarType}>(()=>throw new global::System.NotSupportedException({Literal($"Imported SQL Server scalar function '{routine.Source.SchemaName}.{routine.Source.Name}' requires relational-algebra execution.")}))";
-                if(HasRoutineImplementation(routine.Source)){scalarExpression=$"this.ScalarFunction<{scalarType}>(()=>{{{routine.Source.Implementation!.CSharpBody}}})";}
-                AppendRoutineMethod(builder,
-                    $"        public global::Seamless.Database.ScalarFunction<{scalarType}> {routine.Name}({parameters})",
-                    scalarExpression,
+                var scalarBody=$"throw new global::System.NotSupportedException({Literal($"Imported SQL Server scalar function '{routine.Source.SchemaName}.{routine.Source.Name}' requires relational-algebra execution.")});";
+                if(HasRoutineImplementation(routine.Source)){scalarBody=routine.Source.Implementation!.CSharpBody;}
+                AppendFunctionMethod(builder,
+                    $"        public {scalarType} {routine.Name}({parameters})",
+                    scalarBody,
                     outputParameters);
                 break;
             case RoutineKind.StoredProcedure:
@@ -277,6 +299,15 @@ public static partial class CSharpDatabaseGenerator {
     private static bool HasRoutineImplementation(RoutineCatalog routine){
         if(routine.Kind!=RoutineKind.ScalarFunction||routine.Definition is null||routine.Implementation is not{}implementation||implementation.CompilerProfile!="SqlServerScalarTinyintCaseNvarcharV1"||string.IsNullOrWhiteSpace(implementation.CSharpBody)){return false;}
         return string.Equals(implementation.SourceDefinitionSha256,Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(routine.Definition))),StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static void AppendFunctionMethod(StringBuilder builder,string signature,string body,IReadOnlyList<ParameterCatalog> outputParameters){
+        builder.AppendLine($"{signature} {{");
+        foreach(var parameter in outputParameters) {
+            builder.AppendLine($"            {ParameterName(parameter.Name)}=default!;");
+        }
+        builder.AppendLine($"            {body}");
+        builder.AppendLine("        }");
     }
 
     private static void AppendRoutineMethod(

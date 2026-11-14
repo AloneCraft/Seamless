@@ -15,10 +15,11 @@ public sealed class ObjectExecution{
         var definition=Designer.AddSchema(Designer.Empty("objects","Objects"),"dbo0");
         foreach(var schema in new[]{"","dbo0"}){
             definition=Designer.Apply(definition,new("Items",schema,[new("Id","int",true),new("Value","decimal",false)],[]));
-            var source="container.";if(schema.Length>0){source+=schema+".";}
+            // 本体は生成される入口(スキーマの I<スキーマ>Reader)を q で読む。
+            var source="q.";
             definition=Designer.ApplyQuery(definition,new("ItemList",schema,DatabaseQueryKind.View,[new("Id","int",false),new("Value","decimal",false)],[],"","return "+source+"Items.Select(row=>new ItemList(row.Id,row.Value));"));
             definition=Designer.ApplyQuery(definition,new("Amount",schema,DatabaseQueryKind.ScalarFunction,[],[new("id","int")],"decimal","return "+source+"Items.Where(row=>row.Id==id).Sum(row=>row.Value);"));
-            definition=Designer.ApplyQuery(definition,new("Find",schema,DatabaseQueryKind.TableFunction,[new("Id","int",false)],[new("minimum","decimal")],"IEnumerable<FindResult>","return "+source+"Items.Where(row=>row.Value>=minimum).Select(row=>new FindResult(row.Id));"));
+            definition=Designer.ApplyQuery(definition,new("Find",schema,DatabaseQueryKind.TableFunction,[new("Id","int",false)],[new("minimum","decimal")],"ISet<FindResult>","return "+source+"Items.Where(row=>row.Value>=minimum).Select(row=>new FindResult(row.Id));"));
         }
         NativeWorkflow.Publish(service,owner,definition);
         await service.CommitRowsAsync(owner,new("Objects",1,Guid.NewGuid(),[

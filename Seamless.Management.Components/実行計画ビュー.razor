@@ -44,7 +44,6 @@
         </div>
 
         @if(選択計画 is{} plan){
-            <ビュー展開通知 計画="@plan"/>
             <div class="構造段階"><label>@表示文言.取得("構造の段階")<select aria-label="@表示文言.取得("構造の段階")" value="@this.構造段階" @onchange="this.構造変更時Async"><option value="Relational">@表示文言.取得("関係代数")</option><option value="Logical">@表示文言.取得("論理処理")</option><option value="Generated">@表示文言.取得("FLinq生成C#構造")</option></select></label></div>
             @if(this.構造段階=="Relational"){
                 <p class="小案内">@表示文言.取得("元クエリの演算を表示します。列の問い合わせには順序と重複を含むシーケンス契約が適用されます。")</p>

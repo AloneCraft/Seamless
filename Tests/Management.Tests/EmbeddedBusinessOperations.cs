@@ -135,7 +135,7 @@ public sealed class EmbeddedBusinessOperations{
         return await pending;
     }
     private static void Initialize(InProcessManagementHost host)=>host.Invoke((service,user)=>{
-        var database=NativeWorkflow.Database();database=database with{Source=database.Source with{Files=database.Source.Files.Select(file=>file with{Text=file.Text.Replace("public Table<","public ScalarFunction<int> TimesTen(int value)=>this.ScalarFunction(()=>value*10);public Table<",StringComparison.Ordinal)}).ToArray()}};
+        var database=NativeWorkflow.Database();database=database with{Source=database.Source with{Files=database.Source.Files.Select(file=>file with{Text=file.Text+"\nnamespace Model{public static class DbQueries{extension(Db.IReader q){public int TimesTen(int value)=>value*10;}}}"}).ToArray()}};
         NativeWorkflow.Publish(service,user,database);
         NativeWorkflow.Publish(service,user,Query("count","int","return context.GetDatabase<Db>().Rows.Count;",false));
         NativeWorkflow.Publish(service,user,Query("mutate","object?","var db=context.GetDatabase<Db>();db.Rows.Add(new Records.Row(id,id*10));if(mode==1){throw new System.InvalidOperationException(\"rollback\");}if(mode==2){return new int[0];}if(mode==3){return new[]{1,2};}if(mode==4){return \"not-a-number\";}if(mode==5){return null;}return db.Rows.Count;",true,",int id,int mode"));return true;

@@ -8,28 +8,31 @@ public sealed partial class DatabaseDesigner{
         var definition=Seamless.Management.DatabaseDesigner.Empty("queries","Queries");
         definition=Seamless.Management.DatabaseDesigner.AddSchema(definition,"dbo0");definition=Seamless.Management.DatabaseDesigner.AddSchema(definition,"dbo1");
         foreach(var schema in new[]{"","dbo0","dbo1"}){
-            var access="container.";if(schema.Length>0){access+=schema+".";}
+            // 本体は生成される入口(スキーマの I<スキーマ>Reader)を q で読む。
             definition=Seamless.Management.DatabaseDesigner.Apply(definition,new("Items",schema,[new("Id","int",true),new("Value","decimal",false)],[]));
-            var view=new QueryDesign("ItemList",schema,DatabaseQueryKind.View,[new("Id","int",false),new("Value","decimal",false)],[],"","return "+access+"Items.Concat("+access+"Items).Select(row=>new ItemList(row.Id,row.Value));");
+            var view=new QueryDesign("ItemList",schema,DatabaseQueryKind.View,[new("Id","int",false),new("Value","decimal",false)],[],"","return q.Items.Union(q.Items).Select(row=>new ItemList(row.Id,row.Value));");
             definition=Seamless.Management.DatabaseDesigner.ApplyQuery(definition,view);
-            var read=Seamless.Management.DatabaseDesigner.ReadQuery(definition,view.Path);Assert.Contains("Concat",read.Body);
+            var read=Seamless.Management.DatabaseDesigner.ReadQuery(definition,view.Path);Assert.Contains("Union",read.Body);
             definition=Seamless.Management.DatabaseDesigner.ApplyQuery(definition,read with{Body=read.Body+"\n// preserve this body"});
             Assert.Contains("// preserve this body",Seamless.Management.DatabaseDesigner.ReadQuery(definition,view.Path).Body);
-            definition=Seamless.Management.DatabaseDesigner.ApplyQuery(definition,new("Amount",schema,DatabaseQueryKind.ScalarFunction,[],[new("id","int")],"decimal","return "+access+"Items.Where(row=>row.Id==id).Sum(row=>row.Value);"));
-            definition=Seamless.Management.DatabaseDesigner.ApplyQuery(definition,new("Find",schema,DatabaseQueryKind.TableFunction,[new("Id","int",false)],[new("minimum","decimal")],"IEnumerable<FindResult>","return "+access+"Items.Where(row=>row.Value>=minimum).Select(row=>new FindResult(row.Id));"));
-            Assert.Contains("IEnumerable",Seamless.Management.DatabaseDesigner.ReadQuery(definition,string.Join(".",new[]{schema,"Find"}.Where(value=>value.Length>0))).ReturnType);
+            definition=Seamless.Management.DatabaseDesigner.ApplyQuery(definition,new("Amount",schema,DatabaseQueryKind.ScalarFunction,[],[new("id","int")],"decimal","return q.Items.Where(row=>row.Id==id).Sum(row=>row.Value);"));
+            definition=Seamless.Management.DatabaseDesigner.ApplyQuery(definition,new("Find",schema,DatabaseQueryKind.TableFunction,[new("Id","int",false)],[new("minimum","decimal")],"ISet<FindResult>","return q.Items.Where(row=>row.Value>=minimum).Select(row=>new FindResult(row.Id));"));
+            Assert.Contains("ISet",Seamless.Management.DatabaseDesigner.ReadQuery(definition,string.Join(".",new[]{schema,"Find"}.Where(value=>value.Length>0))).ReturnType);
         }
         Assert.Equal(12,Seamless.Management.DatabaseDesigner.Objects(definition).Length);
         const string probe="""
             using System.Linq;
             namespace UserCode;
             public static class Probe{
-                public static void Seed(ManagedDb database){database.Items.Add(new(1,10m));database.dbo0.Items.Add(new(1,20m));database.dbo1.Items.Add(new(1,30m));}
+                // 行の投入は試験側の取引で行う(管理サーバーの中の利用者コードは取引を開けない)。
+                public static void Seed(ManagedDb database){database.Items.Add(new(1,10m));database.dbo0.Items.Add(new(1,20m));database.dbo1.Items.Add(new(1,30m));
+                }
                 public static bool Run(ManagedDb database){
-                    return database.ItemList.Single().Value==10m&&database.dbo0.ItemList.Single().Value==20m&&database.dbo1.ItemList.Single().Value==30m
-                        &&database.ItemList.Count==1&&database.ItemList.Contains(new(1,10m))
-                        &&database.Amount(1).Value==10m&&database.dbo0.Amount(1).Value==20m&&database.dbo1.Amount(1).Value==30m
-                        &&database.Find(5m).Single().Id==1&&database.dbo0.Find(15m).Single().Id==1&&database.dbo1.Find(25m).Single().Id==1;
+                    using var r=database.BeginRead();
+                    return r.ItemList.Single().Value==10m&&r.dbo0.ItemList.Single().Value==20m&&r.dbo1.ItemList.Single().Value==30m
+                        &&r.ItemList.Count==1&&r.ItemList.Contains(new(1,10m))
+                        &&r.Amount(1)==10m&&r.dbo0.Amount(1)==20m&&r.dbo1.Amount(1)==30m
+                        &&r.Find(5m).Single().Id==1&&r.dbo0.Find(15m).Single().Id==1&&r.dbo1.Find(25m).Single().Id==1;
                 }
             }
             """;
@@ -43,8 +46,10 @@ public sealed partial class DatabaseDesigner{
             using var database=(Seamless.Database.DatabaseContainer)Activator.CreateInstance(assembly.GetType("UserCode.ManagedDb")!,[Seamless.Database.DatabaseContainerOptions.InMemory with{IndexSize=1024,PageSize=65536,SegmentSize=1048576,MemorySize=1048576}])!;
             var type=assembly.GetType("UserCode.Probe")!;
             using(var write=database.BeginTransaction()){type.GetMethod("Seed")!.Invoke(null,[database]);write.Commit();}
-            using var read=database.BeginReadSession();
             Assert.Equal(true,type.GetMethod("Run")!.Invoke(null,[database]));
+            // 名前で呼ぶ入口(Manager の実行が使う)からも同じ値になる。
+            using var amount=database.Queries.Single(query=>query.Name=="dbo1.Amount").Execute(database,1);
+            Assert.Equal(30m,amount.Value);
         }finally{context.Unload();}
     }
     [Fact]public void EmptySchemasPersistAndCoexistWithRootTables(){

@@ -10,7 +10,8 @@ public sealed class CommonFunctions{
     [Fact]public async Task DatabaseMembersAndRegisteredEntriesShareMetadataAndTheOwnerPipe(){
         using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");using var service=new Service(store,null,startAuditWorker:false);var owner=Owner();
         var database=NativeWorkflow.Database();
-        database=database with{Source=database.Source with{Files=database.Source.Files.Select(file=>file with{Text=file.Text.Replace("public Table<","public ScalarFunction<int> TimesTen(int value)=>this.ScalarFunction(()=>value*10);public Table<",StringComparison.Ordinal)}).ToArray()}};
+        // 関数は生成される入口(Db.IReader)への拡張メンバー。
+        database=database with{Source=database.Source with{Files=database.Source.Files.Select(file=>file with{Text=file.Text+"\nnamespace Model{public static class DbQueries{extension(Db.IReader q){public int TimesTen(int value)=>value*10;}}}"}).ToArray()}};
         NativeWorkflow.Publish(service,owner,database);
         NativeWorkflow.Publish(service,owner,Query("calculate","int","return value+context.GetDatabase<Db>().Rows.Count;",false,",int value"));
         NativeWorkflow.Publish(service,owner,Query("numbers","System.Collections.Generic.IEnumerable<int>","return System.Linq.Enumerable.Range(1,count);",false,",int count"));

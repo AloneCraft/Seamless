@@ -132,17 +132,6 @@ namespace AdventureWorks2017.Schemas {
         public global::Seamless.Database.Table<global::AdventureWorks2017.Keys.AWBuildVersion,global::AdventureWorks2017.Records.AWBuildVersion> AWBuildVersion=>this.Table<global::AdventureWorks2017.Keys.AWBuildVersion,global::AdventureWorks2017.Records.AWBuildVersion>(static record=>new(record.SystemInformationID));
         public global::Seamless.Database.Table<global::AdventureWorks2017.Keys.DatabaseLog,global::AdventureWorks2017.Records.DatabaseLog> DatabaseLog=>this.Table<global::AdventureWorks2017.Keys.DatabaseLog,global::AdventureWorks2017.Records.DatabaseLog>(static record=>new(record.DatabaseLogID));
         public global::Seamless.Database.Table<global::AdventureWorks2017.Keys.ErrorLog,global::AdventureWorks2017.Records.ErrorLog> ErrorLog=>this.Table<global::AdventureWorks2017.Keys.ErrorLog,global::AdventureWorks2017.Records.ErrorLog>(static record=>new(record.ErrorLogID));
-        public global::Seamless.Database.ScalarFunction<global::System.DateTime?> ufnGetAccountingEndDate()=>this.ScalarFunction<global::System.DateTime?>(()=>throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetAccountingEndDate' requires relational-algebra execution."));
-        public global::Seamless.Database.ScalarFunction<global::System.DateTime?> ufnGetAccountingStartDate()=>this.ScalarFunction<global::System.DateTime?>(()=>throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetAccountingStartDate' requires relational-algebra execution."));
-        public global::Seamless.Database.TableFunction<global::AdventureWorks2017.Records.ufnGetContactInformation> ufnGetContactInformation(int? PersonID)=>this.TableFunction<global::AdventureWorks2017.Records.ufnGetContactInformation>(()=>throw new global::System.NotSupportedException("Imported SQL Server table function 'dbo.ufnGetContactInformation' requires relational-algebra execution."));
-        public global::Seamless.Database.ScalarFunction<string?> ufnGetDocumentStatusText(byte? Status)=>this.ScalarFunction<string?>(()=>throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetDocumentStatusText' requires relational-algebra execution."));
-        public global::Seamless.Database.ScalarFunction<decimal?> ufnGetProductDealerPrice(int? ProductID,global::System.DateTime? OrderDate)=>this.ScalarFunction<decimal?>(()=>throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetProductDealerPrice' requires relational-algebra execution."));
-        public global::Seamless.Database.ScalarFunction<decimal?> ufnGetProductListPrice(int? ProductID,global::System.DateTime? OrderDate)=>this.ScalarFunction<decimal?>(()=>throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetProductListPrice' requires relational-algebra execution."));
-        public global::Seamless.Database.ScalarFunction<decimal?> ufnGetProductStandardCost(int? ProductID,global::System.DateTime? OrderDate)=>this.ScalarFunction<decimal?>(()=>throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetProductStandardCost' requires relational-algebra execution."));
-        public global::Seamless.Database.ScalarFunction<string?> ufnGetPurchaseOrderStatusText(byte? Status)=>this.ScalarFunction<string?>(()=>throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetPurchaseOrderStatusText' requires relational-algebra execution."));
-        public global::Seamless.Database.ScalarFunction<string?> ufnGetSalesOrderStatusText(byte? Status)=>this.ScalarFunction<string?>(()=>throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetSalesOrderStatusText' requires relational-algebra execution."));
-        public global::Seamless.Database.ScalarFunction<int?> ufnGetStock(int? ProductID)=>this.ScalarFunction<int?>(()=>throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetStock' requires relational-algebra execution."));
-        public global::Seamless.Database.ScalarFunction<string?> ufnLeadingZeros(int? Value)=>this.ScalarFunction<string?>(()=>throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnLeadingZeros' requires relational-algebra execution."));
         public global::Seamless.Database.StoredProcedure<object?> uspGetBillOfMaterials(int? StartProductID,global::System.DateTime? CheckDate)=>this.StoredProcedure<object?>(()=>throw new global::System.NotSupportedException("Imported SQL Server stored procedure 'dbo.uspGetBillOfMaterials' requires relational-algebra execution."));
         public global::Seamless.Database.StoredProcedure<object?> uspGetEmployeeManagers(int? BusinessEntityID)=>this.StoredProcedure<object?>(()=>throw new global::System.NotSupportedException("Imported SQL Server stored procedure 'dbo.uspGetEmployeeManagers' requires relational-algebra execution."));
         public global::Seamless.Database.StoredProcedure<object?> uspGetManagerEmployees(int? BusinessEntityID)=>this.StoredProcedure<object?>(()=>throw new global::System.NotSupportedException("Imported SQL Server stored procedure 'dbo.uspGetManagerEmployees' requires relational-algebra execution."));
@@ -153,5 +142,45 @@ namespace AdventureWorks2017.Schemas {
         }
         public global::Seamless.Database.StoredProcedure<object?> uspPrintError()=>this.StoredProcedure<object?>(()=>throw new global::System.NotSupportedException("Imported SQL Server stored procedure 'dbo.uspPrintError' requires relational-algebra execution."));
         public global::Seamless.Database.StoredProcedure<object?> uspSearchCandidateResumes(string? searchString,bool? useInflectional,bool? useThesaurus,int? language)=>this.StoredProcedure<object?>(()=>throw new global::System.NotSupportedException("Imported SQL Server stored procedure 'dbo.uspSearchCandidateResumes' requires relational-algebra execution."));
+    }
+}
+
+namespace AdventureWorks2017.Functions {
+    public static partial class dbo {
+        extension(global::AdventureWorks2017.AdventureWorks2017.IdboReader q) {
+        public global::System.DateTime? ufnGetAccountingEndDate() {
+            throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetAccountingEndDate' requires relational-algebra execution.");
+        }
+        public global::System.DateTime? ufnGetAccountingStartDate() {
+            throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetAccountingStartDate' requires relational-algebra execution.");
+        }
+        public global::Seamless.Collections.ISet<global::AdventureWorks2017.Records.ufnGetContactInformation> ufnGetContactInformation(int? PersonID) {
+            throw new global::System.NotSupportedException("Imported SQL Server table function 'dbo.ufnGetContactInformation' requires relational-algebra execution.");
+        }
+        public string? ufnGetDocumentStatusText(byte? Status) {
+            throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetDocumentStatusText' requires relational-algebra execution.");
+        }
+        public decimal? ufnGetProductDealerPrice(int? ProductID,global::System.DateTime? OrderDate) {
+            throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetProductDealerPrice' requires relational-algebra execution.");
+        }
+        public decimal? ufnGetProductListPrice(int? ProductID,global::System.DateTime? OrderDate) {
+            throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetProductListPrice' requires relational-algebra execution.");
+        }
+        public decimal? ufnGetProductStandardCost(int? ProductID,global::System.DateTime? OrderDate) {
+            throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetProductStandardCost' requires relational-algebra execution.");
+        }
+        public string? ufnGetPurchaseOrderStatusText(byte? Status) {
+            throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetPurchaseOrderStatusText' requires relational-algebra execution.");
+        }
+        public string? ufnGetSalesOrderStatusText(byte? Status) {
+            throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetSalesOrderStatusText' requires relational-algebra execution.");
+        }
+        public int? ufnGetStock(int? ProductID) {
+            throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnGetStock' requires relational-algebra execution.");
+        }
+        public string? ufnLeadingZeros(int? Value) {
+            throw new global::System.NotSupportedException("Imported SQL Server scalar function 'dbo.ufnLeadingZeros' requires relational-algebra execution.");
+        }
+        }
     }
 }

@@ -154,11 +154,11 @@ public sealed class QueryExecutionMeasurements{
             try{
                 this.Service=new(this.store,null,startAuditWorker:false);
                 var definition=Designer.Apply(Designer.Empty("measurements","Measurements"),new("Items","",[new("Id","int",true),new("Value","decimal",false)],[]));
-                definition=Designer.ApplyQuery(definition,new("ItemList","",DatabaseQueryKind.View,[new("Id","int",false),new("Value","decimal",false)],[],"","return container.Items.Select(row=>new ItemList(row.Id,row.Value));"));
-                definition=Designer.ApplyQuery(definition,new("Amount","",DatabaseQueryKind.ScalarFunction,[],[],"decimal","return container.Items.Sum(row=>row.Value);"));
-                definition=Designer.ApplyQuery(definition,new("Find","",DatabaseQueryKind.TableFunction,[new("Id","int",false)],[new("minimum","decimal")],"IEnumerable<FindResult>","return container.Items.Where(row=>row.Value>=minimum).Select(row=>new FindResult(row.Id));"));
+                definition=Designer.ApplyQuery(definition,new("ItemList","",DatabaseQueryKind.View,[new("Id","int",false),new("Value","decimal",false)],[],"","return q.Items.Select(row=>new ItemList(row.Id,row.Value));"));
+                definition=Designer.ApplyQuery(definition,new("Amount","",DatabaseQueryKind.ScalarFunction,[],[],"decimal","return q.Items.Sum(row=>row.Value);"));
+                definition=Designer.ApplyQuery(definition,new("Find","",DatabaseQueryKind.TableFunction,[new("Id","int",false)],[new("minimum","decimal")],"ISet<FindResult>","return q.Items.Where(row=>row.Value>=minimum).Select(row=>new FindResult(row.Id));"));
                 definition=Designer.ApplyQuery(definition,new("Fail","",DatabaseQueryKind.ScalarFunction,[],[],"int","throw new System.InvalidOperationException(\"measurement failure\");"));
-                definition=Designer.ApplyQuery(definition,new("DisposeFailure","",DatabaseQueryKind.TableFunction,[new("Id","int",false)],[],"IEnumerable<DisposeFailureResult>","global::System.Collections.Generic.IEnumerable<DisposeFailureResult> Rows(){try{yield return new(1);yield return new(2);}finally{throw new System.InvalidOperationException(\"iterator disposed\");}} return Rows();"));
+                definition=Designer.ApplyQuery(definition,new("DisposeFailure","",DatabaseQueryKind.TableFunction,[new("Id","int",false)],[],"ISet<DisposeFailureResult>","return q.Items.Select(row=>row.Id==2?throw new System.InvalidOperationException(\"iterator disposed\"):new DisposeFailureResult(row.Id));"));
                 NativeWorkflow.Publish(this.Service,this.Owner,definition);
                 this.Service.CommitRowsAsync(this.Owner,new("Measurements",1,Guid.NewGuid(),[new("Items",TableRowChangeKind.Insert,Values:JsonSerializer.SerializeToElement(new{Id=1,Value=10m})),new("Items",TableRowChangeKind.Insert,Values:JsonSerializer.SerializeToElement(new{Id=2,Value=20m}))])).GetAwaiter().GetResult();
             }catch{this.Service?.Dispose();this.store.Dispose();throw;}

@@ -11,16 +11,13 @@ namespace Test.Seamless.Database.TPC_H {
     // source generator の生成コードを検証する。
     internal static partial class DatabaseGenerator;
 
-    // ビューは Views 名前空間の partial 行型の Query で宣言し、コンテナのプロパティ(生成)で読む。
+    // ビュー・関数の結果の行型。ビュー・関数そのものは TpchQueries(IReader への拡張メンバー)。
     namespace Views {
-        public readonly partial record struct NationNames {
-            public static global::System.Collections.Generic.IEnumerable<object> Query(Container db) =>
-                global::System.Linq.Enumerable.Select(db.NationNamesQuery(),name => new { Name = name });
-        }
+        public readonly record struct NationNames(string Name);
     }
 
     // 宣言的データベースコンテナ。Table 実体は DatabaseContainer 基底が Tsavorite ストアとして生成し、
-    // Table/View/TableFunction はC#の戻り値型とメンバー名から推論する。
+    // 表はC#の戻り値型とメンバー名から推論する。ビュー・関数は TpchQueries に書く。
     // クエリ本体(Q01..Q22 と *Query メソッド)は通常の C# メソッドとして書き、呼び出し箇所で FLinq が展開する。
     [global::Seamless.FLinq.LinqIntercept(false)]
     public sealed partial class Container(global::Seamless.Database.DatabaseContainerOptions? options)
@@ -433,23 +430,7 @@ namespace Test.Seamless.Database.TPC_H {
             orderby grouped.Key
             select Row(22,grouped.Key,grouped.Count(),grouped.Sum(customer => customer.c_acctbal));
 
-        // ── 宣言的 View / TableFunction / スカラー関数 ────────────────────
-        // FLinq は「LINQ を含む通常メソッドの呼び出し箇所」を展開するため、
-        // View/TableFunction の LINQ 本体は *Query メソッドに置き、ラムダからそれを呼ぶ。
-
-        [global::Seamless.FLinq.LinqIntercept(true)]
-        public IEnumerable<string> NationNamesQuery() =>
-            this.nations.OrderBy(nation => nation.n_name).Select(nation => nation.n_name);
-
-
-        [global::Seamless.FLinq.LinqIntercept(true)]
-        public IEnumerable<int> OrdersByCustomerQuery(int customerKey) =>
-            this.orders.Where(order => order.o_custkey==customerKey).OrderBy(orderKey => orderKey.o_orderkey).Select(order => order.o_orderkey);
-
-        public global::Seamless.Database.TableFunction<int> OrdersByCustomer(int customerKey) {
-            return this.TableFunction(() => this.OrdersByCustomerQuery(customerKey));
-        }
-
+        // ── スカラーの計算(コンテナの普通のメソッドなので目録には載らない) ──
         [global::Seamless.FLinq.LinqIntercept(true)]
         public decimal TotalAccountBalance() =>
             this.customers.Sum(customer => customer.c_acctbal);
@@ -821,17 +802,16 @@ namespace Test.Seamless.Database.TPC_H {
         [Fact]
         public void NationNames_View_MatchesBaseline() {
             var expected = Baseline.NationNames(this.Container);
-            var view = this.Container.NationNames;
-            Assert.Equal("NationNames",((global::Seamless.Database.View<Views.NationNames>)view).Name);
-            Assert.Equal(expected,view.Select(row => row.Name).ToArray());
+            using var reader = this.Container.BeginRead();
+            // ビューは集合なので並びを持たない。比べる前に並べる。
+            Assert.Equal(expected,reader.NationNames.Select(row => row.Name).Order(Comparer<string>.Default).ToArray());
         }
 
         [Fact]
         public void OrdersByCustomer_TableFunction_MatchesBaseline() {
             var expected = Baseline.OrdersByCustomer(this.Container,1);
-            var function = this.Container.OrdersByCustomer(1);
-            Assert.Equal("OrdersByCustomer",function.Name);
-            Assert.Equal(expected,function.ToArray());
+            using var reader = this.Container.BeginRead();
+            Assert.Equal(expected,reader.OrdersByCustomer(1).Order().ToArray());
         }
 
         [Fact]

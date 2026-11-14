@@ -182,6 +182,14 @@ public sealed partial class FLinqIncrementalGenerator {
                         continue;
                     }
 
+                    // ビュー・関数を呼び出し側へ取り込めなかった。実行時へ回さずコンパイルエラーにする(差し替えも出さない)。
+                    if(state.InlineFailures.Count>0){
+                        var inlineLocation=target.Method.Locations.FirstOrDefault()??target.Invocation.GetLocation();
+                        foreach(var failure in state.InlineFailures){
+                            diagnostics.Add(Diagnostic.Create(ビュー関数展開失敗Descriptor,inlineLocation,target.Method.Name,failure.Site,failure.Member,failure.Reason));
+                        }
+                        continue;
+                    }
                     インターセプターXmlコメント追加(builder,target);
                     builder.AppendLine("    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
                     builder.AppendLine($"    {target.InterceptsLocationAttributeText}");

@@ -23,10 +23,11 @@ public sealed partial class DatabaseDesigner{
         const string body="var text=@\"a\nb\";\nreturn text.Length;";
         var design=new QueryDesign("Length","",DatabaseQueryKind.ScalarFunction,[],[],"int",body);
         var applied=Designer.ApplyQuery(definition,design);
-        var database=applied.Source.Files.Single(file=>file.Path=="Database.cs").Text;
+        // 関数は新しいファイル(Queries/<名前>.cs)へ書く。新しいファイルは LF で作る。
+        var database=applied.Source.Files.Single(file=>file.Path=="Queries/Length.cs").Text;
         Assert.Contains(body,database,StringComparison.Ordinal);
-        // 利用者の本文を除けば、Managerが作った部分を含めてファイルの改行はCRLFだけ。
+        // 利用者の本文を除けば、Managerが作った部分の改行は LF だけ(既存ファイルの CRLF には引きずられない)。
         var rest=database.Replace(body,"",StringComparison.Ordinal);
-        Assert.DoesNotContain("\n",rest.Replace("\r\n","",StringComparison.Ordinal),StringComparison.Ordinal);
+        Assert.DoesNotContain("\r",rest,StringComparison.Ordinal);
     }
 }

@@ -28,6 +28,8 @@ internal sealed class GenerationState(FLinqIncrementalGenerator.Linq傍受対象
 public Dictionary<Fragment, ExecutionPlanOrigin> PlanOrigins { get; } = new();
     public List<string> UnsafeAccessorCodes { get; } = new();
     public string? FailureReason { get; set; }
+    // 呼び出し側へ取り込めなかったビュー・関数(DB の IReader への拡張メンバー)。呼び出し側でコンパイルエラー(FLINQ007)にする。
+    public List<MemberBodyInlining.Failure> InlineFailures { get; } = new();
 
     internal string[] ResolveOuterTypeParameters(INamedTypeSymbol containingType) {
         if(this.Target.MethodTypeParameters.Length>0) {

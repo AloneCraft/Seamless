@@ -29,7 +29,8 @@ public sealed class GeneratedRoutineBindingTests{
             Assert.All(generated.Routines,item=>{
                 Assert.Equal("db name",item.SourceDatabaseName);
                 Assert.Equal("class",item.SourceSchemaName);
-                Assert.Equal(generated.DatabaseName+".Schemas.class",item.DeclaringTypeName);
+                // 関数は I<スキーマ>Reader への拡張メソッドとして Functions.<スキーマ> に、ストアドプロシージャはスキーマのクラスに置く。
+                Assert.Equal(generated.DatabaseName+(item.Kind==RdbmsApi.RoutineKind.StoredProcedure?".Schemas.class":".Functions.class"),item.DeclaringTypeName);
                 Assert.Equal(generated.DatabaseName+".cs",item.SourceFile);
                 Assert.True(item.IsStub);
                 Assert.Contains("requires relational-algebra execution",item.CSharpSource,StringComparison.Ordinal);

@@ -5,14 +5,11 @@ using DatabaseObjectRecord = global::Seamless.Database.System.Records.DatabaseOb
 namespace Test.Seamless.Database.Spec {
     internal static partial class DatabaseGenerator;
 
-    // ビューは Views 名前空間の partial 行型の Query で宣言し、コンテナのプロパティ(生成)で読む。
+    // ビュー・関数の結果の行型。ビューは Views、テーブル関数は Functions に置く。
     namespace Views {
-        public readonly partial record struct ItemNames {
-            public static global::System.Collections.Generic.IEnumerable<object> Query(SpecDatabase db) =>
-                global::System.Linq.Enumerable.Select(db.ItemNamesQuery(),name => new { Name = name });
-        }
+        public readonly record struct ItemNames(string Name);
     }
-    // Keys/Records の partial struct を MemoryPack 対応スキーマレコードへ補完する generator のマーカー。
+
 
     // Seamless.Database.Generator(DatabaseContainerGenerator)の生成物を種別ごとに検証するための最小スペック。
     // Table/View/TableFunction/ScalarFunction/StoredProcedure を宣言し、SGが生成する DatabaseObjects/DatabaseName/
@@ -24,20 +21,6 @@ namespace Test.Seamless.Database.Spec {
 
         public global::Seamless.Database.Table<Keys.Item,Records.Item> Items=>
             this.Table<Keys.Item,Records.Item>(static record=>new(record.Id));
-
-        [global::Seamless.FLinq.LinqIntercept(true)]
-        public IEnumerable<string> ItemNamesQuery()=>
-            this.Items.OrderBy(item=>item.Name).Select(item=>item.Name);
-
-
-        [global::Seamless.FLinq.LinqIntercept(true)]
-        public IEnumerable<Records.Item> ItemsAboveQuery(int minimumId)=>
-            this.Items.Where(item=>item.Id>=minimumId).OrderBy(item=>item.Id);
-
-        public global::Seamless.Database.TableFunction<Records.Item> ItemsAbove(int minimumId)=>this.TableFunction(()=>this.ItemsAboveQuery(minimumId));
-
-        [global::Seamless.FLinq.LinqIntercept(false)]
-        public global::Seamless.Database.ScalarFunction<int> ItemCount()=>this.ScalarFunction(()=>this.Items.Count());
 
         [global::Seamless.FLinq.LinqIntercept(false)]
         public global::Seamless.Database.StoredProcedure<int> NoOperation()=>this.StoredProcedure(static()=>0);
@@ -105,12 +88,17 @@ namespace Test.Seamless.Database.Spec {
                 var declaration = this.Database.DatabaseObjects[new("ItemNames")];
                 Assert.Equal(DatabaseObjectKind.View,declaration.Kind);
                 Assert.Equal(typeof(Views.ItemNames),declaration.RecordType);
-                Assert.Equal("ItemNames",((global::Seamless.Database.View<Views.ItemNames>)this.Database.ItemNames).Name);
             }
             {
-                //Viewが定義どおりに列挙され、読むたびに定義を評価すること
-                var view = this.Database.ItemNames;
-                Assert.Equal(["Apple","Banana","Cherry"],view.Select(row=>row.Name).ToArray());
+                //読み込みの入口からビューを読むと、定義どおりの集合になること(集合なので並びは持たない)
+                using var reader = this.Database.BeginRead();
+                Assert.Equal(["Apple","Banana","Cherry"],reader.ItemNames.Select(row=>row.Name).Order().ToArray());
+            }
+            {
+                //名前で呼ぶ入口(Manager・Gateway 用)からも同じ結果になること
+                var query = Assert.Single(this.Database.Queries,item=>item.Name=="ItemNames");
+                using var result = query.Execute(this.Database);
+                Assert.Equal(["Apple","Banana","Cherry"],((IEnumerable<Views.ItemNames>)result.Value!).Select(row=>row.Name).Order().ToArray());
             }
         }
 
@@ -121,12 +109,24 @@ namespace Test.Seamless.Database.Spec {
                 var declaration = this.Database.DatabaseObjects[new("ItemsAbove")];
                 Assert.Equal(DatabaseObjectKind.TableFunction,declaration.Kind);
                 Assert.Equal(typeof(Records.Item),declaration.RecordType);
-                Assert.Equal("ItemsAbove",this.Database.ItemsAbove(2).Name);
             }
             {
-                //引数をキャプチャして列挙のたびに定義を評価すること
-                var function = this.Database.ItemsAbove(2);
-                Assert.Equal([2,3],function.Select(item => item.Id).ToArray());
+                //引数を受け取り、呼んだ入口の内容を読むこと
+                using var reader = this.Database.BeginRead();
+                Assert.Equal([2,3],reader.ItemsAbove(2).Select(item => item.Id).Order().ToArray());
+            }
+            {
+                //取引から呼ぶと、その取引のまだ確定していない書き込みも読むこと
+                using var tx = this.Database.BeginTransaction();
+                tx.Items.Add(new Records.Item(4,"Date"));
+                Assert.Equal([2,3,4],tx.ItemsAbove(2).Select(item => item.Id).Order().ToArray());
+            }
+            {
+                //名前で呼ぶ入口は引数の数と型を持つこと
+                var query = Assert.Single(this.Database.Queries,item=>item.Name=="ItemsAbove");
+                Assert.Equal([new("minimumId",typeof(int))],query.Parameters);
+                using var result = query.Execute(this.Database,2);
+                Assert.Equal([2,3],((IEnumerable<Records.Item>)result.Value!).Select(item=>item.Id).Order().ToArray());
             }
         }
 
@@ -135,7 +135,8 @@ namespace Test.Seamless.Database.Spec {
             var declaration=this.Database.DatabaseObjects[new("ItemCount")];
             Assert.Equal(DatabaseObjectKind.ScalarFunction,declaration.Kind);
             Assert.Equal(typeof(int),declaration.RecordType);
-            Assert.Equal(3,this.Database.ItemCount().Value);
+            using var reader=this.Database.BeginRead();
+            Assert.Equal(3,reader.ItemCount());
         }
 
         [Fact,Trait("Category","Unit")]

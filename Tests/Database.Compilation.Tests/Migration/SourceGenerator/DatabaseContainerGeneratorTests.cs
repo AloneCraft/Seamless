@@ -48,36 +48,47 @@ public sealed class DatabaseContainerGeneratorTests {
 
     [Fact,Trait("Category","Unit")]
     public void DatabaseObjectsGeneratedAsSystemTable() {
-        // ビューは Views 名前空間の partial 行型の Query だけで宣言する。
+        // ビュー・関数は、生成される入口(Catalog.IReader)への拡張メンバーとして書く。ビューはプロパティ、関数はメソッド。
         const string source = """
             namespace Sample{
             internal static partial class DatabaseGenerator;
             public sealed partial class Catalog:global::Seamless.Database.DatabaseContainer {
                 public global::Seamless.Database.Table<int> Items=>this.Table<int>();
-                public global::Seamless.Database.TableFunction<int> Find(int minimum)=>this.TableFunction(()=>[]);
-                public global::Seamless.Database.ScalarFunction<int> Total()=>this.ScalarFunction(static()=>0);
                 public global::Seamless.Database.StoredProcedure<int> Rebuild()=>this.StoredProcedure(static()=>0);
                 public int Count()=>0;
             }
+            public static class CatalogQueries{
+                extension(Catalog.IReader q){
+                    public global::Seamless.Collections.ISet<Views.Names> Names=>throw new global::System.NotImplementedException();
+                    public global::Seamless.Collections.ISet<int> Find(int minimum)=>throw new global::System.NotImplementedException();
+                    public int Total()=>0;
+                    public int Helper=>0;
+                }
+            }
             }
             namespace Sample.Views{
-            public readonly partial record struct Names(string Name){
-                public static global::System.Collections.Generic.IEnumerable<Names> Query(global::Sample.Catalog db)=>[];
-            }
+            public readonly record struct Names(string Name);
             }
             """;
         var result=Run(source);
         var generated=Assert.Single(result.GeneratedSources,static generated=>generated.HintName.Contains("Catalog.Container.g.cs",StringComparison.Ordinal)).SourceText.ToString();
         Assert.Contains("SystemTable",generated,StringComparison.Ordinal);
         Assert.Contains("DatabaseObjectKind.Table",generated,StringComparison.Ordinal);
-        Assert.Contains("DatabaseObjectKind.View",generated,StringComparison.Ordinal);
-        Assert.Contains("DatabaseObjectKind.TableFunction",generated,StringComparison.Ordinal);
-        Assert.Contains("DatabaseObjectKind.ScalarFunction",generated,StringComparison.Ordinal);
+        Assert.Contains("""new(new("Names"),global::Seamless.Database.System.DatabaseObjectKind.View,typeof(global::Sample.Views.Names))""",generated,StringComparison.Ordinal);
+        Assert.Contains("""new(new("Find"),global::Seamless.Database.System.DatabaseObjectKind.TableFunction,typeof(int))""",generated,StringComparison.Ordinal);
+        Assert.Contains("""new(new("Total"),global::Seamless.Database.System.DatabaseObjectKind.ScalarFunction,typeof(int))""",generated,StringComparison.Ordinal);
         Assert.Contains("DatabaseObjectKind.StoredProcedure",generated,StringComparison.Ordinal);
         Assert.Contains("DatabaseObjectKind.SystemTable",generated,StringComparison.Ordinal);
-        Assert.Contains("typeof(int)",generated,StringComparison.Ordinal);
+        // ISet を返さないプロパティ(Helper)と、コンテナの普通のメソッド(Count)は目録に載らない。
         Assert.DoesNotContain("""new(new("Count")""",generated,StringComparison.Ordinal);
+        Assert.DoesNotContain("""new(new("Helper")""",generated,StringComparison.Ordinal);
         Assert.DoesNotContain("SqlName",generated,StringComparison.Ordinal);
+        // 名前で呼ぶ入口(Manager・Gateway 用)を、拡張の名前空間の補助クラスから作る。
+        var queries=Assert.Single(result.GeneratedSources,static generated=>generated.HintName.Contains("Catalog.Queries.g.cs",StringComparison.Ordinal)).SourceText.ToString();
+        Assert.Contains("reader.Names",queries,StringComparison.Ordinal);
+        Assert.Contains("reader.Find((int)arguments[0]!)",queries,StringComparison.Ordinal);
+        Assert.Contains("public override global::System.Collections.Generic.IReadOnlyList<global::Seamless.Database.DatabaseQuery> Queries",queries,StringComparison.Ordinal);
+        Assert.Empty(result.Diagnostics.Where(static diagnostic=>diagnostic.Severity==DiagnosticSeverity.Error));
     }
 
     [Fact,Trait("Category","Unit")]
@@ -85,9 +96,12 @@ public sealed class DatabaseContainerGeneratorTests {
         const string source = """
             namespace Sample;
             internal static class DatabaseGenerator;
-            public sealed partial class Catalog:global::Seamless.Database.DatabaseContainer {
-                public global::Seamless.Database.TableFunction<int> Find(int minimum)=>this.TableFunction(()=>[]);
-                public global::Seamless.Database.TableFunction<int> Find(string minimum)=>this.TableFunction(()=>[]);
+            public sealed partial class Catalog:global::Seamless.Database.DatabaseContainer;
+            public static class CatalogQueries{
+                extension(Catalog.IReader q){
+                    public global::Seamless.Collections.ISet<int> Find(int minimum)=>throw new global::System.NotImplementedException();
+                    public global::Seamless.Collections.ISet<int> Find(string minimum)=>throw new global::System.NotImplementedException();
+                }
             }
             """;
         var result=Run(source);

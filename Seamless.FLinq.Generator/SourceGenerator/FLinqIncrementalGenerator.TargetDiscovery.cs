@@ -85,6 +85,8 @@ public sealed partial class FLinqIncrementalGenerator {
             // ref struct を interceptor 引数/receiver として扱う経路は未対応。
             ||method.ContainingType.IsStatic
             // static クラスのメンバーは生成コードで型パラメータとして使用できないため除外。
+            ||method.ContainingType.IsExtension
+            // 拡張ブロックのメンバー(ビュー・関数)は差し替えず、呼び出し側へ本体を取り込む(MemberBodyInlining)。
             ||(!method.IsStatic&&method.ContainingType.IsValueType)
             // 値型 instance method は receiver のコピー/boxing 差異が大きいためまだ除外。
             ||method.DeclaringSyntaxReferences.Length==0
@@ -356,6 +358,19 @@ public sealed partial class FLinqIncrementalGenerator {
         return true;
     }
 
+    // フィールドも、メソッドと同じ順(フィールド → 型 → アセンブリ)で属性を探す。readonly のフィールドのデリゲートを呼び出し側へ取り込むかの判定に使う。
+    internal static bool LinqRewrite判定(IFieldSymbol field,Compilation compilation) {
+        if(TryGetLinqRewriteOverride(field.GetAttributes(),out var fieldOverride)) {
+            return fieldOverride;
+        }
+        for(var type = field.ContainingType;type is not null;type=type.ContainingType) {
+            if(TryGetLinqRewriteOverride(type.GetAttributes(),out var typeOverride)) {
+                return typeOverride;
+            }
+        }
+        return !TryGetLinqRewriteOverride(compilation.Assembly.GetAttributes(),out var assemblyOverride)||assemblyOverride;
+    }
+
     private static bool TryGetLinqRewriteOverride(ImmutableArray<AttributeData> attributes,out bool shouldRewrite) {
         foreach(var attribute in attributes) {
             if(attribute.AttributeClass?.Name=="LinqInterceptAttribute") {
@@ -547,7 +562,10 @@ public sealed partial class FLinqIncrementalGenerator {
         }
 
         var semanticModel = compilation.GetSemanticModel(methodSyntax.SyntaxTree);
-        if(!メソッド構文にLinq候補を含むか(methodSyntax,semanticModel)) {
+        // ビュー・関数など、本体を取り込むメンバーの呼び出しも LINQ と同じに扱う(取り込んだ後の本体に LINQ がある)。
+        var inlinableBody=(SyntaxNode?)methodSyntax.Body??methodSyntax.ExpressionBody?.Expression;
+        var callsInlinableMember=inlinableBody is not null&&MemberBodyInlining.ContainsInlinableMember(inlinableBody,semanticModel);
+        if(!callsInlinableMember&&!メソッド構文にLinq候補を含むか(methodSyntax,semanticModel)) {
             return ローカルメソッドLinq解析結果.Empty;
         }
         // 通常の block-bodied method と expression-bodied method の両方を見る。
@@ -619,6 +637,8 @@ public sealed partial class FLinqIncrementalGenerator {
                 }
             }
         }
+
+        if(callsInlinableMember){hasEnumerableCall=true;}
 
         // クエリ式（from ... select/where/orderby 等）も System.Linq.Enumerable 呼び出しとして扱う
         if(!hasEnumerableCall) {

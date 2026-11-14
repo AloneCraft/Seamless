@@ -17,9 +17,10 @@ public static partial class DatabaseDesigner{
             var item=Objects(definition).SingleOrDefault(item=>item.Id==objectId)??throw new ManagementException("NotFound","問い合わせがありません。");
             if(item.Kind is not ("View" or "ScalarFunction" or "TableFunction" or "StoredProcedure")){throw new ManagementException("InvalidRequest","実行計画の対象にはビュー・関数・クエリを指定してください。");}
             var container=Container(compilation,definition);
-            var source=SourceStructure.Read(definition.Source).Objects.SingleOrDefault(source=>source.Kind=="Views"&&source.Root==container.ContainingNamespace.ToDisplayString()&&source.Schema==item.Schema&&source.Name==item.Name);
-            if(source is not null){
-                method=PlanTargetMethod(compilation.GetTypeByMetadataName(source.Type.Replace("global::","",StringComparison.Ordinal))?.GetMembers("Query").OfType<IMethodSymbol>()??[]);
+            // ビュー・関数は IReader への拡張メンバー(ビューはプロパティの getter)。
+            if(FindQueryMember(compilation,definition,item.Id) is{} query){
+                method=query.Member as IMethodSymbol;
+                if(query.Member is IPropertySymbol view){method=view.GetMethod;}
             }else{
                 var members=Owner(container,item.Schema).GetMembers(item.Name);
                 if(members.Length>1){throw new ManagementException("Unsupported","実行計画の対象メンバーが複数あります。オーバーロードを区別できる宣言を指定してください。");}
@@ -87,11 +88,17 @@ public static partial class DatabaseDesigner{
         if(node is LocalFunctionStatementSyntax){return false;}
         if(node is not AnonymousFunctionExpressionSyntax lambda){return true;}
         if(lambda.Parent is not ArgumentSyntax argument||argument.Expression!=lambda||argument.Parent?.Parent is not InvocationExpressionSyntax invocation){return false;}
-        if(semantic.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method){return false;}
+        if(semantic.GetSymbolInfo(invocation).Symbol is not IMethodSymbol method){
+            // ビュー・関数の本体の受け手(生成される IReader)は、生成器を動かさない設計器のコンパイルでは型が決まらない。
+            // 受け手の型が決まらない呼び出しは、名前が LINQ の演算ならラムダの中もたどる。
+            return invocation.Expression is MemberAccessExpressionSyntax{Name.Identifier.ValueText:var name}
+                &&semantic.GetTypeInfo(((MemberAccessExpressionSyntax)invocation.Expression).Expression).Type is null or IErrorTypeSymbol
+                &&typeof(System.Linq.Enumerable).GetMethods().Any(item=>item.Name==name);
+        }
         method=method.ReducedFrom??method;
         var owner=method.ContainingType.ToDisplayString();
-        if(owner is "System.Linq.Enumerable" or "Seamless.Linq.Enumerable"){return true;}
+        if(owner is "System.Linq.Enumerable" or "Seamless.Linq.Enumerable" or "Seamless.Linq.Set"){return true;}
         return owner is "Seamless.Database.DatabaseContainer" or "Seamless.Database.DatabaseSchema"
-            &&method.Name is "GeneratedView" or "ScalarFunction" or "TableFunction" or "StoredProcedure";
+            &&method.Name is "StoredProcedure";
     }
 }

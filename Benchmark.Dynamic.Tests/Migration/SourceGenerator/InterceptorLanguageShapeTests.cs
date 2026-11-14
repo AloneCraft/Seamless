@@ -411,7 +411,8 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output) {
             using System.Linq;
             namespace Sample;
             public class Container {
-                private static int MapStatic(int value) => value+1;
+                // 式本体のメソッドグループは本体を呼び出し側へ取り込む。ここでは取り込めない形(文が2つ)にして、デリゲートのまま補助経由で呼ぶ経路を確かめる。
+                private static int MapStatic(int value) { var next=value+1; return next; }
                 private static int SumWithPrivateStaticMethodGroup(int[] src) =>
                     src.Select(MapStatic).Sum();
                 public int Run(int[] src) => SumWithPrivateStaticMethodGroup(src);
@@ -437,7 +438,8 @@ public class InterceptorLanguageShapeTests(ITestOutputHelper output) {
             using System.Linq;
             namespace Sample;
             public class Container {
-                private int MapInstance(int value) => value+1;
+                // 式本体のメソッドグループは本体を呼び出し側へ取り込む。ここでは取り込めない形(文が2つ)にして、デリゲートのまま補助経由で呼ぶ経路を確かめる。
+                private int MapInstance(int value) { var next=value+1; return next; }
                 private int SumWithPrivateInstanceMethodGroup(int[] src) =>
                     src.Select(MapInstance).Sum();
                 public int Run(int[] src) => SumWithPrivateInstanceMethodGroup(src);

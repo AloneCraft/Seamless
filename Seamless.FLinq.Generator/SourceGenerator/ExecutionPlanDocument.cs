@@ -65,27 +65,6 @@ internal static class ExecutionPlanWriter{
                     }
                 }
             }
-            if(fragment is ViewDefinitionRoot view){
-                properties["ExpansionStatus"]=view.ExpansionStatus;
-                properties["PredicatePushdownStatus"]=view.PredicatePushdownStatus;
-                properties["PredicatePushdownReason"]=view.PredicatePushdownReason;
-                properties["PushedKeyMember"]=view.PushedKeyMember;
-                properties["FusionStatus"]=view.FusionStatus;
-                properties["FusionReason"]=view.FusionReason;
-            }
-            var fusedView=fragment switch{TransactionRowsRoot{FusedView:{} rowsView}=>rowsView,FusedViewRoot fusedRoot=>fusedRoot.View,_=>null};
-            if(fusedView is not null){
-                // 融合後は元のViewDefinitionRootが木に残らないため、融合した根にビューの判断を記録する。
-                properties["ExpansionStatus"]=fusedView.ExpansionStatus;
-                properties["ViewElementType"]=fusedView.ViewElementType;
-                properties["SetBoundary"]="DistinctStageKept";
-                properties["FusionStatus"]=fusedView.FusionStatus;
-                properties["FusionReason"]=fusedView.FusionReason;
-                properties["PredicatePushdownStatus"]=fusedView.PredicatePushdownStatus;
-                properties["PredicatePushdownReason"]=fusedView.PredicatePushdownReason;
-                properties["PushedKeyMember"]=fusedView.PushedKeyMember;
-            }
-            if(fragment is OpaqueViewRoot opaque){properties["ExpansionStatus"]=opaque.ExpansionStatus;properties["ExpansionReason"]=opaque.ExpansionReason;}
             var label=fragment.GetType().Name;var arity=label.IndexOf('`');if(arity>=0){label=label.Substring(0,arity);}
             properties["Implementation"]=fragment.GetType().FullName??label;properties["AlgorithmDetails"]="Only explicitly recorded decisions are known";properties["SourceMapping"]=origin?.Level??"Unknown";properties["LoweredExpression"]=origin?.Expression??"";
             nodes.Add(new(id,"Fragment",label,inputs.Distinct().ToArray(),origin?.QueryId,origin?.Path,origin?.Start??0,origin?.Length??0,properties));

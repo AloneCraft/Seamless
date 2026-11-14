@@ -46,7 +46,7 @@ public sealed partial class FLinqIncrementalGenerator:IIncrementalGenerator {
                 None = 0,
                 Counter = 1,
             }
-            [global::System.AttributeUsage(global::System.AttributeTargets.Assembly|global::System.AttributeTargets.Class|global::System.AttributeTargets.Method,AllowMultiple=false)]
+            [global::System.AttributeUsage(global::System.AttributeTargets.Assembly|global::System.AttributeTargets.Class|global::System.AttributeTargets.Method|global::System.AttributeTargets.Field,AllowMultiple=false)]
             internal sealed class LinqInterceptAttribute : global::System.Attribute {
                 public LinqInterceptAttribute(bool optimizeLinq){
                     this.OptimizeLinq=optimizeLinq;

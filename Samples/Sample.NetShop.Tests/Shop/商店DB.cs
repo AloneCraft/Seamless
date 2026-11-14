@@ -40,15 +40,20 @@ public sealed class 商店DB{
         商店.初期データを登録する();
         {
             //在庫がある間は空
-            Assert.Empty(商店.在庫切れ商品);
+            using var 読み=商店.BeginRead();
+            Assert.Empty(読み.在庫切れ商品);
         }
         {
-            //在庫を使い切った商品だけが商品ID順に出る
+            //在庫を使い切った商品だけが出る(ビューは集合なので並びは持たない)
             var 抹茶=初期データ.商品一覧[2];
             var 急須=初期データ.商品一覧[5];
             Assert.True(商店.注文確定(1,[new 注文行(急須.商品ID,急須.在庫数),new 注文行(抹茶.商品ID,抹茶.在庫数)],DateTime.Now).Result.成功か);
-            Assert.Equal([抹茶.商品ID,急須.商品ID],商店.在庫切れ商品.Select(行=>行.商品ID).ToArray());
-            Assert.Equal("在庫切れ商品",((global::Seamless.Database.View<global::Sample.NetShop.Core.Shop.Views.在庫切れ商品>)商店.在庫切れ商品).Name);
+            using var 読み=商店.BeginRead();
+            Assert.Equal([抹茶.商品ID,急須.商品ID],読み.在庫切れ商品.Select(行=>行.商品ID).Order().ToArray());
+        }
+        {
+            //目録にビューとして載る
+            Assert.Equal(global::Seamless.Database.System.DatabaseObjectKind.View,商店.DatabaseObjects[new("在庫切れ商品")].Kind);
         }
     }
 
@@ -59,13 +64,14 @@ public sealed class 商店DB{
         var 一件目=商店.注文確定(3,[new 注文行(1,1)],DateTime.Now).Result;
         商店.注文確定(4,[new 注文行(1,1)],DateTime.Now);
         var 二件目=商店.注文確定(3,[new 注文行(2,1)],DateTime.Now).Result;
+        using var 読み=商店.BeginRead();
         {
-            //指定した顧客の注文だけが注文ID順に出る
-            Assert.Equal([一件目.注文ID,二件目.注文ID],商店.顧客の注文履歴(3).Select(行=>行.注文ID).ToArray());
+            //指定した顧客の注文だけが出る
+            Assert.Equal([一件目.注文ID,二件目.注文ID],読み.顧客の注文履歴(3).Select(行=>行.注文ID).Order().ToArray());
         }
         {
             //注文の無い顧客は空
-            Assert.Empty(商店.顧客の注文履歴(9));
+            Assert.Empty(読み.顧客の注文履歴(9));
         }
     }
 
@@ -75,14 +81,21 @@ public sealed class 商店DB{
         商店.初期データを登録する();
         {
             //注文が無ければ0
-            Assert.Equal(0,商店.売上合計().Value);
+            Assert.Equal(0,商店.売上合計を読む());
         }
         {
             //確定した注文の合計金額の和
             var 緑茶=初期データ.商品一覧[0];
             var 羊羹=初期データ.商品一覧[4];
             商店.注文確定(1,[new 注文行(緑茶.商品ID,2),new 注文行(羊羹.商品ID,1)],DateTime.Now);
-            Assert.Equal(緑茶.単価*2+羊羹.単価,商店.売上合計().Value);
+            Assert.Equal(緑茶.単価*2+羊羹.単価,商店.売上合計を読む());
+        }
+        {
+            //取引の中から呼ぶと、その取引の内容(まだ確定していない書き込みを含む)を読む
+            using var 取引=商店.BeginTransaction();
+            取引.注文.Add(new(999_999,1,DateTime.Now,1_000));
+            Assert.Equal(緑茶売上(),取引.売上合計()-1_000);
+            long 緑茶売上()=>初期データ.商品一覧[0].単価*2+初期データ.商品一覧[4].単価;
         }
     }
 

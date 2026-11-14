@@ -8,7 +8,8 @@ public static partial class DatabaseDesigner{
         var names=new HashSet<string>(StringComparer.Ordinal);
         var ancestors=new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
         Walk(container,"");
-        foreach(var item in SourceStructure.Read(definition.Source).Objects.Where(item=>item.Root==container.ContainingNamespace.ToDisplayString()&&item.Schema.Length>0)){
+        // Views の型はビューの結果の行型(ビューそのものは IReader への拡張メンバー)なので、スキーマは表の宣言から読む。
+        foreach(var item in SourceStructure.Read(definition.Source).Objects.Where(item=>item.Root==container.ContainingNamespace.ToDisplayString()&&item.Kind!="Views"&&item.Schema.Length>0)){
             names.Add(item.Schema);
         }
         return names.Order(StringComparer.Ordinal).ToArray();

@@ -2,9 +2,6 @@
     @if(this.案内 is not null){<p role="alert">@this.案内</p>}
     @foreach(var 診断 in this.診断一覧){<p class="構造診断" role="alert"><code>@診断.Code</code> @診断.Message</p>}
     @if(this.基準 is{} 設計){
-        @if(設計.ResultTypeInferenceReason is{} 理由){
-            <section class="型推論通知" role="status" aria-label="@表示文言.取得("結果型の決定方法")"><strong>@表示文言.取得("結果型の自動決定に制限があります")</strong><p>@this.型推論の説明(理由)</p></section>
-        }
         @if(this.内部表示=="Source"){
             <div class="コード見出し"><select aria-label="@表示文言.取得("対象の部分宣言")" disabled="@this.同期中か" value="@this.選択部分ID" @onchange="this.部分選択時Async">@foreach(var 部分 in 設計.Parts){<option value="@部分.Id">@部分.Path · @表示文言.取得(部分.Role) · @部分.Start</option>}</select><span>@表示文言.取得("対象の宣言だけを編集します。usingと名前空間は保持します。")</span></div>
             <コードエディター 追加クラス="DBコード枠" ラベル="対象のC#" 値="@this.入力コード" 補完範囲="this.選択補完範囲" 読み取り専用か="@(!this.編集可能か||this.同期中か)" 値変更時="this.コード変更時Async"/>
@@ -137,14 +134,6 @@
     private Task 引数型変更時Async(引数入力 引数,string 型){引数.型=型;return this.変更通知Async();}
     private Task 引数追加時Async(int 位置){if(!this.編集可能か||this.同期中か){return Task.CompletedTask;}this.引数一覧.Insert(位置,new());return this.変更通知Async();}
     private Task 引数削除時Async(引数入力 引数){if(!this.編集可能か||this.同期中か){return Task.CompletedTask;}this.引数一覧.Remove(引数);return this.変更通知Async();}
-    private string 型推論の説明(string 理由)=>理由 switch{
-        "AsyncResultUnsupported"=>表示文言.取得("非同期の戻り値を待機する実行は未対応です。同期的な値を返す処理を指定してください。"),
-        "ViewDeclaredResult"=>表示文言.取得("このビューはC#宣言の列を使用しています。匿名型の結果列を自動生成できる形では、処理本体から列を更新します。"),
-        "DeclaredResultTypeRequired"=>表示文言.取得("この処理本体だけでは戻り型を決められません。現在のC#宣言の型を使います。"),
-        "DeclaredReturnConversionRequired"=>表示文言.取得("戻り値の暗黙変換を保持するため、C#宣言の型を使います。"),
-        "DeclaredScalarSequence"=>表示文言.取得("この関数は列挙を単一値として返す宣言です。呼び出し時の評価を保持しています。"),
-        _=>表示文言.取得("この関数の形式は自動推論の対象外です。C#宣言の戻り型を使います。")
-    };
     private sealed class 列入力{public string 名前{get;set;}="Column";public string 型{get;set;}="int";public bool 主キーか{get;set;}public string? 元名{get;set;}public string? 式{get;set;}}
     private sealed class 引数入力{public string 名前{get;set;}="parameter";public string 型{get;set;}="int";}
 }

@@ -17,17 +17,21 @@ public sealed class AsyncObjectExecution{
         using var store=ManagementStore.Initialize(root,"admin","TestPassword-123");
         using var service=new Seamless.Management.Server.ManagementService(store,null,startAuditWorker:false);
         var owner=new UserAccount("admin","",[new("*",ManagementPermission.All)]);
+        var resultType=wrapper=="TableFunction"?"global::Seamless.Collections.ISet<"+type+">":type;
+        // ビュー・関数は生成される入口(Db.IReader)への拡張メンバー。
+        var pending="  public "+resultType+" Pending()=>throw new global::System.InvalidOperationException(\"body was invoked\");\n";
         var source=$$"""
             using Seamless.Database;
             namespace AsyncFixture;
             internal static partial class DatabaseGenerator;
-            public sealed partial class Db(DatabaseContainerOptions options):DatabaseContainer(options){
-             public global::Seamless.Database.{{wrapper}}<{{type}}> Pending()=>this.{{wrapper}}<{{type}}>(()=>throw new global::System.InvalidOperationException("body was invoked"));
-             public global::Seamless.Database.ScalarFunction<int> Safe()=>this.ScalarFunction<int>(()=>42);
+            public sealed partial class Db(DatabaseContainerOptions options):DatabaseContainer(options);
+            public static class DbQueries{
+             extension(Db.IReader q){
+            {{pending}}  public int Safe()=>42;
+             }
             }
             """;
         var definition=new Definition("async-object","AsyncObject",DefinitionKind.Database,"AsyncFixture.Db","",new("1",[new("Database.cs",source)],[]));
-        var pending="public global::Seamless.Database."+wrapper+"<"+type+"> Pending()=>this."+wrapper+"<"+type+">(()=>throw new global::System.InvalidOperationException(\"body was invoked\"));";
         Assert.Contains(pending,source);
         var published=definition with{Source=definition.Source with{Files=[new("Database.cs",source.Replace(pending,"",StringComparison.Ordinal))]}};
         var draft=service.SaveDraft(owner,new(published,0,0));var preview=service.Preview(owner,new(definition.Id,draft.Revision));

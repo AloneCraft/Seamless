@@ -29,18 +29,13 @@ public sealed partial class 商店DB(DatabaseContainerOptions オプション):D
     public Table<Keys.注文,Records.注文>注文=>this.Table<Keys.注文,Records.注文>(static 行=>new(行.注文ID));
     public Table<Keys.注文明細,Records.注文明細>注文明細=>this.Table<Keys.注文明細,Records.注文明細>(static 行=>new(行.注文ID,行.行番号));
 
-    // ---- ビュー: Views 名前空間の 在庫切れ商品 で宣言し、プロパティ 在庫切れ商品 で読む(生成) ----
-    public IEnumerable<Records.商品>在庫切れ商品を探す()=>
-        this.商品.Where(行=>行.在庫数==0).OrderBy(行=>行.商品ID);
+    // ---- ビュー・関数: 商店DBの問い合わせ(IReader への拡張メンバー)に書く ----
 
-    // ---- テーブル関数: 引数を取るビュー ----
-    public TableFunction<Records.注文>顧客の注文履歴(int 顧客ID)=>this.TableFunction(()=>this.顧客の注文を探す(顧客ID));
-    public IEnumerable<Records.注文>顧客の注文を探す(int 顧客ID)=>
-        this.注文.Where(行=>行.顧客ID==顧客ID).OrderBy(行=>行.注文ID);
-
-    // ---- スカラー関数: 呼んだ時点で評価済みの値を返す ----
-    public ScalarFunction<long>売上合計()=>this.ScalarFunction(()=>this.売上を合計する());
-    public long 売上を合計する()=>this.注文.Sum(行=>行.合計金額);
+    /// <summary>今の売上合計。読み込み専用の入口を開いてスカラー関数 売上合計 を呼ぶ。</summary>
+    public long 売上合計を読む(){
+        using var 読み=this.BeginRead();
+        return 読み.売上合計();
+    }
 
     // ---- ストアドプロシージャ: 呼んだ時点で実行済みの結果を返す ----
     public StoredProcedure<注文結果>注文確定(int 顧客ID,IReadOnlyList<注文行>行一覧,DateTime 注文日時)=>
@@ -120,7 +115,6 @@ public sealed partial class 商店DB(DatabaseContainerOptions オプション):D
         return this.最後の注文ID+1;
     }
 
-    // LINQ と非公開フィールドの読み書きを同じメソッドに書くと、FLinq の展開がコンパイルエラーになる(生成器の既知不具合)。
-    // そのため LINQ はフィールドに触れないこのメソッドへ分けている。
+    // 保存済みの最大の注文ID。FLinq はこの本体を呼び出し側(次の注文IDを見る)へ取り込んで展開する。
     public long 保存済みの最大注文ID(TypedTransaction 取引)=>取引.注文.Select(行=>行.注文ID).DefaultIfEmpty(0).Max();
 }

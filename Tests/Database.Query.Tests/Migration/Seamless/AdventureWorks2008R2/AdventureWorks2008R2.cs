@@ -6,21 +6,8 @@ namespace Test.Seamless.AdventureWorks2008R2 {
     // Keys/Records の partial struct を MemoryPack 対応スキーマレコードへ補完する generator のマーカー。
     internal static partial class DatabaseGenerator;
 
-    // ビューは Views 名前空間の partial 行型の Query で宣言し、コンテナのプロパティ(生成)で読む。列は匿名型から生成される。
-    namespace Views {
-        public readonly partial record struct ActiveCustomers {
-            public static global::System.Collections.Generic.IEnumerable<object> Query(AdventureWorks db) =>
-                global::System.Linq.Enumerable.Select(db.ActiveCustomersQuery(),row => new { row.CustomerId,row.StoreId });
-        }
-        public readonly partial record struct StateProvinceCountryRegions {
-            public static global::System.Collections.Generic.IEnumerable<object> Query(AdventureWorks db) =>
-                global::System.Linq.Enumerable.Select(db.StateProvinceCountryRegionsQuery(),row => new { row.StateProvinceId,row.StateProvinceName,row.CountryRegionCode,row.CountryRegionName });
-        }
-    }
-
     // 宣言的コンテナ。プロパティ/メソッドが宣言の主形式で、属性は SQL Server 互換名の補助。
-    // FLinq は「LINQ を含む通常メソッドの呼び出し箇所」を展開するため、
-    // View/TableFunction の LINQ 本体は *Query メソッドに置き、ラムダからそれを呼ぶ。
+    // ビュー・関数は AdventureWorksQueries(IReader への拡張メンバー)に書く。
     public sealed partial class AdventureWorks(global::Seamless.Database.DatabaseContainerOptions? options)
         :global::Seamless.Database.DatabaseContainer(
             options??(global::Seamless.Database.DatabaseContainerOptions.InMemory with {
@@ -34,33 +21,7 @@ namespace Test.Seamless.AdventureWorks2008R2 {
         public global::Seamless.Database.Table<Records.StateProvince> StateProvinces => this.Table<Records.StateProvince>();
         public global::Seamless.Database.Table<Records.CountryRegion> CountryRegions => this.Table<Records.CountryRegion>();
 
-        // Sales.vActiveCustomer 相当: Store を持つ顧客だけを射影する。
-        public IEnumerable<Records.ActiveCustomer> ActiveCustomersQuery() =>
-            this.Customers
-                .Where(customer => customer.StoreId.HasValue)
-                .OrderBy(customer => customer.CustomerId)
-                .Select(customer => new Records.ActiveCustomer(customer.CustomerId,customer.StoreId!.Value));
-
-
-        // Person.vStateProvinceCountryRegion 相当: join ビュー。
-        public IEnumerable<Records.StateProvinceCountryRegion> StateProvinceCountryRegionsQuery() =>
-            this.StateProvinces
-                .Join(this.CountryRegions,state => state.CountryRegionCode,region => region.CountryRegionCode,(state,region) => new Records.StateProvinceCountryRegion(state.StateProvinceId,state.Name,region.CountryRegionCode,region.Name))
-                .OrderBy(row => row.StateProvinceId);
-
-
-        // dbo.ufnOrdersByCustomer 相当: テーブル関数。
-        public IEnumerable<Records.SalesOrderSummary> OrdersByCustomerQuery(int customerId) =>
-            this.SalesOrderHeaders
-                .Where(order => order.CustomerId==customerId)
-                .OrderBy(order => order.SalesOrderId)
-                .Select(order => new Records.SalesOrderSummary(order.SalesOrderId,order.TotalDue));
-
-        public global::Seamless.Database.TableFunction<Records.SalesOrderSummary> OrdersByCustomer(int customerId) {
-            return this.TableFunction(() => this.OrdersByCustomerQuery(customerId));
-        }
-
-        // dbo.ufnCustomerTotalDue 相当: スカラー関数。
+        // dbo.ufnCustomerTotalDue 相当の計算。コンテナの普通のメソッドなので目録には載らない。
         public decimal CustomerTotalDue(int customerId) =>
             this.SalesOrderHeaders
                 .Where(order => order.CustomerId==customerId)
@@ -152,28 +113,26 @@ namespace Test.Seamless.AdventureWorks2008R2 {
         [Fact]
         public void ActiveCustomers_View_MatchesBaseline() {
             var expected = Baseline.ActiveCustomers(this.Database);
-            var view = this.Database.ActiveCustomers;
-            Assert.Equal("ActiveCustomers",((global::Seamless.Database.View<Views.ActiveCustomers>)view).Name);
-            Assert.Equal(expected,view.Select(row => (row.CustomerId,row.StoreId)).ToArray());
+            using var reader = this.Database.BeginRead();
+            // ビューは集合なので並びを持たない。比べる前に並べる。
+            Assert.Equal(expected,reader.ActiveCustomers.Select(row => (row.CustomerId,row.StoreId)).Order().ToArray());
         }
 
         [Fact]
         public void StateProvinceCountryRegions_View_MatchesBaseline() {
             var expected = Baseline.StateProvinceCountryRegions(this.Database);
-            var view = this.Database.StateProvinceCountryRegions;
-            Assert.Equal("StateProvinceCountryRegions",((global::Seamless.Database.View<Views.StateProvinceCountryRegions>)view).Name);
-            Assert.Equal(expected,view.Select(row => (row.StateProvinceId,row.StateProvinceName,row.CountryRegionCode,row.CountryRegionName)).ToArray());
+            using var reader = this.Database.BeginRead();
+            Assert.Equal(expected,reader.StateProvinceCountryRegions.Select(row => (row.StateProvinceId,row.StateProvinceName,row.CountryRegionCode,row.CountryRegionName)).Order().ToArray());
         }
 
         [Fact]
         public void OrdersByCustomer_TableFunction_MatchesBaseline() {
             var expected = Baseline.OrdersByCustomer(this.Database,1);
-            var function = this.Database.OrdersByCustomer(1);
-            Assert.Equal("OrdersByCustomer",function.Name);
-            Assert.Equal(expected,function.Select(row => (row.SalesOrderId,row.TotalDue)).ToArray());
+            using var reader = this.Database.BeginRead();
+            Assert.Equal(expected,reader.OrdersByCustomer(1).Select(row => (row.SalesOrderId,row.TotalDue)).Order().ToArray());
             {
                 //一致しない顧客IDは空列挙になる
-                Assert.Empty(this.Database.OrdersByCustomer(999).ToArray());
+                Assert.Empty(reader.OrdersByCustomer(999).ToArray());
             }
         }
 
@@ -203,7 +162,7 @@ namespace Test.Seamless.AdventureWorks2008R2 {
             using var database = new AdventureWorks(global::Seamless.Database.DatabaseContainerOptions.OnStorage(directory) with { IndexSize=1L<<12,MemorySize=1L<<24 });
             AdventureWorksFixture.Seed(database);
             var expected = Baseline.ActiveCustomers(database);
-            Assert.Equal(expected,database.ActiveCustomers.Select(row => (row.CustomerId,row.StoreId)).ToArray());
+            using(var reader=database.BeginRead()){Assert.Equal(expected,reader.ActiveCustomers.Select(row => (row.CustomerId,row.StoreId)).Order().ToArray());}
             // 表は版付き方式の共通の保存領域に置かれる(表ごとのディレクトリは作らない)。
             Assert.True(Directory.Exists(Path.Combine(directory,"store-v2")));
         }

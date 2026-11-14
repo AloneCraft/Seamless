@@ -61,7 +61,7 @@ public sealed class ResourceHeatCollection{
     [Fact]public async Task BothFunctionOriginsReturnRealResourceObservationsOnlyWhenExplicitlyRequestedAndAuthorized(){
         var root=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,"heat-"+Guid.NewGuid().ToString("N"));
         using var store=ManagementStore.Initialize(root,"admin","TestPassword-123");using var service=new Service(store,null,startAuditWorker:false);var owner=new UserAccount("admin","",[new("*",ManagementPermission.All)]);
-        var database=NativeWorkflow.Database();database=database with{Source=database.Source with{Files=database.Source.Files.Select(file=>file with{Text=file.Text.Replace("public Table<","public ScalarFunction<int> Value()=>this.ScalarFunction(()=>7);public Table<",StringComparison.Ordinal)}).ToArray()}};
+        var database=NativeWorkflow.Database();database=database with{Source=database.Source with{Files=database.Source.Files.Select(file=>file with{Text=file.Text+"\nnamespace Model{public static class DbQueries{extension(Db.IReader q){public int Value()=>7;}}}"}).ToArray()}};
         NativeWorkflow.Publish(service,owner,database);
         NativeWorkflow.Publish(service,owner,new("heat-entry","Native",DefinitionKind.Query,"Model.Query","Run",new("1",[new("query.cs","using Seamless.Management.Server;namespace Model;public static class Query{public static int Run(ManagementExecutionContext context)=>7;}")],[])));
         await using var server=Seamless.Management.Server.ManagementServer.ForLocalOwner(service);server.Start();using var client=ManagementClient.ForLocalPipe(server.PipeName!);

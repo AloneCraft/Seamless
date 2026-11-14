@@ -12,13 +12,13 @@ public sealed class 障害復旧章:物語の章{
         "確定していない注文は開き直しても現れません。ここでは同じアプリの中で DB を閉じて開き直して確かめます。";
     public override string コード=>
         """
-        var 前=(商店.注文.LongCount,商店.売上合計().Value);
+        var 前=(商店.注文.LongCount,商店.売上合計を読む());
         using(var 取引=商店.BeginTransaction()){
             商店.注文を書き込む(取引,顧客ID,行一覧,日時);   // 取引の中で注文を書き込む
             // ここで停電 → Commit されない
         }
         商店を開き直す();                         // 閉じて、もう一度開く
-        var 後=(商店.注文.LongCount,商店.売上合計().Value);   // 前と同じ
+        var 後=(商店.注文.LongCount,商店.売上合計を読む());   // 前と同じ
         """;
 
     public override async Task 実行Async(章の文脈 文脈){
@@ -28,7 +28,7 @@ public sealed class 障害復旧章:物語の章{
         }
         文脈.コードを指す("var 前=");
         var 前の件数=文脈.商店.注文.LongCount;
-        var 前の売上=文脈.商店.売上合計().Value;
+        var 前の売上=文脈.商店.売上合計を読む();
         this.描く(文脈,前の件数,前の売上,null,null);
         文脈.ログ($"いまの注文 {前の件数:N0} 件、売上 {表示.金額(前の売上)}");
         await 文脈.間を置くAsync();
@@ -54,7 +54,7 @@ public sealed class 障害復旧章:物語の章{
 
         文脈.コードを指す("var 後=");
         var 後の件数=文脈.商店.注文.LongCount;
-        var 後の売上=文脈.商店.売上合計().Value;
+        var 後の売上=文脈.商店.売上合計を読む();
         this.描く(文脈,前の件数,前の売上,後の件数,後の売上);
         if(後の件数!=前の件数||後の売上!=前の売上){
             throw new InvalidOperationException($"開き直した後の内容が停電前と違います(件数 {前の件数}→{後の件数}、売上 {前の売上}→{後の売上})。");

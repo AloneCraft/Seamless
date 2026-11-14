@@ -181,8 +181,9 @@ internal static class CarrierAnalysis {
                 policy,
                 out shape);
         }
-        // ValueTuple / Tuple コンストラクタ、あるいは record / record struct の位置引数コンストラクタ
-        if(expression is ObjectCreationExpressionSyntax creation&&creation.ArgumentList is not null) {
+        // ValueTuple / Tuple コンストラクタ、あるいは record / record struct の位置引数コンストラクタ。
+        // オブジェクト初期化子({Id=2} など)があると、メンバーの値がコンストラクタの引数と違い得るので、メンバーへ分けない。
+        if(expression is ObjectCreationExpressionSyntax creation&&creation.ArgumentList is not null&&creation.Initializer is null) {
             if(TryGetTupleTypeAliases(creation.Type,creation.ArgumentList.Arguments.Count,out var tupleAliases)) {
                 return TryCreateTupleShape(
                     creation.ArgumentList.Arguments.Select(static a => a.Expression).ToArray(),
@@ -196,7 +197,7 @@ internal static class CarrierAnalysis {
             }
         }
         // target-typed new(...)。型を確かめずタプル扱いすると誤解決しうるので、必ずシンボルで判別する。
-        if(expression is ImplicitObjectCreationExpressionSyntax implicitCreation) {
+        if(expression is ImplicitObjectCreationExpressionSyntax{Initializer:null} implicitCreation) {
             if(TryCreatePositionalRecordShape(implicitCreation,implicitCreation.ArgumentList.Arguments,model,policy,out shape)) {
                 return true;
             }

@@ -56,25 +56,24 @@ public sealed partial class DatabaseTransactionExpansionTests{
     [Fact]
     public async Task ViewProjectionInitializerPreservesAssignedColumns(){
         const string source="""
-            using System;using System.Linq;using System.Text.Json;using Seamless.Database;using Seamless.FLinq;
+            using System;using System.Linq;using System.Text.Json;using Seamless.Database;using Seamless.FLinq;using Seamless.Linq;
             namespace ViewInitializerCase{
              internal static partial class DatabaseGenerator;
              public readonly record struct Input(int Id,int Value);
              public sealed partial class Database(DatabaseContainerOptions options):DatabaseContainer(options){public Table<int,Input> Inputs=>this.Table<int,Input>(static row=>row.Id);}
+             public static class Queries{extension(Database.IReader q){public Seamless.Collections.ISet<Views.InitializedRows> InitializedRows=>q.Inputs.Select(static row=>new Views.InitializedRows(row.Id,row.Value){Id=2});}}
              public sealed class Entry{
-              [LinqIntercept(true)]private int[] Query(Database db)=>db.InitializedRows.Where(static result=>result.Id==1).Select(static result=>result.Value).ToArray();
-              [LinqIntercept(false)]private int[] Reference(Database db)=>db.InitializedRows.Where(static result=>result.Id==1).Select(static result=>result.Value).ToArray();
+              [LinqIntercept(true)]private int[] Query(Database.Reader r)=>r.InitializedRows.Where(static result=>result.Id==1).Select(static result=>result.Value).ToArray();
+              [LinqIntercept(false)]private int[] Reference(Database.Reader r)=>r.InitializedRows.Where(static result=>result.Id==1).Select(static result=>result.Value).ToArray();
               public static string Run(){
                using var db=new Database(DatabaseContainerOptions.InMemory with{IndexSize=128,PageSize=4096,SegmentSize=65536,MemorySize=65536,TemporaryDirectory=Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")!});
                using(var tx=db.BeginTransaction()){tx.Inputs.Add(new(1,10));tx.Inputs.Add(new(2,20));tx.Commit();}
-               var entry=new Entry();return JsonSerializer.Serialize(new{expected=entry.Reference(db),actual=entry.Query(db)});
+               using var r=db.BeginRead();var entry=new Entry();return JsonSerializer.Serialize(new{expected=entry.Reference(r),actual=entry.Query(r)});
               }
              }
             }
             namespace ViewInitializerCase.Views{
-             public readonly partial record struct InitializedRows(int Id,int Value){
-              public static global::System.Collections.Generic.IEnumerable<InitializedRows> Query(global::ViewInitializerCase.Database container)=>container.Inputs.Select(static row=>new InitializedRows(row.Id,row.Value){Id=2});
-             }
+             public readonly record struct InitializedRows(int Id,int Value);
             }
             """;
         var(result,_)=await RunBoundarySourceAsync(source,"ViewInitializerCase");

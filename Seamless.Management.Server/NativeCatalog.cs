@@ -20,11 +20,49 @@ internal static class NativeCatalog{
         CSharpCompilation? source=null;
         if(version is not null){source=CSharpCompilation.Create("CatalogSource",version.Definition.Source.Files.Select(file=>CSharpSyntaxTree.ParseText(file.Text,path:file.Path)),SourceEditor.PlatformReferences());}
         identities??=version is null?null:DatabaseDesigner.ReadStableIdentities(version.Definition);
-        return Walk(type,"","",new HashSet<Type>(),source?.GetTypeByMetadataName(type.FullName!),version).Select(item=>{
+        return Walk(type,"","",new HashSet<Type>(),source?.GetTypeByMetadataName(type.FullName!),version).Concat(Queries(type,source,version)).Select(item=>{
             if(identities is null){return item;}
             var details=item.Details;var id=details.Object.Id;
             return item with{Details=details with{Object=details.Object with{StableId=identities.Object(id),StableIdUnavailableReason=identities.UnavailableReason("Object",id)},Columns=details.Columns.Select(column=>column with{StableId=identities.Column(id,column.Name),StableIdUnavailableReason=identities.UnavailableReason("Column",id,column.Name)}).ToArray(),KeyMembers=details.KeyMembers.Select(column=>column with{StableId=identities.Column(id,column.Name),StableIdUnavailableReason=identities.UnavailableReason("Column",id,column.Name)}).ToArray()}};
         });
+    }
+    // ビュー・関数は、生成される入口(コンテナの入れ子の IReader、スキーマは I<スキーマ>Reader)への拡張メンバー。
+    // 拡張メンバーは、受け手を先頭の引数にとる静的メソッド(プロパティは get_名前)として静的クラスへコンパイルされるので、その形から読む(呼び出さない)。
+    // 種類の決め方は DB生成器(Shared/Database.Generation の CollectQueries)と同じ。
+    private static IEnumerable<Item> Queries(Type container,CSharpCompilation? source,DefinitionVersion? version){
+        var prefixes=SchemaPaths(container,"",new HashSet<Type>()).Prepend("").ToArray();
+        var interfaces=new Dictionary<Type,string>();
+        foreach(var prefix in prefixes){
+            var name=prefix.Length==0?"IReader":"I"+string.Concat(prefix.Split('.'))+"Reader";
+            if(container.GetNestedType(name,BindingFlags.Public) is{IsInterface:true} reader){interfaces[reader]=prefix.Length==0?"":prefix+".";}
+        }
+        if(interfaces.Count==0){yield break;}
+        var extensions=source?.SyntaxTrees.SelectMany(tree=>tree.GetRoot().DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.ClassDeclarationSyntax>().Select(declaration=>source.GetSemanticModel(tree).GetDeclaredSymbol(declaration)))
+            .OfType<INamedTypeSymbol>().SelectMany(type=>type.GetTypeMembers().Where(member=>member.IsExtension)).ToArray()??[];
+        foreach(var type in container.Assembly.GetTypes().Where(type=>type.IsAbstract&&type.IsSealed&&!type.IsNested).OrderBy(type=>type.FullName,StringComparer.Ordinal)){
+            foreach(var method in type.GetMethods(BindingFlags.Public|BindingFlags.Static|BindingFlags.DeclaredOnly).OrderBy(method=>method.Name,StringComparer.Ordinal)){
+                var parameters=method.GetParameters();
+                if(method.ContainsGenericParameters||method.ReturnType==typeof(void)||parameters.Length==0||!interfaces.TryGetValue(parameters[0].ParameterType,out var prefix)){continue;}
+                // 拡張プロパティの getter の実装は get_名前 という静的メソッドになる(特別な名前の印は付かない)。
+                // 同じ静的クラスの拡張ブロックの印の型(入れ子の型)にその名前のプロパティがあるかで、プロパティの実装だと判断する。
+                var property=method.Name.StartsWith("get_",StringComparison.Ordinal)&&parameters.Length==1
+                    &&type.GetNestedTypes(BindingFlags.Public|BindingFlags.NonPublic).Any(nested=>nested.GetProperty(method.Name["get_".Length..],BindingFlags.Public|BindingFlags.NonPublic|BindingFlags.Instance|BindingFlags.Static|BindingFlags.DeclaredOnly) is not null);
+                var memberName=property?method.Name["get_".Length..]:method.Name;
+                var set=method.ReturnType.IsGenericType&&method.ReturnType.GetGenericTypeDefinition()==typeof(global::Seamless.Collections.ISet<>);
+                string kind;
+                if(property){if(!set){continue;}kind="View";}
+                else if(method.IsSpecialName||method.Name.StartsWith("get_",StringComparison.Ordinal)||method.Name.StartsWith("set_",StringComparison.Ordinal)){continue;}
+                else{kind=set?"TableFunction":"ScalarFunction";}
+                var record=set?method.ReturnType.GetGenericArguments()[0]:method.ReturnType;
+                var schema=prefix.TrimEnd('.');var id=prefix+memberName;
+                var memberSymbol=extensions.Where(extension=>extension.ContainingType.ToDisplayString()==type.FullName?.Replace('+','.'))
+                    .SelectMany(extension=>extension.GetMembers(memberName)).FirstOrDefault(member=>member is IPropertySymbol==property);
+                var location=memberSymbol?.Locations.FirstOrDefault(item=>item.IsInSource);
+                var catalogSource=new CatalogSource(version?.Definition.Id??"",version?.Version??0,version?.ArtifactHash??"",location?.SourceTree?.FilePath,location?.SourceSpan.Start??0,location?.SourceSpan.Length??0,location is not null);
+                var descriptor=new CatalogObject(id,memberName,schema,kind,Display(record),null);
+                yield return new(new(descriptor,kind=="ScalarFunction"?[]:Fields(record),[],parameters.Skip(1).Select(parameter=>new CatalogField(parameter.Name??"",Display(parameter.ParameterType))).ToArray(),kind=="View"?null:Display(record),catalogSource,[]));
+            }
+        }
     }
     private static IEnumerable<Item> Walk(Type type,string path,string schema,HashSet<Type> ancestors,INamedTypeSymbol? symbol,DefinitionVersion? version){
         if(!ancestors.Add(type)){yield break;}
@@ -40,9 +78,7 @@ internal static class NativeCatalog{
                 }
                 if(!value.IsGenericType){continue;}var generic=value.GetGenericTypeDefinition();string? kind=null;
                 if(generic==typeof(Table<,>)||generic==typeof(Table<>)){kind="Table";if(typeof(ManagementDatabase).IsAssignableFrom(type)){kind="SystemTable";}}
-                else if(generic==typeof(MaterializedView<,>)||generic==typeof(global::Seamless.Collections.ISet<>)){kind="View";}
-                else if(generic==typeof(TableFunction<>)){kind="TableFunction";}
-                else if(generic==typeof(ScalarFunction<>)){kind="ScalarFunction";}
+                else if(generic==typeof(MaterializedView<,>)){kind="View";}
                 else if(generic==typeof(StoredProcedure<>)){kind="StoredProcedure";}
                 else if(generic.FullName=="Seamless.Database.System.SystemTable`2"){kind="SystemTable";}
                 if(kind is null){continue;}

@@ -73,6 +73,15 @@ public sealed partial class FLinqIncrementalGenerator {
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         description: "対象メソッドは yield return または await などの非インライン構文を含むため、FLinq のインラインゼロアロケーション最適化から除外され、素の System.Linq にフォールバックしました.");
+    // ビュー・関数(DB の IReader への拡張メンバー)を呼び出し側へ取り込めなかったときのエラー。展開せずに実行時へ回すことはしない(設計 I9)。
+    private static readonly DiagnosticDescriptor ビュー関数展開失敗Descriptor = new(
+        id: "FLINQ007",
+        title: "ビュー・関数を呼び出し側へ展開できません",
+        messageFormat: "'{0}' の中の '{1}'({2})を呼び出し側へ展開できません。{3}",
+        category: "Tsavorite.Performance",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "ビューと関数は呼び出し側で展開します。展開できない呼び出しは、実行時に別の動きへ切り替えずにコンパイルエラーにします。");
     private static readonly DiagnosticDescriptor RegistryConsistencyDescriptor = new(
         id: "FLINQ006",
         title: "FLinq Operator Registry 不整合",

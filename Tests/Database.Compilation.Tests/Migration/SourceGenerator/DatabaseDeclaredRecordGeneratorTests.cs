@@ -262,8 +262,13 @@ public sealed class DatabaseDeclaredRecordGeneratorTests{
 
     [Theory,Trait("Category","Unit")][InlineData(false)][InlineData(true)]
     public void DeclaredViewsCoexistWithRootAndExplicitEmptySchemas(bool explicitSchema){
-        var members="";
-        if(explicitSchema){members="public ExistingSchema dbo0=>new(this);";}
+        // ビューは生成される入口(Catalog.IReader、スキーマは Catalog.I<スキーマ>Reader)への拡張プロパティ。
+        // 表の無いスキーマ(dbo0)にも入口のインターフェースを作るので、そこへビューを書ける。
+        var members="";var schemaView="";
+        if(explicitSchema){
+            members="public ExistingSchema dbo0=>new(this);";
+            schemaView="extension(Catalog.Idbo0Reader q){public global::Seamless.Collections.ISet<Views.dbo0.Summary> Summary=>throw new global::System.NotImplementedException();}";
+        }
         var source=$$"""
             namespace Sample{
                 internal static class DatabaseGenerator;
@@ -271,27 +276,29 @@ public sealed class DatabaseDeclaredRecordGeneratorTests{
                     {{members}}
                 }
                 public sealed partial class ExistingSchema(Catalog database):global::Seamless.Database.DatabaseSchema(database,"dbo0");
+                public static class CatalogQueries{
+                    extension(Catalog.IReader q){public global::Seamless.Collections.ISet<Views.Summary> Summary=>throw new global::System.NotImplementedException();}
+                    {{schemaView}}
+                }
                 public static class Probe{
-                    public static bool Run()=>typeof(Catalog).GetProperty("Summary")!.PropertyType.GetGenericTypeDefinition()==typeof(global::Seamless.Collections.ISet<>)
-                        &&typeof(Catalog).GetProperty("dbo0")!.PropertyType.GetProperty("Summary")!.PropertyType.GetGenericTypeDefinition()==typeof(global::Seamless.Collections.ISet<>);
+                    public static bool Run()=>typeof(Catalog).GetProperty("Summary") is null
+                        &&typeof(Catalog).GetNestedType("IReader") is not null
+                        &&(typeof(Catalog).GetNestedType("Idbo0Reader") is not null)=={{(explicitSchema?"true":"false")}};
                 }
             }
             namespace Sample.Views{
-                public readonly record struct Summary(int Id){
-                    public static global::Seamless.Collections.ISet<Summary> Query(Sample.Catalog container)=>null!;
-                }
+                public readonly record struct Summary(int Id);
             }
             namespace Sample.Views.dbo0{
-                public readonly record struct Summary(int Id){
-                    public static global::Seamless.Collections.ISet<Summary> Query(Sample.Catalog container)=>null!;
-                }
+                public readonly record struct Summary(int Id);
             }
             """;
         AssertRun(Generate(source));
     }
 
     [Theory,Trait("Category","Unit")]
-    [InlineData("Tables")][InlineData("Views")][InlineData("Work")]
+    // Views の型はビューの結果の行型で、目録の名前にはならない(ビューは IReader への拡張メンバー)。
+    [InlineData("Tables")][InlineData("Work")]
     public void RootObjectAndSchemaNameCollision_IsDiagnosed(string kind){
         var source=$$"""
             namespace Sample{

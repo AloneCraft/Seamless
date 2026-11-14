@@ -85,7 +85,7 @@ public sealed class SourceObjectIdentities{
 
     [Fact]public void PositionalViewColumnsKeepTheDeclarationMarkerThroughRenames(){
         var definition=Generated();
-        definition=definition with{Source=definition.Source with{Files=[..definition.Source.Files,new("View.cs","namespace Example.Views{public readonly record struct ItemList(int Id,string Title);}")]}};
+        definition=definition with{Source=definition.Source with{Files=[..definition.Source.Files,new("View.cs","namespace Example.Views{public readonly record struct ItemList(int Id,string Title);}namespace Example{public static class DbQueries{extension(Db.IReader q){public global::Seamless.Collections.ISet<Views.ItemList> ItemList=>throw new System.NotImplementedException();}}}")]}};
         var identified=Designer.AssignStableIdentities(definition);var before=Designer.ReadStableIdentities(identified);
         var updated=identified with{Source=identified.Source with{Files=identified.Source.Files.Select(file=>file.Path=="View.cs"?file with{Text=file.Text.Replace("string Title","string Label",StringComparison.Ordinal)}:file).ToArray()}};
         Assert.NotNull(before.Column("ItemList","Title"));

@@ -29,16 +29,6 @@ public abstract class DatabaseSchema {
         where TKey:struct
         where TRecord:struct=>this.database.GetMaterializedView(keySelector,$"{this.Name}.{name}");
 
-    protected TableFunction<TResult> TableFunction<TResult>(
-        Func<IEnumerable<TResult>> definition,
-        [CallerMemberName] string name="")=>
-        this.database.CreateTableFunction(definition,$"{this.Name}.{name}");
-
-    protected ScalarFunction<TResult> ScalarFunction<TResult>(
-        Func<TResult> definition,
-        [CallerMemberName] string name="")=>
-        this.database.CreateScalarFunction(definition,$"{this.Name}.{name}");
-
     protected StoredProcedure<TResult> StoredProcedure<TResult>(
         Func<TResult> definition,
         [CallerMemberName] string name="")=>

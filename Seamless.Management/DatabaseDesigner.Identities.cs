@@ -49,7 +49,7 @@ public static partial class DatabaseDesigner{
             if(IdentityOwner(container,target.Schema) is null){
                 var declaredRow=compilation.GetTypeByMetadataName(target.RecordType.Replace("global::","",StringComparison.Ordinal));
                 if(declaredRow?.DeclaringSyntaxReferences.Length is not >0){throw new ManagementException("Unsupported","対象の元宣言を特定できません: "+target.Id);}
-                selected=new(declaredRow,null,null,null);
+                selected=new(declaredRow,null,null);
             }else{selected=ResolveEditableObject(definition,target,compilation);}
             ISymbol? anchor=selected.Member;
             if(anchor?.DeclaringSyntaxReferences.Length is not >0){anchor=selected.Row;}

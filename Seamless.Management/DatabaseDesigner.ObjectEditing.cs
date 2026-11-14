@@ -8,12 +8,11 @@ namespace Seamless.Management;
 
 public sealed record ObjectDefinitionPart(string Id,string Role,string Path,int Start,int Length,string Text);
 public sealed record ObjectDefinitionDesign(string DefinitionId,CatalogObject Object,string Fingerprint,ObjectDefinitionPart[] Parts,ColumnDesign[] Columns,ParameterDesign[] Parameters,string ReturnType,bool StructureAvailable,string? StructureUnavailableReason=null){
-    public string? ResultTypeInferenceReason{get;init;}
 }
 public sealed record ObjectDefinitionEdit(Definition? Definition,DiagnosticInfo[] Diagnostics){public bool Succeeded=>this.Definition is not null&&this.Diagnostics.Length==0;}
 
 public static partial class DatabaseDesigner{
-    private sealed record EditableObject(INamedTypeSymbol? Row,INamedTypeSymbol? Key,ISymbol? Member,INamedTypeSymbol? ReturnWrapper);
+    private sealed record EditableObject(INamedTypeSymbol? Row,INamedTypeSymbol? Key,ISymbol? Member);
 
     public static ObjectDefinitionDesign ReadObjectDefinition(Definition definition,CatalogObject target){
         SourceEditor.Validate(definition.Source);
@@ -30,28 +29,16 @@ public static partial class DatabaseDesigner{
         }
         if(parts.Count==0){throw new ManagementException("Unsupported","対象の編集可能な元宣言がありません。");}
         var columns=ReadEditableColumns(selected.Row,selected.Key,target.Kind=="Table").Select(column=>column with{Expression=definition.Migration?.Tables.SingleOrDefault(table=>table.Target==target.Id)?.Columns.SingleOrDefault(item=>item.Target==column.Name)?.Expression}).ToArray();
-        // [ビュー/列] 列を推論する形では、行型に列の宣言がないため本体の結果から読む。
-        if(target.Kind=="View"&&InferredViewColumns(compilation,selected.Row) is{} inferredColumns){columns=inferredColumns;}
         var parameters=(selected.Member as IMethodSymbol)?.Parameters.Where(parameter=>!parameter.IsThis&&!InjectedObjectParameter(parameter)).Select(parameter=>new ParameterDesign(parameter.Name,TypeName(parameter.Type))).ToArray()??[];
         var returnType="";
-        if(selected.Member is IMethodSymbol method){
-            returnType=TypeName(method.ReturnType);
-            if(selected.ReturnWrapper is{Name:"ScalarFunction",TypeArguments.Length:1} scalar){returnType=TypeName(scalar.TypeArguments[0]);}
-            else if(selected.ReturnWrapper is{Name:"TableFunction",TypeArguments.Length:1} sequence){returnType="global::System.Collections.Generic.IEnumerable<"+TypeName(sequence.TypeArguments[0])+">";}
-        }
+        if(selected.Member is IMethodSymbol method){returnType=TypeName(method.ReturnType);}
         else if(selected.Row is{} row){returnType=TypeName(row);}
         var available=true;string? reason=null;
         if(selected.Key is not null&&SymbolEqualityComparer.Default.Equals(selected.Key,selected.Row)){available=false;reason="キー型と行型を共有する定義はC#で編集してください。";}
         if(selected.Row is null&&selected.Member is not IMethodSymbol){available=false;reason="構造を編集できる列または引数がありません。C#で編集してください。";}
         if(selected.Row is{} type&&type.DeclaringSyntaxReferences.Any(reference=>reference.GetSyntax() is TypeDeclarationSyntax syntax&&syntax.Members.OfType<PropertyDeclarationSyntax>().Any(property=>property.ExpressionBody is not null||property.AccessorList?.Accessors.Any(accessor=>accessor.Body is not null||accessor.ExpressionBody is not null)==true))){available=false;reason="カスタムプロパティの処理はC#で編集してください。";}
         var fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n",parts.OrderBy(part=>part.Id,StringComparer.Ordinal).Select(part=>part.Id+"\n"+part.Text)))));
-        string? inferenceReason=null;
-        if(target.Kind=="View"&&FindViewQuery(compilation,selected.Row) is not{Inferred:true}){inferenceReason="ViewDeclaredResult";}
-        else if(target.Kind!="Table"&&selected.Member is IMethodSymbol function){
-            inferenceReason=InferFunctionResult(compilation,function).Reason;
-            if(selected.ReturnWrapper is{TypeArguments.Length:1} wrapper&&IsAsyncFunctionResult(wrapper.TypeArguments[0])){inferenceReason="AsyncResultUnsupported";}
-        }
-        return new(definition.Id,target,fingerprint,parts.ToArray(),columns,parameters,returnType,available,reason){ResultTypeInferenceReason=inferenceReason};
+        return new(definition.Id,target,fingerprint,parts.ToArray(),columns,parameters,returnType,available,reason);
 
         void AddType(INamedTypeSymbol? type,string role){
             if(type is null){return;}
@@ -74,14 +61,6 @@ public static partial class DatabaseDesigner{
         var candidate=latest with{Source=source with{Revision=Guid.NewGuid().ToString("N")}};
         var diagnostics=ObjectSyntaxDiagnostics(candidate);
         if(diagnostics.Length>0){return new(null,diagnostics);}
-        if(baseline.Object.Kind=="View"){
-            try{candidate=SynchronizeViewResult(candidate,baseline.Object.RecordType);}
-            catch(ManagementException exception){return new(null,[new("ViewResult",exception.Message,part.Path,part.Start,replacement.Length,"Error")]);}
-        }
-        if(baseline.Object.Kind is "ScalarFunction" or "TableFunction"){
-            try{candidate=SynchronizeFunctionResult(candidate,baseline.Object.Schema,baseline.Object.Name);}
-            catch(ManagementException exception){return new(null,[new("FunctionResult",exception.Message,part.Path,part.Start,replacement.Length,"Error")]);}
-        }
         try{_=ReadObjectDefinition(candidate,baseline.Object);}
         catch(ManagementException exception){return new(null,[new("ObjectBinding",exception.Message,part.Path,part.Start,replacement.Length,"Error")]);}
         return new(candidate,[]);
@@ -95,12 +74,8 @@ public static partial class DatabaseDesigner{
         foreach(var column in columns){Identifier(column.Name);ValidateObjectType(column.Type);}
         foreach(var parameter in parameters){Identifier(parameter.Name);ValidateObjectType(parameter.Type);}
         var compilation=Compilation(latest);var selected=ResolveEditableObject(latest,baseline.Object,compilation);
-        var inferredView=baseline.Object.Kind=="View"&&FindViewQuery(compilation,selected.Row) is{Inferred:true};
-        if(inferredView&&!current.Columns.Select(column=>(column.Name,column.Type)).SequenceEqual(columns.Select(column=>(column.Name,column.Type)))){
-            throw new ManagementException("Validation","ビューの結果列はC#の処理本体で編集してください。");
-        }
         var edits=new List<(string Path,int Start,int Length,string Text)>();
-        if(selected.Row is{} row&&!inferredView){EditType(row,columns,baseline.Object.Kind=="Table"&&selected.Key is null);}
+        if(selected.Row is{} row){EditType(row,columns,baseline.Object.Kind=="Table"&&selected.Key is null);}
         if(selected.Key is{} key){
             var keyColumns=columns.Where(column=>column.PrimaryKey).ToArray();
             if(keyColumns.Length==0){throw new ManagementException("Validation","主キーを指定してください。");}
@@ -123,17 +98,8 @@ public static partial class DatabaseDesigner{
             var parameterList=syntax.ParameterList.WithParameters(ObjectParameterList(old,combined));
             edits.Add((syntax.SyntaxTree.FilePath,syntax.ParameterList.SpanStart,syntax.ParameterList.Span.Length,parameterList.ToString()));
             if(returnType!=current.ReturnType){
-                ValidateObjectType(returnType);var actualType=returnType;string? helperType=null;
-                if(selected.ReturnWrapper is{Name:"ScalarFunction",TypeArguments.Length:1}){helperType=returnType;actualType="global::Seamless.Database.ScalarFunction<"+helperType+">";}
-                else if(selected.ReturnWrapper is{Name:"TableFunction",TypeArguments.Length:1}){helperType=FunctionElementType(returnType)??throw new ManagementException("Validation","テーブル値関数には列挙の戻り型を指定してください。");actualType="global::Seamless.Database.TableFunction<"+helperType+">";}
-                if(helperType is not null){
-                    if(syntax.ExpressionBody?.Expression is not InvocationExpressionSyntax{Expression:MemberAccessExpressionSyntax{Name:GenericNameSyntax helper}}||helper.Identifier.ValueText!=selected.ReturnWrapper!.Name||helper.TypeArgumentList.Arguments.Count!=1){throw new ManagementException("Unsupported","カスタムな関数の戻り型変更はC#で編集してください。");}
-                    var argument=helper.TypeArgumentList.Arguments[0];
-                    edits.Add((syntax.SyntaxTree.FilePath,argument.SpanStart,argument.Span.Length,helperType));
-                }
-                var wrapper=syntax.ReturnType.DescendantNodesAndSelf().OfType<GenericNameSyntax>().FirstOrDefault(name=>name.Identifier.ValueText==selected.ReturnWrapper?.Name&&name.TypeArgumentList.Arguments.Count==1);
-                if(helperType is not null&&wrapper is not null){var argument=wrapper.TypeArgumentList.Arguments[0];edits.Add((syntax.SyntaxTree.FilePath,argument.SpanStart,argument.Span.Length,helperType));}
-                else{edits.Add((syntax.SyntaxTree.FilePath,syntax.ReturnType.SpanStart,syntax.ReturnType.Span.Length,actualType));}
+                ValidateObjectType(returnType);
+                edits.Add((syntax.SyntaxTree.FilePath,syntax.ReturnType.SpanStart,syntax.ReturnType.Span.Length,returnType));
             }
         }
         // 明示Tableのキー抽出式も、既存の受け手・属性・本文の外側を保持して列だけ更新する。
@@ -169,7 +135,6 @@ public static partial class DatabaseDesigner{
                 candidate=candidate with{Migration=migration with{Tables=[..migration.Tables.Where(item=>item.Target!=baseline.Object.Id),table]}};
             }
         }
-        if(baseline.Object.Kind is "ScalarFunction" or "TableFunction"){candidate=SynchronizeFunctionResult(candidate,baseline.Object.Schema,baseline.Object.Name);}
         _=ReadObjectDefinition(candidate,baseline.Object);return new(candidate,[]);
 
         void EditType(INamedTypeSymbol type,ColumnDesign[] desired,bool keyAttributes){
@@ -251,9 +216,16 @@ public static partial class DatabaseDesigner{
         }).ToArray();
     }
     private static EditableObject ResolveEditableObject(Definition definition,CatalogObject target,CSharpCompilation compilation){
-        ISymbol? member=null;INamedTypeSymbol? row=null;INamedTypeSymbol? key=null;INamedTypeSymbol? wrapper=null;
+        ISymbol? member=null;INamedTypeSymbol? row=null;INamedTypeSymbol? key=null;
         if(definition.Kind==DefinitionKind.Query){
             member=PlanTargetMethod(compilation.GetTypeByMetadataName(definition.EntryType)?.GetMembers(definition.EntryMember).OfType<IMethodSymbol>()??[]);
+        }else if(target.Kind is "TableFunction" or "ScalarFunction"||target.Kind=="View"&&FindQueryMember(compilation,definition,target.Id) is not null){
+            // ビュー・関数は IReader への拡張メンバー。行型は ISet<行> の行(スカラー関数は行型を持たない)。
+            var query=FindQueryMember(compilation,definition,target.Id)??throw new ManagementException("NotFound","対象の元宣言がありません。");
+            member=query.Member;
+            if(query.Kind!="ScalarFunction"){row=query.Result as INamedTypeSymbol;}
+            if(row?.DeclaringSyntaxReferences.Length==0){row=null;}
+            return new(row,null,member);
         }else{
             var container=compilation.GetTypeByMetadataName(definition.EntryType);
             ISymbol[] members=[];if(container is not null){members=Owner(container,target.Schema).GetMembers(target.Name).Where(symbol=>!symbol.IsImplicitlyDeclared).ToArray();}
@@ -263,12 +235,12 @@ public static partial class DatabaseDesigner{
         if(member is IPropertySymbol property&&property.Type is INamedTypeSymbol table&&table.Name=="Table"&&table.TypeArguments.Length==2){key=table.TypeArguments[0] as INamedTypeSymbol;row=table.TypeArguments[1] as INamedTypeSymbol;}
         else{
             ITypeSymbol? result=null;if(member is IMethodSymbol method){result=method.ReturnType;}else if(member is IPropertySymbol view){result=view.Type;}
-            if(result is INamedTypeSymbol named){wrapper=named;row=named;if(named.IsGenericType&&named.TypeArguments.Length>0){row=named.TypeArguments[^1] as INamedTypeSymbol;}}
+            if(result is INamedTypeSymbol named){row=named;if(named.IsGenericType&&named.TypeArguments.Length>0){row=named.TypeArguments[^1] as INamedTypeSymbol;}}
         }
         var declared=compilation.GetTypeByMetadataName(target.RecordType.Replace("global::","",StringComparison.Ordinal));
         if(member is null&&declared?.DeclaringSyntaxReferences.Length>0){row=declared;}
         if(row?.DeclaringSyntaxReferences.Length==0){row=null;}
         if(row is null&&member is null){throw new ManagementException("NotFound","対象の元宣言がありません。");}
-        return new(row,key,member,wrapper);
+        return new(row,key,member);
     }
 }

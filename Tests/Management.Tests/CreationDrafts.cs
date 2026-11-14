@@ -39,7 +39,7 @@ public sealed class CreationDrafts{
         var original=new QueryDesign("NewFunction","dbo1",DatabaseQueryKind.ScalarFunction,[new("Id","int",false)],[new("id","int")],"int","return default;");
         var editor=new 問い合わせ設計();Parameter(editor,"定義",original);QueryDesign? saved=null;
         Parameter(editor,"入力変更時",EventCallback.Factory.Create<QueryDesign>(new object(),(QueryDesign value)=>saved=value));Invoke(editor,"OnParametersSet");
-        Set(editor,"名前","FindAmounts");Set(editor,"戻り型","IEnumerable<Result>");Set(editor,"本体","// keep whitespace and comments\nreturn container.dbo1.Items;\n");
+        Set(editor,"名前","FindAmounts");Set(editor,"戻り型","ISet<Result>");Set(editor,"本体","// keep whitespace and comments\nreturn q.Items.Select(row=>new Result(row.Id));\n");
         var parameters=Get<IList>(editor,"引数一覧");parameters[0]!.GetType().GetProperty("名前")!.SetValue(parameters[0],"minimum");parameters[0]!.GetType().GetProperty("型")!.SetValue(parameters[0],"decimal");var existing=parameters[0];
         var columns=Get<IList>(editor,"列一覧");columns[0]!.GetType().GetProperty("名前")!.SetValue(columns[0],"Amount");columns[0]!.GetType().GetProperty("型")!.SetValue(columns[0],"decimal");
         await (Task)Invoke(editor,"入力を通知Async")!;Assert.NotNull(saved);Assert.Equal(DatabaseQueryKind.TableFunction,saved.Kind);Assert.Equal("FindAmounts",saved.Name);Assert.Equal("minimum",saved.Parameters[0].Name);Assert.Equal("decimal",saved.Columns[0].Type);

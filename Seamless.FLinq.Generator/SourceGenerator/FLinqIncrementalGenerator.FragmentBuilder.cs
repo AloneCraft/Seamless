@@ -592,10 +592,6 @@ public sealed partial class FLinqIncrementalGenerator {
     /// </summary>
     private bool 単独列挙ソースフラグメント生成(SemanticModel semanticModel,ExpressionSyntax expression,INamedTypeSymbol containingType,ref int uniqueNumber,out Enumerable fragment,out string staticMethods,List<string>? unsafeAccessorCollector = null) {
         staticMethods=string.Empty;
-        if(this.TryBuildViewDefinitionRoot(semanticModel,expression,containingType,ref uniqueNumber,out fragment,unsafeAccessorCollector)){
-            staticMethods=fragment.StructMethod;
-            return true;
-        }
         if(TryBuildKnownEnumerableRoot(semanticModel,expression,containingType,ref uniqueNumber,out fragment,unsafeAccessorCollector)) {
             return true;
         }
@@ -1139,7 +1135,11 @@ public sealed partial class FLinqIncrementalGenerator {
         var delegateConstructorAccessorCodes = Array.Empty<string>();
         if(semanticModel is not null&&containingType is not null) {
             var delegateConstructorCollector = new List<string>();
-            delegateConstructorArg=RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,delegateConstructorCollector);
+            // デリゲートのまま呼ぶ場合でも、本体の中の LINQ は展開する(利用者の判断 2026-11-14)。
+            delegateConstructorArg=this.TryRenderKeptDelegateWithExpandedBody(expression,semanticModel,containingType,ref uniqueNumber,delegateConstructorCollector)
+                ??RenderExpressionForGeneratedMethod(expression,semanticModel,containingType,delegateConstructorCollector);
+            // [LinqIntercept(false)] を付けたラムダは本体も展開しない(下の関数が null を返す)。属性は生成コードへ写さない。
+            if(expression is LambdaExpressionSyntax{AttributeLists.Count:>0}){delegateConstructorArg=StripLeadingAttributeLists(delegateConstructorArg);}
             delegateConstructorAccessorCodes=delegateConstructorCollector.ToArray();
         } else {
             delegateConstructorArg=NormalizeExpressionText(expression.ToString());
@@ -1405,8 +1405,16 @@ public sealed partial class FLinqIncrementalGenerator {
             while(operand is ParenthesizedExpressionSyntax operandParentheses){operand=operandParentheses.Expression;}
             if(operand is LambdaExpressionSyntax or AnonymousMethodExpressionSyntax){expression=operand;}
         }
-        // 直接渡したラムダを展開する。変数・フィールドは再代入やclosureの状態を持つため、
-        // 宣言時の式へ戻さず、既存のDelegateFuncFragmentで呼び出し時の値を保持する。
+        // [決まり 2026-11-14] 呼び出し時の中身が確定しているデリゲートは、直接渡したラムダと同じに扱う。
+        // 代入が宣言時の1回だけの変数と、初期化式だけで決まる readonly のフィールドが当たる。キャストで包んだ直接のラムダも上で剥がしてある。
+        // 再代入のある変数と readonly でないフィールドは、下の DelegateFuncFragment で呼び出し時の値を保持する。
+        if(semanticModel is not null&&TryGetFixedDelegateInitializer(expression,semanticModel,containingType,out var fixedInitializer,out var fixedModel)){
+            expression=fixedInitializer;semanticModel=fixedModel;
+        }
+        // 利用者が [LinqIntercept(false)] を付けたラムダは、展開せずデリゲートのまま呼ぶ。
+        if(expression is LambdaExpressionSyntax disabledLambda&&semanticModel is not null&&IsExpansionDisabledLambda(disabledLambda,semanticModel)){
+            return TryCreateDelegateFuncFragment(expression,delegateType,ref uniqueNumber,out fragment,semanticModel,containingType);
+        }
 
         if(expression is LambdaExpressionSyntax lambda) {
             // 外側のlocal functionはメソッド内の字句scopeに属し、helper structから名前で呼べない。
@@ -1516,151 +1524,19 @@ public sealed partial class FLinqIncrementalGenerator {
                 throw LambdaInlineException(lambda,semanticModel,"ラムダ本体が式または単一 return 文ではないか、delegate 型を解決できませんでした。");
             }
 
-            var body = lambdaSpec.Body;
-            var capturedLocals = Array.Empty<(string Name,string TypeName)>();
-            var hoistedLocals = Array.Empty<HoistedLocal>();
-            var bodyAccessorCodes = Array.Empty<string>();
-            var capturesThis = false;
-            ExpressionSyntax? lambdaBodyExpr = null;
-            ExpressionSyntax? originalLambdaBodyExpr = null;
-            IReadOnlyCollection<ExpressionSyntax> hoistedExpressions = Array.Empty<ExpressionSyntax>();
-            IReadOnlyDictionary<string,string>? hoistReplacementMap = null;
-            if(semanticModel is not null&&TryGetLambdaExpressionBody(lambda,out lambdaBodyExpr)) {
-                originalLambdaBodyExpr=lambdaBodyExpr;
-                if(containingType is not null) {
-                    if(TryHoistInvariantSubexpressions(
-                        lambdaBodyExpr,
-                        lambdaSpec.ParameterNames,
-                        semanticModel,
-                        containingType,
-                        ref uniqueNumber,
-                        out hoistReplacementMap,
-                        out hoistedLocals,
-                        out var hoistAccessorCodes,
-                        out hoistedExpressions)) {
-                        bodyAccessorCodes=hoistAccessorCodes;
-                    }
-                    var bodyCollector = new List<string>();
-                    body=RenderExpressionForGeneratedMethod(lambdaBodyExpr,semanticModel,containingType,bodyCollector,hoistReplacementMap);
-                    bodyAccessorCodes=bodyAccessorCodes.Concat(bodyCollector).ToArray();
-                }
-                // source generator の生成コードを検証する。
-                // lambda 自身のパラメータと暗黙の this は除外する。
-                var dataFlow = semanticModel.AnalyzeDataFlow(originalLambdaBodyExpr);
-                if(dataFlow?.Succeeded==true) {
-                    var paramSet = new HashSet<string>(lambdaSpec.ParameterNames,StringComparer.Ordinal);
-                    var thisSymbol = dataFlow.DataFlowsIn.FirstOrDefault(sym => sym.Name=="this") as IParameterSymbol;
-                    capturesThis=thisSymbol is not null
-                        &&SymbolReferencedOutsideHoistedExpressions(thisSymbol,originalLambdaBodyExpr!,hoistedExpressions,semanticModel);
-                    capturedLocals=dataFlow.DataFlowsIn
-                        .Where(sym => (sym is ILocalSymbol||sym is IParameterSymbol)&&!paramSet.Contains(sym.Name)&&sym.Name!="this")
-                        .Where(sym => SymbolReferencedOutsideHoistedExpressions(sym,originalLambdaBodyExpr!,hoistedExpressions,semanticModel))
-                        .Select(sym => (sym.Name,sym is ILocalSymbol loc
-                            ? loc.Type.ToDisplayString(完全修飾形式)
-                            : ((IParameterSymbol)sym).Type.ToDisplayString(完全修飾形式)))
-                        .ToArray();
-                    // ラムダ内の this. は Fragment struct 内では @this として参照されるため、
-                    // struct closure のキャプチャ変数として明示的に持ち回る。
-                    // 型は containingType（呼び出し元の囲み型。Full Fusion 時は呼び出し先と異なりうる）ではなく
-                    // 実際の暗黙 this パラメーターの型（ラムダの宣言元インスタンスの型）を用いる。
-                    if(capturesThis&&thisSymbol is not null) {
-                        capturedLocals=capturedLocals
-                            .Append(("@this",thisSymbol.Type.ToDisplayString(完全修飾形式)))
-                            .ToArray();
-                    }
-                }
-            }
-
-            if(semanticModel is not null
-                &&containingType is not null
-                &&lambdaBodyExpr is not null
-                &&hoistedLocals.Length==0
-                &&TryFindSystemLinqInvocation(lambdaBodyExpr,semanticModel,out var scalarInvocation,out var scalarMethod)) {
-                var snapshot = uniqueNumber;
-                var scalarUnsafeAccessorCollector = new List<string>();
-                if(呼び出し式からフラグメント生成(
-                        semanticModel,
-                        scalarInvocation,
-                        containingType,
-                        ref snapshot,
-                        out var scalarFragment,
-                        out var scalarStaticMethods,
-                        scalarUnsafeAccessorCollector)
-                    &&scalarFragment is Scalar
-                    &&((scalarMethod.Name=="Sum"&&scalarFragment is DirectExecutionFragment)||ScalarFragmentSupportsInlineEnumeration(scalarFragment))) {
-                    uniqueNumber=snapshot;
-                    var bodyExpressionCollector = new List<string>();
-                    var renderedBodyExpression = this.RenderExpressionWithNestedCounters(
-                        lambdaBodyExpr,
-                        semanticModel,
-                        containingType,
-                        bodyExpressionCollector,
-                        hoistReplacementMap,
-                        scalarInvocation);
-                    var scalarExpressionCollector = new List<string>();
-                    var renderedScalarExpression = RenderExpressionForGeneratedMethod(
-                        scalarInvocation,
-                        semanticModel,
-                        containingType,
-                        scalarExpressionCollector,
-                        hoistReplacementMap);
-                    fragment=new InlinedScalarFunc(scalarFragment) {
-                        ReturnTypeName=lambdaSpec.ReturnTypeName,
-                        ParameterTypeNames=lambdaSpec.ParameterTypeNames,
-                        ParameterNames=lambdaSpec.ParameterNames,
-                        CanGenerateMethod=false,
-                        CanInlineAssign=true,
-                        RequiresStatementInlining=true,
-                        InlineBody=string.Empty,
-                        BodyExpression=renderedBodyExpression,
-                        ScalarExpression=renderedScalarExpression,
-                        ScalarReturnTypeName=semanticModel.GetTypeInfo(scalarInvocation).Type?.ToDisplayString(完全修飾形式)??scalarFragment.GetType().Name,
-                        CapturedLocals=capturedLocals,
-                        HoistedLocals=hoistedLocals,
-                        BodyUnsafeAccessorCodes=bodyAccessorCodes
-                            .Concat(scalarUnsafeAccessorCollector)
-                            .Concat(bodyExpressionCollector)
-                            .Concat(scalarExpressionCollector)
-                            .Concat(scalarFragment.CollectAllUnsafeAccessorCodes())
-                            .Distinct(StringComparer.Ordinal)
-                            .ToArray(),
-                        ScalarStaticMethods=scalarStaticMethods,
-                        OuterParameterNames=lambdaSpec.ParameterNames,
-                        ContainsAnchor=AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
-                    };
-                    return true;
-                }
-
-                // シーケンスを返す LINQ は SelectMany などの collection selector として有効なので、
-                // スカラー Fragment 化できない場合は通常ラムダとして残す。
-            }
-
-            // キャプチャなし（this 含む）なら実質 static → struct ゼロコピーでメソッド生成可能。
-            if(semanticModel is not null&&containingType is not null&&lambdaBodyExpr is not null&&this.state.Target.CounterInstrumentation){
-                var nestedBodyCollector=new List<string>();
-                body=this.RenderExpressionWithNestedCounters(lambdaBodyExpr,semanticModel,containingType,nestedBodyCollector,hoistReplacementMap);
-                bodyAccessorCodes=bodyAccessorCodes.Concat(nestedBodyCollector).Distinct(StringComparer.Ordinal).ToArray();
-            }
-            var canGenerateMethod = lambda.Modifiers.Any(SyntaxKind.StaticKeyword)
-                ||(!capturesThis&&capturedLocals.Length==0);
-            fragment=new LambdaFunc {
-                ReturnTypeName=lambdaSpec.ReturnTypeName,
-                ParameterTypeNames=lambdaSpec.ParameterTypeNames,
-                ParameterNames=lambdaSpec.ParameterNames,
-                CanGenerateMethod=canGenerateMethod,
-                CanInlineAssign=true,
-                InlineBody=body,
-                CapturedLocals=capturedLocals,
-                HoistedLocals=hoistedLocals,
-                BodyUnsafeAccessorCodes=bodyAccessorCodes,
-                ContainsAnchor=AnchorAnalysis.ContainsAnchor(lambda,semanticModel),
-                BodyIsWrappedParameter=lambdaSpec.ParameterNames.Length==1
-                    &&lambda.Body is ExpressionSyntax wrappedBody
-                    &&TransparentCalls.IsWrappedParameter(wrappedBody,lambdaSpec.ParameterNames[0],semanticModel),
-            };
+            // 以降は delegate 構文・メソッドグループと共通の処理(本体の中の LINQ の展開を含む)。
+            var lambdaBodyExpression=TryGetLambdaExpressionBody(lambda,out var foundLambdaBody)?foundLambdaBody:null;
+            fragment=this.BuildInlinedFunctionFromSpec(lambdaSpec,lambdaBodyExpression,lambda,lambda.Modifiers.Any(SyntaxKind.StaticKeyword),lambda.Body as ExpressionSyntax,ref uniqueNumber,semanticModel,containingType);
             return true;
         }
 
+        // delegate 構文の匿名メソッドも、ラムダと同じく本体をその場へ展開する(利用者の判断 2026-11-14)。
+        // 展開できない形(匿名型を含む・引数が多い・外側の可変 local へ書く・外側の local function を呼ぶ)は、下のデリゲートのまま呼ぶ経路へ進む。
+        if(expression is AnonymousMethodExpressionSyntax inlineAnonymous
+            &&this.TryBuildInlinedAnonymousMethod(inlineAnonymous,delegateType,ref uniqueNumber,out var inlinedAnonymous,semanticModel,containingType)){
+            fragment=inlinedAnonymous;
+            return true;
+        }
         if(expression is AnonymousMethodExpressionSyntax anonymousMethod
             &&delegateType is INamedTypeSymbol {TypeArguments.Length:>0} anonFuncType
             &&anonFuncType.TypeArguments.Any(ContainsAnonymousType)
@@ -1677,7 +1553,8 @@ public sealed partial class FLinqIncrementalGenerator {
             var anonDelegateTypeName=$"global::System.Func<{string.Join(", ",anonParamTypeNames.Append(anonReturnTypeName))}>";
             var anonFieldName=$"_anonDel{uniqueNumber++}";
             var anonCtorCollector=new List<string>();
-            var anonCtorArg=RenderExpressionForGeneratedMethod(anonymousMethod,semanticModel,containingType,anonCtorCollector);
+            var anonCtorArg=this.TryRenderKeptDelegateWithExpandedBody(anonymousMethod,semanticModel,containingType,ref uniqueNumber,anonCtorCollector)
+                ??RenderExpressionForGeneratedMethod(anonymousMethod,semanticModel,containingType,anonCtorCollector);
             if(this.state.Target.CounterInstrumentation){
                 anonCtorArg=RenderCounterOnlyDelegateExpression(anonymousMethod,anonCtorArg,semanticModel,containingType,anonCtorCollector);
             }
@@ -1694,6 +1571,12 @@ public sealed partial class FLinqIncrementalGenerator {
             };
             return true;
         }
+        // メソッドグループは書き換えられないので、本体を呼び出し側へ取り込む。Join のキーとして索引に使う直接のキー関数は、関数のまま渡す必要があるので除く。
+        if(!IsDirectJoinKeyMethod(expression,semanticModel)
+            &&this.TryBuildInlinedMethodGroup(expression,delegateType,ref uniqueNumber,out var inlinedMethodGroup,semanticModel,containingType)){
+            fragment=inlinedMethodGroup;
+            return true;
+        }
         if(TryCreateDelegateFuncFragment(expression,delegateType,ref uniqueNumber,out fragment,semanticModel,containingType)) {
             return true;
         }
@@ -1701,7 +1584,329 @@ public sealed partial class FLinqIncrementalGenerator {
         return false;
     }
 
-    private static bool ReferencesOuterLocalFunction(LambdaExpressionSyntax lambda,SemanticModel model){
+    private bool TryBuildInlinedAnonymousMethod(
+        AnonymousMethodExpressionSyntax anonymousMethod,
+        ITypeSymbol delegateType,
+        ref int uniqueNumber,
+        out FuncFragment fragment,
+        SemanticModel? semanticModel,
+        INamedTypeSymbol? containingType){
+        fragment=null!;
+        if(semanticModel is not null){
+            // ラムダと同じ決まり: 外側の local function を呼ぶ本体と、外側の可変 local/parameter へ書く本体は、元の字句 scope の closure を保つ。
+            if(ReferencesOuterLocalFunction(anonymousMethod,semanticModel)){return false;}
+            var flow=semanticModel.AnalyzeDataFlow(anonymousMethod.Block);
+            if(flow?.Succeeded==true&&flow.WrittenInside.Any(symbol=>symbol is ILocalSymbol or IParameterSymbol&&symbol.Name!="this"
+                &&!symbol.DeclaringSyntaxReferences.Any(reference=>reference.SyntaxTree==anonymousMethod.SyntaxTree&&anonymousMethod.Span.Contains(reference.Span)))){
+                return false;
+            }
+        }
+        // delegate(){ ...; return x; ... }(try-catch を含む複数文)は BlockFunc で文として展開する。
+        if(!IsSingleReturnBlock(anonymousMethod.Block)
+            &&TryBuildBlockFunc(anonymousMethod.Block,GetAnonymousMethodParameters(anonymousMethod),delegateType,semanticModel,containingType,out var blockFunc)){
+            fragment=blockFunc;
+            return true;
+        }
+        if(!TryCreateAnonymousMethodFuncFragment(anonymousMethod,delegateType,out var spec,out var bodyExpression)){
+            return false;
+        }
+        fragment=this.BuildInlinedFunctionFromSpec(spec,bodyExpression,bodyExpression,false,bodyExpression,ref uniqueNumber,semanticModel,containingType);
+        return true;
+    }
+
+    /// <summary>
+    /// メソッドグループで渡したメソッドの本体を、直接渡したラムダと同じく呼び出し側へ取り込む(利用者の判断 2026-11-14)。
+    /// メソッドは書き換えられないので、呼び出し時の中身は確定している。取り込むのは、本体が式1つで、呼び出し側と同じ型にあり、
+    /// 仮想でも総称でもなく、[LinqIntercept(false)] が付いていないメソッドだけ。それ以外はデリゲートのまま呼ぶ。
+    /// </summary>
+    private bool TryBuildInlinedMethodGroup(
+        ExpressionSyntax expression,
+        ITypeSymbol delegateType,
+        ref int uniqueNumber,
+        out FuncFragment fragment,
+        SemanticModel? semanticModel,
+        INamedTypeSymbol? containingType){
+        fragment=null!;
+        while(expression is ParenthesizedExpressionSyntax parenthesized){expression=parenthesized.Expression;}
+        if(semanticModel is null||containingType is null||expression is not (IdentifierNameSyntax or MemberAccessExpressionSyntax)){return false;}
+        // 受け手の式を評価しなくてよい形だけ(名前だけ・this.名前・型名.名前)。
+        if(expression is MemberAccessExpressionSyntax access
+            &&access.Expression is not ThisExpressionSyntax&&semanticModel.GetSymbolInfo(access.Expression).Symbol is not INamedTypeSymbol){return false;}
+        if(semanticModel.GetSymbolInfo(expression).Symbol is not IMethodSymbol{MethodKind:MethodKind.Ordinary,IsGenericMethod:false,IsVirtual:false,IsAbstract:false,IsOverride:false,IsAsync:false,IsExtern:false} method
+            ||!SymbolEqualityComparer.Default.Equals(method.ContainingType,containingType)
+            ||method.Parameters.Any(static parameter=>parameter.RefKind!=RefKind.None||parameter.IsParams)
+            ||method.DeclaringSyntaxReferences.Length!=1
+            ||method.DeclaringSyntaxReferences[0].GetSyntax() is not MethodDeclarationSyntax declaration
+            ||!TryGetSingleExpressionBody(declaration,out var bodyExpression)
+            ||!LinqRewrite判定(method,semanticModel.Compilation)
+            ||delegateType is not INamedTypeSymbol funcType||!IsInlineDelegateType(funcType)||funcType.TypeArguments.Any(ContainsAnonymousType)
+            ||funcType.TypeArguments.Length-1!=method.Parameters.Length){
+            return false;
+        }
+        var declarationModel=declaration.SyntaxTree==semanticModel.SyntaxTree?semanticModel:semanticModel.Compilation.GetSemanticModel(declaration.SyntaxTree);
+        // 自分自身を呼ぶ本体は取り込まない(取り込んでも呼び出しが残るだけで、利点が無い)。
+        if(bodyExpression.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>()
+            .Any(invocation=>SymbolEqualityComparer.Default.Equals(declarationModel.GetSymbolInfo(invocation).Symbol?.OriginalDefinition,method))){
+            return false;
+        }
+        var typeArguments=funcType.TypeArguments.Select(static typeArgument=>typeArgument.ToDisplayString(完全修飾形式)).ToArray();
+        var spec=new LambdaSpec(typeArguments[typeArguments.Length-1],typeArguments.Take(typeArguments.Length-1).ToArray(),
+            method.Parameters.Select(static parameter=>parameter.Name).ToArray(),NormalizeExpressionText(bodyExpression.ToString()));
+        fragment=this.BuildInlinedFunctionFromSpec(spec,bodyExpression,bodyExpression,false,bodyExpression,ref uniqueNumber,declarationModel,containingType);
+        return true;
+    }
+
+    // 引数の名前・型と本体の式から、その場へ展開する関数を作る。直接のラムダ・delegate 構文・メソッドグループ・中身が確定した変数とフィールドで共通に使う。
+    // 本体の中に LINQ があれば、その LINQ も展開する(InlinedScalarFunc)。
+    private FuncFragment BuildInlinedFunctionFromSpec(
+        LambdaSpec spec,
+        ExpressionSyntax? bodyExpression,
+        ExpressionSyntax anchorExpression,
+        bool isStaticFunction,
+        ExpressionSyntax? wrappedBodyCandidate,
+        ref int uniqueNumber,
+        SemanticModel? semanticModel,
+        INamedTypeSymbol? containingType){
+        var body = spec.Body;
+        var capturedLocals = Array.Empty<(string Name,string TypeName)>();
+        var hoistedLocals = Array.Empty<HoistedLocal>();
+        var bodyAccessorCodes = Array.Empty<string>();
+        var capturesThis = false;
+        ExpressionSyntax? lambdaBodyExpr = null;
+        ExpressionSyntax? originalLambdaBodyExpr = null;
+        IReadOnlyCollection<ExpressionSyntax> hoistedExpressions = Array.Empty<ExpressionSyntax>();
+        IReadOnlyDictionary<string,string>? hoistReplacementMap = null;
+        if(semanticModel is not null&&(lambdaBodyExpr=bodyExpression) is not null) {
+            originalLambdaBodyExpr=lambdaBodyExpr;
+            if(containingType is not null) {
+                if(TryHoistInvariantSubexpressions(
+                    lambdaBodyExpr,
+                    spec.ParameterNames,
+                    semanticModel,
+                    containingType,
+                    ref uniqueNumber,
+                    out hoistReplacementMap,
+                    out hoistedLocals,
+                    out var hoistAccessorCodes,
+                    out hoistedExpressions)) {
+                    bodyAccessorCodes=hoistAccessorCodes;
+                }
+                var bodyCollector = new List<string>();
+                body=RenderExpressionForGeneratedMethod(lambdaBodyExpr,semanticModel,containingType,bodyCollector,hoistReplacementMap);
+                bodyAccessorCodes=bodyAccessorCodes.Concat(bodyCollector).ToArray();
+            }
+            // source generator の生成コードを検証する。
+            // lambda 自身のパラメータと暗黙の this は除外する。
+            var dataFlow = semanticModel.AnalyzeDataFlow(originalLambdaBodyExpr);
+            if(dataFlow?.Succeeded==true) {
+                var paramSet = new HashSet<string>(spec.ParameterNames,StringComparer.Ordinal);
+                var thisSymbol = dataFlow.DataFlowsIn.FirstOrDefault(sym => sym.Name=="this") as IParameterSymbol;
+                capturesThis=thisSymbol is not null
+                    &&SymbolReferencedOutsideHoistedExpressions(thisSymbol,originalLambdaBodyExpr!,hoistedExpressions,semanticModel);
+                capturedLocals=dataFlow.DataFlowsIn
+                    .Where(sym => (sym is ILocalSymbol||sym is IParameterSymbol)&&!paramSet.Contains(sym.Name)&&sym.Name!="this")
+                    .Where(sym => SymbolReferencedOutsideHoistedExpressions(sym,originalLambdaBodyExpr!,hoistedExpressions,semanticModel))
+                    .Select(sym => (sym.Name,sym is ILocalSymbol loc
+                        ? loc.Type.ToDisplayString(完全修飾形式)
+                        : ((IParameterSymbol)sym).Type.ToDisplayString(完全修飾形式)))
+                    .ToArray();
+                // ラムダ内の this. は Fragment struct 内では @this として参照されるため、
+                // struct closure のキャプチャ変数として明示的に持ち回る。
+                // 型は containingType（呼び出し元の囲み型。Full Fusion 時は呼び出し先と異なりうる）ではなく
+                // 実際の暗黙 this パラメーターの型（ラムダの宣言元インスタンスの型）を用いる。
+                if(capturesThis&&thisSymbol is not null) {
+                    capturedLocals=capturedLocals
+                        .Append(("@this",thisSymbol.Type.ToDisplayString(完全修飾形式)))
+                        .ToArray();
+                }
+            }
+        }
+
+        if(semanticModel is not null
+            &&containingType is not null
+            &&lambdaBodyExpr is not null
+            &&hoistedLocals.Length==0
+            &&TryFindSystemLinqInvocation(lambdaBodyExpr,semanticModel,out var scalarInvocation,out var scalarMethod)) {
+            var snapshot = uniqueNumber;
+            var scalarUnsafeAccessorCollector = new List<string>();
+            if(呼び出し式からフラグメント生成(
+                    semanticModel,
+                    scalarInvocation,
+                    containingType,
+                    ref snapshot,
+                    out var scalarFragment,
+                    out var scalarStaticMethods,
+                    scalarUnsafeAccessorCollector)
+                &&scalarFragment is Scalar
+                &&((scalarMethod.Name=="Sum"&&scalarFragment is DirectExecutionFragment)||ScalarFragmentSupportsInlineEnumeration(scalarFragment))) {
+                uniqueNumber=snapshot;
+                var bodyExpressionCollector = new List<string>();
+                var renderedBodyExpression = this.RenderExpressionWithNestedCounters(
+                    lambdaBodyExpr,
+                    semanticModel,
+                    containingType,
+                    bodyExpressionCollector,
+                    hoistReplacementMap,
+                    scalarInvocation);
+                var scalarExpressionCollector = new List<string>();
+                var renderedScalarExpression = RenderExpressionForGeneratedMethod(
+                    scalarInvocation,
+                    semanticModel,
+                    containingType,
+                    scalarExpressionCollector,
+                    hoistReplacementMap);
+                return new InlinedScalarFunc(scalarFragment) {
+                    ReturnTypeName=spec.ReturnTypeName,
+                    ParameterTypeNames=spec.ParameterTypeNames,
+                    ParameterNames=spec.ParameterNames,
+                    CanGenerateMethod=false,
+                    CanInlineAssign=true,
+                    RequiresStatementInlining=true,
+                    InlineBody=string.Empty,
+                    BodyExpression=renderedBodyExpression,
+                    ScalarExpression=renderedScalarExpression,
+                    ScalarReturnTypeName=semanticModel.GetTypeInfo(scalarInvocation).Type?.ToDisplayString(完全修飾形式)??scalarFragment.GetType().Name,
+                    CapturedLocals=capturedLocals,
+                    HoistedLocals=hoistedLocals,
+                    BodyUnsafeAccessorCodes=bodyAccessorCodes
+                        .Concat(scalarUnsafeAccessorCollector)
+                        .Concat(bodyExpressionCollector)
+                        .Concat(scalarExpressionCollector)
+                        .Concat(scalarFragment.CollectAllUnsafeAccessorCodes())
+                        .Distinct(StringComparer.Ordinal)
+                        .ToArray(),
+                    ScalarStaticMethods=scalarStaticMethods,
+                    OuterParameterNames=spec.ParameterNames,
+                    ContainsAnchor=AnchorAnalysis.ContainsAnchor(anchorExpression,semanticModel),
+                };
+            }
+
+            // シーケンスを返す LINQ は SelectMany などの collection selector として有効なので、
+            // スカラー Fragment 化できない場合は通常ラムダとして残す。
+        }
+
+        // キャプチャなし（this 含む）なら実質 static → struct ゼロコピーでメソッド生成可能。
+        if(semanticModel is not null&&containingType is not null&&lambdaBodyExpr is not null&&this.state.Target.CounterInstrumentation){
+            var nestedBodyCollector=new List<string>();
+            body=this.RenderExpressionWithNestedCounters(lambdaBodyExpr,semanticModel,containingType,nestedBodyCollector,hoistReplacementMap);
+            bodyAccessorCodes=bodyAccessorCodes.Concat(nestedBodyCollector).Distinct(StringComparer.Ordinal).ToArray();
+        }
+        var canGenerateMethod = isStaticFunction
+            ||(!capturesThis&&capturedLocals.Length==0);
+        return new LambdaFunc {
+            ReturnTypeName=spec.ReturnTypeName,
+            ParameterTypeNames=spec.ParameterTypeNames,
+            ParameterNames=spec.ParameterNames,
+            CanGenerateMethod=canGenerateMethod,
+            CanInlineAssign=true,
+            InlineBody=body,
+            CapturedLocals=capturedLocals,
+            HoistedLocals=hoistedLocals,
+            BodyUnsafeAccessorCodes=bodyAccessorCodes,
+            ContainsAnchor=AnchorAnalysis.ContainsAnchor(anchorExpression,semanticModel),
+            BodyIsWrappedParameter=spec.ParameterNames.Length==1
+                &&wrappedBodyCandidate is {} wrappedBody
+                &&TransparentCalls.IsWrappedParameter(wrappedBody,spec.ParameterNames[0],semanticModel),
+        };
+    }
+
+    // 本体が return 式; の1文だけの delegate 構文を、ラムダと同じ形(引数名・型・本体の式)として読む。
+    private bool TryCreateAnonymousMethodFuncFragment(
+        AnonymousMethodExpressionSyntax anonymousMethod,
+        ITypeSymbol delegateType,
+        out LambdaSpec fragment,
+        out ExpressionSyntax body){
+        fragment=null!;
+        body=null!;
+        if(anonymousMethod.Block.Statements.Count!=1
+            ||anonymousMethod.Block.Statements[0] is not ReturnStatementSyntax{Expression:{} returnExpression}){
+            return false;
+        }
+        if(delegateType is not INamedTypeSymbol funcType||!IsInlineDelegateType(funcType)||funcType.TypeArguments.Any(ContainsAnonymousType)){
+            return false;
+        }
+        var parameters=anonymousMethod.ParameterList?.Parameters.Select(static parameter=>parameter.Identifier.ValueText).ToArray()??Array.Empty<string>();
+        var typeArguments=funcType.TypeArguments.Select(static typeArgument=>typeArgument.ToDisplayString(完全修飾形式)).ToArray();
+        var parameterTypeNames=typeArguments.Take(typeArguments.Length-1).ToArray();
+        if(parameters.Length!=parameterTypeNames.Length){
+            return false;
+        }
+        body=returnExpression;
+        fragment=new LambdaSpec(typeArguments[typeArguments.Length-1],parameterTypeNames,parameters,NormalizeExpressionText(returnExpression.ToString()));
+        return true;
+    }
+
+    /// <summary>
+    /// 呼び出し時の中身が確定しているデリゲートの、元のラムダ・delegate 構文を返す(利用者の判断 2026-11-14)。
+    /// 当たるのは、宣言時の初期化式のほかに代入の無い変数と、初期化式だけで決まる readonly のフィールド。
+    /// 再代入のある変数と readonly でないフィールドは、呼び出し時に別のデリゲートが入っていることがあるので当たらない。
+    /// </summary>
+    private static bool TryGetFixedDelegateInitializer(ExpressionSyntax expression,SemanticModel model,INamedTypeSymbol? containingType,out ExpressionSyntax initializer,out SemanticModel initializerModel){
+        initializer=null!;initializerModel=model;
+        while(expression is ParenthesizedExpressionSyntax parenthesized){expression=parenthesized.Expression;}
+        // 受け手の式を評価しなくてよい形だけ(名前だけ・this.名前・型名.名前)。
+        if(expression is MemberAccessExpressionSyntax access
+            &&access.Expression is not ThisExpressionSyntax&&model.GetSymbolInfo(access.Expression).Symbol is not INamedTypeSymbol){return false;}
+        if(expression is not (IdentifierNameSyntax or MemberAccessExpressionSyntax)){return false;}
+        var symbol=model.GetSymbolInfo(expression).Symbol;
+        if(symbol is not (ILocalSymbol or IFieldSymbol{IsReadOnly:true})
+            ||symbol.DeclaringSyntaxReferences.Length!=1
+            ||symbol.DeclaringSyntaxReferences[0].GetSyntax() is not VariableDeclaratorSyntax{Initializer.Value:{} value} declarator){return false;}
+        while(true){
+            if(value is ParenthesizedExpressionSyntax inner){value=inner.Expression;continue;}
+            if(value is CastExpressionSyntax cast){value=cast.Expression;continue;}
+            break;
+        }
+        if(value is not AnonymousFunctionExpressionSyntax function){return false;}
+        var compilation=model.Compilation;
+        var declarationModel=declarator.SyntaxTree==model.SyntaxTree?model:compilation.GetSemanticModel(declarator.SyntaxTree);
+        if(function is LambdaExpressionSyntax lambda&&IsExpansionDisabledLambda(lambda,declarationModel)){return false;}
+        // フィールドに(または型・アセンブリに)[LinqIntercept(false)] があれば取り込まない。
+        // 別の型のフィールドは、本体が持ち主の型の非公開のメンバーを使うことがあるので取り込まない。
+        if(symbol is IFieldSymbol field&&(!LinqRewrite判定(field,compilation)||!SymbolEqualityComparer.Default.Equals(field.ContainingType,containingType))){return false;}
+        IEnumerable<SyntaxNode> writers;
+        if(symbol is ILocalSymbol){
+            // 変数が見える範囲を含む、いちばん外側のメンバーの本体を調べる。
+            var owner=declarator.Ancestors().OfType<MemberDeclarationSyntax>().FirstOrDefault();
+            if(owner is null){return false;}
+            writers=[owner];
+        }else{
+            // readonly のフィールドは、コンストラクターの中でだけ書き換えられる。
+            writers=symbol.ContainingType.DeclaringSyntaxReferences.SelectMany(static reference=>reference.GetSyntax().DescendantNodes().OfType<ConstructorDeclarationSyntax>());
+        }
+        foreach(var writer in writers){
+            var writerModel=writer.SyntaxTree==model.SyntaxTree?model:compilation.GetSemanticModel(writer.SyntaxTree);
+            bool Refers(SyntaxNode node)=>node.DescendantNodesAndSelf().OfType<SimpleNameSyntax>()
+                .Any(name=>name.Identifier.ValueText==symbol.Name&&SymbolEqualityComparer.Default.Equals(writerModel.GetSymbolInfo(name).Symbol,symbol));
+            foreach(var node in writer.DescendantNodes()){
+                // 代入(複合代入・分解を含む)、ref/out の引数、ref での参照があれば、中身は確定しない。
+                if(node is AssignmentExpressionSyntax assignment&&Refers(assignment.Left)
+                    ||node is ArgumentSyntax{RefOrOutKeyword.RawKind:not 0} argument&&Refers(argument.Expression)
+                    ||node is RefExpressionSyntax reference&&Refers(reference.Expression)){
+                    return false;
+                }
+            }
+        }
+        initializer=function;initializerModel=declarationModel;
+        return true;
+    }
+
+    /// <summary>利用者が [LinqIntercept(false)] を付けたラムダか。付いていれば、展開せずデリゲートのまま呼ぶ。</summary>
+    internal static bool IsExpansionDisabledLambda(LambdaExpressionSyntax lambda,SemanticModel model){
+        foreach(var attribute in lambda.AttributeLists.SelectMany(static list=>list.Attributes)){
+            var type=(model.GetSymbolInfo(attribute).Symbol as IMethodSymbol)?.ContainingType;
+            var named=type?.Name??attribute.Name.ToString().Split('.').Last();
+            if(named is not ("LinqInterceptAttribute" or "LinqIntercept")){continue;}
+            if(attribute.ArgumentList?.Arguments.FirstOrDefault()?.Expression is {} first&&model.GetConstantValue(first) is {HasValue:true,Value:false}){return true;}
+        }
+        return false;
+    }
+
+    /// <summary>生成コードへ写すラムダの頭から、属性の並びを取り除く(生成コードの中では属性の名前を解決できない)。</summary>
+    internal static string StripLeadingAttributeLists(string text)=>
+        System.Text.RegularExpressions.Regex.Replace(text,@"^\s*(\[[^\]]*\]\s*)+","");
+
+    private static bool ReferencesOuterLocalFunction(AnonymousFunctionExpressionSyntax lambda,SemanticModel model){
         foreach(var name in lambda.DescendantNodes().OfType<SimpleNameSyntax>()){
             if(model.GetSymbolInfo(name).Symbol is not IMethodSymbol{MethodKind:MethodKind.LocalFunction} function){continue;}
             if(!function.DeclaringSyntaxReferences.Any(reference=>reference.SyntaxTree==lambda.SyntaxTree&&lambda.Span.Contains(reference.Span))){return true;}

@@ -54,7 +54,7 @@ public sealed class ManagerPresentation{
                 Assert.DoesNotContain("<span>amount</span>",declared);
                 Assert.Equal("New row Id",表示文言.取得("新規行 {0}","Id"));
                 Assert.Equal("Query.cs · Start 3 · Length 5",表示文言.取得("{0} · 開始 {1} · 長さ {2}","Query.cs",3,5));
-                var query=new Seamless.Management.QueryDesign("FindItems","dbo",Seamless.Management.DatabaseQueryKind.TableFunction,[],[new("minPrice","decimal")],"IEnumerable<Item>","");
+                var query=new Seamless.Management.QueryDesign("FindItems","dbo",Seamless.Management.DatabaseQueryKind.TableFunction,[],[new("minPrice","decimal")],"ISet<Item>","");
                 var result=await renderer.RenderComponentAsync<問い合わせ結果>(ParameterView.FromDictionary(new Dictionary<string,object?>{{"DB名","Sample"},{"定義",query},{"公開版",12L}}));
                 var queryHtml=WebUtility.HtmlDecode(result.ToHtmlString());
                 Assert.Contains("Run the query from published version v12.",queryHtml);

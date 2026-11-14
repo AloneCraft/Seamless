@@ -42,7 +42,24 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         if(context.SemanticModel.GetDeclaredSymbol(declaration) is not INamedTypeSymbol symbol) {
             return null;
         }
-        return new(symbol,declaration.Modifiers.Any(SyntaxKind.PartialKeyword)){ViewRow=GeneratedViewRow.TryCreate(declaration,symbol,context.SemanticModel)};
+        if(symbol.IsExtension){return null;}
+        return new(symbol,declaration.Modifiers.Any(SyntaxKind.PartialKeyword)){Extensions=ReadExtensions(symbol,context.SemanticModel)};
+    }
+
+    // [ビュー・関数/書き方] ビュー・関数は、生成される入口の共通インターフェース(<コンテナ>.IReader、スキーマは <コンテナ>.I<スキーマ>Reader)への拡張メンバーとして書く。
+    // その型はこの生成器が作るので、受け手の型はまだ解決できない。書かれた「コンテナ型.インターフェース名」の形から、どのコンテナのどの入口かを読む。
+    private static ImmutableArray<ExtensionReceiver> ReadExtensions(INamedTypeSymbol symbol,SemanticModel model){
+        if(!symbol.IsStatic||symbol.ContainingType is not null){return [];}
+        var builder=ImmutableArray.CreateBuilder<ExtensionReceiver>();
+        foreach(var extension in symbol.GetTypeMembers().Where(static type=>type.IsExtension&&type.Arity==0)){
+            if(extension.ExtensionParameter?.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax() is not ParameterSyntax{Type:QualifiedNameSyntax receiver}
+                ||receiver.SyntaxTree!=model.SyntaxTree
+                ||model.GetSymbolInfo(receiver.Left).Symbol is not INamedTypeSymbol container){
+                continue;
+            }
+            builder.Add(new(container,receiver.Right.Identifier.ValueText,extension,NamespaceName(symbol.ContainingNamespace)));
+        }
+        return builder.ToImmutable();
     }
 
     private static void Generate(SourceProductionContext context,ImmutableArray<TypeTarget> targets) {
@@ -52,8 +69,9 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
 
         var uniqueTypes = targets
             .GroupBy(static target => target.Symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),StringComparer.Ordinal)
-            .Select(static group => new TypeTarget(group.First().Symbol,group.Any(static target => target.IsPartial)){ViewRow=group.Select(static target=>target.ViewRow).FirstOrDefault(static row=>row is not null)})
+            .Select(static group => new TypeTarget(group.First().Symbol,group.Any(static target => target.IsPartial)){Extensions=[..group.SelectMany(static target=>target.Extensions)]})
             .ToArray();
+        var receivers=uniqueTypes.SelectMany(static target=>target.Extensions).GroupBy(static receiver=>receiver.Extension,SymbolEqualityComparer.Default).Select(static group=>group.First()).ToArray();
         var markerNamespaces = new HashSet<string>(
             uniqueTypes
                 .Where(static target => target.Symbol.Name=="DatabaseGenerator")
@@ -77,13 +95,6 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         if(markerNamespaces.Count==0) {
             return;
         }
-        // [ビュー/生成] Query本体から推論した行型とRowsを出力する。推論できない形は元の本文位置へ診断する。
-        foreach(var target in uniqueTypes.Where(static target=>target.ViewRow is not null)){
-            var row=target.ViewRow!;
-            if(row.Source is null){context.ReportDiagnostic(Diagnostic.Create(GeneratedViewRow.CannotInfer,row.Location,target.Symbol.Name,row.Failure));continue;}
-            context.AddSource($"{target.Symbol.ToDisplayString()}.ViewRow.g.cs",SourceText.From(row.Source,Encoding.UTF8));
-        }
-
         foreach(var target in uniqueTypes
             .Where(static target => IsContainer(target))
             .OrderBy(static target => target.Symbol.ToDisplayString(),StringComparer.Ordinal)) {
@@ -94,7 +105,10 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
 
             var declarations = CollectObjects(target.Symbol);
             var declaredObjects = CollectDeclaredObjects(uniqueTypes, namespaceName);
-            var combined = declarations.Concat(declaredObjects).ToImmutableArray();
+            var tableObjects=declarations.Concat(declaredObjects).Where(static item=>item.ImportKind is "Table" or "MaterializedView").ToArray();
+            var schemaMarkers=SchemaMarkers(target.Symbol);
+            var queries=CollectQueries(target.Symbol,receivers,[..tableObjects,..schemaMarkers]);
+            var combined = declarations.Concat(declaredObjects).Concat(queries).ToImmutableArray();
             var hasErrors = ReportDiagnostics(context,combined);
             var schemaNames=combined.Where(static item=>item.Name.Contains('.')).Select(static item=>item.Name.Substring(0,item.Name.IndexOf('.')))
                 .Concat(target.Symbol.GetMembers().OfType<IPropertySymbol>().Where(static property=>property.Type is INamedTypeSymbol type&&IsSchema(type)).Select(static property=>property.Name))
@@ -118,9 +132,98 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
                 continue;
             }
 
-            var source = BuildSource(target.Symbol,combined,declaredObjects);
+            var source = BuildSource(target.Symbol,combined,declaredObjects,schemaMarkers);
             context.AddSource($"{target.Symbol.ToDisplayString()}.Container.g.cs",SourceText.From(source,Encoding.UTF8));
+            if(queries.Length>0){
+                context.AddSource($"{target.Symbol.ToDisplayString()}.Queries.g.cs",SourceText.From(BuildQueriesSource(target.Symbol,queries),Encoding.UTF8));
+            }
         }
+    }
+
+    private const string SchemaMarkerKind="Schema";
+
+    // コンテナにプロパティで宣言したスキーマ(DatabaseSchema の派生)の目印。表が無くても入口のインターフェースを作るために、表と同じ並びへ混ぜる。
+    private static ObjectDeclaration[] SchemaMarkers(INamedTypeSymbol container){
+        var markers=new List<ObjectDeclaration>();var visited=new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+        Walk(container,"");
+        return markers.ToArray();
+        void Walk(INamedTypeSymbol owner,string prefix){
+            if(!visited.Add(owner)){return;}
+            foreach(var property in owner.GetMembers().OfType<IPropertySymbol>().Where(static property=>!property.IsStatic&&property.Type is INamedTypeSymbol type&&IsSchema(type))){
+                var path=prefix+property.Name;
+                markers.Add(new(SchemaMarkerKind,path+".*",string.Empty,null,Location.None,null));
+                Walk((INamedTypeSymbol)property.Type,path+".");
+            }
+            visited.Remove(owner);
+        }
+    }
+
+    // ビュー・関数を拡張メンバーから集める。ビューは ISet<行> を返すプロパティ、テーブル関数は ISet<行> を返すメソッド、スカラー関数はそれ以外の値を返すメソッド。
+    // 受け手が入口のインターフェース(スキーマごとに1つ)なら、名前はそのスキーマに属する。
+    private static ImmutableArray<ObjectDeclaration> CollectQueries(INamedTypeSymbol container,ExtensionReceiver[] receivers,ObjectDeclaration[] tables){
+        var prefixes=new Dictionary<string,string>(StringComparer.Ordinal){[ReaderInterface("")]=""};
+        foreach(var table in tables){
+            var parts=table.Name.Split('.');
+            for(var count=1;count<parts.Length;count++){var prefix=string.Join(".",parts.Take(count))+".";prefixes[ReaderInterface(prefix)]=prefix;}
+        }
+        var builder=ImmutableArray.CreateBuilder<ObjectDeclaration>();
+        foreach(var receiver in receivers.Where(receiver=>SymbolEqualityComparer.Default.Equals(receiver.Container,container))){
+            if(!prefixes.TryGetValue(receiver.InterfaceName,out var prefix)){continue;}
+            foreach(var member in receiver.Extension.GetMembers().Where(static member=>!member.IsStatic&&member.DeclaredAccessibility==Accessibility.Public)){
+                string kind;ITypeSymbol result;IParameterSymbol[] parameters=[];
+                if(member is IPropertySymbol{IsIndexer:false,GetMethod:not null} property&&TryGetRecordType(property.Type,"ISet",out var viewRecord)){kind="View";result=viewRecord;}
+                else if(member is IMethodSymbol{MethodKind:MethodKind.Ordinary,IsGenericMethod:false,ReturnsVoid:false} method){
+                    parameters=[..method.Parameters];
+                    if(TryGetRecordType(method.ReturnType,"ISet",out var functionRecord)){kind="TableFunction";result=functionRecord;}
+                    else{kind="ScalarFunction";result=method.ReturnType;}
+                }else{continue;}
+                var declaration=CreateObject(kind,prefix+member.Name,result,null,member);
+                builder.Add(declaration.WithQuery(new(receiver.Namespace,member.Name,member is IPropertySymbol,
+                    [..parameters.Select(static parameter=>(parameter.Name,parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat.AddMiscellaneousOptions(SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier))))],
+                    prefix)));
+            }
+        }
+        return builder.ToImmutable();
+    }
+
+    // 名前で呼ぶ入口(Manager・Gateway 用)。拡張メンバーはその名前空間の中から普通に呼ぶので、拡張の静的クラスの名前空間ごとに補助クラスを作る。
+    private static string BuildQueriesSource(INamedTypeSymbol container,ImmutableArray<ObjectDeclaration> queries){
+        var builder=new StringBuilder();
+        builder.AppendLine("// <auto-generated/>");
+        builder.AppendLine("#nullable enable");
+        var containerType=container.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var helper="__"+string.Concat(container.ToDisplayString().Select(static c=>char.IsLetterOrDigit(c)?c:'_'))+"_Queries";
+        var entries=new List<string>();var index=0;
+        foreach(var group in queries.GroupBy(static query=>query.Query!.Namespace,StringComparer.Ordinal)){
+            if(group.Key.Length>0){builder.AppendLine($"namespace {group.Key}{{");}
+            builder.AppendLine("[global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
+            builder.AppendLine($"internal static class {helper}{{");
+            foreach(var query in group){
+                var info=query.Query!;var method="Query"+index.ToString(global::System.Globalization.CultureInfo.InvariantCulture);index++;
+                var receiver="reader"+string.Concat(info.SchemaPrefix.Split(['.'],StringSplitOptions.RemoveEmptyEntries).Select(static part=>"."+Identifier(part)));
+                var call=receiver+"."+Identifier(info.Member);
+                if(!info.IsProperty){call+="("+string.Join(",",info.Parameters.Select(static (parameter,position)=>$"({parameter.CastType})arguments[{position.ToString(global::System.Globalization.CultureInfo.InvariantCulture)}]!"))+")";}
+                builder.AppendLine($"    internal static global::Seamless.Database.DatabaseQueryResult {method}(global::Seamless.Database.DatabaseContainer database,object?[] arguments){{");
+                builder.AppendLine($"        var reader=(({containerType})database).BeginRead();");
+                builder.AppendLine($"        try{{return new global::Seamless.Database.DatabaseQueryResult(reader,{call});}}catch{{reader.Dispose();throw;}}");
+                builder.AppendLine("    }");
+                var ns=group.Key.Length==0?"global::":"global::"+group.Key+".";
+                var parameters=string.Join(",",info.Parameters.Select(static parameter=>$"new({Literal(parameter.Name)},typeof({parameter.RuntimeType}))"));
+                entries.Add($"new({Literal(query.Name)},global::Seamless.Database.System.DatabaseObjectKind.{query.Kind},typeof({query.RecordTypeName}),[{parameters}],{ns}{helper}.{method})");
+            }
+            builder.AppendLine("}");
+            if(group.Key.Length>0){builder.AppendLine("}");}
+        }
+        var containerNamespace=NamespaceName(container.ContainingNamespace);
+        if(containerNamespace.Length>0){builder.AppendLine($"namespace {containerNamespace}{{");}
+        builder.AppendLine($"partial class {Identifier(container.Name)}{{");
+        builder.AppendLine("    private static readonly global::Seamless.Database.DatabaseQuery[] GeneratedQueries=[");
+        foreach(var entry in entries){builder.AppendLine("        "+entry+",");}
+        builder.AppendLine("    ];");
+        builder.AppendLine("    public override global::System.Collections.Generic.IReadOnlyList<global::Seamless.Database.DatabaseQuery> Queries=>GeneratedQueries;");
+        builder.AppendLine("}");
+        if(containerNamespace.Length>0){builder.AppendLine("}");}
+        return builder.ToString();
     }
 
     private static bool IsContainer(TypeTarget target) {
@@ -148,7 +251,7 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
     private static ImmutableArray<ObjectDeclaration> CollectDeclaredObjects(TypeTarget[] targets,string root){
         var builder = ImmutableArray.CreateBuilder<ObjectDeclaration>();
         var tablePrefix = root.Length == 0 ? "Tables" : root + ".Tables";
-        var viewPrefix = root.Length == 0 ? "Views" : root + ".Views";
+        // Views・Functions 名前空間の型はビュー・関数の結果の行型で、ビュー・関数そのものは IReader への拡張メンバー(CollectQueries)。
         var workPrefix = root.Length == 0 ? "Work" : root + ".Work";
 
         foreach(var target in targets.Where(static t => t.Symbol.TypeKind == TypeKind.Struct && t.Symbol.ContainingType is null)){
@@ -162,10 +265,6 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
                 kind = "Table";
                 schema = ns == tablePrefix ? "" : ns.Substring(tablePrefix.Length + 1);
                 keyNs = (root.Length == 0 ? "Keys" : root + ".Keys") + (schema.Length == 0 ? "" : "." + schema);
-            } else if(ns == viewPrefix || ns.StartsWith(viewPrefix + ".", StringComparison.Ordinal)){
-                kind = "View";
-                schema = ns == viewPrefix ? "" : ns.Substring(viewPrefix.Length + 1);
-                keyNs = (root.Length == 0 ? "Keys" : root + ".Keys") + (schema.Length == 0 ? "" : "." + schema);
             } else if(ns == workPrefix || ns.StartsWith(workPrefix + ".", StringComparison.Ordinal)){
                 kind = "Table";
                 schema = ns == workPrefix ? "" : ns.Substring(workPrefix.Length + 1);
@@ -176,9 +275,7 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
                 var name = string.IsNullOrEmpty(schema) ? symbol.Name : $"{schema}.{symbol.Name}";
                 var recordTypeName = "global::" + symbol.ToDisplayString();
                 var keyTypeName = "global::" + keyNs + ".@" + symbol.Name;
-                string? importKind=null;
-                if(kind!="View"){importKind="Table";}
-                builder.Add(new ObjectDeclaration(kind, name, recordTypeName, importKind, symbol.Locations.FirstOrDefault() ?? Location.None, keyTypeName){ViewMethod=target.ViewRow?.Source is null?"Query":GeneratedViewRow.RowsMethodName});
+                builder.Add(new ObjectDeclaration(kind, name, recordTypeName, "Table", symbol.Locations.FirstOrDefault() ?? Location.None, keyTypeName));
             }
         }
         return builder.ToImmutable();
@@ -208,16 +305,7 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
                 case IPropertySymbol property when TryGetMaterializedRecordType(property.Type,out var materializedRecord):
                     builder.Add(CreateObject("View",path,materializedRecord,"MaterializedView",property));
                     break;
-                // [ビュー/書き方] ビューは Views 名前空間の partial 行型の Query だけで宣言する(CollectDeclaredObjects)。
-                // コンテナのメンバーとして書く View<T>/ISet<T> の形は廃止した。
-                case IMethodSymbol { MethodKind: MethodKind.Ordinary } method
-                    when TryGetRecordType(method.ReturnType,"TableFunction",out var functionRecord):
-                    builder.Add(CreateObject("TableFunction",path,functionRecord,null,method));
-                    break;
-                case IMethodSymbol { MethodKind:MethodKind.Ordinary } method
-                    when TryGetRecordType(method.ReturnType,"ScalarFunction",out var scalarResult):
-                    builder.Add(CreateObject("ScalarFunction",path,scalarResult,null,method));
-                    break;
+                // [ビュー・関数/書き方] ビュー・関数はコンテナのメンバーではなく、IReader への拡張メンバーとして書く(CollectQueries)。
                 case IMethodSymbol { MethodKind:MethodKind.Ordinary } method
                     when TryGetRecordType(method.ReturnType,"StoredProcedure",out var procedureResult):
                     builder.Add(CreateObject("StoredProcedure",path,procedureResult,null,method));
@@ -302,7 +390,7 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         return hasErrors;
     }
 
-    private static string BuildSource(INamedTypeSymbol symbol,ImmutableArray<ObjectDeclaration> declarations,ImmutableArray<ObjectDeclaration> declaredObjects) {
+    private static string BuildSource(INamedTypeSymbol symbol,ImmutableArray<ObjectDeclaration> declarations,ImmutableArray<ObjectDeclaration> declaredObjects,ObjectDeclaration[] schemaMarkers) {
         var builder = new StringBuilder();
         builder.AppendLine("// <auto-generated/>");
         builder.AppendLine("#nullable enable");
@@ -323,22 +411,14 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
             builder.AppendLine($"{indent}        public new {className} Database => ({className})base.Database;");
             foreach(var item in group) {
                 var propName = Identifier(item.Name.Substring(schemaName.Length + 1));
-                if(item.Kind == "View") {
-                    builder.AppendLine($"{indent}        public global::Seamless.Collections.ISet<{item.RecordTypeName}> {propName} => {item.RecordTypeName}.{item.ViewMethod}(this.Database);");
-                } else {
-                    builder.AppendLine($"{indent}        public global::Seamless.Database.Table<{item.KeyTypeName}, {item.RecordTypeName}> {propName} => this.Table<{item.KeyTypeName}, {item.RecordTypeName}>(static row=>row.Key);");
-                }
+                builder.AppendLine($"{indent}        public global::Seamless.Database.Table<{item.KeyTypeName}, {item.RecordTypeName}> {propName} => this.Table<{item.KeyTypeName}, {item.RecordTypeName}>(static row=>row.Key);");
             }
             builder.AppendLine($"{indent}    }}");
             builder.AppendLine($"{indent}    public {schemaClass} {Identifier(schemaName)} => new(this);");
         }
         foreach(var item in declaredObjects.Where(static d => !d.Name.Contains('.'))) {
             var propName = Identifier(item.Name);
-            if(item.Kind == "View") {
-                builder.AppendLine($"{indent}    public global::Seamless.Collections.ISet<{item.RecordTypeName}> {propName} => {item.RecordTypeName}.{item.ViewMethod}(this);");
-            } else {
-                builder.AppendLine($"{indent}    public global::Seamless.Database.Table<{item.KeyTypeName}, {item.RecordTypeName}> {propName} => this.Table<{item.KeyTypeName}, {item.RecordTypeName}>(static row=>row.Key);");
-            }
+            builder.AppendLine($"{indent}    public global::Seamless.Database.Table<{item.KeyTypeName}, {item.RecordTypeName}> {propName} => this.Table<{item.KeyTypeName}, {item.RecordTypeName}>(static row=>row.Key);");
         }
         builder.AppendLine($"{indent}    private static readonly global::Seamless.Database.System.SystemTable<global::Seamless.Database.System.Keys.DatabaseObject,global::Seamless.Database.System.Records.DatabaseObject> GeneratedDatabaseObjects=");
         builder.AppendLine($"{indent}        CreateSystemTable<global::Seamless.Database.System.Keys.DatabaseObject,global::Seamless.Database.System.Records.DatabaseObject>(");
@@ -389,7 +469,7 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
             builder.AppendLine($"{indent}        foreach(var row in source.ReadTable<{table.RecordTypeName}>(new global::Seamless.Database.System.Keys.DatabaseObject({Literal(table.Name)}))){{cancellationToken.ThrowIfCancellationRequested();_=import{index}.Add(row);}}");
         }
         builder.AppendLine($"{indent}    }}");
-        AppendTransactions(builder,indent,className,declarations);
+        AppendTransactions(builder,indent,className,declarations,schemaMarkers);
         builder.AppendLine($"{indent}}}");
 
         if(namespaceName.Length>0) {
@@ -402,11 +482,7 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
             builder.AppendLine($"partial class {Identifier(schema.Name)}{{");
             foreach(var item in group){
                 var propertyName=Identifier(item.Name.Substring(group.Key.Length+1));
-                if(item.Kind=="View"){
-                    builder.AppendLine($"public global::Seamless.Collections.ISet<{item.RecordTypeName}> {propertyName}=>{item.RecordTypeName}.{item.ViewMethod}((global::{symbol.ToDisplayString()})this.Database);");
-                }else{
-                    builder.AppendLine($"public global::Seamless.Database.Table<{item.KeyTypeName},{item.RecordTypeName}> {propertyName}=>this.Table<{item.KeyTypeName},{item.RecordTypeName}>(static row=>row.Key);");
-                }
+                builder.AppendLine($"public global::Seamless.Database.Table<{item.KeyTypeName},{item.RecordTypeName}> {propertyName}=>this.Table<{item.KeyTypeName},{item.RecordTypeName}>(static row=>row.Key);");
             }
             builder.AppendLine("}");
             if(schemaNamespace.Length>0){builder.AppendLine("}");}
@@ -429,8 +505,14 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
     private sealed class TypeTarget(INamedTypeSymbol symbol,bool isPartial) {
         public INamedTypeSymbol Symbol { get; }=symbol;
         public bool IsPartial { get; }=isPartial;
-        public GeneratedViewRow? ViewRow{get;init;}
+        public ImmutableArray<ExtensionReceiver> Extensions{get;init;}=[];
     }
+
+    /// <summary>入口のインターフェース(受け手)への拡張ブロック1つ。</summary>
+    private sealed record ExtensionReceiver(INamedTypeSymbol Container,string InterfaceName,INamedTypeSymbol Extension,string Namespace);
+
+    /// <summary>ビュー・関数として呼ぶ拡張メンバー。</summary>
+    private sealed record QueryMember(string Namespace,string Member,bool IsProperty,ImmutableArray<(string Name,string RuntimeType,string CastType)> Parameters,string SchemaPrefix);
 
     private sealed class ObjectDeclaration(
         string kind,string name,string recordTypeName,string? importKind,Location location,string? keyTypeName) {
@@ -440,10 +522,10 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         public string? ImportKind { get; }=importKind;
         public Location Location { get; }=location;
         public string? KeyTypeName{get;}=keyTypeName;
-        /// <summary>ビューのgetterが呼ぶ静的メソッド。行型を生成したビューはRows、それ以外はQuery。</summary>
-        public string ViewMethod{get;init;}="Query";
+        public QueryMember? Query{get;private init;}
+        public ObjectDeclaration WithQuery(QueryMember query)=>new(this.Kind,this.Name,this.RecordTypeName,this.ImportKind,this.Location,this.KeyTypeName){Query=query};
     }
-    private static void AppendTransactions(StringBuilder builder,string indent,string className,ImmutableArray<ObjectDeclaration> declarations){
+    private static void AppendTransactions(StringBuilder builder,string indent,string className,ImmutableArray<ObjectDeclaration> declarations,ObjectDeclaration[] schemaMarkers){
         var tables=declarations.Where(static d=>d.ImportKind is "Table" or "MaterializedView").ToArray();
         builder.AppendLine($"{indent}    protected override void EnsureTransactionSchema()=>this.EnsureTablesCreated();");
         builder.Append($"{indent}    protected override string TransactionCatalogIdentity=>{Literal(className+"|typed-v2")}");
@@ -453,7 +535,9 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         AppendTransactionEntry(builder,indent,"BeginReadOnlyTransactionAsync","BeginReadOnlyTransactionScopeAsync");
         builder.AppendLine($"{indent}    // [入口] 読み書きの取引(同期)。usingで囲み、Commitを呼ばずに抜けると取り消す。基底の暗黙の取引(DatabaseTransaction)を隠す。");
         builder.AppendLine($"{indent}    public new TypedTransaction BeginTransaction(global::System.Threading.CancellationToken cancellationToken=default)=>new(this,this.BeginTransactionScopeAsync(cancellationToken).AsTask().GetAwaiter().GetResult());");
-        AppendReaders(builder,indent,className,tables);
+        // 入口の形(IReader・Reader・TypedTransaction)には、表の無いスキーマも入れる(ビュー・関数の受け手になるため)。
+        var readerItems=tables.Concat(schemaMarkers).ToArray();
+        AppendReaders(builder,indent,className,readerItems);
         builder.AppendLine("#if DEBUG");
         builder.AppendLine($"{indent}    [global::System.Diagnostics.DebuggerDisplayAttribute(\"Id={{Id}}\")]");
         builder.AppendLine("#endif");
@@ -488,7 +572,7 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         builder.AppendLine($"{indent}        public void Rollback()=>this.scope.RollbackAsync().AsTask().GetAwaiter().GetResult();");
         builder.AppendLine($"{indent}        public void Dispose()=>this.scope.DisposeAsync().AsTask().GetAwaiter().GetResult();");
         var number=0;
-        AppendTransactionProperties(builder,indent+"        ",className,tables,"",ref number);
+        AppendTransactionProperties(builder,indent+"        ",className,readerItems,"",ref number);
         builder.AppendLine($"{indent}    }}");
     }
     private static void AppendTransactionEntry(StringBuilder builder,string indent,string method,string begin){
@@ -509,7 +593,7 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
     private static string ReaderInterface(string prefix)=>prefix.Length==0?"IReader":"I"+string.Concat(prefix.TrimEnd('.').Split('.'))+"Reader";
     private static void AppendReaderInterfaces(StringBuilder builder,string indent,ObjectDeclaration[] tables,string prefix){
         builder.AppendLine($"{indent}    public interface {ReaderInterface(prefix)}{{");
-        foreach(var table in tables.Where(t=>!t.Name.Substring(prefix.Length).Contains('.'))){
+        foreach(var table in tables.Where(t=>t.Kind!=SchemaMarkerKind&&!t.Name.Substring(prefix.Length).Contains('.'))){
             builder.AppendLine($"{indent}        global::Seamless.Collections.ISet<{table.RecordTypeName}> {Identifier(table.Name.Substring(prefix.Length))}{{get;}}");
         }
         var groups=tables.Where(t=>t.Name.Substring(prefix.Length).Contains('.')).GroupBy(t=>t.Name.Substring(prefix.Length).Split('.')[0],StringComparer.Ordinal).ToArray();
@@ -535,7 +619,7 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         builder.AppendLine($"{indent}    }}");
     }
     private static void AppendReaderProperties(StringBuilder builder,string indent,string className,ObjectDeclaration[] tables,string prefix,ref int number){
-        foreach(var table in tables.Where(t=>!t.Name.Substring(prefix.Length).Contains('.'))){
+        foreach(var table in tables.Where(t=>t.Kind!=SchemaMarkerKind&&!t.Name.Substring(prefix.Length).Contains('.'))){
             var name=Identifier(table.Name.Substring(prefix.Length));
             var key=table.KeyTypeName??table.RecordTypeName;
             var collection=$"this.owner.GetTransactionCollection(this.scope,this.owner.{MemberAccess(table.Name)})";
@@ -556,7 +640,7 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         }
     }
     private static void AppendTransactionProperties(StringBuilder builder,string indent,string className,ObjectDeclaration[] tables,string prefix,ref int number){
-        foreach(var table in tables.Where(t=>!t.Name.Substring(prefix.Length).Contains('.'))){
+        foreach(var table in tables.Where(t=>t.Kind!=SchemaMarkerKind&&!t.Name.Substring(prefix.Length).Contains('.'))){
             var name=Identifier(table.Name.Substring(prefix.Length));
             var collection="TransactionCollection";if(table.ImportKind=="MaterializedView"){collection="ReadOnlyTransactionCollection";}
             builder.AppendLine($"{indent}// [表アクセス] {table.Name}: 同じscopeの型付きビューを取得。キー・不存在・走査の依存と自己変更の反映は操作時に共通層で扱う。");

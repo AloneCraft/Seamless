@@ -22,10 +22,11 @@ public sealed class NativeDatabaseCompiler{
         }
         var binding=new Binding(compilation,diagnostics,cancellationToken);
         var types=new List<INamedTypeSymbol>{root};
-        var reachable=new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default){root};
+        // 型ごとの、目録での名前の前置き(コンテナは空、スキーマは「スキーマ.」)。生成される IReader の表を同じ名前の表へ結び付けるのに使う。
+        var prefixes=new Dictionary<INamedTypeSymbol,string>(SymbolEqualityComparer.Default){[root]=""};
         for(var index=0;index<types.Count;index++){
             foreach(var property in types[index].GetMembers().OfType<IPropertySymbol>().Where(p=>!p.IsStatic)){
-                if(property.Type is INamedTypeSymbol schema&&Derives(schema,"Seamless.Database.DatabaseSchema")&&reachable.Add(schema)){types.Add(schema);}
+                if(property.Type is INamedTypeSymbol schema&&Derives(schema,"Seamless.Database.DatabaseSchema")&&prefixes.TryAdd(schema,prefixes[types[index]]+property.Name+".")){types.Add(schema);}
             }
         }
         foreach(var type in types){
@@ -34,7 +35,7 @@ public sealed class NativeDatabaseCompiler{
                     diagnostics.Add(new("NATIVE_UNSUPPORTED_OBJECT","SQL conversion is not implemented for "+objectType.Name+".",NativeDiagnosticSeverity.Unsupported,property.Name,Location(property.Locations.First())));continue;
                 }
                 if(property.Type is not INamedTypeSymbol tableType||tableType.ContainingNamespace.ToDisplayString()!="Seamless.Database"||tableType.Name!="Table"){continue;}
-                try{binding.AddTable(property,tableType);}catch(Unsupported error){binding.Report(property.Name,error);}
+                try{binding.AddTable(property,tableType,prefixes[type]+property.Name);}catch(Unsupported error){binding.Report(property.Name,error);}
             }
         }
         var queries=ImmutableArray.CreateBuilder<NativeQueryDefinition>();
@@ -48,6 +49,25 @@ public sealed class NativeDatabaseCompiler{
                     var parameters=method.Parameters.Select(p=>new NativeParameter(p.Name,TypeName(p.Type),IsNullable(p.Type,p.NullableAnnotation))).ToImmutableArray();
                     queries.Add(new(method.Name,Schema(type),parameters,query,Location(declaration.GetLocation())!));
                 }catch(Unsupported error){binding.Report(method.Name,error);}
+            }
+        }
+        // ビュー・関数は、生成される入口の共通インターフェース(IReader、スキーマは I<スキーマ>Reader)への拡張メンバーとして書く。
+        var readers=new Dictionary<INamedTypeSymbol,INamedTypeSymbol>(SymbolEqualityComparer.Default);
+        foreach(var type in types){if(root.GetTypeMembers(ReaderInterface(prefixes[type])).FirstOrDefault(static item=>item.TypeKind==TypeKind.Interface) is{} reader){readers[reader]=type;binding.ReaderPrefixes[reader]=prefixes[type];}}
+        foreach(var extension in ExtensionBlocks(compilation,sourcePaths,cancellationToken)){
+            if(extension.ExtensionParameter?.Type is not INamedTypeSymbol receiver||!readers.TryGetValue(receiver,out var owner)){continue;}
+            foreach(var member in extension.GetMembers().Where(m=>!m.IsStatic&&m.DeclaredAccessibility==Accessibility.Public)){
+                var syntax=member.DeclaringSyntaxReferences.Where(r=>sourcePaths.Contains(r.SyntaxTree.FilePath)).Select(r=>r.GetSyntax(cancellationToken)).FirstOrDefault();
+                ExpressionSyntax body;ImmutableArray<NativeParameter> parameters=[];
+                try{
+                    if(member is IPropertySymbol{IsIndexer:false} property&&syntax is PropertyDeclarationSyntax propertySyntax){body=binding.Body(propertySyntax);}
+                    else if(member is IMethodSymbol{MethodKind:MethodKind.Ordinary,ReturnsVoid:false} method&&syntax is MethodDeclarationSyntax methodSyntax){
+                        body=binding.Body(methodSyntax);
+                        parameters=method.Parameters.Select(p=>new NativeParameter(p.Name,TypeName(p.Type),IsNullable(p.Type,p.NullableAnnotation))).ToImmutableArray();
+                    }else{continue;}
+                    var query=binding.Query(body,new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default));
+                    queries.Add(new(member.Name,Schema(owner),parameters,query,Location(syntax.GetLocation())!));
+                }catch(Unsupported error){binding.Report(member.Name,error);}
             }
         }
         return new(new(root.Name,snapshot.Fingerprint,binding.Tables.ToImmutableArray(),queries.ToImmutable()),diagnostics.ToImmutable());
@@ -73,6 +93,18 @@ public sealed class NativeDatabaseCompiler{
         return (CSharpCompilation)updated;
     }
 
+    // DB生成器の入口のインターフェース名(Shared/Database.Generation の ReaderInterface と同じ規則)。
+    private static string ReaderInterface(string prefix)=>prefix.Length==0?"IReader":"I"+string.Concat(prefix.TrimEnd('.').Split('.'))+"Reader";
+    private static IEnumerable<INamedTypeSymbol> ExtensionBlocks(CSharpCompilation compilation,HashSet<string> sourcePaths,CancellationToken cancellationToken){
+        var seen=new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+        foreach(var tree in compilation.SyntaxTrees.Where(tree=>sourcePaths.Contains(tree.FilePath))){
+            var model=compilation.GetSemanticModel(tree);
+            foreach(var declaration in tree.GetRoot(cancellationToken).DescendantNodes().OfType<ClassDeclarationSyntax>()){
+                if(model.GetDeclaredSymbol(declaration,cancellationToken) is not{IsStatic:true} type){continue;}
+                foreach(var extension in type.GetTypeMembers().Where(static item=>item.IsExtension)){if(seen.Add(extension)){yield return extension;}}
+            }
+        }
+    }
     private static bool Derives(INamedTypeSymbol type,string name){for(var current=type;current is not null;current=current.BaseType){if(current.ToDisplayString()==name){return true;}}return false;}
     private static string TypeName(ITypeSymbol type){if(type is INamedTypeSymbol n&&n.OriginalDefinition.SpecialType==SpecialType.System_Nullable_T){type=n.TypeArguments[0];}return type.ToDisplayString(new SymbolDisplayFormat(typeQualificationStyle:SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces));}
     private static bool IsNullable(ITypeSymbol type,NullableAnnotation annotation)=>annotation==NullableAnnotation.Annotated||(type is INamedTypeSymbol n&&n.OriginalDefinition.SpecialType==SpecialType.System_Nullable_T);
@@ -89,13 +121,16 @@ public sealed class NativeDatabaseCompiler{
 
     private sealed class Binding(CSharpCompilation compilation,ImmutableArray<NativeDiagnostic>.Builder diagnostics,CancellationToken cancellationToken){
         private readonly Dictionary<IPropertySymbol,NativeTable>tables=new(SymbolEqualityComparer.Default);
+        private readonly Dictionary<string,NativeTable>tablesByPath=new(StringComparer.Ordinal);
+        // 生成される入口のインターフェース(IReader・I<スキーマ>Reader)と、目録での名前の前置き。ビュー・関数の本体の q.X を表へ結び付ける。
+        public Dictionary<INamedTypeSymbol,string> ReaderPrefixes{get;}=new(SymbolEqualityComparer.Default);
         private readonly Dictionary<ISymbol,string>columns=new(SymbolEqualityComparer.Default);
         public IEnumerable<NativeTable>Tables=>this.tables.Values;
         private SemanticModel Model(SyntaxNode node)=>compilation.GetSemanticModel(node.SyntaxTree);
         private ISymbol?Symbol(SyntaxNode node)=>this.Model(node).GetSymbolInfo(node,cancellationToken).Symbol;
         public void Report(string name,Unsupported error)=>diagnostics.Add(new(error.Code,error.Message,NativeDiagnosticSeverity.Unsupported,name,Location(error.Node.GetLocation())));
 
-        public void AddTable(IPropertySymbol property,INamedTypeSymbol tableType){
+        public void AddTable(IPropertySymbol property,INamedTypeSymbol tableType,string path){
             var record=(INamedTypeSymbol)tableType.TypeArguments[^1];
             var columns=record.GetMembers().Where(m=>!m.IsStatic&&((m is IPropertySymbol p&&!p.IsIndexer&&p.DeclaredAccessibility==Accessibility.Public)||(m is IFieldSymbol f&&!f.IsImplicitlyDeclared&&f.DeclaredAccessibility==Accessibility.Public))).Select(m=>{
                 ITypeSymbol type;NullableAnnotation nullable;
@@ -132,6 +167,7 @@ public sealed class NativeDatabaseCompiler{
             this.tables.Add(property,new(origin?.ConstructorArguments[0].Value as string??Schema(property.ContainingType),origin?.ConstructorArguments[1].Value as string??property.Name,property.ToDisplayString(),columns,keys.Distinct(StringComparer.Ordinal).ToImmutableArray()){
                 SourceFeatures=origin?.ConstructorArguments.ElementAtOrDefault(2).Value as string,
             });
+            this.tablesByPath[path]=this.tables[property];
         }
 
         private static int?TextCapacity(ITypeSymbol type){
@@ -147,13 +183,31 @@ public sealed class NativeDatabaseCompiler{
             if(method.Body?.Statements is [ReturnStatementSyntax{Expression:{}expression}]){return expression;}
             throw new Unsupported("NATIVE_UNSUPPORTED_BODY","This method body is not yet supported for SQL generation.",method);
         }
+        public ExpressionSyntax Body(PropertyDeclarationSyntax property){
+            if(property.ExpressionBody is not null){return property.ExpressionBody.Expression;}
+            var getter=property.AccessorList?.Accessors.SingleOrDefault(static accessor=>accessor.IsKind(SyntaxKind.GetAccessorDeclaration));
+            if(getter?.ExpressionBody is not null){return getter.ExpressionBody.Expression;}
+            if(getter?.Body?.Statements is [ReturnStatementSyntax{Expression:{}expression}]){return expression;}
+            throw new Unsupported("NATIVE_UNSUPPORTED_BODY","This property body is not yet supported for SQL generation.",property);
+        }
 
         public NativeQuery Query(ExpressionSyntax expression,HashSet<IMethodSymbol>stack){
             if(expression is ParenthesizedExpressionSyntax parenthesized){return this.Query(parenthesized.Expression,stack);}
-            if(this.Symbol(expression) is IPropertySymbol property&&this.tables.TryGetValue(property,out var table)){return new(table,[]);}
+            if(this.Symbol(expression) is IPropertySymbol property){
+                if(this.tables.TryGetValue(property,out var table)){return new(table,[]);}
+                // ビュー・関数の本体の q.X(生成される入口の表)は、同じ名前の表。
+                if(this.ReaderPrefixes.TryGetValue(property.ContainingType,out var prefix)&&this.tablesByPath.TryGetValue(prefix+property.Name,out var readerTable)){return new(readerTable,[]);}
+                // 別のビュー(拡張プロパティ)の参照は、その本体を展開する。
+                if(property.ContainingType.IsExtension&&property.GetMethod is{} getter&&property.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax(cancellationToken) is PropertyDeclarationSyntax view){
+                    if(!stack.Add(getter)){throw new Unsupported("NATIVE_RECURSIVE_QUERY","Recursive source expansion is unsupported.",expression);}
+                    try{return this.Query(this.Body(view),stack);}finally{stack.Remove(getter);}
+                }
+            }
             if(expression is not InvocationExpressionSyntax invocation||this.Symbol(invocation) is not IMethodSymbol method){throw new Unsupported("NATIVE_UNSUPPORTED_QUERY","Expected a table or a supported LINQ call.",expression);}
             var owner=(method.ReducedFrom??method).ContainingType.ToDisplayString();
-            if(owner is "System.Linq.Enumerable" or "Seamless.Linq.Enumerable"){
+            // Seamless.Linq.Set は集合の演算で、Select は結果の重複を除く(SELECT DISTINCT)。それ以外は System.Linq と同じ。
+            var setOperation=owner=="Seamless.Linq.Set";
+            if(owner is "System.Linq.Enumerable" or "Seamless.Linq.Enumerable"||setOperation&&method.Name is "Where" or "Select" or "Distinct"){
                 var arguments=invocation.ArgumentList.Arguments.Select(a=>a.Expression).ToArray();
                 ExpressionSyntax input;
                 if(method.ReducedFrom is not null&&invocation.Expression is MemberAccessExpressionSyntax member){input=member.Expression;}
@@ -172,11 +226,8 @@ public sealed class NativeDatabaseCompiler{
                         stage=new NativeAggregate(method.Name,operand);break;
                     default:throw new Unsupported("NATIVE_UNSUPPORTED_LINQ","Unsupported LINQ operation or overload: "+method.ToDisplayString(),invocation);
                 }
+                if(setOperation&&method.Name=="Select"){return query with{Stages=query.Stages.Add(stage).Add(new NativeDistinct())};}
                 return query with{Stages=query.Stages.Add(stage)};
-            }
-            if(owner.StartsWith("Seamless.Database.",StringComparison.Ordinal)&&method.Name is "View" or "TableFunction" or "ScalarFunction"){
-                var argument=invocation.ArgumentList.Arguments.Single().Expression;
-                if(argument is LambdaExpressionSyntax{Body:ExpressionSyntax body}){return this.Query(body,stack);}
             }
             if(invocation.ArgumentList.Arguments.Count==0&&method.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax(cancellationToken) is MethodDeclarationSyntax helper){
                 if(!stack.Add(method)){throw new Unsupported("NATIVE_RECURSIVE_QUERY","Recursive source expansion is unsupported.",invocation);}

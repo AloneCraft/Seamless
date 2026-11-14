@@ -104,8 +104,9 @@ public sealed partial class QueryPlanBinding{
         Assert.Contains(selection.Methods,method=>method.Contains("Value.get",StringComparison.Ordinal));
     }
 
-    [Fact]public void DesignerWrapperLambdasAndLinqLambdasKeepTheirActualHelperOrigins(){
-        var definition=global::Seamless.Management.DatabaseDesigner.Empty("wrapper","Plans");
+    [Fact]public void ViewAndFunctionBodiesKeepTheirActualHelperOrigins(){
+        // ビュー・関数は IReader への拡張メンバー。本体のラムダから呼ぶ補助の計画を、その補助の出どころとして選ぶ。
+        var definition=global::Seamless.Management.DatabaseDesigner.Apply(global::Seamless.Management.DatabaseDesigner.Empty("wrapper","Plans"),new("Items","",[new("Id","int",true)],[]));
         definition=definition with{Source=definition.Source with{Files=[..definition.Source.Files,new("helpers.cs","""
             using System.Linq;using Seamless.FLinq;
             namespace PlanOrigins;
@@ -115,9 +116,9 @@ public sealed partial class QueryPlanBinding{
                 [LinqIntercept(true)] public static int Amount()=>new[]{5,6}.Where(x=>x>0).Sum();
             }
             """)]}};
-        definition=global::Seamless.Management.DatabaseDesigner.ApplyQuery(definition,new("Values","",DatabaseQueryKind.View,[new("Id","int",false)],[],"","return global::PlanOrigins.Helpers.ViewRows().Select(value=>new Values(value));"));
+        definition=global::Seamless.Management.DatabaseDesigner.ApplyQuery(definition,new("Values","",DatabaseQueryKind.View,[new("Id","int",false)],[],"","return q.Items.Where(row=>global::PlanOrigins.Helpers.ViewRows().Contains(row.Id)).Select(row=>new Values(row.Id));"));
         definition=global::Seamless.Management.DatabaseDesigner.ApplyQuery(definition,new("Amount","",DatabaseQueryKind.ScalarFunction,[],[],"int","return new[]{1}.Select(value=>global::PlanOrigins.Helpers.Amount()).Sum();"));
-        definition=global::Seamless.Management.DatabaseDesigner.ApplyQuery(definition,new("Find","",DatabaseQueryKind.TableFunction,[new("Id","int",false)],[],"IEnumerable<FindResult>","return global::PlanOrigins.Helpers.FunctionRows().Select(value=>new FindResult(value));"));
+        definition=global::Seamless.Management.DatabaseDesigner.ApplyQuery(definition,new("Find","",DatabaseQueryKind.TableFunction,[new("Id","int",false)],[],"ISet<FindResult>","return q.Items.Where(row=>global::PlanOrigins.Helpers.FunctionRows().Contains(row.Id)).Select(row=>new FindResult(row.Id));"));
         using var compiled=new RuntimeCompiler().Compile(definition.Source);
         Assert.DoesNotContain(compiled.Result.Diagnostics,item=>item.Severity=="Error");
         foreach(var (target,helper) in new[]{("Values","ViewRows"),("Amount","Amount"),("Find","FunctionRows")}){

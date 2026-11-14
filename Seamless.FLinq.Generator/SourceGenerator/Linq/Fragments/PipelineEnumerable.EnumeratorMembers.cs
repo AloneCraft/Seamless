@@ -142,6 +142,7 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine($"private int {this.StateEndName(index)} = 0;");
                 }
             }
+            if(this.SetAllocation.Length>0){builder.AppendLine($"private bool {this.SetsReadyName};");}
             return builder.ToString().TrimEnd();
         }
     }
@@ -153,7 +154,21 @@ internal sealed partial class PipelineEnumerable {
                 if(stage.Kind==PipelineStageKind.Take||stage.Kind==PipelineStageKind.Skip) {
                     var countName = this.CountName(this.CountOrdinal(index));
                     builder.AppendLine($"this.{countName}Value = global::System.Math.Max(0, {countName});");
-                } else if(stage.Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy) {
+                }
+            }
+            return builder.ToString().TrimEnd();
+        }
+    }
+    // 重複除去・集合演算の集合は、最初の TryGetNext で作る(列挙子の構築時には作らない)。
+    // 遅延のまま返した結果(ValueEnumerable)は列挙のたびに列挙子の構造体を写すので、構築時に作ると写しどうしが同じ集合を使い、
+    // 1回目の列挙の Dispose で返した集合を2回目の列挙が使ってしまう。
+    private string SetsReadyName => $"__setsReady{this.item}";
+    private string SetAllocation {
+        get {
+            var builder = new StringBuilder();
+            for(var index = 0;index<stages.Count;index++) {
+                var stage = stages[index];
+                if(stage.Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy) {
                     // 前の段が Where/Select だけなら、集合を根の件数で作る(足しながら広げ直さない。途中で止まる並びでは 0)。
                     var distinctCount = $"__distinctCount{this.item}_{index}";
                     var distinctCapacity = stages.Take(index).All(static before => before.Kind is PipelineStageKind.Where or PipelineStageKind.Select)
@@ -194,7 +209,10 @@ internal sealed partial class PipelineEnumerable {
             var loop = this.BuildLoop(this.e,"current=this.Current={0};\nreturn true;","current=default!;\nreturn false;");
             if(this.SupportsOrderedMaterialization){loop=this.BuildOrderedFirstLoop()+"\n"+loop;}
             var guard = this.TakeEntryGuard();
-            return guard.Length==0 ? loop : guard+"\n"+loop;
+            var body = guard.Length==0 ? loop : guard+"\n"+loop;
+            var sets = this.SetAllocation;
+            if(sets.Length>0){body=$"if(!this.{this.SetsReadyName}) {{\nthis.{this.SetsReadyName}=true;\n{sets}\n}}\n{body}";}
+            return body;
         }
     }
 
@@ -337,13 +355,13 @@ internal sealed partial class PipelineEnumerable {
                     builder.AppendLine($"    this.{this.InnerEnumeratorName(index)}.Dispose();");
                     builder.AppendLine("}");
                 } else if(stages[index].Kind is PipelineStageKind.Distinct or PipelineStageKind.DistinctBy or PipelineStageKind.Union or PipelineStageKind.UnionBy) {
-                    builder.AppendLine($"this.{this.SetName(index)}.Dispose();");
+                    builder.AppendLine($"this.{this.SetName(index)}?.Dispose();");
                 } else if(stages[index].Kind is PipelineStageKind.Except or PipelineStageKind.Intersect or PipelineStageKind.ExceptBy or PipelineStageKind.IntersectBy) {
                     if(!this.UsesInlineIntersectSet(stages[index])){
-                        builder.AppendLine($"this.{this.SecondSetName(index)}.Dispose();");
+                        builder.AppendLine($"this.{this.SecondSetName(index)}?.Dispose();");
                     }
                     if(stages[index].Kind is PipelineStageKind.Except or PipelineStageKind.ExceptBy) {
-                        builder.AppendLine($"this.{this.SetName(index)}.Dispose();");
+                        builder.AppendLine($"this.{this.SetName(index)}?.Dispose();");
                     }
                 } else if(stages[index].Kind is PipelineStageKind.OrderBy or PipelineStageKind.OrderByDescending) {
                     builder.AppendLine($"if(this.{this.OrderValuesName(index)} is not null && this.{this.OrderValuesName(index)}.Length!=0) {{");

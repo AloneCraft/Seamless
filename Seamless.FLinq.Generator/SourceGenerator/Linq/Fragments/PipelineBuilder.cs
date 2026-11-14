@@ -166,21 +166,6 @@ internal static partial class PipelineBuilder {
             return false;
         }
 
-        if(sourceFragment is ViewDefinitionRoot view){
-            // 外側の先頭のキー等値条件は、融合の前に定義の投影より前へ移す。融合後も移した条件は定義の段に残る。
-            if(stages.Count>0&&stages[0].Kind==PipelineStageKind.Where
-                &&ViewDefinitionPredicatePushdown.TryApply(view,stages[0],semanticModel,invocations[0],ref snapshot)){stages.RemoveAt(0);}
-            // ビュー定義を呼出元のパイプラインへ融合する。融合できなければ理由を残して従来の境界越し展開を使う。
-            if(view.TryFuse(ref snapshot,out var fusedRoot,out var fusedStages,out var fusedMethods)){
-                // 外側の段の並びは呼出し位置と対応しているため差し込まず、定義側を独立したパイプラインとしてソースに据える。
-                var definitionPipeline=new PipelineEnumerable(snapshot++,fusedRoot,fusedStages,fusedStages[fusedStages.Count-1].OutputType);
-                services.ApplyRenderContext(definitionPipeline);
-                sourceFragment=definitionPipeline;
-                sourceStaticMethods=services.JoinStaticMethods(fusedMethods,definitionPipeline.StructMethod);
-            }else{
-                sourceStaticMethods=view.StructMethod;
-            }
-        }
         // GroupBy の集約を融合するかは、段の並びと終端が揃ってから、下流の要求(DemandAnalysis)を見て決める。
         // 正規化は Select を併合するので、その前に行う(候補を持つ Select が併合されると候補が失われる)。
         if(parallelSlots is not null&&terminalKind is null){

@@ -50,39 +50,49 @@ public sealed class ComparisonHost:IDisposable{
         foreach(var routine in source){
             if(!bindings.TryGetValue((routine.SchemaName,routine.Name),out var binding)||binding.SourceDatabaseName!=item.Name||binding.Kind!=routine.Kind){throw new InvalidDataException("Generated routine identity mismatch: "+item.Name+"."+routine.SchemaName+"."+routine.Name);}
             var type=assembly.GetType(binding.DeclaringTypeName,true)!;
-            if(type.Assembly!=assembly||!typeof(DatabaseSchema).IsAssignableFrom(type)||type.Namespace!=item.TypeNamespace+".Schemas"){throw new InvalidDataException("Generated routine declaring type mismatch.");}
-            var methods=type.GetMethods(BindingFlags.Public|BindingFlags.Instance|BindingFlags.DeclaredOnly).Where(method=>method.Name==binding.MethodName).ToArray();
+            // 関数は <名前空間>.Functions.<スキーマ> の静的クラスにある、スキーマの入口(I<スキーマ>Reader)への拡張メンバー。
+            // 拡張メソッドは、受け手を先頭の引数にとる静的メソッドとしてコンパイルされる。ストアドプロシージャはスキーマのインスタンスメソッド。
+            var function=routine.Kind is RoutineKind.ScalarFunction or RoutineKind.TableFunction;
+            if(type.Assembly!=assembly||(function?!(type.IsAbstract&&type.IsSealed)||type.Namespace!=item.TypeNamespace+".Functions":!typeof(DatabaseSchema).IsAssignableFrom(type)||type.Namespace!=item.TypeNamespace+".Schemas")){throw new InvalidDataException("Generated routine declaring type mismatch.");}
+            var flags=BindingFlags.Public|BindingFlags.DeclaredOnly|(function?BindingFlags.Static:BindingFlags.Instance);
+            var methods=type.GetMethods(flags).Where(method=>method.Name==binding.MethodName).ToArray();
             if(methods.Length!=1||methods[0].IsGenericMethod){throw new InvalidDataException("Generated routine method is missing or ambiguous: "+binding.MethodName);}
             var method=methods[0];var parameters=method.GetParameters();var declared=routine.Parameters.OrderBy(parameter=>parameter.Ordinal).ToArray();
+            if(function){
+                if(parameters.Length==0||!parameters[0].ParameterType.IsInterface){throw new InvalidDataException("Generated routine receiver is missing: "+binding.MethodName);}
+                parameters=parameters[1..];
+            }
             if(parameters.Length!=declared.Length){throw new InvalidDataException("Generated routine parameter count mismatch.");}
             for(var index=0;index<parameters.Length;index++){
                 var expected=RoutineRuntimeType(declared[index].Type);var actual=parameters[index].ParameterType;
                 if(actual.IsByRef){actual=actual.GetElementType()!;}
                 if(actual!=expected||parameters[index].IsOut!=declared[index].IsOutput){throw new InvalidDataException("Generated routine parameter signature mismatch: "+binding.MethodName);}
             }
-            var wrapper=routine.Kind switch{RoutineKind.ScalarFunction=>"Seamless.Database.ScalarFunction`1",RoutineKind.TableFunction=>"Seamless.Database.TableFunction`1",RoutineKind.StoredProcedure=>"Seamless.Database.StoredProcedure`1",_=>throw new InvalidDataException("Unknown routine kind.")};
-            if(!method.ReturnType.IsGenericType||method.ReturnType.GetGenericTypeDefinition().FullName!=wrapper){throw new InvalidDataException("Generated routine return wrapper mismatch: "+binding.MethodName);}
-            if(routine.Kind==RoutineKind.ScalarFunction){var expectedReturn=typeof(object);if(routine.ReturnType is not null){expectedReturn=RoutineRuntimeType(routine.ReturnType);}if(method.ReturnType.GetGenericArguments()[0]!=expectedReturn){throw new InvalidDataException("Generated scalar return type mismatch.");}}
+            var returnMatches=routine.Kind switch{
+                RoutineKind.ScalarFunction=>method.ReturnType==(routine.ReturnType is null?typeof(object):RoutineRuntimeType(routine.ReturnType)),
+                RoutineKind.TableFunction=>method.ReturnType.IsGenericType&&method.ReturnType.GetGenericTypeDefinition()==typeof(global::Seamless.Collections.ISet<>),
+                RoutineKind.StoredProcedure=>method.ReturnType.IsGenericType&&method.ReturnType.GetGenericTypeDefinition()==typeof(StoredProcedure<>),
+                _=>throw new InvalidDataException("Unknown routine kind.")};
+            if(!returnMatches){throw new InvalidDataException("Generated routine return type mismatch: "+binding.MethodName);}
             if(string.IsNullOrWhiteSpace(binding.CSharpSource)||string.IsNullOrWhiteSpace(binding.SourceFile)){throw new InvalidDataException("Generated routine source is missing.");}
             SqlNativeRoutine? native=null;
             if(!binding.IsStub){
                 if(routine.Kind!=RoutineKind.ScalarFunction||routine.Implementation?.CompilerProfile!="SqlServerScalarTinyintCaseNvarcharV1"||routine.Parameters.Count!=1||routine.Parameters[0].IsOutput||routine.Parameters[0].IsTableValued||routine.Parameters[0].Type.Kind!=DatabaseTypeKind.Byte||routine.ReturnType?.Kind!=DatabaseTypeKind.String){throw new InvalidDataException("Generated routine is outside the supported native scalar profile: "+binding.MethodName);}
-                if(database is not null){native=BindNativeRoutine(database,type,method,routine);}
+                if(database is not null){native=BindNativeRoutine(method,routine);}
             }
             result.Add(new(routine.SchemaName,routine.Name,routine.Definition,routine,binding,native));
         }
         return result.AsReadOnly();
     }
-    private static SqlNativeRoutine BindNativeRoutine(DatabaseContainer database,Type schemaType,MethodInfo method,RoutineCatalog routine){
-        var properties=database.GetType().GetProperties(BindingFlags.Public|BindingFlags.Instance).Where(property=>property.PropertyType==schemaType&&property.CanRead&&property.GetIndexParameters().Length==0).ToArray();
-        if(properties.Length!=1||properties[0].GetValue(database) is not DatabaseSchema schema){throw new InvalidDataException("Generated routine schema instance is missing or ambiguous: "+schemaType.FullName);}
+    private static SqlNativeRoutine BindNativeRoutine(MethodInfo method,RoutineCatalog routine){
         var arguments=Expression.Parameter(typeof(IReadOnlyList<object?>),"arguments");
         var indexer=typeof(IReadOnlyList<object?>).GetProperty("Item")??throw new InvalidOperationException("Argument indexer is unavailable.");
+        // 先頭は拡張メンバーの受け手(スキーマの入口)。この形の関数(SqlServerScalarTinyintCaseNvarcharV1)の本体は引数だけから値を作り、表を読まないので受け手は渡さない。
         var methodParameters=method.GetParameters();var converted=new Expression[methodParameters.Length];
-        for(var i=0;i<converted.Length;i++){converted[i]=Expression.Convert(Expression.Property(arguments,indexer,Expression.Constant(i)),methodParameters[i].ParameterType);}
-        var call=Expression.Call(Expression.Constant(schema,schemaType),method,converted);
-        var valueProperty=method.ReturnType.GetProperty("Value",BindingFlags.Public|BindingFlags.Instance)??throw new InvalidDataException("Generated scalar result value is unavailable.");
-        var body=Expression.Convert(Expression.Property(call,valueProperty),typeof(object));
+        converted[0]=Expression.Constant(null,methodParameters[0].ParameterType);
+        for(var i=1;i<converted.Length;i++){converted[i]=Expression.Convert(Expression.Property(arguments,indexer,Expression.Constant(i-1)),methodParameters[i].ParameterType);}
+        var call=Expression.Call(method,converted);
+        var body=Expression.Convert(call,typeof(object));
         var invoke=Expression.Lambda<Func<IReadOnlyList<object?>,object?>>(body,arguments).Compile();
         var parameters=routine.Parameters.OrderBy(parameter=>parameter.Ordinal).Select(parameter=>new SqlParameter(parameter.Name,ToSqlType(parameter.Type),parameter.Type.IsNullable)).ToArray();
         var returnType=routine.ReturnType??throw new InvalidDataException("Generated scalar result metadata is missing.");
