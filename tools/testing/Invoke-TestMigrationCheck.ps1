@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Project,
     [Parameter(Mandatory)][string]$Name,
@@ -32,6 +32,7 @@ $env:TEMP=$env:SEAMLESS_TEST_DATA_ROOT
 $env:TMP=$env:SEAMLESS_TEST_DATA_ROOT
 $env:DOTNET_CLI_HOME=Join-Path $cache 'cli'
 $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'
+$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false'
 $env:DOTNET_GENERATE_ASPNET_CERTIFICATE='false'
 $env:NUGET_PACKAGES=Join-Path $cache 'packages'
 $env:NUGET_HTTP_CACHE_PATH=Join-Path $cache 'http'

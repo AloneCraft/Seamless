@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Source,
     [Parameter(Mandatory)][string]$Manifest,
@@ -18,6 +18,7 @@ $env:TEMP=Join-Path (Split-Path $Source) 'trace-temp'
 $env:TMP=$env:TEMP
 [IO.Directory]::CreateDirectory($env:TEMP)|Out-Null
 $env:DOTNET_CLI_HOME=Join-Path $LogRoot 'dotnet-home'
+$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'
 $env:DOTNET_TieredCompilation='0'
 $trace=(Get-Command dotnet-trace -CommandType Application).Source
 $dll=Join-Path $Source 'Benchmark/Experiments/ProductTransactions/bin/Release/net10.0/ProductTransactions.dll'

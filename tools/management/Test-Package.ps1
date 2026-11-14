@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([Parameter(Mandatory)][string]$Distribution,[ValidateSet('ServerWindows','ServerLinux')][string[]]$Targets=@('ServerWindows','ServerLinux'),[string]$WorkRoot='F:\Seamless\Management',[string]$LogRoot='F:\Seamless\Management',[switch]$VerifyWindowsConnection)
 $ErrorActionPreference='Stop'
 if($VerifyWindowsConnection -and ('ServerWindows' -notin $Targets)){
@@ -10,7 +10,7 @@ if(![IO.Path]::IsPathFullyQualified($WorkRoot) -or ![IO.Path]::GetFullPath($Work
 $work=Join-Path $WorkRoot ('package-test-'+$id)
 $logs=Join-Path $LogRoot ('package-test-logs-'+$id)
 New-Item -ItemType Directory -Path $work,$logs -Force | Out-Null
-$env:TEMP=$work;$env:TMP=$work;$env:DOTNET_CLI_HOME=$work
+$env:TEMP=$work;$env:TMP=$work;$env:DOTNET_CLI_HOME=$work;$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'
 & (Join-Path $repository 'TestSeamless/Invoke-LocalProcess.ps1') -InitializeOnly | Out-Null
 foreach($target in $Targets){
     $directory=Join-Path $Distribution $target

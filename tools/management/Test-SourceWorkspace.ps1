@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidateSet('Debug','Release')][string]$Configuration='Debug',
     [string]$WorkRoot='F:\Seamless\SourceWorkspace',
@@ -24,6 +24,8 @@ $env:DOTNET_CLI_HOME=$WorkRoot
 $env:NUGET_PACKAGES=Join-Path $WorkRoot 'packages'
 $env:NUGET_HTTP_CACHE_PATH=Join-Path $WorkRoot 'http'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT='1'
+$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'
+$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false'
 $env:DOTNET_GENERATE_ASPNET_CERTIFICATE='false'
 $env:MSBUILDDISABLENODEREUSE='1'
 $env:SEAMLESS_MANAGEMENT_TEST_ROOT=Join-Path $WorkRoot ('ws'+[guid]::NewGuid().ToString('N').Substring(0,9))

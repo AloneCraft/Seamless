@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$TaskRoot,
     [Parameter(Mandatory)][string]$LogRoot,
@@ -32,6 +32,7 @@ $env:NUGET_PACKAGES=Join-Path $logPath 'packages'
 $env:NUGET_HTTP_CACHE_PATH=Join-Path $logPath 'http-cache'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT='1'
 $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'
+$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false'
 $env:DOTNET_GENERATE_ASPNET_CERTIFICATE='false'
 $env:MSBUILDDISABLENODEREUSE='1'
 [IO.Directory]::CreateDirectory($env:TEMP)|Out-Null

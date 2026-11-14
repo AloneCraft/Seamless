@@ -58,6 +58,7 @@ try{
     $env:TMP=$env:TEMP
     [IO.Directory]::CreateDirectory($env:TEMP)|Out-Null
     $env:DOTNET_CLI_HOME=Join-Path $LogRoot 'dotnet-home'
+    $env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'
     $env:DOTNET_TieredCompilation='0'
     $profiles=@()
     foreach($rows in @(4096,16384)){

@@ -15,6 +15,7 @@ public sealed class GeneratedAssemblyBuilderTests{
         var compiler=Compiler(data,cache);
         var catalog=new DatabaseCatalog("typed",[new SchemaCatalog("dbo",[new TableCatalog("Customer",[new ColumnCatalog(0,"Id",new DatabaseType(DatabaseTypeKind.Int32,false,SqlTypeName:"int"),false),new ColumnCatalog(1,"Name",new DatabaseType(DatabaseTypeKind.String,false,MaximumLength:40,SqlTypeName:"nvarchar"),false)],new PrimaryKeyCatalog("pk",[new KeyColumnCatalog("Id",false)]))])]);
         var artifact=await compiler.BuildAsync(catalog);Assert.True(artifact.Generated.IsCollectible);
+        if(OperatingSystem.IsWindows()){Assert.DoesNotContain(Path.Combine(cache,"generated","cli"),Environment.GetEnvironmentVariable("Path",EnvironmentVariableTarget.User)??"",StringComparison.OrdinalIgnoreCase);}
         Assert.True(File.Exists(Path.Combine(artifact.LogDirectory,"obj","project.assets.json")));Assert.DoesNotContain("MSB3539",await File.ReadAllTextAsync(Path.Combine(artifact.LogDirectory,"build.stdout.log")));
         var reference=Exercise(artifact,data);
         for(var attempt=0;attempt<10&&reference.IsAlive;attempt++){GC.Collect();GC.WaitForPendingFinalizers();GC.Collect();await Task.Delay(20);}

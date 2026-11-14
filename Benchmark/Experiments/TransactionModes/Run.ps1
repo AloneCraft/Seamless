@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$TaskRoot,
     [Parameter(Mandatory)][string]$LogRoot,
@@ -16,6 +16,8 @@ $env:DOTNET_CLI_HOME=Join-Path $LogRoot 'dotnet-home'
 $env:NUGET_PACKAGES=Join-Path $LogRoot 'packages'
 $env:NUGET_HTTP_CACHE_PATH=Join-Path $LogRoot 'http-cache'
 $env:DOTNET_GENERATE_ASPNET_CERTIFICATE='false'
+$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false'
+$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'
 $env:DOTNET_CLI_TELEMETRY_OPTOUT='1'
 $env:MSBUILDDISABLENODEREUSE='1'
 $snapshot=Join-Path $TaskRoot 'source'

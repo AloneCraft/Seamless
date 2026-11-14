@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$WorkRoot=('D:\CodexTemp\SeamlessTemplate-'+[guid]::NewGuid().ToString('N')),
     [string]$LogRoot=('F:\CodexTemp\SeamlessTemplate-'+[guid]::NewGuid().ToString('N')),
@@ -23,7 +23,7 @@ $env:TEMP=Join-Path $WorkRoot 'temp';$env:TMP=$env:TEMP
 $env:DOTNET_CLI_HOME=Join-Path $LogRoot 'dotnet-home'
 $env:NUGET_PACKAGES='F:\CodexTemp\SeamlessManagement-20261102\packages'
 $env:NUGET_HTTP_CACHE_PATH=Join-Path $LogRoot 'http-cache'
-$env:DOTNET_CLI_TELEMETRY_OPTOUT='1';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1';$env:DOTNET_NOLOGO='1'
+$env:DOTNET_CLI_TELEMETRY_OPTOUT='1';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1';$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false';$env:DOTNET_NOLOGO='1'
 $dotnet=(Get-Command dotnet).Source
 $steps=[Collections.Generic.List[object]]::new()
 

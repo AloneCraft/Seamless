@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([ValidateSet('ServerWindows','ServerLinux')][string[]]$Targets=@('ServerWindows','ServerLinux'),[string]$WorkRoot='F:\Seamless\Management',[string]$LogRoot='F:\Seamless\Management',[string]$PackageFallbackRoot)
 $ErrorActionPreference='Stop'
 $repository=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
@@ -17,7 +17,7 @@ if(!$guard.healthy -or !$guard.lastStatus.codingActive -or $guard.currentUsedPer
 New-Item -ItemType Directory -Path $output,$logs -Force | Out-Null
 $env:TEMP=$work;$env:TMP=$work;$env:DOTNET_CLI_HOME=$work
 $env:NUGET_PACKAGES=Join-Path $work 'packages';$env:NUGET_HTTP_CACHE_PATH=Join-Path $work 'http'
-$env:DOTNET_CLI_TELEMETRY_OPTOUT='1';$env:DOTNET_GENERATE_ASPNET_CERTIFICATE='false';$env:MSBUILDDISABLENODEREUSE='1'
+$env:DOTNET_CLI_TELEMETRY_OPTOUT='1';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1';$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false';$env:DOTNET_GENERATE_ASPNET_CERTIFICATE='false';$env:MSBUILDDISABLENODEREUSE='1'
 Copy-Item -LiteralPath (Join-Path $repository 'global.json') -Destination (Join-Path $work 'global.json') -Force
 & (Join-Path $repository 'TestSeamless/Invoke-LocalProcess.ps1') -InitializeOnly | Out-Null
 foreach($target in $Targets){

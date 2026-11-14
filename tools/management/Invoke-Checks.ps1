@@ -17,7 +17,7 @@ New-Item -ItemType Directory -Path $work,$logs,$packages,$http,$temporary -Force
 $env:TEMP=$temporary;$env:TMP=$temporary;$env:DOTNET_CLI_HOME=$work
 $env:NUGET_PACKAGES=$packages
 $env:NUGET_HTTP_CACHE_PATH=$http
-$env:DOTNET_CLI_TELEMETRY_OPTOUT='1';$env:DOTNET_GENERATE_ASPNET_CERTIFICATE='false';$env:MSBUILDDISABLENODEREUSE='1'
+$env:DOTNET_CLI_TELEMETRY_OPTOUT='1';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1';$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false';$env:DOTNET_GENERATE_ASPNET_CERTIFICATE='false';$env:MSBUILDDISABLENODEREUSE='1'
 $env:SEAMLESS_MANAGEMENT_TEST_ROOT=Join-Path 'F:\Seamless' ('m'+[guid]::NewGuid().ToString('N').Substring(0,12))
 $env:SEAMLESS_SOURCE_REPOSITORY=$repository
 $env:SEAMLESS_TEST_DATA_ROOT=Join-Path 'F:\Seamless' ('t'+[guid]::NewGuid().ToString('N').Substring(0,12))

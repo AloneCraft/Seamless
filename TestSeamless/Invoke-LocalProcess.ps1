@@ -78,6 +78,9 @@ try {
     $start.WindowStyle = [Diagnostics.ProcessWindowStyle]::Hidden
     $start.RedirectStandardOutput = $true
     $start.RedirectStandardError = $true
+    if ([Environment]::GetEnvironmentVariable('DOTNET_CLI_HOME', 'Process') -and -not [Environment]::GetEnvironmentVariable('DOTNET_ADD_GLOBAL_TOOLS_TO_PATH', 'Process')) {
+        $start.Environment['DOTNET_ADD_GLOBAL_TOOLS_TO_PATH'] = 'false'
+    }
     if ($null -ne $start.PSObject.Properties['ArgumentList'] -and $null -ne $start.ArgumentList) {
         foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
     } else {

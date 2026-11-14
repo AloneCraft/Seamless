@@ -25,7 +25,7 @@ $env:TEMP=Join-Path $base 'windows-managed-tmp';$env:TMP=$env:TEMP
 $env:NUGET_PACKAGES=Join-Path $base 'windows-dotnet-home\.nuget\packages'
 $env:DOTNET_CLI_HOME=Join-Path $base 'windows-dotnet-home'
 $env:NUGET_HTTP_CACHE_PATH=Join-Path $base 'windows-http-cache'
-$env:MSBUILDDISABLENODEREUSE='1';$env:DOTNET_CLI_TELEMETRY_OPTOUT='1';$env:DOTNET_NOLOGO='1';$env:DOTNET_PROCESSOR_COUNT='8'
+$env:MSBUILDDISABLENODEREUSE='1';$env:DOTNET_CLI_TELEMETRY_OPTOUT='1';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1';$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false';$env:DOTNET_NOLOGO='1';$env:DOTNET_PROCESSOR_COUNT='8'
 $env:SEAMLESS_MANAGEMENT_TEST_ROOT='F:\Seamless\m9\db'
 $env:SEAMLESS_TEST_DATA_ROOT=Join-Path $base 'windows-manager-data'
 $env:SEAMLESS_TEST_CACHE_ROOT=Join-Path $base 'windows-manager-cache'

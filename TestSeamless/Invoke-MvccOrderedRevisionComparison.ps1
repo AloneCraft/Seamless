@@ -32,7 +32,7 @@ try{
     $changes=@();foreach($path in $revisions[1].Inputs.Keys){if($revisions[0].Inputs[$path] -ne $revisions[1].Inputs[$path]){$changes+=@{Path=$path;Before=$revisions[0].Inputs[$path];After=$revisions[1].Inputs[$path]}}}
     $env:TEMP=Join-Path (Split-Path $revisions[1].Directory) 'revision-temp';$env:TMP=$env:TEMP
     [IO.Directory]::CreateDirectory($env:TEMP)|Out-Null
-    $env:DOTNET_CLI_HOME=Join-Path $LogRoot 'dotnet-home';$env:NUGET_HTTP_CACHE_PATH=Join-Path $LogRoot 'http-cache';$env:DOTNET_TieredCompilation='0'
+    $env:DOTNET_CLI_HOME=Join-Path $LogRoot 'dotnet-home';$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1';$env:NUGET_HTTP_CACHE_PATH=Join-Path $LogRoot 'http-cache';$env:DOTNET_TieredCompilation='0'
     $choices=@(@{Revision=0;Flavor='FLinq'},@{Revision=1;Flavor='FLinq'},@{Revision=0;Flavor='Linq'},@{Revision=1;Flavor='Linq'})
     $records=@();$rotation=0
     foreach($rows in @(4096,16384)){foreach($storage in @('Memory','Storage')){foreach($workers in @(1,4)){

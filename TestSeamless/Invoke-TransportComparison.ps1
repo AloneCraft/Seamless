@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$BaselineGatewayAssembly,
     [Parameter(Mandatory)][string]$ReleaseTestDirectory,
@@ -32,7 +32,7 @@ if(!$guard.healthy -or !$guard.lastStatus.codingActive -or $guard.currentUsedPer
 New-Item -ItemType Directory -Path $work,$logs | Out-Null
 & (Join-Path $repository 'TestSeamless\Invoke-LocalProcess.ps1') -InitializeOnly | Out-Null
 $env:TEMP=Join-Path $work 'temp';$env:TMP=$env:TEMP;New-Item -ItemType Directory -Path $env:TEMP | Out-Null
-$env:DOTNET_CLI_HOME=Join-Path $work 'dotnet-home'
+$env:DOTNET_CLI_HOME=Join-Path $work 'dotnet-home';$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'
 $manifest=@()
 foreach($variant in $Variants){
     # 前の1万接続が残したTIME_WAITを次の方式の性能差として数えない。

@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$TaskRoot,
     [Parameter(Mandatory)][string]$LogRoot,
@@ -19,7 +19,7 @@ if($UseExistingBuild){
     $cached=Get-Content -LiteralPath $buildFile -Raw|ConvertFrom-Json
     if($cached.TaskRoot -ne $TaskRoot -or $cached.RunnerSha256 -ne (Get-FileHash -LiteralPath $PSCommandPath).Hash -or $cached.AssemblySha256 -ne (Get-FileHash -LiteralPath $dll).Hash){throw 'The frozen comparison build changed'}
     $build=$cached.Build
-    $env:TEMP=Join-Path $TaskRoot 'temp';$env:TMP=$env:TEMP;$env:DOTNET_CLI_HOME=Join-Path $LogRoot 'dotnet-home';$env:NUGET_PACKAGES=Join-Path $LogRoot 'packages';$env:NUGET_HTTP_CACHE_PATH=Join-Path $LogRoot 'http-cache'
+    $env:TEMP=Join-Path $TaskRoot 'temp';$env:TMP=$env:TEMP;$env:DOTNET_CLI_HOME=Join-Path $LogRoot 'dotnet-home';$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1';$env:NUGET_PACKAGES=Join-Path $LogRoot 'packages';$env:NUGET_HTTP_CACHE_PATH=Join-Path $LogRoot 'http-cache'
 }else{
     $build=& (Join-Path $PSScriptRoot 'Invoke-MvccValidation.ps1') -TaskRoot $TaskRoot -LogRoot $LogRoot -Project 'Benchmark/Experiments/ProductTransactions/ProductTransactions.csproj' -Configuration Release -BuildOnly
     if($build.Outcome -ne 'Passed'){throw 'Comparison build did not pass'}

@@ -14,7 +14,7 @@ $buildLock=[IO.FileStream]::new((Join-Path $CacheRoot '.build.lock'),[IO.FileMod
 try{
     $env:TEMP=Join-Path $DataRoot 'tmp';$env:TMP=$env:TEMP
     [IO.Directory]::CreateDirectory($env:TEMP) | Out-Null
-    $env:DOTNET_CLI_HOME=Join-Path $CacheRoot 'cli';$env:DOTNET_CLI_TELEMETRY_OPTOUT='1';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1';$env:MSBUILDDISABLENODEREUSE='1'
+    $env:DOTNET_CLI_HOME=Join-Path $CacheRoot 'cli';$env:DOTNET_CLI_TELEMETRY_OPTOUT='1';$env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1';$env:DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false';$env:MSBUILDDISABLENODEREUSE='1'
     $env:NUGET_PACKAGES='F:/CodexTemp/nuget-packages';$env:NUGET_HTTP_CACHE_PATH=Join-Path $CacheRoot 'http';$env:NUGET_SCRATCH=Join-Path $CacheRoot 'nuget-tmp'
     $props=Join-Path $CacheRoot 'Stage1.Build.props'
     $content=@'

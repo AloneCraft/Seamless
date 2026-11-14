@@ -53,7 +53,7 @@ public sealed partial class GeneratedAssemblyBuilder{
         var intermediate=Path.Combine(cache,"obj")+Path.DirectorySeparatorChar;
         start.ArgumentList.Add("-p:BaseIntermediateOutputPath="+intermediate);start.ArgumentList.Add("-p:MSBuildProjectExtensionsPath="+intermediate);
         var temporary=Path.Combine(root,"tmp");Directory.CreateDirectory(temporary);start.Environment["TEMP"]=temporary;start.Environment["TMP"]=temporary;
-        start.Environment["DOTNET_CLI_HOME"]=Path.Combine(this.options.CacheDirectory,"cli");start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"]="1";start.Environment["NUGET_PACKAGES"]=Path.Combine(this.options.CacheDirectory,"packages");
+        start.Environment["DOTNET_CLI_HOME"]=Path.Combine(this.options.CacheDirectory,"cli");start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"]="1";start.Environment["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"]="1";start.Environment["DOTNET_ADD_GLOBAL_TOOLS_TO_PATH"]="0";start.Environment["DOTNET_GENERATE_ASPNET_CERTIFICATE"]="false";start.Environment["NUGET_PACKAGES"]=Path.Combine(this.options.CacheDirectory,"packages");
         using var timeout=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);timeout.CancelAfter(this.options.Timeout);
         using var process=Process.Start(start)??throw new InvalidOperationException("The generation compiler could not be started.");
         await using var output=new FileStream(outputLog,FileMode.Create,FileAccess.Write,FileShare.Read);await using var error=new FileStream(errorLog,FileMode.Create,FileAccess.Write,FileShare.Read);
