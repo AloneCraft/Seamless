@@ -522,6 +522,108 @@ public sealed class DatabaseDeclaredRecordGeneratorTests{
         AssertRun(Generate(source));
     }
 
+    [Fact,Trait("Category","Unit")]
+    public void NativeWireLayoutAndReplayFollowTheDeclaredColumnOrder(){
+        // 設計：Document/refactoring-designs/20261114-宣言と手続きと索引の統一.md の手順B(旧方式だけが持つ機能の移植)。
+        // 別プロセスの業務クライアントは、宣言した列の順の配置で受け取った行を事前検査し、再生用の読み取りで行に戻す。
+        const string source="""
+            namespace Sample{
+                internal static class DatabaseGenerator;
+                public static class Probe{
+                    private static T Decode<T>(byte[] payload) where T:global::Seamless.Database.Client.INativeReplayDecoder<T>{return T.Decode(payload);}
+                    private static void Validate<T>(string name,byte[] payload){
+                        try{global::Seamless.Database.Client.NativeWireValidation.Validate<T>(payload);}
+                        catch(global::System.Exception error){throw new global::System.InvalidOperationException(name+": bytes="+payload.Length+" size="+global::System.Runtime.CompilerServices.Unsafe.SizeOf<T>()+" references="+global::System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<T>()+" payload="+global::System.Convert.ToHexString(payload),error);}
+                    }
+                    public static bool Run(){
+                        //参照を含む行は、宣言した列の順に1つずつ書いたものを読む
+                        var row=Tables.Item.Create(Keys.Item.Create(7),"name",null,[1,2,3]);
+                        var bytes=global::MemoryPack.MemoryPackSerializer.Serialize(row);
+                        Validate<Tables.Item>("item",bytes);
+                        var decoded=Decode<Tables.Item>(bytes);
+                        //参照を含まない行は、行のメモリをそのまま読む
+                        var fixedRow=Tables.Point.Create(Keys.Point.Create(3),42L,5);
+                        var fixedBytes=global::MemoryPack.MemoryPackSerializer.Serialize(fixedRow);
+                        Validate<Tables.Point>("point",fixedBytes);
+                        var fixedDecoded=Decode<Tables.Point>(fixedBytes);
+                        return decoded.Id==7&&decoded.Name=="name"&&decoded.Count is null&&decoded.Data.SequenceEqual(new byte[]{1,2,3})
+                            &&fixedDecoded.Id==3&&fixedDecoded.Value==42L&&fixedDecoded.Count==5;
+                    }
+                }
+            }
+            namespace Sample.Tables{
+                public partial struct Item{
+                    [global::Seamless.Database.Key]
+                    public partial int Id{get;init;}
+                    public partial string Name{get;init;}
+                    public partial int? Count{get;init;}
+                    public partial byte[] Data{get;init;}
+                }
+                public partial struct Point{
+                    [global::Seamless.Database.Key]
+                    public partial int Id{get;init;}
+                    public partial long Value{get;init;}
+                    public partial int? Count{get;init;}
+                }
+            }
+            """;
+        var output=Generate(source.Replace("namespace Sample{","namespace Sample{using System.Linq;",StringComparison.Ordinal));
+        var row=output.GetTypeByMetadataName("Sample.Tables.Item")!;
+        {
+            //通信用の配置は、宣言した列の順(キーの列を含む)
+            var layout=row.GetAttributes().Single(static attribute=>attribute.AttributeClass?.Name=="NativeWireLayoutAttribute");
+            Assert.Equal(["Id","Name","Count","Data"],layout.ConstructorArguments[1].Values.Select(static value=>(string)value.Value!));
+            Assert.Contains(row.AllInterfaces,static type=>type.OriginalDefinition.ToDisplayString()=="Seamless.Database.Client.INativeReplayDecoder<T>");
+        }
+        {
+            //キーのコンストラクターの引数名は列の名前(外部キーの検査が列の名前で探す)
+            var key=output.GetTypeByMetadataName("Sample.Keys.Item")!;
+            Assert.Equal(["Id"],key.InstanceConstructors.Single(static constructor=>constructor.Parameters.Length>0).Parameters.Select(static parameter=>parameter.Name));
+        }
+        AssertRun(output);
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void CollectibleRowsSkipSharedMemoryPackRegistrationAndRecomputeComputedColumns(){
+        // 回収できる型(Manager の実行時コンパイル・Gateway の実行時SQL)は、解除できない MemoryPack の共通の登録先へ型を登録しない。
+        // 計算列は、Gateway が式を登録していれば読むたびに計算し直し、登録が無ければ保存した値を返す。
+        const string source="""
+            namespace Sample{
+                internal static class DatabaseGenerator{public const bool Collectible=true;}
+                public static class Probe{
+                    public static bool Run(){
+                        var row=Tables.Item.Create(Keys.Item.Create(1),10m,5m);
+                        var stored=row.Total==5m;
+                        global::Seamless.Database.GeneratedRowExpression<Tables.Item>.Evaluate=static(value,column)=>column==2?(object)(value.Price*2):null;
+                        try{
+                            return stored&&row.Total==20m&&row.Price==10m;
+                        }finally{
+                            global::Seamless.Database.GeneratedRowExpression<Tables.Item>.Evaluate=null;
+                        }
+                    }
+                }
+            }
+            namespace Sample.Tables{
+                public partial struct Item{
+                    [global::Seamless.Database.Key]
+                    public partial int Id{get;init;}
+                    public partial decimal Price{get;init;}
+                    [global::Seamless.Database.ComputedColumn(2)]
+                    public partial decimal Total{get;init;}
+                }
+            }
+            """;
+        var output=Generate(source);
+        foreach(var name in new[]{"Sample.Tables.Item","Sample.Keys.Item"}){
+            var type=output.GetTypeByMetadataName(name)!;
+            Assert.DoesNotContain(type.AllInterfaces,static item=>item.ContainingNamespace.ToDisplayString()=="MemoryPack");
+            Assert.DoesNotContain(type.AllInterfaces,static item=>item.Name=="INativeReplayDecoder");
+            Assert.DoesNotContain(type.GetAttributes(),static attribute=>attribute.AttributeClass?.Name=="NativeWireLayoutAttribute");
+            Assert.Empty(type.StaticConstructors);
+        }
+        AssertRun(output);
+    }
+
     private static Compilation Generate(string source){
         var compilation=GeneratorTestHelpers.CreateCompilation([("Database.cs",source)]);
         GeneratorDriver driver=GeneratorTestHelpers.CreateDatabaseDriver();
