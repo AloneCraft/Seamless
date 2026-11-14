@@ -124,6 +124,13 @@ public sealed partial class DatabaseRegistry:ISqlCatalog{
         return(resolved,routine);
     }
 
+    /// <summary>手続きの名前を、登録済みの定義だけから解決する。DB を読まないのでロックを取らない(取引の中の EXEC が自分の書き込みロックを待たない)。</summary>
+    internal SqlObjectName ResolveRegisteredRoutineName(SqlObjectName name,bool schemaWritten){
+        if(schemaWritten){return name;}
+        if(!this.databases.TryGetValue(name.Database,out var registration)){return name with{Schema=this.SchemaResolution.CreateSchema()};}
+        registration=this.GatewayTransactions?.ResolveGeneration(registration)??registration;
+        _=this.SchemaResolution.Find(name,false,candidate=>FindRegisteredRoutine(registration,candidate),out var resolved);return resolved;
+    }
     private static DatabaseRoutineDefinition? FindRegisteredRoutine(DatabaseRegistration registration,SqlObjectName name)=>registration.Routines.FirstOrDefault(routine=>string.Equals(routine.Schema,name.Schema,StringComparison.OrdinalIgnoreCase)&&string.Equals(routine.Name,name.Name,StringComparison.OrdinalIgnoreCase));
 
     private static SqlTable? FindPhysicalTable(DatabaseRegistration registration,SqlObjectName name,Action<string,IDatabaseAdapter,TableMetadata>? demand=null){

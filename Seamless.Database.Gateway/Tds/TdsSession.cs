@@ -287,8 +287,9 @@ public sealed partial class TdsSession{
         if(name?.BaseIdentifier is null||name.Identifiers.Count is <1 or >2){throw UnsupportedProcedureCall();}
         // [名前] スキーマを書かなければ、方言の探す順で最初に見つかった手続きを使う。
         var written=new SqlObjectName(this.sessionContext.DatabaseName,name.SchemaIdentifier?.Value??"",name.BaseIdentifier.Value);
-        var catalog=this.sqlEngine.Databases;
-        _=catalog.SchemaResolution.Find(written,name.SchemaIdentifier is not null,catalog.FindRoutine,out var resolved);return resolved;
+        // [ロック] ここでは名前を決めるだけなので、登録済みの定義から探し、DB は読まない。
+        // DB を読む探し方(FindRoutine)は読み取りロックを取るので、取引の中の EXEC が自分の書き込みロックを待って止まる。
+        return this.sqlEngine.Databases.ResolveRegisteredRoutineName(written,name.SchemaIdentifier is not null);
     }
     private static object? ReadProcedureArgument(ScalarExpression expression,IReadOnlyList<SqlParameter>? parameters,IReadOnlyDictionary<string,object?>? values){
         if(expression is VariableReference variable){
