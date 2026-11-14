@@ -88,6 +88,63 @@ public sealed partial class DatabaseTransactionExpansionTests{
         Assert.Contains(generated,static code=>Regex.IsMatch(code,@"(?m)^\s*\w+\s*=\s*\w+\.TryGetJoinIndex\("));
     }
 
+    [Fact]
+    public async Task SchemaViewReadsOtherSchemasFromTheRootAndExpandsInCallerCode(){
+        // 設計：Document/refactoring-designs/20261114-宣言と手続きと索引の統一.md の手順A。
+        // スキーマのビューの本体は、受け手によらずルートからたどって表を読む(q.Database.<スキーマ>.<表>)。読む側の r.<スキーマ>.<ビュー> は呼び出し側へ取り込んで動く。
+        // 書く側(tx)から LINQ を含むビューを呼ぶ形は対象外：書く側の表は集合ではないので Set の演算が Enumerable の演算へ結び付き直り、FLINQ007 になる(Database の有無によらない以前からの制約)。
+        const string source="""
+            using System;using System.Linq;using System.Text.Json;using Seamless.Database;using Seamless.FLinq;using Seamless.Linq;
+            namespace RootReach{
+             internal static partial class DatabaseGenerator;
+             public sealed partial class Database(DatabaseContainerOptions options):DatabaseContainer(options);
+             public static class Queries{
+              extension(Database.IPersonReader q){
+               public Seamless.Collections.ISet<Views.Person.Located> Located=>
+                q.Database.Person.Address.Join(q.Database.Employee.Job,static address=>address.JobId,static job=>job.Id,static(address,job)=>new Views.Person.Located(address.Id,job.Title));
+              }
+             }
+             public sealed class Entry{
+              [LinqIntercept(true)]private int[] ByReader(Database.Reader r)=>r.Person.Located.Select(static row=>row.Id).Order().ToArray();
+              [LinqIntercept(false)]private int[] Reference(Database.Reader r)=>r.Person.Located.Select(static row=>row.Id).Order().ToArray();
+              [LinqIntercept(true)]private int[] ByLocal(Database.Reader r){var person=r.Person;return person.Located.Select(static row=>row.Id).Order().ToArray();}
+              public static string Run(){
+               using var db=new Database(DatabaseContainerOptions.InMemory with{IndexSize=128,PageSize=4096,SegmentSize=65536,MemorySize=65536,TemporaryDirectory=Environment.GetEnvironmentVariable("SEAMLESS_TEST_DATA_ROOT")!});
+               using(var tx=db.BeginTransaction()){
+                tx.Database.Employee.Job.Add(new(new(10),"clerk"));tx.Database.Employee.Job.Add(new(new(20),"lead"));
+                tx.Person.Address.Add(new(new(1),10));tx.Person.Address.Add(new(new(2),20));tx.Person.Address.Add(new(new(3),30));
+                tx.Commit();
+               }
+               var entry=new Entry();int[] expected;int[] actual;int[] local;bool same;bool sameTransaction;bool ownWrite;
+               using(var r=db.BeginRead()){expected=entry.Reference(r);actual=entry.ByReader(r);local=entry.ByLocal(r);same=ReferenceEquals(r.Person.Database,r);}
+               using(var tx=db.BeginTransaction()){tx.Person.Database.Employee.Job.Add(new(new(30),"new"));sameTransaction=ReferenceEquals(tx.Person.Database,tx);ownWrite=tx.Employee.Job.ContainsKey(new(30));}
+               return JsonSerializer.Serialize(new{expected,actual,local,same,sameTransaction,ownWrite});
+              }
+             }
+            }
+            namespace RootReach.Tables.Person{public partial struct Address{[Key]public partial int Id{get;init;}public partial int JobId{get;init;}}}
+            namespace RootReach.Tables.Employee{public partial struct Job{[Key]public partial int Id{get;init;}public partial string Title{get;init;}}}
+            namespace RootReach.Views.Person{public readonly record struct Located(int Id,string Title);}
+            """;
+        var(result,generated)=await RunBoundarySourceAsync(source,"RootReach");
+        using var document=JsonDocument.Parse(result);
+        var value=document.RootElement;
+        // 他のスキーマ(Employee)の表と結合できる。展開しない実行と同じ結果になる。
+        Assert.Equal([1,2],value.GetProperty("actual").EnumerateArray().Select(static item=>item.GetInt32()));
+        Assert.Equal(value.GetProperty("expected").EnumerateArray().Select(static item=>item.GetInt32()),value.GetProperty("actual").EnumerateArray().Select(static item=>item.GetInt32()));
+        // スキーマの入口をいったん変数に入れてから呼んでも同じ。
+        Assert.Equal(value.GetProperty("actual").EnumerateArray().Select(static item=>item.GetInt32()),value.GetProperty("local").EnumerateArray().Select(static item=>item.GetInt32()));
+        // スキーマの入口の Database は、元の入口そのもの。書く側では取引そのもので、書ける表に届く。
+        Assert.True(value.GetProperty("same").GetBoolean());
+        Assert.True(value.GetProperty("sameTransaction").GetBoolean());
+        Assert.True(value.GetProperty("ownWrite").GetBoolean());
+        // ビューの本体は呼び出し側へ取り込んで展開する。取り込んだ本体の式(受け手 r.Person・person からルートへたどる式)が生成コードに現れる。
+        // 生成コードのデバッグ用の実行計画には元の式(r.Person.Located)も記録されるので、呼び出しの文字列の有無では確かめない。
+        var code=string.Join(Environment.NewLine,generated);
+        Assert.Contains("r.Person.Database.Employee.Job",code,StringComparison.Ordinal);
+        Assert.Contains("person.Database.Employee.Job",code,StringComparison.Ordinal);
+    }
+
     private static async Task<(string Result,string[] Generated)> RunBoundarySourceAsync(string source,string name,string? generatedEvidencePath=null){
         var(output,generated)=Generate(source,name,generatedEvidencePath:generatedEvidencePath);
         using var image=new MemoryStream();

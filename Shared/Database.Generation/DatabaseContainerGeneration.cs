@@ -116,9 +116,15 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
             foreach(var item in combined.Where(item=>schemaNames.Contains(item.Name,StringComparer.Ordinal))){
                 context.ReportDiagnostic(Diagnostic.Create(DuplicateName,item.Location,item.Name));hasErrors=true;
             }
+            // [入口/Database] すべての入口がルートの入口を返す Database を持つので、表・スキーマ・ビュー・関数の名前に使えない。
+            foreach(var item in combined.Concat(schemaMarkers).Where(static item=>item.Name.Split('.').Contains(RootAccessName,StringComparer.Ordinal))){
+                var name=item.Kind==SchemaMarkerKind?item.Name.Substring(0,item.Name.Length-2):item.Name;
+                context.ReportDiagnostic(Diagnostic.Create(ReservedName,item.Location,name));hasErrors=true;
+            }
             foreach(var item in declaredObjects){
                 var name=item.Name.Substring(item.Name.LastIndexOf('.')+1);
-                var reserved=item.Name.Contains('.')&&name=="Database";
+                // 名前 Database は上の [入口/Database] でルート・スキーマとも報告済み。
+                var reserved=false;
                 if(!item.Name.Contains('.')){
                     reserved=name is "EnsureTablesCreated" or "ImportTables" or "ImportTablesAsync" or "__ImportTablesInTransaction"
                         ||schemaNames.Any(schema=>schema+"Schema"==name);
@@ -141,6 +147,8 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
     }
 
     private const string SchemaMarkerKind="Schema";
+    // 入口からルートの入口へ戻るプロパティの名前。ビュー・関数の本体は表を常に <受け手>.Database.<スキーマ>.<表> と書く。
+    private const string RootAccessName="Database";
 
     // コンテナにプロパティで宣言したスキーマ(DatabaseSchema の派生)の目印。表が無くても入口のインターフェースを作るために、表と同じ並びへ混ぜる。
     private static ObjectDeclaration[] SchemaMarkers(INamedTypeSymbol container){
@@ -546,6 +554,9 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         builder.AppendLine($"{indent}        private readonly {className} owner;");
         builder.AppendLine($"{indent}        private readonly global::Seamless.Transactions.TransactionScope scope;");
         builder.AppendLine($"{indent}        internal TypedTransaction({className} owner,global::Seamless.Transactions.TransactionScope scope){{this.owner=owner;this.scope=scope;}}");
+        builder.AppendLine($"{indent}        // [入口/ルート] スキーマの中からもこの取引そのものへ戻る。具体的な型で返し、書ける表と FLinq の取引用の経路を保つ。");
+        builder.AppendLine($"{indent}        public TypedTransaction {RootAccessName}=>this;");
+        builder.AppendLine($"{indent}        IReader IReader.{RootAccessName}=>this;");
         builder.AppendLine($"{indent}        // [区分] 開始時に確定したreadonly区分。読取操作だけを行った通常取引をreadonlyへ昇格/変更しない。");
         builder.AppendLine($"{indent}        public bool IsReadOnly=>this.scope.IsReadOnly;");
         builder.AppendLine($"{indent}        public global::System.Guid Id=>this.scope.Id;");
@@ -572,7 +583,7 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         builder.AppendLine($"{indent}        public void Rollback()=>this.scope.RollbackAsync().AsTask().GetAwaiter().GetResult();");
         builder.AppendLine($"{indent}        public void Dispose()=>this.scope.DisposeAsync().AsTask().GetAwaiter().GetResult();");
         var number=0;
-        AppendTransactionProperties(builder,indent+"        ",className,readerItems,"",ref number);
+        AppendTransactionProperties(builder,indent+"        ",className,readerItems,"",ref number,"this");
         builder.AppendLine($"{indent}    }}");
     }
     private static void AppendTransactionEntry(StringBuilder builder,string indent,string method,string begin){
@@ -593,6 +604,8 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
     private static string ReaderInterface(string prefix)=>prefix.Length==0?"IReader":"I"+string.Concat(prefix.TrimEnd('.').Split('.'))+"Reader";
     private static void AppendReaderInterfaces(StringBuilder builder,string indent,ObjectDeclaration[] tables,string prefix){
         builder.AppendLine($"{indent}    public interface {ReaderInterface(prefix)}{{");
+        builder.AppendLine($"{indent}        // [入口/ルート] ルートの入口。スキーマの入口は自分のスキーマの表しか持たないので、他のスキーマの表はここからたどる。");
+        builder.AppendLine($"{indent}        {ReaderInterface("")} {RootAccessName}{{get;}}");
         foreach(var table in tables.Where(t=>t.Kind!=SchemaMarkerKind&&!t.Name.Substring(prefix.Length).Contains('.'))){
             builder.AppendLine($"{indent}        global::Seamless.Collections.ISet<{table.RecordTypeName}> {Identifier(table.Name.Substring(prefix.Length))}{{get;}}");
         }
@@ -614,11 +627,15 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         builder.AppendLine($"{indent}        internal Reader({className} owner,global::Seamless.Transactions.TransactionScope scope){{this.owner=owner;this.scope=scope;}}");
         builder.AppendLine($"{indent}        public global::System.Threading.Tasks.ValueTask DisposeAsync()=>this.scope.DisposeAsync();");
         builder.AppendLine($"{indent}        public void Dispose()=>this.scope.DisposeAsync().AsTask().GetAwaiter().GetResult();");
+        builder.AppendLine($"{indent}        // [入口/ルート] スキーマの中からもこの入口そのものへ戻る。具体的な型で返し、FLinq が表の具体的な型を認識できるようにする。");
+        builder.AppendLine($"{indent}        public Reader {RootAccessName}=>this;");
+        builder.AppendLine($"{indent}        IReader IReader.{RootAccessName}=>this;");
         var number=0;
-        AppendReaderProperties(builder,indent+"        ",className,tables,"",ref number);
+        AppendReaderProperties(builder,indent+"        ",className,tables,"",ref number,"this");
         builder.AppendLine($"{indent}    }}");
     }
-    private static void AppendReaderProperties(StringBuilder builder,string indent,string className,ObjectDeclaration[] tables,string prefix,ref int number){
+    // root: 入れ子のスキーマの入口へ渡す、ルートの入口(Reader・TypedTransaction)を指す式。ルートでは this、スキーマの中では this.root。
+    private static void AppendReaderProperties(StringBuilder builder,string indent,string className,ObjectDeclaration[] tables,string prefix,ref int number,string root){
         foreach(var table in tables.Where(t=>t.Kind!=SchemaMarkerKind&&!t.Name.Substring(prefix.Length).Contains('.'))){
             var name=Identifier(table.Name.Substring(prefix.Length));
             var key=table.KeyTypeName??table.RecordTypeName;
@@ -630,16 +647,20 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         foreach(var group in tables.Where(t=>t.Name.Substring(prefix.Length).Contains('.')).GroupBy(t=>t.Name.Substring(prefix.Length).Split('.')[0],StringComparer.Ordinal)){
             var type="SchemaReader"+(number++).ToString(global::System.Globalization.CultureInfo.InvariantCulture);
             var schemaPrefix=prefix+group.Key+".";
-            builder.AppendLine($"{indent}public {type} {Identifier(group.Key)}=>new(this.owner,this.scope);");
+            builder.AppendLine($"{indent}public {type} {Identifier(group.Key)}=>new(this.owner,this.scope,{root});");
             builder.AppendLine($"{indent}{ReaderInterface(schemaPrefix)} {ReaderInterface(prefix)}.{Identifier(group.Key)}=>this.{Identifier(group.Key)};");
             builder.AppendLine($"{indent}public sealed class {type}:{ReaderInterface(schemaPrefix)}{{");
             builder.AppendLine($"{indent}    private readonly {className} owner;");builder.AppendLine($"{indent}    private readonly global::Seamless.Transactions.TransactionScope scope;");
-            builder.AppendLine($"{indent}    internal {type}({className} owner,global::Seamless.Transactions.TransactionScope scope){{this.owner=owner;this.scope=scope;}}");
-            AppendReaderProperties(builder,indent+"    ",className,group.ToArray(),schemaPrefix,ref number);
+            builder.AppendLine($"{indent}    private readonly Reader root;");
+            builder.AppendLine($"{indent}    internal {type}({className} owner,global::Seamless.Transactions.TransactionScope scope,Reader root){{this.owner=owner;this.scope=scope;this.root=root;}}");
+            builder.AppendLine($"{indent}    public Reader {RootAccessName}=>this.root;");
+            builder.AppendLine($"{indent}    {ReaderInterface("")} {ReaderInterface(schemaPrefix)}.{RootAccessName}=>this.root;");
+            AppendReaderProperties(builder,indent+"    ",className,group.ToArray(),schemaPrefix,ref number,"this.root");
             builder.AppendLine($"{indent}}}");
         }
     }
-    private static void AppendTransactionProperties(StringBuilder builder,string indent,string className,ObjectDeclaration[] tables,string prefix,ref int number){
+    // root: AppendReaderProperties と同じ。ここではルートの入口は TypedTransaction。
+    private static void AppendTransactionProperties(StringBuilder builder,string indent,string className,ObjectDeclaration[] tables,string prefix,ref int number,string root){
         foreach(var table in tables.Where(t=>t.Kind!=SchemaMarkerKind&&!t.Name.Substring(prefix.Length).Contains('.'))){
             var name=Identifier(table.Name.Substring(prefix.Length));
             var collection="TransactionCollection";if(table.ImportKind=="MaterializedView"){collection="ReadOnlyTransactionCollection";}
@@ -653,12 +674,15 @@ internal sealed class DatabaseContainerGeneration:IIncrementalGenerator {
         foreach(var group in tables.Where(t=>t.Name.Substring(prefix.Length).Contains('.')).GroupBy(t=>t.Name.Substring(prefix.Length).Split('.')[0],StringComparer.Ordinal)){
             var type="SchemaView"+(number++).ToString(global::System.Globalization.CultureInfo.InvariantCulture);
             var schemaPrefix=prefix+group.Key+".";
-            builder.AppendLine($"{indent}public {type} {Identifier(group.Key)}=>new(this.owner,this.scope);");
+            builder.AppendLine($"{indent}public {type} {Identifier(group.Key)}=>new(this.owner,this.scope,{root});");
             builder.AppendLine($"{indent}{ReaderInterface(schemaPrefix)} {ReaderInterface(prefix)}.{Identifier(group.Key)}=>this.{Identifier(group.Key)};");
             builder.AppendLine($"{indent}public sealed class {type}:{ReaderInterface(schemaPrefix)}{{");
             builder.AppendLine($"{indent}    private readonly {className} owner;");builder.AppendLine($"{indent}    private readonly global::Seamless.Transactions.TransactionScope scope;");
-            builder.AppendLine($"{indent}    internal {type}({className} owner,global::Seamless.Transactions.TransactionScope scope){{this.owner=owner;this.scope=scope;}}");
-            AppendTransactionProperties(builder,indent+"    ",className,group.ToArray(),schemaPrefix,ref number);
+            builder.AppendLine($"{indent}    private readonly TypedTransaction root;");
+            builder.AppendLine($"{indent}    internal {type}({className} owner,global::Seamless.Transactions.TransactionScope scope,TypedTransaction root){{this.owner=owner;this.scope=scope;this.root=root;}}");
+            builder.AppendLine($"{indent}    public TypedTransaction {RootAccessName}=>this.root;");
+            builder.AppendLine($"{indent}    {ReaderInterface("")} {ReaderInterface(schemaPrefix)}.{RootAccessName}=>this.root;");
+            AppendTransactionProperties(builder,indent+"    ",className,group.ToArray(),schemaPrefix,ref number,"this.root");
             builder.AppendLine($"{indent}}}");
         }
     }

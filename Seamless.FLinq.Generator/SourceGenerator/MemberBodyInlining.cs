@@ -10,7 +10,8 @@ namespace Seamless.FLinq.Generator;
 /// <list type="bullet">
 /// <item><description>対象: 拡張メンバー(C# 14 の extension ブロック)・従来の拡張メソッド・同じ型のメンバーで、本体が式1つ(または return 1文)、
 /// 中に LINQ の呼び出しかほかの取り込み対象があるもの。仮想・総称・ref/out・params・async は対象外。[LinqIntercept(false)] を付けたものも対象外。</description></item>
-/// <item><description>受け手と引数は、定数・this・書き換えられない変数や引数・readonly のフィールドのときだけ、そのまま差し込む(評価の回数と順序が変わらない)。</description></item>
+/// <item><description>受け手と引数は、定数・this・書き換えられない変数や引数・readonly のフィールドのときだけ、そのまま差し込む(評価の回数と順序が変わらない)。
+/// DB の生成器が作る入口のスキーマのプロパティと Database(副作用がない)を、そうした受け手からたどった式(r.Person など)も差し込む。</description></item>
 /// <item><description>1か所ずつ取り込んで型を付け直し、エラーが出る・呼び出し先が変わる(using の違いなど)ときは取り込まない。</description></item>
 /// <item><description>取り込めなかったのがビュー・関数(DB の IReader への拡張メンバー)なら、理由を <see cref="Failure"/> に残す(呼び出し側でコンパイルエラーにする)。</description></item>
 /// </list>
@@ -184,6 +185,13 @@ internal static class MemberBodyInlining{
         &&reader.Name.EndsWith("Reader",StringComparison.Ordinal)
         &&InheritsDatabaseContainer(reader.ContainingType);
 
+    /// <summary>DB の生成器が作る入口(IReader・I&lt;スキーマ&gt;Reader と、それを実装する Reader・TypedTransaction・スキーマの入口)か。</summary>
+    private static bool IsDatabaseEntryType(ITypeSymbol? type)=>
+        type is INamedTypeSymbol named&&(IsDatabaseReaderInterface(named)||named.AllInterfaces.Any(IsDatabaseReaderInterface));
+
+    private static bool IsDatabaseReaderInterface(INamedTypeSymbol type)=>
+        type.TypeKind==TypeKind.Interface&&type.Name.EndsWith("Reader",StringComparison.Ordinal)&&InheritsDatabaseContainer(type.ContainingType);
+
     private static bool InheritsDatabaseContainer(INamedTypeSymbol? type){
         for(var current=type;current is not null;current=current.BaseType){
             if(current.ToDisplayString()==DatabaseContainerTypeName){return true;}
@@ -274,6 +282,12 @@ internal static class MemberBodyInlining{
                     _=>false,
                 };
             case MemberAccessExpressionSyntax access:
+                // DB の生成器が作る入口のスキーマのプロパティ(r.Person など)と Database は、読むたびに入口の包みを作るだけで副作用がない。
+                // 受け手が何度読んでも同じ値なら、たどった結果も同じ表を指す(ビュー・関数を r.<スキーマ>.<名前> で呼べるようにする)。
+                if(model.GetSymbolInfo(access).Symbol is IPropertySymbol{IsStatic:false,IsIndexer:false} entry
+                    &&IsDatabaseEntryType(entry.ContainingType)&&IsDatabaseEntryType(entry.Type)){
+                    return IsStable(access.Expression,model,callerMethod);
+                }
                 return model.GetSymbolInfo(access).Symbol is IFieldSymbol{IsReadOnly:true} or IFieldSymbol{IsConst:true}
                     &&(access.Expression is ThisExpressionSyntax||model.GetSymbolInfo(access.Expression).Symbol is INamedTypeSymbol);
             default:

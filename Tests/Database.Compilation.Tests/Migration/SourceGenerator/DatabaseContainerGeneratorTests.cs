@@ -122,6 +122,95 @@ public sealed class DatabaseContainerGeneratorTests {
     }
 
     [Fact,Trait("Category","Unit")]
+    public void ReadersReachTheRootThroughDatabase(){
+        // 設計：Document/refactoring-designs/20261114-宣言と手続きと索引の統一.md の手順A。
+        // すべての入口(ルート・スキーマ、読む側・書く側)が、ルートの入口を返す Database を持つ。スキーマのビューから他のスキーマの表を読める。
+        const string source="""
+            using System.Linq;using Seamless.Linq;
+            namespace Sample{
+                internal static class DatabaseGenerator;
+                public sealed partial class Catalog:global::Seamless.Database.DatabaseContainer;
+                public static class CatalogQueries{
+                    extension(Catalog.IReader q){
+                        public global::Seamless.Collections.ISet<Views.Name> Names=>q.Database.Item.Select(static item=>new Views.Name(item.Id));
+                    }
+                    extension(Catalog.IPersonReader q){
+                        public global::Seamless.Collections.ISet<Views.Person.Located> Located=>
+                            q.Database.Person.Address.Join(q.Database.Employee.Job,static address=>address.JobId,static job=>job.Id,static(address,job)=>new Views.Person.Located(address.Id,job.Title));
+                    }
+                }
+            }
+            namespace Sample.Tables{public partial struct Item{[global::Seamless.Database.Key]public partial int Id{get;init;}}}
+            namespace Sample.Tables.Person{public partial struct Address{[global::Seamless.Database.Key]public partial int Id{get;init;}public partial int JobId{get;init;}}}
+            namespace Sample.Tables.Employee{public partial struct Job{[global::Seamless.Database.Key]public partial int Id{get;init;}public partial string Title{get;init;}}}
+            namespace Sample.Views{public readonly record struct Name(int Id);}
+            namespace Sample.Views.Person{public readonly record struct Located(int Id,string Title);}
+            """;
+        var output=Compile(source);
+        var catalog=output.GetTypeByMetadataName("Sample.Catalog")!;
+        INamedTypeSymbol Nested(string name)=>catalog.GetTypeMembers(name).Single();
+        IPropertySymbol Property(INamedTypeSymbol type,string name)=>type.GetMembers(name).OfType<IPropertySymbol>().Single(static property=>property.ExplicitInterfaceImplementations.IsEmpty);
+        var root=Nested("IReader");
+        {
+            //入口のインターフェースは、ルートでもスキーマでもルートの入口を返す
+            Assert.Equal(root,Property(root,"Database").Type,SymbolEqualityComparer.Default);
+            Assert.Equal(root,Property(Nested("IPersonReader"),"Database").Type,SymbolEqualityComparer.Default);
+            Assert.Equal(root,Property(Nested("IEmployeeReader"),"Database").Type,SymbolEqualityComparer.Default);
+        }
+        {
+            //読む側の実体は、スキーマの中からでも具体的な Reader を返す(FLinq が表の具体的な型を認識できるように)
+            var reader=Nested("Reader");
+            Assert.Equal(reader,Property(reader,"Database").Type,SymbolEqualityComparer.Default);
+            var person=(INamedTypeSymbol)Property(reader,"Person").Type;
+            Assert.Equal(reader,Property(person,"Database").Type,SymbolEqualityComparer.Default);
+        }
+        {
+            //書く側の実体は、スキーマの中からでも具体的な TypedTransaction を返す(書ける表に届く)
+            var transaction=Nested("TypedTransaction");
+            Assert.Equal(transaction,Property(transaction,"Database").Type,SymbolEqualityComparer.Default);
+            var person=(INamedTypeSymbol)Property(transaction,"Person").Type;
+            Assert.Equal(transaction,Property(person,"Database").Type,SymbolEqualityComparer.Default);
+            Assert.Equal("TransactionCollection",((INamedTypeSymbol)Property((INamedTypeSymbol)Property(transaction,"Employee").Type,"Job").Type).Name);
+        }
+    }
+
+    [Fact,Trait("Category","Unit")]
+    public void DatabaseNameIsReservedForTablesSchemasAndQueries(){
+        static string Source(string body)=>"""
+            namespace Sample{
+                internal static class DatabaseGenerator;
+                public sealed partial class Catalog:global::Seamless.Database.DatabaseContainer;
+            }
+            """+body;
+        {
+            //ルートの表
+            var result=Run(Source("namespace Sample.Tables{public partial struct Database{[global::Seamless.Database.Key]public partial int Id{get;init;}}}"));
+            Assert.Contains(result.Diagnostics,static diagnostic=>diagnostic.Id=="SDB002"&&diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture).Contains("'Database'",StringComparison.Ordinal));
+        }
+        {
+            //スキーマの表
+            var result=Run(Source("namespace Sample.Tables.Sales{public partial struct Database{[global::Seamless.Database.Key]public partial int Id{get;init;}}}"));
+            Assert.Contains(result.Diagnostics,static diagnostic=>diagnostic.Id=="SDB002"&&diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture).Contains("'Sales.Database'",StringComparison.Ordinal));
+        }
+        {
+            //スキーマ
+            var result=Run(Source("namespace Sample.Tables.Database{public partial struct Item{[global::Seamless.Database.Key]public partial int Id{get;init;}}}"));
+            Assert.Contains(result.Diagnostics,static diagnostic=>diagnostic.Id=="SDB002"&&diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture).Contains("'Database.Item'",StringComparison.Ordinal));
+        }
+        {
+            //ビュー
+            var result=Run(Source("""
+                namespace Sample{
+                    public static class CatalogQueries{
+                        extension(Catalog.IReader q){public global::Seamless.Collections.ISet<int> Database=>throw new global::System.NotImplementedException();}
+                    }
+                }
+                """));
+            Assert.Contains(result.Diagnostics,static diagnostic=>diagnostic.Id=="SDB002"&&diagnostic.GetMessage(System.Globalization.CultureInfo.InvariantCulture).Contains("'Database'",StringComparison.Ordinal));
+        }
+    }
+
+    [Fact,Trait("Category","Unit")]
     public void SchemaGraphUsesQualifiedObjectNames() {
         const string source = """
             namespace Sample {
@@ -298,6 +387,15 @@ public sealed class DatabaseContainerGeneratorTests {
         Assert.NotNull(catalogType);
         var itemsProperty=catalogType.GetMembers("Items").OfType<IPropertySymbol>().FirstOrDefault();
         Assert.NotNull(itemsProperty);
+    }
+
+    private static Compilation Compile(string source){
+        var compilation=GeneratorTestHelpers.CreateCompilation([("Database.cs",source)]);
+        GeneratorTestHelpers.CreateDatabaseDriver().RunGeneratorsAndUpdateCompilation(compilation,out var output,out var diagnostics);
+        Assert.DoesNotContain(diagnostics,static diagnostic=>diagnostic.Severity==DiagnosticSeverity.Error);
+        var errors=output.GetDiagnostics().Where(static diagnostic=>diagnostic.Severity==DiagnosticSeverity.Error).ToArray();
+        Assert.True(errors.Length==0,string.Join(Environment.NewLine,errors.Select(static diagnostic=>diagnostic.ToString())));
+        return output;
     }
 
     private static GeneratorRunResult Run(string source) {
