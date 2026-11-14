@@ -192,11 +192,11 @@ public sealed class ManagementAuthorizationTransport(ITestOutputHelper output){
                 [new(role,"root",[new(store.InstanceId,SecurityPermission.All)])],[new(administrator,SecurityPrincipalKind.User,role)]);
             var now=DateTimeOffset.UtcNow;
             using var policy=StoredAuthorization.Initialize(store,initial,new(administrator,"administrator",[],now.AddMinutes(5),now));
-            var roles=Enumerable.Range(0,6).Select(index=>new SecurityRole(Guid.NewGuid(),"検索\n\""+index+new string('中',50000),[new(database,SecurityPermission.Read)])).ToArray();
+            // 大きすぎる変更は、確定の前に資源の上限(管理DBの作業メモリ)で止まる。取り消され、ストアは壊れない。
+            var roles=Enumerable.Range(0,1).Select(index=>new SecurityRole(Guid.NewGuid(),"検索\n\""+index+new string('中',4_000_000),[new(database,SecurityPermission.Read)])).ToArray();
             using var operation=policy.CreateSession(new(administrator,"administrator",[],now.AddMinutes(5),now)).BeginOperation();
-            var rejected=Assert.Throws<Seamless.Transactions.TransactionCommitException>(()=>policy.ApplyDatabaseChange(operation,new(database,1,upsertRoles:roles)));
-            Assert.Equal(Seamless.Transactions.TransactionOutcomeKind.Aborted,rejected.Outcome);
-            Assert.IsType<InvalidDataException>(rejected.InnerException);Assert.Equal(1,policy.Policy.Version);
+            Assert.Throws<Seamless.Execution.ResourceLimitException>(()=>policy.ApplyDatabaseChange(operation,new(database,1,upsertRoles:roles)));
+            Assert.Equal(1,policy.Policy.Version);
             policy.ApplyDatabaseChange(operation,new(database,1,upsertRoles:[new(Guid.NewGuid(),"small",[new(database,SecurityPermission.Read)])]));
             Assert.Equal(2,policy.Policy.Version);
         }

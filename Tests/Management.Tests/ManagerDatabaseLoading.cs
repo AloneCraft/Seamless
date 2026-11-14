@@ -51,7 +51,8 @@ public sealed class ManagerDatabaseLoading{
         ((LoadingOperations)(object)operations).Read=read;return operations;
     }
     private static 管理ワークスペース Workspace(IManagementOperations operations,params string[] ids){
-        var workspace=new 管理ワークスペース();
+        // DB を編集用に開くには、編集の権限を持つ利用者が要る。
+        var workspace=new 管理ワークスペース();typeof(管理ワークスペース).GetProperty("利用者")!.SetValue(workspace,new UserInfo("owner",[new("*",ManagementPermission.All)],false));
         typeof(管理ワークスペース).GetProperty("管理操作",BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic)!.SetValue(workspace,operations);
         Set(workspace,"DB一覧",ids.Select(id=>new CatalogDatabase(id,id,id,1,"",false)).ToArray());return workspace;
     }

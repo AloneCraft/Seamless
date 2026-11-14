@@ -100,6 +100,10 @@ internal sealed partial class PipelineTerminal(int 番号,PipelineEnumerable pip
             if(this.TransactionalJoinSinks() is { } joinSinks){
                 baseMethod=JoinStaticMethods(baseMethod,JoinStaticMethods(joinSinks.Outer.StructMethod,joinSinks.Inner.StructMethod));
             }
+            // 取引の表の GroupBy を集める部品(Lookup の構築)の定義も出す。
+            if(this.TransactionalGroupSink() is { } groupSink){
+                baseMethod=JoinStaticMethods(baseMethod,groupSink.StructMethod);
+            }
             if(this.CanUseDirectSpanPipelineOrder(out var orderStageIndex)
                 ||this.CanUseGroupByAggregateWithOrder(out _,out orderStageIndex,out _)){
                 var orderStage=pipeline.Stages[orderStageIndex];
@@ -5730,6 +5734,10 @@ if({{arrayExprFod}}.Length==0) {
     private string GetDirectExecutionStatementCore(string actualVariableName,string actualTypeName) {
         if(this.TryRenderTransactionalJoin(actualVariableName,actualTypeName) is { } transactionJoin){
             return transactionJoin;
+        }
+        // 取引の表の GroupBy は、取引の所有する Lookup で集め、group を外へ返すときは所有配列へ移す(QueryGrouping.Materialize)。
+        if(this.TryRenderTransactionalGrouping(actualVariableName,actualTypeName) is { } transactionGroup){
+            return transactionGroup;
         }
         // Last/LastOrDefault は System.Linq と同じ評価順(後ろから・需要の分だけ)で描く経路を先に試す。
         if(terminalKind is PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault){

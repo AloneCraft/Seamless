@@ -1064,7 +1064,8 @@ public sealed partial class FLinqIncrementalGenerator {
         StringBuilder builder,
         ref int linqInvocationCount,
         HashSet<string> usedNames) {
-        var condText = RenderExpressionForGeneratedMethod(statement.Condition,semanticModel,containingType,unsafeAccessorCollector);
+        // 条件の中の LINQ は、条件の位置で呼ぶ局所関数へ展開する(反復ごとに評価し、短絡の順序を保つ)。
+        if(!this.RenderConditionQueries(statement.Condition,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames,out var condText)){return false;}
         builder.AppendLine($"while({condText})");
         return 本体文生成(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames);
     }
@@ -1085,9 +1086,10 @@ public sealed partial class FLinqIncrementalGenerator {
         StringBuilder builder,
         ref int linqInvocationCount,
         HashSet<string> usedNames) {
+        // 条件の中の LINQ は、条件の位置で呼ぶ局所関数へ展開する。局所関数の宣言は do の前に置く。
+        if(!this.RenderConditionQueries(statement.Condition,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames,out var condText)){return false;}
         builder.AppendLine("do");
         if(!本体文生成(statement.Statement,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames)) return false;
-        var condText = RenderExpressionForGeneratedMethod(statement.Condition,semanticModel,containingType,unsafeAccessorCollector);
         builder.AppendLine($"while({condText});");
         return true;
     }
@@ -1139,7 +1141,7 @@ public sealed partial class FLinqIncrementalGenerator {
         StringBuilder builder,
         ref int linqInvocationCount,
         HashSet<string> usedNames) {
-        var exprText = RenderExpressionForGeneratedMethod(statement.Expression,semanticModel,containingType,unsafeAccessorCollector);
+        if(!this.RenderConditionQueries(statement.Expression,semanticModel,containingType,ref uniqueNumber,methodIsStatic,ref staticMethods,unsafeAccessorCollector,generatedFragments,builder,ref linqInvocationCount,usedNames,out var exprText)){return false;}
         builder.AppendLine($"switch({exprText})");
         builder.AppendLine("{");
         foreach(var section in statement.Sections) {

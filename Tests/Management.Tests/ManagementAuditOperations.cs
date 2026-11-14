@@ -86,7 +86,8 @@ public sealed class ManagementAuditOperations{
             var parameters=ParameterView.FromDictionary(new Dictionary<string,object?>{{"Capture",(Action<TestPlan>)(component=>planView=component)},{"DB名","Native"},{"定義ID","db"},{"外部計画",draft}});
             var planHtml=await renderer.RenderComponentAsync<TestPlan>(parameters);Assert.Contains("DraftMethod",Html(planHtml.ToHtmlString()));
             await planView!.再取得Async();Assert.DoesNotContain("DraftMethod",Html(planHtml.ToHtmlString()));Assert.Contains("公開済み定義の計画",Html(planHtml.ToHtmlString()));Assert.Contains("schema.cs",Html(planHtml.ToHtmlString()));
-            Set(typeof(PlanView),planView,"DOT表示か",true);await planView.SetParametersAsync(parameters);Assert.Contains("digraph ExecutionPlan",Html(planHtml.ToHtmlString()));
+            // 表示方式は列挙(計画描画方式)で選ぶ。DOT を選ぶと DOT のコードを表示する。
+            var drawing=typeof(PlanView).GetField("描画方式",BindingFlags.Instance|BindingFlags.NonPublic)!;Set(typeof(PlanView),planView,"描画方式",Enum.Parse(drawing.FieldType,"DOT"));await planView.SetParametersAsync(parameters);Assert.Contains("digraph ExecutionPlan",Html(planHtml.ToHtmlString()));
         });
     }
     public sealed class TestAudit:AuditView{

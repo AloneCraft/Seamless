@@ -107,7 +107,12 @@ internal static partial class PipelineBuilder {
                 if(!isLast) {
                     return false;
                 }
-                if(stages.Count>0&&!ValidateStageCombination(stages,currentTerminalKind,allowSingleStage:true)){
+                // 取引用の専用終端が整列を重ねて扱える形は、最後の組み立てと同じ判定で許し、ここで列を切らない。
+                // 終端の関数がまだ無いので、引数の無い終端だけを対象にする(関数を持つ終端は従来どおり切る)。
+                var allowTerminalOrderBlocks=currentInvocation.ArgumentList.Arguments.Count==0
+                    &&PipelineTerminal.IsTransactionalOrderSource(sourceFragment)
+                    &&new PipelineTerminal(snapshot+1,new PipelineEnumerable(snapshot,sourceFragment,stages.ToArray(),currentElementType),currentTerminalKind,null,null,null,null).UsesTransactionalOrdering;
+                if(stages.Count>0&&!ValidateStageCombination(stages,currentTerminalKind,allowSingleStage:true,allowTransactionalOrderBlocks:allowTerminalOrderBlocks)){
                     if(!FlushPipelineStages(ref snapshot,ref sourceFragment,ref sourceStaticMethods,stages,currentElementType,services,unsafeAccessorCollector)){
                         return false;
                     }
@@ -121,7 +126,11 @@ internal static partial class PipelineBuilder {
                     ??"object";
                 continue;
             }
+            // 取引の行と、両側が取引の行の結合の入力は切り出さない。取引用の専用終端が各整列を元の順にそのまま繋ぎ、groupの所有と資源の予約を
+            // 一つの操作で扱う(切り出すと前半が一般の列になり専用終端を使えない)。専用終端が扱えない形は、最後の組み立ての
+            // 検査(allowTransactionalOrderBlocks)で複数の一次整列が弾かれる。
             if(methodName is "Order" or "OrderDescending" or "OrderBy" or "OrderByDescending"
+                &&!PipelineTerminal.IsTransactionalOrderSource(sourceFragment)
                 &&stages.Any(static stage=>IsPrimaryOrderStage(stage.Kind))){
                 // 次の一次整列は別の安定整列として残す。ThenBy と同じ sorter には畳まない。
                 stages=GroupByFusionPass.Apply(stages,new TerminalDemand(null,false,false),services.Trace);
@@ -139,7 +148,8 @@ internal static partial class PipelineBuilder {
             var elementSnapshot = currentElementType;
             if(TryAppendStage(semanticModel,currentInvocation,method,services,ref snapshot,stages,ref currentElementType)) {
                 if(stages.Count>stagesSnapshotCount&&stages.Count>1) {
-                    if(!ValidateStageCombination(stages,null,allowSingleStage:true)) {
+                    // 取引の入力では整列を重ねた並びを仮に許す。専用終端が扱えるかは、終端と最後の組み立てで判定する。
+                    if(!ValidateStageCombination(stages,null,allowSingleStage:true,allowTransactionalOrderBlocks:PipelineTerminal.IsTransactionalOrderSource(sourceFragment))) {
                         var newStages = stages.Skip(stagesSnapshotCount).ToList();
                         stages.RemoveRange(stagesSnapshotCount,stages.Count-stagesSnapshotCount);
                         if(!FlushPipelineStages(ref snapshot,ref sourceFragment,ref sourceStaticMethods,stages,elementSnapshot,services,unsafeAccessorCollector)) {

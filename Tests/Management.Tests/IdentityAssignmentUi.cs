@@ -95,7 +95,9 @@ public sealed class IdentityAssignmentUi{
         }
         internal Task Assign()=>(Task)Call(this.Workspace,"表示用ID付与時Async",Target())!;
         internal void User(ManagementPermission permissions)=>Parameter(this.Workspace,"利用者",new UserInfo("owner",[new("DB",permissions)],false));
+        // 表示用IDの付与はコマンドパレットの操作(左のツリーの DB のメニューは名前の変更と全ソースだけ)。
         internal bool CommandVisible(){
+            this.Set("パレットか",true);
             var registry=this.Get<object>("コマンド");var commands=((IEnumerable)registry.GetType().GetMethod("検索")!.Invoke(registry,[Target(),""])!).Cast<object>();
             return commands.Any(command=>(string)command.GetType().GetProperty("ID")!.GetValue(command)! =="DB表示用ID");
         }

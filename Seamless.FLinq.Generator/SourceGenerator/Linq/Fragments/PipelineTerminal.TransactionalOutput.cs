@@ -7,7 +7,8 @@ internal sealed partial class PipelineTerminal{
         &&terminalKind is PipelineTerminalKind.ToArray or PipelineTerminalKind.ToList or PipelineTerminalKind.ToDictionary
             or PipelineTerminalKind.Count or PipelineTerminalKind.LongCount or PipelineTerminalKind.Any
             or PipelineTerminalKind.First or PipelineTerminalKind.FirstOrDefault or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault or PipelineTerminalKind.Sum
-        &&(terminalKind!=PipelineTerminalKind.ToDictionary||func1 is not null)
+            or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy
+        &&(terminalKind is not(PipelineTerminalKind.ToDictionary or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy)||func1 is not null)
         &&(terminalKind!=PipelineTerminalKind.Sum||TransactionalSumType(pipeline.ElementType) is not null)
         &&new[]{func1,func2}.All(static function=>function is null||!function.RequiresResultTypeParameter);
     private static string? TransactionalSumType(string type){
@@ -41,7 +42,7 @@ internal sealed partial class PipelineTerminal{
             case PipelineTerminalKind.ToArray:return $"return global::System.Array.Empty<{pipeline.ElementType}>();";
             case PipelineTerminalKind.ToList:return $"return new global::System.Collections.Generic.List<{pipeline.ElementType}>();";
             case PipelineTerminalKind.ToDictionary:return $"return new global::System.Collections.Generic.Dictionary<{func1!.ReturnTypeName},{func2?.ReturnTypeName??pipeline.ElementType}>({prefix}Comparer);";
-            case PipelineTerminalKind.First:case PipelineTerminalKind.Last:return "throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();";
+            case PipelineTerminalKind.First:case PipelineTerminalKind.Last:case PipelineTerminalKind.MinBy:case PipelineTerminalKind.MaxBy:return "throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();";
             case PipelineTerminalKind.Sum:case PipelineTerminalKind.Count:case PipelineTerminalKind.LongCount:return $"return ({actualType})0;";
             case PipelineTerminalKind.Any:return "return false;";
             default:return $"return default({actualType})!;";
@@ -67,7 +68,8 @@ internal sealed partial class PipelineTerminal{
         var storedType=actualType;
         if(terminalKind is PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault){var lastPrefix=TransactionalLastPrefix(stages);storedType=inputType;if(lastPrefix>0){storedType=stages[lastPrefix-1].OutputType;}}
         builder.AppendLine($"{storedType} {prefix}Value=default!;");
-        if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault){builder.AppendLine($"bool {prefix}Found=false;");}
+        if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.Last or PipelineTerminalKind.LastOrDefault or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy){builder.AppendLine($"bool {prefix}Found=false;");}
+        if(terminalKind is PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy){builder.AppendLine($"{func1!.ReturnTypeName} {prefix}Key=default!;");}
     }
     private void AppendTransactionalOutputConsumer(StringBuilder builder,string prefix,string inputType,IReadOnlyList<PipelineStage> stages){
         var more=this.TransactionalContinue(prefix,stages);
@@ -94,6 +96,12 @@ internal sealed partial class PipelineTerminal{
             if(func2 is not null){builder.AppendLine($"{func2.ReturnTypeName} __outputValue=default!;");builder.AppendLine(this.FuncAssignStatic(func2,"ToDictionary","__outputValue",value));value="__outputValue";}
             builder.AppendLine($"{prefix}.Add(__outputKey,{value});");
         }else if(terminalKind is PipelineTerminalKind.Count or PipelineTerminalKind.LongCount){builder.AppendLine($"{prefix}Value=checked({prefix}Value+1);");}
+        else if(terminalKind is PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy){
+            // 一般経路の MinBy/MaxBy と同じく既定の比較器で比べ、同じキーなら先に来た値を残す。キーは1件に1回だけ計算する。
+            var comparison=terminalKind==PipelineTerminalKind.MaxBy?">0":"<0";
+            builder.AppendLine($"{func1!.ReturnTypeName} __outputKey=default!;");builder.AppendLine(this.FuncAssignStatic(func1,terminalKind.ToString(),"__outputKey",value));
+            builder.AppendLine($"if(!{prefix}Found||global::System.Collections.Generic.Comparer<{func1.ReturnTypeName}>.Default.Compare(__outputKey,{prefix}Key){comparison}){{{prefix}Value={value};{prefix}Key=__outputKey;{prefix}Found=true;}}");
+        }
         else if(terminalKind==PipelineTerminalKind.Sum){
             var nullable=pipeline.ElementType.EndsWith("?",StringComparison.Ordinal)||pipeline.ElementType.Contains("Nullable<");
             if(nullable){builder.AppendLine($"if({value}.HasValue){{{prefix}Value=checked({prefix}Value+{value}.GetValueOrDefault());}}");}
@@ -125,7 +133,7 @@ internal sealed partial class PipelineTerminal{
                 if(terminalKind==PipelineTerminalKind.Last){builder.AppendLine("throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();");}
                 else{builder.AppendLine($"return default({actualType})!;");}return;
             }
-            if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.Last){builder.AppendLine($"if(!{prefix}Found){{throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();}}");}
+            if(terminalKind is PipelineTerminalKind.First or PipelineTerminalKind.Last or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy){builder.AppendLine($"if(!{prefix}Found){{throw global::Seamless.Linq.GeneratedCodeHelpers.NoElements();}}");}
             builder.AppendLine($"return ({actualType}){prefix}Value;");
         }
     }

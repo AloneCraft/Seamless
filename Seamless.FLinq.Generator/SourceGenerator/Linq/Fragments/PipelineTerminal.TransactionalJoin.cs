@@ -14,6 +14,9 @@ internal sealed partial class PipelineTerminal{
         var supportedTail=IsTransactionalTail(tail)||TryTransactionalOrder(tail,out order);
         return $"// [Join/取引接続] 専用終端未接続: terminal={terminalKind},出力対応={this.SupportsTransactionalOutput},後段対応={supportedTail},外側={join.TransactionOuter.GetType().Name}/{TransactionJoinInput(join.TransactionOuter,out _,out _)},内側={join.TransactionInner.GetType().Name}/{TransactionJoinInput(join.TransactionInner,out _,out _)},結果型引数={join.TransactionResult.RequiresResultTypeParameter},外側キー型引数={join.TransactionOuterKey.RequiresResultTypeParameter},内側キー型引数={join.TransactionInnerKey.RequiresResultTypeParameter},内側キーhoist={join.TransactionInnerKey.HoistedLocals.Length},段={string.Join(",",tail.Select(static stage=>stage.Kind))}。一般経路の同期・予算をこの専用経路の保証へ読み替えない。";
     }
+    // 取引用の専用終端が整列を重ねて扱える入力(取引の行、または両側が取引の行の結合)。組み立て側が整列で列を切るか決めるのに使う。
+    internal static bool IsTransactionalOrderSource(Enumerable source)=>source is TransactionRowsRoot
+        ||source is Join join&&TransactionJoinInput(join.TransactionOuter,out _,out _)&&TransactionJoinInput(join.TransactionInner,out _,out _);
     private static bool TransactionJoinInput(Enumerable source,out TransactionRowsRoot root,out PipelineStage[] stages){
         stages=[];
         if(source is PipelineEnumerable input){source=input.Source;stages=input.Stages.ToArray();}

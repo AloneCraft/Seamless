@@ -19,8 +19,9 @@ internal sealed partial class NativeRuntime{
         var gate=this.Gate("db:"+admittedId);
         await gate.WaitAsync(cancellation).ConfigureAwait(false);
         try{
-            authorize?.Invoke();
+            // 受付後に名前が別のDBへ付け替えられたなら、新しいDBへの権限より先に接続先の変更(Conflict)として扱う。
             var version=this.RowEditingVersion(request.Database,request.ExpectedVersion,admittedId);
+            authorize?.Invoke();
             var database=this.Open(version).Database;
             var declaration=FindRowTable(DatabaseTableDeclaration.Read(database.GetType()),request.Table);
             var read=RowHandler<Func<object,TableRowsRequest,long,CancellationToken,TableRows>>(declaration,nameof(ReadTypedRows));

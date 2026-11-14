@@ -75,7 +75,7 @@ internal sealed partial class PipelineTerminal{
             builder.AppendLine($"var {next}=global::System.Linq.Enumerable.{item.Kind}({current},{argument});");current=next;
         }
         if(materializes){builder.AppendLine($"return global::System.Linq.Enumerable.{terminalKind}({current});");}
-        else if(terminalKind==PipelineTerminalKind.ToDictionary){
+        else if(terminalKind is PipelineTerminalKind.ToDictionary or PipelineTerminalKind.MinBy or PipelineTerminalKind.MaxBy){
             this.AppendTransactionalOutputState(builder,scope,result,actualTypeName,pipeline.ElementType,[]);
             this.AppendTransactionalOutputConsumer(builder,result,pipeline.ElementType,[]);
             builder.AppendLine($"foreach(var __output in {current}){{{result}Consume(__output);}}");this.AppendTransactionalOutputReturn(builder,result,actualTypeName,[]);

@@ -284,6 +284,12 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
             return false;
         }else{
         }
+        // Take / Skip を越えて整列を消すと、整列より前の段が呼ぶラムダの回数が変わる。System.Linq は整列のために入力を全件読み、
+        // 前の Select・Where・GroupBy などのラムダを全要素で呼ぶが、消した後は Take の件数で止まる。前にラムダを呼ぶ段があれば消さない。
+        if(intermediateStages.Any(static stage=>stage.MethodName is "Take" or "Skip")&&this.HasUpstreamCallback(cur)){
+            return false;
+        }else{
+        }
         // 途中で止まる終端(Any / All / Contains)は、止まるまでにラムダを評価するなら(述語つきの終端、Where、Contains の手前の Select など)、
         // 並べ替え・Reverse を消すと System.Linq と別の要素にラムダを評価する(例外の有無が変わる)。要素ごとに System.Linq に合わせるので消さない。
         // 整数/decimal Sumの途中overflowによる停止は上の型判定で順序を保持する。
@@ -302,6 +308,15 @@ internal sealed class AlgebraicRewriter:CSharpSyntaxRewriter {
         }
         result=CreateCallWithArgumentList(rewritten,terminalName,node.ArgumentList);
         return true;
+    }
+    // source より手前に、引数(ラムダ・メソッドグループ・比較器など)を取る Enumerable の段があるか。リテラルの引数だけの段は呼び出しを持たない。
+    private bool HasUpstreamCallback(ExpressionSyntax source){
+        var cur=Strip(source);
+        while(cur is InvocationExpressionSyntax inv&&this.TryGetEnumerableExtensionCall(inv,out _,out var receiver,out var args)){
+            if(args.Any(static arg=>arg.Expression is not LiteralExpressionSyntax)){return true;}
+            cur=Strip(receiver);
+        }
+        return false;
     }
     // src.Distinct().Union(second) -> src.Union(second)
     // src.DistinctBy(k).UnionBy(second, k) -> src.UnionBy(second, k)

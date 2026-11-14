@@ -25,7 +25,9 @@ public sealed partial class FLinqIncrementalGenerator {
         var collectedPlans=new List<ExecutionPlanDraft>();
         builder.AppendLine("#nullable enable annotations");
         builder.AppendLine("#nullable disable warnings");
-        builder.AppendLine("#pragma warning disable CS0414, CS0649");
+        // CS0162: First・Any などの早く抜ける終端をループ本体へ融合すると、本体が必ず抜けて for の増分などに届かなくなる。
+        // 生成の形から必ず出るもので利用者が直せないため、未使用フィールド(CS0414・CS0649)と同じく生成ファイルでは止める。
+        builder.AppendLine("#pragma warning disable CS0414, CS0649, CS0162");
         builder.AppendLine("using System.Linq;");
 
 
@@ -163,6 +165,8 @@ public sealed partial class FLinqIncrementalGenerator {
                         if(!string.IsNullOrWhiteSpace(ローカル静的メソッド群)) {
                             インデント付き追記(builder,ローカル静的メソッド群,"    ");
                         }
+                        // [注釈] 元のソースの位置・入力の識別・設定・方針を、生成した傍受メソッドの前に残す(Debug では計画も定数で持つ)。
+                        GeneratedExecutionAnnotations.MethodPlan(builder,target,(state.Trace??new OptimizationTraceCollector(target.Method.ToDisplayString())).CreateDocument());
                         インターセプターXmlコメント追加(builder,target);
                         var planAttributes=new StringBuilder();
                         ExecutionPlanWriter.Append(planAttributes,target,state,ローカル本体,planDrafts,out var profileBinding);
