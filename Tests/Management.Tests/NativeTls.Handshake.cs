@@ -194,7 +194,9 @@ public sealed partial class NativeTls{
         async Task VerifyRejectedTdsAsync(SqlConnection connection){
             var error=await Assert.ThrowsAsync<SqlException>(()=>ReadTdsAsync(connection));
             Assert.NotEqual(-2,error.Number);
-            Assert.Equal(System.Data.ConnectionState.Closed,connection.State);
+            // Gateway が返すエラーの通知は常に重大度16なので、20以上は通知ではなく接続が切られたことを表す。
+            // 切断後に SqlConnection.State が Closed へ変わる時機は SqlClient 内部の進み方次第で、全件実行の負荷下では Open のまま返ることがあった。
+            Assert.True(error.Class>=20,$"接続が切られず通知で返った: number={error.Number} class={error.Class} message={error.Message}");
         }
         async Task VerifyHttpsAsync(bool expectResponse){
             using var socket=new TcpClient(AddressFamily.InterNetwork);
