@@ -144,6 +144,54 @@ public static class AggregateFunctions{
         }
         return total/count;
     }
+    /// <summary>MIN の値型版。</summary>
+    [SqlFunction("MIN")]
+    public static T? Min<T>(IEnumerable<T?> values)where T:struct,IComparable<T>{
+        return Extreme(values,-1);
+    }
+    /// <summary>MAX の値型版。</summary>
+    [SqlFunction("MAX")]
+    public static T? Max<T>(IEnumerable<T?> values)where T:struct,IComparable<T>{
+        return Extreme(values,1);
+    }
+    /// <summary>MIN の文字列版。照合順序で比べる。</summary>
+    [SqlFunction("MIN")]
+    public static string? Min(IEnumerable<string?> values,SqlCollation collation)=>Extreme(values,collation,-1);
+    /// <summary>MAX の文字列版。照合順序で比べる。</summary>
+    [SqlFunction("MAX")]
+    public static string? Max(IEnumerable<string?> values,SqlCollation collation)=>Extreme(values,collation,1);
+    /// <summary>COUNT(式)。NULL でない値の数。int に収まらなければ 8115。</summary>
+    [SqlFunction("COUNT")]
+    public static int Count<T>(IEnumerable<T> values){
+        long count=0;
+        foreach(var value in values){
+            if(value is not null){
+                count++;
+            }
+        }
+        if(count>int.MaxValue){
+            throw Overflow("int");
+        }
+        return (int)count;
+    }
+    private static T? Extreme<T>(IEnumerable<T?> values,int direction)where T:struct,IComparable<T>{
+        T? best=null;
+        foreach(var value in values){
+            if(value is{} number&&(best is not{} current||number.CompareTo(current)*direction>0)){
+                best=number;
+            }
+        }
+        return best;
+    }
+    private static string? Extreme(IEnumerable<string?> values,SqlCollation collation,int direction){
+        string? best=null;
+        foreach(var value in values){
+            if(value is not null&&(best is null||collation.Compare(value.TrimEnd(' '),best.TrimEnd(' '))*direction>0)){
+                best=value;
+            }
+        }
+        return best;
+    }
     /// <summary>STRING_AGG。NULL を飛ばして区切りでつなぐ。値が無ければ NULL。並び順は呼び出し側(WITHIN GROUP)が決める。</summary>
     [SqlFunction("STRING_AGG")]
     public static string? StringAgg(IEnumerable<string?> values,string? separator){

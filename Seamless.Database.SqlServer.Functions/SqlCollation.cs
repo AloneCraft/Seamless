@@ -95,6 +95,19 @@ public sealed class SqlCollation{
         }
         return position+startIndex;
     }
+    /// <summary>
+    /// GROUP BY・DISTINCT・結合のキーに使う形。この照合順序で等しい文字列(大文字小文字の違い、末尾の空白など)は同じ値になる。
+    /// </summary>
+    public string? GroupKey(string? text){
+        if(text is null){
+            return null;
+        }
+        var trimmed=text.TrimEnd(' ');
+        if(this.IsBinary){
+            return trimmed;
+        }
+        return Convert.ToHexString(this.compareInfo.GetSortKey(trimmed,this.Options).KeyData);
+    }
     /// <summary>大文字へ変換する。言語はこの照合順序の言語。</summary>
     public string ToUpper(string text)=>this.culture.TextInfo.ToUpper(text);
     /// <summary>小文字へ変換する。言語はこの照合順序の言語。</summary>

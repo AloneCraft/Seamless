@@ -64,6 +64,20 @@ public static class SqlTemporal{
         var quantum=Quantum(scale);
         return new DateTimeOffset((offset.Ticks+quantum/2)/quantum*quantum,offset.Offset);
     }
+    /// <summary>date の列(DateOnly)を、関数が受け取る DateTime へ。</summary>
+    public static DateTime? FromDateOnly(DateOnly? value){
+        if(value is not{} date){
+            return null;
+        }
+        return date.ToDateTime(TimeOnly.MinValue);
+    }
+    /// <summary>関数が返した DateTime を、date の列(DateOnly)へ。時刻は捨てる。</summary>
+    public static DateOnly? ToDateOnly(DateTime? value){
+        if(value is not{} date){
+            return null;
+        }
+        return DateOnly.FromDateTime(date);
+    }
     internal static long Quantum(byte scale){
         if(scale>7){
             throw new SqlFunctionException("Specified scale is invalid.",1002);

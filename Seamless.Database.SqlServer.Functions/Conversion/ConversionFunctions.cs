@@ -252,6 +252,91 @@ public static class ConversionFunctions{
         }
         return collation.Encoding.GetBytes(text);
     }
+    // ---- 数値どうし・文字列の長さ ----
+    /// <summary>decimal を整数型へ。0の方へ切り捨てる。型に入らなければ 8115。</summary>
+    public static long? ToInteger(decimal? value,long minimum,long maximum,string typeName){
+        if(value is not{} number){
+            return null;
+        }
+        var truncated=decimal.Truncate(number);
+        if(truncated<minimum||truncated>maximum){
+            throw new SqlFunctionException($"Arithmetic overflow error converting numeric to data type {typeName}.",8115);
+        }
+        return (long)truncated;
+    }
+    /// <summary>float を整数型へ。0の方へ切り捨てる。型に入らなければ 8115。</summary>
+    public static long? ToInteger(double? value,long minimum,long maximum,string typeName){
+        if(value is not{} number){
+            return null;
+        }
+        var truncated=Math.Truncate(number);
+        if(truncated<minimum||truncated>maximum){
+            throw new SqlFunctionException($"Arithmetic overflow error converting float to data type {typeName}.",8115);
+        }
+        return (long)truncated;
+    }
+    /// <summary>float を decimal へ。桁は呼び出し側が <see cref="SqlArithmetic.Fit"/> で合わせる。</summary>
+    public static decimal? ToDecimal(double? value){
+        if(value is not{} number){
+            return null;
+        }
+        try{
+            return (decimal)number;
+        }catch(OverflowException){
+            throw new SqlFunctionException("Arithmetic overflow error converting float to data type numeric.",8115);
+        }
+    }
+    /// <summary>整数を長さの決まった文字列型へ。入らなければ "*"(本物と同じ)。</summary>
+    public static string? IntegerToString(long? value,int length){
+        if(IntegerToString(value) is not{} text){
+            return null;
+        }
+        if(length>=0&&text.Length>length){
+            return "*";
+        }
+        return text;
+    }
+    /// <summary>char(n)・nchar(n) へ。長すぎれば切り、短ければ空白で埋める。</summary>
+    public static string? Fixed(string? text,int length){
+        if(text is null){
+            return null;
+        }
+        if(text.Length>length){
+            return text[..length];
+        }
+        return text.PadRight(length);
+    }
+    /// <summary>bit を整数へ。</summary>
+    public static int? BitToInteger(bool? value){
+        if(value is not{} bit){
+            return null;
+        }
+        if(bit){
+            return 1;
+        }
+        return 0;
+    }
+    /// <summary>数を bit へ。0以外は 1。</summary>
+    public static bool? ToBit(decimal? value){
+        if(value is not{} number){
+            return null;
+        }
+        return number!=0;
+    }
+    /// <summary>float を bit へ。0以外は 1。</summary>
+    public static bool? ToBit(double? value){
+        if(value is not{} number){
+            return null;
+        }
+        return number!=0;
+    }
+    /// <summary>CAST・CONVERT で長さの決まった文字列型へ。長すぎる分は切り捨てる(明示の変換なのでエラーにしない)。</summary>
+    public static string? Truncate(string? text,int length){
+        if(text is null||length<0||text.Length<=length){
+            return text;
+        }
+        return text[..length];
+    }
     // ---- 補助 ----
     private static long? StringToInt64(string? text,string typeName){
         if(text is null){
