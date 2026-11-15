@@ -109,7 +109,8 @@ public sealed partial class TransactionCoordinator:IAsyncDisposable{
     private async ValueTask<TransactionScope> Acquire(Marker marker,bool readOnly,CancellationToken cancellationToken,Guid? requestedId=null){
         var acquired=false;TransactionContext? context=null;
         try{
-            if(this.Concurrency==TransactionConcurrencyMode.Exclusive){await this.gate.WaitAsync(cancellationToken).ConfigureAwait(false);acquired=true;marker.HoldsExclusiveGate=true;}
+            // Exclusiveで1つずつ通すのは書き込みの取引だけ。版付きの保存があれば、読み込み専用の取引は開始時点の版を読むので待たない（2026-11-15の決定）。
+            if(this.Concurrency==TransactionConcurrencyMode.Exclusive&&!(readOnly&&this.versioned is not null)){await this.gate.WaitAsync(cancellationToken).ConfigureAwait(false);acquired=true;marker.HoldsExclusiveGate=true;}
             cancellationToken.ThrowIfCancellationRequested();ObjectDisposedException.ThrowIf(this.disposed||this.stopping,this);this.failure.ThrowIfFailed();
             var id=Guid.NewGuid();if(requestedId is{} requested){id=requested;}context=new(id,readOnly);
             if(this.versioned is not null){await this.versioned.Start(context,cancellationToken).ConfigureAwait(false);}
