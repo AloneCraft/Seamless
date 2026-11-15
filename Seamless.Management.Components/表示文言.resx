@@ -2435,18 +2435,11 @@
   <data name="入力テーブルのキーと投影先の列の対応を確定できません。" xml:space="preserve"><value>入力テーブルのキーと投影先の列の対応を確定できません。</value></data>
   <data name="結果型の決定方法" xml:space="preserve"><value>結果型の決定方法</value></data>
   <data name="結果型の自動決定に制限があります" xml:space="preserve"><value>結果型の自動決定に制限があります</value></data>
-  <data name="戻り型はC#の処理本体から決まります。" xml:space="preserve"><value>戻り型はC#の処理本体から決まります。</value></data>
-  <data name="結果列の型はC#の処理本体から決まります。" xml:space="preserve"><value>結果列の型はC#の処理本体から決まります。</value></data>
-  <data name="このビューはC#宣言の列を使用しています。匿名型の結果列を自動生成できる形では、処理本体から列を更新します。" xml:space="preserve"><value>このビューはC#宣言の列を使用しています。匿名型の結果列を自動生成できる形では、処理本体から列を更新します。</value></data>
-  <data name="この処理本体だけでは戻り型を決められません。現在のC#宣言の型を使います。" xml:space="preserve"><value>この処理本体だけでは戻り型を決められません。現在のC#宣言の型を使います。</value></data>
   <data name="この関数の形式は自動推論の対象外です。C#宣言の戻り型を使います。" xml:space="preserve"><value>この関数の形式は自動推論の対象外です。C#宣言の戻り型を使います。</value></data>
-  <data name="反映時に処理本体から戻り型を決定します。" xml:space="preserve"><value>反映時に処理本体から戻り型を決定します。</value></data>
   <data name="戻り値の暗黙変換を保持するため、C#宣言の型を使います。" xml:space="preserve"><value>戻り値の暗黙変換を保持するため、C#宣言の型を使います。</value></data>
   <data name="この関数は列挙を単一値として返す宣言です。呼び出し時の評価を保持しています。" xml:space="preserve"><value>この関数は列挙を単一値として返す宣言です。呼び出し時の評価を保持しています。</value></data>
-  <data name="引数は構造画面で編集し、戻り型はC#の処理本体で指定します。" xml:space="preserve"><value>引数は構造画面で編集し、戻り型はC#の処理本体で指定します。</value></data>
   <data name="値" xml:space="preserve"><value>値</value></data>
   <data name="非同期の戻り値を待機する実行は未対応です。同期的な値を返す処理を指定してください。" xml:space="preserve"><value>非同期の戻り値を待機する実行は未対応です。同期的な値を返す処理を指定してください。</value></data>
-  <data name="匿名型の列挙を返すと、反映時に結果列を更新します。" xml:space="preserve"><value>匿名型の列挙を返すと、反映時に結果列を更新します。</value></data>
   <data name="スキーマを追加" xml:space="preserve">
     <value>スキーマを追加</value>
   </data>
@@ -2540,4 +2533,7 @@
   <data name="生成コードを表示" xml:space="preserve">
     <value>生成コードを表示</value>
   </data>
+  <data name="処理本体は、結果列の行の型の集合を返してください。" xml:space="preserve"><value>処理本体は、結果列の行の型の集合を返してください。</value></data>
+  <data name="戻り型を ISet&lt;行の型&gt; にするとテーブル関数になり、結果列を編集できます。" xml:space="preserve"><value>戻り型を ISet&lt;行の型&gt; にするとテーブル関数になり、結果列を編集できます。</value></data>
+  <data name="スカラー関数には結果列がありません。引数と戻り型を編集してください。" xml:space="preserve"><value>スカラー関数には結果列がありません。引数と戻り型を編集してください。</value></data>
 </root>
