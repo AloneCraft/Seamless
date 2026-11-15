@@ -7,7 +7,7 @@ namespace Seamless.FLinq.Generator;
 /// ビュー・関数の本体はこの形で書く(Document/refactoring-designs/20261112-DBアクセスモデル.md の手順3)。
 /// <list type="bullet">
 /// <item><description>集合の連鎖の先頭に IEnumerable<T> への変換を挟み、以降を System.Linq.Enumerable の演算へ結び付ける。</description></item>
-/// <item><description>Set の Select・SelectMany・Join は結果の重複を除くので、下げた後に Distinct() を足す。Where・Union・Intersect・Except・Distinct は System.Linq も同じ結果になる。</description></item>
+/// <item><description>Set の Select・SelectMany・Join・LeftJoin は結果の重複を除くので、下げた後に Distinct() を足す。Where・Union・Intersect・Except・Distinct は System.Linq も同じ結果になる。</description></item>
 /// <item><description>下げるのは、結果を LINQ の演算が受け取る連鎖だけ。ISet のまま使う箇所(Count プロパティ・ISet の変数へ代入など)は元のまま残す。</description></item>
 /// </list>
 /// 下げた結果に型の誤りが出たら、何も下げない(呼び出し先の Set のまま動く)。
@@ -79,7 +79,7 @@ internal static class SetCallLowering{
             }
             ExpressionSyntax lowered=visited.WithExpression(access.WithExpression(receiver));
             // Set.SelectMany の集合を返すラムダの戻り値なら、外側が結果全体の重複を除くので、内側で除かなくても結果は同じ。
-            if(method.Name is "Select" or "SelectMany" or "Join"&&!IsCollectionOfSetSelectMany(node,model)){
+            if(method.Name is "Select" or "SelectMany" or "Join" or "LeftJoin"&&!IsCollectionOfSetSelectMany(node,model)){
                 lowered=SyntaxFactory.InvocationExpression(SyntaxFactory.MemberAccessExpression(SyntaxKind.SimpleMemberAccessExpression,
                     lowered,SyntaxFactory.IdentifierName("Distinct")));
             }

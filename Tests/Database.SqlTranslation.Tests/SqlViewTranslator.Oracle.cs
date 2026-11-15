@@ -89,6 +89,15 @@ public sealed partial class SqlViewTranslator{
         "SELECT Id, DATENAME(month, Joined) AS M, DATEPART(week, Joined) AS W, EOMONTH(Joined) AS E FROM {Customer}",
         "SELECT * FROM {Customer} WHERE Credit IS NOT NULL",
         "SELECT o.CustomerId, SUM(o.Amount * o.Qty) AS Total FROM {Orders} o INNER JOIN {Customer} c ON c.Id = o.CustomerId WHERE c.City IS NOT NULL GROUP BY o.CustomerId",
+        // GROUP BY の無い集約(表が空でも1行)。
+        "SELECT COUNT(*) AS N, MAX(Credit) AS M, AVG(Credit) AS A, SUM(Rating) AS R FROM {Customer}",
+        "SELECT COUNT(*) AS N, SUM(Amount) AS S, MIN(Note) AS F FROM {Orders} WHERE 1 = 0",
+        "SELECT COUNT(DISTINCT CustomerId) AS C FROM {Orders} HAVING COUNT(*) > 3",
+        // 左外部結合: 文字列のキー(照合順序で等しいもの)、複数のキー、= で結べない条件(総当たり)。
+        "SELECT c.Id, o.OrderId FROM {Customer} c LEFT JOIN {Orders} o ON o.Note = c.City",
+        "SELECT c.Id, c2.Id AS Other FROM {Customer} c LEFT JOIN {Customer} c2 ON c2.City = c.City AND c2.Rating = c.Rating",
+        "SELECT c.Id, c2.Id AS Other FROM {Customer} c LEFT JOIN {Customer} c2 ON c2.City = c.City AND c2.Id <> c.Id",
+        "SELECT c.Id, o.OrderId FROM {Customer} c LEFT JOIN {Orders} o ON o.Amount > c.Credit",
     ];
     /// <summary>
     /// 同じデータを本物の SQL Server(一時表)と、訳してコンパイルした C# の両方で問い合わせ、結果の行の集合とエラー番号が一致することを確かめる。

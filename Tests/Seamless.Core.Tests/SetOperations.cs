@@ -69,6 +69,34 @@ public sealed class SetOperations {
     }
 
     [Fact]
+    public void LeftJoinKeepsUnmatchedOuterRowsWithNullInner() {
+        var customers = new CountingSet<(int Id, string Name)>((1,"A"),(2,"B"),(3,"C"));
+        var orders = new (int? Customer, int Amount)?[] { (1,10),(1,20),(2,30),(null,40),(1,20) };
+        var joined = customers.LeftJoin(orders,c => (int?)c.Id,o => o!.Value.Customer,(c,o) => (c.Name,o?.Amount));
+        // 対応のある組、対応の無い C は内側が null。重複した組は1回だけ。
+        Assert.Equal([("A",(int?)10),("A",20),("B",30),("C",null)],joined.Order());
+        Assert.True(joined.Contains(("C",null)));
+
+        // null のキーの外側は、どれとも結ばずに内側を null にする。
+        var nullable = new CountingSet<string?>("x",null);
+        var keyed = nullable.LeftJoin(new string?[] { "x",null },x => x,y => y,(x,y) => (x,y));
+        Assert.Equal([((string?)null,(string?)null),("x","x")],keyed.OrderBy(static pair => pair.x));
+    }
+
+    [Fact]
+    public void OfHasExactlyOneElement() {
+        var single = Set.Of(0);
+        Assert.Equal(0,Assert.Single(single));
+        Assert.Equal(1L,single.GetLongCount());
+        Assert.True(single.Contains(0));
+        Assert.False(single.Contains(1));
+
+        // 元の集合が空でも、1つの要素から集約した値の集合は1行になる。
+        var empty = new CountingSet<int>();
+        Assert.Equal([0],Set.Of(0).Select(_ => empty.Count()));
+    }
+
+    [Fact]
     public void SetOperationsAnswerFromBothSets() {
         var first = new CountingSet<int>(1,2,3,4);
         var second = new CountingSet<int>(3,4,5);

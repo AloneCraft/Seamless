@@ -64,7 +64,14 @@ internal sealed class CSharpEmitter{
         var source=this.Filtered(select,context,out var x);
         if(select.GroupBy.Count==0){
             if(select.HasAggregates){
-                throw new TranslationUnsupportedException("SQLT120","GROUP BY の無い集約のビュー(結果が1行の集合を作る演算が Seamless.Linq.Set に無い)",0,0);
+                // GROUP BY の無い集約は、表が空でも1行を返す。1つの要素の集合から、絞り込んだ行の全体を集約する。
+                var unit=this.Variable("u");
+                var whole=context.WithGroup(select.Scope,source,new(unit,[]));
+                var start=$"global::Seamless.Linq.Set.Of(0)";
+                if(select.Having is not null){
+                    start=$"{start}.Where({unit}=>({this.Expression(select.Having,whole)})==true)";
+                }
+                return $"{start}.Select({unit}=>{project(unit,whole)})";
             }
             var inner=context.With(select.Scope,new(x,[]));
             return $"{source}.Select({x}=>{project(x,inner)})";
@@ -120,6 +127,10 @@ internal sealed class CSharpEmitter{
                 var j=this.Variable("j");
                 if(join.Kind==JoinKind.Left){
                     var tuple=$"({join.Left.ElementType},{join.Right.ElementType}?)";
+                    if(this.HashLeftJoin(join,left,right,tuple,context,scope,l,r) is{} hashed){
+                        return hashed;
+                    }
+                    // = で結べない条件(左右にまたがる不等式など)は、左の行ごとに右を全部見る。
                     var condition="true";
                     if(join.Condition is not null){
                         condition=$"({this.Expression(join.Condition,context.With(scope,new(j,join.Prefix)))})==true";
@@ -166,6 +177,62 @@ internal sealed class CSharpEmitter{
             default:
                 throw new InvalidOperationException(from.GetType().Name);
         }
+    }
+    /// <summary>
+    /// 左外部結合を Set.LeftJoin(右側をキーで引く)で出す。ON の条件は、左右を = で結ぶもの(キー)と、右の表だけを見るもの(先に右を絞る)に分けられるときだけ使う。
+    /// それ以外の条件を含むときは null を返す(呼び出し側が総当たりで出す)。
+    /// </summary>
+    private string? HashLeftJoin(BoundJoinFrom join,string left,string right,string tuple,Context context,BoundScope scope,string l,string r){
+        if(join.Condition is null){
+            return null;
+        }
+        var leftRows=SqlBinder.RowsUnder(join.Left);
+        var rightRows=SqlBinder.RowsUnder(join.Right);
+        var leftKeys=new List<string>();
+        var rightKeys=new List<string>();
+        var rightOnly=new List<BoundExpression>();
+        foreach(var conjunct in SqlBinder.Conjuncts(join.Condition)){
+            if(conjunct is BoundComparison{Operation:"Equal"} equal&&this.EquiKeys(equal,scope,leftRows,rightRows,join,context,l,$"{r}.Value") is{} keys){
+                leftKeys.Add(keys.Left);
+                rightKeys.Add(keys.Right);
+                continue;
+            }
+            var rows=SqlBinder.RowsOf(conjunct,scope);
+            if(rows.IsSubsetOf(rightRows)&&!ContainsSubquery(conjunct)){
+                rightOnly.Add(conjunct);
+                continue;
+            }
+            return null;
+        }
+        if(leftKeys.Count==0){
+            return null;
+        }
+        var source=right;
+        if(rightOnly.Count>0){
+            var v=this.Variable("r");
+            var predicate=rightOnly.Aggregate(static (x,y)=>new BoundLogical('&',x,y));
+            source=$"{right}.Where({v}=>({this.Expression(predicate,context.With(scope,new(v,join.Right.Prefix)))})==true)";
+        }
+        var leftKey=leftKeys[0];
+        var rightKey=rightKeys[0];
+        if(leftKeys.Count>1){
+            leftKey=$"{F}.SqlJoinKey.Of({string.Join(",",leftKeys)})";
+            rightKey=$"{F}.SqlJoinKey.Of({string.Join(",",rightKeys)})";
+        }
+        // 右の行は Nullable にして渡す(対応の無い左の行で、右が既定値の構造体ではなく null になるように)。
+        var n=this.Variable("r");
+        var a=this.Variable("l");
+        var b=this.Variable("r");
+        return $"{left}.LeftJoin({source}.Select({n}=>({join.Right.ElementType}?){n}),{l}=>{leftKey},{r}=>{rightKey},({a},{b})=>({tuple})({a},{b}))";
+    }
+    private static bool ContainsSubquery(BoundExpression expression){
+        var found=false;
+        SqlBinder.Visit(expression,node=>{
+            if(node is BoundExists or BoundInSubquery or BoundScalarSubquery){
+                found=true;
+            }
+        });
+        return found;
     }
     // = の片側が左の表だけ、もう片側が右の表だけを参照していれば、両側のキーの式を返す。文字列は照合順序で等しいものを同じキーにする。
     private (string Left,string Right)? EquiKeys(BoundComparison equal,BoundScope scope,HashSet<RowBinding> leftRows,HashSet<RowBinding> rightRows,BoundJoinFrom join,Context context,string l,string r){
