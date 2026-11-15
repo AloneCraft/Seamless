@@ -72,6 +72,50 @@ public sealed class SetCallLoweringTests {
         }
         """;
 
+    // まとめる演算・外部結合・1つの値を求める演算。写す形(GroupBy の resultSelector・GroupJoin・RightJoin)は下げた後に重複を除く。
+    private const string GroupingSource = """
+        using System.Collections.Generic;
+        using System.Linq;
+        using Seamless.FLinq;
+        using Seamless.Linq;
+        namespace Sample;
+        public sealed class Rows:Seamless.Collections.ISet<int>{
+            private readonly HashSet<int> items;
+            public Rows(params int[] values){this.items=new HashSet<int>(values);}
+            public int Count=>this.items.Count;
+            public bool Contains(int item)=>this.items.Contains(item);
+            public IEnumerator<int> GetEnumerator()=>this.items.GetEnumerator();
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()=>this.GetEnumerator();
+        }
+        public sealed class Probe{
+            [LinqIntercept(true)]
+            private static int[] Groups(Rows rows)=>rows.GroupBy(x=>x%3).Select(g=>g.Key*10+g.Count()).ToArray();
+            [LinqIntercept(true)]
+            private static int GroupKeys(Rows rows)=>rows.GroupBy(x=>x%2,(key,_)=>key).Count();
+            [LinqIntercept(true)]
+            private static int[] Right(Rows rows,Rows other)=>rows.RightJoin(other,x=>x,y=>y,(x,_)=>x).ToArray();
+            [LinqIntercept(true)]
+            private static int[] GroupJoined(Rows rows,Rows other)=>rows.GroupJoin(other,x=>x%2,y=>y%2,(_,ys)=>ys.Count()).ToArray();
+            [LinqIntercept(true)]
+            private static bool AnyOver(Rows rows,int value)=>rows.Where(x=>x>value).Any();
+            public static string Run(){
+                var rows=new Rows(1,2,3,4,5,6);
+                var other=new Rows(4,5,6,7);
+                return string.Join(",",Groups(rows).OrderBy(x=>x))+"|"+GroupKeys(rows)+"|"+string.Join(",",Right(rows,other).OrderBy(x=>x))+"|"+string.Join(",",GroupJoined(rows,other))+"|"+AnyOver(rows,5)+","+AnyOver(rows,6);
+            }
+        }
+        """;
+
+    [Fact]
+    public void GroupingJoinsAndTerminalsAreExpandedWithTheSameSetResults() {
+        var (compilation,generated) = ExecutableGeneration.Generate(GroupingSource,"SetGroupingLowering",5);
+        var result = ExecutableGeneration.Run(compilation,"Sample.Probe",probe => (string)probe.GetMethod("Run")!.Invoke(null,null)!);
+        // 対応の無い 7 の外側は int の既定値 0。GroupJoin の結果はすべて 2 なので、重複を除いて1つ。
+        Assert.Equal("2,12,22|2|0,4,5,6|2|True,False",result);
+        var executable = GeneratedSourceAssert.ExecutableText(generated);
+        Assert.DoesNotContain("global::Seamless.Linq.Set.",executable);
+    }
+
     [Fact]
     public void LazyResultsCanBeEnumeratedAgain() {
         var (compilation,_) = ExecutableGeneration.Generate(LazySource,"LazySetCallLowering",0);

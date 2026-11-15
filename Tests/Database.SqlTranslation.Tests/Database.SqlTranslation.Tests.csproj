@@ -13,6 +13,8 @@
     <ProjectReference Include="../../Seamless.Database.SqlTranslation/Seamless.Database.SqlTranslation.csproj" />
     <ProjectReference Include="../../Seamless.Linq/Seamless.Linq.csproj" />
     <ProjectReference Include="../../Seamless.Collections/Seamless.Collections.csproj" />
+    <!-- GROUP BY の訳し方の実験で、FLinq の生成器を小さなコードに当てる(この試験プロジェクト自身には生成器をかけない)。 -->
+    <ProjectReference Include="../../Seamless.FLinq.Generator/Seamless.FLinq.Generator.csproj" ReferenceOutputAssembly="true" />
   </ItemGroup>
   <ItemGroup>
     <!-- 本物の SQL Server から取った、サンプルDBのビューの定義と列(Database.Query.Tests と同じもの)。 -->

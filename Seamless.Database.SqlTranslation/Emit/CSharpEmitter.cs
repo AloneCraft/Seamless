@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 namespace Seamless.Database.SqlTranslation;
 /// <summary>
-/// 束縛済みの中間表現から C# の式を作る。集合の演算は Seamless.Linq.Set(ISet を受けて ISet を返す)だけを使い、
+/// 束縛済みの中間表現から C# の式を作る。集合の演算は Seamless.Linq.Set(ISet を受けて ISet を返す。GROUP BY は Set.GroupBy)を使い、
 /// 集約や副問い合わせの中の列挙は System.Linq.Enumerable を静的に呼ぶ(ISet の Select の重複除去を通さないため)。
 /// 値の演算は関数の部品(SqlCompare・SqlArithmetic など)を呼び、SQL の NULL と三値論理に合わせる。
 /// </summary>
@@ -96,21 +96,20 @@ internal sealed class CSharpEmitter{
             var inner=context.With(select.Scope,new(x,[]));
             return $"{source}.Select({x}=>{project(x,inner)})";
         }
-        // GROUP BY: キーの集合を作り、キーごとに元の行を集め直す。文字列のキーは照合順序で等しいものを同じにする。
+        // GROUP BY: Set.GroupBy で元の行を1回読んで組を作る。文字列のキーは照合順序で等しいものを同じにする(GroupKey)。
+        // 集約は組の行を列挙する。GROUP BY の列は組の最初の行から読む(キーは照合順序で揃えた値なので、出力には元の行の値を使う)。
+        // 組は行を重複を除かずに持つので、同じ値の行も集約に数える。HAVING は組の Where にする。
         var scope=select.Scope;
         var key=this.Key(select,context.With(scope,new(x,[])));
-        var k=this.Variable("k");
         var g=this.Variable("g");
         var first=this.Variable("f");
-        var memberSource=this.Filtered(select,context,out var member);
-        var members=$"{memberSource}.Where({member}=>global::System.Object.Equals({this.Key(select,context.With(scope,new(member,[])))},{k}))";
         var groupContext=context.WithGroup(scope,g,new(first,[]));
         var body=new StringBuilder();
-        body.Append($"{source}.Select({x}=>{key})");
+        body.Append($"{source}.GroupBy({x}=>{key})");
         if(select.Having is not null){
-            body.Append($".Where({k}=>{{var {g}={members};var {first}={Enumerable}.First({g});return ({this.Expression(select.Having,groupContext)})==true;}})");
+            body.Append($".Where({g}=>{{var {first}={Enumerable}.First({g});return ({this.Expression(select.Having,groupContext)})==true;}})");
         }
-        body.Append($".Select({k}=>{{var {g}={members};var {first}={Enumerable}.First({g});return {project(first,groupContext)};}})");
+        body.Append($".Select({g}=>{{var {first}={Enumerable}.First({g});return {project(first,groupContext)};}})");
         return body.ToString();
     }
     private string Filtered(BoundSelect select,Context context,out string variable){

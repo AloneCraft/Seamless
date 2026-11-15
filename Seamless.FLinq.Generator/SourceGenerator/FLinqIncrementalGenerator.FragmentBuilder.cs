@@ -2894,8 +2894,10 @@ public sealed partial class FLinqIncrementalGenerator {
             => this.TryRewriteGeneratedExpression(node,out var rewritten)
                 ? rewritten
                 : base.VisitMemberAccessExpression(node);
+        // var f=… の var は式として描き直さない。描き直すと推論された型の global::A.B のような式になり、型の位置へ戻せない(InvalidCastException)。
+        // 型の名前を書いた位置(非公開の型を近づける形へ置き換えるもの)は従来どおり描き直す。
         public override SyntaxNode? VisitIdentifierName(IdentifierNameSyntax node)
-            => this.TryRewriteGeneratedExpression(node,out var rewritten)
+            => !node.IsVar&&this.TryRewriteGeneratedExpression(node,out var rewritten)
                 ? rewritten
                 : base.VisitIdentifierName(node);
         public override SyntaxNode? VisitObjectCreationExpression(ObjectCreationExpressionSyntax node)
