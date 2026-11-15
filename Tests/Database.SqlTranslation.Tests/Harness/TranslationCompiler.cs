@@ -53,7 +53,10 @@ public sealed class ListSet<T>(IEnumerable<T> items):Seamless.Collections.ISet<T
 /// 仮のコンテナの表は <see cref="StubData"/> から読む。
 /// </summary>
 internal static class TranslationCompiler{
-    internal sealed record Result(Assembly? Assembly,IReadOnlyList<string> Errors,string Source);
+    internal sealed record Result(Assembly? Assembly,IReadOnlyList<string> Errors,string Source,AssemblyLoadContext? Context=null){
+        /// <summary>読み込んだアセンブリを外す(大きなデータを続けて試すときにメモリをためないため)。</summary>
+        public void Unload()=>this.Context?.Unload();
+    }
     /// <summary>目録の表(と訳せなかったビュー)の行の型と、読み取りの入口を作る。</summary>
     internal static string StubSource(TranslationCatalog catalog,IReadOnlyList<CatalogRelation> relations,IReadOnlyCollection<ViewTranslation> translated){
         var done=translated.Where(static view=>view.Succeeded).Select(static view=>(view.Schema.ToUpperInvariant(),view.Name.ToUpperInvariant())).ToHashSet();
@@ -124,7 +127,7 @@ internal static class TranslationCompiler{
         }
         stream.Position=0;
         var context=new AssemblyLoadContext(assemblyName,true);
-        return new(context.LoadFromStream(stream),errors,string.Join("\n",sources));
+        return new(context.LoadFromStream(stream),errors,string.Join("\n",sources),context);
     }
     private static string Member(CatalogRelation relation)=>relation.Access[(relation.Access.LastIndexOf('.')+1)..];
     private static string Storage(CatalogColumn column){

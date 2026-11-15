@@ -373,8 +373,18 @@ internal sealed partial class SqlBinder{
             var text=new SqlTypeDescriptor(name2,-1,null,null,value.Type.Collation??this.catalog.DatabaseCollation);
             return new BoundAggregate("STRING_AGG",this.Convert(value,text,call,0,true),false,this.Convert(separator,text,call,0,true),text);
         }
-        var argument=this.BindScalar(call.Parameters[0],scope,false);
+        return this.Aggregate(name,this.BindScalar(call.Parameters[0],scope,false),distinct,call);
+    }
+    /// <summary>SUM・AVG・MIN・MAX の結果の型を決めて、集約を作る。</summary>
+    private BoundAggregate Aggregate(string name,BoundExpression argument,bool distinct,TSqlFragment call){
         var type=argument.Type;
+        if(name is "COUNT" or "COUNT_BIG"){
+            var countType=SqlTypeRules.Int;
+            if(name=="COUNT_BIG"){
+                countType=SqlTypeRules.BigInt;
+            }
+            return new BoundAggregate("COUNT",argument,distinct,null,countType);
+        }
         if(name is "MIN" or "MAX"){
             if(type.Name=="bit"){
                 throw Unsupported(call,"SQLT100",$"bit の {name}(本物ではエラー 8117)");
@@ -439,7 +449,7 @@ internal sealed partial class SqlBinder{
     }
     private static bool CanConvert(SqlTypeDescriptor source,SqlTypeDescriptor target){
         if(SqlTypeRules.IsString(target)){
-            return SqlTypeRules.IsString(source)||SqlTypeRules.IsNumeric(source)||source.Name is "bit" or "uniqueidentifier"||SqlTypeRules.IsTemporal(source);
+            return SqlTypeRules.IsString(source)||SqlTypeRules.IsNumeric(source)||source.Name is "bit" or "uniqueidentifier"||SqlTypeRules.IsTemporal(source)||SqlTypeRules.IsBinary(source);
         }
         if(SqlTypeRules.IsNumeric(target)||target.Name=="bit"){
             return SqlTypeRules.IsNumeric(source)||source.Name=="bit"||SqlTypeRules.IsString(source);

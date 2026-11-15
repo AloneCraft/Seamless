@@ -39,7 +39,10 @@ public sealed record CatalogColumn(string Name,string CSharpName,SqlTypeDescript
 /// <param name="RowType">行の型の完全な名前(global:: から)。</param>
 /// <param name="Columns">列。</param>
 /// <param name="IsView">ビューのとき true。</param>
-public sealed record CatalogRelation(string Schema,string Name,string Access,string RowType,IReadOnlyList<CatalogColumn> Columns,bool IsView=false);
+public sealed record CatalogRelation(string Schema,string Name,string Access,string RowType,IReadOnlyList<CatalogColumn> Columns,bool IsView=false){
+    /// <summary>列の値が式の中の C# の型のままか(派生表・PIVOT の行のタプル)。false なら生成された行の型(int・DateOnly など)から変換して読む。</summary>
+    public bool InternalValues{get;init;}
+}
 /// <summary>
 /// 翻訳に使う目録。表とビューの列と型、生成されるコンテナの名前を持つ。
 /// 取込の生成器が、自分の付けた C# の名前で作って渡す。

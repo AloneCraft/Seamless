@@ -40,24 +40,44 @@ internal sealed class CSharpEmitter{
     // ---- 問い合わせ ----
     /// <summary>問い合わせを、行を rowType の値にした ISet の式にする。</summary>
     public string Query(BoundQuery query,string rowType,IReadOnlyList<SqlTypeDescriptor> columnTypes){
-        return this.Query(query,rowType,columnTypes,new Context());
+        return this.Query(query,(codes,_)=>$"new {rowType}({string.Join(",",codes.Select((code,index)=>Output(code,columnTypes[index])))})",new Context(),0);
     }
-    private string Query(BoundQuery query,string rowType,IReadOnlyList<SqlTypeDescriptor> columnTypes,Context context){
+    // 問い合わせを ISet の式にする。行は、列の式の並びと、元の行を表す式(重複を残すための目印)から build で作る。
+    // branch は UNION ALL の左右を区別する番号(左右に同じ行があっても別の行として残す)。
+    private string Query(BoundQuery query,Func<IReadOnlyList<string>,string,string> build,Context context,int branch){
         switch(query){
             case BoundSetQuery set:{
-                var left=this.Query(set.Left,rowType,columnTypes,context);
-                var right=this.Query(set.Right,rowType,columnTypes,context);
-                // UNION ALL も集合として重複を除く(ビューは ISet を返す。利用者の決定 2026-11-15)。
+                var left=this.Query(set.Left,build,context,branch*2+1);
+                var right=this.Query(set.Right,build,context,branch*2+2);
+                // ビューの結果では UNION ALL も集合として重複を除く(ビューは ISet を返す。利用者の決定 2026-11-15)。
                 return $"{left}.{set.Operation}({right})";
             }
             case BoundSelect select:
-                return this.Select(select,context,(row,inner)=>{
-                    var columns=select.SelectItems.Select((item,index)=>Output(this.Expression(item.Expression,inner),columnTypes[index]));
-                    return $"new {rowType}({string.Join(",",columns)})";
-                });
+                return this.Select(select,context,(row,inner)=>build(select.SelectItems.Select(item=>this.Expression(item.Expression,inner)).ToList(),$"(object)({branch},{row})"));
             default:
                 throw new InvalidOperationException(query.GetType().Name);
         }
+    }
+    /// <summary>派生表の行の型。1列は ValueTuple&lt;T&gt;、2列以上はタプルの書き方(列は Item1・Item2…)。</summary>
+    internal static string TupleType(IReadOnlyList<SqlTypeDescriptor> types,bool identity){
+        var names=types.Select(SqlTypeRules.ClrType).ToList();
+        if(identity){
+            names.Add("object");
+        }
+        if(names.Count==1){
+            return $"global::System.ValueTuple<{names[0]}>";
+        }
+        return $"({string.Join(",",names)})";
+    }
+    private static string TupleValue(IReadOnlyList<SqlTypeDescriptor> types,bool identity,IReadOnlyList<string> codes,string row){
+        var values=codes.ToList();
+        if(identity){
+            values.Add(row);
+        }
+        if(values.Count==1){
+            return $"new {TupleType(types,identity)}({values[0]})";
+        }
+        return $"({TupleType(types,identity)})({string.Join(",",values)})";
     }
     // FROM・WHERE・GROUP BY・HAVING を ISet の演算に、行の作り方を project にする。
     private string Select(BoundSelect select,Context context,Func<string,Context,string> project){
@@ -119,6 +139,8 @@ internal sealed class CSharpEmitter{
         switch(from){
             case BoundTableFrom table:
                 return "q."+table.Row.Relation.Access;
+            case BoundDerivedFrom derived:
+                return this.Query(derived.Query,(codes,row)=>TupleValue(derived.Types,derived.Identity,codes,row),context,0);
             case BoundJoinFrom join:{
                 var left=this.From(join.Left,context,scope);
                 var right=this.From(join.Right,context,scope);
@@ -414,6 +436,9 @@ internal sealed class CSharpEmitter{
         }
         code.Append(Access(nullable)).Append(column.Column.CSharpName);
         var value=code.ToString();
+        if(column.Row.Relation.InternalValues){
+            return value;
+        }
         return column.Column.Type.Name switch{
             "date"=>$"{F}.SqlTemporal.FromDateOnly({value})",
             "real"=>$"(float?)({value})",
@@ -589,6 +614,8 @@ internal sealed class CSharpEmitter{
                 text=$"{F}.ConversionFunctions.FloatToString({value},{style})";
             }else if(source.Name=="uniqueidentifier"){
                 text=$"{F}.ConversionFunctions.GuidToString({value})";
+            }else if(SqlTypeRules.IsBinary(source)){
+                text=$"{F}.ConversionFunctions.BinaryToString({value},{SqlTypeRules.IsUnicode(target).ToString().ToLowerInvariant()},{Collation(target.Collation)})";
             }else if(SqlTypeRules.IsTemporal(source)){
                 text=$"{F}.ConversionFunctions.DateTimeToString({value},{F}.SqlTemporalType.{TemporalType(source)},{style},{source.Scale??7})";
             }else{

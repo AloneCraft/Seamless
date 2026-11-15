@@ -13,6 +13,10 @@ internal static class SampleCatalogs{
         ["Phone"]=("nvarchar",25),
         ["AccountNumber"]=("nvarchar",15),
         ["OrderNumber"]=("nvarchar",25),
+        // pubs の別名の型。
+        ["id"]=("varchar",11),
+        ["tid"]=("varchar",6),
+        ["empid"]=("char",9),
     };
     internal static IReadOnlyList<SampleDatabase> Load(){
         var definitions=Read("catalog.json");

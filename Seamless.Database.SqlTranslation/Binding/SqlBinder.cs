@@ -29,7 +29,7 @@ internal sealed partial class SqlBinder(TranslationCatalog catalog){
                     BinaryQueryExpressionType.Except=>SetOperation.Except,
                     _=>throw Unsupported(binary,"SQLT032",binary.BinaryQueryExpressionType.ToString())
                 };
-                return new BoundSetQuery(left,right,operation);
+                return new BoundSetQuery(left,right,operation,binary.All);
             }
             default:
                 throw Unsupported(query,"SQLT001",query.GetType().Name);
@@ -64,7 +64,7 @@ internal sealed partial class SqlBinder(TranslationCatalog catalog){
         foreach(var (join,condition) in joins){
             join.Condition=this.BindBoolean(condition,scope,false);
         }
-        var select=new BoundSelect(scope,from!);
+        var select=new BoundSelect(scope,from!){Distinct=query.UniqueRowFilter==UniqueRowFilter.Distinct};
         if(query.WhereClause is{} where){
             if(where.Cursor is not null){
                 throw Unsupported(where,"SQLT036","WHERE CURRENT OF");
@@ -202,6 +202,9 @@ internal sealed partial class SqlBinder(TranslationCatalog catalog){
             switch(node){
                 case BoundTableFrom table:
                     rows.Add(table.Row);
+                    break;
+                case BoundDerivedFrom derived:
+                    rows.Add(derived.Row);
                     break;
                 case BoundJoinFrom join:
                     Walk(join.Left);
@@ -383,6 +386,17 @@ internal sealed partial class SqlBinder(TranslationCatalog catalog){
                 var right=this.BindTableReference(unqualified.SecondTableReference,scope,joins);
                 return new BoundJoinFrom(left,right,JoinKind.Cross);
             }
+            case QueryDerivedTable derived:{
+                // 派生表は、外側の問い合わせの範囲(相関)だけを見る。同じ FROM のほかの表は見えない。
+                var query=this.Unify(this.BindQuery(derived.QueryExpression,scope.Outer));
+                IList<string>? names=null;
+                if(derived.Columns.Count>0){
+                    names=derived.Columns.Select(static column=>column.Value).ToList();
+                }
+                return this.Derived(query,derived.Alias?.Value??"",names,scope,derived);
+            }
+            case PivotedTableReference pivot:
+                return this.BindPivot(pivot,scope);
             case JoinParenthesisTableReference parenthesis:
                 return this.BindTableReference(parenthesis.Join,scope,joins);
             default:
@@ -395,6 +409,10 @@ internal sealed partial class SqlBinder(TranslationCatalog catalog){
             case BoundTableFrom table:
                 table.Row.Path=prefix;
                 table.Row.Nullable=nullable;
+                break;
+            case BoundDerivedFrom derived:
+                derived.Row.Path=prefix;
+                derived.Row.Nullable=nullable;
                 break;
             case BoundJoinFrom join:{
                 AssignPaths(join.Left,[..prefix,new("Item1",false)],nullable);
@@ -414,6 +432,114 @@ internal sealed partial class SqlBinder(TranslationCatalog catalog){
             throw new TranslationUnsupportedException("SQLT055",$"別名 {alias} が FROM に無い(本物ではエラー 4104)。",star.StartLine,star.StartColumn);
         }
         return rows;
+    }
+    // ---- 派生表 ----
+    /// <summary>問い合わせを、FROM の1つの表(行は値のタプル)にする。</summary>
+    private BoundDerivedFrom Derived(BoundQuery query,string alias,IList<string>? names,BoundScope scope,TSqlFragment at){
+        var items=query.Items;
+        if(names is not null&&names.Count!=items.Count){
+            throw new TranslationUnsupportedException("SQLT056","派生表の列の名前の数が、SELECT の列の数と違う(本物ではエラー 8158)。",at.StartLine,at.StartColumn);
+        }
+        var types=new List<SqlTypeDescriptor>();
+        var columns=new List<CatalogColumn>();
+        for(var index=0;index<items.Count;index++){
+            var type=items[index].Expression.Type;
+            if(SqlTypeRules.IsNull(type)){
+                type=SqlTypeRules.Int;
+            }
+            var name=names?[index]??items[index].Name;
+            if(name.Length==0){
+                throw new TranslationUnsupportedException("SQLT057",$"派生表の{index+1}番目の列に名前が無い(本物ではエラー 8155)。",at.StartLine,at.StartColumn);
+            }
+            types.Add(type);
+            columns.Add(new(name,$"Item{index+1}",type,true));
+        }
+        var identity=!IsSetLike(query);
+        var relation=new CatalogRelation("",alias,"",CSharpEmitter.TupleType(types,identity),columns){InternalValues=true};
+        var row=new RowBinding(scope,alias,relation);
+        scope.Rows.Add(row);
+        return new BoundDerivedFrom(row,query,types,identity);
+    }
+    // 結果が初めから重複を持たない問い合わせか(GROUP BY・集約・DISTINCT、UNION・INTERSECT・EXCEPT)。
+    private static bool IsSetLike(BoundQuery query)=>query switch{
+        BoundSelect select=>select.GroupBy.Count>0||select.HasAggregates||select.Distinct,
+        BoundSetQuery set=>!set.All,
+        _=>true
+    };
+    /// <summary>集合演算の左右の列の型を、共通の型へそろえる。</summary>
+    internal BoundQuery Unify(BoundQuery query){
+        if(query is not BoundSetQuery set){
+            return query;
+        }
+        var left=this.Unify(set.Left);
+        var right=this.Unify(set.Right);
+        var types=left.Items.Zip(right.Items,static (a,b)=>SqlTypeRules.Common(a.Expression.Type,b.Expression.Type)).ToList();
+        return new BoundSetQuery(this.Retype(left,types),this.Retype(right,types),set.Operation,set.All);
+    }
+    private BoundQuery Retype(BoundQuery query,List<SqlTypeDescriptor> types){
+        switch(query){
+            case BoundSelect select:
+                for(var index=0;index<select.SelectItems.Count;index++){
+                    var item=select.SelectItems[index];
+                    select.SelectItems[index]=item with{Expression=this.Convert(item.Expression,types[index],new SelectStatement())};
+                }
+                return select;
+            case BoundSetQuery set:
+                return new BoundSetQuery(this.Retype(set.Left,types),this.Retype(set.Right,types),set.Operation,set.All);
+            default:
+                return query;
+        }
+    }
+    // ---- PIVOT ----
+    /// <summary>
+    /// PIVOT を、本物と同じ意味の GROUP BY に書き換えて派生表にする。
+    /// 元の表の列のうち、集める列と並べ替える列を除いたものでまとめ、IN の値ごとに 集約(CASE WHEN 並べ替える列 = 値 THEN 集める列 END) を列にする。
+    /// </summary>
+    private BoundDerivedFrom BindPivot(PivotedTableReference pivot,BoundScope scope){
+        if(pivot.ValueColumns.Count!=1){
+            throw Unsupported(pivot,"SQLT058","列が1つでない PIVOT");
+        }
+        var inner=new BoundScope(scope.Outer);
+        var joins=new List<(BoundJoinFrom Join,BooleanExpression Condition)>();
+        var source=this.BindTableReference(pivot.TableReference,inner,joins);
+        AssignPaths(source,[],false);
+        foreach(var (join,condition) in joins){
+            join.Condition=this.BindBoolean(condition,inner,false);
+        }
+        var select=new BoundSelect(inner,source);
+        if(this.ResolveColumn(pivot.PivotColumn,inner) is not BoundColumn pivotColumn||this.ResolveColumn(pivot.ValueColumns[0],inner) is not BoundColumn valueColumn){
+            throw Unsupported(pivot,"SQLT058","PIVOT の列");
+        }
+        foreach(var row in inner.Rows){
+            foreach(var column in row.Relation.Columns){
+                if(row==pivotColumn.Row&&column==pivotColumn.Column||row==valueColumn.Row&&column==valueColumn.Column){
+                    continue;
+                }
+                var bound=new BoundColumn(row,column);
+                select.GroupBy.Add(bound);
+                select.SelectItems.Add(new(column.Name,bound));
+            }
+        }
+        var aggregate=pivot.AggregateFunctionIdentifier.Identifiers[^1].Value.ToUpperInvariant();
+        foreach(var value in pivot.InColumns){
+            var when=this.Compare("Equal",pivotColumn,this.LiteralOf(value.Value,pivotColumn.Type,value),value);
+            var @case=new BoundCase([(when,(BoundExpression)valueColumn)],null,valueColumn.Type);
+            select.SelectItems.Add(new(value.Value,this.Aggregate(aggregate,@case,false,pivot)));
+        }
+        select.HasAggregates=true;
+        return this.Derived(select,pivot.Alias?.Value??"",null,scope,pivot);
+    }
+    // PIVOT の IN の値(識別子として書く)を、並べ替える列の型のリテラルにする。
+    private BoundExpression LiteralOf(string text,SqlTypeDescriptor type,TSqlFragment at){
+        BoundExpression literal;
+        if(SqlTypeRules.IsInteger(type)){
+            literal=IntegerLiteralOf(text,false);
+        }else if(SqlTypeRules.IsNumeric(type)){
+            literal=DecimalLiteralOf(text,false);
+        }else{
+            literal=new BoundLiteral(CSharpNames.String(text),SqlTypeRules.NVarChar(Math.Max(1,text.Length),this.catalog.DatabaseCollation));
+        }
+        return this.Convert(literal,type,at,0,true);
     }
     internal static TranslationUnsupportedException Unsupported(TSqlFragment fragment,string code,string what)=>new(code,$"未対応: {what}",fragment.StartLine,fragment.StartColumn);
 }

@@ -27,6 +27,14 @@ internal abstract record BoundFrom{
 internal sealed record BoundTableFrom(RowBinding Row):BoundFrom{
     public override string ElementType=>this.Row.Relation.RowType;
 }
+/// <summary>派生表(FROM の中の SELECT)と PIVOT。行は値のタプルで、列は Item1・Item2…。</summary>
+/// <remarks>
+/// 重複を除かない派生表(GROUP BY・集約・DISTINCT・UNION の無い SELECT と UNION ALL)は、最後の要素に元の行(<see cref="Identity"/>)を持つ。
+/// 同じ値の行が1つにまとまると、外側の集約(SUM・COUNT)が本物と変わるため。
+/// </remarks>
+internal sealed record BoundDerivedFrom(RowBinding Row,BoundQuery Query,IReadOnlyList<SqlTypeDescriptor> Types,bool Identity):BoundFrom{
+    public override string ElementType=>CSharpEmitter.TupleType(this.Types,this.Identity);
+}
 internal enum JoinKind{Inner,Left,Cross}
 internal sealed record BoundJoinFrom(BoundFrom Left,BoundFrom Right,JoinKind Kind):BoundFrom{
     public BoundExpression? Condition{get;set;}
@@ -51,10 +59,12 @@ internal sealed record BoundSelect(BoundScope Scope,BoundFrom From):BoundQuery{
     public BoundExpression? Having{get;set;}
     public List<BoundSelectItem> SelectItems{get;}=[];
     public bool HasAggregates{get;set;}
+    /// <summary>SELECT DISTINCT か。</summary>
+    public bool Distinct{get;set;}
     public override IReadOnlyList<BoundSelectItem> Items=>this.SelectItems;
 }
 internal enum SetOperation{Union,Intersect,Except}
-internal sealed record BoundSetQuery(BoundQuery Left,BoundQuery Right,SetOperation Operation):BoundQuery{
+internal sealed record BoundSetQuery(BoundQuery Left,BoundQuery Right,SetOperation Operation,bool All=false):BoundQuery{
     public override IReadOnlyList<BoundSelectItem> Items=>this.Left.Items;
 }
 // ---- 式 ----

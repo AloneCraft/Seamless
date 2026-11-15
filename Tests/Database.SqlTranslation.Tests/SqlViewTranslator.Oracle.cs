@@ -98,6 +98,12 @@ public sealed partial class SqlViewTranslator{
         "SELECT c.Id, c2.Id AS Other FROM {Customer} c LEFT JOIN {Customer} c2 ON c2.City = c.City AND c2.Rating = c.Rating",
         "SELECT c.Id, c2.Id AS Other FROM {Customer} c LEFT JOIN {Customer} c2 ON c2.City = c.City AND c2.Id <> c.Id",
         "SELECT c.Id, o.OrderId FROM {Customer} c LEFT JOIN {Orders} o ON o.Amount > c.Credit",
+        // 派生表と PIVOT。
+        "SELECT x.CustomerId, x.Total, c.Name FROM (SELECT CustomerId, SUM(Amount) AS Total FROM {Orders} GROUP BY CustomerId) AS x INNER JOIN {Customer} c ON c.Id = x.CustomerId",
+        "SELECT t.N FROM (SELECT COUNT(*) AS N FROM {Orders}) t",
+        "SELECT d.Id, d.Doubled FROM (SELECT Id, Rating * 2 AS Doubled FROM {Customer}) AS d (Id, Doubled) WHERE d.Doubled > 4",
+        "SELECT pvt.CustomerId, pvt.[1], pvt.[2], pvt.[5] FROM (SELECT CustomerId, Qty, Amount FROM {Orders}) AS src PIVOT (SUM(Amount) FOR Qty IN ([1], [2], [5])) AS pvt",
+        "SELECT pvt.* FROM (SELECT Note, Qty FROM {Orders}) AS src PIVOT (COUNT(Qty) FOR Note IN ([first], [rush], [none])) AS pvt",
     ];
     /// <summary>
     /// 同じデータを本物の SQL Server(一時表)と、訳してコンパイルした C# の両方で問い合わせ、結果の行の集合とエラー番号が一致することを確かめる。

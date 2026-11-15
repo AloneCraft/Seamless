@@ -337,6 +337,16 @@ public static class ConversionFunctions{
         }
         return text[..length];
     }
+    /// <summary>varbinary を文字列へ。nvarchar は UTF-16(リトルエンディアン。奇数の最後のバイトは捨てる)、varchar は照合順序の文字コードで読む。</summary>
+    public static string? BinaryToString(byte[]? value,bool unicode,SqlCollation collation){
+        if(value is null){
+            return null;
+        }
+        if(unicode){
+            return Encoding.Unicode.GetString(value,0,value.Length/2*2);
+        }
+        return collation.Encoding.GetString(value);
+    }
     // ---- 補助 ----
     private static long? StringToInt64(string? text,string typeName){
         if(text is null){

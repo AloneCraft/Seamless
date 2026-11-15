@@ -34,14 +34,15 @@ public sealed partial class SqlViewTranslator(ITestOutputHelper output){
             var result=TranslationCompiler.Compile(database.Name,stubs,views);
             if(result.Assembly is null){
                 var lines=views.Split('\n');
-                foreach(var error in result.Errors.Where(static error=>error.StartsWith("(",StringComparison.Ordinal)).Take(20)){
-                    var match=Regex.Match(error,@"^\((\d+),");
+                foreach(var error in result.Errors.Where(static error=>error.StartsWith("(",StringComparison.Ordinal)).Take(3)){
+                    var match=Regex.Match(error,@"^\((\d+),(\d+)\)");
                     var line="";
                     if(match.Success&&int.Parse(match.Groups[1].Value)-1<lines.Length){
-                        line=lines[int.Parse(match.Groups[1].Value)-1].Trim();
-                        if(line.Length>160){
-                            line=line[..160];
-                        }
+                        // 誤りの位置の前後だけを出す。
+                        var text=lines[int.Parse(match.Groups[1].Value)-1];
+                        var column=int.Parse(match.Groups[2].Value)-1;
+                        var from=Math.Max(0,column-200);
+                        line=text[from..Math.Min(text.Length,column+120)];
                     }
                     compileFailures.Add($"{database.Name}: {error}\n    {line}");
                 }

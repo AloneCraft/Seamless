@@ -24,7 +24,7 @@ public sealed class SqlViewTranslator(TranslationCatalog catalog){
             var (query,columnNames)=Parse(definition);
             var binder=new SqlBinder(this.catalog);
             var bound=binder.BindQuery(query,null);
-            bound=Unify(bound,binder);
+            bound=binder.Unify(bound);
             diagnostics.AddRange(binder.Warnings);
             var items=bound.Items;
             if(columnNames is not null){
@@ -113,29 +113,5 @@ public sealed class SqlViewTranslator(TranslationCatalog catalog){
             return (select.QueryExpression,null);
         }
         throw SqlBinder.Unsupported(statement,"SQLT003",statement.GetType().Name);
-    }
-    // 集合演算の左右の列の型を、共通の型へそろえる。
-    private static BoundQuery Unify(BoundQuery query,SqlBinder binder){
-        if(query is not BoundSetQuery set){
-            return query;
-        }
-        var left=Unify(set.Left,binder);
-        var right=Unify(set.Right,binder);
-        var types=left.Items.Zip(right.Items,static (a,b)=>SqlTypeRules.Common(a.Expression.Type,b.Expression.Type)).ToList();
-        return new BoundSetQuery(Retype(left,types,binder),Retype(right,types,binder),set.Operation);
-    }
-    private static BoundQuery Retype(BoundQuery query,List<SqlTypeDescriptor> types,SqlBinder binder){
-        switch(query){
-            case BoundSelect select:
-                for(var index=0;index<select.SelectItems.Count;index++){
-                    var item=select.SelectItems[index];
-                    select.SelectItems[index]=item with{Expression=binder.Convert(item.Expression,types[index],new SelectStatement())};
-                }
-                return select;
-            case BoundSetQuery set:
-                return new BoundSetQuery(Retype(set.Left,types,binder),Retype(set.Right,types,binder),set.Operation);
-            default:
-                return query;
-        }
     }
 }

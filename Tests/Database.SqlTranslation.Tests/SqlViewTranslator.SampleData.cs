@@ -63,6 +63,11 @@ public sealed partial class SqlViewTranslator{
                 }
             }
             StubData.Set([]);
+            // DB ごとに、コンパイルしたアセンブリと読み込んだ表を手放す。
+            compiled.Unload();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
         }
         var report=new StringBuilder();
         report.Append($"一致 {matched.Count} / 不一致 {mismatched.Count} / 時間切れ {timedOut.Count}\n");
