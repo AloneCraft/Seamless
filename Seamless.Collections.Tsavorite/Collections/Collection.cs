@@ -658,9 +658,9 @@ public abstract class Collection<
     }
     private long LogMemorySize => this.CollectionStore.LogMemorySize;
     private double MutableFraction => this.CollectionStore.MutableFraction;
-    private protected OutOfMemoryException ThrowLogFull() {
+    private protected TsavoriteLogFullException ThrowLogFull() {
         var Log = this.CollectionStore.Store.Log;
-        return new OutOfMemoryException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
+        return new TsavoriteLogFullException($"Tsavorite mutable log is full. BeginAddress: {Log.BeginAddress}, HeadAddress: {Log.HeadAddress}, TailAddress: {Log.TailAddress}");
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private protected bool WouldOverflowMutable(int KeyLength,int ValueLength) {

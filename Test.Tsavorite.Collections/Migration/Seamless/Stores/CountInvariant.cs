@@ -87,7 +87,7 @@ public class CountInvariant{
         for(long i=0;i<10_000;i++){
             other.Add(i);
         }
-        Assert.Throws<OutOfMemoryException>(()=>set.UnionWith(other));
+        Assert.Throws<global::Seamless.Collections.Tsavorite.TsavoriteLogFullException>(()=>set.UnionWith(other));
         Assert.True(a.TryGetManagedCount(out var managed));
         Assert.True(managed>500);
         Assert.Equal(CountByEnumeration(set),managed);

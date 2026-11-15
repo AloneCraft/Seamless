@@ -368,15 +368,6 @@ public abstract partial class DatabaseContainer:IDisposable {
         return new(this.Options.IndexSize,this.Options.PageSize,this.Options.SegmentSize,this.Options.MemorySize);
     }
 
-    private global::Seamless.Execution.ResourceReservation ReserveTableStoreMemory(TableStorageSizing sizing) {
-        var indexBytes=checked(sizing.IndexSize*64L);
-        var objectLogBytes=this.Options.StorageMode==DatabaseStorageMode.Memory
-            ?global::Seamless.Collections.Tsavorite.Const.MinObjectLogCapacity
-            :0L;
-        var bytes=checked(sizing.MemorySize+indexBytes+objectLogBytes);
-        return this.executionResources.Budget.ReserveMemory(bytes);
-    }
-
     private static DatabaseContainerOptions ValidateOptions(DatabaseContainerOptions value) {
         ArgumentNullException.ThrowIfNull(value);
         if(value.TransactionMetadataConsumer is not null){
@@ -420,110 +411,9 @@ public abstract partial class DatabaseContainer:IDisposable {
     private readonly record struct TableStorageSizing(long IndexSize,long PageSize,long SegmentSize,long MemorySize);
 
 
-    private static string SanitizePathSegment(string value) {
-        var invalid = Path.GetInvalidFileNameChars();
-        var builder = new StringBuilder(value.Length);
-        foreach(var character in value) {
-            if(Array.IndexOf(invalid,character)>=0) {
-                builder.Append('_');
-            } else {
-                builder.Append(character);
-            }
-        }
-        return builder.ToString();
-    }
-
-    private const string CheckpointTokenFileName="checkpoint.token";
-
-    private static Guid? ReadCheckpointToken(string directory) {
-        var path=Path.Combine(directory,CheckpointTokenFileName);
-        if(!File.Exists(path)) {
-            return null;
-        }
-        var contents=File.ReadAllText(path);
-        if(!Guid.TryParseExact(contents,"D",out var token)) {
-            throw new InvalidDataException($"Invalid checkpoint token: {path}");
-        }
-        return token;
-    }
-
     public void Dispose() {
         if(this.disposed){return;}
         if(this.unpublishedSnapshot is not null){throw new InvalidOperationException("Dispose the unpublished snapshot builder before disposing its database.");}
         this.DisposeShared();
-    }
-
-    private sealed class StackedDisposable(params IDisposable[] resources):IDisposable {
-        private List<IDisposable>? resources=[..resources];
-
-        public void Push(IDisposable resource) {
-            ArgumentNullException.ThrowIfNull(resource);
-            var current=this.resources??throw new ObjectDisposedException(nameof(StackedDisposable));
-            current.Insert(0,resource);
-        }
-
-        public void Replace(IDisposable resource,IDisposable replacement) {
-            ArgumentNullException.ThrowIfNull(resource);
-            ArgumentNullException.ThrowIfNull(replacement);
-            var current=this.resources??throw new ObjectDisposedException(nameof(StackedDisposable));
-            for(var i=0;i<current.Count;i++) {
-                if(!ReferenceEquals(current[i],resource)){continue;}
-                current[i]=replacement;
-                return;
-            }
-            throw new InvalidOperationException("The resource to replace is not owned by this stack.");
-        }
-
-        public void Dispose() {
-            var current=global::System.Threading.Interlocked.Exchange(ref this.resources,null);
-            if(current is null){return;}
-            List<Exception>? exceptions=null;
-            foreach(var resource in current) {
-                try {
-                    resource.Dispose();
-                } catch(Exception exception) {
-                    exceptions??=[];
-                    exceptions.Add(exception);
-                }
-            }
-            ThrowCollectedExceptions(exceptions);
-        }
-    }
-
-    private sealed class CheckpointedStore<TStore>(
-        TStore store,
-        Func<TStore,Guid> save,
-        Func<TStore,long> getTailAddress,
-        string directory):IDisposable
-        where TStore:IDisposable {
-        private readonly TStore store=store;
-        private readonly Func<TStore,Guid> save=save;
-        private readonly Func<TStore,long> getTailAddress=getTailAddress;
-        private readonly string directory=directory;
-        private readonly long initialTailAddress=getTailAddress(store);
-
-        public void Dispose() {
-            try {
-                if(this.getTailAddress(this.store)!=this.initialTailAddress) {
-                    var token=this.save(this.store);
-                    var tokenPath=Path.Combine(this.directory,CheckpointTokenFileName);
-                    var newTokenPath=tokenPath+".new";
-                    File.WriteAllText(newTokenPath,token.ToString("D"));
-                    File.Move(newTokenPath,tokenPath,overwrite:true);
-                }
-            } finally {
-                this.store.Dispose();
-            }
-        }
-    }
-
-    private static void ThrowCollectedExceptions(List<Exception>? exceptions) {
-        if(exceptions is null) {
-            return;
-        }
-        if(exceptions.Count==1) {
-            global::System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exceptions[0]).Throw();
-        }
-        throw new AggregateException(exceptions);
     }
 }

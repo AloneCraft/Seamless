@@ -43,7 +43,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
-            Assert.Throws<OutOfMemoryException>((Action)(() => {
+            Assert.Throws<global::Seamless.Collections.Tsavorite.TsavoriteLogFullException>((Action)(() => {
                 for(var i = 0;;i++) dict.Add(TStrategy.K(i),TStrategy.V(i));
             }));
         }
@@ -248,7 +248,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             using var sh = TStrategy.CreateMemoryStore();
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
-            Assert.Throws<OutOfMemoryException>((Action)(() => {
+            Assert.Throws<global::Seamless.Collections.Tsavorite.TsavoriteLogFullException>((Action)(() => {
                 for(var i = 0;;i++) dict[TStrategy.K(i)]=TStrategy.V(i);
             }));
         }
@@ -380,7 +380,7 @@ public abstract class IDictionaryTestBase<TStrategy, TKey, TValue>
             using var sh = TStrategy.CreateMemoryStore(memorySize: global::Seamless.Collections.Tsavorite.Const.LogMemorySize,mutableFraction: 0.5);
             using var rawDict = sh.NewDict();
             global::System.Collections.Generic.IDictionary<TKey,TValue> dict = rawDict;
-            Assert.Throws<OutOfMemoryException>((Action)(() => {
+            Assert.Throws<global::Seamless.Collections.Tsavorite.TsavoriteLogFullException>((Action)(() => {
                 for(var i = 0;;i++) dict.Add(TStrategy.K(i),TStrategy.V(i));
             }));
         }
