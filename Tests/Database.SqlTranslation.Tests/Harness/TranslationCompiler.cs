@@ -129,6 +129,50 @@ internal static class TranslationCompiler{
         var context=new AssemblyLoadContext(assemblyName,true);
         return new(context.LoadFromStream(stream),errors,string.Join("\n",sources),context);
     }
+    /// <summary>FLinq の生成器を通してコンパイルした結果。生成器の診断と、エラーの出た行の番号(harness の行)を持つ。</summary>
+    internal sealed record FLinqResult(Result Compiled,IReadOnlyList<Diagnostic> GeneratorDiagnostics,IReadOnlyDictionary<string,string> ErrorMethods,string Generated);
+    /// <summary>
+    /// FLinq の生成器を通してコンパイルする。harness は [LinqIntercept(true)] のメソッド(名前は V と番号)を置いたソース。
+    /// エラーは、どのメソッドが原因か(harness のメソッド、または展開したコードのメソッドの名前に含まれる V と番号)を ErrorMethods に返す。
+    /// 呼び出し側でそのメソッドを外して作り直すため。
+    /// </summary>
+    internal static FLinqResult CompileWithFLinq(string assemblyName,string harness,params string[] sources){
+        var parse=new CSharpParseOptions(LanguageVersion.Preview).WithFeatures([new("InterceptorsPreview","true"),new("InterceptorsNamespaces","Intercept"),new("InterceptorsPreviewNamespaces","Intercept")]);
+        var trees=sources.Select(source=>CSharpSyntaxTree.ParseText(source,parse)).Append(CSharpSyntaxTree.ParseText(harness,parse,path:"Harness.cs")).ToArray();
+        var references=((string)AppContext.GetData("TRUSTED_PLATFORM_ASSEMBLIES")!).Split(Path.PathSeparator).Select(static path=>(MetadataReference)MetadataReference.CreateFromFile(path)).ToList();
+        foreach(var type in new[]{typeof(Seamless.Collections.ISet<>),typeof(Seamless.Linq.Set),typeof(Seamless.Database.SqlServer.Functions.SqlCompare),typeof(StubData)}){
+            references.Add(MetadataReference.CreateFromFile(type.Assembly.Location));
+        }
+        var compilation=CSharpCompilation.Create(assemblyName,trees,references,new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary,nullableContextOptions:NullableContextOptions.Enable));
+        var driver=CSharpGeneratorDriver.Create([new Seamless.FLinq.Generator.FLinqIncrementalGenerator().AsSourceGenerator()],parseOptions:parse);
+        driver.RunGeneratorsAndUpdateCompilation(compilation,out var output,out var diagnostics);
+        var generated=string.Concat(output.SyntaxTrees.Skip(trees.Length).Select(static tree=>tree.ToString()));
+        using var stream=new MemoryStream();
+        var emitted=output.Emit(stream);
+        var errors=emitted.Diagnostics.Where(static diagnostic=>diagnostic.Severity==DiagnosticSeverity.Error).ToList();
+        var errorMethods=new Dictionary<string,string>(StringComparer.Ordinal);
+        foreach(var error in errors.Concat(diagnostics.Where(static diagnostic=>diagnostic.Severity==DiagnosticSeverity.Error))){
+            if(error.Location.SourceTree is not{} tree){
+                continue;
+            }
+            var node=tree.GetRoot().FindNode(error.Location.SourceSpan);
+            var method=node.AncestorsAndSelf().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>().FirstOrDefault();
+            if(method is null){
+                continue;
+            }
+            var match=System.Text.RegularExpressions.Regex.Match(method.Identifier.Text,@"(?<![A-Za-z0-9])V\d+(?![0-9])|_V\d+_");
+            if(match.Success){
+                errorMethods.TryAdd(match.Value.Trim('_'),error.ToString());
+            }
+        }
+        var texts=errors.Select(static diagnostic=>diagnostic.ToString()).ToList();
+        if(!emitted.Success){
+            return new(new(null,texts,harness),diagnostics,errorMethods,generated);
+        }
+        stream.Position=0;
+        var context=new AssemblyLoadContext(assemblyName,true);
+        return new(new(context.LoadFromStream(stream),texts,harness,context),diagnostics,errorMethods,generated);
+    }
     private static string Member(CatalogRelation relation)=>relation.Access[(relation.Access.LastIndexOf('.')+1)..];
     private static string Storage(CatalogColumn column){
         try{
