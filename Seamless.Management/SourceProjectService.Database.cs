@@ -36,10 +36,10 @@ public sealed partial class SourceProjectService{
             if(remote is not null){
                 var ancestor=workspace.State.SavedDraftDefinition;
                 if(ancestor is null||ancestor.Hash()!=workspace.State.SavedDraftHash){
+                    // 下書きの保存を確認した記録が無いとき（ファイルだけで作ったプロジェクトなど）。サーバーの下書きのファイルが、作業領域を作ったときの
+                    // ファイルと同じなら、その下書きは作ったときの中身のままなので統合の基準にする。違えば稼働版を基準にする。
                     ancestor=published.Definition;
-                    // 旧同期記録は、編集前の全ファイルが現在の下書きと一致する場合だけ比較基準を確認できる。
-                    var original=local.Definition with{Source=remote.Definition.Source with{Files=workspace.State.WithoutManager.Files}};
-                    if(original.Hash()==remote.Definition.Hash()){ancestor=remote.Definition;}
+                    if(workspace.State.CreatedSource is{} created&&(remote.Definition with{Source=remote.Definition.Source with{Files=created.Files}}).Hash()==remote.Definition.Hash()){ancestor=remote.Definition;}
                 }
                 var remoteDefinition=remote.Definition;
                 if(publishedDraft){remoteDefinition=remoteDefinition with{Migration=null};}

@@ -10,6 +10,11 @@
     },
     "0.1.0": {
       "parent": "0.1"
+    },
+    "manager-alignment": {
+      "parent": "main",
+      "forkPoint": "649e8907",
+      "purpose": "Manager の設計・仕様と実装の照合（2026-11-15）に基づく8段階の実装"
     }
   },
   "rule": "Merge each child into its immediate recorded fork parent; return deepest children first.",

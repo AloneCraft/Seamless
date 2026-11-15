@@ -92,10 +92,9 @@ public sealed class SourceWorkspaceTests(Xunit.Abstractions.ITestOutputHelper ou
         File.WriteAllText(Path.Combine(root,"Database.cs"),File.ReadAllText(Path.Combine(root,"Database.cs")).Replace("Name","DisplayName"));
         var merged=workspace.Synchronize(manager);Assert.Contains("Phone",merged.Definition.Source.Files[0].Text);Assert.Contains("DisplayName",merged.Definition.Source.Files[0].Text);
         workspace=SourceWorkspace.Open(root);Assert.True(workspace.HasUnappliedChanges);Assert.True(workspace.NeedsDraftSave);
-        var reverted=workspace.UndoManager();Assert.DoesNotContain("Phone",reverted.Definition.Source.Files[0].Text);Assert.Contains("DisplayName",reverted.Definition.Source.Files[0].Text);Assert.True(workspace.HasUnappliedChanges);
         Assert.Contains("DisplayName",File.ReadAllText(Path.Combine(root,"Database.cs")));Assert.True(File.Exists(Path.Combine(root,"Schema.csproj")));
     }
-    [Fact]public void AdjacentNonOverlappingEditsMergeAndUndoSeparately(){
+    [Fact]public void AdjacentNonOverlappingEditsMergeAndSurviveReopen(){
         var original=Definition();
         const string source="namespace Example; public class Customer { public int Value => 10+20; }";
         Definition WithSource(string text)=>original with{Source=original.Source with{Files=[new("Database.cs",text)]}};
@@ -112,8 +111,7 @@ public sealed class SourceWorkspaceTests(Xunit.Abstractions.ITestOutputHelper ou
 
         var reopened=SourceWorkspace.Open(root);
         Assert.True(reopened.HasUnappliedChanges);
-        Assert.Equal(external,reopened.UndoManager().Definition.Source.Files[0].Text);
-        Assert.Equal(external,File.ReadAllText(path));
+        Assert.Equal(merged.Definition.Source.Files[0].Text,reopened.Current.Definition.Source.Files[0].Text);
     }
     [Fact]public void OverlapPreservesBothInputsAndDisk(){
         var original=Definition();var root=DirectoryPath();var workspace=SourceWorkspace.Create(root,new(original,1,0),original.Source,RepositoryRoot());
@@ -169,74 +167,13 @@ public sealed class SourceWorkspaceTests(Xunit.Abstractions.ITestOutputHelper ou
         Assert.Null(workspace.InspectConflict());
         Assert.Equal(original.Source.Hash(),workspace.State.Published.Hash());
         Assert.True(workspace.NeedsDraftSave);
-        Assert.Throws<ManagementException>(()=>workspace.UndoManager());
     }
-    [Fact]public void ManagerUndoWithoutManagerChangesDoesNotRewriteExternalFile(){
-        var original=Definition();var root=DirectoryPath();var workspace=SourceWorkspace.Create(root,new(original,1,0),original.Source,RepositoryRoot());var file=Path.Combine(root,"Database.cs");
-        File.WriteAllText(file,original.Source.Files[0].Text.Replace("Name","Label"));workspace.Synchronize(original);var timestamp=File.GetLastWriteTimeUtc(file);
-        workspace.UndoManager();Assert.Equal(timestamp,File.GetLastWriteTimeUtc(file));Assert.True(workspace.HasUnappliedChanges);
-    }
-    [Fact]public void DatabaseRestoreIncludesConflictCopiesAndRejectsLaterExternalSave(){
-        var live=Definition();
-        var root=DirectoryPath();
-        var workspace=SourceWorkspace.Create(root,new(live,3,4),live.Source,RepositoryRoot());
-        var path=Path.Combine(root,"Database.cs");
-        var initial=live.Source.Files[0].Text;
-        var manager=live with{Source=live.Source with{Files=[new("Database.cs",initial.Replace("Name","ManagerName"))]}};
-        File.WriteAllText(path,initial.Replace("Name","ExternalName"));
-        Assert.Equal("SourceConflict",Assert.Throws<ManagementException>(()=>workspace.Synchronize(manager,live)).Code);
-        var published=new DefinitionVersion(live,3,"admin",DateTimeOffset.UtcNow);
-        var preview=workspace.PreviewDatabaseRestore(published,manager,3,4);
-        Assert.NotNull(preview.ConflictId);
-        Assert.Contains(preview.Copies,copy=>copy.Name=="conflict-manager"&&copy.Export.Definition.Hash()==manager.Hash());
-        Assert.Contains(preview.Copies,copy=>copy.Name=="conflict-external"&&copy.Export.Definition.Source.Files[0].Text.Contains("ExternalName"));
-
-        File.AppendAllText(path,"\n// another external save\n");
-        var saved=new Draft(live,"admin",5,3,DateTimeOffset.UtcNow);
-        Assert.Throws<ManagementException>(()=>workspace.FinishDatabaseRestore(preview,saved));
-        Assert.Contains("another external save",File.ReadAllText(path));
-        preview=workspace.PreviewDatabaseRestore(published,manager,3,4);
-        workspace.CheckDatabaseRestore(preview);
-        workspace.FinishDatabaseRestore(preview,saved);
-        workspace=SourceWorkspace.Open(root);
-        Assert.Equal(initial,File.ReadAllText(path));
-        Assert.Null(workspace.InspectConflict());
-        Assert.Equal(5,workspace.Current.DraftRevision);
-        Assert.False(workspace.HasUnappliedChanges);
-        Assert.False(workspace.NeedsDraftSave);
-    }
-    [Fact]public void NoOpAndManagerOnlyUndoReturnToLiveWithoutPublishing(){
-        var original=Definition();var root=DirectoryPath();var workspace=SourceWorkspace.Create(root,new(original,7,3),original.Source,RepositoryRoot());Assert.False(workspace.HasUnappliedChanges);
-        var edited=original with{Source=original.Source with{Files=[new("Database.cs",original.Source.Files[0].Text+"// Manager\n")]}};
-        workspace.Synchronize(edited);Assert.True(workspace.HasUnappliedChanges);workspace.UndoManager();Assert.False(workspace.HasUnappliedChanges);Assert.Equal(7,workspace.Current.BaseVersion);
-    }
-    [Fact]public void AddedTableFilesAreBuildInputsAndUndoPreservesExternalEdits(){
+    [Fact]public void AddedTableFilesAreBuildInputs(){
         var original=Seamless.Management.DatabaseDesigner.Empty("new-db","Example");
         original=original with{Source=original.Source with{Files=[..original.Source.Files,new("Other.cs","internal static class Other {}")]}};
         var root=DirectoryPath();var workspace=SourceWorkspace.Create(root,new(original,1,0),original.Source,RepositoryRoot());
         var changed=Seamless.Management.DatabaseDesigner.Apply(original,new("Customers","Sales",[new("Id","int",true),new("Name","string",false)],[]));workspace.Synchronize(changed);
         foreach(var file in changed.Source.Files){Assert.Equal(file.Text,File.ReadAllText(Path.Combine(root,file.Path)));Assert.Contains(file.Path,File.ReadAllText(Path.Combine(root,"Schema.csproj")));}
-        var unaffected=Path.Combine(root,"Other.cs");
-        File.AppendAllText(unaffected,"\n// first external save\n");
-        var preview=workspace.PreviewManagerUndo(changed);
-        Assert.Empty(Seamless.Management.DatabaseDesigner.Tables(preview.After));
-        Assert.Null(preview.After.Migration);
-        Assert.NotNull(preview.Before.Migration);
-        File.AppendAllText(unaffected,"// second external save\n");
-        Assert.Throws<ManagementException>(()=>workspace.ConfirmManagerUndo(changed,null,preview));
-        Assert.Contains("Customers",string.Join("\n",workspace.Current.Definition.Source.Files.Select(file=>file.Text)));
-        Assert.Contains("second external save",File.ReadAllText(unaffected));
-        Assert.Empty(Directory.GetDirectories(Path.Combine(root,".seamless"),"manager-undo-*"));
-
-        var result=workspace.ConfirmManagerUndo(changed,null,workspace.PreviewManagerUndo(changed));
-        Assert.Empty(Seamless.Management.DatabaseDesigner.Tables(result.Draft.Definition));
-        Assert.Null(result.Draft.Definition.Migration);
-        Assert.Contains("first external save",File.ReadAllText(unaffected));
-        Assert.Contains("second external save",File.ReadAllText(unaffected));
-        Assert.False(File.Exists(Path.Combine(root,"Tables","Sales_Customers.cs")));
-        Assert.DoesNotContain("Sales_Customers.cs",File.ReadAllText(Path.Combine(root,"Schema.csproj")));
-        var backup=Seamless.Management.SourceArchive.Import(Path.Combine(result.BackupDirectory!,"definition.seamless.json"));
-        Assert.Contains("Sales.Customers",Seamless.Management.DatabaseDesigner.Tables(backup.Definition));
         Assert.True(workspace.HasUnappliedChanges);
     }
     [Fact]public void InterruptedWritesRecoverOnlyKnownVersions(){
@@ -247,23 +184,11 @@ public sealed class SourceWorkspaceTests(Xunit.Abstractions.ITestOutputHelper ou
         File.WriteAllText(pending,System.Text.Json.JsonSerializer.Serialize(new{state,writes=new[]{new{path="Database.cs",before,after}}},ManagementJson.Options));File.WriteAllText(Path.Combine(root,"Database.cs"),"// unrelated external save");
         Assert.Throws<ManagementException>(()=>SourceWorkspace.Open(root));Assert.True(File.Exists(pending));Assert.Equal("// unrelated external save",File.ReadAllText(Path.Combine(root,"Database.cs")));
     }
-    [Fact]public void UndoKeepsMigrationAlreadyPresentWhenTheWorkspaceWasLinked(){
-        var empty=Seamless.Management.DatabaseDesigner.Empty("migration-baseline","Example");
-        var existing=Seamless.Management.DatabaseDesigner.Apply(empty,new("Existing","",[new("Id","int",true)],[]));
-        var root=DirectoryPath();
-        var workspace=SourceWorkspace.Create(root,new(existing,1,2),empty.Source,RepositoryRoot());
-        var extra=Seamless.Management.DatabaseDesigner.Apply(existing,new("Extra","",[new("Id","int",true)],[]));
-        workspace.Synchronize(extra);
-        workspace=SourceWorkspace.Open(root);
-        var restored=workspace.UndoManager();
-        Assert.Equal(existing.Hash(),restored.Definition.Hash());
-        Assert.Equal(2,restored.DraftRevision);
-    }
-    [Fact]public void EditingManagerAddedDeclarationImportsButBlocksUnsafeUndo(){
+    [Fact]public void EditingManagerAddedDeclarationImports(){
         var original=Definition();var root=DirectoryPath();var workspace=SourceWorkspace.Create(root,new(original,1,0),original.Source,RepositoryRoot());
         var added=original with{Source=original.Source with{Files=[..original.Source.Files,new("New.cs","public class NewRecord{ public int Value {get;set;} } ")]}};workspace.Synchronize(added);
         File.WriteAllText(Path.Combine(root,"New.cs"),"public class NewRecord{ public int Amount {get;set;} } ");var imported=workspace.Synchronize(added);
-        Assert.Contains("Amount",imported.Definition.Source.Files.Single(file=>file.Path=="New.cs").Text);Assert.True(workspace.State.UndoConflict);Assert.Throws<ManagementException>(()=>workspace.UndoManager());Assert.Contains("Amount",File.ReadAllText(Path.Combine(root,"New.cs")));
+        Assert.Contains("Amount",imported.Definition.Source.Files.Single(file=>file.Path=="New.cs").Text);Assert.Contains("Amount",File.ReadAllText(Path.Combine(root,"New.cs")));
     }
     [Fact]public void IncompleteSyntaxIsPreservedAndNoOpDoesNotTouchFiles(){
         var original=Definition();var root=DirectoryPath();var workspace=SourceWorkspace.Create(root,new(original,1,0),original.Source,RepositoryRoot());var path=Path.Combine(root,"Database.cs");

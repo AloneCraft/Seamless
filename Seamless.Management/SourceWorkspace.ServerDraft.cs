@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Seamless.Management;
 
-public sealed record ServerDraftMerge(DatabaseDraftRestore Snapshot,Definition Local,Draft Remote,Definition Header,SourceConflict Comparison){
+public sealed record ServerDraftMerge(ServerDraftBackup Snapshot,Definition Local,Draft Remote,Definition Header,SourceConflict Comparison){
     public long TargetBaseVersion=>this.Snapshot.Published.Version;
 
     public Definition Resolve(IReadOnlyDictionary<string,string?> choices){
@@ -43,7 +43,7 @@ public sealed record ServerDraftMerge(DatabaseDraftRestore Snapshot,Definition L
 
 public sealed partial class SourceWorkspace{
     public ServerDraftMerge PreviewServerDraftMerge(DefinitionVersion published,Draft remote,Definition editor,Definition? editorBase,long editorBaseVersion,long editorRevision){
-        var snapshot=this.PreviewDatabaseRestore(published,editor,editorBaseVersion,editorRevision);
+        var snapshot=this.CaptureServerDraftBackup(published,editor,editorBaseVersion,editorRevision);
         if(snapshot.ConflictId is not null){throw ConflictPending();}
         var current=snapshot.Copies.Single(copy=>copy.Name=="workspace-draft").Export;
         if(remote.Definition.Id!=current.Definition.Id||remote.Definition.Database!=current.Definition.Database||
@@ -62,7 +62,7 @@ public sealed partial class SourceWorkspace{
         return PlanDraftMerge(snapshot,local,remote,ancestor);
     }
 
-    private ServerDraftMerge PlanInterruptedRebase(DatabaseDraftRestore snapshot,DefinitionExport current,Definition local,Draft remote){
+    private ServerDraftMerge PlanInterruptedRebase(ServerDraftBackup snapshot,DefinitionExport current,Definition local,Draft remote){
         foreach(var directory in Directory.EnumerateDirectories(this.Metadata,"server-draft-merge-*")){
             CheckLinks(directory);
             if(!File.Exists(Path.Combine(directory,"previous-published","definition.seamless.json"))||
@@ -85,7 +85,7 @@ public sealed partial class SourceWorkspace{
     }
 
     public ServerDraftMerge PreviewPublishedRebase(DefinitionVersion previous,DefinitionVersion latest,Draft? remote,Definition editor,Definition? editorBase,long editorRevision){
-        var snapshot=this.PreviewDatabaseRestore(latest,editor,previous.Version,editorRevision);
+        var snapshot=this.CaptureServerDraftBackup(latest,editor,previous.Version,editorRevision);
         if(snapshot.ConflictId is not null){throw ConflictPending();}
         var current=snapshot.Copies.Single(copy=>copy.Name=="workspace-draft").Export;
         if(current.BaseVersion!=previous.Version||current.DraftRevision!=editorRevision||
@@ -102,11 +102,11 @@ public sealed partial class SourceWorkspace{
         if(editorRevision!=(remote?.Revision??0)||remote is not null&&remote.BaseVersion!=previous.Version){
             throw new ManagementException("Conflict","サーバーの下書きが進みました。開き直して内容を確認してください。");
         }
-        var snapshot=new DatabaseDraftRestore(latest,[new("manager-editor",new(editor,previous.Version,editorRevision))],editor.Source.Hash(),null);
+        var snapshot=new ServerDraftBackup(latest,[new("manager-editor",new(editor,previous.Version,editorRevision))],editor.Source.Hash(),null);
         return PlanPublishedRebase(snapshot,previous,remote,editor);
     }
 
-    private static ServerDraftMerge PlanPublishedRebase(DatabaseDraftRestore snapshot,DefinitionVersion previous,Draft? remote,Definition local){
+    private static ServerDraftMerge PlanPublishedRebase(ServerDraftBackup snapshot,DefinitionVersion previous,Draft? remote,Definition local){
         var latest=snapshot.Published;
         if(previous.Version<1||previous.Version>=latest.Version||!SameIdentity(previous.Definition)||!SameIdentity(latest.Definition)||
             remote is not null&&!SameIdentity(remote.Definition)){
@@ -115,14 +115,14 @@ public sealed partial class SourceWorkspace{
         var ancestor=previous.Definition with{Migration=null};
         var active=latest.Definition with{Migration=null};
         DatabaseDesigner.CheckMigrationRebase(previous,latest,local);
-        DraftRestoreCopy[] copies=[..snapshot.Copies,new("previous-published",new(previous.Definition,previous.Version,0))];
+        ServerDraftCopy[] copies=[..snapshot.Copies,new("previous-published",new(previous.Definition,previous.Version,0))];
         if(remote is not null){copies=[..copies,new("server-draft",new(remote.Definition,remote.BaseVersion,remote.Revision))];}
         return PlanDraftMerge(snapshot with{Copies=copies},local,new(active,latest.Owner,remote?.Revision??0,latest.Version,latest.CreatedAt),ancestor);
 
         bool SameIdentity(Definition definition)=>definition.Id==local.Id&&definition.Database==local.Database&&definition.Kind==local.Kind;
     }
 
-    private static ServerDraftMerge PlanDraftMerge(DatabaseDraftRestore snapshot,Definition local,Draft remote,Definition? ancestor){
+    private static ServerDraftMerge PlanDraftMerge(ServerDraftBackup snapshot,Definition local,Draft remote,Definition? ancestor){
         var remoteDefinition=remote.Definition;
         var localHeader=Header(local);
         var remoteHeader=Header(remoteDefinition);
@@ -187,12 +187,12 @@ public sealed partial class SourceWorkspace{
         this.Commit(this.State with{
             Current=new(saved.Definition,saved.BaseVersion,saved.Revision),Synchronized=saved.Definition.Source,
             Published=plan.Snapshot.Published.Definition.Source,
-            SavedDraftHash=saved.Definition.Hash(),SavedDraftDefinition=saved.Definition.Freeze(),UndoConflict=true
+            SavedDraftHash=saved.Definition.Hash(),SavedDraftDefinition=saved.Definition.Freeze()
         },Writes(disk,saved.Definition.Source));
     }
 
     private SourceSnapshot CheckServerDraftMergeDisk(ServerDraftMerge plan,Definition candidate){
-        var disk=this.ReadDatabaseRestoreDisk(plan.Snapshot);
+        var disk=this.ReadServerDraftBackupDisk(plan.Snapshot);
         var source=candidate.Source;
         if(!source.References.SequenceEqual(disk.References)||!(source.Defines??[]).SequenceEqual(disk.Defines??[],StringComparer.Ordinal)){
             throw new ManagementException("Unsupported","参照またはコンパイル条件の変更を含む下書きは、このC#プロジェクトへ取り込めません。");

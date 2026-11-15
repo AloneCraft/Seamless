@@ -24,10 +24,6 @@ public static partial class DatabaseDesigner{
         return null;
     }
     public static CatalogObject[] Objects(Definition definition){
-        var objects=ObjectsWithoutIdentities(definition);var identities=ReadStableIdentities(definition);
-        return objects.Select(item=>item with{StableId=identities.Object(item.Id),StableIdUnavailableReason=identities.UnavailableReason("Object",item.Id)}).ToArray();
-    }
-    private static CatalogObject[] ObjectsWithoutIdentities(Definition definition){
         var compilation=Compilation(definition);var container=Container(compilation,definition);
         var objects=new Dictionary<string,CatalogObject>(StringComparer.Ordinal);
         var ancestors=new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);

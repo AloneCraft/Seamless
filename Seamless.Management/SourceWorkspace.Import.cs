@@ -28,7 +28,7 @@ public sealed partial class SourceWorkspace{
         else if(File.Exists(pending)){state=Read<WorkspaceJournal>(pending).State;}
         else{
             var definition=new Definition("source-"+id,Path.GetFileNameWithoutExtension(project),DefinitionKind.Database,"","",source);
-            state=new(1,new(definition,0,0),source,source,source,null,ProjectBinding:binding);
+            state=new(1,new(definition,0,0),source,source,null,ProjectBinding:binding);
         }
         if(state.Format!=1||state.ProjectBinding is null||!SameProjectPath(state.ProjectBinding.ProjectPath,project)){
             throw new ManagementException("Conflict","プロジェクトが同期記録と一致しません。既存の編集・同期記録を保持しています。");
@@ -51,7 +51,7 @@ public sealed partial class SourceWorkspace{
             // Compileから外れたファイルは同期対象から外すだけで、実ファイルを削除しない。
             workspace.Commit(state with{
                 Current=state.Current with{Definition=state.Current.Definition with{Source=source with{Files=merged.Files}}},
-                Published=Rebase(state.Published),Synchronized=source with{Files=merged.Files},WithoutManager=Rebase(state.WithoutManager),ProjectBinding=binding
+                Published=Rebase(state.Published),Synchronized=source with{Files=merged.Files},ProjectBinding=binding
             },[]);
         }
         return workspace;
@@ -87,13 +87,12 @@ public sealed partial class SourceWorkspace{
             !this.State.Published.Files.OrderBy(file=>file.Path,StringComparer.Ordinal).SequenceEqual(previous.State.Published.Files.OrderBy(file=>file.Path,StringComparer.Ordinal))){
             throw new ManagementException("Conflict","作成元DBとプロジェクトの同期記録が別々に更新されています。内容を保持しています。");
         }
-        // 旧記録を保全し、ファイル編集・取消基準をDB定義IDと基準版へ接続する。
+        // 旧記録を保全し、ファイル編集の基準をDB定義IDと基準版へ接続する。
         var references=this.Current.Definition.Source.References;
         this.Commit(this.State with{
             Current=this.Current with{Definition=this.Current.Definition with{Source=previous.Current.Definition.Source with{References=references.ToArray()}}},
             Synchronized=previous.State.Synchronized with{References=references.ToArray()},
-            WithoutManager=previous.State.WithoutManager with{References=references.ToArray()},
-            UndoConflict=previous.State.UndoConflict,ImportedProjectStateHash=hash
+            ImportedProjectStateHash=hash
         },[]);
     }
     private static bool SameProjectPath(string? first,string? second){

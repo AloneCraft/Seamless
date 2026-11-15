@@ -16,11 +16,13 @@ public sealed class IpcMemoryBudget{
         using var service=new Seamless.Management.Server.ManagementService(store,null,startAuditWorker:false);
         await using var server=Seamless.Management.Server.ManagementServer.ForLocalOwner(service);_=service.Info;var baseline=store.ResourceBudget.MemoryBytes;server.Start();
         using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        // 接続は1要求ごとに閉じるので、受信のバッファを持っている間（要求を途中まで送った状態）で計上を確かめる。
         await using(var pipe=await Connect(server,timeout.Token)){
-            var request=new RpcRequest(Guid.NewGuid(),"info",null,"",ManagementJson.Element(new{})){ReuseConnection=true};
-            await ManagementWire.WriteAsync(pipe,request,timeout.Token);var response=await ManagementWire.ReadAsync<RpcResponse>(pipe,timeout.Token);Assert.Equal("result",response.Kind);
+            var bytes=JsonSerializer.SerializeToUtf8Bytes(new RpcRequest(Guid.NewGuid(),"info",null,"",ManagementJson.Element(new{})),ManagementJson.Options);
+            var header=new byte[4];BinaryPrimitives.WriteInt32BigEndian(header,bytes.Length);
+            await pipe.WriteAsync(header,timeout.Token);await pipe.WriteAsync(bytes.AsMemory(0,1),timeout.Token);await pipe.FlushAsync(timeout.Token);
+            while(server.PipeBufferBytes==0){await Task.Delay(10,timeout.Token);}
             Assert.True(store.ResourceBudget.MemoryBytes>baseline,"IPC受信バッファが管理DBの親予算へ計上されていません。");
-            Assert.True(server.PipeBufferBytes>0);
         }
         await WaitForMemory(store,baseline,timeout.Token);
         Assert.Equal(0,server.PipeBufferBytes);

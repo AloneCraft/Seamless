@@ -17,17 +17,9 @@ public sealed partial class SourceWorkspace{
             throw new ManagementException("Conflict","競合または公開操作の結果を確認してください。");
         }
         var current=MergeDefinitions(saved,this.Current.Definition,latest);
-        var external=latest.Source;
-        var undoConflict=this.State.UndoConflict;
-        if(this.State.ProjectDraftBaseline is{} baseline&&baseline.DefinitionHash==this.State.SavedDraftHash){
-            try{external=Merge(baseline.ExternalSource,latest.Source,this.State.WithoutManager);}
-            catch(ManagementException error)when(error.Code=="Conflict"){undoConflict=true;}
-        }else if(!Same(this.Current.Definition.Source,saved.Source)){undoConflict=true;}
         this.Commit(this.State with{
             Current=this.Current with{Definition=current,BaseVersion=published.Version},Published=latest.Source,
-            SavedDraftDefinition=latest,SavedDraftHash=latest.Hash(),WithoutManager=external,UndoConflict=undoConflict,
-            ManagerMigrationTracked=true,WithoutManagerMigration=null,
-            ProjectDraftBaseline=new(latest.Hash(),external.Freeze())
+            SavedDraftDefinition=latest,SavedDraftHash=latest.Hash()
         },[]);
     }
 }

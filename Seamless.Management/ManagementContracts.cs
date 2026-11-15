@@ -82,14 +82,8 @@ public sealed record ExecutionRow(JsonElement Value);
 public sealed record LoginRequest(string Name,string Password);
 public sealed record LoginResult(string Token,DateTimeOffset ExpiresAt,UserInfo User);
 public sealed record ServerInfo(Guid InstanceId,string ProductVersion,string OperatingSystem,string[] Capabilities);
-public sealed record RpcRequest(Guid Id,string Operation,string? Token,string Database,JsonElement Payload){
-    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
-    public bool ReuseConnection{get;init;}
-}
-public sealed record RpcResponse(Guid Id,string Kind,JsonElement Payload,string? ErrorCode=null,string? Error=null){
-    [System.Text.Json.Serialization.JsonIgnore(Condition=System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
-    public int? ReuseIdleMilliseconds{get;init;}
-}
+public sealed record RpcRequest(Guid Id,string Operation,string? Token,string Database,JsonElement Payload);
+public sealed record RpcResponse(Guid Id,string Kind,JsonElement Payload,string? ErrorCode=null,string? Error=null);
 public sealed class ManagementException(string code,string message):Exception(message){public string Code{get;}=code;}
 public static class ManagementJson{
     public static JsonSerializerOptions Options{get;}=new(JsonSerializerDefaults.Web){PropertyNameCaseInsensitive=true,MaxDepth=128};

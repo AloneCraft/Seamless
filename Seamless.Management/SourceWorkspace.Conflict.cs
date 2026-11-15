@@ -86,7 +86,7 @@ public sealed partial class SourceWorkspace{
         var definition=plan.Manager with{Source=source};
         this.Commit(this.State with{
             Current=this.Current with{Definition=definition},Synchronized=source,
-            UndoConflict=true,ResolvedConflictId=id
+            ResolvedConflictId=id
         },Writes(disk,source));
         this.RemoveResolvedConflict();
         return this.Current;

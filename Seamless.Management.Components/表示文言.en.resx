@@ -2403,26 +2403,6 @@
   <data name="公開文書の表示権限が変わりました。対象を選び直してください。" xml:space="preserve"><value>The permissions for this published document changed. Select its target again.</value></data>
   <data name="公開カタログの表示件数が上限を超えています。" xml:space="preserve"><value>The published catalog exceeds the display limit.</value></data>
   <data name="公開文書は公開版と成果物を確認して復元します。" xml:space="preserve"><value>Published documents are restored after verifying their version and artifact.</value></data>
-  <data name="表示用IDを下書きへ付与" xml:space="preserve"><value>Assign source identities to draft</value></data>
-  <data name="この接続先は表示用IDの付与に対応していません。" xml:space="preserve"><value>This server does not support source identity assignment.</value></data>
-  <data name="表示用IDの付与にはDBの参照・編集権限が必要です。" xml:space="preserve"><value>View and Edit permissions are required to assign source identities.</value></data>
-  <data name="入力中の編集を下書きへ反映してから、表示用IDを付与してください。入力内容は保持しています。" xml:space="preserve"><value>Finish the current edits in the draft before assigning identities. Your input is preserved.</value></data>
-  <data name="ID付与中に定義・公開版または入力状態が変わりました。現在の編集を保持したまま処理を中止しました。" xml:space="preserve"><value>The definition, published version, or editing state changed during assignment. The operation stopped and your current edits are preserved.</value></data>
-  <data name="{0}の表示用IDを下書きへ付与しています。" xml:space="preserve"><value>Assigning source identities to the draft for {0}.</value></data>
-  <data name="{0}の表示用IDを下書きへ反映しました。保存・変更確認・明示適用へ進んでください。" xml:space="preserve"><value>Source identities were added to the draft for {0}. Save the draft, review the changes, and publish explicitly.</value></data>
-  <data name="{0}の表示用IDは付与済みです。現在の下書きを継続します。" xml:space="preserve"><value>Source identities are already assigned for {0}. Continue working with the current draft.</value></data>
-  <data name="表示用IDは元宣言のマーカーです。IDの転用や別版との同一性には別途検証が必要です。" xml:space="preserve"><value>Source identities are declaration markers. Reassigned identifiers and identity across versions require additional verification.</value></data>
-  <data name="管理対象へ対応しないIDマーカーがあります。名前からの補完は行いません。" xml:space="preserve"><value>Some identity markers have no matching managed object. Their mapping requires an explicit declaration.</value></data>
-  <data name="複数の対象が同じ元宣言を共有しているため、一意の表示用IDを提供できません。" xml:space="preserve"><value>Multiple objects share the same declaration, so a unique source identity is unavailable.</value></data>
-  <data name="表示用IDの状態" xml:space="preserve"><value>Source identity status</value></data>
-  <data name="{0}の表示用ID" xml:space="preserve"><value>Source identities for {0}</value></data>
-  <data name="{0}件 · {1}" xml:space="preserve"><value>{0} identifiers · {1}</value></data>
-  <data name="名前変更をまたぐ文書復元への接続は準備中です。現在の復元条件は同じ版・成果物です。" xml:space="preserve"><value>Document restoration across renames is pending. Restoration currently requires the same version and artifact.</value></data>
-  <data name="同じ元宣言を複数のスキーマ・表で共有しているため、表示用IDを一意に付与できません。共有する宣言を分けてください。" xml:space="preserve"><value>The same declaration is shared by multiple schemas or tables. Separate those declarations before assigning unique identities.</value></data>
-  <data name="表示用IDの重複または件数超過があります。コピーした宣言には新しいIDを付与してください。" xml:space="preserve"><value>Source identities are duplicated or exceed the limit. Assign new identities to copied declarations.</value></data>
-  <data name="表示用IDマーカーの形式または配置が不正です。宣言直前のC#コメントを確認してください。" xml:space="preserve"><value>A source identity marker has an invalid format or position. Check the C# comment immediately before its declaration.</value></data>
-  <data name="同じ対象に複数の表示用IDがあります。C#のマーカーを確認してください。" xml:space="preserve"><value>The same object has multiple source identities. Check its C# markers.</value></data>
-  <data name="{0}に表示用IDを付与する対象がありません。スキーマまたはテーブルを定義してください。" xml:space="preserve"><value>Define a schema or table in {0} to assign source identities.</value></data>
   <data name="この対象に対応するFLinq展開計画がありません。定数を返す処理などは生成対象外です。対応するLINQ演算を含む場合は、ソース版とSDKでのビルド・取り込み・明示適用を確認してください。" xml:space="preserve">
     <value>No FLinq-expanded plan matches this target. Constant-returning code, for example, does not generate a plan. If the code contains supported LINQ operations, check the source version, SDK build, artifact import, and explicit publication.</value>
   </data>

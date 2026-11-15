@@ -18,73 +18,66 @@ using ServerService=Seamless.Management.Server.ManagementService;
 namespace Management.Tests;
 
 public sealed class ManagementTransport{
+    // 接続は1要求ごとに閉じる（2026-11-12 の決定で接続の再利用をやめた）。要求ごとに受信の枠を返し、認証も要求ごとに確かめる。
     [Theory][InlineData(false)][InlineData(true)]
-    public Task ReusableConnectionsReleaseRequestBytesAndCheckEveryRequest(bool pipe)=>WithServerCertificate(async certificate=>{
+    public Task EachConnectionServesOneRequestAndReleasesRequestBytes(bool pipe)=>WithServerCertificate(async certificate=>{
         const int limit=1024;
-        var root=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,"reusable-requests-"+Guid.NewGuid().ToString("N"));
+        var root=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,"single-requests-"+Guid.NewGuid().ToString("N"));
         using var store=ManagementStore.Initialize(root,"admin","TestPassword-123");
         using var service=new ServerService(store);
         await using var server=new Seamless.Management.Server.ManagementServer(service,certificate,new(IPAddress.Loopback,0),"admin",limit);
         server.Start();
         using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        await using var stream=pipe?await OpenPipeAsync(server.PipeName!,deadline.Token):await OpenTlsAsync(server.Port,certificate,deadline.Token);
 
-        // どちらも単独なら上限内だが、最初の枠を保持したままでは次を読めない。
-        var first=new RpcRequest(Guid.NewGuid(),"info",null,"",ManagementJson.Element(new string('a',600))){ReuseConnection=true};
-        var second=new RpcRequest(Guid.NewGuid(),"info",null,"",ManagementJson.Element(new string('b',600))){ReuseConnection=true};
-        foreach(var request in new[]{first,second}){
-            await ManagementWire.WriteAsync(stream,request,deadline.Token);
-            var response=await ManagementWire.ReadAsync<RpcResponse>(stream,deadline.Token);
-            Assert.Equal(request.Id,response.Id);
+        // どちらも単独なら上限内。1つ目の接続が閉じて枠を返してから、2つ目を読める。
+        foreach(var text in new[]{new string('a',600),new string('b',600)}){
+            var response=await Exchange("info",null,text);
             Assert.Equal("result",response.Kind);
-            Assert.Equal(15000,response.ReuseIdleMilliseconds);
             Assert.Equal(store.InstanceId,ManagementJson.Read<ServerInfo>(response.Payload).InstanceId);
         }
         while(server.BufferedRequestBytes!=0){await Task.Delay(10,deadline.Token);}
 
         if(pipe){
-            var identity=await Exchange("localIdentity",null,new{},false);
+            var identity=await Exchange("localIdentity",null,new{});
             Assert.Equal("admin",ManagementJson.Read<UserInfo>(identity.Payload).Name);
-            Assert.Null(identity.ReuseIdleMilliseconds);
         }else{
-            var login=await Exchange("login",null,new LoginRequest("admin","TestPassword-123"),true);
-            Assert.Equal(15000,login.ReuseIdleMilliseconds);
+            var login=await Exchange("login",null,new LoginRequest("admin","TestPassword-123"));
             var token=ManagementJson.Read<LoginResult>(login.Payload).Token;
-            var authenticated=await Exchange("users",token,new{},true);
+            var authenticated=await Exchange("users",token,new{});
             Assert.Equal("result",authenticated.Kind);
-            Assert.Equal(15000,authenticated.ReuseIdleMilliseconds);
-            var unauthenticated=await Exchange("users",null,new{},true);
+            var unauthenticated=await Exchange("users",null,new{});
             Assert.Equal("error",unauthenticated.Kind);
             Assert.Equal("Authentication",unauthenticated.ErrorCode);
-            Assert.Null(unauthenticated.ReuseIdleMilliseconds);
         }
-        Assert.Equal(0,await stream.ReadAsync(new byte[1],deadline.Token));
 
-        async Task<RpcResponse> Exchange(string operation,string? token,object payload,bool reuse){
-            var request=new RpcRequest(Guid.NewGuid(),operation,token,"",ManagementJson.Element(payload)){ReuseConnection=reuse};
+        async Task<RpcResponse> Exchange(string operation,string? token,object payload){
+            await using var stream=pipe?await OpenPipeAsync(server.PipeName!,deadline.Token):await OpenTlsAsync(server.Port,certificate,deadline.Token);
+            var request=new RpcRequest(Guid.NewGuid(),operation,token,"",ManagementJson.Element(payload));
             await ManagementWire.WriteAsync(stream,request,deadline.Token);
             var response=await ManagementWire.ReadAsync<RpcResponse>(stream,deadline.Token);
             Assert.Equal(request.Id,response.Id);
+            // 応答のあとでサーバーが接続を閉じる。
+            Assert.Equal(0,await stream.ReadAsync(new byte[1],deadline.Token));
             return response;
         }
     });
 
     [Fact]
-    public Task ReusableConnectionExpiresWhenNoNewRequestArrives()=>WithServerCertificate(async certificate=>{
-        var root=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,"reusable-deadline-"+Guid.NewGuid().ToString("N"));
+    public Task ConnectionClosesRightAfterTheResponse()=>WithServerCertificate(async certificate=>{
+        var root=Path.Combine(Environment.GetEnvironmentVariable("SEAMLESS_MANAGEMENT_TEST_ROOT")!,"single-close-"+Guid.NewGuid().ToString("N"));
         using var store=ManagementStore.Initialize(root,"admin","TestPassword-123");
         using var service=new ServerService(store);
         await using var server=new Seamless.Management.Server.ManagementServer(service,certificate,new(IPAddress.Loopback,0));
         var failed=0;
         server.ConnectionFailed+=_=>Interlocked.Increment(ref failed);
         server.Start();
-        using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(25));
+        // 以前の再利用の待ち時間（15秒）より十分短い期限で、閉じることを確かめる。
+        using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(5));
         await using var stream=await OpenTlsAsync(server.Port,certificate,deadline.Token);
-        var request=new RpcRequest(Guid.NewGuid(),"info",null,"",ManagementJson.Element(new{})){ReuseConnection=true};
+        var request=new RpcRequest(Guid.NewGuid(),"info",null,"",ManagementJson.Element(new{}));
         await ManagementWire.WriteAsync(stream,request,deadline.Token);
         var response=await ManagementWire.ReadAsync<RpcResponse>(stream,deadline.Token);
         Assert.Equal(request.Id,response.Id);
-        Assert.Equal(15000,response.ReuseIdleMilliseconds);
         Assert.Equal(0,await stream.ReadAsync(new byte[1],deadline.Token));
         Assert.Equal(0,Volatile.Read(ref failed));
         var client=new ManagementClient("localhost",server.Port,certificate);

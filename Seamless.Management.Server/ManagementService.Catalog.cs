@@ -9,7 +9,7 @@ public sealed partial class ManagementService{
             return new(items,page.NextCursor,page.HasMore,token);
         }
     }
-    public CatalogPage<CatalogSchema> Schemas(UserAccount user,CatalogRequest request)=>this.CatalogRead(user,request,(type,items,identities)=>Slice(NativeCatalog.Schemas(type).Concat(items.Select(item=>item.Details.Object.Schema)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Select(name=>new CatalogSchema(name){StableId=identities?.Schema(name),StableIdUnavailableReason=identities?.UnavailableReason("Schema",name)}),request.Cursor,this.CatalogToken(request.VersionToken)));
+    public CatalogPage<CatalogSchema> Schemas(UserAccount user,CatalogRequest request)=>this.CatalogRead(user,request,(type,items)=>Slice(NativeCatalog.Schemas(type).Concat(items.Select(item=>item.Details.Object.Schema)).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Select(name=>new CatalogSchema(name)),request.Cursor,this.CatalogToken(request.VersionToken)));
     public CatalogPage<DefinitionSummary> Queries(UserAccount user,CatalogRequest request){
         lock(this.store.Gate){
             var database=this.CatalogVersion(user,request.DatabaseId)??throw new ManagementException("InvalidRequest","利用者DBを指定してください。");
@@ -35,13 +35,10 @@ public sealed partial class ManagementService{
         if(version.Definition.Kind!=DefinitionKind.Database){throw new ManagementException("InvalidRequest","DB定義ではありません。");}return version;
     }
     private T CatalogRead<T>(UserAccount user,CatalogRequest request,Func<Type,IEnumerable<NativeCatalog.Item>,T> read){
-        return this.CatalogRead(user,request,(type,items,_)=>read(type,items));
-    }
-    private T CatalogRead<T>(UserAccount user,CatalogRequest request,Func<Type,IEnumerable<NativeCatalog.Item>,CatalogIdentities?,T> read){
         lock(this.store.Gate){user=this.CurrentActor(user);_=this.CatalogToken(request.VersionToken);var version=this.CatalogVersion(user,request.DatabaseId);
-            if(version is null){return read(this.store.SystemCatalogType,NativeCatalog.Read(this.store.SystemCatalogType,null),null);}
+            if(version is null){return read(this.store.SystemCatalogType,NativeCatalog.Read(this.store.SystemCatalogType,null));}
             using var compiled=this.runtime.ReadArtifact(version);var context=new ManagedLoadContext(imported:compiled.ImportedBuild);
-            try{using var stream=new MemoryStream(compiled.AssemblyBytes);var type=context.LoadFromStream(stream).GetType(version.Definition.EntryType,true)!;var identities=DatabaseDesigner.ReadStableIdentities(version.Definition);var items=NativeCatalog.Read(type,version,identities);if(!Can(user,version.Database,ManagementPermission.Edit)){items=items.Select(static item=>item with{Details=item.Details with{Source=item.Details.Source with{Path=null,Start=0,Length=0,Available=false,UnavailableReason="Permission"}}});}return read(type,items,identities);}
+            try{using var stream=new MemoryStream(compiled.AssemblyBytes);var type=context.LoadFromStream(stream).GetType(version.Definition.EntryType,true)!;var items=NativeCatalog.Read(type,version);if(!Can(user,version.Database,ManagementPermission.Edit)){items=items.Select(static item=>item with{Details=item.Details with{Source=item.Details.Source with{Path=null,Start=0,Length=0,Available=false,UnavailableReason="Permission"}}});}return read(type,items);}
             finally{context.Unload();}
         }
     }

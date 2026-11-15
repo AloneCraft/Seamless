@@ -16,15 +16,10 @@ internal static class NativeCatalog{
             }
         }finally{ancestors.Remove(type);}
     }
-    internal static IEnumerable<Item> Read(Type type,DefinitionVersion? version,CatalogIdentities? identities=null){
+    internal static IEnumerable<Item> Read(Type type,DefinitionVersion? version){
         CSharpCompilation? source=null;
         if(version is not null){source=CSharpCompilation.Create("CatalogSource",version.Definition.Source.Files.Select(file=>CSharpSyntaxTree.ParseText(file.Text,path:file.Path)),SourceEditor.PlatformReferences());}
-        identities??=version is null?null:DatabaseDesigner.ReadStableIdentities(version.Definition);
-        return Walk(type,"","",new HashSet<Type>(),source?.GetTypeByMetadataName(type.FullName!),version).Concat(Queries(type,source,version)).Select(item=>{
-            if(identities is null){return item;}
-            var details=item.Details;var id=details.Object.Id;
-            return item with{Details=details with{Object=details.Object with{StableId=identities.Object(id),StableIdUnavailableReason=identities.UnavailableReason("Object",id)},Columns=details.Columns.Select(column=>column with{StableId=identities.Column(id,column.Name),StableIdUnavailableReason=identities.UnavailableReason("Column",id,column.Name)}).ToArray(),KeyMembers=details.KeyMembers.Select(column=>column with{StableId=identities.Column(id,column.Name),StableIdUnavailableReason=identities.UnavailableReason("Column",id,column.Name)}).ToArray()}};
-        });
+        return Walk(type,"","",new HashSet<Type>(),source?.GetTypeByMetadataName(type.FullName!),version).Concat(Queries(type,source,version));
     }
     // ビュー・関数は、生成される入口(コンテナの入れ子の IReader、スキーマは I<スキーマ>Reader)への拡張メンバー。
     // 拡張メンバーは、受け手を先頭の引数にとる静的メソッド(プロパティは get_名前)として静的クラスへコンパイルされるので、その形から読む(呼び出さない)。
