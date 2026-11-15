@@ -10,7 +10,7 @@ public sealed class NativeRowEditingTests{
         using var store=ManagementStore.Initialize(root,"admin","TestPassword-123");
         using var service=new Seamless.Management.Server.ManagementService(store);
         var user=Admin(service);var definition=NativeWorkflow.Database();
-        definition=definition with{Source=definition.Source with{Files=definition.Source.Files.Select(file=>file with{Text=file.Text.Replace("public Table<Keys.Row,Records.Row> Rows=>","public Table<Keys.Row,Records.Row> Empty=>this.Table<Keys.Row,Records.Row>(row=>new(row.Id));public Table<Keys.Row,Records.Row> Rows=>")}).ToArray()}};
+        definition=definition with{Source=definition.Source with{Files=definition.Source.Files.Select(file=>file with{Text=file.Text.Replace("public Table<Keys.Row,Tables.Row> Rows=>","public Table<Keys.Row,Tables.Row> Empty=>this.Table<Keys.Row,Tables.Row>(row=>new(row.Id));public Table<Keys.Row,Tables.Row> Rows=>")}).ToArray()}};
         NativeWorkflow.Publish(service,user,definition);
         var empty=await service.ReadRowsAsync(user,new("Native","Rows"));
         Assert.Empty(empty.Rows);Assert.False(empty.HasMore);Assert.Null(empty.NextCursor);

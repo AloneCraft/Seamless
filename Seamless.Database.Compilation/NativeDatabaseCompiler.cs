@@ -130,9 +130,18 @@ public sealed class NativeDatabaseCompiler{
         private ISymbol?Symbol(SyntaxNode node)=>this.Model(node).GetSymbolInfo(node,cancellationToken).Symbol;
         public void Report(string name,Unsupported error)=>diagnostics.Add(new(error.Code,error.Message,NativeDiagnosticSeverity.Unsupported,name,Location(error.Node.GetLocation())));
 
+        // Tables と [Key] で書いた行の生成された Key(IRecord<キーの型> の Key)。それ以外の行では null。
+        private static IPropertySymbol? RecordKey(INamedTypeSymbol record){
+            var contract=record.AllInterfaces.FirstOrDefault(static item=>item.OriginalDefinition.ToDisplayString()=="Seamless.Collections.IRecord<TKey>");
+            if(contract is null){return null;}
+            return record.GetMembers("Key").OfType<IPropertySymbol>().FirstOrDefault(key=>!key.IsStatic&&SymbolEqualityComparer.Default.Equals(key.Type,contract.TypeArguments[0]));
+        }
+
         public void AddTable(IPropertySymbol property,INamedTypeSymbol tableType,string path){
             var record=(INamedTypeSymbol)tableType.TypeArguments[^1];
-            var columns=record.GetMembers().Where(m=>!m.IsStatic&&((m is IPropertySymbol p&&!p.IsIndexer&&p.DeclaredAccessibility==Accessibility.Public)||(m is IFieldSymbol f&&!f.IsImplicitlyDeclared&&f.DeclaredAccessibility==Accessibility.Public))).Select(m=>{
+            // [行のキー] Tables と [Key] で書いた行は、生成された Key(キーの型)を持つ。Key は列ではなく、キーの型の列(行の同じ名前の列)が主キー。
+            var recordKey=RecordKey(record);
+            var columns=record.GetMembers().Where(m=>!m.IsStatic&&!SymbolEqualityComparer.Default.Equals(m,recordKey)&&((m is IPropertySymbol p&&!p.IsIndexer&&p.DeclaredAccessibility==Accessibility.Public)||(m is IFieldSymbol f&&!f.IsImplicitlyDeclared&&f.DeclaredAccessibility==Accessibility.Public))).Select(m=>{
                 ITypeSymbol type;NullableAnnotation nullable;
                 if(m is IPropertySymbol p){type=p.Type;nullable=p.NullableAnnotation;}else{var f=(IFieldSymbol)m;type=f.Type;nullable=f.NullableAnnotation;}
                 var capacity=TextCapacity(type);
@@ -157,6 +166,15 @@ public sealed class NativeDatabaseCompiler{
                 var synthetic=false;
                 foreach(var part in parts){
                     if(part is not MemberAccessExpressionSyntax member||this.Symbol(member) is not{}symbol){throw new Unsupported("NATIVE_PRIMARY_KEY","Computed primary keys require an explicit SQL expression mapping.",part);}
+                    if(recordKey is not null&&SymbolEqualityComparer.Default.Equals(symbol,recordKey)){
+                        // 生成された表のプロパティの row=>row.Key。キーの型の列と同じ名前の行の列が主キー。
+                        foreach(var keyColumn in recordKey.Type.GetMembers().OfType<IPropertySymbol>().Where(static p=>!p.IsStatic&&p.DeclaredAccessibility==Accessibility.Public)){
+                            var column=record.GetMembers(keyColumn.Name).OfType<IPropertySymbol>().FirstOrDefault();
+                            if(column is null||!this.columns.TryGetValue(column,out var name)){throw new Unsupported("NATIVE_PRIMARY_KEY","The generated key column is not an exported column.",part);}
+                            keys.Add(name);
+                        }
+                        continue;
+                    }
                     if(this.columns.TryGetValue(symbol,out var key)){keys.Add(key);}
                     else if(symbol.GetAttributes().Any(a=>a.AttributeClass?.ToDisplayString()=="Seamless.Database.ImportedDatabaseColumnAttribute"&&a.NamedArguments.Any(v=>v.Key=="IsSynthetic"&&v.Value.Value is true))){synthetic=true;}
                     else{throw new Unsupported("NATIVE_PRIMARY_KEY","The key selector does not reference an exported column.",part);}

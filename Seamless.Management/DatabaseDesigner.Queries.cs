@@ -31,8 +31,10 @@ public static partial class DatabaseDesigner{
         var compilation=Compilation(definition);var container=Container(compilation,definition);
         var objects=new Dictionary<string,CatalogObject>(StringComparer.Ordinal);
         var ancestors=new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+        // [共存] 手書きの表のプロパティが使う行の型は、DB の生成器が表のプロパティを作らないので、宣言だけの表として数えない。
+        var handWritten=new HashSet<string>(StringComparer.Ordinal);
         Walk(container,"","");
-        foreach(var item in SourceStructure.Read(definition.Source).Objects.Where(item=>item.Root==container.ContainingNamespace.ToDisplayString()&&item.Kind!="Views")){
+        foreach(var item in SourceStructure.Read(definition.Source).Objects.Where(item=>item.Root==container.ContainingNamespace.ToDisplayString()&&item.Kind!="Views"&&!handWritten.Contains(item.Type))){
             var path=string.Join(".",new[]{item.Schema,item.Name}.Where(value=>value.Length>0));
             objects.TryAdd(path,new(path,item.Name,item.Schema,"Table",item.Type));
         }
@@ -55,6 +57,7 @@ public static partial class DatabaseDesigner{
                     var kind=type.Name switch{"Table"=>"Table","MaterializedView"=>"View",_=>null};
                     if(kind is null||type.TypeArguments.Length==0){continue;}
                     objects.Add(path,new(path,member.Name,schema,kind,TypeName(type.TypeArguments[^1])));
+                    if(kind=="Table"){handWritten.Add(type.TypeArguments[^1].ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));}
                 }
             }finally{ancestors.Remove(owner);}
         }

@@ -53,7 +53,12 @@ public sealed class SqlServerImportSource:global::Seamless.Database.IDatabaseImp
         if(!this.rowsReadByTable.TryAdd(table.ObjectName,0)) {
             throw new InvalidOperationException($"SQL Server table '{table.ObjectName}' was read more than once during one import.");
         }
-        var constructor=FindConstructor<TRecord>(table.Columns.Count);
+        // [行の作り方] 生成した行は、生成コンストラクターの列名の一覧から作る(キーの型とキー以外の列を受け取る)。手書きの行は列と同じ数の引数のコンストラクター。
+        var shape=global::Seamless.Database.GeneratedRecordShape.TryCreate(typeof(TRecord));
+        global::System.Reflection.ConstructorInfo? constructor=null;Type[] targetTypes;
+        var ordinals=table.Columns.Select(static(column,index)=>(column.PropertyName,index)).ToDictionary(static item=>item.PropertyName,static item=>item.index,StringComparer.Ordinal);
+        if(shape is null){constructor=FindConstructor<TRecord>(table.Columns.Count);targetTypes=constructor.GetParameters().Select(static parameter=>parameter.ParameterType).ToArray();}
+        else{targetTypes=table.Columns.Select(column=>typeof(TRecord).GetProperty(column.PropertyName)?.PropertyType??throw new InvalidOperationException($"Record type '{typeof(TRecord)}' has no column '{column.PropertyName}'.")).ToArray();}
         using var command=this.connection.CreateCommand();
         command.Transaction=this.transaction;
         command.CommandText=CreateSelect(
@@ -61,7 +66,6 @@ public sealed class SqlServerImportSource:global::Seamless.Database.IDatabaseImp
             this.memoryOptimizedTables.Contains((table.SourceSchema,table.SourceTable)),
             this.encryptedColumns);
         using var reader=command.ExecuteReader(CommandBehavior.SequentialAccess);
-        var parameters=constructor.GetParameters();
         var rowId=0L;
         while(reader.Read()) {
             var values=new object?[table.Columns.Count];
@@ -75,15 +79,17 @@ public sealed class SqlServerImportSource:global::Seamless.Database.IDatabaseImp
                 }
                 var value=reader.GetValue(readerIndex);
                 try {
-                    values[index]=ConvertValue(value,parameters[index].ParameterType);
+                    values[index]=ConvertValue(value,targetTypes[index]);
                 } catch(Exception exception) when(exception is InvalidCastException or FormatException or OverflowException) {
                     throw new InvalidOperationException(
                         $"SQL Server value '{table.SourceSchema}.{table.SourceTable}.{table.Columns[index].SourceName}' "
-                        +$"could not be converted from '{value.GetType()}' to '{parameters[index].ParameterType}'.",
+                        +$"could not be converted from '{value.GetType()}' to '{targetTypes[index]}'.",
                         exception);
                 }
             }
-            var record=(TRecord)constructor.Invoke(values);
+            TRecord record;
+            if(shape is null){record=(TRecord)constructor!.Invoke(values);}
+            else{record=(TRecord)shape.Create(name=>values[ordinals[name]]);}
             this.RowsRead++;
             this.rowsReadByTable[table.ObjectName]++;
             yield return record;

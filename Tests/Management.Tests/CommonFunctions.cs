@@ -52,7 +52,7 @@ public sealed class CommonFunctions{
     [Fact]public async Task RegisteredUpdatesDrainTheIteratorAndRollbackOnLimitFailureAndResponseBudget(){
         using var store=ManagementStore.Initialize(Root(),"admin","TestPassword-123");using var service=new Service(store,null,startAuditWorker:false);var owner=Owner();
         NativeWorkflow.Publish(service,owner,NativeWorkflow.Database());
-        NativeWorkflow.Publish(service,owner,Query("change","object?","var db=context.GetDatabase<Db>();db.Rows.Add(new Records.Row(id,id));if(mode==1){return new[]{1,2};}if(mode==2){throw new System.InvalidOperationException(\"rollback\");}if(mode==3){return new string('x',4*1024*1024);}return System.Array.Empty<int>();",true,",int id,int mode"));
+        NativeWorkflow.Publish(service,owner,Query("change","object?","var db=context.GetDatabase<Db>();db.Rows.Add(new Tables.Row(new(id),id));if(mode==1){return new[]{1,2};}if(mode==2){throw new System.InvalidOperationException(\"rollback\");}if(mode==3){return new string('x',4*1024*1024);}return System.Array.Empty<int>();",true,",int id,int mode"));
         NativeWorkflow.Publish(service,owner,Query("count","int","return context.GetDatabase<Db>().Rows.Count;"));
         var target=new FunctionTarget(FunctionOrigin.RegisteredEntry,"db:db","change","change");
         FunctionExecutionRequest Request(int id,int mode)=>new(target,[JsonSerializer.SerializeToElement(id),JsonSerializer.SerializeToElement(mode)],Limit:1){MeasurementMode=ObjectExecutionMeasurementMode.Summary};

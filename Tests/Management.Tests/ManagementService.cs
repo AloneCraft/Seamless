@@ -19,10 +19,9 @@ public sealed class ManagementService{
         namespace Sample{
         internal static partial class DatabaseGenerator;
         public sealed partial class Shop(DatabaseContainerOptions options):DatabaseContainer(options){
-            public Table<Keys.Item,Records.Item> Items=>this.Table<Keys.Item,Records.Item>(row=>new(row.Id));
+            public Table<Keys.Item,Tables.Item> Items=>this.Table<Keys.Item,Tables.Item>(row=>new(row.Id));
         }
-        namespace Keys{public partial struct Item{public partial int Id{get;}}}
-        namespace Records{public partial struct Item{public partial int Id{get;}public partial int Amount{get;}}}
+        namespace Tables{public partial struct Item{[Key] public partial int Id{get;}public partial int Amount{get;}}}
         }
         """)],[]));
     [Fact]public void SaveDraft(){

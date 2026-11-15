@@ -112,6 +112,13 @@ public static partial class DatabaseDesigner{
             if(lambda.Body is ImplicitObjectCreationExpressionSyntax implicitCreation){original=implicitCreation.ArgumentList;}else{original=((ObjectCreationExpressionSyntax)lambda.Body).ArgumentList!;}
             edits.Add((syntax.SyntaxTree.FilePath,original.SpanStart,original.Span.Length,arguments.ToString()));
         }
+        // キーの型を DB の生成器が作る表は、キーの選び方を row=>row.Key にそろえる(主キーの列は行の型の [Key] が決める)。
+        if(selected.Member is IPropertySymbol generatedKeyTable&&selected.Key is null&&baseline.Object.Kind=="Table"){
+            var syntax=generatedKeyTable.DeclaringSyntaxReferences.Single().GetSyntax();
+            if(syntax.DescendantNodes().OfType<SimpleLambdaExpressionSyntax>().SingleOrDefault() is{Body:ImplicitObjectCreationExpressionSyntax or ObjectCreationExpressionSyntax} lambda){
+                edits.Add((syntax.SyntaxTree.FilePath,lambda.Body.SpanStart,lambda.Body.Span.Length,lambda.Parameter.Identifier.Text+".Key"));
+            }
+        }
         var files=latest.Source.Files.Select(file=>{
             var text=file.Text;
             foreach(var edit in edits.Where(edit=>edit.Path==file.Path).OrderByDescending(edit=>edit.Start)){text=text.Remove(edit.Start,edit.Length).Insert(edit.Start,edit.Text);}
@@ -203,7 +210,8 @@ public static partial class DatabaseDesigner{
     private static bool ObjectKeyAttribute(AttributeSyntax attribute)=>attribute.Name.ToString().Split('.').Last() is "Key" or "KeyAttribute" or "PrimaryKey" or "PrimaryKeyAttribute";
     private static ColumnDesign[] ReadEditableColumns(INamedTypeSymbol? row,INamedTypeSymbol? key,bool table){
         if(row is null){return [];}
-        var keyNames=key?.GetMembers().OfType<IPropertySymbol>().Select(property=>property.Name).ToHashSet(StringComparer.Ordinal);
+        // キーの型が生成される型(設計器から解決できない)なら、行の型の [Key] から主キーを読む。
+        var keyNames=key is null||key.TypeKind==TypeKind.Error?null:key.GetMembers().OfType<IPropertySymbol>().Select(property=>property.Name).ToHashSet(StringComparer.Ordinal);
         var properties=row.GetMembers().OfType<IPropertySymbol>().Where(property=>!property.IsStatic&&!property.IsIndexer&&property.DeclaredAccessibility==Accessibility.Public&&property.Name!="Key").ToArray();
         var attributed=properties.Where(property=>property.DeclaringSyntaxReferences.Any(reference=>{
             var syntax=reference.GetSyntax();if(syntax is PropertyDeclarationSyntax declaration){return declaration.AttributeLists.SelectMany(list=>list.Attributes).Any(ObjectKeyAttribute);}if(syntax is ParameterSyntax parameter){return parameter.AttributeLists.SelectMany(list=>list.Attributes).Any(ObjectKeyAttribute);}return false;
@@ -232,7 +240,9 @@ public static partial class DatabaseDesigner{
             if(members.Length>1){throw new ManagementException("Unsupported","対象のオーバーロードを一意に選択できません。");}
             member=members.SingleOrDefault();
         }
-        if(member is IPropertySymbol property&&property.Type is INamedTypeSymbol table&&table.Name=="Table"&&table.TypeArguments.Length==2){key=table.TypeArguments[0] as INamedTypeSymbol;row=table.TypeArguments[1] as INamedTypeSymbol;}
+        if(member is IPropertySymbol property&&property.Type is INamedTypeSymbol table&&table.Name=="Table"&&table.TypeArguments.Length==2){
+            // キーの型が DB の生成器が作る型(設計器から解決できない)なら、主キーは行の型の [Key] で表すので、キーの型は編集の対象にしない。
+            key=table.TypeArguments[0] is INamedTypeSymbol{TypeKind:not TypeKind.Error} declaredKey?declaredKey:null;row=table.TypeArguments[1] as INamedTypeSymbol;}
         else{
             ITypeSymbol? result=null;if(member is IMethodSymbol method){result=method.ReturnType;}else if(member is IPropertySymbol view){result=view.Type;}
             if(result is INamedTypeSymbol named){row=named;if(named.IsGenericType&&named.TypeArguments.Length>0){row=named.TypeArguments[^1] as INamedTypeSymbol;}}

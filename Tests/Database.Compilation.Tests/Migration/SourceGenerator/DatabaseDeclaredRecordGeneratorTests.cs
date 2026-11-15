@@ -356,31 +356,6 @@ public sealed class DatabaseDeclaredRecordGeneratorTests{
     }
 
     [Fact,Trait("Category","Unit")]
-    public void LegacyOptimizedLayout_PreservesExistingNestedValueOrder(){
-        const string source="""
-            namespace Sample{
-                internal static class DatabaseGenerator{public const bool OptimizeFieldLayout=true;}
-                public static class Probe{public static bool Run()=>Records.Outer.LayoutIsCompatible();}
-            }
-            namespace Sample.Records{
-                public partial struct Inner{
-                    public partial long First{get;}
-                    public partial int Second{get;}
-                }
-                public partial struct Outer{
-                    public partial byte Head{get;}
-                    public partial long Tail{get;}
-                    public partial Inner Value{get;}
-                    public static bool LayoutIsCompatible()=>
-                        global::System.Runtime.InteropServices.Marshal.OffsetOf<F>("Tail").ToInt64()==0
-                        &&global::System.Runtime.InteropServices.Marshal.OffsetOf<F>("Value").ToInt64()==8;
-                }
-            }
-            """;
-        AssertRun(Generate(source));
-    }
-
-    [Fact,Trait("Category","Unit")]
     public void ScalarColumns_NormalizeConstructionAndInitIncludingAssignedKeys(){
         const string source="""
             namespace Sample{

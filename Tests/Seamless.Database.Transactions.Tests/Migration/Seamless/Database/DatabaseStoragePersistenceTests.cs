@@ -18,7 +18,7 @@ namespace Test.Seamless.Database {
             using(var database=new PersistenceDatabase(options)) {
                 using(var tx=database.BeginTransaction()) {
                     for(var index=0;index<5000;index++) {
-                        Assert.True(tx.Items.Add(new(index,index.ToString())));
+                        Assert.True(tx.Items.Add(new(new(index),index.ToString())));
                     }
                     tx.Commit();
                 }
@@ -32,8 +32,8 @@ namespace Test.Seamless.Database {
             using(var database=new PersistenceDatabase(options)) {
                 using var reader=database.BeginRead();
                 Assert.Equal(5000,reader.Items.Count);
-                Assert.Contains(new global::Test.Seamless.Database.Spec.Records.Item(0,0.ToString()),reader.Items);
-                Assert.Contains(new global::Test.Seamless.Database.Spec.Records.Item(4999,4999.ToString()),reader.Items);
+                Assert.Contains(new global::Test.Seamless.Database.Spec.Tables.Items(new(0),0.ToString()),reader.Items);
+                Assert.Contains(new global::Test.Seamless.Database.Spec.Tables.Items(new(4999),4999.ToString()),reader.Items);
                 Assert.Equal(2,reader.Rows.Count);
                 Assert.Equal(new PersistedRow(1,100),reader.Rows[new(1)]);
                 Assert.Equal(new PersistedRow(2,200),reader.Rows[new(2)]);
@@ -51,8 +51,8 @@ namespace Test.Seamless.Database.StoragePersistence {
 
     public sealed partial class PersistenceDatabase(global::Seamless.Database.DatabaseContainerOptions options)
         :global::Seamless.Database.DatabaseContainer(options) {
-        public global::Seamless.Database.Table<global::Test.Seamless.Database.Spec.Records.Item> Items=>
-            this.Table<global::Test.Seamless.Database.Spec.Records.Item>();
+        public global::Seamless.Database.Table<global::Test.Seamless.Database.Spec.Tables.Items> Items=>
+            this.Table<global::Test.Seamless.Database.Spec.Tables.Items>();
         public global::Seamless.Database.MaterializedView<PersistedKey,PersistedRow> Rows=>
             this.MaterializedView<PersistedKey,PersistedRow>(static row=>new(row.Id));
     }

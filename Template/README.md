@@ -43,21 +43,21 @@ dotnet ./Server/bin/Debug/net10.0/Seamless.Application.Server.dll --export-nativ
 
 ## プロパティ宣言とフィールド配置
 
-Schemaの`DatabaseGenerator.OptimizeFieldLayout=true`で、新しいスキーマの配置最適化を明示的に有効にします。未指定の既存スキーマは従来の配置を維持します。
+Schemaの`Tables`名前空間に、表の行を部分プロパティで宣言します。`[Seamless.Database.Key]`を付けた列がキーになり、キーの型`Keys.<表>`、コンストラクター、MemoryPackの読み書き、通信用の配置はDBの生成器が補完します。`Key`属性はクライアントからも届く`Seamless.Collections`にあるので、サーバーとクライアントが同じ行の型を使えます。
 
 ```csharp
-public partial struct Item{
-    public partial byte Kind{get;}
-    public partial long Id{get;}
-    public partial byte State{get;}
+namespace Seamless.Application.Schema.Tables{
+    public partial struct Item{
+        public partial byte Kind{get;}
+        [Seamless.Database.Key] public partial long Id{get;}
+        public partial byte State{get;}
+    }
 }
 ```
 
-生成器はprivateの`F`と`_F`を生成し、プロパティを`_F`の対応フィールドへ接続します。参照を含まない値と参照を含む型をまとめ、値側は推定サイズの大きいものから配置します。同じサイズの列の順は安定させます。`string`等だけでなく、参照を含む値型も参照側へ分類します。実際のABI、パディング、GC参照の配置はCLRが決めるため、最適性は測定対象です。
+行のコンストラクターは、先頭にキーの型を受け取り、残りはキー以外の列を宣言の順に受け取ります（`new Tables.Item(new(7),2,3)`）。生成器はキーを`_Key`に、キー以外の列を参照を含まない入れ物`S`と、参照・参照を含む値型の入れ物`C`に分けて持ちます。`S`は推定サイズの大きい列から並べ、同じサイズの列の順は安定させます。実際のABI、パディング、GC参照の配置はCLRが決めるため、最適性は測定対象です。
 
-プロパティ・コンストラクター引数と生成formatterの論理順は維持します。MemoryPackのunmanaged型の生メモリ経路は物理配置そのものを転送するため、並べ替えを通信・保存互換な変更とみなしません。固定された公開契約とサーバー専用の内部配置を分け、既存の保存領域へこのオプションを後付けするときは明示的な移行が必要です。
-
-この変更はTsavoriteの固定領域と可変領域を新たに分割するserializerの実装ではありません。現在のストアが選択するunmanaged/MemoryPackの経路を維持し、その入力になるレコードの生成フィールドを整理しています。
+直列化と通信用の配置は、宣言した列の順に1列ずつ書きます。並べ替えた物理配置は通信・保存の形に影響しません。
 
 ## 基本試験
 
@@ -68,9 +68,8 @@ public partial struct Item{
 作業領域とログには未使用のFドライブ配下を指定し、共通最大8CPUで実行します。元テンプレートと、独立したテンプレートhiveへ登録して別名で生成したソリューションのDebug/Releaseをビルドし、各Serverを`--self-test`で実行します。
 
 - 4プロジェクトの生成、名前・名前空間とProjectReferenceの対応。
-- partialプロパティ・コンストラクター、生成Fのフィールド順とサイズ（64bit環境でbyte/long/byteを24から16バイトへ）。
-- 最適化未指定時の従来配置、値・参照・参照を含む値型・Nullable・nullの往復。
-- 参照を含むレコードの生成formatterが論理順を維持すること。
+- partialプロパティ・コンストラクター、生成した入れ物`S`・`C`のフィールド順とサイズ（64bit環境でbyte/long/byteが16バイト）。
+- 値・参照・参照を含む値型・Nullable・nullの往復と、通信用の配置の事前検査。
 - メモリDB、FLinqを適用する処理、生成クライアントからLoopback上のNative v1サーバーへの実接続。
 - 通常ビルドのNativeパッケージ出力、実行中DBとの照合、パッケージからロードした生成モジュールによるRPC。
 - 公開メソッドの事前生成クライアントによる集約・更新。

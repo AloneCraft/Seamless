@@ -15,23 +15,6 @@ internal sealed partial class DatabaseSchemaGeneration{
             builder.AppendLine($"{indent}private readonly {group} _{group};");
         }
     }
-    private static string Field(IPropertySymbol property,int index,bool optimized){
-        if(optimized){return "_F.@"+property.Name;}
-        return "_value"+index;
-    }
-
-    private static void AppendFields(StringBuilder builder,ImmutableArray<IPropertySymbol> properties,string indent){
-        // 論理順・コンストラクター順・formatterの順は変えず、生成器所有の実体だけを並べ替える。
-        var fields=properties.Select((property,index)=>(Property:property,Index:index,Layout:Storage(property.Type,0)))
-            .OrderBy(static field=>field.Layout.References)
-            .ThenByDescending(static field=>field.Layout.Size)
-            .ThenBy(static field=>field.Index);
-        builder.AppendLine($"{indent}    [global::System.Runtime.InteropServices.StructLayout(global::System.Runtime.InteropServices.LayoutKind.Sequential)]");
-        builder.AppendLine($"{indent}    private struct F {{");
-        foreach(var field in fields){builder.AppendLine($"{indent}        public {TypeName(field.Property.Type)} @{field.Property.Name};");}
-        builder.AppendLine($"{indent}    }}");
-        builder.AppendLine($"{indent}    private F _F;");
-    }
 
     // 配置順の候補を決めるためのサイズ。実際のABI・GC配置とサイズはCLRが決める。
     // 不明な型をunmanagedと推測せず、参照を含む値型も参照グループへ置く。

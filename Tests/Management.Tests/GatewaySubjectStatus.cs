@@ -87,7 +87,7 @@ public sealed class GatewaySubjectStatus{
                     public IEnumerable<byte[]> Execute(string id, ReadOnlyMemory<byte> args, INativeQueryContext context) {
                         var db = (global::{{databaseType}})context.Database;
                         var key = MemoryPackSerializer.Deserialize<int>(args.Span);
-                        db.dbo.Rows.Add(new global::{{rowType}}(key));
+                        db.dbo.Rows.Add(new global::{{rowType}}(new(key)));
                         yield return MemoryPackSerializer.Serialize(key);
                     }
                 }

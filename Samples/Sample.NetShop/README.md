@@ -24,7 +24,7 @@ Seamless のライブラリを利用者の立場で1から使うサンプルア�
 |---|---|---|
 | 1. 開店準備 | 商品名の辞書・来店客の名簿(重複なし)・入荷の記録を作る。名簿はメモリ上限を超えた分がディスクへ退避する | `Store.CreateTemporary`、`CreateTsavorite`、`CreateTsavoriteHashSet`、`GetStatistics`、`CreatePersistedList` |
 | 2. 棚卸しと巻き戻し | 在庫表を保存し、うっかり消した後に保存時点へ戻す | `Store.Open`、`Save`、`Load()`、`Load(保存番号)` |
-| 3. 商店DBを開く | 表・ビュー・関数を C# で宣言した DB を開き、生成された目録を見る | `DatabaseContainer`、`Table`、`IReader` への拡張メンバー(ビュー・関数)、`BeginRead`、`DatabaseObjects` |
+| 3. 商店DBを開く | 表・表どうしの関係(外部キー)・ビュー・関数を C# で宣言した DB を開き、生成された目録を見る | `DatabaseContainer`、`Table`、`[ForeignKey]`、`IReader` への拡張メンバー(ビュー・関数)、`BeginRead`、`DatabaseObjects` |
 | 4. 注文を受ける | 注文を取引の中で確定する。在庫が足りなければ途中まで減らした在庫ごと取り消す | `StoredProcedure`、`BeginTransaction`、`Commit` |
 | 5. 繁忙期の大量注文 | メモリ上限つきで並べ替え・GroupBy・Join。全件 `ToList` は上限で止まり、`ToStorage` はディスクへ逐次保存できる | `ExecutionScope`、`Query`、`ToStorage` |
 | 6. FLinq で書き換える | 同じ LINQ を System.Linq と FLinq で比べる(結果一致・時間・確保メモリ) | `Seamless.FLinq.Generator`、`[LinqIntercept(false)]` |

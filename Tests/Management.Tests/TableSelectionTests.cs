@@ -110,7 +110,7 @@ public sealed class TableSelectionTests{
         live=Add(live,"Orders","Sales") with{Migration=null};
         var shared=live.Source.Files.Select(file=>{
             if(file.Path=="Schemas/Schema_Sales.cs"){
-                return file with{Text=file.Text.Replace("Keys.Sales_Orders","Keys.Sales_Customers").Replace("Records.Sales_Orders","Records.Sales_Customers")};
+                return file with{Text=file.Text.Replace("Keys.Sales_Orders","Keys.Sales_Customers").Replace("Tables.Sales_Orders","Tables.Sales_Customers")};
             }
             return file;
         }).ToArray();

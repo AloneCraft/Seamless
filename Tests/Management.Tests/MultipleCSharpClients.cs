@@ -16,9 +16,9 @@ public sealed class MultipleCSharpClients{
         using(var store=new ManagementStore(root))using(var service=new Seamless.Management.Server.ManagementService(store,null,startAuditWorker:false)){
             var user=service.Authenticate(service.Login(new("admin","ClientTestPassword-123")).Token);
             NativeWorkflow.Publish(service,user,NativeWorkflow.Database());
-            NativeWorkflow.Publish(service,user,Query("insert","int","context.GetDatabase<Db>().Rows.Add(new Records.Row(id,id*10));return context.GetDatabase<Db>().Rows.Count;",true));
+            NativeWorkflow.Publish(service,user,Query("insert","int","context.GetDatabase<Db>().Rows.Add(new Tables.Row(new(id),id*10));return context.GetDatabase<Db>().Rows.Count;",true));
             NativeWorkflow.Publish(service,user,Query("count","int","return context.GetDatabase<Db>().Rows.Count;",false));
-            NativeWorkflow.Publish(service,user,Query("disconnect","System.Collections.Generic.IEnumerable<string>","context.GetDatabase<Db>().Rows.Add(new Records.Row(id,id*10));for(var index=0;index<10000;index++){context.CancellationToken.ThrowIfCancellationRequested();yield return new string('x',32768);}",true));
+            NativeWorkflow.Publish(service,user,Query("disconnect","System.Collections.Generic.IEnumerable<string>","context.GetDatabase<Db>().Rows.Add(new Tables.Row(new(id),id*10));for(var index=0;index<10000;index++){context.CancellationToken.ThrowIfCancellationRequested();yield return new string('x',32768);}",true));
         }
         var options=new ManagementHostOptions(root,ManagementExecutionMode.Server){Certificate=Path.Combine(root,"server.pfx"),Defaults=new(){Port=0},ConcurrentCapacity=4};
         var children=new List<Child>();

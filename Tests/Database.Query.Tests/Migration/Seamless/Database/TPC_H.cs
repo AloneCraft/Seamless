@@ -30,14 +30,14 @@ namespace Test.Seamless.Database.TPC_H {
                 MemorySize=1L<<24,
             };
 
-        public global::Seamless.Database.Table<Records.region> regions => this.Table<Records.region>();
-        public global::Seamless.Database.Table<Records.nation> nations => this.Table<Records.nation>();
-        public global::Seamless.Database.Table<Records.supplier> suppliers => this.Table<Records.supplier>();
-        public global::Seamless.Database.Table<Records.customer> customers => this.Table<Records.customer>();
-        public global::Seamless.Database.Table<Records.part> parts => this.Table<Records.part>();
-        public global::Seamless.Database.Table<Records.partsupp> partsupps => this.Table<Records.partsupp>();
-        public global::Seamless.Database.Table<Records.orders> orders => this.Table<Records.orders>();
-        public global::Seamless.Database.Table<Records.lineitem> lineitems => this.Table<Records.lineitem>();
+        public global::Seamless.Database.Table<Rows.region> regions => this.Table<Rows.region>();
+        public global::Seamless.Database.Table<Rows.nation> nations => this.Table<Rows.nation>();
+        public global::Seamless.Database.Table<Rows.supplier> suppliers => this.Table<Rows.supplier>();
+        public global::Seamless.Database.Table<Rows.customer> customers => this.Table<Rows.customer>();
+        public global::Seamless.Database.Table<Rows.part> parts => this.Table<Rows.part>();
+        public global::Seamless.Database.Table<Rows.partsupp> partsupps => this.Table<Rows.partsupp>();
+        public global::Seamless.Database.Table<Rows.orders> orders => this.Table<Rows.orders>();
+        public global::Seamless.Database.Table<Rows.lineitem> lineitems => this.Table<Rows.lineitem>();
 
         public static string Row(int query,params object?[] values) =>
             $"Q{query:D2}|"+string.Join("|",values.Select(FormatValue));
@@ -480,17 +480,17 @@ namespace Test.Seamless.Database.TPC_H {
                 (4,"MIDDLE EAST"),
             };
             foreach(var region in regions) {
-                Add(static t=>t.regions,new Records.region(region.Item1,region.Item2,"tpch region"));
+                Add(static t=>t.regions,new Rows.region(region.Item1,region.Item2,"tpch region"));
             }
 
             var nations = Nations;
             foreach(var nation in nations) {
-                Add(static t=>t.nations,new Records.nation(nation.Key,nation.Name,nation.RegionKey,"tpch nation"));
+                Add(static t=>t.nations,new Rows.nation(nation.Key,nation.Name,nation.RegionKey,"tpch nation"));
             }
 
             for(var supplierKey = 1;supplierKey<=supplierCount;supplierKey++) {
                 var nationKey = nations[random.Next(nations.Length)].Key;
-                var item = new Records.supplier(
+                var item = new Rows.supplier(
                     supplierKey,
                     $"Supplier#{supplierKey:D9}",
                     BuildAddress(random),
@@ -503,7 +503,7 @@ namespace Test.Seamless.Database.TPC_H {
 
             for(var customerKey = 1;customerKey<=customerCount;customerKey++) {
                 var nationKey = nations[random.Next(nations.Length)].Key;
-                Add(static t=>t.customers,new Records.customer(
+                Add(static t=>t.customers,new Rows.customer(
                     customerKey,
                     $"Customer#{customerKey:D9}",
                     BuildAddress(random),
@@ -520,7 +520,7 @@ namespace Test.Seamless.Database.TPC_H {
                 var brand = $"Brand#{(partKey%55)+1:D2}";
                 var containerName = Containers[random.Next(Containers.Length)];
                 var type = PartTypes[random.Next(PartTypes.Length)];
-                Add(static t=>t.parts,new Records.part(
+                Add(static t=>t.parts,new Rows.part(
                     partKey,
                     partName,
                     $"Manufacturer#{(partKey%5)+1}",
@@ -538,7 +538,7 @@ namespace Test.Seamless.Database.TPC_H {
                         suppKey=suppKey==supplierCount ? 1 : suppKey+1;
                     }
                     suppKeys[slot]=suppKey;
-                    Add(static t=>t.partsupps,new Records.partsupp(
+                    Add(static t=>t.partsupps,new Rows.partsupp(
                         partKey,
                         suppKey,
                         random.Next(1,10000),
@@ -569,7 +569,7 @@ namespace Test.Seamless.Database.TPC_H {
                     }
 
                     total+=extendedPrice*(1m-discount)*(1m+tax);
-                    Add(static t=>t.lineitems,new Records.lineitem(
+                    Add(static t=>t.lineitems,new Rows.lineitem(
                         orderKey,
                         partKey,
                         suppKey,
@@ -589,7 +589,7 @@ namespace Test.Seamless.Database.TPC_H {
                 }
 
                 var orderStatus = orderKey%3==0 ? "F" : (orderKey%3==1 ? "O" : "P");
-                Add(static t=>t.orders,new Records.orders(
+                Add(static t=>t.orders,new Rows.orders(
                     orderKey,
                     customerKey,
                     orderStatus,
@@ -851,8 +851,8 @@ namespace Test.Seamless.Database.TPC_H {
 
         private sealed class RegionImportSource:global::Seamless.Database.IDatabaseImportSource {
             public IEnumerable<TRecord> ReadTable<TRecord>(global::Seamless.Database.System.Keys.DatabaseObject key) {
-                if(key.Name=="regions"&&typeof(TRecord)==typeof(Records.region)) {
-                    return (IEnumerable<TRecord>)(object)new[] { new Records.region(90,"TESTREGION","import"),new Records.region(91,"TESTREGION2","import") };
+                if(key.Name=="regions"&&typeof(TRecord)==typeof(Rows.region)) {
+                    return (IEnumerable<TRecord>)(object)new[] { new Rows.region(90,"TESTREGION","import"),new Rows.region(91,"TESTREGION2","import") };
                 }
                 return [];
             }
@@ -887,115 +887,27 @@ namespace Test.Seamless.Database.TPC_H {
             }
         }
     }
-    namespace Keys {
-        public partial struct region {
-            public partial int r_regionkey { get; }
-        }
-        public partial struct nation {
-            public partial int n_nationkey { get; }
-        }
-        public partial struct supplier {
-            public partial int s_suppkey { get; }
-        }
-        public partial struct customer {
-            public partial int c_custkey { get; }
-        }
-        public partial struct part {
-            public partial int p_partkey { get; }
-        }
-        public partial struct partsupp {
-            public partial int ps_partkey { get; }
-            public partial int ps_suppkey { get; }
-        }
-        public partial struct orders {
-            public partial int o_orderkey { get; }
-        }
-        public partial struct lineitem {
-            public partial int l_orderkey { get; }
-            public partial int l_linenumber { get; }
-        }
-    }
 
     // TPC-H クエリの動作を検証する。
     // source generator の生成コードを検証する。
-    namespace Records {
-        public partial struct region {
-            public partial int r_regionkey { get; }
-            public partial string r_name { get; }
-            public partial string r_comment { get; }
-        }
-        public partial struct nation {
-            public partial int n_nationkey { get; }
-            public partial string n_name { get; }
-            public partial int n_regionkey { get; }
-            public partial string n_comment { get; }
-        }
-        public partial struct supplier {
-            public partial int s_suppkey { get; }
-            public partial string s_name { get; }
-            public partial string s_address { get; }
-            public partial int s_nationkey { get; }
-            public partial string s_phone { get; }
-            public partial decimal s_acctbal { get; }
-            public partial string s_comment { get; }
-        }
-        public partial struct customer {
-            public partial int c_custkey { get; }
-            public partial string c_name { get; }
-            public partial string c_address { get; }
-            public partial int c_nationkey { get; }
-            public partial string c_phone { get; }
-            public partial decimal c_acctbal { get; }
-            public partial string c_mktsegment { get; }
-            public partial string c_comment { get; }
-        }
-        public partial struct part {
-            public partial int p_partkey { get; }
-            public partial string p_name { get; }
-            public partial string p_mfgr { get; }
-            public partial string p_brand { get; }
-            public partial string p_type { get; }
-            public partial int p_size { get; }
-            public partial string p_container { get; }
-            public partial decimal p_retailprice { get; }
-            public partial string p_comment { get; }
-        }
-        public partial struct partsupp {
-            public partial int ps_partkey { get; }
-            public partial int ps_suppkey { get; }
-            public partial int ps_availqty { get; }
-            public partial decimal ps_supplycost { get; }
-            public partial string ps_comment { get; }
-        }
-        public partial struct orders {
-            public partial int o_orderkey { get; }
-            public partial int o_custkey { get; }
-            public partial string o_orderstatus { get; }
-            public partial decimal o_totalprice { get; }
-            public partial int o_orderdate { get; }
-            public partial string o_orderpriority { get; }
-            public partial string o_clerk { get; }
-            public partial int o_shippriority { get; }
-            public partial string o_comment { get; }
-        }
-        public partial struct lineitem {
-            public partial int l_orderkey { get; }
-            public partial int l_partkey { get; }
-            public partial int l_suppkey { get; }
-            public partial int l_linenumber { get; }
-            public partial decimal l_quantity { get; }
-            public partial decimal l_extendedprice { get; }
-            public partial decimal l_discount { get; }
-            public partial decimal l_tax { get; }
-            public partial string l_returnflag { get; }
-            public partial string l_linestatus { get; }
-            public partial int l_shipdate { get; }
-            public partial int l_commitdate { get; }
-            public partial int l_receiptdate { get; }
-            public partial string l_shipinstruct { get; }
-            public partial string l_shipmode { get; }
-            public partial string l_comment { get; }
-        }
+    namespace Rows {
+        // 行の型。旧方式(Keys と Records の二重書き)の生成をやめ、MemoryPack の印を付けた位置引数のレコードで書く(列の順と名前は以前と同じ)。
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct region(int r_regionkey,string r_name,string r_comment);
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct nation(int n_nationkey,string n_name,int n_regionkey,string n_comment);
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct supplier(int s_suppkey,string s_name,string s_address,int s_nationkey,string s_phone,decimal s_acctbal,string s_comment);
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct customer(int c_custkey,string c_name,string c_address,int c_nationkey,string c_phone,decimal c_acctbal,string c_mktsegment,string c_comment);
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct part(int p_partkey,string p_name,string p_mfgr,string p_brand,string p_type,int p_size,string p_container,decimal p_retailprice,string p_comment);
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct partsupp(int ps_partkey,int ps_suppkey,int ps_availqty,decimal ps_supplycost,string ps_comment);
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct orders(int o_orderkey,int o_custkey,string o_orderstatus,decimal o_totalprice,int o_orderdate,string o_orderpriority,string o_clerk,int o_shippriority,string o_comment);
+        [global::MemoryPack.MemoryPackable]
+        public readonly partial record struct lineitem(int l_orderkey,int l_partkey,int l_suppkey,int l_linenumber,decimal l_quantity,decimal l_extendedprice,decimal l_discount,decimal l_tax,string l_returnflag,string l_linestatus,int l_shipdate,int l_commitdate,int l_receiptdate,string l_shipinstruct,string l_shipmode,string l_comment);
     }
 }
 

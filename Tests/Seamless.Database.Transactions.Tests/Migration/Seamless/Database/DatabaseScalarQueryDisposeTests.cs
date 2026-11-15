@@ -11,7 +11,7 @@ public sealed class DatabaseScalarQueryDisposeTests {
         try {
             using(var tx=database.BeginTransaction()) {
                 for(var id=1;id<=5;id++) {
-                    Assert.True(tx.Items.Add(new(id,id.ToString())));
+                    Assert.True(tx.Items.Add(new(new(id),id.ToString())));
                 }
                 tx.Commit();
             }
@@ -32,7 +32,7 @@ public sealed class DatabaseScalarQueryDisposeTests {
     public void Dispose_FromAnotherContext_AfterInterceptedSum_Returns() {
         var database=new ScalarQueryDatabase();
         using(var tx=database.BeginTransaction()) {
-            Assert.True(tx.Items.Add(new(1,"1")));
+            Assert.True(tx.Items.Add(new(new(1),"1")));
             tx.Commit();
         }
         Assert.Equal(1,database.SumIds());
@@ -59,8 +59,8 @@ internal static partial class DatabaseGenerator;
 
 internal sealed partial class ScalarQueryDatabase()
     :global::Seamless.Database.DatabaseContainer(global::Seamless.Database.DatabaseContainerOptions.InMemory with { IndexSize=1L<<8,MemorySize=1L<<20 }) {
-    public global::Seamless.Database.Table<global::Test.Seamless.Database.Spec.Records.Item> Items=>
-        this.Table<global::Test.Seamless.Database.Spec.Records.Item>();
+    public global::Seamless.Database.Table<global::Test.Seamless.Database.Spec.Tables.Items> Items=>
+        this.Table<global::Test.Seamless.Database.Spec.Tables.Items>();
 
     [global::Seamless.FLinq.LinqIntercept(true)]
     public int SumIds()=>this.Items.Sum(item=>item.Id);

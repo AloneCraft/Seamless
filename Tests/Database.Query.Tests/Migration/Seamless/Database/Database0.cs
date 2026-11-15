@@ -3,7 +3,7 @@ namespace Test.Seamless.Database.Database0 {
     internal static partial class DatabaseGenerator;
     /// <summary>
     ///  <see cref="Test.Seamless.Database.Database0.Container"/>
-    ///  <see cref="Test.Seamless.Database.Database0.Keys.Key0"/>
+    ///  <see cref="Test.Seamless.Database.Database0.Keys.Type0"/>
     ///  <see cref="Test.Seamless.Diagnostics.InterceptorSmokeTests.ListWhere_Interceptor_Smoke"/>
     /// </summary>
     public class Container {
@@ -194,48 +194,32 @@ namespace Test.Seamless.Database.Database0 {
                 .Where(value => value>=minimumColumn1);
         }
 
-        internal Records.Type0[] Type0Table => [new(1,10),new(2,20),new(3,30)];
+        internal Tables.Type0[] Type0Table => [new(new(1),10),new(new(2),20),new(new(3),30)];
 
-        private IEnumerable<Records.Type0> FilterType0(int minimumColumn1) =>
+        private IEnumerable<Tables.Type0> FilterType0(int minimumColumn1) =>
             from row in this.Type0Table
             where row.Column1>=minimumColumn1
             select row;
     }
 
-    namespace Keys {
-        public partial struct Key0 {
-            public partial int Column0 { get; }
-        }
-
-        public partial struct Key1 {
-            public partial int Column0 { get; }
-            public partial int Column1 { get; }
-        }
-
-        public partial struct Key2 {
-            public partial string Column0 { get; }
-            public partial int Column1 { get; }
-            public partial int Column2 { get; }
-        }
-    }
-
-    namespace Records {
+    // 行は Tables に宣言し、[Key] の列からキーの型(Keys.<型>)を生成する。
+    namespace Tables {
         public partial struct Type0 {
-            public partial int Column0 { get; }
+            [global::Seamless.Database.Key] public partial int Column0 { get; }
             public partial int Column1 { get; }
         }
 
         public partial struct Type1 {
-            public partial int Column0 { get; }
-            public partial int Column1 { get; }
+            [global::Seamless.Database.Key] public partial int Column0 { get; }
+            [global::Seamless.Database.Key] public partial int Column1 { get; }
             public partial int Column2 { get; }
             public partial int Column3 { get; }
         }
 
         public partial struct Type2 {
-            public partial string Column0 { get; }
-            public partial int Column1 { get; }
-            public partial int Column2 { get; }
+            [global::Seamless.Database.Key] public partial string Column0 { get; }
+            [global::Seamless.Database.Key] public partial int Column1 { get; }
+            [global::Seamless.Database.Key] public partial int Column2 { get; }
             public partial int Column3 { get; }
         }
     }

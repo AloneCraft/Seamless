@@ -20,31 +20,32 @@ public static partial class CSharpDatabaseGenerator {
         if(preserveSqlRows||executableViews){fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|"+preserveSqlRows+"|"+executableViews)));}
         if(runtimeSql){fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|RuntimeSqlV1")));}
         if(collectible){fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|CollectibleV1")));}
+        // [生成物の形] 行を Tables と [Key] で宣言する形(旧方式の Keys と Records の二重書きは廃止)。前の形の生成物を同じ指紋で使わない。
+        fingerprint=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fingerprint+"|DeclaredTablesV1")));
         var routines=new List<GeneratedRoutineBinding>();
         var files = new List<GeneratedSourceFile> {
             new($"{FileName(databaseName)}.cs",CreateDatabaseSource(databaseName,typeNamespace,fingerprint,schemas,executableViews,catalog.Name,routines,runtimeSql,collectible)),
         };
+        // [宣言の形] 表は Tables.<スキーマ> に [Key] 付きで書き、キーの型とコンテナの表のプロパティは DB の生成器が作る。
+        // ビューは、定義を LINQ へ訳せるまで取り込んだ時点の写しを表として出す(SQL Server へ直接問い合わせる実行用のビューは、行の型だけ Views.<スキーマ> に出す)。
+        // 関数・手続きの結果の行は Functions・Procedures に出す。
         foreach(var schema in schemas) {
             foreach(var table in schema.Tables) {
                 files.Add(new(
-                    $"Records/{FileName(schema.Name)}/{FileName(table.Name)}.cs",
-                    CreateRecordSource(typeNamespace,schema,table)));
-                files.Add(new(
-                    $"Keys/{FileName(schema.Name)}/{FileName(table.Name)}.cs",
-                    CreateKeySource(typeNamespace,schema,table)));
+                    $"Tables/{FileName(schema.Name)}/{FileName(table.Name)}.cs",
+                    CreateTableSource(typeNamespace,schema,table)));
             }
             foreach(var view in schema.Views) {
-                files.Add(new(
-                    $"Records/{FileName(schema.Name)}/{FileName(view.Name)}.cs",
-                    CreateRecordSource(typeNamespace,schema,view)));
-                files.Add(new(
-                    $"Keys/{FileName(schema.Name)}/{FileName(view.Name)}.cs",
-                    CreateKeySource(typeNamespace,schema,view)));
+                if(executableViews){
+                    files.Add(new($"Views/{FileName(schema.Name)}/{FileName(view.Name)}.cs",CreateViewRowSource(typeNamespace,schema,view)));
+                }else{
+                    files.Add(new($"Tables/{FileName(schema.Name)}/{FileName(view.Name)}.cs",CreateTableSource(typeNamespace,schema,view)));
+                }
             }
             foreach(var routine in schema.Routines.Where(static routine=>routine.Source.ResultColumns.Count>0)) {
                 files.Add(new(
-                    $"Records/{FileName(schema.Name)}/{FileName(routine.TypeName)}.cs",
-                    CreateRecordSource(typeNamespace,schema,routine)));
+                    $"{RoutineRowNamespace(routine)}/{FileName(routine.TypeName)}.cs",
+                    CreateRoutineRowSource(typeNamespace,routine)));
             }
         }
         var tables=schemas.SelectMany(schema=>
@@ -85,6 +86,11 @@ public static partial class CSharpDatabaseGenerator {
         var schemaScope = new CSharpIdentifierScope();
         schemaScope.Reserve(databaseName);
         var typeScope = new CSharpIdentifierScope();
+        // 関数は静的クラス Functions.<スキーマ> に出し、結果の行の型は Functions に出すので、行の型の名前にスキーマ名を使わない。
+        {
+            var reservedSchemas=new CSharpIdentifierScope();reservedSchemas.Reserve(databaseName);
+            foreach(var schema in catalog.Schemas.OrderBy(static value=>value.Name,StringComparer.Ordinal)){typeScope.Reserve(reservedSchemas.Get(schema.Name));}
+        }
         var schemas = new List<SchemaName>(catalog.Schemas.Count);
         foreach(var schema in catalog.Schemas.OrderBy(static value=>value.Name,StringComparer.Ordinal)) {
             var schemaName = schemaScope.Get(schema.Name);
@@ -96,6 +102,7 @@ public static partial class CSharpDatabaseGenerator {
                 var typeName=typeScope.Get(table.Name,$"{schema.Name}.{table.Name}");
                 var columnScope = new CSharpIdentifierScope();
                 columnScope.Reserve(tableName);
+                ReserveDeclaredMembers(columnScope);
                 var columns = table.Columns
                     .OrderBy(static value=>value.Ordinal)
                     .Select(column=>new ColumnName(column,columnScope.Get(column.Name)))
@@ -108,6 +115,7 @@ public static partial class CSharpDatabaseGenerator {
                 var typeName=typeScope.Get(view.Name,$"{schema.Name}.{view.Name}");
                 var columnScope=new CSharpIdentifierScope();
                 columnScope.Reserve(viewName);
+                ReserveDeclaredMembers(columnScope);
                 var columns=view.Columns
                     .OrderBy(static value=>value.Ordinal)
                     .Select(column=>new ColumnName(column,columnScope.Get(column.Name)))
@@ -170,18 +178,11 @@ public static partial class CSharpDatabaseGenerator {
         builder.AppendLine();
         builder.AppendLine($"namespace {typeNamespace}.Schemas {{");
         foreach(var schema in schemas) {
-            builder.AppendLine($"    public sealed class {schema.Name}(global::Seamless.Database.DatabaseContainer database):global::Seamless.Database.DatabaseSchema(database,\"{Escape(schema.Source.Name)}\") {{");
-            foreach(var table in schema.Tables) {
-                var keyArguments=string.Join(",",TableKeyColumns(table).Select(static column=>$"record.{column.Name}"));
-                builder.AppendLine($"        [global::Seamless.Database.ImportedDatabaseObject({Literal(schema.Source.Name)},{Literal(table.Source.Name)},{Literal(PreservedTableFeatures(table.Source))})]");
-                builder.AppendLine($"        public global::Seamless.Database.Table<global::{typeNamespace}.Keys.{table.TypeName},global::{typeNamespace}.Records.{table.TypeName}> {table.Name}=>this.Table<global::{typeNamespace}.Keys.{table.TypeName},global::{typeNamespace}.Records.{table.TypeName}>(static record=>new({keyArguments}));");
-            }
-            foreach(var view in schema.Views) {
-                var keyArguments=string.Join(",",ViewKeyColumns(view).Select(static column=>$"record.{column.Name}"));
-                if(executableViews){
-                    builder.AppendLine($"        public global::System.Collections.Generic.IEnumerable<global::{typeNamespace}.Records.{view.TypeName}> {view.Name}=>global::Seamless.Database.Rdbms.GeneratedSqlViewReader.Read<global::{typeNamespace}.Records.{view.TypeName}>(((global::{typeNamespace}.{databaseName})database).SqlViewRows,\"{Escape("["+schema.Source.Name.Replace("]","]]")+"].["+view.Source.Name.Replace("]","]]")+"]")}\");");
-                }else{
-                builder.AppendLine($"        public global::Seamless.Database.MaterializedView<global::{typeNamespace}.Keys.{view.TypeName},global::{typeNamespace}.Records.{view.TypeName}> {view.Name}=>this.MaterializedView<global::{typeNamespace}.Keys.{view.TypeName},global::{typeNamespace}.Records.{view.TypeName}>(static record=>new({keyArguments}));");
+            // [スキーマ/表] 表(とビューの写し)のプロパティは DB の生成器がこのクラスへ足すので partial にする。
+            builder.AppendLine($"    public sealed partial class {schema.Name}(global::Seamless.Database.DatabaseContainer database):global::Seamless.Database.DatabaseSchema(database,\"{Escape(schema.Source.Name)}\") {{");
+            if(executableViews){
+                foreach(var view in schema.Views) {
+                    builder.AppendLine($"        public global::System.Collections.Generic.IEnumerable<global::{typeNamespace}.Views.{schema.Name}.{view.Name}> {view.Name}=>global::Seamless.Database.Rdbms.GeneratedSqlViewReader.Read<global::{typeNamespace}.Views.{schema.Name}.{view.Name}>(((global::{typeNamespace}.{databaseName})database).SqlViewRows,\"{Escape("["+schema.Source.Name.Replace("]","]]")+"].["+view.Source.Name.Replace("]","]]")+"]")}\");");
                 }
             }
             foreach(var routine in schema.Routines.Where(static routine=>routine.Source.Kind==RoutineKind.StoredProcedure)) {
@@ -218,13 +219,30 @@ public static partial class CSharpDatabaseGenerator {
         return builder.ToString();
     }
 
-    private static string CreateRecordSource(string databaseName,SchemaName schema,TableName table) {
-        var builder = Header();
-        builder.AppendLine($"namespace {databaseName}.Records;");
+    // 行の型の生成器が作るメンバー。列の名前と重なると宣言のエラー(SDB003)になるので、列の名前を付け替える。
+    private static void ReserveDeclaredMembers(CSharpIdentifierScope scope){
+        foreach(var name in new[]{"Key","_Key","_C","_S","C","S","Create","__NormalizeScalars","__ReadColumns","Strategy","Equals","GetHashCode"}){scope.Reserve(name);}
+    }
+
+    private static string RoutineRowNamespace(RoutineName routine)=>routine.Source.Kind==RoutineKind.StoredProcedure?"Procedures":"Functions";
+
+    private static string CreateTableSource(string databaseName,SchemaName schema,TableName table)=>
+        CreateDeclaredTableSource(databaseName,schema,table.Name,table.Columns,table.Source.PrimaryKey is null?[]:TableKeyColumns(table),
+            $"[global::Seamless.Database.ImportedDatabaseObject({Literal(schema.Source.Name)},{Literal(table.Source.Name)},{Literal(PreservedTableFeatures(table.Source))})]",true);
+
+    // ビューの写し。キーはビューの一意キー(無ければすべての列)。
+    private static string CreateTableSource(string databaseName,SchemaName schema,ViewName view)=>
+        CreateDeclaredTableSource(databaseName,schema,view.Name,view.Columns,view.Source.UniqueKey is null?[]:ViewKeyColumns(view),null,false);
+
+    private static string CreateDeclaredTableSource(string databaseName,SchemaName schema,string name,IReadOnlyList<ColumnName> columns,IReadOnlyList<ColumnName> keys,string? objectAttribute,bool importedColumns){
+        var builder=Header();
+        builder.AppendLine($"namespace {databaseName}.Tables.{schema.Name};");
         builder.AppendLine();
-        builder.AppendLine($"public partial struct {table.TypeName} {{");
-        foreach(var column in table.Columns) {
-            builder.AppendLine($"    [global::Seamless.Database.ImportedDatabaseColumn({Literal(column.Source.Name)},{column.Source.Type.MaximumLength??-1},{Literal(column.Source.Type.SqlTypeName)},{Literal(column.Source.Type.Collation)},IsSynthetic={column.Source.IsSynthetic.ToString().ToLowerInvariant()})]");
+        if(objectAttribute is not null){builder.AppendLine(objectAttribute);}
+        builder.AppendLine($"public partial struct {name} {{");
+        foreach(var column in columns) {
+            if(keys.Contains(column)){builder.AppendLine("    [global::Seamless.Database.Key]");}
+            if(importedColumns){builder.AppendLine($"    [global::Seamless.Database.ImportedDatabaseColumn({Literal(column.Source.Name)},{column.Source.Type.MaximumLength??-1},{Literal(column.Source.Type.SqlTypeName)},{Literal(column.Source.Type.Collation)},IsSynthetic={column.Source.IsSynthetic.ToString().ToLowerInvariant()})]");}
             if(column.Source.ComputedDefinition is not null){builder.AppendLine($"    [global::Seamless.Database.ComputedColumn({column.Source.Ordinal})]");}
             builder.AppendLine($"    public partial {TypeName(column.Source.Type)} {column.Name} {{ get; }}");
         }
@@ -232,27 +250,18 @@ public static partial class CSharpDatabaseGenerator {
         return builder.ToString();
     }
 
-    private static string CreateRecordSource(string databaseName,SchemaName schema,ViewName view) {
-        var builder=Header();
-        builder.AppendLine($"namespace {databaseName}.Records;");
-        builder.AppendLine();
-        builder.AppendLine($"public partial struct {view.TypeName} {{");
-        foreach(var column in view.Columns) {
-            builder.AppendLine($"    public partial {TypeName(column.Source.Type)} {column.Name} {{ get; }}");
-        }
-        builder.AppendLine("}");
-        return builder.ToString();
-    }
+    // SQL Server へ直接問い合わせる実行用のビューの行。列の順に受け取るコンストラクターで作る(GeneratedSqlViewReader)。
+    private static string CreateViewRowSource(string databaseName,SchemaName schema,ViewName view)=>
+        CreateRowSource($"{databaseName}.Views.{schema.Name}",view.Name,view.Columns);
 
-    private static string CreateRecordSource(string databaseName,SchemaName schema,RoutineName routine) {
+    private static string CreateRoutineRowSource(string databaseName,RoutineName routine)=>
+        CreateRowSource($"{databaseName}.{RoutineRowNamespace(routine)}",routine.TypeName,routine.Columns);
+
+    private static string CreateRowSource(string namespaceName,string name,IReadOnlyList<ColumnName> columns){
         var builder=Header();
-        builder.AppendLine($"namespace {databaseName}.Records;");
+        builder.AppendLine($"namespace {namespaceName};");
         builder.AppendLine();
-        builder.AppendLine($"public partial struct {routine.TypeName} {{");
-        foreach(var column in routine.Columns) {
-            builder.AppendLine($"    public partial {TypeName(column.Source.Type)} {column.Name} {{ get; }}");
-        }
-        builder.AppendLine("}");
+        builder.AppendLine($"public readonly record struct {name}({string.Join(",",columns.Select(static column=>$"{TypeName(column.Source.Type)} {column.Name}"))});");
         return builder.ToString();
     }
 
@@ -267,7 +276,7 @@ public static partial class CSharpDatabaseGenerator {
                     throw new NotSupportedException($"Table function '{routine.Source.SchemaName}.{routine.Source.Name}' has no result columns.");
                 }
                 AppendFunctionMethod(builder,
-                    $"        public global::Seamless.Collections.ISet<global::{databaseName}.Records.{routine.TypeName}> {routine.Name}({parameters})",
+                    $"        public global::Seamless.Collections.ISet<global::{databaseName}.{RoutineRowNamespace(routine)}.{routine.TypeName}> {routine.Name}({parameters})",
                     $"throw new global::System.NotSupportedException({Literal($"Imported SQL Server table function '{routine.Source.SchemaName}.{routine.Source.Name}' requires relational-algebra execution.")});",
                     outputParameters);
                 break;
@@ -285,7 +294,7 @@ public static partial class CSharpDatabaseGenerator {
             case RoutineKind.StoredProcedure:
                 var resultType=routine.Columns.Count==0
                     ?"object?"
-                    :$"global::System.Collections.Generic.IReadOnlyList<global::{databaseName}.Records.{routine.TypeName}>";
+                    :$"global::System.Collections.Generic.IReadOnlyList<global::{databaseName}.{RoutineRowNamespace(routine)}.{routine.TypeName}>";
                 AppendRoutineMethod(builder,
                     $"        public global::Seamless.Database.StoredProcedure<{resultType}> {routine.Name}({parameters})",
                     $"this.StoredProcedure<{resultType}>(()=>throw new global::System.NotSupportedException({Literal($"Imported SQL Server stored procedure '{routine.Source.SchemaName}.{routine.Source.Name}' requires relational-algebra execution.")}))",
@@ -327,35 +336,11 @@ public static partial class CSharpDatabaseGenerator {
         builder.AppendLine("        }");
     }
 
-    private static string CreateKeySource(string databaseName,SchemaName schema,TableName table) {
-        var builder = Header();
-        builder.AppendLine($"namespace {databaseName}.Keys;");
-        builder.AppendLine();
-        builder.AppendLine($"public partial struct {table.TypeName} {{");
-        foreach(var column in TableKeyColumns(table)) {
-            builder.AppendLine($"    public partial {TypeName(column.Source.Type)} {column.Name} {{ get; }}");
-        }
-        builder.AppendLine("}");
-        return builder.ToString();
-    }
-
     private static IReadOnlyList<ColumnName> TableKeyColumns(TableName table)=>table.Source.PrimaryKey is null
         ?table.Columns
         :table.Source.PrimaryKey.Columns
             .Select(key=>table.Columns.Single(column=>column.Source.Name==key.Name))
             .ToArray();
-
-    private static string CreateKeySource(string databaseName,SchemaName schema,ViewName view) {
-        var builder=Header();
-        builder.AppendLine($"namespace {databaseName}.Keys;");
-        builder.AppendLine();
-        builder.AppendLine($"public partial struct {view.TypeName} {{");
-        foreach(var column in ViewKeyColumns(view)) {
-            builder.AppendLine($"    public partial {TypeName(column.Source.Type)} {column.Name} {{ get; }}");
-        }
-        builder.AppendLine("}");
-        return builder.ToString();
-    }
 
     private static IReadOnlyList<ColumnName> ViewKeyColumns(ViewName view)=>view.Source.UniqueKey is null
         ?view.Columns

@@ -280,6 +280,8 @@ public sealed partial class InProcessDatabaseAdapter:IDatabaseAdapter{
             var columns=new List<ColumnMetadata>();
             var propertyNames=new List<string>();
             foreach(var rp in properties){
+                // 生成した行の Key(キーの型そのもの)は列ではない。キーの列は行の型のプロパティとして別にある。
+                if(rp.Name=="Key"&&rp.PropertyType==keyType&&GeneratedRecordShape.IsDeclaredRecord(recordType)){continue;}
                 var bound=source?.Columns.FirstOrDefault(c=>c.PropertyName==rp.Name);
                 if(source is not null&&bound is null){continue;}
                 if(bound?.IsSynthetic==true){continue;}
@@ -359,6 +361,8 @@ public sealed partial class InProcessDatabaseAdapter:IDatabaseAdapter{
     private sealed partial class TableBinding{
         private readonly Func<DatabaseContainer,object> getTable;
         private readonly ConstructorInfo? constructor;
+        // 生成した行の作り方(キーの型を先に作る)。手書きの行など生成コンストラクターの無い型では null で、constructor を使う。
+        private readonly GeneratedRecordShape? shape;
         private readonly MethodInfo addMethod;
         private readonly MethodInfo? removeMethod;
         private readonly MethodInfo? replaceMethod;
@@ -367,6 +371,8 @@ public sealed partial class InProcessDatabaseAdapter:IDatabaseAdapter{
         private readonly PropertyInfo[]? keyProperties;
         private readonly PropertyInfo[] recordProperties;
         private readonly Func<object,object?>?[] computedStoredGetters;
+        // 生成した行で、計算列をキーにした列の番号(recordProperties の位置)。キーは _Key に保存した値で決まるので、行を作るときに計算して入れる。
+        private readonly int[] computedKeyColumns;
         private readonly Type? keyType;
         private readonly IReadOnlyList<string> propertyNames;
         private readonly Dictionary<string,(ColumnMetadata Column,SqlType Type)> assignmentColumns;
@@ -418,12 +424,29 @@ public sealed partial class InProcessDatabaseAdapter:IDatabaseAdapter{
                 this.keyConstructor=null;
             }
 
-            this.recordProperties=recordType.GetProperties(BindingFlags.Public|BindingFlags.Instance);
+            // [列の並び] SQL の列を先に、その後に SQL から見えない列(取込用の内部の行番号など)を並べる。
+            // 生成した行は作り方の列だけを足す(行の Key プロパティは列ではない)。手書きの行は残りの公開プロパティを足す。
+            this.shape=GeneratedRecordShape.TryCreate(recordType);
+            var ordered=new List<PropertyInfo>(columns.Count);
             for(var i=0;i<columns.Count;i++){
-                var p=recordType.GetProperty(propertyNames[i])??throw new InvalidOperationException($"Property {columns[i].Name} not found on {recordType.Name}");
-                this.recordProperties[i]=p;
+                ordered.Add(recordType.GetProperty(propertyNames[i])??throw new InvalidOperationException($"Property {columns[i].Name} not found on {recordType.Name}"));
             }
-            this.computedStoredGetters=new Func<object,object?>?[this.recordProperties.Length];for(var index=0;index<this.recordProperties.Length;index++){if(this.recordProperties[index].GetCustomAttribute<ComputedColumnAttribute>() is null){continue;}var field=recordType.GetField("_value"+index,BindingFlags.NonPublic|BindingFlags.Instance)??throw new InvalidDataException("A computed column has no canonical backing field.");var value=Expression.Parameter(typeof(object));this.computedStoredGetters[index]=Expression.Lambda<Func<object,object?>>(Expression.Convert(Expression.Field(Expression.Convert(value,recordType),field),typeof(object)),value).Compile();}
+            var extra=this.shape is not null
+                ?this.shape.Columns.Select(name=>recordType.GetProperty(name)??throw new InvalidDataException("The generated record has no property for the column: "+name))
+                :recordType.GetProperties(BindingFlags.Public|BindingFlags.Instance);
+            foreach(var member in extra){if(!ordered.Contains(member)){ordered.Add(member);}}
+            this.recordProperties=ordered.ToArray();
+            // [計算列] プロパティを読むと Gateway が登録した式で計算し直すので、保存した値は生成した行の入れ物から読む。
+            this.computedStoredGetters=new Func<object,object?>?[this.recordProperties.Length];
+            for(var index=0;index<this.recordProperties.Length;index++){
+                if(this.recordProperties[index].GetCustomAttribute<ComputedColumnAttribute>() is null){continue;}
+                if(this.shape is null){throw new InvalidDataException("A computed column requires a generated record.");}
+                var value=Expression.Parameter(typeof(object));
+                this.computedStoredGetters[index]=Expression.Lambda<Func<object,object?>>(Expression.Convert(this.shape.Stored(Expression.Convert(value,recordType),this.recordProperties[index].Name),typeof(object)),value).Compile();
+            }
+
+            var keyColumns=this.shape is{IsKeyed:true}?this.shape.KeyColumns.ToHashSet(StringComparer.Ordinal):[];
+            this.computedKeyColumns=global::System.Linq.Enumerable.Range(0,this.recordProperties.Length).Where(index=>this.computedStoredGetters[index] is not null&&keyColumns.Contains(this.recordProperties[index].Name)).ToArray();
 
             var ctors=recordType.GetConstructors(BindingFlags.Public|BindingFlags.Instance);
             ConstructorInfo? matchedCtor=null;
@@ -508,6 +531,7 @@ public sealed partial class InProcessDatabaseAdapter:IDatabaseAdapter{
                     args[i]=p.PropertyType.IsValueType?Activator.CreateInstance(p.PropertyType):null;
                 }
             }
+            if(this.shape is not null){return this.CreateFromColumns(args);}
             if(this.constructor is not null){return this.constructor.Invoke(args);}
             var instance=Activator.CreateInstance(this.RecordType)!;
             for(var i=0;i<this.recordProperties.Length;i++){if(this.recordProperties[i].CanWrite){this.recordProperties[i].SetValue(instance,args[i]);}}
@@ -524,10 +548,22 @@ public sealed partial class InProcessDatabaseAdapter:IDatabaseAdapter{
                     args[i]=this.computedStoredGetters[i] is{} stored?stored(existing):p.GetValue(existing);
                 }
             }
+            if(this.shape is not null){return this.CreateFromColumns(args);}
             if(this.constructor is not null){return this.constructor.Invoke(args);}
             var instance=Activator.CreateInstance(this.RecordType)!;
             for(var i=0;i<this.recordProperties.Length;i++){if(this.recordProperties[i].CanWrite){this.recordProperties[i].SetValue(instance,args[i]);}}
             return instance;
+        }
+
+        // 列の順(recordProperties)に並べた値から、生成した行の作り方で行を作る。
+        // 計算列をキーにした表は、仮の行でキーの列を計算し(プロパティを読むと登録した式で計算し直す)、その値をキーに入れて作り直す。
+        private object CreateFromColumns(object?[] args){
+            var ordinals=new Dictionary<string,int>(StringComparer.Ordinal);for(var index=0;index<this.recordProperties.Length;index++){ordinals[this.recordProperties[index].Name]=index;}
+            object Create()=>this.shape!.Create(name=>ordinals.TryGetValue(name,out var index)?args[index]:throw new InvalidDataException("The generated record column is not bound: "+name));
+            var record=Create();
+            if(this.computedKeyColumns.Length==0){return record;}
+            foreach(var index in this.computedKeyColumns){args[index]=this.recordProperties[index].GetValue(record);}
+            return Create();
         }
 
         private object CreateKeyFromRecord(object record){

@@ -7,20 +7,20 @@ namespace Test.Seamless.AdventureWorks2008R2;
 public static class AdventureWorksQueries {
     extension(AdventureWorks.IReader q) {
         // Sales.vActiveCustomer 相当: Store を持つ顧客だけを射影する。
-        public global::Seamless.Collections.ISet<Records.ActiveCustomer> ActiveCustomers=>
+        public global::Seamless.Collections.ISet<Rows.ActiveCustomer> ActiveCustomers=>
             q.Customers
                 .Where(customer => customer.StoreId.HasValue)
-                .Select(customer => new Records.ActiveCustomer(customer.CustomerId,customer.StoreId!.Value));
+                .Select(customer => new Rows.ActiveCustomer(customer.CustomerId,customer.StoreId!.Value));
 
         // Person.vStateProvinceCountryRegion 相当: join ビュー。
-        public global::Seamless.Collections.ISet<Records.StateProvinceCountryRegion> StateProvinceCountryRegions=>
+        public global::Seamless.Collections.ISet<Rows.StateProvinceCountryRegion> StateProvinceCountryRegions=>
             q.StateProvinces
-                .Join(q.CountryRegions,state => state.CountryRegionCode,region => region.CountryRegionCode,(state,region) => new Records.StateProvinceCountryRegion(state.StateProvinceId,state.Name,region.CountryRegionCode,region.Name));
+                .Join(q.CountryRegions,state => state.CountryRegionCode,region => region.CountryRegionCode,(state,region) => new Rows.StateProvinceCountryRegion(state.StateProvinceId,state.Name,region.CountryRegionCode,region.Name));
 
         // dbo.ufnOrdersByCustomer 相当: テーブル関数。
-        public global::Seamless.Collections.ISet<Records.SalesOrderSummary> OrdersByCustomer(int customerId)=>
+        public global::Seamless.Collections.ISet<Rows.SalesOrderSummary> OrdersByCustomer(int customerId)=>
             q.SalesOrderHeaders
                 .Where(order => order.CustomerId==customerId)
-                .Select(order => new Records.SalesOrderSummary(order.SalesOrderId,order.TotalDue));
+                .Select(order => new Rows.SalesOrderSummary(order.SalesOrderId,order.TotalDue));
     }
 }

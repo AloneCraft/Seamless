@@ -77,7 +77,7 @@ public sealed class ExecutionScope:IDisposable,IAsyncDisposable{
             if(this.directory is null){
                 this.directory=Path.Combine(Path.GetFullPath(this.options.TemporaryDirectory),"scope-"+Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(this.directory);
-                this.ownerLock=new FileStream(Path.Combine(this.directory,"owner.lock"),FileMode.CreateNew,FileAccess.ReadWrite,FileShare.None);
+                this.ownerLock=new FileStream(Path.Combine(this.directory,"owner.lock"),FileMode.CreateNew,FileAccess.ReadWrite,FileShare.Delete);
                 File.WriteAllText(Path.Combine(this.directory,"owner.json"),JsonSerializer.Serialize(new{Format="seamless-execution-v1",Id=Path.GetFileName(this.directory),ProcessId=Environment.ProcessId,CreatedAt=DateTimeOffset.UtcNow}));
             }
             var file=new TemporaryFile(this,Path.Combine(this.directory,Guid.NewGuid().ToString("N")+".tmp"));
@@ -100,8 +100,10 @@ public sealed class ExecutionScope:IDisposable,IAsyncDisposable{
                 var resource=this.resources.First();this.resources.Remove(resource);
                 try{resource.Dispose();}catch(Exception error){(errors??=[]).Add(error);}
             }
-            try{this.ownerLock?.Dispose();}catch(Exception error){(errors??=[]).Add(error);}
-            try{if(this.directory is not null){OwnedDirectory.Delete(this.directory);}}catch(Exception error){(errors??=[]).Add(error);}
+            try{
+                if(this.directory is not null&&this.ownerLock is not null){OwnedDirectory.Delete(this.directory,this.ownerLock);}
+                else if(this.directory is not null){OwnedDirectory.Delete(this.directory);}
+            }catch(Exception error){(errors??=[]).Add(error);}
             if(errors is not null){throw new AggregateException("Execution scope cleanup failed.",errors);}
         }
         }finally{this.parentOwner?.Release(this);}

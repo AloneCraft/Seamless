@@ -10,7 +10,8 @@ namespace Seamless.Management.Server;
 /// <summary>全表の最終形へ逐次変換し、取引の最終状態で制約を検査する。</summary>
 internal static partial class TypedMigration{
     internal sealed record CompiledMigration(byte[] Assembly,byte[] Symbols,string Source);
-    private sealed record TablePlan(DatabaseTableDeclaration Before,DatabaseTableDeclaration After,ConstructorInfo Constructor,string[] Values);
+    // Columns: 行を作るのに要る列の名前(生成した行は作り方の順、手書きの行はコンストラクターの引数の順)。Types・Values は同じ順の列の型と値の式。
+    private sealed record TablePlan(DatabaseTableDeclaration Before,DatabaseTableDeclaration After,string[] Columns,Type[] Types,string[] Values);
     private static (TablePlan[] Tables,string[] Changes) Plan(Type? before,Type after,MigrationDefinition? migration){
         if(migration is not null&&migration.Version!=1){throw new ManagementException("Unsupported","未対応の移行定義です。");}
         var previous=new Dictionary<string,DatabaseTableDeclaration>(StringComparer.Ordinal);if(before is not null){previous=DatabaseTableDeclaration.Read(before).ToDictionary(table=>table.Path,StringComparer.Ordinal);}
@@ -43,22 +44,38 @@ internal static partial class TypedMigration{
             }
             foreach(var field in oldFields.Keys.Where(name=>!used.Contains(name))){if(!removed.Contains(field)){throw new ManagementException("MigrationRequired","列の削除または名前変更を明示してください: "+source+"."+field);}changes.Add("データを削除: "+source+"."+field);}
             if(removed.Any(used.Contains)){throw new ManagementException("MigrationRequired","使用中の列を削除指定しています: "+source);}
-            var rowType=table.Property.PropertyType.GenericTypeArguments[^1];var constructor=rowType.GetConstructors().OrderByDescending(item=>item.GetParameters().Length).FirstOrDefault()??throw new ManagementException("MigrationRequired","公開された行コンストラクターが必要です。");
-            var parameters=constructor.GetParameters();var members=constructor.GetCustomAttribute<GeneratedRecordConstructorAttribute>()?.Members??parameters.Select(parameter=>parameter.Name??"").ToArray();
-            if(members.Count!=parameters.Length||members.Any(name=>!values.Keys.Any(field=>field.Equals(name,StringComparison.OrdinalIgnoreCase)))){throw new ManagementException("MigrationRequired","行コンストラクターと列の対応を指定してください: "+table.Path);}
-            var arguments=members.Select(name=>values.Single(pair=>pair.Key.Equals(name,StringComparison.OrdinalIgnoreCase)).Value).ToArray();plans.Add(new(old,table,constructor,arguments));
+            // [行の作り方] 生成した行は生成コンストラクターの列名の一覧に従う(キーの型を先に作る)。手書きの行は引数の最も多いコンストラクター。
+            var rowType=table.Property.PropertyType.GenericTypeArguments[^1];string[] members;Type[] types;
+            if(GeneratedRecordShape.TryCreate(rowType) is{} shape){members=shape.Columns.ToArray();types=members.Select(name=>newFields.TryGetValue(name,out var property)?property.PropertyType:throw new ManagementException("MigrationRequired","行コンストラクターと列の対応を指定してください: "+table.Path)).ToArray();}
+            else{
+                var parameters=(rowType.GetConstructors().OrderByDescending(item=>item.GetParameters().Length).FirstOrDefault()??throw new ManagementException("MigrationRequired","公開された行コンストラクターが必要です。")).GetParameters();
+                members=parameters.Select(parameter=>parameter.Name??"").ToArray();types=parameters.Select(parameter=>parameter.ParameterType).ToArray();
+            }
+            if(members.Any(name=>!values.Keys.Any(field=>field.Equals(name,StringComparison.OrdinalIgnoreCase)))){throw new ManagementException("MigrationRequired","行コンストラクターと列の対応を指定してください: "+table.Path);}
+            var arguments=members.Select(name=>values.Single(pair=>pair.Key.Equals(name,StringComparison.OrdinalIgnoreCase)).Value).ToArray();plans.Add(new(old,table,members,types,arguments));
         }
         foreach(var table in previous.Keys.Where(name=>!consumed.Contains(name))){if(!dropped.Contains(table)){throw new ManagementException("MigrationRequired","表の削除または名前変更を明示してください: "+table);}changes.Add("表のデータを削除: "+table);}
         return(plans.ToArray(),changes.ToArray());
     }
     internal static string[] Describe(Type? before,Type after,MigrationDefinition? migration=null)=>Plan(before,after,migration).Changes;
-    private static Dictionary<string,PropertyInfo> Fields(DatabaseTableDeclaration table)=>table.Property.PropertyType.GenericTypeArguments[^1].GetProperties(BindingFlags.Public|BindingFlags.Instance).Where(field=>field.GetIndexParameters().Length==0).ToDictionary(field=>field.Name,StringComparer.Ordinal);
+    // 生成した行の Key(キーの型そのもの)は列ではない。
+    private static Dictionary<string,PropertyInfo> Fields(DatabaseTableDeclaration table){
+        var rowType=table.Property.PropertyType.GenericTypeArguments[^1];
+        return rowType.GetProperties(BindingFlags.Public|BindingFlags.Instance).Where(field=>field.GetIndexParameters().Length==0&&!(field.Name=="Key"&&GeneratedRecordShape.IsDeclaredRecord(rowType))).ToDictionary(field=>field.Name,StringComparer.Ordinal);
+    }
+    // 移行先の行を作る式。生成した行はキーの型を先に作る(TablePlan.Columns はキーの列が先)。
+    private static string NewRow(TablePlan table){
+        var rowType=table.After.Property.PropertyType.GenericTypeArguments[^1];
+        if(GeneratedRecordShape.TryCreate(rowType) is not{IsKeyed:true} shape){return "new next::"+TypeName(rowType)+"("+string.Join(",",table.Values)+")";}
+        var keys=shape.KeyColumns.Count();var keyType=rowType.GetProperty("Key")!.PropertyType;
+        return "new next::"+TypeName(rowType)+"(new next::"+TypeName(keyType)+"("+string.Join(",",table.Values.Take(keys))+")"+string.Concat(table.Values.Skip(keys).Select(value=>","+value))+")";
+    }
     internal static CompiledMigration Compile(Type before,Type after,byte[] beforeBytes,byte[] afterBytes,MigrationDefinition? migration,CapturedSourceBuild? beforeBuild=null){
         var plan=Plan(before,after,migration);
         if(UseValueBridge(before,after,plan.Tables)){return CompileReader(before,after,beforeBytes,plan.Tables,beforeBuild);}
         var code=new StringBuilder("extern alias previous;extern alias next;public static class Migration{public static void Copy(object source,object target,global::System.Threading.CancellationToken cancellation,global::System.Action<string,long> checkpoint,global::Seamless.Database.DatabaseContainer.UnpublishedSnapshotBuilder snapshot){var before=(previous::").Append(TypeName(before)).Append(")source;var after=(next::").Append(TypeName(after)).Append(")target;long count=0;");
         foreach(var table in plan.Tables){
-            var value="new next::"+TypeName(table.After.Property.PropertyType.GenericTypeArguments[^1])+"("+string.Join(",",table.Values)+")";var target="after."+Access(table.After.Path);
+            var value=NewRow(table);var target="after."+Access(table.After.Path);
             code.Append("foreach(var row in before.").Append(Access(table.Before.Path)).Append("){cancellation.ThrowIfCancellationRequested();if(snapshot is not null){snapshot.Insert(").Append(target).Append(',').Append(value).Append(");}else if(!").Append(target).Append(".Add(").Append(value).Append(")){throw new global::System.InvalidOperationException(\"移行先のキーが重複します。\");}count++;checkpoint?.Invoke(").Append(SyntaxFactory.Literal(table.After.Path).Text).Append(",count);}");
         }
         code.Append("}}");var references=SourceEditor.PlatformReferences().ToList();references.Add(MetadataReference.CreateFromImage(beforeBytes,new MetadataReferenceProperties(aliases:["previous"])));references.Add(MetadataReference.CreateFromImage(afterBytes,new MetadataReferenceProperties(aliases:["next"])));

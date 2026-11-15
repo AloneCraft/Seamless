@@ -17,7 +17,7 @@ public sealed class ManagementAuditOperations{
         using(var service=new Seamless.Management.Server.ManagementService(store,null,startAuditWorker:false)){
             var user=service.Authenticate(service.Login(new("admin","TestPassword-123")).Token);
             var definition=NativeWorkflow.Database();
-            definition=definition with{Source=definition.Source with{Files=definition.Source.Files.Select(file=>file with{Text=file.Text.Replace("using Seamless.Database;","using Seamless.Database;using System.Linq;using Seamless.FLinq;").Replace("public Table<Keys.Row,Records.Row> Rows=>","public int Total()=>SumValues(this.Rows.Select(row=>row.Value).ToArray());[LinqIntercept(true)] private static int SumValues(int[] values)=>values.Where(value=>value>0).Select(value=>value*2).Sum();public Table<Keys.Row,Records.Row> Rows=>")}).ToArray()}};
+            definition=definition with{Source=definition.Source with{Files=definition.Source.Files.Select(file=>file with{Text=file.Text.Replace("using Seamless.Database;","using Seamless.Database;using System.Linq;using Seamless.FLinq;").Replace("public Table<Keys.Row,Tables.Row> Rows=>","public int Total()=>SumValues(this.Rows.Select(row=>row.Value).ToArray());[LinqIntercept(true)] private static int SumValues(int[] values)=>values.Where(value=>value>0).Select(value=>value*2).Sum();public Table<Keys.Row,Tables.Row> Rows=>")}).ToArray()}};
             using(var direct=new RuntimeCompiler().Compile(definition.Source)){
                 Assert.NotEmpty(direct.Result.Plans);
             }

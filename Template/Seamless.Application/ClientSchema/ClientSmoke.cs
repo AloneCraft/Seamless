@@ -1,6 +1,7 @@
 using MemoryPack;
 using Seamless.Database.Client;
-using Seamless.Application.Schema.Records;
+using Seamless.Application.Schema;
+using Seamless.Application.Schema.Tables;
 
 namespace Seamless.Application.ClientSchema;
 
@@ -32,19 +33,17 @@ public static class ClientSmoke{
             await transaction.CommitAsync();
         }
         if(await client.AggregateAsync(0)!=328){throw new InvalidOperationException("取引確定後の集約結果が一致しません。");}
-        var mixed=new NamedItem(2,"template",7,3);
+        var mixed=new NamedItem(new(7),2,"template",3);
         NativeWireValidation.Validate<NamedItem>(MemoryPackSerializer.Serialize(mixed));
         NativeWireValidation.Validate<NamedItem[]>(MemoryPackSerializer.Serialize(new[]{mixed}));
         var restored=MemoryPackSerializer.Deserialize<NamedItem>(MemoryPackSerializer.Serialize(mixed));
         if(restored.Name!=mixed.Name||restored.Id!=mixed.Id||restored.Kind!=mixed.Kind||restored.State!=mixed.State){throw new InvalidOperationException("参照を含むレコードの往復が一致しません。");}
-        var legacy=new Schema.Legacy.Records.NamedItem(mixed.Kind,mixed.Name,mixed.Id,mixed.State);
-        if(!MemoryPackSerializer.Serialize(mixed).AsSpan().SequenceEqual(MemoryPackSerializer.Serialize(legacy))){throw new InvalidOperationException("物理配置の変更で論理的なformatter順が変化しています。");}
-        foreach(var value in new[]{new MixedValue(new("nested"),2,7,42,"name"),new MixedValue(new(null),0,0,null,null)}){
+        foreach(var value in new[]{new MixedValue(new(7),new("nested"),2,42,"name"),new MixedValue(new(0),new(null),0,null,null)}){
             NativeWireValidation.Validate<MixedValue>(MemoryPackSerializer.Serialize(value));
             var result=MemoryPackSerializer.Deserialize<MixedValue>(MemoryPackSerializer.Serialize(value));
             if(result.Text!=value.Text||result.Kind!=value.Kind||result.Id!=value.Id||result.Optional!=value.Optional||result.Name!=value.Name){throw new InvalidOperationException("参照を含む値型・Nullable・nullの往復が一致しません。");}
         }
-        foreach(var value in new[]{new NullableText(new TextValue("nested")),new NullableText(null)}){
+        foreach(var value in new[]{new NullableText(new(1),new TextValue("nested")),new NullableText(new(2),null)}){
             var bytes=MemoryPackSerializer.Serialize(value);NativeWireValidation.Validate<NullableText>(bytes);
             if(MemoryPackSerializer.Deserialize<NullableText>(bytes).Value!=value.Value){throw new InvalidOperationException("参照を含むnullable値の往復が一致しません。");}
         }

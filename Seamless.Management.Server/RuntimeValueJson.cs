@@ -32,6 +32,12 @@ internal static class RuntimeValueJson{
         if(value.ValueKind==JsonValueKind.Object&&typeof(IDictionary).IsAssignableFrom(type)){var dictionary=(IDictionary)Activator.CreateInstance(type)!;var types=type.GenericTypeArguments;foreach(var item in value.EnumerateObject()){if(dictionary.Count>=10000){throw new ManagementException("Limit","引数辞書が大きすぎます。");}object key;if(types[0]==typeof(string)){key=item.Name;}else if(types[0]==typeof(Guid)){key=Guid.Parse(item.Name);}else if(types[0].IsEnum){key=Enum.Parse(types[0],item.Name);}else{key=Convert.ChangeType(item.Name,types[0],CultureInfo.InvariantCulture);}dictionary.Add(key,Deserialize(item.Value,types[1],depth+1));}return dictionary;}
         if(value.ValueKind!=JsonValueKind.Object){throw new ManagementException("Validation","オブジェクトの引数が必要です: "+type.Name);}
         var values=new Dictionary<string,JsonElement>(StringComparer.OrdinalIgnoreCase);foreach(var item in value.EnumerateObject()){if(!values.TryAdd(item.Name,item.Value)){throw new ManagementException("Validation","引数の列名が重複しています: "+item.Name);}}
+        // [生成した行] キーの型を先に作るので、列の名前と値から生成した作り方で作る(Key プロパティは列ではない)。
+        if(GeneratedRecordShape.TryCreate(type) is{IsKeyed:true} shape){
+            var created=shape.Create(column=>{var property=type.GetProperty(column)!;if(!values.Remove(Name(property),out var item)){throw new ManagementException("Validation","値が必要な列です: "+Name(property));}return Deserialize(item,property.PropertyType,depth+1);});
+            if(values.Count!=0){throw new ManagementException("Validation","不明または書き込めない列です: "+values.Keys.First());}
+            return created;
+        }
         var properties=type.GetProperties(BindingFlags.Public|BindingFlags.Instance).Where(property=>property.GetIndexParameters().Length==0).ToArray();var fields=type.GetFields(BindingFlags.Public|BindingFlags.Instance);var constructors=type.GetConstructors();var constructor=constructors.FirstOrDefault(item=>item.GetCustomAttribute<JsonConstructorAttribute>() is not null)??constructors.OrderByDescending(item=>item.GetParameters().Length).FirstOrDefault();var parameters=constructor?.GetParameters()??[];var arguments=new object?[parameters.Length];
         var constructorMembers=constructor?.GetCustomAttribute<GeneratedRecordConstructorAttribute>()?.Members;
         if(constructorMembers is not null&&constructorMembers.Count!=parameters.Length){throw new ManagementException("Validation","生成コンストラクターと列の対応が不正です。");}
@@ -70,6 +76,7 @@ internal static class RuntimeValueJson{
     }
     private static IEnumerable<MemberInfo> Members(Type type){
         foreach(var property in type.GetProperties(BindingFlags.Public|BindingFlags.Instance)){
+            if(property.Name=="Key"&&GeneratedRecordShape.IsDeclaredRecord(type)){continue;}
             if(property.GetMethod is not null&&property.GetIndexParameters().Length==0&&property.GetCustomAttribute<JsonIgnoreAttribute>()?.Condition!=JsonIgnoreCondition.Always){yield return property;}
         }
         foreach(var field in type.GetFields(BindingFlags.Public|BindingFlags.Instance)){

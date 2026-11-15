@@ -109,7 +109,9 @@ public static partial class DatabaseDesigner{
                 }
                 relations.Add(new(name,target,args[2].Values.Select(value=>(string)value.Value!).ToArray(),args[3].Values.Select(value=>(string)value.Value!).ToArray()));
             }
-            return new RelationTable(Fields(types[0],false),Fields(types[1],true),relations.ToArray(),invalid);
+            // 主キーの列は行の型の [Key] から読む(キーの型は DB の生成器が作るので、設計器からは見えない)。
+            var keyColumns=KeyColumns(types[1]).ToHashSet(StringComparer.Ordinal);
+            return new RelationTable(Fields(types[1],false).Where(pair=>keyColumns.Contains(pair.Key)).ToDictionary(StringComparer.Ordinal),Fields(types[1],true),relations.ToArray(),invalid);
         },StringComparer.Ordinal);
 
         static Dictionary<string,string> Fields(INamedTypeSymbol type,bool unwrapNullable){
